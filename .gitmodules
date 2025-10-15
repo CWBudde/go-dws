@@ -1,0 +1,3 @@
+[submodule "reference/dwscript-original"]
+	path = reference/dwscript-original
+	url = https://github.com/EricGrange/DWScript.git
