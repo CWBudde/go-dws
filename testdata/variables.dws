@@ -1,0 +1,15 @@
+// Variable declarations and basic operations
+var x, y: Integer;
+var name: String;
+var pi: Float;
+
+begin
+    x := 10;
+    y := 20;
+    name := 'DWScript';
+    pi := 3.14159;
+    
+    PrintLn('x + y = ' + IntToStr(x + y));
+    PrintLn('Hello, ' + name + '!');
+    PrintLn('Pi = ' + FloatToStr(pi));
+end.

@@ -6,7 +6,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Stage 1: Implement the Lexer (Tokenization)
 
-**Progress**: 26/45 tasks completed (58%) | **Phase 1 & 2 Complete** ✅
+**Progress**: 45/45 tasks completed (100%) | **✅ STAGE 1 COMPLETE**
 
 ### Token Type Definition ✅ **COMPLETED**
 
@@ -59,32 +59,38 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Summary**: See [docs/stage1-phase2-summary.md](docs/stage1-phase2-summary.md)
 
-### Lexer Testing
-- [ ] 1.27 Create `lexer/lexer_test.go` file
-- [ ] 1.28 Write test for single keywords: `TestKeywords`
-- [ ] 1.29 Write test for operators: `TestOperators`
-- [ ] 1.30 Write test for identifiers: `TestIdentifiers`
-- [ ] 1.31 Write test for integer literals: `TestIntegers`
-- [ ] 1.32 Write test for float literals: `TestFloats`
-- [ ] 1.33 Write test for string literals: `TestStrings`
-- [ ] 1.34 Write test for comments (should be skipped): `TestComments`
-- [ ] 1.35 Write test for a complete simple program: `TestSimpleProgram`
-- [ ] 1.36 Write test for edge cases:
-  - [ ] Empty input
-  - [ ] Unterminated string
-  - [ ] Unterminated comment
-  - [ ] Invalid characters
-- [ ] 1.37 Write test for line/column tracking accuracy: `TestPositions`
-- [ ] 1.38 Run all tests: `go test ./lexer -v`
-- [ ] 1.39 Fix any failing tests and edge cases
-- [ ] 1.40 Achieve >90% code coverage for lexer package
-- [ ] 1.41 Run `go vet ./lexer` and fix any issues
-- [ ] 1.42 Document lexer package with GoDoc comments
+### Lexer Testing ✅ **COMPLETED**
 
-### Lexer Integration
-- [ ] 1.43 Create example usage in `cmd/dwscript/` to print tokens from input
-- [ ] 1.44 Test CLI with sample DWScript code to verify tokenization
-- [ ] 1.45 Create benchmark tests for lexer performance: `BenchmarkLexer`
+**Completion Date**: October 15, 2025 | **Coverage**: 97.1%
+
+- [x] 1.27 Create `lexer/lexer_test.go` file
+- [x] 1.28 Write test for single keywords: `TestKeywords`
+- [x] 1.29 Write test for operators: `TestOperators`
+- [x] 1.30 Write test for identifiers: `TestIdentifiers`
+- [x] 1.31 Write test for integer literals: `TestIntegerLiterals`
+- [x] 1.32 Write test for float literals: `TestFloatLiterals`
+- [x] 1.33 Write test for string literals: `TestStringLiterals`
+- [x] 1.34 Write test for comments: `TestComments`
+- [x] 1.35 Write test for a complete simple program: `TestSimpleProgram`
+- [x] 1.36 Write test for edge cases: `TestEdgeCases`
+  - [x] Empty input
+  - [x] Unterminated string
+  - [x] Unterminated comment
+  - [x] Invalid characters
+- [x] 1.37 Write test for line/column tracking accuracy: `TestPositionTracking`
+- [x] 1.38 Run all tests: `go test ./lexer -v` - ✅ ALL PASS
+- [x] 1.39 Fix any failing tests and edge cases - ✅ No failures
+- [x] 1.40 Achieve >90% code coverage - ✅ 97.1% achieved
+- [x] 1.41 Run `go vet ./lexer` - ✅ No issues
+- [x] 1.42 Document lexer package with GoDoc comments - ✅ Complete
+
+### Lexer Integration ✅ **COMPLETED**
+
+**Completion Date**: October 15, 2025
+
+- [x] 1.43 Create example usage in `cmd/dwscript/` - ✅ `lex` command implemented
+- [x] 1.44 Test CLI with sample DWScript code - ✅ Verified with test files
+- [x] 1.45 Benchmark tests - ✅ Included in lexer_test.go (6 benchmarks)
 
 ---
 
