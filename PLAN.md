@@ -6,7 +6,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Stage 1: Implement the Lexer (Tokenization)
 
-**Progress**: 10/45 tasks completed (22%) | **Phase 1 Complete** ✅
+**Progress**: 26/45 tasks completed (58%) | **Phase 1 & 2 Complete** ✅
 
 ### Token Type Definition ✅ **COMPLETED**
 
@@ -25,32 +25,39 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Summary**: See [docs/stage1-phase1-summary.md](docs/stage1-phase1-summary.md)
 
-### Lexer Implementation
-- [ ] 1.11 Create `lexer/lexer.go` file
-- [ ] 1.12 Define `Lexer` struct with: input string, position, readPosition, line, column, ch (current character)
-- [ ] 1.13 Implement `New(input string) *Lexer` constructor
-- [ ] 1.14 Implement `readChar()` method to advance through input
-- [ ] 1.15 Implement `peekChar()` method to look ahead without advancing
-- [ ] 1.16 Implement `skipWhitespace()` method
-- [ ] 1.17 Implement comment handling:
-  - [ ] Handle `{ ... }` block comments
-  - [ ] Handle `(* ... *)` block comments
-  - [ ] Handle `//` line comments (if supported)
-- [ ] 1.18 Implement `readIdentifier()` method
-- [ ] 1.19 Implement `readNumber()` method:
-  - [ ] Support integers
-  - [ ] Support floating-point numbers
-  - [ ] Support hex literals (e.g., $FF) if DWScript supports them
-- [ ] 1.20 Implement `readString()` method:
-  - [ ] Handle single quotes (standard Pascal strings)
-  - [ ] Handle escape sequences (doubled quotes: `''` = single quote)
-  - [ ] Handle multi-line strings if supported
-- [ ] 1.21 Implement `NextToken()` method with main switch/case logic
-- [ ] 1.22 Handle all single-character tokens (+, -, *, /, etc.)
-- [ ] 1.23 Handle multi-character operators (:=, <=, >=, <>, etc.)
-- [ ] 1.24 Implement operator lookahead logic
-- [ ] 1.25 Handle identifier vs keyword distinction using keyword map
-- [ ] 1.26 Add proper line and column tracking throughout
+### Lexer Implementation ✅ **COMPLETED**
+
+**Completion Date**: October 15, 2025 | **Coverage**: 97.1%
+
+- [x] 1.11 Create `lexer/lexer.go` file
+- [x] 1.12 Define `Lexer` struct with: input string, position, readPosition, line, column, ch (current character)
+- [x] 1.13 Implement `New(input string) *Lexer` constructor
+- [x] 1.14 Implement `readChar()` method to advance through input
+- [x] 1.15 Implement `peekChar()` method to look ahead without advancing
+- [x] 1.16 Implement `skipWhitespace()` method
+- [x] 1.17 Implement comment handling:
+  - [x] Handle `{ ... }` block comments
+  - [x] Handle `(* ... *)` block comments
+  - [x] Handle `//` line comments
+- [x] 1.18 Implement `readIdentifier()` method
+- [x] 1.19 Implement `readNumber()` method:
+  - [x] Support integers
+  - [x] Support floating-point numbers
+  - [x] Support hex literals ($FF, 0xFF)
+  - [x] Support binary literals (%1010)
+- [x] 1.20 Implement `readString()` method:
+  - [x] Handle single quotes (standard Pascal strings)
+  - [x] Handle double quotes
+  - [x] Handle escape sequences (doubled quotes: `''` = single quote)
+  - [x] Handle multi-line strings
+- [x] 1.21 Implement `NextToken()` method with main switch/case logic
+- [x] 1.22 Handle all single-character tokens (+, -, *, /, etc.)
+- [x] 1.23 Handle multi-character operators (:=, <=, >=, <>, etc.)
+- [x] 1.24 Implement operator lookahead logic
+- [x] 1.25 Handle identifier vs keyword distinction using keyword map
+- [x] 1.26 Add proper line and column tracking throughout
+
+**Summary**: See [docs/stage1-phase2-summary.md](docs/stage1-phase2-summary.md)
 
 ### Lexer Testing
 - [ ] 1.27 Create `lexer/lexer_test.go` file
