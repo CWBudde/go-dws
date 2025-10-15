@@ -6,17 +6,24 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Stage 1: Implement the Lexer (Tokenization)
 
-### Token Type Definition
-- [ ] 1.1 Create `lexer/token.go` file
-- [ ] 1.2 Define `TokenType` as an integer enum (or string constants)
-- [ ] 1.3 Enumerate all DWScript keywords (begin, end, if, then, else, while, do, for, to, downto, repeat, until, var, const, function, procedure, class, etc.)
-- [ ] 1.4 Enumerate all operators (+, -, *, /, div, mod, :=, =, <>, <, >, <=, >=, and, or, not, etc.)
-- [ ] 1.5 Enumerate all delimiters/punctuation (;, ,, ., :, (, ), [, ], {, })
-- [ ] 1.6 Define literal token types (INTEGER, FLOAT, STRING, TRUE, FALSE, NIL)
-- [ ] 1.7 Define special tokens (IDENT, COMMENT, EOF, ILLEGAL)
-- [ ] 1.8 Create `Token` struct with fields: Type, Literal, Line, Column
-- [ ] 1.9 Create a keyword map: `map[string]TokenType` for reserved words
-- [ ] 1.10 Add `String()` methods for `TokenType` and `Token` for debugging
+**Progress**: 10/45 tasks completed (22%) | **Phase 1 Complete** ✅
+
+### Token Type Definition ✅ **COMPLETED**
+
+**Completion Date**: October 15, 2025 | **Commit**: 2ac3470 | **Coverage**: 95.5%
+
+- [x] 1.1 Create `lexer/token_type.go` and `lexer/token.go` files
+- [x] 1.2 Define `TokenType` as an integer enum using iota
+- [x] 1.3 Enumerate all 100+ DWScript keywords (begin, end, if, class, function, etc.)
+- [x] 1.4 Enumerate all 40+ operators (+, -, *, /, :=, =, <>, ++, -=, etc.)
+- [x] 1.5 Enumerate all delimiters/punctuation (;, ,, ., :, (, ), [, ], {, }, ..)
+- [x] 1.6 Define literal token types (INT, FLOAT, STRING, CHAR, IDENT)
+- [x] 1.7 Define special tokens (ILLEGAL, EOF, COMMENT, SWITCH, TRUE, FALSE, NIL)
+- [x] 1.8 Create `Token` struct with fields: Type, Literal, Position (Line, Column, Offset)
+- [x] 1.9 Create keyword map with case-insensitive lookup (150+ tokens total)
+- [x] 1.10 Add `String()` methods and predicates (IsLiteral, IsKeyword, IsOperator, IsDelimiter)
+
+**Summary**: See [docs/stage1-phase1-summary.md](docs/stage1-phase1-summary.md)
 
 ### Lexer Implementation
 - [ ] 1.11 Create `lexer/lexer.go` file
