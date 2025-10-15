@@ -1,0 +1,500 @@
+package ast
+
+import (
+	"testing"
+
+	"github.com/cwbudde/go-dws/lexer"
+)
+
+// TestProgram tests the Program node.
+func TestProgram(t *testing.T) {
+	// Empty program
+	prog := &Program{Statements: []Statement{}}
+	if prog.TokenLiteral() != "" {
+		t.Errorf("empty program TokenLiteral() = %q, want empty string", prog.TokenLiteral())
+	}
+	if prog.String() != "" {
+		t.Errorf("empty program String() = %q, want empty string", prog.String())
+	}
+
+	// Program with statements
+	prog = &Program{
+		Statements: []Statement{
+			&ExpressionStatement{
+				Token: lexer.Token{Type: lexer.INT, Literal: "42"},
+				Expression: &IntegerLiteral{
+					Token: lexer.Token{Type: lexer.INT, Literal: "42"},
+					Value: 42,
+				},
+			},
+		},
+	}
+	if prog.TokenLiteral() != "42" {
+		t.Errorf("program TokenLiteral() = %q, want %q", prog.TokenLiteral(), "42")
+	}
+	if prog.String() != "42" {
+		t.Errorf("program String() = %q, want %q", prog.String(), "42")
+	}
+}
+
+// TestIdentifier tests the Identifier node.
+func TestIdentifier(t *testing.T) {
+	ident := &Identifier{
+		Token: lexer.Token{Type: lexer.IDENT, Literal: "myVar"},
+		Value: "myVar",
+	}
+
+	if ident.TokenLiteral() != "myVar" {
+		t.Errorf("TokenLiteral() = %q, want %q", ident.TokenLiteral(), "myVar")
+	}
+	if ident.String() != "myVar" {
+		t.Errorf("String() = %q, want %q", ident.String(), "myVar")
+	}
+}
+
+// TestIntegerLiteral tests the IntegerLiteral node.
+func TestIntegerLiteral(t *testing.T) {
+	tests := []struct {
+		literal string
+		value   int64
+	}{
+		{"0", 0},
+		{"42", 42},
+		{"-5", -5},
+		{"1000", 1000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.literal, func(t *testing.T) {
+			node := &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: tt.literal},
+				Value: tt.value,
+			}
+
+			if node.TokenLiteral() != tt.literal {
+				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), tt.literal)
+			}
+			if node.String() != tt.literal {
+				t.Errorf("String() = %q, want %q", node.String(), tt.literal)
+			}
+		})
+	}
+}
+
+// TestFloatLiteral tests the FloatLiteral node.
+func TestFloatLiteral(t *testing.T) {
+	tests := []struct {
+		literal string
+		value   float64
+	}{
+		{"0.0", 0.0},
+		{"3.14", 3.14},
+		{"2.5", 2.5},
+		{"1.0e10", 1.0e10},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.literal, func(t *testing.T) {
+			node := &FloatLiteral{
+				Token: lexer.Token{Type: lexer.FLOAT, Literal: tt.literal},
+				Value: tt.value,
+			}
+
+			if node.TokenLiteral() != tt.literal {
+				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), tt.literal)
+			}
+			if node.String() != tt.literal {
+				t.Errorf("String() = %q, want %q", node.String(), tt.literal)
+			}
+		})
+	}
+}
+
+// TestStringLiteral tests the StringLiteral node.
+func TestStringLiteral(t *testing.T) {
+	tests := []struct {
+		name    string
+		literal string
+		value   string
+		want    string
+	}{
+		{"simple", "'hello'", "hello", "\"hello\""},
+		{"empty", "''", "", "\"\""},
+		{"with spaces", "'hello world'", "hello world", "\"hello world\""},
+		{"escaped", "'it''s'", "it's", "\"it's\""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &StringLiteral{
+				Token: lexer.Token{Type: lexer.STRING, Literal: tt.literal},
+				Value: tt.value,
+			}
+
+			if node.TokenLiteral() != tt.literal {
+				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), tt.literal)
+			}
+			if node.String() != tt.want {
+				t.Errorf("String() = %q, want %q", node.String(), tt.want)
+			}
+		})
+	}
+}
+
+// TestBooleanLiteral tests the BooleanLiteral node.
+func TestBooleanLiteral(t *testing.T) {
+	tests := []struct {
+		literal string
+		value   bool
+	}{
+		{"true", true},
+		{"false", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.literal, func(t *testing.T) {
+			node := &BooleanLiteral{
+				Token: lexer.Token{Type: lexer.TRUE, Literal: tt.literal},
+				Value: tt.value,
+			}
+
+			if node.TokenLiteral() != tt.literal {
+				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), tt.literal)
+			}
+			if node.String() != tt.literal {
+				t.Errorf("String() = %q, want %q", node.String(), tt.literal)
+			}
+		})
+	}
+}
+
+// TestNilLiteral tests the NilLiteral node.
+func TestNilLiteral(t *testing.T) {
+	node := &NilLiteral{
+		Token: lexer.Token{Type: lexer.NIL, Literal: "nil"},
+	}
+
+	if node.TokenLiteral() != "nil" {
+		t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), "nil")
+	}
+	if node.String() != "nil" {
+		t.Errorf("String() = %q, want %q", node.String(), "nil")
+	}
+}
+
+// TestBinaryExpression tests the BinaryExpression node.
+func TestBinaryExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		left     Expression
+		operator string
+		right    Expression
+		want     string
+	}{
+		{
+			name: "simple addition",
+			left: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "1"},
+				Value: 1,
+			},
+			operator: "+",
+			right: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "2"},
+				Value: 2,
+			},
+			want: "(1 + 2)",
+		},
+		{
+			name: "multiplication",
+			left: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "3"},
+				Value: 3,
+			},
+			operator: "*",
+			right: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "4"},
+				Value: 4,
+			},
+			want: "(3 * 4)",
+		},
+		{
+			name: "comparison",
+			left: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
+				Value: "x",
+			},
+			operator: "<",
+			right: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "10"},
+				Value: 10,
+			},
+			want: "(x < 10)",
+		},
+		{
+			name: "nested expression",
+			left: &BinaryExpression{
+				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+				Left:     &IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "1"}, Value: 1},
+				Operator: "+",
+				Right:    &IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "2"}, Value: 2},
+			},
+			operator: "*",
+			right: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "3"},
+				Value: 3,
+			},
+			want: "((1 + 2) * 3)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &BinaryExpression{
+				Token:    lexer.Token{Type: lexer.PLUS, Literal: tt.operator},
+				Left:     tt.left,
+				Operator: tt.operator,
+				Right:    tt.right,
+			}
+
+			if node.String() != tt.want {
+				t.Errorf("String() = %q, want %q", node.String(), tt.want)
+			}
+		})
+	}
+}
+
+// TestUnaryExpression tests the UnaryExpression node.
+func TestUnaryExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		operator string
+		right    Expression
+		want     string
+	}{
+		{
+			name:     "negation",
+			operator: "-",
+			right: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "5"},
+				Value: 5,
+			},
+			want: "(-5)",
+		},
+		{
+			name:     "not",
+			operator: "not",
+			right: &BooleanLiteral{
+				Token: lexer.Token{Type: lexer.TRUE, Literal: "true"},
+				Value: true,
+			},
+			want: "(not true)",
+		},
+		{
+			name:     "unary plus",
+			operator: "+",
+			right: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "3"},
+				Value: 3,
+			},
+			want: "(+3)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &UnaryExpression{
+				Token:    lexer.Token{Type: lexer.MINUS, Literal: tt.operator},
+				Operator: tt.operator,
+				Right:    tt.right,
+			}
+
+			if node.String() != tt.want {
+				t.Errorf("String() = %q, want %q", node.String(), tt.want)
+			}
+		})
+	}
+}
+
+// TestGroupedExpression tests the GroupedExpression node.
+func TestGroupedExpression(t *testing.T) {
+	tests := []struct {
+		name string
+		expr Expression
+		want string
+	}{
+		{
+			name: "simple",
+			expr: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "42"},
+				Value: 42,
+			},
+			want: "(42)",
+		},
+		{
+			name: "binary expression",
+			expr: &BinaryExpression{
+				Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+				Left: &IntegerLiteral{
+					Token: lexer.Token{Type: lexer.INT, Literal: "3"},
+					Value: 3,
+				},
+				Operator: "+",
+				Right: &IntegerLiteral{
+					Token: lexer.Token{Type: lexer.INT, Literal: "5"},
+					Value: 5,
+				},
+			},
+			want: "((3 + 5))",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &GroupedExpression{
+				Token:      lexer.Token{Type: lexer.LPAREN, Literal: "("},
+				Expression: tt.expr,
+			}
+
+			if node.String() != tt.want {
+				t.Errorf("String() = %q, want %q", node.String(), tt.want)
+			}
+		})
+	}
+}
+
+// TestExpressionStatement tests the ExpressionStatement node.
+func TestExpressionStatement(t *testing.T) {
+	tests := []struct {
+		name string
+		expr Expression
+		want string
+	}{
+		{
+			name: "integer literal",
+			expr: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "42"},
+				Value: 42,
+			},
+			want: "42",
+		},
+		{
+			name: "identifier",
+			expr: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
+				Value: "x",
+			},
+			want: "x",
+		},
+		{
+			name: "nil expression",
+			expr: nil,
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &ExpressionStatement{
+				Token:      lexer.Token{Type: lexer.INT, Literal: "42"},
+				Expression: tt.expr,
+			}
+
+			if node.String() != tt.want {
+				t.Errorf("String() = %q, want %q", node.String(), tt.want)
+			}
+		})
+	}
+}
+
+// TestBlockStatement tests the BlockStatement node.
+func TestBlockStatement(t *testing.T) {
+	tests := []struct {
+		name  string
+		stmts []Statement
+		want  string
+	}{
+		{
+			name:  "empty block",
+			stmts: []Statement{},
+			want:  "begin\nend",
+		},
+		{
+			name: "single statement",
+			stmts: []Statement{
+				&ExpressionStatement{
+					Token: lexer.Token{Type: lexer.INT, Literal: "42"},
+					Expression: &IntegerLiteral{
+						Token: lexer.Token{Type: lexer.INT, Literal: "42"},
+						Value: 42,
+					},
+				},
+			},
+			want: "begin\n  42\nend",
+		},
+		{
+			name: "multiple statements",
+			stmts: []Statement{
+				&ExpressionStatement{
+					Token: lexer.Token{Type: lexer.INT, Literal: "1"},
+					Expression: &IntegerLiteral{
+						Token: lexer.Token{Type: lexer.INT, Literal: "1"},
+						Value: 1,
+					},
+				},
+				&ExpressionStatement{
+					Token: lexer.Token{Type: lexer.INT, Literal: "2"},
+					Expression: &IntegerLiteral{
+						Token: lexer.Token{Type: lexer.INT, Literal: "2"},
+						Value: 2,
+					},
+				},
+			},
+			want: "begin\n  1\n  2\nend",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &BlockStatement{
+				Token:      lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+				Statements: tt.stmts,
+			}
+
+			if node.String() != tt.want {
+				t.Errorf("String() =\n%q\nwant:\n%q", node.String(), tt.want)
+			}
+		})
+	}
+}
+
+// TestInterfaceImplementation verifies that all node types implement their respective interfaces.
+func TestInterfaceImplementation(t *testing.T) {
+	// Test that expression nodes implement Expression interface
+	var _ Expression = &Identifier{}
+	var _ Expression = &IntegerLiteral{}
+	var _ Expression = &FloatLiteral{}
+	var _ Expression = &StringLiteral{}
+	var _ Expression = &BooleanLiteral{}
+	var _ Expression = &NilLiteral{}
+	var _ Expression = &BinaryExpression{}
+	var _ Expression = &UnaryExpression{}
+	var _ Expression = &GroupedExpression{}
+
+	// Test that statement nodes implement Statement interface
+	var _ Statement = &ExpressionStatement{}
+	var _ Statement = &BlockStatement{}
+
+	// Test that all nodes implement Node interface
+	var _ Node = &Program{}
+	var _ Node = &Identifier{}
+	var _ Node = &IntegerLiteral{}
+	var _ Node = &FloatLiteral{}
+	var _ Node = &StringLiteral{}
+	var _ Node = &BooleanLiteral{}
+	var _ Node = &NilLiteral{}
+	var _ Node = &BinaryExpression{}
+	var _ Node = &UnaryExpression{}
+	var _ Node = &GroupedExpression{}
+	var _ Node = &ExpressionStatement{}
+	var _ Node = &BlockStatement{}
+}
