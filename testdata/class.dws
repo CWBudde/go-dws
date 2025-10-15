@@ -1,0 +1,31 @@
+{ Object-oriented programming example }
+type
+    TPoint = class
+    private
+        FX: Integer;
+        FY: Integer;
+    public
+        constructor Create(AX, AY: Integer);
+        property X: Integer read FX write FX;
+        property Y: Integer read FY write FY;
+        function Distance: Float;
+    end;
+
+constructor TPoint.Create(AX, AY: Integer);
+begin
+    FX := AX;
+    FY := AY;
+end;
+
+function TPoint.Distance: Float;
+begin
+    Result := Sqrt(FX * FX + FY * FY);
+end;
+
+var
+    p: TPoint;
+begin
+    p := TPoint.Create(3, 4);
+    PrintLn('Point: (' + IntToStr(p.X) + ', ' + IntToStr(p.Y) + ')');
+    PrintLn('Distance from origin: ' + FloatToStr(p.Distance));
+end.
