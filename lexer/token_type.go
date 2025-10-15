@@ -151,11 +151,12 @@ const (
 	INVARIANTS // invariants
 
 	// Keywords - Modern features
-	ASYNC   // async
-	AWAIT   // await
-	LAMBDA  // lambda
-	IMPLIES // implies
-	EMPTY   // empty
+	ASYNC    // async
+	AWAIT    // await
+	LAMBDA   // lambda
+	IMPLIES  // implies
+	EMPTY    // empty
+	IMPLICIT // implicit
 
 	keywordEnd // marker for end of keywords section
 
@@ -225,7 +226,6 @@ const (
 	QUESTION_QUESTION // ?? (null coalescing)
 	QUESTION_DOT // ?. (safe navigation)
 	FAT_ARROW   // => (lambda arrow)
-	IMPLICIT    // implicit (implicit conversion)
 
 	// Compiler directives
 	SWITCH // {$directive} compiler switch
@@ -251,7 +251,7 @@ func (tt TokenType) IsKeyword() bool {
 
 // IsOperator returns true if the token type is an operator.
 func (tt TokenType) IsOperator() bool {
-	return tt >= PLUS && tt <= IMPLICIT
+	return tt >= PLUS && tt <= FAT_ARROW
 }
 
 // IsDelimiter returns true if the token type is a delimiter.
@@ -401,11 +401,12 @@ var tokenTypeStrings = [...]string{
 	INVARIANTS: "INVARIANTS",
 
 	// Keywords - Modern features
-	ASYNC:   "ASYNC",
-	AWAIT:   "AWAIT",
-	LAMBDA:  "LAMBDA",
-	IMPLIES: "IMPLIES",
-	EMPTY:   "EMPTY",
+	ASYNC:    "ASYNC",
+	AWAIT:    "AWAIT",
+	LAMBDA:   "LAMBDA",
+	IMPLIES:  "IMPLIES",
+	EMPTY:    "EMPTY",
+	IMPLICIT: "IMPLICIT",
 
 	// Delimiters
 	LPAREN:    "LPAREN",
@@ -473,7 +474,6 @@ var tokenTypeStrings = [...]string{
 	QUESTION_QUESTION: "QUESTION_QUESTION",
 	QUESTION_DOT:      "QUESTION_DOT",
 	FAT_ARROW:         "FAT_ARROW",
-	IMPLICIT:          "IMPLICIT",
 
 	// Compiler directives
 	SWITCH: "SWITCH",
