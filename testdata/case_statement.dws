@@ -1,0 +1,9 @@
+var x := 2;
+
+case x of
+  1: PrintLn('one');
+  2: PrintLn('two');
+  3: PrintLn('three');
+else
+  PrintLn('other');
+end;

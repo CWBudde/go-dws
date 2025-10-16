@@ -467,6 +467,221 @@ func TestBlockStatement(t *testing.T) {
 	}
 }
 
+// TestVarDeclStatement tests the VarDeclStatement node.
+func TestVarDeclStatement(t *testing.T) {
+	tests := []struct {
+		name     string
+		varName  string
+		varType  string
+		value    Expression
+		want     string
+	}{
+		{
+			name:    "declaration without initialization",
+			varName: "x",
+			varType: "Integer",
+			value:   nil,
+			want:    "var x: Integer",
+		},
+		{
+			name:    "declaration with integer initialization",
+			varName: "x",
+			varType: "Integer",
+			value: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "42"},
+				Value: 42,
+			},
+			want: "var x: Integer := 42",
+		},
+		{
+			name:    "declaration with string initialization",
+			varName: "s",
+			varType: "String",
+			value: &StringLiteral{
+				Token: lexer.Token{Type: lexer.STRING, Literal: "'hello'"},
+				Value: "hello",
+			},
+			want: "var s: String := \"hello\"",
+		},
+		{
+			name:    "declaration without type",
+			varName: "x",
+			varType: "",
+			value: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "5"},
+				Value: 5,
+			},
+			want: "var x := 5",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &VarDeclStatement{
+				Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
+				Name: &Identifier{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: tt.varName},
+					Value: tt.varName,
+				},
+				Type:  tt.varType,
+				Value: tt.value,
+			}
+
+			if node.String() != tt.want {
+				t.Errorf("String() = %q, want %q", node.String(), tt.want)
+			}
+			if node.TokenLiteral() != "var" {
+				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), "var")
+			}
+		})
+	}
+}
+
+// TestAssignmentStatement tests the AssignmentStatement node.
+func TestAssignmentStatement(t *testing.T) {
+	tests := []struct {
+		name     string
+		varName  string
+		value    Expression
+		want     string
+	}{
+		{
+			name:    "simple integer assignment",
+			varName: "x",
+			value: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "10"},
+				Value: 10,
+			},
+			want: "x := 10",
+		},
+		{
+			name:    "expression assignment",
+			varName: "y",
+			value: &BinaryExpression{
+				Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+				Left: &Identifier{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
+					Value: "x",
+				},
+				Operator: "+",
+				Right: &IntegerLiteral{
+					Token: lexer.Token{Type: lexer.INT, Literal: "1"},
+					Value: 1,
+				},
+			},
+			want: "y := (x + 1)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &AssignmentStatement{
+				Token: lexer.Token{Type: lexer.ASSIGN, Literal: ":="},
+				Name: &Identifier{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: tt.varName},
+					Value: tt.varName,
+				},
+				Value: tt.value,
+			}
+
+			if node.String() != tt.want {
+				t.Errorf("String() = %q, want %q", node.String(), tt.want)
+			}
+			if node.TokenLiteral() != ":=" {
+				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), ":=")
+			}
+		})
+	}
+}
+
+// TestCallExpression tests the CallExpression node.
+func TestCallExpression(t *testing.T) {
+	tests := []struct {
+		name      string
+		function  Expression
+		arguments []Expression
+		want      string
+	}{
+		{
+			name: "no arguments",
+			function: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
+				Value: "PrintLn",
+			},
+			arguments: []Expression{},
+			want:      "PrintLn()",
+		},
+		{
+			name: "single string argument",
+			function: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
+				Value: "PrintLn",
+			},
+			arguments: []Expression{
+				&StringLiteral{
+					Token: lexer.Token{Type: lexer.STRING, Literal: "'hello'"},
+					Value: "hello",
+				},
+			},
+			want: "PrintLn(\"hello\")",
+		},
+		{
+			name: "multiple arguments",
+			function: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
+				Value: "Add",
+			},
+			arguments: []Expression{
+				&IntegerLiteral{
+					Token: lexer.Token{Type: lexer.INT, Literal: "3"},
+					Value: 3,
+				},
+				&IntegerLiteral{
+					Token: lexer.Token{Type: lexer.INT, Literal: "5"},
+					Value: 5,
+				},
+			},
+			want: "Add(3, 5)",
+		},
+		{
+			name: "expression arguments",
+			function: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
+				Value: "PrintLn",
+			},
+			arguments: []Expression{
+				&BinaryExpression{
+					Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					Left: &IntegerLiteral{
+						Token: lexer.Token{Type: lexer.INT, Literal: "2"},
+						Value: 2,
+					},
+					Operator: "+",
+					Right: &IntegerLiteral{
+						Token: lexer.Token{Type: lexer.INT, Literal: "3"},
+						Value: 3,
+					},
+				},
+			},
+			want: "PrintLn((2 + 3))",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &CallExpression{
+				Token:     lexer.Token{Type: lexer.LPAREN, Literal: "("},
+				Function:  tt.function,
+				Arguments: tt.arguments,
+			}
+
+			if node.String() != tt.want {
+				t.Errorf("String() = %q, want %q", node.String(), tt.want)
+			}
+		})
+	}
+}
+
 // TestInterfaceImplementation verifies that all node types implement their respective interfaces.
 func TestInterfaceImplementation(t *testing.T) {
 	// Test that expression nodes implement Expression interface
@@ -479,10 +694,13 @@ func TestInterfaceImplementation(t *testing.T) {
 	var _ Expression = &BinaryExpression{}
 	var _ Expression = &UnaryExpression{}
 	var _ Expression = &GroupedExpression{}
+	var _ Expression = &CallExpression{}
 
 	// Test that statement nodes implement Statement interface
 	var _ Statement = &ExpressionStatement{}
 	var _ Statement = &BlockStatement{}
+	var _ Statement = &VarDeclStatement{}
+	var _ Statement = &AssignmentStatement{}
 
 	// Test that all nodes implement Node interface
 	var _ Node = &Program{}
@@ -497,4 +715,7 @@ func TestInterfaceImplementation(t *testing.T) {
 	var _ Node = &GroupedExpression{}
 	var _ Node = &ExpressionStatement{}
 	var _ Node = &BlockStatement{}
+	var _ Node = &VarDeclStatement{}
+	var _ Node = &AssignmentStatement{}
+	var _ Node = &CallExpression{}
 }

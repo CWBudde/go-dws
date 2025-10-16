@@ -37,3 +37,9 @@ Thumbs.db
 # Test coverage
 coverage.txt
 coverage.html
+
+# Cache
+.cache
+
+# Binaries
+Bin/

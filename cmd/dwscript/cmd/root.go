@@ -45,7 +45,7 @@ Built:  %s
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
 }
 
-func exitWithError(msg string, args ...interface{}) {
+func exitWithError(msg string, args ...any) {
 	fmt.Fprintf(os.Stderr, "Error: "+msg+"\n", args...)
 	os.Exit(1)
 }

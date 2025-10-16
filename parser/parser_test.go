@@ -222,7 +222,7 @@ func TestPrefixExpressions(t *testing.T) {
 	tests := []struct {
 		input    string
 		operator string
-		value    interface{}
+		value    any
 	}{
 		{"-5;", "-", 5},
 		{"+10;", "+", 10},
@@ -265,9 +265,9 @@ func TestPrefixExpressions(t *testing.T) {
 func TestInfixExpressions(t *testing.T) {
 	tests := []struct {
 		input      string
-		leftValue  interface{}
+		leftValue  any
 		operator   string
-		rightValue interface{}
+		rightValue any
 	}{
 		{"5 + 5;", 5, "+", 5},
 		{"5 - 5;", 5, "-", 5},
@@ -397,10 +397,354 @@ end;
 	if len(block.Statements) != 2 {
 		t.Fatalf("block has wrong number of statements. got=%d", len(block.Statements))
 	}
+
+	for i, stmt := range block.Statements {
+		exprStmt, ok := stmt.(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("block statement %d is not ExpressionStatement. got=%T", i, stmt)
+		}
+		if !testIntegerLiteral(t, exprStmt.Expression, int64((i*5)+5)) {
+			return
+		}
+	}
+}
+
+// TestBlockStatementAssignments ensures assignments inside blocks are parsed correctly.
+func TestBlockStatementAssignments(t *testing.T) {
+	input := `
+begin
+  x := 1;
+  y := x + 2;
+end;
+`
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+	}
+
+	block, ok := program.Statements[0].(*ast.BlockStatement)
+	if !ok {
+		t.Fatalf("statement is not ast.BlockStatement. got=%T", program.Statements[0])
+	}
+
+	if len(block.Statements) != 2 {
+		t.Fatalf("block has wrong number of statements. got=%d", len(block.Statements))
+	}
+
+	first, ok := block.Statements[0].(*ast.AssignmentStatement)
+	if !ok {
+		t.Fatalf("first statement not AssignmentStatement. got=%T", block.Statements[0])
+	}
+	if first.Name.Value != "x" {
+		t.Errorf("first assignment name = %q, want %q", first.Name.Value, "x")
+	}
+	if !testIntegerLiteral(t, first.Value, 1) {
+		return
+	}
+
+	second, ok := block.Statements[1].(*ast.AssignmentStatement)
+	if !ok {
+		t.Fatalf("second statement not AssignmentStatement. got=%T", block.Statements[1])
+	}
+	if second.Name.Value != "y" {
+		t.Errorf("second assignment name = %q, want %q", second.Name.Value, "y")
+	}
+	if !testInfixExpression(t, second.Value, "x", "+", 2) {
+		return
+	}
+}
+
+// TestVarDeclarations tests parsing of variable declarations.
+func TestVarDeclarations(t *testing.T) {
+	input := `
+var x: Integer;
+var y := 5;
+var s: String := 'hello';
+`
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 3 {
+		t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+	}
+
+	tests := []struct {
+		name        string
+		expectedVar string
+		expectedTyp string
+		expectValue bool
+		assertValue func(*testing.T, ast.Expression)
+	}{
+		{
+			name:        "typed declaration without initializer",
+			expectedVar: "x",
+			expectedTyp: "Integer",
+			expectValue: false,
+		},
+		{
+			name:        "inferred integer declaration",
+			expectedVar: "y",
+			expectedTyp: "",
+			expectValue: true,
+			assertValue: func(t *testing.T, expr ast.Expression) {
+				if !testIntegerLiteral(t, expr, 5) {
+					t.Fatalf("value is not expected integer literal")
+				}
+			},
+		},
+		{
+			name:        "string declaration with type",
+			expectedVar: "s",
+			expectedTyp: "String",
+			expectValue: true,
+			assertValue: func(t *testing.T, expr ast.Expression) {
+				if !testStringLiteralExpression(t, expr, "hello") {
+					t.Fatalf("value is not expected string literal")
+				}
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stmt, ok := program.Statements[i].(*ast.VarDeclStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.VarDeclStatement. got=%T", program.Statements[i])
+			}
+
+			if stmt.Name.Value != tt.expectedVar {
+				t.Errorf("stmt.Name.Value = %q, want %q", stmt.Name.Value, tt.expectedVar)
+			}
+
+			if stmt.Type != tt.expectedTyp {
+				t.Errorf("stmt.Type = %q, want %q", stmt.Type, tt.expectedTyp)
+			}
+
+			if tt.expectValue {
+				if stmt.Value == nil {
+					t.Fatalf("expected initialization expression")
+				}
+				tt.assertValue(t, stmt.Value)
+			} else if stmt.Value != nil {
+				t.Fatalf("expected no initialization, got %T", stmt.Value)
+			}
+		})
+	}
+}
+
+// TestAssignmentStatements tests parsing of assignment statements.
+func TestAssignmentStatements(t *testing.T) {
+	input := `
+x := 10;
+y := x + 1;
+`
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 2 {
+		t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+	}
+
+	stmt1, ok := program.Statements[0].(*ast.AssignmentStatement)
+	if !ok {
+		t.Fatalf("statement 0 is not ast.AssignmentStatement. got=%T", program.Statements[0])
+	}
+	if stmt1.Name.Value != "x" {
+		t.Errorf("stmt1.Name.Value = %q, want %q", stmt1.Name.Value, "x")
+	}
+	if !testIntegerLiteral(t, stmt1.Value, 10) {
+		return
+	}
+
+	stmt2, ok := program.Statements[1].(*ast.AssignmentStatement)
+	if !ok {
+		t.Fatalf("statement 1 is not ast.AssignmentStatement. got=%T", program.Statements[1])
+	}
+	if stmt2.Name.Value != "y" {
+		t.Errorf("stmt2.Name.Value = %q, want %q", stmt2.Name.Value, "y")
+	}
+	if !testInfixExpression(t, stmt2.Value, "x", "+", 1) {
+		return
+	}
+}
+
+// TestCallExpressionParsing verifies parsing of function call expressions.
+func TestCallExpressionParsing(t *testing.T) {
+	input := "Add(1, 2 * 3, foo);"
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("statement is not ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+
+	call, ok := stmt.Expression.(*ast.CallExpression)
+	if !ok {
+		t.Fatalf("expression is not ast.CallExpression. got=%T", stmt.Expression)
+	}
+
+	if !testIdentifier(t, call.Function, "Add") {
+		return
+	}
+
+	if len(call.Arguments) != 3 {
+		t.Fatalf("wrong number of arguments. got=%d", len(call.Arguments))
+	}
+
+	if !testLiteralExpression(t, call.Arguments[0], 1) {
+		return
+	}
+
+	if !testInfixExpression(t, call.Arguments[1], 2, "*", 3) {
+		return
+	}
+
+	if !testIdentifier(t, call.Arguments[2], "foo") {
+		return
+	}
+}
+
+// TestCallExpressionWithStringArgument ensures string literals work as call arguments.
+func TestCallExpressionWithStringArgument(t *testing.T) {
+	input := "PrintLn('hello', name);"
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("statement is not ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+
+	call, ok := stmt.Expression.(*ast.CallExpression)
+	if !ok {
+		t.Fatalf("expression is not ast.CallExpression. got=%T", stmt.Expression)
+	}
+
+	if len(call.Arguments) != 2 {
+		t.Fatalf("wrong number of arguments. got=%d", len(call.Arguments))
+	}
+
+	if !testStringLiteralExpression(t, call.Arguments[0], "hello") {
+		return
+	}
+
+	if !testIdentifier(t, call.Arguments[1], "name") {
+		return
+	}
+}
+
+// TestCallExpressionTrailingComma validates parsing of trailing commas.
+func TestCallExpressionTrailingComma(t *testing.T) {
+	input := "Foo(1, 2,);"
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("statement is not ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+
+	call, ok := stmt.Expression.(*ast.CallExpression)
+	if !ok {
+		t.Fatalf("expression is not ast.CallExpression. got=%T", stmt.Expression)
+	}
+
+	if len(call.Arguments) != 2 {
+		t.Fatalf("wrong number of arguments. got=%d", len(call.Arguments))
+	}
+
+	if !testLiteralExpression(t, call.Arguments[0], 1) {
+		return
+	}
+
+	if !testLiteralExpression(t, call.Arguments[1], 2) {
+		return
+	}
+}
+
+// TestCallExpressionPrecedence checks call precedence relative to infix operators.
+func TestCallExpressionPrecedence(t *testing.T) {
+	input := "foo(1 + 2) * 3;"
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("statement is not ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+
+	// The call expression wraps the argument, then multiplication happens
+	expected := "(foo((1 + 2)) * 3)"
+	if stmt.Expression.String() != expected {
+		t.Errorf("expression String() = %q, want %q", stmt.Expression.String(), expected)
+	}
+}
+
+// TestStatementDispatch ensures identifiers followed by parentheses parse as calls, not assignments.
+func TestStatementDispatch(t *testing.T) {
+	input := `
+var foo := 1;
+foo();
+foo := foo + 1;
+`
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 3 {
+		t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+	}
+
+	if _, ok := program.Statements[0].(*ast.VarDeclStatement); !ok {
+		t.Fatalf("statement 0 expected VarDeclStatement. got=%T", program.Statements[0])
+	}
+
+	callStmt, ok := program.Statements[1].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("statement 1 expected ExpressionStatement. got=%T", program.Statements[1])
+	}
+	if _, ok := callStmt.Expression.(*ast.CallExpression); !ok {
+		t.Fatalf("statement 1 expression expected CallExpression. got=%T", callStmt.Expression)
+	}
+
+	if _, ok := program.Statements[2].(*ast.AssignmentStatement); !ok {
+		t.Fatalf("statement 2 expected AssignmentStatement. got=%T", program.Statements[2])
+	}
+
+	assign := program.Statements[2].(*ast.AssignmentStatement)
+	if !testInfixExpression(t, assign.Value, "foo", "+", 1) {
+		return
+	}
 }
 
 // Helper function to test literal expressions
-func testLiteralExpression(t *testing.T, exp ast.Expression, expected interface{}) bool {
+func testLiteralExpression(t *testing.T, exp ast.Expression, expected any) bool {
 	switch v := expected.(type) {
 	case int:
 		return testIntegerLiteral(t, exp, int64(v))
@@ -479,7 +823,7 @@ func testBooleanLiteral(t *testing.T, exp ast.Expression, value bool) bool {
 }
 
 // Helper function to test infix expressions
-func testInfixExpression(t *testing.T, exp ast.Expression, left interface{}, operator string, right interface{}) bool {
+func testInfixExpression(t *testing.T, exp ast.Expression, left any, operator string, right any) bool {
 	opExp, ok := exp.(*ast.BinaryExpression)
 	if !ok {
 		t.Errorf("exp is not ast.BinaryExpression. got=%T(%s)", exp, exp)
@@ -500,4 +844,1855 @@ func testInfixExpression(t *testing.T, exp ast.Expression, left interface{}, ope
 	}
 
 	return true
+}
+
+// Helper function to test string literals
+func testStringLiteralExpression(t *testing.T, exp ast.Expression, value string) bool {
+	str, ok := exp.(*ast.StringLiteral)
+	if !ok {
+		t.Errorf("exp not *ast.StringLiteral. got=%T", exp)
+		return false
+	}
+
+	if str.Value != value {
+		t.Errorf("str.Value not %s. got=%s", value, str.Value)
+		return false
+	}
+
+	// The token literal should be the original string from source (with quotes)
+	// Just verify it's not empty
+	if str.TokenLiteral() == "" {
+		t.Errorf("token literal is empty")
+		return false
+	}
+
+	return true
+}
+
+// TestCompleteSimplePrograms tests parsing of complete simple programs with multiple statement types.
+func TestCompleteSimplePrograms(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		stmtCount  int
+		assertions func(*testing.T, *ast.Program)
+	}{
+		{
+			name: "variable declaration and usage",
+			input: `
+var x: Integer := 5;
+var y: Integer := 10;
+x := x + y;
+`,
+			stmtCount: 3,
+			assertions: func(t *testing.T, program *ast.Program) {
+				// First statement: var x: Integer := 5;
+				varDecl1, ok := program.Statements[0].(*ast.VarDeclStatement)
+				if !ok {
+					t.Fatalf("statement 0 is not VarDeclStatement. got=%T", program.Statements[0])
+				}
+				if varDecl1.Name.Value != "x" {
+					t.Errorf("varDecl1.Name.Value = %q, want 'x'", varDecl1.Name.Value)
+				}
+				if varDecl1.Type != "Integer" {
+					t.Errorf("varDecl1.Type = %q, want 'Integer'", varDecl1.Type)
+				}
+				if !testIntegerLiteral(t, varDecl1.Value, 5) {
+					return
+				}
+
+				// Second statement: var y: Integer := 10;
+				varDecl2, ok := program.Statements[1].(*ast.VarDeclStatement)
+				if !ok {
+					t.Fatalf("statement 1 is not VarDeclStatement. got=%T", program.Statements[1])
+				}
+				if varDecl2.Name.Value != "y" {
+					t.Errorf("varDecl2.Name.Value = %q, want 'y'", varDecl2.Name.Value)
+				}
+				if !testIntegerLiteral(t, varDecl2.Value, 10) {
+					return
+				}
+
+				// Third statement: x := x + y;
+				assign, ok := program.Statements[2].(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("statement 2 is not AssignmentStatement. got=%T", program.Statements[2])
+				}
+				if assign.Name.Value != "x" {
+					t.Errorf("assign.Name.Value = %q, want 'x'", assign.Name.Value)
+				}
+				if !testInfixExpression(t, assign.Value, "x", "+", "y") {
+					return
+				}
+			},
+		},
+		{
+			name: "program with function call",
+			input: `
+var message: String := 'Hello, World!';
+PrintLn(message);
+`,
+			stmtCount: 2,
+			assertions: func(t *testing.T, program *ast.Program) {
+				// First statement: var message: String := 'Hello, World!';
+				varDecl, ok := program.Statements[0].(*ast.VarDeclStatement)
+				if !ok {
+					t.Fatalf("statement 0 is not VarDeclStatement. got=%T", program.Statements[0])
+				}
+				if varDecl.Name.Value != "message" {
+					t.Errorf("varDecl.Name.Value = %q, want 'message'", varDecl.Name.Value)
+				}
+				if !testStringLiteralExpression(t, varDecl.Value, "Hello, World!") {
+					return
+				}
+
+				// Second statement: PrintLn(message);
+				exprStmt, ok := program.Statements[1].(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("statement 1 is not ExpressionStatement. got=%T", program.Statements[1])
+				}
+				call, ok := exprStmt.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("statement 1 expression is not CallExpression. got=%T", exprStmt.Expression)
+				}
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+				if len(call.Arguments) != 1 {
+					t.Fatalf("call has %d arguments, want 1", len(call.Arguments))
+				}
+				if !testIdentifier(t, call.Arguments[0], "message") {
+					return
+				}
+			},
+		},
+		{
+			name: "program with block statement",
+			input: `
+var x := 0;
+begin
+  x := x + 1;
+  x := x * 2;
+end;
+`,
+			stmtCount: 2,
+			assertions: func(t *testing.T, program *ast.Program) {
+				// First statement: var x := 0;
+				varDecl, ok := program.Statements[0].(*ast.VarDeclStatement)
+				if !ok {
+					t.Fatalf("statement 0 is not VarDeclStatement. got=%T", program.Statements[0])
+				}
+				if varDecl.Name.Value != "x" {
+					t.Errorf("varDecl.Name.Value = %q, want 'x'", varDecl.Name.Value)
+				}
+
+				// Second statement: begin...end block
+				block, ok := program.Statements[1].(*ast.BlockStatement)
+				if !ok {
+					t.Fatalf("statement 1 is not BlockStatement. got=%T", program.Statements[1])
+				}
+				if len(block.Statements) != 2 {
+					t.Fatalf("block has %d statements, want 2", len(block.Statements))
+				}
+
+				// First block statement: x := x + 1;
+				assign1, ok := block.Statements[0].(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("block statement 0 is not AssignmentStatement. got=%T", block.Statements[0])
+				}
+				if !testInfixExpression(t, assign1.Value, "x", "+", 1) {
+					return
+				}
+
+				// Second block statement: x := x * 2;
+				assign2, ok := block.Statements[1].(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("block statement 1 is not AssignmentStatement. got=%T", block.Statements[1])
+				}
+				if !testInfixExpression(t, assign2.Value, "x", "*", 2) {
+					return
+				}
+			},
+		},
+		{
+			name: "mixed statements",
+			input: `
+var a := 1;
+var b := 2;
+var sum := a + b;
+PrintLn(sum);
+begin
+  a := a + 1;
+  b := b + 1;
+end;
+`,
+			stmtCount: 5,
+			assertions: func(t *testing.T, program *ast.Program) {
+				// Verify first three are variable declarations
+				for i := 0; i < 3; i++ {
+					if _, ok := program.Statements[i].(*ast.VarDeclStatement); !ok {
+						t.Fatalf("statement %d is not VarDeclStatement. got=%T", i, program.Statements[i])
+					}
+				}
+
+				// Fourth statement: PrintLn(sum);
+				exprStmt, ok := program.Statements[3].(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("statement 3 is not ExpressionStatement. got=%T", program.Statements[3])
+				}
+				if _, ok := exprStmt.Expression.(*ast.CallExpression); !ok {
+					t.Fatalf("statement 3 expression is not CallExpression. got=%T", exprStmt.Expression)
+				}
+
+				// Fifth statement: begin...end block
+				if _, ok := program.Statements[4].(*ast.BlockStatement); !ok {
+					t.Fatalf("statement 4 is not BlockStatement. got=%T", program.Statements[4])
+				}
+			},
+		},
+		{
+			name: "arithmetic expressions",
+			input: `
+var result := (10 + 5) * 2 - 3;
+result := result / 3;
+`,
+			stmtCount: 2,
+			assertions: func(t *testing.T, program *ast.Program) {
+				// First statement: var result := (10 + 5) * 2 - 3;
+				varDecl, ok := program.Statements[0].(*ast.VarDeclStatement)
+				if !ok {
+					t.Fatalf("statement 0 is not VarDeclStatement. got=%T", program.Statements[0])
+				}
+				if varDecl.Name.Value != "result" {
+					t.Errorf("varDecl.Name.Value = %q, want 'result'", varDecl.Name.Value)
+				}
+				// The value should be a complex binary expression
+				if varDecl.Value == nil {
+					t.Fatal("varDecl.Value is nil")
+				}
+
+				// Second statement: result := result / 3;
+				assign, ok := program.Statements[1].(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("statement 1 is not AssignmentStatement. got=%T", program.Statements[1])
+				}
+				if !testInfixExpression(t, assign.Value, "result", "/", 3) {
+					return
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != tt.stmtCount {
+				t.Fatalf("program has %d statements, want %d", len(program.Statements), tt.stmtCount)
+			}
+
+			tt.assertions(t, program)
+		})
+	}
+}
+
+// TestImplicitProgramBlock tests that programs without explicit begin/end work correctly.
+func TestImplicitProgramBlock(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		stmtCount int
+	}{
+		{
+			name:      "single variable declaration",
+			input:     "var x := 5;",
+			stmtCount: 1,
+		},
+		{
+			name:      "single assignment",
+			input:     "x := 10;",
+			stmtCount: 1,
+		},
+		{
+			name: "multiple statements without begin/end",
+			input: `
+var x := 1;
+var y := 2;
+x := x + y;
+`,
+			stmtCount: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != tt.stmtCount {
+				t.Fatalf("program has %d statements, want %d", len(program.Statements), tt.stmtCount)
+			}
+		})
+	}
+}
+
+// TestIfStatements tests parsing of if-then-else statements.
+func TestIfStatements(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		assertions func(*testing.T, *ast.IfStatement)
+	}{
+		{
+			name:  "simple if without else",
+			input: "if x > 0 then PrintLn('positive');",
+			assertions: func(t *testing.T, stmt *ast.IfStatement) {
+				// Test condition: x > 0
+				if !testInfixExpression(t, stmt.Condition, "x", ">", 0) {
+					return
+				}
+
+				// Test consequence: PrintLn('positive')
+				consequence, ok := stmt.Consequence.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("consequence is not ExpressionStatement. got=%T", stmt.Consequence)
+				}
+
+				call, ok := consequence.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("consequence expression is not CallExpression. got=%T", consequence.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+
+				if len(call.Arguments) != 1 {
+					t.Fatalf("wrong number of arguments. got=%d", len(call.Arguments))
+				}
+
+				if !testStringLiteralExpression(t, call.Arguments[0], "positive") {
+					return
+				}
+
+				// Test that alternative is nil
+				if stmt.Alternative != nil {
+					t.Errorf("alternative should be nil. got=%T", stmt.Alternative)
+				}
+			},
+		},
+		{
+			name:  "if-else with expressions",
+			input: "if x > 0 then PrintLn('positive') else PrintLn('non-positive');",
+			assertions: func(t *testing.T, stmt *ast.IfStatement) {
+				// Test condition
+				if !testInfixExpression(t, stmt.Condition, "x", ">", 0) {
+					return
+				}
+
+				// Test consequence
+				consequence, ok := stmt.Consequence.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("consequence is not ExpressionStatement. got=%T", stmt.Consequence)
+				}
+
+				consCall, ok := consequence.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("consequence expression is not CallExpression. got=%T", consequence.Expression)
+				}
+
+				if !testIdentifier(t, consCall.Function, "PrintLn") {
+					return
+				}
+
+				if !testStringLiteralExpression(t, consCall.Arguments[0], "positive") {
+					return
+				}
+
+				// Test alternative
+				if stmt.Alternative == nil {
+					t.Fatal("alternative should not be nil")
+				}
+
+				alternative, ok := stmt.Alternative.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("alternative is not ExpressionStatement. got=%T", stmt.Alternative)
+				}
+
+				altCall, ok := alternative.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("alternative expression is not CallExpression. got=%T", alternative.Expression)
+				}
+
+				if !testIdentifier(t, altCall.Function, "PrintLn") {
+					return
+				}
+
+				if !testStringLiteralExpression(t, altCall.Arguments[0], "non-positive") {
+					return
+				}
+			},
+		},
+		{
+			name: "if with block consequence",
+			input: `if x > 0 then begin
+  y := x * 2;
+  PrintLn(y);
+end;`,
+			assertions: func(t *testing.T, stmt *ast.IfStatement) {
+				// Test condition
+				if !testInfixExpression(t, stmt.Condition, "x", ">", 0) {
+					return
+				}
+
+				// Test consequence is a block
+				block, ok := stmt.Consequence.(*ast.BlockStatement)
+				if !ok {
+					t.Fatalf("consequence is not BlockStatement. got=%T", stmt.Consequence)
+				}
+
+				if len(block.Statements) != 2 {
+					t.Fatalf("block has %d statements, want 2", len(block.Statements))
+				}
+
+				// First statement in block: y := x * 2;
+				assign, ok := block.Statements[0].(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("first block statement is not AssignmentStatement. got=%T", block.Statements[0])
+				}
+
+				if assign.Name.Value != "y" {
+					t.Errorf("assignment name = %q, want 'y'", assign.Name.Value)
+				}
+
+				if !testInfixExpression(t, assign.Value, "x", "*", 2) {
+					return
+				}
+
+				// Second statement in block: PrintLn(y);
+				exprStmt, ok := block.Statements[1].(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("second block statement is not ExpressionStatement. got=%T", block.Statements[1])
+				}
+
+				call, ok := exprStmt.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("second block statement expression is not CallExpression. got=%T", exprStmt.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+			},
+		},
+		{
+			name: "if-else with blocks",
+			input: `if x > 0 then begin
+  PrintLn('positive');
+end else begin
+  PrintLn('non-positive');
+end;`,
+			assertions: func(t *testing.T, stmt *ast.IfStatement) {
+				// Test condition
+				if !testInfixExpression(t, stmt.Condition, "x", ">", 0) {
+					return
+				}
+
+				// Test consequence block
+				consBlock, ok := stmt.Consequence.(*ast.BlockStatement)
+				if !ok {
+					t.Fatalf("consequence is not BlockStatement. got=%T", stmt.Consequence)
+				}
+
+				if len(consBlock.Statements) != 1 {
+					t.Fatalf("consequence block has %d statements, want 1", len(consBlock.Statements))
+				}
+
+				// Test alternative block
+				if stmt.Alternative == nil {
+					t.Fatal("alternative should not be nil")
+				}
+
+				altBlock, ok := stmt.Alternative.(*ast.BlockStatement)
+				if !ok {
+					t.Fatalf("alternative is not BlockStatement. got=%T", stmt.Alternative)
+				}
+
+				if len(altBlock.Statements) != 1 {
+					t.Fatalf("alternative block has %d statements, want 1", len(altBlock.Statements))
+				}
+			},
+		},
+		{
+			name: "nested if statements",
+			input: `if x > 0 then
+  if y > 0 then
+    PrintLn('both positive')
+  else
+    PrintLn('x positive, y not');`,
+			assertions: func(t *testing.T, stmt *ast.IfStatement) {
+				// Test outer condition
+				if !testInfixExpression(t, stmt.Condition, "x", ">", 0) {
+					return
+				}
+
+				// Test that consequence is another if statement
+				innerIf, ok := stmt.Consequence.(*ast.IfStatement)
+				if !ok {
+					t.Fatalf("consequence is not IfStatement. got=%T", stmt.Consequence)
+				}
+
+				// Test inner condition
+				if !testInfixExpression(t, innerIf.Condition, "y", ">", 0) {
+					return
+				}
+
+				// Verify inner if has both consequence and alternative
+				if innerIf.Consequence == nil {
+					t.Fatal("inner if consequence is nil")
+				}
+
+				if innerIf.Alternative == nil {
+					t.Fatal("inner if alternative is nil")
+				}
+			},
+		},
+		{
+			name:  "if with complex condition",
+			input: "if (x > 0) and (y < 10) then PrintLn('in range');",
+			assertions: func(t *testing.T, stmt *ast.IfStatement) {
+				// Test that condition is a binary expression with 'and'
+				binExp, ok := stmt.Condition.(*ast.BinaryExpression)
+				if !ok {
+					t.Fatalf("condition is not BinaryExpression. got=%T", stmt.Condition)
+				}
+
+				if binExp.Operator != "and" {
+					t.Errorf("condition operator = %q, want 'and'", binExp.Operator)
+				}
+
+				// Test left side: x > 0
+				if !testInfixExpression(t, binExp.Left, "x", ">", 0) {
+					return
+				}
+
+				// Test right side: y < 10
+				if !testInfixExpression(t, binExp.Right, "y", "<", 10) {
+					return
+				}
+			},
+		},
+		{
+			name:  "if with assignment in consequence",
+			input: `if x = 0 then x := 1;`,
+			assertions: func(t *testing.T, stmt *ast.IfStatement) {
+				// Test condition: x = 0
+				if !testInfixExpression(t, stmt.Condition, "x", "=", 0) {
+					return
+				}
+
+				// Test consequence: x := 1
+				assign, ok := stmt.Consequence.(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("consequence is not AssignmentStatement. got=%T", stmt.Consequence)
+				}
+
+				if assign.Name.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Name.Value)
+				}
+
+				if !testIntegerLiteral(t, assign.Value, 1) {
+					return
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has %d statements, want 1", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.IfStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.IfStatement. got=%T", program.Statements[0])
+			}
+
+			tt.assertions(t, stmt)
+		})
+	}
+}
+
+// TestWhileStatements tests parsing of while loop statements.
+func TestWhileStatements(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		assertions func(*testing.T, *ast.WhileStatement)
+	}{
+		{
+			name:  "simple while loop",
+			input: "while x < 10 do x := x + 1;",
+			assertions: func(t *testing.T, stmt *ast.WhileStatement) {
+				// Test condition: x < 10
+				if !testInfixExpression(t, stmt.Condition, "x", "<", 10) {
+					return
+				}
+
+				// Test body: x := x + 1
+				assign, ok := stmt.Body.(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
+				}
+
+				if assign.Name.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Name.Value)
+				}
+
+				if !testInfixExpression(t, assign.Value, "x", "+", 1) {
+					return
+				}
+			},
+		},
+		{
+			name: "while with block body",
+			input: `while x < 10 do begin
+  x := x + 1;
+  PrintLn(x);
+end;`,
+			assertions: func(t *testing.T, stmt *ast.WhileStatement) {
+				// Test condition
+				if !testInfixExpression(t, stmt.Condition, "x", "<", 10) {
+					return
+				}
+
+				// Test body is a block
+				block, ok := stmt.Body.(*ast.BlockStatement)
+				if !ok {
+					t.Fatalf("body is not BlockStatement. got=%T", stmt.Body)
+				}
+
+				if len(block.Statements) != 2 {
+					t.Fatalf("block has %d statements, want 2", len(block.Statements))
+				}
+
+				// First statement: x := x + 1;
+				assign, ok := block.Statements[0].(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("first block statement is not AssignmentStatement. got=%T", block.Statements[0])
+				}
+
+				if assign.Name.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Name.Value)
+				}
+
+				// Second statement: PrintLn(x);
+				exprStmt, ok := block.Statements[1].(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("second block statement is not ExpressionStatement. got=%T", block.Statements[1])
+				}
+
+				call, ok := exprStmt.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("second block statement expression is not CallExpression. got=%T", exprStmt.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+			},
+		},
+		{
+			name:  "while with complex condition",
+			input: "while (x > 0) and (x < 100) do x := x * 2;",
+			assertions: func(t *testing.T, stmt *ast.WhileStatement) {
+				// Test that condition is a binary expression with 'and'
+				binExp, ok := stmt.Condition.(*ast.BinaryExpression)
+				if !ok {
+					t.Fatalf("condition is not BinaryExpression. got=%T", stmt.Condition)
+				}
+
+				if binExp.Operator != "and" {
+					t.Errorf("condition operator = %q, want 'and'", binExp.Operator)
+				}
+
+				// Test left side: x > 0
+				if !testInfixExpression(t, binExp.Left, "x", ">", 0) {
+					return
+				}
+
+				// Test right side: x < 100
+				if !testInfixExpression(t, binExp.Right, "x", "<", 100) {
+					return
+				}
+
+				// Test body
+				assign, ok := stmt.Body.(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
+				}
+
+				if !testInfixExpression(t, assign.Value, "x", "*", 2) {
+					return
+				}
+			},
+		},
+		{
+			name: "nested while loops",
+			input: `while x < 10 do
+  while y < 5 do
+    y := y + 1;`,
+			assertions: func(t *testing.T, stmt *ast.WhileStatement) {
+				// Test outer condition
+				if !testInfixExpression(t, stmt.Condition, "x", "<", 10) {
+					return
+				}
+
+				// Test that body is another while statement
+				innerWhile, ok := stmt.Body.(*ast.WhileStatement)
+				if !ok {
+					t.Fatalf("body is not WhileStatement. got=%T", stmt.Body)
+				}
+
+				// Test inner condition
+				if !testInfixExpression(t, innerWhile.Condition, "y", "<", 5) {
+					return
+				}
+
+				// Test inner body
+				innerAssign, ok := innerWhile.Body.(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("inner while body is not AssignmentStatement. got=%T", innerWhile.Body)
+				}
+
+				if innerAssign.Name.Value != "y" {
+					t.Errorf("inner assignment name = %q, want 'y'", innerAssign.Name.Value)
+				}
+			},
+		},
+		{
+			name:  "while with function call in body",
+			input: "while hasMoreData() do processItem();",
+			assertions: func(t *testing.T, stmt *ast.WhileStatement) {
+				// Test condition is a function call
+				condCall, ok := stmt.Condition.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("condition is not CallExpression. got=%T", stmt.Condition)
+				}
+
+				if !testIdentifier(t, condCall.Function, "hasMoreData") {
+					return
+				}
+
+				// Test body is also a function call
+				bodyExpr, ok := stmt.Body.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("body is not ExpressionStatement. got=%T", stmt.Body)
+				}
+
+				bodyCall, ok := bodyExpr.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("body expression is not CallExpression. got=%T", bodyExpr.Expression)
+				}
+
+				if !testIdentifier(t, bodyCall.Function, "processItem") {
+					return
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has %d statements, want 1", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.WhileStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.WhileStatement. got=%T", program.Statements[0])
+			}
+
+			tt.assertions(t, stmt)
+		})
+	}
+}
+
+// TestRepeatStatements tests parsing of repeat-until loop statements.
+func TestRepeatStatements(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		assertions func(*testing.T, *ast.RepeatStatement)
+	}{
+		{
+			name:  "simple repeat loop",
+			input: "repeat x := x + 1 until x >= 10;",
+			assertions: func(t *testing.T, stmt *ast.RepeatStatement) {
+				// Test body: x := x + 1
+				assign, ok := stmt.Body.(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
+				}
+
+				if assign.Name.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Name.Value)
+				}
+
+				if !testInfixExpression(t, assign.Value, "x", "+", 1) {
+					return
+				}
+
+				// Test condition: x >= 10
+				if !testInfixExpression(t, stmt.Condition, "x", ">=", 10) {
+					return
+				}
+			},
+		},
+		{
+			name: "repeat with block body",
+			input: `repeat begin
+  x := x + 1;
+  PrintLn(x);
+end until x >= 10;`,
+			assertions: func(t *testing.T, stmt *ast.RepeatStatement) {
+				// Test body is a block
+				block, ok := stmt.Body.(*ast.BlockStatement)
+				if !ok {
+					t.Fatalf("body is not BlockStatement. got=%T", stmt.Body)
+				}
+
+				if len(block.Statements) != 2 {
+					t.Fatalf("block has %d statements, want 2", len(block.Statements))
+				}
+
+				// First statement: x := x + 1;
+				assign, ok := block.Statements[0].(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("first block statement is not AssignmentStatement. got=%T", block.Statements[0])
+				}
+
+				if assign.Name.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Name.Value)
+				}
+
+				// Second statement: PrintLn(x);
+				exprStmt, ok := block.Statements[1].(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("second block statement is not ExpressionStatement. got=%T", block.Statements[1])
+				}
+
+				call, ok := exprStmt.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("second block statement expression is not CallExpression. got=%T", exprStmt.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+
+				// Test condition: x >= 10
+				if !testInfixExpression(t, stmt.Condition, "x", ">=", 10) {
+					return
+				}
+			},
+		},
+		{
+			name:  "repeat with complex condition",
+			input: "repeat x := x * 2 until (x > 100) or (x < 0);",
+			assertions: func(t *testing.T, stmt *ast.RepeatStatement) {
+				// Test body
+				assign, ok := stmt.Body.(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
+				}
+
+				if !testInfixExpression(t, assign.Value, "x", "*", 2) {
+					return
+				}
+
+				// Test that condition is a binary expression with 'or'
+				binExp, ok := stmt.Condition.(*ast.BinaryExpression)
+				if !ok {
+					t.Fatalf("condition is not BinaryExpression. got=%T", stmt.Condition)
+				}
+
+				if binExp.Operator != "or" {
+					t.Errorf("condition operator = %q, want 'or'", binExp.Operator)
+				}
+
+				// Test left side: x > 100
+				if !testInfixExpression(t, binExp.Left, "x", ">", 100) {
+					return
+				}
+
+				// Test right side: x < 0
+				if !testInfixExpression(t, binExp.Right, "x", "<", 0) {
+					return
+				}
+			},
+		},
+		{
+			name: "nested repeat loops",
+			input: `repeat
+  repeat
+    y := y + 1
+  until y >= 5
+until x >= 10;`,
+			assertions: func(t *testing.T, stmt *ast.RepeatStatement) {
+				// Test that body is another repeat statement
+				innerRepeat, ok := stmt.Body.(*ast.RepeatStatement)
+				if !ok {
+					t.Fatalf("body is not RepeatStatement. got=%T", stmt.Body)
+				}
+
+				// Test inner body
+				innerAssign, ok := innerRepeat.Body.(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("inner repeat body is not AssignmentStatement. got=%T", innerRepeat.Body)
+				}
+
+				if innerAssign.Name.Value != "y" {
+					t.Errorf("inner assignment name = %q, want 'y'", innerAssign.Name.Value)
+				}
+
+				// Test inner condition: y >= 5
+				if !testInfixExpression(t, innerRepeat.Condition, "y", ">=", 5) {
+					return
+				}
+
+				// Test outer condition: x >= 10
+				if !testInfixExpression(t, stmt.Condition, "x", ">=", 10) {
+					return
+				}
+			},
+		},
+		{
+			name:  "repeat with function call in body",
+			input: "repeat processItem() until isDone();",
+			assertions: func(t *testing.T, stmt *ast.RepeatStatement) {
+				// Test body is a function call
+				bodyExpr, ok := stmt.Body.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("body is not ExpressionStatement. got=%T", stmt.Body)
+				}
+
+				bodyCall, ok := bodyExpr.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("body expression is not CallExpression. got=%T", bodyExpr.Expression)
+				}
+
+				if !testIdentifier(t, bodyCall.Function, "processItem") {
+					return
+				}
+
+				// Test condition is a function call
+				condCall, ok := stmt.Condition.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("condition is not CallExpression. got=%T", stmt.Condition)
+				}
+
+				if !testIdentifier(t, condCall.Function, "isDone") {
+					return
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has %d statements, want 1", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.RepeatStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.RepeatStatement. got=%T", program.Statements[0])
+			}
+
+			tt.assertions(t, stmt)
+		})
+	}
+}
+
+// TestForStatements tests parsing of for loop statements.
+func TestForStatements(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		assertions func(*testing.T, *ast.ForStatement)
+	}{
+		{
+			name:  "simple ascending for loop",
+			input: "for i := 1 to 10 do PrintLn(i);",
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test start expression: 1
+				if !testIntegerLiteral(t, stmt.Start, 1) {
+					return
+				}
+
+				// Test end expression: 10
+				if !testIntegerLiteral(t, stmt.End, 10) {
+					return
+				}
+
+				// Test direction: to
+				if stmt.Direction != ast.ForTo {
+					t.Errorf("direction = %v, want ForTo", stmt.Direction)
+				}
+
+				// Test body: PrintLn(i)
+				bodyExpr, ok := stmt.Body.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("body is not ExpressionStatement. got=%T", stmt.Body)
+				}
+
+				call, ok := bodyExpr.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("body expression is not CallExpression. got=%T", bodyExpr.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+
+				if len(call.Arguments) != 1 {
+					t.Fatalf("call has %d arguments, want 1", len(call.Arguments))
+				}
+
+				if !testIdentifier(t, call.Arguments[0], "i") {
+					return
+				}
+			},
+		},
+		{
+			name:  "simple descending for loop",
+			input: "for i := 10 downto 1 do PrintLn(i);",
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test start expression: 10
+				if !testIntegerLiteral(t, stmt.Start, 10) {
+					return
+				}
+
+				// Test end expression: 1
+				if !testIntegerLiteral(t, stmt.End, 1) {
+					return
+				}
+
+				// Test direction: downto
+				if stmt.Direction != ast.ForDownto {
+					t.Errorf("direction = %v, want ForDownto", stmt.Direction)
+				}
+
+				// Test body is a PrintLn call
+				bodyExpr, ok := stmt.Body.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("body is not ExpressionStatement. got=%T", stmt.Body)
+				}
+
+				call, ok := bodyExpr.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("body expression is not CallExpression. got=%T", bodyExpr.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+			},
+		},
+		{
+			name: "for loop with block body",
+			input: `for i := 1 to 5 do begin
+  PrintLn(i);
+  PrintLn(i * 2);
+end;`,
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test direction
+				if stmt.Direction != ast.ForTo {
+					t.Errorf("direction = %v, want ForTo", stmt.Direction)
+				}
+
+				// Test body is a block
+				block, ok := stmt.Body.(*ast.BlockStatement)
+				if !ok {
+					t.Fatalf("body is not BlockStatement. got=%T", stmt.Body)
+				}
+
+				if len(block.Statements) != 2 {
+					t.Fatalf("block has %d statements, want 2", len(block.Statements))
+				}
+
+				// First statement: PrintLn(i)
+				exprStmt1, ok := block.Statements[0].(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("first block statement is not ExpressionStatement. got=%T", block.Statements[0])
+				}
+
+				call1, ok := exprStmt1.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("first block statement expression is not CallExpression. got=%T", exprStmt1.Expression)
+				}
+
+				if !testIdentifier(t, call1.Function, "PrintLn") {
+					return
+				}
+
+				// Second statement: PrintLn(i * 2)
+				exprStmt2, ok := block.Statements[1].(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("second block statement is not ExpressionStatement. got=%T", block.Statements[1])
+				}
+
+				call2, ok := exprStmt2.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("second block statement expression is not CallExpression. got=%T", exprStmt2.Expression)
+				}
+
+				if !testIdentifier(t, call2.Function, "PrintLn") {
+					return
+				}
+			},
+		},
+		{
+			name:  "for loop with variable expressions",
+			input: "for i := start to finish do sum := sum + i;",
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test start expression is an identifier
+				if !testIdentifier(t, stmt.Start, "start") {
+					return
+				}
+
+				// Test end expression is an identifier (changed from 'end' to 'finish' to avoid keyword conflict)
+				if !testIdentifier(t, stmt.End, "finish") {
+					return
+				}
+
+				// Test direction
+				if stmt.Direction != ast.ForTo {
+					t.Errorf("direction = %v, want ForTo", stmt.Direction)
+				}
+
+				// Test body is an assignment
+				assign, ok := stmt.Body.(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
+				}
+
+				if assign.Name.Value != "sum" {
+					t.Errorf("assignment name = %q, want 'sum'", assign.Name.Value)
+				}
+
+				// Test assignment value: sum + i
+				if !testInfixExpression(t, assign.Value, "sum", "+", "i") {
+					return
+				}
+			},
+		},
+		{
+			name:  "for loop with expression boundaries",
+			input: "for i := (start + 1) to (finish - 1) do process(i);",
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test start expression is a binary expression: start + 1
+				if !testInfixExpression(t, stmt.Start, "start", "+", 1) {
+					return
+				}
+
+				// Test end expression is a binary expression: finish - 1
+				if !testInfixExpression(t, stmt.End, "finish", "-", 1) {
+					return
+				}
+
+				// Test direction
+				if stmt.Direction != ast.ForTo {
+					t.Errorf("direction = %v, want ForTo", stmt.Direction)
+				}
+			},
+		},
+		{
+			name: "nested for loops",
+			input: `for i := 1 to 10 do
+  for j := 1 to 10 do
+    PrintLn(i * j);`,
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test outer loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("outer loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test outer loop direction
+				if stmt.Direction != ast.ForTo {
+					t.Errorf("outer direction = %v, want ForTo", stmt.Direction)
+				}
+
+				// Test that body is another for statement
+				innerFor, ok := stmt.Body.(*ast.ForStatement)
+				if !ok {
+					t.Fatalf("body is not ForStatement. got=%T", stmt.Body)
+				}
+
+				// Test inner loop variable
+				if innerFor.Variable.Value != "j" {
+					t.Errorf("inner loop variable = %q, want 'j'", innerFor.Variable.Value)
+				}
+
+				// Test inner loop direction
+				if innerFor.Direction != ast.ForTo {
+					t.Errorf("inner direction = %v, want ForTo", innerFor.Direction)
+				}
+
+				// Test inner body is a PrintLn call
+				innerBodyExpr, ok := innerFor.Body.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("inner body is not ExpressionStatement. got=%T", innerFor.Body)
+				}
+
+				call, ok := innerBodyExpr.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("inner body expression is not CallExpression. got=%T", innerBodyExpr.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+			},
+		},
+		{
+			name:  "for loop with assignment in body",
+			input: "for i := 0 to 100 do x := x + i;",
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test start: 0
+				if !testIntegerLiteral(t, stmt.Start, 0) {
+					return
+				}
+
+				// Test end: 100
+				if !testIntegerLiteral(t, stmt.End, 100) {
+					return
+				}
+
+				// Test direction
+				if stmt.Direction != ast.ForTo {
+					t.Errorf("direction = %v, want ForTo", stmt.Direction)
+				}
+
+				// Test body: x := x + i
+				assign, ok := stmt.Body.(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
+				}
+
+				if assign.Name.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Name.Value)
+				}
+
+				if !testInfixExpression(t, assign.Value, "x", "+", "i") {
+					return
+				}
+			},
+		},
+		{
+			name:  "for loop downto with larger numbers",
+			input: "for count := 100 downto 0 do PrintLn(count);",
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "count" {
+					t.Errorf("loop variable = %q, want 'count'", stmt.Variable.Value)
+				}
+
+				// Test start: 100
+				if !testIntegerLiteral(t, stmt.Start, 100) {
+					return
+				}
+
+				// Test end: 0
+				if !testIntegerLiteral(t, stmt.End, 0) {
+					return
+				}
+
+				// Test direction: downto
+				if stmt.Direction != ast.ForDownto {
+					t.Errorf("direction = %v, want ForDownto", stmt.Direction)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has %d statements, want 1", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.ForStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.ForStatement. got=%T", program.Statements[0])
+			}
+
+			tt.assertions(t, stmt)
+		})
+	}
+}
+
+// TestCaseStatements tests parsing of case statement.
+func TestCaseStatements(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		assertions func(*testing.T, *ast.CaseStatement)
+	}{
+		{
+			name: "simple case with single value branches",
+			input: `case x of
+  1: PrintLn('one');
+  2: PrintLn('two');
+  3: PrintLn('three');
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "x") {
+					return
+				}
+
+				// Test number of case branches
+				if len(stmt.Cases) != 3 {
+					t.Fatalf("case has %d branches, want 3", len(stmt.Cases))
+				}
+
+				// Test first branch: 1: PrintLn('one');
+				branch1 := stmt.Cases[0]
+				if len(branch1.Values) != 1 {
+					t.Fatalf("branch1 has %d values, want 1", len(branch1.Values))
+				}
+				if !testIntegerLiteral(t, branch1.Values[0], 1) {
+					return
+				}
+
+				// Test second branch: 2: PrintLn('two');
+				branch2 := stmt.Cases[1]
+				if len(branch2.Values) != 1 {
+					t.Fatalf("branch2 has %d values, want 1", len(branch2.Values))
+				}
+				if !testIntegerLiteral(t, branch2.Values[0], 2) {
+					return
+				}
+
+				// Test third branch: 3: PrintLn('three');
+				branch3 := stmt.Cases[2]
+				if len(branch3.Values) != 1 {
+					t.Fatalf("branch3 has %d values, want 1", len(branch3.Values))
+				}
+				if !testIntegerLiteral(t, branch3.Values[0], 3) {
+					return
+				}
+
+				// Test that there's no else branch
+				if stmt.Else != nil {
+					t.Errorf("else branch should be nil, got %T", stmt.Else)
+				}
+			},
+		},
+		{
+			name: "case with multiple values per branch",
+			input: `case x of
+  1, 2, 3: PrintLn('one to three');
+  4, 5: PrintLn('four or five');
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "x") {
+					return
+				}
+
+				// Test number of branches
+				if len(stmt.Cases) != 2 {
+					t.Fatalf("case has %d branches, want 2", len(stmt.Cases))
+				}
+
+				// Test first branch: 1, 2, 3
+				branch1 := stmt.Cases[0]
+				if len(branch1.Values) != 3 {
+					t.Fatalf("branch1 has %d values, want 3", len(branch1.Values))
+				}
+				if !testIntegerLiteral(t, branch1.Values[0], 1) {
+					return
+				}
+				if !testIntegerLiteral(t, branch1.Values[1], 2) {
+					return
+				}
+				if !testIntegerLiteral(t, branch1.Values[2], 3) {
+					return
+				}
+
+				// Test second branch: 4, 5
+				branch2 := stmt.Cases[1]
+				if len(branch2.Values) != 2 {
+					t.Fatalf("branch2 has %d values, want 2", len(branch2.Values))
+				}
+				if !testIntegerLiteral(t, branch2.Values[0], 4) {
+					return
+				}
+				if !testIntegerLiteral(t, branch2.Values[1], 5) {
+					return
+				}
+			},
+		},
+		{
+			name: "case with else branch",
+			input: `case x of
+  1: PrintLn('one');
+  2: PrintLn('two');
+else
+  PrintLn('other');
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "x") {
+					return
+				}
+
+				// Test number of branches
+				if len(stmt.Cases) != 2 {
+					t.Fatalf("case has %d branches, want 2", len(stmt.Cases))
+				}
+
+				// Test else branch exists
+				if stmt.Else == nil {
+					t.Fatal("else branch should not be nil")
+				}
+
+				// Test else branch is a PrintLn call
+				elseExpr, ok := stmt.Else.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("else branch is not ExpressionStatement. got=%T", stmt.Else)
+				}
+
+				call, ok := elseExpr.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("else expression is not CallExpression. got=%T", elseExpr.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+
+				if !testStringLiteralExpression(t, call.Arguments[0], "other") {
+					return
+				}
+			},
+		},
+		{
+			name: "case with block statements",
+			input: `case x of
+  1: begin
+    y := 1;
+    PrintLn(y);
+  end;
+  2: begin
+    y := 2;
+    PrintLn(y);
+  end;
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "x") {
+					return
+				}
+
+				// Test number of branches
+				if len(stmt.Cases) != 2 {
+					t.Fatalf("case has %d branches, want 2", len(stmt.Cases))
+				}
+
+				// Test first branch has a block statement
+				branch1 := stmt.Cases[0]
+				block1, ok := branch1.Statement.(*ast.BlockStatement)
+				if !ok {
+					t.Fatalf("branch1 statement is not BlockStatement. got=%T", branch1.Statement)
+				}
+
+				if len(block1.Statements) != 2 {
+					t.Fatalf("branch1 block has %d statements, want 2", len(block1.Statements))
+				}
+
+				// Test second branch has a block statement
+				branch2 := stmt.Cases[1]
+				block2, ok := branch2.Statement.(*ast.BlockStatement)
+				if !ok {
+					t.Fatalf("branch2 statement is not BlockStatement. got=%T", branch2.Statement)
+				}
+
+				if len(block2.Statements) != 2 {
+					t.Fatalf("branch2 block has %d statements, want 2", len(block2.Statements))
+				}
+			},
+		},
+		{
+			name: "case with string expression and string values",
+			input: `case name of
+  'Alice', 'Bob': PrintLn('known person');
+  'Unknown': PrintLn('stranger');
+else
+  PrintLn('no match');
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "name") {
+					return
+				}
+
+				// Test number of branches
+				if len(stmt.Cases) != 2 {
+					t.Fatalf("case has %d branches, want 2", len(stmt.Cases))
+				}
+
+				// Test first branch has 2 string values
+				branch1 := stmt.Cases[0]
+				if len(branch1.Values) != 2 {
+					t.Fatalf("branch1 has %d values, want 2", len(branch1.Values))
+				}
+				if !testStringLiteralExpression(t, branch1.Values[0], "Alice") {
+					return
+				}
+				if !testStringLiteralExpression(t, branch1.Values[1], "Bob") {
+					return
+				}
+
+				// Test second branch has 1 string value
+				branch2 := stmt.Cases[1]
+				if len(branch2.Values) != 1 {
+					t.Fatalf("branch2 has %d values, want 1", len(branch2.Values))
+				}
+				if !testStringLiteralExpression(t, branch2.Values[0], "Unknown") {
+					return
+				}
+
+				// Test else branch exists
+				if stmt.Else == nil {
+					t.Fatal("else branch should not be nil")
+				}
+			},
+		},
+		{
+			name: "case with complex expression",
+			input: `case x + y of
+  0: PrintLn('zero');
+  1: PrintLn('one');
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression is a binary expression
+				if !testInfixExpression(t, stmt.Expression, "x", "+", "y") {
+					return
+				}
+
+				// Test number of branches
+				if len(stmt.Cases) != 2 {
+					t.Fatalf("case has %d branches, want 2", len(stmt.Cases))
+				}
+			},
+		},
+		{
+			name: "case with assignment in branch",
+			input: `case status of
+  0: result := 'failed';
+  1: result := 'success';
+else
+  result := 'unknown';
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "status") {
+					return
+				}
+
+				// Test number of branches
+				if len(stmt.Cases) != 2 {
+					t.Fatalf("case has %d branches, want 2", len(stmt.Cases))
+				}
+
+				// Test first branch is an assignment
+				branch1 := stmt.Cases[0]
+				assign1, ok := branch1.Statement.(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("branch1 statement is not AssignmentStatement. got=%T", branch1.Statement)
+				}
+
+				if assign1.Name.Value != "result" {
+					t.Errorf("branch1 assignment name = %q, want 'result'", assign1.Name.Value)
+				}
+
+				if !testStringLiteralExpression(t, assign1.Value, "failed") {
+					return
+				}
+
+				// Test else branch is also an assignment
+				if stmt.Else == nil {
+					t.Fatal("else branch should not be nil")
+				}
+
+				elseAssign, ok := stmt.Else.(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("else branch is not AssignmentStatement. got=%T", stmt.Else)
+				}
+
+				if elseAssign.Name.Value != "result" {
+					t.Errorf("else assignment name = %q, want 'result'", elseAssign.Name.Value)
+				}
+
+				if !testStringLiteralExpression(t, elseAssign.Value, "unknown") {
+					return
+				}
+			},
+		},
+		{
+			name: "case with expression values",
+			input: `case x of
+  min_val: PrintLn('minimum');
+  max_val: PrintLn('maximum');
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "x") {
+					return
+				}
+
+				// Test number of branches
+				if len(stmt.Cases) != 2 {
+					t.Fatalf("case has %d branches, want 2", len(stmt.Cases))
+				}
+
+				// Test first branch value is an identifier
+				branch1 := stmt.Cases[0]
+				if !testIdentifier(t, branch1.Values[0], "min_val") {
+					return
+				}
+
+				// Test second branch value is an identifier
+				branch2 := stmt.Cases[1]
+				if !testIdentifier(t, branch2.Values[0], "max_val") {
+					return
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has %d statements, want 1", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.CaseStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.CaseStatement. got=%T", program.Statements[0])
+			}
+
+			tt.assertions(t, stmt)
+		})
+	}
+}
+
+// TestParserErrors tests various parser error conditions to improve coverage.
+func TestParserErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name:          "invalid integer literal",
+			input:         "999999999999999999999999999999;",
+			expectedError: "could not parse",
+		},
+		{
+			name:          "invalid float literal",
+			input:         "99999999999999999999999999999.9e999;",
+			expectedError: "could not parse",
+		},
+		{
+			name:          "missing semicolon after var declaration",
+			input:         "var x: Integer",
+			expectedError: "expected next token to be SEMICOLON",
+		},
+		{
+			name:          "unclosed parentheses",
+			input:         "(3 + 5",
+			expectedError: "expected next token to be RPAREN",
+		},
+		{
+			name:          "invalid prefix operator",
+			input:         "};",
+			expectedError: "no prefix parse function",
+		},
+		{
+			name:          "missing identifier in var declaration",
+			input:         "var ;",
+			expectedError: "expected next token to be IDENT",
+		},
+		{
+			name:          "missing expression in if condition",
+			input:         "if then x := 1;",
+			expectedError: "no prefix parse function",
+		},
+		{
+			name:          "missing then keyword in if",
+			input:         "if x > 0 x := 1;",
+			expectedError: "expected next token to be THEN",
+		},
+		{
+			name:          "missing do keyword in while",
+			input:         "while x < 10 x := x + 1;",
+			expectedError: "expected next token to be DO",
+		},
+		{
+			name:          "missing until keyword in repeat",
+			input:         "repeat x := x + 1 x >= 10;",
+			expectedError: "expected next token to be UNTIL",
+		},
+		{
+			name:          "missing identifier in for loop",
+			input:         "for := 1 to 10 do PrintLn(i);",
+			expectedError: "expected next token to be IDENT",
+		},
+		{
+			name:          "missing assign in for loop",
+			input:         "for i = 1 to 10 do PrintLn(i);",
+			expectedError: "expected next token to be ASSIGN",
+		},
+		{
+			name:          "missing direction in for loop",
+			input:         "for i := 1 10 do PrintLn(i);",
+			expectedError: "expected 'to' or 'downto'",
+		},
+		{
+			name:          "missing expression after case",
+			input:         "case of 1: x := 1; end;",
+			expectedError: "no prefix parse function",
+		},
+		{
+			name:          "missing of keyword in case",
+			input:         "case x 1: x := 1; end;",
+			expectedError: "expected next token to be OF",
+		},
+		{
+			name:          "missing colon in case branch",
+			input:         "case x of 1 x := 1; end;",
+			expectedError: "expected next token to be COLON",
+		},
+		{
+			name:          "missing end keyword in case",
+			input:         "case x of 1: x := 1;",
+			expectedError: "expected 'end' to close case statement",
+		},
+		{
+			name:          "missing end keyword in block",
+			input:         "begin x := 1; y := 2;",
+			expectedError: "expected 'end' to close block",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			_ = p.ParseProgram()
+
+			errors := p.Errors()
+			if len(errors) == 0 {
+				t.Fatalf("expected parser errors, got none")
+			}
+
+			found := false
+			for _, err := range errors {
+				if contains(err, tt.expectedError) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Errorf("expected error containing %q, got %v", tt.expectedError, errors)
+			}
+		})
+	}
+}
+
+// TestNilLiteral tests parsing of nil literals.
+func TestNilLiteral(t *testing.T) {
+	input := "nil;"
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("statement is not ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+
+	_, ok = stmt.Expression.(*ast.NilLiteral)
+	if !ok {
+		t.Fatalf("expression is not ast.NilLiteral. got=%T", stmt.Expression)
+	}
+}
+
+// Helper function to check if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || contains(s[1:], substr)))
 }

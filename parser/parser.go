@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/cwbudde/go-dws/ast"
 	"github.com/cwbudde/go-dws/lexer"
@@ -33,10 +32,10 @@ var precedences = map[lexer.TokenType]int{
 	lexer.AND:          AND,
 	lexer.EQ:           EQUALS,
 	lexer.NOT_EQ:       EQUALS,
-	lexer.LESS:        LESSGREATER,
-	lexer.GREATER:     LESSGREATER,
-	lexer.LESS_EQ:     LESSGREATER,
-	lexer.GREATER_EQ:  LESSGREATER,
+	lexer.LESS:         LESSGREATER,
+	lexer.GREATER:      LESSGREATER,
+	lexer.LESS_EQ:      LESSGREATER,
+	lexer.GREATER_EQ:   LESSGREATER,
 	lexer.PLUS:         SUM,
 	lexer.MINUS:        SUM,
 	lexer.ASTERISK:     PRODUCT,
@@ -91,6 +90,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.LPAREN, p.parseGroupedExpression)
 
 	// Register infix parse functions
+	p.registerInfix(lexer.LPAREN, p.parseCallExpression)
 	p.registerInfix(lexer.PLUS, p.parseInfixExpression)
 	p.registerInfix(lexer.MINUS, p.parseInfixExpression)
 	p.registerInfix(lexer.ASTERISK, p.parseInfixExpression)
@@ -211,210 +211,4 @@ func (p *Parser) ParseProgram() *ast.Program {
 	}
 
 	return program
-}
-
-// parseStatement parses a single statement.
-func (p *Parser) parseStatement() ast.Statement {
-	switch p.curToken.Type {
-	case lexer.BEGIN:
-		return p.parseBlockStatement()
-	default:
-		return p.parseExpressionStatement()
-	}
-}
-
-// parseBlockStatement parses a begin...end block.
-func (p *Parser) parseBlockStatement() *ast.BlockStatement {
-	block := &ast.BlockStatement{Token: p.curToken}
-	block.Statements = []ast.Statement{}
-
-	p.nextToken() // skip 'begin'
-
-	// Skip any leading semicolons or whitespace
-	for p.curTokenIs(lexer.SEMICOLON) {
-		p.nextToken()
-	}
-
-	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
-		stmt := p.parseStatement()
-		if stmt != nil {
-			block.Statements = append(block.Statements, stmt)
-		}
-
-		p.nextToken()
-
-		// Skip any semicolons after the statement
-		for p.curTokenIs(lexer.SEMICOLON) {
-			p.nextToken()
-		}
-	}
-
-	if !p.curTokenIs(lexer.END) {
-		p.addError("expected 'end' to close block")
-		return nil
-	}
-
-	return block
-}
-
-// parseExpressionStatement parses an expression statement.
-func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
-	stmt := &ast.ExpressionStatement{Token: p.curToken}
-
-	stmt.Expression = p.parseExpression(LOWEST)
-
-	// Optional semicolon
-	if p.peekTokenIs(lexer.SEMICOLON) {
-		p.nextToken()
-	}
-
-	return stmt
-}
-
-// parseExpression parses an expression with the given precedence.
-func (p *Parser) parseExpression(precedence int) ast.Expression {
-	prefix := p.prefixParseFns[p.curToken.Type]
-	if prefix == nil {
-		p.noPrefixParseFnError(p.curToken.Type)
-		return nil
-	}
-	leftExp := prefix()
-
-	for !p.peekTokenIs(lexer.SEMICOLON) && precedence < p.peekPrecedence() {
-		infix := p.infixParseFns[p.peekToken.Type]
-		if infix == nil {
-			return leftExp
-		}
-
-		p.nextToken()
-
-		leftExp = infix(leftExp)
-	}
-
-	return leftExp
-}
-
-// parseIdentifier parses an identifier.
-func (p *Parser) parseIdentifier() ast.Expression {
-	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-}
-
-// parseIntegerLiteral parses an integer literal.
-func (p *Parser) parseIntegerLiteral() ast.Expression {
-	lit := &ast.IntegerLiteral{Token: p.curToken}
-
-	value, err := strconv.ParseInt(p.curToken.Literal, 10, 64)
-	if err != nil {
-		msg := fmt.Sprintf("could not parse %q as integer", p.curToken.Literal)
-		p.addError(msg)
-		return nil
-	}
-
-	lit.Value = value
-	return lit
-}
-
-// parseFloatLiteral parses a floating-point literal.
-func (p *Parser) parseFloatLiteral() ast.Expression {
-	lit := &ast.FloatLiteral{Token: p.curToken}
-
-	value, err := strconv.ParseFloat(p.curToken.Literal, 64)
-	if err != nil {
-		msg := fmt.Sprintf("could not parse %q as float", p.curToken.Literal)
-		p.addError(msg)
-		return nil
-	}
-
-	lit.Value = value
-	return lit
-}
-
-// parseStringLiteral parses a string literal.
-func (p *Parser) parseStringLiteral() ast.Expression {
-	// The lexer has already processed the string, so we just need to
-	// extract the value without the quotes
-	value := p.curToken.Literal
-
-	// Remove surrounding quotes
-	if len(value) >= 2 {
-		if (value[0] == '\'' && value[len(value)-1] == '\'') ||
-			(value[0] == '"' && value[len(value)-1] == '"') {
-			value = value[1 : len(value)-1]
-		}
-	}
-
-	// Handle escaped quotes ('' -> ')
-	value = unescapeString(value)
-
-	return &ast.StringLiteral{Token: p.curToken, Value: value}
-}
-
-// unescapeString handles DWScript string escape sequences.
-func unescapeString(s string) string {
-	result := ""
-	i := 0
-	for i < len(s) {
-		if i < len(s)-1 && s[i] == '\'' && s[i+1] == '\'' {
-			result += "'"
-			i += 2
-		} else {
-			result += string(s[i])
-			i++
-		}
-	}
-	return result
-}
-
-// parseBooleanLiteral parses a boolean literal.
-func (p *Parser) parseBooleanLiteral() ast.Expression {
-	return &ast.BooleanLiteral{Token: p.curToken, Value: p.curTokenIs(lexer.TRUE)}
-}
-
-// parseNilLiteral parses a nil literal.
-func (p *Parser) parseNilLiteral() ast.Expression {
-	return &ast.NilLiteral{Token: p.curToken}
-}
-
-// parsePrefixExpression parses a prefix (unary) expression.
-func (p *Parser) parsePrefixExpression() ast.Expression {
-	expression := &ast.UnaryExpression{
-		Token:    p.curToken,
-		Operator: p.curToken.Literal,
-	}
-
-	p.nextToken()
-
-	expression.Right = p.parseExpression(PREFIX)
-
-	return expression
-}
-
-// parseInfixExpression parses an infix (binary) expression.
-func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
-	expression := &ast.BinaryExpression{
-		Token:    p.curToken,
-		Operator: p.curToken.Literal,
-		Left:     left,
-	}
-
-	precedence := p.curPrecedence()
-	p.nextToken()
-	expression.Right = p.parseExpression(precedence)
-
-	return expression
-}
-
-// parseGroupedExpression parses a grouped expression (parentheses).
-func (p *Parser) parseGroupedExpression() ast.Expression {
-	p.nextToken() // skip '('
-
-	exp := p.parseExpression(LOWEST)
-
-	if !p.expectPeek(lexer.RPAREN) {
-		return nil
-	}
-
-	// Return the expression directly, not wrapped in GroupedExpression
-	// This avoids double parentheses in the string representation
-	return exp
 }
