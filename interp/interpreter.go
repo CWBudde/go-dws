@@ -1,0 +1,467 @@
+package interp
+
+import (
+	"fmt"
+	"io"
+
+	"github.com/cwbudde/go-dws/ast"
+)
+
+// Interpreter executes DWScript AST nodes and manages the runtime environment.
+type Interpreter struct {
+	env    *Environment // The current execution environment
+	output io.Writer    // Where to write output (e.g., from PrintLn)
+}
+
+// New creates a new Interpreter with a fresh global environment.
+// The output writer is where built-in functions like PrintLn will write.
+func New(output io.Writer) *Interpreter {
+	env := NewEnvironment()
+	return &Interpreter{
+		env:    env,
+		output: output,
+	}
+}
+
+// Eval evaluates an AST node and returns its value.
+// This is the main entry point for the interpreter.
+func (i *Interpreter) Eval(node ast.Node) Value {
+	switch node := node.(type) {
+	// Program
+	case *ast.Program:
+		return i.evalProgram(node)
+
+	// Statements
+	case *ast.ExpressionStatement:
+		return i.Eval(node.Expression)
+
+	case *ast.VarDeclStatement:
+		return i.evalVarDeclStatement(node)
+
+	case *ast.AssignmentStatement:
+		return i.evalAssignmentStatement(node)
+
+	case *ast.BlockStatement:
+		return i.evalBlockStatement(node)
+
+	// Expressions
+	case *ast.IntegerLiteral:
+		return &IntegerValue{Value: node.Value}
+
+	case *ast.FloatLiteral:
+		return &FloatValue{Value: node.Value}
+
+	case *ast.StringLiteral:
+		return &StringValue{Value: node.Value}
+
+	case *ast.BooleanLiteral:
+		return &BooleanValue{Value: node.Value}
+
+	case *ast.NilLiteral:
+		return &NilValue{}
+
+	case *ast.Identifier:
+		return i.evalIdentifier(node)
+
+	case *ast.BinaryExpression:
+		return i.evalBinaryExpression(node)
+
+	case *ast.UnaryExpression:
+		return i.evalUnaryExpression(node)
+
+	case *ast.GroupedExpression:
+		return i.Eval(node.Expression)
+
+	case *ast.CallExpression:
+		return i.evalCallExpression(node)
+
+	default:
+		return newError("unknown node type: %T", node)
+	}
+}
+
+// evalProgram evaluates all statements in the program.
+func (i *Interpreter) evalProgram(program *ast.Program) Value {
+	var result Value
+
+	for _, stmt := range program.Statements {
+		result = i.Eval(stmt)
+
+		// If we hit an error, stop execution
+		if isError(result) {
+			return result
+		}
+	}
+
+	return result
+}
+
+// evalVarDeclStatement evaluates a variable declaration statement.
+// It defines a new variable in the current environment.
+func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
+	var value Value
+
+	if stmt.Value != nil {
+		value = i.Eval(stmt.Value)
+		if isError(value) {
+			return value
+		}
+	} else {
+		// No initializer, use nil
+		value = &NilValue{}
+	}
+
+	i.env.Define(stmt.Name.Value, value)
+	return value
+}
+
+// evalAssignmentStatement evaluates an assignment statement.
+// It updates an existing variable's value.
+func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Value {
+	value := i.Eval(stmt.Value)
+	if isError(value) {
+		return value
+	}
+
+	err := i.env.Set(stmt.Name.Value, value)
+	if err != nil {
+		return newError("undefined variable: %s", stmt.Name.Value)
+	}
+
+	return value
+}
+
+// evalBlockStatement evaluates a block of statements.
+func (i *Interpreter) evalBlockStatement(block *ast.BlockStatement) Value {
+	var result Value
+
+	for _, stmt := range block.Statements {
+		result = i.Eval(stmt)
+
+		if isError(result) {
+			return result
+		}
+	}
+
+	return result
+}
+
+// evalIdentifier looks up an identifier in the environment.
+func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
+	val, ok := i.env.Get(node.Value)
+	if !ok {
+		return newError("undefined variable: %s", node.Value)
+	}
+	return val
+}
+
+// evalBinaryExpression evaluates a binary expression.
+func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
+	left := i.Eval(expr.Left)
+	if isError(left) {
+		return left
+	}
+
+	right := i.Eval(expr.Right)
+	if isError(right) {
+		return right
+	}
+
+	// Handle operations based on operand types
+	switch {
+	case left.Type() == "INTEGER" && right.Type() == "INTEGER":
+		return i.evalIntegerBinaryOp(expr.Operator, left, right)
+
+	case left.Type() == "FLOAT" || right.Type() == "FLOAT":
+		return i.evalFloatBinaryOp(expr.Operator, left, right)
+
+	case left.Type() == "STRING" && right.Type() == "STRING":
+		return i.evalStringBinaryOp(expr.Operator, left, right)
+
+	case left.Type() == "BOOLEAN" && right.Type() == "BOOLEAN":
+		return i.evalBooleanBinaryOp(expr.Operator, left, right)
+
+	default:
+		return newError("type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
+	}
+}
+
+// evalIntegerBinaryOp evaluates binary operations on integers.
+func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
+	leftVal := left.(*IntegerValue).Value
+	rightVal := right.(*IntegerValue).Value
+
+	switch op {
+	case "+":
+		return &IntegerValue{Value: leftVal + rightVal}
+	case "-":
+		return &IntegerValue{Value: leftVal - rightVal}
+	case "*":
+		return &IntegerValue{Value: leftVal * rightVal}
+	case "/":
+		if rightVal == 0 {
+			return newError("division by zero")
+		}
+		// Integer division in DWScript uses / for float division
+		// We'll convert to float for division
+		return &FloatValue{Value: float64(leftVal) / float64(rightVal)}
+	case "div":
+		if rightVal == 0 {
+			return newError("division by zero")
+		}
+		return &IntegerValue{Value: leftVal / rightVal}
+	case "mod":
+		if rightVal == 0 {
+			return newError("division by zero")
+		}
+		return &IntegerValue{Value: leftVal % rightVal}
+	case "=":
+		return &BooleanValue{Value: leftVal == rightVal}
+	case "<>":
+		return &BooleanValue{Value: leftVal != rightVal}
+	case "<":
+		return &BooleanValue{Value: leftVal < rightVal}
+	case ">":
+		return &BooleanValue{Value: leftVal > rightVal}
+	case "<=":
+		return &BooleanValue{Value: leftVal <= rightVal}
+	case ">=":
+		return &BooleanValue{Value: leftVal >= rightVal}
+	default:
+		return newError("unknown operator: %s %s %s", left.Type(), op, right.Type())
+	}
+}
+
+// evalFloatBinaryOp evaluates binary operations on floats.
+// Handles mixed integer/float operations by converting to float.
+func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
+	var leftVal, rightVal float64
+
+	// Convert left operand to float
+	switch v := left.(type) {
+	case *FloatValue:
+		leftVal = v.Value
+	case *IntegerValue:
+		leftVal = float64(v.Value)
+	default:
+		return newError("type error in float operation")
+	}
+
+	// Convert right operand to float
+	switch v := right.(type) {
+	case *FloatValue:
+		rightVal = v.Value
+	case *IntegerValue:
+		rightVal = float64(v.Value)
+	default:
+		return newError("type error in float operation")
+	}
+
+	switch op {
+	case "+":
+		return &FloatValue{Value: leftVal + rightVal}
+	case "-":
+		return &FloatValue{Value: leftVal - rightVal}
+	case "*":
+		return &FloatValue{Value: leftVal * rightVal}
+	case "/":
+		if rightVal == 0 {
+			return newError("division by zero")
+		}
+		return &FloatValue{Value: leftVal / rightVal}
+	case "=":
+		return &BooleanValue{Value: leftVal == rightVal}
+	case "<>":
+		return &BooleanValue{Value: leftVal != rightVal}
+	case "<":
+		return &BooleanValue{Value: leftVal < rightVal}
+	case ">":
+		return &BooleanValue{Value: leftVal > rightVal}
+	case "<=":
+		return &BooleanValue{Value: leftVal <= rightVal}
+	case ">=":
+		return &BooleanValue{Value: leftVal >= rightVal}
+	default:
+		return newError("unknown operator: %s %s %s", left.Type(), op, right.Type())
+	}
+}
+
+// evalStringBinaryOp evaluates binary operations on strings.
+func (i *Interpreter) evalStringBinaryOp(op string, left, right Value) Value {
+	leftVal := left.(*StringValue).Value
+	rightVal := right.(*StringValue).Value
+
+	switch op {
+	case "+":
+		return &StringValue{Value: leftVal + rightVal}
+	case "=":
+		return &BooleanValue{Value: leftVal == rightVal}
+	case "<>":
+		return &BooleanValue{Value: leftVal != rightVal}
+	case "<":
+		return &BooleanValue{Value: leftVal < rightVal}
+	case ">":
+		return &BooleanValue{Value: leftVal > rightVal}
+	case "<=":
+		return &BooleanValue{Value: leftVal <= rightVal}
+	case ">=":
+		return &BooleanValue{Value: leftVal >= rightVal}
+	default:
+		return newError("unknown operator: %s %s %s", left.Type(), op, right.Type())
+	}
+}
+
+// evalBooleanBinaryOp evaluates binary operations on booleans.
+func (i *Interpreter) evalBooleanBinaryOp(op string, left, right Value) Value {
+	leftVal := left.(*BooleanValue).Value
+	rightVal := right.(*BooleanValue).Value
+
+	switch op {
+	case "and":
+		return &BooleanValue{Value: leftVal && rightVal}
+	case "or":
+		return &BooleanValue{Value: leftVal || rightVal}
+	case "xor":
+		return &BooleanValue{Value: leftVal != rightVal}
+	case "=":
+		return &BooleanValue{Value: leftVal == rightVal}
+	case "<>":
+		return &BooleanValue{Value: leftVal != rightVal}
+	default:
+		return newError("unknown operator: %s %s %s", left.Type(), op, right.Type())
+	}
+}
+
+// evalUnaryExpression evaluates a unary expression.
+func (i *Interpreter) evalUnaryExpression(expr *ast.UnaryExpression) Value {
+	right := i.Eval(expr.Right)
+	if isError(right) {
+		return right
+	}
+
+	switch expr.Operator {
+	case "-":
+		return i.evalMinusUnaryOp(right)
+	case "+":
+		return i.evalPlusUnaryOp(right)
+	case "not":
+		return i.evalNotUnaryOp(right)
+	default:
+		return newError("unknown operator: %s%s", expr.Operator, right.Type())
+	}
+}
+
+// evalMinusUnaryOp evaluates the unary minus operator.
+func (i *Interpreter) evalMinusUnaryOp(right Value) Value {
+	switch v := right.(type) {
+	case *IntegerValue:
+		return &IntegerValue{Value: -v.Value}
+	case *FloatValue:
+		return &FloatValue{Value: -v.Value}
+	default:
+		return newError("unknown operator: -%s", right.Type())
+	}
+}
+
+// evalPlusUnaryOp evaluates the unary plus operator.
+func (i *Interpreter) evalPlusUnaryOp(right Value) Value {
+	switch right.(type) {
+	case *IntegerValue, *FloatValue:
+		return right
+	default:
+		return newError("unknown operator: +%s", right.Type())
+	}
+}
+
+// evalNotUnaryOp evaluates the not operator.
+func (i *Interpreter) evalNotUnaryOp(right Value) Value {
+	switch v := right.(type) {
+	case *BooleanValue:
+		return &BooleanValue{Value: !v.Value}
+	default:
+		return newError("unknown operator: not %s", right.Type())
+	}
+}
+
+// evalCallExpression evaluates a function call expression.
+func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
+	// For now, we only support built-in functions
+	// User-defined functions will be added in Stage 5
+
+	// Get the function name
+	funcName, ok := expr.Function.(*ast.Identifier)
+	if !ok {
+		return newError("function call requires identifier, got %T", expr.Function)
+	}
+
+	// Evaluate all arguments
+	args := make([]Value, len(expr.Arguments))
+	for idx, arg := range expr.Arguments {
+		val := i.Eval(arg)
+		if isError(val) {
+			return val
+		}
+		args[idx] = val
+	}
+
+	// Dispatch to built-in function
+	return i.callBuiltin(funcName.Value, args)
+}
+
+// callBuiltin calls a built-in function by name.
+func (i *Interpreter) callBuiltin(name string, args []Value) Value {
+	switch name {
+	case "PrintLn":
+		return i.builtinPrintLn(args)
+	case "Print":
+		return i.builtinPrint(args)
+	default:
+		return newError("undefined function: %s", name)
+	}
+}
+
+// builtinPrintLn implements the PrintLn built-in function.
+// It prints all arguments followed by a newline.
+func (i *Interpreter) builtinPrintLn(args []Value) Value {
+	for idx, arg := range args {
+		if idx > 0 {
+			fmt.Fprint(i.output, " ")
+		}
+		fmt.Fprint(i.output, arg.String())
+	}
+	fmt.Fprintln(i.output)
+	return &NilValue{}
+}
+
+// builtinPrint implements the Print built-in function.
+// It prints all arguments without a newline.
+func (i *Interpreter) builtinPrint(args []Value) Value {
+	for idx, arg := range args {
+		if idx > 0 {
+			fmt.Fprint(i.output, " ")
+		}
+		fmt.Fprint(i.output, arg.String())
+	}
+	return &NilValue{}
+}
+
+// ErrorValue represents a runtime error.
+type ErrorValue struct {
+	Message string
+}
+
+func (e *ErrorValue) Type() string   { return "ERROR" }
+func (e *ErrorValue) String() string { return "ERROR: " + e.Message }
+
+// newError creates a new ErrorValue.
+func newError(format string, args ...interface{}) *ErrorValue {
+	return &ErrorValue{Message: fmt.Sprintf(format, args...)}
+}
+
+// isError checks if a value is an error.
+func isError(val Value) bool {
+	if val != nil {
+		return val.Type() == "ERROR"
+	}
+	return false
+}

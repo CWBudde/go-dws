@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cwbudde/go-dws/interp"
+	"github.com/cwbudde/go-dws/lexer"
+	"github.com/cwbudde/go-dws/parser"
 	"github.com/spf13/cobra"
 )
 
@@ -63,24 +66,42 @@ func runScript(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("either provide a file path or use -e flag for inline code")
 	}
 
-	// TODO: Implement the actual compilation and execution pipeline
-	// For now, just echo the input as a placeholder
-	verbose, _ := cmd.Flags().GetBool("verbose")
+	// Lexer: tokenize the input
+	l := lexer.New(input)
 
-	if verbose {
-		fmt.Printf("Processing: %s\n", filename)
-		fmt.Printf("Input length: %d bytes\n", len(input))
+	// Parser: build the AST
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	// Check for parser errors
+	if len(p.Errors()) > 0 {
+		fmt.Fprintf(os.Stderr, "Parser errors in %s:\n", filename)
+		for _, err := range p.Errors() {
+			fmt.Fprintf(os.Stderr, "  %s\n", err)
+		}
+		return fmt.Errorf("parsing failed with %d error(s)", len(p.Errors()))
 	}
 
-	fmt.Println("⚠️  Compiler not yet implemented - Stage 0 in progress")
-	fmt.Printf("\nInput received:\n%s\n", input)
-
+	// Dump AST if requested
 	if dumpAST {
-		fmt.Println("\n[AST dump not yet available]")
+		fmt.Println("AST:")
+		fmt.Println(program.String())
+		fmt.Println()
 	}
+
+	// Interpreter: execute the program
+	interpreter := interp.New(os.Stdout)
 
 	if trace {
-		fmt.Println("\n[Execution trace not yet available]")
+		fmt.Fprintf(os.Stderr, "[Trace mode enabled - executing %s]\n", filename)
+	}
+
+	result := interpreter.Eval(program)
+
+	// Check for runtime errors
+	if result != nil && result.Type() == "ERROR" {
+		fmt.Fprintf(os.Stderr, "Runtime error: %s\n", result.String())
+		return fmt.Errorf("execution failed")
 	}
 
 	return nil

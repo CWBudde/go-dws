@@ -1,0 +1,11 @@
+// Arithmetic operations test
+var x := 5;
+var y := 10;
+var sum := x + y;
+PrintLn('Sum: ', sum);
+
+var product := x * y;
+PrintLn('Product: ', product);
+
+var diff := y - x;
+PrintLn('Difference: ', diff);

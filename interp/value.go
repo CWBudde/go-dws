@@ -1,0 +1,152 @@
+// Package interp provides the interpreter and runtime for DWScript.
+package interp
+
+import (
+	"fmt"
+	"strconv"
+)
+
+// Value represents a runtime value in the DWScript interpreter.
+// All runtime values must implement this interface.
+// This interface does NOT use interface{} to ensure type safety.
+type Value interface {
+	// Type returns the type name of the value (e.g., "INTEGER", "STRING")
+	Type() string
+	// String returns the string representation of the value
+	String() string
+}
+
+// IntegerValue represents an integer value in DWScript.
+type IntegerValue struct {
+	Value int64
+}
+
+// Type returns "INTEGER".
+func (i *IntegerValue) Type() string {
+	return "INTEGER"
+}
+
+// String returns the string representation of the integer.
+func (i *IntegerValue) String() string {
+	return strconv.FormatInt(i.Value, 10)
+}
+
+// FloatValue represents a floating-point value in DWScript.
+type FloatValue struct {
+	Value float64
+}
+
+// Type returns "FLOAT".
+func (f *FloatValue) Type() string {
+	return "FLOAT"
+}
+
+// String returns the string representation of the float.
+func (f *FloatValue) String() string {
+	return strconv.FormatFloat(f.Value, 'g', -1, 64)
+}
+
+// StringValue represents a string value in DWScript.
+type StringValue struct {
+	Value string
+}
+
+// Type returns "STRING".
+func (s *StringValue) Type() string {
+	return "STRING"
+}
+
+// String returns the string value itself.
+func (s *StringValue) String() string {
+	return s.Value
+}
+
+// BooleanValue represents a boolean value in DWScript.
+type BooleanValue struct {
+	Value bool
+}
+
+// Type returns "BOOLEAN".
+func (b *BooleanValue) Type() string {
+	return "BOOLEAN"
+}
+
+// String returns "true" or "false".
+func (b *BooleanValue) String() string {
+	if b.Value {
+		return "true"
+	}
+	return "false"
+}
+
+// NilValue represents a nil/null value in DWScript.
+type NilValue struct{}
+
+// Type returns "NIL".
+func (n *NilValue) Type() string {
+	return "NIL"
+}
+
+// String returns "nil".
+func (n *NilValue) String() string {
+	return "nil"
+}
+
+// Helper functions to create values from Go types
+
+// NewIntegerValue creates a new IntegerValue from an int64.
+func NewIntegerValue(v int64) Value {
+	return &IntegerValue{Value: v}
+}
+
+// NewFloatValue creates a new FloatValue from a float64.
+func NewFloatValue(v float64) Value {
+	return &FloatValue{Value: v}
+}
+
+// NewStringValue creates a new StringValue from a string.
+func NewStringValue(v string) Value {
+	return &StringValue{Value: v}
+}
+
+// NewBooleanValue creates a new BooleanValue from a bool.
+func NewBooleanValue(v bool) Value {
+	return &BooleanValue{Value: v}
+}
+
+// NewNilValue creates a new NilValue.
+func NewNilValue() Value {
+	return &NilValue{}
+}
+
+// GoInt converts a Value to a Go int64. Returns error if not an IntegerValue.
+func GoInt(v Value) (int64, error) {
+	if iv, ok := v.(*IntegerValue); ok {
+		return iv.Value, nil
+	}
+	return 0, fmt.Errorf("value is not an integer: %s", v.Type())
+}
+
+// GoFloat converts a Value to a Go float64. Returns error if not a FloatValue.
+func GoFloat(v Value) (float64, error) {
+	if fv, ok := v.(*FloatValue); ok {
+		return fv.Value, nil
+	}
+	return 0, fmt.Errorf("value is not a float: %s", v.Type())
+}
+
+// GoString converts a Value to a Go string. Returns error if not a StringValue.
+func GoString(v Value) (string, error) {
+	if sv, ok := v.(*StringValue); ok {
+		return sv.Value, nil
+	}
+	return "", fmt.Errorf("value is not a string: %s", v.Type())
+}
+
+// GoBool converts a Value to a Go bool. Returns error if not a BooleanValue.
+func GoBool(v Value) (bool, error) {
+	if bv, ok := v.(*BooleanValue); ok {
+		return bv.Value, nil
+	}
+	return false, fmt.Errorf("value is not a boolean: %s", v.Type())
+}

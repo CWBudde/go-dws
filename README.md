@@ -17,18 +17,22 @@ go-dws is a faithful implementation of the DWScript scripting language in Go, pr
 
 ## Project Status
 
-🚧 **Early Development** - Stage 0 in progress
+🚧 **Early Development** - Stage 3 in progress
 
 This project is being developed incrementally following a detailed implementation plan. See [PLAN.md](PLAN.md) for the complete roadmap.
 
-### Current Milestone: Stage 0 - Project Setup
+### Recent Milestones
 
-- [x] Clone DWScript reference
-- [x] Initialize Go module
-- [x] Create directory structure
-- [ ] Create CLI skeleton
-- [ ] Set up CI/CD
-- [ ] Complete documentation
+- ✅ **Stage 1 – Lexer complete** (token definitions, full lexer, 97% coverage, CLI `lex` command)
+- ✅ **Stage 2 – Parser & AST complete** (Pratt parser for expressions, AST nodes, CLI `parse` dump)
+
+### Current Milestone: Stage 3 - Parse and Execute Simple Statements
+
+- [ ] Extend AST with statement nodes (variable declarations, assignments, blocks)
+- [ ] Implement statement parsing and sequencing rules
+- [ ] Introduce interpreter scaffolding for executing parsed statements
+- [ ] Enhance CLI `run` command to evaluate scripts end-to-end
+- [ ] Expand regression tests with DWScript samples covering statements
 
 ## Installation
 
@@ -74,16 +78,15 @@ go-dws/
 
 The project follows a 10-stage incremental development plan:
 
-1. **Stage 0**: Project Setup and Familiarization ⬅️ *Current*
-2. **Stage 1**: Implement the Lexer (Tokenization)
-3. **Stage 2**: Build a Minimal Parser and AST (Expressions Only)
-4. **Stage 3**: Parse and Execute Simple Statements
-5. **Stage 4**: Control Flow (Conditions and Loops)
-6. **Stage 5**: Functions, Procedures, and Scope Management
-7. **Stage 6**: Static Type Checking and Semantic Analysis
-8. **Stage 7**: Object-Oriented Features (Classes, Interfaces, Methods)
-9. **Stage 8**: Additional DWScript Features and Polishing
-10. **Stage 10**: Long-Term Evolution
+1. ✅ **Stage 1**: Implement the Lexer (Tokenization)
+2. ✅ **Stage 2**: Build a Minimal Parser and AST (Expressions Only)
+3. 🔄 **Stage 3**: Parse and Execute Simple Statements ⬅️ *Current*
+4. **Stage 4**: Control Flow (Conditions and Loops)
+5. **Stage 5**: Functions, Procedures, and Scope Management
+6. **Stage 6**: Static Type Checking and Semantic Analysis
+7. **Stage 7**: Object-Oriented Features (Classes, Interfaces, Methods)
+8. **Stage 8**: Additional DWScript Features and Polishing
+9. **Stage 9**: Long-Term Evolution
 
 See [PLAN.md](PLAN.md) for the complete task breakdown (~511 tasks).
 

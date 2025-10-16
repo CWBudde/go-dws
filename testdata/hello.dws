@@ -1,4 +1,2 @@
-{ Simple Hello World program }
-begin
-    PrintLn('Hello, World!');
-end.
+// Simple Hello World program
+PrintLn('Hello, World!');
