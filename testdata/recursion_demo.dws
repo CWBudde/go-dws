@@ -1,0 +1,69 @@
+// Demonstration of recursive functions in DWScript
+
+// Factorial function (recursive)
+function Factorial(n: Integer): Integer;
+begin
+    if n <= 1 then
+        Result := 1
+    else
+        Result := n * Factorial(n - 1);
+end;
+
+// Fibonacci function (recursive)
+function Fibonacci(n: Integer): Integer;
+begin
+    if n <= 1 then
+        Result := n
+    else
+        Result := Fibonacci(n - 1) + Fibonacci(n - 2);
+end;
+
+// Sum from 1 to N (recursive)
+function SumToN(n: Integer): Integer;
+begin
+    if n <= 0 then
+        Result := 0
+    else
+        Result := n + SumToN(n - 1);
+end;
+
+// Countdown procedure (recursive)
+procedure Countdown(n: Integer);
+begin
+    if n > 0 then
+    begin
+        PrintLn(n);
+        Countdown(n - 1);
+    end;
+end;
+
+// Main program
+begin
+    PrintLn("Recursive Functions Demonstration");
+    PrintLn("=================================");
+
+    PrintLn("");
+    PrintLn("Factorial:");
+    PrintLn("  Factorial(5) = ", Factorial(5));
+    PrintLn("  Factorial(10) = ", Factorial(10));
+
+    PrintLn("");
+    PrintLn("Fibonacci:");
+    PrintLn("  Fibonacci(0) = ", Fibonacci(0));
+    PrintLn("  Fibonacci(1) = ", Fibonacci(1));
+    PrintLn("  Fibonacci(6) = ", Fibonacci(6));
+    PrintLn("  Fibonacci(10) = ", Fibonacci(10));
+
+    PrintLn("");
+    PrintLn("Sum from 1 to N:");
+    PrintLn("  SumToN(5) = ", SumToN(5));
+    PrintLn("  SumToN(10) = ", SumToN(10));
+    PrintLn("  SumToN(100) = ", SumToN(100));
+
+    PrintLn("");
+    PrintLn("Countdown from 5:");
+    Countdown(5);
+
+    PrintLn("");
+    PrintLn("Done!");
+end.

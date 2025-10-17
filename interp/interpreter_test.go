@@ -979,3 +979,374 @@ func TestCaseStatementExecution(t *testing.T) {
 		})
 	}
 }
+
+// TestFunctionCalls tests user-defined function calls.
+func TestFunctionCalls(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Simple function returning integer",
+			input: `
+				function Add(a, b: Integer): Integer;
+				begin
+					Result := a + b;
+				end;
+
+				PrintLn(Add(2, 3))
+			`,
+			expected: "5\n",
+		},
+		{
+			name: "Function with single parameter",
+			input: `
+				function Double(x: Integer): Integer;
+				begin
+					Result := x * 2;
+				end;
+
+				PrintLn(Double(21))
+			`,
+			expected: "42\n",
+		},
+		{
+			name: "Function using function name for return value",
+			input: `
+				function GetTen: Integer;
+				begin
+					GetTen := 10;
+				end;
+
+				PrintLn(GetTen())
+			`,
+			expected: "10\n",
+		},
+		{
+			name: "Function called multiple times",
+			input: `
+				function Square(x: Integer): Integer;
+				begin
+					Result := x * x;
+				end;
+
+				PrintLn(Square(3));
+				PrintLn(Square(4));
+				PrintLn(Square(5))
+			`,
+			expected: "9\n16\n25\n",
+		},
+		{
+			name: "Function with string parameter and return",
+			input: `
+				function Greet(name: String): String;
+				begin
+					Result := "Hello, " + name;
+				end;
+
+				PrintLn(Greet("World"))
+			`,
+			expected: "Hello, World\n",
+		},
+		{
+			name: "Function with local variables",
+			input: `
+				function Calculate(x: Integer): Integer;
+				begin
+					var temp: Integer := x * 2;
+					var result: Integer := temp + 10;
+					Result := result;
+				end;
+
+				PrintLn(Calculate(5))
+			`,
+			expected: "20\n",
+		},
+		{
+			name: "Multiple functions",
+			input: `
+				function Add(a, b: Integer): Integer;
+				begin
+					Result := a + b;
+				end;
+
+				function Multiply(a, b: Integer): Integer;
+				begin
+					Result := a * b;
+				end;
+
+				PrintLn(Add(2, 3));
+				PrintLn(Multiply(4, 5))
+			`,
+			expected: "5\n20\n",
+		},
+		{
+			name: "Nested function calls",
+			input: `
+				function Add(a, b: Integer): Integer;
+				begin
+					Result := a + b;
+				end;
+
+				function Multiply(a, b: Integer): Integer;
+				begin
+					Result := a * b;
+				end;
+
+				PrintLn(Add(Multiply(2, 3), 4))
+			`,
+			expected: "10\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expected {
+				t.Errorf("wrong output.\nexpected=%q\ngot=%q", tt.expected, output)
+			}
+		})
+	}
+}
+
+// TestProcedures tests procedures (functions without return values).
+func TestProcedures(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Simple procedure",
+			input: `
+				procedure SayHello;
+				begin
+					PrintLn("Hello!");
+				end;
+
+				SayHello()
+			`,
+			expected: "Hello!\n",
+		},
+		{
+			name: "Procedure with parameters",
+			input: `
+				procedure Greet(name: String);
+				begin
+					PrintLn("Hello, " + name);
+				end;
+
+				Greet("Alice");
+				Greet("Bob")
+			`,
+			expected: "Hello, Alice\nHello, Bob\n",
+		},
+		{
+			name: "Procedure modifying outer variable",
+			input: `
+				var counter: Integer := 0;
+
+				procedure Increment;
+				begin
+					counter := counter + 1;
+				end;
+
+				Increment();
+				Increment();
+				Increment();
+				PrintLn(counter)
+			`,
+			expected: "3\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expected {
+				t.Errorf("wrong output.\nexpected=%q\ngot=%q", tt.expected, output)
+			}
+		})
+	}
+}
+
+// TestRecursiveFunctions tests recursive function calls.
+func TestRecursiveFunctions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Factorial",
+			input: `
+				function Factorial(n: Integer): Integer;
+				begin
+					if n <= 1 then
+						Result := 1
+					else
+						Result := n * Factorial(n - 1);
+				end;
+
+				PrintLn(Factorial(5))
+			`,
+			expected: "120\n",
+		},
+		{
+			name: "Fibonacci",
+			input: `
+				function Fibonacci(n: Integer): Integer;
+				begin
+					if n <= 1 then
+						Result := n
+					else
+						Result := Fibonacci(n - 1) + Fibonacci(n - 2);
+				end;
+
+				PrintLn(Fibonacci(0));
+				PrintLn(Fibonacci(1));
+				PrintLn(Fibonacci(6))
+			`,
+			expected: "0\n1\n8\n",
+		},
+		{
+			name: "Countdown",
+			input: `
+				procedure Countdown(n: Integer);
+				begin
+					if n > 0 then
+					begin
+						PrintLn(n);
+						Countdown(n - 1);
+					end;
+				end;
+
+				Countdown(5)
+			`,
+			expected: "5\n4\n3\n2\n1\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expected {
+				t.Errorf("wrong output.\nexpected=%q\ngot=%q", tt.expected, output)
+			}
+		})
+	}
+}
+
+// TestFunctionScopeIsolation tests that function scopes are properly isolated.
+func TestFunctionScopeIsolation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Local variable doesn't leak to global scope",
+			input: `
+				function Test: Integer;
+				begin
+					var local: Integer := 42;
+					Result := local;
+				end;
+
+				var x: Integer := Test();
+				PrintLn(x)
+			`,
+			expected: "42\n",
+		},
+		{
+			name: "Same variable name in different scopes",
+			input: `
+				var x: Integer := 10;
+
+				function GetX: Integer;
+				begin
+					var x: Integer := 20;
+					Result := x;
+				end;
+
+				PrintLn(GetX());
+				PrintLn(x)
+			`,
+			expected: "20\n10\n",
+		},
+		{
+			name: "Function can access global variables",
+			input: `
+				var global: Integer := 100;
+
+				function AddToGlobal(x: Integer): Integer;
+				begin
+					Result := global + x;
+				end;
+
+				PrintLn(AddToGlobal(23))
+			`,
+			expected: "123\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expected {
+				t.Errorf("wrong output.\nexpected=%q\ngot=%q", tt.expected, output)
+			}
+		})
+	}
+}
+
+// TestFunctionErrors tests error handling in function calls.
+func TestFunctionErrors(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectedErr string
+	}{
+		{
+			name: "Wrong number of arguments",
+			input: `
+				function Add(a, b: Integer): Integer;
+				begin
+					Result := a + b;
+				end;
+
+				PrintLn(Add(1))
+			`,
+			expectedErr: "wrong number of arguments",
+		},
+		{
+			name: "Too many arguments",
+			input: `
+				function Add(a, b: Integer): Integer;
+				begin
+					Result := a + b;
+				end;
+
+				PrintLn(Add(1, 2, 3))
+			`,
+			expectedErr: "wrong number of arguments",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := testEval(tt.input)
+			if !isError(val) {
+				t.Errorf("expected error, got %T (%+v)", val, val)
+				return
+			}
+
+			errVal := val.(*ErrorValue)
+			if !strings.Contains(errVal.Message, tt.expectedErr) {
+				t.Errorf("wrong error message. expected to contain %q, got=%q",
+					tt.expectedErr, errVal.Message)
+			}
+		})
+	}
+}

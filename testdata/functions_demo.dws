@@ -1,0 +1,38 @@
+// Demonstration of user-defined functions in DWScript
+
+// Simple function with parameters
+function Add(a, b: Integer): Integer;
+begin
+    Result := a + b;
+end;
+
+// Function using function name for return value
+function Multiply(x, y: Integer): Integer;
+begin
+    Multiply := x * y;
+end;
+
+// Function with string parameters
+function Greet(name: String): String;
+begin
+    Result := "Hello, " + name + "!";
+end;
+
+// Procedure (no return value)
+procedure PrintSeparator;
+begin
+    PrintLn("--------------------");
+end;
+
+// Main program
+begin
+    PrintLn("Function Demonstration");
+    PrintSeparator();
+
+    PrintLn("Add(5, 3) = ", Add(5, 3));
+    PrintLn("Multiply(4, 7) = ", Multiply(4, 7));
+    PrintLn(Greet("World"));
+
+    PrintSeparator();
+    PrintLn("Nested calls: Add(Multiply(2, 3), 4) = ", Add(Multiply(2, 3), 4));
+end.

@@ -15,10 +15,10 @@ import (
 //	var x: Integer := 42;
 //	var x := 5;
 type VarDeclStatement struct {
-	Token lexer.Token // The 'var' token
-	Name  *Identifier // The variable name
-	Type  string      // The type annotation (empty string if not specified)
-	Value Expression  // The initialization value (nil if not initialized)
+	Token lexer.Token      // The 'var' token
+	Name  *Identifier      // The variable name
+	Type  *TypeAnnotation  // The type annotation (nil if not specified)
+	Value Expression       // The initialization value (nil if not initialized)
 }
 
 func (vds *VarDeclStatement) statementNode()       {}
@@ -29,9 +29,9 @@ func (vds *VarDeclStatement) String() string {
 	out.WriteString("var ")
 	out.WriteString(vds.Name.String())
 
-	if vds.Type != "" {
+	if vds.Type != nil {
 		out.WriteString(": ")
-		out.WriteString(vds.Type)
+		out.WriteString(vds.Type.String())
 	}
 
 	if vds.Value != nil {
@@ -72,9 +72,10 @@ func (as *AssignmentStatement) String() string {
 //	Add(3, 5)
 //	Foo()
 type CallExpression struct {
-	Token     lexer.Token  // The '(' token
-	Function  Expression   // The function being called (usually an Identifier)
-	Arguments []Expression // The arguments to the function
+	Token     lexer.Token      // The '(' token
+	Function  Expression       // The function being called (usually an Identifier)
+	Arguments []Expression     // The arguments to the function
+	Type      *TypeAnnotation  // The return type (determined by semantic analyzer)
 }
 
 func (ce *CallExpression) expressionNode()      {}
@@ -95,3 +96,5 @@ func (ce *CallExpression) String() string {
 
 	return out.String()
 }
+func (ce *CallExpression) GetType() *TypeAnnotation { return ce.Type }
+func (ce *CallExpression) SetType(typ *TypeAnnotation) { ce.Type = typ }
