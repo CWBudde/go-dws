@@ -522,7 +522,7 @@ var s: String := 'hello';
 				t.Errorf("stmt.Name.Value = %q, want %q", stmt.Name.Value, tt.expectedVar)
 			}
 
-			if stmt.Type != tt.expectedTyp {
+			if (stmt.Type == nil && tt.expectedTyp != "") || (stmt.Type != nil && stmt.Type.Name != tt.expectedTyp) {
 				t.Errorf("stmt.Type = %q, want %q", stmt.Type, tt.expectedTyp)
 			}
 
@@ -894,7 +894,7 @@ x := x + y;
 				if varDecl1.Name.Value != "x" {
 					t.Errorf("varDecl1.Name.Value = %q, want 'x'", varDecl1.Name.Value)
 				}
-				if varDecl1.Type != "Integer" {
+				if varDecl1.Type == nil || varDecl1.Type.Name != "Integer" {
 					t.Errorf("varDecl1.Type = %q, want 'Integer'", varDecl1.Type)
 				}
 				if !testIntegerLiteral(t, varDecl1.Value, 5) {
@@ -2695,4 +2695,430 @@ func TestNilLiteral(t *testing.T) {
 // Helper function to check if a string contains a substring
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || contains(s[1:], substr)))
+}
+
+// TestFunctionDeclarations tests parsing of function declarations.
+func TestFunctionDeclarations(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected func(*testing.T, ast.Statement)
+	}{
+		{
+			name:  "simple function with no parameters",
+			input: "function GetValue: Integer; begin end;",
+			expected: func(t *testing.T, stmt ast.Statement) {
+				fn, ok := stmt.(*ast.FunctionDecl)
+				if !ok {
+					t.Fatalf("stmt is not *ast.FunctionDecl. got=%T", stmt)
+				}
+				if fn.Name.Value != "GetValue" {
+					t.Errorf("function name = %q, want %q", fn.Name.Value, "GetValue")
+				}
+				if fn.ReturnType == nil || fn.ReturnType.Name != "Integer" {
+					t.Errorf("return type = %q, want %q", fn.ReturnType, "Integer")
+				}
+				if len(fn.Parameters) != 0 {
+					t.Errorf("parameters count = %d, want 0", len(fn.Parameters))
+				}
+			},
+		},
+		{
+			name:  "procedure with no parameters",
+			input: "procedure Hello; begin end;",
+			expected: func(t *testing.T, stmt ast.Statement) {
+				fn, ok := stmt.(*ast.FunctionDecl)
+				if !ok {
+					t.Fatalf("stmt is not *ast.FunctionDecl. got=%T", stmt)
+				}
+				if fn.Name.Value != "Hello" {
+					t.Errorf("function name = %q, want %q", fn.Name.Value, "Hello")
+				}
+				if fn.ReturnType != nil {
+					t.Errorf("return type = %q, want empty string for procedure", fn.ReturnType)
+				}
+			},
+		},
+		{
+			name:  "function with single parameter",
+			input: "function Double(x: Integer): Integer; begin end;",
+			expected: func(t *testing.T, stmt ast.Statement) {
+				fn, ok := stmt.(*ast.FunctionDecl)
+				if !ok {
+					t.Fatalf("stmt is not *ast.FunctionDecl. got=%T", stmt)
+				}
+				if fn.Name.Value != "Double" {
+					t.Errorf("function name = %q, want %q", fn.Name.Value, "Double")
+				}
+				if len(fn.Parameters) != 1 {
+					t.Fatalf("parameters count = %d, want 1", len(fn.Parameters))
+				}
+				param := fn.Parameters[0]
+				if param.Name.Value != "x" {
+					t.Errorf("parameter name = %q, want %q", param.Name.Value, "x")
+				}
+				if param.Type == nil || param.Type.Name != "Integer" {
+					t.Errorf("parameter type = %q, want %q", param.Type, "Integer")
+				}
+				if param.ByRef {
+					t.Errorf("parameter ByRef = true, want false")
+				}
+			},
+		},
+		{
+			name:  "function with multiple parameters",
+			input: "function Add(a: Integer; b: Integer): Integer; begin end;",
+			expected: func(t *testing.T, stmt ast.Statement) {
+				fn, ok := stmt.(*ast.FunctionDecl)
+				if !ok {
+					t.Fatalf("stmt is not *ast.FunctionDecl. got=%T", stmt)
+				}
+				if len(fn.Parameters) != 2 {
+					t.Fatalf("parameters count = %d, want 2", len(fn.Parameters))
+				}
+				if fn.Parameters[0].Name.Value != "a" {
+					t.Errorf("first param name = %q, want %q", fn.Parameters[0].Name.Value, "a")
+				}
+				if fn.Parameters[1].Name.Value != "b" {
+					t.Errorf("second param name = %q, want %q", fn.Parameters[1].Name.Value, "b")
+				}
+			},
+		},
+		{
+			name:  "function with var parameter",
+			input: "function Process(var data: String): Boolean; begin end;",
+			expected: func(t *testing.T, stmt ast.Statement) {
+				fn, ok := stmt.(*ast.FunctionDecl)
+				if !ok {
+					t.Fatalf("stmt is not *ast.FunctionDecl. got=%T", stmt)
+				}
+				if len(fn.Parameters) != 1 {
+					t.Fatalf("parameters count = %d, want 1", len(fn.Parameters))
+				}
+				param := fn.Parameters[0]
+				if !param.ByRef {
+					t.Errorf("parameter ByRef = false, want true")
+				}
+				if param.Name.Value != "data" {
+					t.Errorf("parameter name = %q, want %q", param.Name.Value, "data")
+				}
+				if param.Type == nil || param.Type.Name != "String" {
+					t.Errorf("parameter type = %q, want %q", param.Type, "String")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has %d statements, want 1", len(program.Statements))
+			}
+
+			tt.expected(t, program.Statements[0])
+		})
+	}
+}
+
+// TestParameters tests parameter parsing in function declarations - Task 5.14
+func TestParameters(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected func(*testing.T, *ast.FunctionDecl)
+	}{
+		{
+			name:  "single parameter",
+			input: "function Test(x: Integer): Boolean; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 1 {
+					t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+				}
+				param := fn.Parameters[0]
+				if param.Name.Value != "x" {
+					t.Errorf("param name = %q, want 'x'", param.Name.Value)
+				}
+				if param.Type == nil || param.Type.Name != "Integer" {
+					t.Errorf("param type = %q, want 'Integer'", param.Type)
+				}
+				if param.ByRef {
+					t.Error("param should not be by reference")
+				}
+			},
+		},
+		{
+			name:  "multiple parameters with different types",
+			input: "function Calculate(x: Integer; y: Float; name: String): Float; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 3 {
+					t.Fatalf("expected 3 parameters, got %d", len(fn.Parameters))
+				}
+
+				// Check first parameter
+				if fn.Parameters[0].Name.Value != "x" {
+					t.Errorf("param[0] name = %q, want 'x'", fn.Parameters[0].Name.Value)
+				}
+				if fn.Parameters[0].Type == nil || fn.Parameters[0].Type.Name != "Integer" {
+					t.Errorf("param[0] type = %q, want 'Integer'", fn.Parameters[0].Type)
+				}
+
+				// Check second parameter
+				if fn.Parameters[1].Name.Value != "y" {
+					t.Errorf("param[1] name = %q, want 'y'", fn.Parameters[1].Name.Value)
+				}
+				if fn.Parameters[1].Type == nil || fn.Parameters[1].Type.Name != "Float" {
+					t.Errorf("param[1] type = %q, want 'Float'", fn.Parameters[1].Type)
+				}
+
+				// Check third parameter
+				if fn.Parameters[2].Name.Value != "name" {
+					t.Errorf("param[2] name = %q, want 'name'", fn.Parameters[2].Name.Value)
+				}
+				if fn.Parameters[2].Type == nil || fn.Parameters[2].Type.Name != "String" {
+					t.Errorf("param[2] type = %q, want 'String'", fn.Parameters[2].Type)
+				}
+			},
+		},
+		{
+			name:  "var parameter by reference",
+			input: "procedure Swap(var a: Integer; var b: Integer); begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 2 {
+					t.Fatalf("expected 2 parameters, got %d", len(fn.Parameters))
+				}
+
+				// Both parameters should be by reference
+				if !fn.Parameters[0].ByRef {
+					t.Error("param[0] should be by reference")
+				}
+				if !fn.Parameters[1].ByRef {
+					t.Error("param[1] should be by reference")
+				}
+
+				if fn.Parameters[0].Name.Value != "a" {
+					t.Errorf("param[0] name = %q, want 'a'", fn.Parameters[0].Name.Value)
+				}
+				if fn.Parameters[1].Name.Value != "b" {
+					t.Errorf("param[1] name = %q, want 'b'", fn.Parameters[1].Name.Value)
+				}
+			},
+		},
+		{
+			name:  "mixed var and value parameters",
+			input: "procedure Update(var x: Integer; y: Integer; var z: String); begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 3 {
+					t.Fatalf("expected 3 parameters, got %d", len(fn.Parameters))
+				}
+
+				// Check ByRef flags
+				if !fn.Parameters[0].ByRef {
+					t.Error("param[0] should be by reference")
+				}
+				if fn.Parameters[1].ByRef {
+					t.Error("param[1] should not be by reference")
+				}
+				if !fn.Parameters[2].ByRef {
+					t.Error("param[2] should be by reference")
+				}
+			},
+		},
+		{
+			name:  "function with no parameters",
+			input: "function GetRandom: Integer; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 0 {
+					t.Fatalf("expected 0 parameters, got %d", len(fn.Parameters))
+				}
+			},
+		},
+		{
+			name:  "procedure with no parameters",
+			input: "procedure PrintHello; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 0 {
+					t.Fatalf("expected 0 parameters, got %d", len(fn.Parameters))
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has %d statements, want 1", len(program.Statements))
+			}
+
+			fn, ok := program.Statements[0].(*ast.FunctionDecl)
+			if !ok {
+				t.Fatalf("statement is not *ast.FunctionDecl, got %T", program.Statements[0])
+			}
+
+			tt.expected(t, fn)
+		})
+	}
+}
+
+// TestUserDefinedFunctionCallsWithArguments tests calling user-defined functions with arguments - Task 5.15
+func TestUserDefinedFunctionCallsWithArguments(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "call user function with integer arguments",
+			input: `
+				function Add(a: Integer; b: Integer): Integer;
+				begin
+					end;
+
+				begin
+					Add(1, 2);
+				end;
+			`,
+		},
+		{
+			name: "call user function with mixed argument types",
+			input: `
+				function Format(name: String; age: Integer): String;
+				begin
+				end;
+
+				begin
+					Format('John', 25);
+				end;
+			`,
+		},
+		{
+			name: "call user function with expression arguments",
+			input: `
+				function Calculate(x: Integer; y: Integer): Integer;
+				begin
+				end;
+
+				begin
+					Calculate(1 + 2, 3 * 4);
+				end;
+			`,
+		},
+		{
+			name: "call user function with no arguments",
+			input: `
+				function GetValue: Integer;
+				begin
+				end;
+
+				begin
+					GetValue();
+				end;
+			`,
+		},
+		{
+			name: "call procedure with arguments",
+			input: `
+				procedure PrintValue(x: Integer);
+				begin
+				end;
+
+				begin
+					PrintValue(42);
+				end;
+			`,
+		},
+		{
+			name: "nested function calls as arguments",
+			input: `
+				function Double(x: Integer): Integer;
+				begin
+				end;
+
+				function Triple(x: Integer): Integer;
+				begin
+				end;
+
+				begin
+					Double(Triple(5));
+				end;
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			// The program should parse successfully
+			if len(program.Statements) < 2 {
+				t.Fatalf("expected at least 2 statements (function + main block), got %d", len(program.Statements))
+			}
+
+			// First statement(s) should be function declarations
+			for i := 0; i < len(program.Statements)-1; i++ {
+				if _, ok := program.Statements[i].(*ast.FunctionDecl); !ok {
+					t.Errorf("statement %d is not *ast.FunctionDecl, got %T", i, program.Statements[i])
+				}
+			}
+
+			// Last statement should be the main block containing the call
+			lastStmt := program.Statements[len(program.Statements)-1]
+			if _, ok := lastStmt.(*ast.BlockStatement); !ok {
+				t.Errorf("last statement is not *ast.BlockStatement, got %T", lastStmt)
+			}
+		})
+	}
+}
+
+// TestNestedFunctions tests nested function declarations - Task 5.16
+// Note: DWScript may or may not support nested functions. This test documents current behavior.
+func TestNestedFunctions(t *testing.T) {
+	input := `
+		function Outer(x: Integer): Integer;
+		begin
+			function Inner(y: Integer): Integer;
+			begin
+			end;
+		end;
+	`
+
+	p := testParser(input)
+	program := p.ParseProgram()
+
+	// Check if parser supports nested functions
+	// If there are parser errors, nested functions are not yet supported
+	errors := p.Errors()
+	if len(errors) > 0 {
+		t.Skip("Nested functions not yet supported - this is expected per PLAN.md task 5.11")
+		return
+	}
+
+	// If we get here, nested functions ARE supported
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	outerFn, ok := program.Statements[0].(*ast.FunctionDecl)
+	if !ok {
+		t.Fatalf("statement is not *ast.FunctionDecl, got %T", program.Statements[0])
+	}
+
+	if outerFn.Name.Value != "Outer" {
+		t.Errorf("outer function name = %q, want 'Outer'", outerFn.Name.Value)
+	}
+
+	// Check if the body contains the nested function
+	// This would require the AST to support nested function declarations
+	// For now, we just verify the outer function parses correctly
+	if outerFn.Body == nil {
+		t.Error("outer function body is nil")
+	}
 }

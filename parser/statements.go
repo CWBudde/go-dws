@@ -22,6 +22,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseForStatement()
 	case lexer.CASE:
 		return p.parseCaseStatement()
+	case lexer.FUNCTION, lexer.PROCEDURE:
+		return p.parseFunctionDeclaration()
 	default:
 		if p.curToken.Type == lexer.IDENT && p.peekTokenIs(lexer.ASSIGN) {
 			return p.parseAssignmentStatement()
@@ -97,7 +99,10 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 			p.addError("expected type identifier after ':' in var declaration")
 			return stmt
 		}
-		stmt.Type = p.curToken.Literal
+		stmt.Type = &ast.TypeAnnotation{
+			Token: p.curToken,
+			Name:  p.curToken.Literal,
+		}
 	}
 
 	if p.peekTokenIs(lexer.ASSIGN) {

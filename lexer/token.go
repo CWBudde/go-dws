@@ -12,6 +12,11 @@ type Position struct {
 	Offset int // Byte offset (0-indexed)
 }
 
+// String returns a string representation of the position
+func (p Position) String() string {
+	return fmt.Sprintf("%d:%d", p.Line, p.Column)
+}
+
 // Token represents a lexical token with its type, literal value, and position.
 type Token struct {
 	Type    TokenType // The type of the token

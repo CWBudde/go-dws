@@ -17,7 +17,23 @@ go-dws is a faithful implementation of the DWScript scripting language in Go, pr
 
 ## Project Status
 
-🚧 **Work in Progress** - This project is under active development. Stage 2 (Parser & Expressions) is complete at 100%.
+🚧 **Work in Progress** - This project is under active development.
+
+**Completed Stages**:
+
+- ✅ Stage 1: Lexer (100%)
+- ✅ Stage 2: Parser & Expressions (100%)
+- ✅ Stage 3: Interpreter & Basic Statements (100%)
+- ✅ Stage 4: Control Flow (100%)
+- ⚙️ Stage 5: Functions & Procedures (84.8% - Core features complete)
+
+**Current Capabilities**:
+
+- Variables and expressions
+- Control flow (if/else, while, for, repeat, case)
+- User-defined functions and procedures
+- Recursion support
+- Built-in functions (PrintLn, Print)
 
 See [PLAN.md](PLAN.md) for the complete implementation roadmap and current progress.
 
@@ -32,22 +48,102 @@ go install github.com/cwbudde/go-dws/cmd/dwscript@latest
 
 ## Usage
 
-**Note:** Not yet functional. This section shows the planned CLI interface.
+The CLI tool is functional for running DWScript programs with variables, expressions, control flow, and functions.
 
 ```bash
-# Run a DWScript file
-dwscript run script.dws
+# Build the CLI tool
+go build -o bin/dwscript ./cmd/dwscript
 
-# Evaluate an expression
-dwscript -e "PrintLn('Hello, World!');"
+# Run a DWScript file
+./bin/dwscript run script.dws
+
+# Evaluate inline code
+./bin/dwscript run -e "PrintLn('Hello, World!');"
+
+# Parse and display AST (for debugging)
+./bin/dwscript parse script.dws
+
+# Tokenize source code
+./bin/dwscript lex script.dws
 
 # Show version
-dwscript version
+./bin/dwscript version
 ```
+
+### Quick Examples
+
+**Hello World**:
+
+```bash
+./bin/dwscript run -e "PrintLn('Hello, World!');"
+```
+
+**Variables and Arithmetic**:
+
+```bash
+./bin/dwscript run -e "var x := 5; var y := 10; PrintLn('Sum: ', x + y);"
+```
+
+**Control Flow**:
+
+```bash
+./bin/dwscript run -e "for var i := 1 to 5 do PrintLn(i);"
+```
+
+**Functions**:
+
+```bash
+./bin/dwscript run -e "function Add(a, b: Integer): Integer; begin Result := a + b; end; begin PrintLn(Add(5, 3)); end."
+```
+
+### Example Programs
+
+**Factorial Calculator** (`examples/factorial.dws`):
+
+```pascal
+function Factorial(n: Integer): Integer;
+begin
+    if n <= 1 then
+        Result := 1
+    else
+        Result := n * Factorial(n - 1);
+end;
+
+begin
+    PrintLn('Factorial(5) = ', Factorial(5));
+    PrintLn('Factorial(10) = ', Factorial(10));
+end.
+```
+
+Run it:
+
+```bash
+./bin/dwscript run examples/factorial.dws
+```
+
+**FizzBuzz** (`examples/fizzbuzz.dws`):
+
+```pascal
+begin
+    for var i := 1 to 20 do
+    begin
+        if (i mod 15) = 0 then
+            PrintLn('FizzBuzz')
+        else if (i mod 3) = 0 then
+            PrintLn('Fizz')
+        else if (i mod 5) = 0 then
+            PrintLn('Buzz')
+        else
+            PrintLn(i);
+    end;
+end.
+```
+
+More examples available in the `testdata/` directory.
 
 ## Project Structure
 
-```
+```text
 go-dws/
 ├── lexer/          # Lexical analyzer (tokenizer)
 ├── parser/         # Parser and AST builder
@@ -105,13 +201,14 @@ go build ./cmd/dwscript
 
 The compiler/interpreter follows a traditional architecture:
 
-```
+```text
 Source Code → Lexer → Parser → AST → Semantic Analyzer → Interpreter
                                                             ↓
                                                          Output
 ```
 
 Future optimizations may include:
+
 - Bytecode compilation for better performance
 - JIT compilation (if feasible in Go)
 - JavaScript transpilation backend

@@ -472,21 +472,21 @@ func TestVarDeclStatement(t *testing.T) {
 	tests := []struct {
 		name    string
 		varName string
-		varType string
+		varType *TypeAnnotation
 		value   Expression
 		want    string
 	}{
 		{
 			name:    "declaration without initialization",
 			varName: "x",
-			varType: "Integer",
+			varType: &TypeAnnotation{Name: "Integer"},
 			value:   nil,
 			want:    "var x: Integer",
 		},
 		{
 			name:    "declaration with integer initialization",
 			varName: "x",
-			varType: "Integer",
+			varType: &TypeAnnotation{Name: "Integer"},
 			value: &IntegerLiteral{
 				Token: lexer.Token{Type: lexer.INT, Literal: "42"},
 				Value: 42,
@@ -496,7 +496,7 @@ func TestVarDeclStatement(t *testing.T) {
 		{
 			name:    "declaration with string initialization",
 			varName: "s",
-			varType: "String",
+			varType: &TypeAnnotation{Name: "String"},
 			value: &StringLiteral{
 				Token: lexer.Token{Type: lexer.STRING, Literal: "'hello'"},
 				Value: "hello",
@@ -506,7 +506,7 @@ func TestVarDeclStatement(t *testing.T) {
 		{
 			name:    "declaration without type",
 			varName: "x",
-			varType: "",
+			varType: nil,
 			value: &IntegerLiteral{
 				Token: lexer.Token{Type: lexer.INT, Literal: "5"},
 				Value: 5,
