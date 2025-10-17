@@ -1,0 +1,18 @@
+// Test: Function return type mismatches
+function GetNumber(): Integer;
+begin
+    // Error: Returning string instead of integer
+    Result := 'hello';
+end;
+
+function GetName(): String;
+begin
+    var x: Integer := 42;
+    // Error: Returning integer instead of string
+    Result := x;
+end;
+
+begin
+    PrintLn(GetNumber());
+    PrintLn(GetName());
+end;

@@ -1,0 +1,27 @@
+// Test: Valid case statements
+var x: Integer := 2;
+var result: String;
+
+case x of
+    1: result := 'one';
+    2: result := 'two';
+    3: result := 'three';
+else
+    result := 'other';
+end;
+
+PrintLn(result);
+
+// Case with string expression
+var day: String := 'Monday';
+var message: String;
+
+case day of
+    'Monday': message := 'Start of week';
+    'Friday': message := 'Almost weekend';
+    'Saturday', 'Sunday': message := 'Weekend!';
+else
+    message := 'Midweek';
+end;
+
+PrintLn(message);

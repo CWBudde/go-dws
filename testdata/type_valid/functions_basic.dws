@@ -1,0 +1,33 @@
+// Test: Valid function declarations and calls
+function Add(a, b: Integer): Integer;
+begin
+    Result := a + b;
+end;
+
+function Multiply(x, y: Float): Float;
+begin
+    Result := x * y;
+end;
+
+function Greet(name: String): String;
+begin
+    Result := 'Hello, ' + name + '!';
+end;
+
+procedure PrintHeader(title: String);
+begin
+    PrintLn('=== ' + title + ' ===');
+end;
+
+begin
+    var sum: Integer := Add(5, 10);
+    PrintLn(sum);
+
+    var product: Float := Multiply(3.5, 2.0);
+    PrintLn(product);
+
+    var greeting: String := Greet('Alice');
+    PrintLn(greeting);
+
+    PrintHeader('Test Complete');
+end;

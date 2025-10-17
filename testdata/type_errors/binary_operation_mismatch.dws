@@ -1,0 +1,8 @@
+// Test: Binary operation type mismatches
+var x: Integer := 5;
+var y: String := 'hello';
+
+// Error: Cannot add integer and string
+var z: Integer := x + y;
+
+PrintLn(z);

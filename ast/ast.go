@@ -9,14 +9,17 @@ import (
 )
 
 // Node is the base interface for all AST nodes.
-// Every node in the AST must be able to provide its token literal
-// and a string representation for debugging.
+// Every node in the AST must be able to provide its token literal,
+// position information, and a string representation for debugging.
 type Node interface {
 	// TokenLiteral returns the literal value of the token this node is associated with.
 	TokenLiteral() string
 
 	// String returns a string representation of the node for debugging and testing.
 	String() string
+
+	// Pos returns the position of the node in the source code for error reporting.
+	Pos() lexer.Position
 }
 
 // Expression represents any node that produces a value.
@@ -56,6 +59,13 @@ func (p *Program) String() string {
 	return out.String()
 }
 
+func (p *Program) Pos() lexer.Position {
+	if len(p.Statements) > 0 {
+		return p.Statements[0].Pos()
+	}
+	return lexer.Position{Line: 1, Column: 1, Offset: 0}
+}
+
 // Identifier represents an identifier (variable name, function name, etc.)
 type Identifier struct {
 	Token lexer.Token      // The IDENT token
@@ -63,9 +73,10 @@ type Identifier struct {
 	Type  *TypeAnnotation  // The inferred or annotated type (set by semantic analyzer)
 }
 
-func (i *Identifier) expressionNode()      {}
-func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
-func (i *Identifier) String() string       { return i.Value }
+func (i *Identifier) expressionNode()         {}
+func (i *Identifier) TokenLiteral() string    { return i.Token.Literal }
+func (i *Identifier) String() string          { return i.Value }
+func (i *Identifier) Pos() lexer.Position     { return i.Token.Pos }
 func (i *Identifier) GetType() *TypeAnnotation { return i.Type }
 func (i *Identifier) SetType(typ *TypeAnnotation) { i.Type = typ }
 
@@ -76,9 +87,10 @@ type IntegerLiteral struct {
 	Type  *TypeAnnotation  // The type (always Integer for integer literals)
 }
 
-func (il *IntegerLiteral) expressionNode()      {}
-func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
-func (il *IntegerLiteral) String() string       { return il.Token.Literal }
+func (il *IntegerLiteral) expressionNode()         {}
+func (il *IntegerLiteral) TokenLiteral() string    { return il.Token.Literal }
+func (il *IntegerLiteral) String() string          { return il.Token.Literal }
+func (il *IntegerLiteral) Pos() lexer.Position     { return il.Token.Pos }
 func (il *IntegerLiteral) GetType() *TypeAnnotation { return il.Type }
 func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
 
@@ -89,9 +101,10 @@ type FloatLiteral struct {
 	Type  *TypeAnnotation  // The type (always Float for float literals)
 }
 
-func (fl *FloatLiteral) expressionNode()      {}
-func (fl *FloatLiteral) TokenLiteral() string { return fl.Token.Literal }
-func (fl *FloatLiteral) String() string       { return fl.Token.Literal }
+func (fl *FloatLiteral) expressionNode()         {}
+func (fl *FloatLiteral) TokenLiteral() string    { return fl.Token.Literal }
+func (fl *FloatLiteral) String() string          { return fl.Token.Literal }
+func (fl *FloatLiteral) Pos() lexer.Position     { return fl.Token.Pos }
 func (fl *FloatLiteral) GetType() *TypeAnnotation { return fl.Type }
 func (fl *FloatLiteral) SetType(typ *TypeAnnotation) { fl.Type = typ }
 
@@ -102,9 +115,10 @@ type StringLiteral struct {
 	Type  *TypeAnnotation  // The type (always String for string literals)
 }
 
-func (sl *StringLiteral) expressionNode()      {}
-func (sl *StringLiteral) TokenLiteral() string { return sl.Token.Literal }
-func (sl *StringLiteral) String() string       { return "\"" + sl.Value + "\"" }
+func (sl *StringLiteral) expressionNode()         {}
+func (sl *StringLiteral) TokenLiteral() string    { return sl.Token.Literal }
+func (sl *StringLiteral) String() string          { return "\"" + sl.Value + "\"" }
+func (sl *StringLiteral) Pos() lexer.Position     { return sl.Token.Pos }
 func (sl *StringLiteral) GetType() *TypeAnnotation { return sl.Type }
 func (sl *StringLiteral) SetType(typ *TypeAnnotation) { sl.Type = typ }
 
@@ -115,9 +129,10 @@ type BooleanLiteral struct {
 	Type  *TypeAnnotation  // The type (always Boolean for boolean literals)
 }
 
-func (bl *BooleanLiteral) expressionNode()      {}
-func (bl *BooleanLiteral) TokenLiteral() string { return bl.Token.Literal }
-func (bl *BooleanLiteral) String() string       { return bl.Token.Literal }
+func (bl *BooleanLiteral) expressionNode()         {}
+func (bl *BooleanLiteral) TokenLiteral() string    { return bl.Token.Literal }
+func (bl *BooleanLiteral) String() string          { return bl.Token.Literal }
+func (bl *BooleanLiteral) Pos() lexer.Position     { return bl.Token.Pos }
 func (bl *BooleanLiteral) GetType() *TypeAnnotation { return bl.Type }
 func (bl *BooleanLiteral) SetType(typ *TypeAnnotation) { bl.Type = typ }
 
@@ -130,8 +145,9 @@ type BinaryExpression struct {
 	Type     *TypeAnnotation  // The result type (determined by semantic analyzer)
 }
 
-func (be *BinaryExpression) expressionNode()      {}
-func (be *BinaryExpression) TokenLiteral() string { return be.Token.Literal }
+func (be *BinaryExpression) expressionNode()         {}
+func (be *BinaryExpression) TokenLiteral() string    { return be.Token.Literal }
+func (be *BinaryExpression) Pos() lexer.Position     { return be.Token.Pos }
 func (be *BinaryExpression) String() string {
 	var out bytes.Buffer
 
@@ -154,8 +170,9 @@ type UnaryExpression struct {
 	Type     *TypeAnnotation  // The result type (determined by semantic analyzer)
 }
 
-func (ue *UnaryExpression) expressionNode()      {}
-func (ue *UnaryExpression) TokenLiteral() string { return ue.Token.Literal }
+func (ue *UnaryExpression) expressionNode()         {}
+func (ue *UnaryExpression) TokenLiteral() string    { return ue.Token.Literal }
+func (ue *UnaryExpression) Pos() lexer.Position     { return ue.Token.Pos }
 func (ue *UnaryExpression) String() string {
 	var out bytes.Buffer
 
@@ -182,8 +199,9 @@ type GroupedExpression struct {
 	Type       *TypeAnnotation  // The type (same as inner expression)
 }
 
-func (ge *GroupedExpression) expressionNode()      {}
-func (ge *GroupedExpression) TokenLiteral() string { return ge.Token.Literal }
+func (ge *GroupedExpression) expressionNode()         {}
+func (ge *GroupedExpression) TokenLiteral() string    { return ge.Token.Literal }
+func (ge *GroupedExpression) Pos() lexer.Position     { return ge.Token.Pos }
 func (ge *GroupedExpression) String() string {
 	var out bytes.Buffer
 
@@ -205,6 +223,7 @@ type ExpressionStatement struct {
 
 func (es *ExpressionStatement) statementNode()       {}
 func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
+func (es *ExpressionStatement) Pos() lexer.Position  { return es.Token.Pos }
 func (es *ExpressionStatement) String() string {
 	if es.Expression != nil {
 		return es.Expression.String()
@@ -218,9 +237,10 @@ type NilLiteral struct {
 	Type  *TypeAnnotation  // The type (always Nil for nil literals)
 }
 
-func (nl *NilLiteral) expressionNode()      {}
-func (nl *NilLiteral) TokenLiteral() string { return nl.Token.Literal }
-func (nl *NilLiteral) String() string       { return "nil" }
+func (nl *NilLiteral) expressionNode()         {}
+func (nl *NilLiteral) TokenLiteral() string    { return nl.Token.Literal }
+func (nl *NilLiteral) String() string          { return "nil" }
+func (nl *NilLiteral) Pos() lexer.Position     { return nl.Token.Pos }
 func (nl *NilLiteral) GetType() *TypeAnnotation { return nl.Type }
 func (nl *NilLiteral) SetType(typ *TypeAnnotation) { nl.Type = typ }
 
@@ -232,6 +252,7 @@ type BlockStatement struct {
 
 func (bs *BlockStatement) statementNode()       {}
 func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
+func (bs *BlockStatement) Pos() lexer.Position  { return bs.Token.Pos }
 func (bs *BlockStatement) String() string {
 	var out bytes.Buffer
 

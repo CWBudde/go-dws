@@ -1,0 +1,16 @@
+// Test: Unary operation type errors
+var x: String := 'hello';
+var b: Boolean := true;
+
+// Error: Cannot negate a string
+var y: Integer := -x;
+
+// Error: Cannot apply not to non-boolean
+var z: Boolean := not 5;
+
+// Error: Cannot apply unary plus to string
+var w: String := +x;
+
+PrintLn(y);
+PrintLn(z);
+PrintLn(w);

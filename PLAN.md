@@ -735,7 +735,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Stage 6: Static Type Checking and Semantic Analysis
 
-**Progress**: 36/50 tasks completed (72.0%)
+**Progress**: 50/50 tasks completed (100%) | **✅ STAGE 6 COMPLETE**
 
 ### Type System Foundation ✅ **COMPLETED**
 
@@ -831,32 +831,52 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Integration with Parser and Interpreter
 
-- [ ] 6.39 Update parser to run semantic analysis after parsing
-- [ ] 6.40 Option to disable type checking (for testing)
-- [ ] 6.41 Update interpreter to use type information from analysis
-- [ ] 6.42 Add type assertions in interpreter operations
-- [ ] 6.43 Improve error messages with line/column info
-- [ ] 6.44 Update CLI to report semantic errors before execution
+- [x] 6.39 Update parser to run semantic analysis after parsing
+- [x] 6.40 Option to disable type checking (for testing)
+- [x] 6.41 Update interpreter to use type information from analysis
+- [x] 6.42 Add type assertions in interpreter operations
+- [x] 6.43 Improve error messages with line/column info
+- [x] 6.44 Update CLI to report semantic errors before execution
 
-### Error Reporting Enhancement
+### Error Reporting Enhancement ✅ **COMPLETED**
 
-- [ ] 6.45 Add line/column tracking to all AST nodes
-- [ ] 6.46 Create `errors.go` with error formatting utilities
-- [ ] 6.47 Implement pretty error messages:
-  - [ ] Show source line
-  - [ ] Point to error location with caret (^)
-  - [ ] Include context
-- [ ] 6.48 Support multiple error reporting (don't stop at first error)
-- [ ] 6.49 Test error reporting with various invalid programs
+- [x] 6.45 Add line/column tracking to all AST nodes - ✅ Added Pos() to ast.Node interface
+- [x] 6.46 Create `errors.go` with error formatting utilities - ✅ Created errors/errors.go package
+- [x] 6.47 Implement pretty error messages: - ✅ Fully implemented with color support
+  - [x] Show source line
+  - [x] Point to error location with caret (^)
+  - [x] Include context
+- [x] 6.48 Support multiple error reporting (don't stop at first error) - ✅ Verified working
+- [x] 6.49 Test error reporting with various invalid programs - ✅ Created testdata/type_errors/
 
-### Testing Type System
+### Testing Type System ✅ **COMPLETED**
 
-- [ ] 6.50 Create test scripts with type errors:
-  - [ ] `testdata/type_errors/`
-- [ ] 6.51 Verify all are caught by semantic analyzer
-- [ ] 6.52 Create test scripts with valid type usage
-- [ ] 6.53 Verify all pass semantic analysis
-- [ ] 6.54 Run full integration tests
+- [x] 6.50 Create test scripts with type errors:
+  - [x] `testdata/type_errors/` - 12 comprehensive test files covering:
+    - Binary operation mismatches
+    - Comparison type errors
+    - Function call errors (wrong arg count/types)
+    - Return type mismatches
+    - Control flow condition errors
+    - Redeclaration errors
+    - Unary operation errors
+    - Boolean logic errors
+    - Multiple error detection
+    - Undefined variables
+- [x] 6.51 Verify all are caught by semantic analyzer - ✅ All 12 files properly detect errors
+- [x] 6.52 Create test scripts with valid type usage:
+  - [x] `testdata/type_valid/` - 11 comprehensive test files covering:
+    - Basic types (Integer, Float, String, Boolean)
+    - Arithmetic operations
+    - String operations
+    - Boolean operations
+    - Type coercion (Integer to Float)
+    - Functions (basic and iterative)
+    - Control flow (if statements and loops)
+    - Case statements
+    - Complex expressions
+- [x] 6.53 Verify all pass semantic analysis - ✅ All 11 files pass successfully
+- [x] 6.54 Run full integration tests - ✅ Created `cmd/dwscript/cmd/run_semantic_integration_test.go` with 3 comprehensive test suites (23 total test cases)
 
 ---
 

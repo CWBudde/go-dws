@@ -1,0 +1,10 @@
+// Test: Valid usage of basic types
+var x: Integer := 42;
+var y: Float := 3.14;
+var s: String := 'Hello, World!';
+var b: Boolean := true;
+
+PrintLn(x);
+PrintLn(y);
+PrintLn(s);
+PrintLn(b);

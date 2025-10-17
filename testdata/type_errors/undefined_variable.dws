@@ -1,0 +1,4 @@
+// Test: Undefined variable error
+var x: Integer := 5;
+var y: Integer := x + z;  // z is undefined
+PrintLn(y);

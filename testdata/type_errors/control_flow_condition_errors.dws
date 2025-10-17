@@ -1,0 +1,21 @@
+// Test: Control flow condition type errors
+var x: Integer := 5;
+var s: String := 'test';
+
+// Error: if condition must be boolean
+if x then
+    PrintLn('x is true');
+
+// Error: while condition must be boolean
+while s do
+    PrintLn('looping');
+
+// Error: for loop bounds must be integers
+for i := 'a' to 'z' do
+    PrintLn(i);
+
+// Error: case expression with incompatible branch types
+case x of
+    1: PrintLn('one');
+    'two': PrintLn('two');  // Error: string literal in integer case
+end;

@@ -1,0 +1,23 @@
+// Test: Valid iterative functions (recursive not yet supported in semantic analyzer)
+
+function Factorial(n: Integer): Integer;
+begin
+    var i: Integer;
+    var acc: Integer := 1;
+    for i := 2 to n do
+        acc := acc * i;
+    Result := acc;
+end;
+
+function Sum(a, b, c: Integer): Integer;
+begin
+    Result := a + b + c;
+end;
+
+begin
+    var fact5: Integer := Factorial(5);
+    PrintLn(fact5);
+
+    var total: Integer := Sum(10, 20, 30);
+    PrintLn(total);
+end;

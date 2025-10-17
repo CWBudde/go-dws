@@ -9,9 +9,10 @@ import (
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 type Interpreter struct {
-	env       *Environment                  // The current execution environment
-	output    io.Writer                     // Where to write output (e.g., from PrintLn)
-	functions map[string]*ast.FunctionDecl // Registry of user-defined functions
+	env         *Environment                  // The current execution environment
+	output      io.Writer                     // Where to write output (e.g., from PrintLn)
+	functions   map[string]*ast.FunctionDecl // Registry of user-defined functions
+	currentNode ast.Node                      // Current AST node being evaluated (for error reporting)
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -28,6 +29,9 @@ func New(output io.Writer) *Interpreter {
 // Eval evaluates an AST node and returns its value.
 // This is the main entry point for the interpreter.
 func (i *Interpreter) Eval(node ast.Node) Value {
+	// Track the current node for error reporting
+	i.currentNode = node
+
 	switch node := node.(type) {
 	// Program
 	case *ast.Program:
@@ -170,7 +174,7 @@ func (i *Interpreter) evalBlockStatement(block *ast.BlockStatement) Value {
 func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 	val, ok := i.env.Get(node.Value)
 	if !ok {
-		return newError("undefined variable: %s", node.Value)
+		return i.newErrorWithLocation(node, "undefined variable '%s'", node.Value)
 	}
 	return val
 }
@@ -202,14 +206,24 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 		return i.evalBooleanBinaryOp(expr.Operator, left, right)
 
 	default:
-		return newError("type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
+		return i.newErrorWithLocation(expr, "type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
 	}
 }
 
 // evalIntegerBinaryOp evaluates binary operations on integers.
 func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
-	leftVal := left.(*IntegerValue).Value
-	rightVal := right.(*IntegerValue).Value
+	// Safe type assertions with error handling
+	leftInt, ok := left.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "expected integer, got %s", left.Type())
+	}
+	rightInt, ok := right.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "expected integer, got %s", right.Type())
+	}
+
+	leftVal := leftInt.Value
+	rightVal := rightInt.Value
 
 	switch op {
 	case "+":
@@ -220,19 +234,19 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 		return &IntegerValue{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
-			return newError("division by zero")
+			return i.newErrorWithLocation(i.currentNode, "division by zero")
 		}
 		// Integer division in DWScript uses / for float division
 		// We'll convert to float for division
 		return &FloatValue{Value: float64(leftVal) / float64(rightVal)}
 	case "div":
 		if rightVal == 0 {
-			return newError("division by zero")
+			return i.newErrorWithLocation(i.currentNode, "division by zero")
 		}
 		return &IntegerValue{Value: leftVal / rightVal}
 	case "mod":
 		if rightVal == 0 {
-			return newError("division by zero")
+			return i.newErrorWithLocation(i.currentNode, "division by zero")
 		}
 		return &IntegerValue{Value: leftVal % rightVal}
 	case "=":
@@ -286,7 +300,7 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 		return &FloatValue{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
-			return newError("division by zero")
+			return i.newErrorWithLocation(i.currentNode, "division by zero")
 		}
 		return &FloatValue{Value: leftVal / rightVal}
 	case "=":
@@ -308,8 +322,18 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 
 // evalStringBinaryOp evaluates binary operations on strings.
 func (i *Interpreter) evalStringBinaryOp(op string, left, right Value) Value {
-	leftVal := left.(*StringValue).Value
-	rightVal := right.(*StringValue).Value
+	// Safe type assertions with error handling
+	leftStr, ok := left.(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "expected string, got %s", left.Type())
+	}
+	rightStr, ok := right.(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "expected string, got %s", right.Type())
+	}
+
+	leftVal := leftStr.Value
+	rightVal := rightStr.Value
 
 	switch op {
 	case "+":
@@ -333,8 +357,18 @@ func (i *Interpreter) evalStringBinaryOp(op string, left, right Value) Value {
 
 // evalBooleanBinaryOp evaluates binary operations on booleans.
 func (i *Interpreter) evalBooleanBinaryOp(op string, left, right Value) Value {
-	leftVal := left.(*BooleanValue).Value
-	rightVal := right.(*BooleanValue).Value
+	// Safe type assertions with error handling
+	leftBool, ok := left.(*BooleanValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "expected boolean, got %s", left.Type())
+	}
+	rightBool, ok := right.(*BooleanValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "expected boolean, got %s", right.Type())
+	}
+
+	leftVal := leftBool.Value
+	rightVal := rightBool.Value
 
 	switch op {
 	case "and":
@@ -379,7 +413,7 @@ func (i *Interpreter) evalMinusUnaryOp(right Value) Value {
 	case *FloatValue:
 		return &FloatValue{Value: -v.Value}
 	default:
-		return newError("unknown operator: -%s", right.Type())
+		return i.newErrorWithLocation(i.currentNode, "expected integer or float for unary minus, got %s", right.Type())
 	}
 }
 
@@ -389,18 +423,17 @@ func (i *Interpreter) evalPlusUnaryOp(right Value) Value {
 	case *IntegerValue, *FloatValue:
 		return right
 	default:
-		return newError("unknown operator: +%s", right.Type())
+		return i.newErrorWithLocation(i.currentNode, "expected integer or float for unary plus, got %s", right.Type())
 	}
 }
 
 // evalNotUnaryOp evaluates the not operator.
 func (i *Interpreter) evalNotUnaryOp(right Value) Value {
-	switch v := right.(type) {
-	case *BooleanValue:
-		return &BooleanValue{Value: !v.Value}
-	default:
-		return newError("unknown operator: not %s", right.Type())
+	boolVal, ok := right.(*BooleanValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "expected boolean for NOT operator, got %s", right.Type())
 	}
+	return &BooleanValue{Value: !boolVal.Value}
 }
 
 // evalCallExpression evaluates a function call expression.
@@ -447,7 +480,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	case "Print":
 		return i.builtinPrint(args)
 	default:
-		return newError("undefined function: %s", name)
+		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
 }
 
@@ -689,16 +722,28 @@ func (i *Interpreter) valuesEqual(left, right Value) bool {
 
 	switch l := left.(type) {
 	case *IntegerValue:
-		r := right.(*IntegerValue)
+		r, ok := right.(*IntegerValue)
+		if !ok {
+			return false
+		}
 		return l.Value == r.Value
 	case *FloatValue:
-		r := right.(*FloatValue)
+		r, ok := right.(*FloatValue)
+		if !ok {
+			return false
+		}
 		return l.Value == r.Value
 	case *StringValue:
-		r := right.(*StringValue)
+		r, ok := right.(*StringValue)
+		if !ok {
+			return false
+		}
 		return l.Value == r.Value
 	case *BooleanValue:
-		r := right.(*BooleanValue)
+		r, ok := right.(*BooleanValue)
+		if !ok {
+			return false
+		}
 		return l.Value == r.Value
 	case *NilValue:
 		return true // nil == nil
@@ -798,6 +843,53 @@ func (e *ErrorValue) String() string { return "ERROR: " + e.Message }
 // newError creates a new ErrorValue.
 func newError(format string, args ...interface{}) *ErrorValue {
 	return &ErrorValue{Message: fmt.Sprintf(format, args...)}
+}
+
+// newErrorWithLocation creates a new ErrorValue with location information from a node.
+func (i *Interpreter) newErrorWithLocation(node ast.Node, format string, args ...interface{}) *ErrorValue {
+	message := fmt.Sprintf(format, args...)
+
+	// Try to get location information from the node's token
+	if node != nil {
+		tokenLiteral := node.TokenLiteral()
+		if tokenLiteral != "" {
+			// Extract token information - we need to get the actual token from the node
+			location := i.getLocationFromNode(node)
+			if location != "" {
+				message = fmt.Sprintf("%s at %s", message, location)
+			}
+		}
+	}
+
+	return &ErrorValue{Message: message}
+}
+
+// getLocationFromNode extracts location information from an AST node
+func (i *Interpreter) getLocationFromNode(node ast.Node) string {
+	// Try to extract token information from various node types
+	switch n := node.(type) {
+	case *ast.Identifier:
+		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	case *ast.IntegerLiteral:
+		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	case *ast.FloatLiteral:
+		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	case *ast.StringLiteral:
+		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	case *ast.BooleanLiteral:
+		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	case *ast.BinaryExpression:
+		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	case *ast.UnaryExpression:
+		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	case *ast.CallExpression:
+		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	case *ast.VarDeclStatement:
+		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	case *ast.AssignmentStatement:
+		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	}
+	return ""
 }
 
 // isError checks if a value is an error.

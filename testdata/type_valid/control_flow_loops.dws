@@ -1,0 +1,28 @@
+// Test: Valid loop constructs
+var i: Integer;
+var sum: Integer := 0;
+
+// For loop with integers
+for i := 1 to 5 do
+    sum := sum + i;
+
+PrintLn(sum);
+
+// While loop with boolean condition
+var count: Integer := 0;
+while count < 3 do
+begin
+    PrintLn(count);
+    count := count + 1;
+end;
+
+// Repeat-until loop with boolean condition
+var x: Integer := 0;
+repeat
+    x := x + 1
+until x > 2;
+PrintLn(x);
+
+// For downto loop
+for i := 5 downto 1 do
+    PrintLn(i);

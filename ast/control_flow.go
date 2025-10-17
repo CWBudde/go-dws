@@ -23,6 +23,7 @@ type IfStatement struct {
 
 func (is *IfStatement) statementNode()       {}
 func (is *IfStatement) TokenLiteral() string { return is.Token.Literal }
+func (is *IfStatement) Pos() lexer.Position  { return is.Token.Pos }
 func (is *IfStatement) String() string {
 	var out bytes.Buffer
 
@@ -52,6 +53,7 @@ type WhileStatement struct {
 
 func (ws *WhileStatement) statementNode()       {}
 func (ws *WhileStatement) TokenLiteral() string { return ws.Token.Literal }
+func (ws *WhileStatement) Pos() lexer.Position  { return ws.Token.Pos }
 func (ws *WhileStatement) String() string {
 	var out bytes.Buffer
 
@@ -77,6 +79,7 @@ type RepeatStatement struct {
 
 func (rs *RepeatStatement) statementNode()       {}
 func (rs *RepeatStatement) TokenLiteral() string { return rs.Token.Literal }
+func (rs *RepeatStatement) Pos() lexer.Position  { return rs.Token.Pos }
 func (rs *RepeatStatement) String() string {
 	var out bytes.Buffer
 
@@ -124,6 +127,7 @@ type ForStatement struct {
 
 func (fs *ForStatement) statementNode()       {}
 func (fs *ForStatement) TokenLiteral() string { return fs.Token.Literal }
+func (fs *ForStatement) Pos() lexer.Position  { return fs.Token.Pos }
 func (fs *ForStatement) String() string {
 	var out bytes.Buffer
 
@@ -184,6 +188,7 @@ type CaseStatement struct {
 
 func (cs *CaseStatement) statementNode()       {}
 func (cs *CaseStatement) TokenLiteral() string { return cs.Token.Literal }
+func (cs *CaseStatement) Pos() lexer.Position  { return cs.Token.Pos }
 func (cs *CaseStatement) String() string {
 	var out bytes.Buffer
 

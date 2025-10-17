@@ -1,0 +1,4 @@
+// Test: Parser error (missing semicolon)
+var x: Integer := 5
+var y: Integer := 10;
+PrintLn(x + y);

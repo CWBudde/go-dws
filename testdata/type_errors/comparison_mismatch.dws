@@ -1,0 +1,12 @@
+// Test: Comparison type mismatches
+var x: Integer := 5;
+var y: String := 'hello';
+
+// Error: Cannot compare integer and string
+if x = y then
+    PrintLn('equal');
+
+// Error: Cannot compare boolean and integer
+var b: Boolean := true;
+if b > 5 then
+    PrintLn('greater');
