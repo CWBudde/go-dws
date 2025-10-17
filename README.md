@@ -17,22 +17,9 @@ go-dws is a faithful implementation of the DWScript scripting language in Go, pr
 
 ## Project Status
 
-🚧 **Early Development** - Stage 3 in progress
+🚧 **Work in Progress** - This project is under active development. Stage 2 (Parser & Expressions) is complete at 100%.
 
-This project is being developed incrementally following a detailed implementation plan. See [PLAN.md](PLAN.md) for the complete roadmap.
-
-### Recent Milestones
-
-- ✅ **Stage 1 – Lexer complete** (token definitions, full lexer, 97% coverage, CLI `lex` command)
-- ✅ **Stage 2 – Parser & AST complete** (Pratt parser for expressions, AST nodes, CLI `parse` dump)
-
-### Current Milestone: Stage 3 - Parse and Execute Simple Statements
-
-- [ ] Extend AST with statement nodes (variable declarations, assignments, blocks)
-- [ ] Implement statement parsing and sequencing rules
-- [ ] Introduce interpreter scaffolding for executing parsed statements
-- [ ] Enhance CLI `run` command to evaluate scripts end-to-end
-- [ ] Expand regression tests with DWScript samples covering statements
+See [PLAN.md](PLAN.md) for the complete implementation roadmap and current progress.
 
 ## Installation
 
@@ -76,25 +63,7 @@ go-dws/
 
 ## Development Roadmap
 
-The project follows a 10-stage incremental development plan:
-
-1. ✅ **Stage 1**: Implement the Lexer (Tokenization)
-2. ✅ **Stage 2**: Build a Minimal Parser and AST (Expressions Only)
-3. 🔄 **Stage 3**: Parse and Execute Simple Statements ⬅️ *Current*
-4. **Stage 4**: Control Flow (Conditions and Loops)
-5. **Stage 5**: Functions, Procedures, and Scope Management
-6. **Stage 6**: Static Type Checking and Semantic Analysis
-7. **Stage 7**: Object-Oriented Features (Classes, Interfaces, Methods)
-8. **Stage 8**: Additional DWScript Features and Polishing
-9. **Stage 9**: Long-Term Evolution
-
-See [PLAN.md](PLAN.md) for the complete task breakdown (~511 tasks).
-
-### Estimated Timeline
-
-- **Core compiler** (Stages 0-5): 3-6 months
-- **Full feature parity** (All stages): 1-3 years
-- Timeline depends on development pace and team size
+The project follows a 10-stage incremental development plan covering ~511 tasks. For detailed progress and task breakdown, see [PLAN.md](PLAN.md).
 
 ## Design Philosophy
 
