@@ -1,0 +1,82 @@
+// Comprehensive case statement demonstration in DWScript
+
+PrintLn("=== Case Statement Examples ===");
+PrintLn("");
+
+// Example 1: Simple integer case
+PrintLn("1. Day of week example:");
+var day := 3;
+case day of
+    1: PrintLn("   Monday");
+    2: PrintLn("   Tuesday");
+    3: PrintLn("   Wednesday");
+    4: PrintLn("   Thursday");
+    5: PrintLn("   Friday");
+    6, 7: PrintLn("   Weekend!");
+else
+    PrintLn("   Invalid day");
+end;
+
+// Example 2: String case
+PrintLn("");
+PrintLn("2. Language greeting:");
+var lang := "fr";
+case lang of
+    "en": PrintLn("   Hello!");
+    "fr": PrintLn("   Bonjour!");
+    "de": PrintLn("   Guten Tag!");
+    "es": PrintLn("   Hola!");
+else
+    PrintLn("   Unknown language");
+end;
+
+// Example 3: Case with expression
+PrintLn("");
+PrintLn("3. Grade calculation:");
+var score := 85;
+case score div 10 of
+    10, 9: PrintLn("   Grade: A");
+    8: PrintLn("   Grade: B");
+    7: PrintLn("   Grade: C");
+    6: PrintLn("   Grade: D");
+else
+    PrintLn("   Grade: F");
+end;
+
+// Example 4: Case in a loop
+PrintLn("");
+PrintLn("4. Number classification:");
+for i := 1 to 5 do begin
+    Print("   ", i, " is ");
+    case i of
+        1: PrintLn("one");
+        2: PrintLn("two");
+        3: PrintLn("three");
+        4: PrintLn("four");
+        5: PrintLn("five");
+    end
+end;
+
+// Example 5: Case with blocks
+PrintLn("");
+PrintLn("5. Traffic light simulation:");
+var light := "yellow";
+case light of
+    "red": begin
+        PrintLn("   STOP!");
+        PrintLn("   Wait for green");
+    end;
+    "yellow": begin
+        PrintLn("   CAUTION!");
+        PrintLn("   Prepare to stop");
+    end;
+    "green": begin
+        PrintLn("   GO!");
+        PrintLn("   Proceed safely");
+    end;
+else
+    PrintLn("   Unknown signal");
+end;
+
+PrintLn("");
+PrintLn("=== All tests complete ===");

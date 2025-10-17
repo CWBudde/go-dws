@@ -771,3 +771,211 @@ func TestForStatementExecution(t *testing.T) {
 		})
 	}
 }
+
+// TestCaseStatementExecution tests case statement execution.
+func TestCaseStatementExecution(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Simple case with integer values",
+			input: `
+				var x := 2;
+				case x of
+					1: PrintLn("one");
+					2: PrintLn("two");
+					3: PrintLn("three");
+				end
+			`,
+			expected: "two\n",
+		},
+		{
+			name: "Case with multiple values per branch",
+			input: `
+				var x := 3;
+				case x of
+					1, 2: PrintLn("one or two");
+					3, 4: PrintLn("three or four");
+					5: PrintLn("five");
+				end
+			`,
+			expected: "three or four\n",
+		},
+		{
+			name: "Case with else branch - no match",
+			input: `
+				var x := 10;
+				case x of
+					1: PrintLn("one");
+					2: PrintLn("two");
+				else
+					PrintLn("other");
+				end
+			`,
+			expected: "other\n",
+		},
+		{
+			name: "Case with else branch - has match",
+			input: `
+				var x := 1;
+				case x of
+					1: PrintLn("one");
+					2: PrintLn("two");
+				else
+					PrintLn("other");
+				end
+			`,
+			expected: "one\n",
+		},
+		{
+			name: "Case with string values",
+			input: `
+				var name := "bob";
+				case name of
+					"alice": PrintLn("Hello Alice");
+					"bob": PrintLn("Hello Bob");
+					"charlie": PrintLn("Hello Charlie");
+				end
+			`,
+			expected: "Hello Bob\n",
+		},
+		{
+			name: "Case with no match and no else",
+			input: `
+				var x := 99;
+				case x of
+					1: PrintLn("one");
+					2: PrintLn("two");
+				end
+			`,
+			expected: "",
+		},
+		{
+			name: "Case with block statements",
+			input: `
+				var x := 2;
+				case x of
+					1: begin PrintLn("one"); PrintLn("first") end;
+					2: begin PrintLn("two"); PrintLn("second") end;
+					3: PrintLn("three");
+				end
+			`,
+			expected: "two\nsecond\n",
+		},
+		{
+			name: "Case with expression as case value",
+			input: `
+				var x := 5;
+				var y := 2;
+				case x + y of
+					5: PrintLn("five");
+					7: PrintLn("seven");
+					10: PrintLn("ten");
+				end
+			`,
+			expected: "seven\n",
+		},
+		{
+			name: "Case with variable assignment in branch",
+			input: `
+				var x := 2;
+				var result := 0;
+				case x of
+					1: result := 10;
+					2: result := 20;
+					3: result := 30;
+				end;
+				PrintLn(result)
+			`,
+			expected: "20\n",
+		},
+		{
+			name: "Case with boolean values",
+			input: `
+				var flag := true;
+				case flag of
+					true: PrintLn("yes");
+					false: PrintLn("no");
+				end
+			`,
+			expected: "yes\n",
+		},
+		{
+			name: "Case with expression values in branches",
+			input: `
+				var x := 10;
+				var limit := 10;
+				case x of
+					5 + 5: PrintLn("matched");
+					15: PrintLn("fifteen");
+				else
+					PrintLn("no match");
+				end
+			`,
+			expected: "matched\n",
+		},
+		{
+			name: "Nested case statements",
+			input: `
+				var x := 1;
+				var y := 2;
+				case x of
+					1: case y of
+						1: PrintLn("1-1");
+						2: PrintLn("1-2");
+					end;
+					2: PrintLn("x is 2");
+				end
+			`,
+			expected: "1-2\n",
+		},
+		{
+			name: "Case with first matching branch executes (not all)",
+			input: `
+				var x := 2;
+				case x of
+					2: PrintLn("first");
+					2: PrintLn("second");
+					2: PrintLn("third");
+				end
+			`,
+			expected: "first\n",
+		},
+		{
+			name: "Case inside loop",
+			input: `
+				for i := 1 to 3 do
+					case i of
+						1: PrintLn("one");
+						2: PrintLn("two");
+						3: PrintLn("three");
+					end
+			`,
+			expected: "one\ntwo\nthree\n",
+		},
+		{
+			name: "Case with negative integers",
+			input: `
+				var x := -1;
+				case x of
+					-2: PrintLn("minus two");
+					-1: PrintLn("minus one");
+					0: PrintLn("zero");
+					1: PrintLn("one");
+				end
+			`,
+			expected: "minus one\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expected {
+				t.Errorf("wrong output.\nexpected=%q\ngot=%q", tt.expected, output)
+			}
+		})
+	}
+}

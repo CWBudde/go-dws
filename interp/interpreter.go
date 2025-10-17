@@ -56,6 +56,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.ForStatement:
 		return i.evalForStatement(node)
 
+	case *ast.CaseStatement:
+		return i.evalCaseStatement(node)
+
 	// Expressions
 	case *ast.IntegerLiteral:
 		return &IntegerValue{Value: node.Value}
@@ -620,6 +623,73 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 	i.env = savedEnv
 
 	return result
+}
+
+// evalCaseStatement evaluates a case statement.
+// It evaluates the case expression, then checks each branch in order.
+// The first branch with a matching value has its statement executed.
+// If no branch matches and there's an else clause, it's executed.
+func (i *Interpreter) evalCaseStatement(stmt *ast.CaseStatement) Value {
+	// Evaluate the case expression
+	caseValue := i.Eval(stmt.Expression)
+	if isError(caseValue) {
+		return caseValue
+	}
+
+	// Check each case branch in order
+	for _, branch := range stmt.Cases {
+		// Check each value in this branch
+		for _, branchVal := range branch.Values {
+			// Evaluate the branch value
+			branchValue := i.Eval(branchVal)
+			if isError(branchValue) {
+				return branchValue
+			}
+
+			// Check if values match
+			if i.valuesEqual(caseValue, branchValue) {
+				// Execute this branch's statement
+				return i.Eval(branch.Statement)
+			}
+		}
+	}
+
+	// No branch matched - execute else clause if present
+	if stmt.Else != nil {
+		return i.Eval(stmt.Else)
+	}
+
+	// No match and no else clause - return nil
+	return &NilValue{}
+}
+
+// valuesEqual compares two values for equality.
+// This is used by case statements to match values.
+func (i *Interpreter) valuesEqual(left, right Value) bool {
+	// Handle same type comparisons
+	if left.Type() != right.Type() {
+		return false
+	}
+
+	switch l := left.(type) {
+	case *IntegerValue:
+		r := right.(*IntegerValue)
+		return l.Value == r.Value
+	case *FloatValue:
+		r := right.(*FloatValue)
+		return l.Value == r.Value
+	case *StringValue:
+		r := right.(*StringValue)
+		return l.Value == r.Value
+	case *BooleanValue:
+		r := right.(*BooleanValue)
+		return l.Value == r.Value
+	case *NilValue:
+		return true // nil == nil
+	default:
+		// For other types, use string comparison as fallback
+		return left.String() == right.String()
+	}
 }
 
 // ErrorValue represents a runtime error.
