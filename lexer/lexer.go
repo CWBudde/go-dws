@@ -218,7 +218,7 @@ func (l *Lexer) readNumber() (TokenType, string) {
 }
 
 // readString reads a string literal enclosed in single or double quotes.
-// DWScript uses single quotes by default, with '' as escape for a single quote.
+// DWScript uses single quotes by default, with ” as escape for a single quote.
 func (l *Lexer) readString(quote byte) (string, error) {
 	startPos := l.position
 	l.readChar() // skip opening quote

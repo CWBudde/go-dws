@@ -412,7 +412,7 @@ func TestComments(t *testing.T) {
 		wants []TokenType
 	}{
 		{
-			name:  "line comment",
+			name: "line comment",
 			input: `x // this is a comment
 y`,
 			wants: []TokenType{IDENT, IDENT, EOF},

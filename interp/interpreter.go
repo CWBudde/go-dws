@@ -44,6 +44,18 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.BlockStatement:
 		return i.evalBlockStatement(node)
 
+	case *ast.IfStatement:
+		return i.evalIfStatement(node)
+
+	case *ast.WhileStatement:
+		return i.evalWhileStatement(node)
+
+	case *ast.RepeatStatement:
+		return i.evalRepeatStatement(node)
+
+	case *ast.ForStatement:
+		return i.evalForStatement(node)
+
 	// Expressions
 	case *ast.IntegerLiteral:
 		return &IntegerValue{Value: node.Value}
@@ -443,6 +455,171 @@ func (i *Interpreter) builtinPrint(args []Value) Value {
 		fmt.Fprint(i.output, arg.String())
 	}
 	return &NilValue{}
+}
+
+// evalIfStatement evaluates an if statement.
+// It evaluates the condition, converts it to a boolean, and executes
+// the consequence if true, or the alternative if false (and present).
+func (i *Interpreter) evalIfStatement(stmt *ast.IfStatement) Value {
+	// Evaluate the condition
+	condition := i.Eval(stmt.Condition)
+	if isError(condition) {
+		return condition
+	}
+
+	// Convert condition to boolean
+	if isTruthy(condition) {
+		return i.Eval(stmt.Consequence)
+	} else if stmt.Alternative != nil {
+		return i.Eval(stmt.Alternative)
+	}
+
+	// No alternative and condition was false - return nil
+	return &NilValue{}
+}
+
+// isTruthy determines if a value is considered "true" for conditional logic.
+// In DWScript, only boolean true is truthy. Everything else requires explicit conversion.
+func isTruthy(val Value) bool {
+	switch v := val.(type) {
+	case *BooleanValue:
+		return v.Value
+	default:
+		// In DWScript, only booleans can be used in conditions
+		// Non-boolean values in conditionals would be a type error
+		// For now, treat non-booleans as false
+		return false
+	}
+}
+
+// evalWhileStatement evaluates a while loop.
+// It repeatedly evaluates the condition and executes the body while the condition is true.
+func (i *Interpreter) evalWhileStatement(stmt *ast.WhileStatement) Value {
+	var result Value = &NilValue{}
+
+	for {
+		// Evaluate the condition
+		condition := i.Eval(stmt.Condition)
+		if isError(condition) {
+			return condition
+		}
+
+		// Check if condition is true
+		if !isTruthy(condition) {
+			break
+		}
+
+		// Execute the body
+		result = i.Eval(stmt.Body)
+		if isError(result) {
+			return result
+		}
+	}
+
+	return result
+}
+
+// evalRepeatStatement evaluates a repeat-until loop.
+// The body executes at least once, then repeats until the condition becomes true.
+// This differs from while loops: the body always executes at least once,
+// and the loop continues UNTIL the condition is true (not WHILE it's true).
+func (i *Interpreter) evalRepeatStatement(stmt *ast.RepeatStatement) Value {
+	var result Value = &NilValue{}
+
+	for {
+		// Execute the body first (repeat-until always executes at least once)
+		result = i.Eval(stmt.Body)
+		if isError(result) {
+			return result
+		}
+
+		// Evaluate the condition
+		condition := i.Eval(stmt.Condition)
+		if isError(condition) {
+			return condition
+		}
+
+		// Check if condition is true - if so, exit the loop
+		// Note: repeat UNTIL condition, so we break when condition is TRUE
+		if isTruthy(condition) {
+			break
+		}
+	}
+
+	return result
+}
+
+// evalForStatement evaluates a for loop.
+// DWScript for loops iterate from start to end (or downto), with the loop variable
+// scoped to the loop body. The loop variable is automatically created and managed.
+func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
+	var result Value = &NilValue{}
+
+	// Evaluate start value
+	startVal := i.Eval(stmt.Start)
+	if isError(startVal) {
+		return startVal
+	}
+
+	// Evaluate end value
+	endVal := i.Eval(stmt.End)
+	if isError(endVal) {
+		return endVal
+	}
+
+	// Both start and end must be integers for for loops
+	startInt, ok := startVal.(*IntegerValue)
+	if !ok {
+		return newError("for loop start value must be integer, got %s", startVal.Type())
+	}
+
+	endInt, ok := endVal.(*IntegerValue)
+	if !ok {
+		return newError("for loop end value must be integer, got %s", endVal.Type())
+	}
+
+	// Create a new enclosed environment for the loop variable
+	// This ensures the loop variable is scoped to the loop body
+	loopEnv := NewEnclosedEnvironment(i.env)
+	savedEnv := i.env
+	i.env = loopEnv
+
+	// Define the loop variable in the loop environment
+	loopVarName := stmt.Variable.Value
+
+	// Execute the loop based on direction
+	if stmt.Direction == ast.ForTo {
+		// Ascending loop: for i := start to end
+		for current := startInt.Value; current <= endInt.Value; current++ {
+			// Set the loop variable to the current value
+			i.env.Define(loopVarName, &IntegerValue{Value: current})
+
+			// Execute the body
+			result = i.Eval(stmt.Body)
+			if isError(result) {
+				i.env = savedEnv // Restore environment before returning
+				return result
+			}
+		}
+	} else {
+		// Descending loop: for i := start downto end
+		for current := startInt.Value; current >= endInt.Value; current-- {
+			// Set the loop variable to the current value
+			i.env.Define(loopVarName, &IntegerValue{Value: current})
+
+			// Execute the body
+			result = i.Eval(stmt.Body)
+			if isError(result) {
+				i.env = savedEnv // Restore environment before returning
+				return result
+			}
+		}
+	}
+
+	// Restore the original environment after the loop
+	i.env = savedEnv
+
+	return result
 }
 
 // ErrorValue represents a runtime error.

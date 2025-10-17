@@ -1,0 +1,31 @@
+// Demonstration of while loop execution
+
+// Count from 1 to 5
+var i := 1;
+PrintLn('Counting from 1 to 5:');
+while i <= 5 do
+begin
+  PrintLn(i);
+  i := i + 1
+end;
+
+// Sum numbers from 1 to 10
+var sum := 0;
+var n := 1;
+while n <= 10 do
+begin
+  sum := sum + n;
+  n := n + 1
+end;
+PrintLn('Sum of 1 to 10: ');
+PrintLn(sum);
+
+// Countdown
+var countdown := 5;
+PrintLn('Countdown:');
+while countdown > 0 do
+begin
+  PrintLn(countdown);
+  countdown := countdown - 1
+end;
+PrintLn('Blast off!');

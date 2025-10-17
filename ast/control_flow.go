@@ -10,9 +10,10 @@ import (
 
 // IfStatement represents an if-then-else conditional statement.
 // Examples:
-//   if x > 0 then PrintLn('positive');
-//   if x > 0 then PrintLn('positive') else PrintLn('non-positive');
-//   if condition then begin ... end;
+//
+//	if x > 0 then PrintLn('positive');
+//	if x > 0 then PrintLn('positive') else PrintLn('non-positive');
+//	if condition then begin ... end;
 type IfStatement struct {
 	Token       lexer.Token // The 'if' token
 	Condition   Expression  // The condition expression
@@ -40,8 +41,9 @@ func (is *IfStatement) String() string {
 
 // WhileStatement represents a while loop.
 // Examples:
-//   while x < 10 do x := x + 1;
-//   while condition do begin ... end;
+//
+//	while x < 10 do x := x + 1;
+//	while condition do begin ... end;
 type WhileStatement struct {
 	Token     lexer.Token // The 'while' token
 	Condition Expression  // The loop condition
@@ -64,8 +66,9 @@ func (ws *WhileStatement) String() string {
 // RepeatStatement represents a repeat-until loop.
 // The body executes at least once, then repeats until the condition becomes true.
 // Examples:
-//   repeat x := x + 1; until x >= 10;
-//   repeat begin ... end; until condition;
+//
+//	repeat x := x + 1; until x >= 10;
+//	repeat begin ... end; until condition;
 type RepeatStatement struct {
 	Token     lexer.Token // The 'repeat' token
 	Body      Statement   // The loop body (can be a block or single statement)
@@ -106,9 +109,10 @@ func (fd ForDirection) String() string {
 
 // ForStatement represents a for loop.
 // Examples:
-//   for i := 1 to 10 do PrintLn(i);
-//   for i := 10 downto 1 do PrintLn(i);
-//   for i := start to end do begin ... end;
+//
+//	for i := 1 to 10 do PrintLn(i);
+//	for i := 10 downto 1 do PrintLn(i);
+//	for i := start to end do begin ... end;
 type ForStatement struct {
 	Token     lexer.Token  // The 'for' token
 	Variable  *Identifier  // The loop variable
@@ -139,8 +143,9 @@ func (fs *ForStatement) String() string {
 
 // CaseBranch represents a single branch in a case statement.
 // Examples:
-//   1: PrintLn('one');
-//   2, 3, 4: PrintLn('two to four');
+//
+//	1: PrintLn('one');
+//	2, 3, 4: PrintLn('two to four');
 type CaseBranch struct {
 	Token     lexer.Token  // The first value token
 	Values    []Expression // The values that match this branch
@@ -163,12 +168,13 @@ func (cb *CaseBranch) String() string {
 
 // CaseStatement represents a case statement (switch/case).
 // Examples:
-//   case x of
-//     1: PrintLn('one');
-//     2, 3: PrintLn('two or three');
-//   else
-//     PrintLn('other');
-//   end;
+//
+//	case x of
+//	  1: PrintLn('one');
+//	  2, 3: PrintLn('two or three');
+//	else
+//	  PrintLn('other');
+//	end;
 type CaseStatement struct {
 	Token      lexer.Token   // The 'case' token
 	Expression Expression    // The expression to match against

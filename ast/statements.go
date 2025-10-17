@@ -10,9 +10,10 @@ import (
 
 // VarDeclStatement represents a variable declaration statement.
 // Examples:
-//   var x: Integer;
-//   var x: Integer := 42;
-//   var x := 5;
+//
+//	var x: Integer;
+//	var x: Integer := 42;
+//	var x := 5;
 type VarDeclStatement struct {
 	Token lexer.Token // The 'var' token
 	Name  *Identifier // The variable name
@@ -43,8 +44,9 @@ func (vds *VarDeclStatement) String() string {
 
 // AssignmentStatement represents an assignment statement.
 // Examples:
-//   x := 10;
-//   x := x + 1;
+//
+//	x := 10;
+//	x := x + 1;
 type AssignmentStatement struct {
 	Token lexer.Token // The ':=' token
 	Name  *Identifier // The variable name
@@ -65,13 +67,14 @@ func (as *AssignmentStatement) String() string {
 
 // CallExpression represents a function call expression.
 // Examples:
-//   PrintLn('hello')
-//   Add(3, 5)
-//   Foo()
+//
+//	PrintLn('hello')
+//	Add(3, 5)
+//	Foo()
 type CallExpression struct {
-	Token     lexer.Token    // The '(' token
-	Function  Expression     // The function being called (usually an Identifier)
-	Arguments []Expression   // The arguments to the function
+	Token     lexer.Token  // The '(' token
+	Function  Expression   // The function being called (usually an Identifier)
+	Arguments []Expression // The arguments to the function
 }
 
 func (ce *CallExpression) expressionNode()      {}

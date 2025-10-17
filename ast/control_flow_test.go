@@ -128,10 +128,10 @@ func TestForStatementString(t *testing.T) {
 		{
 			name: "for loop ascending",
 			stmt: &ForStatement{
-				Token:    lexer.Token{Type: lexer.FOR, Literal: "for"},
-				Variable: &Identifier{Value: "i"},
-				Start:    &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
-				End:      &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
+				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
+				Variable:  &Identifier{Value: "i"},
+				Start:     &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
+				End:       &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
 				Direction: ForTo,
 				Body: &ExpressionStatement{
 					Expression: &CallExpression{
@@ -147,10 +147,10 @@ func TestForStatementString(t *testing.T) {
 		{
 			name: "for loop descending",
 			stmt: &ForStatement{
-				Token:    lexer.Token{Type: lexer.FOR, Literal: "for"},
-				Variable: &Identifier{Value: "i"},
-				Start:    &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
-				End:      &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
+				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
+				Variable:  &Identifier{Value: "i"},
+				Start:     &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
+				End:       &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
 				Direction: ForDownto,
 				Body: &ExpressionStatement{
 					Expression: &CallExpression{
@@ -264,8 +264,7 @@ func TestControlFlowNodesImplementInterfaces(t *testing.T) {
 
 // Helper function to check if a string contains a substring
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (
-		s[:len(substr)] == substr ||
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr ||
 		s[len(s)-len(substr):] == substr ||
 		containsMiddle(s, substr)))
 }

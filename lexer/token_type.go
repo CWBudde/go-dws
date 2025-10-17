@@ -26,7 +26,7 @@ const (
 	NIL   // nil literal
 
 	// Keywords - Control flow
-	BEGIN // begin
+	BEGIN    // begin
 	END      // end
 	IF       // if
 	THEN     // then
@@ -47,49 +47,49 @@ const (
 	ASM      // asm
 
 	// Keywords - Declaration
-	VAR             // var
-	CONST           // const
-	TYPE            // type
-	RECORD          // record
-	ARRAY           // array
-	SET             // set
-	ENUM            // enum
-	FLAGS           // flags
-	RESOURCESTRING  // resourcestring
-	NAMESPACE       // namespace
-	UNIT            // unit
-	USES            // uses
-	PROGRAM         // program
-	LIBRARY         // library
-	IMPLEMENTATION  // implementation
-	INITIALIZATION  // initialization
-	FINALIZATION    // finalization
+	VAR            // var
+	CONST          // const
+	TYPE           // type
+	RECORD         // record
+	ARRAY          // array
+	SET            // set
+	ENUM           // enum
+	FLAGS          // flags
+	RESOURCESTRING // resourcestring
+	NAMESPACE      // namespace
+	UNIT           // unit
+	USES           // uses
+	PROGRAM        // program
+	LIBRARY        // library
+	IMPLEMENTATION // implementation
+	INITIALIZATION // initialization
+	FINALIZATION   // finalization
 
 	// Keywords - Object-oriented
-	CLASS        // class
-	OBJECT       // object
-	INTERFACE    // interface
-	IMPLEMENTS   // implements
-	FUNCTION     // function
-	PROCEDURE    // procedure
-	CONSTRUCTOR  // constructor
-	DESTRUCTOR   // destructor
-	METHOD       // method
-	PROPERTY     // property
-	VIRTUAL      // virtual
-	OVERRIDE     // override
-	ABSTRACT     // abstract
-	SEALED       // sealed
-	STATIC       // static
-	FINAL        // final
-	NEW          // new
-	INHERITED    // inherited
-	REINTRODUCE  // reintroduce
-	OPERATOR     // operator
-	HELPER       // helper
-	PARTIAL      // partial
-	LAZY         // lazy
-	INDEX        // index
+	CLASS       // class
+	OBJECT      // object
+	INTERFACE   // interface
+	IMPLEMENTS  // implements
+	FUNCTION    // function
+	PROCEDURE   // procedure
+	CONSTRUCTOR // constructor
+	DESTRUCTOR  // destructor
+	METHOD      // method
+	PROPERTY    // property
+	VIRTUAL     // virtual
+	OVERRIDE    // override
+	ABSTRACT    // abstract
+	SEALED      // sealed
+	STATIC      // static
+	FINAL       // final
+	NEW         // new
+	INHERITED   // inherited
+	REINTRODUCE // reintroduce
+	OPERATOR    // operator
+	HELPER      // helper
+	PARTIAL     // partial
+	LAZY        // lazy
+	INDEX       // index
 
 	// Keywords - Exception handling
 	TRY     // try
@@ -116,20 +116,20 @@ const (
 	IMPL // impl (short for implementation)
 
 	// Keywords - Function modifiers
-	INLINE          // inline
-	EXTERNAL        // external
-	FORWARD         // forward
-	OVERLOAD        // overload
-	DEPRECATED      // deprecated
-	READONLY        // readonly
-	EXPORT          // export
-	REGISTER        // register (calling convention)
-	PASCAL          // pascal (calling convention)
-	CDECL           // cdecl (calling convention)
-	SAFECALL        // safecall (calling convention)
-	STDCALL         // stdcall (calling convention)
-	FASTCALL        // fastcall (calling convention)
-	REFERENCE       // reference (calling convention)
+	INLINE     // inline
+	EXTERNAL   // external
+	FORWARD    // forward
+	OVERLOAD   // overload
+	DEPRECATED // deprecated
+	READONLY   // readonly
+	EXPORT     // export
+	REGISTER   // register (calling convention)
+	PASCAL     // pascal (calling convention)
+	CDECL      // cdecl (calling convention)
+	SAFECALL   // safecall (calling convention)
+	STDCALL    // stdcall (calling convention)
+	FASTCALL   // fastcall (calling convention)
+	REFERENCE  // reference (calling convention)
 
 	// Keywords - Access modifiers
 	PRIVATE   // private
@@ -183,15 +183,15 @@ const (
 	POWER    // ** (alternative power operator)
 
 	// Comparison operators
-	EQ       // =
-	NOT_EQ   // <>
-	LESS     // <
-	GREATER  // >
-	LESS_EQ  // <=
+	EQ         // =
+	NOT_EQ     // <>
+	LESS       // <
+	GREATER    // >
+	LESS_EQ    // <=
 	GREATER_EQ // >=
-	EQ_EQ    // == (JavaScript-style equality)
-	EQ_EQ_EQ // === (JavaScript-style strict equality)
-	EXCL_EQ  // != (C-style not equal)
+	EQ_EQ      // == (JavaScript-style equality)
+	EQ_EQ_EQ   // === (JavaScript-style strict equality)
+	EXCL_EQ    // != (C-style not equal)
 
 	// Assignment operators
 	ASSIGN         // :=
@@ -209,23 +209,23 @@ const (
 	DEC // -- (decrement)
 
 	// Bitwise/Boolean operators
-	LESS_LESS   // << (left shift)
+	LESS_LESS       // << (left shift)
 	GREATER_GREATER // >> (right shift)
-	PIPE        // |
-	PIPE_PIPE   // ||
-	AMP         // &
-	AMP_AMP     // &&
+	PIPE            // |
+	PIPE_PIPE       // ||
+	AMP             // &
+	AMP_AMP         // &&
 
 	// Special operators
-	AT          // @ (address of)
-	TILDE       // ~
-	BACKSLASH   // \
-	DOLLAR      // $
-	EXCLAMATION // !
-	QUESTION    // ?
+	AT                // @ (address of)
+	TILDE             // ~
+	BACKSLASH         // \
+	DOLLAR            // $
+	EXCLAMATION       // !
+	QUESTION          // ?
 	QUESTION_QUESTION // ?? (null coalescing)
-	QUESTION_DOT // ?. (safe navigation)
-	FAT_ARROW   // => (lambda arrow)
+	QUESTION_DOT      // ?. (safe navigation)
+	FAT_ARROW         // => (lambda arrow)
 
 	// Compiler directives
 	SWITCH // {$directive} compiler switch
@@ -457,12 +457,12 @@ var tokenTypeStrings = [...]string{
 	DEC: "DEC",
 
 	// Bitwise/Boolean operators
-	LESS_LESS:      "LESS_LESS",
+	LESS_LESS:       "LESS_LESS",
 	GREATER_GREATER: "GREATER_GREATER",
-	PIPE:           "PIPE",
-	PIPE_PIPE:      "PIPE_PIPE",
-	AMP:            "AMP",
-	AMP_AMP:        "AMP_AMP",
+	PIPE:            "PIPE",
+	PIPE_PIPE:       "PIPE_PIPE",
+	AMP:             "AMP",
+	AMP_AMP:         "AMP_AMP",
 
 	// Special operators
 	AT:                "AT",
