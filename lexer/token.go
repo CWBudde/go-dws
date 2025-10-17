@@ -171,11 +171,11 @@ var keywords = map[string]TokenType{
 	"invariants": INVARIANTS,
 
 	// Modern features
-	"async":   ASYNC,
-	"await":   AWAIT,
-	"lambda":  LAMBDA,
-	"implies": IMPLIES,
-	"empty":   EMPTY,
+	"async":    ASYNC,
+	"await":    AWAIT,
+	"lambda":   LAMBDA,
+	"implies":  IMPLIES,
+	"empty":    EMPTY,
 	"implicit": IMPLICIT,
 }
 

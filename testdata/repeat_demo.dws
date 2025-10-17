@@ -1,0 +1,57 @@
+// DWScript Repeat-Until Loop Demo
+// This script demonstrates the repeat-until loop construct
+
+PrintLn("=== Repeat-Until Loop Demo ===");
+PrintLn("");
+
+// Example 1: Simple counter
+PrintLn("Example 1: Count from 1 to 5");
+var counter := 0;
+repeat
+begin
+  counter := counter + 1;
+  PrintLn(counter)
+end
+until counter >= 5;
+
+PrintLn("");
+
+// Example 2: Sum calculation
+PrintLn("Example 2: Sum numbers 1 to 10");
+var sum := 0;
+var i := 0;
+repeat
+begin
+  i := i + 1;
+  sum := sum + i
+end
+until i >= 10;
+PrintLn("Sum = ", sum);
+
+PrintLn("");
+
+// Example 3: Always executes at least once
+PrintLn("Example 3: Executes at least once (even if condition initially true)");
+var x := 100;
+repeat
+  PrintLn("This executes even though x (", x, ") is already >= 5")
+until x >= 5;
+
+PrintLn("");
+
+// Example 4: Boolean flag control
+PrintLn("Example 4: Boolean flag control");
+var done := false;
+var attempts := 0;
+repeat
+begin
+  attempts := attempts + 1;
+  PrintLn("Attempt ", attempts);
+  if attempts >= 3 then
+    done := true
+end
+until done;
+PrintLn("Completed after ", attempts, " attempts");
+
+PrintLn("");
+PrintLn("=== Demo Complete ===");

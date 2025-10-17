@@ -470,11 +470,11 @@ func TestBlockStatement(t *testing.T) {
 // TestVarDeclStatement tests the VarDeclStatement node.
 func TestVarDeclStatement(t *testing.T) {
 	tests := []struct {
-		name     string
-		varName  string
-		varType  string
-		value    Expression
-		want     string
+		name    string
+		varName string
+		varType string
+		value   Expression
+		want    string
 	}{
 		{
 			name:    "declaration without initialization",
@@ -540,10 +540,10 @@ func TestVarDeclStatement(t *testing.T) {
 // TestAssignmentStatement tests the AssignmentStatement node.
 func TestAssignmentStatement(t *testing.T) {
 	tests := []struct {
-		name     string
-		varName  string
-		value    Expression
-		want     string
+		name    string
+		varName string
+		value   Expression
+		want    string
 	}{
 		{
 			name:    "simple integer assignment",

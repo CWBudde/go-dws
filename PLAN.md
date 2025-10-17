@@ -374,7 +374,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Stage 4: Control Flow - Conditions and Loops
 
-**Progress**: 22/46 tasks completed (47.8%)
+**Progress**: 30/46 tasks completed (65.2%)
 
 ### AST Nodes for Control Flow ✅ **COMPLETED**
 
@@ -511,45 +511,77 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - [x] 4.24 Run all parser tests including new control flow tests
 - [x] 4.25 Achieve >85% parser coverage with control flow
 
-### Interpreter for If Statements
+### Interpreter for If Statements ✅ **COMPLETED**
 
-- [ ] 4.26 Implement `evalIfStatement()` in interpreter:
-  - [ ] Evaluate condition
-  - [ ] Convert to boolean
-  - [ ] Execute consequence if true, alternative if false
-- [ ] 4.27 Test if statement execution: `TestIfExecution`
-  - [ ] Test both branches
-  - [ ] Test nested ifs
+**Completion Date**: October 17, 2025 | **Coverage**: Interpreter 83.5%
 
-### Interpreter for While Loops
+- [x] 4.26 Implement `evalIfStatement()` in interpreter:
+  - [x] Evaluate condition
+  - [x] Convert to boolean
+  - [x] Execute consequence if true, alternative if false
+- [x] 4.27 Test if statement execution: `TestIfStatementExecution`
+  - [x] Test both branches
+  - [x] Test nested ifs
+  - [x] Test if-else with expressions
+  - [x] Test with block statements
 
-- [ ] 4.28 Implement `evalWhileStatement()` in interpreter:
-  - [ ] Loop while condition is true
-  - [ ] Evaluate body in each iteration
-  - [ ] Add safeguard against infinite loops in tests (max iterations)
-- [ ] 4.29 Test while loop execution: `TestWhileExecution`
-  - [ ] Count from 0 to 10
-  - [ ] Sum numbers in a loop
+### Interpreter for While Loops ✅ **COMPLETED**
 
-### Interpreter for Repeat-Until Loops
+**Completion Date**: October 17, 2025 | **Coverage**: Interpreter 83.5%
 
-- [ ] 4.30 Implement `evalRepeatStatement()` in interpreter:
-  - [ ] Execute body at least once
-  - [ ] Continue until condition becomes true
-- [ ] 4.31 Test repeat-until execution: `TestRepeatExecution`
+- [x] 4.28 Implement `evalWhileStatement()` in interpreter:
+  - [x] Loop while condition is true
+  - [x] Evaluate body in each iteration
+  - [x] Proper error handling in loop
+- [x] 4.29 Test while loop execution: `TestWhileStatementExecution`
+  - [x] Count from 0 to 5
+  - [x] Sum numbers in a loop (1 to 5 = 15)
+  - [x] While loop with complex conditions (and, or)
+  - [x] While loop with single statement body
+  - [x] While loop that doesn't execute (condition false)
+  - [x] While with boolean variable control
 
-### Interpreter for For Loops
+### Interpreter for Repeat-Until Loops ✅ **COMPLETED**
 
-- [ ] 4.32 Implement `evalForStatement()` in interpreter:
-  - [ ] Evaluate start and end expressions
-  - [ ] Create loop variable in local scope
-  - [ ] Iterate from start to end (or downto)
-  - [ ] Execute body for each iteration
-  - [ ] Handle loop variable scope correctly
-- [ ] 4.33 Test for loop execution: `TestForExecution`
-  - [ ] Ascending loops
-  - [ ] Descending loops
-  - [ ] Empty loops (start > end for `to`)
+**Completion Date**: October 17, 2025 | **Coverage**: Interpreter 83.5%
+
+- [x] 4.30 Implement `evalRepeatStatement()` in interpreter:
+  - [x] Execute body at least once
+  - [x] Continue until condition becomes true
+- [x] 4.31 Test repeat-until execution: `TestRepeatStatementExecution`
+  - [x] Simple repeat-until counting loop
+  - [x] Repeat with single statement body
+  - [x] Repeat that executes only once (condition true immediately)
+  - [x] Repeat with complex conditions (or, and)
+  - [x] Sum calculation with repeat-until
+  - [x] Boolean flag control
+  - [x] Always executes at least once verification
+  - [x] Nested repeat-until loops
+  - [x] Multiple statements in body
+
+### Interpreter for For Loops ✅ **COMPLETED**
+
+**Completion Date**: October 17, 2025 | **Coverage**: Interpreter 82.7%
+
+- [x] 4.32 Implement `evalForStatement()` in interpreter:
+  - [x] Evaluate start and end expressions
+  - [x] Create loop variable in local scope
+  - [x] Iterate from start to end (or downto)
+  - [x] Execute body for each iteration
+  - [x] Handle loop variable scope correctly
+- [x] 4.33 Test for loop execution: `TestForStatementExecution`
+  - [x] Simple ascending loops (1 to 5)
+  - [x] Descending loops (5 downto 1)
+  - [x] Empty loops (start > end for `to`, start < end for `downto`)
+  - [x] Single iteration loops
+  - [x] Sum calculation using for loop
+  - [x] Factorial calculation using for loop
+  - [x] Nested for loops (multiplication table)
+  - [x] Loop variable scoping (shadowing outer variable)
+  - [x] Expression bounds (2+3 to 10-2)
+  - [x] Accessing outer variables from loop body
+  - [x] Assignments within loop body
+  - [x] Variable bounds from expressions
 
 ### Interpreter for Case Statements (Optional)
 

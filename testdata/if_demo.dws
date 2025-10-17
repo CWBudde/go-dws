@@ -1,0 +1,27 @@
+// Demonstration of if statement execution
+var x := 10;
+
+if x > 5 then
+  PrintLn('x is greater than 5');
+
+if x < 5 then
+  PrintLn('This should not print');
+
+if x = 10 then
+  PrintLn('x equals 10')
+else
+  PrintLn('x does not equal 10');
+
+// Nested if
+if x > 0 then
+  if x > 5 then
+    PrintLn('x is greater than 0 and greater than 5');
+
+// With block
+if true then
+begin
+  PrintLn('Line 1 in block');
+  PrintLn('Line 2 in block')
+end;
+
+PrintLn('Done!');
