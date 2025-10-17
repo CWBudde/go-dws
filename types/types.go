@@ -141,3 +141,232 @@ func TypeFromString(name string) (Type, error) {
 		return nil, fmt.Errorf("unknown type: %s", name)
 	}
 }
+
+// ============================================================================
+// Object-Oriented Types (Stage 7)
+// ============================================================================
+
+// ClassType represents a class type in DWScript.
+// Classes support inheritance, fields, and methods.
+type ClassType struct {
+	Name    string                 // Class name (e.g., "TPoint", "TPerson")
+	Parent  *ClassType             // Parent class (nil for root classes)
+	Fields  map[string]Type        // Field name -> type mapping
+	Methods map[string]*FunctionType // Method name -> function signature
+}
+
+// String returns the string representation of the class type
+func (ct *ClassType) String() string {
+	if ct.Parent != nil {
+		return fmt.Sprintf("%s(%s)", ct.Name, ct.Parent.Name)
+	}
+	return ct.Name
+}
+
+// TypeKind returns "CLASS" for class types
+func (ct *ClassType) TypeKind() string {
+	return "CLASS"
+}
+
+// Equals checks if two class types are equal.
+// Class types are equal if they have the same name.
+// Note: We use nominal typing (name-based) rather than structural typing.
+func (ct *ClassType) Equals(other Type) bool {
+	otherClass, ok := other.(*ClassType)
+	if !ok {
+		return false
+	}
+	return ct.Name == otherClass.Name
+}
+
+// HasField checks if the class or any of its ancestors has a field with the given name
+func (ct *ClassType) HasField(name string) bool {
+	if _, ok := ct.Fields[name]; ok {
+		return true
+	}
+	if ct.Parent != nil {
+		return ct.Parent.HasField(name)
+	}
+	return false
+}
+
+// GetField retrieves the type of a field by name, searching up the inheritance chain
+func (ct *ClassType) GetField(name string) (Type, bool) {
+	if fieldType, ok := ct.Fields[name]; ok {
+		return fieldType, true
+	}
+	if ct.Parent != nil {
+		return ct.Parent.GetField(name)
+	}
+	return nil, false
+}
+
+// HasMethod checks if the class or any of its ancestors has a method with the given name
+func (ct *ClassType) HasMethod(name string) bool {
+	if _, ok := ct.Methods[name]; ok {
+		return true
+	}
+	if ct.Parent != nil {
+		return ct.Parent.HasMethod(name)
+	}
+	return false
+}
+
+// GetMethod retrieves the signature of a method by name, searching up the inheritance chain
+func (ct *ClassType) GetMethod(name string) (*FunctionType, bool) {
+	if methodType, ok := ct.Methods[name]; ok {
+		return methodType, true
+	}
+	if ct.Parent != nil {
+		return ct.Parent.GetMethod(name)
+	}
+	return nil, false
+}
+
+// NewClassType creates a new class type with the given name and optional parent
+func NewClassType(name string, parent *ClassType) *ClassType {
+	return &ClassType{
+		Name:    name,
+		Parent:  parent,
+		Fields:  make(map[string]Type),
+		Methods: make(map[string]*FunctionType),
+	}
+}
+
+// InterfaceType represents an interface type in DWScript.
+// Interfaces define a contract of methods that implementing classes must provide.
+type InterfaceType struct {
+	Name    string                   // Interface name (e.g., "IComparable")
+	Methods map[string]*FunctionType // Method name -> function signature
+}
+
+// String returns the string representation of the interface type
+func (it *InterfaceType) String() string {
+	return it.Name
+}
+
+// TypeKind returns "INTERFACE" for interface types
+func (it *InterfaceType) TypeKind() string {
+	return "INTERFACE"
+}
+
+// Equals checks if two interface types are equal.
+// Interface types are equal if they have the same name.
+func (it *InterfaceType) Equals(other Type) bool {
+	otherInterface, ok := other.(*InterfaceType)
+	if !ok {
+		return false
+	}
+	return it.Name == otherInterface.Name
+}
+
+// HasMethod checks if the interface has a method with the given name
+func (it *InterfaceType) HasMethod(name string) bool {
+	_, ok := it.Methods[name]
+	return ok
+}
+
+// GetMethod retrieves the signature of a method by name
+func (it *InterfaceType) GetMethod(name string) (*FunctionType, bool) {
+	methodType, ok := it.Methods[name]
+	return methodType, ok
+}
+
+// NewInterfaceType creates a new interface type with the given name
+func NewInterfaceType(name string) *InterfaceType {
+	return &InterfaceType{
+		Name:    name,
+		Methods: make(map[string]*FunctionType),
+	}
+}
+
+// ============================================================================
+// Type Compatibility and Checking (Stage 7.4 and 7.5)
+// ============================================================================
+
+// IsAssignableFrom checks if a value of type 'source' can be assigned to a variable of type 'target'.
+// This includes:
+// - Exact type match
+// - Numeric coercion (Integer -> Float)
+// - Subclass to superclass (covariance)
+// - Class to interface (if class implements the interface)
+func IsAssignableFrom(target, source Type) bool {
+	// Exact match
+	if target.Equals(source) {
+		return true
+	}
+
+	// Numeric coercion: Integer -> Float
+	if target.TypeKind() == "FLOAT" && source.TypeKind() == "INTEGER" {
+		return true
+	}
+
+	// Subclass to superclass assignment
+	if targetClass, ok := target.(*ClassType); ok {
+		if sourceClass, ok := source.(*ClassType); ok {
+			return IsSubclassOf(sourceClass, targetClass)
+		}
+	}
+
+	// Class to interface assignment (check if class implements interface)
+	if targetInterface, ok := target.(*InterfaceType); ok {
+		if sourceClass, ok := source.(*ClassType); ok {
+			return ImplementsInterface(sourceClass, targetInterface)
+		}
+	}
+
+	return false
+}
+
+// IsSubclassOf checks if 'child' is a subclass of 'parent'.
+// This includes checking the entire inheritance chain.
+func IsSubclassOf(child, parent *ClassType) bool {
+	if child == nil || parent == nil {
+		return false
+	}
+
+	// Walk up the inheritance chain
+	current := child
+	for current != nil {
+		if current.Name == parent.Name {
+			return true
+		}
+		current = current.Parent
+	}
+
+	return false
+}
+
+// ImplementsInterface checks if a class implements all methods required by an interface.
+// This uses structural typing - the class must have all methods with compatible signatures.
+func ImplementsInterface(class *ClassType, iface *InterfaceType) bool {
+	if class == nil || iface == nil {
+		return false
+	}
+
+	// Check each method in the interface
+	for methodName, ifaceMethodType := range iface.Methods {
+		// Class must have the method
+		classMethodType, found := class.GetMethod(methodName)
+		if !found {
+			return false
+		}
+
+		// Method signatures must match exactly
+		if !classMethodType.Equals(ifaceMethodType) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// IsClassType checks if a type is a class type
+func IsClassType(t Type) bool {
+	return t.TypeKind() == "CLASS"
+}
+
+// IsInterfaceType checks if a type is an interface type
+func IsInterfaceType(t Type) bool {
+	return t.TypeKind() == "INTERFACE"
+}

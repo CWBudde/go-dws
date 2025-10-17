@@ -112,6 +112,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(lexer.AND, p.parseInfixExpression)
 	p.registerInfix(lexer.OR, p.parseInfixExpression)
 	p.registerInfix(lexer.XOR, p.parseInfixExpression)
+	p.registerInfix(lexer.DOT, p.parseMemberAccess)
 
 	// Read two tokens to initialize curToken and peekToken
 	p.nextToken()
