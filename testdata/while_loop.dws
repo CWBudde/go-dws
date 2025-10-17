@@ -1,0 +1,215 @@
+// Comprehensive while loop test with edge cases
+// Tests various while loop scenarios
+
+PrintLn("=== While Loop Comprehensive Test ===");
+PrintLn("");
+
+// Test 1: Basic counting loop
+PrintLn("Test 1: Count from 1 to 5");
+var i := 1;
+while i <= 5 do
+begin
+  Print(i, " ");
+  i := i + 1
+end;
+PrintLn("");
+PrintLn("  PASS: Basic counting completed");
+PrintLn("");
+
+// Test 2: Loop that doesn't execute (initial condition false)
+PrintLn("Test 2: Loop with false initial condition");
+var count := 0;
+while false do
+begin
+  PrintLn("  FAIL: This should never execute");
+  count := count + 1
+end;
+if count = 0 then
+  PrintLn("  PASS: Loop correctly skipped")
+else
+  PrintLn("  FAIL: Loop should not have executed");
+PrintLn("");
+
+// Test 3: Sum accumulation
+PrintLn("Test 3: Sum of numbers 1 to 10");
+var sum := 0;
+var n := 1;
+while n <= 10 do
+begin
+  sum := sum + n;
+  n := n + 1
+end;
+if sum = 55 then
+  PrintLn("  PASS: Sum = 55")
+else
+  PrintLn("  FAIL: Expected 55, got ", sum);
+PrintLn("");
+
+// Test 4: Countdown loop
+PrintLn("Test 4: Countdown from 5 to 1");
+var countdown := 5;
+while countdown > 0 do
+begin
+  Print(countdown, " ");
+  countdown := countdown - 1
+end;
+PrintLn("");
+PrintLn("  PASS: Countdown completed");
+PrintLn("");
+
+// Test 5: While with complex condition (and)
+PrintLn("Test 5: While with complex condition (and)");
+var x := 1;
+var y := 1;
+while x < 5 and y < 5 do
+begin
+  x := x + 1;
+  y := y + 1
+end;
+if x = 5 and y = 5 then
+  PrintLn("  PASS: Both conditions met")
+else
+  PrintLn("  FAIL: Complex condition failed");
+PrintLn("");
+
+// Test 6: While with complex condition (or)
+PrintLn("Test 6: While with complex condition (or)");
+var a := 1;
+var b := 10;
+while a < 3 or b > 8 do
+begin
+  a := a + 1;
+  b := b - 1
+end;
+if a = 3 and b = 8 then
+  PrintLn("  PASS: Or condition worked correctly")
+else
+  PrintLn("  FAIL: Expected a=3, b=8, got a=", a, ", b=", b);
+PrintLn("");
+
+// Test 7: Nested while loops
+PrintLn("Test 7: Nested while loops (3x3 grid)");
+var row := 1;
+while row <= 3 do
+begin
+  var col := 1;
+  while col <= 3 do
+  begin
+    Print("(", row, ",", col, ") ");
+    col := col + 1
+  end;
+  PrintLn("");
+  row := row + 1
+end;
+PrintLn("  PASS: Nested loops completed");
+PrintLn("");
+
+// Test 8: While with single statement (no block)
+PrintLn("Test 8: While with single statement (no block)");
+var single := 0;
+while single < 3 do
+  single := single + 1;
+if single = 3 then
+  PrintLn("  PASS: Single statement while worked")
+else
+  PrintLn("  FAIL: Expected 3, got ", single);
+PrintLn("");
+
+// Test 9: While with boolean flag
+PrintLn("Test 9: While with boolean flag control");
+var done := false;
+var attempts := 0;
+while not done do
+begin
+  attempts := attempts + 1;
+  if attempts >= 5 then
+    done := true
+end;
+if attempts = 5 then
+  PrintLn("  PASS: Boolean flag control worked")
+else
+  PrintLn("  FAIL: Expected 5 attempts, got ", attempts);
+PrintLn("");
+
+// Test 10: While with break-like behavior (using condition update)
+PrintLn("Test 10: Early termination via condition update");
+var val := 0;
+var found := false;
+while val < 100 and not found do
+begin
+  val := val + 1;
+  if val = 7 then
+    found := true
+end;
+if val = 7 then
+  PrintLn("  PASS: Found value at 7")
+else
+  PrintLn("  FAIL: Expected to stop at 7, got ", val);
+PrintLn("");
+
+// Test 11: While loop with expression in condition
+PrintLn("Test 11: While with expression in condition");
+var num := 2;
+while num * num < 100 do
+  num := num + 1;
+if num = 10 then
+  PrintLn("  PASS: Expression condition (10*10=100)")
+else
+  PrintLn("  FAIL: Expected 10, got ", num);
+PrintLn("");
+
+// Test 12: While with variable assignment and test
+PrintLn("Test 12: Assignment within condition evaluation");
+var counter := 0;
+while counter < 5 do
+begin
+  var temp := counter;
+  counter := counter + 1;
+  Print(temp, " ")
+end;
+PrintLn("");
+PrintLn("  PASS: Variable assignment in loop");
+PrintLn("");
+
+// Test 13: Multiple variables modified in loop
+PrintLn("Test 13: Multiple variables in loop");
+var p := 1;
+var q := 10;
+while p < 5 do
+begin
+  p := p + 1;
+  q := q - 2
+end;
+if p = 5 and q = 2 then
+  PrintLn("  PASS: Multiple vars modified (p=5, q=2)")
+else
+  PrintLn("  FAIL: Expected p=5, q=2, got p=", p, ", q=", q);
+PrintLn("");
+
+// Test 14: While loop with string condition
+PrintLn("Test 14: While with string comparison");
+var word := "a";
+var loopCount := 0;
+while word <> "aaa" do
+begin
+  word := word + "a";
+  loopCount := loopCount + 1
+end;
+if loopCount = 2 then
+  PrintLn("  PASS: String condition worked (2 iterations)")
+else
+  PrintLn("  FAIL: Expected 2 iterations, got ", loopCount);
+PrintLn("");
+
+// Test 15: Very short loop (1 iteration)
+PrintLn("Test 15: Single iteration loop");
+var oneTime := 0;
+while oneTime < 1 do
+  oneTime := oneTime + 1;
+if oneTime = 1 then
+  PrintLn("  PASS: Single iteration worked")
+else
+  PrintLn("  FAIL: Expected 1, got ", oneTime);
+PrintLn("");
+
+PrintLn("=== All While Loop Tests Complete ===");

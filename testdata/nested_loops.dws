@@ -1,0 +1,274 @@
+// Comprehensive nested loops test
+// Tests complex nesting scenarios combining different loop types
+
+PrintLn("=== Nested Loops Comprehensive Test ===");
+PrintLn("");
+
+// Test 1: For inside For (2D grid)
+PrintLn("Test 1: For inside For (2D grid)");
+for row := 1 to 3 do
+begin
+  for col := 1 to 3 do
+    Print("(", row, ",", col, ") ");
+  PrintLn("")
+end;
+PrintLn("  PASS: 2D for-for nesting");
+PrintLn("");
+
+// Test 2: For inside While
+PrintLn("Test 2: For inside While");
+var outer := 1;
+while outer <= 3 do
+begin
+  Print("  Outer=", outer, ": ");
+  for inner := 1 to 3 do
+    Print(inner, " ");
+  PrintLn("");
+  outer := outer + 1
+end;
+PrintLn("  PASS: For inside while");
+PrintLn("");
+
+// Test 3: While inside For
+PrintLn("Test 3: While inside For");
+for i := 1 to 3 do
+begin
+  Print("  For i=", i, ": ");
+  var j := 1;
+  while j <= 3 do
+  begin
+    Print(j, " ");
+    j := j + 1
+  end;
+  PrintLn("")
+end;
+PrintLn("  PASS: While inside for");
+PrintLn("");
+
+// Test 4: While inside While
+PrintLn("Test 4: While inside While");
+var a := 1;
+while a <= 3 do
+begin
+  var b := 1;
+  Print("  a=", a, ": ");
+  while b <= 3 do
+  begin
+    Print(b, " ");
+    b := b + 1
+  end;
+  PrintLn("");
+  a := a + 1
+end;
+PrintLn("  PASS: While inside while");
+PrintLn("");
+
+// Test 5: Repeat inside For
+PrintLn("Test 5: Repeat inside For");
+for x := 1 to 3 do
+begin
+  Print("  x=", x, ": ");
+  var y := 0;
+  repeat
+  begin
+    y := y + 1;
+    Print(y, " ")
+  end
+  until y >= 3;
+  PrintLn("")
+end;
+PrintLn("  PASS: Repeat inside for");
+PrintLn("");
+
+// Test 6: For inside Repeat
+PrintLn("Test 6: For inside Repeat");
+var count := 0;
+repeat
+begin
+  count := count + 1;
+  Print("  Count=", count, ": ");
+  for z := 1 to 3 do
+    Print(z, " ");
+  PrintLn("")
+end
+until count >= 3;
+PrintLn("  PASS: For inside repeat");
+PrintLn("");
+
+// Test 7: If inside nested For loops
+PrintLn("Test 7: If inside nested For loops");
+for i := 1 to 3 do
+  for j := 1 to 3 do
+    if i = j then
+      PrintLn("  Diagonal: (", i, ",", j, ")");
+PrintLn("  PASS: If inside nested fors");
+PrintLn("");
+
+// Test 8: Triple nested For loops
+PrintLn("Test 8: Triple nested For (2x2x2)");
+var total := 0;
+for i := 1 to 2 do
+  for j := 1 to 2 do
+    for k := 1 to 2 do
+    begin
+      total := total + 1;
+      PrintLn("  (", i, ",", j, ",", k, ") - count=", total)
+    end;
+if total = 8 then
+  PrintLn("  PASS: Triple nesting = 8")
+else
+  PrintLn("  FAIL: Expected 8, got ", total);
+PrintLn("");
+
+// Test 9: Case inside For loop
+PrintLn("Test 9: Case inside For loop");
+for num := 1 to 5 do
+begin
+  Print("  ", num, " is ");
+  case num of
+    1: PrintLn("one");
+    2: PrintLn("two");
+    3: PrintLn("three");
+    4: PrintLn("four");
+    5: PrintLn("five");
+  else
+    PrintLn("unknown");
+  end
+end;
+PrintLn("  PASS: Case inside for");
+PrintLn("");
+
+// Test 10: For inside Case branches
+PrintLn("Test 10: For inside Case branches");
+var mode := 2;
+case mode of
+  1: begin
+    PrintLn("  Mode 1: Count 1-3");
+    for i := 1 to 3 do
+      Print(i, " ");
+    PrintLn("")
+  end;
+  2: begin
+    PrintLn("  Mode 2: Count 5-10");
+    for i := 5 to 10 do
+      Print(i, " ");
+    PrintLn("")
+  end;
+else
+  PrintLn("  Unknown mode");
+end;
+PrintLn("  PASS: For inside case branches");
+PrintLn("");
+
+// Test 11: Multiplication table with nested for
+PrintLn("Test 11: Multiplication table (5x5)");
+for i := 1 to 5 do
+begin
+  for j := 1 to 5 do
+  begin
+    var product := i * j;
+    if product < 10 then
+      Print(" ", product, " ")
+    else
+      Print(product, " ")
+  end;
+  PrintLn("")
+end;
+PrintLn("  PASS: 5x5 multiplication table");
+PrintLn("");
+
+// Test 12: Nested loops with break-like behavior
+PrintLn("Test 12: Nested loops with early termination");
+var found := false;
+for i := 1 to 5 do
+begin
+  if not found then
+    for j := 1 to 5 do
+      if i * j = 12 then
+      begin
+        PrintLn("  Found: ", i, " * ", j, " = 12");
+        found := true
+      end
+end;
+PrintLn("  PASS: Early termination in nested loops");
+PrintLn("");
+
+// Test 13: Pyramid pattern with nested loops
+PrintLn("Test 13: Pyramid pattern");
+for i := 1 to 5 do
+begin
+  for j := 1 to i do
+    Print("*");
+  PrintLn("")
+end;
+PrintLn("  PASS: Pyramid pattern");
+PrintLn("");
+
+// Test 14: Mixed For/While/Repeat nesting
+PrintLn("Test 14: Mixed nesting (for/while/repeat)");
+for i := 1 to 2 do
+begin
+  PrintLn("  Layer ", i, ":");
+  var j := 1;
+  while j <= 2 do
+  begin
+    var k := 0;
+    repeat
+    begin
+      k := k + 1;
+      Print("    (", i, ",", j, ",", k, ") ")
+    end
+    until k >= 2;
+    PrintLn("");
+    j := j + 1
+  end
+end;
+PrintLn("  PASS: Mixed for/while/repeat nesting");
+PrintLn("");
+
+// Test 15: Sum of products (nested calculation)
+PrintLn("Test 15: Sum of products");
+var sumOfProducts := 0;
+for i := 1 to 3 do
+  for j := 1 to 3 do
+    sumOfProducts := sumOfProducts + (i * j);
+if sumOfProducts = 36 then
+  PrintLn("  PASS: Sum of products = 36")
+else
+  PrintLn("  FAIL: Expected 36, got ", sumOfProducts);
+PrintLn("");
+
+// Test 16: Nested loops with counters
+PrintLn("Test 16: Count total iterations");
+var iterations := 0;
+for i := 1 to 4 do
+  for j := 1 to 3 do
+    for k := 1 to 2 do
+      iterations := iterations + 1;
+if iterations = 24 then
+  PrintLn("  PASS: 4*3*2 = 24 iterations")
+else
+  PrintLn("  FAIL: Expected 24, got ", iterations);
+PrintLn("");
+
+// Test 17: Nested downto loops
+PrintLn("Test 17: Nested downto loops");
+for i := 3 downto 1 do
+begin
+  for j := 3 downto 1 do
+    Print("(", i, ",", j, ") ");
+  PrintLn("")
+end;
+PrintLn("  PASS: Nested downto loops");
+PrintLn("");
+
+// Test 18: Alternating directions
+PrintLn("Test 18: Alternating loop directions");
+for i := 1 to 3 do
+  for j := 3 downto 1 do
+    Print("(", i, ",", j, ") ");
+PrintLn("");
+PrintLn("  PASS: Alternating directions");
+PrintLn("");
+
+PrintLn("=== All Nested Loop Tests Complete ===");

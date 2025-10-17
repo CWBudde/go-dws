@@ -1,0 +1,208 @@
+// Comprehensive if/else statement test
+// This tests various if/else scenarios and edge cases
+
+PrintLn("=== If/Else Comprehensive Test ===");
+PrintLn("");
+
+// Test 1: Simple if (condition true)
+PrintLn("Test 1: Simple if (true condition)");
+if 5 > 3 then
+  PrintLn("  PASS: 5 is greater than 3");
+PrintLn("");
+
+// Test 2: Simple if (condition false)
+PrintLn("Test 2: Simple if (false condition)");
+var passed := true;
+if 3 > 5 then
+begin
+  PrintLn("  FAIL: This should not print");
+  passed := false
+end;
+if passed then
+  PrintLn("  PASS: Correctly skipped false condition");
+PrintLn("");
+
+// Test 3: If-else (true branch)
+PrintLn("Test 3: If-else (true branch)");
+if 10 = 10 then
+  PrintLn("  PASS: Took true branch")
+else
+  PrintLn("  FAIL: Should not take false branch");
+PrintLn("");
+
+// Test 4: If-else (false branch)
+PrintLn("Test 4: If-else (false branch)");
+if 10 <> 10 then
+  PrintLn("  FAIL: Should not take true branch")
+else
+  PrintLn("  PASS: Took false branch correctly");
+PrintLn("");
+
+// Test 5: Nested if statements
+PrintLn("Test 5: Nested if statements");
+var x := 15;
+if x > 10 then
+begin
+  PrintLn("  x is greater than 10");
+  if x > 20 then
+    PrintLn("  FAIL: x should not be > 20")
+  else
+    PrintLn("  PASS: x is between 10 and 20")
+end;
+PrintLn("");
+
+// Test 6: If-else-if chain (first condition)
+PrintLn("Test 6: If-else-if chain (first match)");
+var score := 95;
+if score >= 90 then
+  PrintLn("  PASS: Grade A (90+)")
+else if score >= 80 then
+  PrintLn("  FAIL: Should match first condition")
+else if score >= 70 then
+  PrintLn("  FAIL: Should match first condition")
+else
+  PrintLn("  FAIL: Should match first condition");
+PrintLn("");
+
+// Test 7: If-else-if chain (middle condition)
+PrintLn("Test 7: If-else-if chain (middle match)");
+score := 85;
+if score >= 90 then
+  PrintLn("  FAIL: Should match second condition")
+else if score >= 80 then
+  PrintLn("  PASS: Grade B (80-89)")
+else if score >= 70 then
+  PrintLn("  FAIL: Should match second condition")
+else
+  PrintLn("  FAIL: Should match second condition");
+PrintLn("");
+
+// Test 8: If-else-if chain (else fallthrough)
+PrintLn("Test 8: If-else-if chain (else fallthrough)");
+score := 55;
+if score >= 90 then
+  PrintLn("  FAIL: Should reach else")
+else if score >= 80 then
+  PrintLn("  FAIL: Should reach else")
+else if score >= 70 then
+  PrintLn("  FAIL: Should reach else")
+else
+  PrintLn("  PASS: Grade F (below 70)");
+PrintLn("");
+
+// Test 9: Complex boolean conditions (and)
+PrintLn("Test 9: Complex conditions with 'and'");
+var age := 25;
+var hasLicense := true;
+if age >= 18 and hasLicense then
+  PrintLn("  PASS: Can drive (age >= 18 AND has license)")
+else
+  PrintLn("  FAIL: Should be able to drive");
+PrintLn("");
+
+// Test 10: Complex boolean conditions (or)
+PrintLn("Test 10: Complex conditions with 'or'");
+var isWeekend := false;
+var isHoliday := true;
+if isWeekend or isHoliday then
+  PrintLn("  PASS: Day off (weekend OR holiday)")
+else
+  PrintLn("  FAIL: Should have day off");
+PrintLn("");
+
+// Test 11: Complex boolean conditions (not)
+PrintLn("Test 11: Complex conditions with 'not'");
+var isRaining := false;
+if not isRaining then
+  PrintLn("  PASS: Go outside (NOT raining)")
+else
+  PrintLn("  FAIL: Should go outside");
+PrintLn("");
+
+// Test 12: Comparison operators
+PrintLn("Test 12: All comparison operators");
+var a := 10;
+var b := 20;
+
+if a < b then PrintLn("  PASS: 10 < 20");
+if b > a then PrintLn("  PASS: 20 > 10");
+if a <= 10 then PrintLn("  PASS: 10 <= 10");
+if b >= 20 then PrintLn("  PASS: 20 >= 20");
+if a = 10 then PrintLn("  PASS: 10 = 10");
+if a <> b then PrintLn("  PASS: 10 <> 20");
+PrintLn("");
+
+// Test 13: If with expression evaluation
+PrintLn("Test 13: If with expression in condition");
+if 5 + 5 = 10 then
+  PrintLn("  PASS: 5 + 5 = 10")
+else
+  PrintLn("  FAIL: Math is broken");
+PrintLn("");
+
+// Test 14: If with variable assignment in branches
+PrintLn("Test 14: Variable assignment in branches");
+var result := 0;
+if true then
+  result := 42
+else
+  result := -1;
+
+if result = 42 then
+  PrintLn("  PASS: Assignment in true branch worked")
+else
+  PrintLn("  FAIL: Assignment failed");
+PrintLn("");
+
+// Test 15: Multiple statements in if block
+PrintLn("Test 15: Multiple statements in if block");
+if true then
+begin
+  PrintLn("  Statement 1");
+  PrintLn("  Statement 2");
+  PrintLn("  Statement 3");
+  PrintLn("  PASS: All statements executed")
+end;
+PrintLn("");
+
+// Test 16: Multiple statements in else block
+PrintLn("Test 16: Multiple statements in else block");
+if false then
+  PrintLn("  FAIL: Should not execute")
+else
+begin
+  PrintLn("  Else statement 1");
+  PrintLn("  Else statement 2");
+  PrintLn("  PASS: Else block with multiple statements")
+end;
+PrintLn("");
+
+// Test 17: String comparison
+PrintLn("Test 17: String comparisons");
+var name := "Alice";
+if name = "Alice" then
+  PrintLn("  PASS: String equality works")
+else
+  PrintLn("  FAIL: String comparison broken");
+
+if name <> "Bob" then
+  PrintLn("  PASS: String inequality works")
+else
+  PrintLn("  FAIL: String inequality broken");
+PrintLn("");
+
+// Test 18: Deeply nested if statements
+PrintLn("Test 18: Deeply nested if (3 levels)");
+if true then
+  if true then
+    if true then
+      PrintLn("  PASS: Reached level 3 nesting")
+    else
+      PrintLn("  FAIL: Level 3 else should not execute")
+  else
+    PrintLn("  FAIL: Level 2 else should not execute")
+else
+  PrintLn("  FAIL: Level 1 else should not execute");
+PrintLn("");
+
+PrintLn("=== All If/Else Tests Complete ===");

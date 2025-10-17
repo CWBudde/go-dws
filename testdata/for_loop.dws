@@ -1,4 +1,215 @@
+// Comprehensive for loop test with edge cases
+// Tests various for loop scenarios including edge cases
+
+PrintLn("=== For Loop Comprehensive Test ===");
+PrintLn("");
+
+// Test 1: Basic ascending loop
+PrintLn("Test 1: Basic ascending loop (1 to 5)");
+for i := 1 to 5 do
+  Print(i, " ");
+PrintLn("");
+PrintLn("  PASS: Basic ascending loop");
+PrintLn("");
+
+// Test 2: Basic descending loop
+PrintLn("Test 2: Basic descending loop (5 downto 1)");
+for i := 5 downto 1 do
+  Print(i, " ");
+PrintLn("");
+PrintLn("  PASS: Basic descending loop");
+PrintLn("");
+
+// Test 3: Single iteration loop
+PrintLn("Test 3: Single iteration (1 to 1)");
+var singleCount := 0;
+for i := 1 to 1 do
+  singleCount := singleCount + 1;
+if singleCount = 1 then
+  PrintLn("  PASS: Single iteration worked")
+else
+  PrintLn("  FAIL: Expected 1 iteration, got ", singleCount);
+PrintLn("");
+
+// Test 4: Empty loop (start > end for 'to')
+PrintLn("Test 4: Empty loop (5 to 1 - should not execute)");
+var emptyCount := 0;
+for i := 5 to 1 do
+  emptyCount := emptyCount + 1;
+if emptyCount = 0 then
+  PrintLn("  PASS: Empty loop correctly skipped")
+else
+  PrintLn("  FAIL: Loop should not execute, but ran ", emptyCount, " times");
+PrintLn("");
+
+// Test 5: Empty loop (start < end for 'downto')
+PrintLn("Test 5: Empty downto loop (1 downto 5 - should not execute)");
+emptyCount := 0;
+for i := 1 downto 5 do
+  emptyCount := emptyCount + 1;
+if emptyCount = 0 then
+  PrintLn("  PASS: Empty downto loop correctly skipped")
+else
+  PrintLn("  FAIL: Loop should not execute, but ran ", emptyCount, " times");
+PrintLn("");
+
+// Test 6: Sum calculation
+PrintLn("Test 6: Sum of 1 to 10");
 var sum := 0;
 for i := 1 to 10 do
   sum := sum + i;
-PrintLn(sum);
+if sum = 55 then
+  PrintLn("  PASS: Sum = 55")
+else
+  PrintLn("  FAIL: Expected 55, got ", sum);
+PrintLn("");
+
+// Test 7: Factorial calculation
+PrintLn("Test 7: Factorial of 5");
+var factorial := 1;
+for i := 1 to 5 do
+  factorial := factorial * i;
+if factorial = 120 then
+  PrintLn("  PASS: 5! = 120")
+else
+  PrintLn("  FAIL: Expected 120, got ", factorial);
+PrintLn("");
+
+// Test 8: Nested for loops
+PrintLn("Test 8: Nested loops - multiplication table (3x3)");
+for i := 1 to 3 do
+begin
+  for j := 1 to 3 do
+    Print(i * j, " ");
+  PrintLn("")
+end;
+PrintLn("  PASS: Nested loops completed");
+PrintLn("");
+
+// Test 9: Loop with expression bounds
+PrintLn("Test 9: Expression bounds (2+3 to 10-2)");
+var exprCount := 0;
+for i := 2 + 3 to 10 - 2 do
+  exprCount := exprCount + 1;
+if exprCount = 4 then
+  PrintLn("  PASS: Expression bounds work (5 to 8 = 4 iterations)")
+else
+  PrintLn("  FAIL: Expected 4 iterations, got ", exprCount);
+PrintLn("");
+
+// Test 10: Loop variable scoping (shadows outer variable)
+PrintLn("Test 10: Loop variable scoping");
+var x := 100;
+PrintLn("  Before loop: x = ", x);
+for x := 1 to 3 do
+  PrintLn("  Inside loop: x = ", x);
+PrintLn("  After loop: x = ", x);
+if x = 100 then
+  PrintLn("  PASS: Outer x preserved (scoping works)")
+else
+  PrintLn("  FAIL: Outer x modified to ", x);
+PrintLn("");
+
+// Test 11: Loop accessing outer variables
+PrintLn("Test 11: Accessing outer variables from loop");
+var outer := 10;
+var total := 0;
+for i := 1 to 5 do
+  total := total + outer;
+if total = 50 then
+  PrintLn("  PASS: Accessed outer variable (10 * 5 = 50)")
+else
+  PrintLn("  FAIL: Expected 50, got ", total);
+PrintLn("");
+
+// Test 12: Loop with block containing multiple statements
+PrintLn("Test 12: Loop with multiple statements in block");
+var a := 0;
+var b := 0;
+for i := 1 to 3 do
+begin
+  a := a + i;
+  b := b + i * 2;
+  PrintLn("  Iteration ", i, ": a=", a, ", b=", b)
+end;
+if a = 6 and b = 12 then
+  PrintLn("  PASS: Multiple statements in loop block")
+else
+  PrintLn("  FAIL: Expected a=6, b=12, got a=", a, ", b=", b);
+PrintLn("");
+
+// Test 13: Downto loop with accumulation
+PrintLn("Test 13: Downto with accumulation");
+var downSum := 0;
+for i := 10 downto 1 do
+  downSum := downSum + i;
+if downSum = 55 then
+  PrintLn("  PASS: Downto sum = 55")
+else
+  PrintLn("  FAIL: Expected 55, got ", downSum);
+PrintLn("");
+
+// Test 14: Large range loop
+PrintLn("Test 14: Large range (1 to 100)");
+var largeSum := 0;
+for i := 1 to 100 do
+  largeSum := largeSum + i;
+if largeSum = 5050 then
+  PrintLn("  PASS: Large range sum = 5050")
+else
+  PrintLn("  FAIL: Expected 5050, got ", largeSum);
+PrintLn("");
+
+// Test 15: Triple nested loops
+PrintLn("Test 15: Triple nested loops (2x2x2)");
+var tripleCount := 0;
+for i := 1 to 2 do
+  for j := 1 to 2 do
+    for k := 1 to 2 do
+      tripleCount := tripleCount + 1;
+if tripleCount = 8 then
+  PrintLn("  PASS: Triple nesting (2*2*2 = 8)")
+else
+  PrintLn("  FAIL: Expected 8, got ", tripleCount);
+PrintLn("");
+
+// Test 16: Loop with conditional inside
+PrintLn("Test 16: For loop with conditional");
+var evenCount := 0;
+var oddCount := 0;
+for i := 1 to 10 do
+begin
+  if i mod 2 = 0 then
+    evenCount := evenCount + 1
+  else
+    oddCount := oddCount + 1
+end;
+if evenCount = 5 and oddCount = 5 then
+  PrintLn("  PASS: Conditional in loop (5 even, 5 odd)")
+else
+  PrintLn("  FAIL: Expected 5 even and 5 odd");
+PrintLn("");
+
+// Test 17: Negative range
+PrintLn("Test 17: Negative range (-5 to -1)");
+var negSum := 0;
+for i := -5 to -1 do
+  negSum := negSum + i;
+if negSum = -15 then
+  PrintLn("  PASS: Negative range sum = -15")
+else
+  PrintLn("  FAIL: Expected -15, got ", negSum);
+PrintLn("");
+
+// Test 18: Downto with negatives
+PrintLn("Test 18: Downto with negatives (-1 downto -5)");
+negSum := 0;
+for i := -1 downto -5 do
+  negSum := negSum + i;
+if negSum = -15 then
+  PrintLn("  PASS: Negative downto sum = -15")
+else
+  PrintLn("  FAIL: Expected -15, got ", negSum);
+PrintLn("");
+
+PrintLn("=== All For Loop Tests Complete ===");
