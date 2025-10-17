@@ -24,6 +24,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseCaseStatement()
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		return p.parseFunctionDeclaration()
+	case lexer.TYPE:
+		return p.parseClassDeclaration()
 	default:
 		if p.curToken.Type == lexer.IDENT && p.peekTokenIs(lexer.ASSIGN) {
 			return p.parseAssignmentStatement()
