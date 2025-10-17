@@ -1,0 +1,32 @@
+// Test: Valid boolean operations
+var a: Boolean := true;
+var b: Boolean := false;
+
+// Boolean logic
+var andResult: Boolean := a and b;
+var orResult: Boolean := a or b;
+var xorResult: Boolean := a xor b;
+var notResult: Boolean := not a;
+
+PrintLn(andResult);
+PrintLn(orResult);
+PrintLn(xorResult);
+PrintLn(notResult);
+
+// Comparisons produce booleans
+var x: Integer := 5;
+var y: Integer := 10;
+
+var less: Boolean := x < y;
+var greater: Boolean := x > y;
+var equal: Boolean := x = y;
+var notEqual: Boolean := x <> y;
+var lessOrEqual: Boolean := x <= y;
+var greaterOrEqual: Boolean := x >= y;
+
+PrintLn(less);
+PrintLn(greater);
+PrintLn(equal);
+PrintLn(notEqual);
+PrintLn(lessOrEqual);
+PrintLn(greaterOrEqual);

@@ -1,0 +1,24 @@
+// Test: Function call type errors
+function Add(a, b: Integer): Integer;
+begin
+    Result := a + b;
+end;
+
+procedure Greet(name: String);
+begin
+    PrintLn('Hello, ' + name);
+end;
+
+begin
+    // Error: Wrong argument count
+    var x: Integer := Add(5);
+
+    // Error: Wrong argument types
+    var y: Integer := Add('hello', 'world');
+
+    // Error: Calling undefined function
+    var z: Integer := Multiply(3, 4);
+
+    // Error: Wrong argument type for procedure
+    Greet(42);
+end;

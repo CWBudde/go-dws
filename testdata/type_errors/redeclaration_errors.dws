@@ -1,0 +1,24 @@
+// Test: Variable and function redeclaration errors
+
+// Error: Redeclaring variable
+var x: Integer := 5;
+var x: String := 'hello';
+
+// Error: Redeclaring function
+function Test(a: Integer): Integer;
+begin
+    Result := a * 2;
+end;
+
+function Test(b: String): String;  // Error: function already declared
+begin
+    Result := b + b;
+end;
+
+// Error: Variable shadows function
+var Test: Integer := 10;
+
+begin
+    PrintLn(x);
+    PrintLn(Test(5));
+end;

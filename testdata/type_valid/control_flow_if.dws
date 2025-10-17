@@ -1,0 +1,25 @@
+// Test: Valid if statements with proper boolean conditions
+var x: Integer := 10;
+var y: Integer := 5;
+
+if x > y then
+    PrintLn('x is greater');
+
+if x = y then
+    PrintLn('equal')
+else
+    PrintLn('not equal');
+
+var a: Boolean := true;
+var b: Boolean := false;
+
+if a and not b then
+begin
+    PrintLn('a is true');
+    PrintLn('b is false');
+end;
+
+if x < 20 or y > 10 then
+    PrintLn('condition met')
+else
+    PrintLn('condition not met');

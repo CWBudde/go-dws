@@ -1,0 +1,37 @@
+// Test: Valid complex expressions with correct types
+var a: Integer := 5;
+var b: Integer := 10;
+var c: Float := 2.5;
+var d: Float := 1.5;
+
+// Complex arithmetic
+var expr1: Integer := (a + b) * (b - a);
+var expr2: Float := (c + d) / (c - d);
+var expr3: Float := a + b + c;  // Integer + Integer + Float = Float
+
+PrintLn(expr1);
+PrintLn(expr2);
+PrintLn(expr3);
+
+// Complex boolean expressions
+var x: Boolean := (a > 3) and (b < 20);
+var y: Boolean := (c = 2.5) or (d <> 1.0);
+var z: Boolean := not ((a = b) or (c > d));
+
+PrintLn(x);
+PrintLn(y);
+PrintLn(z);
+
+// Nested function calls
+function Double(n: Integer): Integer;
+begin
+    Result := n * 2;
+end;
+
+function Triple(n: Integer): Integer;
+begin
+    Result := n * 3;
+end;
+
+var nested: Integer := Double(Triple(a));
+PrintLn(nested);

@@ -65,15 +65,21 @@ type Parser struct {
 
 	prefixParseFns map[lexer.TokenType]prefixParseFn
 	infixParseFns  map[lexer.TokenType]infixParseFn
+
+	// Semantic analysis
+	enableSemanticAnalysis bool
+	semanticErrors         []string
 }
 
 // New creates a new Parser instance.
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{
-		l:              l,
-		errors:         []string{},
-		prefixParseFns: make(map[lexer.TokenType]prefixParseFn),
-		infixParseFns:  make(map[lexer.TokenType]infixParseFn),
+		l:                      l,
+		errors:                 []string{},
+		prefixParseFns:         make(map[lexer.TokenType]prefixParseFn),
+		infixParseFns:          make(map[lexer.TokenType]infixParseFn),
+		enableSemanticAnalysis: false,
+		semanticErrors:         []string{},
 	}
 
 	// Register prefix parse functions
@@ -117,6 +123,21 @@ func New(l *lexer.Lexer) *Parser {
 // Errors returns the list of parsing errors.
 func (p *Parser) Errors() []string {
 	return p.errors
+}
+
+// EnableSemanticAnalysis enables or disables semantic analysis during parsing.
+func (p *Parser) EnableSemanticAnalysis(enable bool) {
+	p.enableSemanticAnalysis = enable
+}
+
+// SemanticErrors returns the list of semantic errors (if semantic analysis was enabled).
+func (p *Parser) SemanticErrors() []string {
+	return p.semanticErrors
+}
+
+// SetSemanticErrors sets the semantic errors (called by external semantic analyzer).
+func (p *Parser) SetSemanticErrors(errors []string) {
+	p.semanticErrors = errors
 }
 
 // nextToken advances both curToken and peekToken.

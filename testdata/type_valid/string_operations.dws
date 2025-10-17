@@ -1,0 +1,15 @@
+// Test: Valid string operations
+var s1: String := 'Hello';
+var s2: String := 'World';
+
+// String concatenation
+var greeting: String := s1 + ', ' + s2 + '!';
+
+PrintLn(greeting);
+
+// String comparisons
+var eq: Boolean := s1 = s2;
+var neq: Boolean := s1 <> s2;
+
+PrintLn(eq);
+PrintLn(neq);

@@ -4,16 +4,19 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cwbudde/go-dws/errors"
 	"github.com/cwbudde/go-dws/interp"
 	"github.com/cwbudde/go-dws/lexer"
 	"github.com/cwbudde/go-dws/parser"
+	"github.com/cwbudde/go-dws/semantic"
 	"github.com/spf13/cobra"
 )
 
 var (
-	evalExpr string
-	dumpAST  bool
-	trace    bool
+	evalExpr  string
+	dumpAST   bool
+	trace     bool
+	typeCheck bool
 )
 
 var runCmd = &cobra.Command{
@@ -43,6 +46,7 @@ func init() {
 	runCmd.Flags().StringVarP(&evalExpr, "eval", "e", "", "evaluate inline code instead of reading from file")
 	runCmd.Flags().BoolVar(&dumpAST, "dump-ast", false, "dump the parsed AST (for debugging)")
 	runCmd.Flags().BoolVar(&trace, "trace", false, "trace execution (for debugging)")
+	runCmd.Flags().BoolVar(&typeCheck, "type-check", true, "perform semantic type checking before execution (default: true)")
 }
 
 func runScript(cmd *cobra.Command, args []string) error {
@@ -75,11 +79,26 @@ func runScript(cmd *cobra.Command, args []string) error {
 
 	// Check for parser errors
 	if len(p.Errors()) > 0 {
-		fmt.Fprintf(os.Stderr, "Parser errors in %s:\n", filename)
-		for _, err := range p.Errors() {
-			fmt.Fprintf(os.Stderr, "  %s\n", err)
-		}
+		// Convert string errors to CompilerError format with pretty output
+		compilerErrors := errors.FromStringErrors(p.Errors(), input, filename)
+		fmt.Fprint(os.Stderr, errors.FormatErrors(compilerErrors, true))
+		fmt.Fprintln(os.Stderr) // Add newline
 		return fmt.Errorf("parsing failed with %d error(s)", len(p.Errors()))
+	}
+
+	// Run semantic analysis if type checking is enabled
+	if typeCheck {
+		analyzer := semantic.NewAnalyzer()
+		if err := analyzer.Analyze(program); err != nil {
+			// Set errors on parser for compatibility
+			p.SetSemanticErrors(analyzer.Errors())
+
+			// Convert string errors to CompilerError format with pretty output
+			compilerErrors := errors.FromStringErrors(analyzer.Errors(), input, filename)
+			fmt.Fprint(os.Stderr, errors.FormatErrors(compilerErrors, true))
+			fmt.Fprintln(os.Stderr) // Add newline
+			return fmt.Errorf("semantic analysis failed with %d error(s)", len(analyzer.Errors()))
+		}
 	}
 
 	// Dump AST if requested

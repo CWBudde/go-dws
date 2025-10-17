@@ -45,6 +45,7 @@ type FunctionDecl struct {
 
 func (fd *FunctionDecl) statementNode()       {}
 func (fd *FunctionDecl) TokenLiteral() string { return fd.Token.Literal }
+func (fd *FunctionDecl) Pos() lexer.Position  { return fd.Token.Pos }
 func (fd *FunctionDecl) String() string {
 	var out bytes.Buffer
 
@@ -95,6 +96,7 @@ type ReturnStatement struct {
 
 func (rs *ReturnStatement) statementNode()       {}
 func (rs *ReturnStatement) TokenLiteral() string { return rs.Token.Literal }
+func (rs *ReturnStatement) Pos() lexer.Position  { return rs.Token.Pos }
 func (rs *ReturnStatement) String() string {
 	if rs.ReturnValue == nil {
 		return rs.Token.Literal

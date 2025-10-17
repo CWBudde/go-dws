@@ -1,0 +1,21 @@
+// Test: Boolean logic operation errors
+var x: Integer := 5;
+var y: String := 'test';
+var b: Boolean := true;
+
+// Error: and requires boolean operands
+var z: Boolean := x and b;
+
+// Error: or requires boolean operands
+var w: Boolean := y or b;
+
+// Error: Both operands must be boolean
+if x and y then
+    PrintLn('true');
+
+// Error: xor requires boolean operands
+var v: Boolean := 5 xor 10;
+
+PrintLn(z);
+PrintLn(w);
+PrintLn(v);

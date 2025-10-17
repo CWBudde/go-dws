@@ -1,0 +1,5 @@
+// Test: Type mismatch error
+var x: Integer := 5;
+var y: String := 'hello';
+y := 10;  // Cannot assign Integer to String
+PrintLn(y);

@@ -23,6 +23,7 @@ type VarDeclStatement struct {
 
 func (vds *VarDeclStatement) statementNode()       {}
 func (vds *VarDeclStatement) TokenLiteral() string { return vds.Token.Literal }
+func (vds *VarDeclStatement) Pos() lexer.Position  { return vds.Token.Pos }
 func (vds *VarDeclStatement) String() string {
 	var out bytes.Buffer
 
@@ -55,6 +56,7 @@ type AssignmentStatement struct {
 
 func (as *AssignmentStatement) statementNode()       {}
 func (as *AssignmentStatement) TokenLiteral() string { return as.Token.Literal }
+func (as *AssignmentStatement) Pos() lexer.Position  { return as.Token.Pos }
 func (as *AssignmentStatement) String() string {
 	var out bytes.Buffer
 
@@ -78,8 +80,9 @@ type CallExpression struct {
 	Type      *TypeAnnotation  // The return type (determined by semantic analyzer)
 }
 
-func (ce *CallExpression) expressionNode()      {}
-func (ce *CallExpression) TokenLiteral() string { return ce.Token.Literal }
+func (ce *CallExpression) expressionNode()         {}
+func (ce *CallExpression) TokenLiteral() string    { return ce.Token.Literal }
+func (ce *CallExpression) Pos() lexer.Position     { return ce.Function.Pos() }
 func (ce *CallExpression) String() string {
 	var out bytes.Buffer
 

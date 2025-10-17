@@ -1,0 +1,32 @@
+// Test: Valid arithmetic operations
+var a: Integer := 10;
+var b: Integer := 5;
+var c: Float := 3.5;
+var d: Float := 2.0;
+
+// Integer arithmetic
+var sum: Integer := a + b;
+var diff: Integer := a - b;
+var prod: Integer := a * b;
+var intDiv: Integer := a div b;
+var modulo: Integer := a mod b;
+
+// Float arithmetic
+var fSum: Float := c + d;
+var fDiff: Float := c - d;
+var fProd: Float := c * d;
+var fDiv: Float := c / d;
+
+// Mixed arithmetic (Integer promoted to Float)
+var mixed: Float := a + c;
+
+PrintLn(sum);
+PrintLn(diff);
+PrintLn(prod);
+PrintLn(intDiv);
+PrintLn(modulo);
+PrintLn(fSum);
+PrintLn(fDiff);
+PrintLn(fProd);
+PrintLn(fDiv);
+PrintLn(mixed);

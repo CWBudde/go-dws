@@ -1,0 +1,14 @@
+// Test: Multiple errors in one file
+var x: Integer := 5;
+var y: String := 'hello';
+
+// Error 1: Type mismatch
+y := 10;
+
+// Error 2: Undefined variable
+var z: Integer := a + b;
+
+// Error 3: Another type mismatch
+x := 'test';
+
+PrintLn(x + y + z);

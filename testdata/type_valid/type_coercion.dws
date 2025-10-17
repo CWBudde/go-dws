@@ -1,0 +1,16 @@
+// Test: Valid type coercion (Integer to Float)
+var i: Integer := 42;
+var f: Float := 3.14;
+
+// Integer to Float coercion is allowed
+var result1: Float := i;
+var result2: Float := i + f;
+var result3: Float := f + i;
+
+PrintLn(result1);
+PrintLn(result2);
+PrintLn(result3);
+
+// Assignment with coercion
+var x: Float := 10;  // Integer literal coerced to Float
+PrintLn(x);
