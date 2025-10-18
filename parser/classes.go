@@ -52,15 +52,38 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 			continue
 		}
 
-		// Check for field or method
-		if p.curToken.Type == lexer.IDENT && p.peekTokenIs(lexer.COLON) {
-			// This is a field declaration
+		// Check for 'class var' or 'class function' / 'class procedure'
+		if p.curTokenIs(lexer.CLASS) {
+			p.nextToken() // move past 'class'
+
+			if p.curTokenIs(lexer.VAR) {
+				// Class variable: class var FieldName: Type;
+				p.nextToken() // move past 'var'
+				field := p.parseFieldDeclaration()
+				if field != nil {
+					field.IsClassVar = true // Mark as class variable
+					classDecl.Fields = append(classDecl.Fields, field)
+				}
+			} else if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
+				// Class method: class function/procedure ...
+				method := p.parseFunctionDeclaration()
+				if method != nil {
+					method.IsClassMethod = true // Mark as class method
+					classDecl.Methods = append(classDecl.Methods, method)
+				}
+			} else {
+				p.addError("expected 'var', 'function', or 'procedure' after 'class' keyword")
+				p.nextToken()
+				continue
+			}
+		} else if p.curToken.Type == lexer.IDENT && p.peekTokenIs(lexer.COLON) {
+			// This is a regular instance field declaration
 			field := p.parseFieldDeclaration()
 			if field != nil {
 				classDecl.Fields = append(classDecl.Fields, field)
 			}
 		} else if p.curToken.Type == lexer.FUNCTION || p.curToken.Type == lexer.PROCEDURE {
-			// This is a method declaration
+			// This is a regular instance method declaration
 			method := p.parseFunctionDeclaration()
 			if method != nil {
 				classDecl.Methods = append(classDecl.Methods, method)

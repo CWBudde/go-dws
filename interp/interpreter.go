@@ -3,16 +3,19 @@ package interp
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/cwbudde/go-dws/ast"
+	"github.com/cwbudde/go-dws/types"
 )
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 type Interpreter struct {
-	env         *Environment                  // The current execution environment
-	output      io.Writer                     // Where to write output (e.g., from PrintLn)
+	env         *Environment                 // The current execution environment
+	output      io.Writer                    // Where to write output (e.g., from PrintLn)
 	functions   map[string]*ast.FunctionDecl // Registry of user-defined functions
-	currentNode ast.Node                      // Current AST node being evaluated (for error reporting)
+	classes     map[string]*ClassInfo        // Registry of class definitions
+	currentNode ast.Node                     // Current AST node being evaluated (for error reporting)
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -23,6 +26,7 @@ func New(output io.Writer) *Interpreter {
 		env:       env,
 		output:    output,
 		functions: make(map[string]*ast.FunctionDecl),
+		classes:   make(map[string]*ClassInfo),
 	}
 }
 
@@ -68,6 +72,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.FunctionDecl:
 		return i.evalFunctionDeclaration(node)
 
+	case *ast.ClassDecl:
+		return i.evalClassDeclaration(node)
+
 	// Expressions
 	case *ast.IntegerLiteral:
 		return &IntegerValue{Value: node.Value}
@@ -98,6 +105,15 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	case *ast.CallExpression:
 		return i.evalCallExpression(node)
+
+	case *ast.NewExpression:
+		return i.evalNewExpression(node)
+
+	case *ast.MemberAccessExpression:
+		return i.evalMemberAccess(node)
+
+	case *ast.MethodCallExpression:
+		return i.evalMethodCall(node)
 
 	default:
 		return newError("unknown node type: %T", node)
@@ -140,19 +156,99 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 }
 
 // evalAssignmentStatement evaluates an assignment statement.
-// It updates an existing variable's value.
+// It updates an existing variable's value or sets an object field.
 func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Value {
 	value := i.Eval(stmt.Value)
 	if isError(value) {
 		return value
 	}
 
-	err := i.env.Set(stmt.Name.Value, value)
-	if err != nil {
-		return newError("undefined variable: %s", stmt.Name.Value)
+	// Check if this is a member assignment (obj.field := value or TClass.Variable := value)
+	// The parser encodes member assignments as "obj.field" in the Name field
+	nameValue := stmt.Name.Value
+	if strings.Contains(nameValue, ".") {
+		// This is a member assignment: obj.field := value or TClass.Variable := value
+		parts := strings.SplitN(nameValue, ".", 2)
+		if len(parts) != 2 {
+			return newError("invalid member assignment format: %s", nameValue)
+		}
+
+		objectName := parts[0]
+		fieldName := parts[1]
+
+		// Check if objectName refers to a class (static assignment: TClass.Variable := value)
+		if classInfo, exists := i.classes[objectName]; exists {
+			// This is a class variable assignment
+			if _, exists := classInfo.ClassVars[fieldName]; !exists {
+				return newError("class variable '%s' not found in class '%s'", fieldName, objectName)
+			}
+			// Assign to the class variable
+			classInfo.ClassVars[fieldName] = value
+			return value
+		}
+
+		// Not a class name - try object instance field assignment
+		// Get the object from the environment
+		objVal, ok := i.env.Get(objectName)
+		if !ok {
+			return newError("undefined variable: %s", objectName)
+		}
+
+		// Check if it's an object instance
+		obj, ok := AsObject(objVal)
+		if !ok {
+			return newError("cannot assign to field of non-object type '%s'", objVal.Type())
+		}
+
+		// Verify field exists in the class
+		if _, exists := obj.Class.Fields[fieldName]; !exists {
+			return newError("field '%s' not found in class '%s'", fieldName, obj.Class.Name)
+		}
+
+		// Set the field value
+		obj.SetField(fieldName, value)
+		return value
 	}
 
-	return value
+	// Simple variable assignment
+	// First try to set in current environment
+	err := i.env.Set(stmt.Name.Value, value)
+	if err == nil {
+		return value
+	}
+
+	// Not in environment - check if we're in a method context and this is a field/class variable
+	// Check if Self is bound (instance method)
+	selfVal, selfOk := i.env.Get("Self")
+	if selfOk {
+		if obj, ok := AsObject(selfVal); ok {
+			// Check if it's an instance field
+			if _, exists := obj.Class.Fields[stmt.Name.Value]; exists {
+				obj.SetField(stmt.Name.Value, value)
+				return value
+			}
+			// Check if it's a class variable
+			if _, exists := obj.Class.ClassVars[stmt.Name.Value]; exists {
+				obj.Class.ClassVars[stmt.Name.Value] = value
+				return value
+			}
+		}
+	}
+
+	// Check if __CurrentClass__ is bound (class method)
+	currentClassVal, hasCurrentClass := i.env.Get("__CurrentClass__")
+	if hasCurrentClass {
+		if classInfo, ok := currentClassVal.(*ClassInfoValue); ok {
+			// Check if it's a class variable
+			if _, exists := classInfo.ClassInfo.ClassVars[stmt.Name.Value]; exists {
+				classInfo.ClassInfo.ClassVars[stmt.Name.Value] = value
+				return value
+			}
+		}
+	}
+
+	// Still not found - return original error
+	return newError("undefined variable: %s", stmt.Name.Value)
 }
 
 // evalBlockStatement evaluates a block of statements.
@@ -171,12 +267,54 @@ func (i *Interpreter) evalBlockStatement(block *ast.BlockStatement) Value {
 }
 
 // evalIdentifier looks up an identifier in the environment.
+// Special handling for "Self" keyword in method contexts.
+// Also handles class variable access from within methods.
 func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
-	val, ok := i.env.Get(node.Value)
-	if !ok {
-		return i.newErrorWithLocation(node, "undefined variable '%s'", node.Value)
+	// Special case for Self keyword
+	if node.Value == "Self" {
+		val, ok := i.env.Get("Self")
+		if !ok {
+			return i.newErrorWithLocation(node, "Self used outside method context")
+		}
+		return val
 	}
-	return val
+
+	// First, try to find in current environment
+	val, ok := i.env.Get(node.Value)
+	if ok {
+		return val
+	}
+
+	// Not found in environment - check if we're in a method context (Self is bound)
+	selfVal, selfOk := i.env.Get("Self")
+	if selfOk {
+		// We're in an instance method context - check for instance fields first
+		if obj, ok := AsObject(selfVal); ok {
+			// Check if it's an instance field
+			if fieldValue := obj.GetField(node.Value); fieldValue != nil {
+				return fieldValue
+			}
+
+			// Check if it's a class variable
+			if classVarValue, exists := obj.Class.ClassVars[node.Value]; exists {
+				return classVarValue
+			}
+		}
+	}
+
+	// Check if we're in a class method context (__CurrentClass__ marker)
+	currentClassVal, hasCurrentClass := i.env.Get("__CurrentClass__")
+	if hasCurrentClass {
+		if classInfo, ok := currentClassVal.(*ClassInfoValue); ok {
+			// Check if it's a class variable
+			if classVarValue, exists := classInfo.ClassInfo.ClassVars[node.Value]; exists {
+				return classVarValue
+			}
+		}
+	}
+
+	// Still not found - return error
+	return i.newErrorWithLocation(node, "undefined variable '%s'", node.Value)
 }
 
 // evalBinaryExpression evaluates a binary expression.
@@ -759,6 +897,515 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 	// Store the function in the registry
 	i.functions[fn.Name.Value] = fn
 	return &NilValue{}
+}
+
+// evalClassDeclaration evaluates a class declaration.
+// It builds a ClassInfo from the AST and registers it in the class registry.
+// Handles inheritance by copying parent fields and methods to the child class.
+func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
+	// Create new ClassInfo
+	classInfo := NewClassInfo(cd.Name.Value)
+
+	// Handle inheritance if parent class is specified
+	if cd.Parent != nil {
+		parentName := cd.Parent.Value
+		parentClass, exists := i.classes[parentName]
+		if !exists {
+			return i.newErrorWithLocation(cd, "parent class '%s' not found", parentName)
+		}
+
+		// Set parent reference
+		classInfo.Parent = parentClass
+
+		// Copy parent fields (child inherits all parent fields)
+		for fieldName, fieldType := range parentClass.Fields {
+			classInfo.Fields[fieldName] = fieldType
+		}
+
+		// Copy parent methods (child inherits all parent methods)
+		// Child methods with same name will override these
+		for methodName, methodDecl := range parentClass.Methods {
+			classInfo.Methods[methodName] = methodDecl
+		}
+	}
+
+	// Add own fields to ClassInfo
+	for _, field := range cd.Fields {
+		// Get the field type from the type annotation
+		if field.Type == nil {
+			return i.newErrorWithLocation(field, "field '%s' has no type annotation", field.Name.Value)
+		}
+
+		// Map type names to types.Type
+		var fieldType types.Type
+		switch field.Type.Name {
+		case "Integer":
+			fieldType = types.INTEGER
+		case "Float":
+			fieldType = types.FLOAT
+		case "String":
+			fieldType = types.STRING
+		case "Boolean":
+			fieldType = types.BOOLEAN
+		default:
+			// Check if it's a class type
+			if _, exists := i.classes[field.Type.Name]; exists {
+				// It's a class type - for now we'll use NIL as a placeholder
+				// This will need proper ClassType support later
+				fieldType = types.NIL
+			} else {
+				return i.newErrorWithLocation(field, "unknown type '%s' for field '%s'", field.Type.Name, field.Name.Value)
+			}
+		}
+
+		// Check if this is a class variable (static field) or instance field
+		if field.IsClassVar {
+			// Initialize class variable with default value based on type - Task 7.62
+			var defaultValue Value
+			switch fieldType {
+			case types.INTEGER:
+				defaultValue = &IntegerValue{Value: 0}
+			case types.FLOAT:
+				defaultValue = &FloatValue{Value: 0.0}
+			case types.STRING:
+				defaultValue = &StringValue{Value: ""}
+			case types.BOOLEAN:
+				defaultValue = &BooleanValue{Value: false}
+			default:
+				defaultValue = &NilValue{}
+			}
+			classInfo.ClassVars[field.Name.Value] = defaultValue
+		} else {
+			// Store instance field type in ClassInfo
+			classInfo.Fields[field.Name.Value] = fieldType
+		}
+	}
+
+	// Add own methods to ClassInfo (these override parent methods if same name)
+	for _, method := range cd.Methods {
+		// Check if this is a class method (static method) or instance method
+		if method.IsClassMethod {
+			// Store in ClassMethods map - Task 7.61
+			classInfo.ClassMethods[method.Name.Value] = method
+		} else {
+			// Store in instance Methods map
+			classInfo.Methods[method.Name.Value] = method
+		}
+	}
+
+	// Identify constructor (method named "Create")
+	if constructor, exists := classInfo.Methods["Create"]; exists {
+		classInfo.Constructor = constructor
+	}
+
+	// Identify destructor (method named "Destroy")
+	if destructor, exists := classInfo.Methods["Destroy"]; exists {
+		classInfo.Destructor = destructor
+	}
+
+	// Register class in registry
+	i.classes[classInfo.Name] = classInfo
+
+	return &NilValue{}
+}
+
+// evalNewExpression evaluates object instantiation (TClassName.Create(...)).
+// It looks up the class, creates an object instance, initializes fields, and calls the constructor.
+func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
+	// Look up class in registry
+	className := ne.ClassName.Value
+	classInfo, exists := i.classes[className]
+	if !exists {
+		return i.newErrorWithLocation(ne, "class '%s' not found", className)
+	}
+
+	// Create new object instance
+	obj := NewObjectInstance(classInfo)
+
+	// Initialize all fields with default values based on their types
+	for fieldName, fieldType := range classInfo.Fields {
+		var defaultValue Value
+		switch fieldType {
+		case types.INTEGER:
+			defaultValue = &IntegerValue{Value: 0}
+		case types.FLOAT:
+			defaultValue = &FloatValue{Value: 0.0}
+		case types.STRING:
+			defaultValue = &StringValue{Value: ""}
+		case types.BOOLEAN:
+			defaultValue = &BooleanValue{Value: false}
+		default:
+			defaultValue = &NilValue{}
+		}
+		obj.SetField(fieldName, defaultValue)
+	}
+
+	// Call constructor if present
+	if classInfo.Constructor != nil {
+		// Evaluate constructor arguments
+		args := make([]Value, len(ne.Arguments))
+		for idx, arg := range ne.Arguments {
+			val := i.Eval(arg)
+			if isError(val) {
+				return val
+			}
+			args[idx] = val
+		}
+
+		// Create method environment with Self bound to object
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// Bind constructor parameters to arguments
+		for idx, param := range classInfo.Constructor.Parameters {
+			if idx < len(args) {
+				i.env.Define(param.Name.Value, args[idx])
+			}
+		}
+
+		// For constructors with return types, initialize the Result variable
+		// This allows constructors to use "Result := Self" to return the object
+		if classInfo.Constructor.ReturnType != nil {
+			i.env.Define("Result", obj)
+			i.env.Define(classInfo.Constructor.Name.Value, obj)
+		}
+
+		// Execute constructor body
+		result := i.Eval(classInfo.Constructor.Body)
+		if isError(result) {
+			i.env = savedEnv
+			return result
+		}
+
+		// Restore environment
+		i.env = savedEnv
+	}
+
+	return obj
+}
+
+// evalMemberAccess evaluates field access (obj.field) or class variable access (TClass.Variable).
+// It evaluates the object expression and retrieves the field value.
+// For class variable access, it checks if the left side is a class name.
+func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
+	// Check if the left side is a class identifier (for static access: TClass.Variable)
+	if ident, ok := ma.Object.(*ast.Identifier); ok {
+		// Check if this identifier refers to a class
+		if classInfo, exists := i.classes[ident.Value]; exists {
+			// This is static access: TClass.Variable
+			// Look up the class variable
+			if classVarValue, exists := classInfo.ClassVars[ma.Member.Value]; exists {
+				return classVarValue
+			}
+			// Not a class variable - this is an error
+			return i.newErrorWithLocation(ma, "class variable '%s' not found in class '%s'", ma.Member.Value, classInfo.Name)
+		}
+	}
+
+	// Not static access - evaluate the object expression for instance access
+	objVal := i.Eval(ma.Object)
+	if isError(objVal) {
+		return objVal
+	}
+
+	// Check if it's an object instance
+	obj, ok := AsObject(objVal)
+	if !ok {
+		return i.newErrorWithLocation(ma, "cannot access member of non-object type '%s'", objVal.Type())
+	}
+
+	// Get the field value
+	fieldValue := obj.GetField(ma.Member.Value)
+	if fieldValue == nil {
+		return i.newErrorWithLocation(ma, "field '%s' not found in class '%s'", ma.Member.Value, obj.Class.Name)
+	}
+
+	return fieldValue
+}
+
+// evalMethodCall evaluates a method call (obj.Method(...)) or class method call (TClass.Method(...)).
+// It looks up the method in the object's class hierarchy and executes it with Self bound to the object.
+// For class methods, Self is not bound as they are static methods.
+func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
+	// Check if the left side is a class identifier (for static method call: TClass.Method())
+	if ident, ok := mc.Object.(*ast.Identifier); ok {
+		// Check if this identifier refers to a class
+		if classInfo, exists := i.classes[ident.Value]; exists {
+			// Check if this is a class method (static method) or instance method called as constructor
+			classMethod, isClassMethod := classInfo.ClassMethods[mc.Method.Value]
+			instanceMethod, isInstanceMethod := classInfo.Methods[mc.Method.Value]
+
+			if isClassMethod {
+				// This is a class method - execute it without Self binding
+				// Evaluate method arguments
+				args := make([]Value, len(mc.Arguments))
+				for idx, arg := range mc.Arguments {
+					val := i.Eval(arg)
+					if isError(val) {
+						return val
+					}
+					args[idx] = val
+				}
+
+				// Check argument count matches parameter count
+				if len(args) != len(classMethod.Parameters) {
+					return i.newErrorWithLocation(mc, "wrong number of arguments for class method '%s': expected %d, got %d",
+						mc.Method.Value, len(classMethod.Parameters), len(args))
+				}
+
+				// Create method environment (NO Self binding for class methods)
+				methodEnv := NewEnclosedEnvironment(i.env)
+				savedEnv := i.env
+				i.env = methodEnv
+
+				// Bind __CurrentClass__ so class variables can be accessed
+				i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
+
+				// Bind method parameters to arguments
+				for idx, param := range classMethod.Parameters {
+					i.env.Define(param.Name.Value, args[idx])
+				}
+
+				// For functions (not procedures), initialize the Result variable
+				if classMethod.ReturnType != nil {
+					i.env.Define("Result", &NilValue{})
+					// Also define the method name as an alias for Result (DWScript style)
+					i.env.Define(classMethod.Name.Value, &NilValue{})
+				}
+
+				// Execute method body
+				result := i.Eval(classMethod.Body)
+				if isError(result) {
+					i.env = savedEnv
+					return result
+				}
+
+				// Extract return value (same logic as regular functions)
+				var returnValue Value
+				if classMethod.ReturnType != nil {
+					// Check both Result and method name variable
+					resultVal, resultOk := i.env.Get("Result")
+					methodNameVal, methodNameOk := i.env.Get(classMethod.Name.Value)
+
+					// Use whichever variable is not nil, preferring Result if both are set
+					if resultOk && resultVal.Type() != "NIL" {
+						returnValue = resultVal
+					} else if methodNameOk && methodNameVal.Type() != "NIL" {
+						returnValue = methodNameVal
+					} else if resultOk {
+						returnValue = resultVal
+					} else if methodNameOk {
+						returnValue = methodNameVal
+					} else {
+						returnValue = &NilValue{}
+					}
+				} else {
+					// Procedure - no return value
+					returnValue = &NilValue{}
+				}
+
+				// Restore environment
+				i.env = savedEnv
+
+				return returnValue
+			} else if isInstanceMethod {
+				// This is an instance method being called from the class (e.g., TClass.Create())
+				// Create a new instance and call the method on it
+				obj := NewObjectInstance(classInfo)
+
+				// Initialize all fields with default values
+				for fieldName, fieldType := range classInfo.Fields {
+					var defaultValue Value
+					switch fieldType {
+					case types.INTEGER:
+						defaultValue = &IntegerValue{Value: 0}
+					case types.FLOAT:
+						defaultValue = &FloatValue{Value: 0.0}
+					case types.STRING:
+						defaultValue = &StringValue{Value: ""}
+					case types.BOOLEAN:
+						defaultValue = &BooleanValue{Value: false}
+					default:
+						defaultValue = &NilValue{}
+					}
+					obj.SetField(fieldName, defaultValue)
+				}
+
+				// Evaluate method arguments
+				args := make([]Value, len(mc.Arguments))
+				for idx, arg := range mc.Arguments {
+					val := i.Eval(arg)
+					if isError(val) {
+						return val
+					}
+					args[idx] = val
+				}
+
+				// Check argument count matches parameter count
+				if len(args) != len(instanceMethod.Parameters) {
+					return i.newErrorWithLocation(mc, "wrong number of arguments for method '%s': expected %d, got %d",
+						mc.Method.Value, len(instanceMethod.Parameters), len(args))
+				}
+
+				// Create method environment with Self bound to new object
+				methodEnv := NewEnclosedEnvironment(i.env)
+				savedEnv := i.env
+				i.env = methodEnv
+
+				// Bind Self to the object
+				i.env.Define("Self", obj)
+
+				// Bind method parameters to arguments
+				for idx, param := range instanceMethod.Parameters {
+					i.env.Define(param.Name.Value, args[idx])
+				}
+
+				// For functions (not procedures), initialize the Result variable
+				if instanceMethod.ReturnType != nil {
+					i.env.Define("Result", &NilValue{})
+					// Also define the method name as an alias for Result (DWScript style)
+					i.env.Define(instanceMethod.Name.Value, &NilValue{})
+				} else {
+					// DEBUG: This shouldn't happen for Create which has a return type
+					// But let's check
+					fmt.Fprintf(i.output, "DEBUG: Method %s has no return type!\n", instanceMethod.Name.Value)
+				}
+
+				// Execute method body
+				result := i.Eval(instanceMethod.Body)
+				if isError(result) {
+					i.env = savedEnv
+					return result
+				}
+
+				// Extract return value (same logic as regular functions)
+				var returnValue Value
+				if instanceMethod.ReturnType != nil {
+					// Check both Result and method name variable
+					resultVal, resultOk := i.env.Get("Result")
+					methodNameVal, methodNameOk := i.env.Get(instanceMethod.Name.Value)
+
+					// Use whichever variable is not nil, preferring Result if both are set
+					if resultOk && resultVal.Type() != "NIL" {
+						returnValue = resultVal
+					} else if methodNameOk && methodNameVal.Type() != "NIL" {
+						returnValue = methodNameVal
+					} else if resultOk {
+						returnValue = resultVal
+					} else if methodNameOk {
+						returnValue = methodNameVal
+					} else {
+						returnValue = &NilValue{}
+					}
+				} else {
+					// Procedure - no return value
+					returnValue = &NilValue{}
+				}
+
+				// Restore environment
+				i.env = savedEnv
+
+				return returnValue
+			} else {
+				// Neither class method nor instance method found
+				return i.newErrorWithLocation(mc, "method '%s' not found in class '%s'", mc.Method.Value, classInfo.Name)
+			}
+		}
+	}
+
+	// Not static method call - evaluate the object expression for instance method call
+	objVal := i.Eval(mc.Object)
+	if isError(objVal) {
+		return objVal
+	}
+
+	// Check if it's an object instance
+	obj, ok := AsObject(objVal)
+	if !ok {
+		return i.newErrorWithLocation(mc, "cannot call method on non-object type '%s'", objVal.Type())
+	}
+
+	// Look up method in object's class
+	method := obj.GetMethod(mc.Method.Value)
+	if method == nil {
+		return i.newErrorWithLocation(mc, "method '%s' not found in class '%s'", mc.Method.Value, obj.Class.Name)
+	}
+
+	// Evaluate method arguments
+	args := make([]Value, len(mc.Arguments))
+	for idx, arg := range mc.Arguments {
+		val := i.Eval(arg)
+		if isError(val) {
+			return val
+		}
+		args[idx] = val
+	}
+
+	// Check argument count matches parameter count
+	if len(args) != len(method.Parameters) {
+		return i.newErrorWithLocation(mc, "wrong number of arguments for method '%s': expected %d, got %d",
+			mc.Method.Value, len(method.Parameters), len(args))
+	}
+
+	// Create method environment with Self bound to object
+	methodEnv := NewEnclosedEnvironment(i.env)
+	savedEnv := i.env
+	i.env = methodEnv
+
+	// Bind Self to the object
+	i.env.Define("Self", obj)
+
+	// Bind method parameters to arguments
+	for idx, param := range method.Parameters {
+		i.env.Define(param.Name.Value, args[idx])
+	}
+
+	// For functions (not procedures), initialize the Result variable
+	if method.ReturnType != nil {
+		i.env.Define("Result", &NilValue{})
+		// Also define the method name as an alias for Result (DWScript style)
+		i.env.Define(method.Name.Value, &NilValue{})
+	}
+
+	// Execute method body
+	result := i.Eval(method.Body)
+	if isError(result) {
+		i.env = savedEnv
+		return result
+	}
+
+	// Extract return value (same logic as regular functions)
+	var returnValue Value
+	if method.ReturnType != nil {
+		// Check both Result and method name variable
+		resultVal, resultOk := i.env.Get("Result")
+		methodNameVal, methodNameOk := i.env.Get(method.Name.Value)
+
+		// Use whichever variable is not nil, preferring Result if both are set
+		if resultOk && resultVal.Type() != "NIL" {
+			returnValue = resultVal
+		} else if methodNameOk && methodNameVal.Type() != "NIL" {
+			returnValue = methodNameVal
+		} else if resultOk {
+			returnValue = resultVal
+		} else if methodNameOk {
+			returnValue = methodNameVal
+		} else {
+			returnValue = &NilValue{}
+		}
+	} else {
+		// Procedure - no return value
+		returnValue = &NilValue{}
+	}
+
+	// Restore environment
+	i.env = savedEnv
+
+	return returnValue
 }
 
 // callUserFunction calls a user-defined function.

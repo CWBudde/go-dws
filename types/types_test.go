@@ -370,7 +370,7 @@ func TestRecordType(t *testing.T) {
 		rt := NewRecordType("", fields)
 		str := rt.String()
 		// String should contain both fields
-		if !(contains(str, "Name") && contains(str, "Age")) {
+		if !contains(str, "Name") || !contains(str, "Age") {
 			t.Errorf("String() = %v, should contain Name and Age", str)
 		}
 	})

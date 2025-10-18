@@ -15,10 +15,10 @@ import (
 //	var s: String
 //	a, b: Float
 type Parameter struct {
-	Token lexer.Token      // The parameter name token
-	Name  *Identifier      // The parameter name
-	Type  *TypeAnnotation  // The type annotation
-	ByRef bool             // True for var parameters (pass by reference)
+	Token lexer.Token     // The parameter name token
+	Name  *Identifier     // The parameter name
+	Type  *TypeAnnotation // The type annotation
+	ByRef bool            // True for var parameters (pass by reference)
 }
 
 func (p *Parameter) String() string {
@@ -35,12 +35,14 @@ func (p *Parameter) String() string {
 //
 //	function Add(a: Integer, b: Integer): Integer; begin ... end;
 //	procedure Hello; begin ... end;
+//	class function GetCount: Integer; static; begin ... end;  // class method
 type FunctionDecl struct {
-	Token      lexer.Token      // The 'function' or 'procedure' token
-	Name       *Identifier      // The function name
-	Parameters []*Parameter     // The function parameters
-	ReturnType *TypeAnnotation  // The return type (nil for procedures)
-	Body       *BlockStatement  // The function body
+	Token         lexer.Token     // The 'function' or 'procedure' token
+	Name          *Identifier     // The function name
+	Parameters    []*Parameter    // The function parameters
+	ReturnType    *TypeAnnotation // The return type (nil for procedures)
+	Body          *BlockStatement // The function body
+	IsClassMethod bool            // True if this is a class method (static method) - Task 7.61
 }
 
 func (fd *FunctionDecl) statementNode()       {}
@@ -48,6 +50,11 @@ func (fd *FunctionDecl) TokenLiteral() string { return fd.Token.Literal }
 func (fd *FunctionDecl) Pos() lexer.Position  { return fd.Token.Pos }
 func (fd *FunctionDecl) String() string {
 	var out bytes.Buffer
+
+	// Write "class" prefix for class methods
+	if fd.IsClassMethod {
+		out.WriteString("class ")
+	}
 
 	// Write function or procedure keyword
 	out.WriteString(fd.Token.Literal)

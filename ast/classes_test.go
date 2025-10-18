@@ -12,9 +12,9 @@ import (
 
 func TestClassDeclString(t *testing.T) {
 	tests := []struct {
-		name     string
+		name      string
 		classDecl *ClassDecl
-		expected string
+		expected  string
 	}{
 		{
 			name: "simple class without parent",
@@ -24,8 +24,8 @@ func TestClassDeclString(t *testing.T) {
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TPoint"},
 					Value: "TPoint",
 				},
-				Parent: nil,
-				Fields: []*FieldDecl{},
+				Parent:  nil,
+				Fields:  []*FieldDecl{},
 				Methods: []*FunctionDecl{},
 			},
 			expected: "type TPoint = class\nend",
@@ -42,7 +42,7 @@ func TestClassDeclString(t *testing.T) {
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TParent"},
 					Value: "TParent",
 				},
-				Fields: []*FieldDecl{},
+				Fields:  []*FieldDecl{},
 				Methods: []*FunctionDecl{},
 			},
 			expected: "type TChild = class(TParent)\nend",
@@ -297,9 +297,9 @@ func TestNewExpressionString(t *testing.T) {
 
 func TestMemberAccessString(t *testing.T) {
 	tests := []struct {
-		name     string
+		name      string
 		memAccess *MemberAccessExpression
-		expected string
+		expected  string
 	}{
 		{
 			name: "simple field access",

@@ -27,8 +27,11 @@ func (p *Parser) parseStatement() ast.Statement {
 	case lexer.TYPE:
 		return p.parseClassDeclaration()
 	default:
-		if p.curToken.Type == lexer.IDENT && p.peekTokenIs(lexer.ASSIGN) {
-			return p.parseAssignmentStatement()
+		// Check for assignment (simple or member assignment)
+		if p.curToken.Type == lexer.IDENT {
+			// Could be: x := value OR obj.field := value
+			// We need to parse the left side first to determine which it is
+			return p.parseAssignmentOrExpression()
 		}
 		return p.parseExpressionStatement()
 	}
@@ -120,23 +123,82 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 	return stmt
 }
 
-// parseAssignmentStatement parses an assignment statement.
-func (p *Parser) parseAssignmentStatement() ast.Statement {
-	name := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+// parseAssignmentOrExpression determines if we have an assignment or expression statement.
+// This handles both simple assignments (x := value) and member assignments (obj.field := value).
+func (p *Parser) parseAssignmentOrExpression() ast.Statement {
+	// Save starting position
+	startToken := p.curToken
 
-	if !p.expectPeek(lexer.ASSIGN) {
-		return nil
+	// Parse the left side as an expression (could be identifier or member access)
+	left := p.parseExpression(LOWEST)
+
+	// Check if next token is assignment
+	if p.peekTokenIs(lexer.ASSIGN) {
+		p.nextToken() // move to :=
+
+		// Determine what kind of assignment this is
+		switch leftExpr := left.(type) {
+		case *ast.Identifier:
+			// Simple assignment: x := value
+			stmt := &ast.AssignmentStatement{
+				Token: p.curToken,
+				Name:  leftExpr,
+			}
+			p.nextToken()
+			stmt.Value = p.parseExpression(ASSIGN)
+
+			// Optional semicolon
+			if p.peekTokenIs(lexer.SEMICOLON) {
+				p.nextToken()
+			}
+			return stmt
+
+		case *ast.MemberAccessExpression:
+			// Member assignment: obj.field := value
+			// For now, we'll store the member access in Name field
+			// The interpreter will need to handle this specially
+			stmt := &ast.AssignmentStatement{
+				Token: p.curToken,
+				Name:  nil, // We'll use a special marker
+			}
+
+			// Store the object and member for the interpreter
+			// We need to extract the object identifier and member name
+			objIdent, ok := leftExpr.Object.(*ast.Identifier)
+			if !ok {
+				p.addError("member assignment requires identifier.member pattern")
+				return nil
+			}
+
+			// Create a synthetic identifier that the interpreter can recognize
+			// Format: "object.member" - interpreter will parse this
+			stmt.Name = &ast.Identifier{
+				Token: objIdent.Token,
+				Value: objIdent.Value + "." + leftExpr.Member.Value,
+			}
+
+			p.nextToken()
+			stmt.Value = p.parseExpression(ASSIGN)
+
+			// Optional semicolon
+			if p.peekTokenIs(lexer.SEMICOLON) {
+				p.nextToken()
+			}
+			return stmt
+
+		default:
+			p.addError("invalid assignment target")
+			return nil
+		}
 	}
 
-	stmt := &ast.AssignmentStatement{
-		Token: p.curToken,
-		Name:  name,
+	// Not an assignment, treat as expression statement
+	stmt := &ast.ExpressionStatement{
+		Token:      startToken,
+		Expression: left,
 	}
 
-	p.nextToken()
-	stmt.Value = p.parseExpression(ASSIGN)
-
-	// Optional semicolon (some contexts like repeat-until don't require it)
+	// Optional semicolon
 	if p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken()
 	}

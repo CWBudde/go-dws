@@ -1,0 +1,18 @@
+type TCounter = class
+	class var SharedCount: Integer;
+	InstanceID: Integer;
+
+	function Create(id: Integer): TCounter;
+	begin
+		InstanceID := id;
+		SharedCount := SharedCount + 1;
+		Result := Self;
+	end;
+end;
+
+var c1: TCounter;
+begin
+	TCounter.SharedCount := 0;
+	c1 := TCounter.Create(1);
+	PrintLn(c1.InstanceID);
+end;

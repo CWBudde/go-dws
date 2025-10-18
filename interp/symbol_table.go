@@ -27,8 +27,8 @@ type Symbol struct {
 
 // SymbolTable manages symbols in a scope
 type SymbolTable struct {
-	outer *SymbolTable
-	store map[string]*Symbol
+	outer          *SymbolTable
+	store          map[string]*Symbol
 	numDefinitions int
 }
 

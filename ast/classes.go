@@ -20,13 +20,13 @@ import (
 //	  // fields and methods
 //	end;
 type ClassDecl struct {
-	Token       lexer.Token      // The 'type' token
-	Name        *Identifier      // The class name (e.g., "TPoint", "TPerson")
-	Parent      *Identifier      // The parent class name (optional, nil for root classes)
-	Fields      []*FieldDecl     // Field declarations
-	Methods     []*FunctionDecl  // Method declarations
-	Constructor *FunctionDecl    // Constructor method (optional, usually named "Create")
-	Destructor  *FunctionDecl    // Destructor method (optional, usually named "Destroy")
+	Token       lexer.Token     // The 'type' token
+	Name        *Identifier     // The class name (e.g., "TPoint", "TPerson")
+	Parent      *Identifier     // The parent class name (optional, nil for root classes)
+	Fields      []*FieldDecl    // Field declarations
+	Methods     []*FunctionDecl // Method declarations
+	Constructor *FunctionDecl   // Constructor method (optional, usually named "Create")
+	Destructor  *FunctionDecl   // Destructor method (optional, usually named "Destroy")
 }
 
 func (cd *ClassDecl) statementNode()       {}
@@ -92,13 +92,15 @@ func (cd *ClassDecl) String() string {
 // FieldDecl represents a field (member variable) declaration in a class.
 // DWScript syntax:
 //
-//	FFieldName: Type;
+//	FFieldName: Type;                // instance field
+//	class var Count: Integer;         // class variable (static field)
 //	property PropertyName: Type read FFieldName write FFieldName;
 type FieldDecl struct {
-	Token      lexer.Token      // The field name token
-	Name       *Identifier      // The field name (e.g., "FValue", "X", "Y")
-	Type       *TypeAnnotation  // The field type
-	Visibility string           // Visibility: "public", "private", "protected"
+	Token      lexer.Token     // The field name token
+	Name       *Identifier     // The field name (e.g., "FValue", "X", "Y")
+	Type       *TypeAnnotation // The field type
+	Visibility string          // Visibility: "public", "private", "protected"
+	IsClassVar bool            // True if this is a class variable (static field) - Task 7.62
 }
 
 func (fd *FieldDecl) statementNode()       {}
@@ -107,6 +109,9 @@ func (fd *FieldDecl) Pos() lexer.Position  { return fd.Name.Pos() }
 func (fd *FieldDecl) String() string {
 	var out bytes.Buffer
 
+	if fd.IsClassVar {
+		out.WriteString("class var ")
+	}
 	out.WriteString(fd.Name.String())
 	out.WriteString(": ")
 	out.WriteString(fd.Type.String())
@@ -125,16 +130,16 @@ func (fd *FieldDecl) String() string {
 //	or sometimes just:
 //	TClassName.Create
 type NewExpression struct {
-	Token     lexer.Token      // The class name token
-	ClassName *Identifier      // The class name (e.g., "TPoint")
-	Arguments []Expression     // Constructor arguments
-	Type      *TypeAnnotation  // The type (set by semantic analyzer)
+	Token     lexer.Token     // The class name token
+	ClassName *Identifier     // The class name (e.g., "TPoint")
+	Arguments []Expression    // Constructor arguments
+	Type      *TypeAnnotation // The type (set by semantic analyzer)
 }
 
-func (ne *NewExpression) expressionNode()         {}
-func (ne *NewExpression) TokenLiteral() string    { return ne.ClassName.TokenLiteral() }
-func (ne *NewExpression) Pos() lexer.Position     { return ne.ClassName.Pos() }
-func (ne *NewExpression) GetType() *TypeAnnotation { return ne.Type }
+func (ne *NewExpression) expressionNode()             {}
+func (ne *NewExpression) TokenLiteral() string        { return ne.ClassName.TokenLiteral() }
+func (ne *NewExpression) Pos() lexer.Position         { return ne.ClassName.Pos() }
+func (ne *NewExpression) GetType() *TypeAnnotation    { return ne.Type }
 func (ne *NewExpression) SetType(typ *TypeAnnotation) { ne.Type = typ }
 func (ne *NewExpression) String() string {
 	var out bytes.Buffer
@@ -164,16 +169,16 @@ func (ne *NewExpression) String() string {
 //	obj.method
 //	obj.field1.field2
 type MemberAccessExpression struct {
-	Token  lexer.Token      // The '.' token
-	Object Expression       // The object expression (left side)
-	Member *Identifier      // The member name (right side)
-	Type   *TypeAnnotation  // The type (set by semantic analyzer)
+	Token  lexer.Token     // The '.' token
+	Object Expression      // The object expression (left side)
+	Member *Identifier     // The member name (right side)
+	Type   *TypeAnnotation // The type (set by semantic analyzer)
 }
 
-func (ma *MemberAccessExpression) expressionNode()         {}
-func (ma *MemberAccessExpression) TokenLiteral() string    { return ma.Token.Literal }
-func (ma *MemberAccessExpression) Pos() lexer.Position     { return ma.Object.Pos() }
-func (ma *MemberAccessExpression) GetType() *TypeAnnotation { return ma.Type }
+func (ma *MemberAccessExpression) expressionNode()             {}
+func (ma *MemberAccessExpression) TokenLiteral() string        { return ma.Token.Literal }
+func (ma *MemberAccessExpression) Pos() lexer.Position         { return ma.Object.Pos() }
+func (ma *MemberAccessExpression) GetType() *TypeAnnotation    { return ma.Type }
 func (ma *MemberAccessExpression) SetType(typ *TypeAnnotation) { ma.Type = typ }
 func (ma *MemberAccessExpression) String() string {
 	var out bytes.Buffer
@@ -195,17 +200,17 @@ func (ma *MemberAccessExpression) String() string {
 //	obj.MethodName(arg1, arg2)
 //	obj.MethodName()
 type MethodCallExpression struct {
-	Token     lexer.Token      // The '.' token
-	Object    Expression       // The object expression
-	Method    *Identifier      // The method name
-	Arguments []Expression     // The method arguments
-	Type      *TypeAnnotation  // The return type (set by semantic analyzer)
+	Token     lexer.Token     // The '.' token
+	Object    Expression      // The object expression
+	Method    *Identifier     // The method name
+	Arguments []Expression    // The method arguments
+	Type      *TypeAnnotation // The return type (set by semantic analyzer)
 }
 
-func (mc *MethodCallExpression) expressionNode()         {}
-func (mc *MethodCallExpression) TokenLiteral() string    { return mc.Token.Literal }
-func (mc *MethodCallExpression) Pos() lexer.Position     { return mc.Object.Pos() }
-func (mc *MethodCallExpression) GetType() *TypeAnnotation { return mc.Type }
+func (mc *MethodCallExpression) expressionNode()             {}
+func (mc *MethodCallExpression) TokenLiteral() string        { return mc.Token.Literal }
+func (mc *MethodCallExpression) Pos() lexer.Position         { return mc.Object.Pos() }
+func (mc *MethodCallExpression) GetType() *TypeAnnotation    { return mc.Type }
 func (mc *MethodCallExpression) SetType(typ *TypeAnnotation) { mc.Type = typ }
 func (mc *MethodCallExpression) String() string {
 	var out bytes.Buffer
