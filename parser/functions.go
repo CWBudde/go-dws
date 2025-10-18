@@ -46,13 +46,29 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		return nil
 	}
 
-	// Check for optional 'static' keyword (for class methods)
-	if p.peekTokenIs(lexer.STATIC) {
-		p.nextToken() // move to 'static'
-		// Note: IsClassMethod flag should have been set by the caller (parseClassDeclaration)
-		// The 'static' keyword is optional and doesn't change the semantics
-		if !p.expectPeek(lexer.SEMICOLON) {
-			return nil
+	// Check for optional directives: static, virtual, override (Task 7.64c-d)
+	for {
+		if p.peekTokenIs(lexer.STATIC) {
+			p.nextToken() // move to 'static'
+			// Note: IsClassMethod flag should have been set by the caller (parseClassDeclaration)
+			// The 'static' keyword is optional and doesn't change the semantics
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
+		} else if p.peekTokenIs(lexer.VIRTUAL) {
+			p.nextToken() // move to 'virtual'
+			fn.IsVirtual = true
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
+		} else if p.peekTokenIs(lexer.OVERRIDE) {
+			p.nextToken() // move to 'override'
+			fn.IsOverride = true
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
+		} else {
+			break // No more directives
 		}
 	}
 

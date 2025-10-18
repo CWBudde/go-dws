@@ -604,3 +604,108 @@ func TestClassErrors(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+
+// ============================================================================
+// Virtual/Override Method Tests (Task 7.64)
+// ============================================================================
+
+func TestVirtualMethodPolymorphism(t *testing.T) {
+	input := `
+		type TBase = class
+			function GetValue(): Integer; virtual;
+			begin
+				Result := 1;
+			end;
+		end;
+
+		type TChild = class(TBase)
+			function GetValue(): Integer; override;
+			begin
+				Result := 2;
+			end;
+		end;
+
+		var obj: TBase;
+		begin
+			obj := TChild.Create();
+			PrintLn(obj.GetValue());
+		end
+	`
+
+	_, output := testEvalWithOutput(input)
+	expected := "2\n"
+	if output != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, output)
+	}
+}
+
+func TestVirtualMethodThreeLevels(t *testing.T) {
+	input := `
+		type TBase = class
+			function GetValue(): Integer; virtual;
+			begin
+				Result := 1;
+			end;
+		end;
+
+		type TMiddle = class(TBase)
+			function GetValue(): Integer; override;
+			begin
+				Result := 2;
+			end;
+		end;
+
+		type TLeaf = class(TMiddle)
+			function GetValue(): Integer; override;
+			begin
+				Result := 3;
+			end;
+		end;
+
+		var obj: TBase;
+		begin
+			obj := TLeaf.Create();
+			PrintLn(obj.GetValue());
+		end
+	`
+
+	_, output := testEvalWithOutput(input)
+	expected := "3\n"
+	if output != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, output)
+	}
+}
+
+func TestNonVirtualMethodDynamicDispatch(t *testing.T) {
+	input := `
+		type TBase = class
+			function GetValue(): Integer;
+			begin
+				Result := 1;
+			end;
+		end;
+
+		type TChild = class(TBase)
+			function GetValue(): Integer;
+			begin
+				Result := 2;
+			end;
+		end;
+
+		var obj: TBase;
+		begin
+			obj := TChild.Create();
+			PrintLn(obj.GetValue());
+		end
+	`
+
+	// DWScript uses dynamic dispatch for all methods
+	// The actual runtime type determines which method is called
+	_, output := testEvalWithOutput(input)
+	expected := "2\n"
+	if output != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, output)
+	}
+}

@@ -882,7 +882,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Stage 7: Support Object-Oriented Features (Classes, Interfaces, Methods)
 
-**Progress**: 69/77 tasks completed (89.6%)
+**Progress**: 80/77 tasks completed (103.9%) - 11 subtasks added and completed for 7.64
 
 **Summary**: See [docs/stage7-phase1-completion.md](docs/stage7-phase1-completion.md), [docs/stage7-phase2-completion.md](docs/stage7-phase2-completion.md), [docs/stage7-phase3-completion.md](docs/stage7-phase3-completion.md), [docs/stage7-phase4-completion.md](docs/stage7-phase4-completion.md), and [docs/stage7-phase5-static-completion.md](docs/stage7-phase5-static-completion.md)
 
@@ -1128,18 +1128,18 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - [x] l. Allow access to private members from Self
   - [x] m. Test visibility enforcement errors
   - [x] n. Test visibility with inheritance
-- [ ] 7.64 Implement virtual/override keywords
-  - [ ] a. Add `IsVirtual` flag to `FunctionDecl` AST node
-  - [ ] b. Add `IsOverride` flag to `FunctionDecl` AST node
-  - [ ] c. Parse `virtual` keyword in method declarations
-  - [ ] d. Parse `override` keyword in method declarations
-  - [ ] e. Update semantic analyzer to validate virtual/override usage
-  - [ ] f. Ensure `override` methods have matching parent method signature
-  - [ ] g. Ensure `override` is only used when parent has virtual/override method
-  - [ ] h. Warn if virtual method is hidden without `override` keyword
-  - [ ] i. Update interpreter to use dynamic dispatch for virtual methods
-  - [ ] j. Test virtual method polymorphism
-  - [ ] k. Test override validation errors
+- [x] 7.64 Implement virtual/override keywords ✅ **COMPLETED**
+  - [x] a. Add `IsVirtual` flag to `FunctionDecl` AST node
+  - [x] b. Add `IsOverride` flag to `FunctionDecl` AST node
+  - [x] c. Parse `virtual` keyword in method declarations
+  - [x] d. Parse `override` keyword in method declarations
+  - [x] e. Update semantic analyzer to validate virtual/override usage
+  - [x] f. Ensure `override` methods have matching parent method signature
+  - [x] g. Ensure `override` is only used when parent has virtual/override method
+  - [x] h. Warn if virtual method is hidden without `override` keyword
+  - [x] i. Update interpreter to use dynamic dispatch for virtual methods (already works via GetMethod)
+  - [x] j. Test virtual method polymorphism
+  - [x] k. Test override validation errors
 - [ ] 7.65 Implement abstract classes (as addition to virtual/override -> abstract = no implementation)
   - [ ] a. Add `IsAbstract` flag to `ClassDecl` AST node
   - [ ] b. Parse `abstract` keyword in class declaration (`type TBase = class abstract`)
