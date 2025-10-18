@@ -12,11 +12,25 @@ import (
 func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	fn := &ast.FunctionDecl{Token: p.curToken}
 
-	// Parse function name
-	if !p.expectPeek(lexer.IDENT) {
-		return nil
+	// Parse function name (may be qualified: ClassName.MethodName)
+	// In DWScript/Object Pascal, keywords can be used as identifiers in certain contexts
+	// like method names, so we accept any token as a name here
+	p.nextToken()
+	firstIdent := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	// Check for qualified name (ClassName.MethodName for method implementations)
+	if p.peekTokenIs(lexer.DOT) {
+		p.nextToken() // move to '.'
+		p.nextToken() // move past '.'
+		// This is a qualified name: TExample.MethodName
+		// firstIdent is the class name, current token is the method name
+		fn.ClassName = firstIdent
+		fn.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	} else {
+		// Simple function name (not a method implementation)
+		fn.Name = firstIdent
+		fn.ClassName = nil
 	}
-	fn.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
 	// Parse parameter list (if present)
 	if p.peekTokenIs(lexer.LPAREN) {
@@ -82,15 +96,16 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		}
 	}
 
-	// TODO: Handle forward declarations if we see another semicolon
-	// For now, expect begin...end body
-
-	// Parse function body
-	if !p.expectPeek(lexer.BEGIN) {
-		p.addError("expected 'begin' to start function body")
-		return nil
+	// Check if this is a forward declaration (no body)
+	// Forward declarations end with a semicolon instead of begin...end
+	if !p.peekTokenIs(lexer.BEGIN) {
+		// This is a forward declaration (method declaration in class body)
+		// Body will be provided later in method implementation outside class
+		return fn
 	}
 
+	// Parse function body
+	p.nextToken() // move to 'begin'
 	fn.Body = p.parseBlockStatement()
 
 	// Expect semicolon after end

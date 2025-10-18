@@ -882,7 +882,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Stage 7: Support Object-Oriented Features (Classes, Interfaces, Methods)
 
-**Progress**: 80/77 tasks completed (103.9%) - 11 subtasks added and completed for 7.64
+**Progress**: 87/82 tasks completed (106.1%) - 11 subtasks added for 7.64, 12 subtasks added for 7.63 (7 parser complete, 5 semantic pending)
 
 **Summary**: See [docs/stage7-phase1-completion.md](docs/stage7-phase1-completion.md), [docs/stage7-phase2-completion.md](docs/stage7-phase2-completion.md), [docs/stage7-phase3-completion.md](docs/stage7-phase3-completion.md), [docs/stage7-phase4-completion.md](docs/stage7-phase4-completion.md), and [docs/stage7-phase5-static-completion.md](docs/stage7-phase5-static-completion.md)
 
@@ -1128,6 +1128,18 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - [x] l. Allow access to private members from Self
   - [x] m. Test visibility enforcement errors
   - [x] n. Test visibility with inheritance
+  - [x] o. **PARSER**: Add IsConstructor/IsDestructor flags to FunctionDecl AST
+  - [x] p. **PARSER**: Handle CONSTRUCTOR token in class body parsing
+  - [x] q. **PARSER**: Handle DESTRUCTOR token in class body parsing
+  - [x] r. **PARSER**: Support qualified method names (ClassName.MethodName)
+  - [x] s. **PARSER**: Allow keywords as method/field names in appropriate contexts
+  - [x] t. **PARSER**: Support forward declarations (method declarations without body)
+  - [x] u. **PARSER**: Register HELPER and other contextual keywords as valid identifiers
+  - [ ] v. **SEMANTIC**: Make class fields accessible in method scope
+  - [ ] w. **SEMANTIC**: Implement proper method scope with implicit Self binding
+  - [ ] x. **SEMANTIC**: Link method implementations outside class to class declarations
+  - [ ] y. **SEMANTIC**: Validate constructor/destructor signatures and usage
+  - [ ] z. **SEMANTIC**: Complete visibility checking in all contexts (field access, method calls, inheritance)
 - [x] 7.64 Implement virtual/override keywords ✅ **COMPLETED**
   - [x] a. Add `IsVirtual` flag to `FunctionDecl` AST node
   - [x] b. Add `IsOverride` flag to `FunctionDecl` AST node

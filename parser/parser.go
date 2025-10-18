@@ -95,6 +95,10 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.NOT, p.parsePrefixExpression)
 	p.registerPrefix(lexer.LPAREN, p.parseGroupedExpression)
 
+	// Register keywords that can be used as identifiers in expression context
+	// In DWScript/Object Pascal, some keywords can be used as identifiers
+	p.registerPrefix(lexer.HELPER, p.parseIdentifier)
+
 	// Register infix parse functions
 	p.registerInfix(lexer.LPAREN, p.parseCallExpression)
 	p.registerInfix(lexer.PLUS, p.parseInfixExpression)

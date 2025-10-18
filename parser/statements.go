@@ -24,6 +24,20 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseCaseStatement()
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		return p.parseFunctionDeclaration()
+	case lexer.CONSTRUCTOR:
+		// Parse constructor implementation outside class body
+		method := p.parseFunctionDeclaration()
+		if method != nil {
+			method.IsConstructor = true
+		}
+		return method
+	case lexer.DESTRUCTOR:
+		// Parse destructor implementation outside class body
+		method := p.parseFunctionDeclaration()
+		if method != nil {
+			method.IsDestructor = true
+		}
+		return method
 	case lexer.TYPE:
 		return p.parseClassDeclaration()
 	default:
