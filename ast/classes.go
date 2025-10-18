@@ -60,6 +60,7 @@ type ClassDecl struct {
 	Token       lexer.Token     // The 'type' token
 	Name        *Identifier     // The class name (e.g., "TPoint", "TPerson")
 	Parent      *Identifier     // The parent class name (optional, nil for root classes)
+	Interfaces  []*Identifier   // Interfaces implemented by this class (Task 7.70)
 	Fields      []*FieldDecl    // Field declarations
 	Methods     []*FunctionDecl // Method declarations
 	Constructor *FunctionDecl   // Constructor method (optional, usually named "Create")
@@ -77,10 +78,28 @@ func (cd *ClassDecl) String() string {
 	out.WriteString(cd.Name.String())
 	out.WriteString(" = class")
 
-	// Add parent class if present
-	if cd.Parent != nil {
+	// Add parent class and/or interfaces if present (Task 7.70)
+	// Syntax: class(TParent, IInterface1, IInterface2) or class(IInterface) with no parent
+	if cd.Parent != nil || len(cd.Interfaces) > 0 {
 		out.WriteString("(")
-		out.WriteString(cd.Parent.String())
+
+		// Add parent first if present
+		if cd.Parent != nil {
+			out.WriteString(cd.Parent.String())
+			// Add comma if there are also interfaces
+			if len(cd.Interfaces) > 0 {
+				out.WriteString(", ")
+			}
+		}
+
+		// Add interfaces
+		for i, iface := range cd.Interfaces {
+			out.WriteString(iface.String())
+			if i < len(cd.Interfaces)-1 {
+				out.WriteString(", ")
+			}
+		}
+
 		out.WriteString(")")
 	}
 

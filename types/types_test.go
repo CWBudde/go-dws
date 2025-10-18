@@ -1359,6 +1359,410 @@ func TestIsInterfaceType(t *testing.T) {
 }
 
 // ============================================================================
+// Interface Inheritance Tests (Task 7.73-7.80)
+// ============================================================================
+
+// Task 7.76: Test Equals() with hierarchy support for interfaces
+func TestInterfaceEqualsWithHierarchy(t *testing.T) {
+	// Create interface hierarchy
+	iBase := NewInterfaceType("IBase")
+	iDerived := &InterfaceType{
+		Name:    "IDerived",
+		Parent:  iBase,
+		Methods: make(map[string]*FunctionType),
+	}
+
+	tests := []struct {
+		name     string
+		iface1   Type
+		iface2   Type
+		expected bool
+		note     string
+	}{
+		{
+			name:     "exact same interface",
+			iface1:   iBase,
+			iface2:   iBase,
+			expected: true,
+			note:     "same interface instance should equal itself",
+		},
+		{
+			name:     "same name different instance",
+			iface1:   NewInterfaceType("ITest"),
+			iface2:   NewInterfaceType("ITest"),
+			expected: true,
+			note:     "interfaces with same name should be equal (nominal typing)",
+		},
+		{
+			name:     "different interface names",
+			iface1:   iBase,
+			iface2:   iDerived,
+			expected: false,
+			note:     "derived interface is NOT equal to base (exact match required)",
+		},
+		{
+			name:     "interface vs non-interface",
+			iface1:   iBase,
+			iface2:   INTEGER,
+			expected: false,
+			note:     "interface should not equal non-interface type",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.iface1.Equals(tt.iface2)
+			if result != tt.expected {
+				t.Errorf("%s: Expected %v, got %v", tt.note, tt.expected, result)
+			}
+		})
+	}
+}
+
+// Task 7.75: Test IINTERFACE base interface constant
+func TestIINTERFACEConstant(t *testing.T) {
+	t.Run("IINTERFACE exists", func(t *testing.T) {
+		if IINTERFACE == nil {
+			t.Error("IINTERFACE should be defined")
+		}
+		if IINTERFACE.Name != "IInterface" {
+			t.Errorf("Expected IINTERFACE name to be 'IInterface', got '%s'", IINTERFACE.Name)
+		}
+		if IINTERFACE.Parent != nil {
+			t.Error("IINTERFACE should have no parent (root interface)")
+		}
+	})
+
+	t.Run("all interfaces can inherit from IINTERFACE", func(t *testing.T) {
+		iCustom := &InterfaceType{
+			Name:    "ICustom",
+			Parent:  IINTERFACE,
+			Methods: make(map[string]*FunctionType),
+		}
+
+		if !IsSubinterfaceOf(iCustom, IINTERFACE) {
+			t.Error("ICustom should be subinterface of IINTERFACE")
+		}
+	})
+}
+
+// Task 7.73-7.74: Test interface with Parent, IsExternal, ExternalName
+func TestInterfaceTypeWithInheritance(t *testing.T) {
+	// Create base interface
+	iBase := NewInterfaceType("IBase")
+	iBase.Methods["BaseMethod"] = NewProcedureType([]Type{})
+
+	// Create derived interface with parent
+	iDerived := &InterfaceType{
+		Name:    "IDerived",
+		Parent:  iBase,
+		Methods: make(map[string]*FunctionType),
+	}
+	iDerived.Methods["DerivedMethod"] = NewProcedureType([]Type{})
+
+	t.Run("interface has parent", func(t *testing.T) {
+		if iDerived.Parent == nil {
+			t.Error("IDerived should have IBase as parent")
+		}
+		if iDerived.Parent.Name != "IBase" {
+			t.Errorf("Expected parent name 'IBase', got '%s'", iDerived.Parent.Name)
+		}
+	})
+
+	t.Run("base interface has no parent", func(t *testing.T) {
+		if iBase.Parent != nil {
+			t.Error("IBase should have no parent")
+		}
+	})
+}
+
+func TestInterfaceTypeExternal(t *testing.T) {
+	// Create external interface (for FFI)
+	iExternal := &InterfaceType{
+		Name:         "IExternal",
+		Methods:      make(map[string]*FunctionType),
+		IsExternal:   true,
+		ExternalName: "IDispatch",
+	}
+
+	t.Run("external interface flag", func(t *testing.T) {
+		if !iExternal.IsExternal {
+			t.Error("Interface should be marked as external")
+		}
+		if iExternal.ExternalName != "IDispatch" {
+			t.Errorf("Expected external name 'IDispatch', got '%s'", iExternal.ExternalName)
+		}
+	})
+
+	// Create regular (non-external) interface
+	iRegular := NewInterfaceType("IRegular")
+
+	t.Run("regular interface not external", func(t *testing.T) {
+		if iRegular.IsExternal {
+			t.Error("Regular interface should not be marked as external")
+		}
+		if iRegular.ExternalName != "" {
+			t.Error("Regular interface should have empty external name")
+		}
+	})
+}
+
+// Task 7.77: Test interface inheritance checking
+func TestIsSubinterfaceOf(t *testing.T) {
+	// Create interface hierarchy: IBase -> IMiddle -> IDerived
+	iBase := NewInterfaceType("IBase")
+	iBase.Methods["BaseMethod"] = NewProcedureType([]Type{})
+
+	iMiddle := &InterfaceType{
+		Name:    "IMiddle",
+		Parent:  iBase,
+		Methods: make(map[string]*FunctionType),
+	}
+	iMiddle.Methods["MiddleMethod"] = NewProcedureType([]Type{})
+
+	iDerived := &InterfaceType{
+		Name:    "IDerived",
+		Parent:  iMiddle,
+		Methods: make(map[string]*FunctionType),
+	}
+	iDerived.Methods["DerivedMethod"] = NewProcedureType([]Type{})
+
+	iUnrelated := NewInterfaceType("IUnrelated")
+
+	tests := []struct {
+		name     string
+		child    *InterfaceType
+		parent   *InterfaceType
+		expected bool
+	}{
+		{
+			name:     "direct parent",
+			child:    iDerived,
+			parent:   iMiddle,
+			expected: true,
+		},
+		{
+			name:     "grandparent",
+			child:    iDerived,
+			parent:   iBase,
+			expected: true,
+		},
+		{
+			name:     "immediate parent",
+			child:    iMiddle,
+			parent:   iBase,
+			expected: true,
+		},
+		{
+			name:     "same interface",
+			child:    iMiddle,
+			parent:   iMiddle,
+			expected: true,
+		},
+		{
+			name:     "unrelated interfaces",
+			child:    iDerived,
+			parent:   iUnrelated,
+			expected: false,
+		},
+		{
+			name:     "reverse hierarchy",
+			child:    iBase,
+			parent:   iMiddle,
+			expected: false,
+		},
+		{
+			name:     "nil child",
+			child:    nil,
+			parent:   iBase,
+			expected: false,
+		},
+		{
+			name:     "nil parent",
+			child:    iDerived,
+			parent:   nil,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsSubinterfaceOf(tt.child, tt.parent)
+			if result != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+// Task 7.77: Test circular interface inheritance detection
+func TestCircularInterfaceInheritance(t *testing.T) {
+	// This test will verify that we detect circular inheritance
+	// For now, we'll test the concept - actual implementation may vary
+	iA := NewInterfaceType("IA")
+	iB := &InterfaceType{
+		Name:    "IB",
+		Parent:  iA,
+		Methods: make(map[string]*FunctionType),
+	}
+	// Attempting to make iA inherit from iB would create a cycle
+	// This should be detected during semantic analysis
+
+	t.Run("no circular inheritance", func(t *testing.T) {
+		// Verify simple inheritance works
+		if !IsSubinterfaceOf(iB, iA) {
+			t.Error("IB should be subinterface of IA")
+		}
+	})
+}
+
+// Task 7.78: Test interface method inheritance
+func TestInterfaceMethodInheritance(t *testing.T) {
+	// Create base interface with methods
+	iBase := NewInterfaceType("IBase")
+	iBase.Methods["BaseMethod"] = NewProcedureType([]Type{})
+	iBase.Methods["GetValue"] = NewFunctionType([]Type{}, INTEGER)
+
+	// Create derived interface
+	iDerived := &InterfaceType{
+		Name:    "IDerived",
+		Parent:  iBase,
+		Methods: make(map[string]*FunctionType),
+	}
+	iDerived.Methods["DerivedMethod"] = NewProcedureType([]Type{})
+
+	t.Run("interface has all inherited methods", func(t *testing.T) {
+		// Interface should have access to parent methods
+		allMethods := GetAllInterfaceMethods(iDerived)
+
+		if len(allMethods) != 3 {
+			t.Errorf("Expected 3 methods (1 own + 2 inherited), got %d", len(allMethods))
+		}
+
+		if _, ok := allMethods["BaseMethod"]; !ok {
+			t.Error("Should have inherited BaseMethod from parent")
+		}
+		if _, ok := allMethods["GetValue"]; !ok {
+			t.Error("Should have inherited GetValue from parent")
+		}
+		if _, ok := allMethods["DerivedMethod"]; !ok {
+			t.Error("Should have own DerivedMethod")
+		}
+	})
+}
+
+// Task 7.79: Test interface-to-interface assignment
+func TestInterfaceToInterfaceAssignment(t *testing.T) {
+	// Create interface hierarchy
+	iBase := NewInterfaceType("IBase")
+	iBase.Methods["BaseMethod"] = NewProcedureType([]Type{})
+
+	iDerived := &InterfaceType{
+		Name:    "IDerived",
+		Parent:  iBase,
+		Methods: make(map[string]*FunctionType),
+	}
+	iDerived.Methods["DerivedMethod"] = NewProcedureType([]Type{})
+
+	iUnrelated := NewInterfaceType("IUnrelated")
+	iUnrelated.Methods["UnrelatedMethod"] = NewProcedureType([]Type{})
+
+	tests := []struct {
+		name     string
+		target   Type
+		source   Type
+		expected bool
+	}{
+		{
+			name:     "derived to base interface (covariant)",
+			target:   iBase,
+			source:   iDerived,
+			expected: true,
+		},
+		{
+			name:     "same interface",
+			target:   iBase,
+			source:   iBase,
+			expected: true,
+		},
+		{
+			name:     "base to derived (contravariant - not allowed)",
+			target:   iDerived,
+			source:   iBase,
+			expected: false,
+		},
+		{
+			name:     "unrelated interfaces",
+			target:   iBase,
+			source:   iUnrelated,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsAssignableFrom(tt.target, tt.source)
+			if result != tt.expected {
+				t.Errorf("IsAssignableFrom(%v, %v) = %v, want %v",
+					tt.target, tt.source, result, tt.expected)
+			}
+		})
+	}
+}
+
+// Task 7.80: Test class with multiple interface implementation
+func TestClassWithMultipleInterfaces(t *testing.T) {
+	// Create multiple interfaces
+	iReadable := NewInterfaceType("IReadable")
+	iReadable.Methods["Read"] = NewFunctionType([]Type{}, STRING)
+
+	iWritable := NewInterfaceType("IWritable")
+	iWritable.Methods["Write"] = NewProcedureType([]Type{STRING})
+
+	// Create class implementing both
+	tFile := NewClassType("TFile", nil)
+	tFile.Methods["Read"] = NewFunctionType([]Type{}, STRING)
+	tFile.Methods["Write"] = NewProcedureType([]Type{STRING})
+	tFile.Interfaces = []*InterfaceType{iReadable, iWritable}
+
+	t.Run("class tracks implemented interfaces", func(t *testing.T) {
+		if len(tFile.Interfaces) != 2 {
+			t.Errorf("Expected 2 interfaces, got %d", len(tFile.Interfaces))
+		}
+	})
+
+	t.Run("class implements all tracked interfaces", func(t *testing.T) {
+		for _, iface := range tFile.Interfaces {
+			if !ImplementsInterface(tFile, iface) {
+				t.Errorf("Class should implement interface %s", iface.Name)
+			}
+		}
+	})
+}
+
+// Task 7.80: Test that ClassType has Interfaces field
+func TestClassTypeInterfacesField(t *testing.T) {
+	iComparable := NewInterfaceType("IComparable")
+	iComparable.Methods["CompareTo"] = NewFunctionType([]Type{INTEGER}, INTEGER)
+
+	tPerson := NewClassType("TPerson", nil)
+	tPerson.Methods["CompareTo"] = NewFunctionType([]Type{INTEGER}, INTEGER)
+	tPerson.Interfaces = []*InterfaceType{iComparable}
+
+	t.Run("class has interfaces field", func(t *testing.T) {
+		if tPerson.Interfaces == nil {
+			t.Error("ClassType should have Interfaces field initialized")
+		}
+		if len(tPerson.Interfaces) != 1 {
+			t.Errorf("Expected 1 interface, got %d", len(tPerson.Interfaces))
+		}
+		if tPerson.Interfaces[0].Name != "IComparable" {
+			t.Errorf("Expected interface IComparable, got %s", tPerson.Interfaces[0].Name)
+		}
+	})
+}
+
+// ============================================================================
 // Complex Hierarchy Tests
 // ============================================================================
 
