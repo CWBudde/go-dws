@@ -754,3 +754,77 @@ func TestOverrideParameterMismatch(t *testing.T) {
 	// Should error: override has different parameter count
 	expectError(t, input, "signature")
 }
+
+// ============================================================================
+// Abstract Class/Method Tests (Task 7.65)
+// ============================================================================
+
+func TestAbstractClassDeclaration(t *testing.T) {
+	input := `
+		type TShape = class abstract
+			FName: String;
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestCannotInstantiateAbstractClass(t *testing.T) {
+	input := `
+		type TShape = class abstract
+			FName: String;
+		end;
+
+		var s := TShape.Create();
+	`
+	// Should error: cannot instantiate abstract class
+	expectError(t, input, "abstract")
+}
+
+func TestConcreteClassMustImplementAbstractMethods(t *testing.T) {
+	input := `
+		type TShape = class abstract
+			function GetArea(): Float; abstract;
+		end;
+
+		type TCircle = class(TShape)
+			FRadius: Float;
+		end;
+	`
+	// Should error: TCircle doesn't implement GetArea
+	expectError(t, input, "abstract")
+}
+
+func TestAbstractMethodInConcreteClass(t *testing.T) {
+	input := `
+		type TShape = class
+			function GetArea(): Float; abstract;
+		end;
+	`
+	// Should error: only abstract classes can have abstract methods
+	expectError(t, input, "abstract")
+}
+
+func TestValidAbstractImplementation(t *testing.T) {
+	input := `
+		type TShape = class abstract
+			function GetArea(): Float; abstract;
+
+			function GetName(): String;
+			begin
+				Result := 'Shape';
+			end;
+		end;
+
+		type TCircle = class(TShape)
+			FRadius: Float;
+
+			function GetArea(): Float; override;
+			begin
+				Result := 3.14 * FRadius * FRadius;
+			end;
+		end;
+
+		var c := TCircle.Create();
+	`
+	expectNoErrors(t, input)
+}

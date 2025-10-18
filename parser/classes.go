@@ -47,6 +47,13 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 		}
 	}
 
+	// Check for 'abstract' keyword (Task 7.65b)
+	// Syntax: type TShape = class abstract
+	if p.peekTokenIs(lexer.ABSTRACT) {
+		p.nextToken() // move to 'abstract'
+		classDecl.IsAbstract = true
+	}
+
 	// Parse class body (fields and methods) until 'end'
 	p.nextToken() // move past 'class' or ')'
 

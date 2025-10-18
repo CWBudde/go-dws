@@ -1,0 +1,79 @@
+// Abstract Class Demonstration
+// Task 7.65: Demonstrates abstract classes and methods
+
+type TShape = class abstract
+  FName: String;
+
+  function GetArea(): Float; abstract;
+  function GetPerimeter(): Float; abstract;
+
+  function GetName(): String;
+  begin
+    Result := FName;
+  end;
+end;
+
+type TRectangle = class(TShape)
+  FWidth: Float;
+  FHeight: Float;
+
+  function Create(w: Float, h: Float): TRectangle;
+  begin
+    FWidth := w;
+    FHeight := h;
+    FName := 'Rectangle';
+    Result := Self;
+  end;
+
+  function GetArea(): Float; override;
+  begin
+    Result := FWidth * FHeight;
+  end;
+
+  function GetPerimeter(): Float; override;
+  begin
+    Result := 2.0 * (FWidth + FHeight);
+  end;
+end;
+
+type TCircle = class(TShape)
+  FRadius: Float;
+
+  function Create(r: Float): TCircle;
+  begin
+    FRadius := r;
+    FName := 'Circle';
+    Result := Self;
+  end;
+
+  function GetArea(): Float; override;
+  begin
+    Result := 3.14159 * FRadius * FRadius;
+  end;
+
+  function GetPerimeter(): Float; override;
+  begin
+    Result := 2.0 * 3.14159 * FRadius;
+  end;
+end;
+
+var rect: TShape;
+var circle: TShape;
+
+begin
+  // Create concrete instances
+  rect := TRectangle.Create(10.0, 5.0);
+  circle := TCircle.Create(3.0);
+
+  // Polymorphic method calls
+  PrintLn('Rectangle: ', rect.GetName());
+  PrintLn('  Area: ', rect.GetArea());
+  PrintLn('  Perimeter: ', rect.GetPerimeter());
+
+  PrintLn('Circle: ', circle.GetName());
+  PrintLn('  Area: ', circle.GetArea());
+  PrintLn('  Perimeter: ', circle.GetPerimeter());
+
+  // This would cause an error (cannot instantiate abstract class):
+  // var shape := TShape.Create();
+end

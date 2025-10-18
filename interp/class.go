@@ -34,6 +34,9 @@ type ClassInfo struct {
 
 	// Destructor is the destructor method (if present)
 	Destructor *ast.FunctionDecl
+
+	// IsAbstract indicates if this is an abstract class (Task 7.65)
+	IsAbstract bool
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.

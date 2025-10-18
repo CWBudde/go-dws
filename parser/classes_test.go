@@ -633,3 +633,141 @@ end;
 		}
 	}
 }
+
+// ============================================================================
+// Abstract Class/Method Tests (Task 7.65)
+// ============================================================================
+
+func TestAbstractClassDeclaration(t *testing.T) {
+	input := `
+type TShape = class abstract
+  FName: String;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if stmt.Name.Value != "TShape" {
+		t.Errorf("stmt.Name.Value not 'TShape'. got=%s", stmt.Name.Value)
+	}
+
+	if !stmt.IsAbstract {
+		t.Errorf("stmt.IsAbstract should be true. got=%v", stmt.IsAbstract)
+	}
+}
+
+func TestAbstractMethodDeclaration(t *testing.T) {
+	input := `
+type TShape = class abstract
+  function GetArea(): Float; abstract;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if len(stmt.Methods) != 1 {
+		t.Fatalf("stmt.Methods should contain 1 method. got=%d", len(stmt.Methods))
+	}
+
+	method := stmt.Methods[0]
+	if method.Name.Value != "GetArea" {
+		t.Errorf("method.Name.Value not 'GetArea'. got=%s", method.Name.Value)
+	}
+
+	if !method.IsAbstract {
+		t.Errorf("method.IsAbstract should be true. got=%v", method.IsAbstract)
+	}
+
+	if method.Body != nil {
+		t.Errorf("abstract method should have nil Body. got=%v", method.Body)
+	}
+}
+
+func TestAbstractClassWithMixedMethods(t *testing.T) {
+	input := `
+type TShape = class abstract
+  function GetArea(): Float; abstract;
+
+  function GetName(): String;
+  begin
+    Result := 'Shape';
+  end;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if !stmt.IsAbstract {
+		t.Errorf("stmt.IsAbstract should be true. got=%v", stmt.IsAbstract)
+	}
+
+	if len(stmt.Methods) != 2 {
+		t.Fatalf("stmt.Methods should contain 2 methods. got=%d", len(stmt.Methods))
+	}
+
+	// First method should be abstract
+	method1 := stmt.Methods[0]
+	if method1.Name.Value != "GetArea" {
+		t.Errorf("method1.Name.Value not 'GetArea'. got=%s", method1.Name.Value)
+	}
+	if !method1.IsAbstract {
+		t.Errorf("method1.IsAbstract should be true. got=%v", method1.IsAbstract)
+	}
+	if method1.Body != nil {
+		t.Errorf("abstract method should have nil Body. got=%v", method1.Body)
+	}
+
+	// Second method should be concrete
+	method2 := stmt.Methods[1]
+	if method2.Name.Value != "GetName" {
+		t.Errorf("method2.Name.Value not 'GetName'. got=%s", method2.Name.Value)
+	}
+	if method2.IsAbstract {
+		t.Errorf("method2.IsAbstract should be false. got=%v", method2.IsAbstract)
+	}
+	if method2.Body == nil {
+		t.Errorf("concrete method should have Body. got=nil")
+	}
+}
