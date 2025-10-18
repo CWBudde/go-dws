@@ -123,6 +123,22 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 				method.Visibility = currentVisibility
 				classDecl.Methods = append(classDecl.Methods, method)
 			}
+		} else if p.curToken.Type == lexer.CONSTRUCTOR {
+			// This is a constructor declaration
+			method := p.parseFunctionDeclaration()
+			if method != nil {
+				method.IsConstructor = true
+				method.Visibility = currentVisibility
+				classDecl.Methods = append(classDecl.Methods, method)
+			}
+		} else if p.curToken.Type == lexer.DESTRUCTOR {
+			// This is a destructor declaration
+			method := p.parseFunctionDeclaration()
+			if method != nil {
+				method.IsDestructor = true
+				method.Visibility = currentVisibility
+				classDecl.Methods = append(classDecl.Methods, method)
+			}
 		} else {
 			// Unknown token in class body, skip it
 			p.nextToken()
@@ -190,8 +206,13 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 	// Advance to the member name
 	p.nextToken()
 
-	// The member name should be an identifier
-	if p.curToken.Type != lexer.IDENT {
+	// The member name can be an identifier or a keyword (DWScript allows keywords as member names)
+	// But it cannot be operators, numbers, or other invalid tokens
+	if p.curToken.Type == lexer.SEMICOLON || p.curToken.Type == lexer.INT ||
+		p.curToken.Type == lexer.FLOAT || p.curToken.Type == lexer.STRING ||
+		p.curToken.Type == lexer.LPAREN || p.curToken.Type == lexer.RPAREN ||
+		p.curToken.Type == lexer.LBRACK || p.curToken.Type == lexer.RBRACK ||
+		p.curToken.Type == lexer.COMMA || p.curToken.Type == lexer.EOF {
 		p.addError("expected identifier after '.'")
 		return nil
 	}

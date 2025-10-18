@@ -120,8 +120,8 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	var err error
 
 	if stmt.Type != nil {
-		// Explicit type annotation
-		varType, err = types.TypeFromString(stmt.Type.Name)
+		// Explicit type annotation - use resolveType to handle both basic and class types
+		varType, err = a.resolveType(stmt.Type.Name)
 		if err != nil {
 			a.addError("unknown type '%s' at %s", stmt.Type.Name, stmt.Token.Pos.String())
 			return
@@ -301,6 +301,13 @@ func (a *Analyzer) analyzeCase(stmt *ast.CaseStatement) {
 
 // analyzeFunctionDecl analyzes a function declaration
 func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
+	// Check if this is a method implementation (has ClassName)
+	if decl.ClassName != nil {
+		a.analyzeMethodImplementation(decl)
+		return
+	}
+
+	// This is a regular function (not a method implementation)
 	// Convert parameter types and return type
 	paramTypes := make([]types.Type, 0, len(decl.Parameters))
 	for _, param := range decl.Parameters {
@@ -805,6 +812,28 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	}
 
 	return nil, fmt.Errorf("unknown type: %s", typeName)
+}
+
+// analyzeMethodImplementation analyzes a method implementation outside a class (Task 7.63v-z)
+// This handles code like: function TExample.GetValue: Integer; begin ... end;
+func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
+	className := decl.ClassName.Value
+
+	// Look up the class
+	classType, exists := a.classes[className]
+	if !exists {
+		a.addError("unknown type '%s' at %s", className, decl.Token.Pos.String())
+		return
+	}
+
+	// Set the current class context
+	previousClass := a.currentClass
+	a.currentClass = classType
+	defer func() { a.currentClass = previousClass }()
+
+	// Use analyzeMethodDecl to analyze the method body with proper scope
+	// This will set up Self, fields, and all method scope correctly
+	a.analyzeMethodDecl(decl, classType)
 }
 
 // analyzeMethodDecl analyzes a method declaration within a class (Task 7.56, 7.61)
