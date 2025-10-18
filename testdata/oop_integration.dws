@@ -1,0 +1,167 @@
+// OOP Integration Test - Task 7.66a
+// Comprehensive test combining abstract classes, virtual methods, and visibility modifiers
+
+// Abstract base class with mixed visibility and virtual methods
+type TAnimal = class abstract
+private
+    FAge: Integer;
+    FName: String;
+
+protected
+    FSpecies: String;
+
+    // Protected helper method accessible to descendants
+    function GetAgeInMonths(): Integer; virtual;
+    begin
+        Result := FAge * 12;
+    end;
+
+public
+    // Constructor
+    function Create(name: String; age: Integer): TAnimal;
+    begin
+        FName := name;
+        FAge := age;
+        Result := Self;
+    end;
+
+    // Abstract methods must be implemented by concrete classes
+    function MakeSound(): String; abstract;
+    function GetDescription(): String; abstract;
+
+    // Virtual method can be overridden
+    function GetInfo(): String; virtual;
+    begin
+        Result := FName;
+    end;
+
+    // Public accessor for private field
+    function GetAge(): Integer;
+    begin
+        Result := FAge;
+    end;
+end;
+
+// Concrete class implementing abstract methods
+type TDog = class(TAnimal)
+private
+    FBreed: String;
+
+    // Private helper not accessible outside
+    function GetBreedInfo(): String;
+    begin
+        Result := 'Breed: ' + FBreed;
+    end;
+
+protected
+    // Can access parent's protected members
+    function CalculateLifeStage(): String;
+    begin
+        var months: Integer;
+        months := GetAgeInMonths(); // Call protected parent method
+        if months < 12 then
+            Result := 'Puppy'
+        else if months < 84 then
+            Result := 'Adult'
+        else
+            Result := 'Senior';
+    end;
+
+public
+    // Constructor
+    function Create(name: String; age: Integer; breed: String): TDog;
+    begin
+        FName := name;
+        FAge := age;
+        FSpecies := 'Canine'; // Access protected parent field
+        FBreed := breed;
+        Result := Self;
+    end;
+
+    // Implement abstract methods
+    function MakeSound(): String; override;
+    begin
+        Result := 'Woof!';
+    end;
+
+    function GetDescription(): String; override;
+    begin
+        Result := FName + ' is a ' + CalculateLifeStage() + ' ' + FBreed;
+    end;
+
+    // Override virtual method
+    function GetInfo(): String; override;
+    begin
+        Result := FName + ' (' + FSpecies + ')';
+    end;
+end;
+
+// Another concrete class with different implementation
+type TCat = class(TAnimal)
+private
+    FIndoorOnly: Boolean;
+
+public
+    function Create(name: String; age: Integer; indoor: Boolean): TCat;
+    begin
+        FName := name;
+        FAge := age;
+        FSpecies := 'Feline';
+        FIndoorOnly := indoor;
+        Result := Self;
+    end;
+
+    function MakeSound(): String; override;
+    begin
+        Result := 'Meow!';
+    end;
+
+    function GetDescription(): String; override;
+    begin
+        if FIndoorOnly then
+            Result := FName + ' is an indoor cat'
+        else
+            Result := FName + ' is an outdoor cat';
+    end;
+end;
+
+// Test polymorphism with base class reference
+var dog: TAnimal;
+var cat: TAnimal;
+var directDog: TDog;
+
+begin
+    // Create instances
+    dog := TDog.Create('Buddy', 3, 'Golden Retriever');
+    cat := TCat.Create('Whiskers', 5, true);
+    directDog := TDog.Create('Max', 7, 'German Shepherd');
+
+    // Polymorphic calls through base class reference
+    PrintLn('Dog sound: ', dog.MakeSound());
+    PrintLn('Cat sound: ', cat.MakeSound());
+
+    // Virtual method calls use dynamic dispatch
+    PrintLn('Dog info: ', dog.GetInfo());
+    PrintLn('Cat info: ', cat.GetInfo());
+
+    // Abstract method implementation
+    PrintLn('Dog description: ', dog.GetDescription());
+    PrintLn('Cat description: ', cat.GetDescription());
+
+    // Public accessor for private field
+    PrintLn('Dog age: ', dog.GetAge());
+    PrintLn('Cat age: ', cat.GetAge());
+
+    // Direct access to concrete type
+    PrintLn('Direct dog description: ', directDog.GetDescription());
+
+    // These would cause errors (commented out for valid test):
+    // var abstract: TAnimal;
+    // abstract := TAnimal.Create('test', 1); // Error: cannot instantiate abstract class
+
+    // PrintLn(dog.FName);  // Error: cannot access private field
+    // PrintLn(dog.FAge);   // Error: cannot access private field
+    // PrintLn(dog.FSpecies); // Error: cannot access protected field
+
+    PrintLn('OOP Integration test passed!');
+end

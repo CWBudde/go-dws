@@ -882,9 +882,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Stage 7: Support Object-Oriented Features (Classes, Interfaces, Methods)
 
-**Progress**: 87/82 tasks completed (106.1%) - 11 subtasks added for 7.64, 12 subtasks added for 7.63 (7 parser complete, 5 semantic pending)
+**Progress**: 87/156 tasks completed (55.8%)
+- Classes: 87/73 tasks complete (119.2%) - COMPLETE
+- Interfaces: 0/83 tasks complete (0%) - **REQUIRED** (see section 7.67-7.149)
 
 **Summary**: See [docs/stage7-phase1-completion.md](docs/stage7-phase1-completion.md), [docs/stage7-phase2-completion.md](docs/stage7-phase2-completion.md), [docs/stage7-phase3-completion.md](docs/stage7-phase3-completion.md), [docs/stage7-phase4-completion.md](docs/stage7-phase4-completion.md), and [docs/stage7-phase5-static-completion.md](docs/stage7-phase5-static-completion.md)
+
+**Note**: Interface implementation was expanded from 5 optional tasks to 83 required tasks based on analysis of DWScript reference implementation (69+ test cases).
 
 ### Type Definitions for OOP ✅ **COMPLETED**
 
@@ -1163,35 +1167,299 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - [x] h. Validate abstract methods have no body
   - [x] i. Allow non-abstract methods in abstract classes
   - [x] j. Test abstract class validation
-- [ ] 7.66 Test advanced features
-  - [ ] a. Create test scripts combining abstract classes, virtual methods, and visibility
-  - [ ] b. Test abstract class with virtual methods
-  - [ ] c. Test protected methods accessed from derived class
-  - [ ] d. Test private fields not accessible from outside
-  - [ ] e. Test complex inheritance hierarchies with all features
+- [x] 7.66 Test advanced features ✅ **COMPLETED**
+  - [x] a. Create test scripts combining abstract classes, virtual methods, and visibility
+  - [x] b. Test abstract class with virtual methods
+  - [x] c. Test protected methods accessed from derived class
+  - [x] d. Test private fields not accessible from outside
+  - [x] e. Test complex inheritance hierarchies with all features
 
-### Interfaces (Optional)
+### Interfaces **REQUIRED**
 
-- [ ] 7.67 Parse interface declarations
-- [ ] 7.68 Implement interface satisfaction checking in semantic analyzer
-- [ ] 7.69 Implement interface variables at runtime
-- [ ] 7.70 Implement interface method calls (dispatch to implementing class)
-- [ ] 7.71 Test interfaces thoroughly
+**Rationale**: DWScript has 69+ passing interface tests in the reference implementation. Interfaces are a fundamental language feature, not optional. They enable:
+- Multiple inheritance-like behavior
+- Polymorphism and abstraction
+- External interface bindings (FFI/interop with host language)
+- Type-safe contracts between components
+
+**Progress**: 0/58 tasks completed (0%)
+
+#### Interface AST Nodes
+
+- [ ] 7.67 Create `ast/interfaces.go` file
+- [ ] 7.68 Define `InterfaceDecl` struct:
+  - [ ] Name *Identifier
+  - [ ] Parent *Identifier (optional - for interface inheritance)
+  - [ ] Methods []*InterfaceMethodDecl
+  - [ ] IsExternal bool (for external interfaces)
+  - [ ] ExternalName string (optional - for FFI binding)
+- [ ] 7.69 Define `InterfaceMethodDecl` struct:
+  - [ ] Name *Identifier
+  - [ ] Parameters []*Parameter
+  - [ ] ReturnType TypeAnnotation (nil for procedures)
+  - [ ] Note: No Body (interfaces only declare signatures)
+- [ ] 7.70 Update `ClassDecl` to support interface implementation:
+  - [ ] Add Interfaces []*Identifier field
+  - [ ] Parse: `class(TParent, IInterface1, IInterface2)`
+- [ ] 7.71 Implement `String()` methods for interface nodes
+- [ ] 7.72 Add tests for interface AST node string representations
+
+#### Interface Type System
+
+- [ ] 7.73 Extend `types/types.go` for interface types
+- [ ] 7.74 Define `InterfaceType` struct:
+  - [ ] Name string
+  - [ ] Parent *InterfaceType (for interface inheritance)
+  - [ ] Methods map[string]*FunctionType
+  - [ ] IsExternal bool
+  - [ ] ExternalName string (for FFI)
+- [ ] 7.75 Create `IInterfaceType` constant (base interface, like IUnknown)
+- [ ] 7.76 Implement `Equals()` for InterfaceType:
+  - [ ] Exact type match
+  - [ ] Handle interface hierarchy (derived == base is valid)
+- [ ] 7.77 Implement interface inheritance checking:
+  - [ ] Check if interface A inherits from interface B
+  - [ ] Build inheritance chain
+  - [ ] Detect circular inheritance
+- [ ] 7.78 Implement interface compatibility checking:
+  - [ ] Check if class implements all interface methods
+  - [ ] Verify method signatures match exactly (contravariance)
+  - [ ] Handle inherited methods from parent class
+- [ ] 7.79 Add interface casting rules:
+  - [ ] Object → Interface (if class implements interface)
+  - [ ] Interface → Interface (if compatible in hierarchy)
+  - [ ] Interface → Object (requires runtime type check)
+- [ ] 7.80 Support multiple interface implementation in ClassType:
+  - [ ] Add Interfaces []InterfaceType field
+  - [ ] Check all interfaces are satisfied
+
+#### Interface Parser
+
+- [ ] 7.81 Implement `parseInterfaceDeclaration()`:
+  - [ ] Parse `type` keyword
+  - [ ] Parse interface name
+  - [ ] Parse `= interface` keywords
+  - [ ] Parse optional `(ParentInterface)` inheritance
+  - [ ] Parse optional `external` keyword
+  - [ ] Parse optional external name string: `interface external 'IFoo'`
+  - [ ] Parse method declarations
+  - [ ] Parse `end` keyword
+  - [ ] Parse terminating semicolon
+- [ ] 7.82 Implement `parseInterfaceMethodDecl()`:
+  - [ ] Parse `procedure` or `function` keyword
+  - [ ] Parse method name
+  - [ ] Parse parameter list (reuse existing parameter parser)
+  - [ ] Parse `: ReturnType` for functions
+  - [ ] Parse semicolon
+  - [ ] Error if body is present (interfaces are abstract)
+- [ ] 7.83 Update `parseClassDeclaration()` to handle interface implementation:
+  - [ ] Parse `class(TParent, IInterface1, IInterface2)`
+  - [ ] Distinguish parent class from interfaces (first is class, rest are interfaces)
+  - [ ] Store interface list in ClassDecl
+- [ ] 7.84 Handle forward interface declarations:
+  - [ ] Parse `type IForward = interface;` (no body)
+  - [ ] Link to full declaration later
+- [ ] 7.85 Update `parseStatement()` or top-level parser to handle interface declarations
+- [ ] 7.86 Add interface-specific error messages
+
+#### Interface Parser Testing
+
+- [ ] 7.87 Create `parser/interface_parser_test.go` file
+- [ ] 7.88 Test simple interface declaration: `TestSimpleInterfaceDeclaration`
+  - [ ] `type IMyInterface = interface procedure A; end;`
+- [ ] 7.89 Test interface with multiple methods: `TestInterfaceMultipleMethods`
+  - [ ] Procedures and functions
+  - [ ] Methods with parameters
+- [ ] 7.90 Test interface inheritance: `TestInterfaceInheritance`
+  - [ ] `type IDerived = interface(IBase) procedure B; end;`
+- [ ] 7.91 Test class implementing interfaces: `TestClassImplementsInterface`
+  - [ ] Single interface: `class(IInterface)`
+  - [ ] Multiple interfaces: `class(IInterface1, IInterface2)`
+  - [ ] Class + interface: `class(TParent, IInterface)`
+- [ ] 7.92 Test external interfaces: `TestExternalInterface`
+  - [ ] `type IExternal = interface external;`
+  - [ ] `type IExternal = interface external 'IFoo';`
+- [ ] 7.93 Test forward interface declarations: `TestForwardInterfaceDeclaration`
+- [ ] 7.94 Test parsing errors (invalid syntax)
+- [ ] 7.95 Run parser tests: `go test ./parser -run TestInterface -v`
+
+#### Interface Semantic Analysis
+
+- [ ] 7.96 Update `semantic/analyzer.go` to handle interfaces
+- [ ] 7.97 Add interface registry to Analyzer struct
+- [ ] 7.98 Implement `analyzeInterfaceDecl()`:
+  - [ ] Verify parent interface exists (if inheritance)
+  - [ ] Check for circular interface inheritance
+  - [ ] Verify all methods are abstract (no body)
+  - [ ] Check for duplicate method names
+  - [ ] Check for interface redeclaration
+  - [ ] Register interface in symbol table
+- [ ] 7.99 Implement `analyzeInterfaceMethodDecl()`:
+  - [ ] Validate parameter types exist
+  - [ ] Validate return type exists
+  - [ ] Ensure no body is present
+- [ ] 7.100 Update `analyzeClassDecl()` for interface implementation:
+  - [ ] Verify all declared interfaces exist
+  - [ ] Check class implements all interface methods
+  - [ ] Verify method signatures match exactly
+  - [ ] Check inherited methods satisfy interfaces
+  - [ ] Validate visibility (interface methods must be public)
+- [ ] 7.101 Implement interface casting validation:
+  - [ ] Object as Interface: check class implements interface
+  - [ ] Interface as Interface: check compatibility
+  - [ ] Interface as Object: allow with runtime check warning
+- [ ] 7.102 Add interface method call validation:
+  - [ ] Ensure method exists in interface
+  - [ ] Validate argument types
+  - [ ] Validate return type usage
+- [ ] 7.103 Implement method signature matching:
+  - [ ] Same method name
+  - [ ] Same parameter count
+  - [ ] Same parameter types (exact match)
+  - [ ] Same return type (exact match or covariant)
+
+#### Interface Semantic Testing
+
+- [ ] 7.104 Create `semantic/interface_analyzer_test.go` file
+- [ ] 7.105 Test interface declaration analysis: `TestInterfaceDeclaration`
+- [ ] 7.106 Test interface inheritance: `TestInterfaceInheritance`
+- [ ] 7.107 Test circular interface inheritance detection: `TestCircularInterfaceInheritance`
+- [ ] 7.108 Test class implements interface: `TestClassImplementsInterface`
+- [ ] 7.109 Test class missing interface methods: `TestClassMissingInterfaceMethod` (should error)
+- [ ] 7.110 Test interface method signature mismatch: `TestInterfaceMethodSignatureMismatch` (should error)
+- [ ] 7.111 Test interface casting validation: `TestInterfaceCasting`
+- [ ] 7.112 Test multiple interface implementation: `TestMultipleInterfaces`
+- [ ] 7.113 Test interface method call validation: `TestInterfaceMethodCall`
+- [ ] 7.114 Run semantic tests: `go test ./semantic -run TestInterface -v`
+
+#### Interface Runtime Implementation
+
+- [ ] 7.115 Create `interp/interface.go` file
+- [ ] 7.116 Define `InterfaceInfo` struct (runtime metadata):
+  - [ ] Name string
+  - [ ] Parent *InterfaceInfo
+  - [ ] Methods map[string]*FunctionDecl
+- [ ] 7.117 Define `InterfaceInstance` struct:
+  - [ ] Interface *InterfaceInfo
+  - [ ] Object *ObjectInstance (reference to implementing object)
+  - [ ] Implements Value interface
+- [ ] 7.118 Update interpreter to maintain interface registry
+- [ ] 7.119 Implement `evalInterfaceDeclaration()`:
+  - [ ] Build InterfaceInfo from AST
+  - [ ] Register in interface registry
+  - [ ] Handle inheritance (copy parent methods)
+- [ ] 7.120 Implement object-to-interface casting:
+  - [ ] Verify object's class implements interface
+  - [ ] Create InterfaceInstance wrapping object
+  - [ ] Store method dispatch table
+- [ ] 7.121 Implement interface-to-interface casting:
+  - [ ] Check interface compatibility in hierarchy
+  - [ ] Create new InterfaceInstance if compatible
+  - [ ] Error if incompatible
+- [ ] 7.122 Implement interface-to-object casting:
+  - [ ] Runtime type check
+  - [ ] Extract underlying object from InterfaceInstance
+  - [ ] Error if types don't match
+- [ ] 7.123 Implement interface method calls:
+  - [ ] Resolve method in interface
+  - [ ] Dispatch to implementing object's method
+  - [ ] Handle `Self` correctly (Self is the object, not interface)
+- [ ] 7.124 Implement interface variable assignment:
+  - [ ] Allow object → interface (if implements)
+  - [ ] Allow interface → interface (if compatible)
+  - [ ] Reference semantics (interface vars are references)
+- [ ] 7.125 Handle interface lifetime:
+  - [ ] Interface variables hold references to objects
+  - [ ] Go GC handles cleanup (no manual reference counting)
+  - [ ] Ensure object isn't GC'd while interface reference exists
+
+#### Interface Runtime Testing
+
+- [ ] 7.126 Create `interp/interface_test.go` file
+- [ ] 7.127 Test interface variable creation: `TestInterfaceVariable`
+- [ ] 7.128 Test object-to-interface casting: `TestObjectToInterface`
+- [ ] 7.129 Test interface method calls: `TestInterfaceMethodCall`
+- [ ] 7.130 Test interface inheritance at runtime: `TestInterfaceInheritance`
+- [ ] 7.131 Test multiple interface implementation: `TestMultipleInterfaces`
+- [ ] 7.132 Test interface-to-interface casting: `TestInterfaceToInterface`
+- [ ] 7.133 Test interface-to-object casting: `TestInterfaceToObject`
+- [ ] 7.134 Test interface lifetime and scope: `TestInterfaceLifetime`
+- [ ] 7.135 Test interface polymorphism: `TestInterfacePolymorphism`
+  - [ ] Variable of type IBase holds IDerived
+  - [ ] Method calls dispatch correctly
+- [ ] 7.136 Run interpreter tests: `go test ./interp -run TestInterface -v`
+
+#### External Interfaces
+
+**Purpose**: Enable DWScript to interact with Go code via interface contracts
+
+- [ ] 7.137 Parse `interface external` declarations:
+  - [ ] `type IExternal = interface external;` (no methods, placeholder)
+  - [ ] `type IExternal = interface external 'IGoInterface';` (with name)
+- [ ] 7.138 Define external interface binding mechanism:
+  - [ ] Map DWScript interface to Go interface
+  - [ ] Register Go implementations
+  - [ ] Handle method dispatch to Go code
+- [ ] 7.139 Implement external interface instantiation:
+  - [ ] Create InterfaceInstance wrapping Go object
+  - [ ] Handle type conversions (DWScript ↔ Go)
+- [ ] 7.140 Implement external interface method calls:
+  - [ ] Marshal DWScript arguments to Go types
+  - [ ] Call Go method
+  - [ ] Marshal Go return value to DWScript value
+- [ ] 7.141 Add error handling for external interface calls:
+  - [ ] Go panics → DWScript exceptions
+  - [ ] Type mismatches → runtime errors
+- [ ] 7.142 Document external interface usage:
+  - [ ] How to register Go implementations
+  - [ ] Type mapping rules
+  - [ ] Example: exposing Go APIs to DWScript
+- [ ] 7.143 Create example external interface:
+  - [ ] Define ILogger interface in DWScript
+  - [ ] Implement in Go
+  - [ ] Call from DWScript code
+- [ ] 7.144 Test external interfaces: `TestExternalInterfaces`
+
+#### Comprehensive Interface Testing
+
+- [ ] 7.145 Port DWScript interface tests from reference:
+  - [ ] Create `testdata/interfaces/` directory
+  - [ ] Port all 69 passing tests from `Test/InterfacesPass/`
+  - [ ] Port relevant failing tests for validation
+- [ ] 7.146 Create integration test suite:
+  - [ ] Interface declaration and usage
+  - [ ] Interface inheritance hierarchies
+  - [ ] Class implementing multiple interfaces
+  - [ ] Interface casting (all combinations)
+  - [ ] Interface lifetime management
+  - [ ] External interface integration
+- [ ] 7.147 Test edge cases:
+  - [ ] Empty interface (no methods)
+  - [ ] Interface with many methods
+  - [ ] Deep interface inheritance chains
+  - [ ] Class implementing conflicting interfaces
+  - [ ] Interface variables holding nil
+- [ ] 7.148 Create CLI integration tests:
+  - [ ] Run interface test scripts via CLI
+  - [ ] Verify output matches expected
+- [ ] 7.149 Achieve >85% coverage for interface code
 
 ### CLI Testing for OOP
 
-- [ ] 7.72 Create OOP test scripts:
+- [ ] 7.150 Create OOP test scripts:
   - [ ] `testdata/classes.dws`
   - [ ] `testdata/inheritance.dws`
   - [ ] `testdata/polymorphism.dws`
-- [ ] 7.73 Verify CLI correctly executes OOP programs
-- [ ] 7.74 Create integration tests
+  - [ ] `testdata/interfaces.dws`
+- [ ] 7.151 Verify CLI correctly executes OOP programs
+- [ ] 7.152 Create integration tests
 
 ### Documentation
 
-- [ ] 7.75 Document OOP implementation strategy
-- [ ] 7.76 Document how Delphi classes map to Go structures
-- [ ] 7.77 Add OOP examples to README
+- [ ] 7.153 Document OOP implementation strategy
+- [ ] 7.154 Document how Delphi classes map to Go structures
+- [ ] 7.155 Document interface implementation and external interface usage
+- [ ] 7.156 Add OOP examples to README (including interfaces)
 
 ---
 
@@ -1545,20 +1813,24 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Summary
 
-This detailed plan breaks down the ambitious goal of porting DWScript from Delphi to Go into **~500+ bite-sized tasks** across 10 stages. Each stage builds incrementally:
+This detailed plan breaks down the ambitious goal of porting DWScript from Delphi to Go into **~650+ bite-sized tasks** across 10 stages. Each stage builds incrementally:
 
-1. **Stage 1**: Lexer implementation (45 tasks)
-2. **Stage 2**: Basic parser and AST (64 tasks)
-3. **Stage 3**: Statement execution (65 tasks)
-4. **Stage 4**: Control flow (46 tasks)
-5. **Stage 5**: Functions and scope (46 tasks)
-6. **Stage 6**: Type checking (50 tasks)
-7. **Stage 7**: Object-oriented features (77 tasks)
+1. **Stage 1**: Lexer implementation (45 tasks) - ✅ COMPLETE
+2. **Stage 2**: Basic parser and AST (64 tasks) - ✅ COMPLETE
+3. **Stage 3**: Statement execution (65 tasks) - ✅ COMPLETE (98.5%)
+4. **Stage 4**: Control flow (46 tasks) - ✅ COMPLETE
+5. **Stage 5**: Functions and scope (46 tasks) - ✅ COMPLETE (91.3%)
+6. **Stage 6**: Type checking (50 tasks) - ✅ COMPLETE
+7. **Stage 7**: Object-oriented features (156 tasks) - 🔄 IN PROGRESS (55.8%)
+   - Classes: COMPLETE (87/73 tasks)
+   - **Interfaces: REQUIRED** (0/83 tasks) - expanded based on reference implementation analysis
 8. **Stage 8**: Additional features (62 tasks)
 9. **Stage 9**: Performance and polish (68 tasks)
 10. **Stage 10**: Long-term evolution (54 tasks)
 
-**Total: ~511 tasks**
+**Total: ~656 tasks** (updated from ~511 after interface expansion)
+
+**Key Change**: Interface implementation (Stage 7.67-7.149) was expanded from 5 optional tasks to 83 required tasks based on analysis of DWScript reference implementation, which includes 69+ interface test cases demonstrating interfaces are a fundamental language feature, not optional.
 
 Each task is actionable and testable. Following this plan methodically will result in a complete, production-ready DWScript implementation in Go, preserving 100% of the language's syntax and semantics while leveraging Go's ecosystem.
 

@@ -1,0 +1,196 @@
+// Visibility + Inheritance Test - Task 7.66c
+// Tests visibility modifiers across inheritance hierarchies
+
+// Base class demonstrating all three visibility levels
+type TBankAccount = class
+private
+    FAccountNumber: String;
+    FBalance: Float;
+    FPIN: Integer;
+
+    // Private helper - only accessible within TBankAccount
+    function ValidatePIN(pin: Integer): Boolean;
+    begin
+        Result := pin = FPIN;
+    end;
+
+protected
+    FOwnerName: String;
+    FBranch: String;
+
+    // Protected method - accessible in derived classes
+    function GetInternalBalance(): Float; virtual;
+    begin
+        Result := FBalance;
+    end;
+
+    // Protected helper for derived classes
+    procedure LogTransaction(message: String);
+    begin
+        PrintLn('[LOG] ', FAccountNumber, ': ', message);
+    end;
+
+public
+    function Create(accNum: String; owner: String; pin: Integer): TBankAccount;
+    begin
+        FAccountNumber := accNum;
+        FOwnerName := owner;
+        FPIN := pin;
+        FBalance := 0.0;
+        FBranch := 'Main';
+        Result := Self;
+    end;
+
+    // Public interface for balance access
+    function GetBalance(pin: Integer): Float;
+    begin
+        if ValidatePIN(pin) then
+            Result := FBalance
+        else
+        begin
+            PrintLn('ERROR: Invalid PIN');
+            Result := 0.0;
+        end;
+    end;
+
+    // Public deposit method
+    procedure Deposit(amount: Float; pin: Integer);
+    begin
+        if ValidatePIN(pin) then
+        begin
+            FBalance := FBalance + amount;
+            PrintLn('Deposited: ', amount);
+        end
+        else
+            PrintLn('ERROR: Invalid PIN');
+    end;
+
+    // Public accessor for owner (protected field)
+    function GetOwnerName(): String;
+    begin
+        Result := FOwnerName;
+    end;
+end;
+
+// Derived class - can access protected but not private members
+type TSavingsAccount = class(TBankAccount)
+private
+    FInterestRate: Float;
+    FMinimumBalance: Float;
+
+protected
+    // Can access parent's protected members
+    function CalculateInterest(): Float;
+    begin
+        var balance: Float;
+        balance := GetInternalBalance(); // Call protected parent method
+        Result := balance * FInterestRate;
+    end;
+
+public
+    function Create(accNum: String; owner: String; pin: Integer; rate: Float): TSavingsAccount;
+    begin
+        FAccountNumber := accNum;  // Access protected parent field
+        FOwnerName := owner;        // Access protected parent field
+        FPIN := pin;                // ERROR if uncommented: cannot access private parent field
+        FBalance := 0.0;            // ERROR if uncommented: cannot access private parent field
+        FBranch := 'Savings';       // Access protected parent field
+        FInterestRate := rate;
+        FMinimumBalance := 100.0;
+        Result := Self;
+    end;
+
+    // Add interest using protected methods
+    procedure AddInterest(pin: Integer);
+    begin
+        var interest: Float;
+        interest := CalculateInterest();
+        LogTransaction('Adding interest: ' + FloatToStr(interest)); // Call protected parent method
+        Deposit(interest, pin); // Call public parent method
+    end;
+
+    // Override protected method
+    function GetInternalBalance(): Float; override;
+    begin
+        var balance: Float;
+        balance := GetInternalBalance(); // Call parent's protected method
+        PrintLn('Internal access from savings account');
+        Result := balance;
+    end;
+
+    function GetAccountInfo(): String;
+    begin
+        // Can access protected fields from parent
+        Result := 'Savings Account: ' + FOwnerName + ' at ' + FBranch;
+    end;
+end;
+
+// Third level - further derived class
+type TCheckingAccount = class(TBankAccount)
+private
+    FOverdraftLimit: Float;
+
+protected
+    // Override protected method with different implementation
+    function GetInternalBalance(): Float; override;
+    begin
+        PrintLn('Checking account balance access');
+        Result := GetInternalBalance() + FOverdraftLimit;
+    end;
+
+public
+    function Create(accNum: String; owner: String; pin: Integer): TCheckingAccount;
+    begin
+        FAccountNumber := accNum;
+        FOwnerName := owner;
+        FBranch := 'Checking';
+        FOverdraftLimit := 500.0;
+        Result := Self;
+    end;
+
+    procedure CheckStatus();
+    begin
+        // Can access protected fields and methods from grandparent
+        LogTransaction('Status check for ' + FOwnerName);
+        PrintLn('Branch: ', FBranch);
+    end;
+end;
+
+var account: TBankAccount;
+var savings: TSavingsAccount;
+var checking: TCheckingAccount;
+var baseRef: TBankAccount;
+
+begin
+    // Create different account types
+    account := TBankAccount.Create('ACC001', 'John Doe', 1234);
+    savings := TSavingsAccount.Create('SAV001', 'Jane Smith', 5678, 0.05);
+    checking := TCheckingAccount.Create('CHK001', 'Bob Johnson', 9012);
+
+    // Test public interface
+    account.Deposit(1000.0, 1234);
+    PrintLn('Balance: ', account.GetBalance(1234));
+    PrintLn('Owner: ', account.GetOwnerName());
+
+    // Test derived class with protected access
+    savings.Deposit(2000.0, 5678);
+    PrintLn('Savings info: ', savings.GetAccountInfo());
+    savings.AddInterest(5678);
+
+    // Test third-level class
+    checking.Deposit(500.0, 9012);
+    checking.CheckStatus();
+
+    // Test polymorphism with protected methods
+    baseRef := savings;
+    PrintLn('Base ref balance: ', baseRef.GetBalance(5678));
+
+    // These would cause errors (commented for valid test):
+    // PrintLn(account.FBalance);        // Error: cannot access private field
+    // PrintLn(account.FPIN);             // Error: cannot access private field
+    // PrintLn(account.FOwnerName);       // Error: cannot access protected field
+    // account.ValidatePIN(1234);         // Error: cannot call private method
+    // account.LogTransaction('test');    // Error: cannot call protected method
+
+    PrintLn('Visibility+Inheritance test passed!');
+end
