@@ -19,6 +19,12 @@ type Analyzer struct {
 
 	// Current function being analyzed (for return type checking)
 	currentFunction *ast.FunctionDecl
+
+	// Class registry for tracking declared classes (Task 7.54)
+	classes map[string]*types.ClassType
+
+	// Current class being analyzed (for field/method access)
+	currentClass *types.ClassType
 }
 
 // NewAnalyzer creates a new semantic analyzer
@@ -26,6 +32,7 @@ func NewAnalyzer() *Analyzer {
 	return &Analyzer{
 		symbols: NewSymbolTable(),
 		errors:  make([]string, 0),
+		classes: make(map[string]*types.ClassType),
 	}
 }
 
@@ -92,6 +99,8 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeFunctionDecl(s)
 	case *ast.ReturnStatement:
 		a.analyzeReturn(s)
+	case *ast.ClassDecl:
+		a.analyzeClassDecl(s)
 	default:
 		// Unknown statement type - this shouldn't happen
 		a.addError("unknown statement type: %T", stmt)
@@ -432,6 +441,12 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 		return a.analyzeExpression(e.Expression)
 	case *ast.CallExpression:
 		return a.analyzeCallExpression(e)
+	case *ast.NewExpression:
+		return a.analyzeNewExpression(e)
+	case *ast.MemberAccessExpression:
+		return a.analyzeMemberAccessExpression(e)
+	case *ast.MethodCallExpression:
+		return a.analyzeMethodCallExpression(e)
 	default:
 		a.addError("unknown expression type: %T", expr)
 		return nil
@@ -629,4 +644,441 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	}
 
 	return funcType.ReturnType
+}
+
+// ============================================================================
+// Class Analysis (Tasks 7.54-7.59)
+// ============================================================================
+
+// analyzeClassDecl analyzes a class declaration
+func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
+	className := decl.Name.Value
+
+	// Check if class is already declared (Task 7.55)
+	if _, exists := a.classes[className]; exists {
+		a.addError("class '%s' already declared at %s", className, decl.Token.Pos.String())
+		return
+	}
+
+	// Resolve parent class if specified (Task 7.55)
+	var parentClass *types.ClassType
+	if decl.Parent != nil {
+		parentName := decl.Parent.Value
+		var found bool
+		parentClass, found = a.classes[parentName]
+		if !found {
+			a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+			return
+		}
+	}
+
+	// Create new class type
+	classType := types.NewClassType(className, parentClass)
+
+	// Check for circular inheritance (Task 7.55)
+	if parentClass != nil && a.hasCircularInheritance(classType) {
+		a.addError("circular inheritance detected in class '%s' at %s", className, decl.Token.Pos.String())
+		return
+	}
+
+	// Analyze and add fields (Task 7.55, 7.62)
+	fieldNames := make(map[string]bool)
+	classVarNames := make(map[string]bool)
+	for _, field := range decl.Fields {
+		fieldName := field.Name.Value
+
+		// Check if this is a class variable (static field) - Task 7.62
+		if field.IsClassVar {
+			// Check for duplicate class variable names
+			if classVarNames[fieldName] {
+				a.addError("duplicate class variable '%s' in class '%s' at %s",
+					fieldName, className, field.Token.Pos.String())
+				continue
+			}
+			classVarNames[fieldName] = true
+
+			// Verify class variable type exists
+			if field.Type == nil {
+				a.addError("class variable '%s' missing type annotation in class '%s'",
+					fieldName, className)
+				continue
+			}
+
+			fieldType, err := a.resolveType(field.Type.Name)
+			if err != nil {
+				a.addError("unknown type '%s' for class variable '%s' in class '%s' at %s",
+					field.Type.Name, fieldName, className, field.Token.Pos.String())
+				continue
+			}
+
+			// Store class variable type in ClassType - Task 7.62
+			classType.ClassVars[fieldName] = fieldType
+		} else {
+			// Instance field
+			// Check for duplicate field names
+			if fieldNames[fieldName] {
+				a.addError("duplicate field '%s' in class '%s' at %s",
+					fieldName, className, field.Token.Pos.String())
+				continue
+			}
+			fieldNames[fieldName] = true
+
+			// Verify field type exists
+			if field.Type == nil {
+				a.addError("field '%s' missing type annotation in class '%s'",
+					fieldName, className)
+				continue
+			}
+
+			fieldType, err := a.resolveType(field.Type.Name)
+			if err != nil {
+				a.addError("unknown type '%s' for field '%s' in class '%s' at %s",
+					field.Type.Name, fieldName, className, field.Token.Pos.String())
+				continue
+			}
+
+			// Add instance field to class
+			classType.Fields[fieldName] = fieldType
+		}
+	}
+
+	// Register class before analyzing methods (so methods can reference the class)
+	a.classes[className] = classType
+
+	// Analyze methods (Task 7.56)
+	previousClass := a.currentClass
+	a.currentClass = classType
+	defer func() { a.currentClass = previousClass }()
+
+	for _, method := range decl.Methods {
+		a.analyzeMethodDecl(method, classType)
+	}
+
+	// Analyze constructor if present (Task 7.56)
+	if decl.Constructor != nil {
+		a.analyzeMethodDecl(decl.Constructor, classType)
+	}
+
+	// Check method overriding (Task 7.59)
+	if parentClass != nil {
+		a.checkMethodOverriding(classType, parentClass)
+	}
+}
+
+// hasCircularInheritance checks if a class has circular inheritance
+func (a *Analyzer) hasCircularInheritance(class *types.ClassType) bool {
+	seen := make(map[string]bool)
+	current := class
+
+	for current != nil {
+		if seen[current.Name] {
+			return true
+		}
+		seen[current.Name] = true
+		current = current.Parent
+	}
+
+	return false
+}
+
+// resolveType resolves a type name to a Type
+// Handles basic types and class types
+func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
+	// Try basic types first
+	basicType, err := types.TypeFromString(typeName)
+	if err == nil {
+		return basicType, nil
+	}
+
+	// Try class types
+	if classType, found := a.classes[typeName]; found {
+		return classType, nil
+	}
+
+	return nil, fmt.Errorf("unknown type: %s", typeName)
+}
+
+// analyzeMethodDecl analyzes a method declaration within a class (Task 7.56, 7.61)
+func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.ClassType) {
+	// Convert parameter types
+	paramTypes := make([]types.Type, 0, len(method.Parameters))
+	for _, param := range method.Parameters {
+		if param.Type == nil {
+			a.addError("parameter '%s' missing type annotation in method '%s'",
+				param.Name.Value, method.Name.Value)
+			return
+		}
+
+		paramType, err := a.resolveType(param.Type.Name)
+		if err != nil {
+			a.addError("unknown parameter type '%s' in method '%s': %v",
+				param.Type.Name, method.Name.Value, err)
+			return
+		}
+		paramTypes = append(paramTypes, paramType)
+	}
+
+	// Determine return type
+	var returnType types.Type
+	if method.ReturnType != nil {
+		var err error
+		returnType, err = a.resolveType(method.ReturnType.Name)
+		if err != nil {
+			a.addError("unknown return type '%s' in method '%s': %v",
+				method.ReturnType.Name, method.Name.Value, err)
+			return
+		}
+	} else {
+		returnType = types.VOID
+	}
+
+	// Create function type and add to class methods
+	funcType := types.NewFunctionType(paramTypes, returnType)
+	classType.Methods[method.Name.Value] = funcType
+
+	// Analyze method body in new scope
+	oldSymbols := a.symbols
+	a.symbols = NewEnclosedSymbolTable(oldSymbols)
+	defer func() { a.symbols = oldSymbols }()
+
+	// Task 7.61: Check if this is a class method (static method)
+	if method.IsClassMethod {
+		// Class methods (static methods) do NOT have access to Self or instance fields
+		// They can only access class variables (static fields)
+		// Do NOT add Self to scope
+		// Do NOT add instance fields to scope
+
+		// Add class variables to scope (Task 7.62)
+		for classVarName, classVarType := range classType.ClassVars {
+			a.symbols.Define(classVarName, classVarType)
+		}
+
+		// If class has parent, add parent class variables too
+		if classType.Parent != nil {
+			a.addParentClassVarsToScope(classType.Parent)
+		}
+	} else {
+		// Instance method - add Self reference to method scope (Task 7.56)
+		a.symbols.Define("Self", classType)
+
+		// Add class fields to method scope (Task 7.56)
+		for fieldName, fieldType := range classType.Fields {
+			a.symbols.Define(fieldName, fieldType)
+		}
+
+		// Add class variables to method scope (Task 7.62)
+		// Instance methods can also access class variables
+		for classVarName, classVarType := range classType.ClassVars {
+			a.symbols.Define(classVarName, classVarType)
+		}
+
+		// If class has parent, add parent fields and class variables too
+		if classType.Parent != nil {
+			a.addParentFieldsToScope(classType.Parent)
+			a.addParentClassVarsToScope(classType.Parent)
+		}
+	}
+
+	// Add parameters to method scope (both instance and class methods have parameters)
+	for i, param := range method.Parameters {
+		a.symbols.Define(param.Name.Value, paramTypes[i])
+	}
+
+	// For methods with return type, add Result variable
+	if returnType != types.VOID {
+		a.symbols.Define("Result", returnType)
+		a.symbols.Define(method.Name.Value, returnType)
+	}
+
+	// Set current function for return statement checking
+	previousFunc := a.currentFunction
+	a.currentFunction = method
+	defer func() { a.currentFunction = previousFunc }()
+
+	// Analyze method body
+	if method.Body != nil {
+		a.analyzeBlock(method.Body)
+	}
+}
+
+// addParentFieldsToScope recursively adds parent class fields to current scope
+func (a *Analyzer) addParentFieldsToScope(parent *types.ClassType) {
+	if parent == nil {
+		return
+	}
+
+	// Add parent's fields
+	for fieldName, fieldType := range parent.Fields {
+		// Don't override if already defined (shadowing)
+		if !a.symbols.IsDeclaredInCurrentScope(fieldName) {
+			a.symbols.Define(fieldName, fieldType)
+		}
+	}
+
+	// Recursively add grandparent fields
+	if parent.Parent != nil {
+		a.addParentFieldsToScope(parent.Parent)
+	}
+}
+
+// checkMethodOverriding checks if overridden methods have compatible signatures (Task 7.59)
+func (a *Analyzer) checkMethodOverriding(class, parent *types.ClassType) {
+	for methodName, childMethodType := range class.Methods {
+		// Check if method exists in parent
+		parentMethodType, found := parent.GetMethod(methodName)
+		if !found {
+			// New method in child class - OK
+			continue
+		}
+
+		// Method exists in parent - check signature compatibility
+		if !childMethodType.Equals(parentMethodType) {
+			a.addError("method '%s' signature mismatch in class '%s': expected %s, got %s",
+				methodName, class.Name, parentMethodType.String(), childMethodType.String())
+		}
+	}
+}
+
+// analyzeNewExpression analyzes object creation (Task 7.57)
+func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
+	className := expr.ClassName.Value
+
+	// Look up class in registry
+	classType, found := a.classes[className]
+	if !found {
+		a.addError("undefined class '%s' at %s", className, expr.Token.Pos.String())
+		return nil
+	}
+
+	// Check if class has a constructor
+	constructorType, hasConstructor := classType.GetMethod("Create")
+	if hasConstructor {
+		// Validate constructor arguments
+		if len(expr.Arguments) != len(constructorType.Parameters) {
+			a.addError("constructor for class '%s' expects %d arguments, got %d at %s",
+				className, len(constructorType.Parameters), len(expr.Arguments),
+				expr.Token.Pos.String())
+			return classType
+		}
+
+		// Check argument types
+		for i, arg := range expr.Arguments {
+			argType := a.analyzeExpression(arg)
+			expectedType := constructorType.Parameters[i]
+			if argType != nil && !types.IsCompatible(argType, expectedType) {
+				a.addError("argument %d to constructor of '%s' has type %s, expected %s at %s",
+					i+1, className, argType.String(), expectedType.String(),
+					expr.Token.Pos.String())
+			}
+		}
+	}
+	// If no constructor but arguments provided, that's OK - default constructor
+
+	return classType
+}
+
+// analyzeMemberAccessExpression analyzes member access (Task 7.58)
+func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpression) types.Type {
+	// Analyze the object expression
+	objectType := a.analyzeExpression(expr.Object)
+	if objectType == nil {
+		// Error already reported
+		return nil
+	}
+
+	// Check if object is a class type
+	classType, ok := objectType.(*types.ClassType)
+	if !ok {
+		a.addError("member access requires class type, got %s at %s",
+			objectType.String(), expr.Token.Pos.String())
+		return nil
+	}
+
+	memberName := expr.Member.Value
+
+	// Look up field in class (including inherited fields)
+	fieldType, found := classType.GetField(memberName)
+	if found {
+		return fieldType
+	}
+
+	// Look up method in class (for method references)
+	methodType, found := classType.GetMethod(memberName)
+	if found {
+		return methodType
+	}
+
+	// Member not found
+	a.addError("class '%s' has no member '%s' at %s",
+		classType.Name, memberName, expr.Token.Pos.String())
+	return nil
+}
+
+// analyzeMethodCallExpression analyzes a method call on an object
+func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) types.Type {
+	// Analyze the object expression
+	objectType := a.analyzeExpression(expr.Object)
+	if objectType == nil {
+		// Error already reported
+		return nil
+	}
+
+	// Check if object is a class type
+	classType, ok := objectType.(*types.ClassType)
+	if !ok {
+		a.addError("method call requires class type, got %s at %s",
+			objectType.String(), expr.Token.Pos.String())
+		return nil
+	}
+
+	methodName := expr.Method.Value
+
+	// Look up method in class (including inherited methods)
+	methodType, found := classType.GetMethod(methodName)
+	if !found {
+		a.addError("class '%s' has no method '%s' at %s",
+			classType.Name, methodName, expr.Token.Pos.String())
+		return nil
+	}
+
+	// Check argument count
+	if len(expr.Arguments) != len(methodType.Parameters) {
+		a.addError("method '%s' of class '%s' expects %d arguments, got %d at %s",
+			methodName, classType.Name, len(methodType.Parameters), len(expr.Arguments),
+			expr.Token.Pos.String())
+		return methodType.ReturnType
+	}
+
+	// Check argument types
+	for i, arg := range expr.Arguments {
+		argType := a.analyzeExpression(arg)
+		expectedType := methodType.Parameters[i]
+		if argType != nil && !types.IsCompatible(argType, expectedType) {
+			a.addError("argument %d to method '%s' of class '%s' has type %s, expected %s at %s",
+				i+1, methodName, classType.Name, argType.String(), expectedType.String(),
+				expr.Token.Pos.String())
+		}
+	}
+
+	return methodType.ReturnType
+}
+
+// addParentClassVarsToScope recursively adds parent class variables to current scope (Task 7.62)
+func (a *Analyzer) addParentClassVarsToScope(parent *types.ClassType) {
+	if parent == nil {
+		return
+	}
+
+	// Add parent's class variables
+	for classVarName, classVarType := range parent.ClassVars {
+		// Don't override if already defined (shadowing)
+		if !a.symbols.IsDeclaredInCurrentScope(classVarName) {
+			a.symbols.Define(classVarName, classVarType)
+		}
+	}
+
+	// Recursively add grandparent class variables
+	if parent.Parent != nil {
+		a.addParentClassVarsToScope(parent.Parent)
+	}
 }

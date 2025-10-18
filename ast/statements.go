@@ -15,10 +15,10 @@ import (
 //	var x: Integer := 42;
 //	var x := 5;
 type VarDeclStatement struct {
-	Token lexer.Token      // The 'var' token
-	Name  *Identifier      // The variable name
-	Type  *TypeAnnotation  // The type annotation (nil if not specified)
-	Value Expression       // The initialization value (nil if not initialized)
+	Token lexer.Token     // The 'var' token
+	Name  *Identifier     // The variable name
+	Type  *TypeAnnotation // The type annotation (nil if not specified)
+	Value Expression      // The initialization value (nil if not initialized)
 }
 
 func (vds *VarDeclStatement) statementNode()       {}
@@ -74,15 +74,15 @@ func (as *AssignmentStatement) String() string {
 //	Add(3, 5)
 //	Foo()
 type CallExpression struct {
-	Token     lexer.Token      // The '(' token
-	Function  Expression       // The function being called (usually an Identifier)
-	Arguments []Expression     // The arguments to the function
-	Type      *TypeAnnotation  // The return type (determined by semantic analyzer)
+	Token     lexer.Token     // The '(' token
+	Function  Expression      // The function being called (usually an Identifier)
+	Arguments []Expression    // The arguments to the function
+	Type      *TypeAnnotation // The return type (determined by semantic analyzer)
 }
 
-func (ce *CallExpression) expressionNode()         {}
-func (ce *CallExpression) TokenLiteral() string    { return ce.Token.Literal }
-func (ce *CallExpression) Pos() lexer.Position     { return ce.Function.Pos() }
+func (ce *CallExpression) expressionNode()      {}
+func (ce *CallExpression) TokenLiteral() string { return ce.Token.Literal }
+func (ce *CallExpression) Pos() lexer.Position  { return ce.Function.Pos() }
 func (ce *CallExpression) String() string {
 	var out bytes.Buffer
 
@@ -99,5 +99,5 @@ func (ce *CallExpression) String() string {
 
 	return out.String()
 }
-func (ce *CallExpression) GetType() *TypeAnnotation { return ce.Type }
+func (ce *CallExpression) GetType() *TypeAnnotation    { return ce.Type }
 func (ce *CallExpression) SetType(typ *TypeAnnotation) { ce.Type = typ }

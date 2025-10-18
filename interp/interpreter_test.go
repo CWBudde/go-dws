@@ -1350,3 +1350,86 @@ func TestFunctionErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestMemberAssignment tests member assignment (obj.field := value) functionality.
+// This is crucial for class functionality to work properly.
+func TestMemberAssignment(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected interface{}
+	}{
+		{
+			name: "Simple member assignment in constructor",
+			input: `
+				type TPoint = class
+					X: Integer;
+					Y: Integer;
+
+					function Create(x: Integer; y: Integer): TPoint;
+					begin
+						Self.X := x;
+						Self.Y := y;
+					end;
+
+					function GetX(): Integer;
+					begin
+						Result := Self.X;
+					end;
+				end;
+
+				var p: TPoint;
+				p := TPoint.Create(10, 20);
+				p.GetX()
+			`,
+			expected: int64(10),
+		},
+		{
+			name: "Member assignment in method",
+			input: `
+				type TCounter = class
+					Count: Integer;
+
+					function Create(): TCounter;
+					begin
+						Self.Count := 0;
+					end;
+
+					procedure Increment();
+					begin
+						Self.Count := Self.Count + 1;
+					end;
+
+					function GetCount(): Integer;
+					begin
+						Result := Self.Count;
+					end;
+				end;
+
+				var c: TCounter;
+				c := TCounter.Create();
+				c.Increment();
+				c.Increment();
+				c.GetCount()
+			`,
+			expected: int64(2),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := testEval(tt.input)
+
+			if isError(val) {
+				t.Fatalf("evaluation error: %s", val.String())
+			}
+
+			switch expected := tt.expected.(type) {
+			case int64:
+				testIntegerValue(t, val, expected)
+			case string:
+				testStringValue(t, val, expected)
+			}
+		})
+	}
+}

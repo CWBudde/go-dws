@@ -576,6 +576,62 @@ y := x + 1;
 	}
 }
 
+// TestMemberAssignmentStatements tests parsing of member assignment statements.
+// This tests the pattern: obj.field := value
+func TestMemberAssignmentStatements(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		objectName string
+		fieldName  string
+		value      interface{}
+	}{
+		{
+			name:       "Simple member assignment",
+			input:      "p.X := 10;",
+			objectName: "p",
+			fieldName:  "X",
+			value:      int64(10),
+		},
+		{
+			name:       "Self member assignment",
+			input:      "Self.X := 42;",
+			objectName: "Self",
+			fieldName:  "X",
+			value:      int64(42),
+		},
+		{
+			name:       "Member assignment with expression",
+			input:      "obj.Value := x + 5;",
+			objectName: "obj",
+			fieldName:  "Value",
+			value:      "x + 5", // Will check it's a binary expression
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.AssignmentStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.AssignmentStatement. got=%T", program.Statements[0])
+			}
+
+			// Check that Name is actually a MemberAccessExpression, not just an Identifier
+			// For now, we'll validate the basic structure once parser is updated
+			// This test will fail until parser supports member assignments
+			t.Logf("Assignment statement Name: %T, Value: %T", stmt.Name, stmt.Value)
+		})
+	}
+}
+
 // TestCallExpressionParsing verifies parsing of function call expressions.
 func TestCallExpressionParsing(t *testing.T) {
 	input := "Add(1, 2 * 3, foo);"

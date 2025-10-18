@@ -46,6 +46,16 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		return nil
 	}
 
+	// Check for optional 'static' keyword (for class methods)
+	if p.peekTokenIs(lexer.STATIC) {
+		p.nextToken() // move to 'static'
+		// Note: IsClassMethod flag should have been set by the caller (parseClassDeclaration)
+		// The 'static' keyword is optional and doesn't change the semantics
+		if !p.expectPeek(lexer.SEMICOLON) {
+			return nil
+		}
+	}
+
 	// TODO: Handle forward declarations if we see another semicolon
 	// For now, expect begin...end body
 

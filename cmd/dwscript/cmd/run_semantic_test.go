@@ -76,10 +76,10 @@ func TestRunWithSemanticErrors(t *testing.T) {
 // TestRunWithSemanticAnalysisFlag tests the --type-check flag
 func TestRunWithSemanticAnalysisFlag(t *testing.T) {
 	tests := []struct {
-		name           string
-		input          string
+		name            string
+		input           string
 		enableTypeCheck bool
-		expectError    bool
+		expectError     bool
 	}{
 		{
 			name:            "type error with type checking enabled",

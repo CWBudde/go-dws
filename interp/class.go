@@ -17,11 +17,17 @@ type ClassInfo struct {
 	// Parent is the parent class (nil for root classes)
 	Parent *ClassInfo
 
-	// Fields maps field names to their types
+	// Fields maps instance field names to their types
 	Fields map[string]types.Type
+
+	// ClassVars maps class variable (static field) names to their runtime values - Task 7.62
+	ClassVars map[string]Value
 
 	// Methods maps method names to their AST declarations
 	Methods map[string]*ast.FunctionDecl
+
+	// ClassMethods maps class method (static method) names to their AST declarations - Task 7.61
+	ClassMethods map[string]*ast.FunctionDecl
 
 	// Constructor is the constructor method (usually "Create")
 	Constructor *ast.FunctionDecl
@@ -31,13 +37,15 @@ type ClassInfo struct {
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.
-// Fields and Methods maps are initialized as empty.
+// Fields, Methods, ClassVars, and ClassMethods maps are initialized as empty.
 func NewClassInfo(name string) *ClassInfo {
 	return &ClassInfo{
-		Name:    name,
-		Parent:  nil,
-		Fields:  make(map[string]types.Type),
-		Methods: make(map[string]*ast.FunctionDecl),
+		Name:         name,
+		Parent:       nil,
+		Fields:       make(map[string]types.Type),
+		ClassVars:    make(map[string]Value),
+		Methods:      make(map[string]*ast.FunctionDecl),
+		ClassMethods: make(map[string]*ast.FunctionDecl),
 	}
 }
 
@@ -88,8 +96,8 @@ func (o *ObjectInstance) SetField(name string, value Value) {
 // Returns nil if the method is not found in the class hierarchy.
 //
 // This implements method resolution order (MRO) and supports method overriding:
-// - If a child class defines a method with the same name as a parent class method,
-//   the child's method is returned (overriding).
+//   - If a child class defines a method with the same name as a parent class method,
+//     the child's method is returned (overriding).
 func (o *ObjectInstance) GetMethod(name string) *ast.FunctionDecl {
 	return o.Class.lookupMethod(name)
 }

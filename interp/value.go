@@ -119,6 +119,23 @@ func NewNilValue() Value {
 	return &NilValue{}
 }
 
+// ClassInfoValue is a special internal value type used to track the current class context
+// in class methods. It wraps a ClassInfo pointer and is stored as "__CurrentClass__"
+// in the environment when executing class methods.
+type ClassInfoValue struct {
+	ClassInfo *ClassInfo
+}
+
+// Type returns "CLASSINFO".
+func (c *ClassInfoValue) Type() string {
+	return "CLASSINFO"
+}
+
+// String returns the class name.
+func (c *ClassInfoValue) String() string {
+	return "class " + c.ClassInfo.Name
+}
+
 // GoInt converts a Value to a Go int64. Returns error if not an IntegerValue.
 func GoInt(v Value) (int64, error) {
 	if iv, ok := v.(*IntegerValue); ok {
