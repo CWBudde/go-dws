@@ -739,6 +739,9 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 			// Add instance field to class
 			classType.Fields[fieldName] = fieldType
+
+			// Store field visibility (Task 7.63f)
+			classType.FieldVisibility[fieldName] = int(field.Visibility)
 		}
 	}
 
@@ -835,6 +838,9 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	// Create function type and add to class methods
 	funcType := types.NewFunctionType(paramTypes, returnType)
 	classType.Methods[method.Name.Value] = funcType
+
+	// Store method visibility (Task 7.63f)
+	classType.MethodVisibility[method.Name.Value] = int(method.Visibility)
 
 	// Analyze method body in new scope
 	oldSymbols := a.symbols
@@ -939,6 +945,98 @@ func (a *Analyzer) checkMethodOverriding(class, parent *types.ClassType) {
 	}
 }
 
+// checkVisibility checks if a member (field or method) is accessible from the current context (Task 7.63g-l).
+// Returns true if accessible, false otherwise.
+//
+// Visibility rules:
+//   - Private: only accessible from the same class
+//   - Protected: accessible from the same class and all descendants
+//   - Public: accessible from anywhere
+//
+// Parameters:
+//   - memberClass: the class that owns the member
+//   - visibility: the visibility level of the member (ast.Visibility as int)
+//   - memberName: the name of the member (for error messages)
+//   - memberType: "field" or "method" (for error messages)
+func (a *Analyzer) checkVisibility(memberClass *types.ClassType, visibility int, memberName, memberType string) bool {
+	// Public is always accessible (Task 7.63i)
+	if visibility == int(ast.VisibilityPublic) {
+		return true
+	}
+
+	// If we're analyzing code outside any class context, only public members are accessible
+	if a.currentClass == nil {
+		return false
+	}
+
+	// Private members are only accessible from the same class (Task 7.63g, 7.63l)
+	if visibility == int(ast.VisibilityPrivate) {
+		return a.currentClass.Name == memberClass.Name
+	}
+
+	// Protected members are accessible from the same class and descendants (Task 7.63h)
+	if visibility == int(ast.VisibilityProtected) {
+		// Same class?
+		if a.currentClass.Name == memberClass.Name {
+			return true
+		}
+
+		// Check if current class inherits from member's class
+		return a.isDescendantOf(a.currentClass, memberClass)
+	}
+
+	// Should not reach here, but default to false for safety
+	return false
+}
+
+// isDescendantOf checks if a class is a descendant of another class
+func (a *Analyzer) isDescendantOf(class, ancestor *types.ClassType) bool {
+	if class == nil || ancestor == nil {
+		return false
+	}
+
+	// Walk up the inheritance chain
+	current := class.Parent
+	for current != nil {
+		if current.Name == ancestor.Name {
+			return true
+		}
+		current = current.Parent
+	}
+
+	return false
+}
+
+// getFieldOwner returns the class that declares a field, walking up the inheritance chain
+func (a *Analyzer) getFieldOwner(class *types.ClassType, fieldName string) *types.ClassType {
+	if class == nil {
+		return nil
+	}
+
+	// Check if this class declares the field
+	if _, found := class.Fields[fieldName]; found {
+		return class
+	}
+
+	// Check parent classes
+	return a.getFieldOwner(class.Parent, fieldName)
+}
+
+// getMethodOwner returns the class that declares a method, walking up the inheritance chain
+func (a *Analyzer) getMethodOwner(class *types.ClassType, methodName string) *types.ClassType {
+	if class == nil {
+		return nil
+	}
+
+	// Check if this class declares the method
+	if _, found := class.Methods[methodName]; found {
+		return class
+	}
+
+	// Check parent classes
+	return a.getMethodOwner(class.Parent, methodName)
+}
+
 // analyzeNewExpression analyzes object creation (Task 7.57)
 func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	className := expr.ClassName.Value
@@ -999,12 +1097,34 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up field in class (including inherited fields)
 	fieldType, found := classType.GetField(memberName)
 	if found {
+		// Check field visibility (Task 7.63j)
+		fieldOwner := a.getFieldOwner(classType, memberName)
+		if fieldOwner != nil {
+			visibility, hasVisibility := fieldOwner.FieldVisibility[memberName]
+			if hasVisibility && !a.checkVisibility(fieldOwner, visibility, memberName, "field") {
+				visibilityStr := ast.Visibility(visibility).String()
+				a.addError("cannot access %s field '%s' of class '%s' at %s",
+					visibilityStr, memberName, fieldOwner.Name, expr.Token.Pos.String())
+				return nil
+			}
+		}
 		return fieldType
 	}
 
 	// Look up method in class (for method references)
 	methodType, found := classType.GetMethod(memberName)
 	if found {
+		// Check method visibility (Task 7.63k)
+		methodOwner := a.getMethodOwner(classType, memberName)
+		if methodOwner != nil {
+			visibility, hasVisibility := methodOwner.MethodVisibility[memberName]
+			if hasVisibility && !a.checkVisibility(methodOwner, visibility, memberName, "method") {
+				visibilityStr := ast.Visibility(visibility).String()
+				a.addError("cannot access %s method '%s' of class '%s' at %s",
+					visibilityStr, memberName, methodOwner.Name, expr.Token.Pos.String())
+				return nil
+			}
+		}
 		return methodType
 	}
 
@@ -1039,6 +1159,18 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		a.addError("class '%s' has no method '%s' at %s",
 			classType.Name, methodName, expr.Token.Pos.String())
 		return nil
+	}
+
+	// Check method visibility (Task 7.63k)
+	methodOwner := a.getMethodOwner(classType, methodName)
+	if methodOwner != nil {
+		visibility, hasVisibility := methodOwner.MethodVisibility[methodName]
+		if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {
+			visibilityStr := ast.Visibility(visibility).String()
+			a.addError("cannot call %s method '%s' of class '%s' at %s",
+				visibilityStr, methodName, methodOwner.Name, expr.Token.Pos.String())
+			return methodType.ReturnType
+		}
 	}
 
 	// Check argument count

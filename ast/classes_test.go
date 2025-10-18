@@ -66,7 +66,7 @@ func TestClassDeclString(t *testing.T) {
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 							Name:  "Integer",
 						},
-						Visibility: "public",
+						Visibility: VisibilityPublic,
 					},
 					{
 						Name: &Identifier{
@@ -77,7 +77,7 @@ func TestClassDeclString(t *testing.T) {
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 							Name:  "Integer",
 						},
-						Visibility: "public",
+						Visibility: VisibilityPublic,
 					},
 				},
 				Methods: []*FunctionDecl{},
@@ -180,7 +180,7 @@ func TestFieldDeclString(t *testing.T) {
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 					Name:  "Integer",
 				},
-				Visibility: "public",
+				Visibility: VisibilityPublic,
 			},
 			expected: "X: Integer",
 		},
@@ -195,7 +195,7 @@ func TestFieldDeclString(t *testing.T) {
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 					Name:  "String",
 				},
-				Visibility: "private",
+				Visibility: VisibilityPrivate,
 			},
 			expected: "FValue: String",
 		},
@@ -222,7 +222,7 @@ func TestFieldDeclMethods(t *testing.T) {
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 			Name:  "Integer",
 		},
-		Visibility: "public",
+		Visibility: VisibilityPublic,
 	}
 
 	// Test TokenLiteral

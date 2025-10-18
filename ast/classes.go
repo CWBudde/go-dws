@@ -10,6 +10,40 @@ import (
 )
 
 // ============================================================================
+// Visibility (Task 7.63a)
+// ============================================================================
+
+// Visibility represents the access level of class members (fields and methods).
+// DWScript supports three visibility levels: private, protected, and public.
+type Visibility int
+
+const (
+	// VisibilityPrivate means the member is only accessible within the same class.
+	VisibilityPrivate Visibility = iota
+
+	// VisibilityProtected means the member is accessible within the same class
+	// and all descendant classes.
+	VisibilityProtected
+
+	// VisibilityPublic means the member is accessible from anywhere.
+	VisibilityPublic
+)
+
+// String returns the string representation of the visibility level.
+func (v Visibility) String() string {
+	switch v {
+	case VisibilityPrivate:
+		return "private"
+	case VisibilityProtected:
+		return "protected"
+	case VisibilityPublic:
+		return "public"
+	default:
+		return "unknown"
+	}
+}
+
+// ============================================================================
 // Class Declaration (Task 7.7)
 // ============================================================================
 
@@ -99,7 +133,7 @@ type FieldDecl struct {
 	Token      lexer.Token     // The field name token
 	Name       *Identifier     // The field name (e.g., "FValue", "X", "Y")
 	Type       *TypeAnnotation // The field type
-	Visibility string          // Visibility: "public", "private", "protected"
+	Visibility Visibility      // Visibility: VisibilityPrivate, VisibilityProtected, or VisibilityPublic (Task 7.63a)
 	IsClassVar bool            // True if this is a class variable (static field) - Task 7.62
 }
 
