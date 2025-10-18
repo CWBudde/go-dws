@@ -43,6 +43,7 @@ type FunctionDecl struct {
 	ReturnType    *TypeAnnotation // The return type (nil for procedures)
 	Body          *BlockStatement // The function body
 	IsClassMethod bool            // True if this is a class method (static method) - Task 7.61
+	Visibility    Visibility      // Visibility: VisibilityPrivate, VisibilityProtected, or VisibilityPublic (Task 7.63a)
 }
 
 func (fd *FunctionDecl) statementNode()       {}

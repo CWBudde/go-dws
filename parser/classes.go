@@ -5,8 +5,15 @@ import (
 	"github.com/cwbudde/go-dws/lexer"
 )
 
-// parseClassDeclaration parses a class declaration.
-// Syntax: type ClassName = class(Parent) ... end;
+// parseClassDeclaration parses a class declaration with visibility sections.
+// Syntax: type ClassName = class(Parent)
+//           private
+//             field1: Type;
+//           protected
+//             field2: Type;
+//           public
+//             field3: Type;
+//         end;
 func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	classDecl := &ast.ClassDecl{Token: p.curToken}
 
@@ -45,9 +52,27 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	classDecl.Fields = []*ast.FieldDecl{}
 	classDecl.Methods = []*ast.FunctionDecl{}
 
+	// Default visibility is public (Task 7.63e)
+	currentVisibility := ast.VisibilityPublic
+
 	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
 		// Skip semicolons
 		if p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+			continue
+		}
+
+		// Check for visibility section keywords (Task 7.63b-d)
+		if p.curTokenIs(lexer.PRIVATE) {
+			currentVisibility = ast.VisibilityPrivate
+			p.nextToken()
+			continue
+		} else if p.curTokenIs(lexer.PROTECTED) {
+			currentVisibility = ast.VisibilityProtected
+			p.nextToken()
+			continue
+		} else if p.curTokenIs(lexer.PUBLIC) {
+			currentVisibility = ast.VisibilityPublic
 			p.nextToken()
 			continue
 		}
@@ -59,7 +84,7 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 			if p.curTokenIs(lexer.VAR) {
 				// Class variable: class var FieldName: Type;
 				p.nextToken() // move past 'var'
-				field := p.parseFieldDeclaration()
+				field := p.parseFieldDeclaration(currentVisibility)
 				if field != nil {
 					field.IsClassVar = true // Mark as class variable
 					classDecl.Fields = append(classDecl.Fields, field)
@@ -69,6 +94,7 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 				method := p.parseFunctionDeclaration()
 				if method != nil {
 					method.IsClassMethod = true // Mark as class method
+					method.Visibility = currentVisibility
 					classDecl.Methods = append(classDecl.Methods, method)
 				}
 			} else {
@@ -78,7 +104,7 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 			}
 		} else if p.curToken.Type == lexer.IDENT && p.peekTokenIs(lexer.COLON) {
 			// This is a regular instance field declaration
-			field := p.parseFieldDeclaration()
+			field := p.parseFieldDeclaration(currentVisibility)
 			if field != nil {
 				classDecl.Fields = append(classDecl.Fields, field)
 			}
@@ -86,6 +112,7 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 			// This is a regular instance method declaration
 			method := p.parseFunctionDeclaration()
 			if method != nil {
+				method.Visibility = currentVisibility
 				classDecl.Methods = append(classDecl.Methods, method)
 			}
 		} else {
@@ -113,7 +140,8 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 
 // parseFieldDeclaration parses a field declaration within a class.
 // Syntax: FieldName: Type;
-func (p *Parser) parseFieldDeclaration() *ast.FieldDecl {
+// The visibility parameter specifies the access level for this field (Task 7.63f).
+func (p *Parser) parseFieldDeclaration(visibility ast.Visibility) *ast.FieldDecl {
 	field := &ast.FieldDecl{}
 
 	// Current token should be the field name identifier
@@ -139,8 +167,8 @@ func (p *Parser) parseFieldDeclaration() *ast.FieldDecl {
 		return nil
 	}
 
-	// Set default visibility (could be enhanced later with private/protected keywords)
-	field.Visibility = "public"
+	// Set visibility from parameter (Task 7.63f)
+	field.Visibility = visibility
 
 	return field
 }

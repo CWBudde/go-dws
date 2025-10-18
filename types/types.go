@@ -149,11 +149,13 @@ func TypeFromString(name string) (Type, error) {
 // ClassType represents a class type in DWScript.
 // Classes support inheritance, fields, methods, and class variables (static fields).
 type ClassType struct {
-	Name      string                   // Class name (e.g., "TPoint", "TPerson")
-	Parent    *ClassType               // Parent class (nil for root classes)
-	Fields    map[string]Type          // Instance field name -> type mapping
-	ClassVars map[string]Type          // Class variable (static field) name -> type mapping - Task 7.62
-	Methods   map[string]*FunctionType // Method name -> function signature
+	Name             string                   // Class name (e.g., "TPoint", "TPerson")
+	Parent           *ClassType               // Parent class (nil for root classes)
+	Fields           map[string]Type          // Instance field name -> type mapping
+	ClassVars        map[string]Type          // Class variable (static field) name -> type mapping - Task 7.62
+	Methods          map[string]*FunctionType // Method name -> function signature
+	FieldVisibility  map[string]int           // Field name -> visibility level (Task 7.63f) - stores ast.Visibility as int
+	MethodVisibility map[string]int           // Method name -> visibility level (Task 7.63f) - stores ast.Visibility as int
 }
 
 // String returns the string representation of the class type
@@ -225,14 +227,16 @@ func (ct *ClassType) GetMethod(name string) (*FunctionType, bool) {
 }
 
 // NewClassType creates a new class type with the given name and optional parent.
-// Fields, ClassVars, and Methods maps are initialized as empty.
+// Fields, ClassVars, Methods, and visibility maps are initialized as empty.
 func NewClassType(name string, parent *ClassType) *ClassType {
 	return &ClassType{
-		Name:      name,
-		Parent:    parent,
-		Fields:    make(map[string]Type),
-		ClassVars: make(map[string]Type),
-		Methods:   make(map[string]*FunctionType),
+		Name:             name,
+		Parent:           parent,
+		Fields:           make(map[string]Type),
+		ClassVars:        make(map[string]Type),
+		Methods:          make(map[string]*FunctionType),
+		FieldVisibility:  make(map[string]int),  // Task 7.63f
+		MethodVisibility: make(map[string]int), // Task 7.63f
 	}
 }
 

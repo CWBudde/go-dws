@@ -1,0 +1,50 @@
+{ Demonstration of visibility modifiers in DWScript classes }
+{ This file demonstrates private, protected, and public visibility levels }
+
+type TBase = class
+private
+    FPrivateField: Integer;
+protected
+    FProtectedField: String;
+public
+    FPublicField: Float;
+    class var Count: Integer;  // class variable (static)
+
+    { Constructor }
+    function Create: TBase; begin Result := Self; end;
+
+    { Public method - accessible from anywhere }
+    function GetPublic: Float; begin Result := FPublicField; end;
+end;
+
+type TDerived = class(TBase)
+private
+    FDerivedPrivate: Boolean;
+protected
+    { Can access parent's protected members }
+    function GetProtected: String; begin Result := FProtectedField; end;
+public
+    { Public method }
+    function Info: String; begin Result := 'TDerived instance'; end;
+end;
+
+{ Main program }
+var
+    base: TBase;
+    derived: TDerived;
+begin
+    base := TBase.Create();
+    derived := TDerived.Create();
+
+    { Can access public members from anywhere }
+    base.FPublicField := 3.14;
+    PrintLn(base.FPublicField);
+    PrintLn(base.GetPublic());
+
+    { Cannot access private or protected members from outside the class }
+    { These would cause semantic errors: }
+    { base.FPrivateField := 42;     -- Error: cannot access private field }
+    { base.FProtectedField := 'x';  -- Error: cannot access protected field }
+
+    PrintLn('Demo complete');
+end.

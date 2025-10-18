@@ -882,7 +882,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Stage 7: Support Object-Oriented Features (Classes, Interfaces, Methods)
 
-**Progress**: 55/77 tasks completed (71.4%)
+**Progress**: 69/77 tasks completed (89.6%)
 
 **Summary**: See [docs/stage7-phase1-completion.md](docs/stage7-phase1-completion.md), [docs/stage7-phase2-completion.md](docs/stage7-phase2-completion.md), [docs/stage7-phase3-completion.md](docs/stage7-phase3-completion.md), [docs/stage7-phase4-completion.md](docs/stage7-phase4-completion.md), and [docs/stage7-phase5-static-completion.md](docs/stage7-phase5-static-completion.md)
 
@@ -1113,21 +1113,21 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 - [x] 7.61 Implement class methods (static methods)
 - [x] 7.62 Implement class variables (static fields)
-- [ ] 7.63 Implement visibility modifiers (private, protected, public)
-  - [ ] a. Update AST to use enum for visibility instead of string
-  - [ ] b. Parse `private` section in class declarations
-  - [ ] c. Parse `protected` section in class declarations
-  - [ ] d. Parse `public` section in class declarations
-  - [ ] e. Default visibility to public if not specified
-  - [ ] f. Update semantic analyzer to track visibility of fields/methods
-  - [ ] g. Validate private members only accessible within same class
-  - [ ] h. Validate protected members accessible in class and descendants
-  - [ ] i. Validate public members accessible everywhere
-  - [ ] j. Check visibility on field access (member access expression)
-  - [ ] k. Check visibility on method calls
-  - [ ] l. Allow access to private members from Self
-  - [ ] m. Test visibility enforcement errors
-  - [ ] n. Test visibility with inheritance
+- [x] 7.63 Implement visibility modifiers (private, protected, public)
+  - [x] a. Update AST to use enum for visibility instead of string
+  - [x] b. Parse `private` section in class declarations
+  - [x] c. Parse `protected` section in class declarations
+  - [x] d. Parse `public` section in class declarations
+  - [x] e. Default visibility to public if not specified
+  - [x] f. Update semantic analyzer to track visibility of fields/methods
+  - [x] g. Validate private members only accessible within same class
+  - [x] h. Validate protected members accessible in class and descendants
+  - [x] i. Validate public members accessible everywhere
+  - [x] j. Check visibility on field access (member access expression)
+  - [x] k. Check visibility on method calls
+  - [x] l. Allow access to private members from Self
+  - [x] m. Test visibility enforcement errors
+  - [x] n. Test visibility with inheritance
 - [ ] 7.64 Implement virtual/override keywords
   - [ ] a. Add `IsVirtual` flag to `FunctionDecl` AST node
   - [ ] b. Add `IsOverride` flag to `FunctionDecl` AST node
