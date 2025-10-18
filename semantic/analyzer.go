@@ -675,6 +675,9 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	// Create new class type
 	classType := types.NewClassType(className, parentClass)
 
+	// Set abstract flag (Task 7.65e)
+	classType.IsAbstract = decl.IsAbstract
+
 	// Check for circular inheritance (Task 7.55)
 	if parentClass != nil && a.hasCircularInheritance(classType) {
 		a.addError("circular inheritance detected in class '%s' at %s", className, decl.Token.Pos.String())
@@ -766,6 +769,9 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	if parentClass != nil {
 		a.checkMethodOverriding(classType, parentClass)
 	}
+
+	// Validate abstract class rules (Task 7.65)
+	a.validateAbstractClass(classType, decl)
 }
 
 // hasCircularInheritance checks if a class has circular inheritance
@@ -842,9 +848,10 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	// Store method visibility (Task 7.63f)
 	classType.MethodVisibility[method.Name.Value] = int(method.Visibility)
 
-	// Store virtual/override flags (Task 7.64)
+	// Store virtual/override/abstract flags (Task 7.64, 7.65)
 	classType.VirtualMethods[method.Name.Value] = method.IsVirtual
 	classType.OverrideMethods[method.Name.Value] = method.IsOverride
+	classType.AbstractMethods[method.Name.Value] = method.IsAbstract
 
 	// Analyze method body in new scope
 	oldSymbols := a.symbols
@@ -1139,7 +1146,7 @@ func (a *Analyzer) getMethodOwner(class *types.ClassType, methodName string) *ty
 	return a.getMethodOwner(class.Parent, methodName)
 }
 
-// analyzeNewExpression analyzes object creation (Task 7.57)
+// analyzeNewExpression analyzes object creation (Task 7.57, 7.65f)
 func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	className := expr.ClassName.Value
 
@@ -1147,6 +1154,12 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	classType, found := a.classes[className]
 	if !found {
 		a.addError("undefined class '%s' at %s", className, expr.Token.Pos.String())
+		return nil
+	}
+
+	// Check if trying to instantiate an abstract class (Task 7.65f)
+	if classType.IsAbstract {
+		a.addError("cannot instantiate abstract class '%s' at %s", className, expr.Token.Pos.String())
 		return nil
 	}
 
@@ -1315,4 +1328,93 @@ func (a *Analyzer) addParentClassVarsToScope(parent *types.ClassType) {
 	if parent.Parent != nil {
 		a.addParentClassVarsToScope(parent.Parent)
 	}
+}
+
+// ============================================================================
+// Abstract Class/Method Validation (Task 7.65)
+// ============================================================================
+
+// validateAbstractClass validates abstract class rules:
+// 1. Abstract methods can only exist in abstract classes (Task 7.65i)
+// 2. Concrete classes must implement all inherited abstract methods (Task 7.65g)
+// 3. Abstract methods are implicitly virtual
+func (a *Analyzer) validateAbstractClass(classType *types.ClassType, decl *ast.ClassDecl) {
+	// Rule 1: Abstract methods can only exist in abstract classes
+	for methodName, isAbstract := range classType.AbstractMethods {
+		if isAbstract && !classType.IsAbstract {
+			a.addError("abstract method '%s' can only be declared in an abstract class at %s",
+				methodName, decl.Token.Pos.String())
+		}
+
+		// Abstract methods are implicitly virtual
+		if isAbstract {
+			classType.VirtualMethods[methodName] = true
+		}
+	}
+
+	// Rule 2: Concrete classes must implement all inherited abstract methods
+	if !classType.IsAbstract {
+		unimplementedMethods := a.getUnimplementedAbstractMethods(classType)
+		if len(unimplementedMethods) > 0 {
+			for _, methodName := range unimplementedMethods {
+				a.addError("concrete class '%s' must implement abstract method '%s' at %s",
+					classType.Name, methodName, decl.Token.Pos.String())
+			}
+		}
+	}
+}
+
+// getUnimplementedAbstractMethods returns a list of abstract methods from the inheritance chain
+// that are not implemented in the given class or its ancestors.
+func (a *Analyzer) getUnimplementedAbstractMethods(classType *types.ClassType) []string {
+	unimplemented := []string{}
+
+	// Collect all abstract methods from parent chain
+	abstractMethods := a.collectAbstractMethods(classType.Parent)
+
+	// Check which ones are not implemented in this class
+	for methodName := range abstractMethods {
+		// Check if this class implements the method (non-abstract)
+		if classType.AbstractMethods[methodName] {
+			// Still abstract in this class - not implemented
+			unimplemented = append(unimplemented, methodName)
+		} else if _, hasMethod := classType.Methods[methodName]; !hasMethod {
+			// Method not defined in this class at all - not implemented
+			unimplemented = append(unimplemented, methodName)
+		}
+		// Otherwise, method is implemented (exists and is not abstract)
+	}
+
+	return unimplemented
+}
+
+// collectAbstractMethods recursively collects all abstract methods from the parent chain
+func (a *Analyzer) collectAbstractMethods(parent *types.ClassType) map[string]bool {
+	abstractMethods := make(map[string]bool)
+
+	if parent == nil {
+		return abstractMethods
+	}
+
+	// Add parent's abstract methods
+	for methodName, isAbstract := range parent.AbstractMethods {
+		if isAbstract {
+			abstractMethods[methodName] = true
+		}
+	}
+
+	// Recursively collect from grandparent
+	grandparentAbstract := a.collectAbstractMethods(parent.Parent)
+	for methodName := range grandparentAbstract {
+		// Only add if not already implemented (non-abstract) in parent
+		if !parent.AbstractMethods[methodName] {
+			if _, hasMethod := parent.Methods[methodName]; hasMethod {
+				// Parent implemented it, don't add to abstract list
+				continue
+			}
+		}
+		abstractMethods[methodName] = true
+	}
+
+	return abstractMethods
 }

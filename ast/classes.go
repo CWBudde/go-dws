@@ -53,6 +53,9 @@ func (v Visibility) String() string {
 //	type TClassName = class(TParent)
 //	  // fields and methods
 //	end;
+//	type TAbstract = class abstract
+//	  // abstract class (cannot be instantiated)
+//	end;
 type ClassDecl struct {
 	Token       lexer.Token     // The 'type' token
 	Name        *Identifier     // The class name (e.g., "TPoint", "TPerson")
@@ -61,6 +64,7 @@ type ClassDecl struct {
 	Methods     []*FunctionDecl // Method declarations
 	Constructor *FunctionDecl   // Constructor method (optional, usually named "Create")
 	Destructor  *FunctionDecl   // Destructor method (optional, usually named "Destroy")
+	IsAbstract  bool            // True if this is an abstract class (Task 7.65a)
 }
 
 func (cd *ClassDecl) statementNode()       {}
@@ -78,6 +82,11 @@ func (cd *ClassDecl) String() string {
 		out.WriteString("(")
 		out.WriteString(cd.Parent.String())
 		out.WriteString(")")
+	}
+
+	// Add abstract keyword if this is an abstract class (Task 7.65)
+	if cd.IsAbstract {
+		out.WriteString(" abstract")
 	}
 
 	out.WriteString("\n")

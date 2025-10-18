@@ -67,6 +67,16 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			if !p.expectPeek(lexer.SEMICOLON) {
 				return nil
 			}
+		} else if p.peekTokenIs(lexer.ABSTRACT) {
+			// Abstract method: function GetArea(): Float; abstract;
+			// Task 7.65d - Parse abstract method declarations (no body)
+			p.nextToken() // move to 'abstract'
+			fn.IsAbstract = true
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
+			// Abstract methods have no body, return early
+			return fn
 		} else {
 			break // No more directives
 		}

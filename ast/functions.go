@@ -38,16 +38,18 @@ func (p *Parameter) String() string {
 //	class function GetCount: Integer; static; begin ... end;  // class method
 //	function DoWork(): Integer; virtual; begin ... end;  // virtual method (Task 7.64)
 //	function DoWork(): Integer; override; begin ... end;  // override method (Task 7.64)
+//	function GetArea(): Float; abstract;  // abstract method (Task 7.65c)
 type FunctionDecl struct {
 	Token         lexer.Token     // The 'function' or 'procedure' token
 	Name          *Identifier     // The function name
 	Parameters    []*Parameter    // The function parameters
 	ReturnType    *TypeAnnotation // The return type (nil for procedures)
-	Body          *BlockStatement // The function body
+	Body          *BlockStatement // The function body (nil for abstract methods)
 	IsClassMethod bool            // True if this is a class method (static method) - Task 7.61
 	Visibility    Visibility      // Visibility: VisibilityPrivate, VisibilityProtected, or VisibilityPublic (Task 7.63a)
 	IsVirtual     bool            // True if this is a virtual method (Task 7.64a)
 	IsOverride    bool            // True if this overrides a parent virtual method (Task 7.64b)
+	IsAbstract    bool            // True if this is an abstract method (Task 7.65c)
 }
 
 func (fd *FunctionDecl) statementNode()       {}
@@ -83,17 +85,22 @@ func (fd *FunctionDecl) String() string {
 		out.WriteString(fd.ReturnType.String())
 	}
 
-	// Write virtual/override directives (Task 7.64)
+	// Write virtual/override/abstract directives (Task 7.64, 7.65)
 	if fd.IsVirtual {
 		out.WriteString("; virtual")
 	}
 	if fd.IsOverride {
 		out.WriteString("; override")
 	}
+	if fd.IsAbstract {
+		out.WriteString("; abstract")
+	}
 
-	// Write body
-	out.WriteString(" ")
-	out.WriteString(fd.Body.String())
+	// Write body (abstract methods have no body)
+	if fd.Body != nil {
+		out.WriteString(" ")
+		out.WriteString(fd.Body.String())
+	}
 
 	return out.String()
 }

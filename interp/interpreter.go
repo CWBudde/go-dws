@@ -906,6 +906,9 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Create new ClassInfo
 	classInfo := NewClassInfo(cd.Name.Value)
 
+	// Set abstract flag (Task 7.65)
+	classInfo.IsAbstract = cd.IsAbstract
+
 	// Handle inheritance if parent class is specified
 	if cd.Parent != nil {
 		parentName := cd.Parent.Value
@@ -1017,6 +1020,11 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	classInfo, exists := i.classes[className]
 	if !exists {
 		return i.newErrorWithLocation(ne, "class '%s' not found", className)
+	}
+
+	// Check if trying to instantiate an abstract class (Task 7.65)
+	if classInfo.IsAbstract {
+		return i.newErrorWithLocation(ne, "cannot instantiate abstract class '%s'", className)
 	}
 
 	// Create new object instance
