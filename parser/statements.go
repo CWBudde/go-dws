@@ -39,7 +39,9 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		return method
 	case lexer.TYPE:
-		return p.parseClassDeclaration()
+		// Task 7.85: Dispatch to class or interface parser
+		// Both parsers will handle the full parsing starting from TYPE token
+		return p.parseTypeDeclaration()
 	default:
 		// Check for assignment (simple or member assignment)
 		if p.curToken.Type == lexer.IDENT {

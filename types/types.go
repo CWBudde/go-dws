@@ -96,6 +96,16 @@ var (
 	VOID    = &VoidType{}
 )
 
+// Task 7.75: IINTERFACE is the base interface type (like IUnknown in COM)
+// All interfaces can inherit from this root interface.
+var IINTERFACE = &InterfaceType{
+	Name:         "IInterface",
+	Parent:       nil,
+	Methods:      make(map[string]*FunctionType),
+	IsExternal:   false,
+	ExternalName: "",
+}
+
 // ============================================================================
 // Type Utilities
 // ============================================================================
@@ -160,6 +170,7 @@ type ClassType struct {
 	OverrideMethods  map[string]bool          // Method name -> is override (Task 7.64)
 	IsAbstract       bool                     // True if this is an abstract class (Task 7.65)
 	AbstractMethods  map[string]bool          // Method name -> is abstract (Task 7.65)
+	Interfaces       []*InterfaceType         // Interfaces implemented by this class - Task 7.80
 }
 
 // String returns the string representation of the class type
@@ -249,9 +260,13 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 
 // InterfaceType represents an interface type in DWScript.
 // Interfaces define a contract of methods that implementing classes must provide.
+// Task 7.73-7.74: Extended with Parent for inheritance, IsExternal/ExternalName for FFI
 type InterfaceType struct {
-	Name    string                   // Interface name (e.g., "IComparable")
-	Methods map[string]*FunctionType // Method name -> function signature
+	Name         string                   // Interface name (e.g., "IComparable")
+	Parent       *InterfaceType           // Parent interface (nil for root interfaces) - Task 7.74
+	Methods      map[string]*FunctionType // Method name -> function signature
+	IsExternal   bool                     // True if this is an external interface (for FFI) - Task 7.74
+	ExternalName string                   // External name for FFI binding (optional) - Task 7.74
 }
 
 // String returns the string representation of the interface type
@@ -286,12 +301,65 @@ func (it *InterfaceType) GetMethod(name string) (*FunctionType, bool) {
 	return methodType, ok
 }
 
-// NewInterfaceType creates a new interface type with the given name
+// NewInterfaceType creates a new interface type with the given name.
+// Parent is set to nil (use explicit struct initialization for interface inheritance).
+// Task 7.74: Initializes all fields including IsExternal (false) and ExternalName (empty).
 func NewInterfaceType(name string) *InterfaceType {
 	return &InterfaceType{
-		Name:    name,
-		Methods: make(map[string]*FunctionType),
+		Name:         name,
+		Parent:       nil,
+		Methods:      make(map[string]*FunctionType),
+		IsExternal:   false,
+		ExternalName: "",
 	}
+}
+
+// ============================================================================
+// Interface Inheritance and Compatibility (Task 7.77-7.79)
+// ============================================================================
+
+// IsSubinterfaceOf checks if 'child' is a subinterface of 'parent'.
+// This includes checking the entire inheritance chain.
+// Task 7.77: Interface inheritance checking with circular detection.
+func IsSubinterfaceOf(child, parent *InterfaceType) bool {
+	if child == nil || parent == nil {
+		return false
+	}
+
+	// Walk up the inheritance chain
+	current := child
+	for current != nil {
+		if current.Name == parent.Name {
+			return true
+		}
+		current = current.Parent
+	}
+
+	return false
+}
+
+// GetAllInterfaceMethods returns all methods of an interface, including inherited methods.
+// Task 7.78: Interface method inheritance - collects methods from entire hierarchy.
+func GetAllInterfaceMethods(iface *InterfaceType) map[string]*FunctionType {
+	if iface == nil {
+		return make(map[string]*FunctionType)
+	}
+
+	// Start with parent methods (if any)
+	allMethods := make(map[string]*FunctionType)
+	if iface.Parent != nil {
+		parentMethods := GetAllInterfaceMethods(iface.Parent)
+		for name, method := range parentMethods {
+			allMethods[name] = method
+		}
+	}
+
+	// Add/override with own methods
+	for name, method := range iface.Methods {
+		allMethods[name] = method
+	}
+
+	return allMethods
 }
 
 // ============================================================================
@@ -304,6 +372,7 @@ func NewInterfaceType(name string) *InterfaceType {
 // - Numeric coercion (Integer -> Float)
 // - Subclass to superclass (covariance)
 // - Class to interface (if class implements the interface)
+// - Interface to interface (if source is subinterface of target) - Task 7.79
 func IsAssignableFrom(target, source Type) bool {
 	// Exact match
 	if target.Equals(source) {
@@ -326,6 +395,14 @@ func IsAssignableFrom(target, source Type) bool {
 	if targetInterface, ok := target.(*InterfaceType); ok {
 		if sourceClass, ok := source.(*ClassType); ok {
 			return ImplementsInterface(sourceClass, targetInterface)
+		}
+	}
+
+	// Task 7.79: Interface to interface assignment (covariant)
+	// A derived interface can be assigned to a base interface
+	if targetInterface, ok := target.(*InterfaceType); ok {
+		if sourceInterface, ok := source.(*InterfaceType); ok {
+			return IsSubinterfaceOf(sourceInterface, targetInterface)
 		}
 	}
 

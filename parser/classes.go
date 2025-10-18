@@ -16,13 +16,12 @@ import (
 //	    field3: Type;
 //	end;
 func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
-	classDecl := &ast.ClassDecl{Token: p.curToken}
-
+	// This is the old entry point, still used by old code
 	// Expect class name identifier
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
 	}
-	classDecl.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	nameIdent := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
 	// Expect '='
 	if !p.expectPeek(lexer.EQ) {
@@ -34,16 +33,69 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 		return nil
 	}
 
-	// Check for optional parent class (TChild = class(TParent))
+	return p.parseClassDeclarationBody(nameIdent)
+}
+
+// parseClassDeclarationBody parses the body of a class declaration.
+// Called after 'type Name = class' has already been parsed.
+// Current token should be 'class'.
+func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.ClassDecl {
+	classDecl := &ast.ClassDecl{
+		Token: p.curToken, // 'class' token
+		Name:  nameIdent,
+	}
+
+	// Task 7.83: Check for optional parent class and/or interfaces
+	// Syntax: class(TParent, IInterface1, IInterface2)
+	// First identifier is parent class (if it starts with T)
+	// Rest are interfaces (if they start with I)
+	// OR: class(IInterface1, IInterface2) - no parent, just interfaces
+	classDecl.Interfaces = []*ast.Identifier{}
+
 	if p.peekTokenIs(lexer.LPAREN) {
 		p.nextToken() // move to '('
-		if !p.expectPeek(lexer.IDENT) {
-			return nil
-		}
-		classDecl.Parent = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
-		if !p.expectPeek(lexer.RPAREN) {
-			return nil
+		// Parse comma-separated list of parent/interfaces
+		identifiers := []*ast.Identifier{}
+
+		for {
+			if !p.expectPeek(lexer.IDENT) {
+				return nil
+			}
+			identifiers = append(identifiers, &ast.Identifier{
+				Token: p.curToken,
+				Value: p.curToken.Literal,
+			})
+
+			// Check for comma (more items) or closing paren
+			if p.peekTokenIs(lexer.COMMA) {
+				p.nextToken() // move to comma
+				continue
+			} else if p.peekTokenIs(lexer.RPAREN) {
+				p.nextToken() // move to ')'
+				break
+			} else {
+				p.addError("expected ',' or ')' in class inheritance list")
+				return nil
+			}
+		}
+
+		// Task 7.83: Distinguish parent class from interfaces
+		// Convention: First identifier starting with 'T' is parent class
+		// All others (or all if first doesn't start with 'T') are interfaces
+		if len(identifiers) > 0 {
+			firstIdent := identifiers[0]
+			// In DWScript/Delphi, classes typically start with 'T', interfaces with 'I'
+			// If first starts with 'T', it's the parent class
+			// Otherwise, all are interfaces
+			if len(firstIdent.Value) > 0 && firstIdent.Value[0] == 'T' {
+				classDecl.Parent = firstIdent
+				classDecl.Interfaces = identifiers[1:]
+			} else {
+				// No parent class, all are interfaces
+				classDecl.Parent = nil
+				classDecl.Interfaces = identifiers
+			}
 		}
 	}
 
