@@ -1,0 +1,241 @@
+// OOP Edge Cases and Error Conditions Test - Task 7.66e
+// This file demonstrates various edge cases and error conditions
+// Some sections are commented out to keep the file parseable
+
+// ============================================================================
+// Valid cases that test boundaries
+// ============================================================================
+
+// Case 1: Empty abstract class
+type TEmptyAbstract = class abstract
+end;
+
+// Case 2: Abstract class with only non-abstract methods
+type TAbstractWithNonAbstract = class abstract
+public
+    function GetValue(): Integer; virtual;
+    begin
+        Result := 42;
+    end;
+end;
+
+// Case 3: Concrete class extending abstract with no new methods
+type TMinimalConcrete = class(TAbstractWithNonAbstract)
+end;
+
+// Case 4: Virtual method not marked in parent but overridden
+type TBase = class
+public
+    function GetValue(): Integer; virtual;
+    begin
+        Result := 1;
+    end;
+end;
+
+type TDerived = class(TBase)
+public
+    function GetValue(): Integer; override;
+    begin
+        Result := 2;
+    end;
+end;
+
+// Case 5: Multiple inheritance levels with abstract-concrete-abstract pattern
+type TLevel1 = class abstract
+public
+    function Method1(): Integer; abstract;
+end;
+
+type TLevel2 = class(TLevel1)
+public
+    function Method1(): Integer; override;
+    begin
+        Result := 1;
+    end;
+end;
+
+// TLevel3 cannot be abstract extending concrete - but we can test
+// that a concrete class can be further extended
+type TLevel3 = class(TLevel2)
+public
+    function Method1(): Integer; override;
+    begin
+        Result := 2;
+    end;
+end;
+
+// Case 6: Protected field accessible through Self in constructor
+type TProtectedTest = class
+protected
+    FValue: Integer;
+public
+    function Create(val: Integer): TProtectedTest;
+    begin
+        FValue := val; // This should work - same class
+        Result := Self;
+    end;
+
+    function GetValue(): Integer;
+    begin
+        Result := FValue; // This should work - same class
+    end;
+end;
+
+// Case 7: Private method called from public method in same class
+type TPrivateMethodTest = class
+private
+    function Helper(): Integer;
+    begin
+        Result := 99;
+    end;
+public
+    function CallHelper(): Integer;
+    begin
+        Result := Helper(); // This should work - same class
+    end;
+end;
+
+// Case 8: Virtual method in derived class without override keyword
+// (This demonstrates method hiding, not overriding)
+type TBaseVirtual = class
+public
+    function Compute(): Integer; virtual;
+    begin
+        Result := 100;
+    end;
+end;
+
+type TDerivedHiding = class(TBaseVirtual)
+public
+    // This hides parent method rather than overriding
+    // DWScript should warn about this but allow it
+    function Compute(): Integer;
+    begin
+        Result := 200;
+    end;
+end;
+
+// ============================================================================
+// Test execution of valid edge cases
+// ============================================================================
+
+var minimal: TMinimalConcrete;
+var derived: TDerived;
+var base: TBase;
+var level3: TLevel3;
+var protTest: TProtectedTest;
+var privTest: TPrivateMethodTest;
+var hiding: TDerivedHiding;
+
+begin
+    PrintLn('Testing edge cases...');
+
+    // Test minimal concrete class
+    minimal := TMinimalConcrete.Create();
+    PrintLn('Minimal concrete GetValue: ', minimal.GetValue());
+
+    // Test virtual/override
+    derived := TDerived.Create();
+    base := derived; // Polymorphic assignment
+    PrintLn('Base ref to derived: ', base.GetValue());
+
+    // Test multi-level inheritance
+    level3 := TLevel3.Create();
+    PrintLn('Level 3 method: ', level3.Method1());
+
+    // Test protected access
+    protTest := TProtectedTest.Create(777);
+    PrintLn('Protected test: ', protTest.GetValue());
+
+    // Test private method access
+    privTest := TPrivateMethodTest.Create();
+    PrintLn('Private method result: ', privTest.CallHelper());
+
+    // Test method hiding (without override)
+    hiding := TDerivedHiding.Create();
+    PrintLn('Method hiding: ', hiding.Compute());
+
+    PrintLn('Edge cases test passed!');
+end
+
+// ============================================================================
+// ERROR CASES - These are commented out to keep file valid
+// ============================================================================
+
+// ERROR: Cannot instantiate abstract class
+// var abs1: TEmptyAbstract;
+// abs1 := TEmptyAbstract.Create();
+
+// ERROR: Cannot instantiate abstract class
+// var abs2: TAbstractWithNonAbstract;
+// abs2 := TAbstractWithNonAbstract.Create();
+
+// ERROR: Missing abstract method implementation
+// type TIncompleteConcrete = class(TLevel1)
+//     // Missing Method1 implementation
+// end;
+
+// ERROR: Abstract method in concrete class
+// type TBadConcrete = class
+//     function BadMethod(): Integer; abstract;
+// end;
+
+// ERROR: Override without parent virtual method
+// type TNonVirtualBase = class
+//     function Normal(): Integer;
+//     begin Result := 1; end;
+// end;
+// type TBadOverride = class(TNonVirtualBase)
+//     function Normal(): Integer; override;  // ERROR: parent is not virtual
+//     begin Result := 2; end;
+// end;
+
+// ERROR: Accessing private field from outside
+// type TWithPrivate = class
+// private
+//     FSecret: Integer;
+// public
+//     function Create(): TWithPrivate;
+//     begin FSecret := 42; Result := Self; end;
+// end;
+// var wp: TWithPrivate;
+// wp := TWithPrivate.Create();
+// PrintLn(wp.FSecret);  // ERROR: cannot access private field
+
+// ERROR: Accessing protected field from unrelated code
+// type TWithProtected = class
+// protected
+//     FValue: Integer;
+// public
+//     function Create(): TWithProtected;
+//     begin FValue := 99; Result := Self; end;
+// end;
+// var wproc: TWithProtected;
+// wproc := TWithProtected.Create();
+// PrintLn(wproc.FValue);  // ERROR: cannot access protected field
+
+// ERROR: Calling private method from outside
+// type TWithPrivateMethod = class
+// private
+//     function Secret(): Integer;
+//     begin Result := 123; end;
+// public
+//     function Create(): TWithPrivateMethod;
+//     begin Result := Self; end;
+// end;
+// var wpm: TWithPrivateMethod;
+// wpm := TWithPrivateMethod.Create();
+// PrintLn(wpm.Secret());  // ERROR: cannot call private method
+
+// ERROR: Child accessing parent's private field
+// type TParentWithPrivate = class
+// private
+//     FPrivate: Integer;
+// end;
+// type TChildTryingAccess = class(TParentWithPrivate)
+// public
+//     function TryAccess(): Integer;
+//     begin
+//         Result := FPrivate;  // ERROR: cannot access parent's private
+//     end;
+// end;

@@ -1,0 +1,178 @@
+// Abstract + Virtual Methods Combination Test - Task 7.66b
+// Tests abstract classes with virtual methods and proper override semantics
+
+// Abstract base with both abstract and virtual methods
+type TShape = class abstract
+protected
+    FColor: String;
+
+public
+    // Pure abstract methods (no implementation)
+    function GetArea(): Float; abstract;
+    function GetPerimeter(): Float; abstract;
+
+    // Virtual method with default implementation
+    function GetDescription(): String; virtual;
+    begin
+        Result := 'A shape with color: ' + FColor;
+    end;
+
+    // Non-virtual method (cannot be overridden)
+    function SetColor(color: String): TShape;
+    begin
+        FColor := color;
+        Result := Self;
+    end;
+
+    // Virtual method with implementation
+    function GetInfo(): String; virtual;
+    begin
+        Result := 'Generic shape';
+    end;
+end;
+
+// First concrete implementation
+type TRectangle = class(TShape)
+private
+    FWidth: Float;
+    FHeight: Float;
+
+public
+    function Create(w: Float; h: Float; color: String): TRectangle;
+    begin
+        FWidth := w;
+        FHeight := h;
+        FColor := color;
+        Result := Self;
+    end;
+
+    // Implement abstract methods with override
+    function GetArea(): Float; override;
+    begin
+        Result := FWidth * FHeight;
+    end;
+
+    function GetPerimeter(): Float; override;
+    begin
+        Result := 2.0 * (FWidth + FHeight);
+    end;
+
+    // Override virtual method
+    function GetDescription(): String; override;
+    begin
+        Result := 'Rectangle: ' + FColor + ', Area=' + FloatToStr(GetArea());
+    end;
+
+    // Override another virtual method
+    function GetInfo(): String; override;
+    begin
+        Result := 'Rectangle ' + FloatToStr(FWidth) + 'x' + FloatToStr(FHeight);
+    end;
+end;
+
+// Second concrete implementation
+type TCircle = class(TShape)
+private
+    FRadius: Float;
+
+public
+    function Create(r: Float; color: String): TCircle;
+    begin
+        FRadius := r;
+        FColor := color;
+        Result := Self;
+    end;
+
+    // Implement abstract methods
+    function GetArea(): Float; override;
+    begin
+        Result := 3.14159 * FRadius * FRadius;
+    end;
+
+    function GetPerimeter(): Float; override;
+    begin
+        Result := 2.0 * 3.14159 * FRadius;
+    end;
+
+    // Override virtual method with different implementation
+    function GetDescription(): String; override;
+    begin
+        Result := 'Circle: ' + FColor + ', Radius=' + FloatToStr(FRadius);
+    end;
+
+    // This class doesn't override GetInfo, so it uses TShape's implementation
+end;
+
+// Third level: inherit from concrete class
+type TSquare = class(TRectangle)
+public
+    function Create(side: Float; color: String): TSquare;
+    begin
+        FWidth := side;
+        FHeight := side;
+        FColor := color;
+        Result := Self;
+    end;
+
+    // Override virtual method again at third level
+    function GetDescription(): String; override;
+    begin
+        Result := 'Square: ' + FColor + ', Side=' + FloatToStr(FWidth);
+    end;
+
+    function GetInfo(): String; override;
+    begin
+        Result := 'Square ' + FloatToStr(FWidth) + 'x' + FloatToStr(FWidth);
+    end;
+end;
+
+// Test polymorphism with abstract base class
+var shape1: TShape;
+var shape2: TShape;
+var shape3: TShape;
+var shapes: array[0..2] of TShape;
+
+begin
+    // Create different shapes via base class reference
+    shape1 := TRectangle.Create(10.0, 5.0, 'Red');
+    shape2 := TCircle.Create(3.0, 'Blue');
+    shape3 := TSquare.Create(4.0, 'Green');
+
+    // Store in array of base class
+    shapes[0] := shape1;
+    shapes[1] := shape2;
+    shapes[2] := shape3;
+
+    // Polymorphic calls - each calls the correct override
+    PrintLn('Shape 1 (Rectangle):');
+    PrintLn('  Area: ', shape1.GetArea());
+    PrintLn('  Perimeter: ', shape1.GetPerimeter());
+    PrintLn('  Description: ', shape1.GetDescription());
+    PrintLn('  Info: ', shape1.GetInfo());
+
+    PrintLn('Shape 2 (Circle):');
+    PrintLn('  Area: ', shape2.GetArea());
+    PrintLn('  Perimeter: ', shape2.GetPerimeter());
+    PrintLn('  Description: ', shape2.GetDescription());
+    PrintLn('  Info: ', shape2.GetInfo()); // Uses TShape's default
+
+    PrintLn('Shape 3 (Square):');
+    PrintLn('  Area: ', shape3.GetArea());
+    PrintLn('  Perimeter: ', shape3.GetPerimeter());
+    PrintLn('  Description: ', shape3.GetDescription());
+    PrintLn('  Info: ', shape3.GetInfo());
+
+    // Test SetColor (non-virtual, can be called on all)
+    shape1.SetColor('Yellow');
+    PrintLn('After color change: ', shape1.GetDescription());
+
+    // Loop through array demonstrating polymorphism
+    var i: Integer;
+    PrintLn('Loop through shapes:');
+    for i := 0 to 2 do
+    begin
+        PrintLn('  Shape ', i, ': ', shapes[i].GetDescription());
+    end;
+
+    PrintLn('Abstract+Virtual test passed!');
+end

@@ -196,22 +196,21 @@ func TestObjectInstanceInitializeFields(t *testing.T) {
 
 	obj := NewObjectInstance(classInfo)
 
-	// Fields should be initialized with default zero values
+	// Fields should be nil until explicitly set
 	name := obj.GetField("Name")
 	age := obj.GetField("Age")
 	active := obj.GetField("Active")
 
 	if name != nil {
-		// Initially fields may be nil until explicitly set
-		// This is acceptable for now
+		t.Error("Uninitialized field 'Name' should be nil")
 	}
 
 	if age != nil {
-		// Same as above
+		t.Error("Uninitialized field 'Age' should be nil")
 	}
 
 	if active != nil {
-		// Same as above
+		t.Error("Uninitialized field 'Active' should be nil")
 	}
 
 	// Set and verify

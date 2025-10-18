@@ -1,0 +1,302 @@
+// Complex Multi-Level Hierarchy Test - Task 7.66d
+// Tests 4-level class hierarchy with all OOP features combined
+
+// Level 1: Abstract base with virtual methods
+type TLivingBeing = class abstract
+private
+    FIsAlive: Boolean;
+
+protected
+    FAge: Integer;
+    FName: String;
+
+    // Protected virtual method
+    function GetLifeExpectancy(): Integer; virtual; abstract;
+
+public
+    function Create(name: String): TLivingBeing;
+    begin
+        FName := name;
+        FAge := 0;
+        FIsAlive := true;
+        Result := Self;
+    end;
+
+    // Public abstract method
+    function Breathe(): String; abstract;
+
+    // Public virtual method with default implementation
+    function GetStatus(): String; virtual;
+    begin
+        if FIsAlive then
+            Result := FName + ' is alive, age ' + IntToStr(FAge)
+        else
+            Result := FName + ' is no longer alive';
+    end;
+
+    procedure Age();
+    begin
+        FAge := FAge + 1;
+    end;
+end;
+
+// Level 2: Still abstract, adds more structure
+type TAnimal = class abstract(TLivingBeing)
+private
+    FDiet: String;
+
+protected
+    FSpecies: String;
+    FHabitat: String;
+
+    // Protected virtual method with implementation
+    function GetNutritionalNeeds(): String; virtual;
+    begin
+        Result := 'Requires ' + FDiet + ' diet';
+    end;
+
+public
+    // Override virtual method
+    function GetStatus(): String; override;
+    begin
+        Result := FSpecies + ' named ' + FName + ', age ' + IntToStr(FAge);
+    end;
+
+    // Implement abstract from parent
+    function Breathe(): String; override;
+    begin
+        Result := 'Breathing oxygen';
+    end;
+
+    // New abstract method for this level
+    function Move(): String; abstract;
+end;
+
+// Level 3: First concrete class
+type TMammal = class(TAnimal)
+private
+    FHasFur: Boolean;
+    FBodyTemp: Float;
+
+protected
+    // Implement abstract from grandparent
+    function GetLifeExpectancy(): Integer; override;
+    begin
+        Result := 15; // Default mammal life expectancy
+    end;
+
+public
+    function Create(name: String; species: String): TMammal;
+    begin
+        FName := name;
+        FAge := 0;
+        FIsAlive := true;
+        FSpecies := species;
+        FHabitat := 'Land';
+        FDiet := 'varied';
+        FHasFur := true;
+        FBodyTemp := 37.0;
+        Result := Self;
+    end;
+
+    // Implement abstract method
+    function Move(): String; override;
+    begin
+        Result := 'Walking on legs';
+    end;
+
+    // Override virtual method from grandparent
+    function GetStatus(): String; override;
+    begin
+        Result := 'Mammal: ' + FSpecies + ' (' + FName + '), age ' + IntToStr(FAge);
+    end;
+end;
+
+// Level 3: Alternative concrete branch
+type TBird = class(TAnimal)
+private
+    FCanFly: Boolean;
+    FWingspan: Float;
+
+protected
+    function GetLifeExpectancy(): Integer; override;
+    begin
+        Result := 8; // Default bird life expectancy
+    end;
+
+public
+    function Create(name: String; species: String; canFly: Boolean): TBird;
+    begin
+        FName := name;
+        FAge := 0;
+        FIsAlive := true;
+        FSpecies := species;
+        FHabitat := 'Sky';
+        FDiet := 'seeds';
+        FCanFly := canFly;
+        FWingspan := 1.0;
+        Result := Self;
+    end;
+
+    function Move(): String; override;
+    begin
+        if FCanFly then
+            Result := 'Flying through the air'
+        else
+            Result := 'Walking on ground';
+    end;
+
+    function GetStatus(): String; override;
+    begin
+        var flyStatus: String;
+        if FCanFly then
+            flyStatus := 'can fly'
+        else
+            flyStatus := 'cannot fly';
+        Result := 'Bird: ' + FSpecies + ' (' + FName + '), ' + flyStatus;
+    end;
+end;
+
+// Level 4: Further specialization
+type TDog = class(TMammal)
+private
+    FBreed: String;
+    FIsGuardDog: Boolean;
+
+protected
+    function GetLifeExpectancy(): Integer; override;
+    begin
+        Result := 12; // Dog life expectancy
+    end;
+
+    function GetNutritionalNeeds(): String; override;
+    begin
+        Result := 'Requires protein-rich diet with vegetables';
+    end;
+
+public
+    function Create(name: String; breed: String): TDog;
+    begin
+        FName := name;
+        FAge := 0;
+        FIsAlive := true;
+        FSpecies := 'Canine';
+        FHabitat := 'Domestic';
+        FDiet := 'carnivore';
+        FHasFur := true;
+        FBodyTemp := 38.5;
+        FBreed := breed;
+        FIsGuardDog := false;
+        Result := Self;
+    end;
+
+    function Move(): String; override;
+    begin
+        Result := 'Running on four legs';
+    end;
+
+    function GetStatus(): String; override;
+    begin
+        Result := 'Dog: ' + FBreed + ' named ' + FName + ', age ' + IntToStr(FAge);
+    end;
+
+    function Bark(): String;
+    begin
+        Result := 'Woof! Woof!';
+    end;
+end;
+
+// Level 4: Another specialization
+type TEagle = class(TBird)
+private
+    FTalonLength: Float;
+
+protected
+    function GetLifeExpectancy(): Integer; override;
+    begin
+        Result := 20; // Eagle life expectancy
+    end;
+
+public
+    function Create(name: String): TEagle;
+    begin
+        FName := name;
+        FAge := 0;
+        FIsAlive := true;
+        FSpecies := 'Eagle';
+        FHabitat := 'Mountains';
+        FDiet := 'carnivore';
+        FCanFly := true;
+        FWingspan := 2.3;
+        FTalonLength := 0.05;
+        Result := Self;
+    end;
+
+    function Hunt(): String;
+    begin
+        Result := 'Diving from sky to catch prey';
+    end;
+end;
+
+var being1: TLivingBeing;
+var being2: TLivingBeing;
+var being3: TLivingBeing;
+var animal: TAnimal;
+var dog: TDog;
+var eagle: TEagle;
+
+begin
+    // Create instances at different levels
+    being1 := TDog.Create('Buddy', 'Golden Retriever');
+    being2 := TEagle.Create('Sky');
+    being3 := TMammal.Create('Generic', 'Unknown Mammal');
+    animal := TBird.Create('Tweety', 'Canary', true);
+    dog := TDog.Create('Max', 'German Shepherd');
+    eagle := TEagle.Create('Freedom');
+
+    // Test polymorphism through base class (Level 1)
+    PrintLn('--- Through TLivingBeing reference ---');
+    PrintLn(being1.GetStatus());
+    PrintLn(being1.Breathe());
+
+    PrintLn(being2.GetStatus());
+    PrintLn(being2.Breathe());
+
+    // Test through Level 2 reference
+    PrintLn('--- Through TAnimal reference ---');
+    PrintLn(animal.GetStatus());
+    PrintLn(animal.Move());
+
+    // Test concrete types with all inherited and overridden methods
+    PrintLn('--- Concrete TDog ---');
+    PrintLn(dog.GetStatus());
+    PrintLn(dog.Breathe());
+    PrintLn(dog.Move());
+    PrintLn(dog.Bark());
+
+    dog.Age();
+    dog.Age();
+    dog.Age();
+    PrintLn('After 3 years: ', dog.GetStatus());
+
+    PrintLn('--- Concrete TEagle ---');
+    PrintLn(eagle.GetStatus());
+    PrintLn(eagle.Breathe());
+    PrintLn(eagle.Move());
+    PrintLn(eagle.Hunt());
+
+    // Test that each level's overrides work correctly
+    PrintLn('--- Virtual method dispatch ---');
+    var beings: array[0..2] of TLivingBeing;
+    beings[0] := TDog.Create('Spot', 'Dalmatian');
+    beings[1] := TEagle.Create('Thunder');
+    beings[2] := TMammal.Create('Fuzzy', 'Generic');
+
+    var i: Integer;
+    for i := 0 to 2 do
+    begin
+        PrintLn('Being ', i, ': ', beings[i].GetStatus());
+    end;
+
+    PrintLn('Complex hierarchy test passed!');
+end
