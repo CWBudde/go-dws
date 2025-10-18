@@ -618,3 +618,139 @@ func TestMixedClassAndInstanceMethods(t *testing.T) {
 	`
 	expectNoErrors(t, input)
 }
+
+// ============================================================================
+// Virtual/Override Tests (Task 7.64)
+// ============================================================================
+
+func TestVirtualMethodDeclaration(t *testing.T) {
+	input := `
+		type TBase = class
+			function DoWork(): Integer; virtual;
+			begin
+				Result := 1;
+			end;
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestOverrideWithoutVirtualParent(t *testing.T) {
+	input := `
+		type TBase = class
+			function DoWork(): Integer;
+			begin
+				Result := 1;
+			end;
+		end;
+
+		type TChild = class(TBase)
+			function DoWork(): Integer; override;
+			begin
+				Result := 2;
+			end;
+		end;
+	`
+	// Should error: override without virtual parent
+	expectError(t, input, "override")
+}
+
+func TestOverrideSignatureMismatch(t *testing.T) {
+	input := `
+		type TBase = class
+			function DoWork(): Integer; virtual;
+			begin
+				Result := 1;
+			end;
+		end;
+
+		type TChild = class(TBase)
+			function DoWork(): String; override;
+			begin
+				Result := 'two';
+			end;
+		end;
+	`
+	// Should error: override signature doesn't match parent
+	expectError(t, input, "signature")
+}
+
+func TestOverrideNonExistentMethod(t *testing.T) {
+	input := `
+		type TBase = class
+			function DoWork(): Integer; virtual;
+			begin
+				Result := 1;
+			end;
+		end;
+
+		type TChild = class(TBase)
+			function DoSomethingElse(): Integer; override;
+			begin
+				Result := 2;
+			end;
+		end;
+	`
+	// Should error: override method doesn't exist in parent
+	expectError(t, input, "override")
+}
+
+func TestVirtualMethodHidingWarning(t *testing.T) {
+	input := `
+		type TBase = class
+			function DoWork(): Integer; virtual;
+			begin
+				Result := 1;
+			end;
+		end;
+
+		type TChild = class(TBase)
+			function DoWork(): Integer;
+			begin
+				Result := 2;
+			end;
+		end;
+	`
+	// Should warn: redefining virtual method without override
+	// For now we'll expect an error for strict enforcement
+	expectError(t, input, "override")
+}
+
+func TestValidOverride(t *testing.T) {
+	input := `
+		type TBase = class
+			function DoWork(): Integer; virtual;
+			begin
+				Result := 1;
+			end;
+		end;
+
+		type TChild = class(TBase)
+			function DoWork(): Integer; override;
+			begin
+				Result := 2;
+			end;
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestOverrideParameterMismatch(t *testing.T) {
+	input := `
+		type TBase = class
+			function Calculate(x: Integer): Integer; virtual;
+			begin
+				Result := x;
+			end;
+		end;
+
+		type TChild = class(TBase)
+			function Calculate(x: Integer; y: Integer): Integer; override;
+			begin
+				Result := x + y;
+			end;
+		end;
+	`
+	// Should error: override has different parameter count
+	expectError(t, input, "signature")
+}

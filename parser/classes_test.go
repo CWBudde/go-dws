@@ -495,3 +495,141 @@ func TestMemberAccessErrors(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Virtual/Override Method Tests (Task 7.64)
+// ============================================================================
+
+func TestVirtualMethodDeclaration(t *testing.T) {
+	input := `
+type TBase = class
+  function DoWork(): Integer; virtual;
+  begin
+    Result := 1;
+  end;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if len(stmt.Methods) != 1 {
+		t.Fatalf("stmt.Methods should contain 1 method. got=%d", len(stmt.Methods))
+	}
+
+	method := stmt.Methods[0]
+	if method.Name.Value != "DoWork" {
+		t.Errorf("method.Name.Value not 'DoWork'. got=%s", method.Name.Value)
+	}
+
+	if !method.IsVirtual {
+		t.Errorf("method.IsVirtual should be true. got=%v", method.IsVirtual)
+	}
+
+	if method.IsOverride {
+		t.Errorf("method.IsOverride should be false. got=%v", method.IsOverride)
+	}
+}
+
+func TestOverrideMethodDeclaration(t *testing.T) {
+	input := `
+type TChild = class(TBase)
+  function DoWork(): Integer; override;
+  begin
+    Result := 2;
+  end;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if len(stmt.Methods) != 1 {
+		t.Fatalf("stmt.Methods should contain 1 method. got=%d", len(stmt.Methods))
+	}
+
+	method := stmt.Methods[0]
+	if method.Name.Value != "DoWork" {
+		t.Errorf("method.Name.Value not 'DoWork'. got=%s", method.Name.Value)
+	}
+
+	if method.IsVirtual {
+		t.Errorf("method.IsVirtual should be false. got=%v", method.IsVirtual)
+	}
+
+	if !method.IsOverride {
+		t.Errorf("method.IsOverride should be true. got=%v", method.IsOverride)
+	}
+}
+
+func TestVirtualAndOverrideInSameClass(t *testing.T) {
+	input := `
+type TMixed = class
+  function Method1(): Integer; virtual;
+  begin
+    Result := 1;
+  end;
+
+  function Method2(): String; virtual;
+  begin
+    Result := 'hello';
+  end;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if len(stmt.Methods) != 2 {
+		t.Fatalf("stmt.Methods should contain 2 methods. got=%d", len(stmt.Methods))
+	}
+
+	// Check both methods are virtual
+	for i, method := range stmt.Methods {
+		if !method.IsVirtual {
+			t.Errorf("method[%d].IsVirtual should be true. got=%v", i, method.IsVirtual)
+		}
+		if method.IsOverride {
+			t.Errorf("method[%d].IsOverride should be false. got=%v", i, method.IsOverride)
+		}
+	}
+}

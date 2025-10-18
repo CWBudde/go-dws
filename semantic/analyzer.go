@@ -842,6 +842,10 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	// Store method visibility (Task 7.63f)
 	classType.MethodVisibility[method.Name.Value] = int(method.Visibility)
 
+	// Store virtual/override flags (Task 7.64)
+	classType.VirtualMethods[method.Name.Value] = method.IsVirtual
+	classType.OverrideMethods[method.Name.Value] = method.IsOverride
+
 	// Analyze method body in new scope
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
@@ -901,10 +905,108 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	a.currentFunction = method
 	defer func() { a.currentFunction = previousFunc }()
 
+	// Task 7.64e-h: Validate virtual/override usage
+	a.validateVirtualOverride(method, classType, funcType)
+
 	// Analyze method body
 	if method.Body != nil {
 		a.analyzeBlock(method.Body)
 	}
+}
+
+// validateVirtualOverride validates virtual/override method declarations (Task 7.64e-h)
+func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *types.ClassType, methodType *types.FunctionType) {
+	methodName := method.Name.Value
+
+	// Task 7.64f: If method is marked override, validate parent has virtual method
+	if method.IsOverride {
+		if classType.Parent == nil {
+			a.addError("method '%s' marked as override, but class has no parent", methodName)
+			return
+		}
+
+		// Find method in parent class hierarchy
+		parentMethod := a.findMethodInParent(methodName, classType.Parent)
+		if parentMethod == nil {
+			a.addError("method '%s' marked as override, but no such method exists in parent class", methodName)
+			return
+		}
+
+		// Task 7.64g: Check that parent method is virtual or override
+		if !a.isMethodVirtualOrOverride(methodName, classType.Parent) {
+			a.addError("method '%s' marked as override, but parent method is not virtual", methodName)
+			return
+		}
+
+		// Task 7.64f: Ensure signatures match
+		if !a.methodSignaturesMatch(methodType, parentMethod) {
+			a.addError("method '%s' override signature does not match parent method signature", methodName)
+			return
+		}
+	}
+
+	// Task 7.64h: Warn if redefining virtual method without override keyword
+	if !method.IsOverride && !method.IsVirtual && classType.Parent != nil {
+		parentMethod := a.findMethodInParent(methodName, classType.Parent)
+		if parentMethod != nil && a.isMethodVirtualOrOverride(methodName, classType.Parent) {
+			a.addError("method '%s' hides virtual parent method; use 'override' keyword", methodName)
+		}
+	}
+}
+
+// findMethodInParent searches for a method in the parent class hierarchy
+func (a *Analyzer) findMethodInParent(methodName string, parent *types.ClassType) *types.FunctionType {
+	if parent == nil {
+		return nil
+	}
+
+	// Check if method exists in parent
+	if methodType, exists := parent.Methods[methodName]; exists {
+		return methodType
+	}
+
+	// Recursively search in grandparent
+	return a.findMethodInParent(methodName, parent.Parent)
+}
+
+// isMethodVirtualOrOverride checks if a method is marked virtual or override in class hierarchy
+func (a *Analyzer) isMethodVirtualOrOverride(methodName string, classType *types.ClassType) bool {
+	if classType == nil {
+		return false
+	}
+
+	// Check if method exists in this class
+	if _, exists := classType.Methods[methodName]; exists {
+		// Check if method is virtual or override
+		isVirtual := classType.VirtualMethods[methodName]
+		isOverride := classType.OverrideMethods[methodName]
+		return isVirtual || isOverride
+	}
+
+	// Recursively check parent
+	return a.isMethodVirtualOrOverride(methodName, classType.Parent)
+}
+
+// methodSignaturesMatch compares two function signatures
+func (a *Analyzer) methodSignaturesMatch(sig1, sig2 *types.FunctionType) bool {
+	// Check parameter count
+	if len(sig1.Parameters) != len(sig2.Parameters) {
+		return false
+	}
+
+	// Check parameter types
+	for i := range sig1.Parameters {
+		if !sig1.Parameters[i].Equals(sig2.Parameters[i]) {
+			return false
+		}
+	}
+
+	// Check return type
+	if !sig1.ReturnType.Equals(sig2.ReturnType) {
+		return false
+	}
+
+	return true
 }
 
 // addParentFieldsToScope recursively adds parent class fields to current scope

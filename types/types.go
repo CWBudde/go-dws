@@ -156,6 +156,8 @@ type ClassType struct {
 	Methods          map[string]*FunctionType // Method name -> function signature
 	FieldVisibility  map[string]int           // Field name -> visibility level (Task 7.63f) - stores ast.Visibility as int
 	MethodVisibility map[string]int           // Method name -> visibility level (Task 7.63f) - stores ast.Visibility as int
+	VirtualMethods   map[string]bool          // Method name -> is virtual (Task 7.64)
+	OverrideMethods  map[string]bool          // Method name -> is override (Task 7.64)
 }
 
 // String returns the string representation of the class type
@@ -236,7 +238,9 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		ClassVars:        make(map[string]Type),
 		Methods:          make(map[string]*FunctionType),
 		FieldVisibility:  make(map[string]int),  // Task 7.63f
-		MethodVisibility: make(map[string]int), // Task 7.63f
+		MethodVisibility: make(map[string]int),  // Task 7.63f
+		VirtualMethods:   make(map[string]bool), // Task 7.64
+		OverrideMethods:  make(map[string]bool), // Task 7.64
 	}
 }
 

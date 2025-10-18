@@ -36,6 +36,8 @@ func (p *Parameter) String() string {
 //	function Add(a: Integer, b: Integer): Integer; begin ... end;
 //	procedure Hello; begin ... end;
 //	class function GetCount: Integer; static; begin ... end;  // class method
+//	function DoWork(): Integer; virtual; begin ... end;  // virtual method (Task 7.64)
+//	function DoWork(): Integer; override; begin ... end;  // override method (Task 7.64)
 type FunctionDecl struct {
 	Token         lexer.Token     // The 'function' or 'procedure' token
 	Name          *Identifier     // The function name
@@ -44,6 +46,8 @@ type FunctionDecl struct {
 	Body          *BlockStatement // The function body
 	IsClassMethod bool            // True if this is a class method (static method) - Task 7.61
 	Visibility    Visibility      // Visibility: VisibilityPrivate, VisibilityProtected, or VisibilityPublic (Task 7.63a)
+	IsVirtual     bool            // True if this is a virtual method (Task 7.64a)
+	IsOverride    bool            // True if this overrides a parent virtual method (Task 7.64b)
 }
 
 func (fd *FunctionDecl) statementNode()       {}
@@ -77,6 +81,14 @@ func (fd *FunctionDecl) String() string {
 	if fd.ReturnType != nil {
 		out.WriteString(": ")
 		out.WriteString(fd.ReturnType.String())
+	}
+
+	// Write virtual/override directives (Task 7.64)
+	if fd.IsVirtual {
+		out.WriteString("; virtual")
+	}
+	if fd.IsOverride {
+		out.WriteString("; override")
 	}
 
 	// Write body

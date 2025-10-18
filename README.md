@@ -19,14 +19,6 @@ go-dws is a faithful implementation of the DWScript scripting language in Go, pr
 
 🚧 **Work in Progress** - This project is under active development.
 
-**Completed Stages**:
-
-- ✅ Stage 1: Lexer (100%)
-- ✅ Stage 2: Parser & Expressions (100%)
-- ✅ Stage 3: Interpreter & Basic Statements (100%)
-- ✅ Stage 4: Control Flow (100%)
-- ⚙️ Stage 5: Functions & Procedures (84.8% - Core features complete)
-
 **Current Capabilities**:
 
 - Variables and expressions

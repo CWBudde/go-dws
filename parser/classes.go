@@ -7,13 +7,14 @@ import (
 
 // parseClassDeclaration parses a class declaration with visibility sections.
 // Syntax: type ClassName = class(Parent)
-//           private
-//             field1: Type;
-//           protected
-//             field2: Type;
-//           public
-//             field3: Type;
-//         end;
+//
+//	  private
+//	    field1: Type;
+//	  protected
+//	    field2: Type;
+//	  public
+//	    field3: Type;
+//	end;
 func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	classDecl := &ast.ClassDecl{Token: p.curToken}
 
