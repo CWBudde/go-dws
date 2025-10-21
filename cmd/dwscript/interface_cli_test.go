@@ -31,7 +31,7 @@ func TestCLI_InterfaceScripts(t *testing.T) {
 	// Test a subset of simpler tests that should work with current implementation
 	simplePasFiles := []string{
 		"declare_interface.pas",
-		"declare_emtpy_interface.pas",
+		"declare_empty_interface.pas",
 		"interface_inheritance_declare.pas",
 		"interface_inheritance_declare_ex.pas",
 	}

@@ -1,0 +1,400 @@
+// Comprehensive Class Features Test
+// Tests basic OOP features: class declaration, fields, constructors, methods, properties
+
+begin
+PrintLn('=== Class Features Comprehensive Test ===');
+
+// Test 1: Simple class with public fields
+type TSimple = class
+public
+    X: Integer;
+    Y: Integer;
+end;
+
+var s: TSimple;
+s := TSimple.Create();
+s.X := 10;
+s.Y := 20;
+if (s.X = 10) and (s.Y = 20) then
+    PrintLn('Test 1: Simple class with public fields - PASS')
+else
+    PrintLn('Test 1: Simple class with public fields - FAIL');
+
+// Test 2: Class with constructor
+type TWithConstructor = class
+private
+    FValue: Integer;
+public
+    constructor Create(value: Integer);
+    function GetValue(): Integer;
+    begin
+        Result := FValue;
+    end;
+end;
+
+constructor TWithConstructor.Create(value: Integer);
+begin
+    FValue := value;
+end;
+
+var wc: TWithConstructor;
+wc := TWithConstructor.Create(42);
+if wc.GetValue() = 42 then
+    PrintLn('Test 2: Class with constructor - PASS')
+else
+    PrintLn('Test 2: Class with constructor - FAIL');
+
+// Test 3: Class with private/public fields
+type TVisibility = class
+private
+    FPrivate: Integer;
+public
+    PublicField: Integer;
+
+    procedure SetPrivate(value: Integer);
+    begin
+        FPrivate := value;
+    end;
+
+    function GetPrivate(): Integer;
+    begin
+        Result := FPrivate;
+    end;
+end;
+
+var v: TVisibility;
+v := TVisibility.Create();
+v.SetPrivate(100);
+v.PublicField := 200;
+if (v.GetPrivate() = 100) and (v.PublicField = 200) then
+    PrintLn('Test 3: Private/public field access - PASS')
+else
+    PrintLn('Test 3: Private/public field access - FAIL');
+
+// Test 4: Class with methods
+type TCalculator = class
+public
+    function Add(a, b: Integer): Integer;
+    begin
+        Result := a + b;
+    end;
+
+    function Multiply(a, b: Integer): Integer;
+    begin
+        Result := a * b;
+    end;
+end;
+
+var calc: TCalculator;
+calc := TCalculator.Create();
+if (calc.Add(5, 3) = 8) and (calc.Multiply(4, 5) = 20) then
+    PrintLn('Test 4: Methods with return values - PASS')
+else
+    PrintLn('Test 4: Methods with return values - FAIL');
+
+// Test 5: Class with multiple fields of different types
+type TPerson = class
+private
+    FName: String;
+    FAge: Integer;
+    FHeight: Float;
+public
+    constructor Create(name: String; age: Integer; height: Float);
+
+    function GetName(): String;
+    begin
+        Result := FName;
+    end;
+
+    function GetAge(): Integer;
+    begin
+        Result := FAge;
+    end;
+
+    function GetHeight(): Float;
+    begin
+        Result := FHeight;
+    end;
+end;
+
+constructor TPerson.Create(name: String; age: Integer; height: Float);
+begin
+    FName := name;
+    FAge := age;
+    FHeight := height;
+end;
+
+var p: TPerson;
+p := TPerson.Create('John', 30, 1.75);
+if (p.GetName() = 'John') and (p.GetAge() = 30) and (p.GetHeight() = 1.75) then
+    PrintLn('Test 5: Multiple field types - PASS')
+else
+    PrintLn('Test 5: Multiple field types - FAIL');
+
+// Test 6: Class with procedure (void method)
+type TPrinter = class
+private
+    FLastMessage: String;
+public
+    procedure PrintMessage(msg: String);
+    begin
+        FLastMessage := msg;
+    end;
+
+    function GetLastMessage(): String;
+    begin
+        Result := FLastMessage;
+    end;
+end;
+
+var pr: TPrinter;
+pr := TPrinter.Create();
+pr.PrintMessage('Hello');
+if pr.GetLastMessage() = 'Hello' then
+    PrintLn('Test 6: Procedure (void method) - PASS')
+else
+    PrintLn('Test 6: Procedure (void method) - FAIL');
+
+// Test 7: Class with Boolean fields
+type TFlag = class
+private
+    FEnabled: Boolean;
+public
+    procedure Enable();
+    begin
+        FEnabled := true;
+    end;
+
+    procedure Disable();
+    begin
+        FEnabled := false;
+    end;
+
+    function IsEnabled(): Boolean;
+    begin
+        Result := FEnabled;
+    end;
+end;
+
+var flag: TFlag;
+flag := TFlag.Create();
+flag.Enable();
+if flag.IsEnabled() then
+    PrintLn('Test 7: Boolean field manipulation - PASS')
+else
+    PrintLn('Test 7: Boolean field manipulation - FAIL');
+
+// Test 8: Class with protected fields
+type TProtected = class
+protected
+    FProtectedValue: Integer;
+public
+    procedure SetProtected(value: Integer);
+    begin
+        FProtectedValue := value;
+    end;
+
+    function GetProtected(): Integer;
+    begin
+        Result := FProtectedValue;
+    end;
+end;
+
+var prot: TProtected;
+prot := TProtected.Create();
+prot.SetProtected(777);
+if prot.GetProtected() = 777 then
+    PrintLn('Test 8: Protected field access - PASS')
+else
+    PrintLn('Test 8: Protected field access - FAIL');
+
+// Test 9: Multiple instances of same class
+type TCounter = class
+private
+    FCount: Integer;
+public
+    procedure Increment();
+    begin
+        FCount := FCount + 1;
+    end;
+
+    function GetCount(): Integer;
+    begin
+        Result := FCount;
+    end;
+end;
+
+var c1: TCounter;
+var c2: TCounter;
+c1 := TCounter.Create();
+c2 := TCounter.Create();
+c1.Increment();
+c1.Increment();
+c2.Increment();
+if (c1.GetCount() = 2) and (c2.GetCount() = 1) then
+    PrintLn('Test 9: Multiple independent instances - PASS')
+else
+    PrintLn('Test 9: Multiple independent instances - FAIL');
+
+// Test 10: Class with default field values
+type TDefault = class
+private
+    FValue: Integer;
+public
+    constructor Create(value: Integer);
+    begin
+        FValue := value;
+    end;
+
+    function GetValue(): Integer;
+    begin
+        Result := FValue;
+    end;
+end;
+
+var d1: TDefault;
+var d2: TDefault;
+d1 := TDefault.Create(0);
+d2 := TDefault.Create(99);
+if (d1.GetValue() = 0) and (d2.GetValue() = 99) then
+    PrintLn('Test 10: Constructor with parameters - PASS')
+else
+    PrintLn('Test 10: Constructor with parameters - FAIL');
+
+// Test 11: Class with string concatenation
+type TStringBuilder = class
+private
+    FText: String;
+public
+    procedure Append(text: String);
+    begin
+        FText := FText + text;
+    end;
+
+    function GetText(): String;
+    begin
+        Result := FText;
+    end;
+end;
+
+var sb: TStringBuilder;
+sb := TStringBuilder.Create();
+sb.Append('Hello');
+sb.Append(' ');
+sb.Append('World');
+if sb.GetText() = 'Hello World' then
+    PrintLn('Test 11: String field manipulation - PASS')
+else
+    PrintLn('Test 11: String field manipulation - FAIL');
+
+// Test 12: Nested method calls
+type TMath = class
+public
+    function Square(x: Integer): Integer;
+    begin
+        Result := x * x;
+    end;
+
+    function SumOfSquares(a, b: Integer): Integer;
+    begin
+        Result := Square(a) + Square(b);
+    end;
+end;
+
+var m: TMath;
+m := TMath.Create();
+if m.SumOfSquares(3, 4) = 25 then
+    PrintLn('Test 12: Nested method calls - PASS')
+else
+    PrintLn('Test 12: Nested method calls - FAIL');
+
+// Test 13: Class with conditional logic
+type TValidator = class
+public
+    function IsPositive(x: Integer): Boolean;
+    begin
+        if x > 0 then
+            Result := true
+        else
+            Result := false;
+    end;
+
+    function Validate(x: Integer): String;
+    begin
+        if IsPositive(x) then
+            Result := 'Valid'
+        else
+            Result := 'Invalid';
+    end;
+end;
+
+var val: TValidator;
+val := TValidator.Create();
+if (val.Validate(10) = 'Valid') and (val.Validate(-5) = 'Invalid') then
+    PrintLn('Test 13: Methods with conditional logic - PASS')
+else
+    PrintLn('Test 13: Methods with conditional logic - FAIL');
+
+// Test 14: Class field assignment from method result
+type TData = class
+private
+    FValue: Integer;
+public
+    function ComputeValue(): Integer;
+    begin
+        Result := 42;
+    end;
+
+    procedure StoreComputed();
+    begin
+        FValue := ComputeValue();
+    end;
+
+    function GetValue(): Integer;
+    begin
+        Result := FValue;
+    end;
+end;
+
+var data: TData;
+data := TData.Create();
+data.StoreComputed();
+if data.GetValue() = 42 then
+    PrintLn('Test 14: Field assignment from method - PASS')
+else
+    PrintLn('Test 14: Field assignment from method - FAIL');
+
+// Test 15: Class with multi-field declarations
+type TPoint = class
+private
+    FX: Integer;
+    FY: Integer;
+public
+    constructor Create(x: Integer; y: Integer);
+    begin
+        FX := x;
+        FY := y;
+    end;
+
+    function GetX(): Integer;
+    begin
+        Result := FX;
+    end;
+
+    function GetY(): Integer;
+    begin
+        Result := FY;
+    end;
+end;
+
+var pt1: TPoint;
+var pt2: TPoint;
+pt1 := TPoint.Create(0, 0);
+pt2 := TPoint.Create(5, 10);
+if (pt1.GetX() = 0) and (pt1.GetY() = 0) and (pt2.GetX() = 5) and (pt2.GetY() = 10) then
+    PrintLn('Test 15: Constructor with multiple params - PASS')
+else
+    PrintLn('Test 15: Constructor with multiple params - FAIL');
+
+PrintLn('=== All Class Features Tests Complete ===');
+end

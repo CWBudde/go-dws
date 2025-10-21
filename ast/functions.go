@@ -40,21 +40,21 @@ func (p *Parameter) String() string {
 //	function DoWork(): Integer; override; begin ... end;  // override method (Task 7.64)
 //	function GetArea(): Float; abstract;  // abstract method (Task 7.65c)
 type FunctionDecl struct {
-	Token        lexer.Token     // The 'function', 'procedure', 'constructor', or 'destructor' token
-	Name         *Identifier     // The function name
-	ClassName    *Identifier     // The class name (for method implementations: TExample.Method)
-	Parameters   []*Parameter    // The function parameters
-	ReturnType   *TypeAnnotation // The return type (nil for procedures/constructors/destructors)
-	Body         *BlockStatement // The function body (nil for abstract methods)
-	IsClassMethod bool           // True if this is a class method (static method) - Task 7.61
-	IsConstructor bool           // True if this is a constructor
-	IsDestructor bool           // True if this is a destructor
-	Visibility   Visibility     // Visibility: VisibilityPrivate, VisibilityProtected, or VisibilityPublic (Task 7.63a)
-	IsVirtual    bool           // True if this is a virtual method (Task 7.64a)
-	IsOverride   bool           // True if this overrides a parent virtual method (Task 7.64b)
-	IsAbstract   bool           // True if this is an abstract method (Task 7.65c)
-	IsExternal   bool           // True if this is an external method (Task 7.140)
-	ExternalName string         // External name for FFI binding (optional) - Task 7.140
+	Token         lexer.Token     // The 'function', 'procedure', 'constructor', or 'destructor' token
+	Name          *Identifier     // The function name
+	ClassName     *Identifier     // The class name (for method implementations: TExample.Method)
+	Parameters    []*Parameter    // The function parameters
+	ReturnType    *TypeAnnotation // The return type (nil for procedures/constructors/destructors)
+	Body          *BlockStatement // The function body (nil for abstract methods)
+	IsClassMethod bool            // True if this is a class method (static method) - Task 7.61
+	IsConstructor bool            // True if this is a constructor
+	IsDestructor  bool            // True if this is a destructor
+	Visibility    Visibility      // Visibility: VisibilityPrivate, VisibilityProtected, or VisibilityPublic (Task 7.63a)
+	IsVirtual     bool            // True if this is a virtual method (Task 7.64a)
+	IsOverride    bool            // True if this overrides a parent virtual method (Task 7.64b)
+	IsAbstract    bool            // True if this is an abstract method (Task 7.65c)
+	IsExternal    bool            // True if this is an external method (Task 7.140)
+	ExternalName  string          // External name for FFI binding (optional) - Task 7.140
 }
 
 func (fd *FunctionDecl) statementNode()       {}
