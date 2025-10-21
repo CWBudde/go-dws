@@ -211,3 +211,71 @@ func NewRecordType(name string, fields map[string]Type) *RecordType {
 		Fields: fields,
 	}
 }
+
+// ============================================================================
+// EnumType (Task 8.30)
+// ============================================================================
+
+// EnumType represents an enumerated type.
+// Enums are ordinal types with named constant values.
+// Examples:
+//
+//	type TColor = (Red, Green, Blue);
+//	type TEnum = (One = 1, Two = 5);
+type EnumType struct {
+	Name         string         // Enum type name (e.g., "TColor")
+	Values       map[string]int // Value name -> ordinal value mapping (forward lookup)
+	OrderedNames []string       // Ordered list of value names for reverse lookup
+}
+
+// String returns a string representation of the enum type
+func (et *EnumType) String() string {
+	return et.Name
+}
+
+// TypeKind returns "ENUM" for enum types
+func (et *EnumType) TypeKind() string {
+	return "ENUM"
+}
+
+// Equals checks if two enum types are equal.
+// Two enum types are equal if they have the same name (nominal typing).
+func (et *EnumType) Equals(other Type) bool {
+	otherEnum, ok := other.(*EnumType)
+	if !ok {
+		return false
+	}
+	return et.Name == otherEnum.Name
+}
+
+// GetEnumValue returns the ordinal value for a given enum value name.
+// Returns -1 if the name is not found.
+func (et *EnumType) GetEnumValue(name string) int {
+	if val, ok := et.Values[name]; ok {
+		return val
+	}
+	return -1
+}
+
+// GetEnumName returns the enum value name for a given ordinal value.
+// Returns empty string if the value is not found.
+func (et *EnumType) GetEnumName(value int) string {
+	// Use OrderedNames for reverse lookup
+	for _, name := range et.OrderedNames {
+		if et.Values[name] == value {
+			return name
+		}
+	}
+	return ""
+}
+
+// NewEnumType creates a new enum type with the given name and values.
+// Values should be a map of value names to their ordinal values.
+// OrderedNames should list the value names in declaration order.
+func NewEnumType(name string, values map[string]int, orderedNames []string) *EnumType {
+	return &EnumType{
+		Name:         name,
+		Values:       values,
+		OrderedNames: orderedNames,
+	}
+}
