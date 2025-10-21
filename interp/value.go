@@ -291,3 +291,143 @@ func GoBool(v Value) (bool, error) {
 	}
 	return false, fmt.Errorf("value is not a boolean: %s", v.Type())
 }
+
+// ============================================================================
+// SetValue - Runtime representation for set types (Task 8.105)
+// ============================================================================
+
+// SetValue represents a set value in DWScript.
+// Sets are based on enum types and use bitset representation for efficiency.
+// For small enums (≤64 values), we use uint64 as a bitset.
+// For large enums (>64 values), we would use map[int]bool (not yet implemented).
+type SetValue struct {
+	SetType  *types.SetType // The set type metadata
+	Elements uint64         // Bitset for small enums (each bit = one enum value)
+}
+
+// Type returns "SET".
+func (s *SetValue) Type() string {
+	return "SET"
+}
+
+// String returns the string representation of the set.
+// Format: [element1, element2, ...] or [] for empty set
+func (s *SetValue) String() string {
+	if s.Elements == 0 {
+		return "[]"
+	}
+
+	var elements []string
+
+	// Iterate through all possible enum values
+	if s.SetType != nil && s.SetType.ElementType != nil {
+		for _, name := range s.SetType.ElementType.OrderedNames {
+			ordinal := s.SetType.ElementType.Values[name]
+			if s.HasElement(ordinal) {
+				elements = append(elements, name)
+			}
+		}
+	}
+
+	if len(elements) == 0 {
+		return "[]"
+	}
+
+	return "[" + strings.Join(elements, ", ") + "]"
+}
+
+// HasElement checks if an element with the given ordinal value is in the set.
+func (s *SetValue) HasElement(ordinal int) bool {
+	if ordinal < 0 || ordinal >= 64 {
+		return false // Out of range for bitset
+	}
+	mask := uint64(1) << uint(ordinal)
+	return (s.Elements & mask) != 0
+}
+
+// AddElement adds an element with the given ordinal value to the set.
+// This mutates the set in place (used for Include).
+func (s *SetValue) AddElement(ordinal int) {
+	if ordinal < 0 || ordinal >= 64 {
+		return // Out of range for bitset
+	}
+	mask := uint64(1) << uint(ordinal)
+	s.Elements |= mask
+}
+
+// RemoveElement removes an element with the given ordinal value from the set.
+// This mutates the set in place (used for Exclude).
+func (s *SetValue) RemoveElement(ordinal int) {
+	if ordinal < 0 || ordinal >= 64 {
+		return // Out of range for bitset
+	}
+	mask := uint64(1) << uint(ordinal)
+	s.Elements &^= mask // AND NOT to clear the bit
+}
+
+// NewSetValue creates a new empty SetValue with the given set type.
+func NewSetValue(setType *types.SetType) *SetValue {
+	return &SetValue{
+		SetType:  setType,
+		Elements: 0,
+	}
+}
+
+// ============================================================================
+// ArrayValue - Runtime representation for array types (Task 8.128)
+// ============================================================================
+
+// ArrayValue represents an array value in DWScript.
+// DWScript supports both static arrays (with fixed bounds) and dynamic arrays (resizable).
+// Examples:
+//   - Static: array[1..10] of Integer
+//   - Dynamic: array of String
+type ArrayValue struct {
+	ArrayType *types.ArrayType // The array type metadata
+	Elements  []Value          // The runtime elements (slice)
+}
+
+// Type returns "ARRAY".
+func (a *ArrayValue) Type() string {
+	return "ARRAY"
+}
+
+// String returns the string representation of the array.
+// Format: [element1, element2, ...] or [] for empty array
+func (a *ArrayValue) String() string {
+	if len(a.Elements) == 0 {
+		return "[]"
+	}
+
+	var elements []string
+	for _, elem := range a.Elements {
+		if elem != nil {
+			elements = append(elements, elem.String())
+		} else {
+			elements = append(elements, "nil")
+		}
+	}
+
+	return "[" + strings.Join(elements, ", ") + "]"
+}
+
+// NewArrayValue creates a new ArrayValue with the given array type.
+// For static arrays, pre-allocates elements (initialized to nil).
+// For dynamic arrays, creates an empty array.
+func NewArrayValue(arrayType *types.ArrayType) *ArrayValue {
+	var elements []Value
+
+	if arrayType.IsStatic() {
+		// Static array: pre-allocate with size
+		size := arrayType.Size()
+		elements = make([]Value, size)
+	} else {
+		// Dynamic array: start empty
+		elements = make([]Value, 0)
+	}
+
+	return &ArrayValue{
+		ArrayType: arrayType,
+		Elements:  elements,
+	}
+}

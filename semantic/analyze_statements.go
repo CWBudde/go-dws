@@ -48,6 +48,10 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeEnumDecl(s)
 	case *ast.RecordDecl:
 		a.analyzeRecordDecl(s)
+	case *ast.SetDecl:
+		a.analyzeSetDecl(s)
+	case *ast.ArrayDecl:
+		a.analyzeArrayDecl(s)
 	default:
 		// Unknown statement type - this shouldn't happen
 		a.addError("unknown statement type: %T", stmt)
@@ -90,6 +94,13 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 				// Error already reported by analyzeRecordLiteral
 				return
 			}
+		} else if setLit, ok := stmt.Value.(*ast.SetLiteral); ok {
+			// Special handling for set literals - they need the expected type
+			initType = a.analyzeSetLiteralWithContext(setLit, varType)
+			if initType == nil {
+				// Error already reported by analyzeSetLiteralWithContext
+				return
+			}
 		} else {
 			initType = a.analyzeExpression(stmt.Value)
 			if initType == nil {
@@ -124,24 +135,59 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 
 // analyzeAssignment analyzes an assignment statement
 func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
-	// Look up the variable
-	sym, ok := a.symbols.Resolve(stmt.Name.Value)
-	if !ok {
-		a.addError("undefined variable '%s' at %s", stmt.Name.Value, stmt.Token.Pos.String())
-		return
-	}
-
-	// Check the type of the value being assigned
+	// Check the type of the value being assigned first
 	valueType := a.analyzeExpression(stmt.Value)
 	if valueType == nil {
 		// Error already reported
 		return
 	}
 
-	// Check type compatibility
-	if !a.canAssign(valueType, sym.Type) {
-		a.addError("cannot assign %s to %s at %s",
-			valueType.String(), sym.Type.String(), stmt.Token.Pos.String())
+	// Handle different target types
+	switch target := stmt.Target.(type) {
+	case *ast.Identifier:
+		// Simple variable assignment: x := value
+		sym, ok := a.symbols.Resolve(target.Value)
+		if !ok {
+			a.addError("undefined variable '%s' at %s", target.Value, stmt.Token.Pos.String())
+			return
+		}
+
+		// Check type compatibility
+		if !a.canAssign(valueType, sym.Type) {
+			a.addError("cannot assign %s to %s at %s",
+				valueType.String(), sym.Type.String(), stmt.Token.Pos.String())
+		}
+
+	case *ast.MemberAccessExpression:
+		// Member assignment: obj.field := value
+		// Analyze the target to ensure it's valid
+		targetType := a.analyzeExpression(target)
+		if targetType == nil {
+			return
+		}
+
+		// Check type compatibility
+		if !a.canAssign(valueType, targetType) {
+			a.addError("cannot assign %s to %s at %s",
+				valueType.String(), targetType.String(), stmt.Token.Pos.String())
+		}
+
+	case *ast.IndexExpression:
+		// Array index assignment: arr[i] := value
+		// Analyze the target to ensure it's valid
+		targetType := a.analyzeExpression(target)
+		if targetType == nil {
+			return
+		}
+
+		// Check type compatibility
+		if !a.canAssign(valueType, targetType) {
+			a.addError("cannot assign %s to %s at %s",
+				valueType.String(), targetType.String(), stmt.Token.Pos.String())
+		}
+
+	default:
+		a.addError("invalid assignment target at %s", stmt.Token.Pos.String())
 	}
 }
 

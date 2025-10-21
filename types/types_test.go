@@ -1418,6 +1418,149 @@ func TestImplementsInterface(t *testing.T) {
 }
 
 // ============================================================================
+// SetType Tests (Task 8.81-8.84)
+// ============================================================================
+
+func TestSetType(t *testing.T) {
+	// Create enum type for testing
+	colorEnum := &EnumType{
+		Name:         "TColor",
+		Values:       map[string]int{"Red": 0, "Green": 1, "Blue": 2},
+		OrderedNames: []string{"Red", "Green", "Blue"},
+	}
+
+	t.Run("Create basic set type", func(t *testing.T) {
+		// Task 8.81: Create SetType with NewSetType factory
+		setType := NewSetType(colorEnum)
+
+		// Test String() method - should be "set of TColor"
+		expected := "set of TColor"
+		if setType.String() != expected {
+			t.Errorf("String() = %v, want %v", setType.String(), expected)
+		}
+
+		// Test TypeKind() method
+		if setType.TypeKind() != "SET" {
+			t.Errorf("TypeKind() = %v, want SET", setType.TypeKind())
+		}
+
+		// Test ElementType field
+		if setType.ElementType != colorEnum {
+			t.Error("ElementType should match the provided enum type")
+		}
+	})
+
+	t.Run("Set type equality", func(t *testing.T) {
+		// Task 8.81: Test Equals() method
+		enum1 := &EnumType{
+			Name:         "TColor",
+			Values:       map[string]int{"Red": 0, "Green": 1, "Blue": 2},
+			OrderedNames: []string{"Red", "Green", "Blue"},
+		}
+		enum2 := &EnumType{
+			Name:         "TSize",
+			Values:       map[string]int{"Small": 0, "Medium": 1, "Large": 2},
+			OrderedNames: []string{"Small", "Medium", "Large"},
+		}
+
+		set1 := NewSetType(enum1)
+		set2 := NewSetType(enum1)
+		set3 := NewSetType(enum2)
+
+		// Same element type sets should be equal
+		if !set1.Equals(set2) {
+			t.Error("Sets with same element type should be equal")
+		}
+
+		// Different element type sets should not be equal
+		if set1.Equals(set3) {
+			t.Error("Sets with different element types should not be equal")
+		}
+
+		// Set should not equal other types
+		if set1.Equals(INTEGER) {
+			t.Error("SetType should not equal INTEGER")
+		}
+
+		// Set should not equal enum type
+		if set1.Equals(enum1) {
+			t.Error("SetType should not equal EnumType")
+		}
+	})
+
+	t.Run("Set type with nil element type", func(t *testing.T) {
+		// Task 8.83: Validation - ensure nil enum type is handled
+		// For now, we allow it to be created (validation will be added in semantic analysis)
+		setType := NewSetType(nil)
+		if setType == nil {
+			t.Error("NewSetType should not return nil even with nil element type")
+		}
+		if setType.ElementType != nil {
+			t.Error("ElementType should be nil when created with nil")
+		}
+	})
+
+	t.Run("Set type with different enum instances", func(t *testing.T) {
+		// Even if values are same, different enum instances should work
+		enum1 := &EnumType{
+			Name:         "TColor",
+			Values:       map[string]int{"Red": 0},
+			OrderedNames: []string{"Red"},
+		}
+		enum2 := &EnumType{
+			Name:         "TColor",
+			Values:       map[string]int{"Red": 0},
+			OrderedNames: []string{"Red"},
+		}
+
+		set1 := NewSetType(enum1)
+		set2 := NewSetType(enum2)
+
+		// Sets should be equal because enums have same name (nominal typing)
+		if !set1.Equals(set2) {
+			t.Error("Sets with same-named enums should be equal")
+		}
+	})
+
+	t.Run("Set type string representation", func(t *testing.T) {
+		// Test various enum types to ensure String() works correctly
+		tests := []struct {
+			name     string
+			enum     *EnumType
+			expected string
+		}{
+			{
+				name: "simple enum",
+				enum: &EnumType{
+					Name:         "TStatus",
+					Values:       map[string]int{"Ok": 0, "Error": 1},
+					OrderedNames: []string{"Ok", "Error"},
+				},
+				expected: "set of TStatus",
+			},
+			{
+				name: "weekday enum",
+				enum: &EnumType{
+					Name:         "TWeekday",
+					Values:       map[string]int{"Mon": 0, "Tue": 1, "Wed": 2},
+					OrderedNames: []string{"Mon", "Tue", "Wed"},
+				},
+				expected: "set of TWeekday",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				setType := NewSetType(tt.enum)
+				if setType.String() != tt.expected {
+					t.Errorf("String() = %v, want %v", setType.String(), tt.expected)
+				}
+			})
+		}
+	})
+}
+
+// ============================================================================
 // Type Checking Utility Tests
 // ============================================================================
 

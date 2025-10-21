@@ -214,6 +214,31 @@ func (ge *GroupedExpression) String() string {
 func (ge *GroupedExpression) GetType() *TypeAnnotation    { return ge.Type }
 func (ge *GroupedExpression) SetType(typ *TypeAnnotation) { ge.Type = typ }
 
+// RangeExpression represents a range expression (e.g., A..C in set literals).
+// Used primarily in set literals to specify a range of enum values.
+// Example: [A..C] or [one..five]
+type RangeExpression struct {
+	Token lexer.Token     // The '..' token
+	Start Expression      // The start of the range
+	End   Expression      // The end of the range
+	Type  *TypeAnnotation // The type (determined by semantic analyzer)
+}
+
+func (re *RangeExpression) expressionNode()      {}
+func (re *RangeExpression) TokenLiteral() string { return re.Token.Literal }
+func (re *RangeExpression) Pos() lexer.Position  { return re.Token.Pos }
+func (re *RangeExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(re.Start.String())
+	out.WriteString("..")
+	out.WriteString(re.End.String())
+
+	return out.String()
+}
+func (re *RangeExpression) GetType() *TypeAnnotation    { return re.Type }
+func (re *RangeExpression) SetType(typ *TypeAnnotation) { re.Type = typ }
+
 // ExpressionStatement represents a statement that consists of a single expression.
 // This is used when an expression appears in a statement context.
 type ExpressionStatement struct {

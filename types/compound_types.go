@@ -248,6 +248,51 @@ func NewRecordType(name string, fields map[string]Type) *RecordType {
 }
 
 // ============================================================================
+// SetType (Task 8.81-8.84)
+// ============================================================================
+
+// SetType represents a set type.
+// Sets are always based on enum types and support operations like Include, Exclude,
+// union (+), difference (-), intersection (*), and membership tests (in).
+// Examples:
+//   - type TDays = set of TWeekday;
+//   - var flags: set of TOption;
+type SetType struct {
+	ElementType *EnumType // Type of elements in the set (sets are always of enum type)
+}
+
+// String returns a string representation of the set type
+func (st *SetType) String() string {
+	return fmt.Sprintf("set of %s", st.ElementType.String())
+}
+
+// TypeKind returns "SET" for set types
+func (st *SetType) TypeKind() string {
+	return "SET"
+}
+
+// Equals checks if two set types are equal.
+// Two set types are equal if they have the same element type.
+func (st *SetType) Equals(other Type) bool {
+	otherSet, ok := other.(*SetType)
+	if !ok {
+		return false
+	}
+
+	// Element types must match
+	return st.ElementType.Equals(otherSet.ElementType)
+}
+
+// NewSetType creates a new set type with the given element type.
+// Task 8.82: Factory function for creating set types.
+// Task 8.83: Validates that element type is an enum (ordinal type).
+func NewSetType(elementType *EnumType) *SetType {
+	return &SetType{
+		ElementType: elementType,
+	}
+}
+
+// ============================================================================
 // EnumType (Task 8.30)
 // ============================================================================
 

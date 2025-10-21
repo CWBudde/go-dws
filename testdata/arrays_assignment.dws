@@ -1,0 +1,258 @@
+// arrays_assignment.dws - Comprehensive array assignment examples
+// Tests array index assignment feature (Tasks 8.137-8.141)
+
+// ============================================================================
+// Example 1: Basic Static Array Assignment
+// ============================================================================
+
+type TNumbers = array[1..5] of Integer;
+var numbers: TNumbers;
+var i: Integer;
+
+begin
+	PrintLn('Example 1: Basic Static Array Assignment');
+	PrintLn('==========================================');
+
+	// Assign values to array elements
+	numbers[1] := 10;
+	numbers[2] := 20;
+	numbers[3] := 30;
+	numbers[4] := 40;
+	numbers[5] := 50;
+
+	// Print array contents
+	for i := 1 to 5 do
+		PrintLn('numbers[' + IntToStr(i) + '] = ' + IntToStr(numbers[i]));
+
+	PrintLn('');
+end
+
+// ============================================================================
+// Example 2: Array Assignment in Loops
+// ============================================================================
+
+type TSquares = array[0..9] of Integer;
+var squares: TSquares;
+var sum: Integer;
+
+begin
+	PrintLn('Example 2: Array Assignment in Loops');
+	PrintLn('=====================================');
+
+	// Fill array with squares using a loop
+	for i := 0 to 9 do
+		squares[i] := i * i;
+
+	// Calculate sum
+	sum := 0;
+	for i := 0 to 9 do
+		sum := sum + squares[i];
+
+	PrintLn('Squares from 0 to 9:');
+	for i := 0 to 9 do
+		PrintLn('  ' + IntToStr(i) + '^2 = ' + IntToStr(squares[i]));
+
+	PrintLn('Sum of squares: ' + IntToStr(sum));
+	PrintLn('');
+end
+
+// ============================================================================
+// Example 3: Assignment with Expression Indices
+// ============================================================================
+
+type TData = array[1..10] of Integer;
+var data: TData;
+var idx: Integer;
+
+begin
+	PrintLn('Example 3: Assignment with Expression Indices');
+	PrintLn('=============================================');
+
+	// Use arithmetic expressions as indices
+	idx := 3;
+	data[idx] := 100;
+	data[idx + 1] := 200;
+	data[idx * 2] := 300;
+
+	PrintLn('data[3] = ' + IntToStr(data[3]));
+	PrintLn('data[4] = ' + IntToStr(data[4]));
+	PrintLn('data[6] = ' + IntToStr(data[6]));
+	PrintLn('');
+end
+
+// ============================================================================
+// Example 4: Assignment with Function Results
+// ============================================================================
+
+type TResults = array[1..5] of Integer;
+var results: TResults;
+
+function Double(x: Integer): Integer;
+begin
+	Result := x * 2;
+end;
+
+function Triple(x: Integer): Integer;
+begin
+	Result := x * 3;
+end;
+
+begin
+	PrintLn('Example 4: Assignment with Function Results');
+	PrintLn('===========================================');
+
+	// Assign function results to array
+	results[1] := Double(5);
+	results[2] := Triple(7);
+	results[3] := Double(results[1]);
+	results[4] := results[1] + results[2];
+	results[5] := Double(results[4]);
+
+	for i := 1 to 5 do
+		PrintLn('results[' + IntToStr(i) + '] = ' + IntToStr(results[i]));
+
+	PrintLn('');
+end
+
+// ============================================================================
+// Example 5: Chain Assignments Using Array Elements
+// ============================================================================
+
+type TChain = array[1..5] of Integer;
+var chain: TChain;
+
+begin
+	PrintLn('Example 5: Chain Assignments');
+	PrintLn('============================');
+
+	// Each element depends on previous ones
+	chain[1] := 1;
+	chain[2] := chain[1] + 1;
+	chain[3] := chain[1] + chain[2];
+	chain[4] := chain[2] + chain[3];
+	chain[5] := chain[3] + chain[4];
+
+	PrintLn('Fibonacci-like sequence:');
+	for i := 1 to 5 do
+		PrintLn('  chain[' + IntToStr(i) + '] = ' + IntToStr(chain[i]));
+
+	PrintLn('');
+end
+
+// ============================================================================
+// Example 6: Reassigning Array Elements
+// ============================================================================
+
+type TCounter = array[1..3] of Integer;
+var counter: TCounter;
+
+begin
+	PrintLn('Example 6: Reassigning Array Elements');
+	PrintLn('=====================================');
+
+	// Initialize
+	counter[1] := 0;
+	counter[2] := 0;
+	counter[3] := 0;
+
+	// Increment in a loop
+	for i := 1 to 10 do begin
+		counter[1] := counter[1] + 1;
+		counter[2] := counter[2] + 2;
+		counter[3] := counter[3] + 3;
+	end;
+
+	PrintLn('After 10 iterations:');
+	PrintLn('  counter[1] = ' + IntToStr(counter[1]));
+	PrintLn('  counter[2] = ' + IntToStr(counter[2]));
+	PrintLn('  counter[3] = ' + IntToStr(counter[3]));
+	PrintLn('');
+end
+
+// ============================================================================
+// Example 7: String Array Assignment
+// ============================================================================
+
+type TNames = array[1..3] of String;
+var names: TNames;
+
+begin
+	PrintLn('Example 7: String Array Assignment');
+	PrintLn('==================================');
+
+	names[1] := 'Alice';
+	names[2] := 'Bob';
+	names[3] := 'Charlie';
+
+	PrintLn('Names:');
+	for i := 1 to 3 do
+		PrintLn('  ' + IntToStr(i) + ': ' + names[i]);
+
+	// Modify a name
+	names[2] := 'Bobby';
+	PrintLn('After modifying names[2]:');
+	PrintLn('  2: ' + names[2]);
+
+	PrintLn('');
+end
+
+// ============================================================================
+// Example 8: Array with Different Index Ranges
+// ============================================================================
+
+type TOffsetArray = array[10..14] of Integer;
+var offset: TOffsetArray;
+
+begin
+	PrintLn('Example 8: Array with Custom Index Range');
+	PrintLn('========================================');
+
+	offset[10] := 100;
+	offset[11] := 110;
+	offset[12] := 120;
+	offset[13] := 130;
+	offset[14] := 140;
+
+	PrintLn('Custom range array [10..14]:');
+	for i := 10 to 14 do
+		PrintLn('  offset[' + IntToStr(i) + '] = ' + IntToStr(offset[i]));
+
+	PrintLn('');
+end
+
+// ============================================================================
+// Example 9: Conditional Assignment
+// ============================================================================
+
+type TMarkers = array[1..5] of Integer;
+var markers: TMarkers;
+var value: Integer;
+
+begin
+	PrintLn('Example 9: Conditional Assignment');
+	PrintLn('=================================');
+
+	// Assign based on conditions
+	for i := 1 to 5 do begin
+		if i mod 2 = 0 then
+			markers[i] := 1
+		else
+			markers[i] := 0;
+	end;
+
+	PrintLn('Even indices get 1, odd get 0:');
+	for i := 1 to 5 do
+		PrintLn('  markers[' + IntToStr(i) + '] = ' + IntToStr(markers[i]));
+
+	PrintLn('');
+end
+
+// ============================================================================
+// Example 10: Summary
+// ============================================================================
+
+begin
+	PrintLn('===========================================');
+	PrintLn('All Array Assignment Examples Completed!');
+	PrintLn('===========================================');
+end
