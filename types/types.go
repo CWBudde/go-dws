@@ -127,10 +127,10 @@ func IsNumericType(t Type) bool {
 }
 
 // IsOrdinalType checks if a type is an ordinal type (used for loop variables)
-// In DWScript, ordinal types are Integer, Boolean, and enumerations
+// In DWScript, ordinal types are Integer, Boolean, and enumerations (Task 8.31)
 func IsOrdinalType(t Type) bool {
 	kind := t.TypeKind()
-	return kind == "INTEGER" || kind == "BOOLEAN"
+	return kind == "INTEGER" || kind == "BOOLEAN" || kind == "ENUM"
 }
 
 // TypeFromString converts a type name string to a Type

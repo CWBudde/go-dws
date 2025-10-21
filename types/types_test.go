@@ -1936,3 +1936,144 @@ func TestExternalClassFields(t *testing.T) {
 		}
 	})
 }
+
+// ============================================================================
+// EnumType Tests (Task 8.30-8.32)
+// ============================================================================
+
+func TestEnumType(t *testing.T) {
+	t.Run("Create basic enum", func(t *testing.T) {
+		// Create a simple color enum: type TColor = (Red, Green, Blue);
+		colorEnum := &EnumType{
+			Name:         "TColor",
+			Values:       map[string]int{"Red": 0, "Green": 1, "Blue": 2},
+			OrderedNames: []string{"Red", "Green", "Blue"},
+		}
+
+		// Test String() method
+		if colorEnum.String() != "TColor" {
+			t.Errorf("String() = %v, want TColor", colorEnum.String())
+		}
+
+		// Test TypeKind() method
+		if colorEnum.TypeKind() != "ENUM" {
+			t.Errorf("TypeKind() = %v, want ENUM", colorEnum.TypeKind())
+		}
+	})
+
+	t.Run("GetEnumValue lookup", func(t *testing.T) {
+		colorEnum := &EnumType{
+			Name:         "TColor",
+			Values:       map[string]int{"Red": 0, "Green": 1, "Blue": 2},
+			OrderedNames: []string{"Red", "Green", "Blue"},
+		}
+
+		// Test forward lookup (name -> value)
+		if val := colorEnum.GetEnumValue("Red"); val != 0 {
+			t.Errorf("GetEnumValue('Red') = %v, want 0", val)
+		}
+		if val := colorEnum.GetEnumValue("Green"); val != 1 {
+			t.Errorf("GetEnumValue('Green') = %v, want 1", val)
+		}
+		if val := colorEnum.GetEnumValue("Blue"); val != 2 {
+			t.Errorf("GetEnumValue('Blue') = %v, want 2", val)
+		}
+
+		// Test invalid name (should return -1)
+		if val := colorEnum.GetEnumValue("Yellow"); val != -1 {
+			t.Errorf("GetEnumValue('Yellow') = %v, want -1", val)
+		}
+	})
+
+	t.Run("GetEnumName reverse lookup", func(t *testing.T) {
+		colorEnum := &EnumType{
+			Name:         "TColor",
+			Values:       map[string]int{"Red": 0, "Green": 1, "Blue": 2},
+			OrderedNames: []string{"Red", "Green", "Blue"},
+		}
+
+		// Test reverse lookup (value -> name)
+		if name := colorEnum.GetEnumName(0); name != "Red" {
+			t.Errorf("GetEnumName(0) = %v, want Red", name)
+		}
+		if name := colorEnum.GetEnumName(1); name != "Green" {
+			t.Errorf("GetEnumName(1) = %v, want Green", name)
+		}
+		if name := colorEnum.GetEnumName(2); name != "Blue" {
+			t.Errorf("GetEnumName(2) = %v, want Blue", name)
+		}
+
+		// Test invalid value
+		if name := colorEnum.GetEnumName(99); name != "" {
+			t.Errorf("GetEnumName(99) = %v, want empty string", name)
+		}
+	})
+
+	t.Run("Enum with explicit values", func(t *testing.T) {
+		// type TEnum = (One = 1, Two = 5, Three = 10);
+		explicitEnum := &EnumType{
+			Name:         "TEnum",
+			Values:       map[string]int{"One": 1, "Two": 5, "Three": 10},
+			OrderedNames: []string{"One", "Two", "Three"},
+		}
+
+		if val := explicitEnum.GetEnumValue("One"); val != 1 {
+			t.Errorf("GetEnumValue('One') = %v, want 1", val)
+		}
+		if val := explicitEnum.GetEnumValue("Two"); val != 5 {
+			t.Errorf("GetEnumValue('Two') = %v, want 5", val)
+		}
+		if val := explicitEnum.GetEnumValue("Three"); val != 10 {
+			t.Errorf("GetEnumValue('Three') = %v, want 10", val)
+		}
+
+		if name := explicitEnum.GetEnumName(5); name != "Two" {
+			t.Errorf("GetEnumName(5) = %v, want Two", name)
+		}
+	})
+
+	t.Run("Enum equality", func(t *testing.T) {
+		enum1 := &EnumType{
+			Name:         "TColor",
+			Values:       map[string]int{"Red": 0, "Green": 1, "Blue": 2},
+			OrderedNames: []string{"Red", "Green", "Blue"},
+		}
+		enum2 := &EnumType{
+			Name:         "TColor",
+			Values:       map[string]int{"Red": 0, "Green": 1, "Blue": 2},
+			OrderedNames: []string{"Red", "Green", "Blue"},
+		}
+		enum3 := &EnumType{
+			Name:         "TSize",
+			Values:       map[string]int{"Small": 0, "Medium": 1, "Large": 2},
+			OrderedNames: []string{"Small", "Medium", "Large"},
+		}
+
+		// Same name enums should be equal (nominal typing)
+		if !enum1.Equals(enum2) {
+			t.Error("Enums with same name should be equal")
+		}
+
+		// Different name enums should not be equal
+		if enum1.Equals(enum3) {
+			t.Error("Enums with different names should not be equal")
+		}
+
+		// Enum should not equal other types
+		if enum1.Equals(INTEGER) {
+			t.Error("EnumType should not equal INTEGER")
+		}
+	})
+
+	t.Run("IsOrdinalType with Enum", func(t *testing.T) {
+		// Task 8.31: Test that enums are ordinal types
+		colorEnum := &EnumType{
+			Name:         "TColor",
+			Values:       map[string]int{"Red": 0, "Green": 1, "Blue": 2},
+			OrderedNames: []string{"Red", "Green", "Blue"},
+		}
+		if !IsOrdinalType(colorEnum) {
+			t.Error("EnumType should be ordinal")
+		}
+	})
+}

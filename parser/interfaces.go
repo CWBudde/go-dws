@@ -5,14 +5,17 @@ import (
 	"github.com/cwbudde/go-dws/lexer"
 )
 
-// parseTypeDeclaration determines whether this is a class or interface declaration
+// parseTypeDeclaration determines whether this is a class, interface, or enum declaration
 // and dispatches to the appropriate parser.
-// Syntax: type Name = class... OR type Name = interface...
+// Syntax: type Name = class... OR type Name = interface... OR type Name = (...)
 //
 // Task 7.85: Dispatcher for type declarations
+// Task 8.38: Added enum support
 func (p *Parser) parseTypeDeclaration() ast.Statement {
 	// Current token is TYPE
-	// Pattern: TYPE IDENT EQ (CLASS|INTERFACE)
+	// Pattern: TYPE IDENT EQ (CLASS|INTERFACE|LPAREN|ENUM)
+
+	typeToken := p.curToken // Save the TYPE token
 
 	// Advance and peek to see what type declaration this is
 	if !p.expectPeek(lexer.IDENT) {
@@ -24,17 +27,24 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 		return nil
 	}
 
-	// Now peek to see if it's CLASS or INTERFACE
+	// Now peek to see what kind of type declaration this is
 	if p.peekTokenIs(lexer.INTERFACE) {
 		p.nextToken() // move to INTERFACE
 		return p.parseInterfaceDeclarationBody(nameIdent)
 	} else if p.peekTokenIs(lexer.CLASS) {
 		p.nextToken() // move to CLASS
 		return p.parseClassDeclarationBody(nameIdent)
+	} else if p.peekTokenIs(lexer.LPAREN) {
+		// Enum declaration: type TColor = (Red, Green, Blue);
+		return p.parseEnumDeclaration(nameIdent, typeToken)
+	} else if p.peekTokenIs(lexer.ENUM) {
+		// Scoped enum: type TEnum = enum (One, Two);
+		p.nextToken() // move to ENUM
+		return p.parseEnumDeclaration(nameIdent, typeToken)
 	}
 
 	// Unknown type declaration
-	p.addError("expected 'class' or 'interface' after '=' in type declaration")
+	p.addError("expected 'class', 'interface', 'enum', or '(' after '=' in type declaration")
 	return nil
 }
 

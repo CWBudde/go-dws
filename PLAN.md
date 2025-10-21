@@ -1591,36 +1591,36 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Note**: Enums must be implemented before Sets since sets depend on enum types.
 
-#### Type System (3 tasks)
+#### Type System (3 tasks) ✅ COMPLETE
 
-- [ ] 8.30 Define `EnumType` struct in `types/compound_types.go`
-  - [ ] 8.30a Fields: Name, Values (map[string]int), reverse lookup (map[int]string)
-  - [ ] 8.30b Implement `String()`, `TypeKind()`, `Equals()` methods
-  - [ ] 8.30c Add helper: `GetEnumValue(name) int`, `GetEnumName(value) string`
-- [ ] 8.31 Add `IsOrdinalType()` to support enums (extend existing function in `types/types.go`)
-- [ ] 8.32 Write unit tests for `EnumType`: `types/types_test.go::TestEnumType`
+- [x] 8.30 Define `EnumType` struct in `types/compound_types.go`
+  - [x] 8.30a Fields: Name, Values (map[string]int), OrderedNames ([]string for reverse lookup)
+  - [x] 8.30b Implement `String()`, `TypeKind()`, `Equals()` methods
+  - [x] 8.30c Add helper: `GetEnumValue(name) int`, `GetEnumName(value) string`
+- [x] 8.31 Add `IsOrdinalType()` to support enums (extend existing function in `types/types.go`)
+- [x] 8.32 Write unit tests for `EnumType`: `types/types_test.go::TestEnumType`
 
-#### AST Nodes (4 tasks)
+#### AST Nodes (4 tasks) ✅ COMPLETE
 
-- [ ] 8.33 Create `EnumDecl` struct in `ast/type_annotation.go` or new file `ast/enums.go`
-  - [ ] 8.33a Fields: Token, Name, Values []EnumValue
-  - [ ] 8.33b EnumValue struct: Name string, Value *int (optional explicit value)
-- [ ] 8.34 Create `EnumLiteral` expression in `ast/expressions.go`
-  - [ ] 8.34a Fields: Token, EnumName, ValueName
-- [ ] 8.35 Implement `String()` method for enum AST nodes
-- [ ] 8.36 Write AST tests: `ast/enums_test.go::TestEnumDecl`, `TestEnumLiteral`
+- [x] 8.33 Create `EnumDecl` struct in new file `ast/enums.go`
+  - [x] 8.33a Fields: Token, Name, Values []EnumValue
+  - [x] 8.33b EnumValue struct: Name string, Value *int (optional explicit value)
+- [x] 8.34 Create `EnumLiteral` expression in `ast/enums.go`
+  - [x] 8.34a Fields: Token, EnumName, ValueName
+- [x] 8.35 Implement `String()` method for enum AST nodes
+- [x] 8.36 Write AST tests: `ast/enums_test.go::TestEnumDecl`, `TestEnumLiteral`
 
-#### Parser (6 tasks)
+#### Parser (6 tasks) ✅ COMPLETE
 
-- [ ] 8.37 Implement `parseEnumDeclaration()` in `parser/statements.go`
-  - [ ] 8.37a Parse: `type TColor = (Red, Green, Blue);`
-  - [ ] 8.37b Support explicit values: `type TEnum = (One = 1, Two = 5);`
-  - [ ] 8.37c Support scoped enums: `type TEnum = enum (One, Two);`
-- [ ] 8.38 Integrate enum parsing into `parseTypeDeclaration()` dispatcher
-- [ ] 8.39 Parse enum literals in expression context: `Red`, `TColor.Red`
-- [ ] 8.40 Add enum literal to expression parser (as identifier with type resolution)
-- [ ] 8.41 Handle `.Name` property access for enum values (parse in member access)
-- [ ] 8.42 Write parser tests: `parser/enums_test.go::TestEnumDeclaration`, `TestEnumLiterals`
+- [x] 8.37 Implement `parseEnumDeclaration()` in `parser/enums.go`
+  - [x] 8.37a Parse: `type TColor = (Red, Green, Blue);`
+  - [x] 8.37b Support explicit values: `type TEnum = (One = 1, Two = 5);`
+  - [x] 8.37c Support scoped enums: `type TEnum = enum (One, Two);`
+- [x] 8.38 Integrate enum parsing into `parseTypeDeclaration()` dispatcher
+- [x] 8.39 Parse enum literals in expression context: `Red`, `TColor.Red`
+- [x] 8.40 Add enum literal to expression parser (as identifier with type resolution)
+- [x] 8.41 Handle `.Name` property access for enum values (parse in member access)
+- [x] 8.42 Write parser tests: `parser/enums_test.go::TestEnumDeclaration`, `TestEnumLiterals`
 
 #### Semantic Analysis (4 tasks)
 
