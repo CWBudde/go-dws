@@ -113,6 +113,15 @@ func NewStaticArrayType(elementType Type, lowBound, highBound int) *ArrayType {
 // RecordType
 // ============================================================================
 
+// PropertyInfo represents a property in a record type (Task 8.53c).
+// Properties provide controlled access to fields.
+type PropertyInfo struct {
+	Name       string // Property name
+	Type       Type   // Property type
+	ReadField  string // Field name for reading (can be empty for write-only)
+	WriteField string // Field name for writing (can be empty for read-only)
+}
+
 // RecordType represents a record (struct) type.
 // Records are value types with named fields.
 // Example:
@@ -122,8 +131,10 @@ func NewStaticArrayType(elementType Type, lowBound, highBound int) *ArrayType {
 //	  Y: Integer;
 //	end;
 type RecordType struct {
-	Name   string          // Record type name (e.g., "TPoint")
-	Fields map[string]Type // Field name -> field type mapping
+	Name       string                     // Record type name (e.g., "TPoint")
+	Fields     map[string]Type            // Field name -> field type mapping
+	Methods    map[string]*FunctionType   // Method name -> method type mapping (Task 8.53b)
+	Properties map[string]*PropertyInfo   // Property name -> property info mapping (Task 8.53c)
 }
 
 // String returns a string representation of the record type
@@ -204,11 +215,35 @@ func (rt *RecordType) GetFieldType(name string) Type {
 	return rt.Fields[name]
 }
 
+// HasMethod checks if the record has a method with the given name (Task 8.53b)
+func (rt *RecordType) HasMethod(name string) bool {
+	_, exists := rt.Methods[name]
+	return exists
+}
+
+// GetMethod returns the type of a method, or nil if not found (Task 8.53b)
+func (rt *RecordType) GetMethod(name string) *FunctionType {
+	return rt.Methods[name]
+}
+
+// HasProperty checks if the record has a property with the given name (Task 8.53c)
+func (rt *RecordType) HasProperty(name string) bool {
+	_, exists := rt.Properties[name]
+	return exists
+}
+
+// GetProperty returns the property info, or nil if not found (Task 8.53c)
+func (rt *RecordType) GetProperty(name string) *PropertyInfo {
+	return rt.Properties[name]
+}
+
 // NewRecordType creates a new record type with the given name and fields
 func NewRecordType(name string, fields map[string]Type) *RecordType {
 	return &RecordType{
-		Name:   name,
-		Fields: fields,
+		Name:       name,
+		Fields:     fields,
+		Methods:    make(map[string]*FunctionType),
+		Properties: make(map[string]*PropertyInfo),
 	}
 }
 

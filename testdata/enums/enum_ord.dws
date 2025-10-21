@@ -1,0 +1,7 @@
+// Enum with Ord() function - based on DWScript reference test
+type TWeekdays = (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday);
+
+PrintLn(Ord(Monday));
+PrintLn(Ord(Sunday));
+
+PrintLn(Integer(Saturday));

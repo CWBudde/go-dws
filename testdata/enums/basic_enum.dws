@@ -1,0 +1,13 @@
+// Basic enum declaration and usage
+type TColor = (Red, Green, Blue);
+
+var color: TColor;
+
+color := Red;
+PrintLn(color);
+
+color := TColor.Green;
+PrintLn(color);
+
+color := Blue;
+PrintLn(color);

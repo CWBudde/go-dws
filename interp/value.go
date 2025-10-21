@@ -92,6 +92,24 @@ func (n *NilValue) String() string {
 	return "nil"
 }
 
+// EnumValue represents an enum value in DWScript.
+// Task 8.49: Store enum values with their ordinal value and type name.
+type EnumValue struct {
+	TypeName     string // Enum type name (e.g., "TColor")
+	ValueName    string // Enum value name (e.g., "Red")
+	OrdinalValue int    // The ordinal value (e.g., 0 for Red if implicit)
+}
+
+// Type returns "ENUM".
+func (e *EnumValue) Type() string {
+	return "ENUM"
+}
+
+// String returns the enum value name.
+func (e *EnumValue) String() string {
+	return e.ValueName
+}
+
 // ExternalVarValue represents an external variable marker.
 // Task 7.144: This is a special marker stored in the environment to indicate
 // that a variable is external. Attempting to read or write this value raises an error.

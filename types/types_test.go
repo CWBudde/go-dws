@@ -436,6 +436,139 @@ func TestRecordTypeEquality(t *testing.T) {
 	}
 }
 
+// Task 8.55: Test RecordType with methods and properties
+func TestRecordTypeWithMethods(t *testing.T) {
+	t.Run("Record with methods", func(t *testing.T) {
+		fields := map[string]Type{
+			"X": INTEGER,
+			"Y": INTEGER,
+		}
+		rt := NewRecordType("TPoint", fields)
+
+		// Add methods to the record
+		rt.Methods = make(map[string]*FunctionType)
+		rt.Methods["GetDistance"] = NewFunctionType([]Type{}, FLOAT)
+		rt.Methods["SetPosition"] = NewProcedureType([]Type{INTEGER, INTEGER})
+
+		// Test HasMethod
+		if !rt.HasMethod("GetDistance") {
+			t.Error("Should have method GetDistance")
+		}
+		if !rt.HasMethod("SetPosition") {
+			t.Error("Should have method SetPosition")
+		}
+		if rt.HasMethod("NonExistent") {
+			t.Error("Should not have method NonExistent")
+		}
+
+		// Test GetMethod
+		method := rt.GetMethod("GetDistance")
+		if method == nil {
+			t.Error("GetMethod should return method type")
+		}
+		if method != nil && !method.IsFunction() {
+			t.Error("GetDistance should be a function")
+		}
+
+		method = rt.GetMethod("SetPosition")
+		if method == nil {
+			t.Error("GetMethod should return method type")
+		}
+		if method != nil && !method.IsProcedure() {
+			t.Error("SetPosition should be a procedure")
+		}
+
+		// Test GetMethod for non-existent method
+		method = rt.GetMethod("NonExistent")
+		if method != nil {
+			t.Error("GetMethod should return nil for non-existent method")
+		}
+	})
+
+	t.Run("Record without methods", func(t *testing.T) {
+		fields := map[string]Type{
+			"X": INTEGER,
+			"Y": INTEGER,
+		}
+		rt := NewRecordType("TPoint", fields)
+
+		// Methods map should be initialized but empty
+		if rt.Methods == nil {
+			t.Error("Methods map should be initialized")
+		}
+		if rt.HasMethod("AnyMethod") {
+			t.Error("Empty record should not have any methods")
+		}
+	})
+}
+
+func TestRecordTypeWithProperties(t *testing.T) {
+	t.Run("Record with properties", func(t *testing.T) {
+		fields := map[string]Type{
+			"FX": INTEGER,
+			"FY": INTEGER,
+		}
+		rt := NewRecordType("TPoint", fields)
+
+		// Add properties to the record
+		rt.Properties = make(map[string]*PropertyInfo)
+		rt.Properties["X"] = &PropertyInfo{
+			Name:       "X",
+			Type:       INTEGER,
+			ReadField:  "FX",
+			WriteField: "FX",
+		}
+		rt.Properties["Y"] = &PropertyInfo{
+			Name:       "Y",
+			Type:       INTEGER,
+			ReadField:  "FY",
+			WriteField: "FY",
+		}
+
+		// Test HasProperty
+		if !rt.HasProperty("X") {
+			t.Error("Should have property X")
+		}
+		if !rt.HasProperty("Y") {
+			t.Error("Should have property Y")
+		}
+		if rt.HasProperty("Z") {
+			t.Error("Should not have property Z")
+		}
+
+		// Test GetProperty
+		prop := rt.GetProperty("X")
+		if prop == nil {
+			t.Error("GetProperty should return property info")
+		}
+		if prop != nil && prop.Type != INTEGER {
+			t.Error("Property X should be Integer type")
+		}
+
+		// Test GetProperty for non-existent property
+		prop = rt.GetProperty("Z")
+		if prop != nil {
+			t.Error("GetProperty should return nil for non-existent property")
+		}
+	})
+
+	t.Run("Record without properties", func(t *testing.T) {
+		fields := map[string]Type{
+			"X": INTEGER,
+			"Y": INTEGER,
+		}
+		rt := NewRecordType("TPoint", fields)
+
+		// Properties map should be initialized but empty
+		if rt.Properties == nil {
+			t.Error("Properties map should be initialized")
+		}
+		if rt.HasProperty("AnyProperty") {
+			t.Error("Empty record should not have any properties")
+		}
+	})
+}
+
 // ============================================================================
 // Compatibility Tests
 // ============================================================================
