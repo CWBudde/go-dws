@@ -14,11 +14,15 @@ import (
 //	var x: Integer;
 //	var x: Integer := 42;
 //	var x := 5;
+//	var y: String; external;              // Task 7.143
+//	var z: Integer; external 'externalZ'; // Task 7.143
 type VarDeclStatement struct {
-	Token lexer.Token     // The 'var' token
-	Name  *Identifier     // The variable name
-	Type  *TypeAnnotation // The type annotation (nil if not specified)
-	Value Expression      // The initialization value (nil if not initialized)
+	Token        lexer.Token     // The 'var' token
+	Name         *Identifier     // The variable name
+	Type         *TypeAnnotation // The type annotation (nil if not specified)
+	Value        Expression      // The initialization value (nil if not initialized)
+	IsExternal   bool            // True if this is an external variable (Task 7.143)
+	ExternalName string          // External name for FFI binding (optional) - Task 7.143
 }
 
 func (vds *VarDeclStatement) statementNode()       {}

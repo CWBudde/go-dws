@@ -118,6 +118,10 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 }
 
 // parseVarDeclaration parses a variable declaration statement.
+// Task 7.143: Now supports external variables:
+//
+//	var x: Integer; external;
+//	var y: String; external 'externalName';
 func (p *Parser) parseVarDeclaration() ast.Statement {
 	stmt := &ast.VarDeclStatement{Token: p.curToken}
 
@@ -143,6 +147,18 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 		p.nextToken() // move to ':='
 		p.nextToken()
 		stmt.Value = p.parseExpression(ASSIGN)
+	}
+
+	// Task 7.143: Check for 'external' keyword
+	if p.peekTokenIs(lexer.EXTERNAL) {
+		p.nextToken() // move to 'external'
+		stmt.IsExternal = true
+
+		// Check for optional external name: external 'customName'
+		if p.peekTokenIs(lexer.STRING) {
+			p.nextToken() // move to string literal
+			stmt.ExternalName = p.curToken.Literal
+		}
 	}
 
 	if !p.expectPeek(lexer.SEMICOLON) {

@@ -92,6 +92,27 @@ func (n *NilValue) String() string {
 	return "nil"
 }
 
+// ExternalVarValue represents an external variable marker.
+// Task 7.144: This is a special marker stored in the environment to indicate
+// that a variable is external. Attempting to read or write this value raises an error.
+type ExternalVarValue struct {
+	Name         string // The variable name in DWScript
+	ExternalName string // The external name for FFI binding (may be empty)
+}
+
+// Type returns "EXTERNAL_VAR".
+func (e *ExternalVarValue) Type() string {
+	return "EXTERNAL_VAR"
+}
+
+// String returns a description of the external variable.
+func (e *ExternalVarValue) String() string {
+	if e.ExternalName != "" {
+		return fmt.Sprintf("external(%s -> %s)", e.Name, e.ExternalName)
+	}
+	return fmt.Sprintf("external(%s)", e.Name)
+}
+
 // Helper functions to create values from Go types
 
 // NewIntegerValue creates a new IntegerValue from an int64.
