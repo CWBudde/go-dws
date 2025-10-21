@@ -1,0 +1,484 @@
+// Comprehensive Polymorphism Test
+// Tests: virtual/override methods, abstract classes, polymorphic dispatch
+
+begin
+PrintLn('=== Polymorphism Comprehensive Test ===');
+
+// Test 1: Simple virtual/override
+type TBase = class
+public
+    function GetValue(): String; virtual;
+    begin
+        Result := 'Base';
+    end;
+end;
+
+type TDerived = class(TBase)
+public
+    function GetValue(): String; override;
+    begin
+        Result := 'Derived';
+    end;
+end;
+
+var base: TBase;
+base := TDerived.Create();
+if base.GetValue() = 'Derived' then
+    PrintLn('Test 1: Simple virtual/override - PASS')
+else
+    PrintLn('Test 1: Simple virtual/override - FAIL');
+
+// Test 2: Polymorphic dispatch with different derived classes
+type TAnimal = class
+public
+    function MakeSound(): String; virtual;
+    begin
+        Result := 'Generic sound';
+    end;
+end;
+
+type TDog = class(TAnimal)
+public
+    function MakeSound(): String; override;
+    begin
+        Result := 'Woof!';
+    end;
+end;
+
+type TCat = class(TAnimal)
+public
+    function MakeSound(): String; override;
+    begin
+        Result := 'Meow!';
+    end;
+end;
+
+var animal: TAnimal;
+animal := TDog.Create();
+var dogSound: String;
+dogSound := animal.MakeSound();
+animal := TCat.Create();
+var catSound: String;
+catSound := animal.MakeSound();
+if (dogSound = 'Woof!') and (catSound = 'Meow!') then
+    PrintLn('Test 2: Polymorphic dispatch - PASS')
+else
+    PrintLn('Test 2: Polymorphic dispatch - FAIL');
+
+// Test 3: Abstract class with abstract methods
+type TShape = class abstract
+public
+    function GetArea(): Float; abstract;
+    function GetName(): String; virtual;
+    begin
+        Result := 'Shape';
+    end;
+end;
+
+type TSquare = class(TShape)
+private
+    FSide: Float;
+public
+    constructor Create(side: Float);
+    begin
+        FSide := side;
+    end;
+
+    function GetArea(): Float; override;
+    begin
+        Result := FSide * FSide;
+    end;
+
+    function GetName(): String; override;
+    begin
+        Result := 'Square';
+    end;
+end;
+
+var shape: TShape;
+shape := TSquare.Create(5.0);
+if (shape.GetArea() = 25.0) and (shape.GetName() = 'Square') then
+    PrintLn('Test 3: Abstract class implementation - PASS')
+else
+    PrintLn('Test 3: Abstract class implementation - FAIL');
+
+// Test 4: Mixed virtual and non-virtual methods
+type TMixed = class
+public
+    function Virtual1(): String; virtual;
+    begin
+        Result := 'V1-Base';
+    end;
+
+    function NonVirtual(): String;
+    begin
+        Result := 'NV-Base';
+    end;
+end;
+
+type TMixedDerived = class(TMixed)
+public
+    function Virtual1(): String; override;
+    begin
+        Result := 'V1-Derived';
+    end;
+
+    function NonVirtual(): String;
+    begin
+        Result := 'NV-Derived';
+    end;
+end;
+
+var mixed: TMixed;
+var direct: TMixedDerived;
+direct := TMixedDerived.Create();
+mixed := direct;
+if (mixed.Virtual1() = 'V1-Derived') and (mixed.NonVirtual() = 'NV-Base') then
+    PrintLn('Test 4: Mixed virtual/non-virtual - PASS')
+else
+    PrintLn('Test 4: Mixed virtual/non-virtual - FAIL');
+
+// Test 5: Multi-level virtual method override
+type TLevel1 = class
+public
+    function GetLevel(): String; virtual;
+    begin
+        Result := 'Level1';
+    end;
+end;
+
+type TLevel2 = class(TLevel1)
+public
+    function GetLevel(): String; override;
+    begin
+        Result := 'Level2';
+    end;
+end;
+
+type TLevel3 = class(TLevel2)
+public
+    function GetLevel(): String; override;
+    begin
+        Result := 'Level3';
+    end;
+end;
+
+var l1: TLevel1;
+l1 := TLevel3.Create();
+if l1.GetLevel() = 'Level3' then
+    PrintLn('Test 5: Multi-level override - PASS')
+else
+    PrintLn('Test 5: Multi-level override - FAIL');
+
+// Test 6: Abstract method with parameters
+type TProcessor = class abstract
+public
+    function Process(value: Integer): Integer; abstract;
+end;
+
+type TDoubler = class(TProcessor)
+public
+    function Process(value: Integer): Integer; override;
+    begin
+        Result := value * 2;
+    end;
+end;
+
+type TTripler = class(TProcessor)
+public
+    function Process(value: Integer): Integer; override;
+    begin
+        Result := value * 3;
+    end;
+end;
+
+var proc: TProcessor;
+proc := TDoubler.Create();
+var doubled: Integer;
+doubled := proc.Process(5);
+proc := TTripler.Create();
+var tripled: Integer;
+tripled := proc.Process(5);
+if (doubled = 10) and (tripled = 15) then
+    PrintLn('Test 6: Abstract methods with parameters - PASS')
+else
+    PrintLn('Test 6: Abstract methods with parameters - FAIL');
+
+// Test 7: Virtual method calling another virtual method
+type TCaller = class
+public
+    function Helper(): String; virtual;
+    begin
+        Result := 'Helper-Base';
+    end;
+
+    function Main(): String; virtual;
+    begin
+        Result := 'Main: ' + Helper();
+    end;
+end;
+
+type TCallerDerived = class(TCaller)
+public
+    function Helper(): String; override;
+    begin
+        Result := 'Helper-Derived';
+    end;
+end;
+
+var caller: TCaller;
+caller := TCallerDerived.Create();
+if caller.Main() = 'Main: Helper-Derived' then
+    PrintLn('Test 7: Virtual calling virtual - PASS')
+else
+    PrintLn('Test 7: Virtual calling virtual - FAIL');
+
+// Test 8: Abstract class with protected virtual
+type TProtectedAbstract = class abstract
+protected
+    function GetProtectedValue(): Integer; virtual;
+    begin
+        Result := 100;
+    end;
+public
+    function GetPublicValue(): Integer; abstract;
+end;
+
+type TProtectedConcrete = class(TProtectedAbstract)
+public
+    function GetPublicValue(): Integer; override;
+    begin
+        Result := GetProtectedValue() + 50;
+    end;
+end;
+
+var pa: TProtectedAbstract;
+pa := TProtectedConcrete.Create();
+if pa.GetPublicValue() = 150 then
+    PrintLn('Test 8: Protected virtual in abstract - PASS')
+else
+    PrintLn('Test 8: Protected virtual in abstract - FAIL');
+
+// Test 9: Virtual method with Boolean return
+type TValidator = class
+public
+    function Validate(value: Integer): Boolean; virtual;
+    begin
+        Result := value > 0;
+    end;
+end;
+
+type TStrictValidator = class(TValidator)
+public
+    function Validate(value: Integer): Boolean; override;
+    begin
+        Result := (value > 0) and (value < 100);
+    end;
+end;
+
+var validator: TValidator;
+validator := TStrictValidator.Create();
+if validator.Validate(50) and not validator.Validate(150) then
+    PrintLn('Test 9: Virtual Boolean method - PASS')
+else
+    PrintLn('Test 9: Virtual Boolean method - FAIL');
+
+// Test 10: Complex hierarchy with multiple abstract levels
+type TAbstractRoot = class abstract
+public
+    function Method1(): String; abstract;
+end;
+
+type TAbstractMiddle = class abstract(TAbstractRoot)
+public
+    function Method2(): String; abstract;
+end;
+
+type TConcrete = class(TAbstractMiddle)
+public
+    function Method1(): String; override;
+    begin
+        Result := 'M1';
+    end;
+
+    function Method2(): String; override;
+    begin
+        Result := 'M2';
+    end;
+end;
+
+var root: TAbstractRoot;
+root := TConcrete.Create();
+if (root.Method1() = 'M1') and (TConcrete(root).Method2() = 'M2') then
+    PrintLn('Test 10: Multi-level abstract hierarchy - PASS')
+else
+    PrintLn('Test 10: Multi-level abstract hierarchy - FAIL');
+
+// Test 11: Override changes behavior but maintains signature
+type TCounter = class
+public
+    function Count(): Integer; virtual;
+    begin
+        Result := 1;
+    end;
+end;
+
+type TDoubleCounter = class(TCounter)
+public
+    function Count(): Integer; override;
+    begin
+        Result := 2;
+    end;
+end;
+
+type TTripleCounter = class(TCounter)
+public
+    function Count(): Integer; override;
+    begin
+        Result := 3;
+    end;
+end;
+
+var counter: TCounter;
+counter := TCounter.Create();
+var c1: Integer;
+c1 := counter.Count();
+counter := TDoubleCounter.Create();
+var c2: Integer;
+c2 := counter.Count();
+counter := TTripleCounter.Create();
+var c3: Integer;
+c3 := counter.Count();
+if (c1 = 1) and (c2 = 2) and (c3 = 3) then
+    PrintLn('Test 11: Multiple override variants - PASS')
+else
+    PrintLn('Test 11: Multiple override variants - FAIL');
+
+// Test 12: Virtual method with string concatenation
+type TGreeter = class
+public
+    function Greet(name: String): String; virtual;
+    begin
+        Result := 'Hello, ' + name;
+    end;
+end;
+
+type TFormalGreeter = class(TGreeter)
+public
+    function Greet(name: String): String; override;
+    begin
+        Result := 'Good day, ' + name;
+    end;
+end;
+
+var greeter: TGreeter;
+greeter := TFormalGreeter.Create();
+if greeter.Greet('Alice') = 'Good day, Alice' then
+    PrintLn('Test 12: Virtual string operations - PASS')
+else
+    PrintLn('Test 12: Virtual string operations - FAIL');
+
+// Test 13: Abstract with virtual non-abstract method
+type TMixedAbstract = class abstract
+public
+    function AbstractMethod(): String; abstract;
+
+    function VirtualMethod(): String; virtual;
+    begin
+        Result := 'Virtual-Base';
+    end;
+end;
+
+type TMixedConcrete = class(TMixedAbstract)
+public
+    function AbstractMethod(): String; override;
+    begin
+        Result := 'Abstract-Impl';
+    end;
+
+    function VirtualMethod(): String; override;
+    begin
+        Result := 'Virtual-Override';
+    end;
+end;
+
+var ma: TMixedAbstract;
+ma := TMixedConcrete.Create();
+if (ma.AbstractMethod() = 'Abstract-Impl') and (ma.VirtualMethod() = 'Virtual-Override') then
+    PrintLn('Test 13: Mixed abstract/virtual - PASS')
+else
+    PrintLn('Test 13: Mixed abstract/virtual - FAIL');
+
+// Test 14: Polymorphic instances
+type TItem = class
+public
+    function GetID(): Integer; virtual;
+    begin
+        Result := 0;
+    end;
+end;
+
+type TItem1 = class(TItem)
+public
+    function GetID(): Integer; override;
+    begin
+        Result := 1;
+    end;
+end;
+
+type TItem2 = class(TItem)
+public
+    function GetID(): Integer; override;
+    begin
+        Result := 2;
+    end;
+end;
+
+var item1: TItem;
+var item2: TItem;
+item1 := TItem1.Create();
+item2 := TItem2.Create();
+if (item1.GetID() = 1) and (item2.GetID() = 2) then
+    PrintLn('Test 14: Polymorphic instances - PASS')
+else
+    PrintLn('Test 14: Polymorphic instances - FAIL');
+
+// Test 15: Virtual procedure (void method)
+type TLogger = class
+public
+    procedure Log(msg: String); virtual;
+    begin
+        // Base implementation does nothing visible
+    end;
+
+    function GetStatus(): String; virtual;
+    begin
+        Result := 'Base';
+    end;
+end;
+
+type TConcreteLogger = class(TLogger)
+private
+    FLastMessage: String;
+public
+    procedure Log(msg: String); override;
+    begin
+        FLastMessage := msg;
+    end;
+
+    function GetStatus(): String; override;
+    begin
+        Result := FLastMessage;
+    end;
+end;
+
+var logger: TLogger;
+logger := TConcreteLogger.Create();
+logger.Log('Test message');
+if logger.GetStatus() = 'Test message' then
+    PrintLn('Test 15: Virtual procedure override - PASS')
+else
+    PrintLn('Test 15: Virtual procedure override - FAIL');
+
+PrintLn('=== All Polymorphism Tests Complete ===');
+end

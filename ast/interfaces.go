@@ -77,12 +77,12 @@ func (imd *InterfaceMethodDecl) String() string {
 //	  procedure AdditionalMethod;
 //	end;
 type InterfaceDecl struct {
-	Token        lexer.Token              // The 'type' token
-	Name         *Identifier              // The interface name (e.g., "IMyInterface")
-	Parent       *Identifier              // The parent interface (optional, for interface inheritance)
-	Methods      []*InterfaceMethodDecl   // Method declarations
-	IsExternal   bool                     // True if this is an external interface (for FFI)
-	ExternalName string                   // External name for FFI binding (optional)
+	Token        lexer.Token            // The 'type' token
+	Name         *Identifier            // The interface name (e.g., "IMyInterface")
+	Parent       *Identifier            // The parent interface (optional, for interface inheritance)
+	Methods      []*InterfaceMethodDecl // Method declarations
+	IsExternal   bool                   // True if this is an external interface (for FFI)
+	ExternalName string                 // External name for FFI binding (optional)
 }
 
 func (id *InterfaceDecl) statementNode()       {}

@@ -21,11 +21,28 @@ go-dws is a faithful implementation of the DWScript scripting language in Go, pr
 
 **Current Capabilities**:
 
-- Variables and expressions
-- Control flow (if/else, while, for, repeat, case)
-- User-defined functions and procedures
-- Recursion support
-- Built-in functions (PrintLn, Print)
+- ✅ **Variables and Expressions**: Full support for all DWScript types
+- ✅ **Control Flow**: if/else, while, for, repeat, case statements
+- ✅ **Functions**: User-defined functions and procedures with recursion
+- ✅ **Object-Oriented Programming**: Classes, inheritance, polymorphism, interfaces (Stage 7 complete)
+  - Classes with fields, methods, constructors
+  - Single inheritance with method overriding
+  - Virtual/abstract methods and abstract classes
+  - Static fields and methods
+  - Visibility control (public/protected/private)
+  - Interfaces with multiple implementation
+  - Interface casting and polymorphism
+- ✅ **Type System**: Strong static typing with semantic analysis
+- ✅ **Built-in Functions**: PrintLn, Print, Length, and more
+
+**Completed Stages:**
+- Stage 1: Lexer ✅
+- Stage 2: Parser (expressions) ✅
+- Stage 3: Statements and execution ✅
+- Stage 4: Control flow ✅
+- Stage 5: Functions and scope ✅
+- Stage 6: Type checking ✅
+- Stage 7: Classes and OOP ✅ (76.3% - all features complete)
 
 See [PLAN.md](PLAN.md) for the complete implementation roadmap and current progress.
 
@@ -131,7 +148,186 @@ begin
 end.
 ```
 
+**Object-Oriented Example** (`examples/oop.dws`):
+
+```pascal
+type
+  TShape = class abstract
+  protected
+    FColor: Integer;
+  public
+    constructor Create(color: Integer);
+    function GetColor: Integer; virtual;
+    function GetArea: Float; virtual; abstract;
+  end;
+
+  TCircle = class(TShape)
+  private
+    FRadius: Float;
+  public
+    constructor Create(color: Integer; radius: Float);
+    function GetArea: Float; override;
+  end;
+
+  TRectangle = class(TShape)
+  private
+    FWidth, FHeight: Float;
+  public
+    constructor Create(color: Integer; width, height: Float);
+    function GetArea: Float; override;
+  end;
+
+implementation
+
+constructor TShape.Create(color: Integer);
+begin
+  FColor := color;
+end;
+
+function TShape.GetColor: Integer;
+begin
+  Result := FColor;
+end;
+
+constructor TCircle.Create(color: Integer; radius: Float);
+begin
+  inherited Create(color);
+  FRadius := radius;
+end;
+
+function TCircle.GetArea: Float;
+begin
+  Result := 3.14159 * FRadius * FRadius;
+end;
+
+constructor TRectangle.Create(color: Integer; width, height: Float);
+begin
+  inherited Create(color);
+  FWidth := width;
+  FHeight := height;
+end;
+
+function TRectangle.GetArea: Float;
+begin
+  Result := FWidth * FHeight;
+end;
+
+// Main program
+var
+  shapes: array[0..1] of TShape;
+begin
+  shapes[0] := TCircle.Create(255, 5.0);
+  shapes[1] := TRectangle.Create(128, 10.0, 20.0);
+
+  for var i := 0 to 1 do
+  begin
+    PrintLn('Shape color: ', shapes[i].GetColor);
+    PrintLn('Shape area: ', shapes[i].GetArea);
+  end;
+end.
+```
+
+**Interface Example** (`examples/interfaces.dws`):
+
+```pascal
+type
+  IDrawable = interface
+    procedure Draw;
+  end;
+
+  IPrintable = interface
+    function ToString: String;
+  end;
+
+  TDocument = class(IDrawable, IPrintable)
+  private
+    FTitle: String;
+  public
+    constructor Create(title: String);
+    procedure Draw; virtual;
+    function ToString: String; virtual;
+  end;
+
+implementation
+
+constructor TDocument.Create(title: String);
+begin
+  FTitle := title;
+end;
+
+procedure TDocument.Draw;
+begin
+  PrintLn('Drawing: ', FTitle);
+end;
+
+function TDocument.ToString: String;
+begin
+  Result := 'Document: ' + FTitle;
+end;
+
+// Main program
+var
+  doc: TDocument;
+  drawable: IDrawable;
+  printable: IPrintable;
+begin
+  doc := TDocument.Create('My Document');
+
+  // Use as object
+  doc.Draw;
+
+  // Cast to interfaces
+  drawable := doc as IDrawable;
+  drawable.Draw;
+
+  printable := doc as IPrintable;
+  PrintLn(printable.ToString);
+end.
+```
+
 More examples available in the `testdata/` directory.
+
+## Object-Oriented Programming Features
+
+go-dws includes a complete implementation of DWScript's object-oriented programming capabilities:
+
+### Classes
+
+- **Declaration**: `type TClassName = class(TParent) ... end;`
+- **Fields**: Private, protected, and public members
+- **Methods**: Procedures and functions with `Self` reference
+- **Constructors**: Standard `Create` method or custom constructors
+- **Inheritance**: Single inheritance from parent classes
+- **Visibility**: `public`, `protected`, and `private` access modifiers
+
+### Advanced OOP Features
+
+- **Virtual Methods**: Methods marked with `virtual` can be overridden
+- **Method Override**: Use `override` keyword to replace parent implementation
+- **Abstract Classes**: Classes marked `abstract` cannot be instantiated
+- **Abstract Methods**: Virtual methods with no implementation (must be overridden)
+- **Static Members**: Class-level fields (`class var`) and methods (`class function`/`class procedure`)
+- **Polymorphism**: Dynamic method dispatch based on actual object type
+
+### Interfaces
+
+- **Declaration**: `type IInterfaceName = interface ... end;`
+- **Inheritance**: Interfaces can inherit from other interfaces
+- **Implementation**: Classes can implement multiple interfaces
+- **Casting**: Safe casting between objects and interfaces using `as` operator
+- **Type Checking**: Use `is` operator to check interface compatibility
+- **Method Dispatch**: Polymorphic method calls through interface references
+
+### External Integration
+
+- **External Classes**: Declare classes implemented in Go runtime
+- **External Interfaces**: Interface to external Go code
+- **FFI Preparation**: Foundation for Foreign Function Interface support
+
+For detailed documentation on OOP features, see:
+- [Stage 7 Completion Summary](docs/stage7-complete.md)
+- [Delphi-to-Go Mapping Guide](docs/delphi-to-go-mapping.md)
+- [Interfaces Implementation Guide](docs/interfaces-guide.md)
 
 ## Project Structure
 

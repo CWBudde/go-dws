@@ -123,7 +123,8 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 
 // parseInterfaceMethodDecl parses a method declaration within an interface.
 // Syntax: procedure MethodName(params);
-//         function MethodName(params): ReturnType;
+//
+//	function MethodName(params): ReturnType;
 //
 // Task 7.82: Parse interface method declarations (abstract methods with no body)
 func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {

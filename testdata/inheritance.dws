@@ -1,0 +1,555 @@
+// Comprehensive Inheritance Test
+// Tests inheritance features: base/derived classes, constructor chaining, field visibility, method inheritance
+
+begin
+PrintLn('=== Inheritance Comprehensive Test ===');
+
+// Test 1: Simple inheritance
+type TBase = class
+public
+    Value: Integer;
+end;
+
+type TDerived = class(TBase)
+public
+    Extra: Integer;
+end;
+
+var d: TDerived;
+d := TDerived.Create();
+d.Value := 10;
+d.Extra := 20;
+if (d.Value = 10) and (d.Extra = 20) then
+    PrintLn('Test 1: Simple inheritance - PASS')
+else
+    PrintLn('Test 1: Simple inheritance - FAIL');
+
+// Test 2: Inherited private fields with accessors
+type TBasePrivate = class
+private
+    FBaseValue: Integer;
+public
+    procedure SetBaseValue(v: Integer);
+    begin
+        FBaseValue := v;
+    end;
+
+    function GetBaseValue(): Integer;
+    begin
+        Result := FBaseValue;
+    end;
+end;
+
+type TDerivedPrivate = class(TBasePrivate)
+private
+    FDerivedValue: Integer;
+public
+    procedure SetDerivedValue(v: Integer);
+    begin
+        FDerivedValue := v;
+    end;
+
+    function GetDerivedValue(): Integer;
+    begin
+        Result := FDerivedValue;
+    end;
+end;
+
+var dp: TDerivedPrivate;
+dp := TDerivedPrivate.Create();
+dp.SetBaseValue(100);
+dp.SetDerivedValue(200);
+if (dp.GetBaseValue() = 100) and (dp.GetDerivedValue() = 200) then
+    PrintLn('Test 2: Inherited methods from base class - PASS')
+else
+    PrintLn('Test 2: Inherited methods from base class - FAIL');
+
+// Test 3: Protected field access from derived class
+type TBaseProtected = class
+protected
+    FProtectedValue: Integer;
+public
+    procedure SetProtected(v: Integer);
+    begin
+        FProtectedValue := v;
+    end;
+end;
+
+type TDerivedProtected = class(TBaseProtected)
+public
+    function GetProtected(): Integer;
+    begin
+        Result := FProtectedValue; // Access parent's protected field
+    end;
+end;
+
+var dpr: TDerivedProtected;
+dpr := TDerivedProtected.Create();
+dpr.SetProtected(555);
+if dpr.GetProtected() = 555 then
+    PrintLn('Test 3: Protected field access in derived class - PASS')
+else
+    PrintLn('Test 3: Protected field access in derived class - FAIL');
+
+// Test 4: Multi-level inheritance
+type TGrandparent = class
+public
+    GrandValue: Integer;
+end;
+
+type TParent = class(TGrandparent)
+public
+    ParentValue: Integer;
+end;
+
+type TChild = class(TParent)
+public
+    ChildValue: Integer;
+end;
+
+var ch: TChild;
+ch := TChild.Create();
+ch.GrandValue := 1;
+ch.ParentValue := 2;
+ch.ChildValue := 3;
+if (ch.GrandValue = 1) and (ch.ParentValue = 2) and (ch.ChildValue = 3) then
+    PrintLn('Test 4: Multi-level inheritance (3 levels) - PASS')
+else
+    PrintLn('Test 4: Multi-level inheritance (3 levels) - FAIL');
+
+// Test 5: Constructor in derived class
+type TBaseWithConstructor = class
+private
+    FBaseField: Integer;
+public
+    constructor Create(value: Integer);
+    begin
+        FBaseField := value;
+    end;
+
+    function GetBaseField(): Integer;
+    begin
+        Result := FBaseField;
+    end;
+end;
+
+type TDerivedWithConstructor = class(TBaseWithConstructor)
+private
+    FDerivedField: Integer;
+public
+    constructor Create(baseVal, derivedVal: Integer);
+    begin
+        FBaseField := baseVal;
+        FDerivedField := derivedVal;
+    end;
+
+    function GetDerivedField(): Integer;
+    begin
+        Result := FDerivedField;
+    end;
+end;
+
+var dwc: TDerivedWithConstructor;
+dwc := TDerivedWithConstructor.Create(111, 222);
+if (dwc.GetBaseField() = 111) and (dwc.GetDerivedField() = 222) then
+    PrintLn('Test 5: Constructor in derived class - PASS')
+else
+    PrintLn('Test 5: Constructor in derived class - FAIL');
+
+// Test 6: Method inheritance
+type TAnimal = class
+public
+    function GetType(): String;
+    begin
+        Result := 'Animal';
+    end;
+
+    function Breathe(): String;
+    begin
+        Result := 'Breathing';
+    end;
+end;
+
+type TMammal = class(TAnimal)
+public
+    function GetCategory(): String;
+    begin
+        Result := 'Mammal';
+    end;
+end;
+
+var mammal: TMammal;
+mammal := TMammal.Create();
+if (mammal.GetType() = 'Animal') and (mammal.Breathe() = 'Breathing') and (mammal.GetCategory() = 'Mammal') then
+    PrintLn('Test 6: Method inheritance - PASS')
+else
+    PrintLn('Test 6: Method inheritance - FAIL');
+
+// Test 7: Base class variable holding derived instance
+type TVehicle = class
+public
+    function GetVehicleType(): String;
+    begin
+        Result := 'Generic Vehicle';
+    end;
+end;
+
+type TCar = class(TVehicle)
+private
+    FModel: String;
+public
+    constructor Create(model: String);
+    begin
+        FModel := model;
+    end;
+
+    function GetModel(): String;
+    begin
+        Result := FModel;
+    end;
+end;
+
+var vehicle: TVehicle;
+var car: TCar;
+car := TCar.Create('Sedan');
+vehicle := car; // Base class variable holds derived instance
+if vehicle.GetVehicleType() = 'Generic Vehicle' then
+    PrintLn('Test 7: Base class variable holds derived - PASS')
+else
+    PrintLn('Test 7: Base class variable holds derived - FAIL');
+
+// Test 8: Inherited fields in complex hierarchy
+type TEntity = class
+protected
+    FID: Integer;
+public
+    procedure SetID(id: Integer);
+    begin
+        FID := id;
+    end;
+
+    function GetID(): Integer;
+    begin
+        Result := FID;
+    end;
+end;
+
+type TNamedEntity = class(TEntity)
+protected
+    FName: String;
+public
+    procedure SetName(name: String);
+    begin
+        FName := name;
+    end;
+
+    function GetName(): String;
+    begin
+        Result := FName;
+    end;
+end;
+
+type TEmployee = class(TNamedEntity)
+private
+    FSalary: Float;
+public
+    procedure SetSalary(salary: Float);
+    begin
+        FSalary := salary;
+    end;
+
+    function GetSalary(): Float;
+    begin
+        Result := FSalary;
+    end;
+end;
+
+var emp: TEmployee;
+emp := TEmployee.Create();
+emp.SetID(123);
+emp.SetName('Alice');
+emp.SetSalary(50000.0);
+if (emp.GetID() = 123) and (emp.GetName() = 'Alice') and (emp.GetSalary() = 50000.0) then
+    PrintLn('Test 8: Complex inheritance hierarchy - PASS')
+else
+    PrintLn('Test 8: Complex inheritance hierarchy - FAIL');
+
+// Test 9: Multiple derived classes from same base
+type TShape = class
+public
+    function GetShapeType(): String;
+    begin
+        Result := 'Shape';
+    end;
+end;
+
+type TCircle = class(TShape)
+private
+    FRadius: Float;
+public
+    constructor Create(radius: Float);
+    begin
+        FRadius := radius;
+    end;
+
+    function GetRadius(): Float;
+    begin
+        Result := FRadius;
+    end;
+end;
+
+type TRectangle = class(TShape)
+private
+    FWidth, FHeight: Float;
+public
+    constructor Create(width, height: Float);
+    begin
+        FWidth := width;
+        FHeight := height;
+    end;
+
+    function GetWidth(): Float;
+    begin
+        Result := FWidth;
+    end;
+
+    function GetHeight(): Float;
+    begin
+        Result := FHeight;
+    end;
+end;
+
+var circle: TCircle;
+var rectangle: TRectangle;
+circle := TCircle.Create(5.0);
+rectangle := TRectangle.Create(10.0, 20.0);
+if (circle.GetRadius() = 5.0) and (rectangle.GetWidth() = 10.0) and (rectangle.GetHeight() = 20.0) then
+    PrintLn('Test 9: Multiple derived classes - PASS')
+else
+    PrintLn('Test 9: Multiple derived classes - FAIL');
+
+// Test 10: Inherited method calls in derived methods
+type TLogger = class
+protected
+    function FormatMessage(msg: String): String;
+    begin
+        Result := '[LOG] ' + msg;
+    end;
+public
+    function Log(msg: String): String;
+    begin
+        Result := FormatMessage(msg);
+    end;
+end;
+
+type TTimestampLogger = class(TLogger)
+public
+    function LogWithTime(msg: String): String;
+    begin
+        Result := FormatMessage('2025: ' + msg);
+    end;
+end;
+
+var tlog: TTimestampLogger;
+tlog := TTimestampLogger.Create();
+if (tlog.Log('Test') = '[LOG] Test') and (tlog.LogWithTime('Event') = '[LOG] 2025: Event') then
+    PrintLn('Test 10: Calling inherited methods - PASS')
+else
+    PrintLn('Test 10: Calling inherited methods - FAIL');
+
+// Test 11: Derived class extends base with additional state
+type TCounter = class
+private
+    FCount: Integer;
+public
+    procedure Increment();
+    begin
+        FCount := FCount + 1;
+    end;
+
+    function GetCount(): Integer;
+    begin
+        Result := FCount;
+    end;
+end;
+
+type TLimitedCounter = class(TCounter)
+private
+    FMax: Integer;
+public
+    constructor Create(max: Integer);
+    begin
+        FMax := max;
+    end;
+
+    function CanIncrement(): Boolean;
+    begin
+        Result := GetCount() < FMax;
+    end;
+end;
+
+var lc: TLimitedCounter;
+lc := TLimitedCounter.Create(2);
+lc.Increment();
+lc.Increment();
+if (lc.GetCount() = 2) and not lc.CanIncrement() then
+    PrintLn('Test 11: Derived class extends base functionality - PASS')
+else
+    PrintLn('Test 11: Derived class extends base functionality - FAIL');
+
+// Test 12: Inheritance with Boolean fields
+type TConfigBase = class
+protected
+    FEnabled: Boolean;
+public
+    procedure Enable();
+    begin
+        FEnabled := true;
+    end;
+
+    procedure Disable();
+    begin
+        FEnabled := false;
+    end;
+
+    function IsEnabled(): Boolean;
+    begin
+        Result := FEnabled;
+    end;
+end;
+
+type TAdvancedConfig = class(TConfigBase)
+private
+    FDebugMode: Boolean;
+public
+    procedure EnableDebug();
+    begin
+        FDebugMode := true;
+    end;
+
+    function IsDebugEnabled(): Boolean;
+    begin
+        Result := FDebugMode;
+    end;
+end;
+
+var cfg: TAdvancedConfig;
+cfg := TAdvancedConfig.Create();
+cfg.Enable();
+cfg.EnableDebug();
+if cfg.IsEnabled() and cfg.IsDebugEnabled() then
+    PrintLn('Test 12: Inherited Boolean operations - PASS')
+else
+    PrintLn('Test 12: Inherited Boolean operations - FAIL');
+
+// Test 13: Derived class with string manipulation
+type TTextBase = class
+protected
+    FText: String;
+public
+    procedure SetText(text: String);
+    begin
+        FText := text;
+    end;
+
+    function GetText(): String;
+    begin
+        Result := FText;
+    end;
+end;
+
+type TUpperText = class(TTextBase)
+public
+    function GetUpperText(): String;
+    begin
+        // Note: Assuming we have UpperCase function or manually convert
+        // For now just prepend to show inheritance works
+        Result := 'UPPER: ' + FText;
+    end;
+end;
+
+var ut: TUpperText;
+ut := TUpperText.Create();
+ut.SetText('hello');
+if (ut.GetText() = 'hello') and (ut.GetUpperText() = 'UPPER: hello') then
+    PrintLn('Test 13: Inherited string operations - PASS')
+else
+    PrintLn('Test 13: Inherited string operations - FAIL');
+
+// Test 14: Accessing grandparent methods
+type TRoot = class
+public
+    function GetLevel(): String;
+    begin
+        Result := 'Root';
+    end;
+end;
+
+type TMiddle = class(TRoot)
+public
+    function GetMiddle(): String;
+    begin
+        Result := 'Middle';
+    end;
+end;
+
+type TLeaf = class(TMiddle)
+public
+    function GetLeaf(): String;
+    begin
+        Result := 'Leaf';
+    end;
+end;
+
+var leaf: TLeaf;
+leaf := TLeaf.Create();
+if (leaf.GetLevel() = 'Root') and (leaf.GetMiddle() = 'Middle') and (leaf.GetLeaf() = 'Leaf') then
+    PrintLn('Test 14: Grandparent method access - PASS')
+else
+    PrintLn('Test 14: Grandparent method access - FAIL');
+
+// Test 15: Derived class with mixed public/protected/private
+type TSecureBase = class
+private
+    FSecret: Integer;
+protected
+    FShared: Integer;
+public
+    FPublic: Integer;
+
+    procedure SetSecret(value: Integer);
+    begin
+        FSecret := value;
+    end;
+
+    function GetSecret(): Integer;
+    begin
+        Result := FSecret;
+    end;
+end;
+
+type TSecureDerived = class(TSecureBase)
+public
+    procedure SetShared(value: Integer);
+    begin
+        FShared := value; // Can access protected field
+    end;
+
+    function GetShared(): Integer;
+    begin
+        Result := FShared;
+    end;
+end;
+
+var sd: TSecureDerived;
+sd := TSecureDerived.Create();
+sd.SetSecret(111);
+sd.SetShared(222);
+sd.FPublic := 333;
+if (sd.GetSecret() = 111) and (sd.GetShared() = 222) and (sd.FPublic = 333) then
+    PrintLn('Test 15: Mixed visibility in inheritance - PASS')
+else
+    PrintLn('Test 15: Mixed visibility in inheritance - FAIL');
+
+PrintLn('=== All Inheritance Tests Complete ===');
+end

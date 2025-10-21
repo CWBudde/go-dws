@@ -1,0 +1,442 @@
+// Comprehensive Interface Test
+// Tests: interface declaration, implementation, references, casting, multiple interfaces
+
+begin
+PrintLn('=== Interface Comprehensive Test ===');
+
+// Test 1: Simple interface declaration and implementation
+type ISimple = interface
+    function GetValue(): Integer;
+end;
+
+type TSimpleImpl = class(TObject, ISimple)
+private
+    FValue: Integer;
+public
+    constructor Create(value: Integer);
+    begin
+        FValue := value;
+    end;
+
+    function GetValue(): Integer;
+    begin
+        Result := FValue;
+    end;
+end;
+
+var simple: ISimple;
+simple := TSimpleImpl.Create(42);
+if simple.GetValue() = 42 then
+    PrintLn('Test 1: Simple interface implementation - PASS')
+else
+    PrintLn('Test 1: Simple interface implementation - FAIL');
+
+// Test 2: Interface reference to different implementations
+type IPrinter = interface
+    function Print(): String;
+end;
+
+type TPrinterA = class(TObject, IPrinter)
+public
+    function Print(): String;
+    begin
+        Result := 'Printer A';
+    end;
+end;
+
+type TPrinterB = class(TObject, IPrinter)
+public
+    function Print(): String;
+    begin
+        Result := 'Printer B';
+    end;
+end;
+
+var printer: IPrinter;
+printer := TPrinterA.Create();
+var outputA: String;
+outputA := printer.Print();
+printer := TPrinterB.Create();
+var outputB: String;
+outputB := printer.Print();
+if (outputA = 'Printer A') and (outputB = 'Printer B') then
+    PrintLn('Test 2: Interface with multiple implementations - PASS')
+else
+    PrintLn('Test 2: Interface with multiple implementations - FAIL');
+
+// Test 3: Interface with multiple methods
+type ICalculator = interface
+    function Add(a, b: Integer): Integer;
+    function Subtract(a, b: Integer): Integer;
+end;
+
+type TCalculator = class(TObject, ICalculator)
+public
+    function Add(a, b: Integer): Integer;
+    begin
+        Result := a + b;
+    end;
+
+    function Subtract(a, b: Integer): Integer;
+    begin
+        Result := a - b;
+    end;
+end;
+
+var calc: ICalculator;
+calc := TCalculator.Create();
+if (calc.Add(10, 5) = 15) and (calc.Subtract(10, 5) = 5) then
+    PrintLn('Test 3: Interface with multiple methods - PASS')
+else
+    PrintLn('Test 3: Interface with multiple methods - FAIL');
+
+// Test 4: Interface inheritance
+type IBase = interface
+    function GetBase(): String;
+end;
+
+type IDerived = interface(IBase)
+    function GetDerived(): String;
+end;
+
+type TImplementer = class(TObject, IDerived)
+public
+    function GetBase(): String;
+    begin
+        Result := 'Base';
+    end;
+
+    function GetDerived(): String;
+    begin
+        Result := 'Derived';
+    end;
+end;
+
+var derived: IDerived;
+derived := TImplementer.Create();
+if (derived.GetBase() = 'Base') and (derived.GetDerived() = 'Derived') then
+    PrintLn('Test 4: Interface inheritance - PASS')
+else
+    PrintLn('Test 4: Interface inheritance - FAIL');
+
+// Test 5: Class implementing multiple interfaces
+type IDataReader = interface
+    function ReadData(): String;
+end;
+
+type IDataWriter = interface
+    procedure WriteData(value: String);
+end;
+
+type TReadWriter = class(TObject, IDataReader, IDataWriter)
+private
+    FData: String;
+public
+    function ReadData(): String;
+    begin
+        Result := FData;
+    end;
+
+    procedure WriteData(value: String);
+    begin
+        FData := value;
+    end;
+end;
+
+var reader: IDataReader;
+var writer: IDataWriter;
+var rw: TReadWriter;
+rw := TReadWriter.Create();
+writer := rw;
+writer.WriteData('Hello');
+reader := rw;
+if reader.ReadData() = 'Hello' then
+    PrintLn('Test 5: Multiple interface implementation - PASS')
+else
+    PrintLn('Test 5: Multiple interface implementation - FAIL');
+
+// Test 6: Interface with procedure (void method)
+type IAction = interface
+    procedure Execute();
+end;
+
+type TAction = class(TObject, IAction)
+private
+    FExecuted: Boolean;
+public
+    procedure Execute();
+    begin
+        FExecuted := true;
+    end;
+
+    function WasExecuted(): Boolean;
+    begin
+        Result := FExecuted;
+    end;
+end;
+
+var action: IAction;
+var concreteAction: TAction;
+concreteAction := TAction.Create();
+action := concreteAction;
+action.Execute();
+if concreteAction.WasExecuted() then
+    PrintLn('Test 6: Interface with procedure - PASS')
+else
+    PrintLn('Test 6: Interface with procedure - FAIL');
+
+// Test 7: Interface assignment
+type IMyInterface = interface
+    procedure DoSomething();
+end;
+
+type TMyClass = class(TObject, IMyInterface)
+private
+    FDone: Boolean;
+public
+    procedure DoSomething();
+    begin
+        FDone := true;
+    end;
+
+    function IsDone(): Boolean;
+    begin
+        Result := FDone;
+    end;
+end;
+
+var obj: TMyClass;
+var intf: IMyInterface;
+obj := TMyClass.Create();
+intf := obj; // Interface assignment
+intf.DoSomething();
+if obj.IsDone() then
+    PrintLn('Test 7: Interface assignment - PASS')
+else
+    PrintLn('Test 7: Interface assignment - FAIL');
+
+// Test 8: Interface with Boolean return
+type IValidator = interface
+    function Validate(value: Integer): Boolean;
+end;
+
+type TPositiveValidator = class(TObject, IValidator)
+public
+    function Validate(value: Integer): Boolean;
+    begin
+        Result := value > 0;
+    end;
+end;
+
+var validator: IValidator;
+validator := TPositiveValidator.Create();
+if validator.Validate(10) and not validator.Validate(-5) then
+    PrintLn('Test 8: Interface Boolean method - PASS')
+else
+    PrintLn('Test 8: Interface Boolean method - FAIL');
+
+// Test 9: Marker interface (interface with no methods)
+type IMarker = interface
+end;
+
+type TMarkerImpl = class(TObject, IMarker)
+public
+    function GetMarker(): String;
+    begin
+        Result := 'Marker';
+    end;
+end;
+
+var marker: IMarker;
+var markerImpl: TMarkerImpl;
+markerImpl := TMarkerImpl.Create();
+marker := markerImpl;
+if markerImpl.GetMarker() = 'Marker' then
+    PrintLn('Test 9: Marker interface - PASS')
+else
+    PrintLn('Test 9: Marker interface - FAIL');
+
+// Test 10: Interface with string methods
+type IFormatter = interface
+    function Format(text: String): String;
+end;
+
+type TUpperFormatter = class(TObject, IFormatter)
+public
+    function Format(text: String): String;
+    begin
+        Result := 'UPPER: ' + text;
+    end;
+end;
+
+type TLowerFormatter = class(TObject, IFormatter)
+public
+    function Format(text: String): String;
+    begin
+        Result := 'lower: ' + text;
+    end;
+end;
+
+var formatter: IFormatter;
+formatter := TUpperFormatter.Create();
+var upper: String;
+upper := formatter.Format('test');
+formatter := TLowerFormatter.Create();
+var lower: String;
+lower := formatter.Format('TEST');
+if (upper = 'UPPER: test') and (lower = 'lower: TEST') then
+    PrintLn('Test 10: Interface string operations - PASS')
+else
+    PrintLn('Test 10: Interface string operations - FAIL');
+
+// Test 11: Interface with float return
+type IMeasure = interface
+    function GetMeasurement(): Float;
+end;
+
+type TThermometer = class(TObject, IMeasure)
+private
+    FTemperature: Float;
+public
+    constructor Create(temp: Float);
+    begin
+        FTemperature := temp;
+    end;
+
+    function GetMeasurement(): Float;
+    begin
+        Result := FTemperature;
+    end;
+end;
+
+var measure: IMeasure;
+measure := TThermometer.Create(36.6);
+if measure.GetMeasurement() = 36.6 then
+    PrintLn('Test 11: Interface with Float return - PASS')
+else
+    PrintLn('Test 11: Interface with Float return - FAIL');
+
+// Test 12: Interface method with multiple parameters
+type IProcessor = interface
+    function Process(a, b: Integer; op: String): Integer;
+end;
+
+type TSimpleProcessor = class(TObject, IProcessor)
+public
+    function Process(a, b: Integer; op: String): Integer;
+    begin
+        if op = 'add' then
+            Result := a + b
+        else if op = 'mul' then
+            Result := a * b
+        else
+            Result := 0;
+    end;
+end;
+
+var processor: IProcessor;
+processor := TSimpleProcessor.Create();
+if (processor.Process(5, 3, 'add') = 8) and (processor.Process(5, 3, 'mul') = 15) then
+    PrintLn('Test 12: Interface method multiple params - PASS')
+else
+    PrintLn('Test 12: Interface method multiple params - FAIL');
+
+// Test 13: Creating interface reference directly
+type ICreatable = interface
+    function GetID(): Integer;
+end;
+
+type TCreatable = class(TObject, ICreatable)
+public
+    function GetID(): Integer;
+    begin
+        Result := 123;
+    end;
+end;
+
+var creatable: ICreatable;
+var creatableObj: TCreatable;
+creatableObj := TCreatable.Create();
+creatable := creatableObj;
+if creatable.GetID() = 123 then
+    PrintLn('Test 13: Interface assignment - PASS')
+else
+    PrintLn('Test 13: Interface assignment - FAIL');
+
+// Test 14: Interface implemented by class hierarchy
+type IIdentifiable = interface
+    function GetID(): String;
+end;
+
+type TBaseEntity = class(TObject, IIdentifiable)
+protected
+    FID: String;
+public
+    constructor Create(id: String);
+    begin
+        FID := id;
+    end;
+
+    function GetID(): String;
+    begin
+        Result := FID;
+    end;
+end;
+
+type TDerivedEntity = class(TBaseEntity)
+public
+    function GetDescription(): String;
+    begin
+        Result := 'Entity: ' + FID;
+    end;
+end;
+
+var identifiable: IIdentifiable;
+identifiable := TDerivedEntity.Create('E001');
+if identifiable.GetID() = 'E001' then
+    PrintLn('Test 14: Interface in class hierarchy - PASS')
+else
+    PrintLn('Test 14: Interface in class hierarchy - FAIL');
+
+// Test 15: Polymorphic interface usage
+type IAnimal = interface
+    function Speak(): String;
+end;
+
+type TDog = class(TObject, IAnimal)
+public
+    function Speak(): String;
+    begin
+        Result := 'Woof';
+    end;
+end;
+
+type TCat = class(TObject, IAnimal)
+public
+    function Speak(): String;
+    begin
+        Result := 'Meow';
+    end;
+end;
+
+type TBird = class(TObject, IAnimal)
+public
+    function Speak(): String;
+    begin
+        Result := 'Chirp';
+    end;
+end;
+
+var animal1: IAnimal;
+var animal2: IAnimal;
+var animal3: IAnimal;
+animal1 := TDog.Create();
+animal2 := TCat.Create();
+animal3 := TBird.Create();
+if (animal1.Speak() = 'Woof') and (animal2.Speak() = 'Meow') and (animal3.Speak() = 'Chirp') then
+    PrintLn('Test 15: Polymorphic interface usage - PASS')
+else
+    PrintLn('Test 15: Polymorphic interface usage - FAIL');
+
+PrintLn('=== All Interface Tests Complete ===');
+end

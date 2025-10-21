@@ -540,8 +540,9 @@ var s: String := 'hello';
 
 // TestExternalVarParsing tests parsing of external variable declarations.
 // Task 7.143: External variables are declared with the 'external' keyword:
-//   var x: Integer; external;
-//   var y: String; external 'externalName';
+//
+//	var x: Integer; external;
+//	var y: String; external 'externalName';
 func TestExternalVarParsing(t *testing.T) {
 	tests := []struct {
 		name         string

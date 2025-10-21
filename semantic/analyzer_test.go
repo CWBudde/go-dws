@@ -788,7 +788,7 @@ end;
 func containsString(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&
 		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-		len(s) > len(substr)+1 && containsInMiddle(s, substr)))
+			len(s) > len(substr)+1 && containsInMiddle(s, substr)))
 }
 
 func containsInMiddle(s, substr string) bool {

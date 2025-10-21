@@ -180,10 +180,7 @@ func (p *Parser) parseOperatorOperandTypes() []*ast.TypeAnnotation {
 
 	p.nextToken() // move past '(' to first operand or ')'
 
-	for {
-		if p.curTokenIs(lexer.RPAREN) {
-			break
-		}
+	for !p.curTokenIs(lexer.RPAREN) {
 
 		startToken := p.curToken
 		nameParts := []string{p.curToken.Literal}
@@ -257,7 +254,7 @@ func normalizeOperatorSymbol(tok lexer.Token) string {
 // parseTypeExpressionUntil parses a type expression until the stop condition is met.
 // It assumes the current token is the first token of the type expression.
 func (p *Parser) parseTypeExpressionUntil(stopFn func(lexer.TokenType) bool) (*ast.TypeAnnotation, bool) {
-	if !(p.curToken.Type == lexer.IDENT || p.curToken.Type.IsKeyword()) {
+	if p.curToken.Type != lexer.IDENT && !p.curToken.Type.IsKeyword() {
 		p.addError("expected type identifier")
 		return nil, false
 	}

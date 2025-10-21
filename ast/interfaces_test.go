@@ -158,9 +158,9 @@ func TestInterfaceMethodDeclString(t *testing.T) {
 
 func TestInterfaceDeclString(t *testing.T) {
 	tests := []struct {
-		name      string
-		iface     *InterfaceDecl
-		expected  string
+		name     string
+		iface    *InterfaceDecl
+		expected string
 	}{
 		{
 			name: "simple interface without methods",

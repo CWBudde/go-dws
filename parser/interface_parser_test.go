@@ -231,12 +231,12 @@ end;
 
 func TestClassImplementsInterface(t *testing.T) {
 	tests := []struct {
-		name                 string
-		input                string
-		className            string
-		parentClass          string
-		expectedInterfaces   []string
-		hasParent            bool
+		name               string
+		input              string
+		className          string
+		parentClass        string
+		expectedInterfaces []string
+		hasParent          bool
 	}{
 		{
 			name: "class with single interface",
