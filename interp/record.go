@@ -149,8 +149,26 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 	case "Boolean":
 		return types.BOOLEAN, nil
 	default:
-		// Check for custom types (classes, enums, records, etc.)
-		// For now, return error for unknown types
+		// Check for custom types (enums, records, arrays)
+		// Try enum type
+		if enumTypeVal, ok := i.env.Get("__enum_type_" + typeName); ok {
+			if etv, ok := enumTypeVal.(*EnumTypeValue); ok {
+				return etv.EnumType, nil
+			}
+		}
+		// Try record type
+		if recordTypeVal, ok := i.env.Get("__record_type_" + typeName); ok {
+			if rtv, ok := recordTypeVal.(*RecordTypeValue); ok {
+				return rtv.RecordType, nil
+			}
+		}
+		// Try array type
+		if arrayTypeVal, ok := i.env.Get("__array_type_" + typeName); ok {
+			if atv, ok := arrayTypeVal.(*ArrayTypeValue); ok {
+				return atv.ArrayType, nil
+			}
+		}
+		// Unknown type
 		return nil, fmt.Errorf("unknown type: %s", typeName)
 	}
 }

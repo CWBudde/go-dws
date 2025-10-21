@@ -577,7 +577,7 @@ func TestAssignmentStatement(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &AssignmentStatement{
 				Token: lexer.Token{Type: lexer.ASSIGN, Literal: ":="},
-				Name: &Identifier{
+				Target: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: tt.varName},
 					Value: tt.varName,
 				},

@@ -48,6 +48,12 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 		// This will be handled in analyzeVarDecl or analyzeAssignment
 		a.addError("record literal requires type context")
 		return nil
+	case *ast.SetLiteral:
+		// SetLiteral needs context to know the expected type
+		// This will be handled in analyzeVarDecl or analyzeAssignment
+		return a.analyzeSetLiteralWithContext(e, nil)
+	case *ast.IndexExpression:
+		return a.analyzeIndexExpression(e)
 	default:
 		a.addError("unknown expression type: %T", expr)
 		return nil
@@ -98,6 +104,36 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 
 	// Handle arithmetic operators
 	if operator == "+" || operator == "-" || operator == "*" || operator == "/" {
+		// Task 8.102: Check for set operations first
+		leftSetType, leftIsSet := leftType.(*types.SetType)
+		rightSetType, rightIsSet := rightType.(*types.SetType)
+
+		if leftIsSet || rightIsSet {
+			// At least one operand is a set, so this should be a set operation
+			if operator == "/" {
+				// Division is not a set operation
+				a.addError("operator / is not supported for sets at %s", expr.Token.Pos.String())
+				return nil
+			}
+
+			// Both operands must be sets
+			if !leftIsSet || !rightIsSet {
+				a.addError("set operator %s requires set operands, got %s and %s at %s",
+					operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+				return nil
+			}
+
+			// Element types must be compatible
+			if !leftSetType.ElementType.Equals(rightSetType.ElementType) {
+				a.addError("incompatible types in set operation: set of %s and set of %s at %s",
+					leftSetType.ElementType.String(), rightSetType.ElementType.String(), expr.Token.Pos.String())
+				return nil
+			}
+
+			// Return the set type (union, difference, intersection all return the same set type)
+			return leftSetType
+		}
+
 		// Special case: + can also concatenate strings
 		if operator == "+" && (leftType.Equals(types.STRING) || rightType.Equals(types.STRING)) {
 			// String concatenation
@@ -172,6 +208,35 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		return types.BOOLEAN
 	}
 
+	// Task 8.103: Handle 'in' operator for set membership
+	if operator == "in" {
+		// Right operand must be a set type
+		rightSetType, isSet := rightType.(*types.SetType)
+		if !isSet {
+			a.addError("'in' operator requires set as right operand, got %s at %s",
+				rightType.String(), expr.Token.Pos.String())
+			return nil
+		}
+
+		// Left operand must be an enum type matching the set's element type
+		leftEnumType, isEnum := leftType.(*types.EnumType)
+		if !isEnum {
+			a.addError("'in' operator requires enum value as left operand, got %s at %s",
+				leftType.String(), expr.Token.Pos.String())
+			return nil
+		}
+
+		// Element types must match
+		if !leftEnumType.Equals(rightSetType.ElementType) {
+			a.addError("type mismatch in 'in' operator: %s is not compatible with set of %s at %s",
+				leftEnumType.String(), rightSetType.ElementType.String(), expr.Token.Pos.String())
+			return nil
+		}
+
+		// 'in' operator returns Boolean
+		return types.BOOLEAN
+	}
+
 	a.addError("unknown binary operator: %s at %s", operator, expr.Token.Pos.String())
 	return nil
 }
@@ -238,6 +303,41 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				a.analyzeExpression(arg)
 			}
 			return types.VOID
+		}
+
+		// Ord and Integer built-in functions (Task 8.51, 8.52)
+		if funcIdent.Value == "Ord" || funcIdent.Value == "Integer" {
+			// These functions take one argument and return an integer
+			if len(expr.Arguments) != 1 {
+				a.addError("function '%s' expects 1 argument, got %d at %s",
+					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the argument
+			a.analyzeExpression(expr.Arguments[0])
+			return types.INTEGER
+		}
+
+		// Length built-in function (Task 8.130)
+		if funcIdent.Value == "Length" {
+			// Length takes one argument (array or string) and returns an integer
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Length' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the argument
+			argType := a.analyzeExpression(expr.Arguments[0])
+			// Verify it's an array or string
+			if argType != nil {
+				if _, isArray := argType.(*types.ArrayType); !isArray {
+					if argType != types.STRING {
+						a.addError("function 'Length' expects array or string, got %s at %s",
+							argType.String(), expr.Token.Pos.String())
+					}
+				}
+			}
+			return types.INTEGER
 		}
 
 		// Allow calling methods within the current class without explicit Self

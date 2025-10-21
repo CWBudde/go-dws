@@ -36,6 +36,16 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 		return recordType, nil
 	}
 
+	// Try set types (Task 8.99)
+	if setType, found := a.sets[typeName]; found {
+		return setType, nil
+	}
+
+	// Try array types (Task 8.126)
+	if arrayType, found := a.arrays[typeName]; found {
+		return arrayType, nil
+	}
+
 	return nil, fmt.Errorf("unknown type: %s", typeName)
 }
 

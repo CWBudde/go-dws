@@ -32,6 +32,12 @@ type Analyzer struct {
 	// Record registry for tracking declared records (Task 8.68)
 	records map[string]*types.RecordType
 
+	// Set registry for tracking declared sets (Task 8.99)
+	sets map[string]*types.SetType
+
+	// Array registry for tracking declared arrays (Task 8.126)
+	arrays map[string]*types.ArrayType
+
 	// Current class being analyzed (for field/method access)
 	currentClass *types.ClassType
 
@@ -49,6 +55,8 @@ func NewAnalyzer() *Analyzer {
 		interfaces:         make(map[string]*types.InterfaceType),
 		enums:              make(map[string]*types.EnumType),
 		records:            make(map[string]*types.RecordType),
+		sets:               make(map[string]*types.SetType),
+		arrays:             make(map[string]*types.ArrayType),
 		globalOperators:    types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
 	}

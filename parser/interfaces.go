@@ -38,6 +38,16 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 		// Record declaration: type TPoint = record X, Y: Integer; end;
 		// Task 8.62: Integrated record parsing
 		return p.parseRecordDeclaration(nameIdent, typeToken)
+	} else if p.peekTokenIs(lexer.SET) {
+		// Set declaration: type TDays = set of TWeekday;
+		// Task 8.91-8.92: Integrated set parsing
+		p.nextToken() // move to SET
+		return p.parseSetDeclaration(nameIdent, typeToken)
+	} else if p.peekTokenIs(lexer.ARRAY) {
+		// Array declaration: type TMyArray = array[1..10] of Integer;
+		// Task 8.122: Integrated array parsing
+		p.nextToken() // move to ARRAY
+		return p.parseArrayDeclaration(nameIdent, typeToken)
 	} else if p.peekTokenIs(lexer.LPAREN) {
 		// Enum declaration: type TColor = (Red, Green, Blue);
 		return p.parseEnumDeclaration(nameIdent, typeToken)
@@ -48,7 +58,7 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 	}
 
 	// Unknown type declaration
-	p.addError("expected 'class', 'interface', 'enum', 'record', or '(' after '=' in type declaration")
+	p.addError("expected 'class', 'interface', 'enum', 'record', 'set', 'array', or '(' after '=' in type declaration")
 	return nil
 }
 

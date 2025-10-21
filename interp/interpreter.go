@@ -93,6 +93,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.RecordDecl:
 		return i.evalRecordDeclaration(node)
 
+	case *ast.ArrayDecl:
+		return i.evalArrayDeclaration(node)
+
 	// Expressions
 	case *ast.IntegerLiteral:
 		return &IntegerValue{Value: node.Value}
@@ -138,6 +141,12 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	case *ast.RecordLiteral:
 		return i.evalRecordLiteral(node)
+
+	case *ast.SetLiteral:
+		return i.evalSetLiteral(node)
+
+	case *ast.IndexExpression:
+		return i.evalIndexExpression(node)
 
 	default:
 		return newError("unknown node type: %T", node)
@@ -189,8 +198,9 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 	} else {
 		// No initializer - check if we need to initialize based on type
 		if stmt.Type != nil {
-			// Check if this is a record type
 			typeName := stmt.Type.Name
+
+			// Check if this is a record type
 			recordTypeKey := "__record_type_" + typeName
 			if typeVal, ok := i.env.Get(recordTypeKey); ok {
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
@@ -200,7 +210,18 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 					value = &NilValue{}
 				}
 			} else {
-				value = &NilValue{}
+				// Check if this is an array type
+				arrayTypeKey := "__array_type_" + typeName
+				if typeVal, ok := i.env.Get(arrayTypeKey); ok {
+					if atv, ok := typeVal.(*ArrayTypeValue); ok {
+						// Initialize with empty array value
+						value = NewArrayValue(atv.ArrayType)
+					} else {
+						value = &NilValue{}
+					}
+				} else {
+					value = &NilValue{}
+				}
 			}
 		} else {
 			value = &NilValue{}
@@ -212,21 +233,25 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 }
 
 // evalAssignmentStatement evaluates an assignment statement.
-// It updates an existing variable's value or sets an object field.
+// It updates an existing variable's value or sets an object/array element.
+// Supports: x := value, obj.field := value, arr[i] := value
 func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Value {
+	// Evaluate the value to assign
 	// Special handling for record literals without type names (Task 8.74)
-	// We need to provide type context from the target variable
 	var value Value
 	if recordLit, ok := stmt.Value.(*ast.RecordLiteral); ok && recordLit.TypeName == "" {
-		// This is an untyped record literal - get type from target variable
-		targetVar, exists := i.env.Get(stmt.Name.Value)
-		if exists {
-			if recVal, ok := targetVar.(*RecordValue); ok {
-				// Set the type name in the literal temporarily
-				recordLit.TypeName = recVal.RecordType.Name
-				value = i.Eval(recordLit)
-				// Reset it (though it doesn't matter for AST that's being evaluated)
-				recordLit.TypeName = ""
+		// This is an untyped record literal - get type from target variable if it's a simple identifier
+		if targetIdent, ok := stmt.Target.(*ast.Identifier); ok {
+			targetVar, exists := i.env.Get(targetIdent.Value)
+			if exists {
+				if recVal, ok := targetVar.(*RecordValue); ok {
+					// Set the type name in the literal temporarily
+					recordLit.TypeName = recVal.RecordType.Name
+					value = i.Eval(recordLit)
+					recordLit.TypeName = ""
+				} else {
+					value = i.Eval(stmt.Value)
+				}
 			} else {
 				value = i.Eval(stmt.Value)
 			}
@@ -241,80 +266,41 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 		return value
 	}
 
-	// Check if this is a member assignment (obj.field := value or TClass.Variable := value)
-	// The parser encodes member assignments as "obj.field" in the Name field
-	nameValue := stmt.Name.Value
-	if strings.Contains(nameValue, ".") {
-		// This is a member assignment: obj.field := value or TClass.Variable := value
-		parts := strings.SplitN(nameValue, ".", 2)
-		if len(parts) != 2 {
-			return newError("invalid member assignment format: %s", nameValue)
-		}
-
-		objectName := parts[0]
-		fieldName := parts[1]
-
-		// Check if objectName refers to a class (static assignment: TClass.Variable := value)
-		if classInfo, exists := i.classes[objectName]; exists {
-			// This is a class variable assignment
-			if _, exists := classInfo.ClassVars[fieldName]; !exists {
-				return newError("class variable '%s' not found in class '%s'", fieldName, objectName)
-			}
-			// Assign to the class variable
-			classInfo.ClassVars[fieldName] = value
-			return value
-		}
-
-		// Not a class name - try object instance or record field assignment
-		// Get the object from the environment
-		objVal, ok := i.env.Get(objectName)
-		if !ok {
-			return newError("undefined variable: %s", objectName)
-		}
-
-		// Task 8.76: Check if it's a record value
-		if recordVal, ok := objVal.(*RecordValue); ok {
-			// Verify field exists in the record type
-			if _, exists := recordVal.RecordType.Fields[fieldName]; !exists {
-				return newError("field '%s' not found in record '%s'", fieldName, recordVal.RecordType.Name)
-			}
-
-			// Set the field value
-			recordVal.Fields[fieldName] = value
-			return value
-		}
-
-		// Check if it's an object instance
-		obj, ok := AsObject(objVal)
-		if !ok {
-			return newError("cannot assign to field of non-object type '%s'", objVal.Type())
-		}
-
-		// Verify field exists in the class
-		if _, exists := obj.Class.Fields[fieldName]; !exists {
-			return newError("field '%s' not found in class '%s'", fieldName, obj.Class.Name)
-		}
-
-		// Set the field value
-		obj.SetField(fieldName, value)
-		return value
-	}
-
-	// Simple variable assignment
-	// Task 7.144: Check if trying to assign to an external variable
-	if existingVal, ok := i.env.Get(stmt.Name.Value); ok {
-		if extVar, isExternal := existingVal.(*ExternalVarValue); isExternal {
-			return newError("Unsupported external variable assignment: %s", extVar.Name)
-		}
-	}
-
 	// Task 8.77: Records have value semantics - copy when assigning
 	if recordVal, ok := value.(*RecordValue); ok {
 		value = recordVal.Copy()
 	}
 
+	// Handle different target types
+	switch target := stmt.Target.(type) {
+	case *ast.Identifier:
+		// Simple variable assignment: x := value
+		return i.evalSimpleAssignment(target, value, stmt)
+
+	case *ast.MemberAccessExpression:
+		// Member assignment: obj.field := value or TClass.Variable := value
+		return i.evalMemberAssignment(target, value, stmt)
+
+	case *ast.IndexExpression:
+		// Array index assignment: arr[i] := value (Task 8.139)
+		return i.evalIndexAssignment(target, value, stmt)
+
+	default:
+		return i.newErrorWithLocation(stmt, "invalid assignment target type: %T", target)
+	}
+}
+
+// evalSimpleAssignment handles simple variable assignment: x := value
+func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, stmt *ast.AssignmentStatement) Value {
+	// Task 7.144: Check if trying to assign to an external variable
+	if existingVal, ok := i.env.Get(target.Value); ok {
+		if extVar, isExternal := existingVal.(*ExternalVarValue); isExternal {
+			return newError("Unsupported external variable assignment: %s", extVar.Name)
+		}
+	}
+
 	// First try to set in current environment
-	err := i.env.Set(stmt.Name.Value, value)
+	err := i.env.Set(target.Value, value)
 	if err == nil {
 		return value
 	}
@@ -325,13 +311,13 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 	if selfOk {
 		if obj, ok := AsObject(selfVal); ok {
 			// Check if it's an instance field
-			if _, exists := obj.Class.Fields[stmt.Name.Value]; exists {
-				obj.SetField(stmt.Name.Value, value)
+			if _, exists := obj.Class.Fields[target.Value]; exists {
+				obj.SetField(target.Value, value)
 				return value
 			}
 			// Check if it's a class variable
-			if _, exists := obj.Class.ClassVars[stmt.Name.Value]; exists {
-				obj.Class.ClassVars[stmt.Name.Value] = value
+			if _, exists := obj.Class.ClassVars[target.Value]; exists {
+				obj.Class.ClassVars[target.Value] = value
 				return value
 			}
 		}
@@ -342,15 +328,131 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 	if hasCurrentClass {
 		if classInfo, ok := currentClassVal.(*ClassInfoValue); ok {
 			// Check if it's a class variable
-			if _, exists := classInfo.ClassInfo.ClassVars[stmt.Name.Value]; exists {
-				classInfo.ClassInfo.ClassVars[stmt.Name.Value] = value
+			if _, exists := classInfo.ClassInfo.ClassVars[target.Value]; exists {
+				classInfo.ClassInfo.ClassVars[target.Value] = value
 				return value
 			}
 		}
 	}
 
 	// Still not found - return original error
-	return newError("undefined variable: %s", stmt.Name.Value)
+	return newError("undefined variable: %s", target.Value)
+}
+
+// evalMemberAssignment handles member assignment: obj.field := value or TClass.Variable := value
+func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, value Value, stmt *ast.AssignmentStatement) Value {
+	// Check if the left side is a class identifier (for static assignment: TClass.Variable := value)
+	if ident, ok := target.Object.(*ast.Identifier); ok {
+		// Check if this identifier refers to a class
+		if classInfo, exists := i.classes[ident.Value]; exists {
+			// This is a class variable assignment
+			fieldName := target.Member.Value
+			if _, exists := classInfo.ClassVars[fieldName]; !exists {
+				return i.newErrorWithLocation(stmt, "class variable '%s' not found in class '%s'", fieldName, ident.Value)
+			}
+			// Assign to the class variable
+			classInfo.ClassVars[fieldName] = value
+			return value
+		}
+	}
+
+	// Not static access - evaluate the object expression for instance access
+	objVal := i.Eval(target.Object)
+	if isError(objVal) {
+		return objVal
+	}
+
+	// Task 8.76: Check if it's a record value
+	if recordVal, ok := objVal.(*RecordValue); ok {
+		fieldName := target.Member.Value
+		// Verify field exists in the record type
+		if _, exists := recordVal.RecordType.Fields[fieldName]; !exists {
+			return i.newErrorWithLocation(stmt, "field '%s' not found in record '%s'", fieldName, recordVal.RecordType.Name)
+		}
+
+		// Set the field value
+		recordVal.Fields[fieldName] = value
+		return value
+	}
+
+	// Check if it's an object instance
+	obj, ok := AsObject(objVal)
+	if !ok {
+		return i.newErrorWithLocation(stmt, "cannot assign to field of non-object type '%s'", objVal.Type())
+	}
+
+	fieldName := target.Member.Value
+	// Verify field exists in the class
+	if _, exists := obj.Class.Fields[fieldName]; !exists {
+		return i.newErrorWithLocation(stmt, "field '%s' not found in class '%s'", fieldName, obj.Class.Name)
+	}
+
+	// Set the field value
+	obj.SetField(fieldName, value)
+	return value
+}
+
+// evalIndexAssignment handles array index assignment: arr[i] := value (Task 8.139)
+func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Value, stmt *ast.AssignmentStatement) Value {
+	// Evaluate the array expression
+	arrayVal := i.Eval(target.Left)
+	if isError(arrayVal) {
+		return arrayVal
+	}
+
+	// Evaluate the index expression
+	indexVal := i.Eval(target.Index)
+	if isError(indexVal) {
+		return indexVal
+	}
+
+	// Index must be an integer
+	indexInt, ok := indexVal.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(stmt, "array index must be an integer, got %s", indexVal.Type())
+	}
+	index := int(indexInt.Value)
+
+	// Check if left side is an array
+	arrayValue, ok := arrayVal.(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(stmt, "cannot index type %s", arrayVal.Type())
+	}
+
+	// Perform bounds checking and get physical index
+	if arrayValue.ArrayType == nil {
+		return i.newErrorWithLocation(stmt, "array has no type information")
+	}
+
+	var physicalIndex int
+	if arrayValue.ArrayType.IsStatic() {
+		// Static array: check bounds and adjust for low bound
+		lowBound := *arrayValue.ArrayType.LowBound
+		highBound := *arrayValue.ArrayType.HighBound
+
+		if index < lowBound || index > highBound {
+			return i.newErrorWithLocation(stmt, "array index out of bounds: %d (bounds are %d..%d)", index, lowBound, highBound)
+		}
+
+		physicalIndex = index - lowBound
+	} else {
+		// Dynamic array: zero-based indexing
+		if index < 0 || index >= len(arrayValue.Elements) {
+			return i.newErrorWithLocation(stmt, "array index out of bounds: %d (array length is %d)", index, len(arrayValue.Elements))
+		}
+
+		physicalIndex = index
+	}
+
+	// Check physical bounds
+	if physicalIndex < 0 || physicalIndex >= len(arrayValue.Elements) {
+		return i.newErrorWithLocation(stmt, "array index out of bounds: physical index %d, length %d", physicalIndex, len(arrayValue.Elements))
+	}
+
+	// Update the array element
+	arrayValue.Elements[physicalIndex] = value
+
+	return value
 }
 
 // evalBlockStatement evaluates a block of statements.
@@ -938,6 +1040,8 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinOrd(args)
 	case "Integer":
 		return i.builtinInteger(args)
+	case "Length":
+		return i.builtinLength(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
@@ -1033,6 +1137,32 @@ func (i *Interpreter) builtinInteger(args []Value) Value {
 	}
 
 	return i.newErrorWithLocation(i.currentNode, "Integer() cannot convert %s to integer", arg.Type())
+}
+
+// builtinLength implements the Length() built-in function.
+// It returns the number of elements in an array or characters in a string.
+// Task 8.130: Length() function for arrays
+func (i *Interpreter) builtinLength(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Length() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+
+	// Handle array values
+	if arrayVal, ok := arg.(*ArrayValue); ok {
+		// Return the number of elements in the array
+		// For both static and dynamic arrays, this is len(Elements)
+		return &IntegerValue{Value: int64(len(arrayVal.Elements))}
+	}
+
+	// Handle string values
+	if strVal, ok := arg.(*StringValue); ok {
+		// Return the number of characters in the string
+		return &IntegerValue{Value: int64(len(strVal.Value))}
+	}
+
+	return i.newErrorWithLocation(i.currentNode, "Length() expects array or string, got %s", arg.Type())
 }
 
 // evalIfStatement evaluates an if statement.

@@ -50,12 +50,15 @@ func (vds *VarDeclStatement) String() string {
 // AssignmentStatement represents an assignment statement.
 // Examples:
 //
-//	x := 10;
-//	x := x + 1;
+//	x := 10;             // simple variable assignment
+//	x := x + 1;          // assignment with expression
+//	arr[i] := 42;        // array element assignment
+//	obj.field := value;  // member assignment
+//	matrix[i][j] := 99;  // nested array assignment
 type AssignmentStatement struct {
-	Token lexer.Token // The ':=' token
-	Name  *Identifier // The variable name
-	Value Expression  // The value to assign
+	Token  lexer.Token // The ':=' token
+	Target Expression  // The assignment target (Identifier, IndexExpression, or MemberAccessExpression)
+	Value  Expression  // The value to assign
 }
 
 func (as *AssignmentStatement) statementNode()       {}
@@ -64,9 +67,14 @@ func (as *AssignmentStatement) Pos() lexer.Position  { return as.Token.Pos }
 func (as *AssignmentStatement) String() string {
 	var out bytes.Buffer
 
-	out.WriteString(as.Name.String())
+	// Handle different target types
+	if as.Target != nil {
+		out.WriteString(as.Target.String())
+	}
 	out.WriteString(" := ")
-	out.WriteString(as.Value.String())
+	if as.Value != nil {
+		out.WriteString(as.Value.String())
+	}
 
 	return out.String()
 }

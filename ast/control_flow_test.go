@@ -80,7 +80,7 @@ func TestWhileStatementString(t *testing.T) {
 			Right:    &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
 		},
 		Body: &AssignmentStatement{
-			Name: &Identifier{Value: "x"},
+			Target: &Identifier{Value: "x"},
 			Value: &BinaryExpression{
 				Left:     &Identifier{Value: "x"},
 				Operator: "+",
@@ -99,7 +99,7 @@ func TestRepeatStatementString(t *testing.T) {
 	stmt := &RepeatStatement{
 		Token: lexer.Token{Type: lexer.REPEAT, Literal: "repeat"},
 		Body: &AssignmentStatement{
-			Name: &Identifier{Value: "x"},
+			Target: &Identifier{Value: "x"},
 			Value: &BinaryExpression{
 				Left:     &Identifier{Value: "x"},
 				Operator: "+",

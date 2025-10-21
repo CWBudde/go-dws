@@ -439,8 +439,12 @@ end;
 	if !ok {
 		t.Fatalf("first statement not AssignmentStatement. got=%T", block.Statements[0])
 	}
-	if first.Name.Value != "x" {
-		t.Errorf("first assignment name = %q, want %q", first.Name.Value, "x")
+	firstTarget, ok := first.Target.(*ast.Identifier)
+	if !ok {
+		t.Fatalf("first.Target not *ast.Identifier. got=%T", first.Target)
+	}
+	if firstTarget.Value != "x" {
+		t.Errorf("first assignment name = %q, want %q", firstTarget.Value, "x")
 	}
 	if !testIntegerLiteral(t, first.Value, 1) {
 		return
@@ -450,8 +454,12 @@ end;
 	if !ok {
 		t.Fatalf("second statement not AssignmentStatement. got=%T", block.Statements[1])
 	}
-	if second.Name.Value != "y" {
-		t.Errorf("second assignment name = %q, want %q", second.Name.Value, "y")
+	secondTarget, ok := second.Target.(*ast.Identifier)
+	if !ok {
+		t.Fatalf("second.Target not *ast.Identifier. got=%T", second.Target)
+	}
+	if secondTarget.Value != "y" {
+		t.Errorf("second assignment name = %q, want %q", secondTarget.Value, "y")
 	}
 	if !testInfixExpression(t, second.Value, "x", "+", 2) {
 		return
@@ -652,8 +660,12 @@ y := x + 1;
 	if !ok {
 		t.Fatalf("statement 0 is not ast.AssignmentStatement. got=%T", program.Statements[0])
 	}
-	if stmt1.Name.Value != "x" {
-		t.Errorf("stmt1.Name.Value = %q, want %q", stmt1.Name.Value, "x")
+	target1, ok := stmt1.Target.(*ast.Identifier)
+	if !ok {
+		t.Fatalf("stmt1.Target is not *ast.Identifier. got=%T", stmt1.Target)
+	}
+	if target1.Value != "x" {
+		t.Errorf("stmt1.Target.Value = %q, want %q", target1.Value, "x")
 	}
 	if !testIntegerLiteral(t, stmt1.Value, 10) {
 		return
@@ -663,8 +675,12 @@ y := x + 1;
 	if !ok {
 		t.Fatalf("statement 1 is not ast.AssignmentStatement. got=%T", program.Statements[1])
 	}
-	if stmt2.Name.Value != "y" {
-		t.Errorf("stmt2.Name.Value = %q, want %q", stmt2.Name.Value, "y")
+	target2, ok := stmt2.Target.(*ast.Identifier)
+	if !ok {
+		t.Fatalf("stmt2.Target is not *ast.Identifier. got=%T", stmt2.Target)
+	}
+	if target2.Value != "y" {
+		t.Errorf("stmt2.Target.Value = %q, want %q", target2.Value, "y")
 	}
 	if !testInfixExpression(t, stmt2.Value, "x", "+", 1) {
 		return
@@ -722,7 +738,7 @@ func TestMemberAssignmentStatements(t *testing.T) {
 			// Check that Name is actually a MemberAccessExpression, not just an Identifier
 			// For now, we'll validate the basic structure once parser is updated
 			// This test will fail until parser supports member assignments
-			t.Logf("Assignment statement Name: %T, Value: %T", stmt.Name, stmt.Value)
+			t.Logf("Assignment statement Name: %T, Value: %T", stmt.Target, stmt.Value)
 		})
 	}
 }
@@ -1069,8 +1085,12 @@ x := x + y;
 				if !ok {
 					t.Fatalf("statement 2 is not AssignmentStatement. got=%T", program.Statements[2])
 				}
-				if assign.Name.Value != "x" {
-					t.Errorf("assign.Name.Value = %q, want 'x'", assign.Name.Value)
+				assignTarget, ok := assign.Target.(*ast.Identifier)
+				if !ok {
+					t.Fatalf("assign.Target is not *ast.Identifier. got=%T", assign.Target)
+				}
+				if assignTarget.Value != "x" {
+					t.Errorf("assign.Target.Value = %q, want 'x'", assignTarget.Value)
 				}
 				if !testInfixExpression(t, assign.Value, "x", "+", "y") {
 					return
@@ -1415,8 +1435,8 @@ end;`,
 					t.Fatalf("first block statement is not AssignmentStatement. got=%T", block.Statements[0])
 				}
 
-				if assign.Name.Value != "y" {
-					t.Errorf("assignment name = %q, want 'y'", assign.Name.Value)
+				if assign.Target.Value != "y" {
+					t.Errorf("assignment name = %q, want 'y'", assign.Target.Value)
 				}
 
 				if !testInfixExpression(t, assign.Value, "x", "*", 2) {
@@ -1551,8 +1571,8 @@ end;`,
 					t.Fatalf("consequence is not AssignmentStatement. got=%T", stmt.Consequence)
 				}
 
-				if assign.Name.Value != "x" {
-					t.Errorf("assignment name = %q, want 'x'", assign.Name.Value)
+				if assign.Target.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Target.Value)
 				}
 
 				if !testIntegerLiteral(t, assign.Value, 1) {
@@ -1604,8 +1624,8 @@ func TestWhileStatements(t *testing.T) {
 					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
 				}
 
-				if assign.Name.Value != "x" {
-					t.Errorf("assignment name = %q, want 'x'", assign.Name.Value)
+				if assign.Target.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Target.Value)
 				}
 
 				if !testInfixExpression(t, assign.Value, "x", "+", 1) {
@@ -1641,8 +1661,8 @@ end;`,
 					t.Fatalf("first block statement is not AssignmentStatement. got=%T", block.Statements[0])
 				}
 
-				if assign.Name.Value != "x" {
-					t.Errorf("assignment name = %q, want 'x'", assign.Name.Value)
+				if assign.Target.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Target.Value)
 				}
 
 				// Second statement: PrintLn(x);
@@ -1798,8 +1818,8 @@ func TestRepeatStatements(t *testing.T) {
 					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
 				}
 
-				if assign.Name.Value != "x" {
-					t.Errorf("assignment name = %q, want 'x'", assign.Name.Value)
+				if assign.Target.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Target.Value)
 				}
 
 				if !testInfixExpression(t, assign.Value, "x", "+", 1) {
@@ -1835,8 +1855,8 @@ end until x >= 10;`,
 					t.Fatalf("first block statement is not AssignmentStatement. got=%T", block.Statements[0])
 				}
 
-				if assign.Name.Value != "x" {
-					t.Errorf("assignment name = %q, want 'x'", assign.Name.Value)
+				if assign.Target.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Target.Value)
 				}
 
 				// Second statement: PrintLn(x);
@@ -2165,8 +2185,8 @@ end;`,
 					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
 				}
 
-				if assign.Name.Value != "sum" {
-					t.Errorf("assignment name = %q, want 'sum'", assign.Name.Value)
+				if assign.Target.Value != "sum" {
+					t.Errorf("assignment name = %q, want 'sum'", assign.Target.Value)
 				}
 
 				// Test assignment value: sum + i
@@ -2278,8 +2298,8 @@ end;`,
 					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
 				}
 
-				if assign.Name.Value != "x" {
-					t.Errorf("assignment name = %q, want 'x'", assign.Name.Value)
+				if assign.Target.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Target.Value)
 				}
 
 				if !testInfixExpression(t, assign.Value, "x", "+", "i") {

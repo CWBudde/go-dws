@@ -186,8 +186,8 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 		case *ast.Identifier:
 			// Simple assignment: x := value
 			stmt := &ast.AssignmentStatement{
-				Token: p.curToken,
-				Name:  leftExpr,
+				Token:  p.curToken,
+				Target: leftExpr,
 			}
 			p.nextToken()
 			stmt.Value = p.parseExpression(ASSIGN)
@@ -200,26 +200,25 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 
 		case *ast.MemberAccessExpression:
 			// Member assignment: obj.field := value
-			// For now, we'll store the member access in Name field
-			// The interpreter will need to handle this specially
 			stmt := &ast.AssignmentStatement{
-				Token: p.curToken,
-				Name:  nil, // We'll use a special marker
+				Token:  p.curToken,
+				Target: leftExpr,
 			}
 
-			// Store the object and member for the interpreter
-			// We need to extract the object identifier and member name
-			objIdent, ok := leftExpr.Object.(*ast.Identifier)
-			if !ok {
-				p.addError("member assignment requires identifier.member pattern")
-				return nil
-			}
+			p.nextToken()
+			stmt.Value = p.parseExpression(ASSIGN)
 
-			// Create a synthetic identifier that the interpreter can recognize
-			// Format: "object.member" - interpreter will parse this
-			stmt.Name = &ast.Identifier{
-				Token: objIdent.Token,
-				Value: objIdent.Value + "." + leftExpr.Member.Value,
+			// Optional semicolon
+			if p.peekTokenIs(lexer.SEMICOLON) {
+				p.nextToken()
+			}
+			return stmt
+
+		case *ast.IndexExpression:
+			// Array index assignment: arr[i] := value (Task 8.138)
+			stmt := &ast.AssignmentStatement{
+				Token:  p.curToken,
+				Target: leftExpr,
 			}
 
 			p.nextToken()
