@@ -149,6 +149,15 @@ Source Code → Lexer → Parser → AST → Semantic Analyzer → Interpreter
 - Binary: `%1010`
 - Floats: `3.14`, `1.0e10`
 
+**Enumerated Types** (Stage 8):
+- Basic declaration: `type TColor = (Red, Green, Blue);`
+- Explicit values: `type TStatus = (Ok = 0, Error = 1);`
+- Mixed values: `type TPriority = (Low, Medium = 5, High);`  // High = 6
+- Scoped access: `var color := TColor.Red;`
+- Unscoped access: `var color := Red;`
+- Built-ins: `Ord(enumValue)`, `Integer(enumValue)`
+- See `docs/enums.md` for complete documentation
+
 ### Testing Philosophy
 
 The project maintains high test coverage (>90% for lexer, >80% for parser). When adding features:

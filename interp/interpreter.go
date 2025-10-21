@@ -87,6 +87,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.OperatorDecl:
 		return i.evalOperatorDeclaration(node)
 
+	case *ast.EnumDecl:
+		return i.evalEnumDeclaration(node)
+
 	// Expressions
 	case *ast.IntegerLiteral:
 		return &IntegerValue{Value: node.Value}
@@ -126,6 +129,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	case *ast.MethodCallExpression:
 		return i.evalMethodCall(node)
+
+	case *ast.EnumLiteral:
+		return i.evalEnumLiteral(node)
 
 	default:
 		return newError("unknown node type: %T", node)
@@ -860,6 +866,10 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinPrintLn(args)
 	case "Print":
 		return i.builtinPrint(args)
+	case "Ord":
+		return i.builtinOrd(args)
+	case "Integer":
+		return i.builtinInteger(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
@@ -888,6 +898,73 @@ func (i *Interpreter) builtinPrint(args []Value) Value {
 		fmt.Fprint(i.output, arg.String())
 	}
 	return &NilValue{}
+}
+
+// builtinOrd implements the Ord() built-in function.
+// It returns the ordinal value of an enum, boolean, or character.
+// Task 8.51: Ord() function for enums
+func (i *Interpreter) builtinOrd(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Ord() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+
+	// Handle enum values
+	if enumVal, ok := arg.(*EnumValue); ok {
+		return &IntegerValue{Value: int64(enumVal.OrdinalValue)}
+	}
+
+	// Handle boolean values (False=0, True=1)
+	if boolVal, ok := arg.(*BooleanValue); ok {
+		if boolVal.Value {
+			return &IntegerValue{Value: 1}
+		}
+		return &IntegerValue{Value: 0}
+	}
+
+	// Handle integer values (pass through)
+	if intVal, ok := arg.(*IntegerValue); ok {
+		return intVal
+	}
+
+	return i.newErrorWithLocation(i.currentNode, "Ord() expects enum, boolean, or integer, got %s", arg.Type())
+}
+
+// builtinInteger implements the Integer() cast function.
+// It converts values to integers.
+// Task 8.52: Integer() cast for enums
+func (i *Interpreter) builtinInteger(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Integer() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+
+	// Handle enum values
+	if enumVal, ok := arg.(*EnumValue); ok {
+		return &IntegerValue{Value: int64(enumVal.OrdinalValue)}
+	}
+
+	// Handle integer values (pass through)
+	if intVal, ok := arg.(*IntegerValue); ok {
+		return intVal
+	}
+
+	// Handle float values (truncate)
+	if floatVal, ok := arg.(*FloatValue); ok {
+		return &IntegerValue{Value: int64(floatVal.Value)}
+	}
+
+	// Handle boolean values
+	if boolVal, ok := arg.(*BooleanValue); ok {
+		if boolVal.Value {
+			return &IntegerValue{Value: 1}
+		}
+		return &IntegerValue{Value: 0}
+	}
+
+	return i.newErrorWithLocation(i.currentNode, "Integer() cannot convert %s to integer", arg.Type())
 }
 
 // evalIfStatement evaluates an if statement.
@@ -1554,6 +1631,27 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			}
 			// Not a class variable - this is an error
 			return i.newErrorWithLocation(ma, "class variable '%s' not found in class '%s'", ma.Member.Value, classInfo.Name)
+		}
+
+		// Check if this identifier refers to an enum type (for scoped access: TColor.Red)
+		// Look for enum type metadata stored in environment
+		enumTypeKey := "__enum_type_" + ident.Value
+		if enumTypeVal, ok := i.env.Get(enumTypeKey); ok {
+			if _, isEnumType := enumTypeVal.(*EnumTypeValue); isEnumType {
+				// This is scoped enum access: TColor.Red
+				// Look up the enum value
+				valueName := ma.Member.Value
+				if val, exists := i.env.Get(valueName); exists {
+					if enumVal, isEnum := val.(*EnumValue); isEnum {
+						// Verify the value belongs to this enum type
+						if enumVal.TypeName == ident.Value {
+							return enumVal
+						}
+					}
+				}
+				// Enum value not found
+				return i.newErrorWithLocation(ma, "enum value '%s' not found in enum '%s'", ma.Member.Value, ident.Value)
+			}
 		}
 	}
 

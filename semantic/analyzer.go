@@ -27,6 +27,9 @@ type Analyzer struct {
 	// Interface registry for tracking declared interfaces (Task 7.97)
 	interfaces map[string]*types.InterfaceType
 
+	// Enum registry for tracking declared enums (Task 8.43)
+	enums map[string]*types.EnumType
+
 	// Current class being analyzed (for field/method access)
 	currentClass *types.ClassType
 
@@ -42,6 +45,7 @@ func NewAnalyzer() *Analyzer {
 		errors:             make([]string, 0),
 		classes:            make(map[string]*types.ClassType),
 		interfaces:         make(map[string]*types.InterfaceType),
+		enums:              make(map[string]*types.EnumType),
 		globalOperators:    types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
 	}
@@ -137,6 +141,8 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeInterfaceDecl(s)
 	case *ast.OperatorDecl:
 		a.analyzeOperatorDecl(s)
+	case *ast.EnumDecl:
+		a.analyzeEnumDecl(s)
 	default:
 		// Unknown statement type - this shouldn't happen
 		a.addError("unknown statement type: %T", stmt)
@@ -1160,7 +1166,7 @@ func (a *Analyzer) hasCircularInheritance(class *types.ClassType) bool {
 }
 
 // resolveType resolves a type name to a Type
-// Handles basic types and class types
+// Handles basic types, class types, and enum types
 func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	// Try basic types first
 	basicType, err := types.TypeFromString(typeName)
@@ -1171,6 +1177,11 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	// Try class types
 	if classType, found := a.classes[typeName]; found {
 		return classType, nil
+	}
+
+	// Try enum types (Task 8.43)
+	if enumType, found := a.enums[typeName]; found {
+		return enumType, nil
 	}
 
 	return nil, fmt.Errorf("unknown type: %s", typeName)
@@ -1978,5 +1989,82 @@ func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, d
 					methodName, classType.Name, ifaceName, decl.Token.Pos.String())
 			}
 		}
+	}
+}
+
+// ============================================================================
+// Enum Analysis (Task 8.43-8.46)
+// ============================================================================
+
+// analyzeEnumDecl analyzes an enum type declaration
+func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
+	if decl == nil {
+		return
+	}
+
+	enumName := decl.Name.Value
+
+	// Task 8.45: Check if enum is already declared
+	if _, exists := a.enums[enumName]; exists {
+		a.addError("enum type '%s' already declared at %s", enumName, decl.Token.Pos.String())
+		return
+	}
+
+	// Create the enum type
+	enumType := &types.EnumType{
+		Name:         enumName,
+		Values:       make(map[string]int),
+		OrderedNames: make([]string, 0, len(decl.Values)),
+	}
+
+	// Task 8.44: Register enum values and calculate ordinal values
+	// Task 8.45: Validate uniqueness and range
+	currentOrdinal := 0
+	usedValues := make(map[int]string) // Track used ordinal values to detect duplicates
+	usedNames := make(map[string]bool) // Track used names to detect duplicates
+
+	for _, enumValue := range decl.Values {
+		valueName := enumValue.Name
+
+		// Task 8.45: Check for duplicate value names
+		if usedNames[valueName] {
+			a.addError("duplicate enum value '%s' in enum '%s' at %s",
+				valueName, enumName, decl.Token.Pos.String())
+			continue
+		}
+		usedNames[valueName] = true
+
+		// Determine ordinal value (explicit or implicit)
+		ordinalValue := currentOrdinal
+		if enumValue.Value != nil {
+			ordinalValue = *enumValue.Value
+		}
+
+		// Task 8.45: Check for duplicate ordinal values
+		if existingName, exists := usedValues[ordinalValue]; exists {
+			a.addError("duplicate enum ordinal value %d in enum '%s' (values '%s' and '%s') at %s",
+				ordinalValue, enumName, existingName, valueName, decl.Token.Pos.String())
+			continue
+		}
+		usedValues[ordinalValue] = valueName
+
+		// Register the enum value
+		enumType.Values[valueName] = ordinalValue
+		enumType.OrderedNames = append(enumType.OrderedNames, valueName)
+
+		// Update current ordinal for next implicit value
+		currentOrdinal = ordinalValue + 1
+	}
+
+	// Task 8.43: Register the enum type
+	a.enums[enumName] = enumType
+
+	// Task 8.44: Register each enum value as a constant in the symbol table
+	for valueName, ordinalValue := range enumType.Values {
+		// Store enum values as constants with the enum type
+		// For now, we'll store them as the enum type itself
+		// This allows type checking: var color: TColor := Red;
+		_ = ordinalValue // We don't need the ordinal value for type checking
+		a.symbols.Define(valueName, enumType)
 	}
 }

@@ -144,11 +144,12 @@ func PromoteTypes(left, right Type) Type {
 // IsComparableType checks if values of this type can be compared with =, <>, <, >, etc.
 // In DWScript:
 //   - All basic types are comparable
+//   - Enum types are comparable (ordinal values)
 //   - Arrays and records may have limited comparison support
 //   - Functions are not comparable
 func IsComparableType(t Type) bool {
 	switch t.TypeKind() {
-	case "INTEGER", "FLOAT", "STRING", "BOOLEAN", "NIL":
+	case "INTEGER", "FLOAT", "STRING", "BOOLEAN", "NIL", "ENUM":
 		return true
 	case "FUNCTION", "VOID":
 		return false
@@ -163,10 +164,10 @@ func IsComparableType(t Type) bool {
 }
 
 // IsOrderedType checks if values of this type support ordering comparisons (<, >, <=, >=).
-// Only numeric types and strings support ordering in DWScript.
+// Numeric types, strings, and enums support ordering in DWScript.
 func IsOrderedType(t Type) bool {
 	switch t.TypeKind() {
-	case "INTEGER", "FLOAT", "STRING":
+	case "INTEGER", "FLOAT", "STRING", "ENUM":
 		return true
 	default:
 		return false

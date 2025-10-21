@@ -1,0 +1,16 @@
+// Enum in case statement - based on DWScript reference test
+type TWeekdays = (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday);
+
+var weekDay: TWeekdays;
+
+weekDay := TWeekdays.Wednesday;
+
+case weekDay of
+  Monday: PrintLn('Monday');
+  Tuesday: PrintLn('Tuesday');
+  Wednesday: PrintLn('Wednesday');
+  Thursday: PrintLn('Thursday');
+  Friday: PrintLn('Friday');
+  Saturday: PrintLn('Saturday');
+  TWeekdays.Sunday: PrintLn('Sunday');
+end;
