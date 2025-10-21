@@ -46,7 +46,7 @@ begin
 	obj := TExample.Create('wrong type');
 end;
 `
-	expectError(t, input, "type mismatch")
+	expectError(t, input, "has type String, expected Integer")
 }
 
 // TestConstructorWrongArgumentCount tests constructor with wrong number of arguments
@@ -65,7 +65,7 @@ begin
 	obj := TExample.Create();
 end;
 `
-	expectError(t, input, "wrong number of arguments")
+	expectError(t, input, "expects 1 arguments, got 0")
 }
 
 // TestMultipleConstructorsSemantics tests semantic analysis with multiple constructors

@@ -57,15 +57,18 @@ func (v Visibility) String() string {
 //	  // abstract class (cannot be instantiated)
 //	end;
 type ClassDecl struct {
-	Token       lexer.Token     // The 'type' token
-	Name        *Identifier     // The class name (e.g., "TPoint", "TPerson")
-	Parent      *Identifier     // The parent class name (optional, nil for root classes)
-	Interfaces  []*Identifier   // Interfaces implemented by this class (Task 7.70)
-	Fields      []*FieldDecl    // Field declarations
-	Methods     []*FunctionDecl // Method declarations
-	Constructor *FunctionDecl   // Constructor method (optional, usually named "Create")
-	Destructor  *FunctionDecl   // Destructor method (optional, usually named "Destroy")
-	IsAbstract  bool            // True if this is an abstract class (Task 7.65a)
+	Token        lexer.Token     // The 'type' token
+	Name         *Identifier     // The class name (e.g., "TPoint", "TPerson")
+	Parent       *Identifier     // The parent class name (optional, nil for root classes)
+	Interfaces   []*Identifier   // Interfaces implemented by this class (Task 7.70)
+	Fields       []*FieldDecl    // Field declarations
+	Methods      []*FunctionDecl // Method declarations
+	Operators    []*OperatorDecl // Class operator declarations (Stage 8)
+	Constructor  *FunctionDecl   // Constructor method (optional, usually named "Create")
+	Destructor   *FunctionDecl   // Destructor method (optional, usually named "Destroy")
+	IsAbstract   bool            // True if this is an abstract class (Task 7.65a)
+	IsExternal   bool            // True if this is an external class (Task 7.138)
+	ExternalName string          // External name for FFI binding (optional) - Task 7.138
 }
 
 func (cd *ClassDecl) statementNode()       {}
@@ -123,6 +126,15 @@ func (cd *ClassDecl) String() string {
 		methodStr := method.String()
 		// Indent multi-line method declarations
 		out.WriteString(strings.ReplaceAll(methodStr, "\n", "\n  "))
+		out.WriteString(";\n")
+	}
+
+	// Add class operators
+	for _, operator := range cd.Operators {
+		out.WriteString("  ")
+		if operator != nil {
+			out.WriteString(operator.String())
+		}
 		out.WriteString(";\n")
 	}
 

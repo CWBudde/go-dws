@@ -24,6 +24,19 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseCaseStatement()
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		return p.parseFunctionDeclaration()
+	case lexer.OPERATOR:
+		return p.parseOperatorDeclaration()
+	case lexer.CLASS:
+		if p.peekTokenIs(lexer.FUNCTION) || p.peekTokenIs(lexer.PROCEDURE) {
+			p.nextToken() // move to function/procedure token
+			fn := p.parseFunctionDeclaration()
+			if fn != nil {
+				fn.IsClassMethod = true
+			}
+			return fn
+		}
+		p.addError("expected 'function' or 'procedure' after 'class'")
+		return nil
 	case lexer.CONSTRUCTOR:
 		// Parse constructor implementation outside class body
 		method := p.parseFunctionDeclaration()

@@ -1880,3 +1880,59 @@ func TestMultipleInterfaceImplementation(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Task 7.137: External Class Tests
+// ============================================================================
+
+// TestExternalClassFields tests that ClassType has IsExternal and ExternalName fields
+func TestExternalClassFields(t *testing.T) {
+	t.Run("regular class is not external", func(t *testing.T) {
+		tRegular := NewClassType("TRegular", nil)
+		if tRegular.IsExternal {
+			t.Error("Regular class should not be marked as external")
+		}
+		if tRegular.ExternalName != "" {
+			t.Errorf("Regular class should have empty ExternalName, got %q", tRegular.ExternalName)
+		}
+	})
+
+	t.Run("external class without external name", func(t *testing.T) {
+		tExternal := NewClassType("TExternal", nil)
+		tExternal.IsExternal = true
+		if !tExternal.IsExternal {
+			t.Error("External class should be marked as external")
+		}
+		if tExternal.ExternalName != "" {
+			t.Errorf("External class without name should have empty ExternalName, got %q", tExternal.ExternalName)
+		}
+	})
+
+	t.Run("external class with external name", func(t *testing.T) {
+		tExternal := NewClassType("TExternal", nil)
+		tExternal.IsExternal = true
+		tExternal.ExternalName = "MyExternalClass"
+		if !tExternal.IsExternal {
+			t.Error("External class should be marked as external")
+		}
+		if tExternal.ExternalName != "MyExternalClass" {
+			t.Errorf("Expected ExternalName 'MyExternalClass', got %q", tExternal.ExternalName)
+		}
+	})
+
+	t.Run("external class with parent", func(t *testing.T) {
+		tParent := NewClassType("TParentExternal", nil)
+		tParent.IsExternal = true
+
+		tChild := NewClassType("TChildExternal", tParent)
+		tChild.IsExternal = true
+		tChild.ExternalName = "ChildExternal"
+
+		if !tChild.IsExternal {
+			t.Error("Child external class should be marked as external")
+		}
+		if tChild.ExternalName != "ChildExternal" {
+			t.Errorf("Expected ExternalName 'ChildExternal', got %q", tChild.ExternalName)
+		}
+	})
+}

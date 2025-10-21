@@ -157,6 +157,7 @@ const (
 	IMPLIES  // implies
 	EMPTY    // empty
 	IMPLICIT // implicit
+	EXPLICIT // explicit
 
 	keywordEnd // marker for end of keywords section
 
@@ -407,6 +408,7 @@ var tokenTypeStrings = [...]string{
 	IMPLIES:  "IMPLIES",
 	EMPTY:    "EMPTY",
 	IMPLICIT: "IMPLICIT",
+	EXPLICIT: "EXPLICIT",
 
 	// Delimiters
 	LPAREN:    "LPAREN",

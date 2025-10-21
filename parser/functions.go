@@ -60,7 +60,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		return nil
 	}
 
-	// Check for optional directives: static, virtual, override (Task 7.64c-d)
+	// Check for optional directives: static, virtual, override, external (Task 7.64c-d, 7.140)
 	for {
 		if p.peekTokenIs(lexer.STATIC) {
 			p.nextToken() // move to 'static'
@@ -90,6 +90,23 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 				return nil
 			}
 			// Abstract methods have no body, return early
+			return fn
+		} else if p.peekTokenIs(lexer.EXTERNAL) {
+			// External method: procedure Hello; external 'world';
+			// Task 7.140 - Parse external method declarations (no body)
+			p.nextToken() // move to 'external'
+			fn.IsExternal = true
+
+			// Check for optional external name string
+			if p.peekTokenIs(lexer.STRING) {
+				p.nextToken() // move to string
+				fn.ExternalName = p.curToken.Literal
+			}
+
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
+			// External methods have no body, return early
 			return fn
 		} else {
 			break // No more directives

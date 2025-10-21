@@ -15,6 +15,7 @@ type Interpreter struct {
 	output      io.Writer                    // Where to write output (e.g., from PrintLn)
 	functions   map[string]*ast.FunctionDecl // Registry of user-defined functions
 	classes     map[string]*ClassInfo        // Registry of class definitions
+	interfaces  map[string]*InterfaceInfo    // Registry of interface definitions (Task 7.118)
 	currentNode ast.Node                     // Current AST node being evaluated (for error reporting)
 }
 
@@ -23,10 +24,11 @@ type Interpreter struct {
 func New(output io.Writer) *Interpreter {
 	env := NewEnvironment()
 	return &Interpreter{
-		env:       env,
-		output:    output,
-		functions: make(map[string]*ast.FunctionDecl),
-		classes:   make(map[string]*ClassInfo),
+		env:        env,
+		output:     output,
+		functions:  make(map[string]*ast.FunctionDecl),
+		classes:    make(map[string]*ClassInfo),
+		interfaces: make(map[string]*InterfaceInfo), // Task 7.118
 	}
 }
 
@@ -74,6 +76,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	case *ast.ClassDecl:
 		return i.evalClassDeclaration(node)
+
+	case *ast.InterfaceDecl:
+		return i.evalInterfaceDeclaration(node)
 
 	// Expressions
 	case *ast.IntegerLiteral:
@@ -596,6 +601,21 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		return i.callUserFunction(fn, args)
 	}
 
+	// Check if this is an instance method call within the current context (implicit Self)
+	if selfVal, ok := i.env.Get("Self"); ok {
+		if obj, isObj := AsObject(selfVal); isObj {
+			if obj.GetMethod(funcName.Value) != nil {
+				mc := &ast.MethodCallExpression{
+					Token:     expr.Token,
+					Object:    &ast.Identifier{Token: funcName.Token, Value: "Self"},
+					Method:    funcName,
+					Arguments: expr.Arguments,
+				}
+				return i.evalMethodCall(mc)
+			}
+		}
+	}
+
 	// Otherwise, try built-in functions
 	// Evaluate all arguments
 	args := make([]Value, len(expr.Arguments))
@@ -909,6 +929,10 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Set abstract flag (Task 7.65)
 	classInfo.IsAbstract = cd.IsAbstract
 
+	// Set external flags (Task 7.141)
+	classInfo.IsExternal = cd.IsExternal
+	classInfo.ExternalName = cd.ExternalName
+
 	// Handle inheritance if parent class is specified
 	if cd.Parent != nil {
 		parentName := cd.Parent.Value
@@ -1012,6 +1036,50 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	return &NilValue{}
 }
 
+// evalInterfaceDeclaration evaluates an interface declaration (Task 7.119).
+// It builds an InterfaceInfo from the AST and registers it in the interface registry.
+// Handles inheritance by linking to parent interface and inheriting its methods.
+func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
+	// Create new InterfaceInfo
+	interfaceInfo := NewInterfaceInfo(id.Name.Value)
+
+	// Handle inheritance if parent interface is specified
+	if id.Parent != nil {
+		parentName := id.Parent.Value
+		parentInterface, exists := i.interfaces[parentName]
+		if !exists {
+			return i.newErrorWithLocation(id, "parent interface '%s' not found", parentName)
+		}
+
+		// Set parent reference
+		interfaceInfo.Parent = parentInterface
+
+		// Note: We don't copy parent methods here because InterfaceInfo.GetMethod()
+		// and AllMethods() already handle parent interface traversal
+	}
+
+	// Add methods to InterfaceInfo
+	// Convert InterfaceMethodDecl nodes to FunctionDecl nodes for consistency
+	for _, methodDecl := range id.Methods {
+		// Create a FunctionDecl from the InterfaceMethodDecl
+		// Interface methods are declarations only (no body)
+		funcDecl := &ast.FunctionDecl{
+			Token:      methodDecl.Token,
+			Name:       methodDecl.Name,
+			Parameters: methodDecl.Parameters,
+			ReturnType: methodDecl.ReturnType,
+			Body:       nil, // Interface methods have no body
+		}
+
+		interfaceInfo.Methods[methodDecl.Name.Value] = funcDecl
+	}
+
+	// Register interface in registry
+	i.interfaces[interfaceInfo.Name] = interfaceInfo
+
+	return &NilValue{}
+}
+
 // evalNewExpression evaluates object instantiation (TClassName.Create(...)).
 // It looks up the class, creates an object instance, initializes fields, and calls the constructor.
 func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
@@ -1025,6 +1093,13 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	// Check if trying to instantiate an abstract class (Task 7.65)
 	if classInfo.IsAbstract {
 		return i.newErrorWithLocation(ne, "cannot instantiate abstract class '%s'", className)
+	}
+
+	// Check if trying to instantiate an external class (Task 7.141)
+	// External classes are implemented outside DWScript and cannot be instantiated directly
+	// Future: Provide hooks for Go FFI implementation
+	if classInfo.IsExternal {
+		return i.newErrorWithLocation(ne, "cannot instantiate external class '%s' - external classes are not supported", className)
 	}
 
 	// Create new object instance

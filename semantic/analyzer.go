@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/ast"
 	"github.com/cwbudde/go-dws/types"
@@ -23,16 +24,26 @@ type Analyzer struct {
 	// Class registry for tracking declared classes (Task 7.54)
 	classes map[string]*types.ClassType
 
+	// Interface registry for tracking declared interfaces (Task 7.97)
+	interfaces map[string]*types.InterfaceType
+
 	// Current class being analyzed (for field/method access)
 	currentClass *types.ClassType
+
+	// Operator registries (Stage 8)
+	globalOperators    *types.OperatorRegistry
+	conversionRegistry *types.ConversionRegistry
 }
 
 // NewAnalyzer creates a new semantic analyzer
 func NewAnalyzer() *Analyzer {
 	return &Analyzer{
-		symbols: NewSymbolTable(),
-		errors:  make([]string, 0),
-		classes: make(map[string]*types.ClassType),
+		symbols:            NewSymbolTable(),
+		errors:             make([]string, 0),
+		classes:            make(map[string]*types.ClassType),
+		interfaces:         make(map[string]*types.InterfaceType),
+		globalOperators:    types.NewOperatorRegistry(),
+		conversionRegistry: types.NewConversionRegistry(),
 	}
 }
 
@@ -64,6 +75,27 @@ func (a *Analyzer) Errors() []string {
 // addError adds a semantic error to the error list
 func (a *Analyzer) addError(format string, args ...interface{}) {
 	a.errors = append(a.errors, fmt.Sprintf(format, args...))
+}
+
+// canAssign checks assignment compatibility, accounting for implicit conversions.
+func (a *Analyzer) canAssign(from, to types.Type) bool {
+	if from == nil || to == nil {
+		return false
+	}
+	if types.IsCompatible(from, to) {
+		return true
+	}
+	if fromClass, ok := from.(*types.ClassType); ok {
+		if toClass, ok := to.(*types.ClassType); ok {
+			if fromClass.Equals(toClass) || a.isDescendantOf(fromClass, toClass) {
+				return true
+			}
+		}
+	}
+	if sig, ok := a.conversionRegistry.FindImplicit(from, to); ok && sig != nil {
+		return true
+	}
+	return false
 }
 
 // ============================================================================
@@ -101,6 +133,10 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeReturn(s)
 	case *ast.ClassDecl:
 		a.analyzeClassDecl(s)
+	case *ast.InterfaceDecl:
+		a.analyzeInterfaceDecl(s)
+	case *ast.OperatorDecl:
+		a.analyzeOperatorDecl(s)
 	default:
 		// Unknown statement type - this shouldn't happen
 		a.addError("unknown statement type: %T", stmt)
@@ -141,7 +177,7 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 			varType = initType
 		} else {
 			// Check that initializer type is compatible with declared type
-			if !types.IsCompatible(initType, varType) {
+			if !a.canAssign(initType, varType) {
 				a.addError("cannot assign %s to %s in variable declaration at %s",
 					initType.String(), varType.String(), stmt.Token.Pos.String())
 				return
@@ -177,7 +213,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 	}
 
 	// Check type compatibility
-	if !types.IsCompatible(valueType, sym.Type) {
+	if !a.canAssign(valueType, sym.Type) {
 		a.addError("cannot assign %s to %s at %s",
 			valueType.String(), sym.Type.String(), stmt.Token.Pos.String())
 	}
@@ -194,6 +230,145 @@ func (a *Analyzer) analyzeBlock(stmt *ast.BlockStatement) {
 	for _, s := range stmt.Statements {
 		a.analyzeStatement(s)
 	}
+}
+
+// ============================================================================
+// Operator Analysis (Stage 8)
+// ============================================================================
+
+func (a *Analyzer) analyzeOperatorDecl(decl *ast.OperatorDecl) {
+	if decl == nil {
+		return
+	}
+
+	if decl.Kind == ast.OperatorKindClass {
+		// Class operators are processed as part of class analysis
+		return
+	}
+
+	operandTypes := make([]types.Type, decl.Arity)
+	for i, operand := range decl.OperandTypes {
+		typ, err := a.resolveOperatorType(operand.String())
+		if err != nil {
+			a.addError("unknown type '%s' in operator declaration at %s", operand.String(), decl.Token.Pos.String())
+			return
+		}
+		operandTypes[i] = typ
+	}
+
+	var resultType types.Type = types.VOID
+	if decl.ReturnType != nil {
+		var err error
+		resultType, err = a.resolveOperatorType(decl.ReturnType.String())
+		if err != nil {
+			a.addError("unknown return type '%s' in operator declaration at %s", decl.ReturnType.String(), decl.Token.Pos.String())
+			return
+		}
+	}
+
+	if decl.Binding == nil {
+		a.addError("operator '%s' missing binding at %s", decl.OperatorSymbol, decl.Token.Pos.String())
+		return
+	}
+
+	sym, ok := a.symbols.Resolve(decl.Binding.Value)
+	if !ok {
+		a.addError("binding '%s' for operator '%s' not found at %s", decl.Binding.Value, decl.OperatorSymbol, decl.Token.Pos.String())
+		return
+	}
+
+	funcType, ok := sym.Type.(*types.FunctionType)
+	if !ok {
+		a.addError("binding '%s' for operator '%s' is not a function at %s", decl.Binding.Value, decl.OperatorSymbol, decl.Token.Pos.String())
+		return
+	}
+
+	if len(funcType.Parameters) != len(operandTypes) {
+		a.addError("binding '%s' for operator '%s' expects %d parameters, got %d at %s",
+			decl.Binding.Value, decl.OperatorSymbol, len(operandTypes), len(funcType.Parameters), decl.Token.Pos.String())
+		return
+	}
+
+	for i, paramType := range funcType.Parameters {
+		if !paramType.Equals(operandTypes[i]) {
+			a.addError("binding '%s' parameter %d type %s does not match operator operand type %s at %s",
+				decl.Binding.Value, i+1, paramType.String(), operandTypes[i].String(), decl.Token.Pos.String())
+			return
+		}
+	}
+
+	if decl.Kind == ast.OperatorKindConversion {
+		if len(operandTypes) != 1 {
+			a.addError("conversion operator '%s' must have exactly one operand at %s", decl.OperatorSymbol, decl.Token.Pos.String())
+			return
+		}
+		if resultType == types.VOID {
+			a.addError("conversion operator '%s' must specify a return type at %s", decl.OperatorSymbol, decl.Token.Pos.String())
+			return
+		}
+
+		kind := types.ConversionExplicit
+		if strings.EqualFold(decl.OperatorSymbol, "implicit") {
+			kind = types.ConversionImplicit
+		}
+
+		sig := &types.ConversionSignature{
+			From:    operandTypes[0],
+			To:      resultType,
+			Binding: decl.Binding.Value,
+			Kind:    kind,
+		}
+
+		if err := a.conversionRegistry.Register(sig); err != nil {
+			a.addError("conversion from %s to %s already defined at %s", operandTypes[0].String(), resultType.String(), decl.Token.Pos.String())
+		}
+		return
+	}
+
+	sig := &types.OperatorSignature{
+		Operator:     decl.OperatorSymbol,
+		OperandTypes: operandTypes,
+		ResultType:   resultType,
+		Binding:      decl.Binding.Value,
+	}
+
+	if err := a.globalOperators.Register(sig); err != nil {
+		opSignatures := make([]string, len(operandTypes))
+		for i, typ := range operandTypes {
+			opSignatures[i] = typ.String()
+		}
+		a.addError("operator '%s' already defined for operand types (%s) at %s",
+			decl.OperatorSymbol, strings.Join(opSignatures, ", "), decl.Token.Pos.String())
+	}
+}
+
+func (a *Analyzer) resolveBinaryOperator(operator string, leftType, rightType types.Type) (*types.OperatorSignature, bool) {
+	if classType, ok := leftType.(*types.ClassType); ok {
+		if sig, found := classType.LookupOperator(operator, []types.Type{leftType, rightType}); found {
+			return sig, true
+		}
+	}
+	if classType, ok := rightType.(*types.ClassType); ok {
+		if sig, found := classType.LookupOperator(operator, []types.Type{leftType, rightType}); found {
+			return sig, true
+		}
+	}
+	if sig, found := a.globalOperators.Lookup(operator, []types.Type{leftType, rightType}); found {
+		return sig, true
+	}
+	return nil, false
+}
+
+func (a *Analyzer) resolveUnaryOperator(operator string, operand types.Type) (*types.OperatorSignature, bool) {
+	if classType, ok := operand.(*types.ClassType); ok {
+		if sig, found := classType.LookupOperator(operator, []types.Type{operand}); found {
+			return sig, true
+		}
+	}
+	if sig, found := a.globalOperators.Lookup(operator, []types.Type{operand}); found {
+		return sig, true
+	}
+	return nil, false
 }
 
 // analyzeIf analyzes an if statement
@@ -283,7 +458,7 @@ func (a *Analyzer) analyzeCase(stmt *ast.CaseStatement) {
 		for _, value := range branch.Values {
 			valueType := a.analyzeExpression(value)
 			if caseType != nil && valueType != nil {
-				if !types.IsCompatible(valueType, caseType) {
+				if !a.canAssign(valueType, caseType) {
 					a.addError("case value type %s incompatible with case expression type %s",
 						valueType.String(), caseType.String())
 				}
@@ -362,8 +537,9 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	// For functions (not procedures), add Result variable
 	if returnType != types.VOID {
 		a.symbols.Define("Result", returnType)
-		// Also allow function name as return variable (Pascal style)
-		a.symbols.Define(decl.Name.Value, returnType)
+		// Note: In Pascal, you can assign to the function name, but we don't add it
+		// as a separate variable to avoid shadowing the function itself.
+		// Assignments to the function name should be treated as assignments to Result.
 	}
 
 	// Set current function for return statement checking
@@ -405,7 +581,7 @@ func (a *Analyzer) analyzeReturn(stmt *ast.ReturnStatement) {
 		}
 
 		returnType := a.analyzeExpression(stmt.ReturnValue)
-		if returnType != nil && !types.IsCompatible(returnType, expectedType) {
+		if returnType != nil && !a.canAssign(returnType, expectedType) {
 			a.addError("return type %s incompatible with function return type %s at %s",
 				returnType.String(), expectedType.String(), stmt.Token.Pos.String())
 		}
@@ -464,6 +640,18 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 	sym, ok := a.symbols.Resolve(ident.Value)
 	if !ok {
+		if classType, exists := a.classes[ident.Value]; exists {
+			return classType
+		}
+		if a.currentClass != nil {
+			if owner := a.getFieldOwner(a.currentClass.Parent, ident.Value); owner != nil {
+				if visibility, ok := owner.FieldVisibility[ident.Value]; ok && visibility == int(ast.VisibilityPrivate) {
+					a.addError("cannot access private field '%s' of class '%s' at %s",
+						ident.Value, owner.Name, ident.Token.Pos.String())
+					return nil
+				}
+			}
+		}
 		a.addError("undefined variable '%s' at %s", ident.Value, ident.Token.Pos.String())
 		return nil
 	}
@@ -482,6 +670,13 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 	}
 
 	operator := expr.Operator
+
+	if sig, ok := a.resolveBinaryOperator(operator, leftType, rightType); ok {
+		if sig.ResultType != nil {
+			return sig.ResultType
+		}
+		return types.VOID
+	}
 
 	// Handle arithmetic operators
 	if operator == "+" || operator == "-" || operator == "*" || operator == "/" {
@@ -527,7 +722,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 				return nil
 			}
 			// Types must be compatible
-			if !leftType.Equals(rightType) && !types.IsCompatible(leftType, rightType) && !types.IsCompatible(rightType, leftType) {
+			if !leftType.Equals(rightType) && !a.canAssign(leftType, rightType) && !a.canAssign(rightType, leftType) {
 				a.addError("cannot compare %s with %s at %s",
 					leftType.String(), rightType.String(), expr.Token.Pos.String())
 				return nil
@@ -540,7 +735,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 				return nil
 			}
 			// Types must match (or be compatible)
-			if !leftType.Equals(rightType) && !types.IsCompatible(leftType, rightType) && !types.IsCompatible(rightType, leftType) {
+			if !leftType.Equals(rightType) && !a.canAssign(leftType, rightType) && !a.canAssign(rightType, leftType) {
 				a.addError("cannot compare %s with %s at %s",
 					leftType.String(), rightType.String(), expr.Token.Pos.String())
 				return nil
@@ -573,6 +768,13 @@ func (a *Analyzer) analyzeUnaryExpression(expr *ast.UnaryExpression) types.Type 
 	}
 
 	operator := expr.Operator
+
+	if sig, ok := a.resolveUnaryOperator(operator, operandType); ok {
+		if sig.ResultType != nil {
+			return sig.ResultType
+		}
+		return types.VOID
+	}
 
 	// Handle negation
 	if operator == "-" || operator == "+" {
@@ -620,6 +822,26 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
+		// Allow calling methods within the current class without explicit Self
+		if a.currentClass != nil {
+			if methodType, found := a.currentClass.GetMethod(funcIdent.Value); found {
+				if len(expr.Arguments) != len(methodType.Parameters) {
+					a.addError("method '%s' expects %d arguments, got %d at %s",
+						funcIdent.Value, len(methodType.Parameters), len(expr.Arguments), expr.Token.Pos.String())
+					return methodType.ReturnType
+				}
+				for i, arg := range expr.Arguments {
+					argType := a.analyzeExpression(arg)
+					expectedType := methodType.Parameters[i]
+					if argType != nil && !a.canAssign(argType, expectedType) {
+						a.addError("argument %d to method '%s' has type %s, expected %s at %s",
+							i+1, funcIdent.Value, argType.String(), expectedType.String(), expr.Token.Pos.String())
+					}
+				}
+				return methodType.ReturnType
+			}
+		}
+
 		a.addError("undefined function '%s' at %s", funcIdent.Value, expr.Token.Pos.String())
 		return nil
 	}
@@ -643,7 +865,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	for i, arg := range expr.Arguments {
 		argType := a.analyzeExpression(arg)
 		expectedType := funcType.Parameters[i]
-		if argType != nil && !types.IsCompatible(argType, expectedType) {
+		if argType != nil && !a.canAssign(argType, expectedType) {
 			a.addError("argument %d to function '%s' has type %s, expected %s at %s",
 				i+1, funcIdent.Value, argType.String(), expectedType.String(),
 				expr.Token.Pos.String())
@@ -684,6 +906,27 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 	// Set abstract flag (Task 7.65e)
 	classType.IsAbstract = decl.IsAbstract
+
+	// Set external flags (Task 7.138)
+	classType.IsExternal = decl.IsExternal
+	classType.ExternalName = decl.ExternalName
+
+	// Validate external class inheritance (Task 7.139)
+	if decl.IsExternal {
+		// External class must inherit from nil (Object) or another external class
+		if parentClass != nil && !parentClass.IsExternal {
+			a.addError("external class '%s' cannot inherit from non-external class '%s' at %s",
+				className, parentClass.Name, decl.Token.Pos.String())
+			return
+		}
+	} else {
+		// Non-external class cannot inherit from external class
+		if parentClass != nil && parentClass.IsExternal {
+			a.addError("non-external class '%s' cannot inherit from external class '%s' at %s",
+				className, parentClass.Name, decl.Token.Pos.String())
+			return
+		}
+	}
 
 	// Check for circular inheritance (Task 7.55)
 	if parentClass != nil && a.hasCircularInheritance(classType) {
@@ -772,13 +1015,105 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		a.analyzeMethodDecl(decl.Constructor, classType)
 	}
 
+	// Register class operators (Stage 8)
+	a.registerClassOperators(classType, decl)
+
 	// Check method overriding (Task 7.59)
 	if parentClass != nil {
 		a.checkMethodOverriding(classType, parentClass)
 	}
 
+	// Validate interface implementation (Task 7.100)
+	if len(decl.Interfaces) > 0 {
+		a.validateInterfaceImplementation(classType, decl)
+	}
+
 	// Validate abstract class rules (Task 7.65)
 	a.validateAbstractClass(classType, decl)
+}
+
+func (a *Analyzer) registerClassOperators(classType *types.ClassType, decl *ast.ClassDecl) {
+	for _, opDecl := range decl.Operators {
+		if opDecl == nil {
+			continue
+		}
+
+		if opDecl.Binding == nil {
+			a.addError("class operator '%s' missing binding in class '%s' at %s",
+				opDecl.OperatorSymbol, classType.Name, opDecl.Token.Pos.String())
+			continue
+		}
+
+		methodType, ok := classType.Methods[opDecl.Binding.Value]
+		if !ok {
+			a.addError("binding '%s' for class operator '%s' not found in class '%s' at %s",
+				opDecl.Binding.Value, opDecl.OperatorSymbol, classType.Name, opDecl.Token.Pos.String())
+			continue
+		}
+
+		if len(opDecl.OperandTypes) != len(methodType.Parameters) {
+			a.addError("binding '%s' for class operator '%s' expects %d parameters, got %d at %s",
+				opDecl.Binding.Value, opDecl.OperatorSymbol, len(opDecl.OperandTypes), len(methodType.Parameters), opDecl.Token.Pos.String())
+			continue
+		}
+
+		extraTypes := make([]types.Type, len(opDecl.OperandTypes))
+		errorFound := false
+		for i, operand := range opDecl.OperandTypes {
+			resolved, err := a.resolveOperatorType(operand.String())
+			if err != nil {
+				a.addError("unknown type '%s' in class operator declaration at %s", operand.String(), opDecl.Token.Pos.String())
+				errorFound = true
+				break
+			}
+			extraTypes[i] = resolved
+			if !methodType.Parameters[i].Equals(resolved) {
+				a.addError("binding '%s' parameter %d type %s does not match operator operand type %s at %s",
+					opDecl.Binding.Value, i+1, methodType.Parameters[i].String(), resolved.String(), opDecl.Token.Pos.String())
+				errorFound = true
+				break
+			}
+		}
+		if errorFound {
+			continue
+		}
+
+		resultType := methodType.ReturnType
+		if opDecl.ReturnType != nil {
+			var err error
+			resultType, err = a.resolveOperatorType(opDecl.ReturnType.String())
+			if err != nil {
+				a.addError("unknown return type '%s' in class operator declaration at %s", opDecl.ReturnType.String(), opDecl.Token.Pos.String())
+				continue
+			}
+			if !methodType.ReturnType.Equals(resultType) {
+				a.addError("binding '%s' return type %s does not match operator return type %s at %s",
+					opDecl.Binding.Value, methodType.ReturnType.String(), resultType.String(), opDecl.Token.Pos.String())
+				continue
+			}
+		}
+
+		operandTypes := make([]types.Type, 0, len(extraTypes)+1)
+		if strings.EqualFold(opDecl.OperatorSymbol, "in") {
+			operandTypes = append(operandTypes, extraTypes...)
+			operandTypes = append(operandTypes, classType)
+		} else {
+			operandTypes = append(operandTypes, classType)
+			operandTypes = append(operandTypes, extraTypes...)
+		}
+
+		sig := &types.OperatorSignature{
+			Operator:     opDecl.OperatorSymbol,
+			OperandTypes: operandTypes,
+			ResultType:   resultType,
+			Binding:      opDecl.Binding.Value,
+		}
+
+		if err := classType.RegisterOperator(sig); err != nil {
+			a.addError("class operator '%s' already defined for class '%s' at %s",
+				opDecl.OperatorSymbol, classType.Name, opDecl.Token.Pos.String())
+		}
+	}
 }
 
 // hasCircularInheritance checks if a class has circular inheritance
@@ -812,6 +1147,30 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	}
 
 	return nil, fmt.Errorf("unknown type: %s", typeName)
+}
+
+// resolveOperatorType resolves type annotations used in operator declarations.
+func (a *Analyzer) resolveOperatorType(typeName string) (types.Type, error) {
+	name := strings.TrimSpace(typeName)
+	if name == "" {
+		return types.VOID, nil
+	}
+
+	if t, err := a.resolveType(name); err == nil {
+		return t, nil
+	}
+
+	lower := strings.ToLower(name)
+	if strings.HasPrefix(lower, "array of ") {
+		elemName := strings.TrimSpace(name[len("array of "):])
+		elemType, err := a.resolveOperatorType(elemName)
+		if err != nil {
+			return nil, err
+		}
+		return types.NewDynamicArrayType(elemType), nil
+	}
+
+	return nil, fmt.Errorf("unknown type: %s", name)
 }
 
 // analyzeMethodImplementation analyzes a method implementation outside a class (Task 7.63v-z)
@@ -873,9 +1232,16 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	// Create function type and add to class methods
 	funcType := types.NewFunctionType(paramTypes, returnType)
 	classType.Methods[method.Name.Value] = funcType
+	if method.IsConstructor {
+		classType.Constructors[method.Name.Value] = funcType
+	}
 
 	// Store method visibility (Task 7.63f)
-	classType.MethodVisibility[method.Name.Value] = int(method.Visibility)
+	// Only set visibility if this is the first time we're seeing this method (declaration in class body)
+	// Method implementations outside the class shouldn't overwrite the visibility
+	if _, exists := classType.MethodVisibility[method.Name.Value]; !exists {
+		classType.MethodVisibility[method.Name.Value] = int(method.Visibility)
+	}
 
 	// Store virtual/override/abstract flags (Task 7.64, 7.65)
 	classType.VirtualMethods[method.Name.Value] = method.IsVirtual
@@ -1055,6 +1421,9 @@ func (a *Analyzer) addParentFieldsToScope(parent *types.ClassType) {
 	for fieldName, fieldType := range parent.Fields {
 		// Don't override if already defined (shadowing)
 		if !a.symbols.IsDeclaredInCurrentScope(fieldName) {
+			if visibility, ok := parent.FieldVisibility[fieldName]; ok && visibility == int(ast.VisibilityPrivate) {
+				continue
+			}
 			a.symbols.Define(fieldName, fieldType)
 		}
 	}
@@ -1195,6 +1564,17 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	// Check if class has a constructor
 	constructorType, hasConstructor := classType.GetMethod("Create")
 	if hasConstructor {
+		if owner := a.getMethodOwner(classType, "Create"); owner != nil {
+			if visibility, ok := owner.MethodVisibility["Create"]; ok {
+				if !a.checkVisibility(owner, visibility, "Create", "method") {
+					visibilityStr := ast.Visibility(visibility).String()
+					a.addError("cannot access %s constructor 'Create' of class '%s' at %s",
+						visibilityStr, owner.Name, expr.Token.Pos.String())
+					return classType
+				}
+			}
+		}
+
 		// Validate constructor arguments
 		if len(expr.Arguments) != len(constructorType.Parameters) {
 			a.addError("constructor for class '%s' expects %d arguments, got %d at %s",
@@ -1207,7 +1587,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		for i, arg := range expr.Arguments {
 			argType := a.analyzeExpression(arg)
 			expectedType := constructorType.Parameters[i]
-			if argType != nil && !types.IsCompatible(argType, expectedType) {
+			if argType != nil && !a.canAssign(argType, expectedType) {
 				a.addError("argument %d to constructor of '%s' has type %s, expected %s at %s",
 					i+1, className, argType.String(), expectedType.String(),
 					expr.Token.Pos.String())
@@ -1311,6 +1691,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		visibility, hasVisibility := methodOwner.MethodVisibility[methodName]
 		if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {
 			visibilityStr := ast.Visibility(visibility).String()
+			if methodOwner.HasConstructor(methodName) {
+				a.addError("cannot access %s constructor '%s' of class '%s' at %s",
+					visibilityStr, methodName, methodOwner.Name, expr.Token.Pos.String())
+				return classType
+			}
 			a.addError("cannot call %s method '%s' of class '%s' at %s",
 				visibilityStr, methodName, methodOwner.Name, expr.Token.Pos.String())
 			return methodType.ReturnType
@@ -1329,13 +1714,16 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	for i, arg := range expr.Arguments {
 		argType := a.analyzeExpression(arg)
 		expectedType := methodType.Parameters[i]
-		if argType != nil && !types.IsCompatible(argType, expectedType) {
+		if argType != nil && !a.canAssign(argType, expectedType) {
 			a.addError("argument %d to method '%s' of class '%s' has type %s, expected %s at %s",
 				i+1, methodName, classType.Name, argType.String(), expectedType.String(),
 				expr.Token.Pos.String())
 		}
 	}
 
+	if classType.HasConstructor(methodName) {
+		return classType
+	}
 	return methodType.ReturnType
 }
 
@@ -1446,4 +1834,121 @@ func (a *Analyzer) collectAbstractMethods(parent *types.ClassType) map[string]bo
 	}
 
 	return abstractMethods
+}
+
+// ============================================================================
+// Interface Analysis (Task 7.96-7.103)
+// ============================================================================
+
+// analyzeInterfaceDecl analyzes an interface declaration (Task 7.98)
+func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
+	interfaceName := decl.Name.Value
+
+	// Check if interface is already declared (Task 7.98)
+	if _, exists := a.interfaces[interfaceName]; exists {
+		a.addError("interface '%s' already declared at %s", interfaceName, decl.Token.Pos.String())
+		return
+	}
+
+	// Resolve parent interface if specified (Task 7.98)
+	var parentInterface *types.InterfaceType
+	if decl.Parent != nil {
+		parentName := decl.Parent.Value
+		var found bool
+		parentInterface, found = a.interfaces[parentName]
+		if !found {
+			a.addError("parent interface '%s' not found at %s", parentName, decl.Token.Pos.String())
+			return
+		}
+	}
+
+	// Create new interface type
+	interfaceType := types.NewInterfaceType(interfaceName)
+	interfaceType.Parent = parentInterface
+
+	// Set external flag and name if specified
+	if decl.IsExternal {
+		interfaceType.IsExternal = true
+		interfaceType.ExternalName = decl.ExternalName
+	}
+
+	// Analyze each method in the interface
+	for _, method := range decl.Methods {
+		a.analyzeInterfaceMethodDecl(method, interfaceType)
+	}
+
+	// Register interface in the registry
+	a.interfaces[interfaceName] = interfaceType
+}
+
+// analyzeInterfaceMethodDecl analyzes an interface method declaration (Task 7.99)
+func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, iface *types.InterfaceType) {
+	methodName := method.Name.Value
+
+	// Build parameter types list
+	var paramTypes []types.Type
+	for _, param := range method.Parameters {
+		paramType, err := a.resolveType(param.Type.Name)
+		if err != nil {
+			a.addError("unknown parameter type '%s' in interface method '%s' at %s",
+				param.Type.Name, methodName, method.Token.Pos.String())
+			return
+		}
+		paramTypes = append(paramTypes, paramType)
+	}
+
+	// Determine return type
+	var returnType types.Type = types.VOID
+	if method.ReturnType != nil {
+		var err error
+		returnType, err = a.resolveType(method.ReturnType.Name)
+		if err != nil {
+			a.addError("unknown return type '%s' in interface method '%s' at %s",
+				method.ReturnType.Name, methodName, method.Token.Pos.String())
+			return
+		}
+	}
+
+	// Create function type for this interface method
+	funcType := types.NewFunctionType(paramTypes, returnType)
+
+	// Add method to interface
+	iface.Methods[methodName] = funcType
+}
+
+// validateInterfaceImplementation validates that a class implements all required interface methods (Task 7.100)
+func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, decl *ast.ClassDecl) {
+	// For each interface declared on the class
+	for _, ifaceIdent := range decl.Interfaces {
+		ifaceName := ifaceIdent.Value
+
+		// Lookup the interface type
+		ifaceType, found := a.interfaces[ifaceName]
+		if !found {
+			a.addError("interface '%s' not found at %s", ifaceName, decl.Token.Pos.String())
+			continue
+		}
+
+		// Store interface in class type's Interfaces list
+		classType.Interfaces = append(classType.Interfaces, ifaceType)
+
+		// Check that class implements all interface methods
+		allMethods := types.GetAllInterfaceMethods(ifaceType)
+		for methodName, ifaceMethod := range allMethods {
+			// Check if class has this method
+			classMethod, hasMethod := classType.GetMethod(methodName)
+			if !hasMethod {
+				a.addError("class '%s' does not implement interface method '%s' from interface '%s' at %s",
+					classType.Name, methodName, ifaceName, decl.Token.Pos.String())
+				continue
+			}
+
+			// Check that signatures match (Task 7.103)
+			// Use existing methodSignaturesMatch from analyzer.go:1038
+			if !a.methodSignaturesMatch(classMethod, ifaceMethod) {
+				a.addError("method '%s' in class '%s' does not match interface signature from '%s' at %s",
+					methodName, classType.Name, ifaceName, decl.Token.Pos.String())
+			}
+		}
+	}
 }

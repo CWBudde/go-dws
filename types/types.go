@@ -171,6 +171,10 @@ type ClassType struct {
 	IsAbstract       bool                     // True if this is an abstract class (Task 7.65)
 	AbstractMethods  map[string]bool          // Method name -> is abstract (Task 7.65)
 	Interfaces       []*InterfaceType         // Interfaces implemented by this class - Task 7.80
+	Operators        *OperatorRegistry        // Class operator overloads (Stage 8)
+	Constructors     map[string]*FunctionType // Constructor name -> signature
+	IsExternal       bool                     // True if this is an external class (Task 7.137)
+	ExternalName     string                   // External name for FFI binding (optional) - Task 7.137
 }
 
 // String returns the string representation of the class type
@@ -241,6 +245,44 @@ func (ct *ClassType) GetMethod(name string) (*FunctionType, bool) {
 	return nil, false
 }
 
+// RegisterOperator adds a class operator overload to the class type.
+func (ct *ClassType) RegisterOperator(signature *OperatorSignature) error {
+	if ct.Operators == nil {
+		ct.Operators = NewOperatorRegistry()
+	}
+	return ct.Operators.Register(signature)
+}
+
+// LookupOperator searches for a matching operator overload in the class hierarchy.
+func (ct *ClassType) LookupOperator(operator string, operandTypes []Type) (*OperatorSignature, bool) {
+	if ct == nil {
+		return nil, false
+	}
+	if ct.Operators != nil {
+		if sig, ok := ct.Operators.Lookup(operator, operandTypes); ok {
+			return sig, true
+		}
+	}
+	if ct.Parent != nil {
+		return ct.Parent.LookupOperator(operator, operandTypes)
+	}
+	return nil, false
+}
+
+// HasConstructor checks if the class or any ancestor declares a constructor with the given name.
+func (ct *ClassType) HasConstructor(name string) bool {
+	if ct == nil {
+		return false
+	}
+	if _, ok := ct.Constructors[name]; ok {
+		return true
+	}
+	if ct.Parent != nil {
+		return ct.Parent.HasConstructor(name)
+	}
+	return false
+}
+
 // NewClassType creates a new class type with the given name and optional parent.
 // Fields, ClassVars, Methods, and visibility maps are initialized as empty.
 func NewClassType(name string, parent *ClassType) *ClassType {
@@ -255,6 +297,8 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		VirtualMethods:   make(map[string]bool), // Task 7.64
 		OverrideMethods:  make(map[string]bool), // Task 7.64
 		AbstractMethods:  make(map[string]bool), // Task 7.65
+		Operators:        NewOperatorRegistry(),
+		Constructors:     make(map[string]*FunctionType),
 	}
 }
 

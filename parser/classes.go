@@ -106,11 +106,26 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		classDecl.IsAbstract = true
 	}
 
+	// Check for 'external' keyword (Task 7.138)
+	// Syntax: type TExternal = class external
+	// Syntax: type TExternal = class external 'ExternalName'
+	if p.peekTokenIs(lexer.EXTERNAL) {
+		p.nextToken() // move to 'external'
+		classDecl.IsExternal = true
+
+		// Check for optional external name string
+		if p.peekTokenIs(lexer.STRING) {
+			p.nextToken() // move to string
+			classDecl.ExternalName = p.curToken.Literal
+		}
+	}
+
 	// Parse class body (fields and methods) until 'end'
-	p.nextToken() // move past 'class' or ')'
+	p.nextToken() // move past 'class' or ')' or 'abstract' or 'external' or external name
 
 	classDecl.Fields = []*ast.FieldDecl{}
 	classDecl.Methods = []*ast.FunctionDecl{}
+	classDecl.Operators = []*ast.OperatorDecl{}
 
 	// Default visibility is public (Task 7.63e)
 	currentVisibility := ast.VisibilityPublic
@@ -139,6 +154,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 
 		// Check for 'class var' or 'class function' / 'class procedure'
 		if p.curTokenIs(lexer.CLASS) {
+			classToken := p.curToken
 			p.nextToken() // move past 'class'
 
 			if p.curTokenIs(lexer.VAR) {
@@ -148,6 +164,11 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 				if field != nil {
 					field.IsClassVar = true // Mark as class variable
 					classDecl.Fields = append(classDecl.Fields, field)
+				}
+			} else if p.curTokenIs(lexer.OPERATOR) {
+				operator := p.parseClassOperatorDeclaration(classToken, currentVisibility)
+				if operator != nil {
+					classDecl.Operators = append(classDecl.Operators, operator)
 				}
 			} else if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
 				// Class method: class function/procedure ...
