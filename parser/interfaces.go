@@ -34,6 +34,10 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 	} else if p.peekTokenIs(lexer.CLASS) {
 		p.nextToken() // move to CLASS
 		return p.parseClassDeclarationBody(nameIdent)
+	} else if p.peekTokenIs(lexer.RECORD) {
+		// Record declaration: type TPoint = record X, Y: Integer; end;
+		// Task 8.62: Integrated record parsing
+		return p.parseRecordDeclaration(nameIdent, typeToken)
 	} else if p.peekTokenIs(lexer.LPAREN) {
 		// Enum declaration: type TColor = (Red, Green, Blue);
 		return p.parseEnumDeclaration(nameIdent, typeToken)
@@ -44,7 +48,7 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 	}
 
 	// Unknown type declaration
-	p.addError("expected 'class', 'interface', 'enum', or '(' after '=' in type declaration")
+	p.addError("expected 'class', 'interface', 'enum', 'record', or '(' after '=' in type declaration")
 	return nil
 }
 

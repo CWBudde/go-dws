@@ -24,9 +24,9 @@ type EnumValue struct {
 //   - type TEnum = (One = 1, Two = 5);
 //   - type TEnum = enum (One, Two);
 type EnumDecl struct {
-	Token  lexer.Token  // The 'type' token
-	Name   *Identifier  // Enum type name
-	Values []EnumValue  // List of enum values
+	Token  lexer.Token // The 'type' token
+	Name   *Identifier // Enum type name
+	Values []EnumValue // List of enum values
 }
 
 // statementNode implements the Statement interface

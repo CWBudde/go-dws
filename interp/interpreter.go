@@ -90,6 +90,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.EnumDecl:
 		return i.evalEnumDeclaration(node)
 
+	case *ast.RecordDecl:
+		return i.evalRecordDeclaration(node)
+
 	// Expressions
 	case *ast.IntegerLiteral:
 		return &IntegerValue{Value: node.Value}
@@ -132,6 +135,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	case *ast.EnumLiteral:
 		return i.evalEnumLiteral(node)
+
+	case *ast.RecordLiteral:
+		return i.evalRecordLiteral(node)
 
 	default:
 		return newError("unknown node type: %T", node)
@@ -181,8 +187,24 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			return value
 		}
 	} else {
-		// No initializer, use nil
-		value = &NilValue{}
+		// No initializer - check if we need to initialize based on type
+		if stmt.Type != nil {
+			// Check if this is a record type
+			typeName := stmt.Type.Name
+			recordTypeKey := "__record_type_" + typeName
+			if typeVal, ok := i.env.Get(recordTypeKey); ok {
+				if rtv, ok := typeVal.(*RecordTypeValue); ok {
+					// Initialize with empty record value
+					value = NewRecordValue(rtv.RecordType)
+				} else {
+					value = &NilValue{}
+				}
+			} else {
+				value = &NilValue{}
+			}
+		} else {
+			value = &NilValue{}
+		}
 	}
 
 	i.env.Define(stmt.Name.Value, value)
@@ -192,7 +214,29 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 // evalAssignmentStatement evaluates an assignment statement.
 // It updates an existing variable's value or sets an object field.
 func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Value {
-	value := i.Eval(stmt.Value)
+	// Special handling for record literals without type names (Task 8.74)
+	// We need to provide type context from the target variable
+	var value Value
+	if recordLit, ok := stmt.Value.(*ast.RecordLiteral); ok && recordLit.TypeName == "" {
+		// This is an untyped record literal - get type from target variable
+		targetVar, exists := i.env.Get(stmt.Name.Value)
+		if exists {
+			if recVal, ok := targetVar.(*RecordValue); ok {
+				// Set the type name in the literal temporarily
+				recordLit.TypeName = recVal.RecordType.Name
+				value = i.Eval(recordLit)
+				// Reset it (though it doesn't matter for AST that's being evaluated)
+				recordLit.TypeName = ""
+			} else {
+				value = i.Eval(stmt.Value)
+			}
+		} else {
+			value = i.Eval(stmt.Value)
+		}
+	} else {
+		value = i.Eval(stmt.Value)
+	}
+
 	if isError(value) {
 		return value
 	}
@@ -221,11 +265,23 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 			return value
 		}
 
-		// Not a class name - try object instance field assignment
+		// Not a class name - try object instance or record field assignment
 		// Get the object from the environment
 		objVal, ok := i.env.Get(objectName)
 		if !ok {
 			return newError("undefined variable: %s", objectName)
+		}
+
+		// Task 8.76: Check if it's a record value
+		if recordVal, ok := objVal.(*RecordValue); ok {
+			// Verify field exists in the record type
+			if _, exists := recordVal.RecordType.Fields[fieldName]; !exists {
+				return newError("field '%s' not found in record '%s'", fieldName, recordVal.RecordType.Name)
+			}
+
+			// Set the field value
+			recordVal.Fields[fieldName] = value
+			return value
 		}
 
 		// Check if it's an object instance
@@ -250,6 +306,11 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 		if extVar, isExternal := existingVal.(*ExternalVarValue); isExternal {
 			return newError("Unsupported external variable assignment: %s", extVar.Name)
 		}
+	}
+
+	// Task 8.77: Records have value semantics - copy when assigning
+	if recordVal, ok := value.(*RecordValue); ok {
+		value = recordVal.Copy()
 	}
 
 	// First try to set in current environment
@@ -294,6 +355,10 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 
 // evalBlockStatement evaluates a block of statements.
 func (i *Interpreter) evalBlockStatement(block *ast.BlockStatement) Value {
+	if block == nil {
+		return &NilValue{}
+	}
+
 	var result Value
 
 	for _, stmt := range block.Statements {
@@ -391,6 +456,9 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 
 	case left.Type() == "BOOLEAN" && right.Type() == "BOOLEAN":
 		return i.evalBooleanBinaryOp(expr.Operator, left, right)
+
+	case left.Type() == "RECORD" && right.Type() == "RECORD":
+		return i.evalRecordBinaryOp(expr.Operator, left, right)
 
 	default:
 		return i.newErrorWithLocation(expr, "type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
@@ -1205,6 +1273,12 @@ func (i *Interpreter) valuesEqual(left, right Value) bool {
 		return l.Value == r.Value
 	case *NilValue:
 		return true // nil == nil
+	case *RecordValue:
+		r, ok := right.(*RecordValue)
+		if !ok {
+			return false
+		}
+		return i.recordsEqual(l, r)
 	default:
 		// For other types, use string comparison as fallback
 		return left.String() == right.String()
@@ -1659,6 +1733,16 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	objVal := i.Eval(ma.Object)
 	if isError(objVal) {
 		return objVal
+	}
+
+	// Task 8.75: Check if it's a record value
+	if recordVal, ok := objVal.(*RecordValue); ok {
+		// Access record field
+		fieldValue, exists := recordVal.Fields[ma.Member.Value]
+		if !exists {
+			return i.newErrorWithLocation(ma, "field '%s' not found in record '%s'", ma.Member.Value, recordVal.RecordType.Name)
+		}
+		return fieldValue
 	}
 
 	// Check if it's an object instance
