@@ -1051,30 +1051,66 @@ func (a *Analyzer) registerClassOperators(classType *types.ClassType, decl *ast.
 			continue
 		}
 
-		if len(opDecl.OperandTypes) != len(methodType.Parameters) {
-			a.addError("binding '%s' for class operator '%s' expects %d parameters, got %d at %s",
-				opDecl.Binding.Value, opDecl.OperatorSymbol, len(opDecl.OperandTypes), len(methodType.Parameters), opDecl.Token.Pos.String())
-			continue
-		}
+		isClassMethod := classType.ClassMethodFlags[opDecl.Binding.Value]
 
-		extraTypes := make([]types.Type, len(opDecl.OperandTypes))
-		errorFound := false
-		for i, operand := range opDecl.OperandTypes {
+		operandTypes := make([]types.Type, 0, len(opDecl.OperandTypes)+1)
+		includesClass := false
+		for _, operand := range opDecl.OperandTypes {
 			resolved, err := a.resolveOperatorType(operand.String())
 			if err != nil {
 				a.addError("unknown type '%s' in class operator declaration at %s", operand.String(), opDecl.Token.Pos.String())
-				errorFound = true
+				includesClass = false
+				operandTypes = nil
 				break
 			}
-			extraTypes[i] = resolved
-			if !methodType.Parameters[i].Equals(resolved) {
-				a.addError("binding '%s' parameter %d type %s does not match operator operand type %s at %s",
-					opDecl.Binding.Value, i+1, methodType.Parameters[i].String(), resolved.String(), opDecl.Token.Pos.String())
-				errorFound = true
-				break
+			if resolved.Equals(classType) {
+				includesClass = true
+			}
+			operandTypes = append(operandTypes, resolved)
+		}
+		if operandTypes == nil {
+			continue
+		}
+
+		if !includesClass {
+			if strings.EqualFold(opDecl.OperatorSymbol, "in") {
+				operandTypes = append(operandTypes, classType)
+			} else {
+				operandTypes = append([]types.Type{classType}, operandTypes...)
 			}
 		}
-		if errorFound {
+
+		expectedParams := len(operandTypes)
+		if !isClassMethod {
+			expectedParams--
+		}
+		if len(methodType.Parameters) != expectedParams {
+			a.addError("binding '%s' for class operator '%s' expects %d parameters, got %d at %s",
+				opDecl.Binding.Value, opDecl.OperatorSymbol, expectedParams, len(methodType.Parameters), opDecl.Token.Pos.String())
+			continue
+		}
+
+		paramIdx := 0
+		mismatch := false
+		for _, operandType := range operandTypes {
+			if !isClassMethod && operandType.Equals(classType) {
+				continue
+			}
+			if paramIdx >= len(methodType.Parameters) {
+				a.addError("binding '%s' parameter count mismatch for operator '%s' at %s",
+					opDecl.Binding.Value, opDecl.OperatorSymbol, opDecl.Token.Pos.String())
+				mismatch = true
+				break
+			}
+			if !methodType.Parameters[paramIdx].Equals(operandType) {
+				a.addError("binding '%s' parameter %d type %s does not match operator operand type %s at %s",
+					opDecl.Binding.Value, paramIdx+1, methodType.Parameters[paramIdx].String(), operandType.String(), opDecl.Token.Pos.String())
+				mismatch = true
+				break
+			}
+			paramIdx++
+		}
+		if mismatch {
 			continue
 		}
 
@@ -1091,15 +1127,6 @@ func (a *Analyzer) registerClassOperators(classType *types.ClassType, decl *ast.
 					opDecl.Binding.Value, methodType.ReturnType.String(), resultType.String(), opDecl.Token.Pos.String())
 				continue
 			}
-		}
-
-		operandTypes := make([]types.Type, 0, len(extraTypes)+1)
-		if strings.EqualFold(opDecl.OperatorSymbol, "in") {
-			operandTypes = append(operandTypes, extraTypes...)
-			operandTypes = append(operandTypes, classType)
-		} else {
-			operandTypes = append(operandTypes, classType)
-			operandTypes = append(operandTypes, extraTypes...)
 		}
 
 		sig := &types.OperatorSignature{
@@ -1235,6 +1262,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	if method.IsConstructor {
 		classType.Constructors[method.Name.Value] = funcType
 	}
+	classType.ClassMethodFlags[method.Name.Value] = method.IsClassMethod
 
 	// Store method visibility (Task 7.63f)
 	// Only set visibility if this is the first time we're seeing this method (declaration in class body)

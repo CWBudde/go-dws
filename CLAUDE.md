@@ -178,12 +178,12 @@ The project maintains high test coverage (>90% for lexer, >80% for parser). When
 
 The project follows a 10-stage incremental plan (~511 tasks):
 
-1. **Stage 1**: Lexer ✅ COMPLETE (45/45 tasks, 97.1% coverage)
-2. **Stage 2**: Parser (expressions) ✅ COMPLETE (60/60 tasks, AST 92.7%, Parser 81.9%)
-3. **Stage 3**: Statements and execution (65 tasks) - NEXT
-4. **Stage 4**: Control flow (46 tasks)
-5. **Stage 5**: Functions and scope (46 tasks)
-6. **Stage 6**: Type checking (50 tasks)
+1. **Stage 1**: Lexer ✅ COMPLETE
+2. **Stage 2**: Parser (expressions) ✅ COMPLETE
+3. **Stage 3**: Statements and execution (65 tasks) ✅ COMPLETE
+4. **Stage 4**: Control flow (46 tasks) ✅ COMPLETE
+5. **Stage 5**: Functions and scope (46 tasks) ✅ COMPLETE
+6. **Stage 6**: Type checking (50 tasks) ✅ COMPLETE
 7. **Stage 7**: Classes and OOP (77 tasks)
 8. **Stage 8**: Advanced features (62 tasks)
 9. **Stage 9**: Performance and polish (68 tasks)

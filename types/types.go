@@ -173,6 +173,7 @@ type ClassType struct {
 	Interfaces       []*InterfaceType         // Interfaces implemented by this class - Task 7.80
 	Operators        *OperatorRegistry        // Class operator overloads (Stage 8)
 	Constructors     map[string]*FunctionType // Constructor name -> signature
+	ClassMethodFlags map[string]bool          // Method name -> is class method
 	IsExternal       bool                     // True if this is an external class (Task 7.137)
 	ExternalName     string                   // External name for FFI binding (optional) - Task 7.137
 }
@@ -299,6 +300,7 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		AbstractMethods:  make(map[string]bool), // Task 7.65
 		Operators:        NewOperatorRegistry(),
 		Constructors:     make(map[string]*FunctionType),
+		ClassMethodFlags: make(map[string]bool),
 	}
 }
 
@@ -504,4 +506,30 @@ func IsClassType(t Type) bool {
 // IsInterfaceType checks if a type is an interface type
 func IsInterfaceType(t Type) bool {
 	return t.TypeKind() == "INTERFACE"
+}
+
+// ============================================================================
+// External Variable Support (Task 7.142)
+// ============================================================================
+
+// ExternalVarSymbol represents a variable that is implemented externally
+// (outside of DWScript). This is used for future FFI (Foreign Function Interface)
+// and JavaScript codegen compatibility.
+//
+// External variables are declared with the 'external' keyword:
+//
+//	var x: Integer; external;
+//	var y: String; external 'customName';
+//
+// The interpreter will raise errors when attempting to access external variables
+// until getter/setter functions are provided.
+type ExternalVarSymbol struct {
+	Name         string // Variable name in DWScript code
+	Type         Type   // DWScript type of the variable
+	ExternalName string // External name for FFI binding (optional, defaults to Name)
+
+	// Optional getter/setter functions for future implementation
+	// When nil, accessing the variable raises an error
+	ReadFunc  func() (interface{}, error) // Returns the external variable's value
+	WriteFunc func(interface{}) error     // Sets the external variable's value
 }

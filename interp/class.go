@@ -44,6 +44,12 @@ type ClassInfo struct {
 
 	// ExternalName is the external binding name for FFI (Task 7.141)
 	ExternalName string
+
+	// Operators stores runtime class operator overloads (Stage 8)
+	Operators *runtimeOperatorRegistry
+
+	// Constructors stores constructor declarations for overload resolution
+	Constructors map[string]*ast.FunctionDecl
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.
@@ -56,6 +62,8 @@ func NewClassInfo(name string) *ClassInfo {
 		ClassVars:    make(map[string]Value),
 		Methods:      make(map[string]*ast.FunctionDecl),
 		ClassMethods: make(map[string]*ast.FunctionDecl),
+		Operators:    newRuntimeOperatorRegistry(),
+		Constructors: make(map[string]*ast.FunctionDecl),
 	}
 }
 
@@ -130,6 +138,36 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 	return nil
 }
 
+// lookupOperator searches for a class operator in the hierarchy.
+func (c *ClassInfo) lookupOperator(operator string, operandTypes []string) (*runtimeOperatorEntry, bool) {
+	if c == nil {
+		return nil, false
+	}
+	if c.Operators != nil {
+		if entry, ok := c.Operators.lookup(operator, operandTypes); ok {
+			return entry, true
+		}
+	}
+	if c.Parent != nil {
+		return c.Parent.lookupOperator(operator, operandTypes)
+	}
+	return nil, false
+}
+
+// HasConstructor checks whether the class or its ancestors declare a constructor with the given name.
+func (c *ClassInfo) HasConstructor(name string) bool {
+	if c == nil {
+		return false
+	}
+	if _, ok := c.Constructors[name]; ok {
+		return true
+	}
+	if c.Parent != nil {
+		return c.Parent.HasConstructor(name)
+	}
+	return false
+}
+
 // ============================================================================
 // Value Interface Implementation
 // ============================================================================
@@ -143,6 +181,21 @@ func (o *ObjectInstance) Type() string {
 // Format: "TClassName instance"
 func (o *ObjectInstance) String() string {
 	return fmt.Sprintf("%s instance", o.Class.Name)
+}
+
+// IsInstanceOf checks whether the object derives from the given class.
+func (o *ObjectInstance) IsInstanceOf(target *ClassInfo) bool {
+	if o == nil || o.Class == nil || target == nil {
+		return false
+	}
+	current := o.Class
+	for current != nil {
+		if current.Name == target.Name {
+			return true
+		}
+		current = current.Parent
+	}
+	return false
 }
 
 // Helper function to check if a value is an ObjectInstance

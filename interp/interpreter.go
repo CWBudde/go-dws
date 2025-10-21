@@ -11,12 +11,14 @@ import (
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 type Interpreter struct {
-	env         *Environment                 // The current execution environment
-	output      io.Writer                    // Where to write output (e.g., from PrintLn)
-	functions   map[string]*ast.FunctionDecl // Registry of user-defined functions
-	classes     map[string]*ClassInfo        // Registry of class definitions
-	interfaces  map[string]*InterfaceInfo    // Registry of interface definitions (Task 7.118)
-	currentNode ast.Node                     // Current AST node being evaluated (for error reporting)
+	env             *Environment                 // The current execution environment
+	output          io.Writer                    // Where to write output (e.g., from PrintLn)
+	functions       map[string]*ast.FunctionDecl // Registry of user-defined functions
+	classes         map[string]*ClassInfo        // Registry of class definitions
+	interfaces      map[string]*InterfaceInfo    // Registry of interface definitions (Task 7.118)
+	currentNode     ast.Node                     // Current AST node being evaluated (for error reporting)
+	globalOperators *runtimeOperatorRegistry     // Global operator overloads (Stage 8)
+	conversions     *runtimeConversionRegistry   // Global conversions
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -24,11 +26,13 @@ type Interpreter struct {
 func New(output io.Writer) *Interpreter {
 	env := NewEnvironment()
 	return &Interpreter{
-		env:        env,
-		output:     output,
-		functions:  make(map[string]*ast.FunctionDecl),
-		classes:    make(map[string]*ClassInfo),
-		interfaces: make(map[string]*InterfaceInfo), // Task 7.118
+		env:             env,
+		output:          output,
+		functions:       make(map[string]*ast.FunctionDecl),
+		classes:         make(map[string]*ClassInfo),
+		interfaces:      make(map[string]*InterfaceInfo), // Task 7.118
+		globalOperators: newRuntimeOperatorRegistry(),
+		conversions:     newRuntimeConversionRegistry(),
 	}
 }
 
@@ -79,6 +83,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	case *ast.InterfaceDecl:
 		return i.evalInterfaceDeclaration(node)
+
+	case *ast.OperatorDecl:
+		return i.evalOperatorDeclaration(node)
 
 	// Expressions
 	case *ast.IntegerLiteral:
@@ -143,8 +150,24 @@ func (i *Interpreter) evalProgram(program *ast.Program) Value {
 
 // evalVarDeclStatement evaluates a variable declaration statement.
 // It defines a new variable in the current environment.
+// Task 7.144: External variables are marked with a special ExternalVarValue.
 func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 	var value Value
+
+	// Task 7.144: Handle external variables
+	if stmt.IsExternal {
+		// Store a special marker for external variables
+		externalName := stmt.ExternalName
+		if externalName == "" {
+			externalName = stmt.Name.Value
+		}
+		value = &ExternalVarValue{
+			Name:         stmt.Name.Value,
+			ExternalName: externalName,
+		}
+		i.env.Define(stmt.Name.Value, value)
+		return value
+	}
 
 	if stmt.Value != nil {
 		value = i.Eval(stmt.Value)
@@ -216,6 +239,13 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 	}
 
 	// Simple variable assignment
+	// Task 7.144: Check if trying to assign to an external variable
+	if existingVal, ok := i.env.Get(stmt.Name.Value); ok {
+		if extVar, isExternal := existingVal.(*ExternalVarValue); isExternal {
+			return newError("Unsupported external variable assignment: %s", extVar.Name)
+		}
+	}
+
 	// First try to set in current environment
 	err := i.env.Set(stmt.Name.Value, value)
 	if err == nil {
@@ -287,6 +317,10 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 	// First, try to find in current environment
 	val, ok := i.env.Get(node.Value)
 	if ok {
+		// Task 7.144: Check if this is an external variable
+		if extVar, isExternal := val.(*ExternalVarValue); isExternal {
+			return i.newErrorWithLocation(node, "Unsupported external variable access: %s", extVar.Name)
+		}
 		return val
 	}
 
@@ -334,6 +368,10 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 		return right
 	}
 
+	if result, ok := i.tryBinaryOperator(expr.Operator, left, right, expr); ok {
+		return result
+	}
+
 	// Handle operations based on operand types
 	switch {
 	case left.Type() == "INTEGER" && right.Type() == "INTEGER":
@@ -351,6 +389,26 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 	default:
 		return i.newErrorWithLocation(expr, "type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
 	}
+}
+
+func (i *Interpreter) tryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool) {
+	operands := []Value{left, right}
+	operandTypes := []string{valueTypeKey(left), valueTypeKey(right)}
+
+	if obj, ok := left.(*ObjectInstance); ok {
+		if entry, found := obj.Class.lookupOperator(operator, operandTypes); found {
+			return i.invokeRuntimeOperator(entry, operands, node), true
+		}
+	}
+	if obj, ok := right.(*ObjectInstance); ok {
+		if entry, found := obj.Class.lookupOperator(operator, operandTypes); found {
+			return i.invokeRuntimeOperator(entry, operands, node), true
+		}
+	}
+	if entry, found := i.globalOperators.lookup(operator, operandTypes); found {
+		return i.invokeRuntimeOperator(entry, operands, node), true
+	}
+	return nil, false
 }
 
 // evalIntegerBinaryOp evaluates binary operations on integers.
@@ -536,6 +594,10 @@ func (i *Interpreter) evalUnaryExpression(expr *ast.UnaryExpression) Value {
 		return right
 	}
 
+	if result, ok := i.tryUnaryOperator(expr.Operator, right, expr); ok {
+		return result
+	}
+
 	switch expr.Operator {
 	case "-":
 		return i.evalMinusUnaryOp(right)
@@ -546,6 +608,167 @@ func (i *Interpreter) evalUnaryExpression(expr *ast.UnaryExpression) Value {
 	default:
 		return newError("unknown operator: %s%s", expr.Operator, right.Type())
 	}
+}
+
+func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool) {
+	operands := []Value{operand}
+	operandTypes := []string{valueTypeKey(operand)}
+
+	if obj, ok := operand.(*ObjectInstance); ok {
+		if entry, found := obj.Class.lookupOperator(operator, operandTypes); found {
+			return i.invokeRuntimeOperator(entry, operands, node), true
+		}
+	}
+
+	if entry, found := i.globalOperators.lookup(operator, operandTypes); found {
+		return i.invokeRuntimeOperator(entry, operands, node), true
+	}
+
+	return nil, false
+}
+
+func (i *Interpreter) invokeRuntimeOperator(entry *runtimeOperatorEntry, operands []Value, node ast.Node) Value {
+	if entry == nil {
+		return i.newErrorWithLocation(node, "operator not registered")
+	}
+
+	if entry.Class != nil {
+		if entry.IsClassMethod {
+			return i.invokeClassOperatorMethod(entry.Class, entry.BindingName, operands, node)
+		}
+
+		if entry.SelfIndex < 0 || entry.SelfIndex >= len(operands) {
+			return i.newErrorWithLocation(node, "invalid operator configuration for '%s'", entry.Operator)
+		}
+
+		selfVal := operands[entry.SelfIndex]
+		obj, ok := selfVal.(*ObjectInstance)
+		if !ok {
+			return i.newErrorWithLocation(node, "operator '%s' requires object operand", entry.Operator)
+		}
+		if !obj.IsInstanceOf(entry.Class) {
+			return i.newErrorWithLocation(node, "operator '%s' requires instance of '%s'", entry.Operator, entry.Class.Name)
+		}
+
+		args := make([]Value, 0, len(operands)-1)
+		for idx, val := range operands {
+			if idx == entry.SelfIndex {
+				continue
+			}
+			args = append(args, val)
+		}
+
+		return i.invokeInstanceOperatorMethod(obj, entry.BindingName, args, node)
+	}
+
+	return i.invokeGlobalOperator(entry, operands, node)
+}
+
+func (i *Interpreter) invokeGlobalOperator(entry *runtimeOperatorEntry, operands []Value, node ast.Node) Value {
+	fn, exists := i.functions[entry.BindingName]
+	if !exists {
+		return i.newErrorWithLocation(node, "operator binding '%s' not found", entry.BindingName)
+	}
+	if len(fn.Parameters) != len(operands) {
+		return i.newErrorWithLocation(node, "operator '%s' expects %d operands, got %d", entry.Operator, len(fn.Parameters), len(operands))
+	}
+	return i.callUserFunction(fn, operands)
+}
+
+func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodName string, args []Value, node ast.Node) Value {
+	method := obj.GetMethod(methodName)
+	if method == nil {
+		return i.newErrorWithLocation(node, "method '%s' not found in class '%s'", methodName, obj.Class.Name)
+	}
+	if len(args) != len(method.Parameters) {
+		return i.newErrorWithLocation(node, "method '%s' expects %d arguments, got %d", methodName, len(method.Parameters), len(args))
+	}
+
+	methodEnv := NewEnclosedEnvironment(i.env)
+	savedEnv := i.env
+	i.env = methodEnv
+
+	i.env.Define("Self", obj)
+
+	for idx, param := range method.Parameters {
+		i.env.Define(param.Name.Value, args[idx])
+	}
+
+	if method.ReturnType != nil {
+		i.env.Define("Result", &NilValue{})
+		i.env.Define(method.Name.Value, &NilValue{})
+	}
+
+	result := i.Eval(method.Body)
+	if isError(result) {
+		i.env = savedEnv
+		return result
+	}
+
+	var returnValue Value = &NilValue{}
+	if method.ReturnType != nil {
+		returnValue = i.extractReturnValue(method, methodEnv)
+	}
+
+	i.env = savedEnv
+	return returnValue
+}
+
+func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName string, args []Value, node ast.Node) Value {
+	method, exists := classInfo.ClassMethods[methodName]
+	if !exists {
+		return i.newErrorWithLocation(node, "class method '%s' not found in class '%s'", methodName, classInfo.Name)
+	}
+	if len(args) != len(method.Parameters) {
+		return i.newErrorWithLocation(node, "class method '%s' expects %d arguments, got %d", methodName, len(method.Parameters), len(args))
+	}
+
+	methodEnv := NewEnclosedEnvironment(i.env)
+	savedEnv := i.env
+	i.env = methodEnv
+
+	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
+
+	for idx, param := range method.Parameters {
+		i.env.Define(param.Name.Value, args[idx])
+	}
+
+	if method.ReturnType != nil {
+		i.env.Define("Result", &NilValue{})
+		i.env.Define(method.Name.Value, &NilValue{})
+	}
+
+	result := i.Eval(method.Body)
+	if isError(result) {
+		i.env = savedEnv
+		return result
+	}
+
+	var returnValue Value = &NilValue{}
+	if method.ReturnType != nil {
+		returnValue = i.extractReturnValue(method, methodEnv)
+	}
+
+	i.env = savedEnv
+	return returnValue
+}
+
+func (i *Interpreter) extractReturnValue(method *ast.FunctionDecl, env *Environment) Value {
+	resultVal, resultOk := env.Get("Result")
+	methodNameVal, methodNameOk := env.Get(method.Name.Value)
+	if resultOk && resultVal.Type() != "NIL" {
+		return resultVal
+	}
+	if methodNameOk && methodNameVal.Type() != "NIL" {
+		return methodNameVal
+	}
+	if resultOk {
+		return resultVal
+	}
+	if methodNameOk {
+		return methodNameVal
+	}
+	return &NilValue{}
 }
 
 // evalMinusUnaryOp evaluates the unary minus operator.
@@ -954,6 +1177,19 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		for methodName, methodDecl := range parentClass.Methods {
 			classInfo.Methods[methodName] = methodDecl
 		}
+
+		// Copy class methods
+		for methodName, methodDecl := range parentClass.ClassMethods {
+			classInfo.ClassMethods[methodName] = methodDecl
+		}
+
+		// Copy constructors
+		for name, constructor := range parentClass.Constructors {
+			classInfo.Constructors[name] = constructor
+		}
+
+		// Copy operator overloads
+		classInfo.Operators = parentClass.Operators.clone()
 	}
 
 	// Add own fields to ClassInfo
@@ -1018,16 +1254,33 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			// Store in instance Methods map
 			classInfo.Methods[method.Name.Value] = method
 		}
+
+		if method.IsConstructor {
+			classInfo.Constructors[method.Name.Value] = method
+		}
 	}
 
 	// Identify constructor (method named "Create")
 	if constructor, exists := classInfo.Methods["Create"]; exists {
 		classInfo.Constructor = constructor
 	}
+	if cd.Constructor != nil {
+		classInfo.Constructors[cd.Constructor.Name.Value] = cd.Constructor
+	}
 
 	// Identify destructor (method named "Destroy")
 	if destructor, exists := classInfo.Methods["Destroy"]; exists {
 		classInfo.Destructor = destructor
+	}
+
+	// Register class operators (Stage 8)
+	for _, opDecl := range cd.Operators {
+		if opDecl == nil {
+			continue
+		}
+		if errVal := i.registerClassOperator(classInfo, opDecl); isError(errVal) {
+			return errVal
+		}
 	}
 
 	// Register class in registry
@@ -1076,6 +1329,121 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 
 	// Register interface in registry
 	i.interfaces[interfaceInfo.Name] = interfaceInfo
+
+	return &NilValue{}
+}
+
+func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
+	if decl.Kind == ast.OperatorKindClass {
+		// Class operators are registered during class declaration evaluation
+		return &NilValue{}
+	}
+
+	if decl.Binding == nil {
+		return i.newErrorWithLocation(decl, "operator '%s' missing binding", decl.OperatorSymbol)
+	}
+
+	operandTypes := make([]string, len(decl.OperandTypes))
+	for idx, operand := range decl.OperandTypes {
+		opRand := operand.String()
+		operandTypes[idx] = normalizeTypeAnnotation(opRand)
+	}
+
+	if decl.Kind == ast.OperatorKindConversion {
+		if len(operandTypes) != 1 {
+			return i.newErrorWithLocation(decl, "conversion operator '%s' requires exactly one operand", decl.OperatorSymbol)
+		}
+		if decl.ReturnType == nil {
+			return i.newErrorWithLocation(decl, "conversion operator '%s' requires a return type", decl.OperatorSymbol)
+		}
+		targetType := normalizeTypeAnnotation(decl.ReturnType.String())
+		entry := &runtimeConversionEntry{
+			From:        operandTypes[0],
+			To:          targetType,
+			BindingName: decl.Binding.Value,
+			Implicit:    strings.EqualFold(decl.OperatorSymbol, "implicit"),
+		}
+		if err := i.conversions.register(entry); err != nil {
+			return i.newErrorWithLocation(decl, "conversion from %s to %s already defined", operandTypes[0], targetType)
+		}
+		return &NilValue{}
+	}
+
+	entry := &runtimeOperatorEntry{
+		Operator:     decl.OperatorSymbol,
+		OperandTypes: operandTypes,
+		BindingName:  decl.Binding.Value,
+	}
+
+	if err := i.globalOperators.register(entry); err != nil {
+		return i.newErrorWithLocation(decl, "operator '%s' already defined for operand types (%s)", decl.OperatorSymbol, strings.Join(operandTypes, ", "))
+	}
+
+	return &NilValue{}
+}
+
+func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.OperatorDecl) Value {
+	if opDecl.Binding == nil {
+		return i.newErrorWithLocation(opDecl, "class operator '%s' missing binding", opDecl.OperatorSymbol)
+	}
+
+	bindingName := opDecl.Binding.Value
+	method, isClassMethod := classInfo.ClassMethods[bindingName]
+	if !isClassMethod {
+		var ok bool
+		method, ok = classInfo.Methods[bindingName]
+		if !ok {
+			return i.newErrorWithLocation(opDecl, "binding '%s' for class operator '%s' not found in class '%s'", bindingName, opDecl.OperatorSymbol, classInfo.Name)
+		}
+	}
+
+	classKey := normalizeTypeAnnotation(classInfo.Name)
+	operandTypes := make([]string, 0, len(opDecl.OperandTypes)+1)
+	includesClass := false
+	for _, operand := range opDecl.OperandTypes {
+		key := normalizeTypeAnnotation(operand.String())
+		if key == classKey {
+			includesClass = true
+		}
+		operandTypes = append(operandTypes, key)
+	}
+	if !includesClass {
+		if strings.EqualFold(opDecl.OperatorSymbol, "in") {
+			operandTypes = append(operandTypes, classKey)
+		} else {
+			operandTypes = append([]string{classKey}, operandTypes...)
+		}
+	}
+
+	selfIndex := -1
+	if !isClassMethod {
+		for idx, key := range operandTypes {
+			if key == classKey {
+				selfIndex = idx
+				break
+			}
+		}
+		if selfIndex == -1 {
+			return i.newErrorWithLocation(opDecl, "unable to determine self operand for class operator '%s'", opDecl.OperatorSymbol)
+		}
+	}
+
+	entry := &runtimeOperatorEntry{
+		Operator:      opDecl.OperatorSymbol,
+		OperandTypes:  operandTypes,
+		BindingName:   bindingName,
+		Class:         classInfo,
+		IsClassMethod: isClassMethod,
+		SelfIndex:     selfIndex,
+	}
+
+	if err := classInfo.Operators.register(entry); err != nil {
+		return i.newErrorWithLocation(opDecl, "class operator '%s' already defined for operand types (%s)", opDecl.OperatorSymbol, strings.Join(operandTypes, ", "))
+	}
+
+	if method.IsConstructor {
+		classInfo.Constructors[method.Name.Value] = method
+	}
 
 	return &NilValue{}
 }

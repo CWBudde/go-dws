@@ -1433,3 +1433,73 @@ func TestMemberAssignment(t *testing.T) {
 		})
 	}
 }
+
+// TestExternalVarRuntime tests runtime behavior of external variables.
+// Task 7.144: External variables should raise errors when accessed until
+// getter/setter functions are provided.
+func TestExternalVarRuntime(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name: "reading external variable raises error",
+			input: `
+				var x: Integer external;
+				x
+			`,
+			expectedError: "Unsupported external variable access: x",
+		},
+		{
+			name: "writing external variable raises error",
+			input: `
+				var y: String external 'externalY';
+				y := 'test'
+			`,
+			expectedError: "Unsupported external variable assignment: y",
+		},
+		{
+			name: "reading external variable in expression raises error",
+			input: `
+				var z: Integer external;
+				var result: Integer;
+				result := z + 10
+			`,
+			expectedError: "Unsupported external variable access: z",
+		},
+		{
+			name: "external variable can be declared but not used",
+			input: `
+				var ext: Float external;
+				var regular: Float;
+				regular := 3.14;
+				regular
+			`,
+			expectedError: "", // No error - external var is declared but not accessed
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := testEval(tt.input)
+
+			if tt.expectedError == "" {
+				// Should not be an error
+				if isError(val) {
+					t.Fatalf("unexpected error: %s", val.String())
+				}
+			} else {
+				// Should be an error
+				if !isError(val) {
+					t.Fatalf("expected error containing %q, got: %s", tt.expectedError, val.String())
+				}
+
+				errVal := val.(*ErrorValue)
+				if !strings.Contains(errVal.Message, tt.expectedError) {
+					t.Errorf("error = %q, want to contain %q", errVal.Message, tt.expectedError)
+				}
+			}
+		})
+	}
+}

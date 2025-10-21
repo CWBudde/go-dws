@@ -538,6 +538,100 @@ var s: String := 'hello';
 	}
 }
 
+// TestExternalVarParsing tests parsing of external variable declarations.
+// Task 7.143: External variables are declared with the 'external' keyword:
+//   var x: Integer; external;
+//   var y: String; external 'externalName';
+func TestExternalVarParsing(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		expectedVar  string
+		expectedType string
+		isExternal   bool
+		externalName string
+		expectError  bool
+	}{
+		{
+			name:         "external variable without custom name",
+			input:        "var x: Integer external;",
+			expectedVar:  "x",
+			expectedType: "Integer",
+			isExternal:   true,
+			externalName: "",
+		},
+		{
+			name:         "external variable with custom name",
+			input:        "var y: String external 'customName';",
+			expectedVar:  "y",
+			expectedType: "String",
+			isExternal:   true,
+			externalName: "customName",
+		},
+		{
+			name:         "regular variable (not external)",
+			input:        "var z: Float;",
+			expectedVar:  "z",
+			expectedType: "Float",
+			isExternal:   false,
+			externalName: "",
+		},
+		{
+			name:         "regular variable with initialization",
+			input:        "var w: Integer := 42;",
+			expectedVar:  "w",
+			expectedType: "Integer",
+			isExternal:   false,
+			externalName: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+
+			if tt.expectError {
+				if len(p.Errors()) == 0 {
+					t.Fatalf("expected parser error, got none")
+				}
+				return
+			}
+
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.VarDeclStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.VarDeclStatement. got=%T", program.Statements[0])
+			}
+
+			if stmt.Name.Value != tt.expectedVar {
+				t.Errorf("stmt.Name.Value = %q, want %q", stmt.Name.Value, tt.expectedVar)
+			}
+
+			if stmt.Type == nil || stmt.Type.Name != tt.expectedType {
+				var gotType string
+				if stmt.Type != nil {
+					gotType = stmt.Type.Name
+				}
+				t.Errorf("stmt.Type.Name = %q, want %q", gotType, tt.expectedType)
+			}
+
+			if stmt.IsExternal != tt.isExternal {
+				t.Errorf("stmt.IsExternal = %v, want %v", stmt.IsExternal, tt.isExternal)
+			}
+
+			if stmt.ExternalName != tt.externalName {
+				t.Errorf("stmt.ExternalName = %q, want %q", stmt.ExternalName, tt.externalName)
+			}
+		})
+	}
+}
+
 // TestAssignmentStatements tests parsing of assignment statements.
 func TestAssignmentStatements(t *testing.T) {
 	input := `
