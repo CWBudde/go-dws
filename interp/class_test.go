@@ -360,3 +360,68 @@ func TestObjectValue(t *testing.T) {
 		t.Error("obj.String() should not be empty")
 	}
 }
+
+// ============================================================================
+// Task 7.141: External Class Runtime Tests
+// ============================================================================
+
+func TestExternalClassRuntime(t *testing.T) {
+	t.Run("external class instantiation returns error", func(t *testing.T) {
+		input := `
+type TExternal = class external
+end;
+
+var obj: TExternal;
+obj := TExternal.Create();
+`
+		result := testEval(input)
+		if result == nil {
+			t.Error("Expected error value, got nil")
+			return
+		}
+
+		// Check if result is an error
+		if result.Type() != "ERROR" {
+			t.Errorf("Expected ERROR type, got %s", result.Type())
+			return
+		}
+
+		errMsg := result.String()
+		if !containsInMiddle(errMsg, "external") && !containsInMiddle(errMsg, "not supported") {
+			t.Errorf("Expected error about external class, got: %s", errMsg)
+		}
+	})
+
+	t.Run("external method call returns error", func(t *testing.T) {
+		input := `
+type TExternal = class external
+  procedure Hello; external 'world';
+end;
+
+var obj: TExternal;
+obj := TExternal.Create();
+obj.Hello();
+`
+		result := testEval(input)
+		// Should fail at instantiation, not method call
+		// But if it somehow gets to method call, should also fail
+		if result == nil {
+			t.Error("Expected error value, got nil")
+			return
+		}
+
+		if result.Type() != "ERROR" {
+			t.Errorf("Expected ERROR type, got %s", result.Type())
+		}
+	})
+}
+
+// Helper function for string contains check
+func containsInMiddle(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

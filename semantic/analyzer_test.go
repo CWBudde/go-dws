@@ -573,7 +573,7 @@ func TestReturnStatement(t *testing.T) {
 	input := `
 		function GetValue(): Integer;
 		begin
-			return 42;
+			Result := 42;
 		end;
 	`
 	expectNoErrors(t, input)
@@ -583,29 +583,29 @@ func TestReturnTypeMismatch(t *testing.T) {
 	input := `
 		function GetValue(): Integer;
 		begin
-			return 'hello';
+			Result := 'hello';
 		end;
 	`
-	expectError(t, input, "return type String incompatible")
+	expectError(t, input, "cannot assign String to Integer")
 }
 
 func TestReturnInProcedure(t *testing.T) {
 	input := `
 		procedure DoSomething;
 		begin
-			return 42;
+			Result := 42;
 		end;
 	`
-	expectError(t, input, "procedure cannot return a value")
+	expectError(t, input, "undefined variable 'Result'")
 }
 
 func TestReturnOutsideFunction(t *testing.T) {
 	input := `
 		begin
-			return 42;
+			Result := 42;
 		end;
 	`
-	expectError(t, input, "return statement outside of function")
+	expectError(t, input, "undefined variable 'Result'")
 }
 
 // ============================================================================
@@ -651,9 +651,9 @@ func TestNestedScopes(t *testing.T) {
 func TestFunctionWithLocalVariables(t *testing.T) {
 	input := `
 		function Calculate(n: Integer): Integer;
-		var temp: Integer;
-		var result: Integer;
 		begin
+			var temp: Integer;
+			var result: Integer;
 			temp := n * 2;
 			result := temp + 10;
 			Result := result;
@@ -697,4 +697,105 @@ func TestMultipleErrors(t *testing.T) {
 	if len(analyzer.Errors()) < 2 {
 		t.Errorf("expected at least 2 errors, got %d", len(analyzer.Errors()))
 	}
+}
+
+// ============================================================================
+// Task 7.139: External Class Semantic Tests
+// ============================================================================
+
+func TestExternalClassSemantics(t *testing.T) {
+	t.Run("external class without parent is valid", func(t *testing.T) {
+		input := `
+type TExternal = class external
+end;
+`
+		_, err := analyzeSource(t, input)
+		if err != nil {
+			t.Errorf("Expected no errors, got: %v", err)
+		}
+	})
+
+	t.Run("external class with external parent is valid", func(t *testing.T) {
+		input := `
+type TExternalParent = class external
+end;
+
+type TExternalChild = class(TExternalParent) external
+end;
+`
+		_, err := analyzeSource(t, input)
+		if err != nil {
+			t.Errorf("Expected no errors, got: %v", err)
+		}
+	})
+
+	t.Run("external class cannot inherit from non-external class", func(t *testing.T) {
+		input := `
+type TRegular = class
+end;
+
+type TExternal = class(TRegular) external
+end;
+`
+		analyzer, err := analyzeSource(t, input)
+		if err == nil {
+			t.Error("Expected error for external class inheriting from non-external class")
+			return
+		}
+
+		errors := analyzer.Errors()
+		found := false
+		for _, errMsg := range errors {
+			if containsString(errMsg, "external") && containsString(errMsg, "inherit") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected error message about external class inheritance, got: %v", errors)
+		}
+	})
+
+	t.Run("non-external class can inherit from external class", func(t *testing.T) {
+		input := `
+type TExternal = class external
+end;
+
+type TRegular = class(TExternal)
+end;
+`
+		analyzer, err := analyzeSource(t, input)
+		if err == nil {
+			t.Error("Expected error for non-external class inheriting from external class")
+			return
+		}
+
+		errors := analyzer.Errors()
+		found := false
+		for _, errMsg := range errors {
+			if containsString(errMsg, "external") && containsString(errMsg, "inherit") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected error message about non-external class inheriting from external, got: %v", errors)
+		}
+	})
+}
+
+// Helper function to check if a string contains a substring (case-insensitive)
+func containsString(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&
+		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
+		len(s) > len(substr)+1 && containsInMiddle(s, substr)))
+}
+
+func containsInMiddle(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

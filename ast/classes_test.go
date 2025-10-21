@@ -115,6 +115,36 @@ func TestClassDeclString(t *testing.T) {
 			},
 			expected: "type TCounter = class\n  function GetValue(): Integer begin\n  end;\nend",
 		},
+		{
+			name: "class with operator",
+			classDecl: &ClassDecl{
+				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				Name: &Identifier{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "TStream"},
+					Value: "TStream",
+				},
+				Parent:  nil,
+				Fields:  []*FieldDecl{},
+				Methods: []*FunctionDecl{},
+				Operators: []*OperatorDecl{
+					{
+						Token:          lexer.Token{Type: lexer.CLASS, Literal: "class"},
+						Kind:           OperatorKindClass,
+						OperatorToken:  lexer.Token{Type: lexer.LESS_LESS, Literal: "<<"},
+						OperatorSymbol: "<<",
+						Arity:          1,
+						OperandTypes: []*TypeAnnotation{
+							{Token: lexer.Token{Type: lexer.IDENT, Literal: "String"}, Name: "String"},
+						},
+						Binding: &Identifier{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Append"},
+							Value: "Append",
+						},
+					},
+				},
+			},
+			expected: "type TStream = class\n  class operator << String uses Append;\nend",
+		},
 	}
 
 	for _, tt := range tests {

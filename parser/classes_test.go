@@ -771,3 +771,323 @@ end;
 		t.Errorf("concrete method should have Body. got=nil")
 	}
 }
+
+func TestParseClassOperatorDeclarations(t *testing.T) {
+	input := `
+type TMyRange = class
+   class operator += String uses AppendString;
+   class operator IN array of Integer uses ContainsArray;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if len(stmt.Operators) != 2 {
+		t.Fatalf("stmt.Operators should contain 2 operators. got=%d", len(stmt.Operators))
+	}
+
+	first := stmt.Operators[0]
+	if first.Kind != ast.OperatorKindClass {
+		t.Fatalf("first operator kind expected OperatorKindClass, got %s", first.Kind)
+	}
+	if first.OperatorSymbol != "+=" {
+		t.Fatalf("first operator symbol expected '+='; got %q", first.OperatorSymbol)
+	}
+	if first.Arity != 1 {
+		t.Fatalf("first operator arity expected 1; got %d", first.Arity)
+	}
+	if len(first.OperandTypes) != 1 || first.OperandTypes[0].String() != "String" {
+		t.Fatalf("first operator operand expected 'String'; got %v", first.OperandTypes)
+	}
+	if first.Binding == nil || first.Binding.Value != "AppendString" {
+		t.Fatalf("first operator binding expected 'AppendString'; got %v", first.Binding)
+	}
+
+	second := stmt.Operators[1]
+	if second.OperatorSymbol != "in" {
+		t.Fatalf("second operator symbol expected 'in'; got %q", second.OperatorSymbol)
+	}
+	if len(second.OperandTypes) != 1 || second.OperandTypes[0].String() != "array of Integer" {
+		t.Fatalf("second operator operand expected 'array of Integer'; got %v", second.OperandTypes)
+	}
+	if second.Binding == nil || second.Binding.Value != "ContainsArray" {
+		t.Fatalf("second operator binding expected 'ContainsArray'; got %v", second.Binding)
+	}
+}
+
+// ============================================================================
+// Task 7.138: External Class Parsing Tests
+// ============================================================================
+
+func TestExternalClassParsing(t *testing.T) {
+	t.Run("external class without name", func(t *testing.T) {
+		input := `
+type TExternal = class external
+end;
+`
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("Expected 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt, ok := program.Statements[0].(*ast.ClassDecl)
+		if !ok {
+			t.Fatalf("Expected *ast.ClassDecl, got %T", program.Statements[0])
+		}
+
+		if stmt.Name.Value != "TExternal" {
+			t.Errorf("Expected class name 'TExternal', got %q", stmt.Name.Value)
+		}
+
+		if !stmt.IsExternal {
+			t.Error("Expected IsExternal to be true")
+		}
+
+		if stmt.ExternalName != "" {
+			t.Errorf("Expected empty ExternalName, got %q", stmt.ExternalName)
+		}
+	})
+
+	t.Run("external class with name", func(t *testing.T) {
+		input := `
+type TExternal = class external 'MyExternalClass'
+end;
+`
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("Expected 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt, ok := program.Statements[0].(*ast.ClassDecl)
+		if !ok {
+			t.Fatalf("Expected *ast.ClassDecl, got %T", program.Statements[0])
+		}
+
+		if !stmt.IsExternal {
+			t.Error("Expected IsExternal to be true")
+		}
+
+		if stmt.ExternalName != "MyExternalClass" {
+			t.Errorf("Expected ExternalName 'MyExternalClass', got %q", stmt.ExternalName)
+		}
+	})
+
+	t.Run("external class with parent", func(t *testing.T) {
+		input := `
+type TExternal = class(TParent) external
+end;
+`
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("Expected 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt, ok := program.Statements[0].(*ast.ClassDecl)
+		if !ok {
+			t.Fatalf("Expected *ast.ClassDecl, got %T", program.Statements[0])
+		}
+
+		if stmt.Parent == nil || stmt.Parent.Value != "TParent" {
+			t.Errorf("Expected parent 'TParent', got %v", stmt.Parent)
+		}
+
+		if !stmt.IsExternal {
+			t.Error("Expected IsExternal to be true")
+		}
+	})
+
+	t.Run("external class with methods", func(t *testing.T) {
+		input := `
+type TExternal = class external 'External'
+  procedure DoSomething;
+  function GetValue: Integer;
+end;
+`
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("Expected 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt, ok := program.Statements[0].(*ast.ClassDecl)
+		if !ok {
+			t.Fatalf("Expected *ast.ClassDecl, got %T", program.Statements[0])
+		}
+
+		if !stmt.IsExternal {
+			t.Error("Expected IsExternal to be true")
+		}
+
+		if stmt.ExternalName != "External" {
+			t.Errorf("Expected ExternalName 'External', got %q", stmt.ExternalName)
+		}
+
+		if len(stmt.Methods) != 2 {
+			t.Fatalf("Expected 2 methods, got %d", len(stmt.Methods))
+		}
+	})
+
+	t.Run("regular class is not external", func(t *testing.T) {
+		input := `
+type TRegular = class
+end;
+`
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("Expected 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt, ok := program.Statements[0].(*ast.ClassDecl)
+		if !ok {
+			t.Fatalf("Expected *ast.ClassDecl, got %T", program.Statements[0])
+		}
+
+		if stmt.IsExternal {
+			t.Error("Regular class should not be external")
+		}
+
+		if stmt.ExternalName != "" {
+			t.Errorf("Regular class should have empty ExternalName, got %q", stmt.ExternalName)
+		}
+	})
+}
+
+// ============================================================================
+// Task 7.140: External Method Parsing Tests
+// ============================================================================
+
+func TestExternalMethodParsing(t *testing.T) {
+	t.Run("external method without name", func(t *testing.T) {
+		input := `
+type TExternal = class external
+  procedure Hello; external;
+end;
+`
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		stmt := program.Statements[0].(*ast.ClassDecl)
+		if len(stmt.Methods) != 1 {
+			t.Fatalf("Expected 1 method, got %d", len(stmt.Methods))
+		}
+
+		method := stmt.Methods[0]
+		if !method.IsExternal {
+			t.Error("Expected IsExternal to be true")
+		}
+
+		if method.ExternalName != "" {
+			t.Errorf("Expected empty ExternalName, got %q", method.ExternalName)
+		}
+	})
+
+	t.Run("external method with name", func(t *testing.T) {
+		input := `
+type TExternal = class external
+  procedure Hello; external 'world';
+end;
+`
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		stmt := program.Statements[0].(*ast.ClassDecl)
+		method := stmt.Methods[0]
+
+		if !method.IsExternal {
+			t.Error("Expected IsExternal to be true")
+		}
+
+		if method.ExternalName != "world" {
+			t.Errorf("Expected ExternalName 'world', got %q", method.ExternalName)
+		}
+	})
+
+	t.Run("external function with name", func(t *testing.T) {
+		input := `
+type TExternal = class external
+  function GetValue: Integer; external 'getValue';
+end;
+`
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		stmt := program.Statements[0].(*ast.ClassDecl)
+		method := stmt.Methods[0]
+
+		if !method.IsExternal {
+			t.Error("Expected IsExternal to be true")
+		}
+
+		if method.ExternalName != "getValue" {
+			t.Errorf("Expected ExternalName 'getValue', got %q", method.ExternalName)
+		}
+
+		if method.ReturnType == nil || method.ReturnType.Name != "Integer" {
+			t.Error("Expected return type Integer")
+		}
+	})
+
+	t.Run("regular method is not external", func(t *testing.T) {
+		input := `
+type TRegular = class
+  procedure DoSomething;
+  begin
+  end;
+end;
+`
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		stmt := program.Statements[0].(*ast.ClassDecl)
+		method := stmt.Methods[0]
+
+		if method.IsExternal {
+			t.Error("Regular method should not be external")
+		}
+
+		if method.ExternalName != "" {
+			t.Errorf("Regular method should have empty ExternalName, got %q", method.ExternalName)
+		}
+	})
+}

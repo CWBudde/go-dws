@@ -182,6 +182,7 @@ var keywords = map[string]TokenType{
 	"implies":  IMPLIES,
 	"empty":    EMPTY,
 	"implicit": IMPLICIT,
+	"explicit": EXPLICIT,
 }
 
 // LookupIdent returns the TokenType for a given identifier.

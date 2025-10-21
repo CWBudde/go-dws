@@ -37,6 +37,13 @@ type ClassInfo struct {
 
 	// IsAbstract indicates if this is an abstract class (Task 7.65)
 	IsAbstract bool
+
+	// IsExternal indicates if this is an external class (Task 7.141)
+	// External classes are implemented outside DWScript and cannot be instantiated
+	IsExternal bool
+
+	// ExternalName is the external binding name for FFI (Task 7.141)
+	ExternalName string
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.
