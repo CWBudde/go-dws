@@ -3,7 +3,11 @@ package interp
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
+
+	"github.com/cwbudde/go-dws/types"
 )
 
 // Value represents a runtime value in the DWScript interpreter.
@@ -110,6 +114,78 @@ func (e *EnumValue) String() string {
 	return e.ValueName
 }
 
+// RecordValue represents a record value in DWScript.
+// Task 8.73: Store record type metadata and field values.
+// Records are value types (like structs) with fields.
+type RecordValue struct {
+	RecordType *types.RecordType  // The record type metadata
+	Fields     map[string]Value    // Field name -> runtime value mapping
+}
+
+// Type returns "RECORD".
+func (r *RecordValue) Type() string {
+	return "RECORD"
+}
+
+// String returns the string representation of the record.
+func (r *RecordValue) String() string {
+	var sb strings.Builder
+
+	// Show type name if available
+	if r.RecordType != nil && r.RecordType.Name != "" {
+		sb.WriteString(r.RecordType.Name)
+		sb.WriteString("(")
+	} else {
+		sb.WriteString("record(")
+	}
+
+	// Sort field names for consistent output
+	fieldNames := make([]string, 0, len(r.Fields))
+	for name := range r.Fields {
+		fieldNames = append(fieldNames, name)
+	}
+	sort.Strings(fieldNames)
+
+	// Add field values
+	for i, name := range fieldNames {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(name)
+		sb.WriteString(": ")
+		if val := r.Fields[name]; val != nil {
+			sb.WriteString(val.String())
+		} else {
+			sb.WriteString("nil")
+		}
+	}
+
+	sb.WriteString(")")
+	return sb.String()
+}
+
+// Copy creates a deep copy of the record value (Task 8.77).
+// Records have value semantics in DWScript, so assignment should copy.
+func (r *RecordValue) Copy() *RecordValue {
+	copiedFields := make(map[string]Value, len(r.Fields))
+
+	// Deep copy all fields
+	for name, val := range r.Fields {
+		// Check if the value is also a record that needs copying
+		if recVal, ok := val.(*RecordValue); ok {
+			copiedFields[name] = recVal.Copy()
+		} else {
+			// For basic types (Integer, String, etc.), they're already immutable or copied by value
+			copiedFields[name] = val
+		}
+	}
+
+	return &RecordValue{
+		RecordType: r.RecordType,
+		Fields:     copiedFields,
+	}
+}
+
 // ExternalVarValue represents an external variable marker.
 // Task 7.144: This is a special marker stored in the environment to indicate
 // that a variable is external. Attempting to read or write this value raises an error.
@@ -156,6 +232,15 @@ func NewBooleanValue(v bool) Value {
 // NewNilValue creates a new NilValue.
 func NewNilValue() Value {
 	return &NilValue{}
+}
+
+// NewRecordValue creates a new RecordValue with the given record type.
+// Task 8.73: Initialize the fields map.
+func NewRecordValue(recordType *types.RecordType) Value {
+	return &RecordValue{
+		RecordType: recordType,
+		Fields:     make(map[string]Value),
+	}
 }
 
 // ClassInfoValue is a special internal value type used to track the current class context

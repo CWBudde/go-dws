@@ -298,7 +298,7 @@ func TestMemberAccessNonObjectType(t *testing.T) {
 		var x: Integer := 42;
 		var y := x.SomeField;
 	`
-	expectError(t, input, "member access requires class type")
+	expectError(t, input, "member access requires class or record type")
 }
 
 func TestMemberAccessUndefinedMember(t *testing.T) {

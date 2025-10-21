@@ -189,7 +189,74 @@ func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 }
 
 // parseGroupedExpression parses a grouped expression (parentheses).
+// Also handles record literals: (X: 10, Y: 20)
 func (p *Parser) parseGroupedExpression() ast.Expression {
+	// Check if this is a record literal
+	// Pattern: (IDENT : ...) indicates a named record literal
+	// We need to look ahead two tokens: if peek is IDENT, advance and check if next peek is COLON
+	if p.peekTokenIs(lexer.IDENT) {
+		// Advance once to the IDENT
+		p.nextToken()
+		// Now check if peek is COLON
+		if p.peekTokenIs(lexer.COLON) {
+			// This is a named record literal!
+			// We're currently at the IDENT, but parseRecordLiteral expects to be at '('
+			// We need to create the RecordLiteral here instead
+			recordLit := &ast.RecordLiteral{
+				Token:  p.curToken, // This will be the IDENT, but we need the LPAREN
+				Fields: []ast.RecordField{},
+			}
+			// Fix the token to be the LPAREN - we need to track it
+			// Actually, let's parse inline here
+
+			for !p.curTokenIs(lexer.RPAREN) && !p.curTokenIs(lexer.EOF) {
+				field := ast.RecordField{}
+
+				// We're at an IDENT, check if followed by COLON
+				if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
+					// Named field
+					field.Name = p.curToken.Literal
+					p.nextToken() // move to ':'
+					p.nextToken() // move to value
+
+					// Parse value expression
+					field.Value = p.parseExpression(LOWEST)
+				} else {
+					// Positional field
+					field.Name = ""
+					field.Value = p.parseExpression(LOWEST)
+				}
+
+				recordLit.Fields = append(recordLit.Fields, field)
+
+				// Check for comma
+				if p.peekTokenIs(lexer.COMMA) {
+					p.nextToken() // move to comma
+					p.nextToken() // move to next field
+				} else if p.peekTokenIs(lexer.RPAREN) {
+					p.nextToken() // move to ')'
+					break
+				} else {
+					p.addError("expected ',' or ')' in record literal")
+					return nil
+				}
+			}
+
+			return recordLit
+		}
+		// Not a record literal (no colon after ident)
+		// We've already advanced past '(', so we're at IDENT
+		// Parse this IDENT as an expression and continue
+		exp := p.parseExpression(LOWEST)
+
+		if !p.expectPeek(lexer.RPAREN) {
+			return nil
+		}
+
+		return exp
+	}
+
+	// Not starting with IDENT, parse as normal grouped expression
 	p.nextToken() // skip '('
 
 	exp := p.parseExpression(LOWEST)
