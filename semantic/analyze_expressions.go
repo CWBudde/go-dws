@@ -340,6 +340,117 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
+		// Low built-in function (Task 8.132)
+		if funcIdent.Value == "Low" {
+			// Low takes one argument (array) and returns an integer
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Low' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the argument
+			argType := a.analyzeExpression(expr.Arguments[0])
+			// Verify it's an array
+			if argType != nil {
+				if _, isArray := argType.(*types.ArrayType); !isArray {
+					a.addError("function 'Low' expects array, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.INTEGER
+		}
+
+		// High built-in function (Task 8.133)
+		if funcIdent.Value == "High" {
+			// High takes one argument (array) and returns an integer
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'High' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the argument
+			argType := a.analyzeExpression(expr.Arguments[0])
+			// Verify it's an array
+			if argType != nil {
+				if _, isArray := argType.(*types.ArrayType); !isArray {
+					a.addError("function 'High' expects array, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.INTEGER
+		}
+
+		// SetLength built-in function (Task 8.131)
+		if funcIdent.Value == "SetLength" {
+			// SetLength takes two arguments (array, integer) and returns void
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'SetLength' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			// Analyze the first argument (array)
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if _, isArray := argType.(*types.ArrayType); !isArray {
+					a.addError("function 'SetLength' expects array as first argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Analyze the second argument (integer)
+			lengthType := a.analyzeExpression(expr.Arguments[1])
+			if lengthType != nil && lengthType != types.INTEGER {
+				a.addError("function 'SetLength' expects integer as second argument, got %s at %s",
+					lengthType.String(), expr.Token.Pos.String())
+			}
+			return types.VOID
+		}
+
+		// Add built-in function (Task 8.134)
+		if funcIdent.Value == "Add" {
+			// Add takes two arguments (array, element) and returns void
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'Add' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			// Analyze the first argument (array)
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if _, isArray := argType.(*types.ArrayType); !isArray {
+					a.addError("function 'Add' expects array as first argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Analyze the second argument (element to add)
+			a.analyzeExpression(expr.Arguments[1])
+			return types.VOID
+		}
+
+		// Delete built-in function (Task 8.135)
+		if funcIdent.Value == "Delete" {
+			// Delete takes two arguments (array, index) and returns void
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'Delete' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			// Analyze the first argument (array)
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if _, isArray := argType.(*types.ArrayType); !isArray {
+					a.addError("function 'Delete' expects array as first argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Analyze the second argument (index - should be integer)
+			indexType := a.analyzeExpression(expr.Arguments[1])
+			if indexType != nil && indexType != types.INTEGER {
+				a.addError("function 'Delete' expects integer as second argument, got %s at %s",
+					indexType.String(), expr.Token.Pos.String())
+			}
+			return types.VOID
+		}
+
 		// Allow calling methods within the current class without explicit Self
 		if a.currentClass != nil {
 			if methodType, found := a.currentClass.GetMethod(funcIdent.Value); found {

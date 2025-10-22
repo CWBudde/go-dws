@@ -1,0 +1,154 @@
+// Comprehensive array integration test
+// Tests: static arrays, dynamic arrays, multi-dimensional arrays, array operations
+
+// Test 1: Static array with fixed bounds
+PrintLn('Test 1: Static array');
+type TIntArray = array[1..5] of Integer;
+
+var arr1: TIntArray;
+arr1[1] := 10;
+arr1[2] := 20;
+arr1[3] := 30;
+arr1[4] := 40;
+arr1[5] := 50;
+
+PrintLn(arr1[1]);  // 10
+PrintLn(arr1[3]);  // 30
+PrintLn(arr1[5]);  // 50
+
+// Test 2: Dynamic array
+PrintLn('Test 2: Dynamic array');
+type TDynArray = array of Integer;
+
+var arr2: TDynArray;
+SetLength(arr2, 3);
+arr2[0] := 100;
+arr2[1] := 200;
+arr2[2] := 300;
+
+PrintLn(arr2[0]);  // 100
+PrintLn(arr2[1]);  // 200
+PrintLn(arr2[2]);  // 300
+
+// Test 3: Array literals
+PrintLn('Test 3: Array literals');
+var arr3: TDynArray;
+arr3 := [1, 2, 3, 4, 5];
+
+PrintLn(arr3[0]);  // 1
+PrintLn(arr3[2]);  // 3
+PrintLn(arr3[4]);  // 5
+
+// Test 4: String arrays
+PrintLn('Test 4: String arrays');
+type TStringArray = array of String;
+
+var names: TStringArray;
+names := ['Alice', 'Bob', 'Charlie'];
+
+PrintLn(names[0]);  // Alice
+PrintLn(names[1]);  // Bob
+PrintLn(names[2]);  // Charlie
+
+// Test 5: Array of records
+PrintLn('Test 5: Array of records');
+type TPoint = record
+  X: Integer;
+  Y: Integer;
+end;
+
+type TPointArray = array of TPoint;
+
+var points: TPointArray;
+SetLength(points, 2);
+
+points[0].X := 10;
+points[0].Y := 20;
+points[1].X := 30;
+points[1].Y := 40;
+
+PrintLn(points[0].X);  // 10
+PrintLn(points[0].Y);  // 20
+PrintLn(points[1].X);  // 30
+PrintLn(points[1].Y);  // 40
+
+// Test 6: Multi-dimensional arrays (commented out - not yet supported)
+// PrintLn('Test 6: Multi-dimensional arrays');
+// type TMatrix = array of array of Integer;
+//
+// var matrix: TMatrix;
+// SetLength(matrix, 2);
+// SetLength(matrix[0], 3);
+// SetLength(matrix[1], 3);
+//
+// matrix[0][0] := 1;
+// matrix[0][1] := 2;
+// matrix[0][2] := 3;
+// matrix[1][0] := 4;
+// matrix[1][1] := 5;
+// matrix[1][2] := 6;
+//
+// PrintLn(matrix[0][0]);  // 1
+// PrintLn(matrix[0][2]);  // 3
+// PrintLn(matrix[1][1]);  // 5
+// PrintLn(matrix[1][2]);  // 6
+
+// Test 7: Array assignment (copy)
+PrintLn('Test 7: Array assignment');
+var arr4: TDynArray;
+var arr5: TDynArray;
+
+arr4 := [10, 20, 30];
+arr5 := arr4;  // Should copy
+
+PrintLn(arr5[0]);  // 10
+PrintLn(arr5[1]);  // 20
+PrintLn(arr5[2]);  // 30
+
+// Test 8: Array element modification
+PrintLn('Test 8: Array modification');
+var arr6: TDynArray;
+arr6 := [1, 2, 3];
+
+arr6[1] := 99;
+PrintLn(arr6[0]);  // 1
+PrintLn(arr6[1]);  // 99
+PrintLn(arr6[2]);  // 3
+
+// Test 9: Array of booleans
+PrintLn('Test 9: Boolean arrays');
+type TBoolArray = array of Boolean;
+
+var boolArr: TBoolArray;
+boolArr := [True, False, True];
+
+PrintLn(boolArr[0]);  // True
+PrintLn(boolArr[1]);  // False
+PrintLn(boolArr[2]);  // True
+
+// Test 10: Static array with zero-based bounds
+PrintLn('Test 10: Zero-based static array');
+type TZeroArray = array[0..4] of Integer;
+
+var arr7: TZeroArray;
+arr7[0] := 5;
+arr7[1] := 10;
+arr7[2] := 15;
+arr7[3] := 20;
+arr7[4] := 25;
+
+PrintLn(arr7[0]);  // 5
+PrintLn(arr7[2]);  // 15
+PrintLn(arr7[4]);  // 25
+
+// Test 11: Chain array access and assignment
+PrintLn('Test 11: Chain operations');
+var arr8: TDynArray;
+arr8 := [1, 2, 3];
+
+arr8[2] := arr8[0] + arr8[1];
+PrintLn(arr8[0]);  // 1
+PrintLn(arr8[1]);  // 2
+PrintLn(arr8[2]);  // 3 (1 + 2)
+
+PrintLn('All array tests complete');

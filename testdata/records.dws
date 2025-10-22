@@ -1,0 +1,104 @@
+// Comprehensive record integration test
+// Tests: basic records, field access, nested records, value semantics, record comparison
+
+// Test 1: Basic record declaration
+PrintLn('Test 1: Basic record');
+type TPoint = record
+  X: Integer;
+  Y: Integer;
+end;
+
+var p1: TPoint;
+p1.X := 10;
+p1.Y := 20;
+
+PrintLn(p1.X);  // 10
+PrintLn(p1.Y);  // 20
+
+// Test 2: Record with multiple field types
+PrintLn('Test 2: Multiple field types');
+type TPerson = record
+  Name: String;
+  Age: Integer;
+  Height: Float;
+end;
+
+var person: TPerson;
+person.Name := 'Alice';
+person.Age := 30;
+person.Height := 1.75;
+
+PrintLn(person.Name);    // Alice
+PrintLn(person.Age);     // 30
+PrintLn(person.Height);  // 1.75
+
+// Test 3: Nested records
+PrintLn('Test 3: Nested records');
+type TRectangle = record
+  TopLeft: TPoint;
+  BottomRight: TPoint;
+end;
+
+var rect: TRectangle;
+rect.TopLeft.X := 0;
+rect.TopLeft.Y := 0;
+rect.BottomRight.X := 100;
+rect.BottomRight.Y := 50;
+
+PrintLn(rect.TopLeft.X);      // 0
+PrintLn(rect.TopLeft.Y);      // 0
+PrintLn(rect.BottomRight.X);  // 100
+PrintLn(rect.BottomRight.Y);  // 50
+
+// Test 4: Record assignment (value semantics - copy)
+PrintLn('Test 4: Value semantics');
+var p2: TPoint;
+p2.X := 5;
+p2.Y := 15;
+
+var p3: TPoint;
+p3 := p2;  // Should copy p2 to p3
+
+PrintLn(p3.X);  // 5
+PrintLn(p3.Y);  // 15
+
+// Modifying p3 should not affect p2
+p3.X := 100;
+PrintLn(p2.X);  // 5 (unchanged)
+PrintLn(p3.X);  // 100
+
+// Test 5: Record comparison
+PrintLn('Test 5: Record comparison');
+var r1: TPoint;
+var r2: TPoint;
+
+r1.X := 10;
+r1.Y := 20;
+r2.X := 10;
+r2.Y := 20;
+
+if r1 = r2 then
+  PrintLn('Records are equal');
+
+r2.Y := 30;
+if r1 <> r2 then
+  PrintLn('Records are different');
+
+// Test 6: Record with boolean fields
+PrintLn('Test 6: Boolean fields');
+type TConfig = record
+  Enabled: Boolean;
+  Debug: Boolean;
+  Port: Integer;
+end;
+
+var config: TConfig;
+config.Enabled := True;
+config.Debug := False;
+config.Port := 8080;
+
+PrintLn(config.Enabled);  // True
+PrintLn(config.Debug);    // False
+PrintLn(config.Port);     // 8080
+
+PrintLn('All record tests complete');

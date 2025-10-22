@@ -1,0 +1,11 @@
+// Ported from reference/dwscript-original/Test/SimpleScripts/enum_scoped.pas
+// Tests scoped enum access (TEnum.Value syntax)
+
+type MyEnum = (a, b, c = 255, d);
+
+PrintLn(MyEnum.a);
+PrintLn(MyEnum.b);
+PrintLn(MyEnum.c);
+
+var d := MyEnum.d;
+PrintLn(MyEnum.d);

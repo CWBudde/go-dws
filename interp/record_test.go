@@ -30,9 +30,9 @@ func TestRecordValueCreation(t *testing.T) {
 			t.Fatal("NewRecordValue returned nil")
 		}
 
-		// Verify type
-		if recordVal.Type() != "RECORD" {
-			t.Errorf("Type() = %v, want RECORD", recordVal.Type())
+		// Verify type - should return actual type name, not generic "RECORD"
+		if recordVal.Type() != "TPoint" {
+			t.Errorf("Type() = %v, want TPoint", recordVal.Type())
 		}
 
 		// Verify the record type is stored

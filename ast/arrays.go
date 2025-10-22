@@ -19,9 +19,9 @@ import (
 //   - type TMyArray = array[1..10] of Integer;
 //   - type TDynamic = array of String;
 type ArrayDecl struct {
-	Token       lexer.Token           // The 'type' token
-	Name        *Identifier           // Array type name (e.g., "TMyArray")
-	ArrayType   *ArrayTypeAnnotation  // The array type specification
+	Token     lexer.Token          // The 'type' token
+	Name      *Identifier          // Array type name (e.g., "TMyArray")
+	ArrayType *ArrayTypeAnnotation // The array type specification
 }
 
 // statementNode implements the Statement interface

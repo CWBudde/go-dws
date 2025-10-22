@@ -118,12 +118,15 @@ func (e *EnumValue) String() string {
 // Task 8.73: Store record type metadata and field values.
 // Records are value types (like structs) with fields.
 type RecordValue struct {
-	RecordType *types.RecordType  // The record type metadata
-	Fields     map[string]Value    // Field name -> runtime value mapping
+	RecordType *types.RecordType // The record type metadata
+	Fields     map[string]Value  // Field name -> runtime value mapping
 }
 
-// Type returns "RECORD".
+// Type returns the record type name (e.g., "TFoo") or "RECORD" if unnamed.
 func (r *RecordValue) Type() string {
+	if r.RecordType != nil && r.RecordType.Name != "" {
+		return r.RecordType.Name
+	}
 	return "RECORD"
 }
 

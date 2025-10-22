@@ -1632,12 +1632,8 @@ func TestWhileStatements(t *testing.T) {
 					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
 				}
 
-				assignTarget, ok := assign.Target.(*ast.Identifier)
-				if !ok {
-					t.Fatalf("assign.Target is not *ast.Identifier. got=%T", assign.Target)
-				}
-				if assignTarget.Value != "x" {
-					t.Errorf("assignment name = %q, want 'x'", assignTarget.Value)
+				if assign.Target.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Target.Value)
 				}
 
 				if !testInfixExpression(t, assign.Value, "x", "+", 1) {
@@ -1673,12 +1669,8 @@ end;`,
 					t.Fatalf("first block statement is not AssignmentStatement. got=%T", block.Statements[0])
 				}
 
-				assignTarget, ok := assign.Target.(*ast.Identifier)
-				if !ok {
-					t.Fatalf("assign.Target is not *ast.Identifier. got=%T", assign.Target)
-				}
-				if assignTarget.Value != "x" {
-					t.Errorf("assignment name = %q, want 'x'", assignTarget.Value)
+				if assign.Target.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Target.Value)
 				}
 
 				// Second statement: PrintLn(x);
@@ -1760,12 +1752,8 @@ end;`,
 					t.Fatalf("inner while body is not AssignmentStatement. got=%T", innerWhile.Body)
 				}
 
-				innerAssignTarget, ok := innerAssign.Target.(*ast.Identifier)
-				if !ok {
-					t.Fatalf("innerAssign.Target is not *ast.Identifier. got=%T", innerAssign.Target)
-				}
-				if innerAssignTarget.Value != "y" {
-					t.Errorf("inner assignment name = %q, want 'y'", innerAssignTarget.Value)
+				if innerAssign.Name.Value != "y" {
+					t.Errorf("inner assignment name = %q, want 'y'", innerAssign.Name.Value)
 				}
 			},
 		},
@@ -1838,12 +1826,8 @@ func TestRepeatStatements(t *testing.T) {
 					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
 				}
 
-				assignTarget, ok := assign.Target.(*ast.Identifier)
-				if !ok {
-					t.Fatalf("assign.Target is not *ast.Identifier. got=%T", assign.Target)
-				}
-				if assignTarget.Value != "x" {
-					t.Errorf("assignment name = %q, want 'x'", assignTarget.Value)
+				if assign.Target.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Target.Value)
 				}
 
 				if !testInfixExpression(t, assign.Value, "x", "+", 1) {
@@ -1879,12 +1863,8 @@ end until x >= 10;`,
 					t.Fatalf("first block statement is not AssignmentStatement. got=%T", block.Statements[0])
 				}
 
-				assignTarget, ok := assign.Target.(*ast.Identifier)
-				if !ok {
-					t.Fatalf("assign.Target is not *ast.Identifier. got=%T", assign.Target)
-				}
-				if assignTarget.Value != "x" {
-					t.Errorf("assignment name = %q, want 'x'", assignTarget.Value)
+				if assign.Target.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Target.Value)
 				}
 
 				// Second statement: PrintLn(x);
@@ -1963,12 +1943,8 @@ until x >= 10;`,
 					t.Fatalf("inner repeat body is not AssignmentStatement. got=%T", innerRepeat.Body)
 				}
 
-				innerAssignTarget, ok := innerAssign.Target.(*ast.Identifier)
-				if !ok {
-					t.Fatalf("innerAssign.Target is not *ast.Identifier. got=%T", innerAssign.Target)
-				}
-				if innerAssignTarget.Value != "y" {
-					t.Errorf("inner assignment name = %q, want 'y'", innerAssignTarget.Value)
+				if innerAssign.Name.Value != "y" {
+					t.Errorf("inner assignment name = %q, want 'y'", innerAssign.Name.Value)
 				}
 
 				// Test inner condition: y >= 5
@@ -2217,12 +2193,8 @@ end;`,
 					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
 				}
 
-				assignTarget, ok := assign.Target.(*ast.Identifier)
-				if !ok {
-					t.Fatalf("assign.Target is not *ast.Identifier. got=%T", assign.Target)
-				}
-				if assignTarget.Value != "sum" {
-					t.Errorf("assignment name = %q, want 'sum'", assignTarget.Value)
+				if assign.Target.Value != "sum" {
+					t.Errorf("assignment name = %q, want 'sum'", assign.Target.Value)
 				}
 
 				// Test assignment value: sum + i
@@ -2334,12 +2306,8 @@ end;`,
 					t.Fatalf("body is not AssignmentStatement. got=%T", stmt.Body)
 				}
 
-				assignTarget, ok := assign.Target.(*ast.Identifier)
-				if !ok {
-					t.Fatalf("assign.Target is not *ast.Identifier. got=%T", assign.Target)
-				}
-				if assignTarget.Value != "x" {
-					t.Errorf("assignment name = %q, want 'x'", assignTarget.Value)
+				if assign.Target.Value != "x" {
+					t.Errorf("assignment name = %q, want 'x'", assign.Target.Value)
 				}
 
 				if !testInfixExpression(t, assign.Value, "x", "+", "i") {
@@ -2677,12 +2645,8 @@ end;`,
 					t.Fatalf("branch1 statement is not AssignmentStatement. got=%T", branch1.Statement)
 				}
 
-				assign1Target, ok := assign1.Target.(*ast.Identifier)
-				if !ok {
-					t.Fatalf("assign1.Target is not *ast.Identifier. got=%T", assign1.Target)
-				}
-				if assign1Target.Value != "result" {
-					t.Errorf("branch1 assignment name = %q, want 'result'", assign1Target.Value)
+				if assign1.Name.Value != "result" {
+					t.Errorf("branch1 assignment name = %q, want 'result'", assign1.Name.Value)
 				}
 
 				if !testStringLiteralExpression(t, assign1.Value, "failed") {
@@ -2699,12 +2663,8 @@ end;`,
 					t.Fatalf("else branch is not AssignmentStatement. got=%T", stmt.Else)
 				}
 
-				elseAssignTarget, ok := elseAssign.Target.(*ast.Identifier)
-				if !ok {
-					t.Fatalf("elseAssign.Target is not *ast.Identifier. got=%T", elseAssign.Target)
-				}
-				if elseAssignTarget.Value != "result" {
-					t.Errorf("else assignment name = %q, want 'result'", elseAssignTarget.Value)
+				if elseAssign.Name.Value != "result" {
+					t.Errorf("else assignment name = %q, want 'result'", elseAssign.Name.Value)
 				}
 
 				if !testStringLiteralExpression(t, elseAssign.Value, "unknown") {

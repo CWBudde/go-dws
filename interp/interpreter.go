@@ -220,7 +220,20 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 						value = &NilValue{}
 					}
 				} else {
-					value = &NilValue{}
+					// Initialize basic types with their zero values
+					// Task 8.19e: Proper initialization allows implicit conversions to work with target type
+					switch strings.ToLower(typeName) {
+					case "integer":
+						value = &IntegerValue{Value: 0}
+					case "float":
+						value = &FloatValue{Value: 0.0}
+					case "string":
+						value = &StringValue{Value: ""}
+					case "boolean":
+						value = &BooleanValue{Value: false}
+					default:
+						value = &NilValue{}
+					}
 				}
 			}
 		} else {
@@ -293,9 +306,19 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 // evalSimpleAssignment handles simple variable assignment: x := value
 func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, stmt *ast.AssignmentStatement) Value {
 	// Task 7.144: Check if trying to assign to an external variable
+	// Task 8.19a: Apply implicit conversion if types don't match
 	if existingVal, ok := i.env.Get(target.Value); ok {
 		if extVar, isExternal := existingVal.(*ExternalVarValue); isExternal {
 			return newError("Unsupported external variable assignment: %s", extVar.Name)
+		}
+
+		// Try implicit conversion if types don't match
+		targetType := existingVal.Type()
+		sourceType := value.Type()
+		if targetType != sourceType {
+			if converted, ok := i.tryImplicitConversion(value, targetType); ok {
+				value = converted
+			}
 		}
 	}
 
@@ -559,10 +582,14 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 	case left.Type() == "BOOLEAN" && right.Type() == "BOOLEAN":
 		return i.evalBooleanBinaryOp(expr.Operator, left, right)
 
-	case left.Type() == "RECORD" && right.Type() == "RECORD":
-		return i.evalRecordBinaryOp(expr.Operator, left, right)
-
+	// Check if both are records (by type assertion, not string comparison)
+	// Since RecordValue.Type() now returns actual type name (e.g., "TPoint"), not "RECORD"
 	default:
+		if _, leftIsRecord := left.(*RecordValue); leftIsRecord {
+			if _, rightIsRecord := right.(*RecordValue); rightIsRecord {
+				return i.evalRecordBinaryOp(expr.Operator, left, right)
+			}
+		}
 		return i.newErrorWithLocation(expr, "type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
 	}
 }
@@ -856,6 +883,7 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 	if method == nil {
 		return i.newErrorWithLocation(node, "method '%s' not found in class '%s'", methodName, obj.Class.Name)
 	}
+
 	if len(args) != len(method.Parameters) {
 		return i.newErrorWithLocation(node, "method '%s' expects %d arguments, got %d", methodName, len(method.Parameters), len(args))
 	}
@@ -866,8 +894,19 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 
 	i.env.Define("Self", obj)
 
+	// Bind parameters to arguments with implicit conversion
 	for idx, param := range method.Parameters {
-		i.env.Define(param.Name.Value, args[idx])
+		arg := args[idx]
+
+		// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+		if param.Type != nil {
+			paramTypeName := param.Type.Name
+			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+				arg = converted
+			}
+		}
+
+		i.env.Define(param.Name.Value, arg)
 	}
 
 	if method.ReturnType != nil {
@@ -905,8 +944,19 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 
 	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
+	// Bind parameters to arguments with implicit conversion
 	for idx, param := range method.Parameters {
-		i.env.Define(param.Name.Value, args[idx])
+		arg := args[idx]
+
+		// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+		if param.Type != nil {
+			paramTypeName := param.Type.Name
+			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+				arg = converted
+			}
+		}
+
+		i.env.Define(param.Name.Value, arg)
 	}
 
 	if method.ReturnType != nil {
@@ -932,19 +982,106 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 func (i *Interpreter) extractReturnValue(method *ast.FunctionDecl, env *Environment) Value {
 	resultVal, resultOk := env.Get("Result")
 	methodNameVal, methodNameOk := env.Get(method.Name.Value)
+
+	var returnValue Value
 	if resultOk && resultVal.Type() != "NIL" {
-		return resultVal
+		returnValue = resultVal
+	} else if methodNameOk && methodNameVal.Type() != "NIL" {
+		returnValue = methodNameVal
+	} else if resultOk {
+		returnValue = resultVal
+	} else if methodNameOk {
+		returnValue = methodNameVal
+	} else {
+		returnValue = &NilValue{}
 	}
-	if methodNameOk && methodNameVal.Type() != "NIL" {
-		return methodNameVal
+
+	// Task 8.19c: Apply implicit conversion if return type doesn't match
+	if method.ReturnType != nil && returnValue.Type() != "NIL" {
+		expectedReturnType := method.ReturnType.Name
+		if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
+			return converted
+		}
 	}
-	if resultOk {
-		return resultVal
+
+	return returnValue
+}
+
+// tryImplicitConversion attempts to apply an implicit conversion from source to target type.
+// Returns (convertedValue, true) if conversion found and applied, (original, false) otherwise.
+// Task 8.19a: Apply implicit conversions automatically at runtime.
+// Task 8.19d: Support chained implicit conversions (e.g., Integer -> String -> Custom).
+func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) (Value, bool) {
+	sourceTypeName := value.Type()
+
+	// No conversion needed if types already match
+	if sourceTypeName == targetTypeName {
+		return value, false
 	}
-	if methodNameOk {
-		return methodNameVal
+
+	// Normalize type names for conversion lookup (to match how they're registered)
+	normalizedSource := normalizeTypeAnnotation(sourceTypeName)
+	normalizedTarget := normalizeTypeAnnotation(targetTypeName)
+
+	// Task 8.19a: Try direct conversion first
+	entry, found := i.conversions.findImplicit(normalizedSource, normalizedTarget)
+	if found {
+		// Look up the conversion function
+		fn, exists := i.functions[entry.BindingName]
+		if !exists {
+			// This should not happen if semantic analysis passed
+			return value, false
+		}
+
+		// Call the conversion function with the value as argument
+		args := []Value{value}
+		result := i.callUserFunction(fn, args)
+
+		if isError(result) {
+			return result, false
+		}
+
+		return result, true
 	}
-	return &NilValue{}
+
+	// Task 8.19d: Try chained conversion if direct conversion not found
+	const maxConversionChainDepth = 3
+	path := i.conversions.findConversionPath(normalizedSource, normalizedTarget, maxConversionChainDepth)
+	if path == nil || len(path) < 2 {
+		return value, false
+	}
+
+	// Apply conversions sequentially along the path
+	currentValue := value
+	for idx := 0; idx < len(path)-1; idx++ {
+		fromType := path[idx]
+		toType := path[idx+1]
+
+		// Find the conversion function for this step
+		stepEntry, stepFound := i.conversions.findImplicit(fromType, toType)
+		if !stepFound {
+			// Path is broken - this shouldn't happen if findConversionPath worked correctly
+			return value, false
+		}
+
+		// Look up the conversion function
+		fn, exists := i.functions[stepEntry.BindingName]
+		if !exists {
+			return value, false
+		}
+
+		// Apply this conversion step
+		args := []Value{currentValue}
+		result := i.callUserFunction(fn, args)
+
+		if isError(result) {
+			return result, false
+		}
+
+		currentValue = result
+	}
+
+	return currentValue, true
 }
 
 // evalMinusUnaryOp evaluates the unary minus operator.
@@ -1042,6 +1179,16 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinInteger(args)
 	case "Length":
 		return i.builtinLength(args)
+	case "Low":
+		return i.builtinLow(args)
+	case "High":
+		return i.builtinHigh(args)
+	case "SetLength":
+		return i.builtinSetLength(args)
+	case "Add":
+		return i.builtinAdd(args)
+	case "Delete":
+		return i.builtinDelete(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
@@ -1163,6 +1310,195 @@ func (i *Interpreter) builtinLength(args []Value) Value {
 	}
 
 	return i.newErrorWithLocation(i.currentNode, "Length() expects array or string, got %s", arg.Type())
+}
+
+// builtinLow implements the Low() built-in function.
+// It returns the lower bound of an array.
+// Task 8.132: Low() function for arrays
+func (i *Interpreter) builtinLow(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Low() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+
+	// Handle array values
+	if arrayVal, ok := arg.(*ArrayValue); ok {
+		if arrayVal.ArrayType == nil {
+			return i.newErrorWithLocation(i.currentNode, "array has no type information")
+		}
+
+		// For static arrays, return LowBound
+		// For dynamic arrays, return 0
+		if arrayVal.ArrayType.IsStatic() {
+			return &IntegerValue{Value: int64(*arrayVal.ArrayType.LowBound)}
+		}
+		return &IntegerValue{Value: 0}
+	}
+
+	return i.newErrorWithLocation(i.currentNode, "Low() expects array, got %s", arg.Type())
+}
+
+// builtinHigh implements the High() built-in function.
+// It returns the upper bound of an array.
+// Task 8.133: High() function for arrays
+func (i *Interpreter) builtinHigh(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "High() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+
+	// Handle array values
+	if arrayVal, ok := arg.(*ArrayValue); ok {
+		if arrayVal.ArrayType == nil {
+			return i.newErrorWithLocation(i.currentNode, "array has no type information")
+		}
+
+		// For static arrays, return HighBound
+		// For dynamic arrays, return Length - 1
+		if arrayVal.ArrayType.IsStatic() {
+			return &IntegerValue{Value: int64(*arrayVal.ArrayType.HighBound)}
+		}
+		// Dynamic array: High = Length - 1
+		return &IntegerValue{Value: int64(len(arrayVal.Elements) - 1)}
+	}
+
+	return i.newErrorWithLocation(i.currentNode, "High() expects array, got %s", arg.Type())
+}
+
+// builtinSetLength implements the SetLength() built-in function.
+// It resizes a dynamic array to the specified length.
+// Task 8.131: SetLength() function for dynamic arrays
+func (i *Interpreter) builtinSetLength(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "SetLength() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument must be an array (we'll need the variable name to modify it)
+	arrayArg := args[0]
+	arrayVal, ok := arrayArg.(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "SetLength() expects array as first argument, got %s", arrayArg.Type())
+	}
+
+	// Second argument must be an integer
+	lengthArg := args[1]
+	lengthInt, ok := lengthArg.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "SetLength() expects integer as second argument, got %s", lengthArg.Type())
+	}
+
+	newLength := int(lengthInt.Value)
+	if newLength < 0 {
+		return i.newErrorWithLocation(i.currentNode, "SetLength() new length cannot be negative: %d", newLength)
+	}
+
+	// Check that it's a dynamic array
+	if arrayVal.ArrayType == nil {
+		return i.newErrorWithLocation(i.currentNode, "array has no type information")
+	}
+
+	if arrayVal.ArrayType.IsStatic() {
+		return i.newErrorWithLocation(i.currentNode, "SetLength() can only be used with dynamic arrays, not static arrays")
+	}
+
+	// Resize the array
+	oldLength := len(arrayVal.Elements)
+	if newLength == oldLength {
+		// No change needed
+		return &NilValue{}
+	}
+
+	if newLength > oldLength {
+		// Expand: add nil elements
+		for j := oldLength; j < newLength; j++ {
+			arrayVal.Elements = append(arrayVal.Elements, &NilValue{})
+		}
+	} else {
+		// Shrink: truncate
+		arrayVal.Elements = arrayVal.Elements[:newLength]
+	}
+
+	return &NilValue{}
+}
+
+// builtinAdd implements the Add() built-in function.
+// It appends an element to the end of a dynamic array.
+// Task 8.134: Add() function for dynamic arrays
+func (i *Interpreter) builtinAdd(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Add() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument must be a dynamic array
+	arrayArg := args[0]
+	arrayVal, ok := arrayArg.(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Add() expects array as first argument, got %s", arrayArg.Type())
+	}
+
+	// Check that it's a dynamic array
+	if arrayVal.ArrayType == nil {
+		return i.newErrorWithLocation(i.currentNode, "array has no type information")
+	}
+
+	if arrayVal.ArrayType.IsStatic() {
+		return i.newErrorWithLocation(i.currentNode, "Add() can only be used with dynamic arrays, not static arrays")
+	}
+
+	// Second argument is the element to add
+	element := args[1]
+
+	// Append the element to the array
+	arrayVal.Elements = append(arrayVal.Elements, element)
+
+	return &NilValue{}
+}
+
+// builtinDelete implements the Delete() built-in function.
+// It removes an element at the specified index from a dynamic array.
+// Task 8.135: Delete() function for dynamic arrays
+func (i *Interpreter) builtinDelete(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Delete() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument must be a dynamic array
+	arrayArg := args[0]
+	arrayVal, ok := arrayArg.(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Delete() expects array as first argument, got %s", arrayArg.Type())
+	}
+
+	// Check that it's a dynamic array
+	if arrayVal.ArrayType == nil {
+		return i.newErrorWithLocation(i.currentNode, "array has no type information")
+	}
+
+	if arrayVal.ArrayType.IsStatic() {
+		return i.newErrorWithLocation(i.currentNode, "Delete() can only be used with dynamic arrays, not static arrays")
+	}
+
+	// Second argument must be an integer (the index)
+	indexArg := args[1]
+	indexInt, ok := indexArg.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Delete() expects integer as second argument, got %s", indexArg.Type())
+	}
+
+	index := int(indexInt.Value)
+
+	// Validate index bounds (0-based for dynamic arrays)
+	if index < 0 || index >= len(arrayVal.Elements) {
+		return i.newErrorWithLocation(i.currentNode, "Delete() index out of bounds: %d (array length is %d)", index, len(arrayVal.Elements))
+	}
+
+	// Remove the element at index by slicing
+	// Create a new slice with the element removed
+	arrayVal.Elements = append(arrayVal.Elements[:index], arrayVal.Elements[index+1:]...)
+
+	return &NilValue{}
 }
 
 // evalIfStatement evaluates an if statement.
@@ -1417,8 +1753,40 @@ func (i *Interpreter) valuesEqual(left, right Value) bool {
 
 // evalFunctionDeclaration evaluates a function declaration.
 // It registers the function in the function registry without executing its body.
+// For method implementations (fn.ClassName != nil), it updates the class's Methods map.
 func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
-	// Store the function in the registry
+	// Check if this is a method implementation (has a class name like TExample.Method)
+	if fn.ClassName != nil {
+		className := fn.ClassName.Value
+		classInfo, exists := i.classes[className]
+		if !exists {
+			return i.newErrorWithLocation(fn, "class '%s' not found for method '%s'", className, fn.Name.Value)
+		}
+
+		// Update the method in the class (replacing the declaration with the implementation)
+		if fn.IsClassMethod {
+			classInfo.ClassMethods[fn.Name.Value] = fn
+		} else {
+			classInfo.Methods[fn.Name.Value] = fn
+		}
+
+		// Also store constructors
+		if fn.IsConstructor {
+			classInfo.Constructors[fn.Name.Value] = fn
+			// Always update Constructor to use the implementation (which has the body)
+			// This replaces the declaration that was set during class parsing
+			classInfo.Constructor = fn
+		}
+
+		// Store destructor
+		if fn.IsDestructor {
+			classInfo.Destructor = fn
+		}
+
+		return &NilValue{}
+	}
+
+	// Store regular function in the registry
 	i.functions[fn.Name.Value] = fn
 	return &NilValue{}
 }
@@ -1928,9 +2296,19 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				// Bind __CurrentClass__ so class variables can be accessed
 				i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
-				// Bind method parameters to arguments
+				// Bind method parameters to arguments with implicit conversion
 				for idx, param := range classMethod.Parameters {
-					i.env.Define(param.Name.Value, args[idx])
+					arg := args[idx]
+
+					// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+					if param.Type != nil {
+						paramTypeName := param.Type.Name
+						if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+							arg = converted
+						}
+					}
+
+					i.env.Define(param.Name.Value, arg)
 				}
 
 				// For functions (not procedures), initialize the Result variable
@@ -1965,6 +2343,14 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 						returnValue = methodNameVal
 					} else {
 						returnValue = &NilValue{}
+					}
+
+					// Task 8.19c: Apply implicit conversion if return type doesn't match
+					if returnValue.Type() != "NIL" {
+						expectedReturnType := classMethod.ReturnType.Name
+						if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
+							returnValue = converted
+						}
 					}
 				} else {
 					// Procedure - no return value
@@ -2022,20 +2408,27 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				// Bind Self to the object
 				i.env.Define("Self", obj)
 
-				// Bind method parameters to arguments
+				// Bind method parameters to arguments with implicit conversion
 				for idx, param := range instanceMethod.Parameters {
-					i.env.Define(param.Name.Value, args[idx])
+					arg := args[idx]
+
+					// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+					if param.Type != nil {
+						paramTypeName := param.Type.Name
+						if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+							arg = converted
+						}
+					}
+
+					i.env.Define(param.Name.Value, arg)
 				}
 
 				// For functions (not procedures), initialize the Result variable
-				if instanceMethod.ReturnType != nil {
+				// For constructors, always initialize Result even if no explicit return type
+				if instanceMethod.ReturnType != nil || instanceMethod.IsConstructor {
 					i.env.Define("Result", &NilValue{})
 					// Also define the method name as an alias for Result (DWScript style)
 					i.env.Define(instanceMethod.Name.Value, &NilValue{})
-				} else {
-					// DEBUG: This shouldn't happen for Create which has a return type
-					// But let's check
-					fmt.Fprintf(i.output, "DEBUG: Method %s has no return type!\n", instanceMethod.Name.Value)
 				}
 
 				// Execute method body
@@ -2047,7 +2440,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 				// Extract return value (same logic as regular functions)
 				var returnValue Value
-				if instanceMethod.ReturnType != nil {
+				if instanceMethod.ReturnType != nil || instanceMethod.IsConstructor {
 					// Check both Result and method name variable
 					resultVal, resultOk := i.env.Get("Result")
 					methodNameVal, methodNameOk := i.env.Get(instanceMethod.Name.Value)
@@ -2061,8 +2454,19 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 						returnValue = resultVal
 					} else if methodNameOk {
 						returnValue = methodNameVal
+					} else if instanceMethod.IsConstructor {
+						// Constructors return the object instance by default
+						returnValue = obj
 					} else {
 						returnValue = &NilValue{}
+					}
+
+					// Task 8.19c: Apply implicit conversion if return type doesn't match (but not for constructors)
+					if instanceMethod.ReturnType != nil && returnValue.Type() != "NIL" {
+						expectedReturnType := instanceMethod.ReturnType.Name
+						if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
+							returnValue = converted
+						}
 					}
 				} else {
 					// Procedure - no return value
@@ -2122,9 +2526,19 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	// Bind Self to the object
 	i.env.Define("Self", obj)
 
-	// Bind method parameters to arguments
+	// Bind method parameters to arguments with implicit conversion
 	for idx, param := range method.Parameters {
-		i.env.Define(param.Name.Value, args[idx])
+		arg := args[idx]
+
+		// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+		if param.Type != nil {
+			paramTypeName := param.Type.Name
+			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+				arg = converted
+			}
+		}
+
+		i.env.Define(param.Name.Value, arg)
 	}
 
 	// For functions (not procedures), initialize the Result variable
@@ -2160,6 +2574,14 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		} else {
 			returnValue = &NilValue{}
 		}
+
+		// Task 8.19c: Apply implicit conversion if return type doesn't match
+		if returnValue.Type() != "NIL" {
+			expectedReturnType := method.ReturnType.Name
+			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
+				returnValue = converted
+			}
+		}
 	} else {
 		// Procedure - no return value
 		returnValue = &NilValue{}
@@ -2188,24 +2610,52 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 
 	// Bind parameters to arguments
 	for idx, param := range fn.Parameters {
+		arg := args[idx]
+
+		// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+		if param.Type != nil {
+			paramTypeName := param.Type.Name
+			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+				arg = converted
+			}
+		}
+
 		if param.ByRef {
 			// By-reference parameter - we need to handle this specially
 			// For now, we'll pass by value (TODO: implement proper by-ref support)
-			i.env.Define(param.Name.Value, args[idx])
+			i.env.Define(param.Name.Value, arg)
 		} else {
 			// By-value parameter
-			i.env.Define(param.Name.Value, args[idx])
+			i.env.Define(param.Name.Value, arg)
 		}
 	}
 
 	// For functions (not procedures), initialize the Result variable
 	if fn.ReturnType != nil {
-		i.env.Define("Result", &NilValue{})
+		// Initialize Result based on return type
+		var resultValue Value = &NilValue{}
+
+		// Check if return type is a record
+		returnTypeName := fn.ReturnType.Name
+		recordTypeKey := "__record_type_" + returnTypeName
+		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				resultValue = NewRecordValue(rtv.RecordType)
+			}
+		}
+
+		i.env.Define("Result", resultValue)
 		// Also define the function name as an alias for Result (DWScript style)
-		i.env.Define(fn.Name.Value, &NilValue{})
+		i.env.Define(fn.Name.Value, resultValue)
 	}
 
 	// Execute the function body
+	if fn.Body == nil {
+		// Function has no body (forward declaration) - this is an error
+		i.env = savedEnv
+		return newError("function '%s' has no body", fn.Name.Value)
+	}
+
 	i.Eval(fn.Body)
 
 	// Extract return value
@@ -2230,6 +2680,14 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		} else {
 			// Neither exists (shouldn't happen)
 			returnValue = &NilValue{}
+		}
+
+		// Task 8.19c: Apply implicit conversion if return type doesn't match
+		if returnValue.Type() != "NIL" {
+			expectedReturnType := fn.ReturnType.Name
+			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
+				returnValue = converted
+			}
 		}
 	} else {
 		// Procedure - no return value

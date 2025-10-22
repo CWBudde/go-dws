@@ -1,0 +1,93 @@
+// Comprehensive enum integration test
+// Tests: basic enums, explicit values, Ord(), Integer(), case statements, scoped access
+
+// Basic enum with implicit values (0, 1, 2)
+type TColor = (Red, Green, Blue);
+
+// Enum with explicit values
+type THttpStatus = (
+  Ok = 200,
+  Created = 201,
+  BadRequest = 400,
+  NotFound = 404,
+  ServerError = 500
+);
+
+// Enum with mixed implicit/explicit values
+type TPriority = (Low, Medium = 5, High);
+
+// Test 1: Basic enum declaration and assignment
+PrintLn('Test 1: Basic enums');
+var color: TColor;
+color := Red;
+PrintLn(color);  // Red
+
+color := Green;
+PrintLn(color);  // Green
+
+color := Blue;
+PrintLn(color);  // Blue
+
+// Test 2: Scoped enum access
+PrintLn('Test 2: Scoped access');
+var status: THttpStatus;
+status := THttpStatus.Ok;
+PrintLn(status);  // Ok
+
+status := THttpStatus.NotFound;
+PrintLn(status);  // NotFound
+
+// Test 3: Ord() function - get ordinal value
+PrintLn('Test 3: Ord() function');
+PrintLn(Ord(Red));     // 0
+PrintLn(Ord(Green));   // 1
+PrintLn(Ord(Blue));    // 2
+
+PrintLn(Ord(THttpStatus.Ok));      // 200
+PrintLn(Ord(THttpStatus.NotFound)); // 404
+
+// Test 4: Integer() cast function
+PrintLn('Test 4: Integer() cast');
+PrintLn(Integer(Red));   // 0
+PrintLn(Integer(THttpStatus.ServerError));  // 500
+
+// Test 5: Mixed implicit/explicit values
+PrintLn('Test 5: Mixed values');
+PrintLn(Ord(Low));      // 0
+PrintLn(Ord(Medium));   // 5
+PrintLn(Ord(High));     // 6 (continues from Medium)
+
+// Test 6: Enums in case statements (unscoped)
+PrintLn('Test 6: Case statements');
+var testColor: TColor := Green;
+
+case testColor of
+  Red:   PrintLn('Color is red');
+  Green: PrintLn('Color is green');
+  Blue:  PrintLn('Color is blue');
+end;
+
+// Test 7: Enums in case statements (scoped)
+var testStatus: THttpStatus := THttpStatus.NotFound;
+
+case testStatus of
+  THttpStatus.Ok, THttpStatus.Created:
+    PrintLn('Success');
+  THttpStatus.BadRequest, THttpStatus.NotFound:
+    PrintLn('Client error');
+  THttpStatus.ServerError:
+    PrintLn('Server error');
+end;
+
+// Test 8: Multiple enum values in case branches
+type TWeekday = (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday);
+var day: TWeekday := Saturday;
+
+case day of
+  Monday, Tuesday, Wednesday, Thursday, Friday:
+    PrintLn('Weekday');
+  Saturday, Sunday:
+    PrintLn('Weekend');
+end;
+
+PrintLn('All enum tests complete');
