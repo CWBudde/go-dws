@@ -1,0 +1,159 @@
+// Comprehensive set integration test
+// Tests: set literals, Include/Exclude, set operations (+, -, *), membership (in), comparisons
+
+// Define enum for sets
+type TColor = (Red, Green, Blue, Yellow, Orange);
+type TColorSet = set of TColor;
+
+// Test 1: Empty set
+PrintLn('Test 1: Empty set');
+var s1: TColorSet;
+s1 := [];
+
+if Red in s1 then
+  PrintLn('Bug: Red should not be in empty set')
+else
+  PrintLn('Empty set works');
+
+// Test 2: Set with single element
+PrintLn('Test 2: Single element');
+var s2: TColorSet;
+s2 := [Red];
+
+if Red in s2 then
+  PrintLn('Red is in set');
+
+if Green in s2 then
+  PrintLn('Bug: Green should not be in set')
+else
+  PrintLn('Green not in set - correct');
+
+// Test 3: Set with multiple elements
+PrintLn('Test 3: Multiple elements');
+var s3: TColorSet;
+s3 := [Red, Green, Blue];
+
+if Red in s3 then
+  PrintLn('Red found');
+if Green in s3 then
+  PrintLn('Green found');
+if Blue in s3 then
+  PrintLn('Blue found');
+if Yellow in s3 then
+  PrintLn('Bug: Yellow should not be in set')
+else
+  PrintLn('Yellow not found - correct');
+
+// Test 4: Include operation
+PrintLn('Test 4: Include');
+var s4: TColorSet;
+s4 := [];
+
+Include(s4, Red);
+if Red in s4 then
+  PrintLn('Red included');
+
+Include(s4, Blue);
+if Blue in s4 then
+  PrintLn('Blue included');
+
+// Test 5: Exclude operation
+PrintLn('Test 5: Exclude');
+var s5: TColorSet;
+s5 := [Red, Green, Blue];
+
+Exclude(s5, Green);
+if Red in s5 then
+  PrintLn('Red still in set');
+if Green in s5 then
+  PrintLn('Bug: Green should be excluded')
+else
+  PrintLn('Green excluded correctly');
+if Blue in s5 then
+  PrintLn('Blue still in set');
+
+// Test 6: Set union (+)
+PrintLn('Test 6: Set union');
+var s6a: TColorSet;
+var s6b: TColorSet;
+var s6c: TColorSet;
+
+s6a := [Red, Green];
+s6b := [Blue, Yellow];
+s6c := s6a + s6b;
+
+if Red in s6c then PrintLn('Union has Red');
+if Green in s6c then PrintLn('Union has Green');
+if Blue in s6c then PrintLn('Union has Blue');
+if Yellow in s6c then PrintLn('Union has Yellow');
+
+// Test 7: Set difference (-)
+PrintLn('Test 7: Set difference');
+var s7a: TColorSet;
+var s7b: TColorSet;
+var s7c: TColorSet;
+
+s7a := [Red, Green, Blue];
+s7b := [Green];
+s7c := s7a - s7b;
+
+if Red in s7c then PrintLn('Difference has Red');
+if Green in s7c then
+  PrintLn('Bug: Green should be removed')
+else
+  PrintLn('Green correctly removed');
+if Blue in s7c then PrintLn('Difference has Blue');
+
+// Test 8: Set intersection (*)
+PrintLn('Test 8: Set intersection');
+var s8a: TColorSet;
+var s8b: TColorSet;
+var s8c: TColorSet;
+
+s8a := [Red, Green, Blue];
+s8b := [Green, Blue, Yellow];
+s8c := s8a * s8b;
+
+if Red in s8c then
+  PrintLn('Bug: Red should not be in intersection')
+else
+  PrintLn('Red correctly excluded');
+if Green in s8c then PrintLn('Intersection has Green');
+if Blue in s8c then PrintLn('Intersection has Blue');
+if Yellow in s8c then
+  PrintLn('Bug: Yellow should not be in intersection')
+else
+  PrintLn('Yellow correctly excluded');
+
+// Test 9: Set equality
+PrintLn('Test 9: Set equality');
+var s9a: TColorSet;
+var s9b: TColorSet;
+
+s9a := [Red, Green];
+s9b := [Red, Green];
+
+if s9a = s9b then
+  PrintLn('Sets are equal');
+
+s9b := [Red, Blue];
+if s9a <> s9b then
+  PrintLn('Sets are different');
+
+// Test 10: Range sets
+PrintLn('Test 10: Range sets');
+type TDigit = (Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Nine);
+type TDigitSet = set of TDigit;
+
+var digits: TDigitSet;
+digits := [Zero..Five];
+
+if Zero in digits then PrintLn('Zero in range');
+if Three in digits then PrintLn('Three in range');
+if Five in digits then PrintLn('Five in range');
+if Six in digits then
+  PrintLn('Bug: Six should not be in range')
+else
+  PrintLn('Six not in range - correct');
+
+PrintLn('All set tests complete');

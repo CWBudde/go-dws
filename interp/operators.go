@@ -110,6 +110,73 @@ func (r *runtimeConversionRegistry) findImplicit(from, to string) (*runtimeConve
 	return entry, ok
 }
 
+// findConversionPath uses BFS to find the shortest path of implicit conversions from source to target type.
+// Returns a slice of intermediate type names representing the conversion path, or nil if no path exists.
+// maxDepth limits the number of conversions in the chain (e.g., maxDepth=3 allows A->B->C->D).
+// Task 8.19d: Support chained implicit conversions.
+func (r *runtimeConversionRegistry) findConversionPath(from, to string, maxDepth int) []string {
+	if r == nil || maxDepth <= 0 {
+		return nil
+	}
+
+	// Normalize type names
+	from = strings.ToUpper(from)
+	to = strings.ToUpper(to)
+
+	// Direct conversion check
+	if _, ok := r.implicit[conversionKey(from, to)]; ok {
+		return []string{from, to}
+	}
+
+	// BFS to find shortest conversion path
+	type queueItem struct {
+		currentType string
+		path        []string
+	}
+
+	visited := make(map[string]bool)
+	queue := []queueItem{{currentType: from, path: []string{from}}}
+	visited[from] = true
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		// Check if path is too long
+		if len(current.path) > maxDepth {
+			continue
+		}
+
+		// Try all possible conversions from current type
+		for _, entry := range r.implicit {
+			// Check if this conversion starts from current type
+			if strings.ToUpper(entry.From) == current.currentType {
+				nextType := strings.ToUpper(entry.To)
+
+				// Found target!
+				if nextType == to {
+					return append(current.path, nextType)
+				}
+
+				// Add to queue if not visited
+				if !visited[nextType] {
+					visited[nextType] = true
+					newPath := make([]string, len(current.path)+1)
+					copy(newPath, current.path)
+					newPath[len(current.path)] = nextType
+					queue = append(queue, queueItem{
+						currentType: nextType,
+						path:        newPath,
+					})
+				}
+			}
+		}
+	}
+
+	// No path found
+	return nil
+}
+
 func conversionKey(from, to string) string {
 	return strings.ToUpper(from) + "->" + strings.ToUpper(to)
 }

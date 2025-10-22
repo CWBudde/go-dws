@@ -1,0 +1,26 @@
+// Ported from reference/dwscript-original/Test/SetOfPass/range.pas
+// Tests set range literals
+
+type TMyEnum = (a, b, c, d, e, f, g, h);
+type TMySet = set of TMyEnum;
+
+var s : TMySet;
+
+s := [a..d];
+
+if a in s then PrintLn('a');
+if b in s then PrintLn('b');
+if c in s then PrintLn('c');
+if d in s then PrintLn('d');
+if e in s then PrintLn('e not expected');
+if f in s then PrintLn('f not expected');
+
+s := [c..f];
+
+if a in s then PrintLn('a not expected 2');
+if b in s then PrintLn('b not expected 2');
+if c in s then PrintLn('c2');
+if d in s then PrintLn('d2');
+if e in s then PrintLn('e2');
+if f in s then PrintLn('f2');
+if g in s then PrintLn('g not expected 2');

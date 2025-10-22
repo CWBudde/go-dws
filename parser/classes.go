@@ -160,10 +160,12 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 			if p.curTokenIs(lexer.VAR) {
 				// Class variable: class var FieldName: Type;
 				p.nextToken() // move past 'var'
-				field := p.parseFieldDeclaration(currentVisibility)
-				if field != nil {
-					field.IsClassVar = true // Mark as class variable
-					classDecl.Fields = append(classDecl.Fields, field)
+				fields := p.parseFieldDeclarations(currentVisibility)
+				for _, field := range fields {
+					if field != nil {
+						field.IsClassVar = true // Mark as class variable
+						classDecl.Fields = append(classDecl.Fields, field)
+					}
 				}
 			} else if p.curTokenIs(lexer.OPERATOR) {
 				operator := p.parseClassOperatorDeclaration(classToken, currentVisibility)
@@ -183,11 +185,13 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 				p.nextToken()
 				continue
 			}
-		} else if p.curToken.Type == lexer.IDENT && p.peekTokenIs(lexer.COLON) {
-			// This is a regular instance field declaration
-			field := p.parseFieldDeclaration(currentVisibility)
-			if field != nil {
-				classDecl.Fields = append(classDecl.Fields, field)
+		} else if p.curToken.Type == lexer.IDENT && (p.peekTokenIs(lexer.COLON) || p.peekTokenIs(lexer.COMMA)) {
+			// This is a regular instance field declaration (may be comma-separated)
+			fields := p.parseFieldDeclarations(currentVisibility)
+			for _, field := range fields {
+				if field != nil {
+					classDecl.Fields = append(classDecl.Fields, field)
+				}
 			}
 		} else if p.curToken.Type == lexer.FUNCTION || p.curToken.Type == lexer.PROCEDURE {
 			// This is a regular instance method declaration
@@ -236,13 +240,29 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 }
 
 // parseFieldDeclaration parses a field declaration within a class.
-// Syntax: FieldName: Type;
+// Syntax: FieldName: Type; or FieldName1, FieldName2, FieldName3: Type;
 // The visibility parameter specifies the access level for this field (Task 7.63f).
-func (p *Parser) parseFieldDeclaration(visibility ast.Visibility) *ast.FieldDecl {
-	field := &ast.FieldDecl{}
+// Returns a slice of FieldDecl nodes (one per field name) since DWScript supports
+// comma-separated field names with a single type annotation.
+func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
+	// Collect all field names (comma-separated)
+	var fieldNames []*ast.Identifier
 
-	// Current token should be the field name identifier
-	field.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	// Current token should be the first field name identifier
+	fieldNames = append(fieldNames, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+
+	// Check for comma-separated field names
+	for p.peekTokenIs(lexer.COMMA) {
+		p.nextToken() // consume comma
+		p.nextToken() // move to next field name
+
+		if p.curToken.Type != lexer.IDENT {
+			p.addError("expected identifier after comma in field declaration")
+			return nil
+		}
+
+		fieldNames = append(fieldNames, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+	}
 
 	// Expect ':'
 	if !p.expectPeek(lexer.COLON) {
@@ -254,7 +274,7 @@ func (p *Parser) parseFieldDeclaration(visibility ast.Visibility) *ast.FieldDecl
 		return nil
 	}
 
-	field.Type = &ast.TypeAnnotation{
+	fieldType := &ast.TypeAnnotation{
 		Token: p.curToken,
 		Name:  p.curToken.Literal,
 	}
@@ -264,10 +284,19 @@ func (p *Parser) parseFieldDeclaration(visibility ast.Visibility) *ast.FieldDecl
 		return nil
 	}
 
-	// Set visibility from parameter (Task 7.63f)
-	field.Visibility = visibility
+	// Create a FieldDecl for each field name with the same type
+	fields := make([]*ast.FieldDecl, 0, len(fieldNames))
+	for _, name := range fieldNames {
+		field := &ast.FieldDecl{
+			Token:      name.Token,
+			Name:       name,
+			Type:       fieldType,
+			Visibility: visibility,
+		}
+		fields = append(fields, field)
+	}
 
-	return field
+	return fields
 }
 
 // parseMemberAccess parses member access and method call expressions.
