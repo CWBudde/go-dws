@@ -981,11 +981,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Stage 8: Additional DWScript Features and Polishing
 
-**Progress**: 53/177 tasks completed (29.9%)
+**Progress**: 57/211 tasks completed (27.0%)
 
-**Status**: In Progress - Operator overloading, enum types, and array index assignment complete
+**Status**: In Progress - Operator overloading, enum types, array functions, string/math functions, and conversion functions complete
 
-**New Task Breakdown**: The original 21 composite type tasks (8.30-8.50) have been expanded into 117 detailed tasks (8.30-8.146) following the same granular pattern established in Stages 1-7. This provides clear implementation roadmap with TDD approach.
+**New Task Breakdown**: The original 21 composite type tasks (8.30-8.50) have been expanded into 117 detailed tasks (8.30-8.146), and the exception handling tasks (8.189-8.193) have been expanded into 39 detailed tasks (8.189-8.227), following the same granular pattern established in Stages 1-7. This provides clear implementation roadmap with TDD approach.
 
 **Summary**:
 - ✅ Operator Overloading (Tasks 8.1-8.25): Complete
@@ -996,8 +996,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - ⏸️ Sets: 36 tasks (based on enums) - Not started
   - 🔄 Arrays: 25 tasks (Tasks 8.117-8.141) - 18 complete, 7 remaining (built-in functions pending)
   - ⏸️ Integration: 10 tasks - Not started
-- ⏸️ String/Math/Conversion Functions (Tasks 8.147-8.152): Not started
-- ⏸️ Advanced Features (Tasks 8.153-8.171): Not started
+- ✅ **String/Math Functions (Tasks 8.183-8.186)**: Complete - All string functions (Length, Copy, Concat, Pos, UpperCase, LowerCase) and math functions (Abs, Sqrt, Sin, Cos, Tan, Ln, Exp, Round, Trunc, Random, Randomize) implemented and tested
+- ✅ **Conversion Functions (Tasks 8.187-8.188)**: Complete - IntToStr, StrToInt, FloatToStr, StrToFloat all implemented with comprehensive tests
+- ⏸️ **Exception Handling (Tasks 8.189-8.227)**: Not started - 39 detailed tasks covering try/except/finally blocks, exception class hierarchy, raise statement, and comprehensive testing
+- ⏸️ **Advanced Features (Tasks 8.228-8.247)**: Not started - Meta-classes, function pointers, contracts, and comprehensive testing
 
 ### Operator Overloading (Work in progress)
 
@@ -1395,7 +1397,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - [x] Updated `evalVarDeclStatement()` to create ArrayValue instances
   - [x] Updated `resolveType()` to support array types
   - [x] Added comprehensive tests in `interp/array_test.go`
-- [x] 8.161 Implement built-in: `Length(arr)` or `arr.Length`
+- [x] 8.161 Implement built-in: `Length(arr)` or `arr.Length` (also implements `Length(s)` for strings - see task 8.183)
 - [x] 8.162 Implement built-in: `SetLength(arr, newLen)` or `arr.SetLength(newLen)`
 - [x] 8.163 Implement built-in: `Low(arr)` or `arr.Low`
 - [x] 8.164 Implement built-in: `High(arr)` or `arr.High`
@@ -1517,76 +1519,299 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### String Functions
 
-- [ ] 8.183 Implement built-in string functions:
-  - [ ] Length(s)
-  - [ ] Copy(s, index, count)
-  - [ ] Concat(s1, s2, ...)
-  - [ ] Pos(substr, s)
-  - [ ] UpperCase(s), LowerCase(s)
-- [ ] 8.184 Test string functions
+- [x] 8.183 Implement built-in string functions: ✅ COMPLETE
+  - [x] Length(s) - ✅ Implemented in task 8.161 (builtinLength handles both arrays and strings)
+  - [x] Copy(s, index, count) - ✅ Implemented in interp/interpreter.go:1377 (builtinCopy with 1-based indexing)
+  - [x] Concat(s1, s2, ...) - ✅ Implemented in interp/interpreter.go:1443 (builtinConcat with variadic arguments)
+  - [x] Pos(substr, s) - ✅ Implemented in interp/interpreter.go:1466 (builtinPos returns 1-based position, 0 if not found)
+  - [x] UpperCase(s) - ✅ Implemented in interp/interpreter.go:1510 (builtinUpperCase using strings.ToUpper)
+  - [x] LowerCase(s) - ✅ Implemented in interp/interpreter.go:1528 (builtinLowerCase using strings.ToLower)
+- [x] 8.184 Test string functions: ✅ COMPLETE
+  - [x] Length(s) - ✅ Tested in interp/array_test.go::TestBuiltinLength_Strings (4 test cases, all passing)
+  - [x] Copy(s, index, count) - ✅ Tested in interp/string_test.go::TestBuiltinCopy_* (24 test cases: basic, edge cases, expressions, errors - all passing)
+  - [x] Concat(s1, s2, ...) - ✅ Tested in interp/string_test.go::TestBuiltinConcat_* (10 test cases: basic, edge cases, errors - all passing)
+  - [x] Pos(substr, s) - ✅ Tested in interp/string_test.go::TestBuiltinPos_* (18 test cases: basic, edge cases, expressions, errors - all passing)
+  - [x] UpperCase(s) - ✅ Tested in interp/string_test.go::TestBuiltinUpperCase_* (12 test cases: basic, expressions, errors - all passing)
+  - [x] LowerCase(s) - ✅ Tested in interp/string_test.go::TestBuiltinLowerCase_* (12 test cases: basic, expressions, errors - all passing)
 
 ### Math Functions
 
-- [ ] 8.185 Implement built-in math functions:
-  - [ ] Abs(x)
-  - [ ] Sqrt(x)
-  - [ ] Sin(x), Cos(x), Tan(x)
-  - [ ] Ln(x), Exp(x)
-  - [ ] Round(x), Trunc(x)
-  - [ ] Random, Randomize
-- [ ] 8.186 Test math functions
+- [x] 8.185 Implement built-in math functions: ✅ COMPLETE
+  - [x] Abs(x) - ✅ Implemented in interp/interpreter.go:1551 (builtinAbs preserves type: Integer→Integer, Float→Float, uses math.Abs for floats)
+  - [x] Sqrt(x) - ✅ Implemented in interp/interpreter.go:1580 (builtinSqrt always returns Float, validates against negative numbers)
+  - [x] Sin(x), Cos(x), Tan(x) - ✅ Implemented in interp/interpreter.go:1612-1685 (builtinSin, builtinCos, builtinTan, all work in radians and return Float)
+  - [x] Ln(x), Exp(x) - ✅ Implemented in interp/interpreter.go (builtinLn, builtinExp, both return Float)
+  - [x] Round(x), Trunc(x) - ✅ Implemented in interp/interpreter.go (builtinRound, builtinTrunc, both return Integer)
+  - [x] Random, Randomize - ✅ Implemented in interp/interpreter.go:1708-1732 (builtinRandom returns Float [0,1), builtinRandomize seeds RNG with time)
+- [x] 8.186 Test math functions: ✅ COMPLETE
+  - [x] Abs(x) - ✅ Tested in interp/math_test.go::TestBuiltinAbs_* (22 test cases: integers, floats, assignments, errors - all passing)
+  - [x] Sqrt(x) - ✅ Tested in interp/math_test.go::TestBuiltinSqrt_* (16 test cases: basic usage, variables, assignments, errors including negative validation - all passing)
+  - [x] Sin(x), Cos(x), Tan(x) - ✅ Tested in interp/math_test.go::TestBuiltinSin/Cos/Tan_* (22 test cases: basic trig values, variables, error handling - all passing)
+  - [x] Ln(x), Exp(x) - ✅ Tested in interp/math_test.go (test cases for logarithm and exponential functions - all passing)
+  - [x] Round(x), Trunc(x) - ✅ Tested in interp/math_test.go (test cases for rounding and truncation - all passing)
+  - [x] Random, Randomize - ✅ Tested in interp/math_test.go::TestBuiltinRandom/Randomize_* (6 test cases: range validation, variation, error handling - all passing)
 
 ### Conversion Functions
 
-- [ ] 8.187 Implement type conversion functions:
-  - [ ] IntToStr(i)
-  - [ ] StrToInt(s)
-  - [ ] FloatToStr(f)
-  - [ ] StrToFloat(s)
-- [ ] 8.188 Test conversion functions
+- [x] 8.187 Implement type conversion functions:
+  - [x] IntToStr(i)
+  - [x] StrToInt(s)
+  - [x] FloatToStr(f)
+  - [x] StrToFloat(s)
+- [x] 8.188 Test conversion functions
 
 ### Exception Handling (Try/Except/Finally)
 
-- [ ] 8.189 Parse try-except-finally blocks (if supported)
-- [ ] 8.190 Implement exception types
-- [ ] 8.191 Implement raise statement
-- [ ] 8.192 Implement exception catching in interpreter
-- [ ] 8.193 Test exceptions: `TestExceptions`
+**Status**: Not started (0/39 tasks)
 
-### Meta-class Support
+**Summary**: Implement DWScript's exception handling system with try/except/finally blocks, exception class hierarchy, raise statement, and proper exception propagation with stack unwinding.
 
-- [ ] 8.194 Implement class references (variables holding class types)
-- [ ] 8.195 Allow calling constructors via class reference
-- [ ] 8.196 Test meta-classes
+#### Research & Design
 
-### Function/Method Pointers
+- [ ] 8.189 Capture DWScript exception handling syntax from `reference/dwscript-original/Test/` examples; document findings in `docs/exceptions.md`:
+  - [ ] Document `try...except...end` syntax
+  - [ ] Document `try...finally...end` syntax
+  - [ ] Document `try...except...finally...end` combined form
+  - [ ] Document `on E: ExceptionType do` handler syntax
+  - [ ] Document bare `except` (catch-all) syntax
+  - [ ] Document `raise` statement (with/without expression)
+  - [ ] Document exception class hierarchy (Exception base class, standard exception types)
+- [ ] 8.190 Catalog DWScript exception types and their properties:
+  - [ ] Exception base class with Message property
+  - [ ] Standard exception types: EConvertError, ERangeError, EDivByZero, EAssertionFailed, etc.
+  - [ ] Map exception types to Go implementation strategy
+- [ ] 8.191 Draft exception handling execution strategy:
+  - [ ] Control flow for try/except/finally blocks
+  - [ ] Stack unwinding mechanism during exception propagation
+  - [ ] Exception matching algorithm (most specific to most general)
+  - [ ] Finally block guarantee (executes even on exception/return)
+  - [ ] Re-raise mechanism (bare `raise` in handler)
 
-- [ ] 8.197 Parse function pointer types
-- [ ] 8.198 Implement taking address of function (@Function)
-- [ ] 8.199 Implement calling via function pointer
-- [ ] 8.200 Test function pointers
+#### AST Nodes
+
+- [ ] 8.192 Define `TryStatement` AST node in `ast/statements.go`:
+  - [ ] Fields: `TryBlock *BlockStatement`, `ExceptClause *ExceptClause`, `FinallyClause *FinallyClause`
+  - [ ] Support try/except, try/finally, and try/except/finally combinations
+  - [ ] Implement `String()` and `TokenLiteral()` methods
+- [ ] 8.193 Define `ExceptClause` AST node:
+  - [ ] Fields: `Handlers []*ExceptionHandler`, `ElseBlock *BlockStatement`
+  - [ ] Support both specific handlers and bare except (empty Handlers list)
+  - [ ] Implement `String()` method showing all handlers
+- [ ] 8.194 Define `ExceptionHandler` AST node:
+  - [ ] Fields: `Variable *Identifier`, `ExceptionType *TypeReference`, `Block *BlockStatement`
+  - [ ] Represents `on E: ExceptionType do` syntax
+  - [ ] Implement `String()` method
+- [ ] 8.195 Define `FinallyClause` AST node:
+  - [ ] Field: `Block *BlockStatement`
+  - [ ] Implement `String()` and `TokenLiteral()` methods
+- [ ] 8.196 Define `RaiseStatement` AST node:
+  - [ ] Field: `Exception Expression` (nil for bare raise)
+  - [ ] Implement `String()` method showing raise with/without expression
+  - [ ] Implement `TokenLiteral()` method
+
+#### Parser Support
+
+- [ ] 8.197 Implement `parseTryStatement()` in `parser/statements.go`:
+  - [ ] Parse `try` keyword and try block
+  - [ ] Dispatch to except/finally parsing based on next token
+  - [ ] Support all three forms: try/except, try/finally, try/except/finally
+  - [ ] Validate at least one of except or finally is present
+- [ ] 8.198 Implement `parseExceptClause()`:
+  - [ ] Parse `except` keyword
+  - [ ] Detect specific handlers (`on` keyword) vs bare except
+  - [ ] Parse multiple exception handlers in sequence
+  - [ ] Parse optional `else` block (executes if no exception)
+  - [ ] Consume closing `end` token
+- [ ] 8.199 Implement `parseExceptionHandler()`:
+  - [ ] Parse `on` keyword
+  - [ ] Parse exception variable name (identifier)
+  - [ ] Parse `:` and exception type
+  - [ ] Parse `do` keyword
+  - [ ] Parse handler statement (block or single statement)
+- [ ] 8.200 Implement `parseFinallyClause()`:
+  - [ ] Parse `finally` keyword
+  - [ ] Parse finally block statements
+  - [ ] Consume closing `end` token
+- [ ] 8.201 Implement `parseRaiseStatement()`:
+  - [ ] Parse `raise` keyword
+  - [ ] Check for exception expression (nil for bare raise)
+  - [ ] Parse optional exception construction expression
+  - [ ] Consume semicolon
+- [ ] 8.202 Add parser unit tests in `parser/exceptions_test.go`:
+  - [ ] Test parsing try/except with specific handler
+  - [ ] Test parsing try/except with multiple handlers
+  - [ ] Test parsing bare except (catch-all)
+  - [ ] Test parsing try/finally
+  - [ ] Test parsing try/except/finally combined
+  - [ ] Test parsing raise with exception expression
+  - [ ] Test parsing bare raise
+  - [ ] Test error cases: try without except/finally, malformed handlers
+
+#### Type System & Semantic Analysis
+
+- [ ] 8.203 Define Exception base class in type system (`types/builtin.go`):
+  - [ ] Create `ExceptionClassInfo` with Message property (String type)
+  - [ ] Register Exception class in global type environment
+  - [ ] Implement CreateInstance() for exception objects
+- [ ] 8.204 Define standard exception types:
+  - [ ] `EConvertError` (type conversion failures)
+  - [ ] `ERangeError` (array bounds, invalid ranges)
+  - [ ] `EDivByZero` (division by zero)
+  - [ ] `EAssertionFailed` (failed assertions)
+  - [ ] `EInvalidOp` (invalid operations)
+  - [ ] All inherit from Exception base class
+- [ ] 8.205 Implement `analyzeTryStatement()` in `semantic/analyze_statements.go`:
+  - [ ] Analyze try block in current scope
+  - [ ] Analyze except clause if present
+  - [ ] Analyze finally clause if present
+  - [ ] Validate at least one of except/finally exists
+- [ ] 8.206 Implement `analyzeExceptClause()`:
+  - [ ] Analyze each exception handler in sequence
+  - [ ] Validate exception types are Exception-compatible
+  - [ ] Check for duplicate exception types in handlers
+  - [ ] Analyze else block if present
+- [ ] 8.207 Implement `analyzeExceptionHandler()`:
+  - [ ] Create new scope for exception variable
+  - [ ] Validate exception type exists and is Exception-compatible
+  - [ ] Add exception variable to scope with proper type
+  - [ ] Analyze handler block in exception variable scope
+  - [ ] Ensure exception variable is read-only (cannot reassign)
+- [ ] 8.208 Implement `analyzeRaiseStatement()`:
+  - [ ] If bare raise, verify we're inside an exception handler
+  - [ ] If exception expression provided, validate it's Exception-compatible
+  - [ ] Support raising newly constructed exceptions: `raise Exception.Create('error')`
+  - [ ] Support raising existing exception variable
+- [ ] 8.209 Validate finally blocks don't contain control flow exits:
+  - [ ] Detect `break`, `continue`, `return`, `exit` in finally blocks
+  - [ ] Emit semantic error (finally blocks must complete normally)
+  - [ ] Exception: `raise` is allowed in finally blocks
+- [ ] 8.210 Add semantic analyzer tests in `semantic/exceptions_test.go`:
+  - [ ] Test exception handler variable scoping
+  - [ ] Test invalid exception types in handlers
+  - [ ] Test duplicate exception handlers
+  - [ ] Test bare raise outside handler (error)
+  - [ ] Test finally block with break/return (error)
+  - [ ] Test exception type compatibility
+
+#### Interpreter Support
+
+- [ ] 8.211 Define exception value representation in `interp/values.go`:
+  - [ ] Create `ExceptionValue` struct with `ClassType` and `Message` fields
+  - [ ] Implement `Type()`, `Inspect()` methods
+  - [ ] Support exception object as regular ObjectInstance
+- [ ] 8.212 Implement exception propagation mechanism:
+  - [ ] Define `ExceptionContext` struct to track active exception
+  - [ ] Add exception context to interpreter state
+  - [ ] Implement stack unwinding (return early from evalStatement/evalExpression)
+  - [ ] Clear exception context when caught
+- [ ] 8.213 Implement `evalTryStatement()` in `interp/interpreter.go`:
+  - [ ] Execute try block and capture any exception
+  - [ ] If exception occurs, dispatch to except clause
+  - [ ] Execute finally clause regardless of exception (using defer)
+  - [ ] Handle try/except, try/finally, try/except/finally cases
+  - [ ] Re-propagate uncaught exceptions after finally
+- [ ] 8.214 Implement `evalExceptClause()`:
+  - [ ] Iterate through exception handlers for type match
+  - [ ] Match from most specific to most general exception type
+  - [ ] Bare except (no handlers) catches all exceptions
+  - [ ] Execute matching handler with exception variable bound
+  - [ ] Execute else block if no exception occurred
+  - [ ] Clear exception context after successful catch
+- [ ] 8.215 Implement exception type matching:
+  - [ ] Check if exception is instance of handler's exception type
+  - [ ] Support catching base Exception type (catches all)
+  - [ ] Support catching specific exception types (ERangeError, etc.)
+  - [ ] Respect exception class inheritance hierarchy
+- [ ] 8.216 Implement `evalRaiseStatement()`:
+  - [ ] For bare raise, re-throw current exception (if in handler)
+  - [ ] For raise with expression, evaluate exception expression
+  - [ ] Create exception object if constructor call
+  - [ ] Set interpreter's exception context
+  - [ ] Return control flow to unwind stack
+- [ ] 8.217 Implement finally block execution guarantee:
+  - [ ] Use Go's defer to ensure finally always runs
+  - [ ] Execute finally even if exception occurs
+  - [ ] Execute finally even if return/break/continue in try block
+  - [ ] Preserve exception state across finally execution
+  - [ ] Re-propagate exception after finally completes
+- [ ] 8.218 Support Exception.Message property access:
+  - [ ] Implement Message field in exception objects
+  - [ ] Allow reading Message via member access
+  - [ ] Set Message during exception construction
+  - [ ] Display Message in unhandled exception errors
+
+#### Testing & Fixtures
+
+- [ ] 8.219 Add interpreter tests in `interp/exceptions_test.go`:
+  - [ ] Test basic try/except with specific handler (ERangeError)
+  - [ ] Test try/except with multiple handlers (catch different types)
+  - [ ] Test bare except (catch-all)
+  - [ ] Test accessing exception variable and Message property
+  - [ ] Test exception not caught (propagates to top level)
+- [ ] 8.220 Test finally block execution:
+  - [ ] Test try/finally (no exception)
+  - [ ] Test try/finally (with exception, uncaught)
+  - [ ] Test finally executes even on exception
+  - [ ] Test finally executes even on return from try block
+  - [ ] Test try/except/finally combined
+- [ ] 8.221 Test exception propagation:
+  - [ ] Test exception propagates across function calls
+  - [ ] Test exception caught in outer try block
+  - [ ] Test nested try blocks (inner catches, outer doesn't)
+  - [ ] Test nested try blocks (inner doesn't catch, outer does)
+- [ ] 8.222 Test raise statement:
+  - [ ] Test raising built-in exception types
+  - [ ] Test raising custom exception with message
+  - [ ] Test bare raise re-throws current exception
+  - [ ] Test bare raise outside handler (runtime error)
+- [ ] 8.223 Test exception matching and hierarchy:
+  - [ ] Test catching Exception catches all exception types
+  - [ ] Test catching specific type doesn't catch other types
+  - [ ] Test handler order matters (first match wins)
+  - [ ] Test exception type inheritance (derived caught by base)
+- [ ] 8.224 Port DWScript exception test scripts:
+  - [ ] Create `testdata/exceptions/` directory
+  - [ ] Port relevant exception tests from reference/dwscript-original/Test/
+  - [ ] Create expected output files (.txt)
+  - [ ] Document source of each ported test
+- [ ] 8.225 Create comprehensive exception test scripts:
+  - [ ] `testdata/exceptions/basic_try_except.dws`
+  - [ ] `testdata/exceptions/try_finally.dws`
+  - [ ] `testdata/exceptions/nested_exceptions.dws`
+  - [ ] `testdata/exceptions/exception_propagation.dws`
+  - [ ] `testdata/exceptions/raise_reraise.dws`
+- [ ] 8.226 Create CLI integration tests:
+  - [ ] Run exception test scripts via `dwscript run`
+  - [ ] Verify exception messages in output
+  - [ ] Verify finally blocks execute
+  - [ ] Verify unhandled exceptions show stack trace
+- [ ] 8.227 Achieve >85% test coverage for exception handling code:
+  - [ ] Coverage for parser exception code
+  - [ ] Coverage for semantic analysis exception code
+  - [ ] Coverage for interpreter exception code
+  - [ ] Add edge case tests to reach coverage target
 
 ### Contracts (Design by Contract)
 
-- [ ] 8.201 Parse require/ensure clauses (if supported)
-- [ ] 8.202 Implement contract checking at runtime
-- [ ] 8.203 Test contracts
+- [ ] 8.235 Parse require/ensure clauses (if supported)
+- [ ] 8.236 Implement contract checking at runtime
+- [ ] 8.237 Test contracts
 
 ### Additional Features Assessment
 
-- [ ] 8.204 Review DWScript feature list for missing items
-- [ ] 8.205 Prioritize remaining features
-- [ ] 8.206 Implement high-priority features
-- [ ] 8.207 Document unsupported features
+- [ ] 8.238 Review DWScript feature list for missing items
+- [ ] 8.239 Prioritize remaining features
+- [ ] 8.240 Implement high-priority features
+- [ ] 8.241 Document unsupported features
 
 ### Comprehensive Testing (Stage 8)
 
-- [ ] 8.208 Port DWScript's test suite (if available)
-- [ ] 8.209 Run DWScript example scripts from documentation
-- [ ] 8.210 Compare outputs with original DWScript
-- [ ] 8.211 Fix any discrepancies
-- [ ] 8.212 Create stress tests for complex features
-- [ ] 8.213 Achieve >85% overall code coverage
+- [ ] 8.242 Port DWScript's test suite (if available)
+- [ ] 8.243 Run DWScript example scripts from documentation
+- [ ] 8.244 Compare outputs with original DWScript
+- [ ] 8.245 Fix any discrepancies
+- [ ] 8.246 Create stress tests for complex features
+- [ ] 8.247 Achieve >85% overall code coverage
 
 ---
 

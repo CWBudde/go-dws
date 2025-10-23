@@ -3,7 +3,11 @@ package interp
 import (
 	"fmt"
 	"io"
+	"math"
+	"math/rand"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cwbudde/go-dws/ast"
 	"github.com/cwbudde/go-dws/types"
@@ -19,12 +23,16 @@ type Interpreter struct {
 	currentNode     ast.Node                     // Current AST node being evaluated (for error reporting)
 	globalOperators *runtimeOperatorRegistry     // Global operator overloads (Stage 8)
 	conversions     *runtimeConversionRegistry   // Global conversions
+	rand            *rand.Rand                   // Random number generator for Random() and Randomize()
 }
 
 // New creates a new Interpreter with a fresh global environment.
 // The output writer is where built-in functions like PrintLn will write.
 func New(output io.Writer) *Interpreter {
 	env := NewEnvironment()
+	// Initialize random number generator with a default seed
+	// Randomize() can be called to re-seed with current time
+	source := rand.NewSource(1)
 	return &Interpreter{
 		env:             env,
 		output:          output,
@@ -33,6 +41,7 @@ func New(output io.Writer) *Interpreter {
 		interfaces:      make(map[string]*InterfaceInfo), // Task 7.118
 		globalOperators: newRuntimeOperatorRegistry(),
 		conversions:     newRuntimeConversionRegistry(),
+		rand:            rand.New(source),
 	}
 }
 
@@ -1241,6 +1250,38 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinInteger(args)
 	case "Length":
 		return i.builtinLength(args)
+	case "Copy":
+		return i.builtinCopy(args)
+	case "Concat":
+		return i.builtinConcat(args)
+	case "Pos":
+		return i.builtinPos(args)
+	case "UpperCase":
+		return i.builtinUpperCase(args)
+	case "LowerCase":
+		return i.builtinLowerCase(args)
+	case "Abs":
+		return i.builtinAbs(args)
+	case "Sqrt":
+		return i.builtinSqrt(args)
+	case "Sin":
+		return i.builtinSin(args)
+	case "Cos":
+		return i.builtinCos(args)
+	case "Tan":
+		return i.builtinTan(args)
+	case "Random":
+		return i.builtinRandom(args)
+	case "Randomize":
+		return i.builtinRandomize(args)
+	case "Exp":
+		return i.builtinExp(args)
+	case "Ln":
+		return i.builtinLn(args)
+	case "Round":
+		return i.builtinRound(args)
+	case "Trunc":
+		return i.builtinTrunc(args)
 	case "Low":
 		return i.builtinLow(args)
 	case "High":
@@ -1251,6 +1292,14 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinAdd(args)
 	case "Delete":
 		return i.builtinDelete(args)
+	case "IntToStr":
+		return i.builtinIntToStr(args)
+	case "StrToInt":
+		return i.builtinStrToInt(args)
+	case "FloatToStr":
+		return i.builtinFloatToStr(args)
+	case "StrToFloat":
+		return i.builtinStrToFloat(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
@@ -1372,6 +1421,436 @@ func (i *Interpreter) builtinLength(args []Value) Value {
 	}
 
 	return i.newErrorWithLocation(i.currentNode, "Length() expects array or string, got %s", arg.Type())
+}
+
+// builtinCopy implements the Copy() built-in function.
+// It returns a substring of a string.
+// Copy(str, index, count) - index is 1-based, count is number of characters
+// Task 8.183: Copy() function for strings
+func (i *Interpreter) builtinCopy(args []Value) Value {
+	if len(args) != 3 {
+		return i.newErrorWithLocation(i.currentNode, "Copy() expects exactly 3 arguments, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Copy() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: index (1-based)
+	indexVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Copy() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	// Third argument: count
+	countVal, ok := args[2].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Copy() expects integer as third argument, got %s", args[2].Type())
+	}
+
+	str := strVal.Value
+	index := indexVal.Value  // 1-based
+	count := countVal.Value
+
+	// Handle edge cases
+	// If index is <= 0, return empty string (1-based indexing, so 0 and negative are invalid)
+	if index <= 0 {
+		return &StringValue{Value: ""}
+	}
+
+	// If count is <= 0, return empty string
+	if count <= 0 {
+		return &StringValue{Value: ""}
+	}
+
+	// Convert to 0-based index for Go
+	startIdx := int(index - 1)
+
+	// If start index is beyond string length, return empty string
+	if startIdx >= len(str) {
+		return &StringValue{Value: ""}
+	}
+
+	// Calculate end index
+	endIdx := startIdx + int(count)
+
+	// If end index goes beyond string length, adjust it
+	if endIdx > len(str) {
+		endIdx = len(str)
+	}
+
+	// Extract substring
+	result := str[startIdx:endIdx]
+
+	return &StringValue{Value: result}
+}
+
+// builtinConcat implements the Concat() built-in function.
+// It concatenates multiple strings together.
+// Concat(str1, str2, ...) - variable number of string arguments
+// Task 8.183: Concat() function for strings
+func (i *Interpreter) builtinConcat(args []Value) Value {
+	if len(args) == 0 {
+		return i.newErrorWithLocation(i.currentNode, "Concat() expects at least 1 argument, got 0")
+	}
+
+	// Build the concatenated string
+	var result strings.Builder
+
+	for idx, arg := range args {
+		strVal, ok := arg.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "Concat() expects string as argument %d, got %s", idx+1, arg.Type())
+		}
+		result.WriteString(strVal.Value)
+	}
+
+	return &StringValue{Value: result.String()}
+}
+
+// builtinPos implements the Pos() built-in function.
+// It finds the position of a substring within a string.
+// Pos(substr, str) - returns 1-based position (0 if not found)
+// Task 8.183: Pos() function for strings
+func (i *Interpreter) builtinPos(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Pos() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: substring to find
+	substrVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Pos() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: string to search in
+	strVal, ok := args[1].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Pos() expects string as second argument, got %s", args[1].Type())
+	}
+
+	substr := substrVal.Value
+	str := strVal.Value
+
+	// Handle empty substring - returns 1 (found at start)
+	if len(substr) == 0 {
+		return &IntegerValue{Value: 1}
+	}
+
+	// Find the substring
+	index := strings.Index(str, substr)
+
+	// Convert to 1-based index (or 0 if not found)
+	if index == -1 {
+		return &IntegerValue{Value: 0}
+	}
+
+	return &IntegerValue{Value: int64(index + 1)}
+}
+
+// builtinUpperCase implements the UpperCase() built-in function.
+// It converts a string to uppercase.
+// UpperCase(str) - returns uppercase version of the string
+// Task 8.183: UpperCase() function for strings
+func (i *Interpreter) builtinUpperCase(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "UpperCase() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "UpperCase() expects string as argument, got %s", args[0].Type())
+	}
+
+	return &StringValue{Value: strings.ToUpper(strVal.Value)}
+}
+
+// builtinLowerCase implements the LowerCase() built-in function.
+// It converts a string to lowercase.
+// LowerCase(str) - returns lowercase version of the string
+// Task 8.183: LowerCase() function for strings
+func (i *Interpreter) builtinLowerCase(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "LowerCase() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "LowerCase() expects string as argument, got %s", args[0].Type())
+	}
+
+	return &StringValue{Value: strings.ToLower(strVal.Value)}
+}
+
+// builtinAbs implements the Abs() built-in function.
+// It returns the absolute value of a number.
+// Abs(x) - returns absolute value (Integer → Integer, Float → Float)
+// Task 8.185: Abs() function for math operations
+func (i *Interpreter) builtinAbs(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Abs() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+
+	// Handle Integer
+	if intVal, ok := arg.(*IntegerValue); ok {
+		if intVal.Value < 0 {
+			return &IntegerValue{Value: -intVal.Value}
+		}
+		return &IntegerValue{Value: intVal.Value}
+	}
+
+	// Handle Float
+	if floatVal, ok := arg.(*FloatValue); ok {
+		return &FloatValue{Value: math.Abs(floatVal.Value)}
+	}
+
+	return i.newErrorWithLocation(i.currentNode, "Abs() expects Integer or Float as argument, got %s", arg.Type())
+}
+
+// builtinSqrt implements the Sqrt() built-in function.
+// It returns the square root of a number.
+// Sqrt(x) - returns square root as Float (always returns Float, even for Integer input)
+// Task 8.185: Sqrt() function for math operations
+func (i *Interpreter) builtinSqrt(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Sqrt() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+	var value float64
+
+	// Handle Integer - convert to float
+	if intVal, ok := arg.(*IntegerValue); ok {
+		value = float64(intVal.Value)
+	} else if floatVal, ok := arg.(*FloatValue); ok {
+		// Handle Float
+		value = floatVal.Value
+	} else {
+		return i.newErrorWithLocation(i.currentNode, "Sqrt() expects Integer or Float as argument, got %s", arg.Type())
+	}
+
+	// Check for negative numbers
+	if value < 0 {
+		return i.newErrorWithLocation(i.currentNode, "Sqrt() of negative number (%f)", value)
+	}
+
+	return &FloatValue{Value: math.Sqrt(value)}
+}
+
+// builtinSin implements the Sin() built-in function.
+// It returns the sine of a number (in radians).
+// Sin(x) - returns sine as Float (always returns Float, even for Integer input)
+// Task 8.185: Sin() function for trigonometric operations
+func (i *Interpreter) builtinSin(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Sin() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+	var value float64
+
+	// Handle Integer - convert to float
+	if intVal, ok := arg.(*IntegerValue); ok {
+		value = float64(intVal.Value)
+	} else if floatVal, ok := arg.(*FloatValue); ok {
+		// Handle Float
+		value = floatVal.Value
+	} else {
+		return i.newErrorWithLocation(i.currentNode, "Sin() expects Integer or Float as argument, got %s", arg.Type())
+	}
+
+	return &FloatValue{Value: math.Sin(value)}
+}
+
+// builtinCos implements the Cos() built-in function.
+// It returns the cosine of a number (in radians).
+// Cos(x) - returns cosine as Float (always returns Float, even for Integer input)
+// Task 8.185: Cos() function for trigonometric operations
+func (i *Interpreter) builtinCos(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Cos() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+	var value float64
+
+	// Handle Integer - convert to float
+	if intVal, ok := arg.(*IntegerValue); ok {
+		value = float64(intVal.Value)
+	} else if floatVal, ok := arg.(*FloatValue); ok {
+		// Handle Float
+		value = floatVal.Value
+	} else {
+		return i.newErrorWithLocation(i.currentNode, "Cos() expects Integer or Float as argument, got %s", arg.Type())
+	}
+
+	return &FloatValue{Value: math.Cos(value)}
+}
+
+// builtinTan implements the Tan() built-in function.
+// It returns the tangent of a number (in radians).
+// Tan(x) - returns tangent as Float (always returns Float, even for Integer input)
+// Task 8.185: Tan() function for trigonometric operations
+func (i *Interpreter) builtinTan(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Tan() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+	var value float64
+
+	// Handle Integer - convert to float
+	if intVal, ok := arg.(*IntegerValue); ok {
+		value = float64(intVal.Value)
+	} else if floatVal, ok := arg.(*FloatValue); ok {
+		// Handle Float
+		value = floatVal.Value
+	} else {
+		return i.newErrorWithLocation(i.currentNode, "Tan() expects Integer or Float as argument, got %s", arg.Type())
+	}
+
+	return &FloatValue{Value: math.Tan(value)}
+}
+
+// builtinRandom implements the Random() built-in function.
+// It returns a random Float between 0.0 (inclusive) and 1.0 (exclusive).
+// Random() - returns random Float in [0, 1)
+// Task 8.185: Random() function for random number generation
+func (i *Interpreter) builtinRandom(args []Value) Value {
+	if len(args) != 0 {
+		return i.newErrorWithLocation(i.currentNode, "Random() expects no arguments, got %d", len(args))
+	}
+
+	return &FloatValue{Value: i.rand.Float64()}
+}
+
+// builtinRandomize implements the Randomize() built-in procedure.
+// It seeds the random number generator with the current time.
+// Randomize() - seeds RNG with current time (no return value)
+// Task 8.185: Randomize() procedure for random number generation
+func (i *Interpreter) builtinRandomize(args []Value) Value {
+	if len(args) != 0 {
+		return i.newErrorWithLocation(i.currentNode, "Randomize() expects no arguments, got %d", len(args))
+	}
+
+	// Re-seed the random number generator with current time
+	i.rand.Seed(time.Now().UnixNano())
+	return &NilValue{}
+}
+
+// builtinExp implements the Exp() built-in function.
+// It returns e raised to the power of x.
+// Exp(x) - returns e^x as Float (always returns Float, even for Integer input)
+// Task 8.185: Exp() function for exponential operations
+func (i *Interpreter) builtinExp(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Exp() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+	var value float64
+
+	// Handle Integer - convert to float
+	if intVal, ok := arg.(*IntegerValue); ok {
+		value = float64(intVal.Value)
+	} else if floatVal, ok := arg.(*FloatValue); ok {
+		// Handle Float
+		value = floatVal.Value
+	} else {
+		return i.newErrorWithLocation(i.currentNode, "Exp() expects Integer or Float as argument, got %s", arg.Type())
+	}
+
+	return &FloatValue{Value: math.Exp(value)}
+}
+
+// builtinLn implements the Ln() built-in function.
+// It returns the natural logarithm (base e) of x.
+// Ln(x) - returns natural logarithm as Float (always returns Float, even for Integer input)
+// Task 8.185: Ln() function for logarithmic operations
+func (i *Interpreter) builtinLn(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Ln() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+	var value float64
+
+	// Handle Integer - convert to float
+	if intVal, ok := arg.(*IntegerValue); ok {
+		value = float64(intVal.Value)
+	} else if floatVal, ok := arg.(*FloatValue); ok {
+		// Handle Float
+		value = floatVal.Value
+	} else {
+		return i.newErrorWithLocation(i.currentNode, "Ln() expects Integer or Float as argument, got %s", arg.Type())
+	}
+
+	// Check for non-positive numbers (Ln is undefined for x <= 0)
+	if value <= 0 {
+		return i.newErrorWithLocation(i.currentNode, "Ln() of non-positive number (%f)", value)
+	}
+
+	return &FloatValue{Value: math.Log(value)}
+}
+
+// builtinRound implements the Round() built-in function.
+// It rounds a number to the nearest integer.
+// Round(x) - returns rounded value as Integer (always returns Integer)
+// Task 8.185: Round() function for rounding operations
+func (i *Interpreter) builtinRound(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Round() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+	var value float64
+
+	// Handle Integer - already an integer, just return it
+	if intVal, ok := arg.(*IntegerValue); ok {
+		return &IntegerValue{Value: intVal.Value}
+	} else if floatVal, ok := arg.(*FloatValue); ok {
+		// Handle Float
+		value = floatVal.Value
+	} else {
+		return i.newErrorWithLocation(i.currentNode, "Round() expects Integer or Float as argument, got %s", arg.Type())
+	}
+
+	// Round to nearest integer
+	rounded := math.Round(value)
+	return &IntegerValue{Value: int64(rounded)}
+}
+
+// builtinTrunc implements the Trunc() built-in function.
+// It truncates a number towards zero (removes the decimal part).
+// Trunc(x) - returns truncated value as Integer (always returns Integer)
+// Task 8.185: Trunc() function for truncation operations
+func (i *Interpreter) builtinTrunc(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Trunc() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+	var value float64
+
+	// Handle Integer - already an integer, just return it
+	if intVal, ok := arg.(*IntegerValue); ok {
+		return &IntegerValue{Value: intVal.Value}
+	} else if floatVal, ok := arg.(*FloatValue); ok {
+		// Handle Float
+		value = floatVal.Value
+	} else {
+		return i.newErrorWithLocation(i.currentNode, "Trunc() expects Integer or Float as argument, got %s", arg.Type())
+	}
+
+	// Truncate towards zero
+	truncated := math.Trunc(value)
+	return &IntegerValue{Value: int64(truncated)}
 }
 
 // builtinLow implements the Low() built-in function.
@@ -1561,6 +2040,102 @@ func (i *Interpreter) builtinDelete(args []Value) Value {
 	arrayVal.Elements = append(arrayVal.Elements[:index], arrayVal.Elements[index+1:]...)
 
 	return &NilValue{}
+}
+
+// builtinIntToStr implements the IntToStr() built-in function.
+// It converts an integer to its string representation.
+// IntToStr(i: Integer): String
+// Task 8.187: Type conversion functions
+func (i *Interpreter) builtinIntToStr(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "IntToStr() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Argument must be an integer
+	intVal, ok := args[0].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "IntToStr() expects integer argument, got %s", args[0].Type())
+	}
+
+	// Convert integer to string using Go's strconv
+	result := fmt.Sprintf("%d", intVal.Value)
+	return &StringValue{Value: result}
+}
+
+// builtinStrToInt implements the StrToInt() built-in function.
+// It converts a string to an integer, raising an error if the string is invalid.
+// StrToInt(s: String): Integer
+// Task 8.187: Type conversion functions
+func (i *Interpreter) builtinStrToInt(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "StrToInt() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Argument must be a string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrToInt() expects string argument, got %s", args[0].Type())
+	}
+
+	// Try to parse the string as an integer
+	// Use strings.TrimSpace to handle leading/trailing whitespace
+	s := strings.TrimSpace(strVal.Value)
+
+	// Use strconv.ParseInt for strict parsing (doesn't accept partial matches)
+	intValue, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return i.newErrorWithLocation(i.currentNode, "'%s' is not a valid integer", strVal.Value)
+	}
+
+	return &IntegerValue{Value: intValue}
+}
+
+// builtinFloatToStr implements the FloatToStr() built-in function.
+// It converts a float to its string representation.
+// FloatToStr(f: Float): String
+// Task 8.187: Type conversion functions
+func (i *Interpreter) builtinFloatToStr(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "FloatToStr() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Argument must be a float
+	floatVal, ok := args[0].(*FloatValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "FloatToStr() expects float argument, got %s", args[0].Type())
+	}
+
+	// Convert float to string using Go's strconv
+	// Use 'g' format for general representation (like DWScript's FloatToStr)
+	result := fmt.Sprintf("%g", floatVal.Value)
+	return &StringValue{Value: result}
+}
+
+// builtinStrToFloat implements the StrToFloat() built-in function.
+// It converts a string to a float, raising an error if the string is invalid.
+// StrToFloat(s: String): Float
+// Task 8.187: Type conversion functions
+func (i *Interpreter) builtinStrToFloat(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "StrToFloat() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Argument must be a string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrToFloat() expects string argument, got %s", args[0].Type())
+	}
+
+	// Try to parse the string as a float
+	s := strings.TrimSpace(strVal.Value)
+
+	// Use strconv.ParseFloat for strict parsing (doesn't accept partial matches)
+	floatValue, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return i.newErrorWithLocation(i.currentNode, "'%s' is not a valid float", strVal.Value)
+	}
+
+	return &FloatValue{Value: floatValue}
 }
 
 // evalIfStatement evaluates an if statement.

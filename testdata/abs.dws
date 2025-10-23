@@ -1,0 +1,20 @@
+var vf := 1.5;
+var vi := 2;
+
+var i : Integer := Abs(-vi);
+PrintLn(i);
+PrintLn(Abs(vi));
+
+var f : Float := Abs(-vf);
+PrintLn(f);
+PrintLn(Abs(vf));
+
+// Test with literals
+PrintLn(Abs(-42));
+PrintLn(Abs(42));
+PrintLn(Abs(-3.14));
+PrintLn(Abs(3.14));
+
+// Test with zero
+PrintLn(Abs(0));
+PrintLn(Abs(0.0));
