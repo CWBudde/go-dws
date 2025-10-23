@@ -1,0 +1,18 @@
+// Test trigonometric functions (in radians)
+// From reference test: trigonometry.pas
+
+PrintLn(Sin(10));
+PrintLn(Cos(10));
+PrintLn(Tan(10));
+
+// Test with zero
+PrintLn(Sin(0));
+PrintLn(Cos(0));
+PrintLn(Tan(0));
+
+// Test with variables
+var angle: Float := 1.5708; // π/2
+PrintLn(Sin(angle));
+
+var x: Integer := 0;
+PrintLn(Cos(x));

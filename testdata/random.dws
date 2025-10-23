@@ -1,0 +1,22 @@
+// Test Random() and Randomize() functions
+
+// Test Random returns values
+PrintLn("Testing Random() - 10 random values:");
+var i: Integer;
+for i := 1 to 10 do begin
+	PrintLn(Random());
+end;
+
+// Test that Random produces different values
+PrintLn("");
+PrintLn("Three consecutive Random() calls:");
+PrintLn(Random());
+PrintLn(Random());
+PrintLn(Random());
+
+// Test Randomize reseeds the generator
+PrintLn("");
+PrintLn("After Randomize():");
+Randomize();
+PrintLn(Random());
+PrintLn(Random());

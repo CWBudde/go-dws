@@ -1,0 +1,18 @@
+// Test Round() and Trunc() functions
+// From reference test: rounding.pas
+
+var v := 1.55;
+
+PrintLn(Trunc(v));
+PrintLn(Round(v));
+
+PrintLn(Trunc(-v));
+PrintLn(Round(-v));
+
+// Additional tests
+PrintLn(Round(2.4));  // 2
+PrintLn(Round(2.5));  // 3
+PrintLn(Round(2.6));  // 3
+
+PrintLn(Trunc(5.9));  // 5
+PrintLn(Trunc(-5.9)); // -5

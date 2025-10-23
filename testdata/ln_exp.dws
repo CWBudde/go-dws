@@ -1,0 +1,21 @@
+// Test Ln and Exp functions
+// From reference test: basic.pas
+
+var v: Float := 1.5;
+
+PrintLn(Exp(v));
+PrintLn(Ln(v));
+PrintLn(Ln(Exp(5)));
+
+// Test special values
+PrintLn(Exp(0));  // Should be 1
+PrintLn(Exp(1));  // Should be e (2.718...)
+PrintLn(Ln(1));   // Should be 0
+PrintLn(Ln(2.718281828459045));  // Ln(e) should be 1
+
+// Test with variables
+var x: Integer := 0;
+PrintLn(Exp(x));
+
+var y: Integer := 1;
+PrintLn(Ln(y));

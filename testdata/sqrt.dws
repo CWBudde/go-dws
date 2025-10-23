@@ -1,0 +1,18 @@
+// Test Sqrt() function
+PrintLn(Sqrt(16));
+PrintLn(Sqrt(2.25));
+
+var x: Integer := 9;
+PrintLn(Sqrt(x));
+
+var f: Float := 56.25;
+PrintLn(Sqrt(f));
+
+// Test with expressions
+PrintLn(Sqrt(3 * 3));
+PrintLn(Sqrt(0.25));
+
+// Test perfect squares
+PrintLn(Sqrt(256));
+PrintLn(Sqrt(1));
+PrintLn(Sqrt(0));

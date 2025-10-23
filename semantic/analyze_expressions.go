@@ -340,6 +340,315 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
+		// Copy built-in function (Task 8.183)
+		if funcIdent.Value == "Copy" {
+			// Copy takes three arguments (string, index, count) and returns a string
+			if len(expr.Arguments) != 3 {
+				a.addError("function 'Copy' expects 3 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze the first argument (string)
+			strType := a.analyzeExpression(expr.Arguments[0])
+			if strType != nil && strType != types.STRING {
+				a.addError("function 'Copy' expects string as first argument, got %s at %s",
+					strType.String(), expr.Token.Pos.String())
+			}
+			// Analyze the second argument (index - integer)
+			indexType := a.analyzeExpression(expr.Arguments[1])
+			if indexType != nil && indexType != types.INTEGER {
+				a.addError("function 'Copy' expects integer as second argument, got %s at %s",
+					indexType.String(), expr.Token.Pos.String())
+			}
+			// Analyze the third argument (count - integer)
+			countType := a.analyzeExpression(expr.Arguments[2])
+			if countType != nil && countType != types.INTEGER {
+				a.addError("function 'Copy' expects integer as third argument, got %s at %s",
+					countType.String(), expr.Token.Pos.String())
+			}
+			return types.STRING
+		}
+
+		// Concat built-in function (Task 8.183)
+		if funcIdent.Value == "Concat" {
+			// Concat takes at least one argument (all strings) and returns a string
+			if len(expr.Arguments) == 0 {
+				a.addError("function 'Concat' expects at least 1 argument, got 0 at %s",
+					expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze all arguments and verify they're strings
+			for i, arg := range expr.Arguments {
+				argType := a.analyzeExpression(arg)
+				if argType != nil && argType != types.STRING {
+					a.addError("function 'Concat' expects string as argument %d, got %s at %s",
+						i+1, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.STRING
+		}
+
+		// Pos built-in function (Task 8.183)
+		if funcIdent.Value == "Pos" {
+			// Pos takes two string arguments and returns an integer
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'Pos' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the first argument (substring)
+			substrType := a.analyzeExpression(expr.Arguments[0])
+			if substrType != nil && substrType != types.STRING {
+				a.addError("function 'Pos' expects string as first argument, got %s at %s",
+					substrType.String(), expr.Token.Pos.String())
+			}
+			// Analyze the second argument (string to search in)
+			strType := a.analyzeExpression(expr.Arguments[1])
+			if strType != nil && strType != types.STRING {
+				a.addError("function 'Pos' expects string as second argument, got %s at %s",
+					strType.String(), expr.Token.Pos.String())
+			}
+			return types.INTEGER
+		}
+
+		// UpperCase built-in function (Task 8.183)
+		if funcIdent.Value == "UpperCase" {
+			// UpperCase takes one string argument and returns a string
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'UpperCase' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze the argument and verify it's a string
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.STRING {
+				a.addError("function 'UpperCase' expects string as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.STRING
+		}
+
+		// LowerCase built-in function (Task 8.183)
+		if funcIdent.Value == "LowerCase" {
+			// LowerCase takes one string argument and returns a string
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'LowerCase' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze the argument and verify it's a string
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.STRING {
+				a.addError("function 'LowerCase' expects string as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.STRING
+		}
+
+		// Abs built-in function (Task 8.185)
+		if funcIdent.Value == "Abs" {
+			// Abs takes one numeric argument and returns the same type
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Abs' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER // Default to INTEGER on error
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Abs' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+					return types.INTEGER
+				}
+				// Return the same type as the input
+				return argType
+			}
+			return types.INTEGER // Default to INTEGER if type is unknown
+		}
+
+		// Sqrt built-in function (Task 8.185)
+		if funcIdent.Value == "Sqrt" {
+			// Sqrt takes one numeric argument and always returns Float
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Sqrt' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Sqrt' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Always returns Float
+			return types.FLOAT
+		}
+
+		// Sin built-in function (Task 8.185)
+		if funcIdent.Value == "Sin" {
+			// Sin takes one numeric argument and always returns Float
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Sin' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Sin' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Always returns Float
+			return types.FLOAT
+		}
+
+		// Cos built-in function (Task 8.185)
+		if funcIdent.Value == "Cos" {
+			// Cos takes one numeric argument and always returns Float
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Cos' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Cos' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Always returns Float
+			return types.FLOAT
+		}
+
+		// Tan built-in function (Task 8.185)
+		if funcIdent.Value == "Tan" {
+			// Tan takes one numeric argument and always returns Float
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Tan' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Tan' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Always returns Float
+			return types.FLOAT
+		}
+
+		// Random built-in function (Task 8.185)
+		if funcIdent.Value == "Random" {
+			// Random takes no arguments and always returns Float
+			if len(expr.Arguments) != 0 {
+				a.addError("function 'Random' expects no arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+			}
+			// Always returns Float
+			return types.FLOAT
+		}
+
+		// Randomize built-in procedure (Task 8.185)
+		if funcIdent.Value == "Randomize" {
+			// Randomize takes no arguments and returns nothing (nil/void)
+			if len(expr.Arguments) != 0 {
+				a.addError("function 'Randomize' expects no arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+			}
+			// Returns nil/void (no meaningful return value)
+			return nil
+		}
+
+		// Exp built-in function (Task 8.185)
+		if funcIdent.Value == "Exp" {
+			// Exp takes one numeric argument and always returns Float
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Exp' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Exp' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Always returns Float
+			return types.FLOAT
+		}
+
+		// Ln built-in function (Task 8.185)
+		if funcIdent.Value == "Ln" {
+			// Ln takes one numeric argument and always returns Float
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Ln' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Ln' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Always returns Float
+			return types.FLOAT
+		}
+
+		// Round built-in function (Task 8.185)
+		if funcIdent.Value == "Round" {
+			// Round takes one numeric argument and always returns Integer
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Round' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Round' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Always returns Integer
+			return types.INTEGER
+		}
+
+		// Trunc built-in function (Task 8.185)
+		if funcIdent.Value == "Trunc" {
+			// Trunc takes one numeric argument and always returns Integer
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Trunc' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Trunc' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Always returns Integer
+			return types.INTEGER
+		}
+
 		// Low built-in function (Task 8.132)
 		if funcIdent.Value == "Low" {
 			// Low takes one argument (array) and returns an integer
@@ -449,6 +758,74 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					indexType.String(), expr.Token.Pos.String())
 			}
 			return types.VOID
+		}
+
+		// IntToStr built-in function (Task 8.187)
+		if funcIdent.Value == "IntToStr" {
+			// IntToStr takes one integer argument and returns a string
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'IntToStr' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze the argument and verify it's Integer
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER {
+				a.addError("function 'IntToStr' expects Integer as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.STRING
+		}
+
+		// StrToInt built-in function (Task 8.187)
+		if funcIdent.Value == "StrToInt" {
+			// StrToInt takes one string argument and returns an integer
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'StrToInt' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the argument and verify it's String
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.STRING {
+				a.addError("function 'StrToInt' expects String as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.INTEGER
+		}
+
+		// FloatToStr built-in function (Task 8.187)
+		if funcIdent.Value == "FloatToStr" {
+			// FloatToStr takes one float argument and returns a string
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'FloatToStr' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze the argument and verify it's Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.FLOAT {
+				a.addError("function 'FloatToStr' expects Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.STRING
+		}
+
+		// StrToFloat built-in function (Task 8.187)
+		if funcIdent.Value == "StrToFloat" {
+			// StrToFloat takes one string argument and returns a float
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'StrToFloat' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			// Analyze the argument and verify it's String
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.STRING {
+				a.addError("function 'StrToFloat' expects String as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
 		}
 
 		// Allow calling methods within the current class without explicit Self
