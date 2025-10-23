@@ -103,8 +103,8 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			continue
 		}
 
-		// Create property info
-		propInfo := &types.PropertyInfo{
+		// Create record property info
+		propInfo := &types.RecordPropertyInfo{
 			Name:       propName,
 			Type:       propType,
 			ReadField:  prop.ReadField,

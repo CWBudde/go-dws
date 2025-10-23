@@ -398,20 +398,82 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 		return value
 	}
 
+	// Special case: If objVal is NilValue and target.Object is an IndexExpression,
+	// we might be trying to assign to an uninitialized record array element.
+	// Auto-initialize the record and retry.
+	if _, isNil := objVal.(*NilValue); isNil {
+		if indexExpr, ok := target.Object.(*ast.IndexExpression); ok {
+			// Evaluate the array
+			arrayVal := i.Eval(indexExpr.Left)
+			if isError(arrayVal) {
+				return arrayVal
+			}
+
+			if arrVal, ok := arrayVal.(*ArrayValue); ok {
+				// Check if the element type is a record
+				if arrVal.ArrayType != nil && arrVal.ArrayType.ElementType != nil {
+					if recordType, ok := arrVal.ArrayType.ElementType.(*types.RecordType); ok {
+						// Auto-initialize a new record
+						newRecord := &RecordValue{
+							RecordType: recordType,
+							Fields:     make(map[string]Value),
+						}
+
+						// Assign it to the array element using evalIndexAssignment
+						assignStmt := &ast.AssignmentStatement{
+							Token:  stmt.Token,
+							Target: indexExpr,
+							Value:  &ast.Identifier{Value: "__temp__"},
+						}
+
+						// Temporarily store the record
+						tempResult := i.evalIndexAssignment(indexExpr, newRecord, assignStmt)
+						if isError(tempResult) {
+							return tempResult
+						}
+
+						// Now retry the member assignment with the initialized record
+						objVal = newRecord
+					}
+				}
+			}
+		}
+	}
+
+	// Re-check if it's a record value after potential initialization
+	if recordVal, ok := objVal.(*RecordValue); ok {
+		fieldName := target.Member.Value
+		// Verify field exists in the record type
+		if _, exists := recordVal.RecordType.Fields[fieldName]; !exists {
+			return i.newErrorWithLocation(stmt, "field '%s' not found in record '%s'", fieldName, recordVal.RecordType.Name)
+		}
+
+		// Set the field value
+		recordVal.Fields[fieldName] = value
+		return value
+	}
+
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
 	if !ok {
 		return i.newErrorWithLocation(stmt, "cannot assign to field of non-object type '%s'", objVal.Type())
 	}
 
-	fieldName := target.Member.Value
+	memberName := target.Member.Value
+
+	// Task 8.54: Check if this is a property assignment (properties take precedence over fields)
+	if propInfo := obj.Class.lookupProperty(memberName); propInfo != nil {
+		return i.evalPropertyWrite(obj, propInfo, value, stmt)
+	}
+
+	// Not a property - try direct field assignment
 	// Verify field exists in the class
-	if _, exists := obj.Class.Fields[fieldName]; !exists {
-		return i.newErrorWithLocation(stmt, "field '%s' not found in class '%s'", fieldName, obj.Class.Name)
+	if _, exists := obj.Class.Fields[memberName]; !exists {
+		return i.newErrorWithLocation(stmt, "field '%s' not found in class '%s'", memberName, obj.Class.Name)
 	}
 
 	// Set the field value
-	obj.SetField(fieldName, value)
+	obj.SetField(memberName, value)
 	return value
 }
 
@@ -1922,6 +1984,30 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		classInfo.Destructor = destructor
 	}
 
+	// Register properties (Task 8.53 - copy property metadata from AST)
+	// Properties are registered after fields and methods so they can reference them
+	for _, propDecl := range cd.Properties {
+		if propDecl == nil {
+			continue
+		}
+
+		// Convert AST property to PropertyInfo
+		propInfo := i.convertPropertyDecl(propDecl)
+		if propInfo != nil {
+			classInfo.Properties[propDecl.Name.Value] = propInfo
+		}
+	}
+
+	// Copy parent properties (child inherits all parent properties)
+	if classInfo.Parent != nil {
+		for propName, propInfo := range classInfo.Parent.Properties {
+			// Only copy if not already defined in child class
+			if _, exists := classInfo.Properties[propName]; !exists {
+				classInfo.Properties[propName] = propInfo
+			}
+		}
+	}
+
 	// Register class operators (Stage 8)
 	for _, opDecl := range cd.Operators {
 		if opDecl == nil {
@@ -1936,6 +2022,68 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	i.classes[classInfo.Name] = classInfo
 
 	return &NilValue{}
+}
+
+// convertPropertyDecl converts an AST property declaration to a PropertyInfo struct.
+// This extracts the property metadata for runtime property access handling. (Task 8.53)
+// Note: We mark all identifiers as field access for now and will check at runtime
+// whether they're actually fields or methods.
+func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.PropertyInfo {
+	// Resolve property type
+	var propType types.Type
+	switch propDecl.Type.Name {
+	case "Integer":
+		propType = types.INTEGER
+	case "Float":
+		propType = types.FLOAT
+	case "String":
+		propType = types.STRING
+	case "Boolean":
+		propType = types.BOOLEAN
+	default:
+		// For now, treat unknown types as NIL
+		// In a full implementation, we'd look up custom types
+		propType = types.NIL
+	}
+
+	propInfo := &types.PropertyInfo{
+		Name:      propDecl.Name.Value,
+		Type:      propType,
+		IsIndexed: propDecl.IndexParams != nil && len(propDecl.IndexParams) > 0,
+		IsDefault: propDecl.IsDefault,
+	}
+
+	// Determine read access kind and spec
+	if propDecl.ReadSpec != nil {
+		if ident, ok := propDecl.ReadSpec.(*ast.Identifier); ok {
+			// It's an identifier - store the name, we'll check if it's a field or method at access time
+			propInfo.ReadSpec = ident.Value
+			// Mark as field for now - evalPropertyRead will check both fields and methods
+			propInfo.ReadKind = types.PropAccessField
+		} else {
+			// It's an expression
+			propInfo.ReadKind = types.PropAccessExpression
+			propInfo.ReadSpec = propDecl.ReadSpec.String()
+		}
+	} else {
+		propInfo.ReadKind = types.PropAccessNone
+	}
+
+	// Determine write access kind and spec
+	if propDecl.WriteSpec != nil {
+		if ident, ok := propDecl.WriteSpec.(*ast.Identifier); ok {
+			// It's an identifier - store the name, we'll check if it's a field or method at access time
+			propInfo.WriteSpec = ident.Value
+			// Mark as field for now - evalPropertyWrite will check both fields and methods
+			propInfo.WriteKind = types.PropAccessField
+		} else {
+			propInfo.WriteKind = types.PropAccessNone
+		}
+	} else {
+		propInfo.WriteKind = types.PropAccessNone
+	}
+
+	return propInfo
 }
 
 // evalInterfaceDeclaration evaluates an interface declaration (Task 7.119).
@@ -2249,13 +2397,211 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		return i.newErrorWithLocation(ma, "cannot access member of non-object type '%s'", objVal.Type())
 	}
 
-	// Get the field value
-	fieldValue := obj.GetField(ma.Member.Value)
+	memberName := ma.Member.Value
+
+	// Task 8.53: Check if this is a property access (properties take precedence over fields)
+	if propInfo := obj.Class.lookupProperty(memberName); propInfo != nil {
+		return i.evalPropertyRead(obj, propInfo, ma)
+	}
+
+	// Not a property - try direct field access
+	fieldValue := obj.GetField(memberName)
 	if fieldValue == nil {
-		return i.newErrorWithLocation(ma, "field '%s' not found in class '%s'", ma.Member.Value, obj.Class.Name)
+		return i.newErrorWithLocation(ma, "field '%s' not found in class '%s'", memberName, obj.Class.Name)
 	}
 
 	return fieldValue
+}
+
+// evalPropertyRead evaluates a property read access. (Task 8.53)
+// Handles field-backed, method-backed, and expression-backed properties.
+func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.PropertyInfo, node ast.Node) Value {
+	switch propInfo.ReadKind {
+	case types.PropAccessField:
+		// Task 8.53a: Field or method access - check at runtime which it is
+		// First try as a field
+		if _, exists := obj.Class.Fields[propInfo.ReadSpec]; exists {
+			fieldValue := obj.GetField(propInfo.ReadSpec)
+			if fieldValue == nil {
+				return i.newErrorWithLocation(node, "property '%s' read field '%s' not found", propInfo.Name, propInfo.ReadSpec)
+			}
+			return fieldValue
+		}
+
+		// Not a field - try as a method (getter)
+		method := obj.Class.lookupMethod(propInfo.ReadSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "property '%s' read specifier '%s' not found as field or method", propInfo.Name, propInfo.ReadSpec)
+		}
+
+		// Call the getter method
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// For functions, initialize the Result variable
+		if method.ReturnType != nil {
+			i.env.Define("Result", &NilValue{})
+			i.env.Define(method.Name.Value, &NilValue{})
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Get return value
+		var returnValue Value
+		if method.ReturnType != nil {
+			if resultVal, ok := i.env.Get("Result"); ok {
+				returnValue = resultVal
+			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				returnValue = methodNameVal
+			} else {
+				returnValue = &NilValue{}
+			}
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return returnValue
+
+	case types.PropAccessMethod:
+		// Task 8.53b: Method access - call getter method
+		// Check if method exists
+		method := obj.Class.lookupMethod(propInfo.ReadSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "property '%s' getter method '%s' not found", propInfo.Name, propInfo.ReadSpec)
+		}
+
+		// Call the getter method with no arguments (indexed properties handled separately)
+		// Create method environment with Self bound to object
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// For functions, initialize the Result variable
+		if method.ReturnType != nil {
+			i.env.Define("Result", &NilValue{})
+			i.env.Define(method.Name.Value, &NilValue{})
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Get return value
+		var returnValue Value
+		if method.ReturnType != nil {
+			if resultVal, ok := i.env.Get("Result"); ok {
+				returnValue = resultVal
+			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				returnValue = methodNameVal
+			} else {
+				returnValue = &NilValue{}
+			}
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return returnValue
+
+	case types.PropAccessExpression:
+		// Task 8.53c / 8.56: Expression access - evaluate expression in context of object
+		// For now, return an error as expression evaluation is complex
+		return i.newErrorWithLocation(node, "expression-based property getters not yet supported")
+
+	default:
+		return i.newErrorWithLocation(node, "property '%s' has no read access", propInfo.Name)
+	}
+}
+
+// evalPropertyWrite evaluates a property write access. (Task 8.54)
+// Handles field-backed and method-backed property setters.
+func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.PropertyInfo, value Value, node ast.Node) Value {
+	switch propInfo.WriteKind {
+	case types.PropAccessField:
+		// Task 8.54a: Field or method access - check at runtime which it is
+		// First try as a field
+		if _, exists := obj.Class.Fields[propInfo.WriteSpec]; exists {
+			obj.SetField(propInfo.WriteSpec, value)
+			return value
+		}
+
+		// Not a field - try as a method (setter)
+		method := obj.Class.lookupMethod(propInfo.WriteSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "property '%s' write specifier '%s' not found as field or method", propInfo.Name, propInfo.WriteSpec)
+		}
+
+		// Call the setter method with the value as argument
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// Bind the value parameter (setter should have exactly one parameter)
+		if len(method.Parameters) >= 1 {
+			paramName := method.Parameters[0].Name.Value
+			i.env.Define(paramName, value)
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Restore environment
+		i.env = savedEnv
+
+		return value
+
+	case types.PropAccessMethod:
+		// Task 8.54b: Method access - call setter method with value
+		// Check if method exists
+		method := obj.Class.lookupMethod(propInfo.WriteSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "property '%s' setter method '%s' not found", propInfo.Name, propInfo.WriteSpec)
+		}
+
+		// Call the setter method with the value as argument
+		// Create method environment with Self bound to object
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// Bind the value parameter (setter should have exactly one parameter)
+		if len(method.Parameters) >= 1 {
+			i.env.Define(method.Parameters[0].Name.Value, value)
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Restore environment
+		i.env = savedEnv
+
+		return value
+
+	case types.PropAccessNone:
+		// Read-only property
+		return i.newErrorWithLocation(node, "property '%s' is read-only", propInfo.Name)
+
+	default:
+		return i.newErrorWithLocation(node, "property '%s' has no write access", propInfo.Name)
+	}
 }
 
 // evalMethodCall evaluates a method call (obj.Method(...)) or class method call (TClass.Method(...)).

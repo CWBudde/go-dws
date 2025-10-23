@@ -1,0 +1,5 @@
+// Ported from: reference/dwscript-original/Test/OperatorOverloadFail/operator_overload4.pas
+// Purpose: Test incomplete operator declaration (missing return type and uses clause)
+// Expected: Syntax error for missing colon
+
+operator + (TObject, TObject) ;

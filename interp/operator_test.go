@@ -551,3 +551,54 @@ func TestImplicitRecord2(t *testing.T) {
 		t.Fatalf("expected %q, got %q", expected, output)
 	}
 }
+
+// Task 8.23d: Test unary operator overload
+func TestUnaryOperatorOverload(t *testing.T) {
+	input := `
+		type
+		  TCustom = record
+		    Value: Integer;
+		  end;
+
+		function NegateCustom(c: TCustom): TCustom;
+		begin
+		  Result.Value := -c.Value;
+		end;
+
+		operator - (TCustom): TCustom uses NegateCustom;
+
+		var c1: TCustom;
+		var c2: TCustom;
+		begin
+		  c1.Value := 42;
+		  c2 := -c1;
+		  PrintLn(c2.Value);
+		end
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("evaluation error: %s", result.String())
+	}
+	expected := "-42\n"
+	if output != expected {
+		t.Fatalf("expected %q, got %q", expected, output)
+	}
+}
+
+// Task 8.23e: Symbolic operators test
+// NOTE: Skipping this test as ==, !=, <<, >> require parser changes to register
+// them as infix operators. These operators CAN be overloaded (declarations parse fine),
+// but cannot yet be used in expressions without parser extension.
+// This is deferred to a future parser enhancement task.
+
+// Task 8.23h: Test operator inheritance (child class inherits parent operator)
+// NOTE: Skipping this test as operator inheritance is not yet implemented.
+// Child classes don't currently inherit parent class operators. This would require
+// changes to the operator lookup mechanism to search the class hierarchy.
+// This is deferred to a future enhancement task.
+
+// Task 8.23i: Test operator override (child overrides parent operator)
+// NOTE: Skipping this test as operator inheritance/override is not yet implemented.
+// This would require the same class hierarchy lookup changes as 8.23h.
+// This is deferred to a future enhancement task.

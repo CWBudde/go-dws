@@ -1,0 +1,5 @@
+// Ported from: reference/dwscript-original/Test/OperatorOverloadFail/operator_overload2.pas
+// Purpose: Test incomplete operator declaration (missing type)
+// Expected: Syntax error for missing type and closing parenthesis
+
+operator + (

@@ -215,6 +215,11 @@ func valueTypeKey(val Value) string {
 			return "CLASS:" + v.Class.Name
 		}
 		return "CLASS:"
+	case *RecordValue:
+		if v.RecordType != nil && v.RecordType.Name != "" {
+			return "CLASS:" + v.RecordType.Name
+		}
+		return "RECORD"
 	default:
 		return val.Type()
 	}

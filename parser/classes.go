@@ -126,6 +126,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	classDecl.Fields = []*ast.FieldDecl{}
 	classDecl.Methods = []*ast.FunctionDecl{}
 	classDecl.Operators = []*ast.OperatorDecl{}
+	classDecl.Properties = []*ast.PropertyDecl{}
 
 	// Default visibility is public (Task 7.63e)
 	currentVisibility := ast.VisibilityPublic
@@ -215,6 +216,14 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 				method.IsDestructor = true
 				method.Visibility = currentVisibility
 				classDecl.Methods = append(classDecl.Methods, method)
+			}
+		} else if p.curToken.Type == lexer.PROPERTY {
+			// Task 8.42: This is a property declaration
+			property := p.parsePropertyDeclaration()
+			if property != nil {
+				// Note: We could track visibility here if needed
+				// For now, properties are parsed without explicit visibility tracking
+				classDecl.Properties = append(classDecl.Properties, property)
 			}
 		} else {
 			// Unknown token in class body, skip it

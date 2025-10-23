@@ -1,0 +1,76 @@
+// Test mixed properties - combination of different property types in one class
+
+type TRectangle = class
+	FWidth: Float;
+	FHeight: Float;
+
+	// Field-backed properties
+	property Width: Float read FWidth write FWidth;
+	property Height: Float read FHeight write FHeight;
+
+	// Method-backed computed property
+	function GetArea: Float;
+	begin
+		Result := FWidth * FHeight;
+	end;
+
+	property Area: Float read GetArea;
+
+	// Method-backed property with validation
+	function GetPerimeter: Float;
+	begin
+		Result := 2.0 * (FWidth + FHeight);
+	end;
+
+	property Perimeter: Float read GetPerimeter;
+
+	// Property with setter validation
+	procedure SetWidth(value: Float);
+	begin
+		if value > 0.0 then
+			FWidth := value
+		else
+			PrintLn('Error: Width must be positive');
+	end;
+
+	procedure SetHeight(value: Float);
+	begin
+		if value > 0.0 then
+			FHeight := value
+		else
+			PrintLn('Error: Height must be positive');
+	end;
+
+	// Validated properties
+	property ValidatedWidth: Float read FWidth write SetWidth;
+	property ValidatedHeight: Float read FHeight write SetHeight;
+
+	constructor Create;
+	begin
+		FWidth := 1.0;
+		FHeight := 1.0;
+	end;
+end;
+
+// Test program
+var rect := TRectangle.Create();
+
+// Test field-backed properties
+rect.Width := 5.0;
+rect.Height := 3.0;
+PrintLn('Width: ' + FloatToStr(rect.Width));
+PrintLn('Height: ' + FloatToStr(rect.Height));
+
+// Test computed properties
+PrintLn('Area: ' + FloatToStr(rect.Area));
+PrintLn('Perimeter: ' + FloatToStr(rect.Perimeter));
+
+// Test validated properties
+PrintLn('Testing validated properties:');
+rect.ValidatedWidth := 10.0;  // Should succeed
+rect.ValidatedHeight := -5.0; // Should fail with error message
+rect.ValidatedHeight := 7.0;  // Should succeed
+
+PrintLn('Final Width: ' + FloatToStr(rect.Width));
+PrintLn('Final Height: ' + FloatToStr(rect.Height));
+PrintLn('Final Area: ' + FloatToStr(rect.Area));
