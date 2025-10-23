@@ -1,0 +1,20 @@
+// Ported from: reference/dwscript-original/Test/OperatorOverloadFail/operator_overload5.pas
+// Purpose: Test invalid operator declarations (var/const parameters, invalid uses clause)
+// Expected: Multiple syntax errors for var parameters and invalid uses clauses
+
+function Func1(var a : TObject; const b : TObject) : Integer;
+begin
+   Result:=0;
+end;
+
+function Func2(a : TObject; var b : TObject) : Integer;
+begin
+   Result:=0;
+end;
+
+operator + (TObject, TObject) : Integer uses Func1;
+operator + (TObject, TObject) : Integer uses Func2;
+
+operator + (TObject, TObject) : Integer uses Integer;
+operator + (TObject, TObject) : Integer uses ;
+operator + (TObject, TObject) : Integer ;

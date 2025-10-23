@@ -156,6 +156,31 @@ func TypeFromString(name string) (Type, error) {
 // Object-Oriented Types (Stage 7)
 // ============================================================================
 
+// PropAccessKind represents how a property is accessed (read or write).
+// Task 8.26b: ReadKind/WriteKind enum
+type PropAccessKind int
+
+const (
+	PropAccessNone PropAccessKind = iota // No access (write-only has ReadKind=None, read-only has WriteKind=None)
+	PropAccessField                       // Direct field access (e.g., FName)
+	PropAccessMethod                      // Method call (e.g., GetName, SetName)
+	PropAccessExpression                  // Expression-based getter (e.g., (FValue * 2))
+)
+
+// PropertyInfo represents property metadata for a class.
+// Task 8.26a: Fields: Name, Type, ReadSpec, WriteSpec, IsIndexed, IsDefault
+// Properties provide syntactic sugar for getter/setter access.
+type PropertyInfo struct {
+	Name      string         // Property name (e.g., "Count", "Items")
+	Type      Type           // Property type
+	ReadKind  PropAccessKind // How the property is read (Field, Method, Expression, or None)
+	ReadSpec  string         // Read specifier: field name, method name, or expression string
+	WriteKind PropAccessKind // How the property is written (Field, Method, or None)
+	WriteSpec string         // Write specifier: field name or method name
+	IsIndexed bool           // True if this is an indexed property (array-like)
+	IsDefault bool           // True if this is the default property (only one per class)
+}
+
 // ClassType represents a class type in DWScript.
 // Classes support inheritance, fields, methods, and class variables (static fields).
 type ClassType struct {
@@ -176,6 +201,7 @@ type ClassType struct {
 	ClassMethodFlags map[string]bool          // Method name -> is class method
 	IsExternal       bool                     // True if this is an external class (Task 7.137)
 	ExternalName     string                   // External name for FFI binding (optional) - Task 7.137
+	Properties       map[string]*PropertyInfo // Property name -> property info mapping - Task 8.27
 }
 
 // String returns the string representation of the class type
@@ -284,6 +310,37 @@ func (ct *ClassType) HasConstructor(name string) bool {
 	return false
 }
 
+// HasProperty checks if the class or any of its ancestors has a property with the given name.
+// Task 8.28
+func (ct *ClassType) HasProperty(name string) bool {
+	if ct == nil {
+		return false
+	}
+	if _, ok := ct.Properties[name]; ok {
+		return true
+	}
+	if ct.Parent != nil {
+		return ct.Parent.HasProperty(name)
+	}
+	return false
+}
+
+// GetProperty returns the property info for a given property name, searching up the inheritance chain.
+// Returns (propertyInfo, true) if found, or (nil, false) if not found.
+// Task 8.28
+func (ct *ClassType) GetProperty(name string) (*PropertyInfo, bool) {
+	if ct == nil {
+		return nil, false
+	}
+	if prop, ok := ct.Properties[name]; ok {
+		return prop, true
+	}
+	if ct.Parent != nil {
+		return ct.Parent.GetProperty(name)
+	}
+	return nil, false
+}
+
 // NewClassType creates a new class type with the given name and optional parent.
 // Fields, ClassVars, Methods, and visibility maps are initialized as empty.
 func NewClassType(name string, parent *ClassType) *ClassType {
@@ -301,6 +358,7 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		Operators:        NewOperatorRegistry(),
 		Constructors:     make(map[string]*FunctionType),
 		ClassMethodFlags: make(map[string]bool),
+		Properties:       make(map[string]*PropertyInfo), // Task 8.27
 	}
 }
 

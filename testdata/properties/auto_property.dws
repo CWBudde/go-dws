@@ -1,0 +1,35 @@
+// Test auto-properties (properties without explicit read/write specifiers)
+// Auto-properties automatically generate a backing field
+
+type TPerson = class
+	FAge: Integer;
+
+	// Auto-property - generates backing field automatically
+	property Name: String;
+
+	// Standard property for comparison
+	property Age: Integer read FAge write FAge;
+
+	constructor Create;
+	begin
+		FAge := 0;
+		// Auto-property backing field initialized to default
+	end;
+end;
+
+// Test program
+var person := TPerson.Create();
+
+// Test auto-property
+person.Name := 'John Doe';
+PrintLn('Name: ' + person.Name);
+
+// Test standard property
+person.Age := 30;
+PrintLn('Age: ' + IntToStr(person.Age));
+
+// Update and read again
+person.Name := 'Jane Smith';
+person.Age := 25;
+PrintLn('Updated Name: ' + person.Name);
+PrintLn('Updated Age: ' + IntToStr(person.Age));

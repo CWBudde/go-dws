@@ -50,10 +50,13 @@ type ClassInfo struct {
 
 	// Constructors stores constructor declarations for overload resolution
 	Constructors map[string]*ast.FunctionDecl
+
+	// Properties stores property metadata for the class (Task 8.53)
+	Properties map[string]*types.PropertyInfo
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.
-// Fields, Methods, ClassVars, and ClassMethods maps are initialized as empty.
+// Fields, Methods, ClassVars, ClassMethods, and Properties maps are initialized as empty.
 func NewClassInfo(name string) *ClassInfo {
 	return &ClassInfo{
 		Name:         name,
@@ -64,6 +67,7 @@ func NewClassInfo(name string) *ClassInfo {
 		ClassMethods: make(map[string]*ast.FunctionDecl),
 		Operators:    newRuntimeOperatorRegistry(),
 		Constructors: make(map[string]*ast.FunctionDecl),
+		Properties:   make(map[string]*types.PropertyInfo),
 	}
 }
 
@@ -132,6 +136,24 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 	// Check parent class (recursive)
 	if c.Parent != nil {
 		return c.Parent.lookupMethod(name)
+	}
+
+	// Not found
+	return nil
+}
+
+// lookupProperty searches for a property in the class hierarchy.
+// It starts with the current class and walks up the parent chain.
+// Returns the first property found, or nil if not found. (Task 8.53)
+func (c *ClassInfo) lookupProperty(name string) *types.PropertyInfo {
+	// Check current class
+	if prop, exists := c.Properties[name]; exists {
+		return prop
+	}
+
+	// Check parent class (recursive)
+	if c.Parent != nil {
+		return c.Parent.lookupProperty(name)
 	}
 
 	// Not found

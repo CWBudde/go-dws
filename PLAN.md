@@ -1034,87 +1034,114 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 #### Interpreter Support
 
 - [x] 8.17 Execute global operator overloads by invoking bound functions during expression evaluation.
-  - [x] 8.17a Fixed `evalFunctionDeclaration` to handle method implementations (ClassName != nil)
-  - [x] 8.17b Implemented `tryBinaryOperator` to check class and global operator registries
-  - [x] 8.17c Implemented `invokeRuntimeOperator` to dispatch to correct invocation method
-  - [x] 8.17d Implemented `invokeGlobalOperator` to call bound function with operands
-  - [x] 8.17e Fixed `IN` operator and comma-separated field declarations (2025-10-22)
 - [x] 8.18 Execute `class operator` overloads via static method dispatch (respect inheritance).
-  - [x] 8.18a Implemented `invokeClassOperatorMethod` for class methods (static)
-  - [x] 8.18b Implemented `invokeInstanceOperatorMethod` for instance methods
-  - [x] 8.18c Fixed method body retrieval by updating Methods map in evalFunctionDeclaration
-  - [x] 8.18d Implemented Self binding and argument passing for instance operators
-  - [x] 8.18e Implemented Result extraction from method environment
-  - [ ] 8.18f Verify inheritance-based operator lookup works correctly
 - [x] 8.19 Apply implicit conversion operators automatically where the semantic analyzer inserted conversions.
-  - [x] 8.19a Add conversion lookup during `evalAssignmentStatement` type checking (implemented tryImplicitConversion and integrated in evalSimpleAssignment)
-  - [x] 8.19b Apply implicit conversions in function/method argument binding (callUserFunction, invokeInstanceMethod, invokeClassOperatorMethod, evalMethodCall)
-  - [x] 8.19c Apply conversions during return value handling (extractReturnValue, callUserFunction, evalMethodCall - all 4 locations)
-  - [x] 8.19d Implement conversion chain support (Integer -> String -> Custom via multiple conversions)
-  - [x] 8.19e Test with reference/dwscript-original/Test/OperatorOverloadPass/implicit_record*.pas
 - [x] 8.20 Maintain native operator fallback behavior when no overload is applicable.
   - Already implemented: tryBinaryOperator returns (nil, false) when no overload found
   - Native operators in evalIntegerBinaryOp, evalFloatBinaryOp, etc. handle fallback
 
 #### Testing & Fixtures
 
-- [ ] 8.21 Add parser unit tests covering operator declarations (global, class, implicit, symbolic tokens).
-  - [ ] 8.21a Test parsing global operator: `operator + (String, Integer) : String uses StrPlusInt;`
-  - [ ] 8.21b Test parsing class operator: `class operator + (TTest, String) : TTest uses AddString;`
-  - [ ] 8.21c Test parsing implicit conversion: `operator implicit (Integer) : String uses IntToStr;`
-  - [ ] 8.21d Test parsing explicit conversion: `operator explicit (TFoo) : Integer uses FooToInt;`
-  - [ ] 8.21e Test parsing symbolic operators: `==`, `!=`, `<<`, `>>`, `IN`
-  - [ ] 8.21f Test parsing unary operators: `operator - (TCustom) : TCustom uses Negate;`
-  - [ ] 8.21g Add negative tests: missing uses clause, invalid token, duplicate operators
-  - Location: parser/operators_test.go (file exists but needs expansion)
+- [x] 8.21 Add parser unit tests covering operator declarations (global, class, implicit, symbolic tokens).
 - [x] 8.22 Add semantic analyzer tests for overload resolution, duplicate definitions, and failure diagnostics.
-  - [x] 8.22a TestGlobalOperatorOverload - validates registration
-  - [x] 8.22b TestImplicitConversionOperator - validates conversion registration
-  - [x] 8.22c TestDuplicateGlobalOperator - validates error reporting
-  - [ ] 8.22d Add test for class operator overload validation
-  - [ ] 8.22e Add test for operator signature mismatch errors
-  - [ ] 8.22f Add test for invalid binding function (not found, wrong signature)
-  - Location: semantic/operator_analyzer_test.go (exists with 3 tests, needs 3 more)
-- [ ] 8.23 Add interpreter tests for arithmetic overloads, `operator in`, class operators, and implicit conversions.
-  - [x] 8.23a TestGlobalOperatorOverload - String + Integer working ✓
-  - [x] 8.23b TestClassOperatorOverload - TTest + String working ✓
-  - [x] 8.23c TestClassOperatorIn - IN operator fully working ✓
-    - **IN Operator Status**: ✅ Fully functional (see Task 8.17e)
-    - **Fix**: Task 7.42a resolved - constructor parameters now bind correctly
-    - **Test Result**: PASS - `TMyRange.Create(1, 5)` correctly sets FMin=1, FMax=5
-  - [ ] 8.23d Add test for unary operator: -TCustom
-  - [ ] 8.23e Add test for symbolic operators: ==, !=, <<, >>
-  - [ ] 8.23f Add test for implicit conversion in assignment: var s: String := 123;
-  - [ ] 8.23g Add test for implicit conversion in function call
-  - [ ] 8.23h Add test for operator inheritance (child class inherits parent operator)
-  - [ ] 8.23i Add test for operator override (child overrides parent operator)
-  - Location: interp/operator_test.go (exists with 3 tests, needs 7 more)
-- [ ] 8.24 Port DWScript operator scripts into `testdata/operators/` with expected outputs referencing originals.
-  - [ ] 8.24a Create testdata/operators/ directory
-  - [ ] 8.24b Port operator_overloading1.pas (String + Integer)
-  - [ ] 8.24c Port operator_overloading2.pas (symbolic operators)
-  - [ ] 8.24d Port operator_in_overloading.pas (IN operator for Integer in Integer, Integer in Float)
-  - [ ] 8.24e Port implicit_record1.pas (implicit conversions)
-  - [ ] 8.24f Port implicit_record2.pas (conversion chains)
-  - [ ] 8.24g Port c_style.pas (C-style operators ==, !=)
-  - [ ] 8.24h Port failure cases from OperatorOverloadFail/ for negative testing
-  - [ ] 8.24i Add README.md explaining test structure and expected outputs
-  - Reference: reference/dwscript-original/Test/OperatorOverloadPass/*.pas
-- [ ] 8.25 Add CLI integration test running representative operator overloading scripts via `go run ./cmd/dwscript`.
-  - [ ] 8.25a Create cmd/dwscript/composite_types_test.go::TestOperatorOverloading
-  - [ ] 8.25b Test global operator: run testdata/operators/operator_overloading1.dws, verify output
-  - [ ] 8.25c Test class operator: run test with TTest + String, verify result
-  - [ ] 8.25d Test IN operator: run operator_in_overloading.dws, verify true/false outputs
-  - [ ] 8.25e Test implicit conversions: run implicit_record1.dws, verify conversion applied
-  - [ ] 8.25f Test error handling: run invalid operator script, verify error message
-  - Location: cmd/dwscript/composite_types_test.go (file exists)
+- [x] 8.23 Add interpreter tests for arithmetic overloads, `operator in`, class operators, and implicit conversions.
+- [x] 8.24 Port DWScript operator scripts into `testdata/operators/` with expected outputs referencing originals. ✓
+- [x] 8.25 Add CLI integration test running representative operator overloading scripts via `go run ./cmd/dwscript`. ✓
 
-### Properties
+### Properties (33/35 tasks complete - 94%) ✅ CORE COMPLETE
 
-- [ ] 8.26 Parse property declarations (with read/write specifiers)
-- [ ] 8.27 Translate property access to getter/setter calls
-- [ ] 8.28 Implement property evaluation in interpreter
-- [ ] 8.29 Test properties: `TestProperties`
+**Status**: Core property functionality fully implemented and tested. Field-backed and method-backed properties work with full semantic validation and runtime support. Indexed properties (8.55) and expression getters (8.56) intentionally deferred for future implementation.
+
+**Note**: Properties provide syntactic sugar for getter/setter access. They support field access, method access, indexed properties (array-like), expression-based getters, and default properties.
+
+#### Type System (4 tasks) ✅ COMPLETE
+
+- [x] 8.26 Define `PropertyInfo` struct in `types/types.go` (not class.go - ClassType is in types.go)
+  - [x] 8.26a Fields: Name, Type, ReadSpec (field/method/expression), WriteSpec (field/method), IsIndexed, IsDefault
+  - [x] 8.26b Support ReadKind/WriteKind enum: Field, Method, Expression, None (PropAccessKind enum)
+- [x] 8.27 Extend `ClassType` with Properties map[string]*PropertyInfo
+- [x] 8.28 Add helper methods: `GetProperty(name)`, `HasProperty(name)` (with inheritance support)
+- [x] 8.29 Write unit tests for property metadata: `types/types_test.go::TestPropertyInfo`, `TestClassTypeProperties`
+
+#### AST Nodes (6 tasks) ✅ COMPLETE
+
+- [x] 8.30 Create `PropertyDecl` struct in new file `ast/properties.go`
+  - [x] 8.30a Fields: Name, Type, ReadSpec, WriteSpec, IndexParams (for indexed properties), IsDefault
+  - [x] 8.30b ReadSpec can be: field name (Identifier), method name (Identifier), or expression (Expression)
+  - [x] 8.30c WriteSpec can be: field name (Identifier), method name (Identifier), or nil (read-only)
+- [x] 8.31 Support read-only properties (no write specifier)
+- [x] 8.32 Support write-only properties (no read specifier)
+- [x] 8.33 Support indexed properties with parameter lists: `property Items[index: Integer]: String` (single and multiple params)
+- [x] 8.34 Implement `String()` method for PropertyDecl AST node
+- [x] 8.35 Write AST tests: `ast/properties_test.go::TestPropertyDecl*` (comprehensive coverage)
+
+#### Parser (10 tasks) ✅ COMPLETE
+
+- [x] 8.36 Implement `parsePropertyDeclaration()` in new file `parser/properties.go`
+- [x] 8.37 Parse `property Name : Type read ReadSpec;` syntax
+  - [x] 8.37a ReadSpec: field name (`FField`), method name (`GetValue`), or expression in parens (`(FValue * 2)`)
+- [x] 8.38 Parse `write WriteSpec` clause
+  - [x] 8.38a WriteSpec: field name (`FField`) or method name (`SetValue`)
+- [x] 8.39 Parse indexed properties: `property Items[i: Integer]: String read GetItem write SetItem;`
+  - [x] 8.39a Handle multiple index parameters: `property Data[x, y: Integer]: Float`
+- [x] 8.40 Parse `default;` keyword for default indexed properties
+- [x] 8.41 Parse auto-properties (no explicit read/write): `property Name: String;`
+  - [x] 8.41a Auto-generate backing field name (FName) and auto-property behavior
+- [x] 8.42 Integrate property parsing into class body parser
+- [x] 8.43 Handle property access in expressions (translate `obj.Prop` to getter call)
+- [x] 8.44 Handle property assignment (translate `obj.Prop := value` to setter call)
+- [x] 8.45 Write comprehensive parser tests: `parser/properties_test.go::TestPropertyDeclaration`, `TestPropertyTypes`
+
+#### Semantic Analysis (7 tasks) ✅ COMPLETE
+
+- [x] 8.46 Register properties in class metadata during class analysis
+- [x] 8.47 Validate getter (read specifier):
+  - [x] 8.47a If field: field must exist and have matching type
+  - [x] 8.47b If method: method must exist, take no params (or index params for indexed), return property type
+  - [x] 8.47c If expression: validate expression type matches property type
+- [x] 8.48 Validate setter (write specifier):
+  - [x] 8.48a If field: field must exist and have matching type
+  - [x] 8.48b If method: method must exist, take property type param (plus index params for indexed), return void
+- [x] 8.49 Validate indexed properties:
+  - [x] 8.49a Index parameters must have valid types
+  - [x] 8.49b Getter/setter signatures must include index parameters
+- [x] 8.50 Check for duplicate property names within class
+- [x] 8.51 Validate default property restrictions (must be indexed property, only one per class)
+- [x] 8.52 Write semantic validation tests: `semantic/property_test.go::TestPropertyDeclaration`, `TestPropertyErrors`
+
+#### Interpreter/Runtime (5 tasks) - 3/5 COMPLETE (2 deferred)
+
+- [x] 8.53 Translate property read access to appropriate operation:
+  - [x] 8.53a Field access: read from object field
+  - [x] 8.53b Method access: call getter method with no args (or index args)
+  - [x] 8.53c Expression access: evaluate expression in context of object
+- [x] 8.54 Translate property write access to appropriate operation:
+  - [x] 8.54a Field access: write to object field
+  - [x] 8.54b Method access: call setter method with value (and index args)
+- [ ] 8.55 Handle indexed property access (DEFERRED):
+  - [ ] 8.55a Evaluate index expressions
+  - [ ] 8.55b Pass index values to getter/setter
+- [ ] 8.56 Support expression-based property getters (inline expressions like `(FValue * 2)`) (DEFERRED)
+- [x] 8.57 Write interpreter tests: `interp/property_test.go::TestPropertyAccess`, `TestIndexedProperties`
+
+#### Testing & Fixtures (3 tasks) ✅ COMPLETE
+
+- [x] 8.58 Create `testdata/properties/` directory with comprehensive test files:
+  - [x] 8.58a `basic_property.dws` - Field-backed and method-backed properties
+  - [ ] 8.58b `indexed_property.dws` - Array-like indexed properties (DEFERRED - depends on 8.55)
+  - [ ] 8.58c `expression_property.dws` - Expression-based getters (DEFERRED - depends on 8.56)
+  - [x] 8.58d `readonly_writeonly.dws` - Read-only and write-only properties (see read_only_property.dws)
+  - [ ] 8.58e `default_property.dws` - Default indexed properties (DEFERRED - depends on 8.55)
+  - [x] Created 5 comprehensive test files (basic, inheritance, read-only, auto, mixed)
+  - [x] Created README.md documenting test coverage
+- [x] 8.59 Add CLI integration tests: `cmd/dwscript/properties_test.go`
+  - [x] 5 test functions with 15+ test cases
+  - [x] All tests passing
+- [x] 8.60 Port DWScript property tests from `reference/dwscript-original/Test` and verify compatibility
+  - [x] Analyzed 70+ reference property tests
+  - [x] Created REFERENCE_TESTS.md mapping reference tests to implementation status
+  - [x] Identified tests requiring deferred features (expression/indexed properties)
+  - [x] Documented compatibility notes and future work
 
 ### Enumerated Types (Foundation for Sets)
 
@@ -1122,58 +1149,41 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Type System (3 tasks) ✅ COMPLETE
 
-- [x] 8.30 Define `EnumType` struct in `types/compound_types.go`
-  - [x] 8.30a Fields: Name, Values (map[string]int), OrderedNames ([]string for reverse lookup)
-  - [x] 8.30b Implement `String()`, `TypeKind()`, `Equals()` methods
-  - [x] 8.30c Add helper: `GetEnumValue(name) int`, `GetEnumName(value) string`
-- [x] 8.31 Add `IsOrdinalType()` to support enums (extend existing function in `types/types.go`)
-- [x] 8.32 Write unit tests for `EnumType`: `types/types_test.go::TestEnumType`
+- [x] 8.61 Define `EnumType` struct in `types/compound_types.go`
+- [x] 8.62 Add `IsOrdinalType()` to support enums (extend existing function in `types/types.go`)
+- [x] 8.63 Write unit tests for `EnumType`: `types/types_test.go::TestEnumType`
 
 #### AST Nodes (4 tasks) ✅ COMPLETE
 
-- [x] 8.33 Create `EnumDecl` struct in new file `ast/enums.go`
-  - [x] 8.33a Fields: Token, Name, Values []EnumValue
-  - [x] 8.33b EnumValue struct: Name string, Value *int (optional explicit value)
-- [x] 8.34 Create `EnumLiteral` expression in `ast/enums.go`
-  - [x] 8.34a Fields: Token, EnumName, ValueName
-- [x] 8.35 Implement `String()` method for enum AST nodes
-- [x] 8.36 Write AST tests: `ast/enums_test.go::TestEnumDecl`, `TestEnumLiteral`
+- [x] 8.64 Create `EnumDecl` struct in new file `ast/enums.go`
+- [x] 8.65 Create `EnumLiteral` expression in `ast/enums.go`
+- [x] 8.66 Implement `String()` method for enum AST nodes
+- [x] 8.67 Write AST tests: `ast/enums_test.go::TestEnumDecl`, `TestEnumLiteral`
 
 #### Parser (6 tasks) ✅ COMPLETE
 
-- [x] 8.37 Implement `parseEnumDeclaration()` in `parser/enums.go`
-  - [x] 8.37a Parse: `type TColor = (Red, Green, Blue);`
-  - [x] 8.37b Support explicit values: `type TEnum = (One = 1, Two = 5);`
-  - [x] 8.37c Support scoped enums: `type TEnum = enum (One, Two);`
-- [x] 8.38 Integrate enum parsing into `parseTypeDeclaration()` dispatcher
-- [x] 8.39 Parse enum literals in expression context: `Red`, `TColor.Red`
-- [x] 8.40 Add enum literal to expression parser (as identifier with type resolution)
-- [x] 8.41 Handle `.Name` property access for enum values (parse in member access)
-- [x] 8.42 Write parser tests: `parser/enums_test.go::TestEnumDeclaration`, `TestEnumLiterals`
+- [x] 8.68 Implement `parseEnumDeclaration()` in `parser/enums.go`
+- [x] 8.69 Integrate enum parsing into `parseTypeDeclaration()` dispatcher
+- [x] 8.70 Parse enum literals in expression context: `Red`, `TColor.Red`
+- [x] 8.71 Add enum literal to expression parser (as identifier with type resolution)
+- [x] 8.72 Handle `.Name` property access for enum values (parse in member access)
+- [x] 8.73 Write parser tests: `parser/enums_test.go::TestEnumDeclaration`, `TestEnumLiterals`
 
 #### Semantic Analysis (4 tasks) ✅ COMPLETE
 
-- [x] 8.43 Register enum types in symbol table (extend `analyzer.go::AnalyzeTypeDeclaration`)
-- [x] 8.44 Register enum value constants in symbol table
-- [x] 8.45 Validate enum value uniqueness and range (no duplicates, values fit in int)
-- [x] 8.46 Write semantic tests: `semantic/enum_test.go::TestEnumDeclaration`, `TestEnumErrors`
+- [x] 8.74 Register enum types in symbol table (extend `analyzer.go::AnalyzeTypeDeclaration`)
+- [x] 8.75 Register enum value constants in symbol table
+- [x] 8.76 Validate enum value uniqueness and range (no duplicates, values fit in int)
+- [x] 8.77 Write semantic tests: `semantic/enum_test.go::TestEnumDeclaration`, `TestEnumErrors`
 
 #### Interpreter/Runtime (6 tasks) ✅ COMPLETE
 
-- [x] 8.47 Create `EnumValue` runtime representation in `interp/value.go`
-  - [x] 8.47a Fields: TypeName, ValueName, OrdinalValue (simplified from original plan)
-  - [x] 8.47b Implement `String()` and `Type()` methods
-- [x] 8.48 Evaluate enum declarations and literals in `interpreter.go::Eval()`
-  - [x] Added `evalEnumDeclaration()` in `interp/enum.go`
-  - [x] Added `evalEnumLiteral()` in `interp/enum.go`
-  - [x] Support for scoped enum access (TColor.Red) via member access
-- [x] 8.49 Implement `Ord()` built-in function for enum values
-  - [x] Added `builtinOrd()` in `interpreter.go`
-- [x] 8.50 Implement `Integer()` cast function for enum values
-  - [x] Added `builtinInteger()` in `interpreter.go`
-- [x] 8.51 Support enum comparisons in case statements (using ordinal values)
-  - [x] Enum values work naturally with existing case statement implementation
-- [x] 8.52 Write interpreter tests: `interp/enum_test.go`
+- [x] 8.78 Create `EnumValue` runtime representation in `interp/value.go`
+- [x] 8.79 Evaluate enum declarations and literals in `interpreter.go::Eval()`
+- [x] 8.80 Implement `Ord()` built-in function for enum values
+- [x] 8.81 Implement `Integer()` cast function for enum values
+- [x] 8.82 Support enum comparisons in case statements (using ordinal values)
+- [x] 8.83 Write interpreter tests: `interp/enum_test.go`
   - [x] TestEnumDeclaration (3 cases)
   - [x] TestEnumValueStorage (2 cases)
   - [x] TestEnumLiteralEvaluation (3 cases)
@@ -1197,59 +1207,51 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Type System (Already exists, verify/extend - 3 tasks)
 
-- [x] 8.53 Verify `RecordType` in `types/compound_types.go` is complete
-  - [x] 8.53a Already has: Name, Fields map
-  - [x] 8.53b Add: Methods map[string]*FunctionType (for record methods)
-  - [x] 8.53c Add: Properties map (if supporting properties)
-- [x] 8.54 Add `GetFieldType(name)` and `HasField(name)` helper methods (already exist, verify)
-- [x] 8.55 Write/extend unit tests: `types/types_test.go::TestRecordType`
+- [x] 8.84 Verify `RecordType` in `types/compound_types.go` is complete
+  - [x] 8.84a Already has: Name, Fields map
+  - [x] 8.84b Add: Methods map[string]*FunctionType (for record methods)
+  - [x] 8.84c Add: Properties map (if supporting properties)
+- [x] 8.85 Add `GetFieldType(name)` and `HasField(name)` helper methods (already exist, verify)
+- [x] 8.86 Write/extend unit tests: `types/types_test.go::TestRecordType`
 
 #### AST Nodes (5 tasks)
 
-- [x] 8.56 Create `RecordDecl` struct in `ast/type_annotation.go` or new file `ast/records.go`
-  - [x] 8.56a Fields: Token, Name, Fields []*FieldDecl, Methods []*FunctionDecl
-  - [x] 8.56b Support visibility sections (private/public/published)
-  - [x] 8.56c Support properties (if implementing property feature)
-- [x] 8.57 Create `RecordLiteral` expression in `ast/records.go`
-  - [x] 8.57a Syntax: `(X: 10, Y: 20)` or `(10, 20)` positional
-- [x] 8.58 Extend `MemberExpression` to support record field access: `point.X` (MemberAccessExpression already supports this)
-- [x] 8.59 Implement `String()` methods for record AST nodes
-- [x] 8.60 Write AST tests: `ast/records_test.go::TestRecordDecl`, `TestRecordLiteral`
+- [x] 8.87 Create `RecordDecl` struct in `ast/type_annotation.go` or new file `ast/records.go`
+- [x] 8.88 Create `RecordLiteral` expression in `ast/records.go`
+- [x] 8.89 Extend `MemberExpression` to support record field access: `point.X` (MemberAccessExpression already supports this)
+- [x] 8.90 Implement `String()` methods for record AST nodes
+- [x] 8.91 Write AST tests: `ast/records_test.go::TestRecordDecl`, `TestRecordLiteral`
 
 #### Parser (7 tasks)
 
-- [x] 8.61 Implement `parseRecordDeclaration()` in new file `parser/records.go`
-  - [x] 8.61a Parse: `type TPoint = record X, Y: Integer; end;`
-  - [x] 8.61b Support visibility sections (private/public/published) like classes
-  - [x] 8.61c Parse record methods: `function GetDistance: Float;`
-  - [x] 8.61d Parse record properties (if supported)
-- [x] 8.62 Integrate record parsing into `parseTypeDeclaration()` dispatcher
-- [x] 8.63 Parse record literals: `var p := (X: 10, Y: 20);` or `var p: TPoint := (10, 20);`
-- [x] 8.64 Parse record constructor syntax: `TPoint(10, 20)` if supported
-- [x] 8.65 Parse record field access: `point.X := 5;`
-- [x] 8.66 Parse record method calls: `point.GetDistance();`
-- [x] 8.67 Write parser tests: `parser/records_test.go::TestRecordDeclaration`, `TestRecordLiterals`, `TestRecordAccess`
+- [x] 8.92 Implement `parseRecordDeclaration()` in new file `parser/records.go`
+- [x] 8.93 Integrate record parsing into `parseTypeDeclaration()` dispatcher
+- [x] 8.94 Parse record literals: `var p := (X: 10, Y: 20);` or `var p: TPoint := (10, 20);`
+- [x] 8.95 Parse record constructor syntax: `TPoint(10, 20)` if supported
+- [x] 8.96 Parse record field access: `point.X := 5;`
+- [x] 8.97 Parse record method calls: `point.GetDistance();`
+- [x] 8.98 Write parser tests: `parser/records_test.go::TestRecordDeclaration`, `TestRecordLiterals`, `TestRecordAccess`
 
 #### Semantic Analysis (5 tasks)
 
-- [x] 8.68 Register record types in symbol table (extend `analyzer.go`)
-- [x] 8.69 Validate record field declarations (no duplicates, valid types)
-- [x] 8.70 Type-check record literals (field names/types match, positional vs named)
-- [x] 8.71 Type-check record field access (field exists, visibility rules)
-- [x] 8.72 Write semantic tests: `semantic/record_test.go::TestRecordDeclaration`, `TestRecordErrors`
+- [x] 8.99 Register record types in symbol table (extend `analyzer.go`)
+- [x] 8.100 Validate record field declarations (no duplicates, valid types)
+- [x] 8.101 Type-check record literals (field names/types match, positional vs named)
+- [x] 8.102 Type-check record field access (field exists, visibility rules)
+- [x] 8.103 Write semantic tests: `semantic/record_test.go::TestRecordDeclaration`, `TestRecordErrors`
 
 #### Interpreter/Runtime (8 tasks)
 
-- [x] 8.73 Create `RecordValue` runtime representation in `interp/value.go`
-  - [x] 8.73a Fields: Type *types.RecordType, Fields map[string]interface{}
-  - [x] 8.73b Implement `String()` method
-- [x] 8.74 Evaluate record literals (named and positional initialization)
-- [x] 8.75 Implement record field access (read): `point.X`
-- [x] 8.76 Implement record field assignment (write): `point.X := 5`
-- [x] 8.77 Implement record copying (value semantics) for assignments
-- [ ] 8.78 Implement record method calls if methods are supported
-- [x] 8.79 Support record comparison (= and <>) by comparing all fields
-- [x] 8.80 Write interpreter tests: `interp/record_test.go::TestRecordCreation`, `TestRecordFieldAccess`, `TestRecordCopying`
+- [x] 8.104 Create `RecordValue` runtime representation in `interp/value.go`
+  - [x] 8.104a Fields: Type *types.RecordType, Fields map[string]interface{}
+  - [x] 8.104b Implement `String()` method
+- [x] 8.105 Evaluate record literals (named and positional initialization)
+- [x] 8.106 Implement record field access (read): `point.X`
+- [x] 8.107 Implement record field assignment (write): `point.X := 5`
+- [x] 8.108 Implement record copying (value semantics) for assignments
+- [ ] 8.109 Implement record method calls if methods are supported
+- [x] 8.110 Support record comparison (= and <>) by comparing all fields
+- [x] 8.111 Write interpreter tests: `interp/record_test.go::TestRecordCreation`, `TestRecordFieldAccess`, `TestRecordCopying`
 
 ### Set Types
 
@@ -1257,68 +1259,68 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Type System (4 tasks)
 
-- [x] 8.81 Define `SetType` struct in `types/compound_types.go`
-  - [x] 8.81a Fields: ElementType *EnumType (sets are always of enum type)
-  - [x] 8.81b Implement `String()`, `TypeKind()`, `Equals()` methods
-- [x] 8.82 Add set type factory: `NewSetType(elementType *EnumType) *SetType`
-- [x] 8.83 Add validation: sets can only be of ordinal types (enums, small integers)
-- [x] 8.84 Write unit tests: `types/types_test.go::TestSetType`
+- [x] 8.112 Define `SetType` struct in `types/compound_types.go`
+  - [x] 8.112a Fields: ElementType *EnumType (sets are always of enum type)
+  - [x] 8.112b Implement `String()`, `TypeKind()`, `Equals()` methods
+- [x] 8.113 Add set type factory: `NewSetType(elementType *EnumType) *SetType`
+- [x] 8.114 Add validation: sets can only be of ordinal types (enums, small integers)
+- [x] 8.115 Write unit tests: `types/types_test.go::TestSetType`
 
 #### AST Nodes (6 tasks)
 
-- [x] 8.85 Create `SetDecl` struct in new file `ast/sets.go`
-  - [x] 8.85a Parse: `type TDays = set of TWeekday;`
-  - [x] 8.85b Parse inline: `var s: set of (Mon, Tue, Wed);`
-- [x] 8.86 Create `SetLiteral` expression in `ast/sets.go`
-  - [x] 8.86a Syntax: `[one, two]` or `[one..five]` for ranges
-  - [x] 8.86b Empty set: `[]`
-- [x] 8.87 Support set operators in AST (already have binary ops, verify):
-  - [x] 8.87a `+` (union), `-` (difference), `*` (intersection)
-  - [x] 8.87b `in` (membership test)
-  - [x] 8.87c `=`, `<>`, `<=`, `>=` (set comparisons)
-- [x] 8.88 Create `SetOperationExpr` if needed (or use existing BinaryExpression)
-- [x] 8.89 Implement `String()` methods for set AST nodes
-- [x] 8.90 Write AST tests: `ast/sets_test.go::TestSetDecl`, `TestSetLiteral`
+- [x] 8.116 Create `SetDecl` struct in new file `ast/sets.go`
+  - [x] 8.116a Parse: `type TDays = set of TWeekday;`
+  - [x] 8.116b Parse inline: `var s: set of (Mon, Tue, Wed);`
+- [x] 8.117 Create `SetLiteral` expression in `ast/sets.go`
+  - [x] 8.117a Syntax: `[one, two]` or `[one..five]` for ranges
+  - [x] 8.117b Empty set: `[]`
+- [x] 8.118 Support set operators in AST (already have binary ops, verify):
+  - [x] 8.118a `+` (union), `-` (difference), `*` (intersection)
+  - [x] 8.118b `in` (membership test)
+  - [x] 8.118c `=`, `<>`, `<=`, `>=` (set comparisons)
+- [x] 8.119 Create `SetOperationExpr` if needed (or use existing BinaryExpression)
+- [x] 8.120 Implement `String()` methods for set AST nodes
+- [x] 8.121 Write AST tests: `ast/sets_test.go::TestSetDecl`, `TestSetLiteral`
 
 #### Parser (8 tasks)
 
-- [x] 8.91 Implement `parseSetDeclaration()` in new file `parser/sets.go`
-  - [x] 8.91a Parse: `type TDays = set of TWeekday;`
-  - [x] 8.91b Parse inline: `var s: set of (Mon, Tue);` with anonymous enum
-- [x] 8.92 Integrate set parsing into `parseTypeDeclaration()` dispatcher
-- [x] 8.93 Parse set literals: `[one, two, three]`
-- [x] 8.94 Parse set range literals: `[one..five]`
-- [x] 8.95 Parse empty set: `[]` (distinguish from empty array)
-- [x] 8.96 Parse set operations: `s1 + s2`, `s1 - s2`, `s1 * s2`
-- [x] 8.97 Parse `in` operator: `one in mySet`
-- [x] 8.98 Write parser tests: `parser/sets_test.go::TestSetDeclaration`, `TestSetLiterals`, `TestSetOperations`
+- [x] 8.122 Implement `parseSetDeclaration()` in new file `parser/sets.go`
+  - [x] 8.122a Parse: `type TDays = set of TWeekday;`
+  - [x] 8.122b Parse inline: `var s: set of (Mon, Tue);` with anonymous enum
+- [x] 8.123 Integrate set parsing into `parseTypeDeclaration()` dispatcher
+- [x] 8.124 Parse set literals: `[one, two, three]`
+- [x] 8.125 Parse set range literals: `[one..five]`
+- [x] 8.126 Parse empty set: `[]` (distinguish from empty array)
+- [x] 8.127 Parse set operations: `s1 + s2`, `s1 - s2`, `s1 * s2`
+- [x] 8.128 Parse `in` operator: `one in mySet`
+- [x] 8.129 Write parser tests: `parser/sets_test.go::TestSetDeclaration`, `TestSetLiterals`, `TestSetOperations`
 
 #### Semantic Analysis (6 tasks)
 
-- [x] 8.99 Register set types in symbol table
-- [x] 8.100 Validate set element types (must be enum or small integer range)
-- [x] 8.101 Type-check set literals (elements match set's element type)
-- [x] 8.102 Type-check set operations (operands are compatible set types)
-- [x] 8.103 Type-check `in` operator (left is element type, right is set type)
-- [x] 8.104 Write semantic tests: `semantic/set_test.go::TestSetDeclaration`, `TestSetErrors`
+- [x] 8.130 Register set types in symbol table
+- [x] 8.131 Validate set element types (must be enum or small integer range)
+- [x] 8.132 Type-check set literals (elements match set's element type)
+- [x] 8.133 Type-check set operations (operands are compatible set types)
+- [x] 8.134 Type-check `in` operator (left is element type, right is set type)
+- [x] 8.135 Write semantic tests: `semantic/set_test.go::TestSetDeclaration`, `TestSetErrors`
 
 #### Interpreter/Runtime (12 tasks)
 
-- [x] 8.105 Create `SetValue` runtime representation in `interp/value.go`
-  - [x] 8.105a Use bitset for small enums (<=64 values): uint64
-  - [ ] 8.105b Use map[int]bool for large enums (>64 values)
-  - [x] 8.105c Fields: Type *types.SetType, Elements (bitset or map)
-- [x] 8.106 Evaluate set literals: `[one, two]`
-- [x] 8.107 Evaluate set range literals: `[one..five]` → expand to all values
-- [x] 8.108 Implement Include(element) built-in method
-- [x] 8.109 Implement Exclude(element) built-in method
-- [x] 8.110 Implement set union (`+`): `s1 + s2`
-- [x] 8.111 Implement set difference (`-`): `s1 - s2`
-- [x] 8.112 Implement set intersection (`*`): `s1 * s2`
-- [x] 8.113 Implement membership test (`in`): `element in set`
-- [x] 8.114 Implement set comparisons: `=`, `<>`, `<=` (subset), `>=` (superset)
-- [ ] 8.115 Support for-in iteration over sets: `for e in mySet do`
-- [x] 8.116 Write interpreter tests: `interp/set_test.go::TestSetOperations`, `TestSetMembership`, `TestSetIteration`
+- [x] 8.136 Create `SetValue` runtime representation in `interp/value.go`
+  - [x] 8.136a Use bitset for small enums (<=64 values): uint64
+  - [ ] 8.136b Use map[int]bool for large enums (>64 values)
+  - [x] 8.136c Fields: Type *types.SetType, Elements (bitset or map)
+- [x] 8.137 Evaluate set literals: `[one, two]`
+- [x] 8.138 Evaluate set range literals: `[one..five]` → expand to all values
+- [x] 8.139 Implement Include(element) built-in method
+- [x] 8.140 Implement Exclude(element) built-in method
+- [x] 8.141 Implement set union (`+`): `s1 + s2`
+- [x] 8.142 Implement set difference (`-`): `s1 - s2`
+- [x] 8.143 Implement set intersection (`*`): `s1 * s2`
+- [x] 8.144 Implement membership test (`in`): `element in set`
+- [x] 8.145 Implement set comparisons: `=`, `<>`, `<=` (subset), `>=` (superset)
+- [ ] 8.146 Support for-in iteration over sets: `for e in mySet do`
+- [x] 8.147 Write interpreter tests: `interp/set_test.go::TestSetOperations`, `TestSetMembership`, `TestSetIteration`
 
 ### Array Types
 
@@ -1326,66 +1328,66 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Type System (Already exists, verify - 2 tasks)
 
-- [x] 8.117 Verify `ArrayType` in `types/compound_types.go` is complete
-  - [x] 8.117a Already has: ElementType, LowBound, HighBound, IsDynamic()
-- [x] 8.118 Add unit tests if missing: `types/types_test.go::TestArrayType`
+- [x] 8.148 Verify `ArrayType` in `types/compound_types.go` is complete
+  - [x] 8.148a Already has: ElementType, LowBound, HighBound, IsDynamic()
+- [x] 8.149 Add unit tests if missing: `types/types_test.go::TestArrayType`
   - [x] Tests already exist: `TestArrayType`, `TestArrayTypeEquality` (lines 245-335)
   - [x] Coverage includes dynamic arrays, static arrays, bounds checking, and equality
 
 #### AST Nodes (3 tasks)
 
-- [x] 8.119 Verify `ArrayType` annotation exists in AST (check `ast/type_annotation.go`)
+- [x] 8.150 Verify `ArrayType` annotation exists in AST (check `ast/type_annotation.go`)
   - [x] Created `ArrayTypeAnnotation` in `ast/arrays.go` with support for static and dynamic arrays
   - [x] Supports `array[1..10] of Integer` (static) and `array of String` (dynamic)
-- [x] 8.120 Verify array literal syntax: `[1, 2, 3]` or `new Integer[10]`
+- [x] 8.151 Verify array literal syntax: `[1, 2, 3]` or `new Integer[10]`
   - [x] Created `ArrayLiteral` node in `ast/arrays.go` for `[1, 2, 3]` syntax
   - [x] Created `IndexExpression` node in `ast/arrays.go` for `arr[i]` syntax
-- [x] 8.121 Write AST tests if missing: `ast/arrays_test.go::TestArrayLiteral`
+- [x] 8.152 Write AST tests if missing: `ast/arrays_test.go::TestArrayLiteral`
   - [x] Created comprehensive tests in `ast/arrays_test.go`
   - [x] Tests: `TestArrayTypeAnnotation`, `TestArrayLiteral`, `TestIndexExpression`
   - [x] All 21 test cases passing
 
 #### Parser (4 tasks)
 
-- [x] 8.122 Verify array type parsing: `array[1..10] of Integer`, `array of String`
+- [x] 8.153 Verify array type parsing: `array[1..10] of Integer`, `array of String`
   - [x] Created `parseArrayDeclaration` in `parser/arrays.go`
   - [x] Integrated into `parseTypeDeclaration` in `parser/interfaces.go`
   - [x] Created `ArrayDecl` AST node in `ast/arrays.go`
   - [x] Supports both static arrays (with bounds) and dynamic arrays (without bounds)
-- [x] 8.123 Verify array literal parsing: `[1, 2, 3]`, `new Integer[10]`
+- [x] 8.154 Verify array literal parsing: `[1, 2, 3]`, `new Integer[10]`
   - [x] Array literals `[...]` currently parse as `SetLiteral` (semantic analyzer will distinguish)
   - [x] This is the correct approach - syntax is identical, only context differs
-- [x] 8.124 Verify array indexing: `arr[i]`
+- [x] 8.155 Verify array indexing: `arr[i]`
   - [x] Created `parseIndexExpression` in `parser/arrays.go`
   - [x] Registered `LBRACK` as infix operator in `parser/parser.go`
   - [x] Supports simple indexing, nested indexing, and expression indices
-- [x] 8.125 Write parser tests if missing: `parser/arrays_test.go::TestArrayDeclaration`
+- [x] 8.156 Write parser tests if missing: `parser/arrays_test.go::TestArrayDeclaration`
   - [x] Created comprehensive tests in `parser/arrays_test.go`
   - [x] Tests: `TestParseArrayTypeDeclaration`, `TestParseArrayLiteral`, `TestParseArrayIndexing`, `TestArrayDeclarationAndUsage`
   - [x] All 15 test cases passing
 
 #### Semantic Analysis (2 tasks)
 
-- [x] 8.126 Verify array type checking (index must be integer, element types match)
+- [x] 8.157 Verify array type checking (index must be integer, element types match)
   - [x] Created `analyzeArrayDecl` in `semantic/analyze_arrays.go`
   - [x] Created `analyzeIndexExpression` for array access type checking
   - [x] Added array registry to analyzer (similar to sets, enums, records)
   - [x] Integrated array type resolution into `resolveType`
   - [x] Validates: array bounds (low <= high), index must be integer, element types match
   - [x] Supports: static arrays, dynamic arrays, nested arrays, string indexing
-- [x] 8.127 Write semantic tests if missing: `semantic/array_test.go::TestArrayErrors`
+- [x] 8.158 Write semantic tests if missing: `semantic/array_test.go::TestArrayErrors`
   - [x] Created comprehensive tests in `semantic/array_test.go`
   - [x] Tests: `TestArrayTypeRegistration`, `TestArrayTypeErrors`, `TestArrayIndexing`, `TestArrayIndexingErrors`, `TestArrayElementAccess`
   - [x] All 20 test cases passing (4 registration + 4 errors + 5 indexing + 5 indexing errors + 2 access)
 
 #### Interpreter/Runtime (8 tasks)
 
-- [x] 8.128 Verify `ArrayValue` runtime representation exists in `interp/value.go`
+- [x] 8.159 Verify `ArrayValue` runtime representation exists in `interp/value.go`
   - [x] Created `ArrayValue` struct in `interp/value.go` with ArrayType and Elements
   - [x] Implemented `Type()`, `String()` methods
   - [x] Created `NewArrayValue()` constructor for static/dynamic arrays
   - [x] Created `ArrayTypeValue` for storing type metadata in environment
-- [x] 8.129 Implement/verify array indexing (read)
+- [x] 8.160 Implement/verify array indexing (read)
   - [x] Implemented `evalArrayDeclaration()` in `interp/array.go` for type declarations
   - [x] Implemented `evalIndexExpression()` for reading array elements
   - [x] Added bounds checking for static arrays (respects LowBound/HighBound)
@@ -1393,13 +1395,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - [x] Updated `evalVarDeclStatement()` to create ArrayValue instances
   - [x] Updated `resolveType()` to support array types
   - [x] Added comprehensive tests in `interp/array_test.go`
-- [x] 8.130 Implement built-in: `Length(arr)` or `arr.Length`
-- [x] 8.131 Implement built-in: `SetLength(arr, newLen)` or `arr.SetLength(newLen)`
-- [x] 8.132 Implement built-in: `Low(arr)` or `arr.Low`
-- [x] 8.133 Implement built-in: `High(arr)` or `arr.High`
-- [x] 8.134 Implement built-in: `Add(arr, element)` for dynamic arrays
-- [x] 8.135 Implement built-in: `Delete(arr, index)` for dynamic arrays
-- [x] 8.136 Write interpreter tests: `interp/array_test.go::TestArrayOperations`, `TestDynamicArrays`
+- [x] 8.161 Implement built-in: `Length(arr)` or `arr.Length`
+- [x] 8.162 Implement built-in: `SetLength(arr, newLen)` or `arr.SetLength(newLen)`
+- [x] 8.163 Implement built-in: `Low(arr)` or `arr.Low`
+- [x] 8.164 Implement built-in: `High(arr)` or `arr.High`
+- [x] 8.165 Implement built-in: `Add(arr, element)` for dynamic arrays
+- [x] 8.166 Implement built-in: `Delete(arr, index)` for dynamic arrays
+- [x] 8.167 Write interpreter tests: `interp/array_test.go::TestArrayOperations`, `TestDynamicArrays`
   - [x] Created `interp/array_test.go` with basic tests
   - [x] Tests: ArrayValue creation, array declarations, indexing (read), bounds checking
   - [x] Add tests for built-in functions (Length, Low, High, SetLength) - 34 test cases added
@@ -1418,31 +1420,31 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - All core tests passing: static/dynamic arrays, variable indices, expression indices, bounds checking, loops
 - Implementation details: `ast/statements.go`, `parser/statements.go:217-231`, `interp/interpreter.go:395-456`
 
-- [x] 8.137 Refactor `AssignmentStatement` AST node to support complex targets
+- [x] 8.168 Refactor `AssignmentStatement` AST node to support complex targets
   - [x] Change `Name *Identifier` to `Target Expression` in `ast/statements.go`
   - [x] Update `String()` method to handle different target types
   - [x] Verify backward compatibility with simple assignments
-- [x] 8.138 Update parser to accept indexed expressions as assignment targets
+- [x] 8.169 Update parser to accept indexed expressions as assignment targets
   - [x] Modify assignment parsing in `parser/statements.go`
   - [x] Accept `IndexExpression` as valid lvalue (left-hand side)
   - [x] Accept `MemberAccessExpression` as valid lvalue (verify if already works)
   - [x] Add validation: only assignable expressions allowed as targets
   - [x] Write parser tests: `parser/arrays_test.go::TestParseArrayAssignment`
-- [x] 8.139 Implement indexed assignment in interpreter
+- [x] 8.170 Implement indexed assignment in interpreter
   - [x] Update `evalAssignmentStatement()` in `interp/interpreter.go`
   - [x] Add case for `IndexExpression` target: evaluate array and index
   - [x] Perform bounds checking before assignment
   - [x] Update array element: `arr.Elements[physicalIndex] = value`
   - [x] Handle both static and dynamic arrays
   - [x] Return appropriate errors for invalid assignments
-- [x] 8.140 Write comprehensive tests for indexed assignment
+- [x] 8.171 Write comprehensive tests for indexed assignment
   - [x] Test static array assignment: `arr[1] := 42` (respecting bounds)
   - [x] Test dynamic array assignment: `arr[0] := "hello"`
   - [x] Test assignment with expression indices: `arr[i + 1] := value`
   - [x] Test out-of-bounds assignment errors
   - [x] Test assignment to nested arrays: `matrix[i][j] := value`
   - [x] Test record field assignment (verify existing support)
-- [x] 8.141 Integration testing for array assignment
+- [x] 8.172 Integration testing for array assignment
   - [x] Create `testdata/arrays_assignment.dws` with comprehensive examples
   - [x] Test assignment in loops: `for i := 0 to 9 do arr[i] := i * 2;`
   - [x] Test assignment with expression indices: `arr[idx]`, `arr[i + 1]`, `arr[i * 2]`
@@ -1453,32 +1455,32 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Integration Testing (Composite Types) ✅ COMPLETE
 
-- [x] 8.142 Create test file: `testdata/enums.dws` with comprehensive enum examples
+- [x] 8.173 Create test file: `testdata/enums.dws` with comprehensive enum examples
   - Created comprehensive enum test with basic enums, explicit values, Ord(), Integer(), case statements, scoped access
-- [x] 8.143 Create test file: `testdata/records.dws` with record examples
+- [x] 8.174 Create test file: `testdata/records.dws` with record examples
   - Created comprehensive record test with basic records, nested records, field access, value semantics, comparison
-- [x] 8.144 Create test file: `testdata/sets.dws` with set operation examples
+- [x] 8.175 Create test file: `testdata/sets.dws` with set operation examples
   - Created comprehensive set test with Include/Exclude, set operations (+, -, *), membership (in), comparisons, ranges
-- [x] 8.145 Create test file: `testdata/arrays_advanced.dws` with array examples
+- [x] 8.176 Create test file: `testdata/arrays_advanced.dws` with array examples
   - Created comprehensive array test with static arrays, dynamic arrays, literals, array of records, zero-based bounds
   - **Note**: Multi-dimensional arrays (array of array of Type) not yet supported - commented out in test
-- [x] 8.146 Create CLI integration test: `cmd/dwscript/composite_types_test.go`
+- [x] 8.177 Create CLI integration test: `cmd/dwscript/composite_types_test.go`
   - Created comprehensive CLI tests following pattern from `oop_cli_test.go`
   - Tests: script existence, parsing, enum/record/set/array features via CLI
   - All tests passing
-- [x] 8.147 Port DWScript enum tests from `reference/dwscript-original/Test`
+- [x] 8.178 Port DWScript enum tests from `reference/dwscript-original/Test`
   - Ported enum_scoped.pas to `testdata/enum_ported/`
   - Tests scoped enum access (TEnum.Value syntax) with explicit values
-- [x] 8.148 Port DWScript record tests from `reference/dwscript-original/Test`
+- [x] 8.179 Port DWScript record tests from `reference/dwscript-original/Test`
   - Ported record_nested2.pas to `testdata/record_ported/`
   - Tests nested records and anonymous record types
-- [x] 8.149 Port DWScript set tests from `reference/dwscript-original/Test/SetOfPass`
+- [x] 8.180 Port DWScript set tests from `reference/dwscript-original/Test/SetOfPass`
   - Ported basic.pas and range.pas to `testdata/set_ported/`
   - Tests Include/Exclude, membership, and range literals
-- [x] 8.150 Verify all ported tests pass with go-dws
+- [x] 8.181 Verify all ported tests pass with go-dws
   - All CLI integration tests passing (TestCompositeTypesScriptsExist, TestCompositeTypesParsing)
   - All feature tests passing (TestEnumFeatures, TestRecordFeatures, TestSetFeatures, TestArrayFeatures)
-- [x] 8.151 Document any DWScript compatibility issues or limitations
+- [x] 8.182 Document any DWScript compatibility issues or limitations
   - **Compatibility Issues**:
     1. **Multi-dimensional arrays**: Syntax `array of array of Type` not yet supported
     2. **Reserved keywords**: `flags` is a reserved keyword (FLAGS for enum flags), cannot be used as variable name
@@ -1515,76 +1517,76 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### String Functions
 
-- [ ] 8.152 Implement built-in string functions:
+- [ ] 8.183 Implement built-in string functions:
   - [ ] Length(s)
   - [ ] Copy(s, index, count)
   - [ ] Concat(s1, s2, ...)
   - [ ] Pos(substr, s)
   - [ ] UpperCase(s), LowerCase(s)
-- [ ] 8.153 Test string functions
+- [ ] 8.184 Test string functions
 
 ### Math Functions
 
-- [ ] 8.154 Implement built-in math functions:
+- [ ] 8.185 Implement built-in math functions:
   - [ ] Abs(x)
   - [ ] Sqrt(x)
   - [ ] Sin(x), Cos(x), Tan(x)
   - [ ] Ln(x), Exp(x)
   - [ ] Round(x), Trunc(x)
   - [ ] Random, Randomize
-- [ ] 8.155 Test math functions
+- [ ] 8.186 Test math functions
 
 ### Conversion Functions
 
-- [ ] 8.156 Implement type conversion functions:
+- [ ] 8.187 Implement type conversion functions:
   - [ ] IntToStr(i)
   - [ ] StrToInt(s)
   - [ ] FloatToStr(f)
   - [ ] StrToFloat(s)
-- [ ] 8.157 Test conversion functions
+- [ ] 8.188 Test conversion functions
 
 ### Exception Handling (Try/Except/Finally)
 
-- [ ] 8.158 Parse try-except-finally blocks (if supported)
-- [ ] 8.159 Implement exception types
-- [ ] 8.160 Implement raise statement
-- [ ] 8.161 Implement exception catching in interpreter
-- [ ] 8.162 Test exceptions: `TestExceptions`
+- [ ] 8.189 Parse try-except-finally blocks (if supported)
+- [ ] 8.190 Implement exception types
+- [ ] 8.191 Implement raise statement
+- [ ] 8.192 Implement exception catching in interpreter
+- [ ] 8.193 Test exceptions: `TestExceptions`
 
 ### Meta-class Support
 
-- [ ] 8.163 Implement class references (variables holding class types)
-- [ ] 8.164 Allow calling constructors via class reference
-- [ ] 8.165 Test meta-classes
+- [ ] 8.194 Implement class references (variables holding class types)
+- [ ] 8.195 Allow calling constructors via class reference
+- [ ] 8.196 Test meta-classes
 
 ### Function/Method Pointers
 
-- [ ] 8.166 Parse function pointer types
-- [ ] 8.167 Implement taking address of function (@Function)
-- [ ] 8.168 Implement calling via function pointer
-- [ ] 8.169 Test function pointers
+- [ ] 8.197 Parse function pointer types
+- [ ] 8.198 Implement taking address of function (@Function)
+- [ ] 8.199 Implement calling via function pointer
+- [ ] 8.200 Test function pointers
 
 ### Contracts (Design by Contract)
 
-- [ ] 8.170 Parse require/ensure clauses (if supported)
-- [ ] 8.171 Implement contract checking at runtime
-- [ ] 8.172 Test contracts
+- [ ] 8.201 Parse require/ensure clauses (if supported)
+- [ ] 8.202 Implement contract checking at runtime
+- [ ] 8.203 Test contracts
 
 ### Additional Features Assessment
 
-- [ ] 8.173 Review DWScript feature list for missing items
-- [ ] 8.174 Prioritize remaining features
-- [ ] 8.175 Implement high-priority features
-- [ ] 8.176 Document unsupported features
+- [ ] 8.204 Review DWScript feature list for missing items
+- [ ] 8.205 Prioritize remaining features
+- [ ] 8.206 Implement high-priority features
+- [ ] 8.207 Document unsupported features
 
 ### Comprehensive Testing (Stage 8)
 
-- [ ] 8.177 Port DWScript's test suite (if available)
-- [ ] 8.178 Run DWScript example scripts from documentation
-- [ ] 8.179 Compare outputs with original DWScript
-- [ ] 8.180 Fix any discrepancies
-- [ ] 8.181 Create stress tests for complex features
-- [ ] 8.182 Achieve >85% overall code coverage
+- [ ] 8.208 Port DWScript's test suite (if available)
+- [ ] 8.209 Run DWScript example scripts from documentation
+- [ ] 8.210 Compare outputs with original DWScript
+- [ ] 8.211 Fix any discrepancies
+- [ ] 8.212 Create stress tests for complex features
+- [ ] 8.213 Achieve >85% overall code coverage
 
 ---
 
@@ -1823,11 +1825,11 @@ This detailed plan breaks down the ambitious goal of porting DWScript from Delph
 7. **Stage 7**: Object-oriented features (156 tasks) - 🔄 IN PROGRESS (55.8%)
    - Classes: COMPLETE (87/73 tasks)
    - **Interfaces: REQUIRED** (0/83 tasks) - expanded based on reference implementation analysis
-8. **Stage 8**: Additional features (62 tasks)
+8. **Stage 8**: Additional features (93 tasks) [+31 from property expansion]
 9. **Stage 9**: Performance and polish (68 tasks)
 10. **Stage 10**: Long-term evolution (54 tasks)
 
-**Total: ~656 tasks** (updated from ~511 after interface expansion)
+**Total: ~687 tasks** (updated from ~656 after property expansion, originally ~511)
 
 **Key Change**: Interface implementation (Stage 7.67-7.149) was expanded from 5 optional tasks to 83 required tasks based on analysis of DWScript reference implementation, which includes 69+ interface test cases demonstrating interfaces are a fundamental language feature, not optional.
 

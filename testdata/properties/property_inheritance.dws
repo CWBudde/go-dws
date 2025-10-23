@@ -1,0 +1,55 @@
+// Test property inheritance through class hierarchy
+
+type TBase = class
+	FValue: Integer;
+	FName: String;
+
+	property Value: Integer read FValue write FValue;
+	property Name: String read FName write FName;
+
+	constructor Create;
+	begin
+		FValue := 0;
+		FName := 'base';
+	end;
+end;
+
+type TDerived = class(TBase)
+	FExtra: String;
+
+	function GetExtra: String;
+	begin
+		Result := FExtra;
+	end;
+
+	procedure SetExtra(value: String);
+	begin
+		FExtra := value;
+	end;
+
+	property Extra: String read GetExtra write SetExtra;
+
+	constructor Create;
+	begin
+		// Note: inherited keyword not yet implemented
+		// Initialize parent fields manually
+		FValue := 0;
+		FName := 'base';
+		FExtra := 'derived';
+	end;
+end;
+
+// Test program
+var obj := TDerived.Create();
+
+// Test inherited properties from TBase
+obj.Value := 42;
+obj.Name := 'test';
+
+// Test derived property
+obj.Extra := 'additional';
+
+// Print all values
+PrintLn('Value: ' + IntToStr(obj.Value));
+PrintLn('Name: ' + obj.Name);
+PrintLn('Extra: ' + obj.Extra);

@@ -1,0 +1,22 @@
+// Ported from: reference/dwscript-original/Test/OperatorOverloadFail/operator_overload6.pas
+// Purpose: Test operator declarations in invalid contexts (inside functions/main block) and duplicate declarations
+// Expected: Syntax error for duplicate operator overload
+
+function Func1(a : TObject; const b : TObject) : Integer;
+begin
+   Result:=0;
+end;
+
+function Func2(a : TObject; b : TObject) : Integer;
+begin
+   operator + (TObject, TObject) : Integer uses Func1;
+
+   Result:=0;
+end;
+
+begin
+   operator + (TObject, TObject) : Integer uses Func2;
+end;
+
+operator + (TObject, TObject) : Integer uses Func2;
+operator + (TObject, TObject) : Integer uses Func2;

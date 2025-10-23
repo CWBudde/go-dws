@@ -1,0 +1,44 @@
+// Test basic property functionality - field-backed and method-backed
+
+type TCounter = class
+	FCount: Integer;
+	FName: String;
+
+	// Method-backed property with getter/setter
+	function GetCount: Integer;
+	begin
+		Result := FCount;
+	end;
+
+	procedure SetCount(value: Integer);
+	begin
+		FCount := value;
+		PrintLn('Count set to ' + IntToStr(value));
+	end;
+
+	property Count: Integer read GetCount write SetCount;
+
+	// Field-backed property
+	property Name: String read FName write FName;
+
+	constructor Create;
+	begin
+		FCount := 0;
+		FName := 'unnamed';
+	end;
+end;
+
+// Test program
+var counter := TCounter.Create();
+
+// Test field-backed property
+counter.Name := 'TestCounter';
+PrintLn('Name: ' + counter.Name);
+
+// Test method-backed property (should trigger PrintLn in setter)
+counter.Count := 5;
+PrintLn('Count: ' + IntToStr(counter.Count));
+
+// Increment via property
+counter.Count := counter.Count + 1;
+PrintLn('Count after increment: ' + IntToStr(counter.Count));

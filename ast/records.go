@@ -23,11 +23,11 @@ import (
 //	  function MethodName: ReturnType;
 //	end;
 type RecordDecl struct {
-	Token      lexer.Token     // The 'type' token
-	Name       *Identifier     // The record type name (e.g., "TPoint", "TVector")
-	Fields     []*FieldDecl    // Field declarations
-	Methods    []*FunctionDecl // Method declarations (optional)
-	Properties []PropertyDecl  // Property declarations (optional, Task 8.56c)
+	Token      lexer.Token            // The 'type' token
+	Name       *Identifier            // The record type name (e.g., "TPoint", "TVector")
+	Fields     []*FieldDecl           // Field declarations
+	Methods    []*FunctionDecl        // Method declarations (optional)
+	Properties []RecordPropertyDecl   // Property declarations (optional, Task 8.56c)
 }
 
 func (rd *RecordDecl) statementNode()       {}
@@ -68,9 +68,10 @@ func (rd *RecordDecl) String() string {
 	return out.String()
 }
 
-// PropertyDecl represents a property declaration in a record.
+// RecordPropertyDecl represents a property declaration in a record.
 // DWScript syntax: property Name: Type read Field write Field;
-type PropertyDecl struct {
+// Note: Renamed from PropertyDecl to avoid conflict with class PropertyDecl
+type RecordPropertyDecl struct {
 	Token      lexer.Token     // The 'property' token
 	Name       *Identifier     // Property name
 	Type       *TypeAnnotation // Property type
@@ -78,7 +79,7 @@ type PropertyDecl struct {
 	WriteField string          // Field or method name for writing
 }
 
-func (pd PropertyDecl) String() string {
+func (pd RecordPropertyDecl) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("property ")

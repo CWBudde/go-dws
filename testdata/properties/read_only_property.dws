@@ -1,0 +1,47 @@
+// Test read-only properties
+
+type TCircle = class
+	FRadius: Float;
+
+	function GetDiameter: Float;
+	begin
+		Result := FRadius * 2.0;
+	end;
+
+	function GetArea: Float;
+	begin
+		Result := 3.14159 * FRadius * FRadius;
+	end;
+
+	// Read-only properties (no write specifier)
+	property Diameter: Float read GetDiameter;
+	property Area: Float read GetArea;
+
+	// Read-write property for radius
+	property Radius: Float read FRadius write FRadius;
+
+	constructor Create;
+	begin
+		FRadius := 0.0;
+	end;
+end;
+
+// Test program
+var circle := TCircle.Create();
+
+// Set radius via property
+circle.Radius := 5.0;
+
+// Read computed properties
+PrintLn('Radius: ' + FloatToStr(circle.Radius));
+PrintLn('Diameter: ' + FloatToStr(circle.Diameter));
+PrintLn('Area: ' + FloatToStr(circle.Area));
+
+// Change radius and verify computed properties update
+circle.Radius := 10.0;
+PrintLn('New Radius: ' + FloatToStr(circle.Radius));
+PrintLn('New Diameter: ' + FloatToStr(circle.Diameter));
+PrintLn('New Area: ' + FloatToStr(circle.Area));
+
+// NOTE: Attempting to write to read-only property should fail at semantic analysis:
+// circle.Diameter := 20.0;  // Error: property 'Diameter' is read-only

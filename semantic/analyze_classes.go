@@ -145,6 +145,12 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		a.analyzeMethodDecl(decl.Constructor, classType)
 	}
 
+	// Analyze properties (Task 8.46-8.51)
+	// Properties are analyzed after methods so they can reference both fields and methods
+	for _, property := range decl.Properties {
+		a.analyzePropertyDecl(property, classType)
+	}
+
 	// Register class operators (Stage 8)
 	a.registerClassOperators(classType, decl)
 

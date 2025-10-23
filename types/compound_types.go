@@ -113,9 +113,10 @@ func NewStaticArrayType(elementType Type, lowBound, highBound int) *ArrayType {
 // RecordType
 // ============================================================================
 
-// PropertyInfo represents a property in a record type (Task 8.53c).
+// RecordPropertyInfo represents a property in a record type (Task 8.53c).
 // Properties provide controlled access to fields.
-type PropertyInfo struct {
+// Note: Renamed from PropertyInfo to avoid conflict with class PropertyInfo
+type RecordPropertyInfo struct {
 	Name       string // Property name
 	Type       Type   // Property type
 	ReadField  string // Field name for reading (can be empty for write-only)
@@ -131,10 +132,10 @@ type PropertyInfo struct {
 //	  Y: Integer;
 //	end;
 type RecordType struct {
-	Name       string                   // Record type name (e.g., "TPoint")
-	Fields     map[string]Type          // Field name -> field type mapping
-	Methods    map[string]*FunctionType // Method name -> method type mapping (Task 8.53b)
-	Properties map[string]*PropertyInfo // Property name -> property info mapping (Task 8.53c)
+	Name       string                         // Record type name (e.g., "TPoint")
+	Fields     map[string]Type                // Field name -> field type mapping
+	Methods    map[string]*FunctionType       // Method name -> method type mapping (Task 8.53b)
+	Properties map[string]*RecordPropertyInfo // Property name -> property info mapping (Task 8.53c)
 }
 
 // String returns a string representation of the record type
@@ -233,7 +234,7 @@ func (rt *RecordType) HasProperty(name string) bool {
 }
 
 // GetProperty returns the property info, or nil if not found (Task 8.53c)
-func (rt *RecordType) GetProperty(name string) *PropertyInfo {
+func (rt *RecordType) GetProperty(name string) *RecordPropertyInfo {
 	return rt.Properties[name]
 }
 
@@ -243,7 +244,7 @@ func NewRecordType(name string, fields map[string]Type) *RecordType {
 		Name:       name,
 		Fields:     fields,
 		Methods:    make(map[string]*FunctionType),
-		Properties: make(map[string]*PropertyInfo),
+		Properties: make(map[string]*RecordPropertyInfo),
 	}
 }
 

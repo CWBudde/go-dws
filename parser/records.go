@@ -26,7 +26,7 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 		Name:       nameIdent,
 		Fields:     []*ast.FieldDecl{},
 		Methods:    []*ast.FunctionDecl{},
-		Properties: []ast.PropertyDecl{},
+		Properties: []ast.RecordPropertyDecl{},
 	}
 
 	// Expect 'record' keyword
@@ -70,7 +70,7 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 
 		// Check for property declarations (Task 8.61d)
 		if p.curTokenIs(lexer.PROPERTY) {
-			prop := p.parsePropertyDeclaration()
+			prop := p.parseRecordPropertyDeclaration()
 			if prop != nil {
 				recordDecl.Properties = append(recordDecl.Properties, *prop)
 			}
@@ -220,10 +220,11 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteral {
 	return recordLit
 }
 
-// parsePropertyDeclaration parses a property declaration.
+// parseRecordPropertyDeclaration parses a record property declaration.
 // Pattern: property Name: Type read FieldName write FieldName;
 // Task 8.61d: Parse record properties
-func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
+// Note: This is different from class properties (parsePropertyDeclaration)
+func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	propToken := p.curToken // 'property' token
 
 	// Expect property name
@@ -246,7 +247,7 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		Name:  p.curToken.Literal,
 	}
 
-	prop := &ast.PropertyDecl{
+	prop := &ast.RecordPropertyDecl{
 		Token:      propToken,
 		Name:       propName,
 		Type:       propType,
