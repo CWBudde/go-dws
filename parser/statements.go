@@ -22,6 +22,10 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseForStatement()
 	case lexer.CASE:
 		return p.parseCaseStatement()
+	case lexer.TRY:
+		return p.parseTryStatement()
+	case lexer.RAISE:
+		return p.parseRaiseStatement()
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		return p.parseFunctionDeclaration()
 	case lexer.OPERATOR:

@@ -52,6 +52,10 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeSetDecl(s)
 	case *ast.ArrayDecl:
 		a.analyzeArrayDecl(s)
+	case *ast.RaiseStatement:
+		a.analyzeRaiseStatement(s)
+	case *ast.TryStatement:
+		a.analyzeTryStatement(s)
 	default:
 		// Unknown statement type - this shouldn't happen
 		a.addError("unknown statement type: %T", stmt)
