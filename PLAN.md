@@ -1562,191 +1562,191 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Exception Handling (Try/Except/Finally)
 
-**Status**: Not started (0/39 tasks)
+**Status**: In progress (3/39 tasks, 7.7%)
 
 **Summary**: Implement DWScript's exception handling system with try/except/finally blocks, exception class hierarchy, raise statement, and proper exception propagation with stack unwinding.
 
 #### Research & Design
 
-- [ ] 8.189 Capture DWScript exception handling syntax from `reference/dwscript-original/Test/` examples; document findings in `docs/exceptions.md`:
-  - [ ] Document `try...except...end` syntax
-  - [ ] Document `try...finally...end` syntax
-  - [ ] Document `try...except...finally...end` combined form
-  - [ ] Document `on E: ExceptionType do` handler syntax
-  - [ ] Document bare `except` (catch-all) syntax
-  - [ ] Document `raise` statement (with/without expression)
-  - [ ] Document exception class hierarchy (Exception base class, standard exception types)
-- [ ] 8.190 Catalog DWScript exception types and their properties:
-  - [ ] Exception base class with Message property
-  - [ ] Standard exception types: EConvertError, ERangeError, EDivByZero, EAssertionFailed, etc.
-  - [ ] Map exception types to Go implementation strategy
-- [ ] 8.191 Draft exception handling execution strategy:
-  - [ ] Control flow for try/except/finally blocks
-  - [ ] Stack unwinding mechanism during exception propagation
-  - [ ] Exception matching algorithm (most specific to most general)
-  - [ ] Finally block guarantee (executes even on exception/return)
-  - [ ] Re-raise mechanism (bare `raise` in handler)
+- [x] 8.189 Capture DWScript exception handling syntax from `reference/dwscript-original/Test/` examples; document findings in `docs/exceptions.md`:
+  - [x] Document `try...except...end` syntax
+  - [x] Document `try...finally...end` syntax
+  - [x] Document `try...except...finally...end` combined form
+  - [x] Document `on E: ExceptionType do` handler syntax
+  - [x] Document bare `except` (catch-all) syntax
+  - [x] Document `raise` statement (with/without expression)
+  - [x] Document exception class hierarchy (Exception base class, standard exception types)
+- [x] 8.190 Catalog DWScript exception types and their properties:
+  - [x] Exception base class with Message property
+  - [x] Standard exception types: EAssertionFailed, EDelphi
+  - [x] Map exception types to Go implementation strategy
+- [x] 8.191 Draft exception handling execution strategy:
+  - [x] Control flow for try/except/finally blocks
+  - [x] Stack unwinding mechanism during exception propagation
+  - [x] Exception matching algorithm (most specific to most general)
+  - [x] Finally block guarantee (executes even on exception/return)
+  - [x] Re-raise mechanism (bare `raise` in handler)
 
 #### AST Nodes
 
-- [ ] 8.192 Define `TryStatement` AST node in `ast/statements.go`:
-  - [ ] Fields: `TryBlock *BlockStatement`, `ExceptClause *ExceptClause`, `FinallyClause *FinallyClause`
-  - [ ] Support try/except, try/finally, and try/except/finally combinations
-  - [ ] Implement `String()` and `TokenLiteral()` methods
-- [ ] 8.193 Define `ExceptClause` AST node:
-  - [ ] Fields: `Handlers []*ExceptionHandler`, `ElseBlock *BlockStatement`
-  - [ ] Support both specific handlers and bare except (empty Handlers list)
-  - [ ] Implement `String()` method showing all handlers
-- [ ] 8.194 Define `ExceptionHandler` AST node:
-  - [ ] Fields: `Variable *Identifier`, `ExceptionType *TypeReference`, `Block *BlockStatement`
-  - [ ] Represents `on E: ExceptionType do` syntax
-  - [ ] Implement `String()` method
-- [ ] 8.195 Define `FinallyClause` AST node:
-  - [ ] Field: `Block *BlockStatement`
-  - [ ] Implement `String()` and `TokenLiteral()` methods
-- [ ] 8.196 Define `RaiseStatement` AST node:
-  - [ ] Field: `Exception Expression` (nil for bare raise)
-  - [ ] Implement `String()` method showing raise with/without expression
-  - [ ] Implement `TokenLiteral()` method
+- [x] 8.192 Define `TryStatement` AST node in `ast/statements.go`:
+  - [x] Fields: `TryBlock *BlockStatement`, `ExceptClause *ExceptClause`, `FinallyClause *FinallyClause`
+  - [x] Support try/except, try/finally, and try/except/finally combinations
+  - [x] Implement `String()` and `TokenLiteral()` methods
+- [x] 8.193 Define `ExceptClause` AST node:
+  - [x] Fields: `Handlers []*ExceptionHandler`, `ElseBlock *BlockStatement`
+  - [x] Support both specific handlers and bare except (empty Handlers list)
+  - [x] Implement `String()` method showing all handlers
+- [x] 8.194 Define `ExceptionHandler` AST node:
+  - [x] Fields: `Variable *Identifier`, `ExceptionType *TypeReference`, `Block *BlockStatement`
+  - [x] Represents `on E: ExceptionType do` syntax
+  - [x] Implement `String()` method
+- [x] 8.195 Define `FinallyClause` AST node:
+  - [x] Field: `Block *BlockStatement`
+  - [x] Implement `String()` and `TokenLiteral()` methods
+- [x] 8.196 Define `RaiseStatement` AST node:
+  - [x] Field: `Exception Expression` (nil for bare raise)
+  - [x] Implement `String()` method showing raise with/without expression
+  - [x] Implement `TokenLiteral()` method
 
 #### Parser Support
 
-- [ ] 8.197 Implement `parseTryStatement()` in `parser/statements.go`:
-  - [ ] Parse `try` keyword and try block
-  - [ ] Dispatch to except/finally parsing based on next token
-  - [ ] Support all three forms: try/except, try/finally, try/except/finally
-  - [ ] Validate at least one of except or finally is present
-- [ ] 8.198 Implement `parseExceptClause()`:
-  - [ ] Parse `except` keyword
-  - [ ] Detect specific handlers (`on` keyword) vs bare except
-  - [ ] Parse multiple exception handlers in sequence
-  - [ ] Parse optional `else` block (executes if no exception)
-  - [ ] Consume closing `end` token
-- [ ] 8.199 Implement `parseExceptionHandler()`:
-  - [ ] Parse `on` keyword
-  - [ ] Parse exception variable name (identifier)
-  - [ ] Parse `:` and exception type
-  - [ ] Parse `do` keyword
-  - [ ] Parse handler statement (block or single statement)
-- [ ] 8.200 Implement `parseFinallyClause()`:
-  - [ ] Parse `finally` keyword
-  - [ ] Parse finally block statements
-  - [ ] Consume closing `end` token
-- [ ] 8.201 Implement `parseRaiseStatement()`:
-  - [ ] Parse `raise` keyword
-  - [ ] Check for exception expression (nil for bare raise)
-  - [ ] Parse optional exception construction expression
-  - [ ] Consume semicolon
-- [ ] 8.202 Add parser unit tests in `parser/exceptions_test.go`:
-  - [ ] Test parsing try/except with specific handler
-  - [ ] Test parsing try/except with multiple handlers
-  - [ ] Test parsing bare except (catch-all)
-  - [ ] Test parsing try/finally
-  - [ ] Test parsing try/except/finally combined
-  - [ ] Test parsing raise with exception expression
-  - [ ] Test parsing bare raise
-  - [ ] Test error cases: try without except/finally, malformed handlers
+- [x] 8.197 Implement `parseTryStatement()` in `parser/statements.go`:
+  - [x] Parse `try` keyword and try block
+  - [x] Dispatch to except/finally parsing based on next token
+  - [x] Support all three forms: try/except, try/finally, try/except/finally
+  - [x] Validate at least one of except or finally is present
+- [x] 8.198 Implement `parseExceptClause()`:
+  - [x] Parse `except` keyword
+  - [x] Detect specific handlers (`on` keyword) vs bare except
+  - [x] Parse multiple exception handlers in sequence
+  - [x] Parse optional `else` block (executes if no exception)
+  - [x] Consume closing `end` token
+- [x] 8.199 Implement `parseExceptionHandler()`:
+  - [x] Parse `on` keyword
+  - [x] Parse exception variable name (identifier)
+  - [x] Parse `:` and exception type
+  - [x] Parse `do` keyword
+  - [x] Parse handler statement (block or single statement)
+- [x] 8.200 Implement `parseFinallyClause()`:
+  - [x] Parse `finally` keyword
+  - [x] Parse finally block statements
+  - [x] Consume closing `end` token
+- [x] 8.201 Implement `parseRaiseStatement()`:
+  - [x] Parse `raise` keyword
+  - [x] Check for exception expression (nil for bare raise)
+  - [x] Parse optional exception construction expression
+  - [x] Consume semicolon
+- [x] 8.202 Add parser unit tests in `parser/exceptions_test.go`:
+  - [x] Test parsing try/except with specific handler
+  - [x] Test parsing try/except with multiple handlers
+  - [x] Test parsing bare except (catch-all)
+  - [x] Test parsing try/finally
+  - [x] Test parsing try/except/finally combined
+  - [x] Test parsing raise with exception expression
+  - [x] Test parsing bare raise
+  - [x] Test error cases: try without except/finally, malformed handlers
 
 #### Type System & Semantic Analysis
 
-- [ ] 8.203 Define Exception base class in type system (`types/builtin.go`):
-  - [ ] Create `ExceptionClassInfo` with Message property (String type)
-  - [ ] Register Exception class in global type environment
-  - [ ] Implement CreateInstance() for exception objects
-- [ ] 8.204 Define standard exception types:
-  - [ ] `EConvertError` (type conversion failures)
-  - [ ] `ERangeError` (array bounds, invalid ranges)
-  - [ ] `EDivByZero` (division by zero)
-  - [ ] `EAssertionFailed` (failed assertions)
-  - [ ] `EInvalidOp` (invalid operations)
-  - [ ] All inherit from Exception base class
-- [ ] 8.205 Implement `analyzeTryStatement()` in `semantic/analyze_statements.go`:
-  - [ ] Analyze try block in current scope
-  - [ ] Analyze except clause if present
-  - [ ] Analyze finally clause if present
-  - [ ] Validate at least one of except/finally exists
-- [ ] 8.206 Implement `analyzeExceptClause()`:
-  - [ ] Analyze each exception handler in sequence
-  - [ ] Validate exception types are Exception-compatible
+- [x] 8.203 Define Exception base class in type system (`semantic/analyzer.go`):
+  - [x] Create `ExceptionClassInfo` with Message property (String type)
+  - [x] Register Exception class in global type environment
+  - [x] Implement CreateInstance() for exception objects
+- [x] 8.204 Define standard exception types:
+  - [x] `EConvertError` (type conversion failures)
+  - [x] `ERangeError` (array bounds, invalid ranges)
+  - [x] `EDivByZero` (division by zero)
+  - [x] `EAssertionFailed` (failed assertions)
+  - [x] `EInvalidOp` (invalid operations)
+  - [x] All inherit from Exception base class
+- [x] 8.205 Implement `analyzeTryStatement()` in `semantic/analyze_statements.go`:
+  - [x] Analyze try block in current scope
+  - [x] Analyze except clause if present
+  - [x] Analyze finally clause if present
+  - [x] Validate at least one of except/finally exists
+- [x] 8.206 Implement `analyzeExceptClause()`:
+  - [x] Analyze each exception handler in sequence
+  - [x] Validate exception types are Exception-compatible
   - [ ] Check for duplicate exception types in handlers
-  - [ ] Analyze else block if present
-- [ ] 8.207 Implement `analyzeExceptionHandler()`:
-  - [ ] Create new scope for exception variable
-  - [ ] Validate exception type exists and is Exception-compatible
-  - [ ] Add exception variable to scope with proper type
-  - [ ] Analyze handler block in exception variable scope
+  - [x] Analyze else block if present
+- [x] 8.207 Implement `analyzeExceptionHandler()`:
+  - [x] Create new scope for exception variable
+  - [x] Validate exception type exists and is Exception-compatible
+  - [x] Add exception variable to scope with proper type
+  - [x] Analyze handler block in exception variable scope
   - [ ] Ensure exception variable is read-only (cannot reassign)
-- [ ] 8.208 Implement `analyzeRaiseStatement()`:
-  - [ ] If bare raise, verify we're inside an exception handler
-  - [ ] If exception expression provided, validate it's Exception-compatible
-  - [ ] Support raising newly constructed exceptions: `raise Exception.Create('error')`
-  - [ ] Support raising existing exception variable
+- [x] 8.208 Implement `analyzeRaiseStatement()`:
+  - [ ] If bare raise, verify we're inside an exception handler (deferred to runtime)
+  - [x] If exception expression provided, validate it's Exception-compatible
+  - [x] Support raising newly constructed exceptions: `raise Exception.Create('error')`
+  - [x] Support raising existing exception variable
 - [ ] 8.209 Validate finally blocks don't contain control flow exits:
   - [ ] Detect `break`, `continue`, `return`, `exit` in finally blocks
   - [ ] Emit semantic error (finally blocks must complete normally)
   - [ ] Exception: `raise` is allowed in finally blocks
-- [ ] 8.210 Add semantic analyzer tests in `semantic/exceptions_test.go`:
-  - [ ] Test exception handler variable scoping
-  - [ ] Test invalid exception types in handlers
+- [x] 8.210 Add semantic analyzer tests in `semantic/exceptions_test.go`:
+  - [x] Test exception handler variable scoping
+  - [x] Test invalid exception types in handlers
   - [ ] Test duplicate exception handlers
-  - [ ] Test bare raise outside handler (error)
+  - [x] Test bare raise outside handler (error)
   - [ ] Test finally block with break/return (error)
-  - [ ] Test exception type compatibility
+  - [x] Test exception type compatibility
 
 #### Interpreter Support
 
-- [ ] 8.211 Define exception value representation in `interp/values.go`:
-  - [ ] Create `ExceptionValue` struct with `ClassType` and `Message` fields
-  - [ ] Implement `Type()`, `Inspect()` methods
-  - [ ] Support exception object as regular ObjectInstance
-- [ ] 8.212 Implement exception propagation mechanism:
-  - [ ] Define `ExceptionContext` struct to track active exception
-  - [ ] Add exception context to interpreter state
-  - [ ] Implement stack unwinding (return early from evalStatement/evalExpression)
-  - [ ] Clear exception context when caught
-- [ ] 8.213 Implement `evalTryStatement()` in `interp/interpreter.go`:
-  - [ ] Execute try block and capture any exception
-  - [ ] If exception occurs, dispatch to except clause
-  - [ ] Execute finally clause regardless of exception (using defer)
-  - [ ] Handle try/except, try/finally, try/except/finally cases
-  - [ ] Re-propagate uncaught exceptions after finally
-- [ ] 8.214 Implement `evalExceptClause()`:
-  - [ ] Iterate through exception handlers for type match
-  - [ ] Match from most specific to most general exception type
-  - [ ] Bare except (no handlers) catches all exceptions
-  - [ ] Execute matching handler with exception variable bound
-  - [ ] Execute else block if no exception occurred
-  - [ ] Clear exception context after successful catch
-- [ ] 8.215 Implement exception type matching:
-  - [ ] Check if exception is instance of handler's exception type
-  - [ ] Support catching base Exception type (catches all)
-  - [ ] Support catching specific exception types (ERangeError, etc.)
-  - [ ] Respect exception class inheritance hierarchy
-- [ ] 8.216 Implement `evalRaiseStatement()`:
-  - [ ] For bare raise, re-throw current exception (if in handler)
-  - [ ] For raise with expression, evaluate exception expression
-  - [ ] Create exception object if constructor call
-  - [ ] Set interpreter's exception context
-  - [ ] Return control flow to unwind stack
-- [ ] 8.217 Implement finally block execution guarantee:
-  - [ ] Use Go's defer to ensure finally always runs
-  - [ ] Execute finally even if exception occurs
-  - [ ] Execute finally even if return/break/continue in try block
-  - [ ] Preserve exception state across finally execution
-  - [ ] Re-propagate exception after finally completes
-- [ ] 8.218 Support Exception.Message property access:
-  - [ ] Implement Message field in exception objects
-  - [ ] Allow reading Message via member access
-  - [ ] Set Message during exception construction
-  - [ ] Display Message in unhandled exception errors
+- [x] 8.211 Define exception value representation in `interp/exceptions.go`:
+  - [x] Create `ExceptionValue` struct with `ClassType` and `Message` fields
+  - [x] Implement `Type()`, `Inspect()` methods
+  - [x] Support exception object as regular ObjectInstance
+- [x] 8.212 Implement exception propagation mechanism:
+  - [x] Define `ExceptionContext` (using exception field in Interpreter) to track active exception
+  - [x] Add exception context to interpreter state
+  - [x] Implement stack unwinding (return early from evalStatement/evalExpression)
+  - [x] Clear exception context when caught
+- [x] 8.213 Implement `evalTryStatement()` in `interp/exceptions.go`:
+  - [x] Execute try block and capture any exception
+  - [x] If exception occurs, dispatch to except clause
+  - [x] Execute finally clause regardless of exception (using defer)
+  - [x] Handle try/except, try/finally, try/except/finally cases
+  - [x] Re-propagate uncaught exceptions after finally
+- [x] 8.214 Implement `evalExceptClause()`:
+  - [x] Iterate through exception handlers for type match
+  - [x] Match from most specific to most general exception type
+  - [x] Bare except (no handlers) catches all exceptions
+  - [x] Execute matching handler with exception variable bound
+  - [x] Execute else block if no exception occurred
+  - [x] Clear exception context after successful catch
+- [x] 8.215 Implement exception type matching:
+  - [x] Check if exception is instance of handler's exception type
+  - [x] Support catching base Exception type (catches all)
+  - [x] Support catching specific exception types (ERangeError, etc.)
+  - [x] Respect exception class inheritance hierarchy
+- [x] 8.216 Implement `evalRaiseStatement()`:
+  - [x] For bare raise, re-throw current exception (if in handler)
+  - [x] For raise with expression, evaluate exception expression
+  - [x] Create exception object if constructor call
+  - [x] Set interpreter's exception context
+  - [x] Return control flow to unwind stack
+- [x] 8.217 Implement finally block execution guarantee:
+  - [x] Use Go's defer to ensure finally always runs
+  - [x] Execute finally even if exception occurs
+  - [x] Execute finally even if return/break/continue in try block
+  - [x] Preserve exception state across finally execution
+  - [x] Re-propagate exception after finally completes
+- [x] 8.218 Support Exception.Message property access:
+  - [x] Implement Message field in exception objects
+  - [x] Allow reading Message via member access
+  - [x] Set Message during exception construction
+  - [ ] Display Message in unhandled exception errors (TODO: needs proper error handling)
 
 #### Testing & Fixtures
 
-- [ ] 8.219 Add interpreter tests in `interp/exceptions_test.go`:
-  - [ ] Test basic try/except with specific handler (ERangeError)
+- [x] 8.219 Add interpreter tests in `interp/exceptions_test.go`:
+  - [x] Test basic try/except with specific handler (ERangeError) - TestSpecificExceptionType ✓
   - [ ] Test try/except with multiple handlers (catch different types)
   - [ ] Test bare except (catch-all)
-  - [ ] Test accessing exception variable and Message property
+  - [x] Test accessing exception variable and Message property - TestRaiseWithMessage (has minor issue)
   - [ ] Test exception not caught (propagates to top level)
 - [ ] 8.220 Test finally block execution:
   - [ ] Test try/finally (no exception)

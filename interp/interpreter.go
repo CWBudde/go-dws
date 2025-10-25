@@ -15,15 +15,17 @@ import (
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 type Interpreter struct {
-	env             *Environment                 // The current execution environment
-	output          io.Writer                    // Where to write output (e.g., from PrintLn)
-	functions       map[string]*ast.FunctionDecl // Registry of user-defined functions
-	classes         map[string]*ClassInfo        // Registry of class definitions
-	interfaces      map[string]*InterfaceInfo    // Registry of interface definitions (Task 7.118)
-	currentNode     ast.Node                     // Current AST node being evaluated (for error reporting)
-	globalOperators *runtimeOperatorRegistry     // Global operator overloads (Stage 8)
-	conversions     *runtimeConversionRegistry   // Global conversions
-	rand            *rand.Rand                   // Random number generator for Random() and Randomize()
+	env              *Environment                 // The current execution environment
+	output           io.Writer                    // Where to write output (e.g., from PrintLn)
+	functions        map[string]*ast.FunctionDecl // Registry of user-defined functions
+	classes          map[string]*ClassInfo        // Registry of class definitions
+	interfaces       map[string]*InterfaceInfo    // Registry of interface definitions (Task 7.118)
+	currentNode      ast.Node                     // Current AST node being evaluated (for error reporting)
+	globalOperators  *runtimeOperatorRegistry     // Global operator overloads (Stage 8)
+	conversions      *runtimeConversionRegistry   // Global conversions
+	rand             *rand.Rand                   // Random number generator for Random() and Randomize()
+	exception        *ExceptionValue              // Current active exception (nil if none) (Task 8.212)
+	handlerException *ExceptionValue              // Exception being handled (for bare raise)
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -33,7 +35,7 @@ func New(output io.Writer) *Interpreter {
 	// Initialize random number generator with a default seed
 	// Randomize() can be called to re-seed with current time
 	source := rand.NewSource(1)
-	return &Interpreter{
+	interp := &Interpreter{
 		env:             env,
 		output:          output,
 		functions:       make(map[string]*ast.FunctionDecl),
@@ -43,6 +45,11 @@ func New(output io.Writer) *Interpreter {
 		conversions:     newRuntimeConversionRegistry(),
 		rand:            rand.New(source),
 	}
+
+	// Register built-in exception classes (Task 8.203-8.204)
+	interp.registerBuiltinExceptions()
+
+	return interp
 }
 
 // Eval evaluates an AST node and returns its value.
@@ -83,6 +90,12 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	case *ast.CaseStatement:
 		return i.evalCaseStatement(node)
+
+	case *ast.TryStatement:
+		return i.evalTryStatement(node)
+
+	case *ast.RaiseStatement:
+		return i.evalRaiseStatement(node)
 
 	case *ast.FunctionDecl:
 		return i.evalFunctionDeclaration(node)
@@ -562,6 +575,11 @@ func (i *Interpreter) evalBlockStatement(block *ast.BlockStatement) Value {
 
 		if isError(result) {
 			return result
+		}
+
+		// Check if exception is active - if so, unwind the stack (Task 8.212)
+		if i.exception != nil {
+			return nil
 		}
 	}
 
@@ -2861,6 +2879,24 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 			defaultValue = &NilValue{}
 		}
 		obj.SetField(fieldName, defaultValue)
+	}
+
+	// Special handling for Exception.Create (Task 8.218)
+	// Exception constructors are built-in and take a message parameter
+	// NewExpression always implies Create constructor in DWScript
+	if i.isExceptionClass(classInfo) && len(ne.Arguments) == 1 {
+		// Evaluate the message argument
+		msgVal := i.Eval(ne.Arguments[0])
+		if isError(msgVal) {
+			return msgVal
+		}
+		// Set the Message field
+		if strVal, ok := msgVal.(*StringValue); ok {
+			obj.SetField("Message", strVal)
+		} else {
+			obj.SetField("Message", &StringValue{Value: msgVal.String()})
+		}
+		return obj
 	}
 
 	// Call constructor if present

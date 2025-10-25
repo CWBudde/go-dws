@@ -48,7 +48,7 @@ type Analyzer struct {
 
 // NewAnalyzer creates a new semantic analyzer
 func NewAnalyzer() *Analyzer {
-	return &Analyzer{
+	a := &Analyzer{
 		symbols:            NewSymbolTable(),
 		errors:             make([]string, 0),
 		classes:            make(map[string]*types.ClassType),
@@ -59,6 +59,81 @@ func NewAnalyzer() *Analyzer {
 		arrays:             make(map[string]*types.ArrayType),
 		globalOperators:    types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
+	}
+
+	// Task 8.203: Register built-in Exception base class
+	a.registerBuiltinExceptionTypes()
+
+	return a
+}
+
+// registerBuiltinExceptionTypes registers Exception and standard exception types
+// Task 8.203-8.204
+func (a *Analyzer) registerBuiltinExceptionTypes() {
+	// Task 8.203: Define Exception base class
+	exceptionClass := &types.ClassType{
+		Name:             "Exception",
+		Parent:           nil, // Root exception class
+		Fields:           make(map[string]types.Type),
+		Methods:          make(map[string]*types.FunctionType),
+		FieldVisibility:  make(map[string]int),
+		MethodVisibility: make(map[string]int),
+		VirtualMethods:   make(map[string]bool),
+		OverrideMethods:  make(map[string]bool),
+		AbstractMethods:  make(map[string]bool),
+		Constructors:     make(map[string]*types.FunctionType),
+		Interfaces:       make([]*types.InterfaceType, 0),
+		Properties:       make(map[string]*types.PropertyInfo),
+		ClassMethodFlags: make(map[string]bool),
+	}
+
+	// Add Message field to Exception
+	exceptionClass.Fields["Message"] = types.STRING
+
+	// Add Create constructor
+	exceptionClass.Constructors["Create"] = &types.FunctionType{
+		Parameters: []types.Type{types.STRING}, // message parameter
+		ReturnType: exceptionClass,
+	}
+
+	a.classes["Exception"] = exceptionClass
+
+	// Task 8.204: Define standard exception types
+	standardExceptions := []string{
+		"EConvertError",   // Type conversion failures
+		"ERangeError",     // Array bounds, invalid ranges
+		"EDivByZero",      // Division by zero
+		"EAssertionFailed", // Failed assertions
+		"EInvalidOp",      // Invalid operations
+	}
+
+	for _, excName := range standardExceptions {
+		excClass := &types.ClassType{
+			Name:             excName,
+			Parent:           exceptionClass, // All inherit from Exception
+			Fields:           make(map[string]types.Type),
+			Methods:          make(map[string]*types.FunctionType),
+			FieldVisibility:  make(map[string]int),
+			MethodVisibility: make(map[string]int),
+			VirtualMethods:   make(map[string]bool),
+			OverrideMethods:  make(map[string]bool),
+			AbstractMethods:  make(map[string]bool),
+			Constructors:     make(map[string]*types.FunctionType),
+			Interfaces:       make([]*types.InterfaceType, 0),
+			Properties:       make(map[string]*types.PropertyInfo),
+			ClassMethodFlags: make(map[string]bool),
+		}
+
+		// Inherit Message field from Exception
+		excClass.Fields["Message"] = types.STRING
+
+		// Inherit Create constructor
+		excClass.Constructors["Create"] = &types.FunctionType{
+			Parameters: []types.Type{types.STRING},
+			ReturnType: excClass,
+		}
+
+		a.classes[excName] = excClass
 	}
 }
 
