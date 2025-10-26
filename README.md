@@ -35,15 +35,6 @@ go-dws is a faithful implementation of the DWScript scripting language in Go, pr
 - ✅ **Type System**: Strong static typing with semantic analysis
 - ✅ **Built-in Functions**: PrintLn, Print, Length, and more
 
-**Completed Stages:**
-- Stage 1: Lexer ✅
-- Stage 2: Parser (expressions) ✅
-- Stage 3: Statements and execution ✅
-- Stage 4: Control flow ✅
-- Stage 5: Functions and scope ✅
-- Stage 6: Type checking ✅
-- Stage 7: Classes and OOP ✅ (76.3% - all features complete)
-
 See [PLAN.md](PLAN.md) for the complete implementation roadmap and current progress.
 
 ## Installation
@@ -458,7 +449,6 @@ This project is a port/reimplementation and will respect the original DWScript l
 ## Contact
 
 - GitHub Issues: [Report bugs or request features](https://github.com/cwbudde/go-dws/issues)
-- Organization: [MeKo-Tech](https://github.com/MeKo-Tech)
 
 ---
 

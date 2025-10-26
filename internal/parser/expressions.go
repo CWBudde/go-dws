@@ -269,3 +269,36 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	// This avoids double parentheses in the string representation
 	return exp
 }
+
+// parseNewExpression parses a new expression: new ClassName(args)
+// Creates a NewExpression AST node
+func (p *Parser) parseNewExpression() ast.Expression {
+	newToken := p.curToken // Save the 'new' token position
+
+	// Expect a type name (identifier)
+	if !p.expectPeek(lexer.IDENT) {
+		return nil
+	}
+
+	className := &ast.Identifier{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
+	}
+
+	// Create NewExpression
+	newExpr := &ast.NewExpression{
+		Token:     newToken,
+		ClassName: className,
+		Arguments: []ast.Expression{},
+	}
+
+	// Expect opening parenthesis
+	if !p.expectPeek(lexer.LPAREN) {
+		return nil
+	}
+
+	// Parse arguments
+	newExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
+
+	return newExpr
+}
