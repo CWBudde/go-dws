@@ -1,0 +1,38 @@
+=== Exception Propagation Tests ===
+
+Test 1: Exception propagates from function
+PASS: Exception propagated from function: from function
+
+Test 2: Exception propagates through multiple levels
+Level1: calling Level2
+Level2: calling Level3
+Level3: raising exception
+PASS: Exception propagated through 3 levels
+
+Test 3: Finally blocks execute during propagation
+Propagation order: CABDE
+PASS: Finally blocks executed in correct order during propagation
+
+Test 4: Exception caught at intermediate level
+Caught at middle level: specific
+Middle level continues normally
+PASS: Caller continues after exception handled at middle level
+
+Test 5: Selective exception catching in call stack
+PASS: Type B propagated to outer handler
+
+Test 6: Stack unwinding with multiple finally blocks
+Finally in DeepFunction
+Finally in MiddleFunction
+Finally in TopFunction
+Exception caught after 3 finally blocks
+PASS: All finally blocks executed during stack unwinding
+
+Test 7: Exception in constructor propagates
+PASS: Exception from constructor propagated: constructor failed
+
+Test 8: Exception in recursive function
+Recursion depth reached: 6
+PASS: Exception propagated through recursive calls
+
+=== All Exception Propagation Tests Complete ===

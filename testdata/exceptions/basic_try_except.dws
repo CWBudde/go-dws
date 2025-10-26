@@ -1,0 +1,118 @@
+{
+Comprehensive test for basic try-except blocks.
+Tests: exception catching, type matching, handler selection, unhandled exceptions.
+}
+
+PrintLn('=== Basic Try-Except Tests ===');
+PrintLn('');
+
+// Test 1: Basic exception catching
+PrintLn('Test 1: Basic exception catching');
+try
+  raise Exception.Create('test exception');
+  PrintLn('FAIL: Should not reach here');
+except
+  on E: Exception do
+    PrintLn('PASS: Caught exception: ' + E.Message);
+end;
+PrintLn('');
+
+// Test 2: Specific exception type matching
+PrintLn('Test 2: Specific exception type matching');
+type ECustom = class(Exception)
+end;
+
+try
+  raise ECustom.Create('custom exception');
+  PrintLn('FAIL: Should not reach here');
+except
+  on E: ECustom do
+    PrintLn('PASS: Caught ECustom: ' + E.Message);
+end;
+PrintLn('');
+
+// Test 3: Multiple exception handlers - first match wins
+PrintLn('Test 3: Multiple handlers - first match');
+try
+  raise ECustom.Create('test');
+except
+  on E: ECustom do
+    PrintLn('PASS: First handler matched');
+  on E: Exception do
+    PrintLn('FAIL: Should not reach second handler');
+end;
+PrintLn('');
+
+// Test 4: Exception type inheritance - base catches derived
+PrintLn('Test 4: Base class catches derived exception');
+try
+  raise ECustom.Create('derived exception');
+except
+  on E: Exception do
+    PrintLn('PASS: Base Exception caught derived ECustom');
+end;
+PrintLn('');
+
+// Test 5: Wrong type doesn't catch
+PrintLn('Test 5: Wrong exception type does not catch');
+type EOther = class(Exception)
+end;
+
+var caught := False;
+try
+  try
+    raise ECustom.Create('custom');
+  except
+    on E: EOther do
+      PrintLn('FAIL: Should not catch wrong type');
+  end;
+except
+  on E: Exception do begin
+    caught := True;
+    PrintLn('PASS: Wrong type did not catch, propagated to outer handler');
+  end;
+end;
+PrintLn('');
+
+// Test 6: No exception - except block not executed
+PrintLn('Test 6: No exception - except block skipped');
+var noExceptionFlag := True;
+try
+  PrintLn('Executing try block normally');
+  noExceptionFlag := True;
+except
+  on E: Exception do begin
+    noExceptionFlag := False;
+    PrintLn('FAIL: Should not execute except block');
+  end;
+end;
+if noExceptionFlag then
+  PrintLn('PASS: Except block was not executed');
+PrintLn('');
+
+// Test 7: Code after try-except continues
+PrintLn('Test 7: Execution continues after handled exception');
+try
+  raise Exception.Create('handled');
+except
+  on E: Exception do
+    PrintLn('Exception handled');
+end;
+PrintLn('PASS: Execution continued after try-except');
+PrintLn('');
+
+// Test 8: Exception object properties
+PrintLn('Test 8: Exception object properties');
+try
+  raise Exception.Create('test message');
+except
+  on E: Exception do begin
+    PrintLn('Message: ' + E.Message);
+    PrintLn('ClassName: ' + E.ClassName);
+    if (E.Message = 'test message') and (E.ClassName = 'Exception') then
+      PrintLn('PASS: Exception properties correct');
+  end;
+end;
+PrintLn('');
+
+PrintLn('=== All Basic Try-Except Tests Complete ===');

@@ -1,0 +1,16 @@
+{
+Demo: Exception variable scoping (variable shadowing in exception handlers).
+Source: reference/dwscript-original/Test/SimpleScripts/exception_scoping.pas
+}
+
+var e : string;
+
+try
+	PrintLn('ok');
+except
+   on e : EDelphi do begin
+		PrintLn(EDelphi(e).ClassName);
+	end;
+   on e : Exception do
+		PrintLn(e.ClassName);
+end;

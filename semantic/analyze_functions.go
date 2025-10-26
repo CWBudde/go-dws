@@ -90,6 +90,12 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 
 // analyzeReturn analyzes a return statement
 func (a *Analyzer) analyzeReturn(stmt *ast.ReturnStatement) {
+	// Check if return statement is inside a finally block (Task 8.209)
+	if a.inFinallyBlock {
+		a.addError("return statement not allowed in finally block at %s", stmt.Token.Pos.String())
+		return
+	}
+
 	if a.currentFunction == nil {
 		a.addError("return statement outside of function at %s", stmt.Token.Pos.String())
 		return

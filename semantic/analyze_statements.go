@@ -34,6 +34,12 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeFor(s)
 	case *ast.CaseStatement:
 		a.analyzeCase(s)
+	case *ast.BreakStatement:
+		a.analyzeBreakStatement(s)
+	case *ast.ContinueStatement:
+		a.analyzeContinueStatement(s)
+	case *ast.ExitStatement:
+		a.analyzeExitStatement(s)
 	case *ast.FunctionDecl:
 		a.analyzeFunctionDecl(s)
 	case *ast.ReturnStatement:
@@ -156,6 +162,12 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			return
 		}
 
+		// Check if variable is read-only (Task 8.207)
+		if sym.ReadOnly {
+			a.addError("cannot assign to read-only variable '%s' at %s", target.Value, stmt.Token.Pos.String())
+			return
+		}
+
 		// Check type compatibility
 		if !a.canAssign(valueType, sym.Type) {
 			a.addError("cannot assign %s to %s at %s",
@@ -235,12 +247,30 @@ func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
 			condType.String(), stmt.Token.Pos.String())
 	}
 
+	// Task 8.235g: Set loop context before analyzing body
+	oldInLoop := a.inLoop
+	a.inLoop = true
+	a.loopDepth++
+	defer func() {
+		a.inLoop = oldInLoop
+		a.loopDepth--
+	}()
+
 	// Analyze body
 	a.analyzeStatement(stmt.Body)
 }
 
 // analyzeRepeat analyzes a repeat-until statement
 func (a *Analyzer) analyzeRepeat(stmt *ast.RepeatStatement) {
+	// Task 8.235g: Set loop context before analyzing body
+	oldInLoop := a.inLoop
+	a.inLoop = true
+	a.loopDepth++
+	defer func() {
+		a.inLoop = oldInLoop
+		a.loopDepth--
+	}()
+
 	// Analyze body
 	a.analyzeStatement(stmt.Body)
 
@@ -280,6 +310,15 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 	}
 	a.symbols.Define(stmt.Variable.Value, loopVarType)
 
+	// Task 8.235g: Set loop context before analyzing body
+	oldInLoop := a.inLoop
+	a.inLoop = true
+	a.loopDepth++
+	defer func() {
+		a.inLoop = oldInLoop
+		a.loopDepth--
+	}()
+
 	// Analyze body
 	a.analyzeStatement(stmt.Body)
 }
@@ -308,5 +347,83 @@ func (a *Analyzer) analyzeCase(stmt *ast.CaseStatement) {
 	// Analyze else branch if present
 	if stmt.Else != nil {
 		a.analyzeStatement(stmt.Else)
+	}
+}
+
+// analyzeBreakStatement analyzes a break statement (Task 8.235d)
+func (a *Analyzer) analyzeBreakStatement(stmt *ast.BreakStatement) {
+	// Task 8.235h: Check if we're inside a finally block
+	if a.inFinallyBlock {
+		a.addError("break statement not allowed in finally block at %s", stmt.Token.Pos.String())
+		return
+	}
+
+	// Check if we're inside a loop
+	if !a.inLoop {
+		a.addError("break statement not allowed outside loop at %s", stmt.Token.Pos.String())
+		return
+	}
+	// Valid break statement - no further analysis needed
+}
+
+// analyzeContinueStatement analyzes a continue statement (Task 8.235e)
+func (a *Analyzer) analyzeContinueStatement(stmt *ast.ContinueStatement) {
+	// Task 8.235h: Check if we're inside a finally block
+	if a.inFinallyBlock {
+		a.addError("continue statement not allowed in finally block at %s", stmt.Token.Pos.String())
+		return
+	}
+
+	// Check if we're inside a loop
+	if !a.inLoop {
+		a.addError("continue statement not allowed outside loop at %s", stmt.Token.Pos.String())
+		return
+	}
+	// Valid continue statement - no further analysis needed
+}
+
+// analyzeExitStatement analyzes an exit statement (Task 8.235f)
+func (a *Analyzer) analyzeExitStatement(stmt *ast.ExitStatement) {
+	// Task 8.235h: Check if we're inside a finally block
+	if a.inFinallyBlock {
+		a.addError("exit statement not allowed in finally block at %s", stmt.Token.Pos.String())
+		return
+	}
+
+	// If we're at the top level (not in a function), only allow exit without a value
+	if a.currentFunction == nil {
+		if stmt.Value != nil {
+			a.addError("exit with value not allowed at program level at %s", stmt.Token.Pos.String())
+		}
+		// exit without value is allowed at program level (exits the program)
+		return
+	}
+
+	// If exit has a return value, analyze it
+	if stmt.Value != nil {
+		valueType := a.analyzeExpression(stmt.Value)
+
+		// Check that the return value type matches the function's return type
+		if a.currentFunction.ReturnType != nil {
+			expectedType, err := a.resolveType(a.currentFunction.ReturnType.Name)
+			if err != nil {
+				a.addError("cannot resolve function return type: %v at %s", err, stmt.Token.Pos.String())
+				return
+			}
+			if expectedType != nil && valueType != nil && !a.canAssign(valueType, expectedType) {
+				a.addError("exit value type %s incompatible with function return type %s at %s",
+					valueType.String(), expectedType.String(), stmt.Token.Pos.String())
+			}
+		} else {
+			// Procedure (no return type) - exit should not have a value
+			a.addError("exit with value not allowed in procedure at %s", stmt.Token.Pos.String())
+		}
+	} else {
+		// Exit without value - check if function expects a return value
+		if a.currentFunction.ReturnType != nil {
+			// Function expects a return value but exit doesn't provide one
+			// This is actually allowed in DWScript - it will return a default value
+			// So we don't emit an error here
+		}
 	}
 }

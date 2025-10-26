@@ -253,6 +253,69 @@ func TestForDirectionString(t *testing.T) {
 	}
 }
 
+func TestBreakStatementString(t *testing.T) {
+	stmt := &BreakStatement{
+		Token: lexer.Token{Type: lexer.BREAK, Literal: "break"},
+	}
+
+	expected := "break;"
+	if got := stmt.String(); got != expected {
+		t.Errorf("String() = %q, want %q", got, expected)
+	}
+}
+
+func TestContinueStatementString(t *testing.T) {
+	stmt := &ContinueStatement{
+		Token: lexer.Token{Type: lexer.CONTINUE, Literal: "continue"},
+	}
+
+	expected := "continue;"
+	if got := stmt.String(); got != expected {
+		t.Errorf("String() = %q, want %q", got, expected)
+	}
+}
+
+func TestExitStatementString(t *testing.T) {
+	tests := []struct {
+		name     string
+		stmt     *ExitStatement
+		expected string
+	}{
+		{
+			name: "exit without value",
+			stmt: &ExitStatement{
+				Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
+				Value: nil,
+			},
+			expected: "exit;",
+		},
+		{
+			name: "exit with integer value",
+			stmt: &ExitStatement{
+				Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
+				Value: &IntegerLiteral{Token: lexer.Token{Literal: "-1"}, Value: -1},
+			},
+			expected: "exit(-1);",
+		},
+		{
+			name: "exit with identifier value",
+			stmt: &ExitStatement{
+				Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
+				Value: &Identifier{Value: "result"},
+			},
+			expected: "exit(result);",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.stmt.String(); got != tt.expected {
+				t.Errorf("String() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestControlFlowNodesImplementInterfaces(t *testing.T) {
 	// Ensure all control flow nodes implement the Statement interface
 	var _ Statement = (*IfStatement)(nil)
@@ -260,6 +323,9 @@ func TestControlFlowNodesImplementInterfaces(t *testing.T) {
 	var _ Statement = (*RepeatStatement)(nil)
 	var _ Statement = (*ForStatement)(nil)
 	var _ Statement = (*CaseStatement)(nil)
+	var _ Statement = (*BreakStatement)(nil)
+	var _ Statement = (*ContinueStatement)(nil)
+	var _ Statement = (*ExitStatement)(nil)
 }
 
 // Helper function to check if a string contains a substring

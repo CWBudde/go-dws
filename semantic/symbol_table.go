@@ -4,8 +4,9 @@ import "github.com/cwbudde/go-dws/types"
 
 // Symbol represents a symbol in the symbol table (variable or function)
 type Symbol struct {
-	Name string
-	Type types.Type
+	Name     string
+	Type     types.Type
+	ReadOnly bool // True for const variables and exception handler variables (Task 8.207)
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.
@@ -37,16 +38,27 @@ func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
 // Define defines a new variable symbol in the current scope
 func (st *SymbolTable) Define(name string, typ types.Type) {
 	st.symbols[name] = &Symbol{
-		Name: name,
-		Type: typ,
+		Name:     name,
+		Type:     typ,
+		ReadOnly: false,
+	}
+}
+
+// DefineReadOnly defines a new read-only variable symbol in the current scope (Task 8.207)
+func (st *SymbolTable) DefineReadOnly(name string, typ types.Type) {
+	st.symbols[name] = &Symbol{
+		Name:     name,
+		Type:     typ,
+		ReadOnly: true,
 	}
 }
 
 // DefineFunction defines a new function symbol in the current scope
 func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType) {
 	st.symbols[name] = &Symbol{
-		Name: name,
-		Type: funcType,
+		Name:     name,
+		Type:     funcType,
+		ReadOnly: false, // Functions are not assignable
 	}
 }
 

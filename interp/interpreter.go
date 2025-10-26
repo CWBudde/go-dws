@@ -26,6 +26,14 @@ type Interpreter struct {
 	rand             *rand.Rand                   // Random number generator for Random() and Randomize()
 	exception        *ExceptionValue              // Current active exception (nil if none) (Task 8.212)
 	handlerException *ExceptionValue              // Exception being handled (for bare raise)
+
+	// Control flow signals (Task 8.235i)
+	// These flags signal control flow changes (break, continue, exit) and are checked
+	// after each statement. They propagate up the call stack until handled by the
+	// appropriate control structure (loop for break/continue, function for exit).
+	breakSignal    bool // Set by break statement, cleared by loop
+	continueSignal bool // Set by continue statement, cleared by loop
+	exitSignal     bool // Set by exit statement, cleared by function return
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -96,6 +104,15 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	case *ast.RaiseStatement:
 		return i.evalRaiseStatement(node)
+
+	case *ast.BreakStatement:
+		return i.evalBreakStatement(node)
+
+	case *ast.ContinueStatement:
+		return i.evalContinueStatement(node)
+
+	case *ast.ExitStatement:
+		return i.evalExitStatement(node)
 
 	case *ast.FunctionDecl:
 		return i.evalFunctionDeclaration(node)
@@ -186,6 +203,23 @@ func (i *Interpreter) evalProgram(program *ast.Program) Value {
 		if isError(result) {
 			return result
 		}
+
+		// Check if exception is active - if so, unwind the stack
+		if i.exception != nil {
+			break
+		}
+
+		// Task 8.235n: Check if exit was called at program level
+		if i.exitSignal {
+			i.exitSignal = false // Clear signal
+			break                // Exit the program
+		}
+	}
+
+	// If there's an uncaught exception, convert it to an error
+	if i.exception != nil {
+		exc := i.exception
+		return newError("uncaught exception: %s", exc.Inspect())
 	}
 
 	return result
@@ -580,6 +614,12 @@ func (i *Interpreter) evalBlockStatement(block *ast.BlockStatement) Value {
 		// Check if exception is active - if so, unwind the stack (Task 8.212)
 		if i.exception != nil {
 			return nil
+		}
+
+		// Task 8.235o: Check for control flow signals and propagate them upward
+		// These signals should propagate up to the appropriate control structure
+		if i.breakSignal || i.continueSignal || i.exitSignal {
+			return nil // Propagate signal upward by returning early
 		}
 	}
 
@@ -2213,6 +2253,21 @@ func (i *Interpreter) evalWhileStatement(stmt *ast.WhileStatement) Value {
 		if isError(result) {
 			return result
 		}
+
+		// Task 8.235m: Handle break/continue signals
+		if i.breakSignal {
+			i.breakSignal = false // Clear signal
+			break
+		}
+		if i.continueSignal {
+			i.continueSignal = false // Clear signal
+			continue
+		}
+		// Task 8.235m: Handle exit signal (exit from function while in loop)
+		if i.exitSignal {
+			// Don't clear the signal - let the function handle it
+			break
+		}
 	}
 
 	return result
@@ -2230,6 +2285,21 @@ func (i *Interpreter) evalRepeatStatement(stmt *ast.RepeatStatement) Value {
 		result = i.Eval(stmt.Body)
 		if isError(result) {
 			return result
+		}
+
+		// Task 8.235m: Handle break/continue signals
+		if i.breakSignal {
+			i.breakSignal = false // Clear signal
+			break
+		}
+		if i.continueSignal {
+			i.continueSignal = false // Clear signal
+			// Continue to condition check
+		}
+		// Task 8.235m: Handle exit signal (exit from function while in loop)
+		if i.exitSignal {
+			// Don't clear the signal - let the function handle it
+			break
 		}
 
 		// Evaluate the condition
@@ -2299,6 +2369,21 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 				i.env = savedEnv // Restore environment before returning
 				return result
 			}
+
+			// Task 8.235m: Handle break/continue signals
+			if i.breakSignal {
+				i.breakSignal = false // Clear signal
+				break
+			}
+			if i.continueSignal {
+				i.continueSignal = false // Clear signal
+				continue
+			}
+			// Task 8.235m: Handle exit signal (exit from function while in loop)
+			if i.exitSignal {
+				// Don't clear the signal - let the function handle it
+				break
+			}
 		}
 	} else {
 		// Descending loop: for i := start downto end
@@ -2311,6 +2396,21 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 			if isError(result) {
 				i.env = savedEnv // Restore environment before returning
 				return result
+			}
+
+			// Task 8.235m: Handle break/continue signals
+			if i.breakSignal {
+				i.breakSignal = false // Clear signal
+				break
+			}
+			if i.continueSignal {
+				i.continueSignal = false // Clear signal
+				continue
+			}
+			// Task 8.235m: Handle exit signal (exit from function while in loop)
+			if i.exitSignal {
+				// Don't clear the signal - let the function handle it
+				break
 			}
 		}
 	}
@@ -2356,6 +2456,30 @@ func (i *Interpreter) evalCaseStatement(stmt *ast.CaseStatement) Value {
 	}
 
 	// No match and no else clause - return nil
+	return &NilValue{}
+}
+
+// evalBreakStatement evaluates a break statement (Task 8.235j).
+// Sets the break signal to exit the innermost loop.
+func (i *Interpreter) evalBreakStatement(stmt *ast.BreakStatement) Value {
+	i.breakSignal = true
+	return &NilValue{}
+}
+
+// evalContinueStatement evaluates a continue statement (Task 8.235k).
+// Sets the continue signal to skip to the next iteration of the innermost loop.
+func (i *Interpreter) evalContinueStatement(stmt *ast.ContinueStatement) Value {
+	i.continueSignal = true
+	return &NilValue{}
+}
+
+// evalExitStatement evaluates an exit statement (Task 8.235l).
+// Sets the exit signal to exit the current function.
+// If at program level, sets exit signal to terminate the program.
+func (i *Interpreter) evalExitStatement(stmt *ast.ExitStatement) Value {
+	i.exitSignal = true
+	// Exit doesn't return a value - the function's default return value is used
+	// (or the program exits if at top level)
 	return &NilValue{}
 }
 
@@ -3614,6 +3738,13 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	}
 
 	i.Eval(fn.Body)
+
+	// Task 8.235n: Handle exit signal
+	// If exit was called, clear the signal (don't propagate to caller)
+	if i.exitSignal {
+		i.exitSignal = false
+		// Exit was called, function returns immediately with current Result value
+	}
 
 	// Extract return value
 	var returnValue Value

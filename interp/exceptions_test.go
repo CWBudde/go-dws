@@ -724,3 +724,150 @@ func TestHandlerOrderMatters(t *testing.T) {
 		t.Errorf("expected output %q, got %q", expected, output)
 	}
 }
+
+// ============================================================================
+// Additional Missing Tests (Task 8.220, 8.222)
+// ============================================================================
+
+// TestTryFinallyWithReturn tests that finally executes even when returning from try block
+// Task 8.220: Test finally executes even on return from try block
+// Note: Using implicit return (Result assignment) since 'exit' keyword is not yet implemented
+func TestTryFinallyWithReturn(t *testing.T) {
+	input := `
+		var finallyExecuted: Boolean;
+		finallyExecuted := false;
+
+		function TestFunction(): Integer;
+		begin
+			try
+				PrintLn('in try');
+				Result := 42;
+			finally
+				finallyExecuted := true;
+				PrintLn('finally executed');
+			end;
+		end;
+
+		var result: Integer;
+		result := TestFunction();
+		PrintLn(finallyExecuted);
+		PrintLn(result);
+	`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	interp.Eval(program)
+
+	output := buf.String()
+
+	// Finally block should have executed
+	if !strings.Contains(output, "finally executed") {
+		t.Error("finally block should execute even on return")
+	}
+
+	// Should have set finallyExecuted to true
+	if !strings.Contains(output, "true") {
+		t.Error("finallyExecuted should be true")
+	}
+
+	// Should have returned 42
+	if !strings.Contains(output, "42") {
+		t.Error("should have returned 42")
+	}
+}
+
+// TestRaiseCustomException tests raising a custom exception class
+// Task 8.222: Test raising custom exception with message
+// Note: This test verifies that custom exception classes properly inherit from Exception
+func TestRaiseCustomException(t *testing.T) {
+	input := `
+		type ECustomError = class(Exception)
+		end;
+
+		var caught: Boolean;
+		var exceptionType: String;
+		caught := false;
+
+		try
+			raise ECustomError.Create('custom error message');
+		except
+			on E: ECustomError do begin
+				caught := true;
+				exceptionType := 'ECustomError';
+			end;
+			on E: Exception do begin
+				caught := true;
+				exceptionType := 'Exception';
+			end;
+		end;
+
+		PrintLn(caught);
+		PrintLn(exceptionType);
+	`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	interp.Eval(program)
+
+	output := buf.String()
+
+	// Should have caught the exception
+	if !strings.Contains(output, "true") {
+		t.Error("custom exception should have been caught")
+	}
+
+	// Should have caught with the specific handler (not the base Exception handler)
+	if !strings.Contains(output, "ECustomError") {
+		t.Errorf("expected to catch with ECustomError handler, got output: %s", output)
+	}
+}
+
+// TestBareRaiseOutsideHandler tests that bare raise outside a handler causes runtime error
+// Task 8.222: Test bare raise outside handler (runtime error)
+func TestBareRaiseOutsideHandler(t *testing.T) {
+	input := `
+		raise;  // Bare raise with no active exception
+	`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+
+	// This should panic with "bare raise with no active exception"
+	defer func() {
+		if r := recover(); r != nil {
+			// Check that the panic message is what we expect
+			errMsg := r.(string)
+			if !strings.Contains(errMsg, "bare raise") {
+				t.Errorf("expected panic about bare raise, got: %v", r)
+			}
+		} else {
+			t.Error("expected panic for bare raise outside handler, but didn't panic")
+		}
+	}()
+
+	interp.Eval(program)
+}

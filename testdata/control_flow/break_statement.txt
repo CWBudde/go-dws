@@ -1,0 +1,19 @@
+=== Break Statement Tests ===
+
+Test 1: Break in for loop
+PASS: Loop exited after 5 iterations (expected 5)
+
+Test 2: Break in while loop
+PASS: Loop exited after 7 iterations (expected 7)
+
+Test 3: Break in repeat loop
+PASS: Loop exited after 3 iterations (expected 3)
+
+Test 4: Break in nested loops
+PASS: Outer loop ran 3 times (expected 3)
+PASS: Inner loop total iterations: 6 (expected 6)
+
+Test 5: Break with condition
+PASS: Sum exceeded 50, final value: 55
+
+=== All Break Statement Tests Complete ===

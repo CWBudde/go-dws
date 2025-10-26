@@ -105,9 +105,9 @@ func TestRaiseExceptionVariable(t *testing.T) {
 	}
 }
 
-// Task 8.208: Test bare raise is syntactically valid
-// Note: Bare raise outside handler is a runtime error, not semantic error
-// The semantic analyzer allows it; runtime will check context
+// Task 8.208: Test bare raise validation (moved to semantic analysis)
+// Note: Originally this was a runtime check, but Task 8.208 requires semantic validation
+// This test has been superseded by TestBareRaiseOutsideHandlerSemanticError
 func TestBareRaiseOutsideHandler(t *testing.T) {
 	input := `
 		raise;
@@ -117,9 +117,14 @@ func TestBareRaiseOutsideHandler(t *testing.T) {
 	analyzer := NewAnalyzer()
 	err := analyzer.Analyze(program)
 
-	// Bare raise is syntactically valid - runtime will validate context
-	if err != nil {
-		t.Errorf("Bare raise should pass semantic analysis, got: %v", err)
+	// Task 8.208: Bare raise now validated at semantic analysis time
+	if err == nil {
+		t.Fatal("Expected semantic error for bare raise outside handler")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "bare raise") || !strings.Contains(errMsg, "exception handler") {
+		t.Errorf("Expected error about bare raise context, got: %s", errMsg)
 	}
 }
 
@@ -237,6 +242,134 @@ func TestTryWithoutExceptOrFinally(t *testing.T) {
 
 	// Still verify analyzer handles malformed AST gracefully
 	_ = program
+}
+
+// Task 8.206: Test duplicate exception handlers (should error)
+func TestDuplicateExceptionHandlers(t *testing.T) {
+	input := `
+		try
+			raise Exception.Create('error');
+		except
+			on E1: ERangeError do
+				PrintLn('first handler');
+			on E2: ERangeError do
+				PrintLn('second handler');
+		end;
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err == nil {
+		t.Fatal("Expected semantic error for duplicate exception handlers")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "duplicate") || !strings.Contains(errMsg, "ERangeError") {
+		t.Errorf("Expected error about duplicate ERangeError handler, got: %s", errMsg)
+	}
+}
+
+// Task 8.207: Test exception variable is read-only (cannot reassign)
+func TestExceptionVariableReadOnly(t *testing.T) {
+	input := `
+		try
+			raise Exception.Create('error');
+		except
+			on E: Exception do begin
+				E := Exception.Create('new error'); // Should fail - E is read-only
+			end;
+		end;
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err == nil {
+		t.Fatal("Expected semantic error for assigning to read-only exception variable")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "read-only") {
+		t.Errorf("Expected error about read-only variable, got: %s", errMsg)
+	}
+}
+
+// Task 8.208: Test bare raise outside handler now produces semantic error
+func TestBareRaiseOutsideHandlerSemanticError(t *testing.T) {
+	input := `
+		raise;
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err == nil {
+		t.Fatal("Expected semantic error for bare raise outside handler")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "bare raise") || !strings.Contains(errMsg, "exception handler") {
+		t.Errorf("Expected error about bare raise context, got: %s", errMsg)
+	}
+}
+
+// Task 8.209: Test return statement in finally block (should error)
+// NOTE: This test is currently skipped because return statements are not yet
+// implemented in the parser. The validation code is in place (analyze_functions.go:93-96)
+// and will work once return statement parsing is added.
+func TestReturnInFinallyBlock(t *testing.T) {
+	t.Skip("Return statements not yet implemented in parser - validation code is ready")
+
+	// TODO: Enable this test once return statements are parsed
+	// The validation is implemented in analyzeReturn() which checks a.inFinallyBlock
+	/*
+	input := `
+		function TestFunc(): Integer;
+		begin
+			try
+				Result := 42;
+			finally
+				return;  // Should fail - return not allowed in finally
+			end;
+		end;
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err == nil {
+		t.Fatal("Expected semantic error for return statement in finally block")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "return") || !strings.Contains(errMsg, "finally") {
+		t.Errorf("Expected error about return in finally block, got: %s", errMsg)
+	}
+	*/
+}
+
+// Task 8.209: Test raise is allowed in finally block (exception to the rule)
+func TestRaiseInFinallyBlockAllowed(t *testing.T) {
+	input := `
+		try
+			PrintLn('try');
+		finally
+			raise Exception.Create('cleanup error');  // Raise is allowed in finally
+		end;
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err != nil {
+		t.Errorf("Raise should be allowed in finally block, got error: %v", err)
+	}
 }
 
 // ============================================================================
