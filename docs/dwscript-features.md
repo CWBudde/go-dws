@@ -649,7 +649,7 @@ This document catalogs ALL features found in the original DWScript implementatio
 #### go-dws Status
 - ✅ Length, Copy, Concat, Pos, UpperCase, LowerCase
 - ✅ IntToStr, StrToInt, FloatToStr, StrToFloat
-- ⏸️ Insert, Delete, Trim, StringReplace, Format
+- ✅ Insert, Delete, Trim, TrimLeft, TrimRight, StringReplace, Format
 - ⏸️ Chr/Ord for chars
 - ⏸️ StringOfChar, ReverseString, Compare functions
 

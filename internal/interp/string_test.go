@@ -1670,3 +1670,1581 @@ end
 		})
 	}
 }
+
+// ============================================================================
+// Task 9.45: Tests for Insert() and Delete() string functions
+// ============================================================================
+
+// TestBuiltinInsert_BasicUsage tests Insert() with basic string insertions.
+// Insert(source, target, pos) - inserts source into target at 1-based position
+// Task 9.45: Insert() tests
+func TestBuiltinInsert_BasicUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Insert in middle - fix typo 'Helo' -> 'Hello'",
+			input: `
+var s: String := "Helo";
+begin
+	Insert("l", s, 3);
+	s;
+end
+			`,
+			expected: "Hello",
+		},
+		{
+			name: "Insert at beginning",
+			input: `
+var s: String := "orld";
+begin
+	Insert("W", s, 1);
+	s;
+end
+			`,
+			expected: "World",
+		},
+		{
+			name: "Insert at end",
+			input: `
+var s: String := "Hello";
+begin
+	Insert(" World", s, 6);
+	s;
+end
+			`,
+			expected: "Hello World",
+		},
+		{
+			name: "Insert multiple characters",
+			input: `
+var s: String := "DWScript";
+begin
+	Insert("---", s, 3);
+	s;
+end
+			`,
+			expected: "DW---Script",
+		},
+		{
+			name: "Insert empty string (no-op)",
+			input: `
+var s: String := "Hello";
+begin
+	Insert("", s, 3);
+	s;
+end
+			`,
+			expected: "Hello",
+		},
+		{
+			name: "Insert into empty string",
+			input: `
+var s: String := "";
+begin
+	Insert("Hello", s, 1);
+	s;
+end
+			`,
+			expected: "Hello",
+		},
+		{
+			name: "Multiple Insert operations",
+			input: `
+var s: String := "ac";
+begin
+	Insert("b", s, 2);
+	Insert("d", s, 4);
+	s;
+end
+			`,
+			expected: "abcd",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("Insert() result = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinInsert_EdgeCases tests Insert() with edge cases and boundary conditions.
+// Task 9.45: Insert() edge case tests
+func TestBuiltinInsert_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Position < 1 - insert at beginning",
+			input: `
+var s: String := "Hello";
+begin
+	Insert("X", s, 0);
+	s;
+end
+			`,
+			expected: "XHello",
+		},
+		{
+			name: "Position < 1 (negative) - insert at beginning",
+			input: `
+var s: String := "Hello";
+begin
+	Insert("X", s, -5);
+	s;
+end
+			`,
+			expected: "XHello",
+		},
+		{
+			name: "Position > length - insert at end",
+			input: `
+var s: String := "Hello";
+begin
+	Insert("!", s, 100);
+	s;
+end
+			`,
+			expected: "Hello!",
+		},
+		{
+			name: "Position exactly at length+1",
+			input: `
+var s: String := "Hello";
+begin
+	Insert("!", s, 6);
+	s;
+end
+			`,
+			expected: "Hello!",
+		},
+		{
+			name: "Insert with variable source and position",
+			input: `
+var s: String := "Hello World";
+var source: String := "Beautiful ";
+var pos: Integer := 7;
+begin
+	Insert(source, s, pos);
+	s;
+end
+			`,
+			expected: "Hello Beautiful World",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("Insert() result = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinInsert_InExpressions tests using Insert() in various contexts.
+// Task 9.45: Insert() expression tests
+func TestBuiltinInsert_InExpressions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Insert then concatenate",
+			input: `
+var s: String := "Hello";
+begin
+	Insert(" ", s, 6);
+	s + "World";
+end
+			`,
+			expected: "Hello World",
+		},
+		{
+			name: "Insert with expression as position",
+			input: `
+var s: String := "abc";
+var i: Integer := 2;
+begin
+	Insert("X", s, i + 1);
+	s;
+end
+			`,
+			expected: "abXc",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("Insert() result = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinInsert_ErrorCases tests error handling for Insert().
+// Task 9.45: Insert() error tests
+func TestBuiltinInsert_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "No arguments",
+			input: `
+begin
+	Insert();
+end
+			`,
+		},
+		{
+			name: "One argument only",
+			input: `
+var s: String := "Hello";
+begin
+	Insert("X", s);
+end
+			`,
+		},
+		{
+			name: "Two arguments only",
+			input: `
+var s: String := "Hello";
+begin
+	Insert("X");
+end
+			`,
+		},
+		{
+			name: "Too many arguments",
+			input: `
+var s: String := "Hello";
+begin
+	Insert("X", s, 3, 4);
+end
+			`,
+		},
+		{
+			name: "Non-string source",
+			input: `
+var s: String := "Hello";
+var x: Integer := 42;
+begin
+	Insert(x, s, 3);
+end
+			`,
+		},
+		{
+			name: "Non-identifier target (cannot modify literal)",
+			input: `
+begin
+	Insert("X", "Hello", 3);
+end
+			`,
+		},
+		{
+			name: "Non-integer position",
+			input: `
+var s: String := "Hello";
+begin
+	Insert("X", s, "3");
+end
+			`,
+		},
+		{
+			name: "Target is not a string",
+			input: `
+var n: Integer := 42;
+begin
+	Insert("X", n, 1);
+end
+			`,
+		},
+		{
+			name: "Undefined target variable",
+			input: `
+begin
+	Insert("X", undefinedVar, 1);
+end
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			// Should return an error
+			if !isError(result) {
+				t.Errorf("expected error for invalid Insert() call, got %T: %+v", result, result)
+			}
+		})
+	}
+}
+
+// TestBuiltinDelete_StringMode_BasicUsage tests Delete() for strings with basic operations.
+// Delete(s, pos, count) - deletes count characters from s starting at 1-based position
+// Task 9.45: Delete() string tests
+func TestBuiltinDelete_StringMode_BasicUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Delete from middle",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 3, 2);
+	s;
+end
+			`,
+			expected: "Heo",
+		},
+		{
+			name: "Delete from beginning",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 1, 2);
+	s;
+end
+			`,
+			expected: "llo",
+		},
+		{
+			name: "Delete from end",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 4, 2);
+	s;
+end
+			`,
+			expected: "Hel",
+		},
+		{
+			name: "Delete single character",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 3, 1);
+	s;
+end
+			`,
+			expected: "Helo",
+		},
+		{
+			name: "Delete entire string",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 1, 5);
+	s;
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Multiple Delete operations",
+			input: `
+var s: String := "abcdefgh";
+begin
+	Delete(s, 3, 2);
+	Delete(s, 1, 1);
+	s;
+end
+			`,
+			expected: "befgh",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("Delete() result = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinDelete_StringMode_EdgeCases tests Delete() for strings with edge cases.
+// Task 9.45: Delete() string edge case tests
+func TestBuiltinDelete_StringMode_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Position < 1 - no-op",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 0, 2);
+	s;
+end
+			`,
+			expected: "Hello",
+		},
+		{
+			name: "Position negative - no-op",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, -5, 2);
+	s;
+end
+			`,
+			expected: "Hello",
+		},
+		{
+			name: "Position > length - no-op",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 10, 2);
+	s;
+end
+			`,
+			expected: "Hello",
+		},
+		{
+			name: "Count = 0 - no-op",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 3, 0);
+	s;
+end
+			`,
+			expected: "Hello",
+		},
+		{
+			name: "Count negative - no-op",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 3, -5);
+	s;
+end
+			`,
+			expected: "Hello",
+		},
+		{
+			name: "Count extends beyond string end",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 3, 100);
+	s;
+end
+			`,
+			expected: "He",
+		},
+		{
+			name: "Delete from empty string - no-op",
+			input: `
+var s: String := "";
+begin
+	Delete(s, 1, 5);
+	s;
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Delete with variable position and count",
+			input: `
+var s: String := "Hello World";
+var pos: Integer := 6;
+var cnt: Integer := 6;
+begin
+	Delete(s, pos, cnt);
+	s;
+end
+			`,
+			expected: "Hello",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("Delete() result = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinDelete_StringMode_InExpressions tests using Delete() in various contexts.
+// Task 9.45: Delete() string expression tests
+func TestBuiltinDelete_StringMode_InExpressions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Delete then concatenate",
+			input: `
+var s: String := "HelloXXXWorld";
+begin
+	Delete(s, 6, 3);
+	s;
+end
+			`,
+			expected: "HelloWorld",
+		},
+		{
+			name: "Delete with expression as position",
+			input: `
+var s: String := "abcXYZdef";
+var i: Integer := 3;
+begin
+	Delete(s, i + 1, 3);
+	s;
+end
+			`,
+			expected: "abcdef",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("Delete() result = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinDelete_StringMode_ErrorCases tests error handling for Delete() string mode.
+// Task 9.45: Delete() string error tests
+func TestBuiltinDelete_StringMode_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "No arguments",
+			input: `
+begin
+	Delete();
+end
+			`,
+		},
+		{
+			name: "One argument only",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s);
+end
+			`,
+		},
+		{
+			name: "Two arguments only (ambiguous - could be array or incomplete string)",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 3);
+end
+			`,
+		},
+		{
+			name: "Too many arguments",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 3, 2, 1);
+end
+			`,
+		},
+		{
+			name: "Non-identifier target (cannot modify literal)",
+			input: `
+begin
+	Delete("Hello", 3, 2);
+end
+			`,
+		},
+		{
+			name: "Non-integer position",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, "3", 2);
+end
+			`,
+		},
+		{
+			name: "Non-integer count",
+			input: `
+var s: String := "Hello";
+begin
+	Delete(s, 3, "2");
+end
+			`,
+		},
+		{
+			name: "Target is not a string",
+			input: `
+var n: Integer := 42;
+begin
+	Delete(n, 1, 1);
+end
+			`,
+		},
+		{
+			name: "Undefined target variable",
+			input: `
+begin
+	Delete(undefinedVar, 1, 1);
+end
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			// Should return an error
+			if !isError(result) {
+				t.Errorf("expected error for invalid Delete() call, got %T: %+v", result, result)
+			}
+		})
+	}
+}
+
+// TestBuiltinInsertAndDelete_Combined tests Insert() and Delete() used together.
+// Task 9.45: Combined Insert() and Delete() tests
+func TestBuiltinInsertAndDelete_Combined(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Insert then Delete",
+			input: `
+var s: String := "Hello";
+begin
+	Insert("XXX", s, 3);
+	Delete(s, 3, 3);
+	s;
+end
+			`,
+			expected: "Hello",
+		},
+		{
+			name: "Delete then Insert to repair",
+			input: `
+var s: String := "HelloXXXWorld";
+begin
+	Delete(s, 6, 3);
+	Insert(" ", s, 6);
+	s;
+end
+			`,
+			expected: "Hello World",
+		},
+		{
+			name: "Build string with Insert and Delete",
+			input: `
+var s: String := "";
+begin
+	Insert("abc", s, 1);
+	Insert("def", s, 4);
+	Insert("XXX", s, 4);
+	Delete(s, 4, 3);
+	s;
+end
+			`,
+			expected: "abcdef",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("Combined Insert/Delete result = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Task 9.47: Tests for StringReplace() string function
+// ============================================================================
+
+// TestBuiltinStringReplace_BasicUsage tests StringReplace() with basic string replacements.
+// StringReplace(str, old, new) - replaces all occurrences of old with new
+// StringReplace(str, old, new, count) - replaces count occurrences (count=-1 means all)
+// Task 9.47: StringReplace() basic tests
+func TestBuiltinStringReplace_BasicUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Replace all occurrences",
+			input: `
+begin
+	StringReplace("hello world", "l", "L");
+end
+			`,
+			expected: "heLLo worLd",
+		},
+		{
+			name: "Replace single occurrence",
+			input: `
+begin
+	StringReplace("hello", "e", "a");
+end
+			`,
+			expected: "hallo",
+		},
+		{
+			name: "Replace with longer string",
+			input: `
+begin
+	StringReplace("go", "o", "ood");
+end
+			`,
+			expected: "good",
+		},
+		{
+			name: "Replace with shorter string",
+			input: `
+begin
+	StringReplace("hello", "ello", "i");
+end
+			`,
+			expected: "hi",
+		},
+		{
+			name: "Replace with variable",
+			input: `
+var s: String := "DWScript is great";
+begin
+	StringReplace(s, "great", "awesome");
+end
+			`,
+			expected: "DWScript is awesome",
+		},
+		{
+			name: "Replace all with explicit count -1",
+			input: `
+begin
+	StringReplace("foo bar foo", "foo", "baz", -1);
+end
+			`,
+			expected: "baz bar baz",
+		},
+		{
+			name: "Replace first occurrence only (count 1)",
+			input: `
+begin
+	StringReplace("foo bar foo", "foo", "baz", 1);
+end
+			`,
+			expected: "baz bar foo",
+		},
+		{
+			name: "Replace first two occurrences (count 2)",
+			input: `
+begin
+	StringReplace("a a a a", "a", "b", 2);
+end
+			`,
+			expected: "b b a a",
+		},
+		{
+			name: "Multiple word replacement",
+			input: `
+begin
+	StringReplace("the cat and the dog", "the", "a");
+end
+			`,
+			expected: "a cat and a dog",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("StringReplace() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinStringReplace_EdgeCases tests StringReplace() with edge cases.
+// Task 9.47: StringReplace() edge case tests
+func TestBuiltinStringReplace_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Empty old string returns original",
+			input: `
+begin
+	StringReplace("hello", "", "X");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Empty new string removes occurrences",
+			input: `
+begin
+	StringReplace("hello", "l", "");
+end
+			`,
+			expected: "heo",
+		},
+		{
+			name: "Empty string returns empty",
+			input: `
+begin
+	StringReplace("", "x", "y");
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Old string not found returns original",
+			input: `
+begin
+	StringReplace("hello", "xyz", "abc");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Replace entire string",
+			input: `
+begin
+	StringReplace("hello", "hello", "goodbye");
+end
+			`,
+			expected: "goodbye",
+		},
+		{
+			name: "Old and new are the same (no-op)",
+			input: `
+begin
+	StringReplace("hello", "l", "l");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Case sensitive - no match",
+			input: `
+begin
+	StringReplace("Hello", "hello", "hi");
+end
+			`,
+			expected: "Hello",
+		},
+		{
+			name: "Count is 0 - no replacement",
+			input: `
+begin
+	StringReplace("hello", "l", "L", 0);
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Count is negative (not -1) - no replacement",
+			input: `
+begin
+	StringReplace("hello", "l", "L", -5);
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Count exceeds occurrences - replace all found",
+			input: `
+begin
+	StringReplace("hello", "l", "L", 100);
+end
+			`,
+			expected: "heLLo",
+		},
+		{
+			name: "Overlapping patterns",
+			input: `
+begin
+	StringReplace("aaa", "aa", "b");
+end
+			`,
+			expected: "ba",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("StringReplace() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinStringReplace_InExpressions tests using StringReplace() in various contexts.
+// Task 9.47: StringReplace() expression tests
+func TestBuiltinStringReplace_InExpressions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "StringReplace in concatenation",
+			input: `
+begin
+	StringReplace("hello", "l", "L") + " world";
+end
+			`,
+			expected: "heLLo world",
+		},
+		{
+			name: "Nested StringReplace",
+			input: `
+begin
+	StringReplace(StringReplace("foo bar", "foo", "baz"), "bar", "qux");
+end
+			`,
+			expected: "baz qux",
+		},
+		{
+			name: "StringReplace with UpperCase",
+			input: `
+begin
+	UpperCase(StringReplace("hello world", "world", "go"));
+end
+			`,
+			expected: "HELLO GO",
+		},
+		{
+			name: "StringReplace with Copy",
+			input: `
+var s: String := "hello world";
+begin
+	StringReplace(Copy(s, 1, 5), "l", "L");
+end
+			`,
+			expected: "heLLo",
+		},
+		{
+			name: "StringReplace with expression as count",
+			input: `
+var n: Integer := 1;
+begin
+	StringReplace("foo foo foo", "foo", "bar", n + 1);
+end
+			`,
+			expected: "bar bar foo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("StringReplace() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinStringReplace_ErrorCases tests error handling for StringReplace().
+// Task 9.47: StringReplace() error tests
+func TestBuiltinStringReplace_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "No arguments",
+			input: `
+begin
+	StringReplace();
+end
+			`,
+		},
+		{
+			name: "One argument only",
+			input: `
+begin
+	StringReplace("hello");
+end
+			`,
+		},
+		{
+			name: "Two arguments only",
+			input: `
+begin
+	StringReplace("hello", "l");
+end
+			`,
+		},
+		{
+			name: "Too many arguments",
+			input: `
+begin
+	StringReplace("hello", "l", "L", 1, 2);
+end
+			`,
+		},
+		{
+			name: "First argument not a string",
+			input: `
+var x: Integer := 42;
+begin
+	StringReplace(x, "4", "5");
+end
+			`,
+		},
+		{
+			name: "Second argument not a string",
+			input: `
+var x: Integer := 42;
+begin
+	StringReplace("hello", x, "L");
+end
+			`,
+		},
+		{
+			name: "Third argument not a string",
+			input: `
+var x: Integer := 42;
+begin
+	StringReplace("hello", "l", x);
+end
+			`,
+		},
+		{
+			name: "Fourth argument not an integer",
+			input: `
+begin
+	StringReplace("hello", "l", "L", "1");
+end
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			// Should return an error
+			if !isError(result) {
+				t.Errorf("expected error for invalid StringReplace() call, got %T: %+v", result, result)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Task 9.48-9.50: Tests for Format() string function
+// ============================================================================
+
+// TestBuiltinFormat_BasicUsage tests Format() with basic string formatting.
+// Format(fmt, args) - formats a string with placeholders replaced by args
+// Task 9.50: Format() basic tests
+func TestBuiltinFormat_BasicUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Simple string formatting",
+			input: `
+type TStrArray = array of String;
+var arr: TStrArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := "World";
+	Format("Hello %s", arr);
+end
+			`,
+			expected: "Hello World",
+		},
+		{
+			name: "Integer formatting",
+			input: `
+type TIntArray = array of Integer;
+var arr: TIntArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := 42;
+	Format("Value: %d", arr);
+end
+			`,
+			expected: "Value: 42",
+		},
+		{
+			name: "Float formatting with precision",
+			input: `
+type TFloatArray = array of Float;
+var arr: TFloatArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := 3.14159;
+	Format("Pi: %.2f", arr);
+end
+			`,
+			expected: "Pi: 3.14",
+		},
+		{
+			name: "Multiple arguments with strings and integers",
+			input: `
+type TStrArray = array of String;
+var arr: TStrArray;
+begin
+	SetLength(arr, 2);
+	arr[0] := "Age";
+	arr[1] := "25";
+	Format("%s is %s", arr);
+end
+			`,
+			expected: "Age is 25",
+		},
+		{
+			name: "Multiple format specifiers",
+			input: `
+type TStrArray = array of String;
+var arr: TStrArray;
+begin
+	SetLength(arr, 3);
+	arr[0] := "John";
+	arr[1] := "30";
+	arr[2] := "5.9";
+	Format("%s is %s years old and %s feet tall", arr);
+end
+			`,
+			expected: "John is 30 years old and 5.9 feet tall",
+		},
+		{
+			name: "Literal percent sign",
+			input: `
+type TIntArray = array of Integer;
+var arr: TIntArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := 100;
+	Format("100%% complete (%d)", arr);
+end
+			`,
+			expected: "100% complete (100)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("Format() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinFormat_EdgeCases tests Format() with edge cases.
+// Task 9.50: Format() edge case tests
+func TestBuiltinFormat_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "No format specifiers",
+			input: `
+type TStrArray = array of String;
+var arr: TStrArray;
+begin
+	SetLength(arr, 0);
+	Format("Hello World", arr);
+end
+			`,
+			expected: "Hello World",
+		},
+		{
+			name: "Empty format string",
+			input: `
+type TStrArray = array of String;
+var arr: TStrArray;
+begin
+	SetLength(arr, 0);
+	Format("", arr);
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Zero value integer",
+			input: `
+type TIntArray = array of Integer;
+var arr: TIntArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := 0;
+	Format("Value: %d", arr);
+end
+			`,
+			expected: "Value: 0",
+		},
+		{
+			name: "Negative integer",
+			input: `
+type TIntArray = array of Integer;
+var arr: TIntArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := -42;
+	Format("Value: %d", arr);
+end
+			`,
+			expected: "Value: -42",
+		},
+		{
+			name: "Float with no decimal places",
+			input: `
+type TFloatArray = array of Float;
+var arr: TFloatArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := 5.0;
+	Format("Value: %.0f", arr);
+end
+			`,
+			expected: "Value: 5",
+		},
+		{
+			name: "Empty string argument",
+			input: `
+type TStrArray = array of String;
+var arr: TStrArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := "";
+	Format("Value: %s", arr);
+end
+			`,
+			expected: "Value: ",
+		},
+		{
+			name: "Width specifier for integer",
+			input: `
+type TIntArray = array of Integer;
+var arr: TIntArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := 42;
+	Format("Value: %5d", arr);
+end
+			`,
+			expected: "Value:    42",
+		},
+		{
+			name: "Width and precision for float",
+			input: `
+type TFloatArray = array of Float;
+var arr: TFloatArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := 3.14159;
+	Format("Value: %8.2f", arr);
+end
+			`,
+			expected: "Value:     3.14",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("Format() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinFormat_InExpressions tests using Format() in various contexts.
+// Task 9.50: Format() expression tests
+func TestBuiltinFormat_InExpressions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Format in concatenation",
+			input: `
+type TStrArray = array of String;
+var arr: TStrArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := "World";
+	Format("Hello %s", arr) + "!";
+end
+			`,
+			expected: "Hello World!",
+		},
+		{
+			name: "Format with UpperCase",
+			input: `
+type TStrArray = array of String;
+var arr: TStrArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := "world";
+	UpperCase(Format("hello %s", arr));
+end
+			`,
+			expected: "HELLO WORLD",
+		},
+		{
+			name: "Nested Format calls",
+			input: `
+type TStrArray = array of String;
+var arr1: TStrArray;
+var arr2: TStrArray;
+begin
+	SetLength(arr1, 1);
+	arr1[0] := "inner";
+	SetLength(arr2, 1);
+	arr2[0] := Format("(%s)", arr1);
+	Format("outer %s", arr2);
+end
+			`,
+			expected: "outer (inner)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("Format() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinFormat_ErrorCases tests error handling for Format().
+// Task 9.50: Format() error tests
+func TestBuiltinFormat_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "No arguments",
+			input: `
+begin
+	Format();
+end
+			`,
+		},
+		{
+			name: "One argument only",
+			input: `
+begin
+	Format("hello %s");
+end
+			`,
+		},
+		{
+			name: "Too many arguments",
+			input: `
+type TStrArray = array of String;
+var arr: TStrArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := "test";
+	Format("hello", arr, "extra");
+end
+			`,
+		},
+		{
+			name: "First argument not a string",
+			input: `
+type TStrArray = array of String;
+var x: Integer := 42;
+var arr: TStrArray;
+begin
+	SetLength(arr, 0);
+	Format(x, arr);
+end
+			`,
+		},
+		{
+			name: "Second argument not an array",
+			input: `
+var x: String := "test";
+begin
+	Format("hello %s", x);
+end
+			`,
+		},
+		{
+			name: "Too few arguments in array",
+			input: `
+type TStrArray = array of String;
+var arr: TStrArray;
+begin
+	SetLength(arr, 0);
+	Format("hello %s %s", arr);
+end
+			`,
+		},
+		{
+			name: "Too many arguments in array",
+			input: `
+type TStrArray = array of String;
+var arr: TStrArray;
+begin
+	SetLength(arr, 3);
+	arr[0] := "a";
+	arr[1] := "b";
+	arr[2] := "c";
+	Format("hello %s", arr);
+end
+			`,
+		},
+		{
+			name: "Wrong type for format specifier",
+			input: `
+type TStrArray = array of String;
+var arr: TStrArray;
+begin
+	SetLength(arr, 1);
+	arr[0] := "not a number";
+	Format("Value: %d", arr);
+end
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			// Should return an error
+			if !isError(result) {
+				t.Errorf("expected error for invalid Format() call, got %T: %+v", result, result)
+			}
+		})
+	}
+}

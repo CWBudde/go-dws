@@ -343,62 +343,62 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Built-in Functions - Insert/Delete (3 tasks)
 
-- [ ] 9.43 Implement `Insert(source, s, pos)` in `interp/string_functions.go`:
-  - [ ] Create `builtinInsert()` function
-  - [ ] Accept 3 parameters: source String, target String (var param), position Integer
-  - [ ] Insert source into target at 1-based position
-  - [ ] Modify target string in-place (var parameter)
-  - [ ] Handle edge cases: pos < 1, pos > length
-- [ ] 9.44 Implement `Delete(s, pos, count)` in `interp/string_functions.go`:
-  - [ ] Create `builtinDelete()` function
-  - [ ] Accept 3 parameters: string (var param), position Integer, count Integer
-  - [ ] Delete count characters starting at 1-based position
-  - [ ] Modify string in-place (var parameter)
-  - [ ] Handle edge cases: pos < 1, pos > length, count too large
-- [ ] 9.45 Add tests in `interp/string_test.go`:
-  - [ ] Test Insert: `var s := 'Helo'; Insert('l', s, 3);` → 'Hello'
-  - [ ] Test Delete: `var s := 'Hello'; Delete(s, 3, 2);` → 'Heo'
-  - [ ] Test Insert at start/end
-  - [ ] Test Delete edge cases
-  - [ ] Test error cases
+- [x] 9.43 Implement `Insert(source, s, pos)` in `interp/interpreter.go`:
+  - [x] Create `builtinInsert()` function
+  - [x] Accept 3 parameters: source String, target String (var param), position Integer
+  - [x] Insert source into target at 1-based position
+  - [x] Modify target string in-place (var parameter)
+  - [x] Handle edge cases: pos < 1, pos > length
+- [x] 9.44 Implement `Delete(s, pos, count)` in `interp/interpreter.go`:
+  - [x] Create `builtinDeleteString()` function
+  - [x] Accept 3 parameters: string (var param), position Integer, count Integer
+  - [x] Delete count characters starting at 1-based position
+  - [x] Modify string in-place (var parameter)
+  - [x] Handle edge cases: pos < 1, pos > length, count too large
+- [x] 9.45 Add tests in `interp/string_test.go`:
+  - [x] Test Insert: `var s := 'Helo'; Insert('l', s, 3);` → 'Hello'
+  - [x] Test Delete: `var s := 'Hello'; Delete(s, 3, 2);` → 'Heo'
+  - [x] Test Insert at start/end
+  - [x] Test Delete edge cases
+  - [x] Test error cases
 
 #### Built-in Functions - StringReplace (2 tasks)
 
-- [ ] 9.46 Implement `StringReplace(s, old, new)` in `interp/string_functions.go`:
-  - [ ] Create `builtinStringReplace()` function
-  - [ ] Accept 3 parameters: string, old substring, new substring
-  - [ ] Optional 4th parameter: flags (replace all vs first occurrence)
-  - [ ] Use Go's `strings.Replace()` or `strings.ReplaceAll()`
-  - [ ] Return new string with replacements
-- [ ] 9.47 Add tests in `interp/string_test.go`:
-  - [ ] Test replace all: `StringReplace('hello world', 'l', 'L')` → 'heLLo worLd'
-  - [ ] Test replace first only (if flag supported)
-  - [ ] Test with empty old string
-  - [ ] Test with empty new string (delete)
+- [x] 9.46 Implement `StringReplace(s, old, new)` in `interp/interpreter.go`:
+  - [x] Create `builtinStringReplace()` function
+  - [x] Accept 3 parameters: string, old substring, new substring
+  - [x] Optional 4th parameter: count (replace count occurrences, -1 for all)
+  - [x] Use Go's `strings.Replace()`
+  - [x] Return new string with replacements
+- [x] 9.47 Add tests in `interp/string_test.go`:
+  - [x] Test replace all: `StringReplace('hello world', 'l', 'L')` → 'heLLo worLd'
+  - [x] Test replace first only (count parameter supported)
+  - [x] Test with empty old string
+  - [x] Test with empty new string (delete)
 
 #### Built-in Functions - Format (4 tasks)
 
-- [ ] 9.48 Implement `Format(fmt, args)` in `interp/string_functions.go`:
-  - [ ] Create `builtinFormat()` function
-  - [ ] Accept format string and variadic args (array of values)
-  - [ ] Support format specifiers: `%s` (string), `%d` (integer), `%f` (float), `%%` (literal %)
-  - [ ] Optional: support width and precision: `%5d`, `%.2f`
-  - [ ] Use Go's `fmt.Sprintf()` or custom formatter
-  - [ ] Return formatted string
-- [ ] 9.49 Support array of const for Format args:
-  - [ ] Parse variadic parameters as array
-  - [ ] Convert DWScript values to Go values for formatting
-  - [ ] Handle different value types
-- [ ] 9.50 Add tests in `interp/string_test.go`:
-  - [ ] Test `Format('Hello %s', ['World'])` → 'Hello World'
-  - [ ] Test `Format('Value: %d', [42])` → 'Value: 42'
-  - [ ] Test `Format('Pi: %.2f', [3.14159])` → 'Pi: 3.14'
-  - [ ] Test multiple args: `Format('%s is %d', ['Age', 25])`
-  - [ ] Test error: wrong number of args
-- [ ] 9.51 Documentation in `docs/builtins.md`:
-  - [ ] Document Format syntax
-  - [ ] List supported format specifiers
-  - [ ] Provide examples
+- [x] 9.48 Implement `Format(fmt, args)` in `interp/interpreter.go`:
+  - [x] Create `builtinFormat()` function (lines 1891-2017)
+  - [x] Accept format string and variadic args (array of values)
+  - [x] Support format specifiers: `%s` (string), `%d` (integer), `%f` (float), `%%` (literal %)
+  - [x] Optional: support width and precision: `%5d`, `%.2f`
+  - [x] Use Go's `fmt.Sprintf()` or custom formatter
+  - [x] Return formatted string
+- [x] 9.49 Support array of const for Format args:
+  - [x] Parse variadic parameters as array
+  - [x] Convert DWScript values to Go values for formatting
+  - [x] Handle different value types (Integer, Float, String, Boolean)
+- [x] 9.50 Add tests in `interp/string_test.go`:
+  - [x] Test `Format('Hello %s', ['World'])` → 'Hello World' (24 tests total)
+  - [x] Test `Format('Value: %d', [42])` → 'Value: 42'
+  - [x] Test `Format('Pi: %.2f', [3.14159])` → 'Pi: 3.14'
+  - [x] Test multiple args: `Format('%s is %d', ['Age', 25])`
+  - [x] Test error: wrong number of args
+- [x] 9.51 Documentation in `docs/builtins.md`:
+  - [x] Document Format syntax
+  - [x] List supported format specifiers
+  - [x] Provide examples
 
 #### Testing & Fixtures (2 tasks)
 
@@ -623,7 +623,6 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 - [ ] 9.87 Fix any discrepancies
 - [ ] 9.88 Create stress tests for complex features
 - [ ] 9.89 Achieve >85% overall code coverage
-
 
 ## Stage 10: Performance Tuning and Refactoring
 
@@ -1241,9 +1240,57 @@ DWScript Source → Lexer → Parser → Semantic Analyzer → MIR Builder → J
 
 ---
 
+## Phase 12: AST-Driven Formatter and Playground Integration 🆕 **PLANNED**
+
+Goal: deliver an auto-formatting pipeline that reuses the existing AST and semantic metadata to produce canonical DWScript source, accessible via the CLI (`dwscript fmt`), editors, and the web playground.
+
+### 12.1 Specification & AST/Data Prep (7 tasks)
+
+- [ ] 12.1.1 Capture formatting requirements from upstream DWScript (indent width, begin/end alignment, keyword casing, line-wrapping) and document them in `docs/formatter-style-guide.md`.
+- [ ] 12.1.2 Audit current AST nodes for source position fidelity and comment/trivia preservation; list any nodes lacking `Pos` / `EndPos`.
+- [ ] 12.1.3 Extend the parser/AST to track leading and trailing trivia (single-line, block comments, blank lines) without disturbing semantic passes.
+- [ ] 12.1.4 Define a `format.Options` struct (indent size, max line length, newline style) and default profile matching DWScript conventions.
+- [ ] 12.1.5 Build a formatting test corpus in `testdata/formatter/{input,expected}` with tricky constructs (nested classes, generics, properties, preprocessor).
+- [ ] 12.1.6 Add helper APIs to serialize AST back into token streams (e.g., `ast.FormatNode`, `ast.IterChildren`) to keep formatter logic decoupled from parser internals.
+- [ ] 12.1.7 Ensure the semantic/type metadata needed for spacing decisions (e.g., `var` params, attributes) is exposed through lightweight inspector interfaces to avoid circular imports.
+
+### 12.2 Formatter Engine Implementation (10 tasks)
+
+- [ ] 12.2.1 Create `formatter` package with a multi-phase pipeline: AST normalization → layout planning → text emission.
+- [ ] 12.2.2 Implement a visitor that emits `format.Node` instructions (indent/dedent, soft break, literal text) for statements and declarations, leveraging AST shape rather than raw tokens.
+- [ ] 12.2.3 Handle block constructs (`begin...end`, class bodies, `case` arms) with indentation stacks so nested scopes auto-align.
+- [ ] 12.2.4 Add expression formatting that respects operator precedence and inserts parentheses only when required; reuse existing precedence tables.
+- [ ] 12.2.5 Support alignment for parameter lists, generics, array types, and property declarations with configurable wrap points.
+- [ ] 12.2.6 Preserve user comments: attach leading comments before the owning node, keep inline comments after statements, and maintain blank-line intent (max consecutives configurable).
+- [ ] 12.2.7 Implement whitespace normalization rules (single spaces around binary operators, before `do`/`then`, after commas, etc.).
+- [ ] 12.2.8 Provide idempotency guarantees by building a golden test that pipes formatted output back through the formatter and asserts stability.
+- [ ] 12.2.9 Expose a streaming writer that emits `[]byte`/`io.Writer` output to keep the CLI fast and low-memory.
+- [ ] 12.2.10 Benchmark formatting of large fixtures (≥5k LOC) and optimize hot paths (string builder pools, avoiding interface allocations).
+
+### 12.3 Tooling & Playground Integration (7 tasks)
+
+- [ ] 12.3.1 Wire a new CLI command `dwscript fmt` (and `fmt -w`) that runs the formatter over files/directories, mirroring `gofmt` UX.
+- [ ] 12.3.2 Update the WASM bridge to expose a `Format(source string) (string, error)` hook exported from Go, reusing the same formatter package.
+- [ ] 12.3.3 Modify `playground/js/playground.js` to call the WASM formatter before falling back to Monaco’s default action, enabling deterministic formatting in the browser.
+- [ ] 12.3.4 Add formatter support to the VSCode extension / LSP stub (if present) so editors can trigger `textDocument/formatting`.
+- [ ] 12.3.5 Ensure the formatter respects partial-range requests (`textDocument/rangeFormatting`) to avoid reformatting entire files when not desired.
+- [ ] 12.3.6 Introduce CI checks (`just fmt-check`) that fail when files are not formatted, and document the workflow in `CONTRIBUTING.md`.
+- [ ] 12.3.7 Provide sample scripts/snippets (e.g., Git hooks) encouraging contributors to run the formatter.
+
+### 12.4 Validation, UX, and Docs (6 tasks)
+
+- [ ] 12.4.1 Create table-driven unit tests per node type plus integration tests that read `testdata/formatter` fixtures.
+- [ ] 12.4.2 Add fuzz/property tests that compare formatter output against itself round-tripped through the parser → formatter pipeline.
+- [ ] 12.4.3 Document formatter architecture and extension points in `docs/formatter-architecture.md`.
+- [ ] 12.4.4 Update `PLAYGROUND.md`, `README.md`, and release notes to mention the Format button now runs the AST-driven formatter.
+- [ ] 12.4.5 Record known limitations (e.g., preprocessor directives) and track follow-ups in `TEST_ISSUES.md`.
+- [ ] 12.4.6 Gather usability feedback (issue template or telemetry) to prioritize refinements like configurable styles or multi-profile support.
+
+---
+
 ## Summary
 
-This detailed plan breaks down the ambitious goal of porting DWScript from Delphi to Go into **~867 bite-sized tasks** across 11 stages. Each stage builds incrementally:
+This detailed plan breaks down the ambitious goal of porting DWScript from Delphi to Go into **~897 bite-sized tasks** across 12 stages. Each stage builds incrementally:
 
 1. **Stage 1**: Lexer implementation (45 tasks) - ✅ COMPLETE
 2. **Stage 2**: Basic parser and AST (64 tasks) - ✅ COMPLETE
@@ -1262,14 +1309,16 @@ This detailed plan breaks down the ambitious goal of porting DWScript from Delph
     - **11.4**: JS Backend MVP (45 tasks) - ~3 weeks
     - **11.5**: JS Feature Complete (60 tasks) - ~4 weeks
     - **11.6**: LLVM Backend [OPTIONAL] (45 tasks) - future work
+12. **Stage 12**: AST-driven formatter & playground integration (30 tasks)
 
-**Total: ~867 tasks** (updated from ~687 with Stage 11 addition)
+**Total: ~897 tasks** (includes new Phase 12 formatter effort)
 
 **Key Notes**:
 - **Stage 11** introduces a two-tier code generation architecture with MIR as an intermediate representation
 - JavaScript backend is prioritized (Stages 11.1-11.5, ~152 tasks, ~9 weeks) for immediate value
 - LLVM backend (Stage 11.6, 45 tasks) is optional and can be deferred or skipped entirely
 - The MIR layer enables multiple backends from a single lowering pass, future-proofing for WebAssembly, C, or other targets
+- **Stage 12** adds an AST-driven formatter shared by the CLI, LSP, and web playground so Monaco’s Format button produces deterministic DWScript output.
 
 Each task is actionable and testable. Following this plan methodically will result in a complete, production-ready DWScript implementation in Go, preserving 100% of the language's syntax and semantics while leveraging Go's ecosystem.
 
