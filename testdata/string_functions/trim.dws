@@ -1,0 +1,69 @@
+// trim.dws - Tests Trim, TrimLeft, TrimRight functions
+// Expected output in trim.out
+
+PrintLn('=== Trim Function ===');
+
+// Basic whitespace trimming
+var s1: String := '  hello  ';
+PrintLn('[' + Trim(s1) + ']');  // [hello]
+
+// String literal
+PrintLn('[' + Trim('  world  ') + ']');  // [world]
+
+// Leading spaces only
+PrintLn('[' + Trim('   leading') + ']');  // [leading]
+
+// Trailing spaces only
+PrintLn('[' + Trim('trailing   ') + ']');  // [trailing]
+
+// No whitespace (no-op)
+PrintLn('[' + Trim('nowhitespace') + ']');  // [nowhitespace]
+
+// Empty string
+PrintLn('[' + Trim('') + ']');  // []
+
+// Only whitespace
+PrintLn('[' + Trim('     ') + ']');  // []
+
+// Tabs and newlines
+var s2: String := '	tabbed	';
+PrintLn('[' + Trim(s2) + ']');  // [tabbed]
+
+PrintLn('=== TrimLeft Function ===');
+
+// Remove leading whitespace only
+PrintLn('[' + TrimLeft('  hello  ') + ']');  // [hello  ]
+
+// No leading whitespace
+PrintLn('[' + TrimLeft('world  ') + ']');  // [world  ]
+
+// Only leading whitespace
+PrintLn('[' + TrimLeft('   ') + ']');  // []
+
+// Tabs
+PrintLn('[' + TrimLeft('	tabbed') + ']');  // [tabbed]
+
+PrintLn('=== TrimRight Function ===');
+
+// Remove trailing whitespace only
+PrintLn('[' + TrimRight('  hello  ') + ']');  // [  hello]
+
+// No trailing whitespace
+PrintLn('[' + TrimRight('  world') + ']');  // [  world]
+
+// Only trailing whitespace
+PrintLn('[' + TrimRight('   ') + ']');  // []
+
+// Tabs
+PrintLn('[' + TrimRight('tabbed	') + ']');  // [tabbed]
+
+PrintLn('=== Combined Usage ===');
+
+// Using all three together
+var s3: String := '  test string  ';
+PrintLn('Original: [' + s3 + ']');
+PrintLn('Trim: [' + Trim(s3) + ']');
+PrintLn('TrimLeft: [' + TrimLeft(s3) + ']');
+PrintLn('TrimRight: [' + TrimRight(s3) + ']');
+
+PrintLn('Done');

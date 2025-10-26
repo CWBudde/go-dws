@@ -1,0 +1,85 @@
+// insert_delete.dws - Tests Insert and Delete functions
+// Expected output in insert_delete.out
+
+PrintLn('=== Insert Function ===');
+
+// Insert at beginning (position 1)
+var s1: String := 'world';
+Insert('Hello ', s1, 1);
+PrintLn(s1);  // Hello world
+
+// Insert at middle
+var s2: String := 'Helo';
+Insert('l', s2, 3);
+PrintLn(s2);  // Hello
+
+// Insert at end
+var s3: String := 'Hello';
+Insert(' World', s3, 6);
+PrintLn(s3);  // Hello World
+
+// Insert into empty string
+var s4: String := '';
+Insert('test', s4, 1);
+PrintLn(s4);  // test
+
+// Multiple insertions
+var s5: String := 'ac';
+Insert('b', s5, 2);
+PrintLn(s5);  // abc
+
+PrintLn('=== Delete Function ===');
+
+// Delete from beginning
+var d1: String := 'Hello World';
+Delete(d1, 1, 6);
+PrintLn(d1);  // World
+
+// Delete from middle
+var d2: String := 'Hello';
+Delete(d2, 3, 2);
+PrintLn(d2);  // Heo
+
+// Delete from end
+var d3: String := 'Hello';
+Delete(d3, 4, 2);
+PrintLn(d3);  // Hel
+
+// Delete single character
+var d4: String := 'Hello';
+Delete(d4, 2, 1);
+PrintLn(d4);  // Hllo
+
+// Delete entire string
+var d5: String := 'test';
+Delete(d5, 1, 4);
+PrintLn('[' + d5 + ']');  // []
+
+PrintLn('=== Combined Insert and Delete ===');
+
+// Build a string using Insert and Delete
+var combo: String := 'The quick fox jumps';
+Insert('brown ', combo, 11);
+PrintLn(combo);  // The quick brown fox jumps
+
+Insert(' over the lazy dog', combo, 21);
+PrintLn(combo);  // The quick brown fox jumps over the lazy dog
+
+// Fix a typo using Delete and Insert
+var typo: String := 'Thhe quick brown fox';
+Delete(typo, 2, 1);
+PrintLn(typo);  // The quick brown fox
+
+PrintLn('=== Edge Cases ===');
+
+// Insert at position > length (appends at end)
+var edge1: String := 'test';
+Insert('!', edge1, 10);
+PrintLn(edge1);  // test!
+
+// Delete with count > remaining length (deletes to end)
+var edge2: String := 'Hello World';
+Delete(edge2, 7, 100);
+PrintLn(edge2);  // Hello
+
+PrintLn('Done');

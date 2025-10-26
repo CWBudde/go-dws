@@ -402,15 +402,37 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 9.52 Create test scripts in `testdata/string_functions/`:
-  - [ ] `trim.dws` - Trim, TrimLeft, TrimRight
-  - [ ] `insert_delete.dws` - Insert and Delete
-  - [ ] `replace.dws` - StringReplace
-  - [ ] `format.dws` - Format with various specifiers
-  - [ ] Expected outputs
-- [ ] 9.53 Add CLI integration tests:
-  - [ ] Test string function scripts
-  - [ ] Verify outputs
+- [x] 9.52 Create test scripts in `testdata/string_functions/`:
+  - [x] `trim.dws` - Trim, TrimLeft, TrimRight
+  - [x] `insert_delete.dws` - Insert and Delete
+  - [x] `replace.dws` - StringReplace
+  - [x] Expected outputs
+- [x] 9.53 Add CLI integration tests:
+  - [x] Test string function scripts
+  - [x] Verify outputs
+  - [x] Added semantic analysis for Trim, TrimLeft, TrimRight, Insert, StringReplace
+  - [x] Fixed Delete function overloading (2 args for arrays, 3 args for strings)
+
+**Note**: Format function testing deferred to task 9.88 due to array literal syntax complexity
+
+---
+
+### Format Function Testing (DEFERRED)
+
+**Summary**: Create comprehensive test fixtures for the Format() built-in function. Deferred from task 9.52 due to DWScript's set literal syntax `[...]` conflicting with Format's array parameter requirements.
+
+#### Task Details (1 task)
+
+- [ ] 9.88 Create Format function test fixtures:
+  - [ ] Implement proper array construction for Format args (using `array of` or alternative syntax)
+  - [ ] Create `testdata/string_functions/format.dws` with Format examples
+  - [ ] Test %s (string), %d (integer), %f (float) specifiers
+  - [ ] Test width and precision: %5d, %.2f, %8.2f
+  - [ ] Test %% (literal percent)
+  - [ ] Test multiple arguments
+  - [ ] Create expected output file
+  - [ ] Add CLI integration tests for Format
+  - [ ] Document Format syntax in `docs/builtins.md` (Task 9.51)
 
 ---
 
@@ -839,14 +861,14 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
     - [x] Test playground on Chrome, Firefox, and Safari (testing checklist created in playground/TESTING.md)
     - [x] Document playground architecture in `docs/wasm/PLAYGROUND.md`
   - [ ] 11.15.5 NPM Package:
-    - [ ] Create `npm/` package structure with package.json
-    - [ ] Write TypeScript definitions in `typescript/index.d.ts`
-    - [ ] Create dual ESM/CommonJS entry points (index.js, index.cjs)
-    - [ ] Add WASM loader helper for both Node.js and browser
-    - [ ] Create usage examples (Node.js, React, Vue, vanilla JS)
-    - [ ] Set up automated NPM publishing via GitHub Actions
-    - [ ] Configure package for tree-shaking and optimal bundling
-    - [ ] Write `npm/README.md` with installation and usage guide
+    - [x] Create `npm/` package structure with package.json
+    - [x] Write TypeScript definitions in `typescript/index.d.ts`
+    - [x] Create dual ESM/CommonJS entry points (index.js, index.cjs)
+    - [x] Add WASM loader helper for both Node.js and browser
+    - [x] Create usage examples (Node.js, React, Vue, vanilla JS)
+    - [x] Set up automated NPM publishing via GitHub Actions
+    - [x] Configure package for tree-shaking and optimal bundling
+    - [x] Write `npm/README.md` with installation and usage guide
     - [ ] Publish initial version to npmjs.com registry
   - [ ] 11.15.6 Testing & Documentation:
     - [ ] Write WASM-specific unit tests (GOOS=js GOARCH=wasm go test)
@@ -1120,171 +1142,171 @@ DWScript Source → Lexer → Parser → Semantic Analyzer → MIR Builder → J
 - [ ] 12.111 Emit ES6 class syntax: `class TAnimal { ... }`
 - [ ] 12.112 Implement field initialization in constructor
 - [ ] 12.113 Implement method emission
-- [ ] 12..114 Implement inheritance with `extends` clause
-- [ ] 12..115 Implement `super()` call in constructor
-- [ ] 12..116 Handle virtual method dispatch (naturally virtual in JS)
-- [ ] 12..117 Handle DWScript `Create` → JS `constructor`
-- [ ] 12..118 Handle multiple constructors (overload dispatch)
-- [ ] 12..119 Document destructor handling (no direct equivalent in JS)
-- [ ] 12..120 Implement static fields and methods
-- [ ] 12..121 Map `Self` → `this`, `inherited` → `super.method()`
-- [ ] 12..122 Test simple classes with fields and methods
-- [ ] 12..123 Test inheritance, virtual method overriding, constructors
-- [ ] 12..124 Test static members and `Self`/`inherited` usage
+- [ ] 12.114 Implement inheritance with `extends` clause
+- [ ] 12.115 Implement `super()` call in constructor
+- [ ] 12.116 Handle virtual method dispatch (naturally virtual in JS)
+- [ ] 12.117 Handle DWScript `Create` → JS `constructor`
+- [ ] 12.118 Handle multiple constructors (overload dispatch)
+- [ ] 12.119 Document destructor handling (no direct equivalent in JS)
+- [ ] 12.120 Implement static fields and methods
+- [ ] 12.121 Map `Self` → `this`, `inherited` → `super.method()`
+- [ ] 12.122 Test simple classes with fields and methods
+- [ ] 12.123 Test inheritance, virtual method overriding, constructors
+- [ ] 12.124 Test static members and `Self`/`inherited` usage
 
-#### 11.5.4: Interfaces (6 tasks)
+#### 12.5.4: Interfaces (6 tasks)
 
-- [ ] 12..125 Extend MIR for interfaces
-- [ ] 12..126 Choose and document JS emission strategy (structural typing vs runtime metadata)
-- [ ] 12..127 If using runtime metadata: emit interface tables, implement `is`/`as` operators
-- [ ] 12..128 Test class implementing interface
-- [ ] 12..129 Test interface method calls
-- [ ] 12..130 Test `is` and `as` with interfaces
+- [ ] 12.125 Extend MIR for interfaces
+- [ ] 12.126 Choose and document JS emission strategy (structural typing vs runtime metadata)
+- [ ] 12.127 If using runtime metadata: emit interface tables, implement `is`/`as` operators
+- [ ] 12.128 Test class implementing interface
+- [ ] 12.129 Test interface method calls
+- [ ] 12.130 Test `is` and `as` with interfaces
 
-#### 11.5.5: Enums and Sets (8 tasks)
+#### 12.5.5: Enums and Sets (8 tasks)
 
-- [ ] 12..131 Extend MIR for enums
-- [ ] 12..132 Emit enums as frozen JS objects: `const TColor = Object.freeze({...})`
-- [ ] 12..133 Support scoped and unscoped enum access
-- [ ] 12..134 Extend MIR for sets
-- [ ] 12..135 Emit small sets (≤32 elements) as bitmasks
-- [ ] 12..136 Emit large sets as JS `Set` objects
-- [ ] 12..137 Implement set operations: union, intersection, difference, inclusion
-- [ ] 12..138 Test enum declaration/usage and set operations
+- [ ] 12.131 Extend MIR for enums
+- [ ] 12.132 Emit enums as frozen JS objects: `const TColor = Object.freeze({...})`
+- [ ] 12.133 Support scoped and unscoped enum access
+- [ ] 12.134 Extend MIR for sets
+- [ ] 12.135 Emit small sets (≤32 elements) as bitmasks
+- [ ] 12.136 Emit large sets as JS `Set` objects
+- [ ] 12.137 Implement set operations: union, intersection, difference, inclusion
+- [ ] 12.138 Test enum declaration/usage and set operations
 
-#### 11.5.6: Exception Handling (8 tasks)
+#### 12.5.6: Exception Handling (8 tasks)
 
-- [ ] 12..139 Extend MIR for exceptions: `Throw`, `Try`, `Catch`, `Finally`
-- [ ] 12..140 Emit `Throw` → `throw new Error()` or custom exception class
-- [ ] 12..141 Emit try-except-finally → JS `try/catch/finally`
-- [ ] 12..142 Create DWScript exception class → JS `Error` subclass
-- [ ] 12..143 Handle `On E: ExceptionType do` with instanceof checks
-- [ ] 12..144 Implement re-raise with exception tracking
-- [ ] 12..145 Test basic try-except, multiple handlers, try-finally
-- [ ] 12..146 Test re-raise and nested exception handling
+- [ ] 12.139 Extend MIR for exceptions: `Throw`, `Try`, `Catch`, `Finally`
+- [ ] 12.140 Emit `Throw` → `throw new Error()` or custom exception class
+- [ ] 12.141 Emit try-except-finally → JS `try/catch/finally`
+- [ ] 12.142 Create DWScript exception class → JS `Error` subclass
+- [ ] 12.143 Handle `On E: ExceptionType do` with instanceof checks
+- [ ] 12.144 Implement re-raise with exception tracking
+- [ ] 12.145 Test basic try-except, multiple handlers, try-finally
+- [ ] 12.146 Test re-raise and nested exception handling
 
-#### 11.5.7: Properties and Advanced Features (6 tasks)
+#### 12.5.7: Properties and Advanced Features (6 tasks)
 
-- [ ] 12..147 Extend MIR for properties with `PropGet`/`PropSet`
-- [ ] 12..148 Emit properties as ES6 getters/setters
-- [ ] 12..149 Handle indexed properties as methods
-- [ ] 12..150 Test read/write properties and indexed properties
-- [ ] 12..151 Implement operator overloading (desugar to method calls)
-- [ ] 12..152 Implement generics support (monomorphization)
+- [ ] 12.147 Extend MIR for properties with `PropGet`/`PropSet`
+- [ ] 12.148 Emit properties as ES6 getters/setters
+- [ ] 12.149 Handle indexed properties as methods
+- [ ] 12.150 Test read/write properties and indexed properties
+- [ ] 12.151 Implement operator overloading (desugar to method calls)
+- [ ] 12.152 Implement generics support (monomorphization)
 
-### Stage 11.6: LLVM Backend [OPTIONAL - Future Work] (45 tasks)
+### Stage 12.6: LLVM Backend [OPTIONAL - Future Work] (45 tasks)
 
 **Goal**: Implement LLVM IR backend for native code compilation. This is **deferred** and optional.
 
 **Exit Criteria**: Valid LLVM IR generation, runtime library in C, basic end-to-end tests, documentation
 
-#### 11.6.1: LLVM Infrastructure (8 tasks)
+#### 12.6.1: LLVM Infrastructure (8 tasks)
 
-- [ ] 12..153 Choose LLVM binding: `llir/llvm` (pure Go) vs CGo bindings
-- [ ] 12..154 Create `codegen/llvm/` package with `emitter.go`, `types.go`, `runtime.go`
-- [ ] 12..155 Implement type mapping: DWScript types → LLVM types
-- [ ] 12..156 Map Integer → `i32`/`i64`, Float → `double`, Boolean → `i1`
-- [ ] 12..157 Map String → struct `{i32 len, i8* data}`
-- [ ] 12..158 Map arrays/objects to LLVM structs
-- [ ] 12..159 Emit LLVM module with target triple
-- [ ] 12..160 Declare external runtime functions
+- [ ] 12.153 Choose LLVM binding: `llir/llvm` (pure Go) vs CGo bindings
+- [ ] 12.154 Create `codegen/llvm/` package with `emitter.go`, `types.go`, `runtime.go`
+- [ ] 12.155 Implement type mapping: DWScript types → LLVM types
+- [ ] 12.156 Map Integer → `i32`/`i64`, Float → `double`, Boolean → `i1`
+- [ ] 12.157 Map String → struct `{i32 len, i8* data}`
+- [ ] 12.158 Map arrays/objects to LLVM structs
+- [ ] 12.159 Emit LLVM module with target triple
+- [ ] 12.160 Declare external runtime functions
 
-#### 11.6.2: Runtime Library (12 tasks)
+#### 12.6.2: Runtime Library (12 tasks)
 
-- [ ] 12..161 Create `runtime/dws_runtime.h` - C header for runtime API
-- [ ] 12..162 Declare string operations: `dws_string_new()`, `dws_string_concat()`, `dws_string_len()`
-- [ ] 12..163 Declare array operations: `dws_array_new()`, `dws_array_index()`, `dws_array_len()`
-- [ ] 12..164 Declare memory management: `dws_alloc()`, `dws_free()`
-- [ ] 12..165 Choose and document memory strategy (Boehm GC vs reference counting)
-- [ ] 12..166 Declare object operations: `dws_object_new()`, virtual dispatch helpers
-- [ ] 12..167 Declare exception handling: `dws_throw()`, `dws_catch()`
-- [ ] 12..168 Declare RTTI: `dws_is_instance()`, `dws_as_instance()`
-- [ ] 12..169 Create `runtime/dws_runtime.c` - implement runtime
-- [ ] 12..170 Implement all runtime functions
-- [ ] 12..171 Create `runtime/Makefile` to build `libdws_runtime.a`
-- [ ] 12..172 Add runtime build to CI for Linux/macOS/Windows
+- [ ] 12.161 Create `runtime/dws_runtime.h` - C header for runtime API
+- [ ] 12.162 Declare string operations: `dws_string_new()`, `dws_string_concat()`, `dws_string_len()`
+- [ ] 12.163 Declare array operations: `dws_array_new()`, `dws_array_index()`, `dws_array_len()`
+- [ ] 12.164 Declare memory management: `dws_alloc()`, `dws_free()`
+- [ ] 12.165 Choose and document memory strategy (Boehm GC vs reference counting)
+- [ ] 12.166 Declare object operations: `dws_object_new()`, virtual dispatch helpers
+- [ ] 12.167 Declare exception handling: `dws_throw()`, `dws_catch()`
+- [ ] 12.168 Declare RTTI: `dws_is_instance()`, `dws_as_instance()`
+- [ ] 12.169 Create `runtime/dws_runtime.c` - implement runtime
+- [ ] 12.170 Implement all runtime functions
+- [ ] 12.171 Create `runtime/Makefile` to build `libdws_runtime.a`
+- [ ] 12.172 Add runtime build to CI for Linux/macOS/Windows
 
-#### 11.6.3: LLVM Code Emission (15 tasks)
+#### 12.6.3: LLVM Code Emission (15 tasks)
 
-- [ ] 12..173 Implement LLVM emitter: `Generate(module *mir.Module) (string, error)`
-- [ ] 12..174 Emit function declarations with correct signatures
-- [ ] 12..175 Emit basic blocks for each MIR block
-- [ ] 12..176 Emit arithmetic instructions: `add`, `sub`, `mul`, `sdiv`, `srem`
-- [ ] 12..177 Emit comparison instructions: `icmp eq`, `icmp slt`, etc.
-- [ ] 12..178 Emit logical instructions: `and`, `or`, `xor`
-- [ ] 12..179 Emit memory instructions: `alloca`, `load`, `store`
-- [ ] 12..180 Emit call instructions: `call @function_name(args)`
-- [ ] 12..181 Emit constants: integers, floats, strings
-- [ ] 12..182 Emit control flow: conditional branches, phi nodes
-- [ ] 12..183 Emit runtime calls for strings, arrays, objects
-- [ ] 12..184 Implement type conversions: `sitofp`, `fptosi`
-- [ ] 12..185 Emit struct types for classes and vtables
-- [ ] 12..186 Implement virtual method dispatch
-- [ ] 12..187 Implement exception handling (simple throw/catch or full LLVM EH)
+- [ ] 12.173 Implement LLVM emitter: `Generate(module *mir.Module) (string, error)`
+- [ ] 12.174 Emit function declarations with correct signatures
+- [ ] 12.175 Emit basic blocks for each MIR block
+- [ ] 12.176 Emit arithmetic instructions: `add`, `sub`, `mul`, `sdiv`, `srem`
+- [ ] 12.177 Emit comparison instructions: `icmp eq`, `icmp slt`, etc.
+- [ ] 12.178 Emit logical instructions: `and`, `or`, `xor`
+- [ ] 12.179 Emit memory instructions: `alloca`, `load`, `store`
+- [ ] 12.180 Emit call instructions: `call @function_name(args)`
+- [ ] 12.181 Emit constants: integers, floats, strings
+- [ ] 12.182 Emit control flow: conditional branches, phi nodes
+- [ ] 12.183 Emit runtime calls for strings, arrays, objects
+- [ ] 12.184 Implement type conversions: `sitofp`, `fptosi`
+- [ ] 12.185 Emit struct types for classes and vtables
+- [ ] 12.186 Implement virtual method dispatch
+- [ ] 12.187 Implement exception handling (simple throw/catch or full LLVM EH)
 
-#### 11.6.4: Linking and Testing (7 tasks)
+#### 12.6.4: Linking and Testing (7 tasks)
 
-- [ ] 12..188 Implement compilation pipeline: DWScript → MIR → LLVM IR → object → executable
-- [ ] 12..189 Integrate `llc` to compile .ll → .o
-- [ ] 12..190 Integrate linker to link object + runtime → executable
-- [ ] 12..191 Add `compile-native` CLI command
-- [ ] 12..192 Create 10+ end-to-end tests: DWScript → native → execute → verify
-- [ ] 12..193 Benchmark JS vs native performance
-- [ ] 12..194 Document LLVM backend in `docs/llvm-backend.md`
+- [ ] 12.188 Implement compilation pipeline: DWScript → MIR → LLVM IR → object → executable
+- [ ] 12.189 Integrate `llc` to compile .ll → .o
+- [ ] 12.190 Integrate linker to link object + runtime → executable
+- [ ] 12.191 Add `compile-native` CLI command
+- [ ] 12.192 Create 10+ end-to-end tests: DWScript → native → execute → verify
+- [ ] 12.193 Benchmark JS vs native performance
+- [ ] 12.194 Document LLVM backend in `docs/llvm-backend.md`
 
-#### 11.6.5: Documentation (3 tasks)
+#### 12.6.5: Documentation (3 tasks)
 
-- [ ] 12..195 Create `docs/codegen-architecture.md` - MIR overview, multi-backend design
-- [ ] 12..196 Create `docs/mir-spec.md` - complete MIR reference with examples
-- [ ] 12..197 Create `docs/js-backend.md` - DWScript → JavaScript mapping guide
+- [ ] 12.195 Create `docs/codegen-architecture.md` - MIR overview, multi-backend design
+- [ ] 12.196 Create `docs/mir-spec.md` - complete MIR reference with examples
+- [ ] 12.197 Create `docs/js-backend.md` - DWScript → JavaScript mapping guide
 
 ---
 
-## Phase 12: AST-Driven Formatter and Playground Integration 🆕 **PLANNED**
+## Phase 13: AST-Driven Formatter and Playground Integration 🆕 **PLANNED**
 
 Goal: deliver an auto-formatting pipeline that reuses the existing AST and semantic metadata to produce canonical DWScript source, accessible via the CLI (`dwscript fmt`), editors, and the web playground.
 
-### 12.1 Specification & AST/Data Prep (7 tasks)
+### 13.1 Specification & AST/Data Prep (7 tasks)
 
-- [ ] 12.1.1 Capture formatting requirements from upstream DWScript (indent width, begin/end alignment, keyword casing, line-wrapping) and document them in `docs/formatter-style-guide.md`.
-- [ ] 12.1.2 Audit current AST nodes for source position fidelity and comment/trivia preservation; list any nodes lacking `Pos` / `EndPos`.
-- [ ] 12.1.3 Extend the parser/AST to track leading and trailing trivia (single-line, block comments, blank lines) without disturbing semantic passes.
-- [ ] 12.1.4 Define a `format.Options` struct (indent size, max line length, newline style) and default profile matching DWScript conventions.
-- [ ] 12.1.5 Build a formatting test corpus in `testdata/formatter/{input,expected}` with tricky constructs (nested classes, generics, properties, preprocessor).
-- [ ] 12.1.6 Add helper APIs to serialize AST back into token streams (e.g., `ast.FormatNode`, `ast.IterChildren`) to keep formatter logic decoupled from parser internals.
-- [ ] 12.1.7 Ensure the semantic/type metadata needed for spacing decisions (e.g., `var` params, attributes) is exposed through lightweight inspector interfaces to avoid circular imports.
+- [x] 13.1.1 Capture formatting requirements from upstream DWScript (indent width, begin/end alignment, keyword casing, line-wrapping) and document them in `docs/formatter-style-guide.md`.
+- [x] 13.1.2 Audit current AST nodes for source position fidelity and comment/trivia preservation; list any nodes lacking `Pos` / `EndPos`.
+- [ ] 13.1.3 Extend the parser/AST to track leading and trailing trivia (single-line, block comments, blank lines) without disturbing semantic passes.
+- [ ] 13.1.4 Define a `format.Options` struct (indent size, max line length, newline style) and default profile matching DWScript conventions.
+- [ ] 13.1.5 Build a formatting test corpus in `testdata/formatter/{input,expected}` with tricky constructs (nested classes, generics, properties, preprocessor).
+- [ ] 13.1.6 Add helper APIs to serialize AST back into token streams (e.g., `ast.FormatNode`, `ast.IterChildren`) to keep formatter logic decoupled from parser internals.
+- [ ] 13.1.7 Ensure the semantic/type metadata needed for spacing decisions (e.g., `var` params, attributes) is exposed through lightweight inspector interfaces to avoid circular imports.
 
-### 12.2 Formatter Engine Implementation (10 tasks)
+### 13.2 Formatter Engine Implementation (10 tasks)
 
-- [ ] 12.2.1 Create `formatter` package with a multi-phase pipeline: AST normalization → layout planning → text emission.
-- [ ] 12.2.2 Implement a visitor that emits `format.Node` instructions (indent/dedent, soft break, literal text) for statements and declarations, leveraging AST shape rather than raw tokens.
-- [ ] 12.2.3 Handle block constructs (`begin...end`, class bodies, `case` arms) with indentation stacks so nested scopes auto-align.
-- [ ] 12.2.4 Add expression formatting that respects operator precedence and inserts parentheses only when required; reuse existing precedence tables.
-- [ ] 12.2.5 Support alignment for parameter lists, generics, array types, and property declarations with configurable wrap points.
-- [ ] 12.2.6 Preserve user comments: attach leading comments before the owning node, keep inline comments after statements, and maintain blank-line intent (max consecutives configurable).
-- [ ] 12.2.7 Implement whitespace normalization rules (single spaces around binary operators, before `do`/`then`, after commas, etc.).
-- [ ] 12.2.8 Provide idempotency guarantees by building a golden test that pipes formatted output back through the formatter and asserts stability.
-- [ ] 12.2.9 Expose a streaming writer that emits `[]byte`/`io.Writer` output to keep the CLI fast and low-memory.
-- [ ] 12.2.10 Benchmark formatting of large fixtures (≥5k LOC) and optimize hot paths (string builder pools, avoiding interface allocations).
+- [ ] 13.2.1 Create `formatter` package with a multi-phase pipeline: AST normalization → layout planning → text emission.
+- [ ] 13.2.2 Implement a visitor that emits `format.Node` instructions (indent/dedent, soft break, literal text) for statements and declarations, leveraging AST shape rather than raw tokens.
+- [ ] 13.2.3 Handle block constructs (`begin...end`, class bodies, `case` arms) with indentation stacks so nested scopes auto-align.
+- [ ] 13.2.4 Add expression formatting that respects operator precedence and inserts parentheses only when required; reuse existing precedence tables.
+- [ ] 13.2.5 Support alignment for parameter lists, generics, array types, and property declarations with configurable wrap points.
+- [ ] 13.2.6 Preserve user comments: attach leading comments before the owning node, keep inline comments after statements, and maintain blank-line intent (max consecutives configurable).
+- [ ] 13.2.7 Implement whitespace normalization rules (single spaces around binary operators, before `do`/`then`, after commas, etc.).
+- [ ] 13.2.8 Provide idempotency guarantees by building a golden test that pipes formatted output back through the formatter and asserts stability.
+- [ ] 13.2.9 Expose a streaming writer that emits `[]byte`/`io.Writer` output to keep the CLI fast and low-memory.
+- [ ] 13.2.10 Benchmark formatting of large fixtures (≥5k LOC) and optimize hot paths (string builder pools, avoiding interface allocations).
 
-### 12.3 Tooling & Playground Integration (7 tasks)
+### 13.3 Tooling & Playground Integration (7 tasks)
 
-- [ ] 12.3.1 Wire a new CLI command `dwscript fmt` (and `fmt -w`) that runs the formatter over files/directories, mirroring `gofmt` UX.
-- [ ] 12.3.2 Update the WASM bridge to expose a `Format(source string) (string, error)` hook exported from Go, reusing the same formatter package.
-- [ ] 12.3.3 Modify `playground/js/playground.js` to call the WASM formatter before falling back to Monaco’s default action, enabling deterministic formatting in the browser.
-- [ ] 12.3.4 Add formatter support to the VSCode extension / LSP stub (if present) so editors can trigger `textDocument/formatting`.
-- [ ] 12.3.5 Ensure the formatter respects partial-range requests (`textDocument/rangeFormatting`) to avoid reformatting entire files when not desired.
-- [ ] 12.3.6 Introduce CI checks (`just fmt-check`) that fail when files are not formatted, and document the workflow in `CONTRIBUTING.md`.
-- [ ] 12.3.7 Provide sample scripts/snippets (e.g., Git hooks) encouraging contributors to run the formatter.
+- [ ] 13.3.1 Wire a new CLI command `dwscript fmt` (and `fmt -w`) that runs the formatter over files/directories, mirroring `gofmt` UX.
+- [ ] 13.3.2 Update the WASM bridge to expose a `Format(source string) (string, error)` hook exported from Go, reusing the same formatter package.
+- [ ] 13.3.3 Modify `playground/js/playground.js` to call the WASM formatter before falling back to Monaco’s default action, enabling deterministic formatting in the browser.
+- [ ] 13.3.4 Add formatter support to the VSCode extension / LSP stub (if present) so editors can trigger `textDocument/formatting`.
+- [ ] 13.3.5 Ensure the formatter respects partial-range requests (`textDocument/rangeFormatting`) to avoid reformatting entire files when not desired.
+- [ ] 13.3.6 Introduce CI checks (`just fmt-check`) that fail when files are not formatted, and document the workflow in `CONTRIBUTING.md`.
+- [ ] 13.3.7 Provide sample scripts/snippets (e.g., Git hooks) encouraging contributors to run the formatter.
 
-### 12.4 Validation, UX, and Docs (6 tasks)
+### 13.4 Validation, UX, and Docs (6 tasks)
 
-- [ ] 12.4.1 Create table-driven unit tests per node type plus integration tests that read `testdata/formatter` fixtures.
-- [ ] 12.4.2 Add fuzz/property tests that compare formatter output against itself round-tripped through the parser → formatter pipeline.
-- [ ] 12.4.3 Document formatter architecture and extension points in `docs/formatter-architecture.md`.
-- [ ] 12.4.4 Update `PLAYGROUND.md`, `README.md`, and release notes to mention the Format button now runs the AST-driven formatter.
-- [ ] 12.4.5 Record known limitations (e.g., preprocessor directives) and track follow-ups in `TEST_ISSUES.md`.
-- [ ] 12.4.6 Gather usability feedback (issue template or telemetry) to prioritize refinements like configurable styles or multi-profile support.
+- [ ] 13.4.1 Create table-driven unit tests per node type plus integration tests that read `testdata/formatter` fixtures.
+- [ ] 13.4.2 Add fuzz/property tests that compare formatter output against itself round-tripped through the parser → formatter pipeline.
+- [ ] 13.4.3 Document formatter architecture and extension points in `docs/formatter-architecture.md`.
+- [ ] 13.4.4 Update `PLAYGROUND.md`, `README.md`, and release notes to mention the Format button now runs the AST-driven formatter.
+- [ ] 13.4.5 Record known limitations (e.g., preprocessor directives) and track follow-ups in `TEST_ISSUES.md`.
+- [ ] 13.4.6 Gather usability feedback (issue template or telemetry) to prioritize refinements like configurable styles or multi-profile support.
 
 ---
 
@@ -1302,23 +1324,23 @@ This detailed plan breaks down the ambitious goal of porting DWScript from Delph
    - Classes: COMPLETE (87/73 tasks)
    - **Interfaces: REQUIRED** (0/83 tasks) - expanded based on reference implementation analysis
 8. **Stage 8**: Additional features (93 tasks) [+31 from property expansion]
-9. **Stage 9**: Performance and polish (68 tasks)
-10. **Stage 10**: Long-term evolution (54 tasks)
-11. **Stage 11**: Code generation - Multi-backend architecture (~180 tasks)
-    - **11.1-11.3**: MIR Foundation (47 tasks) - ~2 weeks
-    - **11.4**: JS Backend MVP (45 tasks) - ~3 weeks
-    - **11.5**: JS Feature Complete (60 tasks) - ~4 weeks
-    - **11.6**: LLVM Backend [OPTIONAL] (45 tasks) - future work
-12. **Stage 12**: AST-driven formatter & playground integration (30 tasks)
-
-**Total: ~897 tasks** (includes new Phase 12 formatter effort)
+9. **Stage 9**: Deferred Tasks from Stage 8
+10. **Stage 10**: Performance and polish (68 tasks)
+11. **Stage 11**: Long-term evolution (54 tasks)
+12. **Stage 12**: Code generation - Multi-backend architecture (~180 tasks)
+    - **12.1-12.3**: MIR Foundation (47 tasks) - ~2 weeks
+    - **12.4**: JS Backend MVP (45 tasks) - ~3 weeks
+    - **12.5**: JS Feature Complete (60 tasks) - ~4 weeks
+    - **12.6**: LLVM Backend [OPTIONAL] (45 tasks) - future work
+13. **Stage 13**: AST-driven formatter & playground integration (30 tasks)
 
 **Key Notes**:
-- **Stage 11** introduces a two-tier code generation architecture with MIR as an intermediate representation
-- JavaScript backend is prioritized (Stages 11.1-11.5, ~152 tasks, ~9 weeks) for immediate value
-- LLVM backend (Stage 11.6, 45 tasks) is optional and can be deferred or skipped entirely
+
+- **Stage 12** introduces a two-tier code generation architecture with MIR as an intermediate representation
+- JavaScript backend is prioritized (Stages 12.1-12.5, ~152 tasks, ~9 weeks) for immediate value
+- LLVM backend (Stage 12.6, 45 tasks) is optional and can be deferred or skipped entirely
 - The MIR layer enables multiple backends from a single lowering pass, future-proofing for WebAssembly, C, or other targets
-- **Stage 12** adds an AST-driven formatter shared by the CLI, LSP, and web playground so Monaco’s Format button produces deterministic DWScript output.
+- **Stage 13** adds an AST-driven formatter shared by the CLI, LSP, and web playground so Monaco’s Format button produces deterministic DWScript output.
 
 Each task is actionable and testable. Following this plan methodically will result in a complete, production-ready DWScript implementation in Go, preserving 100% of the language's syntax and semantics while leveraging Go's ecosystem.
 
@@ -1327,5 +1349,3 @@ The project can realistically take **1-3 years** depending on:
 - Development pace (full-time vs part-time)
 - Team size (solo vs multiple contributors)
 - Completeness goals (minimal viable vs full feature parity)
-
-With consistent progress, a **working compiler for core features** (Stages 0-5) could be achieved in **3-6 months**, and **JavaScript code generation** (Stages 0-11.5) in **9-12 months**, making the project usable early while continuing to add advanced features.

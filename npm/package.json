@@ -1,0 +1,61 @@
+{
+  "name": "@cwbudde/dwscript",
+  "version": "0.1.0",
+  "description": "DWScript interpreter compiled to WebAssembly with Node.js and browser loaders.",
+  "type": "module",
+  "main": "index.cjs",
+  "module": "index.js",
+  "types": "typescript/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./typescript/index.d.ts",
+      "import": "./index.js",
+      "require": "./index.cjs"
+    },
+    "./loader": {
+      "import": "./loader.js",
+      "require": "./loader.js",
+      "types": "./typescript/index.d.ts"
+    },
+    "./dwscript.wasm": "./dwscript.wasm",
+    "./wasm_exec.js": "./wasm_exec.js"
+  },
+  "files": [
+    "index.js",
+    "index.cjs",
+    "loader.js",
+    "dwscript.wasm",
+    "wasm_exec.js",
+    "typescript",
+    "examples",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./wasm_exec.js"
+  ],
+  "keywords": [
+    "dwscript",
+    "delphi",
+    "pascal",
+    "interpreter",
+    "wasm",
+    "webassembly"
+  ],
+  "author": "cwbudde",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cwbudde/go-dws"
+  },
+  "bugs": {
+    "url": "https://github.com/cwbudde/go-dws/issues"
+  },
+  "homepage": "https://github.com/cwbudde/go-dws#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
