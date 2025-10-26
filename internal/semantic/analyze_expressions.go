@@ -849,30 +849,54 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		// Delete built-in function (Task 8.135)
-		if funcIdent.Value == "Delete" {
-			// Delete takes two arguments (array, index) and returns void
-			if len(expr.Arguments) != 2 {
-				a.addError("function 'Delete' expects 2 arguments, got %d at %s",
-					len(expr.Arguments), expr.Token.Pos.String())
-				return types.VOID
-			}
-			// Analyze the first argument (array)
+	// Delete built-in function (Tasks 8.135, 9.44 - overloaded)
+	// Delete(array, index) - for arrays (2 args)
+	// Delete(string, pos, count) - for strings (3 args)
+	if funcIdent.Value == "Delete" {
+		if len(expr.Arguments) == 2 {
+			// Array delete: Delete(array, index)
 			argType := a.analyzeExpression(expr.Arguments[0])
 			if argType != nil {
 				if _, isArray := argType.(*types.ArrayType); !isArray {
-					a.addError("function 'Delete' expects array as first argument, got %s at %s",
+					a.addError("function 'Delete' expects array as first argument for 2-argument form, got %s at %s",
 						argType.String(), expr.Token.Pos.String())
 				}
 			}
-			// Analyze the second argument (index - should be integer)
 			indexType := a.analyzeExpression(expr.Arguments[1])
 			if indexType != nil && indexType != types.INTEGER {
 				a.addError("function 'Delete' expects integer as second argument, got %s at %s",
 					indexType.String(), expr.Token.Pos.String())
 			}
 			return types.VOID
+		} else if len(expr.Arguments) == 3 {
+			// String delete: Delete(string, pos, count)
+			if _, ok := expr.Arguments[0].(*ast.Identifier); !ok {
+				a.addError("function 'Delete' first argument must be a variable at %s",
+					expr.Token.Pos.String())
+			} else {
+				strType := a.analyzeExpression(expr.Arguments[0])
+				if strType != nil && strType != types.STRING {
+					a.addError("function 'Delete' first argument must be String for 3-argument form, got %s at %s",
+						strType.String(), expr.Token.Pos.String())
+				}
+			}
+			posType := a.analyzeExpression(expr.Arguments[1])
+			if posType != nil && posType != types.INTEGER {
+				a.addError("function 'Delete' second argument must be Integer, got %s at %s",
+					posType.String(), expr.Token.Pos.String())
+			}
+			countType := a.analyzeExpression(expr.Arguments[2])
+			if countType != nil && countType != types.INTEGER {
+				a.addError("function 'Delete' third argument must be Integer, got %s at %s",
+					countType.String(), expr.Token.Pos.String())
+			}
+			return types.VOID
+		} else {
+			a.addError("function 'Delete' expects 2 or 3 arguments, got %d at %s",
+				len(expr.Arguments), expr.Token.Pos.String())
+			return types.VOID
 		}
+	}
 
 		// IntToStr built-in function (Task 8.187)
 		if funcIdent.Value == "IntToStr" {
@@ -1086,6 +1110,98 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			return types.VOID
 		}
+
+	// Trim built-in function (Task 9.40)
+	if funcIdent.Value == "Trim" {
+		if len(expr.Arguments) != 1 {
+			a.addError("function 'Trim' expects 1 argument, got %d at %s",
+				len(expr.Arguments), expr.Token.Pos.String())
+			return types.STRING
+		}
+		argType := a.analyzeExpression(expr.Arguments[0])
+		if argType != nil && argType != types.STRING {
+			a.addError("function 'Trim' expects string as argument, got %s at %s",
+				argType.String(), expr.Token.Pos.String())
+		}
+		return types.STRING
+	}
+
+	// TrimLeft built-in function (Task 9.41)
+	if funcIdent.Value == "TrimLeft" {
+		if len(expr.Arguments) != 1 {
+			a.addError("function 'TrimLeft' expects 1 argument, got %d at %s",
+				len(expr.Arguments), expr.Token.Pos.String())
+			return types.STRING
+		}
+		argType := a.analyzeExpression(expr.Arguments[0])
+		if argType != nil && argType != types.STRING {
+			a.addError("function 'TrimLeft' expects string as argument, got %s at %s",
+				argType.String(), expr.Token.Pos.String())
+		}
+		return types.STRING
+	}
+
+	// TrimRight built-in function (Task 9.41)
+	if funcIdent.Value == "TrimRight" {
+		if len(expr.Arguments) != 1 {
+			a.addError("function 'TrimRight' expects 1 argument, got %d at %s",
+				len(expr.Arguments), expr.Token.Pos.String())
+			return types.STRING
+		}
+		argType := a.analyzeExpression(expr.Arguments[0])
+		if argType != nil && argType != types.STRING {
+			a.addError("function 'TrimRight' expects string as argument, got %s at %s",
+				argType.String(), expr.Token.Pos.String())
+		}
+		return types.STRING
+	}
+
+	// Insert built-in procedure (Task 9.43)
+	if funcIdent.Value == "Insert" {
+		if len(expr.Arguments) != 3 {
+			a.addError("function 'Insert' expects 3 arguments, got %d at %s",
+				len(expr.Arguments), expr.Token.Pos.String())
+			return types.VOID
+		}
+		sourceType := a.analyzeExpression(expr.Arguments[0])
+		if sourceType != nil && sourceType != types.STRING {
+			a.addError("function 'Insert' first argument must be String, got %s at %s",
+				sourceType.String(), expr.Token.Pos.String())
+		}
+		if _, ok := expr.Arguments[1].(*ast.Identifier); !ok {
+			a.addError("function 'Insert' second argument must be a variable at %s",
+				expr.Token.Pos.String())
+		} else {
+			targetType := a.analyzeExpression(expr.Arguments[1])
+			if targetType != nil && targetType != types.STRING {
+				a.addError("function 'Insert' second argument must be String, got %s at %s",
+					targetType.String(), expr.Token.Pos.String())
+			}
+		}
+		posType := a.analyzeExpression(expr.Arguments[2])
+		if posType != nil && posType != types.INTEGER {
+			a.addError("function 'Insert' third argument must be Integer, got %s at %s",
+				posType.String(), expr.Token.Pos.String())
+		}
+		return types.VOID
+	}
+
+	// StringReplace built-in function (Task 9.46)
+	if funcIdent.Value == "StringReplace" {
+		if len(expr.Arguments) != 3 {
+			a.addError("function 'StringReplace' expects 3 arguments, got %d at %s",
+				len(expr.Arguments), expr.Token.Pos.String())
+			return types.STRING
+		}
+		for i, arg := range expr.Arguments {
+			argType := a.analyzeExpression(arg)
+			if argType != nil && argType != types.STRING {
+				a.addError("function 'StringReplace' argument %d must be String, got %s at %s",
+					i+1, argType.String(), expr.Token.Pos.String())
+			}
+		}
+		return types.STRING
+	}
 
 		// Allow calling methods within the current class without explicit Self
 		if a.currentClass != nil {

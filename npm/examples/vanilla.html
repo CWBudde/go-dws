@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>DWScript WebAssembly Example</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 2rem; }
+        textarea { width: 100%; min-height: 10rem; font-family: 'JetBrains Mono', monospace; }
+        pre { background: #111; color: #0f0; padding: 1rem; min-height: 5rem; }
+        button { margin-top: 1rem; padding: 0.5rem 1rem; }
+    </style>
+</head>
+<body>
+    <h1>DWScript + WebAssembly</h1>
+    <textarea id="code">PrintLn('Hello from the browser');</textarea>
+    <button id="run" disabled>Loading...</button>
+    <pre id="output"></pre>
+
+    <script type="module">
+        import createDWScript from '@cwbudde/dwscript';
+
+        const textarea = document.getElementById('code');
+        const outputEl = document.getElementById('output');
+        const runButton = document.getElementById('run');
+
+        let dws = null;
+
+        async function bootstrap() {
+            dws = await createDWScript({
+                initOptions: {
+                    onOutput: (text) => (outputEl.textContent += text),
+                },
+            });
+            runButton.textContent = 'Run DWScript';
+            runButton.disabled = false;
+        }
+
+        runButton.addEventListener('click', () => {
+            if (!dws) return;
+            outputEl.textContent = '';
+            const result = dws.eval(textarea.value);
+            if (!result.success && result.error) {
+                outputEl.textContent = `Error: ${result.error.message}`;
+            }
+        });
+
+        bootstrap().catch((error) => {
+            runButton.textContent = 'Failed to load';
+            outputEl.textContent = error.message;
+        });
+    </script>
+</body>
+</html>

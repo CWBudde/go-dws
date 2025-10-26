@@ -1,0 +1,68 @@
+// replace.dws - Tests StringReplace function
+// Expected output in replace.out
+
+PrintLn('=== StringReplace Function ===');
+
+// Replace all occurrences
+var s1: String := 'hello world';
+PrintLn(StringReplace(s1, 'l', 'L'));  // heLLo worLd
+
+// Replace single occurrence
+var s2: String := 'hello';
+PrintLn(StringReplace(s2, 'h', 'H'));  // Hello
+
+// Replace substring
+var s3: String := 'The quick brown fox';
+PrintLn(StringReplace(s3, 'brown', 'red'));  // The quick red fox
+
+// Replace with longer string
+var s4: String := 'cat';
+PrintLn(StringReplace(s4, 'cat', 'catastrophe'));  // catastrophe
+
+// Replace with shorter string
+var s5: String := 'Mississippi';
+PrintLn(StringReplace(s5, 'ss', 's'));  // Misisippi
+
+// Replace with empty string (delete)
+var s6: String := 'hello';
+PrintLn(StringReplace(s6, 'l', ''));  // heo
+
+// No match (no change)
+var s7: String := 'hello';
+PrintLn(StringReplace(s7, 'x', 'y'));  // hello
+
+// Empty old string (no change)
+var s8: String := 'test';
+PrintLn(StringReplace(s8, '', 'x'));  // test
+
+// Case-sensitive replacement
+var s9: String := 'Hello World';
+PrintLn(StringReplace(s9, 'o', '0'));  // Hell0 W0rld
+PrintLn(StringReplace(s9, 'O', '0'));  // Hello World (no match)
+
+PrintLn('=== Multiple Replacements ===');
+
+// Chain replacements
+var chain: String := 'The quick brown fox';
+chain := StringReplace(chain, 'quick', 'slow');
+PrintLn(chain);  // The slow brown fox
+chain := StringReplace(chain, 'brown', 'black');
+PrintLn(chain);  // The slow black fox
+chain := StringReplace(chain, 'fox', 'cat');
+PrintLn(chain);  // The slow black cat
+
+PrintLn('=== Special Cases ===');
+
+// Replace entire string
+var special1: String := 'test';
+PrintLn(StringReplace(special1, 'test', 'done'));  // done
+
+// Overlapping patterns (only first occurrence per position)
+var special2: String := 'aaa';
+PrintLn(StringReplace(special2, 'aa', 'b'));  // ba
+
+// Replace spaces
+var special3: String := 'hello world test';
+PrintLn(StringReplace(special3, ' ', '_'));  // hello_world_test
+
+PrintLn('Done');

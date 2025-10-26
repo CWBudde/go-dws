@@ -1,0 +1,81 @@
+// format.dws - Tests Format function with various specifiers
+// Expected output in format.out
+
+PrintLn('=== Basic Format Specifiers ===');
+
+// %s - String
+PrintLn(Format('Hello %s', ['World']));  // Hello World
+PrintLn(Format('Name: %s', ['Alice']));  // Name: Alice
+
+// %d - Integer
+PrintLn(Format('Age: %d', [25]));  // Age: 25
+PrintLn(Format('Count: %d', [42]));  // Count: 42
+
+// %f - Float
+PrintLn(Format('Pi: %f', [3.14159]));  // Pi: 3.141590
+PrintLn(Format('Value: %f', [2.5]));  // Value: 2.500000
+
+// %% - Literal percent
+PrintLn(Format('100%% complete', []));  // 100% complete
+
+PrintLn('=== Multiple Arguments ===');
+
+// Multiple format specifiers
+PrintLn(Format('%s is %d years old', ['Bob', 30]));  // Bob is 30 years old
+PrintLn(Format('%d + %d = %d', [2, 3, 5]));  // 2 + 3 = 5
+PrintLn(Format('%s: %.2f', ['Price', 19.99]));  // Price: 19.99
+
+PrintLn('=== Width and Precision ===');
+
+// Integer with width
+PrintLn(Format('[%5d]', [42]));  // [   42]
+PrintLn(Format('[%3d]', [7]));   // [  7]
+
+// Float with precision
+PrintLn(Format('%.2f', [3.14159]));  // 3.14
+PrintLn(Format('%.3f', [2.71828]));  // 2.718
+PrintLn(Format('%.1f', [9.87654]));  // 9.9
+
+// Width and precision combined
+PrintLn(Format('[%8.2f]', [3.14]));  // [    3.14]
+
+PrintLn('=== Negative Numbers ===');
+
+// Negative integers
+PrintLn(Format('%d', [-42]));     // -42
+PrintLn(Format('%5d', [-7]));     // [   -7]
+
+// Negative floats
+PrintLn(Format('%.2f', [-3.14])); // -3.14
+
+PrintLn('=== Edge Cases ===');
+
+// Zero values
+PrintLn(Format('%d', [0]));       // 0
+PrintLn(Format('%.2f', [0.0]));   // 0.00
+
+// Empty string
+PrintLn(Format('%s', ['']));      // (empty line)
+
+// Very large numbers
+PrintLn(Format('%d', [1000000])); // 1000000
+
+PrintLn('=== Complex Format Strings ===');
+
+// Invoice-like format
+var itemName: String := 'Widget';
+var quantity: Integer := 5;
+var price: Float := 19.99;
+var total: Float := 99.95;
+
+PrintLn(Format('Item: %s', [itemName]));
+PrintLn(Format('Quantity: %d @ $%.2f each', [quantity, price]));
+PrintLn(Format('Total: $%.2f', [total]));
+
+// Coordinates
+PrintLn(Format('Point: (%.1f, %.1f)', [3.5, 7.2]));
+
+// Date-like format
+PrintLn(Format('%d/%d/%d', [10, 26, 2024]));
+
+PrintLn('Done');
