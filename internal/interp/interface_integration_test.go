@@ -12,7 +12,7 @@ import (
 // TestIntegration_InterfaceDeclarationAndUsage tests complete interface workflow
 // Task 7.146.1: Interface declaration and usage
 func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
-	t.Skip("interface runtime support pending")
+	// t.Skip("interface runtime support pending")  // TESTING: Temporarily disabled to check if working
 	source := `
 		type
 			IPrintable = interface
