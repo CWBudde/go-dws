@@ -2,6 +2,7 @@ package interp
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 
@@ -870,4 +871,237 @@ func TestBareRaiseOutsideHandler(t *testing.T) {
 	}()
 
 	interp.Eval(program)
+}
+
+// ============================================================================
+// Ported DWScript Exception Tests
+// ============================================================================
+
+// TestPortedBasicExceptions tests basic exception handling with specific types
+// Ported from: reference/dwscript-original/Test/SimpleScripts/exceptions.pas
+func TestPortedBasicExceptions(t *testing.T) {
+	source, err := os.ReadFile("../../testdata/exceptions/basic_exceptions.dws")
+	if err != nil {
+		t.Fatalf("Failed to read test file: %v", err)
+	}
+
+	l := lexer.New(string(source))
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	interp.Eval(program)
+
+	output := buf.String()
+
+	// Expected output based on the script
+	expectedOutputs := []string{
+		"MyException: exception message",
+		"OtherException: exception message",
+		"Else",
+		"MyException: exception message 2",
+		"Finally",
+		"Except",
+	}
+
+	for _, expected := range expectedOutputs {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain %q, but it didn't.\nActual output:\n%s", expected, output)
+		}
+	}
+}
+
+// TestPortedReRaise tests re-raising exceptions
+// Ported from: reference/dwscript-original/Test/SimpleScripts/exceptions2.pas
+func TestPortedReRaise(t *testing.T) {
+	source, err := os.ReadFile("../../testdata/exceptions/re_raise.dws")
+	if err != nil {
+		t.Fatalf("Failed to read test file: %v", err)
+	}
+
+	l := lexer.New(string(source))
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	interp.Eval(program)
+
+	output := buf.String()
+
+	// Expected output based on the script
+	expectedOutputs := []string{
+		"Caught once",
+		"Caught again",
+		"Ended",
+	}
+
+	for _, expected := range expectedOutputs {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain %q, but it didn't.\nActual output:\n%s", expected, output)
+		}
+	}
+}
+
+// TestPortedTryExceptFinally tests combined try-except-finally blocks
+// Ported from: reference/dwscript-original/Test/SimpleScripts/try_except_finally.pas
+func TestPortedTryExceptFinally(t *testing.T) {
+	source, err := os.ReadFile("../../testdata/exceptions/try_except_finally.dws")
+	if err != nil {
+		t.Fatalf("Failed to read test file: %v", err)
+	}
+
+	l := lexer.New(string(source))
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	interp.Eval(program)
+
+	output := buf.String()
+
+	// Expected output based on the script
+	expectedOutputs := []string{
+		"Hello World",
+		"Exception World",
+		"Bye World",
+	}
+
+	for _, expected := range expectedOutputs {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain %q, but it didn't.\nActual output:\n%s", expected, output)
+		}
+	}
+}
+
+// TestPortedExceptObject tests the ExceptObject built-in variable
+// Ported from: reference/dwscript-original/Test/SimpleScripts/exceptobj.pas
+func TestPortedExceptObject(t *testing.T) {
+	source, err := os.ReadFile("../../testdata/exceptions/except_object.dws")
+	if err != nil {
+		t.Fatalf("Failed to read test file: %v", err)
+	}
+
+	l := lexer.New(string(source))
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	interp.Eval(program)
+
+	output := buf.String()
+
+	// Expected output based on the script
+	expectedOutputs := []string{
+		"Exception: hello",
+		"EMyExcept: world",
+		"EMyExcept: world",
+		"Exception: hello",
+		"EMyExcept: hello world",
+		"EMyExcept: hello world",
+	}
+
+	for _, expected := range expectedOutputs {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain %q, but it didn't.\nActual output:\n%s", expected, output)
+		}
+	}
+}
+
+// TestPortedNestedCalls tests exceptions propagating through nested function calls
+// This test expects an unhandled exception
+// Ported from: reference/dwscript-original/Test/SimpleScripts/exception_nested_call.pas
+func TestPortedNestedCalls(t *testing.T) {
+	source, err := os.ReadFile("../../testdata/exceptions/nested_calls.dws")
+	if err != nil {
+		t.Fatalf("Failed to read test file: %v", err)
+	}
+
+	l := lexer.New(string(source))
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	output := buf.String()
+
+	// Expected partial output before the unhandled exception
+	if !strings.Contains(output, "Exception1 caught") {
+		t.Errorf("Expected output to contain 'Exception1 caught', but it didn't.\nActual output:\n%s", output)
+	}
+
+	// Should have an unhandled exception (ERROR result)
+	if result == nil || result.Type() != "ERROR" {
+		t.Errorf("Expected an ERROR result for unhandled exception, got: %v", result)
+	}
+
+	// The error message should contain "Error message 2"
+	if result != nil && result.Type() == "ERROR" {
+		errorMsg := result.String()
+		if !strings.Contains(errorMsg, "Error message 2") {
+			t.Errorf("Expected error to contain 'Error message 2', got: %s", errorMsg)
+		}
+	}
+}
+
+// TestPortedBreakInExcept tests break statements inside exception handlers
+// Ported from: reference/dwscript-original/Test/SimpleScripts/break_in_except_block.pas
+func TestPortedBreakInExcept(t *testing.T) {
+	source, err := os.ReadFile("../../testdata/exceptions/break_in_except.dws")
+	if err != nil {
+		t.Fatalf("Failed to read test file: %v", err)
+	}
+
+	l := lexer.New(string(source))
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	interp.Eval(program)
+
+	output := buf.String()
+
+	// Expected output based on the script
+	expectedOutputs := []string{
+		"hello",
+		"world",
+		"duh",
+		"finally",
+	}
+
+	for _, expected := range expectedOutputs {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain %q, but it didn't.\nActual output:\n%s", expected, output)
+		}
+	}
 }
