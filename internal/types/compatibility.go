@@ -149,7 +149,7 @@ func PromoteTypes(left, right Type) Type {
 //   - Functions are not comparable
 func IsComparableType(t Type) bool {
 	switch t.TypeKind() {
-	case "INTEGER", "FLOAT", "STRING", "BOOLEAN", "NIL", "ENUM":
+	case "INTEGER", "FLOAT", "STRING", "BOOLEAN", "NIL", "ENUM", "CLASS", "INTERFACE":
 		return true
 	case "FUNCTION", "VOID":
 		return false

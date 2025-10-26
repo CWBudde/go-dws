@@ -1,8 +1,8 @@
 package semantic
 
 import (
-	"github.com/cwbudde/go-dws/ast"
-	"github.com/cwbudde/go-dws/types"
+	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // ============================================================================
@@ -494,6 +494,12 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return nil
 	}
 
+	// Handle built-in properties/methods available on all objects (inherited from TObject)
+	if memberName == "ClassName" {
+		// ClassName returns String
+		return types.STRING
+	}
+
 	// Look up field in class (including inherited fields)
 	fieldType, found := classType.GetField(memberName)
 	if found {
@@ -552,6 +558,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	}
 
 	methodName := expr.Method.Value
+
+	// Handle built-in methods available on all objects (inherited from TObject)
+	if methodName == "ClassName" {
+		// ClassName() returns String
+		return types.STRING
+	}
 
 	// Look up method in class (including inherited methods)
 	methodType, found := classType.GetMethod(methodName)

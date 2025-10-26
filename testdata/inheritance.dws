@@ -119,7 +119,7 @@ else
 
 // Test 5: Constructor in derived class
 type TBaseWithConstructor = class
-private
+protected
     FBaseField: Integer;
 public
     constructor Create(value: Integer);

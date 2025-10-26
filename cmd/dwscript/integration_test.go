@@ -264,7 +264,7 @@ func TestOOPIntegration(t *testing.T) {
 			wantOutputs: []string{
 				"=== Class Features Comprehensive Test ===",
 				"Test 1: Simple class with public fields - PASS",
-				"Test 15: Multiple constructor variants - PASS",
+				"Test 15: Constructor with multiple params - PASS",
 				"=== All Class Features Tests Complete ===",
 			},
 			wantPasses: 15, // All 15 tests should pass

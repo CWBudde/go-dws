@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/ast"
+	"github.com/cwbudde/go-dws/internal/ast"
 )
 
 func TestParseOperatorDeclaration_Binary(t *testing.T) {

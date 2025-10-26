@@ -1,8 +1,8 @@
 package semantic
 
 import (
-	"github.com/cwbudde/go-dws/ast"
-	"github.com/cwbudde/go-dws/types"
+	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // ============================================================================
@@ -83,22 +83,28 @@ func (a *Analyzer) analyzeExceptClause(clause *ast.ExceptClause) {
 
 // Task 8.207: Analyze exception handler
 func (a *Analyzer) analyzeExceptionHandler(handler *ast.ExceptionHandler) {
-	// Validate exception type
-	if handler.ExceptionType == nil {
-		a.addError("exception handler must specify exception type")
-		return
-	}
+	// For bare except handlers (handler.ExceptionType == nil), we don't need to validate the type
+	// Bare except catches all exceptions
+	var excType types.Type
+	if handler.ExceptionType != nil {
+		var err error
+		excType, err = a.resolveType(handler.ExceptionType.Name)
+		if err != nil {
+			a.addError("unknown exception type '%s'", handler.ExceptionType.Name)
+			return
+		}
 
-	excType, err := a.resolveType(handler.ExceptionType.Name)
-	if err != nil {
-		a.addError("unknown exception type '%s'", handler.ExceptionType.Name)
-		return
-	}
-
-	// Validate that the type is Exception-compatible
-	if !a.isExceptionType(excType) {
-		a.addError("exception handler type must be Exception or derived class, got %s", excType.String())
-		return
+		// Validate that the type is Exception-compatible
+		if !a.isExceptionType(excType) {
+			a.addError("exception handler type must be Exception or derived class, got %s", excType.String())
+			return
+		}
+	} else {
+		// Bare except handler - catches all exceptions
+		// Use Exception as the type for the scope
+		if exceptionClass, exists := a.classes["Exception"]; exists {
+			excType = exceptionClass
+		}
 	}
 
 	// Create new scope for exception variable

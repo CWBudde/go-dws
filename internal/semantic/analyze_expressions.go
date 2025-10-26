@@ -1,8 +1,8 @@
 package semantic
 
 import (
-	"github.com/cwbudde/go-dws/ast"
-	"github.com/cwbudde/go-dws/types"
+	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // ============================================================================
@@ -62,6 +62,18 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 
 // analyzeIdentifier analyzes an identifier and returns its type
 func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
+	// Handle built-in ExceptObject variable (Task 8.206)
+	// ExceptObject is a global variable that holds the current exception (or nil)
+	if ident.Value == "ExceptObject" {
+		// ExceptObject is always of type Exception (the base exception class)
+		if exceptionClass, exists := a.classes["Exception"]; exists {
+			return exceptionClass
+		}
+		// If Exception class doesn't exist (shouldn't happen), return nil
+		a.addError("internal error: Exception class not found")
+		return nil
+	}
+
 	sym, ok := a.symbols.Resolve(ident.Value)
 	if !ok {
 		if classType, exists := a.classes[ident.Value]; exists {

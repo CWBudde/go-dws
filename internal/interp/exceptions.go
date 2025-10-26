@@ -3,8 +3,8 @@ package interp
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/ast"
-	"github.com/cwbudde/go-dws/types"
+	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // ============================================================================
@@ -94,12 +94,22 @@ func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
 		defer func() {
 			// Save the current exception state
 			savedExc := i.exception
+
+			// Set ExceptObject to the current exception in finally block (Task 8.206)
+			oldExceptObject, _ := i.env.Get("ExceptObject")
+			if savedExc != nil {
+				i.env.Set("ExceptObject", savedExc.Instance)
+			}
+
 			// Clear exception so finally block can execute
 			i.exception = nil
 			// Execute finally block
 			i.evalBlockStatement(stmt.FinallyClause.Block)
 			// Restore exception state (finally doesn't clear exceptions)
 			i.exception = savedExc
+
+			// Restore ExceptObject
+			i.env.Set("ExceptObject", oldExceptObject)
 		}()
 	}
 
@@ -154,6 +164,11 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 			// Save exception for bare raise to access
 			i.handlerException = exc
 
+			// Set ExceptObject to the current exception (Task 8.206)
+			// Save old ExceptObject value to restore later
+			oldExceptObject, _ := i.env.Get("ExceptObject")
+			i.env.Set("ExceptObject", exc.Instance)
+
 			// Temporarily clear exception to allow handler to execute
 			i.exception = nil
 
@@ -167,6 +182,9 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 
 			// Clear handler exception context
 			i.handlerException = nil
+
+			// Restore ExceptObject
+			i.env.Set("ExceptObject", oldExceptObject)
 
 			// Restore environment
 			i.env = oldEnv

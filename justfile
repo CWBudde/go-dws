@@ -74,3 +74,50 @@ parse file="testdata/hello.dws":
 # Run interpreter on a test file (Stage 3+)
 run file="testdata/hello.dws":
     ./bin/dwscript run {{file}}
+
+# === WebAssembly Build Targets (Stage 10.15) ===
+
+# Build WASM binary (modes: monolithic, modular, hybrid)
+wasm mode="monolithic":
+    @echo "Building WASM ({{mode}} mode)..."
+    @./build/wasm/build.sh {{mode}}
+
+# Build WASM binary with optimization
+wasm-opt mode="monolithic":
+    @echo "Building optimized WASM ({{mode}} mode)..."
+    @OPTIMIZE=true ./build/wasm/build.sh {{mode}}
+
+# Test WASM build (compile only, no execution)
+wasm-test:
+    @echo "Testing WASM build..."
+    @GOOS=js GOARCH=wasm go build -o /tmp/dwscript-test.wasm ./cmd/dwscript-wasm
+    @echo "✓ WASM compiles successfully"
+    @rm /tmp/dwscript-test.wasm
+
+# Optimize existing WASM binary
+wasm-optimize file="build/wasm/dist/dwscript.wasm":
+    @echo "Optimizing WASM binary..."
+    @./build/wasm/optimize.sh {{file}}
+
+# Clean WASM build artifacts
+wasm-clean:
+    @echo "Cleaning WASM build artifacts..."
+    @rm -rf build/wasm/dist
+    @echo "✓ Clean complete"
+
+# Show WASM binary size
+wasm-size file="build/wasm/dist/dwscript.wasm":
+    #!/usr/bin/env bash
+    set -e
+    if [ -f {{file}} ]; then
+        SIZE=$(stat -f%z {{file}} 2>/dev/null || stat -c%s {{file}})
+        SIZE_MB=$(echo "scale=2; $SIZE / 1048576" | bc)
+        echo "WASM binary size: $SIZE_MB MB ($SIZE bytes)"
+    else
+        echo "Error: WASM binary not found at {{file}}"
+        echo "Run 'just wasm' first"
+        exit 1
+    fi
+
+# Full WASM build pipeline (build, optimize, show size)
+wasm-all mode="monolithic": (wasm mode) (wasm-optimize "build/wasm/dist/dwscript.wasm") (wasm-size "build/wasm/dist/dwscript.wasm")

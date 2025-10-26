@@ -3,7 +3,7 @@ package ast
 import (
 	"bytes"
 
-	"github.com/cwbudde/go-dws/lexer"
+	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
 // ConstDecl represents a constant declaration statement.

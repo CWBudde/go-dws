@@ -3,8 +3,8 @@ package parser
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/ast"
-	"github.com/cwbudde/go-dws/lexer"
+	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
 // Precedence levels for operators (lowest to highest).

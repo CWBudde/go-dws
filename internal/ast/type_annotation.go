@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/cwbudde/go-dws/lexer"
+import "github.com/cwbudde/go-dws/internal/lexer"
 
 // TypeAnnotation represents a type annotation in the AST.
 // This is used for variable declarations, parameters, and return types.

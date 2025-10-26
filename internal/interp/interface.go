@@ -3,7 +3,7 @@ package interp
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/ast"
+	"github.com/cwbudde/go-dws/internal/ast"
 )
 
 // ============================================================================

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/go-dws/lexer"
-	"github.com/cwbudde/go-dws/parser"
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
 )
 
 // TestSafeTypeAssertions tests that type assertions don't panic and provide helpful errors

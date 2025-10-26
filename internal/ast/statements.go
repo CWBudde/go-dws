@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/lexer"
+	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
 // VarDeclStatement represents a variable declaration statement.

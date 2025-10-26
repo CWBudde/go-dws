@@ -105,6 +105,42 @@ go build -o bin/dwscript ./cmd/dwscript
 ./bin/dwscript run -e "function Add(a, b: Integer): Integer; begin Result := a + b; end; begin PrintLn(Add(5, 3)); end."
 ```
 
+## Embedding in Go Applications
+
+go-dws can be used as a library to embed the DWScript interpreter in your Go applications:
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+
+    "github.com/cwbudde/go-dws/pkg/dwscript"
+)
+
+func main() {
+    // Create a new engine
+    engine, err := dwscript.New()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Evaluate DWScript code
+    result, err := engine.Eval(`
+        var x: Integer := 42;
+        PrintLn('The answer is ' + IntToStr(x));
+    `)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Print(result.Output) // "The answer is 42"
+}
+```
+
+For more examples and API documentation, see the [pkg/dwscript](https://pkg.go.dev/github.com/cwbudde/go-dws/pkg/dwscript) package documentation.
+
 ### Example Programs
 
 **Factorial Calculator** (`examples/factorial.dws`):
