@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// Record Declaration Tests (Task 8.68-8.72)
+// Record Declaration Tests
 // ============================================================================
 
 func TestRecordDeclaration(t *testing.T) {

@@ -238,12 +238,12 @@ func TestCaseStatementString(t *testing.T) {
 
 func TestForDirectionString(t *testing.T) {
 	tests := []struct {
-		direction ForDirection
 		expected  string
+		direction ForDirection
 	}{
-		{ForTo, "to"},
-		{ForDownto, "downto"},
-		{ForDirection(999), "unknown"},
+		{expected: "to", direction: ForTo},
+		{expected: "downto", direction: ForDownto},
+		{expected: "unknown", direction: ForDirection(999)},
 	}
 
 	for _, tt := range tests {

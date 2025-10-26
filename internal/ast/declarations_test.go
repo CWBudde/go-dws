@@ -107,7 +107,7 @@ func TestConstDeclTyped(t *testing.T) {
 }
 
 // ============================================================================
-// TypeDeclaration Tests (Task 9.16)
+// TypeDeclaration Tests
 // ============================================================================
 
 // TestTypeDeclaration tests the TypeDeclaration AST node for type aliases

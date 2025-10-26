@@ -9,7 +9,7 @@ import (
 )
 
 // ============================================================================
-// Type Alias Runtime Tests (Task 9.21)
+// Type Alias Runtime Tests
 // ============================================================================
 
 // TestTypeAliasBasicUsage tests that type aliases work at runtime

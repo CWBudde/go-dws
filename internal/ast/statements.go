@@ -17,12 +17,12 @@ import (
 //	var y: String; external;              // Task 7.143
 //	var z: Integer; external 'externalZ'; // Task 7.143
 type VarDeclStatement struct {
-	Token        lexer.Token     // The 'var' token
-	Name         *Identifier     // The variable name
-	Type         *TypeAnnotation // The type annotation (nil if not specified)
-	Value        Expression      // The initialization value (nil if not initialized)
-	IsExternal   bool            // True if this is an external variable (Task 7.143)
-	ExternalName string          // External name for FFI binding (optional) - Task 7.143
+	Value        Expression
+	Name         *Identifier
+	Type         *TypeAnnotation
+	ExternalName string
+	Token        lexer.Token
+	IsExternal   bool
 }
 
 func (vds *VarDeclStatement) statementNode()       {}
@@ -56,9 +56,9 @@ func (vds *VarDeclStatement) String() string {
 //	obj.field := value;  // member assignment
 //	matrix[i][j] := 99;  // nested array assignment
 type AssignmentStatement struct {
-	Token  lexer.Token // The ':=' token
-	Target Expression  // The assignment target (Identifier, IndexExpression, or MemberAccessExpression)
-	Value  Expression  // The value to assign
+	Target Expression
+	Value  Expression
+	Token  lexer.Token
 }
 
 func (as *AssignmentStatement) statementNode()       {}
@@ -86,10 +86,10 @@ func (as *AssignmentStatement) String() string {
 //	Add(3, 5)
 //	Foo()
 type CallExpression struct {
-	Token     lexer.Token     // The '(' token
-	Function  Expression      // The function being called (usually an Identifier)
-	Arguments []Expression    // The arguments to the function
-	Type      *TypeAnnotation // The return type (determined by semantic analyzer)
+	Function  Expression
+	Type      *TypeAnnotation
+	Arguments []Expression
+	Token     lexer.Token
 }
 
 func (ce *CallExpression) expressionNode()      {}

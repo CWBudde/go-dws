@@ -7,28 +7,28 @@ import (
 
 func TestTokenTypeString(t *testing.T) {
 	tests := []struct {
-		tokenType TokenType
 		expected  string
+		tokenType TokenType
 	}{
-		{ILLEGAL, "ILLEGAL"},
-		{EOF, "EOF"},
-		{IDENT, "IDENT"},
-		{INT, "INT"},
-		{FLOAT, "FLOAT"},
-		{STRING, "STRING"},
-		{BEGIN, "BEGIN"},
-		{END, "END"},
-		{IF, "IF"},
-		{THEN, "THEN"},
-		{FUNCTION, "FUNCTION"},
-		{CLASS, "CLASS"},
-		{PLUS, "PLUS"},
-		{MINUS, "MINUS"},
-		{ASSIGN, "ASSIGN"},
-		{EQ, "EQ"},
-		{NOT_EQ, "NOT_EQ"},
-		{LPAREN, "LPAREN"},
-		{RPAREN, "RPAREN"},
+		{"ILLEGAL", ILLEGAL},
+		{"EOF", EOF},
+		{"IDENT", IDENT},
+		{"INT", INT},
+		{"FLOAT", FLOAT},
+		{"STRING", STRING},
+		{"BEGIN", BEGIN},
+		{"END", END},
+		{"IF", IF},
+		{"THEN", THEN},
+		{"FUNCTION", FUNCTION},
+		{"CLASS", CLASS},
+		{"PLUS", PLUS},
+		{"MINUS", MINUS},
+		{"ASSIGN", ASSIGN},
+		{"EQ", EQ},
+		{"NOT_EQ", NOT_EQ},
+		{"LPAREN", LPAREN},
+		{"RPAREN", RPAREN},
 	}
 
 	for _, tt := range tests {
@@ -126,8 +126,8 @@ func TestNewToken(t *testing.T) {
 func TestTokenString(t *testing.T) {
 	tests := []struct {
 		name     string
-		token    Token
 		contains []string
+		token    Token
 	}{
 		{
 			name:     "simple token",

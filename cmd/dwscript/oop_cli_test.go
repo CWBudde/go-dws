@@ -263,8 +263,8 @@ func TestOOPErrorHandling(t *testing.T) {
 	testCases := []struct {
 		name        string
 		source      string
-		shouldError bool
 		errorMsg    string
+		shouldError bool
 	}{
 		{
 			name: "class with invalid syntax",

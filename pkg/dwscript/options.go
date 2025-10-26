@@ -7,19 +7,9 @@ import (
 
 // Options configures the behavior of the DWScript engine.
 type Options struct {
-	// TypeCheck enables semantic analysis and type checking.
-	// When enabled, compilation will fail if the program contains type errors.
-	// Default: true
+	Output    io.Writer
 	TypeCheck bool
-
-	// Output is the writer where program output (PrintLn, etc.) will be written.
-	// Default: os.Stdout
-	Output io.Writer
-
-	// Trace enables execution tracing for debugging.
-	// When enabled, the interpreter will log each statement as it executes.
-	// Default: false
-	Trace bool
+	Trace     bool
 }
 
 // Option is a function that configures an Engine's Options.

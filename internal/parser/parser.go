@@ -58,18 +58,14 @@ type infixParseFn func(ast.Expression) ast.Expression
 
 // Parser represents the DWScript parser.
 type Parser struct {
-	l      *lexer.Lexer
-	errors []string
-
-	curToken  lexer.Token
-	peekToken lexer.Token
-
-	prefixParseFns map[lexer.TokenType]prefixParseFn
-	infixParseFns  map[lexer.TokenType]infixParseFn
-
-	// Semantic analysis
-	enableSemanticAnalysis bool
+	l                      *lexer.Lexer
+	prefixParseFns         map[lexer.TokenType]prefixParseFn
+	infixParseFns          map[lexer.TokenType]infixParseFn
+	errors                 []string
 	semanticErrors         []string
+	curToken               lexer.Token
+	peekToken              lexer.Token
+	enableSemanticAnalysis bool
 }
 
 // New creates a new Parser instance.

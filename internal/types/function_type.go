@@ -8,8 +8,8 @@ import (
 // It includes parameter types and an optional return type.
 // For procedures (no return value), ReturnType should be VOID.
 type FunctionType struct {
-	Parameters []Type // Parameter types in order
-	ReturnType Type   // Return type (VOID for procedures)
+	ReturnType Type
+	Parameters []Type
 }
 
 // String returns a string representation of the function type.

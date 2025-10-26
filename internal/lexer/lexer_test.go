@@ -10,21 +10,21 @@ func TestNextToken(t *testing.T) {
 	`
 
 	tests := []struct {
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
-		{VAR, "var"},
-		{IDENT, "x"},
-		{ASSIGN, ":="},
-		{INT, "5"},
-		{SEMICOLON, ";"},
-		{IDENT, "x"},
-		{ASSIGN, ":="},
-		{IDENT, "x"},
-		{PLUS, "+"},
-		{INT, "10"},
-		{SEMICOLON, ";"},
-		{EOF, ""},
+		{"var", VAR},
+		{"x", IDENT},
+		{":=", ASSIGN},
+		{"5", INT},
+		{";", SEMICOLON},
+		{"x", IDENT},
+		{":=", ASSIGN},
+		{"x", IDENT},
+		{"+", PLUS},
+		{"10", INT},
+		{";", SEMICOLON},
+		{"", EOF},
 	}
 
 	l := New(input)
@@ -52,38 +52,38 @@ func TestKeywords(t *testing.T) {
 		div mod shl shr`
 
 	tests := []struct {
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
-		{BEGIN, "begin"},
-		{END, "end"},
-		{IF, "if"},
-		{THEN, "then"},
-		{ELSE, "else"},
-		{WHILE, "while"},
-		{FOR, "for"},
-		{DO, "do"},
-		{FUNCTION, "function"},
-		{PROCEDURE, "procedure"},
-		{CLASS, "class"},
-		{VAR, "var"},
-		{CONST, "const"},
-		{TRUE, "true"},
-		{FALSE, "false"},
-		{NIL, "nil"},
-		{AND, "and"},
-		{OR, "or"},
-		{NOT, "not"},
-		{XOR, "xor"},
-		{TRY, "try"},
-		{EXCEPT, "except"},
-		{FINALLY, "finally"},
-		{RAISE, "raise"},
-		{DIV, "div"},
-		{MOD, "mod"},
-		{SHL, "shl"},
-		{SHR, "shr"},
-		{EOF, ""},
+		{"begin", BEGIN},
+		{"end", END},
+		{"if", IF},
+		{"then", THEN},
+		{"else", ELSE},
+		{"while", WHILE},
+		{"for", FOR},
+		{"do", DO},
+		{"function", FUNCTION},
+		{"procedure", PROCEDURE},
+		{"class", CLASS},
+		{"var", VAR},
+		{"const", CONST},
+		{"true", TRUE},
+		{"false", FALSE},
+		{"nil", NIL},
+		{"and", AND},
+		{"or", OR},
+		{"not", NOT},
+		{"xor", XOR},
+		{"try", TRY},
+		{"except", EXCEPT},
+		{"finally", FINALLY},
+		{"raise", RAISE},
+		{"div", DIV},
+		{"mod", MOD},
+		{"shl", SHL},
+		{"shr", SHR},
+		{"", EOF},
 	}
 
 	l := New(input)
@@ -140,52 +140,52 @@ func TestOperators(t *testing.T) {
 		@ ~ \ $ !`
 
 	tests := []struct {
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
-		{PLUS, "+"},
-		{MINUS, "-"},
-		{ASTERISK, "*"},
-		{SLASH, "/"},
-		{PERCENT, "%"},
-		{CARET, "^"},
-		{POWER, "**"},
-		{EQ, "="},
-		{NOT_EQ, "<>"},
-		{LESS, "<"},
-		{GREATER, ">"},
-		{LESS_EQ, "<="},
-		{GREATER_EQ, ">="},
-		{EQ_EQ, "=="},
-		{EQ_EQ_EQ, "==="},
-		{EXCL_EQ, "!="},
-		{ASSIGN, ":="},
-		{PLUS_ASSIGN, "+="},
-		{MINUS_ASSIGN, "-="},
-		{TIMES_ASSIGN, "*="},
-		{DIVIDE_ASSIGN, "/="},
-		{PERCENT_ASSIGN, "%="},
-		{CARET_ASSIGN, "^="},
-		{AT_ASSIGN, "@="},
-		{TILDE_ASSIGN, "~="},
-		{INC, "++"},
-		{DEC, "--"},
-		{LESS_LESS, "<<"},
-		{GREATER_GREATER, ">>"},
-		{PIPE, "|"},
-		{PIPE_PIPE, "||"},
-		{AMP, "&"},
-		{AMP_AMP, "&&"},
-		{QUESTION, "?"},
-		{QUESTION_QUESTION, "??"},
-		{QUESTION_DOT, "?."},
-		{FAT_ARROW, "=>"},
-		{AT, "@"},
-		{TILDE, "~"},
-		{BACKSLASH, "\\"},
-		{DOLLAR, "$"},
-		{EXCLAMATION, "!"},
-		{EOF, ""},
+		{"+", PLUS},
+		{"-", MINUS},
+		{"*", ASTERISK},
+		{"/", SLASH},
+		{"%", PERCENT},
+		{"^", CARET},
+		{"**", POWER},
+		{"=", EQ},
+		{"<>", NOT_EQ},
+		{"<", LESS},
+		{">", GREATER},
+		{"<=", LESS_EQ},
+		{">=", GREATER_EQ},
+		{"==", EQ_EQ},
+		{"===", EQ_EQ_EQ},
+		{"!=", EXCL_EQ},
+		{":=", ASSIGN},
+		{"+=", PLUS_ASSIGN},
+		{"-=", MINUS_ASSIGN},
+		{"*=", TIMES_ASSIGN},
+		{"/=", DIVIDE_ASSIGN},
+		{"%=", PERCENT_ASSIGN},
+		{"^=", CARET_ASSIGN},
+		{"@=", AT_ASSIGN},
+		{"~=", TILDE_ASSIGN},
+		{"++", INC},
+		{"--", DEC},
+		{"<<", LESS_LESS},
+		{">>", GREATER_GREATER},
+		{"|", PIPE},
+		{"||", PIPE_PIPE},
+		{"&", AMP},
+		{"&&", AMP_AMP},
+		{"?", QUESTION},
+		{"??", QUESTION_QUESTION},
+		{"?.", QUESTION_DOT},
+		{"=>", FAT_ARROW},
+		{"@", AT},
+		{"~", TILDE},
+		{"\\", BACKSLASH},
+		{"$", DOLLAR},
+		{"!", EXCLAMATION},
+		{"", EOF},
 	}
 
 	l := New(input)
@@ -209,19 +209,19 @@ func TestDelimiters(t *testing.T) {
 	input := `( ) [ ] ; , . : ..`
 
 	tests := []struct {
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
-		{LPAREN, "("},
-		{RPAREN, ")"},
-		{LBRACK, "["},
-		{RBRACK, "]"},
-		{SEMICOLON, ";"},
-		{COMMA, ","},
-		{DOT, "."},
-		{COLON, ":"},
-		{DOTDOT, ".."},
-		{EOF, ""},
+		{"(", LPAREN},
+		{")", RPAREN},
+		{"[", LBRACK},
+		{"]", RBRACK},
+		{";", SEMICOLON},
+		{",", COMMA},
+		{".", DOT},
+		{":", COLON},
+		{"..", DOTDOT},
+		{"", EOF},
 	}
 
 	l := New(input)
@@ -245,19 +245,19 @@ func TestIntegerLiterals(t *testing.T) {
 	input := `123 0 $FF $ff $10 0xFF 0x10 %1010 %0`
 
 	tests := []struct {
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
-		{INT, "123"},
-		{INT, "0"},
-		{INT, "$FF"},
-		{INT, "$ff"},
-		{INT, "$10"},
-		{INT, "0xFF"},
-		{INT, "0x10"},
-		{INT, "%1010"},
-		{INT, "%0"},
-		{EOF, ""},
+		{"123", INT},
+		{"0", INT},
+		{"$FF", INT},
+		{"$ff", INT},
+		{"$10", INT},
+		{"0xFF", INT},
+		{"0x10", INT},
+		{"%1010", INT},
+		{"%0", INT},
+		{"", EOF},
 	}
 
 	l := New(input)
@@ -281,17 +281,17 @@ func TestFloatLiterals(t *testing.T) {
 	input := `123.45 0.5 3.14 1.5e10 1.5E10 1.5e-5 2.0E+3`
 
 	tests := []struct {
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
-		{FLOAT, "123.45"},
-		{FLOAT, "0.5"},
-		{FLOAT, "3.14"},
-		{FLOAT, "1.5e10"},
-		{FLOAT, "1.5E10"},
-		{FLOAT, "1.5e-5"},
-		{FLOAT, "2.0E+3"},
-		{EOF, ""},
+		{"123.45", FLOAT},
+		{"0.5", FLOAT},
+		{"3.14", FLOAT},
+		{"1.5e10", FLOAT},
+		{"1.5E10", FLOAT},
+		{"1.5e-5", FLOAT},
+		{"2.0E+3", FLOAT},
+		{"", EOF},
 	}
 
 	l := New(input)
@@ -315,8 +315,8 @@ func TestStringLiterals(t *testing.T) {
 	tests := []struct {
 		name            string
 		input           string
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
 		{
 			name:            "simple single quoted",
@@ -378,14 +378,14 @@ func TestCharLiterals(t *testing.T) {
 	input := `#65 #$41 #13 #10`
 
 	tests := []struct {
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
-		{CHAR, "#65"},
-		{CHAR, "#$41"},
-		{CHAR, "#13"},
-		{CHAR, "#10"},
-		{EOF, ""},
+		{"#65", CHAR},
+		{"#$41", CHAR},
+		{"#13", CHAR},
+		{"#10", CHAR},
+		{"", EOF},
 	}
 
 	l := New(input)
@@ -462,16 +462,16 @@ func TestIdentifiers(t *testing.T) {
 	input := `myVar MyClass _private x1 test123 _`
 
 	tests := []struct {
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
-		{IDENT, "myVar"},
-		{IDENT, "MyClass"},
-		{IDENT, "_private"},
-		{IDENT, "x1"},
-		{IDENT, "test123"},
-		{IDENT, "_"},
-		{EOF, ""},
+		{"myVar", IDENT},
+		{"MyClass", IDENT},
+		{"_private", IDENT},
+		{"x1", IDENT},
+		{"test123", IDENT},
+		{"_", IDENT},
+		{"", EOF},
 	}
 
 	l := New(input)
@@ -502,32 +502,32 @@ func TestSimpleProgram(t *testing.T) {
 	`
 
 	tests := []struct {
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
-		{VAR, "var"},
-		{IDENT, "x"},
-		{COLON, ":"},
-		{IDENT, "Integer"},
-		{SEMICOLON, ";"},
-		{BEGIN, "begin"},
-		{IDENT, "x"},
-		{ASSIGN, ":="},
-		{INT, "10"},
-		{SEMICOLON, ";"},
-		{IF, "if"},
-		{IDENT, "x"},
-		{GREATER, ">"},
-		{INT, "5"},
-		{THEN, "then"},
-		{IDENT, "PrintLn"},
-		{LPAREN, "("},
-		{STRING, "x is greater than 5"},
-		{RPAREN, ")"},
-		{SEMICOLON, ";"},
-		{END, "end"},
-		{SEMICOLON, ";"},
-		{EOF, ""},
+		{"var", VAR},
+		{"x", IDENT},
+		{":", COLON},
+		{"Integer", IDENT},
+		{";", SEMICOLON},
+		{"begin", BEGIN},
+		{"x", IDENT},
+		{":=", ASSIGN},
+		{"10", INT},
+		{";", SEMICOLON},
+		{"if", IF},
+		{"x", IDENT},
+		{">", GREATER},
+		{"5", INT},
+		{"then", THEN},
+		{"PrintLn", IDENT},
+		{"(", LPAREN},
+		{"x is greater than 5", STRING},
+		{")", RPAREN},
+		{";", SEMICOLON},
+		{"end", END},
+		{";", SEMICOLON},
+		{"", EOF},
 	}
 
 	l := New(input)
@@ -634,24 +634,24 @@ func TestComplexExpression(t *testing.T) {
 	input := `result := (x + y) * 2 - z / 3.5;`
 
 	tests := []struct {
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
-		{IDENT, "result"},
-		{ASSIGN, ":="},
-		{LPAREN, "("},
-		{IDENT, "x"},
-		{PLUS, "+"},
-		{IDENT, "y"},
-		{RPAREN, ")"},
-		{ASTERISK, "*"},
-		{INT, "2"},
-		{MINUS, "-"},
-		{IDENT, "z"},
-		{SLASH, "/"},
-		{FLOAT, "3.5"},
-		{SEMICOLON, ";"},
-		{EOF, ""},
+		{"result", IDENT},
+		{":=", ASSIGN},
+		{"(", LPAREN},
+		{"x", IDENT},
+		{"+", PLUS},
+		{"y", IDENT},
+		{")", RPAREN},
+		{"*", ASTERISK},
+		{"2", INT},
+		{"-", MINUS},
+		{"z", IDENT},
+		{"/", SLASH},
+		{"3.5", FLOAT},
+		{";", SEMICOLON},
+		{"", EOF},
 	}
 
 	l := New(input)
@@ -909,11 +909,11 @@ func TestNewKeyword(t *testing.T) {
 	input := `new`
 
 	tests := []struct {
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
-		{NEW, "new"},
-		{EOF, ""},
+		{"new", NEW},
+		{"", EOF},
 	}
 
 	l := New(input)

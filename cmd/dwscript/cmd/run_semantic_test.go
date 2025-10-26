@@ -12,8 +12,8 @@ func TestRunWithSemanticErrors(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expectError   bool
 		errorContains string
+		expectError   bool
 	}{
 		{
 			name:          "type mismatch error",

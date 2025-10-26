@@ -147,8 +147,8 @@ func (i *Interpreter) indexString(str *StringValue, index int, expr *ast.IndexEx
 
 // ArrayTypeValue is an internal value that stores array type metadata in the environment.
 type ArrayTypeValue struct {
-	Name      string
 	ArrayType *types.ArrayType
+	Name      string
 }
 
 // Type returns "ARRAY_TYPE".

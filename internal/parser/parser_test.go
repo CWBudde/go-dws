@@ -220,14 +220,14 @@ func TestIdentifiers(t *testing.T) {
 // TestPrefixExpressions tests parsing of prefix expressions.
 func TestPrefixExpressions(t *testing.T) {
 	tests := []struct {
+		value    any
 		input    string
 		operator string
-		value    any
 	}{
-		{"-5;", "-", 5},
-		{"+10;", "+", 10},
-		{"not true;", "not", true},
-		{"not false;", "not", false},
+		{value: 5, input: "-5;", operator: "-"},
+		{value: 10, input: "+10;", operator: "+"},
+		{value: true, input: "not true;", operator: "not"},
+		{value: false, input: "not false;", operator: "not"},
 	}
 
 	for _, tt := range tests {
@@ -264,21 +264,21 @@ func TestPrefixExpressions(t *testing.T) {
 // TestInfixExpressions tests parsing of infix expressions.
 func TestInfixExpressions(t *testing.T) {
 	tests := []struct {
-		input      string
 		leftValue  any
-		operator   string
 		rightValue any
+		input      string
+		operator   string
 	}{
-		{"5 + 5;", 5, "+", 5},
-		{"5 - 5;", 5, "-", 5},
-		{"5 * 5;", 5, "*", 5},
-		{"5 / 5;", 5, "/", 5},
-		{"5 > 5;", 5, ">", 5},
-		{"5 < 5;", 5, "<", 5},
-		{"5 = 5;", 5, "=", 5},
-		{"5 <> 5;", 5, "<>", 5},
-		{"true and false;", true, "and", false},
-		{"true or false;", true, "or", false},
+		{leftValue: 5, rightValue: 5, input: "5 + 5;", operator: "+"},
+		{leftValue: 5, rightValue: 5, input: "5 - 5;", operator: "-"},
+		{leftValue: 5, rightValue: 5, input: "5 * 5;", operator: "*"},
+		{leftValue: 5, rightValue: 5, input: "5 / 5;", operator: "/"},
+		{leftValue: 5, rightValue: 5, input: "5 > 5;", operator: ">"},
+		{leftValue: 5, rightValue: 5, input: "5 < 5;", operator: "<"},
+		{leftValue: 5, rightValue: 5, input: "5 = 5;", operator: "="},
+		{leftValue: 5, rightValue: 5, input: "5 <> 5;", operator: "<>"},
+		{leftValue: true, rightValue: false, input: "true and false;", operator: "and"},
+		{leftValue: true, rightValue: false, input: "true or false;", operator: "or"},
 	}
 
 	for _, tt := range tests {
@@ -483,11 +483,11 @@ var s: String := 'hello';
 	}
 
 	tests := []struct {
+		assertValue func(*testing.T, ast.Expression)
 		name        string
 		expectedVar string
 		expectedTyp string
 		expectValue bool
-		assertValue func(*testing.T, ast.Expression)
 	}{
 		{
 			name:        "typed declaration without initializer",
@@ -557,8 +557,8 @@ func TestExternalVarParsing(t *testing.T) {
 		input        string
 		expectedVar  string
 		expectedType string
-		isExternal   bool
 		externalName string
+		isExternal   bool
 		expectError  bool
 	}{
 		{
@@ -691,11 +691,11 @@ y := x + 1;
 // This tests the pattern: obj.field := value
 func TestMemberAssignmentStatements(t *testing.T) {
 	tests := []struct {
+		value      interface{}
 		name       string
 		input      string
 		objectName string
 		fieldName  string
-		value      interface{}
 	}{
 		{
 			name:       "Simple member assignment",
@@ -1039,10 +1039,10 @@ func testStringLiteralExpression(t *testing.T, exp ast.Expression, value string)
 // TestCompleteSimplePrograms tests parsing of complete simple programs with multiple statement types.
 func TestCompleteSimplePrograms(t *testing.T) {
 	tests := []struct {
+		assertions func(*testing.T, *ast.Program)
 		name       string
 		input      string
 		stmtCount  int
-		assertions func(*testing.T, *ast.Program)
 	}{
 		{
 			name: "variable declaration and usage",
@@ -1313,9 +1313,9 @@ x := x + y;
 // TestIfStatements tests parsing of if-then-else statements.
 func TestIfStatements(t *testing.T) {
 	tests := []struct {
+		assertions func(*testing.T, *ast.IfStatement)
 		name       string
 		input      string
-		assertions func(*testing.T, *ast.IfStatement)
 	}{
 		{
 			name:  "simple if without else",
@@ -1613,9 +1613,9 @@ end;`,
 // TestWhileStatements tests parsing of while loop statements.
 func TestWhileStatements(t *testing.T) {
 	tests := []struct {
+		assertions func(*testing.T, *ast.WhileStatement)
 		name       string
 		input      string
-		assertions func(*testing.T, *ast.WhileStatement)
 	}{
 		{
 			name:  "simple while loop",
@@ -1824,9 +1824,9 @@ end;`,
 // TestRepeatStatements tests parsing of repeat-until loop statements.
 func TestRepeatStatements(t *testing.T) {
 	tests := []struct {
+		assertions func(*testing.T, *ast.RepeatStatement)
 		name       string
 		input      string
-		assertions func(*testing.T, *ast.RepeatStatement)
 	}{
 		{
 			name:  "simple repeat loop",
@@ -2037,9 +2037,9 @@ until x >= 10;`,
 // TestForStatements tests parsing of for loop statements.
 func TestForStatements(t *testing.T) {
 	tests := []struct {
+		assertions func(*testing.T, *ast.ForStatement)
 		name       string
 		input      string
-		assertions func(*testing.T, *ast.ForStatement)
 	}{
 		{
 			name:  "simple ascending for loop",
@@ -2397,9 +2397,9 @@ end;`,
 // TestCaseStatements tests parsing of case statement.
 func TestCaseStatements(t *testing.T) {
 	tests := []struct {
+		assertions func(*testing.T, *ast.CaseStatement)
 		name       string
 		input      string
-		assertions func(*testing.T, *ast.CaseStatement)
 	}{
 		{
 			name: "simple case with single value branches",
@@ -2919,9 +2919,9 @@ func contains(s, substr string) bool {
 // TestFunctionDeclarations tests parsing of function declarations.
 func TestFunctionDeclarations(t *testing.T) {
 	tests := []struct {
+		expected func(*testing.T, ast.Statement)
 		name     string
 		input    string
-		expected func(*testing.T, ast.Statement)
 	}{
 		{
 			name:  "simple function with no parameters",
@@ -3046,9 +3046,9 @@ func TestFunctionDeclarations(t *testing.T) {
 // TestParameters tests parameter parsing in function declarations - Task 5.14
 func TestParameters(t *testing.T) {
 	tests := []struct {
+		expected func(*testing.T, *ast.FunctionDecl)
 		name     string
 		input    string
-		expected func(*testing.T, *ast.FunctionDecl)
 	}{
 		{
 			name:  "single parameter",

@@ -6,12 +6,12 @@ import (
 )
 
 type runtimeOperatorEntry struct {
-	Operator      string
-	OperandTypes  []string
-	BindingName   string
 	Class         *ClassInfo
-	IsClassMethod bool
+	Operator      string
+	BindingName   string
+	OperandTypes  []string
 	SelfIndex     int
+	IsClassMethod bool
 }
 
 type runtimeOperatorRegistry struct {

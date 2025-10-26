@@ -11,50 +11,23 @@ import (
 // It validates types, checks for undefined variables, and ensures
 // type compatibility in expressions and statements.
 type Analyzer struct {
-	// Symbol table for tracking variables and functions
-	symbols *SymbolTable
-
-	// Accumulated errors during analysis
-	errors []string
-
-	// Current function being analyzed (for return type checking)
-	currentFunction *ast.FunctionDecl
-
-	// Class registry for tracking declared classes (Task 7.54)
-	classes map[string]*types.ClassType
-
-	// Interface registry for tracking declared interfaces (Task 7.97)
-	interfaces map[string]*types.InterfaceType
-
-	// Enum registry for tracking declared enums (Task 8.43)
-	enums map[string]*types.EnumType
-
-	// Record registry for tracking declared records (Task 8.68)
-	records map[string]*types.RecordType
-
-	// Set registry for tracking declared sets (Task 8.99)
-	sets map[string]*types.SetType
-
-	// Array registry for tracking declared arrays (Task 8.126)
-	arrays map[string]*types.ArrayType
-
-	// Type alias registry for tracking type aliases (Task 9.19)
-	typeAliases map[string]*types.TypeAlias
-
-	// Current class being analyzed (for field/method access)
-	currentClass *types.ClassType
-
-	// Operator registries (Stage 8)
-	globalOperators    *types.OperatorRegistry
+	arrays             map[string]*types.ArrayType
+	typeAliases        map[string]*types.TypeAlias
+	currentFunction    *ast.FunctionDecl
+	classes            map[string]*types.ClassType
+	interfaces         map[string]*types.InterfaceType
+	enums              map[string]*types.EnumType
+	records            map[string]*types.RecordType
+	sets               map[string]*types.SetType
 	conversionRegistry *types.ConversionRegistry
-
-	// Exception handling context tracking (Task 8.208, 8.209)
-	inExceptionHandler bool // Track if we're inside an exception handler (for bare raise validation)
-	inFinallyBlock     bool // Track if we're inside a finally block (for control flow validation)
-
-	// Loop control context tracking (Task 8.235c)
-	inLoop    bool // Track if we're inside a loop body (for break/continue validation)
-	loopDepth int  // Track loop nesting level
+	currentClass       *types.ClassType
+	symbols            *SymbolTable
+	globalOperators    *types.OperatorRegistry
+	errors             []string
+	loopDepth          int
+	inExceptionHandler bool
+	inFinallyBlock     bool
+	inLoop             bool
 }
 
 // NewAnalyzer creates a new semantic analyzer

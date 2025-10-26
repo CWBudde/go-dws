@@ -457,6 +457,57 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
+		// Trim built-in function (Task 9.40)
+		if funcIdent.Value == "Trim" {
+			// Trim takes one string argument and returns a string
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Trim' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze the argument and verify it's a string
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.STRING {
+				a.addError("function 'Trim' expects string as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.STRING
+		}
+
+		// TrimLeft built-in function (Task 9.41)
+		if funcIdent.Value == "TrimLeft" {
+			// TrimLeft takes one string argument and returns a string
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'TrimLeft' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze the argument and verify it's a string
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.STRING {
+				a.addError("function 'TrimLeft' expects string as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.STRING
+		}
+
+		// TrimRight built-in function (Task 9.41)
+		if funcIdent.Value == "TrimRight" {
+			// TrimRight takes one string argument and returns a string
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'TrimRight' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze the argument and verify it's a string
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.STRING {
+				a.addError("function 'TrimRight' expects string as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.STRING
+		}
+
 		// Abs built-in function (Task 8.185)
 		if funcIdent.Value == "Abs" {
 			// Abs takes one numeric argument and returns the same type

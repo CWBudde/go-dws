@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Additional Exception Parser Tests for Coverage (Task 8.227)
+// Additional Exception Parser Tests for Coverage
 // ============================================================================
 
 // TestParseBareExceptClause tests parsing bare except clause without specific handlers

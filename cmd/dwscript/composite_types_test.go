@@ -394,12 +394,12 @@ func TestOperatorOverloading(t *testing.T) {
 		name                 string
 		scriptFile           string
 		expectedFile         string
-		wantOutputs          []string // Key strings that must appear in output
+		skipReason           string
+		wantOutputs          []string
+		wantErrorParts       []string
 		shouldSucceed        bool
 		isErrorTest          bool
-		wantErrorParts       []string // For error tests, parts of error message
-		skipIfNotImplemented bool     // Skip test if features not yet implemented
-		skipReason           string   // Reason for skipping
+		skipIfNotImplemented bool
 	}{
 		{
 			name:                 "String + Integer operator",

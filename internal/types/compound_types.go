@@ -132,10 +132,10 @@ type RecordPropertyInfo struct {
 //	  Y: Integer;
 //	end;
 type RecordType struct {
-	Name       string                         // Record type name (e.g., "TPoint")
-	Fields     map[string]Type                // Field name -> field type mapping
-	Methods    map[string]*FunctionType       // Method name -> method type mapping (Task 8.53b)
-	Properties map[string]*RecordPropertyInfo // Property name -> property info mapping (Task 8.53c)
+	Fields     map[string]Type
+	Methods    map[string]*FunctionType
+	Properties map[string]*RecordPropertyInfo
+	Name       string
 }
 
 // String returns a string representation of the record type

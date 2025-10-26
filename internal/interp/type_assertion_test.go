@@ -13,8 +13,8 @@ func TestSafeTypeAssertions(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		shouldError   bool
 		errorContains string
+		shouldError   bool
 	}{
 		{
 			name:          "integer arithmetic with valid types",

@@ -194,8 +194,8 @@ func TestCLI_InterfaceErrorHandling(t *testing.T) {
 	testCases := []struct {
 		name        string
 		source      string
-		shouldError bool
 		errorMsg    string
+		shouldError bool
 	}{
 		{
 			name: "interface with invalid syntax",

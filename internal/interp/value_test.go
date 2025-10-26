@@ -6,14 +6,14 @@ import "testing"
 func TestIntegerValue(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    int64
 		wantType string
 		wantStr  string
+		value    int64
 	}{
-		{"positive integer", 42, "INTEGER", "42"},
-		{"negative integer", -123, "INTEGER", "-123"},
-		{"zero", 0, "INTEGER", "0"},
-		{"large integer", 9223372036854775807, "INTEGER", "9223372036854775807"},
+		{name: "positive integer", wantType: "INTEGER", wantStr: "42", value: 42},
+		{name: "negative integer", wantType: "INTEGER", wantStr: "-123", value: -123},
+		{name: "zero", wantType: "INTEGER", wantStr: "0", value: 0},
+		{name: "large integer", wantType: "INTEGER", wantStr: "9223372036854775807", value: 9223372036854775807},
 	}
 
 	for _, tt := range tests {
@@ -35,15 +35,15 @@ func TestIntegerValue(t *testing.T) {
 func TestFloatValue(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    float64
 		wantType string
 		wantStr  string
+		value    float64
 	}{
-		{"positive float", 3.14, "FLOAT", "3.14"},
-		{"negative float", -2.5, "FLOAT", "-2.5"},
-		{"zero", 0.0, "FLOAT", "0"},
-		{"integer-like float", 42.0, "FLOAT", "42"},
-		{"scientific notation", 1.23e10, "FLOAT", "1.23e+10"},
+		{name: "positive float", wantType: "FLOAT", wantStr: "3.14", value: 3.14},
+		{name: "negative float", wantType: "FLOAT", wantStr: "-2.5", value: -2.5},
+		{name: "zero", wantType: "FLOAT", wantStr: "0", value: 0.0},
+		{name: "integer-like float", wantType: "FLOAT", wantStr: "42", value: 42.0},
+		{name: "scientific notation", wantType: "FLOAT", wantStr: "1.23e+10", value: 1.23e10},
 	}
 
 	for _, tt := range tests {
@@ -69,11 +69,11 @@ func TestStringValue(t *testing.T) {
 		wantType string
 		wantStr  string
 	}{
-		{"simple string", "hello", "STRING", "hello"},
-		{"empty string", "", "STRING", ""},
-		{"string with spaces", "hello world", "STRING", "hello world"},
-		{"string with quotes", "it's", "STRING", "it's"},
-		{"multiline string", "line1\nline2", "STRING", "line1\nline2"},
+		{name: "simple string", value: "hello", wantType: "STRING", wantStr: "hello"},
+		{name: "empty string", value: "", wantType: "STRING", wantStr: ""},
+		{name: "string with spaces", value: "hello world", wantType: "STRING", wantStr: "hello world"},
+		{name: "string with quotes", value: "it's", wantType: "STRING", wantStr: "it's"},
+		{name: "multiline string", value: "line1\nline2", wantType: "STRING", wantStr: "line1\nline2"},
 	}
 
 	for _, tt := range tests {
@@ -95,12 +95,12 @@ func TestStringValue(t *testing.T) {
 func TestBooleanValue(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    bool
 		wantType string
 		wantStr  string
+		value    bool
 	}{
-		{"true value", true, "BOOLEAN", "true"},
-		{"false value", false, "BOOLEAN", "false"},
+		{name: "true value", wantType: "BOOLEAN", wantStr: "true", value: true},
+		{name: "false value", wantType: "BOOLEAN", wantStr: "false", value: false},
 	}
 
 	for _, tt := range tests {
@@ -249,10 +249,10 @@ func TestGoInt(t *testing.T) {
 		name  string
 		value Value
 	}{
-		{"float value", NewFloatValue(3.14)},
-		{"string value", NewStringValue("hello")},
-		{"boolean value", NewBooleanValue(true)},
-		{"nil value", NewNilValue()},
+		{name: "float value", value: NewFloatValue(3.14)},
+		{name: "string value", value: NewStringValue("hello")},
+		{name: "boolean value", value: NewBooleanValue(true)},
+		{name: "nil value", value: NewNilValue()},
 	}
 
 	for _, tt := range tests {
@@ -282,10 +282,10 @@ func TestGoFloat(t *testing.T) {
 		name  string
 		value Value
 	}{
-		{"integer value", NewIntegerValue(42)},
-		{"string value", NewStringValue("hello")},
-		{"boolean value", NewBooleanValue(true)},
-		{"nil value", NewNilValue()},
+		{name: "integer value", value: NewIntegerValue(42)},
+		{name: "string value", value: NewStringValue("hello")},
+		{name: "boolean value", value: NewBooleanValue(true)},
+		{name: "nil value", value: NewNilValue()},
 	}
 
 	for _, tt := range tests {
@@ -315,10 +315,10 @@ func TestGoString(t *testing.T) {
 		name  string
 		value Value
 	}{
-		{"integer value", NewIntegerValue(42)},
-		{"float value", NewFloatValue(3.14)},
-		{"boolean value", NewBooleanValue(true)},
-		{"nil value", NewNilValue()},
+		{name: "integer value", value: NewIntegerValue(42)},
+		{name: "float value", value: NewFloatValue(3.14)},
+		{name: "boolean value", value: NewBooleanValue(true)},
+		{name: "nil value", value: NewNilValue()},
 	}
 
 	for _, tt := range tests {
@@ -357,10 +357,10 @@ func TestGoBool(t *testing.T) {
 		name  string
 		value Value
 	}{
-		{"integer value", NewIntegerValue(42)},
-		{"float value", NewFloatValue(3.14)},
-		{"string value", NewStringValue("hello")},
-		{"nil value", NewNilValue()},
+		{name: "integer value", value: NewIntegerValue(42)},
+		{name: "float value", value: NewFloatValue(3.14)},
+		{name: "string value", value: NewStringValue("hello")},
+		{name: "nil value", value: NewNilValue()},
 	}
 
 	for _, tt := range tests {

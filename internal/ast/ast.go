@@ -68,9 +68,9 @@ func (p *Program) Pos() lexer.Position {
 
 // Identifier represents an identifier (variable name, function name, etc.)
 type Identifier struct {
-	Token lexer.Token     // The IDENT token
-	Value string          // The actual identifier name
-	Type  *TypeAnnotation // The inferred or annotated type (set by semantic analyzer)
+	Type  *TypeAnnotation
+	Value string
+	Token lexer.Token
 }
 
 func (i *Identifier) expressionNode()             {}
@@ -82,9 +82,9 @@ func (i *Identifier) SetType(typ *TypeAnnotation) { i.Type = typ }
 
 // IntegerLiteral represents an integer literal value.
 type IntegerLiteral struct {
-	Token lexer.Token     // The INT token
-	Value int64           // The parsed integer value
-	Type  *TypeAnnotation // The type (always Integer for integer literals)
+	Type  *TypeAnnotation
+	Token lexer.Token
+	Value int64
 }
 
 func (il *IntegerLiteral) expressionNode()             {}
@@ -96,9 +96,9 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
 
 // FloatLiteral represents a floating-point literal value.
 type FloatLiteral struct {
-	Token lexer.Token     // The FLOAT token
-	Value float64         // The parsed float value
-	Type  *TypeAnnotation // The type (always Float for float literals)
+	Type  *TypeAnnotation
+	Token lexer.Token
+	Value float64
 }
 
 func (fl *FloatLiteral) expressionNode()             {}
@@ -110,9 +110,9 @@ func (fl *FloatLiteral) SetType(typ *TypeAnnotation) { fl.Type = typ }
 
 // StringLiteral represents a string literal value.
 type StringLiteral struct {
-	Token lexer.Token     // The STRING token
-	Value string          // The parsed string value (without quotes)
-	Type  *TypeAnnotation // The type (always String for string literals)
+	Type  *TypeAnnotation
+	Value string
+	Token lexer.Token
 }
 
 func (sl *StringLiteral) expressionNode()             {}
@@ -124,9 +124,9 @@ func (sl *StringLiteral) SetType(typ *TypeAnnotation) { sl.Type = typ }
 
 // BooleanLiteral represents a boolean literal value (true or false).
 type BooleanLiteral struct {
-	Token lexer.Token     // The TRUE or FALSE token
-	Value bool            // The boolean value
-	Type  *TypeAnnotation // The type (always Boolean for boolean literals)
+	Type  *TypeAnnotation
+	Token lexer.Token
+	Value bool
 }
 
 func (bl *BooleanLiteral) expressionNode()             {}
@@ -138,11 +138,11 @@ func (bl *BooleanLiteral) SetType(typ *TypeAnnotation) { bl.Type = typ }
 
 // BinaryExpression represents a binary operation (e.g., a + b, x < y).
 type BinaryExpression struct {
-	Token    lexer.Token     // The operator token
-	Left     Expression      // The left operand
-	Operator string          // The operator as a string (+, -, *, /, =, <>, etc.)
-	Right    Expression      // The right operand
-	Type     *TypeAnnotation // The result type (determined by semantic analyzer)
+	Left     Expression
+	Right    Expression
+	Type     *TypeAnnotation
+	Operator string
+	Token    lexer.Token
 }
 
 func (be *BinaryExpression) expressionNode()      {}
@@ -164,10 +164,10 @@ func (be *BinaryExpression) SetType(typ *TypeAnnotation) { be.Type = typ }
 
 // UnaryExpression represents a unary operation (e.g., -x, not b).
 type UnaryExpression struct {
-	Token    lexer.Token     // The operator token
-	Operator string          // The operator as a string (-, not, +)
-	Right    Expression      // The operand
-	Type     *TypeAnnotation // The result type (determined by semantic analyzer)
+	Right    Expression
+	Type     *TypeAnnotation
+	Operator string
+	Token    lexer.Token
 }
 
 func (ue *UnaryExpression) expressionNode()      {}
@@ -194,9 +194,9 @@ func (ue *UnaryExpression) SetType(typ *TypeAnnotation) { ue.Type = typ }
 
 // GroupedExpression represents an expression wrapped in parentheses.
 type GroupedExpression struct {
-	Token      lexer.Token     // The '(' token
-	Expression Expression      // The expression inside the parentheses
-	Type       *TypeAnnotation // The type (same as inner expression)
+	Expression Expression
+	Type       *TypeAnnotation
+	Token      lexer.Token
 }
 
 func (ge *GroupedExpression) expressionNode()      {}
@@ -218,10 +218,10 @@ func (ge *GroupedExpression) SetType(typ *TypeAnnotation) { ge.Type = typ }
 // Used primarily in set literals to specify a range of enum values.
 // Example: [A..C] or [one..five]
 type RangeExpression struct {
-	Token lexer.Token     // The '..' token
-	Start Expression      // The start of the range
-	End   Expression      // The end of the range
-	Type  *TypeAnnotation // The type (determined by semantic analyzer)
+	Start Expression
+	End   Expression
+	Type  *TypeAnnotation
+	Token lexer.Token
 }
 
 func (re *RangeExpression) expressionNode()      {}
@@ -242,8 +242,8 @@ func (re *RangeExpression) SetType(typ *TypeAnnotation) { re.Type = typ }
 // ExpressionStatement represents a statement that consists of a single expression.
 // This is used when an expression appears in a statement context.
 type ExpressionStatement struct {
-	Token      lexer.Token // The first token of the expression
-	Expression Expression  // The expression
+	Expression Expression
+	Token      lexer.Token
 }
 
 func (es *ExpressionStatement) statementNode()       {}
@@ -258,8 +258,8 @@ func (es *ExpressionStatement) String() string {
 
 // NilLiteral represents a nil literal value.
 type NilLiteral struct {
-	Token lexer.Token     // The NIL token
-	Type  *TypeAnnotation // The type (always Nil for nil literals)
+	Type  *TypeAnnotation
+	Token lexer.Token
 }
 
 func (nl *NilLiteral) expressionNode()             {}
@@ -271,8 +271,8 @@ func (nl *NilLiteral) SetType(typ *TypeAnnotation) { nl.Type = typ }
 
 // BlockStatement represents a block of statements (begin...end).
 type BlockStatement struct {
-	Token      lexer.Token // The 'begin' token
-	Statements []Statement // The statements in the block
+	Statements []Statement
+	Token      lexer.Token
 }
 
 func (bs *BlockStatement) statementNode()       {}

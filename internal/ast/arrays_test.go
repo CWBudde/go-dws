@@ -7,7 +7,7 @@ import (
 )
 
 // ============================================================================
-// ArrayTypeAnnotation Tests (Task 8.119)
+// ArrayTypeAnnotation Tests
 // ============================================================================
 
 func TestArrayTypeAnnotation(t *testing.T) {
@@ -121,7 +121,7 @@ func TestArrayTypeAnnotation(t *testing.T) {
 }
 
 // ============================================================================
-// ArrayLiteral Tests (Task 8.120)
+// ArrayLiteral Tests
 // ============================================================================
 
 func TestArrayLiteral(t *testing.T) {
@@ -235,7 +235,7 @@ func TestArrayLiteral(t *testing.T) {
 }
 
 // ============================================================================
-// IndexExpression Tests (Task 8.120)
+// IndexExpression Tests
 // ============================================================================
 
 func TestIndexExpression(t *testing.T) {
@@ -394,7 +394,7 @@ func TestIndexExpression(t *testing.T) {
 }
 
 // ============================================================================
-// AssignmentStatement with IndexExpression Tests (Task 8.137)
+// AssignmentStatement with IndexExpression Tests
 // ============================================================================
 
 func TestAssignmentStatement_WithIndexExpression(t *testing.T) {

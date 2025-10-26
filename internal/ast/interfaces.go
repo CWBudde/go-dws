@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Interface Method Declaration (Task 7.69)
+// Interface Method Declaration
 // ============================================================================
 
 // InterfaceMethodDecl represents a method declaration within an interface.
@@ -22,10 +22,10 @@ import (
 //
 // Note: Interface methods only declare signatures, they have no body.
 type InterfaceMethodDecl struct {
-	Token      lexer.Token     // The 'function' or 'procedure' token (or method name token)
-	Name       *Identifier     // The method name
-	Parameters []*Parameter    // The method parameters
-	ReturnType *TypeAnnotation // The return type (nil for procedures)
+	Name       *Identifier
+	ReturnType *TypeAnnotation
+	Parameters []*Parameter
+	Token      lexer.Token
 }
 
 func (imd *InterfaceMethodDecl) String() string {
@@ -62,7 +62,7 @@ func (imd *InterfaceMethodDecl) String() string {
 }
 
 // ============================================================================
-// Interface Declaration (Task 7.68)
+// Interface Declaration
 // ============================================================================
 
 // InterfaceDecl represents an interface declaration in DWScript.
@@ -77,12 +77,12 @@ func (imd *InterfaceMethodDecl) String() string {
 //	  procedure AdditionalMethod;
 //	end;
 type InterfaceDecl struct {
-	Token        lexer.Token            // The 'type' token
-	Name         *Identifier            // The interface name (e.g., "IMyInterface")
-	Parent       *Identifier            // The parent interface (optional, for interface inheritance)
-	Methods      []*InterfaceMethodDecl // Method declarations
-	IsExternal   bool                   // True if this is an external interface (for FFI)
-	ExternalName string                 // External name for FFI binding (optional)
+	Name         *Identifier
+	Parent       *Identifier
+	ExternalName string
+	Methods      []*InterfaceMethodDecl
+	Token        lexer.Token
+	IsExternal   bool
 }
 
 func (id *InterfaceDecl) statementNode()       {}

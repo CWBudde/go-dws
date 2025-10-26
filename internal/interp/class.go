@@ -11,48 +11,20 @@ import (
 // It stores information about a class's structure including fields, methods,
 // parent class, and constructor/destructor.
 type ClassInfo struct {
-	// Name is the class name (e.g., "TPoint")
-	Name string
-
-	// Parent is the parent class (nil for root classes)
-	Parent *ClassInfo
-
-	// Fields maps instance field names to their types
-	Fields map[string]types.Type
-
-	// ClassVars maps class variable (static field) names to their runtime values - Task 7.62
-	ClassVars map[string]Value
-
-	// Methods maps method names to their AST declarations
-	Methods map[string]*ast.FunctionDecl
-
-	// ClassMethods maps class method (static method) names to their AST declarations - Task 7.61
-	ClassMethods map[string]*ast.FunctionDecl
-
-	// Constructor is the constructor method (usually "Create")
-	Constructor *ast.FunctionDecl
-
-	// Destructor is the destructor method (if present)
-	Destructor *ast.FunctionDecl
-
-	// IsAbstract indicates if this is an abstract class (Task 7.65)
-	IsAbstract bool
-
-	// IsExternal indicates if this is an external class (Task 7.141)
-	// External classes are implemented outside DWScript and cannot be instantiated
-	IsExternal bool
-
-	// ExternalName is the external binding name for FFI (Task 7.141)
-	ExternalName string
-
-	// Operators stores runtime class operator overloads (Stage 8)
-	Operators *runtimeOperatorRegistry
-
-	// Constructors stores constructor declarations for overload resolution
+	Constructor  *ast.FunctionDecl
 	Constructors map[string]*ast.FunctionDecl
-
-	// Properties stores property metadata for the class (Task 8.53)
-	Properties map[string]*types.PropertyInfo
+	Fields       map[string]types.Type
+	ClassVars    map[string]Value
+	Methods      map[string]*ast.FunctionDecl
+	ClassMethods map[string]*ast.FunctionDecl
+	Properties   map[string]*types.PropertyInfo
+	Destructor   *ast.FunctionDecl
+	Parent       *ClassInfo
+	Operators    *runtimeOperatorRegistry
+	ExternalName string
+	Name         string
+	IsExternal   bool
+	IsAbstract   bool
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.

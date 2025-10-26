@@ -14,10 +14,10 @@ import (
 //	const MAX_USERS: Integer = 1000;
 //	const APP_NAME = 'MyApp';
 type ConstDecl struct {
-	Token lexer.Token     // The 'const' token
-	Name  *Identifier     // The constant name
-	Type  *TypeAnnotation // Optional type annotation (nil if not specified)
-	Value Expression      // The constant value expression
+	Value Expression
+	Name  *Identifier
+	Type  *TypeAnnotation
+	Token lexer.Token
 }
 
 func (cd *ConstDecl) statementNode()       {}

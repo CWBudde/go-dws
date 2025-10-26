@@ -410,8 +410,8 @@ func TestExpressionStatement(t *testing.T) {
 func TestBlockStatement(t *testing.T) {
 	tests := []struct {
 		name  string
-		stmts []Statement
 		want  string
+		stmts []Statement
 	}{
 		{
 			name:  "empty block",
@@ -597,10 +597,10 @@ func TestAssignmentStatement(t *testing.T) {
 // TestCallExpression tests the CallExpression node.
 func TestCallExpression(t *testing.T) {
 	tests := []struct {
-		name      string
 		function  Expression
-		arguments []Expression
+		name      string
 		want      string
+		arguments []Expression
 	}{
 		{
 			name: "no arguments",

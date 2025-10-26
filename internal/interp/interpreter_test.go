@@ -1355,9 +1355,9 @@ func TestFunctionErrors(t *testing.T) {
 // This is crucial for class functionality to work properly.
 func TestMemberAssignment(t *testing.T) {
 	tests := []struct {
+		expected interface{}
 		name     string
 		input    string
-		expected interface{}
 	}{
 		{
 			name: "Simple member assignment in constructor",

@@ -174,10 +174,10 @@ end
 // Task 8.185: Abs() function in assignments
 func TestBuiltinAbs_Assignment(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
 		expectedInt *int64
 		expectedFlt *float64
+		name        string
+		input       string
 	}{
 		{
 			name: "Assign integer result",

@@ -13,8 +13,8 @@ import (
 
 // TypeAliasValue stores a type alias definition
 type TypeAliasValue struct {
-	Name        string
 	AliasedType types.Type
+	Name        string
 }
 
 func (tv *TypeAliasValue) Type() string {

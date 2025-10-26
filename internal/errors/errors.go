@@ -12,10 +12,10 @@ import (
 
 // CompilerError represents a single compilation error with position and context.
 type CompilerError struct {
-	Pos     lexer.Position // Position in source where error occurred
-	Message string         // Error message
-	Source  string         // Original source code (for context display)
-	File    string         // Filename (optional, empty for inline code)
+	Message string
+	Source  string
+	File    string
+	Pos     lexer.Position
 }
 
 // NewCompilerError creates a new compiler error.

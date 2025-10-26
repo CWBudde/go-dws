@@ -18,9 +18,9 @@ import (
 //   - type TDays = set of TWeekday;
 //   - var s: set of (Mon, Tue, Wed);  // inline with anonymous enum
 type SetDecl struct {
-	Token       lexer.Token     // The 'type' or 'var' token
-	Name        *Identifier     // Set type name (e.g., "TDays"), nil for inline declarations
-	ElementType *TypeAnnotation // Element type (e.g., "TWeekday")
+	Name        *Identifier
+	ElementType *TypeAnnotation
+	Token       lexer.Token
 }
 
 // statementNode implements the Statement interface
@@ -64,9 +64,9 @@ func (sd *SetDecl) Pos() lexer.Position {
 //   - [one..five]              // set with range (not yet implemented)
 //   - []                       // empty set
 type SetLiteral struct {
-	Token    lexer.Token     // The '[' token
-	Elements []Expression    // List of elements in the set
-	Type     *TypeAnnotation // The inferred type (set by semantic analyzer)
+	Type     *TypeAnnotation
+	Elements []Expression
+	Token    lexer.Token
 }
 
 // expressionNode implements the Expression interface
