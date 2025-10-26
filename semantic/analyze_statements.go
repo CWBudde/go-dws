@@ -18,6 +18,8 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 	switch s := stmt.(type) {
 	case *ast.VarDeclStatement:
 		a.analyzeVarDecl(s)
+	case *ast.ConstDecl:
+		a.analyzeConstDecl(s)
 	case *ast.AssignmentStatement:
 		a.analyzeAssignment(s)
 	case *ast.ExpressionStatement:
@@ -143,6 +145,78 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	a.symbols.Define(stmt.Name.Value, varType)
 }
 
+// analyzeConstDecl analyzes a const declaration statement (Task 8.254)
+func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
+	// Check if constant is already declared in current scope
+	if a.symbols.IsDeclaredInCurrentScope(stmt.Name.Value) {
+		a.addError("constant '%s' already declared at %s", stmt.Name.Value, stmt.Token.Pos.String())
+		return
+	}
+
+	// Constants must have a value
+	if stmt.Value == nil {
+		a.addError("constant '%s' must have a value at %s", stmt.Name.Value, stmt.Token.Pos.String())
+		return
+	}
+
+	// Determine the type of the constant
+	var constType types.Type
+	var err error
+
+	if stmt.Type != nil {
+		// Explicit type annotation
+		constType, err = a.resolveType(stmt.Type.Name)
+		if err != nil {
+			a.addError("unknown type '%s' at %s", stmt.Type.Name, stmt.Token.Pos.String())
+			return
+		}
+	}
+
+	// Analyze the value expression
+	var valueType types.Type
+
+	// Special handling for record literals - they need the expected type
+	if recordLit, ok := stmt.Value.(*ast.RecordLiteral); ok {
+		if constType == nil {
+			a.addError("record literal requires explicit type annotation at %s", stmt.Token.Pos.String())
+			return
+		}
+		valueType = a.analyzeRecordLiteral(recordLit, constType)
+		if valueType == nil {
+			// Error already reported by analyzeRecordLiteral
+			return
+		}
+	} else if setLit, ok := stmt.Value.(*ast.SetLiteral); ok {
+		// Special handling for set literals - they need the expected type
+		valueType = a.analyzeSetLiteralWithContext(setLit, constType)
+		if valueType == nil {
+			// Error already reported by analyzeSetLiteralWithContext
+			return
+		}
+	} else {
+		valueType = a.analyzeExpression(stmt.Value)
+		if valueType == nil {
+			// Error already reported by analyzeExpression
+			return
+		}
+	}
+
+	if constType == nil {
+		// Type inference: use value's type
+		constType = valueType
+	} else {
+		// Check that value type is compatible with declared type
+		if !a.canAssign(valueType, constType) {
+			a.addError("cannot assign %s to %s in constant declaration at %s",
+				valueType.String(), constType.String(), stmt.Token.Pos.String())
+			return
+		}
+	}
+
+	// Add constant to symbol table as read-only const
+	a.symbols.DefineConst(stmt.Name.Value, constType)
+}
+
 // analyzeAssignment analyzes an assignment statement
 func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 	// Check the type of the value being assigned first
@@ -162,9 +236,13 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			return
 		}
 
-		// Check if variable is read-only (Task 8.207)
+		// Check if variable is read-only (Task 8.207, 8.255)
 		if sym.ReadOnly {
-			a.addError("cannot assign to read-only variable '%s' at %s", target.Value, stmt.Token.Pos.String())
+			if sym.IsConst {
+				a.addError("Cannot assign to constant '%s' at %s", target.Value, stmt.Token.Pos.String())
+			} else {
+				a.addError("cannot assign to read-only variable '%s' at %s", target.Value, stmt.Token.Pos.String())
+			}
 			return
 		}
 

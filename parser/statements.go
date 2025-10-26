@@ -12,6 +12,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseBlockStatement()
 	case lexer.VAR:
 		return p.parseVarDeclaration()
+	case lexer.CONST:
+		return p.parseConstDeclaration()
 	case lexer.IF:
 		return p.parseIfStatement()
 	case lexer.WHILE:

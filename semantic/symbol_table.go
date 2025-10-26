@@ -7,6 +7,7 @@ type Symbol struct {
 	Name     string
 	Type     types.Type
 	ReadOnly bool // True for const variables and exception handler variables (Task 8.207)
+	IsConst  bool // True for const declarations (Task 8.254)
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.
@@ -41,6 +42,7 @@ func (st *SymbolTable) Define(name string, typ types.Type) {
 		Name:     name,
 		Type:     typ,
 		ReadOnly: false,
+		IsConst:  false,
 	}
 }
 
@@ -50,6 +52,17 @@ func (st *SymbolTable) DefineReadOnly(name string, typ types.Type) {
 		Name:     name,
 		Type:     typ,
 		ReadOnly: true,
+		IsConst:  false,
+	}
+}
+
+// DefineConst defines a new constant symbol in the current scope (Task 8.254)
+func (st *SymbolTable) DefineConst(name string, typ types.Type) {
+	st.symbols[name] = &Symbol{
+		Name:     name,
+		Type:     typ,
+		ReadOnly: true,
+		IsConst:  true,
 	}
 }
 
@@ -59,6 +72,7 @@ func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType)
 		Name:     name,
 		Type:     funcType,
 		ReadOnly: false, // Functions are not assignable
+		IsConst:  false,
 	}
 }
 

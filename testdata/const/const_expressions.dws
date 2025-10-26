@@ -1,0 +1,76 @@
+// Const Expression Tests
+// Task 8.259: Test using consts in expressions and calculations
+
+begin
+  PrintLn('=== Const Expression Tests ===');
+
+  // Test 1: Const in arithmetic expression
+  PrintLn('Test 1: Arithmetic with consts');
+  const PI = 3.14;
+  const RADIUS = 5.0;
+  var area: Float := PI * RADIUS * RADIUS;
+  PrintLn('Area = PI * RADIUS * RADIUS = ' + FloatToStr(area));
+  if (area > 78.4) and (area < 78.6) then
+    PrintLn('PASS: Const arithmetic correct')
+  else
+    PrintLn('FAIL: Const arithmetic incorrect');
+
+  // Test 2: Const in variable initializer
+  PrintLn('');
+  PrintLn('Test 2: Const in variable initializer');
+  const FACTOR = 10;
+  var result: Integer := FACTOR * 2;
+  PrintLn('result = FACTOR * 2 = ' + IntToStr(result));
+  if result = 20 then
+    PrintLn('PASS: Const in initializer works')
+  else
+    PrintLn('FAIL: Const in initializer incorrect');
+
+  // Test 3: Multiple consts in expression
+  PrintLn('');
+  PrintLn('Test 3: Multiple consts in expression');
+  const X = 5;
+  const Y = 10;
+  const Z = 3;
+  var sum: Integer := X + Y + Z;
+  PrintLn('sum = X + Y + Z = ' + IntToStr(sum));
+  if sum = 18 then
+    PrintLn('PASS: Multiple consts in expression works')
+  else
+    PrintLn('FAIL: Multiple consts in expression incorrect');
+
+  // Test 4: Const with expression value
+  PrintLn('');
+  PrintLn('Test 4: Const with expression value');
+  const CALCULATED = 10 + 20 * 2;
+  PrintLn('CALCULATED = 10 + 20 * 2 = ' + IntToStr(CALCULATED));
+  if CALCULATED = 50 then
+    PrintLn('PASS: Const with expression value works')
+  else
+    PrintLn('FAIL: Const with expression value incorrect');
+
+  // Test 5: Const in comparison
+  PrintLn('');
+  PrintLn('Test 5: Const in comparison');
+  const THRESHOLD = 100;
+  var value: Integer := 150;
+  if value > THRESHOLD then
+    PrintLn('PASS: Const in comparison works')
+  else
+    PrintLn('FAIL: Const in comparison incorrect');
+
+  // Test 6: String const concatenation
+  PrintLn('');
+  PrintLn('Test 6: String const concatenation');
+  const PREFIX = 'Hello';
+  const SUFFIX = 'World';
+  var message: String := PREFIX + ' ' + SUFFIX;
+  PrintLn('message = ' + message);
+  if message = 'Hello World' then
+    PrintLn('PASS: String const concatenation works')
+  else
+    PrintLn('FAIL: String const concatenation incorrect');
+
+  PrintLn('');
+  PrintLn('=== All Const Expression Tests Complete ===');
+end;
