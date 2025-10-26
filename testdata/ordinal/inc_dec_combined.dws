@@ -1,0 +1,41 @@
+// Test Inc() and Dec() used together
+// Task 9.24 and 9.25: Combined ordinal functions
+
+var x: Integer := 10;
+PrintLn('Start: ', x);
+
+Inc(x, 5);
+PrintLn('After Inc(x, 5): ', x);
+
+Dec(x, 3);
+PrintLn('After Dec(x, 3): ', x);
+
+Inc(x);
+PrintLn('After Inc(x): ', x);
+
+Dec(x);
+PrintLn('After Dec(x): ', x);
+
+// Countdown test
+var i: Integer := 5;
+var sum: Integer := 0;
+
+while i > 0 do
+begin
+	sum := sum + i;
+	Dec(i);
+end;
+
+PrintLn('Countdown sum: ', sum);
+
+// Count up test
+i := 1;
+var product: Integer := 1;
+
+while i <= 5 do
+begin
+	product := product * i;
+	Inc(i);
+end;
+
+PrintLn('Factorial 5: ', product);

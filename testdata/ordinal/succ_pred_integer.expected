@@ -1,0 +1,13 @@
+Initial value:  10
+Succ(x):  11
+Pred(x):  9
+Succ(Succ(x)):  12
+Pred(Pred(x)):  8
+Succ(0):  1
+Pred(0):  -1
+Succ(-5):  -4
+Pred(-5):  -6
+After Inc(x):  11
+Succ(x):  12
+After Dec(x):  10
+Pred(x):  9

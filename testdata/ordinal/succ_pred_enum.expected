@@ -1,0 +1,18 @@
+Initial color:  1
+Succ(Green):  2
+Pred(Green):  0
+Starting from Red:  0
+Succ(Red):  1
+Succ(Succ(Red)):  2
+Starting from Yellow:  3
+Pred(Yellow):  2
+Pred(Pred(Yellow)):  1
+Status Warning:  5
+Succ(Warning):  10
+Pred(Warning):  0
+Start with Green:  1
+After Inc:  2
+Succ after Inc:  3
+Start with Blue:  2
+After Dec:  1
+Pred after Dec:  0

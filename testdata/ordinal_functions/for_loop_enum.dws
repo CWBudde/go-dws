@@ -1,0 +1,70 @@
+// for_loop_enum.dws - Tests using Low/High in loops with enum types
+// Expected output in for_loop_enum.out
+
+PrintLn('=== Iterate Through Simple Enum ===');
+
+type TColor = (Red, Green, Blue);
+var c: TColor := Red;
+
+// Manual iteration using Low/High
+c := Low(c);
+while Ord(c) <= Ord(High(c)) do
+begin
+	PrintLn(c);
+	if Ord(c) < Ord(High(c)) then
+		Inc(c)
+	else
+		break;
+end;
+
+PrintLn('=== Count Enum Values ===');
+
+var count: Integer := 0;
+var c2: TColor := Red;
+c2 := Low(c2);
+while Ord(c2) <= Ord(High(c2)) do
+begin
+	count := count + 1;
+	if Ord(c2) < Ord(High(c2)) then
+		Inc(c2)
+	else
+		break;
+end;
+PrintLn(count);  // 3
+
+PrintLn('=== Iterate with Explicit Values ===');
+
+type TStatus = (Ok = 0, Warning = 5, Error = 10);
+var s: TStatus := Ok;
+
+s := Low(s);
+while Ord(s) <= Ord(High(s)) do
+begin
+	PrintLn(s);
+	if Ord(s) < Ord(High(s)) then
+		Inc(s)
+	else
+		break;
+end;
+
+PrintLn('=== Process Each Enum Value ===');
+
+type TDay = (Mon, Tue, Wed, Thu, Fri);
+var d: TDay := Mon;
+var dayNum: Integer := 1;
+
+d := Low(d);
+while Ord(d) <= Ord(High(d)) do
+begin
+	Print('Day ');
+	Print(dayNum);
+	Print(': ');
+	PrintLn(d);
+	dayNum := dayNum + 1;
+	if Ord(d) < Ord(High(d)) then
+		Inc(d)
+	else
+		break;
+end;
+
+PrintLn('Done');

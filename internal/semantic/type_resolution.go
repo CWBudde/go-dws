@@ -46,6 +46,11 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 		return arrayType, nil
 	}
 
+	// Try type aliases (Task 9.19)
+	if typeAlias, found := a.typeAliases[typeName]; found {
+		return typeAlias, nil
+	}
+
 	return nil, fmt.Errorf("unknown type: %s", typeName)
 }
 

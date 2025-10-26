@@ -1,0 +1,56 @@
+// low_high_enum.dws - Tests Low and High for enum types
+// Expected output in low_high_enum.out
+
+PrintLn('=== Low/High with Simple Enums ===');
+
+type TColor = (Red, Green, Blue);
+var c: TColor := Green;
+
+var lowColor: TColor := Low(c);
+PrintLn(lowColor);  // Red
+
+var highColor: TColor := High(c);
+PrintLn(highColor);  // Blue
+
+// Low and High return same type as input
+PrintLn(Ord(Low(c)));   // 0
+PrintLn(Ord(High(c)));  // 2
+
+PrintLn('=== Low/High with Explicit Values ===');
+
+type TStatus = (Ok = 0, Warning = 5, Error = 10);
+var s: TStatus := Warning;
+
+PrintLn(Ord(Low(s)));   // 0
+PrintLn(Ord(High(s)));  // 10
+
+var lowStatus: TStatus := Low(s);
+var highStatus: TStatus := High(s);
+PrintLn(lowStatus);   // Ok
+PrintLn(highStatus);  // Error
+
+PrintLn('=== Low/High with Different Values ===');
+
+type TPriority = (Lowest = 1, Lower = 2, Medium = 5, Higher = 8, Highest = 10);
+var p: TPriority := Medium;
+
+PrintLn(Ord(Low(p)));   // 1
+PrintLn(Ord(High(p)));  // 10
+
+PrintLn('=== Low/High Always Return Extremes ===');
+
+// Regardless of which enum value you pass, Low and High return the extremes
+type TDay = (Mon, Tue, Wed, Thu, Fri);
+var d1: TDay := Mon;
+var d2: TDay := Wed;
+var d3: TDay := Fri;
+
+PrintLn(Low(d1));   // Mon
+PrintLn(Low(d2));   // Mon
+PrintLn(Low(d3));   // Mon
+
+PrintLn(High(d1));  // Fri
+PrintLn(High(d2));  // Fri
+PrintLn(High(d3));  // Fri
+
+PrintLn('Done');

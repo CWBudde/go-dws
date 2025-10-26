@@ -1,0 +1,35 @@
+// Test Succ() and Pred() with integers
+// Tasks 9.28 and 9.29: Successor and predecessor functions
+
+var x: Integer := 10;
+PrintLn('Initial value: ', x);
+
+var next: Integer := Succ(x);
+PrintLn('Succ(x): ', next);
+
+var prev: Integer := Pred(x);
+PrintLn('Pred(x): ', prev);
+
+// Chain Succ calls
+PrintLn('Succ(Succ(x)): ', Succ(Succ(x)));
+
+// Chain Pred calls
+PrintLn('Pred(Pred(x)): ', Pred(Pred(x)));
+
+// Test with zero
+PrintLn('Succ(0): ', Succ(0));
+PrintLn('Pred(0): ', Pred(0));
+
+// Test with negative
+var neg: Integer := -5;
+PrintLn('Succ(-5): ', Succ(neg));
+PrintLn('Pred(-5): ', Pred(neg));
+
+// Combined with Inc/Dec
+Inc(x);
+PrintLn('After Inc(x): ', x);
+PrintLn('Succ(x): ', Succ(x));
+
+Dec(x);
+PrintLn('After Dec(x): ', x);
+PrintLn('Pred(x): ', Pred(x));

@@ -219,3 +219,132 @@ func TestParseConstDeclarationErrors(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// Type Alias Tests (Task 9.17 - TDD)
+// ============================================================================
+
+// TestParseTypeAlias tests parsing simple type alias declarations
+func TestParseTypeAlias(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		expectedName string
+		expectedType string
+	}{
+		{
+			name:         "Integer alias",
+			input:        `type TUserID = Integer;`,
+			expectedName: "TUserID",
+			expectedType: "Integer",
+		},
+		{
+			name:         "String alias",
+			input:        `type TFileName = String;`,
+			expectedName: "TFileName",
+			expectedType: "String",
+		},
+		{
+			name:         "Float alias",
+			input:        `type TPrice = Float;`,
+			expectedName: "TPrice",
+			expectedType: "Float",
+		},
+		{
+			name:         "Boolean alias",
+			input:        `type TFlag = Boolean;`,
+			expectedName: "TFlag",
+			expectedType: "Boolean",
+		},
+		{
+			name:         "Nested alias (alias to another alias)",
+			input:        `type TMyInt = TUserID;`,
+			expectedName: "TMyInt",
+			expectedType: "TUserID",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+					len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.TypeDeclaration)
+			if !ok {
+				t.Fatalf("program.Statements[0] is not *ast.TypeDeclaration. got=%T",
+					program.Statements[0])
+			}
+
+			if stmt.Name.Value != tt.expectedName {
+				t.Errorf("stmt.Name.Value not %q. got=%s", tt.expectedName, stmt.Name.Value)
+			}
+
+			if !stmt.IsAlias {
+				t.Error("stmt.IsAlias should be true for type alias")
+			}
+
+			if stmt.AliasedType == nil {
+				t.Fatal("stmt.AliasedType should not be nil")
+			}
+
+			if stmt.AliasedType.Name != tt.expectedType {
+				t.Errorf("stmt.AliasedType.Name not %q. got=%s", tt.expectedType, stmt.AliasedType.Name)
+			}
+		})
+	}
+}
+
+// TestParseMultipleTypeAliases tests parsing multiple type alias declarations in one program
+func TestParseMultipleTypeAliases(t *testing.T) {
+	input := `
+		type TUserID = Integer;
+		type TFileName = String;
+		type TPrice = Float;
+	`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 3 {
+		t.Fatalf("program.Statements does not contain 3 statements. got=%d",
+			len(program.Statements))
+	}
+
+	expectedAliases := []struct {
+		name string
+		typ  string
+	}{
+		{"TUserID", "Integer"},
+		{"TFileName", "String"},
+		{"TPrice", "Float"},
+	}
+
+	for i, expected := range expectedAliases {
+		stmt, ok := program.Statements[i].(*ast.TypeDeclaration)
+		if !ok {
+			t.Fatalf("program.Statements[%d] is not *ast.TypeDeclaration. got=%T",
+				i, program.Statements[i])
+		}
+
+		if stmt.Name.Value != expected.name {
+			t.Errorf("stmt.Name.Value not %q. got=%s", expected.name, stmt.Name.Value)
+		}
+
+		if !stmt.IsAlias {
+			t.Errorf("stmt.IsAlias should be true for type alias %s", expected.name)
+		}
+
+		if stmt.AliasedType.Name != expected.typ {
+			t.Errorf("stmt.AliasedType.Name not %q. got=%s", expected.typ, stmt.AliasedType.Name)
+		}
+	}
+}

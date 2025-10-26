@@ -1,0 +1,8 @@
+Initial value:  10
+After Dec(x):  9
+After Dec(x, 3):  6
+After Dec(x, delta) where delta=5:  1
+Negative initial:  -5
+After Dec(y):  -6
+After Dec(y, 10):  -16
+After Dec(z, 3) where z was 3:  0

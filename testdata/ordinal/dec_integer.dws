@@ -1,0 +1,28 @@
+// Test Dec() with integers
+// Task 9.25: Dec() built-in function
+
+var x: Integer := 10;
+PrintLn('Initial value: ', x);
+
+Dec(x);
+PrintLn('After Dec(x): ', x);
+
+Dec(x, 3);
+PrintLn('After Dec(x, 3): ', x);
+
+var delta: Integer := 5;
+Dec(x, delta);
+PrintLn('After Dec(x, delta) where delta=5: ', x);
+
+// Test with negative values
+var y: Integer := -5;
+PrintLn('Negative initial: ', y);
+Dec(y);
+PrintLn('After Dec(y): ', y);
+Dec(y, 10);
+PrintLn('After Dec(y, 10): ', y);
+
+// Test going to zero
+var z: Integer := 3;
+Dec(z, 3);
+PrintLn('After Dec(z, 3) where z was 3: ', z);

@@ -1,0 +1,7 @@
+Start:  10
+After Inc(x, 5):  15
+After Dec(x, 3):  12
+After Inc(x):  13
+After Dec(x):  12
+Countdown sum:  15
+Factorial 5:  120

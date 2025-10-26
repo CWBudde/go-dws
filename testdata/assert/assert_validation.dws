@@ -1,0 +1,47 @@
+// Using Assert for input validation
+
+function ValidatePositive(x: Integer): Integer;
+begin
+  Assert(x > 0, 'Value must be positive');
+  Result := x * 2;
+end;
+
+function Divide(a, b: Integer): Integer;
+begin
+  Assert(b <> 0, 'Cannot divide by zero');
+  Result := a div b;
+end;
+
+// Test positive validation
+try
+  PrintLn('Valid: ' + IntToStr(ValidatePositive(5)));
+except
+  on E: EAssertionFailed do
+    PrintLn('Error: ' + E.Message);
+end;
+
+// Test negative validation
+try
+  PrintLn('Invalid: ' + IntToStr(ValidatePositive(-5)));
+except
+  on E: EAssertionFailed do
+    PrintLn('Caught expected error: Value must be positive');
+end;
+
+// Test division by zero
+try
+  PrintLn('Division: ' + IntToStr(Divide(10, 2)));
+except
+  on E: EAssertionFailed do
+    PrintLn('Error: ' + E.Message);
+end;
+
+// Test division by zero error
+try
+  PrintLn('Division: ' + IntToStr(Divide(10, 0)));
+except
+  on E: EAssertionFailed do
+    PrintLn('Caught expected error: Cannot divide by zero');
+end;
+
+PrintLn('Validation tests completed');

@@ -661,9 +661,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// Low built-in function (Task 8.132)
+		// Low built-in function (Task 8.132, extended in Task 9.31)
 		if funcIdent.Value == "Low" {
-			// Low takes one argument (array) and returns an integer
+			// Low takes one argument (array or enum) and returns an integer (for arrays) or enum value (for enums)
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Low' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -671,19 +671,26 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			// Analyze the argument
 			argType := a.analyzeExpression(expr.Arguments[0])
-			// Verify it's an array
+			// Verify it's an array or enum
 			if argType != nil {
-				if _, isArray := argType.(*types.ArrayType); !isArray {
-					a.addError("function 'Low' expects array, got %s at %s",
-						argType.String(), expr.Token.Pos.String())
+				if _, isArray := argType.(*types.ArrayType); isArray {
+					// For arrays, return Integer
+					return types.INTEGER
 				}
+				if enumType, isEnum := argType.(*types.EnumType); isEnum {
+					// For enums, return the same enum type
+					return enumType
+				}
+				// Neither array nor enum
+				a.addError("function 'Low' expects array or enum, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
 			}
 			return types.INTEGER
 		}
 
-		// High built-in function (Task 8.133)
+		// High built-in function (Task 8.133, extended in Task 9.32)
 		if funcIdent.Value == "High" {
-			// High takes one argument (array) and returns an integer
+			// High takes one argument (array or enum) and returns an integer (for arrays) or enum value (for enums)
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'High' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -691,12 +698,19 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			// Analyze the argument
 			argType := a.analyzeExpression(expr.Arguments[0])
-			// Verify it's an array
+			// Verify it's an array or enum
 			if argType != nil {
-				if _, isArray := argType.(*types.ArrayType); !isArray {
-					a.addError("function 'High' expects array, got %s at %s",
-						argType.String(), expr.Token.Pos.String())
+				if _, isArray := argType.(*types.ArrayType); isArray {
+					// For arrays, return Integer
+					return types.INTEGER
 				}
+				if enumType, isEnum := argType.(*types.EnumType); isEnum {
+					// For enums, return the same enum type
+					return enumType
+				}
+				// Neither array nor enum
+				a.addError("function 'High' expects array or enum, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
 			}
 			return types.INTEGER
 		}
@@ -838,6 +852,151 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					argType.String(), expr.Token.Pos.String())
 			}
 			return types.FLOAT
+		}
+
+		// Inc built-in procedure (Task 9.24)
+		if funcIdent.Value == "Inc" {
+			// Inc takes 1-2 arguments: variable and optional delta
+			if len(expr.Arguments) < 1 || len(expr.Arguments) > 2 {
+				a.addError("function 'Inc' expects 1-2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			// First argument must be a variable (Identifier)
+			if _, ok := expr.Arguments[0].(*ast.Identifier); !ok {
+				a.addError("function 'Inc' first argument must be a variable at %s",
+					expr.Token.Pos.String())
+			} else {
+				// Analyze the variable to get its type
+				varType := a.analyzeExpression(expr.Arguments[0])
+				// Must be Integer or Enum
+				if varType != nil {
+					if varType != types.INTEGER {
+						if _, isEnum := varType.(*types.EnumType); !isEnum {
+							a.addError("function 'Inc' expects Integer or Enum variable, got %s at %s",
+								varType.String(), expr.Token.Pos.String())
+						}
+					}
+				}
+			}
+			// If there's a second argument (delta), it must be Integer
+			if len(expr.Arguments) == 2 {
+				deltaType := a.analyzeExpression(expr.Arguments[1])
+				if deltaType != nil && deltaType != types.INTEGER {
+					a.addError("function 'Inc' delta must be Integer, got %s at %s",
+						deltaType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.VOID
+		}
+
+		// Dec built-in procedure (Task 9.25 - not yet implemented in interpreter)
+		if funcIdent.Value == "Dec" {
+			// Dec takes 1-2 arguments: variable and optional delta
+			if len(expr.Arguments) < 1 || len(expr.Arguments) > 2 {
+				a.addError("function 'Dec' expects 1-2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			// First argument must be a variable (Identifier)
+			if _, ok := expr.Arguments[0].(*ast.Identifier); !ok {
+				a.addError("function 'Dec' first argument must be a variable at %s",
+					expr.Token.Pos.String())
+			} else {
+				// Analyze the variable to get its type
+				varType := a.analyzeExpression(expr.Arguments[0])
+				// Must be Integer or Enum
+				if varType != nil {
+					if varType != types.INTEGER {
+						if _, isEnum := varType.(*types.EnumType); !isEnum {
+							a.addError("function 'Dec' expects Integer or Enum variable, got %s at %s",
+								varType.String(), expr.Token.Pos.String())
+						}
+					}
+				}
+			}
+			// If there's a second argument (delta), it must be Integer
+			if len(expr.Arguments) == 2 {
+				deltaType := a.analyzeExpression(expr.Arguments[1])
+				if deltaType != nil && deltaType != types.INTEGER {
+					a.addError("function 'Dec' delta must be Integer, got %s at %s",
+						deltaType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.VOID
+		}
+
+		// Succ built-in function (Task 9.28)
+		if funcIdent.Value == "Succ" {
+			// Succ takes 1 argument: ordinal value
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Succ' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the argument to get its type
+			argType := a.analyzeExpression(expr.Arguments[0])
+			// Must be Integer or Enum
+			if argType != nil {
+				if argType == types.INTEGER {
+					return types.INTEGER
+				}
+				if enumType, isEnum := argType.(*types.EnumType); isEnum {
+					return enumType
+				}
+				a.addError("function 'Succ' expects Integer or Enum, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.INTEGER
+		}
+
+		// Pred built-in function (Task 9.29)
+		if funcIdent.Value == "Pred" {
+			// Pred takes 1 argument: ordinal value
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Pred' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the argument to get its type
+			argType := a.analyzeExpression(expr.Arguments[0])
+			// Must be Integer or Enum
+			if argType != nil {
+				if argType == types.INTEGER {
+					return types.INTEGER
+				}
+				if enumType, isEnum := argType.(*types.EnumType); isEnum {
+					return enumType
+				}
+				a.addError("function 'Pred' expects Integer or Enum, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.INTEGER
+		}
+
+		// Assert built-in procedure (Task 9.36)
+		if funcIdent.Value == "Assert" {
+			// Assert takes 1-2 arguments: Boolean condition and optional String message
+			if len(expr.Arguments) < 1 || len(expr.Arguments) > 2 {
+				a.addError("function 'Assert' expects 1-2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			// First argument must be Boolean
+			condType := a.analyzeExpression(expr.Arguments[0])
+			if condType != nil && condType != types.BOOLEAN {
+				a.addError("function 'Assert' first argument must be Boolean, got %s at %s",
+					condType.String(), expr.Token.Pos.String())
+			}
+			// If there's a second argument (message), it must be String
+			if len(expr.Arguments) == 2 {
+				msgType := a.analyzeExpression(expr.Arguments[1])
+				if msgType != nil && msgType != types.STRING {
+					a.addError("function 'Assert' second argument must be String, got %s at %s",
+						msgType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.VOID
 		}
 
 		// Allow calling methods within the current class without explicit Self

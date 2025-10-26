@@ -1,0 +1,29 @@
+// Basic Assert usage examples
+
+// Test 1: Assert with true condition - should pass
+Assert(true);
+PrintLn('Test 1 passed');
+
+// Test 2: Assert with true condition and message - should pass
+Assert(1 + 1 = 2, 'Math works!');
+PrintLn('Test 2 passed');
+
+// Test 3: Assert with false condition - should raise exception
+try
+  Assert(false);
+  PrintLn('This should not print');
+except
+  on E: EAssertionFailed do
+    PrintLn('Test 3: Caught assertion failure');
+end;
+
+// Test 4: Assert with false condition and custom message
+try
+  Assert(1 + 1 = 3, 'Math is broken!');
+  PrintLn('This should not print');
+except
+  on E: EAssertionFailed do
+    PrintLn('Test 4: ' + E.Message);
+end;
+
+PrintLn('All basic tests completed');

@@ -1069,6 +1069,97 @@ func TestPortedNestedCalls(t *testing.T) {
 	}
 }
 
+// TestExceptionPropagationFromFunction tests that exceptions propagate from function calls
+func TestExceptionPropagationFromFunction(t *testing.T) {
+	input := `
+		procedure Trigger;
+		begin
+			PrintLn('Before raise');
+			raise Exception.Create('from function');
+			PrintLn('After raise'); // Should not print
+		end;
+
+		PrintLn('Defined Trigger');
+
+		var result: String;
+		result := '';
+
+		PrintLn('Before try');
+		try
+			PrintLn('In try');
+			PrintLn('About to call Trigger');
+			Trigger;
+			PrintLn('After Trigger'); // Should not print
+		except
+			PrintLn('In except');
+			result := 'Caught';
+		end;
+		PrintLn('After try');
+
+		PrintLn(result);
+	`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	interp.Eval(program)
+
+	output := buf.String()
+
+	// Just check what we got
+	t.Logf("Actual output:\n%s", output)
+
+	// Check that except block executed
+	if !strings.Contains(output, "In except") {
+		t.Error("Expected except block to execute ('In except' not found in output)")
+	}
+	if !strings.Contains(output, "Caught") {
+		t.Error("Expected 'Caught' in output")
+	}
+}
+
+// TestBareExceptBlock tests that bare except blocks (with no handlers) catch all exceptions
+func TestBareExceptBlock(t *testing.T) {
+	input := `
+		var result: String;
+		result := '';
+
+		try
+			raise Exception.Create('test error');
+		except
+			result := 'Caught';
+		end;
+
+		PrintLn(result);
+	`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	interp.Eval(program)
+
+	output := buf.String()
+	expected := "Caught\n"
+
+	if output != expected {
+		t.Errorf("expected output %q, got %q", expected, output)
+	}
+}
+
 // TestElseClauseWhenNoHandlerMatches tests that else clause executes when exception raised but no handler matches
 // This is a TDD test for fixing the else clause bug
 func TestElseClauseWhenNoHandlerMatches(t *testing.T) {

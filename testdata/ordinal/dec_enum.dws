@@ -1,0 +1,29 @@
+// Test Dec() with enum values
+// Task 9.25: Dec() built-in function for enums
+
+type TColor = (Red, Green, Blue, Yellow);
+
+var c: TColor := Yellow;
+PrintLn('Initial color ordinal: ', Ord(c));
+PrintLn('Initial color value: ', Integer(c));
+
+Dec(c);
+PrintLn('After first Dec(): ', Ord(c));
+
+Dec(c);
+PrintLn('After second Dec(): ', Ord(c));
+
+Dec(c);
+PrintLn('After third Dec(): ', Ord(c));
+
+// Test with enum with explicit values
+type TStatus = (Ok = 0, Warning = 5, Error = 10);
+
+var s: TStatus := Error;
+PrintLn('Status initial: ', Ord(s));
+
+Dec(s);
+PrintLn('After Dec (Error to Warning): ', Ord(s));
+
+Dec(s);
+PrintLn('After Dec (Warning to Ok): ', Ord(s));

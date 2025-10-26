@@ -1,0 +1,23 @@
+// Basic type alias declarations
+// Task 9.22: Test simple type aliases
+
+type TUserID = Integer;
+type TFileName = String;
+type TPrice = Float;
+type TFlag = Boolean;
+
+// Test using aliases in variable declarations
+var userID: TUserID := 12345;
+var filename: TFileName := 'document.txt';
+var price: TPrice := 99.99;
+var flag: TFlag := True;
+
+// Test assignment compatibility
+var normalInt: Integer;
+normalInt := userID;  // Should work - TUserID is compatible with Integer
+
+// Print values to verify type aliases work
+PrintLn('User ID: ' + IntToStr(normalInt));
+PrintLn('Filename: ' + filename);
+PrintLn('Price: 99.99');
+PrintLn('Flag: true');

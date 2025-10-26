@@ -27,6 +27,8 @@ type IntegerType struct{}
 func (t *IntegerType) String() string   { return "Integer" }
 func (t *IntegerType) TypeKind() string { return "INTEGER" }
 func (t *IntegerType) Equals(other Type) bool {
+	// Resolve type aliases before comparison
+	other = GetUnderlyingType(other)
 	_, ok := other.(*IntegerType)
 	return ok
 }
@@ -37,6 +39,8 @@ type FloatType struct{}
 func (t *FloatType) String() string   { return "Float" }
 func (t *FloatType) TypeKind() string { return "FLOAT" }
 func (t *FloatType) Equals(other Type) bool {
+	// Resolve type aliases before comparison
+	other = GetUnderlyingType(other)
 	_, ok := other.(*FloatType)
 	return ok
 }
@@ -47,6 +51,8 @@ type StringType struct{}
 func (t *StringType) String() string   { return "String" }
 func (t *StringType) TypeKind() string { return "STRING" }
 func (t *StringType) Equals(other Type) bool {
+	// Resolve type aliases before comparison
+	other = GetUnderlyingType(other)
 	_, ok := other.(*StringType)
 	return ok
 }
@@ -57,6 +63,8 @@ type BooleanType struct{}
 func (t *BooleanType) String() string   { return "Boolean" }
 func (t *BooleanType) TypeKind() string { return "BOOLEAN" }
 func (t *BooleanType) Equals(other Type) bool {
+	// Resolve type aliases before comparison
+	other = GetUnderlyingType(other)
 	_, ok := other.(*BooleanType)
 	return ok
 }
@@ -67,6 +75,8 @@ type NilType struct{}
 func (t *NilType) String() string   { return "Nil" }
 func (t *NilType) TypeKind() string { return "NIL" }
 func (t *NilType) Equals(other Type) bool {
+	// Resolve type aliases before comparison
+	other = GetUnderlyingType(other)
 	_, ok := other.(*NilType)
 	return ok
 }
@@ -77,6 +87,8 @@ type VoidType struct{}
 func (t *VoidType) String() string   { return "Void" }
 func (t *VoidType) TypeKind() string { return "VOID" }
 func (t *VoidType) Equals(other Type) bool {
+	// Resolve type aliases before comparison
+	other = GetUnderlyingType(other)
 	_, ok := other.(*VoidType)
 	return ok
 }
@@ -104,6 +116,64 @@ var IINTERFACE = &InterfaceType{
 	Methods:      make(map[string]*FunctionType),
 	IsExternal:   false,
 	ExternalName: "",
+}
+
+// ============================================================================
+// Type Aliases (Task 9.13)
+// ============================================================================
+
+// TypeAlias represents a type alias declaration.
+// Type aliases create alternate names for existing types, improving code clarity
+// and enabling domain-specific naming.
+//
+// Example: type TUserID = Integer; type TFileName = String;
+//
+// Type aliases are transparent - they are treated identically to their underlying type
+// for type checking purposes. The alias name is preserved only for error messages
+// and debugging.
+type TypeAlias struct {
+	Name        string // Alias name (e.g., "TUserID", "TFileName")
+	AliasedType Type   // The underlying type being aliased (e.g., INTEGER, STRING)
+}
+
+// String returns the alias name (not the underlying type name).
+// This preserves the alias name in error messages and debugging output.
+func (t *TypeAlias) String() string {
+	return t.Name
+}
+
+// TypeKind returns the underlying type's kind.
+// For nested aliases (alias of an alias), this recursively resolves to the
+// ultimate underlying type's kind.
+//
+// Example: type A = Integer; type B = A;
+// Both A.TypeKind() and B.TypeKind() return "INTEGER"
+func (t *TypeAlias) TypeKind() string {
+	return GetUnderlyingType(t).TypeKind()
+}
+
+// Equals checks if two types are equal by comparing their underlying types.
+// Type aliases are transparent for equality checking - an alias equals its
+// underlying type and other aliases to the same type.
+//
+// Examples:
+//   - type MyInt = Integer; MyInt.Equals(INTEGER) → true
+//   - type A = Integer; type B = Integer; A.Equals(B) → true
+//   - type MyInt = Integer; MyInt.Equals(STRING) → false
+func (t *TypeAlias) Equals(other Type) bool {
+	return GetUnderlyingType(t).Equals(GetUnderlyingType(other))
+}
+
+// GetUnderlyingType recursively resolves type aliases to find the ultimate underlying type.
+// This handles nested aliases like: type A = Integer; type B = A; type C = B;
+//
+// For non-alias types, this simply returns the type itself.
+// For alias types, this follows the chain until reaching a non-alias type.
+func GetUnderlyingType(t Type) Type {
+	for alias, ok := t.(*TypeAlias); ok; alias, ok = t.(*TypeAlias) {
+		t = alias.AliasedType
+	}
+	return t
 }
 
 // ============================================================================

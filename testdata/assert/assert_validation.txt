@@ -1,0 +1,5 @@
+Valid: 10
+Caught expected error: Value must be positive
+Division: 5
+Caught expected error: Cannot divide by zero
+Validation tests completed

@@ -1,0 +1,29 @@
+// Test Inc() with enum values
+// Task 9.24: Inc() built-in function for enums
+
+type TColor = (Red, Green, Blue, Yellow);
+
+var c: TColor := Red;
+PrintLn('Initial color ordinal: ', Ord(c));
+PrintLn('Initial color value: ', Integer(c));
+
+Inc(c);
+PrintLn('After first Inc(): ', Ord(c));
+
+Inc(c);
+PrintLn('After second Inc(): ', Ord(c));
+
+Inc(c);
+PrintLn('After third Inc(): ', Ord(c));
+
+// Test with enum with explicit values
+type TStatus = (Ok = 0, Warning = 5, Error = 10);
+
+var s: TStatus := Ok;
+PrintLn('Status initial: ', Ord(s));
+
+Inc(s);
+PrintLn('After Inc (Ok to Warning): ', Ord(s));
+
+Inc(s);
+PrintLn('After Inc (Warning to Error): ', Ord(s));

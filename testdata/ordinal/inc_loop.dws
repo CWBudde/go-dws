@@ -1,0 +1,27 @@
+// Test Inc() in loop context
+// Task 9.24: Inc() built-in function
+
+var sum: Integer := 0;
+var i: Integer := 0;
+
+while i < 5 do
+begin
+	sum := sum + i;
+	Inc(i);
+end;
+
+PrintLn('Sum: ', sum);
+PrintLn('Final i: ', i);
+
+// Test Inc with delta in loop
+var count: Integer := 0;
+var j: Integer := 0;
+
+while j < 20 do
+begin
+	Inc(count);
+	Inc(j, 3);
+end;
+
+PrintLn('Count: ', count);
+PrintLn('Final j: ', j);

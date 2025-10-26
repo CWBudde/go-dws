@@ -60,6 +60,8 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeSetDecl(s)
 	case *ast.ArrayDecl:
 		a.analyzeArrayDecl(s)
+	case *ast.TypeDeclaration:
+		a.analyzeTypeDeclaration(s)
 	case *ast.RaiseStatement:
 		a.analyzeRaiseStatement(s)
 	case *ast.TryStatement:

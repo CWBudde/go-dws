@@ -168,6 +168,13 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 				return atv.ArrayType, nil
 			}
 		}
+		// Try type alias (Task 9.21)
+		if typeAliasVal, ok := i.env.Get("__type_alias_" + typeName); ok {
+			if tav, ok := typeAliasVal.(*TypeAliasValue); ok {
+				// Return the underlying type (type aliases are transparent at runtime)
+				return tav.AliasedType, nil
+			}
+		}
 		// Unknown type
 		return nil, fmt.Errorf("unknown type: %s", typeName)
 	}

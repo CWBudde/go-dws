@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
@@ -149,8 +151,17 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 		return nil
 	}
 
+	// Advance past the statement
+	p.nextToken()
+
+	// Skip any optional semicolons before 'until'
+	for p.curTokenIs(lexer.SEMICOLON) {
+		p.nextToken()
+	}
+
 	// Expect 'until' keyword
-	if !p.expectPeek(lexer.UNTIL) {
+	if !p.curTokenIs(lexer.UNTIL) {
+		p.addError(fmt.Sprintf("expected 'until' after repeat body, got %s instead", p.curToken.Type))
 		return nil
 	}
 

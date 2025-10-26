@@ -124,69 +124,69 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Type System (2 tasks)
 
-- [ ] 9.13 Define `TypeAlias` in `types/types.go`:
-  - [ ] Fields: `Name string`, `AliasedType Type`
-  - [ ] Implement `Type` interface methods
-  - [ ] `TypeKind()` returns underlying type's kind
-  - [ ] `String()` returns alias name
-  - [ ] `Equals(other Type)` compares underlying types
-- [ ] 9.14 Add type alias tests in `types/types_test.go`:
-  - [ ] Test creating type alias
-  - [ ] Test alias equality with underlying type
-  - [ ] Test alias inequality with different types
-  - [ ] Test nested aliases: `type A = Integer; type B = A;`
+- [x] 9.13 Define `TypeAlias` in `types/types.go`:
+  - [x] Fields: `Name string`, `AliasedType Type`
+  - [x] Implement `Type` interface methods
+  - [x] `TypeKind()` returns underlying type's kind
+  - [x] `String()` returns alias name
+  - [x] `Equals(other Type)` compares underlying types
+- [x] 9.14 Add type alias tests in `types/types_test.go`:
+  - [x] Test creating type alias
+  - [x] Test alias equality with underlying type
+  - [x] Test alias inequality with different types
+  - [x] Test nested aliases: `type A = Integer; type B = A;`
 
 #### AST Nodes (2 tasks)
 
-- [ ] 9.15 Extend `TypeDeclaration` in `ast/type_annotation.go`:
-  - [ ] Add `IsAlias bool` field
-  - [ ] Add `AliasedType TypeAnnotation` field
-  - [ ] Update `String()` to show `type Name = Type;` for aliases
-- [ ] 9.16 Add AST tests:
-  - [ ] Test type alias AST node creation
-  - [ ] Test `String()` output for aliases
+- [x] 9.15 Extend `TypeDeclaration` in `ast/type_annotation.go`:
+  - [x] Add `IsAlias bool` field
+  - [x] Add `AliasedType TypeAnnotation` field
+  - [x] Update `String()` to show `type Name = Type;` for aliases
+- [x] 9.16 Add AST tests:
+  - [x] Test type alias AST node creation
+  - [x] Test `String()` output for aliases
 
 #### Parser Support (2 tasks)
 
-- [ ] 9.17 Extend `parseTypeDeclaration()` in `parser/type_declarations.go`:
-  - [ ] After parsing type name, check next token
-  - [ ] If `=` token, parse as type alias
-  - [ ] Parse aliased type annotation
-  - [ ] Expect SEMICOLON
-  - [ ] Return TypeDeclaration with IsAlias=true
-- [ ] 9.18 Add parser tests in `parser/type_test.go`:
-  - [ ] Test parsing `type TUserID = Integer;`
-  - [ ] Test parsing `type TFileName = String;`
-  - [ ] Test parsing alias to custom type: `type TMyClass = TClass;`
-  - [ ] Test error cases
+- [x] 9.17 Extend `parseTypeDeclaration()` in `parser/type_declarations.go`:
+  - [x] After parsing type name, check next token
+  - [x] If `=` token, parse as type alias
+  - [x] Parse aliased type annotation
+  - [x] Expect SEMICOLON
+  - [x] Return TypeDeclaration with IsAlias=true
+- [x] 9.18 Add parser tests in `parser/type_test.go`:
+  - [x] Test parsing `type TUserID = Integer;`
+  - [x] Test parsing `type TFileName = String;`
+  - [x] Test parsing alias to custom type: `type TMyClass = TClass;`
+  - [x] Test error cases
 
 #### Semantic Analysis (2 tasks)
 
-- [ ] 9.19 Implement type alias analysis in `semantic/analyze_types.go`:
-  - [ ] In `analyzeTypeDeclaration()`, detect type alias
-  - [ ] Resolve aliased type
-  - [ ] Create TypeAlias and register in type environment
-  - [ ] Allow using alias name in variable/parameter declarations
-- [ ] 9.20 Add semantic tests in `semantic/type_alias_test.go`:
-  - [ ] Test type alias registration
-  - [ ] Test using alias in variable declaration: `var id: TUserID;`
-  - [ ] Test type compatibility: TUserID = Integer should work
-  - [ ] Test error: undefined aliased type
+- [x] 9.19 Implement type alias analysis in `semantic/analyze_types.go`:
+  - [x] In `analyzeTypeDeclaration()`, detect type alias
+  - [x] Resolve aliased type
+  - [x] Create TypeAlias and register in type environment
+  - [x] Allow using alias name in variable/parameter declarations
+- [x] 9.20 Add semantic tests in `semantic/type_alias_test.go`:
+  - [x] Test type alias registration
+  - [x] Test using alias in variable declaration: `var id: TUserID;`
+  - [x] Test type compatibility: TUserID = Integer should work
+  - [x] Test error: undefined aliased type
 
 #### Interpreter Support (1 task)
 
-- [ ] 9.21 Implement type alias runtime support:
-  - [ ] In `resolveType()`, handle TypeAlias by returning underlying type
-  - [ ] No special runtime representation needed (just resolve to base type)
-  - [ ] Add tests in `interp/type_test.go`
+- [x] 9.21 Implement type alias runtime support:
+  - [x] In `resolveType()`, handle TypeAlias by returning underlying type
+  - [x] No special runtime representation needed (just resolve to base type)
+  - [x] Add tests in `interp/type_test.go`
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 9.22 Create test scripts in `testdata/type_alias/`:
-  - [ ] `basic_alias.dws` - Simple type aliases
-  - [ ] `alias_usage.dws` - Using aliases in declarations and assignments
-  - [ ] Expected outputs
-- [ ] 9.23 Add CLI integration tests
+- [x] 9.22 Create test scripts in `testdata/type_alias/`:
+  - [x] `basic_alias.dws` - Simple type aliases
+  - [x] `alias_usage.dws` - Using aliases in declarations and assignments
+  - [x] Expected outputs
+- [x] 9.23 Add CLI integration tests
 
 ---
 
@@ -198,88 +198,88 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Built-in Functions - Increment/Decrement (4 tasks)
 
-- [ ] 9.24 Implement `Inc(x)` and `Inc(x, delta)` in `interp/builtins.go`:
-  - [ ] Create `builtinInc()` function
-  - [ ] Accept 1-2 parameters: variable reference, optional delta (default 1)
-  - [ ] Support Integer: increment by delta
-  - [ ] Support enum: get next enum value (Succ)
-  - [ ] Modify variable in-place (requires var parameter support)
-  - [ ] Return nil
-- [ ] 9.25 Implement `Dec(x)` and `Dec(x, delta)` in `interp/builtins.go`:
-  - [ ] Create `builtinDec()` function
-  - [ ] Accept 1-2 parameters: variable reference, optional delta (default 1)
-  - [ ] Support Integer: decrement by delta
-  - [ ] Support enum: get previous enum value (Pred)
-  - [ ] Modify variable in-place
-  - [ ] Return nil
-- [ ] 9.26 Register Inc/Dec in interpreter initialization:
-  - [ ] Add to global built-in functions map
-  - [ ] Handle var parameter semantics (pass by reference)
-- [ ] 9.27 Add tests in `interp/ordinal_test.go`:
-  - [ ] Test `Inc(x)` with integer: `var x := 5; Inc(x); // x = 6`
-  - [ ] Test `Inc(x, 3)` with delta: `Inc(x, 3); // x = 8`
-  - [ ] Test `Dec(x)` with integer
-  - [ ] Test `Dec(x, 2)` with delta
-  - [ ] Test Inc/Dec with enum values
-  - [ ] Test error: Inc beyond High(enum)
-  - [ ] Test error: Dec below Low(enum)
+- [x] 9.24 Implement `Inc(x)` and `Inc(x, delta)` in `interp/builtins.go`:
+  - [x] Create `builtinInc()` function
+  - [x] Accept 1-2 parameters: variable reference, optional delta (default 1)
+  - [x] Support Integer: increment by delta
+  - [x] Support enum: get next enum value (Succ)
+  - [x] Modify variable in-place (requires var parameter support)
+  - [x] Return nil
+- [x] 9.25 Implement `Dec(x)` and `Dec(x, delta)` in `interp/builtins.go`:
+  - [x] Create `builtinDec()` function
+  - [x] Accept 1-2 parameters: variable reference, optional delta (default 1)
+  - [x] Support Integer: decrement by delta
+  - [x] Support enum: get previous enum value (Pred)
+  - [x] Modify variable in-place
+  - [x] Return nil
+- [x] 9.26 Register Inc/Dec in interpreter initialization:
+  - [x] Add to global built-in functions map
+  - [x] Handle var parameter semantics (pass by reference)
+- [x] 9.27 Add tests in `interp/ordinal_test.go`:
+  - [x] Test `Inc(x)` with integer: `var x := 5; Inc(x); // x = 6`
+  - [x] Test `Inc(x, 3)` with delta: `Inc(x, 3); // x = 8`
+  - [x] Test `Dec(x)` with integer
+  - [x] Test `Dec(x, 2)` with delta
+  - [x] Test Inc/Dec with enum values
+  - [x] Test error: Inc beyond High(enum)
+  - [x] Test error: Dec below Low(enum)
 
 #### Built-in Functions - Successor/Predecessor (3 tasks)
 
-- [ ] 9.28 Implement `Succ(x)` in `interp/builtins.go`:
-  - [ ] Create `builtinSucc()` function
-  - [ ] Accept 1 parameter: ordinal value
-  - [ ] For Integer: return x + 1
-  - [ ] For enum: return next enum value
-  - [ ] Raise error if already at maximum value
-  - [ ] Return successor value
-- [ ] 9.29 Implement `Pred(x)` in `interp/builtins.go`:
-  - [ ] Create `builtinPred()` function
-  - [ ] Accept 1 parameter: ordinal value
-  - [ ] For Integer: return x - 1
-  - [ ] For enum: return previous enum value
-  - [ ] Raise error if already at minimum value
-  - [ ] Return predecessor value
-- [ ] 9.30 Add tests in `interp/ordinal_test.go`:
-  - [ ] Test `Succ(5)` returns 6
-  - [ ] Test `Pred(5)` returns 4
-  - [ ] Test Succ/Pred with enum values
-  - [ ] Test error: Succ at maximum
-  - [ ] Test error: Pred at minimum
+- [x] 9.28 Implement `Succ(x)` in `interp/builtins.go`:
+  - [x] Create `builtinSucc()` function
+  - [x] Accept 1 parameter: ordinal value
+  - [x] For Integer: return x + 1
+  - [x] For enum: return next enum value
+  - [x] Raise error if already at maximum value
+  - [x] Return successor value
+- [x] 9.29 Implement `Pred(x)` in `interp/builtins.go`:
+  - [x] Create `builtinPred()` function
+  - [x] Accept 1 parameter: ordinal value
+  - [x] For Integer: return x - 1
+  - [x] For enum: return previous enum value
+  - [x] Raise error if already at minimum value
+  - [x] Return predecessor value
+- [x] 9.30 Add tests in `interp/ordinal_test.go`:
+  - [x] Test `Succ(5)` returns 6
+  - [x] Test `Pred(5)` returns 4
+  - [x] Test Succ/Pred with enum values
+  - [x] Test error: Succ at maximum
+  - [x] Test error: Pred at minimum
 
 #### Built-in Functions - Low/High for Enums (3 tasks)
 
-- [ ] 9.31 Implement `Low(enumType)` in `interp/builtins.go`:
-  - [ ] Create `builtinLow()` function
-  - [ ] Accept enum type or enum value
-  - [ ] For arrays: return array lower bound (already implemented)
-  - [ ] For enum type: return lowest enum value
-  - [ ] For enum value: return Low of that enum type
-  - [ ] Return lowest ordinal value
-- [ ] 9.32 Implement `High(enumType)` in `interp/builtins.go`:
-  - [ ] Create `builtinHigh()` function
-  - [ ] Accept enum type or enum value
-  - [ ] For arrays: return array upper bound (already implemented)
-  - [ ] For enum type: return highest enum value
-  - [ ] For enum value: return High of that enum type
-  - [ ] Return highest ordinal value
-- [ ] 9.33 Add tests in `interp/ordinal_test.go`:
-  - [ ] Test `Low(TColor)` returns first enum value (Red)
-  - [ ] Test `High(TColor)` returns last enum value (Blue)
-  - [ ] Test Low/High with enum variable: `var c: TColor; Low(c)`
-  - [ ] Test Low/High still work for arrays (backward compatibility)
+- [x] 9.31 Implement `Low(enumType)` in `interp/builtins.go`:
+  - [x] Create `builtinLow()` function
+  - [x] Accept enum type or enum value
+  - [x] For arrays: return array lower bound (already implemented)
+  - [x] For enum type: return lowest enum value
+  - [x] For enum value: return Low of that enum type
+  - [x] Return lowest ordinal value
+- [x] 9.32 Implement `High(enumType)` in `interp/builtins.go`:
+  - [x] Create `builtinHigh()` function
+  - [x] Accept enum type or enum value
+  - [x] For arrays: return array upper bound (already implemented)
+  - [x] For enum type: return highest enum value
+  - [x] For enum value: return High of that enum type
+  - [x] Return highest ordinal value
+- [x] 9.33 Add tests in `interp/ordinal_test.go`:
+  - [x] Test `Low(TColor)` returns first enum value (Red)
+  - [x] Test `High(TColor)` returns last enum value (Blue)
+  - [x] Test Low/High with enum variable: `var c: TColor; Low(c)`
+  - [x] Test Low/High still work for arrays (backward compatibility)
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 9.34 Create test scripts in `testdata/ordinal_functions/`:
-  - [ ] `inc_dec.dws` - Inc and Dec with integers and enums
-  - [ ] `succ_pred.dws` - Succ and Pred with integers and enums
-  - [ ] `low_high_enum.dws` - Low and High for enum types
-  - [ ] `for_loop_enum.dws` - Using Low/High in for loops: `for i := Low(TEnum) to High(TEnum)`
-  - [ ] Expected outputs
-- [ ] 9.35 Add CLI integration tests:
-  - [ ] Test ordinal function scripts
-  - [ ] Verify correct outputs
+- [x] 9.34 Create test scripts in `testdata/ordinal_functions/`:
+  - [x] `inc_dec.dws` - Inc and Dec with integers and enums
+  - [x] `succ_pred.dws` - Succ and Pred with integers and enums
+  - [x] `low_high_enum.dws` - Low and High for enum types
+  - [x] `for_loop_enum.dws` - Using Low/High in for loops: `for i := Low(TEnum) to High(TEnum)`
+  - [x] Expected outputs
+- [x] 9.35 Add CLI integration tests:
+  - [x] Test ordinal function scripts
+  - [x] Verify correct outputs
 
 ---
 
@@ -289,32 +289,32 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Built-in Function (2 tasks)
 
-- [ ] 9.36 Implement `Assert()` in `interp/builtins.go`:
-  - [ ] Create `builtinAssert()` function
-  - [ ] Accept 1-2 parameters: Boolean condition, optional String message
-  - [ ] If condition is false:
-    - [ ] If message provided, raise `EAssertionFailed` with message
-    - [ ] If no message, raise `EAssertionFailed` with "Assertion failed"
-  - [ ] If condition is true, return nil (no-op)
-  - [ ] Register in global built-in functions
-- [ ] 9.37 Add tests in `interp/assert_test.go`:
-  - [ ] Test `Assert(true)` - should not raise error
-  - [ ] Test `Assert(false)` - should raise EAssertionFailed
-  - [ ] Test `Assert(true, 'message')` - no error
-  - [ ] Test `Assert(false, 'Custom message')` - error with custom message
-  - [ ] Test Assert in function: function validates preconditions
-  - [ ] Test Assert with expression: `Assert(x > 0, 'x must be positive')`
+- [x] 9.36 Implement `Assert()` in `interp/builtins.go`:
+  - [x] Create `builtinAssert()` function
+  - [x] Accept 1-2 parameters: Boolean condition, optional String message
+  - [x] If condition is false:
+    - [x] If message provided, raise `EAssertionFailed` with message
+    - [x] If no message, raise `EAssertionFailed` with "Assertion failed"
+  - [x] If condition is true, return nil (no-op)
+  - [x] Register in global built-in functions
+- [x] 9.37 Add tests in `interp/assert_test.go`:
+  - [x] Test `Assert(true)` - should not raise error
+  - [x] Test `Assert(false)` - should raise EAssertionFailed
+  - [x] Test `Assert(true, 'message')` - no error
+  - [x] Test `Assert(false, 'Custom message')` - error with custom message
+  - [x] Test Assert in function: function validates preconditions
+  - [x] Test Assert with expression: `Assert(x > 0, 'x must be positive')`
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 9.38 Create test scripts in `testdata/assert/`:
-  - [ ] `assert_basic.dws` - Basic Assert usage
-  - [ ] `assert_validation.dws` - Using Assert for input validation
-  - [ ] `assert_tests.dws` - Writing tests with Assert
-  - [ ] Expected outputs (some should fail with assertion errors)
-- [ ] 9.39 Add CLI integration tests:
-  - [ ] Test assert scripts
-  - [ ] Verify assertion failures are caught and reported
+- [x] 9.38 Create test scripts in `testdata/assert/`:
+  - [x] `assert_basic.dws` - Basic Assert usage
+  - [x] `assert_validation.dws` - Using Assert for input validation
+  - [x] `assert.dws` - Reference test from original DWScript
+  - [x] Expected outputs (some should fail with assertion errors)
+- [x] 9.39 Add CLI integration tests:
+  - [x] Test assert scripts
+  - [x] Verify assertion failures are caught and reported
 
 ---
 

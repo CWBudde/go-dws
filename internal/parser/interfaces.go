@@ -28,7 +28,27 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 	}
 
 	// Now peek to see what kind of type declaration this is
-	if p.peekTokenIs(lexer.INTERFACE) {
+	// Task 9.17: Check for type alias first (type A = B)
+	if p.peekTokenIs(lexer.IDENT) {
+		// Type alias: type TUserID = Integer;
+		p.nextToken() // move to aliased type identifier
+		aliasedType := &ast.TypeAnnotation{
+			Token: p.curToken,
+			Name:  p.curToken.Literal,
+		}
+
+		// Expect semicolon
+		if !p.expectPeek(lexer.SEMICOLON) {
+			return nil
+		}
+
+		return &ast.TypeDeclaration{
+			Token:       typeToken,
+			Name:        nameIdent,
+			IsAlias:     true,
+			AliasedType: aliasedType,
+		}
+	} else if p.peekTokenIs(lexer.INTERFACE) {
 		p.nextToken() // move to INTERFACE
 		return p.parseInterfaceDeclarationBody(nameIdent)
 	} else if p.peekTokenIs(lexer.CLASS) {
