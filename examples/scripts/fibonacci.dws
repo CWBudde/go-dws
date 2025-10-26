@@ -1,0 +1,14 @@
+// Fibonacci Sequence
+function Fibonacci(n: Integer): Integer;
+begin
+	if n <= 1 then
+		Result := n
+	else
+		Result := Fibonacci(n - 1) + Fibonacci(n - 2);
+end;
+
+var i: Integer;
+
+PrintLn('First 10 Fibonacci numbers:');
+for i := 0 to 9 do
+	PrintLn('F(' + IntToStr(i) + ') = ' + IntToStr(Fibonacci(i)));

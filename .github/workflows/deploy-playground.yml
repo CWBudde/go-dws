@@ -46,6 +46,9 @@ jobs:
           mkdir -p _site
           # Copy playground files (excluding the wasm symlink)
           cp -r playground/* _site/
+          # Copy canonical DWScript examples for static hosting fallback
+          mkdir -p _site/examples
+          cp examples/scripts/*.dws _site/examples/
           # Remove the symlink if it exists
           rm -f _site/wasm
           # Copy the actual WASM files

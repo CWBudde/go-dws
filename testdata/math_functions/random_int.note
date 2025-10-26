@@ -1,0 +1,17 @@
+RandomInt Test Fixture - Expected Behavior
+============================================
+
+Since RandomInt() generates random values, the exact output will vary on each run.
+
+Expected Output Pattern:
+- RandomInt(10) = <value in [0, 10)>
+- RandomInt(100) = <value in [0, 100)>
+- RandomInt(5) = <value in [0, 5)>
+- RandomInt(1) = 0 (always)
+- All values in range: true
+- Valid random values generated: 10/10
+
+The test verifies:
+1. All generated values are within their valid ranges
+2. RandomInt(1) always returns 0
+3. All 10 iterations in the loop produce valid values

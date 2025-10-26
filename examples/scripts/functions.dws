@@ -1,0 +1,48 @@
+// Functions and Procedures
+
+// Function with return value
+function Add(a, b: Integer): Integer;
+begin
+	Result := a + b;
+end;
+
+// Function with multiple parameters
+function Max(a, b: Integer): Integer;
+begin
+	if a > b then
+		Result := a
+	else
+		Result := b;
+end;
+
+// Procedure (no return value)
+procedure Greet(name: String);
+begin
+	PrintLn('Hello, ' + name + '!');
+end;
+
+// String manipulation function
+function Capitalize(s: String): String;
+begin
+	if Length(s) > 0 then
+		Result := UpperCase(Copy(s, 1, 1)) + LowerCase(Copy(s, 2, Length(s) - 1))
+	else
+		Result := s;
+end;
+
+// Main program
+var sum: Integer;
+var maximum: Integer;
+var greeting: String;
+
+sum := Add(15, 27);
+maximum := Max(42, 17);
+
+PrintLn('15 + 27 = ' + IntToStr(sum));
+PrintLn('Max(42, 17) = ' + IntToStr(maximum));
+
+Greet('World');
+Greet('DWScript');
+
+greeting := Capitalize('hello');
+PrintLn('Capitalized: ' + greeting);

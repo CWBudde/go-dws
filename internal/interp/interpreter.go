@@ -1419,6 +1419,14 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinFormat(args)
 	case "Abs":
 		return i.builtinAbs(args)
+	case "Min":
+		return i.builtinMin(args)
+	case "Max":
+		return i.builtinMax(args)
+	case "Sqr":
+		return i.builtinSqr(args)
+	case "Power":
+		return i.builtinPower(args)
 	case "Sqrt":
 		return i.builtinSqrt(args)
 	case "Sin":
@@ -1439,6 +1447,12 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinRound(args)
 	case "Trunc":
 		return i.builtinTrunc(args)
+	case "Ceil":
+		return i.builtinCeil(args)
+	case "Floor":
+		return i.builtinFloor(args)
+	case "RandomInt":
+		return i.builtinRandomInt(args)
 	case "Low":
 		return i.builtinLow(args)
 	case "High":
@@ -1609,10 +1623,21 @@ func (i *Interpreter) builtinLength(args []Value) Value {
 // builtinCopy implements the Copy() built-in function.
 // It returns a substring of a string.
 // Copy(str, index, count) - index is 1-based, count is number of characters
+// Copy(arr) - creates a deep copy of an array
 // Task 8.183: Copy() function for strings
+// Task 9.67: Copy() function for arrays
 func (i *Interpreter) builtinCopy(args []Value) Value {
+	// Handle array copy: Copy(arr) - 1 argument
+	if len(args) == 1 {
+		if arrVal, ok := args[0].(*ArrayValue); ok {
+			return i.builtinArrayCopy(arrVal)
+		}
+		return i.newErrorWithLocation(i.currentNode, "Copy() with 1 argument expects array, got %s", args[0].Type())
+	}
+
+	// Handle string copy: Copy(str, index, count) - 3 arguments
 	if len(args) != 3 {
-		return i.newErrorWithLocation(i.currentNode, "Copy() expects exactly 3 arguments, got %d", len(args))
+		return i.newErrorWithLocation(i.currentNode, "Copy() expects either 1 argument (array) or 3 arguments (string), got %d", len(args))
 	}
 
 	// First argument: string
@@ -2043,6 +2068,197 @@ func (i *Interpreter) builtinAbs(args []Value) Value {
 	return i.newErrorWithLocation(i.currentNode, "Abs() expects Integer or Float as argument, got %s", arg.Type())
 }
 
+// builtinMin implements the Min() built-in function.
+// It returns the smaller of two values.
+// Min(a, b) - returns smaller value, preserving type for same types, promoting to Float for mixed types
+// Task 9.54: Min() function
+func (i *Interpreter) builtinMin(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Min() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	arg1 := args[0]
+	arg2 := args[1]
+
+	// Both Integer - preserve Integer type
+	if int1, ok1 := arg1.(*IntegerValue); ok1 {
+		if int2, ok2 := arg2.(*IntegerValue); ok2 {
+			if int1.Value < int2.Value {
+				return &IntegerValue{Value: int1.Value}
+			}
+			return &IntegerValue{Value: int2.Value}
+		}
+	}
+
+	// Both Float - preserve Float type
+	if float1, ok1 := arg1.(*FloatValue); ok1 {
+		if float2, ok2 := arg2.(*FloatValue); ok2 {
+			if float1.Value < float2.Value {
+				return &FloatValue{Value: float1.Value}
+			}
+			return &FloatValue{Value: float2.Value}
+		}
+	}
+
+	// Mixed types - promote to Float
+	var val1, val2 float64
+	var hasVal1, hasVal2 bool
+
+	if intVal, ok := arg1.(*IntegerValue); ok {
+		val1 = float64(intVal.Value)
+		hasVal1 = true
+	} else if floatVal, ok := arg1.(*FloatValue); ok {
+		val1 = floatVal.Value
+		hasVal1 = true
+	}
+
+	if intVal, ok := arg2.(*IntegerValue); ok {
+		val2 = float64(intVal.Value)
+		hasVal2 = true
+	} else if floatVal, ok := arg2.(*FloatValue); ok {
+		val2 = floatVal.Value
+		hasVal2 = true
+	}
+
+	if hasVal1 && hasVal2 {
+		if val1 < val2 {
+			return &FloatValue{Value: val1}
+		}
+		return &FloatValue{Value: val2}
+	}
+
+	return i.newErrorWithLocation(i.currentNode, "Min() expects Integer or Float arguments, got %s and %s", arg1.Type(), arg2.Type())
+}
+
+// builtinMax implements the Max() built-in function.
+// It returns the larger of two values.
+// Max(a, b) - returns larger value, preserving type for same types, promoting to Float for mixed types
+// Task 9.55: Max() function
+func (i *Interpreter) builtinMax(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Max() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	arg1 := args[0]
+	arg2 := args[1]
+
+	// Both Integer - preserve Integer type
+	if int1, ok1 := arg1.(*IntegerValue); ok1 {
+		if int2, ok2 := arg2.(*IntegerValue); ok2 {
+			if int1.Value > int2.Value {
+				return &IntegerValue{Value: int1.Value}
+			}
+			return &IntegerValue{Value: int2.Value}
+		}
+	}
+
+	// Both Float - preserve Float type
+	if float1, ok1 := arg1.(*FloatValue); ok1 {
+		if float2, ok2 := arg2.(*FloatValue); ok2 {
+			if float1.Value > float2.Value {
+				return &FloatValue{Value: float1.Value}
+			}
+			return &FloatValue{Value: float2.Value}
+		}
+	}
+
+	// Mixed types - promote to Float
+	var val1, val2 float64
+	var hasVal1, hasVal2 bool
+
+	if intVal, ok := arg1.(*IntegerValue); ok {
+		val1 = float64(intVal.Value)
+		hasVal1 = true
+	} else if floatVal, ok := arg1.(*FloatValue); ok {
+		val1 = floatVal.Value
+		hasVal1 = true
+	}
+
+	if intVal, ok := arg2.(*IntegerValue); ok {
+		val2 = float64(intVal.Value)
+		hasVal2 = true
+	} else if floatVal, ok := arg2.(*FloatValue); ok {
+		val2 = floatVal.Value
+		hasVal2 = true
+	}
+
+	if hasVal1 && hasVal2 {
+		if val1 > val2 {
+			return &FloatValue{Value: val1}
+		}
+		return &FloatValue{Value: val2}
+	}
+
+	return i.newErrorWithLocation(i.currentNode, "Max() expects Integer or Float arguments, got %s and %s", arg1.Type(), arg2.Type())
+}
+
+// builtinSqr implements the Sqr() built-in function.
+// It returns x * x (the square of a number).
+// Sqr(x) - returns x * x, preserving type (Integer → Integer, Float → Float)
+// Task 9.57: Sqr() function
+func (i *Interpreter) builtinSqr(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Sqr() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+
+	// Handle Integer - preserve Integer type
+	if intVal, ok := arg.(*IntegerValue); ok {
+		return &IntegerValue{Value: intVal.Value * intVal.Value}
+	}
+
+	// Handle Float - preserve Float type
+	if floatVal, ok := arg.(*FloatValue); ok {
+		return &FloatValue{Value: floatVal.Value * floatVal.Value}
+	}
+
+	return i.newErrorWithLocation(i.currentNode, "Sqr() expects Integer or Float as argument, got %s", arg.Type())
+}
+
+// builtinPower implements the Power() built-in function.
+// It returns base raised to the power of exponent.
+// Power(base, exponent) - returns base^exponent as Float (always Float)
+// Task 9.58: Power() function
+func (i *Interpreter) builtinPower(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Power() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	arg1 := args[0]
+	arg2 := args[1]
+
+	// Convert both arguments to Float
+	var base, exponent float64
+	var hasBase, hasExp bool
+
+	if intVal, ok := arg1.(*IntegerValue); ok {
+		base = float64(intVal.Value)
+		hasBase = true
+	} else if floatVal, ok := arg1.(*FloatValue); ok {
+		base = floatVal.Value
+		hasBase = true
+	}
+
+	if intVal, ok := arg2.(*IntegerValue); ok {
+		exponent = float64(intVal.Value)
+		hasExp = true
+	} else if floatVal, ok := arg2.(*FloatValue); ok {
+		exponent = floatVal.Value
+		hasExp = true
+	}
+
+	if !hasBase || !hasExp {
+		return i.newErrorWithLocation(i.currentNode, "Power() expects Integer or Float arguments, got %s and %s", arg1.Type(), arg2.Type())
+	}
+
+	// Use math.Pow() - this handles all special cases including 0^0 = 1
+	result := math.Pow(base, exponent)
+
+	// Always return Float
+	return &FloatValue{Value: result}
+}
+
 // builtinSqrt implements the Sqrt() built-in function.
 // It returns the square root of a number.
 // Sqrt(x) - returns square root as Float (always returns Float, even for Integer input)
@@ -2281,6 +2497,89 @@ func (i *Interpreter) builtinTrunc(args []Value) Value {
 	// Truncate towards zero
 	truncated := math.Trunc(value)
 	return &IntegerValue{Value: int64(truncated)}
+}
+
+// builtinCeil implements the Ceil() built-in function.
+// It rounds up to the nearest integer.
+// Ceil(x) - returns ceiling value as Integer (always returns Integer)
+// Task 9.60: Ceil() function for rounding up
+func (i *Interpreter) builtinCeil(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Ceil() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+	var value float64
+
+	// Handle Integer - already an integer, just return it
+	if intVal, ok := arg.(*IntegerValue); ok {
+		return &IntegerValue{Value: intVal.Value}
+	} else if floatVal, ok := arg.(*FloatValue); ok {
+		// Handle Float
+		value = floatVal.Value
+	} else {
+		return i.newErrorWithLocation(i.currentNode, "Ceil() expects Integer or Float as argument, got %s", arg.Type())
+	}
+
+	// Round up to nearest integer
+	ceiling := math.Ceil(value)
+	return &IntegerValue{Value: int64(ceiling)}
+}
+
+// builtinFloor implements the Floor() built-in function.
+// It rounds down to the nearest integer.
+// Floor(x) - returns floor value as Integer (always returns Integer)
+// Task 9.61: Floor() function for rounding down
+func (i *Interpreter) builtinFloor(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Floor() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+	var value float64
+
+	// Handle Integer - already an integer, just return it
+	if intVal, ok := arg.(*IntegerValue); ok {
+		return &IntegerValue{Value: intVal.Value}
+	} else if floatVal, ok := arg.(*FloatValue); ok {
+		// Handle Float
+		value = floatVal.Value
+	} else {
+		return i.newErrorWithLocation(i.currentNode, "Floor() expects Integer or Float as argument, got %s", arg.Type())
+	}
+
+	// Round down to nearest integer
+	floor := math.Floor(value)
+	return &IntegerValue{Value: int64(floor)}
+}
+
+// builtinRandomInt implements the RandomInt() built-in function.
+// It returns a random integer in the range [0, max).
+// RandomInt(max) - returns random Integer in [0, max)
+// Task 9.63: RandomInt() function for random integer generation
+func (i *Interpreter) builtinRandomInt(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "RandomInt() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+
+	// Only accept Integer argument
+	intVal, ok := arg.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "RandomInt() expects Integer as argument, got %s", arg.Type())
+	}
+
+	max := intVal.Value
+
+	// Validate max > 0
+	if max <= 0 {
+		return i.newErrorWithLocation(i.currentNode, "RandomInt() expects max > 0, got %d", max)
+	}
+
+	// Generate random integer in range [0, max)
+	randomValue := rand.Intn(int(max))
+	return &IntegerValue{Value: int64(randomValue)}
 }
 
 // builtinLow implements the Low() built-in function.

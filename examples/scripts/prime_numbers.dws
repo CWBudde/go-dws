@@ -1,0 +1,34 @@
+// Prime Number Generator
+
+function IsPrime(n: Integer): Boolean;
+begin
+	var i: Integer;
+
+	if n <= 1 then
+	begin
+		Result := False;
+		Exit;
+	end;
+
+	Result := True;
+	for i := 2 to n - 1 do
+	begin
+		if (n mod i) = 0 then
+		begin
+			Result := False;
+			Break;
+		end;
+	end;
+end;
+
+procedure PrintPrimes(limit: Integer);
+begin
+	var n: Integer;
+
+	PrintLn('Prime numbers up to ' + IntToStr(limit) + ':');
+	for n := 2 to limit do
+		if IsPrime(n) then
+			PrintLn(IntToStr(n));
+end;
+
+PrintPrimes(30);

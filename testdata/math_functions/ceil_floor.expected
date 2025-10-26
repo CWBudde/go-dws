@@ -1,0 +1,25 @@
+Ceil(3.2) =  4
+Ceil(3.8) =  4
+Ceil(5.0) =  5
+Ceil(0.0) =  0
+Ceil(0.1) =  1
+Ceil(-3.2) =  -3
+Ceil(-3.8) =  -3
+Ceil(-0.1) =  0
+Ceil(5) =  5
+Ceil(-3) =  -3
+Floor(3.8) =  3
+Floor(3.2) =  3
+Floor(5.0) =  5
+Floor(0.0) =  0
+Floor(0.9) =  0
+Floor(-3.8) =  -4
+Floor(-3.2) =  -4
+Floor(-0.1) =  -1
+Floor(5) =  5
+Floor(-3) =  -3
+Price $ 19.99  rounds up to $ 20
+Price $ 19.99  rounds down to $ 19
+100 / 3 =  33.333333333333336
+Ceil(100/3) =  34
+Floor(100/3) =  33

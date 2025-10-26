@@ -1848,3 +1848,198 @@ end
 		})
 	}
 }
+
+// ============================================================================
+// Array Copy Tests (Task 9.68)
+// ============================================================================
+
+// TestArrayCopy_DynamicArray tests copying a dynamic array and verifying mutation isolation
+func TestArrayCopy_DynamicArray(t *testing.T) {
+	input := `
+type TDynArray = array of Integer;
+var a1: TDynArray;
+var a2: TDynArray;
+begin
+	Add(a1, 1);
+	Add(a1, 2);
+	Add(a1, 3);
+	a2 := Copy(a1);
+	a2[0] := 99;
+	a1[0];
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Original array should be unchanged (a1[0] = 1)
+	if intVal.Value != 1 {
+		t.Errorf("expected a1[0] = 1 (unchanged), got %d", intVal.Value)
+	}
+
+	// Verify the copy was modified
+	input2 := `
+type TDynArray = array of Integer;
+var a1: TDynArray;
+var a2: TDynArray;
+begin
+	Add(a1, 1);
+	Add(a1, 2);
+	Add(a1, 3);
+	a2 := Copy(a1);
+	a2[0] := 99;
+	a2[0];
+end
+	`
+
+	result2 := testEval(input2)
+	intVal2, ok := result2.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result2, result2)
+	}
+
+	// Copy should have new value (a2[0] = 99)
+	if intVal2.Value != 99 {
+		t.Errorf("expected a2[0] = 99 (modified), got %d", intVal2.Value)
+	}
+}
+
+// TestArrayCopy_StaticArray tests copying a static array
+func TestArrayCopy_StaticArray(t *testing.T) {
+	input := `
+type TStaticArray = array[1..3] of Integer;
+var a1: TStaticArray;
+var a2: TStaticArray;
+begin
+	a1[1] := 10;
+	a1[2] := 20;
+	a1[3] := 30;
+	a2 := Copy(a1);
+	a2[1] := 999;
+	a1[1];
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Original array should be unchanged (a1[1] = 10)
+	if intVal.Value != 10 {
+		t.Errorf("expected a1[1] = 10 (unchanged), got %d", intVal.Value)
+	}
+}
+
+// TestArrayCopy_PreservesElementTypes tests that copy preserves element types
+func TestArrayCopy_PreservesElementTypes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected interface{}
+	}{
+		{
+			name: "Integer array",
+			input: `
+type TIntArray = array of Integer;
+var a1: TIntArray;
+var a2: TIntArray;
+begin
+	Add(a1, 42);
+	a2 := Copy(a1);
+	a2[0];
+end
+			`,
+			expected: int64(42),
+		},
+		{
+			name: "String array",
+			input: `
+type TStrArray = array of String;
+var a1: TStrArray;
+var a2: TStrArray;
+begin
+	Add(a1, "hello");
+	a2 := Copy(a1);
+	a2[0];
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Float array",
+			input: `
+type TFloatArray = array of Float;
+var a1: TFloatArray;
+var a2: TFloatArray;
+begin
+	Add(a1, 3.14);
+	a2 := Copy(a1);
+	a2[0];
+end
+			`,
+			expected: 3.14,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			switch exp := tt.expected.(type) {
+			case int64:
+				intVal, ok := result.(*IntegerValue)
+				if !ok {
+					t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+				}
+				if intVal.Value != exp {
+					t.Errorf("expected %d, got %d", exp, intVal.Value)
+				}
+			case string:
+				strVal, ok := result.(*StringValue)
+				if !ok {
+					t.Fatalf("expected StringValue, got %T: %+v", result, result)
+				}
+				if strVal.Value != exp {
+					t.Errorf("expected %s, got %s", exp, strVal.Value)
+				}
+			case float64:
+				floatVal, ok := result.(*FloatValue)
+				if !ok {
+					t.Fatalf("expected FloatValue, got %T: %+v", result, result)
+				}
+				if floatVal.Value != exp {
+					t.Errorf("expected %f, got %f", exp, floatVal.Value)
+				}
+			}
+		})
+	}
+}
+
+// TestArrayCopy_EmptyArray tests copying an empty array
+func TestArrayCopy_EmptyArray(t *testing.T) {
+	input := `
+type TDynArray = array of Integer;
+var a1: TDynArray;
+var a2: TDynArray;
+begin
+	a2 := Copy(a1);
+	Length(a2);
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Empty array should have length 0
+	if intVal.Value != 0 {
+		t.Errorf("expected length = 0, got %d", intVal.Value)
+	}
+}

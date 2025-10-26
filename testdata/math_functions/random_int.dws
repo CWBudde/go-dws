@@ -1,0 +1,32 @@
+// Test RandomInt() function
+// Task 9.65: RandomInt test fixture
+// RandomInt(max) returns a random integer in [0, max)
+
+begin
+	// Test RandomInt with various max values
+	var r1 := RandomInt(10);
+	var r2 := RandomInt(100);
+	var r3 := RandomInt(5);
+
+	PrintLn('RandomInt(10) = ', r1);
+	PrintLn('RandomInt(100) = ', r2);
+	PrintLn('RandomInt(5) = ', r3);
+
+	// Test that RandomInt(1) always returns 0
+	var r4 := RandomInt(1);
+	PrintLn('RandomInt(1) = ', r4);
+
+	// Verify values are in correct ranges
+	var allInRange := (r1 >= 0) and (r1 < 10) and (r2 >= 0) and (r2 < 100) and (r3 >= 0) and (r3 < 5);
+	PrintLn('All values in range: ', allInRange);
+
+	// Test RandomInt in a loop
+	var i: Integer;
+	var count := 0;
+	for i := 1 to 10 do begin
+		var r := RandomInt(20);
+		if (r >= 0) and (r < 20) then
+			count := count + 1;
+	end;
+	PrintLn('Valid random values generated: ', count, '/10');
+end
