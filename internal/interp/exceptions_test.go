@@ -1069,6 +1069,47 @@ func TestPortedNestedCalls(t *testing.T) {
 	}
 }
 
+// TestElseClauseWhenNoHandlerMatches tests that else clause executes when exception raised but no handler matches
+// This is a TDD test for fixing the else clause bug
+func TestElseClauseWhenNoHandlerMatches(t *testing.T) {
+	input := `
+		var result: String;
+		result := '';
+
+		try
+			raise Exception.Create('test error');
+		except
+			on E: ERangeError do
+				result := 'ERangeError';
+			on E: EConvertError do
+				result := 'EConvertError';
+		else
+			result := 'Else';
+		end;
+
+		PrintLn(result);
+	`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	interp.Eval(program)
+
+	output := buf.String()
+	expected := "Else\n"
+
+	if output != expected {
+		t.Errorf("expected output %q, got %q", expected, output)
+	}
+}
+
 // TestPortedBreakInExcept tests break statements inside exception handlers
 // Ported from: reference/dwscript-original/Test/SimpleScripts/break_in_except_block.pas
 func TestPortedBreakInExcept(t *testing.T) {

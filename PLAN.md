@@ -76,34 +76,45 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 9: Deferred Stage 8 Tasks
 
-#### Interpreter/Runtime (5 tasks) - 3/5 COMPLETE (2 deferred)
+Targeted backlog from Stage 8 that still needs implementation or polish.
 
-- [x] 9.53 Translate property read access to appropriate operation:
-  - [x] 9.53a Field access: read from object field
-  - [x] 9.53b Method access: call getter method with no args (or index args)
-  - [x] 9.53c Expression access: evaluate expression in context of object
-- [x] 9.54 Translate property write access to appropriate operation:
-  - [x] 9.54a Field access: write to object field
-  - [x] 9.54b Method access: call setter method with value (and index args)
-- [ ] 9.55 Handle indexed property access (DEFERRED):
-  - [ ] 9.55a Evaluate index expressions
-  - [ ] 9.55b Pass index values to getter/setter
-- [ ] 9.56 Support expression-based property getters (inline expressions like `(FValue * 2)`) (DEFERRED)
-- [x] 9.57 Write interpreter tests: `interp/property_test.go::TestPropertyAccess`, `TestIndexedProperties`
+### Indexed & Expression-Based Properties
 
-- [ ] 9.109 Implement record method calls if methods are supported
+- [ ] 9.1 Support indexed property reads end-to-end:
+  - [ ] 9.1a Parser/AST: keep index parameter metadata on `PropertyDecl`/`MemberAccess` nodes.
+  - [ ] 9.1b Semantic analysis: evaluate index expression types, ensure getter signatures include matching parameters, and surface DWScript-style diagnostics when mismatched.
+  - [ ] 9.1c Interpreter: evaluate index expressions at runtime and pass them to the bound getter field/method while preserving inheritance lookup rules.
+- [ ] 9.2 Support indexed property writes:
+  - [ ] 9.2a Semantic analysis: validate setter signatures (value + index params) and enforce read/write pairing rules.
+  - [ ] 9.2b Interpreter: evaluate indices, pass them plus the assigned value to the setter, and propagate errors when setters are missing.
+- [ ] 9.3 Implement expression-based property getters (e.g., `read (FValue * 2)`): extend the parser to capture inline expressions, make the analyzer type-check them in the owning class scope, and run them via the interpreter with `Self` bound.
+- [ ] 9.4 Finish fixtures/tests for the deferred property modes:
+  - [ ] 9.4a `testdata/properties/indexed_property.dws` covering array-like accessors.
+  - [ ] 9.4b `testdata/properties/expression_property.dws` covering computed getters.
+  - [ ] 9.4c `testdata/properties/default_property.dws` covering default indexed properties.
+  - [ ] 9.4d CLI tests in `cmd/dwscript/properties_test.go` asserting outputs for the new fixtures.
 
-  - [ ] 9.136b Use map[int]bool for large enums (>64 values)
+### Record Methods
 
-- [ ] 9.146 Support for-in iteration over sets: `for e in mySet do`
+- [ ] 9.5 Allow record declarations to contain methods: update the parser/AST to reuse function declarations inside `RecordDecl`, including constructor-like routines.
+- [ ] 9.6 Extend semantic analysis so record methods get their own scope, bind `Self`, and can access fields/properties just like class methods.
+- [ ] 9.7 Teach the interpreter to invoke record methods (either by desugaring to hidden functions or by integrating with the class-method call path) and add focused unit/fixture coverage.
 
-- [x] 9.209 Validate finally blocks don't contain control flow exits: ⚠️ **PARTIAL**
-  - [x] Detect `return` in finally blocks (break/continue/exit not yet parsed)
-  - [x] Emit semantic error (finally blocks must complete normally)
-  - [x] Exception: `raise` is allowed in finally blocks
-  - [ ] TODO: Complete via Task 8.235h when break/continue/exit parser support added
+### Enum & Set Scalability
 
-  - [ ] Display Message in unhandled exception errors (TODO: needs proper error handling refactor)
+- [ ] 9.8 Introduce a `map[int]bool` (or similar) backing for large enums/sets (>64 values) so set operations remain efficient; update `types.SetType`, analyzer compatibility checks, and runtime values accordingly.
+- [ ] 9.9 Support `for-in` iteration over sets (`for e in MySet do`):
+  - [ ] 9.9a Semantic analysis: ensure the loop variable type matches the set element type.
+  - [ ] 9.9b Interpreter: iterate deterministically over the set contents (respecting static vs dynamic storage backends).
+- [ ] 9.10 Add regression tests for large-set storage and `for-in` loops across `types/`, `semantic/`, `interp/`, and integration fixtures.
+
+### Exception UX Polishing
+
+- [ ] 9.11 Display unhandled exception messages in CLI output (class + `Message` text) so behavior matches DWScript; update the `errors/` formatter and add CLI tests.
+- [ ] 9.12 Finish semantic enforcement that `break`, `continue`, and `exit` are illegal inside `finally` blocks:
+  - [x] 9.12a Detect `return` in finally blocks and emit semantic errors.
+  - [x] 9.12b Allow `raise` but otherwise require finally blocks to complete normally.
+  - [ ] 9.12c Now that break/continue/exit parsing exists, add explicit checks and tests covering those control-flow exits.
 
 ### Type Aliases (HIGH PRIORITY)
 
@@ -113,13 +124,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Type System (2 tasks)
 
-- [ ] 9.261 Define `TypeAlias` in `types/types.go`:
+- [ ] 9.13 Define `TypeAlias` in `types/types.go`:
   - [ ] Fields: `Name string`, `AliasedType Type`
   - [ ] Implement `Type` interface methods
   - [ ] `TypeKind()` returns underlying type's kind
   - [ ] `String()` returns alias name
   - [ ] `Equals(other Type)` compares underlying types
-- [ ] 9.262 Add type alias tests in `types/types_test.go`:
+- [ ] 9.14 Add type alias tests in `types/types_test.go`:
   - [ ] Test creating type alias
   - [ ] Test alias equality with underlying type
   - [ ] Test alias inequality with different types
@@ -127,23 +138,23 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### AST Nodes (2 tasks)
 
-- [ ] 9.263 Extend `TypeDeclaration` in `ast/type_annotation.go`:
+- [ ] 9.15 Extend `TypeDeclaration` in `ast/type_annotation.go`:
   - [ ] Add `IsAlias bool` field
   - [ ] Add `AliasedType TypeAnnotation` field
   - [ ] Update `String()` to show `type Name = Type;` for aliases
-- [ ] 9.264 Add AST tests:
+- [ ] 9.16 Add AST tests:
   - [ ] Test type alias AST node creation
   - [ ] Test `String()` output for aliases
 
 #### Parser Support (2 tasks)
 
-- [ ] 9.265 Extend `parseTypeDeclaration()` in `parser/type_declarations.go`:
+- [ ] 9.17 Extend `parseTypeDeclaration()` in `parser/type_declarations.go`:
   - [ ] After parsing type name, check next token
   - [ ] If `=` token, parse as type alias
   - [ ] Parse aliased type annotation
   - [ ] Expect SEMICOLON
   - [ ] Return TypeDeclaration with IsAlias=true
-- [ ] 8.266 Add parser tests in `parser/type_test.go`:
+- [ ] 9.18 Add parser tests in `parser/type_test.go`:
   - [ ] Test parsing `type TUserID = Integer;`
   - [ ] Test parsing `type TFileName = String;`
   - [ ] Test parsing alias to custom type: `type TMyClass = TClass;`
@@ -151,12 +162,12 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Semantic Analysis (2 tasks)
 
-- [ ] 9.267 Implement type alias analysis in `semantic/analyze_types.go`:
+- [ ] 9.19 Implement type alias analysis in `semantic/analyze_types.go`:
   - [ ] In `analyzeTypeDeclaration()`, detect type alias
   - [ ] Resolve aliased type
   - [ ] Create TypeAlias and register in type environment
   - [ ] Allow using alias name in variable/parameter declarations
-- [ ] 9.268 Add semantic tests in `semantic/type_alias_test.go`:
+- [ ] 9.20 Add semantic tests in `semantic/type_alias_test.go`:
   - [ ] Test type alias registration
   - [ ] Test using alias in variable declaration: `var id: TUserID;`
   - [ ] Test type compatibility: TUserID = Integer should work
@@ -164,18 +175,18 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Interpreter Support (1 task)
 
-- [ ] 9.269 Implement type alias runtime support:
+- [ ] 9.21 Implement type alias runtime support:
   - [ ] In `resolveType()`, handle TypeAlias by returning underlying type
   - [ ] No special runtime representation needed (just resolve to base type)
   - [ ] Add tests in `interp/type_test.go`
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 9.270 Create test scripts in `testdata/type_alias/`:
+- [ ] 9.22 Create test scripts in `testdata/type_alias/`:
   - [ ] `basic_alias.dws` - Simple type aliases
   - [ ] `alias_usage.dws` - Using aliases in declarations and assignments
   - [ ] Expected outputs
-- [ ] 9.271 Add CLI integration tests
+- [ ] 9.23 Add CLI integration tests
 
 ---
 
@@ -187,24 +198,24 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Increment/Decrement (4 tasks)
 
-- [ ] 9.272 Implement `Inc(x)` and `Inc(x, delta)` in `interp/builtins.go`:
+- [ ] 9.24 Implement `Inc(x)` and `Inc(x, delta)` in `interp/builtins.go`:
   - [ ] Create `builtinInc()` function
   - [ ] Accept 1-2 parameters: variable reference, optional delta (default 1)
   - [ ] Support Integer: increment by delta
   - [ ] Support enum: get next enum value (Succ)
   - [ ] Modify variable in-place (requires var parameter support)
   - [ ] Return nil
-- [ ] 9.273 Implement `Dec(x)` and `Dec(x, delta)` in `interp/builtins.go`:
+- [ ] 9.25 Implement `Dec(x)` and `Dec(x, delta)` in `interp/builtins.go`:
   - [ ] Create `builtinDec()` function
   - [ ] Accept 1-2 parameters: variable reference, optional delta (default 1)
   - [ ] Support Integer: decrement by delta
   - [ ] Support enum: get previous enum value (Pred)
   - [ ] Modify variable in-place
   - [ ] Return nil
-- [ ] 9.274 Register Inc/Dec in interpreter initialization:
+- [ ] 9.26 Register Inc/Dec in interpreter initialization:
   - [ ] Add to global built-in functions map
   - [ ] Handle var parameter semantics (pass by reference)
-- [ ] 9.275 Add tests in `interp/ordinal_test.go`:
+- [ ] 9.27 Add tests in `interp/ordinal_test.go`:
   - [ ] Test `Inc(x)` with integer: `var x := 5; Inc(x); // x = 6`
   - [ ] Test `Inc(x, 3)` with delta: `Inc(x, 3); // x = 8`
   - [ ] Test `Dec(x)` with integer
@@ -215,21 +226,21 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Successor/Predecessor (3 tasks)
 
-- [ ] 9.276 Implement `Succ(x)` in `interp/builtins.go`:
+- [ ] 9.28 Implement `Succ(x)` in `interp/builtins.go`:
   - [ ] Create `builtinSucc()` function
   - [ ] Accept 1 parameter: ordinal value
   - [ ] For Integer: return x + 1
   - [ ] For enum: return next enum value
   - [ ] Raise error if already at maximum value
   - [ ] Return successor value
-- [ ] 9.277 Implement `Pred(x)` in `interp/builtins.go`:
+- [ ] 9.29 Implement `Pred(x)` in `interp/builtins.go`:
   - [ ] Create `builtinPred()` function
   - [ ] Accept 1 parameter: ordinal value
   - [ ] For Integer: return x - 1
   - [ ] For enum: return previous enum value
   - [ ] Raise error if already at minimum value
   - [ ] Return predecessor value
-- [ ] 8.278 Add tests in `interp/ordinal_test.go`:
+- [ ] 9.30 Add tests in `interp/ordinal_test.go`:
   - [ ] Test `Succ(5)` returns 6
   - [ ] Test `Pred(5)` returns 4
   - [ ] Test Succ/Pred with enum values
@@ -238,21 +249,21 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Low/High for Enums (3 tasks)
 
-- [ ] 9.279 Implement `Low(enumType)` in `interp/builtins.go`:
+- [ ] 9.31 Implement `Low(enumType)` in `interp/builtins.go`:
   - [ ] Create `builtinLow()` function
   - [ ] Accept enum type or enum value
   - [ ] For arrays: return array lower bound (already implemented)
   - [ ] For enum type: return lowest enum value
   - [ ] For enum value: return Low of that enum type
   - [ ] Return lowest ordinal value
-- [ ] 9.280 Implement `High(enumType)` in `interp/builtins.go`:
+- [ ] 9.32 Implement `High(enumType)` in `interp/builtins.go`:
   - [ ] Create `builtinHigh()` function
   - [ ] Accept enum type or enum value
   - [ ] For arrays: return array upper bound (already implemented)
   - [ ] For enum type: return highest enum value
   - [ ] For enum value: return High of that enum type
   - [ ] Return highest ordinal value
-- [ ] 9.281 Add tests in `interp/ordinal_test.go`:
+- [ ] 9.33 Add tests in `interp/ordinal_test.go`:
   - [ ] Test `Low(TColor)` returns first enum value (Red)
   - [ ] Test `High(TColor)` returns last enum value (Blue)
   - [ ] Test Low/High with enum variable: `var c: TColor; Low(c)`
@@ -260,13 +271,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 9.282 Create test scripts in `testdata/ordinal_functions/`:
+- [ ] 9.34 Create test scripts in `testdata/ordinal_functions/`:
   - [ ] `inc_dec.dws` - Inc and Dec with integers and enums
   - [ ] `succ_pred.dws` - Succ and Pred with integers and enums
   - [ ] `low_high_enum.dws` - Low and High for enum types
   - [ ] `for_loop_enum.dws` - Using Low/High in for loops: `for i := Low(TEnum) to High(TEnum)`
   - [ ] Expected outputs
-- [ ] 9.283 Add CLI integration tests:
+- [ ] 9.35 Add CLI integration tests:
   - [ ] Test ordinal function scripts
   - [ ] Verify correct outputs
 
@@ -278,7 +289,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Function (2 tasks)
 
-- [ ] 9.284 Implement `Assert()` in `interp/builtins.go`:
+- [ ] 9.36 Implement `Assert()` in `interp/builtins.go`:
   - [ ] Create `builtinAssert()` function
   - [ ] Accept 1-2 parameters: Boolean condition, optional String message
   - [ ] If condition is false:
@@ -286,7 +297,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - [ ] If no message, raise `EAssertionFailed` with "Assertion failed"
   - [ ] If condition is true, return nil (no-op)
   - [ ] Register in global built-in functions
-- [ ] 9.285 Add tests in `interp/assert_test.go`:
+- [ ] 9.37 Add tests in `interp/assert_test.go`:
   - [ ] Test `Assert(true)` - should not raise error
   - [ ] Test `Assert(false)` - should raise EAssertionFailed
   - [ ] Test `Assert(true, 'message')` - no error
@@ -296,12 +307,12 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 9.286 Create test scripts in `testdata/assert/`:
+- [ ] 9.38 Create test scripts in `testdata/assert/`:
   - [ ] `assert_basic.dws` - Basic Assert usage
   - [ ] `assert_validation.dws` - Using Assert for input validation
   - [ ] `assert_tests.dws` - Writing tests with Assert
   - [ ] Expected outputs (some should fail with assertion errors)
-- [ ] 9.287 Add CLI integration tests:
+- [ ] 9.39 Add CLI integration tests:
   - [ ] Test assert scripts
   - [ ] Verify assertion failures are caught and reported
 
@@ -313,17 +324,17 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Trim (3 tasks)
 
-- [ ] 9.288 Implement `Trim(s)` in `interp/string_functions.go`:
+- [ ] 9.40 Implement `Trim(s)` in `interp/string_functions.go`:
   - [ ] Create `builtinTrim()` function
   - [ ] Accept String parameter
   - [ ] Remove leading and trailing whitespace
   - [ ] Use Go's `strings.TrimSpace()`
   - [ ] Return trimmed string
-- [ ] 9.289 Implement `TrimLeft(s)` and `TrimRight(s)`:
+- [ ] 9.41 Implement `TrimLeft(s)` and `TrimRight(s)`:
   - [ ] Create `builtinTrimLeft()` - remove leading whitespace only
   - [ ] Create `builtinTrimRight()` - remove trailing whitespace only
   - [ ] Use `strings.TrimLeftFunc()` and `strings.TrimRightFunc()`
-- [ ] 9.290 Add tests in `interp/string_test.go`:
+- [ ] 9.42 Add tests in `interp/string_test.go`:
   - [ ] Test `Trim('  hello  ')` returns 'hello'
   - [ ] Test `TrimLeft('  hello')` returns 'hello'
   - [ ] Test `TrimRight('hello  ')` returns 'hello'
@@ -332,19 +343,19 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Insert/Delete (3 tasks)
 
-- [ ] 9.291 Implement `Insert(source, s, pos)` in `interp/string_functions.go`:
+- [ ] 9.43 Implement `Insert(source, s, pos)` in `interp/string_functions.go`:
   - [ ] Create `builtinInsert()` function
   - [ ] Accept 3 parameters: source String, target String (var param), position Integer
   - [ ] Insert source into target at 1-based position
   - [ ] Modify target string in-place (var parameter)
   - [ ] Handle edge cases: pos < 1, pos > length
-- [ ] 9.292 Implement `Delete(s, pos, count)` in `interp/string_functions.go`:
+- [ ] 9.44 Implement `Delete(s, pos, count)` in `interp/string_functions.go`:
   - [ ] Create `builtinDelete()` function
   - [ ] Accept 3 parameters: string (var param), position Integer, count Integer
   - [ ] Delete count characters starting at 1-based position
   - [ ] Modify string in-place (var parameter)
   - [ ] Handle edge cases: pos < 1, pos > length, count too large
-- [ ] 9.293 Add tests in `interp/string_test.go`:
+- [ ] 9.45 Add tests in `interp/string_test.go`:
   - [ ] Test Insert: `var s := 'Helo'; Insert('l', s, 3);` → 'Hello'
   - [ ] Test Delete: `var s := 'Hello'; Delete(s, 3, 2);` → 'Heo'
   - [ ] Test Insert at start/end
@@ -353,13 +364,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - StringReplace (2 tasks)
 
-- [ ] 9.294 Implement `StringReplace(s, old, new)` in `interp/string_functions.go`:
+- [ ] 9.46 Implement `StringReplace(s, old, new)` in `interp/string_functions.go`:
   - [ ] Create `builtinStringReplace()` function
   - [ ] Accept 3 parameters: string, old substring, new substring
   - [ ] Optional 4th parameter: flags (replace all vs first occurrence)
   - [ ] Use Go's `strings.Replace()` or `strings.ReplaceAll()`
   - [ ] Return new string with replacements
-- [ ] 9.295 Add tests in `interp/string_test.go`:
+- [ ] 9.47 Add tests in `interp/string_test.go`:
   - [ ] Test replace all: `StringReplace('hello world', 'l', 'L')` → 'heLLo worLd'
   - [ ] Test replace first only (if flag supported)
   - [ ] Test with empty old string
@@ -367,37 +378,37 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Format (4 tasks)
 
-- [ ] 9.296 Implement `Format(fmt, args)` in `interp/string_functions.go`:
+- [ ] 9.48 Implement `Format(fmt, args)` in `interp/string_functions.go`:
   - [ ] Create `builtinFormat()` function
   - [ ] Accept format string and variadic args (array of values)
   - [ ] Support format specifiers: `%s` (string), `%d` (integer), `%f` (float), `%%` (literal %)
   - [ ] Optional: support width and precision: `%5d`, `%.2f`
   - [ ] Use Go's `fmt.Sprintf()` or custom formatter
   - [ ] Return formatted string
-- [ ] 8.297 Support array of const for Format args:
+- [ ] 9.49 Support array of const for Format args:
   - [ ] Parse variadic parameters as array
   - [ ] Convert DWScript values to Go values for formatting
   - [ ] Handle different value types
-- [ ] 8.298 Add tests in `interp/string_test.go`:
+- [ ] 9.50 Add tests in `interp/string_test.go`:
   - [ ] Test `Format('Hello %s', ['World'])` → 'Hello World'
   - [ ] Test `Format('Value: %d', [42])` → 'Value: 42'
   - [ ] Test `Format('Pi: %.2f', [3.14159])` → 'Pi: 3.14'
   - [ ] Test multiple args: `Format('%s is %d', ['Age', 25])`
   - [ ] Test error: wrong number of args
-- [ ] 8.299 Documentation in `docs/builtins.md`:
+- [ ] 9.51 Documentation in `docs/builtins.md`:
   - [ ] Document Format syntax
   - [ ] List supported format specifiers
   - [ ] Provide examples
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 8.300 Create test scripts in `testdata/string_functions/`:
+- [ ] 9.52 Create test scripts in `testdata/string_functions/`:
   - [ ] `trim.dws` - Trim, TrimLeft, TrimRight
   - [ ] `insert_delete.dws` - Insert and Delete
   - [ ] `replace.dws` - StringReplace
   - [ ] `format.dws` - Format with various specifiers
   - [ ] Expected outputs
-- [ ] 8.301 Add CLI integration tests:
+- [ ] 9.53 Add CLI integration tests:
   - [ ] Test string function scripts
   - [ ] Verify outputs
 
@@ -409,17 +420,17 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Min/Max (3 tasks)
 
-- [ ] 8.302 Implement `Min(a, b)` in `interp/math_functions.go`:
+- [ ] 9.54 Implement `Min(a, b)` in `interp/math_functions.go`:
   - [ ] Create `builtinMin()` function
   - [ ] Accept 2 parameters: both Integer or both Float
   - [ ] Return smaller value, preserving type
   - [ ] Handle mixed types: promote Integer to Float
-- [ ] 8.303 Implement `Max(a, b)` in `interp/math_functions.go`:
+- [ ] 9.55 Implement `Max(a, b)` in `interp/math_functions.go`:
   - [ ] Create `builtinMax()` function
   - [ ] Accept 2 parameters: both Integer or both Float
   - [ ] Return larger value, preserving type
   - [ ] Handle mixed types: promote Integer to Float
-- [ ] 8.304 Add tests in `interp/math_test.go`:
+- [ ] 9.56 Add tests in `interp/math_test.go`:
   - [ ] Test `Min(5, 10)` returns 5
   - [ ] Test `Max(5, 10)` returns 10
   - [ ] Test with negative numbers
@@ -428,18 +439,18 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Sqr/Power (3 tasks)
 
-- [ ] 8.305 Implement `Sqr(x)` in `interp/math_functions.go`:
+- [ ] 9.57 Implement `Sqr(x)` in `interp/math_functions.go`:
   - [ ] Create `builtinSqr()` function
   - [ ] Accept Integer or Float parameter
   - [ ] Return x * x, preserving type
   - [ ] Integer sqr returns Integer, Float sqr returns Float
-- [ ] 8.306 Implement `Power(x, y)` in `interp/math_functions.go`:
+- [ ] 9.58 Implement `Power(x, y)` in `interp/math_functions.go`:
   - [ ] Create `builtinPower()` function
   - [ ] Accept base and exponent (Integer or Float)
   - [ ] Use Go's `math.Pow()`
   - [ ] Always return Float (even for integer inputs)
   - [ ] Handle special cases: 0^0, negative base with fractional exponent
-- [ ] 8.307 Add tests in `interp/math_test.go`:
+- [ ] 9.59 Add tests in `interp/math_test.go`:
   - [ ] Test `Sqr(5)` returns 25
   - [ ] Test `Sqr(3.0)` returns 9.0
   - [ ] Test `Power(2, 8)` returns 256.0
@@ -448,19 +459,19 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Ceil/Floor (3 tasks)
 
-- [ ] 8.308 Implement `Ceil(x)` in `interp/math_functions.go`:
+- [ ] 9.60 Implement `Ceil(x)` in `interp/math_functions.go`:
   - [ ] Create `builtinCeil()` function
   - [ ] Accept Float parameter
   - [ ] Round up to nearest integer
   - [ ] Use Go's `math.Ceil()`
   - [ ] Return Integer type
-- [ ] 8.309 Implement `Floor(x)` in `interp/math_functions.go`:
+- [ ] 9.61 Implement `Floor(x)` in `interp/math_functions.go`:
   - [ ] Create `builtinFloor()` function
   - [ ] Accept Float parameter
   - [ ] Round down to nearest integer
   - [ ] Use Go's `math.Floor()`
   - [ ] Return Integer type
-- [ ] 8.310 Add tests in `interp/math_test.go`:
+- [ ] 9.62 Add tests in `interp/math_test.go`:
   - [ ] Test `Ceil(3.2)` returns 4
   - [ ] Test `Ceil(3.8)` returns 4
   - [ ] Test `Ceil(-3.2)` returns -3
@@ -470,13 +481,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - RandomInt (2 tasks)
 
-- [ ] 8.311 Implement `RandomInt(max)` in `interp/math_functions.go`:
+- [ ] 9.63 Implement `RandomInt(max)` in `interp/math_functions.go`:
   - [ ] Create `builtinRandomInt()` function
   - [ ] Accept Integer parameter: max (exclusive upper bound)
   - [ ] Return random Integer in range [0, max)
   - [ ] Use Go's `rand.Intn()`
   - [ ] Validate max > 0
-- [ ] 8.312 Add tests in `interp/math_test.go`:
+- [ ] 9.64 Add tests in `interp/math_test.go`:
   - [ ] Test `RandomInt(10)` returns value in [0, 10)
   - [ ] Test multiple calls return different values (probabilistic)
   - [ ] Test with max=1: always returns 0
@@ -484,13 +495,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 8.313 Create test scripts in `testdata/math_functions/`:
+- [ ] 9.65 Create test scripts in `testdata/math_functions/`:
   - [ ] `min_max.dws` - Min and Max with various inputs
   - [ ] `sqr_power.dws` - Sqr and Power functions
   - [ ] `ceil_floor.dws` - Ceil and Floor functions
   - [ ] `random_int.dws` - RandomInt usage
   - [ ] Expected outputs
-- [ ] 8.314 Add CLI integration tests:
+- [ ] 9.66 Add CLI integration tests:
   - [ ] Test math function scripts
   - [ ] Verify outputs
 
@@ -502,14 +513,14 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Copy (2 tasks)
 
-- [ ] 8.315 Implement `Copy(arr)` for arrays in `interp/array_functions.go`:
+- [ ] 9.67 Implement `Copy(arr)` for arrays in `interp/array_functions.go`:
   - [ ] Create `builtinArrayCopy()` function (overload existing Copy)
   - [ ] Accept array parameter
   - [ ] Return deep copy of array
   - [ ] For dynamic arrays, create new array with same elements
   - [ ] For static arrays, copy elements to new array
   - [ ] Handle arrays of objects (shallow copy references)
-- [ ] 8.316 Add tests in `interp/array_test.go`:
+- [ ] 9.68 Add tests in `interp/array_test.go`:
   - [ ] Test copy dynamic array: `var a2 := Copy(a1); a2[0] := 99;` → a1 unchanged
   - [ ] Test copy static array
   - [ ] Test copy preserves element types
@@ -517,18 +528,18 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - IndexOf (3 tasks)
 
-- [ ] 8.317 Implement `IndexOf(arr, value)` in `interp/array_functions.go`:
+- [ ] 9.69 Implement `IndexOf(arr, value)` in `interp/array_functions.go`:
   - [ ] Create `builtinIndexOf()` function
   - [ ] Accept array and value to find
   - [ ] Search array for first occurrence of value
   - [ ] Use equality comparison (handle different types)
   - [ ] Return 0-based index if found
   - [ ] Return -1 if not found
-- [ ] 8.318 Implement `IndexOf(arr, value, startIndex)` variant:
+- [ ] 9.70 Implement `IndexOf(arr, value, startIndex)` variant:
   - [ ] Accept optional 3rd parameter: start index
   - [ ] Search from startIndex onwards
   - [ ] Handle startIndex out of bounds
-- [ ] 8.319 Add tests in `interp/array_test.go`:
+- [ ] 9.71 Add tests in `interp/array_test.go`:
   - [ ] Test `IndexOf([1,2,3,2], 2)` returns 1 (first occurrence)
   - [ ] Test `IndexOf([1,2,3], 5)` returns -1 (not found)
   - [ ] Test with start index: `IndexOf([1,2,3,2], 2, 2)` returns 3
@@ -537,12 +548,12 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Contains (2 tasks)
 
-- [ ] 8.320 Implement `Contains(arr, value)` in `interp/array_functions.go`:
+- [ ] 9.72 Implement `Contains(arr, value)` in `interp/array_functions.go`:
   - [ ] Create `builtinContains()` function
   - [ ] Accept array and value
   - [ ] Return true if array contains value, false otherwise
   - [ ] Internally use IndexOf (return IndexOf >= 0)
-- [ ] 8.321 Add tests in `interp/array_test.go`:
+- [ ] 9.73 Add tests in `interp/array_test.go`:
   - [ ] Test `Contains([1,2,3], 2)` returns true
   - [ ] Test `Contains([1,2,3], 5)` returns false
   - [ ] Test with different types
@@ -550,13 +561,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Reverse (2 tasks)
 
-- [ ] 8.322 Implement `Reverse(arr)` in `interp/array_functions.go`:
+- [ ] 9.74 Implement `Reverse(arr)` in `interp/array_functions.go`:
   - [ ] Create `builtinReverse()` function
   - [ ] Accept array (var parameter - modify in place)
   - [ ] Reverse array elements in-place
   - [ ] Swap elements from both ends moving inward
   - [ ] Return nil (modifies in place)
-- [ ] 8.323 Add tests in `interp/array_test.go`:
+- [ ] 9.75 Add tests in `interp/array_test.go`:
   - [ ] Test `var a := [1,2,3]; Reverse(a);` → a = [3,2,1]
   - [ ] Test with even length array
   - [ ] Test with odd length array
@@ -565,7 +576,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Sort (3 tasks)
 
-- [ ] 8.324 Implement `Sort(arr)` in `interp/array_functions.go`:
+- [ ] 9.76 Implement `Sort(arr)` in `interp/array_functions.go`:
   - [ ] Create `builtinSort()` function
   - [ ] Accept array (var parameter - modify in place)
   - [ ] Sort array elements using default comparison
@@ -573,11 +584,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - [ ] For String arrays: lexicographic sort
   - [ ] Use Go's `sort.Slice()`
   - [ ] Return nil (modifies in place)
-- [ ] 8.325 Add optional comparator parameter (future):
+- [ ] 9.77 Add optional comparator parameter (future):
   - [ ] `Sort(arr, comparator)` with custom comparison function
   - [ ] Comparator returns -1, 0, 1 for less, equal, greater
   - [ ] Note: Requires function pointers (deferred)
-- [ ] 8.326 Add tests in `interp/array_test.go`:
+- [ ] 9.78 Add tests in `interp/array_test.go`:
   - [ ] Test `var a := [3,1,2]; Sort(a);` → a = [1,2,3]
   - [ ] Test with strings: `['c','a','b']` → `['a','b','c']`
   - [ ] Test with already sorted array (no-op)
@@ -586,13 +597,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 8.327 Create test scripts in `testdata/array_functions/`:
+- [ ] 9.79 Create test scripts in `testdata/array_functions/`:
   - [ ] `copy.dws` - Array copying and independence
   - [ ] `search.dws` - IndexOf and Contains
   - [ ] `reverse.dws` - Reverse array
   - [ ] `sort.dws` - Sort arrays
   - [ ] Expected outputs
-- [ ] 8.328 Add CLI integration tests:
+- [ ] 9.80 Add CLI integration tests:
   - [ ] Test array function scripts
   - [ ] Verify outputs
 
@@ -600,20 +611,18 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Contracts (Design by Contract)
 
-- [ ] 8.236 Parse require/ensure clauses (if supported)
-- [ ] 8.237 Implement contract checking at runtime
-- [ ] 8.238 Test contracts
-
-
+- [ ] 9.81 Parse require/ensure clauses (if supported)
+- [ ] 9.82 Implement contract checking at runtime
+- [ ] 9.83 Test contracts
 
 ### Comprehensive Testing (Stage 8)
 
-- [ ] 8.243 Port DWScript's test suite (if available)
-- [ ] 8.244 Run DWScript example scripts from documentation
-- [ ] 8.245 Compare outputs with original DWScript
-- [ ] 8.246 Fix any discrepancies
-- [ ] 8.247 Create stress tests for complex features
-- [ ] 8.248 Achieve >85% overall code coverage
+- [ ] 9.84 Port DWScript's test suite (if available)
+- [ ] 9.85 Run DWScript example scripts from documentation
+- [ ] 9.86 Compare outputs with original DWScript
+- [ ] 9.87 Fix any discrepancies
+- [ ] 9.88 Create stress tests for complex features
+- [ ] 9.89 Achieve >85% overall code coverage
 
 
 ## Stage 10: Performance Tuning and Refactoring
