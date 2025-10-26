@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Type Declaration Analysis (Task 9.19)
+// Type Declaration Analysis
 // ============================================================================
 
 // analyzeTypeDeclaration analyzes a type declaration statement

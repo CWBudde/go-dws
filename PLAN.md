@@ -324,22 +324,22 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Built-in Functions - Trim (3 tasks)
 
-- [ ] 9.40 Implement `Trim(s)` in `interp/string_functions.go`:
-  - [ ] Create `builtinTrim()` function
-  - [ ] Accept String parameter
-  - [ ] Remove leading and trailing whitespace
-  - [ ] Use Go's `strings.TrimSpace()`
-  - [ ] Return trimmed string
-- [ ] 9.41 Implement `TrimLeft(s)` and `TrimRight(s)`:
-  - [ ] Create `builtinTrimLeft()` - remove leading whitespace only
-  - [ ] Create `builtinTrimRight()` - remove trailing whitespace only
-  - [ ] Use `strings.TrimLeftFunc()` and `strings.TrimRightFunc()`
-- [ ] 9.42 Add tests in `interp/string_test.go`:
-  - [ ] Test `Trim('  hello  ')` returns 'hello'
-  - [ ] Test `TrimLeft('  hello')` returns 'hello'
-  - [ ] Test `TrimRight('hello  ')` returns 'hello'
-  - [ ] Test with tabs and newlines
-  - [ ] Test with no whitespace (no-op)
+- [x] 9.40 Implement `Trim(s)` in `interp/string_functions.go`:
+  - [x] Create `builtinTrim()` function
+  - [x] Accept String parameter
+  - [x] Remove leading and trailing whitespace
+  - [x] Use Go's `strings.TrimSpace()`
+  - [x] Return trimmed string
+- [x] 9.41 Implement `TrimLeft(s)` and `TrimRight(s)`:
+  - [x] Create `builtinTrimLeft()` - remove leading whitespace only
+  - [x] Create `builtinTrimRight()` - remove trailing whitespace only
+  - [x] Use `strings.TrimLeftFunc()` and `strings.TrimRightFunc()`
+- [x] 9.42 Add tests in `interp/string_test.go`:
+  - [x] Test `Trim('  hello  ')` returns 'hello'
+  - [x] Test `TrimLeft('  hello')` returns 'hello'
+  - [x] Test `TrimRight('hello  ')` returns 'hello'
+  - [x] Test with tabs and newlines
+  - [x] Test with no whitespace (no-op)
 
 #### Built-in Functions - Insert/Delete (3 tasks)
 

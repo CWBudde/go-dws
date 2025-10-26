@@ -82,9 +82,9 @@ func TestObjectCreation(t *testing.T) {
 // Test 7.46: TestFieldAccess
 func TestFieldAccess(t *testing.T) {
 	tests := []struct {
+		expected interface{}
 		name     string
 		input    string
-		expected interface{}
 	}{
 		{
 			name: "Read field values",
@@ -166,9 +166,9 @@ func TestFieldAccess(t *testing.T) {
 // Test 7.47: TestMethodCalls
 func TestMethodCalls(t *testing.T) {
 	tests := []struct {
+		expected interface{}
 		name     string
 		input    string
-		expected interface{}
 	}{
 		{
 			name: "Method with no arguments",
@@ -268,9 +268,9 @@ func TestMethodCalls(t *testing.T) {
 // Test 7.48: TestInheritance
 func TestInheritance(t *testing.T) {
 	tests := []struct {
+		expected interface{}
 		name     string
 		input    string
-		expected interface{}
 	}{
 		{
 			name: "Child inherits parent fields",
@@ -442,9 +442,9 @@ func TestConstructors(t *testing.T) {
 // Test 7.51: TestSelfReference
 func TestSelfReference(t *testing.T) {
 	tests := []struct {
+		expected interface{}
 		name     string
 		input    string
-		expected interface{}
 	}{
 		{
 			name: "Self.field access",

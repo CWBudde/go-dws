@@ -173,8 +173,8 @@ func TestExternalInterface(t *testing.T) {
 	tests := []struct {
 		name         string
 		input        string
-		isExternal   bool
 		externalName string
+		isExternal   bool
 	}{
 		{
 			name: "external without name",

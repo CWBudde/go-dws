@@ -119,7 +119,7 @@ var IINTERFACE = &InterfaceType{
 }
 
 // ============================================================================
-// Type Aliases (Task 9.13)
+// Type Aliases
 // ============================================================================
 
 // TypeAlias represents a type alias declaration.
@@ -132,8 +132,8 @@ var IINTERFACE = &InterfaceType{
 // for type checking purposes. The alias name is preserved only for error messages
 // and debugging.
 type TypeAlias struct {
-	Name        string // Alias name (e.g., "TUserID", "TFileName")
-	AliasedType Type   // The underlying type being aliased (e.g., INTEGER, STRING)
+	AliasedType Type
+	Name        string
 }
 
 // String returns the alias name (not the underlying type name).
@@ -197,7 +197,7 @@ func IsNumericType(t Type) bool {
 }
 
 // IsOrdinalType checks if a type is an ordinal type (used for loop variables)
-// In DWScript, ordinal types are Integer, Boolean, and enumerations (Task 8.31)
+// In DWScript, ordinal types are Integer, Boolean, and enumerations
 func IsOrdinalType(t Type) bool {
 	kind := t.TypeKind()
 	return kind == "INTEGER" || kind == "BOOLEAN" || kind == "ENUM"
@@ -241,37 +241,37 @@ const (
 // Task 8.26a: Fields: Name, Type, ReadSpec, WriteSpec, IsIndexed, IsDefault
 // Properties provide syntactic sugar for getter/setter access.
 type PropertyInfo struct {
-	Name      string         // Property name (e.g., "Count", "Items")
-	Type      Type           // Property type
-	ReadKind  PropAccessKind // How the property is read (Field, Method, Expression, or None)
-	ReadSpec  string         // Read specifier: field name, method name, or expression string
-	WriteKind PropAccessKind // How the property is written (Field, Method, or None)
-	WriteSpec string         // Write specifier: field name or method name
-	IsIndexed bool           // True if this is an indexed property (array-like)
-	IsDefault bool           // True if this is the default property (only one per class)
+	Type      Type
+	Name      string
+	ReadSpec  string
+	WriteSpec string
+	ReadKind  PropAccessKind
+	WriteKind PropAccessKind
+	IsIndexed bool
+	IsDefault bool
 }
 
 // ClassType represents a class type in DWScript.
 // Classes support inheritance, fields, methods, and class variables (static fields).
 type ClassType struct {
-	Name             string                   // Class name (e.g., "TPoint", "TPerson")
-	Parent           *ClassType               // Parent class (nil for root classes)
-	Fields           map[string]Type          // Instance field name -> type mapping
-	ClassVars        map[string]Type          // Class variable (static field) name -> type mapping - Task 7.62
-	Methods          map[string]*FunctionType // Method name -> function signature
-	FieldVisibility  map[string]int           // Field name -> visibility level (Task 7.63f) - stores ast.Visibility as int
-	MethodVisibility map[string]int           // Method name -> visibility level (Task 7.63f) - stores ast.Visibility as int
-	VirtualMethods   map[string]bool          // Method name -> is virtual (Task 7.64)
-	OverrideMethods  map[string]bool          // Method name -> is override (Task 7.64)
-	IsAbstract       bool                     // True if this is an abstract class (Task 7.65)
-	AbstractMethods  map[string]bool          // Method name -> is abstract (Task 7.65)
-	Interfaces       []*InterfaceType         // Interfaces implemented by this class - Task 7.80
-	Operators        *OperatorRegistry        // Class operator overloads (Stage 8)
-	Constructors     map[string]*FunctionType // Constructor name -> signature
-	ClassMethodFlags map[string]bool          // Method name -> is class method
-	IsExternal       bool                     // True if this is an external class (Task 7.137)
-	ExternalName     string                   // External name for FFI binding (optional) - Task 7.137
-	Properties       map[string]*PropertyInfo // Property name -> property info mapping - Task 8.27
+	OverrideMethods  map[string]bool
+	AbstractMethods  map[string]bool
+	Fields           map[string]Type
+	ClassVars        map[string]Type
+	Methods          map[string]*FunctionType
+	FieldVisibility  map[string]int
+	MethodVisibility map[string]int
+	VirtualMethods   map[string]bool
+	Parent           *ClassType
+	Properties       map[string]*PropertyInfo
+	ClassMethodFlags map[string]bool
+	Constructors     map[string]*FunctionType
+	Operators        *OperatorRegistry
+	ExternalName     string
+	Name             string
+	Interfaces       []*InterfaceType
+	IsAbstract       bool
+	IsExternal       bool
 }
 
 // String returns the string representation of the class type
@@ -436,11 +436,11 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 // Interfaces define a contract of methods that implementing classes must provide.
 // Task 7.73-7.74: Extended with Parent for inheritance, IsExternal/ExternalName for FFI
 type InterfaceType struct {
-	Name         string                   // Interface name (e.g., "IComparable")
-	Parent       *InterfaceType           // Parent interface (nil for root interfaces) - Task 7.74
-	Methods      map[string]*FunctionType // Method name -> function signature
-	IsExternal   bool                     // True if this is an external interface (for FFI) - Task 7.74
-	ExternalName string                   // External name for FFI binding (optional) - Task 7.74
+	Parent       *InterfaceType
+	Methods      map[string]*FunctionType
+	Name         string
+	ExternalName string
+	IsExternal   bool
 }
 
 // String returns the string representation of the interface type
@@ -489,7 +489,7 @@ func NewInterfaceType(name string) *InterfaceType {
 }
 
 // ============================================================================
-// Interface Inheritance and Compatibility (Task 7.77-7.79)
+// Interface Inheritance and Compatibility
 // ============================================================================
 
 // IsSubinterfaceOf checks if 'child' is a subinterface of 'parent'.
@@ -637,7 +637,7 @@ func IsInterfaceType(t Type) bool {
 }
 
 // ============================================================================
-// External Variable Support (Task 7.142)
+// External Variable Support
 // ============================================================================
 
 // ExternalVarSymbol represents a variable that is implemented externally
@@ -652,12 +652,9 @@ func IsInterfaceType(t Type) bool {
 // The interpreter will raise errors when attempting to access external variables
 // until getter/setter functions are provided.
 type ExternalVarSymbol struct {
-	Name         string // Variable name in DWScript code
-	Type         Type   // DWScript type of the variable
-	ExternalName string // External name for FFI binding (optional, defaults to Name)
-
-	// Optional getter/setter functions for future implementation
-	// When nil, accessing the variable raises an error
-	ReadFunc  func() (interface{}, error) // Returns the external variable's value
-	WriteFunc func(interface{}) error     // Sets the external variable's value
+	Type         Type
+	ReadFunc     func() (interface{}, error)
+	WriteFunc    func(interface{}) error
+	Name         string
+	ExternalName string
 }

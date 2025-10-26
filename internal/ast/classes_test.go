@@ -7,7 +7,7 @@ import (
 )
 
 // ============================================================================
-// ClassDecl Tests (Task 7.7)
+// ClassDecl Tests
 // ============================================================================
 
 func TestClassDeclString(t *testing.T) {
@@ -190,7 +190,7 @@ func TestClassDeclPos(t *testing.T) {
 }
 
 // ============================================================================
-// FieldDecl Tests (Task 7.8)
+// FieldDecl Tests
 // ============================================================================
 
 func TestFieldDeclString(t *testing.T) {
@@ -267,7 +267,7 @@ func TestFieldDeclMethods(t *testing.T) {
 }
 
 // ============================================================================
-// NewExpression Tests (Task 7.9)
+// NewExpression Tests
 // ============================================================================
 
 func TestNewExpressionString(t *testing.T) {
@@ -322,7 +322,7 @@ func TestNewExpressionString(t *testing.T) {
 }
 
 // ============================================================================
-// MemberAccessExpression Tests (Task 7.10)
+// MemberAccessExpression Tests
 // ============================================================================
 
 func TestMemberAccessString(t *testing.T) {
@@ -381,7 +381,7 @@ func TestMemberAccessString(t *testing.T) {
 }
 
 // ============================================================================
-// MethodCallExpression Tests (Task 7.11)
+// MethodCallExpression Tests
 // ============================================================================
 
 func TestMethodCallString(t *testing.T) {

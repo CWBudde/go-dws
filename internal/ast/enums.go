@@ -8,14 +8,14 @@ import (
 )
 
 // ============================================================================
-// Enum Declaration (Task 8.33)
+// Enum Declaration
 // ============================================================================
 
 // EnumValue represents a single value in an enum declaration.
 // Example: Red, Green = 5, Blue
 type EnumValue struct {
-	Name  string // Value name (e.g., "Red", "Green")
-	Value *int   // Optional explicit ordinal value (nil for implicit values)
+	Value *int
+	Name  string
 }
 
 // EnumDecl represents an enum type declaration.
@@ -24,9 +24,9 @@ type EnumValue struct {
 //   - type TEnum = (One = 1, Two = 5);
 //   - type TEnum = enum (One, Two);
 type EnumDecl struct {
-	Token  lexer.Token // The 'type' token
-	Name   *Identifier // Enum type name
-	Values []EnumValue // List of enum values
+	Name   *Identifier
+	Values []EnumValue
+	Token  lexer.Token
 }
 
 // statementNode implements the Statement interface
@@ -66,7 +66,7 @@ func (ed *EnumDecl) Pos() lexer.Position {
 }
 
 // ============================================================================
-// Enum Literal Expression (Task 8.34)
+// Enum Literal Expression
 // ============================================================================
 
 // EnumLiteral represents an enum value reference in an expression.
@@ -74,9 +74,9 @@ func (ed *EnumDecl) Pos() lexer.Position {
 //   - Red (direct reference)
 //   - TColor.Red (scoped reference)
 type EnumLiteral struct {
-	Token     lexer.Token // The identifier token
-	EnumName  string      // Optional enum type name (for scoped reference like TColor.Red)
-	ValueName string      // The enum value name (e.g., "Red")
+	EnumName  string
+	ValueName string
+	Token     lexer.Token
 }
 
 // expressionNode implements the Expression interface

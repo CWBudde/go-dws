@@ -137,12 +137,12 @@ const NAME = 'test';
 	}
 
 	tests := []struct {
-		expectedName  string
 		expectedValue interface{}
+		expectedName  string
 	}{
-		{"PI", 3.14},
-		{"MAX", int64(100)},
-		{"NAME", "test"},
+		{expectedValue: 3.14, expectedName: "PI"},
+		{expectedValue: int64(100), expectedName: "MAX"},
+		{expectedValue: "test", expectedName: "NAME"},
 	}
 
 	for i, tt := range tests {
@@ -221,7 +221,7 @@ func TestParseConstDeclarationErrors(t *testing.T) {
 }
 
 // ============================================================================
-// Type Alias Tests (Task 9.17 - TDD)
+// Type Alias Tests
 // ============================================================================
 
 // TestParseTypeAlias tests parsing simple type alias declarations

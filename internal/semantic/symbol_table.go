@@ -8,10 +8,10 @@ import (
 
 // Symbol represents a symbol in the symbol table (variable or function)
 type Symbol struct {
-	Name     string
 	Type     types.Type
-	ReadOnly bool // True for const variables and exception handler variables (Task 8.207)
-	IsConst  bool // True for const declarations (Task 8.254)
+	Name     string
+	ReadOnly bool
+	IsConst  bool
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.

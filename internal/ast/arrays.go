@@ -1,5 +1,5 @@
 // Package ast defines the Abstract Syntax Tree node types for DWScript.
-// This file contains AST nodes for array type annotations, array literals, and array indexing (Task 8.119-8.121).
+// This file contains AST nodes for array type annotations, array literals, and array indexing.
 package ast
 
 import (
@@ -11,7 +11,7 @@ import (
 )
 
 // ============================================================================
-// ArrayDecl (Task 8.122 - type declarations)
+// ArrayDecl
 // ============================================================================
 
 // ArrayDecl represents an array type declaration statement.
@@ -19,9 +19,9 @@ import (
 //   - type TMyArray = array[1..10] of Integer;
 //   - type TDynamic = array of String;
 type ArrayDecl struct {
-	Token     lexer.Token          // The 'type' token
-	Name      *Identifier          // Array type name (e.g., "TMyArray")
-	ArrayType *ArrayTypeAnnotation // The array type specification
+	Name      *Identifier
+	ArrayType *ArrayTypeAnnotation
+	Token     lexer.Token
 }
 
 // statementNode implements the Statement interface
@@ -54,7 +54,7 @@ func (ad *ArrayDecl) Pos() lexer.Position {
 }
 
 // ============================================================================
-// ArrayTypeAnnotation (Task 8.119)
+// ArrayTypeAnnotation
 // ============================================================================
 
 // ArrayTypeAnnotation represents an array type annotation.
@@ -63,10 +63,10 @@ func (ad *ArrayDecl) Pos() lexer.Position {
 //   - array[1..10] of Integer (static, with bounds)
 //   - array of String (dynamic, no bounds)
 type ArrayTypeAnnotation struct {
-	Token       lexer.Token     // The 'array' token
-	ElementType *TypeAnnotation // Type of elements in the array
-	LowBound    *int            // Lower bound (nil for dynamic arrays)
-	HighBound   *int            // Upper bound (nil for dynamic arrays)
+	ElementType *TypeAnnotation
+	LowBound    *int
+	HighBound   *int
+	Token       lexer.Token
 }
 
 // TokenLiteral returns the literal value of the token
@@ -108,7 +108,7 @@ func (ata *ArrayTypeAnnotation) IsStatic() bool {
 }
 
 // ============================================================================
-// ArrayLiteral (Task 8.120)
+// ArrayLiteral
 // ============================================================================
 
 // ArrayLiteral represents an array literal expression.
@@ -117,9 +117,9 @@ func (ata *ArrayTypeAnnotation) IsStatic() bool {
 //   - []               // empty array
 //   - ['a', 'b', 'c']  // array of strings
 type ArrayLiteral struct {
-	Token    lexer.Token     // The '[' token
-	Elements []Expression    // List of elements in the array
-	Type     *TypeAnnotation // The inferred type (set by semantic analyzer)
+	Type     *TypeAnnotation
+	Elements []Expression
+	Token    lexer.Token
 }
 
 // expressionNode implements the Expression interface
@@ -163,7 +163,7 @@ func (al *ArrayLiteral) SetType(typ *TypeAnnotation) {
 }
 
 // ============================================================================
-// IndexExpression (Task 8.120)
+// IndexExpression
 // ============================================================================
 
 // IndexExpression represents an array/string indexing operation.
@@ -173,10 +173,10 @@ func (al *ArrayLiteral) SetType(typ *TypeAnnotation) {
 //   - arr[i + 1]  // expression index
 //   - arr[i][j]   // nested indexing
 type IndexExpression struct {
-	Token lexer.Token     // The '[' token
-	Left  Expression      // The expression being indexed (array, string, etc.)
-	Index Expression      // The index expression
-	Type  *TypeAnnotation // The result type (determined by semantic analyzer)
+	Left  Expression
+	Index Expression
+	Type  *TypeAnnotation
+	Token lexer.Token
 }
 
 // expressionNode implements the Expression interface

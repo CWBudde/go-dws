@@ -22,11 +22,11 @@ func TestExceptionHandlingIntegration(t *testing.T) {
 	tests := []struct {
 		name           string
 		scriptFile     string
-		wantOutputs    []string // Strings that must appear in output
-		wantPasses     int      // Minimum number of "PASS" occurrences
-		shouldFail     bool     // True if script should exit with error
-		wantInStderr   []string // Strings that must appear in stderr (for unhandled exceptions)
-		testFinallyRun bool     // True to verify finally blocks execute
+		wantOutputs    []string
+		wantInStderr   []string
+		wantPasses     int
+		shouldFail     bool
+		testFinallyRun bool
 	}{
 		{
 			name:       "Basic Try-Except",
@@ -269,8 +269,8 @@ func TestExceptionMessages(t *testing.T) {
 	tests := []struct {
 		name             string
 		code             string
-		wantInOutput     []string
 		wantExceptionMsg string
+		wantInOutput     []string
 	}{
 		{
 			name: "Basic exception message",

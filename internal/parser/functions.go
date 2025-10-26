@@ -60,7 +60,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		return nil
 	}
 
-	// Check for optional directives: static, virtual, override, external (Task 7.64c-d, 7.140)
+	// Check for optional directives: static, virtual, override, external
 	for {
 		if p.peekTokenIs(lexer.STATIC) {
 			p.nextToken() // move to 'static'

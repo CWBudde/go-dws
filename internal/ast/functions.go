@@ -15,10 +15,10 @@ import (
 //	var s: String
 //	a, b: Float
 type Parameter struct {
-	Token lexer.Token     // The parameter name token
-	Name  *Identifier     // The parameter name
-	Type  *TypeAnnotation // The type annotation
-	ByRef bool            // True for var parameters (pass by reference)
+	Name  *Identifier
+	Type  *TypeAnnotation
+	Token lexer.Token
+	ByRef bool
 }
 
 func (p *Parameter) String() string {
@@ -40,21 +40,21 @@ func (p *Parameter) String() string {
 //	function DoWork(): Integer; override; begin ... end;  // override method (Task 7.64)
 //	function GetArea(): Float; abstract;  // abstract method (Task 7.65c)
 type FunctionDecl struct {
-	Token         lexer.Token     // The 'function', 'procedure', 'constructor', or 'destructor' token
-	Name          *Identifier     // The function name
-	ClassName     *Identifier     // The class name (for method implementations: TExample.Method)
-	Parameters    []*Parameter    // The function parameters
-	ReturnType    *TypeAnnotation // The return type (nil for procedures/constructors/destructors)
-	Body          *BlockStatement // The function body (nil for abstract methods)
-	IsClassMethod bool            // True if this is a class method (static method) - Task 7.61
-	IsConstructor bool            // True if this is a constructor
-	IsDestructor  bool            // True if this is a destructor
-	Visibility    Visibility      // Visibility: VisibilityPrivate, VisibilityProtected, or VisibilityPublic (Task 7.63a)
-	IsVirtual     bool            // True if this is a virtual method (Task 7.64a)
-	IsOverride    bool            // True if this overrides a parent virtual method (Task 7.64b)
-	IsAbstract    bool            // True if this is an abstract method (Task 7.65c)
-	IsExternal    bool            // True if this is an external method (Task 7.140)
-	ExternalName  string          // External name for FFI binding (optional) - Task 7.140
+	Name          *Identifier
+	ClassName     *Identifier
+	ReturnType    *TypeAnnotation
+	Body          *BlockStatement
+	ExternalName  string
+	Parameters    []*Parameter
+	Token         lexer.Token
+	Visibility    Visibility
+	IsDestructor  bool
+	IsConstructor bool
+	IsVirtual     bool
+	IsOverride    bool
+	IsAbstract    bool
+	IsExternal    bool
+	IsClassMethod bool
 }
 
 func (fd *FunctionDecl) statementNode()       {}
@@ -122,8 +122,8 @@ func (fd *FunctionDecl) String() string {
 //	Add := a + b
 //	exit
 type ReturnStatement struct {
-	Token       lexer.Token // The 'Result', function name, or 'exit' token
-	ReturnValue Expression  // The return value (nil for exit without value)
+	ReturnValue Expression
+	Token       lexer.Token
 }
 
 func (rs *ReturnStatement) statementNode()       {}

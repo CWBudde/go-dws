@@ -14,10 +14,10 @@ var ErrConversionDuplicate = errors.New("conversion already registered")
 
 // OperatorSignature describes an operator overload, including operand types and result type.
 type OperatorSignature struct {
-	Operator     string // Token or keyword for the operator ("+", "in", "implicit", etc.)
-	OperandTypes []Type // Ordered operand types for the operator
-	ResultType   Type   // Result type produced by the operator (VOID for procedures)
-	Binding      string // Name of the bound function or method (for diagnostics/runtime)
+	ResultType   Type
+	Operator     string
+	Binding      string
+	OperandTypes []Type
 }
 
 // OperatorRegistry stores operator overloads keyed by operator token.

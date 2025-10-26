@@ -27,13 +27,13 @@ import (
 //	property Data[x, y: Integer]: Float read GetData;                  // Multi-index, read-only
 //	property Items[i: Integer]: String read GetItem; default;          // Default property
 type PropertyDecl struct {
-	Token       lexer.Token     // The 'property' token
-	Name        *Identifier     // Property name (e.g., "Count", "Items")
-	Type        *TypeAnnotation // Property type
-	ReadSpec    Expression      // Read specifier: Identifier (field/method name) or Expression (inline expression)
-	WriteSpec   Expression      // Write specifier: Identifier (field/method name) or nil (read-only)
-	IndexParams []*Parameter    // Index parameters for indexed properties (nil for non-indexed)
-	IsDefault   bool            // True if this is the default property (only one per class)
+	ReadSpec    Expression
+	WriteSpec   Expression
+	Name        *Identifier
+	Type        *TypeAnnotation
+	IndexParams []*Parameter
+	Token       lexer.Token
+	IsDefault   bool
 }
 
 func (pd *PropertyDecl) statementNode()       {}

@@ -15,10 +15,10 @@ import (
 //	if x > 0 then PrintLn('positive') else PrintLn('non-positive');
 //	if condition then begin ... end;
 type IfStatement struct {
-	Token       lexer.Token // The 'if' token
-	Condition   Expression  // The condition expression
-	Consequence Statement   // The 'then' branch
-	Alternative Statement   // The 'else' branch (optional, can be nil)
+	Condition   Expression
+	Consequence Statement
+	Alternative Statement
+	Token       lexer.Token
 }
 
 func (is *IfStatement) statementNode()       {}
@@ -46,9 +46,9 @@ func (is *IfStatement) String() string {
 //	while x < 10 do x := x + 1;
 //	while condition do begin ... end;
 type WhileStatement struct {
-	Token     lexer.Token // The 'while' token
-	Condition Expression  // The loop condition
-	Body      Statement   // The loop body
+	Condition Expression
+	Body      Statement
+	Token     lexer.Token
 }
 
 func (ws *WhileStatement) statementNode()       {}
@@ -72,9 +72,9 @@ func (ws *WhileStatement) String() string {
 //	repeat x := x + 1; until x >= 10;
 //	repeat begin ... end; until condition;
 type RepeatStatement struct {
-	Token     lexer.Token // The 'repeat' token
-	Body      Statement   // The loop body (can be a block or single statement)
-	Condition Expression  // The 'until' condition
+	Body      Statement
+	Condition Expression
+	Token     lexer.Token
 }
 
 func (rs *RepeatStatement) statementNode()       {}
@@ -117,12 +117,12 @@ func (fd ForDirection) String() string {
 //	for i := 10 downto 1 do PrintLn(i);
 //	for i := start to end do begin ... end;
 type ForStatement struct {
-	Token     lexer.Token  // The 'for' token
-	Variable  *Identifier  // The loop variable
-	Start     Expression   // The start value
-	End       Expression   // The end value
-	Direction ForDirection // The direction (to or downto)
-	Body      Statement    // The loop body
+	Start     Expression
+	End       Expression
+	Body      Statement
+	Variable  *Identifier
+	Token     lexer.Token
+	Direction ForDirection
 }
 
 func (fs *ForStatement) statementNode()       {}
@@ -151,9 +151,9 @@ func (fs *ForStatement) String() string {
 //	1: PrintLn('one');
 //	2, 3, 4: PrintLn('two to four');
 type CaseBranch struct {
-	Token     lexer.Token  // The first value token
-	Values    []Expression // The values that match this branch
-	Statement Statement    // The statement to execute
+	Statement Statement
+	Values    []Expression
+	Token     lexer.Token
 }
 
 func (cb *CaseBranch) String() string {
@@ -180,10 +180,10 @@ func (cb *CaseBranch) String() string {
 //	  PrintLn('other');
 //	end;
 type CaseStatement struct {
-	Token      lexer.Token   // The 'case' token
-	Expression Expression    // The expression to match against
-	Cases      []*CaseBranch // The case branches
-	Else       Statement     // The else branch (optional, can be nil)
+	Expression Expression
+	Else       Statement
+	Cases      []*CaseBranch
+	Token      lexer.Token
 }
 
 func (cs *CaseStatement) statementNode()       {}
@@ -274,8 +274,8 @@ func (cs *ContinueStatement) String() string {
 //	   Result := i * 2;
 //	end;
 type ExitStatement struct {
-	Token lexer.Token // The 'exit' token
-	Value Expression  // Optional return value (nil for procedures or exit without value)
+	Value Expression
+	Token lexer.Token
 }
 
 func (es *ExitStatement) statementNode()       {}

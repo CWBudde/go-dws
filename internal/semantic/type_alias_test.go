@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Type Alias Tests (Task 9.20)
+// Type Alias Tests
 // ============================================================================
 
 // TestTypeAliasRegistration tests that type aliases are registered in the analyzer

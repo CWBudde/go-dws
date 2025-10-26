@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Visibility (Task 7.63a)
+// Visibility
 // ============================================================================
 
 // Visibility represents the access level of class members (fields and methods).
@@ -44,7 +44,7 @@ func (v Visibility) String() string {
 }
 
 // ============================================================================
-// Class Declaration (Task 7.7)
+// Class Declaration
 // ============================================================================
 
 // ClassDecl represents a class declaration in DWScript.
@@ -57,19 +57,19 @@ func (v Visibility) String() string {
 //	  // abstract class (cannot be instantiated)
 //	end;
 type ClassDecl struct {
-	Token        lexer.Token     // The 'type' token
-	Name         *Identifier     // The class name (e.g., "TPoint", "TPerson")
-	Parent       *Identifier     // The parent class name (optional, nil for root classes)
-	Interfaces   []*Identifier   // Interfaces implemented by this class (Task 7.70)
-	Fields       []*FieldDecl    // Field declarations
-	Methods      []*FunctionDecl // Method declarations
-	Operators    []*OperatorDecl // Class operator declarations (Stage 8)
-	Properties   []*PropertyDecl // Property declarations (Task 8.42)
-	Constructor  *FunctionDecl   // Constructor method (optional, usually named "Create")
-	Destructor   *FunctionDecl   // Destructor method (optional, usually named "Destroy")
-	IsAbstract   bool            // True if this is an abstract class (Task 7.65a)
-	IsExternal   bool            // True if this is an external class (Task 7.138)
-	ExternalName string          // External name for FFI binding (optional) - Task 7.138
+	Constructor  *FunctionDecl
+	Name         *Identifier
+	Parent       *Identifier
+	Destructor   *FunctionDecl
+	ExternalName string
+	Interfaces   []*Identifier
+	Operators    []*OperatorDecl
+	Properties   []*PropertyDecl
+	Methods      []*FunctionDecl
+	Fields       []*FieldDecl
+	Token        lexer.Token
+	IsAbstract   bool
+	IsExternal   bool
 }
 
 func (cd *ClassDecl) statementNode()       {}
@@ -82,7 +82,7 @@ func (cd *ClassDecl) String() string {
 	out.WriteString(cd.Name.String())
 	out.WriteString(" = class")
 
-	// Add parent class and/or interfaces if present (Task 7.70)
+	// Add parent class and/or interfaces if present
 	// Syntax: class(TParent, IInterface1, IInterface2) or class(IInterface) with no parent
 	if cd.Parent != nil || len(cd.Interfaces) > 0 {
 		out.WriteString("(")
@@ -107,7 +107,7 @@ func (cd *ClassDecl) String() string {
 		out.WriteString(")")
 	}
 
-	// Add abstract keyword if this is an abstract class (Task 7.65)
+	// Add abstract keyword if this is an abstract class
 	if cd.IsAbstract {
 		out.WriteString(" abstract")
 	}
@@ -139,7 +139,7 @@ func (cd *ClassDecl) String() string {
 		out.WriteString(";\n")
 	}
 
-	// Add properties (Task 8.42)
+	// Add properties
 	for _, property := range cd.Properties {
 		out.WriteString("  ")
 		if property != nil {
@@ -170,7 +170,7 @@ func (cd *ClassDecl) String() string {
 }
 
 // ============================================================================
-// Field Declaration (Task 7.8)
+// Field Declaration
 // ============================================================================
 
 // FieldDecl represents a field (member variable) declaration in a class.
@@ -180,11 +180,11 @@ func (cd *ClassDecl) String() string {
 //	class var Count: Integer;         // class variable (static field)
 //	property PropertyName: Type read FFieldName write FFieldName;
 type FieldDecl struct {
-	Token      lexer.Token     // The field name token
-	Name       *Identifier     // The field name (e.g., "FValue", "X", "Y")
-	Type       *TypeAnnotation // The field type
-	Visibility Visibility      // Visibility: VisibilityPrivate, VisibilityProtected, or VisibilityPublic (Task 7.63a)
-	IsClassVar bool            // True if this is a class variable (static field) - Task 7.62
+	Name       *Identifier
+	Type       *TypeAnnotation
+	Token      lexer.Token
+	Visibility Visibility
+	IsClassVar bool
 }
 
 func (fd *FieldDecl) statementNode()       {}
@@ -204,7 +204,7 @@ func (fd *FieldDecl) String() string {
 }
 
 // ============================================================================
-// Object Creation Expression (Task 7.9)
+// Object Creation Expression
 // ============================================================================
 
 // NewExpression represents object instantiation in DWScript.
@@ -214,10 +214,10 @@ func (fd *FieldDecl) String() string {
 //	or sometimes just:
 //	TClassName.Create
 type NewExpression struct {
-	Token     lexer.Token     // The class name token
-	ClassName *Identifier     // The class name (e.g., "TPoint")
-	Arguments []Expression    // Constructor arguments
-	Type      *TypeAnnotation // The type (set by semantic analyzer)
+	ClassName *Identifier
+	Type      *TypeAnnotation
+	Arguments []Expression
+	Token     lexer.Token
 }
 
 func (ne *NewExpression) expressionNode()             {}
@@ -243,7 +243,7 @@ func (ne *NewExpression) String() string {
 }
 
 // ============================================================================
-// Member Access Expression (Task 7.10)
+// Member Access Expression
 // ============================================================================
 
 // MemberAccessExpression represents accessing a field or method of an object.
@@ -253,10 +253,10 @@ func (ne *NewExpression) String() string {
 //	obj.method
 //	obj.field1.field2
 type MemberAccessExpression struct {
-	Token  lexer.Token     // The '.' token
-	Object Expression      // The object expression (left side)
-	Member *Identifier     // The member name (right side)
-	Type   *TypeAnnotation // The type (set by semantic analyzer)
+	Object Expression
+	Member *Identifier
+	Type   *TypeAnnotation
+	Token  lexer.Token
 }
 
 func (ma *MemberAccessExpression) expressionNode()             {}
@@ -275,7 +275,7 @@ func (ma *MemberAccessExpression) String() string {
 }
 
 // ============================================================================
-// Method Call Expression (Task 7.11)
+// Method Call Expression
 // ============================================================================
 
 // MethodCallExpression represents calling a method on an object.
@@ -284,11 +284,11 @@ func (ma *MemberAccessExpression) String() string {
 //	obj.MethodName(arg1, arg2)
 //	obj.MethodName()
 type MethodCallExpression struct {
-	Token     lexer.Token     // The '.' token
-	Object    Expression      // The object expression
-	Method    *Identifier     // The method name
-	Arguments []Expression    // The method arguments
-	Type      *TypeAnnotation // The return type (set by semantic analyzer)
+	Object    Expression
+	Method    *Identifier
+	Type      *TypeAnnotation
+	Arguments []Expression
+	Token     lexer.Token
 }
 
 func (mc *MethodCallExpression) expressionNode()             {}

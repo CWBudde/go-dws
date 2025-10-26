@@ -37,19 +37,20 @@ func TestBasicTypes(t *testing.T) {
 
 func TestBasicTypeEquality(t *testing.T) {
 	tests := []struct {
+		a        Type
+		b        Type
 		name     string
-		a, b     Type
 		expected bool
 	}{
-		{"Integer equals Integer", INTEGER, INTEGER, true},
-		{"Float equals Float", FLOAT, FLOAT, true},
-		{"String equals String", STRING, STRING, true},
-		{"Boolean equals Boolean", BOOLEAN, BOOLEAN, true},
-		{"Nil equals Nil", NIL, NIL, true},
-		{"Void equals Void", VOID, VOID, true},
-		{"Integer not equals Float", INTEGER, FLOAT, false},
-		{"String not equals Boolean", STRING, BOOLEAN, false},
-		{"Integer not equals String", INTEGER, STRING, false},
+		{a: INTEGER, b: INTEGER, name: "Integer equals Integer", expected: true},
+		{a: FLOAT, b: FLOAT, name: "Float equals Float", expected: true},
+		{a: STRING, b: STRING, name: "String equals String", expected: true},
+		{a: BOOLEAN, b: BOOLEAN, name: "Boolean equals Boolean", expected: true},
+		{a: NIL, b: NIL, name: "Nil equals Nil", expected: true},
+		{a: VOID, b: VOID, name: "Void equals Void", expected: true},
+		{a: INTEGER, b: FLOAT, name: "Integer not equals Float", expected: false},
+		{a: STRING, b: BOOLEAN, name: "String not equals Boolean", expected: false},
+		{a: INTEGER, b: STRING, name: "Integer not equals String", expected: false},
 	}
 
 	for _, tt := range tests {
@@ -116,18 +117,18 @@ func TestTypeUtilities(t *testing.T) {
 
 func TestTypeFromString(t *testing.T) {
 	tests := []struct {
+		expected Type
 		name     string
 		input    string
-		expected Type
 		wantErr  bool
 	}{
-		{"Integer", "Integer", INTEGER, false},
-		{"Float", "Float", FLOAT, false},
-		{"String", "String", STRING, false},
-		{"Boolean", "Boolean", BOOLEAN, false},
-		{"Void", "Void", VOID, false},
-		{"Unknown", "Unknown", nil, true},
-		{"Empty", "", nil, true},
+		{expected: INTEGER, name: "Integer", input: "Integer", wantErr: false},
+		{expected: FLOAT, name: "Float", input: "Float", wantErr: false},
+		{expected: STRING, name: "String", input: "String", wantErr: false},
+		{expected: BOOLEAN, name: "Boolean", input: "Boolean", wantErr: false},
+		{expected: VOID, name: "Void", input: "Void", wantErr: false},
+		{expected: nil, name: "Unknown", input: "Unknown", wantErr: true},
+		{expected: nil, name: "Empty", input: "", wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -196,39 +197,40 @@ func TestFunctionType(t *testing.T) {
 
 func TestFunctionTypeEquality(t *testing.T) {
 	tests := []struct {
+		a        Type
+		b        Type
 		name     string
-		a, b     Type
 		expected bool
 	}{
 		{
-			"Same function types",
-			NewFunctionType([]Type{INTEGER, STRING}, BOOLEAN),
-			NewFunctionType([]Type{INTEGER, STRING}, BOOLEAN),
-			true,
+			a:        NewFunctionType([]Type{INTEGER, STRING}, BOOLEAN),
+			b:        NewFunctionType([]Type{INTEGER, STRING}, BOOLEAN),
+			name:     "Same function types",
+			expected: true,
 		},
 		{
-			"Different parameter types",
-			NewFunctionType([]Type{INTEGER}, BOOLEAN),
-			NewFunctionType([]Type{FLOAT}, BOOLEAN),
-			false,
+			a:        NewFunctionType([]Type{INTEGER}, BOOLEAN),
+			b:        NewFunctionType([]Type{FLOAT}, BOOLEAN),
+			name:     "Different parameter types",
+			expected: false,
 		},
 		{
-			"Different return types",
-			NewFunctionType([]Type{INTEGER}, BOOLEAN),
-			NewFunctionType([]Type{INTEGER}, INTEGER),
-			false,
+			a:        NewFunctionType([]Type{INTEGER}, BOOLEAN),
+			b:        NewFunctionType([]Type{INTEGER}, INTEGER),
+			name:     "Different return types",
+			expected: false,
 		},
 		{
-			"Different parameter count",
-			NewFunctionType([]Type{INTEGER}, BOOLEAN),
-			NewFunctionType([]Type{INTEGER, STRING}, BOOLEAN),
-			false,
+			a:        NewFunctionType([]Type{INTEGER}, BOOLEAN),
+			b:        NewFunctionType([]Type{INTEGER, STRING}, BOOLEAN),
+			name:     "Different parameter count",
+			expected: false,
 		},
 		{
-			"Function vs non-function",
-			NewFunctionType([]Type{}, INTEGER),
-			INTEGER,
-			false,
+			a:        NewFunctionType([]Type{}, INTEGER),
+			b:        INTEGER,
+			name:     "Function vs non-function",
+			expected: false,
 		},
 	}
 
@@ -283,45 +285,46 @@ func TestArrayType(t *testing.T) {
 
 func TestArrayTypeEquality(t *testing.T) {
 	tests := []struct {
+		a        Type
+		b        Type
 		name     string
-		a, b     Type
 		expected bool
 	}{
 		{
-			"Same dynamic arrays",
-			NewDynamicArrayType(INTEGER),
-			NewDynamicArrayType(INTEGER),
-			true,
+			a:        NewDynamicArrayType(INTEGER),
+			b:        NewDynamicArrayType(INTEGER),
+			name:     "Same dynamic arrays",
+			expected: true,
 		},
 		{
-			"Different element types (dynamic)",
-			NewDynamicArrayType(INTEGER),
-			NewDynamicArrayType(FLOAT),
-			false,
+			a:        NewDynamicArrayType(INTEGER),
+			b:        NewDynamicArrayType(FLOAT),
+			name:     "Different element types (dynamic)",
+			expected: false,
 		},
 		{
-			"Same static arrays",
-			NewStaticArrayType(STRING, 1, 10),
-			NewStaticArrayType(STRING, 1, 10),
-			true,
+			a:        NewStaticArrayType(STRING, 1, 10),
+			b:        NewStaticArrayType(STRING, 1, 10),
+			name:     "Same static arrays",
+			expected: true,
 		},
 		{
-			"Different bounds",
-			NewStaticArrayType(INTEGER, 1, 10),
-			NewStaticArrayType(INTEGER, 0, 9),
-			false,
+			a:        NewStaticArrayType(INTEGER, 1, 10),
+			b:        NewStaticArrayType(INTEGER, 0, 9),
+			name:     "Different bounds",
+			expected: false,
 		},
 		{
-			"Dynamic vs static",
-			NewDynamicArrayType(INTEGER),
-			NewStaticArrayType(INTEGER, 1, 10),
-			false,
+			a:        NewDynamicArrayType(INTEGER),
+			b:        NewStaticArrayType(INTEGER, 1, 10),
+			name:     "Dynamic vs static",
+			expected: false,
 		},
 		{
-			"Array vs non-array",
-			NewDynamicArrayType(INTEGER),
-			INTEGER,
-			false,
+			a:        NewDynamicArrayType(INTEGER),
+			b:        INTEGER,
+			name:     "Array vs non-array",
+			expected: false,
 		},
 	}
 
@@ -391,39 +394,40 @@ func TestRecordTypeEquality(t *testing.T) {
 	}
 
 	tests := []struct {
+		a        Type
+		b        Type
 		name     string
-		a, b     Type
 		expected bool
 	}{
 		{
-			"Same named records",
-			NewRecordType("TPoint", fields1),
-			NewRecordType("TPoint", fields2),
-			true,
+			a:        NewRecordType("TPoint", fields1),
+			b:        NewRecordType("TPoint", fields2),
+			name:     "Same named records",
+			expected: true,
 		},
 		{
-			"Different named records",
-			NewRecordType("TPoint", fields1),
-			NewRecordType("TVector", fields1),
-			false,
+			a:        NewRecordType("TPoint", fields1),
+			b:        NewRecordType("TVector", fields1),
+			name:     "Different named records",
+			expected: false,
 		},
 		{
-			"Same anonymous records",
-			NewRecordType("", fields1),
-			NewRecordType("", fields2),
-			true,
+			a:        NewRecordType("", fields1),
+			b:        NewRecordType("", fields2),
+			name:     "Same anonymous records",
+			expected: true,
 		},
 		{
-			"Different field types",
-			NewRecordType("", fields1),
-			NewRecordType("", fields3),
-			false,
+			a:        NewRecordType("", fields1),
+			b:        NewRecordType("", fields3),
+			name:     "Different field types",
+			expected: false,
 		},
 		{
-			"Record vs non-record",
-			NewRecordType("TPoint", fields1),
-			INTEGER,
-			false,
+			a:        NewRecordType("TPoint", fields1),
+			b:        INTEGER,
+			name:     "Record vs non-record",
+			expected: false,
 		},
 	}
 
@@ -575,30 +579,31 @@ func TestRecordTypeWithProperties(t *testing.T) {
 
 func TestIsCompatible(t *testing.T) {
 	tests := []struct {
+		from     Type
+		to       Type
 		name     string
-		from, to Type
 		expected bool
 	}{
-		{"Integer to Integer", INTEGER, INTEGER, true},
-		{"Float to Float", FLOAT, FLOAT, true},
-		{"Integer to Float", INTEGER, FLOAT, true},
-		{"Float to Integer", FLOAT, INTEGER, false},
-		{"String to String", STRING, STRING, true},
-		{"String to Integer", STRING, INTEGER, false},
-		{"Nil to Nil", NIL, NIL, true},
-		{"Integer to String", INTEGER, STRING, false},
-		{"Boolean to Boolean", BOOLEAN, BOOLEAN, true},
+		{from: INTEGER, to: INTEGER, name: "Integer to Integer", expected: true},
+		{from: FLOAT, to: FLOAT, name: "Float to Float", expected: true},
+		{from: INTEGER, to: FLOAT, name: "Integer to Float", expected: true},
+		{from: FLOAT, to: INTEGER, name: "Float to Integer", expected: false},
+		{from: STRING, to: STRING, name: "String to String", expected: true},
+		{from: STRING, to: INTEGER, name: "String to Integer", expected: false},
+		{from: NIL, to: NIL, name: "Nil to Nil", expected: true},
+		{from: INTEGER, to: STRING, name: "Integer to String", expected: false},
+		{from: BOOLEAN, to: BOOLEAN, name: "Boolean to Boolean", expected: true},
 		{
-			"Dynamic arrays same element",
-			NewDynamicArrayType(INTEGER),
-			NewDynamicArrayType(INTEGER),
-			true,
+			from:     NewDynamicArrayType(INTEGER),
+			to:       NewDynamicArrayType(INTEGER),
+			name:     "Dynamic arrays same element",
+			expected: true,
 		},
 		{
-			"Dynamic arrays different element",
-			NewDynamicArrayType(INTEGER),
-			NewDynamicArrayType(FLOAT),
-			false,
+			from:     NewDynamicArrayType(INTEGER),
+			to:       NewDynamicArrayType(FLOAT),
+			name:     "Dynamic arrays different element",
+			expected: false,
 		},
 	}
 
@@ -614,15 +619,16 @@ func TestIsCompatible(t *testing.T) {
 
 func TestCanCoerce(t *testing.T) {
 	tests := []struct {
+		from     Type
+		to       Type
 		name     string
-		from, to Type
 		expected bool
 	}{
-		{"Integer to Integer (no coercion)", INTEGER, INTEGER, true},
-		{"Integer to Float (coerce)", INTEGER, FLOAT, true},
-		{"Float to Integer (no coerce)", FLOAT, INTEGER, false},
-		{"String to Integer (no coerce)", STRING, INTEGER, false},
-		{"Float to Float (no coercion)", FLOAT, FLOAT, true},
+		{from: INTEGER, to: INTEGER, name: "Integer to Integer (no coercion)", expected: true},
+		{from: INTEGER, to: FLOAT, name: "Integer to Float (coerce)", expected: true},
+		{from: FLOAT, to: INTEGER, name: "Float to Integer (no coerce)", expected: false},
+		{from: STRING, to: INTEGER, name: "String to Integer (no coerce)", expected: false},
+		{from: FLOAT, to: FLOAT, name: "Float to Float (no coercion)", expected: true},
 	}
 
 	for _, tt := range tests {
@@ -637,14 +643,15 @@ func TestCanCoerce(t *testing.T) {
 
 func TestNeedsCoercion(t *testing.T) {
 	tests := []struct {
+		from     Type
+		to       Type
 		name     string
-		from, to Type
 		expected bool
 	}{
-		{"Integer to Integer", INTEGER, INTEGER, false},
-		{"Integer to Float", INTEGER, FLOAT, true},
-		{"Float to Integer", FLOAT, INTEGER, false},
-		{"Float to Float", FLOAT, FLOAT, false},
+		{from: INTEGER, to: INTEGER, name: "Integer to Integer", expected: false},
+		{from: INTEGER, to: FLOAT, name: "Integer to Float", expected: true},
+		{from: FLOAT, to: INTEGER, name: "Float to Integer", expected: false},
+		{from: FLOAT, to: FLOAT, name: "Float to Float", expected: false},
 	}
 
 	for _, tt := range tests {
@@ -659,19 +666,20 @@ func TestNeedsCoercion(t *testing.T) {
 
 func TestPromoteTypes(t *testing.T) {
 	tests := []struct {
-		name        string
-		left, right Type
-		expected    Type
-		expectsNil  bool
+		left       Type
+		right      Type
+		expected   Type
+		name       string
+		expectsNil bool
 	}{
-		{"Integer + Integer", INTEGER, INTEGER, INTEGER, false},
-		{"Float + Float", FLOAT, FLOAT, FLOAT, false},
-		{"Integer + Float", INTEGER, FLOAT, FLOAT, false},
-		{"Float + Integer", FLOAT, INTEGER, FLOAT, false},
-		{"String + String", STRING, STRING, STRING, false},
-		{"Boolean + Boolean", BOOLEAN, BOOLEAN, BOOLEAN, false},
-		{"Integer + String", INTEGER, STRING, nil, true},
-		{"Boolean + Integer", BOOLEAN, INTEGER, nil, true},
+		{left: INTEGER, right: INTEGER, expected: INTEGER, name: "Integer + Integer", expectsNil: false},
+		{left: FLOAT, right: FLOAT, expected: FLOAT, name: "Float + Float", expectsNil: false},
+		{left: INTEGER, right: FLOAT, expected: FLOAT, name: "Integer + Float", expectsNil: false},
+		{left: FLOAT, right: INTEGER, expected: FLOAT, name: "Float + Integer", expectsNil: false},
+		{left: STRING, right: STRING, expected: STRING, name: "String + String", expectsNil: false},
+		{left: BOOLEAN, right: BOOLEAN, expected: BOOLEAN, name: "Boolean + Boolean", expectsNil: false},
+		{left: INTEGER, right: STRING, expected: nil, name: "Integer + String", expectsNil: true},
+		{left: BOOLEAN, right: INTEGER, expected: nil, name: "Boolean + Integer", expectsNil: true},
 	}
 
 	for _, tt := range tests {
@@ -694,18 +702,18 @@ func TestPromoteTypes(t *testing.T) {
 
 func TestIsComparableType(t *testing.T) {
 	tests := []struct {
-		name     string
 		typ      Type
+		name     string
 		expected bool
 	}{
-		{"Integer", INTEGER, true},
-		{"Float", FLOAT, true},
-		{"String", STRING, true},
-		{"Boolean", BOOLEAN, true},
-		{"Nil", NIL, true},
-		{"Void", VOID, false},
-		{"Function", NewFunctionType([]Type{}, INTEGER), false},
-		{"Array", NewDynamicArrayType(INTEGER), false},
+		{typ: INTEGER, name: "Integer", expected: true},
+		{typ: FLOAT, name: "Float", expected: true},
+		{typ: STRING, name: "String", expected: true},
+		{typ: BOOLEAN, name: "Boolean", expected: true},
+		{typ: NIL, name: "Nil", expected: true},
+		{typ: VOID, name: "Void", expected: false},
+		{typ: NewFunctionType([]Type{}, INTEGER), name: "Function", expected: false},
+		{typ: NewDynamicArrayType(INTEGER), name: "Array", expected: false},
 	}
 
 	for _, tt := range tests {
@@ -720,16 +728,16 @@ func TestIsComparableType(t *testing.T) {
 
 func TestIsOrderedType(t *testing.T) {
 	tests := []struct {
-		name     string
 		typ      Type
+		name     string
 		expected bool
 	}{
-		{"Integer", INTEGER, true},
-		{"Float", FLOAT, true},
-		{"String", STRING, true},
-		{"Boolean", BOOLEAN, false},
-		{"Nil", NIL, false},
-		{"Void", VOID, false},
+		{typ: INTEGER, name: "Integer", expected: true},
+		{typ: FLOAT, name: "Float", expected: true},
+		{typ: STRING, name: "String", expected: true},
+		{typ: BOOLEAN, name: "Boolean", expected: false},
+		{typ: NIL, name: "Nil", expected: false},
+		{typ: VOID, name: "Void", expected: false},
 	}
 
 	for _, tt := range tests {
@@ -780,20 +788,20 @@ func TestSupportsOperation(t *testing.T) {
 
 func TestIsValidType(t *testing.T) {
 	tests := []struct {
-		name     string
 		typ      Type
+		name     string
 		expected bool
 	}{
-		{"Integer", INTEGER, true},
-		{"Float", FLOAT, true},
-		{"String", STRING, true},
-		{"Boolean", BOOLEAN, true},
-		{"Nil", NIL, true},
-		{"Void", VOID, true},
-		{"Valid function", NewFunctionType([]Type{INTEGER}, STRING), true},
-		{"Valid array", NewDynamicArrayType(INTEGER), true},
-		{"Valid record", NewRecordType("", map[string]Type{"X": INTEGER}), true},
-		{"Nil type", nil, false},
+		{typ: INTEGER, name: "Integer", expected: true},
+		{typ: FLOAT, name: "Float", expected: true},
+		{typ: STRING, name: "String", expected: true},
+		{typ: BOOLEAN, name: "Boolean", expected: true},
+		{typ: NIL, name: "Nil", expected: true},
+		{typ: VOID, name: "Void", expected: true},
+		{typ: NewFunctionType([]Type{INTEGER}, STRING), name: "Valid function", expected: true},
+		{typ: NewDynamicArrayType(INTEGER), name: "Valid array", expected: true},
+		{typ: NewRecordType("", map[string]Type{"X": INTEGER}), name: "Valid record", expected: true},
+		{typ: nil, name: "Nil type", expected: false},
 	}
 
 	for _, tt := range tests {
@@ -1253,9 +1261,9 @@ func TestClassTypeEquals(t *testing.T) {
 	class3 := NewClassType("TPerson", nil)
 
 	tests := []struct {
-		name     string
 		class1   Type
 		class2   Type
+		name     string
 		expected bool
 	}{
 		{
@@ -1297,11 +1305,11 @@ func TestClassTypeFields(t *testing.T) {
 	child.Fields["Age"] = INTEGER
 
 	tests := []struct {
-		name      string
+		fieldType Type
 		class     *ClassType
+		name      string
 		fieldName string
 		hasField  bool
-		fieldType Type
 	}{
 		{
 			name:      "own field",
@@ -1451,9 +1459,9 @@ func TestInterfaceTypeEquals(t *testing.T) {
 	iface3 := NewInterfaceType("IEnumerable")
 
 	tests := []struct {
-		name     string
 		iface1   Type
 		iface2   Type
+		name     string
 		expected bool
 	}{
 		{
@@ -1537,9 +1545,9 @@ func TestIsSubclassOf(t *testing.T) {
 	tUnrelated := NewClassType("TPoint", nil)
 
 	tests := []struct {
-		name     string
 		child    *ClassType
 		parent   *ClassType
+		name     string
 		expected bool
 	}{
 		{
@@ -1616,9 +1624,9 @@ func TestIsAssignableFrom(t *testing.T) {
 	tPerson.Methods["CompareTo"] = NewFunctionType([]Type{}, INTEGER)
 
 	tests := []struct {
-		name     string
 		target   Type
 		source   Type
+		name     string
 		expected bool
 	}{
 		{
@@ -1723,9 +1731,9 @@ func TestImplementsInterface(t *testing.T) {
 	tChild.Methods["Equals"] = NewFunctionType([]Type{INTEGER}, BOOLEAN)
 
 	tests := []struct {
-		name     string
 		class    *ClassType
 		iface    *InterfaceType
+		name     string
 		expected bool
 	}{
 		{
@@ -1933,8 +1941,8 @@ func TestIsClassType(t *testing.T) {
 	class := NewClassType("TPoint", nil)
 
 	tests := []struct {
-		name     string
 		typ      Type
+		name     string
 		expected bool
 	}{
 		{
@@ -1968,8 +1976,8 @@ func TestIsInterfaceType(t *testing.T) {
 	iface := NewInterfaceType("IComparable")
 
 	tests := []struct {
-		name     string
 		typ      Type
+		name     string
 		expected bool
 	}{
 		{
@@ -2014,11 +2022,11 @@ func TestInterfaceEqualsWithHierarchy(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
 		iface1   Type
 		iface2   Type
-		expected bool
+		name     string
 		note     string
+		expected bool
 	}{
 		{
 			name:     "exact same interface",
@@ -2171,9 +2179,9 @@ func TestIsSubinterfaceOf(t *testing.T) {
 	iUnrelated := NewInterfaceType("IUnrelated")
 
 	tests := []struct {
-		name     string
 		child    *InterfaceType
 		parent   *InterfaceType
+		name     string
 		expected bool
 	}{
 		{
@@ -2309,9 +2317,9 @@ func TestInterfaceToInterfaceAssignment(t *testing.T) {
 	iUnrelated.Methods["UnrelatedMethod"] = NewProcedureType([]Type{})
 
 	tests := []struct {
-		name     string
 		target   Type
 		source   Type
+		name     string
 		expected bool
 	}{
 		{
@@ -2491,8 +2499,8 @@ func TestMultipleInterfaceImplementation(t *testing.T) {
 
 	// Test each interface
 	tests := []struct {
-		name     string
 		iface    *InterfaceType
+		name     string
 		expected bool
 	}{
 		{

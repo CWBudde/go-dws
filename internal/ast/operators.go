@@ -44,15 +44,15 @@ func (k OperatorKind) String() string {
 //	operator implicit (Integer) : String uses IntToStr;
 //	class operator += String uses AppendString;
 type OperatorDecl struct {
-	Token          lexer.Token       // The leading token ('operator' or 'class')
-	Kind           OperatorKind      // Global, class, or conversion
-	OperatorToken  lexer.Token       // Token representing the operator symbol or keyword
-	OperatorSymbol string            // Canonical symbol (e.g., "+", "implicit", "IN")
-	Arity          int               // Number of explicit operand types
-	OperandTypes   []*TypeAnnotation // Operand type annotations (length equals Arity)
-	ReturnType     *TypeAnnotation   // Return type (nil for procedures/operators without result)
-	Binding        *Identifier       // Function or method name specified in the 'uses' clause
-	Visibility     Visibility        // Visibility (only relevant for class operators)
+	ReturnType     *TypeAnnotation
+	Binding        *Identifier
+	OperatorSymbol string
+	OperandTypes   []*TypeAnnotation
+	Token          lexer.Token
+	OperatorToken  lexer.Token
+	Kind           OperatorKind
+	Arity          int
+	Visibility     Visibility
 }
 
 func (od *OperatorDecl) statementNode()       {}

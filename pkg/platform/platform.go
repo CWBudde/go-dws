@@ -24,10 +24,10 @@ import "time"
 // FileInfo represents basic information about a file or directory.
 // This is a simplified version of os.FileInfo for cross-platform compatibility.
 type FileInfo struct {
+	ModTime time.Time
 	Name    string
 	Size    int64
 	IsDir   bool
-	ModTime time.Time
 }
 
 // FileSystem provides an abstraction for filesystem operations.

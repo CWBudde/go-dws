@@ -23,11 +23,11 @@ import (
 //	  function MethodName: ReturnType;
 //	end;
 type RecordDecl struct {
-	Token      lexer.Token          // The 'type' token
-	Name       *Identifier          // The record type name (e.g., "TPoint", "TVector")
-	Fields     []*FieldDecl         // Field declarations
-	Methods    []*FunctionDecl      // Method declarations (optional)
-	Properties []RecordPropertyDecl // Property declarations (optional, Task 8.56c)
+	Name       *Identifier
+	Fields     []*FieldDecl
+	Methods    []*FunctionDecl
+	Properties []RecordPropertyDecl
+	Token      lexer.Token
 }
 
 func (rd *RecordDecl) statementNode()       {}
@@ -72,11 +72,11 @@ func (rd *RecordDecl) String() string {
 // DWScript syntax: property Name: Type read Field write Field;
 // Note: Renamed from PropertyDecl to avoid conflict with class PropertyDecl
 type RecordPropertyDecl struct {
-	Token      lexer.Token     // The 'property' token
-	Name       *Identifier     // Property name
-	Type       *TypeAnnotation // Property type
-	ReadField  string          // Field or method name for reading
-	WriteField string          // Field or method name for writing
+	Name       *Identifier
+	Type       *TypeAnnotation
+	ReadField  string
+	WriteField string
+	Token      lexer.Token
 }
 
 func (pd RecordPropertyDecl) String() string {
@@ -107,8 +107,8 @@ func (pd RecordPropertyDecl) String() string {
 // RecordField represents a single field initialization in a record literal.
 // Can be either named (X: 10) or positional (10).
 type RecordField struct {
-	Name  string     // Field name (empty for positional initialization)
-	Value Expression // Field value expression
+	Value Expression
+	Name  string
 }
 
 // RecordLiteral represents a record literal expression.
@@ -117,9 +117,9 @@ type RecordField struct {
 //   - Positional: (10, 20)
 //   - Typed: TPoint(X: 10, Y: 20) or TPoint(10, 20)
 type RecordLiteral struct {
-	Token    lexer.Token   // The '(' token
-	TypeName string        // Optional type name for typed literals (e.g., "TPoint")
-	Fields   []RecordField // Field initializations
+	TypeName string
+	Fields   []RecordField
+	Token    lexer.Token
 }
 
 func (rl *RecordLiteral) expressionNode()      {}

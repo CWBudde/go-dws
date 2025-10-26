@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Enum Declaration Parser Tests (Task 8.37-8.42)
+// Enum Declaration Parser Tests
 // ============================================================================
 
 // Task 8.37a: Test basic enum declaration parsing

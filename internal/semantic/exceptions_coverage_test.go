@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Additional Semantic Exception Tests for Coverage (Task 8.227)
+// Additional Semantic Exception Tests for Coverage
 // ============================================================================
 
 // TestAnalyzeFinallyClause tests the analyzeFinallyClause function

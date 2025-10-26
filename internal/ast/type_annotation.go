@@ -6,8 +6,8 @@ import "github.com/cwbudde/go-dws/internal/lexer"
 // This is used for variable declarations, parameters, and return types.
 // Example: `: Integer` in `var x: Integer := 5;`
 type TypeAnnotation struct {
-	Token lexer.Token // The ':' token or type name token
-	Name  string      // The type name (e.g., "Integer", "String")
+	Name  string
+	Token lexer.Token
 }
 
 // String returns the string representation of the type annotation
@@ -48,11 +48,10 @@ type TypedExpression interface {
 // Task 9.15: This node currently supports type aliases. Future tasks will
 // extend it to handle all type declarations.
 type TypeDeclaration struct {
-	Token       lexer.Token     // The 'type' token
-	Name        *Identifier     // The type name (e.g., "TUserID", "TFileName")
-	IsAlias     bool            // True if this is a type alias (type A = B)
-	AliasedType *TypeAnnotation // For aliases: the type being aliased (nil if not an alias)
-	// Future: Add fields for full type definitions (record, class, enum, etc.)
+	Name        *Identifier
+	AliasedType *TypeAnnotation
+	Token       lexer.Token
+	IsAlias     bool
 }
 
 func (td *TypeDeclaration) statementNode()       {}

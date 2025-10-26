@@ -227,7 +227,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			return stmt
 
 		case *ast.IndexExpression:
-			// Array index assignment: arr[i] := value (Task 8.138)
+			// Array index assignment: arr[i] := value
 			stmt := &ast.AssignmentStatement{
 				Token:  p.curToken,
 				Target: leftExpr,

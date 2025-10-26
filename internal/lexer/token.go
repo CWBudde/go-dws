@@ -19,9 +19,9 @@ func (p Position) String() string {
 
 // Token represents a lexical token with its type, literal value, and position.
 type Token struct {
-	Type    TokenType // The type of the token
-	Literal string    // The literal value of the token as it appears in source
-	Pos     Position  // Position in the source code
+	Literal string
+	Pos     Position
+	Type    TokenType
 }
 
 // String returns a string representation of the token for debugging.

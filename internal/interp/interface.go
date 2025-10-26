@@ -14,15 +14,9 @@ import (
 // It stores information about an interface's structure including methods,
 // parent interface, and external binding information.
 type InterfaceInfo struct {
-	// Name is the interface name (e.g., "IMyInterface")
-	Name string
-
-	// Parent is the parent interface (nil for root interfaces)
-	Parent *InterfaceInfo
-
-	// Methods maps method names to their AST declarations
-	// This includes inherited methods from parent interfaces
+	Parent  *InterfaceInfo
 	Methods map[string]*ast.FunctionDecl
+	Name    string
 }
 
 // NewInterfaceInfo creates a new InterfaceInfo with the given name.

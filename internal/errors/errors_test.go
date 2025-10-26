@@ -10,11 +10,11 @@ import (
 func TestCompilerError_Format(t *testing.T) {
 	tests := []struct {
 		name        string
-		pos         lexer.Position
 		message     string
 		source      string
 		file        string
-		wantContain []string // Strings that should appear in output
+		wantContain []string
+		pos         lexer.Position
 	}{
 		{
 			name:    "simple error with file",
@@ -79,10 +79,10 @@ PrintLn(y);`
 
 	tests := []struct {
 		name         string
-		pos          lexer.Position
 		message      string
-		contextLines int
 		wantContain  []string
+		pos          lexer.Position
+		contextLines int
 	}{
 		{
 			name:         "error with 1 line context",
@@ -132,8 +132,8 @@ func TestCompilerError_getSourceLine(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		lineNum int
 		want    string
+		lineNum int
 	}{
 		{
 			name:    "first line",
@@ -183,10 +183,10 @@ func TestCompilerError_getSourceContext(t *testing.T) {
 
 	tests := []struct {
 		name          string
+		want          []string
 		lineNum       int
 		contextBefore int
 		contextAfter  int
-		want          []string
 	}{
 		{
 			name:          "middle with 1 context",
@@ -309,12 +309,12 @@ func TestFormatErrors(t *testing.T) {
 
 func TestFromStringErrors(t *testing.T) {
 	tests := []struct {
+		checkFirst   func(*testing.T, *CompilerError)
 		name         string
-		stringErrors []string
 		source       string
 		file         string
+		stringErrors []string
 		wantCount    int
-		checkFirst   func(*testing.T, *CompilerError)
 	}{
 		{
 			name: "errors with position info",
@@ -376,9 +376,9 @@ func TestParseErrorString(t *testing.T) {
 	tests := []struct {
 		name        string
 		errStr      string
+		wantMessage string
 		wantLine    int
 		wantColumn  int
-		wantMessage string
 	}{
 		{
 			name:        "error with position",

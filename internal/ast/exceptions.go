@@ -29,10 +29,10 @@ import (
 //	  Cleanup();
 //	end;
 type TryStatement struct {
-	Token         lexer.Token     // The 'try' token
-	TryBlock      *BlockStatement // The try block
-	ExceptClause  *ExceptClause   // The except clause (nil if not present)
-	FinallyClause *FinallyClause  // The finally clause (nil if not present)
+	TryBlock      *BlockStatement
+	ExceptClause  *ExceptClause
+	FinallyClause *FinallyClause
+	Token         lexer.Token
 }
 
 func (ts *TryStatement) statementNode()       {}
@@ -82,9 +82,9 @@ func (ts *TryStatement) String() string {
 //	    HandleGeneric(E);
 //	end
 type ExceptClause struct {
-	Token     lexer.Token         // The 'except' token
-	Handlers  []*ExceptionHandler // Specific exception handlers
-	ElseBlock *BlockStatement     // Optional else block (executes if exception raised but no handler matched)
+	ElseBlock *BlockStatement
+	Handlers  []*ExceptionHandler
+	Token     lexer.Token
 }
 
 func (ec *ExceptClause) String() string {
@@ -121,10 +121,10 @@ func (ec *ExceptClause) String() string {
 //	  raise;
 //	end;
 type ExceptionHandler struct {
-	Token         lexer.Token     // The 'on' token
-	Variable      *Identifier     // The exception variable name (e.g., 'E')
-	ExceptionType *TypeAnnotation // The exception type (e.g., 'Exception')
-	Statement     Statement       // The handler statement (can be block or single statement)
+	Statement     Statement
+	Variable      *Identifier
+	ExceptionType *TypeAnnotation
+	Token         lexer.Token
 }
 
 func (eh *ExceptionHandler) String() string {
@@ -163,8 +163,8 @@ func (eh *ExceptionHandler) String() string {
 //	  Cleanup();
 //	end;
 type FinallyClause struct {
-	Token lexer.Token     // The 'finally' token
-	Block *BlockStatement // The finally block
+	Block *BlockStatement
+	Token lexer.Token
 }
 
 func (fc *FinallyClause) String() string {
@@ -190,8 +190,8 @@ func (fc *FinallyClause) String() string {
 //	raise new EMyException('custom error');
 //	raise; // re-raise
 type RaiseStatement struct {
-	Token     lexer.Token // The 'raise' token
-	Exception Expression  // The exception expression (nil for bare raise)
+	Exception Expression
+	Token     lexer.Token
 }
 
 func (rs *RaiseStatement) statementNode()       {}

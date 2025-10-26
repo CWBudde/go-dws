@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Property Semantic Analysis Tests (Task 8.52)
+// Property Semantic Analysis Tests
 // ============================================================================
 
 // TestPropertyDeclaration tests valid property declarations with various access patterns

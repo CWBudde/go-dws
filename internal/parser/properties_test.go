@@ -235,9 +235,9 @@ func TestPropertyIndexed(t *testing.T) {
 		name       string
 		input      string
 		propName   string
-		indexCount int
 		indexNames []string
 		indexTypes []string
+		indexCount int
 	}{
 		{
 			name:       "single index parameter",
