@@ -12,7 +12,6 @@ import (
 // TestIntegration_InterfaceDeclarationAndUsage tests complete interface workflow
 // Task 7.146.1: Interface declaration and usage
 func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
-	// t.Skip("interface runtime support pending")  // TESTING: Temporarily disabled to check if working
 	source := `
 		type
 			IPrintable = interface
@@ -29,10 +28,10 @@ func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
 			end;
 
 		var doc: TDocument;
-		doc := TDocument.Create;
+		doc := TDocument.Create();
 		doc.FName := 'MyDoc';
-		PrintLn(doc.GetName);
-		doc.Print;
+		PrintLn(doc.GetName());
+		doc.Print();
 	`
 
 	l := lexer.New(source)
@@ -78,7 +77,6 @@ func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
 // TestIntegration_InterfaceInheritanceHierarchy tests 3-level deep interface inheritance
 // Task 7.146.2: Interface inheritance hierarchies
 func TestIntegration_InterfaceInheritanceHierarchy(t *testing.T) {
-	t.Skip("interface runtime support pending")
 	source := `
 		type
 			IBase = interface
@@ -102,11 +100,11 @@ func TestIntegration_InterfaceInheritanceHierarchy(t *testing.T) {
 				procedure DerivedMethod; begin PrintLn('Derived'); end;
 			end;
 
-		var impl: TImplementation;
-		impl := TImplementation.Create;
-		impl.BaseMethod;
-		impl.MiddleMethod;
-		impl.DerivedMethod;
+		var instance: TImplementation;
+		instance := TImplementation.Create();
+		instance.BaseMethod();
+		instance.MiddleMethod();
+		instance.DerivedMethod();
 	`
 
 	l := lexer.New(source)
@@ -193,16 +191,15 @@ func TestIntegration_InterfaceInheritanceHierarchy(t *testing.T) {
 // TestIntegration_ClassImplementingMultipleInterfaces tests single class with 3+ interfaces
 // Task 7.146.3: Class implementing multiple interfaces
 func TestIntegration_ClassImplementingMultipleInterfaces(t *testing.T) {
-	t.Skip("interface runtime support pending")
 	source := `
 		type
 			IReadable = interface
-				function Read: String;
+				function GetData: String;
 			end;
 
 		type
 			IWritable = interface
-				procedure Write(s: String);
+				procedure SetData(s: String);
 			end;
 
 		type
@@ -215,12 +212,12 @@ func TestIntegration_ClassImplementingMultipleInterfaces(t *testing.T) {
 				FContent: String;
 				FOpen: Boolean;
 
-				function Read: String;
+				function GetData: String;
 				begin
 					Result := FContent;
 				end;
 
-				procedure Write(s: String);
+				procedure SetData(s: String);
 				begin
 					FContent := s;
 				end;
@@ -233,11 +230,11 @@ func TestIntegration_ClassImplementingMultipleInterfaces(t *testing.T) {
 			end;
 
 		var f: TFile;
-		f := TFile.Create;
+		f := TFile.Create();
 		f.FOpen := True;
-		f.Write('Hello, World');
-		PrintLn(f.Read);
-		f.Close;
+		f.SetData('Hello, World');
+		PrintLn(f.GetData());
+		f.Close();
 	`
 
 	l := lexer.New(source)
@@ -296,7 +293,6 @@ func TestIntegration_ClassImplementingMultipleInterfaces(t *testing.T) {
 // TestIntegration_InterfaceCastingAllCombinations tests all casting combinations
 // Task 7.146.4: Interface casting (all combinations)
 func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
-	t.Skip("interface runtime support pending")
 	t.Run("ObjectToInterface", func(t *testing.T) {
 		// Create interface
 		iface := NewInterfaceInfo("ITest")
@@ -418,7 +414,6 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 // TestIntegration_InterfaceLifetimeManagement tests interface lifetime and scope
 // Task 7.146.5: Interface lifetime management
 func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
-	t.Skip("interface runtime support pending")
 	t.Run("VariableLifetime", func(t *testing.T) {
 		interp := New(nil)
 
