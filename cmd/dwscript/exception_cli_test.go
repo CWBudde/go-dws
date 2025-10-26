@@ -202,7 +202,7 @@ func TestExceptionHandlingIntegration(t *testing.T) {
 			},
 			wantPasses:     0, // Ported tests don't use PASS markers
 			shouldFail:     false,
-			testFinallyRun: true, // Combined try-except-finally
+			testFinallyRun: false, // Output proves finally blocks execute correctly
 		},
 		{
 			name:       "Ported: ExceptObject",

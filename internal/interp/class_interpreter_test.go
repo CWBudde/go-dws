@@ -823,10 +823,10 @@ func TestNewKeywordWithException(t *testing.T) {
 func TestNewKeywordEquivalentToCreate(t *testing.T) {
 	// Test that new T(args) and T.Create(args) produce identical results
 	tests := []struct {
-		name     string
-		newSyntax     string
-		createSyntax  string
-		expected int64
+		name         string
+		newSyntax    string
+		createSyntax string
+		expected     int64
 	}{
 		{
 			name: "No constructor",
