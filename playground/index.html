@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DWScript Playground</title>
+    <link rel="stylesheet" href="css/playground.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <h1 class="logo">🚀 DWScript Playground</h1>
+            <span class="version" id="version">v0.1.0</span>
+        </div>
+        <div class="header-right">
+            <a href="https://github.com/cwbudde/go-dws" target="_blank" class="github-link">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                GitHub
+            </a>
+        </div>
+    </header>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <button id="btnRun" class="btn btn-primary" title="Run Code (Ctrl+Enter)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M3 2v12l10-6z"/>
+                </svg>
+                Run
+            </button>
+            <button id="btnClear" class="btn btn-secondary" title="Clear Output">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M5.5 5.5A.5.5 0 016 6v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5zm2.5 0a.5.5 0 01.5.5v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5zm3 .5a.5.5 0 00-1 0v6a.5.5 0 001 0V6z"/>
+                    <path fill-rule="evenodd" d="M14.5 3a1 1 0 01-1 1H13v9a2 2 0 01-2 2H5a2 2 0 01-2-2V4h-.5a1 1 0 01-1-1V2a1 1 0 011-1H6a1 1 0 011-1h2a1 1 0 011 1h3.5a1 1 0 011 1v1zM4.118 4L4 4.059V13a1 1 0 001 1h6a1 1 0 001-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                </svg>
+                Clear
+            </button>
+            <select id="selExamples" class="select" title="Load Example">
+                <option value="">-- Examples --</option>
+                <option value="hello">Hello World</option>
+                <option value="fibonacci">Fibonacci</option>
+                <option value="factorial">Factorial</option>
+                <option value="loops">Loops</option>
+                <option value="functions">Functions</option>
+                <option value="classes">Classes</option>
+                <option value="math">Math Operations</option>
+            </select>
+        </div>
+        <div class="toolbar-right">
+            <button id="btnShare" class="btn btn-secondary" title="Share Code (Copy URL)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M13.5 1a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM11 2.5a2.5 2.5 0 11.603 1.628l-6.718 3.12a2.499 2.499 0 010 1.504l6.718 3.12a2.5 2.5 0 11-.488.876l-6.718-3.12a2.5 2.5 0 110-3.256l6.718-3.12A2.5 2.5 0 0111 2.5zm-8.5 4a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm11 5.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"/>
+                </svg>
+                Share
+            </button>
+            <button id="btnTheme" class="btn btn-secondary" title="Toggle Theme">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="theme-icon">
+                    <path d="M6 .278a.768.768 0 01.08.858 7.208 7.208 0 00-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 01.81.316.733.733 0 01-.031.893A8.349 8.349 0 018.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 016 .278z"/>
+                </svg>
+                Theme
+            </button>
+            <button id="btnFormat" class="btn btn-secondary" title="Format Code (Alt+Shift+F)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M5 4a.5.5 0 00-.5.5v7a.5.5 0 001 0v-7A.5.5 0 005 4zm2 0a.5.5 0 00-.5.5v7a.5.5 0 001 0v-7A.5.5 0 007 4zm2 0a.5.5 0 00-.5.5v7a.5.5 0 001 0v-7A.5.5 0 009 4zm2 0a.5.5 0 00-.5.5v7a.5.5 0 001 0v-7A.5.5 0 0011 4z"/>
+                </svg>
+                Format
+            </button>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar" id="statusBar">
+        <div class="status-left">
+            <span id="statusText">Loading...</span>
+        </div>
+        <div class="status-right">
+            <span id="statsText"></span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Editor Panel -->
+        <div class="panel panel-editor">
+            <div class="panel-header">
+                <span class="panel-title">Code Editor</span>
+                <span class="panel-info" id="editorInfo">DWScript</span>
+            </div>
+            <div id="editor" class="editor-container"></div>
+        </div>
+
+        <!-- Resize Handle -->
+        <div class="resizer" id="resizer"></div>
+
+        <!-- Output Panel -->
+        <div class="panel panel-output">
+            <div class="panel-header">
+                <span class="panel-title">Output Console</span>
+                <span class="panel-info" id="outputInfo">Ready</span>
+            </div>
+            <div id="output" class="output-container"></div>
+        </div>
+    </div>
+
+    <!-- Load Monaco Editor from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+
+    <!-- Load WASM -->
+    <script src="wasm/wasm_exec.js"></script>
+
+    <!-- Load Playground Scripts -->
+    <script src="js/dwscript-lang.js"></script>
+    <script src="js/examples.js"></script>
+    <script src="js/playground.js"></script>
+</body>
+</html>

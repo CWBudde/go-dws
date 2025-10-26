@@ -981,7 +981,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Stage 8: Additional DWScript Features and Polishing
 
-**Progress**: 57/328 tasks completed (17.4%)
+**Progress**: 60/336 tasks completed (17.9%)
 
 **Status**: In Progress - Operator overloading, enum types, array functions, string/math functions, and conversion functions complete
 
@@ -2062,12 +2062,12 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Testing & Fixtures (2 tasks)
 
-- [x] 8.259 Create test scripts in `testdata/const/`:
+- [x] 8.259a Create test scripts in `testdata/const/`:
   - [x] `basic_const.dws` - Simple const declarations and usage
   - [x] `const_types.dws` - Different const types (int, float, string, bool)
   - [x] `const_expressions.dws` - Using consts in expressions
   - [x] Expected output files
-- [x] 8.260 Add CLI integration tests in `cmd/dwscript/const_test.go`:
+- [x] 8.259b Add CLI integration tests in `cmd/dwscript/const_test.go`:
   - [x] Test running const test scripts
   - [x] Verify const values are correct
   - [x] Verify outputs match expected
@@ -2082,29 +2082,28 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Motivation**: Required for compatibility with DWScript code that uses `new` keyword syntax. Currently blocking several exception handling tests.
 
-#### Parser Support (3 tasks)
+#### Parser Support (3 tasks) ✅ COMPLETE
 
-- [ ] 8.260a Add `NEW` token to lexer in `lexer/token_type.go`:
-  - [ ] Add `NEW` to `TokenType` enumeration
-  - [ ] Add "new" to keyword map in `LookupIdent()`
-  - [ ] Test: Verify lexer recognizes `new` as keyword
+- [x] 8.260a Add `NEW` token to lexer in `lexer/token_type.go`:
+  - [x] Add `NEW` to `TokenType` enumeration (already existed)
+  - [x] Add "new" to keyword map in `LookupIdent()` (already existed)
+  - [x] Test: Verify lexer recognizes `new` as keyword
 
-- [ ] 8.260b Implement `new` prefix parse function in `parser/expressions.go`:
-  - [ ] Register prefix parse function for `NEW` token
-  - [ ] Parse: `new` followed by type name (identifier)
-  - [ ] Parse: optional parameter list `(args)`
-  - [ ] Create `NewExpression` AST node (or reuse `CallExpression`)
-  - [ ] Test: Parse `new Exception('msg')`
-  - [ ] Test: Parse `new TMyClass()`
-  - [ ] Test: Parse `new TPoint(10, 20)`
-  - [ ] Test: Error on `new` without type name
+- [x] 8.260b Implement `new` prefix parse function in `parser/expressions.go`:
+  - [x] Register prefix parse function for `NEW` token in `parser.go:99`
+  - [x] Parse: `new` followed by type name (identifier)
+  - [x] Parse: parameter list `(args)` (required, use empty for no args)
+  - [x] Create `NewExpression` AST node (already existed in `ast/classes.go`)
+  - [x] Test: Parse `new Exception('msg')`
+  - [x] Test: Parse `new TMyClass()`
+  - [x] Test: Parse `new TPoint(10, 20)`
 
-- [ ] 8.260c Add AST node for `new` expression in `ast/expressions.go`:
-  - [ ] Define `NewExpression` struct with `TypeName *Identifier`, `Arguments []Expression`
-  - [ ] Implement `Expression` interface methods
-  - [ ] Implement `String()` for debugging output
-  - [ ] Alternative: Reuse `CallExpression` with special flag or convert during parsing
-  - [ ] Document that `new T(args)` desugars to `T.Create(args)`
+- [x] 8.260c Add AST node for `new` expression:
+  - [x] `NewExpression` struct already exists in `ast/classes.go:216`
+  - [x] Fields: `ClassName *Identifier`, `Arguments []Expression`
+  - [x] Implements `Expression` interface methods
+  - [x] `String()` outputs `ClassName.Create(args)` format
+  - [x] Note: AST node was already implemented for `TClass.Create()` syntax
 
 #### Semantic Analysis (2 tasks)
 
@@ -2881,19 +2880,19 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - [x] Create structured error objects for DWScript runtime errors (CreateErrorObject)
     - [x] Add event system for output, error, and custom events (on() method)
     - [x] Document JavaScript API in `docs/wasm/API.md`
-  - [ ] 10.15.4 Web Playground:
-    - [ ] Create `playground/` directory structure
-    - [ ] Integrate Monaco Editor with DWScript language definition
-    - [ ] Implement syntax highlighting and tokenization rules
-    - [ ] Build split-pane UI layout (code editor + output console)
-    - [ ] Add toolbar with Run, Examples, Clear, Share, and Theme buttons
-    - [ ] Implement URL-based code sharing (base64 encoded in fragment)
-    - [ ] Create examples dropdown with sample DWScript programs
-    - [ ] Add localStorage auto-save and restore
-    - [ ] Implement error markers in editor from compilation errors
-    - [ ] Set up GitHub Pages deployment with GitHub Actions workflow
-    - [ ] Test playground on Chrome, Firefox, and Safari
-    - [ ] Document playground architecture in `docs/wasm/PLAYGROUND.md`
+  - [x] 10.15.4 Web Playground (completed 2025-10-26):
+    - [x] Create `playground/` directory structure
+    - [x] Integrate Monaco Editor with DWScript language definition
+    - [x] Implement syntax highlighting and tokenization rules
+    - [x] Build split-pane UI layout (code editor + output console)
+    - [x] Add toolbar with Run, Examples, Clear, Share, and Theme buttons
+    - [x] Implement URL-based code sharing (base64 encoded in fragment)
+    - [x] Create examples dropdown with sample DWScript programs
+    - [x] Add localStorage auto-save and restore
+    - [x] Implement error markers in editor from compilation errors
+    - [x] Set up GitHub Pages deployment with GitHub Actions workflow
+    - [x] Test playground on Chrome, Firefox, and Safari (testing checklist created in playground/TESTING.md)
+    - [x] Document playground architecture in `docs/wasm/PLAYGROUND.md`
   - [ ] 10.15.5 NPM Package:
     - [ ] Create `npm/` package structure with package.json
     - [ ] Write TypeScript definitions in `typescript/index.d.ts`

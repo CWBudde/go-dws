@@ -3341,3 +3341,50 @@ func TestNestedFunctions(t *testing.T) {
 		t.Error("outer function body is nil")
 	}
 }
+
+// TestNewKeywordExpression tests parsing of 'new' keyword expressions
+// The 'new' keyword creates a NewExpression: new T(args) -> NewExpression{ClassName: T, Arguments: args}
+func TestNewKeywordExpression(t *testing.T) {
+	tests := []struct {
+		input    string
+		typeName string
+		numArgs  int
+	}{
+		{"new Exception('test');", "Exception", 1},
+		{"new TPoint(10, 20);", "TPoint", 2},
+		{"new TMyClass();", "TMyClass", 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.ExpressionStatement. got=%T", program.Statements[0])
+			}
+
+			// new T(args) should create a NewExpression
+			newExpr, ok := stmt.Expression.(*ast.NewExpression)
+			if !ok {
+				t.Fatalf("expression is not ast.NewExpression. got=%T", stmt.Expression)
+			}
+
+			// Check class name
+			if newExpr.ClassName.Value != tt.typeName {
+				t.Fatalf("wrong class name. expected=%s, got=%s", tt.typeName, newExpr.ClassName.Value)
+			}
+
+			// Check number of arguments
+			if len(newExpr.Arguments) != tt.numArgs {
+				t.Fatalf("wrong number of arguments. expected=%d, got=%d", tt.numArgs, len(newExpr.Arguments))
+			}
+		})
+	}
+}
