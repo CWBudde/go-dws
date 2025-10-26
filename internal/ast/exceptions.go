@@ -84,7 +84,7 @@ func (ts *TryStatement) String() string {
 type ExceptClause struct {
 	Token     lexer.Token         // The 'except' token
 	Handlers  []*ExceptionHandler // Specific exception handlers
-	ElseBlock *BlockStatement     // Optional else block (executes if no exception)
+	ElseBlock *BlockStatement     // Optional else block (executes if exception raised but no handler matched)
 }
 
 func (ec *ExceptClause) String() string {
