@@ -709,3 +709,209 @@ func TestNonVirtualMethodDynamicDispatch(t *testing.T) {
 		t.Errorf("wrong output. expected=%q, got=%q", expected, output)
 	}
 }
+
+// ============================================================================
+// New Keyword Tests (Task 8.260f)
+// ============================================================================
+
+func TestNewKeywordSimpleClass(t *testing.T) {
+	input := `
+		type TPoint = class
+			X: Integer;
+			Y: Integer;
+		end;
+
+		var p: TPoint;
+		p := new TPoint();
+	`
+
+	result := testEvalClass(input)
+
+	if isError(result) {
+		t.Fatalf("Evaluation error: %s", result.String())
+	}
+
+	obj, ok := AsObject(result)
+	if !ok {
+		t.Fatalf("Expected object, got %s", result.Type())
+	}
+
+	if obj.Class.Name != "TPoint" {
+		t.Errorf("Expected class name TPoint, got %s", obj.Class.Name)
+	}
+}
+
+func TestNewKeywordWithConstructor(t *testing.T) {
+	input := `
+		type TBox = class
+			Width: Integer;
+			Height: Integer;
+			Depth: Integer;
+
+			function Create(w: Integer; h: Integer; d: Integer): TBox;
+			begin
+				Self.Width := w;
+				Self.Height := h;
+				Self.Depth := d;
+			end;
+
+			function Volume(): Integer;
+			begin
+				Result := Self.Width * Self.Height * Self.Depth;
+			end;
+		end;
+
+		var box: TBox;
+		box := new TBox(2, 3, 4);
+		box.Volume();
+	`
+
+	result := testEvalClass(input)
+
+	if isError(result) {
+		t.Fatalf("Evaluation error: %s", result.String())
+	}
+
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("Expected IntegerValue, got %s", result.Type())
+	}
+
+	if intVal.Value != 24 {
+		t.Errorf("Expected 24, got %d", intVal.Value)
+	}
+}
+
+func TestNewKeywordWithException(t *testing.T) {
+	input := `
+		type TMyException = class
+			FMessage: String;
+
+			function Create(msg: String): TMyException;
+			begin
+				FMessage := msg;
+				Result := Self;
+			end;
+
+			function GetMessage(): String;
+			begin
+				Result := FMessage;
+			end;
+		end;
+
+		var e: TMyException;
+		e := new TMyException('test error');
+		e.GetMessage();
+	`
+
+	result := testEvalClass(input)
+
+	if isError(result) {
+		t.Fatalf("Evaluation error: %s", result.String())
+	}
+
+	strVal, ok := result.(*StringValue)
+	if !ok {
+		t.Fatalf("Expected StringValue, got %s", result.Type())
+	}
+
+	if strVal.Value != "test error" {
+		t.Errorf("Expected 'test error', got %s", strVal.Value)
+	}
+}
+
+func TestNewKeywordEquivalentToCreate(t *testing.T) {
+	// Test that new T(args) and T.Create(args) produce identical results
+	tests := []struct {
+		name     string
+		newSyntax     string
+		createSyntax  string
+		expected int64
+	}{
+		{
+			name: "No constructor",
+			newSyntax: `
+				type TCounter = class
+					Value: Integer;
+				end;
+				var c := new TCounter();
+				c.Value := 42;
+				c.Value;
+			`,
+			createSyntax: `
+				type TCounter = class
+					Value: Integer;
+				end;
+				var c := TCounter.Create();
+				c.Value := 42;
+				c.Value;
+			`,
+			expected: 42,
+		},
+		{
+			name: "With constructor",
+			newSyntax: `
+				type TCounter = class
+					Value: Integer;
+					function Create(v: Integer): TCounter;
+					begin
+						Value := v;
+					end;
+				end;
+				var c := new TCounter(99);
+				c.Value;
+			`,
+			createSyntax: `
+				type TCounter = class
+					Value: Integer;
+					function Create(v: Integer): TCounter;
+					begin
+						Value := v;
+					end;
+				end;
+				var c := TCounter.Create(99);
+				c.Value;
+			`,
+			expected: 99,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test new syntax
+			resultNew := testEvalClass(tt.newSyntax)
+			if isError(resultNew) {
+				t.Fatalf("new syntax error: %s", resultNew.String())
+			}
+
+			intValNew, ok := resultNew.(*IntegerValue)
+			if !ok {
+				t.Fatalf("new syntax: expected IntegerValue, got %s", resultNew.Type())
+			}
+
+			// Test Create syntax
+			resultCreate := testEvalClass(tt.createSyntax)
+			if isError(resultCreate) {
+				t.Fatalf("Create syntax error: %s", resultCreate.String())
+			}
+
+			intValCreate, ok := resultCreate.(*IntegerValue)
+			if !ok {
+				t.Fatalf("Create syntax: expected IntegerValue, got %s", resultCreate.Type())
+			}
+
+			// Both should produce same result
+			if intValNew.Value != tt.expected {
+				t.Errorf("new syntax: expected %d, got %d", tt.expected, intValNew.Value)
+			}
+
+			if intValCreate.Value != tt.expected {
+				t.Errorf("Create syntax: expected %d, got %d", tt.expected, intValCreate.Value)
+			}
+
+			if intValNew.Value != intValCreate.Value {
+				t.Errorf("Mismatch: new returned %d, Create returned %d", intValNew.Value, intValCreate.Value)
+			}
+		})
+	}
+}
