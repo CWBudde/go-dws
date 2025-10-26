@@ -2819,7 +2819,7 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing until keyword in repeat",
 			input:         "repeat x := x + 1 x >= 10;",
-			expectedError: "expected next token to be UNTIL",
+			expectedError: "expected 'until' after repeat body",
 		},
 		{
 			name:          "missing identifier in for loop",

@@ -508,6 +508,43 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
+		// StringReplace built-in function (Task 9.46)
+		if funcIdent.Value == "StringReplace" {
+			// StringReplace takes 3-4 arguments: str, old, new, [count]
+			if len(expr.Arguments) < 3 || len(expr.Arguments) > 4 {
+				a.addError("function 'StringReplace' expects 3 or 4 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// First argument: string to search in
+			arg1Type := a.analyzeExpression(expr.Arguments[0])
+			if arg1Type != nil && arg1Type != types.STRING {
+				a.addError("function 'StringReplace' expects string as first argument, got %s at %s",
+					arg1Type.String(), expr.Token.Pos.String())
+			}
+			// Second argument: old substring
+			arg2Type := a.analyzeExpression(expr.Arguments[1])
+			if arg2Type != nil && arg2Type != types.STRING {
+				a.addError("function 'StringReplace' expects string as second argument, got %s at %s",
+					arg2Type.String(), expr.Token.Pos.String())
+			}
+			// Third argument: new substring
+			arg3Type := a.analyzeExpression(expr.Arguments[2])
+			if arg3Type != nil && arg3Type != types.STRING {
+				a.addError("function 'StringReplace' expects string as third argument, got %s at %s",
+					arg3Type.String(), expr.Token.Pos.String())
+			}
+			// Optional fourth argument: count (integer)
+			if len(expr.Arguments) == 4 {
+				arg4Type := a.analyzeExpression(expr.Arguments[3])
+				if arg4Type != nil && arg4Type != types.INTEGER {
+					a.addError("function 'StringReplace' expects integer as fourth argument, got %s at %s",
+						arg4Type.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.STRING
+		}
+
 		// Abs built-in function (Task 8.185)
 		if funcIdent.Value == "Abs" {
 			// Abs takes one numeric argument and returns the same type

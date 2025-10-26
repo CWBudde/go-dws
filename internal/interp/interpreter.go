@@ -1363,9 +1363,10 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		}
 	}
 
-	// Check if this is a built-in function with var parameters (Task 9.24)
+	// Check if this is a built-in function with var parameters (Task 9.24, 9.43, 9.44)
 	// These functions need the AST node for the first argument to modify it in place
-	if funcName.Value == "Inc" || funcName.Value == "Dec" {
+	if funcName.Value == "Inc" || funcName.Value == "Dec" || funcName.Value == "Insert" ||
+		(funcName.Value == "Delete" && len(expr.Arguments) == 3) {
 		return i.callBuiltinWithVarParam(funcName.Value, expr.Arguments)
 	}
 
@@ -1412,6 +1413,10 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinTrimLeft(args)
 	case "TrimRight":
 		return i.builtinTrimRight(args)
+	case "StringReplace":
+		return i.builtinStringReplace(args)
+	case "Format":
+		return i.builtinFormat(args)
 	case "Abs":
 		return i.builtinAbs(args)
 	case "Sqrt":
@@ -1466,12 +1471,18 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 // callBuiltinWithVarParam calls a built-in function that requires var parameters.
 // These functions need access to the AST nodes to modify variables in place.
 // Task 9.24: Support for Inc/Dec which need to modify the first argument.
+// Task 9.43: Support for Insert which needs to modify the second argument.
+// Task 9.44: Support for Delete (string mode) which needs to modify the first argument.
 func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression) Value {
 	switch name {
 	case "Inc":
 		return i.builtinInc(args)
 	case "Dec":
 		return i.builtinDec(args)
+	case "Insert":
+		return i.builtinInsert(args)
+	case "Delete":
+		return i.builtinDeleteString(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined var-param function: %s", name)
 	}
@@ -1812,6 +1823,197 @@ func (i *Interpreter) builtinTrimRight(args []Value) Value {
 
 	// Use TrimRight to remove trailing whitespace
 	return &StringValue{Value: strings.TrimRight(strVal.Value, " \t\n\r")}
+}
+
+// builtinStringReplace implements the StringReplace() built-in function.
+// It replaces occurrences of a substring within a string.
+// StringReplace(str, old, new) - replaces all occurrences of old with new
+// StringReplace(str, old, new, count) - replaces count occurrences (count=-1 means all)
+// Task 9.46: StringReplace() function for strings
+func (i *Interpreter) builtinStringReplace(args []Value) Value {
+	// Accept 3 or 4 arguments
+	if len(args) < 3 || len(args) > 4 {
+		return i.newErrorWithLocation(i.currentNode, "StringReplace() expects 3 or 4 arguments, got %d", len(args))
+	}
+
+	// First argument: string to search in
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StringReplace() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: old substring
+	oldVal, ok := args[1].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StringReplace() expects string as second argument, got %s", args[1].Type())
+	}
+
+	// Third argument: new substring
+	newVal, ok := args[2].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StringReplace() expects string as third argument, got %s", args[2].Type())
+	}
+
+	str := strVal.Value
+	old := oldVal.Value
+	new := newVal.Value
+
+	// Default count: -1 means replace all
+	count := -1
+
+	// Fourth argument (optional): count
+	if len(args) == 4 {
+		countVal, ok := args[3].(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "StringReplace() expects integer as fourth argument, got %s", args[3].Type())
+		}
+		count = int(countVal.Value)
+	}
+
+	// Handle edge cases
+	// Empty old string: return original (can't replace nothing)
+	if len(old) == 0 {
+		return &StringValue{Value: str}
+	}
+
+	// Count is 0 or negative (except -1): no replacement
+	if count == 0 || (count < 0 && count != -1) {
+		return &StringValue{Value: str}
+	}
+
+	// Perform the replacement using Go's strings.Replace
+	// strings.Replace with n=-1 replaces all occurrences
+	result := strings.Replace(str, old, new, count)
+
+	return &StringValue{Value: result}
+}
+
+// builtinFormat implements the Format() built-in function.
+// Format(fmt, args) - formats a string using format specifiers
+// Task 9.48-9.49: Format() function for string formatting
+// Supports: %s (string), %d (integer), %f (float), %% (literal %)
+// Optional: width and precision (%5d, %.2f, %8.2f)
+func (i *Interpreter) builtinFormat(args []Value) Value {
+	// Expect exactly 2 arguments: format string and array of values
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Format() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: format string
+	fmtVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Format() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: array of values
+	arrVal, ok := args[1].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Format() expects array as second argument, got %s", args[1].Type())
+	}
+
+	formatStr := fmtVal.Value
+	elements := arrVal.Elements
+
+	// Parse format string to extract format specifiers
+	type formatSpec struct {
+		verb  rune
+		index int
+	}
+	var specs []formatSpec
+	argIndex := 0
+
+	i_str := 0
+	for i_str < len(formatStr) {
+		ch := rune(formatStr[i_str])
+		if ch == '%' {
+			if i_str+1 < len(formatStr) && formatStr[i_str+1] == '%' {
+				// %% - literal percent sign
+				i_str += 2
+				continue
+			}
+			// Parse format specifier
+			i_str++
+			// Skip width/precision/flags
+			for i_str < len(formatStr) {
+				ch := formatStr[i_str]
+				if (ch >= '0' && ch <= '9') || ch == '.' || ch == '+' || ch == '-' || ch == ' ' || ch == '#' {
+					i_str++
+					continue
+				}
+				break
+			}
+			// Get the verb
+			if i_str < len(formatStr) {
+				verb := rune(formatStr[i_str])
+				if verb == 's' || verb == 'd' || verb == 'f' || verb == 'v' || verb == 'x' || verb == 'X' || verb == 'o' {
+					specs = append(specs, formatSpec{verb: verb, index: argIndex})
+					argIndex++
+				}
+				i_str++
+			}
+		} else {
+			i_str++
+		}
+	}
+
+	// Validate that we have the right number of arguments
+	if len(specs) != len(elements) {
+		return i.newErrorWithLocation(i.currentNode, "Format() expects %d arguments for format string, got %d", len(specs), len(elements))
+	}
+
+	// Validate types and convert DWScript values to Go interface{} values
+	goArgs := make([]interface{}, len(elements))
+	for idx, elem := range elements {
+		if idx >= len(specs) {
+			break
+		}
+		spec := specs[idx]
+
+		switch v := elem.(type) {
+		case *IntegerValue:
+			// %d, %x, %X, %o, %v are valid for integers
+			if spec.verb == 'd' || spec.verb == 'x' || spec.verb == 'X' || spec.verb == 'o' || spec.verb == 'v' {
+				goArgs[idx] = v.Value
+			} else if spec.verb == 's' {
+				// Allow integer to string conversion for %s
+				goArgs[idx] = fmt.Sprintf("%d", v.Value)
+			} else {
+				return i.newErrorWithLocation(i.currentNode, "Format() cannot use %%%c with Integer value at index %d", spec.verb, idx)
+			}
+		case *FloatValue:
+			// %f, %v are valid for floats
+			if spec.verb == 'f' || spec.verb == 'v' {
+				goArgs[idx] = v.Value
+			} else if spec.verb == 's' {
+				// Allow float to string conversion for %s
+				goArgs[idx] = fmt.Sprintf("%f", v.Value)
+			} else {
+				return i.newErrorWithLocation(i.currentNode, "Format() cannot use %%%c with Float value at index %d", spec.verb, idx)
+			}
+		case *StringValue:
+			// %s, %v are valid for strings
+			if spec.verb == 's' || spec.verb == 'v' {
+				goArgs[idx] = v.Value
+			} else if spec.verb == 'd' || spec.verb == 'x' || spec.verb == 'X' || spec.verb == 'o' {
+				// String cannot be used with integer format specifiers
+				return i.newErrorWithLocation(i.currentNode, "Format() cannot use %%%c with String value at index %d", spec.verb, idx)
+			} else if spec.verb == 'f' {
+				// String cannot be used with float format specifiers
+				return i.newErrorWithLocation(i.currentNode, "Format() cannot use %%%c with String value at index %d", spec.verb, idx)
+			} else {
+				goArgs[idx] = v.Value
+			}
+		case *BooleanValue:
+			goArgs[idx] = v.Value
+		default:
+			return i.newErrorWithLocation(i.currentNode, "Format() cannot format value of type %s at index %d", elem.Type(), idx)
+		}
+	}
+
+	// Format the string
+	result := fmt.Sprintf(formatStr, goArgs...)
+
+	return &StringValue{Value: result}
 }
 
 // builtinAbs implements the Abs() built-in function.
@@ -2638,6 +2840,183 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 	default:
 		return i.newErrorWithLocation(i.currentNode, "Dec() expects Integer or Enum, got %s", val.Type())
 	}
+}
+
+// builtinInsert implements the Insert() built-in function.
+// It inserts a source string into a target string at the specified position.
+// Insert(source, target, pos) - modifies target in-place (1-based position)
+// Task 9.43: Insert() function for strings
+func (i *Interpreter) builtinInsert(args []ast.Expression) Value {
+	// Validate argument count (3 arguments)
+	if len(args) != 3 {
+		return i.newErrorWithLocation(i.currentNode, "Insert() expects exactly 3 arguments, got %d", len(args))
+	}
+
+	// First argument: source string to insert (evaluate it)
+	sourceVal := i.Eval(args[0])
+	if isError(sourceVal) {
+		return sourceVal
+	}
+	sourceStr, ok := sourceVal.(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Insert() expects String as first argument (source), got %s", sourceVal.Type())
+	}
+
+	// Second argument: target string variable (must be an identifier)
+	targetIdent, ok := args[1].(*ast.Identifier)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Insert() second argument (target) must be a variable, got %T", args[1])
+	}
+
+	targetName := targetIdent.Value
+
+	// Get current target value from environment
+	currentVal, exists := i.env.Get(targetName)
+	if !exists {
+		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", targetName)
+	}
+
+	targetStr, ok := currentVal.(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Insert() expects target to be String, got %s", currentVal.Type())
+	}
+
+	// Third argument: position (1-based index)
+	posVal := i.Eval(args[2])
+	if isError(posVal) {
+		return posVal
+	}
+	posInt, ok := posVal.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Insert() expects Integer as third argument (position), got %s", posVal.Type())
+	}
+
+	pos := int(posInt.Value)
+	target := targetStr.Value
+	source := sourceStr.Value
+
+	// Handle edge cases for position
+	// If pos < 1, insert at beginning
+	// If pos > length, insert at end
+	if pos < 1 {
+		pos = 1
+	}
+	if pos > len(target)+1 {
+		pos = len(target) + 1
+	}
+
+	// Build new string by inserting source at position (1-based)
+	// Convert to 0-based for Go string slicing
+	insertPos := pos - 1
+
+	var newStr string
+	if insertPos <= 0 {
+		newStr = source + target
+	} else if insertPos >= len(target) {
+		newStr = target + source
+	} else {
+		newStr = target[:insertPos] + source + target[insertPos:]
+	}
+
+	// Update the target variable with the new string
+	newValue := &StringValue{Value: newStr}
+	if err := i.env.Set(targetName, newValue); err != nil {
+		return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", targetName, err)
+	}
+
+	return &NilValue{}
+}
+
+// builtinDeleteString implements the Delete() built-in function for strings.
+// It deletes count characters from a string starting at the specified position.
+// Delete(s, pos, count) - modifies s in-place (1-based position)
+// Task 9.44: Delete() function for strings (3-parameter variant)
+func (i *Interpreter) builtinDeleteString(args []ast.Expression) Value {
+	// Validate argument count (3 arguments)
+	if len(args) != 3 {
+		return i.newErrorWithLocation(i.currentNode, "Delete() for strings expects exactly 3 arguments, got %d", len(args))
+	}
+
+	// First argument: string variable (must be an identifier)
+	strIdent, ok := args[0].(*ast.Identifier)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Delete() first argument must be a variable, got %T", args[0])
+	}
+
+	strName := strIdent.Value
+
+	// Get current string value from environment
+	currentVal, exists := i.env.Get(strName)
+	if !exists {
+		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", strName)
+	}
+
+	strVal, ok := currentVal.(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Delete() expects first argument to be String, got %s", currentVal.Type())
+	}
+
+	// Second argument: position (1-based index)
+	posVal := i.Eval(args[1])
+	if isError(posVal) {
+		return posVal
+	}
+	posInt, ok := posVal.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Delete() expects Integer as second argument (position), got %s", posVal.Type())
+	}
+
+	// Third argument: count (number of characters to delete)
+	countVal := i.Eval(args[2])
+	if isError(countVal) {
+		return countVal
+	}
+	countInt, ok := countVal.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Delete() expects Integer as third argument (count), got %s", countVal.Type())
+	}
+
+	pos := int(posInt.Value)
+	count := int(countInt.Value)
+	str := strVal.Value
+
+	// Handle edge cases
+	// If pos < 1 or pos > length, do nothing (no-op)
+	// If count <= 0, do nothing (no-op)
+	if pos < 1 || pos > len(str) || count <= 0 {
+		// No modification needed
+		return &NilValue{}
+	}
+
+	// Convert to 0-based index
+	startPos := pos - 1
+
+	// Calculate end position, clamping to string length
+	endPos := startPos + count
+	if endPos > len(str) {
+		endPos = len(str)
+	}
+
+	// Build new string by removing the substring
+	var newStr string
+	if startPos == 0 {
+		// Delete from beginning
+		newStr = str[endPos:]
+	} else if endPos >= len(str) {
+		// Delete to end
+		newStr = str[:startPos]
+	} else {
+		// Delete from middle
+		newStr = str[:startPos] + str[endPos:]
+	}
+
+	// Update the string variable with the new value
+	newValue := &StringValue{Value: newStr}
+	if err := i.env.Set(strName, newValue); err != nil {
+		return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", strName, err)
+	}
+
+	return &NilValue{}
 }
 
 // builtinSucc implements the Succ() built-in function.

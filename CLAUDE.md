@@ -219,15 +219,19 @@ The project follows a 10-stage incremental plan (~511 tasks):
 6. **Stage 6**: Type checking (50 tasks) ✅ COMPLETE
 7. **Stage 7**: Classes and OOP (77 tasks)
 8. **Stage 8**: Advanced features (62 tasks)
-9. **Stage 9**: Performance and polish (68 tasks)
-10. **Stage 10**: Long-term evolution (54 tasks)
+9. **Stage 9**: Deferred Stage 8 Tasks
+10. **Stage 10**: Performance and polish (68 tasks)
+11. **Stage 11**: Long-term evolution (54 tasks)
+12. **Stage 12**: Codegen
 
 When implementing new stages:
+
 - Create AST nodes first
 - Extend parser with new syntax
 - Add comprehensive tests
 - Update CLI if applicable
 - Document in stage summary files under `docs/`
+- Mark tasks as done in `PLAN.md`
 
 ## Important Files
 
@@ -246,6 +250,7 @@ When implementing new stages:
 ## Notes for Future Development
 
 **Simulating Delphi Features in Go**: Since Go lacks classes, inheritance, and method overloading:
+
 - Use ClassInfo structs for class metadata
 - ObjectInstance structs with field maps for instances
 - Method tables for dynamic dispatch and overriding
@@ -253,4 +258,4 @@ When implementing new stages:
 
 **Memory Management**: Go's GC handles cleanup; no manual reference counting needed like Delphi.
 
-**Performance**: Current AST interpreter is simple. Stage 9 may add bytecode VM for better performance.
+**Performance**: Current AST interpreter is simple.
