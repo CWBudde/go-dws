@@ -391,15 +391,15 @@ func TestOperatorOverloading(t *testing.T) {
 	binary := "../../bin/dwscript"
 
 	testCases := []struct {
-		name                string
-		scriptFile          string
-		expectedFile        string
-		wantOutputs         []string // Key strings that must appear in output
-		shouldSucceed       bool
-		isErrorTest         bool
-		wantErrorParts      []string // For error tests, parts of error message
+		name                 string
+		scriptFile           string
+		expectedFile         string
+		wantOutputs          []string // Key strings that must appear in output
+		shouldSucceed        bool
+		isErrorTest          bool
+		wantErrorParts       []string // For error tests, parts of error message
 		skipIfNotImplemented bool     // Skip test if features not yet implemented
-		skipReason          string   // Reason for skipping
+		skipReason           string   // Reason for skipping
 	}{
 		{
 			name:                 "String + Integer operator",

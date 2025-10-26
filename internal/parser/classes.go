@@ -41,8 +41,8 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 // disambiguation since they don't start with 'T' but are parent classes, not interfaces.
 func isBuiltinClass(name string) bool {
 	builtinClasses := []string{
-		"Exception",      // Base exception class
-		"EConvertError",  // Standard exception types
+		"Exception",     // Base exception class
+		"EConvertError", // Standard exception types
 		"ERangeError",
 		"EDivByZero",
 		"EAssertionFailed",
@@ -110,7 +110,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 			firstIdent := identifiers[0]
 			// Check if first identifier is a built-in class or starts with 'T'
 			if isBuiltinClass(firstIdent.Value) ||
-			   (len(firstIdent.Value) > 0 && firstIdent.Value[0] == 'T') {
+				(len(firstIdent.Value) > 0 && firstIdent.Value[0] == 'T') {
 				// First identifier is the parent class
 				classDecl.Parent = firstIdent
 				classDecl.Interfaces = identifiers[1:]

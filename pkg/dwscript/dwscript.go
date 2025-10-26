@@ -113,11 +113,11 @@ func (e *Engine) Run(program *Program) (*Result, error) {
 			outputStr = buf.String()
 		}
 		return &Result{
-			Output:  outputStr,
-			Success: false,
-		}, &RuntimeError{
-			Message: result.String(),
-		}
+				Output:  outputStr,
+				Success: false,
+			}, &RuntimeError{
+				Message: result.String(),
+			}
 	}
 
 	// Extract output if it was a buffer

@@ -13,14 +13,14 @@ import (
 
 func TestPropertyBasicReadWrite(t *testing.T) {
 	tests := []struct {
-		name         string
-		input        string
-		propName     string
-		propType     string
-		readSpec     string
-		writeSpec    string
-		isReadOnly   bool
-		isWriteOnly  bool
+		name        string
+		input       string
+		propName    string
+		propType    string
+		readSpec    string
+		writeSpec   string
+		isReadOnly  bool
+		isWriteOnly bool
 	}{
 		{
 			name:        "field-backed property",
@@ -391,7 +391,7 @@ func TestPropertyErrors(t *testing.T) {
 		{
 			name:          "missing read and write",
 			input:         "property Name: String;", // This should be auto-property, tested later
-			expectedError: "", // Will handle in auto-property test
+			expectedError: "",                       // Will handle in auto-property test
 		},
 		{
 			name:          "missing semicolon",

@@ -9,7 +9,7 @@ import (
 
 // TestPlatformInterface verifies that native platform implements the Platform interface.
 func TestPlatformInterface(t *testing.T) {
-	var _ platform.Platform = native.NewNativePlatform()
+	var _ = native.NewNativePlatform()
 
 	plat := native.NewNativePlatform()
 	if plat == nil {
@@ -34,7 +34,7 @@ func TestPlatformInterface(t *testing.T) {
 // TestFileSystemInterface verifies that FileSystem interface works correctly.
 func TestFileSystemInterface(t *testing.T) {
 	plat := native.NewNativePlatform()
-	var _ platform.FileSystem = plat.FS()
+	var _ = plat.FS()
 
 	fs := plat.FS()
 	if fs == nil {
@@ -51,7 +51,7 @@ func TestFileSystemInterface(t *testing.T) {
 // TestConsoleInterface verifies that Console interface works correctly.
 func TestConsoleInterface(t *testing.T) {
 	plat := native.NewNativePlatform()
-	var _ platform.Console = plat.Console()
+	var _ = plat.Console()
 
 	console := plat.Console()
 	if console == nil {

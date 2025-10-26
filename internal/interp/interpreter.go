@@ -1576,7 +1576,7 @@ func (i *Interpreter) builtinCopy(args []Value) Value {
 	}
 
 	str := strVal.Value
-	index := indexVal.Value  // 1-based
+	index := indexVal.Value // 1-based
 	count := countVal.Value
 
 	// Handle edge cases

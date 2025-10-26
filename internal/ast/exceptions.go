@@ -29,7 +29,7 @@ import (
 //	  Cleanup();
 //	end;
 type TryStatement struct {
-	Token         lexer.Token    // The 'try' token
+	Token         lexer.Token     // The 'try' token
 	TryBlock      *BlockStatement // The try block
 	ExceptClause  *ExceptClause   // The except clause (nil if not present)
 	FinallyClause *FinallyClause  // The finally clause (nil if not present)
@@ -82,9 +82,9 @@ func (ts *TryStatement) String() string {
 //	    HandleGeneric(E);
 //	end
 type ExceptClause struct {
-	Token     lexer.Token          // The 'except' token
-	Handlers  []*ExceptionHandler  // Specific exception handlers
-	ElseBlock *BlockStatement      // Optional else block (executes if no exception)
+	Token     lexer.Token         // The 'except' token
+	Handlers  []*ExceptionHandler // Specific exception handlers
+	ElseBlock *BlockStatement     // Optional else block (executes if no exception)
 }
 
 func (ec *ExceptClause) String() string {

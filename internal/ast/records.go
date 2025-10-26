@@ -23,11 +23,11 @@ import (
 //	  function MethodName: ReturnType;
 //	end;
 type RecordDecl struct {
-	Token      lexer.Token            // The 'type' token
-	Name       *Identifier            // The record type name (e.g., "TPoint", "TVector")
-	Fields     []*FieldDecl           // Field declarations
-	Methods    []*FunctionDecl        // Method declarations (optional)
-	Properties []RecordPropertyDecl   // Property declarations (optional, Task 8.56c)
+	Token      lexer.Token          // The 'type' token
+	Name       *Identifier          // The record type name (e.g., "TPoint", "TVector")
+	Fields     []*FieldDecl         // Field declarations
+	Methods    []*FunctionDecl      // Method declarations (optional)
+	Properties []RecordPropertyDecl // Property declarations (optional, Task 8.56c)
 }
 
 func (rd *RecordDecl) statementNode()       {}
