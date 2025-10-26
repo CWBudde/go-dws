@@ -1,0 +1,53 @@
+{
+Test: Verify new T(args) and T.Create(args) produce identical results
+Task: 8.260h - Integration test for new keyword equivalence
+}
+
+PrintLn('=== Testing new vs .Create() Equivalence ===');
+
+{ Test 1: Simple exception with Create syntax }
+try
+   raise Exception.Create('test message');
+except
+   on E: Exception do
+      PrintLn('Create syntax: ' + E.Message);
+end;
+
+{ Test 2: Same exception with new syntax }
+try
+   raise new Exception('test message');
+except
+   on E: Exception do
+      PrintLn('new syntax: ' + E.Message);
+end;
+
+{ Test 3: Custom class with Create }
+type TCustomError = class(Exception)
+   ErrorCode: Integer;
+
+   function Create(msg: String; code: Integer): TCustomError;
+   begin
+      Message := msg;
+      ErrorCode := code;
+      Result := Self;
+   end;
+end;
+
+try
+   raise TCustomError.Create('error A', 42);
+except
+   on E: TCustomError do begin
+      PrintLn('Create: ' + E.Message + ', Code: ' + IntToStr(E.ErrorCode));
+   end;
+end;
+
+{ Test 4: Same custom class with new }
+try
+   raise new TCustomError('error A', 42);
+except
+   on E: TCustomError do begin
+      PrintLn('new: ' + E.Message + ', Code: ' + IntToStr(E.ErrorCode));
+   end;
+end;
+
+PrintLn('=== All Tests Complete ===');
