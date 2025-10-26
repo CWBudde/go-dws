@@ -132,10 +132,6 @@ func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
 func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 	if i.exception == nil {
 		// No exception to handle
-		if clause.ElseBlock != nil {
-			// Execute else block when no exception occurred
-			i.evalBlockStatement(clause.ElseBlock)
-		}
 		return
 	}
 
@@ -196,7 +192,13 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 		}
 	}
 
-	// No handler matched, exception remains active
+	// No handler matched - execute else block if present
+	if clause.ElseBlock != nil {
+		// Clear the exception before executing else block
+		i.exception = nil
+		i.evalBlockStatement(clause.ElseBlock)
+	}
+	// If no else block, exception remains active and will propagate
 }
 
 // matchesExceptionType checks if an exception matches a handler's type.
