@@ -43,18 +43,23 @@ jobs:
       - name: Prepare deployment
         run: |
           mkdir -p _site
+          # Copy playground files (excluding the wasm symlink)
           cp -r playground/* _site/
-          cp -r build/wasm/dist _site/wasm
+          # Remove the symlink if it exists
+          rm -f _site/wasm
+          # Copy the actual WASM files
+          mkdir -p _site/wasm
+          cp -r build/wasm/dist/* _site/wasm/
           # Create a simple index redirect if needed
           if [ ! -f "_site/index.html" ]; then
             cat > _site/index.html <<EOF
           <!DOCTYPE html>
           <html>
           <head>
-            <meta http-equiv="refresh" content="0; url=playground.html">
+            <meta http-equiv="refresh" content="0; url=index.html">
           </head>
           <body>
-            <p>Redirecting to <a href="playground.html">DWScript Playground</a>...</p>
+            <p>Redirecting to <a href="index.html">DWScript Playground</a>...</p>
           </body>
           </html>
           EOF

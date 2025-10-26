@@ -19,31 +19,67 @@ go-dws is a faithful implementation of the DWScript scripting language in Go, pr
 
 🚧 **Work in Progress** - This project is under active development.
 
-**Current Capabilities**:
-
-- ✅ **Variables and Expressions**: Full support for all DWScript types
-- ✅ **Control Flow**: if/else, while, for, repeat, case statements
-- ✅ **Functions**: User-defined functions and procedures with recursion
-- ✅ **Object-Oriented Programming**: Classes, inheritance, polymorphism, interfaces (Stage 7 complete)
-  - Classes with fields, methods, constructors
-  - Single inheritance with method overriding
-  - Virtual/abstract methods and abstract classes
-  - Static fields and methods
-  - Visibility control (public/protected/private)
-  - Interfaces with multiple implementation
-  - Interface casting and polymorphism
-- ✅ **Type System**: Strong static typing with semantic analysis
-- ✅ **Built-in Functions**: PrintLn, Print, Length, and more
-
 See [PLAN.md](PLAN.md) for the complete implementation roadmap and current progress.
+
+## 🚀 Try It Online - Web Playground
+
+**Try DWScript right now in your browser!** No installation needed.
+
+👉 **[Open the DWScript Playground](https://meko-tech.github.io/go-dws/)** 👈
+
+The Web Playground features:
+- **Monaco Editor** (VS Code's editor) with DWScript syntax highlighting
+- **WebAssembly-powered execution** - Run DWScript code at native speeds in your browser
+- **Interactive examples** - Fibonacci, Factorial, Classes, and more
+- **Code sharing** - Share your code via URL
+- **Auto-save** - Your code persists in localStorage
+- **Light & Dark themes** - Choose your preferred editor theme
+
+Perfect for learning DWScript, testing code snippets, or experimenting with the language!
+
+**Quick Start:**
+1. Visit the [playground](https://meko-tech.github.io/go-dws/)
+2. Try one of the example programs from the dropdown
+3. Click "Run" or press `Ctrl+Enter`
+4. See the output in real-time!
+
+For local development or running the playground offline, see [playground/README.md](playground/README.md).
 
 ## Installation
 
-**Note:** Not yet ready for installation. This section will be updated when the first working version is released.
+### Option 1: Use the Web Playground (Recommended for Quick Start)
+
+No installation needed! Just visit **[https://meko-tech.github.io/go-dws/](https://meko-tech.github.io/go-dws/)** and start coding.
+
+### Option 2: Install the CLI Tool
 
 ```bash
-# Future installation (not yet available)
-go install github.com/cwbudde/go-dws/cmd/dwscript@latest
+# Clone the repository
+git clone https://github.com/cwbudde/go-dws.git
+cd go-dws
+
+# Build the CLI tool
+go build -o bin/dwscript ./cmd/dwscript
+
+# Run a DWScript program
+./bin/dwscript run script.dws
+```
+
+### Option 3: Use as a Go Library
+
+```bash
+# Add to your Go project
+go get github.com/cwbudde/go-dws/pkg/dwscript
+```
+
+Then import and use in your Go code:
+
+```go
+import "github.com/cwbudde/go-dws/pkg/dwscript"
+
+engine, _ := dwscript.New()
+result, _ := engine.Eval(`PrintLn('Hello from Go!');`)
+fmt.Print(result.Output)
 ```
 
 ## Usage
@@ -360,16 +396,29 @@ For detailed documentation on OOP features, see:
 
 ```text
 go-dws/
-├── lexer/          # Lexical analyzer (tokenizer)
-├── parser/         # Parser and AST builder
-├── ast/            # Abstract Syntax Tree node definitions
-├── types/          # Type system implementation
-├── interp/         # Interpreter/runtime engine
-├── cmd/dwscript/   # CLI application
-├── testdata/       # Test scripts and data
-├── reference/      # DWScript original source (read-only reference)
-├── PLAN.md         # Detailed implementation roadmap
-└── goal.md         # High-level project goals and strategy
+├── internal/
+│   ├── lexer/          # Lexical analyzer (tokenizer)
+│   ├── parser/         # Parser and AST builder
+│   ├── ast/            # Abstract Syntax Tree node definitions
+│   ├── types/          # Type system implementation
+│   ├── semantic/       # Semantic analyzer
+│   └── interp/         # Interpreter/runtime engine
+├── pkg/
+│   ├── dwscript/       # Public embedding API
+│   ├── platform/       # Platform abstraction (native/WASM)
+│   └── wasm/           # WebAssembly bridge code
+├── cmd/
+│   ├── dwscript/       # CLI application
+│   └── dwscript-wasm/  # WASM entry point
+├── playground/         # Web playground (Monaco Editor + WASM)
+├── build/wasm/         # WASM build scripts and output
+├── docs/               # Documentation
+│   ├── wasm/          # WASM-specific docs (API.md, BUILD.md, PLAYGROUND.md)
+│   └── plans/         # Design documents
+├── testdata/           # Test scripts and data
+├── reference/          # DWScript original source (read-only reference)
+├── PLAN.md             # Detailed implementation roadmap
+└── goal.md             # High-level project goals and strategy
 ```
 
 ## Development Roadmap
@@ -422,11 +471,117 @@ Source Code → Lexer → Parser → AST → Semantic Analyzer → Interpreter
                                                          Output
 ```
 
-Future optimizations may include:
+### Multi-Platform Support
+
+go-dws runs on multiple platforms:
+
+**Native (Go):**
+```text
+CLI Tool (cmd/dwscript)
+    ↓
+DWScript Engine (pkg/dwscript)
+    ↓
+Native Platform (pkg/platform/native)
+    ↓
+OS (filesystem, console, etc.)
+```
+
+**WebAssembly (Browser):**
+```text
+Web Playground (playground/)
+    ↓
+Monaco Editor → JavaScript API (pkg/wasm/api.go)
+                    ↓
+            DWScript WASM Module
+                    ↓
+            WASM Platform (pkg/platform/wasm)
+                    ↓
+            Browser APIs (console.log, etc.)
+```
+
+The platform abstraction layer (`pkg/platform/`) enables DWScript to run seamlessly in both native Go environments and in the browser via WebAssembly, with identical language behavior.
+
+### Future Optimizations
+
+Planned enhancements may include:
 
 - Bytecode compilation for better performance
 - JIT compilation (if feasible in Go)
 - JavaScript transpilation backend
+- Additional platform targets (mobile, embedded)
+
+## WebAssembly & Browser Support
+
+go-dws compiles to WebAssembly, enabling it to run in any modern web browser at near-native speeds.
+
+### Web Playground Features
+
+The [DWScript Playground](https://meko-tech.github.io/go-dws/) provides:
+
+- **Monaco Editor**: Full VS Code-style editor experience
+  - Syntax highlighting for DWScript
+  - Auto-indentation and code formatting
+  - Find/replace, multi-cursor editing
+  - Error markers for compilation errors
+  - Minimap and line numbers
+
+- **WASM Execution**: Run DWScript code in your browser
+  - No server required - everything runs client-side
+  - 50-80% of native Go performance
+  - Instant feedback on code execution
+  - Full access to DWScript language features
+
+- **Developer Tools**:
+  - 7 built-in example programs
+  - URL-based code sharing (base64-encoded)
+  - localStorage auto-save and restore
+  - Light and dark themes
+  - Keyboard shortcuts (Ctrl+Enter to run)
+  - Split-pane UI with resizable panels
+
+### Building for WebAssembly
+
+```bash
+# Build WASM module
+just wasm
+
+# Build with optimization
+just wasm-opt
+
+# Run playground locally
+cd playground
+python3 -m http.server 8080
+```
+
+For detailed WASM build instructions, see [docs/wasm/BUILD.md](docs/wasm/BUILD.md).
+
+### JavaScript API
+
+Embed DWScript in your web applications:
+
+```javascript
+// Load WASM module
+const go = new Go();
+const result = await WebAssembly.instantiateStreaming(
+    fetch('dwscript.wasm'),
+    go.importObject
+);
+go.run(result.instance);
+
+// Create DWScript instance
+const dws = new DWScript();
+await dws.init();
+
+// Run code
+const result = dws.eval(`
+    var x: Integer := 42;
+    PrintLn('The answer is ' + IntToStr(x));
+`);
+
+console.log(result.output); // "The answer is 42"
+```
+
+For complete API documentation, see [docs/wasm/API.md](docs/wasm/API.md).
 
 ## License
 
@@ -441,10 +596,25 @@ This project is a port/reimplementation and will respect the original DWScript l
 
 ## References
 
+### DWScript Resources
 - [DWScript Original Repository](https://github.com/EricGrange/DWScript)
 - [DWScript Website](https://www.delphitools.info/dwscript/)
+
+### go-dws Documentation
 - [Implementation Plan](PLAN.md)
 - [Project Goals](goal.md)
+
+### Web Playground & WebAssembly
+- [🚀 Try the Playground](https://meko-tech.github.io/go-dws/)
+- [Playground Documentation](docs/wasm/PLAYGROUND.md)
+- [JavaScript API Reference](docs/wasm/API.md)
+- [WASM Build Guide](docs/wasm/BUILD.md)
+- [Playground Quick Start](playground/README.md)
+
+### OOP Features
+- [Stage 7 Completion Summary](docs/stage7-complete.md)
+- [Delphi-to-Go Mapping Guide](docs/delphi-to-go-mapping.md)
+- [Interfaces Implementation Guide](docs/interfaces-guide.md)
 
 ## Contact
 
@@ -453,3 +623,5 @@ This project is a port/reimplementation and will respect the original DWScript l
 ---
 
 **Status**: 🚧 In Development - Not yet ready for production use
+
+✅ **Web Playground**: [Try it now!](https://meko-tech.github.io/go-dws/) - Fully functional with WebAssembly execution
