@@ -35,7 +35,7 @@ func init() {
 	parseCmd.Flags().BoolVar(&parseDumpAST, "dump-ast", false, "dump the full AST structure")
 }
 
-func runParse(cmd *cobra.Command, args []string) error {
+func runParse(_ *cobra.Command, args []string) error {
 	var input string
 
 	// Determine input source

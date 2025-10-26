@@ -64,10 +64,8 @@ func TestRunWithSemanticErrors(t *testing.T) {
 				if !strings.Contains(stderr, tt.errorContains) {
 					t.Errorf("expected error to contain %q, got: %s", tt.errorContains, stderr)
 				}
-			} else {
-				if err != nil {
-					t.Errorf("unexpected error: %v, stderr: %s", err, stderr)
-				}
+			} else if err != nil {
+				t.Errorf("unexpected error: %v, stderr: %s", err, stderr)
 			}
 		})
 	}

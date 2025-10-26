@@ -288,7 +288,7 @@ func TestEdge_InterfaceVariablesHoldingNil(t *testing.T) {
 		iface := NewInterfaceInfo("ITest")
 
 		// Create interface instance with nil object
-		var nilObj *ObjectInstance = nil
+		var nilObj *ObjectInstance
 		ifaceInstance := NewInterfaceInstance(iface, nilObj)
 
 		// Verify nil is stored
@@ -306,7 +306,7 @@ func TestEdge_InterfaceVariablesHoldingNil(t *testing.T) {
 		iface := NewInterfaceInfo("ITest")
 
 		// Nil interface
-		var nilObj *ObjectInstance = nil
+		var nilObj *ObjectInstance
 		nilInstance := NewInterfaceInstance(iface, nilObj)
 
 		// Non-nil interface
@@ -326,7 +326,7 @@ func TestEdge_InterfaceVariablesHoldingNil(t *testing.T) {
 
 	t.Run("NilExtraction", func(t *testing.T) {
 		iface := NewInterfaceInfo("ITest")
-		var nilObj *ObjectInstance = nil
+		var nilObj *ObjectInstance
 		ifaceInstance := NewInterfaceInstance(iface, nilObj)
 
 		// Extracting underlying object should return nil
@@ -341,7 +341,7 @@ func TestEdge_InterfaceVariablesHoldingNil(t *testing.T) {
 		iface := NewInterfaceInfo("ITest")
 
 		// Store nil interface in environment
-		var nilObj *ObjectInstance = nil
+		var nilObj *ObjectInstance
 		nilInstance := NewInterfaceInstance(iface, nilObj)
 		interp.env.Define("nilInterface", nilInstance)
 
@@ -361,8 +361,8 @@ func TestEdge_InterfaceVariablesHoldingNil(t *testing.T) {
 		iface := NewInterfaceInfo("ITest")
 
 		// Two nil interfaces
-		var nilObj1 *ObjectInstance = nil
-		var nilObj2 *ObjectInstance = nil
+		var nilObj1 *ObjectInstance
+		var nilObj2 *ObjectInstance
 		nilInstance1 := NewInterfaceInstance(iface, nilObj1)
 		nilInstance2 := NewInterfaceInstance(iface, nilObj2)
 

@@ -98,7 +98,7 @@ func TestValidTypeUsage(t *testing.T) {
 }
 
 // TestPhase6Summary runs a summary of Phase 6 completion
-func TestPhase6Summary(t *testing.T) {
+func TestPhase6Summary(_ *testing.T) {
 	fmt.Println("\n=== Phase 6 (Type System & Semantic Analysis) Summary ===")
 
 	// Count type error test files

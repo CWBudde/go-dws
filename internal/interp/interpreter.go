@@ -389,7 +389,7 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 }
 
 // evalSimpleAssignment handles simple variable assignment: x := value
-func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, stmt *ast.AssignmentStatement) Value {
+func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, _ *ast.AssignmentStatement) Value {
 	// Task 7.144: Check if trying to assign to an external variable
 	// Task 8.19a: Apply implicit conversion if types don't match
 	if existingVal, ok := i.env.Get(target.Value); ok {
@@ -1243,7 +1243,7 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 	// Task 8.19d: Try chained conversion if direct conversion not found
 	const maxConversionChainDepth = 3
 	path := i.conversions.findConversionPath(normalizedSource, normalizedTarget, maxConversionChainDepth)
-	if path == nil || len(path) < 2 {
+	if len(path) < 2 {
 		return value, false
 	}
 
@@ -2528,14 +2528,14 @@ func (i *Interpreter) evalCaseStatement(stmt *ast.CaseStatement) Value {
 
 // evalBreakStatement evaluates a break statement (Task 8.235j).
 // Sets the break signal to exit the innermost loop.
-func (i *Interpreter) evalBreakStatement(stmt *ast.BreakStatement) Value {
+func (i *Interpreter) evalBreakStatement(_ *ast.BreakStatement) Value {
 	i.breakSignal = true
 	return &NilValue{}
 }
 
 // evalContinueStatement evaluates a continue statement (Task 8.235k).
 // Sets the continue signal to skip to the next iteration of the innermost loop.
-func (i *Interpreter) evalContinueStatement(stmt *ast.ContinueStatement) Value {
+func (i *Interpreter) evalContinueStatement(_ *ast.ContinueStatement) Value {
 	i.continueSignal = true
 	return &NilValue{}
 }
@@ -2543,7 +2543,7 @@ func (i *Interpreter) evalContinueStatement(stmt *ast.ContinueStatement) Value {
 // evalExitStatement evaluates an exit statement (Task 8.235l).
 // Sets the exit signal to exit the current function.
 // If at program level, sets exit signal to terminate the program.
-func (i *Interpreter) evalExitStatement(stmt *ast.ExitStatement) Value {
+func (i *Interpreter) evalExitStatement(_ *ast.ExitStatement) Value {
 	i.exitSignal = true
 	// Exit doesn't return a value - the function's default return value is used
 	// (or the program exits if at top level)

@@ -200,7 +200,7 @@ func TestArrayLiteral(t *testing.T) {
 		}
 	})
 
-	t.Run("Implements Expression interface", func(t *testing.T) {
+	t.Run("Implements Expression interface", func(_ *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 		arrayLit := &ArrayLiteral{
 			Token:    tok,
@@ -357,7 +357,7 @@ func TestIndexExpression(t *testing.T) {
 		}
 	})
 
-	t.Run("Implements Expression interface", func(t *testing.T) {
+	t.Run("Implements Expression interface", func(_ *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 		indexExpr := &IndexExpression{
 			Token: tok,

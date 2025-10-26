@@ -683,7 +683,7 @@ func TestCallExpression(t *testing.T) {
 }
 
 // TestInterfaceImplementation verifies that all node types implement their respective interfaces.
-func TestInterfaceImplementation(t *testing.T) {
+func TestInterfaceImplementation(_ *testing.T) {
 	// Test that expression nodes implement Expression interface
 	var _ Expression = &Identifier{}
 	var _ Expression = &IntegerLiteral{}

@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// min returns the minimum of two integers
-func min(a, b int) int {
+// minInt returns the minimum of two integers
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}
@@ -483,7 +483,7 @@ func TestOperatorOverloading(t *testing.T) {
 					if tc.skipIfNotImplemented && (strings.Contains(outputStr, "undefined function") ||
 						strings.Contains(outputStr, "no prefix parse function") ||
 						strings.Contains(outputStr, "undefined method")) {
-						t.Skipf("Skipping: %s - %s", tc.skipReason, outputStr[0:min(200, len(outputStr))])
+						t.Skipf("Skipping: %s - %s", tc.skipReason, outputStr[0:minInt(200, len(outputStr))])
 						return
 					}
 					t.Errorf("Failed to run %s: %v\nOutput: %s", tc.scriptFile, err, output)

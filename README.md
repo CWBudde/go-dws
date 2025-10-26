@@ -7,6 +7,7 @@ A port of [DWScript](https://github.com/EricGrange/DWScript) (Delphi Web Script)
 go-dws is a faithful implementation of the DWScript scripting language in Go, preserving 100% of DWScript's syntax and semantics while leveraging Go's modern language features and ecosystem.
 
 **DWScript** is a full-featured Object Pascal-based scripting language featuring:
+
 - Strong static typing with type inference
 - Object-oriented programming (classes, interfaces, inheritance)
 - Functions and procedures with nested scopes
@@ -28,6 +29,7 @@ See [PLAN.md](PLAN.md) for the complete implementation roadmap and current progr
 👉 **[Open the DWScript Playground](https://cwbudde.github.io/go-dws/)** 👈
 
 The Web Playground features:
+
 - **Monaco Editor** (VS Code's editor) with DWScript syntax highlighting
 - **WebAssembly-powered execution** - Run DWScript code at native speeds in your browser
 - **Interactive examples** - Fibonacci, Factorial, Classes, and more
@@ -38,6 +40,7 @@ The Web Playground features:
 Perfect for learning DWScript, testing code snippets, or experimenting with the language!
 
 **Quick Start:**
+
 1. Visit the [playground](https://cwbudde.github.io/go-dws/)
 2. Try one of the example programs from the dropdown
 3. Click "Run" or press `Ctrl+Enter`
@@ -388,6 +391,7 @@ go-dws includes a complete implementation of DWScript's object-oriented programm
 - **FFI Preparation**: Foundation for Foreign Function Interface support
 
 For detailed documentation on OOP features, see:
+
 - [Stage 7 Completion Summary](docs/stage7-complete.md)
 - [Delphi-to-Go Mapping Guide](docs/delphi-to-go-mapping.md)
 - [Interfaces Implementation Guide](docs/interfaces-guide.md)
@@ -476,6 +480,7 @@ Source Code → Lexer → Parser → AST → Semantic Analyzer → Interpreter
 go-dws runs on multiple platforms:
 
 **Native (Go):**
+
 ```text
 CLI Tool (cmd/dwscript)
     ↓
@@ -487,6 +492,7 @@ OS (filesystem, console, etc.)
 ```
 
 **WebAssembly (Browser):**
+
 ```text
 Web Playground (playground/)
     ↓
@@ -597,14 +603,17 @@ This project is a port/reimplementation and will respect the original DWScript l
 ## References
 
 ### DWScript Resources
+
 - [DWScript Original Repository](https://github.com/EricGrange/DWScript)
 - [DWScript Website](https://www.delphitools.info/dwscript/)
 
 ### go-dws Documentation
+
 - [Implementation Plan](PLAN.md)
 - [Project Goals](goal.md)
 
 ### Web Playground & WebAssembly
+
 - [🚀 Try the Playground](https://cwbudde.github.io/go-dws/)
 - [Playground Documentation](docs/wasm/PLAYGROUND.md)
 - [JavaScript API Reference](docs/wasm/API.md)
@@ -612,6 +621,7 @@ This project is a port/reimplementation and will respect the original DWScript l
 - [Playground Quick Start](playground/README.md)
 
 ### OOP Features
+
 - [Stage 7 Completion Summary](docs/stage7-complete.md)
 - [Delphi-to-Go Mapping Guide](docs/delphi-to-go-mapping.md)
 - [Interfaces Implementation Guide](docs/interfaces-guide.md)
