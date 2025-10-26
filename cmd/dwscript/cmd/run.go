@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cwbudde/go-dws/errors"
-	"github.com/cwbudde/go-dws/interp"
-	"github.com/cwbudde/go-dws/lexer"
-	"github.com/cwbudde/go-dws/parser"
-	"github.com/cwbudde/go-dws/semantic"
+	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/interp"
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/spf13/cobra"
 )
 

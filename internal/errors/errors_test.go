@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/go-dws/lexer"
+	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
 func TestCompilerError_Format(t *testing.T) {

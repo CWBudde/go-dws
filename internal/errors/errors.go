@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cwbudde/go-dws/lexer"
+	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
 // CompilerError represents a single compilation error with position and context.

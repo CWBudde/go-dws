@@ -3,7 +3,7 @@ package interp
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/types"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // ============================================================================

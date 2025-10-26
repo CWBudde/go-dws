@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/go-dws/lexer"
-	"github.com/cwbudde/go-dws/parser"
-	"github.com/cwbudde/go-dws/semantic"
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/internal/semantic"
 )
 
 // TestTypeErrorDetection tests that all type errors are properly detected

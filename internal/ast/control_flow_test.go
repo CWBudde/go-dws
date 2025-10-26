@@ -3,7 +3,7 @@ package ast
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/lexer"
+	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
 func TestIfStatementString(t *testing.T) {

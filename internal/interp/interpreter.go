@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cwbudde/go-dws/ast"
-	"github.com/cwbudde/go-dws/types"
+	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
@@ -56,6 +56,10 @@ func New(output io.Writer) *Interpreter {
 
 	// Register built-in exception classes (Task 8.203-8.204)
 	interp.registerBuiltinExceptions()
+
+	// Initialize ExceptObject to nil (Task 8.206)
+	// ExceptObject is a built-in global variable that holds the current exception
+	env.Define("ExceptObject", &NilValue{})
 
 	return interp
 }
@@ -735,6 +739,44 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 
 	case left.Type() == "BOOLEAN" && right.Type() == "BOOLEAN":
 		return i.evalBooleanBinaryOp(expr.Operator, left, right)
+
+	// Handle object and nil comparisons (=, <>)
+	case expr.Operator == "=" || expr.Operator == "<>":
+		// Check if either operand is nil or an object instance
+		_, leftIsNil := left.(*NilValue)
+		_, rightIsNil := right.(*NilValue)
+		_, leftIsObj := left.(*ObjectInstance)
+		_, rightIsObj := right.(*ObjectInstance)
+
+		// If either is nil or an object, do object identity comparison
+		if leftIsNil || rightIsNil || leftIsObj || rightIsObj {
+			// Both nil
+			if leftIsNil && rightIsNil {
+				if expr.Operator == "=" {
+					return &BooleanValue{Value: true}
+				} else {
+					return &BooleanValue{Value: false}
+				}
+			}
+
+			// One is nil, one is not
+			if leftIsNil || rightIsNil {
+				if expr.Operator == "=" {
+					return &BooleanValue{Value: false}
+				} else {
+					return &BooleanValue{Value: true}
+				}
+			}
+
+			// Both are objects - compare by identity
+			if expr.Operator == "=" {
+				return &BooleanValue{Value: left == right}
+			} else {
+				return &BooleanValue{Value: left != right}
+			}
+		}
+		// Not object/nil comparison - fall through to default case
+		return i.newErrorWithLocation(expr, "type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
 
 	// Check if both are records (by type assertion, not string comparison)
 	// Since RecordValue.Type() now returns actual type name (e.g., "TPoint"), not "RECORD"
@@ -3159,6 +3201,12 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 	memberName := ma.Member.Value
 
+	// Handle built-in properties/methods available on all objects (inherited from TObject)
+	if memberName == "ClassName" {
+		// ClassName returns the runtime type name of the object
+		return &StringValue{Value: obj.Class.Name}
+	}
+
 	// Task 8.53: Check if this is a property access (properties take precedence over fields)
 	if propInfo := obj.Class.lookupProperty(memberName); propInfo != nil {
 		return i.evalPropertyRead(obj, propInfo, ma)
@@ -3600,6 +3648,12 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	obj, ok := AsObject(objVal)
 	if !ok {
 		return i.newErrorWithLocation(mc, "cannot call method on non-object type '%s'", objVal.Type())
+	}
+
+	// Handle built-in methods that are available on all objects (inherited from TObject)
+	if mc.Method.Value == "ClassName" {
+		// ClassName returns the runtime type name of the object
+		return &StringValue{Value: obj.Class.Name}
 	}
 
 	// Look up method in object's class

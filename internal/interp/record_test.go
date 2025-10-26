@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/cwbudde/go-dws/lexer"
-	"github.com/cwbudde/go-dws/parser"
-	"github.com/cwbudde/go-dws/types"
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // ============================================================================

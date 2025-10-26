@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/go-dws/lexer"
-	"github.com/cwbudde/go-dws/parser"
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
 )
 
 // testEval is a helper that parses and evaluates input.

@@ -77,39 +77,63 @@ Source Code → Lexer → Parser → AST → Semantic Analyzer → Interpreter
 
 ### Package Structure
 
-**lexer/** - Tokenization
-- `lexer.go`: Main lexer implementation with `NextToken()` method
-- `token.go`: Token types and Position tracking
-- `token_type.go`: Complete enumeration of 150+ DWScript tokens (keywords, operators, literals)
-- Supports: keywords, operators, string/number/boolean literals, comments (block and line)
-- Handles case-insensitive keywords, hex/binary numbers, escaped strings
+The project follows standard Go project layout with `cmd/`, `internal/`, and `pkg/` directories:
 
-**parser/** - Parsing and AST construction
-- `parser.go`: Pratt parser implementation with precedence climbing
-- Uses prefix/infix parse functions for extensibility
-- Precedence levels: LOWEST, ASSIGN, OR, AND, EQUALS, LESSGREATER, SUM, PRODUCT, PREFIX, CALL, INDEX, MEMBER
-- Currently supports: expressions, literals, binary/unary operations, grouped expressions, block statements
+**cmd/** - Command-line applications
+- `cmd/dwscript/` - CLI tool for running DWScript programs
+  - `lex` command: Tokenize and display tokens
+  - `parse` command: Parse and display AST
+  - `run` command: Execute scripts
+  - `version` command: Show version info
 
-**ast/** - Abstract Syntax Tree node definitions
-- `ast.go`: Base Node, Expression, and Statement interfaces
-- `expressions.go`: Expression nodes (literals, binary/unary ops, identifiers)
-- `statements.go`: Statement nodes (expression statements, block statements)
-- All nodes implement `String()` for debugging and `TokenLiteral()` for error reporting
+**internal/** - Private implementation (not importable by external projects)
+- `internal/lexer/` - Tokenization
+  - `lexer.go`: Main lexer implementation with `NextToken()` method
+  - `token.go`: Token types and Position tracking
+  - `token_type.go`: Complete enumeration of 150+ DWScript tokens
+  - Handles case-insensitive keywords, hex/binary numbers, escaped strings
 
-**types/** - Type system (placeholder for Stage 6)
-- Will contain Integer, Float, String, Boolean, Array, Class types
-- Type checking and semantic analysis
+- `internal/parser/` - Parsing and AST construction
+  - `parser.go`: Pratt parser with precedence climbing
+  - Uses prefix/infix parse functions for extensibility
+  - Precedence levels: LOWEST, ASSIGN, OR, AND, EQUALS, LESSGREATER, SUM, PRODUCT, PREFIX, CALL, INDEX, MEMBER
 
-**interp/** - Interpreter/runtime (placeholder for Stage 3)
-- Will execute the AST
-- Environment/symbol table management
-- Built-in function implementations
+- `internal/ast/` - Abstract Syntax Tree node definitions
+  - `ast.go`: Base Node, Expression, and Statement interfaces
+  - `expressions.go`: Expression nodes (literals, binary/unary ops, identifiers)
+  - `statements.go`: Statement nodes
+  - All nodes implement `String()` for debugging and `TokenLiteral()` for error reporting
 
-**cmd/dwscript/** - CLI application using Cobra
-- `lex` command: Tokenize and display tokens
-- `parse` command: Parse and display AST
-- `run` command: Execute scripts (not yet implemented)
-- `version` command: Show version info
+- `internal/semantic/` - Semantic analysis and type checking
+  - `analyzer.go`: Type checker and semantic analyzer
+  - `symbol_table.go`: Symbol table for scope management
+
+- `internal/types/` - Type system implementation
+  - Integer, Float, String, Boolean, Array, Record, Enum, Class types
+  - Type checking and conversion
+
+- `internal/interp/` - Interpreter/runtime
+  - Executes the AST
+  - Environment/symbol table management
+  - Built-in function implementations
+
+- `internal/errors/` - Error handling utilities
+  - Error formatting and reporting
+
+**pkg/** - Public APIs (importable by external projects)
+- `pkg/dwscript/` - High-level embedding API
+  - `dwscript.go`: Engine, Program, Result types
+  - `options.go`: Configuration options
+  - Public API for embedding DWScript in Go applications
+  - See [README.md](README.md) for usage examples
+
+- `pkg/platform/` - Platform abstraction layer (planned for Stage 10.15)
+  - Abstracts filesystem, console, and platform-specific functionality
+  - Enables native and WebAssembly builds with consistent behavior
+
+- `pkg/wasm/` - WebAssembly support (planned for Stage 10.15)
+  - JavaScript/Go interop
+  - Browser API bindings
 
 ### Key Design Patterns
 

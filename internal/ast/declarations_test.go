@@ -3,7 +3,7 @@ package ast
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/lexer"
+	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
 // TestConstDecl tests the ConstDecl AST node with an integer constant

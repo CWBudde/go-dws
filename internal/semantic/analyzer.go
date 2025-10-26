@@ -3,8 +3,8 @@ package semantic
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/ast"
-	"github.com/cwbudde/go-dws/types"
+	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // Analyzer performs semantic analysis on a DWScript program.
@@ -100,6 +100,12 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	objectClass.Constructors["Create"] = &types.FunctionType{
 		Parameters: []types.Type{}, // no parameters
 		ReturnType: objectClass,
+	}
+
+	// Add ClassName method (returns the runtime type name)
+	objectClass.Methods["ClassName"] = &types.FunctionType{
+		Parameters: []types.Type{},
+		ReturnType: types.STRING,
 	}
 
 	a.classes["TObject"] = objectClass
@@ -207,6 +213,20 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 		return false
 	}
 	if types.IsCompatible(from, to) {
+		return true
+	}
+	// Allow assigning nil to class types (and vice versa for comparison)
+	if from.TypeKind() == "NIL" && to.TypeKind() == "CLASS" {
+		return true
+	}
+	if from.TypeKind() == "CLASS" && to.TypeKind() == "NIL" {
+		return true
+	}
+	// Allow assigning nil to interface types (and vice versa for comparison)
+	if from.TypeKind() == "NIL" && to.TypeKind() == "INTERFACE" {
+		return true
+	}
+	if from.TypeKind() == "INTERFACE" && to.TypeKind() == "NIL" {
 		return true
 	}
 	if fromClass, ok := from.(*types.ClassType); ok {

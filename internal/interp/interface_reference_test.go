@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/go-dws/lexer"
-	"github.com/cwbudde/go-dws/parser"
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
 )
 
 // TestInterfaceReferenceTests runs all ported DWScript interface tests from testdata/interfaces/

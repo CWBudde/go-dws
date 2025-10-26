@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cwbudde/go-dws/types"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // Value represents a runtime value in the DWScript interpreter.

@@ -3,8 +3,8 @@ package parser
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/lexer"
-	"github.com/cwbudde/go-dws/semantic"
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/semantic"
 )
 
 // TestParserWithSemanticAnalysis tests that the parser can optionally run semantic analysis

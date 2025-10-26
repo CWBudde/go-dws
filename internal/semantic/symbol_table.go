@@ -1,6 +1,6 @@
 package semantic
 
-import "github.com/cwbudde/go-dws/types"
+import "github.com/cwbudde/go-dws/internal/types"
 
 // Symbol represents a symbol in the symbol table (variable or function)
 type Symbol struct {

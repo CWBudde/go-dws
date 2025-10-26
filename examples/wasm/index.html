@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DWScript WASM Example</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #0066cc;
+            padding-bottom: 10px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin-top: 0;
+            color: #0066cc;
+            font-size: 1.2em;
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        .output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .buttons {
+            margin: 15px 0;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .examples {
+            margin-top: 15px;
+        }
+        .example-btn {
+            background: #6c757d;
+            margin: 5px;
+            padding: 8px 15px;
+            font-size: 12px;
+        }
+        .example-btn:hover {
+            background: #5a6268;
+        }
+        .stats {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 DWScript WebAssembly Example</h1>
+
+    <div id="status" class="status loading">Loading WASM module...</div>
+
+    <div class="container">
+        <div class="panel">
+            <h2>📝 DWScript Code</h2>
+            <textarea id="code">// DWScript Example
+var x: Integer := 42;
+var message: String := 'Hello from WASM!';
+
+PrintLn(message);
+PrintLn('The answer is ' + IntToStr(x));
+
+// Simple loop
+var i: Integer;
+for i := 1 to 5 do
+    PrintLn('Count: ' + IntToStr(i));</textarea>
+
+            <div class="buttons">
+                <button id="runBtn" disabled>▶️ Run Code</button>
+                <button id="compileBtn" disabled>🔨 Compile Only</button>
+                <button id="clearBtn">🗑️ Clear Output</button>
+            </div>
+
+            <div class="examples">
+                <strong>Examples:</strong>
+                <button class="example-btn" onclick="loadExample('hello')">Hello World</button>
+                <button class="example-btn" onclick="loadExample('loop')">Loops</button>
+                <button class="example-btn" onclick="loadExample('function')">Functions</button>
+                <button class="example-btn" onclick="loadExample('math')">Math</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>📤 Output</h2>
+            <div id="output" class="output">// Output will appear here...</div>
+            <div id="stats" class="stats"></div>
+        </div>
+    </div>
+
+    <!-- Load the Go WASM runtime -->
+    <script src="../../build/wasm/dist/wasm_exec.js"></script>
+
+    <script>
+        let dws = null;
+        let currentProgram = null;
+
+        // Example programs
+        const examples = {
+            hello: `// Hello World
+var message: String := 'Hello, DWScript!';
+PrintLn(message);
+PrintLn('Welcome to WebAssembly!');`,
+
+            loop: `// Loop Example
+var i: Integer;
+
+PrintLn('Counting from 1 to 10:');
+for i := 1 to 10 do
+    PrintLn('Number: ' + IntToStr(i));
+
+PrintLn('Done!');`,
+
+            function: `// Function Example
+function Add(a, b: Integer): Integer;
+begin
+    Result := a + b;
+end;
+
+function Greet(name: String): String;
+begin
+    Result := 'Hello, ' + name + '!';
+end;
+
+var sum: Integer;
+var greeting: String;
+
+sum := Add(10, 32);
+greeting := Greet('WASM User');
+
+PrintLn(greeting);
+PrintLn('10 + 32 = ' + IntToStr(sum));`,
+
+            math: `// Math Operations
+var a, b, sum, diff, prod: Integer;
+var quotient: Float;
+
+a := 100;
+b := 25;
+
+sum := a + b;
+diff := a - b;
+prod := a * b;
+quotient := a / b;
+
+PrintLn('a = ' + IntToStr(a));
+PrintLn('b = ' + IntToStr(b));
+PrintLn('');
+PrintLn('a + b = ' + IntToStr(sum));
+PrintLn('a - b = ' + IntToStr(diff));
+PrintLn('a * b = ' + IntToStr(prod));
+PrintLn('a / b = ' + FloatToStr(quotient));`
+        };
+
+        function loadExample(name) {
+            if (examples[name]) {
+                document.getElementById('code').value = examples[name];
+                clearOutput();
+            }
+        }
+
+        function updateStatus(message, type = 'loading') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+        }
+
+        function appendOutput(text) {
+            const output = document.getElementById('output');
+            output.textContent += text;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            document.getElementById('output').textContent = '';
+            document.getElementById('stats').textContent = '';
+        }
+
+        function updateStats(executionTime) {
+            const stats = document.getElementById('stats');
+            stats.textContent = `⏱️ Execution time: ${executionTime}ms`;
+        }
+
+        async function runCode() {
+            if (!dws) {
+                appendOutput('Error: DWScript not initialized\n');
+                return;
+            }
+
+            const code = document.getElementById('code').value;
+            clearOutput();
+
+            try {
+                const result = dws.eval(code);
+
+                if (result.success) {
+                    appendOutput(result.output || '(no output)\n');
+                    updateStats(result.executionTime);
+                } else {
+                    appendOutput('❌ Runtime Error:\n');
+                    appendOutput(result.error.message + '\n');
+                    if (result.error.type) {
+                        appendOutput(`Error type: ${result.error.type}\n`);
+                    }
+                }
+            } catch (error) {
+                appendOutput('❌ Error: ' + error.message + '\n');
+                console.error('Execution error:', error);
+            }
+        }
+
+        async function compileOnly() {
+            if (!dws) {
+                appendOutput('Error: DWScript not initialized\n');
+                return;
+            }
+
+            const code = document.getElementById('code').value;
+            clearOutput();
+
+            try {
+                const program = dws.compile(code);
+
+                if (program.success) {
+                    currentProgram = program;
+                    appendOutput('✅ Compilation successful!\n');
+                    appendOutput(`Program ID: ${program.id}\n`);
+                    appendOutput('\nReady to run. Click "Run Code" to execute.\n');
+                } else {
+                    appendOutput('❌ Compilation Error:\n');
+                    appendOutput(program.message || 'Unknown error\n');
+                }
+            } catch (error) {
+                appendOutput('❌ Compilation failed:\n');
+                appendOutput(error.message + '\n');
+                if (error.type) {
+                    appendOutput(`Error type: ${error.type}\n`);
+                }
+                console.error('Compilation error:', error);
+            }
+        }
+
+        // Initialize WASM
+        async function initWasm() {
+            try {
+                updateStatus('Loading WebAssembly module...', 'loading');
+
+                const go = new Go();
+                const result = await WebAssembly.instantiateStreaming(
+                    fetch('../../build/wasm/dist/dwscript.wasm'),
+                    go.importObject
+                );
+
+                // Start the Go program
+                go.run(result.instance);
+
+                // Wait a bit for initialization
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Create DWScript instance
+                dws = new DWScript();
+
+                // Initialize with output callback
+                await dws.init({
+                    onOutput: (text) => {
+                        console.log('Output:', text);
+                    },
+                    onError: (error) => {
+                        console.error('DWScript error:', error);
+                    }
+                });
+
+                updateStatus('✅ DWScript WASM ready!', 'ready');
+                document.getElementById('runBtn').disabled = false;
+                document.getElementById('compileBtn').disabled = false;
+
+                // Log version info
+                const version = dws.version();
+                console.log('DWScript version:', version);
+
+            } catch (error) {
+                updateStatus('❌ Failed to load WASM: ' + error.message, 'error');
+                console.error('WASM initialization error:', error);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('runBtn').addEventListener('click', runCode);
+        document.getElementById('compileBtn').addEventListener('click', compileOnly);
+        document.getElementById('clearBtn').addEventListener('click', clearOutput);
+
+        // Initialize on load
+        initWasm();
+    </script>
+</body>
+</html>

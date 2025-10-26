@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cwbudde/go-dws/lexer"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/spf13/cobra"
 )
 

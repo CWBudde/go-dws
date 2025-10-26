@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"github.com/cwbudde/go-dws/ast"
-	"github.com/cwbudde/go-dws/lexer"
+	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
 // parseClassDeclaration parses a class declaration with visibility sections.
@@ -34,6 +34,27 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	}
 
 	return p.parseClassDeclarationBody(nameIdent)
+}
+
+// isBuiltinClass checks if a class name is a built-in class that doesn't follow
+// the 'T' prefix convention. These classes need special handling in parent/interface
+// disambiguation since they don't start with 'T' but are parent classes, not interfaces.
+func isBuiltinClass(name string) bool {
+	builtinClasses := []string{
+		"Exception",      // Base exception class
+		"EConvertError",  // Standard exception types
+		"ERangeError",
+		"EDivByZero",
+		"EAssertionFailed",
+		"EInvalidOp",
+	}
+
+	for _, builtin := range builtinClasses {
+		if name == builtin {
+			return true
+		}
+	}
+	return false
 }
 
 // parseClassDeclarationBody parses the body of a class declaration.
@@ -81,14 +102,16 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		}
 
 		// Task 7.83: Distinguish parent class from interfaces
-		// Convention: First identifier starting with 'T' is parent class
-		// All others (or all if first doesn't start with 'T') are interfaces
+		// Convention: First identifier is parent class if:
+		//   1. It's a built-in class (Exception, EConvertError, etc.), OR
+		//   2. It starts with 'T' (TObject, TMyClass, etc.)
+		// Otherwise, all identifiers are treated as interfaces
 		if len(identifiers) > 0 {
 			firstIdent := identifiers[0]
-			// In DWScript/Delphi, classes typically start with 'T', interfaces with 'I'
-			// If first starts with 'T', it's the parent class
-			// Otherwise, all are interfaces
-			if len(firstIdent.Value) > 0 && firstIdent.Value[0] == 'T' {
+			// Check if first identifier is a built-in class or starts with 'T'
+			if isBuiltinClass(firstIdent.Value) ||
+			   (len(firstIdent.Value) > 0 && firstIdent.Value[0] == 'T') {
+				// First identifier is the parent class
 				classDecl.Parent = firstIdent
 				classDecl.Interfaces = identifiers[1:]
 			} else {

@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/go-dws/ast"
-	"github.com/cwbudde/go-dws/lexer"
-	"github.com/cwbudde/go-dws/parser"
+	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
 )
 
 // ============================================================================
