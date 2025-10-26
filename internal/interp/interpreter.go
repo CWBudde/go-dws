@@ -775,17 +775,19 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 				return &BooleanValue{Value: left != right}
 			}
 		}
-		// Not object/nil comparison - fall through to default case
-		return i.newErrorWithLocation(expr, "type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
 
-	// Check if both are records (by type assertion, not string comparison)
-	// Since RecordValue.Type() now returns actual type name (e.g., "TPoint"), not "RECORD"
-	default:
+		// Check if both are records (by type assertion, not string comparison)
+		// Since RecordValue.Type() now returns actual type name (e.g., "TPoint"), not "RECORD"
 		if _, leftIsRecord := left.(*RecordValue); leftIsRecord {
 			if _, rightIsRecord := right.(*RecordValue); rightIsRecord {
 				return i.evalRecordBinaryOp(expr.Operator, left, right)
 			}
 		}
+
+		// Not object/nil/record comparison - return error
+		return i.newErrorWithLocation(expr, "type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
+
+	default:
 		return i.newErrorWithLocation(expr, "type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
 	}
 }

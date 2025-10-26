@@ -33,15 +33,15 @@ func newDWScriptInstance(this js.Value, args []js.Value) interface{} {
 		}
 	}()
 
-	// Create a Go DWScript engine
-	engine, err := dwscript.New()
-	if err != nil {
-		return CreateErrorObject("InitializationError", err.Error(), nil)
-	}
-
 	// Create platform with output capture
 	var outputBuffer bytes.Buffer
 	wasmPlat := wasm.NewWASMPlatformWithIO(&outputBuffer)
+
+	// Create a Go DWScript engine configured to write to our buffer
+	engine, err := dwscript.New(dwscript.WithOutput(&outputBuffer))
+	if err != nil {
+		return CreateErrorObject("InitializationError", err.Error(), nil)
+	}
 
 	// Create callbacks system
 	callbacks := NewCallbacks()
