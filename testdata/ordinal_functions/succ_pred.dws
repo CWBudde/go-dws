@@ -1,0 +1,53 @@
+// succ_pred.dws - Tests Succ and Pred with integers and enums
+// Expected output in succ_pred.out
+
+PrintLn('=== Succ/Pred with Integers ===');
+
+// Basic Succ
+var x: Integer := 10;
+var y: Integer := Succ(x);
+PrintLn(y);  // 11
+
+// Chained Succ
+PrintLn(Succ(Succ(5)));  // 7
+
+// Basic Pred
+var z: Integer := 10;
+var w: Integer := Pred(z);
+PrintLn(w);  // 9
+
+// Chained Pred
+PrintLn(Pred(Pred(5)));  // 3
+
+// Succ and Pred together
+PrintLn(Succ(Pred(10)));  // 10
+PrintLn(Pred(Succ(10)));  // 10
+
+PrintLn('=== Succ/Pred with Enums ===');
+
+type TColor = (Red, Green, Blue);
+var c: TColor := Red;
+var next: TColor := Succ(c);
+PrintLn(next);  // Green
+
+var prev: TColor := Pred(Blue);
+PrintLn(prev);  // Green
+
+// Chained with enums
+PrintLn(Succ(Succ(Red)));  // Blue
+PrintLn(Pred(Pred(Blue)));  // Red
+
+PrintLn('=== Succ/Pred with Explicit Enum Values ===');
+
+type TStatus = (Ok = 0, Warning = 5, Error = 10);
+var s: TStatus := Ok;
+PrintLn(Ord(Succ(s)));  // 5
+
+var s2: TStatus := Error;
+PrintLn(Ord(Pred(s2)));  // 5
+
+// Succ then Pred
+var s3: TStatus := Warning;
+PrintLn(Ord(Pred(Succ(s3))));  // 5
+
+PrintLn('Done');

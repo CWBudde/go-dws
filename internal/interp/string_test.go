@@ -1139,3 +1139,534 @@ end
 		})
 	}
 }
+
+// TestBuiltinTrim_BasicUsage tests Trim() with basic string operations.
+// Trim(str) - removes leading and trailing whitespace
+// Task 9.42: Tests for Trim() function
+func TestBuiltinTrim_BasicUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Trim spaces from both ends",
+			input: `
+begin
+	Trim("  hello  ");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Trim leading spaces only",
+			input: `
+begin
+	Trim("  hello");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Trim trailing spaces only",
+			input: `
+begin
+	Trim("hello  ");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Trim with tabs",
+			input: `
+begin
+	Trim("	hello	");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Trim with newlines",
+			input: `
+begin
+	Trim("
+hello
+");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Trim with mixed whitespace",
+			input: `
+begin
+	Trim("
+hello
+");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "No whitespace to trim",
+			input: `
+begin
+	Trim("hello");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Empty string",
+			input: `
+begin
+	Trim("");
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Only whitespace",
+			input: `
+begin
+	Trim("   ");
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Whitespace in middle is preserved",
+			input: `
+begin
+	Trim("  hello world  ");
+end
+			`,
+			expected: "hello world",
+		},
+		{
+			name: "With variable",
+			input: `
+var s: String := "  DWScript  ";
+begin
+	Trim(s);
+end
+			`,
+			expected: "DWScript",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("Trim() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinTrimLeft_BasicUsage tests TrimLeft() with basic string operations.
+// TrimLeft(str) - removes leading whitespace only
+// Task 9.42: Tests for TrimLeft() function
+func TestBuiltinTrimLeft_BasicUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "TrimLeft removes leading spaces",
+			input: `
+begin
+	TrimLeft("  hello");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "TrimLeft preserves trailing spaces",
+			input: `
+begin
+	TrimLeft("  hello  ");
+end
+			`,
+			expected: "hello  ",
+		},
+		{
+			name: "TrimLeft with tabs",
+			input: `
+begin
+	TrimLeft("		hello");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "TrimLeft with newlines",
+			input: `
+begin
+	TrimLeft("
+hello");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "TrimLeft with mixed whitespace",
+			input: `
+begin
+	TrimLeft("
+hello");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "No leading whitespace",
+			input: `
+begin
+	TrimLeft("hello  ");
+end
+			`,
+			expected: "hello  ",
+		},
+		{
+			name: "Empty string",
+			input: `
+begin
+	TrimLeft("");
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Only whitespace",
+			input: `
+begin
+	TrimLeft("   ");
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "With variable",
+			input: `
+var s: String := "  DWScript";
+begin
+	TrimLeft(s);
+end
+			`,
+			expected: "DWScript",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("TrimLeft() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinTrimRight_BasicUsage tests TrimRight() with basic string operations.
+// TrimRight(str) - removes trailing whitespace only
+// Task 9.42: Tests for TrimRight() function
+func TestBuiltinTrimRight_BasicUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "TrimRight removes trailing spaces",
+			input: `
+begin
+	TrimRight("hello  ");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "TrimRight preserves leading spaces",
+			input: `
+begin
+	TrimRight("  hello  ");
+end
+			`,
+			expected: "  hello",
+		},
+		{
+			name: "TrimRight with tabs",
+			input: `
+begin
+	TrimRight("hello		");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "TrimRight with newlines",
+			input: `
+begin
+	TrimRight("hello
+");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "TrimRight with mixed whitespace",
+			input: `
+begin
+	TrimRight("hello
+");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "No trailing whitespace",
+			input: `
+begin
+	TrimRight("  hello");
+end
+			`,
+			expected: "  hello",
+		},
+		{
+			name: "Empty string",
+			input: `
+begin
+	TrimRight("");
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Only whitespace",
+			input: `
+begin
+	TrimRight("   ");
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "With variable",
+			input: `
+var s: String := "DWScript  ";
+begin
+	TrimRight(s);
+end
+			`,
+			expected: "DWScript",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("TrimRight() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinTrim_InExpressions tests using Trim functions in expressions.
+// Task 9.42: Tests for Trim() in expressions
+func TestBuiltinTrim_InExpressions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Trim in concatenation",
+			input: `
+begin
+	Trim("  hello  ") + " world";
+end
+			`,
+			expected: "hello world",
+		},
+		{
+			name: "Trim with Copy",
+			input: `
+var s: String := "  hello world  ";
+begin
+	Trim(Copy(s, 3, 5));
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Nested Trim",
+			input: `
+begin
+	Trim(Trim("  hello  "));
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "TrimLeft then TrimRight",
+			input: `
+begin
+	TrimRight(TrimLeft("  hello  "));
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Trim with UpperCase",
+			input: `
+begin
+	UpperCase(Trim("  hello  "));
+end
+			`,
+			expected: "HELLO",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("result = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinTrim_ErrorCases tests error handling for Trim functions.
+// Task 9.42: Error handling tests
+func TestBuiltinTrim_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		function string
+	}{
+		{
+			name:     "Trim: No arguments",
+			function: "Trim",
+			input: `
+begin
+	Trim();
+end
+			`,
+		},
+		{
+			name:     "Trim: Too many arguments",
+			function: "Trim",
+			input: `
+begin
+	Trim("hello", "world");
+end
+			`,
+		},
+		{
+			name:     "Trim: Non-string argument",
+			function: "Trim",
+			input: `
+var x: Integer := 42;
+begin
+	Trim(x);
+end
+			`,
+		},
+		{
+			name:     "TrimLeft: No arguments",
+			function: "TrimLeft",
+			input: `
+begin
+	TrimLeft();
+end
+			`,
+		},
+		{
+			name:     "TrimLeft: Too many arguments",
+			function: "TrimLeft",
+			input: `
+begin
+	TrimLeft("hello", "world");
+end
+			`,
+		},
+		{
+			name:     "TrimLeft: Non-string argument",
+			function: "TrimLeft",
+			input: `
+var x: Integer := 42;
+begin
+	TrimLeft(x);
+end
+			`,
+		},
+		{
+			name:     "TrimRight: No arguments",
+			function: "TrimRight",
+			input: `
+begin
+	TrimRight();
+end
+			`,
+		},
+		{
+			name:     "TrimRight: Too many arguments",
+			function: "TrimRight",
+			input: `
+begin
+	TrimRight("hello", "world");
+end
+			`,
+		},
+		{
+			name:     "TrimRight: Non-string argument",
+			function: "TrimRight",
+			input: `
+var x: Integer := 42;
+begin
+	TrimRight(x);
+end
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			// Should return an error
+			if !isError(result) {
+				t.Errorf("expected error for invalid %s() call, got %T: %+v", tt.function, result, result)
+			}
+		})
+	}
+}

@@ -1,0 +1,23 @@
+// Test Inc() with integers
+// Task 9.24: Inc() built-in function
+
+var x: Integer := 5;
+PrintLn('Initial value: ', x);
+
+Inc(x);
+PrintLn('After Inc(x): ', x);
+
+Inc(x, 3);
+PrintLn('After Inc(x, 3): ', x);
+
+var delta: Integer := 10;
+Inc(x, delta);
+PrintLn('After Inc(x, delta) where delta=10: ', x);
+
+// Test with negative values
+var y: Integer := -5;
+PrintLn('Negative initial: ', y);
+Inc(y);
+PrintLn('After Inc(y): ', y);
+Inc(y, 10);
+PrintLn('After Inc(y, 10): ', y);

@@ -807,6 +807,371 @@ func TestIsValidType(t *testing.T) {
 }
 
 // ============================================================================
+// TypeAlias Tests (Task 9.13-9.14)
+// ============================================================================
+
+func TestTypeAlias(t *testing.T) {
+	t.Run("Create type alias", func(t *testing.T) {
+		// Task 9.14: Test creating type alias
+		// type TUserID = Integer;
+		userID := &TypeAlias{
+			Name:        "TUserID",
+			AliasedType: INTEGER,
+		}
+
+		// Test String() returns alias name
+		if userID.String() != "TUserID" {
+			t.Errorf("String() = %v, want TUserID", userID.String())
+		}
+
+		// Test TypeKind() returns underlying type's kind
+		if userID.TypeKind() != "INTEGER" {
+			t.Errorf("TypeKind() = %v, want INTEGER", userID.TypeKind())
+		}
+
+		// Test that the aliased type is stored correctly
+		if userID.AliasedType != INTEGER {
+			t.Error("AliasedType should be INTEGER")
+		}
+	})
+
+	t.Run("Alias equality with underlying type", func(t *testing.T) {
+		// Task 9.14: Test alias equality with underlying type
+		// type MyInt = Integer;
+		// MyInt should equal Integer
+		myInt := &TypeAlias{
+			Name:        "MyInt",
+			AliasedType: INTEGER,
+		}
+
+		if !myInt.Equals(INTEGER) {
+			t.Error("Type alias should equal its underlying type")
+		}
+
+		if !INTEGER.Equals(myInt) {
+			t.Error("Underlying type should equal type alias (symmetric)")
+		}
+	})
+
+	t.Run("Alias inequality with different types", func(t *testing.T) {
+		// Task 9.14: Test alias inequality with different types
+		// type MyInt = Integer;
+		// MyInt should NOT equal String
+		myInt := &TypeAlias{
+			Name:        "MyInt",
+			AliasedType: INTEGER,
+		}
+
+		if myInt.Equals(STRING) {
+			t.Error("Integer alias should not equal STRING")
+		}
+
+		if myInt.Equals(FLOAT) {
+			t.Error("Integer alias should not equal FLOAT")
+		}
+
+		if myInt.Equals(BOOLEAN) {
+			t.Error("Integer alias should not equal BOOLEAN")
+		}
+
+		// type MyString = String;
+		// MyString should NOT equal MyInt
+		myString := &TypeAlias{
+			Name:        "MyString",
+			AliasedType: STRING,
+		}
+
+		if myInt.Equals(myString) {
+			t.Error("Integer alias should not equal String alias")
+		}
+	})
+
+	t.Run("Multiple aliases to same type are equal", func(t *testing.T) {
+		// type TUserID = Integer;
+		// type TItemID = Integer;
+		// TUserID should equal TItemID (both alias Integer)
+		userID := &TypeAlias{
+			Name:        "TUserID",
+			AliasedType: INTEGER,
+		}
+
+		itemID := &TypeAlias{
+			Name:        "TItemID",
+			AliasedType: INTEGER,
+		}
+
+		if !userID.Equals(itemID) {
+			t.Error("Two aliases to the same type should be equal")
+		}
+	})
+
+	t.Run("Nested aliases", func(t *testing.T) {
+		// Task 9.14: Test nested aliases
+		// type A = Integer;
+		// type B = A;
+		// B should behave like Integer
+		aliasA := &TypeAlias{
+			Name:        "A",
+			AliasedType: INTEGER,
+		}
+
+		aliasB := &TypeAlias{
+			Name:        "B",
+			AliasedType: aliasA,
+		}
+
+		// B.String() should return "B"
+		if aliasB.String() != "B" {
+			t.Errorf("String() = %v, want B", aliasB.String())
+		}
+
+		// B.TypeKind() should return "INTEGER" (resolved through chain)
+		if aliasB.TypeKind() != "INTEGER" {
+			t.Errorf("TypeKind() = %v, want INTEGER", aliasB.TypeKind())
+		}
+
+		// B should equal Integer
+		if !aliasB.Equals(INTEGER) {
+			t.Error("Nested alias should equal ultimate underlying type (Integer)")
+		}
+
+		// B should equal A
+		if !aliasB.Equals(aliasA) {
+			t.Error("Nested alias should equal intermediate alias")
+		}
+
+		// A should equal B (symmetric)
+		if !aliasA.Equals(aliasB) {
+			t.Error("Alias equality should be symmetric")
+		}
+	})
+
+	t.Run("Triple nested aliases", func(t *testing.T) {
+		// type A = Integer;
+		// type B = A;
+		// type C = B;
+		aliasA := &TypeAlias{
+			Name:        "A",
+			AliasedType: INTEGER,
+		}
+
+		aliasB := &TypeAlias{
+			Name:        "B",
+			AliasedType: aliasA,
+		}
+
+		aliasC := &TypeAlias{
+			Name:        "C",
+			AliasedType: aliasB,
+		}
+
+		// C.TypeKind() should resolve through entire chain
+		if aliasC.TypeKind() != "INTEGER" {
+			t.Errorf("TypeKind() = %v, want INTEGER", aliasC.TypeKind())
+		}
+
+		// C should equal Integer
+		if !aliasC.Equals(INTEGER) {
+			t.Error("Triple nested alias should equal ultimate underlying type")
+		}
+
+		// C should equal A and B
+		if !aliasC.Equals(aliasA) {
+			t.Error("Triple nested alias should equal first alias in chain")
+		}
+
+		if !aliasC.Equals(aliasB) {
+			t.Error("Triple nested alias should equal second alias in chain")
+		}
+	})
+
+	t.Run("Alias to different basic types", func(t *testing.T) {
+		// Test aliases to various basic types
+		tests := []struct {
+			name           string
+			aliasName      string
+			underlyingType Type
+			expectedKind   string
+		}{
+			{"Integer alias", "TUserID", INTEGER, "INTEGER"},
+			{"Float alias", "TPrice", FLOAT, "FLOAT"},
+			{"String alias", "TFileName", STRING, "STRING"},
+			{"Boolean alias", "TFlag", BOOLEAN, "BOOLEAN"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				alias := &TypeAlias{
+					Name:        tt.aliasName,
+					AliasedType: tt.underlyingType,
+				}
+
+				if alias.String() != tt.aliasName {
+					t.Errorf("String() = %v, want %v", alias.String(), tt.aliasName)
+				}
+
+				if alias.TypeKind() != tt.expectedKind {
+					t.Errorf("TypeKind() = %v, want %v", alias.TypeKind(), tt.expectedKind)
+				}
+
+				if !alias.Equals(tt.underlyingType) {
+					t.Errorf("Alias should equal underlying type %v", tt.underlyingType)
+				}
+			})
+		}
+	})
+
+	t.Run("Alias to complex types", func(t *testing.T) {
+		// type TIntArray = array of Integer;
+		arrayType := NewDynamicArrayType(INTEGER)
+		arrayAlias := &TypeAlias{
+			Name:        "TIntArray",
+			AliasedType: arrayType,
+		}
+
+		if arrayAlias.TypeKind() != "ARRAY" {
+			t.Errorf("TypeKind() = %v, want ARRAY", arrayAlias.TypeKind())
+		}
+
+		if !arrayAlias.Equals(arrayType) {
+			t.Error("Array alias should equal array type")
+		}
+
+		// type TMyFunc = function(): Integer;
+		funcType := NewFunctionType([]Type{}, INTEGER)
+		funcAlias := &TypeAlias{
+			Name:        "TMyFunc",
+			AliasedType: funcType,
+		}
+
+		if funcAlias.TypeKind() != "FUNCTION" {
+			t.Errorf("TypeKind() = %v, want FUNCTION", funcAlias.TypeKind())
+		}
+
+		if !funcAlias.Equals(funcType) {
+			t.Error("Function alias should equal function type")
+		}
+	})
+
+	t.Run("Alias not equal to non-alias", func(t *testing.T) {
+		// Ensure type aliases don't equal unrelated types
+		myInt := &TypeAlias{
+			Name:        "MyInt",
+			AliasedType: INTEGER,
+		}
+
+		// Should not equal function type
+		funcType := NewFunctionType([]Type{}, INTEGER)
+		if myInt.Equals(funcType) {
+			t.Error("Integer alias should not equal function type")
+		}
+
+		// Should not equal array type
+		arrayType := NewDynamicArrayType(INTEGER)
+		if myInt.Equals(arrayType) {
+			t.Error("Integer alias should not equal array type")
+		}
+
+		// Should not equal class type
+		classType := NewClassType("TMyClass", nil)
+		if myInt.Equals(classType) {
+			t.Error("Integer alias should not equal class type")
+		}
+	})
+}
+
+func TestGetUnderlyingType(t *testing.T) {
+	t.Run("Non-alias returns itself", func(t *testing.T) {
+		// GetUnderlyingType on a basic type should return the type itself
+		if GetUnderlyingType(INTEGER) != INTEGER {
+			t.Error("GetUnderlyingType(INTEGER) should return INTEGER")
+		}
+
+		if GetUnderlyingType(STRING) != STRING {
+			t.Error("GetUnderlyingType(STRING) should return STRING")
+		}
+
+		// GetUnderlyingType on complex types should return the type itself
+		arrayType := NewDynamicArrayType(INTEGER)
+		if GetUnderlyingType(arrayType) != arrayType {
+			t.Error("GetUnderlyingType should return array type itself")
+		}
+	})
+
+	t.Run("Single alias resolves to underlying type", func(t *testing.T) {
+		// type MyInt = Integer;
+		myInt := &TypeAlias{
+			Name:        "MyInt",
+			AliasedType: INTEGER,
+		}
+
+		underlying := GetUnderlyingType(myInt)
+		if underlying != INTEGER {
+			t.Errorf("GetUnderlyingType(MyInt) = %v, want INTEGER", underlying)
+		}
+	})
+
+	t.Run("Nested alias resolves to ultimate type", func(t *testing.T) {
+		// type A = Integer;
+		// type B = A;
+		// type C = B;
+		aliasA := &TypeAlias{
+			Name:        "A",
+			AliasedType: INTEGER,
+		}
+
+		aliasB := &TypeAlias{
+			Name:        "B",
+			AliasedType: aliasA,
+		}
+
+		aliasC := &TypeAlias{
+			Name:        "C",
+			AliasedType: aliasB,
+		}
+
+		// All should resolve to INTEGER
+		if GetUnderlyingType(aliasA) != INTEGER {
+			t.Error("GetUnderlyingType(A) should return INTEGER")
+		}
+
+		if GetUnderlyingType(aliasB) != INTEGER {
+			t.Error("GetUnderlyingType(B) should return INTEGER")
+		}
+
+		if GetUnderlyingType(aliasC) != INTEGER {
+			t.Error("GetUnderlyingType(C) should return INTEGER")
+		}
+	})
+
+	t.Run("Alias to complex type resolves correctly", func(t *testing.T) {
+		// type TIntArray = array of Integer;
+		arrayType := NewDynamicArrayType(INTEGER)
+		arrayAlias := &TypeAlias{
+			Name:        "TIntArray",
+			AliasedType: arrayType,
+		}
+
+		underlying := GetUnderlyingType(arrayAlias)
+		if underlying != arrayType {
+			t.Error("GetUnderlyingType should return array type")
+		}
+
+		// Nested alias to complex type
+		// type TMyArray = TIntArray;
+		nestedAlias := &TypeAlias{
+			Name:        "TMyArray",
+			AliasedType: arrayAlias,
+		}
+
+		underlying = GetUnderlyingType(nestedAlias)
+		if underlying != arrayType {
+			t.Error("GetUnderlyingType should resolve through alias chain to array type")
+		}
+	})
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 

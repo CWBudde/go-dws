@@ -1,0 +1,7 @@
+Initial value:  5
+After Inc(x):  6
+After Inc(x, 3):  9
+After Inc(x, delta) where delta=10:  19
+Negative initial:  -5
+After Inc(y):  -4
+After Inc(y, 10):  6

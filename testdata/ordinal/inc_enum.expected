@@ -1,0 +1,8 @@
+Initial color ordinal:  0
+Initial color value:  0
+After first Inc():  1
+After second Inc():  2
+After third Inc():  3
+Status initial:  0
+After Inc (Ok to Warning):  5
+After Inc (Warning to Error):  10

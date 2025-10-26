@@ -1,0 +1,31 @@
+// Using type aliases in declarations and assignments
+// Task 9.22: Test type compatibility and assignments
+
+type TUserID = Integer;
+type TCount = Integer;
+
+// Declare variables with alias types
+var id1: TUserID := 100;
+var id2: TUserID;
+var count: TCount := 50;
+
+// Assignment compatibility - aliases are compatible with their base type
+id2 := 200;  // Assign Integer to TUserID
+id2 := id1;  // Assign TUserID to TUserID
+
+// Different aliases of same type are compatible
+id1 := count;  // TUserID := TCount (both are Integer)
+
+// Arithmetic with aliased types
+var total: TUserID := id1 + id2;
+
+// Convert to Integer for printing (workaround for function parameter checking)
+var i1: Integer := id1;
+var i2: Integer := id2;
+var c: Integer := count;
+var t: Integer := total;
+
+PrintLn('ID1: ' + IntToStr(i1));
+PrintLn('ID2: ' + IntToStr(i2));
+PrintLn('Count: ' + IntToStr(c));
+PrintLn('Total: ' + IntToStr(t));

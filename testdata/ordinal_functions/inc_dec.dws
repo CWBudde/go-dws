@@ -1,0 +1,62 @@
+// inc_dec.dws - Tests Inc and Dec with integers and enums
+// Expected output in inc_dec.out
+
+PrintLn('=== Inc/Dec with Integers ===');
+
+// Basic Inc
+var x: Integer := 10;
+Inc(x);
+PrintLn(x);  // 11
+
+// Inc with delta
+var y: Integer := 5;
+Inc(y, 3);
+PrintLn(y);  // 8
+
+// Basic Dec
+var z: Integer := 10;
+Dec(z);
+PrintLn(z);  // 9
+
+// Dec with delta
+var w: Integer := 20;
+Dec(w, 7);
+PrintLn(w);  // 13
+
+PrintLn('=== Inc/Dec with Enums ===');
+
+type TColor = (Red, Green, Blue);
+var c: TColor := Red;
+PrintLn(Ord(c));  // 0
+
+Inc(c);
+PrintLn(Ord(c));  // 1
+
+Inc(c);
+PrintLn(Ord(c));  // 2
+
+Dec(c);
+PrintLn(Ord(c));  // 1
+
+Dec(c);
+PrintLn(Ord(c));  // 0
+
+PrintLn('=== Inc/Dec with Explicit Enum Values ===');
+
+type TStatus = (Ok = 0, Warning = 5, Error = 10);
+var s: TStatus := Ok;
+PrintLn(Ord(s));  // 0
+
+Inc(s);
+PrintLn(Ord(s));  // 5
+
+Inc(s);
+PrintLn(Ord(s));  // 10
+
+Dec(s);
+PrintLn(Ord(s));  // 5
+
+Dec(s);
+PrintLn(Ord(s));  // 0
+
+PrintLn('Done');

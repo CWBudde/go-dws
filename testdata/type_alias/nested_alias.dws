@@ -1,0 +1,28 @@
+// Nested type aliases (alias to alias)
+// Task 9.22: Test chained type aliases
+
+type TInt = Integer;
+type TUserID = TInt;
+type TCustomerID = TUserID;
+
+// All three levels should work
+var a: TInt := 10;
+var b: TUserID := 20;
+var c: TCustomerID := 30;
+
+// Cross-assignment should work (all resolve to Integer)
+a := b;
+b := c;
+c := a;
+
+var sum: Integer := a + b + c;
+
+// Convert to Integer for printing
+var ia: Integer := a;
+var ib: Integer := b;
+var ic: Integer := c;
+
+PrintLn('a: ' + IntToStr(ia));
+PrintLn('b: ' + IntToStr(ib));
+PrintLn('c: ' + IntToStr(ic));
+PrintLn('sum: ' + IntToStr(sum));

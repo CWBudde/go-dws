@@ -1,0 +1,45 @@
+// Test Succ() and Pred() with enums
+// Tasks 9.28 and 9.29: Successor and predecessor functions for enums
+
+type TColor = (Red, Green, Blue, Yellow);
+
+var c: TColor := Green;
+PrintLn('Initial color: ', Ord(c));
+
+var next: TColor := Succ(c);
+PrintLn('Succ(Green): ', Ord(next));
+
+var prev: TColor := Pred(c);
+PrintLn('Pred(Green): ', Ord(prev));
+
+// Chain calls
+c := Red;
+PrintLn('Starting from Red: ', Ord(c));
+PrintLn('Succ(Red): ', Ord(Succ(c)));
+PrintLn('Succ(Succ(Red)): ', Ord(Succ(Succ(c))));
+
+c := Yellow;
+PrintLn('Starting from Yellow: ', Ord(c));
+PrintLn('Pred(Yellow): ', Ord(Pred(c)));
+PrintLn('Pred(Pred(Yellow)): ', Ord(Pred(Pred(c))));
+
+// Test with explicit values
+type TStatus = (Ok = 0, Warning = 5, Error = 10);
+
+var s: TStatus := Warning;
+PrintLn('Status Warning: ', Ord(s));
+PrintLn('Succ(Warning): ', Ord(Succ(s)));
+PrintLn('Pred(Warning): ', Ord(Pred(s)));
+
+// Combined with Inc/Dec
+c := Green;
+PrintLn('Start with Green: ', Ord(c));
+Inc(c);
+PrintLn('After Inc: ', Ord(c));
+PrintLn('Succ after Inc: ', Ord(Succ(c)));
+
+c := Blue;
+PrintLn('Start with Blue: ', Ord(c));
+Dec(c);
+PrintLn('After Dec: ', Ord(c));
+PrintLn('Pred after Dec: ', Ord(Pred(c)));

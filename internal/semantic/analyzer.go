@@ -38,6 +38,9 @@ type Analyzer struct {
 	// Array registry for tracking declared arrays (Task 8.126)
 	arrays map[string]*types.ArrayType
 
+	// Type alias registry for tracking type aliases (Task 9.19)
+	typeAliases map[string]*types.TypeAlias
+
 	// Current class being analyzed (for field/method access)
 	currentClass *types.ClassType
 
@@ -65,6 +68,7 @@ func NewAnalyzer() *Analyzer {
 		records:            make(map[string]*types.RecordType),
 		sets:               make(map[string]*types.SetType),
 		arrays:             make(map[string]*types.ArrayType),
+		typeAliases:        make(map[string]*types.TypeAlias),
 		globalOperators:    types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
 	}
