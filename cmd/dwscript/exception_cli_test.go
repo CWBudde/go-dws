@@ -243,6 +243,20 @@ func TestExceptionHandlingIntegration(t *testing.T) {
 			wantPasses: 0, // Ported tests don't use PASS markers
 			shouldFail: false,
 		},
+		{
+			name:       "New vs Create Equivalence",
+			scriptFile: "../../testdata/exceptions/new_vs_create.dws",
+			wantOutputs: []string{
+				"=== Testing new vs .Create() Equivalence ===",
+				"Create syntax: test message",
+				"new syntax: test message",
+				"Create: error A, Code: 42",
+				"new: error A, Code: 42",
+				"=== All Tests Complete ===",
+			},
+			wantPasses: 0,
+			shouldFail: false,
+		},
 	}
 
 	for _, tt := range tests {

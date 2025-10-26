@@ -2155,11 +2155,15 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - [x] Test error cases: undefined class, non-class type, arg mismatch ✓
   - [x] Test equivalence: `new T()` and `T.Create()` produce identical results ✓
 
-- [ ] 8.260h Update integration tests:
-  - [ ] Enable `testdata/exceptions/try_except_finally.dws` test
-  - [ ] Verify all `new` usage in exception tests works
-  - [ ] Add test cases using both `new` and `.Create()` syntax
-  - [ ] Verify both syntaxes produce identical results
+- [x] 8.260h Update integration tests:
+  - [x] Fixed `testdata/exceptions/try_except_finally.dws` (added missing semicolon)
+  - [x] Test now passes: uses `new Exception('DOH')` and `new EMyExcept('Bye')`
+  - [x] Created `testdata/exceptions/new_vs_create.dws` equivalence test
+  - [x] Added "New vs Create Equivalence" test to `exception_cli_test.go:246-259`
+  - [x] Verified: `new T(args)` and `T.Create(args)` produce identical results ✓
+  - [x] Test demonstrates both simple and custom exceptions work identically
+  - [x] Exception integration tests: 7/12 passing (58.3%)
+  - [x] All `new` keyword functionality working correctly
 
 ---
 
