@@ -1,0 +1,31 @@
+=== Basic Try-Except Tests ===
+
+Test 1: Basic exception catching
+PASS: Caught exception: test exception
+
+Test 2: Specific exception type matching
+PASS: Caught ECustom: custom exception
+
+Test 3: Multiple handlers - first match
+PASS: First handler matched
+
+Test 4: Base class catches derived exception
+PASS: Base Exception caught derived ECustom
+
+Test 5: Wrong exception type does not catch
+PASS: Wrong type did not catch, propagated to outer handler
+
+Test 6: No exception - except block skipped
+Executing try block normally
+PASS: Except block was not executed
+
+Test 7: Execution continues after handled exception
+Exception handled
+PASS: Execution continued after try-except
+
+Test 8: Exception object properties
+Message: test message
+ClassName: Exception
+PASS: Exception properties correct
+
+=== All Basic Try-Except Tests Complete ===

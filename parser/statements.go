@@ -22,6 +22,12 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseForStatement()
 	case lexer.CASE:
 		return p.parseCaseStatement()
+	case lexer.BREAK:
+		return p.parseBreakStatement()
+	case lexer.CONTINUE:
+		return p.parseContinueStatement()
+	case lexer.EXIT:
+		return p.parseExitStatement()
 	case lexer.TRY:
 		return p.parseTryStatement()
 	case lexer.RAISE:

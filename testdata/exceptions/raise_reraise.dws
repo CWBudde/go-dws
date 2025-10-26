@@ -1,0 +1,233 @@
+{
+Comprehensive test for raise and re-raise statements.
+Tests: basic raise, re-raise in handler, re-raise preserves exception.
+}
+
+PrintLn('=== Raise and Re-raise Tests ===');
+PrintLn('');
+
+// Test 1: Basic raise statement
+PrintLn('Test 1: Basic raise statement');
+try
+  raise Exception.Create('basic raise');
+except
+  on E: Exception do
+    PrintLn('PASS: Basic raise caught: ' + E.Message);
+end;
+PrintLn('');
+
+// Test 2: Raise with custom exception type
+PrintLn('Test 2: Raise custom exception type');
+type ECustom = class(Exception)
+end;
+
+try
+  raise ECustom.Create('custom type');
+except
+  on E: ECustom do
+    PrintLn('PASS: Custom exception raised and caught: ' + E.Message);
+end;
+PrintLn('');
+
+// Test 3: Re-raise in exception handler
+PrintLn('Test 3: Re-raise in exception handler');
+try
+  try
+    raise Exception.Create('original exception');
+  except
+    on E: Exception do begin
+      PrintLn('Inner handler: ' + E.Message);
+      raise; // Re-raise the same exception
+    end;
+  end;
+except
+  on E: Exception do
+    PrintLn('PASS: Re-raised exception caught: ' + E.Message);
+end;
+PrintLn('');
+
+// Test 4: Re-raise preserves exception type
+PrintLn('Test 4: Re-raise preserves exception type');
+type ESpecific = class(Exception)
+end;
+
+try
+  try
+    raise ESpecific.Create('specific type');
+  except
+    on E: Exception do begin
+      PrintLn('Inner caught as Exception: ' + E.ClassName);
+      raise; // Should preserve ESpecific type
+    end;
+  end;
+except
+  on E: ESpecific do
+    PrintLn('PASS: Re-raised as ESpecific: ' + E.ClassName);
+  on E: Exception do
+    PrintLn('FAIL: Should be caught as ESpecific');
+end;
+PrintLn('');
+
+// Test 5: Re-raise from nested handlers
+PrintLn('Test 5: Re-raise from nested handlers');
+var reraiseCount := 0;
+
+try
+  try
+    try
+      raise Exception.Create('nested reraise');
+    except
+      on E: Exception do begin
+        reraiseCount := reraiseCount + 1;
+        PrintLn('Handler 1: reraising');
+        raise;
+      end;
+    end;
+  except
+    on E: Exception do begin
+      reraiseCount := reraiseCount + 1;
+      PrintLn('Handler 2: reraising');
+      raise;
+    end;
+  end;
+except
+  on E: Exception do begin
+    reraiseCount := reraiseCount + 1;
+    PrintLn('Handler 3: final catch');
+    if reraiseCount = 3 then
+      PrintLn('PASS: Re-raised through ' + IntToStr(reraiseCount) + ' handlers');
+  end;
+end;
+PrintLn('');
+
+// Test 6: Conditional re-raise
+PrintLn('Test 6: Conditional re-raise based on exception type');
+type ERetryable = class(Exception)
+end;
+type EFatal = class(Exception)
+end;
+
+procedure TestConditionalReraise(shouldReraise: Boolean);
+begin
+  try
+    if shouldReraise then
+      raise EFatal.Create('fatal error')
+    else
+      raise ERetryable.Create('retryable error');
+  except
+    on E: ERetryable do
+      PrintLn('Handled retryable: ' + E.Message);
+    on E: EFatal do begin
+      PrintLn('Fatal error detected, reraising: ' + E.Message);
+      raise;
+    end;
+  end;
+end;
+
+// First call - should handle
+try
+  TestConditionalReraise(False);
+  PrintLn('PASS: Retryable exception handled');
+except
+  on E: Exception do
+    PrintLn('FAIL: Should not propagate retryable');
+end;
+
+// Second call - should reraise
+try
+  TestConditionalReraise(True);
+  PrintLn('FAIL: Should have reraised fatal');
+except
+  on E: EFatal do
+    PrintLn('PASS: Fatal exception re-raised and caught');
+end;
+PrintLn('');
+
+// Test 7: Re-raise with finally block
+PrintLn('Test 7: Re-raise with finally block');
+var finallyAfterReraise := False;
+
+try
+  try
+    raise Exception.Create('with finally');
+  except
+    on E: Exception do begin
+      PrintLn('Reraising...');
+      raise;
+    end;
+  finally
+    finallyAfterReraise := True;
+    PrintLn('Finally after reraise');
+  end;
+except
+  on E: Exception do begin
+    if finallyAfterReraise then
+      PrintLn('PASS: Finally executed even with reraise');
+  end;
+end;
+PrintLn('');
+
+// Test 8: Re-raise preserves ExceptObject
+PrintLn('Test 8: Re-raise preserves ExceptObject');
+try
+  try
+    raise Exception.Create('preserve test');
+  except
+    on E: Exception do begin
+      PrintLn('Inner: ExceptObject = ' + ExceptObject.Message);
+      if E = ExceptObject then
+        PrintLn('Inner: E equals ExceptObject');
+      raise;
+    end;
+  end;
+except
+  on E: Exception do begin
+    PrintLn('Outer: ExceptObject = ' + ExceptObject.Message);
+    if E = ExceptObject then
+      PrintLn('PASS: Re-raised exception is ExceptObject');
+  end;
+end;
+PrintLn('');
+
+// Test 9: Multiple sequential raises
+PrintLn('Test 9: Multiple sequential raises');
+var raiseCount := 0;
+
+procedure RaiseMultiple(count: Integer);
+var i: Integer;
+begin
+  for i := 1 to count do begin
+    try
+      raiseCount := raiseCount + 1;
+      raise Exception.Create('raise #' + IntToStr(i));
+    except
+      on E: Exception do
+        PrintLn('Caught: ' + E.Message);
+    end;
+  end;
+end;
+
+RaiseMultiple(3);
+if raiseCount = 3 then
+  PrintLn('PASS: Multiple sequential raises handled');
+PrintLn('');
+
+// Test 10: Raise in finally (replaces original exception)
+PrintLn('Test 10: Raise in finally block replaces original');
+try
+  try
+    raise Exception.Create('original');
+  finally
+    PrintLn('Finally raising new exception');
+    raise Exception.Create('from finally');
+  end;
+except
+  on E: Exception do begin
+    PrintLn('Caught: ' + E.Message);
+    if E.Message = 'from finally' then
+      PrintLn('PASS: Exception from finally replaced original');
+  end;
+end;
+PrintLn('');
+
+PrintLn('=== All Raise and Re-raise Tests Complete ===');

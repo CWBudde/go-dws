@@ -212,3 +212,83 @@ func (cs *CaseStatement) String() string {
 
 	return out.String()
 }
+
+// BreakStatement represents a break statement that exits the innermost loop.
+// Examples:
+//
+//	for i := 1 to 10 do begin
+//	   if i > 5 then break;
+//	end;
+//
+//	while condition do begin
+//	   if shouldExit then break;
+//	end;
+type BreakStatement struct {
+	Token lexer.Token // The 'break' token
+}
+
+func (bs *BreakStatement) statementNode()       {}
+func (bs *BreakStatement) TokenLiteral() string { return bs.Token.Literal }
+func (bs *BreakStatement) Pos() lexer.Position  { return bs.Token.Pos }
+func (bs *BreakStatement) String() string {
+	return "break;"
+}
+
+// ContinueStatement represents a continue statement that skips to the next iteration of the innermost loop.
+// Examples:
+//
+//	for i := 1 to 10 do begin
+//	   if (i and 1) = 0 then continue;
+//	   PrintLn(i);  // Only prints odd numbers
+//	end;
+//
+//	while condition do begin
+//	   if shouldSkip then begin
+//	      counter := counter + 1;  // Update before continue!
+//	      continue;
+//	   end;
+//	end;
+type ContinueStatement struct {
+	Token lexer.Token // The 'continue' token
+}
+
+func (cs *ContinueStatement) statementNode()       {}
+func (cs *ContinueStatement) TokenLiteral() string { return cs.Token.Literal }
+func (cs *ContinueStatement) Pos() lexer.Position  { return cs.Token.Pos }
+func (cs *ContinueStatement) String() string {
+	return "continue;"
+}
+
+// ExitStatement represents an exit statement that exits the current function or procedure.
+// Examples:
+//
+//	procedure Test;
+//	begin
+//	   if condition then exit;
+//	   PrintLn('still here');
+//	end;
+//
+//	function MyFunc(i: Integer): Integer;
+//	begin
+//	   if i <= 0 then exit(-1);  // Exit with value
+//	   Result := i * 2;
+//	end;
+type ExitStatement struct {
+	Token lexer.Token // The 'exit' token
+	Value Expression  // Optional return value (nil for procedures or exit without value)
+}
+
+func (es *ExitStatement) statementNode()       {}
+func (es *ExitStatement) TokenLiteral() string { return es.Token.Literal }
+func (es *ExitStatement) Pos() lexer.Position  { return es.Token.Pos }
+func (es *ExitStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString("exit")
+	if es.Value != nil {
+		out.WriteString("(")
+		out.WriteString(es.Value.String())
+		out.WriteString(")")
+	}
+	out.WriteString(";")
+	return out.String()
+}

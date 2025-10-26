@@ -1,0 +1,52 @@
+=== Nested Exception Tests ===
+
+Test 1: Nested try-except blocks
+Outer try
+Inner try
+Inner except caught: inner exception
+Between inner and outer
+PASS: Inner exception handled, outer not triggered
+
+Test 2: Exception propagates from inner to outer
+PASS: Outer handler caught propagated exception
+
+Test 3: Exception raised inside exception handler
+First handler: first exception
+PASS: Second exception caught: second exception
+
+Test 4: Nested try-finally with exception
+Finally 1 executed
+Finally 2 executed
+Exception caught after 2 finally blocks
+PASS: All finally blocks executed before exception caught
+
+Test 5: ExceptObject in nested exception handlers
+Outer handler: outer message
+ExceptObject type: EOuter
+PASS: E1 is ExceptObject in outer handler
+Inner handler: inner message
+ExceptObject type: EInner
+PASS: E2 is ExceptObject in inner handler
+Back in outer handler
+ExceptObject type: EOuter
+PASS: ExceptObject restored to E1 in outer handler
+
+Test 6: Three levels of nesting
+Level 1
+Level 2
+Level 3
+Caught at level 3: from level 3
+Back to level 2
+Back to level 1
+PASS: Exception handled at correct level
+
+Test 7: Exception raised in finally block
+Try block
+Finally block raising exception
+PASS: Exception from finally block caught: exception from finally
+
+Test 8: Complex nesting (try-except-finally)
+Execution order: 123456
+PASS: Correct execution order in complex nesting
+
+=== All Nested Exception Tests Complete ===

@@ -1,0 +1,91 @@
+// Test script for continue statement in different loop types
+// This tests continue functionality in for, while, and repeat loops
+
+PrintLn('=== Continue Statement Tests ===');
+PrintLn('');
+
+// Test 1: Continue in for loop
+PrintLn('Test 1: Continue in for loop');
+var sum1: Integer;
+sum1 := 0;
+var i: Integer;
+for i := 1 to 10 do
+begin
+	if i = 5 then
+		continue;
+	sum1 := sum1 + i;
+end;
+// Sum should be 1+2+3+4+6+7+8+9+10 = 50
+PrintLn('PASS: Sum = ' + IntToStr(sum1) + ' (expected 50, skipped 5)');
+PrintLn('');
+
+// Test 2: Continue in while loop
+PrintLn('Test 2: Continue in while loop');
+var j: Integer;
+var sum2: Integer;
+j := 0;
+sum2 := 0;
+while j < 10 do
+begin
+	j := j + 1;
+	if j = 5 then
+		continue;
+	sum2 := sum2 + j;
+end;
+// Sum should be 1+2+3+4+6+7+8+9+10 = 50
+PrintLn('PASS: Sum = ' + IntToStr(sum2) + ' (expected 50, skipped 5)');
+PrintLn('');
+
+// Test 3: Continue in repeat loop
+PrintLn('Test 3: Continue in repeat loop');
+var k: Integer;
+var sum3: Integer;
+k := 0;
+sum3 := 0;
+repeat
+begin
+	k := k + 1;
+	if k = 5 then
+		continue;
+	sum3 := sum3 + k;
+end
+until k >= 10;
+// Sum should be 1+2+3+4+6+7+8+9+10 = 50
+PrintLn('PASS: Sum = ' + IntToStr(sum3) + ' (expected 50, skipped 5)');
+PrintLn('');
+
+// Test 4: Continue with multiple conditions
+PrintLn('Test 4: Continue with multiple conditions');
+var sum4: Integer;
+sum4 := 0;
+var m: Integer;
+for m := 1 to 20 do
+begin
+	if (m mod 2) = 0 then
+		continue;  // Skip even numbers
+	sum4 := sum4 + m;
+end;
+// Sum of odd numbers from 1 to 20: 1+3+5+7+9+11+13+15+17+19 = 100
+PrintLn('PASS: Sum of odd numbers = ' + IntToStr(sum4) + ' (expected 100)');
+PrintLn('');
+
+// Test 5: Continue in nested loops
+PrintLn('Test 5: Continue in nested loops');
+var count: Integer;
+count := 0;
+var n: Integer;
+var p: Integer;
+for n := 1 to 3 do
+begin
+	for p := 1 to 5 do
+	begin
+		if p = 3 then
+			continue;
+		count := count + 1;
+	end;
+end;
+// Each inner loop runs 4 times (skips p=3), outer runs 3 times = 12
+PrintLn('PASS: Count = ' + IntToStr(count) + ' (expected 12)');
+PrintLn('');
+
+PrintLn('=== All Continue Statement Tests Complete ===');

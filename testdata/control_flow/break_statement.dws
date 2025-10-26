@@ -1,0 +1,90 @@
+// Test script for break statement in different loop types
+// This tests break functionality in for, while, and repeat loops
+
+PrintLn('=== Break Statement Tests ===');
+PrintLn('');
+
+// Test 1: Break in for loop
+PrintLn('Test 1: Break in for loop');
+var count1: Integer;
+count1 := 0;
+var i: Integer;
+for i := 1 to 10 do
+begin
+	count1 := count1 + 1;
+	if i = 5 then
+		break;
+end;
+PrintLn('PASS: Loop exited after ' + IntToStr(count1) + ' iterations (expected 5)');
+PrintLn('');
+
+// Test 2: Break in while loop
+PrintLn('Test 2: Break in while loop');
+var j: Integer;
+var count2: Integer;
+j := 0;
+count2 := 0;
+while j < 20 do
+begin
+	j := j + 1;
+	count2 := count2 + 1;
+	if j = 7 then
+		break;
+end;
+PrintLn('PASS: Loop exited after ' + IntToStr(count2) + ' iterations (expected 7)');
+PrintLn('');
+
+// Test 3: Break in repeat loop
+PrintLn('Test 3: Break in repeat loop');
+var k: Integer;
+var count3: Integer;
+k := 0;
+count3 := 0;
+repeat
+begin
+	k := k + 1;
+	count3 := count3 + 1;
+	if k = 3 then
+		break;
+end
+until k >= 15;
+PrintLn('PASS: Loop exited after ' + IntToStr(count3) + ' iterations (expected 3)');
+PrintLn('');
+
+// Test 4: Break in nested loops (only exits innermost)
+PrintLn('Test 4: Break in nested loops');
+var outerCount: Integer;
+var innerCount: Integer;
+outerCount := 0;
+innerCount := 0;
+var m: Integer;
+var n: Integer;
+for m := 1 to 3 do
+begin
+	outerCount := outerCount + 1;
+	for n := 1 to 10 do
+	begin
+		innerCount := innerCount + 1;
+		if n = 2 then
+			break;
+	end;
+end;
+PrintLn('PASS: Outer loop ran ' + IntToStr(outerCount) + ' times (expected 3)');
+PrintLn('PASS: Inner loop total iterations: ' + IntToStr(innerCount) + ' (expected 6)');
+PrintLn('');
+
+// Test 5: Break with condition
+PrintLn('Test 5: Break with condition');
+var sum: Integer;
+sum := 0;
+var p: Integer;
+for p := 1 to 100 do
+begin
+	sum := sum + p;
+	if sum > 50 then
+		break;
+end;
+PrintLn('PASS: Sum exceeded 50, final value: ' + IntToStr(sum));
+PrintLn('');
+
+PrintLn('=== All Break Statement Tests Complete ===');

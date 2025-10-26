@@ -44,6 +44,14 @@ type Analyzer struct {
 	// Operator registries (Stage 8)
 	globalOperators    *types.OperatorRegistry
 	conversionRegistry *types.ConversionRegistry
+
+	// Exception handling context tracking (Task 8.208, 8.209)
+	inExceptionHandler bool // Track if we're inside an exception handler (for bare raise validation)
+	inFinallyBlock     bool // Track if we're inside a finally block (for control flow validation)
+
+	// Loop control context tracking (Task 8.235c)
+	inLoop    bool // Track if we're inside a loop body (for break/continue validation)
+	loopDepth int  // Track loop nesting level
 }
 
 // NewAnalyzer creates a new semantic analyzer
@@ -70,10 +78,36 @@ func NewAnalyzer() *Analyzer {
 // registerBuiltinExceptionTypes registers Exception and standard exception types
 // Task 8.203-8.204
 func (a *Analyzer) registerBuiltinExceptionTypes() {
+	// Register TObject as the root base class for all classes
+	// Required for DWScript compatibility
+	objectClass := &types.ClassType{
+		Name:             "TObject",
+		Parent:           nil, // Root of the class hierarchy
+		Fields:           make(map[string]types.Type),
+		Methods:          make(map[string]*types.FunctionType),
+		FieldVisibility:  make(map[string]int),
+		MethodVisibility: make(map[string]int),
+		VirtualMethods:   make(map[string]bool),
+		OverrideMethods:  make(map[string]bool),
+		AbstractMethods:  make(map[string]bool),
+		Constructors:     make(map[string]*types.FunctionType),
+		Interfaces:       make([]*types.InterfaceType, 0),
+		Properties:       make(map[string]*types.PropertyInfo),
+		ClassMethodFlags: make(map[string]bool),
+	}
+
+	// Add basic Create constructor
+	objectClass.Constructors["Create"] = &types.FunctionType{
+		Parameters: []types.Type{}, // no parameters
+		ReturnType: objectClass,
+	}
+
+	a.classes["TObject"] = objectClass
+
 	// Task 8.203: Define Exception base class
 	exceptionClass := &types.ClassType{
 		Name:             "Exception",
-		Parent:           nil, // Root exception class
+		Parent:           objectClass, // Exception inherits from TObject
 		Fields:           make(map[string]types.Type),
 		Methods:          make(map[string]*types.FunctionType),
 		FieldVisibility:  make(map[string]int),

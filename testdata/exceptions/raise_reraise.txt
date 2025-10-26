@@ -1,0 +1,51 @@
+=== Raise and Re-raise Tests ===
+
+Test 1: Basic raise statement
+PASS: Basic raise caught: basic raise
+
+Test 2: Raise custom exception type
+PASS: Custom exception raised and caught: custom type
+
+Test 3: Re-raise in exception handler
+Inner handler: original exception
+PASS: Re-raised exception caught: original exception
+
+Test 4: Re-raise preserves exception type
+Inner caught as Exception: ESpecific
+PASS: Re-raised as ESpecific: ESpecific
+
+Test 5: Re-raise from nested handlers
+Handler 1: reraising
+Handler 2: reraising
+Handler 3: final catch
+PASS: Re-raised through 3 handlers
+
+Test 6: Conditional re-raise based on exception type
+Handled retryable: retryable error
+PASS: Retryable exception handled
+Fatal error detected, reraising: fatal error
+PASS: Fatal exception re-raised and caught
+
+Test 7: Re-raise with finally block
+Reraising...
+Finally after reraise
+PASS: Finally executed even with reraise
+
+Test 8: Re-raise preserves ExceptObject
+Inner: ExceptObject = preserve test
+Inner: E equals ExceptObject
+Outer: ExceptObject = preserve test
+PASS: Re-raised exception is ExceptObject
+
+Test 9: Multiple sequential raises
+Caught: raise #1
+Caught: raise #2
+Caught: raise #3
+PASS: Multiple sequential raises handled
+
+Test 10: Raise in finally block replaces original
+Finally raising new exception
+Caught: from finally
+PASS: Exception from finally replaced original
+
+=== All Raise and Re-raise Tests Complete ===

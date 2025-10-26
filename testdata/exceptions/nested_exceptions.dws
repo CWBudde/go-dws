@@ -1,0 +1,188 @@
+{
+Comprehensive test for nested exception handling.
+Tests: nested try-except, exception in handler, ExceptObject scoping.
+}
+
+PrintLn('=== Nested Exception Tests ===');
+PrintLn('');
+
+// Test 1: Nested try-except blocks
+PrintLn('Test 1: Nested try-except blocks');
+try
+  PrintLn('Outer try');
+  try
+    PrintLn('Inner try');
+    raise Exception.Create('inner exception');
+  except
+    on E: Exception do
+      PrintLn('Inner except caught: ' + E.Message);
+  end;
+  PrintLn('Between inner and outer');
+except
+  on E: Exception do
+    PrintLn('FAIL: Outer except should not execute');
+end;
+PrintLn('PASS: Inner exception handled, outer not triggered');
+PrintLn('');
+
+// Test 2: Inner exception not caught, propagates to outer
+PrintLn('Test 2: Exception propagates from inner to outer');
+type ESpecific = class(Exception)
+end;
+type EOther = class(Exception)
+end;
+
+try
+  try
+    raise ESpecific.Create('specific exception');
+  except
+    on E: EOther do
+      PrintLn('FAIL: Should not catch wrong type');
+  end;
+except
+  on E: ESpecific do
+    PrintLn('PASS: Outer handler caught propagated exception');
+end;
+PrintLn('');
+
+// Test 3: Exception raised in exception handler
+PrintLn('Test 3: Exception raised inside exception handler');
+try
+  try
+    raise Exception.Create('first exception');
+  except
+    on E: Exception do begin
+      PrintLn('First handler: ' + E.Message);
+      raise Exception.Create('second exception');
+    end;
+  end;
+except
+  on E: Exception do
+    PrintLn('PASS: Second exception caught: ' + E.Message);
+end;
+PrintLn('');
+
+// Test 4: Nested try-finally with exceptions
+PrintLn('Test 4: Nested try-finally with exception');
+var finallyCount := 0;
+try
+  try
+    try
+      raise Exception.Create('deep exception');
+    finally
+      finallyCount := finallyCount + 1;
+      PrintLn('Finally 1 executed');
+    end;
+  finally
+    finallyCount := finallyCount + 1;
+    PrintLn('Finally 2 executed');
+  end;
+except
+  on E: Exception do begin
+    PrintLn('Exception caught after ' + IntToStr(finallyCount) + ' finally blocks');
+    if finallyCount = 2 then
+      PrintLn('PASS: All finally blocks executed before exception caught');
+  end;
+end;
+PrintLn('');
+
+// Test 5: ExceptObject in nested handlers
+PrintLn('Test 5: ExceptObject in nested exception handlers');
+type EInner = class(Exception)
+end;
+type EOuter = class(Exception)
+end;
+
+try
+  raise EOuter.Create('outer message');
+except
+  on E1: EOuter do begin
+    PrintLn('Outer handler: ' + E1.Message);
+    PrintLn('ExceptObject type: ' + ExceptObject.ClassName);
+    if E1 = ExceptObject then
+      PrintLn('PASS: E1 is ExceptObject in outer handler');
+
+    try
+      raise EInner.Create('inner message');
+    except
+      on E2: EInner do begin
+        PrintLn('Inner handler: ' + E2.Message);
+        PrintLn('ExceptObject type: ' + ExceptObject.ClassName);
+        if E2 = ExceptObject then
+          PrintLn('PASS: E2 is ExceptObject in inner handler');
+      end;
+    end;
+
+    PrintLn('Back in outer handler');
+    PrintLn('ExceptObject type: ' + ExceptObject.ClassName);
+    if E1 = ExceptObject then
+      PrintLn('PASS: ExceptObject restored to E1 in outer handler');
+  end;
+end;
+PrintLn('');
+
+// Test 6: Multiple nested levels
+PrintLn('Test 6: Three levels of nesting');
+try
+  PrintLn('Level 1');
+  try
+    PrintLn('Level 2');
+    try
+      PrintLn('Level 3');
+      raise Exception.Create('from level 3');
+    except
+      on E: Exception do
+        PrintLn('Caught at level 3: ' + E.Message);
+    end;
+    PrintLn('Back to level 2');
+  except
+    on E: Exception do
+      PrintLn('FAIL: Level 2 should not catch');
+  end;
+  PrintLn('Back to level 1');
+except
+  on E: Exception do
+    PrintLn('FAIL: Level 1 should not catch');
+end;
+PrintLn('PASS: Exception handled at correct level');
+PrintLn('');
+
+// Test 7: Exception in finally block
+PrintLn('Test 7: Exception raised in finally block');
+try
+  try
+    PrintLn('Try block');
+  finally
+    PrintLn('Finally block raising exception');
+    raise Exception.Create('exception from finally');
+  end;
+except
+  on E: Exception do
+    PrintLn('PASS: Exception from finally block caught: ' + E.Message);
+end;
+PrintLn('');
+
+// Test 8: Complex nesting with all constructs
+PrintLn('Test 8: Complex nesting (try-except-finally)');
+var stepLog := '';
+try
+  stepLog := stepLog + '1';
+  try
+    stepLog := stepLog + '2';
+    raise Exception.Create('test');
+  except
+    on E: Exception do
+      stepLog := stepLog + '3';
+  finally
+    stepLog := stepLog + '4';
+  end;
+  stepLog := stepLog + '5';
+finally
+  stepLog := stepLog + '6';
+end;
+PrintLn('Execution order: ' + stepLog);
+if stepLog = '123456' then
+  PrintLn('PASS: Correct execution order in complex nesting');
+PrintLn('');
+
+PrintLn('=== All Nested Exception Tests Complete ===');

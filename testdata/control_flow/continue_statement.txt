@@ -1,0 +1,18 @@
+=== Continue Statement Tests ===
+
+Test 1: Continue in for loop
+PASS: Sum = 50 (expected 50, skipped 5)
+
+Test 2: Continue in while loop
+PASS: Sum = 50 (expected 50, skipped 5)
+
+Test 3: Continue in repeat loop
+PASS: Sum = 50 (expected 50, skipped 5)
+
+Test 4: Continue with multiple conditions
+PASS: Sum of odd numbers = 100 (expected 100)
+
+Test 5: Continue in nested loops
+PASS: Count = 12 (expected 12)
+
+=== All Continue Statement Tests Complete ===

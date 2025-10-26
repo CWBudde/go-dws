@@ -5,6 +5,62 @@ import (
 	"github.com/cwbudde/go-dws/lexer"
 )
 
+// parseBreakStatement parses a break statement.
+// Syntax: break;
+func (p *Parser) parseBreakStatement() *ast.BreakStatement {
+	stmt := &ast.BreakStatement{Token: p.curToken}
+
+	// Expect semicolon after break
+	if !p.expectPeek(lexer.SEMICOLON) {
+		return nil
+	}
+
+	return stmt
+}
+
+// parseContinueStatement parses a continue statement.
+// Syntax: continue;
+func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
+	stmt := &ast.ContinueStatement{Token: p.curToken}
+
+	// Expect semicolon after continue
+	if !p.expectPeek(lexer.SEMICOLON) {
+		return nil
+	}
+
+	return stmt
+}
+
+// parseExitStatement parses an exit statement.
+// Syntax: exit; or exit(value);
+func (p *Parser) parseExitStatement() *ast.ExitStatement {
+	stmt := &ast.ExitStatement{Token: p.curToken}
+
+	// Check if there's a return value: exit(value)
+	if p.peekTokenIs(lexer.LPAREN) {
+		p.nextToken() // move to '('
+		p.nextToken() // move to expression
+
+		stmt.Value = p.parseExpression(LOWEST)
+
+		if stmt.Value == nil {
+			p.addError("expected expression after 'exit('")
+			return nil
+		}
+
+		if !p.expectPeek(lexer.RPAREN) {
+			return nil
+		}
+	}
+
+	// Expect semicolon after exit or exit(value)
+	if !p.expectPeek(lexer.SEMICOLON) {
+		return nil
+	}
+
+	return stmt
+}
+
 // parseIfStatement parses an if-then-else statement.
 // Syntax: if <condition> then <statement> [else <statement>]
 func (p *Parser) parseIfStatement() *ast.IfStatement {

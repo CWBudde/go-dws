@@ -1,0 +1,44 @@
+=== Try-Finally Tests ===
+
+Test 1: Finally executes on normal completion
+Try block executing normally
+Finally block executed
+PASS: Finally executed after normal completion
+
+Test 2: Finally executes when exception raised
+Raising exception in try block
+Finally block executed despite exception
+Exception caught in outer handler
+PASS: Finally executed even with exception
+
+Test 3: Finally executes before exception propagates
+Finally: step = 2
+Caught: step = 2
+PASS: Finally executed before exception reached handler
+
+Test 4: Nested try-finally blocks
+Inner try
+Inner finally
+Outer finally
+PASS: Both finally blocks executed
+
+Test 5: Try-except-finally combined
+Exception caught
+Finally executed
+PASS: Both except and finally executed
+
+Test 6: Finally in nested exception handling
+Innermost finally
+Middle finally
+Outer except caught: inner
+PASS: All finally blocks executed in order
+
+Test 7: Finally does not suppress exceptions
+Finally executing but exception continues
+PASS: Exception not suppressed by finally
+
+Test 8: Empty finally block
+Try with empty finally
+PASS: Empty finally block works
+
+=== All Try-Finally Tests Complete ===

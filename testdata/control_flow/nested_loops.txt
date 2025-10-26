@@ -1,0 +1,26 @@
+=== Nested Loops Control Flow Tests ===
+
+Test 1: Break only exits innermost loop
+Outer loop iterations: 4 (expected 4)
+Inner loop total iterations: 12 (expected 12)
+PASS: Break only affected innermost loop
+
+Test 2: Continue only affects innermost loop
+Total increments: 12 (expected 12)
+PASS: Continue only affected innermost loop
+
+Test 3: Triple nested loops with break
+Level 1 iterations: 2 (expected 2)
+Level 2 iterations: 6 (expected 6)
+Level 3 iterations: 12 (expected 12)
+PASS: Break in triple nested loop affected only innermost
+
+Test 4: Break and continue combined in nested loops
+Total: 12 (expected 12)
+PASS: Break and continue worked together correctly
+
+Test 5: Mixed loop types with break/continue
+Mixed loops count: 9 (expected 9)
+PASS: Break/continue work with mixed loop types
+
+=== All Nested Loops Tests Complete ===

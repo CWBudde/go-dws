@@ -1,0 +1,145 @@
+{
+Comprehensive test for try-finally blocks.
+Tests: finally execution guarantee, finally with exceptions, finally with normal flow.
+}
+
+PrintLn('=== Try-Finally Tests ===');
+PrintLn('');
+
+// Test 1: Finally executes on normal completion
+PrintLn('Test 1: Finally executes on normal completion');
+var finallyExecuted := False;
+try
+  PrintLn('Try block executing normally');
+finally
+  finallyExecuted := True;
+  PrintLn('Finally block executed');
+end;
+if finallyExecuted then
+  PrintLn('PASS: Finally executed after normal completion');
+PrintLn('');
+
+// Test 2: Finally executes when exception is raised
+PrintLn('Test 2: Finally executes when exception raised');
+finallyExecuted := False;
+try
+  try
+    PrintLn('Raising exception in try block');
+    raise Exception.Create('test exception');
+  finally
+    finallyExecuted := True;
+    PrintLn('Finally block executed despite exception');
+  end;
+except
+  on E: Exception do
+    PrintLn('Exception caught in outer handler');
+end;
+if finallyExecuted then
+  PrintLn('PASS: Finally executed even with exception');
+PrintLn('');
+
+// Test 3: Finally executes before exception propagates
+PrintLn('Test 3: Finally executes before exception propagates');
+var step := 0;
+try
+  try
+    step := 1;
+    raise Exception.Create('propagate');
+  finally
+    step := 2;
+    PrintLn('Finally: step = ' + IntToStr(step));
+  end;
+except
+  on E: Exception do begin
+    PrintLn('Caught: step = ' + IntToStr(step));
+    if step = 2 then
+      PrintLn('PASS: Finally executed before exception reached handler');
+  end;
+end;
+PrintLn('');
+
+// Test 4: Nested try-finally blocks
+PrintLn('Test 4: Nested try-finally blocks');
+var outerFinally := False;
+var innerFinally := False;
+try
+  try
+    PrintLn('Inner try');
+  finally
+    innerFinally := True;
+    PrintLn('Inner finally');
+  end;
+finally
+  outerFinally := True;
+  PrintLn('Outer finally');
+end;
+if innerFinally and outerFinally then
+  PrintLn('PASS: Both finally blocks executed');
+PrintLn('');
+
+// Test 5: Finally with try-except
+PrintLn('Test 5: Try-except-finally combined');
+var flag1 := False;
+var flag2 := False;
+try
+  raise Exception.Create('test');
+except
+  on E: Exception do begin
+    flag1 := True;
+    PrintLn('Exception caught');
+  end;
+finally
+  flag2 := True;
+  PrintLn('Finally executed');
+end;
+if flag1 and flag2 then
+  PrintLn('PASS: Both except and finally executed');
+PrintLn('');
+
+// Test 6: Finally executes on each exception in nested blocks
+PrintLn('Test 6: Finally in nested exception handling');
+try
+  try
+    try
+      raise Exception.Create('inner');
+    finally
+      PrintLn('Innermost finally');
+    end;
+  finally
+    PrintLn('Middle finally');
+  end;
+except
+  on E: Exception do
+    PrintLn('Outer except caught: ' + E.Message);
+end;
+PrintLn('PASS: All finally blocks executed in order');
+PrintLn('');
+
+// Test 7: Finally doesn't suppress exceptions
+PrintLn('Test 7: Finally does not suppress exceptions');
+var exceptionReached := False;
+try
+  try
+    raise Exception.Create('not suppressed');
+  finally
+    PrintLn('Finally executing but exception continues');
+  end;
+except
+  on E: Exception do begin
+    exceptionReached := True;
+    PrintLn('PASS: Exception not suppressed by finally');
+  end;
+end;
+PrintLn('');
+
+// Test 8: Empty finally block
+PrintLn('Test 8: Empty finally block');
+try
+  PrintLn('Try with empty finally');
+finally
+  // Empty finally - should still work
+end;
+PrintLn('PASS: Empty finally block works');
+PrintLn('');
+
+PrintLn('=== All Try-Finally Tests Complete ===');

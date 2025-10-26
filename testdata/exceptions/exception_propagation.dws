@@ -1,0 +1,237 @@
+{
+Comprehensive test for exception propagation through call stack.
+Tests: propagation through functions, stack unwinding, finally during propagation.
+}
+
+PrintLn('=== Exception Propagation Tests ===');
+PrintLn('');
+
+// Test 1: Exception propagates from called function
+PrintLn('Test 1: Exception propagates from function');
+
+procedure ThrowException;
+begin
+  raise Exception.Create('from function');
+end;
+
+try
+  ThrowException;
+  PrintLn('FAIL: Should not reach here');
+except
+  on E: Exception do
+    PrintLn('PASS: Exception propagated from function: ' + E.Message);
+end;
+PrintLn('');
+
+// Test 2: Exception propagates through multiple call levels
+PrintLn('Test 2: Exception propagates through multiple levels');
+
+procedure Level3;
+begin
+  PrintLn('Level3: raising exception');
+  raise Exception.Create('from level 3');
+end;
+
+procedure Level2;
+begin
+  PrintLn('Level2: calling Level3');
+  Level3;
+  PrintLn('FAIL: Level2 should not continue');
+end;
+
+procedure Level1;
+begin
+  PrintLn('Level1: calling Level2');
+  Level2;
+  PrintLn('FAIL: Level1 should not continue');
+end;
+
+try
+  Level1;
+except
+  on E: Exception do
+    PrintLn('PASS: Exception propagated through 3 levels');
+end;
+PrintLn('');
+
+// Test 3: Finally blocks execute during propagation
+PrintLn('Test 3: Finally blocks execute during propagation');
+var propagationLog := '';
+
+procedure PropagateThrow;
+begin
+  try
+    propagationLog := propagationLog + 'A';
+    raise Exception.Create('propagating');
+  finally
+    propagationLog := propagationLog + 'B';
+  end;
+end;
+
+try
+  try
+    propagationLog := propagationLog + 'C';
+    PropagateThrow;
+  finally
+    propagationLog := propagationLog + 'D';
+  end;
+except
+  on E: Exception do begin
+    propagationLog := propagationLog + 'E';
+  end;
+end;
+PrintLn('Propagation order: ' + propagationLog);
+if propagationLog = 'CABDE' then
+  PrintLn('PASS: Finally blocks executed in correct order during propagation');
+PrintLn('');
+
+// Test 4: Exception caught at intermediate level
+PrintLn('Test 4: Exception caught at intermediate level');
+
+procedure ThrowSpecific;
+begin
+  raise Exception.Create('specific');
+end;
+
+procedure MiddleHandler;
+begin
+  try
+    ThrowSpecific;
+  except
+    on E: Exception do begin
+      PrintLn('Caught at middle level: ' + E.Message);
+      // Don't re-raise, handle it here
+    end;
+  end;
+  PrintLn('Middle level continues normally');
+end;
+
+try
+  MiddleHandler;
+  PrintLn('PASS: Caller continues after exception handled at middle level');
+except
+  on E: Exception do
+    PrintLn('FAIL: Should not reach outer handler');
+end;
+PrintLn('');
+
+// Test 5: Propagation with selective catching
+PrintLn('Test 5: Selective exception catching in call stack');
+type ETypeA = class(Exception)
+end;
+type ETypeB = class(Exception)
+end;
+
+procedure ThrowTypeB;
+begin
+  raise ETypeB.Create('type B exception');
+end;
+
+procedure MiddleLayer;
+begin
+  try
+    ThrowTypeB;
+  except
+    on E: ETypeA do
+      PrintLn('FAIL: Middle should not catch type A');
+    // No handler for ETypeB, so it propagates
+  end;
+end;
+
+try
+  MiddleLayer;
+except
+  on E: ETypeB do
+    PrintLn('PASS: Type B propagated to outer handler');
+end;
+PrintLn('');
+
+// Test 6: Stack unwinding with multiple finally blocks
+PrintLn('Test 6: Stack unwinding with multiple finally blocks');
+var unwindCount := 0;
+
+procedure DeepFunction;
+begin
+  try
+    raise Exception.Create('unwind test');
+  finally
+    unwindCount := unwindCount + 1;
+    PrintLn('Finally in DeepFunction');
+  end;
+end;
+
+procedure MiddleFunction;
+begin
+  try
+    DeepFunction;
+  finally
+    unwindCount := unwindCount + 1;
+    PrintLn('Finally in MiddleFunction');
+  end;
+end;
+
+procedure TopFunction;
+begin
+  try
+    MiddleFunction;
+  finally
+    unwindCount := unwindCount + 1;
+    PrintLn('Finally in TopFunction');
+  end;
+end;
+
+try
+  TopFunction;
+except
+  on E: Exception do begin
+    PrintLn('Exception caught after ' + IntToStr(unwindCount) + ' finally blocks');
+    if unwindCount = 3 then
+      PrintLn('PASS: All finally blocks executed during stack unwinding');
+  end;
+end;
+PrintLn('');
+
+// Test 7: Exception in constructor propagates
+PrintLn('Test 7: Exception in constructor propagates');
+type TBadClass = class
+  constructor Create;
+  begin
+    raise Exception.Create('constructor failed');
+  end;
+end;
+
+var obj: TBadClass;
+try
+  obj := TBadClass.Create;
+  PrintLn('FAIL: Should not reach here');
+except
+  on E: Exception do
+    PrintLn('PASS: Exception from constructor propagated: ' + E.Message);
+end;
+PrintLn('');
+
+// Test 8: Recursive call with exception
+PrintLn('Test 8: Exception in recursive function');
+var recursionDepth := 0;
+
+procedure RecursiveThrow(depth: Integer);
+begin
+  recursionDepth := recursionDepth + 1;
+  if depth = 0 then
+    raise Exception.Create('recursion limit')
+  else
+    RecursiveThrow(depth - 1);
+end;
+
+try
+  RecursiveThrow(5);
+except
+  on E: Exception do begin
+    PrintLn('Recursion depth reached: ' + IntToStr(recursionDepth));
+    if recursionDepth = 6 then
+      PrintLn('PASS: Exception propagated through recursive calls');
+  end;
+end;
+PrintLn('');
+
+PrintLn('=== All Exception Propagation Tests Complete ===');

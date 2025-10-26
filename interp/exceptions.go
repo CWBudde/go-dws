@@ -35,9 +35,21 @@ func (e *ExceptionValue) Inspect() string {
 
 // registerBuiltinExceptions registers the Exception base class and standard exception types.
 func (i *Interpreter) registerBuiltinExceptions() {
+	// Register TObject as the root base class for all classes
+	// This is required for DWScript compatibility - all classes ultimately inherit from TObject
+	objectClass := NewClassInfo("TObject")
+	objectClass.Parent = nil // Root of the class hierarchy
+	objectClass.IsAbstract = false
+	objectClass.IsExternal = false
+
+	// Add basic TObject constructor
+	objectClass.Constructors["Create"] = nil // Placeholder, handled specially
+
+	i.classes["TObject"] = objectClass
+
 	// Task 8.203: Register Exception base class
 	exceptionClass := NewClassInfo("Exception")
-	exceptionClass.Parent = nil
+	exceptionClass.Parent = objectClass // Exception inherits from TObject
 	exceptionClass.Fields["Message"] = types.STRING
 	exceptionClass.IsAbstract = false
 	exceptionClass.IsExternal = false
@@ -77,19 +89,18 @@ func (i *Interpreter) registerBuiltinExceptions() {
 // evalTryStatement evaluates a try/except/finally statement.
 // Task 8.213: Implement evalTryStatement
 func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
-	var finallyBlock func()
-
 	// Set up finally block to run at the end (Task 8.217)
 	if stmt.FinallyClause != nil {
-		finallyBlock = func() {
+		defer func() {
 			// Save the current exception state
 			savedExc := i.exception
+			// Clear exception so finally block can execute
+			i.exception = nil
 			// Execute finally block
 			i.evalBlockStatement(stmt.FinallyClause.Block)
 			// Restore exception state (finally doesn't clear exceptions)
 			i.exception = savedExc
-		}
-		defer finallyBlock()
+		}()
 	}
 
 	// Execute try block
@@ -136,7 +147,8 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 
 			// Bind exception variable
 			if handler.Variable != nil {
-				i.env.Set(handler.Variable.Value, exc.Instance)
+				// Use Define instead of Set to create a new variable in the current scope
+				i.env.Define(handler.Variable.Value, exc.Instance)
 			}
 
 			// Save exception for bare raise to access
