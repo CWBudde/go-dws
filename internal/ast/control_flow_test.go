@@ -316,7 +316,7 @@ func TestExitStatementString(t *testing.T) {
 	}
 }
 
-func TestControlFlowNodesImplementInterfaces(t *testing.T) {
+func TestControlFlowNodesImplementInterfaces(_ *testing.T) {
 	// Ensure all control flow nodes implement the Statement interface
 	var _ Statement = (*IfStatement)(nil)
 	var _ Statement = (*WhileStatement)(nil)

@@ -223,7 +223,7 @@ func TestNewNilValue(t *testing.T) {
 }
 
 // RED: Test that Value interface is correctly implemented
-func TestValueInterface(t *testing.T) {
+func TestValueInterface(_ *testing.T) {
 	// Verify all types implement Value interface
 	var _ Value = &IntegerValue{}
 	var _ Value = &FloatValue{}

@@ -49,7 +49,7 @@ func init() {
 	runCmd.Flags().BoolVar(&typeCheck, "type-check", true, "perform semantic type checking before execution (default: true)")
 }
 
-func runScript(cmd *cobra.Command, args []string) error {
+func runScript(_ *cobra.Command, args []string) error {
 	var input string
 	var filename string
 

@@ -49,7 +49,7 @@ func (pd *PropertyDecl) String() string {
 	out.WriteString(pd.Name.String())
 
 	// Indexed property: property Items[index: Integer]
-	if pd.IndexParams != nil && len(pd.IndexParams) > 0 {
+	if len(pd.IndexParams) > 0 {
 		out.WriteString("[")
 		params := make([]string, len(pd.IndexParams))
 		for i, param := range pd.IndexParams {

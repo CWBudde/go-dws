@@ -250,7 +250,7 @@ func TestAnalyzeExceptionHandlerEdgeCases(t *testing.T) {
 		// Should work - bare except is valid
 	})
 
-	t.Run("Handler statement is nil", func(t *testing.T) {
+	t.Run("Handler statement is nil", func(_ *testing.T) {
 		// Edge case - handler.Statement might be nil in error scenarios
 		// This is handled gracefully at line 101-103
 		// Hard to test directly as parser usually provides a statement

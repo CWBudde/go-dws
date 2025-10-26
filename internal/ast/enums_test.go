@@ -110,7 +110,7 @@ func TestEnumDecl(t *testing.T) {
 		// The exact format can vary, but it should be meaningful
 	})
 
-	t.Run("Implements Statement interface", func(t *testing.T) {
+	t.Run("Implements Statement interface", func(_ *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 		enumDecl := &EnumDecl{
 			Token: tok,
@@ -200,7 +200,7 @@ func TestEnumLiteral(t *testing.T) {
 		}
 	})
 
-	t.Run("Implements Expression interface", func(t *testing.T) {
+	t.Run("Implements Expression interface", func(_ *testing.T) {
 		tok := lexer.Token{Type: lexer.IDENT, Literal: "Red"}
 		enumLit := &EnumLiteral{
 			Token:     tok,

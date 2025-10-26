@@ -62,7 +62,7 @@ func TestSetDecl(t *testing.T) {
 		// Exact format can vary but should be meaningful
 	})
 
-	t.Run("Implements Statement interface", func(t *testing.T) {
+	t.Run("Implements Statement interface", func(_ *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 		setDecl := &SetDecl{
 			Token: tok,
@@ -140,7 +140,7 @@ func TestSetLiteral(t *testing.T) {
 		}
 	})
 
-	t.Run("Implements Expression interface", func(t *testing.T) {
+	t.Run("Implements Expression interface", func(_ *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 		setLit := &SetLiteral{
 			Token:    tok,

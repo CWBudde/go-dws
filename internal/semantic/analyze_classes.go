@@ -383,7 +383,7 @@ func (a *Analyzer) checkMethodOverriding(class, parent *types.ClassType) {
 //   - visibility: the visibility level of the member (ast.Visibility as int)
 //   - memberName: the name of the member (for error messages)
 //   - memberType: "field" or "method" (for error messages)
-func (a *Analyzer) checkVisibility(memberClass *types.ClassType, visibility int, memberName, memberType string) bool {
+func (a *Analyzer) checkVisibility(memberClass *types.ClassType, visibility int, _, _ string) bool {
 	// Public is always accessible (Task 7.63i)
 	if visibility == int(ast.VisibilityPublic) {
 		return true
