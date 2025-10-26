@@ -63,1191 +63,47 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - Semantic analysis validates class/interface hierarchies, method signatures, interface fulfillment, and external contracts while integrating with the existing symbol/type infrastructure.
 - Documentation in docs/stage7-summary.md, docs/stage7-complete.md, docs/delphi-to-go-mapping.md, and docs/interfaces-guide.md captures the architecture, and CLI/integration suites ensure DWScript parity.
 
-## Stage 8: Additional DWScript Features and Polishing
+## Stage 8: Additional DWScript Features and Polishing ✅ **IN PROGRESS**
 
-**Progress**: 60/336 tasks completed (17.9%)
+- Extended the expression/type system with DWScript-accurate operator overloading (global + class operators, coercions, analyzer enforcement) and wired the interpreter/CLI with matching fixtures in `testdata/operators` and docs in `docs/operators.md`.
+- Landed the full property stack (field/method/auto/default metadata, parser, semantic validation, interpreter lowering, CLI coverage) so OO code can use DWScript-style properties; deferred indexed/expr variants are tracked separately.
+- Delivered composite type parity: enums, records, sets, static/dynamic arrays, and assignment/indexing semantics now mirror DWScript with dedicated analyzers, runtime values, exhaustive unit/integration suites, and design notes captured in docs/enums.md plus related status writeups.
+- Upgraded the runtime to support break/continue/exit statements, DWScript's `new` keyword, rich exception handling (try/except/finally, raise, built-in exception classes), and CLI smoke tests that mirror upstream fixtures.
+- Backfilled fixtures, docs, and CLI suites for every feature shipped in this phase (properties, enums, arrays, exceptions, etc.), keeping coverage high and mapping each ported DWScript test in `testdata/properties/REFERENCE_TESTS.md`.
 
-**Status**: In Progress - Operator overloading, enum types, array functions, string/math functions, and conversion functions complete
 
-**New Task Breakdown**:
-- Original 21 composite type tasks (8.30-8.50) expanded into 117 detailed tasks (8.30-8.146)
-- Exception handling tasks (8.189-8.193) expanded to 39 tasks (8.189-8.227) ✅ COMPLETE
-- Loop control statements (break/continue/exit) added as 28 tasks (8.228-8.235u) ✅ COMPLETE
-- **HIGH PRIORITY features** added as 80 tasks (8.249-8.328):
-  - Const declarations (12 tasks: 8.249-8.260)
-  - Type aliases (11 tasks: 8.261-8.271)
-  - Ordinal functions (12 tasks: 8.272-8.283)
-  - Assert function (4 tasks: 8.284-8.287)
-  - Priority string functions (14 tasks: 8.288-8.301)
-  - Priority math functions (13 tasks: 8.302-8.314)
-  - Priority array functions (14 tasks: 8.315-8.328)
-- This follows the same granular TDD pattern established in Stages 1-7
+---
 
-**Summary**:
-- ✅ Operator Overloading (Tasks 8.1-8.25): Complete
-- ⏸️ Properties (Tasks 8.26-8.29): Not started
-- 🔄 **Composite Types (Tasks 8.30-8.146)**: In progress
-  - ✅ Enums: 23 tasks complete (Tasks 8.30-8.52) - Runtime, tests, and documentation complete
-  - ⏸️ Records: 28 tasks (value types with methods) - Not started
-  - ⏸️ Sets: 36 tasks (based on enums) - Not started
-  - 🔄 Arrays: 25 tasks (Tasks 8.117-8.141) - 18 complete, 7 remaining (built-in functions pending)
-  - ⏸️ Integration: 10 tasks - Not started
-- ✅ **String/Math Functions (Tasks 8.183-8.186)**: Complete - All string functions (Length, Copy, Concat, Pos, UpperCase, LowerCase) and math functions (Abs, Sqrt, Sin, Cos, Tan, Ln, Exp, Round, Trunc, Random, Randomize) implemented and tested
-- ✅ **Conversion Functions (Tasks 8.187-8.188)**: Complete - IntToStr, StrToInt, FloatToStr, StrToFloat all implemented with comprehensive tests
-- ⏸️ **Exception Handling (Tasks 8.189-8.227)**: Not started - 39 detailed tasks covering try/except/finally blocks, exception class hierarchy, raise statement, and comprehensive testing
-- ⏸️ **Loop Control Statements (Tasks 8.228-8.235u)**: Not started - 28 detailed tasks covering break/continue/exit statements with full parser, semantic, and interpreter support
-- ⏸️ **Additional Features (Tasks 8.236-8.248)**: Not started - Contracts, feature assessment, and comprehensive testing
-
-### Operator Overloading (Work in progress)
-
-#### Research & Design
-
-- [x] 8.1 Capture DWScript operator overloading syntax from `reference/dwscript-original/Test/OperatorOverloadPass` and the StackOverflow discussion; summarize findings in [docs/operators.md](docs/operators.md).
-- [x] 8.2 Catalog supported operator categories (binary, unary, `IN`, symbolic tokens like `==`, `!=`, `<<`, `>>`) and map them onto existing `TokenKind` values.
-- [x] 8.3 Draft operator resolution and implicit conversion strategy aligned with current type-system architecture notes.
-
-#### Parser & AST
-
-- [x] 8.4 Extend AST with operator declaration nodes:
-  - [x] Distinguish global, class, and conversion operators.
-  - [x] Record operator token, arity, operand types, return type, and bound function identifier.
-- [x] 8.5 Parse standalone operator declarations (`operator + (String, Integer) : String uses StrPlusInt;`).
-- [x] 8.6 Support unary operator declarations and validate arity at parse time.
-- [x] 8.7 Parse `operator implicit` / `operator explicit` conversion declarations and capture source/target types.
-- [x] 8.8 Parse `class operator` declarations inside class bodies (including `uses` method binding).
-- [x] 8.9 Accept symbolic operator tokens (`==`, `!=`, `<<`, `>>`, `IN`, etc.) and normalize them to parser token kinds.
-
-#### Semantic Analysis & Types
-
-- [x] 8.10 Extend type system with operator registries:
-  - [x] Global operator table keyed by token + operand types.
-  - [x] Class operator table supporting inheritance/override rules.
-  - [x] Conversion operator table for implicit/explicit conversions.
-- [x] 8.11 Register standalone operator declarations and reject duplicates with DWScript-style diagnostics.
-- [x] 8.12 Attach `class operator` declarations to `ClassInfo`, honoring overrides and ancestor lookup.
-- [x] 8.13 Integrate operator resolution into binary/unary expression analysis with overload selection.
-- [x] 8.14 Extend `in` expression analysis to route through overload lookup (global or class operators).
-- [x] 8.15 Support implicit conversion lookup during assignment, call argument binding, and returns.
-- [x] 8.16 Emit semantic errors for missing or ambiguous overloads that match DWScript messages.
-
-#### Interpreter Support
-
-- [x] 8.17 Execute global operator overloads by invoking bound functions during expression evaluation.
-- [x] 8.18 Execute `class operator` overloads via static method dispatch (respect inheritance).
-- [x] 8.19 Apply implicit conversion operators automatically where the semantic analyzer inserted conversions.
-- [x] 8.20 Maintain native operator fallback behavior when no overload is applicable.
-  - Already implemented: tryBinaryOperator returns (nil, false) when no overload found
-  - Native operators in evalIntegerBinaryOp, evalFloatBinaryOp, etc. handle fallback
-
-#### Testing & Fixtures
-
-- [x] 8.21 Add parser unit tests covering operator declarations (global, class, implicit, symbolic tokens).
-- [x] 8.22 Add semantic analyzer tests for overload resolution, duplicate definitions, and failure diagnostics.
-- [x] 8.23 Add interpreter tests for arithmetic overloads, `operator in`, class operators, and implicit conversions.
-- [x] 8.24 Port DWScript operator scripts into `testdata/operators/` with expected outputs referencing originals. ✓
-- [x] 8.25 Add CLI integration test running representative operator overloading scripts via `go run ./cmd/dwscript`. ✓
-
-### Properties (33/35 tasks complete - 94%) ✅ CORE COMPLETE
-
-**Status**: Core property functionality fully implemented and tested. Field-backed and method-backed properties work with full semantic validation and runtime support. Indexed properties (8.55) and expression getters (8.56) intentionally deferred for future implementation.
-
-**Note**: Properties provide syntactic sugar for getter/setter access. They support field access, method access, indexed properties (array-like), expression-based getters, and default properties.
-
-#### Type System (4 tasks) ✅ COMPLETE
-
-- [x] 8.26 Define `PropertyInfo` struct in `types/types.go` (not class.go - ClassType is in types.go)
-  - [x] 8.26a Fields: Name, Type, ReadSpec (field/method/expression), WriteSpec (field/method), IsIndexed, IsDefault
-  - [x] 8.26b Support ReadKind/WriteKind enum: Field, Method, Expression, None (PropAccessKind enum)
-- [x] 8.27 Extend `ClassType` with Properties map[string]*PropertyInfo
-- [x] 8.28 Add helper methods: `GetProperty(name)`, `HasProperty(name)` (with inheritance support)
-- [x] 8.29 Write unit tests for property metadata: `types/types_test.go::TestPropertyInfo`, `TestClassTypeProperties`
-
-#### AST Nodes (6 tasks) ✅ COMPLETE
-
-- [x] 8.30 Create `PropertyDecl` struct in new file `ast/properties.go`
-  - [x] 8.30a Fields: Name, Type, ReadSpec, WriteSpec, IndexParams (for indexed properties), IsDefault
-  - [x] 8.30b ReadSpec can be: field name (Identifier), method name (Identifier), or expression (Expression)
-  - [x] 8.30c WriteSpec can be: field name (Identifier), method name (Identifier), or nil (read-only)
-- [x] 8.31 Support read-only properties (no write specifier)
-- [x] 8.32 Support write-only properties (no read specifier)
-- [x] 8.33 Support indexed properties with parameter lists: `property Items[index: Integer]: String` (single and multiple params)
-- [x] 8.34 Implement `String()` method for PropertyDecl AST node
-- [x] 8.35 Write AST tests: `ast/properties_test.go::TestPropertyDecl*` (comprehensive coverage)
-
-#### Parser (10 tasks) ✅ COMPLETE
-
-- [x] 8.36 Implement `parsePropertyDeclaration()` in new file `parser/properties.go`
-- [x] 8.37 Parse `property Name : Type read ReadSpec;` syntax
-  - [x] 8.37a ReadSpec: field name (`FField`), method name (`GetValue`), or expression in parens (`(FValue * 2)`)
-- [x] 8.38 Parse `write WriteSpec` clause
-  - [x] 8.38a WriteSpec: field name (`FField`) or method name (`SetValue`)
-- [x] 8.39 Parse indexed properties: `property Items[i: Integer]: String read GetItem write SetItem;`
-  - [x] 8.39a Handle multiple index parameters: `property Data[x, y: Integer]: Float`
-- [x] 8.40 Parse `default;` keyword for default indexed properties
-- [x] 8.41 Parse auto-properties (no explicit read/write): `property Name: String;`
-  - [x] 8.41a Auto-generate backing field name (FName) and auto-property behavior
-- [x] 8.42 Integrate property parsing into class body parser
-- [x] 8.43 Handle property access in expressions (translate `obj.Prop` to getter call)
-- [x] 8.44 Handle property assignment (translate `obj.Prop := value` to setter call)
-- [x] 8.45 Write comprehensive parser tests: `parser/properties_test.go::TestPropertyDeclaration`, `TestPropertyTypes`
-
-#### Semantic Analysis (7 tasks) ✅ COMPLETE
-
-- [x] 8.46 Register properties in class metadata during class analysis
-- [x] 8.47 Validate getter (read specifier):
-  - [x] 8.47a If field: field must exist and have matching type
-  - [x] 8.47b If method: method must exist, take no params (or index params for indexed), return property type
-  - [x] 8.47c If expression: validate expression type matches property type
-- [x] 8.48 Validate setter (write specifier):
-  - [x] 8.48a If field: field must exist and have matching type
-  - [x] 8.48b If method: method must exist, take property type param (plus index params for indexed), return void
-- [x] 8.49 Validate indexed properties:
-  - [x] 8.49a Index parameters must have valid types
-  - [x] 8.49b Getter/setter signatures must include index parameters
-- [x] 8.50 Check for duplicate property names within class
-- [x] 8.51 Validate default property restrictions (must be indexed property, only one per class)
-- [x] 8.52 Write semantic validation tests: `semantic/property_test.go::TestPropertyDeclaration`, `TestPropertyErrors`
+## Phase 9: Deferred Stage 8 Tasks
 
 #### Interpreter/Runtime (5 tasks) - 3/5 COMPLETE (2 deferred)
 
-- [x] 8.53 Translate property read access to appropriate operation:
-  - [x] 8.53a Field access: read from object field
-  - [x] 8.53b Method access: call getter method with no args (or index args)
-  - [x] 8.53c Expression access: evaluate expression in context of object
-- [x] 8.54 Translate property write access to appropriate operation:
-  - [x] 8.54a Field access: write to object field
-  - [x] 8.54b Method access: call setter method with value (and index args)
-- [ ] 8.55 Handle indexed property access (DEFERRED):
-  - [ ] 8.55a Evaluate index expressions
-  - [ ] 8.55b Pass index values to getter/setter
-- [ ] 8.56 Support expression-based property getters (inline expressions like `(FValue * 2)`) (DEFERRED)
-- [x] 8.57 Write interpreter tests: `interp/property_test.go::TestPropertyAccess`, `TestIndexedProperties`
-
-#### Testing & Fixtures (3 tasks) ✅ COMPLETE
-
-- [x] 8.58 Create `testdata/properties/` directory with comprehensive test files:
-  - [x] 8.58a `basic_property.dws` - Field-backed and method-backed properties
-  - [ ] 8.58b `indexed_property.dws` - Array-like indexed properties (DEFERRED - depends on 8.55)
-  - [ ] 8.58c `expression_property.dws` - Expression-based getters (DEFERRED - depends on 8.56)
-  - [x] 8.58d `readonly_writeonly.dws` - Read-only and write-only properties (see read_only_property.dws)
-  - [ ] 8.58e `default_property.dws` - Default indexed properties (DEFERRED - depends on 8.55)
-  - [x] Created 5 comprehensive test files (basic, inheritance, read-only, auto, mixed)
-  - [x] Created README.md documenting test coverage
-- [x] 8.59 Add CLI integration tests: `cmd/dwscript/properties_test.go`
-  - [x] 5 test functions with 15+ test cases
-  - [x] All tests passing
-- [x] 8.60 Port DWScript property tests from `reference/dwscript-original/Test` and verify compatibility
-  - [x] Analyzed 70+ reference property tests
-  - [x] Created REFERENCE_TESTS.md mapping reference tests to implementation status
-  - [x] Identified tests requiring deferred features (expression/indexed properties)
-  - [x] Documented compatibility notes and future work
-
-### Enumerated Types (Foundation for Sets)
-
-**Note**: Enums must be implemented before Sets since sets depend on enum types.
-
-#### Type System (3 tasks) ✅ COMPLETE
-
-- [x] 8.61 Define `EnumType` struct in `types/compound_types.go`
-- [x] 8.62 Add `IsOrdinalType()` to support enums (extend existing function in `types/types.go`)
-- [x] 8.63 Write unit tests for `EnumType`: `types/types_test.go::TestEnumType`
-
-#### AST Nodes (4 tasks) ✅ COMPLETE
-
-- [x] 8.64 Create `EnumDecl` struct in new file `ast/enums.go`
-- [x] 8.65 Create `EnumLiteral` expression in `ast/enums.go`
-- [x] 8.66 Implement `String()` method for enum AST nodes
-- [x] 8.67 Write AST tests: `ast/enums_test.go::TestEnumDecl`, `TestEnumLiteral`
-
-#### Parser (6 tasks) ✅ COMPLETE
-
-- [x] 8.68 Implement `parseEnumDeclaration()` in `parser/enums.go`
-- [x] 8.69 Integrate enum parsing into `parseTypeDeclaration()` dispatcher
-- [x] 8.70 Parse enum literals in expression context: `Red`, `TColor.Red`
-- [x] 8.71 Add enum literal to expression parser (as identifier with type resolution)
-- [x] 8.72 Handle `.Name` property access for enum values (parse in member access)
-- [x] 8.73 Write parser tests: `parser/enums_test.go::TestEnumDeclaration`, `TestEnumLiterals`
-
-#### Semantic Analysis (4 tasks) ✅ COMPLETE
-
-- [x] 8.74 Register enum types in symbol table (extend `analyzer.go::AnalyzeTypeDeclaration`)
-- [x] 8.75 Register enum value constants in symbol table
-- [x] 8.76 Validate enum value uniqueness and range (no duplicates, values fit in int)
-- [x] 8.77 Write semantic tests: `semantic/enum_test.go::TestEnumDeclaration`, `TestEnumErrors`
-
-#### Interpreter/Runtime (6 tasks) ✅ COMPLETE
-
-- [x] 8.78 Create `EnumValue` runtime representation in `interp/value.go`
-- [x] 8.79 Evaluate enum declarations and literals in `interpreter.go::Eval()`
-- [x] 8.80 Implement `Ord()` built-in function for enum values
-- [x] 8.81 Implement `Integer()` cast function for enum values
-- [x] 8.82 Support enum comparisons in case statements (using ordinal values)
-- [x] 8.83 Write interpreter tests: `interp/enum_test.go`
-  - [x] TestEnumDeclaration (3 cases)
-  - [x] TestEnumValueStorage (2 cases)
-  - [x] TestEnumLiteralEvaluation (3 cases)
-  - [x] TestOrdFunction (4 cases)
-  - [x] TestIntegerCast (2 cases)
-
-#### Integration Tests & Documentation (Additional)
-
-- [x] Create integration test suite: `testdata/enums/`
-  - [x] basic_enum.dws - Basic declaration and usage
-  - [x] enum_ord.dws - Ord() and Integer() functions
-  - [x] enum_case.dws - Enums in case statements
-- [x] Create comprehensive documentation: `docs/enums.md`
-  - [x] Syntax reference, examples, built-in functions
-  - [x] Implementation status and planned features
-- [x] Update CLAUDE.md with enum quick reference
-
-### Record Types
-
-**Note**: Records are value types (like structs), can have fields, methods, properties, and visibility.
-
-#### Type System (Already exists, verify/extend - 3 tasks)
-
-- [x] 8.84 Verify `RecordType` in `types/compound_types.go` is complete
-  - [x] 8.84a Already has: Name, Fields map
-  - [x] 8.84b Add: Methods map[string]*FunctionType (for record methods)
-  - [x] 8.84c Add: Properties map (if supporting properties)
-- [x] 8.85 Add `GetFieldType(name)` and `HasField(name)` helper methods (already exist, verify)
-- [x] 8.86 Write/extend unit tests: `types/types_test.go::TestRecordType`
-
-#### AST Nodes (5 tasks)
-
-- [x] 8.87 Create `RecordDecl` struct in `ast/type_annotation.go` or new file `ast/records.go`
-- [x] 8.88 Create `RecordLiteral` expression in `ast/records.go`
-- [x] 8.89 Extend `MemberExpression` to support record field access: `point.X` (MemberAccessExpression already supports this)
-- [x] 8.90 Implement `String()` methods for record AST nodes
-- [x] 8.91 Write AST tests: `ast/records_test.go::TestRecordDecl`, `TestRecordLiteral`
-
-#### Parser (7 tasks)
-
-- [x] 8.92 Implement `parseRecordDeclaration()` in new file `parser/records.go`
-- [x] 8.93 Integrate record parsing into `parseTypeDeclaration()` dispatcher
-- [x] 8.94 Parse record literals: `var p := (X: 10, Y: 20);` or `var p: TPoint := (10, 20);`
-- [x] 8.95 Parse record constructor syntax: `TPoint(10, 20)` if supported
-- [x] 8.96 Parse record field access: `point.X := 5;`
-- [x] 8.97 Parse record method calls: `point.GetDistance();`
-- [x] 8.98 Write parser tests: `parser/records_test.go::TestRecordDeclaration`, `TestRecordLiterals`, `TestRecordAccess`
-
-#### Semantic Analysis (5 tasks)
-
-- [x] 8.99 Register record types in symbol table (extend `analyzer.go`)
-- [x] 8.100 Validate record field declarations (no duplicates, valid types)
-- [x] 8.101 Type-check record literals (field names/types match, positional vs named)
-- [x] 8.102 Type-check record field access (field exists, visibility rules)
-- [x] 8.103 Write semantic tests: `semantic/record_test.go::TestRecordDeclaration`, `TestRecordErrors`
-
-#### Interpreter/Runtime (8 tasks)
-
-- [x] 8.104 Create `RecordValue` runtime representation in `interp/value.go`
-  - [x] 8.104a Fields: Type *types.RecordType, Fields map[string]interface{}
-  - [x] 8.104b Implement `String()` method
-- [x] 8.105 Evaluate record literals (named and positional initialization)
-- [x] 8.106 Implement record field access (read): `point.X`
-- [x] 8.107 Implement record field assignment (write): `point.X := 5`
-- [x] 8.108 Implement record copying (value semantics) for assignments
-- [ ] 8.109 Implement record method calls if methods are supported
-- [x] 8.110 Support record comparison (= and <>) by comparing all fields
-- [x] 8.111 Write interpreter tests: `interp/record_test.go::TestRecordCreation`, `TestRecordFieldAccess`, `TestRecordCopying`
-
-### Set Types
-
-**Note**: Sets are built on enum types. Sets support Include/Exclude, set operations (+, -, *, in), and iteration.
-
-#### Type System (4 tasks)
-
-- [x] 8.112 Define `SetType` struct in `types/compound_types.go`
-  - [x] 8.112a Fields: ElementType *EnumType (sets are always of enum type)
-  - [x] 8.112b Implement `String()`, `TypeKind()`, `Equals()` methods
-- [x] 8.113 Add set type factory: `NewSetType(elementType *EnumType) *SetType`
-- [x] 8.114 Add validation: sets can only be of ordinal types (enums, small integers)
-- [x] 8.115 Write unit tests: `types/types_test.go::TestSetType`
-
-#### AST Nodes (6 tasks)
-
-- [x] 8.116 Create `SetDecl` struct in new file `ast/sets.go`
-  - [x] 8.116a Parse: `type TDays = set of TWeekday;`
-  - [x] 8.116b Parse inline: `var s: set of (Mon, Tue, Wed);`
-- [x] 8.117 Create `SetLiteral` expression in `ast/sets.go`
-  - [x] 8.117a Syntax: `[one, two]` or `[one..five]` for ranges
-  - [x] 8.117b Empty set: `[]`
-- [x] 8.118 Support set operators in AST (already have binary ops, verify):
-  - [x] 8.118a `+` (union), `-` (difference), `*` (intersection)
-  - [x] 8.118b `in` (membership test)
-  - [x] 8.118c `=`, `<>`, `<=`, `>=` (set comparisons)
-- [x] 8.119 Create `SetOperationExpr` if needed (or use existing BinaryExpression)
-- [x] 8.120 Implement `String()` methods for set AST nodes
-- [x] 8.121 Write AST tests: `ast/sets_test.go::TestSetDecl`, `TestSetLiteral`
-
-#### Parser (8 tasks)
-
-- [x] 8.122 Implement `parseSetDeclaration()` in new file `parser/sets.go`
-  - [x] 8.122a Parse: `type TDays = set of TWeekday;`
-  - [x] 8.122b Parse inline: `var s: set of (Mon, Tue);` with anonymous enum
-- [x] 8.123 Integrate set parsing into `parseTypeDeclaration()` dispatcher
-- [x] 8.124 Parse set literals: `[one, two, three]`
-- [x] 8.125 Parse set range literals: `[one..five]`
-- [x] 8.126 Parse empty set: `[]` (distinguish from empty array)
-- [x] 8.127 Parse set operations: `s1 + s2`, `s1 - s2`, `s1 * s2`
-- [x] 8.128 Parse `in` operator: `one in mySet`
-- [x] 8.129 Write parser tests: `parser/sets_test.go::TestSetDeclaration`, `TestSetLiterals`, `TestSetOperations`
-
-#### Semantic Analysis (6 tasks)
-
-- [x] 8.130 Register set types in symbol table
-- [x] 8.131 Validate set element types (must be enum or small integer range)
-- [x] 8.132 Type-check set literals (elements match set's element type)
-- [x] 8.133 Type-check set operations (operands are compatible set types)
-- [x] 8.134 Type-check `in` operator (left is element type, right is set type)
-- [x] 8.135 Write semantic tests: `semantic/set_test.go::TestSetDeclaration`, `TestSetErrors`
-
-#### Interpreter/Runtime (12 tasks)
-
-- [x] 8.136 Create `SetValue` runtime representation in `interp/value.go`
-  - [x] 8.136a Use bitset for small enums (<=64 values): uint64
-  - [ ] 8.136b Use map[int]bool for large enums (>64 values)
-  - [x] 8.136c Fields: Type *types.SetType, Elements (bitset or map)
-- [x] 8.137 Evaluate set literals: `[one, two]`
-- [x] 8.138 Evaluate set range literals: `[one..five]` → expand to all values
-- [x] 8.139 Implement Include(element) built-in method
-- [x] 8.140 Implement Exclude(element) built-in method
-- [x] 8.141 Implement set union (`+`): `s1 + s2`
-- [x] 8.142 Implement set difference (`-`): `s1 - s2`
-- [x] 8.143 Implement set intersection (`*`): `s1 * s2`
-- [x] 8.144 Implement membership test (`in`): `element in set`
-- [x] 8.145 Implement set comparisons: `=`, `<>`, `<=` (subset), `>=` (superset)
-- [ ] 8.146 Support for-in iteration over sets: `for e in mySet do`
-- [x] 8.147 Write interpreter tests: `interp/set_test.go::TestSetOperations`, `TestSetMembership`, `TestSetIteration`
-
-### Array Types
-
-**Note**: ArrayType already exists in `types/compound_types.go`. Verify implementation completeness.
-
-#### Type System (Already exists, verify - 2 tasks)
-
-- [x] 8.148 Verify `ArrayType` in `types/compound_types.go` is complete
-  - [x] 8.148a Already has: ElementType, LowBound, HighBound, IsDynamic()
-- [x] 8.149 Add unit tests if missing: `types/types_test.go::TestArrayType`
-  - [x] Tests already exist: `TestArrayType`, `TestArrayTypeEquality` (lines 245-335)
-  - [x] Coverage includes dynamic arrays, static arrays, bounds checking, and equality
-
-#### AST Nodes (3 tasks)
-
-- [x] 8.150 Verify `ArrayType` annotation exists in AST (check `ast/type_annotation.go`)
-  - [x] Created `ArrayTypeAnnotation` in `ast/arrays.go` with support for static and dynamic arrays
-  - [x] Supports `array[1..10] of Integer` (static) and `array of String` (dynamic)
-- [x] 8.151 Verify array literal syntax: `[1, 2, 3]` or `new Integer[10]`
-  - [x] Created `ArrayLiteral` node in `ast/arrays.go` for `[1, 2, 3]` syntax
-  - [x] Created `IndexExpression` node in `ast/arrays.go` for `arr[i]` syntax
-- [x] 8.152 Write AST tests if missing: `ast/arrays_test.go::TestArrayLiteral`
-  - [x] Created comprehensive tests in `ast/arrays_test.go`
-  - [x] Tests: `TestArrayTypeAnnotation`, `TestArrayLiteral`, `TestIndexExpression`
-  - [x] All 21 test cases passing
-
-#### Parser (4 tasks)
-
-- [x] 8.153 Verify array type parsing: `array[1..10] of Integer`, `array of String`
-  - [x] Created `parseArrayDeclaration` in `parser/arrays.go`
-  - [x] Integrated into `parseTypeDeclaration` in `parser/interfaces.go`
-  - [x] Created `ArrayDecl` AST node in `ast/arrays.go`
-  - [x] Supports both static arrays (with bounds) and dynamic arrays (without bounds)
-- [x] 8.154 Verify array literal parsing: `[1, 2, 3]`, `new Integer[10]`
-  - [x] Array literals `[...]` currently parse as `SetLiteral` (semantic analyzer will distinguish)
-  - [x] This is the correct approach - syntax is identical, only context differs
-- [x] 8.155 Verify array indexing: `arr[i]`
-  - [x] Created `parseIndexExpression` in `parser/arrays.go`
-  - [x] Registered `LBRACK` as infix operator in `parser/parser.go`
-  - [x] Supports simple indexing, nested indexing, and expression indices
-- [x] 8.156 Write parser tests if missing: `parser/arrays_test.go::TestArrayDeclaration`
-  - [x] Created comprehensive tests in `parser/arrays_test.go`
-  - [x] Tests: `TestParseArrayTypeDeclaration`, `TestParseArrayLiteral`, `TestParseArrayIndexing`, `TestArrayDeclarationAndUsage`
-  - [x] All 15 test cases passing
-
-#### Semantic Analysis (2 tasks)
-
-- [x] 8.157 Verify array type checking (index must be integer, element types match)
-  - [x] Created `analyzeArrayDecl` in `semantic/analyze_arrays.go`
-  - [x] Created `analyzeIndexExpression` for array access type checking
-  - [x] Added array registry to analyzer (similar to sets, enums, records)
-  - [x] Integrated array type resolution into `resolveType`
-  - [x] Validates: array bounds (low <= high), index must be integer, element types match
-  - [x] Supports: static arrays, dynamic arrays, nested arrays, string indexing
-- [x] 8.158 Write semantic tests if missing: `semantic/array_test.go::TestArrayErrors`
-  - [x] Created comprehensive tests in `semantic/array_test.go`
-  - [x] Tests: `TestArrayTypeRegistration`, `TestArrayTypeErrors`, `TestArrayIndexing`, `TestArrayIndexingErrors`, `TestArrayElementAccess`
-  - [x] All 20 test cases passing (4 registration + 4 errors + 5 indexing + 5 indexing errors + 2 access)
-
-#### Interpreter/Runtime (8 tasks)
-
-- [x] 8.159 Verify `ArrayValue` runtime representation exists in `interp/value.go`
-  - [x] Created `ArrayValue` struct in `interp/value.go` with ArrayType and Elements
-  - [x] Implemented `Type()`, `String()` methods
-  - [x] Created `NewArrayValue()` constructor for static/dynamic arrays
-  - [x] Created `ArrayTypeValue` for storing type metadata in environment
-- [x] 8.160 Implement/verify array indexing (read)
-  - [x] Implemented `evalArrayDeclaration()` in `interp/array.go` for type declarations
-  - [x] Implemented `evalIndexExpression()` for reading array elements
-  - [x] Added bounds checking for static arrays (respects LowBound/HighBound)
-  - [x] Added bounds checking for dynamic arrays (zero-based)
-  - [x] Updated `evalVarDeclStatement()` to create ArrayValue instances
-  - [x] Updated `resolveType()` to support array types
-  - [x] Added comprehensive tests in `interp/array_test.go`
-- [x] 8.161 Implement built-in: `Length(arr)` or `arr.Length` (also implements `Length(s)` for strings - see task 8.183)
-- [x] 8.162 Implement built-in: `SetLength(arr, newLen)` or `arr.SetLength(newLen)`
-- [x] 8.163 Implement built-in: `Low(arr)` or `arr.Low`
-- [x] 8.164 Implement built-in: `High(arr)` or `arr.High`
-- [x] 8.165 Implement built-in: `Add(arr, element)` for dynamic arrays
-- [x] 8.166 Implement built-in: `Delete(arr, index)` for dynamic arrays
-- [x] 8.167 Write interpreter tests: `interp/array_test.go::TestArrayOperations`, `TestDynamicArrays`
-  - [x] Created `interp/array_test.go` with basic tests
-  - [x] Tests: ArrayValue creation, array declarations, indexing (read), bounds checking
-  - [x] Add tests for built-in functions (Length, Low, High, SetLength) - 34 test cases added
-  - [x] Add tests for built-in functions (Add, Delete) - 18 test cases added
-  - [x] Add tests for dynamic array operations (covered by Add/Delete tests)
-  - **Note**: Array assignment tests are tracked in task 8.140
-
-#### Indexed Assignment Support (Array Write Operations - 5 tasks)
-
-**Context**: Array element assignment (`arr[i] := value`) requires parser and interpreter support for complex lvalue expressions. Currently only simple identifier assignment (`x := value`) works.
-
-**Status**: ✅ **COMPLETE** (Tasks 8.137-8.141 fully done)
-- AST refactored: `AssignmentStatement.Target` now supports `Identifier`, `MemberAccessExpression`, and `IndexExpression`
-- Parser accepts array index assignments: `arr[i] := value`, `matrix[i][j] := value`
-- Interpreter implements `evalIndexAssignment()` with comprehensive bounds checking
-- All core tests passing: static/dynamic arrays, variable indices, expression indices, bounds checking, loops
-- Implementation details: `ast/statements.go`, `parser/statements.go:217-231`, `interp/interpreter.go:395-456`
-
-- [x] 8.168 Refactor `AssignmentStatement` AST node to support complex targets
-  - [x] Change `Name *Identifier` to `Target Expression` in `ast/statements.go`
-  - [x] Update `String()` method to handle different target types
-  - [x] Verify backward compatibility with simple assignments
-- [x] 8.169 Update parser to accept indexed expressions as assignment targets
-  - [x] Modify assignment parsing in `parser/statements.go`
-  - [x] Accept `IndexExpression` as valid lvalue (left-hand side)
-  - [x] Accept `MemberAccessExpression` as valid lvalue (verify if already works)
-  - [x] Add validation: only assignable expressions allowed as targets
-  - [x] Write parser tests: `parser/arrays_test.go::TestParseArrayAssignment`
-- [x] 8.170 Implement indexed assignment in interpreter
-  - [x] Update `evalAssignmentStatement()` in `interp/interpreter.go`
-  - [x] Add case for `IndexExpression` target: evaluate array and index
-  - [x] Perform bounds checking before assignment
-  - [x] Update array element: `arr.Elements[physicalIndex] = value`
-  - [x] Handle both static and dynamic arrays
-  - [x] Return appropriate errors for invalid assignments
-- [x] 8.171 Write comprehensive tests for indexed assignment
-  - [x] Test static array assignment: `arr[1] := 42` (respecting bounds)
-  - [x] Test dynamic array assignment: `arr[0] := "hello"`
-  - [x] Test assignment with expression indices: `arr[i + 1] := value`
-  - [x] Test out-of-bounds assignment errors
-  - [x] Test assignment to nested arrays: `matrix[i][j] := value`
-  - [x] Test record field assignment (verify existing support)
-- [x] 8.172 Integration testing for array assignment
-  - [x] Create `testdata/arrays_assignment.dws` with comprehensive examples
-  - [x] Test assignment in loops: `for i := 0 to 9 do arr[i] := i * 2;`
-  - [x] Test assignment with expression indices: `arr[idx]`, `arr[i + 1]`, `arr[i * 2]`
-  - [x] Test bounds checking: verified both lower and upper bound violations
-  - [x] Test chain assignments: `arr[2] := arr[1] + arr[0]`
-  - [x] CLI integration tests passing (simple and complex scenarios)
-  - **Note**: Full testdata file requires IntToStr() for output; simplified tests verify core functionality
-
-### Integration Testing (Composite Types) ✅ COMPLETE
-
-- [x] 8.173 Create test file: `testdata/enums.dws` with comprehensive enum examples
-  - Created comprehensive enum test with basic enums, explicit values, Ord(), Integer(), case statements, scoped access
-- [x] 8.174 Create test file: `testdata/records.dws` with record examples
-  - Created comprehensive record test with basic records, nested records, field access, value semantics, comparison
-- [x] 8.175 Create test file: `testdata/sets.dws` with set operation examples
-  - Created comprehensive set test with Include/Exclude, set operations (+, -, *), membership (in), comparisons, ranges
-- [x] 8.176 Create test file: `testdata/arrays_advanced.dws` with array examples
-  - Created comprehensive array test with static arrays, dynamic arrays, literals, array of records, zero-based bounds
-  - **Note**: Multi-dimensional arrays (array of array of Type) not yet supported - commented out in test
-- [x] 8.177 Create CLI integration test: `cmd/dwscript/composite_types_test.go`
-  - Created comprehensive CLI tests following pattern from `oop_cli_test.go`
-  - Tests: script existence, parsing, enum/record/set/array features via CLI
-  - All tests passing
-- [x] 8.178 Port DWScript enum tests from `reference/dwscript-original/Test`
-  - Ported enum_scoped.pas to `testdata/enum_ported/`
-  - Tests scoped enum access (TEnum.Value syntax) with explicit values
-- [x] 8.179 Port DWScript record tests from `reference/dwscript-original/Test`
-  - Ported record_nested2.pas to `testdata/record_ported/`
-  - Tests nested records and anonymous record types
-- [x] 8.180 Port DWScript set tests from `reference/dwscript-original/Test/SetOfPass`
-  - Ported basic.pas and range.pas to `testdata/set_ported/`
-  - Tests Include/Exclude, membership, and range literals
-- [x] 8.181 Verify all ported tests pass with go-dws
-  - All CLI integration tests passing (TestCompositeTypesScriptsExist, TestCompositeTypesParsing)
-  - All feature tests passing (TestEnumFeatures, TestRecordFeatures, TestSetFeatures, TestArrayFeatures)
-- [x] 8.182 Document any DWScript compatibility issues or limitations
-  - **Compatibility Issues**:
-    1. **Multi-dimensional arrays**: Syntax `array of array of Type` not yet supported
-    2. **Reserved keywords**: `flags` is a reserved keyword (FLAGS for enum flags), cannot be used as variable name
-    3. **String conversion functions**: IntToStr(), StrToInt() not yet implemented (required by many reference tests)
-    4. **Enum utility functions**: High(), Low(), Inc(), Dec(), Succ(), Pred() not yet implemented
-    5. **For-in loops with enums**: `for e := Low(TEnum) to High(TEnum) do` not yet supported
-    6. **Const declarations**: `const` keyword not yet implemented
-    7. **Enum casting**: TEnum(intValue) casting not yet supported
-  - **Working Features**:
-    - Basic enums with implicit/explicit/mixed values
-    - Scoped and unscoped enum access
-    - Ord() and Integer() for enums
-    - Enums in case statements
-    - Basic records with field access
-    - Nested records and anonymous record types
-    - Record comparison and value semantics
-    - Sets with Include/Exclude
-    - Set operations: +, -, *, in, =, <>
-    - Set range literals [a..z]
-    - Static arrays with custom bounds
-    - Dynamic arrays with SetLength
-    - Array literals
-    - Array of records
-    - Array indexing and assignment
-
-  Not Yet Supported:
-    1. Multi-dimensional arrays (array of array of Type)
-    2. String conversion functions (IntToStr, StrToInt)
-    3. Enum utility functions (High, Low, Inc, Dec, Succ, Pred)
-    4. For-in loops with enums
-    5. Const declarations
-    6. Enum casting from integers
-    7. Reserved keyword "flags" cannot be used as variable name
-
-### String Functions
-
-- [x] 8.183 Implement built-in string functions: ✅ COMPLETE
-  - [x] Length(s) - ✅ Implemented in task 8.161 (builtinLength handles both arrays and strings)
-  - [x] Copy(s, index, count) - ✅ Implemented in interp/interpreter.go:1377 (builtinCopy with 1-based indexing)
-  - [x] Concat(s1, s2, ...) - ✅ Implemented in interp/interpreter.go:1443 (builtinConcat with variadic arguments)
-  - [x] Pos(substr, s) - ✅ Implemented in interp/interpreter.go:1466 (builtinPos returns 1-based position, 0 if not found)
-  - [x] UpperCase(s) - ✅ Implemented in interp/interpreter.go:1510 (builtinUpperCase using strings.ToUpper)
-  - [x] LowerCase(s) - ✅ Implemented in interp/interpreter.go:1528 (builtinLowerCase using strings.ToLower)
-- [x] 8.184 Test string functions: ✅ COMPLETE
-  - [x] Length(s) - ✅ Tested in interp/array_test.go::TestBuiltinLength_Strings (4 test cases, all passing)
-  - [x] Copy(s, index, count) - ✅ Tested in interp/string_test.go::TestBuiltinCopy_* (24 test cases: basic, edge cases, expressions, errors - all passing)
-  - [x] Concat(s1, s2, ...) - ✅ Tested in interp/string_test.go::TestBuiltinConcat_* (10 test cases: basic, edge cases, errors - all passing)
-  - [x] Pos(substr, s) - ✅ Tested in interp/string_test.go::TestBuiltinPos_* (18 test cases: basic, edge cases, expressions, errors - all passing)
-  - [x] UpperCase(s) - ✅ Tested in interp/string_test.go::TestBuiltinUpperCase_* (12 test cases: basic, expressions, errors - all passing)
-  - [x] LowerCase(s) - ✅ Tested in interp/string_test.go::TestBuiltinLowerCase_* (12 test cases: basic, expressions, errors - all passing)
-
-### Math Functions
-
-- [x] 8.185 Implement built-in math functions: ✅ COMPLETE
-  - [x] Abs(x) - ✅ Implemented in interp/interpreter.go:1551 (builtinAbs preserves type: Integer→Integer, Float→Float, uses math.Abs for floats)
-  - [x] Sqrt(x) - ✅ Implemented in interp/interpreter.go:1580 (builtinSqrt always returns Float, validates against negative numbers)
-  - [x] Sin(x), Cos(x), Tan(x) - ✅ Implemented in interp/interpreter.go:1612-1685 (builtinSin, builtinCos, builtinTan, all work in radians and return Float)
-  - [x] Ln(x), Exp(x) - ✅ Implemented in interp/interpreter.go (builtinLn, builtinExp, both return Float)
-  - [x] Round(x), Trunc(x) - ✅ Implemented in interp/interpreter.go (builtinRound, builtinTrunc, both return Integer)
-  - [x] Random, Randomize - ✅ Implemented in interp/interpreter.go:1708-1732 (builtinRandom returns Float [0,1), builtinRandomize seeds RNG with time)
-- [x] 8.186 Test math functions: ✅ COMPLETE
-  - [x] Abs(x) - ✅ Tested in interp/math_test.go::TestBuiltinAbs_* (22 test cases: integers, floats, assignments, errors - all passing)
-  - [x] Sqrt(x) - ✅ Tested in interp/math_test.go::TestBuiltinSqrt_* (16 test cases: basic usage, variables, assignments, errors including negative validation - all passing)
-  - [x] Sin(x), Cos(x), Tan(x) - ✅ Tested in interp/math_test.go::TestBuiltinSin/Cos/Tan_* (22 test cases: basic trig values, variables, error handling - all passing)
-  - [x] Ln(x), Exp(x) - ✅ Tested in interp/math_test.go (test cases for logarithm and exponential functions - all passing)
-  - [x] Round(x), Trunc(x) - ✅ Tested in interp/math_test.go (test cases for rounding and truncation - all passing)
-  - [x] Random, Randomize - ✅ Tested in interp/math_test.go::TestBuiltinRandom/Randomize_* (6 test cases: range validation, variation, error handling - all passing)
-
-### Conversion Functions
-
-- [x] 8.187 Implement type conversion functions:
-  - [x] IntToStr(i)
-  - [x] StrToInt(s)
-  - [x] FloatToStr(f)
-  - [x] StrToFloat(s)
-- [x] 8.188 Test conversion functions
-
-### Exception Handling (Try/Except/Finally)
-
-**Summary**: Implement DWScript's exception handling system with try/except/finally blocks, exception class hierarchy, raise statement, and proper exception propagation with stack unwinding.
-
-#### Research & Design
-
-- [x] 8.189 Capture DWScript exception handling syntax from `reference/dwscript-original/Test/` examples; document findings in `docs/exceptions.md`:
-  - [x] Document `try...except...end` syntax
-  - [x] Document `try...finally...end` syntax
-  - [x] Document `try...except...finally...end` combined form
-  - [x] Document `on E: ExceptionType do` handler syntax
-  - [x] Document bare `except` (catch-all) syntax
-  - [x] Document `raise` statement (with/without expression)
-  - [x] Document exception class hierarchy (Exception base class, standard exception types)
-- [x] 8.190 Catalog DWScript exception types and their properties:
-  - [x] Exception base class with Message property
-  - [x] Standard exception types: EAssertionFailed, EDelphi
-  - [x] Map exception types to Go implementation strategy
-- [x] 8.191 Draft exception handling execution strategy:
-  - [x] Control flow for try/except/finally blocks
-  - [x] Stack unwinding mechanism during exception propagation
-  - [x] Exception matching algorithm (most specific to most general)
-  - [x] Finally block guarantee (executes even on exception/return)
-  - [x] Re-raise mechanism (bare `raise` in handler)
-
-#### AST Nodes
-
-- [x] 8.192 Define `TryStatement` AST node in `ast/statements.go`:
-  - [x] Fields: `TryBlock *BlockStatement`, `ExceptClause *ExceptClause`, `FinallyClause *FinallyClause`
-  - [x] Support try/except, try/finally, and try/except/finally combinations
-  - [x] Implement `String()` and `TokenLiteral()` methods
-- [x] 8.193 Define `ExceptClause` AST node:
-  - [x] Fields: `Handlers []*ExceptionHandler`, `ElseBlock *BlockStatement`
-  - [x] Support both specific handlers and bare except (empty Handlers list)
-  - [x] Implement `String()` method showing all handlers
-- [x] 8.194 Define `ExceptionHandler` AST node:
-  - [x] Fields: `Variable *Identifier`, `ExceptionType *TypeReference`, `Block *BlockStatement`
-  - [x] Represents `on E: ExceptionType do` syntax
-  - [x] Implement `String()` method
-- [x] 8.195 Define `FinallyClause` AST node:
-  - [x] Field: `Block *BlockStatement`
-  - [x] Implement `String()` and `TokenLiteral()` methods
-- [x] 8.196 Define `RaiseStatement` AST node:
-  - [x] Field: `Exception Expression` (nil for bare raise)
-  - [x] Implement `String()` method showing raise with/without expression
-  - [x] Implement `TokenLiteral()` method
-
-#### Parser Support
-
-- [x] 8.197 Implement `parseTryStatement()` in `parser/statements.go`:
-  - [x] Parse `try` keyword and try block
-  - [x] Dispatch to except/finally parsing based on next token
-  - [x] Support all three forms: try/except, try/finally, try/except/finally
-  - [x] Validate at least one of except or finally is present
-- [x] 8.198 Implement `parseExceptClause()`:
-  - [x] Parse `except` keyword
-  - [x] Detect specific handlers (`on` keyword) vs bare except
-  - [x] Parse multiple exception handlers in sequence
-  - [x] Parse optional `else` block (executes if no exception)
-  - [x] Consume closing `end` token
-- [x] 8.199 Implement `parseExceptionHandler()`:
-  - [x] Parse `on` keyword
-  - [x] Parse exception variable name (identifier)
-  - [x] Parse `:` and exception type
-  - [x] Parse `do` keyword
-  - [x] Parse handler statement (block or single statement)
-- [x] 8.200 Implement `parseFinallyClause()`:
-  - [x] Parse `finally` keyword
-  - [x] Parse finally block statements
-  - [x] Consume closing `end` token
-- [x] 8.201 Implement `parseRaiseStatement()`:
-  - [x] Parse `raise` keyword
-  - [x] Check for exception expression (nil for bare raise)
-  - [x] Parse optional exception construction expression
-  - [x] Consume semicolon
-- [x] 8.202 Add parser unit tests in `parser/exceptions_test.go`:
-  - [x] Test parsing try/except with specific handler
-  - [x] Test parsing try/except with multiple handlers
-  - [x] Test parsing bare except (catch-all)
-  - [x] Test parsing try/finally
-  - [x] Test parsing try/except/finally combined
-  - [x] Test parsing raise with exception expression
-  - [x] Test parsing bare raise
-  - [x] Test error cases: try without except/finally, malformed handlers
-
-#### Type System & Semantic Analysis
-
-- [x] 8.203 Define Exception base class in type system (`semantic/analyzer.go`):
-  - [x] Create `ExceptionClassInfo` with Message property (String type)
-  - [x] Register Exception class in global type environment
-  - [x] Implement CreateInstance() for exception objects
-- [x] 8.204 Define standard exception types:
-  - [x] `EConvertError` (type conversion failures)
-  - [x] `ERangeError` (array bounds, invalid ranges)
-  - [x] `EDivByZero` (division by zero)
-  - [x] `EAssertionFailed` (failed assertions)
-  - [x] `EInvalidOp` (invalid operations)
-  - [x] All inherit from Exception base class
-- [x] 8.205 Implement `analyzeTryStatement()` in `semantic/analyze_statements.go`:
-  - [x] Analyze try block in current scope
-  - [x] Analyze except clause if present
-  - [x] Analyze finally clause if present
-  - [x] Validate at least one of except/finally exists
-- [x] 8.206 Implement `analyzeExceptClause()`:
-  - [x] Analyze each exception handler in sequence
-  - [x] Validate exception types are Exception-compatible
-  - [x] Check for duplicate exception types in handlers
-  - [x] Analyze else block if present
-- [x] 8.207 Implement `analyzeExceptionHandler()`:
-  - [x] Create new scope for exception variable
-  - [x] Validate exception type exists and is Exception-compatible
-  - [x] Add exception variable to scope with proper type
-  - [x] Analyze handler block in exception variable scope
-  - [x] Ensure exception variable is read-only (cannot reassign)
-- [x] 8.208 Implement `analyzeRaiseStatement()`:
-  - [x] If bare raise, verify we're inside an exception handler (was deferred to runtime, now semantic)
-  - [x] If exception expression provided, validate it's Exception-compatible
-  - [x] Support raising newly constructed exceptions: `raise Exception.Create('error')`
-  - [x] Support raising existing exception variable
-- [x] 8.209 Validate finally blocks don't contain control flow exits: ⚠️ **PARTIAL**
+- [x] 9.53 Translate property read access to appropriate operation:
+  - [x] 9.53a Field access: read from object field
+  - [x] 9.53b Method access: call getter method with no args (or index args)
+  - [x] 9.53c Expression access: evaluate expression in context of object
+- [x] 9.54 Translate property write access to appropriate operation:
+  - [x] 9.54a Field access: write to object field
+  - [x] 9.54b Method access: call setter method with value (and index args)
+- [ ] 9.55 Handle indexed property access (DEFERRED):
+  - [ ] 9.55a Evaluate index expressions
+  - [ ] 9.55b Pass index values to getter/setter
+- [ ] 9.56 Support expression-based property getters (inline expressions like `(FValue * 2)`) (DEFERRED)
+- [x] 9.57 Write interpreter tests: `interp/property_test.go::TestPropertyAccess`, `TestIndexedProperties`
+
+- [ ] 9.109 Implement record method calls if methods are supported
+
+  - [ ] 9.136b Use map[int]bool for large enums (>64 values)
+
+- [ ] 9.146 Support for-in iteration over sets: `for e in mySet do`
+
+- [x] 9.209 Validate finally blocks don't contain control flow exits: ⚠️ **PARTIAL**
   - [x] Detect `return` in finally blocks (break/continue/exit not yet parsed)
   - [x] Emit semantic error (finally blocks must complete normally)
   - [x] Exception: `raise` is allowed in finally blocks
   - [ ] TODO: Complete via Task 8.235h when break/continue/exit parser support added
-- [x] 8.210 Add semantic analyzer tests in `semantic/exceptions_test.go`:
-  - [x] Test exception handler variable scoping
-  - [x] Test invalid exception types in handlers
-  - [x] Test duplicate exception handlers
-  - [x] Test bare raise outside handler (error)
-  - [x] Test finally block with return (skipped - parser support needed)
-  - [x] Test exception type compatibility
-  - [x] Test exception variable is read-only
 
-#### Interpreter Support
-
-- [x] 8.211 Define exception value representation in `interp/exceptions.go`:
-  - [x] Create `ExceptionValue` struct with `ClassType` and `Message` fields
-  - [x] Implement `Type()`, `Inspect()` methods
-  - [x] Support exception object as regular ObjectInstance
-- [x] 8.212 Implement exception propagation mechanism:
-  - [x] Define `ExceptionContext` (using exception field in Interpreter) to track active exception
-  - [x] Add exception context to interpreter state
-  - [x] Implement stack unwinding (return early from evalStatement/evalExpression)
-  - [x] Clear exception context when caught
-- [x] 8.213 Implement `evalTryStatement()` in `interp/exceptions.go`:
-  - [x] Execute try block and capture any exception
-  - [x] If exception occurs, dispatch to except clause
-  - [x] Execute finally clause regardless of exception (using defer)
-  - [x] Handle try/except, try/finally, try/except/finally cases
-  - [x] Re-propagate uncaught exceptions after finally
-- [x] 8.214 Implement `evalExceptClause()`:
-  - [x] Iterate through exception handlers for type match
-  - [x] Match from most specific to most general exception type
-  - [x] Bare except (no handlers) catches all exceptions
-  - [x] Execute matching handler with exception variable bound
-  - [x] Execute else block if no exception occurred
-  - [x] Clear exception context after successful catch
-- [x] 8.215 Implement exception type matching:
-  - [x] Check if exception is instance of handler's exception type
-  - [x] Support catching base Exception type (catches all)
-  - [x] Support catching specific exception types (ERangeError, etc.)
-  - [x] Respect exception class inheritance hierarchy
-- [x] 8.216 Implement `evalRaiseStatement()`:
-  - [x] For bare raise, re-throw current exception (if in handler)
-  - [x] For raise with expression, evaluate exception expression
-  - [x] Create exception object if constructor call
-  - [x] Set interpreter's exception context
-  - [x] Return control flow to unwind stack
-- [x] 8.217 Implement finally block execution guarantee:
-  - [x] Use Go's defer to ensure finally always runs
-  - [x] Execute finally even if exception occurs
-  - [x] Execute finally even if return/break/continue in try block
-  - [x] Preserve exception state across finally execution
-  - [x] Re-propagate exception after finally completes
-- [x] 8.218 Support Exception.Message property access:
-  - [x] Implement Message field in exception objects
-  - [x] Allow reading Message via member access
-  - [x] Set Message during exception construction
-  - [ ] Display Message in unhandled exception errors (TODO: needs proper error handling)
-
-#### Testing & Fixtures
-
-- [x] 8.219 Add interpreter tests in `interp/exceptions_test.go`: ✅ **COMPLETE**
-  - [x] Test basic try/except with specific handler (ERangeError) - TestSpecificExceptionType ✓
-  - [x] Test try/except with multiple handlers (catch different types) - TestMultipleHandlers ✓
-  - [x] Test bare except (catch-all) - TestBareExcept ✓
-  - [x] Test accessing exception variable and Message property - TestRaiseWithMessage ✓ (fixed)
-  - [x] Test exception not caught (propagates to top level) - TestUncaughtException ✓
-- [x] 8.220 Test finally block execution: ✅ **COMPLETE**
-  - [x] Test try/finally (no exception) - TestTryFinallyNoException ✓
-  - [x] Test try/finally (with exception, uncaught) - TestTryFinallyWithException ✓
-  - [x] Test finally executes even on exception - TestTryFinallyWithException ✓
-  - [x] Test finally executes even on return from try block - TestTryFinallyWithReturn ✓
-  - [x] Test try/except/finally combined - TestTryExceptFinallyCombined ✓
-- [x] 8.221 Test exception propagation: ✅ **COMPLETE**
-  - [x] Test exception propagates across function calls - TestExceptionPropagatesAcrossFunctions ✓
-  - [x] Test exception caught in outer try block - TestNestedTryOuterCatches ✓
-  - [x] Test nested try blocks (inner catches, outer doesn't) - TestNestedTryBlocks ✓
-  - [x] Test nested try blocks (inner doesn't catch, outer does) - TestNestedTryOuterCatches ✓
-- [x] 8.222 Test raise statement: ✅ **COMPLETE**
-  - [x] Test raising built-in exception types - TestRaiseWithMessage (uses Exception.Create) ✓
-  - [x] Test raising custom exception with message - TestRaiseCustomException ✓
-  - [x] Test bare raise re-throws current exception - TestBareRaiseReThrows ✓
-  - [x] Test bare raise outside handler (runtime error) - TestBareRaiseOutsideHandler ✓
-- [x] 8.223 Test exception matching and hierarchy: ✅ **COMPLETE**
-  - [x] Test catching Exception catches all exception types - TestExceptionCatchesAllTypes ✓
-  - [x] Test catching specific type doesn't catch other types - TestSpecificTypeDoesNotCatchOthers ✓
-  - [x] Test handler order matters (first match wins) - TestHandlerOrderMatters ✓
-  - [x] Test exception type inheritance (derived caught by base) - TestExceptionCatchesAllTypes ✓
-- [x] 8.224 Port DWScript exception test scripts:
-  - [x] Create `testdata/exceptions/` directory
-  - [x] Port relevant exception tests from reference/dwscript-original/Test/
-  - [x] Create expected output files (.txt)
-  - [x] Document source of each ported test in README.md
-- [x] 8.225 Create comprehensive exception test scripts:
-  - [x] `testdata/exceptions/basic_try_except.dws` (8 tests)
-  - [x] `testdata/exceptions/try_finally.dws` (8 tests)
-  - [x] `testdata/exceptions/nested_exceptions.dws` (8 tests)
-  - [x] `testdata/exceptions/exception_propagation.dws` (8 tests)
-  - [x] `testdata/exceptions/raise_reraise.dws` (10 tests)
-- [x] 8.226 Create CLI integration tests:
-  - [x] Run exception test scripts via `dwscript run` - TestExceptionHandlingIntegration
-  - [x] Verify exception messages in output - TestExceptionMessages
-  - [x] Verify finally blocks execute - testFinallyRun flag in tests
-  - [x] Verify unhandled exceptions show stack trace - TestUnhandledExceptionStackTrace
-- [x] 8.227 Achieve >85% test coverage for exception handling code:
-  - [x] Coverage for parser exception code - parseExceptClause 100%, parseExceptionHandler 91.3%
-  - [x] Coverage for semantic analysis exception code - All functions 88-100%
-  - [x] Coverage for interpreter exception code - evalExceptClause 75%, Type 0% (manual testing needed)
-  - [x] Add edge case tests to reach coverage target - Comprehensive tests added
-
-### Loop Control Statements (Break, Continue, Exit)
-
-**Status**: ✅ COMPLETE (28/28 tasks, 100%)
-
-**Summary**: Implement DWScript's loop control flow statements (`break`, `continue`, `exit`) with proper semantic validation and runtime support. These statements provide early termination for loops and functions, essential for control flow.
-
-**Note**: Tokens already exist in lexer (`BREAK`, `CONTINUE`, `EXIT` at `lexer/token_type.go:43-45`). This section completes the missing parser, semantic analysis, and interpreter support.
-
-#### Research & Design (2 tasks)
-
-- [x] 8.228 Document DWScript loop control statement syntax in `docs/control-flow.md`:
-  - [x] Document `break` statement (exits innermost loop immediately)
-  - [x] Document `continue` statement (skips to next loop iteration)
-  - [x] Document `exit` statement (exits current function/procedure immediately)
-  - [x] Document valid contexts (break/continue in loops only, exit in functions only)
-  - [x] Document behavior with nested loops (break/continue affect innermost loop)
-  - [x] Document interaction with exception handling (break/continue/exit in try/finally blocks)
-- [x] 8.229 Review DWScript reference implementation behavior:
-  - [x] Test break statement in for/while/repeat loops - Verified from break_continue.pas: works in all loop types, exits immediately
-  - [x] Test continue statement behavior (skip to condition check or next iteration) - Verified: for auto-advances, while/repeat need manual increment before continue
-  - [x] Test exit vs return behavior (if both exist) - Confirmed: DWScript uses EXIT only, no RETURN keyword exists
-  - [x] Test error cases (break outside loop, etc.) - Verified from FailureScripts: "Break"/"Continue" outside loop, direct use in finally block, exit(value) in procedures
-
-#### AST Nodes (3 tasks)
-
-- [x] 8.230 Define `BreakStatement` AST node in `ast/control_flow.go`:
-  - [x] Fields: `Token lexer.Token` (position tracking)
-  - [x] Implement `statementNode()` marker method
-  - [x] Implement `TokenLiteral()` returning "break"
-  - [x] Implement `Pos()` returning statement position
-  - [x] Implement `String()` method returning "break;"
-  - [x] Add test in `ast/control_flow_test.go` - TestBreakStatementString
-  - [x] Update TestControlFlowNodesImplementInterfaces
-- [x] 8.231 Define `ContinueStatement` AST node in `ast/control_flow.go`:
-  - [x] Fields: `Token lexer.Token` (position tracking)
-  - [x] Implement `statementNode()` marker method
-  - [x] Implement `TokenLiteral()` returning "continue"
-  - [x] Implement `Pos()` returning statement position
-  - [x] Implement `String()` method returning "continue;"
-  - [x] Add test in `ast/control_flow_test.go` - TestContinueStatementString
-  - [x] Update TestControlFlowNodesImplementInterfaces
-- [x] 8.232 Define `ExitStatement` AST node in `ast/control_flow.go`:
-  - [x] Fields: `Token lexer.Token` (position tracking), `Value Expression` (optional return value)
-  - [x] Implement `statementNode()` marker method
-  - [x] Implement `TokenLiteral()` returning "exit"
-  - [x] Implement `Pos()` returning statement position
-  - [x] Implement `String()` method returning "exit;" or "exit(value);"
-  - [x] Add test in `ast/control_flow_test.go` - TestExitStatementString (3 test cases: no value, integer value, identifier value)
-  - [x] Update TestControlFlowNodesImplementInterfaces
-
-#### Parser Support (4 tasks)
-
-- [x] 8.233 Implement `parseBreakStatement()` in `parser/control_flow.go`:
-  - [x] Consume BREAK token
-  - [x] Expect SEMICOLON after break
-  - [x] Create and return `*ast.BreakStatement`
-  - [x] Add to statement parsing switch case in `parser/statements.go`
-- [x] 8.234 Implement `parseContinueStatement()` in `parser/control_flow.go`:
-  - [x] Consume CONTINUE token
-  - [x] Expect SEMICOLON after continue
-  - [x] Create and return `*ast.ContinueStatement`
-  - [x] Add to statement parsing switch case in `parser/statements.go`
-- [x] 8.235a Implement `parseExitStatement()` in `parser/control_flow.go`:
-  - [x] Consume EXIT token
-  - [x] Check for optional return value: exit(value)
-  - [x] Expect SEMICOLON after exit or exit(value)
-  - [x] Create and return `*ast.ExitStatement`
-  - [x] Add to statement parsing switch case in `parser/statements.go`
-- [x] 8.235b Add parser unit tests in `parser/control_flow_test.go`:
-  - [x] Test parsing break statement (5 tests: simple, in for/while/repeat loops, missing semicolon)
-  - [x] Test parsing continue statement (4 tests: simple, in for/while loops, missing semicolon)
-  - [x] Test parsing exit statement (8 tests: simple, with value, expressions, in function, error cases)
-  - [x] Test break/continue in nested loops (2 tests)
-  - [x] Test exit in case statement (1 test)
-  - [x] Test error recovery (missing semicolon, missing parens, empty parens)
-
-#### Semantic Analysis (6 tasks)
-
-- [x] 8.235c Add context tracking to `Analyzer` struct in `semantic/analyzer.go`:
-  - [x] `inLoop bool` field to track if currently analyzing loop body
-  - [x] `loopDepth int` field to track nesting level (optional, for nested loop validation)
-- [x] 8.235d Implement `analyzeBreakStatement()` in `semantic/analyze_statements.go`:
-  - [x] Check if `a.inLoop` is true
-  - [x] If not in loop, emit semantic error: "break statement not allowed outside loop"
-  - [x] Include position information in error message
-- [x] 8.235e Implement `analyzeContinueStatement()` in `semantic/analyze_statements.go`:
-  - [x] Check if `a.inLoop` is true
-  - [x] If not in loop, emit semantic error: "continue statement not allowed outside loop"
-  - [x] Include position information in error message
-- [x] 8.235f Implement `analyzeExitStatement()` in `semantic/analyze_statements.go`:
-  - [x] Check if `a.currentFunction` is not nil (Note: allows exit at program level to exit the program)
-  - [x] If in function, validate return value type; if at program level, disallow exit with value
-  - [x] Include position information in error message
-- [x] 8.235g Update loop analysis to set `inLoop` context:
-  - [x] In `analyzeForStatement()`: set `a.inLoop = true` before analyzing body, restore after
-  - [x] In `analyzeWhileStatement()`: set `a.inLoop = true` before analyzing body, restore after
-  - [x] In `analyzeRepeatStatement()`: set `a.inLoop = true` before analyzing body, restore after
-  - [x] Handle nested loops correctly (save/restore previous value)
-- [x] 8.235h Update Task 8.209 finally block validation:
-  - [x] Add break/continue/exit detection in finally blocks (semantic error)
-  - [x] Check in analyzeBreakStatement/analyzeContinueStatement/analyzeExitStatement for `a.inFinallyBlock`
-  - [x] Emit error: "break/continue/exit statement not allowed in finally block"
-
-#### Interpreter Support (7 tasks)
-
-- [x] 8.235i Define control flow signals in `interp/interpreter.go`:
-  - [x] Add `breakSignal bool` field to Interpreter struct (interp/interpreter.go:34)
-  - [x] Add `continueSignal bool` field to Interpreter struct (interp/interpreter.go:35)
-  - [x] Add `exitSignal bool` field to Interpreter struct (interp/interpreter.go:36)
-  - [x] Document control flow signal propagation strategy
-- [x] 8.235j Implement `evalBreakStatement()` in `interp/interpreter.go`:
-  - [x] Set `i.breakSignal = true`
-  - [x] Return immediately to unwind stack
-  - [x] No value returned (break doesn't carry data)
-- [x] 8.235k Implement `evalContinueStatement()` in `interp/interpreter.go`:
-  - [x] Set `i.continueSignal = true`
-  - [x] Return immediately to unwind stack
-  - [x] No value returned (continue doesn't carry data)
-- [x] 8.235l Implement `evalExitStatement()` in `interp/interpreter.go`:
-  - [x] Set `i.exitSignal = true`
-  - [x] Return immediately to exit current function
-  - [x] Similar to return statement but without value
-- [x] 8.235m Update loop evaluation to handle break/continue:
-  - [x] In `evalForStatement()`: check `i.breakSignal` after each iteration, exit loop if true
-  - [x] In `evalForStatement()`: check `i.continueSignal` after each iteration, clear and continue if true
-  - [x] In `evalWhileStatement()`: check signals after body evaluation
-  - [x] In `evalRepeatStatement()`: check signals after body evaluation
-  - [x] Clear signals after loop completes (don't propagate upward)
-- [x] 8.235n Update function evaluation to handle exit:
-  - [x] In function call evaluation: check `i.exitSignal` after body execution
-  - [x] Exit function immediately if signal set (like return)
-  - [x] Clear `exitSignal` after function returns (don't propagate to caller)
-  - [x] Also handle exit at program level in evalProgram
-- [x] 8.235o Ensure signals don't propagate incorrectly:
-  - [x] Break/continue signals cleared when loop exits (handled in 8.235m)
-  - [x] Exit signal cleared when function returns (handled in 8.235n)
-  - [x] Signals propagate correctly through block statements
-  - [x] Signals don't affect outer loops or functions
-
-#### Testing & Fixtures (6 tasks)
-
-- [x] 8.235p Add semantic analysis tests in `semantic/control_flow_test.go`:
-  - [x] Test break outside loop (semantic error)
-  - [x] Test continue outside loop (semantic error)
-  - [x] Test exit outside function (semantic error)
-  - [x] Test break in nested loops (valid)
-  - [x] Test break/continue/exit in finally block (semantic error - update Task 8.209 tests)
-  - [x] Test valid usage in all contexts
-- [x] 8.235q Add interpreter tests in `interp/control_flow_test.go`:
-  - [x] Test break exits for loop correctly
-  - [x] Test break exits while loop correctly
-  - [x] Test break exits repeat loop correctly
-  - [x] Test continue skips for loop iteration
-  - [x] Test continue skips while loop iteration
-  - [x] Test continue skips repeat loop iteration
-- [x] 8.235r Add interpreter tests for exit statement:
-  - [x] Test exit terminates function immediately
-  - [x] Test exit in nested function doesn't affect caller
-  - [x] Test exit vs Result variable behavior
-  - [x] Test exit in procedure (no return value)
-- [x] 8.235s Add interpreter tests for nested scenarios:
-  - [x] Test break in nested loops (only exits innermost)
-  - [x] Test continue in nested loops (only affects innermost)
-  - [x] Test break/continue with exception handling (try/except)
-  - [x] Test exit with nested function calls
-- [x] 8.235t Create DWScript test scripts in `testdata/control_flow/`:
-  - [x] `break_statement.dws` - break in all loop types
-  - [x] `continue_statement.dws` - continue in all loop types
-  - [x] `exit_statement.dws` - exit from functions/procedures
-  - [x] `nested_loops.dws` - break/continue in nested loops
-  - [x] Expected output files (.txt) for each test
-- [x] 8.235u Add CLI integration tests:
-  - [x] Run control flow test scripts via `dwscript run`
-  - [x] Verify correct loop termination behavior
-  - [x] Verify correct function exit behavior
-  - [x] Compare outputs with expected results
-
-### Const Declarations (HIGH PRIORITY)
-
-**Summary**: Implement `const` declarations for compile-time constants. Constants are immutable values that can be used throughout the program, improving code readability and maintainability.
-
-**Note**: Const declarations prevent accidental modification and enable compiler optimizations.
-
-#### AST Nodes (2 tasks)
-
-- [x] 8.249 Define `ConstDecl` AST node in `ast/declarations.go`:
-  - [x] Fields: `Name *Identifier`, `Type TypeAnnotation` (optional), `Value Expression`, `Token lexer.Token`
-  - [x] Implement `statementNode()` marker method
-  - [x] Implement `TokenLiteral()` returning "const"
-  - [x] Implement `Pos()` returning declaration position
-  - [x] Implement `String()` method showing `const Name = Value;` or `const Name: Type = Value;`
-- [x] 8.250 Add AST tests in `ast/declarations_test.go`:
-  - [x] Test `TestConstDecl` with integer const
-  - [x] Test with float const
-  - [x] Test with string const
-  - [x] Test with typed const: `const MAX: Integer = 100;`
-  - [x] Test untyped const with type inference
-
-#### Parser Support (3 tasks)
-
-- [x] 8.251 Implement `parseConstDeclaration()` in `parser/declarations.go`:
-  - [x] Consume CONST token
-  - [x] Parse identifier (const name)
-  - [x] Check for optional type annotation (`:` Type)
-  - [x] Expect `=` token
-  - [x] Parse value expression (must be constant expression)
-  - [x] Expect SEMICOLON
-  - [x] Create and return `*ast.ConstDecl`
-- [x] 8.252 Integrate const parsing into statement dispatcher:
-  - [x] Add CONST case to `parseStatement()` in `parser/statements.go`
-  - [x] Call `parseConstDeclaration()`
-- [x] 8.253 Add parser tests in `parser/declarations_test.go`:
-  - [x] Test parsing simple const: `const PI = 3.14;`
-  - [x] Test parsing typed const: `const MAX_USERS: Integer = 1000;`
-  - [x] Test parsing string const: `const APP_NAME = 'MyApp';`
-  - [x] Test multiple const declarations
-  - [x] Test error: missing value
-  - [x] Test error: missing semicolon
-
-#### Semantic Analysis (3 tasks)
-
-- [x] 8.254 Implement `analyzeConstDeclaration()` in `semantic/analyze_statements.go`:
-  - [x] Evaluate const value expression (must be compile-time constant)
-  - [x] Check that value is a literal or const expression (not variable reference)
-  - [x] If type annotation present, validate value matches type
-  - [x] If no type annotation, infer type from value
-  - [x] Register const in symbol table with immutable flag
-  - [x] Check for duplicate const names
-- [x] 8.255 Implement const usage validation:
-  - [x] In `analyzeAssignmentStatement()`, check if target is const
-  - [x] Emit error: "Cannot assign to constant 'NAME'"
-  - [x] In expressions, allow reading const values
-- [x] 8.256 Add semantic tests in `semantic/const_test.go`:
-  - [x] Test const declaration with valid types
-  - [x] Test const usage in expressions
-  - [x] Test error: assigning to const
-  - [x] Test error: non-constant expression in const decl
-  - [x] Test error: duplicate const name
-  - [x] Test const type inference
-
-#### Interpreter Support (2 tasks)
-
-- [x] 8.257 Implement `evalConstDeclaration()` in `interp/interpreter.go`:
-  - [x] Evaluate const value expression
-  - [x] Store const value in environment with immutable flag
-  - [x] Use same storage as variables but marked read-only
-- [x] 8.258 Add interpreter tests in `interp/const_test.go`:
-  - [x] Test declaring and using integer const
-  - [x] Test declaring and using float const
-  - [x] Test declaring and using string const
-  - [x] Test const in expressions: `const X = 5; var y := X * 2;`
-  - [x] Test multiple const declarations
-  - [x] Test error: runtime assignment to const (should be caught by semantic analysis)
-
-#### Testing & Fixtures (2 tasks)
-
-- [x] 8.259a Create test scripts in `testdata/const/`:
-  - [x] `basic_const.dws` - Simple const declarations and usage
-  - [x] `const_types.dws` - Different const types (int, float, string, bool)
-  - [x] `const_expressions.dws` - Using consts in expressions
-  - [x] Expected output files
-- [x] 8.259b Add CLI integration tests in `cmd/dwscript/const_test.go`:
-  - [x] Test running const test scripts
-  - [x] Verify const values are correct
-  - [x] Verify outputs match expected
-
----
-
-### `new` Keyword for Object Instantiation ✅ COMPLETE
-
-**Progress**: 8/8 tasks complete (100%)
-
-**Summary**: Implement the `new` keyword as an alternative syntax for object instantiation. This allows `new ClassName(args)` as a shorthand for `ClassName.Create(args)`.
-
-**Example**: `raise new Exception('error message');` is equivalent to `raise Exception.Create('error message');`
-
-**Motivation**: Required for compatibility with DWScript code that uses `new` keyword syntax. Previously blocking several exception handling tests.
-
-**Status**: ✅ Complete. Parser, Semantic Analysis, Interpreter, Unit Tests, and Integration Tests all implemented and passing.
-
-#### Parser Support (3 tasks) ✅ COMPLETE
-
-- [x] 8.260a Add `NEW` token to lexer in `lexer/token_type.go`:
-  - [x] Add `NEW` to `TokenType` enumeration (already existed)
-  - [x] Add "new" to keyword map in `LookupIdent()` (already existed)
-  - [x] Test: Verify lexer recognizes `new` as keyword
-
-- [x] 8.260b Implement `new` prefix parse function in `parser/expressions.go`:
-  - [x] Register prefix parse function for `NEW` token in `parser.go:99`
-  - [x] Parse: `new` followed by type name (identifier)
-  - [x] Parse: parameter list `(args)` (required, use empty for no args)
-  - [x] Create `NewExpression` AST node (already existed in `ast/classes.go`)
-  - [x] Test: Parse `new Exception('msg')`
-  - [x] Test: Parse `new TMyClass()`
-  - [x] Test: Parse `new TPoint(10, 20)`
-
-- [x] 8.260c Add AST node for `new` expression:
-  - [x] `NewExpression` struct already exists in `ast/classes.go:216`
-  - [x] Fields: `ClassName *Identifier`, `Arguments []Expression`
-  - [x] Implements `Expression` interface methods
-  - [x] `String()` outputs `ClassName.Create(args)` format
-  - [x] Note: AST node was already implemented for `TClass.Create()` syntax
-
-#### Semantic Analysis (2 tasks) ✅ COMPLETE
-
-- [x] 8.260d Analyze `new` expressions in `semantic/analyze_expressions.go`:
-  - [x] Verify type name exists and is a class type
-  - [x] Resolve constructor with matching signature
-  - [x] Set result type to the instantiated class type
-  - [x] Test: Type check `new Exception('msg')` returns `Exception` type
-  - [x] Test: Error on `new Integer` (not a class)
-  - [x] Test: Error on `new UndefinedClass()`
-  - [x] Test: Error on constructor argument mismatch
-  - [x] Note: Implementation already existed in `analyze_classes.go:418`
-  - [x] Added comprehensive tests in `class_analyzer_test.go:267-311`
-
-- [x] 8.260e Convert `new` to constructor call in semantic analysis:
-  - [x] **Chosen: Option 1** - Desugar `new T(args)` to `T.Create(args)` during parsing
-  - [x] Implementation: Both syntaxes → `NewExpression` AST node
-    - `new TClass(args)` → `parseNewExpression()` → `NewExpression`
-    - `TClass.Create(args)` → `parseMemberAccess()` → `NewExpression` (lines 358-372)
-  - [x] Rationale: Single code path, guaranteed consistency, follows DWScript semantics
-  - [x] Verified: Both syntaxes produce identical AST and behavior
-  - [x] Note: Desugaring already implemented, no additional work needed
-
-#### Interpreter Support (1 task) ✅ COMPLETE
-
-- [x] 8.260f Interpret `new` expressions in `interp/interpreter.go`:
-  - [x] Uses `NewExpression` node: lookup class, call constructor
-  - [x] Implementation already existed at `interpreter.go:3036` (`evalNewExpression`)
-  - [x] Returns newly created object instance
-  - [x] Handles: class lookup, abstract/external checks, field initialization, constructor calls
-  - [x] Special handling for Exception.Create with message parameter
-  - [x] Test: `new Exception('test')` creates exception object ✓
-  - [x] Test: `new` with custom class creates instance ✓
-  - [x] Test: `new TBox(2,3,4)` with constructor arguments ✓
-  - [x] Test: `new` and `.Create()` produce identical results ✓
-  - [x] Added comprehensive tests in `class_interpreter_test.go:717-917`
-
-#### Testing (2 tasks) ✅ COMPLETE
-
-- [x] 8.260g Add unit tests for `new` keyword:
-  - [x] Test lexer recognizes `new` keyword (`lexer_test.go:TestNewKeyword`)
-  - [x] Test parser handles `new` expressions (`parser_test.go:3345-3390`)
-  - [x] Test semantic analysis validates `new` usage (`class_analyzer_test.go:267-311`)
-  - [x] Test interpreter creates objects via `new` (`class_interpreter_test.go:717-917`)
-  - [x] Test error cases: undefined class, non-class type, arg mismatch ✓
-  - [x] Test equivalence: `new T()` and `T.Create()` produce identical results ✓
-
-- [x] 8.260h Update integration tests:
-  - [x] Fixed `testdata/exceptions/try_except_finally.dws` (added missing semicolon)
-  - [x] Test now passes: uses `new Exception('DOH')` and `new EMyExcept('Bye')`
-  - [x] Created `testdata/exceptions/new_vs_create.dws` equivalence test
-  - [x] Added "New vs Create Equivalence" test to `exception_cli_test.go:246-259`
-  - [x] Verified: `new T(args)` and `T.Create(args)` produce identical results ✓
-  - [x] Test demonstrates both simple and custom exceptions work identically
-  - [x] Exception integration tests: 7/12 passing (58.3%)
-  - [x] All `new` keyword functionality working correctly
-
----
+  - [ ] Display Message in unhandled exception errors (TODO: needs proper error handling refactor)
 
 ### Type Aliases (HIGH PRIORITY)
 
@@ -1257,13 +113,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Type System (2 tasks)
 
-- [ ] 8.261 Define `TypeAlias` in `types/types.go`:
+- [ ] 9.261 Define `TypeAlias` in `types/types.go`:
   - [ ] Fields: `Name string`, `AliasedType Type`
   - [ ] Implement `Type` interface methods
   - [ ] `TypeKind()` returns underlying type's kind
   - [ ] `String()` returns alias name
   - [ ] `Equals(other Type)` compares underlying types
-- [ ] 8.262 Add type alias tests in `types/types_test.go`:
+- [ ] 9.262 Add type alias tests in `types/types_test.go`:
   - [ ] Test creating type alias
   - [ ] Test alias equality with underlying type
   - [ ] Test alias inequality with different types
@@ -1271,17 +127,17 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### AST Nodes (2 tasks)
 
-- [ ] 8.263 Extend `TypeDeclaration` in `ast/type_annotation.go`:
+- [ ] 9.263 Extend `TypeDeclaration` in `ast/type_annotation.go`:
   - [ ] Add `IsAlias bool` field
   - [ ] Add `AliasedType TypeAnnotation` field
   - [ ] Update `String()` to show `type Name = Type;` for aliases
-- [ ] 8.264 Add AST tests:
+- [ ] 9.264 Add AST tests:
   - [ ] Test type alias AST node creation
   - [ ] Test `String()` output for aliases
 
 #### Parser Support (2 tasks)
 
-- [ ] 8.265 Extend `parseTypeDeclaration()` in `parser/type_declarations.go`:
+- [ ] 9.265 Extend `parseTypeDeclaration()` in `parser/type_declarations.go`:
   - [ ] After parsing type name, check next token
   - [ ] If `=` token, parse as type alias
   - [ ] Parse aliased type annotation
@@ -1295,12 +151,12 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Semantic Analysis (2 tasks)
 
-- [ ] 8.267 Implement type alias analysis in `semantic/analyze_types.go`:
+- [ ] 9.267 Implement type alias analysis in `semantic/analyze_types.go`:
   - [ ] In `analyzeTypeDeclaration()`, detect type alias
   - [ ] Resolve aliased type
   - [ ] Create TypeAlias and register in type environment
   - [ ] Allow using alias name in variable/parameter declarations
-- [ ] 8.268 Add semantic tests in `semantic/type_alias_test.go`:
+- [ ] 9.268 Add semantic tests in `semantic/type_alias_test.go`:
   - [ ] Test type alias registration
   - [ ] Test using alias in variable declaration: `var id: TUserID;`
   - [ ] Test type compatibility: TUserID = Integer should work
@@ -1308,18 +164,18 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Interpreter Support (1 task)
 
-- [ ] 8.269 Implement type alias runtime support:
+- [ ] 9.269 Implement type alias runtime support:
   - [ ] In `resolveType()`, handle TypeAlias by returning underlying type
   - [ ] No special runtime representation needed (just resolve to base type)
   - [ ] Add tests in `interp/type_test.go`
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 8.270 Create test scripts in `testdata/type_alias/`:
+- [ ] 9.270 Create test scripts in `testdata/type_alias/`:
   - [ ] `basic_alias.dws` - Simple type aliases
   - [ ] `alias_usage.dws` - Using aliases in declarations and assignments
   - [ ] Expected outputs
-- [ ] 8.271 Add CLI integration tests
+- [ ] 9.271 Add CLI integration tests
 
 ---
 
@@ -1331,24 +187,24 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Increment/Decrement (4 tasks)
 
-- [ ] 8.272 Implement `Inc(x)` and `Inc(x, delta)` in `interp/builtins.go`:
+- [ ] 9.272 Implement `Inc(x)` and `Inc(x, delta)` in `interp/builtins.go`:
   - [ ] Create `builtinInc()` function
   - [ ] Accept 1-2 parameters: variable reference, optional delta (default 1)
   - [ ] Support Integer: increment by delta
   - [ ] Support enum: get next enum value (Succ)
   - [ ] Modify variable in-place (requires var parameter support)
   - [ ] Return nil
-- [ ] 8.273 Implement `Dec(x)` and `Dec(x, delta)` in `interp/builtins.go`:
+- [ ] 9.273 Implement `Dec(x)` and `Dec(x, delta)` in `interp/builtins.go`:
   - [ ] Create `builtinDec()` function
   - [ ] Accept 1-2 parameters: variable reference, optional delta (default 1)
   - [ ] Support Integer: decrement by delta
   - [ ] Support enum: get previous enum value (Pred)
   - [ ] Modify variable in-place
   - [ ] Return nil
-- [ ] 8.274 Register Inc/Dec in interpreter initialization:
+- [ ] 9.274 Register Inc/Dec in interpreter initialization:
   - [ ] Add to global built-in functions map
   - [ ] Handle var parameter semantics (pass by reference)
-- [ ] 8.275 Add tests in `interp/ordinal_test.go`:
+- [ ] 9.275 Add tests in `interp/ordinal_test.go`:
   - [ ] Test `Inc(x)` with integer: `var x := 5; Inc(x); // x = 6`
   - [ ] Test `Inc(x, 3)` with delta: `Inc(x, 3); // x = 8`
   - [ ] Test `Dec(x)` with integer
@@ -1359,14 +215,14 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Successor/Predecessor (3 tasks)
 
-- [ ] 8.276 Implement `Succ(x)` in `interp/builtins.go`:
+- [ ] 9.276 Implement `Succ(x)` in `interp/builtins.go`:
   - [ ] Create `builtinSucc()` function
   - [ ] Accept 1 parameter: ordinal value
   - [ ] For Integer: return x + 1
   - [ ] For enum: return next enum value
   - [ ] Raise error if already at maximum value
   - [ ] Return successor value
-- [ ] 8.277 Implement `Pred(x)` in `interp/builtins.go`:
+- [ ] 9.277 Implement `Pred(x)` in `interp/builtins.go`:
   - [ ] Create `builtinPred()` function
   - [ ] Accept 1 parameter: ordinal value
   - [ ] For Integer: return x - 1
@@ -1382,21 +238,21 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Low/High for Enums (3 tasks)
 
-- [ ] 8.279 Implement `Low(enumType)` in `interp/builtins.go`:
+- [ ] 9.279 Implement `Low(enumType)` in `interp/builtins.go`:
   - [ ] Create `builtinLow()` function
   - [ ] Accept enum type or enum value
   - [ ] For arrays: return array lower bound (already implemented)
   - [ ] For enum type: return lowest enum value
   - [ ] For enum value: return Low of that enum type
   - [ ] Return lowest ordinal value
-- [ ] 8.280 Implement `High(enumType)` in `interp/builtins.go`:
+- [ ] 9.280 Implement `High(enumType)` in `interp/builtins.go`:
   - [ ] Create `builtinHigh()` function
   - [ ] Accept enum type or enum value
   - [ ] For arrays: return array upper bound (already implemented)
   - [ ] For enum type: return highest enum value
   - [ ] For enum value: return High of that enum type
   - [ ] Return highest ordinal value
-- [ ] 8.281 Add tests in `interp/ordinal_test.go`:
+- [ ] 9.281 Add tests in `interp/ordinal_test.go`:
   - [ ] Test `Low(TColor)` returns first enum value (Red)
   - [ ] Test `High(TColor)` returns last enum value (Blue)
   - [ ] Test Low/High with enum variable: `var c: TColor; Low(c)`
@@ -1404,13 +260,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 8.282 Create test scripts in `testdata/ordinal_functions/`:
+- [ ] 9.282 Create test scripts in `testdata/ordinal_functions/`:
   - [ ] `inc_dec.dws` - Inc and Dec with integers and enums
   - [ ] `succ_pred.dws` - Succ and Pred with integers and enums
   - [ ] `low_high_enum.dws` - Low and High for enum types
   - [ ] `for_loop_enum.dws` - Using Low/High in for loops: `for i := Low(TEnum) to High(TEnum)`
   - [ ] Expected outputs
-- [ ] 8.283 Add CLI integration tests:
+- [ ] 9.283 Add CLI integration tests:
   - [ ] Test ordinal function scripts
   - [ ] Verify correct outputs
 
@@ -1422,7 +278,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Function (2 tasks)
 
-- [ ] 8.284 Implement `Assert()` in `interp/builtins.go`:
+- [ ] 9.284 Implement `Assert()` in `interp/builtins.go`:
   - [ ] Create `builtinAssert()` function
   - [ ] Accept 1-2 parameters: Boolean condition, optional String message
   - [ ] If condition is false:
@@ -1430,7 +286,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - [ ] If no message, raise `EAssertionFailed` with "Assertion failed"
   - [ ] If condition is true, return nil (no-op)
   - [ ] Register in global built-in functions
-- [ ] 8.285 Add tests in `interp/assert_test.go`:
+- [ ] 9.285 Add tests in `interp/assert_test.go`:
   - [ ] Test `Assert(true)` - should not raise error
   - [ ] Test `Assert(false)` - should raise EAssertionFailed
   - [ ] Test `Assert(true, 'message')` - no error
@@ -1440,12 +296,12 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 8.286 Create test scripts in `testdata/assert/`:
+- [ ] 9.286 Create test scripts in `testdata/assert/`:
   - [ ] `assert_basic.dws` - Basic Assert usage
   - [ ] `assert_validation.dws` - Using Assert for input validation
   - [ ] `assert_tests.dws` - Writing tests with Assert
   - [ ] Expected outputs (some should fail with assertion errors)
-- [ ] 8.287 Add CLI integration tests:
+- [ ] 9.287 Add CLI integration tests:
   - [ ] Test assert scripts
   - [ ] Verify assertion failures are caught and reported
 
@@ -1457,17 +313,17 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Trim (3 tasks)
 
-- [ ] 8.288 Implement `Trim(s)` in `interp/string_functions.go`:
+- [ ] 9.288 Implement `Trim(s)` in `interp/string_functions.go`:
   - [ ] Create `builtinTrim()` function
   - [ ] Accept String parameter
   - [ ] Remove leading and trailing whitespace
   - [ ] Use Go's `strings.TrimSpace()`
   - [ ] Return trimmed string
-- [ ] 8.289 Implement `TrimLeft(s)` and `TrimRight(s)`:
+- [ ] 9.289 Implement `TrimLeft(s)` and `TrimRight(s)`:
   - [ ] Create `builtinTrimLeft()` - remove leading whitespace only
   - [ ] Create `builtinTrimRight()` - remove trailing whitespace only
   - [ ] Use `strings.TrimLeftFunc()` and `strings.TrimRightFunc()`
-- [ ] 8.290 Add tests in `interp/string_test.go`:
+- [ ] 9.290 Add tests in `interp/string_test.go`:
   - [ ] Test `Trim('  hello  ')` returns 'hello'
   - [ ] Test `TrimLeft('  hello')` returns 'hello'
   - [ ] Test `TrimRight('hello  ')` returns 'hello'
@@ -1476,19 +332,19 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Insert/Delete (3 tasks)
 
-- [ ] 8.291 Implement `Insert(source, s, pos)` in `interp/string_functions.go`:
+- [ ] 9.291 Implement `Insert(source, s, pos)` in `interp/string_functions.go`:
   - [ ] Create `builtinInsert()` function
   - [ ] Accept 3 parameters: source String, target String (var param), position Integer
   - [ ] Insert source into target at 1-based position
   - [ ] Modify target string in-place (var parameter)
   - [ ] Handle edge cases: pos < 1, pos > length
-- [ ] 8.292 Implement `Delete(s, pos, count)` in `interp/string_functions.go`:
+- [ ] 9.292 Implement `Delete(s, pos, count)` in `interp/string_functions.go`:
   - [ ] Create `builtinDelete()` function
   - [ ] Accept 3 parameters: string (var param), position Integer, count Integer
   - [ ] Delete count characters starting at 1-based position
   - [ ] Modify string in-place (var parameter)
   - [ ] Handle edge cases: pos < 1, pos > length, count too large
-- [ ] 8.293 Add tests in `interp/string_test.go`:
+- [ ] 9.293 Add tests in `interp/string_test.go`:
   - [ ] Test Insert: `var s := 'Helo'; Insert('l', s, 3);` → 'Hello'
   - [ ] Test Delete: `var s := 'Hello'; Delete(s, 3, 2);` → 'Heo'
   - [ ] Test Insert at start/end
@@ -1497,13 +353,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - StringReplace (2 tasks)
 
-- [ ] 8.294 Implement `StringReplace(s, old, new)` in `interp/string_functions.go`:
+- [ ] 9.294 Implement `StringReplace(s, old, new)` in `interp/string_functions.go`:
   - [ ] Create `builtinStringReplace()` function
   - [ ] Accept 3 parameters: string, old substring, new substring
   - [ ] Optional 4th parameter: flags (replace all vs first occurrence)
   - [ ] Use Go's `strings.Replace()` or `strings.ReplaceAll()`
   - [ ] Return new string with replacements
-- [ ] 8.295 Add tests in `interp/string_test.go`:
+- [ ] 9.295 Add tests in `interp/string_test.go`:
   - [ ] Test replace all: `StringReplace('hello world', 'l', 'L')` → 'heLLo worLd'
   - [ ] Test replace first only (if flag supported)
   - [ ] Test with empty old string
@@ -1511,7 +367,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Built-in Functions - Format (4 tasks)
 
-- [ ] 8.296 Implement `Format(fmt, args)` in `interp/string_functions.go`:
+- [ ] 9.296 Implement `Format(fmt, args)` in `interp/string_functions.go`:
   - [ ] Create `builtinFormat()` function
   - [ ] Accept format string and variadic args (array of values)
   - [ ] Support format specifiers: `%s` (string), `%d` (integer), `%f` (float), `%%` (literal %)
@@ -1748,26 +604,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - [ ] 8.237 Implement contract checking at runtime
 - [ ] 8.238 Test contracts
 
-### Additional Features Assessment
 
-- [x] 8.239 Review DWScript feature list for missing items ✅ COMPLETE
-  - [x] 8.239a Catalog all implemented features → `docs/implemented-features.md`
-  - [x] 8.239b Extract DWScript feature list → `docs/dwscript-features.md`
-  - [x] 8.239c Create feature comparison matrix → `docs/feature-matrix.md` (408 features)
-  - [x] 8.239d-r Detailed feature reviews (covered by matrix)
-  - [x] 8.239v Document out-of-scope features → `docs/out-of-scope.md`
-  - [x] 8.239w Create recommendations → `docs/missing-features-recommendations.md`
-  - [x] Result: 164/408 features implemented (40%), 58 HIGH priority features identified
-  - [x] Added 80 new tasks (8.249-8.328) for HIGH priority features
-- [x] 8.240 Prioritize remaining features ✅ COMPLETE
-  - [x] HIGH: 58 features (const, ordinal functions, Assert, type aliases, built-in functions)
-  - [x] MEDIUM: 94 features (lambdas, helpers, DateTime, JSON, etc.)
-  - [x] LOW: 74 features (generics, LINQ, etc.)
-  - [x] OUT OF SCOPE: 4 features (COM, assembly, platform-specific)
-- [ ] 8.241 Implement high-priority features (Tasks 8.249-8.328 now added)
-- [x] 8.242 Document unsupported features ✅ COMPLETE
-  - [x] Created `docs/out-of-scope.md` with security/portability rationale
-  - [x] Created `docs/feature-matrix.md` showing all 408 features status
 
 ### Comprehensive Testing (Stage 8)
 
@@ -1778,7 +615,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - [ ] 8.247 Create stress tests for complex features
 - [ ] 8.248 Achieve >85% overall code coverage
 
----
 
 ## Stage 10: Performance Tuning and Refactoring
 
