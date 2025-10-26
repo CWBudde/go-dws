@@ -1,0 +1,17 @@
+// Case Statement Demo
+var day: Integer;
+
+PrintLn('Weekday names using case statements:');
+for day := 1 to 7 do
+begin
+	case day of
+		1: PrintLn('Day 1 -> Monday');
+		2: PrintLn('Day 2 -> Tuesday');
+		3: PrintLn('Day 3 -> Wednesday');
+		4: PrintLn('Day 4 -> Thursday');
+		5: PrintLn('Day 5 -> Friday');
+		6: PrintLn('Day 6 -> Saturday');
+	else
+		PrintLn('Day 7 -> Sunday');
+	end;
+end;

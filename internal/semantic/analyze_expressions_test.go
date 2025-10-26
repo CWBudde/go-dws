@@ -135,3 +135,51 @@ func TestUnaryOperationsError(t *testing.T) {
 		expectError(t, tt.input, tt.error)
 	}
 }
+
+// ============================================================================
+// Format Built-in Function Tests (Task 9.51a)
+// ============================================================================
+
+func TestFormatBuiltInFunction(t *testing.T) {
+	// Test valid Format calls with a declared array variable
+	input := `
+		type TIntArray = array [0..10] of Integer;
+		var arr: TIntArray;
+		var result: String;
+		begin
+			result := Format('Hello %d', arr);
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestFormatWrongNumberOfArguments(t *testing.T) {
+	tests := []string{
+		`var result := Format('test');`,           // Only 1 argument
+		`var result := Format('test', arr, 123);`, // 3 arguments
+	}
+
+	for _, input := range tests {
+		expectError(t, input, "Format() expects exactly 2 arguments")
+	}
+}
+
+func TestFormatWrongArgumentTypes(t *testing.T) {
+	tests := []struct {
+		input string
+		error string
+	}{
+		{
+			`var result := Format(42, arr);`, // First arg not string
+			"Format() expects string as first argument",
+		},
+		{
+			`var result := Format('test', 42);`, // Second arg not array
+			"Format() expects array as second argument",
+		},
+	}
+
+	for _, tt := range tests {
+		expectError(t, tt.input, tt.error)
+	}
+}

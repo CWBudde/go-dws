@@ -1,0 +1,40 @@
+// Object-Oriented Programming
+
+type
+	TPerson = class
+	private
+		FName: String;
+		FAge: Integer;
+	public
+		constructor Create(aName: String; aAge: Integer);
+		procedure Introduce;
+		procedure HaveBirthday;
+
+		property Name: String read FName write FName;
+		property Age: Integer read FAge write FAge;
+	end;
+
+constructor TPerson.Create(aName: String; aAge: Integer);
+begin
+	FName := aName;
+	FAge := aAge;
+end;
+
+procedure TPerson.Introduce;
+begin
+	PrintLn('Hi, I am ' + FName + ' and I am ' + IntToStr(FAge) + ' years old.');
+end;
+
+procedure TPerson.HaveBirthday;
+begin
+	FAge := FAge + 1;
+	PrintLn(FName + ' is now ' + IntToStr(FAge) + ' years old!');
+end;
+
+// Main program
+var person: TPerson;
+
+person := TPerson.Create('Alice', 25);
+person.Introduce();
+person.HaveBirthday();
+person.Introduce();

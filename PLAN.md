@@ -400,39 +400,33 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
   - [x] List supported format specifiers
   - [x] Provide examples
 
+#### Semantic Analysis Support (1 task)
+
+- [x] 9.51a Add semantic analysis for string functions in `semantic/analyze_expressions.go`:
+  - [x] `Trim(s: String): String` - validate 1 string argument (duplicates at lines 1115-1127 REMOVED)
+  - [x] `TrimLeft(s: String): String` - validate 1 string argument (duplicates at lines 1130-1142 REMOVED)
+  - [x] `TrimRight(s: String): String` - validate 1 string argument (duplicates at lines 1145-1157 REMOVED)
+  - [x] `Insert(source: String, var target: String, pos: Integer)` - validate var parameter (indentation FIXED)
+  - [x] `Delete` - handle overloading: `Delete(var arr: Array, index: Integer)` OR `Delete(var s: String, pos: Integer, count: Integer)` (lines 853-898, already correct)
+  - [x] `StringReplace(s: String, old: String, new: String): String` - validate 3 strings (duplicates at lines 1190-1204 REMOVED)
+  - [x] `Format(fmt: String, args: Array): String` - validate format string and array (ADDED at lines 548-571)
+  - [x] Remove duplicate function checks (Trim family and StringReplace duplicates removed)
+  - [x] Fix indentation issues in lines 1114+ (Insert function indentation fixed)
+
 #### Testing & Fixtures (2 tasks)
 
 - [x] 9.52 Create test scripts in `testdata/string_functions/`:
-  - [x] `trim.dws` - Trim, TrimLeft, TrimRight
-  - [x] `insert_delete.dws` - Insert and Delete
-  - [x] `replace.dws` - StringReplace
+  - [x] `trim.dws` - Trim, TrimLeft, TrimRight ✓ TESTED AND WORKING
+  - [x] `insert_delete.dws` - Insert and Delete ✓ TESTED AND WORKING
+  - [x] `replace.dws` - StringReplace ✓ TESTED AND WORKING
   - [x] Expected outputs
-- [x] 9.53 Add CLI integration tests:
-  - [x] Test string function scripts
-  - [x] Verify outputs
-  - [x] Added semantic analysis for Trim, TrimLeft, TrimRight, Insert, StringReplace
-  - [x] Fixed Delete function overloading (2 args for arrays, 3 args for strings)
+- [x] 9.53 Add CLI integration tests in `cmd/dwscript/string_functions_test.go`:
+  - [x] Test trim.dws ✓ PASSING
+  - [x] Test insert_delete.dws ✓ PASSING
+  - [x] Test replace.dws ✓ PASSING
+  - [x] Verify outputs match expected files ✓ ALL TESTS PASSING
 
 **Note**: Format function testing deferred to task 9.88 due to array literal syntax complexity
-
----
-
-### Format Function Testing (DEFERRED)
-
-**Summary**: Create comprehensive test fixtures for the Format() built-in function. Deferred from task 9.52 due to DWScript's set literal syntax `[...]` conflicting with Format's array parameter requirements.
-
-#### Task Details (1 task)
-
-- [ ] 9.88 Create Format function test fixtures:
-  - [ ] Implement proper array construction for Format args (using `array of` or alternative syntax)
-  - [ ] Create `testdata/string_functions/format.dws` with Format examples
-  - [ ] Test %s (string), %d (integer), %f (float) specifiers
-  - [ ] Test width and precision: %5d, %.2f, %8.2f
-  - [ ] Test %% (literal percent)
-  - [ ] Test multiple arguments
-  - [ ] Create expected output file
-  - [ ] Add CLI integration tests for Format
-  - [ ] Document Format syntax in `docs/builtins.md` (Task 9.51)
 
 ---
 
@@ -442,90 +436,91 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Built-in Functions - Min/Max (3 tasks)
 
-- [ ] 9.54 Implement `Min(a, b)` in `interp/math_functions.go`:
-  - [ ] Create `builtinMin()` function
-  - [ ] Accept 2 parameters: both Integer or both Float
-  - [ ] Return smaller value, preserving type
-  - [ ] Handle mixed types: promote Integer to Float
-- [ ] 9.55 Implement `Max(a, b)` in `interp/math_functions.go`:
-  - [ ] Create `builtinMax()` function
-  - [ ] Accept 2 parameters: both Integer or both Float
-  - [ ] Return larger value, preserving type
-  - [ ] Handle mixed types: promote Integer to Float
-- [ ] 9.56 Add tests in `interp/math_test.go`:
-  - [ ] Test `Min(5, 10)` returns 5
-  - [ ] Test `Max(5, 10)` returns 10
-  - [ ] Test with negative numbers
-  - [ ] Test with floats: `Min(3.14, 2.71)`
-  - [ ] Test with mixed types: `Min(5, 3.14)`
+- [x] 9.54 Implement `Min(a, b)` in `internal/interp/interpreter.go`:
+  - [x] Create `builtinMin()` function
+  - [x] Accept 2 parameters: both Integer or both Float
+  - [x] Return smaller value, preserving type
+  - [x] Handle mixed types: promote Integer to Float
+- [x] 9.55 Implement `Max(a, b)` in `internal/interp/interpreter.go`:
+  - [x] Create `builtinMax()` function
+  - [x] Accept 2 parameters: both Integer or both Float
+  - [x] Return larger value, preserving type
+  - [x] Handle mixed types: promote Integer to Float
+- [x] 9.56 Add tests in `interp/math_test.go`:
+  - [x] Test `Min(5, 10)` returns 5
+  - [x] Test `Max(5, 10)` returns 10
+  - [x] Test with negative numbers
+  - [x] Test with floats: `Min(3.14, 2.71)`
+  - [x] Test with mixed types: `Min(5, 3.14)`
 
 #### Built-in Functions - Sqr/Power (3 tasks)
 
-- [ ] 9.57 Implement `Sqr(x)` in `interp/math_functions.go`:
-  - [ ] Create `builtinSqr()` function
-  - [ ] Accept Integer or Float parameter
-  - [ ] Return x * x, preserving type
-  - [ ] Integer sqr returns Integer, Float sqr returns Float
-- [ ] 9.58 Implement `Power(x, y)` in `interp/math_functions.go`:
-  - [ ] Create `builtinPower()` function
-  - [ ] Accept base and exponent (Integer or Float)
-  - [ ] Use Go's `math.Pow()`
-  - [ ] Always return Float (even for integer inputs)
-  - [ ] Handle special cases: 0^0, negative base with fractional exponent
-- [ ] 9.59 Add tests in `interp/math_test.go`:
-  - [ ] Test `Sqr(5)` returns 25
-  - [ ] Test `Sqr(3.0)` returns 9.0
-  - [ ] Test `Power(2, 8)` returns 256.0
-  - [ ] Test `Power(2.0, 0.5)` returns 1.414... (sqrt(2))
-  - [ ] Test negative exponent: `Power(2, -1)` returns 0.5
+- [x] 9.57 Implement `Sqr(x)` in `internal/interp/interpreter.go`:
+  - [x] Create `builtinSqr()` function
+  - [x] Accept Integer or Float parameter
+  - [x] Return x * x, preserving type
+  - [x] Integer sqr returns Integer, Float sqr returns Float
+- [x] 9.58 Implement `Power(x, y)` in `internal/interp/interpreter.go`:
+  - [x] Create `builtinPower()` function
+  - [x] Accept base and exponent (Integer or Float)
+  - [x] Use Go's `math.Pow()`
+  - [x] Always return Float (even for integer inputs)
+  - [x] Handle special cases: 0^0, negative base with fractional exponent
+- [x] 9.59 Add tests in `interp/math_test.go`:
+  - [x] Test `Sqr(5)` returns 25
+  - [x] Test `Sqr(3.0)` returns 9.0
+  - [x] Test `Power(2, 8)` returns 256.0
+  - [x] Test `Power(2.0, 0.5)` returns 1.414... (sqrt(2))
+  - [x] Test negative exponent: `Power(2, -1)` returns 0.5
 
 #### Built-in Functions - Ceil/Floor (3 tasks)
 
-- [ ] 9.60 Implement `Ceil(x)` in `interp/math_functions.go`:
-  - [ ] Create `builtinCeil()` function
-  - [ ] Accept Float parameter
-  - [ ] Round up to nearest integer
-  - [ ] Use Go's `math.Ceil()`
-  - [ ] Return Integer type
-- [ ] 9.61 Implement `Floor(x)` in `interp/math_functions.go`:
-  - [ ] Create `builtinFloor()` function
-  - [ ] Accept Float parameter
-  - [ ] Round down to nearest integer
-  - [ ] Use Go's `math.Floor()`
-  - [ ] Return Integer type
-- [ ] 9.62 Add tests in `interp/math_test.go`:
-  - [ ] Test `Ceil(3.2)` returns 4
-  - [ ] Test `Ceil(3.8)` returns 4
-  - [ ] Test `Ceil(-3.2)` returns -3
-  - [ ] Test `Floor(3.8)` returns 3
-  - [ ] Test `Floor(3.2)` returns 3
-  - [ ] Test `Floor(-3.8)` returns -4
+- [x] 9.60 Implement `Ceil(x)` in `interp/math_functions.go`:
+  - [x] Create `builtinCeil()` function
+  - [x] Accept Float parameter
+  - [x] Round up to nearest integer
+  - [x] Use Go's `math.Ceil()`
+  - [x] Return Integer type
+- [x] 9.61 Implement `Floor(x)` in `interp/math_functions.go`:
+  - [x] Create `builtinFloor()` function
+  - [x] Accept Float parameter
+  - [x] Round down to nearest integer
+  - [x] Use Go's `math.Floor()`
+  - [x] Return Integer type
+- [x] 9.62 Add tests in `interp/math_test.go`:
+  - [x] Test `Ceil(3.2)` returns 4
+  - [x] Test `Ceil(3.8)` returns 4
+  - [x] Test `Ceil(-3.2)` returns -3
+  - [x] Test `Floor(3.8)` returns 3
+  - [x] Test `Floor(3.2)` returns 3
+  - [x] Test `Floor(-3.8)` returns -4
 
 #### Built-in Functions - RandomInt (2 tasks)
 
-- [ ] 9.63 Implement `RandomInt(max)` in `interp/math_functions.go`:
-  - [ ] Create `builtinRandomInt()` function
-  - [ ] Accept Integer parameter: max (exclusive upper bound)
-  - [ ] Return random Integer in range [0, max)
-  - [ ] Use Go's `rand.Intn()`
-  - [ ] Validate max > 0
-- [ ] 9.64 Add tests in `interp/math_test.go`:
-  - [ ] Test `RandomInt(10)` returns value in [0, 10)
-  - [ ] Test multiple calls return different values (probabilistic)
-  - [ ] Test with max=1: always returns 0
-  - [ ] Test error: RandomInt(0) or RandomInt(-5)
+- [x] 9.63 Implement `RandomInt(max)` in `interp/math_functions.go`:
+  - [x] Create `builtinRandomInt()` function
+  - [x] Accept Integer parameter: max (exclusive upper bound)
+  - [x] Return random Integer in range [0, max)
+  - [x] Use Go's `rand.Intn()`
+  - [x] Validate max > 0
+- [x] 9.64 Add tests in `interp/math_test.go`:
+  - [x] Test `RandomInt(10)` returns value in [0, 10)
+  - [x] Test multiple calls return different values (probabilistic)
+  - [x] Test with max=1: always returns 0
+  - [x] Test error: RandomInt(0) or RandomInt(-5)
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 9.65 Create test scripts in `testdata/math_functions/`:
-  - [ ] `min_max.dws` - Min and Max with various inputs
-  - [ ] `sqr_power.dws` - Sqr and Power functions
-  - [ ] `ceil_floor.dws` - Ceil and Floor functions
-  - [ ] `random_int.dws` - RandomInt usage
-  - [ ] Expected outputs
-- [ ] 9.66 Add CLI integration tests:
-  - [ ] Test math function scripts
-  - [ ] Verify outputs
+- [x] 9.65 Create test scripts in `testdata/math_functions/`:
+  - [x] `min_max.dws` - Min and Max with various inputs ✓ COMPLETE
+  - [x] `sqr_power.dws` - Sqr and Power functions ✓ COMPLETE
+  - [x] `ceil_floor.dws` - Ceil and Floor functions ✓ COMPLETE
+  - [x] `random_int.dws` - RandomInt usage ✓ COMPLETE
+  - [x] Expected outputs ✓ COMPLETE
+- [x] 9.66 Add CLI integration tests:
+  - [x] Test all math function fixtures ✓ ALL PASSING
+  - [x] Test inline code for each function ✓ ALL PASSING
+  - [x] Test parsing for all scripts ✓ ALL PASSING
 
 ---
 
@@ -535,18 +530,18 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Built-in Functions - Copy (2 tasks)
 
-- [ ] 9.67 Implement `Copy(arr)` for arrays in `interp/array_functions.go`:
-  - [ ] Create `builtinArrayCopy()` function (overload existing Copy)
-  - [ ] Accept array parameter
-  - [ ] Return deep copy of array
-  - [ ] For dynamic arrays, create new array with same elements
-  - [ ] For static arrays, copy elements to new array
-  - [ ] Handle arrays of objects (shallow copy references)
-- [ ] 9.68 Add tests in `interp/array_test.go`:
-  - [ ] Test copy dynamic array: `var a2 := Copy(a1); a2[0] := 99;` → a1 unchanged
-  - [ ] Test copy static array
-  - [ ] Test copy preserves element types
-  - [ ] Test copy empty array
+- [x] 9.67 Implement `Copy(arr)` for arrays in `interp/array_functions.go`:
+  - [x] Create `builtinArrayCopy()` function (overload existing Copy)
+  - [x] Accept array parameter
+  - [x] Return deep copy of array
+  - [x] For dynamic arrays, create new array with same elements
+  - [x] For static arrays, copy elements to new array
+  - [x] Handle arrays of objects (shallow copy references)
+- [x] 9.68 Add tests in `interp/array_test.go`:
+  - [x] Test copy dynamic array: `var a2 := Copy(a1); a2[0] := 99;` → a1 unchanged
+  - [x] Test copy static array
+  - [x] Test copy preserves element types
+  - [x] Test copy empty array
 
 #### Built-in Functions - IndexOf (3 tasks)
 
@@ -646,6 +641,25 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 - [ ] 9.88 Create stress tests for complex features
 - [ ] 9.89 Achieve >85% overall code coverage
 
+### Format Function Testing (DEFERRED)
+
+**Summary**: Create comprehensive test fixtures for the Format() built-in function. Deferred from task 9.52 due to DWScript's set literal syntax `[...]` conflicting with Format's array parameter requirements.
+
+#### Task Details (1 task)
+
+- [ ] 9.90 Create Format function test fixtures:
+  - [ ] Implement proper array construction for Format args (using `array of` or alternative syntax)
+  - [ ] Create `testdata/string_functions/format.dws` with Format examples
+  - [ ] Test %s (string), %d (integer), %f (float) specifiers
+  - [ ] Test width and precision: %5d, %.2f, %8.2f
+  - [ ] Test %% (literal percent)
+  - [ ] Test multiple arguments
+  - [ ] Create expected output file
+  - [ ] Add CLI integration tests for Format
+  - [ ] Document Format syntax in `docs/builtins.md` (Task 9.51)
+
+---
+
 ## Stage 10: Performance Tuning and Refactoring
 
 ### Performance Profiling
@@ -730,15 +744,15 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 ### Example Programs
 
-- [ ] 10.51 Create `examples/` directory
-- [ ] 10.52 Add example scripts:
-  - [ ] Hello World
-  - [ ] Fibonacci
-  - [ ] Factorial
-  - [ ] Class-based example (e.g., Person class)
-  - [ ] Game or algorithm (e.g., sorting)
-- [ ] 10.53 Add README in examples directory
-- [ ] 10.54 Ensure all examples run correctly
+- [x] 10.51 Create `examples/` directory
+- [x] 10.52 Add example scripts:
+  - [x] Hello World
+  - [x] Fibonacci
+  - [x] Factorial
+  - [x] Class-based example (Person demo)
+  - [x] Algorithm sample (math/loops showcase)
+- [x] 10.53 Add README in examples directory
+- [x] 10.54 Ensure all examples run correctly
 
 ### Testing Enhancements
 
@@ -766,8 +780,8 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 ### Feature Parity Tracking
 
-- [ ] 11..1 Create feature matrix comparing go-dws with DWScript
-- [ ] 11..2 Track DWScript upstream releases
+- [ ] 11.1 Create feature matrix comparing go-dws with DWScript
+- [ ] 11.2 Track DWScript upstream releases
 - [ ] 11.3 Identify new features in DWScript updates
 - [ ] 11.4 Plan integration of new features
 - [ ] 11.5 Update feature matrix regularly

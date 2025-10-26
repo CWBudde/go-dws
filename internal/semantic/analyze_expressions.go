@@ -352,14 +352,34 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// Copy built-in function (Task 8.183)
+		// Copy built-in function (Task 8.183, Task 9.67)
 		if funcIdent.Value == "Copy" {
-			// Copy takes three arguments (string, index, count) and returns a string
+			// Copy has two overloads:
+			// - Copy(arr) - returns copy of array
+			// - Copy(str, index, count) - returns substring
+
+			if len(expr.Arguments) == 1 {
+				// Copy(arr) - array copy overload
+				arrType := a.analyzeExpression(expr.Arguments[0])
+				if arrType != nil {
+					if arrayType, ok := arrType.(*types.ArrayType); ok {
+						// Return the same array type
+						return arrayType
+					}
+					a.addError("function 'Copy' with 1 argument expects array, got %s at %s",
+						arrType.String(), expr.Token.Pos.String())
+				}
+				// Return a generic array type as fallback
+				return types.NewDynamicArrayType(types.INTEGER)
+			}
+
 			if len(expr.Arguments) != 3 {
-				a.addError("function 'Copy' expects 3 arguments, got %d at %s",
+				a.addError("function 'Copy' expects either 1 argument (array) or 3 arguments (string), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
 				return types.STRING
 			}
+
+			// Copy(str, index, count) - string copy overload
 			// Analyze the first argument (string)
 			strType := a.analyzeExpression(expr.Arguments[0])
 			if strType != nil && strType != types.STRING {
@@ -545,6 +565,31 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
+		// Format built-in function (Task 9.51a)
+		if funcIdent.Value == "Format" {
+			// Format takes exactly 2 arguments: format string and array of values
+			if len(expr.Arguments) != 2 {
+				a.addError("Format() expects exactly 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// First argument: format string (must be String)
+			fmtType := a.analyzeExpression(expr.Arguments[0])
+			if fmtType != nil && fmtType != types.STRING {
+				a.addError("Format() expects string as first argument, got %s at %s",
+					fmtType.String(), expr.Token.Pos.String())
+			}
+			// Second argument: array of values (must be Array type)
+			arrType := a.analyzeExpression(expr.Arguments[1])
+			if arrType != nil {
+				if _, isArray := arrType.(*types.ArrayType); !isArray {
+					a.addError("Format() expects array as second argument, got %s at %s",
+						arrType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.STRING
+		}
+
 		// Abs built-in function (Task 8.185)
 		if funcIdent.Value == "Abs" {
 			// Abs takes one numeric argument and returns the same type
@@ -565,6 +610,110 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				return argType
 			}
 			return types.INTEGER // Default to INTEGER if type is unknown
+		}
+
+		// Min built-in function (Task 9.54)
+		if funcIdent.Value == "Min" {
+			// Min takes two numeric arguments and returns the smaller value
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'Min' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER // Default to INTEGER on error
+			}
+			// Analyze both arguments and verify they're Integer or Float
+			arg1Type := a.analyzeExpression(expr.Arguments[0])
+			arg2Type := a.analyzeExpression(expr.Arguments[1])
+
+			if arg1Type != nil && arg2Type != nil {
+				// Verify both are numeric
+				if (arg1Type != types.INTEGER && arg1Type != types.FLOAT) ||
+					(arg2Type != types.INTEGER && arg2Type != types.FLOAT) {
+					a.addError("function 'Min' expects Integer or Float arguments, got %s and %s at %s",
+						arg1Type.String(), arg2Type.String(), expr.Token.Pos.String())
+					return types.INTEGER
+				}
+				// If both Integer, return Integer; otherwise return Float
+				if arg1Type == types.INTEGER && arg2Type == types.INTEGER {
+					return types.INTEGER
+				}
+				return types.FLOAT
+			}
+			return types.INTEGER // Default to INTEGER if type is unknown
+		}
+
+		// Max built-in function (Task 9.55)
+		if funcIdent.Value == "Max" {
+			// Max takes two numeric arguments and returns the larger value
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'Max' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER // Default to INTEGER on error
+			}
+			// Analyze both arguments and verify they're Integer or Float
+			arg1Type := a.analyzeExpression(expr.Arguments[0])
+			arg2Type := a.analyzeExpression(expr.Arguments[1])
+
+			if arg1Type != nil && arg2Type != nil {
+				// Verify both are numeric
+				if (arg1Type != types.INTEGER && arg1Type != types.FLOAT) ||
+					(arg2Type != types.INTEGER && arg2Type != types.FLOAT) {
+					a.addError("function 'Max' expects Integer or Float arguments, got %s and %s at %s",
+						arg1Type.String(), arg2Type.String(), expr.Token.Pos.String())
+					return types.INTEGER
+				}
+				// If both Integer, return Integer; otherwise return Float
+				if arg1Type == types.INTEGER && arg2Type == types.INTEGER {
+					return types.INTEGER
+				}
+				return types.FLOAT
+			}
+			return types.INTEGER // Default to INTEGER if type is unknown
+		}
+
+		// Sqr built-in function (Task 9.57)
+		if funcIdent.Value == "Sqr" {
+			// Sqr takes one numeric argument and returns x*x, preserving type
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Sqr' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER // Default to INTEGER on error
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Sqr' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+					return types.INTEGER
+				}
+				// Return the same type as the input
+				return argType
+			}
+			return types.INTEGER // Default to INTEGER if type is unknown
+		}
+
+		// Power built-in function (Task 9.58)
+		if funcIdent.Value == "Power" {
+			// Power takes two numeric arguments and always returns Float
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'Power' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT // Default to FLOAT on error
+			}
+			// Analyze both arguments and verify they're Integer or Float
+			arg1Type := a.analyzeExpression(expr.Arguments[0])
+			arg2Type := a.analyzeExpression(expr.Arguments[1])
+
+			if arg1Type != nil && arg2Type != nil {
+				// Verify both are numeric
+				if (arg1Type != types.INTEGER && arg1Type != types.FLOAT) ||
+					(arg2Type != types.INTEGER && arg2Type != types.FLOAT) {
+					a.addError("function 'Power' expects Integer or Float arguments, got %s and %s at %s",
+						arg1Type.String(), arg2Type.String(), expr.Token.Pos.String())
+				}
+			}
+			// Always returns Float
+			return types.FLOAT
 		}
 
 		// Sqrt built-in function (Task 8.185)
@@ -658,6 +807,24 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
+		// RandomInt built-in function (Task 9.63)
+		if funcIdent.Value == "RandomInt" {
+			// RandomInt takes one Integer argument and returns random Integer in [0, max)
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'RandomInt' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER // Default to INTEGER on error
+			}
+			// Analyze argument and verify it's Integer
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER {
+				a.addError("function 'RandomInt' expects Integer argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			// Always returns Integer
+			return types.INTEGER
+		}
+
 		// Randomize built-in procedure (Task 8.185)
 		if funcIdent.Value == "Randomize" {
 			// Randomize takes no arguments and returns nothing (nil/void)
@@ -742,6 +909,46 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			if argType != nil {
 				if argType != types.INTEGER && argType != types.FLOAT {
 					a.addError("function 'Trunc' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Always returns Integer
+			return types.INTEGER
+		}
+
+		// Ceil built-in function (Task 9.60)
+		if funcIdent.Value == "Ceil" {
+			// Ceil takes one numeric argument and always returns Integer
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Ceil' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Ceil' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Always returns Integer
+			return types.INTEGER
+		}
+
+		// Floor built-in function (Task 9.61)
+		if funcIdent.Value == "Floor" {
+			// Floor takes one numeric argument and always returns Integer
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Floor' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Floor' expects Integer or Float as argument, got %s at %s",
 						argType.String(), expr.Token.Pos.String())
 				}
 			}
@@ -1111,97 +1318,35 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-	// Trim built-in function (Task 9.40)
-	if funcIdent.Value == "Trim" {
-		if len(expr.Arguments) != 1 {
-			a.addError("function 'Trim' expects 1 argument, got %d at %s",
-				len(expr.Arguments), expr.Token.Pos.String())
-			return types.STRING
-		}
-		argType := a.analyzeExpression(expr.Arguments[0])
-		if argType != nil && argType != types.STRING {
-			a.addError("function 'Trim' expects string as argument, got %s at %s",
-				argType.String(), expr.Token.Pos.String())
-		}
-		return types.STRING
-	}
-
-	// TrimLeft built-in function (Task 9.41)
-	if funcIdent.Value == "TrimLeft" {
-		if len(expr.Arguments) != 1 {
-			a.addError("function 'TrimLeft' expects 1 argument, got %d at %s",
-				len(expr.Arguments), expr.Token.Pos.String())
-			return types.STRING
-		}
-		argType := a.analyzeExpression(expr.Arguments[0])
-		if argType != nil && argType != types.STRING {
-			a.addError("function 'TrimLeft' expects string as argument, got %s at %s",
-				argType.String(), expr.Token.Pos.String())
-		}
-		return types.STRING
-	}
-
-	// TrimRight built-in function (Task 9.41)
-	if funcIdent.Value == "TrimRight" {
-		if len(expr.Arguments) != 1 {
-			a.addError("function 'TrimRight' expects 1 argument, got %d at %s",
-				len(expr.Arguments), expr.Token.Pos.String())
-			return types.STRING
-		}
-		argType := a.analyzeExpression(expr.Arguments[0])
-		if argType != nil && argType != types.STRING {
-			a.addError("function 'TrimRight' expects string as argument, got %s at %s",
-				argType.String(), expr.Token.Pos.String())
-		}
-		return types.STRING
-	}
-
-	// Insert built-in procedure (Task 9.43)
-	if funcIdent.Value == "Insert" {
-		if len(expr.Arguments) != 3 {
-			a.addError("function 'Insert' expects 3 arguments, got %d at %s",
-				len(expr.Arguments), expr.Token.Pos.String())
+		// Insert built-in procedure (Task 9.43)
+		if funcIdent.Value == "Insert" {
+			if len(expr.Arguments) != 3 {
+				a.addError("function 'Insert' expects 3 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			sourceType := a.analyzeExpression(expr.Arguments[0])
+			if sourceType != nil && sourceType != types.STRING {
+				a.addError("function 'Insert' first argument must be String, got %s at %s",
+					sourceType.String(), expr.Token.Pos.String())
+			}
+			if _, ok := expr.Arguments[1].(*ast.Identifier); !ok {
+				a.addError("function 'Insert' second argument must be a variable at %s",
+					expr.Token.Pos.String())
+			} else {
+				targetType := a.analyzeExpression(expr.Arguments[1])
+				if targetType != nil && targetType != types.STRING {
+					a.addError("function 'Insert' second argument must be String, got %s at %s",
+						targetType.String(), expr.Token.Pos.String())
+				}
+			}
+			posType := a.analyzeExpression(expr.Arguments[2])
+			if posType != nil && posType != types.INTEGER {
+				a.addError("function 'Insert' third argument must be Integer, got %s at %s",
+					posType.String(), expr.Token.Pos.String())
+			}
 			return types.VOID
 		}
-		sourceType := a.analyzeExpression(expr.Arguments[0])
-		if sourceType != nil && sourceType != types.STRING {
-			a.addError("function 'Insert' first argument must be String, got %s at %s",
-				sourceType.String(), expr.Token.Pos.String())
-		}
-		if _, ok := expr.Arguments[1].(*ast.Identifier); !ok {
-			a.addError("function 'Insert' second argument must be a variable at %s",
-				expr.Token.Pos.String())
-		} else {
-			targetType := a.analyzeExpression(expr.Arguments[1])
-			if targetType != nil && targetType != types.STRING {
-				a.addError("function 'Insert' second argument must be String, got %s at %s",
-					targetType.String(), expr.Token.Pos.String())
-			}
-		}
-		posType := a.analyzeExpression(expr.Arguments[2])
-		if posType != nil && posType != types.INTEGER {
-			a.addError("function 'Insert' third argument must be Integer, got %s at %s",
-				posType.String(), expr.Token.Pos.String())
-		}
-		return types.VOID
-	}
-
-	// StringReplace built-in function (Task 9.46)
-	if funcIdent.Value == "StringReplace" {
-		if len(expr.Arguments) != 3 {
-			a.addError("function 'StringReplace' expects 3 arguments, got %d at %s",
-				len(expr.Arguments), expr.Token.Pos.String())
-			return types.STRING
-		}
-		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
-			if argType != nil && argType != types.STRING {
-				a.addError("function 'StringReplace' argument %d must be String, got %s at %s",
-					i+1, argType.String(), expr.Token.Pos.String())
-			}
-		}
-		return types.STRING
-	}
 
 		// Allow calling methods within the current class without explicit Self
 		if a.currentClass != nil {

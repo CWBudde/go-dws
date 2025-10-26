@@ -1,0 +1,38 @@
+// Palindrome Checker
+
+function IsPalindrome(value: String): Boolean;
+begin
+	var left: Integer;
+	var right: Integer;
+	var normalized: String;
+
+	normalized := UpperCase(value);
+	left := 1;
+	right := Length(normalized);
+	Result := True;
+
+	while (left < right) do
+	begin
+		if Copy(normalized, left, 1) <> Copy(normalized, right, 1) then
+		begin
+			Result := False;
+			Break;
+		end;
+
+		left := left + 1;
+		right := right - 1;
+	end;
+end;
+
+procedure PrintCheck(value: String);
+begin
+	if IsPalindrome(value) then
+		PrintLn(value + ' is a palindrome')
+	else
+		PrintLn(value + ' is not a palindrome');
+end;
+
+PrintLn('Palindrome samples:');
+PrintCheck('level');
+PrintCheck('dwscript');
+PrintCheck('civic');

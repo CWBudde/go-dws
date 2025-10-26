@@ -1,0 +1,53 @@
+// Test Ceil() and Floor() functions
+// Task 9.65: Ceil/Floor test fixture
+// Ceil(x) rounds up to the nearest integer
+// Floor(x) rounds down to the nearest integer
+
+begin
+	// Test Ceil with positive floats
+	PrintLn('Ceil(3.2) = ', Ceil(3.2));
+	PrintLn('Ceil(3.8) = ', Ceil(3.8));
+	PrintLn('Ceil(5.0) = ', Ceil(5.0));
+	PrintLn('Ceil(0.0) = ', Ceil(0.0));
+	PrintLn('Ceil(0.1) = ', Ceil(0.1));
+
+	// Test Ceil with negative floats
+	PrintLn('Ceil(-3.2) = ', Ceil(-3.2));
+	PrintLn('Ceil(-3.8) = ', Ceil(-3.8));
+	PrintLn('Ceil(-0.1) = ', Ceil(-0.1));
+
+	// Test Ceil with integers
+	PrintLn('Ceil(5) = ', Ceil(5));
+	PrintLn('Ceil(-3) = ', Ceil(-3));
+
+	// Test Floor with positive floats
+	PrintLn('Floor(3.8) = ', Floor(3.8));
+	PrintLn('Floor(3.2) = ', Floor(3.2));
+	PrintLn('Floor(5.0) = ', Floor(5.0));
+	PrintLn('Floor(0.0) = ', Floor(0.0));
+	PrintLn('Floor(0.9) = ', Floor(0.9));
+
+	// Test Floor with negative floats
+	PrintLn('Floor(-3.8) = ', Floor(-3.8));
+	PrintLn('Floor(-3.2) = ', Floor(-3.2));
+	PrintLn('Floor(-0.1) = ', Floor(-0.1));
+
+	// Test Floor with integers
+	PrintLn('Floor(5) = ', Floor(5));
+	PrintLn('Floor(-3) = ', Floor(-3));
+
+	// Test in expressions and practical use cases
+	var price := 19.99;
+	var roundedUp := Ceil(price);
+	var roundedDown := Floor(price);
+	PrintLn('Price $', price, ' rounds up to $', roundedUp);
+	PrintLn('Price $', price, ' rounds down to $', roundedDown);
+
+	// Division with rounding
+	var total := 100;
+	var parts := 3;
+	var divided := total / parts;
+	PrintLn('100 / 3 = ', divided);
+	PrintLn('Ceil(100/3) = ', Ceil(divided));
+	PrintLn('Floor(100/3) = ', Floor(divided));
+end

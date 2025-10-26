@@ -1,0 +1,21 @@
+// Multiplication Table Generator
+
+var row: Integer;
+var col: Integer;
+var line: String;
+var size: Integer;
+
+size := 5;
+PrintLn('Multiplication table (' + IntToStr(size) + ' x ' + IntToStr(size) + '):');
+
+for row := 1 to size do
+begin
+	line := '';
+	for col := 1 to size do
+	begin
+		line := line + IntToStr(row * col);
+		if col < size then
+			line := line + '  ';
+	end;
+	PrintLn(line);
+end;

@@ -1,0 +1,47 @@
+// Test Sqr() and Power() functions
+// Task 9.65: Sqr/Power test fixture
+// Sqr(x) returns x * x (preserving type)
+// Power(x, y) returns x^y as Float
+
+begin
+	// Test Sqr with integers
+	PrintLn('Sqr(5) = ', Sqr(5));
+	PrintLn('Sqr(0) = ', Sqr(0));
+	PrintLn('Sqr(1) = ', Sqr(1));
+	PrintLn('Sqr(-3) = ', Sqr(-3));
+	PrintLn('Sqr(10) = ', Sqr(10));
+
+	// Test Sqr with floats
+	PrintLn('Sqr(3.0) = ', Sqr(3.0));
+	PrintLn('Sqr(2.5) = ', Sqr(2.5));
+	PrintLn('Sqr(-1.5) = ', Sqr(-1.5));
+	PrintLn('Sqr(0.5) = ', Sqr(0.5));
+
+	// Test Power with various arguments
+	PrintLn('Power(2, 8) = ', Power(2, 8));
+	PrintLn('Power(2.0, 0.5) = ', Power(2.0, 0.5));
+	PrintLn('Power(2, -1) = ', Power(2, -1));
+	PrintLn('Power(10, 3) = ', Power(10, 3));
+	PrintLn('Power(5, 0) = ', Power(5, 0));
+	PrintLn('Power(3.0, 2.0) = ', Power(3.0, 2.0));
+	PrintLn('Power(4, 0.5) = ', Power(4, 0.5));
+
+	// Special cases
+	PrintLn('Power(0, 0) = ', Power(0, 0));
+	PrintLn('Power(0, 5) = ', Power(0, 5));
+	PrintLn('Power(1, 100) = ', Power(1, 100));
+
+	// Test in expressions
+	var area := Sqr(5);
+	PrintLn('Square with side 5 has area: ', area);
+
+	var cube := Power(3, 3);
+	PrintLn('3 cubed = ', cube);
+
+	// Verify Sqr vs Power equivalence
+	var x := 7;
+	var sqrResult := Sqr(x);
+	var powerResult := Power(x, 2);
+	PrintLn('Sqr(7) = ', sqrResult);
+	PrintLn('Power(7, 2) = ', powerResult);
+end

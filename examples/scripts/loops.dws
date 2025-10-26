@@ -1,0 +1,35 @@
+// Loop Examples in DWScript
+
+var i: Integer;
+
+// For loop (ascending)
+PrintLn('For loop (1 to 5):');
+for i := 1 to 5 do
+	PrintLn('  ' + IntToStr(i));
+
+// For loop (descending)
+PrintLn('');
+PrintLn('For loop (5 downto 1):');
+for i := 5 downto 1 do
+	PrintLn('  ' + IntToStr(i));
+
+// While loop
+PrintLn('');
+PrintLn('While loop:');
+i := 0;
+while i < 5 do
+begin
+	PrintLn('  i = ' + IntToStr(i));
+	i := i + 1;
+end;
+
+// Repeat-until loop
+PrintLn('');
+PrintLn('Repeat-until loop:');
+i := 0;
+repeat
+begin
+	PrintLn('  i = ' + IntToStr(i));
+	i := i + 1;
+end;
+until i >= 5;

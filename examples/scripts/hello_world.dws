@@ -1,0 +1,3 @@
+// Hello World in DWScript
+PrintLn('Hello, World!');
+PrintLn('Welcome to the DWScript Playground!');

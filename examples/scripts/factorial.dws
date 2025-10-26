@@ -1,0 +1,24 @@
+// Factorial - Recursive and Iterative
+var factorialIndex: Integer;
+
+function FactorialRecursive(n: Integer): Integer;
+begin
+	if n <= 1 then
+		Result := 1
+	else
+		Result := n * FactorialRecursive(n - 1);
+end;
+
+function FactorialIterative(n: Integer): Integer;
+begin
+	Result := 1;
+	for factorialIndex := 2 to n do
+		Result := Result * factorialIndex;
+end;
+
+var n: Integer;
+
+n := 10;
+PrintLn('Factorial of ' + IntToStr(n) + ':');
+PrintLn('  Recursive: ' + IntToStr(FactorialRecursive(n)));
+PrintLn('  Iterative: ' + IntToStr(FactorialIterative(n)));

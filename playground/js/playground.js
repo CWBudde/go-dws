@@ -282,14 +282,32 @@ function updateEditorInfo() {
 }
 
 /**
- * Load example code
+ * Load example code (fetched from shared DWScript files)
  */
-function loadExample(key) {
-    const example = getExample(key);
-    if (example && editor) {
+async function loadExample(key) {
+    if (!editor || !key) {
+        return;
+    }
+
+    try {
+        updateStatus('Loading example...', 'loading');
+        const example = await loadExampleCode(key);
+
         editor.setValue(example.code);
         clearOutput();
-        appendOutput(`// Loaded: ${example.name}\n// ${example.description}\n\n`, 'info');
+        appendOutput(`// Loaded: ${example.name}\n// ${example.description}\n`, 'info');
+
+        const sourceInfo = example.source ? `Source: ${example.source}` : '';
+        if (sourceInfo) {
+            appendOutput(`// ${sourceInfo}\n`, 'info');
+        }
+        appendOutput('\n', 'info');
+
+        updateStatus(`Loaded example "${example.name}"`, 'ready');
+    } catch (error) {
+        console.error('Failed to load example', error);
+        appendOutput(`❌ Failed to load example "${key}": ${error.message}\n`, 'error');
+        updateStatus('Failed to load example', 'error');
     }
 }
 
@@ -435,9 +453,40 @@ function setupEditorEvents() {
 }
 
 /**
+ * Populate example dropdown from shared metadata
+ */
+function populateExamplesDropdown() {
+    const select = document.getElementById('selExamples');
+    if (!select || typeof getExampleList !== 'function') {
+        return;
+    }
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '-- Examples --';
+    placeholder.selected = true;
+
+    select.innerHTML = '';
+    select.appendChild(placeholder);
+
+    const examples = getExampleList();
+    examples.forEach(({ key, name, description }) => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = name;
+        if (description) {
+            option.title = description;
+        }
+        select.appendChild(option);
+    });
+}
+
+/**
  * Set up UI event listeners
  */
 function setupUIEvents() {
+    populateExamplesDropdown();
+
     // Run button
     document.getElementById('btnRun').addEventListener('click', runCode);
 
