@@ -35,11 +35,11 @@ This document describes the JavaScript API for the DWScript WebAssembly module.
 ### NPM Package (Coming Soon)
 
 ```bash
-npm install @meko-tech/dwscript
+npm install @cwbudde/dwscript
 ```
 
 ```javascript
-import DWScript from '@meko-tech/dwscript';
+import DWScript from '@cwbudde/dwscript';
 
 const dws = new DWScript();
 await dws.init();

@@ -25,7 +25,7 @@ See [PLAN.md](PLAN.md) for the complete implementation roadmap and current progr
 
 **Try DWScript right now in your browser!** No installation needed.
 
-👉 **[Open the DWScript Playground](https://meko-tech.github.io/go-dws/)** 👈
+👉 **[Open the DWScript Playground](https://cwbudde.github.io/go-dws/)** 👈
 
 The Web Playground features:
 - **Monaco Editor** (VS Code's editor) with DWScript syntax highlighting
@@ -38,7 +38,7 @@ The Web Playground features:
 Perfect for learning DWScript, testing code snippets, or experimenting with the language!
 
 **Quick Start:**
-1. Visit the [playground](https://meko-tech.github.io/go-dws/)
+1. Visit the [playground](https://cwbudde.github.io/go-dws/)
 2. Try one of the example programs from the dropdown
 3. Click "Run" or press `Ctrl+Enter`
 4. See the output in real-time!
@@ -49,7 +49,7 @@ For local development or running the playground offline, see [playground/README.
 
 ### Option 1: Use the Web Playground (Recommended for Quick Start)
 
-No installation needed! Just visit **[https://meko-tech.github.io/go-dws/](https://meko-tech.github.io/go-dws/)** and start coding.
+No installation needed! Just visit **[https://cwbudde.github.io/go-dws/](https://cwbudde.github.io/go-dws/)** and start coding.
 
 ### Option 2: Install the CLI Tool
 
@@ -516,7 +516,7 @@ go-dws compiles to WebAssembly, enabling it to run in any modern web browser at 
 
 ### Web Playground Features
 
-The [DWScript Playground](https://meko-tech.github.io/go-dws/) provides:
+The [DWScript Playground](https://cwbudde.github.io/go-dws/) provides:
 
 - **Monaco Editor**: Full VS Code-style editor experience
   - Syntax highlighting for DWScript
@@ -605,7 +605,7 @@ This project is a port/reimplementation and will respect the original DWScript l
 - [Project Goals](goal.md)
 
 ### Web Playground & WebAssembly
-- [🚀 Try the Playground](https://meko-tech.github.io/go-dws/)
+- [🚀 Try the Playground](https://cwbudde.github.io/go-dws/)
 - [Playground Documentation](docs/wasm/PLAYGROUND.md)
 - [JavaScript API Reference](docs/wasm/API.md)
 - [WASM Build Guide](docs/wasm/BUILD.md)
@@ -624,4 +624,4 @@ This project is a port/reimplementation and will respect the original DWScript l
 
 **Status**: 🚧 In Development - Not yet ready for production use
 
-✅ **Web Playground**: [Try it now!](https://meko-tech.github.io/go-dws/) - Fully functional with WebAssembly execution
+✅ **Web Playground**: [Try it now!](https://cwbudde.github.io/go-dws/) - Fully functional with WebAssembly execution

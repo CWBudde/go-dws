@@ -405,7 +405,7 @@ playground/
 **Code Sharing**:
 - Encode source code in URL fragment: `#code=base64EncodedSource`
 - No backend required (fully client-side)
-- Example: `https://meko-tech.github.io/go-dws/#code=dmFyIHg6IEludGVnZXI7...`
+- Example: `https://cwbudde.github.io/go-dws/#code=dmFyIHg6IEludGVnZXI7...`
 - Shareable links work offline after initial load
 
 **Local Storage**:
@@ -486,7 +486,7 @@ jobs:
           publish_dir: ./playground/dist
 ```
 
-**URL**: `https://meko-tech.github.io/go-dws/`
+**URL**: `https://cwbudde.github.io/go-dws/`
 
 **Performance**:
 - Static files served from GitHub's CDN
@@ -521,7 +521,7 @@ npm/
 
 ```json
 {
-  "name": "@meko-tech/dwscript",
+  "name": "@cwbudde/dwscript",
   "version": "0.1.0",
   "description": "DWScript interpreter compiled to WebAssembly",
   "main": "index.cjs",
@@ -544,11 +544,11 @@ npm/
     "typescript/"
   ],
   "keywords": ["dwscript", "delphi", "pascal", "interpreter", "wasm"],
-  "author": "MeKo-Tech",
+  "author": "cwbudde",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MeKo-Tech/go-dws"
+    "url": "https://github.com/cwbudde/go-dws"
   }
 }
 ```
@@ -606,7 +606,7 @@ export default class DWScript {
 **Node.js**:
 ```javascript
 // examples/node.js
-import DWScript from '@meko-tech/dwscript';
+import DWScript from '@cwbudde/dwscript';
 import fs from 'fs';
 
 const dws = new DWScript();
@@ -621,7 +621,7 @@ console.log(result.output);
 ```jsx
 // examples/react.jsx
 import React, { useState, useEffect } from 'react';
-import DWScript from '@meko-tech/dwscript';
+import DWScript from '@cwbudde/dwscript';
 
 function DWScriptRunner() {
   const [dws, setDws] = useState(null);
@@ -681,7 +681,7 @@ jobs:
 ```
 
 **Registry**: npmjs.com (public)
-**Package URL**: `https://www.npmjs.com/package/@meko-tech/dwscript`
+**Package URL**: `https://www.npmjs.com/package/@cwbudde/dwscript`
 
 ## Testing Strategy
 
@@ -946,7 +946,7 @@ diff native-output.txt wasm-output.txt
 1. **Build Mode Selection**: Should we support all three modes or pick one? (Deferred)
 2. **IndexedDB vs In-Memory**: Default filesystem implementation? (Start with in-memory)
 3. **Editor Library**: Monaco vs CodeMirror? (Recommendation: Monaco for better features)
-4. **NPM Scope**: `@meko-tech/dwscript` vs `dwscript-wasm`? (Recommendation: `@meko-tech/dwscript`)
+4. **NPM Scope**: `@cwbudde/dwscript` vs `dwscript-wasm`? (Recommendation: `@cwbudde/dwscript`)
 
 ## References
 

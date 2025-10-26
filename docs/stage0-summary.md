@@ -220,7 +220,7 @@ See [PLAN.md](../PLAN.md) Stage 1 for complete task breakdown.
 ## Team
 
 - **Lead Developer**: Christian Budde (cwbudde)
-- **Organization**: MeKo-Tech
+- **Organization**: cwbudde
 - **Original DWScript Author**: Eric Grange
 
 ## Resources
