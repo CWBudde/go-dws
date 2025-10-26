@@ -14,9 +14,9 @@ import (
 // ExceptionValue represents an exception object at runtime.
 // It holds the exception class type and the message.
 type ExceptionValue struct {
-	ClassInfo *ClassInfo       // The exception class (Exception, ERangeError, etc.)
-	Message   string           // The exception message
-	Instance  *ObjectInstance  // The underlying object instance
+	ClassInfo *ClassInfo      // The exception class (Exception, ERangeError, etc.)
+	Message   string          // The exception message
+	Instance  *ObjectInstance // The underlying object instance
 }
 
 // Type returns the type of this exception value.

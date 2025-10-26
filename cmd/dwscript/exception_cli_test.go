@@ -228,8 +228,8 @@ func TestExceptionHandlingIntegration(t *testing.T) {
 				"Runtime Error",
 				"Error message 2",
 			},
-			wantPasses: 0,      // Ported tests don't use PASS markers
-			shouldFail: true,   // Has unhandled exception
+			wantPasses: 0,    // Ported tests don't use PASS markers
+			shouldFail: true, // Has unhandled exception
 		},
 		{
 			name:       "Ported: Break in Except",
@@ -329,9 +329,9 @@ func TestExceptionMessages(t *testing.T) {
 	binary := "../../bin/dwscript"
 
 	tests := []struct {
-		name            string
-		code            string
-		wantInOutput    []string
+		name             string
+		code             string
+		wantInOutput     []string
 		wantExceptionMsg string
 	}{
 		{
@@ -344,7 +344,7 @@ func TestExceptionMessages(t *testing.T) {
 						PrintLn('Caught: ' + E.Message);
 				end;
 			`,
-			wantInOutput:    []string{"Caught: custom error message"},
+			wantInOutput:     []string{"Caught: custom error message"},
 			wantExceptionMsg: "custom error message",
 		},
 		{
@@ -360,7 +360,7 @@ func TestExceptionMessages(t *testing.T) {
 						PrintLn('Type: ' + E.ClassName + ', Message: ' + E.Message);
 				end;
 			`,
-			wantInOutput:    []string{"Type: ECustom", "Message: specific error"},
+			wantInOutput:     []string{"Type: ECustom", "Message: specific error"},
 			wantExceptionMsg: "specific error",
 		},
 		{
@@ -431,9 +431,9 @@ func TestUnhandledExceptionStackTrace(t *testing.T) {
 	binary := "../../bin/dwscript"
 
 	tests := []struct {
-		name          string
-		code          string
-		wantInStderr  []string
+		name              string
+		code              string
+		wantInStderr      []string
 		wantFunctionNames []string // Function names that should appear in stack trace
 	}{
 		{

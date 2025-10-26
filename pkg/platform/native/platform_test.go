@@ -229,7 +229,7 @@ func TestNativeConsole_ReadLine(t *testing.T) {
 }
 
 func TestNativePlatform_Now(t *testing.T) {
-	var plat platform.Platform = NewNativePlatform()
+	var plat = NewNativePlatform()
 
 	before := time.Now()
 	now := plat.Now()
@@ -242,7 +242,7 @@ func TestNativePlatform_Now(t *testing.T) {
 }
 
 func TestNativePlatform_Sleep(t *testing.T) {
-	var plat platform.Platform = NewNativePlatform()
+	var plat = NewNativePlatform()
 
 	duration := 100 * time.Millisecond
 	start := time.Now()
@@ -257,7 +257,7 @@ func TestNativePlatform_Sleep(t *testing.T) {
 
 func TestNativePlatform_Integration(t *testing.T) {
 	// Create a complete platform instance
-	var plat platform.Platform = NewNativePlatform()
+	var plat = NewNativePlatform()
 
 	// Test that all components are non-nil
 	if plat.FS() == nil {
@@ -293,7 +293,7 @@ func TestNativePlatform_Integration(t *testing.T) {
 }
 
 func TestNativePlatform_ConsoleIntegration(t *testing.T) {
-	var plat platform.Platform = NewNativePlatform()
+	var plat = NewNativePlatform()
 
 	// Override the console to use a buffer for testing
 	var buf bytes.Buffer

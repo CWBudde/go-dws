@@ -161,10 +161,10 @@ func TypeFromString(name string) (Type, error) {
 type PropAccessKind int
 
 const (
-	PropAccessNone PropAccessKind = iota // No access (write-only has ReadKind=None, read-only has WriteKind=None)
-	PropAccessField                       // Direct field access (e.g., FName)
-	PropAccessMethod                      // Method call (e.g., GetName, SetName)
-	PropAccessExpression                  // Expression-based getter (e.g., (FValue * 2))
+	PropAccessNone       PropAccessKind = iota // No access (write-only has ReadKind=None, read-only has WriteKind=None)
+	PropAccessField                            // Direct field access (e.g., FName)
+	PropAccessMethod                           // Method call (e.g., GetName, SetName)
+	PropAccessExpression                       // Expression-based getter (e.g., (FValue * 2))
 )
 
 // PropertyInfo represents property metadata for a class.

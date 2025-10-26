@@ -4,18 +4,20 @@
 // It exports the DWScript API to JavaScript and handles the WASM lifecycle.
 //
 // Build with:
-//   GOOS=js GOARCH=wasm go build -o dwscript.wasm ./cmd/dwscript-wasm
+//
+//	GOOS=js GOARCH=wasm go build -o dwscript.wasm ./cmd/dwscript-wasm
 //
 // Usage from JavaScript:
-//   <script src="wasm_exec.js"></script>
-//   <script>
-//     const go = new Go();
-//     WebAssembly.instantiateStreaming(fetch("dwscript.wasm"), go.importObject)
-//       .then((result) => {
-//         go.run(result.instance);
-//         // DWScript API is now available as window.DWScript
-//       });
-//   </script>
+//
+//	<script src="wasm_exec.js"></script>
+//	<script>
+//	  const go = new Go();
+//	  WebAssembly.instantiateStreaming(fetch("dwscript.wasm"), go.importObject)
+//	    .then((result) => {
+//	      go.run(result.instance);
+//	      // DWScript API is now available as window.DWScript
+//	    });
+//	</script>
 package main
 
 import (

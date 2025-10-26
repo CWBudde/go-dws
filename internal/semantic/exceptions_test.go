@@ -327,29 +327,29 @@ func TestReturnInFinallyBlock(t *testing.T) {
 	// TODO: Enable this test once return statements are parsed
 	// The validation is implemented in analyzeReturn() which checks a.inFinallyBlock
 	/*
-	input := `
-		function TestFunc(): Integer;
-		begin
-			try
-				Result := 42;
-			finally
-				return;  // Should fail - return not allowed in finally
+		input := `
+			function TestFunc(): Integer;
+			begin
+				try
+					Result := 42;
+				finally
+					return;  // Should fail - return not allowed in finally
+				end;
 			end;
-		end;
-	`
+		`
 
-	program := parseProgram(t, input)
-	analyzer := NewAnalyzer()
-	err := analyzer.Analyze(program)
+		program := parseProgram(t, input)
+		analyzer := NewAnalyzer()
+		err := analyzer.Analyze(program)
 
-	if err == nil {
-		t.Fatal("Expected semantic error for return statement in finally block")
-	}
+		if err == nil {
+			t.Fatal("Expected semantic error for return statement in finally block")
+		}
 
-	errMsg := err.Error()
-	if !strings.Contains(errMsg, "return") || !strings.Contains(errMsg, "finally") {
-		t.Errorf("Expected error about return in finally block, got: %s", errMsg)
-	}
+		errMsg := err.Error()
+		if !strings.Contains(errMsg, "return") || !strings.Contains(errMsg, "finally") {
+			t.Errorf("Expected error about return in finally block, got: %s", errMsg)
+		}
 	*/
 }
 

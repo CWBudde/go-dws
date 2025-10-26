@@ -140,11 +140,11 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 
 	// Task 8.204: Define standard exception types
 	standardExceptions := []string{
-		"EConvertError",   // Type conversion failures
-		"ERangeError",     // Array bounds, invalid ranges
-		"EDivByZero",      // Division by zero
+		"EConvertError",    // Type conversion failures
+		"ERangeError",      // Array bounds, invalid ranges
+		"EDivByZero",       // Division by zero
 		"EAssertionFailed", // Failed assertions
-		"EInvalidOp",      // Invalid operations
+		"EInvalidOp",       // Invalid operations
 	}
 
 	for _, excName := range standardExceptions {
