@@ -1,0 +1,48 @@
+// Basic Const Declaration Tests
+// Task 8.259: Test simple const declarations and usage
+
+begin
+  PrintLn('=== Basic Const Declaration Tests ===');
+
+  // Test 1: Simple integer const
+  PrintLn('Test 1: Integer const');
+  const MAX = 100;
+  PrintLn('MAX = ' + IntToStr(MAX));
+  if MAX = 100 then
+    PrintLn('PASS: MAX equals 100')
+  else
+    PrintLn('FAIL: MAX does not equal 100');
+
+  // Test 2: Simple float const
+  PrintLn('');
+  PrintLn('Test 2: Float const');
+  const PI = 3.14;
+  PrintLn('PI = ' + FloatToStr(PI));
+  if PI = 3.14 then
+    PrintLn('PASS: PI equals 3.14')
+  else
+    PrintLn('FAIL: PI does not equal 3.14');
+
+  // Test 3: Simple string const
+  PrintLn('');
+  PrintLn('Test 3: String const');
+  const APP_NAME = 'DWScript';
+  PrintLn('APP_NAME = ' + APP_NAME);
+  if APP_NAME = 'DWScript' then
+    PrintLn('PASS: APP_NAME equals DWScript')
+  else
+    PrintLn('FAIL: APP_NAME does not equal DWScript');
+
+  // Test 4: Simple boolean const
+  PrintLn('');
+  PrintLn('Test 4: Boolean const');
+  const FLAG = true;
+  if FLAG = true then begin
+    PrintLn('FLAG = true');
+    PrintLn('PASS: FLAG equals true');
+  end else
+    PrintLn('FAIL: FLAG does not equal true');
+
+  PrintLn('');
+  PrintLn('=== All Basic Const Tests Complete ===');
+end;

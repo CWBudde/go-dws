@@ -981,11 +981,23 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Stage 8: Additional DWScript Features and Polishing
 
-**Progress**: 57/239 tasks completed (23.8%)
+**Progress**: 57/328 tasks completed (17.4%)
 
 **Status**: In Progress - Operator overloading, enum types, array functions, string/math functions, and conversion functions complete
 
-**New Task Breakdown**: The original 21 composite type tasks (8.30-8.50) have been expanded into 117 detailed tasks (8.30-8.146), exception handling tasks (8.189-8.193) expanded to 39 tasks (8.189-8.227), and loop control statements (break/continue/exit) added as 28 tasks (8.228-8.235u), following the same granular pattern established in Stages 1-7. This provides clear implementation roadmap with TDD approach.
+**New Task Breakdown**:
+- Original 21 composite type tasks (8.30-8.50) expanded into 117 detailed tasks (8.30-8.146)
+- Exception handling tasks (8.189-8.193) expanded to 39 tasks (8.189-8.227) ✅ COMPLETE
+- Loop control statements (break/continue/exit) added as 28 tasks (8.228-8.235u) ✅ COMPLETE
+- **HIGH PRIORITY features** added as 80 tasks (8.249-8.328):
+  - Const declarations (12 tasks: 8.249-8.260)
+  - Type aliases (11 tasks: 8.261-8.271)
+  - Ordinal functions (12 tasks: 8.272-8.283)
+  - Assert function (4 tasks: 8.284-8.287)
+  - Priority string functions (14 tasks: 8.288-8.301)
+  - Priority math functions (13 tasks: 8.302-8.314)
+  - Priority array functions (14 tasks: 8.315-8.328)
+- This follows the same granular TDD pattern established in Stages 1-7
 
 **Summary**:
 - ✅ Operator Overloading (Tasks 8.1-8.25): Complete
@@ -1971,6 +1983,590 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - [x] Verify correct function exit behavior
   - [x] Compare outputs with expected results
 
+### Const Declarations (HIGH PRIORITY)
+
+**Summary**: Implement `const` declarations for compile-time constants. Constants are immutable values that can be used throughout the program, improving code readability and maintainability.
+
+**Note**: Const declarations prevent accidental modification and enable compiler optimizations.
+
+#### AST Nodes (2 tasks)
+
+- [x] 8.249 Define `ConstDecl` AST node in `ast/declarations.go`:
+  - [x] Fields: `Name *Identifier`, `Type TypeAnnotation` (optional), `Value Expression`, `Token lexer.Token`
+  - [x] Implement `statementNode()` marker method
+  - [x] Implement `TokenLiteral()` returning "const"
+  - [x] Implement `Pos()` returning declaration position
+  - [x] Implement `String()` method showing `const Name = Value;` or `const Name: Type = Value;`
+- [x] 8.250 Add AST tests in `ast/declarations_test.go`:
+  - [x] Test `TestConstDecl` with integer const
+  - [x] Test with float const
+  - [x] Test with string const
+  - [x] Test with typed const: `const MAX: Integer = 100;`
+  - [x] Test untyped const with type inference
+
+#### Parser Support (3 tasks)
+
+- [x] 8.251 Implement `parseConstDeclaration()` in `parser/declarations.go`:
+  - [x] Consume CONST token
+  - [x] Parse identifier (const name)
+  - [x] Check for optional type annotation (`:` Type)
+  - [x] Expect `=` token
+  - [x] Parse value expression (must be constant expression)
+  - [x] Expect SEMICOLON
+  - [x] Create and return `*ast.ConstDecl`
+- [x] 8.252 Integrate const parsing into statement dispatcher:
+  - [x] Add CONST case to `parseStatement()` in `parser/statements.go`
+  - [x] Call `parseConstDeclaration()`
+- [x] 8.253 Add parser tests in `parser/declarations_test.go`:
+  - [x] Test parsing simple const: `const PI = 3.14;`
+  - [x] Test parsing typed const: `const MAX_USERS: Integer = 1000;`
+  - [x] Test parsing string const: `const APP_NAME = 'MyApp';`
+  - [x] Test multiple const declarations
+  - [x] Test error: missing value
+  - [x] Test error: missing semicolon
+
+#### Semantic Analysis (3 tasks)
+
+- [x] 8.254 Implement `analyzeConstDeclaration()` in `semantic/analyze_statements.go`:
+  - [x] Evaluate const value expression (must be compile-time constant)
+  - [x] Check that value is a literal or const expression (not variable reference)
+  - [x] If type annotation present, validate value matches type
+  - [x] If no type annotation, infer type from value
+  - [x] Register const in symbol table with immutable flag
+  - [x] Check for duplicate const names
+- [x] 8.255 Implement const usage validation:
+  - [x] In `analyzeAssignmentStatement()`, check if target is const
+  - [x] Emit error: "Cannot assign to constant 'NAME'"
+  - [x] In expressions, allow reading const values
+- [x] 8.256 Add semantic tests in `semantic/const_test.go`:
+  - [x] Test const declaration with valid types
+  - [x] Test const usage in expressions
+  - [x] Test error: assigning to const
+  - [x] Test error: non-constant expression in const decl
+  - [x] Test error: duplicate const name
+  - [x] Test const type inference
+
+#### Interpreter Support (2 tasks)
+
+- [x] 8.257 Implement `evalConstDeclaration()` in `interp/interpreter.go`:
+  - [x] Evaluate const value expression
+  - [x] Store const value in environment with immutable flag
+  - [x] Use same storage as variables but marked read-only
+- [x] 8.258 Add interpreter tests in `interp/const_test.go`:
+  - [x] Test declaring and using integer const
+  - [x] Test declaring and using float const
+  - [x] Test declaring and using string const
+  - [x] Test const in expressions: `const X = 5; var y := X * 2;`
+  - [x] Test multiple const declarations
+  - [x] Test error: runtime assignment to const (should be caught by semantic analysis)
+
+#### Testing & Fixtures (2 tasks)
+
+- [x] 8.259 Create test scripts in `testdata/const/`:
+  - [x] `basic_const.dws` - Simple const declarations and usage
+  - [x] `const_types.dws` - Different const types (int, float, string, bool)
+  - [x] `const_expressions.dws` - Using consts in expressions
+  - [x] Expected output files
+- [x] 8.260 Add CLI integration tests in `cmd/dwscript/const_test.go`:
+  - [x] Test running const test scripts
+  - [x] Verify const values are correct
+  - [x] Verify outputs match expected
+
+---
+
+### Type Aliases (HIGH PRIORITY)
+
+**Summary**: Implement type alias declarations to create alternate names for existing types. Improves code clarity and enables domain-specific naming.
+
+**Example**: `type TUserID = Integer;`, `type TFileName = String;`
+
+#### Type System (2 tasks)
+
+- [ ] 8.261 Define `TypeAlias` in `types/types.go`:
+  - [ ] Fields: `Name string`, `AliasedType Type`
+  - [ ] Implement `Type` interface methods
+  - [ ] `TypeKind()` returns underlying type's kind
+  - [ ] `String()` returns alias name
+  - [ ] `Equals(other Type)` compares underlying types
+- [ ] 8.262 Add type alias tests in `types/types_test.go`:
+  - [ ] Test creating type alias
+  - [ ] Test alias equality with underlying type
+  - [ ] Test alias inequality with different types
+  - [ ] Test nested aliases: `type A = Integer; type B = A;`
+
+#### AST Nodes (2 tasks)
+
+- [ ] 8.263 Extend `TypeDeclaration` in `ast/type_annotation.go`:
+  - [ ] Add `IsAlias bool` field
+  - [ ] Add `AliasedType TypeAnnotation` field
+  - [ ] Update `String()` to show `type Name = Type;` for aliases
+- [ ] 8.264 Add AST tests:
+  - [ ] Test type alias AST node creation
+  - [ ] Test `String()` output for aliases
+
+#### Parser Support (2 tasks)
+
+- [ ] 8.265 Extend `parseTypeDeclaration()` in `parser/type_declarations.go`:
+  - [ ] After parsing type name, check next token
+  - [ ] If `=` token, parse as type alias
+  - [ ] Parse aliased type annotation
+  - [ ] Expect SEMICOLON
+  - [ ] Return TypeDeclaration with IsAlias=true
+- [ ] 8.266 Add parser tests in `parser/type_test.go`:
+  - [ ] Test parsing `type TUserID = Integer;`
+  - [ ] Test parsing `type TFileName = String;`
+  - [ ] Test parsing alias to custom type: `type TMyClass = TClass;`
+  - [ ] Test error cases
+
+#### Semantic Analysis (2 tasks)
+
+- [ ] 8.267 Implement type alias analysis in `semantic/analyze_types.go`:
+  - [ ] In `analyzeTypeDeclaration()`, detect type alias
+  - [ ] Resolve aliased type
+  - [ ] Create TypeAlias and register in type environment
+  - [ ] Allow using alias name in variable/parameter declarations
+- [ ] 8.268 Add semantic tests in `semantic/type_alias_test.go`:
+  - [ ] Test type alias registration
+  - [ ] Test using alias in variable declaration: `var id: TUserID;`
+  - [ ] Test type compatibility: TUserID = Integer should work
+  - [ ] Test error: undefined aliased type
+
+#### Interpreter Support (1 task)
+
+- [ ] 8.269 Implement type alias runtime support:
+  - [ ] In `resolveType()`, handle TypeAlias by returning underlying type
+  - [ ] No special runtime representation needed (just resolve to base type)
+  - [ ] Add tests in `interp/type_test.go`
+
+#### Testing & Fixtures (2 tasks)
+
+- [ ] 8.270 Create test scripts in `testdata/type_alias/`:
+  - [ ] `basic_alias.dws` - Simple type aliases
+  - [ ] `alias_usage.dws` - Using aliases in declarations and assignments
+  - [ ] Expected outputs
+- [ ] 8.271 Add CLI integration tests
+
+---
+
+### Ordinal Functions (HIGH PRIORITY)
+
+**Summary**: Implement ordinal functions (Inc, Dec, Succ, Pred, Low, High) for integers, enums, and chars. These are essential for iterating and manipulating ordinal types.
+
+**Note**: These functions should work on any ordinal type (Integer, enum values, Char when implemented).
+
+#### Built-in Functions - Increment/Decrement (4 tasks)
+
+- [ ] 8.272 Implement `Inc(x)` and `Inc(x, delta)` in `interp/builtins.go`:
+  - [ ] Create `builtinInc()` function
+  - [ ] Accept 1-2 parameters: variable reference, optional delta (default 1)
+  - [ ] Support Integer: increment by delta
+  - [ ] Support enum: get next enum value (Succ)
+  - [ ] Modify variable in-place (requires var parameter support)
+  - [ ] Return nil
+- [ ] 8.273 Implement `Dec(x)` and `Dec(x, delta)` in `interp/builtins.go`:
+  - [ ] Create `builtinDec()` function
+  - [ ] Accept 1-2 parameters: variable reference, optional delta (default 1)
+  - [ ] Support Integer: decrement by delta
+  - [ ] Support enum: get previous enum value (Pred)
+  - [ ] Modify variable in-place
+  - [ ] Return nil
+- [ ] 8.274 Register Inc/Dec in interpreter initialization:
+  - [ ] Add to global built-in functions map
+  - [ ] Handle var parameter semantics (pass by reference)
+- [ ] 8.275 Add tests in `interp/ordinal_test.go`:
+  - [ ] Test `Inc(x)` with integer: `var x := 5; Inc(x); // x = 6`
+  - [ ] Test `Inc(x, 3)` with delta: `Inc(x, 3); // x = 8`
+  - [ ] Test `Dec(x)` with integer
+  - [ ] Test `Dec(x, 2)` with delta
+  - [ ] Test Inc/Dec with enum values
+  - [ ] Test error: Inc beyond High(enum)
+  - [ ] Test error: Dec below Low(enum)
+
+#### Built-in Functions - Successor/Predecessor (3 tasks)
+
+- [ ] 8.276 Implement `Succ(x)` in `interp/builtins.go`:
+  - [ ] Create `builtinSucc()` function
+  - [ ] Accept 1 parameter: ordinal value
+  - [ ] For Integer: return x + 1
+  - [ ] For enum: return next enum value
+  - [ ] Raise error if already at maximum value
+  - [ ] Return successor value
+- [ ] 8.277 Implement `Pred(x)` in `interp/builtins.go`:
+  - [ ] Create `builtinPred()` function
+  - [ ] Accept 1 parameter: ordinal value
+  - [ ] For Integer: return x - 1
+  - [ ] For enum: return previous enum value
+  - [ ] Raise error if already at minimum value
+  - [ ] Return predecessor value
+- [ ] 8.278 Add tests in `interp/ordinal_test.go`:
+  - [ ] Test `Succ(5)` returns 6
+  - [ ] Test `Pred(5)` returns 4
+  - [ ] Test Succ/Pred with enum values
+  - [ ] Test error: Succ at maximum
+  - [ ] Test error: Pred at minimum
+
+#### Built-in Functions - Low/High for Enums (3 tasks)
+
+- [ ] 8.279 Implement `Low(enumType)` in `interp/builtins.go`:
+  - [ ] Create `builtinLow()` function
+  - [ ] Accept enum type or enum value
+  - [ ] For arrays: return array lower bound (already implemented)
+  - [ ] For enum type: return lowest enum value
+  - [ ] For enum value: return Low of that enum type
+  - [ ] Return lowest ordinal value
+- [ ] 8.280 Implement `High(enumType)` in `interp/builtins.go`:
+  - [ ] Create `builtinHigh()` function
+  - [ ] Accept enum type or enum value
+  - [ ] For arrays: return array upper bound (already implemented)
+  - [ ] For enum type: return highest enum value
+  - [ ] For enum value: return High of that enum type
+  - [ ] Return highest ordinal value
+- [ ] 8.281 Add tests in `interp/ordinal_test.go`:
+  - [ ] Test `Low(TColor)` returns first enum value (Red)
+  - [ ] Test `High(TColor)` returns last enum value (Blue)
+  - [ ] Test Low/High with enum variable: `var c: TColor; Low(c)`
+  - [ ] Test Low/High still work for arrays (backward compatibility)
+
+#### Testing & Fixtures (2 tasks)
+
+- [ ] 8.282 Create test scripts in `testdata/ordinal_functions/`:
+  - [ ] `inc_dec.dws` - Inc and Dec with integers and enums
+  - [ ] `succ_pred.dws` - Succ and Pred with integers and enums
+  - [ ] `low_high_enum.dws` - Low and High for enum types
+  - [ ] `for_loop_enum.dws` - Using Low/High in for loops: `for i := Low(TEnum) to High(TEnum)`
+  - [ ] Expected outputs
+- [ ] 8.283 Add CLI integration tests:
+  - [ ] Test ordinal function scripts
+  - [ ] Verify correct outputs
+
+---
+
+### Assert Function (HIGH PRIORITY)
+
+**Summary**: Implement `Assert(condition)` and `Assert(condition, message)` built-in functions for runtime assertions. Critical for testing and contracts.
+
+#### Built-in Function (2 tasks)
+
+- [ ] 8.284 Implement `Assert()` in `interp/builtins.go`:
+  - [ ] Create `builtinAssert()` function
+  - [ ] Accept 1-2 parameters: Boolean condition, optional String message
+  - [ ] If condition is false:
+    - [ ] If message provided, raise `EAssertionFailed` with message
+    - [ ] If no message, raise `EAssertionFailed` with "Assertion failed"
+  - [ ] If condition is true, return nil (no-op)
+  - [ ] Register in global built-in functions
+- [ ] 8.285 Add tests in `interp/assert_test.go`:
+  - [ ] Test `Assert(true)` - should not raise error
+  - [ ] Test `Assert(false)` - should raise EAssertionFailed
+  - [ ] Test `Assert(true, 'message')` - no error
+  - [ ] Test `Assert(false, 'Custom message')` - error with custom message
+  - [ ] Test Assert in function: function validates preconditions
+  - [ ] Test Assert with expression: `Assert(x > 0, 'x must be positive')`
+
+#### Testing & Fixtures (2 tasks)
+
+- [ ] 8.286 Create test scripts in `testdata/assert/`:
+  - [ ] `assert_basic.dws` - Basic Assert usage
+  - [ ] `assert_validation.dws` - Using Assert for input validation
+  - [ ] `assert_tests.dws` - Writing tests with Assert
+  - [ ] Expected outputs (some should fail with assertion errors)
+- [ ] 8.287 Add CLI integration tests:
+  - [ ] Test assert scripts
+  - [ ] Verify assertion failures are caught and reported
+
+---
+
+### Priority String Functions (HIGH PRIORITY)
+
+**Summary**: Implement essential string manipulation functions: Trim, Insert, Delete, Format, StringReplace. These are heavily used in real programs.
+
+#### Built-in Functions - Trim (3 tasks)
+
+- [ ] 8.288 Implement `Trim(s)` in `interp/string_functions.go`:
+  - [ ] Create `builtinTrim()` function
+  - [ ] Accept String parameter
+  - [ ] Remove leading and trailing whitespace
+  - [ ] Use Go's `strings.TrimSpace()`
+  - [ ] Return trimmed string
+- [ ] 8.289 Implement `TrimLeft(s)` and `TrimRight(s)`:
+  - [ ] Create `builtinTrimLeft()` - remove leading whitespace only
+  - [ ] Create `builtinTrimRight()` - remove trailing whitespace only
+  - [ ] Use `strings.TrimLeftFunc()` and `strings.TrimRightFunc()`
+- [ ] 8.290 Add tests in `interp/string_test.go`:
+  - [ ] Test `Trim('  hello  ')` returns 'hello'
+  - [ ] Test `TrimLeft('  hello')` returns 'hello'
+  - [ ] Test `TrimRight('hello  ')` returns 'hello'
+  - [ ] Test with tabs and newlines
+  - [ ] Test with no whitespace (no-op)
+
+#### Built-in Functions - Insert/Delete (3 tasks)
+
+- [ ] 8.291 Implement `Insert(source, s, pos)` in `interp/string_functions.go`:
+  - [ ] Create `builtinInsert()` function
+  - [ ] Accept 3 parameters: source String, target String (var param), position Integer
+  - [ ] Insert source into target at 1-based position
+  - [ ] Modify target string in-place (var parameter)
+  - [ ] Handle edge cases: pos < 1, pos > length
+- [ ] 8.292 Implement `Delete(s, pos, count)` in `interp/string_functions.go`:
+  - [ ] Create `builtinDelete()` function
+  - [ ] Accept 3 parameters: string (var param), position Integer, count Integer
+  - [ ] Delete count characters starting at 1-based position
+  - [ ] Modify string in-place (var parameter)
+  - [ ] Handle edge cases: pos < 1, pos > length, count too large
+- [ ] 8.293 Add tests in `interp/string_test.go`:
+  - [ ] Test Insert: `var s := 'Helo'; Insert('l', s, 3);` → 'Hello'
+  - [ ] Test Delete: `var s := 'Hello'; Delete(s, 3, 2);` → 'Heo'
+  - [ ] Test Insert at start/end
+  - [ ] Test Delete edge cases
+  - [ ] Test error cases
+
+#### Built-in Functions - StringReplace (2 tasks)
+
+- [ ] 8.294 Implement `StringReplace(s, old, new)` in `interp/string_functions.go`:
+  - [ ] Create `builtinStringReplace()` function
+  - [ ] Accept 3 parameters: string, old substring, new substring
+  - [ ] Optional 4th parameter: flags (replace all vs first occurrence)
+  - [ ] Use Go's `strings.Replace()` or `strings.ReplaceAll()`
+  - [ ] Return new string with replacements
+- [ ] 8.295 Add tests in `interp/string_test.go`:
+  - [ ] Test replace all: `StringReplace('hello world', 'l', 'L')` → 'heLLo worLd'
+  - [ ] Test replace first only (if flag supported)
+  - [ ] Test with empty old string
+  - [ ] Test with empty new string (delete)
+
+#### Built-in Functions - Format (4 tasks)
+
+- [ ] 8.296 Implement `Format(fmt, args)` in `interp/string_functions.go`:
+  - [ ] Create `builtinFormat()` function
+  - [ ] Accept format string and variadic args (array of values)
+  - [ ] Support format specifiers: `%s` (string), `%d` (integer), `%f` (float), `%%` (literal %)
+  - [ ] Optional: support width and precision: `%5d`, `%.2f`
+  - [ ] Use Go's `fmt.Sprintf()` or custom formatter
+  - [ ] Return formatted string
+- [ ] 8.297 Support array of const for Format args:
+  - [ ] Parse variadic parameters as array
+  - [ ] Convert DWScript values to Go values for formatting
+  - [ ] Handle different value types
+- [ ] 8.298 Add tests in `interp/string_test.go`:
+  - [ ] Test `Format('Hello %s', ['World'])` → 'Hello World'
+  - [ ] Test `Format('Value: %d', [42])` → 'Value: 42'
+  - [ ] Test `Format('Pi: %.2f', [3.14159])` → 'Pi: 3.14'
+  - [ ] Test multiple args: `Format('%s is %d', ['Age', 25])`
+  - [ ] Test error: wrong number of args
+- [ ] 8.299 Documentation in `docs/builtins.md`:
+  - [ ] Document Format syntax
+  - [ ] List supported format specifiers
+  - [ ] Provide examples
+
+#### Testing & Fixtures (2 tasks)
+
+- [ ] 8.300 Create test scripts in `testdata/string_functions/`:
+  - [ ] `trim.dws` - Trim, TrimLeft, TrimRight
+  - [ ] `insert_delete.dws` - Insert and Delete
+  - [ ] `replace.dws` - StringReplace
+  - [ ] `format.dws` - Format with various specifiers
+  - [ ] Expected outputs
+- [ ] 8.301 Add CLI integration tests:
+  - [ ] Test string function scripts
+  - [ ] Verify outputs
+
+---
+
+### Priority Math Functions (HIGH PRIORITY)
+
+**Summary**: Implement essential math functions: Min, Max, Sqr, Power, Ceil, Floor, RandomInt. Complete the math function library.
+
+#### Built-in Functions - Min/Max (3 tasks)
+
+- [ ] 8.302 Implement `Min(a, b)` in `interp/math_functions.go`:
+  - [ ] Create `builtinMin()` function
+  - [ ] Accept 2 parameters: both Integer or both Float
+  - [ ] Return smaller value, preserving type
+  - [ ] Handle mixed types: promote Integer to Float
+- [ ] 8.303 Implement `Max(a, b)` in `interp/math_functions.go`:
+  - [ ] Create `builtinMax()` function
+  - [ ] Accept 2 parameters: both Integer or both Float
+  - [ ] Return larger value, preserving type
+  - [ ] Handle mixed types: promote Integer to Float
+- [ ] 8.304 Add tests in `interp/math_test.go`:
+  - [ ] Test `Min(5, 10)` returns 5
+  - [ ] Test `Max(5, 10)` returns 10
+  - [ ] Test with negative numbers
+  - [ ] Test with floats: `Min(3.14, 2.71)`
+  - [ ] Test with mixed types: `Min(5, 3.14)`
+
+#### Built-in Functions - Sqr/Power (3 tasks)
+
+- [ ] 8.305 Implement `Sqr(x)` in `interp/math_functions.go`:
+  - [ ] Create `builtinSqr()` function
+  - [ ] Accept Integer or Float parameter
+  - [ ] Return x * x, preserving type
+  - [ ] Integer sqr returns Integer, Float sqr returns Float
+- [ ] 8.306 Implement `Power(x, y)` in `interp/math_functions.go`:
+  - [ ] Create `builtinPower()` function
+  - [ ] Accept base and exponent (Integer or Float)
+  - [ ] Use Go's `math.Pow()`
+  - [ ] Always return Float (even for integer inputs)
+  - [ ] Handle special cases: 0^0, negative base with fractional exponent
+- [ ] 8.307 Add tests in `interp/math_test.go`:
+  - [ ] Test `Sqr(5)` returns 25
+  - [ ] Test `Sqr(3.0)` returns 9.0
+  - [ ] Test `Power(2, 8)` returns 256.0
+  - [ ] Test `Power(2.0, 0.5)` returns 1.414... (sqrt(2))
+  - [ ] Test negative exponent: `Power(2, -1)` returns 0.5
+
+#### Built-in Functions - Ceil/Floor (3 tasks)
+
+- [ ] 8.308 Implement `Ceil(x)` in `interp/math_functions.go`:
+  - [ ] Create `builtinCeil()` function
+  - [ ] Accept Float parameter
+  - [ ] Round up to nearest integer
+  - [ ] Use Go's `math.Ceil()`
+  - [ ] Return Integer type
+- [ ] 8.309 Implement `Floor(x)` in `interp/math_functions.go`:
+  - [ ] Create `builtinFloor()` function
+  - [ ] Accept Float parameter
+  - [ ] Round down to nearest integer
+  - [ ] Use Go's `math.Floor()`
+  - [ ] Return Integer type
+- [ ] 8.310 Add tests in `interp/math_test.go`:
+  - [ ] Test `Ceil(3.2)` returns 4
+  - [ ] Test `Ceil(3.8)` returns 4
+  - [ ] Test `Ceil(-3.2)` returns -3
+  - [ ] Test `Floor(3.8)` returns 3
+  - [ ] Test `Floor(3.2)` returns 3
+  - [ ] Test `Floor(-3.8)` returns -4
+
+#### Built-in Functions - RandomInt (2 tasks)
+
+- [ ] 8.311 Implement `RandomInt(max)` in `interp/math_functions.go`:
+  - [ ] Create `builtinRandomInt()` function
+  - [ ] Accept Integer parameter: max (exclusive upper bound)
+  - [ ] Return random Integer in range [0, max)
+  - [ ] Use Go's `rand.Intn()`
+  - [ ] Validate max > 0
+- [ ] 8.312 Add tests in `interp/math_test.go`:
+  - [ ] Test `RandomInt(10)` returns value in [0, 10)
+  - [ ] Test multiple calls return different values (probabilistic)
+  - [ ] Test with max=1: always returns 0
+  - [ ] Test error: RandomInt(0) or RandomInt(-5)
+
+#### Testing & Fixtures (2 tasks)
+
+- [ ] 8.313 Create test scripts in `testdata/math_functions/`:
+  - [ ] `min_max.dws` - Min and Max with various inputs
+  - [ ] `sqr_power.dws` - Sqr and Power functions
+  - [ ] `ceil_floor.dws` - Ceil and Floor functions
+  - [ ] `random_int.dws` - RandomInt usage
+  - [ ] Expected outputs
+- [ ] 8.314 Add CLI integration tests:
+  - [ ] Test math function scripts
+  - [ ] Verify outputs
+
+---
+
+### Priority Array Functions (HIGH PRIORITY)
+
+**Summary**: Implement essential array manipulation functions: Copy, IndexOf, Contains, Reverse, Sort. Complete the array function library.
+
+#### Built-in Functions - Copy (2 tasks)
+
+- [ ] 8.315 Implement `Copy(arr)` for arrays in `interp/array_functions.go`:
+  - [ ] Create `builtinArrayCopy()` function (overload existing Copy)
+  - [ ] Accept array parameter
+  - [ ] Return deep copy of array
+  - [ ] For dynamic arrays, create new array with same elements
+  - [ ] For static arrays, copy elements to new array
+  - [ ] Handle arrays of objects (shallow copy references)
+- [ ] 8.316 Add tests in `interp/array_test.go`:
+  - [ ] Test copy dynamic array: `var a2 := Copy(a1); a2[0] := 99;` → a1 unchanged
+  - [ ] Test copy static array
+  - [ ] Test copy preserves element types
+  - [ ] Test copy empty array
+
+#### Built-in Functions - IndexOf (3 tasks)
+
+- [ ] 8.317 Implement `IndexOf(arr, value)` in `interp/array_functions.go`:
+  - [ ] Create `builtinIndexOf()` function
+  - [ ] Accept array and value to find
+  - [ ] Search array for first occurrence of value
+  - [ ] Use equality comparison (handle different types)
+  - [ ] Return 0-based index if found
+  - [ ] Return -1 if not found
+- [ ] 8.318 Implement `IndexOf(arr, value, startIndex)` variant:
+  - [ ] Accept optional 3rd parameter: start index
+  - [ ] Search from startIndex onwards
+  - [ ] Handle startIndex out of bounds
+- [ ] 8.319 Add tests in `interp/array_test.go`:
+  - [ ] Test `IndexOf([1,2,3,2], 2)` returns 1 (first occurrence)
+  - [ ] Test `IndexOf([1,2,3], 5)` returns -1 (not found)
+  - [ ] Test with start index: `IndexOf([1,2,3,2], 2, 2)` returns 3
+  - [ ] Test with strings
+  - [ ] Test with empty array
+
+#### Built-in Functions - Contains (2 tasks)
+
+- [ ] 8.320 Implement `Contains(arr, value)` in `interp/array_functions.go`:
+  - [ ] Create `builtinContains()` function
+  - [ ] Accept array and value
+  - [ ] Return true if array contains value, false otherwise
+  - [ ] Internally use IndexOf (return IndexOf >= 0)
+- [ ] 8.321 Add tests in `interp/array_test.go`:
+  - [ ] Test `Contains([1,2,3], 2)` returns true
+  - [ ] Test `Contains([1,2,3], 5)` returns false
+  - [ ] Test with different types
+  - [ ] Test with empty array returns false
+
+#### Built-in Functions - Reverse (2 tasks)
+
+- [ ] 8.322 Implement `Reverse(arr)` in `interp/array_functions.go`:
+  - [ ] Create `builtinReverse()` function
+  - [ ] Accept array (var parameter - modify in place)
+  - [ ] Reverse array elements in-place
+  - [ ] Swap elements from both ends moving inward
+  - [ ] Return nil (modifies in place)
+- [ ] 8.323 Add tests in `interp/array_test.go`:
+  - [ ] Test `var a := [1,2,3]; Reverse(a);` → a = [3,2,1]
+  - [ ] Test with even length array
+  - [ ] Test with odd length array
+  - [ ] Test with single element (no-op)
+  - [ ] Test with empty array (no-op)
+
+#### Built-in Functions - Sort (3 tasks)
+
+- [ ] 8.324 Implement `Sort(arr)` in `interp/array_functions.go`:
+  - [ ] Create `builtinSort()` function
+  - [ ] Accept array (var parameter - modify in place)
+  - [ ] Sort array elements using default comparison
+  - [ ] For Integer arrays: numeric sort
+  - [ ] For String arrays: lexicographic sort
+  - [ ] Use Go's `sort.Slice()`
+  - [ ] Return nil (modifies in place)
+- [ ] 8.325 Add optional comparator parameter (future):
+  - [ ] `Sort(arr, comparator)` with custom comparison function
+  - [ ] Comparator returns -1, 0, 1 for less, equal, greater
+  - [ ] Note: Requires function pointers (deferred)
+- [ ] 8.326 Add tests in `interp/array_test.go`:
+  - [ ] Test `var a := [3,1,2]; Sort(a);` → a = [1,2,3]
+  - [ ] Test with strings: `['c','a','b']` → `['a','b','c']`
+  - [ ] Test with already sorted array (no-op)
+  - [ ] Test with single element
+  - [ ] Test with duplicates
+
+#### Testing & Fixtures (2 tasks)
+
+- [ ] 8.327 Create test scripts in `testdata/array_functions/`:
+  - [ ] `copy.dws` - Array copying and independence
+  - [ ] `search.dws` - IndexOf and Contains
+  - [ ] `reverse.dws` - Reverse array
+  - [ ] `sort.dws` - Sort arrays
+  - [ ] Expected outputs
+- [ ] 8.328 Add CLI integration tests:
+  - [ ] Test array function scripts
+  - [ ] Verify outputs
+
+---
+
 ### Contracts (Design by Contract)
 
 - [ ] 8.236 Parse require/ensure clauses (if supported)
@@ -1979,10 +2575,24 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Additional Features Assessment
 
-- [ ] 8.239 Review DWScript feature list for missing items
-- [ ] 8.240 Prioritize remaining features
-- [ ] 8.241 Implement high-priority features
-- [ ] 8.242 Document unsupported features
+- [x] 8.239 Review DWScript feature list for missing items ✅ COMPLETE
+  - [x] 8.239a Catalog all implemented features → `docs/implemented-features.md`
+  - [x] 8.239b Extract DWScript feature list → `docs/dwscript-features.md`
+  - [x] 8.239c Create feature comparison matrix → `docs/feature-matrix.md` (408 features)
+  - [x] 8.239d-r Detailed feature reviews (covered by matrix)
+  - [x] 8.239v Document out-of-scope features → `docs/out-of-scope.md`
+  - [x] 8.239w Create recommendations → `docs/missing-features-recommendations.md`
+  - [x] Result: 164/408 features implemented (40%), 58 HIGH priority features identified
+  - [x] Added 80 new tasks (8.249-8.328) for HIGH priority features
+- [x] 8.240 Prioritize remaining features ✅ COMPLETE
+  - [x] HIGH: 58 features (const, ordinal functions, Assert, type aliases, built-in functions)
+  - [x] MEDIUM: 94 features (lambdas, helpers, DateTime, JSON, etc.)
+  - [x] LOW: 74 features (generics, LINQ, etc.)
+  - [x] OUT OF SCOPE: 4 features (COM, assembly, platform-specific)
+- [ ] 8.241 Implement high-priority features (Tasks 8.249-8.328 now added)
+- [x] 8.242 Document unsupported features ✅ COMPLETE
+  - [x] Created `docs/out-of-scope.md` with security/portability rationale
+  - [x] Created `docs/feature-matrix.md` showing all 408 features status
 
 ### Comprehensive Testing (Stage 8)
 
@@ -2143,10 +2753,72 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - [ ] Step-through execution
   - [ ] Variable inspection
   - [ ] Stack traces
-- [ ] 10.15 Implement WebAssembly compilation:
-  - [ ] Use Go's WASM target
-  - [ ] Create web-based DWScript playground
-  - [ ] Publish WASM build
+- [ ] 10.15 Implement WebAssembly compilation (see `docs/plans/2025-10-26-wasm-compilation-design.md`):
+  - [ ] 10.15.1 Platform Abstraction Layer:
+    - [ ] Create `pkg/platform/` package with core interfaces (FileSystem, Console, Platform)
+    - [ ] Implement `pkg/platform/native/` for standard Go implementations
+    - [ ] Implement `pkg/platform/wasm/` with virtual filesystem (in-memory map)
+    - [ ] Add console bridge to JavaScript console.log or callbacks
+    - [ ] Implement time functions using JavaScript Date API via syscall/js
+    - [ ] Add sleep implementation using setTimeout with Promise/channel bridge
+    - [ ] Create feature parity test suite (runs on both native and WASM)
+    - [ ] Document platform differences and limitations
+  - [ ] 10.15.2 WASM Build Infrastructure:
+    - [ ] Create `build/wasm/` directory for build scripts and configuration
+    - [ ] Add Makefile targets: `make wasm`, `make wasm-test`, `make wasm-optimize`
+    - [ ] Create `cmd/dwscript-wasm/main.go` entry point with syscall/js exports
+    - [ ] Implement build modes support: monolithic, modular, hybrid (compile-time flags)
+    - [ ] Create `pkg/wasm/` package for WASM bridge code
+    - [ ] Add wasm_exec.js from Go distribution to build output
+    - [ ] Integrate wasm-opt (Binaryen) for binary size optimization
+    - [ ] Set up GOOS=js GOARCH=wasm build configuration
+    - [ ] Create build script to package WASM with supporting files
+    - [ ] Add size monitoring (fail CI if >3MB uncompressed)
+    - [ ] Test all three build modes and compare sizes
+    - [ ] Document build process in `docs/wasm/BUILD.md`
+  - [ ] 10.15.3 JavaScript/Go Bridge:
+    - [ ] Implement DWScript class API in `pkg/wasm/api.go` using syscall/js
+    - [ ] Export init(), compile(), run(), eval() functions to JavaScript
+    - [ ] Create type conversion utilities (Go types ↔ js.Value)
+    - [ ] Implement callback registration system in `pkg/wasm/callbacks.go`
+    - [ ] Add virtual filesystem interface for JavaScript implementations
+    - [ ] Implement error handling across WASM/JS boundary (panics → exceptions)
+    - [ ] Add memory management (proper js.Value.Release() calls)
+    - [ ] Create structured error objects for DWScript runtime errors
+    - [ ] Add event system for output, error, and custom events
+    - [ ] Document JavaScript API in `docs/wasm/API.md`
+  - [ ] 10.15.4 Web Playground:
+    - [ ] Create `playground/` directory structure
+    - [ ] Integrate Monaco Editor with DWScript language definition
+    - [ ] Implement syntax highlighting and tokenization rules
+    - [ ] Build split-pane UI layout (code editor + output console)
+    - [ ] Add toolbar with Run, Examples, Clear, Share, and Theme buttons
+    - [ ] Implement URL-based code sharing (base64 encoded in fragment)
+    - [ ] Create examples dropdown with sample DWScript programs
+    - [ ] Add localStorage auto-save and restore
+    - [ ] Implement error markers in editor from compilation errors
+    - [ ] Set up GitHub Pages deployment with GitHub Actions workflow
+    - [ ] Test playground on Chrome, Firefox, and Safari
+    - [ ] Document playground architecture in `docs/wasm/PLAYGROUND.md`
+  - [ ] 10.15.5 NPM Package:
+    - [ ] Create `npm/` package structure with package.json
+    - [ ] Write TypeScript definitions in `typescript/index.d.ts`
+    - [ ] Create dual ESM/CommonJS entry points (index.js, index.cjs)
+    - [ ] Add WASM loader helper for both Node.js and browser
+    - [ ] Create usage examples (Node.js, React, Vue, vanilla JS)
+    - [ ] Set up automated NPM publishing via GitHub Actions
+    - [ ] Configure package for tree-shaking and optimal bundling
+    - [ ] Write `npm/README.md` with installation and usage guide
+    - [ ] Publish initial version to npmjs.com registry
+  - [ ] 10.15.6 Testing & Documentation:
+    - [ ] Write WASM-specific unit tests (GOOS=js GOARCH=wasm go test)
+    - [ ] Create Node.js integration test suite using test runner
+    - [ ] Add Playwright browser tests for cross-browser compatibility
+    - [ ] Set up CI matrix for Chrome, Firefox, and Safari testing
+    - [ ] Add performance benchmarks comparing WASM vs native speed
+    - [ ] Implement bundle size regression monitoring in CI
+    - [ ] Write `docs/wasm/EMBEDDING.md` for web app integration guide
+    - [ ] Update main README.md with WASM section and playground link
 - [ ] 10.16 Implement language server protocol (LSP):
   - [ ] Syntax highlighting
   - [ ] Autocomplete
@@ -2217,9 +2889,322 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
+## Stage 11: Code Generation - Multi-Backend Architecture
+
+**Status**: Not started | **Estimated Tasks**: ~180
+
+### Overview
+
+This stage introduces code generation capabilities to go-dws using a **two-tier architecture**:
+
+1. **MIR (Mid-level IR)**: A target-neutral intermediate representation that sits between the type-checked AST and backend-specific code generators
+2. **Backend Emitters**: Pluggable code generators that translate MIR to specific targets (JavaScript, LLVM IR)
+
+**Architecture Flow**:
+```
+DWScript Source → Lexer → Parser → Semantic Analyzer → MIR Builder → JS/LLVM Emitter → Output
+```
+
+**Why MIR?** The MIR layer provides clean separation, multi-backend support, optimization opportunities, easier debugging, and future-proofing for additional backends.
+
+### Stage 11.1: MIR Foundation (30 tasks)
+
+**Goal**: Define a complete, verifiable mid-level IR that can represent all DWScript constructs in a target-neutral way.
+
+**Exit Criteria**: MIR spec documented, complete type system, builder API, verifier, AST→MIR lowering for ~80% of constructs, 20+ golden tests, 85%+ coverage
+
+#### 11.1.1: MIR Package Structure and Types (10 tasks)
+
+- [ ] 11.1 Create `mir/` package directory
+- [ ] 11.2 Create `mir/types.go` - MIR type system
+- [ ] 11.3 Define `Type` interface with `String()`, `Size()`, `Align()` methods
+- [ ] 11.4 Implement primitive types: `Bool`, `Int8`, `Int16`, `Int32`, `Int64`, `Float32`, `Float64`, `String`
+- [ ] 11.5 Implement composite types: `Array(elemType, size)`, `Record(fields)`, `Pointer(pointeeType)`
+- [ ] 11.6 Implement OOP types: `Class(name, fields, methods, parent)`, `Interface(name, methods)`
+- [ ] 11.7 Implement function types: `Function(params, returnType)`
+- [ ] 11.8 Add `Void` type for procedures
+- [ ] 11.9 Implement type equality and compatibility checking
+- [ ] 11.10 Implement type conversion rules (explicit vs implicit)
+
+#### 11.1.2: MIR Instructions and Control Flow (10 tasks)
+
+- [ ] 11.11 Create `mir/instruction.go` - MIR instruction set
+- [ ] 11.12 Define `Instruction` interface with `ID()`, `Type()`, `String()` methods
+- [ ] 11.13 Implement arithmetic ops: `Add`, `Sub`, `Mul`, `Div`, `Mod`, `Neg`
+- [ ] 11.14 Implement comparison ops: `Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge`
+- [ ] 11.15 Implement logical ops: `And`, `Or`, `Xor`, `Not`
+- [ ] 11.16 Implement memory ops: `Alloca`, `Load`, `Store`
+- [ ] 11.17 Implement constants: `ConstInt`, `ConstFloat`, `ConstString`, `ConstBool`, `ConstNil`
+- [ ] 11.18 Implement conversions: `IntToFloat`, `FloatToInt`, `IntTrunc`, `IntExt`
+- [ ] 11.19 Implement function ops: `Call`, `VirtualCall`
+- [ ] 11.20 Implement array/class ops: `ArrayAlloc`, `ArrayLen`, `ArrayIndex`, `ArraySet`, `FieldGet`, `FieldSet`, `New`
+
+#### 11.1.3: MIR Control Flow Structures (5 tasks)
+
+- [ ] 11.21 Create `mir/block.go` - Basic blocks with `ID`, `Instructions`, `Terminator`
+- [ ] 11.22 Implement control flow terminators: `Phi`, `Br`, `CondBr`, `Return`, `Throw`
+- [ ] 11.23 Implement terminator validation (every block must end with terminator)
+- [ ] 11.24 Implement block predecessors/successors tracking for CFG
+- [ ] 11.25 Create `mir/function.go` - Function representation with `Name`, `Params`, `ReturnType`, `Blocks`, `Locals`
+
+#### 11.1.4: MIR Builder API (3 tasks)
+
+- [ ] 11.26 Create `mir/builder.go` - Safe MIR construction
+- [ ] 11.27 Implement `Builder` struct with function/block context, `NewFunction()`, `NewBlock()`, `SetInsertPoint()`
+- [ ] 11.28 Implement instruction emission methods: `EmitAdd()`, `EmitLoad()`, `EmitStore()`, etc. with type checking
+
+#### 11.1.5: MIR Verifier (2 tasks)
+
+- [ ] 11.29 Create `mir/verifier.go` - MIR correctness checking
+- [ ] 11.30 Implement CFG, type, SSA, and function signature verification with `Verify(fn *Function) []error` API
+
+### Stage 11.2: AST → MIR Lowering (12 tasks)
+
+- [ ] 11.31 Create `mir/lower.go` - AST to MIR translation
+- [ ] 11.32 Implement `LowerProgram(ast *ast.Program) (*mir.Module, error)` entry point
+- [ ] 11.33 Lower expressions: literals → `Const*` instructions
+- [ ] 11.34 Lower binary operations → corresponding MIR ops (handle short-circuit for `and`/`or`)
+- [ ] 11.35 Lower unary operations → `Neg`, `Not`
+- [ ] 11.36 Lower identifier references → `Load` instructions
+- [ ] 11.37 Lower function calls → `Call` instructions
+- [ ] 11.38 Lower array indexing → `ArrayIndex` + bounds check insertion
+- [ ] 11.39 Lower record field access → `FieldGet`/`FieldSet`
+- [ ] 11.40 Lower statements: variable declarations, assignments, if/while/for, return
+- [ ] 11.41 Lower declarations: functions/procedures, records, classes
+- [ ] 11.42 Implement short-circuit evaluation and simple optimizations (constant folding, dead code elimination)
+
+### Stage 11.3: MIR Debugging and Testing (5 tasks)
+
+- [ ] 11.43 Create `mir/dump.go` - Human-readable MIR output with `Dump(fn *Function) string`
+- [ ] 11.44 Integration with CLI: `./bin/dwscript dump-mir script.dws`
+- [ ] 11.45 Create golden MIR tests: 5+ each for expressions, control flow, functions, advanced features
+- [ ] 11.46 Implement MIR verifier tests: type mismatches, malformed CFG, SSA violations
+- [ ] 11.47 Implement round-trip tests: AST → MIR → verify → dump → compare with golden files
+
+### Stage 11.4: JS Backend MVP (45 tasks)
+
+**Goal**: Implement a JavaScript code generator that can compile basic DWScript programs to readable, runnable JavaScript.
+
+**Exit Criteria**: JS emitter for expressions/control flow/functions, 20+ end-to-end tests (DWScript→JS→execute), golden JS snapshots, 85%+ coverage
+
+#### 11.4.1: JS Emitter Infrastructure (8 tasks)
+
+- [ ] 11.48 Create `codegen/` package with `Backend` interface and `EmitterOptions`
+- [ ] 11.49 Create `codegen/js/` package and `emitter.go`
+- [ ] 11.50 Define `JSEmitter` struct with `out`, `indent`, `opts`, `tmpCounter`
+- [ ] 11.51 Implement helper methods: `emit()`, `emitLine()`, `emitIndent()`, `pushIndent()`, `popIndent()`
+- [ ] 11.52 Implement `newTemp()` for temporary variable naming
+- [ ] 11.53 Implement `NewJSEmitter(opts EmitterOptions)`
+- [ ] 11.54 Implement `Generate(module *mir.Module) (string, error)` entry point
+- [ ] 11.55 Test emitter infrastructure
+
+#### 11.4.2: Module and Function Emission (6 tasks)
+
+- [ ] 11.56 Implement module structure emission: ES Module format with `export`, file header comment
+- [ ] 11.57 Implement optional IIFE fallback via `EmitterOptions`
+- [ ] 11.58 Implement function emission: `function fname(params) { ... }`
+- [ ] 11.59 Map DWScript params to JS params (preserve names)
+- [ ] 11.60 Emit local variable declarations at function top (from `Alloca` instructions)
+- [ ] 11.61 Handle procedures (no return value) as JS functions
+
+#### 11.4.3: Expression and Instruction Lowering (12 tasks)
+
+- [ ] 11.62 Lower arithmetic operations → JS infix operators: `+`, `-`, `*`, `/`, `%`, unary `-`
+- [ ] 11.63 Lower comparison operations → JS comparisons: `===`, `!==`, `<`, `<=`, `>`, `>=`
+- [ ] 11.64 Lower logical operations → JS boolean ops: `&&`, `||`, `!`
+- [ ] 11.65 Lower constants → JS literals with proper escaping
+- [ ] 11.66 Lower variable operations: `Load` → variable reference, `Store` → assignment
+- [ ] 11.67 Lower function calls: `Call` → `functionName(args)`
+- [ ] 11.68 Implement Phi node lowering with temporary variables at block edges
+- [ ] 11.69 Test expression lowering
+- [ ] 11.70 Test instruction lowering
+- [ ] 11.71 Test temporary variable generation
+- [ ] 11.72 Test type conversions
+- [ ] 11.73 Test complex expressions
+
+#### 11.4.4: Control Flow Emission (8 tasks)
+
+- [ ] 11.74 Implement control flow reconstruction from MIR CFG
+- [ ] 11.75 Detect if/else patterns from `CondBr`
+- [ ] 11.76 Detect while loop patterns (backedge to header)
+- [ ] 11.77 Emit if-else: `if (condition) { ... } else { ... }`
+- [ ] 11.78 Emit while loops: `while (condition) { ... }`
+- [ ] 11.79 Emit for loops if MIR preserves metadata
+- [ ] 11.80 Handle unconditional branches
+- [ ] 11.81 Handle return statements
+
+#### 11.4.5: Runtime and Testing (11 tasks)
+
+- [ ] 11.82 Create `runtime/js/runtime.js` with `_dws.boundsCheck()`, `_dws.assert()`
+- [ ] 11.83 Emit runtime import in generated JS (if needed)
+- [ ] 11.84 Make runtime usage optional via `EmitterOptions.InsertBoundsChecks`
+- [ ] 11.85 Create `codegen/js/testdata/` with subdirectories
+- [ ] 11.86 Implement golden JS snapshot tests
+- [ ] 11.87 Setup Node.js in CI (GitHub Actions)
+- [ ] 11.88 Implement execution tests: parse → lower → generate → execute → verify
+- [ ] 11.89 Add end-to-end tests for arithmetic, control flow, functions, loops
+- [ ] 11.90 Add unit tests for JS emitter
+- [ ] 11.91 Achieve 85%+ coverage for `codegen/js/` package
+- [ ] 11.92 Add `compile-js` CLI command: `./bin/dwscript compile-js input.dws -o output.js`
+
+### Stage 11.5: JS Feature Complete (60 tasks)
+
+**Goal**: Extend JS backend to support all DWScript language features.
+
+**Exit Criteria**: Full OOP, composite types, exceptions, properties, 50+ comprehensive tests, real-world samples work
+
+#### 11.5.1: Records (7 tasks)
+
+- [ ] 11.93 Implement MIR support for records
+- [ ] 11.94 Emit records as plain JS objects: `{ x: 0, y: 0 }`
+- [ ] 11.95 Implement constructor functions for records
+- [ ] 11.96 Implement field access/assignment as property access
+- [ ] 11.97 Implement record copy semantics with `_dws.copyRecord()`
+- [ ] 11.98 Test record creation, initialization, field read/write
+- [ ] 11.99 Test nested records and copy semantics
+
+#### 11.5.2: Arrays (10 tasks)
+
+- [ ] 11.100 Extend MIR for static and dynamic arrays
+- [ ] 11.101 Emit static arrays as JS arrays with fixed size
+- [ ] 11.102 Implement array index access with optional bounds checking
+- [ ] 11.103 Emit dynamic arrays as JS arrays
+- [ ] 11.104 Implement `SetLength` → `arr.length = newLen`
+- [ ] 11.105 Implement `Length` → `arr.length`
+- [ ] 11.106 Support multi-dimensional arrays (nested JS arrays)
+- [ ] 11.107 Implement array operations: copy, concatenation
+- [ ] 11.108 Test static array creation and indexing
+- [ ] 11.109 Test dynamic array operations and bounds checking
+
+#### 11.5.3: Classes and Inheritance (15 tasks)
+
+- [ ] 11.110 Extend MIR for classes with fields, methods, parent, vtable
+- [ ] 11.111 Emit ES6 class syntax: `class TAnimal { ... }`
+- [ ] 11.112 Implement field initialization in constructor
+- [ ] 11.113 Implement method emission
+- [ ] 11.114 Implement inheritance with `extends` clause
+- [ ] 11.115 Implement `super()` call in constructor
+- [ ] 11.116 Handle virtual method dispatch (naturally virtual in JS)
+- [ ] 11.117 Handle DWScript `Create` → JS `constructor`
+- [ ] 11.118 Handle multiple constructors (overload dispatch)
+- [ ] 11.119 Document destructor handling (no direct equivalent in JS)
+- [ ] 11.120 Implement static fields and methods
+- [ ] 11.121 Map `Self` → `this`, `inherited` → `super.method()`
+- [ ] 11.122 Test simple classes with fields and methods
+- [ ] 11.123 Test inheritance, virtual method overriding, constructors
+- [ ] 11.124 Test static members and `Self`/`inherited` usage
+
+#### 11.5.4: Interfaces (6 tasks)
+
+- [ ] 11.125 Extend MIR for interfaces
+- [ ] 11.126 Choose and document JS emission strategy (structural typing vs runtime metadata)
+- [ ] 11.127 If using runtime metadata: emit interface tables, implement `is`/`as` operators
+- [ ] 11.128 Test class implementing interface
+- [ ] 11.129 Test interface method calls
+- [ ] 11.130 Test `is` and `as` with interfaces
+
+#### 11.5.5: Enums and Sets (8 tasks)
+
+- [ ] 11.131 Extend MIR for enums
+- [ ] 11.132 Emit enums as frozen JS objects: `const TColor = Object.freeze({...})`
+- [ ] 11.133 Support scoped and unscoped enum access
+- [ ] 11.134 Extend MIR for sets
+- [ ] 11.135 Emit small sets (≤32 elements) as bitmasks
+- [ ] 11.136 Emit large sets as JS `Set` objects
+- [ ] 11.137 Implement set operations: union, intersection, difference, inclusion
+- [ ] 11.138 Test enum declaration/usage and set operations
+
+#### 11.5.6: Exception Handling (8 tasks)
+
+- [ ] 11.139 Extend MIR for exceptions: `Throw`, `Try`, `Catch`, `Finally`
+- [ ] 11.140 Emit `Throw` → `throw new Error()` or custom exception class
+- [ ] 11.141 Emit try-except-finally → JS `try/catch/finally`
+- [ ] 11.142 Create DWScript exception class → JS `Error` subclass
+- [ ] 11.143 Handle `On E: ExceptionType do` with instanceof checks
+- [ ] 11.144 Implement re-raise with exception tracking
+- [ ] 11.145 Test basic try-except, multiple handlers, try-finally
+- [ ] 11.146 Test re-raise and nested exception handling
+
+#### 11.5.7: Properties and Advanced Features (6 tasks)
+
+- [ ] 11.147 Extend MIR for properties with `PropGet`/`PropSet`
+- [ ] 11.148 Emit properties as ES6 getters/setters
+- [ ] 11.149 Handle indexed properties as methods
+- [ ] 11.150 Test read/write properties and indexed properties
+- [ ] 11.151 Implement operator overloading (desugar to method calls)
+- [ ] 11.152 Implement generics support (monomorphization)
+
+### Stage 11.6: LLVM Backend [OPTIONAL - Future Work] (45 tasks)
+
+**Goal**: Implement LLVM IR backend for native code compilation. This is **deferred** and optional.
+
+**Exit Criteria**: Valid LLVM IR generation, runtime library in C, basic end-to-end tests, documentation
+
+#### 11.6.1: LLVM Infrastructure (8 tasks)
+
+- [ ] 11.153 Choose LLVM binding: `llir/llvm` (pure Go) vs CGo bindings
+- [ ] 11.154 Create `codegen/llvm/` package with `emitter.go`, `types.go`, `runtime.go`
+- [ ] 11.155 Implement type mapping: DWScript types → LLVM types
+- [ ] 11.156 Map Integer → `i32`/`i64`, Float → `double`, Boolean → `i1`
+- [ ] 11.157 Map String → struct `{i32 len, i8* data}`
+- [ ] 11.158 Map arrays/objects to LLVM structs
+- [ ] 11.159 Emit LLVM module with target triple
+- [ ] 11.160 Declare external runtime functions
+
+#### 11.6.2: Runtime Library (12 tasks)
+
+- [ ] 11.161 Create `runtime/dws_runtime.h` - C header for runtime API
+- [ ] 11.162 Declare string operations: `dws_string_new()`, `dws_string_concat()`, `dws_string_len()`
+- [ ] 11.163 Declare array operations: `dws_array_new()`, `dws_array_index()`, `dws_array_len()`
+- [ ] 11.164 Declare memory management: `dws_alloc()`, `dws_free()`
+- [ ] 11.165 Choose and document memory strategy (Boehm GC vs reference counting)
+- [ ] 11.166 Declare object operations: `dws_object_new()`, virtual dispatch helpers
+- [ ] 11.167 Declare exception handling: `dws_throw()`, `dws_catch()`
+- [ ] 11.168 Declare RTTI: `dws_is_instance()`, `dws_as_instance()`
+- [ ] 11.169 Create `runtime/dws_runtime.c` - implement runtime
+- [ ] 11.170 Implement all runtime functions
+- [ ] 11.171 Create `runtime/Makefile` to build `libdws_runtime.a`
+- [ ] 11.172 Add runtime build to CI for Linux/macOS/Windows
+
+#### 11.6.3: LLVM Code Emission (15 tasks)
+
+- [ ] 11.173 Implement LLVM emitter: `Generate(module *mir.Module) (string, error)`
+- [ ] 11.174 Emit function declarations with correct signatures
+- [ ] 11.175 Emit basic blocks for each MIR block
+- [ ] 11.176 Emit arithmetic instructions: `add`, `sub`, `mul`, `sdiv`, `srem`
+- [ ] 11.177 Emit comparison instructions: `icmp eq`, `icmp slt`, etc.
+- [ ] 11.178 Emit logical instructions: `and`, `or`, `xor`
+- [ ] 11.179 Emit memory instructions: `alloca`, `load`, `store`
+- [ ] 11.180 Emit call instructions: `call @function_name(args)`
+- [ ] 11.181 Emit constants: integers, floats, strings
+- [ ] 11.182 Emit control flow: conditional branches, phi nodes
+- [ ] 11.183 Emit runtime calls for strings, arrays, objects
+- [ ] 11.184 Implement type conversions: `sitofp`, `fptosi`
+- [ ] 11.185 Emit struct types for classes and vtables
+- [ ] 11.186 Implement virtual method dispatch
+- [ ] 11.187 Implement exception handling (simple throw/catch or full LLVM EH)
+
+#### 11.6.4: Linking and Testing (7 tasks)
+
+- [ ] 11.188 Implement compilation pipeline: DWScript → MIR → LLVM IR → object → executable
+- [ ] 11.189 Integrate `llc` to compile .ll → .o
+- [ ] 11.190 Integrate linker to link object + runtime → executable
+- [ ] 11.191 Add `compile-native` CLI command
+- [ ] 11.192 Create 10+ end-to-end tests: DWScript → native → execute → verify
+- [ ] 11.193 Benchmark JS vs native performance
+- [ ] 11.194 Document LLVM backend in `docs/llvm-backend.md`
+
+#### 11.6.5: Documentation (3 tasks)
+
+- [ ] 11.195 Create `docs/codegen-architecture.md` - MIR overview, multi-backend design
+- [ ] 11.196 Create `docs/mir-spec.md` - complete MIR reference with examples
+- [ ] 11.197 Create `docs/js-backend.md` - DWScript → JavaScript mapping guide
+
+---
+
 ## Summary
 
-This detailed plan breaks down the ambitious goal of porting DWScript from Delphi to Go into **~650+ bite-sized tasks** across 10 stages. Each stage builds incrementally:
+This detailed plan breaks down the ambitious goal of porting DWScript from Delphi to Go into **~867 bite-sized tasks** across 11 stages. Each stage builds incrementally:
 
 1. **Stage 1**: Lexer implementation (45 tasks) - ✅ COMPLETE
 2. **Stage 2**: Basic parser and AST (64 tasks) - ✅ COMPLETE
@@ -2233,10 +3218,19 @@ This detailed plan breaks down the ambitious goal of porting DWScript from Delph
 8. **Stage 8**: Additional features (93 tasks) [+31 from property expansion]
 9. **Stage 9**: Performance and polish (68 tasks)
 10. **Stage 10**: Long-term evolution (54 tasks)
+11. **Stage 11**: Code generation - Multi-backend architecture (~180 tasks)
+    - **11.1-11.3**: MIR Foundation (47 tasks) - ~2 weeks
+    - **11.4**: JS Backend MVP (45 tasks) - ~3 weeks
+    - **11.5**: JS Feature Complete (60 tasks) - ~4 weeks
+    - **11.6**: LLVM Backend [OPTIONAL] (45 tasks) - future work
 
-**Total: ~687 tasks** (updated from ~656 after property expansion, originally ~511)
+**Total: ~867 tasks** (updated from ~687 with Stage 11 addition)
 
-**Key Change**: Interface implementation (Stage 7.67-7.149) was expanded from 5 optional tasks to 83 required tasks based on analysis of DWScript reference implementation, which includes 69+ interface test cases demonstrating interfaces are a fundamental language feature, not optional.
+**Key Notes**:
+- **Stage 11** introduces a two-tier code generation architecture with MIR as an intermediate representation
+- JavaScript backend is prioritized (Stages 11.1-11.5, ~152 tasks, ~9 weeks) for immediate value
+- LLVM backend (Stage 11.6, 45 tasks) is optional and can be deferred or skipped entirely
+- The MIR layer enables multiple backends from a single lowering pass, future-proofing for WebAssembly, C, or other targets
 
 Each task is actionable and testable. Following this plan methodically will result in a complete, production-ready DWScript implementation in Go, preserving 100% of the language's syntax and semantics while leveraging Go's ecosystem.
 
@@ -2246,4 +3240,4 @@ The project can realistically take **1-3 years** depending on:
 - Team size (solo vs multiple contributors)
 - Completeness goals (minimal viable vs full feature parity)
 
-With consistent progress, a **working compiler for core features** (Stages 0-5) could be achieved in **3-6 months**, making the project usable early while continuing to add advanced features.
+With consistent progress, a **working compiler for core features** (Stages 0-5) could be achieved in **3-6 months**, and **JavaScript code generation** (Stages 0-11.5) in **9-12 months**, making the project usable early while continuing to add advanced features.

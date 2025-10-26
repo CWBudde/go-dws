@@ -78,6 +78,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.VarDeclStatement:
 		return i.evalVarDeclStatement(node)
 
+	case *ast.ConstDecl:
+		return i.evalConstDecl(node)
+
 	case *ast.AssignmentStatement:
 		return i.evalAssignmentStatement(node)
 
@@ -297,6 +300,28 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		}
 	}
 
+	i.env.Define(stmt.Name.Value, value)
+	return value
+}
+
+// evalConstDecl evaluates a const declaration statement (Task 8.257)
+// Constants are immutable values stored in the environment.
+// Immutability is enforced at semantic analysis time, so at runtime
+// we simply evaluate the value and store it like a variable.
+func (i *Interpreter) evalConstDecl(stmt *ast.ConstDecl) Value {
+	// Constants must have a value
+	if stmt.Value == nil {
+		return newError("constant '%s' must have a value", stmt.Name.Value)
+	}
+
+	// Evaluate the constant value
+	value := i.Eval(stmt.Value)
+	if isError(value) {
+		return value
+	}
+
+	// Store the constant in the environment
+	// Note: Immutability is enforced by semantic analysis, not at runtime
 	i.env.Define(stmt.Name.Value, value)
 	return value
 }

@@ -1,0 +1,61 @@
+// Const Types Tests
+// Task 8.259: Test different const types with type annotations
+
+begin
+  PrintLn('=== Const Types Tests ===');
+
+  // Test 1: Typed integer const
+  PrintLn('Test 1: Typed integer const');
+  const MAX_USERS: Integer = 1000;
+  PrintLn('MAX_USERS = ' + IntToStr(MAX_USERS));
+  if MAX_USERS = 1000 then
+    PrintLn('PASS: Typed integer const works')
+  else
+    PrintLn('FAIL: Typed integer const incorrect');
+
+  // Test 2: Typed float const
+  PrintLn('');
+  PrintLn('Test 2: Typed float const');
+  const RADIUS: Float = 5.0;
+  PrintLn('RADIUS = ' + FloatToStr(RADIUS));
+  if RADIUS = 5.0 then
+    PrintLn('PASS: Typed float const works')
+  else
+    PrintLn('FAIL: Typed float const incorrect');
+
+  // Test 3: Typed string const
+  PrintLn('');
+  PrintLn('Test 3: Typed string const');
+  const VERSION: String = 'v1.0.0';
+  PrintLn('VERSION = ' + VERSION);
+  if VERSION = 'v1.0.0' then
+    PrintLn('PASS: Typed string const works')
+  else
+    PrintLn('FAIL: Typed string const incorrect');
+
+  // Test 4: Typed boolean const
+  PrintLn('');
+  PrintLn('Test 4: Typed boolean const');
+  const DEBUG: Boolean = false;
+  if DEBUG = false then begin
+    PrintLn('DEBUG = false');
+    PrintLn('PASS: Typed boolean const works');
+  end else
+    PrintLn('FAIL: Typed boolean const incorrect');
+
+  // Test 5: Multiple consts of same type
+  PrintLn('');
+  PrintLn('Test 5: Multiple consts');
+  const MIN = 0;
+  const MAX = 100;
+  const MID = 50;
+  var range: Integer := MAX - MIN;
+  PrintLn('Range = ' + IntToStr(range));
+  if range = 100 then
+    PrintLn('PASS: Multiple consts work together')
+  else
+    PrintLn('FAIL: Multiple consts calculation incorrect');
+
+  PrintLn('');
+  PrintLn('=== All Const Types Tests Complete ===');
+end;
