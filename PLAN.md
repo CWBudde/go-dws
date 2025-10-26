@@ -2076,11 +2076,15 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### `new` Keyword for Object Instantiation
 
+**Progress**: 7/8 tasks complete (87.5%) - Integration tests remaining
+
 **Summary**: Implement the `new` keyword as an alternative syntax for object instantiation. This allows `new ClassName(args)` as a shorthand for `ClassName.Create(args)`.
 
 **Example**: `raise new Exception('error message');` is equivalent to `raise Exception.Create('error message');`
 
 **Motivation**: Required for compatibility with DWScript code that uses `new` keyword syntax. Currently blocking several exception handling tests.
+
+**Status**: ✅ Parser, Semantic Analysis, Interpreter, and Unit Tests complete. Integration tests pending.
 
 #### Parser Support (3 tasks) ✅ COMPLETE
 
@@ -2105,40 +2109,51 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - [x] `String()` outputs `ClassName.Create(args)` format
   - [x] Note: AST node was already implemented for `TClass.Create()` syntax
 
-#### Semantic Analysis (2 tasks)
+#### Semantic Analysis (2 tasks) ✅ COMPLETE
 
-- [ ] 8.260d Analyze `new` expressions in `semantic/analyze_expressions.go`:
-  - [ ] Verify type name exists and is a class type
-  - [ ] Resolve constructor with matching signature
-  - [ ] Set result type to the instantiated class type
-  - [ ] Test: Type check `new Exception('msg')` returns `Exception` type
-  - [ ] Test: Error on `new Integer` (not a class)
-  - [ ] Test: Error on `new UndefinedClass()`
-  - [ ] Test: Error on constructor argument mismatch
+- [x] 8.260d Analyze `new` expressions in `semantic/analyze_expressions.go`:
+  - [x] Verify type name exists and is a class type
+  - [x] Resolve constructor with matching signature
+  - [x] Set result type to the instantiated class type
+  - [x] Test: Type check `new Exception('msg')` returns `Exception` type
+  - [x] Test: Error on `new Integer` (not a class)
+  - [x] Test: Error on `new UndefinedClass()`
+  - [x] Test: Error on constructor argument mismatch
+  - [x] Note: Implementation already existed in `analyze_classes.go:418`
+  - [x] Added comprehensive tests in `class_analyzer_test.go:267-311`
 
-- [ ] 8.260e Convert `new` to constructor call in semantic analysis:
-  - [ ] Option 1: Desugar `new T(args)` to `T.Create(args)` during parsing
-  - [ ] Option 2: Handle `new` specially in interpreter
-  - [ ] Document chosen approach and rationale
-  - [ ] Ensure both syntaxes have identical behavior
+- [x] 8.260e Convert `new` to constructor call in semantic analysis:
+  - [x] **Chosen: Option 1** - Desugar `new T(args)` to `T.Create(args)` during parsing
+  - [x] Implementation: Both syntaxes → `NewExpression` AST node
+    - `new TClass(args)` → `parseNewExpression()` → `NewExpression`
+    - `TClass.Create(args)` → `parseMemberAccess()` → `NewExpression` (lines 358-372)
+  - [x] Rationale: Single code path, guaranteed consistency, follows DWScript semantics
+  - [x] Verified: Both syntaxes produce identical AST and behavior
+  - [x] Note: Desugaring already implemented, no additional work needed
 
-#### Interpreter Support (1 task)
+#### Interpreter Support (1 task) ✅ COMPLETE
 
-- [ ] 8.260f Interpret `new` expressions in `interp/interpreter.go`:
-  - [ ] If using `NewExpression` node: lookup class, call constructor
-  - [ ] If desugared: no additional work needed
-  - [ ] Return newly created object instance
-  - [ ] Test: `new Exception('test')` creates exception object
-  - [ ] Test: `new` with custom class creates instance
+- [x] 8.260f Interpret `new` expressions in `interp/interpreter.go`:
+  - [x] Uses `NewExpression` node: lookup class, call constructor
+  - [x] Implementation already existed at `interpreter.go:3036` (`evalNewExpression`)
+  - [x] Returns newly created object instance
+  - [x] Handles: class lookup, abstract/external checks, field initialization, constructor calls
+  - [x] Special handling for Exception.Create with message parameter
+  - [x] Test: `new Exception('test')` creates exception object ✓
+  - [x] Test: `new` with custom class creates instance ✓
+  - [x] Test: `new TBox(2,3,4)` with constructor arguments ✓
+  - [x] Test: `new` and `.Create()` produce identical results ✓
+  - [x] Added comprehensive tests in `class_interpreter_test.go:717-917`
 
 #### Testing (2 tasks)
 
-- [ ] 8.260g Add unit tests for `new` keyword:
-  - [ ] Test lexer recognizes `new` keyword
-  - [ ] Test parser handles `new` expressions
-  - [ ] Test semantic analysis validates `new` usage
-  - [ ] Test interpreter creates objects via `new`
-  - [ ] Test error cases (invalid type, wrong args, etc.)
+- [x] 8.260g Add unit tests for `new` keyword:
+  - [x] Test lexer recognizes `new` keyword (`lexer_test.go:TestNewKeyword`)
+  - [x] Test parser handles `new` expressions (`parser_test.go:3345-3390`)
+  - [x] Test semantic analysis validates `new` usage (`class_analyzer_test.go:267-311`)
+  - [x] Test interpreter creates objects via `new` (`class_interpreter_test.go:717-917`)
+  - [x] Test error cases: undefined class, non-class type, arg mismatch ✓
+  - [x] Test equivalence: `new T()` and `T.Create()` produce identical results ✓
 
 - [ ] 8.260h Update integration tests:
   - [ ] Enable `testdata/exceptions/try_except_finally.dws` test

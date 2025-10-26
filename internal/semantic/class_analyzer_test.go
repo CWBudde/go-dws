@@ -261,6 +261,56 @@ func TestNewExpressionWrongConstructorArgTypes(t *testing.T) {
 }
 
 // ============================================================================
+// New Keyword Tests (Task 8.260d)
+// ============================================================================
+
+func TestNewKeywordWithException(t *testing.T) {
+	input := `
+		type TMyException = class
+			FMessage: String;
+
+			function Create(msg: String): TMyException;
+			begin
+				FMessage := msg;
+				Result := Self;
+			end;
+		end;
+
+		var e := new TMyException('test error');
+	`
+	expectNoErrors(t, input)
+}
+
+func TestNewKeywordWithUndefinedClass(t *testing.T) {
+	input := `var obj := new TUndefined();`
+	expectError(t, input, "undefined class 'TUndefined'")
+}
+
+func TestNewKeywordWithNonClassType(t *testing.T) {
+	input := `var x := new Integer();`
+	expectError(t, input, "undefined class 'Integer'")
+}
+
+func TestNewKeywordConstructorArgMismatch(t *testing.T) {
+	input := `
+		type TPoint = class
+			X: Integer;
+			Y: Integer;
+
+			function Create(ax: Integer; ay: Integer): TPoint;
+			begin
+				X := ax;
+				Y := ay;
+				Result := Self;
+			end;
+		end;
+
+		var p := new TPoint(10);
+	`
+	expectError(t, input, "expects 2 arguments, got 1")
+}
+
+// ============================================================================
 // Member Access Tests (Task 7.58)
 // ============================================================================
 

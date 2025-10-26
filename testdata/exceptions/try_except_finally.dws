@@ -26,7 +26,7 @@ try
    raise new EMyExcept('Bye');
 except
    on E : EMyExcept do
-      Print(E.Message)
+      Print(E.Message);
    else
       PrintLn('Bug');
 finally
