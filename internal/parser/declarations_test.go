@@ -348,3 +348,269 @@ func TestParseMultipleTypeAliases(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// Subrange Type Declaration Tests (Tasks 9.96-9.97)
+// ============================================================================
+
+// TestParseSubrangeType tests parsing subrange type declarations
+// Task 9.97: Parser tests for subrange types
+func TestParseSubrangeType(t *testing.T) {
+	tests := []struct {
+		name             string
+		input            string
+		expectedTypeName string
+		expectedLowStr   string
+		expectedHighStr  string
+	}{
+		{
+			name:             "Basic digit subrange (0..9)",
+			input:            `type TDigit = 0..9;`,
+			expectedTypeName: "TDigit",
+			expectedLowStr:   "0",
+			expectedHighStr:  "9",
+		},
+		{
+			name:             "Percentage subrange (0..100)",
+			input:            `type TPercent = 0..100;`,
+			expectedTypeName: "TPercent",
+			expectedLowStr:   "0",
+			expectedHighStr:  "100",
+		},
+		{
+			name:             "Negative range (-40..50)",
+			input:            `type TTemperature = -40..50;`,
+			expectedTypeName: "TTemperature",
+			expectedLowStr:   "(-40)",
+			expectedHighStr:  "50",
+		},
+		{
+			name:             "Single value range (42..42)",
+			input:            `type TAnswer = 42..42;`,
+			expectedTypeName: "TAnswer",
+			expectedLowStr:   "42",
+			expectedHighStr:  "42",
+		},
+		{
+			name:             "Large range (1..1000)",
+			input:            `type TIndex = 1..1000;`,
+			expectedTypeName: "TIndex",
+			expectedLowStr:   "1",
+			expectedHighStr:  "1000",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+					len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.TypeDeclaration)
+			if !ok {
+				t.Fatalf("program.Statements[0] is not *ast.TypeDeclaration. got=%T",
+					program.Statements[0])
+			}
+
+			// Verify type name
+			if stmt.Name.Value != tt.expectedTypeName {
+				t.Errorf("stmt.Name.Value not %q. got=%s", tt.expectedTypeName, stmt.Name.Value)
+			}
+
+			// Verify it's marked as subrange
+			if !stmt.IsSubrange {
+				t.Error("stmt.IsSubrange should be true for subrange type")
+			}
+
+			// Verify it's NOT marked as alias
+			if stmt.IsAlias {
+				t.Error("stmt.IsAlias should be false for subrange type")
+			}
+
+			// Verify low bound exists
+			if stmt.LowBound == nil {
+				t.Fatal("stmt.LowBound should not be nil")
+			}
+
+			// Verify high bound exists
+			if stmt.HighBound == nil {
+				t.Fatal("stmt.HighBound should not be nil")
+			}
+
+			// Verify String() output format
+			expectedString := "type " + tt.expectedTypeName + " = " + tt.expectedLowStr + ".." + tt.expectedHighStr
+			if stmt.String() != expectedString {
+				t.Errorf("stmt.String() = %q, want %q", stmt.String(), expectedString)
+			}
+
+			// Verify low bound string representation
+			if stmt.LowBound.String() != tt.expectedLowStr {
+				t.Errorf("stmt.LowBound.String() = %q, want %q", stmt.LowBound.String(), tt.expectedLowStr)
+			}
+
+			// Verify high bound string representation
+			if stmt.HighBound.String() != tt.expectedHighStr {
+				t.Errorf("stmt.HighBound.String() = %q, want %q", stmt.HighBound.String(), tt.expectedHighStr)
+			}
+		})
+	}
+}
+
+// TestParseMultipleSubrangeTypes tests parsing multiple subrange declarations
+func TestParseMultipleSubrangeTypes(t *testing.T) {
+	input := `
+		type TDigit = 0..9;
+		type TPercent = 0..100;
+		type TDay = 1..31;
+	`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 3 {
+		t.Fatalf("program.Statements should contain 3 statements. got=%d",
+			len(program.Statements))
+	}
+
+	expected := []struct {
+		name    string
+		lowStr  string
+		highStr string
+	}{
+		{"TDigit", "0", "9"},
+		{"TPercent", "0", "100"},
+		{"TDay", "1", "31"},
+	}
+
+	for i, exp := range expected {
+		stmt, ok := program.Statements[i].(*ast.TypeDeclaration)
+		if !ok {
+			t.Fatalf("program.Statements[%d] is not *ast.TypeDeclaration. got=%T",
+				i, program.Statements[i])
+		}
+
+		if stmt.Name.Value != exp.name {
+			t.Errorf("stmt[%d].Name.Value not %q. got=%s", i, exp.name, stmt.Name.Value)
+		}
+
+		if !stmt.IsSubrange {
+			t.Errorf("stmt[%d].IsSubrange should be true", i)
+		}
+
+		if stmt.LowBound.String() != exp.lowStr {
+			t.Errorf("stmt[%d].LowBound.String() = %q, want %q", i, stmt.LowBound.String(), exp.lowStr)
+		}
+
+		if stmt.HighBound.String() != exp.highStr {
+			t.Errorf("stmt[%d].HighBound.String() = %q, want %q", i, stmt.HighBound.String(), exp.highStr)
+		}
+	}
+}
+
+// TestParseSubrangeErrors tests error cases in subrange parsing
+func TestParseSubrangeErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "Missing DOTDOT token",
+			input: `type TDigit = 0 9;`,
+		},
+		{
+			name:  "Missing semicolon",
+			input: `type TDigit = 0..9`,
+		},
+		{
+			name:  "Missing high bound",
+			input: `type TDigit = 0..;`,
+		},
+		{
+			name:  "Missing low bound",
+			input: `type TDigit = ..9;`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			p.ParseProgram()
+
+			// Should have parser errors
+			if len(p.errors) == 0 {
+				t.Errorf("expected parser errors for invalid subrange syntax, got none")
+			}
+		})
+	}
+}
+
+// TestParseMixedTypeDeclarations tests parsing both aliases and subranges
+func TestParseMixedTypeDeclarations(t *testing.T) {
+	input := `
+		type TUserID = Integer;
+		type TDigit = 0..9;
+		type TFileName = String;
+		type TPercent = 0..100;
+	`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 4 {
+		t.Fatalf("program.Statements should contain 4 statements. got=%d",
+			len(program.Statements))
+	}
+
+	// First: type alias
+	stmt0, ok := program.Statements[0].(*ast.TypeDeclaration)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.TypeDeclaration")
+	}
+	if !stmt0.IsAlias {
+		t.Error("First declaration should be alias")
+	}
+	if stmt0.IsSubrange {
+		t.Error("First declaration should not be subrange")
+	}
+
+	// Second: subrange
+	stmt1, ok := program.Statements[1].(*ast.TypeDeclaration)
+	if !ok {
+		t.Fatalf("program.Statements[1] is not *ast.TypeDeclaration")
+	}
+	if stmt1.IsAlias {
+		t.Error("Second declaration should not be alias")
+	}
+	if !stmt1.IsSubrange {
+		t.Error("Second declaration should be subrange")
+	}
+
+	// Third: type alias
+	stmt2, ok := program.Statements[2].(*ast.TypeDeclaration)
+	if !ok {
+		t.Fatalf("program.Statements[2] is not *ast.TypeDeclaration")
+	}
+	if !stmt2.IsAlias {
+		t.Error("Third declaration should be alias")
+	}
+
+	// Fourth: subrange
+	stmt3, ok := program.Statements[3].(*ast.TypeDeclaration)
+	if !ok {
+		t.Fatalf("program.Statements[3] is not *ast.TypeDeclaration")
+	}
+	if !stmt3.IsSubrange {
+		t.Error("Fourth declaration should be subrange")
+	}
+}

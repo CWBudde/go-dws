@@ -190,6 +190,76 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 ---
 
+### Const Declarations (HIGH PRIORITY) ✅ **COMPLETED**
+
+**Summary**: Implement constant declarations with `const` keyword. Constants are immutable values that can be used throughout the program with compile-time type checking.
+
+**Example**: `const PI = 3.14;`, `const MAX_USERS: Integer = 1000;`
+
+#### AST Nodes (1 task)
+
+- [x] 9.23a Define `ConstDecl` in `ast/declarations.go`:
+  - [x] Fields: `Name *Identifier`, `Type *TypeAnnotation`, `Value Expression`, `Token`
+  - [x] Implement `Statement` interface methods
+  - [x] `String()` returns `const Name: Type = Value;` format
+
+#### Parser Support (2 tasks)
+
+- [x] 9.23b Extend parser to handle const declarations:
+  - [x] Detect `const` keyword in statement parsing
+  - [x] Parse const name (identifier)
+  - [x] Parse optional type annotation
+  - [x] Require `=` token
+  - [x] Parse value expression
+  - [x] Expect SEMICOLON
+  - [x] Return `ConstDecl` node
+- [x] 9.23c Add parser tests in `parser/declarations_test.go`:
+  - [x] Test parsing `const PI = 3.14;`
+  - [x] Test parsing `const MAX: Integer = 100;`
+  - [x] Test with type inference
+  - [x] Test error cases (missing value, wrong syntax)
+
+#### Semantic Analysis (2 tasks)
+
+- [x] 9.23d Implement const analysis in `semantic/analyzer.go`:
+  - [x] Validate const value is a compile-time constant expression
+  - [x] Infer type from value if type annotation omitted
+  - [x] Check type compatibility if both specified
+  - [x] Register const in symbol table as immutable
+  - [x] Prevent reassignment of const values
+- [x] 9.23e Add semantic tests in `semantic/const_test.go`:
+  - [x] Test const declaration with type annotation
+  - [x] Test const declaration with type inference
+  - [x] Test const usage in expressions
+  - [x] Test error: type mismatch
+  - [x] Test error: const reassignment
+  - [x] Test error: const redeclaration
+
+#### Interpreter Support (2 tasks)
+
+- [x] 9.23f Implement const runtime support in `interp/interpreter.go`:
+  - [x] Store const values in environment as immutable
+  - [x] Evaluate const expressions at declaration time
+  - [x] Return const values when referenced
+  - [x] Prevent runtime modification of const values
+- [x] 9.23g Add interpreter tests in `interp/const_test.go`:
+  - [x] Test const declaration and usage
+  - [x] Test const in expressions
+  - [x] Test const scoping
+
+#### Testing & Fixtures (2 tasks)
+
+- [x] 9.23h Create test scripts in `testdata/const/`:
+  - [x] `basic_const.dws` - Simple const declarations (Integer, Float, String, Boolean)
+  - [x] `const_types.dws` - Const with various types
+  - [x] `const_expressions.dws` - Const used in expressions
+  - [x] Expected outputs
+- [x] 9.23i Add CLI integration tests in `cmd/dwscript/const_test.go`:
+  - [x] Test const declaration scripts
+  - [x] Verify correct outputs
+
+---
+
 ### Ordinal Functions (HIGH PRIORITY)
 
 **Summary**: Implement ordinal functions (Inc, Dec, Succ, Pred, Low, High) for integers, enums, and chars. These are essential for iterating and manipulating ordinal types.
@@ -616,15 +686,15 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 9.79 Create test scripts in `testdata/array_functions/`:
-  - [ ] `copy.dws` - Array copying and independence
-  - [ ] `search.dws` - IndexOf and Contains
-  - [ ] `reverse.dws` - Reverse array
-  - [ ] `sort.dws` - Sort arrays
-  - [ ] Expected outputs
-- [ ] 9.80 Add CLI integration tests:
-  - [ ] Test array function scripts
-  - [ ] Verify outputs
+- [x] 9.79 Create test scripts in `testdata/array_functions/`:
+  - [x] `copy.dws` - Array copying and independence
+  - [x] `search.dws` - IndexOf and Contains
+  - [x] `reverse.dws` - Reverse array
+  - [x] `sort.dws` - Sort arrays
+  - [x] Expected outputs
+- [x] 9.80 Add CLI integration tests:
+  - [x] Test array function scripts
+  - [x] Verify outputs
 
 ---
 
@@ -661,6 +731,1085 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
   - [ ] Document Format syntax in `docs/builtins.md` (Task 9.51)
 
 ---
+
+### Subrange Types (HIGH PRIORITY)
+
+**Summary**: Implement subrange type declarations for type-safe bounded values. Subranges restrict a type to a specific range and provide runtime validation.
+
+**Example**: `type TDigit = 0..9;`, `type TPercent = 0..100;`
+
+**Reference**: docs/missing-features-recommendations.md lines 206-233
+
+#### Type System (3 tasks)
+
+- [x] 9.91 Define `SubrangeType` in `types/types.go`:
+  - [x] Fields: `Name string`, `BaseType Type` (Integer, Char, enum), `LowBound int`, `HighBound int`
+  - [x] Implement `Type` interface methods
+  - [x] `TypeKind()` returns `TypeKindSubrange`
+  - [x] `String()` returns `LowBound..HighBound`
+  - [x] `Equals(other Type)` compares base type and bounds
+  - [x] `Contains(value int)` checks if value is in range
+- [x] 9.92 Add subrange validation functions:
+  - [x] `ValidateRange(value int, subrange *SubrangeType) error`
+  - [x] Returns error if value outside bounds
+  - [x] Used by interpreter at assignment time
+- [x] 9.93 Add tests in `types/subrange_test.go`:
+  - [x] Test creating subrange types
+  - [x] Test range validation
+  - [x] Test type compatibility (subrange assignable to base type)
+  - [x] Test nested subranges: `type TSmallDigit = 0..5; type TTinyDigit: TSmallDigit = 0..3;`
+
+#### AST Nodes (2 tasks)
+
+- [x] 9.94 Extend `TypeDeclaration` in `ast/type_annotation.go`:
+  - [x] Add `IsSubrange bool` field
+  - [x] Add `LowBound Expression` and `HighBound Expression` fields
+  - [x] Update `String()` to show `type Name = Low..High;`
+- [x] 9.95 Add AST tests:
+  - [x] Test subrange type AST node creation
+  - [x] Test `String()` output for subranges
+
+#### Parser Support (2 tasks)
+
+- [x] 9.96 Extend `parseTypeDeclaration()` in `parser/type_declarations.go`:
+  - [x] After parsing type name and `=`, check for subrange pattern
+  - [x] Parse low bound expression (must be constant)
+  - [x] Expect `..` token (DOTDOT)
+  - [x] Parse high bound expression (must be constant)
+  - [x] Expect SEMICOLON
+  - [x] Return TypeDeclaration with IsSubrange=true
+- [x] 9.97 Add parser tests in `parser/type_test.go`:
+  - [x] Test parsing `type TDigit = 0..9;`
+  - [x] Test parsing `type TPercent = 0..100;`
+  - [x] Test parsing negative ranges: `type TTemperature = -40..50;`
+  - [x] Test error cases (missing DOTDOT, missing semicolon, missing bounds)
+
+#### Semantic Analysis (2 tasks)
+
+- [x] 9.98 Implement subrange analysis in `semantic/analyze_types.go`:
+  - [x] In `analyzeTypeDeclaration()`, detect subrange type
+  - [x] Evaluate low and high bound expressions (must be compile-time constants)
+  - [x] Validate low <= high
+  - [x] Create SubrangeType and register in type environment
+  - [x] Check type compatibility in assignments (subrange ↔ base type)
+- [x] 9.99 Add semantic tests in `semantic/subrange_test.go`:
+  - [x] Test subrange type registration
+  - [x] Test using subrange in variable declaration: `var digit: TDigit;`
+  - [x] Test assignment validation: `digit := 5;` (OK), `digit := 99;` (error at runtime)
+  - [x] Test error: low > high
+  - [x] Test error: non-constant bounds
+
+#### Interpreter Support (2 tasks)
+
+- [x] 9.100 Implement subrange runtime support in `interp/interpreter.go`:
+  - [x] In `resolveType()`, handle SubrangeType
+  - [x] On assignment to subrange variable, call `ValidateRange()`
+  - [x] Raise runtime error if value out of bounds
+  - [x] Add tests in `interp/subrange_test.go`
+- [x] 9.101 Add subrange coercion support:
+  - [x] Subrange values assignable to base type (no check needed)
+  - [x] Base type values assignable to subrange (runtime check)
+  - [x] Test bidirectional assignment
+
+#### Testing & Fixtures (1 task)
+
+- [x] 9.102 Create test scripts in `testdata/subrange/`:
+  - [x] `basic_subrange.dws` - Simple subrange declarations and usage
+  - [x] `subrange_validation.dws` - Runtime validation (should fail with out-of-range error)
+  - [x] `subrange_functions.dws` - Subranges as parameters and return types
+  - [x] Expected outputs (some with runtime errors)
+  - [x] Add CLI integration tests
+
+---
+
+### Units/Modules System (CRITICAL)
+
+**Summary**: Implement a units/modules system for organizing code across multiple files. Essential for larger programs and code reuse.
+
+**Example**:
+```pascal
+unit MyUtils;
+
+interface
+  function Add(a, b: Integer): Integer;
+
+implementation
+  function Add(a, b: Integer): Integer;
+  begin
+    Result := a + b;
+  end;
+
+initialization
+  PrintLn('MyUtils loaded');
+
+finalization
+  PrintLn('MyUtils unloading');
+end.
+```
+
+**Reference**: docs/missing-features-recommendations.md lines 149-168
+
+#### Type System and Data Structures (5 tasks)
+
+- [ ] 9.103 Create `units/` package directory
+- [ ] 9.104 Create `units/unit.go` - Unit representation:
+  - [ ] Define `Unit` struct with `Name string`, `InterfaceSection *ast.Block`, `ImplementationSection *ast.Block`
+  - [ ] Add `InitializationSection *ast.Block` and `FinalizationSection *ast.Block`
+  - [ ] Add `Uses []string` (list of imported units)
+  - [ ] Add `Symbols *semantic.SymbolTable` (exported symbols from interface)
+  - [ ] Add `FilePath string` (source file path)
+- [ ] 9.105 Create `units/registry.go` - Unit registry:
+  - [ ] Define `UnitRegistry` struct with map of loaded units
+  - [ ] Implement `RegisterUnit(name string, unit *Unit) error`
+  - [ ] Implement `LoadUnit(name string, searchPaths []string) (*Unit, error)`
+  - [ ] Implement circular dependency detection
+  - [ ] Cache compiled units to avoid reloading
+- [ ] 9.106 Create `units/search.go` - Unit search paths:
+  - [ ] Implement `FindUnit(name string, paths []string) (string, error)`
+  - [ ] Support relative and absolute paths
+  - [ ] Search in: current directory, specified paths, system paths
+  - [ ] File naming convention: `UnitName.dws` or `UnitName.pas`
+- [ ] 9.107 Add unit tests for registry and search functionality
+
+#### AST Nodes (3 tasks)
+
+- [ ] 9.108 Create `ast/unit.go` - Unit AST nodes:
+  - [ ] Define `UnitDeclaration` struct implementing `Node`
+  - [ ] Fields: `Name *Identifier`, `InterfaceSection *Block`, `ImplementationSection *Block`, `InitSection *Block`, `FinalSection *Block`
+  - [ ] Implement `String()` method
+- [ ] 9.109 Define `UsesClause` struct:
+  - [ ] Fields: `Units []*Identifier` (list of unit names)
+  - [ ] Appears in both interface and implementation sections
+  - [ ] Implement `String()` method
+- [ ] 9.110 Add AST tests for unit nodes
+
+#### Lexer Support (2 tasks)
+
+- [ ] 9.111 Add unit-related keywords to lexer:
+  - [ ] `UNIT`, `INTERFACE`, `IMPLEMENTATION`, `USES`
+  - [ ] `INITIALIZATION`, `FINALIZATION`
+  - [ ] Update `token_type.go` and keyword map
+- [ ] 9.112 Add lexer tests for new keywords
+
+#### Parser Support (8 tasks)
+
+- [ ] 9.113 Create `parser/unit.go` - Unit parsing:
+  - [ ] Implement `parseUnit() *ast.UnitDeclaration`
+  - [ ] Parse `unit` keyword and name
+  - [ ] Expect SEMICOLON
+  - [ ] Parse interface section (starts with `interface`)
+  - [ ] Parse implementation section (starts with `implementation`)
+  - [ ] Parse optional initialization section
+  - [ ] Parse optional finalization section
+  - [ ] Expect `end.` to close unit
+- [ ] 9.114 Implement `parseInterfaceSection() *ast.Block`:
+  - [ ] Parse uses clause (if present)
+  - [ ] Parse declarations (types, constants, functions/procedures signatures only)
+  - [ ] No implementation code in interface
+- [ ] 9.115 Implement `parseImplementationSection() *ast.Block`:
+  - [ ] Parse uses clause (if present)
+  - [ ] Parse full function/procedure implementations
+  - [ ] Parse private declarations (not exported)
+- [ ] 9.116 Implement `parseUsesClause() *ast.UsesClause`:
+  - [ ] Parse `uses` keyword
+  - [ ] Parse comma-separated unit names
+  - [ ] Expect SEMICOLON
+- [ ] 9.117 Implement `parseInitializationSection() *ast.Block`:
+  - [ ] Parse `initialization` keyword
+  - [ ] Parse statement list
+  - [ ] Ends at `finalization` or `end`
+- [ ] 9.118 Implement `parseFinalizationSection() *ast.Block`:
+  - [ ] Parse `finalization` keyword
+  - [ ] Parse statement list
+  - [ ] Ends at `end`
+- [ ] 9.119 Update main parser to detect unit vs program:
+  - [ ] If file starts with `unit`, parse as unit
+  - [ ] Otherwise, parse as program
+- [ ] 9.120 Add parser tests for units in `parser/unit_test.go`
+
+#### Semantic Analysis (10 tasks)
+
+- [ ] 9.121 Create `semantic/unit_analyzer.go`:
+  - [ ] Implement `AnalyzeUnit(unit *ast.UnitDeclaration, registry *units.UnitRegistry) error`
+  - [ ] Build symbol table for interface section (exported symbols)
+  - [ ] Analyze implementation section with access to interface symbols
+  - [ ] Validate that all interface declarations have implementations
+- [ ] 9.122 Implement uses clause resolution:
+  - [ ] For each unit in uses clause, load it from registry
+  - [ ] Import exported symbols into current scope
+  - [ ] Handle name conflicts (error or qualified access)
+  - [ ] Build dependency graph
+- [ ] 9.123 Implement circular dependency detection:
+  - [ ] Track unit dependency chain during loading
+  - [ ] Detect cycles: A uses B, B uses A
+  - [ ] Report error with cycle path
+- [ ] 9.124 Implement namespace resolution:
+  - [ ] Support qualified access: `UnitName.SymbolName`
+  - [ ] Support unqualified access for imported symbols
+  - [ ] Handle ambiguous symbols (multiple units export same name)
+- [ ] 9.125 Implement interface/implementation validation:
+  - [ ] Check that all interface functions have implementation
+  - [ ] Check signatures match exactly
+  - [ ] Check visibility rules (private vs public)
+- [ ] 9.126 Handle forward declarations across units:
+  - [ ] Interface declares functions
+  - [ ] Implementation provides bodies
+  - [ ] Cross-unit calls use interface signatures
+- [ ] 9.127 Implement unit initialization order:
+  - [ ] Topological sort of dependency graph
+  - [ ] Units initialize in dependency order
+  - [ ] Finalize in reverse order
+- [ ] 9.128 Add semantic tests for units
+- [ ] 9.129 Test circular dependency detection
+- [ ] 9.130 Test namespace resolution and conflicts
+
+#### Interpreter Support (8 tasks)
+
+- [ ] 9.131 Create `interp/unit_loader.go`:
+  - [ ] Implement `LoadUnit(name string, registry *units.UnitRegistry) error`
+  - [ ] Load and analyze unit if not already loaded
+  - [ ] Execute initialization section
+  - [ ] Register exported symbols in global environment
+- [ ] 9.132 Implement unit initialization:
+  - [ ] Execute initialization blocks in dependency order
+  - [ ] Track initialized units to avoid double-init
+  - [ ] Handle initialization errors
+- [ ] 9.133 Implement unit finalization:
+  - [ ] Execute finalization blocks at program exit
+  - [ ] Finalize in reverse dependency order
+  - [ ] Handle finalization errors gracefully
+- [ ] 9.134 Implement qualified name resolution:
+  - [ ] `UnitName.FunctionName()` calls
+  - [ ] Lookup in unit's exported symbols
+  - [ ] Cache lookups for performance
+- [ ] 9.135 Implement unit symbol import:
+  - [ ] Import symbols from used units into current environment
+  - [ ] Handle naming conflicts
+  - [ ] Support hiding/renaming (if DWScript supports it)
+- [ ] 9.136 Add tests for unit loading and initialization
+- [ ] 9.137 Test cross-unit function calls
+- [ ] 9.138 Test initialization/finalization order
+
+#### CLI and Tooling (3 tasks)
+
+- [ ] 9.139 Update CLI to support unit compilation:
+  - [ ] Add `-I` flag for unit search paths
+  - [ ] `./bin/dwscript run main.dws -I ./units -I ./lib`
+  - [ ] Display loaded units and dependency order
+- [ ] 9.140 Implement unit compilation cache:
+  - [ ] Cache parsed and analyzed units
+  - [ ] Invalidate cache on file modification
+  - [ ] Speed up repeated runs
+- [ ] 9.141 Add `--show-units` flag to display unit dependency tree
+
+#### Testing & Fixtures (4 tasks)
+
+- [ ] 9.142 Create test units in `testdata/units/`:
+  - [ ] `MathUtils.dws` - Math helper functions
+  - [ ] `StringUtils.dws` - String helper functions
+  - [ ] `main.dws` - Program that uses both units
+  - [ ] Test initialization and finalization output
+- [ ] 9.143 Create circular dependency test:
+  - [ ] `UnitA.dws` uses `UnitB`
+  - [ ] `UnitB.dws` uses `UnitA`
+  - [ ] Verify error is caught
+- [ ] 9.144 Create namespace conflict test:
+  - [ ] Two units export same function name
+  - [ ] Test qualified access resolves correctly
+  - [ ] Test unqualified access reports ambiguity
+- [ ] 9.145 Add CLI integration tests for units
+
+---
+
+### Function/Method Pointers (HIGH VALUE)
+
+**Summary**: Implement function and method pointers for callbacks, event handlers, and higher-order functions. Essential for functional programming patterns.
+
+**Example**:
+```pascal
+type
+  TComparator = function(a, b: Integer): Integer;
+
+function Ascending(a, b: Integer): Integer;
+begin
+  Result := a - b;
+end;
+
+var compare: TComparator;
+begin
+  compare := @Ascending;
+  PrintLn(compare(5, 3)); // Output: 2
+end.
+```
+
+**Reference**: docs/missing-features-recommendations.md lines 171-203
+
+#### Type System (5 tasks)
+
+- [ ] 9.146 Define `FunctionPointerType` in `types/types.go`:
+  - [ ] Fields: `Params []Type`, `ReturnType Type` (nil for procedures)
+  - [ ] Implement `Type` interface methods
+  - [ ] `TypeKind()` returns `TypeKindFunctionPointer`
+  - [ ] `String()` returns `function(params): ReturnType` or `procedure(params)`
+  - [ ] `Equals(other Type)` compares signatures
+- [ ] 9.147 Define `MethodPointerType` in `types/types.go`:
+  - [ ] Extends `FunctionPointerType` with `OfObject bool`
+  - [ ] Stores both function pointer and object instance (`Self`)
+  - [ ] `String()` returns `function(...) of object`
+- [ ] 9.148 Implement function pointer compatibility:
+  - [ ] Check parameter types match exactly
+  - [ ] Check return type matches
+  - [ ] Method pointers compatible with function pointers if signatures match
+- [ ] 9.149 Add tests in `types/function_pointer_test.go`
+- [ ] 9.150 Test function pointer equality and compatibility
+
+#### AST Nodes (3 tasks)
+
+- [ ] 9.151 Create `ast/function_pointer.go`:
+  - [ ] Define `FunctionPointerType` AST node
+  - [ ] Fields: `Params []*ParameterDecl`, `ReturnType *TypeAnnotation`, `OfObject bool`
+  - [ ] Implement `TypeAnnotation` interface
+  - [ ] Implement `String()` method
+- [ ] 9.152 Define `AddressOfExpression` for `@functionName`:
+  - [ ] Fields: `Operator Token`, `Operand Expression`
+  - [ ] Implement `Expression` interface
+  - [ ] Used to get function pointer
+- [ ] 9.153 Add AST tests
+
+#### Lexer Support (1 task)
+
+- [ ] 9.154 Add `@` operator (AT) to lexer if not already present:
+  - [ ] Used for address-of operator: `@functionName`
+  - [ ] Update token types
+
+#### Parser Support (4 tasks)
+
+- [ ] 9.155 Extend `parseTypeAnnotation()` to handle function pointer types:
+  - [ ] Detect `function(` or `procedure(` in type context
+  - [ ] Parse parameter list
+  - [ ] Parse optional return type
+  - [ ] Parse optional `of object` clause
+  - [ ] Return `FunctionPointerType` node
+- [ ] 9.156 Implement address-of operator parsing:
+  - [ ] Detect `@` prefix in expression
+  - [ ] Parse target identifier (function/procedure name)
+  - [ ] Return `AddressOfExpression` node
+- [ ] 9.157 Add parser tests for function pointer types
+- [ ] 9.158 Add parser tests for `@` operator
+
+#### Semantic Analysis (5 tasks)
+
+- [ ] 9.159 Create `semantic/function_pointer_analyzer.go`:
+  - [ ] Analyze function pointer type declarations
+  - [ ] Validate signatures (no duplicate param names, valid types)
+  - [ ] Register function pointer types in type environment
+- [ ] 9.160 Implement address-of expression analysis:
+  - [ ] Resolve target function/procedure
+  - [ ] Create function pointer value with signature
+  - [ ] Type is `FunctionPointerType` matching target signature
+  - [ ] For methods, create `MethodPointerType`
+- [ ] 9.161 Implement function pointer assignment validation:
+  - [ ] Check signatures are compatible
+  - [ ] Allow assignment: `var f: TFunc; f := @MyFunc;`
+  - [ ] Check method pointers match `of object` requirement
+- [ ] 9.162 Implement function pointer call validation:
+  - [ ] `functionPointerVar(args)` syntax
+  - [ ] Validate argument types match parameter types
+  - [ ] Infer return type from function pointer type
+- [ ] 9.163 Add semantic tests for function pointers
+
+#### Interpreter Support (6 tasks)
+
+- [ ] 9.164 Create runtime representation in `interp/value.go`:
+  - [ ] Define `FunctionPointerValue` struct
+  - [ ] Fields: `Function *ast.FunctionDecl`, `Closure *Environment`
+  - [ ] For method pointers: add `SelfObject Value`
+- [ ] 9.165 Implement address-of operator evaluation:
+  - [ ] Look up function/procedure in environment
+  - [ ] Create `FunctionPointerValue` wrapping it
+  - [ ] Capture current environment for closures (if needed later)
+  - [ ] For methods, capture `Self` object
+- [ ] 9.166 Implement function pointer call execution:
+  - [ ] Evaluate function pointer expression
+  - [ ] Evaluate arguments
+  - [ ] Call the wrapped function with arguments
+  - [ ] For method pointers, bind `Self` before calling
+  - [ ] Return result
+- [ ] 9.167 Implement function pointer assignment:
+  - [ ] Store `FunctionPointerValue` in variable
+  - [ ] Validate type compatibility at assignment time
+- [ ] 9.168 Add tests in `interp/function_pointer_test.go`
+- [ ] 9.169 Test passing function pointers as parameters
+
+#### Testing & Fixtures (3 tasks)
+
+- [ ] 9.170 Create test scripts in `testdata/function_pointers/`:
+  - [ ] `basic_function_pointer.dws` - Simple function pointer usage
+  - [ ] `callback.dws` - Pass function pointer as callback
+  - [ ] `method_pointer.dws` - Method pointers with `of object`
+  - [ ] `sort_with_comparator.dws` - Custom sort with comparator function
+  - [ ] Expected outputs
+- [ ] 9.171 Add CLI integration tests
+- [ ] 9.172 Document function pointer limitations (if any)
+
+---
+
+### External Function Registration / FFI (HIGH PRIORITY)
+
+**Summary**: Implement Foreign Function Interface (FFI) to register Go functions callable from DWScript. Enables DWScript scripts to access Go ecosystem.
+
+**Example** (Go side):
+```go
+interp.RegisterFunction("HttpGet", func(url string) (string, error) {
+    resp, err := http.Get(url)
+    if err != nil {
+        return "", err
+    }
+    defer resp.Body.Close()
+    body, _ := io.ReadAll(resp.Body)
+    return string(body), nil
+})
+```
+
+**Example** (DWScript side):
+```pascal
+var html := HttpGet('https://example.com');
+PrintLn(html);
+```
+
+**Reference**: docs/missing-features-recommendations.md lines 236-268
+
+#### Public API Design (5 tasks)
+
+- [ ] 9.173 Create `pkg/dwscript/ffi.go`:
+  - [ ] Define `ExternalFunction` interface
+  - [ ] Define `FunctionSignature` struct with param types and return type
+  - [ ] Define `RegisterFunction(name string, fn interface{}) error` method on `Engine`
+  - [ ] Validate function signature at registration time
+  - [ ] Store in registry map
+- [ ] 9.174 Define type mapping rules (Go ↔ DWScript):
+  - [ ] `int`, `int32`, `int64` ↔ `Integer`
+  - [ ] `float64` ↔ `Float`
+  - [ ] `string` ↔ `String`
+  - [ ] `bool` ↔ `Boolean`
+  - [ ] `[]T` ↔ `array of T`
+  - [ ] `map[string]T` ↔ `record` or associative array
+  - [ ] `error` ↔ exception (raise on error)
+- [ ] 9.175 Define calling conventions:
+  - [ ] Go function receives DWScript arguments as `[]interface{}`
+  - [ ] Returns `(interface{}, error)`
+  - [ ] Error return raises DWScript exception
+  - [ ] Support variadic Go functions
+- [ ] 9.176 Add tests for API design
+- [ ] 9.177 Document FFI in `docs/ffi.md`
+
+#### Type Marshaling (8 tasks)
+
+- [ ] 9.178 Create `interp/marshal.go`:
+  - [ ] Implement `MarshalToGo(dwsValue Value) (interface{}, error)`
+  - [ ] Convert DWScript values to Go values
+  - [ ] Handle all primitive types
+  - [ ] Handle arrays, records, objects
+- [ ] 9.179 Implement `MarshalToDWS(goValue interface{}) (Value, error)`:
+  - [ ] Convert Go values to DWScript values
+  - [ ] Use reflection to inspect Go types
+  - [ ] Handle primitives, slices, maps, structs
+- [ ] 9.180 Implement integer marshaling:
+  - [ ] `int`, `int32`, `int64` → `IntegerValue`
+  - [ ] `IntegerValue` → `int64`
+- [ ] 9.181 Implement float marshaling:
+  - [ ] `float64` → `FloatValue`
+  - [ ] `FloatValue` → `float64`
+- [ ] 9.182 Implement string marshaling:
+  - [ ] `string` → `StringValue`
+  - [ ] `StringValue` → `string`
+- [ ] 9.183 Implement bool marshaling:
+  - [ ] `bool` → `BoolValue`
+  - [ ] `BoolValue` → `bool`
+- [ ] 9.184 Implement array marshaling:
+  - [ ] `[]interface{}` ↔ `ArrayValue`
+  - [ ] Element-wise conversion
+- [ ] 9.185 Add marshaling tests
+
+#### Function Registration (6 tasks)
+
+- [ ] 9.186 Create `interp/external_functions.go`:
+  - [ ] Define `ExternalFunctionRegistry` struct
+  - [ ] Implement `Register(name string, fn interface{}) error`
+  - [ ] Use reflection to extract Go function signature
+  - [ ] Validate signature (supported types only)
+  - [ ] Store function with wrapper
+- [ ] 9.187 Implement signature extraction:
+  - [ ] Use `reflect.TypeOf(fn)` to get function type
+  - [ ] Extract parameter types
+  - [ ] Extract return types (support 0-2 returns: value, error)
+  - [ ] Map Go types to DWScript types
+- [ ] 9.188 Create function call wrapper:
+  - [ ] Wrapper accepts DWScript arguments
+  - [ ] Marshals DWScript → Go
+  - [ ] Calls Go function via reflection
+  - [ ] Marshals Go return → DWScript
+  - [ ] Handles errors (convert to exceptions)
+- [ ] 9.189 Integrate registry with interpreter:
+  - [ ] Lookup external functions during function calls
+  - [ ] Call wrapper instead of DWScript function
+- [ ] 9.190 Add tests for registration
+- [ ] 9.191 Test function call execution
+
+#### Error Handling (4 tasks)
+
+- [ ] 9.192 Implement error marshaling:
+  - [ ] Go `error` return → DWScript exception
+  - [ ] Raise exception with error message
+  - [ ] Preserve stack trace across boundary
+- [ ] 9.193 Handle panics in Go functions:
+  - [ ] Recover from panics in wrapper
+  - [ ] Convert panic to DWScript exception
+  - [ ] Include panic message and stack
+- [ ] 9.194 Add tests for error handling
+- [ ] 9.195 Test panic recovery
+
+#### Advanced Features (6 tasks)
+
+- [ ] 9.196 Support variadic Go functions:
+  - [ ] Detect `...` parameter in Go signature
+  - [ ] Accept variable number of DWScript arguments
+  - [ ] Pack into slice for Go function
+- [ ] 9.197 Support optional parameters:
+  - [ ] Default values in DWScript
+  - [ ] Map to Go function overloads or optional args
+- [ ] 9.198 Support by-reference parameters:
+  - [ ] `var` parameters in DWScript
+  - [ ] Pointers in Go
+  - [ ] Sync changes back to DWScript after call
+- [ ] 9.199 Support registering Go methods:
+  - [ ] Methods on Go structs
+  - [ ] Bind receiver automatically
+- [ ] 9.200 Support callback functions:
+  - [ ] DWScript function pointers passed to Go
+  - [ ] Go can call back into DWScript
+  - [ ] Handle re-entrancy
+- [ ] 9.201 Add tests for advanced features
+
+#### Documentation and Examples (3 tasks)
+
+- [ ] 9.202 Create `docs/ffi-guide.md`:
+  - [ ] Complete guide to FFI usage
+  - [ ] Type mapping table
+  - [ ] Registration examples
+  - [ ] Error handling guide
+  - [ ] Best practices
+- [ ] 9.203 Create example in `examples/ffi/`:
+  - [ ] Go program that registers functions
+  - [ ] DWScript script that calls them
+  - [ ] Demonstrate various types and features
+- [ ] 9.204 Add API documentation to `pkg/dwscript/`
+
+#### Testing & Fixtures (3 tasks)
+
+- [ ] 9.205 Create test scripts in `testdata/ffi/`:
+  - [ ] `basic_ffi.dws` - Call simple Go functions
+  - [ ] `array_passing.dws` - Pass arrays to Go
+  - [ ] `error_handling.dws` - Handle Go errors
+  - [ ] Expected outputs
+- [ ] 9.206 Create Go test suite for FFI
+- [ ] 9.207 Add integration tests calling real Go functions
+
+---
+
+### Lambdas/Anonymous Methods (MEDIUM PRIORITY)
+
+**Summary**: Implement lambda expressions and anonymous methods for inline function definitions. Enables functional programming patterns and cleaner callback code.
+
+**Example**:
+```pascal
+var numbers := [1, 2, 3, 4, 5];
+var doubled := Map(numbers, lambda(x: Integer): Integer begin Result := x * 2; end);
+PrintLn(doubled); // [2, 4, 6, 8, 10]
+```
+
+**Reference**: docs/missing-features-recommendations.md lines 274-277
+
+**Dependencies**: Requires Function Pointers (tasks 9.146-9.172)
+
+#### AST Nodes (3 tasks)
+
+- [ ] 9.208 Create `ast/lambda.go`:
+  - [ ] Define `LambdaExpression` struct implementing `Expression`
+  - [ ] Fields: `Params []*ParameterDecl`, `ReturnType *TypeAnnotation`, `Body *Block`
+  - [ ] Implement `String()` method
+  - [ ] Implement `Expression` interface
+- [ ] 9.209 Add short-hand lambda syntax support (optional):
+  - [ ] `lambda(x) => x * 2` (single expression)
+  - [ ] Desugar to full lambda with begin/end
+- [ ] 9.210 Add AST tests
+
+#### Lexer Support (1 task)
+
+- [ ] 9.211 Add `lambda` keyword to lexer:
+  - [ ] Update token types
+  - [ ] Add to keyword map
+  - [ ] Test lexing lambda expressions
+
+#### Parser Support (4 tasks)
+
+- [ ] 9.212 Implement lambda parsing in `parser/expressions.go`:
+  - [ ] Detect `lambda` keyword
+  - [ ] Parse parameter list (with types)
+  - [ ] Parse optional return type
+  - [ ] Parse body (begin/end block or single expression)
+  - [ ] Return `LambdaExpression` node
+- [ ] 9.213 Implement short-hand lambda parsing (if supported):
+  - [ ] `lambda(params) => expression`
+  - [ ] Desugar to full lambda
+- [ ] 9.214 Handle lambda in expression context:
+  - [ ] Lambda can appear anywhere expression is expected
+  - [ ] Precedence handling
+- [ ] 9.215 Add parser tests for lambdas
+
+#### Semantic Analysis (5 tasks)
+
+- [ ] 9.216 Create `semantic/lambda_analyzer.go`:
+  - [ ] Analyze lambda expressions
+  - [ ] Create new scope for lambda parameters
+  - [ ] Analyze lambda body in nested scope
+  - [ ] Infer return type from body if not specified
+  - [ ] Type is `FunctionPointerType` matching signature
+- [ ] 9.217 Implement closure capture analysis:
+  - [ ] Identify variables from outer scopes used in lambda
+  - [ ] Mark them for capture
+  - [ ] Validate captured variables are accessible
+- [ ] 9.218 Implement lambda type inference:
+  - [ ] If parameter types not specified, try to infer from context
+  - [ ] If return type not specified, infer from body
+  - [ ] Report error if inference fails
+- [ ] 9.219 Add semantic tests for lambdas
+- [ ] 9.220 Test closure capture and type inference
+
+#### Interpreter Support (6 tasks)
+
+- [ ] 9.221 Implement closure representation in `interp/value.go`:
+  - [ ] Extend `FunctionPointerValue` to store captured variables
+  - [ ] Create `ClosureValue` struct
+  - [ ] Store environment snapshot at lambda creation time
+- [ ] 9.222 Implement lambda evaluation:
+  - [ ] Evaluate lambda expression
+  - [ ] Capture current environment (closure)
+  - [ ] Create `ClosureValue` with parameters, body, and captured environment
+  - [ ] Return closure as function pointer value
+- [ ] 9.223 Implement closure invocation:
+  - [ ] When closure is called, create new environment
+  - [ ] Bind parameters to arguments
+  - [ ] Restore captured environment
+  - [ ] Execute body
+  - [ ] Return result
+- [ ] 9.224 Handle variable capture:
+  - [ ] Copy values of captured variables (value semantics)
+  - [ ] Or use references (reference semantics) - decide based on DWScript
+  - [ ] Test both approaches
+- [ ] 9.225 Add tests in `interp/lambda_test.go`
+- [ ] 9.226 Test nested lambdas and complex closures
+
+#### Higher-Order Function Support (4 tasks)
+
+- [ ] 9.227 Implement built-in higher-order functions:
+  - [ ] `Map(array, lambda)` - Transform array elements
+  - [ ] `Filter(array, lambda)` - Filter array by predicate
+  - [ ] `Reduce(array, lambda, initial)` - Reduce array to single value
+  - [ ] `ForEach(array, lambda)` - Execute lambda for each element
+- [ ] 9.228 Add tests for higher-order functions
+- [ ] 9.229 Create examples using lambdas with higher-order functions
+- [ ] 9.230 Document higher-order functions in `docs/builtins.md`
+
+#### Testing & Fixtures (3 tasks)
+
+- [ ] 9.231 Create test scripts in `testdata/lambdas/`:
+  - [ ] `basic_lambda.dws` - Simple lambda usage
+  - [ ] `closure.dws` - Variable capture
+  - [ ] `higher_order.dws` - Map, Filter, Reduce examples
+  - [ ] `nested_lambda.dws` - Nested lambdas
+  - [ ] Expected outputs
+- [ ] 9.232 Add CLI integration tests
+- [ ] 9.233 Document lambda syntax in `docs/lambdas.md`
+
+---
+
+### Helpers (Class/Record/Type) (MEDIUM PRIORITY)
+
+**Summary**: Implement helper types to extend existing types with additional methods without modifying the original type declaration.
+
+**Example**:
+```pascal
+type
+  TStringHelper = record helper for String
+    function ToUpper: String;
+    function ToLower: String;
+  end;
+
+function TStringHelper.ToUpper: String;
+begin
+  Result := UpperCase(Self);
+end;
+
+var s := 'hello';
+PrintLn(s.ToUpper()); // Output: HELLO
+```
+
+**Reference**: docs/missing-features-recommendations.md lines 279-283
+
+#### Type System (3 tasks)
+
+- [ ] 9.234 Define `HelperType` in `types/types.go`:
+  - [ ] Fields: `Name string`, `ForType Type`, `Methods []*FunctionType`
+  - [ ] Implement `Type` interface
+  - [ ] `TypeKind()` returns `TypeKindHelper`
+  - [ ] `String()` returns `record helper for TypeName`
+- [ ] 9.235 Implement helper method resolution:
+  - [ ] When accessing method on a type, check for helpers
+  - [ ] Helpers extend the type's method set
+  - [ ] Prioritize: instance methods > helper methods
+- [ ] 9.236 Add tests for helper types
+
+#### AST Nodes (2 tasks)
+
+- [ ] 9.237 Create `ast/helper.go`:
+  - [ ] Define `HelperDeclaration` struct
+  - [ ] Fields: `Name *Identifier`, `HelperKind string` (class/record), `ForType *TypeAnnotation`, `Methods []*FunctionDecl`
+  - [ ] Implement `Node` interface
+  - [ ] Implement `String()` method
+- [ ] 9.238 Add AST tests
+
+#### Lexer Support (1 task)
+
+- [ ] 9.239 Add `helper` keyword to lexer:
+  - [ ] Update token types
+  - [ ] Add to keyword map
+
+#### Parser Support (3 tasks)
+
+- [ ] 9.240 Implement helper parsing in `parser/type_declarations.go`:
+  - [ ] Detect `record helper for` or `class helper for` pattern
+  - [ ] Parse helper name
+  - [ ] Parse `for` keyword and target type
+  - [ ] Parse method declarations
+  - [ ] Expect `end;`
+  - [ ] Return `HelperDeclaration` node
+- [ ] 9.241 Add parser tests for helpers
+- [ ] 9.242 Test class helpers and record helpers separately
+
+#### Semantic Analysis (4 tasks)
+
+- [ ] 9.243 Create `semantic/helper_analyzer.go`:
+  - [ ] Analyze helper declarations
+  - [ ] Resolve target type (`for` type)
+  - [ ] Validate helper methods (must have `Self` of target type)
+  - [ ] Register helper in type environment
+- [ ] 9.244 Implement helper method resolution:
+  - [ ] When analyzing member access on a type, check for applicable helpers
+  - [ ] Add helper methods to type's method set
+  - [ ] Resolve method name conflicts (prefer instance methods)
+- [ ] 9.245 Implement `Self` binding in helper methods:
+  - [ ] `Self` refers to the instance of the target type
+  - [ ] Type of `Self` is the helper's target type
+- [ ] 9.246 Add semantic tests for helpers
+
+#### Interpreter Support (4 tasks)
+
+- [ ] 9.247 Implement helper method dispatch:
+  - [ ] When calling method on object, check for helper methods
+  - [ ] Bind `Self` to the target object
+  - [ ] Execute helper method with `Self` bound
+- [ ] 9.248 Implement helper method storage:
+  - [ ] Store helpers in registry indexed by target type
+  - [ ] Lookup helpers at method call time
+- [ ] 9.249 Add tests in `interp/helper_test.go`
+- [ ] 9.250 Test helper method calls and `Self` binding
+
+#### Testing & Fixtures (3 tasks)
+
+- [ ] 9.251 Create test scripts in `testdata/helpers/`:
+  - [ ] `string_helper.dws` - String helper with methods
+  - [ ] `record_helper.dws` - Record helper example
+  - [ ] `class_helper.dws` - Class helper example
+  - [ ] Expected outputs
+- [ ] 9.252 Add CLI integration tests
+- [ ] 9.253 Document helpers in `docs/helpers.md`
+
+---
+
+### DateTime Functions (MEDIUM PRIORITY)
+
+**Summary**: Implement comprehensive date/time functionality including current date/time, formatting, parsing, and arithmetic operations.
+
+**Reference**: docs/missing-features-recommendations.md lines 289-292
+
+#### Type System (2 tasks)
+
+- [ ] 9.254 Define `TDateTime` type:
+  - [ ] Internal representation: float (days since 1899-12-30, like Delphi)
+  - [ ] Fractional part represents time
+  - [ ] Add to type system as primitive type
+- [ ] 9.255 Add tests for DateTime type
+
+#### Built-in Functions - Current Date/Time (4 tasks)
+
+- [ ] 9.256 Implement `Now(): TDateTime`:
+  - [ ] Returns current date and time
+  - [ ] Use Go's `time.Now()`
+  - [ ] Convert to TDateTime format
+- [ ] 9.257 Implement `Date(): TDateTime`:
+  - [ ] Returns current date (time part = 0.0)
+- [ ] 9.258 Implement `Time(): TDateTime`:
+  - [ ] Returns current time (date part = 0.0)
+- [ ] 9.259 Add tests for Now/Date/Time
+
+#### Built-in Functions - Date Construction (4 tasks)
+
+- [ ] 9.260 Implement `EncodeDate(year, month, day: Integer): TDateTime`:
+  - [ ] Construct date from components
+  - [ ] Validate inputs (valid month, day)
+  - [ ] Return TDateTime value
+- [ ] 9.261 Implement `EncodeTime(hour, min, sec, msec: Integer): TDateTime`:
+  - [ ] Construct time from components
+  - [ ] Validate inputs
+- [ ] 9.262 Implement `EncodeDateTime(y, m, d, h, min, s, ms: Integer): TDateTime`:
+  - [ ] Combine date and time
+- [ ] 9.263 Add tests for date construction
+
+#### Built-in Functions - Date Extraction (4 tasks)
+
+- [ ] 9.264 Implement `DecodeDate(dt: TDateTime; var y, m, d: Integer)`:
+  - [ ] Extract year, month, day components
+  - [ ] Use var parameters to return multiple values
+- [ ] 9.265 Implement `DecodeTime(dt: TDateTime; var h, min, s, ms: Integer)`:
+  - [ ] Extract time components
+- [ ] 9.266 Implement component functions:
+  - [ ] `YearOf(dt: TDateTime): Integer`
+  - [ ] `MonthOf(dt: TDateTime): Integer`
+  - [ ] `DayOf(dt: TDateTime): Integer`
+  - [ ] `HourOf(dt: TDateTime): Integer`
+  - [ ] `MinuteOf(dt: TDateTime): Integer`
+  - [ ] `SecondOf(dt: TDateTime): Integer`
+- [ ] 9.267 Add tests for date extraction
+
+#### Built-in Functions - Formatting (3 tasks)
+
+- [ ] 9.268 Implement `FormatDateTime(fmt: String, dt: TDateTime): String`:
+  - [ ] Support format specifiers: `yyyy`, `mm`, `dd`, `hh`, `nn`, `ss`
+  - [ ] Example: `FormatDateTime('yyyy-mm-dd', Now())` → '2025-10-27'
+  - [ ] Use Go's time formatting internally
+- [ ] 9.269 Implement `DateToStr(dt: TDateTime): String`:
+  - [ ] Default date format
+- [ ] 9.270 Implement `TimeToStr(dt: TDateTime): String`:
+  - [ ] Default time format
+
+#### Built-in Functions - Parsing (2 tasks)
+
+- [ ] 9.271 Implement `StrToDate(s: String): TDateTime`:
+  - [ ] Parse date string
+  - [ ] Support common formats
+  - [ ] Raise error on invalid input
+- [ ] 9.272 Implement `StrToDateTime(s: String): TDateTime`:
+  - [ ] Parse date/time string
+
+#### Built-in Functions - Date Arithmetic (3 tasks)
+
+- [ ] 9.273 Implement date arithmetic operators:
+  - [ ] `dt1 - dt2` → days difference (Float)
+  - [ ] `dt + days` → new date
+  - [ ] `dt - days` → new date
+- [ ] 9.274 Implement `IncDay(dt: TDateTime, days: Integer): TDateTime`:
+  - [ ] Add days to date
+  - [ ] Similar: `IncMonth`, `IncYear`, `IncHour`, `IncMinute`, `IncSecond`
+- [ ] 9.275 Implement `DaysBetween(dt1, dt2: TDateTime): Integer`:
+  - [ ] Calculate difference in days
+  - [ ] Similar: `HoursBetween`, `MinutesBetween`, `SecondsBetween`
+
+#### Testing & Fixtures (2 tasks)
+
+- [ ] 9.276 Create test scripts in `testdata/datetime/`:
+  - [ ] `current_datetime.dws` - Now, Date, Time
+  - [ ] `encode_decode.dws` - EncodeDate, DecodeDate
+  - [ ] `formatting.dws` - FormatDateTime
+  - [ ] `arithmetic.dws` - Date arithmetic
+  - [ ] Expected outputs
+- [ ] 9.277 Add CLI integration tests
+
+---
+
+### JSON Support (MEDIUM PRIORITY)
+
+**Summary**: Implement JSON parsing and serialization for modern data interchange. Enables DWScript to work with JSON APIs and configuration files.
+
+**Reference**: docs/missing-features-recommendations.md lines 294-297
+
+#### Type System (2 tasks)
+
+- [ ] 9.278 Define JSON value representation:
+  - [ ] Variant type that can hold any JSON value
+  - [ ] Support: null, boolean, number, string, array, object
+  - [ ] Map to DWScript types where possible
+- [ ] 9.279 Add tests for JSON type representation
+
+#### Built-in Functions - Parsing (3 tasks)
+
+- [ ] 9.280 Implement `ParseJSON(s: String): Variant`:
+  - [ ] Parse JSON string
+  - [ ] Return DWScript variant/dynamic type
+  - [ ] Use Go's `encoding/json` internally
+  - [ ] Map JSON types to DWScript types:
+    - [ ] JSON object → dynamic record or map
+    - [ ] JSON array → dynamic array
+    - [ ] JSON primitives → corresponding DWScript types
+- [ ] 9.281 Handle parsing errors:
+  - [ ] Raise exception on invalid JSON
+  - [ ] Include error position and message
+- [ ] 9.282 Add tests for JSON parsing
+
+#### Built-in Functions - Serialization (3 tasks)
+
+- [ ] 9.283 Implement `ToJSON(value: Variant): String`:
+  - [ ] Serialize DWScript value to JSON
+  - [ ] Support records, arrays, primitives
+  - [ ] Handle circular references (error or omit)
+- [ ] 9.284 Implement `ToJSONFormatted(value: Variant, indent: Integer): String`:
+  - [ ] Pretty-printed JSON with indentation
+- [ ] 9.285 Add tests for JSON serialization
+
+#### Built-in Functions - JSON Object Access (4 tasks)
+
+- [ ] 9.286 Implement JSON object property access:
+  - [ ] `jsonObject['propertyName']` syntax
+  - [ ] Return value or nil if not found
+- [ ] 9.287 Implement `JSONHasField(obj: Variant, field: String): Boolean`:
+  - [ ] Check if JSON object has field
+- [ ] 9.288 Implement `JSONKeys(obj: Variant): array of String`:
+  - [ ] Return array of object keys
+- [ ] 9.289 Implement `JSONValues(obj: Variant): array of Variant`:
+  - [ ] Return array of object values
+
+#### Built-in Functions - JSON Array Access (2 tasks)
+
+- [ ] 9.290 Implement JSON array indexing:
+  - [ ] `jsonArray[index]` syntax
+  - [ ] Return element or nil if out of bounds
+- [ ] 9.291 Implement `JSONLength(arr: Variant): Integer`:
+  - [ ] Return array length
+
+#### Type Mapping (2 tasks)
+
+- [ ] 9.292 Document JSON ↔ DWScript type mapping:
+  - [ ] JSON null → nil
+  - [ ] JSON boolean → Boolean
+  - [ ] JSON number → Integer or Float
+  - [ ] JSON string → String
+  - [ ] JSON array → dynamic array
+  - [ ] JSON object → dynamic record or associative array
+- [ ] 9.293 Handle edge cases:
+  - [ ] Large numbers (beyond int64)
+  - [ ] Special floats (NaN, Infinity)
+  - [ ] Unicode escapes
+
+#### Testing & Fixtures (2 tasks)
+
+- [ ] 9.294 Create test scripts in `testdata/json/`:
+  - [ ] `parse_json.dws` - Parse various JSON types
+  - [ ] `to_json.dws` - Serialize to JSON
+  - [ ] `json_object_access.dws` - Access object properties
+  - [ ] `json_array_access.dws` - Access array elements
+  - [ ] Expected outputs
+- [ ] 9.295 Add CLI integration tests
+
+---
+
+### Improved Error Messages and Stack Traces (MEDIUM PRIORITY)
+
+**Summary**: Enhance error reporting with better messages, stack traces, and debugging information. Improves developer experience significantly.
+
+**Reference**: docs/missing-features-recommendations.md lines 299-302
+
+#### Stack Trace Infrastructure (3 tasks)
+
+- [ ] 9.296 Create `errors/stack_trace.go`:
+  - [ ] Define `StackFrame` struct with `FunctionName`, `FileName`, `LineNumber`
+  - [ ] Define `StackTrace` type as `[]StackFrame`
+  - [ ] Implement `String()` method for formatted output
+- [ ] 9.297 Implement stack trace capture in interpreter:
+  - [ ] Track call stack during execution
+  - [ ] Push frame on function entry
+  - [ ] Pop frame on function exit
+  - [ ] Capture stack on error/exception
+- [ ] 9.298 Add tests for stack trace capture
+
+#### Error Message Improvements (3 tasks)
+
+- [ ] 9.299 Improve type error messages:
+  - [ ] Before: "Type mismatch"
+  - [ ] After: "Cannot assign Float to Integer variable 'count' at line 42"
+  - [ ] Include expected and actual types
+  - [ ] Include variable name and location
+- [ ] 9.300 Improve runtime error messages:
+  - [ ] Include expression that failed
+  - [ ] Show values involved: "Division by zero: 10 / 0 at line 15"
+  - [ ] Context from surrounding code
+- [ ] 9.301 Add source code snippets to errors:
+  - [ ] Show the line that caused error
+  - [ ] Highlight error position with `^` or color
+  - [ ] Show 1-2 lines of context
+
+#### Exception Enhancements (2 tasks)
+
+- [ ] 9.302 Add stack trace to exception objects:
+  - [ ] Store `StackTrace` in exception
+  - [ ] Display on uncaught exception
+  - [ ] Format nicely for CLI output
+- [ ] 9.303 Implement `GetStackTrace()` built-in:
+  - [ ] Return current stack trace as string
+  - [ ] Useful for logging and debugging
+
+#### Debugging Information (2 tasks)
+
+- [ ] 9.304 Add source position to all AST nodes:
+  - [ ] Audit nodes for missing `Pos` fields
+  - [ ] Add `EndPos` for better range reporting
+  - [ ] Use in error messages
+- [ ] 9.305 Implement call stack inspection:
+  - [ ] `GetCallStack()` returns array of frame info
+  - [ ] Each frame: function name, file, line
+  - [ ] Accessible from DWScript code
+
+#### Testing & Documentation (2 tasks)
+
+- [ ] 9.306 Create test fixtures demonstrating error messages:
+  - [ ] Type errors with clear messages
+  - [ ] Runtime errors with stack traces
+  - [ ] Exception handling with stack traces
+  - [ ] Compare before/after error message quality
+- [ ] 9.307 Document error message format in `docs/error-messages.md`
+
+---
+
+## Phase 9 Summary
+
+**Total Tasks**: ~217 (9.91 - 9.307)
+**Estimated Effort**: ~26 weeks (~6 months)
+
+### Priority Breakdown:
+
+**HIGH PRIORITY** (~150 tasks, ~18 weeks):
+- Subrange Types: 12 tasks
+- Units/Modules System: 45 tasks (CRITICAL for multi-file projects)
+- Function/Method Pointers: 25 tasks
+- External Function Registration (FFI): 35 tasks
+
+**MEDIUM PRIORITY** (~67 tasks, ~8 weeks):
+- Lambdas/Anonymous Methods: 30 tasks (depends on function pointers)
+- Helpers: 20 tasks
+- DateTime Functions: 24 tasks
+- JSON Support: 18 tasks
+- Improved Error Messages: 12 tasks
+
+This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with DWScript, making it production-ready for most use cases.
 
 ## Stage 10: Performance Tuning and Refactoring
 

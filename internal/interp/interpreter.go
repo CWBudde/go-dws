@@ -261,6 +261,35 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		if isError(value) {
 			return value
 		}
+
+		// Task 9.100: If declaring a subrange variable with an initializer, wrap and validate
+		if stmt.Type != nil {
+			typeName := stmt.Type.Name
+			subrangeTypeKey := "__subrange_type_" + typeName
+			if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
+				if stv, ok := typeVal.(*SubrangeTypeValue); ok {
+					// Extract integer value from initializer
+					var intValue int
+					if intVal, ok := value.(*IntegerValue); ok {
+						intValue = int(intVal.Value)
+					} else if srcSubrange, ok := value.(*SubrangeValue); ok {
+						intValue = srcSubrange.Value
+					} else {
+						return newError("cannot initialize subrange type %s with %s", typeName, value.Type())
+					}
+
+					// Create subrange value and validate
+					subrangeVal := &SubrangeValue{
+						Value:        0, // Will be set by ValidateAndSet
+						SubrangeType: stv.SubrangeType,
+					}
+					if err := subrangeVal.ValidateAndSet(intValue); err != nil {
+						return &ErrorValue{Message: err.Error()}
+					}
+					value = subrangeVal
+				}
+			}
+		}
 	} else {
 		// No initializer - check if we need to initialize based on type
 		if stmt.Type != nil {
@@ -286,19 +315,33 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 						value = &NilValue{}
 					}
 				} else {
-					// Initialize basic types with their zero values
-					// Task 8.19e: Proper initialization allows implicit conversions to work with target type
-					switch strings.ToLower(typeName) {
-					case "integer":
-						value = &IntegerValue{Value: 0}
-					case "float":
-						value = &FloatValue{Value: 0.0}
-					case "string":
-						value = &StringValue{Value: ""}
-					case "boolean":
-						value = &BooleanValue{Value: false}
-					default:
-						value = &NilValue{}
+					// Task 9.100: Check if this is a subrange type
+					subrangeTypeKey := "__subrange_type_" + typeName
+					if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
+						if stv, ok := typeVal.(*SubrangeTypeValue); ok {
+							// Initialize with zero value (will be validated if assigned)
+							value = &SubrangeValue{
+								Value:        0,
+								SubrangeType: stv.SubrangeType,
+							}
+						} else {
+							value = &NilValue{}
+						}
+					} else {
+						// Initialize basic types with their zero values
+						// Task 8.19e: Proper initialization allows implicit conversions to work with target type
+						switch strings.ToLower(typeName) {
+						case "integer":
+							value = &IntegerValue{Value: 0}
+						case "float":
+							value = &FloatValue{Value: 0.0}
+						case "string":
+							value = &StringValue{Value: ""}
+						case "boolean":
+							value = &BooleanValue{Value: false}
+						default:
+							value = &NilValue{}
+						}
 					}
 				}
 			}
@@ -395,9 +438,30 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, _ *ast.AssignmentStatement) Value {
 	// Task 7.144: Check if trying to assign to an external variable
 	// Task 8.19a: Apply implicit conversion if types don't match
+	// Task 9.100: Validate subrange assignments
 	if existingVal, ok := i.env.Get(target.Value); ok {
 		if extVar, isExternal := existingVal.(*ExternalVarValue); isExternal {
 			return newError("Unsupported external variable assignment: %s", extVar.Name)
+		}
+
+		// Task 9.100: Check if assigning to a subrange variable
+		if subrangeVal, isSubrange := existingVal.(*SubrangeValue); isSubrange {
+			// Extract integer value from source
+			var intValue int
+			if intVal, ok := value.(*IntegerValue); ok {
+				intValue = int(intVal.Value)
+			} else if srcSubrange, ok := value.(*SubrangeValue); ok {
+				// Assigning from another subrange - extract the value
+				intValue = srcSubrange.Value
+			} else {
+				return newError("cannot assign %s to subrange type %s", value.Type(), subrangeVal.SubrangeType.Name)
+			}
+
+			// Validate the value is in range
+			if err := subrangeVal.ValidateAndSet(intValue); err != nil {
+				return &ErrorValue{Message: err.Error()}
+			}
+			return subrangeVal
 		}
 
 		// Try implicit conversion if types don't match
@@ -2938,19 +3002,26 @@ func (i *Interpreter) builtinDelete(args []Value) Value {
 // It converts an integer to its string representation.
 // IntToStr(i: Integer): String
 // Task 8.187: Type conversion functions
+// Task 9.102: Support subrange types (subrange values should be assignable to Integer)
 func (i *Interpreter) builtinIntToStr(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "IntToStr() expects exactly 1 argument, got %d", len(args))
 	}
 
-	// Argument must be an integer
-	intVal, ok := args[0].(*IntegerValue)
-	if !ok {
+	// Argument must be an integer or subrange value
+	var intValue int64
+	switch v := args[0].(type) {
+	case *IntegerValue:
+		intValue = v.Value
+	case *SubrangeValue:
+		// Subrange values are assignable to Integer (coercion)
+		intValue = int64(v.Value)
+	default:
 		return i.newErrorWithLocation(i.currentNode, "IntToStr() expects integer argument, got %s", args[0].Type())
 	}
 
 	// Convert integer to string using Go's strconv
-	result := fmt.Sprintf("%d", intVal.Value)
+	result := fmt.Sprintf("%d", intValue)
 	return &StringValue{Value: result}
 }
 

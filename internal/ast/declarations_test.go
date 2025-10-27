@@ -308,3 +308,253 @@ func TestTypeDeclarationImplementsStatement(t *testing.T) {
 	// Verify statementNode() is callable (even though it does nothing)
 	typeDecl.statementNode()
 }
+
+// ============================================================================
+// Subrange Type Declaration Tests (Tasks 9.94-9.95)
+// ============================================================================
+
+// TestSubrangeTypeDeclaration tests the TypeDeclaration AST node for subrange types
+func TestSubrangeTypeDeclaration(t *testing.T) {
+	t.Run("Basic digit subrange (0..9)", func(t *testing.T) {
+		// type TDigit = 0..9;
+		typeDecl := &TypeDeclaration{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
+			Name: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "TDigit", Pos: lexer.Position{Line: 1, Column: 6}},
+				Value: "TDigit",
+			},
+			IsSubrange: true,
+			LowBound: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: lexer.Position{Line: 1, Column: 16}},
+				Value: 0,
+			},
+			HighBound: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "9", Pos: lexer.Position{Line: 1, Column: 19}},
+				Value: 9,
+			},
+		}
+
+		// Test that IsSubrange flag is set
+		if !typeDecl.IsSubrange {
+			t.Error("IsSubrange should be true")
+		}
+
+		// Test that bounds are set correctly
+		lowBound, ok := typeDecl.LowBound.(*IntegerLiteral)
+		if !ok {
+			t.Fatal("LowBound should be an IntegerLiteral")
+		}
+		if lowBound.Value != 0 {
+			t.Errorf("LowBound value = %d, want 0", lowBound.Value)
+		}
+
+		highBound, ok := typeDecl.HighBound.(*IntegerLiteral)
+		if !ok {
+			t.Fatal("HighBound should be an IntegerLiteral")
+		}
+		if highBound.Value != 9 {
+			t.Errorf("HighBound value = %d, want 9", highBound.Value)
+		}
+
+		// Test String() output
+		expectedString := "type TDigit = 0..9"
+		if typeDecl.String() != expectedString {
+			t.Errorf("String() = %q, want %q", typeDecl.String(), expectedString)
+		}
+	})
+
+	t.Run("Percentage subrange (0..100)", func(t *testing.T) {
+		// type TPercent = 0..100;
+		typeDecl := &TypeDeclaration{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
+			Name: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "TPercent", Pos: lexer.Position{Line: 2, Column: 6}},
+				Value: "TPercent",
+			},
+			IsSubrange: true,
+			LowBound: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: lexer.Position{Line: 2, Column: 18}},
+				Value: 0,
+			},
+			HighBound: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "100", Pos: lexer.Position{Line: 2, Column: 21}},
+				Value: 100,
+			},
+		}
+
+		expectedString := "type TPercent = 0..100"
+		if typeDecl.String() != expectedString {
+			t.Errorf("String() = %q, want %q", typeDecl.String(), expectedString)
+		}
+	})
+
+	t.Run("Negative range subrange (-40..50)", func(t *testing.T) {
+		// type TTemperature = -40..50;
+		typeDecl := &TypeDeclaration{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 3, Column: 1}},
+			Name: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "TTemperature", Pos: lexer.Position{Line: 3, Column: 6}},
+				Value: "TTemperature",
+			},
+			IsSubrange: true,
+			LowBound: &UnaryExpression{
+				Token:    lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: lexer.Position{Line: 3, Column: 22}},
+				Operator: "-",
+				Right: &IntegerLiteral{
+					Token: lexer.Token{Type: lexer.INT, Literal: "40", Pos: lexer.Position{Line: 3, Column: 23}},
+					Value: 40,
+				},
+			},
+			HighBound: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "50", Pos: lexer.Position{Line: 3, Column: 27}},
+				Value: 50,
+			},
+		}
+
+		expectedString := "type TTemperature = (-40)..50"
+		if typeDecl.String() != expectedString {
+			t.Errorf("String() = %q, want %q", typeDecl.String(), expectedString)
+		}
+	})
+
+	t.Run("Single value range (42..42)", func(t *testing.T) {
+		// type TAnswer = 42..42;
+		typeDecl := &TypeDeclaration{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 4, Column: 1}},
+			Name: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "TAnswer", Pos: lexer.Position{Line: 4, Column: 6}},
+				Value: "TAnswer",
+			},
+			IsSubrange: true,
+			LowBound: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "42", Pos: lexer.Position{Line: 4, Column: 17}},
+				Value: 42,
+			},
+			HighBound: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "42", Pos: lexer.Position{Line: 4, Column: 21}},
+				Value: 42,
+			},
+		}
+
+		expectedString := "type TAnswer = 42..42"
+		if typeDecl.String() != expectedString {
+			t.Errorf("String() = %q, want %q", typeDecl.String(), expectedString)
+		}
+	})
+}
+
+// TestSubrangeTypeDeclarationFields verifies that subrange-specific fields exist
+func TestSubrangeTypeDeclarationFields(t *testing.T) {
+	typeDecl := &TypeDeclaration{
+		Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
+		Name: &Identifier{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "TDigit", Pos: lexer.Position{Line: 1, Column: 6}},
+			Value: "TDigit",
+		},
+		IsSubrange: true,
+		LowBound: &IntegerLiteral{
+			Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: lexer.Position{Line: 1, Column: 16}},
+			Value: 0,
+		},
+		HighBound: &IntegerLiteral{
+			Token: lexer.Token{Type: lexer.INT, Literal: "9", Pos: lexer.Position{Line: 1, Column: 19}},
+			Value: 9,
+		},
+	}
+
+	// Verify Name field exists and is accessible
+	if typeDecl.Name == nil || typeDecl.Name.Value != "TDigit" {
+		t.Error("Name field should be accessible and equal to 'TDigit'")
+	}
+
+	// Verify IsSubrange field exists and is accessible
+	if !typeDecl.IsSubrange {
+		t.Error("IsSubrange field should be accessible and true")
+	}
+
+	// Verify LowBound field exists and is accessible
+	if typeDecl.LowBound == nil {
+		t.Error("LowBound field should be accessible and non-nil")
+	}
+
+	// Verify HighBound field exists and is accessible
+	if typeDecl.HighBound == nil {
+		t.Error("HighBound field should be accessible and non-nil")
+	}
+
+	// Verify bounds implement Expression interface
+	// This is a compile-time check that will fail if types don't implement Expression
+	if _, ok := interface{}(typeDecl.LowBound).(Expression); !ok {
+		t.Error("LowBound should implement Expression interface")
+	}
+	if _, ok := interface{}(typeDecl.HighBound).(Expression); !ok {
+		t.Error("HighBound should implement Expression interface")
+	}
+}
+
+// TestSubrangeVsAliasTypeDeclaration ensures subrange and alias types are mutually exclusive
+func TestSubrangeVsAliasTypeDeclaration(t *testing.T) {
+	t.Run("Subrange type should not be alias", func(t *testing.T) {
+		// type TDigit = 0..9; (subrange, not alias)
+		typeDecl := &TypeDeclaration{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
+			Name: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "TDigit", Pos: lexer.Position{Line: 1, Column: 6}},
+				Value: "TDigit",
+			},
+			IsSubrange: true,
+			LowBound: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: lexer.Position{Line: 1, Column: 16}},
+				Value: 0,
+			},
+			HighBound: &IntegerLiteral{
+				Token: lexer.Token{Type: lexer.INT, Literal: "9", Pos: lexer.Position{Line: 1, Column: 19}},
+				Value: 9,
+			},
+			IsAlias: false, // Should be false for subranges
+		}
+
+		if typeDecl.IsAlias {
+			t.Error("IsAlias should be false for subrange types")
+		}
+		if !typeDecl.IsSubrange {
+			t.Error("IsSubrange should be true for subrange types")
+		}
+
+		// String should show subrange format, not alias format
+		expectedString := "type TDigit = 0..9"
+		if typeDecl.String() != expectedString {
+			t.Errorf("String() = %q, want %q", typeDecl.String(), expectedString)
+		}
+	})
+
+	t.Run("Alias type should not be subrange", func(t *testing.T) {
+		// type TUserID = Integer; (alias, not subrange)
+		typeDecl := &TypeDeclaration{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
+			Name: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID", Pos: lexer.Position{Line: 2, Column: 6}},
+				Value: "TUserID",
+			},
+			IsAlias: true,
+			AliasedType: &TypeAnnotation{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer", Pos: lexer.Position{Line: 2, Column: 16}},
+				Name:  "Integer",
+			},
+			IsSubrange: false, // Should be false for aliases
+		}
+
+		if typeDecl.IsSubrange {
+			t.Error("IsSubrange should be false for alias types")
+		}
+		if !typeDecl.IsAlias {
+			t.Error("IsAlias should be true for alias types")
+		}
+
+		// String should show alias format, not subrange format
+		expectedString := "type TUserID = Integer"
+		if typeDecl.String() != expectedString {
+			t.Errorf("String() = %q, want %q", typeDecl.String(), expectedString)
+		}
+	})
+}

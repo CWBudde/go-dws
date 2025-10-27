@@ -33,7 +33,7 @@ type TypedExpression interface {
 // ============================================================================
 
 // TypeDeclaration represents a type declaration statement in DWScript.
-// This can be either a type alias or a full type definition.
+// This can be either a type alias, subrange type, or a full type definition.
 //
 // Type alias examples:
 //
@@ -41,17 +41,27 @@ type TypedExpression interface {
 //	type TFileName = String;
 //	type TIntArray = array of Integer;
 //
+// Subrange type examples (Task 9.94):
+//
+//	type TDigit = 0..9;
+//	type TPercent = 0..100;
+//	type TTemperature = -40..50;
+//
 // Full type definitions (enums, records, classes) will use specialized
 // declaration nodes (EnumDecl, RecordDecl, ClassDecl) but may eventually
 // be unified under this node.
 //
 // Task 9.15: This node currently supports type aliases. Future tasks will
 // extend it to handle all type declarations.
+// Task 9.94: Extended to support subrange types with IsSubrange, LowBound, and HighBound.
 type TypeDeclaration struct {
 	Name        *Identifier
 	AliasedType *TypeAnnotation
+	LowBound    Expression // For subrange types (Task 9.94)
+	HighBound   Expression // For subrange types (Task 9.94)
 	Token       lexer.Token
 	IsAlias     bool
+	IsSubrange  bool // For subrange types (Task 9.94)
 }
 
 func (td *TypeDeclaration) statementNode()       {}
@@ -60,14 +70,21 @@ func (td *TypeDeclaration) Pos() lexer.Position  { return td.Token.Pos }
 
 // String returns the string representation of the type declaration.
 // For type aliases, this returns: "type Name = Type;"
+// For subrange types, this returns: "type Name = LowBound..HighBound" (Task 9.94)
 // For full type definitions, this will be extended in future tasks.
 func (td *TypeDeclaration) String() string {
+	if td.IsSubrange {
+		// Subrange type: type TDigit = 0..9;
+		// Task 9.94: Format as "type Name = Low..High"
+		return "type " + td.Name.String() + " = " + td.LowBound.String() + ".." + td.HighBound.String()
+	}
+
 	if td.IsAlias {
 		// Type alias: type TUserID = Integer;
 		return "type " + td.Name.String() + " = " + td.AliasedType.String()
 	}
 
-	// For now, only aliases are supported
+	// For now, only aliases and subranges are supported
 	// Future: Handle full type definitions
 	return "type " + td.Name.String()
 }

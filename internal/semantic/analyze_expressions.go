@@ -1056,54 +1056,54 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-	// Delete built-in function (Tasks 8.135, 9.44 - overloaded)
-	// Delete(array, index) - for arrays (2 args)
-	// Delete(string, pos, count) - for strings (3 args)
-	if funcIdent.Value == "Delete" {
-		if len(expr.Arguments) == 2 {
-			// Array delete: Delete(array, index)
-			argType := a.analyzeExpression(expr.Arguments[0])
-			if argType != nil {
-				if _, isArray := argType.(*types.ArrayType); !isArray {
-					a.addError("function 'Delete' expects array as first argument for 2-argument form, got %s at %s",
-						argType.String(), expr.Token.Pos.String())
+		// Delete built-in function (Tasks 8.135, 9.44 - overloaded)
+		// Delete(array, index) - for arrays (2 args)
+		// Delete(string, pos, count) - for strings (3 args)
+		if funcIdent.Value == "Delete" {
+			if len(expr.Arguments) == 2 {
+				// Array delete: Delete(array, index)
+				argType := a.analyzeExpression(expr.Arguments[0])
+				if argType != nil {
+					if _, isArray := argType.(*types.ArrayType); !isArray {
+						a.addError("function 'Delete' expects array as first argument for 2-argument form, got %s at %s",
+							argType.String(), expr.Token.Pos.String())
+					}
 				}
-			}
-			indexType := a.analyzeExpression(expr.Arguments[1])
-			if indexType != nil && indexType != types.INTEGER {
-				a.addError("function 'Delete' expects integer as second argument, got %s at %s",
-					indexType.String(), expr.Token.Pos.String())
-			}
-			return types.VOID
-		} else if len(expr.Arguments) == 3 {
-			// String delete: Delete(string, pos, count)
-			if _, ok := expr.Arguments[0].(*ast.Identifier); !ok {
-				a.addError("function 'Delete' first argument must be a variable at %s",
-					expr.Token.Pos.String())
+				indexType := a.analyzeExpression(expr.Arguments[1])
+				if indexType != nil && indexType != types.INTEGER {
+					a.addError("function 'Delete' expects integer as second argument, got %s at %s",
+						indexType.String(), expr.Token.Pos.String())
+				}
+				return types.VOID
+			} else if len(expr.Arguments) == 3 {
+				// String delete: Delete(string, pos, count)
+				if _, ok := expr.Arguments[0].(*ast.Identifier); !ok {
+					a.addError("function 'Delete' first argument must be a variable at %s",
+						expr.Token.Pos.String())
+				} else {
+					strType := a.analyzeExpression(expr.Arguments[0])
+					if strType != nil && strType != types.STRING {
+						a.addError("function 'Delete' first argument must be String for 3-argument form, got %s at %s",
+							strType.String(), expr.Token.Pos.String())
+					}
+				}
+				posType := a.analyzeExpression(expr.Arguments[1])
+				if posType != nil && posType != types.INTEGER {
+					a.addError("function 'Delete' second argument must be Integer, got %s at %s",
+						posType.String(), expr.Token.Pos.String())
+				}
+				countType := a.analyzeExpression(expr.Arguments[2])
+				if countType != nil && countType != types.INTEGER {
+					a.addError("function 'Delete' third argument must be Integer, got %s at %s",
+						countType.String(), expr.Token.Pos.String())
+				}
+				return types.VOID
 			} else {
-				strType := a.analyzeExpression(expr.Arguments[0])
-				if strType != nil && strType != types.STRING {
-					a.addError("function 'Delete' first argument must be String for 3-argument form, got %s at %s",
-						strType.String(), expr.Token.Pos.String())
-				}
+				a.addError("function 'Delete' expects 2 or 3 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
 			}
-			posType := a.analyzeExpression(expr.Arguments[1])
-			if posType != nil && posType != types.INTEGER {
-				a.addError("function 'Delete' second argument must be Integer, got %s at %s",
-					posType.String(), expr.Token.Pos.String())
-			}
-			countType := a.analyzeExpression(expr.Arguments[2])
-			if countType != nil && countType != types.INTEGER {
-				a.addError("function 'Delete' third argument must be Integer, got %s at %s",
-					countType.String(), expr.Token.Pos.String())
-			}
-			return types.VOID
-		} else {
-			a.addError("function 'Delete' expects 2 or 3 arguments, got %d at %s",
-				len(expr.Arguments), expr.Token.Pos.String())
-			return types.VOID
 		}
-	}
 
 		// IntToStr built-in function (Task 8.187)
 		if funcIdent.Value == "IntToStr" {
@@ -1113,11 +1113,19 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					len(expr.Arguments), expr.Token.Pos.String())
 				return types.STRING
 			}
-			// Analyze the argument and verify it's Integer
+			// Analyze the argument and verify it's Integer or a subrange of Integer
 			argType := a.analyzeExpression(expr.Arguments[0])
 			if argType != nil && argType != types.INTEGER {
-				a.addError("function 'IntToStr' expects Integer as argument, got %s at %s",
-					argType.String(), expr.Token.Pos.String())
+				// Check if it's a subrange type with Integer base
+				if subrange, ok := argType.(*types.SubrangeType); ok {
+					if subrange.BaseType != types.INTEGER {
+						a.addError("function 'IntToStr' expects Integer as argument, got %s at %s",
+							argType.String(), expr.Token.Pos.String())
+					}
+				} else {
+					a.addError("function 'IntToStr' expects Integer as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
 			}
 			return types.STRING
 		}

@@ -1,0 +1,15 @@
+// Tests subrange runtime validation
+// This script should FAIL with an out-of-range error
+
+type TDigit = 0..9;
+
+PrintLn('Testing subrange validation...');
+
+var digit: TDigit := 5;
+PrintLn('Initial value: ' + IntToStr(digit));
+
+// This should fail - value out of range
+digit := 99;
+
+// This line should never be reached
+PrintLn('ERROR: Should not reach this line!');

@@ -1,0 +1,11 @@
+=== Subrange Functions Test ===
+GetDefaultDigit() = 5
+DigitToInt(5) = 5
+MakeDigit(7) = 7
+GetSameDigit(7) = 7
+MakePercent(42) = 42
+MakePercent(-10) = 0
+MakePercent(150) = 100
+MakeDigit(3) = 3
+Nested call: GetSameDigit(GetDefaultDigit()) = 5
+=== All Function Tests Passed ===

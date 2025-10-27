@@ -28,8 +28,43 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 	}
 
 	// Now peek to see what kind of type declaration this is
-	// Task 9.17: Check for type alias first (type A = B)
-	if p.peekTokenIs(lexer.IDENT) {
+	// Task 9.96: Check for subrange or type alias
+	// Subrange: type TDigit = 0..9;
+	// Type alias: type TUserID = Integer;
+
+	// Check if this could be a subrange (expression followed by ..)
+	// Expressions can start with: INT, MINUS, LPAREN, IDENT, etc.
+	if p.peekTokenIs(lexer.INT) || p.peekTokenIs(lexer.MINUS) || p.peekTokenIs(lexer.FLOAT) {
+		// Might be subrange - parse first expression
+		p.nextToken() // move to expression start
+		lowBound := p.parseExpression(LOWEST)
+
+		// Check if followed by DOTDOT
+		if p.peekTokenIs(lexer.DOTDOT) {
+			// It's a subrange!
+			p.nextToken() // move to DOTDOT
+
+			// Parse high bound
+			p.nextToken() // move past DOTDOT to high bound expression
+			highBound := p.parseExpression(LOWEST)
+
+			// Expect semicolon
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
+
+			return &ast.TypeDeclaration{
+				Token:      typeToken,
+				Name:       nameIdent,
+				IsSubrange: true,
+				LowBound:   lowBound,
+				HighBound:  highBound,
+			}
+		}
+		// Not a subrange, fall through to error
+		p.addError("unexpected expression after '=' in type declaration (expected type name or subrange)")
+		return nil
+	} else if p.peekTokenIs(lexer.IDENT) {
 		// Type alias: type TUserID = Integer;
 		p.nextToken() // move to aliased type identifier
 		aliasedType := &ast.TypeAnnotation{

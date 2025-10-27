@@ -13,6 +13,7 @@ import (
 type Analyzer struct {
 	arrays             map[string]*types.ArrayType
 	typeAliases        map[string]*types.TypeAlias
+	subranges          map[string]*types.SubrangeType
 	currentFunction    *ast.FunctionDecl
 	classes            map[string]*types.ClassType
 	interfaces         map[string]*types.InterfaceType
@@ -42,6 +43,7 @@ func NewAnalyzer() *Analyzer {
 		sets:               make(map[string]*types.SetType),
 		arrays:             make(map[string]*types.ArrayType),
 		typeAliases:        make(map[string]*types.TypeAlias),
+		subranges:          make(map[string]*types.SubrangeType),
 		globalOperators:    types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
 	}
@@ -211,6 +213,19 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 			if fromClass.Equals(toClass) || a.isDescendantOf(fromClass, toClass) {
 				return true
 			}
+		}
+	}
+	// Task 9.98: Check type compatibility for subrange ↔ base type assignments
+	// Subrange values can be assigned to their base type (no check needed)
+	if fromSubrange, ok := from.(*types.SubrangeType); ok {
+		if fromSubrange.BaseType.Equals(to) {
+			return true
+		}
+	}
+	// Base type values can be assigned to subrange (runtime check in interpreter)
+	if toSubrange, ok := to.(*types.SubrangeType); ok {
+		if toSubrange.BaseType.Equals(from) {
+			return true
 		}
 	}
 	if sig, ok := a.conversionRegistry.FindImplicit(from, to); ok && sig != nil {
