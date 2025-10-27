@@ -1,0 +1,38 @@
+unit MainProgram;
+
+interface
+
+uses MathUtils, StringUtils;
+
+procedure Run;
+
+implementation
+
+procedure Run;
+var
+  x, y, sum: Integer;
+  s1, s2, result: String;
+begin
+  // Test MathUtils functions
+  x := 10;
+  y := 20;
+  sum := Add(x, y);
+  PrintLn('10 + 20 = ' + IntToStr(sum));
+
+  PrintLn('Square of 5 = ' + IntToStr(Square(5)));
+
+  // Test StringUtils functions
+  s1 := 'Hello';
+  s2 := 'World';
+  result := Concat(s1, s2);
+  PrintLn('Concat result: ' + result);
+end;
+
+initialization
+  PrintLn('MainProgram loaded');
+  Run;
+
+finalization
+  PrintLn('MainProgram unloading');
+
+end.

@@ -1,0 +1,16 @@
+unit ConflictTest;
+
+interface
+
+// Note: This unit demonstrates namespace conflict resolution
+// It cannot use "uses Math, Strings;" directly because both export Add()
+// Instead, qualified access must be used: Math.Add() or Strings.Add()
+
+implementation
+
+// This would cause an error if both units were imported:
+// uses Math, Strings;  // ERROR: symbol conflict 'Add'
+
+// Solution: Use qualified access without importing symbols
+
+end.

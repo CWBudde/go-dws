@@ -1,0 +1,16 @@
+unit UnitB;
+
+interface
+
+uses UnitA;
+
+function FunctionB: Integer;
+
+implementation
+
+function FunctionB: Integer;
+begin
+  Result := FunctionA + 1;
+end;
+
+end.

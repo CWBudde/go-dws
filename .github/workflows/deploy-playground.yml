@@ -54,6 +54,9 @@ jobs:
           # Copy the actual WASM files
           mkdir -p _site/wasm
           cp -r build/wasm/dist/* _site/wasm/
+          # Set version from Git SHA
+          GIT_SHA=$(git rev-parse --short HEAD)
+          sed -i "s,dev,${GIT_SHA},g" _site/index.html
           # Create a simple index redirect if needed
           if [ ! -f "_site/index.html" ]; then
             cat > _site/index.html <<EOF
