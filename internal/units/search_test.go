@@ -169,10 +169,10 @@ func TestFindUnit_CaseVariations(t *testing.T) {
 	// Create files with different casing that our search algorithm can find
 	// On case-sensitive filesystems, we can only find exact matches or standard conventions
 	files := []string{
-		"MySpecialUnit.dws",  // Exact match
-		"Myspecialunit.dws",  // Capitalized first letter (what we generate for lowercase search)
-		"myspecialunit.dws",  // All lowercase
-		"MYSPECIALUNIT.dws",  // All uppercase
+		"MySpecialUnit.dws", // Exact match
+		"Myspecialunit.dws", // Capitalized first letter (what we generate for lowercase search)
+		"myspecialunit.dws", // All lowercase
+		"MYSPECIALUNIT.dws", // All uppercase
 	}
 
 	for _, file := range files {

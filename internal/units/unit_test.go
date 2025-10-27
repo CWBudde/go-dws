@@ -47,9 +47,9 @@ func TestNewUnit(t *testing.T) {
 
 func TestUnitNormalizedName(t *testing.T) {
 	tests := []struct {
-		name          string
-		unitName      string
-		expectedNorm  string
+		name         string
+		unitName     string
+		expectedNorm string
 	}{
 		{"Lowercase", "myunit", "myunit"},
 		{"Uppercase", "MYUNIT", "myunit"},
@@ -109,9 +109,9 @@ func TestUnitHasDependency_EmptyList(t *testing.T) {
 
 func TestUnitString(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupUnit      func() *Unit
-		expectedParts  []string
+		name          string
+		setupUnit     func() *Unit
+		expectedParts []string
 	}{
 		{
 			name: "Minimal unit",
