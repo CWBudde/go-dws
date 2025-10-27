@@ -202,9 +202,7 @@ function runCode() {
     const executionTime = (endTime - startTime).toFixed(2);
 
     if (result.success) {
-      if (result.output) {
-        appendOutput(result.output);
-      } else {
+      if (!result.output) {
         appendOutput("// Program completed successfully (no output)\n", "info");
       }
       updateStats(
