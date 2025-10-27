@@ -1401,6 +1401,14 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinCopy(args)
 	case "Concat":
 		return i.builtinConcat(args)
+	case "IndexOf":
+		return i.builtinIndexOf(args)
+	case "Contains":
+		return i.builtinContains(args)
+	case "Reverse":
+		return i.builtinReverse(args)
+	case "Sort":
+		return i.builtinSort(args)
 	case "Pos":
 		return i.builtinPos(args)
 	case "UpperCase":
@@ -1693,6 +1701,99 @@ func (i *Interpreter) builtinCopy(args []Value) Value {
 	result := str[startIdx:endIdx]
 
 	return &StringValue{Value: result}
+}
+
+// builtinIndexOf implements the IndexOf() built-in function for arrays.
+// Tasks 9.69-9.70: IndexOf(arr, value) and IndexOf(arr, value, startIndex)
+//
+// Returns 0-based index of first occurrence (0 = first element)
+// Returns -1 if not found
+func (i *Interpreter) builtinIndexOf(args []Value) Value {
+	// Validate argument count: 2 or 3 arguments
+	if len(args) < 2 || len(args) > 3 {
+		return i.newErrorWithLocation(i.currentNode, "IndexOf() expects 2 or 3 arguments, got %d", len(args))
+	}
+
+	// First argument must be array
+	arr, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "IndexOf() expects array as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument is the value to search for (any type)
+	searchValue := args[1]
+
+	// Third argument (optional) is start index (0-based for internal use)
+	startIndex := 0
+	if len(args) == 3 {
+		startIndexVal, ok := args[2].(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "IndexOf() expects integer as third argument, got %s", args[2].Type())
+		}
+		startIndex = int(startIndexVal.Value)
+	}
+
+	return i.builtinArrayIndexOf(arr, searchValue, startIndex)
+}
+
+// builtinContains implements the Contains() built-in function for arrays.
+// Task 9.72: Contains(arr, value)
+//
+// Returns true if array contains value, false otherwise
+func (i *Interpreter) builtinContains(args []Value) Value {
+	// Validate argument count: 2 arguments
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Contains() expects 2 arguments, got %d", len(args))
+	}
+
+	// First argument must be array
+	arr, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Contains() expects array as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument is the value to search for (any type)
+	searchValue := args[1]
+
+	return i.builtinArrayContains(arr, searchValue)
+}
+
+// builtinReverse implements the Reverse() built-in function for arrays.
+// Task 9.74: Reverse(arr)
+//
+// Reverses array elements in place
+func (i *Interpreter) builtinReverse(args []Value) Value {
+	// Validate argument count: 1 argument
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Reverse() expects 1 argument, got %d", len(args))
+	}
+
+	// First argument must be array
+	arr, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Reverse() expects array as argument, got %s", args[0].Type())
+	}
+
+	return i.builtinArrayReverse(arr)
+}
+
+// builtinSort implements the Sort() built-in function for arrays.
+// Task 9.76: Sort(arr)
+//
+// Sorts array elements in place using default comparison
+func (i *Interpreter) builtinSort(args []Value) Value {
+	// Validate argument count: 1 argument
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Sort() expects 1 argument, got %d", len(args))
+	}
+
+	// First argument must be array
+	arr, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Sort() expects array as argument, got %s", args[0].Type())
+	}
+
+	return i.builtinArraySort(arr)
 }
 
 // builtinConcat implements the Concat() built-in function.
