@@ -1,0 +1,167 @@
+// Test script for Sort() array function
+// Task 9.79: Sort arrays
+
+type TIntArray = array of Integer;
+type TStringArray = array of String;
+type TFloatArray = array of Float;
+
+var nums: TIntArray;
+var words: TStringArray;
+var floats: TFloatArray;
+var i: Integer;
+
+begin
+	PrintLn('=== Sort() Array Function Tests ===');
+	PrintLn('');
+
+	// Test 1: Sort unsorted integer array
+	PrintLn('Test 1: Sort unsorted integers');
+	SetLength(nums, 5);
+	nums[0] := 42;
+	nums[1] := 15;
+	nums[2] := 87;
+	nums[3] := 3;
+	nums[4] := 56;
+
+	Print('Before: ');
+	for i := 0 to Length(nums) - 1 do begin
+		Print(nums[i]);
+		if i < Length(nums) - 1 then Print(', ');
+	end;
+	PrintLn('');
+
+	Sort(nums);
+
+	Print('After:  ');
+	for i := 0 to Length(nums) - 1 do begin
+		Print(nums[i]);
+		if i < Length(nums) - 1 then Print(', ');
+	end;
+	PrintLn('');
+	PrintLn('');
+
+	// Test 2: Sort with duplicates
+	PrintLn('Test 2: Sort with duplicates');
+	SetLength(nums, 6);
+	nums[0] := 5;
+	nums[1] := 2;
+	nums[2] := 8;
+	nums[3] := 2;
+	nums[4] := 1;
+	nums[5] := 5;
+
+	Print('Before: ');
+	for i := 0 to Length(nums) - 1 do begin
+		Print(nums[i]);
+		if i < Length(nums) - 1 then Print(', ');
+	end;
+	PrintLn('');
+
+	Sort(nums);
+
+	Print('After:  ');
+	for i := 0 to Length(nums) - 1 do begin
+		Print(nums[i]);
+		if i < Length(nums) - 1 then Print(', ');
+	end;
+	PrintLn('');
+	PrintLn('');
+
+	// Test 3: Sort already sorted array
+	PrintLn('Test 3: Sort already sorted array');
+	SetLength(nums, 4);
+	nums[0] := 1;
+	nums[1] := 2;
+	nums[2] := 3;
+	nums[3] := 4;
+
+	Print('Before: ');
+	for i := 0 to Length(nums) - 1 do begin
+		Print(nums[i]);
+		if i < Length(nums) - 1 then Print(', ');
+	end;
+	PrintLn('');
+
+	Sort(nums);
+
+	Print('After:  ');
+	for i := 0 to Length(nums) - 1 do begin
+		Print(nums[i]);
+		if i < Length(nums) - 1 then Print(', ');
+	end;
+	PrintLn('');
+	PrintLn('');
+
+	// Test 4: Sort string array
+	PrintLn('Test 4: Sort string array');
+	SetLength(words, 5);
+	words[0] := 'zebra';
+	words[1] := 'apple';
+	words[2] := 'mango';
+	words[3] := 'banana';
+	words[4] := 'cherry';
+
+	Print('Before: ');
+	for i := 0 to Length(words) - 1 do begin
+		Print(words[i]);
+		if i < Length(words) - 1 then Print(', ');
+	end;
+	PrintLn('');
+
+	Sort(words);
+
+	Print('After:  ');
+	for i := 0 to Length(words) - 1 do begin
+		Print(words[i]);
+		if i < Length(words) - 1 then Print(', ');
+	end;
+	PrintLn('');
+	PrintLn('');
+
+	// Test 5: Sort float array
+	PrintLn('Test 5: Sort float array');
+	SetLength(floats, 5);
+	floats[0] := 3.14;
+	floats[1] := 1.41;
+	floats[2] := 2.71;
+	floats[3] := 0.99;
+	floats[4] := 4.20;
+
+	Print('Before: ');
+	for i := 0 to Length(floats) - 1 do begin
+		Print(floats[i]);
+		if i < Length(floats) - 1 then Print(', ');
+	end;
+	PrintLn('');
+
+	Sort(floats);
+
+	Print('After:  ');
+	for i := 0 to Length(floats) - 1 do begin
+		Print(floats[i]);
+		if i < Length(floats) - 1 then Print(', ');
+	end;
+	PrintLn('');
+	PrintLn('');
+
+	// Test 6: Single element
+	PrintLn('Test 6: Single element array');
+	SetLength(nums, 1);
+	nums[0] := 99;
+	Print('Before: ');
+	PrintLn(nums[0]);
+	Sort(nums);
+	Print('After:  ');
+	PrintLn(nums[0]);
+	PrintLn('');
+
+	// Test 7: Empty array
+	PrintLn('Test 7: Empty array');
+	SetLength(nums, 0);
+	PrintLn('Sorting empty array...');
+	Sort(nums);
+	PrintLn('Empty array sorted, length = ' + IntToStr(Length(nums)));
+
+	PrintLn('');
+	PrintLn('=== All Sort() tests complete ===');
+end

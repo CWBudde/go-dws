@@ -1,0 +1,93 @@
+// Test script for IndexOf() and Contains() array functions
+// Task 9.79: Search functions
+
+type TIntArray = array of Integer;
+type TStringArray = array of String;
+
+var nums: TIntArray;
+var words: TStringArray;
+var idx: Integer;
+
+begin
+	PrintLn('=== IndexOf() and Contains() Tests ===');
+	PrintLn('');
+
+	// Setup integer array
+	SetLength(nums, 5);
+	nums[0] := 10;
+	nums[1] := 20;
+	nums[2] := 30;
+	nums[3] := 20;
+	nums[4] := 40;
+
+	// Test 1: IndexOf - value found (first occurrence)
+	PrintLn('Test 1: IndexOf with duplicates');
+	PrintLn('Array: [10, 20, 30, 20, 40]');
+	idx := IndexOf(nums, 20);
+	PrintLn('IndexOf(nums, 20) = ' + IntToStr(idx) + ' (first occurrence)');
+	PrintLn('');
+
+	// Test 2: IndexOf - value not found
+	PrintLn('Test 2: IndexOf value not found');
+	idx := IndexOf(nums, 99);
+	PrintLn('IndexOf(nums, 99) = ' + IntToStr(idx) + ' (not found)');
+	PrintLn('');
+
+	// Test 3: IndexOf with start index
+	PrintLn('Test 3: IndexOf with start index');
+	idx := IndexOf(nums, 20, 2);
+	PrintLn('IndexOf(nums, 20, 2) = ' + IntToStr(idx) + ' (second occurrence)');
+	PrintLn('');
+
+	// Test 4: Contains - value exists
+	PrintLn('Test 4: Contains existing value');
+	if Contains(nums, 30) then
+		PrintLn('Contains(nums, 30) = true')
+	else
+		PrintLn('Contains(nums, 30) = false');
+	PrintLn('');
+
+	// Test 5: Contains - value doesn't exist
+	PrintLn('Test 5: Contains non-existing value');
+	if Contains(nums, 99) then
+		PrintLn('Contains(nums, 99) = true')
+	else
+		PrintLn('Contains(nums, 99) = false');
+	PrintLn('');
+
+	// Test 6: String array search
+	PrintLn('Test 6: String array search');
+	SetLength(words, 4);
+	words[0] := 'apple';
+	words[1] := 'banana';
+	words[2] := 'cherry';
+	words[3] := 'date';
+
+	PrintLn('Array: [apple, banana, cherry, date]');
+	idx := IndexOf(words, 'cherry');
+	PrintLn('IndexOf(words, ''cherry'') = ' + IntToStr(idx));
+
+	if Contains(words, 'banana') then
+		PrintLn('Contains(words, ''banana'') = true')
+	else
+		PrintLn('Contains(words, ''banana'') = false');
+
+	if Contains(words, 'grape') then
+		PrintLn('Contains(words, ''grape'') = true')
+	else
+		PrintLn('Contains(words, ''grape'') = false');
+	PrintLn('');
+
+	// Test 7: Empty array
+	PrintLn('Test 7: Empty array search');
+	SetLength(nums, 0);
+	idx := IndexOf(nums, 42);
+	PrintLn('IndexOf(empty, 42) = ' + IntToStr(idx));
+	if Contains(nums, 42) then
+		PrintLn('Contains(empty, 42) = true')
+	else
+		PrintLn('Contains(empty, 42) = false');
+
+	PrintLn('');
+	PrintLn('=== All search tests complete ===');
+end

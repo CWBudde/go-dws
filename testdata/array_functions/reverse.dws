@@ -1,0 +1,114 @@
+// Test script for Reverse() array function
+// Task 9.79: Reverse array
+
+type TIntArray = array of Integer;
+type TStringArray = array of String;
+
+var nums: TIntArray;
+var words: TStringArray;
+var i: Integer;
+
+begin
+	PrintLn('=== Reverse() Array Function Tests ===');
+	PrintLn('');
+
+	// Test 1: Reverse integer array (odd length)
+	PrintLn('Test 1: Reverse integer array (odd length)');
+	SetLength(nums, 5);
+	nums[0] := 1;
+	nums[1] := 2;
+	nums[2] := 3;
+	nums[3] := 4;
+	nums[4] := 5;
+
+	Print('Before: ');
+	for i := 0 to Length(nums) - 1 do begin
+		Print(nums[i]);
+		if i < Length(nums) - 1 then Print(', ');
+	end;
+	PrintLn('');
+
+	Reverse(nums);
+
+	Print('After:  ');
+	for i := 0 to Length(nums) - 1 do begin
+		Print(nums[i]);
+		if i < Length(nums) - 1 then Print(', ');
+	end;
+	PrintLn('');
+	PrintLn('');
+
+	// Test 2: Reverse integer array (even length)
+	PrintLn('Test 2: Reverse integer array (even length)');
+	SetLength(nums, 4);
+	nums[0] := 10;
+	nums[1] := 20;
+	nums[2] := 30;
+	nums[3] := 40;
+
+	Print('Before: ');
+	for i := 0 to Length(nums) - 1 do begin
+		Print(nums[i]);
+		if i < Length(nums) - 1 then Print(', ');
+	end;
+	PrintLn('');
+
+	Reverse(nums);
+
+	Print('After:  ');
+	for i := 0 to Length(nums) - 1 do begin
+		Print(nums[i]);
+		if i < Length(nums) - 1 then Print(', ');
+	end;
+	PrintLn('');
+	PrintLn('');
+
+	// Test 3: Reverse string array
+	PrintLn('Test 3: Reverse string array');
+	SetLength(words, 4);
+	words[0] := 'alpha';
+	words[1] := 'beta';
+	words[2] := 'gamma';
+	words[3] := 'delta';
+
+	Print('Before: ');
+	for i := 0 to Length(words) - 1 do begin
+		Print(words[i]);
+		if i < Length(words) - 1 then Print(', ');
+	end;
+	PrintLn('');
+
+	Reverse(words);
+
+	Print('After:  ');
+	for i := 0 to Length(words) - 1 do begin
+		Print(words[i]);
+		if i < Length(words) - 1 then Print(', ');
+	end;
+	PrintLn('');
+	PrintLn('');
+
+	// Test 4: Reverse single element array
+	PrintLn('Test 4: Single element array');
+	SetLength(nums, 1);
+	nums[0] := 42;
+
+	Print('Before: ');
+	PrintLn(nums[0]);
+
+	Reverse(nums);
+
+	Print('After:  ');
+	PrintLn(nums[0]);
+	PrintLn('');
+
+	// Test 5: Empty array
+	PrintLn('Test 5: Empty array');
+	SetLength(nums, 0);
+	PrintLn('Reversing empty array...');
+	Reverse(nums);
+	PrintLn('Empty array reversed, length = ' + IntToStr(Length(nums)));
+
+	PrintLn('');
+	PrintLn('=== All Reverse() tests complete ===');
+end

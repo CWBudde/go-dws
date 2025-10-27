@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/types"
@@ -2043,3 +2044,946 @@ end
 		t.Errorf("expected length = 0, got %d", intVal.Value)
 	}
 }
+
+// ============================================================================
+// IndexOf Tests (Tasks 9.69-9.71)
+// ============================================================================
+
+// TestArrayIndexOf_BasicFound tests IndexOf finding the first occurrence.
+// Task 9.71: Test IndexOf([1,2,3,2], 2) returns 1 (first occurrence at index 1)
+func TestArrayIndexOf_BasicFound(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 4);
+	a[0] := 1;
+	a[1] := 2;
+	a[2] := 3;
+	a[3] := 2;
+	IndexOf(a, 2);
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Should return 1 (0-based index: value 2 is at a[1])
+	if intVal.Value != 1 {
+		t.Errorf("expected IndexOf to return 1, got %d", intVal.Value)
+	}
+}
+
+// TestArrayIndexOf_NotFound tests IndexOf returning -1 when value not found.
+// Task 9.71: Test IndexOf([1,2,3], 5) returns -1 (not found)
+func TestArrayIndexOf_NotFound(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	a[0] := 1;
+	a[1] := 2;
+	a[2] := 3;
+	IndexOf(a, 5);
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Should return -1 (not found)
+	if intVal.Value != -1 {
+		t.Errorf("expected IndexOf to return -1, got %d", intVal.Value)
+	}
+}
+
+// TestArrayIndexOf_WithStartIndex tests IndexOf with optional startIndex parameter.
+// Task 9.71: Test IndexOf([1,2,3,2], 2, 2) returns 3 (searches from index 2 onwards)
+func TestArrayIndexOf_WithStartIndex(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 4);
+	a[0] := 1;
+	a[1] := 2;
+	a[2] := 3;
+	a[3] := 2;
+	IndexOf(a, 2, 2);
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Should return 3 (skips first 2 elements, finds at a[3])
+	if intVal.Value != 3 {
+		t.Errorf("expected IndexOf to return 3, got %d", intVal.Value)
+	}
+}
+
+// TestArrayIndexOf_StringArray tests IndexOf with string arrays.
+// Task 9.71: Test with strings
+func TestArrayIndexOf_StringArray(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "string found",
+			input: `
+type TStringArray = array of String;
+var a: TStringArray;
+begin
+	SetLength(a, 3);
+	a[0] := 'a';
+	a[1] := 'b';
+	a[2] := 'c';
+	IndexOf(a, 'b');
+end
+			`,
+			expected: 1,
+		},
+		{
+			name: "string not found",
+			input: `
+type TStringArray = array of String;
+var a: TStringArray;
+begin
+	SetLength(a, 2);
+	a[0] := 'hello';
+	a[1] := 'world';
+	IndexOf(a, 'foo');
+end
+			`,
+			expected: -1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+			intVal, ok := result.(*IntegerValue)
+			if !ok {
+				t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+			}
+
+			if intVal.Value != tt.expected {
+				t.Errorf("expected IndexOf to return %d, got %d", tt.expected, intVal.Value)
+			}
+		})
+	}
+}
+
+// TestArrayIndexOf_EmptyArray tests IndexOf with an empty array.
+// Task 9.71: Test with empty array
+func TestArrayIndexOf_EmptyArray(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	IndexOf(a, 42);
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Should return -1 (empty array has no elements)
+	if intVal.Value != -1 {
+		t.Errorf("expected IndexOf to return -1 for empty array, got %d", intVal.Value)
+	}
+}
+
+// TestArrayIndexOf_EdgeCases tests IndexOf boundary conditions.
+// Task 9.71: Test edge cases with startIndex
+func TestArrayIndexOf_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "startIndex at 0",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	a[0] := 1;
+	a[1] := 2;
+	a[2] := 3;
+	IndexOf(a, 2, 0);
+end
+			`,
+			expected: 1, // Finds at a[1], returns index 1
+		},
+		{
+			name: "negative startIndex",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	a[0] := 1;
+	a[1] := 2;
+	a[2] := 3;
+	IndexOf(a, 2, -1);
+end
+			`,
+			expected: -1, // Invalid index returns -1
+		},
+		{
+			name: "startIndex beyond bounds",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	a[0] := 1;
+	a[1] := 2;
+	a[2] := 3;
+	IndexOf(a, 2, 10);
+end
+			`,
+			expected: -1, // Beyond bounds returns -1
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+			intVal, ok := result.(*IntegerValue)
+			if !ok {
+				t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+			}
+
+			if intVal.Value != tt.expected {
+				t.Errorf("expected IndexOf to return %d, got %d", tt.expected, intVal.Value)
+			}
+		})
+	}
+}
+
+// TestArrayIndexOf_ErrorCases tests IndexOf error handling.
+// Task 9.71: Test error cases
+func TestArrayIndexOf_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectedErr string
+	}{
+		{
+			name: "wrong argument count (1 arg)",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	IndexOf(a);
+end
+			`,
+			expectedErr: "IndexOf() expects 2 or 3 arguments, got 1",
+		},
+		{
+			name: "non-array first argument",
+			input: `
+begin
+	IndexOf(42, 1);
+end
+			`,
+			expectedErr: "IndexOf() expects array as first argument",
+		},
+		{
+			name: "non-integer third argument",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 2);
+	IndexOf(a, 1, 'bad');
+end
+			`,
+			expectedErr: "IndexOf() expects integer as third argument",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+			errVal, ok := result.(*ErrorValue)
+			if !ok {
+				t.Fatalf("expected ErrorValue, got %T: %+v", result, result)
+			}
+
+			if !strings.Contains(errVal.Message, tt.expectedErr) {
+				t.Errorf("expected error containing '%s', got '%s'", tt.expectedErr, errVal.Message)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Contains Tests (Tasks 9.72-9.73)
+// ============================================================================
+
+// TestArrayContains_Found tests Contains returning true when value exists.
+// Task 9.73: Test Contains([1,2,3], 2) returns true
+func TestArrayContains_Found(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	a[0] := 1;
+	a[1] := 2;
+	a[2] := 3;
+	Contains(a, 2);
+end
+	`
+
+	result := testEval(input)
+	boolVal, ok := result.(*BooleanValue)
+	if !ok {
+		t.Fatalf("expected BooleanValue, got %T: %+v", result, result)
+	}
+
+	// Should return true (value 2 is in the array)
+	if !boolVal.Value {
+		t.Errorf("expected Contains to return true, got false")
+	}
+}
+
+// TestArrayContains_NotFound tests Contains returning false when value doesn't exist.
+// Task 9.73: Test Contains([1,2,3], 5) returns false
+func TestArrayContains_NotFound(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	a[0] := 1;
+	a[1] := 2;
+	a[2] := 3;
+	Contains(a, 5);
+end
+	`
+
+	result := testEval(input)
+	boolVal, ok := result.(*BooleanValue)
+	if !ok {
+		t.Fatalf("expected BooleanValue, got %T: %+v", result, result)
+	}
+
+	// Should return false (value 5 is not in the array)
+	if boolVal.Value {
+		t.Errorf("expected Contains to return false, got true")
+	}
+}
+
+// TestArrayContains_DifferentTypes tests Contains with different value types.
+// Task 9.73: Test with different types
+func TestArrayContains_DifferentTypes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name: "string array - found",
+			input: `
+type TStringArray = array of String;
+var a: TStringArray;
+begin
+	SetLength(a, 3);
+	a[0] := 'apple';
+	a[1] := 'banana';
+	a[2] := 'cherry';
+	Contains(a, 'banana');
+end
+			`,
+			expected: true,
+		},
+		{
+			name: "string array - not found",
+			input: `
+type TStringArray = array of String;
+var a: TStringArray;
+begin
+	SetLength(a, 2);
+	a[0] := 'hello';
+	a[1] := 'world';
+	Contains(a, 'goodbye');
+end
+			`,
+			expected: false,
+		},
+		{
+			name: "float array - found",
+			input: `
+type TFloatArray = array of Float;
+var a: TFloatArray;
+begin
+	SetLength(a, 3);
+	a[0] := 1.5;
+	a[1] := 2.5;
+	a[2] := 3.5;
+	Contains(a, 2.5);
+end
+			`,
+			expected: true,
+		},
+		{
+			name: "boolean array - found",
+			input: `
+type TBoolArray = array of Boolean;
+var a: TBoolArray;
+begin
+	SetLength(a, 2);
+	a[0] := True;
+	a[1] := False;
+	Contains(a, False);
+end
+			`,
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+			boolVal, ok := result.(*BooleanValue)
+			if !ok {
+				t.Fatalf("expected BooleanValue, got %T: %+v", result, result)
+			}
+
+			if boolVal.Value != tt.expected {
+				t.Errorf("expected Contains to return %v, got %v", tt.expected, boolVal.Value)
+			}
+		})
+	}
+}
+
+// TestArrayContains_EmptyArray tests Contains with empty array.
+// Task 9.73: Test with empty array returns false
+func TestArrayContains_EmptyArray(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	Contains(a, 42);
+end
+	`
+
+	result := testEval(input)
+	boolVal, ok := result.(*BooleanValue)
+	if !ok {
+		t.Fatalf("expected BooleanValue, got %T: %+v", result, result)
+	}
+
+	// Should return false (empty array cannot contain any value)
+	if boolVal.Value {
+		t.Errorf("expected Contains to return false for empty array, got true")
+	}
+}
+
+// TestArrayContains_ErrorCases tests Contains error handling.
+func TestArrayContains_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectedErr string
+	}{
+		{
+			name: "wrong argument count",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	Contains(a);
+end
+			`,
+			expectedErr: "Contains() expects 2 arguments, got 1",
+		},
+		{
+			name: "non-array first argument",
+			input: `
+begin
+	Contains(42, 1);
+end
+			`,
+			expectedErr: "Contains() expects array as first argument",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+			errVal, ok := result.(*ErrorValue)
+			if !ok {
+				t.Fatalf("expected ErrorValue, got %T: %+v", result, result)
+			}
+
+			if !strings.Contains(errVal.Message, tt.expectedErr) {
+				t.Errorf("expected error containing '%s', got '%s'", tt.expectedErr, errVal.Message)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Reverse Tests (Tasks 9.74-9.75)
+// ============================================================================
+
+// TestArrayReverse_OddLength tests reversing an odd-length array.
+// Task 9.75: Test var a := [1,2,3]; Reverse(a); → a = [3,2,1]
+func TestArrayReverse_OddLength(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	a[0] := 1;
+	a[1] := 2;
+	a[2] := 3;
+	Reverse(a);
+
+	// Check reversed values
+	if a[0] <> 3 then
+		PrintLn('FAIL: a[0] expected 3');
+	if a[1] <> 2 then
+		PrintLn('FAIL: a[1] expected 2');
+	if a[2] <> 1 then
+		PrintLn('FAIL: a[2] expected 1');
+
+	a[0];  // Return first element to verify
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// After reversal, a[0] should be 3
+	if intVal.Value != 3 {
+		t.Errorf("expected a[0] = 3 after Reverse, got %d", intVal.Value)
+	}
+}
+
+// TestArrayReverse_EvenLength tests reversing an even-length array.
+// Task 9.75: Test with even length array
+func TestArrayReverse_EvenLength(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 4);
+	a[0] := 10;
+	a[1] := 20;
+	a[2] := 30;
+	a[3] := 40;
+	Reverse(a);
+
+	// After reversal: [40, 30, 20, 10]
+	if a[0] <> 40 then
+		PrintLn('FAIL: a[0] expected 40');
+	if a[1] <> 30 then
+		PrintLn('FAIL: a[1] expected 30');
+	if a[2] <> 20 then
+		PrintLn('FAIL: a[2] expected 20');
+	if a[3] <> 10 then
+		PrintLn('FAIL: a[3] expected 10');
+
+	a[0];  // Return first element to verify
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// After reversal, a[0] should be 40
+	if intVal.Value != 40 {
+		t.Errorf("expected a[0] = 40 after Reverse, got %d", intVal.Value)
+	}
+}
+
+// TestArrayReverse_SingleElement tests reversing a single-element array (no-op).
+// Task 9.75: Test with single element (no-op)
+func TestArrayReverse_SingleElement(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 1);
+	a[0] := 42;
+	Reverse(a);
+
+	a[0];  // Should still be 42
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Single element should remain unchanged
+	if intVal.Value != 42 {
+		t.Errorf("expected a[0] = 42 after Reverse, got %d", intVal.Value)
+	}
+}
+
+// TestArrayReverse_EmptyArray tests reversing an empty array (no-op).
+// Task 9.75: Test with empty array (no-op)
+func TestArrayReverse_EmptyArray(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	Reverse(a);
+	Length(a);  // Should still be 0
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Empty array should remain empty
+	if intVal.Value != 0 {
+		t.Errorf("expected length = 0 after Reverse, got %d", intVal.Value)
+	}
+}
+
+// TestArrayReverse_ErrorCases tests Reverse error handling.
+func TestArrayReverse_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectedErr string
+	}{
+		{
+			name: "wrong argument count",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	Reverse(a, a);
+end
+			`,
+			expectedErr: "Reverse() expects 1 argument, got 2",
+		},
+		{
+			name: "non-array argument",
+			input: `
+begin
+	Reverse(42);
+end
+			`,
+			expectedErr: "Reverse() expects array as argument",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+			errVal, ok := result.(*ErrorValue)
+			if !ok {
+				t.Fatalf("expected ErrorValue, got %T: %+v", result, result)
+			}
+
+			if !strings.Contains(errVal.Message, tt.expectedErr) {
+				t.Errorf("expected error containing '%s', got '%s'", tt.expectedErr, errVal.Message)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Sort Tests (Tasks 9.76, 9.78)
+// ============================================================================
+
+// TestArraySort_Integers tests sorting an integer array.
+// Task 9.78: Test var a := [3,1,2]; Sort(a); → a = [1,2,3]
+func TestArraySort_Integers(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 5);
+	a[0] := 3;
+	a[1] := 1;
+	a[2] := 4;
+	a[3] := 2;
+	a[4] := 5;
+	Sort(a);
+
+	// After sort: [1, 2, 3, 4, 5]
+	if a[0] <> 1 then
+		PrintLn('FAIL: a[0] expected 1');
+	if a[1] <> 2 then
+		PrintLn('FAIL: a[1] expected 2');
+	if a[2] <> 3 then
+		PrintLn('FAIL: a[2] expected 3');
+	if a[3] <> 4 then
+		PrintLn('FAIL: a[3] expected 4');
+	if a[4] <> 5 then
+		PrintLn('FAIL: a[4] expected 5');
+
+	a[0];  // Return first element to verify
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// After sort, a[0] should be 1
+	if intVal.Value != 1 {
+		t.Errorf("expected a[0] = 1 after Sort, got %d", intVal.Value)
+	}
+}
+
+// TestArraySort_Strings tests sorting a string array.
+// Task 9.78: Test with strings: ['c','a','b'] → ['a','b','c']
+func TestArraySort_Strings(t *testing.T) {
+	input := `
+type TStringArray = array of String;
+var a: TStringArray;
+begin
+	SetLength(a, 3);
+	a[0] := 'cherry';
+	a[1] := 'apple';
+	a[2] := 'banana';
+	Sort(a);
+
+	// After sort: ['apple', 'banana', 'cherry']
+	if a[0] <> 'apple' then
+		PrintLn('FAIL: a[0] expected apple');
+	if a[1] <> 'banana' then
+		PrintLn('FAIL: a[1] expected banana');
+	if a[2] <> 'cherry' then
+		PrintLn('FAIL: a[2] expected cherry');
+
+	a[0];  // Return first element to verify
+end
+	`
+
+	result := testEval(input)
+	strVal, ok := result.(*StringValue)
+	if !ok {
+		t.Fatalf("expected StringValue, got %T: %+v", result, result)
+	}
+
+	// After sort, a[0] should be 'apple'
+	if strVal.Value != "apple" {
+		t.Errorf("expected a[0] = 'apple' after Sort, got %s", strVal.Value)
+	}
+}
+
+// TestArraySort_AlreadySorted tests sorting an already sorted array (no-op).
+// Task 9.78: Test with already sorted array
+func TestArraySort_AlreadySorted(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 4);
+	a[0] := 1;
+	a[1] := 2;
+	a[2] := 3;
+	a[3] := 4;
+	Sort(a);
+
+	// Should remain: [1, 2, 3, 4]
+	if a[0] <> 1 then
+		PrintLn('FAIL: a[0] expected 1');
+	if a[3] <> 4 then
+		PrintLn('FAIL: a[3] expected 4');
+
+	a[0];
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Array should remain unchanged
+	if intVal.Value != 1 {
+		t.Errorf("expected a[0] = 1 after Sort, got %d", intVal.Value)
+	}
+}
+
+// TestArraySort_SingleElement tests sorting a single-element array (no-op).
+// Task 9.78: Test with single element
+func TestArraySort_SingleElement(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 1);
+	a[0] := 99;
+	Sort(a);
+
+	a[0];  // Should still be 99
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Single element should remain unchanged
+	if intVal.Value != 99 {
+		t.Errorf("expected a[0] = 99 after Sort, got %d", intVal.Value)
+	}
+}
+
+// TestArraySort_Duplicates tests sorting an array with duplicate values.
+// Task 9.78: Test with duplicates
+func TestArraySort_Duplicates(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 7);
+	a[0] := 3;
+	a[1] := 1;
+	a[2] := 4;
+	a[3] := 1;
+	a[4] := 5;
+	a[5] := 9;
+	a[6] := 2;
+	Sort(a);
+
+	// After sort: [1, 1, 2, 3, 4, 5, 9]
+	if a[0] <> 1 then
+		PrintLn('FAIL: a[0] expected 1');
+	if a[1] <> 1 then
+		PrintLn('FAIL: a[1] expected 1');
+	if a[2] <> 2 then
+		PrintLn('FAIL: a[2] expected 2');
+	if a[3] <> 3 then
+		PrintLn('FAIL: a[3] expected 3');
+	if a[4] <> 4 then
+		PrintLn('FAIL: a[4] expected 4');
+	if a[5] <> 5 then
+		PrintLn('FAIL: a[5] expected 5');
+	if a[6] <> 9 then
+		PrintLn('FAIL: a[6] expected 9');
+
+	a[0];  // Return first element
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// After sort, a[0] should be 1
+	if intVal.Value != 1 {
+		t.Errorf("expected a[0] = 1 after Sort, got %d", intVal.Value)
+	}
+}
+
+// TestArraySort_EmptyArray tests sorting an empty array (no-op).
+func TestArraySort_EmptyArray(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	Sort(a);
+	Length(a);  // Should still be 0
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Empty array should remain empty
+	if intVal.Value != 0 {
+		t.Errorf("expected length = 0 after Sort, got %d", intVal.Value)
+	}
+}
+
+// TestArraySort_ErrorCases tests Sort error handling.
+func TestArraySort_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectedErr string
+	}{
+		{
+			name: "wrong argument count",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	Sort(a, a);
+end
+			`,
+			expectedErr: "Sort() expects 1 argument, got 2",
+		},
+		{
+			name: "non-array argument",
+			input: `
+begin
+	Sort(42);
+end
+			`,
+			expectedErr: "Sort() expects array as argument",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+			errVal, ok := result.(*ErrorValue)
+			if !ok {
+				t.Fatalf("expected ErrorValue, got %T: %+v", result, result)
+			}
+
+			if !strings.Contains(errVal.Message, tt.expectedErr) {
+				t.Errorf("expected error containing '%s', got '%s'", tt.expectedErr, errVal.Message)
+			}
+		})
+	}
+}
+

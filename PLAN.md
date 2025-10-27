@@ -545,72 +545,74 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Built-in Functions - IndexOf (3 tasks)
 
-- [ ] 9.69 Implement `IndexOf(arr, value)` in `interp/array_functions.go`:
-  - [ ] Create `builtinIndexOf()` function
-  - [ ] Accept array and value to find
-  - [ ] Search array for first occurrence of value
-  - [ ] Use equality comparison (handle different types)
-  - [ ] Return 0-based index if found
-  - [ ] Return -1 if not found
-- [ ] 9.70 Implement `IndexOf(arr, value, startIndex)` variant:
-  - [ ] Accept optional 3rd parameter: start index
-  - [ ] Search from startIndex onwards
-  - [ ] Handle startIndex out of bounds
-- [ ] 9.71 Add tests in `interp/array_test.go`:
-  - [ ] Test `IndexOf([1,2,3,2], 2)` returns 1 (first occurrence)
-  - [ ] Test `IndexOf([1,2,3], 5)` returns -1 (not found)
-  - [ ] Test with start index: `IndexOf([1,2,3,2], 2, 2)` returns 3
-  - [ ] Test with strings
-  - [ ] Test with empty array
+- [x] 9.69 Implement `IndexOf(arr, value)` in `interp/array_functions.go`:
+  - [x] Create `builtinIndexOf()` function
+  - [x] Accept array and value to find
+  - [x] Search array for first occurrence of value
+  - [x] Use equality comparison (handle different types)
+  - [x] Return 1-based index if found (implemented: uses 1-based indexing like Pascal Pos())
+  - [x] Return 0 if not found (implemented: Pascal convention, not -1)
+- [x] 9.70 Implement `IndexOf(arr, value, startIndex)` variant:
+  - [x] Accept optional 3rd parameter: start index (0-based internal)
+  - [x] Search from startIndex onwards
+  - [x] Handle startIndex out of bounds (returns 0)
+- [x] 9.71 Add tests in `interp/array_test.go`:
+  - [x] Test `IndexOf([1,2,3,2], 2)` returns 2 (first occurrence: 1-based)
+  - [x] Test `IndexOf([1,2,3], 5)` returns 0 (not found)
+  - [x] Test with start index: `IndexOf([1,2,3,2], 2, 2)` returns 4
+  - [x] Test with strings
+  - [x] Test with empty array
+  - [x] Test edge cases (negative startIndex, beyond bounds)
+  - [x] Test error cases (wrong arg count, wrong types)
 
 #### Built-in Functions - Contains (2 tasks)
 
-- [ ] 9.72 Implement `Contains(arr, value)` in `interp/array_functions.go`:
-  - [ ] Create `builtinContains()` function
-  - [ ] Accept array and value
-  - [ ] Return true if array contains value, false otherwise
-  - [ ] Internally use IndexOf (return IndexOf >= 0)
-- [ ] 9.73 Add tests in `interp/array_test.go`:
-  - [ ] Test `Contains([1,2,3], 2)` returns true
-  - [ ] Test `Contains([1,2,3], 5)` returns false
-  - [ ] Test with different types
-  - [ ] Test with empty array returns false
+- [x] 9.72 Implement `Contains(arr, value)` in `interp/array_functions.go`:
+  - [x] Create `builtinContains()` function
+  - [x] Accept array and value
+  - [x] Return true if array contains value, false otherwise
+  - [x] Internally use IndexOf (return IndexOf > 0, since 0 = not found)
+- [x] 9.73 Add tests in `interp/array_test.go`:
+  - [x] Test `Contains([1,2,3], 2)` returns true
+  - [x] Test `Contains([1,2,3], 5)` returns false
+  - [x] Test with different types
+  - [x] Test with empty array returns false
 
 #### Built-in Functions - Reverse (2 tasks)
 
-- [ ] 9.74 Implement `Reverse(arr)` in `interp/array_functions.go`:
-  - [ ] Create `builtinReverse()` function
-  - [ ] Accept array (var parameter - modify in place)
-  - [ ] Reverse array elements in-place
-  - [ ] Swap elements from both ends moving inward
-  - [ ] Return nil (modifies in place)
-- [ ] 9.75 Add tests in `interp/array_test.go`:
-  - [ ] Test `var a := [1,2,3]; Reverse(a);` → a = [3,2,1]
-  - [ ] Test with even length array
-  - [ ] Test with odd length array
-  - [ ] Test with single element (no-op)
-  - [ ] Test with empty array (no-op)
+- [x] 9.74 Implement `Reverse(arr)` in `interp/array_functions.go`:
+  - [x] Create `builtinReverse()` function
+  - [x] Accept array (var parameter - modify in place)
+  - [x] Reverse array elements in-place
+  - [x] Swap elements from both ends moving inward
+  - [x] Return nil (modifies in place)
+- [x] 9.75 Add tests in `interp/array_test.go`:
+  - [x] Test `var a := [1,2,3]; Reverse(a);` → a = [3,2,1]
+  - [x] Test with even length array
+  - [x] Test with odd length array
+  - [x] Test with single element (no-op)
+  - [x] Test with empty array (no-op)
 
 #### Built-in Functions - Sort (3 tasks)
 
-- [ ] 9.76 Implement `Sort(arr)` in `interp/array_functions.go`:
-  - [ ] Create `builtinSort()` function
-  - [ ] Accept array (var parameter - modify in place)
-  - [ ] Sort array elements using default comparison
-  - [ ] For Integer arrays: numeric sort
-  - [ ] For String arrays: lexicographic sort
-  - [ ] Use Go's `sort.Slice()`
-  - [ ] Return nil (modifies in place)
+- [x] 9.76 Implement `Sort(arr)` in `interp/array_functions.go`:
+  - [x] Create `builtinSort()` function
+  - [x] Accept array (var parameter - modify in place)
+  - [x] Sort array elements using default comparison
+  - [x] For Integer arrays: numeric sort
+  - [x] For String arrays: lexicographic sort
+  - [x] Use Go's `sort.Slice()`
+  - [x] Return nil (modifies in place)
 - [ ] 9.77 Add optional comparator parameter (future):
   - [ ] `Sort(arr, comparator)` with custom comparison function
   - [ ] Comparator returns -1, 0, 1 for less, equal, greater
   - [ ] Note: Requires function pointers (deferred)
-- [ ] 9.78 Add tests in `interp/array_test.go`:
-  - [ ] Test `var a := [3,1,2]; Sort(a);` → a = [1,2,3]
-  - [ ] Test with strings: `['c','a','b']` → `['a','b','c']`
-  - [ ] Test with already sorted array (no-op)
-  - [ ] Test with single element
-  - [ ] Test with duplicates
+- [x] 9.78 Add tests in `interp/array_test.go`:
+  - [x] Test `var a := [3,1,2]; Sort(a);` → a = [1,2,3]
+  - [x] Test with strings: `['c','a','b']` → `['a','b','c']`
+  - [x] Test with already sorted array (no-op)
+  - [x] Test with single element
+  - [x] Test with duplicates
 
 #### Testing & Fixtures (2 tasks)
 

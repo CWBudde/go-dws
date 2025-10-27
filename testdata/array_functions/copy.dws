@@ -1,0 +1,90 @@
+// Test script for Copy() array function
+// Task 9.79: Array copying and independence
+
+type TIntArray = array of Integer;
+type TStringArray = array of String;
+
+var a1: TIntArray;
+var a2: TIntArray;
+var s1: TStringArray;
+var s2: TStringArray;
+var i: Integer;
+
+begin
+	PrintLn('=== Copy() Array Function Tests ===');
+	PrintLn('');
+
+	// Test 1: Basic integer array copy
+	PrintLn('Test 1: Basic integer array copy');
+	SetLength(a1, 3);
+	a1[0] := 10;
+	a1[1] := 20;
+	a1[2] := 30;
+	a2 := Copy(a1);
+
+	Print('Original: ');
+	for i := 0 to Length(a1) - 1 do begin
+		Print(a1[i]);
+		if i < Length(a1) - 1 then Print(', ');
+	end;
+	PrintLn('');
+
+	Print('Copy: ');
+	for i := 0 to Length(a2) - 1 do begin
+		Print(a2[i]);
+		if i < Length(a2) - 1 then Print(', ');
+	end;
+	PrintLn('');
+	PrintLn('');
+
+	// Test 2: Independence - modifying copy shouldn't affect original
+	PrintLn('Test 2: Independence test');
+	a2[1] := 999;
+
+	Print('Original after modifying copy: ');
+	for i := 0 to Length(a1) - 1 do begin
+		Print(a1[i]);
+		if i < Length(a1) - 1 then Print(', ');
+	end;
+	PrintLn('');
+
+	Print('Modified copy: ');
+	for i := 0 to Length(a2) - 1 do begin
+		Print(a2[i]);
+		if i < Length(a2) - 1 then Print(', ');
+	end;
+	PrintLn('');
+	PrintLn('');
+
+	// Test 3: String array copy
+	PrintLn('Test 3: String array copy');
+	SetLength(s1, 3);
+	s1[0] := 'apple';
+	s1[1] := 'banana';
+	s1[2] := 'cherry';
+	s2 := Copy(s1);
+
+	Print('Original: ');
+	for i := 0 to Length(s1) - 1 do begin
+		Print(s1[i]);
+		if i < Length(s1) - 1 then Print(', ');
+	end;
+	PrintLn('');
+
+	Print('Copy: ');
+	for i := 0 to Length(s2) - 1 do begin
+		Print(s2[i]);
+		if i < Length(s2) - 1 then Print(', ');
+	end;
+	PrintLn('');
+	PrintLn('');
+
+	// Test 4: Empty array copy
+	PrintLn('Test 4: Empty array copy');
+	SetLength(a1, 0);
+	a2 := Copy(a1);
+	PrintLn('Empty array copied, length = ' + IntToStr(Length(a2)));
+
+	PrintLn('');
+	PrintLn('=== All Copy() tests complete ===');
+end
