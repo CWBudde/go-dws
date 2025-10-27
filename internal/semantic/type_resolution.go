@@ -51,6 +51,11 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 		return typeAlias, nil
 	}
 
+	// Try subrange types (Task 9.98)
+	if subrangeType, found := a.subranges[typeName]; found {
+		return subrangeType, nil
+	}
+
 	return nil, fmt.Errorf("unknown type: %s", typeName)
 }
 

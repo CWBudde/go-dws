@@ -1,0 +1,17 @@
+=== Subrange Type Declarations ===
+Variables declared successfully
+digit = 5
+percent = 75
+temp = -10
+digit (low bound) = 0
+digit (high bound) = 9
+percent (high bound) = 100
+temp (low bound) = -40
+temp (high bound) = 50
+Integer from subrange = 9
+Subrange from integer = 7
+=== Date Example ===
+Date: 10/27/2025
+=== Loop Test ===
+0 1 2 3 4 5 
+=== All Basic Tests Passed ===

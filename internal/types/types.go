@@ -177,6 +177,63 @@ func GetUnderlyingType(t Type) Type {
 }
 
 // ============================================================================
+// Subrange Types (Task 9.91)
+// ============================================================================
+
+// SubrangeType represents a subrange type declaration.
+// Subrange types restrict an ordinal type to a specific range of values,
+// providing type safety and runtime validation.
+//
+// Example: type TDigit = 0..9; type TPercent = 0..100;
+//
+// Unlike type aliases, subranges are NOT transparent - they maintain their
+// bounds and require validation at assignment time.
+type SubrangeType struct {
+	BaseType  Type   // Underlying ordinal type (Integer, Char, or enum)
+	Name      string // Subrange type name (e.g., "TDigit")
+	LowBound  int    // Inclusive lower bound
+	HighBound int    // Inclusive upper bound
+}
+
+// String returns the range representation "LowBound..HighBound".
+func (s *SubrangeType) String() string {
+	return fmt.Sprintf("%d..%d", s.LowBound, s.HighBound)
+}
+
+// TypeKind returns "SUBRANGE" for subrange types.
+func (s *SubrangeType) TypeKind() string {
+	return "SUBRANGE"
+}
+
+// Equals checks if two subrange types are equal.
+// Subrange types are equal if they have the same base type and the same bounds.
+func (s *SubrangeType) Equals(other Type) bool {
+	otherSubrange, ok := other.(*SubrangeType)
+	if !ok {
+		return false
+	}
+	return s.BaseType.Equals(otherSubrange.BaseType) &&
+		s.LowBound == otherSubrange.LowBound &&
+		s.HighBound == otherSubrange.HighBound
+}
+
+// Contains checks if a value is within the subrange bounds (inclusive).
+func (s *SubrangeType) Contains(value int) bool {
+	return value >= s.LowBound && value <= s.HighBound
+}
+
+// ValidateRange validates that a value is within the subrange bounds.
+// Returns an error if the value is outside the allowed range.
+// Task 9.92
+func ValidateRange(value int, subrange *SubrangeType) error {
+	if !subrange.Contains(value) {
+		return fmt.Errorf("value %d is out of range for type %s (%d..%d)",
+			value, subrange.Name, subrange.LowBound, subrange.HighBound)
+	}
+	return nil
+}
+
+// ============================================================================
 // Type Utilities
 // ============================================================================
 

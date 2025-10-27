@@ -1,0 +1,86 @@
+// Tests subrange types as function parameters and return types
+// Demonstrates that subranges work correctly in function signatures
+
+type TDigit = 0..9;
+type TPercent = 0..100;
+
+PrintLn('=== Subrange Functions Test ===');
+
+// Function that returns a subrange value
+function GetDefaultDigit(): TDigit;
+begin
+  Result := 5;
+end;
+
+// Function that takes a subrange parameter and returns Integer
+function DigitToInt(d: TDigit): Integer;
+begin
+  Result := d;  // Convert subrange to Integer
+end;
+
+// Function that takes Integer and returns a subrange
+function MakeDigit(value: Integer): TDigit;
+begin
+  // Assumes value is in valid range
+  Result := value;
+end;
+
+// Function that takes a subrange and returns a subrange
+function GetSameDigit(d: TDigit): TDigit;
+begin
+  Result := d;
+end;
+
+// Function that validates and returns a subrange
+function MakePercent(value: Integer): TPercent;
+begin
+  if value < 0 then
+    Result := 0
+  else if value > 100 then
+    Result := 100
+  else
+    Result := value;
+end;
+
+// Test returning subrange from function
+var digit: TDigit;
+digit := GetDefaultDigit();
+PrintLn('GetDefaultDigit() = ' + IntToStr(digit));
+
+// Test passing subrange to function
+var asInt: Integer;
+asInt := DigitToInt(digit);
+PrintLn('DigitToInt(' + IntToStr(digit) + ') = ' + IntToStr(asInt));
+
+// Test integer-to-subrange function
+var d2: TDigit;
+d2 := MakeDigit(7);
+PrintLn('MakeDigit(7) = ' + IntToStr(d2));
+
+// Test subrange-to-subrange function
+var d3: TDigit;
+d3 := GetSameDigit(d2);
+PrintLn('GetSameDigit(' + IntToStr(d2) + ') = ' + IntToStr(d3));
+
+// Test integer-to-subrange conversion in function
+var percent: TPercent;
+percent := MakePercent(42);
+PrintLn('MakePercent(42) = ' + IntToStr(percent));
+
+percent := MakePercent(-10);
+PrintLn('MakePercent(-10) = ' + IntToStr(percent));
+
+percent := MakePercent(150);
+PrintLn('MakePercent(150) = ' + IntToStr(percent));
+
+// Test passing literals
+var d4: TDigit;
+d4 := MakeDigit(3);
+PrintLn('MakeDigit(3) = ' + IntToStr(d4));
+
+// Test using subrange in sequence
+var d5: TDigit;
+d5 := GetSameDigit(GetDefaultDigit());
+PrintLn('Nested call: GetSameDigit(GetDefaultDigit()) = ' + IntToStr(d5));
+
+PrintLn('=== All Function Tests Passed ===');

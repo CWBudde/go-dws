@@ -149,7 +149,7 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 	case "Boolean":
 		return types.BOOLEAN, nil
 	default:
-		// Check for custom types (enums, records, arrays)
+		// Check for custom types (enums, records, arrays, subranges)
 		// Try enum type
 		if enumTypeVal, ok := i.env.Get("__enum_type_" + typeName); ok {
 			if etv, ok := enumTypeVal.(*EnumTypeValue); ok {
@@ -173,6 +173,12 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 			if tav, ok := typeAliasVal.(*TypeAliasValue); ok {
 				// Return the underlying type (type aliases are transparent at runtime)
 				return tav.AliasedType, nil
+			}
+		}
+		// Try subrange type (Task 9.100)
+		if subrangeTypeVal, ok := i.env.Get("__subrange_type_" + typeName); ok {
+			if stv, ok := subrangeTypeVal.(*SubrangeTypeValue); ok {
+				return stv.SubrangeType, nil
 			}
 		}
 		// Unknown type

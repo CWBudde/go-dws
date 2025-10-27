@@ -19,6 +19,7 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 
 	// This is a regular function (not a method implementation)
 	// Convert parameter types and return type
+	// Task 9.102: Use resolveType to support user-defined types like subranges
 	paramTypes := make([]types.Type, 0, len(decl.Parameters))
 	for _, param := range decl.Parameters {
 		if param.Type == nil {
@@ -26,7 +27,7 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 				param.Name.Value, decl.Name.Value)
 			return
 		}
-		paramType, err := types.TypeFromString(param.Type.Name)
+		paramType, err := a.resolveType(param.Type.Name)
 		if err != nil {
 			a.addError("unknown parameter type '%s' in function '%s': %v",
 				param.Type.Name, decl.Name.Value, err)
@@ -39,7 +40,7 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	var returnType types.Type
 	if decl.ReturnType != nil {
 		var err error
-		returnType, err = types.TypeFromString(decl.ReturnType.Name)
+		returnType, err = a.resolveType(decl.ReturnType.Name)
 		if err != nil {
 			a.addError("unknown return type '%s' in function '%s': %v",
 				decl.ReturnType.Name, decl.Name.Value, err)

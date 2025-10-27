@@ -1,0 +1,76 @@
+// Tests basic subrange type declarations and usage
+// Demonstrates defining subrange types and using them with variables
+
+// Define common subrange types
+type TDigit = 0..9;
+type TPercent = 0..100;
+type TTemperature = -40..50;
+
+PrintLn('=== Subrange Type Declarations ===');
+
+// Test variable declarations with subrange types
+var digit: TDigit;
+var percent: TPercent;
+var temp: TTemperature;
+
+PrintLn('Variables declared successfully');
+
+// Test assignments within valid ranges
+digit := 5;
+PrintLn('digit = ' + IntToStr(digit));
+
+percent := 75;
+PrintLn('percent = ' + IntToStr(percent));
+
+temp := -10;
+PrintLn('temp = ' + IntToStr(temp));
+
+// Test boundary values
+digit := 0;
+PrintLn('digit (low bound) = ' + IntToStr(digit));
+
+digit := 9;
+PrintLn('digit (high bound) = ' + IntToStr(digit));
+
+percent := 100;
+PrintLn('percent (high bound) = ' + IntToStr(percent));
+
+temp := -40;
+PrintLn('temp (low bound) = ' + IntToStr(temp));
+
+temp := 50;
+PrintLn('temp (high bound) = ' + IntToStr(temp));
+
+// Test coercion from subrange to integer
+var normalInt: Integer;
+normalInt := digit;
+PrintLn('Integer from subrange = ' + IntToStr(normalInt));
+
+// Test coercion from integer to subrange (with valid value)
+var validInt: Integer := 7;
+digit := validInt;
+PrintLn('Subrange from integer = ' + IntToStr(digit));
+
+// Test multiple subrange types in one program
+type TMonth = 1..12;
+type TDay = 1..31;
+type TYear = 1900..2100;
+
+var month: TMonth := 10;
+var day: TDay := 27;
+var year: TYear := 2025;
+
+PrintLn('=== Date Example ===');
+PrintLn('Date: ' + IntToStr(month) + '/' + IntToStr(day) + '/' + IntToStr(year));
+
+// Test with loop (valid range)
+PrintLn('=== Loop Test ===');
+var i: Integer;
+for i := 0 to 5 do
+begin
+  digit := i;
+  Print(IntToStr(digit) + ' ');
+end;
+PrintLn('');
+
+PrintLn('=== All Basic Tests Passed ===');
