@@ -1,0 +1,34 @@
+unit StringUtils;
+
+interface
+
+function Concat(a, b: String): String;
+function Uppercase(s: String): String;
+function Length(s: String): Integer;
+
+implementation
+
+function Concat(a, b: String): String;
+begin
+  Result := a + b;
+end;
+
+function Uppercase(s: String): String;
+begin
+  // Note: Actual implementation would use built-in function
+  Result := s;
+end;
+
+function Length(s: String): Integer;
+begin
+  // Note: Actual implementation would use built-in function
+  Result := 0;
+end;
+
+initialization
+  PrintLn('StringUtils loaded');
+
+finalization
+  PrintLn('StringUtils unloading');
+
+end.

@@ -1950,7 +1950,7 @@ func (i *Interpreter) ExecuteRaiseStmt(stmt *RaiseStmt) error {
 When runtime errors occur (array bounds, nil dereference, etc.), create Exception instances:
 
 ```go
-func (i *Interpreter) raiseRuntimeError(format string, args ...interface{}) error {
+func (i *Interpreter) raiseRuntimeError(format string, args ...any) error {
     message := fmt.Sprintf(format, args...)
 
     exceptionClass := i.SymbolTable.Classes["Exception"]

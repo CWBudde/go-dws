@@ -1,0 +1,14 @@
+unit Strings;
+
+interface
+
+function Add(a, b: String): String;
+
+implementation
+
+function Add(a, b: String): String;
+begin
+  Result := a + b;
+end;
+
+end.

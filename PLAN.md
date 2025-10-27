@@ -198,14 +198,14 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### AST Nodes (1 task)
 
-- [x] 9.23a Define `ConstDecl` in `ast/declarations.go`:
+- [x] 9.24 Define `ConstDecl` in `ast/declarations.go`:
   - [x] Fields: `Name *Identifier`, `Type *TypeAnnotation`, `Value Expression`, `Token`
   - [x] Implement `Statement` interface methods
   - [x] `String()` returns `const Name: Type = Value;` format
 
 #### Parser Support (2 tasks)
 
-- [x] 9.23b Extend parser to handle const declarations:
+- [x] 9.25 Extend parser to handle const declarations:
   - [x] Detect `const` keyword in statement parsing
   - [x] Parse const name (identifier)
   - [x] Parse optional type annotation
@@ -213,7 +213,7 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
   - [x] Parse value expression
   - [x] Expect SEMICOLON
   - [x] Return `ConstDecl` node
-- [x] 9.23c Add parser tests in `parser/declarations_test.go`:
+- [x] 9.26 Add parser tests in `parser/declarations_test.go`:
   - [x] Test parsing `const PI = 3.14;`
   - [x] Test parsing `const MAX: Integer = 100;`
   - [x] Test with type inference
@@ -221,13 +221,13 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Semantic Analysis (2 tasks)
 
-- [x] 9.23d Implement const analysis in `semantic/analyzer.go`:
+- [x] 9.27 Implement const analysis in `semantic/analyzer.go`:
   - [x] Validate const value is a compile-time constant expression
   - [x] Infer type from value if type annotation omitted
   - [x] Check type compatibility if both specified
   - [x] Register const in symbol table as immutable
   - [x] Prevent reassignment of const values
-- [x] 9.23e Add semantic tests in `semantic/const_test.go`:
+- [x] 9.28 Add semantic tests in `semantic/const_test.go`:
   - [x] Test const declaration with type annotation
   - [x] Test const declaration with type inference
   - [x] Test const usage in expressions
@@ -237,481 +237,61 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Interpreter Support (2 tasks)
 
-- [x] 9.23f Implement const runtime support in `interp/interpreter.go`:
+- [x] 9.29 Implement const runtime support in `interp/interpreter.go`:
   - [x] Store const values in environment as immutable
   - [x] Evaluate const expressions at declaration time
   - [x] Return const values when referenced
   - [x] Prevent runtime modification of const values
-- [x] 9.23g Add interpreter tests in `interp/const_test.go`:
+- [x] 9.30 Add interpreter tests in `interp/const_test.go`:
   - [x] Test const declaration and usage
   - [x] Test const in expressions
   - [x] Test const scoping
 
 #### Testing & Fixtures (2 tasks)
 
-- [x] 9.23h Create test scripts in `testdata/const/`:
+- [x] 9.31 Create test scripts in `testdata/const/`:
   - [x] `basic_const.dws` - Simple const declarations (Integer, Float, String, Boolean)
   - [x] `const_types.dws` - Const with various types
   - [x] `const_expressions.dws` - Const used in expressions
   - [x] Expected outputs
-- [x] 9.23i Add CLI integration tests in `cmd/dwscript/const_test.go`:
+- [x] 9.32 Add CLI integration tests in `cmd/dwscript/const_test.go`:
   - [x] Test const declaration scripts
   - [x] Verify correct outputs
 
 ---
 
-### Ordinal Functions (HIGH PRIORITY)
+### Built-in functions (HIGH PRIORITY) ✅ **COMPLETED**
 
-**Summary**: Implement ordinal functions (Inc, Dec, Succ, Pred, Low, High) for integers, enums, and chars. These are essential for iterating and manipulating ordinal types.
-
-**Note**: These functions should work on any ordinal type (Integer, enum values, Char when implemented).
-
-#### Built-in Functions - Increment/Decrement (4 tasks)
-
-- [x] 9.24 Implement `Inc(x)` and `Inc(x, delta)` in `interp/builtins.go`:
-  - [x] Create `builtinInc()` function
-  - [x] Accept 1-2 parameters: variable reference, optional delta (default 1)
-  - [x] Support Integer: increment by delta
-  - [x] Support enum: get next enum value (Succ)
-  - [x] Modify variable in-place (requires var parameter support)
-  - [x] Return nil
-- [x] 9.25 Implement `Dec(x)` and `Dec(x, delta)` in `interp/builtins.go`:
-  - [x] Create `builtinDec()` function
-  - [x] Accept 1-2 parameters: variable reference, optional delta (default 1)
-  - [x] Support Integer: decrement by delta
-  - [x] Support enum: get previous enum value (Pred)
-  - [x] Modify variable in-place
-  - [x] Return nil
-- [x] 9.26 Register Inc/Dec in interpreter initialization:
-  - [x] Add to global built-in functions map
-  - [x] Handle var parameter semantics (pass by reference)
-- [x] 9.27 Add tests in `interp/ordinal_test.go`:
-  - [x] Test `Inc(x)` with integer: `var x := 5; Inc(x); // x = 6`
-  - [x] Test `Inc(x, 3)` with delta: `Inc(x, 3); // x = 8`
-  - [x] Test `Dec(x)` with integer
-  - [x] Test `Dec(x, 2)` with delta
-  - [x] Test Inc/Dec with enum values
-  - [x] Test error: Inc beyond High(enum)
-  - [x] Test error: Dec below Low(enum)
-
-#### Built-in Functions - Successor/Predecessor (3 tasks)
-
-- [x] 9.28 Implement `Succ(x)` in `interp/builtins.go`:
-  - [x] Create `builtinSucc()` function
-  - [x] Accept 1 parameter: ordinal value
-  - [x] For Integer: return x + 1
-  - [x] For enum: return next enum value
-  - [x] Raise error if already at maximum value
-  - [x] Return successor value
-- [x] 9.29 Implement `Pred(x)` in `interp/builtins.go`:
-  - [x] Create `builtinPred()` function
-  - [x] Accept 1 parameter: ordinal value
-  - [x] For Integer: return x - 1
-  - [x] For enum: return previous enum value
-  - [x] Raise error if already at minimum value
-  - [x] Return predecessor value
-- [x] 9.30 Add tests in `interp/ordinal_test.go`:
-  - [x] Test `Succ(5)` returns 6
-  - [x] Test `Pred(5)` returns 4
-  - [x] Test Succ/Pred with enum values
-  - [x] Test error: Succ at maximum
-  - [x] Test error: Pred at minimum
-
-#### Built-in Functions - Low/High for Enums (3 tasks)
-
-- [x] 9.31 Implement `Low(enumType)` in `interp/builtins.go`:
-  - [x] Create `builtinLow()` function
-  - [x] Accept enum type or enum value
-  - [x] For arrays: return array lower bound (already implemented)
-  - [x] For enum type: return lowest enum value
-  - [x] For enum value: return Low of that enum type
-  - [x] Return lowest ordinal value
-- [x] 9.32 Implement `High(enumType)` in `interp/builtins.go`:
-  - [x] Create `builtinHigh()` function
-  - [x] Accept enum type or enum value
-  - [x] For arrays: return array upper bound (already implemented)
-  - [x] For enum type: return highest enum value
-  - [x] For enum value: return High of that enum type
-  - [x] Return highest ordinal value
-- [x] 9.33 Add tests in `interp/ordinal_test.go`:
-  - [x] Test `Low(TColor)` returns first enum value (Red)
-  - [x] Test `High(TColor)` returns last enum value (Blue)
-  - [x] Test Low/High with enum variable: `var c: TColor; Low(c)`
-  - [x] Test Low/High still work for arrays (backward compatibility)
-
-#### Testing & Fixtures (2 tasks)
-
-- [x] 9.34 Create test scripts in `testdata/ordinal_functions/`:
-  - [x] `inc_dec.dws` - Inc and Dec with integers and enums
-  - [x] `succ_pred.dws` - Succ and Pred with integers and enums
-  - [x] `low_high_enum.dws` - Low and High for enum types
-  - [x] `for_loop_enum.dws` - Using Low/High in for loops: `for i := Low(TEnum) to High(TEnum)`
-  - [x] Expected outputs
-- [x] 9.35 Add CLI integration tests:
-  - [x] Test ordinal function scripts
-  - [x] Verify correct outputs
-
----
-
-### Assert Function (HIGH PRIORITY)
-
-**Summary**: Implement `Assert(condition)` and `Assert(condition, message)` built-in functions for runtime assertions. Critical for testing and contracts.
-
-#### Built-in Function (2 tasks)
-
-- [x] 9.36 Implement `Assert()` in `interp/builtins.go`:
-  - [x] Create `builtinAssert()` function
-  - [x] Accept 1-2 parameters: Boolean condition, optional String message
-  - [x] If condition is false:
-    - [x] If message provided, raise `EAssertionFailed` with message
-    - [x] If no message, raise `EAssertionFailed` with "Assertion failed"
-  - [x] If condition is true, return nil (no-op)
-  - [x] Register in global built-in functions
-- [x] 9.37 Add tests in `interp/assert_test.go`:
-  - [x] Test `Assert(true)` - should not raise error
-  - [x] Test `Assert(false)` - should raise EAssertionFailed
-  - [x] Test `Assert(true, 'message')` - no error
-  - [x] Test `Assert(false, 'Custom message')` - error with custom message
-  - [x] Test Assert in function: function validates preconditions
-  - [x] Test Assert with expression: `Assert(x > 0, 'x must be positive')`
-
-#### Testing & Fixtures (2 tasks)
-
-- [x] 9.38 Create test scripts in `testdata/assert/`:
-  - [x] `assert_basic.dws` - Basic Assert usage
-  - [x] `assert_validation.dws` - Using Assert for input validation
-  - [x] `assert.dws` - Reference test from original DWScript
-  - [x] Expected outputs (some should fail with assertion errors)
-- [x] 9.39 Add CLI integration tests:
-  - [x] Test assert scripts
-  - [x] Verify assertion failures are caught and reported
-
----
-
-### Priority String Functions (HIGH PRIORITY)
-
-**Summary**: Implement essential string manipulation functions: Trim, Insert, Delete, Format, StringReplace. These are heavily used in real programs.
-
-#### Built-in Functions - Trim (3 tasks)
-
-- [x] 9.40 Implement `Trim(s)` in `interp/string_functions.go`:
-  - [x] Create `builtinTrim()` function
-  - [x] Accept String parameter
-  - [x] Remove leading and trailing whitespace
-  - [x] Use Go's `strings.TrimSpace()`
-  - [x] Return trimmed string
-- [x] 9.41 Implement `TrimLeft(s)` and `TrimRight(s)`:
-  - [x] Create `builtinTrimLeft()` - remove leading whitespace only
-  - [x] Create `builtinTrimRight()` - remove trailing whitespace only
-  - [x] Use `strings.TrimLeftFunc()` and `strings.TrimRightFunc()`
-- [x] 9.42 Add tests in `interp/string_test.go`:
-  - [x] Test `Trim('  hello  ')` returns 'hello'
-  - [x] Test `TrimLeft('  hello')` returns 'hello'
-  - [x] Test `TrimRight('hello  ')` returns 'hello'
-  - [x] Test with tabs and newlines
-  - [x] Test with no whitespace (no-op)
-
-#### Built-in Functions - Insert/Delete (3 tasks)
-
-- [x] 9.43 Implement `Insert(source, s, pos)` in `interp/interpreter.go`:
-  - [x] Create `builtinInsert()` function
-  - [x] Accept 3 parameters: source String, target String (var param), position Integer
-  - [x] Insert source into target at 1-based position
-  - [x] Modify target string in-place (var parameter)
-  - [x] Handle edge cases: pos < 1, pos > length
-- [x] 9.44 Implement `Delete(s, pos, count)` in `interp/interpreter.go`:
-  - [x] Create `builtinDeleteString()` function
-  - [x] Accept 3 parameters: string (var param), position Integer, count Integer
-  - [x] Delete count characters starting at 1-based position
-  - [x] Modify string in-place (var parameter)
-  - [x] Handle edge cases: pos < 1, pos > length, count too large
-- [x] 9.45 Add tests in `interp/string_test.go`:
-  - [x] Test Insert: `var s := 'Helo'; Insert('l', s, 3);` → 'Hello'
-  - [x] Test Delete: `var s := 'Hello'; Delete(s, 3, 2);` → 'Heo'
-  - [x] Test Insert at start/end
-  - [x] Test Delete edge cases
-  - [x] Test error cases
-
-#### Built-in Functions - StringReplace (2 tasks)
-
-- [x] 9.46 Implement `StringReplace(s, old, new)` in `interp/interpreter.go`:
-  - [x] Create `builtinStringReplace()` function
-  - [x] Accept 3 parameters: string, old substring, new substring
-  - [x] Optional 4th parameter: count (replace count occurrences, -1 for all)
-  - [x] Use Go's `strings.Replace()`
-  - [x] Return new string with replacements
-- [x] 9.47 Add tests in `interp/string_test.go`:
-  - [x] Test replace all: `StringReplace('hello world', 'l', 'L')` → 'heLLo worLd'
-  - [x] Test replace first only (count parameter supported)
-  - [x] Test with empty old string
-  - [x] Test with empty new string (delete)
-
-#### Built-in Functions - Format (4 tasks)
-
-- [x] 9.48 Implement `Format(fmt, args)` in `interp/interpreter.go`:
-  - [x] Create `builtinFormat()` function (lines 1891-2017)
-  - [x] Accept format string and variadic args (array of values)
-  - [x] Support format specifiers: `%s` (string), `%d` (integer), `%f` (float), `%%` (literal %)
-  - [x] Optional: support width and precision: `%5d`, `%.2f`
-  - [x] Use Go's `fmt.Sprintf()` or custom formatter
-  - [x] Return formatted string
-- [x] 9.49 Support array of const for Format args:
-  - [x] Parse variadic parameters as array
-  - [x] Convert DWScript values to Go values for formatting
-  - [x] Handle different value types (Integer, Float, String, Boolean)
-- [x] 9.50 Add tests in `interp/string_test.go`:
-  - [x] Test `Format('Hello %s', ['World'])` → 'Hello World' (24 tests total)
-  - [x] Test `Format('Value: %d', [42])` → 'Value: 42'
-  - [x] Test `Format('Pi: %.2f', [3.14159])` → 'Pi: 3.14'
-  - [x] Test multiple args: `Format('%s is %d', ['Age', 25])`
-  - [x] Test error: wrong number of args
-- [x] 9.51 Documentation in `docs/builtins.md`:
-  - [x] Document Format syntax
-  - [x] List supported format specifiers
-  - [x] Provide examples
-
-#### Semantic Analysis Support (1 task)
-
-- [x] 9.51a Add semantic analysis for string functions in `semantic/analyze_expressions.go`:
-  - [x] `Trim(s: String): String` - validate 1 string argument (duplicates at lines 1115-1127 REMOVED)
-  - [x] `TrimLeft(s: String): String` - validate 1 string argument (duplicates at lines 1130-1142 REMOVED)
-  - [x] `TrimRight(s: String): String` - validate 1 string argument (duplicates at lines 1145-1157 REMOVED)
-  - [x] `Insert(source: String, var target: String, pos: Integer)` - validate var parameter (indentation FIXED)
-  - [x] `Delete` - handle overloading: `Delete(var arr: Array, index: Integer)` OR `Delete(var s: String, pos: Integer, count: Integer)` (lines 853-898, already correct)
-  - [x] `StringReplace(s: String, old: String, new: String): String` - validate 3 strings (duplicates at lines 1190-1204 REMOVED)
-  - [x] `Format(fmt: String, args: Array): String` - validate format string and array (ADDED at lines 548-571)
-  - [x] Remove duplicate function checks (Trim family and StringReplace duplicates removed)
-  - [x] Fix indentation issues in lines 1114+ (Insert function indentation fixed)
-
-#### Testing & Fixtures (2 tasks)
-
-- [x] 9.52 Create test scripts in `testdata/string_functions/`:
-  - [x] `trim.dws` - Trim, TrimLeft, TrimRight ✓ TESTED AND WORKING
-  - [x] `insert_delete.dws` - Insert and Delete ✓ TESTED AND WORKING
-  - [x] `replace.dws` - StringReplace ✓ TESTED AND WORKING
-  - [x] Expected outputs
-- [x] 9.53 Add CLI integration tests in `cmd/dwscript/string_functions_test.go`:
-  - [x] Test trim.dws ✓ PASSING
-  - [x] Test insert_delete.dws ✓ PASSING
-  - [x] Test replace.dws ✓ PASSING
-  - [x] Verify outputs match expected files ✓ ALL TESTS PASSING
-
-**Note**: Format function testing deferred to task 9.88 due to array literal syntax complexity
-
----
-
-### Priority Math Functions (HIGH PRIORITY)
-
-**Summary**: Implement essential math functions: Min, Max, Sqr, Power, Ceil, Floor, RandomInt. Complete the math function library.
-
-#### Built-in Functions - Min/Max (3 tasks)
-
-- [x] 9.54 Implement `Min(a, b)` in `internal/interp/interpreter.go`:
-  - [x] Create `builtinMin()` function
-  - [x] Accept 2 parameters: both Integer or both Float
-  - [x] Return smaller value, preserving type
-  - [x] Handle mixed types: promote Integer to Float
-- [x] 9.55 Implement `Max(a, b)` in `internal/interp/interpreter.go`:
-  - [x] Create `builtinMax()` function
-  - [x] Accept 2 parameters: both Integer or both Float
-  - [x] Return larger value, preserving type
-  - [x] Handle mixed types: promote Integer to Float
-- [x] 9.56 Add tests in `interp/math_test.go`:
-  - [x] Test `Min(5, 10)` returns 5
-  - [x] Test `Max(5, 10)` returns 10
-  - [x] Test with negative numbers
-  - [x] Test with floats: `Min(3.14, 2.71)`
-  - [x] Test with mixed types: `Min(5, 3.14)`
-
-#### Built-in Functions - Sqr/Power (3 tasks)
-
-- [x] 9.57 Implement `Sqr(x)` in `internal/interp/interpreter.go`:
-  - [x] Create `builtinSqr()` function
-  - [x] Accept Integer or Float parameter
-  - [x] Return x * x, preserving type
-  - [x] Integer sqr returns Integer, Float sqr returns Float
-- [x] 9.58 Implement `Power(x, y)` in `internal/interp/interpreter.go`:
-  - [x] Create `builtinPower()` function
-  - [x] Accept base and exponent (Integer or Float)
-  - [x] Use Go's `math.Pow()`
-  - [x] Always return Float (even for integer inputs)
-  - [x] Handle special cases: 0^0, negative base with fractional exponent
-- [x] 9.59 Add tests in `interp/math_test.go`:
-  - [x] Test `Sqr(5)` returns 25
-  - [x] Test `Sqr(3.0)` returns 9.0
-  - [x] Test `Power(2, 8)` returns 256.0
-  - [x] Test `Power(2.0, 0.5)` returns 1.414... (sqrt(2))
-  - [x] Test negative exponent: `Power(2, -1)` returns 0.5
-
-#### Built-in Functions - Ceil/Floor (3 tasks)
-
-- [x] 9.60 Implement `Ceil(x)` in `interp/math_functions.go`:
-  - [x] Create `builtinCeil()` function
-  - [x] Accept Float parameter
-  - [x] Round up to nearest integer
-  - [x] Use Go's `math.Ceil()`
-  - [x] Return Integer type
-- [x] 9.61 Implement `Floor(x)` in `interp/math_functions.go`:
-  - [x] Create `builtinFloor()` function
-  - [x] Accept Float parameter
-  - [x] Round down to nearest integer
-  - [x] Use Go's `math.Floor()`
-  - [x] Return Integer type
-- [x] 9.62 Add tests in `interp/math_test.go`:
-  - [x] Test `Ceil(3.2)` returns 4
-  - [x] Test `Ceil(3.8)` returns 4
-  - [x] Test `Ceil(-3.2)` returns -3
-  - [x] Test `Floor(3.8)` returns 3
-  - [x] Test `Floor(3.2)` returns 3
-  - [x] Test `Floor(-3.8)` returns -4
-
-#### Built-in Functions - RandomInt (2 tasks)
-
-- [x] 9.63 Implement `RandomInt(max)` in `interp/math_functions.go`:
-  - [x] Create `builtinRandomInt()` function
-  - [x] Accept Integer parameter: max (exclusive upper bound)
-  - [x] Return random Integer in range [0, max)
-  - [x] Use Go's `rand.Intn()`
-  - [x] Validate max > 0
-- [x] 9.64 Add tests in `interp/math_test.go`:
-  - [x] Test `RandomInt(10)` returns value in [0, 10)
-  - [x] Test multiple calls return different values (probabilistic)
-  - [x] Test with max=1: always returns 0
-  - [x] Test error: RandomInt(0) or RandomInt(-5)
-
-#### Testing & Fixtures (2 tasks)
-
-- [x] 9.65 Create test scripts in `testdata/math_functions/`:
-  - [x] `min_max.dws` - Min and Max with various inputs ✓ COMPLETE
-  - [x] `sqr_power.dws` - Sqr and Power functions ✓ COMPLETE
-  - [x] `ceil_floor.dws` - Ceil and Floor functions ✓ COMPLETE
-  - [x] `random_int.dws` - RandomInt usage ✓ COMPLETE
-  - [x] Expected outputs ✓ COMPLETE
-- [x] 9.66 Add CLI integration tests:
-  - [x] Test all math function fixtures ✓ ALL PASSING
-  - [x] Test inline code for each function ✓ ALL PASSING
-  - [x] Test parsing for all scripts ✓ ALL PASSING
+- [x] All ordinal functions (`Inc`, `Dec`, `Succ`, `Pred`, `Low`, `High`) are implemented and tested.
+- [x] The `Assert` function is fully implemented and tested.
+- [x] All priority string functions (`Trim`, `Insert`, `Delete`, `StringReplace`, `Format`) are implemented and tested. Format function testing is tracked in task 9.90.
+- [x] All priority math functions (`Min`, `Max`, `Sqr`, `Power`, `Ceil`, `Floor`, `RandomInt`) are implemented and tested.
 
 ---
 
 ### Priority Array Functions (HIGH PRIORITY)
 
-**Summary**: Implement essential array manipulation functions: Copy, IndexOf, Contains, Reverse, Sort. Complete the array function library.
-
-#### Built-in Functions - Copy (2 tasks)
-
-- [x] 9.67 Implement `Copy(arr)` for arrays in `interp/array_functions.go`:
-  - [x] Create `builtinArrayCopy()` function (overload existing Copy)
-  - [x] Accept array parameter
-  - [x] Return deep copy of array
-  - [x] For dynamic arrays, create new array with same elements
-  - [x] For static arrays, copy elements to new array
-  - [x] Handle arrays of objects (shallow copy references)
-- [x] 9.68 Add tests in `interp/array_test.go`:
-  - [x] Test copy dynamic array: `var a2 := Copy(a1); a2[0] := 99;` → a1 unchanged
-  - [x] Test copy static array
-  - [x] Test copy preserves element types
-  - [x] Test copy empty array
-
-#### Built-in Functions - IndexOf (3 tasks)
-
-- [x] 9.69 Implement `IndexOf(arr, value)` in `interp/array_functions.go`:
-  - [x] Create `builtinIndexOf()` function
-  - [x] Accept array and value to find
-  - [x] Search array for first occurrence of value
-  - [x] Use equality comparison (handle different types)
-  - [x] Return 1-based index if found (implemented: uses 1-based indexing like Pascal Pos())
-  - [x] Return 0 if not found (implemented: Pascal convention, not -1)
-- [x] 9.70 Implement `IndexOf(arr, value, startIndex)` variant:
-  - [x] Accept optional 3rd parameter: start index (0-based internal)
-  - [x] Search from startIndex onwards
-  - [x] Handle startIndex out of bounds (returns 0)
-- [x] 9.71 Add tests in `interp/array_test.go`:
-  - [x] Test `IndexOf([1,2,3,2], 2)` returns 2 (first occurrence: 1-based)
-  - [x] Test `IndexOf([1,2,3], 5)` returns 0 (not found)
-  - [x] Test with start index: `IndexOf([1,2,3,2], 2, 2)` returns 4
-  - [x] Test with strings
-  - [x] Test with empty array
-  - [x] Test edge cases (negative startIndex, beyond bounds)
-  - [x] Test error cases (wrong arg count, wrong types)
-
-#### Built-in Functions - Contains (2 tasks)
-
-- [x] 9.72 Implement `Contains(arr, value)` in `interp/array_functions.go`:
-  - [x] Create `builtinContains()` function
-  - [x] Accept array and value
-  - [x] Return true if array contains value, false otherwise
-  - [x] Internally use IndexOf (return IndexOf > 0, since 0 = not found)
-- [x] 9.73 Add tests in `interp/array_test.go`:
-  - [x] Test `Contains([1,2,3], 2)` returns true
-  - [x] Test `Contains([1,2,3], 5)` returns false
-  - [x] Test with different types
-  - [x] Test with empty array returns false
-
-#### Built-in Functions - Reverse (2 tasks)
-
-- [x] 9.74 Implement `Reverse(arr)` in `interp/array_functions.go`:
-  - [x] Create `builtinReverse()` function
-  - [x] Accept array (var parameter - modify in place)
-  - [x] Reverse array elements in-place
-  - [x] Swap elements from both ends moving inward
-  - [x] Return nil (modifies in place)
-- [x] 9.75 Add tests in `interp/array_test.go`:
-  - [x] Test `var a := [1,2,3]; Reverse(a);` → a = [3,2,1]
-  - [x] Test with even length array
-  - [x] Test with odd length array
-  - [x] Test with single element (no-op)
-  - [x] Test with empty array (no-op)
-
-#### Built-in Functions - Sort (3 tasks)
-
-- [x] 9.76 Implement `Sort(arr)` in `interp/array_functions.go`:
-  - [x] Create `builtinSort()` function
-  - [x] Accept array (var parameter - modify in place)
-  - [x] Sort array elements using default comparison
-  - [x] For Integer arrays: numeric sort
-  - [x] For String arrays: lexicographic sort
-  - [x] Use Go's `sort.Slice()`
-  - [x] Return nil (modifies in place)
-- [ ] 9.77 Add optional comparator parameter (future):
+- [ ] 9.33 Add optional comparator parameter (future):
   - [ ] `Sort(arr, comparator)` with custom comparison function
   - [ ] Comparator returns -1, 0, 1 for less, equal, greater
   - [ ] Note: Requires function pointers (deferred)
-- [x] 9.78 Add tests in `interp/array_test.go`:
-  - [x] Test `var a := [3,1,2]; Sort(a);` → a = [1,2,3]
-  - [x] Test with strings: `['c','a','b']` → `['a','b','c']`
-  - [x] Test with already sorted array (no-op)
-  - [x] Test with single element
-  - [x] Test with duplicates
-
-#### Testing & Fixtures (2 tasks)
-
-- [x] 9.79 Create test scripts in `testdata/array_functions/`:
-  - [x] `copy.dws` - Array copying and independence
-  - [x] `search.dws` - IndexOf and Contains
-  - [x] `reverse.dws` - Reverse array
-  - [x] `sort.dws` - Sort arrays
-  - [x] Expected outputs
-- [x] 9.80 Add CLI integration tests:
-  - [x] Test array function scripts
-  - [x] Verify outputs
 
 ---
 
 ### Contracts (Design by Contract)
 
-- [ ] 9.81 Parse require/ensure clauses (if supported)
-- [ ] 9.82 Implement contract checking at runtime
-- [ ] 9.83 Test contracts
+- [ ] 9.34 Parse require/ensure clauses (if supported)
+- [ ] 9.35 Implement contract checking at runtime
+- [ ] 9.36 Test contracts
 
 ### Comprehensive Testing (Stage 8)
 
-- [ ] 9.84 Port DWScript's test suite (if available)
-- [ ] 9.85 Run DWScript example scripts from documentation
-- [ ] 9.86 Compare outputs with original DWScript
-- [ ] 9.87 Fix any discrepancies
-- [ ] 9.88 Create stress tests for complex features
-- [ ] 9.89 Achieve >85% overall code coverage
+- [ ] 9.37 Port DWScript's test suite (if available)
+- [ ] 9.38 Run DWScript example scripts from documentation
+- [ ] 9.39 Compare outputs with original DWScript
+- [ ] 9.40 Fix any discrepancies
+- [ ] 9.41 Create stress tests for complex features
+- [ ] 9.42 Achieve >85% overall code coverage
 
 ### Format Function Testing (DEFERRED)
 
@@ -719,7 +299,7 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Task Details (1 task)
 
-- [ ] 9.90 Create Format function test fixtures:
+- [ ] 9.43 Create Format function test fixtures:
   - [ ] Implement proper array construction for Format args (using `array of` or alternative syntax)
   - [ ] Create `testdata/string_functions/format.dws` with Format examples
   - [ ] Test %s (string), %d (integer), %f (float) specifiers
@@ -851,117 +431,117 @@ end.
 
 #### Type System and Data Structures (5 tasks)
 
-- [ ] 9.103 Create `units/` package directory
-- [ ] 9.104 Create `units/unit.go` - Unit representation:
-  - [ ] Define `Unit` struct with `Name string`, `InterfaceSection *ast.Block`, `ImplementationSection *ast.Block`
-  - [ ] Add `InitializationSection *ast.Block` and `FinalizationSection *ast.Block`
-  - [ ] Add `Uses []string` (list of imported units)
-  - [ ] Add `Symbols *semantic.SymbolTable` (exported symbols from interface)
-  - [ ] Add `FilePath string` (source file path)
-- [ ] 9.105 Create `units/registry.go` - Unit registry:
-  - [ ] Define `UnitRegistry` struct with map of loaded units
-  - [ ] Implement `RegisterUnit(name string, unit *Unit) error`
-  - [ ] Implement `LoadUnit(name string, searchPaths []string) (*Unit, error)`
-  - [ ] Implement circular dependency detection
-  - [ ] Cache compiled units to avoid reloading
-- [ ] 9.106 Create `units/search.go` - Unit search paths:
-  - [ ] Implement `FindUnit(name string, paths []string) (string, error)`
-  - [ ] Support relative and absolute paths
-  - [ ] Search in: current directory, specified paths, system paths
-  - [ ] File naming convention: `UnitName.dws` or `UnitName.pas`
-- [ ] 9.107 Add unit tests for registry and search functionality
+- [x] 9.103 Create `units/` package directory
+- [x] 9.104 Create `units/unit.go` - Unit representation:
+  - [x] Define `Unit` struct with `Name string`, `InterfaceSection *ast.Block`, `ImplementationSection *ast.Block`
+  - [x] Add `InitializationSection *ast.Block` and `FinalizationSection *ast.Block`
+  - [x] Add `Uses []string` (list of imported units)
+  - [x] Add `Symbols *semantic.SymbolTable` (exported symbols from interface)
+  - [x] Add `FilePath string` (source file path)
+- [x] 9.105 Create `units/registry.go` - Unit registry:
+  - [x] Define `UnitRegistry` struct with map of loaded units
+  - [x] Implement `RegisterUnit(name string, unit *Unit) error`
+  - [x] Implement `LoadUnit(name string, searchPaths []string) (*Unit, error)`
+  - [x] Implement circular dependency detection
+  - [x] Cache compiled units to avoid reloading
+- [x] 9.106 Create `units/search.go` - Unit search paths:
+  - [x] Implement `FindUnit(name string, paths []string) (string, error)`
+  - [x] Support relative and absolute paths
+  - [x] Search in: current directory, specified paths, system paths
+  - [x] File naming convention: `UnitName.dws` or `UnitName.pas`
+- [x] 9.107 Add unit tests for registry and search functionality
 
 #### AST Nodes (3 tasks)
 
-- [ ] 9.108 Create `ast/unit.go` - Unit AST nodes:
-  - [ ] Define `UnitDeclaration` struct implementing `Node`
-  - [ ] Fields: `Name *Identifier`, `InterfaceSection *Block`, `ImplementationSection *Block`, `InitSection *Block`, `FinalSection *Block`
-  - [ ] Implement `String()` method
-- [ ] 9.109 Define `UsesClause` struct:
-  - [ ] Fields: `Units []*Identifier` (list of unit names)
-  - [ ] Appears in both interface and implementation sections
-  - [ ] Implement `String()` method
-- [ ] 9.110 Add AST tests for unit nodes
+- [x] 9.108 Create `ast/unit.go` - Unit AST nodes:
+  - [x] Define `UnitDeclaration` struct implementing `Node`
+  - [x] Fields: `Name *Identifier`, `InterfaceSection *Block`, `ImplementationSection *Block`, `InitSection *Block`, `FinalSection *Block`
+  - [x] Implement `String()` method
+- [x] 9.109 Define `UsesClause` struct:
+  - [x] Fields: `Units []*Identifier` (list of unit names)
+  - [x] Appears in both interface and implementation sections
+  - [x] Implement `String()` method
+- [x] 9.110 Add AST tests for unit nodes
 
 #### Lexer Support (2 tasks)
 
-- [ ] 9.111 Add unit-related keywords to lexer:
-  - [ ] `UNIT`, `INTERFACE`, `IMPLEMENTATION`, `USES`
-  - [ ] `INITIALIZATION`, `FINALIZATION`
-  - [ ] Update `token_type.go` and keyword map
-- [ ] 9.112 Add lexer tests for new keywords
+- [x] 9.111 Add unit-related keywords to lexer:
+  - [x] `UNIT`, `INTERFACE`, `IMPLEMENTATION`, `USES`
+  - [x] `INITIALIZATION`, `FINALIZATION`
+  - [x] Update `token_type.go` and keyword map
+- [x] 9.112 Add lexer tests for new keywords
 
 #### Parser Support (8 tasks)
 
-- [ ] 9.113 Create `parser/unit.go` - Unit parsing:
-  - [ ] Implement `parseUnit() *ast.UnitDeclaration`
-  - [ ] Parse `unit` keyword and name
-  - [ ] Expect SEMICOLON
-  - [ ] Parse interface section (starts with `interface`)
-  - [ ] Parse implementation section (starts with `implementation`)
-  - [ ] Parse optional initialization section
-  - [ ] Parse optional finalization section
-  - [ ] Expect `end.` to close unit
-- [ ] 9.114 Implement `parseInterfaceSection() *ast.Block`:
-  - [ ] Parse uses clause (if present)
-  - [ ] Parse declarations (types, constants, functions/procedures signatures only)
-  - [ ] No implementation code in interface
-- [ ] 9.115 Implement `parseImplementationSection() *ast.Block`:
-  - [ ] Parse uses clause (if present)
-  - [ ] Parse full function/procedure implementations
-  - [ ] Parse private declarations (not exported)
-- [ ] 9.116 Implement `parseUsesClause() *ast.UsesClause`:
-  - [ ] Parse `uses` keyword
-  - [ ] Parse comma-separated unit names
-  - [ ] Expect SEMICOLON
-- [ ] 9.117 Implement `parseInitializationSection() *ast.Block`:
-  - [ ] Parse `initialization` keyword
-  - [ ] Parse statement list
-  - [ ] Ends at `finalization` or `end`
-- [ ] 9.118 Implement `parseFinalizationSection() *ast.Block`:
-  - [ ] Parse `finalization` keyword
-  - [ ] Parse statement list
-  - [ ] Ends at `end`
-- [ ] 9.119 Update main parser to detect unit vs program:
-  - [ ] If file starts with `unit`, parse as unit
-  - [ ] Otherwise, parse as program
-- [ ] 9.120 Add parser tests for units in `parser/unit_test.go`
+- [x] 9.113 Create `parser/unit.go` - Unit parsing:
+  - [x] Implement `parseUnit() *ast.UnitDeclaration`
+  - [x] Parse `unit` keyword and name
+  - [x] Expect SEMICOLON
+  - [x] Parse interface section (starts with `interface`)
+  - [x] Parse implementation section (starts with `implementation`)
+  - [x] Parse optional initialization section
+  - [x] Parse optional finalization section
+  - [x] Expect `end.` to close unit
+- [x] 9.114 Implement `parseInterfaceSection() *ast.Block`:
+  - [x] Parse uses clause (if present)
+  - [x] Parse declarations (types, constants, functions/procedures signatures only)
+  - [x] No implementation code in interface
+- [x] 9.115 Implement `parseImplementationSection() *ast.Block`:
+  - [x] Parse uses clause (if present)
+  - [x] Parse full function/procedure implementations
+  - [x] Parse private declarations (not exported)
+- [x] 9.116 Implement `parseUsesClause() *ast.UsesClause`:
+  - [x] Parse `uses` keyword
+  - [x] Parse comma-separated unit names
+  - [x] Expect SEMICOLON
+- [x] 9.117 Implement `parseInitializationSection() *ast.Block`:
+  - [x] Parse `initialization` keyword
+  - [x] Parse statement list
+  - [x] Ends at `finalization` or `end`
+- [x] 9.118 Implement `parseFinalizationSection() *ast.Block`:
+  - [x] Parse `finalization` keyword
+  - [x] Parse statement list
+  - [x] Ends at `end`
+- [x] 9.119 Update main parser to detect unit vs program:
+  - [x] If file starts with `unit`, parse as unit
+  - [x] Otherwise, parse as program
+- [x] 9.120 Add parser tests for units in `parser/unit_test.go`
 
 #### Semantic Analysis (10 tasks)
 
-- [ ] 9.121 Create `semantic/unit_analyzer.go`:
-  - [ ] Implement `AnalyzeUnit(unit *ast.UnitDeclaration, registry *units.UnitRegistry) error`
-  - [ ] Build symbol table for interface section (exported symbols)
-  - [ ] Analyze implementation section with access to interface symbols
-  - [ ] Validate that all interface declarations have implementations
-- [ ] 9.122 Implement uses clause resolution:
-  - [ ] For each unit in uses clause, load it from registry
-  - [ ] Import exported symbols into current scope
-  - [ ] Handle name conflicts (error or qualified access)
-  - [ ] Build dependency graph
-- [ ] 9.123 Implement circular dependency detection:
-  - [ ] Track unit dependency chain during loading
-  - [ ] Detect cycles: A uses B, B uses A
-  - [ ] Report error with cycle path
-- [ ] 9.124 Implement namespace resolution:
-  - [ ] Support qualified access: `UnitName.SymbolName`
-  - [ ] Support unqualified access for imported symbols
-  - [ ] Handle ambiguous symbols (multiple units export same name)
-- [ ] 9.125 Implement interface/implementation validation:
-  - [ ] Check that all interface functions have implementation
-  - [ ] Check signatures match exactly
-  - [ ] Check visibility rules (private vs public)
-- [ ] 9.126 Handle forward declarations across units:
-  - [ ] Interface declares functions
-  - [ ] Implementation provides bodies
-  - [ ] Cross-unit calls use interface signatures
-- [ ] 9.127 Implement unit initialization order:
-  - [ ] Topological sort of dependency graph
-  - [ ] Units initialize in dependency order
-  - [ ] Finalize in reverse order
-- [ ] 9.128 Add semantic tests for units
-- [ ] 9.129 Test circular dependency detection
-- [ ] 9.130 Test namespace resolution and conflicts
+- [x] 9.121 Create `semantic/unit_analyzer.go`:
+  - [x] Implement `AnalyzeUnit(unit *ast.UnitDeclaration, registry *units.UnitRegistry) error`
+  - [x] Build symbol table for interface section (exported symbols)
+  - [x] Analyze implementation section with access to interface symbols
+  - [x] Validate that all interface declarations have implementations
+- [x] 9.122 Implement uses clause resolution:
+  - [x] For each unit in uses clause, load it from registry
+  - [x] Import exported symbols into current scope
+  - [x] Handle name conflicts (error or qualified access)
+  - [x] Build dependency graph
+- [x] 9.123 Implement circular dependency detection:
+  - [x] Track unit dependency chain during loading
+  - [x] Detect cycles: A uses B, B uses A
+  - [x] Report error with cycle path
+- [x] 9.124 Implement namespace resolution:
+  - [x] Support qualified access: `UnitName.SymbolName`
+  - [x] Support unqualified access for imported symbols
+  - [x] Handle ambiguous symbols (multiple units export same name)
+- [x] 9.125 Implement interface/implementation validation:
+  - [x] Check that all interface functions have implementation
+  - [x] Check signatures match exactly
+  - [x] Check visibility rules (private vs public)
+- [x] 9.126 Handle forward declarations across units:
+  - [x] Interface declares functions
+  - [x] Implementation provides bodies
+  - [x] Cross-unit calls use interface signatures
+- [x] 9.127 Implement unit initialization order:
+  - [x] Topological sort of dependency graph
+  - [x] Units initialize in dependency order
+  - [x] Finalize in reverse order
+- [x] 9.128 Add semantic tests for units
+- [x] 9.129 Test circular dependency detection
+- [x] 9.130 Test namespace resolution and conflicts
 
 #### Interpreter Support (8 tasks)
 
@@ -1004,19 +584,19 @@ end.
 
 #### Testing & Fixtures (4 tasks)
 
-- [ ] 9.142 Create test units in `testdata/units/`:
-  - [ ] `MathUtils.dws` - Math helper functions
-  - [ ] `StringUtils.dws` - String helper functions
-  - [ ] `main.dws` - Program that uses both units
-  - [ ] Test initialization and finalization output
-- [ ] 9.143 Create circular dependency test:
-  - [ ] `UnitA.dws` uses `UnitB`
-  - [ ] `UnitB.dws` uses `UnitA`
-  - [ ] Verify error is caught
-- [ ] 9.144 Create namespace conflict test:
-  - [ ] Two units export same function name
-  - [ ] Test qualified access resolves correctly
-  - [ ] Test unqualified access reports ambiguity
+- [x] 9.142 Create test units in `testdata/units/`:
+  - [x] `MathUtils.dws` - Math helper functions
+  - [x] `StringUtils.dws` - String helper functions
+  - [x] `main.dws` - Program that uses both units
+  - [x] Test initialization and finalization output
+- [x] 9.143 Create circular dependency test:
+  - [x] `UnitA.dws` uses `UnitB`
+  - [x] `UnitB.dws` uses `UnitA`
+  - [x] Verify error is caught
+- [x] 9.144 Create namespace conflict test:
+  - [x] Two units export same function name
+  - [x] Test qualified access resolves correctly
+  - [x] Test unqualified access reports ambiguity
 - [ ] 9.145 Add CLI integration tests for units
 
 ---
@@ -1815,11 +1395,11 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
 
 ### Performance Profiling
 
-- [ ] 10.1 Create performance benchmark scripts
-- [ ] 10.2 Profile lexer performance: `BenchmarkLexer`
-- [ ] 10.3 Profile parser performance: `BenchmarkParser`
-- [ ] 10.4 Profile interpreter performance: `BenchmarkInterpreter`
-- [ ] 10.5 Identify bottlenecks using `pprof`
+- [x] 10.1 Create performance benchmark scripts
+- [x] 10.2 Profile lexer performance: `BenchmarkLexer`
+- [x] 10.3 Profile parser performance: `BenchmarkParser`
+- [x] 10.4 Profile interpreter performance: `BenchmarkInterpreter`
+- [x] 10.5 Identify bottlenecks using `pprof`
 - [ ] 10.6 Document performance baseline
 
 ### Optimization - Lexer
@@ -1946,25 +1526,6 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
 - [ ] 11.10 Encourage contributions (tag "good first issue")
 - [ ] 11.11 Respond to issues and PRs promptly
 - [ ] 11.12 Build maintainer team (if interest grows)
-
-### Project Reorganization
-
-- [x] 11.12.1 Reorganize to standard Go project layout (completed 2025-10-26):
-  - [x] Create `internal/` and `pkg/` directories
-  - [x] Move `ast/` → `internal/ast/` and update all imports
-  - [x] Move `errors/` → `internal/errors/` and update all imports
-  - [x] Move `interp/` → `internal/interp/` and update all imports
-  - [x] Move `lexer/` → `internal/lexer/` and update all imports
-  - [x] Move `parser/` → `internal/parser/` and update all imports
-  - [x] Move `semantic/` → `internal/semantic/` and update all imports
-  - [x] Move `types/` → `internal/types/` and update all imports
-  - [x] Create `pkg/dwscript/` public API with Engine, Options, Result types
-  - [x] Write comprehensive Godoc and examples for `pkg/dwscript/`
-  - [x] Create placeholder `pkg/platform/` package (for Stage 10.15)
-  - [x] Create placeholder `pkg/wasm/` package (for Stage 10.15)
-  - [x] Update README.md with embedding examples
-  - [x] Update CLAUDE.md with new package structure
-  - [ ] Optionally refactor `cmd/dwscript` to use `pkg/dwscript/` API (future optimization)
 
 ### Advanced Features
 

@@ -23,6 +23,7 @@ type Analyzer struct {
 	conversionRegistry *types.ConversionRegistry
 	currentClass       *types.ClassType
 	symbols            *SymbolTable
+	unitSymbols        map[string]*SymbolTable // Unit name -> symbol table for qualified access
 	globalOperators    *types.OperatorRegistry
 	errors             []string
 	loopDepth          int
@@ -35,6 +36,7 @@ type Analyzer struct {
 func NewAnalyzer() *Analyzer {
 	a := &Analyzer{
 		symbols:            NewSymbolTable(),
+		unitSymbols:        make(map[string]*SymbolTable),
 		errors:             make([]string, 0),
 		classes:            make(map[string]*types.ClassType),
 		interfaces:         make(map[string]*types.InterfaceType),
@@ -182,7 +184,7 @@ func (a *Analyzer) Errors() []string {
 }
 
 // addError adds a semantic error to the error list
-func (a *Analyzer) addError(format string, args ...interface{}) {
+func (a *Analyzer) addError(format string, args ...any) {
 	a.errors = append(a.errors, fmt.Sprintf(format, args...))
 }
 

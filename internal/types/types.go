@@ -710,8 +710,8 @@ func IsInterfaceType(t Type) bool {
 // until getter/setter functions are provided.
 type ExternalVarSymbol struct {
 	Type         Type
-	ReadFunc     func() (interface{}, error)
-	WriteFunc    func(interface{}) error
+	ReadFunc     func() (any, error)
+	WriteFunc    func(any) error
 	Name         string
 	ExternalName string
 }

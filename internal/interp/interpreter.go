@@ -11,6 +11,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/internal/units"
 )
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
@@ -34,6 +35,11 @@ type Interpreter struct {
 	breakSignal    bool // Set by break statement, cleared by loop
 	continueSignal bool // Set by continue statement, cleared by loop
 	exitSignal     bool // Set by exit statement, cleared by function return
+
+	// Unit system (Tasks 9.131-9.138)
+	unitRegistry     *units.UnitRegistry // Registry for managing loaded units
+	loadedUnits      []string            // Units loaded in order (for initialization/finalization)
+	initializedUnits map[string]bool     // Track which units have been initialized
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -44,14 +50,16 @@ func New(output io.Writer) *Interpreter {
 	// Randomize() can be called to re-seed with current time
 	source := rand.NewSource(1)
 	interp := &Interpreter{
-		env:             env,
-		output:          output,
-		functions:       make(map[string]*ast.FunctionDecl),
-		classes:         make(map[string]*ClassInfo),
-		interfaces:      make(map[string]*InterfaceInfo), // Task 7.118
-		globalOperators: newRuntimeOperatorRegistry(),
-		conversions:     newRuntimeConversionRegistry(),
-		rand:            rand.New(source),
+		env:              env,
+		output:           output,
+		functions:        make(map[string]*ast.FunctionDecl),
+		classes:          make(map[string]*ClassInfo),
+		interfaces:       make(map[string]*InterfaceInfo), // Task 7.118
+		globalOperators:  newRuntimeOperatorRegistry(),
+		conversions:      newRuntimeConversionRegistry(),
+		rand:             rand.New(source),
+		loadedUnits:      make([]string, 0),
+		initializedUnits: make(map[string]bool),
 	}
 
 	// Register built-in exception classes (Task 8.203-8.204)
@@ -1392,10 +1400,40 @@ func (i *Interpreter) evalNotUnaryOp(right Value) Value {
 
 // evalCallExpression evaluates a function call expression.
 func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
+	// Task 9.134: Check if this is a unit-qualified function call (UnitName.FunctionName)
+	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
+		if unitIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
+			// This could be a unit-qualified call: UnitName.FunctionName()
+			if i.unitRegistry != nil {
+				if _, exists := i.unitRegistry.GetUnit(unitIdent.Value); exists {
+					// Resolve the qualified function
+					fn, err := i.ResolveQualifiedFunction(unitIdent.Value, memberAccess.Member.Value)
+					if err == nil {
+						// Found the function - evaluate arguments and call it
+						args := make([]Value, len(expr.Arguments))
+						for idx, arg := range expr.Arguments {
+							val := i.Eval(arg)
+							if isError(val) {
+								return val
+							}
+							args[idx] = val
+						}
+						return i.callUserFunction(fn, args)
+					}
+					// Function not found in unit
+					return i.newErrorWithLocation(expr, "function '%s' not found in unit '%s'", memberAccess.Member.Value, unitIdent.Value)
+				}
+			}
+		}
+		// Not a unit-qualified call - could be a method call, let it fall through
+		// to be handled as a method call on an object
+		return i.newErrorWithLocation(expr, "cannot call member expression that is not a method or unit-qualified function")
+	}
+
 	// Get the function name
 	funcName, ok := expr.Function.(*ast.Identifier)
 	if !ok {
-		return newError("function call requires identifier, got %T", expr.Function)
+		return newError("function call requires identifier or qualified name, got %T", expr.Function)
 	}
 
 	// Check if it's a user-defined function first
@@ -4568,6 +4606,22 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Check if the left side is a class identifier (for static access: TClass.Variable)
 	if ident, ok := ma.Object.(*ast.Identifier); ok {
+		// First, check if this identifier refers to a unit (for qualified access: UnitName.Symbol)
+		// Task 9.134: Support unit-qualified access
+		if i.unitRegistry != nil {
+			if _, exists := i.unitRegistry.GetUnit(ident.Value); exists {
+				// This is unit-qualified access: UnitName.Symbol
+				// Try to resolve as a variable/constant first
+				if val, err := i.ResolveQualifiedVariable(ident.Value, ma.Member.Value); err == nil {
+					return val
+				}
+				// If not a variable, it might be a function being passed as a reference
+				// For now, we'll return an error since function references aren't fully supported yet
+				// The actual function call will be handled in evalCallExpression
+				return i.newErrorWithLocation(ma, "qualified name '%s.%s' cannot be used as a value (functions must be called)", ident.Value, ma.Member.Value)
+			}
+		}
+
 		// Check if this identifier refers to a class
 		if classInfo, exists := i.classes[ident.Value]; exists {
 			// This is static access: TClass.Variable

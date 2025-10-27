@@ -1,0 +1,32 @@
+unit MathUtils;
+
+interface
+
+function Add(a, b: Integer): Integer;
+function Multiply(a, b: Integer): Integer;
+function Square(x: Integer): Integer;
+
+implementation
+
+function Add(a, b: Integer): Integer;
+begin
+  Result := a + b;
+end;
+
+function Multiply(a, b: Integer): Integer;
+begin
+  Result := a * b;
+end;
+
+function Square(x: Integer): Integer;
+begin
+  Result := x * x;
+end;
+
+initialization
+  PrintLn('MathUtils loaded');
+
+finalization
+  PrintLn('MathUtils unloading');
+
+end.

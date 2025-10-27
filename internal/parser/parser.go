@@ -223,6 +223,17 @@ func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 	program.Statements = []ast.Statement{}
 
+	// Task 9.119: Detect if this is a unit declaration
+	// If the file starts with 'unit', parse it as a unit
+	if p.curTokenIs(lexer.UNIT) {
+		unit := p.parseUnit()
+		if unit != nil {
+			program.Statements = append(program.Statements, unit)
+		}
+		return program
+	}
+
+	// Otherwise, parse as a regular program
 	for !p.curTokenIs(lexer.EOF) {
 		// Skip semicolons at statement level
 		if p.curTokenIs(lexer.SEMICOLON) {
