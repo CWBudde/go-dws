@@ -2130,6 +2130,53 @@ func TestForStatements(t *testing.T) {
 			},
 		},
 		{
+			name:  "for loop with inline var declaration",
+			input: "for var i := 0 to 10 do PrintLn(i);",
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				if !stmt.InlineVar {
+					t.Fatalf("expected inline var flag set")
+				}
+
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				if !testIntegerLiteral(t, stmt.Start, 0) {
+					return
+				}
+
+				if !testIntegerLiteral(t, stmt.End, 10) {
+					return
+				}
+
+				if stmt.Direction != ast.ForTo {
+					t.Errorf("direction = %v, want ForTo", stmt.Direction)
+				}
+
+				bodyExpr, ok := stmt.Body.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("body is not ExpressionStatement. got=%T", stmt.Body)
+				}
+
+				call, ok := bodyExpr.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("body expression is not CallExpression. got=%T", bodyExpr.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+
+				if len(call.Arguments) != 1 {
+					t.Fatalf("call has %d arguments, want 1", len(call.Arguments))
+				}
+
+				if !testIdentifier(t, call.Arguments[0], "i") {
+					return
+				}
+			},
+		},
+		{
 			name: "for loop with block body",
 			input: `for i := 1 to 5 do begin
   PrintLn(i);

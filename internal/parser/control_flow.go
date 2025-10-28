@@ -182,7 +182,13 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 func (p *Parser) parseForStatement() *ast.ForStatement {
 	stmt := &ast.ForStatement{Token: p.curToken}
 
-	// Move past 'for' and parse the loop variable identifier
+	// Move past 'for' and parse optional inline var declaration
+	if p.peekTokenIs(lexer.VAR) {
+		p.nextToken() // move to 'var'
+		stmt.InlineVar = true
+	}
+
+	// Expect loop variable identifier
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
 	}

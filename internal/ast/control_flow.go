@@ -117,6 +117,7 @@ func (fd ForDirection) String() string {
 //	for i := 10 downto 1 do PrintLn(i);
 //	for i := start to end do begin ... end;
 type ForStatement struct {
+	InlineVar bool
 	Start     Expression
 	End       Expression
 	Body      Statement
@@ -132,6 +133,9 @@ func (fs *ForStatement) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("for ")
+	if fs.InlineVar {
+		out.WriteString("var ")
+	}
 	out.WriteString(fs.Variable.String())
 	out.WriteString(" := ")
 	out.WriteString(fs.Start.String())
