@@ -242,8 +242,8 @@ func TestLambdaExecution(t *testing.T) {
 	}
 
 	scripts := map[string]string{
-		"basic_lambda.dws":  "../../testdata/lambdas/basic_lambda.txt",
-		"closure.dws":       "../../testdata/lambdas/closure.txt",
+		"basic_lambda.dws": "../../testdata/lambdas/basic_lambda.txt",
+		"closure.dws":      "../../testdata/lambdas/closure.txt",
 		// "higher_order.dws" skipped - requires dynamic array literals which aren't implemented
 		"nested_lambda.dws": "../../testdata/lambdas/nested_lambda.txt",
 	}

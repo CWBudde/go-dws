@@ -178,14 +178,18 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 }
 
 // parseForStatement parses a for loop statement.
-// Syntax: for <variable> := <start> to|downto <end> do <statement>
-func (p *Parser) parseForStatement() *ast.ForStatement {
-	stmt := &ast.ForStatement{Token: p.curToken}
+// Syntax:
+//
+//	for <variable> := <start> to|downto <end> do <statement>
+//	for [var] <variable> in <expression> do <statement>
+func (p *Parser) parseForStatement() ast.Statement {
+	forToken := p.curToken
 
 	// Move past 'for' and parse optional inline var declaration
+	inlineVar := false
 	if p.peekTokenIs(lexer.VAR) {
 		p.nextToken() // move to 'var'
-		stmt.InlineVar = true
+		inlineVar = true
 	}
 
 	// Expect loop variable identifier
@@ -193,7 +197,16 @@ func (p *Parser) parseForStatement() *ast.ForStatement {
 		return nil
 	}
 
-	stmt.Variable = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	variable := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	// Check if this is a for-in loop (IN) or for-to/downto loop (:=)
+	if p.peekTokenIs(lexer.IN) {
+		// Parse for-in loop: for [var] x in collection do statement
+		return p.parseForInLoop(forToken, variable, inlineVar)
+	}
+
+	// Parse traditional for-to/downto loop
+	stmt := &ast.ForStatement{Token: forToken, Variable: variable, InlineVar: inlineVar}
 
 	// Expect ':=' assignment operator
 	if !p.expectPeek(lexer.ASSIGN) {
@@ -233,6 +246,46 @@ func (p *Parser) parseForStatement() *ast.ForStatement {
 
 	if stmt.End == nil {
 		p.addError("expected end expression in for loop")
+		return nil
+	}
+
+	// Expect 'do' keyword
+	if !p.expectPeek(lexer.DO) {
+		return nil
+	}
+
+	// Parse the body statement
+	p.nextToken()
+	stmt.Body = p.parseStatement()
+
+	if stmt.Body == nil {
+		p.addError("expected statement after 'do'")
+		return nil
+	}
+
+	return stmt
+}
+
+// parseForInLoop parses a for-in loop statement.
+// Syntax: for [var] <variable> in <expression> do <statement>
+func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, inlineVar bool) *ast.ForInStatement {
+	stmt := &ast.ForInStatement{
+		Token:     forToken,
+		Variable:  variable,
+		InlineVar: inlineVar,
+	}
+
+	// Move past variable to 'in' keyword
+	if !p.expectPeek(lexer.IN) {
+		return nil
+	}
+
+	// Parse the collection expression
+	p.nextToken()
+	stmt.Collection = p.parseExpression(LOWEST)
+
+	if stmt.Collection == nil {
+		p.addError("expected expression after 'in'")
 		return nil
 	}
 

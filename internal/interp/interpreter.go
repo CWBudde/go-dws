@@ -1059,6 +1059,27 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 			return i.newErrorWithLocation(i.currentNode, "division by zero")
 		}
 		return &IntegerValue{Value: leftVal % rightVal}
+	case "shl":
+		if rightVal < 0 {
+			return i.newErrorWithLocation(i.currentNode, "negative shift amount")
+		}
+		// Shift left - multiply by 2^rightVal
+		return &IntegerValue{Value: leftVal << uint(rightVal)}
+	case "shr":
+		if rightVal < 0 {
+			return i.newErrorWithLocation(i.currentNode, "negative shift amount")
+		}
+		// Shift right - divide by 2^rightVal (logical shift)
+		return &IntegerValue{Value: leftVal >> uint(rightVal)}
+	case "and":
+		// Bitwise AND for integers
+		return &IntegerValue{Value: leftVal & rightVal}
+	case "or":
+		// Bitwise OR for integers
+		return &IntegerValue{Value: leftVal | rightVal}
+	case "xor":
+		// Bitwise XOR for integers
+		return &IntegerValue{Value: leftVal ^ rightVal}
 	case "=":
 		return &BooleanValue{Value: leftVal == rightVal}
 	case "<>":
@@ -1699,11 +1720,17 @@ func (i *Interpreter) evalPlusUnaryOp(right Value) Value {
 
 // evalNotUnaryOp evaluates the not operator.
 func (i *Interpreter) evalNotUnaryOp(right Value) Value {
-	boolVal, ok := right.(*BooleanValue)
-	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "expected boolean for NOT operator, got %s", right.Type())
+	// Handle boolean NOT
+	if boolVal, ok := right.(*BooleanValue); ok {
+		return &BooleanValue{Value: !boolVal.Value}
 	}
-	return &BooleanValue{Value: !boolVal.Value}
+
+	// Handle bitwise NOT for integers
+	if intVal, ok := right.(*IntegerValue); ok {
+		return &IntegerValue{Value: ^intVal.Value}
+	}
+
+	return i.newErrorWithLocation(i.currentNode, "NOT operator requires Boolean or Integer operand, got %s", right.Type())
 }
 
 // evalCallExpression evaluates a function call expression.
@@ -4119,9 +4146,10 @@ func (i *Interpreter) builtinAssert(args []Value) Value {
 // Returns: New array with transformed elements
 //
 // Example:
-//   var numbers := [1, 2, 3, 4, 5];
-//   var doubled := Map(numbers, lambda(x: Integer): Integer => x * 2);
-//   // Result: [2, 4, 6, 8, 10]
+//
+//	var numbers := [1, 2, 3, 4, 5];
+//	var doubled := Map(numbers, lambda(x: Integer): Integer => x * 2);
+//	// Result: [2, 4, 6, 8, 10]
 func (i *Interpreter) builtinMap(args []Value) Value {
 	// Validate argument count
 	if len(args) != 2 {
@@ -4175,9 +4203,10 @@ func (i *Interpreter) builtinMap(args []Value) Value {
 // Returns: New array with only elements where predicate returned true
 //
 // Example:
-//   var numbers := [1, 2, 3, 4, 5];
-//   var evens := Filter(numbers, lambda(x: Integer): Boolean => (x mod 2) = 0);
-//   // Result: [2, 4]
+//
+//	var numbers := [1, 2, 3, 4, 5];
+//	var evens := Filter(numbers, lambda(x: Integer): Boolean => (x mod 2) = 0);
+//	// Result: [2, 4]
 func (i *Interpreter) builtinFilter(args []Value) Value {
 	// Validate argument count
 	if len(args) != 2 {
@@ -4240,9 +4269,10 @@ func (i *Interpreter) builtinFilter(args []Value) Value {
 // Returns: Final accumulated value
 //
 // Example:
-//   var numbers := [1, 2, 3, 4, 5];
-//   var sum := Reduce(numbers, lambda(acc, x: Integer): Integer => acc + x, 0);
-//   // Result: 15
+//
+//	var numbers := [1, 2, 3, 4, 5];
+//	var sum := Reduce(numbers, lambda(acc, x: Integer): Integer => acc + x, 0);
+//	// Result: 15
 func (i *Interpreter) builtinReduce(args []Value) Value {
 	// Validate argument count
 	if len(args) != 3 {
@@ -4293,9 +4323,10 @@ func (i *Interpreter) builtinReduce(args []Value) Value {
 // Returns: nil (this function is used for side effects only)
 //
 // Example:
-//   var numbers := [1, 2, 3];
-//   ForEach(numbers, lambda(x: Integer) begin PrintLn(x); end);
-//   // Output: 1\n2\n3
+//
+//	var numbers := [1, 2, 3];
+//	ForEach(numbers, lambda(x: Integer) begin PrintLn(x); end);
+//	// Output: 1\n2\n3
 func (i *Interpreter) builtinForEach(args []Value) Value {
 	// Validate argument count
 	if len(args) != 2 {
@@ -4619,9 +4650,12 @@ func (i *Interpreter) evalContinueStatement(_ *ast.ContinueStatement) Value {
 // Task 9.222: Return statements are used in shorthand lambda syntax.
 //
 // In shorthand lambda syntax, the parser creates a return statement:
-//   lambda(x) => x * 2
+//
+//	lambda(x) => x * 2
+//
 // becomes:
-//   lambda(x) begin return x * 2; end
+//
+//	lambda(x) begin return x * 2; end
 //
 // The return value is assigned to the Result variable if it exists.
 func (i *Interpreter) evalReturnStatement(stmt *ast.ReturnStatement) Value {

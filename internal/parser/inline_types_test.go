@@ -304,6 +304,7 @@ func TestArrayTypeInVariable(t *testing.T) {
 		})
 	}
 }
+
 // TestArrayReturnTypes tests parsing function declarations with inline array return types.
 // Task 9.59: Support inline array types in function return types
 func TestArrayReturnTypes(t *testing.T) {

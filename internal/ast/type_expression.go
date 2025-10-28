@@ -37,10 +37,10 @@ var (
 // Task 9.51: Created to support inline array type syntax
 // Task 9.54: Extended to support static array bounds
 type ArrayTypeNode struct {
-	Token       lexer.Token     // The 'array' token
-	ElementType TypeExpression  // The element type (can be any type expression)
-	LowBound    *int            // Low bound for static arrays (nil for dynamic)
-	HighBound   *int            // High bound for static arrays (nil for dynamic)
+	Token       lexer.Token    // The 'array' token
+	ElementType TypeExpression // The element type (can be any type expression)
+	LowBound    *int           // Low bound for static arrays (nil for dynamic)
+	HighBound   *int           // High bound for static arrays (nil for dynamic)
 }
 
 // String returns a string representation of the array type.

@@ -1,0 +1,11 @@
+// Adapted from Rosetta Code Bitwise operations example
+// Tests all basic bitwise operations
+
+begin
+  PrintLn('2 and 3 = '+IntToStr(2 and 3));
+  PrintLn('2 or 3 = '+IntToStr(2 or 3));
+  PrintLn('2 xor 3 = '+IntToStr(2 xor 3));
+  // Note: bitwise NOT will be implemented separately as a unary operator
+  PrintLn('2 shl 3 = '+IntToStr(2 shl 3));
+  PrintLn('2 shr 3 = '+IntToStr(2 shr 3));
+end.

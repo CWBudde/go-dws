@@ -684,6 +684,129 @@ func TestCallExpression(t *testing.T) {
 	}
 }
 
+// TestForInStatement tests the ForInStatement node.
+func TestForInStatement(t *testing.T) {
+	tests := []struct {
+		name       string
+		variable   string
+		collection Expression
+		body       Statement
+		inlineVar  bool
+		want       string
+	}{
+		{
+			name:     "basic for-in",
+			variable: "e",
+			collection: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "mySet"},
+				Value: "mySet",
+			},
+			body: &ExpressionStatement{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
+				Expression: &CallExpression{
+					Token: lexer.Token{Type: lexer.LPAREN, Literal: "("},
+					Function: &Identifier{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
+						Value: "PrintLn",
+					},
+					Arguments: []Expression{
+						&Identifier{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "e"},
+							Value: "e",
+						},
+					},
+				},
+			},
+			inlineVar: false,
+			want:      "for e in mySet do PrintLn(e)",
+		},
+		{
+			name:     "for-in with inline var",
+			variable: "item",
+			collection: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "myArray"},
+				Value: "myArray",
+			},
+			body: &BlockStatement{
+				Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+				Statements: []Statement{
+					&ExpressionStatement{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "Process"},
+						Expression: &CallExpression{
+							Token: lexer.Token{Type: lexer.LPAREN, Literal: "("},
+							Function: &Identifier{
+								Token: lexer.Token{Type: lexer.IDENT, Literal: "Process"},
+								Value: "Process",
+							},
+							Arguments: []Expression{
+								&Identifier{
+									Token: lexer.Token{Type: lexer.IDENT, Literal: "item"},
+									Value: "item",
+								},
+							},
+						},
+					},
+				},
+			},
+			inlineVar: true,
+			want:      "for var item in myArray do begin\n  Process(item)\nend",
+		},
+		{
+			name:     "for-in with string literal",
+			variable: "ch",
+			collection: &StringLiteral{
+				Token: lexer.Token{Type: lexer.STRING, Literal: "'hello'"},
+				Value: "hello",
+			},
+			body: &ExpressionStatement{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Print"},
+				Expression: &CallExpression{
+					Token: lexer.Token{Type: lexer.LPAREN, Literal: "("},
+					Function: &Identifier{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "Print"},
+						Value: "Print",
+					},
+					Arguments: []Expression{
+						&Identifier{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "ch"},
+							Value: "ch",
+						},
+					},
+				},
+			},
+			inlineVar: false,
+			want:      "for ch in \"hello\" do Print(ch)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &ForInStatement{
+				Token: lexer.Token{Type: lexer.FOR, Literal: "for"},
+				Variable: &Identifier{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: tt.variable},
+					Value: tt.variable,
+				},
+				Collection: tt.collection,
+				Body:       tt.body,
+				InlineVar:  tt.inlineVar,
+			}
+
+			if node.String() != tt.want {
+				t.Errorf("String() = %q, want %q", node.String(), tt.want)
+			}
+			if node.TokenLiteral() != "for" {
+				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), "for")
+			}
+
+			// Test position tracking
+			if node.Pos().Line != 0 {
+				t.Errorf("Pos().Line = %d, want 0", node.Pos().Line)
+			}
+		})
+	}
+}
+
 // TestInterfaceImplementation verifies that all node types implement their respective interfaces.
 func TestInterfaceImplementation(_ *testing.T) {
 	// Test that expression nodes implement Expression interface
@@ -703,6 +826,7 @@ func TestInterfaceImplementation(_ *testing.T) {
 	var _ Statement = &BlockStatement{}
 	var _ Statement = &VarDeclStatement{}
 	var _ Statement = &AssignmentStatement{}
+	var _ Statement = &ForInStatement{}
 
 	// Test that all nodes implement Node interface
 	var _ Node = &Program{}

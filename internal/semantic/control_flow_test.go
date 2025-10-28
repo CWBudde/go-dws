@@ -433,4 +433,246 @@ func TestBreakContinueWithExceptionHandling(t *testing.T) {
 	}
 }
 
+// ============================================================================
+// For-In Statement Semantic Analysis Tests (Task 9.24)
+// ============================================================================
+
+// TestForInWithArray tests for-in loop with array type
+func TestForInWithArray(t *testing.T) {
+	input := `
+		var arr: array of Integer;
+		var x: Integer;
+		for x in arr do
+			PrintLn(x);
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err != nil {
+		t.Errorf("Expected no semantic error for for-in with array, got: %v", err)
+	}
+}
+
+// TestForInWithInlineVar tests for-in loop with inline var declaration
+func TestForInWithInlineVar(t *testing.T) {
+	input := `
+		var arr: array of Integer;
+		for var x in arr do
+			PrintLn(x);
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err != nil {
+		t.Errorf("Expected no semantic error for for-in with inline var, got: %v", err)
+	}
+}
+
+// TestForInWithSet tests for-in loop with set type
+func TestForInWithSet(t *testing.T) {
+	input := `
+		type TColor = (Red, Green, Blue);
+		type TColorSet = set of TColor;
+		var mySet: TColorSet;
+		var color: TColor;
+		for color in mySet do
+			PrintLn(Integer(color));
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err != nil {
+		t.Errorf("Expected no semantic error for for-in with set, got: %v", err)
+	}
+}
+
+// TestForInWithString tests for-in loop with string type
+func TestForInWithString(t *testing.T) {
+	input := `
+		var str: String;
+		var ch: String;
+		str := 'hello';
+		for ch in str do
+			Print(ch);
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err != nil {
+		t.Errorf("Expected no semantic error for for-in with string, got: %v", err)
+	}
+}
+
+// TestForInWithStringLiteral tests for-in loop with string literal
+func TestForInWithStringLiteral(t *testing.T) {
+	input := `
+		var ch: String;
+		for ch in 'test' do
+			Print(ch);
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err != nil {
+		t.Errorf("Expected no semantic error for for-in with string literal, got: %v", err)
+	}
+}
+
+// TestForInWithNonEnumerableType tests for-in loop with non-enumerable type (should error)
+func TestForInWithNonEnumerableType(t *testing.T) {
+	input := `
+		var x: Integer;
+		var i: Integer;
+		x := 42;
+		for i in x do
+			PrintLn(i);
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err == nil {
+		t.Fatal("Expected semantic error for for-in with non-enumerable type, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "not enumerable") {
+		t.Errorf("Expected error about non-enumerable type, got: %v", err)
+	}
+}
+
+// TestForInWithBoolean tests for-in loop with boolean type (should error)
+func TestForInWithBoolean(t *testing.T) {
+	input := `
+		var flag: Boolean;
+		var x: Boolean;
+		flag := true;
+		for x in flag do
+			PrintLn(x);
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err == nil {
+		t.Fatal("Expected semantic error for for-in with boolean type, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "not enumerable") {
+		t.Errorf("Expected error about non-enumerable type, got: %v", err)
+	}
+}
+
+// TestForInLoopVariableScope tests that loop variable is scoped to the loop
+func TestForInLoopVariableScope(t *testing.T) {
+	input := `
+		var arr: array of Integer;
+		for var x in arr do
+			PrintLn(x);
+		// x should not be accessible here
+		PrintLn(x);
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err == nil {
+		t.Fatal("Expected semantic error for loop variable used outside scope, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "undefined") {
+		t.Errorf("Expected error about undefined variable, got: %v", err)
+	}
+}
+
+// TestForInWithBreak tests break statement in for-in loop
+func TestForInWithBreak(t *testing.T) {
+	input := `
+		var arr: array of Integer;
+		for var x in arr do
+		begin
+			if x > 5 then
+				break;
+			PrintLn(x);
+		end;
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err != nil {
+		t.Errorf("Expected no semantic error for break in for-in loop, got: %v", err)
+	}
+}
+
+// TestForInWithContinue tests continue statement in for-in loop
+func TestForInWithContinue(t *testing.T) {
+	input := `
+		var arr: array of Integer;
+		for var x in arr do
+		begin
+			if x = 0 then
+				continue;
+			PrintLn(x);
+		end;
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err != nil {
+		t.Errorf("Expected no semantic error for continue in for-in loop, got: %v", err)
+	}
+}
+
+// TestNestedForInLoops tests nested for-in loops
+func TestNestedForInLoops(t *testing.T) {
+	input := `
+		var matrix: array of array of Integer;
+		for var row in matrix do
+			for var cell in row do
+				PrintLn(cell);
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err != nil {
+		t.Errorf("Expected no semantic error for nested for-in loops, got: %v", err)
+	}
+}
+
+// TestForInWithSetLiteral tests for-in loop with set literal
+func TestForInWithSetLiteral(t *testing.T) {
+	input := `
+		type TColor = (Red, Green, Blue);
+		var color: TColor;
+		for color in [Red, Green, Blue] do
+			PrintLn(Integer(color));
+	`
+
+	program := parseProgram(t, input)
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err != nil {
+		t.Errorf("Expected no semantic error for for-in with set literal, got: %v", err)
+	}
+}
+
 // Note: parseProgram helper function is defined in exceptions_test.go

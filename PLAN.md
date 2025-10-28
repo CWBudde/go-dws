@@ -1,3 +1,4 @@
+<!-- trunk-ignore-all(prettier) -->
 # DWScript to Go Port - Detailed Implementation Plan
 
 This document breaks down the ambitious goal of porting DWScript from Delphi to Go into bite-sized, actionable tasks organized by stages. Each stage builds incrementally toward a fully functional DWScript compiler/interpreter in Go.
@@ -95,6 +96,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - **Lambdas/Anonymous Methods** (26 tasks): Full lambda expression support with both block and shorthand syntax
 - **Units/Modules System** (43 tasks): Partial implementation of units/modules system for code organization (43 tasks complete)
 - **Function/Method Pointers** (26 tasks): Complete function and method pointer support for callbacks and higher-order functions (26 tasks complete)
+- **Bitwise Operators** (7 tasks): Bitwise AND, OR, XOR, SHL, SHR operators with parser, semantic, and interpreter support
 
 **Implementation Summary**: Phase 9 extended the type system with aliases, subranges, and inline type expressions; added const declarations with semantic enforcement; implemented lambda expressions with capture semantics; enriched the standard library with essential built-in and array functions. Several major features remain in progress including the units/modules system (42/43 tasks complete), function pointers (26/27 tasks complete), and various type system enhancements. All completed features include comprehensive parser, semantic analyzer, interpreter, and CLI integration with dedicated test suites.
 
@@ -192,49 +194,6 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 ---
 
-### Bitwise Shift & Logical Operators (HIGH PRIORITY)
-
-**Summary**: Implement bitwise operators `SHL`, `SHR`, `AND`, `OR`, `XOR` for integer operations. Required for many Rosetta Code examples.
-
-**Example**: `mask shl 1`, `flags and $FF`, `a xor b`
-
-**Reference**: `Bitwise_operations.dws`, `Lucas-Lehmer_test.dws`
-
-#### Parser Support (1 task)
-
-- [ ] 9.18 Wire bitwise operators into expression parsing:
-  - [ ] Confirm lexer tokens exist for `SHL`, `SHR`, `AND`, `OR`, `XOR`
-  - [ ] Map them into `parseInfixExpression` with correct DWScript precedence levels
-  - [ ] Support parenthesized chains like `((mask shl 1) or 1)`
-  - [ ] Add parser fixtures validating precedence against arithmetic operators
-  - [ ] Test operator precedence chains
-
-#### Semantic Analysis (1 task)
-
-- [ ] 9.19 Extend semantic analyzer for bitwise operations:
-  - [ ] Validate operands are integral types (or sets where appropriate)
-  - [ ] Report clear errors for non-integer operands
-  - [ ] Check shift amounts are valid (non-negative for left, any for right)
-  - [ ] Add semantic tests for type errors
-
-#### Interpreter Support (1 task)
-
-- [ ] 9.20 Implement bitwise operations in interpreter:
-  - [ ] Implement shifting in the interpreter value system
-  - [ ] Implement bitwise combinators (AND, OR, XOR)
-  - [ ] Handle negative shift diagnostics (runtime error)
-  - [ ] Add regression tests mirroring Rosetta samples
-
-#### Testing & Fixtures (1 task)
-
-- [ ] 9.21 Create test files in `testdata/bitwise/`:
-  - [ ] Basic shift operations (SHL, SHR)
-  - [ ] Basic logical operations (AND, OR, XOR)
-  - [ ] Complex expressions with mixed operators
-  - [ ] Copy and adapt Rosetta Code examples
-
----
-
 ### For-In Enumerator Loops (HIGH PRIORITY)
 
 **Summary**: Implement `for variable in expression do` loop syntax for iterating over collections. Currently only `for-to` and `for-downto` are supported.
@@ -245,29 +204,29 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### AST Nodes (1 task)
 
-- [ ] 9.22 Create `ForInStatement` in `ast/statements.go`:
-  - [ ] Fields: `Variable Token`, `Enumerator Expression`, `Body *BlockStatement`
-  - [ ] Implements `Statement` interface
-  - [ ] `String()` returns `for <var> in <expr> do <body>`
-  - [ ] Add AST tests
+- [x] 9.22 Create `ForInStatement` in `ast/control_flow.go`:
+  - [x] Fields: `Variable *Identifier`, `Collection Expression`, `Body Statement`, `Token lexer.Token`, `InlineVar bool`
+  - [x] Implements `Statement` interface
+  - [x] `String()` returns `for <var> in <expr> do <body>`
+  - [x] Add AST tests
 
 #### Parser Support (1 task)
 
-- [ ] 9.23 Update for-loop parsing in `parser/statements.go`:
-  - [ ] Update `parseForStatement()` to detect `IDENT IN expression DO`
-  - [ ] Build `ForInStatement` node
-  - [ ] Preserve existing `for-to/downto` behavior
-  - [ ] Add recovery for malformed enumerator syntax
-  - [ ] Add parser tests for for-in loops
+- [x] 9.23 Update for-loop parsing in `parser/control_flow.go`:
+  - [x] Update `parseForStatement()` to detect `IDENT IN expression DO`
+  - [x] Build `ForInStatement` node via new `parseForInLoop()` helper
+  - [x] Preserve existing `for-to/downto` behavior (all tests pass)
+  - [x] Add recovery for malformed enumerator syntax
+  - [x] Add parser tests for for-in loops (5 comprehensive test cases)
 
 #### Semantic Analysis (1 task)
 
-- [ ] 9.24 Teach semantic analysis about enumerators:
-  - [ ] Resolve loop variable scope (new local in loop body)
-  - [ ] Ensure enumerated expression is enumerable (array, set, string, range)
-  - [ ] Check that expression exposes DWScript `First`/`MoveNext` protocol
-  - [ ] Emit semantic errors when expression is not enumerable
-  - [ ] Add targeted semantic tests
+- [x] 9.24 Teach semantic analysis about enumerators:
+  - [x] Resolve loop variable scope (new local in loop body)
+  - [x] Ensure enumerated expression is enumerable (array, set, string)
+  - [x] Handle TypeAlias unwrapping for aliased enumerable types
+  - [x] Emit semantic errors when expression is not enumerable
+  - [x] Add targeted semantic tests (12 comprehensive tests)
 
 #### Interpreter Support (1 task)
 

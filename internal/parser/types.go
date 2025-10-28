@@ -47,10 +47,11 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 // This is the reusable version extracted from parseFunctionPointerTypeDeclaration.
 //
 // Syntax:
-//   function(param1: Type1, param2: Type2, ...): ReturnType
-//   procedure(param1: Type1, param2: Type2, ...)
-//   function(...): ReturnType of object
-//   procedure(...) of object
+//
+//	function(param1: Type1, param2: Type2, ...): ReturnType
+//	procedure(param1: Type1, param2: Type2, ...)
+//	function(...): ReturnType of object
+//	procedure(...) of object
 //
 // Task 9.50: Refactored from parseFunctionPointerTypeDeclaration
 func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {

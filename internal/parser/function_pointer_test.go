@@ -11,17 +11,17 @@ import (
 // Task 9.157: Add parser tests for function pointer types
 func TestParseFunctionPointerTypeDeclarations(t *testing.T) {
 	tests := []struct {
-		name              string
-		input             string
-		expectedName      string
-		isFunction        bool
-		paramCount        int
-		hasReturnType     bool
-		returnTypeName    string
-		ofObject          bool
-		firstParamName    string
-		firstParamType    string
-		firstParamByRef   bool
+		name            string
+		input           string
+		expectedName    string
+		isFunction      bool
+		paramCount      int
+		hasReturnType   bool
+		returnTypeName  string
+		ofObject        bool
+		firstParamName  string
+		firstParamType  string
+		firstParamByRef bool
 	}{
 		{
 			name:            "simple function pointer with one parameter",
@@ -118,13 +118,13 @@ func TestParseFunctionPointerTypeDeclarations(t *testing.T) {
 			firstParamByRef: false,
 		},
 		{
-			name:           "method pointer with no parameters",
-			input:          "type TNotify = procedure() of object;",
-			expectedName:   "TNotify",
-			isFunction:     false,
-			paramCount:     0,
-			hasReturnType:  false,
-			ofObject:       true,
+			name:          "method pointer with no parameters",
+			input:         "type TNotify = procedure() of object;",
+			expectedName:  "TNotify",
+			isFunction:    false,
+			paramCount:    0,
+			hasReturnType: false,
+			ofObject:      true,
 		},
 	}
 

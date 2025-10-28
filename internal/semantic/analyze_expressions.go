@@ -184,6 +184,16 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		return types.INTEGER
 	}
 
+	// Handle bitwise shift operators
+	if operator == "shl" || operator == "shr" {
+		if !leftType.Equals(types.INTEGER) || !rightType.Equals(types.INTEGER) {
+			a.addError("operator %s requires integer operands, got %s and %s at %s",
+				operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+			return nil
+		}
+		return types.INTEGER
+	}
+
 	// Handle comparison operators
 	if operator == "=" || operator == "<>" || operator == "<" || operator == ">" || operator == "<=" || operator == ">=" {
 		// For equality, types must be comparable
@@ -216,14 +226,19 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		return types.BOOLEAN
 	}
 
-	// Handle logical operators
+	// Handle logical/bitwise operators (and, or, xor)
+	// These operators work on both Boolean (logical) and Integer (bitwise) types
 	if operator == "and" || operator == "or" || operator == "xor" {
-		if !leftType.Equals(types.BOOLEAN) || !rightType.Equals(types.BOOLEAN) {
-			a.addError("logical operator %s requires boolean operands, got %s and %s at %s",
-				operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
-			return nil
+		// Both operands must be Boolean or both must be Integer
+		if leftType.Equals(types.BOOLEAN) && rightType.Equals(types.BOOLEAN) {
+			return types.BOOLEAN
 		}
-		return types.BOOLEAN
+		if leftType.Equals(types.INTEGER) && rightType.Equals(types.INTEGER) {
+			return types.INTEGER
+		}
+		a.addError("operator %s requires both operands to be Boolean or both Integer, got %s and %s at %s",
+			operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+		return nil
 	}
 
 	// Task 8.103: Handle 'in' operator for set membership
@@ -287,14 +302,18 @@ func (a *Analyzer) analyzeUnaryExpression(expr *ast.UnaryExpression) types.Type 
 		return operandType
 	}
 
-	// Handle logical not
+	// Handle logical/bitwise not
+	// In DWScript, 'not' works on both Boolean (logical NOT) and Integer (bitwise NOT)
 	if operator == "not" {
-		if !operandType.Equals(types.BOOLEAN) {
-			a.addError("unary not requires boolean operand, got %s at %s",
-				operandType.String(), expr.Token.Pos.String())
-			return nil
+		if operandType.Equals(types.BOOLEAN) {
+			return types.BOOLEAN
 		}
-		return types.BOOLEAN
+		if operandType.Equals(types.INTEGER) {
+			return types.INTEGER
+		}
+		a.addError("unary not requires Boolean or Integer operand, got %s at %s",
+			operandType.String(), expr.Token.Pos.String())
+		return nil
 	}
 
 	a.addError("unknown unary operator: %s at %s", operator, expr.Token.Pos.String())
