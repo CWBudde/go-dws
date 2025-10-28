@@ -326,175 +326,414 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 ---
 
-### Lambda/Parser Bug Fixes and Missing Features (HIGH PRIORITY)
+### Type Expression Parser Foundation (HIGH PRIORITY)
 
-**Summary**: Several syntax issues discovered during integration testing (tasks 9.231-9.232) that prevent full DWScript compatibility. Task 9.44 has been expanded into subtasks 9.44-9.47 and 9.49-9.56 for systematic implementation.
+**Summary**: Create the foundational infrastructure for parsing complex type expressions. This enables both inline function pointer types and inline array types.
 
-**Missing Parser Features**:
+#### AST Nodes (2 tasks)
 
-#### Inline Type Syntax Support (Tasks 9.44-9.47, 9.49-9.56)
+- [x] 9.44 Create `TypeExpression` interface in `ast/type_expression.go`:
+  - [x] Base interface for all type expressions
+  - [x] Extends `Node` interface
+  - [x] `TypeExpressionNode()` marker method
+  - [x] Foundation for inline type syntax
 
-**Overview**: The parser currently only accepts simple `IDENT` tokens for type declarations. This prevents inline function pointer types and `array of Type` syntax, requiring verbose type aliases. This group of tasks implements a unified type expression parser.
+- [x] 9.45 Add `ArrayTypeNode` AST node:
+  - [x] Fields: `Token`, `ElementType TypeExpression`
+  - [x] Implements `TypeExpression` interface
+  - [x] `String()` returns `array of <element-type>`
+  - [x] Handles nested arrays: `array of array of Integer`
 
-**Phase 1: Foundation (Tasks 9.49-9.50)**
+#### Parser Support (2 tasks)
 
-- [x] 9.49 **Refactor**: Extract common type expression parser ✅ DONE
-  - Create `parseTypeExpression()` in `internal/parser/types.go`
-  - Handle: simple types (IDENT), function pointers, array types, future complex types
-  - Return unified type representation
-  - Foundation for all inline type syntax
-  - Created `TypeExpression` interface and `ArrayTypeNode` AST node
-  - 56 comprehensive test cases in `types_test.go`
+- [x] 9.46 Create unified type expression parser in `parser/types.go`:
+  - [x] `parseTypeExpression()` handles: simple types (IDENT), function pointers, array types
+  - [x] Returns `TypeExpression` (unified representation)
+  - [x] Foundation for all inline type syntax
+  - [x] 56 comprehensive test cases in `types_test.go`
 
-- [x] 9.50 **Refactor**: Make function pointer parsing reusable ✅ DONE
-  - Extract logic from `parseFunctionPointerTypeDeclaration()` to `parseFunctionPointerType()`
-  - Keep declaration wrapper for `type` statements
-  - Add unit tests for extracted function
-  - Fixed parameter separator from comma to semicolon (DWScript standard)
-
-**Phase 2: Function Pointer Inline Types (Tasks 9.44-9.45)**
-
-- [ ] 9.44 **Feature**: Inline function pointer types in parameters
-  - Cannot use: `procedure Apply(f: function(x: Integer): Integer);`
-  - Must use type alias: `type TFunc = function(x: Integer): Integer; procedure Apply(f: TFunc);`
-  - Location: `internal/parser/functions.go` - `parseParameterGroup()` lines 258-261
-  - Solution: Replace simple IDENT expectation with `parseTypeExpression()` call
-  - Impact: Enables concise function parameter declarations
-  - Test: Both function and procedure pointers, multiple parameters, various return types
-
-- [ ] 9.45 **Feature**: Inline function pointer types in variable declarations
-  - Cannot use: `var f: function(x: Integer): Integer;`
-  - Must use type alias: `type TFunc = function(x: Integer): Integer; var f: TFunc;`
-  - Location: `internal/parser/statements.go` - `parseVarDeclaration()` lines 175-182
-  - Solution: Replace type parsing with `parseTypeExpression()` call
-  - Impact: Enables concise variable declarations
-  - Test: Function pointers, procedure pointers, with and without 'of object'
-
-**Phase 3: Array Type Inline Syntax (Tasks 9.51, 9.46-9.47)**
-
-- [ ] 9.51 **Feature**: Implement `array of Type` parsing
-  - Add array type handling to `parseTypeExpression()`
-  - Parse: `ARRAY OF <type-expression>`
-  - Create or extend AST node for array types
-  - Handle nested arrays: `array of array of Integer`
-  - Add parser unit tests
-
-- [ ] 9.46 **Feature**: `array of TypeName` syntax in variable declarations
-  - Cannot use: `var arr: array of Integer;`
-  - Current workaround: Use `SetLength()` with untyped arrays
-  - Solution: Should work automatically via `parseTypeExpression()` (Task 9.49 + 9.51)
-  - Add specific tests for array type variables
-
-- [ ] 9.47 **Feature**: `array of TypeName` syntax in function parameters
-  - Cannot use: `procedure PrintArray(arr: array of Integer);`
-  - Current workaround: None - cannot declare array parameters
-  - Solution: Should work automatically via `parseTypeExpression()` (Task 9.49 + 9.51)
-  - Blocks: Higher-order function testing, array manipulation utilities
-  - Add specific tests for array type parameters
-
-**Phase 4: Integration (Tasks 9.52-9.56)**
-
-- [ ] 9.52 **Integration**: Semantic analysis for inline types
-  - Verify type checker handles inline function pointers correctly
-  - Verify type checker handles array types correctly
-  - Add semantic analysis tests for type compatibility
-
-- [ ] 9.53 **Testing**: Create comprehensive integration tests
-  - Create `testdata/inline_types/` directory
-  - Add test files for all inline type combinations
-  - Test: inline function returning array, array of functions, etc.
-
-- [ ] 9.54 **Integration**: Verify interpreter handling
-  - Ensure runtime correctly handles inline type declarations
-  - Add interpreter tests if gaps found
-  - Verify closure semantics with inline types
-
-- [ ] 9.55 **Documentation**: Update docs for inline type syntax
-  - Document inline function pointer syntax
-  - Document array type syntax
-  - Add examples to relevant docs
-
-- [ ] 9.56 **Verification**: Final validation
-  - Run full test suite (`go test ./...`)
-  - Verify compatibility with existing lambda tests
-  - Check against DWScript reference behavior
-  - Mark tasks 9.44-9.47, 9.49-9.56 as complete
-
-**Deferred Feature**:
-
-- [ ] 9.48 **Missing**: Dynamic array literal syntax for integer arrays
-  - Cannot use: `var nums := [1, 2, 3, 4, 5];` (parsed as SET, not array)
-  - Current workaround: Use SetLength + manual assignment
-  - Location: Parser interprets `[...]` as set literals (enum values only)
-  - Impact: Cannot easily create test data or initialize arrays
-  - Blocks: testdata/lambdas/higher_order.dws execution
-  - Note: Requires type inference work; deferred to later stage
+- [x] 9.47 Refactor function pointer parsing for reusability:
+  - [x] Extract logic from `parseFunctionPointerTypeDeclaration()` to `parseFunctionPointerType()`
+  - [x] Keep declaration wrapper for `type` statements
+  - [x] Fixed parameter separator from comma to semicolon (DWScript standard)
+  - [x] Add unit tests for extracted function
 
 ---
 
-### Rosetta Syntax Coverage (HIGH PRIORITY)
+### Inline Function Pointer Types (HIGH PRIORITY)
 
-**Summary**: The `TestRosettaExamplesParse` harness surfaced several remaining Pascal/DWScript constructs that still fail to parse or run. These tasks close the highest-impact gaps so the cloned Rosetta Code corpus compiles far enough to expose genuine semantic/runtime bugs.
+**Summary**: Enable inline function pointer type syntax in variable declarations and function parameters without requiring type aliases.
 
-#### Multi-Identifier Declarations (Parser + Semantic) – 2 tasks
+**Example**: `var f: function(x: Integer): Integer;` instead of `type TFunc = function(...); var f: TFunc;`
 
-- [ ] 9.57 Allow comma-separated identifiers in variable/const sections:
-  - [ ] Update `ast.VarDeclStatement`/`ast.ConstDecl` to store identifier lists.
-  - [ ] Teach `parseVarDeclaration()` and const-section parsing to loop over `IDENT ,` sequences before the colon.
-  - [ ] Emit clear diagnostics when an initializer is supplied for a multi-name declaration (`var a, b := ...` is illegal).
-  - [ ] Adjust reconstruction helpers and `String()` methods to preserve comma-separated formatting.
-- [ ] 9.58 Ensure semantic analysis/runtime handle grouped declarations:
-  - [ ] Register each identifier in the enclosing scope with the shared type annotation.
-  - [ ] Verify only the first identifier may carry an initializer (matching DWScript behavior).
-  - [ ] Add parser/semantic tests covering var, const, parameter, and field declarations using `a, b: Integer;`.
+#### Parser Support (2 tasks)
 
-#### Compound Assignment Operators – 2 tasks
+- [x] 9.48 Enable inline function pointer types in function parameters:
+  - [x] Location: `internal/parser/functions.go` - `parseParameterGroup()` lines 258-261
+  - [x] Replace simple IDENT expectation with `parseTypeExpression()` call
+  - [x] Cannot currently use: `procedure Apply(f: function(x: Integer): Integer);`
+  - [x] Must currently use type alias: `type TFunc = function(x: Integer): Integer;`
+  - [x] Add parser unit tests for inline function pointers in parameters
 
-- [ ] 9.59 Add parser support for `+=`, `-=`, `*=`, `/=`:
-  - [ ] Hook `PLUS_ASSIGN`, `MINUS_ASSIGN`, `TIMES_ASSIGN`, `DIVIDE_ASSIGN` into the Pratt parser as assignment-precedence infix operators.
-  - [ ] Reuse existing assignment AST node, storing operator kind so semantic/runtime layers can dispatch correctly.
-  - [ ] Expand error recovery so unexpected compound operators yield actionable messages.
-- [ ] 9.60 Implement semantic/runtime handling for compound assignments:
-  - [ ] Add analyzer checks mirroring simple assignment (type compatibility, lvalue validation).
-  - [ ] Extend interpreter evaluation to perform the underlying arithmetic and then assign.
-  - [ ] Create unit tests for numeric, string (where supported), and boolean compounds; include negative cases for unsupported operand types.
+- [x] 9.49 Enable inline function pointer types in variable declarations:
+  - [x] Location: `internal/parser/statements.go` - `parseVarDeclaration()` lines 175-182
+  - [x] Replace type parsing with `parseTypeExpression()` call
+  - [x] Cannot currently use: `var f: function(x: Integer): Integer;`
+  - [x] Must currently use type alias
+  - [x] Add parser unit tests for inline function pointers in variables
 
-#### Bitwise Shift & Logical Operators – 2 tasks
+#### Semantic Analysis (1 task)
 
-- [ ] 9.61 Wire `SHL`, `SHR`, `AND`, `OR`, `XOR` into expression parsing:
-  - [ ] Confirm lexer tokens exist; map them into `parseInfixExpression` with DWScript precedence levels.
-  - [ ] Support parenthesized chains like `((mask shl 1) or 1)` without requiring workaround parentheses.
-  - [ ] Add parser fixtures validating precedence against arithmetic operators.
-- [ ] 9.62 Extend analyzer/interpreter bitwise support:
-  - [ ] Validate operands are integral types (or sets where appropriate) and report clear errors otherwise.
-  - [ ] Implement shifting/bitwise combinators in the interpreter value system, including negative shift diagnostics.
-  - [ ] Add regression tests mirroring Rosetta samples (`Bitwise_operations.dws`, `Lucas-Lehmer_test.dws`, etc.).
+- [x] 9.50 Add semantic analysis for inline function pointers:
+  - [x] Verify type checker handles inline function pointers correctly
+  - [x] Ensure proper scope resolution for inline function pointer types
+  - [x] Test function pointer type compatibility and assignment rules
+  - [x] Add semantic analysis unit tests
 
-#### `for … in` Enumerator Loops – 3 tasks
+#### Interpreter Support (1 task)
 
-- [ ] 9.63 Parse enumerator-style `for` loops:
-  - [ ] Introduce an `ast.ForInStatement` (variable, enumerator expression, body).
-  - [ ] Update `parseForStatement()` to detect `IDENT IN expression DO` and build the new node.
-  - [ ] Preserve existing `for-to/downto` behavior and add recovery for malformed enumerator syntax.
-- [ ] 9.64 Teach semantic analysis about enumerators:
-  - [ ] Resolve the loop variable scope and ensure the enumerated expression exposes the DWScript `First`/`MoveNext` protocol (or array helpers).
-  - [ ] Emit semantic errors when the expression is not enumerable.
-  - [ ] Add targeted semantic tests referencing Rosetta fixtures (`Range_expansion.dws`, `Range_extraction.dws`).
-- [ ] 9.65 Add interpreter support for `for-in`:
-  - [ ] Implement iteration for arrays, sets, strings, and future enumerable helpers.
-  - [ ] Respect loop variable assignment semantics (value vs reference).
-  - [ ] Provide interpreter tests covering simple arrays plus failure cases.
+- [x] 9.51 Verify interpreter handling of inline function pointers:
+  - [x] Ensure runtime correctly handles inline function pointer declarations
+  - [x] Verify closure semantics with inline function pointer types
+  - [x] Test runtime type checking for inline function pointers
+  - [x] Add interpreter unit tests for inline function pointers
 
-#### Character Literal Expressions – 2 tasks
+#### Testing & Fixtures (1 task)
 
-- [ ] 9.66 Parse standalone `CHAR` literals as first-class expressions:
-  - [ ] Ensure the lexer already emits `CHAR` tokens; map them to the literal expression parser.
-  - [ ] Update AST node creation to store rune value and position.
-  - [ ] Add parser tests covering char constants in case labels and assignments.
-- [ ] 9.67 Support char literals through semantic + runtime layers:
-  - [ ] Treat char literals as single-character strings (DWScript convention) during type checking.
-  - [ ] Update interpreter value construction so `'H'`, `#13`, and `#$41` forms evaluate correctly.
-  - [ ] Add regression tests keyed to `Execute_HQ9+.dws` and other Rosetta cases.
+- [x] 9.52 Create comprehensive function pointer integration tests:
+  - [x] Create `testdata/inline_types/function_pointers.dws`
+  - [x] Test: Function pointers in parameters: `procedure Apply(f: function(x: Integer): Integer);`
+  - [x] Test: Function pointers in variables: `var handler: procedure(msg: String);`
+  - [x] Test: Function pointers with different types (String, Boolean, Integer)
+  - [x] Test: Procedure pointers and 'of object' variants
+  - [x] Test: Integration with lambdas and closures
+  - [x] Test: Mixed inline and aliased function pointer types
+  - [x] Verify compatibility with existing lambda tests
+
+---
+
+### Inline Array Types (HIGH PRIORITY)
+
+**Summary**: Enable `array of Type` syntax inline in variable declarations and function parameters without requiring type aliases.
+
+**Example**: `var arr: array of Integer;` and `procedure Print(arr: array of String);`
+
+#### Parser Support (1 task)
+
+- [ ] 9.54 Implement `array of Type` parsing in `parseTypeExpression()`:
+  - [ ] Parse: `ARRAY OF <type-expression>`
+  - [ ] Create `ArrayTypeNode` AST nodes
+  - [ ] Handle nested arrays: `array of array of Integer`
+  - [ ] Add parser unit tests for array type expressions
+
+#### Semantic Analysis (1 task)
+
+- [ ] 9.55 Add semantic analysis for inline array types:
+  - [ ] Verify type checker handles inline array types correctly
+  - [ ] Ensure proper scope resolution for inline array types
+  - [ ] Test array type compatibility and assignment rules
+  - [ ] Add semantic analysis unit tests
+
+#### Interpreter Support (1 task)
+
+- [ ] 9.56 Verify interpreter handling of inline array types:
+  - [ ] Ensure runtime correctly handles inline array type declarations
+  - [ ] Test dynamic array operations with inline types
+  - [ ] Add interpreter unit tests for inline array types
+
+#### Testing & Fixtures (4 tasks)
+
+- [ ] 9.57 Create test fixtures for inline arrays in variable declarations:
+  - [ ] Create `testdata/inline_types/arrays_in_vars.dws`
+  - [ ] Test: `var arr: array of Integer;`
+  - [ ] Test: `var matrix: array of array of Float;`
+  - [ ] Test: variable declarations with inline array types
+  - [ ] Cannot currently use inline syntax; requires type alias workaround
+
+- [ ] 9.58 Create test fixtures for inline arrays in function parameters:
+  - [ ] Create `testdata/inline_types/arrays_in_params.dws`
+  - [ ] Test: `procedure PrintArray(arr: array of Integer);`
+  - [ ] Test: `function Sum(values: array of Float): Float;`
+  - [ ] Test: function parameters with inline array types
+  - [ ] Blocks: Higher-order function testing, array manipulation utilities
+
+- [ ] 9.59 Create comprehensive array type integration tests:
+  - [ ] Create `testdata/inline_types/arrays_advanced.dws`
+  - [ ] Test: Arrays in return types: `function GetData(): array of String;`
+  - [ ] Test: Nested arrays: `array of array of Integer`
+  - [ ] Test: Arrays of complex types: `array of TMyRecord`
+  - [ ] Test: Mixed scenarios combining variables, parameters, and returns
+
+- [ ] 9.60 Final validation for all inline types:
+  - [ ] Run full test suite (`go test ./...`)
+  - [ ] Verify compatibility with existing lambda tests
+  - [ ] Check against DWScript reference behavior
+  - [ ] Test combined scenarios: `array of function(...)`, functions returning `array of T`
+  - [ ] Verify both inline function pointers and inline arrays work together
+
+#### Documentation (1 task)
+
+- [ ] 9.61 Update documentation for inline array syntax:
+  - [ ] Document `array of Type` syntax in relevant docs
+  - [ ] Add examples showing variable and parameter usage
+  - [ ] Update CLAUDE.md with inline array type examples
+  - [ ] Document nested array syntax
+
+#### Deferred Features (1 task)
+
+- [ ] 9.62 Dynamic array literal syntax for integer arrays:
+  - [ ] Cannot use: `var nums := [1, 2, 3, 4, 5];` (parsed as SET, not array)
+  - [ ] Current workaround: Use SetLength + manual assignment
+  - [ ] Location: Parser interprets `[...]` as set literals (enum values only)
+  - [ ] Impact: Cannot easily create test data or initialize arrays
+  - [ ] Blocks: testdata/lambdas/higher_order.dws execution
+  - [ ] Note: Requires type inference work; deferred to later stage
+
+---
+
+### Multi-Identifier Declarations (HIGH PRIORITY)
+
+**Summary**: DWScript allows comma-separated variable declarations like `var a, b, c: Integer;`. Currently the parser only handles single identifiers per declaration.
+
+**Example**: `var x, y, z: Integer;`, `const A, B, C = 1, 2, 3;`
+
+**Reference**: Rosetta Code examples require this syntax frequently.
+
+#### AST Nodes (1 task)
+
+- [ ] 9.63 Extend `VarDeclStatement` and `ConstDecl` in `ast/statements.go`:
+  - [ ] Change `Name Token` to `Names []Token` (list of identifiers)
+  - [ ] Update `String()` method to show comma-separated names
+  - [ ] Adjust reconstruction helpers to preserve formatting
+  - [ ] Add field for tracking which identifier has initializer (if any)
+
+#### Parser Support (1 task)
+
+- [ ] 9.64 Update variable/const parsing in `parser/statements.go`:
+  - [ ] Teach `parseVarDeclaration()` to loop over `IDENT ,` sequences before colon
+  - [ ] Teach const-section parsing to handle comma-separated names
+  - [ ] Emit clear diagnostics when initializer supplied for multi-name declaration
+  - [ ] DWScript rule: `var a, b := ...` is illegal (only first name may have initializer)
+  - [ ] Add parser tests for multi-identifier declarations
+
+#### Semantic Analysis (1 task)
+
+- [ ] 9.65 Implement semantic handling in `semantic/analyzer.go`:
+  - [ ] Register each identifier in the enclosing scope with shared type annotation
+  - [ ] Verify only the first identifier may carry initializer (matching DWScript)
+  - [ ] Add semantic tests covering var, const, parameter, and field declarations
+
+#### Interpreter Support (1 task)
+
+- [ ] 9.66 Verify runtime support for grouped declarations:
+  - [ ] Ensure interpreter correctly handles multiple variable creation
+  - [ ] Test that each variable gets independent storage
+  - [ ] Add interpreter tests with assignments to each variable
+
+#### Testing & Fixtures (1 task)
+
+- [ ] 9.67 Create test files in `testdata/multi_decl/`:
+  - [ ] Basic multi-identifier declarations
+  - [ ] Multi-identifier with shared type
+  - [ ] Error cases (multiple initializers, missing type)
+  - [ ] Integration with functions and scopes
+
+---
+
+### Compound Assignment Operators (HIGH PRIORITY)
+
+**Summary**: Implement `+=`, `-=`, `*=`, `/=` compound assignment operators. Currently these must be written as `x := x + 1;` instead of `x += 1;`.
+
+**Example**: `count += 1;`, `total *= factor;`
+
+**Reference**: Rosetta Code examples use compound assignments frequently.
+
+#### AST Nodes (1 task)
+
+- [ ] 9.68 Extend assignment AST node in `ast/statements.go`:
+  - [ ] Add `CompoundOp Token` field (PLUS, MINUS, TIMES, DIVIDE, or empty)
+  - [ ] Update `String()` to show compound operators
+  - [ ] Distinguish between simple and compound assignment
+
+#### Parser Support (1 task)
+
+- [ ] 9.69 Add parser support in `parser/statements.go`:
+  - [ ] Hook `PLUS_ASSIGN`, `MINUS_ASSIGN`, `TIMES_ASSIGN`, `DIVIDE_ASSIGN` tokens
+  - [ ] Add to Pratt parser as assignment-precedence infix operators
+  - [ ] Reuse existing assignment AST node, store operator kind
+  - [ ] Expand error recovery for unexpected compound operators
+  - [ ] Add parser tests for all compound operators
+
+#### Semantic Analysis (1 task)
+
+- [ ] 9.70 Implement semantic checking in `semantic/analyzer.go`:
+  - [ ] Add analyzer checks mirroring simple assignment
+  - [ ] Type compatibility validation (lvalue type must support operator)
+  - [ ] Lvalue validation (left side must be assignable)
+  - [ ] Add semantic tests for type errors with compound operators
+
+#### Interpreter Support (1 task)
+
+- [ ] 9.71 Extend interpreter in `interp/interpreter.go`:
+  - [ ] Extend interpreter evaluation to perform underlying arithmetic then assign
+  - [ ] Handle each operator: `x += y` becomes `x = x + y`
+  - [ ] Create unit tests for numeric, string (where supported), and boolean compounds
+  - [ ] Include negative cases for unsupported operand types
+
+#### Testing & Fixtures (1 task)
+
+- [ ] 9.72 Create test files in `testdata/compound_ops/`:
+  - [ ] Basic compound assignments for all operators
+  - [ ] Compound assignments with complex expressions
+  - [ ] Type error cases
+  - [ ] Integration with loops and conditionals
+
+---
+
+### Bitwise Shift & Logical Operators (HIGH PRIORITY)
+
+**Summary**: Implement bitwise operators `SHL`, `SHR`, `AND`, `OR`, `XOR` for integer operations. Required for many Rosetta Code examples.
+
+**Example**: `mask shl 1`, `flags and $FF`, `a xor b`
+
+**Reference**: `Bitwise_operations.dws`, `Lucas-Lehmer_test.dws`
+
+#### Parser Support (1 task)
+
+- [ ] 9.73 Wire bitwise operators into expression parsing:
+  - [ ] Confirm lexer tokens exist for `SHL`, `SHR`, `AND`, `OR`, `XOR`
+  - [ ] Map them into `parseInfixExpression` with correct DWScript precedence levels
+  - [ ] Support parenthesized chains like `((mask shl 1) or 1)`
+  - [ ] Add parser fixtures validating precedence against arithmetic operators
+  - [ ] Test operator precedence chains
+
+#### Semantic Analysis (1 task)
+
+- [ ] 9.74 Extend semantic analyzer for bitwise operations:
+  - [ ] Validate operands are integral types (or sets where appropriate)
+  - [ ] Report clear errors for non-integer operands
+  - [ ] Check shift amounts are valid (non-negative for left, any for right)
+  - [ ] Add semantic tests for type errors
+
+#### Interpreter Support (1 task)
+
+- [ ] 9.75 Implement bitwise operations in interpreter:
+  - [ ] Implement shifting in the interpreter value system
+  - [ ] Implement bitwise combinators (AND, OR, XOR)
+  - [ ] Handle negative shift diagnostics (runtime error)
+  - [ ] Add regression tests mirroring Rosetta samples
+
+#### Testing & Fixtures (1 task)
+
+- [ ] 9.76 Create test files in `testdata/bitwise/`:
+  - [ ] Basic shift operations (SHL, SHR)
+  - [ ] Basic logical operations (AND, OR, XOR)
+  - [ ] Complex expressions with mixed operators
+  - [ ] Copy and adapt Rosetta Code examples
+
+---
+
+### For-In Enumerator Loops (HIGH PRIORITY)
+
+**Summary**: Implement `for variable in expression do` loop syntax for iterating over collections. Currently only `for-to` and `for-downto` are supported.
+
+**Example**: `for ch in str do Print(ch);`, `for i in 0..9 do ...;`
+
+**Reference**: `Range_expansion.dws`, `Range_extraction.dws`
+
+#### AST Nodes (1 task)
+
+- [ ] 9.77 Create `ForInStatement` in `ast/statements.go`:
+  - [ ] Fields: `Variable Token`, `Enumerator Expression`, `Body *BlockStatement`
+  - [ ] Implements `Statement` interface
+  - [ ] `String()` returns `for <var> in <expr> do <body>`
+  - [ ] Add AST tests
+
+#### Parser Support (1 task)
+
+- [ ] 9.78 Update for-loop parsing in `parser/statements.go`:
+  - [ ] Update `parseForStatement()` to detect `IDENT IN expression DO`
+  - [ ] Build `ForInStatement` node
+  - [ ] Preserve existing `for-to/downto` behavior
+  - [ ] Add recovery for malformed enumerator syntax
+  - [ ] Add parser tests for for-in loops
+
+#### Semantic Analysis (1 task)
+
+- [ ] 9.79 Teach semantic analysis about enumerators:
+  - [ ] Resolve loop variable scope (new local in loop body)
+  - [ ] Ensure enumerated expression is enumerable (array, set, string, range)
+  - [ ] Check that expression exposes DWScript `First`/`MoveNext` protocol
+  - [ ] Emit semantic errors when expression is not enumerable
+  - [ ] Add targeted semantic tests
+
+#### Interpreter Support (1 task)
+
+- [ ] 9.80 Implement for-in runtime support in `interp/interpreter.go`:
+  - [ ] Implement iteration for arrays
+  - [ ] Implement iteration for sets
+  - [ ] Implement iteration for strings (character by character)
+  - [ ] Implement iteration for range expressions (if supported)
+  - [ ] Respect loop variable assignment semantics (value vs reference)
+
+#### Testing & Fixtures (1 task)
+
+- [ ] 9.81 Create test files in `testdata/for_in/`:
+  - [ ] Basic for-in with arrays
+  - [ ] For-in with strings
+  - [ ] For-in with sets
+  - [ ] Nested for-in loops
+  - [ ] Failure cases (non-enumerable expressions)
+  - [ ] Adapt Rosetta Code examples
+
+---
+
+### Character Literal Expressions (HIGH PRIORITY)
+
+**Summary**: Implement standalone character literals as first-class expressions. DWScript supports character literals like `'A'`, `#13` (ordinal), `#$41` (hex).
+
+**Example**: `var ch: String := 'H';`, `case key of #13: HandleEnter; end;`
+
+**Reference**: `Execute_HQ9+.dws` and other Rosetta Code examples.
+
+#### AST Nodes (1 task)
+
+- [ ] 9.82 Create or extend character literal node in `ast/expressions.go`:
+  - [ ] Store rune value and position
+  - [ ] Support all forms: `'H'`, `#13`, `#$41`
+  - [ ] `String()` returns appropriate representation
+  - [ ] Add AST tests
+
+#### Parser Support (1 task)
+
+- [ ] 9.83 Parse standalone CHAR literals in `parser/expressions.go`:
+  - [ ] Ensure lexer emits `CHAR` tokens correctly
+  - [ ] Map `CHAR` tokens to literal expression parser
+  - [ ] Handle all character literal forms
+  - [ ] Add parser tests covering char constants in case labels and assignments
+
+#### Semantic Analysis (1 task)
+
+- [ ] 9.84 Type checking for character literals:
+  - [ ] Treat char literals as single-character strings (DWScript convention)
+  - [ ] Allow char literals where strings are expected
+  - [ ] Add semantic tests for char literal type checking
+
+#### Interpreter Support (1 task)
+
+- [ ] 9.85 Runtime support for character literals:
+  - [ ] Update interpreter value construction for all char forms
+  - [ ] Ensure `'H'`, `#13`, and `#$41` forms evaluate correctly
+  - [ ] Handle character-to-string coercion
+  - [ ] Add interpreter tests
+
+#### Testing & Fixtures (1 task)
+
+- [ ] 9.86 Create test files in `testdata/char_literals/`:
+  - [ ] Basic character literal assignments
+  - [ ] Character literals in case statements
+  - [ ] Ordinal and hex character literals
+  - [ ] Add regression tests from Rosetta Code examples
 
 ---
 
