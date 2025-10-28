@@ -36,6 +36,63 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	return p.parseClassDeclarationBody(nameIdent)
 }
 
+// parseClassParentAndInterfaces parses optional parent class and interfaces from (...)
+// Can be called multiple times for syntax like: class abstract(TParent)
+// Only updates classDecl if not already set to avoid overwriting previous parse
+func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
+	if !p.peekTokenIs(lexer.LPAREN) {
+		return
+	}
+
+	p.nextToken() // move to '('
+
+	// Parse comma-separated list of parent/interfaces
+	identifiers := []*ast.Identifier{}
+
+	for {
+		if !p.expectPeek(lexer.IDENT) {
+			return
+		}
+		identifiers = append(identifiers, &ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		})
+
+		// Check for comma (more items) or closing paren
+		if p.peekTokenIs(lexer.COMMA) {
+			p.nextToken() // move to comma
+			continue
+		} else if p.peekTokenIs(lexer.RPAREN) {
+			p.nextToken() // move to ')'
+			break
+		} else {
+			p.addError("expected ',' or ')' in class inheritance list")
+			return
+		}
+	}
+
+	// Task 7.83: Distinguish parent class from interfaces
+	// Convention: First identifier is parent class if:
+	//   1. It's a built-in class (Exception, EConvertError, etc.), OR
+	//   2. It starts with 'T' (TObject, TMyClass, etc.)
+	// Otherwise, all identifiers are treated as interfaces
+	if len(identifiers) > 0 {
+		firstIdent := identifiers[0]
+		// Check if first identifier is a built-in class or starts with 'T'
+		if isBuiltinClass(firstIdent.Value) ||
+			(len(firstIdent.Value) > 0 && firstIdent.Value[0] == 'T') {
+			// First identifier is the parent class
+			if classDecl.Parent == nil {
+				classDecl.Parent = firstIdent
+			}
+			classDecl.Interfaces = append(classDecl.Interfaces, identifiers[1:]...)
+		} else {
+			// No parent class, all are interfaces
+			classDecl.Interfaces = append(classDecl.Interfaces, identifiers...)
+		}
+	}
+}
+
 // isBuiltinClass checks if a class name is a built-in class that doesn't follow
 // the 'T' prefix convention. These classes need special handling in parent/interface
 // disambiguation since they don't start with 'T' but are parent classes, not interfaces.
@@ -68,70 +125,28 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 
 	// Task 7.83: Check for optional parent class and/or interfaces
 	// Syntax: class(TParent, IInterface1, IInterface2)
+	// Syntax: class abstract(TParent) - parent after abstract
 	// First identifier is parent class (if it starts with T)
 	// Rest are interfaces (if they start with I)
 	// OR: class(IInterface1, IInterface2) - no parent, just interfaces
 	classDecl.Interfaces = []*ast.Identifier{}
 
-	if p.peekTokenIs(lexer.LPAREN) {
-		p.nextToken() // move to '('
-
-		// Parse comma-separated list of parent/interfaces
-		identifiers := []*ast.Identifier{}
-
-		for {
-			if !p.expectPeek(lexer.IDENT) {
-				return nil
-			}
-			identifiers = append(identifiers, &ast.Identifier{
-				Token: p.curToken,
-				Value: p.curToken.Literal,
-			})
-
-			// Check for comma (more items) or closing paren
-			if p.peekTokenIs(lexer.COMMA) {
-				p.nextToken() // move to comma
-				continue
-			} else if p.peekTokenIs(lexer.RPAREN) {
-				p.nextToken() // move to ')'
-				break
-			} else {
-				p.addError("expected ',' or ')' in class inheritance list")
-				return nil
-			}
-		}
-
-		// Task 7.83: Distinguish parent class from interfaces
-		// Convention: First identifier is parent class if:
-		//   1. It's a built-in class (Exception, EConvertError, etc.), OR
-		//   2. It starts with 'T' (TObject, TMyClass, etc.)
-		// Otherwise, all identifiers are treated as interfaces
-		if len(identifiers) > 0 {
-			firstIdent := identifiers[0]
-			// Check if first identifier is a built-in class or starts with 'T'
-			if isBuiltinClass(firstIdent.Value) ||
-				(len(firstIdent.Value) > 0 && firstIdent.Value[0] == 'T') {
-				// First identifier is the parent class
-				classDecl.Parent = firstIdent
-				classDecl.Interfaces = identifiers[1:]
-			} else {
-				// No parent class, all are interfaces
-				classDecl.Parent = nil
-				classDecl.Interfaces = identifiers
-			}
-		}
-	}
+	p.parseClassParentAndInterfaces(classDecl)
 
 	// Check for 'abstract' keyword (Task 7.65b)
 	// Syntax: type TShape = class abstract
+	// Syntax: type TShape = class abstract(TParent)
 	if p.peekTokenIs(lexer.ABSTRACT) {
 		p.nextToken() // move to 'abstract'
 		classDecl.IsAbstract = true
+		// Check again for parent/interfaces after abstract
+		p.parseClassParentAndInterfaces(classDecl)
 	}
 
 	// Check for 'external' keyword
 	// Syntax: type TExternal = class external
 	// Syntax: type TExternal = class external 'ExternalName'
+	// Syntax: type TExternal = class external(TParent)
 	if p.peekTokenIs(lexer.EXTERNAL) {
 		p.nextToken() // move to 'external'
 		classDecl.IsExternal = true
@@ -141,6 +156,8 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 			p.nextToken() // move to string
 			classDecl.ExternalName = p.curToken.Literal
 		}
+		// Check again for parent/interfaces after external
+		p.parseClassParentAndInterfaces(classDecl)
 	}
 
 	// Parse class body (fields and methods) until 'end'
@@ -248,6 +265,11 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 				// For now, properties are parsed without explicit visibility tracking
 				classDecl.Properties = append(classDecl.Properties, property)
 			}
+		} else if p.curToken.Type == lexer.IDENT {
+			// Unexpected identifier in class body - likely a field missing its type declaration
+			p.addError("expected ':' after field name or method/property declaration keyword")
+			p.nextToken()
+			continue
 		} else {
 			// Unknown token in class body, skip it
 			p.nextToken()

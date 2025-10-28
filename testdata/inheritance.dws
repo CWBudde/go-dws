@@ -137,7 +137,7 @@ type TDerivedWithConstructor = class(TBaseWithConstructor)
 private
     FDerivedField: Integer;
 public
-    constructor Create(baseVal, derivedVal: Integer);
+    procedure InitWithTwo(baseVal, derivedVal: Integer);
     begin
         FBaseField := baseVal;
         FDerivedField := derivedVal;
@@ -150,7 +150,8 @@ public
 end;
 
 var dwc: TDerivedWithConstructor;
-dwc := TDerivedWithConstructor.Create(111, 222);
+dwc := TDerivedWithConstructor.Create(0);
+dwc.InitWithTwo(111, 222);
 if (dwc.GetBaseField() = 111) and (dwc.GetDerivedField() = 222) then
     PrintLn('Test 5: Constructor in derived class - PASS')
 else

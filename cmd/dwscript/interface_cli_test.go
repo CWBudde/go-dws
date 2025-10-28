@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -256,4 +257,80 @@ func normalizeOutput(s string) string {
 	}
 	result := strings.Join(lines, "\n")
 	return strings.TrimSpace(result)
+}
+
+// TestInterfacesIntegration tests the CLI with interface scripts
+// Task 7.151: Verify CLI correctly executes interface programs
+func TestInterfacesIntegration(t *testing.T) {
+	// Build the binary first
+	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Fatalf("Failed to build dwscript: %v", err)
+	}
+
+	binary := "../../bin/dwscript"
+
+	tests := []struct {
+		name        string
+		scriptFile  string
+		wantOutputs []string // Strings that must appear in output
+		wantPasses  int      // Minimum number of "PASS" occurrences
+	}{
+		{
+			name:       "Interfaces",
+			scriptFile: "../../testdata/interfaces.dws",
+			wantOutputs: []string{
+				"=== Interface Comprehensive Test ===",
+				"Test 1: Simple interface implementation - PASS",
+				"Test 15: Polymorphic interface usage - PASS",
+				"=== All Interface Tests Complete ===",
+			},
+			wantPasses: 15, // All 15 tests should pass
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Check if script file exists
+			if _, err := os.Stat(tt.scriptFile); os.IsNotExist(err) {
+				t.Skipf("Script file %s does not exist, skipping", tt.scriptFile)
+			}
+
+			// Run the script
+			cmd := exec.Command(binary, "run", tt.scriptFile)
+			var out bytes.Buffer
+			var errOut bytes.Buffer
+			cmd.Stdout = &out
+			cmd.Stderr = &errOut
+
+			if err := cmd.Run(); err != nil {
+				t.Fatalf("Failed to run %s: %v\nStderr: %s", tt.scriptFile, err, errOut.String())
+			}
+
+			output := out.String()
+
+			// Check for expected output strings
+			for _, want := range tt.wantOutputs {
+				if !strings.Contains(output, want) {
+					t.Errorf("Expected output to contain %q, but it didn't.\nOutput:\n%s", want, output)
+				}
+			}
+
+			// Check for minimum number of PASS occurrences
+			if tt.wantPasses > 0 {
+				passCount := strings.Count(output, "PASS")
+				if passCount < tt.wantPasses {
+					t.Errorf("Expected at least %d PASS occurrences, got %d", tt.wantPasses, passCount)
+				}
+			}
+
+			// Check for no FAIL occurrences in test scripts
+			if tt.wantPasses > 0 {
+				failCount := strings.Count(output, "FAIL")
+				if failCount > 0 {
+					t.Errorf("Found %d FAIL occurrences (expected 0):\n%s", failCount, output)
+				}
+			}
+		})
+	}
 }

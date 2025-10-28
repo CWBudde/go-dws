@@ -307,9 +307,9 @@ public
     end;
 end;
 
-var root: TAbstractRoot;
+var root: TAbstractMiddle;
 root := TConcrete.Create();
-if (root.Method1() = 'M1') and (TConcrete(root).Method2() = 'M2') then
+if (root.Method1() = 'M1') and (root.Method2() = 'M2') then
     PrintLn('Test 10: Multi-level abstract hierarchy - PASS')
 else
     PrintLn('Test 10: Multi-level abstract hierarchy - FAIL');
