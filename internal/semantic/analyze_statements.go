@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
@@ -240,10 +241,13 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		return
 	}
 
+	// Determine if this is a compound assignment
+	isCompound := stmt.Operator != lexer.ASSIGN && stmt.Operator != lexer.TokenType(0)
+
 	// Handle different target types
 	switch target := stmt.Target.(type) {
 	case *ast.Identifier:
-		// Simple variable assignment: x := value
+		// Simple variable assignment: x := value or x += value
 		sym, ok := a.symbols.Resolve(target.Value)
 		if !ok {
 			a.addError("undefined variable '%s' at %s", target.Value, stmt.Token.Pos.String())
@@ -260,6 +264,13 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			return
 		}
 
+		// For compound assignments, validate operator compatibility
+		if isCompound {
+			if !a.isCompoundOperatorValid(stmt.Operator, sym.Type, valueType, stmt.Token.Pos) {
+				return
+			}
+		}
+
 		// Check type compatibility
 		if !a.canAssign(valueType, sym.Type) {
 			a.addError("cannot assign %s to %s at %s",
@@ -267,11 +278,18 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		}
 
 	case *ast.MemberAccessExpression:
-		// Member assignment: obj.field := value
+		// Member assignment: obj.field := value or obj.field += value
 		// Analyze the target to ensure it's valid
 		targetType := a.analyzeExpression(target)
 		if targetType == nil {
 			return
+		}
+
+		// For compound assignments, validate operator compatibility
+		if isCompound {
+			if !a.isCompoundOperatorValid(stmt.Operator, targetType, valueType, stmt.Token.Pos) {
+				return
+			}
 		}
 
 		// Check type compatibility
@@ -281,11 +299,18 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		}
 
 	case *ast.IndexExpression:
-		// Array index assignment: arr[i] := value
+		// Array index assignment: arr[i] := value or arr[i] += value
 		// Analyze the target to ensure it's valid
 		targetType := a.analyzeExpression(target)
 		if targetType == nil {
 			return
+		}
+
+		// For compound assignments, validate operator compatibility
+		if isCompound {
+			if !a.isCompoundOperatorValid(stmt.Operator, targetType, valueType, stmt.Token.Pos) {
+				return
+			}
 		}
 
 		// Check type compatibility
@@ -296,6 +321,39 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 	default:
 		a.addError("invalid assignment target at %s", stmt.Token.Pos.String())
+	}
+}
+
+// isCompoundOperatorValid checks if a compound operator is valid for the given types.
+func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, valueType types.Type, pos lexer.Position) bool {
+	switch op {
+	case lexer.PLUS_ASSIGN:
+		// += works with Integer, Float, String (concatenation)
+		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) || targetType.Equals(types.STRING) {
+			return true
+		}
+		a.addError("operator += not supported for type %s at %s", targetType.String(), pos.String())
+		return false
+
+	case lexer.MINUS_ASSIGN, lexer.TIMES_ASSIGN, lexer.DIVIDE_ASSIGN:
+		// -=, *=, /= work with Integer, Float only
+		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) {
+			return true
+		}
+		opStr := "operator"
+		switch op {
+		case lexer.MINUS_ASSIGN:
+			opStr = "operator -="
+		case lexer.TIMES_ASSIGN:
+			opStr = "operator *="
+		case lexer.DIVIDE_ASSIGN:
+			opStr = "operator /="
+		}
+		a.addError("%s not supported for type %s at %s", opStr, targetType.String(), pos.String())
+		return false
+
+	default:
+		return true
 	}
 }
 

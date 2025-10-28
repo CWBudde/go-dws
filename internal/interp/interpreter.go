@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
 )
@@ -123,6 +124,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	case *ast.ForStatement:
 		return i.evalForStatement(node)
+
+	case *ast.ForInStatement:
+		return i.evalForInStatement(node)
 
 	case *ast.CaseStatement:
 		return i.evalCaseStatement(node)
@@ -510,20 +514,53 @@ func (i *Interpreter) evalConstDecl(stmt *ast.ConstDecl) Value {
 // evalAssignmentStatement evaluates an assignment statement.
 // It updates an existing variable's value or sets an object/array element.
 // Supports: x := value, obj.field := value, arr[i] := value
+// Also supports compound assignments: x += value, x -= value, x *= value, x /= value
 func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Value {
-	// Evaluate the value to assign
-	// Special handling for record literals without type names
+	// Check if this is a compound assignment
+	isCompound := stmt.Operator != lexer.ASSIGN && stmt.Operator != lexer.TokenType(0)
+
 	var value Value
-	if recordLit, ok := stmt.Value.(*ast.RecordLiteral); ok && recordLit.TypeName == "" {
-		// This is an untyped record literal - get type from target variable if it's a simple identifier
-		if targetIdent, ok := stmt.Target.(*ast.Identifier); ok {
-			targetVar, exists := i.env.Get(targetIdent.Value)
-			if exists {
-				if recVal, ok := targetVar.(*RecordValue); ok {
-					// Set the type name in the literal temporarily
-					recordLit.TypeName = recVal.RecordType.Name
-					value = i.Eval(recordLit)
-					recordLit.TypeName = ""
+
+	if isCompound {
+		// For compound assignments, we need to:
+		// 1. Read the current value
+		// 2. Evaluate the RHS
+		// 3. Apply the operation
+		// 4. Store the result
+
+		// Read current value
+		currentValue := i.Eval(stmt.Target)
+		if isError(currentValue) {
+			return currentValue
+		}
+
+		// Evaluate the RHS
+		rhsValue := i.Eval(stmt.Value)
+		if isError(rhsValue) {
+			return rhsValue
+		}
+
+		// Apply the compound operation
+		value = i.applyCompoundOperation(stmt.Operator, currentValue, rhsValue, stmt)
+		if isError(value) {
+			return value
+		}
+	} else {
+		// Regular assignment - evaluate the value to assign
+		// Special handling for record literals without type names
+		if recordLit, ok := stmt.Value.(*ast.RecordLiteral); ok && recordLit.TypeName == "" {
+			// This is an untyped record literal - get type from target variable if it's a simple identifier
+			if targetIdent, ok := stmt.Target.(*ast.Identifier); ok {
+				targetVar, exists := i.env.Get(targetIdent.Value)
+				if exists {
+					if recVal, ok := targetVar.(*RecordValue); ok {
+						// Set the type name in the literal temporarily
+						recordLit.TypeName = recVal.RecordType.Name
+						value = i.Eval(recordLit)
+						recordLit.TypeName = ""
+					} else {
+						value = i.Eval(stmt.Value)
+					}
 				} else {
 					value = i.Eval(stmt.Value)
 				}
@@ -533,35 +570,120 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 		} else {
 			value = i.Eval(stmt.Value)
 		}
-	} else {
-		value = i.Eval(stmt.Value)
-	}
 
-	if isError(value) {
-		return value
-	}
+		if isError(value) {
+			return value
+		}
 
-	// Task 8.77: Records have value semantics - copy when assigning
-	if recordVal, ok := value.(*RecordValue); ok {
-		value = recordVal.Copy()
+		// Task 8.77: Records have value semantics - copy when assigning
+		if recordVal, ok := value.(*RecordValue); ok {
+			value = recordVal.Copy()
+		}
 	}
 
 	// Handle different target types
 	switch target := stmt.Target.(type) {
 	case *ast.Identifier:
-		// Simple variable assignment: x := value
+		// Simple variable assignment: x := value or x += value
 		return i.evalSimpleAssignment(target, value, stmt)
 
 	case *ast.MemberAccessExpression:
-		// Member assignment: obj.field := value or TClass.Variable := value
+		// Member assignment: obj.field := value or obj.field += value
 		return i.evalMemberAssignment(target, value, stmt)
 
 	case *ast.IndexExpression:
-		// Array index assignment: arr[i] := value
+		// Array index assignment: arr[i] := value or arr[i] += value
 		return i.evalIndexAssignment(target, value, stmt)
 
 	default:
 		return i.newErrorWithLocation(stmt, "invalid assignment target type: %T", target)
+	}
+}
+
+// applyCompoundOperation applies a compound assignment operation (+=, -=, *=, /=).
+func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Value, stmt *ast.AssignmentStatement) Value {
+	switch op {
+	case lexer.PLUS_ASSIGN:
+		// += works with Integer, Float, String
+		switch l := left.(type) {
+		case *IntegerValue:
+			if r, ok := right.(*IntegerValue); ok {
+				return &IntegerValue{Value: l.Value + r.Value}
+			}
+			return i.newErrorWithLocation(stmt, "type mismatch: cannot add %s to Integer", right.Type())
+		case *FloatValue:
+			if r, ok := right.(*FloatValue); ok {
+				return &FloatValue{Value: l.Value + r.Value}
+			}
+			return i.newErrorWithLocation(stmt, "type mismatch: cannot add %s to Float", right.Type())
+		case *StringValue:
+			if r, ok := right.(*StringValue); ok {
+				return &StringValue{Value: l.Value + r.Value}
+			}
+			return i.newErrorWithLocation(stmt, "type mismatch: cannot add %s to String", right.Type())
+		default:
+			return i.newErrorWithLocation(stmt, "operator += not supported for type %s", left.Type())
+		}
+
+	case lexer.MINUS_ASSIGN:
+		// -= works with Integer, Float
+		switch l := left.(type) {
+		case *IntegerValue:
+			if r, ok := right.(*IntegerValue); ok {
+				return &IntegerValue{Value: l.Value - r.Value}
+			}
+			return i.newErrorWithLocation(stmt, "type mismatch: cannot subtract %s from Integer", right.Type())
+		case *FloatValue:
+			if r, ok := right.(*FloatValue); ok {
+				return &FloatValue{Value: l.Value - r.Value}
+			}
+			return i.newErrorWithLocation(stmt, "type mismatch: cannot subtract %s from Float", right.Type())
+		default:
+			return i.newErrorWithLocation(stmt, "operator -= not supported for type %s", left.Type())
+		}
+
+	case lexer.TIMES_ASSIGN:
+		// *= works with Integer, Float
+		switch l := left.(type) {
+		case *IntegerValue:
+			if r, ok := right.(*IntegerValue); ok {
+				return &IntegerValue{Value: l.Value * r.Value}
+			}
+			return i.newErrorWithLocation(stmt, "type mismatch: cannot multiply Integer by %s", right.Type())
+		case *FloatValue:
+			if r, ok := right.(*FloatValue); ok {
+				return &FloatValue{Value: l.Value * r.Value}
+			}
+			return i.newErrorWithLocation(stmt, "type mismatch: cannot multiply Float by %s", right.Type())
+		default:
+			return i.newErrorWithLocation(stmt, "operator *= not supported for type %s", left.Type())
+		}
+
+	case lexer.DIVIDE_ASSIGN:
+		// /= works with Integer, Float
+		switch l := left.(type) {
+		case *IntegerValue:
+			if r, ok := right.(*IntegerValue); ok {
+				if r.Value == 0 {
+					return i.newErrorWithLocation(stmt, "division by zero")
+				}
+				return &IntegerValue{Value: l.Value / r.Value}
+			}
+			return i.newErrorWithLocation(stmt, "type mismatch: cannot divide Integer by %s", right.Type())
+		case *FloatValue:
+			if r, ok := right.(*FloatValue); ok {
+				if r.Value == 0.0 {
+					return i.newErrorWithLocation(stmt, "division by zero")
+				}
+				return &FloatValue{Value: l.Value / r.Value}
+			}
+			return i.newErrorWithLocation(stmt, "type mismatch: cannot divide Float by %s", right.Type())
+		default:
+			return i.newErrorWithLocation(stmt, "operator /= not supported for type %s", left.Type())
+		}
+
+	default:
+		return i.newErrorWithLocation(stmt, "unknown compound operator: %v", op)
 	}
 }
 
@@ -4583,6 +4705,149 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 				break
 			}
 		}
+	}
+
+	// Restore the original environment after the loop
+	i.env = savedEnv
+
+	return result
+}
+
+// evalForInStatement evaluates a for-in loop statement.
+// It iterates over the elements of a collection (array, set, or string).
+// The loop variable is assigned each element in turn, and the body is executed.
+func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
+	var result Value = &NilValue{}
+
+	// Evaluate the collection expression
+	collectionVal := i.Eval(stmt.Collection)
+	if isError(collectionVal) {
+		return collectionVal
+	}
+
+	// Create a new enclosed environment for the loop variable
+	// This ensures the loop variable is scoped to the loop body
+	loopEnv := NewEnclosedEnvironment(i.env)
+	savedEnv := i.env
+	i.env = loopEnv
+
+	loopVarName := stmt.Variable.Value
+
+	// Type-switch on the collection type to determine iteration strategy
+	switch col := collectionVal.(type) {
+	case *ArrayValue:
+		// Iterate over array elements
+		for _, element := range col.Elements {
+			// Assign the current element to the loop variable
+			i.env.Define(loopVarName, element)
+
+			// Execute the body
+			result = i.Eval(stmt.Body)
+			if isError(result) {
+				i.env = savedEnv // Restore environment before returning
+				return result
+			}
+
+			// Handle control flow signals (break, continue, exit)
+			if i.breakSignal {
+				i.breakSignal = false // Clear signal
+				break
+			}
+			if i.continueSignal {
+				i.continueSignal = false // Clear signal
+				continue
+			}
+			if i.exitSignal {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+
+	case *SetValue:
+		// Iterate over set elements
+		// Sets contain enum values; we iterate through the enum's ordered names
+		// and check which ones are present in the set
+		if col.SetType == nil || col.SetType.ElementType == nil {
+			i.env = savedEnv
+			return newError("invalid set type for iteration")
+		}
+
+		enumType := col.SetType.ElementType
+		// Iterate through enum values in their defined order
+		for _, name := range enumType.OrderedNames {
+			ordinal := enumType.Values[name]
+			// Check if this enum value is in the set
+			if col.HasElement(ordinal) {
+				// Create an enum value for this element
+				enumVal := &EnumValue{
+					TypeName:     enumType.Name,
+					ValueName:    name,
+					OrdinalValue: ordinal,
+				}
+
+				// Assign the enum value to the loop variable
+				i.env.Define(loopVarName, enumVal)
+
+				// Execute the body
+				result = i.Eval(stmt.Body)
+				if isError(result) {
+					i.env = savedEnv // Restore environment before returning
+					return result
+				}
+
+				// Handle control flow signals (break, continue, exit)
+				if i.breakSignal {
+					i.breakSignal = false // Clear signal
+					break
+				}
+				if i.continueSignal {
+					i.continueSignal = false // Clear signal
+					continue
+				}
+				if i.exitSignal {
+					// Don't clear the signal - let the function handle it
+					break
+				}
+			}
+		}
+
+	case *StringValue:
+		// Iterate over string characters
+		// Each character becomes a single-character string
+		for idx := 0; idx < len(col.Value); idx++ {
+			// Create a single-character string for this iteration
+			charVal := &StringValue{Value: string(col.Value[idx])}
+
+			// Assign the character to the loop variable
+			i.env.Define(loopVarName, charVal)
+
+			// Execute the body
+			result = i.Eval(stmt.Body)
+			if isError(result) {
+				i.env = savedEnv // Restore environment before returning
+				return result
+			}
+
+			// Handle control flow signals (break, continue, exit)
+			if i.breakSignal {
+				i.breakSignal = false // Clear signal
+				break
+			}
+			if i.continueSignal {
+				i.continueSignal = false // Clear signal
+				continue
+			}
+			if i.exitSignal {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+
+	default:
+		// If we reach here, the semantic analyzer missed something
+		// This is defensive programming
+		i.env = savedEnv
+		return newError("for-in loop: cannot iterate over %s", collectionVal.Type())
 	}
 
 	// Restore the original environment after the loop

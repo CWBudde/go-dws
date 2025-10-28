@@ -1,0 +1,145 @@
+// Control flow tests for for-in loops
+// Tests break, continue, and exit statements within for-in loops
+
+type TIntArray = array of Integer;
+
+var numbers: TIntArray;
+var i: Integer;
+var foundTarget: Boolean;
+
+function FindValue(target: Integer): Boolean;
+var arr: TIntArray;
+var val: Integer;
+begin
+  PrintLn('Searching for: ' + IntToStr(target));
+  SetLength(arr, 5);
+  arr[0] := 10;
+  arr[1] := 20;
+  arr[2] := 30;
+  arr[3] := 40;
+  arr[4] := 50;
+
+  Result := False;
+  for val in arr do begin
+    PrintLn('  Checking: ' + IntToStr(val));
+    if val = target then begin
+      Result := True;
+      exit;  // Exit function when found
+    end;
+  end;
+end;
+
+begin
+  PrintLn('=== Test 1: Break - stop at first match ===');
+  SetLength(numbers, 10);
+  numbers[0] := 1;
+  numbers[1] := 2;
+  numbers[2] := 3;
+  numbers[3] := 4;
+  numbers[4] := 5;
+  numbers[5] := 6;
+  numbers[6] := 7;
+  numbers[7] := 8;
+  numbers[8] := 9;
+  numbers[9] := 10;
+
+  for i in numbers do begin
+    if i = 5 then begin
+      PrintLn('Found 5, breaking');
+      break;
+    end;
+    PrintLn('Value: ' + IntToStr(i));
+  end;
+
+  PrintLn('=== Test 2: Continue - skip specific values ===');
+  for i in numbers do begin
+    if (i = 3) or (i = 7) then begin
+      PrintLn('Skipping: ' + IntToStr(i));
+      continue;
+    end;
+    PrintLn('Processing: ' + IntToStr(i));
+  end;
+
+  PrintLn('=== Test 3: Break in nested loop ===');
+  type TIntArray2 = array of Integer;
+  var outer: TIntArray2;
+  var inner: TIntArray2;
+  var x: Integer;
+  var y: Integer;
+
+  SetLength(outer, 3);
+  outer[0] := 1;
+  outer[1] := 2;
+  outer[2] := 3;
+
+  SetLength(inner, 3);
+  inner[0] := 10;
+  inner[1] := 20;
+  inner[2] := 30;
+
+  for x in outer do begin
+    PrintLn('Outer: ' + IntToStr(x));
+    for y in inner do begin
+      PrintLn('  Inner: ' + IntToStr(y));
+      if y = 20 then begin
+        PrintLn('  Breaking inner loop');
+        break;
+      end;
+    end;
+    PrintLn('Back in outer loop');
+  end;
+
+  PrintLn('=== Test 4: Continue in nested loop ===');
+  for x in outer do begin
+    for y in inner do begin
+      if y = 20 then
+        continue;
+      PrintLn('Outer=' + IntToStr(x) + ', Inner=' + IntToStr(y));
+    end;
+  end;
+
+  PrintLn('=== Test 5: Exit from function during for-in ===');
+  foundTarget := FindValue(30);
+  if foundTarget then
+    PrintLn('Result: Found 30')
+  else
+    PrintLn('Result: Not found');
+
+  foundTarget := FindValue(99);
+  if foundTarget then
+    PrintLn('Result: Found 99')
+  else
+    PrintLn('Result: Not found');
+
+  PrintLn('=== Test 6: Multiple breaks in sequence ===');
+  var firstBreak: Boolean;
+  firstBreak := False;
+
+  SetLength(numbers, 5);
+  numbers[0] := 1;
+  numbers[1] := 2;
+  numbers[2] := 3;
+  numbers[3] := 4;
+  numbers[4] := 5;
+
+  for i in numbers do begin
+    PrintLn('First loop: ' + IntToStr(i));
+    if i = 2 then
+      break;
+  end;
+
+  for i in numbers do begin
+    PrintLn('Second loop: ' + IntToStr(i));
+    if i = 4 then
+      break;
+  end;
+
+  PrintLn('=== Test 7: Skip all elements with continue ===');
+  for i in numbers do begin
+    continue;
+    PrintLn('ERROR: Should not print');
+  end;
+  PrintLn('All elements skipped successfully');
+
+  PrintLn('=== All control flow tests passed! ===');
+end.

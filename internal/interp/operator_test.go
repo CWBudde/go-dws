@@ -602,3 +602,191 @@ func TestUnaryOperatorOverload(t *testing.T) {
 // NOTE: Skipping this test as operator inheritance/override is not yet implemented.
 // This would require the same class hierarchy lookup changes as 8.23h.
 // This is deferred to a future enhancement task.
+
+// ============================================================================
+// Compound Assignment Operator Tests (Task 9.13-9.16)
+// ============================================================================
+
+func TestCompoundAssignmentPlusInteger(t *testing.T) {
+	input := `
+		var x: Integer := 10;
+		x += 5;
+		PrintLn(x);
+	`
+	_, output := testEvalWithOutput(input)
+	if output != "15\n" {
+		t.Fatalf("expected 15, got %s", output)
+	}
+}
+
+func TestCompoundAssignmentMinusInteger(t *testing.T) {
+	input := `
+		var x: Integer := 10;
+		x -= 3;
+		PrintLn(x);
+	`
+	_, output := testEvalWithOutput(input)
+	if output != "7\n" {
+		t.Fatalf("expected 7, got %s", output)
+	}
+}
+
+func TestCompoundAssignmentTimesInteger(t *testing.T) {
+	input := `
+		var x: Integer := 5;
+		x *= 3;
+		PrintLn(x);
+	`
+	_, output := testEvalWithOutput(input)
+	if output != "15\n" {
+		t.Fatalf("expected 15, got %s", output)
+	}
+}
+
+func TestCompoundAssignmentDivideInteger(t *testing.T) {
+	input := `
+		var x: Integer := 20;
+		x /= 4;
+		PrintLn(x);
+	`
+	_, output := testEvalWithOutput(input)
+	if output != "5\n" {
+		t.Fatalf("expected 5, got %s", output)
+	}
+}
+
+func TestCompoundAssignmentPlusFloat(t *testing.T) {
+	input := `
+		var f: Float := 3.14;
+		f += 1.86;
+		PrintLn(f);
+	`
+	_, output := testEvalWithOutput(input)
+	if output != "5\n" {
+		t.Fatalf("expected 5, got %s", output)
+	}
+}
+
+func TestCompoundAssignmentMinusFloat(t *testing.T) {
+	input := `
+		var f: Float := 10.5;
+		f -= 2.5;
+		PrintLn(f);
+	`
+	_, output := testEvalWithOutput(input)
+	if output != "8\n" {
+		t.Fatalf("expected 8, got %s", output)
+	}
+}
+
+func TestCompoundAssignmentTimesFloat(t *testing.T) {
+	input := `
+		var f: Float := 2.5;
+		f *= 4.0;
+		PrintLn(f);
+	`
+	_, output := testEvalWithOutput(input)
+	if output != "10\n" {
+		t.Fatalf("expected 10, got %s", output)
+	}
+}
+
+func TestCompoundAssignmentDivideFloat(t *testing.T) {
+	input := `
+		var f: Float := 10.0;
+		f /= 2.0;
+		PrintLn(f);
+	`
+	_, output := testEvalWithOutput(input)
+	if output != "5\n" {
+		t.Fatalf("expected 5, got %s", output)
+	}
+}
+
+func TestCompoundAssignmentStringConcat(t *testing.T) {
+	input := `
+		var s: String := 'Hello';
+		s += ' World';
+		PrintLn(s);
+	`
+	_, output := testEvalWithOutput(input)
+	if output != "Hello World\n" {
+		t.Fatalf("expected 'Hello World', got %s", output)
+	}
+}
+
+func TestCompoundAssignmentArrayElement(t *testing.T) {
+	input := `
+		var arr: array[0..2] of Integer;
+		arr[0] := 10;
+		arr[1] := 20;
+		arr[0] += 5;
+		arr[1] *= 2;
+		PrintLn(arr[0]);
+		PrintLn(arr[1]);
+	`
+	_, output := testEvalWithOutput(input)
+	expected := "15\n40\n"
+	if output != expected {
+		t.Fatalf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestCompoundAssignmentMemberField(t *testing.T) {
+	input := `
+		type TPoint = class
+			X: Integer;
+			Y: Integer;
+			constructor Create;
+		end;
+
+		constructor TPoint.Create;
+		begin
+			X := 0;
+			Y := 0;
+		end;
+
+		var p: TPoint;
+		p := TPoint.Create();
+		p.X := 10;
+		p.Y := 20;
+		p.X += 5;
+		p.Y -= 3;
+		PrintLn(p.X);
+		PrintLn(p.Y);
+	`
+	_, output := testEvalWithOutput(input)
+	expected := "15\n17\n"
+	if output != expected {
+		t.Fatalf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestCompoundAssignmentInLoop(t *testing.T) {
+	input := `
+		var sum: Integer := 0;
+		var i: Integer;
+		for i := 1 to 5 do
+			sum += i;
+		PrintLn(sum);
+	`
+	_, output := testEvalWithOutput(input)
+	if output != "15\n" {
+		t.Fatalf("expected 15, got %s", output)
+	}
+}
+
+func TestCompoundAssignmentMultiple(t *testing.T) {
+	input := `
+		var x: Integer := 10;
+		x += 5;   // 15
+		x *= 2;   // 30
+		x -= 10;  // 20
+		x /= 4;   // 5
+		PrintLn(x);
+	`
+	_, output := testEvalWithOutput(input)
+	if output != "5\n" {
+		t.Fatalf("expected 5, got %s", output)
+	}
+}

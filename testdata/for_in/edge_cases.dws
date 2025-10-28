@@ -1,0 +1,136 @@
+// Edge cases and boundary conditions for for-in loops
+
+type TIntArray = array of Integer;
+type TStringArray = array of String;
+type TFloatArray = array of Float;
+type TBoolArray = array of Boolean;
+
+var numbers: TIntArray;
+var words: TStringArray;
+var floats: TFloatArray;
+var booleans: TBoolArray;
+var i: Integer;
+var s: String;
+var f: Float;
+var flag: Boolean;
+
+begin
+  PrintLn('=== Test 1: Empty arrays of different types ===');
+  SetLength(numbers, 0);
+  SetLength(words, 0);
+  SetLength(floats, 0);
+  SetLength(booleans, 0);
+
+  for i in numbers do
+    PrintLn('ERROR: Empty int array');
+  PrintLn('Empty int array: OK');
+
+  for s in words do
+    PrintLn('ERROR: Empty string array');
+  PrintLn('Empty string array: OK');
+
+  for f in floats do
+    PrintLn('ERROR: Empty float array');
+  PrintLn('Empty float array: OK');
+
+  for flag in booleans do
+    PrintLn('ERROR: Empty bool array');
+  PrintLn('Empty bool array: OK');
+
+  PrintLn('=== Test 2: Empty string ===');
+  var text: String;
+  var ch: String;
+  var count: Integer;
+
+  text := '';
+  count := 0;
+  for ch in text do
+    count := count + 1;
+  PrintLn('Empty string iterations: ' + IntToStr(count));
+
+  PrintLn('=== Test 3: Single-element collections ===');
+  SetLength(numbers, 1);
+  numbers[0] := 42;
+  for i in numbers do
+    PrintLn('Single int: ' + IntToStr(i));
+
+  text := 'X';
+  for ch in text do
+    PrintLn('Single char: ' + ch);
+
+  PrintLn('=== Test 4: Boolean array ===');
+  SetLength(booleans, 4);
+  booleans[0] := True;
+  booleans[1] := False;
+  booleans[2] := True;
+  booleans[3] := False;
+
+  for flag in booleans do begin
+    if flag then
+      PrintLn('Flag: True')
+    else
+      PrintLn('Flag: False');
+  end;
+
+  PrintLn('=== Test 5: Float array ===');
+  SetLength(floats, 3);
+  floats[0] := 3.14;
+  floats[1] := 2.71;
+  floats[2] := 1.41;
+
+  for f in floats do
+    PrintLn('Float: ' + FloatToStr(f));
+
+  PrintLn('=== Test 6: Large array ===');
+  SetLength(numbers, 100);
+  var idx: Integer;
+  for idx := 0 to 99 do
+    numbers[idx] := idx;
+
+  var sum: Integer;
+  sum := 0;
+  for i in numbers do
+    sum := sum + 1;
+  PrintLn('Large array element count: ' + IntToStr(sum));
+
+  PrintLn('=== Test 7: String with punctuation ===');
+  text := 'Hello, World!';
+  count := 0;
+  for ch in text do
+    count := count + 1;
+  PrintLn('Punctuation string length: ' + IntToStr(count));
+
+  PrintLn('=== Test 8: Negative numbers ===');
+  SetLength(numbers, 5);
+  numbers[0] := -10;
+  numbers[1] := -5;
+  numbers[2] := 0;
+  numbers[3] := 5;
+  numbers[4] := 10;
+
+  for i in numbers do
+    PrintLn('Number: ' + IntToStr(i));
+
+  PrintLn('=== Test 9: Loop variable reuse ===');
+  // Use same variable for multiple sequential loops
+  SetLength(numbers, 3);
+  numbers[0] := 1;
+  numbers[1] := 2;
+  numbers[2] := 3;
+
+  for i in numbers do
+    PrintLn('First: ' + IntToStr(i));
+
+  // Reuse variable i
+  for i in numbers do
+    PrintLn('Second: ' + IntToStr(i));
+
+  PrintLn('=== Test 10: Very long string ===');
+  text := 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  count := 0;
+  for ch in text do
+    count := count + 1;
+  PrintLn('Long string length: ' + IntToStr(count));
+
+  PrintLn('=== All edge case tests passed! ===');
+end.

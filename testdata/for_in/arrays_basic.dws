@@ -1,0 +1,60 @@
+// Basic array iteration tests
+// Tests fundamental for-in functionality with dynamic arrays
+
+type TIntArray = array of Integer;
+type TStringArray = array of String;
+
+var numbers: TIntArray;
+var names: TStringArray;
+var i: Integer;
+var s: String;
+var sum: Integer;
+var result: String;
+
+begin
+  PrintLn('=== Test 1: Simple integer array ===');
+  SetLength(numbers, 5);
+  numbers[0] := 10;
+  numbers[1] := 20;
+  numbers[2] := 30;
+  numbers[3] := 40;
+  numbers[4] := 50;
+
+  for i in numbers do
+    PrintLn('Value: ' + IntToStr(i));
+
+  PrintLn('=== Test 2: Calculate sum using for-in ===');
+  sum := 0;
+  for i in numbers do
+    sum := sum + i;
+  PrintLn('Sum: ' + IntToStr(sum));  // Expected: 150
+
+  PrintLn('=== Test 3: String array ===');
+  SetLength(names, 3);
+  names[0] := 'Alice';
+  names[1] := 'Bob';
+  names[2] := 'Charlie';
+
+  for s in names do
+    PrintLn('Name: ' + s);
+
+  PrintLn('=== Test 4: Empty array ===');
+  SetLength(numbers, 0);
+  for i in numbers do
+    PrintLn('ERROR: Should not print');
+  PrintLn('Empty array handled correctly');
+
+  PrintLn('=== Test 5: Single element array ===');
+  SetLength(numbers, 1);
+  numbers[0] := 999;
+  for i in numbers do
+    PrintLn('Single value: ' + IntToStr(i));
+
+  PrintLn('=== Test 6: Concatenate strings ===');
+  result := '';
+  for s in names do
+    result := result + s + ' ';
+  PrintLn('Concatenated: ' + result);
+
+  PrintLn('=== All array tests passed! ===');
+end.

@@ -1,0 +1,17 @@
+// String concatenation with += operator
+
+var greeting: String := 'Hello';
+PrintLn(greeting);
+
+greeting += ' World';
+PrintLn(greeting);
+
+greeting += '!';
+PrintLn(greeting);
+
+var sentence: String := '';
+sentence += 'This ';
+sentence += 'is ';
+sentence += 'a ';
+sentence += 'sentence.';
+PrintLn(sentence);

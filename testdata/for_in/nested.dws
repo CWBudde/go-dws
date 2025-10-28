@@ -1,0 +1,94 @@
+// Nested for-in loop tests
+// Tests multiple levels of for-in iteration and scope handling
+
+type TIntArray = array of Integer;
+type TStringArray = array of String;
+
+var outer: TIntArray;
+var inner: TIntArray;
+var i: Integer;
+var j: Integer;
+var result: Integer;
+
+var words: TStringArray;
+var chars: String;
+var w: String;
+var c: String;
+
+begin
+  PrintLn('=== Test 1: Nested integer arrays ===');
+  SetLength(outer, 3);
+  outer[0] := 1;
+  outer[1] := 2;
+  outer[2] := 3;
+
+  SetLength(inner, 2);
+  inner[0] := 10;
+  inner[1] := 20;
+
+  for i in outer do begin
+    for j in inner do begin
+      result := i * j;
+      PrintLn(IntToStr(i) + ' * ' + IntToStr(j) + ' = ' + IntToStr(result));
+    end;
+  end;
+
+  PrintLn('=== Test 2: Nested array and string ===');
+  SetLength(words, 2);
+  words[0] := 'Hi';
+  words[1] := 'Go';
+
+  for w in words do begin
+    PrintLn('Word: ' + w);
+    for c in w do
+      PrintLn('  Char: ' + c);
+  end;
+
+  PrintLn('=== Test 3: Triple nesting ===');
+  type TIntArray2 = array of Integer;
+  var level1: TIntArray2;
+  var level2: TIntArray2;
+  var level3: TIntArray2;
+  var a: Integer;
+  var b: Integer;
+  var c2: Integer;
+
+  SetLength(level1, 2);
+  level1[0] := 1;
+  level1[1] := 2;
+
+  SetLength(level2, 2);
+  level2[0] := 3;
+  level2[1] := 4;
+
+  SetLength(level3, 2);
+  level3[0] := 5;
+  level3[1] := 6;
+
+  for a in level1 do
+    for b in level2 do
+      for c2 in level3 do
+        PrintLn(IntToStr(a) + '-' + IntToStr(b) + '-' + IntToStr(c2));
+
+  PrintLn('=== Test 4: Variable scope isolation ===');
+  // Both loops use variable 'i', but scopes should be isolated
+  var outerArr: TIntArray;
+  var innerArr: TIntArray;
+
+  SetLength(outerArr, 2);
+  outerArr[0] := 100;
+  outerArr[1] := 200;
+
+  SetLength(innerArr, 2);
+  innerArr[0] := 1;
+  innerArr[1] := 2;
+
+  for i in outerArr do begin
+    PrintLn('Outer i: ' + IntToStr(i));
+    for j in innerArr do
+      PrintLn('  Inner j: ' + IntToStr(j));
+    PrintLn('Outer i still: ' + IntToStr(i));
+  end;
+
+  PrintLn('=== All nested loop tests passed! ===');
+end.

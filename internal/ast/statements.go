@@ -59,13 +59,15 @@ func (vds *VarDeclStatement) String() string {
 //
 //	x := 10;             // simple variable assignment
 //	x := x + 1;          // assignment with expression
+//	x += 5;              // compound assignment
 //	arr[i] := 42;        // array element assignment
 //	obj.field := value;  // member assignment
 //	matrix[i][j] := 99;  // nested array assignment
 type AssignmentStatement struct {
-	Target Expression
-	Value  Expression
-	Token  lexer.Token
+	Target   Expression
+	Value    Expression
+	Token    lexer.Token
+	Operator lexer.TokenType // ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN, TIMES_ASSIGN, DIVIDE_ASSIGN
 }
 
 func (as *AssignmentStatement) statementNode()       {}
@@ -78,7 +80,21 @@ func (as *AssignmentStatement) String() string {
 	if as.Target != nil {
 		out.WriteString(as.Target.String())
 	}
-	out.WriteString(" := ")
+
+	// Use compound operator if set, otherwise use :=
+	switch as.Operator {
+	case lexer.PLUS_ASSIGN:
+		out.WriteString(" += ")
+	case lexer.MINUS_ASSIGN:
+		out.WriteString(" -= ")
+	case lexer.TIMES_ASSIGN:
+		out.WriteString(" *= ")
+	case lexer.DIVIDE_ASSIGN:
+		out.WriteString(" /= ")
+	default:
+		out.WriteString(" := ")
+	}
+
 	if as.Value != nil {
 		out.WriteString(as.Value.String())
 	}

@@ -240,3 +240,84 @@ func TestCaseTypeMismatch(t *testing.T) {
 	`
 	expectError(t, input, "incompatible")
 }
+
+// ============================================================================
+// Compound Assignment Tests
+// ============================================================================
+
+func TestCompoundAssignmentInteger(t *testing.T) {
+	input := `
+		var x: Integer := 10;
+		x += 5;
+		x -= 2;
+		x *= 3;
+		x /= 2;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestCompoundAssignmentFloat(t *testing.T) {
+	input := `
+		var f: Float := 3.14;
+		f += 1.0;
+		f -= 0.5;
+		f *= 2.0;
+		f /= 1.5;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestCompoundAssignmentStringConcat(t *testing.T) {
+	input := `
+		var s: String := 'hello';
+		s += ' world';
+	`
+	expectNoErrors(t, input)
+}
+
+func TestCompoundAssignmentBooleanError(t *testing.T) {
+	input := `
+		var b: Boolean := true;
+		b += false;
+	`
+	expectError(t, input, "operator += not supported for type Boolean")
+}
+
+func TestCompoundAssignmentStringMultiplyError(t *testing.T) {
+	input := `
+		var s: String := 'hello';
+		s *= 2;
+	`
+	expectError(t, input, "operator *= not supported for type String")
+}
+
+func TestCompoundAssignmentConstError(t *testing.T) {
+	input := `
+		const PI = 3.14;
+		PI += 1.0;
+	`
+	expectError(t, input, "Cannot assign to constant")
+}
+
+func TestCompoundAssignmentArrayElement(t *testing.T) {
+	input := `
+		var arr: array[0..4] of Integer;
+		arr[0] := 10;
+		arr[0] += 5;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestCompoundAssignmentMemberAccess(t *testing.T) {
+	input := `
+		type TPoint = class
+			X: Integer;
+			Y: Integer;
+		end;
+
+		var p: TPoint;
+		p.X := 10;
+		p.X += 5;
+	`
+	expectNoErrors(t, input)
+}

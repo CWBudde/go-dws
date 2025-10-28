@@ -49,8 +49,9 @@ var precedences = map[lexer.TokenType]int{
 	lexer.LPAREN:       CALL,
 	lexer.LBRACK:       INDEX,
 	lexer.DOT:          MEMBER,
-	lexer.PLUS_ASSIGN:  ASSIGN,
-	lexer.MINUS_ASSIGN: ASSIGN,
+	// Note: Compound assignment operators (+=, -=, *=, /=) are NOT in this table
+	// because they are statement-level operators, not expression operators.
+	// They are handled in parseAssignmentOrExpression() in statements.go
 }
 
 // prefixParseFn is a function type for parsing prefix expressions.
