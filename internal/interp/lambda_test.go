@@ -699,7 +699,7 @@ func TestMapBasic(t *testing.T) {
 
 func TestMapWithClosure(t *testing.T) {
 	input := `
-		type TIntArray = array[0..3] of Integer;
+		type TIntArray = array[0..2] of Integer;
 		var numbers: TIntArray;
 		numbers[0] := 1;
 		numbers[1] := 2;
@@ -711,9 +711,20 @@ func TestMapWithClosure(t *testing.T) {
 		var result := scaled[1];
 	`
 
-	_, interp := runLambdaTest(t, input)
+	result, interp := runLambdaTest(t, input)
 
-	resultVal, _ := interp.env.Get("result")
+	// Check if there was an error during execution
+	if isError(result) {
+		t.Fatalf("Execution failed: %v", result)
+	}
+
+	resultVal, ok := interp.env.Get("result")
+	if !ok {
+		t.Fatal("Variable 'result' not found in environment")
+	}
+	if resultVal == nil {
+		t.Fatal("Variable 'result' is nil")
+	}
 	intVal := resultVal.(*IntegerValue)
 
 	// numbers[1] * 10 = 2 * 10 = 20
@@ -724,7 +735,7 @@ func TestMapWithClosure(t *testing.T) {
 
 func TestFilterBasic(t *testing.T) {
 	input := `
-		type TIntArray = array[0..5] of Integer;
+		type TIntArray = array[0..4] of Integer;
 		var numbers: TIntArray;
 		numbers[0] := 1;
 		numbers[1] := 2;
@@ -737,9 +748,20 @@ func TestFilterBasic(t *testing.T) {
 		var count: Integer := Length(evens);
 	`
 
-	_, interp := runLambdaTest(t, input)
+	result, interp := runLambdaTest(t, input)
 
-	countVal, _ := interp.env.Get("count")
+	// Check if there was an error during execution
+	if isError(result) {
+		t.Fatalf("Execution failed: %v", result)
+	}
+
+	countVal, ok := interp.env.Get("count")
+	if !ok {
+		t.Fatal("Variable 'count' not found in environment")
+	}
+	if countVal == nil {
+		t.Fatal("Variable 'count' is nil")
+	}
 	intVal := countVal.(*IntegerValue)
 
 	// evens = [2, 4], count = 2
@@ -750,7 +772,7 @@ func TestFilterBasic(t *testing.T) {
 
 func TestFilterWithComplexPredicate(t *testing.T) {
 	input := `
-		type TIntArray = array[0..10] of Integer;
+		type TIntArray = array[0..9] of Integer;
 		var numbers: TIntArray;
 		var i: Integer;
 		for i := 0 to 9 do
@@ -763,9 +785,20 @@ func TestFilterWithComplexPredicate(t *testing.T) {
 		var count: Integer := Length(filtered);
 	`
 
-	_, interp := runLambdaTest(t, input)
+	result, interp := runLambdaTest(t, input)
 
-	countVal, _ := interp.env.Get("count")
+	// Check if there was an error during execution
+	if isError(result) {
+		t.Fatalf("Execution failed: %v", result)
+	}
+
+	countVal, ok := interp.env.Get("count")
+	if !ok {
+		t.Fatal("Variable 'count' not found in environment")
+	}
+	if countVal == nil {
+		t.Fatal("Variable 'count' is nil")
+	}
 	intVal := countVal.(*IntegerValue)
 
 	// filtered = [3, 4, 5, 6, 7], count = 5

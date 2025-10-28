@@ -147,7 +147,7 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalExitStatement(node)
 
 	case *ast.ReturnStatement:
-		// Task 9.222: Handle return statements in lambda shorthand syntax
+		// Handle return statements in lambda shorthand syntax
 		return i.evalReturnStatement(node)
 
 	case *ast.UsesClause:
@@ -235,7 +235,7 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalIndexExpression(node)
 
 	case *ast.LambdaExpression:
-		// Task 9.222: Evaluate lambda expression to create closure
+		// Evaluate lambda expression to create closure
 		return i.evalLambdaExpression(node)
 
 	default:
@@ -278,15 +278,15 @@ func (i *Interpreter) evalProgram(program *ast.Program) Value {
 
 // evalVarDeclStatement evaluates a variable declaration statement.
 // It defines a new variable in the current environment.
-// Task 7.144: External variables are marked with a special ExternalVarValue.
+// External variables are marked with a special ExternalVarValue.
 func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 	var value Value
 
-	// Task 9.63: Handle multi-identifier declarations
+	// Handle multi-identifier declarations
 	// All names share the same type, but each needs to be defined separately
 	// Note: Parser already validates that multi-name declarations cannot have initializers
 
-	// Task 7.144: Handle external variables
+	// Handle external variables
 	if stmt.IsExternal {
 		// External variables only apply to single declarations
 		if len(stmt.Names) != 1 {
@@ -311,7 +311,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			return value
 		}
 
-		// Task 9.100: If declaring a subrange variable with an initializer, wrap and validate
+		// If declaring a subrange variable with an initializer, wrap and validate
 		if stmt.Type != nil {
 			typeName := stmt.Type.Name
 			subrangeTypeKey := "__subrange_type_" + typeName
@@ -344,7 +344,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		if stmt.Type != nil {
 			typeName := stmt.Type.Name
 
-			// Task 9.56: Check for inline array types first
+			// Check for inline array types first
 			// Inline array types have signatures like "array of Integer" or "array[1..10] of Integer"
 			if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
 				// Parse inline array type and create array value
@@ -373,7 +373,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 						value = &NilValue{}
 					}
 				} else {
-					// Task 9.100: Check if this is a subrange type
+					// Check if this is a subrange type
 					subrangeTypeKey := "__subrange_type_" + typeName
 					if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
 						if stv, ok := typeVal.(*SubrangeTypeValue); ok {
@@ -387,7 +387,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 						}
 					} else {
 						// Initialize basic types with their zero values
-						// Task 8.19e: Proper initialization allows implicit conversions to work with target type
+						// Proper initialization allows implicit conversions to work with target type
 						switch strings.ToLower(typeName) {
 						case "integer":
 							value = &IntegerValue{Value: 0}
@@ -408,7 +408,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		}
 	}
 
-	// Task 9.63: Define all names with the same value/type
+	// Define all names with the same value/type
 	// For multi-identifier declarations without initializers, each gets its own zero value
 	var lastValue Value = value
 	for _, name := range stmt.Names {
@@ -439,7 +439,7 @@ func (i *Interpreter) createZeroValue(typeAnnotation *ast.TypeAnnotation) Value 
 
 	typeName := typeAnnotation.Name
 
-	// Task 9.56: Check for inline array types first
+	// Check for inline array types first
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
 		arrayType := i.parseInlineArrayType(typeName)
 		if arrayType != nil {
@@ -463,7 +463,7 @@ func (i *Interpreter) createZeroValue(typeAnnotation *ast.TypeAnnotation) Value 
 		}
 	}
 
-	// Task 9.100: Check if this is a subrange type
+	// Check if this is a subrange type
 	subrangeTypeKey := "__subrange_type_" + typeName
 	if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
 		if stv, ok := typeVal.(*SubrangeTypeValue); ok {
@@ -689,15 +689,15 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 
 // evalSimpleAssignment handles simple variable assignment: x := value
 func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, _ *ast.AssignmentStatement) Value {
-	// Task 7.144: Check if trying to assign to an external variable
-	// Task 8.19a: Apply implicit conversion if types don't match
-	// Task 9.100: Validate subrange assignments
+	// Check if trying to assign to an external variable
+	// Apply implicit conversion if types don't match
+	// Validate subrange assignments
 	if existingVal, ok := i.env.Get(target.Value); ok {
 		if extVar, isExternal := existingVal.(*ExternalVarValue); isExternal {
 			return newError("Unsupported external variable assignment: %s", extVar.Name)
 		}
 
-		// Task 9.100: Check if assigning to a subrange variable
+		// Check if assigning to a subrange variable
 		if subrangeVal, isSubrange := existingVal.(*SubrangeValue); isSubrange {
 			// Extract integer value from source
 			var intValue int
@@ -1046,10 +1046,16 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 	if isError(left) {
 		return left
 	}
+	if left == nil {
+		return i.newErrorWithLocation(expr.Left, "left operand evaluated to nil")
+	}
 
 	right := i.Eval(expr.Right)
 	if isError(right) {
 		return right
+	}
+	if right == nil {
+		return i.newErrorWithLocation(expr.Right, "right operand evaluated to nil")
 	}
 
 	if result, ok := i.tryBinaryOperator(expr.Operator, left, right, expr); ok {
@@ -1363,7 +1369,7 @@ func (i *Interpreter) evalUnaryExpression(expr *ast.UnaryExpression) Value {
 }
 
 // evalAddressOfExpression evaluates an address-of expression (@Function).
-// Task 9.165: Implement address-of operator evaluation to create function pointers.
+// Implement address-of operator evaluation to create function pointers.
 //
 // This creates a FunctionPointerValue that wraps the target function/procedure.
 // For methods, it also captures the Self object to create a method pointer.
@@ -1469,7 +1475,7 @@ func (i *Interpreter) getTypeByName(name string) types.Type {
 }
 
 // evalLambdaExpression evaluates a lambda expression and creates a closure.
-// Task 9.222: Lambda evaluation - creates a closure capturing the current environment.
+// Task Lambda evaluation - creates a closure capturing the current environment.
 //
 // A lambda expression evaluates to a function pointer value that captures the
 // environment where it was created (closure). The closure allows the lambda to
@@ -1857,7 +1863,7 @@ func (i *Interpreter) evalNotUnaryOp(right Value) Value {
 
 // evalCallExpression evaluates a function call expression.
 func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
-	// Task 9.166: Check if this is a function pointer call
+	// Check if this is a function pointer call
 	// If the function expression is an identifier that resolves to a FunctionPointerValue,
 	// we need to call through the pointer
 	if funcIdent, ok := expr.Function.(*ast.Identifier); ok {
@@ -1880,7 +1886,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		}
 	}
 
-	// Task 9.134: Check if this is a unit-qualified function call (UnitName.FunctionName)
+	// Check if this is a unit-qualified function call (UnitName.FunctionName)
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
 		if unitIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
 			// This could be a unit-qualified call: UnitName.FunctionName()
@@ -1945,7 +1951,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		}
 	}
 
-	// Check if this is a built-in function with var parameters (Task 9.24, 9.43, 9.44)
+	// Check if this is a built-in function with var parameters
 	// These functions need the AST node for the first argument to modify it in place
 	if funcName.Value == "Inc" || funcName.Value == "Dec" || funcName.Value == "Insert" ||
 		(funcName.Value == "Delete" && len(expr.Arguments) == 3) {
@@ -4361,6 +4367,11 @@ func (i *Interpreter) builtinFilter(args []Value) Value {
 			return result
 		}
 
+		// Check for nil result
+		if result == nil {
+			return i.newErrorWithLocation(i.currentNode, "Filter() predicate returned nil")
+		}
+
 		// Predicate must return boolean
 		boolResult, ok := result.(*BooleanValue)
 		if !ok {
@@ -4930,6 +4941,9 @@ func (i *Interpreter) evalReturnStatement(stmt *ast.ReturnStatement) Value {
 		returnVal = i.Eval(stmt.ReturnValue)
 		if isError(returnVal) {
 			return returnVal
+		}
+		if returnVal == nil {
+			return i.newErrorWithLocation(stmt, "return expression evaluated to nil")
 		}
 	} else {
 		returnVal = &NilValue{}
@@ -6440,7 +6454,13 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 	}
 
 	// Execute the lambda body
-	i.Eval(lambda.Body)
+	bodyResult := i.Eval(lambda.Body)
+
+	// If an error occurred during execution, propagate it
+	if isError(bodyResult) {
+		i.env = savedEnv
+		return bodyResult
+	}
 
 	// If an exception was raised during lambda execution, propagate it immediately
 	if i.exception != nil {

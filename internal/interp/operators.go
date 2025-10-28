@@ -209,6 +209,9 @@ func normalizeTypeAnnotation(name string) string {
 }
 
 func valueTypeKey(val Value) string {
+	if val == nil {
+		return "NIL"
+	}
 	switch v := val.(type) {
 	case *ObjectInstance:
 		if v.Class != nil {
