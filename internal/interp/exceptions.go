@@ -12,11 +12,12 @@ import (
 // ============================================================================
 
 // ExceptionValue represents an exception object at runtime.
-// It holds the exception class type and the message.
+// It holds the exception class type, the message, and the call stack at the point of raise.
 type ExceptionValue struct {
 	ClassInfo *ClassInfo
 	Instance  *ObjectInstance
 	Message   string
+	CallStack []string // Function names in the call stack when exception was raised
 }
 
 // Type returns the type of this exception value.
@@ -105,8 +106,14 @@ func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
 			i.exception = nil
 			// Execute finally block
 			i.evalBlockStatement(stmt.FinallyClause.Block)
-			// Restore exception state (finally doesn't clear exceptions)
-			i.exception = savedExc
+
+			// If finally raised a new exception, keep it (replaces original)
+			// If finally completed normally, restore the original exception
+			if i.exception == nil {
+				// Finally completed normally, restore original exception
+				i.exception = savedExc
+			}
+			// else: finally raised an exception, keep it (it replaces the original)
 
 			// Restore ExceptObject
 			i.env.Set("ExceptObject", oldExceptObject)
@@ -157,6 +164,9 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 				i.env.Define(handler.Variable.Value, exc.Instance)
 			}
 
+			// Save the current handlerException (for nested handlers)
+			savedHandlerException := i.handlerException
+
 			// Save exception for bare raise to access
 			i.handlerException = exc
 
@@ -176,8 +186,8 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 			// - If i.exception is still nil, handler completed normally
 			// - If i.exception is not nil, handler raised/re-raised
 
-			// Clear handler exception context
-			i.handlerException = nil
+			// Restore handler exception context (for nested handlers)
+			i.handlerException = savedHandlerException
 
 			// Restore ExceptObject
 			i.env.Set("ExceptObject", oldExceptObject)
@@ -259,10 +269,15 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 		}
 	}
 
+	// Capture current call stack (make a copy to avoid slice aliasing)
+	callStack := make([]string, len(i.callStack))
+	copy(callStack, i.callStack)
+
 	i.exception = &ExceptionValue{
 		ClassInfo: classInfo,
 		Message:   message,
 		Instance:  obj,
+		CallStack: callStack,
 	}
 
 	return nil

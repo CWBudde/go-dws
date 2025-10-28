@@ -193,6 +193,23 @@ func runScript(_ *cobra.Command, args []string) error {
 
 	result := interpreter.Eval(program)
 
+	// Check for unhandled exceptions
+	if exc := interpreter.GetException(); exc != nil {
+		// Format and print unhandled exception with stack trace
+		fmt.Fprintln(os.Stderr, "Runtime Error: Unhandled exception")
+		fmt.Fprintf(os.Stderr, "  %s: %s\n", exc.ClassInfo.Name, exc.Message)
+
+		// Print stack trace if available
+		if len(exc.CallStack) > 0 {
+			fmt.Fprintln(os.Stderr, "\nCall stack:")
+			for i := len(exc.CallStack) - 1; i >= 0; i-- {
+				fmt.Fprintf(os.Stderr, "  at %s\n", exc.CallStack[i])
+			}
+		}
+
+		return fmt.Errorf("unhandled exception: %s", exc.Message)
+	}
+
 	// Check for runtime errors
 	if result != nil && result.Type() == "ERROR" {
 		fmt.Fprintf(os.Stderr, "Runtime error: %s\n", result.String())
