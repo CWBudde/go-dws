@@ -47,6 +47,7 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 // analyzeTypeDeclaration analyzes a type declaration statement
 // Handles type aliases: type TUserID = Integer;
 // Handles subrange types: type TDigit = 0..9;
+// Task 9.159: Handles function pointer types: type TFunc = function(x: Integer): Boolean;
 func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 	if decl == nil {
 		return
@@ -55,6 +56,12 @@ func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 	// Check if type name already exists
 	if _, err := a.resolveType(decl.Name.Value); err == nil {
 		a.addError("type '%s' already declared at %s", decl.Name.Value, decl.Token.Pos.String())
+		return
+	}
+
+	// Task 9.159: Handle function pointer types
+	if decl.FunctionPointerType != nil {
+		a.analyzeFunctionPointerTypeDeclaration(decl)
 		return
 	}
 

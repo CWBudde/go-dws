@@ -126,6 +126,21 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	return expression
 }
 
+// parseAddressOfExpression parses the address-of operator (@) applied to a function or procedure.
+// Examples: @MyFunction, @TMyClass.MyMethod
+func (p *Parser) parseAddressOfExpression() ast.Expression {
+	expression := &ast.AddressOfExpression{
+		Token: p.curToken, // The @ token
+	}
+
+	p.nextToken() // advance to the target
+
+	// Parse the target expression (function/procedure name or member access)
+	expression.Operator = p.parseExpression(PREFIX)
+
+	return expression
+}
+
 // parseInfixExpression parses an infix (binary) expression.
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	expression := &ast.BinaryExpression{
@@ -301,4 +316,163 @@ func (p *Parser) parseNewExpression() ast.Expression {
 	newExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
 
 	return newExpr
+}
+
+// parseLambdaExpression parses a lambda/anonymous function expression.
+// Supports both full and shorthand syntax:
+//   - Full: lambda(x: Integer): Integer begin Result := x * 2; end
+//   - Shorthand: lambda(x) => x * 2
+//
+// Tasks 9.212-9.215: Parser support for lambda expressions
+func (p *Parser) parseLambdaExpression() ast.Expression {
+	lambdaExpr := &ast.LambdaExpression{
+		Token: p.curToken, // The 'lambda' keyword
+	}
+
+	// Expect opening parenthesis
+	if !p.expectPeek(lexer.LPAREN) {
+		return nil
+	}
+
+	// Parse parameter list (may be empty)
+	lambdaExpr.Parameters = p.parseLambdaParameterList()
+
+	// Check for return type annotation (optional)
+	if p.peekTokenIs(lexer.COLON) {
+		p.nextToken() // move to ':'
+
+		// Parse return type
+		if !p.expectPeek(lexer.IDENT) {
+			p.addError("expected return type after ':'")
+			return nil
+		}
+
+		lambdaExpr.ReturnType = &ast.TypeAnnotation{
+			Token: p.curToken,
+			Name:  p.curToken.Literal,
+		}
+	}
+
+	// Check which syntax is being used: shorthand (=>) or full (begin/end)
+	if p.peekTokenIs(lexer.FAT_ARROW) {
+		// Shorthand syntax: lambda(x) => expression
+		p.nextToken() // move to '=>'
+		p.nextToken() // move past '=>' to expression
+
+		// Parse the expression
+		expr := p.parseExpression(LOWEST)
+		if expr == nil {
+			p.addError("expected expression after '=>'")
+			return nil
+		}
+
+		// Desugar shorthand to full syntax: wrap expression in return statement
+		lambdaExpr.Body = &ast.BlockStatement{
+			Token: p.curToken, // Use current token for position tracking
+			Statements: []ast.Statement{
+				&ast.ReturnStatement{
+					Token:       p.curToken,
+					ReturnValue: expr,
+				},
+			},
+		}
+		lambdaExpr.IsShorthand = true
+
+	} else if p.peekTokenIs(lexer.BEGIN) {
+		// Full syntax: lambda(x: Integer) begin ... end
+		p.nextToken() // move to 'begin'
+
+		// Parse block statement
+		lambdaExpr.Body = p.parseBlockStatement()
+		lambdaExpr.IsShorthand = false
+
+	} else {
+		p.addError("expected '=>' or 'begin' after lambda parameters")
+		return nil
+	}
+
+	return lambdaExpr
+}
+
+// parseLambdaParameterList parses the parameter list for a lambda expression.
+// Lambda parameters are simpler than function parameters:
+//   - Comma-separated list: lambda(a, b, c)
+//   - With optional types: lambda(a: Integer, b: Float)
+//   - Can mix typed and untyped: lambda(a, b: Integer, c)
+//   - Supports by-ref: lambda(var x: Integer)
+//
+// Note: Unlike function parameter lists, lambda parameters use commas, not semicolons.
+func (p *Parser) parseLambdaParameterList() []*ast.Parameter {
+	params := []*ast.Parameter{}
+
+	p.nextToken() // move past '('
+
+	// Empty parameter list
+	if p.curTokenIs(lexer.RPAREN) {
+		return params
+	}
+
+	// Parse parameters
+	for {
+		// Check for 'var' keyword (pass by reference)
+		byRef := false
+		paramToken := p.curToken
+		if p.curTokenIs(lexer.VAR) {
+			byRef = true
+			paramToken = p.curToken
+			p.nextToken() // move past 'var'
+		}
+
+		// Parse parameter name
+		if !p.curTokenIs(lexer.IDENT) {
+			p.addError("expected parameter name")
+			return params
+		}
+
+		paramName := &ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		}
+
+		// Check for type annotation
+		var paramType *ast.TypeAnnotation
+		if p.peekTokenIs(lexer.COLON) {
+			p.nextToken() // move to ':'
+
+			// Parse type
+			if !p.expectPeek(lexer.IDENT) {
+				p.addError("expected type after ':'")
+				return params
+			}
+
+			paramType = &ast.TypeAnnotation{
+				Token: p.curToken,
+				Name:  p.curToken.Literal,
+			}
+		}
+
+		// Create parameter
+		param := &ast.Parameter{
+			Token: paramToken,
+			Name:  paramName,
+			Type:  paramType,
+			ByRef: byRef,
+		}
+		params = append(params, param)
+
+		// Check for more parameters
+		if p.peekTokenIs(lexer.COMMA) {
+			p.nextToken() // move to ','
+			p.nextToken() // move past ','
+			continue
+		}
+
+		// No more parameters, expect ')'
+		if !p.expectPeek(lexer.RPAREN) {
+			return params
+		}
+		break
+	}
+
+	return params
 }

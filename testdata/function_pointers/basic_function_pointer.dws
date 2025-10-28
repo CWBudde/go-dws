@@ -1,0 +1,53 @@
+// Basic Function Pointer Test - Syntax Only
+// Tests: type declarations, assignment, and calling function pointers
+// NOTE: This tests parsing/semantic analysis only (interpreter not yet implemented)
+
+// Define function pointer types (separate declarations due to parser limitation)
+type TIntFunction = function(x: Integer): Integer;
+type TIntProcedure = procedure(x: Integer);
+type TComparator = function(a, b: Integer): Integer;
+
+// Regular functions that match the pointer types
+function Double(x: Integer): Integer;
+begin
+  Result := x * 2;
+end;
+
+function Triple(x: Integer): Integer;
+begin
+  Result := x * 3;
+end;
+
+function Add(a, b: Integer): Integer;
+begin
+  Result := a + b;
+end;
+
+procedure PrintValue(x: Integer);
+begin
+  PrintLn(x);
+end;
+
+var
+  f: TIntFunction;
+  p: TIntProcedure;
+  compare: TComparator;
+  result: Integer;
+
+begin
+  // Test 1: Assign function pointer and call it
+  f := @Double;
+  result := f(5);
+
+  // Test 2: Reassign to different function
+  f := @Triple;
+  result := f(5);
+
+  // Test 3: Procedure pointer
+  p := @PrintValue;
+  p(42);
+
+  // Test 4: Function pointer with multiple parameters
+  compare := @Add;
+  result := compare(10, 20);
+end.

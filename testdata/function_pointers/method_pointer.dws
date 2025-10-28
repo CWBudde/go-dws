@@ -1,0 +1,31 @@
+// Method Pointer Test - Syntax Only
+// Tests: method pointers with "of object" syntax
+// NOTE: This tests TYPE DECLARATIONS only - full class support not yet available
+// This validates that the parser correctly handles "of object" syntax
+
+// Method pointer types - function with implicit Self parameter
+type TNotifyMethod = procedure(msg: String) of object;
+type TCalculateMethod = function(x: Integer): Integer of object;
+type TSimpleMethod = procedure() of object;
+
+// Test various method pointer signatures
+type TIntMethod = function(a: Integer): Integer of object;
+type TStringMethod = function(s: String): String of object;
+type TBoolMethod = function(a: Integer; b: String): Boolean of object;
+type TVoidMethod = procedure(x: Integer; y: Integer) of object;
+
+// Validate that method pointers can be used in variable declarations
+var
+  notify: TNotifyMethod;
+  calculate: TCalculateMethod;
+  simple: TSimpleMethod;
+  intMethod: TIntMethod;
+  strMethod: TStringMethod;
+  boolMethod: TBoolMethod;
+  voidMethod: TVoidMethod;
+
+begin
+  // This script primarily tests syntax parsing
+  // Full execution with classes will be tested once class support is complete
+  PrintLn('Method pointer type declarations validated');
+end.

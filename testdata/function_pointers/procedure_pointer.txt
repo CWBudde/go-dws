@@ -1,0 +1,21 @@
+Test 1: Simple procedure pointer
+Hello from procedure!
+Goodbye from procedure!
+Test 2: Procedure pointer with parameter
+Integer: 42
+Double: 42
+Test 3: String parameter procedure pointer
+Message: Test message
+Test 4: Multi-parameter procedure pointer
+Multi: 123, test, true
+Multi: 456, hello, false
+Test 5: Procedure pointer as parameter
+Before execution
+Hello from procedure!
+After execution
+Test 6: Higher-order procedure with parameters
+Executing with value: 99
+Integer: 99
+Executing with value: 50
+Double: 100
+All procedure pointer tests completed

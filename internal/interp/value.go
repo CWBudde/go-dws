@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
@@ -432,5 +433,73 @@ func NewArrayValue(arrayType *types.ArrayType) *ArrayValue {
 	return &ArrayValue{
 		ArrayType: arrayType,
 		Elements:  elements,
+	}
+}
+
+// ============================================================================
+// FunctionPointerValue - Runtime representation for function/method pointers
+// ============================================================================
+
+// FunctionPointerValue represents a function or procedure pointer in DWScript.
+// Task 9.164: Create runtime representation for function pointers.
+//
+// Function pointers store a reference to a callable function/procedure along with
+// its closure environment. Method pointers additionally capture the Self object.
+//
+// Examples:
+//   - Function pointer: var f: TFunc; f := @MyFunction;
+//   - Method pointer: var m: TMethod; m := @obj.MyMethod; (captures obj as Self)
+type FunctionPointerValue struct {
+	// Function is the AST node of the function/procedure being pointed to
+	Function *ast.FunctionDecl
+
+	// Closure is the environment where the function was defined
+	// Used for capturing variables if needed (for closures in future)
+	Closure *Environment
+
+	// SelfObject is the object instance for method pointers (nil for regular functions)
+	// When non-nil, this function pointer is a method pointer ("of object")
+	SelfObject Value
+
+	// PointerType is the function pointer type information
+	PointerType *types.FunctionPointerType
+}
+
+// Type returns "FUNCTION_POINTER" or "METHOD_POINTER".
+func (f *FunctionPointerValue) Type() string {
+	if f.SelfObject != nil {
+		return "METHOD_POINTER"
+	}
+	return "FUNCTION_POINTER"
+}
+
+// String returns the string representation of the function pointer.
+// Format: @FunctionName or @Object.MethodName
+func (f *FunctionPointerValue) String() string {
+	if f.Function == nil {
+		return "@<nil>"
+	}
+
+	if f.SelfObject != nil {
+		return "@" + f.SelfObject.String() + "." + f.Function.Name.Value
+	}
+
+	return "@" + f.Function.Name.Value
+}
+
+// NewFunctionPointerValue creates a new function pointer value.
+// For regular functions, selfObject should be nil.
+// For method pointers, selfObject should be the instance.
+func NewFunctionPointerValue(
+	function *ast.FunctionDecl,
+	closure *Environment,
+	selfObject Value,
+	pointerType *types.FunctionPointerType,
+) *FunctionPointerValue {
+	return &FunctionPointerValue{
+		Function:    function,
+		Closure:     closure,
+		SelfObject:  selfObject,
+		PointerType: pointerType,
 	}
 }

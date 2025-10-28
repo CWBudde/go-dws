@@ -1,0 +1,18 @@
+Test 1: Higher-order function with callback
+Square(5) = 25
+Negate(10) = -10
+Increment(7) = 8
+Test 2: Array processing with callback
+Processing with PrintWithPrefix:
+Value: 1
+Value: 2
+Value: 3
+Value: 4
+Processing with PrintSquare:
+Square: 1
+Square: 4
+Square: 9
+Square: 16
+Test 3: Chaining callbacks
+Final result: -36
+All callback tests completed

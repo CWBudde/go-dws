@@ -91,8 +91,10 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.PLUS, p.parsePrefixExpression)
 	p.registerPrefix(lexer.NOT, p.parsePrefixExpression)
 	p.registerPrefix(lexer.LPAREN, p.parseGroupedExpression)
-	p.registerPrefix(lexer.LBRACK, p.parseSetLiteral) // Set literals: [one, two]
-	p.registerPrefix(lexer.NEW, p.parseNewExpression) // new keyword: new Exception('msg')
+	p.registerPrefix(lexer.LBRACK, p.parseSetLiteral)       // Set literals: [one, two]
+	p.registerPrefix(lexer.NEW, p.parseNewExpression)       // new keyword: new Exception('msg')
+	p.registerPrefix(lexer.AT, p.parseAddressOfExpression)  // Address-of operator: @FunctionName
+	p.registerPrefix(lexer.LAMBDA, p.parseLambdaExpression) // Lambda expressions: lambda(x) => x * 2
 
 	// Register keywords that can be used as identifiers in expression context
 	// In DWScript/Object Pascal, some keywords can be used as identifiers

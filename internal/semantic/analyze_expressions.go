@@ -54,6 +54,9 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 		return a.analyzeSetLiteralWithContext(e, nil)
 	case *ast.IndexExpression:
 		return a.analyzeIndexExpression(e)
+	case *ast.AddressOfExpression:
+		// Task 9.160: Handle address-of expressions (@FunctionName)
+		return a.analyzeAddressOfExpression(e)
 	default:
 		a.addError("unknown expression type: %T", expr)
 		return nil
@@ -1378,6 +1381,11 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 		a.addError("undefined function '%s' at %s", funcIdent.Value, expr.Token.Pos.String())
 		return nil
+	}
+
+	// Task 9.162: Check if it's a function pointer type first
+	if funcPtrType := a.analyzeFunctionPointerCall(expr, sym.Type); funcPtrType != nil {
+		return funcPtrType
 	}
 
 	// Check that symbol is a function

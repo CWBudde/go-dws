@@ -1,0 +1,31 @@
+// Invalid Function Pointer Cases Test
+// Tests: error detection for invalid function pointer usage
+// NOTE: This file contains VALID syntax for testing purposes
+// Individual error cases should be tested via unit tests
+
+type TIntFunction = function(x: Integer): Integer;
+type TStringProc = procedure(s: String);
+
+function Add(a: Integer; b: Integer): Integer;
+begin
+  Result := a + b;
+end;
+
+procedure PrintStr(s: String);
+begin
+  PrintLn(s);
+end;
+
+var
+  f: TIntFunction;
+  p: TStringProc;
+
+begin
+  // Valid cases for baseline
+  p := @PrintStr;
+  p('test');
+
+  PrintLn('This file validates basic syntax');
+  PrintLn('Invalid cases are tested via semantic analyzer unit tests');
+  PrintLn('See internal/semantic/function_pointer_test.go for error cases');
+end.

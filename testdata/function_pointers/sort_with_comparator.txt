@@ -1,0 +1,12 @@
+Test 1: Sort with ascending comparator
+Original: [64, -34, 25, 12, -22, 11, 90, -5]
+Ascending: [-34, -22, -5, 11, 12, 25, 64, 90]
+Test 2: Sort with descending comparator
+Original: [64, -34, 25, 12, -22, 11, 90, -5]
+Descending: [90, 64, 25, 12, 11, -5, -22, -34]
+Test 3: Sort by absolute value
+Original: [64, -34, 25, 12, -22, 11, 90, -5]
+By absolute value: [-5, 11, 12, -22, 25, -34, 64, 90]
+Test 4: Demonstrate comparator flexibility
+Same array, three different sort orders using different comparators
+All sort with comparator tests completed
