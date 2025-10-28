@@ -36,7 +36,16 @@ func TestRunWithSemanticErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set up flags
+			// Set up flags and save old values
+			oldEvalExpr := evalExpr
+			oldDumpAST := dumpAST
+			oldTrace := trace
+			defer func() {
+				evalExpr = oldEvalExpr
+				dumpAST = oldDumpAST
+				trace = oldTrace
+			}()
+
 			evalExpr = tt.input
 			dumpAST = false
 			trace = false
@@ -95,7 +104,18 @@ func TestRunWithSemanticAnalysisFlag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set up flags
+			// Set up flags and save old values
+			oldEvalExpr := evalExpr
+			oldTypeCheck := typeCheck
+			oldDumpAST := dumpAST
+			oldTrace := trace
+			defer func() {
+				evalExpr = oldEvalExpr
+				typeCheck = oldTypeCheck
+				dumpAST = oldDumpAST
+				trace = oldTrace
+			}()
+
 			evalExpr = tt.input
 			typeCheck = tt.enableTypeCheck
 			dumpAST = false

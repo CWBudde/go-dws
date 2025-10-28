@@ -66,6 +66,10 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeRaiseStatement(s)
 	case *ast.TryStatement:
 		a.analyzeTryStatement(s)
+	case *ast.UsesClause:
+		// Uses clauses are handled at runtime by the interpreter
+		// Semantic analyzer just ignores them (Task 9.139)
+		return
 	default:
 		// Unknown statement type - this shouldn't happen
 		a.addError("unknown statement type: %T", stmt)

@@ -129,6 +129,11 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.ExitStatement:
 		return i.evalExitStatement(node)
 
+	case *ast.UsesClause:
+		// Uses clauses are processed before execution by the CLI/loader
+		// At runtime, they're no-ops since units are already loaded
+		return nil
+
 	case *ast.FunctionDecl:
 		return i.evalFunctionDeclaration(node)
 
@@ -4894,8 +4899,30 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 // It looks up the method in the object's class hierarchy and executes it with Self bound to the object.
 // For class methods, Self is not bound as they are static methods.
 func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
-	// Check if the left side is a class identifier (for static method call: TClass.Method())
+	// Check if the left side is an identifier (could be unit, class, or instance variable)
 	if ident, ok := mc.Object.(*ast.Identifier); ok {
+		// First, check if this identifier refers to a unit (Task 9.134)
+		if i.unitRegistry != nil {
+			if _, exists := i.unitRegistry.GetUnit(ident.Value); exists {
+				// This is a unit-qualified function call: UnitName.FunctionName()
+				fn, err := i.ResolveQualifiedFunction(ident.Value, mc.Method.Value)
+				if err == nil {
+					// Evaluate arguments
+					args := make([]Value, len(mc.Arguments))
+					for idx, arg := range mc.Arguments {
+						val := i.Eval(arg)
+						if isError(val) {
+							return val
+						}
+						args[idx] = val
+					}
+					return i.callUserFunction(fn, args)
+				}
+				// Function not found in unit
+				return i.newErrorWithLocation(mc, "function '%s' not found in unit '%s'", mc.Method.Value, ident.Value)
+			}
+		}
+
 		// Check if this identifier refers to a class
 		if classInfo, exists := i.classes[ident.Value]; exists {
 			// Check if this is a class method (static method) or instance method called as constructor
