@@ -815,7 +815,7 @@ func TestIsValidType(t *testing.T) {
 }
 
 // ============================================================================
-// TypeAlias Tests (Task 9.13-9.14)
+// TypeAlias Tests
 // ============================================================================
 
 func TestTypeAlias(t *testing.T) {
@@ -1791,7 +1791,7 @@ func TestImplementsInterface(t *testing.T) {
 }
 
 // ============================================================================
-// SetType Tests (Task 8.81-8.84)
+// SetType Tests
 // ============================================================================
 
 func TestSetType(t *testing.T) {
@@ -2008,7 +2008,7 @@ func TestIsInterfaceType(t *testing.T) {
 }
 
 // ============================================================================
-// Interface Inheritance Tests (Task 7.73-7.80)
+// Interface Inheritance Tests
 // ============================================================================
 
 // Task 7.76: Test Equals() with hierarchy support for interfaces
@@ -2587,7 +2587,7 @@ func TestExternalClassFields(t *testing.T) {
 }
 
 // ============================================================================
-// EnumType Tests (Task 8.30-8.32)
+// EnumType Tests
 // ============================================================================
 
 func TestEnumType(t *testing.T) {

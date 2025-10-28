@@ -145,7 +145,7 @@ func TestEnumLiteralEvaluation(t *testing.T) {
 }
 
 // ============================================================================
-// Ord() Function Tests (Task 8.51)
+// Ord() Function Tests
 // ============================================================================
 
 func TestOrdFunction(t *testing.T) {
@@ -199,7 +199,7 @@ func TestOrdFunction(t *testing.T) {
 }
 
 // ============================================================================
-// Integer() Casting Tests (Task 8.52)
+// Integer() Casting Tests
 // ============================================================================
 
 func TestIntegerCast(t *testing.T) {

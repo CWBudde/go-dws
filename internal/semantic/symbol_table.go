@@ -51,7 +51,7 @@ func (st *SymbolTable) Define(name string, typ types.Type) {
 	}
 }
 
-// DefineReadOnly defines a new read-only variable symbol in the current scope (Task 8.207)
+// DefineReadOnly defines a new read-only variable symbol in the current scope
 func (st *SymbolTable) DefineReadOnly(name string, typ types.Type) {
 	st.symbols[strings.ToLower(name)] = &Symbol{
 		Name:     name, // Keep original case for error messages
@@ -61,7 +61,7 @@ func (st *SymbolTable) DefineReadOnly(name string, typ types.Type) {
 	}
 }
 
-// DefineConst defines a new constant symbol in the current scope (Task 8.254)
+// DefineConst defines a new constant symbol in the current scope
 func (st *SymbolTable) DefineConst(name string, typ types.Type) {
 	st.symbols[strings.ToLower(name)] = &Symbol{
 		Name:     name, // Keep original case for error messages

@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Exception Value Representation (Task 8.211)
+// Exception Value Representation
 // ============================================================================
 
 // ExceptionValue represents an exception object at runtime.
@@ -89,13 +89,13 @@ func (i *Interpreter) registerBuiltinExceptions() {
 // evalTryStatement evaluates a try/except/finally statement.
 // Task 8.213: Implement evalTryStatement
 func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
-	// Set up finally block to run at the end (Task 8.217)
+	// Set up finally block to run at the end
 	if stmt.FinallyClause != nil {
 		defer func() {
 			// Save the current exception state
 			savedExc := i.exception
 
-			// Set ExceptObject to the current exception in finally block (Task 8.206)
+			// Set ExceptObject to the current exception in finally block
 			oldExceptObject, _ := i.env.Get("ExceptObject")
 			if savedExc != nil {
 				i.env.Set("ExceptObject", savedExc.Instance)
@@ -144,7 +144,7 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 		return
 	}
 
-	// Try each handler in order (Task 8.215)
+	// Try each handler in order
 	for _, handler := range clause.Handlers {
 		if i.matchesExceptionType(exc, handler.ExceptionType) {
 			// Create new scope for exception variable
@@ -160,7 +160,7 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 			// Save exception for bare raise to access
 			i.handlerException = exc
 
-			// Set ExceptObject to the current exception (Task 8.206)
+			// Set ExceptObject to the current exception
 			// Save old ExceptObject value to restore later
 			oldExceptObject, _ := i.env.Get("ExceptObject")
 			i.env.Set("ExceptObject", exc.Instance)

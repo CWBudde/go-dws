@@ -195,7 +195,7 @@ func (i *Interpreter) evalBinarySetOperation(left, right *SetValue, operator str
 }
 
 // ============================================================================
-// Set Membership Test (Task 8.113)
+// Set Membership Test
 // ============================================================================
 
 // evalSetMembership evaluates the 'in' operator for sets.

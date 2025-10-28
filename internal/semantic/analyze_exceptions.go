@@ -13,7 +13,7 @@ import (
 func (a *Analyzer) analyzeRaiseStatement(stmt *ast.RaiseStatement) {
 	// Bare raise (re-raise current exception)
 	if stmt.Exception == nil {
-		// Bare raise is only valid inside an exception handler (Task 8.208)
+		// Bare raise is only valid inside an exception handler
 		if !a.inExceptionHandler {
 			a.addError("bare raise statement is only valid inside an exception handler")
 		}
@@ -58,7 +58,7 @@ func (a *Analyzer) analyzeTryStatement(stmt *ast.TryStatement) {
 
 // Task 8.206: Analyze except clause
 func (a *Analyzer) analyzeExceptClause(clause *ast.ExceptClause) {
-	// Track exception types to detect duplicates (Task 8.206)
+	// Track exception types to detect duplicates
 	seenTypes := make(map[string]bool)
 
 	// Analyze each exception handler
@@ -111,12 +111,12 @@ func (a *Analyzer) analyzeExceptionHandler(handler *ast.ExceptionHandler) {
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(a.symbols)
 
-	// Add exception variable to scope as read-only (Task 8.207)
+	// Add exception variable to scope as read-only
 	if handler.Variable != nil {
 		a.symbols.DefineReadOnly(handler.Variable.Value, excType)
 	}
 
-	// Set exception handler context for bare raise validation (Task 8.208)
+	// Set exception handler context for bare raise validation
 	oldInExceptionHandler := a.inExceptionHandler
 	a.inExceptionHandler = true
 
@@ -133,7 +133,7 @@ func (a *Analyzer) analyzeExceptionHandler(handler *ast.ExceptionHandler) {
 // Task 8.209: Analyze finally clause
 func (a *Analyzer) analyzeFinallyClause(clause *ast.FinallyClause) {
 	if clause.Block != nil {
-		// Set finally block context for control flow validation (Task 8.209)
+		// Set finally block context for control flow validation
 		oldInFinallyBlock := a.inFinallyBlock
 		a.inFinallyBlock = true
 

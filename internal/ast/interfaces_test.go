@@ -7,7 +7,7 @@ import (
 )
 
 // ============================================================================
-// InterfaceMethodDecl Tests (Task 7.69, 7.72)
+// InterfaceMethodDecl Tests
 // ============================================================================
 
 func TestInterfaceMethodDeclString(t *testing.T) {
@@ -153,7 +153,7 @@ func TestInterfaceMethodDeclString(t *testing.T) {
 }
 
 // ============================================================================
-// InterfaceDecl Tests (Task 7.68, 7.72)
+// InterfaceDecl Tests
 // ============================================================================
 
 func TestInterfaceDeclString(t *testing.T) {
@@ -284,7 +284,7 @@ func TestInterfaceDeclString(t *testing.T) {
 }
 
 // ============================================================================
-// ClassDecl with Interfaces Tests (Task 7.70, 7.72)
+// ClassDecl with Interfaces Tests
 // ============================================================================
 
 func TestClassDeclWithInterfacesString(t *testing.T) {

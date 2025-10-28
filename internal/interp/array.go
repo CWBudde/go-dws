@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Array Declaration Evaluation (Task 8.128-8.129)
+// Array Declaration Evaluation
 // ============================================================================
 
 // evalArrayDeclaration evaluates an array type declaration.

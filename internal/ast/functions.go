@@ -36,9 +36,9 @@ func (p *Parameter) String() string {
 //	function Add(a: Integer, b: Integer): Integer; begin ... end;
 //	procedure Hello; begin ... end;
 //	class function GetCount: Integer; static; begin ... end;  // class method
-//	function DoWork(): Integer; virtual; begin ... end;  // virtual method (Task 7.64)
-//	function DoWork(): Integer; override; begin ... end;  // override method (Task 7.64)
-//	function GetArea(): Float; abstract;  // abstract method (Task 7.65c)
+//	function DoWork(): Integer; virtual; begin ... end;  // virtual method
+//	function DoWork(): Integer; override; begin ... end;  // override method
+//	function GetArea(): Float; abstract;  // abstract method
 type FunctionDecl struct {
 	Name          *Identifier
 	ClassName     *Identifier
@@ -90,7 +90,7 @@ func (fd *FunctionDecl) String() string {
 		out.WriteString(fd.ReturnType.String())
 	}
 
-	// Write virtual/override/abstract directives (Task 7.64, 7.65)
+	// Write virtual/override/abstract directives
 	if fd.IsVirtual {
 		out.WriteString("; virtual")
 	}

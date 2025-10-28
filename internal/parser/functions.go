@@ -128,11 +128,9 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 
 		if p.curTokenIs(lexer.VAR) {
 			// Parse multiple variable declarations until we hit something else
-			for {
+			for p.peekTokenIs(lexer.IDENT) {
 				// Parse one variable declaration
-				if !p.peekTokenIs(lexer.IDENT) {
-					break
-				}
+
 				varDecl := p.parseVarDeclaration()
 				if varDecl == nil {
 					break

@@ -167,7 +167,7 @@ func (r *RecordValue) String() string {
 	return sb.String()
 }
 
-// Copy creates a deep copy of the record value (Task 8.77).
+// Copy creates a deep copy of the record value
 // Records have value semantics in DWScript, so assignment should copy.
 func (r *RecordValue) Copy() *RecordValue {
 	copiedFields := make(map[string]Value, len(r.Fields))
@@ -296,7 +296,7 @@ func GoBool(v Value) (bool, error) {
 }
 
 // ============================================================================
-// SetValue - Runtime representation for set types (Task 8.105)
+// SetValue - Runtime representation for set types
 // ============================================================================
 
 // SetValue represents a set value in DWScript.
@@ -377,7 +377,7 @@ func NewSetValue(setType *types.SetType) *SetValue {
 }
 
 // ============================================================================
-// ArrayValue - Runtime representation for array types (Task 8.128)
+// ArrayValue - Runtime representation for array types
 // ============================================================================
 
 // ArrayValue represents an array value in DWScript.

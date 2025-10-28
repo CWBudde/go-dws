@@ -97,7 +97,7 @@ func runScript(_ *cobra.Command, args []string) error {
 
 	// Run semantic analysis if type checking is enabled
 	// Skip type checking if units are used, since symbols from units
-	// aren't available until runtime (Task 9.139)
+	// aren't available until runtime
 	if typeCheck && !hasUnits {
 		analyzer := semantic.NewAnalyzer()
 		if err := analyzer.Analyze(program); err != nil {

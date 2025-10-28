@@ -1,6 +1,6 @@
 # Exception Handling CLI Integration Tests
 
-This file (`exception_cli_test.go`) contains comprehensive CLI integration tests for exception handling functionality (Task 8.226).
+This file (`exception_cli_test.go`) contains comprehensive CLI integration tests for exception handling functionality.
 
 ## Test Structure
 

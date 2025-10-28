@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// Array Type Registration Tests (Task 8.126)
+// Array Type Registration Tests
 // ============================================================================
 
 func TestArrayTypeRegistration(t *testing.T) {
@@ -94,7 +94,7 @@ func TestArrayTypeErrors(t *testing.T) {
 }
 
 // ============================================================================
-// Array Indexing Tests (Task 8.126)
+// Array Indexing Tests
 // ============================================================================
 
 func TestArrayIndexing(t *testing.T) {
@@ -223,7 +223,7 @@ func TestArrayIndexingErrors(t *testing.T) {
 }
 
 // ============================================================================
-// Array Assignment Tests (Task 8.126)
+// Array Assignment Tests
 // ============================================================================
 
 // Note: Assignment to array elements (arr[i] := x) requires parser support

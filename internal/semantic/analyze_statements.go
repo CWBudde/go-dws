@@ -68,7 +68,7 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeTryStatement(s)
 	case *ast.UsesClause:
 		// Uses clauses are handled at runtime by the interpreter
-		// Semantic analyzer just ignores them (Task 9.139)
+		// Semantic analyzer just ignores them
 		return
 	default:
 		// Unknown statement type - this shouldn't happen
@@ -151,7 +151,7 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	a.symbols.Define(stmt.Name.Value, varType)
 }
 
-// analyzeConstDecl analyzes a const declaration statement (Task 8.254)
+// analyzeConstDecl analyzes a const declaration statement
 func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	// Check if constant is already declared in current scope
 	if a.symbols.IsDeclaredInCurrentScope(stmt.Name.Value) {

@@ -60,8 +60,8 @@ func BenchmarkInterpreterFibonacci(b *testing.B) {
 	// Test different Fibonacci numbers
 	testCases := []struct {
 		name  string
-		n     int
 		input string
+		n     int
 	}{
 		{"Fib10", 10, `
 function Fibonacci(n: Integer): Integer;

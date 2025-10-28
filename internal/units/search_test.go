@@ -32,9 +32,9 @@ func TestFindUnit(t *testing.T) {
 	tests := []struct {
 		name        string
 		unitName    string
+		expectedExt string
 		searchPaths []string
 		shouldFind  bool
-		expectedExt string
 	}{
 		{
 			name:        "Find exact match .dws",

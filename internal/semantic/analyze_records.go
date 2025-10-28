@@ -203,7 +203,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 		return nil
 	}
 
-	// TODO: Check visibility rules if needed (Task 8.71)
+	// TODO: Check visibility rules if needed
 	// For now, we allow all field access
 
 	return fieldType

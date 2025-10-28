@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// ArrayValue Tests (Task 8.128)
+// ArrayValue Tests
 // ============================================================================
 
 // TestArrayValue_Creation tests creating an ArrayValue for both static and dynamic arrays.
@@ -204,7 +204,7 @@ func TestArrayIndexing_OutOfBoundsStatic(t *testing.T) {
 }
 
 // ============================================================================
-// Array Index Assignment Tests (Task 8.139)
+// Array Index Assignment Tests
 // ============================================================================
 
 // TestArrayIndexAssignment_Static tests array index assignment with static arrays
@@ -396,7 +396,7 @@ end
 }
 
 // ============================================================================
-// Comprehensive Array Assignment Tests (Task 8.140)
+// Comprehensive Array Assignment Tests
 // ============================================================================
 
 // TestArrayAssignment_StaticArraysDetailed tests comprehensive scenarios with static arrays
@@ -629,7 +629,7 @@ end
 }
 
 // ============================================================================
-// Length() Built-in Function Tests (Task 8.130)
+// Length() Built-in Function Tests
 // ============================================================================
 
 // TestBuiltinLength_StaticArrays tests Length() with static arrays of various bounds.
@@ -730,7 +730,7 @@ end
 			`,
 			expected: 0,
 		},
-		// Note: We don't have SetLength implemented yet (task 8.131),
+		// Note: We don't have SetLength implemented yet,
 		// so we can't test non-empty dynamic arrays yet
 	}
 
@@ -948,7 +948,7 @@ end
 }
 
 // ============================================================================
-// Low() Built-in Function Tests (Task 8.132)
+// Low() Built-in Function Tests
 // ============================================================================
 
 // TestBuiltinLow_StaticArrays tests Low() with static arrays.
@@ -1044,7 +1044,7 @@ end
 }
 
 // ============================================================================
-// High() Built-in Function Tests (Task 8.133)
+// High() Built-in Function Tests
 // ============================================================================
 
 // TestBuiltinHigh_StaticArrays tests High() with static arrays.
@@ -1175,7 +1175,7 @@ end
 }
 
 // ============================================================================
-// SetLength() Built-in Function Tests (Task 8.131)
+// SetLength() Built-in Function Tests
 // ============================================================================
 
 // TestBuiltinSetLength_Expand tests expanding a dynamic array.
@@ -1431,7 +1431,7 @@ end
 }
 
 // ============================================================================
-// Add() Built-in Function Tests (Task 8.134)
+// Add() Built-in Function Tests
 // ============================================================================
 
 // TestBuiltinAdd_Basic tests basic Add() functionality.
@@ -1557,7 +1557,7 @@ end
 }
 
 // ============================================================================
-// Delete() Built-in Function Tests (Task 8.135)
+// Delete() Built-in Function Tests
 // ============================================================================
 
 // TestBuiltinDelete_Basic tests basic Delete() functionality.
@@ -1851,7 +1851,7 @@ end
 }
 
 // ============================================================================
-// Array Copy Tests (Task 9.68)
+// Array Copy Tests
 // ============================================================================
 
 // TestArrayCopy_DynamicArray tests copying a dynamic array and verifying mutation isolation
@@ -1939,9 +1939,9 @@ end
 // TestArrayCopy_PreservesElementTypes tests that copy preserves element types
 func TestArrayCopy_PreservesElementTypes(t *testing.T) {
 	tests := []struct {
+		expected any
 		name     string
 		input    string
-		expected any
 	}{
 		{
 			name: "Integer array",

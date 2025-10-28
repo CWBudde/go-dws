@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Set Declaration (Task 8.85)
+// Set Declaration
 // ============================================================================
 
 // SetDecl represents a set type declaration.
@@ -55,7 +55,7 @@ func (sd *SetDecl) Pos() lexer.Position {
 }
 
 // ============================================================================
-// Set Literal Expression (Task 8.86)
+// Set Literal Expression
 // ============================================================================
 
 // SetLiteral represents a set literal expression.

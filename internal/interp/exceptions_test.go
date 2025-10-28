@@ -11,7 +11,7 @@ import (
 )
 
 // ============================================================================
-// Basic Exception Handling Tests (Task 8.219)
+// Basic Exception Handling Tests
 // ============================================================================
 
 // TestBasicTryExcept tests raising and catching a basic exception
@@ -124,7 +124,7 @@ func TestSpecificExceptionType(t *testing.T) {
 }
 
 // ============================================================================
-// Multiple Exception Handlers Tests (Task 8.219)
+// Multiple Exception Handlers Tests
 // ============================================================================
 
 // TestMultipleHandlers tests catching different exception types with multiple handlers
@@ -168,7 +168,7 @@ func TestMultipleHandlers(t *testing.T) {
 }
 
 // ============================================================================
-// Bare Except Tests (Task 8.219)
+// Bare Except Tests
 // ============================================================================
 
 // TestBareExcept tests bare except (catch-all) without specific handler
@@ -247,7 +247,7 @@ func TestUncaughtException(t *testing.T) {
 }
 
 // ============================================================================
-// Finally Block Tests (Task 8.220)
+// Finally Block Tests
 // ============================================================================
 
 // TestTryFinallyNoException tests try/finally when no exception occurs
@@ -383,7 +383,7 @@ func TestTryExceptFinallyCombined(t *testing.T) {
 }
 
 // ============================================================================
-// Exception Propagation Tests (Task 8.221)
+// Exception Propagation Tests
 // ============================================================================
 
 // TestExceptionPropagatesAcrossFunctions tests exception propagation through function calls
@@ -535,7 +535,7 @@ func TestNestedTryOuterCatches(t *testing.T) {
 }
 
 // ============================================================================
-// Bare Raise Tests (Task 8.222)
+// Bare Raise Tests
 // ============================================================================
 
 // TestBareRaiseReThrows tests that bare raise re-throws the current exception
@@ -588,7 +588,7 @@ func TestBareRaiseReThrows(t *testing.T) {
 }
 
 // ============================================================================
-// Exception Type Hierarchy Tests (Task 8.223)
+// Exception Type Hierarchy Tests
 // ============================================================================
 
 // TestExceptionCatchesAllTypes tests that catching Exception catches all exception types

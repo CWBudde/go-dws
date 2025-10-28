@@ -70,7 +70,7 @@ func TestStandardExceptionTypesRegistered(t *testing.T) {
 }
 
 // ============================================================================
-// Raise Statement Semantic Analysis Tests (Task 8.208)
+// Raise Statement Semantic Analysis Tests
 // ============================================================================
 
 // Task 8.208: Test raising an exception with constructor call

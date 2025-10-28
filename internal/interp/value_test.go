@@ -246,8 +246,8 @@ func TestGoInt(t *testing.T) {
 
 	// Error cases
 	tests := []struct {
-		name  string
 		value Value
+		name  string
 	}{
 		{name: "float value", value: NewFloatValue(3.14)},
 		{name: "string value", value: NewStringValue("hello")},
@@ -279,8 +279,8 @@ func TestGoFloat(t *testing.T) {
 
 	// Error cases
 	tests := []struct {
-		name  string
 		value Value
+		name  string
 	}{
 		{name: "integer value", value: NewIntegerValue(42)},
 		{name: "string value", value: NewStringValue("hello")},
@@ -312,8 +312,8 @@ func TestGoString(t *testing.T) {
 
 	// Error cases
 	tests := []struct {
-		name  string
 		value Value
+		name  string
 	}{
 		{name: "integer value", value: NewIntegerValue(42)},
 		{name: "float value", value: NewFloatValue(3.14)},
@@ -354,8 +354,8 @@ func TestGoBool(t *testing.T) {
 
 	// Error cases
 	tests := []struct {
-		name  string
 		value Value
+		name  string
 	}{
 		{name: "integer value", value: NewIntegerValue(42)},
 		{name: "float value", value: NewFloatValue(3.14)},

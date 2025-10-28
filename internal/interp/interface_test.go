@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// InterfaceInfo Tests (Task 7.116)
+// InterfaceInfo Tests
 // ============================================================================
 
 func TestInterfaceInfoCreation(t *testing.T) {
@@ -101,7 +101,7 @@ func TestInterfaceInfoAddMethod(t *testing.T) {
 }
 
 // ============================================================================
-// InterfaceInstance Tests (Task 7.117)
+// InterfaceInstance Tests
 // ============================================================================
 
 func TestInterfaceInstanceCreation(t *testing.T) {
@@ -178,7 +178,7 @@ func TestInterfaceInstanceGetUnderlyingObject(t *testing.T) {
 }
 
 // ============================================================================
-// evalInterfaceDeclaration Tests (Task 7.119)
+// evalInterfaceDeclaration Tests
 // ============================================================================
 
 func TestEvalInterfaceDeclaration(t *testing.T) {
@@ -389,7 +389,7 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 	obj := NewObjectInstance(classInfo)
 	obj.SetField("FValue", &IntegerValue{Value: 42})
 
-	// Step 4: Cast object to interface (Task 7.120)
+	// Step 4: Cast object to interface
 	ifaceInfo := interp.interfaces["ICounter"]
 
 	// Verify the class implements the interface
@@ -426,7 +426,7 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 // Runtime Testing (Tasks 7.127-7.134)
 // ============================================================================
 
-// TestInterfaceVariable tests interface variable creation and assignment (Task 7.127)
+// TestInterfaceVariable tests interface variable creation and assignment
 func TestInterfaceVariable(t *testing.T) {
 	interp := testInterpreter()
 
@@ -483,7 +483,7 @@ func TestInterfaceVariable(t *testing.T) {
 	}
 }
 
-// TestObjectToInterface tests object-to-interface casting (Task 7.128)
+// TestObjectToInterface tests object-to-interface casting
 func TestObjectToInterface(t *testing.T) {
 	interp := testInterpreter()
 
@@ -541,7 +541,7 @@ func TestObjectToInterface(t *testing.T) {
 	}
 }
 
-// TestInterfaceMethodCall tests method calls through interface references (Task 7.129)
+// TestInterfaceMethodCall tests method calls through interface references
 func TestInterfaceMethodCall(t *testing.T) {
 	interp := testInterpreter()
 
@@ -601,7 +601,7 @@ func TestInterfaceMethodCall(t *testing.T) {
 	}
 }
 
-// TestInterfaceInheritance tests interface inheritance at runtime (Task 7.130)
+// TestInterfaceInheritance tests interface inheritance at runtime
 func TestInterfaceInheritance(t *testing.T) {
 	interp := testInterpreter()
 
@@ -664,7 +664,7 @@ func TestInterfaceInheritance(t *testing.T) {
 	}
 }
 
-// TestMultipleInterfaces tests class implementing multiple interfaces (Task 7.131)
+// TestMultipleInterfaces tests class implementing multiple interfaces
 func TestMultipleInterfaces(t *testing.T) {
 	interp := testInterpreter()
 
@@ -729,7 +729,7 @@ func TestMultipleInterfaces(t *testing.T) {
 	}
 }
 
-// TestInterfaceToInterface tests interface-to-interface casting (Task 7.132)
+// TestInterfaceToInterface tests interface-to-interface casting
 func TestInterfaceToInterface(t *testing.T) {
 	interp := testInterpreter()
 
@@ -784,7 +784,7 @@ func TestInterfaceToInterface(t *testing.T) {
 	}
 }
 
-// TestInterfaceToObject tests interface-to-object casting (Task 7.133)
+// TestInterfaceToObject tests interface-to-object casting
 func TestInterfaceToObject(t *testing.T) {
 	interp := testInterpreter()
 
@@ -844,7 +844,7 @@ func TestInterfaceToObject(t *testing.T) {
 	}
 }
 
-// TestInterfaceLifetime tests interface lifetime and scope (Task 7.134)
+// TestInterfaceLifetime tests interface lifetime and scope
 func TestInterfaceLifetime(t *testing.T) {
 	interp := testInterpreter()
 
@@ -913,7 +913,7 @@ func TestInterfaceLifetime(t *testing.T) {
 	}
 }
 
-// TestInterfacePolymorphism tests interface polymorphism (Task 7.135)
+// TestInterfacePolymorphism tests interface polymorphism
 func TestInterfacePolymorphism(t *testing.T) {
 	interp := testInterpreter()
 

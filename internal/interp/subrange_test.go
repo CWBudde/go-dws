@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Subrange Type Runtime Tests (Task 9.100-9.101)
+// Subrange Type Runtime Tests
 // ============================================================================
 
 // TestSubrangeTypeDeclaration tests declaring subrange types at runtime
@@ -119,8 +119,8 @@ func TestSubrangeAssignment(t *testing.T) {
 	tests := []struct {
 		name      string
 		input     string
-		expectErr bool
 		errorMsg  string
+		expectErr bool
 	}{
 		{
 			name: "Valid assignment within range",

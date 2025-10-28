@@ -145,12 +145,12 @@ Successfully implemented DWScript class properties with full parsing, semantic v
 
 ### ⏸️ Deferred (Future Implementation)
 
-8. **Indexed properties** (Task 8.55)
+8. **Indexed properties**
    ```pascal
    property Items[index: Integer]: String read GetItem write SetItem;
    ```
 
-9. **Expression-based getters/setters** (Task 8.56)
+9. **Expression-based getters/setters**
    ```pascal
    property Doubled: Integer read (FValue * 2);
    property Half: Integer write (FValue := Value div 2);

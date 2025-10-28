@@ -13,13 +13,13 @@ import (
 func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	className := decl.Name.Value
 
-	// Check if class is already declared (Task 7.55)
+	// Check if class is already declared
 	if _, exists := a.classes[className]; exists {
 		a.addError("class '%s' already declared at %s", className, decl.Token.Pos.String())
 		return
 	}
 
-	// Resolve parent class if specified (Task 7.55)
+	// Resolve parent class if specified
 	var parentClass *types.ClassType
 	if decl.Parent != nil {
 		parentName := decl.Parent.Value
@@ -37,11 +37,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	// Set abstract flag (Task 7.65e)
 	classType.IsAbstract = decl.IsAbstract
 
-	// Set external flags (Task 7.138)
+	// Set external flags
 	classType.IsExternal = decl.IsExternal
 	classType.ExternalName = decl.ExternalName
 
-	// Validate external class inheritance (Task 7.139)
+	// Validate external class inheritance
 	if decl.IsExternal {
 		// External class must inherit from nil (Object) or another external class
 		if parentClass != nil && !parentClass.IsExternal {
@@ -58,7 +58,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		}
 	}
 
-	// Check for circular inheritance (Task 7.55)
+	// Check for circular inheritance
 	if parentClass != nil && a.hasCircularInheritance(classType) {
 		a.addError("circular inheritance detected in class '%s' at %s", className, decl.Token.Pos.String())
 		return
@@ -131,7 +131,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	// Register class before analyzing methods (so methods can reference the class)
 	a.classes[className] = classType
 
-	// Analyze methods (Task 7.56)
+	// Analyze methods
 	previousClass := a.currentClass
 	a.currentClass = classType
 	defer func() { a.currentClass = previousClass }()
@@ -140,7 +140,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		a.analyzeMethodDecl(method, classType)
 	}
 
-	// Analyze constructor if present (Task 7.56)
+	// Analyze constructor if present
 	if decl.Constructor != nil {
 		a.analyzeMethodDecl(decl.Constructor, classType)
 	}
@@ -154,17 +154,17 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	// Register class operators (Stage 8)
 	a.registerClassOperators(classType, decl)
 
-	// Check method overriding (Task 7.59)
+	// Check method overriding
 	if parentClass != nil {
 		a.checkMethodOverriding(classType, parentClass)
 	}
 
-	// Validate interface implementation (Task 7.100)
+	// Validate interface implementation
 	if len(decl.Interfaces) > 0 {
 		a.validateInterfaceImplementation(classType, decl)
 	}
 
-	// Validate abstract class rules (Task 7.65)
+	// Validate abstract class rules
 	a.validateAbstractClass(classType, decl)
 }
 
@@ -256,7 +256,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		// Do NOT add Self to scope
 		// Do NOT add instance fields to scope
 
-		// Add class variables to scope (Task 7.62)
+		// Add class variables to scope
 		for classVarName, classVarType := range classType.ClassVars {
 			a.symbols.Define(classVarName, classVarType)
 		}
@@ -266,15 +266,15 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 			a.addParentClassVarsToScope(classType.Parent)
 		}
 	} else {
-		// Instance method - add Self reference to method scope (Task 7.56)
+		// Instance method - add Self reference to method scope
 		a.symbols.Define("Self", classType)
 
-		// Add class fields to method scope (Task 7.56)
+		// Add class fields to method scope
 		for fieldName, fieldType := range classType.Fields {
 			a.symbols.Define(fieldName, fieldType)
 		}
 
-		// Add class variables to method scope (Task 7.62)
+		// Add class variables to method scope
 		// Instance methods can also access class variables
 		for classVarName, classVarType := range classType.ClassVars {
 			a.symbols.Define(classVarName, classVarType)
@@ -352,7 +352,7 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 	}
 }
 
-// checkMethodOverriding checks if overridden methods have compatible signatures (Task 7.59)
+// checkMethodOverriding checks if overridden methods have compatible signatures
 func (a *Analyzer) checkMethodOverriding(class, parent *types.ClassType) {
 	for methodName, childMethodType := range class.Methods {
 		// Check if method exists in parent
@@ -469,7 +469,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	return classType
 }
 
-// analyzeMemberAccessExpression analyzes member access (Task 7.58)
+// analyzeMemberAccessExpression analyzes member access
 func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpression) types.Type {
 	// Analyze the object expression
 	objectType := a.analyzeExpression(expr.Object)
@@ -481,7 +481,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Check if object is a class or record type
 	memberName := expr.Member.Value
 
-	// Handle record type field access (Task 8.71)
+	// Handle record type field access
 	if _, ok := objectType.(*types.RecordType); ok {
 		return a.analyzeRecordFieldAccess(expr.Object, memberName)
 	}
@@ -616,7 +616,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 }
 
 // ============================================================================
-// Abstract Class/Method Validation (Task 7.65)
+// Abstract Class/Method Validation
 // ============================================================================
 
 // validateAbstractClass validates abstract class rules:

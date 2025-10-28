@@ -116,7 +116,7 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 
 // lookupProperty searches for a property in the class hierarchy.
 // It starts with the current class and walks up the parent chain.
-// Returns the first property found, or nil if not found. (Task 8.53)
+// Returns the first property found, or nil if not found.
 func (c *ClassInfo) lookupProperty(name string) *types.PropertyInfo {
 	// Check current class
 	if prop, exists := c.Properties[name]; exists {

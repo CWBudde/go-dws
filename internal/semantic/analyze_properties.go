@@ -103,7 +103,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 	classType.Properties[propName] = propInfo
 }
 
-// validateReadSpec validates the read specifier of a property (Task 8.47).
+// validateReadSpec validates the read specifier of a property.
 // The read specifier can be:
 //   - Field: A field name (identifier) - the field must exist and have matching type
 //   - Method: A method name (identifier) - the method must exist with correct signature
@@ -182,7 +182,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	propInfo.ReadSpec = prop.ReadSpec.String()
 }
 
-// validateWriteSpec validates the write specifier of a property (Task 8.48).
+// validateWriteSpec validates the write specifier of a property.
 // The write specifier can be:
 //   - Field: A field name (identifier) - the field must exist and have matching type
 //   - Method: A method name (identifier) - the method must exist with correct signature
