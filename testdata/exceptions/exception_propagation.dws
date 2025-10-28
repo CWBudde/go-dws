@@ -202,7 +202,7 @@ end;
 
 var obj: TBadClass;
 try
-  obj := TBadClass.Create;
+  obj := TBadClass.Create();
   PrintLn('FAIL: Should not reach here');
 except
   on E: Exception do

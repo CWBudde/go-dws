@@ -63,7 +63,7 @@ func BenchmarkInterpreterFibonacci(b *testing.B) {
 		input string
 		n     int
 	}{
-		{"Fib10", 10, `
+		{"Fib10", `
 function Fibonacci(n: Integer): Integer;
 begin
 	if n <= 1 then
@@ -76,8 +76,8 @@ begin
 	var x: Integer;
 	x := Fibonacci(10);
 end.
-`},
-		{"Fib15", 15, `
+`, 10},
+		{"Fib15", `
 function Fibonacci(n: Integer): Integer;
 begin
 	if n <= 1 then
@@ -90,8 +90,8 @@ begin
 	var x: Integer;
 	x := Fibonacci(15);
 end.
-`},
-		{"Fib20", 20, `
+`, 15},
+		{"Fib20", `
 function Fibonacci(n: Integer): Integer;
 begin
 	if n <= 1 then
@@ -104,7 +104,7 @@ begin
 	var x: Integer;
 	x := Fibonacci(20);
 end.
-`},
+`, 20},
 	}
 
 	for _, tc := range testCases {

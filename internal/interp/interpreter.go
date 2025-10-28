@@ -27,6 +27,7 @@ type Interpreter struct {
 	env              *Environment                 // The current execution environment
 	classes          map[string]*ClassInfo        // Registry of class definitions
 	handlerException *ExceptionValue              // Exception being handled (for bare raise)
+	callStack        []string                     // Stack of currently executing function names (for stack traces)
 	initializedUnits map[string]bool              // Track which units have been initialized
 	unitRegistry     *units.UnitRegistry          // Registry for managing loaded units
 	loadedUnits      []string                     // Units loaded in order (for initialization/finalization)
@@ -67,6 +68,21 @@ func New(output io.Writer) *Interpreter {
 	env.Define("ExceptObject", &NilValue{})
 
 	return interp
+}
+
+// GetException returns the current active exception, or nil if none.
+// This is used by the CLI to detect and report unhandled exceptions.
+func (i *Interpreter) GetException() *ExceptionValue {
+	return i.exception
+}
+
+// GetCallStack returns a copy of the current call stack.
+// Returns function names in the order they were called (oldest to newest).
+func (i *Interpreter) GetCallStack() []string {
+	// Return a copy to prevent external modification
+	stack := make([]string, len(i.callStack))
+	copy(stack, i.callStack)
+	return stack
 }
 
 // Eval evaluates an AST node and returns its value.
@@ -5272,6 +5288,15 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	funcEnv := NewEnclosedEnvironment(i.env)
 	savedEnv := i.env
 	i.env = funcEnv
+
+	// Push function name onto call stack for stack traces
+	i.callStack = append(i.callStack, fn.Name.Value)
+	// Ensure it's popped when function exits (even if exception occurs)
+	defer func() {
+		if len(i.callStack) > 0 {
+			i.callStack = i.callStack[:len(i.callStack)-1]
+		}
+	}()
 
 	// Bind parameters to arguments
 	for idx, param := range fn.Parameters {

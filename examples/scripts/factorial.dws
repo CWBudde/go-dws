@@ -1,5 +1,4 @@
 // Factorial - Recursive and Iterative
-var factorialIndex: Integer;
 
 function FactorialRecursive(n: Integer): Integer;
 begin
@@ -12,7 +11,7 @@ end;
 function FactorialIterative(n: Integer): Integer;
 begin
 	Result := 1;
-	for factorialIndex := 2 to n do
+	for var factorialIndex := 2 to n do
 		Result := Result * factorialIndex;
 end;
 
