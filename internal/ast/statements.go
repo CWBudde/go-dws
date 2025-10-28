@@ -14,11 +14,12 @@ import (
 //	var x: Integer;
 //	var x: Integer := 42;
 //	var x := 5;
+//	var x, y, z: Integer;                 // Multi-identifier declaration (Task 9.63)
 //	var y: String; external;              // Task 7.143
 //	var z: Integer; external 'externalZ'; // Task 7.143
 type VarDeclStatement struct {
 	Value        Expression
-	Name         *Identifier
+	Names        []*Identifier // Changed from Name to support multi-identifier declarations
 	Type         *TypeAnnotation
 	ExternalName string
 	Token        lexer.Token
@@ -32,7 +33,13 @@ func (vds *VarDeclStatement) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("var ")
-	out.WriteString(vds.Name.String())
+
+	// Join multiple names with ", "
+	names := []string{}
+	for _, name := range vds.Names {
+		names = append(names, name.String())
+	}
+	out.WriteString(strings.Join(names, ", "))
 
 	if vds.Type != nil {
 		out.WriteString(": ")

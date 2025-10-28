@@ -152,6 +152,10 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 //
 //	var x: Integer; external;
 //	var y: String; external 'externalName';
+//
+// Task 9.63: Now supports multi-identifier declarations:
+//
+//	var x, y, z: Integer;
 func (p *Parser) parseVarDeclaration() ast.Statement {
 	stmt := &ast.VarDeclStatement{Token: p.curToken}
 
@@ -168,7 +172,30 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 		return nil
 	}
 
-	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	// Task 9.63: Collect comma-separated identifiers
+	// Parse pattern: IDENT (, IDENT)* : TYPE [:= VALUE]
+	stmt.Names = []*ast.Identifier{}
+	for {
+		if !p.curTokenIs(lexer.IDENT) {
+			p.addError("expected identifier in var declaration")
+			return nil
+		}
+
+		stmt.Names = append(stmt.Names, &ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		})
+
+		// Check if there are more names (comma-separated)
+		if p.peekTokenIs(lexer.COMMA) {
+			p.nextToken() // move to ','
+			p.nextToken() // move past ','
+			continue
+		}
+
+		// No more names, break to parse type
+		break
+	}
 
 	if p.peekTokenIs(lexer.COLON) {
 		p.nextToken() // move to ':'
@@ -206,6 +233,12 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 	}
 
 	if p.peekTokenIs(lexer.ASSIGN) {
+		// Task 9.63: Reject initializers with multiple names (DWScript rule)
+		if len(stmt.Names) > 1 {
+			p.addError("cannot use initializer with multiple variable names")
+			return stmt
+		}
+
 		p.nextToken() // move to ':='
 		p.nextToken()
 		stmt.Value = p.parseExpression(ASSIGN)

@@ -148,7 +148,7 @@ func TestUnitDeclarationString(t *testing.T) {
 					Statements: []Statement{
 						&VarDeclStatement{
 							Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
-							Name:  &Identifier{Value: "x"},
+							Names: []*Identifier{{Value: "x"}},
 							Type:  &TypeAnnotation{Name: "Integer"},
 						},
 					},
@@ -180,7 +180,7 @@ func TestUnitDeclarationString(t *testing.T) {
 					Statements: []Statement{
 						&VarDeclStatement{
 							Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
-							Name:  &Identifier{Value: "count"},
+							Names: []*Identifier{{Value: "count"}},
 							Type:  &TypeAnnotation{Name: "Integer"},
 						},
 					},
@@ -255,7 +255,7 @@ func TestUnitDeclarationString(t *testing.T) {
 					Statements: []Statement{
 						&VarDeclStatement{
 							Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
-							Name:  &Identifier{Value: "initialized"},
+							Names: []*Identifier{{Value: "initialized"}},
 							Type:  &TypeAnnotation{Name: "Boolean"},
 						},
 					},

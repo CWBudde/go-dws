@@ -519,9 +519,11 @@ func TestVarDeclStatement(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &VarDeclStatement{
 				Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
-				Name: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: tt.varName},
-					Value: tt.varName,
+				Names: []*Identifier{
+					{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: tt.varName},
+						Value: tt.varName,
+					},
 				},
 				Type:  tt.varType,
 				Value: tt.value,

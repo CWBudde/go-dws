@@ -35,10 +35,10 @@ func TestTypeAliasBasicUsage(t *testing.T) {
 			},
 			&ast.VarDeclStatement{
 				Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
-				Name: &ast.Identifier{
+				Names: []*ast.Identifier{{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "id"},
 					Value: "id",
-				},
+				}},
 				Type: &ast.TypeAnnotation{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					Name:  "TUserID",

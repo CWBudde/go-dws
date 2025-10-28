@@ -106,8 +106,8 @@ func TestParseInlineSetDeclaration(t *testing.T) {
 			t.Fatalf("statement is not *ast.VarDeclStatement, got %T", program.Statements[0])
 		}
 
-		if varDecl.Name.Value != "s" {
-			t.Errorf("varDecl.Name.Value = %s, want 's'", varDecl.Name.Value)
+		if varDecl.Names[0].Value != "s" {
+			t.Errorf("varDecl.Names[0].Value = %s, want 's'", varDecl.Names[0].Value)
 		}
 
 		if varDecl.Type.Name != "TMySet" {
