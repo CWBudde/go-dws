@@ -1,0 +1,72 @@
+// String iteration tests
+// Tests character-by-character iteration over strings
+
+var text: String;
+var ch: String;
+var count: Integer;
+var vowels: Integer;
+var result: String;
+
+begin
+  PrintLn('=== Test 1: Basic string iteration ===');
+  text := 'Hello';
+  for ch in text do
+    PrintLn('Char: ' + ch);
+
+  PrintLn('=== Test 2: Count characters ===');
+  text := 'DWScript';
+  count := 0;
+  for ch in text do
+    count := count + 1;
+  PrintLn('Length: ' + IntToStr(count));  // Expected: 8
+
+  PrintLn('=== Test 3: Count vowels ===');
+  text := 'Programming';
+  vowels := 0;
+  for ch in text do begin
+    if (ch = 'a') or (ch = 'e') or (ch = 'i') or (ch = 'o') or (ch = 'u') or
+       (ch = 'A') or (ch = 'E') or (ch = 'I') or (ch = 'O') or (ch = 'U') then
+      vowels := vowels + 1;
+  end;
+  PrintLn('Vowels in "Programming": ' + IntToStr(vowels));  // Expected: 3
+
+  PrintLn('=== Test 4: Empty string ===');
+  text := '';
+  count := 0;
+  for ch in text do
+    count := count + 1;
+  PrintLn('Empty string length: ' + IntToStr(count));  // Expected: 0
+
+  PrintLn('=== Test 5: Single character ===');
+  text := 'X';
+  for ch in text do
+    PrintLn('Single char: ' + ch);
+
+  PrintLn('=== Test 6: Reverse string (using array) ===');
+  type TCharArray = array of String;
+  var chars: TCharArray;
+  var idx: Integer;
+
+  text := 'Reverse';
+  SetLength(chars, 7);
+  idx := 0;
+  for ch in text do begin
+    chars[idx] := ch;
+    idx := idx + 1;
+  end;
+
+  result := '';
+  idx := 6;
+  while idx >= 0 do begin
+    result := result + chars[idx];
+    idx := idx - 1;
+  end;
+  PrintLn('Reversed: ' + result);  // Expected: esreveR
+
+  PrintLn('=== Test 7: String with spaces ===');
+  text := 'Hello World';
+  for ch in text do
+    PrintLn('[' + ch + ']');
+
+  PrintLn('=== All string tests passed! ===');
+end.

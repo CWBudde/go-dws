@@ -1,0 +1,53 @@
+// Compound assignment with class member fields
+
+type TCounter = class
+	Count: Integer;
+	Total: Float;
+
+	constructor Create;
+	procedure Increment(amount: Integer);
+	procedure AddToTotal(value: Float);
+end;
+
+constructor TCounter.Create;
+begin
+	Count := 0;
+	Total := 0.0;
+end;
+
+procedure TCounter.Increment(amount: Integer);
+begin
+	Count += amount;
+end;
+
+procedure TCounter.AddToTotal(value: Float);
+begin
+	Total += value;
+end;
+
+var counter: TCounter;
+var i: Integer;
+
+counter := TCounter.Create();
+
+PrintLn('Initial count: ' + IntToStr(counter.Count));
+PrintLn('Initial total: ' + FloatToStr(counter.Total));
+
+// Use compound assignments on member fields
+counter.Count += 10;
+counter.Total += 5.5;
+
+PrintLn('After adding 10 to count and 5.5 to total:');
+PrintLn('Count: ' + IntToStr(counter.Count));
+PrintLn('Total: ' + FloatToStr(counter.Total));
+
+// Use methods that internally use compound assignments
+for i := 1 to 5 do
+begin
+	counter.Increment(i);
+	counter.AddToTotal(1.5);
+end;
+
+PrintLn('After increments in loop:');
+PrintLn('Count: ' + IntToStr(counter.Count));
+PrintLn('Total: ' + FloatToStr(counter.Total));

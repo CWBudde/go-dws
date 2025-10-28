@@ -1,0 +1,32 @@
+// Basic compound assignment operators test
+// Tests all four compound operators with integers and floats
+
+var x: Integer := 10;
+PrintLn('x = ' + IntToStr(x));
+
+x += 5;
+PrintLn('After x += 5: ' + IntToStr(x));
+
+x -= 3;
+PrintLn('After x -= 3: ' + IntToStr(x));
+
+x *= 2;
+PrintLn('After x *= 2: ' + IntToStr(x));
+
+x /= 4;
+PrintLn('After x /= 4: ' + IntToStr(x));
+
+var f: Float := 10.0;
+PrintLn('f = ' + FloatToStr(f));
+
+f += 2.5;
+PrintLn('After f += 2.5: ' + FloatToStr(f));
+
+f -= 1.5;
+PrintLn('After f -= 1.5: ' + FloatToStr(f));
+
+f *= 2.0;
+PrintLn('After f *= 2.0: ' + FloatToStr(f));
+
+f /= 4.0;
+PrintLn('After f /= 4.0: ' + FloatToStr(f));

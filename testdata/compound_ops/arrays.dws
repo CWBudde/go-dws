@@ -1,0 +1,23 @@
+// Compound assignment operators with array elements
+
+var arr: array[0..4] of Integer;
+var i: Integer;
+
+// Initialize array
+for i := 0 to 4 do
+	arr[i] := i * 10;
+
+PrintLn('Initial array:');
+for i := 0 to 4 do
+	PrintLn('arr[' + IntToStr(i) + '] = ' + IntToStr(arr[i]));
+
+// Apply compound operations
+arr[0] += 5;
+arr[1] -= 3;
+arr[2] *= 2;
+arr[3] /= 2;
+
+PrintLn('');
+PrintLn('After compound assignments:');
+for i := 0 to 4 do
+	PrintLn('arr[' + IntToStr(i) + '] = ' + IntToStr(arr[i]));

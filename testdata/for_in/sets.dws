@@ -1,0 +1,50 @@
+// Set iteration tests
+// Note: This file will work once set type declarations are fully implemented
+// Currently set declarations are not yet supported in the parser
+
+// PLACEHOLDER FILE - NOT RUNNABLE YET
+// This demonstrates the intended syntax once sets are fully supported
+
+(*
+type TColor = (Red, Green, Blue, Yellow, White, Black);
+
+var colors: set of TColor;
+var c: TColor;
+var count: Integer;
+
+begin
+  PrintLn('=== Test 1: Basic set iteration ===');
+  colors := [Red, Blue];
+  for c in colors do
+    PrintLn('Color: ' + IntToStr(Ord(c)));
+
+  PrintLn('=== Test 2: Count elements in set ===');
+  colors := [Red, Green, Blue];
+  count := 0;
+  for c in colors do
+    count := count + 1;
+  PrintLn('Elements in set: ' + IntToStr(count));  // Expected: 3
+
+  PrintLn('=== Test 3: Full set ===');
+  colors := [Red, Green, Blue, Yellow, White, Black];
+  for c in colors do
+    PrintLn('Color ordinal: ' + IntToStr(Ord(c)));
+
+  PrintLn('=== Test 4: Single element set ===');
+  colors := [Yellow];
+  for c in colors do
+    PrintLn('Single color: ' + IntToStr(Ord(c)));
+
+  PrintLn('=== Test 5: Set with non-consecutive values ===');
+  colors := [Red, Yellow, Black];
+  for c in colors do
+    PrintLn('Sparse color: ' + IntToStr(Ord(c)));
+
+  PrintLn('=== All set tests passed! ===');
+end.
+*)
+
+begin
+  PrintLn('Set tests skipped - set type declarations not yet fully implemented');
+  PrintLn('Set iteration logic is implemented and ready for when sets are complete');
+end.

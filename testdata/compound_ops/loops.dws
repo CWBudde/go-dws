@@ -1,0 +1,27 @@
+// Compound assignments in loops
+
+// Calculate sum using +=
+var sum: Integer := 0;
+var i: Integer;
+
+for i := 1 to 10 do
+	sum += i;
+
+PrintLn('Sum of 1 to 10: ' + IntToStr(sum));
+
+// Calculate product using *=
+var product: Integer := 1;
+for i := 1 to 5 do
+	product *= i;
+
+PrintLn('Factorial of 5: ' + IntToStr(product));
+
+// Countdown using -=
+var countdown: Integer := 10;
+while countdown > 0 do
+begin
+	PrintLn('Countdown: ' + IntToStr(countdown));
+	countdown -= 1;
+end;
+
+PrintLn('Liftoff!');

@@ -263,8 +263,18 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 	return stmt
 }
 
+// isAssignmentOperator checks if the given token type is an assignment operator.
+func isAssignmentOperator(t lexer.TokenType) bool {
+	return t == lexer.ASSIGN ||
+		t == lexer.PLUS_ASSIGN ||
+		t == lexer.MINUS_ASSIGN ||
+		t == lexer.TIMES_ASSIGN ||
+		t == lexer.DIVIDE_ASSIGN
+}
+
 // parseAssignmentOrExpression determines if we have an assignment or expression statement.
-// This handles both simple assignments (x := value) and member assignments (obj.field := value).
+// This handles both simple assignments (x := value), compound assignments (x += value),
+// and member assignments (obj.field := value).
 func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 	// Save starting position
 	startToken := p.curToken
@@ -272,17 +282,19 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 	// Parse the left side as an expression (could be identifier or member access)
 	left := p.parseExpression(LOWEST)
 
-	// Check if next token is assignment
-	if p.peekTokenIs(lexer.ASSIGN) {
-		p.nextToken() // move to :=
+	// Check if next token is assignment (simple or compound)
+	if isAssignmentOperator(p.peekToken.Type) {
+		p.nextToken() // move to assignment operator
+		assignOp := p.curToken.Type
 
 		// Determine what kind of assignment this is
 		switch leftExpr := left.(type) {
 		case *ast.Identifier:
-			// Simple assignment: x := value
+			// Simple or compound assignment: x := value, x += value
 			stmt := &ast.AssignmentStatement{
-				Token:  p.curToken,
-				Target: leftExpr,
+				Token:    p.curToken,
+				Target:   leftExpr,
+				Operator: assignOp,
 			}
 			p.nextToken()
 			stmt.Value = p.parseExpression(ASSIGN)
@@ -294,10 +306,11 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			return stmt
 
 		case *ast.MemberAccessExpression:
-			// Member assignment: obj.field := value
+			// Member assignment: obj.field := value, obj.field += value
 			stmt := &ast.AssignmentStatement{
-				Token:  p.curToken,
-				Target: leftExpr,
+				Token:    p.curToken,
+				Target:   leftExpr,
+				Operator: assignOp,
 			}
 
 			p.nextToken()
@@ -310,10 +323,11 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			return stmt
 
 		case *ast.IndexExpression:
-			// Array index assignment: arr[i] := value
+			// Array index assignment: arr[i] := value, arr[i] += value
 			stmt := &ast.AssignmentStatement{
-				Token:  p.curToken,
-				Target: leftExpr,
+				Token:    p.curToken,
+				Target:   leftExpr,
+				Operator: assignOp,
 			}
 
 			p.nextToken()

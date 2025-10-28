@@ -1,0 +1,60 @@
+// Basic test for for-in loops with arrays and strings
+
+type TIntArray = array of Integer;
+
+var arr: TIntArray;
+var str: String;
+var i: Integer;
+var ch: String;
+
+begin
+  // Test 1: For-in with array (using SetLength and indexing)
+  PrintLn('Test 1: Array iteration');
+  SetLength(arr, 5);
+  arr[0] := 10;
+  arr[1] := 20;
+  arr[2] := 30;
+  arr[3] := 40;
+  arr[4] := 50;
+
+  for i in arr do
+    PrintLn('  Value: ' + IntToStr(i));
+
+  // Test 2: For-in with string
+  PrintLn('Test 2: String iteration');
+  str := 'Hello';
+  for ch in str do
+    PrintLn('  Char: ' + ch);
+
+  // Test 3: Empty array
+  PrintLn('Test 3: Empty array');
+  SetLength(arr, 0);
+  for i in arr do
+    PrintLn('  This should not print');
+  PrintLn('  Empty array done');
+
+  // Test 4: Break in for-in
+  PrintLn('Test 4: Break in for-in');
+  SetLength(arr, 5);
+  arr[0] := 1;
+  arr[1] := 2;
+  arr[2] := 3;
+  arr[3] := 4;
+  arr[4] := 5;
+
+  for i in arr do begin
+    if i = 3 then
+      break;
+    PrintLn('  Value: ' + IntToStr(i));
+  end;
+
+  // Test 5: Continue in for-in
+  PrintLn('Test 5: Continue in for-in');
+  for i in arr do begin
+    if i = 3 then
+      continue;
+    PrintLn('  Value: ' + IntToStr(i));
+  end;
+
+  PrintLn('All tests completed!');
+end.

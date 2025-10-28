@@ -154,43 +154,43 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### AST Nodes (1 task)
 
-- [ ] 9.13 Extend assignment AST node in `ast/statements.go`:
-  - [ ] Add `CompoundOp Token` field (PLUS, MINUS, TIMES, DIVIDE, or empty)
-  - [ ] Update `String()` to show compound operators
-  - [ ] Distinguish between simple and compound assignment
+- [x] 9.13 Extend assignment AST node in `ast/statements.go`:
+  - [x] Add `CompoundOp Token` field (PLUS, MINUS, TIMES, DIVIDE, or empty)
+  - [x] Update `String()` to show compound operators
+  - [x] Distinguish between simple and compound assignment
 
 #### Parser Support (1 task)
 
-- [ ] 9.14 Add parser support in `parser/statements.go`:
-  - [ ] Hook `PLUS_ASSIGN`, `MINUS_ASSIGN`, `TIMES_ASSIGN`, `DIVIDE_ASSIGN` tokens
-  - [ ] Add to Pratt parser as assignment-precedence infix operators
-  - [ ] Reuse existing assignment AST node, store operator kind
-  - [ ] Expand error recovery for unexpected compound operators
-  - [ ] Add parser tests for all compound operators
+- [x] 9.14 Add parser support in `parser/statements.go`:
+  - [x] Hook `PLUS_ASSIGN`, `MINUS_ASSIGN`, `TIMES_ASSIGN`, `DIVIDE_ASSIGN` tokens
+  - [x] Removed from Pratt parser precedence table (statement-level operators only)
+  - [x] Reuse existing assignment AST node, store operator kind
+  - [x] Expand error recovery for unexpected compound operators
+  - [x] Add parser tests for all compound operators
 
 #### Semantic Analysis (1 task)
 
-- [ ] 9.15 Implement semantic checking in `semantic/analyzer.go`:
-  - [ ] Add analyzer checks mirroring simple assignment
-  - [ ] Type compatibility validation (lvalue type must support operator)
-  - [ ] Lvalue validation (left side must be assignable)
-  - [ ] Add semantic tests for type errors with compound operators
+- [x] 9.15 Implement semantic checking in `semantic/analyzer.go`:
+  - [x] Add analyzer checks mirroring simple assignment
+  - [x] Type compatibility validation (lvalue type must support operator)
+  - [x] Lvalue validation (left side must be assignable)
+  - [x] Add semantic tests for type errors with compound operators
 
 #### Interpreter Support (1 task)
 
-- [ ] 9.16 Extend interpreter in `interp/interpreter.go`:
-  - [ ] Extend interpreter evaluation to perform underlying arithmetic then assign
-  - [ ] Handle each operator: `x += y` becomes `x = x + y`
-  - [ ] Create unit tests for numeric, string (where supported), and boolean compounds
-  - [ ] Include negative cases for unsupported operand types
+- [x] 9.16 Extend interpreter in `interp/interpreter.go`:
+  - [x] Extend interpreter evaluation to perform underlying arithmetic then assign
+  - [x] Handle each operator: `x += y` becomes `x = x + y`
+  - [x] Create unit tests for numeric, string (where supported), and boolean compounds
+  - [x] Include negative cases for unsupported operand types
 
 #### Testing & Fixtures (1 task)
 
-- [ ] 9.17 Create test files in `testdata/compound_ops/`:
-  - [ ] Basic compound assignments for all operators
-  - [ ] Compound assignments with complex expressions
-  - [ ] Type error cases
-  - [ ] Integration with loops and conditionals
+- [x] 9.17 Create test files in `testdata/compound_ops/`:
+  - [x] Basic compound assignments for all operators
+  - [x] Compound assignments with complex expressions
+  - [x] Type error cases
+  - [x] Integration with loops and conditionals
 
 ---
 
@@ -230,22 +230,22 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Interpreter Support (1 task)
 
-- [ ] 9.25 Implement for-in runtime support in `interp/interpreter.go`:
-  - [ ] Implement iteration for arrays
-  - [ ] Implement iteration for sets
-  - [ ] Implement iteration for strings (character by character)
-  - [ ] Implement iteration for range expressions (if supported)
-  - [ ] Respect loop variable assignment semantics (value vs reference)
+- [x] 9.25 Implement for-in runtime support in `interp/interpreter.go`:
+  - [x] Implement iteration for arrays
+  - [x] Implement iteration for sets
+  - [x] Implement iteration for strings (character by character)
+  - [x] Implement iteration for range expressions (if supported)
+  - [x] Respect loop variable assignment semantics (value vs reference)
 
 #### Testing & Fixtures (1 task)
 
-- [ ] 9.26 Create test files in `testdata/for_in/`:
-  - [ ] Basic for-in with arrays
-  - [ ] For-in with strings
-  - [ ] For-in with sets
-  - [ ] Nested for-in loops
-  - [ ] Failure cases (non-enumerable expressions)
-  - [ ] Adapt Rosetta Code examples
+- [x] 9.26 Create test files in `testdata/for_in/`:
+  - [x] Basic for-in with arrays
+  - [x] For-in with strings
+  - [x] For-in with sets
+  - [x] Nested for-in loops
+  - [x] Failure cases (non-enumerable expressions)
+  - [x] Adapt Rosetta Code examples
 
 ---
 

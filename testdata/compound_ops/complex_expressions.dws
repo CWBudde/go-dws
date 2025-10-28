@@ -1,0 +1,34 @@
+// Compound assignments with complex expressions on the right-hand side
+
+var x: Integer := 100;
+var y: Integer := 5;
+var z: Integer := 3;
+
+PrintLn('Initial: x = ' + IntToStr(x) + ', y = ' + IntToStr(y) + ', z = ' + IntToStr(z));
+
+// Complex RHS expressions
+x += y * z;
+PrintLn('After x += y * z: x = ' + IntToStr(x));
+
+x -= (y + z);
+PrintLn('After x -= (y + z): x = ' + IntToStr(x));
+
+x *= (y - 2);
+PrintLn('After x *= (y - 2): x = ' + IntToStr(x));
+
+x /= (z + 2);
+PrintLn('After x /= (z + 2): x = ' + IntToStr(x));
+
+// Chaining compound assignments
+var a: Integer := 10;
+var b: Integer := 20;
+var c: Integer := 30;
+
+a += 5;
+b -= a;
+c *= b div 5;
+
+PrintLn('After chained compound assignments:');
+PrintLn('a = ' + IntToStr(a));
+PrintLn('b = ' + IntToStr(b));
+PrintLn('c = ' + IntToStr(c));
