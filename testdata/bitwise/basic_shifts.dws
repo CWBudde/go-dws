@@ -1,0 +1,20 @@
+// Basic bitwise shift operations
+// Tests SHL (shift left) and SHR (shift right) operators
+
+begin
+  // Basic shift left tests
+  PrintLn('2 shl 3 = ' + IntToStr(2 shl 3));  // Should be 16
+  PrintLn('1 shl 10 = ' + IntToStr(1 shl 10));  // Should be 1024
+  PrintLn('8 shl 0 = ' + IntToStr(8 shl 0));  // Should be 8
+  PrintLn('1 shl 0 = ' + IntToStr(1 shl 0));  // Should be 1
+
+  // Basic shift right tests
+  PrintLn('16 shr 2 = ' + IntToStr(16 shr 2));  // Should be 4
+  PrintLn('1024 shr 10 = ' + IntToStr(1024 shr 10));  // Should be 1
+  PrintLn('8 shr 0 = ' + IntToStr(8 shr 0));  // Should be 8
+  PrintLn('7 shr 1 = ' + IntToStr(7 shr 1));  // Should be 3
+  PrintLn('15 shr 2 = ' + IntToStr(15 shr 2));  // Should be 3
+
+  // Combining shifts
+  PrintLn('(4 shl 2) shr 1 = ' + IntToStr((4 shl 2) shr 1));  // Should be 8
+end.

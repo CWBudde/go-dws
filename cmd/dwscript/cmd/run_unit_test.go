@@ -1001,8 +1001,8 @@ PrintLn('Should not get here');`
 
 	// Verify error message mentions missing implementation or the function
 	if !strings.Contains(stderrOutput, "DeclaredButNotImplemented") &&
-	   !strings.Contains(stderrOutput, "implementation") &&
-	   !strings.Contains(stderrOutput, "not implemented") {
+		!strings.Contains(stderrOutput, "implementation") &&
+		!strings.Contains(stderrOutput, "not implemented") {
 		t.Logf("Stderr output: %s", stderrOutput)
 		t.Error("Expected error message about missing implementation")
 	}

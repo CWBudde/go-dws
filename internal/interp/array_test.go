@@ -2986,6 +2986,7 @@ end
 		})
 	}
 }
+
 // TestArraySort_WithLambdaComparator_Ascending tests Sort() with a lambda comparator for ascending order.
 // Task 9.33: Sort(arr, lambda (a, b) => a - b)
 func TestArraySort_WithLambdaComparator_Ascending(t *testing.T) {

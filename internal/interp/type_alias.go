@@ -150,8 +150,8 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 
 		// Create the function pointer type (for potential future use)
 		// Currently we just register the type name as existing
-		_ = paramTypes   // Mark as used
-		_ = returnType   // Mark as used
+		_ = paramTypes // Mark as used
+		_ = returnType // Mark as used
 
 		// Store the type name mapping for type resolution
 		// We just need to register that this type name exists

@@ -71,8 +71,8 @@ type TypedExpression interface {
 type TypeDeclaration struct {
 	Name                *Identifier
 	AliasedType         *TypeAnnotation
-	LowBound            Expression // For subrange types
-	HighBound           Expression // For subrange types
+	LowBound            Expression               // For subrange types
+	HighBound           Expression               // For subrange types
 	FunctionPointerType *FunctionPointerTypeNode // For function/procedure pointer types
 	Token               lexer.Token
 	IsAlias             bool

@@ -1,0 +1,26 @@
+// Bitwise logical operations
+// Tests AND, OR, XOR operators with integer operands
+
+begin
+  // Basic AND operations
+  PrintLn('5 and 3 = ' + IntToStr(5 and 3));  // 101 & 011 = 001 = 1
+  PrintLn('12 and 10 = ' + IntToStr(12 and 10));  // 1100 & 1010 = 1000 = 8
+  PrintLn('15 and 7 = ' + IntToStr(15 and 7));  // 1111 & 0111 = 0111 = 7
+  PrintLn('255 and 15 = ' + IntToStr(255 and 15));  // Should be 15
+
+  // Basic OR operations
+  PrintLn('5 or 3 = ' + IntToStr(5 or 3));  // 101 | 011 = 111 = 7
+  PrintLn('12 or 10 = ' + IntToStr(12 or 10));  // 1100 | 1010 = 1110 = 14
+  PrintLn('8 or 4 = ' + IntToStr(8 or 4));  // 1000 | 0100 = 1100 = 12
+  PrintLn('1 or 2 = ' + IntToStr(1 or 2));  // Should be 3
+
+  // Basic XOR operations
+  PrintLn('5 xor 3 = ' + IntToStr(5 xor 3));  // 101 ^ 011 = 110 = 6
+  PrintLn('12 xor 10 = ' + IntToStr(12 xor 10));  // 1100 ^ 1010 = 0110 = 6
+  PrintLn('15 xor 15 = ' + IntToStr(15 xor 15));  // Same values = 0
+  PrintLn('255 xor 0 = ' + IntToStr(255 xor 0));  // Should be 255
+
+  // Combined operations
+  PrintLn('(5 and 3) or 2 = ' + IntToStr((5 and 3) or 2));  // Should be 3
+  PrintLn('(8 or 4) and 15 = ' + IntToStr((8 or 4) and 15));  // Should be 12
+end.

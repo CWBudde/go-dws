@@ -34,6 +34,8 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeRepeat(s)
 	case *ast.ForStatement:
 		a.analyzeFor(s)
+	case *ast.ForInStatement:
+		a.analyzeForIn(s)
 	case *ast.CaseStatement:
 		a.analyzeCase(s)
 	case *ast.BreakStatement:
@@ -401,6 +403,78 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 	a.symbols.Define(stmt.Variable.Value, loopVarType)
 
 	// Task 8.235g: Set loop context before analyzing body
+	oldInLoop := a.inLoop
+	a.inLoop = true
+	a.loopDepth++
+	defer func() {
+		a.inLoop = oldInLoop
+		a.loopDepth--
+	}()
+
+	// Analyze body
+	a.analyzeStatement(stmt.Body)
+}
+
+// analyzeForIn analyzes a for-in loop statement
+func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
+	// Create a new scope for the loop variable
+	oldSymbols := a.symbols
+	a.symbols = NewEnclosedSymbolTable(oldSymbols)
+	defer func() { a.symbols = oldSymbols }()
+
+	// Analyze collection expression
+	collectionType := a.analyzeExpression(stmt.Collection)
+
+	// Determine the element type and validate the collection is enumerable
+	var elementType types.Type
+
+	if collectionType != nil {
+		switch ct := collectionType.(type) {
+		case *types.ArrayType:
+			// Arrays are enumerable, element type is the array's element type
+			elementType = ct.ElementType
+
+		case *types.SetType:
+			// Sets are enumerable, element type is the set's element type
+			elementType = ct.ElementType
+
+		case *types.StringType:
+			// Strings are enumerable, iterates character by character
+			// In DWScript, characters are represented as strings
+			elementType = types.STRING
+
+		case *types.TypeAlias:
+			// Unwrap type alias and check the underlying type
+			underlyingType := ct.AliasedType
+			// Re-check with underlying type
+			switch ut := underlyingType.(type) {
+			case *types.ArrayType:
+				elementType = ut.ElementType
+			case *types.SetType:
+				elementType = ut.ElementType
+			case *types.StringType:
+				elementType = types.STRING
+			default:
+				a.addError("for-in collection type %s (alias of %s) is not enumerable at %s",
+					ct.String(), underlyingType.String(), stmt.Token.Pos.String())
+				elementType = types.VOID
+			}
+
+		default:
+			// Not an enumerable type
+			a.addError("for-in collection type %s is not enumerable at %s",
+				collectionType.String(), stmt.Token.Pos.String())
+			elementType = types.VOID
+		}
+	} else {
+		// Collection type could not be determined, use VOID
+		elementType = types.VOID
+	}
+
+	// Define loop variable with the element type
+	a.symbols.Define(stmt.Variable.Value, elementType)
+
+	// Set loop context before analyzing body
 	oldInLoop := a.inLoop
 	a.inLoop = true
 	a.loopDepth++

@@ -128,6 +128,23 @@ func TestIntegerArithmetic(t *testing.T) {
 		{"(5 + 2) * 3", 21},
 		{"10 div 2", 5},
 		{"10 mod 3", 1},
+		// Bitwise shift operators
+		{"2 shl 3", 16},
+		{"16 shr 2", 4},
+		{"1 shl 10", 1024},
+		{"1024 shr 10", 1},
+		{"8 shl 0", 8},
+		{"8 shr 0", 8},
+		// Bitwise logical operators
+		{"5 and 3", 1},   // 101 & 011 = 001
+		{"5 or 3", 7},    // 101 | 011 = 111
+		{"5 xor 3", 6},   // 101 ^ 011 = 110
+		{"12 and 10", 8}, // 1100 & 1010 = 1000
+		{"12 or 10", 14}, // 1100 | 1010 = 1110
+		{"12 xor 10", 6}, // 1100 ^ 1010 = 0110
+		// Complex bitwise expressions
+		{"(2 shl 1) or 1", 5}, // (2 << 1) | 1 = 4 | 1 = 5
+		{"2 + 3 shl 2", 14},   // 2 + (3 << 2) = 2 + 12 = 14
 	}
 
 	for _, tt := range tests {

@@ -399,7 +399,7 @@ func (a *Analyzer) collectIdentifiers(node ast.Node) []string {
 	case *ast.IntegerLiteral, *ast.FloatLiteral, *ast.StringLiteral, *ast.BooleanLiteral, *ast.NilLiteral:
 		// No identifiers
 
-	// Default: ignore other node types
+		// Default: ignore other node types
 	}
 
 	return identifiers

@@ -149,6 +149,39 @@ func (fs *ForStatement) String() string {
 	return out.String()
 }
 
+// ForInStatement represents a for-in loop that iterates over a collection.
+// Examples:
+//
+//	for e in mySet do PrintLn(e);
+//	for var item in myArray do PrintLn(item);
+//	for ch in "hello" do Print(ch);
+type ForInStatement struct {
+	Variable   *Identifier // Loop variable
+	Collection Expression  // Expression to iterate over (set, array, string, range)
+	Body       Statement   // Loop body
+	Token      lexer.Token // The 'for' token
+	InlineVar  bool        // true if 'var' keyword used
+}
+
+func (fis *ForInStatement) statementNode()       {}
+func (fis *ForInStatement) TokenLiteral() string { return fis.Token.Literal }
+func (fis *ForInStatement) Pos() lexer.Position  { return fis.Token.Pos }
+func (fis *ForInStatement) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("for ")
+	if fis.InlineVar {
+		out.WriteString("var ")
+	}
+	out.WriteString(fis.Variable.String())
+	out.WriteString(" in ")
+	out.WriteString(fis.Collection.String())
+	out.WriteString(" do ")
+	out.WriteString(fis.Body.String())
+
+	return out.String()
+}
+
 // CaseBranch represents a single branch in a case statement.
 // Examples:
 //

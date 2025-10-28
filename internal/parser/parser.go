@@ -17,6 +17,7 @@ const (
 	EQUALS      // = <>
 	LESSGREATER // < > <= >=
 	SUM         // + -
+	SHIFT       // shl shr
 	PRODUCT     // * / div mod
 	PREFIX      // -x, not x, +x
 	CALL        // function(args)
@@ -39,6 +40,8 @@ var precedences = map[lexer.TokenType]int{
 	lexer.GREATER_EQ:   LESSGREATER,
 	lexer.PLUS:         SUM,
 	lexer.MINUS:        SUM,
+	lexer.SHL:          SHIFT,
+	lexer.SHR:          SHIFT,
 	lexer.ASTERISK:     PRODUCT,
 	lexer.SLASH:        PRODUCT,
 	lexer.DIV:          PRODUCT,
@@ -109,6 +112,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(lexer.SLASH, p.parseInfixExpression)
 	p.registerInfix(lexer.DIV, p.parseInfixExpression)
 	p.registerInfix(lexer.MOD, p.parseInfixExpression)
+	p.registerInfix(lexer.SHL, p.parseInfixExpression)
+	p.registerInfix(lexer.SHR, p.parseInfixExpression)
 	p.registerInfix(lexer.EQ, p.parseInfixExpression)
 	p.registerInfix(lexer.NOT_EQ, p.parseInfixExpression)
 	p.registerInfix(lexer.LESS, p.parseInfixExpression)

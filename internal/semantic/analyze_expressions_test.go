@@ -102,14 +102,18 @@ func TestLogicalOperations(t *testing.T) {
 }
 
 func TestLogicalOperationsError(t *testing.T) {
-	tests := []string{
-		"var x := 3 and 5;",
-		"var x := 'hello' or 'world';",
-		"var x := not 42;",
+	// Test mixed type errors - logical operators require both operands to be same type
+	tests := []struct {
+		input string
+		error string
+	}{
+		{"var x := 3 and true;", "Boolean or both Integer"},         // Mixed Integer/Boolean
+		{"var x := false or 5;", "Boolean or both Integer"},         // Mixed Boolean/Integer
+		{"var x := 'hello' or 'world';", "Boolean or both Integer"}, // Strings not supported
 	}
 
-	for _, input := range tests {
-		expectError(t, input, "boolean")
+	for _, tt := range tests {
+		expectError(t, tt.input, tt.error)
 	}
 }
 
@@ -128,7 +132,7 @@ func TestUnaryOperationsError(t *testing.T) {
 		error string
 	}{
 		{"var x := -'hello';", "numeric operand"},
-		{"var x := not 42;", "boolean operand"},
+		{"var x := not 'hello';", "Boolean or Integer operand"}, // String not supported for NOT
 	}
 
 	for _, tt := range tests {

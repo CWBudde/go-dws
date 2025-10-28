@@ -280,6 +280,11 @@ func TestInfixExpressions(t *testing.T) {
 		{leftValue: 5, rightValue: 5, input: "5 <> 5;", operator: "<>"},
 		{leftValue: true, rightValue: false, input: "true and false;", operator: "and"},
 		{leftValue: true, rightValue: false, input: "true or false;", operator: "or"},
+		{leftValue: 2, rightValue: 3, input: "2 shl 3;", operator: "shl"},
+		{leftValue: 16, rightValue: 2, input: "16 shr 2;", operator: "shr"},
+		{leftValue: 5, rightValue: 3, input: "5 and 3;", operator: "and"},
+		{leftValue: 5, rightValue: 3, input: "5 or 3;", operator: "or"},
+		{leftValue: 5, rightValue: 3, input: "5 xor 3;", operator: "xor"},
 	}
 
 	for _, tt := range tests {
@@ -331,6 +336,15 @@ func TestOperatorPrecedence(t *testing.T) {
 		{"2 / (5 + 5)", "(2 / (5 + 5))"},
 		{"-(5 + 5)", "(-(5 + 5))"},
 		{"not (true = true)", "(not (true = true))"},
+		{"2 shl 3", "(2 shl 3)"},
+		{"16 shr 2", "(16 shr 2)"},
+		{"2 + 3 shl 4", "(2 + (3 shl 4))"},
+		{"2 shl 3 * 5", "(2 shl (3 * 5))"},
+		{"2 shl 3 + 4", "((2 shl 3) + 4)"},
+		{"a and b shl 1", "(a and (b shl 1))"},
+		{"(2 shl 1) or 1", "((2 shl 1) or 1)"},
+		{"5 and 3 or 2", "((5 and 3) or 2)"},
+		{"5 or 3 and 2", "(5 or (3 and 2))"},
 	}
 
 	for _, tt := range tests {
@@ -2546,6 +2560,254 @@ end;`,
 			stmt, ok := program.Statements[0].(*ast.ForStatement)
 			if !ok {
 				t.Fatalf("statement is not ast.ForStatement. got=%T", program.Statements[0])
+			}
+
+			tt.assertions(t, stmt)
+		})
+	}
+}
+
+// TestForInStatements tests parsing of for-in loop statements.
+func TestForInStatements(t *testing.T) {
+	tests := []struct {
+		assertions func(*testing.T, *ast.ForInStatement)
+		name       string
+		input      string
+	}{
+		{
+			name:  "simple for-in loop with identifier collection",
+			input: "for e in mySet do PrintLn(e);",
+			assertions: func(t *testing.T, stmt *ast.ForInStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "e" {
+					t.Errorf("loop variable = %q, want 'e'", stmt.Variable.Value)
+				}
+
+				// Test InlineVar is false
+				if stmt.InlineVar {
+					t.Errorf("InlineVar = true, want false")
+				}
+
+				// Test collection expression is an identifier
+				if !testIdentifier(t, stmt.Collection, "mySet") {
+					return
+				}
+
+				// Test body: PrintLn(e)
+				bodyExpr, ok := stmt.Body.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("body is not ExpressionStatement. got=%T", stmt.Body)
+				}
+
+				call, ok := bodyExpr.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("body expression is not CallExpression. got=%T", bodyExpr.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+
+				if len(call.Arguments) != 1 {
+					t.Fatalf("call has %d arguments, want 1", len(call.Arguments))
+				}
+
+				if !testIdentifier(t, call.Arguments[0], "e") {
+					return
+				}
+			},
+		},
+		{
+			name:  "for-in loop with inline var declaration",
+			input: "for var item in myArray do Process(item);",
+			assertions: func(t *testing.T, stmt *ast.ForInStatement) {
+				// Test InlineVar is true
+				if !stmt.InlineVar {
+					t.Fatalf("expected inline var flag set")
+				}
+
+				// Test loop variable
+				if stmt.Variable.Value != "item" {
+					t.Errorf("loop variable = %q, want 'item'", stmt.Variable.Value)
+				}
+
+				// Test collection expression
+				if !testIdentifier(t, stmt.Collection, "myArray") {
+					return
+				}
+
+				// Test body: Process(item)
+				bodyExpr, ok := stmt.Body.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("body is not ExpressionStatement. got=%T", stmt.Body)
+				}
+
+				call, ok := bodyExpr.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("body expression is not CallExpression. got=%T", bodyExpr.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "Process") {
+					return
+				}
+
+				if len(call.Arguments) != 1 {
+					t.Fatalf("call has %d arguments, want 1", len(call.Arguments))
+				}
+
+				if !testIdentifier(t, call.Arguments[0], "item") {
+					return
+				}
+			},
+		},
+		{
+			name:  "for-in loop with string literal",
+			input: `for ch in "hello" do Print(ch);`,
+			assertions: func(t *testing.T, stmt *ast.ForInStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "ch" {
+					t.Errorf("loop variable = %q, want 'ch'", stmt.Variable.Value)
+				}
+
+				// Test collection expression is a string literal
+				strLit, ok := stmt.Collection.(*ast.StringLiteral)
+				if !ok {
+					t.Fatalf("collection is not StringLiteral. got=%T", stmt.Collection)
+				}
+
+				if strLit.Value != "hello" {
+					t.Errorf("string literal value = %q, want 'hello'", strLit.Value)
+				}
+
+				// Test body: Print(ch)
+				bodyExpr, ok := stmt.Body.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("body is not ExpressionStatement. got=%T", stmt.Body)
+				}
+
+				call, ok := bodyExpr.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("body expression is not CallExpression. got=%T", bodyExpr.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "Print") {
+					return
+				}
+			},
+		},
+		{
+			name: "for-in loop with block body",
+			input: `for var x in collection do begin
+  PrintLn(x);
+  Process(x);
+end;`,
+			assertions: func(t *testing.T, stmt *ast.ForInStatement) {
+				// Test InlineVar is true
+				if !stmt.InlineVar {
+					t.Fatalf("expected inline var flag set")
+				}
+
+				// Test loop variable
+				if stmt.Variable.Value != "x" {
+					t.Errorf("loop variable = %q, want 'x'", stmt.Variable.Value)
+				}
+
+				// Test collection
+				if !testIdentifier(t, stmt.Collection, "collection") {
+					return
+				}
+
+				// Test body is a block statement
+				block, ok := stmt.Body.(*ast.BlockStatement)
+				if !ok {
+					t.Fatalf("body is not BlockStatement. got=%T", stmt.Body)
+				}
+
+				if len(block.Statements) != 2 {
+					t.Fatalf("block has %d statements, want 2", len(block.Statements))
+				}
+
+				// Test first statement: PrintLn(x)
+				exprStmt1, ok := block.Statements[0].(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("first block statement is not ExpressionStatement. got=%T", block.Statements[0])
+				}
+
+				call1, ok := exprStmt1.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("first block statement expression is not CallExpression. got=%T", exprStmt1.Expression)
+				}
+
+				if !testIdentifier(t, call1.Function, "PrintLn") {
+					return
+				}
+
+				// Test second statement: Process(x)
+				exprStmt2, ok := block.Statements[1].(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("second block statement is not ExpressionStatement. got=%T", block.Statements[1])
+				}
+
+				call2, ok := exprStmt2.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("second block statement expression is not CallExpression. got=%T", exprStmt2.Expression)
+				}
+
+				if !testIdentifier(t, call2.Function, "Process") {
+					return
+				}
+			},
+		},
+		{
+			name:  "for-in loop with set literal",
+			input: "for i in [1, 2, 3] do PrintLn(i);",
+			assertions: func(t *testing.T, stmt *ast.ForInStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test collection is a set literal (in DWScript, [...] creates sets)
+				setLit, ok := stmt.Collection.(*ast.SetLiteral)
+				if !ok {
+					t.Fatalf("collection is not SetLiteral. got=%T", stmt.Collection)
+				}
+
+				if len(setLit.Elements) != 3 {
+					t.Fatalf("set has %d elements, want 3", len(setLit.Elements))
+				}
+
+				// Test first element is 1
+				if !testIntegerLiteral(t, setLit.Elements[0], 1) {
+					return
+				}
+
+				// Test second element is 2
+				if !testIntegerLiteral(t, setLit.Elements[1], 2) {
+					return
+				}
+
+				// Test third element is 3
+				if !testIntegerLiteral(t, setLit.Elements[2], 3) {
+					return
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has %d statements, want 1", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.ForInStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.ForInStatement. got=%T", program.Statements[0])
 			}
 
 			tt.assertions(t, stmt)
