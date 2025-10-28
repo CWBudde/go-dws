@@ -332,9 +332,18 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		if stmt.Type != nil {
 			typeName := stmt.Type.Name
 
-			// Check if this is a record type
-			recordTypeKey := "__record_type_" + typeName
-			if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			// Task 9.56: Check for inline array types first
+			// Inline array types have signatures like "array of Integer" or "array[1..10] of Integer"
+			if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
+				// Parse inline array type and create array value
+				arrayType := i.parseInlineArrayType(typeName)
+				if arrayType != nil {
+					value = NewArrayValue(arrayType)
+				} else {
+					value = &NilValue{}
+				}
+			} else if typeVal, ok := i.env.Get("__record_type_" + typeName); ok {
+				// Check if this is a record type
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
 					// Initialize with empty record value
 					value = NewRecordValue(rtv.RecordType)
@@ -6093,6 +6102,74 @@ func (e *ErrorValue) Type() string   { return "ERROR" }
 func (e *ErrorValue) String() string { return "ERROR: " + e.Message }
 
 // newError creates a new ErrorValue.
+// parseInlineArrayType parses an inline array type signature and creates an ArrayType.
+// Task 9.56: Support for inline array type initialization in variable declarations.
+//
+// Examples:
+//   - "array of Integer" -> DynamicArrayType
+//   - "array[1..10] of String" -> StaticArrayType with bounds
+//   - "array of array of Integer" -> Nested dynamic arrays
+func (i *Interpreter) parseInlineArrayType(signature string) *types.ArrayType {
+	var lowBound, highBound *int
+
+	// Check if this is a static array with bounds
+	if strings.HasPrefix(signature, "array[") {
+		// Extract bounds: array[low..high] of Type
+		endBracket := strings.Index(signature, "]")
+		if endBracket == -1 {
+			return nil
+		}
+
+		boundsStr := signature[6:endBracket] // Skip "array["
+		parts := strings.Split(boundsStr, "..")
+		if len(parts) != 2 {
+			return nil
+		}
+
+		// Parse low bound
+		low := 0
+		if _, err := fmt.Sscanf(parts[0], "%d", &low); err != nil {
+			return nil
+		}
+		lowBound = &low
+
+		// Parse high bound
+		high := 0
+		if _, err := fmt.Sscanf(parts[1], "%d", &high); err != nil {
+			return nil
+		}
+		highBound = &high
+
+		// Skip past "] of "
+		signature = signature[endBracket+1:]
+	} else if strings.HasPrefix(signature, "array of ") {
+		// Dynamic array: skip "array" to get " of ElementType"
+		signature = signature[5:] // Skip "array"
+	} else {
+		return nil
+	}
+
+	// Now signature should be " of ElementType"
+	if !strings.HasPrefix(signature, " of ") {
+		return nil
+	}
+
+	// Extract element type name
+	elementTypeName := strings.TrimSpace(signature[4:]) // Skip " of "
+
+	// Get the element type (resolveType handles recursion for nested arrays)
+	elementType, err := i.resolveType(elementTypeName)
+	if err != nil || elementType == nil {
+		return nil
+	}
+
+	// Create array type
+	if lowBound != nil && highBound != nil {
+		return types.NewStaticArrayType(elementType, *lowBound, *highBound)
+	}
+	return types.NewDynamicArrayType(elementType)
+}
+
 func newError(format string, args ...interface{}) *ErrorValue {
 	return &ErrorValue{Message: fmt.Sprintf(format, args...)}
 }

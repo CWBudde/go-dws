@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -139,6 +140,15 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteral) Value {
 // resolveType resolves a type name to a types.Type
 // This is a helper for record field type resolution
 func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
+	// Task 9.56: Check for inline array types first
+	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
+		arrayType := i.parseInlineArrayType(typeName)
+		if arrayType != nil {
+			return arrayType, nil
+		}
+		return nil, fmt.Errorf("invalid inline array type: %s", typeName)
+	}
+
 	switch typeName {
 	case "Integer":
 		return types.INTEGER, nil

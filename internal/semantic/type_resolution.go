@@ -13,13 +13,20 @@ import (
 // ============================================================================
 
 // resolveType resolves a type name to a Type
-// Handles basic types, class types, enum types, and inline function pointer types
+// Handles basic types, class types, enum types, inline function pointer types, and inline array types
 func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	// Task 9.50: Check for inline function pointer types first
 	// These are synthetic TypeAnnotations created by the parser with full signatures
 	// Examples: "function(x: Integer): Integer", "procedure(msg: String)", "function(): Boolean of object"
 	if strings.HasPrefix(typeName, "function(") || strings.HasPrefix(typeName, "procedure(") {
 		return a.resolveInlineFunctionPointerType(typeName)
+	}
+
+	// Task 9.54: Check for inline array types
+	// These are synthetic TypeAnnotations created by the parser with full signatures
+	// Examples: "array of Integer", "array[1..10] of String", "array of array of Integer"
+	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
+		return a.resolveInlineArrayType(typeName)
 	}
 
 	// Try basic types first
@@ -178,6 +185,81 @@ func (a *Analyzer) parseInlineParameters(paramsStr string) ([]types.Type, error)
 	}
 
 	return paramTypes, nil
+}
+
+// resolveInlineArrayType parses an inline array type signature.
+// Task 9.54: Support for inline array types in variables and parameters.
+//
+// Examples:
+//   - "array of Integer" -> DynamicArrayType of Integer
+//   - "array[1..10] of String" -> StaticArrayType with bounds 1..10
+//   - "array of array of Integer" -> Nested dynamic arrays
+//   - "array[1..5] of array[1..10] of Integer" -> Nested static arrays
+//
+// The signature format is created by the parser in ArrayTypeNode.String():
+//   - Dynamic: "array of ElementType"
+//   - Static: "array[low..high] of ElementType"
+func (a *Analyzer) resolveInlineArrayType(signature string) (types.Type, error) {
+	var lowBound, highBound *int
+	var ofPart string
+
+	// Check if this is a static array with bounds
+	if strings.HasPrefix(signature, "array[") {
+		// Extract bounds: array[low..high] of Type
+		endBracket := strings.Index(signature, "]")
+		if endBracket == -1 {
+			return nil, fmt.Errorf("invalid array type signature: %s", signature)
+		}
+
+		boundsStr := signature[6:endBracket] // Skip "array["
+		parts := strings.Split(boundsStr, "..")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid array bounds in signature: %s", signature)
+		}
+
+		// Parse low bound
+		low := 0
+		if _, err := fmt.Sscanf(parts[0], "%d", &low); err != nil {
+			return nil, fmt.Errorf("invalid low bound in signature: %s", signature)
+		}
+		lowBound = &low
+
+		// Parse high bound
+		high := 0
+		if _, err := fmt.Sscanf(parts[1], "%d", &high); err != nil {
+			return nil, fmt.Errorf("invalid high bound in signature: %s", signature)
+		}
+		highBound = &high
+
+		// Extract the part after ']' which should be " of ElementType"
+		ofPart = signature[endBracket+1:]
+	} else if strings.HasPrefix(signature, "array of ") {
+		// Dynamic array: "array of ElementType"
+		// Skip "array" to get " of ElementType"
+		ofPart = signature[5:] // Skip "array"
+	} else {
+		return nil, fmt.Errorf("invalid array type signature: %s", signature)
+	}
+
+	// Now ofPart should be " of ElementType"
+	if !strings.HasPrefix(ofPart, " of ") {
+		return nil, fmt.Errorf("expected ' of ' in array type signature: %s", signature)
+	}
+
+	// Extract element type name
+	elementTypeName := strings.TrimSpace(ofPart[4:]) // Skip " of "
+
+	// Recursively resolve element type (handles nested arrays)
+	elementType, err := a.resolveType(elementTypeName)
+	if err != nil {
+		return nil, fmt.Errorf("unknown element type '%s' in array type", elementTypeName)
+	}
+
+	// Create array type
+	if lowBound != nil && highBound != nil {
+		return types.NewStaticArrayType(elementType, *lowBound, *highBound), nil
+	}
+	return types.NewDynamicArrayType(elementType), nil
 }
 
 // resolveOperatorType resolves type annotations used in operator declarations.

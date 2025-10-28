@@ -425,6 +425,16 @@ func NewArrayValue(arrayType *types.ArrayType) *ArrayValue {
 		// Static array: pre-allocate with size
 		size := arrayType.Size()
 		elements = make([]Value, size)
+
+		// Task 9.56: For nested arrays, initialize each element as an array
+		if arrayType.ElementType != nil {
+			if nestedArrayType, ok := arrayType.ElementType.(*types.ArrayType); ok {
+				for i := 0; i < size; i++ {
+					elements[i] = NewArrayValue(nestedArrayType)
+				}
+			}
+		}
+		// Otherwise elements are nil (will be filled with zero values or explicit assignments)
 	} else {
 		// Dynamic array: start empty
 		elements = make([]Value, 0)

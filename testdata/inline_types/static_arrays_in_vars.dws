@@ -1,0 +1,84 @@
+// Test file for static array inline type syntax in variable declarations
+// Task 9.54: Static array bounds support in inline type expressions
+
+program StaticArraysInVars;
+
+// Test 1: Basic static array declarations
+var
+  numbers: array[1..10] of Integer;
+  names: array[0..4] of String;
+  flags: array[1..100] of Boolean;
+  scores: array[0..9] of Float;
+
+// Test 2: Single element arrays
+var
+  single: array[1..1] of Integer;
+  oneItem: array[0..0] of String;
+
+// Test 3: Large range arrays
+var
+  buffer: array[1..1000] of Integer;
+  cache: array[0..9999] of String;
+
+// Test 4: Negative bounds
+var
+  centered: array[-10..10] of Integer;
+  offset: array[-5..5] of Float;
+  shifted: array[-100..-1] of Integer;
+
+// Test 5: Zero-based arrays
+var
+  zeroStart: array[0..99] of Integer;
+  bytes: array[0..255] of Integer;
+
+// Test 6: Nested static arrays (matrices)
+var
+  matrix: array[1..5] of array[1..10] of Integer;
+  grid: array[0..9] of array[0..9] of Boolean;
+  cube: array[1..3] of array[1..3] of array[1..3] of Float;
+
+// Test 7: Mixed static and dynamic arrays
+var
+  mixedA: array[1..10] of array of Integer;  // Static of dynamic
+  mixedB: array of array[1..5] of String;    // Dynamic of static
+
+// Test 8: Arrays of different types
+var
+  intArray: array[1..5] of Integer;
+  floatArray: array[1..5] of Float;
+  stringArray: array[1..5] of String;
+  boolArray: array[1..5] of Boolean;
+
+// Test 9: Complex element types (when supported)
+// These will work once record/class support is added
+// recordArray: array[1..10] of TMyRecord;
+// objectArray: array[1..5] of TMyClass;
+
+begin
+  // Test initialization and assignment
+  numbers[1] := 42;
+  numbers[10] := 99;
+
+  names[0] := 'First';
+  names[4] := 'Last';
+
+  flags[1] := true;
+  flags[100] := false;
+
+  // Test negative bounds access
+  centered[-10] := -100;
+  centered[0] := 0;
+  centered[10] := 100;
+
+  // Test matrix access
+  matrix[1][1] := 11;
+  matrix[5][10] := 510;
+
+  grid[0][0] := true;
+  grid[9][9] := false;
+
+  cube[1][1][1] := 1.0;
+  cube[3][3][3] := 27.0;
+
+  PrintLn('Static array tests completed successfully!');
+end.

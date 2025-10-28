@@ -261,3 +261,173 @@ func TestArrayElementAccess(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Inline Array Type Tests (Task 9.54, 9.55)
+// ============================================================================
+
+func TestInlineArrayTypes(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "inline dynamic array in variable",
+			input: `
+				var arr: array of Integer;
+			`,
+		},
+		{
+			name: "inline static array in variable",
+			input: `
+				var arr: array[1..10] of Integer;
+			`,
+		},
+		{
+			name: "inline static array zero-based",
+			input: `
+				var arr: array[0..99] of String;
+			`,
+		},
+		{
+			name: "inline static array negative bounds",
+			input: `
+				var arr: array[-10..10] of Integer;
+			`,
+		},
+		{
+			name: "inline nested dynamic arrays",
+			input: `
+				var matrix: array of array of Integer;
+			`,
+		},
+		{
+			name: "inline nested static arrays",
+			input: `
+				var matrix: array[1..5] of array[1..10] of Integer;
+			`,
+		},
+		{
+			name: "inline mixed static and dynamic",
+			input: `
+				var mixedA: array[1..10] of array of Integer;
+				var mixedB: array of array[1..5] of String;
+			`,
+		},
+		{
+			name: "inline array in function parameter",
+			input: `
+				procedure Test(arr: array of Integer);
+				begin
+				end;
+			`,
+		},
+		{
+			name: "inline static array in function parameter",
+			input: `
+				procedure Test(arr: array[1..10] of Integer);
+				begin
+				end;
+			`,
+		},
+		{
+			name: "inline array in function return type (future)",
+			input: `
+				type TResult = array of Integer;
+				function GetData(): TResult;
+				begin
+				end;
+			`,
+		},
+		{
+			name: "multiple inline array variables",
+			input: `
+				var numbers: array[1..10] of Integer;
+				var names: array[0..4] of String;
+				var statuses: array[1..100] of Boolean;
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectNoErrors(t, tt.input)
+		})
+	}
+}
+
+func TestInlineArrayTypeCompatibility(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "inline array element type matching",
+			input: `
+				var arr: array[1..10] of Integer;
+				var x: Integer;
+				x := arr[1];
+			`,
+		},
+		{
+			name: "nested inline array element access",
+			input: `
+				var matrix: array[1..5] of array[1..10] of Integer;
+				var x: Integer;
+				x := matrix[1][5];
+			`,
+		},
+		{
+			name: "inline dynamic array element access",
+			input: `
+				var arr: array of String;
+				var s: String;
+				s := arr[0];
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectNoErrors(t, tt.input)
+		})
+	}
+}
+
+func TestInlineArrayTypeErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name: "inline array with undefined element type",
+			input: `
+				var arr: array of TUnknown;
+			`,
+			expectedError: "unknown type 'array of TUnknown'",
+		},
+		{
+			name: "inline static array with undefined element type",
+			input: `
+				var arr: array[1..10] of TUnknown;
+			`,
+			expectedError: "unknown type 'array[1..10] of TUnknown'",
+		},
+		{
+			name: "type mismatch with inline array element",
+			input: `
+				var arr: array[1..10] of Integer;
+				var s: String;
+				s := arr[0];
+			`,
+			expectedError: "cannot assign Integer to String",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectError(t, tt.input, tt.expectedError)
+		})
+	}
+}
