@@ -45,13 +45,36 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	// Parse return type for functions (not procedures)
 	if p.peekTokenIs(lexer.COLON) {
 		p.nextToken() // move to ':'
-		if !p.expectPeek(lexer.IDENT) {
+		p.nextToken() // move past ':' to type expression start token
+
+		// Task 9.59: Support inline array types in return types
+		// Parse type expression (can be simple type, function pointer, or array type)
+		typeExpr := p.parseTypeExpression()
+		if typeExpr == nil {
 			p.addError("expected return type after ':'")
 			return nil
 		}
-		fn.ReturnType = &ast.TypeAnnotation{
-			Token: p.curToken,
-			Name:  p.curToken.Literal,
+
+		// Convert TypeExpression to TypeAnnotation for FunctionDecl.ReturnType
+		// TODO: Update FunctionDecl struct to accept TypeExpression instead of TypeAnnotation
+		switch te := typeExpr.(type) {
+		case *ast.TypeAnnotation:
+			fn.ReturnType = te
+		case *ast.FunctionPointerTypeNode:
+			// For function pointer types, we create a synthetic TypeAnnotation
+			fn.ReturnType = &ast.TypeAnnotation{
+				Token: te.Token,
+				Name:  te.String(), // Use the full function pointer signature as the type name
+			}
+		case *ast.ArrayTypeNode:
+			// For array types, we create a synthetic TypeAnnotation
+			fn.ReturnType = &ast.TypeAnnotation{
+				Token: te.Token,
+				Name:  te.String(), // Use the full array type signature as the type name
+			}
+		default:
+			p.addError("unsupported type expression in return type")
+			return nil
 		}
 	}
 
