@@ -50,13 +50,13 @@ func TestParseLambdaExpressions(t *testing.T) {
 			firstParamType: "Integer",
 		},
 		{
-			name:           "shorthand lambda with multiple parameters",
+			name:           "shorthand lambda with multiple parameters (shared type)",
 			input:          "lambda(a, b: Integer) => a + b",
 			paramCount:     2,
 			hasReturnType:  false,
 			isShorthand:    true,
 			firstParamName: "a",
-			firstParamType: "",
+			firstParamType: "Integer",
 		},
 		{
 			name:          "shorthand lambda with no parameters",
@@ -100,6 +100,26 @@ func TestParseLambdaExpressions(t *testing.T) {
 			firstParamName:  "x",
 			firstParamType:  "Integer",
 			firstParamByRef: true,
+		},
+		{
+			name:           "lambda with semicolon-separated parameters",
+			input:          "lambda(x: Integer; y: Integer): Integer => x + y",
+			paramCount:     2,
+			hasReturnType:  true,
+			returnTypeName: "Integer",
+			isShorthand:    true,
+			firstParamName: "x",
+			firstParamType: "Integer",
+		},
+		{
+			name:           "lambda with mixed parameter groups",
+			input:          "lambda(a, b: Integer; c: String): String => c",
+			paramCount:     3,
+			hasReturnType:  true,
+			returnTypeName: "String",
+			isShorthand:    true,
+			firstParamName: "a",
+			firstParamType: "Integer",
 		},
 	}
 

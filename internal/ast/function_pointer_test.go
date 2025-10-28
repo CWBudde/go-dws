@@ -27,7 +27,7 @@ func TestFunctionPointerTypeNode(t *testing.T) {
 			OfObject:   false,
 		}
 
-		expected := "function(a: Integer, b: Integer): Integer"
+		expected := "function(a: Integer; b: Integer): Integer"
 		if node.String() != expected {
 			t.Errorf("expected %q, got %q", expected, node.String())
 		}

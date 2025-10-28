@@ -57,6 +57,9 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 	case *ast.AddressOfExpression:
 		// Task 9.160: Handle address-of expressions (@FunctionName)
 		return a.analyzeAddressOfExpression(e)
+	case *ast.LambdaExpression:
+		// Task 9.216: Handle lambda expressions
+		return a.analyzeLambdaExpression(e)
 	default:
 		a.addError("unknown expression type: %T", expr)
 		return nil
@@ -1167,6 +1170,23 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
+		// BoolToStr built-in function (Task 9.245)
+		if funcIdent.Value == "BoolToStr" {
+			// BoolToStr takes one boolean argument and returns a string
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'BoolToStr' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze the argument and verify it's Boolean
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.BOOLEAN {
+				a.addError("function 'BoolToStr' expects Boolean as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.STRING
+		}
+
 		// StrToFloat built-in function
 		if funcIdent.Value == "StrToFloat" {
 			// StrToFloat takes one string argument and returns a float
@@ -1356,6 +1376,69 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				a.addError("function 'Insert' third argument must be Integer, got %s at %s",
 					posType.String(), expr.Token.Pos.String())
 			}
+			return types.VOID
+		}
+
+		// Task 9.227: Higher-order functions for working with lambdas
+		if funcIdent.Value == "Map" {
+			// Map(array, lambda) -> array
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'Map' expects 2 arguments (array, lambda), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			arrayType := a.analyzeExpression(expr.Arguments[0])
+			a.analyzeExpression(expr.Arguments[1])
+
+			// Verify first argument is an array
+			if arrType, ok := arrayType.(*types.ArrayType); ok {
+				return arrType // Return same array type
+			}
+			return types.VOID
+		}
+
+		if funcIdent.Value == "Filter" {
+			// Filter(array, predicate) -> array
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'Filter' expects 2 arguments (array, predicate), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			arrayType := a.analyzeExpression(expr.Arguments[0])
+			a.analyzeExpression(expr.Arguments[1])
+
+			// Verify first argument is an array
+			if arrType, ok := arrayType.(*types.ArrayType); ok {
+				return arrType // Return same array type
+			}
+			return types.VOID
+		}
+
+		if funcIdent.Value == "Reduce" {
+			// Reduce(array, lambda, initial) -> value
+			if len(expr.Arguments) != 3 {
+				a.addError("function 'Reduce' expects 3 arguments (array, lambda, initial), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			a.analyzeExpression(expr.Arguments[0])
+			a.analyzeExpression(expr.Arguments[1])
+			initialType := a.analyzeExpression(expr.Arguments[2])
+
+			// Return type is the same as initial value type
+			return initialType
+		}
+
+		if funcIdent.Value == "ForEach" {
+			// ForEach(array, lambda) -> void
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'ForEach' expects 2 arguments (array, lambda), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			a.analyzeExpression(expr.Arguments[0])
+			a.analyzeExpression(expr.Arguments[1])
+
 			return types.VOID
 		}
 

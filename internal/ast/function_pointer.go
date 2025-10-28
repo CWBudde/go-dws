@@ -47,7 +47,8 @@ func (fpt *FunctionPointerTypeNode) String() string {
 	for _, param := range fpt.Parameters {
 		paramStrs = append(paramStrs, param.String())
 	}
-	out.WriteString(strings.Join(paramStrs, ", "))
+	// Note: DWScript uses semicolons to separate parameters, not commas
+	out.WriteString(strings.Join(paramStrs, "; "))
 	out.WriteString(")")
 
 	// Write return type for functions
@@ -73,6 +74,9 @@ func (fpt *FunctionPointerTypeNode) TokenLiteral() string {
 func (fpt *FunctionPointerTypeNode) Pos() lexer.Position {
 	return fpt.Token.Pos
 }
+
+// typeExpressionNode marks this as a type expression (Task 9.49)
+func (fpt *FunctionPointerTypeNode) typeExpressionNode() {}
 
 // AddressOfExpression represents the address-of operator (@) applied to a function or procedure.
 // This is used to get a function pointer from a function/procedure name.

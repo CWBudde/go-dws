@@ -195,7 +195,7 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 ---
 
-### Const Declarations (HIGH PRIORITY) ✅ **COMPLETED**
+### Const Declarations ✅ **COMPLETED**
 
 **Summary**: Implement constant declarations with `const` keyword. Constants are immutable values that can be used throughout the program with compile-time type checking.
 
@@ -265,7 +265,7 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 ---
 
-### Built-in functions (HIGH PRIORITY) ✅ **COMPLETED**
+### Built-in functions ✅ **COMPLETED**
 
 - [x] All ordinal functions (`Inc`, `Dec`, `Succ`, `Pred`, `Low`, `High`) are implemented and tested.
 - [x] The `Assert` function is fully implemented and tested.
@@ -274,21 +274,21 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 ---
 
-### Priority Array Functions (HIGH PRIORITY)
+### Priority Array Functions ✅ **COMPLETED**
 
-- [ ] 9.33 Add optional comparator parameter (future):
-  - [ ] Prerequisites: Complete tasks 9.146-9.172 (function pointers) and 9.208-9.220 (lambdas)
-  - [ ] Modify `builtinSort()` in `internal/interp/interpreter.go` to accept 1 or 2 arguments
-  - [ ] Add `builtinArraySortWithComparator()` implementation in `internal/interp/array_functions.go`
-  - [ ] Support syntax: `Sort(arr, lambda (a, b) => a - b)` or `Sort(arr, namedFunction)`
-  - [ ] Comparator must return Integer: -1 (less), 0 (equal), 1 (greater)
-  - [ ] Call comparator for each pairwise comparison during sort
-  - [ ] Add type validation for comparator signature (must accept 2 params, return Integer)
-  - [ ] Test ascending/descending sorts with lambda comparators
-  - [ ] Test custom sorting logic (e.g., sort strings by length)
-  - [ ] Test error handling (invalid comparator return values)
-  - [ ] Reference: `/reference/dwscript-original/Test/LambdaPass/sort.pas`
-  - [ ] Note: Blocked until function pointers and lambdas are fully implemented
+- [x] 9.33 Add optional comparator parameter (COMPLETE):
+  - [x] Prerequisites: Complete tasks 9.146-9.172 (function pointers) and 9.208-9.220 (lambdas)
+  - [x] Modify `builtinSort()` in `internal/interp/interpreter.go` to accept 1 or 2 arguments
+  - [x] Add `builtinArraySortWithComparator()` implementation in `internal/interp/array_functions.go`
+  - [x] Support syntax: `Sort(arr, lambda (a, b) => a - b)` or `Sort(arr, @namedFunction)`
+  - [x] Comparator must return Integer: -1 (less), 0 (equal), 1 (greater)
+  - [x] Call comparator for each pairwise comparison during sort
+  - [x] Add type validation for comparator signature (must accept 2 params, return Integer)
+  - [x] Test ascending/descending sorts with lambda comparators (8 test cases added)
+  - [x] Test custom sorting logic (sort strings by length)
+  - [x] Test error handling (invalid comparator return values, wrong parameter count)
+  - [x] Reference: `/reference/dwscript-original/Test/LambdaPass/sort.pas`
+  - [x] Integration test: `testdata/lambdas/sort.dws`
 
 ---
 
@@ -323,6 +323,178 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
   - [ ] Create expected output file
   - [ ] Add CLI integration tests for Format
   - [ ] Document Format syntax in `docs/builtins.md` (Task 9.51)
+
+---
+
+### Lambda/Parser Bug Fixes and Missing Features (HIGH PRIORITY)
+
+**Summary**: Several syntax issues discovered during integration testing (tasks 9.231-9.232) that prevent full DWScript compatibility. Task 9.44 has been expanded into subtasks 9.44-9.47 and 9.49-9.56 for systematic implementation.
+
+**Missing Parser Features**:
+
+#### Inline Type Syntax Support (Tasks 9.44-9.47, 9.49-9.56)
+
+**Overview**: The parser currently only accepts simple `IDENT` tokens for type declarations. This prevents inline function pointer types and `array of Type` syntax, requiring verbose type aliases. This group of tasks implements a unified type expression parser.
+
+**Phase 1: Foundation (Tasks 9.49-9.50)**
+
+- [x] 9.49 **Refactor**: Extract common type expression parser ✅ DONE
+  - Create `parseTypeExpression()` in `internal/parser/types.go`
+  - Handle: simple types (IDENT), function pointers, array types, future complex types
+  - Return unified type representation
+  - Foundation for all inline type syntax
+  - Created `TypeExpression` interface and `ArrayTypeNode` AST node
+  - 56 comprehensive test cases in `types_test.go`
+
+- [x] 9.50 **Refactor**: Make function pointer parsing reusable ✅ DONE
+  - Extract logic from `parseFunctionPointerTypeDeclaration()` to `parseFunctionPointerType()`
+  - Keep declaration wrapper for `type` statements
+  - Add unit tests for extracted function
+  - Fixed parameter separator from comma to semicolon (DWScript standard)
+
+**Phase 2: Function Pointer Inline Types (Tasks 9.44-9.45)**
+
+- [ ] 9.44 **Feature**: Inline function pointer types in parameters
+  - Cannot use: `procedure Apply(f: function(x: Integer): Integer);`
+  - Must use type alias: `type TFunc = function(x: Integer): Integer; procedure Apply(f: TFunc);`
+  - Location: `internal/parser/functions.go` - `parseParameterGroup()` lines 258-261
+  - Solution: Replace simple IDENT expectation with `parseTypeExpression()` call
+  - Impact: Enables concise function parameter declarations
+  - Test: Both function and procedure pointers, multiple parameters, various return types
+
+- [ ] 9.45 **Feature**: Inline function pointer types in variable declarations
+  - Cannot use: `var f: function(x: Integer): Integer;`
+  - Must use type alias: `type TFunc = function(x: Integer): Integer; var f: TFunc;`
+  - Location: `internal/parser/statements.go` - `parseVarDeclaration()` lines 175-182
+  - Solution: Replace type parsing with `parseTypeExpression()` call
+  - Impact: Enables concise variable declarations
+  - Test: Function pointers, procedure pointers, with and without 'of object'
+
+**Phase 3: Array Type Inline Syntax (Tasks 9.51, 9.46-9.47)**
+
+- [ ] 9.51 **Feature**: Implement `array of Type` parsing
+  - Add array type handling to `parseTypeExpression()`
+  - Parse: `ARRAY OF <type-expression>`
+  - Create or extend AST node for array types
+  - Handle nested arrays: `array of array of Integer`
+  - Add parser unit tests
+
+- [ ] 9.46 **Feature**: `array of TypeName` syntax in variable declarations
+  - Cannot use: `var arr: array of Integer;`
+  - Current workaround: Use `SetLength()` with untyped arrays
+  - Solution: Should work automatically via `parseTypeExpression()` (Task 9.49 + 9.51)
+  - Add specific tests for array type variables
+
+- [ ] 9.47 **Feature**: `array of TypeName` syntax in function parameters
+  - Cannot use: `procedure PrintArray(arr: array of Integer);`
+  - Current workaround: None - cannot declare array parameters
+  - Solution: Should work automatically via `parseTypeExpression()` (Task 9.49 + 9.51)
+  - Blocks: Higher-order function testing, array manipulation utilities
+  - Add specific tests for array type parameters
+
+**Phase 4: Integration (Tasks 9.52-9.56)**
+
+- [ ] 9.52 **Integration**: Semantic analysis for inline types
+  - Verify type checker handles inline function pointers correctly
+  - Verify type checker handles array types correctly
+  - Add semantic analysis tests for type compatibility
+
+- [ ] 9.53 **Testing**: Create comprehensive integration tests
+  - Create `testdata/inline_types/` directory
+  - Add test files for all inline type combinations
+  - Test: inline function returning array, array of functions, etc.
+
+- [ ] 9.54 **Integration**: Verify interpreter handling
+  - Ensure runtime correctly handles inline type declarations
+  - Add interpreter tests if gaps found
+  - Verify closure semantics with inline types
+
+- [ ] 9.55 **Documentation**: Update docs for inline type syntax
+  - Document inline function pointer syntax
+  - Document array type syntax
+  - Add examples to relevant docs
+
+- [ ] 9.56 **Verification**: Final validation
+  - Run full test suite (`go test ./...`)
+  - Verify compatibility with existing lambda tests
+  - Check against DWScript reference behavior
+  - Mark tasks 9.44-9.47, 9.49-9.56 as complete
+
+**Deferred Feature**:
+
+- [ ] 9.48 **Missing**: Dynamic array literal syntax for integer arrays
+  - Cannot use: `var nums := [1, 2, 3, 4, 5];` (parsed as SET, not array)
+  - Current workaround: Use SetLength + manual assignment
+  - Location: Parser interprets `[...]` as set literals (enum values only)
+  - Impact: Cannot easily create test data or initialize arrays
+  - Blocks: testdata/lambdas/higher_order.dws execution
+  - Note: Requires type inference work; deferred to later stage
+
+---
+
+### Rosetta Syntax Coverage (HIGH PRIORITY)
+
+**Summary**: The `TestRosettaExamplesParse` harness surfaced several remaining Pascal/DWScript constructs that still fail to parse or run. These tasks close the highest-impact gaps so the cloned Rosetta Code corpus compiles far enough to expose genuine semantic/runtime bugs.
+
+#### Multi-Identifier Declarations (Parser + Semantic) – 2 tasks
+
+- [ ] 9.57 Allow comma-separated identifiers in variable/const sections:
+  - [ ] Update `ast.VarDeclStatement`/`ast.ConstDecl` to store identifier lists.
+  - [ ] Teach `parseVarDeclaration()` and const-section parsing to loop over `IDENT ,` sequences before the colon.
+  - [ ] Emit clear diagnostics when an initializer is supplied for a multi-name declaration (`var a, b := ...` is illegal).
+  - [ ] Adjust reconstruction helpers and `String()` methods to preserve comma-separated formatting.
+- [ ] 9.58 Ensure semantic analysis/runtime handle grouped declarations:
+  - [ ] Register each identifier in the enclosing scope with the shared type annotation.
+  - [ ] Verify only the first identifier may carry an initializer (matching DWScript behavior).
+  - [ ] Add parser/semantic tests covering var, const, parameter, and field declarations using `a, b: Integer;`.
+
+#### Compound Assignment Operators – 2 tasks
+
+- [ ] 9.59 Add parser support for `+=`, `-=`, `*=`, `/=`:
+  - [ ] Hook `PLUS_ASSIGN`, `MINUS_ASSIGN`, `TIMES_ASSIGN`, `DIVIDE_ASSIGN` into the Pratt parser as assignment-precedence infix operators.
+  - [ ] Reuse existing assignment AST node, storing operator kind so semantic/runtime layers can dispatch correctly.
+  - [ ] Expand error recovery so unexpected compound operators yield actionable messages.
+- [ ] 9.60 Implement semantic/runtime handling for compound assignments:
+  - [ ] Add analyzer checks mirroring simple assignment (type compatibility, lvalue validation).
+  - [ ] Extend interpreter evaluation to perform the underlying arithmetic and then assign.
+  - [ ] Create unit tests for numeric, string (where supported), and boolean compounds; include negative cases for unsupported operand types.
+
+#### Bitwise Shift & Logical Operators – 2 tasks
+
+- [ ] 9.61 Wire `SHL`, `SHR`, `AND`, `OR`, `XOR` into expression parsing:
+  - [ ] Confirm lexer tokens exist; map them into `parseInfixExpression` with DWScript precedence levels.
+  - [ ] Support parenthesized chains like `((mask shl 1) or 1)` without requiring workaround parentheses.
+  - [ ] Add parser fixtures validating precedence against arithmetic operators.
+- [ ] 9.62 Extend analyzer/interpreter bitwise support:
+  - [ ] Validate operands are integral types (or sets where appropriate) and report clear errors otherwise.
+  - [ ] Implement shifting/bitwise combinators in the interpreter value system, including negative shift diagnostics.
+  - [ ] Add regression tests mirroring Rosetta samples (`Bitwise_operations.dws`, `Lucas-Lehmer_test.dws`, etc.).
+
+#### `for … in` Enumerator Loops – 3 tasks
+
+- [ ] 9.63 Parse enumerator-style `for` loops:
+  - [ ] Introduce an `ast.ForInStatement` (variable, enumerator expression, body).
+  - [ ] Update `parseForStatement()` to detect `IDENT IN expression DO` and build the new node.
+  - [ ] Preserve existing `for-to/downto` behavior and add recovery for malformed enumerator syntax.
+- [ ] 9.64 Teach semantic analysis about enumerators:
+  - [ ] Resolve the loop variable scope and ensure the enumerated expression exposes the DWScript `First`/`MoveNext` protocol (or array helpers).
+  - [ ] Emit semantic errors when the expression is not enumerable.
+  - [ ] Add targeted semantic tests referencing Rosetta fixtures (`Range_expansion.dws`, `Range_extraction.dws`).
+- [ ] 9.65 Add interpreter support for `for-in`:
+  - [ ] Implement iteration for arrays, sets, strings, and future enumerable helpers.
+  - [ ] Respect loop variable assignment semantics (value vs reference).
+  - [ ] Provide interpreter tests covering simple arrays plus failure cases.
+
+#### Character Literal Expressions – 2 tasks
+
+- [ ] 9.66 Parse standalone `CHAR` literals as first-class expressions:
+  - [ ] Ensure the lexer already emits `CHAR` tokens; map them to the literal expression parser.
+  - [ ] Update AST node creation to store rune value and position.
+  - [ ] Add parser tests covering char constants in case labels and assignments.
+- [ ] 9.67 Support char literals through semantic + runtime layers:
+  - [ ] Treat char literals as single-character strings (DWScript convention) during type checking.
+  - [ ] Update interpreter value construction so `'H'`, `#13`, and `#$41` forms evaluate correctly.
+  - [ ] Add regression tests keyed to `Execute_HQ9+.dws` and other Rosetta cases.
 
 ---
 
@@ -984,68 +1156,154 @@ PrintLn(doubled); // [2, 4, 6, 8, 10]
 
 #### Semantic Analysis (5 tasks)
 
-- [ ] 9.216 Create `semantic/lambda_analyzer.go`:
-  - [ ] Analyze lambda expressions
-  - [ ] Create new scope for lambda parameters
-  - [ ] Analyze lambda body in nested scope
-  - [ ] Infer return type from body if not specified
-  - [ ] Type is `FunctionPointerType` matching signature
-- [ ] 9.217 Implement closure capture analysis:
-  - [ ] Identify variables from outer scopes used in lambda
-  - [ ] Mark them for capture
-  - [ ] Validate captured variables are accessible
-- [ ] 9.218 Implement lambda type inference:
-  - [ ] If parameter types not specified, try to infer from context
-  - [ ] If return type not specified, infer from body
-  - [ ] Report error if inference fails
-- [ ] 9.219 Add semantic tests for lambdas
-- [ ] 9.220 Test closure capture and type inference
+- [x] 9.216 Create `semantic/lambda_analyzer.go`:
+  - [x] Analyze lambda expressions
+  - [x] Create new scope for lambda parameters
+  - [x] Analyze lambda body in nested scope
+  - [x] Infer return type from body if not specified
+  - [x] Type is `FunctionPointerType` matching signature
+- [x] 9.217 Implement closure capture analysis:
+  - [x] Identify variables from outer scopes used in lambda
+  - [x] Mark them for capture
+  - [x] Validate captured variables are accessible
+- [x] 9.218 Implement lambda type inference:
+  - [x] If parameter types not specified, try to infer from context (placeholder - reports error)
+  - [x] If return type not specified, infer from body (completed in 9.216)
+  - [x] Report error if inference fails
+- [x] 9.219 Add semantic tests for lambdas
+- [x] 9.220 Test closure capture and type inference
 
 #### Interpreter Support (6 tasks)
 
-- [ ] 9.221 Implement closure representation in `interp/value.go`:
-  - [ ] Extend `FunctionPointerValue` to store captured variables
-  - [ ] Create `ClosureValue` struct
-  - [ ] Store environment snapshot at lambda creation time
-- [ ] 9.222 Implement lambda evaluation:
-  - [ ] Evaluate lambda expression
-  - [ ] Capture current environment (closure)
-  - [ ] Create `ClosureValue` with parameters, body, and captured environment
-  - [ ] Return closure as function pointer value
-- [ ] 9.223 Implement closure invocation:
-  - [ ] When closure is called, create new environment
-  - [ ] Bind parameters to arguments
-  - [ ] Restore captured environment
-  - [ ] Execute body
-  - [ ] Return result
-- [ ] 9.224 Handle variable capture:
-  - [ ] Copy values of captured variables (value semantics)
-  - [ ] Or use references (reference semantics) - decide based on DWScript
-  - [ ] Test both approaches
-- [ ] 9.225 Add tests in `interp/lambda_test.go`
-- [ ] 9.226 Test nested lambdas and complex closures
+- [x] 9.221 Implement closure representation in `interp/value.go`:
+  - [x] Extend `FunctionPointerValue` to store captured variables
+  - [x] Added `Lambda *ast.LambdaExpression` field
+  - [x] Store environment snapshot at lambda creation time via `Closure` field
+  - [x] Added `NewLambdaValue()` constructor
+  - [x] Updated `Type()` and `String()` methods to handle lambdas
+- [x] 9.222 Implement lambda evaluation:
+  - [x] Evaluate lambda expression
+  - [x] Capture current environment (closure)
+  - [x] Create lambda value with parameters, body, and captured environment
+  - [x] Return closure as function pointer value
+  - [x] Added `evalLambdaExpression()` in interpreter.go (line 1230)
+  - [x] Added `case *ast.LambdaExpression:` to Eval() switch
+  - [x] Implemented `evalReturnStatement()` for shorthand lambda syntax support
+- [x] 9.223 Implement closure invocation:
+  - [x] When closure is called, create new environment
+  - [x] Bind parameters to arguments
+  - [x] Restore captured environment (use closure env as parent)
+  - [x] Execute body
+  - [x] Return result
+  - [x] Enhanced `callFunctionPointer()` to detect and route lambda calls
+  - [x] Added `callLambda()` function (line 5658)
+- [x] 9.224 Handle variable capture:
+  - [x] Implemented reference semantics (matches DWScript behavior)
+  - [x] Captured variables accessed via environment chain
+  - [x] Changes to captured variables inside lambda affect outer scope
+  - [x] No copying needed - environment chain provides reference semantics naturally
+- [x] 9.225 Add tests in `interp/lambda_test.go`
+  - [x] Created comprehensive test suite (665 lines, 30+ test cases)
+  - [x] Basic lambda creation, invocation, multiple parameters
+  - [x] Shorthand and full syntax
+  - [x] Closure capture (single/multiple variables, mutations, reference semantics)
+  - [x] Lambdas as first-class values
+  - [x] Complex control flow, different types
+  - [x] 27 tests passing, 3 skipped (await future features)
+- [x] 9.226 Test nested lambdas and complex closures
+  - [x] Nested lambdas capturing from multiple levels
+  - [x] Multiple lambdas sharing captured variables
+  - [x] All tests passing
 
 #### Higher-Order Function Support (4 tasks)
 
-- [ ] 9.227 Implement built-in higher-order functions:
-  - [ ] `Map(array, lambda)` - Transform array elements
-  - [ ] `Filter(array, lambda)` - Filter array by predicate
-  - [ ] `Reduce(array, lambda, initial)` - Reduce array to single value
-  - [ ] `ForEach(array, lambda)` - Execute lambda for each element
-- [ ] 9.228 Add tests for higher-order functions
-- [ ] 9.229 Create examples using lambdas with higher-order functions
-- [ ] 9.230 Document higher-order functions in `docs/builtins.md`
+- [x] 9.227 Implement built-in higher-order functions:
+  - [x] `Map(array, lambda)` - Transform array elements
+  - [x] `Filter(array, lambda)` - Filter array by predicate
+  - [x] `Reduce(array, lambda, initial)` - Reduce array to single value
+  - [x] `ForEach(array, lambda)` - Execute lambda for each element
+- [x] 9.228 Add tests for higher-order functions
+- [x] 9.229 Create examples using lambdas with higher-order functions
+- [x] 9.230 Document higher-order functions in `docs/builtins.md`
 
 #### Testing & Fixtures (3 tasks)
 
-- [ ] 9.231 Create test scripts in `testdata/lambdas/`:
-  - [ ] `basic_lambda.dws` - Simple lambda usage
-  - [ ] `closure.dws` - Variable capture
-  - [ ] `higher_order.dws` - Map, Filter, Reduce examples
-  - [ ] `nested_lambda.dws` - Nested lambdas
-  - [ ] Expected outputs
-- [ ] 9.232 Add CLI integration tests
-- [ ] 9.233 Document lambda syntax in `docs/lambdas.md`
+- [x] 9.231 Create test scripts in `testdata/lambdas/`:
+  - [x] `basic_lambda.dws` - Simple lambda usage
+  - [x] `closure.dws` - Variable capture
+  - [x] `higher_order.dws` - Map, Filter, Reduce examples (cannot execute - see task 9.244)
+  - [x] `nested_lambda.dws` - Nested lambdas
+  - [x] Expected outputs (.txt files)
+  - **Note**: Uses comma-separated parameters (bug 9.239) - must be fixed
+- [x] 9.232 Add CLI integration tests (`cmd/dwscript/lambda_integration_test.go`)
+  - [x] All tests pass (3 scripts: basic_lambda, closure, nested_lambda)
+  - [x] higher_order.dws skipped (requires array literals - task 9.244)
+- [x] 9.233 Document lambda syntax in `docs/lambdas.md`
+
+#### Full Contextual Type Inference (FUTURE ENHANCEMENT)
+
+**Summary**: Task 9.218 currently has a placeholder implementation that reports an error when lambda parameters lack type annotations. Full contextual type inference would allow the compiler to infer parameter types from the context where the lambda is used.
+
+**Current Status**: Lambda parameter type inference reports "not fully implemented" error. Return type inference from body is complete.
+
+**Tasks for Full Implementation** (5 tasks):
+
+- [ ] 9.234 Add type context passing infrastructure to expression analyzer:
+  - [ ] Modify `analyzeExpression()` to accept optional `expectedType` parameter
+  - [ ] Thread expected type through all expression analysis calls
+  - [ ] Maintain backward compatibility (default to nil for existing calls)
+  - [ ] Update all expression analyzers to use context when available
+- [ ] 9.235 Implement assignment context type inference:
+  - [ ] Detect when lambda is assigned to typed variable: `var f: TFunc := lambda(x) => x * 2`
+  - [ ] Extract function pointer type from variable declaration
+  - [ ] Pass parameter types to lambda analyzer
+  - [ ] Apply inferred types to untyped parameters
+  - [ ] Validate inferred types match if some params are explicitly typed
+- [ ] 9.236 Implement function call context type inference:
+  - [ ] Detect when lambda is passed as function argument: `Apply(5, lambda(n) => n * 2)`
+  - [ ] Extract expected function pointer type from function parameter
+  - [ ] Pass parameter types to lambda analyzer
+  - [ ] Apply inferred types to untyped parameters
+  - [ ] Handle overloaded functions (try each signature)
+- [ ] 9.237 Implement return statement context type inference:
+  - [ ] Detect when lambda is returned from function with known return type
+  - [ ] Extract function pointer type from return type
+  - [ ] Apply to lambda parameters
+- [ ] 9.238 Add comprehensive tests for contextual type inference:
+  - [ ] Assignment context tests
+  - [ ] Function call context tests
+  - [ ] Return context tests
+  - [ ] Error cases (ambiguous context, conflicting types)
+  - [ ] Mixed typed/untyped parameters
+
+**Example Usage After Full Implementation**:
+```pascal
+// Assignment context inference
+type TComparator = function(a, b: Integer): Integer;
+var cmp: TComparator := lambda(x, y) => x - y;  // x, y inferred as Integer
+
+// Function call context inference
+function Apply(x: Integer; f: function(Integer): Integer): Integer;
+begin
+  Result := f(x);
+end;
+
+var result := Apply(5, lambda(n) => n * 2);  // n inferred as Integer
+
+// Mixed explicit and inferred
+var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
+```
+
+**Design Considerations**:
+- Type inference should be unidirectional (context → lambda), not bidirectional
+- Inference fails gracefully with clear error messages
+- Partial inference supported (some params typed, some inferred)
+- Overload resolution attempted in order of declaration
+- Performance: minimal impact as context passing is optional
+
+**Dependencies**: None (can be implemented independently)
+
+**Estimated Effort**: Medium (3-5 days) - requires refactoring expression analyzer API
 
 ---
 

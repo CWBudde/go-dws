@@ -18,6 +18,19 @@ func (ta *TypeAnnotation) String() string {
 	return ta.Name
 }
 
+// TokenLiteral returns the literal value of the token
+func (ta *TypeAnnotation) TokenLiteral() string {
+	return ta.Token.Literal
+}
+
+// Pos returns the position of the type annotation
+func (ta *TypeAnnotation) Pos() lexer.Position {
+	return ta.Token.Pos
+}
+
+// typeExpressionNode marks this as a type expression (Task 9.49)
+func (ta *TypeAnnotation) typeExpressionNode() {}
+
 // TypedExpression is an interface that all expressions with type information must implement.
 // This allows the semantic analyzer to attach type information to expressions.
 type TypedExpression interface {

@@ -1,0 +1,46 @@
+// Test complex combinations of inline types
+// Arrays of function pointers, function pointers returning arrays, etc.
+
+// Function that accepts array of function pointers
+procedure CallAll(handlers: array of procedure(msg: String));
+var
+  i: Integer;
+begin
+  for i := 0 to High(handlers) do
+    handlers[i]('Message ' + IntToStr(i));
+end;
+
+// Variable: array of function pointers
+var operations: array of function(x: Integer): Integer;
+
+// Simple operations
+function Inc(x: Integer): Integer;
+begin
+  Result := x + 1;
+end;
+
+function Dec(x: Integer): Integer;
+begin
+  Result := x - 1;
+end;
+
+function Sq(x: Integer): Integer;
+begin
+  Result := x * x;
+end;
+
+begin
+  // Create array of function pointers
+  SetLength(operations, 3);
+  operations[0] := @Inc;
+  operations[1] := @Dec;
+  operations[2] := @Sq;
+
+  // Call functions through array
+  PrintLn('Inc(5): ' + IntToStr(operations[0](5)));   // 6
+  PrintLn('Dec(5): ' + IntToStr(operations[1](5)));   // 4
+  PrintLn('Sq(5): ' + IntToStr(operations[2](5)));    // 25
+
+  // Note: Lambda expression assignment tested separately
+  PrintLn('Complex inline type combinations test complete');
+end.

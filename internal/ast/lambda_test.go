@@ -94,7 +94,7 @@ func TestLambdaExpression(t *testing.T) {
 
 		// Test String() output - should show shorthand syntax
 		str := node.String()
-		if str != "lambda(x: Integer, y: Integer) => (x + y)" {
+		if str != "lambda(x: Integer; y: Integer) => (x + y)" {
 			t.Errorf("unexpected String() output: %q", str)
 		}
 	})
@@ -214,7 +214,7 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		str := node.String()
-		if str != "lambda(a: Integer, b: Integer, c: Integer): Integer => ((a + b) + c)" {
+		if str != "lambda(a: Integer; b: Integer; c: Integer): Integer => ((a + b) + c)" {
 			t.Errorf("unexpected String() output: %q", str)
 		}
 	})

@@ -1,0 +1,18 @@
+=== Higher-Order Functions Tests ===
+
+Test 1: Map - Double each number
+Result: [2, 4, 6, 8, 10]
+
+Test 2: Filter - Get even numbers
+Result: [2, 4, 6, 8]
+
+Test 3: Reduce - Sum array
+Sum: 100
+
+Test 4: ForEach - Print each element
+Total after ForEach: 6
+
+Test 5: Map with closure
+With offset 100: [101, 102, 103]
+
+=== All Higher-Order Functions Tests Complete ===

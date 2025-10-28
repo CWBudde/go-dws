@@ -13,11 +13,12 @@ import (
 //
 // Full syntax:
 //
-//	lambda(x: Integer, y: Integer): Integer begin Result := x + y; end
+//	lambda(x: Integer; y: Integer): Integer begin Result := x + y; end
+//	lambda(x, y: Integer): Integer begin Result := x + y; end
 //
 // Shorthand syntax (desugared to full internally):
 //
-//	lambda(x, y) => x + y
+//	lambda(x, y: Integer) => x + y
 //
 // The lambda creates a closure capturing variables from outer scopes.
 // Closure capture semantics are handled during semantic analysis (tasks 9.216-9.220).
@@ -25,7 +26,7 @@ import (
 // Examples:
 //
 //	var doubled := Map(numbers, lambda(x: Integer): Integer begin Result := x * 2; end);
-//	var squared := Map(numbers, lambda(x) => x * x);
+//	var squared := Map(numbers, lambda(x: Integer) => x * x);
 //	var printer := lambda() begin PrintLn('Hello'); end;
 type LambdaExpression struct {
 	// Token is the 'lambda' keyword token
@@ -49,6 +50,10 @@ type LambdaExpression struct {
 	// IsShorthand indicates if this lambda was originally written with => syntax
 	// Used for String() method to preserve original syntax in output
 	IsShorthand bool
+
+	// CapturedVars is the list of variable names captured from outer scopes
+	// Set during semantic analysis (task 9.217)
+	CapturedVars []string
 }
 
 // expressionNode marks this as an Expression node
@@ -87,7 +92,7 @@ func (le *LambdaExpression) String() string {
 	for i, param := range le.Parameters {
 		params[i] = param.String()
 	}
-	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(strings.Join(params, "; "))
 	out.WriteString(")")
 
 	// Write return type if present

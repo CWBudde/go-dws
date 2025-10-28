@@ -1,0 +1,26 @@
+=== Nested Lambda Tests ===
+
+Test 1: Lambda returning lambda
+add5(3) = 8
+add10(3) = 13
+
+Test 2: Counter pattern
+counter1: 1
+counter1: 2
+counter1: 3
+counter2: 1
+counter2: 2
+
+Test 3: Accumulator factory
+acc1(5) = 5
+acc1(10) = 15
+acc2(5) = 105
+acc2(10) = 115
+
+Test 4: Multiple lambdas sharing variable
+Initial: 0
+After 3 increments: 3
+After 1 decrement: 2
+After reset: 0
+
+=== All Nested Lambda Tests Complete ===

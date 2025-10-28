@@ -31,6 +31,7 @@ type Analyzer struct {
 	inExceptionHandler bool
 	inFinallyBlock     bool
 	inLoop             bool
+	inLambda           bool // Task 9.216: Track if we're analyzing a lambda body
 }
 
 // NewAnalyzer creates a new semantic analyzer

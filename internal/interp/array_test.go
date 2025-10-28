@@ -2950,16 +2950,16 @@ func TestArraySort_ErrorCases(t *testing.T) {
 		expectedErr string
 	}{
 		{
-			name: "wrong argument count",
+			name: "too many arguments (3 args)",
 			input: `
 type TIntArray = array of Integer;
 var a: TIntArray;
 begin
 	SetLength(a, 3);
-	Sort(a, a);
+	Sort(a, a, a);
 end
 			`,
-			expectedErr: "Sort() expects 1 argument, got 2",
+			expectedErr: "Sort() expects 1 or 2 arguments",
 		},
 		{
 			name: "non-array argument",
@@ -2968,7 +2968,7 @@ begin
 	Sort(42);
 end
 			`,
-			expectedErr: "Sort() expects array as argument",
+			expectedErr: "Sort() expects array as first argument",
 		},
 	}
 
@@ -2984,5 +2984,302 @@ end
 				t.Errorf("expected error containing '%s', got '%s'", tt.expectedErr, errVal.Message)
 			}
 		})
+	}
+}
+// TestArraySort_WithLambdaComparator_Ascending tests Sort() with a lambda comparator for ascending order.
+// Task 9.33: Sort(arr, lambda (a, b) => a - b)
+func TestArraySort_WithLambdaComparator_Ascending(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 5);
+	a[0] := 3;
+	a[1] := 1;
+	a[2] := 4;
+	a[3] := 2;
+	a[4] := 5;
+
+	Sort(a, lambda (x, y): Integer => x - y);  // Ascending
+
+	// After sort: [1, 2, 3, 4, 5]
+	if a[0] <> 1 then PrintLn('FAIL: a[0]');
+	if a[1] <> 2 then PrintLn('FAIL: a[1]');
+	if a[2] <> 3 then PrintLn('FAIL: a[2]');
+	if a[3] <> 4 then PrintLn('FAIL: a[3]');
+	if a[4] <> 5 then PrintLn('FAIL: a[4]');
+
+	a[0];  // Return first element
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 1 {
+		t.Errorf("expected a[0] = 1 after ascending sort, got %d", intVal.Value)
+	}
+}
+
+// TestArraySort_WithLambdaComparator_Descending tests Sort() with a lambda comparator for descending order.
+// Task 9.33: Sort(arr, lambda (a, b) => b - a)
+func TestArraySort_WithLambdaComparator_Descending(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 5);
+	a[0] := 3;
+	a[1] := 1;
+	a[2] := 4;
+	a[3] := 2;
+	a[4] := 5;
+
+	Sort(a, lambda (x, y): Integer => y - x);  // Descending
+
+	// After sort: [5, 4, 3, 2, 1]
+	if a[0] <> 5 then PrintLn('FAIL: a[0]');
+	if a[1] <> 4 then PrintLn('FAIL: a[1]');
+	if a[2] <> 3 then PrintLn('FAIL: a[2]');
+	if a[3] <> 2 then PrintLn('FAIL: a[3]');
+	if a[4] <> 1 then PrintLn('FAIL: a[4]');
+
+	a[0];  // Return first element
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 5 {
+		t.Errorf("expected a[0] = 5 after descending sort, got %d", intVal.Value)
+	}
+}
+
+// TestArraySort_WithLambdaComparator_CustomLogic tests Sort() with custom sorting logic.
+// Task 9.33: Sort strings by length instead of lexicographically
+func TestArraySort_WithLambdaComparator_CustomLogic(t *testing.T) {
+	input := `
+type TStringArray = array of String;
+var a: TStringArray;
+begin
+	SetLength(a, 4);
+	a[0] := 'apple';
+	a[1] := 'hi';
+	a[2] := 'banana';
+	a[3] := 'cat';
+
+	// Sort by string length: shorter strings first
+	Sort(a, lambda (x, y): Integer => Length(x) - Length(y));
+
+	// After sort by length: ['hi', 'cat', 'apple', 'banana']
+	if a[0] <> 'hi' then PrintLn('FAIL: a[0]');
+	if a[1] <> 'cat' then PrintLn('FAIL: a[1]');
+	if a[2] <> 'apple' then PrintLn('FAIL: a[2]');
+	if a[3] <> 'banana' then PrintLn('FAIL: a[3]');
+
+	a[0];  // Return first element
+end
+	`
+
+	result := testEval(input)
+	strVal, ok := result.(*StringValue)
+	if !ok {
+		t.Fatalf("expected StringValue, got %T: %+v", result, result)
+	}
+
+	if strVal.Value != "hi" {
+		t.Errorf("expected a[0] = 'hi' after sort by length, got '%s'", strVal.Value)
+	}
+}
+
+// TestArraySort_WithNamedFunctionComparator tests Sort() with a named function pointer.
+// Task 9.33: Sort(arr, @MyComparatorFunc)
+func TestArraySort_WithNamedFunctionComparator(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+
+// Comparator function for descending order
+function CompareDesc(a: Integer; b: Integer): Integer;
+begin
+	Result := b - a;  // Descending
+end;
+
+var arr: TIntArray;
+begin
+	SetLength(arr, 5);
+	arr[0] := 3;
+	arr[1] := 1;
+	arr[2] := 4;
+	arr[3] := 2;
+	arr[4] := 5;
+
+	Sort(arr, @CompareDesc);  // Named function pointer
+
+	// After sort: [5, 4, 3, 2, 1]
+	if arr[0] <> 5 then PrintLn('FAIL: arr[0]');
+	if arr[1] <> 4 then PrintLn('FAIL: arr[1]');
+	if arr[2] <> 3 then PrintLn('FAIL: arr[2]');
+	if arr[3] <> 2 then PrintLn('FAIL: arr[3]');
+	if arr[4] <> 1 then PrintLn('FAIL: arr[4]');
+
+	arr[0];  // Return first element
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 5 {
+		t.Errorf("expected arr[0] = 5 after descending sort with named function, got %d", intVal.Value)
+	}
+}
+
+// TestArraySort_WithComparator_ErrorCases tests error handling for Sort() with comparators.
+// Task 9.33: Error cases
+func TestArraySort_WithComparator_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectedErr string
+	}{
+		{
+			name: "too many parameters in comparator",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	a[0] := 3; a[1] := 1; a[2] := 2;
+	Sort(a, lambda (x, y, z) => x - y);
+end
+			`,
+			expectedErr: "comparator must accept 2 parameters",
+		},
+		{
+			name: "too few parameters in comparator",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	a[0] := 3; a[1] := 1; a[2] := 2;
+	Sort(a, lambda (x) => x);
+end
+			`,
+			expectedErr: "comparator must accept 2 parameters",
+		},
+		{
+			name: "comparator returns wrong type",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	a[0] := 3; a[1] := 1; a[2] := 2;
+	Sort(a, lambda (x, y) => 'string');  // Returns String instead of Integer
+end
+			`,
+			expectedErr: "comparator must return Integer",
+		},
+		{
+			name: "second argument is not a function pointer",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	a[0] := 3; a[1] := 1; a[2] := 2;
+	Sort(a, 42);  // Integer instead of function pointer
+end
+			`,
+			expectedErr: "function pointer as second argument",
+		},
+		{
+			name: "too many arguments",
+			input: `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 3);
+	a[0] := 3; a[1] := 1; a[2] := 2;
+	Sort(a, lambda (x, y) => x - y, 42);  // 3 arguments
+end
+			`,
+			expectedErr: "expects 1 or 2 arguments",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			errVal, ok := result.(*ErrorValue)
+			if !ok {
+				t.Fatalf("expected ErrorValue, got %T: %+v", result, result)
+			}
+
+			if !strings.Contains(errVal.Message, tt.expectedErr) {
+				t.Errorf("expected error containing '%s', got '%s'", tt.expectedErr, errVal.Message)
+			}
+		})
+	}
+}
+
+// TestArraySort_WithComparator_EmptyArray tests Sort() with comparator on empty array.
+// Task 9.33: Edge case - empty array
+func TestArraySort_WithComparator_EmptyArray(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 0);
+	Sort(a, lambda (x, y): Integer => x - y);  // Should handle empty array gracefully
+	Length(a);  // Return length (should be 0)
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 0 {
+		t.Errorf("expected length 0 for empty array, got %d", intVal.Value)
+	}
+}
+
+// TestArraySort_WithComparator_SingleElement tests Sort() with comparator on single element array.
+// Task 9.33: Edge case - single element
+func TestArraySort_WithComparator_SingleElement(t *testing.T) {
+	input := `
+type TIntArray = array of Integer;
+var a: TIntArray;
+begin
+	SetLength(a, 1);
+	a[0] := 42;
+	Sort(a, lambda (x, y): Integer => x - y);  // Should handle single element gracefully
+	a[0];  // Return element
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 42 {
+		t.Errorf("expected a[0] = 42, got %d", intVal.Value)
 	}
 }

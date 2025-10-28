@@ -1,0 +1,33 @@
+=== Basic Lambda Tests ===
+
+Test 1: Simple lambda (shorthand)
+double(5) = 10
+
+Test 2: Lambda with full syntax
+add(3, 7) = 10
+
+Test 3: Lambda with three parameters
+sum3(1, 2, 3) = 6
+
+Test 4: Lambda reassignment
+operation(10) = 20
+After reassignment: operation(10) = 15
+
+Test 5: Lambda with String type
+Hello, World!
+
+Test 6: Lambda with Float type
+half(10.5) = 5.25
+
+Test 7: Lambda with Boolean return
+isEven(4) = True
+isEven(7) = False
+
+Test 8: Lambda with control flow
+abs(-5) = 5
+abs(5) = 5
+
+Test 9: Procedure lambda (no return value)
+Message: Hello from lambda!
+
+=== All Basic Lambda Tests Complete ===

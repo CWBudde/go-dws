@@ -1,0 +1,80 @@
+// Basic Lambda Test Script
+// Tests fundamental lambda functionality
+
+PrintLn('=== Basic Lambda Tests ===');
+PrintLn('');
+
+// Test 1: Simple lambda with shorthand syntax
+PrintLn('Test 1: Simple lambda (shorthand)');
+var double := lambda(x: Integer): Integer => x * 2;
+PrintLn('double(5) = ' + IntToStr(double(5)));
+PrintLn('');
+
+// Test 2: Lambda with full syntax
+PrintLn('Test 2: Lambda with full syntax');
+var add := lambda(a: Integer; b: Integer): Integer begin
+  Result := a + b;
+end;
+PrintLn('add(3, 7) = ' + IntToStr(add(3, 7)));
+PrintLn('');
+
+// Test 3: Lambda with multiple parameters
+PrintLn('Test 3: Lambda with three parameters');
+var sum3 := lambda(x: Integer; y: Integer; z: Integer): Integer => x + y + z;
+PrintLn('sum3(1, 2, 3) = ' + IntToStr(sum3(1, 2, 3)));
+PrintLn('');
+
+// Test 4: Lambda reassignment
+PrintLn('Test 4: Lambda reassignment');
+var operation := lambda(n: Integer): Integer => n * 2;
+PrintLn('operation(10) = ' + IntToStr(operation(10)));
+operation := lambda(n: Integer): Integer => n + 5;
+PrintLn('After reassignment: operation(10) = ' + IntToStr(operation(10)));
+PrintLn('');
+
+// Test 5: Lambda with String type
+PrintLn('Test 5: Lambda with String type');
+var greet := lambda(name: String): String => 'Hello, ' + name + '!';
+PrintLn(greet('World'));
+PrintLn('');
+
+// Test 6: Lambda with Float type
+PrintLn('Test 6: Lambda with Float type');
+var half := lambda(x: Float): Float => x / 2.0;
+PrintLn('half(10.5) = ' + FloatToStr(half(10.5)));
+PrintLn('');
+
+// Test 7: Lambda with Boolean return
+PrintLn('Test 7: Lambda with Boolean return');
+var isEven := lambda(n: Integer): Boolean => (n mod 2) = 0;
+if isEven(4) then
+  PrintLn('isEven(4) = True')
+else
+  PrintLn('isEven(4) = False');
+if isEven(7) then
+  PrintLn('isEven(7) = True')
+else
+  PrintLn('isEven(7) = False');
+PrintLn('');
+
+// Test 8: Lambda with control flow
+PrintLn('Test 8: Lambda with control flow');
+var abs := lambda(n: Integer): Integer begin
+  if n < 0 then
+    Result := -n
+  else
+    Result := n;
+end;
+PrintLn('abs(-5) = ' + IntToStr(abs(-5)));
+PrintLn('abs(5) = ' + IntToStr(abs(5)));
+PrintLn('');
+
+// Test 9: Procedure lambda (no return value)
+PrintLn('Test 9: Procedure lambda (no return value)');
+var printMessage := lambda(msg: String) begin
+  PrintLn('Message: ' + msg);
+end;
+printMessage('Hello from lambda!');
+PrintLn('');
+
+PrintLn('=== All Basic Lambda Tests Complete ===');

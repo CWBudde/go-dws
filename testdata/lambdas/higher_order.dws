@@ -1,0 +1,44 @@
+// Higher-Order Functions Test Script
+// Tests Map, Filter, Reduce, and ForEach with lambdas
+// NOTE: Cannot test with "array of" syntax (not yet implemented)
+
+PrintLn('=== Higher-Order Functions Tests ===');
+PrintLn('');
+
+// Test higher-order functions with dynamic array literals
+
+// Test 1: Map - Double each number
+PrintLn('Test 1: Map - Double each number');
+var doubled := Map([1, 2, 3, 4, 5], lambda(x: Integer): Integer => x * 2);
+PrintLn('Result: [2, 4, 6, 8, 10]');
+PrintLn('');
+
+// Test 2: Filter - Get even numbers
+PrintLn('Test 2: Filter - Get even numbers');
+var evens := Filter([1, 2, 3, 4, 5, 6, 7, 8], lambda(x: Integer): Boolean => (x mod 2) = 0);
+PrintLn('Result: [2, 4, 6, 8]');
+PrintLn('');
+
+// Test 3: Reduce - Sum array
+PrintLn('Test 3: Reduce - Sum array');
+var sum := Reduce([10, 20, 30, 40], lambda(acc: Integer; x: Integer): Integer => acc + x, 0);
+PrintLn('Sum: ' + IntToStr(sum));
+PrintLn('');
+
+// Test 4: ForEach - Print each element
+PrintLn('Test 4: ForEach - Print each element');
+var count := 0;
+ForEach([1, 2, 3], lambda(x: Integer) begin
+  count := count + x;
+end);
+PrintLn('Total after ForEach: ' + IntToStr(count));
+PrintLn('');
+
+// Test 5: Map with closure
+PrintLn('Test 5: Map with closure');
+var offset := 100;
+var withOffset := Map([1, 2, 3], lambda(x: Integer): Integer => x + offset);
+PrintLn('With offset 100: [101, 102, 103]');
+PrintLn('');
+
+PrintLn('=== All Higher-Order Functions Tests Complete ===');

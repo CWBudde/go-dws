@@ -1,0 +1,3 @@
+PrintLn( StringOfString('abc',5) );
+
+PrintLn( StringOfChar('a',5) );

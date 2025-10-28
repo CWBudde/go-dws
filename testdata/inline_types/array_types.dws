@@ -1,0 +1,18 @@
+// Test inline array types in parameters and variables
+// Task 9.46, 9.47: array of Type syntax
+
+// Note: Function body implementation deferred
+// This test focuses on inline type syntax in declarations
+procedure ProcessArray(numbers: array of Integer);
+begin
+  PrintLn('Array parameter accepted');
+end;
+
+// Variable with inline array type
+var items: array of String;
+var matrix: array of array of Integer;
+
+begin
+  PrintLn('Inline array type syntax test');
+  PrintLn('Variables with array types declared successfully');
+end.

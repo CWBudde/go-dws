@@ -442,19 +442,29 @@ func NewArrayValue(arrayType *types.ArrayType) *ArrayValue {
 
 // FunctionPointerValue represents a function or procedure pointer in DWScript.
 // Task 9.164: Create runtime representation for function pointers.
+// Task 9.221: Extended to support lambda expressions/anonymous methods.
 //
 // Function pointers store a reference to a callable function/procedure along with
 // its closure environment. Method pointers additionally capture the Self object.
+// Lambdas are also represented using this type, with Lambda field set instead of Function.
 //
 // Examples:
 //   - Function pointer: var f: TFunc; f := @MyFunction;
 //   - Method pointer: var m: TMethod; m := @obj.MyMethod; (captures obj as Self)
+//   - Lambda: var f := lambda(x: Integer): Integer begin Result := x * 2; end;
 type FunctionPointerValue struct {
 	// Function is the AST node of the function/procedure being pointed to
+	// Either Function OR Lambda will be set, never both
 	Function *ast.FunctionDecl
 
-	// Closure is the environment where the function was defined
-	// Used for capturing variables if needed (for closures in future)
+	// Lambda is the AST node of the lambda expression (anonymous method)
+	// Either Function OR Lambda will be set, never both
+	// Task 9.221: Added for lambda/closure support
+	Lambda *ast.LambdaExpression
+
+	// Closure is the environment where the function/lambda was defined
+	// For lambdas, this captures all variables from outer scopes
+	// For functions, this is typically the global environment
 	Closure *Environment
 
 	// SelfObject is the object instance for method pointers (nil for regular functions)
@@ -465,17 +475,28 @@ type FunctionPointerValue struct {
 	PointerType *types.FunctionPointerType
 }
 
-// Type returns "FUNCTION_POINTER" or "METHOD_POINTER".
+// Type returns "FUNCTION_POINTER", "METHOD_POINTER", or "LAMBDA" (closure).
+// Task 9.221: Updated to distinguish lambdas.
 func (f *FunctionPointerValue) Type() string {
 	if f.SelfObject != nil {
 		return "METHOD_POINTER"
+	}
+	if f.Lambda != nil {
+		return "LAMBDA"
 	}
 	return "FUNCTION_POINTER"
 }
 
 // String returns the string representation of the function pointer.
-// Format: @FunctionName or @Object.MethodName
+// Format: @FunctionName, @Object.MethodName, or <lambda> for closures
+// Task 9.221: Updated to handle lambdas.
 func (f *FunctionPointerValue) String() string {
+	// Lambda closures
+	if f.Lambda != nil {
+		return "<lambda>"
+	}
+
+	// Regular function/method pointers
 	if f.Function == nil {
 		return "@<nil>"
 	}
@@ -498,8 +519,26 @@ func NewFunctionPointerValue(
 ) *FunctionPointerValue {
 	return &FunctionPointerValue{
 		Function:    function,
+		Lambda:      nil,
 		Closure:     closure,
 		SelfObject:  selfObject,
+		PointerType: pointerType,
+	}
+}
+
+// NewLambdaValue creates a new lambda/closure value.
+// Task 9.221: Constructor for lambda expressions/anonymous methods.
+// The closure environment captures all variables from the scope where the lambda is defined.
+func NewLambdaValue(
+	lambda *ast.LambdaExpression,
+	closure *Environment,
+	pointerType *types.FunctionPointerType,
+) *FunctionPointerValue {
+	return &FunctionPointerValue{
+		Function:    nil,
+		Lambda:      lambda,
+		Closure:     closure,
+		SelfObject:  nil,
 		PointerType: pointerType,
 	}
 }

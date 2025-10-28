@@ -1,0 +1,120 @@
+// Closure Test Script
+// Tests variable capture and closure semantics
+
+PrintLn('=== Closure Tests ===');
+PrintLn('');
+
+// Test 1: Simple variable capture
+PrintLn('Test 1: Simple variable capture');
+var x := 10;
+var captureX := lambda(): Integer => x;
+PrintLn('x = ' + IntToStr(x));
+PrintLn('captureX() = ' + IntToStr(captureX()));
+PrintLn('');
+
+// Test 2: Captured variable mutation
+PrintLn('Test 2: Captured variable mutation');
+var counter := 0;
+var increment := lambda() begin
+  counter := counter + 1;
+end;
+PrintLn('counter before: ' + IntToStr(counter));
+increment();
+PrintLn('counter after 1st call: ' + IntToStr(counter));
+increment();
+PrintLn('counter after 2nd call: ' + IntToStr(counter));
+increment();
+PrintLn('counter after 3rd call: ' + IntToStr(counter));
+PrintLn('');
+
+// Test 3: Multiple variable capture
+PrintLn('Test 3: Multiple variable capture');
+var a := 5;
+var b := 10;
+var sumAB := lambda(): Integer => a + b;
+PrintLn('a = ' + IntToStr(a) + ', b = ' + IntToStr(b));
+PrintLn('sumAB() = ' + IntToStr(sumAB()));
+a := 20;
+PrintLn('After a := 20:');
+PrintLn('sumAB() = ' + IntToStr(sumAB()));
+PrintLn('');
+
+// Test 4: Reference semantics demonstration
+PrintLn('Test 4: Reference semantics (changes visible outside)');
+var total := 0;
+var addToTotal := lambda(n: Integer) begin
+  total := total + n;
+end;
+PrintLn('total = ' + IntToStr(total));
+addToTotal(5);
+PrintLn('After addToTotal(5): total = ' + IntToStr(total));
+addToTotal(10);
+PrintLn('After addToTotal(10): total = ' + IntToStr(total));
+PrintLn('');
+
+// Test 5: Multiple lambdas sharing captured variable
+PrintLn('Test 5: Multiple lambdas sharing variable');
+var shared := 100;
+var add10 := lambda() begin
+  shared := shared + 10;
+end;
+var subtract5 := lambda() begin
+  shared := shared - 5;
+end;
+var getShared := lambda(): Integer => shared;
+
+PrintLn('shared = ' + IntToStr(shared));
+add10();
+PrintLn('After add10(): shared = ' + IntToStr(getShared()));
+subtract5();
+PrintLn('After subtract5(): shared = ' + IntToStr(getShared()));
+add10();
+PrintLn('After add10(): shared = ' + IntToStr(getShared()));
+PrintLn('');
+
+// Test 6: Closure with parameters and captured variables
+PrintLn('Test 6: Lambda with parameters and captured variables');
+var multiplier := 3;
+var multiplyBy := lambda(n: Integer): Integer => n * multiplier;
+PrintLn('multiplier = ' + IntToStr(multiplier));
+PrintLn('multiplyBy(5) = ' + IntToStr(multiplyBy(5)));
+PrintLn('multiplyBy(10) = ' + IntToStr(multiplyBy(10)));
+multiplier := 7;
+PrintLn('After multiplier := 7:');
+PrintLn('multiplyBy(5) = ' + IntToStr(multiplyBy(5)));
+PrintLn('');
+
+// Test 7: Complex closure with multiple captures
+PrintLn('Test 7: Complex closure with multiple operations');
+var balance := 1000;
+var transactionCount := 0;
+
+var deposit := lambda(amount: Integer) begin
+  balance := balance + amount;
+  transactionCount := transactionCount + 1;
+  PrintLn('Deposited ' + IntToStr(amount) + ', new balance: ' + IntToStr(balance));
+end;
+
+var withdraw := lambda(amount: Integer) begin
+  if balance >= amount then
+  begin
+    balance := balance - amount;
+    transactionCount := transactionCount + 1;
+    PrintLn('Withdrew ' + IntToStr(amount) + ', new balance: ' + IntToStr(balance));
+  end
+  else
+    PrintLn('Insufficient funds!');
+end;
+
+var getInfo := lambda(): String =>
+  'Balance: ' + IntToStr(balance) + ', Transactions: ' + IntToStr(transactionCount);
+
+PrintLn('Initial: ' + getInfo());
+deposit(500);
+withdraw(300);
+deposit(100);
+withdraw(2000);  // Should fail
+PrintLn('Final: ' + getInfo());
+PrintLn('');
+
+PrintLn('=== All Closure Tests Complete ===');
