@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -526,8 +527,12 @@ var s: String := 'hello';
 				t.Fatalf("statement is not ast.VarDeclStatement. got=%T", program.Statements[i])
 			}
 
-			if stmt.Name.Value != tt.expectedVar {
-				t.Errorf("stmt.Name.Value = %q, want %q", stmt.Name.Value, tt.expectedVar)
+			if len(stmt.Names) == 0 || stmt.Names[0].Value != tt.expectedVar {
+				if len(stmt.Names) == 0 {
+					t.Errorf("stmt.Names is empty, want %q", tt.expectedVar)
+				} else {
+					t.Errorf("stmt.Names[0].Value = %q, want %q", stmt.Names[0].Value, tt.expectedVar)
+				}
 			}
 
 			if (stmt.Type == nil && tt.expectedTyp != "") || (stmt.Type != nil && stmt.Type.Name != tt.expectedTyp) {
@@ -618,8 +623,12 @@ func TestExternalVarParsing(t *testing.T) {
 				t.Fatalf("statement is not ast.VarDeclStatement. got=%T", program.Statements[0])
 			}
 
-			if stmt.Name.Value != tt.expectedVar {
-				t.Errorf("stmt.Name.Value = %q, want %q", stmt.Name.Value, tt.expectedVar)
+			if len(stmt.Names) == 0 || stmt.Names[0].Value != tt.expectedVar {
+				if len(stmt.Names) == 0 {
+					t.Errorf("stmt.Names is empty, want %q", tt.expectedVar)
+				} else {
+					t.Errorf("stmt.Names[0].Value = %q, want %q", stmt.Names[0].Value, tt.expectedVar)
+				}
 			}
 
 			if stmt.Type == nil || stmt.Type.Name != tt.expectedType {
@@ -636,6 +645,109 @@ func TestExternalVarParsing(t *testing.T) {
 
 			if stmt.ExternalName != tt.externalName {
 				t.Errorf("stmt.ExternalName = %q, want %q", stmt.ExternalName, tt.externalName)
+			}
+		})
+	}
+}
+
+// TestMultiIdentifierVarDeclarations tests parsing of multi-identifier variable declarations.
+// Task 9.63: DWScript allows comma-separated variable names like `var a, b, c: Integer;`.
+func TestMultiIdentifierVarDeclarations(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedNames []string
+		expectedType  string
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:          "two variables",
+			input:         "var x, y: Integer;",
+			expectedNames: []string{"x", "y"},
+			expectedType:  "Integer",
+		},
+		{
+			name:          "three variables",
+			input:         "var a, b, c: String;",
+			expectedNames: []string{"a", "b", "c"},
+			expectedType:  "String",
+		},
+		{
+			name:          "many variables",
+			input:         "var i, j, k, l, m: Integer;",
+			expectedNames: []string{"i", "j", "k", "l", "m"},
+			expectedType:  "Integer",
+		},
+		{
+			name:          "reject initializer with multiple names",
+			input:         "var x, y: Integer := 42;",
+			expectError:   true,
+			errorContains: "cannot use initializer with multiple variable names",
+		},
+		{
+			name:          "reject initializer without type",
+			input:         "var a, b := 5;",
+			expectError:   true,
+			errorContains: "cannot use initializer with multiple variable names",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+
+			if tt.expectError {
+				if len(p.Errors()) == 0 {
+					t.Fatalf("expected error containing %q, got no errors", tt.errorContains)
+				}
+				found := false
+				for _, err := range p.Errors() {
+					if strings.Contains(err, tt.errorContains) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error containing %q, got %v", tt.errorContains, p.Errors())
+				}
+				return
+			}
+
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.VarDeclStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.VarDeclStatement. got=%T", program.Statements[0])
+			}
+
+			if len(stmt.Names) != len(tt.expectedNames) {
+				t.Fatalf("wrong number of names. got=%d, want=%d", len(stmt.Names), len(tt.expectedNames))
+			}
+
+			for i, expectedName := range tt.expectedNames {
+				if stmt.Names[i].Value != expectedName {
+					t.Errorf("name[%d] = %q, want %q", i, stmt.Names[i].Value, expectedName)
+				}
+			}
+
+			if stmt.Type == nil || stmt.Type.Name != tt.expectedType {
+				var typeName string
+				if stmt.Type != nil {
+					typeName = stmt.Type.Name
+				}
+				t.Errorf("stmt.Type.Name = %q, want %q", typeName, tt.expectedType)
+			}
+
+			// Test String() method for multi-names
+			expectedStr := "var " + strings.Join(tt.expectedNames, ", ") + ": " + tt.expectedType
+			if stmt.String() != expectedStr {
+				t.Errorf("stmt.String() = %q, want %q", stmt.String(), expectedStr)
 			}
 		})
 	}
@@ -1058,8 +1170,8 @@ x := x + y;
 				if !ok {
 					t.Fatalf("statement 0 is not VarDeclStatement. got=%T", program.Statements[0])
 				}
-				if varDecl1.Name.Value != "x" {
-					t.Errorf("varDecl1.Name.Value = %q, want 'x'", varDecl1.Name.Value)
+				if varDecl1.Names[0].Value != "x" {
+					t.Errorf("varDecl1.Names[0].Value = %q, want 'x'", varDecl1.Names[0].Value)
 				}
 				if varDecl1.Type == nil || varDecl1.Type.Name != "Integer" {
 					t.Errorf("varDecl1.Type = %q, want 'Integer'", varDecl1.Type)
@@ -1073,8 +1185,8 @@ x := x + y;
 				if !ok {
 					t.Fatalf("statement 1 is not VarDeclStatement. got=%T", program.Statements[1])
 				}
-				if varDecl2.Name.Value != "y" {
-					t.Errorf("varDecl2.Name.Value = %q, want 'y'", varDecl2.Name.Value)
+				if varDecl2.Names[0].Value != "y" {
+					t.Errorf("varDecl2.Names[0].Value = %q, want 'y'", varDecl2.Names[0].Value)
 				}
 				if !testIntegerLiteral(t, varDecl2.Value, 10) {
 					return
@@ -1110,8 +1222,8 @@ PrintLn(message);
 				if !ok {
 					t.Fatalf("statement 0 is not VarDeclStatement. got=%T", program.Statements[0])
 				}
-				if varDecl.Name.Value != "message" {
-					t.Errorf("varDecl.Name.Value = %q, want 'message'", varDecl.Name.Value)
+				if varDecl.Names[0].Value != "message" {
+					t.Errorf("varDecl.Names[0].Value = %q, want 'message'", varDecl.Names[0].Value)
 				}
 				if !testStringLiteralExpression(t, varDecl.Value, "Hello, World!") {
 					return
@@ -1153,8 +1265,8 @@ end;
 				if !ok {
 					t.Fatalf("statement 0 is not VarDeclStatement. got=%T", program.Statements[0])
 				}
-				if varDecl.Name.Value != "x" {
-					t.Errorf("varDecl.Name.Value = %q, want 'x'", varDecl.Name.Value)
+				if varDecl.Names[0].Value != "x" {
+					t.Errorf("varDecl.Names[0].Value = %q, want 'x'", varDecl.Names[0].Value)
 				}
 
 				// Second statement: begin...end block
@@ -1234,8 +1346,8 @@ result := result / 3;
 				if !ok {
 					t.Fatalf("statement 0 is not VarDeclStatement. got=%T", program.Statements[0])
 				}
-				if varDecl.Name.Value != "result" {
-					t.Errorf("varDecl.Name.Value = %q, want 'result'", varDecl.Name.Value)
+				if varDecl.Names[0].Value != "result" {
+					t.Errorf("varDecl.Names[0].Value = %q, want 'result'", varDecl.Names[0].Value)
 				}
 				// The value should be a complex binary expression
 				if varDecl.Value == nil {

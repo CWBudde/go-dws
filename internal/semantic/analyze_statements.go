@@ -78,10 +78,12 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 
 // analyzeVarDecl analyzes a variable declaration
 func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
-	// Check if variable is already declared in current scope
-	if a.symbols.IsDeclaredInCurrentScope(stmt.Name.Value) {
-		a.addError("variable '%s' already declared at %s", stmt.Name.Value, stmt.Token.Pos.String())
-		return
+	// Task 9.63: Check each name for duplicates in current scope
+	for _, name := range stmt.Names {
+		if a.symbols.IsDeclaredInCurrentScope(name.Value) {
+			a.addError("variable '%s' already declared at %s", name.Value, stmt.Token.Pos.String())
+			return
+		}
 	}
 
 	// Determine the type of the variable
@@ -98,6 +100,7 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	}
 
 	// If there's an initializer, check its type
+	// Note: Parser already validates that multi-name declarations cannot have initializers
 	if stmt.Value != nil {
 		var initType types.Type
 
@@ -142,13 +145,16 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 
 	// If we still don't have a type, that's an error
 	if varType == nil {
+		// Use first name for error message
 		a.addError("variable '%s' must have either a type annotation or an initializer at %s",
-			stmt.Name.Value, stmt.Token.Pos.String())
+			stmt.Names[0].Value, stmt.Token.Pos.String())
 		return
 	}
 
-	// Add variable to symbol table
-	a.symbols.Define(stmt.Name.Value, varType)
+	// Task 9.63: Add all variables to symbol table with the same type
+	for _, name := range stmt.Names {
+		a.symbols.Define(name.Value, varType)
+	}
 }
 
 // analyzeConstDecl analyzes a const declaration statement

@@ -278,18 +278,26 @@ func (i *Interpreter) evalProgram(program *ast.Program) Value {
 func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 	var value Value
 
+	// Task 9.63: Handle multi-identifier declarations
+	// All names share the same type, but each needs to be defined separately
+	// Note: Parser already validates that multi-name declarations cannot have initializers
+
 	// Task 7.144: Handle external variables
 	if stmt.IsExternal {
+		// External variables only apply to single declarations
+		if len(stmt.Names) != 1 {
+			return newError("external keyword cannot be used with multiple variable names")
+		}
 		// Store a special marker for external variables
 		externalName := stmt.ExternalName
 		if externalName == "" {
-			externalName = stmt.Name.Value
+			externalName = stmt.Names[0].Value
 		}
 		value = &ExternalVarValue{
-			Name:         stmt.Name.Value,
+			Name:         stmt.Names[0].Value,
 			ExternalName: externalName,
 		}
-		i.env.Define(stmt.Name.Value, value)
+		i.env.Define(stmt.Names[0].Value, value)
 		return value
 	}
 
@@ -396,8 +404,85 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		}
 	}
 
-	i.env.Define(stmt.Name.Value, value)
-	return value
+	// Task 9.63: Define all names with the same value/type
+	// For multi-identifier declarations without initializers, each gets its own zero value
+	var lastValue Value = value
+	for _, name := range stmt.Names {
+		// If there's an initializer, all names share the same value (but parser prevents this for multi-names)
+		// If no initializer, need to create separate zero values for each variable
+		var nameValue Value
+		if stmt.Value != nil {
+			// Single name with initializer - use the computed value
+			nameValue = value
+		} else {
+			// No initializer - create a new zero value for each name
+			// Must create separate instances to avoid aliasing
+			nameValue = i.createZeroValue(stmt.Type)
+		}
+		i.env.Define(name.Value, nameValue)
+		lastValue = nameValue
+	}
+
+	return lastValue
+}
+
+// createZeroValue creates a zero value for the given type
+// This is used for multi-identifier declarations where each variable needs its own instance
+func (i *Interpreter) createZeroValue(typeAnnotation *ast.TypeAnnotation) Value {
+	if typeAnnotation == nil {
+		return &NilValue{}
+	}
+
+	typeName := typeAnnotation.Name
+
+	// Task 9.56: Check for inline array types first
+	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
+		arrayType := i.parseInlineArrayType(typeName)
+		if arrayType != nil {
+			return NewArrayValue(arrayType)
+		}
+		return &NilValue{}
+	}
+
+	// Check if this is a record type
+	if typeVal, ok := i.env.Get("__record_type_" + typeName); ok {
+		if rtv, ok := typeVal.(*RecordTypeValue); ok {
+			return NewRecordValue(rtv.RecordType)
+		}
+	}
+
+	// Check if this is an array type
+	arrayTypeKey := "__array_type_" + typeName
+	if typeVal, ok := i.env.Get(arrayTypeKey); ok {
+		if atv, ok := typeVal.(*ArrayTypeValue); ok {
+			return NewArrayValue(atv.ArrayType)
+		}
+	}
+
+	// Task 9.100: Check if this is a subrange type
+	subrangeTypeKey := "__subrange_type_" + typeName
+	if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
+		if stv, ok := typeVal.(*SubrangeTypeValue); ok {
+			return &SubrangeValue{
+				Value:        0,
+				SubrangeType: stv.SubrangeType,
+			}
+		}
+	}
+
+	// Initialize basic types with their zero values
+	switch strings.ToLower(typeName) {
+	case "integer":
+		return &IntegerValue{Value: 0}
+	case "float":
+		return &FloatValue{Value: 0.0}
+	case "string":
+		return &StringValue{Value: ""}
+	case "boolean":
+		return &BooleanValue{Value: false}
+	default:
+		return &NilValue{}
+	}
 }
 
 // evalConstDecl evaluates a const declaration statement
