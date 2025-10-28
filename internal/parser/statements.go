@@ -73,8 +73,19 @@ func (p *Parser) parseStatement() ast.Statement {
 	default:
 		// Check for assignment (simple or member assignment)
 		if p.curToken.Type == lexer.IDENT {
-			// Could be: x := value OR obj.field := value
-			// We need to parse the left side first to determine which it is
+			// Could be:
+			// 1. x := value (assignment)
+			// 2. obj.field := value (member assignment)
+			// 3. x: Type; (var declaration without 'var' keyword - part of var section)
+
+			// Check if this is a var declaration (IDENT COLON pattern)
+			if p.peekTokenIs(lexer.COLON) {
+				// This is a var declaration in a var section
+				// Treat it like "var x: Type;"
+				return p.parseVarDeclaration()
+			}
+
+			// Otherwise, parse as assignment or expression
 			return p.parseAssignmentOrExpression()
 		}
 		return p.parseExpressionStatement()
@@ -133,6 +144,10 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 }
 
 // parseVarDeclaration parses a variable declaration statement.
+// Can be called in two contexts:
+//  1. After 'var' keyword: var x: Integer;
+//  2. In a var section without 'var': x: Integer; (curToken is already the IDENT)
+//
 // Task 7.143: Now supports external variables:
 //
 //	var x: Integer; external;
@@ -140,7 +155,16 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 func (p *Parser) parseVarDeclaration() ast.Statement {
 	stmt := &ast.VarDeclStatement{Token: p.curToken}
 
-	if !p.expectPeek(lexer.IDENT) {
+	// Check if we're already at the identifier (var section continuation)
+	// or if we need to advance to it (after 'var' keyword)
+	if p.curTokenIs(lexer.VAR) {
+		// After 'var' keyword, expect identifier next
+		if !p.expectPeek(lexer.IDENT) {
+			return nil
+		}
+	} else if !p.curTokenIs(lexer.IDENT) {
+		// Should already be at an identifier
+		p.addError("expected identifier in var declaration")
 		return nil
 	}
 

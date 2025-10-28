@@ -272,9 +272,18 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 ### Priority Array Functions (HIGH PRIORITY)
 
 - [ ] 9.33 Add optional comparator parameter (future):
-  - [ ] `Sort(arr, comparator)` with custom comparison function
-  - [ ] Comparator returns -1, 0, 1 for less, equal, greater
-  - [ ] Note: Requires function pointers (deferred)
+  - [ ] Prerequisites: Complete tasks 9.146-9.172 (function pointers) and 9.208-9.220 (lambdas)
+  - [ ] Modify `builtinSort()` in `internal/interp/interpreter.go` to accept 1 or 2 arguments
+  - [ ] Add `builtinArraySortWithComparator()` implementation in `internal/interp/array_functions.go`
+  - [ ] Support syntax: `Sort(arr, lambda (a, b) => a - b)` or `Sort(arr, namedFunction)`
+  - [ ] Comparator must return Integer: -1 (less), 0 (equal), 1 (greater)
+  - [ ] Call comparator for each pairwise comparison during sort
+  - [ ] Add type validation for comparator signature (must accept 2 params, return Integer)
+  - [ ] Test ascending/descending sorts with lambda comparators
+  - [ ] Test custom sorting logic (e.g., sort strings by length)
+  - [ ] Test error handling (invalid comparator return values)
+  - [ ] Reference: `/reference/dwscript-original/Test/LambdaPass/sort.pas`
+  - [ ] Note: Blocked until function pointers and lambdas are fully implemented
 
 ---
 

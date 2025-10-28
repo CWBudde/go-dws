@@ -241,6 +241,13 @@ func (p *Parser) ParseProgram() *ast.Program {
 			continue
 		}
 
+		// Handle program terminator: end.
+		// A DOT after the main program block terminates parsing
+		if p.curTokenIs(lexer.DOT) {
+			p.nextToken() // consume the dot
+			break         // end of program
+		}
+
 		stmt := p.parseStatement()
 		if stmt != nil {
 			program.Statements = append(program.Statements, stmt)

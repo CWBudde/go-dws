@@ -17,7 +17,7 @@ type TRectangle = class(TShape)
   FWidth: Float;
   FHeight: Float;
 
-  function Create(w: Float, h: Float): TRectangle;
+  function Create(w, h: Float): TRectangle;
   begin
     FWidth := w;
     FHeight := h;
