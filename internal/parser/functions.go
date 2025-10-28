@@ -114,16 +114,67 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	}
 
 	// Check if this is a forward declaration (no body)
-	// Forward declarations end with a semicolon instead of begin...end
-	if !p.peekTokenIs(lexer.BEGIN) {
+	// Forward declarations end with a semicolon instead of begin...end or local declarations
+	if !p.peekTokenIs(lexer.BEGIN) && !p.peekTokenIs(lexer.VAR) && !p.peekTokenIs(lexer.CONST) {
 		// This is a forward declaration (method declaration in class body)
 		// Body will be provided later in method implementation outside class
 		return fn
 	}
 
-	// Parse function body
-	p.nextToken() // move to 'begin'
-	fn.Body = p.parseBlockStatement()
+	// Parse local variable/constant declarations (optional)
+	// Syntax: var x: Integer; y: String; ... or const X = 5; ...
+	for p.peekTokenIs(lexer.VAR) || p.peekTokenIs(lexer.CONST) {
+		p.nextToken() // move to 'var' or 'const'
+
+		if p.curTokenIs(lexer.VAR) {
+			// Parse multiple variable declarations until we hit something else
+			for {
+				// Parse one variable declaration
+				if !p.peekTokenIs(lexer.IDENT) {
+					break
+				}
+				varDecl := p.parseVarDeclaration()
+				if varDecl == nil {
+					break
+				}
+				// Add to function body as a local declaration
+				if fn.Body == nil {
+					fn.Body = &ast.BlockStatement{Token: p.curToken}
+				}
+				fn.Body.Statements = append(fn.Body.Statements, varDecl)
+
+				// Continue if next token is an identifier (another var declaration)
+				if !p.peekTokenIs(lexer.IDENT) {
+					break
+				}
+			}
+		} else if p.curTokenIs(lexer.CONST) {
+			// Parse constant declaration
+			constDecl := p.parseConstDeclaration()
+			if constDecl != nil {
+				if fn.Body == nil {
+					fn.Body = &ast.BlockStatement{Token: p.curToken}
+				}
+				fn.Body.Statements = append(fn.Body.Statements, constDecl)
+			}
+		}
+	}
+
+	// Parse function body (begin...end block)
+	if !p.expectPeek(lexer.BEGIN) {
+		return nil
+	}
+
+	bodyBlock := p.parseBlockStatement()
+	if bodyBlock != nil {
+		if fn.Body == nil {
+			// No local declarations, use the body block directly
+			fn.Body = bodyBlock
+		} else {
+			// Append body statements to local declarations
+			fn.Body.Statements = append(fn.Body.Statements, bodyBlock.Statements...)
+		}
+	}
 
 	// Expect semicolon after end
 	if !p.expectPeek(lexer.SEMICOLON) {

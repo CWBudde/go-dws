@@ -235,10 +235,21 @@ func TestLoadUnit_SimpleUnit(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
 
-	// Create a simple unit file
-	// Note: Without proper unit syntax parser (tasks 9.108-9.110), we use a simple program
-	unitContent := `var x: Integer;
-x := 42;`
+	// Create a simple unit file with proper unit declaration
+	unitContent := `unit SimpleUnit;
+
+interface
+
+function GetValue: Integer;
+
+implementation
+
+function GetValue: Integer;
+begin
+  Result := 42;
+end;
+
+end.`
 
 	unitPath := filepath.Join(tempDir, "SimpleUnit.dws")
 	err := os.WriteFile(unitPath, []byte(unitContent), 0644)
@@ -327,8 +338,14 @@ func TestLoadUnit_CustomSearchPaths(t *testing.T) {
 	tempDir1 := t.TempDir()
 	tempDir2 := t.TempDir()
 
-	// Create unit in tempDir2
-	unitContent := `var x: Integer;`
+	// Create unit in tempDir2 with proper unit declaration
+	unitContent := `unit MyUnit;
+
+interface
+
+implementation
+
+end.`
 	unitPath := filepath.Join(tempDir2, "MyUnit.dws")
 	err := os.WriteFile(unitPath, []byte(unitContent), 0644)
 	if err != nil {

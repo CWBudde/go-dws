@@ -545,42 +545,42 @@ end.
 
 #### Interpreter Support (8 tasks)
 
-- [ ] 9.131 Create `interp/unit_loader.go`:
-  - [ ] Implement `LoadUnit(name string, registry *units.UnitRegistry) error`
-  - [ ] Load and analyze unit if not already loaded
-  - [ ] Execute initialization section
-  - [ ] Register exported symbols in global environment
-- [ ] 9.132 Implement unit initialization:
-  - [ ] Execute initialization blocks in dependency order
-  - [ ] Track initialized units to avoid double-init
-  - [ ] Handle initialization errors
-- [ ] 9.133 Implement unit finalization:
-  - [ ] Execute finalization blocks at program exit
-  - [ ] Finalize in reverse dependency order
-  - [ ] Handle finalization errors gracefully
-- [ ] 9.134 Implement qualified name resolution:
-  - [ ] `UnitName.FunctionName()` calls
-  - [ ] Lookup in unit's exported symbols
-  - [ ] Cache lookups for performance
-- [ ] 9.135 Implement unit symbol import:
-  - [ ] Import symbols from used units into current environment
-  - [ ] Handle naming conflicts
-  - [ ] Support hiding/renaming (if DWScript supports it)
-- [ ] 9.136 Add tests for unit loading and initialization
-- [ ] 9.137 Test cross-unit function calls
-- [ ] 9.138 Test initialization/finalization order
+- [x] 9.131 Create `interp/unit_loader.go`:
+  - [x] Implement `LoadUnit(name string, registry *units.UnitRegistry) error`
+  - [x] Load and analyze unit if not already loaded
+  - [x] Execute initialization section
+  - [x] Register exported symbols in global environment
+- [x] 9.132 Implement unit initialization:
+  - [x] Execute initialization blocks in dependency order
+  - [x] Track initialized units to avoid double-init
+  - [x] Handle initialization errors
+- [x] 9.133 Implement unit finalization:
+  - [x] Execute finalization blocks at program exit
+  - [x] Finalize in reverse dependency order
+  - [x] Handle finalization errors gracefully
+- [x] 9.134 Implement qualified name resolution:
+  - [x] `UnitName.FunctionName()` calls
+  - [x] Lookup in unit's exported symbols
+  - [x] Cache lookups for performance
+- [x] 9.135 Implement unit symbol import:
+  - [x] Import symbols from used units into current environment
+  - [x] Handle naming conflicts
+  - [x] Support hiding/renaming (if DWScript supports it)
+- [x] 9.136 Add tests for unit loading and initialization
+- [x] 9.137 Test cross-unit function calls
+- [x] 9.138 Test initialization/finalization order
 
 #### CLI and Tooling (3 tasks)
 
-- [ ] 9.139 Update CLI to support unit compilation:
-  - [ ] Add `-I` flag for unit search paths
-  - [ ] `./bin/dwscript run main.dws -I ./units -I ./lib`
-  - [ ] Display loaded units and dependency order
-- [ ] 9.140 Implement unit compilation cache:
-  - [ ] Cache parsed and analyzed units
-  - [ ] Invalidate cache on file modification
-  - [ ] Speed up repeated runs
-- [ ] 9.141 Add `--show-units` flag to display unit dependency tree
+- [x] 9.139 Update CLI to support unit compilation:
+  - [x] Add `-I` flag for unit search paths
+  - [x] `./bin/dwscript run main.dws -I ./units -I ./lib`
+  - [x] Display loaded units and dependency order
+- [x] 9.140 Implement unit compilation cache:
+  - [x] Cache parsed and analyzed units
+  - [x] Invalidate cache on file modification
+  - [x] Speed up repeated runs
+- [x] 9.141 Add `--show-units` flag to display unit dependency tree
 
 #### Testing & Fixtures (4 tasks)
 

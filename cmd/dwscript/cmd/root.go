@@ -14,6 +14,12 @@ var (
 	BuildDate = "unknown"
 )
 
+var (
+	// Global flags
+	unitSearchPaths []string
+	verbose         bool
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "dwscript",
 	Short: "DWScript interpreter and compiler",
@@ -42,7 +48,8 @@ Built:  %s
 `, GitCommit, BuildDate))
 
 	// Global flags
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
+	rootCmd.PersistentFlags().StringSliceVarP(&unitSearchPaths, "include", "I", []string{}, "unit search paths (can be specified multiple times)")
 }
 
 func exitWithError(msg string, args ...any) {

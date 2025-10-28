@@ -117,8 +117,7 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 		return nil
 	}
 
-	p.nextToken() // move past semicolon
-
+	// Don't move past semicolon - ParseProgram will do that
 	return usesClause
 }
 

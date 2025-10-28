@@ -253,14 +253,7 @@ func (i *Interpreter) ImportUnitSymbols(unit *units.Unit) error {
 		return nil
 	}
 
-	// Evaluate the interface section to register its declarations
-	// This will populate the interpreter's function registry, type registry, etc.
-	// with the unit's exported symbols
-	//
-	// Note: We need to be careful here - we don't want to execute statements,
-	// only process declarations (type defs, function signatures, const decls, etc.)
-	// For now, we'll process the statements and rely on the fact that the
-	// interface section should only contain declarations
+	// First, evaluate interface section declarations (function signatures, types, etc.)
 	for _, stmt := range unit.InterfaceSection.Statements {
 		// Skip uses clauses - they're handled during unit loading
 		if _, ok := stmt.(*ast.UsesClause); ok {
@@ -268,14 +261,31 @@ func (i *Interpreter) ImportUnitSymbols(unit *units.Unit) error {
 		}
 
 		// Process the declaration
-		// Function declarations will be registered in i.functions
-		// Type declarations will be processed by type system
-		// Const/var declarations will be added to environment
 		_ = i.Eval(stmt)
 
 		// Check for errors during symbol import
 		if i.exception != nil {
 			return fmt.Errorf("exception while importing symbols from unit '%s': %v", unit.Name, i.exception)
+		}
+	}
+
+	// Now evaluate the implementation section to get function bodies
+	// The implementation section contains the actual function implementations
+	// that correspond to the declarations in the interface section
+	if unit.ImplementationSection != nil {
+		for _, stmt := range unit.ImplementationSection.Statements {
+			// Skip uses clauses
+			if _, ok := stmt.(*ast.UsesClause); ok {
+				continue
+			}
+
+			// Process implementation (function bodies, private functions, etc.)
+			_ = i.Eval(stmt)
+
+			// Check for errors
+			if i.exception != nil {
+				return fmt.Errorf("exception while importing implementations from unit '%s': %v", unit.Name, i.exception)
+			}
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 )
@@ -23,6 +24,9 @@ type UnitRegistry struct {
 
 	// searchPaths are directories to search for unit files
 	searchPaths []string
+
+	// cache stores parsed units to speed up repeated loads (Task 9.140)
+	cache *UnitCache
 }
 
 // NewUnitRegistry creates a new unit registry with the given search paths.
@@ -36,6 +40,7 @@ func NewUnitRegistry(searchPaths []string) *UnitRegistry {
 		loading:      make(map[string]bool),
 		loadingChain: make([]string, 0),
 		searchPaths:  searchPaths,
+		cache:        NewUnitCache(),
 	}
 }
 
@@ -73,9 +78,16 @@ func (r *UnitRegistry) GetUnit(name string) (*Unit, bool) {
 func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error) {
 	normalized := strings.ToLower(name)
 
-	// Check if already loaded (cached)
+	// Check if already loaded in registry
 	if unit, exists := r.units[normalized]; exists {
 		return unit, nil
+	}
+
+	// Task 9.140: Check compilation cache before parsing
+	if cachedUnit, found := r.cache.Get(normalized); found {
+		// Unit found in cache and is still valid - use it
+		r.units[normalized] = cachedUnit
+		return cachedUnit, nil
 	}
 
 	// Check for circular dependency
@@ -117,26 +129,81 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 	// Parse the unit file
 	l := lexer.New(string(source))
 	p := parser.New(l)
-	_ = p.ParseProgram() // TODO: Use program AST in tasks 9.108-9.110
+	program := p.ParseProgram()
 
 	// Check for parsing errors
 	if len(p.Errors()) > 0 {
 		return nil, fmt.Errorf("parse errors in unit '%s': %s", name, strings.Join(p.Errors(), "; "))
 	}
 
-	// Create the unit
-	// TODO: In later tasks (9.108-9.110), we'll parse proper unit declarations
-	// For now, we create a basic unit structure
-	unit := NewUnit(name, filePath)
+	// Extract the unit declaration from the program
+	// A unit file should have exactly one statement: the UnitDeclaration
+	if len(program.Statements) == 0 {
+		return nil, fmt.Errorf("unit file '%s' is empty", filePath)
+	}
 
-	// TODO: Extract interface/implementation sections from parsed AST
-	// TODO: Extract uses clauses and load dependencies recursively
-	// TODO: Build symbol table from interface section
+	unitDecl, ok := program.Statements[0].(*ast.UnitDeclaration)
+	if !ok {
+		// This might be a program file, not a unit file
+		return nil, fmt.Errorf("file '%s' is not a unit (expected 'unit' declaration)", filePath)
+	}
+
+	// Create the unit from the parsed declaration
+	unit := NewUnit(unitDecl.Name.Value, filePath)
+
+	// Extract sections from the parsed AST (Tasks 9.131-9.138)
+	unit.InterfaceSection = unitDecl.InterfaceSection
+	unit.ImplementationSection = unitDecl.ImplementationSection
+	unit.InitializationSection = unitDecl.InitSection
+	unit.FinalizationSection = unitDecl.FinalSection
+
+	// Extract uses clauses from interface section
+	if unitDecl.InterfaceSection != nil {
+		for _, stmt := range unitDecl.InterfaceSection.Statements {
+			if usesClause, ok := stmt.(*ast.UsesClause); ok {
+				for _, unitIdent := range usesClause.Units {
+					unit.Uses = append(unit.Uses, unitIdent.Value)
+				}
+			}
+		}
+	}
+
+	// Extract uses clauses from implementation section
+	if unitDecl.ImplementationSection != nil {
+		for _, stmt := range unitDecl.ImplementationSection.Statements {
+			if usesClause, ok := stmt.(*ast.UsesClause); ok {
+				for _, unitIdent := range usesClause.Units {
+					// Only add if not already in the uses list from interface
+					found := false
+					for _, existing := range unit.Uses {
+						if strings.EqualFold(existing, unitIdent.Value) {
+							found = true
+							break
+						}
+					}
+					if !found {
+						unit.Uses = append(unit.Uses, unitIdent.Value)
+					}
+				}
+			}
+		}
+	}
+
+	// Load dependencies recursively (if any)
+	for _, depName := range unit.Uses {
+		_, err := r.LoadUnit(depName, paths)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load dependency '%s' for unit '%s': %w", depName, name, err)
+		}
+	}
 
 	// Register the unit
 	if err := r.RegisterUnit(name, unit); err != nil {
 		return nil, err
 	}
+
+	// Task 9.140: Add to compilation cache
+	r.cache.Put(normalized, unit, filePath)
 
 	return unit, nil
 }
@@ -162,6 +229,22 @@ func (r *UnitRegistry) ListUnits() []string {
 		names = append(names, unit.Name)
 	}
 	return names
+}
+
+// GetCache returns the unit registry's compilation cache
+func (r *UnitRegistry) GetCache() *UnitCache {
+	return r.cache
+}
+
+// InvalidateCache invalidates a specific unit in the cache
+func (r *UnitRegistry) InvalidateCache(name string) {
+	normalized := strings.ToLower(name)
+	r.cache.Invalidate(normalized)
+}
+
+// ClearCache clears all entries from the compilation cache
+func (r *UnitRegistry) ClearCache() {
+	r.cache.Clear()
 }
 
 // ComputeInitializationOrder returns the order in which units should be initialized
