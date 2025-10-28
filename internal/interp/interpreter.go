@@ -196,6 +196,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.UnaryExpression:
 		return i.evalUnaryExpression(node)
 
+	case *ast.AddressOfExpression:
+		return i.evalAddressOfExpression(node)
+
 	case *ast.GroupedExpression:
 		return i.Eval(node.Expression)
 
@@ -1114,6 +1117,112 @@ func (i *Interpreter) evalUnaryExpression(expr *ast.UnaryExpression) Value {
 	}
 }
 
+// evalAddressOfExpression evaluates an address-of expression (@Function).
+// Task 9.165: Implement address-of operator evaluation to create function pointers.
+//
+// This creates a FunctionPointerValue that wraps the target function/procedure.
+// For methods, it also captures the Self object to create a method pointer.
+func (i *Interpreter) evalAddressOfExpression(expr *ast.AddressOfExpression) Value {
+	// The operator should be an identifier (function/procedure name) or member access (for methods)
+	switch operand := expr.Operator.(type) {
+	case *ast.Identifier:
+		// Regular function/procedure pointer: @FunctionName
+		return i.evalFunctionPointer(operand.Value, nil, expr)
+
+	case *ast.MemberAccessExpression:
+		// Method pointer: @object.MethodName
+		// First evaluate the object
+		objectVal := i.Eval(operand.Object)
+		if isError(objectVal) {
+			return objectVal
+		}
+
+		// Get the method name
+		methodName := operand.Member.Value
+
+		// Create method pointer with the object as Self
+		return i.evalFunctionPointer(methodName, objectVal, expr)
+
+	default:
+		return newError("address-of operator requires function or method name, got %T", operand)
+	}
+}
+
+// evalFunctionPointer creates a function pointer value for the named function.
+// If selfObject is non-nil, creates a method pointer.
+func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, node ast.Node) Value {
+	// Look up the function in the function registry
+	function, exists := i.functions[name]
+	if !exists {
+		return newError("undefined function or procedure: %s", name)
+	}
+
+	// Get the function pointer type from the semantic analyzer's type information
+	// For now, create a basic function pointer type from the function signature
+	var pointerType *types.FunctionPointerType
+
+	// Build parameter types
+	paramTypes := make([]types.Type, len(function.Parameters))
+	for idx, param := range function.Parameters {
+		if param.Type != nil {
+			paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+		} else {
+			paramTypes[idx] = &types.IntegerType{} // Default fallback
+		}
+	}
+
+	// Get return type
+	var returnType types.Type
+	if function.ReturnType != nil {
+		returnType = i.getTypeFromAnnotation(function.ReturnType)
+	}
+
+	// Create the function pointer type
+	// If this is a method pointer, create a MethodPointerType
+	if selfObject != nil {
+		methodPtr := types.NewMethodPointerType(paramTypes, returnType)
+		// Cast to FunctionPointerType for storage
+		pointerType = &methodPtr.FunctionPointerType
+	} else if returnType != nil {
+		pointerType = types.NewFunctionPointerType(paramTypes, returnType)
+	} else {
+		pointerType = types.NewProcedurePointerType(paramTypes)
+	}
+
+	// Create and return the function pointer value
+	return NewFunctionPointerValue(function, i.env, selfObject, pointerType)
+}
+
+// getTypeFromAnnotation converts a type annotation to a types.Type
+// This is a helper to extract type information from AST
+func (i *Interpreter) getTypeFromAnnotation(typeAnnotation *ast.TypeAnnotation) types.Type {
+	if typeAnnotation == nil {
+		return nil
+	}
+
+	// TypeAnnotation has a Name field that contains the type name
+	typeName := typeAnnotation.Name
+	return i.getTypeByName(typeName)
+}
+
+// getTypeByName looks up a type by name
+func (i *Interpreter) getTypeByName(name string) types.Type {
+	switch name {
+	case "Integer":
+		return &types.IntegerType{}
+	case "Float":
+		return &types.FloatType{}
+	case "String":
+		return &types.StringType{}
+	case "Boolean":
+		return &types.BooleanType{}
+	default:
+		// Try to find in type registry (for custom types)
+		// For now, return integer as placeholder
+		return &types.IntegerType{}
+	}
+}
+
 func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool) {
 	operands := []Value{operand}
 	operandTypes := []string{valueTypeKey(operand)}
@@ -1418,6 +1527,29 @@ func (i *Interpreter) evalNotUnaryOp(right Value) Value {
 
 // evalCallExpression evaluates a function call expression.
 func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
+	// Task 9.166: Check if this is a function pointer call
+	// If the function expression is an identifier that resolves to a FunctionPointerValue,
+	// we need to call through the pointer
+	if funcIdent, ok := expr.Function.(*ast.Identifier); ok {
+		// Try to resolve as a variable (might be a function pointer variable)
+		if val, exists := i.env.Get(funcIdent.Value); exists {
+			// Check if it's a function pointer
+			if funcPtr, isFuncPtr := val.(*FunctionPointerValue); isFuncPtr {
+				// Evaluate arguments
+				args := make([]Value, len(expr.Arguments))
+				for idx, arg := range expr.Arguments {
+					argVal := i.Eval(arg)
+					if isError(argVal) {
+						return argVal
+					}
+					args[idx] = argVal
+				}
+				// Call through the function pointer
+				return i.callFunctionPointer(funcPtr, args, expr)
+			}
+		}
+	}
+
 	// Task 9.134: Check if this is a unit-qualified function call (UnitName.FunctionName)
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
 		if unitIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
@@ -5401,6 +5533,39 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	i.env = savedEnv
 
 	return returnValue
+}
+
+// callFunctionPointer calls a function through a function pointer.
+// Task 9.166: Implement function pointer call execution.
+//
+// This handles both regular function pointers and method pointers.
+// For method pointers, it binds the Self object before calling.
+func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []Value, node ast.Node) Value {
+	if funcPtr.Function == nil {
+		return i.newErrorWithLocation(node, "function pointer is nil")
+	}
+
+	// If this is a method pointer, we need to set up the Self binding
+	if funcPtr.SelfObject != nil {
+		// Create a new environment with Self bound
+		funcEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = funcEnv
+
+		// Bind Self to the captured object
+		i.env.Define("Self", funcPtr.SelfObject)
+
+		// Call the function
+		result := i.callUserFunction(funcPtr.Function, args)
+
+		// Restore environment
+		i.env = savedEnv
+
+		return result
+	}
+
+	// Regular function pointer - just call the function directly
+	return i.callUserFunction(funcPtr.Function, args)
 }
 
 // ErrorValue represents a runtime error.

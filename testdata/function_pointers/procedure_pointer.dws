@@ -1,0 +1,79 @@
+// Procedure Pointer Test - Syntax Only
+// Tests: procedure pointers (no return value)
+// NOTE: This tests parsing/semantic analysis only (interpreter not yet implemented)
+
+type TSimpleProcedure = procedure();
+type TIntProcedure = procedure(x: Integer);
+type TStringProcedure = procedure(msg: String);
+
+// Simple procedures
+procedure Hello;
+begin
+  PrintLn('Hello from procedure!');
+end;
+
+procedure Goodbye;
+begin
+  PrintLn('Goodbye from procedure!');
+end;
+
+// Procedures with parameters
+procedure PrintInt(x: Integer);
+begin
+  PrintLn('Integer: ' + IntToStr(x));
+end;
+
+procedure PrintDouble(x: Integer);
+begin
+  PrintLn('Double: ' + IntToStr(x * 2));
+end;
+
+procedure PrintString(msg: String);
+begin
+  PrintLn('Message: ' + msg);
+end;
+
+// Higher-order procedure that takes procedure pointer
+procedure ExecuteProcedure(proc: TSimpleProcedure);
+begin
+  PrintLn('Before execution');
+  proc;
+  PrintLn('After execution');
+end;
+
+procedure ExecuteWithInt(proc: TIntProcedure; value: Integer);
+begin
+  PrintLn('Executing with value: ' + IntToStr(value));
+  proc(value);
+end;
+
+var
+  simpleProc: TSimpleProcedure;
+  intProc: TIntProcedure;
+  strProc: TStringProcedure;
+
+begin
+  // Test 1: Simple procedure pointer (no parameters)
+  simpleProc := @Hello;
+  simpleProc;
+
+  simpleProc := @Goodbye;
+  simpleProc;
+
+  // Test 2: Procedure pointer with parameters
+  intProc := @PrintInt;
+  intProc(42);
+
+  intProc := @PrintDouble;
+  intProc(21);
+
+  // Test 3: String parameter procedure
+  strProc := @PrintString;
+  strProc('Test message');
+
+  // Test 4: Pass procedure pointer as parameter
+  ExecuteProcedure(@Hello);
+
+  ExecuteWithInt(@PrintInt, 99);
+  ExecuteWithInt(@PrintDouble, 50);
+end.

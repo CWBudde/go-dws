@@ -54,14 +54,17 @@ type TypedExpression interface {
 // Task 9.15: This node currently supports type aliases. Future tasks will
 // extend it to handle all type declarations.
 // Task 9.94: Extended to support subrange types with IsSubrange, LowBound, and HighBound.
+// Task 9.155: Extended to support function pointer types with FunctionPointerType and IsFunctionPointer.
 type TypeDeclaration struct {
-	Name        *Identifier
-	AliasedType *TypeAnnotation
-	LowBound    Expression // For subrange types
-	HighBound   Expression // For subrange types
-	Token       lexer.Token
-	IsAlias     bool
-	IsSubrange  bool // For subrange types
+	Name                *Identifier
+	AliasedType         *TypeAnnotation
+	LowBound            Expression // For subrange types
+	HighBound           Expression // For subrange types
+	FunctionPointerType *FunctionPointerTypeNode // For function/procedure pointer types
+	Token               lexer.Token
+	IsAlias             bool
+	IsSubrange          bool // For subrange types
+	IsFunctionPointer   bool // For function/procedure pointer types
 }
 
 func (td *TypeDeclaration) statementNode()       {}
@@ -71,6 +74,7 @@ func (td *TypeDeclaration) Pos() lexer.Position  { return td.Token.Pos }
 // String returns the string representation of the type declaration.
 // For type aliases, this returns: "type Name = Type;"
 // For subrange types, this returns: "type Name = LowBound..HighBound"
+// For function pointer types, this returns: "type Name = function(...): ReturnType"
 // For full type definitions, this will be extended in future tasks.
 func (td *TypeDeclaration) String() string {
 	if td.IsSubrange {
@@ -79,12 +83,18 @@ func (td *TypeDeclaration) String() string {
 		return "type " + td.Name.String() + " = " + td.LowBound.String() + ".." + td.HighBound.String()
 	}
 
+	if td.IsFunctionPointer {
+		// Function pointer type: type TFunc = function(x: Integer): Boolean;
+		// Task 9.155: Format as "type Name = function/procedure..."
+		return "type " + td.Name.String() + " = " + td.FunctionPointerType.String()
+	}
+
 	if td.IsAlias {
 		// Type alias: type TUserID = Integer;
 		return "type " + td.Name.String() + " = " + td.AliasedType.String()
 	}
 
-	// For now, only aliases and subranges are supported
+	// For now, only aliases, subranges, and function pointers are supported
 	// Future: Handle full type definitions
 	return "type " + td.Name.String()
 }

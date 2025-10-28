@@ -1,0 +1,45 @@
+// Callback Function Pointer Test - Syntax Only
+// Tests: passing function pointers as parameters, higher-order functions
+// NOTE: This tests parsing/semantic analysis only (interpreter not yet implemented)
+
+type TTransformer = function(x: Integer): Integer;
+
+// Higher-order function that takes a function pointer
+function ApplyTransform(value: Integer; transform: TTransformer): Integer;
+begin
+  Result := transform(value);
+end;
+
+// Transform functions
+function Square(x: Integer): Integer;
+begin
+  Result := x * x;
+end;
+
+function Negate(x: Integer): Integer;
+begin
+  Result := -x;
+end;
+
+function Increment(x: Integer): Integer;
+begin
+  Result := x + 1;
+end;
+
+var
+  result: Integer;
+
+begin
+  // Test 1: Pass function pointer as parameter
+  result := ApplyTransform(5, @Square);
+
+  result := ApplyTransform(10, @Negate);
+
+  result := ApplyTransform(7, @Increment);
+
+  // Test 2: Chain multiple transformations
+  result := 5;
+  result := ApplyTransform(result, @Increment);  // 6
+  result := ApplyTransform(result, @Square);     // 36
+  result := ApplyTransform(result, @Negate);     // -36
+end.

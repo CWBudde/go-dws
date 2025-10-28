@@ -14,6 +14,7 @@ type Analyzer struct {
 	arrays             map[string]*types.ArrayType
 	typeAliases        map[string]*types.TypeAlias
 	subranges          map[string]*types.SubrangeType
+	functionPointers   map[string]*types.FunctionPointerType // Task 9.159: Function pointer types
 	currentFunction    *ast.FunctionDecl
 	classes            map[string]*types.ClassType
 	interfaces         map[string]*types.InterfaceType
@@ -46,6 +47,7 @@ func NewAnalyzer() *Analyzer {
 		arrays:             make(map[string]*types.ArrayType),
 		typeAliases:        make(map[string]*types.TypeAlias),
 		subranges:          make(map[string]*types.SubrangeType),
+		functionPointers:   make(map[string]*types.FunctionPointerType), // Task 9.159
 		globalOperators:    types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
 	}
@@ -228,6 +230,18 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 	if toSubrange, ok := to.(*types.SubrangeType); ok {
 		if toSubrange.BaseType.Equals(from) {
 			return true
+		}
+	}
+	// Task 9.161: Check function pointer assignment compatibility
+	if to.TypeKind() == "FUNCTION_POINTER" || to.TypeKind() == "METHOD_POINTER" {
+		// Use dedicated function pointer validation which provides detailed errors
+		// Note: We don't call validateFunctionPointerAssignment here because it reports errors
+		// Instead, we check compatibility directly
+		if toFuncPtr, ok := to.(*types.FunctionPointerType); ok {
+			return toFuncPtr.IsCompatibleWith(from)
+		}
+		if toMethodPtr, ok := to.(*types.MethodPointerType); ok {
+			return toMethodPtr.IsCompatibleWith(from)
 		}
 	}
 	if sig, ok := a.conversionRegistry.FindImplicit(from, to); ok && sig != nil {

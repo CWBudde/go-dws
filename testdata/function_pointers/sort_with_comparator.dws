@@ -1,0 +1,69 @@
+// Sort with Comparator Function Pointer Test - Syntax Only
+// Tests: practical use case - custom sorting with function pointers
+// NOTE: This tests parsing/semantic analysis only (interpreter not yet implemented)
+
+type TComparator = function(a, b: Integer): Integer;
+
+// Comparator: ascending order
+function Ascending(a, b: Integer): Integer;
+begin
+  Result := a - b;
+end;
+
+// Comparator: descending order
+function Descending(a, b: Integer): Integer;
+begin
+  Result := b - a;
+end;
+
+// Comparator: sort by absolute value
+function ByAbsoluteValue(a, b: Integer): Integer;
+var absA: Integer;
+var absB: Integer;
+begin
+  if a < 0 then
+    absA := -a
+  else
+    absA := a;
+
+  if b < 0 then
+    absB := -b
+  else
+    absB := b;
+
+  Result := absA - absB;
+end;
+
+// Function that takes comparator as parameter
+function CompareValues(x: Integer; y: Integer; comparator: TComparator): Integer;
+begin
+  Result := comparator(x, y);
+end;
+
+var comp: TComparator;
+var result: Integer;
+
+begin
+  // Test 1: Assign and use ascending comparator
+  comp := @Ascending;
+  result := comp(5, 3);    // Returns 2 (5 - 3)
+  result := comp(3, 5);    // Returns -2 (3 - 5)
+
+  // Test 2: Switch to descending comparator
+  comp := @Descending;
+  result := comp(5, 3);    // Returns -2 (3 - 5)
+  result := comp(3, 5);    // Returns 2 (5 - 3)
+
+  // Test 3: Use absolute value comparator
+  comp := @ByAbsoluteValue;
+  result := comp(-10, 5);  // Compares 10 vs 5
+  result := comp(-3, 8);   // Compares 3 vs 8
+
+  // Test 4: Pass comparator as parameter
+  result := CompareValues(10, 20, @Ascending);
+  result := CompareValues(10, 20, @Descending);
+  result := CompareValues(-15, 10, @ByAbsoluteValue);
+
+  // Test 5: Demonstrate flexibility
+  PrintLn('Comparator function pointers allow flexible sorting');
+end.

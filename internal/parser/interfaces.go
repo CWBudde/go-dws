@@ -110,11 +110,101 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 		// Scoped enum: type TEnum = enum (One, Two);
 		p.nextToken() // move to ENUM
 		return p.parseEnumDeclaration(nameIdent, typeToken)
+	} else if p.peekTokenIs(lexer.FUNCTION) || p.peekTokenIs(lexer.PROCEDURE) {
+		// Function pointer: type TFunc = function(x: Integer): Boolean;
+		// Procedure pointer: type TProc = procedure(msg: String);
+		// Method pointer: type TEvent = procedure(Sender: TObject) of object;
+		// Task 9.155: Function pointer type declaration support
+		p.nextToken() // move to FUNCTION or PROCEDURE
+		return p.parseFunctionPointerTypeDeclaration(nameIdent, typeToken)
 	}
 
 	// Unknown type declaration
-	p.addError("expected 'class', 'interface', 'enum', 'record', 'set', 'array', or '(' after '=' in type declaration")
+	p.addError("expected 'class', 'interface', 'enum', 'record', 'set', 'array', 'function', 'procedure', or '(' after '=' in type declaration")
 	return nil
+}
+
+// parseFunctionPointerTypeDeclaration parses a function or procedure pointer type declaration.
+// Called after 'type Name = function' or 'type Name = procedure' has been parsed.
+// Current token should be FUNCTION or PROCEDURE.
+//
+// Examples:
+//   - type TFunc = function(x: Integer): Boolean;
+//   - type TProc = procedure(msg: String);
+//   - type TCallback = procedure;
+//   - type TEvent = procedure(Sender: TObject) of object;
+//
+// Task 9.155: Function pointer type declaration support
+func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
+	// Current token is FUNCTION or PROCEDURE
+	funcOrProcToken := p.curToken
+	isFunction := funcOrProcToken.Type == lexer.FUNCTION
+
+	// Create the function pointer type node
+	funcPtrType := &ast.FunctionPointerTypeNode{
+		Token:      funcOrProcToken,
+		Parameters: []*ast.Parameter{},
+		OfObject:   false,
+	}
+
+	// Expect opening parenthesis for parameter list
+	if !p.expectPeek(lexer.LPAREN) {
+		return nil
+	}
+
+	// Check if there are parameters (not just empty parens)
+	if !p.peekTokenIs(lexer.RPAREN) {
+		// Parse parameter list using existing function
+		funcPtrType.Parameters = p.parseParameterList()
+	} else {
+		// Empty parameter list
+		p.nextToken() // move to RPAREN
+	}
+
+	// Expect closing parenthesis
+	if !p.curTokenIs(lexer.RPAREN) {
+		p.addError("expected ')' after parameter list in function pointer type")
+		return nil
+	}
+
+	// Parse return type for functions (not procedures)
+	if isFunction {
+		// Expect colon and return type
+		if !p.expectPeek(lexer.COLON) {
+			return nil
+		}
+
+		// Parse return type
+		if !p.expectPeek(lexer.IDENT) {
+			return nil
+		}
+		funcPtrType.ReturnType = &ast.TypeAnnotation{
+			Token: p.curToken,
+			Name:  p.curToken.Literal,
+		}
+	}
+
+	// Check for "of object" clause (method pointers)
+	if p.peekTokenIs(lexer.OF) {
+		p.nextToken() // move to OF
+		if !p.expectPeek(lexer.OBJECT) {
+			return nil
+		}
+		funcPtrType.OfObject = true
+	}
+
+	// Expect semicolon
+	if !p.expectPeek(lexer.SEMICOLON) {
+		return nil
+	}
+
+	// Return the complete type declaration with function pointer type
+	return &ast.TypeDeclaration{
+		Token:               typeToken,
+		Name:                nameIdent,
+		FunctionPointerType: funcPtrType,
+		IsFunctionPointer:   true,
+	}
 }
 
 // parseInterfaceDeclarationBody parses the body of an interface declaration.

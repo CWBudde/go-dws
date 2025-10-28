@@ -1,0 +1,15 @@
+Test 1: Basic method pointer
+Calculator: Testing method pointer
+Test 2: Method pointer with different object
+[INFO] Info message
+[ERROR] Error message
+Test 3: Function method pointer
+calc1.Multiply(5) = 10
+calc2.Multiply(5) = 50
+Test 4: Self context preservation
+calc1.Add(8) = 10
+calc2.Add(8) = 18
+Test 5: Method pointer as parameter
+[INFO] Passed as parameter
+[ERROR] Another test
+All method pointer tests completed

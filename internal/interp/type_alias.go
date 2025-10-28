@@ -126,6 +126,43 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 		return &NilValue{}
 	}
 
+	// Task 9.164-9.167: Handle function pointer type declarations
+	if decl.IsFunctionPointer {
+		if decl.FunctionPointerType == nil {
+			return &ErrorValue{Message: "function pointer type declaration has no type information"}
+		}
+
+		// Extract parameter types
+		paramTypes := make([]types.Type, len(decl.FunctionPointerType.Parameters))
+		for idx, param := range decl.FunctionPointerType.Parameters {
+			if param.Type != nil {
+				paramTypes[idx] = i.getTypeByName(param.Type.Name)
+			} else {
+				paramTypes[idx] = &types.IntegerType{} // Default
+			}
+		}
+
+		// Get return type
+		var returnType types.Type
+		if decl.FunctionPointerType.ReturnType != nil {
+			returnType = i.getTypeByName(decl.FunctionPointerType.ReturnType.Name)
+		}
+
+		// Create the function pointer type (for potential future use)
+		// Currently we just register the type name as existing
+		_ = paramTypes   // Mark as used
+		_ = returnType   // Mark as used
+
+		// Store the type name mapping for type resolution
+		// We just need to register that this type name exists
+		// The actual type checking is done by the semantic analyzer
+		typeKey := "__funcptr_type_" + decl.Name.Value
+		// Store a simple marker that this is a function pointer type
+		i.env.Define(typeKey, &StringValue{Value: "function_pointer_type"})
+
+		return &NilValue{}
+	}
+
 	// Handle type aliases
 	if decl.IsAlias {
 		// Resolve the aliased type
