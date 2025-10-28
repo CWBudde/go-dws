@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strconv"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
@@ -128,21 +130,69 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 }
 
 // parseArrayType parses an array type expression.
-// Syntax: array of ElementType
+// Supports both dynamic and static arrays:
+//   - Dynamic: array of ElementType
+//   - Static: array[low..high] of ElementType
 //
 // ElementType can be any type expression:
 //   - Simple type: array of Integer
 //   - Array type: array of array of String (nested)
 //   - Function pointer: array of function(x: Integer): Boolean
+//   - Static nested: array[1..5] of array[1..10] of Integer
 //
 // Task 9.51: Created to support array of Type syntax
+// Task 9.54: Extended to support static array bounds
 func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	// Current token is ARRAY
 	arrayToken := p.curToken
 
+	// Check for bounds: array[low..high]
+	var lowBound *int
+	var highBound *int
+
+	if p.peekTokenIs(lexer.LBRACK) {
+		p.nextToken() // move to '['
+
+		// Parse low bound (may be negative)
+		p.nextToken() // move to low bound
+		low, err := p.parseArrayBound()
+		if err != nil {
+			p.addError("invalid array lower bound: " + err.Error())
+			return nil
+		}
+		lowBound = &low
+
+		// Expect '..'
+		if !p.expectPeek(lexer.DOTDOT) {
+			p.addError("expected '..' in array bounds")
+			return nil
+		}
+
+		// Parse high bound (may be negative)
+		p.nextToken() // move to high bound
+		high, err := p.parseArrayBound()
+		if err != nil {
+			p.addError("invalid array upper bound: " + err.Error())
+			return nil
+		}
+		highBound = &high
+
+		// Validate bounds
+		if *lowBound > *highBound {
+			p.addError("array lower bound cannot be greater than upper bound")
+			return nil
+		}
+
+		// Expect ']'
+		if !p.expectPeek(lexer.RBRACK) {
+			p.addError("expected ']' after array bounds")
+			return nil
+		}
+	}
+
 	// Expect 'of' keyword
 	if !p.expectPeek(lexer.OF) {
-		p.addError("expected 'of' after 'array'")
+		p.addError("expected 'of' after 'array' or 'array[bounds]'")
 		return nil
 	}
 
@@ -157,5 +207,41 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	return &ast.ArrayTypeNode{
 		Token:       arrayToken,
 		ElementType: elementType,
+		LowBound:    lowBound,
+		HighBound:   highBound,
 	}
+}
+
+// parseInt parses a string as an integer.
+// Helper function for parsing array bounds.
+func parseInt(s string) (int, error) {
+	val, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return int(val), nil
+}
+
+// parseArrayBound parses an array bound which may be negative.
+// Current token should be at the bound value (INT or MINUS).
+// Returns the integer value and any error.
+func (p *Parser) parseArrayBound() (int, error) {
+	// Check for negative number
+	if p.curTokenIs(lexer.MINUS) {
+		// Negative bound: -N
+		if !p.expectPeek(lexer.INT) {
+			return 0, strconv.ErrSyntax
+		}
+		val, err := parseInt(p.curToken.Literal)
+		if err != nil {
+			return 0, err
+		}
+		return -val, nil
+	}
+
+	// Positive bound
+	if !p.curTokenIs(lexer.INT) {
+		return 0, strconv.ErrSyntax
+	}
+	return parseInt(p.curToken.Literal)
 }

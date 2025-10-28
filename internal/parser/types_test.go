@@ -149,6 +149,7 @@ func TestParseTypeExpression_FunctionPointer(t *testing.T) {
 }
 
 // TestParseTypeExpression_ArrayType tests parsing array of Type syntax
+// Covers both dynamic arrays (array of Type) and static arrays (array[low..high] of Type)
 func TestParseTypeExpression_ArrayType(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -156,6 +157,7 @@ func TestParseTypeExpression_ArrayType(t *testing.T) {
 		expected string
 		wantErr  bool
 	}{
+		// Dynamic arrays (no bounds)
 		{
 			name:     "array of integer",
 			input:    "array of Integer",
@@ -175,7 +177,7 @@ func TestParseTypeExpression_ArrayType(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:     "nested array",
+			name:     "nested dynamic array",
 			input:    "array of array of Integer",
 			expected: "array of array of Integer",
 			wantErr:  false,
@@ -184,6 +186,56 @@ func TestParseTypeExpression_ArrayType(t *testing.T) {
 			name:     "array of function pointer",
 			input:    "array of function(x: Integer): String",
 			expected: "array of function(x: Integer): String",
+			wantErr:  false,
+		},
+
+		// Static arrays (with bounds) - Task 9.54
+		{
+			name:     "static array basic",
+			input:    "array[1..10] of Integer",
+			expected: "array[1..10] of Integer",
+			wantErr:  false,
+		},
+		{
+			name:     "static array zero-based",
+			input:    "array[0..99] of String",
+			expected: "array[0..99] of String",
+			wantErr:  false,
+		},
+		{
+			name:     "static array single element",
+			input:    "array[1..1] of Boolean",
+			expected: "array[1..1] of Boolean",
+			wantErr:  false,
+		},
+		{
+			name:     "static array large range",
+			input:    "array[1..1000] of Float",
+			expected: "array[1..1000] of Float",
+			wantErr:  false,
+		},
+		{
+			name:     "static array negative bounds",
+			input:    "array[-10..10] of Integer",
+			expected: "array[-10..10] of Integer",
+			wantErr:  false,
+		},
+		{
+			name:     "nested static arrays",
+			input:    "array[1..5] of array[1..10] of Integer",
+			expected: "array[1..5] of array[1..10] of Integer",
+			wantErr:  false,
+		},
+		{
+			name:     "static array of function pointer",
+			input:    "array[1..3] of function(): Integer",
+			expected: "array[1..3] of function(): Integer",
+			wantErr:  false,
+		},
+		{
+			name:     "mixed static and dynamic arrays",
+			input:    "array[1..5] of array of String",
+			expected: "array[1..5] of array of String",
 			wantErr:  false,
 		},
 	}
@@ -240,6 +292,31 @@ func TestParseTypeExpression_ErrorCases(t *testing.T) {
 		{
 			name:  "array without element type",
 			input: "array of",
+		},
+		// Static array error cases - Task 9.54
+		{
+			name:  "array with missing low bound",
+			input: "array[..10] of Integer",
+		},
+		{
+			name:  "array with missing high bound",
+			input: "array[1..] of Integer",
+		},
+		{
+			name:  "array with missing dotdot",
+			input: "array[1 10] of Integer",
+		},
+		{
+			name:  "array with invalid bounds (low > high)",
+			input: "array[10..1] of Integer",
+		},
+		{
+			name:  "array with missing closing bracket",
+			input: "array[1..10 of Integer",
+		},
+		{
+			name:  "array with bounds but no 'of'",
+			input: "array[1..10] Integer",
 		},
 	}
 

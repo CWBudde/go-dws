@@ -3283,3 +3283,198 @@ end
 		t.Errorf("expected a[0] = 42, got %d", intVal.Value)
 	}
 }
+
+// ============================================================================
+// Inline Array Type Tests (Task 9.54, 9.55, 9.56)
+// ============================================================================
+
+func TestInlineArrayTypes_DynamicArrayVariable(t *testing.T) {
+	input := `
+var arr: array of Integer;
+begin
+	SetLength(arr, 3);
+	arr[0] := 10;
+	arr[1] := 20;
+	arr[2] := 30;
+	arr[0] + arr[1] + arr[2];
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 60 {
+		t.Errorf("expected 60, got %d", intVal.Value)
+	}
+}
+
+func TestInlineArrayTypes_StaticArrayVariable(t *testing.T) {
+	input := `
+var arr: array[1..10] of Integer;
+begin
+	arr[1] := 100;
+	arr[10] := 200;
+	arr[1] + arr[10];
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 300 {
+		t.Errorf("expected 300, got %d", intVal.Value)
+	}
+}
+
+func TestInlineArrayTypes_ZeroBasedStaticArray(t *testing.T) {
+	input := `
+var arr: array[0..9] of String;
+begin
+	arr[0] := 'first';
+	arr[9] := 'last';
+	arr[0] + ' and ' + arr[9];
+end
+	`
+
+	result := testEval(input)
+	strVal, ok := result.(*StringValue)
+	if !ok {
+		t.Fatalf("expected StringValue, got %T: %+v", result, result)
+	}
+
+	if strVal.Value != "first and last" {
+		t.Errorf("expected 'first and last', got %q", strVal.Value)
+	}
+}
+
+func TestInlineArrayTypes_NegativeBounds(t *testing.T) {
+	input := `
+var arr: array[-5..5] of Integer;
+begin
+	arr[-5] := -50;
+	arr[0] := 0;
+	arr[5] := 50;
+	arr[-5] + arr[0] + arr[5];
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 0 {
+		t.Errorf("expected 0, got %d", intVal.Value)
+	}
+}
+
+func TestInlineArrayTypes_NestedStaticArrays(t *testing.T) {
+	input := `
+var matrix: array[1..3] of array[1..3] of Integer;
+begin
+	matrix[1][1] := 11;
+	matrix[3][3] := 33;
+	matrix[1][1] + matrix[3][3];
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 44 {
+		t.Errorf("expected 44, got %d", intVal.Value)
+	}
+}
+
+func TestInlineArrayTypes_MixedStaticDynamic(t *testing.T) {
+	input := `
+var arr: array[1..2] of array of String;
+begin
+	SetLength(arr[1], 2);
+	SetLength(arr[2], 2);
+	arr[1][0] := 'hello';
+	arr[2][1] := 'world';
+	arr[1][0] + ' ' + arr[2][1];
+end
+	`
+
+	result := testEval(input)
+	strVal, ok := result.(*StringValue)
+	if !ok {
+		t.Fatalf("expected StringValue, got %T: %+v", result, result)
+	}
+
+	if strVal.Value != "hello world" {
+		t.Errorf("expected 'hello world', got %q", strVal.Value)
+	}
+}
+
+func TestInlineArrayTypes_InFunctionParameter(t *testing.T) {
+	input := `
+function Sum(arr: array of Integer): Integer;
+var i: Integer;
+var total: Integer;
+begin
+	total := 0;
+	for i := 0 to Length(arr) - 1 do
+		total := total + arr[i];
+	Result := total;
+end;
+
+var nums: array of Integer;
+begin
+	SetLength(nums, 3);
+	nums[0] := 10;
+	nums[1] := 20;
+	nums[2] := 30;
+	Sum(nums);
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 60 {
+		t.Errorf("expected 60, got %d", intVal.Value)
+	}
+}
+
+func TestInlineArrayTypes_StaticArrayInFunctionParameter(t *testing.T) {
+	input := `
+procedure Fill(var arr: array[1..5] of Integer; value: Integer);
+var i: Integer;
+begin
+	for i := 1 to 5 do
+		arr[i] := value;
+end;
+
+var numbers: array[1..5] of Integer;
+begin
+	Fill(numbers, 42);
+	numbers[1] + numbers[5];
+end
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 84 {
+		t.Errorf("expected 84, got %d", intVal.Value)
+	}
+}
