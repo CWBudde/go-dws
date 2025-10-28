@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// Set Type Registration Tests (Task 8.99)
+// Set Type Registration Tests
 // ============================================================================
 
 func TestSetTypeRegistration(t *testing.T) {
@@ -87,7 +87,7 @@ func TestSetTypeErrors(t *testing.T) {
 }
 
 // ============================================================================
-// Set Literal Tests (Task 8.101)
+// Set Literal Tests
 // ============================================================================
 
 func TestSetLiterals(t *testing.T) {
@@ -181,7 +181,7 @@ func TestSetLiteralErrors(t *testing.T) {
 }
 
 // ============================================================================
-// Set Operations Tests (Task 8.102)
+// Set Operations Tests
 // ============================================================================
 
 func TestSetOperations(t *testing.T) {
@@ -291,7 +291,7 @@ func TestSetOperationErrors(t *testing.T) {
 }
 
 // ============================================================================
-// Set Membership Tests (Task 8.103)
+// Set Membership Tests
 // ============================================================================
 
 func TestSetMembership(t *testing.T) {

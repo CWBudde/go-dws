@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// SetValue Tests (Task 8.105)
+// SetValue Tests
 // ============================================================================
 
 // TestSetValue_Creation tests creating a SetValue with a small enum (bitset).
@@ -410,7 +410,7 @@ func TestSetIntersection(t *testing.T) {
 }
 
 // ============================================================================
-// Membership Test (Task 8.113)
+// Membership Test
 // ============================================================================
 
 // TestSetMembership tests the 'in' operator for sets.
@@ -487,7 +487,7 @@ func TestSetExclude(t *testing.T) {
 }
 
 // ============================================================================
-// Set Comparisons (Task 8.114)
+// Set Comparisons
 // ============================================================================
 
 // TestSetEquality tests set equality (= and <>).

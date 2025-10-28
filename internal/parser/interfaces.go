@@ -141,7 +141,7 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 		}
 	}
 
-	// Check for 'external' keyword (Task 7.81)
+	// Check for 'external' keyword
 	if p.peekTokenIs(lexer.EXTERNAL) {
 		p.nextToken() // move to 'external'
 		interfaceDecl.IsExternal = true
@@ -153,7 +153,7 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 		}
 	}
 
-	// Check for forward declaration: type IForward = interface; (Task 7.84)
+	// Check for forward declaration: type IForward = interface;
 	if p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken() // move to semicolon
 		return interfaceDecl

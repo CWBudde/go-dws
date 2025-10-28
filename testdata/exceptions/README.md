@@ -6,7 +6,7 @@ This directory contains exception handling test scripts from two sources:
 
 ## Test Organization
 
-### Comprehensive Tests (Task 8.225)
+### Comprehensive Tests
 
 These are systematic, comprehensive tests written specifically for go-dws:
 
@@ -18,7 +18,7 @@ These are systematic, comprehensive tests written specifically for go-dws:
 | `exception_propagation.dws` | Comprehensive test for exception propagation through call stack: propagation through functions, stack unwinding, finally during propagation |
 | `raise_reraise.dws` | Comprehensive test for raise and re-raise statements: basic raise, re-raise in handler, re-raise preserves exception |
 
-### Ported Tests (Task 8.224)
+### Ported Tests
 
 Tests ported from `reference/dwscript-original/Test/SimpleScripts/`:
 
@@ -95,18 +95,18 @@ go test ./interp -run Exception
 
 These tests require the following features to be fully implemented:
 
-- [x] Exception class hierarchy (Task 8.192-8.194)
-- [x] Try-except-finally parsing (Task 8.195-8.198)
-- [x] Raise statement (Task 8.199-8.200)
-- [x] Exception handler matching (Task 8.201-8.204)
-- [x] Stack unwinding (Task 8.205)
-- [x] ExceptObject built-in (Task 8.206-8.207)
-- [x] Re-raise support (Task 8.208-8.209)
-- [x] Finally guarantee (Task 8.210-8.211)
-- [x] Exception propagation (Task 8.212-8.213)
-- [x] Integration with control flow (Task 8.214-8.216)
-- [x] Unit tests (Task 8.217-8.223)
-- [x] Port test scripts (Task 8.224) ✓ **This task**
+- [x] Exception class hierarchy
+- [x] Try-except-finally parsing
+- [x] Raise statement
+- [x] Exception handler matching
+- [x] Stack unwinding
+- [x] ExceptObject built-in
+- [x] Re-raise support
+- [x] Finally guarantee
+- [x] Exception propagation
+- [x] Integration with control flow
+- [x] Unit tests
+- [x] Port test scripts
 
 ## Known Issues
 
@@ -115,6 +115,7 @@ These tests require the following features to be fully implemented:
 The parser currently has a limitation where it assumes parent classes must start with 'T' (parser/classes.go:91). When parsing `class(Exception)`, it incorrectly treats "Exception" as an interface instead of a parent class because "Exception" doesn't follow the 'T' prefix convention.
 
 **Error message:**
+
 ```
 interface 'Exception' not found
 ```

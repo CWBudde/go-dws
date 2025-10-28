@@ -29,7 +29,7 @@ type TypedExpression interface {
 }
 
 // ============================================================================
-// Type Declarations (Task 9.15)
+// Type Declarations
 // ============================================================================
 
 // TypeDeclaration represents a type declaration statement in DWScript.
@@ -41,7 +41,7 @@ type TypedExpression interface {
 //	type TFileName = String;
 //	type TIntArray = array of Integer;
 //
-// Subrange type examples (Task 9.94):
+// Subrange type examples
 //
 //	type TDigit = 0..9;
 //	type TPercent = 0..100;
@@ -57,11 +57,11 @@ type TypedExpression interface {
 type TypeDeclaration struct {
 	Name        *Identifier
 	AliasedType *TypeAnnotation
-	LowBound    Expression // For subrange types (Task 9.94)
-	HighBound   Expression // For subrange types (Task 9.94)
+	LowBound    Expression // For subrange types
+	HighBound   Expression // For subrange types
 	Token       lexer.Token
 	IsAlias     bool
-	IsSubrange  bool // For subrange types (Task 9.94)
+	IsSubrange  bool // For subrange types
 }
 
 func (td *TypeDeclaration) statementNode()       {}
@@ -70,7 +70,7 @@ func (td *TypeDeclaration) Pos() lexer.Position  { return td.Token.Pos }
 
 // String returns the string representation of the type declaration.
 // For type aliases, this returns: "type Name = Type;"
-// For subrange types, this returns: "type Name = LowBound..HighBound" (Task 9.94)
+// For subrange types, this returns: "type Name = LowBound..HighBound"
 // For full type definitions, this will be extended in future tasks.
 func (td *TypeDeclaration) String() string {
 	if td.IsSubrange {

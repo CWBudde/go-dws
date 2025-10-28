@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Record Declaration (Task 8.56)
+// Record Declaration
 // ============================================================================
 
 // RecordDecl represents a record type declaration in DWScript.
@@ -101,7 +101,7 @@ func (pd RecordPropertyDecl) String() string {
 }
 
 // ============================================================================
-// Record Literal (Task 8.57)
+// Record Literal
 // ============================================================================
 
 // RecordField represents a single field initialization in a record literal.

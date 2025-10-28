@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Record Declaration Evaluation (Task 8.73)
+// Record Declaration Evaluation
 // ============================================================================
 
 // evalRecordDeclaration evaluates a record type declaration.
@@ -39,7 +39,7 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 	// Create the record type
 	recordType := types.NewRecordType(recordName, fields)
 
-	// TODO: Handle methods and properties if needed (Task 8.78)
+	// TODO: Handle methods and properties if needed
 
 	// Store record type metadata in environment with special key
 	// This allows variable declarations to resolve the type
@@ -66,7 +66,7 @@ func (r *RecordTypeValue) String() string {
 }
 
 // ============================================================================
-// Record Literal Evaluation (Task 8.74)
+// Record Literal Evaluation
 // ============================================================================
 
 // evalRecordLiteral evaluates a record literal expression.
@@ -168,14 +168,14 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 				return atv.ArrayType, nil
 			}
 		}
-		// Try type alias (Task 9.21)
+		// Try type alias
 		if typeAliasVal, ok := i.env.Get("__type_alias_" + typeName); ok {
 			if tav, ok := typeAliasVal.(*TypeAliasValue); ok {
 				// Return the underlying type (type aliases are transparent at runtime)
 				return tav.AliasedType, nil
 			}
 		}
-		// Try subrange type (Task 9.100)
+		// Try subrange type
 		if subrangeTypeVal, ok := i.env.Get("__subrange_type_" + typeName); ok {
 			if stv, ok := subrangeTypeVal.(*SubrangeTypeValue); ok {
 				return stv.SubrangeType, nil
@@ -187,7 +187,7 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 }
 
 // ============================================================================
-// Record Comparison (Task 8.79)
+// Record Comparison
 // ============================================================================
 
 // evalRecordBinaryOp evaluates binary operations on records.

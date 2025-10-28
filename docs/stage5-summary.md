@@ -607,12 +607,12 @@ The implementation aims for 100% compatibility with DWScript function semantics:
    - Early return from functions
    - Optional return value: `Exit(result);`
 
-2. **Call Stack Debugging** (Task 5.28)
+2. **Call Stack Debugging**
    - Track function call hierarchy
    - Enhanced error messages with call stack
    - Stack overflow detection
 
-3. **By-Reference Parameters** (Task 5.30)
+3. **By-Reference Parameters**
    - Full implementation of `var` parameters
    - Mutable parameter passing
    - Tests for reference semantics

@@ -19,14 +19,14 @@ type UnitRegistry struct {
 	// loading tracks units currently being loaded to detect circular dependencies
 	loading map[string]bool
 
+	// cache stores parsed units to speed up repeated loads
+	cache *UnitCache
+
 	// loadingChain tracks the current dependency chain for error reporting
 	loadingChain []string
 
 	// searchPaths are directories to search for unit files
 	searchPaths []string
-
-	// cache stores parsed units to speed up repeated loads (Task 9.140)
-	cache *UnitCache
 }
 
 // NewUnitRegistry creates a new unit registry with the given search paths.

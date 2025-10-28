@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Enum Declaration Evaluation (Task 8.48)
+// Enum Declaration Evaluation
 // ============================================================================
 
 // evalEnumDeclaration evaluates an enum type declaration.
@@ -89,7 +89,7 @@ func (e *EnumTypeValue) String() string {
 }
 
 // ============================================================================
-// Enum Literal Evaluation (Task 8.50)
+// Enum Literal Evaluation
 // ============================================================================
 
 // evalEnumLiteral evaluates an enum literal expression.

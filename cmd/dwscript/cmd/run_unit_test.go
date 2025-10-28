@@ -254,7 +254,7 @@ begin
   Result := x * 2;
 end;
 end.`
-	
+
 	if err := os.WriteFile(filepath.Join(tempDir, "BaseUtils.dws"), []byte(baseUnit), 0644); err != nil {
 		t.Fatalf("Failed to create BaseUtils.dws: %v", err)
 	}
@@ -270,7 +270,7 @@ begin
   Result := a + b;
 end;
 end.`
-	
+
 	if err := os.WriteFile(filepath.Join(tempDir, "MathUtils.dws"), []byte(mathUnit), 0644); err != nil {
 		t.Fatalf("Failed to create MathUtils.dws: %v", err)
 	}
@@ -278,7 +278,7 @@ end.`
 	// Create main program
 	mainProgram := `uses MathUtils;
 PrintLn('Result: ' + IntToStr(Add(5, 10)));`
-	
+
 	mainPath := filepath.Join(tempDir, "main.dws")
 	if err := os.WriteFile(mainPath, []byte(mainProgram), 0644); err != nil {
 		t.Fatalf("Failed to create main.dws: %v", err)

@@ -497,7 +497,7 @@ func TestMemberAccessErrors(t *testing.T) {
 }
 
 // ============================================================================
-// Virtual/Override Method Tests (Task 7.64)
+// Virtual/Override Method Tests
 // ============================================================================
 
 func TestVirtualMethodDeclaration(t *testing.T) {
@@ -635,7 +635,7 @@ end;
 }
 
 // ============================================================================
-// Abstract Class/Method Tests (Task 7.65)
+// Abstract Class/Method Tests
 // ============================================================================
 
 func TestAbstractClassDeclaration(t *testing.T) {

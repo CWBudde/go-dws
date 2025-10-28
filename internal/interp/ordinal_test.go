@@ -1278,7 +1278,7 @@ PrintLn(z);
 }
 
 // ============================================================================
-// Low/High Tests for Enums (Task 9.33)
+// Low/High Tests for Enums
 // ============================================================================
 
 // TestLowEnumBasic tests Low() with enum values

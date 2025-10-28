@@ -11,7 +11,7 @@ import (
 )
 
 // ============================================================================
-// Subrange Type Semantic Analysis Tests (Task 9.99)
+// Subrange Type Semantic Analysis Tests
 // ============================================================================
 
 // TestSubrangeTypeRegistration tests that subrange types are properly registered
@@ -447,13 +447,13 @@ func TestMultipleSubrangeDeclarations(t *testing.T) {
 }
 
 // TestSubrangeAssignmentCompatibility tests type checking for subrange assignments
-// Note: Runtime validation is deferred to interpreter (Task 9.100)
+// Note: Runtime validation is deferred to interpreter
 func TestSubrangeAssignmentCompatibility(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		shouldError bool
 		errorMsg    string
+		shouldError bool
 	}{
 		{
 			name:        "Assign integer literal to subrange variable",
@@ -553,8 +553,8 @@ func TestEvaluateConstantInt(t *testing.T) {
 	analyzer := NewAnalyzer()
 
 	tests := []struct {
-		name        string
 		expr        ast.Expression
+		name        string
 		expected    int
 		shouldError bool
 	}{

@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Assert Function Tests (Task 9.36-9.37)
+// Assert Function Tests
 // ============================================================================
 
 // TestAssertTrue tests that Assert(true) does not raise an error

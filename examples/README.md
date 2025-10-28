@@ -37,4 +37,4 @@ The browser playground (`playground/index.html`) loads these scripts dynamically
 
 ## Test Coverage
 
-`go test ./pkg/dwscript -run TestExampleScripts` executes every script under `examples/scripts/` to ensure they continue to parse and run successfully (task 10.54).
+`go test ./pkg/dwscript -run TestExampleScripts` executes every script under `examples/scripts/` to ensure they continue to parse and run successfully

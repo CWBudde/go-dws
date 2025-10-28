@@ -26,32 +26,32 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 		return classType, nil
 	}
 
-	// Try enum types (Task 8.43)
+	// Try enum types
 	if enumType, found := a.enums[typeName]; found {
 		return enumType, nil
 	}
 
-	// Try record types (Task 8.68)
+	// Try record types
 	if recordType, found := a.records[typeName]; found {
 		return recordType, nil
 	}
 
-	// Try set types (Task 8.99)
+	// Try set types
 	if setType, found := a.sets[typeName]; found {
 		return setType, nil
 	}
 
-	// Try array types (Task 8.126)
+	// Try array types
 	if arrayType, found := a.arrays[typeName]; found {
 		return arrayType, nil
 	}
 
-	// Try type aliases (Task 9.19)
+	// Try type aliases
 	if typeAlias, found := a.typeAliases[typeName]; found {
 		return typeAlias, nil
 	}
 
-	// Try subrange types (Task 9.98)
+	// Try subrange types
 	if subrangeType, found := a.subranges[typeName]; found {
 		return subrangeType, nil
 	}
@@ -266,7 +266,7 @@ func (a *Analyzer) addParentFieldsToScope(parent *types.ClassType) {
 	}
 }
 
-// addParentClassVarsToScope recursively adds parent class variables to current scope (Task 7.62)
+// addParentClassVarsToScope recursively adds parent class variables to current scope
 func (a *Analyzer) addParentClassVarsToScope(parent *types.ClassType) {
 	if parent == nil {
 		return

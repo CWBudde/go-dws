@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Property Interpreter Tests (Task 8.57)
+// Property Interpreter Tests
 // ============================================================================
 
 // TestPropertyFieldBacked tests field-backed properties

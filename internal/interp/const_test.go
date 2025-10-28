@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// Const Declaration Tests (Task 8.258)
+// Const Declaration Tests
 // ============================================================================
 
 func TestConstDeclarationInteger(t *testing.T) {

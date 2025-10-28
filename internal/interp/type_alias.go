@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Type Alias Support (Task 9.21)
+// Type Alias Support
 // ============================================================================
 
 // TypeAliasValue stores a type alias definition
@@ -26,7 +26,7 @@ func (tv *TypeAliasValue) String() string {
 }
 
 // ============================================================================
-// Subrange Type Support (Task 9.100)
+// Subrange Type Support
 // ============================================================================
 
 // SubrangeTypeValue stores a subrange type definition
@@ -46,8 +46,8 @@ func (sv *SubrangeTypeValue) String() string {
 // SubrangeValue wraps an integer value with subrange bounds checking.
 // Task 9.100: Runtime subrange validation
 type SubrangeValue struct {
-	Value        int
 	SubrangeType *types.SubrangeType
+	Value        int
 }
 
 func (sv *SubrangeValue) Type() string {
@@ -70,7 +70,7 @@ func (sv *SubrangeValue) ValidateAndSet(value int) error {
 
 // evalTypeDeclaration evaluates a type declaration (Task 9.21, Task 9.100)
 // Handles type aliases: type TUserID = Integer;
-// Handles subrange types: type TDigit = 0..9; (Task 9.100)
+// Handles subrange types: type TDigit = 0..9;
 func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 	if decl == nil {
 		return &ErrorValue{Message: "nil type declaration"}

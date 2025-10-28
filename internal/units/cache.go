@@ -20,17 +20,17 @@ type UnitCache struct {
 
 // CacheEntry represents a cached unit with its metadata
 type CacheEntry struct {
-	// Unit is the cached unit instance
-	Unit *Unit
-
-	// FilePath is the source file path
-	FilePath string
-
 	// ModTime is the modification time when the unit was cached
 	ModTime time.Time
 
 	// LoadTime is when the unit was loaded into cache
 	LoadTime time.Time
+
+	// Unit is the cached unit instance
+	Unit *Unit
+
+	// FilePath is the source file path
+	FilePath string
 }
 
 // NewUnitCache creates a new empty unit cache

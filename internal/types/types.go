@@ -177,7 +177,7 @@ func GetUnderlyingType(t Type) Type {
 }
 
 // ============================================================================
-// Subrange Types (Task 9.91)
+// Subrange Types
 // ============================================================================
 
 // SubrangeType represents a subrange type declaration.

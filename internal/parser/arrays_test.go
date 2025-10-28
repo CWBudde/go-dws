@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Array Type Declaration Parser Tests (Task 8.122)
+// Array Type Declaration Parser Tests
 // ============================================================================
 
 func TestParseArrayTypeDeclaration(t *testing.T) {
@@ -58,7 +58,7 @@ func TestParseArrayTypeDeclaration(t *testing.T) {
 }
 
 // ============================================================================
-// Array Literal Parser Tests (Task 8.123)
+// Array Literal Parser Tests
 // ============================================================================
 
 func TestParseArrayLiteral(t *testing.T) {
@@ -125,7 +125,7 @@ func TestParseArrayLiteral(t *testing.T) {
 }
 
 // ============================================================================
-// Array Indexing Parser Tests (Task 8.124)
+// Array Indexing Parser Tests
 // ============================================================================
 
 func TestParseArrayIndexing(t *testing.T) {
@@ -277,7 +277,7 @@ func TestParseArrayIndexing(t *testing.T) {
 }
 
 // ============================================================================
-// Combined Array Tests (Task 8.125)
+// Combined Array Tests
 // ============================================================================
 
 func TestArrayDeclarationAndUsage(t *testing.T) {
@@ -337,7 +337,7 @@ func TestArrayDeclarationAndUsage(t *testing.T) {
 }
 
 // ============================================================================
-// Array Assignment Parser Tests (Task 8.138)
+// Array Assignment Parser Tests
 // ============================================================================
 
 func TestParseArrayAssignment(t *testing.T) {

@@ -46,7 +46,7 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 
 // analyzeTypeDeclaration analyzes a type declaration statement
 // Handles type aliases: type TUserID = Integer;
-// Handles subrange types: type TDigit = 0..9; (Task 9.98)
+// Handles subrange types: type TDigit = 0..9;
 func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 	if decl == nil {
 		return

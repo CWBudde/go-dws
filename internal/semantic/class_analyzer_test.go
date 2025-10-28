@@ -108,7 +108,7 @@ func TestClassRedeclaration(t *testing.T) {
 }
 
 // ============================================================================
-// Method Declaration Tests (Task 7.56)
+// Method Declaration Tests
 // ============================================================================
 
 func TestClassWithMethod(t *testing.T) {
@@ -183,7 +183,7 @@ func TestMethodWithInvalidParameterType(t *testing.T) {
 }
 
 // ============================================================================
-// Object Creation Tests (Task 7.57)
+// Object Creation Tests
 // ============================================================================
 
 func TestNewExpressionSimple(t *testing.T) {
@@ -311,7 +311,7 @@ func TestNewKeywordConstructorArgMismatch(t *testing.T) {
 }
 
 // ============================================================================
-// Member Access Tests (Task 7.58)
+// Member Access Tests
 // ============================================================================
 
 func TestMemberAccessField(t *testing.T) {
@@ -377,7 +377,7 @@ func TestMemberAccessTypeMismatch(t *testing.T) {
 }
 
 // ============================================================================
-// Method Overriding Tests (Task 7.59)
+// Method Overriding Tests
 // ============================================================================
 
 func TestMethodOverriding(t *testing.T) {
@@ -670,7 +670,7 @@ func TestMixedClassAndInstanceMethods(t *testing.T) {
 }
 
 // ============================================================================
-// Virtual/Override Tests (Task 7.64)
+// Virtual/Override Tests
 // ============================================================================
 
 func TestVirtualMethodDeclaration(t *testing.T) {
@@ -806,7 +806,7 @@ func TestOverrideParameterMismatch(t *testing.T) {
 }
 
 // ============================================================================
-// Abstract Class/Method Tests (Task 7.65)
+// Abstract Class/Method Tests
 // ============================================================================
 
 func TestAbstractClassDeclaration(t *testing.T) {

@@ -9,17 +9,17 @@ import (
 // Interface Analysis (Task 7.96-7.103)
 // ============================================================================
 
-// analyzeInterfaceDecl analyzes an interface declaration (Task 7.98)
+// analyzeInterfaceDecl analyzes an interface declaration
 func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 	interfaceName := decl.Name.Value
 
-	// Check if interface is already declared (Task 7.98)
+	// Check if interface is already declared
 	if _, exists := a.interfaces[interfaceName]; exists {
 		a.addError("interface '%s' already declared at %s", interfaceName, decl.Token.Pos.String())
 		return
 	}
 
-	// Resolve parent interface if specified (Task 7.98)
+	// Resolve parent interface if specified
 	var parentInterface *types.InterfaceType
 	if decl.Parent != nil {
 		parentName := decl.Parent.Value
@@ -50,7 +50,7 @@ func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 	a.interfaces[interfaceName] = interfaceType
 }
 
-// analyzeInterfaceMethodDecl analyzes an interface method declaration (Task 7.99)
+// analyzeInterfaceMethodDecl analyzes an interface method declaration
 func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, iface *types.InterfaceType) {
 	methodName := method.Name.Value
 
@@ -85,7 +85,7 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 	iface.Methods[methodName] = funcType
 }
 
-// validateInterfaceImplementation validates that a class implements all required interface methods (Task 7.100)
+// validateInterfaceImplementation validates that a class implements all required interface methods
 func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, decl *ast.ClassDecl) {
 	// For each interface declared on the class
 	for _, ifaceIdent := range decl.Interfaces {
@@ -112,7 +112,7 @@ func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, d
 				continue
 			}
 
-			// Check that signatures match (Task 7.103)
+			// Check that signatures match
 			// Use existing methodSignaturesMatch from analyzer.go:1038
 			if !a.methodSignaturesMatch(classMethod, ifaceMethod) {
 				a.addError("method '%s' in class '%s' does not match interface signature from '%s' at %s",

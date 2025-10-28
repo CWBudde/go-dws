@@ -294,7 +294,7 @@ func NewSetType(elementType *EnumType) *SetType {
 }
 
 // ============================================================================
-// EnumType (Task 8.30)
+// EnumType
 // ============================================================================
 
 // EnumType represents an enumerated type.

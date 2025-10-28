@@ -16,30 +16,27 @@ import (
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 type Interpreter struct {
-	env              *Environment                 // The current execution environment
-	output           io.Writer                    // Where to write output (e.g., from PrintLn)
-	functions        map[string]*ast.FunctionDecl // Registry of user-defined functions
-	classes          map[string]*ClassInfo        // Registry of class definitions
-	interfaces       map[string]*InterfaceInfo    // Registry of interface definitions (Task 7.118)
 	currentNode      ast.Node                     // Current AST node being evaluated (for error reporting)
-	globalOperators  *runtimeOperatorRegistry     // Global operator overloads (Stage 8)
-	conversions      *runtimeConversionRegistry   // Global conversions
+	output           io.Writer                    // Where to write output (e.g., from PrintLn)
 	rand             *rand.Rand                   // Random number generator for Random() and Randomize()
-	exception        *ExceptionValue              // Current active exception (nil if none) (Task 8.212)
+	exception        *ExceptionValue              // Current active exception (nil if none)
+	interfaces       map[string]*InterfaceInfo    // Registry of interface definitions
+	functions        map[string]*ast.FunctionDecl // Registry of user-defined functions
+	globalOperators  *runtimeOperatorRegistry     // Global operator overloads
+	conversions      *runtimeConversionRegistry   // Global conversions
+	env              *Environment                 // The current execution environment
+	classes          map[string]*ClassInfo        // Registry of class definitions
 	handlerException *ExceptionValue              // Exception being handled (for bare raise)
+	initializedUnits map[string]bool              // Track which units have been initialized
+	unitRegistry     *units.UnitRegistry          // Registry for managing loaded units
+	loadedUnits      []string                     // Units loaded in order (for initialization/finalization)
 
-	// Control flow signals (Task 8.235i)
 	// These flags signal control flow changes (break, continue, exit) and are checked
 	// after each statement. They propagate up the call stack until handled by the
 	// appropriate control structure (loop for break/continue, function for exit).
-	breakSignal    bool // Set by break statement, cleared by loop
+	exitSignal     bool // Set by break statement, cleared by loop
 	continueSignal bool // Set by continue statement, cleared by loop
-	exitSignal     bool // Set by exit statement, cleared by function return
-
-	// Unit system (Tasks 9.131-9.138)
-	unitRegistry     *units.UnitRegistry // Registry for managing loaded units
-	loadedUnits      []string            // Units loaded in order (for initialization/finalization)
-	initializedUnits map[string]bool     // Track which units have been initialized
+	breakSignal    bool // Set by exit statement, cleared by function return
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -65,7 +62,7 @@ func New(output io.Writer) *Interpreter {
 	// Register built-in exception classes (Task 8.203-8.204)
 	interp.registerBuiltinExceptions()
 
-	// Initialize ExceptObject to nil (Task 8.206)
+	// Initialize ExceptObject to nil
 	// ExceptObject is a built-in global variable that holds the current exception
 	env.Define("ExceptObject", &NilValue{})
 
@@ -367,7 +364,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 	return value
 }
 
-// evalConstDecl evaluates a const declaration statement (Task 8.257)
+// evalConstDecl evaluates a const declaration statement
 // Constants are immutable values stored in the environment.
 // Immutability is enforced at semantic analysis time, so at runtime
 // we simply evaluate the value and store it like a variable.
@@ -394,7 +391,7 @@ func (i *Interpreter) evalConstDecl(stmt *ast.ConstDecl) Value {
 // Supports: x := value, obj.field := value, arr[i] := value
 func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Value {
 	// Evaluate the value to assign
-	// Special handling for record literals without type names (Task 8.74)
+	// Special handling for record literals without type names
 	var value Value
 	if recordLit, ok := stmt.Value.(*ast.RecordLiteral); ok && recordLit.TypeName == "" {
 		// This is an untyped record literal - get type from target variable if it's a simple identifier
@@ -439,7 +436,7 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 		return i.evalMemberAssignment(target, value, stmt)
 
 	case *ast.IndexExpression:
-		// Array index assignment: arr[i] := value (Task 8.139)
+		// Array index assignment: arr[i] := value
 		return i.evalIndexAssignment(target, value, stmt)
 
 	default:
@@ -642,7 +639,7 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 	return value
 }
 
-// evalIndexAssignment handles array index assignment: arr[i] := value (Task 8.139)
+// evalIndexAssignment handles array index assignment: arr[i] := value
 func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Value, stmt *ast.AssignmentStatement) Value {
 	// Evaluate the array expression
 	arrayVal := i.Eval(target.Left)
@@ -720,7 +717,7 @@ func (i *Interpreter) evalBlockStatement(block *ast.BlockStatement) Value {
 			return result
 		}
 
-		// Check if exception is active - if so, unwind the stack (Task 8.212)
+		// Check if exception is active - if so, unwind the stack
 		if i.exception != nil {
 			return nil
 		}
@@ -2205,35 +2202,38 @@ func (i *Interpreter) builtinFormat(args []Value) Value {
 		switch v := elem.(type) {
 		case *IntegerValue:
 			// %d, %x, %X, %o, %v are valid for integers
-			if spec.verb == 'd' || spec.verb == 'x' || spec.verb == 'X' || spec.verb == 'o' || spec.verb == 'v' {
+			switch spec.verb {
+			case 'd', 'x', 'X', 'o', 'v':
 				goArgs[idx] = v.Value
-			} else if spec.verb == 's' {
+			case 's':
 				// Allow integer to string conversion for %s
 				goArgs[idx] = fmt.Sprintf("%d", v.Value)
-			} else {
+			default:
 				return i.newErrorWithLocation(i.currentNode, "Format() cannot use %%%c with Integer value at index %d", spec.verb, idx)
 			}
 		case *FloatValue:
 			// %f, %v are valid for floats
-			if spec.verb == 'f' || spec.verb == 'v' {
+			switch spec.verb {
+			case 'f', 'v':
 				goArgs[idx] = v.Value
-			} else if spec.verb == 's' {
+			case 's':
 				// Allow float to string conversion for %s
 				goArgs[idx] = fmt.Sprintf("%f", v.Value)
-			} else {
+			default:
 				return i.newErrorWithLocation(i.currentNode, "Format() cannot use %%%c with Float value at index %d", spec.verb, idx)
 			}
 		case *StringValue:
 			// %s, %v are valid for strings
-			if spec.verb == 's' || spec.verb == 'v' {
+			switch spec.verb {
+			case 's', 'v':
 				goArgs[idx] = v.Value
-			} else if spec.verb == 'd' || spec.verb == 'x' || spec.verb == 'X' || spec.verb == 'o' {
+			case 'd', 'x', 'X', 'o':
 				// String cannot be used with integer format specifiers
 				return i.newErrorWithLocation(i.currentNode, "Format() cannot use %%%c with String value at index %d", spec.verb, idx)
-			} else if spec.verb == 'f' {
+			case 'f':
 				// String cannot be used with float format specifiers
 				return i.newErrorWithLocation(i.currentNode, "Format() cannot use %%%c with String value at index %d", spec.verb, idx)
-			} else {
+			default:
 				goArgs[idx] = v.Value
 			}
 		case *BooleanValue:
@@ -4111,10 +4111,10 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Create new ClassInfo
 	classInfo := NewClassInfo(cd.Name.Value)
 
-	// Set abstract flag (Task 7.65)
+	// Set abstract flag
 	classInfo.IsAbstract = cd.IsAbstract
 
-	// Set external flags (Task 7.141)
+	// Set external flags
 	classInfo.IsExternal = cd.IsExternal
 	classInfo.ExternalName = cd.ExternalName
 
@@ -4276,7 +4276,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 }
 
 // convertPropertyDecl converts an AST property declaration to a PropertyInfo struct.
-// This extracts the property metadata for runtime property access handling. (Task 8.53)
+// This extracts the property metadata for runtime property access handling.
 // Note: We mark all identifiers as field access for now and will check at runtime
 // whether they're actually fields or methods.
 func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.PropertyInfo {
@@ -4337,7 +4337,7 @@ func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Pro
 	return propInfo
 }
 
-// evalInterfaceDeclaration evaluates an interface declaration (Task 7.119).
+// evalInterfaceDeclaration evaluates an interface declaration.
 // It builds an InterfaceInfo from the AST and registers it in the interface registry.
 // Handles inheritance by linking to parent interface and inheriting its methods.
 func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
@@ -4506,12 +4506,12 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 		return i.newErrorWithLocation(ne, "class '%s' not found", className)
 	}
 
-	// Check if trying to instantiate an abstract class (Task 7.65)
+	// Check if trying to instantiate an abstract class
 	if classInfo.IsAbstract {
 		return i.newErrorWithLocation(ne, "cannot instantiate abstract class '%s'", className)
 	}
 
-	// Check if trying to instantiate an external class (Task 7.141)
+	// Check if trying to instantiate an external class
 	// External classes are implemented outside DWScript and cannot be instantiated directly
 	// Future: Provide hooks for Go FFI implementation
 	if classInfo.IsExternal {
@@ -4539,7 +4539,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 		obj.SetField(fieldName, defaultValue)
 	}
 
-	// Special handling for Exception.Create (Task 8.218)
+	// Special handling for Exception.Create
 	// Exception constructors are built-in and take a message parameter
 	// NewExpression always implies Create constructor in DWScript
 	if i.isExceptionClass(classInfo) && len(ne.Arguments) == 1 {
@@ -4704,7 +4704,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	return fieldValue
 }
 
-// evalPropertyRead evaluates a property read access. (Task 8.53)
+// evalPropertyRead evaluates a property read access.
 // Handles field-backed, method-backed, and expression-backed properties.
 func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.PropertyInfo, node ast.Node) Value {
 	switch propInfo.ReadKind {
@@ -4816,7 +4816,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 	}
 }
 
-// evalPropertyWrite evaluates a property write access. (Task 8.54)
+// evalPropertyWrite evaluates a property write access.
 // Handles field-backed and method-backed property setters.
 func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.PropertyInfo, value Value, node ast.Node) Value {
 	switch propInfo.WriteKind {
@@ -4901,7 +4901,7 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	// Check if the left side is an identifier (could be unit, class, or instance variable)
 	if ident, ok := mc.Object.(*ast.Identifier); ok {
-		// First, check if this identifier refers to a unit (Task 9.134)
+		// First, check if this identifier refers to a unit
 		if i.unitRegistry != nil {
 			if _, exists := i.unitRegistry.GetUnit(ident.Value); exists {
 				// This is a unit-qualified function call: UnitName.FunctionName()

@@ -117,13 +117,13 @@ func (fd ForDirection) String() string {
 //	for i := 10 downto 1 do PrintLn(i);
 //	for i := start to end do begin ... end;
 type ForStatement struct {
-	InlineVar bool
 	Start     Expression
 	End       Expression
 	Body      Statement
 	Variable  *Identifier
 	Token     lexer.Token
 	Direction ForDirection
+	InlineVar bool
 }
 
 func (fs *ForStatement) statementNode()       {}

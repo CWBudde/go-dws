@@ -32,36 +32,33 @@ import (
 //	  // Cleanup code
 //	end.
 type Unit struct {
-	// Name is the unit's name (case-insensitive in DWScript)
-	Name string
-
 	// InterfaceSection contains the public declarations (types, functions, etc.)
 	// Symbols in the interface section are visible to units that use this unit.
 	InterfaceSection *ast.BlockStatement
-
 	// ImplementationSection contains the private implementation code.
 	// Symbols here are only visible within this unit.
 	ImplementationSection *ast.BlockStatement
-
 	// InitializationSection contains code that runs when the unit is loaded.
 	// Runs before the main program begins execution.
 	InitializationSection *ast.BlockStatement
-
 	// FinalizationSection contains cleanup code that runs when the program exits.
 	// Runs in reverse order of initialization (last unit initialized is finalized first).
 	FinalizationSection *ast.BlockStatement
-
-	// Uses lists the names of units imported by this unit.
-	// These dependencies must be loaded before this unit can be used.
-	Uses []string
 
 	// Symbols is the symbol table containing exported symbols from the interface section.
 	// Only symbols defined in the interface section are added to this table.
 	Symbols *semantic.SymbolTable
 
+	// Name is the unit's name (case-insensitive in DWScript)
+	Name string
+
 	// FilePath is the absolute path to the unit's source file.
 	// Used for error reporting and relative path resolution.
 	FilePath string
+
+	// Uses lists the names of units imported by this unit.
+	// These dependencies must be loaded before this unit can be used.
+	Uses []string
 }
 
 // NewUnit creates a new Unit with the given name and file path.

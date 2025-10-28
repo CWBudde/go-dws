@@ -62,7 +62,7 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 
 // analyzeIdentifier analyzes an identifier and returns its type
 func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
-	// Handle built-in ExceptObject variable (Task 8.206)
+	// Handle built-in ExceptObject variable
 	// ExceptObject is a global variable that holds the current exception (or nil)
 	if ident.Value == "ExceptObject" {
 		// ExceptObject is always of type Exception (the base exception class)
@@ -330,7 +330,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// Length built-in function (Task 8.130)
+		// Length built-in function
 		if funcIdent.Value == "Length" {
 			// Length takes one argument (array or string) and returns an integer
 			if len(expr.Arguments) != 1 {
@@ -401,7 +401,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// Concat built-in function (Task 8.183)
+		// Concat built-in function
 		if funcIdent.Value == "Concat" {
 			// Concat takes at least one argument (all strings) and returns a string
 			if len(expr.Arguments) == 0 {
@@ -420,7 +420,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// Pos built-in function (Task 8.183)
+		// Pos built-in function
 		if funcIdent.Value == "Pos" {
 			// Pos takes two string arguments and returns an integer
 			if len(expr.Arguments) != 2 {
@@ -443,7 +443,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// UpperCase built-in function (Task 8.183)
+		// UpperCase built-in function
 		if funcIdent.Value == "UpperCase" {
 			// UpperCase takes one string argument and returns a string
 			if len(expr.Arguments) != 1 {
@@ -460,7 +460,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// LowerCase built-in function (Task 8.183)
+		// LowerCase built-in function
 		if funcIdent.Value == "LowerCase" {
 			// LowerCase takes one string argument and returns a string
 			if len(expr.Arguments) != 1 {
@@ -477,7 +477,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// Trim built-in function (Task 9.40)
+		// Trim built-in function
 		if funcIdent.Value == "Trim" {
 			// Trim takes one string argument and returns a string
 			if len(expr.Arguments) != 1 {
@@ -494,7 +494,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// TrimLeft built-in function (Task 9.41)
+		// TrimLeft built-in function
 		if funcIdent.Value == "TrimLeft" {
 			// TrimLeft takes one string argument and returns a string
 			if len(expr.Arguments) != 1 {
@@ -511,7 +511,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// TrimRight built-in function (Task 9.41)
+		// TrimRight built-in function
 		if funcIdent.Value == "TrimRight" {
 			// TrimRight takes one string argument and returns a string
 			if len(expr.Arguments) != 1 {
@@ -528,7 +528,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// StringReplace built-in function (Task 9.46)
+		// StringReplace built-in function
 		if funcIdent.Value == "StringReplace" {
 			// StringReplace takes 3-4 arguments: str, old, new, [count]
 			if len(expr.Arguments) < 3 || len(expr.Arguments) > 4 {
@@ -590,7 +590,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// Abs built-in function (Task 8.185)
+		// Abs built-in function
 		if funcIdent.Value == "Abs" {
 			// Abs takes one numeric argument and returns the same type
 			if len(expr.Arguments) != 1 {
@@ -612,7 +612,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER // Default to INTEGER if type is unknown
 		}
 
-		// Min built-in function (Task 9.54)
+		// Min built-in function
 		if funcIdent.Value == "Min" {
 			// Min takes two numeric arguments and returns the smaller value
 			if len(expr.Arguments) != 2 {
@@ -641,7 +641,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER // Default to INTEGER if type is unknown
 		}
 
-		// Max built-in function (Task 9.55)
+		// Max built-in function
 		if funcIdent.Value == "Max" {
 			// Max takes two numeric arguments and returns the larger value
 			if len(expr.Arguments) != 2 {
@@ -670,7 +670,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER // Default to INTEGER if type is unknown
 		}
 
-		// Sqr built-in function (Task 9.57)
+		// Sqr built-in function
 		if funcIdent.Value == "Sqr" {
 			// Sqr takes one numeric argument and returns x*x, preserving type
 			if len(expr.Arguments) != 1 {
@@ -692,7 +692,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER // Default to INTEGER if type is unknown
 		}
 
-		// Power built-in function (Task 9.58)
+		// Power built-in function
 		if funcIdent.Value == "Power" {
 			// Power takes two numeric arguments and always returns Float
 			if len(expr.Arguments) != 2 {
@@ -716,7 +716,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		// Sqrt built-in function (Task 8.185)
+		// Sqrt built-in function
 		if funcIdent.Value == "Sqrt" {
 			// Sqrt takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
@@ -736,7 +736,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		// Sin built-in function (Task 8.185)
+		// Sin built-in function
 		if funcIdent.Value == "Sin" {
 			// Sin takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
@@ -756,7 +756,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		// Cos built-in function (Task 8.185)
+		// Cos built-in function
 		if funcIdent.Value == "Cos" {
 			// Cos takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
@@ -776,7 +776,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		// Tan built-in function (Task 8.185)
+		// Tan built-in function
 		if funcIdent.Value == "Tan" {
 			// Tan takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
@@ -796,7 +796,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		// Random built-in function (Task 8.185)
+		// Random built-in function
 		if funcIdent.Value == "Random" {
 			// Random takes no arguments and always returns Float
 			if len(expr.Arguments) != 0 {
@@ -807,7 +807,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		// RandomInt built-in function (Task 9.63)
+		// RandomInt built-in function
 		if funcIdent.Value == "RandomInt" {
 			// RandomInt takes one Integer argument and returns random Integer in [0, max)
 			if len(expr.Arguments) != 1 {
@@ -825,7 +825,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// Randomize built-in procedure (Task 8.185)
+		// Randomize built-in procedure
 		if funcIdent.Value == "Randomize" {
 			// Randomize takes no arguments and returns nothing (nil/void)
 			if len(expr.Arguments) != 0 {
@@ -836,7 +836,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return nil
 		}
 
-		// Exp built-in function (Task 8.185)
+		// Exp built-in function
 		if funcIdent.Value == "Exp" {
 			// Exp takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
@@ -856,7 +856,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		// Ln built-in function (Task 8.185)
+		// Ln built-in function
 		if funcIdent.Value == "Ln" {
 			// Ln takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
@@ -876,7 +876,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		// Round built-in function (Task 8.185)
+		// Round built-in function
 		if funcIdent.Value == "Round" {
 			// Round takes one numeric argument and always returns Integer
 			if len(expr.Arguments) != 1 {
@@ -896,7 +896,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// Trunc built-in function (Task 8.185)
+		// Trunc built-in function
 		if funcIdent.Value == "Trunc" {
 			// Trunc takes one numeric argument and always returns Integer
 			if len(expr.Arguments) != 1 {
@@ -916,7 +916,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// Ceil built-in function (Task 9.60)
+		// Ceil built-in function
 		if funcIdent.Value == "Ceil" {
 			// Ceil takes one numeric argument and always returns Integer
 			if len(expr.Arguments) != 1 {
@@ -936,7 +936,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// Floor built-in function (Task 9.61)
+		// Floor built-in function
 		if funcIdent.Value == "Floor" {
 			// Floor takes one numeric argument and always returns Integer
 			if len(expr.Arguments) != 1 {
@@ -1010,7 +1010,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// SetLength built-in function (Task 8.131)
+		// SetLength built-in function
 		if funcIdent.Value == "SetLength" {
 			// SetLength takes two arguments (array, integer) and returns void
 			if len(expr.Arguments) != 2 {
@@ -1035,7 +1035,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		// Add built-in function (Task 8.134)
+		// Add built-in function
 		if funcIdent.Value == "Add" {
 			// Add takes two arguments (array, element) and returns void
 			if len(expr.Arguments) != 2 {
@@ -1105,7 +1105,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 		}
 
-		// IntToStr built-in function (Task 8.187)
+		// IntToStr built-in function
 		if funcIdent.Value == "IntToStr" {
 			// IntToStr takes one integer argument and returns a string
 			if len(expr.Arguments) != 1 {
@@ -1130,7 +1130,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// StrToInt built-in function (Task 8.187)
+		// StrToInt built-in function
 		if funcIdent.Value == "StrToInt" {
 			// StrToInt takes one string argument and returns an integer
 			if len(expr.Arguments) != 1 {
@@ -1147,7 +1147,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// FloatToStr built-in function (Task 8.187)
+		// FloatToStr built-in function
 		if funcIdent.Value == "FloatToStr" {
 			// FloatToStr takes one float argument and returns a string
 			if len(expr.Arguments) != 1 {
@@ -1164,7 +1164,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// StrToFloat built-in function (Task 8.187)
+		// StrToFloat built-in function
 		if funcIdent.Value == "StrToFloat" {
 			// StrToFloat takes one string argument and returns a float
 			if len(expr.Arguments) != 1 {
@@ -1181,7 +1181,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		// Inc built-in procedure (Task 9.24)
+		// Inc built-in procedure
 		if funcIdent.Value == "Inc" {
 			// Inc takes 1-2 arguments: variable and optional delta
 			if len(expr.Arguments) < 1 || len(expr.Arguments) > 2 {
@@ -1253,7 +1253,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		// Succ built-in function (Task 9.28)
+		// Succ built-in function
 		if funcIdent.Value == "Succ" {
 			// Succ takes 1 argument: ordinal value
 			if len(expr.Arguments) != 1 {
@@ -1277,7 +1277,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// Pred built-in function (Task 9.29)
+		// Pred built-in function
 		if funcIdent.Value == "Pred" {
 			// Pred takes 1 argument: ordinal value
 			if len(expr.Arguments) != 1 {
@@ -1301,7 +1301,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// Assert built-in procedure (Task 9.36)
+		// Assert built-in procedure
 		if funcIdent.Value == "Assert" {
 			// Assert takes 1-2 arguments: Boolean condition and optional String message
 			if len(expr.Arguments) < 1 || len(expr.Arguments) > 2 {
@@ -1326,7 +1326,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		// Insert built-in procedure (Task 9.43)
+		// Insert built-in procedure
 		if funcIdent.Value == "Insert" {
 			if len(expr.Arguments) != 3 {
 				a.addError("function 'Insert' expects 3 arguments, got %d at %s",

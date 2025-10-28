@@ -34,7 +34,7 @@ func TestInterfaceRedeclaration(t *testing.T) {
 }
 
 // ============================================================================
-// Interface Inheritance Tests (Task 7.106)
+// Interface Inheritance Tests
 // ============================================================================
 
 // TestInterfaceInheritance tests that interfaces can inherit from other interfaces
@@ -62,7 +62,7 @@ func TestInterfaceUndefinedParent(t *testing.T) {
 }
 
 // ============================================================================
-// Circular Inheritance Tests (Task 7.107)
+// Circular Inheritance Tests
 // ============================================================================
 
 // TestCircularInterfaceInheritance tests that circular interface inheritance is detected
@@ -85,7 +85,7 @@ func TestCircularInterfaceInheritance(t *testing.T) {
 }
 
 // ============================================================================
-// Class Implements Interface Tests (Task 7.108)
+// Class Implements Interface Tests
 // ============================================================================
 
 // TestClassImplementsInterface tests that a class correctly implements an interface
@@ -106,7 +106,7 @@ func TestClassImplementsInterface(t *testing.T) {
 }
 
 // ============================================================================
-// Class Missing Interface Methods Tests (Task 7.109)
+// Class Missing Interface Methods Tests
 // ============================================================================
 
 // TestClassMissingInterfaceMethod tests that a class must implement all interface methods
@@ -127,7 +127,7 @@ func TestClassMissingInterfaceMethod(t *testing.T) {
 }
 
 // ============================================================================
-// Multiple Interface Implementation Tests (Task 7.112)
+// Multiple Interface Implementation Tests
 // ============================================================================
 
 // TestMultipleInterfaces tests that a class can implement multiple interfaces

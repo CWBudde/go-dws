@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Raise Statement Parser Tests (Task 8.201)
+// Raise Statement Parser Tests
 // ============================================================================
 
 // Task 8.201: Test parsing raise statement with exception expression
@@ -179,7 +179,7 @@ func TestParseBareRaiseStatement(t *testing.T) {
 }
 
 // ============================================================================
-// Try Statement Parser Tests (Task 8.197)
+// Try Statement Parser Tests
 // ============================================================================
 
 // Task 8.197: Test parsing basic try...except...end statement

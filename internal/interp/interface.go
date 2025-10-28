@@ -7,7 +7,7 @@ import (
 )
 
 // ============================================================================
-// Interface Runtime Metadata (Task 7.116)
+// Interface Runtime Metadata
 // ============================================================================
 
 // InterfaceInfo represents runtime interface metadata.
@@ -74,7 +74,7 @@ func (ii *InterfaceInfo) AllMethods() map[string]*ast.FunctionDecl {
 }
 
 // ============================================================================
-// Interface Instance (Task 7.117)
+// Interface Instance
 // ============================================================================
 
 // InterfaceInstance represents a runtime instance of an interface.

@@ -129,7 +129,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		classDecl.IsAbstract = true
 	}
 
-	// Check for 'external' keyword (Task 7.138)
+	// Check for 'external' keyword
 	// Syntax: type TExternal = class external
 	// Syntax: type TExternal = class external 'ExternalName'
 	if p.peekTokenIs(lexer.EXTERNAL) {
