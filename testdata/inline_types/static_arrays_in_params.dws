@@ -124,6 +124,78 @@ begin
     flags[i] := not flags[i];
 end;
 
+// Test 10: Higher-order functions - passing array processing functions
+type
+  TArrayProcessor = function(arr: array[1..5] of Integer): Integer;
+
+function ApplyProcessor(arr: array[1..5] of Integer; processor: TArrayProcessor): Integer;
+begin
+  Result := processor(arr);
+end;
+
+function AverageArray(arr: array[1..5] of Integer): Integer;
+begin
+  var sum: Integer := 0;
+  var i: Integer;
+  for i := 1 to 5 do
+    sum := sum + arr[i];
+  Result := sum div 5;
+end;
+
+function MultiplyArray(arr: array[1..5] of Integer): Integer;
+begin
+  var product: Integer := 1;
+  var i: Integer;
+  for i := 1 to 5 do
+    product := product * arr[i];
+  Result := product;
+end;
+
+// Test 11: Array manipulation utilities with inline types
+procedure ReverseArray(var arr: array[1..10] of Integer);
+begin
+  var i: Integer;
+  var temp: Integer;
+  for i := 1 to 5 do begin
+    temp := arr[i];
+    arr[i] := arr[11 - i];
+    arr[11 - i] := temp;
+  end;
+end;
+
+procedure SortArray(var arr: array[1..10] of Integer);
+begin
+  var i, j, temp: Integer;
+  for i := 1 to 9 do
+    for j := i + 1 to 10 do
+      if arr[i] > arr[j] then begin
+        temp := arr[i];
+        arr[i] := arr[j];
+        arr[j] := temp;
+      end;
+end;
+
+function BinarySearch(arr: array[1..10] of Integer; value: Integer): Integer;
+begin
+  var left, right, mid: Integer;
+  left := 1;
+  right := 10;
+
+  while left <= right do begin
+    mid := (left + right) div 2;
+    if arr[mid] = value then begin
+      Result := mid;
+      Exit;
+    end
+    else if arr[mid] < value then
+      left := mid + 1
+    else
+      right := mid - 1;
+  end;
+
+  Result := -1; // Not found
+end;
+
 begin
   // Test static array parameter passing
   var numbers: array[1..10] of Integer;
@@ -155,6 +227,49 @@ begin
   InitMatrix(matrix);
   var matrixSum: Integer := MatrixSum(matrix);
   PrintLn('Matrix sum: ' + IntToStr(matrixSum));
+
+  // Test higher-order functions with array parameters
+  var testArr: array[1..5] of Integer;
+  testArr[1] := 2;
+  testArr[2] := 4;
+  testArr[3] := 6;
+  testArr[4] := 8;
+  testArr[5] := 10;
+
+  var avg: Integer := ApplyProcessor(testArr, AverageArray);
+  PrintLn('Average via processor: ' + IntToStr(avg));
+
+  var product: Integer := ApplyProcessor(testArr, MultiplyArray);
+  PrintLn('Product via processor: ' + IntToStr(product));
+
+  // Test array manipulation utilities
+  var unsorted: array[1..10] of Integer;
+  unsorted[1] := 64;
+  unsorted[2] := 34;
+  unsorted[3] := 25;
+  unsorted[4] := 12;
+  unsorted[5] := 22;
+  unsorted[6] := 11;
+  unsorted[7] := 90;
+  unsorted[8] := 88;
+  unsorted[9] := 45;
+  unsorted[10] := 50;
+
+  PrintLn('Before sort: 64, 34, 25, ...');
+  SortArray(unsorted);
+  PrintLn('After sort: ' + IntToStr(unsorted[1]) + ', ' + IntToStr(unsorted[2]) + ', ' + IntToStr(unsorted[3]) + ', ...');
+
+  var searchResult: Integer := BinarySearch(unsorted, 22);
+  PrintLn('Binary search for 22: index ' + IntToStr(searchResult));
+
+  var toReverse: array[1..10] of Integer;
+  var k: Integer;
+  for k := 1 to 10 do
+    toReverse[k] := k;
+
+  PrintLn('Before reverse: 1, 2, 3, ..., 10');
+  ReverseArray(toReverse);
+  PrintLn('After reverse: ' + IntToStr(toReverse[1]) + ', ' + IntToStr(toReverse[2]) + ', ..., ' + IntToStr(toReverse[10]));
 
   PrintLn('Static array parameter tests completed successfully!');
 end.

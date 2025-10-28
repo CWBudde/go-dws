@@ -1,0 +1,318 @@
+// Test file for advanced inline array type scenarios
+// Task 9.59: Comprehensive array type integration tests
+// Tests arrays in return types, nested arrays, and combined scenarios
+
+// ===== Test 1: Functions Returning Dynamic Arrays =====
+
+function GetIntegers(): array of Integer;
+begin
+  var arr: array of Integer;
+  SetLength(arr, 3);
+  arr[0] := 10;
+  arr[1] := 20;
+  arr[2] := 30;
+  Result := arr;
+end;
+
+function GetStrings(): array of String;
+begin
+  var arr: array of String;
+  SetLength(arr, 2);
+  arr[0] := 'Hello';
+  arr[1] := 'World';
+  Result := arr;
+end;
+
+function GetEmpty(): array of Integer;
+begin
+  var arr: array of Integer;
+  SetLength(arr, 0);
+  Result := arr;
+end;
+
+// ===== Test 2: Functions Returning Static Arrays =====
+
+function CreateStaticArray(): array[1..5] of Integer;
+begin
+  var arr: array[1..5] of Integer;
+  var i: Integer;
+  for i := 1 to 5 do
+    arr[i] := i * 10;
+  Result := arr;
+end;
+
+function CreateMatrix(): array[1..3] of array[1..3] of Integer;
+begin
+  var matrix: array[1..3] of array[1..3] of Integer;
+  var i: Integer;
+  var j: Integer;
+  for i := 1 to 3 do
+    for j := 1 to 3 do
+      matrix[i][j] := i * 10 + j;
+  Result := matrix;
+end;
+
+function GetBytes(): array[0..255] of Integer;
+begin
+  var bytes: array[0..255] of Integer;
+  var i: Integer;
+  for i := 0 to 255 do
+    bytes[i] := i mod 16;
+  Result := bytes;
+end;
+
+function GetCentered(): array[-5..5] of Integer;
+begin
+  var centered: array[-5..5] of Integer;
+  var i: Integer;
+  for i := -5 to 5 do
+    centered[i] := i * i;
+  Result := centered;
+end;
+
+// ===== Test 3: Nested Dynamic Arrays =====
+
+function CreateNestedDynamic(): array of array of Integer;
+begin
+  var outer: array of array of Integer;
+  SetLength(outer, 2);
+
+  SetLength(outer[0], 3);
+  outer[0][0] := 1;
+  outer[0][1] := 2;
+  outer[0][2] := 3;
+
+  SetLength(outer[1], 2);
+  outer[1][0] := 4;
+  outer[1][1] := 5;
+
+  Result := outer;
+end;
+
+function CreateNestedStrings(): array of array of String;
+begin
+  var outer: array of array of String;
+  SetLength(outer, 2);
+
+  SetLength(outer[0], 2);
+  outer[0][0] := 'A';
+  outer[0][1] := 'B';
+
+  SetLength(outer[1], 3);
+  outer[1][0] := 'C';
+  outer[1][1] := 'D';
+  outer[1][2] := 'E';
+
+  Result := outer;
+end;
+
+// ===== Test 4: Functions Accepting and Returning Arrays =====
+
+function ReverseArray(arr: array of Integer): array of Integer;
+begin
+  var result: array of Integer;
+  var len: Integer := Length(arr);
+  var i: Integer;
+
+  SetLength(result, len);
+  for i := 0 to len - 1 do
+    result[i] := arr[len - 1 - i];
+
+  Result := result;
+end;
+
+function DoubleValues(arr: array[1..5] of Integer): array[1..5] of Integer;
+begin
+  var result: array[1..5] of Integer;
+  var i: Integer;
+  for i := 1 to 5 do
+    result[i] := arr[i] * 2;
+  Result := result;
+end;
+
+function FilterPositive(arr: array of Integer): array of Integer;
+begin
+  var count: Integer := 0;
+  var i: Integer;
+
+  // Count positive values
+  for i := 0 to Length(arr) - 1 do
+    if arr[i] > 0 then
+      count := count + 1;
+
+  // Create result array
+  var result: array of Integer;
+  SetLength(result, count);
+
+  var idx: Integer := 0;
+  for i := 0 to Length(arr) - 1 do
+    if arr[i] > 0 then begin
+      result[idx] := arr[i];
+      idx := idx + 1;
+    end;
+
+  Result := result;
+end;
+
+// ===== Test 5: Combined Scenarios =====
+
+// Function taking array parameter and returning array
+function TransformMatrix(matrix: array[1..3] of array[1..3] of Integer): array[1..3] of array[1..3] of Integer;
+begin
+  var result: array[1..3] of array[1..3] of Integer;
+  var i: Integer;
+  var j: Integer;
+  for i := 1 to 3 do
+    for j := 1 to 3 do
+      result[i][j] := matrix[i][j] + 10;
+  Result := result;
+end;
+
+// Variable declarations with inline array types from return values
+procedure TestReturnValues();
+begin
+  var ints: array of Integer := GetIntegers();
+  PrintLn('Got ' + IntToStr(Length(ints)) + ' integers');
+
+  var strs: array of String := GetStrings();
+  PrintLn('Got ' + IntToStr(Length(strs)) + ' strings: ' + strs[0] + ', ' + strs[1]);
+
+  var staticArr: array[1..5] of Integer := CreateStaticArray();
+  PrintLn('Static array: ' + IntToStr(staticArr[1]) + ', ' + IntToStr(staticArr[2]) + ', ...');
+
+  var matrix: array[1..3] of array[1..3] of Integer := CreateMatrix();
+  PrintLn('Matrix[1][1] = ' + IntToStr(matrix[1][1]));
+
+  var centered: array[-5..5] of Integer := GetCentered();
+  PrintLn('Centered[-5] = ' + IntToStr(centered[-5]) + ', Centered[0] = ' + IntToStr(centered[0]));
+end;
+
+// ===== Test 6: Arrays with Different Element Types =====
+
+function GetBooleans(): array[1..4] of Boolean;
+begin
+  var arr: array[1..4] of Boolean;
+  arr[1] := true;
+  arr[2] := false;
+  arr[3] := true;
+  arr[4] := true;
+  Result := arr;
+end;
+
+function GetFloats(): array of Float;
+begin
+  var arr: array of Float;
+  SetLength(arr, 3);
+  arr[0] := 3.14;
+  arr[1] := 2.71;
+  arr[2] := 1.41;
+  Result := arr;
+end;
+
+// ===== Test 7: Chained Array Operations =====
+
+function ProcessData(): array of Integer;
+begin
+  var initial: array of Integer;
+  SetLength(initial, 5);
+  initial[0] := -3;
+  initial[1] := 5;
+  initial[2] := -2;
+  initial[3] := 8;
+  initial[4] := 1;
+
+  // Chain operations: reverse then filter
+  var reversed: array of Integer := ReverseArray(initial);
+  var filtered: array of Integer := FilterPositive(reversed);
+
+  Result := filtered;
+end;
+
+// ===== Main Program =====
+
+begin
+  PrintLn('=== Array Return Types Test Suite ===');
+  PrintLn('');
+
+  // Test 1: Dynamic array returns
+  PrintLn('Test 1: Dynamic array returns');
+  var nums: array of Integer := GetIntegers();
+  PrintLn('GetIntegers length: ' + IntToStr(Length(nums)));
+  PrintLn('Values: ' + IntToStr(nums[0]) + ', ' + IntToStr(nums[1]) + ', ' + IntToStr(nums[2]));
+
+  var emptyArr: array of Integer := GetEmpty();
+  PrintLn('Empty array length: ' + IntToStr(Length(emptyArr)));
+  PrintLn('');
+
+  // Test 2: Static array returns
+  PrintLn('Test 2: Static array returns');
+  var staticArr: array[1..5] of Integer := CreateStaticArray();
+  PrintLn('Static array: ' + IntToStr(staticArr[1]) + ', ' + IntToStr(staticArr[2]) + ', ' + IntToStr(staticArr[3]));
+
+  var bytes: array[0..255] of Integer := GetBytes();
+  PrintLn('Bytes[0] = ' + IntToStr(bytes[0]) + ', Bytes[255] = ' + IntToStr(bytes[255]));
+  PrintLn('');
+
+  // Test 3: Nested arrays
+  PrintLn('Test 3: Nested arrays');
+  var nested: array of array of Integer := CreateNestedDynamic();
+  PrintLn('Nested array dimensions: ' + IntToStr(Length(nested)) + ' x varying');
+  PrintLn('nested[0] length: ' + IntToStr(Length(nested[0])));
+  PrintLn('nested[0][0] = ' + IntToStr(nested[0][0]));
+  PrintLn('');
+
+  // Test 4: Array transformations
+  PrintLn('Test 4: Array transformations');
+  var input: array of Integer;
+  SetLength(input, 3);
+  input[0] := 1;
+  input[1] := 2;
+  input[2] := 3;
+  var reversed: array of Integer := ReverseArray(input);
+  PrintLn('Original: 1, 2, 3');
+  PrintLn('Reversed: ' + IntToStr(reversed[0]) + ', ' + IntToStr(reversed[1]) + ', ' + IntToStr(reversed[2]));
+
+  var toDouble: array[1..5] of Integer;
+  var k: Integer;
+  for k := 1 to 5 do
+    toDouble[k] := k;
+  var doubled: array[1..5] of Integer := DoubleValues(toDouble);
+  PrintLn('Doubled[3] = ' + IntToStr(doubled[3]));
+  PrintLn('');
+
+  // Test 5: Combined scenarios
+  PrintLn('Test 5: Combined scenarios');
+  TestReturnValues();
+  PrintLn('');
+
+  // Test 6: Different types
+  PrintLn('Test 6: Different element types');
+  var bools: array[1..4] of Boolean := GetBooleans();
+  if bools[1] then
+    PrintLn('bools[1] is true')
+  else
+    PrintLn('bools[1] is false');
+
+  var floats: array of Float := GetFloats();
+  PrintLn('Float array length: ' + IntToStr(Length(floats)));
+  PrintLn('');
+
+  // Test 7: Chained operations
+  PrintLn('Test 7: Chained operations');
+  var processed: array of Integer := ProcessData();
+  PrintLn('Processed array length: ' + IntToStr(Length(processed)));
+  var m: Integer;
+  for m := 0 to Length(processed) - 1 do
+    Print(IntToStr(processed[m]) + ' ');
+  PrintLn('');
+
+  // Test 8: Matrix transformation
+  PrintLn('Test 8: Matrix transformation');
+  var originalMatrix: array[1..3] of array[1..3] of Integer := CreateMatrix();
+  var transformedMatrix: array[1..3] of array[1..3] of Integer := TransformMatrix(originalMatrix);
+  PrintLn('Original[1][1] = ' + IntToStr(originalMatrix[1][1]));
+  PrintLn('Transformed[1][1] = ' + IntToStr(transformedMatrix[1][1]));
+
+  PrintLn('');
+  PrintLn('=== All tests completed successfully! ===');
+end.

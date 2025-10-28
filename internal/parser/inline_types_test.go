@@ -304,3 +304,173 @@ func TestArrayTypeInVariable(t *testing.T) {
 		})
 	}
 }
+// TestArrayReturnTypes tests parsing function declarations with inline array return types.
+// Task 9.59: Support inline array types in function return types
+func TestArrayReturnTypes(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectedReturn string // Expected return type string
+		wantErr        bool
+	}{
+		{
+			name:           "dynamic array return type",
+			input:          "function GetData(): array of Integer; begin end;",
+			expectedReturn: "array of Integer",
+			wantErr:        false,
+		},
+		{
+			name:           "static array return type",
+			input:          "function CreateArray(): array[1..10] of Integer; begin end;",
+			expectedReturn: "array[1..10] of Integer",
+			wantErr:        false,
+		},
+		{
+			name:           "nested dynamic array return type",
+			input:          "function GetMatrix(): array of array of Float; begin end;",
+			expectedReturn: "array of array of Float",
+			wantErr:        false,
+		},
+		{
+			name:           "nested static array return type",
+			input:          "function CreateMatrix(): array[1..5] of array[1..10] of Integer; begin end;",
+			expectedReturn: "array[1..5] of array[1..10] of Integer",
+			wantErr:        false,
+		},
+		{
+			name:           "array of strings return type",
+			input:          "function GetNames(): array of String; begin end;",
+			expectedReturn: "array of String",
+			wantErr:        false,
+		},
+		{
+			name:           "zero-based static array return type",
+			input:          "function GetBytes(): array[0..255] of Integer; begin end;",
+			expectedReturn: "array[0..255] of Integer",
+			wantErr:        false,
+		},
+		{
+			name:           "negative bounds array return type",
+			input:          "function GetCentered(): array[-10..10] of Integer; begin end;",
+			expectedReturn: "array[-10..10] of Integer",
+			wantErr:        false,
+		},
+		{
+			name:           "array of booleans return type",
+			input:          "function GetFlags(): array[1..8] of Boolean; begin end;",
+			expectedReturn: "array[1..8] of Boolean",
+			wantErr:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+
+			if tt.wantErr {
+				if len(p.Errors()) == 0 {
+					t.Error("expected parser errors, got none")
+				}
+				return
+			}
+
+			if len(p.Errors()) > 0 {
+				t.Errorf("unexpected errors: %v", p.Errors())
+				return
+			}
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+			}
+
+			fnDecl, ok := program.Statements[0].(*ast.FunctionDecl)
+			if !ok {
+				t.Fatalf("expected FunctionDecl, got %T", program.Statements[0])
+			}
+
+			if fnDecl.ReturnType == nil {
+				t.Fatal("expected return type annotation")
+			}
+
+			if fnDecl.ReturnType.Name != tt.expectedReturn {
+				t.Errorf("expected return type %q, got %q", tt.expectedReturn, fnDecl.ReturnType.Name)
+			}
+		})
+	}
+}
+
+// TestComplexReturnTypes tests parsing function declarations with complex return types
+// combining arrays and function pointers.
+// Task 9.59: Support complex inline types in function return types
+func TestComplexReturnTypes(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectedReturn string // Expected return type string
+		wantErr        bool
+	}{
+		{
+			name:           "function pointer return type",
+			input:          "function GetProcessor(): function(x: Integer): Integer; begin end;",
+			expectedReturn: "function(x: Integer): Integer",
+			wantErr:        false,
+		},
+		{
+			name:           "procedure pointer return type",
+			input:          "function GetCallback(): procedure(msg: String); begin end;",
+			expectedReturn: "procedure(msg: String)",
+			wantErr:        false,
+		},
+		{
+			name:           "simple type return (baseline)",
+			input:          "function GetNumber(): Integer; begin end;",
+			expectedReturn: "Integer",
+			wantErr:        false,
+		},
+		{
+			name:           "string type return (baseline)",
+			input:          "function GetText(): String; begin end;",
+			expectedReturn: "String",
+			wantErr:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+
+			if tt.wantErr {
+				if len(p.Errors()) == 0 {
+					t.Error("expected parser errors, got none")
+				}
+				return
+			}
+
+			if len(p.Errors()) > 0 {
+				t.Errorf("unexpected errors: %v", p.Errors())
+				return
+			}
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+			}
+
+			fnDecl, ok := program.Statements[0].(*ast.FunctionDecl)
+			if !ok {
+				t.Fatalf("expected FunctionDecl, got %T", program.Statements[0])
+			}
+
+			if fnDecl.ReturnType == nil {
+				t.Fatal("expected return type annotation")
+			}
+
+			if fnDecl.ReturnType.Name != tt.expectedReturn {
+				t.Errorf("expected return type %q, got %q", tt.expectedReturn, fnDecl.ReturnType.Name)
+			}
+		})
+	}
+}
