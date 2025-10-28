@@ -1,37 +1,346 @@
-// Test inline function pointer types in parameters and variables
-// Task 9.44, 9.45: Inline function pointer type syntax
+// ============================================================================
+// Task 9.52: Comprehensive Inline Function Pointer Integration Tests
+// ============================================================================
+//
+// This file tests inline function pointer types in all contexts:
+// - Function parameters
+// - Variable declarations
+// - Assignment and calls
+// - Procedure pointers
+// - Method pointers (of object)
+// - Integration with lambdas and closures
+//
+// All tests should parse, analyze, and execute correctly.
+// ============================================================================
+
+// ============================================================================
+// Part 1: Basic Inline Function Pointers in Variables
+// ============================================================================
+
+// Simple function for testing
+function Add(a, b: Integer): Integer;
+begin
+  Result := a + b;
+end;
+
+function Multiply(a, b: Integer): Integer;
+begin
+  Result := a * b;
+end;
+
+// Test: Inline function pointer in variable declaration
+var binaryOp: function(x, y: Integer): Integer;
+var result1: Integer;
+
+begin
+  // Test assignment
+  binaryOp := @Add;
+  result1 := binaryOp(5, 3);
+  PrintLn('Test 1 - Add via function pointer: ' + IntToStr(result1));
+
+  // Test reassignment
+  binaryOp := @Multiply;
+  result1 := binaryOp(5, 3);
+  PrintLn('Test 2 - Multiply via function pointer: ' + IntToStr(result1));
+end;
+
+// ============================================================================
+// Part 2: Inline Function Pointers in Parameters
+// ============================================================================
+
+procedure PrintMsg(msg: String);
+begin
+  PrintLn('  Message: ' + msg);
+end;
 
 // Function that accepts inline function pointer parameter
-procedure Apply(f: function(x: Integer): Integer; value: Integer);
+procedure Apply(f: function(x, y: Integer): Integer; a: Integer; b: Integer);
+var r: Integer;
 begin
-  PrintLn(IntToStr(f(value)));
+  r := f(a, b);
+  PrintLn('Test 3 - Apply result: ' + IntToStr(r));
 end;
 
-// Variable with inline function pointer type
+// Procedure that accepts inline procedure pointer parameter
+procedure Execute(callback: procedure(s: String); message: String);
+begin
+  PrintLn('Test 4 - Execute callback:');
+  callback(message);
+end;
+
+begin
+  Apply(@Add, 10, 20);
+  Execute(@PrintMsg, 'Hello from inline procedure pointer!');
+end;
+
+// ============================================================================
+// Part 3: Inline Procedure Pointers
+// ============================================================================
+
+var counter: Integer := 0;
+
+procedure Increment();
+begin
+  counter := counter + 1;
+end;
+
+procedure Decrement();
+begin
+  counter := counter - 1;
+end;
+
+var action: procedure();
+
+begin
+  action := @Increment;
+  action();
+  action();
+  PrintLn('Test 5 - Counter after 2 increments: ' + IntToStr(counter));
+
+  action := @Decrement;
+  action();
+  PrintLn('Test 6 - Counter after 1 decrement: ' + IntToStr(counter));
+end;
+
+// ============================================================================
+// Part 4: Function Pointers with Different Types
+// ============================================================================
+
+function Concat(a, b: String): String;
+begin
+  Result := a + b;
+end;
+
+function IsEven(n: Integer): Boolean;
+begin
+  Result := (n mod 2) = 0;
+end;
+
+var stringOp: function(x, y: String): String;
+var predicate: function(x: Integer): Boolean;
+var strResult: String;
+var boolResult: Boolean;
+
+begin
+  stringOp := @Concat;
+  strResult := stringOp('Hello', 'World');
+  PrintLn('Test 7 - String concatenation: ' + strResult);
+
+  predicate := @IsEven;
+  boolResult := predicate(4);
+  if boolResult then
+    PrintLn('Test 8 - IsEven(4): true')
+  else
+    PrintLn('Test 8 - IsEven(4): false');
+
+  boolResult := predicate(5);
+  if boolResult then
+    PrintLn('Test 9 - IsEven(5): true')
+  else
+    PrintLn('Test 9 - IsEven(5): false');
+end;
+
+// ============================================================================
+// Part 5: Function Pointers with No Parameters
+// ============================================================================
+
+function GetAnswer(): Integer;
+begin
+  Result := 42;
+end;
+
+procedure SayHello();
+begin
+  PrintLn('  Hello from procedure with no params!');
+end;
+
+var getter: function(): Integer;
+var simpleAction: procedure();
+
+begin
+  getter := @GetAnswer;
+  PrintLn('Test 10 - Function with no params: ' + IntToStr(getter()));
+
+  simpleAction := @SayHello;
+  PrintLn('Test 11 - Procedure with no params:');
+  simpleAction();
+end;
+
+// ============================================================================
+// Part 6: Integration with Lambdas
+// ============================================================================
+
 var doubler: function(x: Integer): Integer;
+var tripler: function(x: Integer): Integer;
+var lambdaResult: Integer;
 
-// Simple functions to use as values
-function Double(x: Integer): Integer;
 begin
-  Result := x * 2;
+  doubler := lambda(x: Integer): Integer => x * 2;
+  lambdaResult := doubler(7);
+  PrintLn('Test 12 - Lambda doubler: ' + IntToStr(lambdaResult));
+
+  var factor: Integer := 3;
+  tripler := lambda(x: Integer): Integer => x * factor;
+  lambdaResult := tripler(7);
+  PrintLn('Test 13 - Lambda with closure: ' + IntToStr(lambdaResult));
 end;
 
-function Triple(x: Integer): Integer;
+// ============================================================================
+// Part 7: Closure Mutation with Inline Procedure Pointers
+// ============================================================================
+
+var accumulator: Integer := 0;
+var addToAccumulator: procedure(n: Integer);
+
 begin
-  Result := x * 3;
+  addToAccumulator := lambda(n: Integer) begin accumulator := accumulator + n; end;
+
+  addToAccumulator(5);
+  addToAccumulator(10);
+  addToAccumulator(15);
+
+  PrintLn('Test 14 - Closure mutation: ' + IntToStr(accumulator));
 end;
 
+// ============================================================================
+// Part 8: Mixed Inline and Aliased Function Pointers
+// ============================================================================
+
+type TComparator = function(a, b: Integer): Integer;
+
+function Compare(x, y: Integer): Integer;
 begin
-  // Assign function pointer to variable
-  doubler := @Double;
+  if x < y then
+    Result := -1
+  else if x > y then
+    Result := 1
+  else
+    Result := 0;
+end;
 
-  // Call through variable
-  PrintLn(IntToStr(doubler(5)));  // Should print 10
+var cmp1: TComparator;
+var cmp2: function(a, b: Integer): Integer;
+var cmpResult1: Integer;
+var cmpResult2: Integer;
 
-  // Pass function pointer to procedure with inline type
-  Apply(@Double, 7);   // Should print 14
-  Apply(@Triple, 4);   // Should print 12
+begin
+  cmp1 := @Compare;
+  cmp2 := @Compare;
 
-  // Note: Lambda expressions are tested separately in testdata/lambdas/
-  // This test focuses on inline type syntax only
+  cmpResult1 := cmp1(5, 10);
+  cmpResult2 := cmp2(10, 5);
+
+  PrintLn('Test 15 - Aliased type compare(5,10): ' + IntToStr(cmpResult1));
+  PrintLn('Test 16 - Inline type compare(10,5): ' + IntToStr(cmpResult2));
+end;
+
+// ============================================================================
+// Part 9: Function Pointers with Multiple Parameters
+// ============================================================================
+
+function Sum3(a, b, c: Integer): Integer;
+begin
+  Result := a + b + c;
+end;
+
+procedure PrintThree(x, y, z: String);
+begin
+  PrintLn('  ' + x + ', ' + y + ', ' + z);
+end;
+
+var summer: function(x, y, z: Integer): Integer;
+var printer: procedure(a, b, c: String);
+
+begin
+  summer := @Sum3;
+  PrintLn('Test 17 - Sum of 10, 20, 30: ' + IntToStr(summer(10, 20, 30)));
+
+  printer := @PrintThree;
+  PrintLn('Test 18 - Print three strings:');
+  printer('Alpha', 'Beta', 'Gamma');
+end;
+
+// ============================================================================
+// Part 10: Complex Scenario - Higher-Order Function
+// ============================================================================
+
+function ApplyTwice(f: function(x: Integer): Integer; value: Integer): Integer;
+begin
+  Result := f(f(value));
+end;
+
+function Square(x: Integer): Integer;
+begin
+  Result := x * x;
+end;
+
+var higherOrderResult: Integer;
+
+begin
+  higherOrderResult := ApplyTwice(@Square, 3);
+  PrintLn('Test 19 - ApplyTwice(Square, 3): ' + IntToStr(higherOrderResult));
+end;
+
+// ============================================================================
+// Part 11: Function Pointer Reassignment in Loop
+// ============================================================================
+
+function Inc1(x: Integer): Integer;
+begin
+  Result := x + 1;
+end;
+
+function Inc10(x: Integer): Integer;
+begin
+  Result := x + 10;
+end;
+
+var incrementer: function(n: Integer): Integer;
+var loopValue: Integer;
+var i: Integer;
+
+begin
+  loopValue := 0;
+
+  for i := 1 to 3 do
+  begin
+    if i <= 2 then
+      incrementer := @Inc1
+    else
+      incrementer := @Inc10;
+
+    loopValue := incrementer(loopValue);
+  end;
+
+  PrintLn('Test 20 - Loop reassignment: ' + IntToStr(loopValue));
+end;
+
+// ============================================================================
+// Part 12: Nested Lambda Calls
+// ============================================================================
+
+var outerFunc: function(x: Integer): Integer;
+var nestedResult: Integer;
+
+begin
+  var multiplier: Integer := 5;
+
+  outerFunc := lambda(x: Integer): Integer begin
+    var innerFunc: function(y: Integer): Integer;
+    innerFunc := lambda(y: Integer): Integer => y * multiplier;
+    Result := innerFunc(x) + x;
+  end;
+
+  nestedResult := outerFunc(4);
+  PrintLn('Test 21 - Nested lambda: ' + IntToStr(nestedResult));
+end;
+
+// ============================================================================
+// Summary
+// ============================================================================
+
+begin
+  PrintLn('');
+  PrintLn('=== All Inline Function Pointer Tests Complete ===');
+  PrintLn('Tasks 9.48, 9.49, 9.50, 9.51, 9.52 verified!');
 end.

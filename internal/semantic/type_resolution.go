@@ -13,8 +13,15 @@ import (
 // ============================================================================
 
 // resolveType resolves a type name to a Type
-// Handles basic types, class types, and enum types
+// Handles basic types, class types, enum types, and inline function pointer types
 func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
+	// Task 9.50: Check for inline function pointer types first
+	// These are synthetic TypeAnnotations created by the parser with full signatures
+	// Examples: "function(x: Integer): Integer", "procedure(msg: String)", "function(): Boolean of object"
+	if strings.HasPrefix(typeName, "function(") || strings.HasPrefix(typeName, "procedure(") {
+		return a.resolveInlineFunctionPointerType(typeName)
+	}
+
 	// Try basic types first
 	basicType, err := types.TypeFromString(typeName)
 	if err == nil {
@@ -57,6 +64,120 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	}
 
 	return nil, fmt.Errorf("unknown type: %s", typeName)
+}
+
+// resolveInlineFunctionPointerType parses an inline function pointer type signature.
+// Task 9.50: Support for inline function pointer types in variables and parameters.
+//
+// Examples:
+//   - "function(x: Integer): Integer" -> FunctionPointerType with 1 param, Integer return
+//   - "procedure(msg: String)" -> FunctionPointerType with 1 param, nil return
+//   - "function(): Boolean" -> FunctionPointerType with 0 params, Boolean return
+//   - "procedure(Sender: TObject) of object" -> MethodPointerType
+//
+// The signature format is created by the parser in parseTypeExpression():
+//   - FunctionPointerTypeNode.String() returns the full signature
+//
+// This function extracts parameter types and return type by parsing the string representation.
+func (a *Analyzer) resolveInlineFunctionPointerType(signature string) (types.Type, error) {
+	// Check if this is a method pointer ("of object")
+	ofObject := strings.HasSuffix(signature, " of object")
+	if ofObject {
+		signature = strings.TrimSuffix(signature, " of object")
+		signature = strings.TrimSpace(signature)
+	}
+
+	// Determine if it's a function or procedure
+	isFunction := strings.HasPrefix(signature, "function(")
+
+	// Extract the part between ( and )
+	openParen := strings.Index(signature, "(")
+	closeParen := strings.LastIndex(signature, ")")
+	if openParen == -1 || closeParen == -1 || closeParen < openParen {
+		return nil, fmt.Errorf("invalid function pointer signature: %s", signature)
+	}
+
+	// Extract parameters string
+	paramsStr := signature[openParen+1 : closeParen]
+
+	// Parse parameters
+	paramTypes, err := a.parseInlineParameters(paramsStr)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing parameters in '%s': %w", signature, err)
+	}
+
+	// Extract return type (if function)
+	var returnType types.Type
+	if isFunction {
+		// Look for ": ReturnType" after the closing )
+		remainder := strings.TrimSpace(signature[closeParen+1:])
+		if strings.HasPrefix(remainder, ":") {
+			returnTypeName := strings.TrimSpace(remainder[1:])
+			if returnTypeName != "" {
+				returnType, err = a.resolveType(returnTypeName)
+				if err != nil {
+					return nil, fmt.Errorf("unknown return type '%s' in function pointer", returnTypeName)
+				}
+			}
+		}
+	}
+
+	// Create function pointer type
+	if ofObject {
+		return types.NewMethodPointerType(paramTypes, returnType), nil
+	}
+	return types.NewFunctionPointerType(paramTypes, returnType), nil
+}
+
+// parseInlineParameters parses the parameter list from an inline function pointer signature.
+// Task 9.50: Extract parameter types from signature strings like "x: Integer; y: String"
+//
+// Format: "param1: Type1; param2, param3: Type2; ..."
+// Returns a slice of parameter types in order.
+func (a *Analyzer) parseInlineParameters(paramsStr string) ([]types.Type, error) {
+	paramsStr = strings.TrimSpace(paramsStr)
+	if paramsStr == "" {
+		return []types.Type{}, nil
+	}
+
+	paramTypes := []types.Type{}
+
+	// Split by semicolon to get parameter groups
+	// Each group is "name1, name2, ...: TypeName"
+	groups := strings.Split(paramsStr, ";")
+
+	for _, group := range groups {
+		group = strings.TrimSpace(group)
+		if group == "" {
+			continue
+		}
+
+		// Split by colon to separate names from type
+		parts := strings.Split(group, ":")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid parameter group: %s", group)
+		}
+
+		// Get the type name
+		typeName := strings.TrimSpace(parts[1])
+
+		// Resolve the type
+		paramType, err := a.resolveType(typeName)
+		if err != nil {
+			return nil, fmt.Errorf("unknown parameter type '%s'", typeName)
+		}
+
+		// Count how many parameters have this type (by counting commas + 1)
+		namesStr := strings.TrimSpace(parts[0])
+		paramCount := strings.Count(namesStr, ",") + 1
+
+		// Add the type for each parameter name
+		for i := 0; i < paramCount; i++ {
+			paramTypes = append(paramTypes, paramType)
+		}
+	}
+
+	return paramTypes, nil
 }
 
 // resolveOperatorType resolves type annotations used in operator declarations.
