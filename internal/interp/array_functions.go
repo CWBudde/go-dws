@@ -160,3 +160,70 @@ func (i *Interpreter) builtinArraySort(arr *ArrayValue) Value {
 
 	return &NilValue{}
 }
+
+// builtinArraySortWithComparator sorts an array in place using a custom comparator function.
+// Task 9.33: Implement Sort(arr, comparator)
+//
+// The comparator function must:
+// - Accept 2 parameters of the same type as the array elements
+// - Return Integer: -1 (a < b), 0 (a == b), 1 (a > b)
+//
+// Uses Go's sort.Slice() with custom comparison function
+// Returns nil
+func (i *Interpreter) builtinArraySortWithComparator(arr *ArrayValue, comparator *FunctionPointerValue) Value {
+	elements := arr.Elements
+	n := len(elements)
+
+	// Empty or single element arrays are already sorted
+	if n <= 1 {
+		return &NilValue{}
+	}
+
+	// Validate comparator signature
+	var paramCount int
+	if comparator.Function != nil {
+		paramCount = len(comparator.Function.Parameters)
+	} else if comparator.Lambda != nil {
+		paramCount = len(comparator.Lambda.Parameters)
+	}
+
+	if paramCount != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Sort() comparator must accept 2 parameters, got %d", paramCount)
+	}
+
+	// Sort using the comparator
+	var sortErr Value
+	sort.Slice(elements, func(idx1, idx2 int) bool {
+		// If we've already encountered an error, don't continue sorting
+		if sortErr != nil {
+			return false
+		}
+
+		// Call comparator with the two elements
+		callArgs := []Value{elements[idx1], elements[idx2]}
+		result := i.callFunctionPointer(comparator, callArgs, i.currentNode)
+
+		// Check for error
+		if _, isErr := result.(*ErrorValue); isErr {
+			sortErr = result
+			return false
+		}
+
+		// Result must be an integer
+		intResult, ok := result.(*IntegerValue)
+		if !ok {
+			sortErr = i.newErrorWithLocation(i.currentNode, "Sort() comparator must return Integer, got %s", result.Type())
+			return false
+		}
+
+		// Return true if first element should come before second (a < b means -1)
+		return intResult.Value < 0
+	})
+
+	// If an error occurred during sorting, return it
+	if sortErr != nil {
+		return sortErr
+	}
+
+	return &NilValue{}
+}

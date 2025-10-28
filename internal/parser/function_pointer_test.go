@@ -221,7 +221,7 @@ func TestParseFunctionPointerTypeDeclarationString(t *testing.T) {
 	}
 
 	stmt := program.Statements[0]
-	expected := "type TComparator = function(a: Integer, b: Integer): Integer"
+	expected := "type TComparator = function(a: Integer; b: Integer): Integer"
 	if stmt.String() != expected {
 		t.Errorf("expected String() to be %q, got %q", expected, stmt.String())
 	}

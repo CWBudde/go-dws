@@ -1,0 +1,4 @@
+// {{header|DWScript}}
+// DWScript has no special variables in the base language.
+// 
+// Hosts can however define any number of contextual or environmental variables.

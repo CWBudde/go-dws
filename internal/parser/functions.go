@@ -255,14 +255,39 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		return nil
 	}
 
-	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected type name after ':'")
+	// Parse type expression (can be simple type, function pointer, or array type)
+	// Task 9.44: Changed from simple IDENT to parseTypeExpression() to support inline types
+	// expectPeek() has already advanced us to the COLON token
+	// Now advance past it to get to the type expression
+	p.nextToken() // move past COLON to type expression start token
+	typeExpr := p.parseTypeExpression()
+	if typeExpr == nil {
+		p.addError("expected type expression after ':'")
 		return nil
 	}
 
-	typeAnnotation := &ast.TypeAnnotation{
-		Token: p.curToken,
-		Name:  p.curToken.Literal,
+	// For now, we need to convert TypeExpression to TypeAnnotation for Parameter.Type
+	// TODO: Update Parameter struct to accept TypeExpression instead of TypeAnnotation
+	var typeAnnotation *ast.TypeAnnotation
+	switch te := typeExpr.(type) {
+	case *ast.TypeAnnotation:
+		typeAnnotation = te
+	case *ast.FunctionPointerTypeNode:
+		// For function pointer types, we create a synthetic TypeAnnotation
+		// The semantic analyzer will recognize function pointer parameters by checking the type string
+		typeAnnotation = &ast.TypeAnnotation{
+			Token: te.Token,
+			Name:  te.String(), // Use the full function pointer signature as the type name
+		}
+	case *ast.ArrayTypeNode:
+		// For array types, we create a synthetic TypeAnnotation
+		typeAnnotation = &ast.TypeAnnotation{
+			Token: te.Token,
+			Name:  te.String(), // Use the full array type signature as the type name
+		}
+	default:
+		p.addError("unsupported type expression in parameter")
+		return nil
 	}
 
 	// Create a parameter for each name with the same type

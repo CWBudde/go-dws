@@ -1,0 +1,30 @@
+// Integration test for Sort() with lambda comparators
+// Task 9.33: Sort(arr, comparator)
+// Reference: reference/dwscript-original/Test/LambdaPass/sort.pas
+
+type TIntArray = array of Integer;
+
+var a : TIntArray;
+begin
+	// Initialize array [1, 3, 2]
+	SetLength(a, 3);
+	a[0] := 1;
+	a[1] := 3;
+	a[2] := 2;
+
+	// Sort ascending: lambda (a, b) => a - b
+	Sort(a, lambda (a, b): Integer => a - b);
+
+	// Should print: 1 2 3
+	PrintLn(a[0]);
+	PrintLn(a[1]);
+	PrintLn(a[2]);
+
+	// Sort descending: lambda (a, b) => b - a
+	Sort(a, lambda (a, b): Integer => b - a);
+
+	// Should print: 3 2 1
+	PrintLn(a[0]);
+	PrintLn(a[1]);
+	PrintLn(a[2]);
+end

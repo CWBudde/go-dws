@@ -97,22 +97,31 @@ func (a *Analyzer) analyzeReturn(stmt *ast.ReturnStatement) {
 		return
 	}
 
-	if a.currentFunction == nil {
+	if a.currentFunction == nil && !a.inLambda {
 		a.addError("return statement outside of function at %s", stmt.Token.Pos.String())
 		return
 	}
 
 	// Get expected return type
 	var expectedType types.Type
-	if a.currentFunction.ReturnType != nil {
-		var err error
-		expectedType, err = types.TypeFromString(a.currentFunction.ReturnType.Name)
-		if err != nil {
-			// Error already reported during function declaration analysis
-			return
+	if a.currentFunction != nil {
+		if a.currentFunction.ReturnType != nil {
+			var err error
+			expectedType, err = types.TypeFromString(a.currentFunction.ReturnType.Name)
+			if err != nil {
+				// Error already reported during function declaration analysis
+				return
+			}
+		} else {
+			expectedType = types.VOID
 		}
-	} else {
-		expectedType = types.VOID
+	} else if a.inLambda {
+		// In lambda context - just analyze the return value
+		// The type checking will be done during lambda return type inference
+		if stmt.ReturnValue != nil {
+			a.analyzeExpression(stmt.ReturnValue)
+		}
+		return
 	}
 
 	// Check return value

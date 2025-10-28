@@ -395,13 +395,13 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 }
 
 // parseLambdaParameterList parses the parameter list for a lambda expression.
-// Lambda parameters are simpler than function parameters:
-//   - Comma-separated list: lambda(a, b, c)
-//   - With optional types: lambda(a: Integer, b: Float)
-//   - Can mix typed and untyped: lambda(a, b: Integer, c)
-//   - Supports by-ref: lambda(var x: Integer)
+// Lambda parameters follow the same syntax as function parameters:
+//   - Semicolon-separated groups: lambda(x: Integer; y: Integer)
+//   - Comma-separated names with shared type: lambda(x, y: Integer)
+//   - Mixed groups: lambda(x, y: Integer; z: String)
+//   - Supports by-ref: lambda(var x: Integer; y: Integer)
 //
-// Note: Unlike function parameter lists, lambda parameters use commas, not semicolons.
+// Note: Lambda parameters use semicolons between groups, matching DWScript function syntax.
 func (p *Parser) parseLambdaParameterList() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
@@ -412,66 +412,95 @@ func (p *Parser) parseLambdaParameterList() []*ast.Parameter {
 		return params
 	}
 
-	// Parse parameters
+	// Parse parameter groups separated by semicolons
 	for {
-		// Check for 'var' keyword (pass by reference)
-		byRef := false
-		paramToken := p.curToken
-		if p.curTokenIs(lexer.VAR) {
-			byRef = true
-			paramToken = p.curToken
-			p.nextToken() // move past 'var'
+		// Parse a parameter group (one or more names with shared type)
+		group := p.parseLambdaParameterGroup()
+		if group == nil {
+			return params
+		}
+		params = append(params, group...)
+
+		// Check for more parameter groups
+		if p.peekTokenIs(lexer.SEMICOLON) {
+			p.nextToken() // move to ';'
+			p.nextToken() // move past ';'
+			continue
 		}
 
+		// No more groups, expect ')'
+		if !p.expectPeek(lexer.RPAREN) {
+			return params
+		}
+		break
+	}
+
+	return params
+}
+
+// parseLambdaParameterGroup parses a group of lambda parameters with the same type.
+// Syntax: name: Type  or  name1, name2: Type  or  var name: Type  or  name (optional type)
+func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
+	params := []*ast.Parameter{}
+
+	// Check for 'var' keyword (pass by reference)
+	byRef := false
+	if p.curTokenIs(lexer.VAR) {
+		byRef = true
+		p.nextToken() // move past 'var'
+	}
+
+	// Collect parameter names separated by commas
+	names := []*ast.Identifier{}
+
+	for {
 		// Parse parameter name
 		if !p.curTokenIs(lexer.IDENT) {
 			p.addError("expected parameter name")
-			return params
+			return nil
 		}
 
-		paramName := &ast.Identifier{
+		names = append(names, &ast.Identifier{
 			Token: p.curToken,
 			Value: p.curToken.Literal,
-		}
+		})
 
-		// Check for type annotation
-		var paramType *ast.TypeAnnotation
-		if p.peekTokenIs(lexer.COLON) {
-			p.nextToken() // move to ':'
-
-			// Parse type
-			if !p.expectPeek(lexer.IDENT) {
-				p.addError("expected type after ':'")
-				return params
-			}
-
-			paramType = &ast.TypeAnnotation{
-				Token: p.curToken,
-				Name:  p.curToken.Literal,
-			}
-		}
-
-		// Create parameter
-		param := &ast.Parameter{
-			Token: paramToken,
-			Name:  paramName,
-			Type:  paramType,
-			ByRef: byRef,
-		}
-		params = append(params, param)
-
-		// Check for more parameters
+		// Check if there are more names (comma-separated)
 		if p.peekTokenIs(lexer.COMMA) {
 			p.nextToken() // move to ','
 			p.nextToken() // move past ','
 			continue
 		}
 
-		// No more parameters, expect ')'
-		if !p.expectPeek(lexer.RPAREN) {
-			return params
-		}
+		// No more names, check for type annotation
 		break
+	}
+
+	// Check for optional type annotation
+	var typeAnnotation *ast.TypeAnnotation
+	if p.peekTokenIs(lexer.COLON) {
+		p.nextToken() // move to ':'
+
+		if !p.expectPeek(lexer.IDENT) {
+			p.addError("expected type name after ':'")
+			return nil
+		}
+
+		typeAnnotation = &ast.TypeAnnotation{
+			Token: p.curToken,
+			Name:  p.curToken.Literal,
+		}
+	}
+
+	// Create a parameter for each name with the same type (or nil if untyped)
+	for _, name := range names {
+		param := &ast.Parameter{
+			Token: name.Token,
+			Name:  name,
+			Type:  typeAnnotation,
+			ByRef: byRef,
+		}
+		params = append(params, param)
 	}
 
 	return params

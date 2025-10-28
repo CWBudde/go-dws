@@ -44,6 +44,7 @@ coverage.html
 
 # Cache
 .cache
+.gocache
 
 # Binaries
 Bin/

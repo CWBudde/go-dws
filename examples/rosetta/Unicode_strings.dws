@@ -1,0 +1,6 @@
+// {{header|DWScript}}
+// Source code is expected in Unicode (typically UTF-8 or UTF-16), characters above 127 (non-ASCII) are not part of the language, and are accepted literally as string characters or as identifier characters.
+// 
+// Characters in a string can also by specified explicitly by specifying the Unicode codepoint with a # followed by a decimal number, or a #$ followed by an hexadecimal codepoint (if the codepoint is outside the BMP, it'll result in two UTF-16 words). Contrarily to some other Pascal variants (like Delphi), explicit character codes are always and consistently interpreted as Unicode codepoints.
+// 
+// Strings are UTF-16.

@@ -1,0 +1,37 @@
+// Test inline function pointer types in parameters and variables
+// Task 9.44, 9.45: Inline function pointer type syntax
+
+// Function that accepts inline function pointer parameter
+procedure Apply(f: function(x: Integer): Integer; value: Integer);
+begin
+  PrintLn(IntToStr(f(value)));
+end;
+
+// Variable with inline function pointer type
+var doubler: function(x: Integer): Integer;
+
+// Simple functions to use as values
+function Double(x: Integer): Integer;
+begin
+  Result := x * 2;
+end;
+
+function Triple(x: Integer): Integer;
+begin
+  Result := x * 3;
+end;
+
+begin
+  // Assign function pointer to variable
+  doubler := @Double;
+
+  // Call through variable
+  PrintLn(IntToStr(doubler(5)));  // Should print 10
+
+  // Pass function pointer to procedure with inline type
+  Apply(@Double, 7);   // Should print 14
+  Apply(@Triple, 4);   // Should print 12
+
+  // Note: Lambda expressions are tested separately in testdata/lambdas/
+  // This test focuses on inline type syntax only
+end.

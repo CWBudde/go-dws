@@ -1,0 +1,98 @@
+// Nested Lambda Test Script
+// Tests nested lambdas and multi-level closure capture
+// NOTE: Cannot use inline function pointer types (not yet implemented)
+
+PrintLn('=== Nested Lambda Tests ===');
+PrintLn('');
+
+// Test 1: Lambda returning lambda (using type alias)
+PrintLn('Test 1: Lambda returning lambda');
+
+type TAdder = function(y: Integer): Integer;
+
+function makeAdder(x: Integer): TAdder;
+begin
+  Result := lambda(y: Integer): Integer => x + y;
+end;
+
+var add5 := makeAdder(5);
+var add10 := makeAdder(10);
+PrintLn('add5(3) = ' + IntToStr(add5(3)));
+PrintLn('add10(3) = ' + IntToStr(add10(3)));
+PrintLn('');
+
+// Test 2: Counter pattern
+PrintLn('Test 2: Counter pattern');
+
+type TCounter = function(): Integer;
+
+function MakeCounter(): TCounter;
+var
+  count: Integer;
+begin
+  count := 0;
+  Result := lambda(): Integer begin
+    count := count + 1;
+    Result := count;
+  end;
+end;
+
+var counter1 := MakeCounter();
+var counter2 := MakeCounter();
+PrintLn('counter1: ' + IntToStr(counter1()));
+PrintLn('counter1: ' + IntToStr(counter1()));
+PrintLn('counter1: ' + IntToStr(counter1()));
+PrintLn('counter2: ' + IntToStr(counter2()));
+PrintLn('counter2: ' + IntToStr(counter2()));
+PrintLn('');
+
+// Test 3: Accumulator factory
+PrintLn('Test 3: Accumulator factory');
+
+type TAccumulator = function(n: Integer): Integer;
+
+function MakeAccumulator(initial: Integer): TAccumulator;
+var
+  total: Integer;
+begin
+  total := initial;
+  Result := lambda(n: Integer): Integer begin
+    total := total + n;
+    Result := total;
+  end;
+end;
+
+var acc1 := MakeAccumulator(0);
+var acc2 := MakeAccumulator(100);
+PrintLn('acc1(5) = ' + IntToStr(acc1(5)));
+PrintLn('acc1(10) = ' + IntToStr(acc1(10)));
+PrintLn('acc2(5) = ' + IntToStr(acc2(5)));
+PrintLn('acc2(10) = ' + IntToStr(acc2(10)));
+PrintLn('');
+
+// Test 4: Multiple lambdas sharing outer variable
+PrintLn('Test 4: Multiple lambdas sharing variable');
+var shared := 0;
+var inc := lambda() begin
+  shared := shared + 1;
+end;
+var dec := lambda() begin
+  shared := shared - 1;
+end;
+var get := lambda(): Integer => shared;
+var reset := lambda() begin
+  shared := 0;
+end;
+
+PrintLn('Initial: ' + IntToStr(get()));
+inc();
+inc();
+inc();
+PrintLn('After 3 increments: ' + IntToStr(get()));
+dec();
+PrintLn('After 1 decrement: ' + IntToStr(get()));
+reset();
+PrintLn('After reset: ' + IntToStr(get()));
+PrintLn('');
+
+PrintLn('=== All Nested Lambda Tests Complete ===');

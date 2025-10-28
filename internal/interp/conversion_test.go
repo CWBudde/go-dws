@@ -881,3 +881,353 @@ end
 		})
 	}
 }
+
+// TestBuiltinBoolToStr_BasicUsage tests BoolToStr() with basic boolean to string conversion.
+// BoolToStr(b) - converts boolean to string representation
+// Task 9.245: BoolToStr built-in function
+func TestBuiltinBoolToStr_BasicUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "True literal",
+			input: `
+begin
+	BoolToStr(True);
+end
+			`,
+			expected: "True",
+		},
+		{
+			name: "False literal",
+			input: `
+begin
+	BoolToStr(False);
+end
+			`,
+			expected: "False",
+		},
+		{
+			name: "With boolean variable - True",
+			input: `
+var b: Boolean := True;
+begin
+	BoolToStr(b);
+end
+			`,
+			expected: "True",
+		},
+		{
+			name: "With boolean variable - False",
+			input: `
+var b: Boolean := False;
+begin
+	BoolToStr(b);
+end
+			`,
+			expected: "False",
+		},
+		{
+			name: "Comparison expression - True",
+			input: `
+begin
+	BoolToStr(5 > 3);
+end
+			`,
+			expected: "True",
+		},
+		{
+			name: "Comparison expression - False",
+			input: `
+begin
+	BoolToStr(5 < 3);
+end
+			`,
+			expected: "False",
+		},
+		{
+			name: "Equality expression - True",
+			input: `
+begin
+	BoolToStr(42 = 42);
+end
+			`,
+			expected: "True",
+		},
+		{
+			name: "Equality expression - False",
+			input: `
+begin
+	BoolToStr(42 = 0);
+end
+			`,
+			expected: "False",
+		},
+		{
+			name: "Logical expression - True",
+			input: `
+begin
+	BoolToStr(True and True);
+end
+			`,
+			expected: "True",
+		},
+		{
+			name: "Logical expression - False",
+			input: `
+begin
+	BoolToStr(True and False);
+end
+			`,
+			expected: "False",
+		},
+		{
+			name: "Not expression - True",
+			input: `
+begin
+	BoolToStr(not False);
+end
+			`,
+			expected: "True",
+		},
+		{
+			name: "Not expression - False",
+			input: `
+begin
+	BoolToStr(not True);
+end
+			`,
+			expected: "False",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("BoolToStr() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinBoolToStr_InExpressions tests using BoolToStr() in various expressions.
+func TestBuiltinBoolToStr_InExpressions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "BoolToStr in string concatenation",
+			input: `
+var b: Boolean := True;
+begin
+	"The value is: " + BoolToStr(b);
+end
+			`,
+			expected: "The value is: True",
+		},
+		{
+			name: "BoolToStr with comparison",
+			input: `
+var x: Integer := 10;
+var y: Integer := 20;
+begin
+	BoolToStr(x < y) + " is correct";
+end
+			`,
+			expected: "True is correct",
+		},
+		{
+			name: "Multiple BoolToStr calls",
+			input: `
+begin
+	BoolToStr(True) + ", " + BoolToStr(False);
+end
+			`,
+			expected: "True, False",
+		},
+		{
+			name: "BoolToStr nested in UpperCase",
+			input: `
+begin
+	UpperCase(BoolToStr(True));
+end
+			`,
+			expected: "TRUE",
+		},
+		{
+			name: "BoolToStr nested in LowerCase",
+			input: `
+begin
+	LowerCase(BoolToStr(False));
+end
+			`,
+			expected: "false",
+		},
+		{
+			name: "Complex boolean expression",
+			input: `
+var a: Integer := 5;
+var b: Integer := 10;
+var c: Integer := 15;
+begin
+	BoolToStr((a < b) and (b < c));
+end
+			`,
+			expected: "True",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("BoolToStr() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinBoolToStr_ErrorCases tests error handling for BoolToStr().
+func TestBuiltinBoolToStr_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "No arguments",
+			input: `
+begin
+	BoolToStr();
+end
+			`,
+		},
+		{
+			name: "Too many arguments",
+			input: `
+begin
+	BoolToStr(True, False);
+end
+			`,
+		},
+		{
+			name: "Non-boolean argument - integer",
+			input: `
+var x: Integer := 42;
+begin
+	BoolToStr(x);
+end
+			`,
+		},
+		{
+			name: "Non-boolean argument - string",
+			input: `
+var s: String := "hello";
+begin
+	BoolToStr(s);
+end
+			`,
+		},
+		{
+			name: "Non-boolean argument - float",
+			input: `
+var f: Float := 3.14;
+begin
+	BoolToStr(f);
+end
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			// Should return an error
+			if !isError(result) {
+				t.Errorf("expected error for invalid BoolToStr() call, got %T: %+v", result, result)
+			}
+		})
+	}
+}
+
+// TestBuiltinBoolToStr_PracticalUseCases tests real-world usage scenarios.
+func TestBuiltinBoolToStr_PracticalUseCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Debug output with boolean",
+			input: `
+var enabled: Boolean := True;
+begin
+	"Feature enabled: " + BoolToStr(enabled);
+end
+			`,
+			expected: "Feature enabled: True",
+		},
+		{
+			name: "Validation result",
+			input: `
+var age: Integer := 25;
+begin
+	"Is adult: " + BoolToStr(age >= 18);
+end
+			`,
+			expected: "Is adult: True",
+		},
+		{
+			name: "Multiple conditions",
+			input: `
+var x: Integer := 10;
+begin
+	"x is positive: " + BoolToStr(x > 0) + ", x is even: " + BoolToStr((x mod 2) = 0);
+end
+			`,
+			expected: "x is positive: True, x is even: True",
+		},
+		{
+			name: "Replaces if-then-else workaround",
+			input: `
+var success: Boolean := True;
+begin
+	BoolToStr(success);
+end
+			`,
+			expected: "True",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("BoolToStr() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}

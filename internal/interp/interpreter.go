@@ -142,6 +142,10 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.ExitStatement:
 		return i.evalExitStatement(node)
 
+	case *ast.ReturnStatement:
+		// Task 9.222: Handle return statements in lambda shorthand syntax
+		return i.evalReturnStatement(node)
+
 	case *ast.UsesClause:
 		// Uses clauses are processed before execution by the CLI/loader
 		// At runtime, they're no-ops since units are already loaded
@@ -225,6 +229,10 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	case *ast.IndexExpression:
 		return i.evalIndexExpression(node)
+
+	case *ast.LambdaExpression:
+		// Task 9.222: Evaluate lambda expression to create closure
+		return i.evalLambdaExpression(node)
 
 	default:
 		return newError("unknown node type: %T", node)
@@ -1150,7 +1158,7 @@ func (i *Interpreter) evalAddressOfExpression(expr *ast.AddressOfExpression) Val
 
 // evalFunctionPointer creates a function pointer value for the named function.
 // If selfObject is non-nil, creates a method pointer.
-func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, node ast.Node) Value {
+func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.Node) Value {
 	// Look up the function in the function registry
 	function, exists := i.functions[name]
 	if !exists {
@@ -1221,6 +1229,80 @@ func (i *Interpreter) getTypeByName(name string) types.Type {
 		// For now, return integer as placeholder
 		return &types.IntegerType{}
 	}
+}
+
+// evalLambdaExpression evaluates a lambda expression and creates a closure.
+// Task 9.222: Lambda evaluation - creates a closure capturing the current environment.
+//
+// A lambda expression evaluates to a function pointer value that captures the
+// environment where it was created (closure). The closure allows the lambda to
+// access variables from outer scopes when it's eventually called.
+//
+// Examples:
+//   - var double := lambda(x: Integer): Integer begin Result := x * 2; end;
+//   - var add := lambda(a, b: Integer) => a + b;  // shorthand syntax
+//   - Capturing outer variable: var factor := 10;
+//     var multiply := lambda(x: Integer) => x * factor;
+func (i *Interpreter) evalLambdaExpression(expr *ast.LambdaExpression) Value {
+	// The current environment becomes the closure environment
+	// This captures all variables accessible at the point where the lambda is defined
+	closureEnv := i.env
+
+	// Get the function pointer type from the semantic analyzer
+	// The semantic analyzer already computed the type during type checking
+	var pointerType *types.FunctionPointerType
+	if expr.Type != nil {
+		// Extract the type information from the annotation
+		// The semantic analyzer stored a FunctionPointerType in expr.Type
+		pointerType = i.getFunctionPointerTypeFromAnnotation(expr.Type)
+	} else {
+		// Fallback: construct type from lambda signature
+		// Build parameter types
+		paramTypes := make([]types.Type, len(expr.Parameters))
+		for idx, param := range expr.Parameters {
+			if param.Type != nil {
+				paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+			} else {
+				paramTypes[idx] = &types.IntegerType{} // Default fallback
+			}
+		}
+
+		// Get return type
+		var returnType types.Type
+		if expr.ReturnType != nil {
+			returnType = i.getTypeFromAnnotation(expr.ReturnType)
+		}
+
+		// Create the function pointer type
+		if returnType != nil {
+			pointerType = types.NewFunctionPointerType(paramTypes, returnType)
+		} else {
+			pointerType = types.NewProcedurePointerType(paramTypes)
+		}
+	}
+
+	// Create and return a lambda value (closure)
+	// The lambda captures the current environment (closureEnv) which includes
+	// all variables from outer scopes listed in expr.CapturedVars
+	return NewLambdaValue(expr, closureEnv, pointerType)
+}
+
+// getFunctionPointerTypeFromAnnotation extracts FunctionPointerType from a type annotation.
+// Helper for lambda evaluation to get the type computed by semantic analysis.
+func (i *Interpreter) getFunctionPointerTypeFromAnnotation(typeAnnotation *ast.TypeAnnotation) *types.FunctionPointerType {
+	if typeAnnotation == nil {
+		return nil
+	}
+
+	// For lambda expressions, the semantic analyzer stores a FunctionPointerType
+	// in the Type field. We need to reconstruct it from the annotation.
+	// For now, we'll use the type name to determine if it's a function pointer
+
+	// TODO: This is a simplified implementation. In a full implementation,
+	// the semantic analyzer should provide a way to get the computed type directly.
+	// For now, return nil to trigger the fallback in evalLambdaExpression
+
+	return nil
 }
 
 func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool) {
@@ -1422,6 +1504,11 @@ func (i *Interpreter) extractReturnValue(method *ast.FunctionDecl, env *Environm
 // Task 8.19a: Apply implicit conversions automatically at runtime.
 // Task 8.19d: Support chained implicit conversions (e.g., Integer -> String -> Custom).
 func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) (Value, bool) {
+	// Handle nil value
+	if value == nil {
+		return nil, false
+	}
+
 	sourceTypeName := value.Type()
 
 	// No conversion needed if types already match
@@ -1731,12 +1818,23 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinFloatToStr(args)
 	case "StrToFloat":
 		return i.builtinStrToFloat(args)
+	case "BoolToStr":
+		return i.builtinBoolToStr(args)
 	case "Succ":
 		return i.builtinSucc(args)
 	case "Pred":
 		return i.builtinPred(args)
 	case "Assert":
 		return i.builtinAssert(args)
+	// Task 9.227: Higher-order functions for working with arrays and lambdas
+	case "Map":
+		return i.builtinMap(args)
+	case "Filter":
+		return i.builtinFilter(args)
+	case "Reduce":
+		return i.builtinReduce(args)
+	case "ForEach":
+		return i.builtinForEach(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
@@ -2030,22 +2128,34 @@ func (i *Interpreter) builtinReverse(args []Value) Value {
 }
 
 // builtinSort implements the Sort() built-in function for arrays.
-// Task 9.76: Sort(arr)
+// Task 9.76: Sort(arr) - sorts using default comparison
+// Task 9.33: Sort(arr, comparator) - sorts using custom comparator function
 //
-// Sorts array elements in place using default comparison
+// Sorts array elements in place using default comparison or custom comparator
 func (i *Interpreter) builtinSort(args []Value) Value {
-	// Validate argument count: 1 argument
-	if len(args) != 1 {
-		return i.newErrorWithLocation(i.currentNode, "Sort() expects 1 argument, got %d", len(args))
+	// Validate argument count: 1 or 2 arguments
+	if len(args) < 1 || len(args) > 2 {
+		return i.newErrorWithLocation(i.currentNode, "Sort() expects 1 or 2 arguments, got %d", len(args))
 	}
 
 	// First argument must be array
 	arr, ok := args[0].(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Sort() expects array as argument, got %s", args[0].Type())
+		return i.newErrorWithLocation(i.currentNode, "Sort() expects array as first argument, got %s", args[0].Type())
 	}
 
-	return i.builtinArraySort(arr)
+	// If only 1 argument, use default sorting
+	if len(args) == 1 {
+		return i.builtinArraySort(arr)
+	}
+
+	// Second argument must be a function pointer (lambda or named function)
+	comparator, ok := args[1].(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Sort() expects function pointer as second argument, got %s", args[1].Type())
+	}
+
+	return i.builtinArraySortWithComparator(arr, comparator)
 }
 
 // builtinConcat implements the Concat() built-in function.
@@ -3292,6 +3402,29 @@ func (i *Interpreter) builtinStrToFloat(args []Value) Value {
 	return &FloatValue{Value: floatValue}
 }
 
+// builtinBoolToStr implements the BoolToStr() built-in function.
+// It converts a boolean to its string representation ("True" or "False").
+// BoolToStr(b: Boolean): String
+// Task 9.245: Type conversion functions
+func (i *Interpreter) builtinBoolToStr(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "BoolToStr() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Argument must be a boolean
+	boolVal, ok := args[0].(*BooleanValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "BoolToStr() expects boolean argument, got %s", args[0].Type())
+	}
+
+	// Convert boolean to string
+	// DWScript uses "True" and "False" (capitalized)
+	if boolVal.Value {
+		return &StringValue{Value: "True"}
+	}
+	return &StringValue{Value: "False"}
+}
+
 // builtinInc implements the Inc() built-in function.
 // It increments a variable in place: Inc(x) or Inc(x, delta)
 // Task 9.24: Inc() function for ordinal types (Integer, Enum)
@@ -3878,6 +4011,236 @@ func (i *Interpreter) builtinAssert(args []Value) Value {
 	return nil
 }
 
+// ============================================================================
+// Higher-Order Functions (Task 9.227)
+// ============================================================================
+
+// builtinMap implements the Map() built-in function.
+// Task 9.227: Transform array elements using a lambda.
+//
+// Signature: Map(array, lambda) -> array
+// - array: The source array to transform
+// - lambda: A function that takes one element and returns the transformed value
+//
+// Returns: New array with transformed elements
+//
+// Example:
+//   var numbers := [1, 2, 3, 4, 5];
+//   var doubled := Map(numbers, lambda(x: Integer): Integer => x * 2);
+//   // Result: [2, 4, 6, 8, 10]
+func (i *Interpreter) builtinMap(args []Value) Value {
+	// Validate argument count
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Map() expects 2 arguments (array, lambda), got %d", len(args))
+	}
+
+	// First argument must be an array
+	arrayVal, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Map() first argument must be an array, got %s", args[0].Type())
+	}
+
+	// Second argument must be a function pointer (lambda)
+	lambdaVal, ok := args[1].(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Map() second argument must be a lambda/function, got %s", args[1].Type())
+	}
+
+	// Create result array with same capacity
+	resultElements := make([]Value, len(arrayVal.Elements))
+
+	// Apply lambda to each element
+	for idx, element := range arrayVal.Elements {
+		// Call the lambda with the current element
+		callArgs := []Value{element}
+		result := i.callFunctionPointer(lambdaVal, callArgs, i.currentNode)
+
+		// Check for errors
+		if isError(result) {
+			return result
+		}
+
+		// Store the transformed value
+		resultElements[idx] = result
+	}
+
+	// Create and return new array with transformed elements
+	return &ArrayValue{
+		Elements:  resultElements,
+		ArrayType: arrayVal.ArrayType,
+	}
+}
+
+// builtinFilter implements the Filter() built-in function.
+// Task 9.227: Filter array elements using a predicate lambda.
+//
+// Signature: Filter(array, predicate) -> array
+// - array: The source array to filter
+// - predicate: A function that takes one element and returns Boolean (true to keep)
+//
+// Returns: New array with only elements where predicate returned true
+//
+// Example:
+//   var numbers := [1, 2, 3, 4, 5];
+//   var evens := Filter(numbers, lambda(x: Integer): Boolean => (x mod 2) = 0);
+//   // Result: [2, 4]
+func (i *Interpreter) builtinFilter(args []Value) Value {
+	// Validate argument count
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Filter() expects 2 arguments (array, predicate), got %d", len(args))
+	}
+
+	// First argument must be an array
+	arrayVal, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Filter() first argument must be an array, got %s", args[0].Type())
+	}
+
+	// Second argument must be a function pointer (lambda)
+	predicateVal, ok := args[1].(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Filter() second argument must be a lambda/function, got %s", args[1].Type())
+	}
+
+	// Create result array (will grow as needed)
+	var resultElements []Value
+
+	// Apply predicate to each element
+	for _, element := range arrayVal.Elements {
+		// Call the predicate with the current element
+		callArgs := []Value{element}
+		result := i.callFunctionPointer(predicateVal, callArgs, i.currentNode)
+
+		// Check for errors
+		if isError(result) {
+			return result
+		}
+
+		// Predicate must return boolean
+		boolResult, ok := result.(*BooleanValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "Filter() predicate must return Boolean, got %s", result.Type())
+		}
+
+		// If predicate is true, keep this element
+		if boolResult.Value {
+			resultElements = append(resultElements, element)
+		}
+	}
+
+	// Create and return new array with filtered elements
+	return &ArrayValue{
+		Elements:  resultElements,
+		ArrayType: arrayVal.ArrayType,
+	}
+}
+
+// builtinReduce implements the Reduce() built-in function.
+// Task 9.227: Reduce array to single value using an accumulator lambda.
+//
+// Signature: Reduce(array, lambda, initial) -> value
+// - array: The source array to reduce
+// - lambda: A function that takes (accumulator, element) and returns new accumulator
+// - initial: The initial value of the accumulator
+//
+// Returns: Final accumulated value
+//
+// Example:
+//   var numbers := [1, 2, 3, 4, 5];
+//   var sum := Reduce(numbers, lambda(acc, x: Integer): Integer => acc + x, 0);
+//   // Result: 15
+func (i *Interpreter) builtinReduce(args []Value) Value {
+	// Validate argument count
+	if len(args) != 3 {
+		return i.newErrorWithLocation(i.currentNode, "Reduce() expects 3 arguments (array, lambda, initial), got %d", len(args))
+	}
+
+	// First argument must be an array
+	arrayVal, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Reduce() first argument must be an array, got %s", args[0].Type())
+	}
+
+	// Second argument must be a function pointer (lambda)
+	lambdaVal, ok := args[1].(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Reduce() second argument must be a lambda/function, got %s", args[1].Type())
+	}
+
+	// Third argument is the initial accumulator value
+	accumulator := args[2]
+
+	// Apply lambda to each element with accumulator
+	for _, element := range arrayVal.Elements {
+		// Call the lambda with (accumulator, element)
+		callArgs := []Value{accumulator, element}
+		result := i.callFunctionPointer(lambdaVal, callArgs, i.currentNode)
+
+		// Check for errors
+		if isError(result) {
+			return result
+		}
+
+		// Update accumulator with result
+		accumulator = result
+	}
+
+	// Return final accumulated value
+	return accumulator
+}
+
+// builtinForEach implements the ForEach() built-in function.
+// Task 9.227: Execute a lambda for each array element (for side effects).
+//
+// Signature: ForEach(array, lambda)
+// - array: The source array to iterate
+// - lambda: A function that takes one element (return value ignored)
+//
+// Returns: nil (this function is used for side effects only)
+//
+// Example:
+//   var numbers := [1, 2, 3];
+//   ForEach(numbers, lambda(x: Integer) begin PrintLn(x); end);
+//   // Output: 1\n2\n3
+func (i *Interpreter) builtinForEach(args []Value) Value {
+	// Validate argument count
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "ForEach() expects 2 arguments (array, lambda), got %d", len(args))
+	}
+
+	// First argument must be an array
+	arrayVal, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ForEach() first argument must be an array, got %s", args[0].Type())
+	}
+
+	// Second argument must be a function pointer (lambda)
+	lambdaVal, ok := args[1].(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ForEach() second argument must be a lambda/function, got %s", args[1].Type())
+	}
+
+	// Execute lambda for each element
+	for _, element := range arrayVal.Elements {
+		// Call the lambda with the current element
+		callArgs := []Value{element}
+		result := i.callFunctionPointer(lambdaVal, callArgs, i.currentNode)
+
+		// Check for errors
+		if isError(result) {
+			return result
+		}
+
+		// Check if exception was raised
+		if i.exception != nil {
+			return &NilValue{} // Exception propagation
+		}
+	}
+
+	// ForEach returns nil (used for side effects)
+	return &NilValue{}
+}
+
 // evalIfStatement evaluates an if statement.
 // It evaluates the condition, converts it to a boolean, and executes
 // the consequence if true, or the alternative if false (and present).
@@ -4158,6 +4521,39 @@ func (i *Interpreter) evalContinueStatement(_ *ast.ContinueStatement) Value {
 // evalExitStatement evaluates an exit statement (Task 8.235l).
 // Sets the exit signal to exit the current function.
 // If at program level, sets exit signal to terminate the program.
+// evalReturnStatement handles return statements in lambda expressions.
+// Task 9.222: Return statements are used in shorthand lambda syntax.
+//
+// In shorthand lambda syntax, the parser creates a return statement:
+//   lambda(x) => x * 2
+// becomes:
+//   lambda(x) begin return x * 2; end
+//
+// The return value is assigned to the Result variable if it exists.
+func (i *Interpreter) evalReturnStatement(stmt *ast.ReturnStatement) Value {
+	// Evaluate the return value
+	var returnVal Value
+	if stmt.ReturnValue != nil {
+		returnVal = i.Eval(stmt.ReturnValue)
+		if isError(returnVal) {
+			return returnVal
+		}
+	} else {
+		returnVal = &NilValue{}
+	}
+
+	// Assign to Result variable if it exists (for functions)
+	// This allows the function to return the value
+	if _, exists := i.env.Get("Result"); exists {
+		i.env.Set("Result", returnVal)
+	}
+
+	// Set exit signal to indicate early return
+	i.exitSignal = true
+
+	return returnVal
+}
+
 func (i *Interpreter) evalExitStatement(_ *ast.ExitStatement) Value {
 	i.exitSignal = true
 	// Exit doesn't return a value - the function's default return value is used
@@ -5541,6 +5937,15 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 // This handles both regular function pointers and method pointers.
 // For method pointers, it binds the Self object before calling.
 func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []Value, node ast.Node) Value {
+	// Task 9.223: Enhanced to handle lambda closures
+
+	// Check if this is a lambda or a regular function pointer
+	if funcPtr.Lambda != nil {
+		// Lambda closure - call with closure environment
+		return i.callLambda(funcPtr.Lambda, funcPtr.Closure, args, node)
+	}
+
+	// Regular function pointer
 	if funcPtr.Function == nil {
 		return i.newErrorWithLocation(node, "function pointer is nil")
 	}
@@ -5566,6 +5971,117 @@ func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []
 
 	// Regular function pointer - just call the function directly
 	return i.callUserFunction(funcPtr.Function, args)
+}
+
+// callLambda executes a lambda expression with its captured closure environment.
+// Task 9.223: Closure invocation - executes lambda body with closure environment.
+// Task 9.224: Variable capture - the closure environment provides reference semantics.
+//
+// The key difference from regular functions is that lambdas execute within their
+// closure environment, allowing them to access captured variables from outer scopes.
+//
+// Parameters:
+//   - lambda: The lambda expression AST node
+//   - closureEnv: The environment captured when the lambda was created
+//   - args: The argument values passed to the lambda
+//   - node: AST node for error reporting
+//
+// Variable Capture Semantics:
+//   - Captured variables are accessed by reference (not copied)
+//   - Changes to captured variables inside the lambda affect the outer scope
+//   - The environment chain naturally provides this behavior
+func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Environment, args []Value, node ast.Node) Value {
+	// Check argument count matches parameter count
+	if len(args) != len(lambda.Parameters) {
+		return i.newErrorWithLocation(node, "wrong number of arguments for lambda: expected %d, got %d",
+			len(lambda.Parameters), len(args))
+	}
+
+	// Create a new environment for the lambda scope
+	// CRITICAL: Use closureEnv as parent, NOT i.env
+	// This gives the lambda access to captured variables
+	lambdaEnv := NewEnclosedEnvironment(closureEnv)
+	savedEnv := i.env
+	i.env = lambdaEnv
+
+	// Push lambda marker onto call stack for stack traces
+	i.callStack = append(i.callStack, "<lambda>")
+	defer func() {
+		if len(i.callStack) > 0 {
+			i.callStack = i.callStack[:len(i.callStack)-1]
+		}
+	}()
+
+	// Bind parameters to arguments
+	for idx, param := range lambda.Parameters {
+		arg := args[idx]
+
+		// Apply implicit conversion if parameter has a type and types don't match
+		if param.Type != nil {
+			paramTypeName := param.Type.Name
+			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+				arg = converted
+			}
+		}
+
+		// Note: Lambdas don't support by-ref parameters (for now)
+		// All parameters are by-value
+		i.env.Define(param.Name.Value, arg)
+	}
+
+	// For functions (not procedures), initialize the Result variable
+	if lambda.ReturnType != nil {
+		// Initialize Result based on return type
+		var resultValue Value = &NilValue{}
+
+		// Check if return type is a record
+		returnTypeName := lambda.ReturnType.Name
+		recordTypeKey := "__record_type_" + returnTypeName
+		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				resultValue = NewRecordValue(rtv.RecordType)
+			}
+		}
+
+		i.env.Define("Result", resultValue)
+	}
+
+	// Execute the lambda body
+	i.Eval(lambda.Body)
+
+	// If an exception was raised during lambda execution, propagate it immediately
+	if i.exception != nil {
+		i.env = savedEnv
+		return &NilValue{}
+	}
+
+	// Handle exit signal
+	if i.exitSignal {
+		i.exitSignal = false
+	}
+
+	// Extract return value
+	var returnValue Value
+	if lambda.ReturnType != nil {
+		// Lambda has a return type - get the Result value
+		resultVal, resultOk := i.env.Get("Result")
+
+		if resultOk && resultVal.Type() != "NIL" {
+			returnValue = resultVal
+		} else if resultOk {
+			returnValue = resultVal
+		} else {
+			returnValue = &NilValue{}
+		}
+	} else {
+		// Procedure lambda - no return value
+		returnValue = &NilValue{}
+	}
+
+	// Restore environment
+	i.env = savedEnv
+
+	return returnValue
 }
 
 // ErrorValue represents a runtime error.

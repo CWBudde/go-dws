@@ -1,0 +1,45 @@
+=== Closure Tests ===
+
+Test 1: Simple variable capture
+x = 10
+captureX() = 10
+
+Test 2: Captured variable mutation
+counter before: 0
+counter after 1st call: 1
+counter after 2nd call: 2
+counter after 3rd call: 3
+
+Test 3: Multiple variable capture
+a = 5, b = 10
+sumAB() = 15
+After a := 20:
+sumAB() = 30
+
+Test 4: Reference semantics (changes visible outside)
+total = 0
+After addToTotal(5): total = 5
+After addToTotal(10): total = 15
+
+Test 5: Multiple lambdas sharing variable
+shared = 100
+After add10(): shared = 110
+After subtract5(): shared = 105
+After add10(): shared = 115
+
+Test 6: Lambda with parameters and captured variables
+multiplier = 3
+multiplyBy(5) = 15
+multiplyBy(10) = 30
+After multiplier := 7:
+multiplyBy(5) = 35
+
+Test 7: Complex closure with multiple operations
+Initial: Balance: 1000, Transactions: 0
+Deposited 500, new balance: 1500
+Withdrew 300, new balance: 1200
+Deposited 100, new balance: 1300
+Insufficient funds!
+Final: Balance: 1300, Transactions: 3
+
+=== All Closure Tests Complete ===

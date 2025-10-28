@@ -1,0 +1,5 @@
+var isOdd := Odd(i);
+
+var isOdd := (i and 1)<>0;
+
+var isOdd := (i mod 2)=1;

@@ -1,0 +1,15 @@
+function IterativeFactorial(n : Integer) : Integer;
+var 
+   i : Integer;
+begin
+   Result := 1;
+   for i := 2 to n do
+      Result *= i;
+end;
+
+function RecursiveFactorial(n : Integer) : Integer;
+begin
+   if n>1 then
+      Result := RecursiveFactorial(n-1)*n
+   else Result := 1;
+end;

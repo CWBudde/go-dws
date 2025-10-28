@@ -1,0 +1,2 @@
+// {{header|DWScript}}
+// DWScript currently uses a 64bit [[wp:Xorshift|XorShift]] PRNG, which is a fast and light form of GFSR.
