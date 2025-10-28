@@ -760,6 +760,26 @@ func TestForStatementExecution(t *testing.T) {
 			input:    `var count := 0; for i := 1 to 5 do begin count := count + 1; PrintLn(count) end`,
 			expected: "1\n2\n3\n4\n5\n",
 		},
+		{
+			name: "For loop with declared iterator",
+			input: `
+				function Test;
+				var
+					i: Integer;
+				begin
+					for i := 0 to 10 do
+						PrintLn(i);
+				end;
+
+				Test;
+			`,
+			expected: "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+		},
+		{
+			name:     "For loop with inline var declaration",
+			input:    `for var i := 0 to 10 do PrintLn(i)`,
+			expected: "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n",
+		},
 	}
 
 	for _, tt := range tests {
