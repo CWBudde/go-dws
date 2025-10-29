@@ -69,6 +69,22 @@ func (t *BooleanType) Equals(other Type) bool {
 	return ok
 }
 
+// DateTimeType represents the TDateTime type (Task 9.93)
+// TDateTime is internally represented as a Float where:
+// - Integer part = number of days since December 30, 1899
+// - Fractional part = time of day (0.5 = noon, 0.25 = 6am)
+// This matches Delphi's TDateTime representation exactly.
+type DateTimeType struct{}
+
+func (t *DateTimeType) String() string   { return "TDateTime" }
+func (t *DateTimeType) TypeKind() string { return "DATETIME" }
+func (t *DateTimeType) Equals(other Type) bool {
+	// Resolve type aliases before comparison
+	other = GetUnderlyingType(other)
+	_, ok := other.(*DateTimeType)
+	return ok
+}
+
 // NilType represents the nil/null type
 type NilType struct{}
 
@@ -100,12 +116,13 @@ func (t *VoidType) Equals(other Type) bool {
 // Singleton instances of basic types
 // These are used throughout the compiler for type checking
 var (
-	INTEGER = &IntegerType{}
-	FLOAT   = &FloatType{}
-	STRING  = &StringType{}
-	BOOLEAN = &BooleanType{}
-	NIL     = &NilType{}
-	VOID    = &VoidType{}
+	INTEGER  = &IntegerType{}
+	FLOAT    = &FloatType{}
+	STRING   = &StringType{}
+	BOOLEAN  = &BooleanType{}
+	DATETIME = &DateTimeType{} // Task 9.93: TDateTime type
+	NIL      = &NilType{}
+	VOID     = &VoidType{}
 )
 
 // Task 7.75: IINTERFACE is the base interface type (like IUnknown in COM)
@@ -272,6 +289,8 @@ func TypeFromString(name string) (Type, error) {
 		return STRING, nil
 	case "Boolean":
 		return BOOLEAN, nil
+	case "TDateTime":
+		return DATETIME, nil
 	case "Void":
 		return VOID, nil
 	default:

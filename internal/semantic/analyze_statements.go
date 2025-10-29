@@ -59,6 +59,8 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeEnumDecl(s)
 	case *ast.RecordDecl:
 		a.analyzeRecordDecl(s)
+	case *ast.HelperDecl:
+		a.analyzeHelperDecl(s)
 	case *ast.SetDecl:
 		a.analyzeSetDecl(s)
 	case *ast.ArrayDecl:

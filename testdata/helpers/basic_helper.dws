@@ -1,0 +1,33 @@
+// Basic helper demonstration
+// Tests simple helper syntax with methods
+
+type TStringHelper = helper for String
+  function ToUpper: String;
+  function ToLower: String;
+  function Trim: String;
+end;
+
+function TStringHelper.ToUpper: String;
+begin
+  Result := UpperCase(Self);
+end;
+
+function TStringHelper.ToLower: String;
+begin
+  Result := LowerCase(Self);
+end;
+
+function TStringHelper.Trim: String;
+begin
+  Result := TrimStr(Self);
+end;
+
+var s: String;
+begin
+  s := 'hello world';
+  PrintLn(s.ToUpper());  // HELLO WORLD
+  PrintLn(s.ToLower());  // hello world
+
+  s := '  test  ';
+  PrintLn('[' + s.Trim() + ']');  // [test]
+end.

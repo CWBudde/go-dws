@@ -1,0 +1,42 @@
+// Helper with properties
+// Tests property declarations in helpers
+
+type TIntegerHelper = helper for Integer
+  function IsEven: Boolean;
+  function IsOdd: Boolean;
+  property AsString: String read ToString;
+  property IsPositive: Boolean read GetIsPositive;
+end;
+
+function TIntegerHelper.IsEven: Boolean;
+begin
+  Result := (Self mod 2) = 0;
+end;
+
+function TIntegerHelper.IsOdd: Boolean;
+begin
+  Result := (Self mod 2) <> 0;
+end;
+
+function TIntegerHelper.ToString: String;
+begin
+  Result := IntToStr(Self);
+end;
+
+function TIntegerHelper.GetIsPositive: Boolean;
+begin
+  Result := Self > 0;
+end;
+
+var n: Integer;
+begin
+  n := 42;
+
+  PrintLn('Is even: ' + BoolToStr(n.IsEven()));     // True
+  PrintLn('Is odd: ' + BoolToStr(n.IsOdd()));       // False
+  PrintLn('As string: ' + n.AsString);              // "42"
+  PrintLn('Is positive: ' + BoolToStr(n.IsPositive)); // True
+
+  n := -5;
+  PrintLn('Is positive: ' + BoolToStr(n.IsPositive)); // False
+end.

@@ -15,6 +15,7 @@ type Analyzer struct {
 	typeAliases        map[string]*types.TypeAlias
 	subranges          map[string]*types.SubrangeType
 	functionPointers   map[string]*types.FunctionPointerType // Task 9.159: Function pointer types
+	helpers            map[string][]*types.HelperType        // Task 9.82: Helper types (type name -> list of helpers)
 	currentFunction    *ast.FunctionDecl
 	classes            map[string]*types.ClassType
 	interfaces         map[string]*types.InterfaceType
@@ -49,6 +50,7 @@ func NewAnalyzer() *Analyzer {
 		typeAliases:        make(map[string]*types.TypeAlias),
 		subranges:          make(map[string]*types.SubrangeType),
 		functionPointers:   make(map[string]*types.FunctionPointerType), // Task 9.159
+		helpers:            make(map[string][]*types.HelperType),        // Task 9.82
 		globalOperators:    types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
 	}

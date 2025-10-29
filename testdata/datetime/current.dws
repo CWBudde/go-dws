@@ -1,0 +1,18 @@
+// Test current date/time functions
+// Task 9.95-9.97
+
+var n, d, t: Float;
+
+// Get current values
+n := Now();
+d := Date();
+t := Time();
+
+// Display them
+PrintLn('Now(): ' + DateTimeToStr(n));
+PrintLn('Date(): ' + DateToStr(d));
+PrintLn('Time(): ' + TimeToStr(t));
+
+// Unix time
+PrintLn('UnixTime(): ' + IntToStr(UnixTime()));
+PrintLn('UnixTimeMSec(): ' + IntToStr(UnixTimeMSec()));

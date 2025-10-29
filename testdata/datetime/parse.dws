@@ -1,0 +1,23 @@
+// Test DateTime parsing functions
+// Task 9.110-9.111
+
+var dt: Float;
+
+// Test StrToDate
+dt := StrToDate('2023-10-15');
+PrintLn('Parsed date: ' + DateToStr(dt));
+
+// Test StrToDateTime
+dt := StrToDateTime('2023-10-15 14:30:45');
+PrintLn('Parsed datetime: ' + DateTimeToStr(dt));
+
+// Test StrToTime
+dt := StrToTime('14:30:45');
+PrintLn('Parsed time: ' + TimeToStr(dt));
+
+// Test ISO8601 parsing
+dt := ISO8601ToDateTime('2023-10-15T14:30:45');
+PrintLn('ISO8601 parsed: ' + DateTimeToStr(dt));
+
+dt := ISO8601ToDateTime('2023-10-15');
+PrintLn('ISO8601 date only: ' + DateToStr(dt));

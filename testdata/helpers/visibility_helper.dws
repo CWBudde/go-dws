@@ -1,0 +1,54 @@
+// Helper with private and public sections
+// Tests visibility modifiers in helpers
+
+type TStringHelper = record helper for String
+  private
+    function InternalNormalize: String;
+    function InternalValidate: Boolean;
+  public
+    function Capitalize: String;
+    function IsValid: Boolean;
+    property Length: Integer read GetLength;
+end;
+
+function TStringHelper.InternalNormalize: String;
+begin
+  Result := Trim(LowerCase(Self));
+end;
+
+function TStringHelper.InternalValidate: Boolean;
+begin
+  Result := Length(Self) > 0;
+end;
+
+function TStringHelper.Capitalize: String;
+var normalized: String;
+begin
+  normalized := Self.InternalNormalize();
+  if Length(normalized) > 0 then
+    Result := UpperCase(normalized[1]) + Copy(normalized, 2, Length(normalized) - 1)
+  else
+    Result := '';
+end;
+
+function TStringHelper.IsValid: Boolean;
+begin
+  Result := Self.InternalValidate();
+end;
+
+function TStringHelper.GetLength: Integer;
+begin
+  Result := Length(Self);
+end;
+
+var s: String;
+begin
+  s := '  hello world  ';
+
+  PrintLn(s.Capitalize());           // "Hello world"
+  PrintLn('Valid: ' + BoolToStr(s.IsValid())); // True
+  PrintLn('Length: ' + IntToStr(s.Length));    // 15
+
+  s := '';
+  PrintLn('Valid: ' + BoolToStr(s.IsValid())); // False
+end.

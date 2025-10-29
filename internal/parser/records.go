@@ -5,6 +5,98 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
+// parseRecordOrHelperDeclaration determines if this is a record or helper declaration.
+// Called when we see 'type Name = record' - need to check if followed by 'helper'.
+// Current token is positioned at '=' and peek token is 'record'.
+func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
+	// Move to RECORD
+	if !p.expectPeek(lexer.RECORD) {
+		return nil
+	}
+
+	// Check if next token is HELPER
+	if p.peekTokenIs(lexer.HELPER) {
+		// It's a helper declaration!
+		p.nextToken() // Move to HELPER
+		return p.parseHelperDeclaration(nameIdent, typeToken, true)
+	}
+
+	// It's a regular record declaration
+	// We're currently at RECORD, move to first token inside record
+	p.nextToken()
+
+	// Build the record declaration inline (similar to parseRecordDeclaration)
+	recordDecl := &ast.RecordDecl{
+		Token:      typeToken,
+		Name:       nameIdent,
+		Fields:     []*ast.FieldDecl{},
+		Methods:    []*ast.FunctionDecl{},
+		Properties: []ast.RecordPropertyDecl{},
+	}
+
+	// Track current visibility level (default to public for records)
+	currentVisibility := ast.VisibilityPublic
+
+	// Parse record body until 'end'
+	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
+		// Check for visibility modifiers
+		if p.curTokenIs(lexer.PRIVATE) {
+			currentVisibility = ast.VisibilityPrivate
+			p.nextToken()
+			continue
+		} else if p.curTokenIs(lexer.PUBLIC) {
+			currentVisibility = ast.VisibilityPublic
+			p.nextToken()
+			continue
+		} else if p.curTokenIs(lexer.PUBLISHED) {
+			currentVisibility = ast.VisibilityPublic
+			p.nextToken()
+			continue
+		}
+
+		// Check for method declarations
+		if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
+			method := p.parseFunctionDeclaration()
+			if method != nil {
+				recordDecl.Methods = append(recordDecl.Methods, method)
+			}
+			p.nextToken()
+			continue
+		}
+
+		// Check for property declarations
+		if p.curTokenIs(lexer.PROPERTY) {
+			prop := p.parseRecordPropertyDeclaration()
+			if prop != nil {
+				recordDecl.Properties = append(recordDecl.Properties, *prop)
+			}
+			p.nextToken()
+			continue
+		}
+
+		// Parse field declaration(s)
+		fields := p.parseRecordFieldDeclarations(currentVisibility)
+		if fields != nil {
+			recordDecl.Fields = append(recordDecl.Fields, fields...)
+		}
+
+		p.nextToken()
+	}
+
+	// Expect 'end' keyword
+	if !p.curTokenIs(lexer.END) {
+		p.addError("expected 'end' to close record declaration")
+		return nil
+	}
+
+	// Expect semicolon after 'end'
+	if !p.expectPeek(lexer.SEMICOLON) {
+		return nil
+	}
+
+	return recordDecl
+}
+
 // parseRecordDeclaration parses a record type declaration.
 // Called after 'type Name =' has already been parsed.
 // Current token should be 'record'.

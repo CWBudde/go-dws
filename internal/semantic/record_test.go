@@ -276,7 +276,8 @@ func TestRecordFieldAccessErrors(t *testing.T) {
 				var x: Integer := 42;
 				var y: Integer := x.SomeField;
 			`,
-			expectedError: "member access requires class or record type",
+			// Task 9.83: With helper support, the error message changed
+			expectedError: "requires a helper",
 		},
 		// Note: Field assignment tests removed - require parser support
 	}

@@ -1,0 +1,73 @@
+// Multiple helpers extending the same type
+// Tests that multiple helpers can contribute methods to the same type
+
+type TStringHelper1 = helper for String
+  function ToUpper: String;
+  function ToLower: String;
+end;
+
+type TStringHelper2 = helper for String
+  function Reverse: String;
+  function Count(ch: Char): Integer;
+end;
+
+type TStringHelper3 = helper for String
+  function StartsWith(prefix: String): Boolean;
+  function EndsWith(suffix: String): Boolean;
+end;
+
+function TStringHelper1.ToUpper: String;
+begin
+  Result := UpperCase(Self);
+end;
+
+function TStringHelper1.ToLower: String;
+begin
+  Result := LowerCase(Self);
+end;
+
+function TStringHelper2.Reverse: String;
+var i: Integer;
+begin
+  Result := '';
+  for i := Length(Self) downto 1 do
+    Result := Result + Self[i];
+end;
+
+function TStringHelper2.Count(ch: Char): Integer;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 1 to Length(Self) do
+    if Self[i] = ch then
+      Result := Result + 1;
+end;
+
+function TStringHelper3.StartsWith(prefix: String): Boolean;
+begin
+  Result := Copy(Self, 1, Length(prefix)) = prefix;
+end;
+
+function TStringHelper3.EndsWith(suffix: String): Boolean;
+var len: Integer;
+begin
+  len := Length(Self);
+  Result := Copy(Self, len - Length(suffix) + 1, Length(suffix)) = suffix;
+end;
+
+var s: String;
+begin
+  s := 'hello';
+
+  // Methods from TStringHelper1
+  PrintLn(s.ToUpper());              // HELLO
+  PrintLn(s.ToLower());              // hello
+
+  // Methods from TStringHelper2
+  PrintLn(s.Reverse());              // olleh
+  PrintLn('Count l: ' + IntToStr(s.Count('l'))); // 2
+
+  // Methods from TStringHelper3
+  PrintLn('Starts with "he": ' + BoolToStr(s.StartsWith('he'))); // True
+  PrintLn('Ends with "lo": ' + BoolToStr(s.EndsWith('lo')));     // True
+end.

@@ -1,0 +1,20 @@
+// Test DateTime difference functions
+// Task 9.114
+
+var dt1, dt2: Float;
+
+// Create two test dates
+dt1 := EncodeDateTime(2023, 10, 15, 10, 30, 45, 0);
+dt2 := EncodeDateTime(2023, 10, 20, 14, 45, 50, 0);
+
+PrintLn('Date1: ' + DateTimeToStr(dt1));
+PrintLn('Date2: ' + DateTimeToStr(dt2));
+
+// Test difference functions
+PrintLn('DaysBetween: ' + IntToStr(DaysBetween(dt1, dt2)));
+PrintLn('HoursBetween: ' + IntToStr(HoursBetween(dt1, dt2)));
+PrintLn('MinutesBetween: ' + IntToStr(MinutesBetween(dt1, dt2)));
+PrintLn('SecondsBetween: ' + IntToStr(SecondsBetween(dt1, dt2)));
+
+// Test with negative difference (reversed)
+PrintLn('DaysBetween (reversed): ' + IntToStr(DaysBetween(dt2, dt1)));

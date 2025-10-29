@@ -1,0 +1,30 @@
+// Test DateTime increment functions
+// Task 9.113
+
+var dt: Float;
+
+// Create a test date
+dt := EncodeDate(2023, 10, 15);
+PrintLn('Original date: ' + DateToStr(dt));
+
+// Test IncYear
+PrintLn('IncYear(dt, 1): ' + DateToStr(IncYear(dt, 1)));
+PrintLn('IncYear(dt, -1): ' + DateToStr(IncYear(dt, -1)));
+
+// Test IncMonth
+PrintLn('IncMonth(dt, 1): ' + DateToStr(IncMonth(dt, 1)));
+PrintLn('IncMonth(dt, 3): ' + DateToStr(IncMonth(dt, 3)));
+PrintLn('IncMonth(dt, -2): ' + DateToStr(IncMonth(dt, -2)));
+
+// Test IncDay
+PrintLn('IncDay(dt, 1): ' + DateToStr(IncDay(dt, 1)));
+PrintLn('IncDay(dt, 7): ' + DateToStr(IncDay(dt, 7)));
+PrintLn('IncDay(dt, -5): ' + DateToStr(IncDay(dt, -5)));
+
+// Test time increments
+dt := EncodeDateTime(2023, 10, 15, 10, 30, 45, 0);
+PrintLn('Original datetime: ' + DateTimeToStr(dt));
+
+PrintLn('IncHour(dt, 2): ' + DateTimeToStr(IncHour(dt, 2)));
+PrintLn('IncMinute(dt, 30): ' + DateTimeToStr(IncMinute(dt, 30)));
+PrintLn('IncSecond(dt, 120): ' + DateTimeToStr(IncSecond(dt, 120)));

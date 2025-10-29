@@ -199,6 +199,17 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 	// Check if the field exists
 	fieldType, exists := recordType.Fields[fieldName]
 	if !exists {
+		// Task 9.83: Check if a helper provides this member
+		_, helperMethod := a.hasHelperMethod(objType, fieldName)
+		if helperMethod != nil {
+			return helperMethod
+		}
+
+		_, helperProp := a.hasHelperProperty(objType, fieldName)
+		if helperProp != nil {
+			return helperProp.Type
+		}
+
 		a.addError("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)
 		return nil
 	}
