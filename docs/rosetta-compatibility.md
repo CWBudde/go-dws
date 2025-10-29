@@ -32,12 +32,14 @@ The `new TypeName[size1, size2, ...]` syntax for dynamic array instantiation is 
 
 #### ⏸️ Yin and Yang
 - **File**: `examples/rosetta/Yin_and_yang.dws`
-- **Status**: Blocked - parser limitations
-- **Blockers**:
+- **Status**: Partially Blocked - parser limitations
+- **Working**: `method` keyword is now supported (Task 9.169)
+- **Remaining Blockers**:
   - Inline array types in class fields: `Pix : array of array of Integer;` (parser error)
   - `.High` property on arrays (not implemented)
   - Multi-index syntax `[i, j]` (not supported by parser)
-- **Notes**: The `new Integer[aScale*12+1, aScale*12+1]` expression is supported, but the class definition has parser issues.
+  - `case` statement with multiple values (not implemented)
+- **Notes**: The `new Integer[aScale*12+1, aScale*12+1]` expression is supported, and the `method` keyword now parses correctly. The class definition still has other parser issues that need to be addressed in future stages.
 
 ## Test Coverage
 

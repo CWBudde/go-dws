@@ -136,6 +136,21 @@ func (bl *BooleanLiteral) Pos() lexer.Position         { return bl.Token.Pos }
 func (bl *BooleanLiteral) GetType() *TypeAnnotation    { return bl.Type }
 func (bl *BooleanLiteral) SetType(typ *TypeAnnotation) { bl.Type = typ }
 
+// CharLiteral represents a character literal value.
+// Supports three forms: 'H' (single char string), #13 (decimal), #$41 (hex).
+type CharLiteral struct {
+	Type  *TypeAnnotation
+	Token lexer.Token
+	Value rune
+}
+
+func (cl *CharLiteral) expressionNode()             {}
+func (cl *CharLiteral) TokenLiteral() string        { return cl.Token.Literal }
+func (cl *CharLiteral) String() string              { return cl.Token.Literal }
+func (cl *CharLiteral) Pos() lexer.Position         { return cl.Token.Pos }
+func (cl *CharLiteral) GetType() *TypeAnnotation    { return cl.Type }
+func (cl *CharLiteral) SetType(typ *TypeAnnotation) { cl.Type = typ }
+
 // BinaryExpression represents a binary operation (e.g., a + b, x < y).
 type BinaryExpression struct {
 	Left     Expression

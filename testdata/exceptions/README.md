@@ -45,7 +45,7 @@ These tests cover the following exception handling features:
 ### Exception Types
 - Base `Exception` class
 - Custom exception types (inheritance from `Exception`)
-- `EDelphi` standard exception type
+- `EHost` standard exception type (wraps host runtime errors/panics)
 - Exception type hierarchy and matching rules
 
 ### Advanced Features
@@ -144,8 +144,9 @@ Several exception handling features are not yet supported by the parser:
    - Parser treats `else` as unexpected token in except blocks
    - Grammar needs extension
 
-4. **Missing EDelphi exception type** - Referenced in `exception_scoping.dws`
+4. **Missing EHost exception type** - Referenced in `exception_scoping.dws`
    - Need to add to built-in exception registration in `interp/exceptions.go`
+   - Named "EHost" (not "EDelphi" or "EGo") for future-proofing with multiple host runtimes
 
 ## Notes
 

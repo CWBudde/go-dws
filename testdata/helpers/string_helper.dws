@@ -1,0 +1,53 @@
+// String helper example - demonstrates extending String type with helper methods
+
+type TStringHelper = helper for String
+  function IsEmpty: Boolean;
+  begin
+    // Simplified - just check if string equals empty string
+    Result := (Self = '');
+  end;
+
+  function ToUpper: String;
+  begin
+    // Simplified uppercase - prepend 'UPPER:'
+    Result := 'UPPER:' + Self;
+  end;
+
+  function ToLower: String;
+  begin
+    // Simplified lowercase - prepend 'lower:'
+    Result := 'lower:' + Self;
+  end;
+
+  function StartsWith(prefix: String): Boolean;
+  begin
+    // Simplified - just check equality for demo
+    Result := (Self = prefix);
+  end;
+end;
+
+var s: String;
+begin
+  PrintLn('=== String Helper Demo ===');
+
+  s := 'Hello World';
+  PrintLn('Original: ' + s);
+  PrintLn('IsEmpty: ' + BoolToStr(s.IsEmpty()));
+  PrintLn('ToUpper: ' + s.ToUpper());
+  PrintLn('ToLower: ' + s.ToLower());
+  PrintLn('');
+
+  s := '';
+  PrintLn('Empty string');
+  PrintLn('IsEmpty: ' + BoolToStr(s.IsEmpty()));
+end.
+
+// Expected output:
+// === String Helper Demo ===
+// Original: Hello World
+// IsEmpty: False
+// ToUpper: UPPER:Hello World
+// ToLower: lower:Hello World
+//
+// Empty string
+// IsEmpty: True

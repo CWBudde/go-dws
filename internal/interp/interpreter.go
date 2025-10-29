@@ -32,6 +32,8 @@ type Interpreter struct {
 	exitSignal     bool // Set by break statement, cleared by loop
 	continueSignal bool // Set by continue statement, cleared by loop
 	breakSignal    bool // Set by exit statement, cleared by function return
+
+	helpers map[string][]*HelperInfo // Task 9.86-9.87: Helper types (type name -> list of helpers)
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -166,6 +168,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.RecordDecl:
 		return i.evalRecordDeclaration(node)
 
+	case *ast.HelperDecl:
+		return i.evalHelperDeclaration(node)
+
 	case *ast.ArrayDecl:
 		return i.evalArrayDeclaration(node)
 
@@ -184,6 +189,10 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	case *ast.BooleanLiteral:
 		return &BooleanValue{Value: node.Value}
+
+	case *ast.CharLiteral:
+		// Character literals are treated as single-character strings
+		return &StringValue{Value: string(node.Value)}
 
 	case *ast.NilLiteral:
 		return &NilValue{}

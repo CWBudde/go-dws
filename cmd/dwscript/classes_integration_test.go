@@ -36,6 +36,19 @@ func TestClassesIntegration(t *testing.T) {
 			},
 			wantPasses: 15, // All 15 tests should pass
 		},
+		{
+			name:       "MethodKeyword",
+			scriptFile: "../../testdata/classes/method_keyword.dws",
+			wantOutputs: []string{
+				"Initial values:",
+				"X = 10",
+				"Y = 20",
+				"After setting new values:",
+				"X = 30",
+				"Y = 40",
+			},
+			wantPasses: 0, // No PASS/FAIL in this test, just output verification
+		},
 	}
 
 	for _, tt := range tests {

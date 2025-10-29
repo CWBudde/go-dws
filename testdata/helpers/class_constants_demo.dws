@@ -1,0 +1,58 @@
+// Class constants and variables example
+
+type TMathHelper = helper for Float
+  class const PI = 3.14159;
+  class const E = 2.71828;
+
+  function TimesPi: Float;
+  begin
+    Result := Self * PI;
+  end;
+
+  function TimesE: Float;
+  begin
+    Result := Self * E;
+  end;
+
+  function Circle_Circumference: Float;
+  begin
+    // Assuming Self is the radius
+    Result := 2.0 * PI * Self;
+  end;
+
+  function Circle_Area: Float;
+  begin
+    // Assuming Self is the radius
+    Result := PI * Self * Self;
+  end;
+end;
+
+var radius, value: Float;
+begin
+  PrintLn('=== Class Constants Demo ===');
+  PrintLn('Helper defines PI = 3.14159 and E = 2.71828');
+  PrintLn('');
+
+  radius := 2.0;
+  PrintLn('Radius: ' + FloatToStr(radius));
+  PrintLn('Circumference: ' + FloatToStr(radius.Circle_Circumference()));
+  PrintLn('Area: ' + FloatToStr(radius.Circle_Area()));
+  PrintLn('');
+
+  value := 10.0;
+  PrintLn('Value: ' + FloatToStr(value));
+  PrintLn('Times PI: ' + FloatToStr(value.TimesPi()));
+  PrintLn('Times E: ' + FloatToStr(value.TimesE()));
+end.
+
+// Expected output:
+// === Class Constants Demo ===
+// Helper defines PI = 3.14159 and E = 2.71828
+//
+// Radius: 2
+// Circumference: 12.56636
+// Area: 12.56636
+//
+// Value: 10
+// Times PI: 31.4159
+// Times E: 27.1828

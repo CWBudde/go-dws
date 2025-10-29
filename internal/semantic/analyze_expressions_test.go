@@ -141,6 +141,64 @@ func TestUnaryOperationsError(t *testing.T) {
 }
 
 // ============================================================================
+// Character Literal Tests (Task 9.29)
+// ============================================================================
+
+func TestCharLiteralAsString(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"char literal assignment to string", "var s: String := #65;"},
+		{"char literal hex format", "var s: String := #$41;"},
+		{"char literal CR", "var s: String := #13;"},
+		{"char literal LF", "var s: String := #10;"},
+		{"char literal inferred type", "var c := #65;"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectNoErrors(t, tt.input)
+		})
+	}
+}
+
+func TestCharLiteralInStringConcatenation(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"concat char and string", "var s: String := 'Hello' + #65;"},
+		{"concat string and char", "var s: String := #65 + 'Hello';"},
+		{"concat multiple chars", "var s: String := #13 + #10;"},
+		{"concat char between strings", "var s: String := 'Line1' + #13 + #10 + 'Line2';"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectNoErrors(t, tt.input)
+		})
+	}
+}
+
+func TestCharLiteralInComparison(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"char equality", "var b := #65 = #65;"},
+		{"char with string", "var b := #65 = 'A';"},
+		{"string with char", "var b := 'A' = #65;"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectNoErrors(t, tt.input)
+		})
+	}
+}
+
+// ============================================================================
 // Format Built-in Function Tests (Task 9.51a)
 // ============================================================================
 

@@ -1,0 +1,65 @@
+// Character literals in case statements
+// Tests using character literals as case labels
+
+begin
+  var key: String;
+
+  // Test with letter 'A'
+  key := #65;  // 'A'
+  case key of
+    #65: PrintLn('Key is A (decimal)');
+    #66: PrintLn('Key is B');
+    #67: PrintLn('Key is C');
+  else
+    PrintLn('Unknown key');
+  end;
+
+  // Test with hex format
+  key := #$42;  // 'B'
+  case key of
+    #$41: PrintLn('Key is A (hex)');
+    #$42: PrintLn('Key is B (hex)');
+    #$43: PrintLn('Key is C (hex)');
+  else
+    PrintLn('Unknown key');
+  end;
+
+  // Test with special characters
+  key := #13;  // Carriage return
+  case key of
+    #10: PrintLn('Line feed');
+    #13: PrintLn('Carriage return');
+    #32: PrintLn('Space');
+  else
+    PrintLn('Other character');
+  end;
+
+  // Test mixing decimal and hex
+  key := #$0A;  // Line feed (hex)
+  case key of
+    #10: PrintLn('Line feed matched (using decimal label)');
+    #13: PrintLn('Carriage return');
+  else
+    PrintLn('No match');
+  end;
+
+  // Test with digits
+  key := '5';
+  case key of
+    #48: PrintLn('Zero');
+    #49: PrintLn('One');
+    #53: PrintLn('Five');
+    #57: PrintLn('Nine');
+  else
+    PrintLn('Not a tested digit');
+  end;
+
+  // Test multiple cases and fallthrough to else
+  key := 'Z';
+  case key of
+    #65: PrintLn('First letter');
+    #90: PrintLn('Last letter');
+  else
+    PrintLn('Middle or other');
+  end;
+end.

@@ -168,6 +168,56 @@ func TestBooleanLiteral(t *testing.T) {
 	}
 }
 
+// TestCharLiteral tests the CharLiteral node.
+func TestCharLiteral(t *testing.T) {
+	tests := []struct {
+		name    string
+		literal string
+		value   rune
+	}{
+		{"decimal", "#65", 'A'},
+		{"hex", "#$41", 'A'},
+		{"carriage return", "#13", '\r'},
+		{"line feed", "#10", '\n'},
+		{"lowercase hex", "#$61", 'a'},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &CharLiteral{
+				Token: lexer.Token{Type: lexer.CHAR, Literal: tt.literal},
+				Value: tt.value,
+			}
+
+			if node.TokenLiteral() != tt.literal {
+				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), tt.literal)
+			}
+			if node.String() != tt.literal {
+				t.Errorf("String() = %q, want %q", node.String(), tt.literal)
+			}
+			if node.Value != tt.value {
+				t.Errorf("Value = %q, want %q", node.Value, tt.value)
+			}
+
+			// Test position tracking
+			expectedPos := lexer.Position{Line: 0, Column: 0}
+			if node.Pos() != expectedPos {
+				t.Errorf("Pos() = %v, want %v", node.Pos(), expectedPos)
+			}
+
+			// Test type annotation
+			if node.GetType() != nil {
+				t.Errorf("GetType() = %v, want nil", node.GetType())
+			}
+			typ := &TypeAnnotation{Name: "String"}
+			node.SetType(typ)
+			if node.GetType() != typ {
+				t.Errorf("GetType() after SetType = %v, want %v", node.GetType(), typ)
+			}
+		})
+	}
+}
+
 // TestNilLiteral tests the NilLiteral node.
 func TestNilLiteral(t *testing.T) {
 	node := &NilLiteral{
@@ -815,6 +865,7 @@ func TestInterfaceImplementation(_ *testing.T) {
 	var _ Expression = &FloatLiteral{}
 	var _ Expression = &StringLiteral{}
 	var _ Expression = &BooleanLiteral{}
+	var _ Expression = &CharLiteral{}
 	var _ Expression = &NilLiteral{}
 	var _ Expression = &BinaryExpression{}
 	var _ Expression = &UnaryExpression{}
@@ -835,6 +886,7 @@ func TestInterfaceImplementation(_ *testing.T) {
 	var _ Node = &FloatLiteral{}
 	var _ Node = &StringLiteral{}
 	var _ Node = &BooleanLiteral{}
+	var _ Node = &CharLiteral{}
 	var _ Node = &NilLiteral{}
 	var _ Node = &BinaryExpression{}
 	var _ Node = &UnaryExpression{}

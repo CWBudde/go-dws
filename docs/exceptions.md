@@ -395,39 +395,39 @@ end;
 **Inherits from**: `Exception`
 **Additional members**: None (same as Exception)
 
-#### 2. EDelphi
+#### 2. EHost
 
-Wraps native Delphi/host exceptions that occur during external calls.
+Wraps host runtime exceptions that occur during external/FFI calls. Named "EHost" (not "EGo" or "EDelphi") for future-proofing - works with any host runtime (Go, WebAssembly, C FFI, etc.).
 
 **Definition**:
 ```pascal
-type EDelphi = class(Exception)
-  property ExceptionClass: String;  // Name of original Delphi exception
+type EHost = class(Exception)
+  property ExceptionClass: String;  // Name of original host exception/error type
 end;
 ```
 
 **Fields** (internal):
-- `FExceptionClass: String` (protected) - Stores original exception class name
+- `FExceptionClass: String` (protected) - Stores original exception/error type name
 
 **Properties**:
-- `ExceptionClass: String` (public, read/write) - Original Delphi exception class name
+- `ExceptionClass: String` (public, read/write) - Original host exception/error type (e.g., "*fs.PathError" in Go)
 - `Message: String` (inherited) - Exception message
 
 **Constructor**:
 ```pascal
-EDelphi.Create(Cls: String, Msg: String): EDelphi
+EHost.Create(Cls: String, Msg: String): EHost
 ```
 
 **Usage**:
-When a Delphi exception occurs in external code, DWScript wraps it as EDelphi:
+When a host runtime error or panic occurs in external code (e.g., Go FFI function), DWScript wraps it as EHost:
 ```pascal
 try
-  // Call to external function that raises EConvertError
-  ExternalFunc();
+  // Call to Go FFI function that returns error or panics
+  FileOpen('nonexistent.txt');
 except
-  on E: EDelphi do begin
-    PrintLn(E.ExceptionClass);  // Prints: "EConvertError"
-    PrintLn(E.Message);         // Prints original message
+  on E: EHost do begin
+    PrintLn(E.ExceptionClass);  // Prints: "*fs.PathError"
+    PrintLn(E.Message);         // Prints: "open nonexistent.txt: no such file or directory"
   end;
 end;
 ```
@@ -442,13 +442,13 @@ DWScript raises `Exception` instances with specific messages for runtime errors:
 |----------------|------------------|---------|
 | Array upper bound exceeded | `Upper bound exceeded! Index %d` | `Upper bound exceeded! Index 10` |
 | Array lower bound exceeded | `Lower bound exceeded! Index %d` | `Lower bound exceeded! Index -1` |
-| Division by zero | (Varies by context) | (Wrapped in EDelphi from host) |
+| Division by zero | (Varies by context) | (Wrapped in EHost from host) |
 | Invalid cast | `Cannot cast instance of type "%s" to class "%s"` | `Cannot cast instance of type "TObject" to class "TMyClass"` |
 | Object not instantiated | `Object not instantiated` | When accessing nil object reference |
 | Function pointer is nil | `Function pointer is nil` | When calling nil function pointer |
 | Abstract instance | `Trying to create an instance of an abstract class` | Creating instance of abstract class |
 
-**Note**: Unlike Delphi, DWScript doesn't define separate `EConvertError`, `ERangeError`, `EDivByZero` classes at the script level. Instead, it raises generic `Exception` or `EDelphi` instances with appropriate messages.
+**Note**: Unlike Delphi, DWScript doesn't define separate `EConvertError`, `ERangeError`, `EDivByZero` classes at the script level. Instead, it raises generic `Exception` or `EHost` instances with appropriate messages.
 
 ### Custom Exception Types
 
@@ -1571,9 +1571,9 @@ This section maps DWScript exception types and mechanisms to Go implementation p
 |---------------|------------------|-------------|
 | `Exception` (script class) | `*ClassInstance` with `ExceptionClass` metadata | Script-level exception object |
 | `EAssertionFailed` (script class) | `*ClassInstance` with `EAssertionFailedClass` metadata | Subclass of Exception |
-| `EDelphi` (script class) | `*ClassInstance` with `EDelphiClass` metadata | Wraps host exceptions |
+| `EHost` (script class) | `*ClassInstance` with `EHostClass` metadata | Wraps host runtime exceptions |
 | `EScriptException` (internal) | Go `error` type implementing `ScriptError` interface | Wraps script exception for Go runtime |
-| Host errors (Go) | Wrapped in `EDelphi` instance when caught by script | Bridge between Go and script errors |
+| Host errors (Go) | Wrapped in `EHost` instance when caught by script | Bridge between Go and script errors |
 
 ### Core Go Types
 
@@ -1652,9 +1652,9 @@ func defineExceptionClasses(symbolTable *SymbolTable) {
     }
     symbolTable.Classes["EAssertionFailed"] = assertionFailedClass
 
-    // EDelphi
-    eDelphiClass := &ClassInfo{
-        Name: "EDelphi",
+    // EHost
+    eHostClass := &ClassInfo{
+        Name: "EHost",
         Parent: exceptionClass,
         Fields: map[string]*FieldInfo{
             "FExceptionClass": {Name: "FExceptionClass", Type: StringType, Visibility: VisProtected},
@@ -1679,7 +1679,7 @@ func defineExceptionClasses(symbolTable *SymbolTable) {
             },
         },
     }
-    symbolTable.Classes["EDelphi"] = eDelphiClass
+    symbolTable.Classes["EHost"] = eHostClass
 }
 ```
 
@@ -1715,7 +1715,7 @@ func (i *Interpreter) RaiseException(exceptionObj *ClassInstance, pos Position) 
 func (i *Interpreter) CatchException(err error, handlers []ExceptionHandler) (matched bool, handlerIdx int) {
     scriptErr, ok := err.(*ScriptException)
     if !ok {
-        // Host error - wrap in EDelphi
+        // Host error - wrap in EHost
         scriptErr = i.WrapHostException(err)
     }
 
@@ -1737,20 +1737,20 @@ func (i *Interpreter) CatchException(err error, handlers []ExceptionHandler) (ma
     return false, -1
 }
 
-// WrapHostException wraps a Go error in EDelphi
+// WrapHostException wraps a Go error in EHost
 func (i *Interpreter) WrapHostException(err error) *ScriptException {
-    eDelphiClass := i.SymbolTable.Classes["EDelphi"]
+    eHostClass := i.SymbolTable.Classes["EHost"]
 
-    // Create EDelphi instance
-    eDelphiObj := i.CreateClassInstance(eDelphiClass)
+    // Create EHost instance
+    eHostObj := i.CreateClassInstance(eHostClass)
 
     // Set ExceptionClass field (Go error type name)
     errorType := fmt.Sprintf("%T", err)
-    eDelphiObj.SetField("FExceptionClass", errorType)
-    eDelphiObj.SetField("FMessage", err.Error())
+    eHostObj.SetField("FExceptionClass", errorType)
+    eHostObj.SetField("FMessage", err.Error())
 
     return &ScriptException{
-        ExceptionObj: eDelphiObj,
+        ExceptionObj: eHostObj,
         Message: err.Error(),
     }
 }
@@ -1939,7 +1939,7 @@ func (i *Interpreter) ExecuteRaiseStmt(stmt *RaiseStmt) error {
 ### Key Design Decisions
 
 1. **Script exceptions are ClassInstance objects**: Allows script code to inspect, subclass, and extend
-2. **Host exceptions wrapped in EDelphi**: Clear separation between host and script errors
+2. **Host exceptions wrapped in EHost**: Clear separation between host and script errors
 3. **ScriptException wrapper implements Go error**: Allows using Go error handling naturally
 4. **ExceptObject per execution context**: Supports concurrent script execution
 5. **Stack unwinding via error returns**: Leverages Go's error handling, no special control flow
@@ -1989,4 +1989,4 @@ DWScript exception handling provides:
 
 The syntax closely follows Delphi/Object Pascal conventions with full support for structured exception handling patterns.
 
-**Go Implementation**: Exception objects are `ClassInstance` values, exceptions propagate via Go errors, and script/host errors are cleanly separated via the `EDelphi` wrapper pattern.
+**Go Implementation**: Exception objects are `ClassInstance` values, exceptions propagate via Go errors, and script/host errors are cleanly separated via the `EHost` wrapper pattern.

@@ -187,6 +187,51 @@ func TestBooleanLiterals(t *testing.T) {
 	}
 }
 
+// TestCharLiterals tests parsing of character literals.
+func TestCharLiterals(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected rune
+	}{
+		{"#65;", 'A'},           // Decimal: A
+		{"#$41;", 'A'},          // Hex: A
+		{"#13;", '\r'},          // Carriage return
+		{"#10;", '\n'},          // Line feed
+		{"#$61;", 'a'},          // Hex: a
+		{"#32;", ' '},           // Space
+		{"#$0D;", '\r'},         // Hex CR
+		{"#$0A;", '\n'},         // Hex LF
+		{"#48;", '0'},           // Digit 0
+		{"#$30;", '0'},          // Hex digit 0
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.ExpressionStatement. got=%T", program.Statements[0])
+			}
+
+			literal, ok := stmt.Expression.(*ast.CharLiteral)
+			if !ok {
+				t.Fatalf("expression is not ast.CharLiteral. got=%T", stmt.Expression)
+			}
+
+			if literal.Value != tt.expected {
+				t.Errorf("literal.Value = %q (%d), want %q (%d)", literal.Value, literal.Value, tt.expected, tt.expected)
+			}
+		})
+	}
+}
+
 // TestIdentifiers tests parsing of identifiers.
 func TestIdentifiers(t *testing.T) {
 	input := "foobar;"

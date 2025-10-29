@@ -259,42 +259,42 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### AST Nodes (1 task)
 
-- [ ] 9.27 Create or extend character literal node in `ast/expressions.go`:
-  - [ ] Store rune value and position
-  - [ ] Support all forms: `'H'`, `#13`, `#$41`
-  - [ ] `String()` returns appropriate representation
-  - [ ] Add AST tests
+- [x] 9.27 Create or extend character literal node in `ast/expressions.go`:
+  - [x] Store rune value and position
+  - [x] Support all forms: `'H'`, `#13`, `#$41`
+  - [x] `String()` returns appropriate representation
+  - [x] Add AST tests
 
 #### Parser Support (1 task)
 
-- [ ] 9.28 Parse standalone CHAR literals in `parser/expressions.go`:
-  - [ ] Ensure lexer emits `CHAR` tokens correctly
-  - [ ] Map `CHAR` tokens to literal expression parser
-  - [ ] Handle all character literal forms
-  - [ ] Add parser tests covering char constants in case labels and assignments
+- [x] 9.28 Parse standalone CHAR literals in `parser/expressions.go`:
+  - [x] Ensure lexer emits `CHAR` tokens correctly
+  - [x] Map `CHAR` tokens to literal expression parser
+  - [x] Handle all character literal forms
+  - [x] Add parser tests covering char constants in case labels and assignments
 
 #### Semantic Analysis (1 task)
 
-- [ ] 9.29 Type checking for character literals:
-  - [ ] Treat char literals as single-character strings (DWScript convention)
-  - [ ] Allow char literals where strings are expected
-  - [ ] Add semantic tests for char literal type checking
+- [x] 9.29 Type checking for character literals:
+  - [x] Treat char literals as single-character strings (DWScript convention)
+  - [x] Allow char literals where strings are expected
+  - [x] Add semantic tests for char literal type checking
 
 #### Interpreter Support (1 task)
 
-- [ ] 9.30 Runtime support for character literals:
-  - [ ] Update interpreter value construction for all char forms
-  - [ ] Ensure `'H'`, `#13`, and `#$41` forms evaluate correctly
-  - [ ] Handle character-to-string coercion
-  - [ ] Add interpreter tests
+- [x] 9.30 Runtime support for character literals:
+  - [x] Update interpreter value construction for all char forms
+  - [x] Ensure `'H'`, `#13`, and `#$41` forms evaluate correctly
+  - [x] Handle character-to-string coercion
+  - [x] Add interpreter tests
 
 #### Testing & Fixtures (1 task)
 
-- [ ] 9.31 Create test files in `testdata/char_literals/`:
-  - [ ] Basic character literal assignments
-  - [ ] Character literals in case statements
-  - [ ] Ordinal and hex character literals
-  - [ ] Add regression tests from Rosetta Code examples
+- [x] 9.31 Create test files in `testdata/char_literals/`:
+  - [x] Basic character literal assignments
+  - [x] Character literals in case statements
+  - [x] Ordinal and hex character literals
+  - [x] Add regression tests from Rosetta Code examples
 
 ---
 
@@ -402,18 +402,66 @@ PrintLn(html);
 - [ ] 9.49 Add tests for registration
 - [ ] 9.50 Test function call execution
 
-#### Error Handling (4 tasks)
+#### Error Handling (4 tasks → 12 sub-tasks)
+
+**Note**: Leverages existing exception infrastructure from Stage 8. EHost class bridges Go errors/panics to DWScript exception system. Named "EHost" (not "EGo" or "EDelphi") for future-proofing - works with any host runtime (Go, WASM, C FFI, etc.).
 
 - [ ] 9.51 Implement error marshaling:
-  - [ ] Go `error` return → DWScript exception
-  - [ ] Raise exception with error message
-  - [ ] Preserve stack trace across boundary
+  - [ ] 9.51a Register `EHost` exception class in `registerBuiltinExceptions()` (`internal/interp/exceptions.go`)
+    - Inherits from `Exception`
+    - Field: `ExceptionClass: String` (holds Go error type name, e.g., "*fs.PathError")
+    - Constructor: `Create(cls, msg)`
+  - [ ] 9.51b Create `raiseGoErrorAsException(err error)` in `internal/interp/ffi_errors.go`
+    - Create `EHost` instance with error message
+    - Populate `ExceptionClass` field with `fmt.Sprintf("%T", err)`
+    - Capture call stack from `i.callStack` (already implemented)
+    - Set `i.exception` to trigger propagation
+  - [ ] 9.51c Integrate error conversion into FFI call wrapper
+    - Check for non-nil error return from Go function
+    - Call `raiseGoErrorAsException()` to convert
+    - Ensure exception propagates to DWScript caller
 - [ ] 9.52 Handle panics in Go functions:
-  - [ ] Recover from panics in wrapper
-  - [ ] Convert panic to DWScript exception
-  - [ ] Include panic message and stack
-- [ ] 9.53 Add tests for error handling
-- [ ] 9.54 Test panic recovery
+  - [ ] 9.52a Create `callExternalFunctionSafe()` wrapper with panic recovery
+    - Add `defer/recover()` block
+    - Detect panic type (error, string, other)
+    - Extract panic message with type assertion
+  - [ ] 9.52b Create `raiseGoPanicAsException(panicValue interface{})` function
+    - Convert panic value to string message
+    - Create `EHost` instance marked as panic (include "panic:" prefix in message)
+    - Optionally include Go stack trace in message (`runtime.Stack()`)
+    - Set `i.exception` to trigger propagation
+  - [ ] 9.52c Document panic handling behavior
+    - Add section to `docs/ffi-guide.md` (created in task 9.61)
+    - Explain what happens when Go code panics
+    - Best practices for writing panic-safe Go functions
+- [ ] 9.53 Add tests for error handling (`internal/interp/ffi_errors_test.go`):
+  - [ ] 9.53a Test Go error → exception conversion
+    - Register Go function that returns error
+    - Call from DWScript and verify exception raised
+    - Verify exception message matches error message
+    - Verify exception is catchable with try/except
+  - [ ] 9.53b Test error propagation across nested calls
+    - Go function errors in nested call stack
+    - Verify exception propagates to top level
+    - Verify call stack array is correct
+  - [ ] 9.53c Test EHost exception-specific features
+    - Catch `EHost` exception specifically (`on E: EHost do`)
+    - Verify `ExceptionClass` field is populated with Go type
+    - Verify `Message` field contains error text
+- [ ] 9.54 Test panic recovery:
+  - [ ] 9.54a Test panic conversion to exception
+    - Go function panics with string: `panic("error message")`
+    - Go function panics with error: `panic(errors.New("error"))`
+    - Go function panics with other type: `panic(42)`
+    - Verify all convert to catchable `EHost` exceptions
+  - [ ] 9.54b Test panic propagation in nested FFI calls
+    - Go function A calls Go function B (via DWScript)
+    - B panics
+    - Verify exception propagates correctly through call stack
+  - [ ] 9.54c Test finally blocks with panics
+    - Go function panics in try block
+    - Verify finally block still executes (existing behavior)
+    - Verify panic exception propagates after finally completes
 
 #### Advanced Features (6 tasks)
 
@@ -667,27 +715,64 @@ PrintLn(s.ToUpper()); // Output: HELLO
     - TestHelperMethodParameters: 3 test cases (correct params, wrong count, wrong type)
   - [x] All tests passing ✅
 
-#### Interpreter Support (4 tasks)
+#### Interpreter Support (4 tasks) ✅ COMPLETE
 
-- [ ] 9.86 Implement helper method dispatch:
-  - [ ] When calling method on object, check for helper methods
-  - [ ] Bind `Self` to the target object
-  - [ ] Execute helper method with `Self` bound
-- [ ] 9.87 Implement helper method storage:
-  - [ ] Store helpers in registry indexed by target type
-  - [ ] Lookup helpers at method call time
-- [ ] 9.88 Add tests in `interp/helper_test.go`
-- [ ] 9.89 Test helper method calls and `Self` binding
+- [x] 9.86 Implement helper method dispatch: ✅ DONE
+  - [x] Created `interp/helpers.go` with complete helper support
+  - [x] Implemented `findHelperMethod()` and `callHelperMethod()`
+  - [x] Updated `evalMethodCall()` to check helpers for non-object types
+  - [x] Updated `evalMemberAccess()` to check helpers for properties
+  - [x] Bind `Self` to the target value (object, record, or basic type)
+  - [x] Execute helper method with `Self` bound
+  - [x] Class vars and consts accessible within helper methods
+- [x] 9.87 Implement helper method storage: ✅ DONE
+  - [x] Added `helpers` map to Interpreter (type name -> []*HelperInfo)
+  - [x] Store helpers in registry indexed by target type
+  - [x] Implemented `evalHelperDeclaration()` to register helpers
+  - [x] Lookup helpers at method call time via `getHelpersForValue()`
+  - [x] Support for multiple helpers extending the same type
+- [x] 9.88 Add tests in `interp/helpers_test.go`: ✅ DONE
+  - [x] Created comprehensive test suite with 12 test functions
+  - [x] TestHelperMethod: basic helper method on String
+  - [x] TestHelperMethodWithParameters: parameters validation
+  - [x] TestHelperMethodOnInteger: basic type helpers
+  - [x] TestHelperMethodOnRecord: record helpers
+  - [x] TestHelperProperty: helper properties
+  - [x] TestHelperClassConst/ClassVar: class member support
+  - [x] TestHelperSyntaxVariations: "helper" vs "record helper"
+  - [x] TestHelperMethodNotFound: error cases
+  - [x] TestHelperOnClassInstancePrefersMethods: priority rules
+  - [x] All tests passing ✅
+- [x] 9.89 Test helper method calls and `Self` binding: ✅ DONE
+  - [x] Self binding tested in all helper method tests
+  - [x] Self correctly references target value (Integer, String, Record, Class)
+  - [x] Verified with manual tests using dwscript CLI
 
-#### Testing & Fixtures (3 tasks)
+#### Testing & Fixtures (3 tasks) ✅ COMPLETE
 
-- [ ] 9.90 Create test scripts in `testdata/helpers/`:
-  - [ ] `string_helper.dws` - String helper with methods
-  - [ ] `record_helper.dws` - Record helper example
-  - [ ] `class_helper.dws` - Class helper example
-  - [ ] Expected outputs
-- [ ] 9.91 Add CLI integration tests
-- [ ] 9.92 Document helpers in `docs/helpers.md`
+- [x] 9.90 Create test scripts in `testdata/helpers/`: ✅ DONE
+  - [x] `string_helper.dws` - String helper with methods and expected output
+  - [x] `integer_helper.dws` - Integer helper demonstrating various methods
+  - [x] `record_helper_demo.dws` - Record helper with distance calculations
+  - [x] `class_helper_demo.dws` - Class helper extending TPerson
+  - [x] `multiple_helpers_demo.dws` - Multiple helpers on same type
+  - [x] `class_constants_demo.dws` - Helper with class constants (PI, E)
+  - [x] All scripts tested and working correctly
+- [x] 9.91 Add CLI integration tests: ✅ DONE
+  - [x] Created `cmd/dwscript/helpers_integration_test.go`
+  - [x] TestHelpersScriptsExist: verifies all test scripts exist
+  - [x] TestHelpersParsing: validates parsing of all helper scripts
+  - [x] TestHelpersExecution: validates output of all helper scripts
+  - [x] TestHelperMethodDispatch: tests inline helper method dispatch
+  - [x] TestHelperSyntaxVariations: tests both syntax variants
+  - [x] All tests passing ✅
+- [x] 9.92 Document helpers in `docs/helpers.md`: ✅ DONE
+  - [x] Comprehensive documentation with examples
+  - [x] Syntax reference for both variants
+  - [x] Feature documentation (methods, properties, class vars/consts)
+  - [x] Examples for String, Integer, Record, and Class helpers
+  - [x] Implementation details and limitations
+  - [x] Testing and reference sections
 
 ---
 
@@ -1092,6 +1177,42 @@ var dynamic := new String[Length(s)+1]; // Size from expression
   - [x] Check `Levenshtein_distance.dws` - Working with modifications (`[i][j]` syntax, custom `Min3()`)
   - [x] Add these as integration tests in CLI test suite (`cmd/dwscript/new_array_test.go`)
   - [x] Document any remaining issues in `docs/rosetta-compatibility.md`
+
+### 9.169 Method Keyword Support (9 tasks) ✅ COMPLETE
+
+**Context**: DWScript allows `method` as an alternative syntax for declaring class instance methods, functionally equivalent to `function`/`procedure`. The lexer already had `METHOD` token support, but the parser didn't accept it. The Rosetta Code example `Yin_and_yang.dws` uses this syntax.
+
+**Implementation Tasks**:
+
+- [x] 9.169.1 Parser: Accept METHOD token in class method declarations (`internal/parser/classes.go:237`)
+- [x] 9.169.2 Parser Test: Add test case for `method` keyword parsing (`internal/parser/classes_test.go`)
+- [x] 9.169.3 Test File: Create `testdata/classes/method_keyword.dws` with all three variants (method/function/procedure)
+- [x] 9.169.4 Expected Output: Create `testdata/classes/method_keyword.expected`
+- [x] 9.169.5 Integration Test: Add CLI test in `cmd/dwscript/classes_integration_test.go`
+- [x] 9.169.6 Verify: Confirm `examples/rosetta/Yin_and_yang.dws` method keyword now parses
+- [x] 9.169.7 Documentation: Update `docs/stage7-summary.md` with `method` keyword info
+- [x] 9.169.8 Update: Note Yin_and_yang.dws partial compatibility in `docs/rosetta-compatibility.md`
+- [x] 9.169.9 Verification: Run full test suite to ensure no regressions
+
+**Priority**: MEDIUM (unblocks Rosetta Code example, minimal complexity)
+
+**Estimated Effort**: 0.5 weeks
+
+**Actual Effort**: <1 day (simple parser change with comprehensive testing)
+
+**Technical Details**:
+
+- Lexer already supported `METHOD` token (line 77 in `token_type.go`)
+- Parser change: Added `|| p.curToken.Type == lexer.METHOD` to line 237 in `classes.go`
+- AST: No changes needed - `FunctionDecl` handles all callable members
+- Semantics: `method` keyword behaves identically to `function`/`procedure` for instance methods
+- Test coverage: Parser unit test + integration test + documentation examples
+
+**Results**:
+
+- ✅ `method` keyword now parses and executes correctly
+- ✅ All three keywords (`method`, `function`, `procedure`) work interchangeably for instance methods
+- ✅ Yin_and_yang.dws methods now parse (but other blockers remain: inline array types, `.High` property, multi-index syntax)
 
 ---
 
