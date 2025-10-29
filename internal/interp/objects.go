@@ -180,6 +180,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		// Access record field
 		fieldValue, exists := recordVal.Fields[ma.Member.Value]
 		if !exists {
+			// Task 9.86: Check if helpers provide this member
+			helper, helperProp := i.findHelperProperty(recordVal, ma.Member.Value)
+			if helperProp != nil {
+				return i.evalHelperPropertyRead(helper, helperProp, recordVal, ma)
+			}
 			return i.newErrorWithLocation(ma, "field '%s' not found in record '%s'", ma.Member.Value, recordVal.RecordType.Name)
 		}
 		return fieldValue
@@ -188,7 +193,13 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
 	if !ok {
-		return i.newErrorWithLocation(ma, "cannot access member of non-object type '%s'", objVal.Type())
+		// Task 9.86: Not an object - check if helpers provide this member
+		helper, helperProp := i.findHelperProperty(objVal, ma.Member.Value)
+		if helperProp != nil {
+			return i.evalHelperPropertyRead(helper, helperProp, objVal, ma)
+		}
+		return i.newErrorWithLocation(ma, "cannot access member '%s' of type '%s' (no helper found)",
+			ma.Member.Value, objVal.Type())
 	}
 
 	memberName := ma.Member.Value
@@ -207,6 +218,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Not a property - try direct field access
 	fieldValue := obj.GetField(memberName)
 	if fieldValue == nil {
+		// Task 9.86: Check if helpers provide this member
+		helper, helperProp := i.findHelperProperty(obj, memberName)
+		if helperProp != nil {
+			return i.evalHelperPropertyRead(helper, helperProp, obj, ma)
+		}
 		return i.newErrorWithLocation(ma, "field '%s' not found in class '%s'", memberName, obj.Class.Name)
 	}
 
@@ -661,7 +677,25 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
 	if !ok {
-		return i.newErrorWithLocation(mc, "cannot call method on non-object type '%s'", objVal.Type())
+		// Task 9.86: Not an object - check if helpers provide this method
+		helper, helperMethod := i.findHelperMethod(objVal, mc.Method.Value)
+		if helperMethod == nil {
+			return i.newErrorWithLocation(mc, "cannot call method '%s' on type '%s' (no helper found)",
+				mc.Method.Value, objVal.Type())
+		}
+
+		// Evaluate method arguments
+		args := make([]Value, len(mc.Arguments))
+		for idx, arg := range mc.Arguments {
+			val := i.Eval(arg)
+			if isError(val) {
+				return val
+			}
+			args[idx] = val
+		}
+
+		// Call the helper method
+		return i.callHelperMethod(helper, helperMethod, objVal, args, mc)
 	}
 
 	// Handle built-in methods that are available on all objects (inherited from TObject)
@@ -673,7 +707,24 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	// Look up method in object's class
 	method := obj.GetMethod(mc.Method.Value)
 	if method == nil {
-		return i.newErrorWithLocation(mc, "method '%s' not found in class '%s'", mc.Method.Value, obj.Class.Name)
+		// Task 9.86: Check if helpers provide this method
+		helper, helperMethod := i.findHelperMethod(obj, mc.Method.Value)
+		if helperMethod == nil {
+			return i.newErrorWithLocation(mc, "method '%s' not found in class '%s'", mc.Method.Value, obj.Class.Name)
+		}
+
+		// Evaluate method arguments
+		args := make([]Value, len(mc.Arguments))
+		for idx, arg := range mc.Arguments {
+			val := i.Eval(arg)
+			if isError(val) {
+				return val
+			}
+			args[idx] = val
+		}
+
+		// Call the helper method
+		return i.callHelperMethod(helper, helperMethod, obj, args, mc)
 	}
 
 	// Evaluate method arguments

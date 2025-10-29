@@ -82,6 +82,7 @@ end;
 - Class declarations with inheritance
 - Field declarations with visibility
 - Method declarations (inline and forward)
+  - Supports `function`, `procedure`, and `method` keywords (all equivalent for instance methods)
 - Virtual/override/abstract modifiers
 - Static members (`class var`, `class function`)
 - Object creation (`TClass.Create(args)`)

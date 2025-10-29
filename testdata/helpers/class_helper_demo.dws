@@ -1,0 +1,71 @@
+// Class helper example - demonstrates extending class types
+
+type TPerson = class
+  private
+    FName: String;
+    FAge: Integer;
+  public
+    constructor Create(name: String; age: Integer);
+    function GetName: String;
+    function GetAge: Integer;
+end;
+
+constructor TPerson.Create(name: String; age: Integer);
+begin
+  FName := name;
+  FAge := age;
+end;
+
+function TPerson.GetName: String;
+begin
+  Result := FName;
+end;
+
+function TPerson.GetAge: Integer;
+begin
+  Result := FAge;
+end;
+
+// Helper extends TPerson with additional methods
+type TPersonHelper = helper for TPerson
+  function IsAdult: Boolean;
+  begin
+    Result := Self.GetAge() >= 18;
+  end;
+
+  function GetInfo: String;
+  begin
+    Result := Self.GetName() + ' (age ' + IntToStr(Self.GetAge()) + ')';
+  end;
+
+  function IsTeenager: Boolean;
+  begin
+    Result := (Self.GetAge() >= 13) and (Self.GetAge() <= 19);
+  end;
+end;
+
+var person1, person2: TPerson;
+begin
+  PrintLn('=== Class Helper Demo ===');
+
+  person1 := TPerson.Create('Alice', 25);
+  PrintLn('Person 1: ' + person1.GetInfo());
+  PrintLn('IsAdult: ' + BoolToStr(person1.IsAdult()));
+  PrintLn('IsTeenager: ' + BoolToStr(person1.IsTeenager()));
+  PrintLn('');
+
+  person2 := TPerson.Create('Bob', 16);
+  PrintLn('Person 2: ' + person2.GetInfo());
+  PrintLn('IsAdult: ' + BoolToStr(person2.IsAdult()));
+  PrintLn('IsTeenager: ' + BoolToStr(person2.IsTeenager()));
+end.
+
+// Expected output:
+// === Class Helper Demo ===
+// Person 1: Alice (age 25)
+// IsAdult: True
+// IsTeenager: False
+//
+// Person 2: Bob (age 16)
+// IsAdult: False
+// IsTeenager: True

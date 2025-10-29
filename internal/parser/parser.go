@@ -91,6 +91,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.TRUE, p.parseBooleanLiteral)
 	p.registerPrefix(lexer.FALSE, p.parseBooleanLiteral)
 	p.registerPrefix(lexer.NIL, p.parseNilLiteral)
+	p.registerPrefix(lexer.CHAR, p.parseCharLiteral)
 	p.registerPrefix(lexer.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(lexer.PLUS, p.parsePrefixExpression)
 	p.registerPrefix(lexer.NOT, p.parsePrefixExpression)

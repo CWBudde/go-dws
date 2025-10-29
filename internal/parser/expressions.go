@@ -112,6 +112,40 @@ func (p *Parser) parseNilLiteral() ast.Expression {
 	return &ast.NilLiteral{Token: p.curToken}
 }
 
+// parseCharLiteral parses a character literal (#65, #$41).
+func (p *Parser) parseCharLiteral() ast.Expression {
+	lit := &ast.CharLiteral{Token: p.curToken}
+
+	// Parse the character value from the token literal
+	// Token literal can be: "#65" (decimal) or "#$41" (hex)
+	literal := p.curToken.Literal
+	if len(literal) < 2 || literal[0] != '#' {
+		msg := fmt.Sprintf("invalid character literal format: %q", literal)
+		p.addError(msg)
+		return nil
+	}
+
+	var value int64
+	var err error
+
+	if len(literal) >= 3 && literal[1] == '$' {
+		// Hex format: #$41
+		value, err = strconv.ParseInt(literal[2:], 16, 32)
+	} else {
+		// Decimal format: #65
+		value, err = strconv.ParseInt(literal[1:], 10, 32)
+	}
+
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %q as character literal", literal)
+		p.addError(msg)
+		return nil
+	}
+
+	lit.Value = rune(value)
+	return lit
+}
+
 // parsePrefixExpression parses a prefix (unary) expression.
 func (p *Parser) parsePrefixExpression() ast.Expression {
 	expression := &ast.UnaryExpression{

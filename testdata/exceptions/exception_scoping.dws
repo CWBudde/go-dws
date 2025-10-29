@@ -8,8 +8,8 @@ var e : string;
 try
 	PrintLn('ok');
 except
-   on e : EDelphi do begin
-		PrintLn(EDelphi(e).ClassName);
+   on e : EHost do begin
+		PrintLn(EHost(e).ClassName);
 	end;
    on e : Exception do
 		PrintLn(e.ClassName);

@@ -1,0 +1,67 @@
+// String concatenation with character literals
+// Tests character literals in string concatenation expressions
+
+begin
+  var result: String;
+
+  // Simple concatenation: char + string
+  result := #72 + 'ello';
+  PrintLn('Char + String: ' + result);  // Hello
+
+  // Simple concatenation: string + char
+  result := 'Hell' + #111;
+  PrintLn('String + Char: ' + result);  // Hello
+
+  // Multiple char literals
+  result := #87 + #111 + #114 + #108 + #100;
+  PrintLn('Multiple chars: ' + result);  // World
+
+  // Mixing chars and strings
+  result := 'H' + #101 + 'l' + #108 + 'o';
+  PrintLn('Mixed: ' + result);  // Hello
+
+  // Line separators
+  result := 'Line1' + #13 + #10 + 'Line2';
+  PrintLn('With CRLF:');
+  PrintLn(result);
+
+  // Building formatted strings
+  result := 'Name:' + #32 + 'John' + #32 + 'Doe';
+  PrintLn(result);  // Name: John Doe
+
+  // Hex format in concatenation
+  result := #$48 + #$65 + #$6C + #$6C + #$6F;
+  PrintLn('Hex format: ' + result);  // Hello
+
+  // Complex expression
+  var greeting := 'Hi' + #33 + #32 + 'My name is ' + #74 + #111 + #104 + #110;
+  PrintLn(greeting);  // Hi! My name is john
+
+  // Building CSV line
+  var csv := 'Name' + #44 + 'Age' + #44 + 'City';
+  PrintLn('CSV: ' + csv);  // Name,Age,City
+
+  // Building path with separators
+  var path := 'home' + #47 + 'user' + #47 + 'docs';
+  PrintLn('Path: ' + path);  // home/user/docs
+
+  // Quotes in strings using char literals
+  var quoted := #34 + 'Hello World' + #34;
+  PrintLn('Quoted: ' + quoted);  // "Hello World"
+
+  // Single quotes using char literals
+  var singleQuoted := #39 + 'Hello' + #39;
+  PrintLn('Single quoted: ' + singleQuoted);  // 'Hello'
+
+  // Tab-separated values
+  var tsv := 'First' + #9 + 'Second' + #9 + 'Third';
+  PrintLn('TSV: ' + tsv);
+
+  // Empty string + char
+  result := '' + #65;
+  PrintLn('Empty + char: ' + result);  // A
+
+  // Char + empty string
+  result := #66 + '';
+  PrintLn('Char + empty: ' + result);  // B
+end.

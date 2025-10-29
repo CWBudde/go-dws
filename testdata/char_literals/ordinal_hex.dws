@@ -1,0 +1,67 @@
+// Ordinal and hexadecimal character literal tests
+// Comprehensive tests for both decimal and hex formats
+
+begin
+  // ASCII lowercase letters (decimal)
+  PrintLn('Lowercase (decimal): ' + #97 + #98 + #99);  // abc
+
+  // ASCII lowercase letters (hex)
+  PrintLn('Lowercase (hex): ' + #$61 + #$62 + #$63);  // abc
+
+  // ASCII uppercase letters (decimal)
+  PrintLn('Uppercase (decimal): ' + #65 + #66 + #67);  // ABC
+
+  // ASCII uppercase letters (hex)
+  PrintLn('Uppercase (hex): ' + #$41 + #$42 + #$43);  // ABC
+
+  // Digits (decimal)
+  PrintLn('Digits (decimal): ' + #48 + #49 + #50);  // 012
+
+  // Digits (hex)
+  PrintLn('Digits (hex): ' + #$30 + #$31 + #$32);  // 012
+
+  // Special characters (decimal)
+  PrintLn('Special (decimal): ' + #33 + #64 + #35);  // !@#
+
+  // Special characters (hex)
+  PrintLn('Special (hex): ' + #$21 + #$40 + #$23);  // !@#
+
+  // Whitespace characters (decimal)
+  var space := #32;
+  var tab := #9;
+  PrintLn('Space:[' + space + '] Tab:[' + tab + ']');
+
+  // Whitespace characters (hex)
+  space := #$20;
+  tab := #$09;
+  PrintLn('Space:[' + space + '] Tab:[' + tab + ']');
+
+  // Line endings (decimal)
+  var cr := #13;
+  var lf := #10;
+  PrintLn('Line1' + cr + lf + 'Line2');  // Windows CRLF
+
+  // Line endings (hex)
+  cr := #$0D;
+  lf := #$0A;
+  PrintLn('Line3' + cr + lf + 'Line4');  // Windows CRLF
+
+  // Mixed decimal and hex in same expression
+  var mixed := #72 + #$65 + #108 + #$6C + #111;  // Hello
+  PrintLn('Mixed: ' + mixed);
+
+  // Boundary values
+  var nul := #0;   // NULL character
+  var del := #127; // DEL character
+  PrintLn('NUL length: ' + IntToStr(Length(nul)));
+  PrintLn('DEL char: [' + del + ']');
+
+  // Hex with leading zeros
+  var a1 := #$0041;  // A with leading zeros
+  var a2 := #$41;    // A without leading zeros
+  PrintLn('Hex with zeros: ' + a1 + ' = ' + a2);
+
+  // Large values (multi-byte characters if supported)
+  var euro := #$20AC;  // Euro sign (if Unicode supported)
+  PrintLn('Euro: ' + euro);
+end.

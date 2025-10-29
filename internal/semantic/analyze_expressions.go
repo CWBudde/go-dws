@@ -25,6 +25,9 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 		return types.STRING
 	case *ast.BooleanLiteral:
 		return types.BOOLEAN
+	case *ast.CharLiteral:
+		// Character literals are treated as single-character strings in DWScript
+		return types.STRING
 	case *ast.NilLiteral:
 		return types.NIL
 	case *ast.Identifier:

@@ -1,0 +1,40 @@
+// Basic character literal assignments
+// Tests character literals in variable declarations and assignments
+
+begin
+  var ch: String;
+  var letter: String;
+  var space: String;
+
+  // Decimal character literals
+  ch := #65;
+  PrintLn('Decimal #65: ' + ch);  // Should print 'A'
+
+  ch := #97;
+  PrintLn('Decimal #97: ' + ch);  // Should print 'a'
+
+  ch := #48;
+  PrintLn('Decimal #48: ' + ch);  // Should print '0'
+
+  // Hexadecimal character literals
+  ch := #$41;
+  PrintLn('Hex #$41: ' + ch);  // Should print 'A'
+
+  ch := #$61;
+  PrintLn('Hex #$61: ' + ch);  // Should print 'a'
+
+  ch := #$30;
+  PrintLn('Hex #$30: ' + ch);  // Should print '0'
+
+  // Special characters
+  space := #32;
+  PrintLn('Space char: [' + space + ']');  // Should print '[ ]'
+
+  // Direct assignment with type inference
+  letter := #72;
+  PrintLn('Letter H: ' + letter);  // Should print 'H'
+
+  // Multiple character literals
+  var greeting := #72 + #101 + #108 + #108 + #111;  // Hello
+  PrintLn('Greeting: ' + greeting);  // Should print 'Hello'
+end.

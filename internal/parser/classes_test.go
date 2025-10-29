@@ -174,6 +174,88 @@ end;
 	}
 }
 
+func TestClassWithMethodKeyword(t *testing.T) {
+	input := `
+type TPoint = class
+  X, Y: Integer;
+
+  method GetX(): Integer;
+  begin
+    Result := X;
+  end;
+
+  method SetX(value: Integer);
+  begin
+    X := value;
+  end;
+
+  function GetY(): Integer;
+  begin
+    Result := Y;
+  end;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if len(stmt.Methods) != 3 {
+		t.Fatalf("stmt.Methods should contain 3 methods. got=%d", len(stmt.Methods))
+	}
+
+	// Test first method declared with 'method' keyword
+	method1 := stmt.Methods[0]
+	if method1.Name.Value != "GetX" {
+		t.Errorf("method1.Name.Value not 'GetX'. got=%s", method1.Name.Value)
+	}
+	if method1.Token.Type != lexer.METHOD {
+		t.Errorf("method1.Token.Type not METHOD. got=%s", method1.Token.Type)
+	}
+	if method1.ReturnType == nil {
+		t.Fatal("method1.ReturnType should not be nil")
+	}
+	if method1.ReturnType.Name != "Integer" {
+		t.Errorf("method1.ReturnType.Name not 'Integer'. got=%s", method1.ReturnType.Name)
+	}
+
+	// Test second method declared with 'method' keyword (procedure-style)
+	method2 := stmt.Methods[1]
+	if method2.Name.Value != "SetX" {
+		t.Errorf("method2.Name.Value not 'SetX'. got=%s", method2.Name.Value)
+	}
+	if method2.Token.Type != lexer.METHOD {
+		t.Errorf("method2.Token.Type not METHOD. got=%s", method2.Token.Type)
+	}
+	if method2.ReturnType != nil {
+		t.Errorf("method2.ReturnType should be nil for procedure-style method. got=%v", method2.ReturnType)
+	}
+	if len(method2.Parameters) != 1 {
+		t.Fatalf("method2.Parameters should contain 1 parameter. got=%d", len(method2.Parameters))
+	}
+
+	// Test third method declared with 'function' keyword (should still work)
+	method3 := stmt.Methods[2]
+	if method3.Name.Value != "GetY" {
+		t.Errorf("method3.Name.Value not 'GetY'. got=%s", method3.Name.Value)
+	}
+	if method3.Token.Type != lexer.FUNCTION {
+		t.Errorf("method3.Token.Type not FUNCTION. got=%s", method3.Token.Type)
+	}
+}
+
 // ============================================================================
 // New Expression Parsing Tests (Object Creation)
 // ============================================================================

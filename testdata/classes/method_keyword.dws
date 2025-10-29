@@ -1,0 +1,50 @@
+// Test file demonstrating that 'method' keyword works identically to 'function'/'procedure'
+// for declaring class instance methods
+
+type TPoint = class
+  X, Y: Integer;
+
+  // Using 'method' keyword with return type (like 'function')
+  method GetX(): Integer;
+  begin
+    Result := X;
+  end;
+
+  // Using 'method' keyword without return type (like 'procedure')
+  method SetX(value: Integer);
+  begin
+    X := value;
+  end;
+
+  // Using traditional 'function' keyword (should still work)
+  function GetY(): Integer;
+  begin
+    Result := Y;
+  end;
+
+  // Using traditional 'procedure' keyword (should still work)
+  procedure SetY(value: Integer);
+  begin
+    Y := value;
+  end;
+
+  // Constructor using traditional syntax
+  constructor Create(aX, aY: Integer);
+  begin
+    X := aX;
+    Y := aY;
+  end;
+end;
+
+var p := new TPoint(10, 20);
+
+PrintLn('Initial values:');
+PrintLn('X = ' + IntToStr(p.GetX()));
+PrintLn('Y = ' + IntToStr(p.GetY()));
+
+p.SetX(30);
+p.SetY(40);
+
+PrintLn('After setting new values:');
+PrintLn('X = ' + IntToStr(p.GetX()));
+PrintLn('Y = ' + IntToStr(p.GetY()));

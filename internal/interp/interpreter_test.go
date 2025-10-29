@@ -111,6 +111,72 @@ func TestBooleanLiterals(t *testing.T) {
 	}
 }
 
+// TestCharLiterals tests evaluation of character literals.
+func TestCharLiterals(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"#65", "A"},           // Decimal: A
+		{"#$41", "A"},          // Hex: A
+		{"#13", "\r"},          // Carriage return
+		{"#10", "\n"},          // Line feed
+		{"#$61", "a"},          // Hex: a
+		{"#32", " "},           // Space
+		{"#$0D", "\r"},         // Hex CR
+		{"#$0A", "\n"},         // Hex LF
+		{"#48", "0"},           // Digit 0
+		{"#$30", "0"},          // Hex digit 0
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			val := testEval(tt.input)
+			testStringValue(t, val, tt.expected)
+		})
+	}
+}
+
+// TestCharLiteralConcatenation tests character literal concatenation with strings.
+func TestCharLiteralConcatenation(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{`'Hello' + #65`, "HelloA"},
+		{`#65 + 'Hello'`, "AHello"},
+		{`#13 + #10`, "\r\n"},
+		{`'Line1' + #13 + #10 + 'Line2'`, "Line1\r\nLine2"},
+		{`#72 + #101 + #108 + #108 + #111`, "Hello"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			val := testEval(tt.input)
+			testStringValue(t, val, tt.expected)
+		})
+	}
+}
+
+// TestCharLiteralInVariable tests character literal assignment to variables.
+func TestCharLiteralInVariable(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"var s: String := #65; s", "A"},
+		{"var c := #$41; c", "A"},
+		{"var cr := #13; var lf := #10; cr + lf", "\r\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			val := testEval(tt.input)
+			testStringValue(t, val, tt.expected)
+		})
+	}
+}
+
 // TestIntegerArithmetic tests integer arithmetic operations.
 func TestIntegerArithmetic(t *testing.T) {
 	tests := []struct {

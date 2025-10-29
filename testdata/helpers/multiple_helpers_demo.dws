@@ -1,0 +1,83 @@
+// Multiple helpers example - demonstrates that multiple helpers can extend the same type
+
+type TIntHelper1 = helper for Integer
+  function Double: Integer;
+  begin
+    Result := Self * 2;
+  end;
+
+  function Triple: Integer;
+  begin
+    Result := Self * 3;
+  end;
+end;
+
+type TIntHelper2 = helper for Integer
+  function IsEven: Boolean;
+  begin
+    Result := (Self mod 2 = 0);
+  end;
+
+  function IsOdd: Boolean;
+  begin
+    Result := (Self mod 2 <> 0);
+  end;
+end;
+
+type TIntHelper3 = helper for Integer
+  function Square: Integer;
+  begin
+    Result := Self * Self;
+  end;
+
+  function Cube: Integer;
+  begin
+    Result := Self * Self * Self;
+  end;
+end;
+
+var n: Integer;
+begin
+  PrintLn('=== Multiple Helpers Demo ===');
+  PrintLn('All three helpers contribute methods to Integer type');
+  PrintLn('');
+
+  n := 5;
+  PrintLn('Number: ' + IntToStr(n));
+  PrintLn('');
+
+  // Methods from TIntHelper1
+  PrintLn('From TIntHelper1:');
+  PrintLn('  Double: ' + IntToStr(n.Double()));
+  PrintLn('  Triple: ' + IntToStr(n.Triple()));
+  PrintLn('');
+
+  // Methods from TIntHelper2
+  PrintLn('From TIntHelper2:');
+  PrintLn('  IsEven: ' + BoolToStr(n.IsEven()));
+  PrintLn('  IsOdd: ' + BoolToStr(n.IsOdd()));
+  PrintLn('');
+
+  // Methods from TIntHelper3
+  PrintLn('From TIntHelper3:');
+  PrintLn('  Square: ' + IntToStr(n.Square()));
+  PrintLn('  Cube: ' + IntToStr(n.Cube()));
+end.
+
+// Expected output:
+// === Multiple Helpers Demo ===
+// All three helpers contribute methods to Integer type
+//
+// Number: 5
+//
+// From TIntHelper1:
+//   Double: 10
+//   Triple: 15
+//
+// From TIntHelper2:
+//   IsEven: False
+//   IsOdd: True
+//
+// From TIntHelper3:
+//   Square: 25
+//   Cube: 125

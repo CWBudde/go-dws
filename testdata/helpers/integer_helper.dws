@@ -1,0 +1,68 @@
+// Integer helper example - demonstrates extending Integer type with helper methods
+
+type TIntegerHelper = helper for Integer
+  function IsEven: Boolean;
+  begin
+    Result := (Self mod 2 = 0);
+  end;
+
+  function IsOdd: Boolean;
+  begin
+    Result := (Self mod 2 <> 0);
+  end;
+
+  function IsPositive: Boolean;
+  begin
+    Result := Self > 0;
+  end;
+
+  function IsNegative: Boolean;
+  begin
+    Result := Self < 0;
+  end;
+
+  function Square: Integer;
+  begin
+    Result := Self * Self;
+  end;
+
+  function Abs: Integer;
+  begin
+    if Self < 0 then
+      Result := -Self
+    else
+      Result := Self;
+  end;
+end;
+
+var n: Integer;
+begin
+  PrintLn('=== Integer Helper Demo ===');
+
+  n := 42;
+  PrintLn('Number: ' + IntToStr(n));
+  PrintLn('IsEven: ' + BoolToStr(n.IsEven()));
+  PrintLn('IsOdd: ' + BoolToStr(n.IsOdd()));
+  PrintLn('IsPositive: ' + BoolToStr(n.IsPositive()));
+  PrintLn('Square: ' + IntToStr(n.Square()));
+  PrintLn('');
+
+  n := -7;
+  PrintLn('Number: ' + IntToStr(n));
+  PrintLn('IsEven: ' + BoolToStr(n.IsEven()));
+  PrintLn('IsNegative: ' + BoolToStr(n.IsNegative()));
+  PrintLn('Abs: ' + IntToStr(n.Abs()));
+end.
+
+// Expected output:
+// === Integer Helper Demo ===
+// Number: 42
+// IsEven: True
+// IsOdd: False
+// IsPositive: True
+// Square: 1764
+//
+// Number: -7
+// IsEven: False
+// IsNegative: True
+// Abs: 7

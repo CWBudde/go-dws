@@ -234,7 +234,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 					classDecl.Fields = append(classDecl.Fields, field)
 				}
 			}
-		} else if p.curToken.Type == lexer.FUNCTION || p.curToken.Type == lexer.PROCEDURE {
+		} else if p.curToken.Type == lexer.FUNCTION || p.curToken.Type == lexer.PROCEDURE || p.curToken.Type == lexer.METHOD {
 			// This is a regular instance method declaration
 			method := p.parseFunctionDeclaration()
 			if method != nil {

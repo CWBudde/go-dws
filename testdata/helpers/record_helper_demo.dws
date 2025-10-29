@@ -1,0 +1,67 @@
+// Record helper example - demonstrates extending record types
+
+type TPoint = record
+  X, Y: Integer;
+end;
+
+type TPointHelper = record helper for TPoint
+  function Sum: Integer;
+  begin
+    Result := Self.X + Self.Y;
+  end;
+
+  function IsOrigin: Boolean;
+  begin
+    Result := (Self.X = 0) and (Self.Y = 0);
+  end;
+
+  function DistanceFromOrigin: Float;
+  var sumOfSquares: Integer;
+  begin
+    sumOfSquares := Self.X * Self.X + Self.Y * Self.Y;
+    Result := Sqrt(sumOfSquares);
+  end;
+
+  function ManhattanDistance: Integer;
+  begin
+    if Self.X < 0 then
+      Result := -Self.X
+    else
+      Result := Self.X;
+
+    if Self.Y < 0 then
+      Result := Result - Self.Y
+    else
+      Result := Result + Self.Y;
+  end;
+end;
+
+var p: TPoint;
+begin
+  PrintLn('=== Record Helper Demo ===');
+
+  p.X := 3;
+  p.Y := 4;
+  PrintLn('Point: (' + IntToStr(p.X) + ', ' + IntToStr(p.Y) + ')');
+  PrintLn('Sum: ' + IntToStr(p.Sum()));
+  PrintLn('Distance from origin: ' + FloatToStr(p.DistanceFromOrigin()));
+  PrintLn('Manhattan distance: ' + IntToStr(p.ManhattanDistance()));
+  PrintLn('IsOrigin: ' + BoolToStr(p.IsOrigin()));
+  PrintLn('');
+
+  p.X := 0;
+  p.Y := 0;
+  PrintLn('Point: (' + IntToStr(p.X) + ', ' + IntToStr(p.Y) + ')');
+  PrintLn('IsOrigin: ' + BoolToStr(p.IsOrigin()));
+end.
+
+// Expected output:
+// === Record Helper Demo ===
+// Point: (3, 4)
+// Sum: 7
+// Distance from origin: 5
+// Manhattan distance: 7
+// IsOrigin: False
+//
+// Point: (0, 0)
+// IsOrigin: True
