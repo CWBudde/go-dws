@@ -1,0 +1,22 @@
+// Test DateTime component extraction functions
+// Task 9.105
+
+var dt: Float;
+
+// Create a test datetime
+dt := EncodeDateTime(2023, 10, 15, 14, 30, 45, 123);
+
+// Test component extraction
+PrintLn('YearOf: ' + IntToStr(YearOf(dt)));
+PrintLn('MonthOf: ' + IntToStr(MonthOf(dt)));
+PrintLn('DayOf: ' + IntToStr(DayOf(dt)));
+PrintLn('HourOf: ' + IntToStr(HourOf(dt)));
+PrintLn('MinuteOf: ' + IntToStr(MinuteOf(dt)));
+PrintLn('SecondOf: ' + IntToStr(SecondOf(dt)));
+
+// Test day of week functions
+PrintLn('DayOfWeek: ' + IntToStr(DayOfWeek(dt)));       // Sunday=1
+PrintLn('DayOfTheWeek: ' + IntToStr(DayOfTheWeek(dt))); // Monday=1
+PrintLn('DayOfYear: ' + IntToStr(DayOfYear(dt)));
+PrintLn('WeekNumber: ' + IntToStr(WeekNumber(dt)));
+PrintLn('YearOfWeek: ' + IntToStr(YearOfWeek(dt)));

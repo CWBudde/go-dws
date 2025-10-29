@@ -1,0 +1,36 @@
+// Test EncodeDate, DecodeDate, EncodeTime, DecodeTime, EncodeDateTime
+// Task 9.99-9.104
+
+var dt: Float;
+var y, m, d: Integer;
+var h, n, s, ms: Integer;
+
+// Test EncodeDate
+dt := EncodeDate(2023, 10, 15);
+PrintLn('Encoded date: ' + FloatToStr(dt));
+
+// Test DecodeDate
+DecodeDate(dt, y, m, d);
+PrintLn('Year: ' + IntToStr(y));
+PrintLn('Month: ' + IntToStr(m));
+PrintLn('Day: ' + IntToStr(d));
+
+// Test EncodeTime
+dt := EncodeTime(14, 30, 45, 500);
+PrintLn('Encoded time: ' + FloatToStr(dt));
+
+// Test DecodeTime
+DecodeTime(dt, h, n, s, ms);
+PrintLn('Hour: ' + IntToStr(h));
+PrintLn('Minute: ' + IntToStr(n));
+PrintLn('Second: ' + IntToStr(s));
+PrintLn('Millisecond: ' + IntToStr(ms));
+
+// Test EncodeDateTime
+dt := EncodeDateTime(2023, 10, 15, 14, 30, 45, 500);
+PrintLn('Encoded datetime: ' + FloatToStr(dt));
+
+// Decode both date and time
+DecodeDate(dt, y, m, d);
+DecodeTime(dt, h, n, s, ms);
+PrintLn('Full datetime: ' + IntToStr(y) + '-' + IntToStr(m) + '-' + IntToStr(d) + ' ' + IntToStr(h) + ':' + IntToStr(n) + ':' + IntToStr(s));

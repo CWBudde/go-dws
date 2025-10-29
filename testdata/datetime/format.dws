@@ -1,0 +1,29 @@
+// Test DateTime formatting functions
+// Task 9.107-9.109
+
+var dt: Float;
+
+// Create a test date
+dt := EncodeDateTime(2023, 10, 15, 14, 30, 45, 123);
+
+// Test FormatDateTime with various format specifiers
+PrintLn('FormatDateTime tests:');
+PrintLn(FormatDateTime('yyyy-mm-dd', dt));
+PrintLn(FormatDateTime('dd/mm/yyyy', dt));
+PrintLn(FormatDateTime('hh:nn:ss', dt));
+PrintLn(FormatDateTime('yyyy-mm-dd hh:nn:ss', dt));
+PrintLn(FormatDateTime('h:n:s', dt));
+PrintLn(FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', dt));
+
+// Test DateTimeToStr
+PrintLn('DateTimeToStr: ' + DateTimeToStr(dt));
+
+// Test DateToStr
+PrintLn('DateToStr: ' + DateToStr(dt));
+
+// Test TimeToStr
+PrintLn('TimeToStr: ' + TimeToStr(dt));
+
+// Test ISO8601 formatting
+PrintLn('DateToISO8601: ' + DateToISO8601(dt));
+PrintLn('DateTimeToISO8601: ' + DateTimeToISO8601(dt));

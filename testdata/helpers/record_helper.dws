@@ -1,0 +1,41 @@
+// Record helper with "record" keyword
+// Tests the "record helper for" syntax variant
+
+type TPoint = record
+  X: Integer;
+  Y: Integer;
+end;
+
+type TPointHelper = record helper for TPoint
+  function Distance: Float;
+  function IsOrigin: Boolean;
+  procedure MoveTo(NewX, NewY: Integer);
+end;
+
+function TPointHelper.Distance: Float;
+begin
+  Result := Sqrt(Self.X * Self.X + Self.Y * Self.Y);
+end;
+
+function TPointHelper.IsOrigin: Boolean;
+begin
+  Result := (Self.X = 0) and (Self.Y = 0);
+end;
+
+procedure TPointHelper.MoveTo(NewX, NewY: Integer);
+begin
+  Self.X := NewX;
+  Self.Y := NewY;
+end;
+
+var pt: TPoint;
+begin
+  pt.X := 3;
+  pt.Y := 4;
+
+  PrintLn('Distance: ' + FloatToStr(pt.Distance()));  // 5.0
+  PrintLn('Is origin: ' + BoolToStr(pt.IsOrigin()));  // False
+
+  pt.MoveTo(0, 0);
+  PrintLn('Is origin: ' + BoolToStr(pt.IsOrigin()));  // True
+end.

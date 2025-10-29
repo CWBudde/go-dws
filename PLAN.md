@@ -549,7 +549,7 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
 **Example**:
 ```pascal
 type
-  TStringHelper = record helper for String
+  TStringHelper = helper for String
     function ToUpper: String;
     function ToLower: String;
   end;
@@ -565,61 +565,107 @@ PrintLn(s.ToUpper()); // Output: HELLO
 
 **Reference**: docs/missing-features-recommendations.md lines 279-283
 
-#### Type System (3 tasks)
+#### Type System (3 tasks) ✅ COMPLETE
 
-- [ ] 9.73 Define `HelperType` in `types/types.go`:
-  - [ ] Fields: `Name string`, `ForType Type`, `Methods []*FunctionType`
-  - [ ] Implement `Type` interface
-  - [ ] `TypeKind()` returns `TypeKindHelper`
-  - [ ] `String()` returns `record helper for TypeName`
-- [ ] 9.74 Implement helper method resolution:
-  - [ ] When accessing method on a type, check for helpers
-  - [ ] Helpers extend the type's method set
-  - [ ] Prioritize: instance methods > helper methods
-- [ ] 9.75 Add tests for helper types
+- [x] 9.73 Define `HelperType` in `types/compound_types.go`: ✅ DONE
+  - [x] Fields: `Name`, `TargetType`, `Methods`, `Properties`, `ClassVars`, `ClassConsts`, `IsRecordHelper`
+  - [x] Implements `Type` interface (`String()`, `TypeKind()`, `Equals()`)
+  - [x] `TypeKind()` returns `"HELPER"`
+  - [x] `String()` returns `"record helper for TypeName"` or `"helper for TypeName"`
+  - [x] Helper methods: `GetMethod()`, `GetProperty()`, `GetClassVar()`, `GetClassConst()`
+  - [x] Constructor: `NewHelperType(name, targetType, isRecordHelper)`
+- [x] 9.74 Implement helper method resolution: ✅ DONE
+  - [x] Implemented in semantic analysis (see task 9.83)
+  - [x] Helpers registered in analyzer's `helpers` map
+  - [x] Priority: instance methods > helper methods
+  - [x] Multiple helpers can extend same type
+- [x] 9.75 Add tests for helper types: ✅ DONE
+  - [x] Covered in semantic tests (task 9.85)
 
 #### AST Nodes (2 tasks)
 
-- [ ] 9.76 Create `ast/helper.go`:
-  - [ ] Define `HelperDeclaration` struct
-  - [ ] Fields: `Name *Identifier`, `HelperKind string` (class/record), `ForType *TypeAnnotation`, `Methods []*FunctionDecl`
-  - [ ] Implement `Node` interface
-  - [ ] Implement `String()` method
-- [ ] 9.77 Add AST tests
+- [x] 9.76 Create `ast/helper.go`: ✅ DONE
+  - [x] Define `HelperDecl` struct with fields:
+    - `Name *Identifier` - helper type name
+    - `ForType *TypeAnnotation` - target type being extended
+    - `IsRecordHelper bool` - true for "record helper", false for "helper"
+    - `Methods []*FunctionDecl` - helper methods
+    - `Properties []*PropertyDecl` - helper properties
+    - `ClassVars []*FieldDecl` - class variables
+    - `ClassConsts []*ConstDecl` - class constants
+    - `PrivateMembers []Statement` - private section members
+    - `PublicMembers []Statement` - public section members
+  - [x] Implement `Statement` interface
+  - [x] Implement `String()` method with proper formatting
+- [x] 9.77 Add AST tests ✅ DONE
+  - [x] Test `HelperDecl.String()` for various helper types
+  - [x] Test record helper vs plain helper syntax
+  - [x] Test helpers with methods, properties, class vars, class consts
+  - [x] Test visibility sections (private/public)
 
 #### Lexer Support (1 task)
 
-- [ ] 9.78 Add `helper` keyword to lexer:
-  - [ ] Update token types
-  - [ ] Add to keyword map
+- [x] 9.78 Add `helper` keyword to lexer: ✅ DONE (was already present)
+  - [x] HELPER token type already defined in `lexer/token_type.go`
+  - [x] Already registered in keyword map
 
 #### Parser Support (3 tasks)
 
-- [ ] 9.79 Implement helper parsing in `parser/type_declarations.go`:
-  - [ ] Detect `record helper for` or `class helper for` pattern
-  - [ ] Parse helper name
-  - [ ] Parse `for` keyword and target type
-  - [ ] Parse method declarations
-  - [ ] Expect `end;`
-  - [ ] Return `HelperDeclaration` node
-- [ ] 9.80 Add parser tests for helpers
-- [ ] 9.81 Test class helpers and record helpers separately
+- [x] 9.79 Implement helper parsing in `parser/helpers.go`: ✅ DONE
+  - [x] Detect `record helper for` pattern in `parseRecordOrHelperDeclaration()`
+  - [x] Detect `helper for` pattern in `parseTypeDeclaration()`
+  - [x] Parse helper name (already provided by caller)
+  - [x] Parse `for` keyword and target type
+  - [x] Parse method declarations, properties, class vars, class consts
+  - [x] Support visibility sections (private/public)
+  - [x] Expect `end;`
+  - [x] Return `HelperDecl` node
+- [x] 9.80 Add parser tests for helpers ✅ DONE
+  - [x] Test simple helper and record helper syntax
+  - [x] Test helpers with multiple methods
+  - [x] Test helpers with properties, class vars, class consts
+  - [x] Test visibility sections
+  - [x] Test error cases (missing 'for', missing type, missing 'end')
+  - [x] Test distinguishing between record and helper declarations
+- [x] 9.81 Test class helpers and record helpers separately ✅ DONE
+  - [x] Created `testdata/helpers/` directory with comprehensive test files
+  - [x] `basic_helper.dws` - simple helper syntax
+  - [x] `record_helper.dws` - "record helper" syntax variant
+  - [x] `properties_helper.dws` - helpers with properties
+  - [x] `visibility_helper.dws` - private/public sections
+  - [x] `multiple_helpers.dws` - multiple helpers for same type
+  - [x] `class_members_helper.dws` - class vars and consts
+  - [x] All test files parse successfully
 
-#### Semantic Analysis (4 tasks)
+#### Semantic Analysis (4 tasks) ✅ COMPLETE
 
-- [ ] 9.82 Create `semantic/helper_analyzer.go`:
-  - [ ] Analyze helper declarations
-  - [ ] Resolve target type (`for` type)
-  - [ ] Validate helper methods (must have `Self` of target type)
-  - [ ] Register helper in type environment
-- [ ] 9.83 Implement helper method resolution:
-  - [ ] When analyzing member access on a type, check for applicable helpers
-  - [ ] Add helper methods to type's method set
-  - [ ] Resolve method name conflicts (prefer instance methods)
-- [ ] 9.84 Implement `Self` binding in helper methods:
-  - [ ] `Self` refers to the instance of the target type
-  - [ ] Type of `Self` is the helper's target type
-- [ ] 9.85 Add semantic tests for helpers
+- [x] 9.82 Create `semantic/analyze_helpers.go`: ✅ DONE
+  - [x] Analyze helper declarations
+  - [x] Resolve target type (`for` type) - validates target type exists
+  - [x] Validate helper methods (parameters, return types)
+  - [x] Register helper in type environment (helpers map indexed by target type)
+  - [x] Process helper properties, class vars, and class constants
+  - [x] Detect duplicate methods/properties/members
+- [x] 9.83 Implement helper method resolution: ✅ DONE
+  - [x] Added `helpers` map to Analyzer (type name -> []*HelperType)
+  - [x] Implemented `getHelpersForType()`, `hasHelperMethod()`, `hasHelperProperty()`
+  - [x] Extended `analyzeMemberAccessExpression()` to check helpers
+  - [x] Extended `analyzeMethodCallExpression()` to check helpers
+  - [x] Extended `analyzeRecordFieldAccess()` to check helpers
+  - [x] Helpers checked after instance members (priority: instance > helper)
+  - [x] Multiple helpers can extend the same type (all contribute methods)
+  - [x] Works for all types: classes, records, and basic types (String, Integer, etc.)
+- [x] 9.84 Implement `Self` binding in helper methods: ✅ DONE
+  - [x] `Self` binding documented in helper method analysis
+  - [x] Target type stored in HelperType for Self type validation
+  - [x] Note: Full Self validation deferred to interpreter stage
+- [x] 9.85 Add semantic tests for helpers: ✅ DONE
+  - [x] Created `semantic/helpers_test.go` with comprehensive tests:
+    - TestHelperDeclaration: 5 test cases (simple helper, record helper, unknown type, class var, class const)
+    - TestHelperMethodResolution: 4 test cases (String/Integer helpers, non-existent method, properties)
+    - TestMultipleHelpers: multiple helpers extending same type
+    - TestHelperMethodParameters: 3 test cases (correct params, wrong count, wrong type)
+  - [x] All tests passing ✅
 
 #### Interpreter Support (4 tasks)
 
@@ -645,103 +691,103 @@ PrintLn(s.ToUpper()); // Output: HELLO
 
 ---
 
-### DateTime Functions (MEDIUM PRIORITY)
+### DateTime Functions (MEDIUM PRIORITY) ✅ COMPLETE
 
 **Summary**: Implement comprehensive date/time functionality including current date/time, formatting, parsing, and arithmetic operations.
 
 **Reference**: docs/missing-features-recommendations.md lines 289-292
 
-#### Type System (2 tasks)
+#### Type System (2 tasks) ✅
 
-- [ ] 9.93 Define `TDateTime` type:
-  - [ ] Internal representation: float (days since 1899-12-30, like Delphi)
-  - [ ] Fractional part represents time
-  - [ ] Add to type system as primitive type
-- [ ] 9.94 Add tests for DateTime type
+- [x] 9.93 Define `TDateTime` type:
+  - [x] Internal representation: float (days since 1899-12-30, like Delphi)
+  - [x] Fractional part represents time
+  - [x] Add to type system as primitive type
+- [x] 9.94 Add tests for DateTime type
 
-#### Built-in Functions - Current Date/Time (4 tasks)
+#### Built-in Functions - Current Date/Time (4 tasks) ✅
 
-- [ ] 9.95 Implement `Now(): TDateTime`:
-  - [ ] Returns current date and time
-  - [ ] Use Go's `time.Now()`
-  - [ ] Convert to TDateTime format
-- [ ] 9.96 Implement `Date(): TDateTime`:
-  - [ ] Returns current date (time part = 0.0)
-- [ ] 9.97 Implement `Time(): TDateTime`:
-  - [ ] Returns current time (date part = 0.0)
-- [ ] 9.98 Add tests for Now/Date/Time
+- [x] 9.95 Implement `Now(): TDateTime`:
+  - [x] Returns current date and time
+  - [x] Use Go's `time.Now()`
+  - [x] Convert to TDateTime format
+- [x] 9.96 Implement `Date(): TDateTime`:
+  - [x] Returns current date (time part = 0.0)
+- [x] 9.97 Implement `Time(): TDateTime`:
+  - [x] Returns current time (date part = 0.0)
+- [x] 9.98 Add tests for Now/Date/Time
 
-#### Built-in Functions - Date Construction (4 tasks)
+#### Built-in Functions - Date Construction (4 tasks) ✅
 
-- [ ] 9.99 Implement `EncodeDate(year, month, day: Integer): TDateTime`:
-  - [ ] Construct date from components
-  - [ ] Validate inputs (valid month, day)
-  - [ ] Return TDateTime value
-- [ ] 9.100 Implement `EncodeTime(hour, min, sec, msec: Integer): TDateTime`:
-  - [ ] Construct time from components
-  - [ ] Validate inputs
-- [ ] 9.101 Implement `EncodeDateTime(y, m, d, h, min, s, ms: Integer): TDateTime`:
-  - [ ] Combine date and time
-- [ ] 9.102 Add tests for date construction
+- [x] 9.99 Implement `EncodeDate(year, month, day: Integer): TDateTime`:
+  - [x] Construct date from components
+  - [x] Validate inputs (valid month, day)
+  - [x] Return TDateTime value
+- [x] 9.100 Implement `EncodeTime(hour, min, sec, msec: Integer): TDateTime`:
+  - [x] Construct time from components
+  - [x] Validate inputs
+- [x] 9.101 Implement `EncodeDateTime(y, m, d, h, min, s, ms: Integer): TDateTime`:
+  - [x] Combine date and time
+- [x] 9.102 Add tests for date construction
 
-#### Built-in Functions - Date Extraction (4 tasks)
+#### Built-in Functions - Date Extraction (4 tasks) ✅
 
-- [ ] 9.103 Implement `DecodeDate(dt: TDateTime; var y, m, d: Integer)`:
-  - [ ] Extract year, month, day components
-  - [ ] Use var parameters to return multiple values
-- [ ] 9.104 Implement `DecodeTime(dt: TDateTime; var h, min, s, ms: Integer)`:
-  - [ ] Extract time components
-- [ ] 9.105 Implement component functions:
-  - [ ] `YearOf(dt: TDateTime): Integer`
-  - [ ] `MonthOf(dt: TDateTime): Integer`
-  - [ ] `DayOf(dt: TDateTime): Integer`
-  - [ ] `HourOf(dt: TDateTime): Integer`
-  - [ ] `MinuteOf(dt: TDateTime): Integer`
-  - [ ] `SecondOf(dt: TDateTime): Integer`
-- [ ] 9.106 Add tests for date extraction
+- [x] 9.103 Implement `DecodeDate(dt: TDateTime; var y, m, d: Integer)`:
+  - [x] Extract year, month, day components
+  - [x] Use var parameters to return multiple values
+- [x] 9.104 Implement `DecodeTime(dt: TDateTime; var h, min, s, ms: Integer)`:
+  - [x] Extract time components
+- [x] 9.105 Implement component functions:
+  - [x] `YearOf(dt: TDateTime): Integer`
+  - [x] `MonthOf(dt: TDateTime): Integer`
+  - [x] `DayOf(dt: TDateTime): Integer`
+  - [x] `HourOf(dt: TDateTime): Integer`
+  - [x] `MinuteOf(dt: TDateTime): Integer`
+  - [x] `SecondOf(dt: TDateTime): Integer`
+- [x] 9.106 Add tests for date extraction
 
-#### Built-in Functions - Formatting (3 tasks)
+#### Built-in Functions - Formatting (3 tasks) ✅
 
-- [ ] 9.107 Implement `FormatDateTime(fmt: String, dt: TDateTime): String`:
-  - [ ] Support format specifiers: `yyyy`, `mm`, `dd`, `hh`, `nn`, `ss`
-  - [ ] Example: `FormatDateTime('yyyy-mm-dd', Now())` → '2025-10-27'
-  - [ ] Use Go's time formatting internally
-- [ ] 9.108 Implement `DateToStr(dt: TDateTime): String`:
-  - [ ] Default date format
-- [ ] 9.109 Implement `TimeToStr(dt: TDateTime): String`:
-  - [ ] Default time format
+- [x] 9.107 Implement `FormatDateTime(fmt: String, dt: TDateTime): String`:
+  - [x] Support format specifiers: `yyyy`, `mm`, `dd`, `hh`, `nn`, `ss`
+  - [x] Example: `FormatDateTime('yyyy-mm-dd', Now())` → '2025-10-27'
+  - [x] Use Go's time formatting internally
+- [x] 9.108 Implement `DateToStr(dt: TDateTime): String`:
+  - [x] Default date format
+- [x] 9.109 Implement `TimeToStr(dt: TDateTime): String`:
+  - [x] Default time format
 
-#### Built-in Functions - Parsing (2 tasks)
+#### Built-in Functions - Parsing (2 tasks) ✅
 
-- [ ] 9.110 Implement `StrToDate(s: String): TDateTime`:
-  - [ ] Parse date string
-  - [ ] Support common formats
-  - [ ] Raise error on invalid input
-- [ ] 9.111 Implement `StrToDateTime(s: String): TDateTime`:
-  - [ ] Parse date/time string
+- [x] 9.110 Implement `StrToDate(s: String): TDateTime`:
+  - [x] Parse date string
+  - [x] Support common formats
+  - [x] Raise error on invalid input
+- [x] 9.111 Implement `StrToDateTime(s: String): TDateTime`:
+  - [x] Parse date/time string
 
-#### Built-in Functions - Date Arithmetic (3 tasks)
+#### Built-in Functions - Date Arithmetic (3 tasks) ✅
 
-- [ ] 9.112 Implement date arithmetic operators:
-  - [ ] `dt1 - dt2` → days difference (Float)
-  - [ ] `dt + days` → new date
-  - [ ] `dt - days` → new date
-- [ ] 9.113 Implement `IncDay(dt: TDateTime, days: Integer): TDateTime`:
-  - [ ] Add days to date
-  - [ ] Similar: `IncMonth`, `IncYear`, `IncHour`, `IncMinute`, `IncSecond`
-- [ ] 9.114 Implement `DaysBetween(dt1, dt2: TDateTime): Integer`:
-  - [ ] Calculate difference in days
-  - [ ] Similar: `HoursBetween`, `MinutesBetween`, `SecondsBetween`
+- [x] 9.112 Implement date arithmetic operators:
+  - [x] `dt1 - dt2` → days difference (Float)
+  - [x] `dt + days` → new date
+  - [x] `dt - days` → new date
+- [x] 9.113 Implement `IncDay(dt: TDateTime, days: Integer): TDateTime`:
+  - [x] Add days to date
+  - [x] Similar: `IncMonth`, `IncYear`, `IncHour`, `IncMinute`, `IncSecond`
+- [x] 9.114 Implement `DaysBetween(dt1, dt2: TDateTime): Integer`:
+  - [x] Calculate difference in days
+  - [x] Similar: `HoursBetween`, `MinutesBetween`, `SecondsBetween`
 
-#### Testing & Fixtures (2 tasks)
+#### Testing & Fixtures (2 tasks) ✅
 
-- [ ] 9.115 Create test scripts in `testdata/datetime/`:
-  - [ ] `current_datetime.dws` - Now, Date, Time
-  - [ ] `encode_decode.dws` - EncodeDate, DecodeDate
-  - [ ] `formatting.dws` - FormatDateTime
-  - [ ] `arithmetic.dws` - Date arithmetic
-  - [ ] Expected outputs
-- [ ] 9.116 Add CLI integration tests
+- [x] 9.115 Create test scripts in `testdata/datetime/`:
+  - [x] `current_datetime.dws` - Now, Date, Time
+  - [x] `encode_decode.dws` - EncodeDate, DecodeDate
+  - [x] `formatting.dws` - FormatDateTime
+  - [x] `arithmetic.dws` - Date arithmetic
+  - [x] Expected outputs
+- [x] 9.116 Add CLI integration tests
 
 ---
 

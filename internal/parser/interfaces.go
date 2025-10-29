@@ -90,9 +90,11 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 		p.nextToken() // move to CLASS
 		return p.parseClassDeclarationBody(nameIdent)
 	} else if p.peekTokenIs(lexer.RECORD) {
-		// Record declaration: type TPoint = record X, Y: Integer; end;
-		// Task 8.62: Integrated record parsing
-		return p.parseRecordDeclaration(nameIdent, typeToken)
+		// Could be either:
+		//   - Record declaration: type TPoint = record X, Y: Integer; end;
+		//   - Record helper: type THelper = record helper for TypeName ... end;
+		// Delegate to parseRecordDeclaration which will check for helper
+		return p.parseRecordOrHelperDeclaration(nameIdent, typeToken)
 	} else if p.peekTokenIs(lexer.SET) {
 		// Set declaration: type TDays = set of TWeekday;
 		// Task 8.91-8.92: Integrated set parsing
@@ -117,10 +119,16 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 		// Task 9.155: Function pointer type declaration support
 		p.nextToken() // move to FUNCTION or PROCEDURE
 		return p.parseFunctionPointerTypeDeclaration(nameIdent, typeToken)
+	} else if p.peekTokenIs(lexer.HELPER) {
+		// Helper declaration (without "record" keyword):
+		// type THelper = helper for TypeName ... end;
+		// Task 9.76-9.78: Helper type support
+		p.nextToken() // move to HELPER
+		return p.parseHelperDeclaration(nameIdent, typeToken, false)
 	}
 
 	// Unknown type declaration
-	p.addError("expected 'class', 'interface', 'enum', 'record', 'set', 'array', 'function', 'procedure', or '(' after '=' in type declaration")
+	p.addError("expected 'class', 'interface', 'enum', 'record', 'set', 'array', 'function', 'procedure', 'helper', or '(' after '=' in type declaration")
 	return nil
 }
 

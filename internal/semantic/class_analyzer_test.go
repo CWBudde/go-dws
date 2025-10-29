@@ -348,7 +348,8 @@ func TestMemberAccessNonObjectType(t *testing.T) {
 		var x: Integer := 42;
 		var y := x.SomeField;
 	`
-	expectError(t, input, "member access requires class or record type")
+	// Task 9.83: With helper support, the error message changed
+	expectError(t, input, "requires a helper")
 }
 
 func TestMemberAccessUndefinedMember(t *testing.T) {

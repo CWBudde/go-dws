@@ -360,3 +360,106 @@ func NewEnumType(name string, values map[string]int, orderedNames []string) *Enu
 		OrderedNames: orderedNames,
 	}
 }
+
+// ============================================================================
+// HelperType
+// ============================================================================
+
+// HelperType represents a helper type that extends an existing type with
+// additional methods, properties, and class members.
+// Helpers cannot modify the original type; they only add new functionality.
+//
+// DWScript syntax:
+//   type TStringHelper = helper for String
+//     function ToUpper: String;
+//   end;
+//
+//   type TPointHelper = record helper for TPoint
+//     function Distance: Float;
+//   end;
+//
+// Task 9.73: Helper type definition
+type HelperType struct {
+	Name         string                     // Helper type name (e.g., "TStringHelper")
+	TargetType   Type                       // Type being extended (e.g., String, TPoint)
+	Methods      map[string]*FunctionType   // Helper methods
+	Properties   map[string]*PropertyInfo   // Helper properties
+	ClassVars    map[string]Type            // Class variables
+	ClassConsts  map[string]interface{}     // Class constants with their values
+	IsRecordHelper bool                     // true for "record helper", false for plain "helper"
+}
+
+// String returns the string representation of the helper type
+func (ht *HelperType) String() string {
+	if ht.IsRecordHelper {
+		return fmt.Sprintf("record helper for %s", ht.TargetType.String())
+	}
+	return fmt.Sprintf("helper for %s", ht.TargetType.String())
+}
+
+// TypeKind returns "HELPER" for helper types
+func (ht *HelperType) TypeKind() string {
+	return "HELPER"
+}
+
+// Equals checks if two helper types are equal.
+// Two helpers are equal if they have the same name and target type.
+func (ht *HelperType) Equals(other Type) bool {
+	otherHelper, ok := other.(*HelperType)
+	if !ok {
+		return false
+	}
+
+	// Names must match
+	if ht.Name != otherHelper.Name {
+		return false
+	}
+
+	// Target types must match
+	if !ht.TargetType.Equals(otherHelper.TargetType) {
+		return false
+	}
+
+	return true
+}
+
+// GetMethod looks up a method by name in this helper.
+// Returns the method type and true if found, nil and false otherwise.
+func (ht *HelperType) GetMethod(name string) (*FunctionType, bool) {
+	method, ok := ht.Methods[name]
+	return method, ok
+}
+
+// GetProperty looks up a property by name in this helper.
+// Returns the property info and true if found, nil and false otherwise.
+func (ht *HelperType) GetProperty(name string) (*PropertyInfo, bool) {
+	prop, ok := ht.Properties[name]
+	return prop, ok
+}
+
+// GetClassVar looks up a class variable by name in this helper.
+// Returns the variable type and true if found, nil and false otherwise.
+func (ht *HelperType) GetClassVar(name string) (Type, bool) {
+	varType, ok := ht.ClassVars[name]
+	return varType, ok
+}
+
+// GetClassConst looks up a class constant by name in this helper.
+// Returns the constant value and true if found, nil and false otherwise.
+func (ht *HelperType) GetClassConst(name string) (interface{}, bool) {
+	constVal, ok := ht.ClassConsts[name]
+	return constVal, ok
+}
+
+// NewHelperType creates a new helper type.
+func NewHelperType(name string, targetType Type, isRecordHelper bool) *HelperType {
+	return &HelperType{
+		Name:           name,
+		TargetType:     targetType,
+		Methods:        make(map[string]*FunctionType),
+		Properties:     make(map[string]*PropertyInfo),
+		ClassVars:      make(map[string]Type),
+		ClassConsts:    make(map[string]interface{}),
+		IsRecordHelper: isRecordHelper,
+	}
+}

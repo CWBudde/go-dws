@@ -489,8 +489,19 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Handle class type
 	classType, ok := objectType.(*types.ClassType)
 	if !ok {
-		a.addError("member access requires class or record type, got %s at %s",
-			objectType.String(), expr.Token.Pos.String())
+		// Task 9.83: For non-class/record types (like String, Integer), check helpers
+		_, helperMethod := a.hasHelperMethod(objectType, memberName)
+		if helperMethod != nil {
+			return helperMethod
+		}
+
+		_, helperProp := a.hasHelperProperty(objectType, memberName)
+		if helperProp != nil {
+			return helperProp.Type
+		}
+
+		a.addError("member access on type %s requires a helper, got no helper with member '%s' at %s",
+			objectType.String(), memberName, expr.Token.Pos.String())
 		return nil
 	}
 
@@ -534,6 +545,19 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return methodType
 	}
 
+	// Task 9.83: Check helpers for methods
+	// If not found in class, check if any helpers extend this type
+	_, helperMethod := a.hasHelperMethod(objectType, memberName)
+	if helperMethod != nil {
+		return helperMethod
+	}
+
+	// Task 9.83: Check helpers for properties
+	_, helperProp := a.hasHelperProperty(objectType, memberName)
+	if helperProp != nil {
+		return helperProp.Type
+	}
+
 	// Member not found
 	a.addError("class '%s' has no member '%s' at %s",
 		classType.Name, memberName, expr.Token.Pos.String())
@@ -549,15 +573,40 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		return nil
 	}
 
+	methodName := expr.Method.Value
+
 	// Check if object is a class type
 	classType, ok := objectType.(*types.ClassType)
 	if !ok {
-		a.addError("method call requires class type, got %s at %s",
-			objectType.String(), expr.Token.Pos.String())
-		return nil
-	}
+		// Task 9.83: For non-class types, check if helpers provide this method
+		_, helperMethod := a.hasHelperMethod(objectType, methodName)
+		if helperMethod == nil {
+			a.addError("method call on type %s requires a helper, got no helper with method '%s' at %s",
+				objectType.String(), methodName, expr.Token.Pos.String())
+			return nil
+		}
 
-	methodName := expr.Method.Value
+		// Validate helper method arguments
+		if len(expr.Arguments) != len(helperMethod.Parameters) {
+			a.addError("helper method '%s' expects %d arguments, got %d at %s",
+				methodName, len(helperMethod.Parameters), len(expr.Arguments),
+				expr.Token.Pos.String())
+			return helperMethod.ReturnType
+		}
+
+		// Check argument types
+		for i, arg := range expr.Arguments {
+			argType := a.analyzeExpression(arg)
+			expectedType := helperMethod.Parameters[i]
+			if argType != nil && !a.canAssign(argType, expectedType) {
+				a.addError("argument %d to helper method '%s' has type %s, expected %s at %s",
+					i+1, methodName, argType.String(), expectedType.String(),
+					expr.Token.Pos.String())
+			}
+		}
+
+		return helperMethod.ReturnType
+	}
 
 	// Handle built-in methods available on all objects (inherited from TObject)
 	if methodName == "ClassName" {
@@ -567,6 +616,16 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 	// Look up method in class (including inherited methods)
 	methodType, found := classType.GetMethod(methodName)
+
+	// Task 9.83: If not found in class, check helpers
+	if !found {
+		_, helperMethod := a.hasHelperMethod(objectType, methodName)
+		if helperMethod != nil {
+			methodType = helperMethod
+			found = true
+		}
+	}
+
 	if !found {
 		a.addError("class '%s' has no method '%s' at %s",
 			classType.Name, methodName, expr.Token.Pos.String())

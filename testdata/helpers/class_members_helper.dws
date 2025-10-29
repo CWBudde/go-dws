@@ -1,0 +1,38 @@
+// Helper with class variables and constants
+// Tests class-level members in helpers
+
+type TMathHelper = helper for Float
+  class const PI = 3.14159265359;
+  class const E = 2.71828182846;
+  class var Precision: Integer;
+
+  function Round: Integer;
+  function Format: String;
+end;
+
+function TMathHelper.Round: Integer;
+begin
+  Result := Round(Self);
+end;
+
+function TMathHelper.Format: String;
+begin
+  Result := FloatToStrF(Self, Precision);
+end;
+
+var x: Float;
+begin
+  // Access class constants
+  PrintLn('PI = ' + FloatToStr(TMathHelper.PI));  // 3.14159265359
+  PrintLn('E = ' + FloatToStr(TMathHelper.E));    // 2.71828182846
+
+  // Set class variable
+  TMathHelper.Precision := 2;
+
+  x := 3.14159;
+  PrintLn('Rounded: ' + IntToStr(x.Round()));     // 3
+  PrintLn('Formatted: ' + x.Format());            // "3.14"
+
+  TMathHelper.Precision := 4;
+  PrintLn('Formatted: ' + x.Format());            // "3.1416"
+end.

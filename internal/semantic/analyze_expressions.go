@@ -1463,6 +1463,294 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
+		// Task 9.95-9.97: Current date/time functions
+		if funcIdent.Value == "Now" || funcIdent.Value == "Date" ||
+			funcIdent.Value == "Time" || funcIdent.Value == "UTCDateTime" ||
+			funcIdent.Value == "UnixTime" || funcIdent.Value == "UnixTimeMSec" {
+			if len(expr.Arguments) != 0 {
+				a.addError("function '%s' expects 0 arguments, got %d at %s",
+					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
+			}
+			// Now, Date, Time, UTCDateTime return Float (TDateTime)
+			// UnixTime, UnixTimeMSec return Integer
+			if funcIdent.Value == "UnixTime" || funcIdent.Value == "UnixTimeMSec" {
+				return types.INTEGER
+			}
+			return types.FLOAT
+		}
+
+		// Task 9.99-9.101: Date encoding functions
+		if funcIdent.Value == "EncodeDate" {
+			if len(expr.Arguments) != 3 {
+				a.addError("function 'EncodeDate' expects 3 arguments (year, month, day), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+			}
+			for i, arg := range expr.Arguments {
+				argType := a.analyzeExpression(arg)
+				if argType != nil && argType != types.INTEGER {
+					a.addError("function 'EncodeDate' expects Integer as argument %d, got %s at %s",
+						i+1, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.FLOAT
+		}
+
+		if funcIdent.Value == "EncodeTime" {
+			if len(expr.Arguments) != 4 {
+				a.addError("function 'EncodeTime' expects 4 arguments (hour, minute, second, msec), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+			}
+			for i, arg := range expr.Arguments {
+				argType := a.analyzeExpression(arg)
+				if argType != nil && argType != types.INTEGER {
+					a.addError("function 'EncodeTime' expects Integer as argument %d, got %s at %s",
+						i+1, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.FLOAT
+		}
+
+		if funcIdent.Value == "EncodeDateTime" {
+			if len(expr.Arguments) != 7 {
+				a.addError("function 'EncodeDateTime' expects 7 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+			}
+			for i, arg := range expr.Arguments {
+				argType := a.analyzeExpression(arg)
+				if argType != nil && argType != types.INTEGER {
+					a.addError("function 'EncodeDateTime' expects Integer as argument %d, got %s at %s",
+						i+1, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.FLOAT
+		}
+
+		// Task 9.103-9.104: Date decoding functions (var parameters)
+		if funcIdent.Value == "DecodeDate" {
+			if len(expr.Arguments) != 4 {
+				a.addError("function 'DecodeDate' expects 4 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+			}
+			// First argument: TDateTime (Float)
+			if len(expr.Arguments) > 0 {
+				argType := a.analyzeExpression(expr.Arguments[0])
+				if argType != nil && argType != types.FLOAT {
+					a.addError("function 'DecodeDate' expects Float/TDateTime as first argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Other arguments are var parameters (year, month, day) - just analyze them
+			for i := 1; i < len(expr.Arguments); i++ {
+				a.analyzeExpression(expr.Arguments[i])
+			}
+			return types.VOID
+		}
+
+		if funcIdent.Value == "DecodeTime" {
+			if len(expr.Arguments) != 5 {
+				a.addError("function 'DecodeTime' expects 5 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+			}
+			// First argument: TDateTime (Float)
+			if len(expr.Arguments) > 0 {
+				argType := a.analyzeExpression(expr.Arguments[0])
+				if argType != nil && argType != types.FLOAT {
+					a.addError("function 'DecodeTime' expects Float/TDateTime as first argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Other arguments are var parameters (hour, minute, second, msec) - just analyze them
+			for i := 1; i < len(expr.Arguments); i++ {
+				a.analyzeExpression(expr.Arguments[i])
+			}
+			return types.VOID
+		}
+
+		// Task 9.105: Component extraction functions
+		if funcIdent.Value == "YearOf" || funcIdent.Value == "MonthOf" ||
+			funcIdent.Value == "DayOf" || funcIdent.Value == "HourOf" ||
+			funcIdent.Value == "MinuteOf" || funcIdent.Value == "SecondOf" ||
+			funcIdent.Value == "DayOfWeek" || funcIdent.Value == "DayOfTheWeek" ||
+			funcIdent.Value == "DayOfYear" || funcIdent.Value == "WeekNumber" ||
+			funcIdent.Value == "YearOfWeek" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function '%s' expects 1 argument (TDateTime), got %d at %s",
+					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
+			}
+			if len(expr.Arguments) > 0 {
+				argType := a.analyzeExpression(expr.Arguments[0])
+				if argType != nil && argType != types.FLOAT {
+					a.addError("function '%s' expects Float/TDateTime, got %s at %s",
+						funcIdent.Value, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.INTEGER
+		}
+
+		// Task 9.107-9.109: Formatting functions
+		if funcIdent.Value == "FormatDateTime" {
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'FormatDateTime' expects 2 arguments (format, dt), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+			}
+			if len(expr.Arguments) > 0 {
+				argType := a.analyzeExpression(expr.Arguments[0])
+				if argType != nil && argType != types.STRING {
+					a.addError("function 'FormatDateTime' expects String as first argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			if len(expr.Arguments) > 1 {
+				argType := a.analyzeExpression(expr.Arguments[1])
+				if argType != nil && argType != types.FLOAT {
+					a.addError("function 'FormatDateTime' expects Float/TDateTime as second argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.STRING
+		}
+
+		if funcIdent.Value == "DateTimeToStr" || funcIdent.Value == "DateToStr" ||
+			funcIdent.Value == "TimeToStr" || funcIdent.Value == "DateToISO8601" ||
+			funcIdent.Value == "DateTimeToISO8601" || funcIdent.Value == "DateTimeToRFC822" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function '%s' expects 1 argument (TDateTime), got %d at %s",
+					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
+			}
+			if len(expr.Arguments) > 0 {
+				argType := a.analyzeExpression(expr.Arguments[0])
+				if argType != nil && argType != types.FLOAT {
+					a.addError("function '%s' expects Float/TDateTime, got %s at %s",
+						funcIdent.Value, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.STRING
+		}
+
+		// Task 9.110-9.111: Parsing functions
+		if funcIdent.Value == "StrToDate" || funcIdent.Value == "StrToDateTime" ||
+			funcIdent.Value == "StrToTime" || funcIdent.Value == "ISO8601ToDateTime" ||
+			funcIdent.Value == "RFC822ToDateTime" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function '%s' expects 1 argument (String), got %d at %s",
+					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
+			}
+			if len(expr.Arguments) > 0 {
+				argType := a.analyzeExpression(expr.Arguments[0])
+				if argType != nil && argType != types.STRING {
+					a.addError("function '%s' expects String, got %s at %s",
+						funcIdent.Value, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.FLOAT
+		}
+
+		// Task 9.113: Incrementing functions
+		if funcIdent.Value == "IncYear" || funcIdent.Value == "IncMonth" ||
+			funcIdent.Value == "IncDay" || funcIdent.Value == "IncHour" ||
+			funcIdent.Value == "IncMinute" || funcIdent.Value == "IncSecond" {
+			if len(expr.Arguments) != 2 {
+				a.addError("function '%s' expects 2 arguments (dt, amount), got %d at %s",
+					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
+			}
+			if len(expr.Arguments) > 0 {
+				argType := a.analyzeExpression(expr.Arguments[0])
+				if argType != nil && argType != types.FLOAT {
+					a.addError("function '%s' expects Float/TDateTime as first argument, got %s at %s",
+						funcIdent.Value, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			if len(expr.Arguments) > 1 {
+				argType := a.analyzeExpression(expr.Arguments[1])
+				if argType != nil && argType != types.INTEGER {
+					a.addError("function '%s' expects Integer as second argument, got %s at %s",
+						funcIdent.Value, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.FLOAT
+		}
+
+		// Task 9.114: Date difference functions
+		if funcIdent.Value == "DaysBetween" || funcIdent.Value == "HoursBetween" ||
+			funcIdent.Value == "MinutesBetween" || funcIdent.Value == "SecondsBetween" {
+			if len(expr.Arguments) != 2 {
+				a.addError("function '%s' expects 2 arguments (dt1, dt2), got %d at %s",
+					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
+			}
+			for i, arg := range expr.Arguments {
+				argType := a.analyzeExpression(arg)
+				if argType != nil && argType != types.FLOAT {
+					a.addError("function '%s' expects Float/TDateTime as argument %d, got %s at %s",
+						funcIdent.Value, i+1, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.INTEGER
+		}
+
+		// Special date functions
+		if funcIdent.Value == "IsLeapYear" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'IsLeapYear' expects 1 argument (year), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+			}
+			if len(expr.Arguments) > 0 {
+				argType := a.analyzeExpression(expr.Arguments[0])
+				if argType != nil && argType != types.INTEGER {
+					a.addError("function 'IsLeapYear' expects Integer, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.BOOLEAN
+		}
+
+		if funcIdent.Value == "FirstDayOfYear" || funcIdent.Value == "FirstDayOfNextYear" ||
+			funcIdent.Value == "FirstDayOfMonth" || funcIdent.Value == "FirstDayOfNextMonth" ||
+			funcIdent.Value == "FirstDayOfWeek" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function '%s' expects 1 argument (TDateTime), got %d at %s",
+					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
+			}
+			if len(expr.Arguments) > 0 {
+				argType := a.analyzeExpression(expr.Arguments[0])
+				if argType != nil && argType != types.FLOAT {
+					a.addError("function '%s' expects Float/TDateTime, got %s at %s",
+						funcIdent.Value, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.FLOAT
+		}
+
+		// Unix time conversion functions
+		if funcIdent.Value == "UnixTimeToDateTime" || funcIdent.Value == "UnixTimeMSecToDateTime" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function '%s' expects 1 argument (unixTime), got %d at %s",
+					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
+			}
+			if len(expr.Arguments) > 0 {
+				argType := a.analyzeExpression(expr.Arguments[0])
+				if argType != nil && argType != types.INTEGER {
+					a.addError("function '%s' expects Integer, got %s at %s",
+						funcIdent.Value, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.FLOAT
+		}
+
+		if funcIdent.Value == "DateTimeToUnixTime" || funcIdent.Value == "DateTimeToUnixTimeMSec" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function '%s' expects 1 argument (TDateTime), got %d at %s",
+					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
+			}
+			if len(expr.Arguments) > 0 {
+				argType := a.analyzeExpression(expr.Arguments[0])
+				if argType != nil && argType != types.FLOAT {
+					a.addError("function '%s' expects Float/TDateTime, got %s at %s",
+						funcIdent.Value, argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.INTEGER
+		}
+
 		// Allow calling methods within the current class without explicit Self
 		if a.currentClass != nil {
 			if methodType, found := a.currentClass.GetMethod(funcIdent.Value); found {

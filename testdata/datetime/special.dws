@@ -1,0 +1,20 @@
+// Test special DateTime functions
+
+var dt: Float;
+
+// Test IsLeapYear
+PrintLn('IsLeapYear(2020): ' + BoolToStr(IsLeapYear(2020)));
+PrintLn('IsLeapYear(2021): ' + BoolToStr(IsLeapYear(2021)));
+PrintLn('IsLeapYear(2000): ' + BoolToStr(IsLeapYear(2000)));
+PrintLn('IsLeapYear(1900): ' + BoolToStr(IsLeapYear(1900)));
+
+// Create a test date in the middle of the year
+dt := EncodeDate(2023, 6, 15);
+PrintLn('Test date: ' + DateToStr(dt));
+
+// Test FirstDayOf functions
+PrintLn('FirstDayOfYear: ' + DateToStr(FirstDayOfYear(dt)));
+PrintLn('FirstDayOfNextYear: ' + DateToStr(FirstDayOfNextYear(dt)));
+PrintLn('FirstDayOfMonth: ' + DateToStr(FirstDayOfMonth(dt)));
+PrintLn('FirstDayOfNextMonth: ' + DateToStr(FirstDayOfNextMonth(dt)));
+PrintLn('FirstDayOfWeek: ' + DateToStr(FirstDayOfWeek(dt)));
