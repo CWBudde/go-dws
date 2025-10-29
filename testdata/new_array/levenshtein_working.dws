@@ -1,0 +1,39 @@
+// Working version of Levenshtein Distance using [i][j] syntax
+// Modified from Rosetta Code example to use nested indexing
+
+function Min3(a, b, c : Integer) : Integer;
+begin
+   var min := a;
+   if b < min then
+      min := b;
+   if c < min then
+      min := c;
+   Result := min;
+end;
+
+function LevenshteinDistance(s, t : String) : Integer;
+var
+   i, j : Integer;
+begin
+   var d := new Integer[Length(s)+1, Length(t)+1];
+   for i := 0 to Length(s) do
+      d[i][0] := i;
+   for j := 0 to Length(t) do
+      d[0][j] := j;
+
+   for j := 1 to Length(t) do
+      for i := 1 to Length(s) do
+         if s[i] = t[j] then
+            d[i][j] := d[i-1][j-1] // no operation
+         else d[i][j] := Min3(
+               d[i-1][j] + 1,      // a deletion
+               d[i][j-1] + 1,      // an insertion
+               d[i-1][j-1] + 1     // a substitution
+               );
+   Result := d[Length(s)][Length(t)];
+end;
+
+PrintLn('Levenshtein Distance Test:');
+PrintLn('kitten -> sitting: ' + IntToStr(LevenshteinDistance('kitten', 'sitting')));
+PrintLn('rosettacode -> raisethysword: ' + IntToStr(LevenshteinDistance('rosettacode', 'raisethysword')));
+PrintLn('saturday -> sunday: ' + IntToStr(LevenshteinDistance('saturday', 'sunday')));

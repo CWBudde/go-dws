@@ -931,19 +931,138 @@ PrintLn(s.ToUpper()); // Output: HELLO
 
 ---
 
+### Array Instantiation with `new` Keyword (HIGH PRIORITY)
+
+**Summary**: Implement `new TypeName[size]` syntax for dynamic array creation. Currently the `new` keyword only supports class instantiation (`new ClassName(args)`). DWScript also supports array instantiation with size specification.
+
+**Example**:
+```pascal
+var a := new Integer[16];              // 1D array with 16 elements
+var matrix := new Integer[10, 20];     // 2D array (10x20)
+var dynamic := new String[Length(s)+1]; // Size from expression
+```
+
+**Reference**:
+- Blocking: `examples/rosetta/Sorting_algorithms_Gnome_sort.dws` (line 23)
+- Original DWScript: `reference/dwscript-original/Source/dwsCompiler.pas` lines 8794-8943 (`ReadNew` and `ReadNewArray`)
+- AST Node: `TNewArrayExpr` in `dwsArrayExprs.pas` lines 309-327
+
+**Current Error**: Parser expects `(` after `new TypeName` but encounters `[`, causing parse failure.
+
+#### AST Nodes (2 tasks)
+
+- [x] 9.157 Create `NewArrayExpression` in `ast/arrays.go`:
+  - [x] Fields: `Token lexer.Token`, `ElementTypeName *Identifier`, `Dimensions []Expression`, `Type *TypeAnnotation`
+  - [x] Implements `Expression` interface
+  - [x] Support multi-dimensional arrays with comma-separated sizes
+  - [x] `String()` returns `new TypeName[size1, size2, ...]`
+  - [x] Add AST tests for 1D, 2D, and expression-based sizes (10 comprehensive test cases)
+
+- [x] 9.158 Update `NewExpression` documentation:
+  - [x] Document that `NewExpression` is for class instantiation only
+  - [x] Add cross-reference to `NewArrayExpression` for array instantiation
+  - [x] Update comments in `ast/classes.go` and `ast/arrays.go`
+
+#### Parser Support (3 tasks)
+
+- [x] 9.159 Refactor `parseNewExpression` in `parser/expressions.go`:
+  - [x] After parsing identifier, check next token: `[` vs `(`
+  - [x] If `[`: delegate to new `parseNewArrayExpression()` helper
+  - [x] If `(`: delegate to new `parseNewClassExpression()` helper (existing logic)
+  - [x] Add error for unexpected token (neither `[` nor `(`)
+  - [x] Preserve existing class instantiation behavior
+
+- [x] 9.160 Implement `parseNewArrayExpression()`:
+  - [x] Parse opening `[` bracket
+  - [x] Parse comma-separated dimension expressions (1 or more)
+  - [x] Expect closing `]` bracket
+  - [x] Build element type name from identifier
+  - [x] Return `NewArrayExpression` node
+  - [x] Add parser error recovery for malformed syntax
+
+- [x] 9.161 Add parser tests for array instantiation:
+  - [x] Test `new Integer[10]` (simple 1D array)
+  - [x] Test `new String[5, 10]` (2D array)
+  - [x] Test `new Float[Length(arr)+1]` (expression-based size)
+  - [x] Test error cases: missing `]`, empty brackets, invalid expression
+  - [x] Verify existing class instantiation tests still pass (backward compatibility confirmed)
+  - [x] Test 3D arrays and variable declarations
+  - [x] 11 comprehensive test cases added to `internal/parser/arrays_test.go`
+
+#### Semantic Analysis (2 tasks)
+
+- [x] 9.162 Create `analyzeNewArrayExpression` in `semantic/analyze_arrays.go`:
+  - [x] Resolve element type from `TypeAnnotation`
+  - [x] Validate each dimension expression is an integer type
+  - [x] Report semantic error if dimension is non-integer
+  - [x] Construct result type: `array of (array of ... ElementType)` (nested for multi-dim)
+  - [x] Set inferred type on AST node for interpreter
+
+- [x] 9.163 Add semantic tests for array instantiation:
+  - [x] Test valid 1D and 2D array creation with correct types
+  - [x] Test type errors: non-integer dimensions (e.g., `new Integer[3.14]`)
+  - [x] Test type errors: invalid element type
+  - [x] Test dimension expression type checking
+  - [x] Ensure error messages include position information
+
+#### Interpreter Support (3 tasks)
+
+- [x] 9.164 Implement `evalNewArrayExpression` in `interp/array.go`:
+  - [x] Resolve element type at runtime
+  - [x] Evaluate each dimension expression to get integer sizes
+  - [x] Validate dimension sizes are positive (runtime check)
+  - [x] Call helper to create multi-dimensional array structure
+  - [x] Initialize all elements to zero values (0, 0.0, '', false, nil)
+  - [x] Return `ArrayValue` with correct dimensions
+
+- [x] 9.165 Implement `createMultiDimArray` helper:
+  - [x] For 1D: create single array with specified size
+  - [x] For multi-dim: recursively create nested arrays
+  - [x] Handle zero-sized dimensions (create empty arrays)
+  - [x] Ensure proper array type metadata for each dimension
+  - [x] Test with 1D, 2D, and 3D arrays
+
+- [x] 9.166 Add interpreter unit tests:
+  - [x] Test `new Integer[10]` creates array with 10 zero elements
+  - [x] Test `new String[5]` creates array with 5 empty strings
+  - [x] Test `new Integer[3, 4]` creates 3x4 matrix structure
+  - [x] Test expressions: `new Integer[2*5]` evaluates correctly
+  - [x] Test runtime error: negative or zero dimensions
+  - [x] Test accessing elements after creation
+
+#### Testing & Fixtures (2 tasks)
+
+- [x] 9.167 Create test files in `testdata/new_array/`:
+  - [x] `new_array_basic.dws` - Simple 1D array creation and access
+  - [x] `new_array_multidim.dws` - 2D/3D array creation and nested access
+  - [x] `new_array_expressions.dws` - Dynamic sizes from expressions
+  - [x] `new_array_types.dws` - Various element types (Integer, String, Float, Boolean)
+  - [x] Expected output files for each test (5 test files with `.expected` outputs)
+  - [x] `levenshtein_working.dws` - Real-world algorithm example
+
+- [x] 9.168 Enable Rosetta Code examples that use array instantiation:
+  - [x] Verify `Sorting_algorithms_Gnome_sort.dws` - Blocked (requires array properties `.Length`, `.High`, `.Swap()`)
+  - [x] Check `Yin_and_yang.dws` - Blocked (parser doesn't support inline array types in class fields)
+  - [x] Check `Levenshtein_distance.dws` - Working with modifications (`[i][j]` syntax, custom `Min3()`)
+  - [x] Add these as integration tests in CLI test suite (`cmd/dwscript/new_array_test.go`)
+  - [x] Document any remaining issues in `docs/rosetta-compatibility.md`
+
+---
+
 ## Phase 9 Summary
 
-**Total Tasks**: ~217 tasks
-**Estimated Effort**: ~26 weeks (~6 months)
+**Total Tasks**: ~229 tasks
+**Estimated Effort**: ~27 weeks (~6.5 months)
 
 ### Priority Breakdown:
 
-**HIGH PRIORITY** (~150 tasks, ~18 weeks):
+**HIGH PRIORITY** (~162 tasks, ~19 weeks):
 
 - Subrange Types: 12 tasks
 - Units/Modules System: 45 tasks (CRITICAL for multi-file projects)
 - Function/Method Pointers: 25 tasks
 - External Function Registration (FFI): 35 tasks
+- Array Instantiation (`new TypeName[size]`): 12 tasks (CRITICAL for Rosetta Code examples)
 
 **MEDIUM PRIORITY** (~67 tasks, ~8 weeks):
 
@@ -953,7 +1072,7 @@ PrintLn(s.ToUpper()); // Output: HELLO
 - JSON Support: 18 tasks
 - Improved Error Messages: 12 tasks
 
-This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with DWScript, making it production-ready for most use cases.
+This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with DWScript, making it production-ready for most use cases. The array instantiation feature is particularly critical as it unblocks numerous real-world DWScript examples (e.g., Rosetta Code algorithms) that rely on dynamic array creation.
 
 ## Stage 10: Performance Tuning and Refactoring
 

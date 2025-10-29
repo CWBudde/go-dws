@@ -39,6 +39,8 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 		return a.analyzeCallExpression(e)
 	case *ast.NewExpression:
 		return a.analyzeNewExpression(e)
+	case *ast.NewArrayExpression:
+		return a.analyzeNewArrayExpression(e)
 	case *ast.MemberAccessExpression:
 		return a.analyzeMemberAccessExpression(e)
 	case *ast.MethodCallExpression:

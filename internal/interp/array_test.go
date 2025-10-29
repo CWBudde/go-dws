@@ -3479,3 +3479,317 @@ end
 		t.Errorf("expected 84, got %d", intVal.Value)
 	}
 }
+
+// ============================================================================
+// Array Instantiation with new Keyword Tests (Task 9.166)
+// ============================================================================
+
+// TestNewArrayExpression_Integer1D tests creating a 1D array of integers.
+// Example: new Integer[10] creates an array with 10 zero elements.
+func TestNewArrayExpression_Integer1D(t *testing.T) {
+	input := `
+		var arr := new Integer[10];
+		arr[0]
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 0 {
+		t.Errorf("expected 0 (zero value), got %d", intVal.Value)
+	}
+}
+
+// TestNewArrayExpression_String1D tests creating a 1D array of strings.
+// Example: new String[5] creates an array with 5 empty strings.
+func TestNewArrayExpression_String1D(t *testing.T) {
+	input := `
+		var arr := new String[5];
+		arr[2]
+	`
+
+	result := testEval(input)
+	strVal, ok := result.(*StringValue)
+	if !ok {
+		t.Fatalf("expected StringValue, got %T: %+v", result, result)
+	}
+
+	if strVal.Value != "" {
+		t.Errorf("expected empty string, got '%s'", strVal.Value)
+	}
+}
+
+// TestNewArrayExpression_Float1D tests creating a 1D array of floats.
+func TestNewArrayExpression_Float1D(t *testing.T) {
+	input := `
+		var arr := new Float[3];
+		arr[1]
+	`
+
+	result := testEval(input)
+	floatVal, ok := result.(*FloatValue)
+	if !ok {
+		t.Fatalf("expected FloatValue, got %T: %+v", result, result)
+	}
+
+	if floatVal.Value != 0.0 {
+		t.Errorf("expected 0.0 (zero value), got %f", floatVal.Value)
+	}
+}
+
+// TestNewArrayExpression_Boolean1D tests creating a 1D array of booleans.
+func TestNewArrayExpression_Boolean1D(t *testing.T) {
+	input := `
+		var arr := new Boolean[4];
+		arr[0]
+	`
+
+	result := testEval(input)
+	boolVal, ok := result.(*BooleanValue)
+	if !ok {
+		t.Fatalf("expected BooleanValue, got %T: %+v", result, result)
+	}
+
+	if boolVal.Value != false {
+		t.Errorf("expected false (zero value), got %t", boolVal.Value)
+	}
+}
+
+// TestNewArrayExpression_2D tests creating a 2D array.
+// Example: new Integer[3, 4] creates a 3×4 matrix.
+func TestNewArrayExpression_2D(t *testing.T) {
+	input := `
+		var matrix := new Integer[3, 4];
+		matrix[1][2]
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 0 {
+		t.Errorf("expected 0 (zero value), got %d", intVal.Value)
+	}
+}
+
+// TestNewArrayExpression_3D tests creating a 3D array.
+func TestNewArrayExpression_3D(t *testing.T) {
+	input := `
+		var cube := new Integer[2, 3, 4];
+		cube[0][1][2]
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 0 {
+		t.Errorf("expected 0 (zero value), got %d", intVal.Value)
+	}
+}
+
+// TestNewArrayExpression_WithExpression tests dimension expressions are evaluated.
+// Example: new Integer[2*5] should create an array with 10 elements.
+func TestNewArrayExpression_WithExpression(t *testing.T) {
+	input := `
+		var size := 5;
+		var arr := new Integer[2 * size];
+		arr[9]
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 0 {
+		t.Errorf("expected 0 (zero value), got %d", intVal.Value)
+	}
+}
+
+// TestNewArrayExpression_ElementAssignment tests assigning to elements.
+func TestNewArrayExpression_ElementAssignment(t *testing.T) {
+	input := `
+		var arr := new Integer[5];
+		arr[2] := 42;
+		arr[2]
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 42 {
+		t.Errorf("expected 42, got %d", intVal.Value)
+	}
+}
+
+// TestNewArrayExpression_2DElementAssignment tests assigning to 2D array elements.
+func TestNewArrayExpression_2DElementAssignment(t *testing.T) {
+	input := `
+		var matrix := new Integer[3, 4];
+		matrix[1][2] := 99;
+		matrix[1][2]
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 99 {
+		t.Errorf("expected 99, got %d", intVal.Value)
+	}
+}
+
+// TestNewArrayExpression_StringAssignment tests string array assignments.
+func TestNewArrayExpression_StringAssignment(t *testing.T) {
+	input := `
+		var arr := new String[3];
+		arr[0] := 'hello';
+		arr[1] := 'world';
+		arr[0]
+	`
+
+	result := testEval(input)
+	strVal, ok := result.(*StringValue)
+	if !ok {
+		t.Fatalf("expected StringValue, got %T: %+v", result, result)
+	}
+
+	if strVal.Value != "hello" {
+		t.Errorf("expected 'hello', got '%s'", strVal.Value)
+	}
+}
+
+// TestNewArrayExpression_NegativeDimension tests error handling for negative dimensions.
+func TestNewArrayExpression_NegativeDimension(t *testing.T) {
+	input := `
+		var arr := new Integer[-5];
+	`
+
+	result := testEval(input)
+	errVal, ok := result.(*ErrorValue)
+	if !ok {
+		t.Fatalf("expected ErrorValue, got %T: %+v", result, result)
+	}
+
+	if !strings.Contains(errVal.Message, "must be positive") {
+		t.Errorf("expected error about positive dimension, got: %s", errVal.Message)
+	}
+}
+
+// TestNewArrayExpression_ZeroDimension tests error handling for zero dimensions.
+func TestNewArrayExpression_ZeroDimension(t *testing.T) {
+	input := `
+		var arr := new Integer[0];
+	`
+
+	result := testEval(input)
+	errVal, ok := result.(*ErrorValue)
+	if !ok {
+		t.Fatalf("expected ErrorValue, got %T: %+v", result, result)
+	}
+
+	if !strings.Contains(errVal.Message, "must be positive") {
+		t.Errorf("expected error about positive dimension, got: %s", errVal.Message)
+	}
+}
+
+// TestNewArrayExpression_NonIntegerDimension tests error handling for non-integer dimensions.
+func TestNewArrayExpression_NonIntegerDimension(t *testing.T) {
+	input := `
+		var arr := new Integer[3.5];
+	`
+
+	result := testEval(input)
+	errVal, ok := result.(*ErrorValue)
+	if !ok {
+		t.Fatalf("expected ErrorValue, got %T: %+v", result, result)
+	}
+
+	if !strings.Contains(errVal.Message, "must be an integer") {
+		t.Errorf("expected error about integer dimension, got: %s", errVal.Message)
+	}
+}
+
+// TestNewArrayExpression_UnknownType tests error handling for unknown element types.
+func TestNewArrayExpression_UnknownType(t *testing.T) {
+	input := `
+		var arr := new UnknownType[10];
+	`
+
+	result := testEval(input)
+	errVal, ok := result.(*ErrorValue)
+	if !ok {
+		t.Fatalf("expected ErrorValue, got %T: %+v", result, result)
+	}
+
+	if !strings.Contains(errVal.Message, "unknown element type") {
+		t.Errorf("expected error about unknown type, got: %s", errVal.Message)
+	}
+}
+
+// TestNewArrayExpression_LargeArray tests creating a larger array.
+func TestNewArrayExpression_LargeArray(t *testing.T) {
+	input := `
+		var arr := new Integer[1000];
+		arr[999] := 123;
+		arr[999]
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	if intVal.Value != 123 {
+		t.Errorf("expected 123, got %d", intVal.Value)
+	}
+}
+
+// TestNewArrayExpression_NestedIteration tests iterating over a 2D array.
+func TestNewArrayExpression_NestedIteration(t *testing.T) {
+	input := `
+		var matrix := new Integer[2, 3];
+		matrix[0][0] := 1;
+		matrix[0][1] := 2;
+		matrix[0][2] := 3;
+		matrix[1][0] := 4;
+		matrix[1][1] := 5;
+		matrix[1][2] := 6;
+
+		var sum := 0;
+		for var i := 0 to 1 do
+		begin
+			for var j := 0 to 2 do
+			begin
+				sum := sum + matrix[i][j];
+			end;
+		end;
+		sum
+	`
+
+	result := testEval(input)
+	intVal, ok := result.(*IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T: %+v", result, result)
+	}
+
+	// Sum should be 1+2+3+4+5+6 = 21
+	if intVal.Value != 21 {
+		t.Errorf("expected 21, got %d", intVal.Value)
+	}
+}

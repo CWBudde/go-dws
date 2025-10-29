@@ -1,0 +1,41 @@
+// Test basic 1D array creation and access with new keyword
+// Task 9.167: Basic array instantiation test
+
+// Create an array of 5 integers
+var numbers := new Integer[5];
+
+// Initialize elements
+numbers[0] := 10;
+numbers[1] := 20;
+numbers[2] := 30;
+numbers[3] := 40;
+numbers[4] := 50;
+
+// Access and print elements
+PrintLn('Array elements:');
+PrintLn('numbers[0] = ' + IntToStr(numbers[0]));
+PrintLn('numbers[1] = ' + IntToStr(numbers[1]));
+PrintLn('numbers[2] = ' + IntToStr(numbers[2]));
+PrintLn('numbers[3] = ' + IntToStr(numbers[3]));
+PrintLn('numbers[4] = ' + IntToStr(numbers[4]));
+
+// Calculate sum
+var sum := 0;
+for var i := 0 to 4 do
+begin
+  sum := sum + numbers[i];
+end;
+PrintLn('Sum = ' + IntToStr(sum));
+
+// Create a string array
+var names := new String[3];
+names[0] := 'Alice';
+names[1] := 'Bob';
+names[2] := 'Charlie';
+
+PrintLn('');
+PrintLn('String array:');
+for var i := 0 to 2 do
+begin
+  PrintLn(names[i]);
+end;

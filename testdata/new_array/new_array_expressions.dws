@@ -1,0 +1,82 @@
+// Test array creation with dynamic size expressions
+// Task 9.167: Expression-based array sizes
+
+PrintLn('Dynamic Size Expressions:');
+PrintLn('=========================');
+
+// Simple arithmetic expressions
+var size := 5;
+var arr1 := new Integer[size];
+PrintLn('Created array with size variable: ' + IntToStr(size) + ' elements');
+
+var arr2 := new Integer[2 * 3];
+PrintLn('Created array with 2 * 3 = 6 elements');
+
+var arr3 := new Integer[10 - 3];
+PrintLn('Created array with 10 - 3 = 7 elements');
+
+// Using function results as sizes
+function GetArraySize(): Integer;
+begin
+  Result := 8;
+end;
+
+var arr4 := new Integer[GetArraySize()];
+PrintLn('Created array with function result: ' + IntToStr(GetArraySize()) + ' elements');
+
+// Complex expressions
+var base := 3;
+var multiplier := 4;
+var arr5 := new Integer[base * multiplier + 2];
+PrintLn('Created array with 3 * 4 + 2 = 14 elements');
+
+PrintLn('');
+PrintLn('Multi-dimensional with expressions:');
+PrintLn('====================================');
+
+var rows := 3;
+var cols := 4;
+var matrix := new Integer[rows, cols];
+
+// Fill and verify
+for var i := 0 to rows - 1 do
+begin
+  for var j := 0 to cols - 1 do
+  begin
+    matrix[i][j] := i * cols + j;
+  end;
+end;
+
+PrintLn('Created ' + IntToStr(rows) + 'x' + IntToStr(cols) + ' matrix');
+PrintLn('matrix[2][3] = ' + IntToStr(matrix[2][3]));
+
+// Expression-based 2D array
+var dim := 5;
+var square := new Integer[dim, dim];
+square[4][4] := 99;
+PrintLn('Created ' + IntToStr(dim) + 'x' + IntToStr(dim) + ' square array');
+PrintLn('square[4][4] = ' + IntToStr(square[4][4]));
+
+PrintLn('');
+PrintLn('String length-based arrays:');
+PrintLn('===========================');
+
+var text := 'Hello';
+var charArray := new String[Length(text)];
+PrintLn('Created string array of length ' + IntToStr(Length(text)));
+
+// Fill with characters
+for var i := 0 to Length(text) - 1 do
+begin
+  charArray[i] := Copy(text, i + 1, 1);
+end;
+
+// Print
+Print('Characters: ');
+for var i := 0 to Length(text) - 1 do
+begin
+  if i > 0 then
+    Print(', ');
+  Print(charArray[i]);
+end;
+PrintLn('');

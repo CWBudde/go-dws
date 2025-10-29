@@ -42,6 +42,16 @@ func runLambdaTest(t *testing.T, input string) (Value, *Interpreter) {
 	interp := New(&buf)
 	result := interp.Eval(program)
 
+	// Check for runtime errors/exceptions
+	if interp.exception != nil {
+		t.Logf("Runtime exception occurred: %v", interp.exception)
+	}
+
+	// Log output for debugging
+	if buf.Len() > 0 {
+		t.Logf("Output: %s", buf.String())
+	}
+
 	return result, interp
 }
 
@@ -809,7 +819,7 @@ func TestFilterWithComplexPredicate(t *testing.T) {
 
 func TestReduceSum(t *testing.T) {
 	input := `
-		type TIntArray = array[0..5] of Integer;
+		type TIntArray = array[0..4] of Integer;
 		var numbers: TIntArray;
 		numbers[0] := 1;
 		numbers[1] := 2;
@@ -817,7 +827,7 @@ func TestReduceSum(t *testing.T) {
 		numbers[3] := 4;
 		numbers[4] := 5;
 
-		var sum := Reduce(numbers, lambda(acc: Integer, x: Integer): Integer => acc + x, 0);
+		var sum := Reduce(numbers, lambda(acc: Integer; x: Integer): Integer => acc + x, 0);
 	`
 
 	_, interp := runLambdaTest(t, input)
@@ -833,14 +843,14 @@ func TestReduceSum(t *testing.T) {
 
 func TestReduceProduct(t *testing.T) {
 	input := `
-		type TIntArray = array[0..4] of Integer;
+		type TIntArray = array[0..3] of Integer;
 		var numbers: TIntArray;
 		numbers[0] := 2;
 		numbers[1] := 3;
 		numbers[2] := 4;
 		numbers[3] := 5;
 
-		var product := Reduce(numbers, lambda(acc: Integer, x: Integer): Integer => acc * x, 1);
+		var product := Reduce(numbers, lambda(acc: Integer; x: Integer): Integer => acc * x, 1);
 	`
 
 	_, interp := runLambdaTest(t, input)
@@ -856,7 +866,7 @@ func TestReduceProduct(t *testing.T) {
 
 func TestReduceMax(t *testing.T) {
 	input := `
-		type TIntArray = array[0..5] of Integer;
+		type TIntArray = array[0..4] of Integer;
 		var numbers: TIntArray;
 		numbers[0] := 3;
 		numbers[1] := 7;
@@ -864,7 +874,7 @@ func TestReduceMax(t *testing.T) {
 		numbers[3] := 9;
 		numbers[4] := 1;
 
-		var maximum := Reduce(numbers, lambda(acc: Integer, x: Integer): Integer begin
+		var maximum := Reduce(numbers, lambda(acc: Integer; x: Integer): Integer begin
 			if x > acc then
 				Result := x
 			else
@@ -872,9 +882,25 @@ func TestReduceMax(t *testing.T) {
 		end, numbers[0]);
 	`
 
-	_, interp := runLambdaTest(t, input)
+	result, interp := runLambdaTest(t, input)
 
-	maxVal, _ := interp.env.Get("maximum")
+	// Check if the result is an error
+	if errVal, ok := result.(*ErrorValue); ok {
+		t.Fatalf("Execution returned error: %v", errVal)
+	}
+
+	// Check for exceptions first
+	if interp.exception != nil {
+		t.Fatalf("Unexpected exception: %v", interp.exception)
+	}
+
+	maxVal, ok := interp.env.Get("maximum")
+	if !ok {
+		t.Fatal("Variable 'maximum' not found in environment")
+	}
+	if maxVal == nil {
+		t.Fatal("Variable 'maximum' is nil")
+	}
 	intVal := maxVal.(*IntegerValue)
 
 	// maximum = 9
@@ -910,7 +936,7 @@ func TestForEachBasic(t *testing.T) {
 
 func TestForEachWithOutput(t *testing.T) {
 	input := `
-		type TIntArray = array[0..3] of Integer;
+		type TIntArray = array[0..2] of Integer;
 		var numbers: TIntArray;
 		numbers[0] := 10;
 		numbers[1] := 20;
@@ -933,7 +959,7 @@ func TestForEachWithOutput(t *testing.T) {
 func TestChainedHigherOrderFunctions(t *testing.T) {
 	// Map then Filter then Reduce
 	input := `
-		type TIntArray = array[0..5] of Integer;
+		type TIntArray = array[0..4] of Integer;
 		var numbers: TIntArray;
 		numbers[0] := 1;
 		numbers[1] := 2;
@@ -948,7 +974,7 @@ func TestChainedHigherOrderFunctions(t *testing.T) {
 		var filtered := Filter(doubled, lambda(x: Integer): Boolean => x > 4);
 
 		// Sum them
-		var sum := Reduce(filtered, lambda(acc: Integer, x: Integer): Integer => acc + x, 0);
+		var sum := Reduce(filtered, lambda(acc: Integer; x: Integer): Integer => acc + x, 0);
 	`
 
 	_, interp := runLambdaTest(t, input)
@@ -995,7 +1021,7 @@ func TestMapWithFunctionPointer(t *testing.T) {
 
 func TestHigherOrderFunctionWithStringArray(t *testing.T) {
 	input := `
-		type TStringArray = array[0..3] of String;
+		type TStringArray = array[0..2] of String;
 		var words: TStringArray;
 		words[0] := 'hello';
 		words[1] := 'world';
@@ -1003,7 +1029,7 @@ func TestHigherOrderFunctionWithStringArray(t *testing.T) {
 
 		var lengths := Map(words, lambda(s: String): Integer => Length(s));
 
-		var totalLength := Reduce(lengths, lambda(acc: Integer, x: Integer): Integer => acc + x, 0);
+		var totalLength := Reduce(lengths, lambda(acc: Integer; x: Integer): Integer => acc + x, 0);
 	`
 
 	_, interp := runLambdaTest(t, input)

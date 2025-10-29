@@ -1,0 +1,138 @@
+// Test array creation with various element types
+// Task 9.167: Various element types (Integer, String, Float, Boolean)
+
+PrintLn('Integer Arrays:');
+PrintLn('===============');
+var integers := new Integer[5];
+integers[0] := 100;
+integers[1] := -50;
+integers[2] := 0;
+integers[3] := 999;
+integers[4] := 42;
+
+for var i := 0 to 4 do
+begin
+  PrintLn('integers[' + IntToStr(i) + '] = ' + IntToStr(integers[i]));
+end;
+
+PrintLn('');
+PrintLn('Float Arrays:');
+PrintLn('=============');
+var floats := new Float[4];
+floats[0] := 3.14;
+floats[1] := -2.5;
+floats[2] := 0.0;
+floats[3] := 99.99;
+
+for var i := 0 to 3 do
+begin
+  PrintLn('floats[' + IntToStr(i) + '] = ' + FloatToStr(floats[i]));
+end;
+
+PrintLn('');
+PrintLn('String Arrays:');
+PrintLn('==============');
+var strings := new String[4];
+strings[0] := 'Hello';
+strings[1] := 'World';
+strings[2] := 'DWScript';
+strings[3] := 'Arrays';
+
+for var i := 0 to 3 do
+begin
+  PrintLn('strings[' + IntToStr(i) + '] = ' + strings[i]);
+end;
+
+PrintLn('');
+PrintLn('Boolean Arrays:');
+PrintLn('===============');
+var booleans := new Boolean[4];
+booleans[0] := True;
+booleans[1] := False;
+booleans[2] := True;
+booleans[3] := True;
+
+for var i := 0 to 3 do
+begin
+  if booleans[i] then
+    PrintLn('booleans[' + IntToStr(i) + '] = True')
+  else
+    PrintLn('booleans[' + IntToStr(i) + '] = False');
+end;
+
+PrintLn('');
+PrintLn('Mixed Type 2D Arrays:');
+PrintLn('=====================');
+
+// Integer matrix
+var intMatrix := new Integer[2, 3];
+intMatrix[0][0] := 1;
+intMatrix[0][1] := 2;
+intMatrix[0][2] := 3;
+intMatrix[1][0] := 4;
+intMatrix[1][1] := 5;
+intMatrix[1][2] := 6;
+
+PrintLn('Integer 2D array:');
+for var i := 0 to 1 do
+begin
+  var line := '';
+  for var j := 0 to 2 do
+  begin
+    if j > 0 then
+      line := line + ', ';
+    line := line + IntToStr(intMatrix[i][j]);
+  end;
+  PrintLn('[' + line + ']');
+end;
+
+// String matrix
+var strMatrix := new String[2, 2];
+strMatrix[0][0] := 'A';
+strMatrix[0][1] := 'B';
+strMatrix[1][0] := 'C';
+strMatrix[1][1] := 'D';
+
+PrintLn('');
+PrintLn('String 2D array:');
+for var i := 0 to 1 do
+begin
+  var line := '';
+  for var j := 0 to 1 do
+  begin
+    if j > 0 then
+      line := line + ', ';
+    line := line + strMatrix[i][j];
+  end;
+  PrintLn('[' + line + ']');
+end;
+
+PrintLn('');
+PrintLn('Zero Values Test:');
+PrintLn('=================');
+var zeroInts := new Integer[3];
+var zeroFloats := new Float[3];
+var zeroStrings := new String[3];
+var zeroBools := new Boolean[3];
+
+PrintLn('Integer zeros: ' + IntToStr(zeroInts[0]) + ', ' + IntToStr(zeroInts[1]) + ', ' + IntToStr(zeroInts[2]));
+PrintLn('Float zeros: ' + FloatToStr(zeroFloats[0]) + ', ' + FloatToStr(zeroFloats[1]) + ', ' + FloatToStr(zeroFloats[2]));
+
+// Check string empty
+if zeroStrings[0] = '' then
+  PrintLn('String zeros: (empty), (empty), (empty)')
+else
+  PrintLn('String zeros: NOT EMPTY!');
+
+// Check boolean false
+var allFalse := True;
+for var i := 0 to 2 do
+begin
+  if zeroBools[i] then
+    allFalse := False;
+end;
+
+if allFalse then
+  PrintLn('Boolean zeros: False, False, False')
+else
+  PrintLn('Boolean zeros: NOT ALL FALSE!');

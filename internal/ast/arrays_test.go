@@ -556,3 +556,283 @@ func TestAssignmentStatement_WithIndexExpression(t *testing.T) {
 		}
 	})
 }
+
+// ============================================================================
+// NewArrayExpression Tests
+// ============================================================================
+
+func TestNewArrayExpression(t *testing.T) {
+	t.Run("Simple 1D array instantiation", func(t *testing.T) {
+		// new Integer[16]
+		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
+		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
+
+		newArrayExpr := &NewArrayExpression{
+			Token:           newTok,
+			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
+			Dimensions: []Expression{
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "16"}, Value: 16},
+			},
+		}
+
+		// Test TokenLiteral()
+		if newArrayExpr.TokenLiteral() != "new" {
+			t.Errorf("TokenLiteral() = %v, want 'new'", newArrayExpr.TokenLiteral())
+		}
+
+		// Test ElementTypeName
+		if newArrayExpr.ElementTypeName == nil {
+			t.Fatal("ElementTypeName should not be nil")
+		}
+		if newArrayExpr.ElementTypeName.Value != "Integer" {
+			t.Errorf("ElementTypeName.Value = %v, want 'Integer'", newArrayExpr.ElementTypeName.Value)
+		}
+
+		// Test Dimensions count
+		if len(newArrayExpr.Dimensions) != 1 {
+			t.Errorf("len(Dimensions) = %v, want 1", len(newArrayExpr.Dimensions))
+		}
+
+		// Test dimension value
+		dimInt, ok := newArrayExpr.Dimensions[0].(*IntegerLiteral)
+		if !ok {
+			t.Fatal("Dimension should be an IntegerLiteral")
+		}
+		if dimInt.Value != 16 {
+			t.Errorf("Dimension value = %v, want 16", dimInt.Value)
+		}
+	})
+
+	t.Run("2D array instantiation", func(t *testing.T) {
+		// new Integer[10, 20]
+		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
+		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
+
+		newArrayExpr := &NewArrayExpression{
+			Token: newTok,
+			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
+			Dimensions: []Expression{
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "10"}, Value: 10},
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "20"}, Value: 20},
+			},
+		}
+
+		// Test Dimensions count for 2D array
+		if len(newArrayExpr.Dimensions) != 2 {
+			t.Errorf("len(Dimensions) = %v, want 2", len(newArrayExpr.Dimensions))
+		}
+
+		// Test first dimension
+		dim1, ok := newArrayExpr.Dimensions[0].(*IntegerLiteral)
+		if !ok {
+			t.Fatal("First dimension should be an IntegerLiteral")
+		}
+		if dim1.Value != 10 {
+			t.Errorf("First dimension value = %v, want 10", dim1.Value)
+		}
+
+		// Test second dimension
+		dim2, ok := newArrayExpr.Dimensions[1].(*IntegerLiteral)
+		if !ok {
+			t.Fatal("Second dimension should be an IntegerLiteral")
+		}
+		if dim2.Value != 20 {
+			t.Errorf("Second dimension value = %v, want 20", dim2.Value)
+		}
+	})
+
+	t.Run("Array with expression-based size", func(t *testing.T) {
+		// new String[Length(s)+1]
+		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
+		strTok := lexer.Token{Type: lexer.IDENT, Literal: "String"}
+
+		// Create: Length(s) + 1
+		sizeExpr := &BinaryExpression{
+			Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+			Left: &CallExpression{
+				Token:    lexer.Token{Type: lexer.IDENT, Literal: "Length"},
+				Function: &Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "Length"}, Value: "Length"},
+				Arguments: []Expression{
+					&Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "s"}, Value: "s"},
+				},
+			},
+			Operator: "+",
+			Right:    &IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "1"}, Value: 1},
+		}
+
+		newArrayExpr := &NewArrayExpression{
+			Token:           newTok,
+			ElementTypeName: &Identifier{Token: strTok, Value: "String"},
+			Dimensions:      []Expression{sizeExpr},
+		}
+
+		// Test that dimension is a BinaryExpression
+		_, ok := newArrayExpr.Dimensions[0].(*BinaryExpression)
+		if !ok {
+			t.Fatal("Dimension should be a BinaryExpression for computed size")
+		}
+
+		// Test ElementTypeName is String
+		if newArrayExpr.ElementTypeName.Value != "String" {
+			t.Errorf("ElementTypeName = %v, want 'String'", newArrayExpr.ElementTypeName.Value)
+		}
+	})
+
+	t.Run("3D array instantiation", func(t *testing.T) {
+		// new Float[5, 10, 15]
+		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
+		floatTok := lexer.Token{Type: lexer.IDENT, Literal: "Float"}
+
+		newArrayExpr := &NewArrayExpression{
+			Token:           newTok,
+			ElementTypeName: &Identifier{Token: floatTok, Value: "Float"},
+			Dimensions: []Expression{
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "5"}, Value: 5},
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "10"}, Value: 10},
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "15"}, Value: 15},
+			},
+		}
+
+		// Test Dimensions count for 3D array
+		if len(newArrayExpr.Dimensions) != 3 {
+			t.Errorf("len(Dimensions) = %v, want 3", len(newArrayExpr.Dimensions))
+		}
+	})
+
+	t.Run("String() method for 1D array", func(t *testing.T) {
+		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
+		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
+
+		newArrayExpr := &NewArrayExpression{
+			Token: newTok,
+			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
+			Dimensions: []Expression{
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "16"}, Value: 16},
+			},
+		}
+
+		str := newArrayExpr.String()
+		expected := "new Integer[16]"
+		if str != expected {
+			t.Errorf("String() = %v, want %v", str, expected)
+		}
+	})
+
+	t.Run("String() method for 2D array", func(t *testing.T) {
+		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
+		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
+
+		newArrayExpr := &NewArrayExpression{
+			Token: newTok,
+			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
+			Dimensions: []Expression{
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "10"}, Value: 10},
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "20"}, Value: 20},
+			},
+		}
+
+		str := newArrayExpr.String()
+		expected := "new Integer[10, 20]"
+		if str != expected {
+			t.Errorf("String() = %v, want %v", str, expected)
+		}
+	})
+
+	t.Run("Implements Expression interface", func(_ *testing.T) {
+		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
+		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
+
+		newArrayExpr := &NewArrayExpression{
+			Token: newTok,
+			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
+			Dimensions: []Expression{
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "10"}, Value: 10},
+			},
+		}
+
+		// Ensure it implements Expression interface
+		var _ Expression = newArrayExpr
+	})
+
+	t.Run("Type tracking", func(t *testing.T) {
+		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
+		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
+
+		newArrayExpr := &NewArrayExpression{
+			Token: newTok,
+			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
+			Dimensions: []Expression{
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "10"}, Value: 10},
+			},
+		}
+
+		// Test GetType (should be nil initially)
+		if newArrayExpr.GetType() != nil {
+			t.Error("GetType() should be nil initially")
+		}
+
+		// Test SetType
+		typeAnnotation := &TypeAnnotation{Token: intTok, Name: "array of Integer"}
+		newArrayExpr.SetType(typeAnnotation)
+
+		// Test GetType after setting
+		if newArrayExpr.GetType() != typeAnnotation {
+			t.Error("GetType() should return set type")
+		}
+	})
+
+	t.Run("Different element types", func(t *testing.T) {
+		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
+
+		// Test with String type
+		strTok := lexer.Token{Type: lexer.IDENT, Literal: "String"}
+		stringArray := &NewArrayExpression{
+			Token:           newTok,
+			ElementTypeName: &Identifier{Token: strTok, Value: "String"},
+			Dimensions: []Expression{
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "5"}, Value: 5},
+			},
+		}
+
+		if stringArray.ElementTypeName.Value != "String" {
+			t.Errorf("String array ElementTypeName = %v, want 'String'", stringArray.ElementTypeName.Value)
+		}
+
+		// Test with Boolean type
+		boolTok := lexer.Token{Type: lexer.IDENT, Literal: "Boolean"}
+		boolArray := &NewArrayExpression{
+			Token:           newTok,
+			ElementTypeName: &Identifier{Token: boolTok, Value: "Boolean"},
+			Dimensions: []Expression{
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "3"}, Value: 3},
+			},
+		}
+
+		if boolArray.ElementTypeName.Value != "Boolean" {
+			t.Errorf("Boolean array ElementTypeName = %v, want 'Boolean'", boolArray.ElementTypeName.Value)
+		}
+	})
+
+	t.Run("Position tracking", func(t *testing.T) {
+		newTok := lexer.Token{
+			Type:    lexer.NEW,
+			Literal: "new",
+			Pos:     lexer.Position{Line: 23, Column: 5},
+		}
+		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
+
+		newArrayExpr := &NewArrayExpression{
+			Token: newTok,
+			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
+			Dimensions: []Expression{
+				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "16"}, Value: 16},
+			},
+		}
+
+		// Test Pos() returns correct position
+		pos := newArrayExpr.Pos()
+		if pos.Line != 23 || pos.Column != 5 {
+			t.Errorf("Pos() = Line %v, Column %v, want Line 23, Column 5", pos.Line, pos.Column)
+		}
+	})
+}

@@ -47,10 +47,10 @@ func TestSafeTypeAssertions(t *testing.T) {
 			errorContains: "expected integer",
 		},
 		{
-			name:          "boolean NOT on non-boolean should error, not panic",
-			input:         "var b: Boolean := not 42;",
+			name:          "boolean NOT on invalid type should error, not panic",
+			input:         "var b: Boolean := not 'hello';",
 			shouldError:   true,
-			errorContains: "expected boolean",
+			errorContains: "Boolean or Integer",
 		},
 	}
 
@@ -114,8 +114,8 @@ func TestTypeAssertionsPanicPrevention(t *testing.T) {
 			input: "var x: Integer := -'hello';",
 		},
 		{
-			name:  "boolean NOT on integer",
-			input: "var b: Boolean := not 42;",
+			name:  "boolean NOT on string",
+			input: "var b: Boolean := not 'hello';",
 		},
 	}
 

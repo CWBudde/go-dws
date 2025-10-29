@@ -112,3 +112,50 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 	// Return the element type of the array
 	return arrayType.ElementType
 }
+
+// analyzeNewArrayExpression analyzes array instantiation with 'new' keyword
+// Task 9.162: Validate dimensions are integers and construct array type
+// Examples:
+//   - new Integer[16]           // 1D array
+//   - new String[10, 20]        // 2D array
+//   - new Float[Length(arr)+1]  // Expression-based size
+func (a *Analyzer) analyzeNewArrayExpression(expr *ast.NewArrayExpression) types.Type {
+	if expr == nil {
+		return nil
+	}
+
+	// Resolve the element type name
+	elementTypeName := expr.ElementTypeName.Value
+	elementType, err := a.resolveType(elementTypeName)
+	if err != nil {
+		a.addError("unknown type '%s' at %s", elementTypeName, expr.ElementTypeName.Pos().String())
+		return nil
+	}
+
+	// Validate each dimension expression is an integer
+	for i, dimExpr := range expr.Dimensions {
+		dimType := a.analyzeExpression(dimExpr)
+		if dimType == nil {
+			// Error already reported by analyzeExpression
+			continue
+		}
+
+		// Dimension must be integer
+		if !dimType.Equals(types.INTEGER) {
+			a.addError("array dimension %d must be integer, got %s at %s",
+				i+1, dimType.String(), dimExpr.Pos().String())
+			return nil
+		}
+	}
+
+	// Construct the result type (nested arrays for multi-dimensional)
+	// For 1D: array of ElementType
+	// For 2D: array of (array of ElementType)
+	// For 3D: array of (array of (array of ElementType))
+	resultType := elementType
+	for range expr.Dimensions {
+		resultType = types.NewDynamicArrayType(resultType)
+	}
+
+	return resultType
+}

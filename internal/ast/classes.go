@@ -207,17 +207,25 @@ func (fd *FieldDecl) String() string {
 // Object Creation Expression
 // ============================================================================
 
-// NewExpression represents object instantiation in DWScript.
-// DWScript syntax:
+// NewExpression represents CLASS instantiation in DWScript using the 'new' keyword.
+// This AST node is ONLY for creating objects from classes, not arrays.
 //
-//	TClassName.Create(arg1, arg2)
-//	or sometimes just:
-//	TClassName.Create
+// DWScript syntax:
+//   - new TClassName(arg1, arg2)         // Create object with constructor arguments
+//   - new TClassName()                   // Create object with no arguments
+//   - TClassName.Create(arg1, arg2)      // Alternative syntax (also supported)
+//
+// For array instantiation with 'new', see NewArrayExpression instead.
+//
+// Related AST nodes:
+//   - NewArrayExpression: for array instantiation (new Integer[16])
+//   - ClassDeclaration: for class type definitions
+//   - ConstructorDeclaration: for constructor method definitions
 type NewExpression struct {
-	ClassName *Identifier
-	Type      *TypeAnnotation
-	Arguments []Expression
-	Token     lexer.Token
+	ClassName *Identifier     // The class name (e.g., TAnimal, TPerson)
+	Type      *TypeAnnotation // Inferred class type (for semantic analysis)
+	Arguments []Expression    // Constructor arguments
+	Token     lexer.Token     // The 'new' token or class name token
 }
 
 func (ne *NewExpression) expressionNode()             {}

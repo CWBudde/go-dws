@@ -509,3 +509,294 @@ func TestParseArrayAssignment(t *testing.T) {
 }
 
 // checkParserErrors is defined in parser_test.go
+
+// ============================================================================
+// Array Instantiation with 'new' Keyword Parser Tests
+// ============================================================================
+
+func TestParseNewArrayExpression(t *testing.T) {
+	t.Run("Simple 1D array instantiation", func(t *testing.T) {
+		input := `new Integer[16];`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("statement is not *ast.ExpressionStatement, got %T", program.Statements[0])
+		}
+
+		newArrayExpr, ok := stmt.Expression.(*ast.NewArrayExpression)
+		if !ok {
+			t.Fatalf("expression is not *ast.NewArrayExpression, got %T", stmt.Expression)
+		}
+
+		// Test element type name
+		if newArrayExpr.ElementTypeName.Value != "Integer" {
+			t.Errorf("ElementTypeName = %s, want 'Integer'", newArrayExpr.ElementTypeName.Value)
+		}
+
+		// Test dimensions
+		if len(newArrayExpr.Dimensions) != 1 {
+			t.Fatalf("Dimensions should contain 1 element, got %d", len(newArrayExpr.Dimensions))
+		}
+
+		// Test dimension value
+		dimLit, ok := newArrayExpr.Dimensions[0].(*ast.IntegerLiteral)
+		if !ok {
+			t.Fatalf("Dimension is not *ast.IntegerLiteral, got %T", newArrayExpr.Dimensions[0])
+		}
+		if dimLit.Value != 16 {
+			t.Errorf("Dimension value = %d, want 16", dimLit.Value)
+		}
+
+		// Test String() method
+		expected := "new Integer[16]"
+		if newArrayExpr.String() != expected {
+			t.Errorf("String() = %s, want %s", newArrayExpr.String(), expected)
+		}
+	})
+
+	t.Run("2D array instantiation", func(t *testing.T) {
+		input := `new String[10, 20];`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+		newArrayExpr, ok := stmt.Expression.(*ast.NewArrayExpression)
+		if !ok {
+			t.Fatalf("expression is not *ast.NewArrayExpression, got %T", stmt.Expression)
+		}
+
+		// Test element type
+		if newArrayExpr.ElementTypeName.Value != "String" {
+			t.Errorf("ElementTypeName = %s, want 'String'", newArrayExpr.ElementTypeName.Value)
+		}
+
+		// Test dimensions count
+		if len(newArrayExpr.Dimensions) != 2 {
+			t.Fatalf("Dimensions should contain 2 elements, got %d", len(newArrayExpr.Dimensions))
+		}
+
+		// Test first dimension
+		dim1, ok := newArrayExpr.Dimensions[0].(*ast.IntegerLiteral)
+		if !ok {
+			t.Fatalf("First dimension is not *ast.IntegerLiteral, got %T", newArrayExpr.Dimensions[0])
+		}
+		if dim1.Value != 10 {
+			t.Errorf("First dimension = %d, want 10", dim1.Value)
+		}
+
+		// Test second dimension
+		dim2, ok := newArrayExpr.Dimensions[1].(*ast.IntegerLiteral)
+		if !ok {
+			t.Fatalf("Second dimension is not *ast.IntegerLiteral, got %T", newArrayExpr.Dimensions[1])
+		}
+		if dim2.Value != 20 {
+			t.Errorf("Second dimension = %d, want 20", dim2.Value)
+		}
+
+		// Test String() method
+		expected := "new String[10, 20]"
+		if newArrayExpr.String() != expected {
+			t.Errorf("String() = %s, want %s", newArrayExpr.String(), expected)
+		}
+	})
+
+	t.Run("Array with expression-based size", func(t *testing.T) {
+		input := `new Float[Length(arr)+1];`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+		newArrayExpr, ok := stmt.Expression.(*ast.NewArrayExpression)
+		if !ok {
+			t.Fatalf("expression is not *ast.NewArrayExpression, got %T", stmt.Expression)
+		}
+
+		// Test element type
+		if newArrayExpr.ElementTypeName.Value != "Float" {
+			t.Errorf("ElementTypeName = %s, want 'Float'", newArrayExpr.ElementTypeName.Value)
+		}
+
+		// Test dimension is an expression
+		if len(newArrayExpr.Dimensions) != 1 {
+			t.Fatalf("Dimensions should contain 1 element, got %d", len(newArrayExpr.Dimensions))
+		}
+
+		// Dimension should be a binary expression (Length(arr) + 1)
+		binExpr, ok := newArrayExpr.Dimensions[0].(*ast.BinaryExpression)
+		if !ok {
+			t.Fatalf("Dimension is not *ast.BinaryExpression, got %T", newArrayExpr.Dimensions[0])
+		}
+
+		if binExpr.Operator != "+" {
+			t.Errorf("Binary operator = %s, want '+'", binExpr.Operator)
+		}
+	})
+
+	t.Run("3D array instantiation", func(t *testing.T) {
+		input := `new Boolean[5, 10, 15];`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+		newArrayExpr, ok := stmt.Expression.(*ast.NewArrayExpression)
+		if !ok {
+			t.Fatalf("expression is not *ast.NewArrayExpression, got %T", stmt.Expression)
+		}
+
+		// Test dimensions count for 3D array
+		if len(newArrayExpr.Dimensions) != 3 {
+			t.Fatalf("Dimensions should contain 3 elements, got %d", len(newArrayExpr.Dimensions))
+		}
+
+		// Verify all three dimensions are integers
+		for i, dim := range newArrayExpr.Dimensions {
+			_, ok := dim.(*ast.IntegerLiteral)
+			if !ok {
+				t.Errorf("Dimension %d is not *ast.IntegerLiteral, got %T", i, dim)
+			}
+		}
+	})
+
+	t.Run("Array instantiation in variable declaration", func(t *testing.T) {
+		input := `var a := new Integer[16];`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		varDecl, ok := program.Statements[0].(*ast.VarDeclStatement)
+		if !ok {
+			t.Fatalf("statement is not *ast.VarDeclStatement, got %T", program.Statements[0])
+		}
+
+		// Value should be NewArrayExpression
+		newArrayExpr, ok := varDecl.Value.(*ast.NewArrayExpression)
+		if !ok {
+			t.Fatalf("variable value is not *ast.NewArrayExpression, got %T", varDecl.Value)
+		}
+
+		if newArrayExpr.ElementTypeName.Value != "Integer" {
+			t.Errorf("ElementTypeName = %s, want 'Integer'", newArrayExpr.ElementTypeName.Value)
+		}
+	})
+
+	t.Run("Class instantiation still works (backward compatibility)", func(t *testing.T) {
+		input := `new TPoint(10, 20);`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+
+		// Should parse as NewExpression (class), not NewArrayExpression
+		newExpr, ok := stmt.Expression.(*ast.NewExpression)
+		if !ok {
+			t.Fatalf("expression is not *ast.NewExpression, got %T", stmt.Expression)
+		}
+
+		if newExpr.ClassName.Value != "TPoint" {
+			t.Errorf("ClassName = %s, want 'TPoint'", newExpr.ClassName.Value)
+		}
+
+		if len(newExpr.Arguments) != 2 {
+			t.Fatalf("Arguments should contain 2 elements, got %d", len(newExpr.Arguments))
+		}
+	})
+}
+
+func TestParseNewArrayExpressionErrors(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectedErr string
+	}{
+		{
+			name:        "Missing opening bracket",
+			input:       `new Integer;`,
+			expectedErr: "expected '[' or '('",
+		},
+		{
+			name:        "Missing closing bracket",
+			input:       `new Integer[16;`,
+			expectedErr: "expected next token to be RBRACK",
+		},
+		{
+			name:        "Empty brackets",
+			input:       `new Integer[];`,
+			expectedErr: "expected expression for array dimension",
+		},
+		{
+			name:        "Missing comma between dimensions",
+			input:       `new Integer[10 20];`,
+			expectedErr: "expected next token to be RBRACK",
+		},
+		{
+			name:        "Trailing comma",
+			input:       `new Integer[10,];`,
+			expectedErr: "expected expression for array dimension",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			_ = p.ParseProgram()
+
+			errors := p.Errors()
+			if len(errors) == 0 {
+				t.Fatalf("Expected parser error, but got none")
+			}
+
+			// Check that at least one error contains the expected message
+			found := false
+			for _, err := range errors {
+				if contains(err, tt.expectedErr) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Errorf("Expected error containing '%s', but got errors: %v", tt.expectedErr, errors)
+			}
+		})
+	}
+}

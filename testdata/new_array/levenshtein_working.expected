@@ -1,0 +1,4 @@
+Levenshtein Distance Test:
+kitten -> sitting: 3
+rosettacode -> raisethysword: 8
+saturday -> sunday: 3
