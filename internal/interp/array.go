@@ -160,3 +160,150 @@ func (a *ArrayTypeValue) Type() string {
 func (a *ArrayTypeValue) String() string {
 	return "array type " + a.Name
 }
+
+// ============================================================================
+// Array Instantiation with new Keyword
+// ============================================================================
+
+// evalNewArrayExpression evaluates a new array expression.
+// Example: new Integer[10] or new String[3, 4]
+// Task 9.164: Implement runtime support for dynamic array instantiation.
+func (i *Interpreter) evalNewArrayExpression(expr *ast.NewArrayExpression) Value {
+	if expr == nil {
+		return &ErrorValue{Message: "nil new array expression"}
+	}
+
+	// Resolve the element type
+	if expr.ElementTypeName == nil {
+		return i.newErrorWithLocation(expr, "new array expression missing element type")
+	}
+
+	elementTypeName := expr.ElementTypeName.Value
+	elementType, err := i.resolveType(elementTypeName)
+	if err != nil {
+		return i.newErrorWithLocation(expr, "unknown element type '%s': %s", elementTypeName, err)
+	}
+
+	// Evaluate each dimension expression to get integer sizes
+	if len(expr.Dimensions) == 0 {
+		return i.newErrorWithLocation(expr, "new array expression must have at least one dimension")
+	}
+
+	dimensions := make([]int, len(expr.Dimensions))
+	for idx, dimExpr := range expr.Dimensions {
+		dimVal := i.Eval(dimExpr)
+		if isError(dimVal) {
+			return dimVal
+		}
+
+		// Dimension must be an integer
+		dimInt, ok := dimVal.(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(expr, "array dimension must be an integer, got %s", dimVal.Type())
+		}
+
+		// Validate dimension is positive
+		if dimInt.Value <= 0 {
+			return i.newErrorWithLocation(expr, "array dimension must be positive, got %d", dimInt.Value)
+		}
+
+		dimensions[idx] = int(dimInt.Value)
+	}
+
+	// Create the multi-dimensional array
+	return i.createMultiDimArray(elementType, dimensions)
+}
+
+// createMultiDimArray creates a multi-dimensional array with the given dimensions.
+// For 1D arrays, creates a single array with the specified size.
+// For multi-dimensional arrays, recursively creates nested arrays.
+// Task 9.165: Implement helper for creating nested array structures.
+func (i *Interpreter) createMultiDimArray(elementType types.Type, dimensions []int) *ArrayValue {
+	if len(dimensions) == 0 {
+		// This shouldn't happen, but handle gracefully
+		return &ArrayValue{
+			ArrayType: types.NewDynamicArrayType(elementType),
+			Elements:  []Value{},
+		}
+	}
+
+	size := dimensions[0]
+
+	if len(dimensions) == 1 {
+		// Base case: 1D array
+		// Create array type
+		arrayType := types.NewDynamicArrayType(elementType)
+
+		// Create elements filled with zero values
+		elements := make([]Value, size)
+		for idx := 0; idx < size; idx++ {
+			elements[idx] = i.createZeroValueForType(elementType)
+		}
+
+		return &ArrayValue{
+			ArrayType: arrayType,
+			Elements:  elements,
+		}
+	}
+
+	// Recursive case: multi-dimensional array
+	// The element type for this level is an array of the remaining dimensions
+	innerElementType := i.buildArrayTypeForDimensions(elementType, dimensions[1:])
+
+	// Create the outer array type
+	arrayType := types.NewDynamicArrayType(innerElementType)
+
+	// Create elements, each being an array of the remaining dimensions
+	elements := make([]Value, size)
+	for idx := 0; idx < size; idx++ {
+		elements[idx] = i.createMultiDimArray(elementType, dimensions[1:])
+	}
+
+	return &ArrayValue{
+		ArrayType: arrayType,
+		Elements:  elements,
+	}
+}
+
+// buildArrayTypeForDimensions builds an array type for the given dimensions.
+// For example, dimensions [3, 4] with elementType Integer produces:
+// array of array of Integer
+func (i *Interpreter) buildArrayTypeForDimensions(elementType types.Type, dimensions []int) types.Type {
+	if len(dimensions) == 0 {
+		return elementType
+	}
+
+	// Build from innermost to outermost
+	currentType := elementType
+	for range dimensions {
+		currentType = types.NewDynamicArrayType(currentType)
+	}
+
+	return currentType
+}
+
+// createZeroValueForType creates a zero value for the given type.
+// This is similar to createZeroValue but works with types.Type instead of ast.TypeAnnotation.
+func (i *Interpreter) createZeroValueForType(typ types.Type) Value {
+	if typ == nil {
+		return &NilValue{}
+	}
+
+	switch typ {
+	case types.INTEGER:
+		return &IntegerValue{Value: 0}
+	case types.FLOAT:
+		return &FloatValue{Value: 0.0}
+	case types.STRING:
+		return &StringValue{Value: ""}
+	case types.BOOLEAN:
+		return &BooleanValue{Value: false}
+	default:
+		// For complex types (arrays, records, etc.), use nil for now
+		// In the future, we may want to recursively initialize these
+		if arrayType, ok := typ.(*types.ArrayType); ok {
+			return NewArrayValue(arrayType)
+		}
+		return &NilValue{}
+	}
+}

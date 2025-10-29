@@ -215,3 +215,75 @@ func (ie *IndexExpression) GetType() *TypeAnnotation {
 func (ie *IndexExpression) SetType(typ *TypeAnnotation) {
 	ie.Type = typ
 }
+
+// ============================================================================
+// NewArrayExpression
+// ============================================================================
+
+// NewArrayExpression represents dynamic array instantiation with the 'new' keyword.
+// This is distinct from NewExpression (class instantiation) and ArrayLiteral (literal values).
+//
+// DWScript syntax:
+//   - new Integer[16]                      // 1D array with 16 elements
+//   - new Integer[10, 20]                  // 2D array (10x20)
+//   - new String[Length(s)+1]              // Size from expression
+//   - new Integer[aScale*12+1, aScale*12+1] // 2D with computed sizes
+//
+// Related AST nodes:
+//   - NewExpression: for class instantiation (new ClassName(args))
+//   - ArrayLiteral: for literal array values ([1, 2, 3])
+//   - ArrayTypeAnnotation: for array type declarations
+type NewArrayExpression struct {
+	Token           lexer.Token      // The 'new' token
+	ElementTypeName *Identifier      // The array element type name (e.g., Integer, String)
+	Dimensions      []Expression     // Size expression(s) for each dimension (1+ expressions)
+	Type            *TypeAnnotation  // Inferred array type (for semantic analysis)
+}
+
+// expressionNode implements the Expression interface
+func (nae *NewArrayExpression) expressionNode() {}
+
+// TokenLiteral returns the literal value of the 'new' token
+func (nae *NewArrayExpression) TokenLiteral() string {
+	return nae.Token.Literal
+}
+
+// Pos returns the position of the new array expression in the source code
+func (nae *NewArrayExpression) Pos() lexer.Position {
+	return nae.Token.Pos
+}
+
+// GetType returns the inferred type annotation
+func (nae *NewArrayExpression) GetType() *TypeAnnotation {
+	return nae.Type
+}
+
+// SetType sets the type annotation
+func (nae *NewArrayExpression) SetType(typ *TypeAnnotation) {
+	nae.Type = typ
+}
+
+// String returns a string representation of the new array expression
+// Examples:
+//   - "new Integer[16]"
+//   - "new String[10, 20]"
+//   - "new Float[Length(arr)+1]"
+func (nae *NewArrayExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("new ")
+	if nae.ElementTypeName != nil {
+		out.WriteString(nae.ElementTypeName.Value)
+	}
+	out.WriteString("[")
+
+	dimStrings := []string{}
+	for _, dim := range nae.Dimensions {
+		dimStrings = append(dimStrings, dim.String())
+	}
+	out.WriteString(strings.Join(dimStrings, ", "))
+
+	out.WriteString("]")
+
+	return out.String()
+}

@@ -1,0 +1,19 @@
+Dynamic Size Expressions:
+=========================
+Created array with size variable: 5 elements
+Created array with 2 * 3 = 6 elements
+Created array with 10 - 3 = 7 elements
+Created array with function result: 8 elements
+Created array with 3 * 4 + 2 = 14 elements
+
+Multi-dimensional with expressions:
+====================================
+Created 3x4 matrix
+matrix[2][3] = 11
+Created 5x5 square array
+square[4][4] = 99
+
+String length-based arrays:
+===========================
+Created string array of length 5
+Characters: H, e, l, l, o

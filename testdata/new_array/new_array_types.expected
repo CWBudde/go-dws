@@ -1,0 +1,45 @@
+Integer Arrays:
+===============
+integers[0] = 100
+integers[1] = -50
+integers[2] = 0
+integers[3] = 999
+integers[4] = 42
+
+Float Arrays:
+=============
+floats[0] = 3.14
+floats[1] = -2.5
+floats[2] = 0
+floats[3] = 99.99
+
+String Arrays:
+==============
+strings[0] = Hello
+strings[1] = World
+strings[2] = DWScript
+strings[3] = Arrays
+
+Boolean Arrays:
+===============
+booleans[0] = True
+booleans[1] = False
+booleans[2] = True
+booleans[3] = True
+
+Mixed Type 2D Arrays:
+=====================
+Integer 2D array:
+[1, 2, 3]
+[4, 5, 6]
+
+String 2D array:
+[A, B]
+[C, D]
+
+Zero Values Test:
+=================
+Integer zeros: 0, 0, 0
+Float zeros: 0, 0, 0
+String zeros: (empty), (empty), (empty)
+Boolean zeros: False, False, False

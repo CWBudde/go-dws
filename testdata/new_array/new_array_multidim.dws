@@ -1,0 +1,66 @@
+// Test multi-dimensional array creation and access with new keyword
+// Task 9.167: Multi-dimensional array instantiation test
+
+PrintLn('2D Array Test:');
+PrintLn('==============');
+
+// Create a 3x4 matrix
+var matrix := new Integer[3, 4];
+
+// Initialize matrix with values
+var counter := 1;
+for var i := 0 to 2 do
+begin
+  for var j := 0 to 3 do
+  begin
+    matrix[i][j] := counter;
+    counter := counter + 1;
+  end;
+end;
+
+// Print matrix
+PrintLn('Matrix contents:');
+for var i := 0 to 2 do
+begin
+  var row := '';
+  for var j := 0 to 3 do
+  begin
+    if j > 0 then
+      row := row + ' ';
+    row := row + IntToStr(matrix[i][j]);
+  end;
+  PrintLn(row);
+end;
+
+// Calculate row sums
+PrintLn('');
+PrintLn('Row sums:');
+for var i := 0 to 2 do
+begin
+  var rowSum := 0;
+  for var j := 0 to 3 do
+  begin
+    rowSum := rowSum + matrix[i][j];
+  end;
+  PrintLn('Row ' + IntToStr(i) + ': ' + IntToStr(rowSum));
+end;
+
+PrintLn('');
+PrintLn('3D Array Test:');
+PrintLn('==============');
+
+// Create a 2x3x4 cube
+var cube := new Integer[2, 3, 4];
+
+// Initialize a specific value
+cube[0][0][0] := 100;
+cube[1][2][3] := 999;
+cube[0][1][2] := 55;
+
+PrintLn('cube[0][0][0] = ' + IntToStr(cube[0][0][0]));
+PrintLn('cube[1][2][3] = ' + IntToStr(cube[1][2][3]));
+PrintLn('cube[0][1][2] = ' + IntToStr(cube[0][1][2]));
+
+// Verify other elements are zero
+PrintLn('cube[0][0][1] = ' + IntToStr(cube[0][0][1]) + ' (should be 0)');
+PrintLn('cube[1][1][1] = ' + IntToStr(cube[1][1][1]) + ' (should be 0)');

@@ -285,8 +285,14 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	return exp
 }
 
-// parseNewExpression parses a new expression: new ClassName(args)
-// Creates a NewExpression AST node
+// parseNewExpression parses a new expression for both classes and arrays.
+// DWScript syntax:
+//   - new ClassName(args)     // Class instantiation
+//   - new TypeName[size]      // Array instantiation (1D)
+//   - new TypeName[s1, s2]    // Array instantiation (multi-dimensional)
+//
+// This function dispatches to the appropriate parser based on the token
+// following the type name: '(' for classes, '[' for arrays.
 func (p *Parser) parseNewExpression() ast.Expression {
 	newToken := p.curToken // Save the 'new' token position
 
@@ -295,11 +301,29 @@ func (p *Parser) parseNewExpression() ast.Expression {
 		return nil
 	}
 
-	className := &ast.Identifier{
+	typeName := &ast.Identifier{
 		Token: p.curToken,
 		Value: p.curToken.Literal,
 	}
 
+	// Check what follows: '(' for class, '[' for array
+	if p.peekTokenIs(lexer.LBRACK) {
+		// Array instantiation: new TypeName[size, ...]
+		return p.parseNewArrayExpression(newToken, typeName)
+	} else if p.peekTokenIs(lexer.LPAREN) {
+		// Class instantiation: new ClassName(args)
+		return p.parseNewClassExpression(newToken, typeName)
+	} else {
+		// Neither '(' nor '[' - invalid syntax
+		p.addError(fmt.Sprintf("expected '[' or '(' after 'new %s', got %s instead at %d:%d",
+			typeName.Value, p.peekToken.Type, p.peekToken.Pos.Line, p.peekToken.Pos.Column))
+		return nil
+	}
+}
+
+// parseNewClassExpression parses class instantiation: new ClassName(args)
+// This is the original parseNewExpression logic, now extracted as a helper.
+func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Identifier) ast.Expression {
 	// Create NewExpression
 	newExpr := &ast.NewExpression{
 		Token:     newToken,
@@ -316,6 +340,56 @@ func (p *Parser) parseNewExpression() ast.Expression {
 	newExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
 
 	return newExpr
+}
+
+// parseNewArrayExpression parses array instantiation: new TypeName[size1, size2, ...]
+// Supports both single-dimensional and multi-dimensional arrays.
+// Examples:
+//   - new Integer[16]
+//   - new String[10, 20]
+//   - new Float[Length(arr)+1]
+func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *ast.Identifier) ast.Expression {
+	// Expect opening bracket
+	if !p.expectPeek(lexer.LBRACK) {
+		return nil
+	}
+
+	dimensions := []ast.Expression{}
+
+	// Parse first dimension expression
+	p.nextToken()
+	firstDim := p.parseExpression(LOWEST)
+	if firstDim == nil {
+		p.addError(fmt.Sprintf("expected expression for array dimension at %d:%d",
+			p.curToken.Pos.Line, p.curToken.Pos.Column))
+		return nil
+	}
+	dimensions = append(dimensions, firstDim)
+
+	// Parse additional dimensions (comma-separated)
+	for p.peekTokenIs(lexer.COMMA) {
+		p.nextToken() // consume comma
+		p.nextToken() // move to dimension expression
+
+		dim := p.parseExpression(LOWEST)
+		if dim == nil {
+			p.addError(fmt.Sprintf("expected expression for array dimension at %d:%d",
+				p.curToken.Pos.Line, p.curToken.Pos.Column))
+			return nil
+		}
+		dimensions = append(dimensions, dim)
+	}
+
+	// Expect closing bracket
+	if !p.expectPeek(lexer.RBRACK) {
+		return nil
+	}
+
+	return &ast.NewArrayExpression{
+		Token:           newToken,
+		ElementTypeName: elementTypeName,
+		Dimensions:      dimensions,
+	}
 }
 
 // parseLambdaExpression parses a lambda/anonymous function expression.

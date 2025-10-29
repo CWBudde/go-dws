@@ -431,3 +431,275 @@ func TestInlineArrayTypeErrors(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Array Instantiation with 'new' Keyword Tests (Task 9.163)
+// ============================================================================
+
+func TestNewArrayExpression(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "simple 1D array instantiation",
+			input: `
+				var a: array of Integer;
+				a := new Integer[16];
+			`,
+		},
+		{
+			name: "2D array instantiation",
+			input: `
+				var matrix: array of array of Integer;
+				matrix := new Integer[10, 20];
+			`,
+		},
+		{
+			name: "3D array instantiation",
+			input: `
+				var cube: array of array of array of Float;
+				cube := new Float[5, 10, 15];
+			`,
+		},
+		{
+			name: "array instantiation with variable size",
+			input: `
+				var size: Integer;
+				var arr: array of String;
+				size := 10;
+				arr := new String[size];
+			`,
+		},
+		{
+			name: "array instantiation with expression size",
+			input: `
+				var n: Integer;
+				var arr: array of Integer;
+				n := 5;
+				arr := new Integer[n * 2];
+			`,
+		},
+		{
+			name: "array instantiation in var declaration",
+			input: `
+				var a := new Integer[16];
+			`,
+		},
+		{
+			name: "different element types",
+			input: `
+				var ints := new Integer[10];
+				var strs := new String[5];
+				var floats := new Float[8];
+				var bools := new Boolean[3];
+			`,
+		},
+		{
+			name: "array instantiation with function call size",
+			input: `
+				function GetSize(): Integer;
+				begin
+					Result := 10;
+				end;
+
+				var arr := new Integer[GetSize()];
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectNoErrors(t, tt.input)
+		})
+	}
+}
+
+func TestNewArrayExpressionErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name: "non-integer dimension (float)",
+			input: `
+				var arr := new Integer[3.14];
+			`,
+			expectedError: "array dimension 1 must be integer, got Float",
+		},
+		{
+			name: "non-integer dimension (string)",
+			input: `
+				var arr := new Integer['hello'];
+			`,
+			expectedError: "array dimension 1 must be integer, got String",
+		},
+		{
+			name: "non-integer dimension (boolean)",
+			input: `
+				var b: Boolean;
+				var arr := new Integer[b];
+			`,
+			expectedError: "array dimension 1 must be integer, got Boolean",
+		},
+		{
+			name: "non-integer dimension in 2D array (first dimension)",
+			input: `
+				var arr := new Integer[3.14, 20];
+			`,
+			expectedError: "array dimension 1 must be integer, got Float",
+		},
+		{
+			name: "non-integer dimension in 2D array (second dimension)",
+			input: `
+				var arr := new Integer[10, 'hello'];
+			`,
+			expectedError: "array dimension 2 must be integer, got String",
+		},
+		{
+			name: "undefined element type",
+			input: `
+				var arr := new TUnknownType[10];
+			`,
+			expectedError: "unknown type 'TUnknownType'",
+		},
+		{
+			name: "undefined variable in dimension",
+			input: `
+				var arr := new Integer[unknownVar];
+			`,
+			expectedError: "undefined variable 'unknownVar'",
+		},
+		{
+			name: "type mismatch - assigning to wrong type",
+			input: `
+				var s: String;
+				s := new Integer[10];
+			`,
+			expectedError: "cannot assign array of Integer to String",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectError(t, tt.input, tt.expectedError)
+		})
+	}
+}
+
+func TestNewArrayExpressionTypeInference(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "1D array type matches variable",
+			input: `
+				var arr: array of Integer;
+				arr := new Integer[10];
+			`,
+		},
+		{
+			name: "2D array type matches variable",
+			input: `
+				var matrix: array of array of String;
+				matrix := new String[5, 10];
+			`,
+		},
+		{
+			name: "3D array type matches variable",
+			input: `
+				var cube: array of array of array of Boolean;
+				cube := new Boolean[2, 3, 4];
+			`,
+		},
+		{
+			name: "array element access after instantiation",
+			input: `
+				var arr := new Integer[10];
+				var x: Integer;
+				x := arr[0];
+			`,
+		},
+		{
+			name: "nested array element access after instantiation",
+			input: `
+				var matrix := new Integer[5, 10];
+				var x: Integer;
+				x := matrix[0][5];
+			`,
+		},
+		{
+			name: "array used in expression after instantiation",
+			input: `
+				var arr := new Integer[10];
+				var sum: Integer;
+				sum := arr[0] + arr[1];
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectNoErrors(t, tt.input)
+		})
+	}
+}
+
+func TestNewArrayVsNewClassDistinction(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "new with parentheses is class instantiation",
+			input: `
+				type TPoint = class
+				public
+					X, Y: Integer;
+					constructor Create(aX, aY: Integer);
+				end;
+
+				constructor TPoint.Create(aX, aY: Integer);
+				begin
+					X := aX;
+					Y := aY;
+				end;
+
+				var p := new TPoint(10, 20);
+			`,
+		},
+		{
+			name: "new with brackets is array instantiation",
+			input: `
+				var arr := new Integer[10];
+			`,
+		},
+		{
+			name: "both can coexist",
+			input: `
+				type TIntArray = array of Integer;
+
+				type TData = class
+				public
+					Values: TIntArray;
+					constructor Create();
+				end;
+
+				constructor TData.Create();
+				begin
+					Values := new Integer[100];
+				end;
+
+				var obj := new TData();
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectNoErrors(t, tt.input)
+		})
+	}
+}
