@@ -428,6 +428,17 @@ y`,
 			wants: []TokenType{IDENT, IDENT, EOF},
 		},
 		{
+			name:  "C-style comment",
+			input: `x /* comment */ y`,
+			wants: []TokenType{IDENT, IDENT, EOF},
+		},
+		{
+			name: "multiline C-style comment",
+			input: `x /* this is a
+				multiline comment */ y`,
+			wants: []TokenType{IDENT, IDENT, EOF},
+		},
+		{
 			name: "multiline block comment",
 			input: `x {
 				this is a
@@ -613,6 +624,11 @@ func TestEdgeCases(t *testing.T) {
 		{
 			name:         "unterminated block comment",
 			input:        "{ comment",
+			expectedType: ILLEGAL,
+		},
+		{
+			name:         "unterminated C-style comment",
+			input:        "/* comment",
 			expectedType: ILLEGAL,
 		},
 	}

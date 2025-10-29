@@ -125,6 +125,29 @@ func (l *Lexer) skipBlockComment(style byte) bool {
 	return false
 }
 
+// skipCStyleComment skips a C-style multi-line comment /* */.
+// Returns true if comment was properly terminated, false otherwise
+func (l *Lexer) skipCStyleComment() bool {
+	l.readChar() // skip /
+	l.readChar() // skip *
+
+	for l.ch != 0 {
+		if l.ch == '*' && l.peekChar() == '/' {
+			l.readChar() // skip *
+			l.readChar() // skip /
+			return true
+		}
+		if l.ch == '\n' {
+			l.line++
+			l.column = 0
+		}
+		l.readChar()
+	}
+
+	// Unterminated comment
+	return false
+}
+
 // readIdentifier reads an identifier or keyword from the input.
 // Identifiers start with a letter or underscore and continue with letters, digits, or underscores.
 func (l *Lexer) readIdentifier() string {
@@ -294,6 +317,14 @@ func (l *Lexer) NextToken() Token {
 		if l.peekChar() == '/' {
 			l.skipLineComment()
 			return l.NextToken() // Skip comment and get next token
+		}
+		if l.peekChar() == '*' {
+			// C-style multi-line comment /* */
+			if !l.skipCStyleComment() {
+				tok = NewToken(ILLEGAL, "unterminated C-style comment", pos)
+				return tok
+			}
+			return l.NextToken()
 		}
 		if l.peekChar() == '=' {
 			l.readChar()
