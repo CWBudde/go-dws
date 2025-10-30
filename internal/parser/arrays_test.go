@@ -800,3 +800,300 @@ func TestParseNewArrayExpressionErrors(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Multi-Index Comma Syntax Tests (Task 9.172)
+// ============================================================================
+
+func TestParseMultiIndexCommaSyntax(t *testing.T) {
+	t.Run("Two-dimensional comma syntax", func(t *testing.T) {
+		input := `arr[i, j];`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+		outerIndex, ok := stmt.Expression.(*ast.IndexExpression)
+		if !ok {
+			t.Fatalf("expression is not *ast.IndexExpression, got %T", stmt.Expression)
+		}
+
+		// arr[i, j] should desugar to (arr[i])[j]
+		// So outerIndex.Left should be an IndexExpression
+		innerIndex, ok := outerIndex.Left.(*ast.IndexExpression)
+		if !ok {
+			t.Fatalf("outerIndex.Left is not *ast.IndexExpression, got %T", outerIndex.Left)
+		}
+
+		// Test innermost array name
+		arrIdent, ok := innerIndex.Left.(*ast.Identifier)
+		if !ok {
+			t.Fatalf("innerIndex.Left is not *ast.Identifier, got %T", innerIndex.Left)
+		}
+		if arrIdent.Value != "arr" {
+			t.Errorf("arrIdent.Value = %s, want 'arr'", arrIdent.Value)
+		}
+
+		// Test first index (i)
+		firstIdx, ok := innerIndex.Index.(*ast.Identifier)
+		if !ok {
+			t.Fatalf("innerIndex.Index is not *ast.Identifier, got %T", innerIndex.Index)
+		}
+		if firstIdx.Value != "i" {
+			t.Errorf("firstIdx.Value = %s, want 'i'", firstIdx.Value)
+		}
+
+		// Test second index (j)
+		secondIdx, ok := outerIndex.Index.(*ast.Identifier)
+		if !ok {
+			t.Fatalf("outerIndex.Index is not *ast.Identifier, got %T", outerIndex.Index)
+		}
+		if secondIdx.Value != "j" {
+			t.Errorf("secondIdx.Value = %s, want 'j'", secondIdx.Value)
+		}
+	})
+
+	t.Run("Three-dimensional comma syntax", func(t *testing.T) {
+		input := `arr[i, j, k];`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+
+		// arr[i, j, k] should desugar to ((arr[i])[j])[k]
+		// Outermost: [k]
+		outermost, ok := stmt.Expression.(*ast.IndexExpression)
+		if !ok {
+			t.Fatalf("expression is not *ast.IndexExpression, got %T", stmt.Expression)
+		}
+		kIdx, ok := outermost.Index.(*ast.Identifier)
+		if !ok || kIdx.Value != "k" {
+			t.Errorf("outermost index should be 'k', got %v", outermost.Index)
+		}
+
+		// Middle: [j]
+		middle, ok := outermost.Left.(*ast.IndexExpression)
+		if !ok {
+			t.Fatalf("outermost.Left is not *ast.IndexExpression, got %T", outermost.Left)
+		}
+		jIdx, ok := middle.Index.(*ast.Identifier)
+		if !ok || jIdx.Value != "j" {
+			t.Errorf("middle index should be 'j', got %v", middle.Index)
+		}
+
+		// Innermost: arr[i]
+		innermost, ok := middle.Left.(*ast.IndexExpression)
+		if !ok {
+			t.Fatalf("middle.Left is not *ast.IndexExpression, got %T", middle.Left)
+		}
+		iIdx, ok := innermost.Index.(*ast.Identifier)
+		if !ok || iIdx.Value != "i" {
+			t.Errorf("innermost index should be 'i', got %v", innermost.Index)
+		}
+
+		arrIdent, ok := innermost.Left.(*ast.Identifier)
+		if !ok || arrIdent.Value != "arr" {
+			t.Errorf("array name should be 'arr', got %v", innermost.Left)
+		}
+	})
+
+	t.Run("Comma syntax with literal indices", func(t *testing.T) {
+		input := `matrix[0, 1];`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+		outerIndex := stmt.Expression.(*ast.IndexExpression)
+		innerIndex := outerIndex.Left.(*ast.IndexExpression)
+
+		// Verify array name
+		arrIdent := innerIndex.Left.(*ast.Identifier)
+		if arrIdent.Value != "matrix" {
+			t.Errorf("array name = %s, want 'matrix'", arrIdent.Value)
+		}
+
+		// Verify indices are integers
+		firstIdx, ok := innerIndex.Index.(*ast.IntegerLiteral)
+		if !ok || firstIdx.Value != 0 {
+			t.Errorf("first index should be 0, got %v", innerIndex.Index)
+		}
+
+		secondIdx, ok := outerIndex.Index.(*ast.IntegerLiteral)
+		if !ok || secondIdx.Value != 1 {
+			t.Errorf("second index should be 1, got %v", outerIndex.Index)
+		}
+	})
+
+	t.Run("Comma syntax with complex expressions", func(t *testing.T) {
+		input := `data[i + 1, j * 2];`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+		outerIndex := stmt.Expression.(*ast.IndexExpression)
+		innerIndex := outerIndex.Left.(*ast.IndexExpression)
+
+		// Verify first index is a binary expression (i + 1)
+		_, ok := innerIndex.Index.(*ast.BinaryExpression)
+		if !ok {
+			t.Fatalf("first index is not *ast.BinaryExpression, got %T", innerIndex.Index)
+		}
+
+		// Verify second index is a binary expression (j * 2)
+		_, ok = outerIndex.Index.(*ast.BinaryExpression)
+		if !ok {
+			t.Fatalf("second index is not *ast.BinaryExpression, got %T", outerIndex.Index)
+		}
+	})
+
+	t.Run("Mixed comma and bracket syntax", func(t *testing.T) {
+		input := `arr[i, j][k];`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+
+		// arr[i, j][k] should parse as ((arr[i])[j])[k]
+		// The outermost [k] is applied to the result of arr[i, j]
+		outermost, ok := stmt.Expression.(*ast.IndexExpression)
+		if !ok {
+			t.Fatalf("expression is not *ast.IndexExpression, got %T", stmt.Expression)
+		}
+
+		// Check that it has the correct nested structure
+		kIdx, ok := outermost.Index.(*ast.Identifier)
+		if !ok || kIdx.Value != "k" {
+			t.Errorf("outermost index should be 'k', got %v", outermost.Index)
+		}
+
+		// The left side should be the desugared arr[i, j]
+		_, ok = outermost.Left.(*ast.IndexExpression)
+		if !ok {
+			t.Fatalf("outermost.Left is not *ast.IndexExpression, got %T", outermost.Left)
+		}
+	})
+
+	t.Run("Assignment to comma-indexed array", func(t *testing.T) {
+		input := `matrix[i, j] := 42;`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		stmt := program.Statements[0].(*ast.AssignmentStatement)
+
+		// Target should be a nested IndexExpression
+		outerIndex, ok := stmt.Target.(*ast.IndexExpression)
+		if !ok {
+			t.Fatalf("assignment target is not *ast.IndexExpression, got %T", stmt.Target)
+		}
+
+		innerIndex, ok := outerIndex.Left.(*ast.IndexExpression)
+		if !ok {
+			t.Fatalf("outerIndex.Left is not *ast.IndexExpression, got %T", outerIndex.Left)
+		}
+
+		// Verify it's the matrix identifier
+		matrixIdent, ok := innerIndex.Left.(*ast.Identifier)
+		if !ok || matrixIdent.Value != "matrix" {
+			t.Errorf("expected 'matrix', got %v", innerIndex.Left)
+		}
+
+		// Verify value is the integer 42
+		val, ok := stmt.Value.(*ast.IntegerLiteral)
+		if !ok || val.Value != 42 {
+			t.Errorf("expected 42, got %v", stmt.Value)
+		}
+	})
+
+	t.Run("Comma syntax equivalence with nested brackets", func(t *testing.T) {
+		// Verify that arr[i, j] and arr[i][j] produce the same AST structure
+		commaInput := `arr[i, j];`
+		nestedInput := `arr[i][j];`
+
+		// Parse comma syntax
+		l1 := lexer.New(commaInput)
+		p1 := New(l1)
+		program1 := p1.ParseProgram()
+		checkParserErrors(t, p1)
+
+		// Parse nested bracket syntax
+		l2 := lexer.New(nestedInput)
+		p2 := New(l2)
+		program2 := p2.ParseProgram()
+		checkParserErrors(t, p2)
+
+		// Both should produce the same String() representation
+		stmt1 := program1.Statements[0].(*ast.ExpressionStatement)
+		stmt2 := program2.Statements[0].(*ast.ExpressionStatement)
+
+		str1 := stmt1.Expression.String()
+		str2 := stmt2.Expression.String()
+
+		if str1 != str2 {
+			t.Errorf("AST structures differ:\nComma: %s\nNested: %s", str1, str2)
+		}
+	})
+
+	t.Run("Single index still works", func(t *testing.T) {
+		// Ensure we didn't break single-index parsing
+		input := `arr[i];`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+		indexExpr, ok := stmt.Expression.(*ast.IndexExpression)
+		if !ok {
+			t.Fatalf("expression is not *ast.IndexExpression, got %T", stmt.Expression)
+		}
+
+		// Left should be identifier 'arr', not another IndexExpression
+		arrIdent, ok := indexExpr.Left.(*ast.Identifier)
+		if !ok {
+			t.Fatalf("indexExpr.Left is not *ast.Identifier, got %T", indexExpr.Left)
+		}
+		if arrIdent.Value != "arr" {
+			t.Errorf("array name = %s, want 'arr'", arrIdent.Value)
+		}
+
+		// Index should be identifier 'i'
+		idx, ok := indexExpr.Index.(*ast.Identifier)
+		if !ok || idx.Value != "i" {
+			t.Errorf("index should be 'i', got %v", indexExpr.Index)
+		}
+	})
+}

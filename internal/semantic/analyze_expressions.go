@@ -98,6 +98,26 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 					return nil
 				}
 			}
+
+			// Task 9.173: Check if identifier refers to a method of the current class
+			// This allows method pointers to be passed as function arguments
+			methodType, found := a.currentClass.GetMethod(ident.Value)
+			if found {
+				// Check method visibility
+				methodOwner := a.getMethodOwner(a.currentClass, ident.Value)
+				if methodOwner != nil {
+					visibility, hasVisibility := methodOwner.MethodVisibility[ident.Value]
+					if hasVisibility && !a.checkVisibility(methodOwner, visibility, ident.Value, "method") {
+						visibilityStr := ast.Visibility(visibility).String()
+						a.addError("cannot access %s method '%s' of class '%s' at %s",
+							visibilityStr, ident.Value, methodOwner.Name, ident.Token.Pos.String())
+						return nil
+					}
+				}
+				// Return the method as a method pointer type (not just a function type)
+				// This allows it to be passed as a function pointer parameter
+				return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
+			}
 		}
 		a.addError("undefined variable '%s' at %s", ident.Value, ident.Token.Pos.String())
 		return nil

@@ -42,6 +42,26 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			if classVarValue, exists := obj.Class.ClassVars[node.Value]; exists {
 				return classVarValue
 			}
+
+			// Task 9.173: Check if it's a method of the current class
+			// This allows methods to reference other methods as method pointers
+			if method, exists := obj.Class.Methods[node.Value]; exists {
+				// Create a method pointer bound to the current object (self)
+				// Build the pointer type
+				paramTypes := make([]types.Type, len(method.Parameters))
+				for idx, param := range method.Parameters {
+					if param.Type != nil {
+						paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+					}
+				}
+				var returnType types.Type
+				if method.ReturnType != nil {
+					returnType = i.getTypeFromAnnotation(method.ReturnType)
+				}
+				pointerType := types.NewFunctionPointerType(paramTypes, returnType)
+
+				return NewFunctionPointerValue(method, i.env, obj, pointerType)
+			}
 		}
 	}
 

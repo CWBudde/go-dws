@@ -1298,24 +1298,24 @@ var ArrayHelper = &HelperDeclaration{
 
 ---
 
-### 9.172 Multi-Index Array Syntax (arr[i, j]) (10 tasks)
+### 9.172 Multi-Index Array Syntax (arr[i, j]) (10 tasks) ✅ COMPLETE
 
-**Context**: DWScript supports two syntaxes for multi-dimensional arrays: nested `arr[i][j]` (works) and comma `arr[i, j]` (doesn't work). Both are semantically identical. The comma syntax is syntactic sugar that should desugar to nested index expressions during parsing.
+**Context**: DWScript supports two syntaxes for multi-dimensional arrays: nested `arr[i][j]` (works) and comma `arr[i, j]` (now works). Both are semantically identical. The comma syntax is syntactic sugar that gets desugared to nested index expressions during parsing.
 
-**Blocker for**: `examples/rosetta/Yin_and_yang.dws` (lines 20, 38, 42)
+**Blocker for**: `examples/rosetta/Yin_and_yang.dws` (lines 20, 38, 42) - NOW UNBLOCKED ✅
 
 **Implementation Tasks**:
 
-- [ ] 9.172.1 Parser: Modify `parseIndexExpression()` to detect comma after first index (`internal/parser/arrays.go:106-135`)
-- [ ] 9.172.2 Parser: Parse additional comma-separated indices into a slice
-- [ ] 9.172.3 Parser: Desugar `arr[i, j, k]` to nested `IndexExpression` nodes: `arr[i][j][k]`
-- [ ] 9.172.4 Parser Test: Add test for 2D comma syntax `arr[i, j]` (`internal/parser/arrays_test.go`)
-- [ ] 9.172.5 Parser Test: Add test for 3D comma syntax `arr[i, j, k]`
-- [ ] 9.172.6 Parser Test: Verify mixed syntax `arr[i, j][k]` works
-- [ ] 9.172.7 Test File: Create `testdata/arrays/multi_index_comma.dws` with 2D and 3D examples
-- [ ] 9.172.8 Integration Test: Add CLI test for multi-index comma syntax
-- [ ] 9.172.9 Verification: Confirm Yin_and_yang.dws lines 20, 38, 42 now parse
-- [ ] 9.172.10 Documentation: Update `docs/arrays.md` (if exists) or add note to feature docs
+- [x] 9.172.1 Parser: Modify `parseIndexExpression()` to detect comma after first index (`internal/parser/arrays.go:120-156`) ✅
+- [x] 9.172.2 Parser: Parse additional comma-separated indices into a slice ✅
+- [x] 9.172.3 Parser: Desugar `arr[i, j, k]` to nested `IndexExpression` nodes: `arr[i][j][k]` ✅
+- [x] 9.172.4 Parser Test: Add test for 2D comma syntax `arr[i, j]` (`internal/parser/arrays_test.go:808-860`) ✅
+- [x] 9.172.5 Parser Test: Add test for 3D comma syntax `arr[i, j, k]` (`internal/parser/arrays_test.go:862-911`) ✅
+- [x] 9.172.6 Parser Test: Verify mixed syntax `arr[i, j][k]` works (`internal/parser/arrays_test.go:968-1000`) ✅
+- [x] 9.172.7 Test File: Create `testdata/multi_index_comma.dws` with 2D and 3D examples ✅
+- [x] 9.172.8 Integration Test: Add CLI test for multi-index comma syntax (`cmd/dwscript/multi_index_test.go`) ✅
+- [x] 9.172.9 Verification: Confirm Yin_and_yang.dws and Levenshtein_distance.dws now parse ✅
+- [x] 9.172.10 Documentation: Added comprehensive docs in `internal/parser/arrays.go:10-35` ✅
 
 **Priority**: MEDIUM-HIGH (unblocks Rosetta example, moderate complexity)
 
@@ -1387,6 +1387,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 **Estimated Effort**: 0.25 weeks (~2 hours)
 
 **Expected Output**: The script should produce yin-yang ASCII art:
+
 ```
            ######
        ############

@@ -6,7 +6,7 @@ import (
 )
 
 // parseConstDeclaration parses a constant declaration.
-// Syntax: const NAME = VALUE; or const NAME: TYPE = VALUE;
+// Syntax: const NAME = VALUE; or const NAME := VALUE; or const NAME: TYPE = VALUE;
 func (p *Parser) parseConstDeclaration() ast.Statement {
 	stmt := &ast.ConstDecl{Token: p.curToken}
 
@@ -30,11 +30,12 @@ func (p *Parser) parseConstDeclaration() ast.Statement {
 		}
 	}
 
-	// Expect '=' token (not ':=' for const)
-	if !p.expectPeek(lexer.EQ) {
-		p.addError("expected '=' after const name")
+	// Expect '=' or ':=' token
+	if !p.peekTokenIs(lexer.EQ) && !p.peekTokenIs(lexer.ASSIGN) {
+		p.addError("expected '=' or ':=' after const name")
 		return stmt
 	}
+	p.nextToken() // move to '=' or ':='
 
 	// Parse value expression
 	p.nextToken()

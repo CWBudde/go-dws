@@ -7,6 +7,33 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
+// Array Indexing Syntax in DWScript
+//
+// DWScript supports two equivalent syntaxes for multi-dimensional array indexing:
+//
+// 1. Nested Bracket Syntax: arr[i][j][k]
+//    - Each dimension uses separate brackets
+//    - Parsed as nested IndexExpression nodes
+//    - Traditional Pascal/Delphi style
+//
+// 2. Comma Syntax: arr[i, j, k]
+//    - All indices within a single pair of brackets, separated by commas
+//    - Desugared at parse time to nested IndexExpression nodes
+//    - More concise, common in mathematical notation
+//    - Implemented in Task 9.172
+//
+// Both syntaxes produce identical AST structures and runtime behavior:
+//   arr[i, j]   → desugared to → ((arr[i])[j])
+//   arr[i, j, k] → desugared to → (((arr[i])[j])[k])
+//
+// This desugaring approach means no changes are needed in:
+//   - AST node structures
+//   - Semantic analyzer
+//   - Interpreter
+//   - Type checker
+//
+// The parser simply transforms comma syntax into nested bracket syntax during parsing.
+
 // parseArrayDeclaration parses an array type declaration.
 // Called after 'type Name =' has already been parsed.
 // Current token should be 'array'.
@@ -112,24 +139,45 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 //   - arr[0]      (literal index)
 //   - arr[i + 1]  (expression index)
 //   - arr[i][j]   (nested indexing)
+//   - arr[i, j]   (multi-index comma syntax, desugared to arr[i][j])
+//   - arr[i, j, k] (3D comma syntax, desugared to arr[i][j][k])
 //
 // Task 8.124: Parse array indexing expressions
+// Task 9.172: Multi-index array syntax (arr[i, j])
 func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
+	lbrackToken := p.curToken // Save the '[' token for error reporting
+
 	indexExpr := &ast.IndexExpression{
-		Token: p.curToken, // The '[' token
+		Token: lbrackToken,
 		Left:  left,
 	}
 
 	// Move to index expression
 	p.nextToken()
 
-	// Parse the index expression
+	// Parse the first index expression
 	indexExpr.Index = p.parseExpression(LOWEST)
+
+	// Handle comma-separated indices: arr[i, j, k]
+	// Desugar to nested IndexExpression nodes: ((arr[i])[j])[k]
+	result := indexExpr
+	for p.peekTokenIs(lexer.COMMA) {
+		p.nextToken() // consume the comma
+		p.nextToken() // move to next index expression
+
+		// Create a new IndexExpression with the previous result as the Left
+		nextIndex := &ast.IndexExpression{
+			Token: lbrackToken, // Use the original '[' token
+			Left:  result,
+			Index: p.parseExpression(LOWEST),
+		}
+		result = nextIndex
+	}
 
 	// Expect ']'
 	if !p.expectPeek(lexer.RBRACK) {
 		return nil
 	}
 
-	return indexExpr
+	return result
 }
