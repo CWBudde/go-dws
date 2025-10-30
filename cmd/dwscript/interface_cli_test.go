@@ -287,6 +287,19 @@ func TestInterfacesIntegration(t *testing.T) {
 			},
 			wantPasses: 15, // All 15 tests should pass
 		},
+		{
+			name:       "Interface Variables",
+			scriptFile: "../../testdata/interface_variables/interface_vars.dws",
+			wantOutputs: []string{
+				"=== Interface Variables Test ===",
+				"Test 1: Simple interface variable - PASS",
+				"Test 2: Polymorphism with different classes - PASS",
+				"Test 3: Interface inheritance - PASS",
+				"Test 4: Multiple interface implementations - PASS",
+				"=== All Interface Variables Tests Complete ===",
+			},
+			wantPasses: 4, // All 4 tests should pass
+		},
 	}
 
 	for _, tt := range tests {

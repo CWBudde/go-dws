@@ -488,6 +488,33 @@ func (ct *ClassType) GetProperty(name string) (*PropertyInfo, bool) {
 	return nil, false
 }
 
+// ImplementsInterface checks if this class implements the given interface.
+// It checks both the class itself and its parent classes.
+// Task 9.207: Interface implementation check for assignment compatibility
+func (ct *ClassType) ImplementsInterface(iface *InterfaceType) bool {
+	if ct == nil || iface == nil {
+		return false
+	}
+
+	// Check direct implementation
+	for _, implemented := range ct.Interfaces {
+		if implemented == iface || implemented.Equals(iface) {
+			return true
+		}
+		// Check if implemented interface inherits from target interface
+		if implemented.InheritsFrom(iface) {
+			return true
+		}
+	}
+
+	// Check parent class
+	if ct.Parent != nil {
+		return ct.Parent.ImplementsInterface(iface)
+	}
+
+	return false
+}
+
 // NewClassType creates a new class type with the given name and optional parent.
 // Fields, ClassVars, Methods, and visibility maps are initialized as empty.
 func NewClassType(name string, parent *ClassType) *ClassType {
@@ -550,6 +577,26 @@ func (it *InterfaceType) HasMethod(name string) bool {
 func (it *InterfaceType) GetMethod(name string) (*FunctionType, bool) {
 	methodType, ok := it.Methods[name]
 	return methodType, ok
+}
+
+// InheritsFrom checks if this interface inherits from (extends) another interface.
+// It checks the entire parent chain.
+// Task 9.207: Interface inheritance check for assignment compatibility
+func (it *InterfaceType) InheritsFrom(parent *InterfaceType) bool {
+	if it == nil || parent == nil {
+		return false
+	}
+
+	// Check direct parent
+	if it.Parent != nil {
+		if it.Parent == parent || it.Parent.Equals(parent) {
+			return true
+		}
+		// Recursively check parent's parents
+		return it.Parent.InheritsFrom(parent)
+	}
+
+	return false
 }
 
 // NewInterfaceType creates a new interface type with the given name.

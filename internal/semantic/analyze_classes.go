@@ -579,6 +579,45 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 	methodName := expr.Method.Value
 
+	// Task 9.207: Check if object is an interface type
+	if interfaceType, ok := objectType.(*types.InterfaceType); ok {
+		// Look up method in interface (including inherited methods from parent interfaces)
+		methodType, found := interfaceType.GetMethod(methodName)
+
+		// Check parent interfaces
+		if !found && interfaceType.Parent != nil {
+			allMethods := types.GetAllInterfaceMethods(interfaceType)
+			methodType, found = allMethods[methodName]
+		}
+
+		if !found {
+			a.addError("interface '%s' has no method '%s' at %s",
+				interfaceType.Name, methodName, expr.Token.Pos.String())
+			return nil
+		}
+
+		// Validate arguments
+		if len(expr.Arguments) != len(methodType.Parameters) {
+			a.addError("method '%s' expects %d arguments, got %d at %s",
+				methodName, len(methodType.Parameters), len(expr.Arguments),
+				expr.Token.Pos.String())
+			return methodType.ReturnType
+		}
+
+		// Check argument types
+		for i, arg := range expr.Arguments {
+			argType := a.analyzeExpression(arg)
+			expectedType := methodType.Parameters[i]
+			if argType != nil && !a.canAssign(argType, expectedType) {
+				a.addError("argument %d to method '%s' has type %s, expected %s at %s",
+					i+1, methodName, argType.String(), expectedType.String(),
+					expr.Token.Pos.String())
+			}
+		}
+
+		return methodType.ReturnType
+	}
+
 	// Check if object is a class type
 	classType, ok := objectType.(*types.ClassType)
 	if !ok {

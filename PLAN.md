@@ -1422,6 +1422,57 @@ The parser currently fails with "no prefix parse function for FALSE" because it 
 
 ---
 
+### 9.12 Interface Type Resolution in Semantic Analyzer (5 tasks)
+
+**Context**: The `TestInterfacesIntegration` test fails with "unknown type 'ISimple'" errors because interface types are not being resolved when used as variable types. The `analyzeInterfaceDecl` function correctly registers interfaces in `a.interfaces`, but the `resolveType` function doesn't check this map.
+
+**Root Cause**: In `internal/semantic/type_resolution.go:17-74`, the `resolveType` function checks classes, enums, records, sets, arrays, type aliases, and subranges, but is missing a lookup for interface types.
+
+**Required**: Add interface type lookup to `resolveType` so that variables can be declared with interface types (e.g., `var simple: ISimple;`).
+
+#### Semantic Analysis (3 tasks)
+
+- [x] 9.207 Add interface type lookup to `resolveType`: ✅ DONE
+  - [x] In `internal/semantic/type_resolution.go`, after checking class types (line 38-41)
+  - [x] Add interface type check: `if interfaceType, found := a.interfaces[typeName]; found { return interfaceType, nil }`
+  - [x] Place it before enum types check to maintain logical grouping (interfaces and classes are similar)
+  - [x] Ensure forward references work (interface used before its declaration in same scope)
+  - [x] **BONUS**: Added `ClassType.ImplementsInterface()` and `InterfaceType.InheritsFrom()` methods
+  - [x] **BONUS**: Updated `canAssign()` to allow class-to-interface assignments when class implements interface
+  - [x] **BONUS**: Updated `analyzeMethodCallExpression()` to support interface method calls
+
+- [x] 9.208 Add semantic tests for interface variable declarations: ✅ DONE
+  - [x] Test `type IFoo = interface; end; var x: IFoo;` (valid) - `TestInterfaceVariableDeclaration`
+  - [x] Test `var x: IUndefined;` (error: unknown interface type) - `TestUndefinedInterfaceType`
+  - [x] Test interface variable assignment: `var x: IFoo; x := obj;` where obj implements IFoo - `TestInterfaceVariableAssignment`
+  - [x] Test interface type in function parameters: `procedure Test(x: IFoo);` - `TestInterfaceInFunctionParameter`
+  - [x] Test interface type in function return: `function Get(): IFoo;` - `TestInterfaceInFunctionReturn`
+  - [x] 6 test cases in `interface_analyzer_test.go` (all passing)
+
+- [x] 9.209 Add tests for interface assignment type checking: ✅ DONE
+  - [x] Test valid: class implementing interface assigned to interface variable - `TestValidClassToInterfaceAssignment`
+  - [x] Test error: class NOT implementing interface assigned to interface variable - `TestInvalidClassToInterfaceAssignment`
+  - [x] Test valid: interface variable assigned to another compatible interface variable - `TestValidInterfaceToInterfaceAssignment`
+  - [x] Test error: incompatible interface types assigned - `TestIncompatibleInterfaceAssignment`
+  - [x] 4 test cases in `interface_analyzer_test.go` (all passing)
+  - [x] **BONUS**: Added interface-to-interface assignment support in `canAssign()` function
+
+#### Integration Testing (2 tasks)
+
+- [x] 9.210 Fix and verify `TestInterfacesIntegration`: ✅ DONE
+  - [x] Run `go test -v -run TestInterfacesIntegration ./cmd/dwscript`
+  - [x] Verify all 15 interface tests in `testdata/interfaces.dws` pass
+  - [x] Check that semantic analysis no longer reports "unknown type" errors
+  - [x] Ensure interface variables can be declared and assigned
+  - [x] Verify interface method calls work through interface references
+
+- [x] 9.211 Add CLI integration test for interfaces: ✅ DONE
+  - [x] Create `testdata/interface_variables/interface_vars.dws`
+  - [x] Test simple interface variable: `type ITest = interface; function Get(): Integer; end;`
+  - [x] Test polymorphism: different classes assigned to same interface variable
+  - [x] Test interface inheritance: derived interface variable accepts base interface methods
+  - [x] Expected output files for validation
+  - [x] Added to `TestInterfacesIntegration` in `cmd/dwscript/interface_cli_test.go`
 
 ---
 
