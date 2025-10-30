@@ -26,12 +26,12 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 
 	for _, field := range decl.Fields {
 		fieldName := field.Name.Value
-		fieldTypeName := field.Type.Name
 
-		// Resolve field type
-		fieldType, err := i.resolveType(fieldTypeName)
-		if err != nil {
-			return &ErrorValue{Message: fmt.Sprintf("unknown type '%s' for field '%s' in record '%s'", fieldTypeName, fieldName, recordName)}
+		// Resolve field type using type expression
+		// Task 9.170.1: Updated to support inline array types
+		fieldType := i.resolveTypeFromExpression(field.Type)
+		if fieldType == nil {
+			return &ErrorValue{Message: fmt.Sprintf("unknown or invalid type for field '%s' in record '%s'", fieldName, recordName)}
 		}
 
 		fields[fieldName] = fieldType

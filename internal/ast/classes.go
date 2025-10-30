@@ -181,7 +181,7 @@ func (cd *ClassDecl) String() string {
 //	property PropertyName: Type read FFieldName write FFieldName;
 type FieldDecl struct {
 	Name       *Identifier
-	Type       *TypeAnnotation
+	Type       TypeExpression // Task 9.170.1: Changed from *TypeAnnotation to support array types
 	Token      lexer.Token
 	Visibility Visibility
 	IsClassVar bool

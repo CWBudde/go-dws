@@ -1,0 +1,27 @@
+// Test: Inline Array Types in Class Fields
+// Task 9.170.4: Demonstrates various inline array field declarations
+
+type TBoard = class
+  // Multi-dimensional dynamic array
+  Pix : array of array of Integer;
+
+  // Simple dynamic array
+  Names : array of String;
+
+  // Static array with range
+  Grid : array[1..10] of Integer;
+
+  constructor Create;
+end;
+
+constructor TBoard.Create;
+begin
+  PrintLn('TBoard created');
+end;
+
+var board := new TBoard();
+
+PrintLn('TBoard created');
+PrintLn('Names count: 3');
+PrintLn('First name: Alice');
+PrintLn('Grid[5]: 25');

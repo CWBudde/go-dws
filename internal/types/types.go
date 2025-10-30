@@ -311,6 +311,7 @@ const (
 	PropAccessField                            // Direct field access (e.g., FName)
 	PropAccessMethod                           // Method call (e.g., GetName, SetName)
 	PropAccessExpression                       // Expression-based getter (e.g., (FValue * 2))
+	PropAccessBuiltin                          // Built-in property implemented in Go (e.g., array .Length, .High, .Low)
 )
 
 // PropertyInfo represents property metadata for a class.

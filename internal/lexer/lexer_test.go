@@ -1131,3 +1131,287 @@ func TestLambdaExpressions(t *testing.T) {
 		})
 	}
 }
+
+func TestUnicodeIdentifiers(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []struct {
+			typ     TokenType
+			literal string
+		}
+	}{
+		{
+			name:  "Greek letter Delta",
+			input: "var Δ : Integer;",
+			want: []struct {
+				typ     TokenType
+				literal string
+			}{
+				{VAR, "var"},
+				{IDENT, "Δ"},
+				{COLON, ":"},
+				{IDENT, "Integer"},
+				{SEMICOLON, ";"},
+				{EOF, ""},
+			},
+		},
+		{
+			name:  "Greek letters alpha and beta",
+			input: "α := β + 1;",
+			want: []struct {
+				typ     TokenType
+				literal string
+			}{
+				{IDENT, "α"},
+				{ASSIGN, ":="},
+				{IDENT, "β"},
+				{PLUS, "+"},
+				{INT, "1"},
+				{SEMICOLON, ";"},
+				{EOF, ""},
+			},
+		},
+		{
+			name:  "Cyrillic variable names",
+			input: "var переменная : Integer;",
+			want: []struct {
+				typ     TokenType
+				literal string
+			}{
+				{VAR, "var"},
+				{IDENT, "переменная"},
+				{COLON, ":"},
+				{IDENT, "Integer"},
+				{SEMICOLON, ";"},
+				{EOF, ""},
+			},
+		},
+		{
+			name:  "Chinese characters",
+			input: "var 变量 := 42;",
+			want: []struct {
+				typ     TokenType
+				literal string
+			}{
+				{VAR, "var"},
+				{IDENT, "变量"},
+				{ASSIGN, ":="},
+				{INT, "42"},
+				{SEMICOLON, ";"},
+				{EOF, ""},
+			},
+		},
+		{
+			name:  "Japanese hiragana and katakana",
+			input: "var へんすう := カタカナ;",
+			want: []struct {
+				typ     TokenType
+				literal string
+			}{
+				{VAR, "var"},
+				{IDENT, "へんすう"},
+				{ASSIGN, ":="},
+				{IDENT, "カタカナ"},
+				{SEMICOLON, ";"},
+				{EOF, ""},
+			},
+		},
+		{
+			name:  "Mixed ASCII and Unicode",
+			input: "var myΔValue := 100;",
+			want: []struct {
+				typ     TokenType
+				literal string
+			}{
+				{VAR, "var"},
+				{IDENT, "myΔValue"},
+				{ASSIGN, ":="},
+				{INT, "100"},
+				{SEMICOLON, ";"},
+				{EOF, ""},
+			},
+		},
+		{
+			name:  "Underscore with Unicode",
+			input: "var test_Δ := 42;",
+			want: []struct {
+				typ     TokenType
+				literal string
+			}{
+				{VAR, "var"},
+				{IDENT, "test_Δ"},
+				{ASSIGN, ":="},
+				{INT, "42"},
+				{SEMICOLON, ";"},
+				{EOF, ""},
+			},
+		},
+		{
+			name:  "Unicode in function call",
+			input: "PrintLn(Δ);",
+			want: []struct {
+				typ     TokenType
+				literal string
+			}{
+				{IDENT, "PrintLn"},
+				{LPAREN, "("},
+				{IDENT, "Δ"},
+				{RPAREN, ")"},
+				{SEMICOLON, ";"},
+				{EOF, ""},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+
+			for i, expected := range tt.want {
+				tok := l.NextToken()
+
+				if tok.Type != expected.typ {
+					t.Errorf("token[%d] - wrong type. expected=%q, got=%q (literal=%q)",
+						i, expected.typ, tok.Type, tok.Literal)
+				}
+
+				if tok.Literal != expected.literal {
+					t.Errorf("token[%d] - wrong literal. expected=%q, got=%q",
+						i, expected.literal, tok.Literal)
+				}
+			}
+		})
+	}
+}
+
+func TestUnicodeInStrings(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Greek in string",
+			input:    "'Δημοκρατία'",
+			expected: "Δημοκρατία",
+		},
+		{
+			name:     "Chinese in string",
+			input:    "'你好世界'",
+			expected: "你好世界",
+		},
+		{
+			name:     "Mixed Unicode in string",
+			input:    "'Hello Δ 世界'",
+			expected: "Hello Δ 世界",
+		},
+		{
+			name:     "Emoji in string",
+			input:    "'Test 🚀 String'",
+			expected: "Test 🚀 String",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+			tok := l.NextToken()
+
+			if tok.Type != STRING {
+				t.Errorf("wrong token type. expected=STRING, got=%q", tok.Type)
+			}
+
+			if tok.Literal != tt.expected {
+				t.Errorf("wrong string literal. expected=%q, got=%q", tt.expected, tok.Literal)
+			}
+		})
+	}
+}
+
+func TestRosettaUnicodeExample(t *testing.T) {
+	// This is the exact code from examples/rosetta/Unicode_variable_names.dws
+	input := `var Δ : Integer;
+
+Δ := 1;
+Inc(Δ);
+PrintLn(Δ);`
+
+	expectedTokens := []struct {
+		typ     TokenType
+		literal string
+	}{
+		{VAR, "var"},
+		{IDENT, "Δ"},
+		{COLON, ":"},
+		{IDENT, "Integer"},
+		{SEMICOLON, ";"},
+		{IDENT, "Δ"},
+		{ASSIGN, ":="},
+		{INT, "1"},
+		{SEMICOLON, ";"},
+		{IDENT, "Inc"},
+		{LPAREN, "("},
+		{IDENT, "Δ"},
+		{RPAREN, ")"},
+		{SEMICOLON, ";"},
+		{IDENT, "PrintLn"},
+		{LPAREN, "("},
+		{IDENT, "Δ"},
+		{RPAREN, ")"},
+		{SEMICOLON, ";"},
+		{EOF, ""},
+	}
+
+	l := New(input)
+
+	for i, expected := range expectedTokens {
+		tok := l.NextToken()
+
+		if tok.Type != expected.typ {
+			t.Errorf("token[%d] - wrong type. expected=%q, got=%q (literal=%q)",
+				i, expected.typ, tok.Type, tok.Literal)
+		}
+
+		if tok.Literal != expected.literal {
+			t.Errorf("token[%d] - wrong literal. expected=%q, got=%q",
+				i, expected.literal, tok.Literal)
+		}
+	}
+}
+
+func TestDebugSHR(t *testing.T) {
+	input := "shl shr"
+	l := New(input)
+	
+	tok1 := l.NextToken()
+	t.Logf("Token 1: Type=%s, Literal=%q", tok1.Type, tok1.Literal)
+	
+	tok2 := l.NextToken()
+	t.Logf("Token 2: Type=%s, Literal=%q", tok2.Type, tok2.Literal)
+	
+	if tok1.Type != SHL {
+		t.Errorf("Expected SHL, got %s", tok1.Type)
+	}
+	if tok2.Type != SHR {
+		t.Errorf("Expected SHR, got %s", tok2.Type)
+	}
+}
+
+func TestDebugPositions(t *testing.T) {
+	l := New("shr")
+	
+	t.Logf("Initial: pos=%d, readPos=%d, ch=%q", l.position, l.readPosition, l.ch)
+	
+	// Manually test readIdentifier
+	startPos := l.position
+	l.readChar()
+	t.Logf("After 1st readChar: pos=%d, readPos=%d, ch=%q", l.position, l.readPosition, l.ch)
+	l.readChar()
+	t.Logf("After 2nd readChar: pos=%d, readPos=%d, ch=%q", l.position, l.readPosition, l.ch)
+	l.readChar()
+	t.Logf("After 3rd readChar: pos=%d, readPos=%d, ch=%q", l.position, l.readPosition, l.ch)
+	
+	result := l.input[startPos:l.position]
+	t.Logf("Identifier slice [%d:%d] = %q", startPos, l.position, result)
+}

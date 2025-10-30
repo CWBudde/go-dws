@@ -43,10 +43,11 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		fieldNames[fieldName] = true
 
 		// Resolve field type
-		fieldType, err := a.resolveType(field.Type.Name)
+		typeName := getTypeExpressionName(field.Type)
+		fieldType, err := a.resolveType(typeName)
 		if err != nil {
 			a.addError("unknown type '%s' for field '%s' in record '%s' at %s",
-				field.Type.Name, fieldName, recordName, field.Token.Pos.String())
+				typeName, fieldName, recordName, field.Token.Pos.String())
 			continue
 		}
 

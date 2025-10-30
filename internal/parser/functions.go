@@ -151,9 +151,22 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 
 		if p.curTokenIs(lexer.VAR) {
 			// Parse multiple variable declarations until we hit something else
-			for p.peekTokenIs(lexer.IDENT) {
-				// Parse one variable declaration
+			// First iteration: cur=VAR, peek=first_identifier
+			// Subsequent iterations: cur=identifier_N, peek=colon
+			for {
+				// Check if there's an identifier to parse (either in peek for first iteration,
+				// or in cur for subsequent iterations after we've advanced)
+				if p.curTokenIs(lexer.VAR) {
+					// First iteration - identifier is in peek position
+					if !p.peekTokenIs(lexer.IDENT) {
+						break
+					}
+				} else if !p.curTokenIs(lexer.IDENT) {
+					// Subsequent iterations - we should be at an identifier
+					break
+				}
 
+				// Parse one variable declaration
 				varDecl := p.parseVarDeclaration()
 				if varDecl == nil {
 					break
@@ -164,10 +177,17 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 				}
 				fn.Body.Statements = append(fn.Body.Statements, varDecl)
 
-				// Continue if next token is an identifier (another var declaration)
+				// parseVarDeclaration() leaves us at the semicolon (cur=`;`)
+				// Check if there's another identifier after the semicolon before advancing
 				if !p.peekTokenIs(lexer.IDENT) {
+					// No more variable declarations, stop here with cur at semicolon
 					break
 				}
+
+				// Advance past semicolon to the next identifier
+				p.nextToken()
+
+				// Now cur is the next identifier, loop back to parse it
 			}
 		} else if p.curTokenIs(lexer.CONST) {
 			// Parse constant declaration

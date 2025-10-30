@@ -170,10 +170,11 @@ func (a *Analyzer) analyzeHelperClassVar(classVar *ast.FieldDecl, helperType *ty
 	}
 
 	// Resolve variable type
-	varType, err := a.resolveType(classVar.Type.Name)
+	typeName := getTypeExpressionName(classVar.Type)
+	varType, err := a.resolveType(typeName)
 	if err != nil {
 		a.addError("unknown type '%s' for class variable '%s' in helper '%s' at %s",
-			classVar.Type.Name, varName, helperName, classVar.Token.Pos.String())
+			typeName, varName, helperName, classVar.Token.Pos.String())
 		return
 	}
 
@@ -233,7 +234,18 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 
 	// Look up helpers by the type's string representation
 	typeName := typ.String()
-	return a.helpers[typeName]
+	helpers := a.helpers[typeName]
+
+	// Task 9.171: For array types, also include generic ARRAY helpers
+	if _, isArray := typ.(*types.ArrayType); isArray {
+		arrayHelpers := a.helpers["ARRAY"]
+		if arrayHelpers != nil {
+			// Combine type-specific helpers with generic array helpers
+			helpers = append(helpers, arrayHelpers...)
+		}
+	}
+
+	return helpers
 }
 
 // hasHelperMethod checks if any helper for the given type defines the specified method.
@@ -271,4 +283,47 @@ func (a *Analyzer) hasHelperProperty(typ types.Type, propName string) (*types.He
 	}
 
 	return nil, nil
+}
+
+// ============================================================================
+// Built-in Array Helpers (Task 9.171)
+// ============================================================================
+
+// initArrayHelpers registers built-in helper properties for arrays
+// Task 9.171.6: Semantic analyzer support for array helpers
+func (a *Analyzer) initArrayHelpers() {
+	// Create a helper for the generic ARRAY type
+	// Since we need to support all array types, we'll register this for "ARRAY"
+	// and modify getHelpersForType to check for array types
+	arrayHelper := types.NewHelperType("TArrayHelper", nil, false)
+
+	// Task 9.171.4: Register .Length property
+	arrayHelper.Properties["Length"] = &types.PropertyInfo{
+		Name:      "Length",
+		Type:      types.INTEGER,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__array_length",
+		WriteKind: types.PropAccessNone,
+	}
+
+	// Task 9.171.2: Register .High property
+	arrayHelper.Properties["High"] = &types.PropertyInfo{
+		Name:      "High",
+		Type:      types.INTEGER,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__array_high",
+		WriteKind: types.PropAccessNone,
+	}
+
+	// Task 9.171.3: Register .Low property
+	arrayHelper.Properties["Low"] = &types.PropertyInfo{
+		Name:      "Low",
+		Type:      types.INTEGER,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__array_low",
+		WriteKind: types.PropAccessNone,
+	}
+
+	// Register helper for ARRAY type (generic catch-all)
+	a.helpers["ARRAY"] = append(a.helpers["ARRAY"], arrayHelper)
 }

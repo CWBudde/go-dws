@@ -117,16 +117,18 @@ end;
 	if stmt.Fields[0].Name.Value != "X" {
 		t.Errorf("stmt.Fields[0].Name.Value not 'X'. got=%s", stmt.Fields[0].Name.Value)
 	}
-	if stmt.Fields[0].Type.Name != "Integer" {
-		t.Errorf("stmt.Fields[0].Type.Name not 'Integer'. got=%s", stmt.Fields[0].Type.Name)
+	typeAnnot1, ok := stmt.Fields[0].Type.(*ast.TypeAnnotation)
+	if !ok || typeAnnot1.Name != "Integer" {
+		t.Errorf("stmt.Fields[0].Type not 'Integer'. got=%v", stmt.Fields[0].Type)
 	}
 
 	// Check second field (Y: Integer)
 	if stmt.Fields[1].Name.Value != "Y" {
 		t.Errorf("stmt.Fields[1].Name.Value not 'Y'. got=%s", stmt.Fields[1].Name.Value)
 	}
-	if stmt.Fields[1].Type.Name != "Integer" {
-		t.Errorf("stmt.Fields[1].Type.Name not 'Integer'. got=%s", stmt.Fields[1].Type.Name)
+	typeAnnot2, ok := stmt.Fields[1].Type.(*ast.TypeAnnotation)
+	if !ok || typeAnnot2.Name != "Integer" {
+		t.Errorf("stmt.Fields[1].Type not 'Integer'. got=%v", stmt.Fields[1].Type)
 	}
 }
 
@@ -253,6 +255,86 @@ end;
 	}
 	if method3.Token.Type != lexer.FUNCTION {
 		t.Errorf("method3.Token.Type not FUNCTION. got=%s", method3.Token.Type)
+	}
+}
+
+// Task 9.170.2: Test class with inline array type fields
+func TestClassWithInlineArrayFields(t *testing.T) {
+	input := `
+type TBoard = class
+  Pix : array of array of Integer;
+  Data : array of String;
+  Grid : array[1..10] of Integer;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if len(stmt.Fields) != 3 {
+		t.Fatalf("stmt.Fields should contain 3 fields. got=%d", len(stmt.Fields))
+	}
+
+	// Test first field: array of array of Integer
+	field1 := stmt.Fields[0]
+	if field1.Name.Value != "Pix" {
+		t.Errorf("field1.Name.Value not 'Pix'. got=%s", field1.Name.Value)
+	}
+	arrayType1, ok := field1.Type.(*ast.ArrayTypeNode)
+	if !ok {
+		t.Fatalf("field1.Type is not *ast.ArrayTypeNode. got=%T", field1.Type)
+	}
+	// Check it's a nested array type
+	innerArray, ok := arrayType1.ElementType.(*ast.ArrayTypeNode)
+	if !ok {
+		t.Fatalf("field1 element type is not *ast.ArrayTypeNode. got=%T", arrayType1.ElementType)
+	}
+	innerType, ok := innerArray.ElementType.(*ast.TypeAnnotation)
+	if !ok || innerType.Name != "Integer" {
+		t.Errorf("field1 inner element type not 'Integer'. got=%v", innerArray.ElementType)
+	}
+
+	// Test second field: array of String
+	field2 := stmt.Fields[1]
+	if field2.Name.Value != "Data" {
+		t.Errorf("field2.Name.Value not 'Data'. got=%s", field2.Name.Value)
+	}
+	arrayType2, ok := field2.Type.(*ast.ArrayTypeNode)
+	if !ok {
+		t.Fatalf("field2.Type is not *ast.ArrayTypeNode. got=%T", field2.Type)
+	}
+	elementType2, ok := arrayType2.ElementType.(*ast.TypeAnnotation)
+	if !ok || elementType2.Name != "String" {
+		t.Errorf("field2 element type not 'String'. got=%v", arrayType2.ElementType)
+	}
+
+	// Test third field: static array[1..10] of Integer
+	field3 := stmt.Fields[2]
+	if field3.Name.Value != "Grid" {
+		t.Errorf("field3.Name.Value not 'Grid'. got=%s", field3.Name.Value)
+	}
+	arrayType3, ok := field3.Type.(*ast.ArrayTypeNode)
+	if !ok {
+		t.Fatalf("field3.Type is not *ast.ArrayTypeNode. got=%T", field3.Type)
+	}
+	if arrayType3.LowBound == nil || *arrayType3.LowBound != 1 {
+		t.Errorf("field3 LowBound not 1. got=%v", arrayType3.LowBound)
+	}
+	if arrayType3.HighBound == nil || *arrayType3.HighBound != 10 {
+		t.Errorf("field3 HighBound not 10. got=%v", arrayType3.HighBound)
 	}
 }
 
