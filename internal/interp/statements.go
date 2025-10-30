@@ -1245,10 +1245,21 @@ func (i *Interpreter) evalReturnStatement(stmt *ast.ReturnStatement) Value {
 	return returnVal
 }
 
-func (i *Interpreter) evalExitStatement(_ *ast.ExitStatement) Value {
+func (i *Interpreter) evalExitStatement(stmt *ast.ExitStatement) Value {
 	i.exitSignal = true
-	// Exit doesn't return a value - the function's default return value is used
-	// (or the program exits if at top level)
+	if stmt.ReturnValue != nil {
+		value := i.Eval(stmt.ReturnValue)
+		if isError(value) {
+			return value
+		}
+
+		// Assign evaluated value to Result if it exists
+		if _, exists := i.env.Get("Result"); exists {
+			i.env.Set("Result", value)
+		}
+		return value
+	}
+	// No explicit return value; function will rely on Result or default
 	return &NilValue{}
 }
 

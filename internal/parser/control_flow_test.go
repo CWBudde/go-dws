@@ -257,8 +257,8 @@ func TestParseExitStatement(t *testing.T) {
 			t.Errorf("exitStmt.TokenLiteral() = %q, want 'exit'", exitStmt.TokenLiteral())
 		}
 
-		if exitStmt.Value != nil {
-			t.Error("exitStmt.Value should be nil for simple exit")
+		if exitStmt.ReturnValue != nil {
+			t.Error("exitStmt.ReturnValue should be nil for simple exit")
 		}
 	})
 
@@ -272,13 +272,13 @@ func TestParseExitStatement(t *testing.T) {
 
 		exitStmt := program.Statements[0].(*ast.ExitStatement)
 
-		if exitStmt.Value == nil {
-			t.Fatal("exitStmt.Value should not be nil")
+		if exitStmt.ReturnValue == nil {
+			t.Fatal("exitStmt.ReturnValue should not be nil")
 		}
 
-		unaryExpr, ok := exitStmt.Value.(*ast.UnaryExpression)
+		unaryExpr, ok := exitStmt.ReturnValue.(*ast.UnaryExpression)
 		if !ok {
-			t.Fatalf("exitStmt.Value is not *ast.UnaryExpression, got %T", exitStmt.Value)
+			t.Fatalf("exitStmt.ReturnValue is not *ast.UnaryExpression, got %T", exitStmt.ReturnValue)
 		}
 
 		if unaryExpr.Operator != "-" {
@@ -305,13 +305,13 @@ func TestParseExitStatement(t *testing.T) {
 
 		exitStmt := program.Statements[0].(*ast.ExitStatement)
 
-		if exitStmt.Value == nil {
-			t.Fatal("exitStmt.Value should not be nil")
+		if exitStmt.ReturnValue == nil {
+			t.Fatal("exitStmt.ReturnValue should not be nil")
 		}
 
-		ident, ok := exitStmt.Value.(*ast.Identifier)
+		ident, ok := exitStmt.ReturnValue.(*ast.Identifier)
 		if !ok {
-			t.Fatalf("exitStmt.Value is not *ast.Identifier, got %T", exitStmt.Value)
+			t.Fatalf("exitStmt.ReturnValue is not *ast.Identifier, got %T", exitStmt.ReturnValue)
 		}
 
 		if ident.Value != "result" {
@@ -329,13 +329,13 @@ func TestParseExitStatement(t *testing.T) {
 
 		exitStmt := program.Statements[0].(*ast.ExitStatement)
 
-		if exitStmt.Value == nil {
-			t.Fatal("exitStmt.Value should not be nil")
+		if exitStmt.ReturnValue == nil {
+			t.Fatal("exitStmt.ReturnValue should not be nil")
 		}
 
-		binExpr, ok := exitStmt.Value.(*ast.BinaryExpression)
+		binExpr, ok := exitStmt.ReturnValue.(*ast.BinaryExpression)
 		if !ok {
-			t.Fatalf("exitStmt.Value is not *ast.BinaryExpression, got %T", exitStmt.Value)
+			t.Fatalf("exitStmt.ReturnValue is not *ast.BinaryExpression, got %T", exitStmt.ReturnValue)
 		}
 
 		if binExpr.Operator != "+" {
@@ -370,8 +370,8 @@ func TestParseExitStatement(t *testing.T) {
 			t.Fatalf("if consequence is not *ast.ExitStatement, got %T", ifStmt.Consequence)
 		}
 
-		if exitStmt.Value == nil {
-			t.Error("exitStmt.Value should not be nil")
+		if exitStmt.ReturnValue == nil {
+			t.Error("exitStmt.ReturnValue should not be nil")
 		}
 	})
 
@@ -494,7 +494,7 @@ func TestExitInCaseStatement(t *testing.T) {
 	if !ok {
 		t.Fatalf("first case statement is not *ast.ExitStatement, got %T", caseStmt.Cases[0].Statement)
 	}
-	if exitStmt1.Value != nil {
+	if exitStmt1.ReturnValue != nil {
 		t.Error("first exit should have nil value")
 	}
 
@@ -503,7 +503,7 @@ func TestExitInCaseStatement(t *testing.T) {
 	if !ok {
 		t.Fatalf("second case statement is not *ast.ExitStatement, got %T", caseStmt.Cases[1].Statement)
 	}
-	if exitStmt2.Value == nil {
+	if exitStmt2.ReturnValue == nil {
 		t.Error("second exit should have non-nil value")
 	}
 
@@ -515,7 +515,7 @@ func TestExitInCaseStatement(t *testing.T) {
 	if !ok {
 		t.Fatalf("case else is not *ast.ExitStatement, got %T", caseStmt.Else)
 	}
-	if exitStmt3.Value == nil {
+	if exitStmt3.ReturnValue == nil {
 		t.Error("else exit should have non-nil value")
 	}
 }

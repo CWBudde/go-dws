@@ -362,7 +362,7 @@ func TestExitInFinallyBlock(t *testing.T) {
 }
 
 // TestExitInFunction tests that exit in a function is valid
-func TestExitInFunction(t *testing.T) {
+func TestExitWithoutValueInFunction(t *testing.T) {
 	input := `
 		function GetValue(x: Integer): Integer;
 		begin
@@ -380,7 +380,7 @@ func TestExitInFunction(t *testing.T) {
 	err := analyzer.Analyze(program)
 
 	if err != nil {
-		t.Errorf("Expected no semantic error for exit in function, got: %v", err)
+		t.Errorf("Expected no semantic error for exit without value in function, got: %v", err)
 	}
 }
 

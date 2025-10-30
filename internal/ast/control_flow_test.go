@@ -284,26 +284,26 @@ func TestExitStatementString(t *testing.T) {
 		{
 			name: "exit without value",
 			stmt: &ExitStatement{
-				Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
-				Value: nil,
+				Token:       lexer.Token{Type: lexer.EXIT, Literal: "exit"},
+				ReturnValue: nil,
 			},
-			expected: "exit;",
+			expected: "Exit",
 		},
 		{
 			name: "exit with integer value",
 			stmt: &ExitStatement{
-				Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
-				Value: &IntegerLiteral{Token: lexer.Token{Literal: "-1"}, Value: -1},
+				Token:       lexer.Token{Type: lexer.EXIT, Literal: "exit"},
+				ReturnValue: &IntegerLiteral{Token: lexer.Token{Literal: "-1"}, Value: -1},
 			},
-			expected: "exit(-1);",
+			expected: "Exit -1",
 		},
 		{
 			name: "exit with identifier value",
 			stmt: &ExitStatement{
-				Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
-				Value: &Identifier{Value: "result"},
+				Token:       lexer.Token{Type: lexer.EXIT, Literal: "exit"},
+				ReturnValue: &Identifier{Value: "result"},
 			},
-			expected: "exit(result);",
+			expected: "Exit result",
 		},
 	}
 
