@@ -544,7 +544,9 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 				return nil
 			}
 		}
-		return methodType
+		// Task 9.173: When accessing a method as a value (not calling it),
+		// return a method pointer type instead of just the function type
+		return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
 	}
 
 	// Task 9.83: Check helpers for methods

@@ -48,10 +48,13 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 		return a.analyzeMemberAccessExpression(e)
 	case *ast.MethodCallExpression:
 		return a.analyzeMethodCallExpression(e)
-	case *ast.RecordLiteral:
-		// RecordLiteral needs context to know the expected type
-		// This will be handled in analyzeVarDecl or analyzeAssignment
-		a.addError("record literal requires type context")
+	case *ast.RecordLiteralExpression:
+		// Task 9.176: Typed record literals can be analyzed standalone
+		if e.TypeName != nil {
+			return a.analyzeRecordLiteral(e, nil)
+		}
+		// Anonymous record literals need context from variable declaration or assignment
+		a.addError("anonymous record literal requires type context (use explicit type annotation)")
 		return nil
 	case *ast.SetLiteral:
 		// SetLiteral needs context to know the expected type

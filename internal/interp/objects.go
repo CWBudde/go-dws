@@ -218,6 +218,36 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Not a property - try direct field access
 	fieldValue := obj.GetField(memberName)
 	if fieldValue == nil {
+		// Task 9.173: Check if it's a method
+		if method, exists := obj.Class.Methods[memberName]; exists {
+			// Task 9.173: If the method has no parameters, auto-invoke it
+			// This allows DWScript syntax: obj.Method instead of obj.Method()
+			if len(method.Parameters) == 0 {
+				// Create a synthetic method call expression to use existing infrastructure
+				methodCall := &ast.MethodCallExpression{
+					Token:     ma.Token,
+					Object:    ma.Object,
+					Method:    ma.Member,
+					Arguments: []ast.Expression{},
+				}
+				return i.evalMethodCall(methodCall)
+			}
+
+			// Method has parameters - return as method pointer for passing as callback
+			paramTypes := make([]types.Type, len(method.Parameters))
+			for idx, param := range method.Parameters {
+				if param.Type != nil {
+					paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+				}
+			}
+			var returnType types.Type
+			if method.ReturnType != nil {
+				returnType = i.getTypeFromAnnotation(method.ReturnType)
+			}
+			pointerType := types.NewFunctionPointerType(paramTypes, returnType)
+			return NewFunctionPointerValue(method, i.env, obj, pointerType)
+		}
+
 		// Task 9.86: Check if helpers provide this member
 		helper, helperProp := i.findHelperProperty(obj, memberName)
 		if helperProp != nil {

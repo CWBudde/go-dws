@@ -1062,372 +1062,366 @@ PrintLn(s.ToUpper()); // Output: HELLO
 
 ---
 
-### Array Instantiation with `new` Keyword (HIGH PRIORITY)
+### 9.8 Record Literals with Named Fields (12 tasks)
 
-**Summary**: Implement `new TypeName[size]` syntax for dynamic array creation. Currently the `new` keyword only supports class instantiation (`new ClassName(args)`). DWScript also supports array instantiation with size specification.
+**Context**: The Death_Star.dws Rosetta example uses record initialization with named fields:
 
-**Example**:
 ```pascal
-var a := new Integer[16];              // 1D array with 16 elements
-var matrix := new Integer[10, 20];     // 2D array (10x20)
-var dynamic := new String[Length(s)+1]; // Size from expression
+const big : TSphere = (cx: 20; cy: 20; cz: 0; r: 20);
 ```
+The parser currently fails with "expected type expression, got 20" because it doesn't recognize the `field: value` syntax inside parentheses.
 
-**Reference**:
-- Blocking: `examples/rosetta/Sorting_algorithms_Gnome_sort.dws` (line 23)
-- Original DWScript: `reference/dwscript-original/Source/dwsCompiler.pas` lines 8794-8943 (`ReadNew` and `ReadNewArray`)
-- AST Node: `TNewArrayExpr` in `dwsArrayExprs.pas` lines 309-327
-
-**Current Error**: Parser expects `(` after `new TypeName` but encounters `[`, causing parse failure.
+**Current Error**: Parser treats `(cx: 20; ...)` as a type expression or grouped expression, not as a record literal with field initializers.
 
 #### AST Nodes (2 tasks)
 
-- [x] 9.157 Create `NewArrayExpression` in `ast/arrays.go`:
-  - [x] Fields: `Token lexer.Token`, `ElementTypeName *Identifier`, `Dimensions []Expression`, `Type *TypeAnnotation`
+- [x] 9.169 Create `RecordLiteralExpression` in `ast/records.go`:
+  - [x] Fields: `Token lexer.Token`, `TypeName *Identifier`, `Fields []*FieldInitializer`
+  - [x] `FieldInitializer` struct with `Name *Identifier`, `Value Expression`
   - [x] Implements `Expression` interface
-  - [x] Support multi-dimensional arrays with comma-separated sizes
-  - [x] `String()` returns `new TypeName[size1, size2, ...]`
-  - [x] Add AST tests for 1D, 2D, and expression-based sizes (10 comprehensive test cases)
+  - [x] Support semicolon or comma as field separator
+  - [x] `String()` returns `TypeName(field1: value1; field2: value2)`
+  - [x] Handle optional type name (can be inferred from context)
 
-- [x] 9.158 Update `NewExpression` documentation:
-  - [x] Document that `NewExpression` is for class instantiation only
-  - [x] Add cross-reference to `NewArrayExpression` for array instantiation
-  - [x] Update comments in `ast/classes.go` and `ast/arrays.go`
+- [x] 9.170 Add AST tests for record literals:
+  - [x] Test simple record: `(x: 10; y: 20)`
+  - [x] Test with type name: `TPoint(x: 10; y: 20)`
+  - [x] Test nested records: `TRect(TopLeft: (x: 0; y: 0); BottomRight: (x: 10; y: 10))`
+  - [x] Test with expressions: `TSphere(cx: x+5; cy: y*2; r: radius)`
+  - [x] Test with negative numbers: `(x: -50; y: 30)`
+  - [x] 8 comprehensive test cases in `ast/records_test.go`
 
-#### Parser Support (3 tasks)
+#### Parser Support (4 tasks)
 
-- [x] 9.159 Refactor `parseNewExpression` in `parser/expressions.go`:
-  - [x] After parsing identifier, check next token: `[` vs `(`
-  - [x] If `[`: delegate to new `parseNewArrayExpression()` helper
-  - [x] If `(`: delegate to new `parseNewClassExpression()` helper (existing logic)
-  - [x] Add error for unexpected token (neither `[` nor `(`)
-  - [x] Preserve existing class instantiation behavior
+- [x] 9.171 Update `parseGroupedExpression` to detect record literals:
+  - [x] After parsing first expression, check for `:` token
+  - [x] If found, this is a record literal field initializer
+  - [x] Backtrack or reparse first expression as identifier (field name)
+  - [x] Delegate to `parseRecordLiteral()` helper
+  - [x] If no `:`, continue as grouped expression (existing behavior)
 
-- [x] 9.160 Implement `parseNewArrayExpression()`:
-  - [x] Parse opening `[` bracket
-  - [x] Parse comma-separated dimension expressions (1 or more)
-  - [x] Expect closing `]` bracket
-  - [x] Build element type name from identifier
-  - [x] Return `NewArrayExpression` node
-  - [x] Add parser error recovery for malformed syntax
+- [x] 9.172 Implement `parseRecordLiteral()` in `parser/records.go`:
+  - [x] Parse `fieldName : expression` pairs
+  - [x] Accept `;` or `,` as separators (DWScript allows both)
+  - [x] Handle trailing separator (optional)
+  - [x] Expect closing `)` parenthesis
+  - [x] Return `RecordLiteralExpression` node
+  - [x] Add error recovery for missing colons, values, or closing paren
 
-- [x] 9.161 Add parser tests for array instantiation:
-  - [x] Test `new Integer[10]` (simple 1D array)
-  - [x] Test `new String[5, 10]` (2D array)
-  - [x] Test `new Float[Length(arr)+1]` (expression-based size)
-  - [x] Test error cases: missing `]`, empty brackets, invalid expression
-  - [x] Verify existing class instantiation tests still pass (backward compatibility confirmed)
-  - [x] Test 3D arrays and variable declarations
-  - [x] 11 comprehensive test cases added to `internal/parser/arrays_test.go`
+- [x] 9.173 Handle typed record literals `TypeName(field: value)`:
+  - [x] Check if expression before `(` is an identifier
+  - [x] Parse as call expression initially
+  - [x] If arguments contain `:`, convert to record literal
+  - [x] Alternative: add `parseRecordLiteralWithType()` helper
+  - [x] Preserve backward compatibility with function calls
+
+- [x] 9.174 Add parser tests for record literals:
+  - [x] Test anonymous record: `(x: 10; y: 20)`
+  - [x] Test typed record: `TPoint(x: 10; y: 20)`
+  - [x] Test with semicolons: `(a: 1; b: 2; c: 3)`
+  - [x] Test with commas: `(a: 1, b: 2, c: 3)`
+  - [x] Test nested: `TRect(TopLeft: (x: 0; y: 0))`
+  - [x] Test error cases: missing colon, missing value, unclosed paren
+  - [x] 10 test cases in `internal/parser/records_test.go`
 
 #### Semantic Analysis (2 tasks)
 
-- [x] 9.162 Create `analyzeNewArrayExpression` in `semantic/analyze_arrays.go`:
-  - [x] Resolve element type from `TypeAnnotation`
-  - [x] Validate each dimension expression is an integer type
-  - [x] Report semantic error if dimension is non-integer
-  - [x] Construct result type: `array of (array of ... ElementType)` (nested for multi-dim)
-  - [x] Set inferred type on AST node for interpreter
+- [x] 9.175 Create `analyzeRecordLiteral` in `semantic/analyze_records.go`:
+  - [x] Resolve record type from `TypeName` or context (assignment target)
+  - [x] Validate each field name exists in record type definition
+  - [x] Check field value type matches declared field type
+  - [x] Report error for duplicate field initializers
+  - [x] Report error for missing required fields (if no defaults)
+  - [x] Allow fields in any order (not required to match declaration order)
+  - [x] Set inferred type on AST node
+  - [x] Support anonymous record literals with type context
+  - [x] Support typed record literals with explicit TypeName
 
-- [x] 9.163 Add semantic tests for array instantiation:
-  - [x] Test valid 1D and 2D array creation with correct types
-  - [x] Test type errors: non-integer dimensions (e.g., `new Integer[3.14]`)
-  - [x] Test type errors: invalid element type
-  - [x] Test dimension expression type checking
-  - [x] Ensure error messages include position information
+- [x] 9.176 Add semantic tests for record literals:
+  - [x] Test valid record with all fields: `TSphere(cx: 20; cy: 20; cz: 0; r: 20)`
+  - [x] Test type error: wrong field type `TPoint(x: "hello"; y: 20)`
+  - [x] Test error: unknown field name `TPoint(x: 10; z: 20)`
+  - [x] Test error: duplicate field `TPoint(x: 10; x: 20)`
+  - [x] Test partial initialization (if allowed by DWScript)
+  - [x] Tests integrated into existing `internal/semantic/records_test.go`
 
-#### Interpreter Support (3 tasks)
+#### Interpreter Support (2 tasks)
 
-- [x] 9.164 Implement `evalNewArrayExpression` in `interp/array.go`:
-  - [x] Resolve element type at runtime
-  - [x] Evaluate each dimension expression to get integer sizes
-  - [x] Validate dimension sizes are positive (runtime check)
-  - [x] Call helper to create multi-dimensional array structure
-  - [x] Initialize all elements to zero values (0, 0.0, '', false, nil)
-  - [x] Return `ArrayValue` with correct dimensions
+- [x] 9.177 Implement `evalRecordLiteral` in `interp/records.go`:
+  - [x] Create new record instance
+  - [x] Evaluate each field value expression
+  - [x] Assign evaluated values to corresponding record fields
+  - [x] Initialize unspecified fields to zero values
+  - [x] Return `RecordValue` with all fields populated
+  - [x] Handle nested record literals recursively
+  - [x] Support anonymous literals via type context in var/const declarations
 
-- [x] 9.165 Implement `createMultiDimArray` helper:
-  - [x] For 1D: create single array with specified size
-  - [x] For multi-dim: recursively create nested arrays
-  - [x] Handle zero-sized dimensions (create empty arrays)
-  - [x] Ensure proper array type metadata for each dimension
-  - [x] Test with 1D, 2D, and 3D arrays
+- [x] 9.178 Add interpreter tests for record literals:
+  - [x] Test `var p := TPoint(x: 10; y: 20); PrintLn(p.x);` outputs `10`
+  - [x] Test nested: `var r := TRect(TopLeft: (x: 0; y: 0));`
+  - [x] Test with expressions: `var s := TSphere(cx: 5*4; r: 10+5);`
+  - [x] Test field access after initialization
+  - [x] Created `internal/interp/record_literals_test.go` with 8 comprehensive test cases
 
-- [x] 9.166 Add interpreter unit tests:
-  - [x] Test `new Integer[10]` creates array with 10 zero elements
-  - [x] Test `new String[5]` creates array with 5 empty strings
-  - [x] Test `new Integer[3, 4]` creates 3x4 matrix structure
-  - [x] Test expressions: `new Integer[2*5]` evaluates correctly
-  - [x] Test runtime error: negative or zero dimensions
-  - [x] Test accessing elements after creation
+#### Testing & Documentation (2 tasks)
 
-#### Testing & Fixtures (2 tasks)
+- [x] 9.179 Create test files in `testdata/record_literals/`:
+  - [x] Tests integrated into `internal/interp/record_literals_test.go`
+  - [x] Death_Star.dws example tests included
+  - [x] All test scenarios covered (basic, nested, const, typed, anonymous)
 
-- [x] 9.167 Create test files in `testdata/new_array/`:
-  - [x] `new_array_basic.dws` - Simple 1D array creation and access
-  - [x] `new_array_multidim.dws` - 2D/3D array creation and nested access
-  - [x] `new_array_expressions.dws` - Dynamic sizes from expressions
-  - [x] `new_array_types.dws` - Various element types (Integer, String, Float, Boolean)
-  - [x] Expected output files for each test (5 test files with `.expected` outputs)
-  - [x] `levenshtein_working.dws` - Real-world algorithm example
-
-- [x] 9.168 Enable Rosetta Code examples that use array instantiation:
-  - [x] Verify `Sorting_algorithms_Gnome_sort.dws` - Blocked (requires array properties `.Length`, `.High`, `.Swap()`)
-  - [x] Check `Yin_and_yang.dws` - Blocked (parser doesn't support inline array types in class fields)
-  - [x] Check `Levenshtein_distance.dws` - Working with modifications (`[i][j]` syntax, custom `Min3()`)
-  - [x] Add these as integration tests in CLI test suite (`cmd/dwscript/new_array_test.go`)
-  - [x] Document any remaining issues in `docs/rosetta-compatibility.md`
-
-### 9.169 Method Keyword Support (9 tasks) ✅ COMPLETE
-
-**Context**: DWScript allows `method` as an alternative syntax for declaring class instance methods, functionally equivalent to `function`/`procedure`. The lexer already had `METHOD` token support, but the parser didn't accept it. The Rosetta Code example `Yin_and_yang.dws` uses this syntax.
-
-**Implementation Tasks**:
-
-- [x] 9.169.1 Parser: Accept METHOD token in class method declarations (`internal/parser/classes.go:237`)
-- [x] 9.169.2 Parser Test: Add test case for `method` keyword parsing (`internal/parser/classes_test.go`)
-- [x] 9.169.3 Test File: Create `testdata/classes/method_keyword.dws` with all three variants (method/function/procedure)
-- [x] 9.169.4 Expected Output: Create `testdata/classes/method_keyword.expected`
-- [x] 9.169.5 Integration Test: Add CLI test in `cmd/dwscript/classes_integration_test.go`
-- [x] 9.169.6 Verify: Confirm `examples/rosetta/Yin_and_yang.dws` method keyword now parses
-- [x] 9.169.7 Documentation: Update `docs/stage7-summary.md` with `method` keyword info
-- [x] 9.169.8 Update: Note Yin_and_yang.dws partial compatibility in `docs/rosetta-compatibility.md`
-- [x] 9.169.9 Verification: Run full test suite to ensure no regressions
-
-**Priority**: MEDIUM (unblocks Rosetta Code example, minimal complexity)
-
-**Estimated Effort**: 0.5 weeks
-
-**Actual Effort**: <1 day (simple parser change with comprehensive testing)
-
-**Technical Details**:
-
-- Lexer already supported `METHOD` token (line 77 in `token_type.go`)
-- Parser change: Added `|| p.curToken.Type == lexer.METHOD` to line 237 in `classes.go`
-- AST: No changes needed - `FunctionDecl` handles all callable members
-- Semantics: `method` keyword behaves identically to `function`/`procedure` for instance methods
-- Test coverage: Parser unit test + integration test + documentation examples
-
-**Results**:
-
-- ✅ `method` keyword now parses and executes correctly
-- ✅ All three keywords (`method`, `function`, `procedure`) work interchangeably for instance methods
-- ✅ Yin_and_yang.dws methods now parse (but other blockers remain: inline array types, `.High` property, multi-index syntax)
-
-### 9.170 Inline Array Types in Class Fields (6 tasks)
-
-**Context**: Class fields currently only accept simple type identifiers (`x: Integer`). DWScript allows inline array type declarations like `Pix : array of array of Integer;` which is used in Yin_and_yang.dws. The `parseTypeExpression()` function already handles array types, but `parseFieldDeclarations()` doesn't use it.
-
-**Blocker for**: `examples/rosetta/Yin_and_yang.dws` (line 7), `pkg/dwscript/rosetta_examples_test.go`
-
-**Implementation Tasks**:
-
-- [x] 9.170.1 Parser: Modify `parseFieldDeclarations()` to call `parseTypeExpression()` instead of expecting `IDENT` (`internal/parser/classes.go:326-334`)
-- [x] 9.170.2 Parser Test: Add test case for class with `array of array of Integer` field (`internal/parser/classes_test.go`)
-- [x] 9.170.3 Parser Test: Add test for dynamic arrays `array of String`, static arrays `array[1..10] of Integer`
-- [x] 9.170.4 Test File: Create `testdata/classes/inline_array_fields.dws` demonstrating various array field types
-- [x] 9.170.5 Integration Test: Add CLI test in `cmd/dwscript/classes_integration_test.go`
-- [x] 9.170.6 Verification: Confirm Yin_and_yang.dws line 7 now parses
-
-**Priority**: HIGH (unblocks Rosetta example, trivial parser fix)
-
-**Estimated Effort**: 0.25 weeks (~2 hours)
-
-**Technical Details**:
-
-- Current code at `classes.go:326`: `if !p.expectPeek(lexer.IDENT) { return nil }`
-- Replace with: `fieldType := p.parseTypeExpression()`
-- `parseTypeExpression()` already exists at `internal/parser/types.go:23-44`
-- Handles: simple types, array types, function pointer types
-- No AST changes needed - `TypeAnnotation` already supports complex types
-- Semantic analyzer and interpreter already handle array-typed fields correctly
-
-**Dependencies**: None
+- [x] 9.180 Enable Death_Star.dws record literal tests:
+  - [x] Verify `const big : TSphere = (cx: 20; cy: 20; cz: 0; r: 20);` parses
+  - [x] Verify `const small : TSphere = (cx: 7; cy: 7; cz: -10; r: 15);` parses
+  - [x] All parser and integration tests pass successfully
+  - [x] Death_Star.dws still needs other features (array literals, type inference, Exit statement)
 
 ---
 
-### 9.171 Array Helper Properties (.High, .Low, .Length) (8 tasks)
+### 9.9 Array Literal Expressions (10 tasks)
 
-**Context**: Arrays need helper properties similar to `StringHelper.Length`. DWScript arrays support `.High` (highest index), `.Low` (lowest index), and `.Length` (size). The helper system exists and works for String/Integer, but no `ArrayHelper` is registered.
-
-**Blocker for**: `examples/rosetta/Yin_and_yang.dws` (lines 18, 19), `examples/rosetta/Sorting_algorithms_Gnome_sort.dws`
-
-**Implementation Tasks**:
-
-- [x] 9.171.1 Helper: Create `ArrayHelper` structure in `internal/interp/helpers.go`
-- [x] 9.171.2 Method: Implement `.High` method (returns `len(arr) - 1` for dynamic, or high bound for static)
-- [x] 9.171.3 Method: Implement `.Low` method (returns 0 for dynamic, or low bound for static)
-- [x] 9.171.4 Method: Implement `.Length` method (returns `len(arr)`)
-- [x] 9.171.5 Registration: Add `ArrayHelper` to `initHelpers()` function
-- [x] 9.171.6 Semantic: Update analyzer to recognize array helpers (`internal/semantic/analyze_helpers.go`)
-- [x] 9.171.7 Test: Add helper tests in `internal/interp/helpers_test.go`
-- [x] 9.171.8 Test File: Create `testdata/helpers/array_helper.dws` demonstrating all three properties
-
-**Priority**: HIGH (unblocks multiple Rosetta examples, simple pattern replication)
-
-**Estimated Effort**: 0.5 weeks (~4 hours)
-
-**Technical Details**:
-
-```go
-var ArrayHelper = &HelperDeclaration{
-    TargetType: "array",
-    Methods: map[string]*BuiltinFunction{
-        "High": func(self Value, args []Value) (Value, error) {
-            arr := self.(*ArrayValue)
-            return &IntegerValue{Value: int64(len(arr.Elements) - 1)}, nil
-        },
-        "Low": func(self Value, args []Value) (Value, error) {
-            arr := self.(*ArrayValue)
-            // For dynamic arrays, low is always 0
-            if arr.ArrayType.IsDynamic {
-                return &IntegerValue{Value: 0}, nil
-            }
-            // For static arrays, return the low bound
-            return &IntegerValue{Value: int64(*arr.ArrayType.LowBound)}, nil
-        },
-        "Length": func(self Value, args []Value) (Value, error) {
-            arr := self.(*ArrayValue)
-            return &IntegerValue{Value: int64(len(arr.Elements))}, nil
-        },
-    },
-}
+**Context**: Death_Star.dws uses inline array initialization:
+```pascal
+var light : TVector = [-50.0, 30, 50];
 ```
+The parser currently fails with "expected next token to be SEMICOLON, got EQ" because it treats the type declaration as complete and doesn't expect an initializer.
 
-**Dependencies**: None (helper system already complete from tasks 9.129-9.136)
+**Current Error**: Parser doesn't recognize `[expr, expr, ...]` as an array literal expression.
+
+#### AST Nodes (2 tasks)
+
+- [ ] 9.181 Create `ArrayLiteralExpression` in `ast/arrays.go`:
+  - [ ] Fields: `Token lexer.Token`, `Elements []Expression`
+  - [ ] Implements `Expression` interface
+  - [ ] Support empty arrays: `[]`
+  - [ ] Support nested arrays: `[[1, 2], [3, 4]]`
+  - [ ] `String()` returns `[elem1, elem2, ...]`
+
+- [ ] 9.182 Add AST tests for array literals:
+  - [ ] Test simple: `[1, 2, 3]`
+  - [ ] Test with expressions: `[x+1, y*2, z-3]`
+  - [ ] Test nested: `[[1, 2], [3, 4]]`
+  - [ ] Test with negative numbers: `[-50.0, 30, 50]`
+  - [ ] Test empty: `[]`
+  - [ ] 6 test cases in `ast/arrays_test.go`
+
+#### Parser Support (3 tasks)
+
+- [ ] 9.183 Add prefix parse function for `LBRACKET`:
+  - [ ] Register `p.prefixParseFns[lexer.LBRACKET] = p.parseArrayLiteral`
+  - [ ] Distinguish from index access (which is infix)
+  - [ ] Array literal is prefix when `[` starts an expression
+
+- [ ] 9.184 Implement `parseArrayLiteral()` in `parser/arrays.go`:
+  - [ ] Parse opening `[` bracket
+  - [ ] Parse comma-separated element expressions (0 or more)
+  - [ ] Handle trailing comma (optional)
+  - [ ] Expect closing `]` bracket
+  - [ ] Return `ArrayLiteralExpression` node
+  - [ ] Add error recovery for malformed syntax
+
+- [ ] 9.185 Add parser tests for array literals:
+  - [ ] Test `[1, 2, 3]`
+  - [ ] Test `[-50.0, 30, 50]` (Death_Star.dws case)
+  - [ ] Test nested: `[[1, 2], [3, 4]]`
+  - [ ] Test empty: `[]`
+  - [ ] Test with expressions: `[x+1, Length(s), 42]`
+  - [ ] Test error cases: missing comma, unclosed bracket
+  - [ ] 8 test cases in `internal/parser/arrays_test.go`
+
+#### Semantic Analysis (2 tasks)
+
+- [ ] 9.186 Create `analyzeArrayLiteral` in `semantic/analyze_arrays.go`:
+  - [ ] Infer element type from first element (if any)
+  - [ ] Validate all elements have compatible types
+  - [ ] Report error if mixed incompatible types (e.g., `[1, "hello"]`)
+  - [ ] Allow numeric type promotion (Integer → Float if needed)
+  - [ ] Set inferred type: `array of <ElementType>`
+  - [ ] Handle empty arrays (require explicit type context)
+
+- [ ] 9.187 Add semantic tests for array literals:
+  - [ ] Test homogeneous: `[1, 2, 3]` → `array of Integer`
+  - [ ] Test type promotion: `[1, 2.5, 3]` → `array of Float`
+  - [ ] Test error: mixed types `[1, "hello"]`
+  - [ ] Test nested: `[[1, 2], [3, 4]]` → `array of array of Integer`
+  - [ ] 5 test cases in `internal/semantic/arrays_test.go`
+
+#### Interpreter Support (2 tasks)
+
+- [ ] 9.188 Implement `evalArrayLiteral` in `interp/array.go`:
+  - [ ] Evaluate each element expression in order
+  - [ ] Collect evaluated values into slice
+  - [ ] Create `ArrayValue` with elements
+  - [ ] Handle empty arrays (create with zero length)
+  - [ ] Handle nested arrays recursively
+
+- [ ] 9.189 Add interpreter tests for array literals:
+  - [ ] Test `var arr := [1, 2, 3]; PrintLn(arr[1]);` outputs `2`
+  - [ ] Test `var light := [-50.0, 30, 50]; PrintLn(light[0]);` outputs `-50.0`
+  - [ ] Test nested: `var matrix := [[1, 2], [3, 4]]; PrintLn(matrix[0][1]);` outputs `2`
+  - [ ] 5 test cases in `internal/interp/arrays_test.go`
+
+#### Testing & Documentation (1 task)
+
+- [ ] 9.190 Create test files and enable Death_Star.dws:
+  - [ ] Create `testdata/array_literals/array_literal_basic.dws`
+  - [ ] Create `testdata/array_literals/array_literal_nested.dws`
+  - [ ] Verify `var light : TVector = [-50.0, 30, 50];` parses and executes
+  - [ ] Add integration test in `pkg/dwscript/rosetta_examples_test.go`
 
 ---
 
-### 9.172 Multi-Index Array Syntax (arr[i, j]) (10 tasks) ✅ COMPLETE
+### 9.10 Type Inference in Variable Declarations (8 tasks)
 
-**Context**: DWScript supports two syntaxes for multi-dimensional arrays: nested `arr[i][j]` (works) and comma `arr[i, j]` (now works). Both are semantically identical. The comma syntax is syntactic sugar that gets desugared to nested index expressions during parsing.
-
-**Blocker for**: `examples/rosetta/Yin_and_yang.dws` (lines 20, 38, 42) - NOW UNBLOCKED ✅
-
-**Implementation Tasks**:
-
-- [x] 9.172.1 Parser: Modify `parseIndexExpression()` to detect comma after first index (`internal/parser/arrays.go:120-156`) ✅
-- [x] 9.172.2 Parser: Parse additional comma-separated indices into a slice ✅
-- [x] 9.172.3 Parser: Desugar `arr[i, j, k]` to nested `IndexExpression` nodes: `arr[i][j][k]` ✅
-- [x] 9.172.4 Parser Test: Add test for 2D comma syntax `arr[i, j]` (`internal/parser/arrays_test.go:808-860`) ✅
-- [x] 9.172.5 Parser Test: Add test for 3D comma syntax `arr[i, j, k]` (`internal/parser/arrays_test.go:862-911`) ✅
-- [x] 9.172.6 Parser Test: Verify mixed syntax `arr[i, j][k]` works (`internal/parser/arrays_test.go:968-1000`) ✅
-- [x] 9.172.7 Test File: Create `testdata/multi_index_comma.dws` with 2D and 3D examples ✅
-- [x] 9.172.8 Integration Test: Add CLI test for multi-index comma syntax (`cmd/dwscript/multi_index_test.go`) ✅
-- [x] 9.172.9 Verification: Confirm Yin_and_yang.dws and Levenshtein_distance.dws now parse ✅
-- [x] 9.172.10 Documentation: Added comprehensive docs in `internal/parser/arrays.go:10-35` ✅
-
-**Priority**: MEDIUM-HIGH (unblocks Rosetta example, moderate complexity)
-
-**Estimated Effort**: 1 week (~8 hours)
-
-**Technical Details**:
-
-Current `parseIndexExpression()` logic:
-```go
-func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
-    indexExpr := &ast.IndexExpression{Token: p.curToken, Left: left}
-    p.nextToken()
-    indexExpr.Index = p.parseExpression(LOWEST)
-    if !p.expectPeek(lexer.RBRACK) {
-        return nil
-    }
-    return indexExpr
-}
+**Context**: DWScript allows variable declarations without explicit type annotations when an initializer is present:
+```pascal
+var zsq = sph.r * sph.r - (x * x + y * y);
 ```
+The parser currently requires type annotations and fails with "expected next token to be SEMICOLON, got EQ".
 
-Proposed logic:
-```go
-func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
-    indexExpr := &ast.IndexExpression{Token: p.curToken, Left: left}
-    p.nextToken()
-    indexExpr.Index = p.parseExpression(LOWEST)
+**Current Grammar**: `var identifier : Type := initializer;`
+**Required Grammar**: `var identifier := initializer;` OR `var identifier = initializer;`
 
-    // Check for comma-separated indices
-    result := indexExpr
-    for p.peekTokenIs(lexer.COMMA) {
-        p.nextToken() // consume comma
-        p.nextToken() // move to next index expression
+#### Parser Support (3 tasks)
 
-        // Create nested IndexExpression
-        nextIndex := &ast.IndexExpression{
-            Token: p.curToken,
-            Left:  result,
-            Index: p.parseExpression(LOWEST),
-        }
-        result = nextIndex
-    }
+- [ ] 9.191 Update `parseVarStatement` to support type inference:
+  - [ ] After parsing identifier, check next token
+  - [ ] If `:`, parse explicit type annotation (existing behavior)
+  - [ ] If `:=` or `=`, skip type annotation (infer from initializer)
+  - [ ] Both `=` and `:=` should work for type-inferred vars
+  - [ ] Add error if neither type nor initializer provided
 
-    if !p.expectPeek(lexer.RBRACK) {
-        return nil
-    }
-    return result
-}
-```
+- [ ] 9.192 Update `VarStatement` AST node to allow nil type:
+  - [ ] Make `Type *TypeAnnotation` optional (can be nil)
+  - [ ] Add `Inferred bool` flag to indicate type was inferred
+  - [ ] Update `String()` to handle missing type: `var name = value`
+  - [ ] Ensure backward compatibility with explicit types
 
-**Alternative Approach**: Extend `IndexExpression` AST to support `Indices []Expression` slice, but this requires changes in semantic analyzer and interpreter. Desugaring approach is cleaner.
+- [ ] 9.193 Add parser tests for type inference:
+  - [ ] Test `var x = 42;` (integer inference)
+  - [ ] Test `var s = "hello";` (string inference)
+  - [ ] Test `var f = 3.14;` (float inference)
+  - [ ] Test `var arr = [1, 2, 3];` (array inference)
+  - [ ] Test `var rec = (x: 10; y: 20);` (record inference)
+  - [ ] Test error: `var x;` (no type, no initializer)
+  - [ ] Test backward compatibility: `var x: Integer := 42;` still works
+  - [ ] 8 test cases in `internal/parser/variables_test.go`
 
-**Dependencies**: None (nested indexing already works)
+#### Semantic Analysis (2 tasks)
+
+- [ ] 9.194 Update `analyzeVarStatement` to handle inference:
+  - [ ] If `Type` is nil, analyze initializer first
+  - [ ] Get inferred type from initializer expression
+  - [ ] Set variable's type to inferred type in symbol table
+  - [ ] Report error if initializer has no determinable type
+  - [ ] Report error if initializer is nil/untyped constant without context
+
+- [ ] 9.195 Add semantic tests for type inference:
+  - [ ] Test `var x = 42;` infers `Integer`
+  - [ ] Test `var f = 3.14;` infers `Float`
+  - [ ] Test `var s = "hello";` infers `String`
+  - [ ] Test `var arr = [1, 2, 3];` infers `array of Integer`
+  - [ ] Test error: `var x = [];` (can't infer from empty array)
+  - [ ] 6 test cases in `internal/semantic/variables_test.go`
+
+#### Interpreter Support (1 task)
+
+- [ ] 9.196 Update `evalVarStatement` for type inference:
+  - [ ] No interpreter changes needed (type already set by semantic analyzer)
+  - [ ] Add integration tests to verify execution
+  - [ ] Test `var x = 42; PrintLn(x);` outputs `42`
+  - [ ] Test `var arr = [1, 2, 3]; PrintLn(arr[1]);` outputs `2`
+
+#### Testing & Documentation (2 tasks)
+
+- [ ] 9.197 Create test files in `testdata/type_inference/`:
+  - [ ] `type_inference_basic.dws` - Simple cases
+  - [ ] `type_inference_arrays.dws` - Array literals
+  - [ ] `type_inference_records.dws` - Record literals
+  - [ ] Expected output files
+
+- [ ] 9.198 Enable Death_Star.dws type inference:
+  - [ ] Verify `var zsq = sph.r * sph.r - (x * x + y * y);` parses
+  - [ ] Add integration test in `pkg/dwscript/rosetta_examples_test.go`
 
 ---
 
-### 9.173 Complete Yin_and_yang.dws Support (4 tasks)
+### 9.11 Exit Statement with Return Value (8 tasks)
 
-**Context**: After completing tasks 9.170-9.172, the Yin_and_yang.dws Rosetta example should fully parse and execute. This task verifies end-to-end functionality.
-
-**Implementation Tasks**:
-
-- [ ] 9.173.1 Verification: Parse `examples/rosetta/Yin_and_yang.dws` without errors
-- [ ] 9.173.2 Verification: Run `examples/rosetta/Yin_and_yang.dws` and validate ASCII art output
-- [ ] 9.173.3 Test: Add to `pkg/dwscript/rosetta_examples_test.go` (should now pass)
-- [ ] 9.173.4 Documentation: Update `docs/rosetta-compatibility.md` - mark Yin_and_yang.dws as ✅ Working
-
-**Priority**: MEDIUM (verification and documentation)
-
-**Estimated Effort**: 0.25 weeks (~2 hours)
-
-**Expected Output**: The script should produce yin-yang ASCII art:
-
+**Context**: Death_Star.dws uses `Exit` with a return value:
+```pascal
+if (zsq < 0) then Exit False;
 ```
-           ######
-       ############
-     ################
-    ##################
-   ####################
-   ####################
-  ....##################
-  ......################
-  ........##############
- ..........##############
- ............############
- ..............##########
-....................######
-....................######
-......................####
-......................####
-........................##
-........................##
-........................##
-........................##
-......................####
-......................####
-....................######
-....................######
-..............##########
- ............############
- ..........##############
- ........##############
-  ......################
-  ....##################
-   ####################
-   ####################
-    ##################
-     ################
-       ############
-           ######
-```
+The parser currently fails with "no prefix parse function for FALSE" because it doesn't expect an expression after `Exit`.
 
-**Dependencies**: Tasks 9.170, 9.171, 9.172 must be complete
+**Current Implementation**: `Exit` is parsed as a standalone statement (no return value).
+**Required**: `Exit <expression>` to return a value from a function.
+
+#### AST Nodes (1 task)
+
+- [ ] 9.199 Update `ExitStatement` in `ast/statements.go`:
+  - [ ] Add optional `ReturnValue Expression` field (can be nil)
+  - [ ] Update `String()` to show value: `Exit value` or just `Exit`
+  - [ ] Distinguish from `ReturnStatement` (used in procedures/functions)
+  - [ ] DWScript uses `Exit` for early return, `Result :=` for setting return value
+
+#### Parser Support (2 tasks)
+
+- [ ] 9.200 Update `parseExitStatement` to handle return values:
+  - [ ] After `Exit` keyword, check if next token starts an expression
+  - [ ] If yes, parse expression as return value
+  - [ ] If semicolon or end of line, no return value (existing behavior)
+  - [ ] Support both `Exit value` and `Exit(value)` syntax
+  - [ ] Add tests for single-line: `Exit False;`
+
+- [ ] 9.201 Add parser tests for Exit with values:
+  - [ ] Test `Exit;` (no value, existing behavior)
+  - [ ] Test `Exit False;` (boolean return)
+  - [ ] Test `Exit 42;` (integer return)
+  - [ ] Test `Exit x + y;` (expression return)
+  - [ ] Test `Exit(value);` (parenthesized, like function call)
+  - [ ] 6 test cases in `internal/parser/statements_test.go`
+
+#### Semantic Analysis (2 tasks)
+
+- [ ] 9.202 Update `analyzeExitStatement` to check return types:
+  - [ ] Get current function's declared return type
+  - [ ] If `ReturnValue` is present, validate type matches function return type
+  - [ ] Report error if types don't match
+  - [ ] Report error if `Exit value` used outside a function
+  - [ ] Report error if `Exit` (no value) used in function expecting return type
+
+- [ ] 9.203 Add semantic tests for Exit statements:
+  - [ ] Test valid: `function GetValue: Integer; begin Exit 42; end;`
+  - [ ] Test error: `function GetValue: Integer; begin Exit "hello"; end;` (wrong type)
+  - [ ] Test error: `Exit 42;` at program scope (not in function)
+  - [ ] Test valid: `procedure DoSomething; begin Exit; end;` (no value for procedure)
+  - [ ] 5 test cases in `internal/semantic/statements_test.go`
+
+#### Interpreter Support (2 tasks)
+
+- [ ] 9.204 Update `evalExitStatement` to return values:
+  - [ ] If `ReturnValue` is present, evaluate expression
+  - [ ] Return evaluated value wrapped in `ExitSignal` or similar control flow type
+  - [ ] If no value, return `ExitSignal` with nil (existing behavior)
+  - [ ] Ensure function caller receives the return value
+
+- [ ] 9.205 Add interpreter tests for Exit with values:
+  - [ ] Test function returning via Exit: `function Test: Boolean; begin Exit False; end;`
+  - [ ] Test early exit: `if condition then Exit value else Exit otherValue;`
+  - [ ] Test `Exit` in nested blocks (if/while/for)
+  - [ ] 4 test cases in `internal/interp/statements_test.go`
+
+#### Testing & Documentation (1 task)
+
+- [ ] 9.206 Create test files and enable Death_Star.dws:
+  - [ ] Create `testdata/exit_statement/exit_with_value.dws`
+  - [ ] Verify `if (zsq < 0) then Exit False;` parses and executes
+  - [ ] Test boolean function: returns False on condition
+  - [ ] Add integration test in `pkg/dwscript/rosetta_examples_test.go`
+
+---
+
 
 ---
 

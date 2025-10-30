@@ -71,7 +71,29 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 	}
 
 	if stmt.Value != nil {
-		value = i.Eval(stmt.Value)
+		// Task 9.177: Special handling for anonymous record literals - they need type context
+		if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+			// Anonymous record literal needs explicit type
+			if stmt.Type == nil {
+				return newError("anonymous record literal requires explicit type annotation")
+			}
+			typeName := stmt.Type.Name
+			recordTypeKey := "__record_type_" + typeName
+			if typeVal, ok := i.env.Get(recordTypeKey); ok {
+				if rtv, ok := typeVal.(*RecordTypeValue); ok {
+					// Temporarily set the type name for evaluation
+					recordLit.TypeName = &ast.Identifier{Value: rtv.RecordType.Name}
+					value = i.Eval(recordLit)
+					recordLit.TypeName = nil
+				} else {
+					return newError("type '%s' is not a record type", typeName)
+				}
+			} else {
+				return newError("unknown type '%s'", typeName)
+			}
+		} else {
+			value = i.Eval(stmt.Value)
+		}
 		if isError(value) {
 			return value
 		}
@@ -265,7 +287,31 @@ func (i *Interpreter) evalConstDecl(stmt *ast.ConstDecl) Value {
 	}
 
 	// Evaluate the constant value
-	value := i.Eval(stmt.Value)
+	var value Value
+
+	// Task 9.177: Special handling for anonymous record literals - they need type context
+	if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+		// Anonymous record literal needs explicit type
+		if stmt.Type == nil {
+			return newError("anonymous record literal requires explicit type annotation")
+		}
+		typeName := stmt.Type.Name
+		recordTypeKey := "__record_type_" + typeName
+		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				// Temporarily set the type name for evaluation
+				recordLit.TypeName = &ast.Identifier{Value: rtv.RecordType.Name}
+				value = i.Eval(recordLit)
+				recordLit.TypeName = nil
+			} else {
+				return newError("type '%s' is not a record type", typeName)
+			}
+		} else {
+			return newError("unknown type '%s'", typeName)
+		}
+	} else {
+		value = i.Eval(stmt.Value)
+	}
 	if isError(value) {
 		return value
 	}
@@ -313,16 +359,16 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 	} else {
 		// Regular assignment - evaluate the value to assign
 		// Special handling for record literals without type names
-		if recordLit, ok := stmt.Value.(*ast.RecordLiteral); ok && recordLit.TypeName == "" {
+		if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
 			// This is an untyped record literal - get type from target variable if it's a simple identifier
 			if targetIdent, ok := stmt.Target.(*ast.Identifier); ok {
 				targetVar, exists := i.env.Get(targetIdent.Value)
 				if exists {
 					if recVal, ok := targetVar.(*RecordValue); ok {
 						// Set the type name in the literal temporarily
-						recordLit.TypeName = recVal.RecordType.Name
+						recordLit.TypeName = &ast.Identifier{Value: recVal.RecordType.Name}
 						value = i.Eval(recordLit)
-						recordLit.TypeName = ""
+						recordLit.TypeName = nil
 					} else {
 						value = i.Eval(stmt.Value)
 					}

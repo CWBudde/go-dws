@@ -253,15 +253,20 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 }
 
 // parseRecordLiteral parses a record literal expression.
-// Pattern: (X: 10, Y: 20) or (10, 20)
+// DWScript supports both semicolon and comma as separators:
+//   - (x: 10; y: 20) - semicolon separator (preferred)
+//   - (x: 10, y: 20) - comma separator (also valid)
+//   - (10, 20) - positional initialization (not yet implemented)
+//
 // Called when we see '(' and need to determine if it's a record literal or grouped expression.
 // This is called from parseGroupedExpression when it detects a record literal pattern.
 //
-// Task 8.63: Parse record literals
-func (p *Parser) parseRecordLiteral() *ast.RecordLiteral {
-	recordLit := &ast.RecordLiteral{
-		Token:  p.curToken, // '(' token
-		Fields: []ast.RecordField{},
+// Task 9.169-9.174: Parse record literals with named fields
+func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
+	recordLit := &ast.RecordLiteralExpression{
+		Token:    p.curToken, // '(' token
+		TypeName: nil,        // Anonymous record (type inferred from context)
+		Fields:   []*ast.FieldInitializer{},
 	}
 
 	// Check for empty literal
@@ -274,32 +279,46 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteral {
 	p.nextToken()
 
 	for !p.curTokenIs(lexer.RPAREN) && !p.curTokenIs(lexer.EOF) {
-		field := ast.RecordField{}
-
 		// Check if this is named field initialization (Name: Value)
 		// We need to look ahead to see if there's a colon
 		if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
-			// Named field
-			field.Name = p.curToken.Literal
+			// Named field initialization
+			fieldNameToken := p.curToken
+			fieldName := &ast.Identifier{Token: fieldNameToken, Value: fieldNameToken.Literal}
+
 			p.nextToken() // move to ':'
 			p.nextToken() // move to value expression
 
 			// Parse value expression
-			field.Value = p.parseExpression(LOWEST)
+			value := p.parseExpression(LOWEST)
+			if value == nil {
+				p.addError("expected expression after ':' in record literal field")
+				return nil
+			}
+
+			fieldInit := &ast.FieldInitializer{
+				Token: fieldNameToken,
+				Name:  fieldName,
+				Value: value,
+			}
+
+			recordLit.Fields = append(recordLit.Fields, fieldInit)
 		} else {
-			// Positional field - just parse the expression
-			field.Name = "" // Empty name indicates positional
-			field.Value = p.parseExpression(LOWEST)
+			// Positional field - not yet implemented
+			p.addError("positional record field initialization not yet supported")
+			return nil
 		}
 
-		recordLit.Fields = append(recordLit.Fields, field)
-
-		// Check for comma (more fields)
-		if p.peekTokenIs(lexer.COMMA) {
-			p.nextToken() // move to comma
+		// Check for separator (comma or semicolon - both valid in DWScript)
+		if p.peekTokenIs(lexer.COMMA) || p.peekTokenIs(lexer.SEMICOLON) {
+			p.nextToken() // move to separator
+			// Allow optional trailing separator
+			if p.peekTokenIs(lexer.RPAREN) {
+				break
+			}
 			p.nextToken() // move to next field
 		} else if !p.peekTokenIs(lexer.RPAREN) {
-			p.addError("expected ',' or ')' in record literal")
+			p.addError("expected ',' or ';' or ')' in record literal")
 			return nil
 		}
 	}

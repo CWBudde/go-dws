@@ -72,7 +72,7 @@ func (r *RecordTypeValue) String() string {
 
 // evalRecordLiteral evaluates a record literal expression.
 // Examples: (X: 10, Y: 20) or TPoint(X: 10, Y: 20)
-func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteral) Value {
+func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Value {
 	if literal == nil {
 		return &ErrorValue{Message: "nil record literal"}
 	}
@@ -84,8 +84,9 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteral) Value {
 	var recordType *types.RecordType
 
 	// If the literal has an explicit type name, use it
-	if literal.TypeName != "" {
-		recordTypeKey := "__record_type_" + literal.TypeName
+	if literal.TypeName != nil {
+		typeName := literal.TypeName.Value
+		recordTypeKey := "__record_type_" + typeName
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				recordType = rtv.RecordType
@@ -93,7 +94,7 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteral) Value {
 		}
 
 		if recordType == nil {
-			return &ErrorValue{Message: fmt.Sprintf("unknown record type '%s'", literal.TypeName)}
+			return &ErrorValue{Message: fmt.Sprintf("unknown record type '%s'", typeName)}
 		}
 	} else {
 		// For untyped literals, we need to get the type from context
@@ -110,7 +111,12 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteral) Value {
 
 	// Evaluate and assign field values
 	for _, field := range literal.Fields {
-		fieldName := field.Name
+		// Skip positional fields (not yet implemented)
+		if field.Name == nil {
+			return &ErrorValue{Message: "positional record field initialization not yet supported"}
+		}
+
+		fieldName := field.Name.Value
 
 		// Check if field exists in record type
 		if _, exists := recordType.Fields[fieldName]; !exists {

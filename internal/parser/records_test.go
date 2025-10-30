@@ -263,9 +263,9 @@ func TestParseRecordLiterals(t *testing.T) {
 			t.Fatalf("statement is not *ast.VarDeclStatement, got %T", program.Statements[0])
 		}
 
-		recordLit, ok := varDecl.Value.(*ast.RecordLiteral)
+		recordLit, ok := varDecl.Value.(*ast.RecordLiteralExpression)
 		if !ok {
-			t.Fatalf("var value is not *ast.RecordLiteral, got %T", varDecl.Value)
+			t.Fatalf("var value is not *ast.RecordLiteralExpression, got %T", varDecl.Value)
 		}
 
 		if len(recordLit.Fields) != 2 {
@@ -273,8 +273,8 @@ func TestParseRecordLiterals(t *testing.T) {
 		}
 
 		// Check first field (X: 10)
-		if recordLit.Fields[0].Name != "X" {
-			t.Errorf("Fields[0].Name = %s, want 'X'", recordLit.Fields[0].Name)
+		if recordLit.Fields[0].Name.Value != "X" {
+			t.Errorf("Fields[0].Name.Value = %s, want 'X'", recordLit.Fields[0].Name.Value)
 		}
 		intLit, ok := recordLit.Fields[0].Value.(*ast.IntegerLiteral)
 		if !ok {
@@ -285,8 +285,8 @@ func TestParseRecordLiterals(t *testing.T) {
 		}
 
 		// Check second field (Y: 20)
-		if recordLit.Fields[1].Name != "Y" {
-			t.Errorf("Fields[1].Name = %s, want 'Y'", recordLit.Fields[1].Name)
+		if recordLit.Fields[1].Name.Value != "Y" {
+			t.Errorf("Fields[1].Name.Value = %s, want 'Y'", recordLit.Fields[1].Name.Value)
 		}
 	})
 
