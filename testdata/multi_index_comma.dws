@@ -1,0 +1,71 @@
+// Multi-Index Comma Syntax Test
+// Task 9.172: Test both comma and bracket syntax for multi-dimensional arrays
+
+var matrix: array of array of Integer;
+var cube: array of array of array of String;
+var i, j, k: Integer;
+var value: Integer;
+var str: String;
+
+begin
+  // Initialize 2D array
+  matrix := new Integer[3, 4];
+
+  // Test 2D array access with comma syntax
+  matrix[0, 0] := 10;
+  matrix[1, 2] := 20;
+  matrix[2, 3] := 30;
+
+  // Test reading with comma syntax
+  value := matrix[0, 0];
+  PrintLn('matrix[0, 0] = ' + IntToStr(value));  // Should print 10
+
+  value := matrix[1, 2];
+  PrintLn('matrix[1, 2] = ' + IntToStr(value));  // Should print 20
+
+  // Test equivalence: comma syntax vs bracket syntax
+  matrix[1][1] := 15;
+  value := matrix[1, 1];
+  PrintLn('matrix[1, 1] = ' + IntToStr(value));  // Should print 15
+
+  // Test with expressions as indices
+  i := 0;
+  j := 0;
+  matrix[i, j] := 42;
+  PrintLn('matrix[i, j] = ' + IntToStr(matrix[i, j]));  // Should print 42
+
+  // Test with complex expressions
+  matrix[i + 1, j + 2] := 99;
+  PrintLn('matrix[1, 2] = ' + IntToStr(matrix[1, 2]));  // Should print 99
+
+  // Initialize 3D array
+  cube := new String[2, 3, 4];
+
+  // Test 3D array access with comma syntax
+  cube[0, 0, 0] := 'aaa';
+  cube[1, 2, 3] := 'xyz';
+
+  // Test reading from 3D array
+  str := cube[0, 0, 0];
+  PrintLn('cube[0, 0, 0] = ' + str);  // Should print 'aaa'
+
+  str := cube[1, 2, 3];
+  PrintLn('cube[1, 2, 3] = ' + str);  // Should print 'xyz'
+
+  // Test mixed syntax: comma then bracket
+  cube[0, 1][2] := 'mixed';
+  PrintLn('cube[0, 1, 2] = ' + cube[0, 1, 2]);  // Should print 'mixed'
+
+  // Test with variables
+  i := 1;
+  j := 2;
+  k := 3;
+  cube[i, j, k] := 'vars';
+  PrintLn('cube[1, 2, 3] = ' + cube[i, j, k]);  // Should print 'vars'
+
+  // Demonstrate equivalence with all bracket syntax
+  cube[0][1][1] := 'brackets';
+  PrintLn('cube[0, 1, 1] = ' + cube[0, 1, 1]);  // Should print 'brackets'
+
+  PrintLn('All multi-index comma syntax tests passed!');
+end.

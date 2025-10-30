@@ -267,15 +267,26 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 		}
 	}
 	// Task 9.161: Check function pointer assignment compatibility
-	if to.TypeKind() == "FUNCTION_POINTER" || to.TypeKind() == "METHOD_POINTER" {
+	// Task 9.173: Resolve type aliases before checking function pointer compatibility
+	toUnderlying := types.GetUnderlyingType(to)
+	fromUnderlying := types.GetUnderlyingType(from)
+
+	if toUnderlying.TypeKind() == "FUNCTION_POINTER" || toUnderlying.TypeKind() == "METHOD_POINTER" {
 		// Use dedicated function pointer validation which provides detailed errors
 		// Note: We don't call validateFunctionPointerAssignment here because it reports errors
 		// Instead, we check compatibility directly
-		if toFuncPtr, ok := to.(*types.FunctionPointerType); ok {
-			return toFuncPtr.IsCompatibleWith(from)
+
+		// Task 9.173: Allow method pointers to be assigned to function pointers
+		// Check if from (source) can be assigned to to (destination)
+		if fromMethodPtr, ok := fromUnderlying.(*types.MethodPointerType); ok {
+			return fromMethodPtr.IsCompatibleWith(toUnderlying)
 		}
-		if toMethodPtr, ok := to.(*types.MethodPointerType); ok {
-			return toMethodPtr.IsCompatibleWith(from)
+
+		if toFuncPtr, ok := toUnderlying.(*types.FunctionPointerType); ok {
+			return toFuncPtr.IsCompatibleWith(fromUnderlying)
+		}
+		if toMethodPtr, ok := toUnderlying.(*types.MethodPointerType); ok {
+			return toMethodPtr.IsCompatibleWith(fromUnderlying)
 		}
 	}
 	if sig, ok := a.conversionRegistry.FindImplicit(from, to); ok && sig != nil {

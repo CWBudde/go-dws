@@ -185,12 +185,88 @@ const NAME = 'test';
 	}
 }
 
+func TestParseConstDeclarationWithAssign(t *testing.T) {
+	input := `const PI := 3.14;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ConstDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ConstDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if stmt.Name.Value != "PI" {
+		t.Errorf("stmt.Name.Value not 'PI'. got=%s", stmt.Name.Value)
+	}
+
+	floatLit, ok := stmt.Value.(*ast.FloatLiteral)
+	if !ok {
+		t.Fatalf("stmt.Value is not *ast.FloatLiteral. got=%T", stmt.Value)
+	}
+
+	if floatLit.Value != 3.14 {
+		t.Errorf("floatLit.Value not 3.14. got=%f", floatLit.Value)
+	}
+}
+
+func TestParseConstDeclarationBothSyntaxes(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"with equals", `const PI = 3.14;`},
+		{"with assign", `const PI := 3.14;`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+					len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.ConstDecl)
+			if !ok {
+				t.Fatalf("program.Statements[0] is not *ast.ConstDecl. got=%T",
+					program.Statements[0])
+			}
+
+			if stmt.Name.Value != "PI" {
+				t.Errorf("stmt.Name.Value not 'PI'. got=%s", stmt.Name.Value)
+			}
+
+			floatLit, ok := stmt.Value.(*ast.FloatLiteral)
+			if !ok {
+				t.Fatalf("stmt.Value is not *ast.FloatLiteral. got=%T", stmt.Value)
+			}
+
+			if floatLit.Value != 3.14 {
+				t.Errorf("floatLit.Value not 3.14. got=%f", floatLit.Value)
+			}
+		})
+	}
+}
+
 func TestParseConstDeclarationErrors(t *testing.T) {
 	tests := []struct {
 		input         string
 		expectedError string
 	}{
-		{"const PI;", "expected '=' after const name"},
+		{"const PI;", "expected '=' or ':=' after const name"},
 		{"const PI =;", "no prefix parse function for SEMICOLON found"},
 		{"const = 3.14;", "expected next token to be IDENT"},
 		{"const PI: = 3.14;", "expected type identifier after ':' in const declaration"},
