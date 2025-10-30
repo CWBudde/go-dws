@@ -1,0 +1,150 @@
+// Interface Variables Test
+// Tests: interface variable declarations, assignments, method calls, polymorphism, and inheritance
+
+begin
+PrintLn('=== Interface Variables Test ===');
+
+// Test 1: Simple interface variable declaration and method call
+type ITest = interface
+    function Get(): Integer;
+end;
+
+type TTestImpl = class(TObject, ITest)
+public
+    function Get(): Integer;
+    begin
+        Result := 100;
+    end;
+end;
+
+var test: ITest;
+test := TTestImpl.Create();
+if test.Get() = 100 then
+    PrintLn('Test 1: Simple interface variable - PASS')
+else
+    PrintLn('Test 1: Simple interface variable - FAIL');
+
+// Test 2: Polymorphism - different classes assigned to same interface variable
+type IShape = interface
+    function GetArea(): Integer;
+end;
+
+type TSquare = class(TObject, IShape)
+private
+    FSide: Integer;
+public
+    constructor Create(side: Integer);
+    begin
+        FSide := side;
+    end;
+
+    function GetArea(): Integer;
+    begin
+        Result := FSide * FSide;
+    end;
+end;
+
+type TRectangle = class(TObject, IShape)
+private
+    FWidth: Integer;
+    FHeight: Integer;
+public
+    constructor Create(width, height: Integer);
+    begin
+        FWidth := width;
+        FHeight := height;
+    end;
+
+    function GetArea(): Integer;
+    begin
+        Result := FWidth * FHeight;
+    end;
+end;
+
+var shape: IShape;
+shape := TSquare.Create(5);
+var area1: Integer := shape.GetArea();
+
+shape := TRectangle.Create(4, 6);
+var area2: Integer := shape.GetArea();
+
+if (area1 = 25) and (area2 = 24) then
+    PrintLn('Test 2: Polymorphism with different classes - PASS')
+else
+    PrintLn('Test 2: Polymorphism with different classes - FAIL');
+
+// Test 3: Interface inheritance
+type IBaseService = interface
+    function GetName(): String;
+end;
+
+type IDerivedService = interface(IBaseService)
+    function GetVersion(): Integer;
+end;
+
+type TService = class(TObject, IDerivedService)
+public
+    function GetName(): String;
+    begin
+        Result := 'MyService';
+    end;
+
+    function GetVersion(): Integer;
+    begin
+        Result := 2;
+    end;
+end;
+
+var baseService: IBaseService;
+var derivedService: IDerivedService;
+var service: TService;
+
+service := TService.Create();
+derivedService := service;
+baseService := derivedService;
+
+if (baseService.GetName() = 'MyService') and (derivedService.GetVersion() = 2) then
+    PrintLn('Test 3: Interface inheritance - PASS')
+else
+    PrintLn('Test 3: Interface inheritance - FAIL');
+
+// Test 4: Multiple interface implementations
+type IReadable = interface
+    function ReadData(): String;
+end;
+
+type IWritable = interface
+    procedure WriteData(data: String);
+end;
+
+type TBuffer = class(TObject, IReadable, IWritable)
+private
+    FData: String;
+public
+    function ReadData(): String;
+    begin
+        Result := FData;
+    end;
+
+    procedure WriteData(data: String);
+    begin
+        FData := data;
+    end;
+end;
+
+var reader: IReadable;
+var writer: IWritable;
+var buffer: TBuffer;
+
+buffer := TBuffer.Create();
+writer := buffer;
+writer.WriteData('Hello World');
+reader := buffer;
+
+if reader.ReadData() = 'Hello World' then
+    PrintLn('Test 4: Multiple interface implementations - PASS')
+else
+    PrintLn('Test 4: Multiple interface implementations - FAIL');
+
+PrintLn('=== All Interface Variables Tests Complete ===');
+end

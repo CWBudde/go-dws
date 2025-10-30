@@ -252,6 +252,21 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 				return true
 			}
 		}
+		// Task 9.207: Allow assigning a class to an interface it implements
+		if toInterface, ok := to.(*types.InterfaceType); ok {
+			if fromClass.ImplementsInterface(toInterface) {
+				return true
+			}
+		}
+	}
+	// Task 9.209: Allow assigning an interface to another compatible interface
+	if fromInterface, ok := from.(*types.InterfaceType); ok {
+		if toInterface, ok := to.(*types.InterfaceType); ok {
+			// Same interface or derived interface can be assigned to base interface
+			if fromInterface.Equals(toInterface) || fromInterface.InheritsFrom(toInterface) {
+				return true
+			}
+		}
 	}
 	// Task 9.98: Check type compatibility for subrange ↔ base type assignments
 	// Subrange values can be assigned to their base type (no check needed)
