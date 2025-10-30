@@ -267,6 +267,8 @@ func TestLookupIdent(t *testing.T) {
 		{"PascalCase", IDENT},
 		{"UPPERCASE", IDENT},
 		{"lowercase", IDENT},
+		{"pascal", IDENT},
+		{"Pascal", IDENT},
 	}
 
 	for _, tt := range tests {
@@ -312,7 +314,7 @@ func TestIsKeyword(t *testing.T) {
 	}
 
 	// Test non-keywords
-	nonKeywords := []string{"myVar", "MyClass", "x123", "_test", "notAKeyword"}
+	nonKeywords := []string{"myVar", "MyClass", "x123", "_test", "notAKeyword", "pascal"}
 	for _, nk := range nonKeywords {
 		t.Run(nk, func(t *testing.T) {
 			if IsKeyword(nk) {
@@ -339,6 +341,8 @@ func TestGetKeywordLiteral(t *testing.T) {
 		{"NIL", "nil"},
 
 		// Non-keywords should be unchanged
+		{"pascal", "pascal"},
+		{"Pascal", "Pascal"},
 		{"MyClass", "MyClass"},
 		{"myVar", "myVar"},
 		{"CONSTANT", "CONSTANT"},
@@ -368,7 +372,7 @@ func TestAllKeywordsCovered(t *testing.T) {
 		NOT, AND, OR, XOR,
 		TRUE, FALSE, NIL, IS, AS, IN, DIV, MOD, SHL, SHR, SAR,
 		INLINE, EXTERNAL, FORWARD, OVERLOAD, DEPRECATED, READONLY, EXPORT,
-		REGISTER, PASCAL, CDECL, SAFECALL, STDCALL, FASTCALL, REFERENCE,
+		REGISTER, CDECL, SAFECALL, STDCALL, FASTCALL, REFERENCE,
 		PRIVATE, PROTECTED, PUBLIC, PUBLISHED, STRICT,
 		READ, WRITE, DEFAULT, DESCRIPTION,
 		OLD, REQUIRE, ENSURE, INVARIANTS,

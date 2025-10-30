@@ -795,7 +795,7 @@ func TestAllKeywords(t *testing.T) {
 		"true", "false", "nil",
 		"is", "as", "in", "div", "mod", "shl", "shr", "sar", "impl",
 		"inline", "external", "forward", "overload", "deprecated",
-		"readonly", "export", "register", "pascal", "cdecl",
+		"readonly", "export", "register", "cdecl",
 		"safecall", "stdcall", "fastcall", "reference",
 		"private", "protected", "public", "published", "strict",
 		"read", "write", "default", "description",
@@ -1383,13 +1383,13 @@ PrintLn(Δ);`
 func TestDebugSHR(t *testing.T) {
 	input := "shl shr"
 	l := New(input)
-	
+
 	tok1 := l.NextToken()
 	t.Logf("Token 1: Type=%s, Literal=%q", tok1.Type, tok1.Literal)
-	
+
 	tok2 := l.NextToken()
 	t.Logf("Token 2: Type=%s, Literal=%q", tok2.Type, tok2.Literal)
-	
+
 	if tok1.Type != SHL {
 		t.Errorf("Expected SHL, got %s", tok1.Type)
 	}
@@ -1400,9 +1400,9 @@ func TestDebugSHR(t *testing.T) {
 
 func TestDebugPositions(t *testing.T) {
 	l := New("shr")
-	
+
 	t.Logf("Initial: pos=%d, readPos=%d, ch=%q", l.position, l.readPosition, l.ch)
-	
+
 	// Manually test readIdentifier
 	startPos := l.position
 	l.readChar()
@@ -1411,7 +1411,7 @@ func TestDebugPositions(t *testing.T) {
 	t.Logf("After 2nd readChar: pos=%d, readPos=%d, ch=%q", l.position, l.readPosition, l.ch)
 	l.readChar()
 	t.Logf("After 3rd readChar: pos=%d, readPos=%d, ch=%q", l.position, l.readPosition, l.ch)
-	
+
 	result := l.input[startPos:l.position]
 	t.Logf("Identifier slice [%d:%d] = %q", startPos, l.position, result)
 }
