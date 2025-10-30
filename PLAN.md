@@ -1214,6 +1214,220 @@ var dynamic := new String[Length(s)+1]; // Size from expression
 - ✅ All three keywords (`method`, `function`, `procedure`) work interchangeably for instance methods
 - ✅ Yin_and_yang.dws methods now parse (but other blockers remain: inline array types, `.High` property, multi-index syntax)
 
+### 9.170 Inline Array Types in Class Fields (6 tasks)
+
+**Context**: Class fields currently only accept simple type identifiers (`x: Integer`). DWScript allows inline array type declarations like `Pix : array of array of Integer;` which is used in Yin_and_yang.dws. The `parseTypeExpression()` function already handles array types, but `parseFieldDeclarations()` doesn't use it.
+
+**Blocker for**: `examples/rosetta/Yin_and_yang.dws` (line 7), `pkg/dwscript/rosetta_examples_test.go`
+
+**Implementation Tasks**:
+
+- [x] 9.170.1 Parser: Modify `parseFieldDeclarations()` to call `parseTypeExpression()` instead of expecting `IDENT` (`internal/parser/classes.go:326-334`)
+- [x] 9.170.2 Parser Test: Add test case for class with `array of array of Integer` field (`internal/parser/classes_test.go`)
+- [x] 9.170.3 Parser Test: Add test for dynamic arrays `array of String`, static arrays `array[1..10] of Integer`
+- [x] 9.170.4 Test File: Create `testdata/classes/inline_array_fields.dws` demonstrating various array field types
+- [x] 9.170.5 Integration Test: Add CLI test in `cmd/dwscript/classes_integration_test.go`
+- [x] 9.170.6 Verification: Confirm Yin_and_yang.dws line 7 now parses
+
+**Priority**: HIGH (unblocks Rosetta example, trivial parser fix)
+
+**Estimated Effort**: 0.25 weeks (~2 hours)
+
+**Technical Details**:
+
+- Current code at `classes.go:326`: `if !p.expectPeek(lexer.IDENT) { return nil }`
+- Replace with: `fieldType := p.parseTypeExpression()`
+- `parseTypeExpression()` already exists at `internal/parser/types.go:23-44`
+- Handles: simple types, array types, function pointer types
+- No AST changes needed - `TypeAnnotation` already supports complex types
+- Semantic analyzer and interpreter already handle array-typed fields correctly
+
+**Dependencies**: None
+
+---
+
+### 9.171 Array Helper Properties (.High, .Low, .Length) (8 tasks)
+
+**Context**: Arrays need helper properties similar to `StringHelper.Length`. DWScript arrays support `.High` (highest index), `.Low` (lowest index), and `.Length` (size). The helper system exists and works for String/Integer, but no `ArrayHelper` is registered.
+
+**Blocker for**: `examples/rosetta/Yin_and_yang.dws` (lines 18, 19), `examples/rosetta/Sorting_algorithms_Gnome_sort.dws`
+
+**Implementation Tasks**:
+
+- [x] 9.171.1 Helper: Create `ArrayHelper` structure in `internal/interp/helpers.go`
+- [x] 9.171.2 Method: Implement `.High` method (returns `len(arr) - 1` for dynamic, or high bound for static)
+- [x] 9.171.3 Method: Implement `.Low` method (returns 0 for dynamic, or low bound for static)
+- [x] 9.171.4 Method: Implement `.Length` method (returns `len(arr)`)
+- [x] 9.171.5 Registration: Add `ArrayHelper` to `initHelpers()` function
+- [x] 9.171.6 Semantic: Update analyzer to recognize array helpers (`internal/semantic/analyze_helpers.go`)
+- [x] 9.171.7 Test: Add helper tests in `internal/interp/helpers_test.go`
+- [x] 9.171.8 Test File: Create `testdata/helpers/array_helper.dws` demonstrating all three properties
+
+**Priority**: HIGH (unblocks multiple Rosetta examples, simple pattern replication)
+
+**Estimated Effort**: 0.5 weeks (~4 hours)
+
+**Technical Details**:
+
+```go
+var ArrayHelper = &HelperDeclaration{
+    TargetType: "array",
+    Methods: map[string]*BuiltinFunction{
+        "High": func(self Value, args []Value) (Value, error) {
+            arr := self.(*ArrayValue)
+            return &IntegerValue{Value: int64(len(arr.Elements) - 1)}, nil
+        },
+        "Low": func(self Value, args []Value) (Value, error) {
+            arr := self.(*ArrayValue)
+            // For dynamic arrays, low is always 0
+            if arr.ArrayType.IsDynamic {
+                return &IntegerValue{Value: 0}, nil
+            }
+            // For static arrays, return the low bound
+            return &IntegerValue{Value: int64(*arr.ArrayType.LowBound)}, nil
+        },
+        "Length": func(self Value, args []Value) (Value, error) {
+            arr := self.(*ArrayValue)
+            return &IntegerValue{Value: int64(len(arr.Elements))}, nil
+        },
+    },
+}
+```
+
+**Dependencies**: None (helper system already complete from tasks 9.129-9.136)
+
+---
+
+### 9.172 Multi-Index Array Syntax (arr[i, j]) (10 tasks)
+
+**Context**: DWScript supports two syntaxes for multi-dimensional arrays: nested `arr[i][j]` (works) and comma `arr[i, j]` (doesn't work). Both are semantically identical. The comma syntax is syntactic sugar that should desugar to nested index expressions during parsing.
+
+**Blocker for**: `examples/rosetta/Yin_and_yang.dws` (lines 20, 38, 42)
+
+**Implementation Tasks**:
+
+- [ ] 9.172.1 Parser: Modify `parseIndexExpression()` to detect comma after first index (`internal/parser/arrays.go:106-135`)
+- [ ] 9.172.2 Parser: Parse additional comma-separated indices into a slice
+- [ ] 9.172.3 Parser: Desugar `arr[i, j, k]` to nested `IndexExpression` nodes: `arr[i][j][k]`
+- [ ] 9.172.4 Parser Test: Add test for 2D comma syntax `arr[i, j]` (`internal/parser/arrays_test.go`)
+- [ ] 9.172.5 Parser Test: Add test for 3D comma syntax `arr[i, j, k]`
+- [ ] 9.172.6 Parser Test: Verify mixed syntax `arr[i, j][k]` works
+- [ ] 9.172.7 Test File: Create `testdata/arrays/multi_index_comma.dws` with 2D and 3D examples
+- [ ] 9.172.8 Integration Test: Add CLI test for multi-index comma syntax
+- [ ] 9.172.9 Verification: Confirm Yin_and_yang.dws lines 20, 38, 42 now parse
+- [ ] 9.172.10 Documentation: Update `docs/arrays.md` (if exists) or add note to feature docs
+
+**Priority**: MEDIUM-HIGH (unblocks Rosetta example, moderate complexity)
+
+**Estimated Effort**: 1 week (~8 hours)
+
+**Technical Details**:
+
+Current `parseIndexExpression()` logic:
+```go
+func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
+    indexExpr := &ast.IndexExpression{Token: p.curToken, Left: left}
+    p.nextToken()
+    indexExpr.Index = p.parseExpression(LOWEST)
+    if !p.expectPeek(lexer.RBRACK) {
+        return nil
+    }
+    return indexExpr
+}
+```
+
+Proposed logic:
+```go
+func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
+    indexExpr := &ast.IndexExpression{Token: p.curToken, Left: left}
+    p.nextToken()
+    indexExpr.Index = p.parseExpression(LOWEST)
+
+    // Check for comma-separated indices
+    result := indexExpr
+    for p.peekTokenIs(lexer.COMMA) {
+        p.nextToken() // consume comma
+        p.nextToken() // move to next index expression
+
+        // Create nested IndexExpression
+        nextIndex := &ast.IndexExpression{
+            Token: p.curToken,
+            Left:  result,
+            Index: p.parseExpression(LOWEST),
+        }
+        result = nextIndex
+    }
+
+    if !p.expectPeek(lexer.RBRACK) {
+        return nil
+    }
+    return result
+}
+```
+
+**Alternative Approach**: Extend `IndexExpression` AST to support `Indices []Expression` slice, but this requires changes in semantic analyzer and interpreter. Desugaring approach is cleaner.
+
+**Dependencies**: None (nested indexing already works)
+
+---
+
+### 9.173 Complete Yin_and_yang.dws Support (4 tasks)
+
+**Context**: After completing tasks 9.170-9.172, the Yin_and_yang.dws Rosetta example should fully parse and execute. This task verifies end-to-end functionality.
+
+**Implementation Tasks**:
+
+- [ ] 9.173.1 Verification: Parse `examples/rosetta/Yin_and_yang.dws` without errors
+- [ ] 9.173.2 Verification: Run `examples/rosetta/Yin_and_yang.dws` and validate ASCII art output
+- [ ] 9.173.3 Test: Add to `pkg/dwscript/rosetta_examples_test.go` (should now pass)
+- [ ] 9.173.4 Documentation: Update `docs/rosetta-compatibility.md` - mark Yin_and_yang.dws as ✅ Working
+
+**Priority**: MEDIUM (verification and documentation)
+
+**Estimated Effort**: 0.25 weeks (~2 hours)
+
+**Expected Output**: The script should produce yin-yang ASCII art:
+```
+           ######
+       ############
+     ################
+    ##################
+   ####################
+   ####################
+  ....##################
+  ......################
+  ........##############
+ ..........##############
+ ............############
+ ..............##########
+....................######
+....................######
+......................####
+......................####
+........................##
+........................##
+........................##
+........................##
+......................####
+......................####
+....................######
+....................######
+..............##########
+ ............############
+ ..........##############
+ ........##############
+  ......################
+  ....##################
+   ####################
+   ####################
+    ##################
+     ################
+       ############
+           ######
+```
+
+**Dependencies**: Tasks 9.170, 9.171, 9.172 must be complete
+
 ---
 
 ## Phase 9 Summary

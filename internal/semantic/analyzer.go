@@ -7,6 +7,34 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
+// ============================================================================
+// Type Expression Helpers (Task 9.170.1)
+// ============================================================================
+
+// getTypeExpressionName extracts a type name string from a TypeExpression.
+// For simple types, returns the identifier name.
+// For complex types (arrays, function pointers), returns the string representation.
+func getTypeExpressionName(typeExpr ast.TypeExpression) string {
+	if typeExpr == nil {
+		return ""
+	}
+
+	switch te := typeExpr.(type) {
+	case *ast.TypeAnnotation:
+		return te.Name
+	case *ast.ArrayTypeNode:
+		return te.String()
+	case *ast.FunctionPointerTypeNode:
+		return te.String()
+	default:
+		return typeExpr.String()
+	}
+}
+
+// ============================================================================
+// Analyzer
+// ============================================================================
+
 // Analyzer performs semantic analysis on a DWScript program.
 // It validates types, checks for undefined variables, and ensures
 // type compatibility in expressions and statements.
@@ -57,6 +85,9 @@ func NewAnalyzer() *Analyzer {
 
 	// Task 8.203: Register built-in Exception base class
 	a.registerBuiltinExceptionTypes()
+
+	// Task 9.171: Register built-in array helpers
+	a.initArrayHelpers()
 
 	return a
 }

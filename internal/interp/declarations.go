@@ -104,26 +104,11 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			return i.newErrorWithLocation(field, "field '%s' has no type annotation", field.Name.Value)
 		}
 
-		// Map type names to types.Type
-		var fieldType types.Type
-		switch field.Type.Name {
-		case "Integer":
-			fieldType = types.INTEGER
-		case "Float":
-			fieldType = types.FLOAT
-		case "String":
-			fieldType = types.STRING
-		case "Boolean":
-			fieldType = types.BOOLEAN
-		default:
-			// Check if it's a class type
-			if _, exists := i.classes[field.Type.Name]; exists {
-				// It's a class type - for now we'll use NIL as a placeholder
-				// This will need proper ClassType support later
-				fieldType = types.NIL
-			} else {
-				return i.newErrorWithLocation(field, "unknown type '%s' for field '%s'", field.Type.Name, field.Name.Value)
-			}
+		// Resolve field type using type expression
+		// Task 9.170.1: Updated to support inline array types
+		fieldType := i.resolveTypeFromExpression(field.Type)
+		if fieldType == nil {
+			return i.newErrorWithLocation(field, "unknown or invalid type for field '%s'", field.Name.Value)
 		}
 
 		// Check if this is a class variable (static field) or instance field

@@ -49,6 +49,17 @@ func TestClassesIntegration(t *testing.T) {
 			},
 			wantPasses: 0, // No PASS/FAIL in this test, just output verification
 		},
+		{
+			name:       "InlineArrayFields",
+			scriptFile: "../../testdata/classes/inline_array_fields.dws",
+			wantOutputs: []string{
+				"TBoard created",
+				"Names count: 3",
+				"First name: Alice",
+				"Grid[5]: 25",
+			},
+			wantPasses: 0, // Task 9.170.5: Verify inline array field declarations work end-to-end
+		},
 	}
 
 	for _, tt := range tests {

@@ -490,3 +490,159 @@ func interpret(interp *Interpreter, input string) Value {
 func containsSubstring(s, substr string) bool {
 	return bytes.Contains([]byte(s), []byte(substr))
 }
+
+// ============================================================================
+// Array Helper Properties Tests (Task 9.171)
+// ============================================================================
+
+func TestArrayHelperLength(t *testing.T) {
+	input := `
+		var dynArr: array of Integer;
+		var len: Integer;
+		begin
+			SetLength(dynArr, 5);
+			len := dynArr.Length;
+			PrintLn(len);
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "5\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
+func TestArrayHelperHigh(t *testing.T) {
+	input := `
+		var dynArr: array of Integer;
+		var high: Integer;
+		begin
+			SetLength(dynArr, 10);
+			high := dynArr.High;
+			PrintLn(high);
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "9\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
+func TestArrayHelperLow(t *testing.T) {
+	input := `
+		var dynArr: array of Integer;
+		var low: Integer;
+		begin
+			SetLength(dynArr, 10);
+			low := dynArr.Low;
+			PrintLn(low);
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "0\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
+func TestArrayHelperEmptyArray(t *testing.T) {
+	input := `
+		var arr: array of Integer;
+		begin
+			PrintLn(arr.Length);
+			PrintLn(arr.Low);
+			PrintLn(arr.High);
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "0\n0\n-1\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
+func TestArrayHelperStaticArray(t *testing.T) {
+	input := `
+		var staticArr: array[1..5] of String;
+		begin
+			PrintLn(staticArr.Length);
+			PrintLn(staticArr.Low);
+			PrintLn(staticArr.High);
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "5\n1\n5\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
+func TestArrayHelperInForLoop(t *testing.T) {
+	input := `
+		var arr: array of Integer;
+		var i: Integer;
+		begin
+			SetLength(arr, 3);
+			arr[0] := 10;
+			arr[1] := 20;
+			arr[2] := 30;
+
+			for i := arr.Low to arr.High do
+				PrintLn(arr[i]);
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "10\n20\n30\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}

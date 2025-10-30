@@ -1,0 +1,73 @@
+// Array helper properties example - demonstrates built-in .Length, .High, .Low properties
+// Task 9.171: Array Helper Properties
+
+var dynArr: array of Integer;
+var staticArr: array[1..5] of String;
+var i: Integer;
+
+begin
+  PrintLn('=== Array Helper Properties Demo ===');
+  PrintLn('');
+
+  // Dynamic array tests
+  PrintLn('--- Dynamic Array ---');
+  SetLength(dynArr, 10);
+
+  PrintLn('Length: ' + IntToStr(dynArr.Length));
+  PrintLn('Low: ' + IntToStr(dynArr.Low));
+  PrintLn('High: ' + IntToStr(dynArr.High));
+  PrintLn('');
+
+  // Static array tests
+  PrintLn('--- Static Array [1..5] ---');
+  PrintLn('Length: ' + IntToStr(staticArr.Length));
+  PrintLn('Low: ' + IntToStr(staticArr.Low));
+  PrintLn('High: ' + IntToStr(staticArr.High));
+  PrintLn('');
+
+  // Empty array edge case
+  PrintLn('--- Empty Array ---');
+  var emptyArr: array of Integer;
+  PrintLn('Length: ' + IntToStr(emptyArr.Length));
+  PrintLn('Low: ' + IntToStr(emptyArr.Low));
+  PrintLn('High: ' + IntToStr(emptyArr.High));
+  PrintLn('');
+
+  // Using in for loop
+  PrintLn('--- Using in For Loop ---');
+  SetLength(dynArr, 5);
+  for i := dynArr.Low to dynArr.High do
+  begin
+    dynArr[i] := i * 10;
+  end;
+
+  for i := dynArr.Low to dynArr.High do
+  begin
+    PrintLn('dynArr[' + IntToStr(i) + '] = ' + IntToStr(dynArr[i]));
+  end;
+end.
+
+// Expected output:
+// === Array Helper Properties Demo ===
+//
+// --- Dynamic Array ---
+// Length: 10
+// Low: 0
+// High: 9
+//
+// --- Static Array [1..5] ---
+// Length: 5
+// Low: 1
+// High: 5
+//
+// --- Empty Array ---
+// Length: 0
+// Low: 0
+// High: -1
+//
+// --- Using in For Loop ---
+// dynArr[0] = 0
+// dynArr[1] = 10
+// dynArr[2] = 20
+// dynArr[3] = 30
+// dynArr[4] = 40

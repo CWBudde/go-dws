@@ -1,0 +1,23 @@
+=== Array Helper Properties Demo ===
+
+--- Dynamic Array ---
+Length: 10
+Low: 0
+High: 9
+
+--- Static Array [1..5] ---
+Length: 5
+Low: 1
+High: 5
+
+--- Empty Array ---
+Length: 0
+Low: 0
+High: -1
+
+--- Using in For Loop ---
+dynArr[0] = 0
+dynArr[1] = 10
+dynArr[2] = 20
+dynArr[3] = 30
+dynArr[4] = 40

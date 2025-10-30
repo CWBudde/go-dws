@@ -47,11 +47,13 @@ func TestParseRecordDeclaration(t *testing.T) {
 		}
 
 		// Check field types
-		if recordDecl.Fields[0].Type.Name != "Integer" {
-			t.Errorf("Fields[0].Type.Name = %s, want 'Integer'", recordDecl.Fields[0].Type.Name)
+		typeAnnot0, ok := recordDecl.Fields[0].Type.(*ast.TypeAnnotation)
+		if !ok || typeAnnot0.Name != "Integer" {
+			t.Errorf("Fields[0].Type = %v, want 'Integer'", recordDecl.Fields[0].Type)
 		}
-		if recordDecl.Fields[1].Type.Name != "Integer" {
-			t.Errorf("Fields[1].Type.Name = %s, want 'Integer'", recordDecl.Fields[1].Type.Name)
+		typeAnnot1, ok := recordDecl.Fields[1].Type.(*ast.TypeAnnotation)
+		if !ok || typeAnnot1.Name != "Integer" {
+			t.Errorf("Fields[1].Type = %v, want 'Integer'", recordDecl.Fields[1].Type)
 		}
 	})
 
@@ -86,8 +88,9 @@ func TestParseRecordDeclaration(t *testing.T) {
 			if recordDecl.Fields[i].Name.Value != expected.name {
 				t.Errorf("Fields[%d].Name = %s, want '%s'", i, recordDecl.Fields[i].Name.Value, expected.name)
 			}
-			if recordDecl.Fields[i].Type.Name != expected.typeName {
-				t.Errorf("Fields[%d].Type = %s, want '%s'", i, recordDecl.Fields[i].Type.Name, expected.typeName)
+			typeAnnot, ok := recordDecl.Fields[i].Type.(*ast.TypeAnnotation)
+			if !ok || typeAnnot.Name != expected.typeName {
+				t.Errorf("Fields[%d].Type = %v, want '%s'", i, recordDecl.Fields[i].Type, expected.typeName)
 			}
 		}
 	})

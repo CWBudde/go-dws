@@ -3,6 +3,7 @@ package lexer
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Lexer represents a lexical scanner for DWScript source code.
@@ -10,7 +11,7 @@ type Lexer struct {
 	input        string // The source code being tokenized
 	position     int    // Current position in input (points to current char)
 	readPosition int    // Current reading position in input (after current char)
-	ch           byte   // Current character under examination (0 if EOF)
+	ch           rune   // Current character under examination (0 if EOF)
 	line         int    // Current line number (1-indexed)
 	column       int    // Current column number (1-indexed)
 }
@@ -27,32 +28,44 @@ func New(input string) *Lexer {
 }
 
 // readChar advances the lexer to the next character in the input.
+// Properly handles UTF-8 multi-byte sequences.
 func (l *Lexer) readChar() {
 	if l.readPosition >= len(l.input) {
-		l.ch = 0 // ASCII NUL for EOF
+		l.ch = 0 // EOF
+		l.position = l.readPosition
 	} else {
-		l.ch = l.input[l.readPosition]
+		r, size := utf8.DecodeRuneInString(l.input[l.readPosition:])
+		l.ch = r
+		l.position = l.readPosition
+		l.readPosition += size
 	}
-	l.position = l.readPosition
-	l.readPosition++
 	l.column++
 }
 
 // peekChar returns the next character without advancing the position.
-func (l *Lexer) peekChar() byte {
+// Properly handles UTF-8 multi-byte sequences.
+func (l *Lexer) peekChar() rune {
 	if l.readPosition >= len(l.input) {
 		return 0
 	}
-	return l.input[l.readPosition]
+	r, _ := utf8.DecodeRuneInString(l.input[l.readPosition:])
+	return r
 }
 
 // peekCharN returns the character n positions ahead without advancing.
-func (l *Lexer) peekCharN(n int) byte {
-	pos := l.readPosition + n - 1
+// Properly handles UTF-8 multi-byte sequences by counting runes, not bytes.
+func (l *Lexer) peekCharN(n int) rune {
+	pos := l.readPosition
+	// Skip n-1 runes to get to the nth position
+	for i := 0; i < n-1 && pos < len(l.input); i++ {
+		_, size := utf8.DecodeRuneInString(l.input[pos:])
+		pos += size
+	}
 	if pos >= len(l.input) {
 		return 0
 	}
-	return l.input[pos]
+	r, _ := utf8.DecodeRuneInString(l.input[pos:])
+	return r
 }
 
 // currentPos returns the current Position for token creation.
@@ -86,7 +99,7 @@ func (l *Lexer) skipLineComment() {
 // skipBlockComment skips a block comment enclosed in { } or (* *).
 // style: '{' for {} comments, '(' for (* *) comments
 // Returns true if comment was properly terminated, false otherwise
-func (l *Lexer) skipBlockComment(style byte) bool {
+func (l *Lexer) skipBlockComment(style rune) bool {
 	if style == '{' {
 		l.readChar() // skip {
 		for l.ch != 0 {
@@ -241,8 +254,8 @@ func (l *Lexer) readNumber() (TokenType, string) {
 }
 
 // readString reads a string literal enclosed in single or double quotes.
-// DWScript uses single quotes by default, with ” as escape for a single quote.
-func (l *Lexer) readString(quote byte) (string, error) {
+// DWScript uses single quotes by default, with " as escape for a single quote.
+func (l *Lexer) readString(quote rune) (string, error) {
 	startPos := l.position
 	l.readChar() // skip opening quote
 
@@ -252,7 +265,7 @@ func (l *Lexer) readString(quote byte) (string, error) {
 		if l.ch == quote {
 			// Check for escaped quote (doubled quote)
 			if l.peekChar() == quote {
-				builder.WriteByte(quote)
+				builder.WriteRune(quote)
 				l.readChar() // skip first quote
 				l.readChar() // skip second quote
 				continue
@@ -267,7 +280,7 @@ func (l *Lexer) readString(quote byte) (string, error) {
 			l.column = 0
 		}
 
-		builder.WriteByte(l.ch)
+		builder.WriteRune(l.ch)
 		l.readChar()
 	}
 
@@ -636,15 +649,15 @@ func (l *Lexer) NextToken() Token {
 
 // Helper functions
 
-func isLetter(ch byte) bool {
-	return unicode.IsLetter(rune(ch)) || ch == '_'
+func isLetter(ch rune) bool {
+	return unicode.IsLetter(ch) || ch == '_'
 }
 
-func isDigit(ch byte) bool {
+func isDigit(ch rune) bool {
 	return '0' <= ch && ch <= '9'
 }
 
-func isHexDigit(ch byte) bool {
+func isHexDigit(ch rune) bool {
 	return ('0' <= ch && ch <= '9') ||
 		('a' <= ch && ch <= 'f') ||
 		('A' <= ch && ch <= 'F')

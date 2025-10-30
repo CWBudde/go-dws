@@ -88,10 +88,10 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 
 	// Initialize class variables (Task 9.87)
 	for _, classVar := range decl.ClassVars {
-		varType := i.resolveTypeFromAnnotation(classVar.Type)
+		varType := i.resolveTypeFromExpression(classVar.Type)
 		if varType == nil {
-			return i.newErrorWithLocation(classVar, "unknown type '%s' for class variable '%s'",
-				classVar.Type.Name, classVar.Name.Value)
+			return i.newErrorWithLocation(classVar, "unknown or invalid type for class variable '%s'",
+				classVar.Name.Value)
 		}
 
 		// Initialize with default value
@@ -161,6 +161,10 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 		typeName = v.Class.Name
 	case *RecordValue:
 		typeName = v.RecordType.Name
+	case *ArrayValue:
+		// Task 9.171: Array helper properties support
+		// Use generic "ARRAY" type name for all arrays
+		typeName = "ARRAY"
 	default:
 		// For other types, try to extract type name from Type() method
 		typeName = v.Type()
@@ -307,12 +311,51 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 		return i.newErrorWithLocation(node, "property '%s' getter method '%s' not found",
 			propInfo.Name, propInfo.ReadSpec)
 
+	case types.PropAccessBuiltin:
+		// Task 9.171: Built-in array helper properties
+		return i.evalBuiltinHelperProperty(propInfo.ReadSpec, selfValue, node)
+
 	case types.PropAccessNone:
 		return i.newErrorWithLocation(node, "property '%s' is write-only", propInfo.Name)
 
 	default:
 		return i.newErrorWithLocation(node, "property '%s' has no read access", propInfo.Name)
 	}
+}
+
+// resolveTypeFromExpression resolves a type from any TypeExpression.
+// Task 9.170.1: Added to support inline array types in class fields.
+func (i *Interpreter) resolveTypeFromExpression(typeExpr ast.TypeExpression) types.Type {
+	if typeExpr == nil {
+		return nil
+	}
+
+	// For simple type annotations, delegate to existing function
+	if typeAnnot, ok := typeExpr.(*ast.TypeAnnotation); ok {
+		return i.resolveTypeFromAnnotation(typeAnnot)
+	}
+
+	// For array types, resolve the element type and construct an array type
+	if arrayType, ok := typeExpr.(*ast.ArrayTypeNode); ok {
+		elementType := i.resolveTypeFromExpression(arrayType.ElementType)
+		if elementType == nil {
+			return nil
+		}
+		return &types.ArrayType{
+			ElementType: elementType,
+			LowBound:    arrayType.LowBound,
+			HighBound:   arrayType.HighBound,
+		}
+	}
+
+	// For function pointer types, we need full type information
+	// For now, return a generic function type placeholder
+	if _, ok := typeExpr.(*ast.FunctionPointerTypeNode); ok {
+		// TODO: Properly construct function pointer type
+		return types.NewFunctionType([]types.Type{}, nil)
+	}
+
+	return nil
 }
 
 // resolveTypeFromAnnotation resolves a type from an AST TypeAnnotation
@@ -357,4 +400,94 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeAnnot *ast.TypeAnnotation) t
 func extractSimpleTypeName(typeName string) string {
 	// Just return the type name as-is for now
 	return typeName
+}
+
+// ============================================================================
+// Built-in Array Helpers (Task 9.171)
+// ============================================================================
+
+// evalBuiltinHelperProperty evaluates a built-in helper property
+// Task 9.171: Implements .Length, .High, .Low for arrays
+func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value {
+	// Check if the value is an array
+	arrVal, ok := selfValue.(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(node, "built-in property '%s' can only be used on arrays", propSpec)
+	}
+
+	switch propSpec {
+	case "__array_length":
+		// Task 9.171.4: .Length property
+		return &IntegerValue{Value: int64(len(arrVal.Elements))}
+
+	case "__array_high":
+		// Task 9.171.2: .High property
+		// For static arrays, return the HighBound
+		if arrVal.ArrayType.IsStatic() {
+			return &IntegerValue{Value: int64(*arrVal.ArrayType.HighBound)}
+		}
+		// For dynamic arrays, return len(arr) - 1
+		return &IntegerValue{Value: int64(len(arrVal.Elements) - 1)}
+
+	case "__array_low":
+		// Task 9.171.3: .Low property
+		// For static arrays, return the LowBound
+		if arrVal.ArrayType.IsStatic() {
+			return &IntegerValue{Value: int64(*arrVal.ArrayType.LowBound)}
+		}
+		// For dynamic arrays, always return 0
+		return &IntegerValue{Value: 0}
+
+	default:
+		return i.newErrorWithLocation(node, "unknown built-in property '%s'", propSpec)
+	}
+}
+
+// initArrayHelpers registers built-in helper properties for arrays
+// Task 9.171: Array Helper Properties (.High, .Low, .Length)
+func (i *Interpreter) initArrayHelpers() {
+	if i.helpers == nil {
+		i.helpers = make(map[string][]*HelperInfo)
+	}
+
+	// Create a helper for the generic ARRAY type
+	arrayHelper := &HelperInfo{
+		Name:           "TArrayHelper",
+		TargetType:     nil, // Generic - applies to all arrays
+		Methods:        make(map[string]*ast.FunctionDecl),
+		Properties:     make(map[string]*types.PropertyInfo),
+		ClassVars:      make(map[string]Value),
+		ClassConsts:    make(map[string]Value),
+		IsRecordHelper: false,
+	}
+
+	// Task 9.171.4: Register .Length property
+	arrayHelper.Properties["Length"] = &types.PropertyInfo{
+		Name:      "Length",
+		Type:      types.INTEGER,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__array_length",
+		WriteKind: types.PropAccessNone,
+	}
+
+	// Task 9.171.2: Register .High property
+	arrayHelper.Properties["High"] = &types.PropertyInfo{
+		Name:      "High",
+		Type:      types.INTEGER,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__array_high",
+		WriteKind: types.PropAccessNone,
+	}
+
+	// Task 9.171.3: Register .Low property
+	arrayHelper.Properties["Low"] = &types.PropertyInfo{
+		Name:      "Low",
+		Type:      types.INTEGER,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__array_low",
+		WriteKind: types.PropAccessNone,
+	}
+
+	// Register helper for ARRAY type
+	i.helpers["ARRAY"] = append(i.helpers["ARRAY"], arrayHelper)
 }

@@ -323,14 +323,13 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 		return nil
 	}
 
-	// Expect type identifier
-	if !p.expectPeek(lexer.IDENT) {
+	// Parse type expression (supports simple types, array types, function pointer types)
+	// Task 9.170.1: Changed from expecting IDENT to using parseTypeExpression()
+	// This allows inline array types like: Pix : array of array of Integer;
+	p.nextToken()
+	fieldType := p.parseTypeExpression()
+	if fieldType == nil {
 		return nil
-	}
-
-	fieldType := &ast.TypeAnnotation{
-		Token: p.curToken,
-		Name:  p.curToken.Literal,
 	}
 
 	// Expect semicolon
@@ -344,7 +343,7 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 		field := &ast.FieldDecl{
 			Token:      name.Token,
 			Name:       name,
-			Type:       fieldType,
+			Type:       fieldType, // Now supports any TypeExpression (simple, array, function pointer)
 			Visibility: visibility,
 		}
 		fields = append(fields, field)

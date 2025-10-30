@@ -87,10 +87,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 				continue
 			}
 
-			fieldType, err := a.resolveType(field.Type.Name)
+			typeName := getTypeExpressionName(field.Type)
+			fieldType, err := a.resolveType(typeName)
 			if err != nil {
 				a.addError("unknown type '%s' for class variable '%s' in class '%s' at %s",
-					field.Type.Name, fieldName, className, field.Token.Pos.String())
+					typeName, fieldName, className, field.Token.Pos.String())
 				continue
 			}
 
@@ -113,10 +114,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 				continue
 			}
 
-			fieldType, err := a.resolveType(field.Type.Name)
+			typeName := getTypeExpressionName(field.Type)
+			fieldType, err := a.resolveType(typeName)
 			if err != nil {
 				a.addError("unknown type '%s' for field '%s' in class '%s' at %s",
-					field.Type.Name, fieldName, className, field.Token.Pos.String())
+					typeName, fieldName, className, field.Token.Pos.String())
 				continue
 			}
 
