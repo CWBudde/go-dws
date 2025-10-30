@@ -104,51 +104,64 @@ func (pd RecordPropertyDecl) String() string {
 // Record Literal
 // ============================================================================
 
-// RecordField represents a single field initialization in a record literal.
-// Can be either named (X: 10) or positional (10).
-type RecordField struct {
-	Value Expression
-	Name  string
+// FieldInitializer represents a single field initialization in a record literal.
+// DWScript syntax: fieldName: value
+// The Name can be nil for positional initialization (not yet implemented).
+type FieldInitializer struct {
+	Name  *Identifier  // Field name (nil for positional initialization)
+	Value Expression   // Field value expression
+	Token lexer.Token  // The field name token or first token of value
 }
 
-// RecordLiteral represents a record literal expression.
-// Examples:
-//   - Named: (X: 10, Y: 20)
-//   - Positional: (10, 20)
-//   - Typed: TPoint(X: 10, Y: 20) or TPoint(10, 20)
-type RecordLiteral struct {
-	TypeName string
-	Fields   []RecordField
-	Token    lexer.Token
+// String returns a string representation of the field initializer.
+func (fi *FieldInitializer) String() string {
+	var out bytes.Buffer
+
+	// Named field
+	if fi.Name != nil {
+		out.WriteString(fi.Name.String())
+		out.WriteString(": ")
+	}
+
+	// Field value
+	out.WriteString(fi.Value.String())
+
+	return out.String()
 }
 
-func (rl *RecordLiteral) expressionNode()      {}
-func (rl *RecordLiteral) TokenLiteral() string { return rl.Token.Literal }
-func (rl *RecordLiteral) Pos() lexer.Position  { return rl.Token.Pos }
-func (rl *RecordLiteral) String() string {
+// RecordLiteralExpression represents a record literal expression.
+// DWScript supports both anonymous and typed record literals:
+//   - Anonymous: (x: 10; y: 20)
+//   - Typed: TPoint(x: 10; y: 20)
+//   - Semicolons or commas as separators: (a: 1; b: 2) or (a: 1, b: 2)
+// Examples from Death_Star.dws:
+//   - const big : TSphere = (cx: 20; cy: 20; cz: 0; r: 20);
+//   - const small : TSphere = (cx: 7; cy: 7; cz: -10; r: 15);
+type RecordLiteralExpression struct {
+	TypeName *Identifier           // Optional type name (nil for anonymous records)
+	Fields   []*FieldInitializer   // Field initializers
+	Token    lexer.Token           // The '(' token or type name token
+}
+
+func (rle *RecordLiteralExpression) expressionNode()      {}
+func (rle *RecordLiteralExpression) TokenLiteral() string { return rle.Token.Literal }
+func (rle *RecordLiteralExpression) Pos() lexer.Position  { return rle.Token.Pos }
+func (rle *RecordLiteralExpression) String() string {
 	var out bytes.Buffer
 
 	// Add type name if present
-	if rl.TypeName != "" {
-		out.WriteString(rl.TypeName)
+	if rle.TypeName != nil {
+		out.WriteString(rle.TypeName.String())
 	}
 
 	out.WriteString("(")
 
-	// Add fields
-	for i, field := range rl.Fields {
+	// Add fields with semicolon separator (DWScript convention)
+	for i, field := range rle.Fields {
 		if i > 0 {
-			out.WriteString(", ")
+			out.WriteString("; ")
 		}
-
-		// Named field
-		if field.Name != "" {
-			out.WriteString(field.Name)
-			out.WriteString(": ")
-		}
-
-		// Field value
-		out.WriteString(field.Value.String())
+		out.WriteString(field.String())
 	}
 
 	out.WriteString(")")

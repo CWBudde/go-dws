@@ -110,7 +110,7 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 		var initType types.Type
 
 		// Special handling for record literals - they need the expected type
-		if recordLit, ok := stmt.Value.(*ast.RecordLiteral); ok {
+		if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok {
 			if varType == nil {
 				a.addError("record literal requires explicit type annotation at %s", stmt.Token.Pos.String())
 				return
@@ -193,7 +193,7 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	var valueType types.Type
 
 	// Special handling for record literals - they need the expected type
-	if recordLit, ok := stmt.Value.(*ast.RecordLiteral); ok {
+	if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok {
 		if constType == nil {
 			a.addError("record literal requires explicit type annotation at %s", stmt.Token.Pos.String())
 			return

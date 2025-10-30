@@ -230,7 +230,7 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.EnumLiteral:
 		return i.evalEnumLiteral(node)
 
-	case *ast.RecordLiteral:
+	case *ast.RecordLiteralExpression:
 		return i.evalRecordLiteral(node)
 
 	case *ast.SetLiteral:

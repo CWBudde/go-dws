@@ -124,17 +124,57 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 // analyzeRecordLiteral analyzes a record literal expression.
 // Task 8.70: Type-check record literals (field names/types match, positional vs named)
-func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteral, expectedType types.Type) types.Type {
+// Task 9.175: Support anonymous record literals (require expectedType)
+// Task 9.176: Support typed record literals (use lit.TypeName)
+func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expectedType types.Type) types.Type {
 	if lit == nil {
 		return nil
 	}
 
-	// For record literals, we need to know the expected type
-	// This comes from the variable declaration or assignment context
-	recordType, ok := expectedType.(*types.RecordType)
-	if !ok {
-		a.addError("record literal requires a record type, got %s", expectedType.String())
-		return nil
+	var recordType *types.RecordType
+
+	// Task 9.176: Check if this is a typed record literal (has TypeName)
+	if lit.TypeName != nil {
+		// Typed record literal: TPoint(x: 10; y: 20)
+		// Look up the type by name
+		typeName := lit.TypeName.Value
+		resolvedType, err := a.resolveType(typeName)
+		if err != nil {
+			a.addError("unknown record type '%s' in record literal", typeName)
+			return nil
+		}
+
+		var ok bool
+		recordType, ok = resolvedType.(*types.RecordType)
+		if !ok {
+			a.addError("'%s' is not a record type, got %s", typeName, resolvedType.String())
+			return nil
+		}
+
+		// If expectedType is provided, verify it matches
+		if expectedType != nil {
+			if expectedRecordType, ok := expectedType.(*types.RecordType); ok {
+				if expectedRecordType.Name != recordType.Name {
+					a.addError("record literal type '%s' does not match expected type '%s'",
+						recordType.Name, expectedRecordType.Name)
+					return nil
+				}
+			}
+		}
+	} else {
+		// Task 9.175: Anonymous record literal: (x: 10; y: 20)
+		// Requires expectedType from context
+		if expectedType == nil {
+			a.addError("anonymous record literal requires type context (use explicit type annotation or typed literal)")
+			return nil
+		}
+
+		var ok bool
+		recordType, ok = expectedType.(*types.RecordType)
+		if !ok {
+			a.addError("record literal requires a record type, got %s", expectedType.String())
+			return nil
+		}
 	}
 
 	// Track which fields have been initialized
@@ -142,7 +182,13 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteral, expectedType typ
 
 	// Validate each field in the literal
 	for _, field := range lit.Fields {
-		fieldName := field.Name
+		// Skip positional fields (not yet implemented)
+		if field.Name == nil {
+			a.addError("positional record field initialization not yet supported")
+			continue
+		}
+
+		fieldName := field.Name.Value
 
 		// Check for duplicate field initialization
 		if initializedFields[fieldName] {
