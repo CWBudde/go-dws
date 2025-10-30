@@ -616,38 +616,42 @@ func (a *Analyzer) analyzeExitStatement(stmt *ast.ExitStatement) {
 
 	// If we're at the top level (not in a function), only allow exit without a value
 	if a.currentFunction == nil {
-		if stmt.Value != nil {
+		if stmt.ReturnValue != nil {
 			a.addError("exit with value not allowed at program level at %s", stmt.Token.Pos.String())
 		}
 		// exit without value is allowed at program level (exits the program)
 		return
 	}
 
-	// If exit has a return value, analyze it
-	if stmt.Value != nil {
-		valueType := a.analyzeExpression(stmt.Value)
-
-		// Check that the return value type matches the function's return type
-		if a.currentFunction.ReturnType != nil {
-			expectedType, err := a.resolveType(a.currentFunction.ReturnType.Name)
-			if err != nil {
-				a.addError("cannot resolve function return type: %v at %s", err, stmt.Token.Pos.String())
-				return
-			}
-			if expectedType != nil && valueType != nil && !a.canAssign(valueType, expectedType) {
-				a.addError("exit value type %s incompatible with function return type %s at %s",
-					valueType.String(), expectedType.String(), stmt.Token.Pos.String())
-			}
-		} else {
-			// Procedure (no return type) - exit should not have a value
-			a.addError("exit with value not allowed in procedure at %s", stmt.Token.Pos.String())
+	// Determine expected return type for the current function/procedure
+	var expectedType types.Type = types.VOID
+	if a.currentFunction.ReturnType != nil {
+		var err error
+		expectedType, err = a.resolveType(a.currentFunction.ReturnType.Name)
+		if err != nil {
+			a.addError("cannot resolve function return type: %v at %s", err, stmt.Token.Pos.String())
+			return
 		}
-	} else {
-		// Exit without value - check if function expects a return value
-		if a.currentFunction.ReturnType != nil {
-			// Function expects a return value but exit doesn't provide one
-			// This is actually allowed in DWScript - it will return a default value
-			// So we don't emit an error here
+		if expectedType == nil {
+			a.addError("function has unknown return type at %s", stmt.Token.Pos.String())
+			return
 		}
 	}
+
+	// If exit has a return value, analyze it
+	if stmt.ReturnValue != nil {
+		if expectedType == types.VOID {
+			// Procedure (no return type) - exit should not have a value
+			a.addError("exit with value not allowed in procedure at %s", stmt.Token.Pos.String())
+			return
+		}
+
+		valueType := a.analyzeExpression(stmt.ReturnValue)
+		if valueType != nil && !a.canAssign(valueType, expectedType) {
+			a.addError("exit value type %s incompatible with function return type %s at %s",
+				valueType.String(), expectedType.String(), stmt.Token.Pos.String())
+		}
+	}
+	// Exit without an explicit return value is allowed. Functions rely on the current
+	// Result variable (or their default) in that case, matching DWScript semantics.
 }

@@ -311,8 +311,8 @@ func (cs *ContinueStatement) String() string {
 //	   Result := i * 2;
 //	end;
 type ExitStatement struct {
-	Value Expression
-	Token lexer.Token
+	ReturnValue Expression // Optional expression returned from Exit (Task 9.199)
+	Token       lexer.Token
 }
 
 func (es *ExitStatement) statementNode()       {}
@@ -320,12 +320,10 @@ func (es *ExitStatement) TokenLiteral() string { return es.Token.Literal }
 func (es *ExitStatement) Pos() lexer.Position  { return es.Token.Pos }
 func (es *ExitStatement) String() string {
 	var out bytes.Buffer
-	out.WriteString("exit")
-	if es.Value != nil {
-		out.WriteString("(")
-		out.WriteString(es.Value.String())
-		out.WriteString(")")
+	out.WriteString("Exit")
+	if es.ReturnValue != nil {
+		out.WriteString(" ")
+		out.WriteString(es.ReturnValue.String())
 	}
-	out.WriteString(";")
 	return out.String()
 }

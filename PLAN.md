@@ -1359,44 +1359,44 @@ The parser currently fails with "no prefix parse function for FALSE" because it 
 
 #### AST Nodes (1 task)
 
-- [ ] 9.199 Update `ExitStatement` in `ast/statements.go`:
-  - [ ] Add optional `ReturnValue Expression` field (can be nil)
-  - [ ] Update `String()` to show value: `Exit value` or just `Exit`
-  - [ ] Distinguish from `ReturnStatement` (used in procedures/functions)
-  - [ ] DWScript uses `Exit` for early return, `Result :=` for setting return value
+- [x] 9.199 Update `ExitStatement` in `ast/statements.go`:
+  - [x] Add optional `ReturnValue Expression` field (can be nil)
+  - [x] Update `String()` to show value: `Exit value` or just `Exit`
+  - [x] Distinguish from `ReturnStatement` (used in procedures/functions)
+  - [x] DWScript uses `Exit` for early return, `Result :=` for setting return value
 
 #### Parser Support (2 tasks)
 
-- [ ] 9.200 Update `parseExitStatement` to handle return values:
-  - [ ] After `Exit` keyword, check if next token starts an expression
-  - [ ] If yes, parse expression as return value
-  - [ ] If semicolon or end of line, no return value (existing behavior)
-  - [ ] Support both `Exit value` and `Exit(value)` syntax
-  - [ ] Add tests for single-line: `Exit False;`
+- [x] 9.200 Update `parseExitStatement` to handle return values:
+  - [x] After `Exit` keyword, check if next token starts an expression
+  - [x] If yes, parse expression as return value
+  - [x] If semicolon or end of line, no return value (existing behavior)
+  - [x] Support both `Exit value` and `Exit(value)` syntax
+  - [x] Add tests for single-line: `Exit False;`
 
-- [ ] 9.201 Add parser tests for Exit with values:
-  - [ ] Test `Exit;` (no value, existing behavior)
-  - [ ] Test `Exit False;` (boolean return)
-  - [ ] Test `Exit 42;` (integer return)
-  - [ ] Test `Exit x + y;` (expression return)
-  - [ ] Test `Exit(value);` (parenthesized, like function call)
-  - [ ] 6 test cases in `internal/parser/statements_test.go`
+- [x] 9.201 Add parser tests for Exit with values:
+  - [x] Test `Exit;` (no value, existing behavior)
+  - [x] Test `Exit False;` (boolean return)
+  - [x] Test `Exit 42;` (integer return)
+  - [x] Test `Exit x + y;` (expression return)
+  - [x] Test `Exit(value);` (parenthesized, like function call)
+  - [x] 6 test cases in `internal/parser/statements_test.go`
 
 #### Semantic Analysis (2 tasks)
 
-- [ ] 9.202 Update `analyzeExitStatement` to check return types:
-  - [ ] Get current function's declared return type
-  - [ ] If `ReturnValue` is present, validate type matches function return type
-  - [ ] Report error if types don't match
-  - [ ] Report error if `Exit value` used outside a function
-  - [ ] Report error if `Exit` (no value) used in function expecting return type
+- [x] 9.202 Update `analyzeExitStatement` to check return types:
+  - [x] Get current function's declared return type
+  - [x] If `ReturnValue` is present, validate type matches function return type
+  - [x] Report error if types don't match
+  - [x] Report error if `Exit value` used outside a function
+  - [ ] Report error if `Exit` (no value) used in function expecting return type *(DWScript allows this; kept permissive to preserve existing behavior)*
 
-- [ ] 9.203 Add semantic tests for Exit statements:
-  - [ ] Test valid: `function GetValue: Integer; begin Exit 42; end;`
-  - [ ] Test error: `function GetValue: Integer; begin Exit "hello"; end;` (wrong type)
-  - [ ] Test error: `Exit 42;` at program scope (not in function)
-  - [ ] Test valid: `procedure DoSomething; begin Exit; end;` (no value for procedure)
-  - [ ] 5 test cases in `internal/semantic/statements_test.go`
+- [x] 9.203 Add semantic tests for Exit statements:
+  - [x] Test valid: `function GetValue: Integer; begin Exit 42; end;`
+  - [x] Test error: `function GetValue: Integer; begin Exit "hello"; end;` (wrong type)
+  - [x] Test error: `Exit 42;` at program scope (not in function)
+  - [x] Test valid: `procedure DoSomething; begin Exit; end;` (no value for procedure)
+  - [x] 5 test cases in `internal/semantic/statements_test.go`
 
 #### Interpreter Support (2 tasks)
 

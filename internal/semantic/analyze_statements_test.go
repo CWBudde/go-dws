@@ -321,3 +321,55 @@ func TestCompoundAssignmentMemberAccess(t *testing.T) {
 	`
 	expectNoErrors(t, input)
 }
+
+// ============================================================================
+// Exit Statement Tests
+// ============================================================================
+
+func TestExitWithValueInFunction(t *testing.T) {
+	input := `
+		function GetValue: Integer;
+		begin
+			Exit 42;
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestExitWithWrongTypeInFunction(t *testing.T) {
+	input := `
+		function GetValue: Integer;
+		begin
+			Exit 'hello';
+		end;
+	`
+	expectError(t, input, "exit value type String incompatible with function return type Integer")
+}
+
+func TestExitWithValueAtProgramLevelError(t *testing.T) {
+	input := `
+		var x: Integer := 5;
+		Exit 42;
+	`
+	expectError(t, input, "exit with value not allowed at program level")
+}
+
+func TestExitWithoutValueInFunctionSemantic(t *testing.T) {
+	input := `
+		function GetValue: Integer;
+		begin
+			Exit;
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestExitInProcedureNoValue(t *testing.T) {
+	input := `
+		procedure DoSomething;
+		begin
+			Exit;
+		end;
+	`
+	expectNoErrors(t, input)
+}

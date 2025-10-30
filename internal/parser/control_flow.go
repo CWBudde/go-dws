@@ -34,23 +34,32 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 }
 
 // parseExitStatement parses an exit statement.
-// Syntax: exit; or exit(value);
+// Syntax: exit; exit value; or exit(value);
 func (p *Parser) parseExitStatement() *ast.ExitStatement {
 	stmt := &ast.ExitStatement{Token: p.curToken}
 
-	// Check if there's a return value: exit(value)
+	// Check if there's a parenthesized return value: exit(value)
 	if p.peekTokenIs(lexer.LPAREN) {
 		p.nextToken() // move to '('
 		p.nextToken() // move to expression
 
-		stmt.Value = p.parseExpression(LOWEST)
+		stmt.ReturnValue = p.parseExpression(LOWEST)
 
-		if stmt.Value == nil {
+		if stmt.ReturnValue == nil {
 			p.addError("expected expression after 'exit('")
 			return nil
 		}
 
 		if !p.expectPeek(lexer.RPAREN) {
+			return nil
+		}
+	} else if _, ok := p.prefixParseFns[p.peekToken.Type]; ok && !p.peekTokenIs(lexer.SEMICOLON) {
+		// Support exit with inline expression: exit value;
+		p.nextToken()
+		stmt.ReturnValue = p.parseExpression(LOWEST)
+
+		if stmt.ReturnValue == nil {
+			p.addError("expected expression after 'exit'")
 			return nil
 		}
 	}
