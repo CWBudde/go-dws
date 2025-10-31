@@ -27,28 +27,28 @@ const (
 
 // precedences maps token types to their precedence levels.
 var precedences = map[lexer.TokenType]int{
-	lexer.ASSIGN:       ASSIGN,
-	lexer.OR:           OR,
-	lexer.XOR:          OR,
-	lexer.AND:          AND,
-	lexer.EQ:           EQUALS,
-	lexer.NOT_EQ:       EQUALS,
-	lexer.IN:           EQUALS, // Set membership test
-	lexer.LESS:         LESSGREATER,
-	lexer.GREATER:      LESSGREATER,
-	lexer.LESS_EQ:      LESSGREATER,
-	lexer.GREATER_EQ:   LESSGREATER,
-	lexer.PLUS:         SUM,
-	lexer.MINUS:        SUM,
-	lexer.SHL:          SHIFT,
-	lexer.SHR:          SHIFT,
-	lexer.ASTERISK:     PRODUCT,
-	lexer.SLASH:        PRODUCT,
-	lexer.DIV:          PRODUCT,
-	lexer.MOD:          PRODUCT,
-	lexer.LPAREN:       CALL,
-	lexer.LBRACK:       INDEX,
-	lexer.DOT:          MEMBER,
+	lexer.ASSIGN:     ASSIGN,
+	lexer.OR:         OR,
+	lexer.XOR:        OR,
+	lexer.AND:        AND,
+	lexer.EQ:         EQUALS,
+	lexer.NOT_EQ:     EQUALS,
+	lexer.IN:         EQUALS, // Set membership test
+	lexer.LESS:       LESSGREATER,
+	lexer.GREATER:    LESSGREATER,
+	lexer.LESS_EQ:    LESSGREATER,
+	lexer.GREATER_EQ: LESSGREATER,
+	lexer.PLUS:       SUM,
+	lexer.MINUS:      SUM,
+	lexer.SHL:        SHIFT,
+	lexer.SHR:        SHIFT,
+	lexer.ASTERISK:   PRODUCT,
+	lexer.SLASH:      PRODUCT,
+	lexer.DIV:        PRODUCT,
+	lexer.MOD:        PRODUCT,
+	lexer.LPAREN:     CALL,
+	lexer.LBRACK:     INDEX,
+	lexer.DOT:        MEMBER,
 	// Note: Compound assignment operators (+=, -=, *=, /=) are NOT in this table
 	// because they are statement-level operators, not expression operators.
 	// They are handled in parseAssignmentOrExpression() in statements.go
@@ -96,7 +96,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.PLUS, p.parsePrefixExpression)
 	p.registerPrefix(lexer.NOT, p.parsePrefixExpression)
 	p.registerPrefix(lexer.LPAREN, p.parseGroupedExpression)
-	p.registerPrefix(lexer.LBRACK, p.parseSetLiteral)       // Set literals: [one, two]
+	p.registerPrefix(lexer.LBRACK, p.parseArrayLiteral)     // Array/Set literals: [a, b]
 	p.registerPrefix(lexer.NEW, p.parseNewExpression)       // new keyword: new Exception('msg')
 	p.registerPrefix(lexer.AT, p.parseAddressOfExpression)  // Address-of operator: @FunctionName
 	p.registerPrefix(lexer.LAMBDA, p.parseLambdaExpression) // Lambda expressions: lambda(x) => x * 2

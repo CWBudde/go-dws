@@ -48,6 +48,8 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 		return a.analyzeMemberAccessExpression(e)
 	case *ast.MethodCallExpression:
 		return a.analyzeMethodCallExpression(e)
+	case *ast.ArrayLiteralExpression:
+		return a.analyzeArrayLiteral(e, nil)
 	case *ast.RecordLiteralExpression:
 		// Task 9.176: Typed record literals can be analyzed standalone
 		if e.TypeName != nil {
@@ -71,6 +73,48 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 	default:
 		a.addError("unknown expression type: %T", expr)
 		return nil
+	}
+}
+
+// analyzeExpressionWithExpectedType analyzes an expression with optional expected type context.
+// Used for literals that require context (records, sets, arrays) to resolve their types.
+func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expectedType types.Type) types.Type {
+	if expr == nil {
+		return nil
+	}
+
+	switch e := expr.(type) {
+	case *ast.RecordLiteralExpression:
+		return a.analyzeRecordLiteral(e, expectedType)
+	case *ast.SetLiteral:
+		return a.analyzeSetLiteralWithContext(e, expectedType)
+	case *ast.ArrayLiteralExpression:
+		if expectedType != nil {
+			if _, ok := types.GetUnderlyingType(expectedType).(*types.SetType); ok {
+				convertible := len(e.Elements) == 0
+				if !convertible {
+					convertible = true
+					for _, elem := range e.Elements {
+						switch elem.(type) {
+						case *ast.Identifier, *ast.RangeExpression:
+							// valid set elements
+						default:
+							convertible = false
+						}
+					}
+				}
+				if convertible {
+					setLit := &ast.SetLiteral{
+						Token:    e.Token,
+						Elements: e.Elements,
+					}
+					return a.analyzeSetLiteralWithContext(setLit, expectedType)
+				}
+			}
+		}
+		return a.analyzeArrayLiteral(e, expectedType)
+	default:
+		return a.analyzeExpression(expr)
 	}
 }
 

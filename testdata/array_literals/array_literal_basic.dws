@@ -1,0 +1,8 @@
+type TIntArray = array of Integer;
+
+var numbers := [1, 2, 3];
+var total: Integer := 0;
+
+total := numbers[0] + numbers[1] + numbers[2];
+
+PrintLn(total);

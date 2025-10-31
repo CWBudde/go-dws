@@ -107,32 +107,10 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	// If there's an initializer, check its type
 	// Note: Parser already validates that multi-name declarations cannot have initializers
 	if stmt.Value != nil {
-		var initType types.Type
-
-		// Special handling for record literals - they need the expected type
-		if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok {
-			if varType == nil {
-				a.addError("record literal requires explicit type annotation at %s", stmt.Token.Pos.String())
-				return
-			}
-			initType = a.analyzeRecordLiteral(recordLit, varType)
-			if initType == nil {
-				// Error already reported by analyzeRecordLiteral
-				return
-			}
-		} else if setLit, ok := stmt.Value.(*ast.SetLiteral); ok {
-			// Special handling for set literals - they need the expected type
-			initType = a.analyzeSetLiteralWithContext(setLit, varType)
-			if initType == nil {
-				// Error already reported by analyzeSetLiteralWithContext
-				return
-			}
-		} else {
-			initType = a.analyzeExpression(stmt.Value)
-			if initType == nil {
-				// Error already reported by analyzeExpression
-				return
-			}
+		initType := a.analyzeExpressionWithExpectedType(stmt.Value, varType)
+		if initType == nil {
+			// Error already reported
+			return
 		}
 
 		if varType == nil {
@@ -192,30 +170,10 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	// Analyze the value expression
 	var valueType types.Type
 
-	// Special handling for record literals - they need the expected type
-	if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok {
-		if constType == nil {
-			a.addError("record literal requires explicit type annotation at %s", stmt.Token.Pos.String())
-			return
-		}
-		valueType = a.analyzeRecordLiteral(recordLit, constType)
-		if valueType == nil {
-			// Error already reported by analyzeRecordLiteral
-			return
-		}
-	} else if setLit, ok := stmt.Value.(*ast.SetLiteral); ok {
-		// Special handling for set literals - they need the expected type
-		valueType = a.analyzeSetLiteralWithContext(setLit, constType)
-		if valueType == nil {
-			// Error already reported by analyzeSetLiteralWithContext
-			return
-		}
-	} else {
-		valueType = a.analyzeExpression(stmt.Value)
-		if valueType == nil {
-			// Error already reported by analyzeExpression
-			return
-		}
+	valueType = a.analyzeExpressionWithExpectedType(stmt.Value, constType)
+	if valueType == nil {
+		// Error already reported
+		return
 	}
 
 	if constType == nil {
@@ -236,13 +194,6 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 
 // analyzeAssignment analyzes an assignment statement
 func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
-	// Check the type of the value being assigned first
-	valueType := a.analyzeExpression(stmt.Value)
-	if valueType == nil {
-		// Error already reported
-		return
-	}
-
 	// Determine if this is a compound assignment
 	isCompound := stmt.Operator != lexer.ASSIGN && stmt.Operator != lexer.TokenType(0)
 
@@ -267,6 +218,11 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		}
 
 		// For compound assignments, validate operator compatibility
+		valueType := a.analyzeExpressionWithExpectedType(stmt.Value, sym.Type)
+		if valueType == nil {
+			return
+		}
+
 		if isCompound {
 			if !a.isCompoundOperatorValid(stmt.Operator, sym.Type, valueType, stmt.Token.Pos) {
 				return
@@ -284,6 +240,11 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		// Analyze the target to ensure it's valid
 		targetType := a.analyzeExpression(target)
 		if targetType == nil {
+			return
+		}
+
+		valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
+		if valueType == nil {
 			return
 		}
 
@@ -305,6 +266,11 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		// Analyze the target to ensure it's valid
 		targetType := a.analyzeExpression(target)
 		if targetType == nil {
+			return
+		}
+
+		valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
+		if valueType == nil {
 			return
 		}
 

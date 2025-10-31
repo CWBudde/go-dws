@@ -1,0 +1,8 @@
+function HitSphereCheck(zsq: Integer): Boolean;
+begin
+  if (zsq < 0) then Exit False;
+  Result := True;
+end;
+
+PrintLn(HitSphereCheck(-5));
+PrintLn(HitSphereCheck(10));

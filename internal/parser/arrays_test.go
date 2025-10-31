@@ -62,64 +62,196 @@ func TestParseArrayTypeDeclaration(t *testing.T) {
 // ============================================================================
 
 func TestParseArrayLiteral(t *testing.T) {
-	t.Run("Array literal with integers", func(t *testing.T) {
-		input := `[1, 2, 3];`
+	tests := []struct {
+		name         string
+		input        string
+		wantElements int
+		assert       func(t *testing.T, lit *ast.ArrayLiteralExpression)
+	}{
+		{
+			name:         "SimpleIntegers",
+			input:        `var arr := [1, 2, 3];`,
+			wantElements: 3,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				for i, expected := range []int64{1, 2, 3} {
+					intLit, ok := lit.Elements[i].(*ast.IntegerLiteral)
+					if !ok {
+						t.Fatalf("element %d is not *ast.IntegerLiteral, got %T", i, lit.Elements[i])
+					}
+					if intLit.Value != expected {
+						t.Fatalf("element %d value = %d, want %d", i, intLit.Value, expected)
+					}
+				}
+			},
+		},
+		{
+			name:         "WithExpressions",
+			input:        `var arr := [x + 1, Length(s), 42];`,
+			wantElements: 3,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				if _, ok := lit.Elements[0].(*ast.BinaryExpression); !ok {
+					t.Fatalf("element 0 is not *ast.BinaryExpression, got %T", lit.Elements[0])
+				}
+
+				callExpr, ok := lit.Elements[1].(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("element 1 is not *ast.CallExpression, got %T", lit.Elements[1])
+				}
+				funcIdent, ok := callExpr.Function.(*ast.Identifier)
+				if !ok || funcIdent.Value != "Length" {
+					t.Fatalf("call expression function = %T (%v), want Identifier 'Length'", callExpr.Function, funcIdent)
+				}
+
+				intLit, ok := lit.Elements[2].(*ast.IntegerLiteral)
+				if !ok || intLit.Value != 42 {
+					t.Fatalf("element 2 = %T (value=%v), want IntegerLiteral 42", lit.Elements[2], intLit)
+				}
+			},
+		},
+		{
+			name:         "NestedArrays",
+			input:        `var matrix := [[1, 2], [3, 4]];`,
+			wantElements: 2,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				for i, expectedValues := range [][]int64{{1, 2}, {3, 4}} {
+					nested, ok := lit.Elements[i].(*ast.ArrayLiteralExpression)
+					if !ok {
+						t.Fatalf("nested element %d is not *ast.ArrayLiteralExpression, got %T", i, lit.Elements[i])
+					}
+					if len(nested.Elements) != 2 {
+						t.Fatalf("nested element %d length = %d, want 2", i, len(nested.Elements))
+					}
+					for j, expected := range expectedValues {
+						intLit, ok := nested.Elements[j].(*ast.IntegerLiteral)
+						if !ok || intLit.Value != expected {
+							t.Fatalf("nested element %d[%d] = %T (value=%v), want IntegerLiteral %d", i, j, nested.Elements[j], nested.Elements[j], expected)
+						}
+					}
+				}
+			},
+		},
+		{
+			name:         "NegativeNumbers",
+			input:        `var vec := [-50.0, 30, 50];`,
+			wantElements: 3,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				unary, ok := lit.Elements[0].(*ast.UnaryExpression)
+				if !ok || unary.Operator != "-" {
+					t.Fatalf("element 0 = %T, want UnaryExpression with operator '-'", lit.Elements[0])
+				}
+				if _, ok := unary.Right.(*ast.FloatLiteral); !ok {
+					t.Fatalf("unary.Right = %T, want *ast.FloatLiteral", unary.Right)
+				}
+
+				second, ok := lit.Elements[1].(*ast.IntegerLiteral)
+				if !ok || second.Value != 30 {
+					t.Fatalf("element 1 = %T (value=%v), want IntegerLiteral 30", lit.Elements[1], second)
+				}
+
+				third, ok := lit.Elements[2].(*ast.IntegerLiteral)
+				if !ok || third.Value != 50 {
+					t.Fatalf("element 2 = %T (value=%v), want IntegerLiteral 50", lit.Elements[2], third)
+				}
+			},
+		},
+		{
+			name:         "Empty",
+			input:        `var arrEmpty := [];`,
+			wantElements: 0,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				if len(lit.Elements) != 0 {
+					t.Fatalf("len(Elements) = %d, want 0", len(lit.Elements))
+				}
+			},
+		},
+		{
+			name:         "TrailingComma",
+			input:        `var arr := [1, 2, 3, ];`,
+			wantElements: 3,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				if len(lit.Elements) != 3 {
+					t.Fatalf("len(Elements) = %d, want 3", len(lit.Elements))
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+			}
+
+			varDecl, ok := program.Statements[0].(*ast.VarDeclStatement)
+			if !ok {
+				t.Fatalf("statement is not *ast.VarDeclStatement, got %T", program.Statements[0])
+			}
+
+			arrayLit, ok := varDecl.Value.(*ast.ArrayLiteralExpression)
+			if !ok {
+				t.Fatalf("Value is not *ast.ArrayLiteralExpression, got %T", varDecl.Value)
+			}
+
+			if len(arrayLit.Elements) != tt.wantElements {
+				t.Fatalf("len(Elements) = %d, want %d", len(arrayLit.Elements), tt.wantElements)
+			}
+
+			if tt.assert != nil {
+				tt.assert(t, arrayLit)
+			}
+		})
+	}
+}
+
+func TestParseArrayLiteralErrors(t *testing.T) {
+	t.Run("MissingCommaBetweenElements", func(t *testing.T) {
+		input := `var arr := [1 2, 3];`
 
 		l := lexer.New(input)
 		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		_ = p.ParseProgram()
 
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		if len(p.Errors()) == 0 {
+			t.Fatalf("expected parser errors, got none")
 		}
 
-		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
-		if !ok {
-			t.Fatalf("statement is not *ast.ExpressionStatement, got %T", program.Statements[0])
+		found := false
+		for _, err := range p.Errors() {
+			if contains(err, "expected ',' or ']' in array literal") {
+				found = true
+				break
+			}
 		}
-
-		// Currently this might parse as SetLiteral - we'll need to distinguish later
-		// For now, just check that we can parse bracket syntax
-		t.Logf("Expression type: %T", stmt.Expression)
+		if !found {
+			t.Fatalf("expected error about missing comma, errors: %v", p.Errors())
+		}
 	})
 
-	t.Run("Empty array literal", func(t *testing.T) {
-		input := `[];`
+	t.Run("UnclosedBracket", func(t *testing.T) {
+		input := `var arr := [1, 2, 3;`
 
 		l := lexer.New(input)
 		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		_ = p.ParseProgram()
 
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		if len(p.Errors()) == 0 {
+			t.Fatalf("expected parser errors, got none")
 		}
-	})
 
-	t.Run("Array literal with strings", func(t *testing.T) {
-		input := `['hello', 'world'];`
-
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
-
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		found := false
+		for _, err := range p.Errors() {
+			if contains(err, "expected closing ']' for array literal") {
+				found = true
+				break
+			}
 		}
-	})
-
-	t.Run("Nested array literal", func(t *testing.T) {
-		input := `[[1, 2], [3, 4]];`
-
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
-
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		if !found {
+			t.Fatalf("expected error about missing closing bracket, errors: %v", p.Errors())
 		}
 	})
 }

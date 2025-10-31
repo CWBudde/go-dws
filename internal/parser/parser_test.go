@@ -193,16 +193,16 @@ func TestCharLiterals(t *testing.T) {
 		input    string
 		expected rune
 	}{
-		{"#65;", 'A'},           // Decimal: A
-		{"#$41;", 'A'},          // Hex: A
-		{"#13;", '\r'},          // Carriage return
-		{"#10;", '\n'},          // Line feed
-		{"#$61;", 'a'},          // Hex: a
-		{"#32;", ' '},           // Space
-		{"#$0D;", '\r'},         // Hex CR
-		{"#$0A;", '\n'},         // Hex LF
-		{"#48;", '0'},           // Digit 0
-		{"#$30;", '0'},          // Hex digit 0
+		{"#65;", 'A'},   // Decimal: A
+		{"#$41;", 'A'},  // Hex: A
+		{"#13;", '\r'},  // Carriage return
+		{"#10;", '\n'},  // Line feed
+		{"#$61;", 'a'},  // Hex: a
+		{"#32;", ' '},   // Space
+		{"#$0D;", '\r'}, // Hex CR
+		{"#$0A;", '\n'}, // Hex LF
+		{"#48;", '0'},   // Digit 0
+		{"#$30;", '0'},  // Hex digit 0
 	}
 
 	for _, tt := range tests {
@@ -2968,14 +2968,12 @@ end;`,
 		},
 		{
 			name:  "for-in loop with set literal",
-			input: "for i in [1, 2, 3] do PrintLn(i);",
+			input: "for day in [Mon, Tue, Wed] do Process(day);",
 			assertions: func(t *testing.T, stmt *ast.ForInStatement) {
-				// Test loop variable
-				if stmt.Variable.Value != "i" {
-					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				if stmt.Variable.Value != "day" {
+					t.Errorf("loop variable = %q, want 'day'", stmt.Variable.Value)
 				}
 
-				// Test collection is a set literal (in DWScript, [...] creates sets)
 				setLit, ok := stmt.Collection.(*ast.SetLiteral)
 				if !ok {
 					t.Fatalf("collection is not SetLiteral. got=%T", stmt.Collection)
@@ -2985,19 +2983,15 @@ end;`,
 					t.Fatalf("set has %d elements, want 3", len(setLit.Elements))
 				}
 
-				// Test first element is 1
-				if !testIntegerLiteral(t, setLit.Elements[0], 1) {
-					return
-				}
-
-				// Test second element is 2
-				if !testIntegerLiteral(t, setLit.Elements[1], 2) {
-					return
-				}
-
-				// Test third element is 3
-				if !testIntegerLiteral(t, setLit.Elements[2], 3) {
-					return
+				expected := []string{"Mon", "Tue", "Wed"}
+				for i, want := range expected {
+					ident, ok := setLit.Elements[i].(*ast.Identifier)
+					if !ok {
+						t.Fatalf("element %d is not Identifier. got=%T", i, setLit.Elements[i])
+					}
+					if ident.Value != want {
+						t.Fatalf("element %d value = %q, want %q", i, ident.Value, want)
+					}
 				}
 			},
 		},

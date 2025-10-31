@@ -306,7 +306,7 @@ func TestLambdaExpression(t *testing.T) {
 		body := &BlockStatement{
 			Statements: []Statement{
 				&ReturnStatement{
-					ReturnValue: &ArrayLiteral{
+					ReturnValue: &ArrayLiteralExpression{
 						Elements: []Expression{
 							&IntegerLiteral{Value: 1, Token: lexer.Token{Type: lexer.INT, Literal: "1"}},
 							&IntegerLiteral{Value: 2, Token: lexer.Token{Type: lexer.INT, Literal: "2"}},

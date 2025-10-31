@@ -121,117 +121,142 @@ func TestArrayTypeAnnotation(t *testing.T) {
 }
 
 // ============================================================================
-// ArrayLiteral Tests
+// ArrayLiteralExpression Tests
 // ============================================================================
 
-func TestArrayLiteral(t *testing.T) {
-	t.Run("Array with integer elements", func(t *testing.T) {
-		// [1, 2, 3]
-		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
+func TestArrayLiteralExpression_String(t *testing.T) {
+	lbrackTok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
+	intToken := func(lit string) lexer.Token {
+		return lexer.Token{Type: lexer.INT, Literal: lit}
+	}
+	floatToken := func(lit string) lexer.Token {
+		return lexer.Token{Type: lexer.FLOAT, Literal: lit}
+	}
+	stringToken := func(lit string) lexer.Token {
+		return lexer.Token{Type: lexer.STRING, Literal: "\"" + lit + "\""}
+	}
+	identToken := func(lit string) lexer.Token {
+		return lexer.Token{Type: lexer.IDENT, Literal: lit}
+	}
 
-		arrayLit := &ArrayLiteral{
-			Token: tok,
-			Elements: []Expression{
-				&IntegerLiteral{Token: tok, Value: 1},
-				&IntegerLiteral{Token: tok, Value: 2},
-				&IntegerLiteral{Token: tok, Value: 3},
+	tests := []struct {
+		name     string
+		elements []Expression
+		want     string
+	}{
+		{
+			name: "SimpleIntegers",
+			elements: []Expression{
+				&IntegerLiteral{Token: intToken("1"), Value: 1},
+				&IntegerLiteral{Token: intToken("2"), Value: 2},
+				&IntegerLiteral{Token: intToken("3"), Value: 3},
 			},
-		}
-
-		// Test TokenLiteral()
-		if arrayLit.TokenLiteral() != "[" {
-			t.Errorf("TokenLiteral() = %v, want '['", arrayLit.TokenLiteral())
-		}
-
-		// Test Elements count
-		if len(arrayLit.Elements) != 3 {
-			t.Errorf("len(Elements) = %v, want 3", len(arrayLit.Elements))
-		}
-	})
-
-	t.Run("Empty array", func(t *testing.T) {
-		// []
-		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
-
-		arrayLit := &ArrayLiteral{
-			Token:    tok,
-			Elements: []Expression{},
-		}
-
-		// Test empty Elements
-		if len(arrayLit.Elements) != 0 {
-			t.Errorf("len(Elements) = %v, want 0", len(arrayLit.Elements))
-		}
-	})
-
-	t.Run("Array with string elements", func(t *testing.T) {
-		// ['hello', 'world']
-		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
-
-		arrayLit := &ArrayLiteral{
-			Token: tok,
-			Elements: []Expression{
-				&StringLiteral{Token: tok, Value: "hello"},
-				&StringLiteral{Token: tok, Value: "world"},
+			want: "[1, 2, 3]",
+		},
+		{
+			name: "Expressions",
+			elements: []Expression{
+				&BinaryExpression{
+					Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					Left:     &Identifier{Token: identToken("x"), Value: "x"},
+					Operator: "+",
+					Right:    &IntegerLiteral{Token: intToken("1"), Value: 1},
+				},
+				&BinaryExpression{
+					Token:    lexer.Token{Type: lexer.ASTERISK, Literal: "*"},
+					Left:     &Identifier{Token: identToken("y"), Value: "y"},
+					Operator: "*",
+					Right:    &IntegerLiteral{Token: intToken("2"), Value: 2},
+				},
+				&BinaryExpression{
+					Token:    lexer.Token{Type: lexer.MINUS, Literal: "-"},
+					Left:     &Identifier{Token: identToken("z"), Value: "z"},
+					Operator: "-",
+					Right:    &IntegerLiteral{Token: intToken("3"), Value: 3},
+				},
 			},
-		}
-
-		// Test Elements count
-		if len(arrayLit.Elements) != 2 {
-			t.Errorf("len(Elements) = %v, want 2", len(arrayLit.Elements))
-		}
-	})
-
-	t.Run("String() method", func(t *testing.T) {
-		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
-
-		arrayLit := &ArrayLiteral{
-			Token: tok,
-			Elements: []Expression{
-				&IntegerLiteral{Token: tok, Value: 1},
-				&IntegerLiteral{Token: tok, Value: 2},
+			want: "[(x + 1), (y * 2), (z - 3)]",
+		},
+		{
+			name: "NestedArrays",
+			elements: []Expression{
+				&ArrayLiteralExpression{
+					Token: lbrackTok,
+					Elements: []Expression{
+						&IntegerLiteral{Token: intToken("1"), Value: 1},
+						&IntegerLiteral{Token: intToken("2"), Value: 2},
+					},
+				},
+				&ArrayLiteralExpression{
+					Token: lbrackTok,
+					Elements: []Expression{
+						&IntegerLiteral{Token: intToken("3"), Value: 3},
+						&IntegerLiteral{Token: intToken("4"), Value: 4},
+					},
+				},
 			},
-		}
+			want: "[[1, 2], [3, 4]]",
+		},
+		{
+			name: "NegativeNumbers",
+			elements: []Expression{
+				&FloatLiteral{Token: floatToken("-50.0"), Value: -50.0},
+				&IntegerLiteral{Token: intToken("30"), Value: 30},
+				&IntegerLiteral{Token: intToken("50"), Value: 50},
+			},
+			want: "[-50.0, 30, 50]",
+		},
+		{
+			name:     "Empty",
+			elements: []Expression{},
+			want:     "[]",
+		},
+		{
+			name: "WithIdentifiersAndStrings",
+			elements: []Expression{
+				&Identifier{Token: identToken("names"), Value: "names"},
+				&StringLiteral{Token: stringToken("DWScript"), Value: "DWScript"},
+				&StringLiteral{Token: stringToken("port"), Value: "port"},
+			},
+			want: "[names, \"DWScript\", \"port\"]",
+		},
+	}
 
-		str := arrayLit.String()
-		// Should contain meaningful representation
-		if str == "" {
-			t.Error("String() should not be empty")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			arrayLit := &ArrayLiteralExpression{
+				Token:    lbrackTok,
+				Elements: tt.elements,
+			}
 
-	t.Run("Implements Expression interface", func(_ *testing.T) {
-		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
-		arrayLit := &ArrayLiteral{
-			Token:    tok,
-			Elements: []Expression{},
-		}
+			if arrayLit.TokenLiteral() != "[" {
+				t.Fatalf("TokenLiteral() = %q, want \"[\"", arrayLit.TokenLiteral())
+			}
 
-		// Ensure it implements Expression interface
-		var _ Expression = arrayLit
-	})
+			if got := arrayLit.String(); got != tt.want {
+				t.Fatalf("String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
 
-	t.Run("Type tracking", func(t *testing.T) {
-		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
-		arrayLit := &ArrayLiteral{
-			Token:    tok,
-			Elements: []Expression{},
-		}
+func TestArrayLiteralExpression_TypeTracking(t *testing.T) {
+	tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
+	arrayLit := &ArrayLiteralExpression{
+		Token:    tok,
+		Elements: []Expression{},
+	}
 
-		// Test GetType (should be nil initially)
-		if arrayLit.GetType() != nil {
-			t.Error("GetType() should be nil initially")
-		}
+	if arrayLit.GetType() != nil {
+		t.Fatal("GetType() should be nil initially")
+	}
 
-		// Test SetType
-		typeAnnotation := &TypeAnnotation{Token: tok, Name: "array of Integer"}
-		arrayLit.SetType(typeAnnotation)
+	typeAnnotation := &TypeAnnotation{Token: tok, Name: "array of Integer"}
+	arrayLit.SetType(typeAnnotation)
 
-		// Test GetType after setting
-		if arrayLit.GetType() != typeAnnotation {
-			t.Error("GetType() should return set type")
-		}
-	})
+	if arrayLit.GetType() != typeAnnotation {
+		t.Fatal("GetType() should return the type set via SetType()")
+	}
 }
 
 // ============================================================================
@@ -609,7 +634,7 @@ func TestNewArrayExpression(t *testing.T) {
 		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
-			Token: newTok,
+			Token:           newTok,
 			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
 			Dimensions: []Expression{
 				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "10"}, Value: 10},
@@ -704,7 +729,7 @@ func TestNewArrayExpression(t *testing.T) {
 		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
-			Token: newTok,
+			Token:           newTok,
 			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
 			Dimensions: []Expression{
 				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "16"}, Value: 16},
@@ -723,7 +748,7 @@ func TestNewArrayExpression(t *testing.T) {
 		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
-			Token: newTok,
+			Token:           newTok,
 			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
 			Dimensions: []Expression{
 				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "10"}, Value: 10},
@@ -743,7 +768,7 @@ func TestNewArrayExpression(t *testing.T) {
 		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
-			Token: newTok,
+			Token:           newTok,
 			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
 			Dimensions: []Expression{
 				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "10"}, Value: 10},
@@ -759,7 +784,7 @@ func TestNewArrayExpression(t *testing.T) {
 		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
-			Token: newTok,
+			Token:           newTok,
 			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
 			Dimensions: []Expression{
 				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "10"}, Value: 10},
@@ -822,7 +847,7 @@ func TestNewArrayExpression(t *testing.T) {
 		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
-			Token: newTok,
+			Token:           newTok,
 			ElementTypeName: &Identifier{Token: intTok, Value: "Integer"},
 			Dimensions: []Expression{
 				&IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "16"}, Value: 16},

@@ -1,0 +1,9 @@
+type TVector = array of Float;
+type TRow = array of Integer;
+type TMatrix = array of TRow;
+
+var light: TVector := [-50.0, 30, 50];
+var matrix: TMatrix := [[1, 2], [3, 4]];
+
+PrintLn(FloatToStr(light[0]));
+PrintLn(matrix[1][0]);

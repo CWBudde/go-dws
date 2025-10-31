@@ -1190,84 +1190,84 @@ The parser currently fails with "expected next token to be SEMICOLON, got EQ" be
 
 #### AST Nodes (2 tasks)
 
-- [ ] 9.181 Create `ArrayLiteralExpression` in `ast/arrays.go`:
-  - [ ] Fields: `Token lexer.Token`, `Elements []Expression`
-  - [ ] Implements `Expression` interface
-  - [ ] Support empty arrays: `[]`
-  - [ ] Support nested arrays: `[[1, 2], [3, 4]]`
-  - [ ] `String()` returns `[elem1, elem2, ...]`
+- [x] 9.181 Create `ArrayLiteralExpression` in `ast/arrays.go`:
+  - [x] Fields: `Token lexer.Token`, `Elements []Expression`
+  - [x] Implements `Expression` interface
+  - [x] Support empty arrays: `[]`
+  - [x] Support nested arrays: `[[1, 2], [3, 4]]`
+  - [x] `String()` returns `[elem1, elem2, ...]`
 
-- [ ] 9.182 Add AST tests for array literals:
-  - [ ] Test simple: `[1, 2, 3]`
-  - [ ] Test with expressions: `[x+1, y*2, z-3]`
-  - [ ] Test nested: `[[1, 2], [3, 4]]`
-  - [ ] Test with negative numbers: `[-50.0, 30, 50]`
-  - [ ] Test empty: `[]`
-  - [ ] 6 test cases in `ast/arrays_test.go`
+- [x] 9.182 Add AST tests for array literals:
+  - [x] Test simple: `[1, 2, 3]`
+  - [x] Test with expressions: `[x+1, y*2, z-3]`
+  - [x] Test nested: `[[1, 2], [3, 4]]`
+  - [x] Test with negative numbers: `[-50.0, 30, 50]`
+  - [x] Test empty: `[]`
+  - [x] 6 test cases in `ast/arrays_test.go`
 
 #### Parser Support (3 tasks)
 
-- [ ] 9.183 Add prefix parse function for `LBRACKET`:
-  - [ ] Register `p.prefixParseFns[lexer.LBRACKET] = p.parseArrayLiteral`
-  - [ ] Distinguish from index access (which is infix)
-  - [ ] Array literal is prefix when `[` starts an expression
+- [x] 9.183 Add prefix parse function for `LBRACKET`:
+  - [x] Register `p.prefixParseFns[lexer.LBRACKET] = p.parseArrayLiteral`
+  - [x] Distinguish from index access (which is infix)
+  - [x] Array literal is prefix when `[` starts an expression
 
-- [ ] 9.184 Implement `parseArrayLiteral()` in `parser/arrays.go`:
-  - [ ] Parse opening `[` bracket
-  - [ ] Parse comma-separated element expressions (0 or more)
-  - [ ] Handle trailing comma (optional)
-  - [ ] Expect closing `]` bracket
-  - [ ] Return `ArrayLiteralExpression` node
-  - [ ] Add error recovery for malformed syntax
+- [x] 9.184 Implement `parseArrayLiteral()` in `parser/arrays.go`:
+  - [x] Parse opening `[` bracket
+  - [x] Parse comma-separated element expressions (0 or more)
+  - [x] Handle trailing comma (optional)
+  - [x] Expect closing `]` bracket
+  - [x] Return `ArrayLiteralExpression` node
+  - [x] Add error recovery for malformed syntax
 
-- [ ] 9.185 Add parser tests for array literals:
-  - [ ] Test `[1, 2, 3]`
-  - [ ] Test `[-50.0, 30, 50]` (Death_Star.dws case)
-  - [ ] Test nested: `[[1, 2], [3, 4]]`
-  - [ ] Test empty: `[]`
-  - [ ] Test with expressions: `[x+1, Length(s), 42]`
-  - [ ] Test error cases: missing comma, unclosed bracket
-  - [ ] 8 test cases in `internal/parser/arrays_test.go`
+- [x] 9.185 Add parser tests for array literals:
+  - [x] Test `[1, 2, 3]`
+  - [x] Test `[-50.0, 30, 50]` (Death_Star.dws case)
+  - [x] Test nested: `[[1, 2], [3, 4]]`
+  - [x] Test empty: `[]`
+  - [x] Test with expressions: `[x+1, Length(s), 42]`
+  - [x] Test error cases: missing comma, unclosed bracket
+  - [x] 8 test cases in `internal/parser/arrays_test.go`
 
 #### Semantic Analysis (2 tasks)
 
-- [ ] 9.186 Create `analyzeArrayLiteral` in `semantic/analyze_arrays.go`:
-  - [ ] Infer element type from first element (if any)
-  - [ ] Validate all elements have compatible types
-  - [ ] Report error if mixed incompatible types (e.g., `[1, "hello"]`)
-  - [ ] Allow numeric type promotion (Integer → Float if needed)
-  - [ ] Set inferred type: `array of <ElementType>`
-  - [ ] Handle empty arrays (require explicit type context)
+- [x] 9.186 Create `analyzeArrayLiteral` in `semantic/analyze_arrays.go`:
+  - [x] Infer element type from first element (if any)
+  - [x] Validate all elements have compatible types
+  - [x] Report error if mixed incompatible types (e.g., `[1, "hello"]`)
+  - [x] Allow numeric type promotion (Integer → Float if needed)
+  - [x] Set inferred type: `array of <ElementType>`
+  - [x] Handle empty arrays (require explicit type context)
 
-- [ ] 9.187 Add semantic tests for array literals:
-  - [ ] Test homogeneous: `[1, 2, 3]` → `array of Integer`
-  - [ ] Test type promotion: `[1, 2.5, 3]` → `array of Float`
-  - [ ] Test error: mixed types `[1, "hello"]`
-  - [ ] Test nested: `[[1, 2], [3, 4]]` → `array of array of Integer`
-  - [ ] 5 test cases in `internal/semantic/arrays_test.go`
+- [x] 9.187 Add semantic tests for array literals:
+  - [x] Test homogeneous: `[1, 2, 3]` → `array of Integer`
+  - [x] Test type promotion: `[1, 2.5, 3]` → `array of Float`
+  - [x] Test error: mixed types `[1, "hello"]`
+  - [x] Test nested: `[[1, 2], [3, 4]]` → `array of array of Integer`
+  - [x] 5 test cases in `internal/semantic/arrays_test.go`
 
 #### Interpreter Support (2 tasks)
 
-- [ ] 9.188 Implement `evalArrayLiteral` in `interp/array.go`:
-  - [ ] Evaluate each element expression in order
-  - [ ] Collect evaluated values into slice
-  - [ ] Create `ArrayValue` with elements
-  - [ ] Handle empty arrays (create with zero length)
-  - [ ] Handle nested arrays recursively
+- [x] 9.188 Implement `evalArrayLiteral` in `interp/array.go`:
+  - [x] Evaluate each element expression in order
+  - [x] Collect evaluated values into slice
+  - [x] Create `ArrayValue` with elements
+  - [x] Handle empty arrays (create with zero length)
+  - [x] Handle nested arrays recursively
 
-- [ ] 9.189 Add interpreter tests for array literals:
-  - [ ] Test `var arr := [1, 2, 3]; PrintLn(arr[1]);` outputs `2`
-  - [ ] Test `var light := [-50.0, 30, 50]; PrintLn(light[0]);` outputs `-50.0`
-  - [ ] Test nested: `var matrix := [[1, 2], [3, 4]]; PrintLn(matrix[0][1]);` outputs `2`
-  - [ ] 5 test cases in `internal/interp/arrays_test.go`
+- [x] 9.189 Add interpreter tests for array literals:
+  - [x] Test `var arr := [1, 2, 3]; PrintLn(arr[1]);` outputs `2`
+  - [x] Test `var light := [-50.0, 30, 50]; PrintLn(FloatToStr(light[0]));` outputs `-50`
+  - [x] Test nested: `var matrix := [[1, 2], [3, 4]]; PrintLn(matrix[0][1]);` outputs `2`
+  - [x] 5 test cases in `internal/interp/arrays_test.go`
 
 #### Testing & Documentation (1 task)
 
-- [ ] 9.190 Create test files and enable Death_Star.dws:
-  - [ ] Create `testdata/array_literals/array_literal_basic.dws`
-  - [ ] Create `testdata/array_literals/array_literal_nested.dws`
-  - [ ] Verify `var light : TVector = [-50.0, 30, 50];` parses and executes
-  - [ ] Add integration test in `pkg/dwscript/rosetta_examples_test.go`
+- [x] 9.190 Create test files and enable Death_Star.dws:
+  - [x] Create `testdata/array_literals/array_literal_basic.dws`
+  - [x] Create `testdata/array_literals/array_literal_nested.dws`
+  - [x] Verify `var light : TVector = [-50.0, 30, 50];` parses and executes
+  - [x] Add integration test in `pkg/dwscript/rosetta_examples_test.go`
 
 ---
 
@@ -1400,25 +1400,25 @@ The parser currently fails with "no prefix parse function for FALSE" because it 
 
 #### Interpreter Support (2 tasks)
 
-- [ ] 9.204 Update `evalExitStatement` to return values:
-  - [ ] If `ReturnValue` is present, evaluate expression
-  - [ ] Return evaluated value wrapped in `ExitSignal` or similar control flow type
-  - [ ] If no value, return `ExitSignal` with nil (existing behavior)
-  - [ ] Ensure function caller receives the return value
+- [x] 9.204 Update `evalExitStatement` to return values:
+  - [x] If `ReturnValue` is present, evaluate expression
+  - [x] Return evaluated value wrapped in `ExitSignal` or similar control flow type
+  - [x] If no value, return `ExitSignal` with nil (existing behavior)
+  - [x] Ensure function caller receives the return value
 
-- [ ] 9.205 Add interpreter tests for Exit with values:
-  - [ ] Test function returning via Exit: `function Test: Boolean; begin Exit False; end;`
-  - [ ] Test early exit: `if condition then Exit value else Exit otherValue;`
-  - [ ] Test `Exit` in nested blocks (if/while/for)
-  - [ ] 4 test cases in `internal/interp/statements_test.go`
+- [x] 9.205 Add interpreter tests for Exit with values:
+  - [x] Test function returning via Exit: `function Test: Boolean; begin Exit False; end;`
+  - [x] Test early exit: `if condition then Exit value else Exit otherValue;`
+  - [x] Test `Exit` in nested blocks (if/while/for)
+  - [x] 4 test cases in `internal/interp/statements_test.go`
 
 #### Testing & Documentation (1 task)
 
-- [ ] 9.206 Create test files and enable Death_Star.dws:
-  - [ ] Create `testdata/exit_statement/exit_with_value.dws`
-  - [ ] Verify `if (zsq < 0) then Exit False;` parses and executes
-  - [ ] Test boolean function: returns False on condition
-  - [ ] Add integration test in `pkg/dwscript/rosetta_examples_test.go`
+- [x] 9.206 Create test files and enable Death_Star.dws:
+  - [x] Create `testdata/exit_statement/exit_with_value.dws`
+  - [x] Verify `if (zsq < 0) then Exit False;` parses and executes
+  - [x] Test boolean function: returns False on condition
+  - [x] Add integration test in `pkg/dwscript/rosetta_examples_test.go`
 
 ---
 
