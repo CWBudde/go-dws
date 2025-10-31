@@ -30,10 +30,38 @@ func TestMarshalToGo(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "Integer to int32",
+			dwsValue:    NewIntegerValue(42),
+			targetType:  reflect.TypeOf(int32(0)),
+			expected:    int32(42),
+			expectError: false,
+		},
+		{
+			name:        "Integer to int16",
+			dwsValue:    NewIntegerValue(42),
+			targetType:  reflect.TypeOf(int16(0)),
+			expected:    int16(42),
+			expectError: false,
+		},
+		{
+			name:        "Integer to int8",
+			dwsValue:    NewIntegerValue(42),
+			targetType:  reflect.TypeOf(int8(0)),
+			expected:    int8(42),
+			expectError: false,
+		},
+		{
 			name:        "Float to float64",
 			dwsValue:    NewFloatValue(3.14),
 			targetType:  reflect.TypeOf(float64(0)),
 			expected:    3.14,
+			expectError: false,
+		},
+		{
+			name:        "Float to float32",
+			dwsValue:    NewFloatValue(3.14),
+			targetType:  reflect.TypeOf(float32(0)),
+			expected:    float32(3.14),
 			expectError: false,
 		},
 		{
@@ -119,9 +147,29 @@ func TestMarshalToDWS(t *testing.T) {
 			expected: NewIntegerValue(42),
 		},
 		{
+			name:     "int32 to Integer",
+			goValue:  int32(42),
+			expected: NewIntegerValue(42),
+		},
+		{
+			name:     "int16 to Integer",
+			goValue:  int16(42),
+			expected: NewIntegerValue(42),
+		},
+		{
+			name:     "int8 to Integer",
+			goValue:  int8(42),
+			expected: NewIntegerValue(42),
+		},
+		{
 			name:     "float64 to Float",
 			goValue:  3.14,
 			expected: NewFloatValue(3.14),
+		},
+		{
+			name:     "float32 to Float",
+			goValue:  float32(3.14),
+			expected: NewFloatValue(float64(float32(3.14))),
 		},
 		{
 			name:     "string to String",
@@ -263,9 +311,29 @@ func TestMarshalRoundTrip(t *testing.T) {
 			targetType: reflect.TypeOf(int64(0)),
 		},
 		{
+			name:       "INTEGER_INT32",
+			original:   NewIntegerValue(42),
+			targetType: reflect.TypeOf(int32(0)),
+		},
+		{
+			name:       "INTEGER_INT16",
+			original:   NewIntegerValue(42),
+			targetType: reflect.TypeOf(int16(0)),
+		},
+		{
+			name:       "INTEGER_INT8",
+			original:   NewIntegerValue(42),
+			targetType: reflect.TypeOf(int8(0)),
+		},
+		{
 			name:       "FLOAT",
 			original:   NewFloatValue(3.14),
 			targetType: reflect.TypeOf(float64(0)),
+		},
+		{
+			name:       "FLOAT_FLOAT32",
+			original:   NewFloatValue(3.14),
+			targetType: reflect.TypeOf(float32(0)),
 		},
 		{
 			name:       "STRING",

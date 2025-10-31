@@ -34,12 +34,40 @@ func MarshalToGo(dwsValue Value, targetType reflect.Type) (any, error) {
 		}
 		return int(goVal), nil
 
+	case reflect.Int32:
+		goVal, err := GoInt(dwsValue)
+		if err != nil {
+			return nil, fmt.Errorf("expected Integer, got %s", dwsValue.Type())
+		}
+		return int32(goVal), nil
+
+	case reflect.Int16:
+		goVal, err := GoInt(dwsValue)
+		if err != nil {
+			return nil, fmt.Errorf("expected Integer, got %s", dwsValue.Type())
+		}
+		return int16(goVal), nil
+
+	case reflect.Int8:
+		goVal, err := GoInt(dwsValue)
+		if err != nil {
+			return nil, fmt.Errorf("expected Integer, got %s", dwsValue.Type())
+		}
+		return int8(goVal), nil
+
 	case reflect.Float64:
 		goVal, err := GoFloat(dwsValue)
 		if err != nil {
 			return nil, fmt.Errorf("expected Float, got %s", dwsValue.Type())
 		}
 		return goVal, nil
+
+	case reflect.Float32:
+		goVal, err := GoFloat(dwsValue)
+		if err != nil {
+			return nil, fmt.Errorf("expected Float, got %s", dwsValue.Type())
+		}
+		return float32(goVal), nil
 
 	case reflect.String:
 		goVal, err := GoString(dwsValue)

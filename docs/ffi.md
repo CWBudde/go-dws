@@ -126,6 +126,86 @@ end;
 - `Message`: The error message from Go
 - `ExceptionClass`: The Go error type name (e.g., "*fs.PathError")
 
+### Panic Handling
+
+Go panics are automatically caught and converted to `EHost` exceptions. This ensures your DWScript code never crashes due to panics in registered Go functions.
+
+**What happens when a Go function panics:**
+
+1. The panic is caught by a `defer/recover()` block in the FFI wrapper
+2. The panic value is converted to a string message with "panic: " prefix
+3. An `EHost` exception is created with the panic details
+4. The Go stack trace is included in the exception message (for debugging)
+5. The exception is raised in DWScript and can be caught with try/except
+
+**Example - Panic in Go function:**
+
+```go
+engine.RegisterFunction("DivideByZero", func(n int64) int64 {
+    divisor := 0
+    return n / int64(divisor)  // This will panic
+})
+```
+
+DWScript code can catch the panic as an exception:
+
+```pascal
+try
+    var result := DivideByZero(42);
+    PrintLn('Should not reach here');
+except
+    on E: EHost do begin
+        PrintLn('Caught panic: ' + E.Message);
+        // E.Message will contain "panic: runtime error: integer divide by zero"
+        // plus the Go stack trace for debugging
+    end;
+end;
+```
+
+**Panic types handled:**
+
+- `panic(error)` - Error types are converted using their `.Error()` method
+- `panic("string")` - Strings are used directly
+- `panic(42)` - Other types are converted using `fmt.Sprintf("%v", value)`
+
+**Best Practices:**
+
+1. **Write defensive Go code** - While panics are caught, it's better to return errors explicitly:
+   ```go
+   // Good: Return error explicitly
+   engine.RegisterFunction("SafeDivide", func(a, b int64) (int64, error) {
+       if b == 0 {
+           return 0, errors.New("division by zero")
+       }
+       return a / b, nil
+   })
+
+   // Avoid: Letting panic occur (though it will be caught)
+   engine.RegisterFunction("UnsafeDivide", func(a, b int64) int64 {
+       return a / b  // panics if b == 0
+   })
+   ```
+
+2. **Test edge cases** - Ensure your Go functions handle invalid inputs gracefully
+
+3. **Use error returns** - Prefer `(result, error)` signature over panics for expected error conditions
+
+4. **Include context** - Return descriptive error messages that help debug issues:
+   ```go
+   if err != nil {
+       return "", fmt.Errorf("failed to read file %s: %w", filename, err)
+   }
+   ```
+
+**Stack Traces:**
+
+When a panic occurs, the exception message includes:
+- The panic message prefixed with "panic: "
+- The full Go stack trace (up to 2048 bytes)
+- The DWScript call stack (accessible via exception handler)
+
+This makes debugging panic-related issues straightforward even in complex FFI scenarios.
+
 ## Examples
 
 ### HTTP Client

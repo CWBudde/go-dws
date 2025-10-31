@@ -351,62 +351,82 @@ PrintLn(html);
 
 #### Type Marshaling (8 tasks)
 
-- [ ] 9.37 Create `interp/marshal.go`:
-  - [ ] Implement `MarshalToGo(dwsValue Value) (any, error)`
-  - [ ] Convert DWScript values to Go values
-  - [ ] Handle all primitive types
-  - [ ] Handle arrays, records, objects
-- [ ] 9.38 Implement `MarshalToDWS(goValue any) (Value, error)`:
-  - [ ] Convert Go values to DWScript values
-  - [ ] Use reflection to inspect Go types
-  - [ ] Handle primitives, slices, maps, structs
-- [ ] 9.39 Implement integer marshaling:
-  - [ ] `int`, `int32`, `int64` → `IntegerValue`
-  - [ ] `IntegerValue` → `int64`
-- [ ] 9.40 Implement float marshaling:
-  - [ ] `float64` → `FloatValue`
-  - [ ] `FloatValue` → `float64`
-- [ ] 9.41 Implement string marshaling:
-  - [ ] `string` → `StringValue`
-  - [ ] `StringValue` → `string`
-- [ ] 9.42 Implement bool marshaling:
-  - [ ] `bool` → `BoolValue`
-  - [ ] `BoolValue` → `bool`
-- [ ] 9.43 Implement array marshaling:
-  - [ ] `[]any` ↔ `ArrayValue`
-  - [ ] Element-wise conversion
-- [ ] 9.44 Add marshaling tests
+- [x] 9.37 Create `interp/marshal.go`:
+  - [x] Implement `MarshalToGo(dwsValue Value, targetType reflect.Type) (any, error)`
+  - [x] Convert DWScript values to Go values
+  - [x] Handle all primitive types (int64, int, int32, int16, int8, float64, float32, string, bool)
+  - [x] Handle arrays, records (object marshaling deferred to later tasks)
+- [x] 9.38 Implement `MarshalToDWS(goValue any) (Value, error)`:
+  - [x] Convert Go values to DWScript values
+  - [x] Use reflection to inspect Go types
+  - [x] Handle primitives, slices, maps (structs deferred to later tasks)
+- [x] 9.39 Implement integer marshaling:
+  - [x] `int`, `int8`, `int16`, `int32`, `int64` → `IntegerValue`
+  - [x] `IntegerValue` → `int64`, `int`, `int32`, `int16`, `int8`
+- [x] 9.40 Implement float marshaling:
+  - [x] `float64`, `float32` → `FloatValue`
+  - [x] `FloatValue` → `float64`, `float32`
+- [x] 9.41 Implement string marshaling:
+  - [x] `string` → `StringValue`
+  - [x] `StringValue` → `string`
+- [x] 9.42 Implement bool marshaling:
+  - [x] `bool` → `BoolValue`
+  - [x] `BoolValue` → `bool`
+- [x] 9.43 Implement array marshaling:
+  - [x] `[]T` ↔ `ArrayValue`
+  - [x] Element-wise conversion
+  - [x] Map marshaling: `map[string]T` ↔ `RecordValue`
+- [x] 9.44 Add marshaling tests
+  - [x] TestMarshalToGo with all integer and float variants
+  - [x] TestMarshalToDWS with all integer and float variants
+  - [x] TestMarshalRoundTrip for all types
 
 #### Function Registration (6 tasks)
 
-- [ ] 9.45 Create `interp/external_functions.go`:
-  - [ ] Define `ExternalFunctionRegistry` struct
-  - [ ] Implement `Register(name string, fn interface{}) error`
-  - [ ] Use reflection to extract Go function signature
-  - [ ] Validate signature (supported types only)
-  - [ ] Store function with wrapper
-- [ ] 9.46 Implement signature extraction:
-  - [ ] Use `reflect.TypeOf(fn)` to get function type
-  - [ ] Extract parameter types
-  - [ ] Extract return types (support 0-2 returns: value, error)
-  - [ ] Map Go types to DWScript types
-- [ ] 9.47 Create function call wrapper:
-  - [ ] Wrapper accepts DWScript arguments
-  - [ ] Marshals DWScript → Go
-  - [ ] Calls Go function via reflection
-  - [ ] Marshals Go return → DWScript
-  - [ ] Handles errors (convert to exceptions)
-- [ ] 9.48 Integrate registry with interpreter:
-  - [ ] Lookup external functions during function calls
-  - [ ] Call wrapper instead of DWScript function
-- [ ] 9.49 Add tests for registration
-- [ ] 9.50 Test function call execution
+- [x] 9.45 Create `interp/external_functions.go`:
+  - [x] Define `ExternalFunctionRegistry` struct with thread-safe operations
+  - [x] Implement `Register(name string, wrapper ExternalFunctionWrapper) error`
+  - [x] Reflection-based signature extraction in `pkg/dwscript/ffi.go`
+  - [x] Validate signature (supported types only) via `detectSignature()`
+  - [x] Store function with wrapper (`externalFunctionWrapper`)
+- [x] 9.46 Implement signature extraction:
+  - [x] Use `reflect.TypeOf(fn)` to get function type in `detectSignature()`
+  - [x] Extract parameter types and map to DWScript types
+  - [x] Extract return types (support 0-2 returns: value, error)
+  - [x] Map Go types to DWScript types via `goTypeToDWS()`
+  - [x] Support all numeric variants (int/int8/int16/int32/int64, float32/float64)
+  - [x] Support collections ([]T → array, map[string]T → record)
+- [x] 9.47 Create function call wrapper:
+  - [x] `externalFunctionWrapper` struct with Call() method
+  - [x] Marshals DWScript → Go via `MarshalToGo()`
+  - [x] Calls Go function via reflection (reflect.Value.Call)
+  - [x] Marshals Go return → DWScript via `MarshalToDWS()`
+  - [x] Handles errors (convert to EHost exceptions via `handleReturnValues()`)
+  - [x] Panic recovery via `callExternalFunctionSafe()`
+- [x] 9.48 Integrate registry with interpreter:
+  - [x] Interpreter has `externalFunctions *ExternalFunctionRegistry` field
+  - [x] Lookup external functions during function calls in `functions.go:126-128`
+  - [x] Call wrapper via `callExternalFunction()` in `functions.go:363`
+  - [x] Integration with options system (ExternalFunctions passed from Engine)
+- [x] 9.49 Add tests for registration:
+  - [x] TestRegisterSimpleFunction, TestRegisterInvalidFunction
+  - [x] TestRegisterDuplicateFunction
+  - [x] TestFunctionSignatureDetection (8 subtests)
+  - [x] TestAPIDesign (4 subtests covering registration patterns)
+- [x] 9.50 Test function call execution:
+  - [x] TestRegisterFunctionWithError (error handling & exceptions)
+  - [x] TestRegisterFunctionWith{Strings,Bool,Float,MixedTypes,NoReturn}
+  - [x] TestRegisterFunctionWrongArgCount (validation)
+  - [x] TestRegisterFunctionTypeMismatch (type safety)
+  - [x] TestCallingConventions (7 subtests covering all calling patterns)
+  - [x] TestMultipleFunctions, TestRegisterFunctionWith{Array,Map}
+  - [x] TestCallExternalFunctionSafe{RecoversPanicError,PropagatesError}
 
 #### Error Handling (4 tasks → 12 sub-tasks)
 
 **Note**: Leverages existing exception infrastructure from Stage 8. EHost class bridges Go errors/panics to DWScript exception system. Named "EHost" (not "EGo" or "EDelphi") for future-proofing - works with any host runtime (Go, WASM, C FFI, etc.).
 
-- [ ] 9.51 Implement error marshaling:
+- [x] 9.51 Implement error marshaling:
   - [x] 9.51a Register `EHost` exception class in `registerBuiltinExceptions()` (`internal/interp/exceptions.go`)
     - Inherits from `Exception`
     - Field: `ExceptionClass: String` (holds Go error type name, e.g., "*fs.PathError")
@@ -416,38 +436,49 @@ PrintLn(html);
     - Populate `ExceptionClass` field with `fmt.Sprintf("%T", err)`
     - Capture call stack from `i.callStack` (already implemented)
     - Set `i.exception` to trigger propagation
-  - [ ] 9.51c Integrate error conversion into FFI call wrapper
-    - Check for non-nil error return from Go function
-    - Call `raiseGoErrorAsException()` to convert
-    - Ensure exception propagates to DWScript caller
-- [ ] 9.52 Handle panics in Go functions:
+  - [x] 9.51c Integrate error conversion into FFI call wrapper
+    - `handleExternalCallResult()` checks for non-nil error return from Go function
+    - Calls `raiseGoErrorAsException()` to convert error to EHost exception
+    - Used by `callExternalFunctionSafe()` which is called from `callExternalFunction()`
+    - Exception propagates correctly to DWScript caller
+- [x] 9.52 Handle panics in Go functions:
   - [x] 9.52a Create `callExternalFunctionSafe()` wrapper with panic recovery
-    - Add `defer/recover()` block
-    - Detect panic type (error, string, other)
-    - Extract panic message with type assertion
+    - `defer/recover()` block in `ffi_errors.go:128-132`
+    - Detects panic type (error, string, fmt.Stringer, other)
+    - Extracts panic message with type assertion
   - [x] 9.52b Create `raiseGoPanicAsException(panicValue interface{})` function
-    - Convert panic value to string message
-    - Create `EHost` instance marked as panic (include "panic:" prefix in message)
-    - Optionally include Go stack trace in message (`runtime.Stack()`)
-    - Set `i.exception` to trigger propagation
-  - [ ] 9.52c Document panic handling behavior
-    - Add section to `docs/ffi-guide.md` (created in task 9.61)
-    - Explain what happens when Go code panics
+    - Converts panic value to string message (handles error, string, fmt.Stringer, any)
+    - Creates `EHost` instance with "panic: " prefix in message
+    - Includes Go stack trace (up to 2048 bytes) via `runtime.Stack()`
+    - Sets `i.exception` to trigger propagation
+  - [x] 9.52c Document panic handling behavior
+    - Added comprehensive "Panic Handling" section to `docs/ffi.md` lines 129-207
+    - Explains panic recovery mechanism and conversion to EHost exceptions
+    - Documents panic types handled (error, string, other)
     - Best practices for writing panic-safe Go functions
-- [ ] 9.53 Add tests for error handling (`internal/interp/ffi_errors_test.go`):
-  - [ ] 9.53a Test Go error → exception conversion
-    - Register Go function that returns error
-    - Call from DWScript and verify exception raised
-    - Verify exception message matches error message
-    - Verify exception is catchable with try/except
-  - [ ] 9.53b Test error propagation across nested calls
-    - Go function errors in nested call stack
-    - Verify exception propagates to top level
-    - Verify call stack array is correct
-  - [ ] 9.53c Test EHost exception-specific features
-    - Catch `EHost` exception specifically (`on E: EHost do`)
-    - Verify `ExceptionClass` field is populated with Go type
-    - Verify `Message` field contains error text
+    - Examples of catching panics in DWScript code
+    - Stack trace details and debugging information
+- [x] 9.53 Add tests for error handling (`internal/interp/ffi_errors_test.go`):
+  - [x] 9.53a Test Go error → exception conversion
+    - `TestGoErrorToExceptionConversion` with 4 subtests
+    - Tests basic error conversion to EHost exception
+    - Verifies ExceptionClass field contains Go error type name
+    - Tests call stack capture during error conversion
+    - Verifies nil errors don't set exceptions
+  - [x] 9.53b Test error propagation across nested calls
+    - `TestErrorPropagationNestedCalls` with 3 subtests
+    - Tests error in nested Go function with full call stack
+    - Tests multiple sequential errors with different call stacks
+    - Tests error propagation with empty call stack
+    - Verifies call stack frames are correctly captured
+  - [x] 9.53c Test EHost exception-specific features
+    - `TestEHostExceptionSpecificFeatures` with 6 subtests
+    - Verifies EHost inherits from Exception class
+    - Tests ExceptionClass field is populated with Go type
+    - Tests Message field contains error text
+    - Tests different error types (errorString, etc.)
+    - Tests fallback to base Exception when EHost unavailable
+    - Verifies exception instance structure and fields
 - [ ] 9.54 Test panic recovery:
   - [ ] 9.54a Test panic conversion to exception
     - Go function panics with string: `panic("error message")`
@@ -1267,20 +1298,135 @@ PrintLn(sum(i, 1, 100, 1.0/i));  // Computes harmonic series: 1/1 + 1/2 + ... + 
 
 ---
 
+### For Loop Step Keyword (HIGH PRIORITY)
+
+**Summary**: Implement the optional `step` keyword for `for-to` and `for-downto` loops to support custom increment/decrement values. Currently, for loops only increment/decrement by 1.
+
+**Example**: `for i := 1 to 10 step 2 do PrintLn(i);` outputs 1, 3, 5, 7, 9
+
+**Reference**: `examples/rosetta/Lucas-Lehmer_test.dws` uses `for p:=3 to upperBound step 2 do`
+
+**Syntax**:
+
+```pascal
+for <var> := <start> to <end> [step <step_expr>] do <statement>
+for <var> := <start> downto <end> [step <step_expr>] do <statement>
+```
+
+**Semantics**:
+
+- Step is optional; defaults to 1 if not specified
+- Step expression must evaluate to an integer
+- Step value must be strictly positive (> 0) at runtime
+- Step is evaluated once before loop execution
+- For ascending loops (`to`): increment by step
+- For descending loops (`downto`): decrement by step
+- Runtime error if step ≤ 0: "FOR loop STEP should be strictly positive: \<value\>"
+
+#### Lexer Support (1 task)
+
+- [ ] 9.227 Add `STEP` token to lexer:
+  - [ ] In `internal/lexer/token_type.go`, add `STEP` constant in control flow section (after `DOWNTO`)
+  - [ ] Add to token string mapping: `STEP: "STEP"`
+  - [ ] In `internal/lexer/token.go`, add to keywords map: `"step": STEP`
+  - [ ] Test that `step` is recognized as keyword (case-insensitive)
+
+#### AST Changes (1 task)
+
+- [ ] 9.228 Extend `ForStatement` AST node in `internal/ast/control_flow.go`:
+  - [ ] Add `Step Expression` field to `ForStatement` struct (nil if no step specified)
+  - [ ] Update `String()` method to include step when present: `for i := 1 to 10 step 2 do ...`
+  - [ ] Add AST tests for for loops with step expressions
+
+#### Parser Support (2 tasks)
+
+- [ ] 9.229 Parse optional `step` keyword in `internal/parser/control_flow.go`:
+  - [ ] In `parseForStatement()`, after parsing the end expression, check for `STEP` token
+  - [ ] If `STEP` found, parse the step expression: `p.nextToken(); stmt.Step = p.parseExpression(LOWEST)`
+  - [ ] Validate step expression is not nil
+  - [ ] Ensure `DO` token follows (either immediately or after step expression)
+  - [ ] Handle error cases: missing expression after `step`, invalid tokens
+
+- [ ] 9.230 Add parser tests in `internal/parser/control_flow_test.go`:
+  - [ ] Test `for i := 1 to 10 step 2 do PrintLn(i);` - basic ascending with step
+  - [ ] Test `for i := 10 downto 1 step 3 do PrintLn(i);` - basic descending with step
+  - [ ] Test `for i := 1 to 100 step (x * 2) do ...;` - step with expression
+  - [ ] Test `for var i := 0 to 20 step 5 do ...;` - inline var with step
+  - [ ] Test error: `for i := 1 to 10 step do` - missing step expression
+  - [ ] Test without step still works: `for i := 1 to 10 do ...;` - backward compatibility
+
+#### Semantic Analysis (2 tasks)
+
+- [ ] 9.231 Implement step expression type checking in `internal/semantic/analyzer.go`:
+  - [ ] In `analyzeForStatement()`, if step expression exists, analyze it
+  - [ ] Validate step expression type is Integer
+  - [ ] Add semantic error if step type is not Integer: "for loop step must be Integer, got \<type\>"
+  - [ ] If step is a constant expression and ≤ 0, emit compile-time error (optional optimization)
+
+- [ ] 9.232 Add semantic tests in `internal/semantic/control_flow_test.go`:
+  - [ ] Test valid: `for i := 1 to 10 step 2 do ...;` - Integer step
+  - [ ] Test valid: `for i := 1 to 10 step (x + 1) do ...;` - Integer expression step
+  - [ ] Test error: `for i := 1 to 10 step 2.5 do ...;` - Float step (type error)
+  - [ ] Test error: `for i := 1 to 10 step "text" do ...;` - String step (type error)
+  - [ ] Test valid: step variable references work correctly
+
+#### Interpreter Support (3 tasks)
+
+- [ ] 9.233 Evaluate step expression in `internal/interp/statements.go`:
+  - [ ] In `evalForStatement()`, after evaluating start/end, check if `stmt.Step != nil`
+  - [ ] If step exists, evaluate: `stepVal := i.Eval(stmt.Step)`
+  - [ ] Extract integer value from step result
+  - [ ] Validate step value is strictly positive (> 0): if not, return error
+  - [ ] Default to `stepValue = 1` if no step specified
+  - [ ] Error message: "FOR loop STEP should be strictly positive: \<value\>"
+
+- [ ] 9.234 Use step value in loop execution:
+  - [ ] For ascending loops (`ForTo`): change `current++` to `current += stepValue`
+  - [ ] For descending loops (`ForDownto`): change `current--` to `current -= stepValue`
+  - [ ] Ensure step value is evaluated only once (before loop starts)
+  - [ ] Preserve all existing loop behavior (break, continue, inline vars, etc.)
+
+- [ ] 9.235 Add interpreter tests in `internal/interp/control_flow_test.go`:
+  - [ ] Test ascending with step 2: `for i := 1 to 5 step 2 do` outputs 1, 3, 5
+  - [ ] Test descending with step 3: `for i := 10 downto 1 step 3 do` outputs 10, 7, 4, 1
+  - [ ] Test step expression: `for i := 0 to 10 step (2 + 1) do` outputs 0, 3, 6, 9
+  - [ ] Test runtime error: `var s := -1; for i := 1 to 5 step s do` - negative step error
+  - [ ] Test runtime error: `for i := 1 to 5 step 0 do` - zero step error
+  - [ ] Test large step: `for i := 1 to 100 step 50 do` outputs 1, 51
+  - [ ] Test step larger than range: `for i := 1 to 3 step 10 do` outputs 1 only
+
+#### Testing & Integration (2 tasks)
+
+- [ ] 9.236 Create test scripts in `testdata/for_step/`:
+  - [ ] `basic_step.dws` - Simple ascending/descending with step
+  - [ ] `step_expressions.dws` - Step with variable expressions
+  - [ ] `step_validation.dws` - Runtime errors for invalid steps
+  - [ ] `lucas_lehmer.dws` - Simplified Lucas-Lehmer test using step
+  - [ ] Expected output files for each
+
+- [ ] 9.237 Add CLI integration tests and verify Rosetta Code example:
+  - [ ] Create `cmd/dwscript/for_step_test.go` with integration tests
+  - [ ] Test all fixtures in `testdata/for_step/`
+  - [ ] Verify `examples/rosetta/Lucas-Lehmer_test.dws` now parses and executes correctly
+  - [ ] Expected output: "Finding Mersenne primes in M[2..30]: M2 M3 M5 M7 M13 M17 M19"
+
+---
+
 ## Phase 9 Summary
 
-**Total Tasks**: ~244 tasks
-**Estimated Effort**: ~29 weeks (~7 months)
+**Total Tasks**: ~255 tasks
+**Estimated Effort**: ~30 weeks (~7.5 months)
 
 ### Priority Breakdown:
 
-**HIGH PRIORITY** (~162 tasks, ~19 weeks):
+**HIGH PRIORITY** (~173 tasks, ~20 weeks):
 
 - Subrange Types: 12 tasks
 - Units/Modules System: 45 tasks (CRITICAL for multi-file projects)
 - Function/Method Pointers: 25 tasks
 - External Function Registration (FFI): 35 tasks
 - Array Instantiation (`new TypeName[size]`): 12 tasks (CRITICAL for Rosetta Code examples)
+- For Loop Step Keyword: 11 tasks (REQUIRED for Lucas-Lehmer test and other Rosetta Code examples)
 
 **MEDIUM-HIGH PRIORITY** (~15 tasks, ~2 weeks):
 
@@ -1294,7 +1440,7 @@ PrintLn(sum(i, 1, 100, 1.0/i));  // Computes harmonic series: 1/1 + 1/2 + ... + 
 - JSON Support: 18 tasks
 - Improved Error Messages: 12 tasks
 
-This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with DWScript, making it production-ready for most use cases. The array instantiation and lazy parameter features are particularly critical as they unblock numerous real-world DWScript examples (e.g., Rosetta Code algorithms like Jensen's Device) that rely on dynamic array creation and deferred expression evaluation.
+This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with DWScript, making it production-ready for most use cases. The for loop step keyword, array instantiation, and lazy parameter features are particularly critical as they unblock numerous real-world DWScript examples (e.g., Rosetta Code algorithms like Lucas-Lehmer test and Jensen's Device) that rely on custom loop increments, dynamic array creation, and deferred expression evaluation.
 
 ## Stage 10: Performance Tuning and Refactoring
 
