@@ -3,6 +3,7 @@ package interp
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -168,8 +169,16 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 		typeName = v.RecordType.Name
 	case *ArrayValue:
 		// Task 9.171: Array helper properties support
-		// Use generic "ARRAY" type name for all arrays
-		typeName = "ARRAY"
+		// First try specific array type (e.g., "array of String"), then generic ARRAY helpers
+		specific := v.ArrayType.String()
+		var combined []*HelperInfo
+		if h, ok := i.helpers[specific]; ok {
+			combined = append(combined, h...)
+		}
+		if h, ok := i.helpers["ARRAY"]; ok {
+			combined = append(combined, h...)
+		}
+		return combined
 	default:
 		// For other types, try to extract type name from Type() method
 		typeName = v.Type()
@@ -350,6 +359,31 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 			return &StringValue{Value: "True"}
 		}
 		return &StringValue{Value: "False"}
+
+	case "__string_array_join":
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "String array Join expects exactly 1 argument")
+		}
+		separator, ok := args[0].(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Join separator must be String, got %s", args[0].Type())
+		}
+		arrVal, ok := selfValue.(*ArrayValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Join helper requires string array receiver")
+		}
+		var builder strings.Builder
+		for idx, elem := range arrVal.Elements {
+			strElem, ok := elem.(*StringValue)
+			if !ok {
+				return i.newErrorWithLocation(node, "Join requires elements of type String")
+			}
+			if idx > 0 {
+				builder.WriteString(separator.Value)
+			}
+			builder.WriteString(strElem.Value)
+		}
+		return &StringValue{Value: builder.String()}
 
 	default:
 		return i.newErrorWithLocation(node, "unknown built-in helper method '%s'", spec)
@@ -638,4 +672,11 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	boolHelper.Methods["ToString"] = nil
 	boolHelper.BuiltinMethods["ToString"] = "__boolean_tostring"
 	register("Boolean", boolHelper)
+
+	// String dynamic array helper
+	stringArrayType := types.NewDynamicArrayType(types.STRING)
+	stringArrayHelper := NewHelperInfo("__TStringDynArrayIntrinsicHelper", stringArrayType, true)
+	stringArrayHelper.Methods["Join"] = nil
+	stringArrayHelper.BuiltinMethods["Join"] = "__string_array_join"
+	register(stringArrayType.String(), stringArrayHelper)
 }

@@ -188,6 +188,8 @@ func TestIntrinsicIntegerBooleanHelpers(t *testing.T) {
 	var b := False;
 	PrintLn(b.ToString);
 	PrintLn(b.ToString());
+	var arr := ['a', 'b'];
+	PrintLn(arr.Join('-'));
 	`
 
 	var out bytes.Buffer
@@ -198,7 +200,45 @@ func TestIntrinsicIntegerBooleanHelpers(t *testing.T) {
 		t.Fatalf("interpreter error: %s", result.String())
 	}
 
-	expected := "42\n42\nFalse\nFalse\n"
+	expected := "42\n42\nFalse\nFalse\na-b\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
+func TestHelperPrecedence(t *testing.T) {
+	input := `
+	Type
+		THelper1 = Helper For String
+			function Label: String;
+		Begin
+			Result := 'H1-' + Self;
+		End;
+	End;
+
+	var s := 'x';
+	PrintLn(s.Label());
+
+	Type
+		THelper2 = Helper For String
+			function Label: String;
+		Begin
+			Result := 'H2-' + Self;
+		End;
+	End;
+
+	PrintLn(s.Label());
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "H1-x\nH2-x\n"
 	if out.String() != expected {
 		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
 	}
