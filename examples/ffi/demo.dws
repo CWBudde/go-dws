@@ -1,0 +1,159 @@
+// FFI Demo Script - Demonstrates calling Go functions from DWScript
+
+PrintLn('=== FFI Demo ===');
+PrintLn('');
+
+// --- Math Functions ---
+PrintLn('Math Functions:');
+var sum := Add(10, 32);
+PrintLn('  Add(10, 32) = ' + IntToStr(sum));
+
+var product := Multiply(6, 7);
+PrintLn('  Multiply(6, 7) = ' + IntToStr(product));
+
+var power := Power(2, 10);
+PrintLn('  Power(2, 10) = ' + IntToStr(power));
+
+try
+  var quotient := SafeDivide(100, 5);
+  PrintLn('  SafeDivide(100, 5) = ' + IntToStr(quotient));
+except
+  on E: EHost do
+    PrintLn('  Error: ' + E.Message);
+end;
+
+PrintLn('');
+
+// --- String Functions ---
+PrintLn('String Functions:');
+var upper := ToUpper('hello world');
+PrintLn('  ToUpper("hello world") = "' + upper + '"');
+
+var lower := ToLower('HELLO WORLD');
+PrintLn('  ToLower("HELLO WORLD") = "' + lower + '"');
+
+var reversed := Reverse('DWScript');
+PrintLn('  Reverse("DWScript") = "' + reversed + '"');
+
+var hasSub := Contains('DWScript is great', 'Script');
+PrintLn('  Contains("DWScript is great", "Script") = ' + BoolToStr(hasSub));
+
+var parts := Split('a,b,c,d', ',');
+PrintLn('  Split("a,b,c,d", ",") has ' + IntToStr(Length(parts)) + ' parts');
+
+var joined := Join(parts, ' | ');
+PrintLn('  Join(parts, " | ") = "' + joined + '"');
+
+PrintLn('');
+
+// --- Array Functions ---
+PrintLn('Array Functions:');
+var numbers: array of Integer := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+var total := SumArray(numbers);
+PrintLn('  SumArray([1..10]) = ' + IntToStr(total));
+
+try
+  var maxVal := MaxArray(numbers);
+  PrintLn('  MaxArray([1..10]) = ' + IntToStr(maxVal));
+except
+  on E: EHost do
+    PrintLn('  Error: ' + E.Message);
+end;
+
+var evens := FilterEven(numbers);
+PrintLn('  FilterEven([1..10]) = [' + IntToStr(evens[0]) + ', ' + IntToStr(evens[1]) + ', ...]');
+
+var doubled := DoubleAll([1, 2, 3]);
+PrintLn('  DoubleAll([1,2,3]) first = ' + IntToStr(doubled[0]));
+
+PrintLn('');
+
+// --- Error Handling ---
+PrintLn('Error Handling:');
+
+// Error return
+try
+  var result := AlwaysFails();
+  PrintLn('  This should not print');
+except
+  on E: EHost do
+    PrintLn('  Caught error: ' + E.Message);
+end;
+
+// Conditional error
+try
+  var ok := MightFail(false);
+  PrintLn('  MightFail(false) = "' + ok + '"');
+except
+  on E: EHost do
+    PrintLn('  Error: ' + E.Message);
+end;
+
+try
+  var fail := MightFail(true);
+  PrintLn('  This should not print');
+except
+  on E: EHost do
+    PrintLn('  MightFail(true) raised: ' + E.Message);
+end;
+
+// Panic handling
+try
+  var noPanic := MightPanic(false);
+  PrintLn('  MightPanic(false) = "' + noPanic + '"');
+except
+  on E: EHost do
+    PrintLn('  Unexpected panic');
+end;
+
+try
+  var willPanic := MightPanic(true);
+  PrintLn('  This should not print');
+except
+  on E: EHost do
+    PrintLn('  MightPanic(true) caught panic');
+end;
+
+PrintLn('');
+
+// --- Utility Functions ---
+PrintLn('Utility Functions:');
+
+var config := MakeConfig();
+PrintLn('  Config.version = ' + config.version);
+PrintLn('  Config.name = ' + config.name);
+
+var formatted := Format('Hello {0}, you are {1} years old!', ['Alice', '30']);
+PrintLn('  Format result = ' + formatted);
+
+var repeated := RepeatStr('*', 5);
+PrintLn('  RepeatStr("*", 5) = "' + repeated + '"');
+
+PrintLn('');
+
+// --- Division by Zero Example ---
+PrintLn('Division by Zero:');
+try
+  var invalid := SafeDivide(10, 0);
+  PrintLn('  This should not print');
+except
+  on E: EHost do
+    PrintLn('  SafeDivide(10, 0) raised: ' + E.Message);
+end;
+
+PrintLn('');
+
+// --- Empty Array Example ---
+PrintLn('Empty Array:');
+try
+  var emptyArr: array of Integer := [];
+  var max := MaxArray(emptyArr);
+  PrintLn('  This should not print');
+except
+  on E: EHost do
+    PrintLn('  MaxArray([]) raised: ' + E.Message);
+end;
+
+PrintLn('');
+PrintLn('=== Demo Complete ===');
