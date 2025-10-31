@@ -161,6 +161,257 @@ func (a *ArrayTypeValue) String() string {
 	return "array type " + a.Name
 }
 
+// evalArrayLiteral evaluates an array literal expression at runtime.
+func (i *Interpreter) evalArrayLiteral(lit *ast.ArrayLiteralExpression) Value {
+	if lit == nil {
+		return &ErrorValue{Message: "nil array literal"}
+	}
+
+	elementCount := len(lit.Elements)
+	evaluated := make([]Value, elementCount)
+	elementTypes := make([]types.Type, elementCount)
+
+	for idx, elem := range lit.Elements {
+		val := i.Eval(elem)
+		if isError(val) {
+			return val
+		}
+		evaluated[idx] = val
+		elementTypes[idx] = i.typeFromValue(val)
+	}
+
+	arrayType, errVal := i.arrayTypeFromLiteral(lit)
+	if errVal != nil {
+		return errVal
+	}
+
+	if arrayType == nil {
+		inferred, errVal := i.inferArrayTypeFromValues(lit, elementTypes)
+		if errVal != nil {
+			return errVal
+		}
+		if inferred == nil {
+			if elementCount == 0 {
+				return i.newErrorWithLocation(lit, "cannot infer type for empty array literal")
+			}
+			return i.newErrorWithLocation(lit, "cannot determine array type for literal")
+		}
+		arrayType = inferred
+	}
+
+	coerced, errVal := i.coerceArrayElements(arrayType, evaluated, elementTypes, lit)
+	if errVal != nil {
+		return errVal
+	}
+
+	var elements []Value
+	if arrayType.IsStatic() {
+		expectedSize := arrayType.Size()
+		if elementCount != expectedSize {
+			return i.newErrorWithLocation(lit, "array literal has %d elements, expected %d", elementCount, expectedSize)
+		}
+		elements = make([]Value, expectedSize)
+		copy(elements, coerced)
+	} else {
+		elements = append([]Value(nil), coerced...)
+	}
+
+	return &ArrayValue{
+		ArrayType: arrayType,
+		Elements:  elements,
+	}
+}
+
+// arrayTypeFromLiteral resolves the array type for a literal using its type annotation, if available.
+func (i *Interpreter) arrayTypeFromLiteral(lit *ast.ArrayLiteralExpression) (*types.ArrayType, Value) {
+	typeAnnot := lit.GetType()
+	if typeAnnot == nil || typeAnnot.Name == "" {
+		return nil, nil
+	}
+
+	return i.arrayTypeByName(typeAnnot.Name, lit)
+}
+
+// inferArrayTypeFromValues infers a dynamic array type based on evaluated element types.
+func (i *Interpreter) inferArrayTypeFromValues(lit *ast.ArrayLiteralExpression, elementTypes []types.Type) (*types.ArrayType, Value) {
+	var inferred types.Type
+
+	for idx, elemType := range elementTypes {
+		if elemType == nil {
+			continue
+		}
+
+		underlying := types.GetUnderlyingType(elemType)
+		if underlying == types.NIL {
+			continue
+		}
+
+		if inferred == nil {
+			inferred = underlying
+			continue
+		}
+
+		if inferred.Equals(underlying) {
+			continue
+		}
+
+		if inferred.Equals(types.INTEGER) && underlying.Equals(types.FLOAT) {
+			inferred = types.FLOAT
+			continue
+		}
+
+		if inferred.Equals(types.FLOAT) && underlying.Equals(types.INTEGER) {
+			continue
+		}
+
+		return nil, i.newErrorWithLocation(lit.Elements[idx], "array element %d has incompatible type (got %s, expected %s)",
+			idx+1, underlying.String(), inferred.String())
+	}
+
+	if inferred == nil {
+		return nil, nil
+	}
+
+	return types.NewDynamicArrayType(types.GetUnderlyingType(inferred)), nil
+}
+
+// coerceArrayElements ensures evaluated values conform to the array's element type.
+func (i *Interpreter) coerceArrayElements(arrayType *types.ArrayType, values []Value, valueTypes []types.Type, lit *ast.ArrayLiteralExpression) ([]Value, Value) {
+	coerced := make([]Value, len(values))
+
+	elementType := arrayType.ElementType
+	if elementType == nil {
+		return nil, i.newErrorWithLocation(lit, "array literal has no element type information")
+	}
+	underlyingElementType := types.GetUnderlyingType(elementType)
+
+	for idx, val := range values {
+		var valType types.Type
+		if idx < len(valueTypes) && valueTypes[idx] != nil {
+			valType = types.GetUnderlyingType(valueTypes[idx])
+		}
+
+		if _, isNil := val.(*NilValue); isNil {
+			switch underlyingElementType.TypeKind() {
+			case "CLASS", "INTERFACE", "ARRAY":
+				coerced[idx] = val
+				continue
+			default:
+				return nil, i.newErrorWithLocation(lit.Elements[idx], "cannot assign nil to %s", underlyingElementType.String())
+			}
+		}
+
+		if valType == nil {
+			return nil, i.newErrorWithLocation(lit.Elements[idx], "cannot determine type for array element %d", idx+1)
+		}
+
+		if underlyingElementType.Equals(valType) {
+			coerced[idx] = val
+			continue
+		}
+
+		if underlyingElementType.Equals(types.FLOAT) && valType.Equals(types.INTEGER) {
+			if intVal, ok := val.(*IntegerValue); ok {
+				coerced[idx] = &FloatValue{Value: float64(intVal.Value)}
+				continue
+			}
+		}
+
+		if valType.TypeKind() == "ARRAY" && underlyingElementType.TypeKind() == "ARRAY" {
+			if arrayVal, ok := val.(*ArrayValue); ok && arrayVal.ArrayType != nil {
+				if types.IsCompatible(arrayVal.ArrayType, underlyingElementType) || types.IsCompatible(underlyingElementType, arrayVal.ArrayType) {
+					coerced[idx] = val
+					continue
+				}
+			}
+		}
+
+		if types.IsCompatible(valType, underlyingElementType) {
+			coerced[idx] = val
+			continue
+		}
+
+		return nil, i.newErrorWithLocation(lit.Elements[idx], "array element %d has incompatible type (got %s, expected %s)",
+			idx+1, val.Type(), underlyingElementType.String())
+	}
+
+	return coerced, nil
+}
+
+// typeFromValue maps a runtime value to its compile-time type representation.
+func (i *Interpreter) typeFromValue(val Value) types.Type {
+	switch v := val.(type) {
+	case *IntegerValue:
+		return types.INTEGER
+	case *FloatValue:
+		return types.FLOAT
+	case *StringValue:
+		return types.STRING
+	case *BooleanValue:
+		return types.BOOLEAN
+	case *NilValue:
+		return types.NIL
+	case *ArrayValue:
+		return v.ArrayType
+	case *EnumValue:
+		if typeVal, ok := i.env.Get("__enum_type_" + v.TypeName); ok {
+			if enumTypeVal, ok := typeVal.(*EnumTypeValue); ok {
+				return enumTypeVal.EnumType
+			}
+		}
+		return nil
+	case *ObjectInstance:
+		if v.Class != nil {
+			return types.NewClassType(v.Class.Name, nil)
+		}
+		return nil
+	case *RecordValue:
+		return v.RecordType
+	default:
+		return nil
+	}
+}
+
+// arrayTypeByName resolves an array type by name or inline signature.
+func (i *Interpreter) arrayTypeByName(typeName string, node ast.Node) (*types.ArrayType, Value) {
+	if typeName == "" {
+		return nil, nil
+	}
+
+	if arr := i.parseInlineArrayType(typeName); arr != nil {
+		return arr, nil
+	}
+
+	resolved, err := i.resolveType(typeName)
+	if err != nil {
+		return nil, i.newErrorWithLocation(node, "unknown array type '%s'", typeName)
+	}
+
+	if arr, ok := resolved.(*types.ArrayType); ok {
+		return arr, nil
+	}
+
+	if arr, ok := types.GetUnderlyingType(resolved).(*types.ArrayType); ok {
+		return arr, nil
+	}
+
+	return nil, i.newErrorWithLocation(node, "type '%s' is not an array type", typeName)
+}
+
+// evalArrayLiteralWithExpected evaluates an array literal with an expected array type.
+func (i *Interpreter) evalArrayLiteralWithExpected(lit *ast.ArrayLiteralExpression, expected *types.ArrayType) Value {
+	if expected == nil {
+		return i.evalArrayLiteral(lit)
+	}
+
+	prevType := lit.GetType()
+	annotation := &ast.TypeAnnotation{Token: lit.Token, Name: expected.String()}
+	lit.SetType(annotation)
+	result := i.evalArrayLiteral(lit)
+	lit.SetType(prevType)
+	return result
+}
+
 // ============================================================================
 // Array Instantiation with new Keyword
 // ============================================================================

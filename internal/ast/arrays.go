@@ -108,30 +108,30 @@ func (ata *ArrayTypeAnnotation) IsStatic() bool {
 }
 
 // ============================================================================
-// ArrayLiteral
+// ArrayLiteralExpression
 // ============================================================================
 
-// ArrayLiteral represents an array literal expression.
+// ArrayLiteralExpression represents an array literal expression.
 // Examples:
 //   - [1, 2, 3]        // array with elements
 //   - []               // empty array
 //   - ['a', 'b', 'c']  // array of strings
-type ArrayLiteral struct {
+type ArrayLiteralExpression struct {
 	Type     *TypeAnnotation
 	Elements []Expression
 	Token    lexer.Token
 }
 
 // expressionNode implements the Expression interface
-func (al *ArrayLiteral) expressionNode() {}
+func (al *ArrayLiteralExpression) expressionNode() {}
 
 // TokenLiteral returns the literal value of the token
-func (al *ArrayLiteral) TokenLiteral() string {
+func (al *ArrayLiteralExpression) TokenLiteral() string {
 	return al.Token.Literal
 }
 
 // String returns a string representation of the array literal
-func (al *ArrayLiteral) String() string {
+func (al *ArrayLiteralExpression) String() string {
 	var out bytes.Buffer
 
 	out.WriteString("[")
@@ -148,17 +148,17 @@ func (al *ArrayLiteral) String() string {
 }
 
 // Pos returns the position of the array literal in the source code
-func (al *ArrayLiteral) Pos() lexer.Position {
+func (al *ArrayLiteralExpression) Pos() lexer.Position {
 	return al.Token.Pos
 }
 
 // GetType returns the inferred type annotation
-func (al *ArrayLiteral) GetType() *TypeAnnotation {
+func (al *ArrayLiteralExpression) GetType() *TypeAnnotation {
 	return al.Type
 }
 
 // SetType sets the type annotation
-func (al *ArrayLiteral) SetType(typ *TypeAnnotation) {
+func (al *ArrayLiteralExpression) SetType(typ *TypeAnnotation) {
 	al.Type = typ
 }
 
@@ -221,7 +221,7 @@ func (ie *IndexExpression) SetType(typ *TypeAnnotation) {
 // ============================================================================
 
 // NewArrayExpression represents dynamic array instantiation with the 'new' keyword.
-// This is distinct from NewExpression (class instantiation) and ArrayLiteral (literal values).
+// This is distinct from NewExpression (class instantiation) and ArrayLiteralExpression (literal values).
 //
 // DWScript syntax:
 //   - new Integer[16]                      // 1D array with 16 elements
@@ -231,13 +231,13 @@ func (ie *IndexExpression) SetType(typ *TypeAnnotation) {
 //
 // Related AST nodes:
 //   - NewExpression: for class instantiation (new ClassName(args))
-//   - ArrayLiteral: for literal array values ([1, 2, 3])
+//   - ArrayLiteralExpression: for literal array values ([1, 2, 3])
 //   - ArrayTypeAnnotation: for array type declarations
 type NewArrayExpression struct {
-	Token           lexer.Token      // The 'new' token
-	ElementTypeName *Identifier      // The array element type name (e.g., Integer, String)
-	Dimensions      []Expression     // Size expression(s) for each dimension (1+ expressions)
-	Type            *TypeAnnotation  // Inferred array type (for semantic analysis)
+	Token           lexer.Token     // The 'new' token
+	ElementTypeName *Identifier     // The array element type name (e.g., Integer, String)
+	Dimensions      []Expression    // Size expression(s) for each dimension (1+ expressions)
+	Type            *TypeAnnotation // Inferred array type (for semantic analysis)
 }
 
 // expressionNode implements the Expression interface

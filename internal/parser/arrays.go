@@ -181,3 +181,134 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 
 	return result
 }
+
+// parseArrayLiteral parses an array literal expression.
+// Syntax:
+//   - [expr1, expr2, expr3]
+//   - []
+//   - [[1, 2], [3, 4]]
+//   - [x + 1, y * 2, z - 3]
+//   - Supports optional trailing comma and range syntax for set literals ([one..five])
+func (p *Parser) parseArrayLiteral() ast.Expression {
+	lbrackToken := p.curToken
+
+	// Handle empty literal: []
+	if p.peekTokenIs(lexer.RBRACK) {
+		p.nextToken() // consume ']'
+		return &ast.ArrayLiteralExpression{
+			Token:    lbrackToken,
+			Elements: []ast.Expression{},
+		}
+	}
+
+	elements := []ast.Expression{}
+
+	// Move to first element
+	p.nextToken()
+
+	for !p.curTokenIs(lexer.RBRACK) && !p.curTokenIs(lexer.EOF) {
+		elementExpr := p.parseExpression(LOWEST)
+		if elementExpr == nil {
+			return nil
+		}
+
+		elem := elementExpr
+
+		// Handle range syntax for set literals: [one..five]
+		if p.peekTokenIs(lexer.DOTDOT) {
+			p.nextToken() // move to '..'
+			rangeToken := p.curToken
+
+			p.nextToken() // move to end expression
+			endExpr := p.parseExpression(LOWEST)
+			if endExpr == nil {
+				return nil
+			}
+
+			elem = &ast.RangeExpression{
+				Token: rangeToken,
+				Start: elementExpr,
+				End:   endExpr,
+			}
+		}
+
+		elements = append(elements, elem)
+
+		if p.peekTokenIs(lexer.COMMA) {
+			p.nextToken() // move to ','
+			p.nextToken() // advance to next element or ']'
+
+			// Allow trailing comma: [1, 2, ]
+			if p.curTokenIs(lexer.RBRACK) {
+				break
+			}
+			continue
+		}
+
+		if p.peekTokenIs(lexer.RBRACK) {
+			p.nextToken() // consume ']'
+			break
+		}
+
+		// Unexpected token between elements
+		p.addError("expected ',' or ']' in array literal")
+
+		// Advance to the unexpected token to avoid infinite loops
+		p.nextToken()
+
+		// Attempt to recover by skipping tokens until we reach a closing bracket,
+		// statement terminator, or EOF. This helps downstream parsing continue.
+		for !p.curTokenIs(lexer.RBRACK) &&
+			!p.curTokenIs(lexer.SEMICOLON) &&
+			!p.curTokenIs(lexer.EOF) {
+			p.nextToken()
+		}
+
+		if !p.curTokenIs(lexer.RBRACK) {
+			p.addError("expected closing ']' for array literal")
+		}
+
+		return nil
+	}
+
+	if !p.curTokenIs(lexer.RBRACK) {
+		// Missing closing bracket
+		p.addError("expected closing ']' for array literal")
+		return nil
+	}
+
+	// Determine if this should be treated as a set literal (all elements are identifiers or ranges)
+	if shouldParseAsSetLiteral(elements) {
+		return &ast.SetLiteral{
+			Token:    lbrackToken,
+			Elements: elements,
+		}
+	}
+
+	return &ast.ArrayLiteralExpression{
+		Token:    lbrackToken,
+		Elements: elements,
+	}
+}
+
+// shouldParseAsSetLiteral determines if the parsed elements represent a set literal.
+// We conservatively treat literals that contain only identifiers and range expressions as sets
+// to preserve compatibility with existing set literal syntax until semantic context is available.
+func shouldParseAsSetLiteral(elements []ast.Expression) bool {
+	if len(elements) == 0 {
+		return false
+	}
+
+	for _, elem := range elements {
+		switch elem.(type) {
+		case *ast.Identifier:
+			// Identifiers remain valid set elements
+		case *ast.RangeExpression:
+			// Ranges are valid in set literals
+		default:
+			return false
+		}
+	}
+
+	return true
+}

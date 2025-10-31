@@ -20,3 +20,4 @@ Commits follow a Conventional Commit style seen in history (`feat(parser): ...`,
 
 ## Documentation & Planning
 Before large refactors, update `PLAN.md` with the affected tasks and ensure the milestone status still reflects reality. Revise `docs/` or `README.md` when interfaces, flags, or directory layout shift. Small tooling tips belong in the `docs/` directory, while high-level strategy updates go to `goal.md`; keep each artifact synchronized.
+Once a feature phase is complete, mark tasks as done in `PLAN.md`.

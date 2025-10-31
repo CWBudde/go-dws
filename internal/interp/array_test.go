@@ -203,6 +203,75 @@ func TestArrayIndexing_OutOfBoundsStatic(t *testing.T) {
 	}
 }
 
+// ============================================================================//
+// Array Literal Evaluation Tests (Task 9.188-9.189)
+// ============================================================================//
+
+func TestArrayLiteralEvaluation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "simple integer literal",
+			input: `
+				var arr := [1, 2, 3];
+				PrintLn(arr[1]);
+			`,
+			expected: "2",
+		},
+		{
+			name: "numeric promotion to float",
+			input: `
+				var vec := [1, 2.5, 3];
+				PrintLn(vec[1]);
+			`,
+			expected: "2.5",
+		},
+		{
+			name: "float literal access",
+			input: `
+				var light := [-50.0, 30, 50];
+				PrintLn(FloatToStr(light[0]));
+			`,
+			expected: "-50",
+		},
+		{
+			name: "nested arrays",
+			input: `
+				var matrix := [[1, 2], [3, 4]];
+				PrintLn(matrix[0][1]);
+			`,
+			expected: "2",
+		},
+		{
+			name: "empty array with length helper",
+			input: `
+				var arrEmpty: array of Integer;
+				begin
+					arrEmpty := [];
+					PrintLn(Length(arrEmpty));
+				end.
+			`,
+			expected: "0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val, output := testEvalWithOutput(tt.input)
+			if isError(val) {
+				t.Fatalf("execution returned error value: %v", val)
+			}
+			got := strings.TrimSpace(output)
+			if got != tt.expected {
+				t.Fatalf("expected output %q, got %q", tt.expected, got)
+			}
+		})
+	}
+}
+
 // ============================================================================
 // Array Index Assignment Tests
 // ============================================================================

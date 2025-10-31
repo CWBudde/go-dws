@@ -236,6 +236,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.SetLiteral:
 		return i.evalSetLiteral(node)
 
+	case *ast.ArrayLiteralExpression:
+		return i.evalArrayLiteral(node)
+
 	case *ast.IndexExpression:
 		return i.evalIndexExpression(node)
 

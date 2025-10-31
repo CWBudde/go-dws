@@ -200,13 +200,17 @@ func TestParseEmptySet(t *testing.T) {
 			t.Fatalf("statement is not *ast.VarDeclStatement, got %T", program.Statements[0])
 		}
 
-		setLit, ok := varDecl.Value.(*ast.SetLiteral)
-		if !ok {
-			t.Fatalf("varDecl.Value is not *ast.SetLiteral, got %T", varDecl.Value)
-		}
-
-		if len(setLit.Elements) != 0 {
-			t.Errorf("setLit.Elements should be empty, got %d elements", len(setLit.Elements))
+		switch lit := varDecl.Value.(type) {
+		case *ast.SetLiteral:
+			if len(lit.Elements) != 0 {
+				t.Errorf("set literal should be empty, got %d elements", len(lit.Elements))
+			}
+		case *ast.ArrayLiteralExpression:
+			if len(lit.Elements) != 0 {
+				t.Errorf("array literal should be empty, got %d elements", len(lit.Elements))
+			}
+		default:
+			t.Fatalf("varDecl.Value is not a recognized literal type, got %T", varDecl.Value)
 		}
 	})
 }

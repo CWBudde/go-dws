@@ -71,8 +71,20 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 	}
 
 	if stmt.Value != nil {
-		// Task 9.177: Special handling for anonymous record literals - they need type context
-		if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+		if arrayLit, ok := stmt.Value.(*ast.ArrayLiteralExpression); ok {
+			var expected *types.ArrayType
+			if stmt.Type != nil {
+				arrType, errVal := i.arrayTypeByName(stmt.Type.Name, stmt)
+				if errVal != nil {
+					return errVal
+				}
+				expected = arrType
+			}
+			value = i.evalArrayLiteralWithExpected(arrayLit, expected)
+			if isError(value) {
+				return value
+			}
+		} else if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
 			// Anonymous record literal needs explicit type
 			if stmt.Type == nil {
 				return newError("anonymous record literal requires explicit type annotation")
@@ -357,9 +369,23 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 			return value
 		}
 	} else {
-		// Regular assignment - evaluate the value to assign
-		// Special handling for record literals without type names
-		if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+		handledLiteral := false
+		// Regular assignment - evaluate the value to assign with potential context
+		if arrayLit, ok := stmt.Value.(*ast.ArrayLiteralExpression); ok {
+			handledLiteral = true
+			var expected *types.ArrayType
+			if targetIdent, ok := stmt.Target.(*ast.Identifier); ok {
+				if existingVal, exists := i.env.Get(targetIdent.Value); exists {
+					if arrVal, ok := existingVal.(*ArrayValue); ok {
+						expected = arrVal.ArrayType
+					}
+				}
+			}
+			value = i.evalArrayLiteralWithExpected(arrayLit, expected)
+			if isError(value) {
+				return value
+			}
+		} else if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
 			// This is an untyped record literal - get type from target variable if it's a simple identifier
 			if targetIdent, ok := stmt.Target.(*ast.Identifier); ok {
 				targetVar, exists := i.env.Get(targetIdent.Value)
@@ -387,7 +413,7 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 		}
 
 		// Task 8.77: Records have value semantics - copy when assigning
-		if recordVal, ok := value.(*RecordValue); ok {
+		if recordVal, ok := value.(*RecordValue); ok && !handledLiteral {
 			value = recordVal.Copy()
 		}
 	}
