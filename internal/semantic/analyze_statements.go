@@ -91,6 +91,11 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 		}
 	}
 
+	firstName := ""
+	if len(stmt.Names) > 0 {
+		firstName = stmt.Names[0].Value
+	}
+
 	// Determine the type of the variable
 	var varType types.Type
 	var err error
@@ -109,11 +114,21 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	if stmt.Value != nil {
 		initType := a.analyzeExpressionWithExpectedType(stmt.Value, varType)
 		if initType == nil {
+			if stmt.Type == nil {
+				a.addError("cannot infer type for variable '%s' from initializer at %s",
+					firstName, stmt.Token.Pos.String())
+			}
 			// Error already reported
 			return
 		}
 
 		if varType == nil {
+			underlying := types.GetUnderlyingType(initType)
+			if _, isNil := underlying.(*types.NilType); isNil {
+				a.addError("cannot infer type for variable '%s' from nil initializer at %s",
+					firstName, stmt.Token.Pos.String())
+				return
+			}
 			// Type inference: use initializer's type
 			varType = initType
 		} else {

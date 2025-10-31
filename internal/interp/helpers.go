@@ -1,6 +1,9 @@
 package interp
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -11,13 +14,14 @@ import (
 
 // HelperInfo stores runtime information about a helper type
 type HelperInfo struct {
-	Name           string                               // Helper type name
-	TargetType     types.Type                           // The type being extended
-	Methods        map[string]*ast.FunctionDecl         // Helper methods
-	Properties     map[string]*types.PropertyInfo       // Helper properties
-	ClassVars      map[string]Value                     // Class variable values
-	ClassConsts    map[string]Value                     // Class constant values
-	IsRecordHelper bool                                 // true if "record helper"
+	Name           string                         // Helper type name
+	TargetType     types.Type                     // The type being extended
+	Methods        map[string]*ast.FunctionDecl   // Helper methods
+	Properties     map[string]*types.PropertyInfo // Helper properties
+	ClassVars      map[string]Value               // Class variable values
+	ClassConsts    map[string]Value               // Class constant values
+	IsRecordHelper bool                           // true if "record helper"
+	BuiltinMethods map[string]string              // Built-in method implementations (name -> spec)
 }
 
 // NewHelperInfo creates a new HelperInfo
@@ -29,6 +33,7 @@ func NewHelperInfo(name string, targetType types.Type, isRecordHelper bool) *Hel
 		Properties:     make(map[string]*types.PropertyInfo),
 		ClassVars:      make(map[string]Value),
 		ClassConsts:    make(map[string]Value),
+		BuiltinMethods: make(map[string]string),
 		IsRecordHelper: isRecordHelper,
 	}
 }
@@ -175,20 +180,33 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 }
 
 // findHelperMethod searches all applicable helpers for a method with the given name
-func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInfo, *ast.FunctionDecl) {
+// and returns the helper, method declaration (if any), and builtin specification identifier.
+func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInfo, *ast.FunctionDecl, string) {
 	helpers := i.getHelpersForValue(val)
 	if helpers == nil {
-		return nil, nil
+		return nil, nil, ""
 	}
 
-	// Search all helpers for the method
-	for _, helper := range helpers {
+	// Search helpers in reverse order so later (user-defined) helpers override earlier ones.
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
 		if method, exists := helper.Methods[methodName]; exists {
-			return helper, method
+			if spec, ok := helper.BuiltinMethods[methodName]; ok {
+				return helper, method, spec
+			}
+			return helper, method, ""
 		}
 	}
 
-	return nil, nil
+	// If no declared method, check for builtin-only entries
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		if spec, ok := helper.BuiltinMethods[methodName]; ok {
+			return helper, nil, spec
+		}
+	}
+
+	return nil, nil, ""
 }
 
 // findHelperProperty searches all applicable helpers for a property with the given name
@@ -198,8 +216,9 @@ func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInf
 		return nil, nil
 	}
 
-	// Search all helpers for the property
-	for _, helper := range helpers {
+	// Search helpers in reverse order so later helpers override earlier ones
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
 		if prop, exists := helper.Properties[propName]; exists {
 			return helper, prop
 		}
@@ -208,10 +227,18 @@ func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInf
 	return nil, nil
 }
 
-// callHelperMethod executes a helper method on a value
+// callHelperMethod executes a helper method (user-defined or built-in) on a value
 // Task 9.86: Implement helper method dispatch
 func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionDecl,
-	selfValue Value, args []Value, node ast.Node) Value {
+	builtinSpec string, selfValue Value, args []Value, node ast.Node) Value {
+
+	if builtinSpec != "" {
+		return i.evalBuiltinHelperMethod(builtinSpec, selfValue, args, node)
+	}
+
+	if method == nil {
+		return i.newErrorWithLocation(node, "helper method not implemented")
+	}
 
 	// Check argument count
 	if len(args) != len(method.Parameters) {
@@ -280,6 +307,55 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	return returnValue
 }
 
+// evalBuiltinHelperMethod executes a built-in helper method implementation identified by spec.
+func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args []Value, node ast.Node) Value {
+	switch spec {
+	case "__integer_tostring":
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "Integer.ToString does not take arguments")
+		}
+		intVal, ok := selfValue.(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Integer.ToString requires integer receiver")
+		}
+		return &StringValue{Value: strconv.FormatInt(intVal.Value, 10)}
+
+	case "__float_tostring_prec":
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "Float.ToString expects exactly 1 argument")
+		}
+		floatVal, ok := selfValue.(*FloatValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Float.ToString requires float receiver")
+		}
+		precVal, ok := args[0].(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Float.ToString precision must be Integer, got %s", args[0].Type())
+		}
+		precision := int(precVal.Value)
+		if precision < 0 {
+			precision = 0
+		}
+		return &StringValue{Value: fmt.Sprintf("%.*f", precision, floatVal.Value)}
+
+	case "__boolean_tostring":
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "Boolean.ToString does not take arguments")
+		}
+		boolVal, ok := selfValue.(*BooleanValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Boolean.ToString requires boolean receiver")
+		}
+		if boolVal.Value {
+			return &StringValue{Value: "True"}
+		}
+		return &StringValue{Value: "False"}
+
+	default:
+		return i.newErrorWithLocation(node, "unknown built-in helper method '%s'", spec)
+	}
+}
+
 // evalHelperPropertyRead evaluates a helper property read access
 func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types.PropertyInfo,
 	selfValue Value, node ast.Node) Value {
@@ -295,8 +371,9 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 
 		// Otherwise, try as a method (getter)
 		if method, exists := helper.Methods[propInfo.ReadSpec]; exists {
+			builtinSpec := helper.BuiltinMethods[propInfo.ReadSpec]
 			// Call the getter method with no arguments
-			return i.callHelperMethod(helper, method, selfValue, []Value{}, node)
+			return i.callHelperMethod(helper, method, builtinSpec, selfValue, []Value{}, node)
 		}
 
 		return i.newErrorWithLocation(node, "property '%s' read specifier '%s' not found",
@@ -305,7 +382,8 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 	case types.PropAccessMethod:
 		// Call getter method
 		if method, exists := helper.Methods[propInfo.ReadSpec]; exists {
-			return i.callHelperMethod(helper, method, selfValue, []Value{}, node)
+			builtinSpec := helper.BuiltinMethods[propInfo.ReadSpec]
+			return i.callHelperMethod(helper, method, builtinSpec, selfValue, []Value{}, node)
 		}
 
 		return i.newErrorWithLocation(node, "property '%s' getter method '%s' not found",
@@ -409,34 +487,54 @@ func extractSimpleTypeName(typeName string) string {
 // evalBuiltinHelperProperty evaluates a built-in helper property
 // Task 9.171: Implements .Length, .High, .Low for arrays
 func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value {
-	// Check if the value is an array
-	arrVal, ok := selfValue.(*ArrayValue)
-	if !ok {
-		return i.newErrorWithLocation(node, "built-in property '%s' can only be used on arrays", propSpec)
-	}
-
 	switch propSpec {
-	case "__array_length":
-		// Task 9.171.4: .Length property
-		return &IntegerValue{Value: int64(len(arrVal.Elements))}
-
-	case "__array_high":
-		// Task 9.171.2: .High property
-		// For static arrays, return the HighBound
-		if arrVal.ArrayType.IsStatic() {
-			return &IntegerValue{Value: int64(*arrVal.ArrayType.HighBound)}
+	case "__array_length", "__array_high", "__array_low":
+		arrVal, ok := selfValue.(*ArrayValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "built-in property '%s' can only be used on arrays", propSpec)
 		}
-		// For dynamic arrays, return len(arr) - 1
-		return &IntegerValue{Value: int64(len(arrVal.Elements) - 1)}
-
-	case "__array_low":
-		// Task 9.171.3: .Low property
-		// For static arrays, return the LowBound
-		if arrVal.ArrayType.IsStatic() {
-			return &IntegerValue{Value: int64(*arrVal.ArrayType.LowBound)}
+		var result Value
+		switch propSpec {
+		case "__array_length":
+			result = &IntegerValue{Value: int64(len(arrVal.Elements))}
+		case "__array_high":
+			if arrVal.ArrayType.IsStatic() {
+				result = &IntegerValue{Value: int64(*arrVal.ArrayType.HighBound)}
+			} else {
+				result = &IntegerValue{Value: int64(len(arrVal.Elements) - 1)}
+			}
+		case "__array_low":
+			if arrVal.ArrayType.IsStatic() {
+				result = &IntegerValue{Value: int64(*arrVal.ArrayType.LowBound)}
+			} else {
+				result = &IntegerValue{Value: 0}
+			}
 		}
-		// For dynamic arrays, always return 0
-		return &IntegerValue{Value: 0}
+		return result
+
+	case "__integer_tostring":
+		intVal, ok := selfValue.(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Integer.ToString property requires integer receiver")
+		}
+		return &StringValue{Value: strconv.FormatInt(intVal.Value, 10)}
+
+	case "__float_tostring_default":
+		floatVal, ok := selfValue.(*FloatValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Float.ToString property requires float receiver")
+		}
+		return &StringValue{Value: fmt.Sprintf("%g", floatVal.Value)}
+
+	case "__boolean_tostring":
+		boolVal, ok := selfValue.(*BooleanValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Boolean.ToString property requires boolean receiver")
+		}
+		if boolVal.Value {
+			return &StringValue{Value: "True"}
+		}
+		return &StringValue{Value: "False"}
 
 	default:
 		return i.newErrorWithLocation(node, "unknown built-in property '%s'", propSpec)
@@ -490,4 +588,54 @@ func (i *Interpreter) initArrayHelpers() {
 
 	// Register helper for ARRAY type
 	i.helpers["ARRAY"] = append(i.helpers["ARRAY"], arrayHelper)
+}
+
+// initIntrinsicHelpers registers built-in helpers for primitive types (Integer, Float, Boolean).
+func (i *Interpreter) initIntrinsicHelpers() {
+	if i.helpers == nil {
+		i.helpers = make(map[string][]*HelperInfo)
+	}
+
+	register := func(typeName string, helper *HelperInfo) {
+		i.helpers[typeName] = append(i.helpers[typeName], helper)
+	}
+
+	// Integer helper
+	intHelper := NewHelperInfo("__TIntegerIntrinsicHelper", types.INTEGER, false)
+	intHelper.Properties["ToString"] = &types.PropertyInfo{
+		Name:      "ToString",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__integer_tostring",
+		WriteKind: types.PropAccessNone,
+	}
+	intHelper.Methods["ToString"] = nil
+	intHelper.BuiltinMethods["ToString"] = "__integer_tostring"
+	register("Integer", intHelper)
+
+	// Float helper
+	floatHelper := NewHelperInfo("__TFloatIntrinsicHelper", types.FLOAT, false)
+	floatHelper.Properties["ToString"] = &types.PropertyInfo{
+		Name:      "ToString",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__float_tostring_default",
+		WriteKind: types.PropAccessNone,
+	}
+	floatHelper.Methods["ToString"] = nil
+	floatHelper.BuiltinMethods["ToString"] = "__float_tostring_prec"
+	register("Float", floatHelper)
+
+	// Boolean helper
+	boolHelper := NewHelperInfo("__TBooleanIntrinsicHelper", types.BOOLEAN, false)
+	boolHelper.Properties["ToString"] = &types.PropertyInfo{
+		Name:      "ToString",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__boolean_tostring",
+		WriteKind: types.PropAccessNone,
+	}
+	boolHelper.Methods["ToString"] = nil
+	boolHelper.BuiltinMethods["ToString"] = "__boolean_tostring"
+	register("Boolean", boolHelper)
 }

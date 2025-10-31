@@ -257,8 +257,10 @@ func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) (*types.He
 		return nil, nil
 	}
 
-	// Check each helper in order (first match wins)
-	for _, helper := range helpers {
+	// Check each helper in reverse order so user-defined helpers (added later)
+	// take precedence over built-in helpers registered during initialization.
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
 		if method, ok := helper.Methods[methodName]; ok {
 			return helper, method
 		}
@@ -276,7 +278,8 @@ func (a *Analyzer) hasHelperProperty(typ types.Type, propName string) (*types.He
 	}
 
 	// Check each helper in order (first match wins)
-	for _, helper := range helpers {
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
 		if prop, ok := helper.Properties[propName]; ok {
 			return helper, prop
 		}
@@ -326,4 +329,55 @@ func (a *Analyzer) initArrayHelpers() {
 
 	// Register helper for ARRAY type (generic catch-all)
 	a.helpers["ARRAY"] = append(a.helpers["ARRAY"], arrayHelper)
+}
+
+// initIntrinsicHelpers registers built-in helpers for primitive types (Integer, Float, Boolean).
+// Task 9.205: Provide default helpers used by DWScript for core types.
+func (a *Analyzer) initIntrinsicHelpers() {
+	// Helper registration helper to reduce duplication.
+	register := func(typeName string, helper *types.HelperType) {
+		if a.helpers[typeName] == nil {
+			a.helpers[typeName] = make([]*types.HelperType, 0)
+		}
+		a.helpers[typeName] = append(a.helpers[typeName], helper)
+	}
+
+	// Integer helper: provides ToString method/property
+	intHelper := types.NewHelperType("__TIntegerIntrinsicHelper", types.INTEGER, false)
+	intHelper.Properties["ToString"] = &types.PropertyInfo{
+		Name:      "ToString",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__integer_tostring",
+		WriteKind: types.PropAccessNone,
+	}
+	intHelper.Methods["ToString"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	intHelper.BuiltinMethods["ToString"] = "__integer_tostring"
+	register(types.INTEGER.String(), intHelper)
+
+	// Float helper: default ToString property and precision-aware method
+	floatHelper := types.NewHelperType("__TFloatIntrinsicHelper", types.FLOAT, false)
+	floatHelper.Properties["ToString"] = &types.PropertyInfo{
+		Name:      "ToString",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__float_tostring_default",
+		WriteKind: types.PropAccessNone,
+	}
+	floatHelper.Methods["ToString"] = types.NewFunctionType([]types.Type{types.INTEGER}, types.STRING)
+	floatHelper.BuiltinMethods["ToString"] = "__float_tostring_prec"
+	register(types.FLOAT.String(), floatHelper)
+
+	// Boolean helper: ToString method/property returning 'True'/'False'
+	boolHelper := types.NewHelperType("__TBooleanIntrinsicHelper", types.BOOLEAN, false)
+	boolHelper.Properties["ToString"] = &types.PropertyInfo{
+		Name:      "ToString",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__boolean_tostring",
+		WriteKind: types.PropAccessNone,
+	}
+	boolHelper.Methods["ToString"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	boolHelper.BuiltinMethods["ToString"] = "__boolean_tostring"
+	register(types.BOOLEAN.String(), boolHelper)
 }

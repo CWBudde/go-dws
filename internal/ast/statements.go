@@ -24,6 +24,7 @@ type VarDeclStatement struct {
 	ExternalName string
 	Token        lexer.Token
 	IsExternal   bool
+	Inferred     bool // true when the type is inferred from the initializer
 }
 
 func (vds *VarDeclStatement) statementNode()       {}
@@ -47,7 +48,11 @@ func (vds *VarDeclStatement) String() string {
 	}
 
 	if vds.Value != nil {
-		out.WriteString(" := ")
+		separator := " := "
+		if vds.Inferred && vds.Type == nil {
+			separator = " = "
+		}
+		out.WriteString(separator)
 		out.WriteString(vds.Value.String())
 	}
 

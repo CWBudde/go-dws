@@ -1284,45 +1284,45 @@ The parser currently requires type annotations and fails with "expected next tok
 
 #### Parser Support (3 tasks)
 
-- [ ] 9.191 Update `parseVarStatement` to support type inference:
-  - [ ] After parsing identifier, check next token
-  - [ ] If `:`, parse explicit type annotation (existing behavior)
-  - [ ] If `:=` or `=`, skip type annotation (infer from initializer)
-  - [ ] Both `=` and `:=` should work for type-inferred vars
-  - [ ] Add error if neither type nor initializer provided
+- [x] 9.191 Update `parseVarStatement` to support type inference:
+  - [x] After parsing identifier, check next token
+  - [x] If `:`, parse explicit type annotation (existing behavior)
+  - [x] If `:=` or `=`, skip type annotation (infer from initializer)
+  - [x] Both `=` and `:=` should work for type-inferred vars
+  - [x] Add error if neither type nor initializer provided
 
-- [ ] 9.192 Update `VarStatement` AST node to allow nil type:
-  - [ ] Make `Type *TypeAnnotation` optional (can be nil)
-  - [ ] Add `Inferred bool` flag to indicate type was inferred
-  - [ ] Update `String()` to handle missing type: `var name = value`
-  - [ ] Ensure backward compatibility with explicit types
+- [x] 9.192 Update `VarStatement` AST node to allow nil type:
+  - [x] Make `Type *TypeAnnotation` optional (can be nil)
+  - [x] Add `Inferred bool` flag to indicate type was inferred
+  - [x] Update `String()` to handle missing type: `var name = value`
+  - [x] Ensure backward compatibility with explicit types
 
-- [ ] 9.193 Add parser tests for type inference:
-  - [ ] Test `var x = 42;` (integer inference)
-  - [ ] Test `var s = "hello";` (string inference)
-  - [ ] Test `var f = 3.14;` (float inference)
-  - [ ] Test `var arr = [1, 2, 3];` (array inference)
-  - [ ] Test `var rec = (x: 10; y: 20);` (record inference)
-  - [ ] Test error: `var x;` (no type, no initializer)
-  - [ ] Test backward compatibility: `var x: Integer := 42;` still works
-  - [ ] 8 test cases in `internal/parser/variables_test.go`
+- [x] 9.193 Add parser tests for type inference:
+  - [x] Test `var x = 42;` (integer inference)
+  - [x] Test `var s = "hello";` (string inference)
+  - [x] Test `var f = 3.14;` (float inference)
+  - [x] Test `var arr = [1, 2, 3];` (array inference)
+  - [x] Test `var rec = (x: 10; y: 20);` (record inference)
+  - [x] Test error: `var x;` (no type, no initializer)
+  - [x] Test backward compatibility: `var x: Integer := 42;` still works
+  - [x] 8 test cases in `internal/parser/variables_test.go`
 
 #### Semantic Analysis (2 tasks)
 
-- [ ] 9.194 Update `analyzeVarStatement` to handle inference:
-  - [ ] If `Type` is nil, analyze initializer first
-  - [ ] Get inferred type from initializer expression
-  - [ ] Set variable's type to inferred type in symbol table
-  - [ ] Report error if initializer has no determinable type
-  - [ ] Report error if initializer is nil/untyped constant without context
+- [x] 9.194 Update `analyzeVarStatement` to handle inference:
+  - [x] If `Type` is nil, analyze initializer first
+  - [x] Get inferred type from initializer expression
+  - [x] Set variable's type to inferred type in symbol table
+  - [x] Report error if initializer has no determinable type
+  - [x] Report error if initializer is nil/untyped constant without context
 
-- [ ] 9.195 Add semantic tests for type inference:
-  - [ ] Test `var x = 42;` infers `Integer`
-  - [ ] Test `var f = 3.14;` infers `Float`
-  - [ ] Test `var s = "hello";` infers `String`
-  - [ ] Test `var arr = [1, 2, 3];` infers `array of Integer`
-  - [ ] Test error: `var x = [];` (can't infer from empty array)
-  - [ ] 6 test cases in `internal/semantic/variables_test.go`
+- [x] 9.195 Add semantic tests for type inference:
+  - [x] Test `var x = 42;` infers `Integer`
+  - [x] Test `var f = 3.14;` infers `Float`
+  - [x] Test `var s = "hello";` infers `String`
+  - [x] Test `var arr = [1, 2, 3];` infers `array of Integer`
+  - [x] Test error: `var x = [];` (can't infer from empty array)
+  - [x] 6 test cases in `internal/semantic/variables_test.go`
 
 #### Interpreter Support (1 task)
 
@@ -1334,15 +1334,15 @@ The parser currently requires type annotations and fails with "expected next tok
 
 #### Testing & Documentation (2 tasks)
 
-- [ ] 9.197 Create test files in `testdata/type_inference/`:
-  - [ ] `type_inference_basic.dws` - Simple cases
-  - [ ] `type_inference_arrays.dws` - Array literals
-  - [ ] `type_inference_records.dws` - Record literals
-  - [ ] Expected output files
+- [x] 9.197 Create test files in `testdata/type_inference/`:
+  - [x] `type_inference_basic.dws` - Simple cases
+  - [x] `type_inference_arrays.dws` - Array literals
+  - [x] `type_inference_records.dws` - Record literals
+  - [x] Expected output files
 
-- [ ] 9.198 Enable Death_Star.dws type inference:
-  - [ ] Verify `var zsq = sph.r * sph.r - (x * x + y * y);` parses
-  - [ ] Add integration test in `pkg/dwscript/rosetta_examples_test.go`
+- [x] 9.198 Enable Death_Star.dws type inference:
+  - [x] Verify `var zsq = sph.r * sph.r - (x * x + y * y);` parses
+  - [x] Add integration test in `pkg/dwscript/rosetta_examples_test.go`
 
 ---
 
@@ -1397,6 +1397,19 @@ The parser currently fails with "no prefix parse function for FALSE" because it 
   - [x] Test error: `Exit 42;` at program scope (not in function)
   - [x] Test valid: `procedure DoSomething; begin Exit; end;` (no value for procedure)
   - [x] 5 test cases in `internal/semantic/statements_test.go`
+
+#### TODO: Remaining Rosetta Dependencies
+
+- [ ] 9.204 Implement `ClampInt` built-in:
+  - [ ] Add interpreter support matching DWScript semantics (`ClampInt(value, low, high)`)
+  - [ ] Wire into semantic analyzer and runtime registry
+  - [ ] Add unit tests covering clamping edge cases
+  - [ ] Confirm `examples/rosetta/Death_Star.dws` executes without skipping
+
+- [x] 9.205 Provide integer/string helpers used by operator tests:
+  - [x] Add DWScript-compatible helper or intrinsic for numeric `ToString` helpers (Integer/Float/Boolean)
+  - [x] Ensure helper registration for operator overloading fixtures
+  - [x] Update composite operator tests to run without skipping when available
 
 #### Interpreter Support (2 tasks)
 

@@ -370,23 +370,25 @@ func NewEnumType(name string, values map[string]int, orderedNames []string) *Enu
 // Helpers cannot modify the original type; they only add new functionality.
 //
 // DWScript syntax:
-//   type TStringHelper = helper for String
-//     function ToUpper: String;
-//   end;
 //
-//   type TPointHelper = record helper for TPoint
-//     function Distance: Float;
-//   end;
+//	type TStringHelper = helper for String
+//	  function ToUpper: String;
+//	end;
+//
+//	type TPointHelper = record helper for TPoint
+//	  function Distance: Float;
+//	end;
 //
 // Task 9.73: Helper type definition
 type HelperType struct {
-	Name         string                     // Helper type name (e.g., "TStringHelper")
-	TargetType   Type                       // Type being extended (e.g., String, TPoint)
-	Methods      map[string]*FunctionType   // Helper methods
-	Properties   map[string]*PropertyInfo   // Helper properties
-	ClassVars    map[string]Type            // Class variables
-	ClassConsts  map[string]interface{}     // Class constants with their values
+	Name           string                   // Helper type name (e.g., "TStringHelper")
+	TargetType     Type                     // Type being extended (e.g., String, TPoint)
+	Methods        map[string]*FunctionType // Helper methods
+	Properties     map[string]*PropertyInfo // Helper properties
+	ClassVars      map[string]Type          // Class variables
+	ClassConsts    map[string]interface{}   // Class constants with their values
 	IsRecordHelper bool                     // true for "record helper", false for plain "helper"
+	BuiltinMethods map[string]string        // Built-in helper method implementations (name -> spec)
 }
 
 // String returns the string representation of the helper type
@@ -460,6 +462,7 @@ func NewHelperType(name string, targetType Type, isRecordHelper bool) *HelperTyp
 		Properties:     make(map[string]*PropertyInfo),
 		ClassVars:      make(map[string]Type),
 		ClassConsts:    make(map[string]interface{}),
+		BuiltinMethods: make(map[string]string),
 		IsRecordHelper: isRecordHelper,
 	}
 }

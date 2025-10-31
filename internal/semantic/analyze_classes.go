@@ -492,14 +492,16 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	classType, ok := objectType.(*types.ClassType)
 	if !ok {
 		// Task 9.83: For non-class/record types (like String, Integer), check helpers
-		_, helperMethod := a.hasHelperMethod(objectType, memberName)
-		if helperMethod != nil {
-			return helperMethod
-		}
-
+		// Prefer helper properties before methods so that property-style access
+		// (e.g., i.ToString) resolves correctly when parentheses are omitted.
 		_, helperProp := a.hasHelperProperty(objectType, memberName)
 		if helperProp != nil {
 			return helperProp.Type
+		}
+
+		_, helperMethod := a.hasHelperMethod(objectType, memberName)
+		if helperMethod != nil {
+			return helperMethod
 		}
 
 		a.addError("member access on type %s requires a helper, got no helper with member '%s' at %s",

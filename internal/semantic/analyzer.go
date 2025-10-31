@@ -89,6 +89,9 @@ func NewAnalyzer() *Analyzer {
 	// Task 9.171: Register built-in array helpers
 	a.initArrayHelpers()
 
+	// Task 9.205: Register built-in helpers for primitive types
+	a.initIntrinsicHelpers()
+
 	return a
 }
 

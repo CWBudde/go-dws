@@ -1,0 +1,6 @@
+var numbers = [1, 2, 3, 4];
+PrintLn(Length(numbers));
+
+var nested = [[1, 2], [3, 4]];
+PrintLn(nested[0][1]);
+PrintLn(nested[1][0]);

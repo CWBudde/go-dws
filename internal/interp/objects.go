@@ -708,8 +708,8 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	obj, ok := AsObject(objVal)
 	if !ok {
 		// Task 9.86: Not an object - check if helpers provide this method
-		helper, helperMethod := i.findHelperMethod(objVal, mc.Method.Value)
-		if helperMethod == nil {
+		helper, helperMethod, builtinSpec := i.findHelperMethod(objVal, mc.Method.Value)
+		if helperMethod == nil && builtinSpec == "" {
 			return i.newErrorWithLocation(mc, "cannot call method '%s' on type '%s' (no helper found)",
 				mc.Method.Value, objVal.Type())
 		}
@@ -725,7 +725,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		}
 
 		// Call the helper method
-		return i.callHelperMethod(helper, helperMethod, objVal, args, mc)
+		return i.callHelperMethod(helper, helperMethod, builtinSpec, objVal, args, mc)
 	}
 
 	// Handle built-in methods that are available on all objects (inherited from TObject)
@@ -738,8 +738,8 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	method := obj.GetMethod(mc.Method.Value)
 	if method == nil {
 		// Task 9.86: Check if helpers provide this method
-		helper, helperMethod := i.findHelperMethod(obj, mc.Method.Value)
-		if helperMethod == nil {
+		helper, helperMethod, builtinSpec := i.findHelperMethod(obj, mc.Method.Value)
+		if helperMethod == nil && builtinSpec == "" {
 			return i.newErrorWithLocation(mc, "method '%s' not found in class '%s'", mc.Method.Value, obj.Class.Name)
 		}
 
@@ -754,7 +754,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		}
 
 		// Call the helper method
-		return i.callHelperMethod(helper, helperMethod, obj, args, mc)
+		return i.callHelperMethod(helper, helperMethod, builtinSpec, obj, args, mc)
 	}
 
 	// Evaluate method arguments
