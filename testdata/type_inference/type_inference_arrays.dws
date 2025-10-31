@@ -1,4 +1,5 @@
 var numbers = [1, 2, 3, 4];
+PrintLn(numbers[1]);
 PrintLn(Length(numbers));
 
 var nested = [[1, 2], [3, 4]];

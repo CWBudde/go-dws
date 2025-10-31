@@ -380,4 +380,11 @@ func (a *Analyzer) initIntrinsicHelpers() {
 	boolHelper.Methods["ToString"] = types.NewFunctionType([]types.Type{}, types.STRING)
 	boolHelper.BuiltinMethods["ToString"] = "__boolean_tostring"
 	register(types.BOOLEAN.String(), boolHelper)
+
+	// String dynamic array helper: Join method
+	stringArrayHelper := types.NewHelperType("__TStringDynArrayIntrinsicHelper", nil, true)
+	stringArrayHelper.TargetType = types.NewDynamicArrayType(types.STRING)
+	stringArrayHelper.Methods["Join"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
+	stringArrayHelper.BuiltinMethods["Join"] = "__string_array_join"
+	register(stringArrayHelper.TargetType.String(), stringArrayHelper)
 }

@@ -337,6 +337,9 @@ func TestIntrinsicPrimitiveHelpers(t *testing.T) {
 		var sb: String;
 		sb := b.ToString;
 		sb := b.ToString();
+		var arr: array of String;
+		arr := ['a', 'b'];
+		var joined := arr.Join(',');
 	`
 
 	analyzer := NewAnalyzer()
