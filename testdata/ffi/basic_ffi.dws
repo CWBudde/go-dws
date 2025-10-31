@@ -1,0 +1,36 @@
+// Basic FFI test - simple function calls
+// Expected: All assertions pass
+
+// Integer functions
+var sum := Add(10, 20);
+if sum <> 30 then
+  raise Exception.Create('Add failed');
+
+var product := Multiply(6, 7);
+if product <> 42 then
+  raise Exception.Create('Multiply failed');
+
+// String functions
+var upper := ToUpper('hello');
+if upper <> 'HELLO' then
+  raise Exception.Create('ToUpper failed');
+
+var lower := ToLower('WORLD');
+if lower <> 'world' then
+  raise Exception.Create('ToLower failed');
+
+// Boolean functions
+var isEven := IsEven(4);
+if not isEven then
+  raise Exception.Create('IsEven(4) failed');
+
+var isOdd := IsEven(5);
+if isOdd then
+  raise Exception.Create('IsEven(5) should be false');
+
+// Float functions
+var circleArea := CircleArea(1.0);
+if (circleArea < 3.14) or (circleArea > 3.15) then
+  raise Exception.Create('CircleArea failed');
+
+PrintLn('All basic FFI tests passed');

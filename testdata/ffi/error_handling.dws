@@ -1,0 +1,85 @@
+// Error handling test - Go errors and panics
+// Expected: All exceptions caught, prints success message
+
+var errorCaught := false;
+var panicCaught := false;
+var successReturned := false;
+
+// Test error return
+try
+  var result := DivideInts(10, 0);
+  raise Exception.Create('Should have raised error');
+except
+  on E: EHost do begin
+    errorCaught := true;
+    if not Contains(E.Message, 'division by zero') then
+      raise Exception.Create('Wrong error message');
+  end;
+end;
+
+if not errorCaught then
+  raise Exception.Create('Error not caught');
+
+// Test successful operation
+try
+  var quotient := DivideInts(10, 2);
+  if quotient <> 5 then
+    raise Exception.Create('Division result wrong');
+  successReturned := true;
+except
+  on E: EHost do begin
+    raise Exception.Create('Should not raise error on valid input');
+  end;
+end;
+
+if not successReturned then
+  raise Exception.Create('Success case failed');
+
+// Test panic recovery
+try
+  TriggerPanic();
+  raise Exception.Create('Should have caught panic');
+except
+  on E: EHost do begin
+    panicCaught := true;
+    if not Contains(E.Message, 'panic:') then
+      raise Exception.Create('Wrong panic message format');
+  end;
+end;
+
+if not panicCaught then
+  raise Exception.Create('Panic not caught');
+
+// Test error propagation through multiple calls
+try
+  var nested := NestedError();
+  raise Exception.Create('Nested error should propagate');
+except
+  on E: EHost do begin
+    // Expected
+  end;
+end;
+
+// Test finally with error
+var finallyExecuted := false;
+try
+  try
+    var err := DivideInts(5, 0);
+    raise Exception.Create('Should not reach here');
+  except
+    on E: EHost do begin
+      raise; // Re-raise
+    end;
+  finally
+    finallyExecuted := true;
+  end;
+except
+  on E: EHost do begin
+    // Expected
+  end;
+end;
+
+if not finallyExecuted then
+  raise Exception.Create('Finally block not executed');
+
+PrintLn('All error handling tests passed');

@@ -1,0 +1,45 @@
+// Array passing test - arrays to/from Go functions
+// Expected: All assertions pass
+
+// Sum array
+var numbers: array of Integer := [1, 2, 3, 4, 5];
+var total := SumInts(numbers);
+if total <> 15 then
+  raise Exception.Create('SumInts failed: ' + IntToStr(total));
+
+// Return array from Go
+var squares := GetSquares(5);
+if Length(squares) <> 5 then
+  raise Exception.Create('GetSquares length failed');
+if squares[0] <> 0 then
+  raise Exception.Create('GetSquares[0] failed');
+if squares[4] <> 16 then
+  raise Exception.Create('GetSquares[4] failed');
+
+// Filter array
+var nums := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+var evens := FilterEvens(nums);
+if Length(evens) <> 5 then
+  raise Exception.Create('FilterEvens length failed');
+if evens[0] <> 2 then
+  raise Exception.Create('FilterEvens[0] failed');
+
+// String array
+var words: array of String := ['hello', 'world', 'from', 'dwscript'];
+var joined := JoinStrings(words, ' ');
+if joined <> 'hello world from dwscript' then
+  raise Exception.Create('JoinStrings failed');
+
+var parts := SplitString('a,b,c', ',');
+if Length(parts) <> 3 then
+  raise Exception.Create('SplitString length failed');
+if parts[1] <> 'b' then
+  raise Exception.Create('SplitString[1] failed');
+
+// Empty arrays
+var emptyInts: array of Integer := [];
+var emptySum := SumInts(emptyInts);
+if emptySum <> 0 then
+  raise Exception.Create('Empty array sum should be 0');
+
+PrintLn('All array passing tests passed');
