@@ -123,6 +123,36 @@ func TestSpecificExceptionType(t *testing.T) {
 	}
 }
 
+// TestEHostCreateSetsFields ensures the EHost constructor assigns both Message and ExceptionClass.
+func TestEHostCreateSetsFields(t *testing.T) {
+	input := `
+		var host: EHost;
+		host := EHost.Create('my.Err', 'boom');
+
+		PrintLn(host.ExceptionClass);
+		PrintLn(host.Message);
+	`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	interp.Eval(program)
+
+	output := buf.String()
+	expected := "my.Err\nboom\n"
+
+	if output != expected {
+		t.Errorf("expected output %q, got %q", expected, output)
+	}
+}
+
 // ============================================================================
 // Multiple Exception Handlers Tests
 // ============================================================================

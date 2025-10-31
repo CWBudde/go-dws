@@ -49,21 +49,52 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	}
 
 	// Special handling for Exception.Create
-	// Exception constructors are built-in and take a message parameter
-	// NewExpression always implies Create constructor in DWScript
-	if i.isExceptionClass(classInfo) && len(ne.Arguments) == 1 {
-		// Evaluate the message argument
-		msgVal := i.Eval(ne.Arguments[0])
-		if isError(msgVal) {
-			return msgVal
+	// Exception constructors are built-in and take predefined arguments.
+	// NewExpression always implies Create constructor in DWScript.
+	if i.isExceptionClass(classInfo) {
+		// EHost.Create(cls, msg) - first argument is exception class name, second is message.
+		if classInfo.InheritsFrom("EHost") {
+			if len(ne.Arguments) != 2 {
+				return i.newErrorWithLocation(ne, "EHost.Create requires class name and message arguments")
+			}
+
+			classVal := i.Eval(ne.Arguments[0])
+			if isError(classVal) {
+				return classVal
+			}
+			messageVal := i.Eval(ne.Arguments[1])
+			if isError(messageVal) {
+				return messageVal
+			}
+
+			exceptionClass := classVal.String()
+			if strVal, ok := classVal.(*StringValue); ok {
+				exceptionClass = strVal.Value
+			}
+
+			message := messageVal.String()
+			if strVal, ok := messageVal.(*StringValue); ok {
+				message = strVal.Value
+			}
+
+			obj.SetField("ExceptionClass", &StringValue{Value: exceptionClass})
+			obj.SetField("Message", &StringValue{Value: message})
+			return obj
 		}
-		// Set the Message field
-		if strVal, ok := msgVal.(*StringValue); ok {
-			obj.SetField("Message", strVal)
-		} else {
-			obj.SetField("Message", &StringValue{Value: msgVal.String()})
+
+		// Other exception classes accept a single message argument.
+		if len(ne.Arguments) == 1 {
+			msgVal := i.Eval(ne.Arguments[0])
+			if isError(msgVal) {
+				return msgVal
+			}
+			if strVal, ok := msgVal.(*StringValue); ok {
+				obj.SetField("Message", &StringValue{Value: strVal.Value})
+			} else {
+				obj.SetField("Message", &StringValue{Value: msgVal.String()})
+			}
+			return obj
 		}
-		return obj
 	}
 
 	// Call constructor if present

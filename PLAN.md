@@ -327,36 +327,36 @@ PrintLn(html);
 
 #### Public API Design (5 tasks)
 
-- [ ] 9.32 Create `pkg/dwscript/ffi.go`:
-  - [ ] Define `ExternalFunction` interface
-  - [ ] Define `FunctionSignature` struct with param types and return type
-  - [ ] Define `RegisterFunction(name string, fn interface{}) error` method on `Engine`
-  - [ ] Validate function signature at registration time
-  - [ ] Store in registry map
-- [ ] 9.33 Define type mapping rules (Go ↔ DWScript):
-  - [ ] `int`, `int32`, `int64` ↔ `Integer`
-  - [ ] `float64` ↔ `Float`
-  - [ ] `string` ↔ `String`
-  - [ ] `bool` ↔ `Boolean`
-  - [ ] `[]T` ↔ `array of T`
-  - [ ] `map[string]T` ↔ `record` or associative array
-  - [ ] `error` ↔ exception (raise on error)
-- [ ] 9.34 Define calling conventions:
-  - [ ] Go function receives DWScript arguments as `[]interface{}`
-  - [ ] Returns `(interface{}, error)`
-  - [ ] Error return raises DWScript exception
-  - [ ] Support variadic Go functions
-- [ ] 9.35 Add tests for API design
-- [ ] 9.36 Document FFI in `docs/ffi.md`
+- [x] 9.32 Create `pkg/dwscript/ffi.go`:
+  - [x] Define `ExternalFunction` interface
+  - [x] Define `FunctionSignature` struct with param types and return type
+  - [x] Define `RegisterFunction(name string, fn interface{}) error` method on `Engine`
+  - [x] Validate function signature at registration time
+  - [x] Store in registry map
+- [x] 9.33 Define type mapping rules (Go ↔ DWScript):
+  - [x] `int`, `int32`, `int64` ↔ `Integer`
+  - [x] `float64` ↔ `Float`
+  - [x] `string` ↔ `String`
+  - [x] `bool` ↔ `Boolean`
+  - [x] `[]T` ↔ `array of T`
+  - [x] `map[string]T` ↔ `record` or associative array
+  - [x] `error` ↔ exception (raise on error)
+- [x] 9.34 Define calling conventions:
+  - [x] Go function receives DWScript arguments as `[]any`
+  - [x] Returns `(any, error)`
+  - [x] Error return raises DWScript exception
+  - [x] Support variadic Go functions
+- [x] 9.35 Add tests for API design
+- [x] 9.36 Document FFI in `docs/ffi.md`
 
 #### Type Marshaling (8 tasks)
 
 - [ ] 9.37 Create `interp/marshal.go`:
-  - [ ] Implement `MarshalToGo(dwsValue Value) (interface{}, error)`
+  - [ ] Implement `MarshalToGo(dwsValue Value) (any, error)`
   - [ ] Convert DWScript values to Go values
   - [ ] Handle all primitive types
   - [ ] Handle arrays, records, objects
-- [ ] 9.38 Implement `MarshalToDWS(goValue interface{}) (Value, error)`:
+- [ ] 9.38 Implement `MarshalToDWS(goValue any) (Value, error)`:
   - [ ] Convert Go values to DWScript values
   - [ ] Use reflection to inspect Go types
   - [ ] Handle primitives, slices, maps, structs
@@ -373,7 +373,7 @@ PrintLn(html);
   - [ ] `bool` → `BoolValue`
   - [ ] `BoolValue` → `bool`
 - [ ] 9.43 Implement array marshaling:
-  - [ ] `[]interface{}` ↔ `ArrayValue`
+  - [ ] `[]any` ↔ `ArrayValue`
   - [ ] Element-wise conversion
 - [ ] 9.44 Add marshaling tests
 
@@ -407,11 +407,11 @@ PrintLn(html);
 **Note**: Leverages existing exception infrastructure from Stage 8. EHost class bridges Go errors/panics to DWScript exception system. Named "EHost" (not "EGo" or "EDelphi") for future-proofing - works with any host runtime (Go, WASM, C FFI, etc.).
 
 - [ ] 9.51 Implement error marshaling:
-  - [ ] 9.51a Register `EHost` exception class in `registerBuiltinExceptions()` (`internal/interp/exceptions.go`)
+  - [x] 9.51a Register `EHost` exception class in `registerBuiltinExceptions()` (`internal/interp/exceptions.go`)
     - Inherits from `Exception`
     - Field: `ExceptionClass: String` (holds Go error type name, e.g., "*fs.PathError")
     - Constructor: `Create(cls, msg)`
-  - [ ] 9.51b Create `raiseGoErrorAsException(err error)` in `internal/interp/ffi_errors.go`
+  - [x] 9.51b Create `raiseGoErrorAsException(err error)` in `internal/interp/ffi_errors.go`
     - Create `EHost` instance with error message
     - Populate `ExceptionClass` field with `fmt.Sprintf("%T", err)`
     - Capture call stack from `i.callStack` (already implemented)
@@ -421,11 +421,11 @@ PrintLn(html);
     - Call `raiseGoErrorAsException()` to convert
     - Ensure exception propagates to DWScript caller
 - [ ] 9.52 Handle panics in Go functions:
-  - [ ] 9.52a Create `callExternalFunctionSafe()` wrapper with panic recovery
+  - [x] 9.52a Create `callExternalFunctionSafe()` wrapper with panic recovery
     - Add `defer/recover()` block
     - Detect panic type (error, string, other)
     - Extract panic message with type assertion
-  - [ ] 9.52b Create `raiseGoPanicAsException(panicValue interface{})` function
+  - [x] 9.52b Create `raiseGoPanicAsException(panicValue interface{})` function
     - Convert panic value to string message
     - Create `EHost` instance marked as panic (include "panic:" prefix in message)
     - Optionally include Go stack trace in message (`runtime.Stack()`)
@@ -1122,10 +1122,155 @@ PrintLn(s.ToUpper()); // Output: HELLO
 
 ---
 
+### Lazy Parameter Passing (MEDIUM-HIGH PRIORITY)
+
+**Summary**: Implement the `lazy` parameter modifier to support deferred expression evaluation. Lazy parameters pass unevaluated expressions that are re-evaluated each time they're accessed within the function body, enabling patterns like Jensen's Device, conditional evaluation, and lightweight anonymous functions.
+
+**Example (Jensen's Device)**:
+```pascal
+function sum(var i : Integer; lo, hi : Integer; lazy term : Float) : Float;
+begin
+   i:=lo;
+   while i<=hi do begin
+      Result += term;  // term is re-evaluated each iteration
+      Inc(i);
+   end;
+end;
+
+var i : Integer;
+PrintLn(sum(i, 1, 100, 1.0/i));  // Computes harmonic series: 1/1 + 1/2 + ... + 1/100
+```
+
+**Use Cases**:
+- Jensen's Device and similar mathematical patterns
+- Conditional logging (only evaluate expensive expressions when needed)
+- Ternary-like operators without compiler magic
+- Deferred evaluation for performance optimization
+
+**Reference**: https://www.delphitools.info/2010/12/10/lazy-parameters-if-compound-assignments/
+
+#### AST & Parser (3 tasks)
+
+- [ ] 9.212 Extend parameter declaration AST in `ast/statements.go`:
+  - [ ] Add `IsLazy bool` field to `ParameterDecl` struct
+  - [ ] Update `String()` method to display `lazy` modifier
+  - [ ] Document that lazy parameters capture expressions, not values
+
+- [ ] 9.213 Add parser support for lazy parameters in `parser/statements.go`:
+  - [ ] Recognize `lazy` keyword in parameter lists (before parameter name)
+  - [ ] Set `IsLazy = true` on parameter declaration
+  - [ ] Parse syntax: `procedure Foo(lazy x: Integer)` or `function Bar(lazy s: String)`
+  - [ ] Support mixing lazy, var, const, and regular parameters: `func(var x: Integer; lazy y: String; z: Float)`
+  - [ ] Add parser tests for lazy parameter syntax
+
+- [ ] 9.214 Add parser tests in `parser/functions_test.go`:
+  - [ ] Test `function Test(lazy x: Integer): Integer;` - basic lazy parameter
+  - [ ] Test `procedure Log(level: Integer; lazy msg: String);` - mixed parameters
+  - [ ] Test multiple lazy parameters: `function If(cond: Boolean; lazy trueVal, falseVal: Integer): Integer;`
+  - [ ] Test error: `lazy var x: Integer` - lazy and var are mutually exclusive
+  - [ ] Test error: `lazy const x: Integer` - lazy and const are mutually exclusive
+
+#### Semantic Analysis (4 tasks)
+
+- [ ] 9.215 Implement lazy parameter validation in `semantic/analyzer.go`:
+  - [ ] Validate that lazy parameters are not also `var` or `const` (mutually exclusive modifiers)
+  - [ ] Track lazy parameters in function signature (`FunctionType.Parameters` metadata)
+  - [ ] For lazy parameters, defer type checking to call site (expression type, not value type)
+  - [ ] Add to `analyzeFunction()` and `analyzeProcedure()`
+
+- [ ] 9.216 Implement lazy parameter call-site validation:
+  - [ ] In `analyzeFunctionCall()` and `analyzeProcedureCall()`, identify lazy parameter positions
+  - [ ] For lazy arguments, store the AST expression node without evaluating it
+  - [ ] Type-check the expression against the parameter type (e.g., `lazy x: Integer` accepts any Integer expression)
+  - [ ] Validate that lazy expressions don't have side effects that would be surprising when re-evaluated (warning only)
+
+- [ ] 9.217 Extend function signature storage:
+  - [ ] Update `FunctionType` in `types/types.go` to include `LazyParams []bool` (parallel to Parameters)
+  - [ ] Store lazy parameter flags during semantic analysis
+  - [ ] Use this metadata during call validation and interpretation
+
+- [ ] 9.218 Add semantic tests in `semantic/lazy_params_test.go`:
+  - [ ] Test valid: `function Test(lazy x: Integer): Integer;` declaration
+  - [ ] Test error: `procedure Foo(lazy var x: Integer);` - lazy + var conflict
+  - [ ] Test error: `procedure Bar(lazy const x: String);` - lazy + const conflict
+  - [ ] Test valid: call with lazy expression argument
+  - [ ] Test type checking: `lazy x: Integer` must receive Integer expression, not String
+  - [ ] Test nested calls with lazy parameters
+
+#### Interpreter Support (5 tasks)
+
+- [ ] 9.219 Create thunk/closure representation in `interp/lazy_params.go`:
+  - [ ] Define `LazyThunk` struct with:
+    - `Expression ast.Expression` - the unevaluated AST node
+    - `CapturedEnv *Environment` - variable context from call site
+    - `Interpreter *Interpreter` - reference for evaluation
+  - [ ] Implement `Evaluate() interface{}` method that evaluates the expression in captured environment
+  - [ ] Ensure each call to `Evaluate()` re-evaluates (no caching)
+
+- [ ] 9.220 Implement lazy parameter binding in function calls:
+  - [ ] In `evalFunctionCall()` and `evalProcedureCall()`, check if parameter is lazy
+  - [ ] For lazy parameters:
+    - Create `LazyThunk` with argument expression and current environment
+    - Bind thunk to parameter name in function's environment
+  - [ ] For non-lazy parameters: evaluate expression immediately (existing behavior)
+
+- [ ] 9.221 Implement lazy parameter dereferencing:
+  - [ ] In `evalIdentifier()`, check if identifier resolves to a `LazyThunk`
+  - [ ] If so, call `thunk.Evaluate()` to get the current value
+  - [ ] Each access re-evaluates the expression (critical for Jensen's Device)
+  - [ ] Ensure variable mutations in the expression are visible (e.g., `1.0/i` sees updated `i`)
+
+- [ ] 9.222 Handle lazy parameters in nested scopes:
+  - [ ] Ensure thunk evaluation uses the captured environment, not the function's local environment
+  - [ ] Test that lazy expressions can reference variables from multiple scopes
+  - [ ] Verify that mutations to captured variables are visible in subsequent evaluations
+
+- [ ] 9.223 Add interpreter tests in `interp/lazy_params_test.go`:
+  - [ ] Test basic lazy evaluation: expression evaluated on each access
+  - [ ] Test Jensen's Device: `sum(i, 1, 100, 1.0/i)` computes harmonic series
+  - [ ] Test conditional evaluation: lazy parameter not accessed if condition is false
+  - [ ] Test multiple evaluations: lazy param accessed 3 times yields 3 evaluations
+  - [ ] Test lazy expression with side effects: `lazy (Inc(i))` increments on each access
+  - [ ] Test lazy parameter with captured variables: mutations are visible
+  - [ ] Test lazy expression referencing loop variable: sees updated value
+  - [ ] Test error: lazy parameter type mismatch caught at semantic analysis
+
+#### Testing & Integration (3 tasks)
+
+- [ ] 9.224 Create test scripts in `testdata/lazy_params/`:
+  - [ ] `jensens_device.dws` - Classic Jensen's Device (harmonic series)
+  - [ ] `conditional_eval.dws` - Ternary-like function: `function If(cond: Boolean; lazy t, f: Integer): Integer;`
+  - [ ] `lazy_logging.dws` - Logger that only evaluates message if log level is enabled
+  - [ ] `multiple_access.dws` - Lazy param accessed multiple times with different side effects
+  - [ ] `lazy_with_loops.dws` - Lazy expressions in loop contexts
+  - [ ] Expected output files for each
+
+- [ ] 9.225 Add CLI integration tests in `cmd/dwscript/lazy_params_test.go`:
+  - [ ] `TestLazyParamsScriptsExist` - verify all test scripts exist
+  - [ ] `TestLazyParamsParsing` - validate parsing of all lazy parameter scripts
+  - [ ] `TestLazyParamsExecution` - validate output matches expected for all scripts
+  - [ ] `TestJensensDevice` - specific test for the canonical example
+  - [ ] `TestLazyEvaluationCount` - verify re-evaluation on each access
+  - [ ] `TestLazyConditional` - verify lazy expressions not evaluated when skipped
+
+- [ ] 9.226 Document lazy parameters in `docs/lazy_parameters.md`:
+  - [ ] Syntax reference: `procedure Foo(lazy x: Type);`
+  - [ ] Semantics: expression passed, not value; re-evaluated on each access
+  - [ ] Use cases: Jensen's Device, conditional evaluation, logging
+  - [ ] Examples from test fixtures
+  - [ ] Limitations:
+    - Experimental feature (as noted in DWScript blog)
+    - Lazy expressions with side effects can be confusing
+    - Performance implications of re-evaluation
+    - Cannot mix `lazy` with `var` or `const`
+  - [ ] Implementation details: thunks, environment capture, re-evaluation
+
+---
+
 ## Phase 9 Summary
 
-**Total Tasks**: ~229 tasks
-**Estimated Effort**: ~27 weeks (~6.5 months)
+**Total Tasks**: ~244 tasks
+**Estimated Effort**: ~29 weeks (~7 months)
 
 ### Priority Breakdown:
 
@@ -1137,6 +1282,10 @@ PrintLn(s.ToUpper()); // Output: HELLO
 - External Function Registration (FFI): 35 tasks
 - Array Instantiation (`new TypeName[size]`): 12 tasks (CRITICAL for Rosetta Code examples)
 
+**MEDIUM-HIGH PRIORITY** (~15 tasks, ~2 weeks):
+
+- Lazy Parameter Passing: 15 tasks (REQUIRED for Jensen's Device and Rosetta Code examples)
+
 **MEDIUM PRIORITY** (~67 tasks, ~8 weeks):
 
 - Lambdas/Anonymous Methods: 30 tasks (depends on function pointers)
@@ -1145,7 +1294,7 @@ PrintLn(s.ToUpper()); // Output: HELLO
 - JSON Support: 18 tasks
 - Improved Error Messages: 12 tasks
 
-This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with DWScript, making it production-ready for most use cases. The array instantiation feature is particularly critical as it unblocks numerous real-world DWScript examples (e.g., Rosetta Code algorithms) that rely on dynamic array creation.
+This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with DWScript, making it production-ready for most use cases. The array instantiation and lazy parameter features are particularly critical as they unblock numerous real-world DWScript examples (e.g., Rosetta Code algorithms like Jensen's Device) that rely on dynamic array creation and deferred expression evaluation.
 
 ## Stage 10: Performance Tuning and Refactoring
 

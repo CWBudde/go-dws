@@ -81,6 +81,17 @@ func (i *Interpreter) registerBuiltinExceptions() {
 
 		i.classes[excName] = excClass
 	}
+
+	// Task 9.51a: Register EHost exception wrapper for host runtime errors.
+	eHostClass := NewClassInfo("EHost")
+	eHostClass.Parent = exceptionClass
+	eHostClass.Fields["Message"] = types.STRING
+	eHostClass.Fields["ExceptionClass"] = types.STRING
+	eHostClass.IsAbstract = false
+	eHostClass.IsExternal = false
+	eHostClass.Constructors["Create"] = nil
+
+	i.classes["EHost"] = eHostClass
 }
 
 // ============================================================================
