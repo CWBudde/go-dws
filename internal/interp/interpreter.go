@@ -3,6 +3,7 @@ package interp
 import (
 	"io"
 	"math/rand"
+	"reflect"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/units"
@@ -10,21 +11,22 @@ import (
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 type Interpreter struct {
-	currentNode      ast.Node                     // Current AST node being evaluated (for error reporting)
-	output           io.Writer                    // Where to write output (e.g., from PrintLn)
-	rand             *rand.Rand                   // Random number generator for Random() and Randomize()
-	exception        *ExceptionValue              // Current active exception (nil if none)
-	interfaces       map[string]*InterfaceInfo    // Registry of interface definitions
-	functions        map[string]*ast.FunctionDecl // Registry of user-defined functions
-	globalOperators  *runtimeOperatorRegistry     // Global operator overloads
-	conversions      *runtimeConversionRegistry   // Global conversions
-	env              *Environment                 // The current execution environment
-	classes          map[string]*ClassInfo        // Registry of class definitions
-	handlerException *ExceptionValue              // Exception being handled (for bare raise)
-	callStack        []string                     // Stack of currently executing function names (for stack traces)
-	initializedUnits map[string]bool              // Track which units have been initialized
-	unitRegistry     *units.UnitRegistry          // Registry for managing loaded units
-	loadedUnits      []string                     // Units loaded in order (for initialization/finalization)
+	currentNode       ast.Node                     // Current AST node being evaluated (for error reporting)
+	output            io.Writer                    // Where to write output (e.g., from PrintLn)
+	rand              *rand.Rand                   // Random number generator for Random() and Randomize()
+	exception         *ExceptionValue              // Current active exception (nil if none)
+	interfaces        map[string]*InterfaceInfo    // Registry of interface definitions
+	functions         map[string]*ast.FunctionDecl // Registry of user-defined functions
+	globalOperators   *runtimeOperatorRegistry     // Global operator overloads
+	conversions       *runtimeConversionRegistry   // Global conversions
+	env               *Environment                 // The current execution environment
+	classes           map[string]*ClassInfo        // Registry of class definitions
+	handlerException  *ExceptionValue              // Exception being handled (for bare raise)
+	callStack         []string                     // Stack of currently executing function names (for stack traces)
+	initializedUnits  map[string]bool              // Track which units have been initialized
+	unitRegistry      *units.UnitRegistry          // Registry for managing loaded units
+	loadedUnits       []string                     // Units loaded in order (for initialization/finalization)
+	externalFunctions *ExternalFunctionRegistry    // Registry of external Go functions (Task 9.32)
 
 	// These flags signal control flow changes (break, continue, exit) and are checked
 	// after each statement. They propagate up the call stack until handled by the
@@ -39,6 +41,13 @@ type Interpreter struct {
 // New creates a new Interpreter with a fresh global environment.
 // The output writer is where built-in functions like PrintLn will write.
 func New(output io.Writer) *Interpreter {
+	return NewWithOptions(output, nil)
+}
+
+// NewWithOptions creates a new Interpreter with options.
+// If options is nil, default options are used.
+// The Options type is defined in pkg/dwscript but passed through here to avoid circular imports.
+func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 	env := NewEnvironment()
 	// Initialize random number generator with a default seed
 	// Randomize() can be called to re-seed with current time
@@ -54,6 +63,30 @@ func New(output io.Writer) *Interpreter {
 		rand:             rand.New(source),
 		loadedUnits:      make([]string, 0),
 		initializedUnits: make(map[string]bool),
+	}
+
+	// Extract external functions from options if provided
+	if opts != nil {
+		// Use reflection to extract ExternalFunctions field
+		// We can't import pkg/dwscript here due to circular dependency,
+		// so we use reflection to access the field
+		val := reflect.ValueOf(opts)
+		if val.Kind() == reflect.Ptr {
+			val = val.Elem()
+		}
+		if val.Kind() == reflect.Struct {
+			field := val.FieldByName("ExternalFunctions")
+			if field.IsValid() && !field.IsNil() {
+				if registry, ok := field.Interface().(*ExternalFunctionRegistry); ok {
+					interp.externalFunctions = registry
+				}
+			}
+		}
+	}
+
+	// Ensure we have a registry even if not provided
+	if interp.externalFunctions == nil {
+		interp.externalFunctions = NewExternalFunctionRegistry()
 	}
 
 	// Register built-in exception classes (Task 8.203-8.204)

@@ -162,6 +162,17 @@ func (c *ClassInfo) HasConstructor(name string) bool {
 	return false
 }
 
+// InheritsFrom reports whether the class or any of its ancestors has the given name.
+// The check is case-sensitive and includes the class itself.
+func (c *ClassInfo) InheritsFrom(name string) bool {
+	for current := c; current != nil; current = current.Parent {
+		if current.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 // ============================================================================
 // Value Interface Implementation
 // ============================================================================

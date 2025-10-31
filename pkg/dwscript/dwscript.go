@@ -33,14 +33,16 @@ import (
 // Engine is the main entry point for the DWScript interpreter.
 // It provides a high-level API for compiling and executing DWScript programs.
 type Engine struct {
-	options Options
+	options           Options
+	externalFunctions *interp.ExternalFunctionRegistry
 }
 
 // New creates a new DWScript engine with the given options.
 // If no options are provided, sensible defaults are used.
 func New(opts ...Option) (*Engine, error) {
 	engine := &Engine{
-		options: defaultOptions(),
+		options:           defaultOptions(),
+		externalFunctions: interp.NewExternalFunctionRegistry(),
 	}
 
 	for _, opt := range opts {
@@ -100,8 +102,11 @@ func (e *Engine) Run(program *Program) (*Result, error) {
 		output = &bytes.Buffer{}
 	}
 
-	// Create interpreter with output writer
-	interpreter := interp.New(output)
+	// Set external functions in options for interpreter
+	e.options.ExternalFunctions = e.externalFunctions
+
+	// Create interpreter with output writer and options
+	interpreter := interp.NewWithOptions(output, &e.options)
 
 	// Execute
 	result := interpreter.Eval(program.ast)

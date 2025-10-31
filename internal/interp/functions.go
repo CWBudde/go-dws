@@ -122,6 +122,13 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 
 // callBuiltin calls a built-in function by name.
 func (i *Interpreter) callBuiltin(name string, args []Value) Value {
+	// Task 9.32: Check for external Go functions first
+	if i.externalFunctions != nil {
+		if extFunc, ok := i.externalFunctions.Get(name); ok {
+			return i.callExternalFunction(extFunc, args)
+		}
+	}
+
 	switch name {
 	case "PrintLn":
 		return i.builtinPrintLn(args)
@@ -348,6 +355,18 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
+}
+
+// callExternalFunction calls an external Go function registered via FFI (Task 9.32).
+// It uses the existing FFI error handling infrastructure to safely call the Go function
+// and convert any errors or panics to DWScript exceptions.
+func (i *Interpreter) callExternalFunction(extFunc *ExternalFunctionValue, args []Value) Value {
+	// Use the existing callExternalFunctionSafe wrapper which handles panics
+	// and converts them to EHost exceptions (from ffi_errors.go)
+	return i.callExternalFunctionSafe(func() (Value, error) {
+		// Call the wrapped Go function
+		return extFunc.Wrapper.Call(args)
+	})
 }
 
 // callBuiltinWithVarParam calls a built-in function that requires var parameters.

@@ -3,13 +3,16 @@ package dwscript
 import (
 	"io"
 	"os"
+
+	"github.com/cwbudde/go-dws/internal/interp"
 )
 
 // Options configures the behavior of the DWScript engine.
 type Options struct {
-	Output    io.Writer
-	TypeCheck bool
-	Trace     bool
+	Output            io.Writer
+	TypeCheck         bool
+	Trace             bool
+	ExternalFunctions *interp.ExternalFunctionRegistry
 }
 
 // Option is a function that configures an Engine's Options.
