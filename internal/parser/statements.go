@@ -197,7 +197,9 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 		break
 	}
 
+	hasExplicitType := false
 	if p.peekTokenIs(lexer.COLON) {
+		hasExplicitType = true
 		p.nextToken() // move to ':'
 
 		// Parse type expression (can be simple type, function pointer, or array type)
@@ -232,16 +234,34 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 		}
 	}
 
-	if p.peekTokenIs(lexer.ASSIGN) {
-		// Task 9.63: Reject initializers with multiple names (DWScript rule)
-		if len(stmt.Names) > 1 {
-			p.addError("cannot use initializer with multiple variable names")
-			return stmt
-		}
+	if hasExplicitType {
+		if p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ) {
+			// Task 9.63: Reject initializers with multiple names (DWScript rule)
+			if len(stmt.Names) > 1 {
+				p.addError("cannot use initializer with multiple variable names")
+				return stmt
+			}
 
-		p.nextToken() // move to ':='
-		p.nextToken()
-		stmt.Value = p.parseExpression(ASSIGN)
+			p.nextToken() // move to assignment operator
+			p.nextToken()
+			stmt.Value = p.parseExpression(ASSIGN)
+		}
+	} else {
+		if p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ) {
+			if len(stmt.Names) > 1 {
+				p.addError("cannot use initializer with multiple variable names")
+				return stmt
+			}
+
+			p.nextToken() // move to assignment operator
+			stmt.Inferred = true
+			p.nextToken()
+			stmt.Value = p.parseExpression(ASSIGN)
+		} else if p.peekTokenIs(lexer.SEMICOLON) || p.peekTokenIs(lexer.EXTERNAL) {
+			p.addError("variable declaration requires a type or initializer")
+		} else {
+			p.addError("expected ':', ':=' or '=' in variable declaration")
+		}
 	}
 
 	// Task 7.143: Check for 'external' keyword

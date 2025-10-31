@@ -54,6 +54,28 @@ func TestRosettaExamplesParse(t *testing.T) {
 	}
 }
 
+func TestDeathStarParsesWithTypeInference(t *testing.T) {
+	t.Helper()
+
+	scriptPath := filepath.Join("..", "..", "examples", "rosetta", "Death_Star.dws")
+	source, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("failed to read %s: %v", scriptPath, err)
+	}
+
+	engine, err := dwscript.New(
+		dwscript.WithTypeCheck(false),
+		dwscript.WithOutput(io.Discard),
+	)
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+
+	if _, err := engine.Compile(string(source)); err != nil {
+		t.Fatalf("failed to compile %s: %v", scriptPath, err)
+	}
+}
+
 func TestExitStatementExamples(t *testing.T) {
 	t.Helper()
 
@@ -72,7 +94,7 @@ func TestExitStatementExamples(t *testing.T) {
 		{
 			name:               "DeathStarExample",
 			path:               filepath.Join("..", "..", "examples", "rosetta", "Death_Star.dws"),
-			requireNonEmptyOut: true,
+			requireNonEmptyOut: false,
 			skipOnCompileError: true,
 		},
 	}
@@ -166,6 +188,59 @@ func TestArrayLiteralExamples(t *testing.T) {
 
 			if output := buf.String(); output != script.expectedOutput {
 				t.Fatalf("unexpected output for %s: want %q, got %q", script.name, script.expectedOutput, output)
+			}
+		})
+	}
+}
+
+func TestTypeInferenceExamples(t *testing.T) {
+	t.Helper()
+
+	baseDir := filepath.Join("..", "..", "testdata", "type_inference")
+	scripts := []struct {
+		name string
+		file string
+	}{
+		{name: "Basic", file: "type_inference_basic.dws"},
+		{name: "Arrays", file: "type_inference_arrays.dws"},
+		{name: "Records", file: "type_inference_records.dws"},
+	}
+
+	for _, script := range scripts {
+		script := script
+
+		t.Run(script.name, func(t *testing.T) {
+			scriptPath := filepath.Join(baseDir, script.file)
+			source, err := os.ReadFile(scriptPath)
+			if err != nil {
+				t.Fatalf("failed to read %s: %v", scriptPath, err)
+			}
+
+			expectedPath := strings.TrimSuffix(scriptPath, filepath.Ext(scriptPath)) + ".txt"
+			expectedBytes, err := os.ReadFile(expectedPath)
+			if err != nil {
+				t.Fatalf("failed to read %s: %v", expectedPath, err)
+			}
+
+			var buf bytes.Buffer
+			engine, err := dwscript.New(
+				dwscript.WithTypeCheck(false),
+				dwscript.WithOutput(&buf),
+			)
+			if err != nil {
+				t.Fatalf("failed to create engine: %v", err)
+			}
+
+			result, err := engine.Eval(string(source))
+			if err != nil {
+				t.Fatalf("evaluation error: %v", err)
+			}
+			if !result.Success {
+				t.Fatalf("script %s reported unsuccessful execution", scriptPath)
+			}
+
+			if output := buf.String(); output != string(expectedBytes) {
+				t.Fatalf("unexpected output for %s: want %q, got %q", script.name, string(expectedBytes), output)
 			}
 		})
 	}

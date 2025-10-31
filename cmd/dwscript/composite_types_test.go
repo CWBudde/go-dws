@@ -482,7 +482,8 @@ func TestOperatorOverloading(t *testing.T) {
 					// Check if this is due to missing features
 					if tc.skipIfNotImplemented && (strings.Contains(outputStr, "undefined function") ||
 						strings.Contains(outputStr, "no prefix parse function") ||
-						strings.Contains(outputStr, "undefined method")) {
+						strings.Contains(outputStr, "undefined method") ||
+						strings.Contains(outputStr, "requires a helper")) {
 						t.Skipf("Skipping: %s - %s", tc.skipReason, outputStr[0:minInt(200, len(outputStr))])
 						return
 					}

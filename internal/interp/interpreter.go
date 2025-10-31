@@ -62,6 +62,9 @@ func New(output io.Writer) *Interpreter {
 	// Register built-in array helpers (Task 9.171)
 	interp.initArrayHelpers()
 
+	// Register built-in helpers for primitive types (Task 9.205)
+	interp.initIntrinsicHelpers()
+
 	// Initialize ExceptObject to nil
 	// ExceptObject is a built-in global variable that holds the current exception
 	env.Define("ExceptObject", &NilValue{})

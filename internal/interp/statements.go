@@ -114,6 +114,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		if stmt.Type != nil {
 			typeName := stmt.Type.Name
 			subrangeTypeKey := "__subrange_type_" + typeName
+			handledSubrange := false
 			if typeVal, ok := i.env.Get(subrangeTypeKey); ok {
 				if stv, ok := typeVal.(*SubrangeTypeValue); ok {
 					// Extract integer value from initializer
@@ -135,6 +136,12 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 						return &ErrorValue{Message: err.Error()}
 					}
 					value = subrangeVal
+					handledSubrange = true
+				}
+			}
+			if !handledSubrange {
+				if converted, ok := i.tryImplicitConversion(value, typeName); ok {
+					value = converted
 				}
 			}
 		}

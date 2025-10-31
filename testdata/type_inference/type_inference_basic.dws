@@ -1,0 +1,7 @@
+var answer = 21 + 21;
+var greeting = 'hello';
+var piApprox = 3.14;
+
+PrintLn(answer);
+PrintLn(greeting);
+PrintLn(FloatToStr(piApprox));

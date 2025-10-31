@@ -323,6 +323,36 @@ func TestHelperMethodParameters(t *testing.T) {
 	}
 }
 
+func TestIntrinsicPrimitiveHelpers(t *testing.T) {
+	input := `
+		var i := 42;
+		var si: String;
+		si := i.ToString;
+		si := i.ToString();
+		var f := 3.14159;
+		var sf: String;
+		sf := f.ToString;
+		sf := f.ToString(2);
+		var b := True;
+		var sb: String;
+		sb := b.ToString;
+		sb := b.ToString();
+	`
+
+	analyzer := NewAnalyzer()
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	if err := analyzer.Analyze(program); err != nil {
+		t.Fatalf("expected no semantic errors, got: %v", err)
+	}
+}
+
 // Helper function to check if error list contains a specific error message
 func containsError(errors []string, substr string) bool {
 	for _, err := range errors {

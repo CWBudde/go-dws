@@ -561,7 +561,7 @@ func TestVarDeclStatement(t *testing.T) {
 				Token: lexer.Token{Type: lexer.INT, Literal: "5"},
 				Value: 5,
 			},
-			want: "var x := 5",
+			want: "var x = 5",
 		},
 	}
 
@@ -575,8 +575,9 @@ func TestVarDeclStatement(t *testing.T) {
 						Value: tt.varName,
 					},
 				},
-				Type:  tt.varType,
-				Value: tt.value,
+				Type:     tt.varType,
+				Value:    tt.value,
+				Inferred: tt.varType == nil && tt.value != nil,
 			}
 
 			if node.String() != tt.want {

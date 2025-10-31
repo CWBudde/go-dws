@@ -33,7 +33,21 @@ func expectNoErrors(t *testing.T, input string) {
 
 // Helper function to check that analysis fails with specific error
 func expectError(t *testing.T, input string, expectedError string) {
-	_, err := analyzeSource(t, input)
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if perrs := p.Errors(); len(perrs) > 0 {
+		for _, msg := range perrs {
+			if strings.Contains(msg, expectedError) {
+				return
+			}
+		}
+		t.Fatalf("expected error containing '%s', got parser errors: %v", expectedError, perrs)
+	}
+
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
 	if err == nil {
 		t.Errorf("expected error containing '%s', got no error", expectedError)
 		return

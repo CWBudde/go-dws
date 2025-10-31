@@ -180,6 +180,51 @@ func TestMultipleHelpersForSameType(t *testing.T) {
 	}
 }
 
+func TestIntrinsicIntegerBooleanHelpers(t *testing.T) {
+	input := `
+	var i := 42;
+	PrintLn(i.ToString);
+	PrintLn(i.ToString());
+	var b := False;
+	PrintLn(b.ToString);
+	PrintLn(b.ToString());
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "42\n42\nFalse\nFalse\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
+func TestIntrinsicFloatHelpers(t *testing.T) {
+	input := `
+	var f := 3.14159;
+	PrintLn(f.ToString);
+	PrintLn(f.ToString(2));
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "3.14159\n3.14\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
 // ============================================================================
 // Helper Property Tests (Task 9.88)
 // ============================================================================
