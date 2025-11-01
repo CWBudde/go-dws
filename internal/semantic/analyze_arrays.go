@@ -186,6 +186,7 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 			a.addError("cannot infer type for empty array literal at %s", lit.Token.Pos.String())
 			return nil
 		}
+		// Task 9.156: Allow empty arrays for array of const (Format function)
 		lit.SetType(&ast.TypeAnnotation{
 			Token: lit.Token,
 			Name:  originalExpectedType.String(),
@@ -209,6 +210,13 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 		}
 
 		if expectedArrayType != nil {
+			// Task 9.156: Allow any type when expected element type is Const (array of const)
+			// This enables heterogeneous arrays like ['string', 123, 3.14] for Format()
+			if expectedArrayType.ElementType.Equals(types.CONST) {
+				// Accept any element type for array of const
+				continue
+			}
+
 			if !a.canAssign(elemType, expectedArrayType.ElementType) {
 				a.addError("array element %d has type %s, expected %s at %s",
 					idx+1, elemType.String(), expectedArrayType.ElementType.String(), elem.Pos().String())

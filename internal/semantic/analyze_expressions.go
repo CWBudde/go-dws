@@ -87,6 +87,27 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 	case *ast.RecordLiteralExpression:
 		return a.analyzeRecordLiteral(e, expectedType)
 	case *ast.SetLiteral:
+		// Task 9.156: Convert SetLiteral to ArrayLiteral when expected type is array of const
+		// This fixes Format('%s', [varName]) where parser creates SetLiteral for [varName]
+		if expectedType != nil {
+			if _, ok := types.GetUnderlyingType(expectedType).(*types.ArrayType); ok {
+				// If expected type is array (especially array of const), treat as array literal
+				arrayLit := &ast.ArrayLiteralExpression{
+					Token:    e.Token,
+					Elements: e.Elements,
+				}
+				resultType := a.analyzeArrayLiteral(arrayLit, expectedType)
+
+				// Set type annotation on the SetLiteral so interpreter knows to treat it as array
+				if resultType != nil {
+					e.Type = &ast.TypeAnnotation{
+						Token: e.Token,
+						Name:  resultType.String(),
+					}
+				}
+				return resultType
+			}
+		}
 		return a.analyzeSetLiteralWithContext(e, expectedType)
 	case *ast.ArrayLiteralExpression:
 		if expectedType != nil {
@@ -662,7 +683,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// Format built-in function (Task 9.51a)
+		// Format built-in function (Task 9.51a, Task 9.156)
 		if funcIdent.Value == "Format" {
 			// Format takes exactly 2 arguments: format string and array of values
 			if len(expr.Arguments) != 2 {
@@ -677,7 +698,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					fmtType.String(), expr.Token.Pos.String())
 			}
 			// Second argument: array of values (must be Array type)
-			arrType := a.analyzeExpression(expr.Arguments[1])
+			// Task 9.156: Pass ARRAY_OF_CONST as expected type to allow heterogeneous arrays
+			arrType := a.analyzeExpressionWithExpectedType(expr.Arguments[1], types.ARRAY_OF_CONST)
 			if arrType != nil {
 				if _, isArray := arrType.(*types.ArrayType); !isArray {
 					a.addError("Format() expects array as second argument, got %s at %s",

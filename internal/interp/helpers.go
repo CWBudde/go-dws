@@ -488,6 +488,9 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeAnnot *ast.TypeAnnotation) t
 		return types.STRING
 	case "Boolean":
 		return types.BOOLEAN
+	case "Const":
+		// Task 9.156: Support Const type for array of const (heterogeneous arrays)
+		return types.CONST
 	}
 
 	// Check for class types (stored in i.classes map)

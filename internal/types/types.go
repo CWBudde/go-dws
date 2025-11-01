@@ -109,6 +109,20 @@ func (t *VoidType) Equals(other Type) bool {
 	return ok
 }
 
+// ConstType represents the "const" type used in "array of const" parameters
+// Task 9.156: Similar to Pascal's "const" or Variant type - can hold any value
+// This is used specifically for builtin functions like Format that accept heterogeneous arrays
+type ConstType struct{}
+
+func (t *ConstType) String() string   { return "Const" }
+func (t *ConstType) TypeKind() string { return "CONST" }
+func (t *ConstType) Equals(other Type) bool {
+	// Resolve type aliases before comparison
+	other = GetUnderlyingType(other)
+	_, ok := other.(*ConstType)
+	return ok
+}
+
 // ============================================================================
 // Singleton Type Constants
 // ============================================================================
@@ -123,7 +137,12 @@ var (
 	DATETIME = &DateTimeType{} // Task 9.93: TDateTime type
 	NIL      = &NilType{}
 	VOID     = &VoidType{}
+	CONST    = &ConstType{} // Task 9.156: Const type for heterogeneous arrays
 )
+
+// ARRAY_OF_CONST is a special array type used for builtin functions like Format
+// that accept heterogeneous arrays (array of const in Pascal)
+var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 // Task 7.75: IINTERFACE is the base interface type (like IUnknown in COM)
 // All interfaces can inherit from this root interface.

@@ -42,6 +42,12 @@ func TestStringFunctions(t *testing.T) {
 			expectedFile: "../../testdata/string_functions/replace.out",
 			wantExitCode: 0,
 		},
+		{
+			name:         "Format Function",
+			scriptFile:   "../../testdata/string_functions/format.dws",
+			expectedFile: "../../testdata/string_functions/format.out",
+			wantExitCode: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -106,6 +112,7 @@ func TestStringFunctionsParsing(t *testing.T) {
 		"../../testdata/string_functions/trim.dws",
 		"../../testdata/string_functions/insert_delete.dws",
 		"../../testdata/string_functions/replace.dws",
+		"../../testdata/string_functions/format.dws",
 	}
 
 	for _, script := range scripts {

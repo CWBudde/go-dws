@@ -18,6 +18,24 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		return &ErrorValue{Message: "nil set literal"}
 	}
 
+	// Task 9.156: Check if this SetLiteral should be treated as an array (array of const)
+	// This happens when semantic analyzer determined it's used in array context
+	if literal.Type != nil && literal.Type.Name != "" {
+		// Check if the type is an array type
+		resolvedType, err := i.resolveType(literal.Type.Name)
+		if err == nil {
+			if _, isArray := resolvedType.(*types.ArrayType); isArray {
+				// Evaluate as array literal instead
+				arrayLit := &ast.ArrayLiteralExpression{
+					Token:    literal.Token,
+					Elements: literal.Elements,
+					Type:     literal.Type, // Copy type annotation
+				}
+				return i.evalArrayLiteral(arrayLit)
+			}
+		}
+	}
+
 	// Evaluate all elements and determine the enum type
 	var enumType *types.EnumType
 	var elements uint64 // Bitset for the set
