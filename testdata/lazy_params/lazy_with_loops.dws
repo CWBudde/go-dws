@@ -1,0 +1,84 @@
+// Lazy parameters in loop contexts
+// Demonstrates how lazy expressions see updated variables
+
+var globalCounter: Integer;
+
+// Collect values of a lazy expression over iterations
+procedure PrintLazyInLoop(count: Integer; lazy expr: Integer);
+begin
+   globalCounter := 1;
+   while globalCounter <= count do begin
+      PrintLn('Iteration ' + IntToStr(globalCounter) + ': expr = ' + IntToStr(expr));
+      globalCounter := globalCounter + 1;
+   end;
+end;
+
+// Sum lazy expression values over iterations
+function SumLazyInLoop(count: Integer; lazy expr: Integer): Integer;
+begin
+   Result := 0;
+   globalCounter := 1;
+   while globalCounter <= count do begin
+      Result := Result + expr;
+      globalCounter := globalCounter + 1;
+   end;
+end;
+
+// Filter: evaluate lazy condition for each value
+function CountWhen(start, finish: Integer; lazy condition: Boolean): Integer;
+begin
+   Result := 0;
+   globalCounter := start;
+   while globalCounter <= finish do begin
+      if condition then
+         Result := Result + 1;
+      globalCounter := globalCounter + 1;
+   end;
+end;
+
+// Demonstrate lazy expressions inside nested loops
+function NestedLoopSum(outer, inner: Integer; lazy term: Integer): Integer;
+var i: Integer;
+var j: Integer;
+begin
+   Result := 0;
+   for i := 1 to outer do begin
+      for j := 1 to inner do begin
+         Result := Result + term;
+      end;
+   end;
+end;
+
+var result: Integer;
+
+begin
+   PrintLn('=== Test 1: Lazy expression with global variable ===');
+   PrintLn('Expression: globalCounter * 2');
+   PrintLazyInLoop(5, globalCounter * 2);
+   PrintLn('');
+
+   PrintLn('=== Test 2: Sum of lazy expressions ===');
+   result := SumLazyInLoop(5, globalCounter * globalCounter);
+   PrintLn('Sum of globalCounter^2 for 1 to 5: ' + IntToStr(result));
+   PrintLn('Expected: 1 + 4 + 9 + 16 + 25 = 55');
+   PrintLn('');
+
+   PrintLn('=== Test 3: Conditional counting with lazy condition ===');
+   result := CountWhen(1, 10, globalCounter mod 2 = 0);
+   PrintLn('Count of even numbers 1-10: ' + IntToStr(result));
+
+   result := CountWhen(1, 10, globalCounter mod 3 = 0);
+   PrintLn('Count of numbers divisible by 3 (1-10): ' + IntToStr(result));
+   PrintLn('');
+
+   PrintLn('=== Test 4: Simple accumulation ===');
+   result := SumLazyInLoop(4, globalCounter);
+   PrintLn('Sum of globalCounter for 1 to 4: ' + IntToStr(result));
+   PrintLn('Expected: 1 + 2 + 3 + 4 = 10');
+   PrintLn('');
+
+   PrintLn('=== Test 5: Nested loops with constant lazy expression ===');
+   result := NestedLoopSum(3, 4, 5);
+   PrintLn('Nested loop (3x4) with constant 5: ' + IntToStr(result));
+   PrintLn('Expected: 3 * 4 * 5 = 60');
+end.

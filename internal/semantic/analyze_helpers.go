@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Helper Type Analysis (Task 9.82-9.85)
+// Helper Type Analysis
 // ============================================================================
 
 // analyzeHelperDecl analyzes a helper type declaration.
@@ -289,7 +289,7 @@ func (a *Analyzer) hasHelperProperty(typ types.Type, propName string) (*types.He
 }
 
 // ============================================================================
-// Built-in Array Helpers (Task 9.171)
+// Built-in Array Helpers
 // ============================================================================
 
 // initArrayHelpers registers built-in helper properties for arrays

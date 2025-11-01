@@ -64,10 +64,10 @@ func TestVarTypeInferenceNilInitializerError(t *testing.T) {
 }
 
 // ============================================================================
-// Variant Variable Tests (Task 9.226)
+// Variant Variable Tests (Task 9.147)
 // ============================================================================
 
-// Task 9.223 & 9.226: Test Variant variable declarations
+// Task 9.144 & 9.147: Test Variant variable declarations
 func TestVariantVarDeclaration(t *testing.T) {
 	// Uninitialized Variant
 	typ := inferVariableType(t, "var v: Variant;", "v")
@@ -76,7 +76,7 @@ func TestVariantVarDeclaration(t *testing.T) {
 	}
 }
 
-// Task 9.223 & 9.226: Test Variant variable with Integer initializer
+// Task 9.144 & 9.147: Test Variant variable with Integer initializer
 func TestVariantVarWithIntegerInit(t *testing.T) {
 	typ := inferVariableType(t, "var v: Variant := 42;", "v")
 	if !typ.Equals(types.VARIANT) {
@@ -84,7 +84,7 @@ func TestVariantVarWithIntegerInit(t *testing.T) {
 	}
 }
 
-// Task 9.223 & 9.226: Test Variant variable with String initializer
+// Task 9.144 & 9.147: Test Variant variable with String initializer
 func TestVariantVarWithStringInit(t *testing.T) {
 	typ := inferVariableType(t, `var v: Variant := "hello";`, "v")
 	if !typ.Equals(types.VARIANT) {

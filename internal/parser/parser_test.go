@@ -3787,6 +3787,100 @@ func TestParameters(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:  "lazy parameter - basic",
+			input: "function Test(lazy x: Integer): Integer; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 1 {
+					t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+				}
+				param := fn.Parameters[0]
+				if !param.IsLazy {
+					t.Error("param should be lazy")
+				}
+				if param.ByRef {
+					t.Error("param should not be by reference")
+				}
+				if param.Name.Value != "x" {
+					t.Errorf("param name = %q, want 'x'", param.Name.Value)
+				}
+				if param.Type == nil || param.Type.Name != "Integer" {
+					t.Errorf("param type = %q, want 'Integer'", param.Type)
+				}
+			},
+		},
+		{
+			name:  "lazy parameter - mixed with regular parameters",
+			input: "procedure Log(level: Integer; lazy msg: String); begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 2 {
+					t.Fatalf("expected 2 parameters, got %d", len(fn.Parameters))
+				}
+
+				// First parameter should be regular (not lazy, not by reference)
+				if fn.Parameters[0].IsLazy {
+					t.Error("param[0] should not be lazy")
+				}
+				if fn.Parameters[0].ByRef {
+					t.Error("param[0] should not be by reference")
+				}
+				if fn.Parameters[0].Name.Value != "level" {
+					t.Errorf("param[0] name = %q, want 'level'", fn.Parameters[0].Name.Value)
+				}
+
+				// Second parameter should be lazy
+				if !fn.Parameters[1].IsLazy {
+					t.Error("param[1] should be lazy")
+				}
+				if fn.Parameters[1].ByRef {
+					t.Error("param[1] should not be by reference")
+				}
+				if fn.Parameters[1].Name.Value != "msg" {
+					t.Errorf("param[1] name = %q, want 'msg'", fn.Parameters[1].Name.Value)
+				}
+			},
+		},
+		{
+			name:  "lazy parameter - multiple lazy parameters with shared type",
+			input: "function If(cond: Boolean; lazy trueVal, falseVal: Integer): Integer; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 3 {
+					t.Fatalf("expected 3 parameters, got %d", len(fn.Parameters))
+				}
+
+				// First parameter (cond) should be regular
+				if fn.Parameters[0].IsLazy {
+					t.Error("param[0] should not be lazy")
+				}
+				if fn.Parameters[0].Name.Value != "cond" {
+					t.Errorf("param[0] name = %q, want 'cond'", fn.Parameters[0].Name.Value)
+				}
+
+				// Second parameter (trueVal) should be lazy
+				if !fn.Parameters[1].IsLazy {
+					t.Error("param[1] should be lazy")
+				}
+				if fn.Parameters[1].Name.Value != "trueVal" {
+					t.Errorf("param[1] name = %q, want 'trueVal'", fn.Parameters[1].Name.Value)
+				}
+
+				// Third parameter (falseVal) should be lazy (shares type with trueVal)
+				if !fn.Parameters[2].IsLazy {
+					t.Error("param[2] should be lazy")
+				}
+				if fn.Parameters[2].Name.Value != "falseVal" {
+					t.Errorf("param[2] name = %q, want 'falseVal'", fn.Parameters[2].Name.Value)
+				}
+
+				// Both lazy parameters should have Integer type
+				if fn.Parameters[1].Type == nil || fn.Parameters[1].Type.Name != "Integer" {
+					t.Errorf("param[1] type = %q, want 'Integer'", fn.Parameters[1].Type)
+				}
+				if fn.Parameters[2].Type == nil || fn.Parameters[2].Type.Name != "Integer" {
+					t.Errorf("param[2] type = %q, want 'Integer'", fn.Parameters[2].Type)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -3805,6 +3899,44 @@ func TestParameters(t *testing.T) {
 			}
 
 			tt.expected(t, fn)
+		})
+	}
+}
+
+// TestParameterErrors tests error cases for parameter parsing
+func TestParameterErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		errorContains string
+	}{
+		{
+			name:          "lazy and var are mutually exclusive",
+			input:         "function Test(lazy var x: Integer): Integer; begin end;",
+			errorContains: "lazy and var modifiers are mutually exclusive",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			_ = p.ParseProgram()
+
+			if len(p.Errors()) == 0 {
+				t.Fatalf("expected parser error, got none")
+			}
+
+			// Check that error message contains expected text
+			found := false
+			for _, err := range p.Errors() {
+				if strings.Contains(err, tt.errorContains) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("expected error containing %q, got %v", tt.errorContains, p.Errors())
+			}
 		})
 	}
 }

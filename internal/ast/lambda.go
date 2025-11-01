@@ -21,7 +21,7 @@ import (
 //	lambda(x, y: Integer) => x + y
 //
 // The lambda creates a closure capturing variables from outer scopes.
-// Closure capture semantics are handled during semantic analysis (tasks 9.216-9.220).
+// Closure capture semantics are handled during semantic analysis.
 //
 // Examples:
 //
@@ -52,7 +52,7 @@ type LambdaExpression struct {
 	IsShorthand bool
 
 	// CapturedVars is the list of variable names captured from outer scopes
-	// Set during semantic analysis (task 9.217)
+	// Set during semantic analysis
 	CapturedVars []string
 }
 

@@ -1,0 +1,64 @@
+// Lazy logging - demonstrates avoiding expensive string operations
+// when log level is disabled
+// The message expression is only evaluated if the log level allows it
+
+var logLevel: Integer;
+var messageEvaluations: Integer;
+
+// Expensive message construction
+function BuildComplexMessage(details: String): String;
+begin
+   messageEvaluations := messageEvaluations + 1;
+   PrintLn('[BuildComplexMessage called, count: ' + IntToStr(messageEvaluations) + ']');
+   Result := 'Complex message with ' + details;
+end;
+
+// Logger with lazy message parameter
+// Only evaluates the message if the log level allows it
+procedure Log(level: Integer; lazy msg: String);
+begin
+   if level >= logLevel then begin
+      PrintLn('[LOG] ' + msg);
+   end;
+end;
+
+begin
+   PrintLn('=== Test 1: Log level = WARN (3) ===');
+   logLevel := 3;
+   messageEvaluations := 0;
+
+   // These should NOT evaluate the message (level too low)
+   Log(1, BuildComplexMessage('debug info'));
+   Log(2, BuildComplexMessage('info data'));
+
+   // These SHOULD evaluate the message
+   Log(3, BuildComplexMessage('warning details'));
+   Log(4, BuildComplexMessage('error information'));
+
+   PrintLn('Message evaluations: ' + IntToStr(messageEvaluations));
+   PrintLn('');
+
+   PrintLn('=== Test 2: Log level = DEBUG (1) ===');
+   logLevel := 1;
+   messageEvaluations := 0;
+
+   // All should evaluate
+   Log(1, BuildComplexMessage('debug info'));
+   Log(2, BuildComplexMessage('info data'));
+   Log(3, BuildComplexMessage('warning details'));
+
+   PrintLn('Message evaluations: ' + IntToStr(messageEvaluations));
+   PrintLn('');
+
+   PrintLn('=== Test 3: Log level = ERROR (4) ===');
+   logLevel := 4;
+   messageEvaluations := 0;
+
+   // Only ERROR should evaluate
+   Log(1, BuildComplexMessage('debug info'));
+   Log(2, BuildComplexMessage('info data'));
+   Log(3, BuildComplexMessage('warning details'));
+   Log(4, BuildComplexMessage('error information'));
+
+   PrintLn('Message evaluations: ' + IntToStr(messageEvaluations));
+end.

@@ -310,7 +310,7 @@ func TestTypeDeclarationImplementsStatement(t *testing.T) {
 }
 
 // ============================================================================
-// Subrange Type Declaration Tests (Tasks 9.94-9.95)
+// Subrange Type Declaration Tests
 // ============================================================================
 
 // TestSubrangeTypeDeclaration tests the TypeDeclaration AST node for subrange types

@@ -581,7 +581,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 	methodName := expr.Method.Value
 
-	// Task 9.207: Check if object is an interface type
+	// Task 9.128: Check if object is an interface type
 	if interfaceType, ok := objectType.(*types.InterfaceType); ok {
 		// Look up method in interface (including inherited methods from parent interfaces)
 		methodType, found := interfaceType.GetMethod(methodName)

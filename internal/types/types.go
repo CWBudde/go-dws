@@ -69,7 +69,7 @@ func (t *BooleanType) Equals(other Type) bool {
 	return ok
 }
 
-// DateTimeType represents the TDateTime type (Task 9.93)
+// DateTimeType represents the TDateTime type
 // TDateTime is internally represented as a Float where:
 // - Integer part = number of days since December 30, 1899
 // - Fractional part = time of day (0.5 = noon, 0.25 = 6am)
@@ -112,7 +112,7 @@ func (t *VoidType) Equals(other Type) bool {
 // ConstType represents the "const" type used in "array of const" parameters
 // Task 9.156: Similar to Pascal's "const" or Variant type - can hold any value
 // This is used specifically for builtin functions like Format that accept heterogeneous arrays
-// DEPRECATED: This is a temporary workaround. Use VariantType instead (Task 9.220+)
+// DEPRECATED: This is a temporary workaround. Use VariantType instead
 type ConstType struct{}
 
 func (t *ConstType) String() string   { return "Const" }
@@ -141,17 +141,18 @@ func (t *ConstType) Equals(other Type) bool {
 // - Operations on Variants use runtime type information for type coercion
 //
 // Example usage:
-//   var v: Variant;
-//   v := 42;          // Stores Integer
-//   v := 'hello';     // Stores String
-//   v := 3.14;        // Stores Float
-//   var i: Integer := v;  // Runtime type check and unboxing
+//
+//	var v: Variant;
+//	v := 42;          // Stores Integer
+//	v := 'hello';     // Stores String
+//	v := 3.14;        // Stores Float
+//	var i: Integer := v;  // Runtime type check and unboxing
 //
 // Similar to Delphi's TVarData and DWScript's TdwsVariant.
 // See reference/dwscript-original/Source/dwsVariantFunctions.pas
 type VariantType struct{}
 
-func (t *VariantType) String() string { return "Variant" }
+func (t *VariantType) String() string   { return "Variant" }
 func (t *VariantType) TypeKind() string { return "VARIANT" }
 func (t *VariantType) Equals(other Type) bool {
 	// Resolve type aliases before comparison
@@ -550,7 +551,7 @@ func (ct *ClassType) GetProperty(name string) (*PropertyInfo, bool) {
 
 // ImplementsInterface checks if this class implements the given interface.
 // It checks both the class itself and its parent classes.
-// Task 9.207: Interface implementation check for assignment compatibility
+// Task 9.128: Interface implementation check for assignment compatibility
 func (ct *ClassType) ImplementsInterface(iface *InterfaceType) bool {
 	if ct == nil || iface == nil {
 		return false
@@ -641,7 +642,7 @@ func (it *InterfaceType) GetMethod(name string) (*FunctionType, bool) {
 
 // InheritsFrom checks if this interface inherits from (extends) another interface.
 // It checks the entire parent chain.
-// Task 9.207: Interface inheritance check for assignment compatibility
+// Task 9.128: Interface inheritance check for assignment compatibility
 func (it *InterfaceType) InheritsFrom(parent *InterfaceType) bool {
 	if it == nil || parent == nil {
 		return false

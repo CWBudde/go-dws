@@ -151,7 +151,7 @@ func TestMultipleInterfaces(t *testing.T) {
 }
 
 // ============================================================================
-// Interface Variable Declaration Tests (Task 9.208)
+// Interface Variable Declaration Tests (Task 9.129)
 // ============================================================================
 
 // TestInterfaceVariableDeclaration tests declaring variables with interface types
@@ -255,7 +255,7 @@ func TestMultipleInterfaceVariables(t *testing.T) {
 }
 
 // ============================================================================
-// Interface Assignment Type Checking Tests (Task 9.209)
+// Interface Assignment Type Checking Tests (Task 9.130)
 // ============================================================================
 
 // TestValidClassToInterfaceAssignment tests that a class implementing an interface can be assigned

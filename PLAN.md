@@ -171,34 +171,34 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
 
 #### Full Contextual Type Inference (FUTURE ENHANCEMENT)
 
-**Summary**: Task 9.? currently has a placeholder implementation that reports an error when lambda parameters lack type annotations. Full contextual type inference would allow the compiler to infer parameter types from the context where the lambda is used.
+**Summary**: Task 9.19 currently has a placeholder implementation that reports an error when lambda parameters lack type annotations. Full contextual type inference would allow the compiler to infer parameter types from the context where the lambda is used.
 
 **Current Status**: Lambda parameter type inference reports "not fully implemented" error. Return type inference from body is complete.
 
 **Tasks for Full Implementation** (5 tasks):
 
-- [ ] 9.67 Add type context passing infrastructure to expression analyzer:
+- [ ] 9.19 Add type context passing infrastructure to expression analyzer:
   - [ ] Modify `analyzeExpression()` to accept optional `expectedType` parameter
   - [ ] Thread expected type through all expression analysis calls
   - [ ] Maintain backward compatibility (default to nil for existing calls)
   - [ ] Update all expression analyzers to use context when available
-- [ ] 9.68 Implement assignment context type inference:
+- [ ] 9.20 Implement assignment context type inference:
   - [ ] Detect when lambda is assigned to typed variable: `var f: TFunc := lambda(x) => x * 2`
   - [ ] Extract function pointer type from variable declaration
   - [ ] Pass parameter types to lambda analyzer
   - [ ] Apply inferred types to untyped parameters
   - [ ] Validate inferred types match if some params are explicitly typed
-- [ ] 9.69 Implement function call context type inference:
+- [ ] 9.21 Implement function call context type inference:
   - [ ] Detect when lambda is passed as function argument: `Apply(5, lambda(n) => n * 2)`
   - [ ] Extract expected function pointer type from function parameter
   - [ ] Pass parameter types to lambda analyzer
   - [ ] Apply inferred types to untyped parameters
   - [ ] Handle overloaded functions (try each signature)
-- [ ] 9.70 Implement return statement context type inference:
+- [ ] 9.22 Implement return statement context type inference:
   - [ ] Detect when lambda is returned from function with known return type
   - [ ] Extract function pointer type from return type
   - [ ] Apply to lambda parameters
-- [ ] 9.71 Add comprehensive tests for contextual type inference:
+- [ ] 9.23 Add comprehensive tests for contextual type inference:
   - [ ] Assignment context tests
   - [ ] Function call context tests
   - [ ] Return context tests
@@ -234,13 +234,13 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
 
 **Estimated Effort**: Medium (3-5 days) - requires refactoring expression analyzer API
 
-- [ ] 9.72 Dynamic array literal syntax for integer arrays:
+- [ ] 9.24 Dynamic array literal syntax for integer arrays:
   - [ ] Cannot use: `var nums := [1, 2, 3, 4, 5];` (parsed as SET, not array)
   - [ ] Current workaround: Use SetLength + manual assignment
   - [ ] Location: Parser interprets `[...]` as set literals (enum values only)
   - [ ] Impact: Cannot easily create test data or initialize arrays
   - [ ] Blocks: testdata/lambdas/higher_order.dws execution
-  - [ ] Requires type inference infrastructure from tasks 9.234-9.238
+  - [ ] Requires type inference infrastructure from tasks 9.19-9.23
   - [ ] Distinguish array literals from set literals based on expected type context
   - [ ] Update `parseSetLiteral()` to conditionally return `ArrayLiteral` AST node
   - [ ] Add semantic analysis for array literal type checking
@@ -273,24 +273,24 @@ PrintLn(s.ToUpper()); // Output: HELLO
 
 #### Type System (3 tasks) ✅ COMPLETE
 
-- [x] 9.73 Define `HelperType` in `types/compound_types.go`: ✅ DONE
+- [x] 9.25 Define `HelperType` in `types/compound_types.go`: ✅ DONE
   - [x] Fields: `Name`, `TargetType`, `Methods`, `Properties`, `ClassVars`, `ClassConsts`, `IsRecordHelper`
   - [x] Implements `Type` interface (`String()`, `TypeKind()`, `Equals()`)
   - [x] `TypeKind()` returns `"HELPER"`
   - [x] `String()` returns `"record helper for TypeName"` or `"helper for TypeName"`
   - [x] Helper methods: `GetMethod()`, `GetProperty()`, `GetClassVar()`, `GetClassConst()`
   - [x] Constructor: `NewHelperType(name, targetType, isRecordHelper)`
-- [x] 9.74 Implement helper method resolution: ✅ DONE
+- [x] 9.26 Implement helper method resolution: ✅ DONE
   - [x] Implemented in semantic analysis (see task 9.83)
   - [x] Helpers registered in analyzer's `helpers` map
   - [x] Priority: instance methods > helper methods
   - [x] Multiple helpers can extend same type
-- [x] 9.75 Add tests for helper types: ✅ DONE
+- [x] 9.27 Add tests for helper types: ✅ DONE
   - [x] Covered in semantic tests (task 9.85)
 
 #### AST Nodes (2 tasks)
 
-- [x] 9.76 Create `ast/helper.go`: ✅ DONE
+- [x] 9.28 Create `ast/helper.go`: ✅ DONE
   - [x] Define `HelperDecl` struct with fields:
     - `Name *Identifier` - helper type name
     - `ForType *TypeAnnotation` - target type being extended
@@ -303,7 +303,7 @@ PrintLn(s.ToUpper()); // Output: HELLO
     - `PublicMembers []Statement` - public section members
   - [x] Implement `Statement` interface
   - [x] Implement `String()` method with proper formatting
-- [x] 9.77 Add AST tests ✅ DONE
+- [x] 9.29 Add AST tests ✅ DONE
   - [x] Test `HelperDecl.String()` for various helper types
   - [x] Test record helper vs plain helper syntax
   - [x] Test helpers with methods, properties, class vars, class consts
@@ -311,13 +311,13 @@ PrintLn(s.ToUpper()); // Output: HELLO
 
 #### Lexer Support (1 task)
 
-- [x] 9.78 Add `helper` keyword to lexer: ✅ DONE (was already present)
+- [x] 9.30 Add `helper` keyword to lexer: ✅ DONE (was already present)
   - [x] HELPER token type already defined in `lexer/token_type.go`
   - [x] Already registered in keyword map
 
 #### Parser Support (3 tasks)
 
-- [x] 9.79 Implement helper parsing in `parser/helpers.go`: ✅ DONE
+- [x] 9.31 Implement helper parsing in `parser/helpers.go`: ✅ DONE
   - [x] Detect `record helper for` pattern in `parseRecordOrHelperDeclaration()`
   - [x] Detect `helper for` pattern in `parseTypeDeclaration()`
   - [x] Parse helper name (already provided by caller)
@@ -326,14 +326,14 @@ PrintLn(s.ToUpper()); // Output: HELLO
   - [x] Support visibility sections (private/public)
   - [x] Expect `end;`
   - [x] Return `HelperDecl` node
-- [x] 9.80 Add parser tests for helpers ✅ DONE
+- [x] 9.32 Add parser tests for helpers ✅ DONE
   - [x] Test simple helper and record helper syntax
   - [x] Test helpers with multiple methods
   - [x] Test helpers with properties, class vars, class consts
   - [x] Test visibility sections
   - [x] Test error cases (missing 'for', missing type, missing 'end')
   - [x] Test distinguishing between record and helper declarations
-- [x] 9.81 Test class helpers and record helpers separately ✅ DONE
+- [x] 9.33 Test class helpers and record helpers separately ✅ DONE
   - [x] Created `testdata/helpers/` directory with comprehensive test files
   - [x] `basic_helper.dws` - simple helper syntax
   - [x] `record_helper.dws` - "record helper" syntax variant
@@ -345,14 +345,14 @@ PrintLn(s.ToUpper()); // Output: HELLO
 
 #### Semantic Analysis (4 tasks) ✅ COMPLETE
 
-- [x] 9.82 Create `semantic/analyze_helpers.go`: ✅ DONE
+- [x] 9.34 Create `semantic/analyze_helpers.go`: ✅ DONE
   - [x] Analyze helper declarations
   - [x] Resolve target type (`for` type) - validates target type exists
   - [x] Validate helper methods (parameters, return types)
   - [x] Register helper in type environment (helpers map indexed by target type)
   - [x] Process helper properties, class vars, and class constants
   - [x] Detect duplicate methods/properties/members
-- [x] 9.83 Implement helper method resolution: ✅ DONE
+- [x] 9.35 Implement helper method resolution: ✅ DONE
   - [x] Added `helpers` map to Analyzer (type name -> []*HelperType)
   - [x] Implemented `getHelpersForType()`, `hasHelperMethod()`, `hasHelperProperty()`
   - [x] Extended `analyzeMemberAccessExpression()` to check helpers
@@ -361,11 +361,11 @@ PrintLn(s.ToUpper()); // Output: HELLO
   - [x] Helpers checked after instance members (priority: instance > helper)
   - [x] Multiple helpers can extend the same type (all contribute methods)
   - [x] Works for all types: classes, records, and basic types (String, Integer, etc.)
-- [x] 9.84 Implement `Self` binding in helper methods: ✅ DONE
+- [x] 9.36 Implement `Self` binding in helper methods: ✅ DONE
   - [x] `Self` binding documented in helper method analysis
   - [x] Target type stored in HelperType for Self type validation
   - [x] Note: Full Self validation deferred to interpreter stage
-- [x] 9.85 Add semantic tests for helpers: ✅ DONE
+- [x] 9.37 Add semantic tests for helpers: ✅ DONE
   - [x] Created `semantic/helpers_test.go` with comprehensive tests:
     - TestHelperDeclaration: 5 test cases (simple helper, record helper, unknown type, class var, class const)
     - TestHelperMethodResolution: 4 test cases (String/Integer helpers, non-existent method, properties)
@@ -375,7 +375,7 @@ PrintLn(s.ToUpper()); // Output: HELLO
 
 #### Interpreter Support (4 tasks) ✅ COMPLETE
 
-- [x] 9.86 Implement helper method dispatch: ✅ DONE
+- [x] 9.38 Implement helper method dispatch: ✅ DONE
   - [x] Created `interp/helpers.go` with complete helper support
   - [x] Implemented `findHelperMethod()` and `callHelperMethod()`
   - [x] Updated `evalMethodCall()` to check helpers for non-object types
@@ -383,13 +383,13 @@ PrintLn(s.ToUpper()); // Output: HELLO
   - [x] Bind `Self` to the target value (object, record, or basic type)
   - [x] Execute helper method with `Self` bound
   - [x] Class vars and consts accessible within helper methods
-- [x] 9.87 Implement helper method storage: ✅ DONE
+- [x] 9.39 Implement helper method storage: ✅ DONE
   - [x] Added `helpers` map to Interpreter (type name -> []*HelperInfo)
   - [x] Store helpers in registry indexed by target type
   - [x] Implemented `evalHelperDeclaration()` to register helpers
   - [x] Lookup helpers at method call time via `getHelpersForValue()`
   - [x] Support for multiple helpers extending the same type
-- [x] 9.88 Add tests in `interp/helpers_test.go`: ✅ DONE
+- [x] 9.40 Add tests in `interp/helpers_test.go`: ✅ DONE
   - [x] Created comprehensive test suite with 12 test functions
   - [x] TestHelperMethod: basic helper method on String
   - [x] TestHelperMethodWithParameters: parameters validation
@@ -401,7 +401,7 @@ PrintLn(s.ToUpper()); // Output: HELLO
   - [x] TestHelperMethodNotFound: error cases
   - [x] TestHelperOnClassInstancePrefersMethods: priority rules
   - [x] All tests passing ✅
-- [x] 9.89 Test helper method calls and `Self` binding: ✅ DONE
+- [x] 9.41 Test helper method calls and `Self` binding: ✅ DONE
   - [x] Self binding tested in all helper method tests
   - [x] Self correctly references target value (Integer, String, Record, Class)
   - [x] Verified with manual tests using dwscript CLI
@@ -442,95 +442,95 @@ PrintLn(s.ToUpper()); // Output: HELLO
 
 #### Type System (2 tasks) ✅
 
-- [x] 9.93 Define `TDateTime` type:
+- [x] 9.45 Define `TDateTime` type:
   - [x] Internal representation: float (days since 1899-12-30, like Delphi)
   - [x] Fractional part represents time
   - [x] Add to type system as primitive type
-- [x] 9.94 Add tests for DateTime type
+- [x] 9.46 Add tests for DateTime type
 
 #### Built-in Functions - Current Date/Time (4 tasks) ✅
 
-- [x] 9.95 Implement `Now(): TDateTime`:
+- [x] 9.47 Implement `Now(): TDateTime`:
   - [x] Returns current date and time
   - [x] Use Go's `time.Now()`
   - [x] Convert to TDateTime format
-- [x] 9.96 Implement `Date(): TDateTime`:
+- [x] 9.48 Implement `Date(): TDateTime`:
   - [x] Returns current date (time part = 0.0)
-- [x] 9.97 Implement `Time(): TDateTime`:
+- [x] 9.49 Implement `Time(): TDateTime`:
   - [x] Returns current time (date part = 0.0)
-- [x] 9.98 Add tests for Now/Date/Time
+- [x] 9.50 Add tests for Now/Date/Time
 
 #### Built-in Functions - Date Construction (4 tasks) ✅
 
-- [x] 9.99 Implement `EncodeDate(year, month, day: Integer): TDateTime`:
+- [x] 9.51 Implement `EncodeDate(year, month, day: Integer): TDateTime`:
   - [x] Construct date from components
   - [x] Validate inputs (valid month, day)
   - [x] Return TDateTime value
-- [x] 9.100 Implement `EncodeTime(hour, min, sec, msec: Integer): TDateTime`:
+- [x] 9.52 Implement `EncodeTime(hour, min, sec, msec: Integer): TDateTime`:
   - [x] Construct time from components
   - [x] Validate inputs
-- [x] 9.101 Implement `EncodeDateTime(y, m, d, h, min, s, ms: Integer): TDateTime`:
+- [x] 9.53 Implement `EncodeDateTime(y, m, d, h, min, s, ms: Integer): TDateTime`:
   - [x] Combine date and time
-- [x] 9.102 Add tests for date construction
+- [x] 9.54 Add tests for date construction
 
 #### Built-in Functions - Date Extraction (4 tasks) ✅
 
-- [x] 9.103 Implement `DecodeDate(dt: TDateTime; var y, m, d: Integer)`:
+- [x] 9.55 Implement `DecodeDate(dt: TDateTime; var y, m, d: Integer)`:
   - [x] Extract year, month, day components
   - [x] Use var parameters to return multiple values
-- [x] 9.104 Implement `DecodeTime(dt: TDateTime; var h, min, s, ms: Integer)`:
+- [x] 9.56 Implement `DecodeTime(dt: TDateTime; var h, min, s, ms: Integer)`:
   - [x] Extract time components
-- [x] 9.105 Implement component functions:
+- [x] 9.57 Implement component functions:
   - [x] `YearOf(dt: TDateTime): Integer`
   - [x] `MonthOf(dt: TDateTime): Integer`
   - [x] `DayOf(dt: TDateTime): Integer`
   - [x] `HourOf(dt: TDateTime): Integer`
   - [x] `MinuteOf(dt: TDateTime): Integer`
   - [x] `SecondOf(dt: TDateTime): Integer`
-- [x] 9.106 Add tests for date extraction
+- [x] 9.58 Add tests for date extraction
 
 #### Built-in Functions - Formatting (3 tasks) ✅
 
-- [x] 9.107 Implement `FormatDateTime(fmt: String, dt: TDateTime): String`:
+- [x] 9.59 Implement `FormatDateTime(fmt: String, dt: TDateTime): String`:
   - [x] Support format specifiers: `yyyy`, `mm`, `dd`, `hh`, `nn`, `ss`
   - [x] Example: `FormatDateTime('yyyy-mm-dd', Now())` → '2025-10-27'
   - [x] Use Go's time formatting internally
-- [x] 9.108 Implement `DateToStr(dt: TDateTime): String`:
+- [x] 9.60 Implement `DateToStr(dt: TDateTime): String`:
   - [x] Default date format
-- [x] 9.109 Implement `TimeToStr(dt: TDateTime): String`:
+- [x] 9.61 Implement `TimeToStr(dt: TDateTime): String`:
   - [x] Default time format
 
 #### Built-in Functions - Parsing (2 tasks) ✅
 
-- [x] 9.110 Implement `StrToDate(s: String): TDateTime`:
+- [x] 9.62 Implement `StrToDate(s: String): TDateTime`:
   - [x] Parse date string
   - [x] Support common formats
   - [x] Raise error on invalid input
-- [x] 9.111 Implement `StrToDateTime(s: String): TDateTime`:
+- [x] 9.63 Implement `StrToDateTime(s: String): TDateTime`:
   - [x] Parse date/time string
 
 #### Built-in Functions - Date Arithmetic (3 tasks) ✅
 
-- [x] 9.112 Implement date arithmetic operators:
+- [x] 9.64 Implement date arithmetic operators:
   - [x] `dt1 - dt2` → days difference (Float)
   - [x] `dt + days` → new date
   - [x] `dt - days` → new date
-- [x] 9.113 Implement `IncDay(dt: TDateTime, days: Integer): TDateTime`:
+- [x] 9.65 Implement `IncDay(dt: TDateTime, days: Integer): TDateTime`:
   - [x] Add days to date
   - [x] Similar: `IncMonth`, `IncYear`, `IncHour`, `IncMinute`, `IncSecond`
-- [x] 9.114 Implement `DaysBetween(dt1, dt2: TDateTime): Integer`:
+- [x] 9.66 Implement `DaysBetween(dt1, dt2: TDateTime): Integer`:
   - [x] Calculate difference in days
   - [x] Similar: `HoursBetween`, `MinutesBetween`, `SecondsBetween`
 
 #### Testing & Fixtures (2 tasks) ✅
 
-- [x] 9.115 Create test scripts in `testdata/datetime/`:
+- [x] 9.67 Create test scripts in `testdata/datetime/`:
   - [x] `current_datetime.dws` - Now, Date, Time
   - [x] `encode_decode.dws` - EncodeDate, DecodeDate
   - [x] `formatting.dws` - FormatDateTime
   - [x] `arithmetic.dws` - Date arithmetic
   - [x] Expected outputs
-- [x] 9.116 Add CLI integration tests
+- [x] 9.68 Add CLI integration tests
 
 ---
 
@@ -539,12 +539,12 @@ PrintLn(s.ToUpper()); // Output: HELLO
 **Summary**: Implement DWScript's Variant type for dynamic, heterogeneous value storage. This is a foundational feature required for full DWScript compatibility and enables many advanced features like `array of const`, JSON support, and COM interop.
 
 **Current Status**:
-- ✅ Type definition complete (Tasks 9.220-9.222): VariantType and VariantValue implemented
-- ✅ Semantic analysis complete (Tasks 9.223-9.226): Variable declarations, assignments, array of const support
-- ✅ Runtime support complete (Tasks 9.227-9.231): Boxing/unboxing, operators, comparisons implemented
-- ✅ Built-in functions complete (Tasks 9.232-9.234): VarType(), VarIsNull(), VarIsEmpty(), VarIsNumeric(), VarToStr(), VarToInt(), VarToFloat(), VarAsType()
-- ✅ Migration complete (Tasks 9.235-9.237): ConstType replaced with Variant; Format() function migrated to use array of Variant
-- ⏳ Testing & Documentation pending (Tasks 9.238-9.239): Comprehensive test suite and documentation
+- ✅ Type definition complete (Tasks 9.69-9.71): VariantType and VariantValue implemented
+- ✅ Semantic analysis complete (Tasks 9.72-9.75): Variable declarations, assignments, array of const support
+- ✅ Runtime support complete (Tasks 9.76-9.80): Boxing/unboxing, operators, comparisons implemented
+- ✅ Built-in functions complete (Tasks 9.81-9.83): VarType(), VarIsNull(), VarIsEmpty(), VarIsNumeric(), VarToStr(), VarToInt(), VarToFloat(), VarAsType()
+- ✅ Migration complete (Tasks 9.84-9.86): ConstType replaced with Variant; Format() function migrated to use array of Variant
+- ⏳ Testing & Documentation pending (Tasks 9.87-9.88): Comprehensive test suite and documentation
 
 **Context**: DWScript (like Delphi) has a `Variant` type that can hold any value at runtime with dynamic type checking. It's used extensively for:
 - `array of const` parameters (heterogeneous argument lists)
@@ -595,41 +595,41 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 ##### Type Definition (3 tasks)
 
-- [x] 9.220 Define `VariantType` in `internal/types/types.go`:
+- [x] 9.69 Define `VariantType` in `internal/types/types.go`:
   - [x] Implement Type interface (String, Equals, TypeKind)
   - [x] Add singleton `var VARIANT = &VariantType{}`
   - [x] Document that Variant can hold any runtime value
 
-- [x] 9.221 Define runtime Variant value in `internal/interp/value.go`:
+- [x] 9.70 Define runtime Variant value in `internal/interp/value.go`:
   - [x] `type VariantValue struct { Value Value; ActualType types.Type }`
   - [x] Wraps any other Value type with dynamic type tracking
   - [x] Similar to Delphi's TVarData / VarRec structures
 
-- [x] 9.222 Add Variant type tests:
+- [x] 9.71 Add Variant type tests:
   - [x] Test Variant type equality
   - [x] Test Variant in type resolution
   - [x] Test Variant with type aliases
 
 ##### Semantic Analysis (4 tasks)
 
-- [x] 9.223 Support Variant variable declarations:
+- [x] 9.72 Support Variant variable declarations:
   - [x] `var v: Variant;` - declares uninitialized Variant
   - [x] `var v: Variant := 42;` - initializes with Integer
   - [x] `var v: Variant := 'hello';` - initializes with String
   - [x] Update `analyzeVarDecl` to handle Variant type (already worked via resolveType)
 
-- [x] 9.224 Implement Variant assignment rules in `canAssign()`:
+- [x] 9.73 Implement Variant assignment rules in `canAssign()`:
   - [x] Any type can be assigned TO Variant (implicit boxing)
   - [x] Variant can be assigned FROM with runtime type checking
   - [x] Variant-to-Variant assignment preserves wrapped value
 
-- [x] 9.225 Support `array of const` parameter type:
+- [x] 9.74 Support `array of const` parameter type:
   - [x] Parse `array of const` as special array type (uses CONST/VARIANT)
   - [x] Equivalent to `array of Variant` semantically
   - [x] Allow in function/procedure parameter lists
   - [x] Updated array literal analyzer to support VARIANT element type
 
-- [x] 9.226 Add semantic analysis tests:
+- [x] 9.75 Add semantic analysis tests:
   - [x] Test Variant variable declarations and assignments (15 tests)
   - [x] Test heterogeneous array literals with Variant element type
   - [x] Test `array of const` parameters (via array of Variant)
@@ -637,29 +637,29 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 ##### Runtime Support (5 tasks)
 
-- [x] 9.227 Implement VariantValue boxing in interpreter:
+- [x] 9.76 Implement VariantValue boxing in interpreter:
   - [x] Box primitive values (Integer → VariantValue)
   - [x] Box complex values (Arrays, Records, Objects)
   - [x] Preserve type information for unboxing
 
-- [x] 9.228 Implement VariantValue unboxing in interpreter:
+- [x] 9.77 Implement VariantValue unboxing in interpreter:
   - [x] Unbox to expected type with runtime checking
   - [x] Implicit conversions (Integer → Float, String → Integer)
   - [x] Raise runtime error on invalid conversion
 
-- [x] 9.229 Implement Variant arithmetic operators:
+- [x] 9.78 Implement Variant arithmetic operators:
   - [x] Variant + Variant → numeric promotion rules
   - [x] Variant * Variant → follows Delphi semantics
   - [x] String concatenation with Variant
   - [x] Handle type mismatches at runtime
 
-- [x] 9.230 Implement Variant comparison operators:
+- [x] 9.79 Implement Variant comparison operators:
   - [x] Variant = Variant → value equality with type coercion
   - [x] Variant <> Variant → inequality
   - [x] Variant < Variant → numeric/string comparison
   - [x] Boolean result type
 
-- [x] 9.231 Add runtime tests:
+- [x] 9.80 Add runtime tests:
   - [x] Test Variant value boxing/unboxing
   - [x] Test Variant arithmetic and comparisons
   - [x] Test Variant in arrays and records
@@ -667,19 +667,19 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 ##### Built-in Functions (3 tasks)
 
-- [x] 9.232 Implement Variant introspection functions:
+- [x] 9.81 Implement Variant introspection functions:
   - [x] `VarType(v: Variant): Integer` - returns type code
   - [x] `VarIsNull(v: Variant): Boolean` - checks if uninitialized
   - [x] `VarIsEmpty(v: Variant): Boolean` - checks if empty
   - [x] `VarIsNumeric(v: Variant): Boolean` - checks if numeric type
 
-- [x] 9.233 Implement Variant conversion functions:
+- [x] 9.82 Implement Variant conversion functions:
   - [x] `VarAsType(v: Variant, varType: Integer): Variant` - explicit conversion
   - [x] `VarToStr(v: Variant): String` - convert to string
   - [x] `VarToInt(v: Variant): Integer` - convert to integer
   - [x] `VarToFloat(v: Variant): Float` - convert to float
 
-- [x] 9.234 Add builtin function tests:
+- [x] 9.83 Add builtin function tests:
   - [x] Test VarType with different value types
   - [x] Test VarIsNull, VarIsEmpty, VarIsNumeric
   - [x] Test VarToStr, VarToInt, VarToFloat conversions
@@ -687,17 +687,17 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 #### Migration from ConstType Workaround (3 tasks)
 
-- [x] 9.235 Replace ConstType with VariantType:
+- [x] 9.84 Replace ConstType with VariantType:
   - [x] Change `CONST` singleton to `VARIANT`
   - [x] Update `ARRAY_OF_CONST` to use VARIANT element type
   - [x] Keep ConstType struct as deprecated for backward compatibility
 
-- [x] 9.236 Update Format() function to use Variant arrays:
+- [x] 9.85 Update Format() function to use Variant arrays:
   - [x] Update semantic analysis to expect `array of Variant`
   - [x] Update runtime to unbox Variant values for formatting
   - [x] Ensure all format specifiers work with Variant values
 
-- [x] 9.237 Verify Format test suite with Variant implementation:
+- [x] 9.86 Verify Format test suite with Variant implementation:
   - [x] Run Format() unit tests (30 tests passing)
   - [x] Verify all heterogeneous array cases work
   - [x] Test with demo script showing all format specifiers
@@ -705,14 +705,14 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 #### Testing & Documentation (2 tasks)
 
-- [ ] 9.238 Create comprehensive Variant test suite:
+- [ ] 9.87 Create comprehensive Variant test suite:
   - [ ] Create `testdata/variant/basic.dws` - declarations, assignments
   - [ ] Create `testdata/variant/arithmetic.dws` - operations
   - [ ] Create `testdata/variant/conversions.dws` - type conversions
   - [ ] Create `testdata/variant/array_of_const.dws` - heterogeneous arrays
   - [ ] Expected output files
 
-- [ ] 9.239 Document Variant type in `docs/variant.md`:
+- [ ] 9.88 Document Variant type in `docs/variant.md`:
   - [ ] Variant type overview and use cases
   - [ ] Boxing and unboxing semantics
   - [ ] Type conversion rules
@@ -722,12 +722,12 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
   - [ ] Performance considerations
 
 **Total**: 20 tasks
-- ✅ Type Definition: 3 tasks (9.220-9.222) - COMPLETE
-- ✅ Semantic Analysis: 4 tasks (9.223-9.226) - COMPLETE
-- ✅ Runtime Support: 5 tasks (9.227-9.231) - COMPLETE
-- ✅ Built-in Functions: 3 tasks (9.232-9.234) - COMPLETE
-- ✅ Migration from ConstType: 3 tasks (9.235-9.237) - COMPLETE
-- ⏳ Testing & Documentation: 2 tasks (9.238-9.239) - PENDING
+- ✅ Type Definition: 3 tasks (9.69-9.71) - COMPLETE
+- ✅ Semantic Analysis: 4 tasks (9.72-9.75) - COMPLETE
+- ✅ Runtime Support: 5 tasks (9.76-9.80) - COMPLETE
+- ✅ Built-in Functions: 3 tasks (9.81-9.83) - COMPLETE
+- ✅ Migration from ConstType: 3 tasks (9.84-9.86) - COMPLETE
+- ⏳ Testing & Documentation: 2 tasks (9.87-9.88) - PENDING
 
 **Progress**: 18 of 20 tasks complete (90%)
 
@@ -753,15 +753,15 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 #### Type System (2 tasks)
 
-- [ ] 9.117 Define JSON value representation:
+- [ ] 9.89 Define JSON value representation:
   - [ ] Variant type that can hold any JSON value
   - [ ] Support: null, boolean, number, string, array, object
   - [ ] Map to DWScript types where possible
-- [ ] 9.118 Add tests for JSON type representation
+- [ ] 9.90 Add tests for JSON type representation
 
 #### Built-in Functions - Parsing (3 tasks)
 
-- [ ] 9.119 Implement `ParseJSON(s: String): Variant`:
+- [ ] 9.91 Implement `ParseJSON(s: String): Variant`:
   - [ ] Parse JSON string
   - [ ] Return DWScript variant/dynamic type
   - [ ] Use Go's `encoding/json` internally
@@ -769,64 +769,64 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
     - [ ] JSON object → dynamic record or map
     - [ ] JSON array → dynamic array
     - [ ] JSON primitives → corresponding DWScript types
-- [ ] 9.120 Handle parsing errors:
+- [ ] 9.92 Handle parsing errors:
   - [ ] Raise exception on invalid JSON
   - [ ] Include error position and message
-- [ ] 9.121 Add tests for JSON parsing
+- [ ] 9.93 Add tests for JSON parsing
 
 #### Built-in Functions - Serialization (3 tasks)
 
-- [ ] 9.122 Implement `ToJSON(value: Variant): String`:
+- [ ] 9.94 Implement `ToJSON(value: Variant): String`:
   - [ ] Serialize DWScript value to JSON
   - [ ] Support records, arrays, primitives
   - [ ] Handle circular references (error or omit)
-- [ ] 9.123 Implement `ToJSONFormatted(value: Variant, indent: Integer): String`:
+- [ ] 9.95 Implement `ToJSONFormatted(value: Variant, indent: Integer): String`:
   - [ ] Pretty-printed JSON with indentation
-- [ ] 9.124 Add tests for JSON serialization
+- [ ] 9.96 Add tests for JSON serialization
 
 #### Built-in Functions - JSON Object Access (4 tasks)
 
-- [ ] 9.125 Implement JSON object property access:
+- [ ] 9.97 Implement JSON object property access:
   - [ ] `jsonObject['propertyName']` syntax
   - [ ] Return value or nil if not found
-- [ ] 9.126 Implement `JSONHasField(obj: Variant, field: String): Boolean`:
+- [ ] 9.98 Implement `JSONHasField(obj: Variant, field: String): Boolean`:
   - [ ] Check if JSON object has field
-- [ ] 9.127 Implement `JSONKeys(obj: Variant): array of String`:
+- [ ] 9.99 Implement `JSONKeys(obj: Variant): array of String`:
   - [ ] Return array of object keys
-- [ ] 9.128 Implement `JSONValues(obj: Variant): array of Variant`:
+- [ ] 9.100 Implement `JSONValues(obj: Variant): array of Variant`:
   - [ ] Return array of object values
 
 #### Built-in Functions - JSON Array Access (2 tasks)
 
-- [ ] 9.129 Implement JSON array indexing:
+- [ ] 9.101 Implement JSON array indexing:
   - [ ] `jsonArray[index]` syntax
   - [ ] Return element or nil if out of bounds
-- [ ] 9.130 Implement `JSONLength(arr: Variant): Integer`:
+- [ ] 9.102 Implement `JSONLength(arr: Variant): Integer`:
   - [ ] Return array length
 
 #### Type Mapping (2 tasks)
 
-- [ ] 9.131 Document JSON ↔ DWScript type mapping:
+- [ ] 9.103 Document JSON ↔ DWScript type mapping:
   - [ ] JSON null → nil
   - [ ] JSON boolean → Boolean
   - [ ] JSON number → Integer or Float
   - [ ] JSON string → String
   - [ ] JSON array → dynamic array
   - [ ] JSON object → dynamic record or associative array
-- [ ] 9.132 Handle edge cases:
+- [ ] 9.104 Handle edge cases:
   - [ ] Large numbers (beyond int64)
   - [ ] Special floats (NaN, Infinity)
   - [ ] Unicode escapes
 
 #### Testing & Fixtures (2 tasks)
 
-- [ ] 9.133 Create test scripts in `testdata/json/`:
+- [ ] 9.105 Create test scripts in `testdata/json/`:
   - [ ] `parse_json.dws` - Parse various JSON types
   - [ ] `to_json.dws` - Serialize to JSON
   - [ ] `json_object_access.dws` - Access object properties
   - [ ] `json_array_access.dws` - Access array elements
   - [ ] Expected outputs
-- [ ] 9.134 Add CLI integration tests
+- [ ] 9.106 Add CLI integration tests
 
 ---
 
@@ -838,133 +838,83 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 #### Stack Trace Infrastructure (3 tasks)
 
-- [ ] 9.135 Create `errors/stack_trace.go`:
+- [ ] 9.107 Create `errors/stack_trace.go`:
   - [ ] Define `StackFrame` struct with `FunctionName`, `FileName`, `LineNumber`
   - [ ] Define `StackTrace` type as `[]StackFrame`
   - [ ] Implement `String()` method for formatted output
-- [ ] 9.136 Implement stack trace capture in interpreter:
+- [ ] 9.108 Implement stack trace capture in interpreter:
   - [ ] Track call stack during execution
   - [ ] Push frame on function entry
   - [ ] Pop frame on function exit
   - [ ] Capture stack on error/exception
-- [ ] 9.137 Add tests for stack trace capture
+- [ ] 9.109 Add tests for stack trace capture
 
 #### Error Message Improvements (3 tasks)
 
-- [ ] 9.138 Improve type error messages:
+- [ ] 9.110 Improve type error messages:
   - [ ] Before: "Type mismatch"
   - [ ] After: "Cannot assign Float to Integer variable 'count' at line 42"
   - [ ] Include expected and actual types
   - [ ] Include variable name and location
-- [ ] 9.139 Improve runtime error messages:
+- [ ] 9.111 Improve runtime error messages:
   - [ ] Include expression that failed
   - [ ] Show values involved: "Division by zero: 10 / 0 at line 15"
   - [ ] Context from surrounding code
-- [ ] 9.140 Add source code snippets to errors:
+- [ ] 9.112 Add source code snippets to errors:
   - [ ] Show the line that caused error
   - [ ] Highlight error position with `^` or color
   - [ ] Show 1-2 lines of context
 
 #### Exception Enhancements (2 tasks)
 
-- [ ] 9.141 Add stack trace to exception objects:
+- [ ] 9.113 Add stack trace to exception objects:
   - [ ] Store `StackTrace` in exception
   - [ ] Display on uncaught exception
   - [ ] Format nicely for CLI output
-- [ ] 9.142 Implement `GetStackTrace()` built-in:
+- [ ] 9.114 Implement `GetStackTrace()` built-in:
   - [ ] Return current stack trace as string
   - [ ] Useful for logging and debugging
 
 #### Debugging Information (2 tasks)
 
-- [ ] 9.143 Add source position to all AST nodes:
+- [ ] 9.115 Add source position to all AST nodes:
   - [ ] Audit nodes for missing `Pos` fields
   - [ ] Add `EndPos` for better range reporting
   - [ ] Use in error messages
-- [ ] 9.144 Implement call stack inspection:
+- [ ] 9.116 Implement call stack inspection:
   - [ ] `GetCallStack()` returns array of frame info
   - [ ] Each frame: function name, file, line
   - [ ] Accessible from DWScript code
 
 #### Testing & Documentation (2 tasks)
 
-- [ ] 9.145 Create test fixtures demonstrating error messages:
+- [ ] 9.117 Create test fixtures demonstrating error messages:
   - [ ] Type errors with clear messages
   - [ ] Runtime errors with stack traces
   - [ ] Exception handling with stack traces
   - [ ] Compare before/after error message quality
-- [ ] 9.146 Document error message format in `docs/error-messages.md`
+- [ ] 9.118 Document error message format in `docs/error-messages.md`
 
 ---
 
 ### Contracts (Design by Contract)
 
-- [ ] 9.147 Parse require/ensure clauses (if supported)
-- [ ] 9.148 Implement contract checking at runtime
-- [ ] 9.149 Test contracts
+- [ ] 9.119 Parse require/ensure clauses (if supported)
+- [ ] 9.120 Implement contract checking at runtime
+- [ ] 9.121 Test contracts
 
 ### Comprehensive Testing (Stage 8)
 
-- [ ] 9.150 Port DWScript's test suite (if available)
-- [ ] 9.151 Run DWScript example scripts from documentation
-- [ ] 9.152 Compare outputs with original DWScript
-- [ ] 9.153 Fix any discrepancies
-- [ ] 9.154 Create stress tests for complex features
-- [ ] 9.155 Achieve >85% overall code coverage
-
-### Format Function Testing (USING TEMPORARY WORKAROUND)
-
-**Summary**: Create comprehensive test fixtures for the Format() built-in function. Originally deferred from task 9.52 due to heterogeneous array literal limitations. Now being implemented using temporary `ConstType` workaround until proper Variant type is available.
-
-**Status**: IN PROGRESS - Using ConstType/ARRAY_OF_CONST workaround (see "Variant Type System" section above for proper implementation plan)
-
-**Approach**: Implemented temporary semantic analyzer changes to accept heterogeneous array literals `['string', 123, 3.14]` specifically for Format() builtin. This allows Format tests to work but is NOT DWScript-compatible for general use.
-
-**Migration Path**: Once tasks 9.220-9.237 (Variant Type System) are complete, this workaround will be replaced with proper `array of const` / `array of Variant` support.
-
-#### Task Details (1 task)
-
-- [x] 9.156 Create Format function test fixtures: ✅ COMPLETE
-  - [x] ~~Implement proper array construction for Format args~~ ✅ DONE (temporary ConstType workaround)
-  - [x] ~~Create `testdata/string_functions/format.dws` with Format examples~~ ✅ EXISTS (82 lines, comprehensive)
-  - [x] ~~Fix semantic analyzer to allow heterogeneous arrays for Format:~~ ✅ DONE
-    - [x] ~~Allow empty array literals `[]` in Format context~~ ✅ DONE
-    - [x] ~~Allow mixed-type arrays `['string', 123, 3.14]`~~ ✅ DONE
-    - [x] ~~Fix parser heuristic to not misinterpret `[varName]` as set literal~~ ✅ DONE
-  - [x] ~~Test %s (string), %d (integer), %f (float) specifiers~~ ✅ DONE (in format.dws)
-  - [x] ~~Test width and precision: %5d, %.2f, %8.2f~~ ✅ DONE (in format.dws)
-  - [x] ~~Test %% (literal percent)~~ ✅ DONE (in format.dws)
-  - [x] ~~Test multiple arguments~~ ✅ DONE (in format.dws)
-  - [x] ~~Create expected output file `testdata/string_functions/format.out`~~ ✅ DONE (35 lines)
-  - [x] ~~Add CLI integration tests for Format in `cmd/dwscript/string_functions_test.go`~~ ✅ DONE
-  - [x] ~~Document Format syntax in `docs/builtins.md`~~ ✅ DONE (lines 8-118)
-
-**Implementation Summary**:
-- Added `ConstType` to type system (`internal/types/types.go` lines 112-124)
-- Added `CONST` singleton and `ARRAY_OF_CONST` type (lines 140, 145)
-- Modified semantic analyzer to:
-  - Pass `ARRAY_OF_CONST` as expected type for Format's second argument (`analyze_expressions.go:681`)
-  - Allow heterogeneous elements when element type is `CONST` (`analyze_arrays.go:213-218`)
-  - Convert `SetLiteral` to `ArrayLiteral` when expected type is array (`analyze_expressions.go:89-111`)
-  - Set type annotation on `SetLiteral` so interpreter knows to treat it as array
-- Added interpreter support:
-  - `Const` type resolution in `resolveType()` (`record.go:167-169`, `helpers.go:491-493`)
-  - Allow any value type when array element type is `CONST` (`array.go:294-299`)
-  - Check `SetLiteral.Type` annotation and evaluate as array if needed (`set.go:21-36`)
-- Parser kept unchanged (still uses `shouldParseAsSetLiteral()` heuristic)
-- All Format tests pass (35 lines of expected output)
-- All parser tests pass (SetLiteral tests still work correctly)
-- CLI integration tests pass
+- [ ] 9.122 Port DWScript's test suite (if available)
+- [ ] 9.123 Run DWScript example scripts from documentation
+- [ ] 9.124 Compare outputs with original DWScript
+- [ ] 9.125 Fix any discrepancies
+- [ ] 9.126 Create stress tests for complex features
+- [ ] 9.127 Achieve >85% overall code coverage
 
 ---
 
-#### TODO
-
-- [ ] Review additional helper behaviors (e.g., record helpers, helper precedence rules) against reference tests
-
----
-
-### 9.12 Interface Type Resolution in Semantic Analyzer (5 tasks)
+### Interface Type Resolution in Semantic Analyzer (5 tasks)
 
 **Context**: The `TestInterfacesIntegration` test fails with "unknown type 'ISimple'" errors because interface types are not being resolved when used as variable types. The `analyzeInterfaceDecl` function correctly registers interfaces in `a.interfaces`, but the `resolveType` function doesn't check this map.
 
@@ -974,7 +924,7 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 #### Semantic Analysis (3 tasks)
 
-- [x] 9.207 Add interface type lookup to `resolveType`: ✅ DONE
+- [x] 9.128 Add interface type lookup to `resolveType`: ✅ DONE
   - [x] In `internal/semantic/type_resolution.go`, after checking class types (line 38-41)
   - [x] Add interface type check: `if interfaceType, found := a.interfaces[typeName]; found { return interfaceType, nil }`
   - [x] Place it before enum types check to maintain logical grouping (interfaces and classes are similar)
@@ -983,7 +933,7 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
   - [x] **BONUS**: Updated `canAssign()` to allow class-to-interface assignments when class implements interface
   - [x] **BONUS**: Updated `analyzeMethodCallExpression()` to support interface method calls
 
-- [x] 9.208 Add semantic tests for interface variable declarations: ✅ DONE
+- [x] 9.129 Add semantic tests for interface variable declarations: ✅ DONE
   - [x] Test `type IFoo = interface; end; var x: IFoo;` (valid) - `TestInterfaceVariableDeclaration`
   - [x] Test `var x: IUndefined;` (error: unknown interface type) - `TestUndefinedInterfaceType`
   - [x] Test interface variable assignment: `var x: IFoo; x := obj;` where obj implements IFoo - `TestInterfaceVariableAssignment`
@@ -991,7 +941,7 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
   - [x] Test interface type in function return: `function Get(): IFoo;` - `TestInterfaceInFunctionReturn`
   - [x] 6 test cases in `interface_analyzer_test.go` (all passing)
 
-- [x] 9.209 Add tests for interface assignment type checking: ✅ DONE
+- [x] 9.130 Add tests for interface assignment type checking: ✅ DONE
   - [x] Test valid: class implementing interface assigned to interface variable - `TestValidClassToInterfaceAssignment`
   - [x] Test error: class NOT implementing interface assigned to interface variable - `TestInvalidClassToInterfaceAssignment`
   - [x] Test valid: interface variable assigned to another compatible interface variable - `TestValidInterfaceToInterfaceAssignment`
@@ -1001,14 +951,14 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 #### Integration Testing (2 tasks)
 
-- [x] 9.210 Fix and verify `TestInterfacesIntegration`: ✅ DONE
+- [x] 9.131 Fix and verify `TestInterfacesIntegration`: ✅ DONE
   - [x] Run `go test -v -run TestInterfacesIntegration ./cmd/dwscript`
   - [x] Verify all 15 interface tests in `testdata/interfaces.dws` pass
   - [x] Check that semantic analysis no longer reports "unknown type" errors
   - [x] Ensure interface variables can be declared and assigned
   - [x] Verify interface method calls work through interface references
 
-- [x] 9.211 Add CLI integration test for interfaces: ✅ DONE
+- [x] 9.132 Add CLI integration test for interfaces: ✅ DONE
   - [x] Create `testdata/interface_variables/interface_vars.dws`
   - [x] Test simple interface variable: `type ITest = interface; function Get(): Integer; end;`
   - [x] Test polymorphism: different classes assigned to same interface variable
@@ -1038,6 +988,7 @@ PrintLn(sum(i, 1, 100, 1.0/i));  // Computes harmonic series: 1/1 + 1/2 + ... + 
 ```
 
 **Use Cases**:
+
 - Jensen's Device and similar mathematical patterns
 - Conditional logging (only evaluate expensive expressions when needed)
 - Ternary-like operators without compiler magic
@@ -1047,85 +998,85 @@ PrintLn(sum(i, 1, 100, 1.0/i));  // Computes harmonic series: 1/1 + 1/2 + ... + 
 
 #### AST & Parser (3 tasks)
 
-- [ ] 9.212 Extend parameter declaration AST in `ast/statements.go`:
-  - [ ] Add `IsLazy bool` field to `ParameterDecl` struct
-  - [ ] Update `String()` method to display `lazy` modifier
-  - [ ] Document that lazy parameters capture expressions, not values
+- [x] 9.133 Extend parameter declaration AST in `ast/statements.go`:
+  - [x] Add `IsLazy bool` field to `ParameterDecl` struct
+  - [x] Update `String()` method to display `lazy` modifier
+  - [x] Document that lazy parameters capture expressions, not values
 
-- [ ] 9.213 Add parser support for lazy parameters in `parser/statements.go`:
-  - [ ] Recognize `lazy` keyword in parameter lists (before parameter name)
-  - [ ] Set `IsLazy = true` on parameter declaration
-  - [ ] Parse syntax: `procedure Foo(lazy x: Integer)` or `function Bar(lazy s: String)`
-  - [ ] Support mixing lazy, var, const, and regular parameters: `func(var x: Integer; lazy y: String; z: Float)`
-  - [ ] Add parser tests for lazy parameter syntax
+- [x] 9.134 Add parser support for lazy parameters in `parser/statements.go`:
+  - [x] Recognize `lazy` keyword in parameter lists (before parameter name)
+  - [x] Set `IsLazy = true` on parameter declaration
+  - [x] Parse syntax: `procedure Foo(lazy x: Integer)` or `function Bar(lazy s: String)`
+  - [x] Support mixing lazy, var, const, and regular parameters: `func(var x: Integer; lazy y: String; z: Float)`
+  - [x] Add parser tests for lazy parameter syntax
 
-- [ ] 9.214 Add parser tests in `parser/functions_test.go`:
-  - [ ] Test `function Test(lazy x: Integer): Integer;` - basic lazy parameter
-  - [ ] Test `procedure Log(level: Integer; lazy msg: String);` - mixed parameters
-  - [ ] Test multiple lazy parameters: `function If(cond: Boolean; lazy trueVal, falseVal: Integer): Integer;`
-  - [ ] Test error: `lazy var x: Integer` - lazy and var are mutually exclusive
-  - [ ] Test error: `lazy const x: Integer` - lazy and const are mutually exclusive
+- [x] 9.135 Add parser tests in `parser/functions_test.go`:
+  - [x] Test `function Test(lazy x: Integer): Integer;` - basic lazy parameter
+  - [x] Test `procedure Log(level: Integer; lazy msg: String);` - mixed parameters
+  - [x] Test multiple lazy parameters: `function If(cond: Boolean; lazy trueVal, falseVal: Integer): Integer;`
+  - [x] Test error: `lazy var x: Integer` - lazy and var are mutually exclusive
+  - [ ] Test error: `lazy const x: Integer` - lazy and const are mutually exclusive (skipped - const parameters not yet supported)
 
 #### Semantic Analysis (4 tasks)
 
-- [ ] 9.215 Implement lazy parameter validation in `semantic/analyzer.go`:
-  - [ ] Validate that lazy parameters are not also `var` or `const` (mutually exclusive modifiers)
-  - [ ] Track lazy parameters in function signature (`FunctionType.Parameters` metadata)
-  - [ ] For lazy parameters, defer type checking to call site (expression type, not value type)
-  - [ ] Add to `analyzeFunction()` and `analyzeProcedure()`
+- [x] 9.136 Implement lazy parameter validation in `semantic/analyzer.go`:
+  - [x] Validate that lazy parameters are not also `var` or `const` (mutually exclusive modifiers)
+  - [x] Track lazy parameters in function signature (`FunctionType.Parameters` metadata)
+  - [x] For lazy parameters, defer type checking to call site (expression type, not value type)
+  - [x] Add to `analyzeFunction()` and `analyzeProcedure()`
 
-- [ ] 9.216 Implement lazy parameter call-site validation:
-  - [ ] In `analyzeFunctionCall()` and `analyzeProcedureCall()`, identify lazy parameter positions
-  - [ ] For lazy arguments, store the AST expression node without evaluating it
-  - [ ] Type-check the expression against the parameter type (e.g., `lazy x: Integer` accepts any Integer expression)
-  - [ ] Validate that lazy expressions don't have side effects that would be surprising when re-evaluated (warning only)
+- [x] 9.137 Implement lazy parameter call-site validation:
+  - [x] In `analyzeFunctionCall()` and `analyzeProcedureCall()`, identify lazy parameter positions
+  - [x] For lazy arguments, store the AST expression node without evaluating it
+  - [x] Type-check the expression against the parameter type (e.g., `lazy x: Integer` accepts any Integer expression)
+  - [ ] Validate that lazy expressions don't have side effects that would be surprising when re-evaluated (warning only - deferred)
 
-- [ ] 9.217 Extend function signature storage:
-  - [ ] Update `FunctionType` in `types/types.go` to include `LazyParams []bool` (parallel to Parameters)
-  - [ ] Store lazy parameter flags during semantic analysis
-  - [ ] Use this metadata during call validation and interpretation
+- [x] 9.138 Extend function signature storage:
+  - [x] Update `FunctionType` in `types/types.go` to include `LazyParams []bool` (parallel to Parameters)
+  - [x] Store lazy parameter flags during semantic analysis
+  - [x] Use this metadata during call validation and interpretation
 
-- [ ] 9.218 Add semantic tests in `semantic/lazy_params_test.go`:
-  - [ ] Test valid: `function Test(lazy x: Integer): Integer;` declaration
-  - [ ] Test error: `procedure Foo(lazy var x: Integer);` - lazy + var conflict
-  - [ ] Test error: `procedure Bar(lazy const x: String);` - lazy + const conflict
-  - [ ] Test valid: call with lazy expression argument
-  - [ ] Test type checking: `lazy x: Integer` must receive Integer expression, not String
-  - [ ] Test nested calls with lazy parameters
+- [x] 9.139 Add semantic tests in `semantic/lazy_params_test.go`:
+  - [x] Test valid: `function Test(lazy x: Integer): Integer;` declaration
+  - [x] Test error: `procedure Foo(lazy var x: Integer);` - lazy + var conflict (handled by parser)
+  - [x] Test error: `procedure Bar(lazy const x: String);` - lazy + const conflict (skipped - const params not yet supported)
+  - [x] Test valid: call with lazy expression argument
+  - [x] Test type checking: `lazy x: Integer` must receive Integer expression, not String
+  - [x] Test nested calls with lazy parameters
 
 #### Interpreter Support (5 tasks)
 
-- [ ] 9.219 Create thunk/closure representation in `interp/lazy_params.go`:
-  - [ ] Define `LazyThunk` struct with:
+- [x] 9.140 Create thunk/closure representation in `interp/lazy_params.go`:
+  - [x] Define `LazyThunk` struct with:
     - `Expression ast.Expression` - the unevaluated AST node
     - `CapturedEnv *Environment` - variable context from call site
     - `Interpreter *Interpreter` - reference for evaluation
-  - [ ] Implement `Evaluate() interface{}` method that evaluates the expression in captured environment
-  - [ ] Ensure each call to `Evaluate()` re-evaluates (no caching)
+  - [x] Implement `Evaluate() interface{}` method that evaluates the expression in captured environment
+  - [x] Ensure each call to `Evaluate()` re-evaluates (no caching)
 
-- [ ] 9.220 Implement lazy parameter binding in function calls:
-  - [ ] In `evalFunctionCall()` and `evalProcedureCall()`, check if parameter is lazy
-  - [ ] For lazy parameters:
+- [x] 9.141 Implement lazy parameter binding in function calls:
+  - [x] In `evalFunctionCall()` and `evalProcedureCall()`, check if parameter is lazy
+  - [x] For lazy parameters:
     - Create `LazyThunk` with argument expression and current environment
     - Bind thunk to parameter name in function's environment
-  - [ ] For non-lazy parameters: evaluate expression immediately (existing behavior)
+  - [x] For non-lazy parameters: evaluate expression immediately (existing behavior)
 
-- [ ] 9.221 Implement lazy parameter dereferencing:
-  - [ ] In `evalIdentifier()`, check if identifier resolves to a `LazyThunk`
-  - [ ] If so, call `thunk.Evaluate()` to get the current value
-  - [ ] Each access re-evaluates the expression (critical for Jensen's Device)
-  - [ ] Ensure variable mutations in the expression are visible (e.g., `1.0/i` sees updated `i`)
+- [x] 9.142 Implement lazy parameter dereferencing:
+  - [x] In `evalIdentifier()`, check if identifier resolves to a `LazyThunk`
+  - [x] If so, call `thunk.Evaluate()` to get the current value
+  - [x] Each access re-evaluates the expression (critical for Jensen's Device)
+  - [x] Ensure variable mutations in the expression are visible (e.g., `1.0/i` sees updated `i`)
 
-- [ ] 9.222 Handle lazy parameters in nested scopes:
-  - [ ] Ensure thunk evaluation uses the captured environment, not the function's local environment
-  - [ ] Test that lazy expressions can reference variables from multiple scopes
-  - [ ] Verify that mutations to captured variables are visible in subsequent evaluations
+- [x] 9.143 Handle lazy parameters in nested scopes:
+  - [x] Ensure thunk evaluation uses the captured environment, not the function's local environment
+  - [x] Test that lazy expressions can reference variables from multiple scopes
+  - [x] Verify that mutations to captured variables are visible in subsequent evaluations
 
-- [ ] 9.223 Add interpreter tests in `interp/lazy_params_test.go`:
-  - [ ] Test basic lazy evaluation: expression evaluated on each access
-  - [ ] Test Jensen's Device: `sum(i, 1, 100, 1.0/i)` computes harmonic series
-  - [ ] Test conditional evaluation: lazy parameter not accessed if condition is false
-  - [ ] Test multiple evaluations: lazy param accessed 3 times yields 3 evaluations
+- [x] 9.144 Add interpreter tests in `interp/lazy_params_test.go`:
+  - [x] Test basic lazy evaluation: expression evaluated on each access
+  - [x] Test Jensen's Device: `sum(i, 1, 100, 1.0/i)` computes harmonic series (modified to work without var params)
+  - [x] Test conditional evaluation: lazy parameter not accessed if condition is false
+  - [x] Test multiple evaluations: lazy param accessed 3 times yields 3 evaluations
   - [ ] Test lazy expression with side effects: `lazy (Inc(i))` increments on each access
   - [ ] Test lazy parameter with captured variables: mutations are visible
   - [ ] Test lazy expression referencing loop variable: sees updated value
@@ -1133,23 +1084,23 @@ PrintLn(sum(i, 1, 100, 1.0/i));  // Computes harmonic series: 1/1 + 1/2 + ... + 
 
 #### Testing & Integration (3 tasks)
 
-- [ ] 9.224 Create test scripts in `testdata/lazy_params/`:
-  - [ ] `jensens_device.dws` - Classic Jensen's Device (harmonic series)
-  - [ ] `conditional_eval.dws` - Ternary-like function: `function If(cond: Boolean; lazy t, f: Integer): Integer;`
-  - [ ] `lazy_logging.dws` - Logger that only evaluates message if log level is enabled
-  - [ ] `multiple_access.dws` - Lazy param accessed multiple times with different side effects
-  - [ ] `lazy_with_loops.dws` - Lazy expressions in loop contexts
-  - [ ] Expected output files for each
+- [x] 9.145 Create test scripts in `testdata/lazy_params/`:
+  - [x] `jensens_device.dws` - Classic Jensen's Device (harmonic series)
+  - [x] `conditional_eval.dws` - Ternary-like function: `function If(cond: Boolean; lazy t, f: Integer): Integer;`
+  - [x] `lazy_logging.dws` - Logger that only evaluates message if log level is enabled
+  - [x] `multiple_access.dws` - Lazy param accessed multiple times with different side effects
+  - [x] `lazy_with_loops.dws` - Lazy expressions in loop contexts
+  - [x] Expected output files for each
 
-- [ ] 9.225 Add CLI integration tests in `cmd/dwscript/lazy_params_test.go`:
-  - [ ] `TestLazyParamsScriptsExist` - verify all test scripts exist
-  - [ ] `TestLazyParamsParsing` - validate parsing of all lazy parameter scripts
-  - [ ] `TestLazyParamsExecution` - validate output matches expected for all scripts
-  - [ ] `TestJensensDevice` - specific test for the canonical example
-  - [ ] `TestLazyEvaluationCount` - verify re-evaluation on each access
-  - [ ] `TestLazyConditional` - verify lazy expressions not evaluated when skipped
+- [x] 9.146 Add CLI integration tests in `cmd/dwscript/lazy_params_test.go`:
+  - [x] `TestLazyParamsScriptsExist` - verify all test scripts exist
+  - [x] `TestLazyParamsParsing` - validate parsing of all lazy parameter scripts
+  - [x] `TestLazyParamsExecution` - validate output matches expected for all scripts
+  - [x] `TestJensensDevice` - specific test for the canonical example
+  - [x] `TestLazyEvaluationCount` - verify re-evaluation on each access
+  - [x] `TestLazyConditional` - verify lazy expressions not evaluated when skipped
 
-- [ ] 9.226 Document lazy parameters in `docs/lazy_parameters.md`:
+- [ ] 9.147 Document lazy parameters in `docs/lazy_parameters.md`:
   - [ ] Syntax reference: `procedure Foo(lazy x: Type);`
   - [ ] Semantics: expression passed, not value; re-evaluated on each access
   - [ ] Use cases: Jensen's Device, conditional evaluation, logging
@@ -1190,7 +1141,7 @@ for <var> := <start> downto <end> [step <step_expr>] do <statement>
 
 #### Lexer Support (1 task)
 
-- [ ] 9.227 Add `STEP` token to lexer:
+- [ ] 9.148 Add `STEP` token to lexer:
   - [ ] In `internal/lexer/token_type.go`, add `STEP` constant in control flow section (after `DOWNTO`)
   - [ ] Add to token string mapping: `STEP: "STEP"`
   - [ ] In `internal/lexer/token.go`, add to keywords map: `"step": STEP`
@@ -1198,21 +1149,21 @@ for <var> := <start> downto <end> [step <step_expr>] do <statement>
 
 #### AST Changes (1 task)
 
-- [ ] 9.228 Extend `ForStatement` AST node in `internal/ast/control_flow.go`:
+- [ ] 9.149 Extend `ForStatement` AST node in `internal/ast/control_flow.go`:
   - [ ] Add `Step Expression` field to `ForStatement` struct (nil if no step specified)
   - [ ] Update `String()` method to include step when present: `for i := 1 to 10 step 2 do ...`
   - [ ] Add AST tests for for loops with step expressions
 
 #### Parser Support (2 tasks)
 
-- [ ] 9.229 Parse optional `step` keyword in `internal/parser/control_flow.go`:
+- [ ] 9.150 Parse optional `step` keyword in `internal/parser/control_flow.go`:
   - [ ] In `parseForStatement()`, after parsing the end expression, check for `STEP` token
   - [ ] If `STEP` found, parse the step expression: `p.nextToken(); stmt.Step = p.parseExpression(LOWEST)`
   - [ ] Validate step expression is not nil
   - [ ] Ensure `DO` token follows (either immediately or after step expression)
   - [ ] Handle error cases: missing expression after `step`, invalid tokens
 
-- [ ] 9.230 Add parser tests in `internal/parser/control_flow_test.go`:
+- [ ] 9.151 Add parser tests in `internal/parser/control_flow_test.go`:
   - [ ] Test `for i := 1 to 10 step 2 do PrintLn(i);` - basic ascending with step
   - [ ] Test `for i := 10 downto 1 step 3 do PrintLn(i);` - basic descending with step
   - [ ] Test `for i := 1 to 100 step (x * 2) do ...;` - step with expression
@@ -1222,13 +1173,13 @@ for <var> := <start> downto <end> [step <step_expr>] do <statement>
 
 #### Semantic Analysis (2 tasks)
 
-- [ ] 9.231 Implement step expression type checking in `internal/semantic/analyzer.go`:
+- [ ] 9.152 Implement step expression type checking in `internal/semantic/analyzer.go`:
   - [ ] In `analyzeForStatement()`, if step expression exists, analyze it
   - [ ] Validate step expression type is Integer
   - [ ] Add semantic error if step type is not Integer: "for loop step must be Integer, got \<type\>"
   - [ ] If step is a constant expression and ≤ 0, emit compile-time error (optional optimization)
 
-- [ ] 9.232 Add semantic tests in `internal/semantic/control_flow_test.go`:
+- [ ] 9.153 Add semantic tests in `internal/semantic/control_flow_test.go`:
   - [ ] Test valid: `for i := 1 to 10 step 2 do ...;` - Integer step
   - [ ] Test valid: `for i := 1 to 10 step (x + 1) do ...;` - Integer expression step
   - [ ] Test error: `for i := 1 to 10 step 2.5 do ...;` - Float step (type error)
@@ -1237,7 +1188,7 @@ for <var> := <start> downto <end> [step <step_expr>] do <statement>
 
 #### Interpreter Support (3 tasks)
 
-- [ ] 9.233 Evaluate step expression in `internal/interp/statements.go`:
+- [ ] 9.154 Evaluate step expression in `internal/interp/statements.go`:
   - [ ] In `evalForStatement()`, after evaluating start/end, check if `stmt.Step != nil`
   - [ ] If step exists, evaluate: `stepVal := i.Eval(stmt.Step)`
   - [ ] Extract integer value from step result
@@ -1245,13 +1196,13 @@ for <var> := <start> downto <end> [step <step_expr>] do <statement>
   - [ ] Default to `stepValue = 1` if no step specified
   - [ ] Error message: "FOR loop STEP should be strictly positive: \<value\>"
 
-- [ ] 9.234 Use step value in loop execution:
+- [ ] 9.155 Use step value in loop execution:
   - [ ] For ascending loops (`ForTo`): change `current++` to `current += stepValue`
   - [ ] For descending loops (`ForDownto`): change `current--` to `current -= stepValue`
   - [ ] Ensure step value is evaluated only once (before loop starts)
   - [ ] Preserve all existing loop behavior (break, continue, inline vars, etc.)
 
-- [ ] 9.235 Add interpreter tests in `internal/interp/control_flow_test.go`:
+- [ ] 9.156 Add interpreter tests in `internal/interp/control_flow_test.go`:
   - [ ] Test ascending with step 2: `for i := 1 to 5 step 2 do` outputs 1, 3, 5
   - [ ] Test descending with step 3: `for i := 10 downto 1 step 3 do` outputs 10, 7, 4, 1
   - [ ] Test step expression: `for i := 0 to 10 step (2 + 1) do` outputs 0, 3, 6, 9
@@ -1262,14 +1213,14 @@ for <var> := <start> downto <end> [step <step_expr>] do <statement>
 
 #### Testing & Integration (2 tasks)
 
-- [ ] 9.236 Create test scripts in `testdata/for_step/`:
+- [ ] 9.157 Create test scripts in `testdata/for_step/`:
   - [ ] `basic_step.dws` - Simple ascending/descending with step
   - [ ] `step_expressions.dws` - Step with variable expressions
   - [ ] `step_validation.dws` - Runtime errors for invalid steps
   - [ ] `lucas_lehmer.dws` - Simplified Lucas-Lehmer test using step
   - [ ] Expected output files for each
 
-- [ ] 9.237 Add CLI integration tests and verify Rosetta Code example:
+- [ ] 9.158 Add CLI integration tests and verify Rosetta Code example:
   - [ ] Create `cmd/dwscript/for_step_test.go` with integration tests
   - [ ] Test all fixtures in `testdata/for_step/`
   - [ ] Verify `examples/rosetta/Lucas-Lehmer_test.dws` now parses and executes correctly

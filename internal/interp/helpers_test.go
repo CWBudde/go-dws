@@ -9,7 +9,7 @@ import (
 )
 
 // ============================================================================
-// Helper Method Tests (Task 9.88)
+// Helper Method Tests
 // ============================================================================
 
 func TestHelperMethod(t *testing.T) {
@@ -266,7 +266,7 @@ func TestIntrinsicFloatHelpers(t *testing.T) {
 }
 
 // ============================================================================
-// Helper Property Tests (Task 9.88)
+// Helper Property Tests
 // ============================================================================
 
 func TestHelperProperty(t *testing.T) {
@@ -344,7 +344,7 @@ func TestHelperPropertyOnBasicType(t *testing.T) {
 }
 
 // ============================================================================
-// Helper Class Vars/Consts Tests (Task 9.88)
+// Helper Class Vars/Consts Tests
 // ============================================================================
 
 func TestHelperClassConst(t *testing.T) {
@@ -577,7 +577,7 @@ func containsSubstring(s, substr string) bool {
 }
 
 // ============================================================================
-// Array Helper Properties Tests (Task 9.171)
+// Array Helper Properties Tests
 // ============================================================================
 
 func TestArrayHelperLength(t *testing.T) {

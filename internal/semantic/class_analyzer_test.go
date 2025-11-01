@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// Class Declaration Tests (Task 7.54-7.55)
+// Class Declaration Tests
 // ============================================================================
 
 func TestSimpleClassDeclaration(t *testing.T) {
@@ -261,7 +261,7 @@ func TestNewExpressionWrongConstructorArgTypes(t *testing.T) {
 }
 
 // ============================================================================
-// New Keyword Tests (Task 8.260d)
+// New Keyword Tests
 // ============================================================================
 
 func TestNewKeywordWithException(t *testing.T) {

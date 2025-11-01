@@ -40,7 +40,7 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 		return classType, nil
 	}
 
-	// Task 9.207: Try interface types
+	// Task 9.128: Try interface types
 	if interfaceType, found := a.interfaces[typeName]; found {
 		return interfaceType, nil
 	}

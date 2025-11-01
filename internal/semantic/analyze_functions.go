@@ -20,8 +20,20 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	// This is a regular function (not a method implementation)
 	// Convert parameter types and return type
 	// Task 9.102: Use resolveType to support user-defined types like subranges
+	// Task 9.136: Extract parameter metadata (names, lazy, var flags)
 	paramTypes := make([]types.Type, 0, len(decl.Parameters))
+	paramNames := make([]string, 0, len(decl.Parameters))
+	lazyParams := make([]bool, 0, len(decl.Parameters))
+	varParams := make([]bool, 0, len(decl.Parameters))
+
 	for _, param := range decl.Parameters {
+		// Task 9.136: Validate that lazy and var are mutually exclusive
+		if param.IsLazy && param.ByRef {
+			a.addError("parameter '%s' cannot be both lazy and var in function '%s' at %s",
+				param.Name.Value, decl.Name.Value, param.Token.Pos.String())
+			return
+		}
+
 		if param.Type == nil {
 			a.addError("parameter '%s' missing type annotation in function '%s'",
 				param.Name.Value, decl.Name.Value)
@@ -34,6 +46,9 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 			return
 		}
 		paramTypes = append(paramTypes, paramType)
+		paramNames = append(paramNames, param.Name.Value)
+		lazyParams = append(lazyParams, param.IsLazy)
+		varParams = append(varParams, param.ByRef)
 	}
 
 	// Determine return type
@@ -56,8 +71,9 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 		return
 	}
 
-	// Create function type and add to symbol table
-	funcType := types.NewFunctionType(paramTypes, returnType)
+	// Create function type with metadata and add to symbol table
+	// Task 9.136: Use NewFunctionTypeWithMetadata to include lazy and var parameter info
+	funcType := types.NewFunctionTypeWithMetadata(paramTypes, paramNames, lazyParams, varParams, returnType)
 	a.symbols.DefineFunction(decl.Name.Value, funcType)
 
 	// Analyze function body in new scope

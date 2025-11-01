@@ -312,7 +312,7 @@ func TestEvalInterfaceDeclarationWithInheritance(t *testing.T) {
 }
 
 // ============================================================================
-// Integration Tests (Tasks 7.120-7.125)
+// Integration Tests
 // ============================================================================
 
 // TestCompleteInterfaceWorkflow tests the complete interface workflow:
@@ -423,7 +423,7 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 }
 
 // ============================================================================
-// Runtime Testing (Tasks 7.127-7.134)
+// Runtime Testing
 // ============================================================================
 
 // TestInterfaceVariable tests interface variable creation and assignment

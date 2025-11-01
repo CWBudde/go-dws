@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Lambda Expression Analysis (Task 9.216)
+// Lambda Expression Analysis
 // ============================================================================
 
 // analyzeLambdaExpression analyzes a lambda expression.
@@ -252,7 +252,7 @@ func (a *Analyzer) inferReturnTypeFromBody(body *ast.BlockStatement) types.Type 
 }
 
 // ============================================================================
-// Closure Capture Analysis (Task 9.217)
+// Closure Capture Analysis
 // ============================================================================
 
 // analyzeCapturedVariables identifies variables from outer scopes used in the lambda body.

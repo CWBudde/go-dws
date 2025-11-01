@@ -213,11 +213,12 @@ type ExternalVarValue struct {
 // Array, Record, Object, etc.
 //
 // Example:
-//   var v: Variant := 42;
-//   // Creates: VariantValue{Value: IntegerValue{42}, ActualType: INTEGER}
 //
-//   v := 'hello';
-//   // Creates: VariantValue{Value: StringValue{'hello'}, ActualType: STRING}
+//	var v: Variant := 42;
+//	// Creates: VariantValue{Value: IntegerValue{42}, ActualType: INTEGER}
+//
+//	v := 'hello';
+//	// Creates: VariantValue{Value: StringValue{'hello'}, ActualType: STRING}
 //
 // See reference/dwscript-original/Source/dwsVariantFunctions.pas
 type VariantValue struct {
@@ -240,7 +241,7 @@ func (v *VariantValue) String() string {
 }
 
 // ============================================================================
-// Variant Boxing/Unboxing Helpers (Task 9.227 & 9.228)
+// Variant Boxing/Unboxing Helpers
 // ============================================================================
 
 // boxVariant wraps any Value in a VariantValue for dynamic typing.

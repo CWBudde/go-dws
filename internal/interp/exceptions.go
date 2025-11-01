@@ -31,7 +31,7 @@ func (e *ExceptionValue) Inspect() string {
 }
 
 // ============================================================================
-// Built-in Exception Classes Registration (Tasks 8.203-8.204)
+// Built-in Exception Classes Registration
 // ============================================================================
 
 // registerBuiltinExceptions registers the Exception base class and standard exception types.
@@ -95,7 +95,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 }
 
 // ============================================================================
-// Exception Handling Evaluation (Tasks 8.213-8.216)
+// Exception Handling Evaluation
 // ============================================================================
 
 // evalTryStatement evaluates a try/except/finally statement.

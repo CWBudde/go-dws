@@ -151,7 +151,7 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 	// Create the unit from the parsed declaration
 	unit := NewUnit(unitDecl.Name.Value, filePath)
 
-	// Extract sections from the parsed AST (Tasks 9.131-9.138)
+	// Extract sections from the parsed AST
 	unit.InterfaceSection = unitDecl.InterfaceSection
 	unit.ImplementationSection = unitDecl.ImplementationSection
 	unit.InitializationSection = unitDecl.InitSection

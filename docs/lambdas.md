@@ -279,4 +279,4 @@ See `testdata/lambdas/` for comprehensive examples:
 
 - **Function Pointers**: `docs/function-pointers.md` (if exists)
 - **Built-in Functions**: `docs/builtins.md`
-- **PLAN.md**: Tasks 9.208-9.245 for implementation details and roadmap
+- **PLAN.md**: Tasks 9.128-9.237 for implementation details and roadmap

@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Property Semantic Analysis (Tasks 8.46-8.51)
+// Property Semantic Analysis
 // ============================================================================
 
 // analyzePropertyDecl validates a property declaration and registers it in the class metadata.

@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Interface Analysis (Task 7.96-7.103)
+// Interface Analysis
 // ============================================================================
 
 // analyzeInterfaceDecl analyzes an interface declaration

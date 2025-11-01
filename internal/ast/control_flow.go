@@ -311,7 +311,7 @@ func (cs *ContinueStatement) String() string {
 //	   Result := i * 2;
 //	end;
 type ExitStatement struct {
-	ReturnValue Expression // Optional expression returned from Exit (Task 9.199)
+	ReturnValue Expression // Optional expression returned from Exit
 	Token       lexer.Token
 }
 
