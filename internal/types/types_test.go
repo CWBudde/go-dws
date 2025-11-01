@@ -21,6 +21,7 @@ func TestBasicTypes(t *testing.T) {
 		{"Boolean", BOOLEAN, "Boolean", "BOOLEAN"},
 		{"Nil", NIL, "Nil", "NIL"},
 		{"Void", VOID, "Void", "VOID"},
+		{"Variant", VARIANT, "Variant", "VARIANT"}, // Task 9.222
 	}
 
 	for _, tt := range tests {
@@ -48,9 +49,12 @@ func TestBasicTypeEquality(t *testing.T) {
 		{a: BOOLEAN, b: BOOLEAN, name: "Boolean equals Boolean", expected: true},
 		{a: NIL, b: NIL, name: "Nil equals Nil", expected: true},
 		{a: VOID, b: VOID, name: "Void equals Void", expected: true},
+		{a: VARIANT, b: VARIANT, name: "Variant equals Variant", expected: true}, // Task 9.222
 		{a: INTEGER, b: FLOAT, name: "Integer not equals Float", expected: false},
 		{a: STRING, b: BOOLEAN, name: "String not equals Boolean", expected: false},
 		{a: INTEGER, b: STRING, name: "Integer not equals String", expected: false},
+		{a: VARIANT, b: INTEGER, name: "Variant not equals Integer", expected: false}, // Task 9.222
+		{a: VARIANT, b: STRING, name: "Variant not equals String", expected: false},   // Task 9.222
 	}
 
 	for _, tt := range tests {
@@ -127,6 +131,7 @@ func TestTypeFromString(t *testing.T) {
 		{expected: STRING, name: "String", input: "String", wantErr: false},
 		{expected: BOOLEAN, name: "Boolean", input: "Boolean", wantErr: false},
 		{expected: VOID, name: "Void", input: "Void", wantErr: false},
+		{expected: VARIANT, name: "Variant", input: "Variant", wantErr: false}, // Task 9.222
 		{expected: nil, name: "Unknown", input: "Unknown", wantErr: true},
 		{expected: nil, name: "Empty", input: "", wantErr: true},
 	}
@@ -1175,6 +1180,45 @@ func TestGetUnderlyingType(t *testing.T) {
 		underlying = GetUnderlyingType(nestedAlias)
 		if underlying != arrayType {
 			t.Error("GetUnderlyingType should resolve through alias chain to array type")
+		}
+	})
+
+	// Task 9.222: Test Variant with type aliases
+	t.Run("Variant type alias", func(t *testing.T) {
+		// type MyVariant = Variant;
+		myVariant := &TypeAlias{
+			Name:        "MyVariant",
+			AliasedType: VARIANT,
+		}
+
+		// Test String() returns alias name
+		if myVariant.String() != "MyVariant" {
+			t.Errorf("String() = %v, want MyVariant", myVariant.String())
+		}
+
+		// Test TypeKind() returns underlying type's kind
+		if myVariant.TypeKind() != "VARIANT" {
+			t.Errorf("TypeKind() = %v, want VARIANT", myVariant.TypeKind())
+		}
+
+		// Test equality with underlying Variant type
+		if !myVariant.Equals(VARIANT) {
+			t.Error("Variant alias should equal VARIANT")
+		}
+
+		if !VARIANT.Equals(myVariant) {
+			t.Error("VARIANT should equal Variant alias (symmetric)")
+		}
+
+		// Test inequality with other types
+		if myVariant.Equals(INTEGER) {
+			t.Error("Variant alias should not equal INTEGER")
+		}
+
+		// Test GetUnderlyingType
+		underlying := GetUnderlyingType(myVariant)
+		if underlying != VARIANT {
+			t.Error("GetUnderlyingType should resolve to VARIANT")
 		}
 	})
 }

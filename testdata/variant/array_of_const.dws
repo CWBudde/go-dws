@@ -1,0 +1,99 @@
+// Task 9.238: Array of Const (Heterogeneous Arrays)
+// Tests: array of Variant, Format function, mixed-type arrays
+
+begin
+    PrintLn('=== Heterogeneous Array Literals ===');
+
+    // Mixed type array
+    var arr: array of Variant := ['string', 42, 3.14, True];
+
+    PrintLn('Array elements:');
+    PrintLn('  arr[0] = ' + VarToStr(arr[0]) + ' (type: ' + IntToStr(VarType(arr[0])) + ')');
+    PrintLn('  arr[1] = ' + VarToStr(arr[1]) + ' (type: ' + IntToStr(VarType(arr[1])) + ')');
+    PrintLn('  arr[2] = ' + VarToStr(arr[2]) + ' (type: ' + IntToStr(VarType(arr[2])) + ')');
+    PrintLn('  arr[3] = ' + VarToStr(arr[3]) + ' (type: ' + IntToStr(VarType(arr[3])) + ')');
+
+    PrintLn('');
+    PrintLn('=== Format Function with Mixed Types ===');
+
+    // Format uses array of const internally (array of Variant)
+    PrintLn(Format('String: %s', ['hello']));
+    PrintLn(Format('Integer: %d', [42]));
+    PrintLn(Format('Float: %.2f', [3.14159]));
+    PrintLn(Format('Mixed: %s, %d, %.1f', ['test', 10, 2.5]));
+
+    PrintLn('');
+    PrintLn('=== Complex Formatting ===');
+
+    var name: String := 'Alice';
+    var age: Integer := 30;
+    var score: Float := 95.5;
+
+    PrintLn(Format('Name: %s, Age: %d, Score: %.1f', [name, age, score]));
+    PrintLn(Format('Report: %s scored %.2f%% at age %d', [name, score, age]));
+
+    PrintLn('');
+    PrintLn('=== Array Iteration ===');
+
+    var mixed: array of Variant := [100, 'text', 2.5, False, 999];
+
+    PrintLn('Iterating through mixed array:');
+    var i: Integer;
+    for i := 0 to Length(mixed) - 1 do begin
+        PrintLn('  [' + IntToStr(i) + '] type=' + IntToStr(VarType(mixed[i])) +
+                ', value=' + VarToStr(mixed[i]));
+    end;
+
+    PrintLn('');
+    PrintLn('=== Dynamic Array Modification ===');
+
+    var dynamic: array of Variant;
+    SetLength(dynamic, 3);
+
+    dynamic[0] := 'first';
+    dynamic[1] := 123;
+    dynamic[2] := 4.56;
+
+    PrintLn('Dynamic array after assignment:');
+    for i := 0 to Length(dynamic) - 1 do begin
+        PrintLn('  dynamic[' + IntToStr(i) + '] = ' + VarToStr(dynamic[i]));
+    end;
+
+    PrintLn('');
+    PrintLn('=== Empty Array of Variant ===');
+
+    var emptyArr: array of Variant := [];
+    PrintLn('Empty array length: ' + IntToStr(Length(emptyArr)));
+
+    PrintLn('');
+    PrintLn('=== Nested Format Calls ===');
+
+    var inner: String := Format('%d + %d', [2, 3]);
+    PrintLn(Format('Result: %s = %d', [inner, 5]));
+
+    PrintLn('');
+    PrintLn('=== Type Conversion in Arrays ===');
+
+    var nums: array of Variant := [1, 2.5, '3', True];
+
+    PrintLn('Converting array elements to integers:');
+    for i := 0 to Length(nums) - 1 do begin
+        if VarIsNumeric(nums[i]) then begin
+            PrintLn('  ' + VarToStr(nums[i]) + ' -> ' + IntToStr(VarToInt(nums[i])));
+        end else begin
+            PrintLn('  ' + VarToStr(nums[i]) + ' is not numeric');
+        end;
+    end;
+
+    PrintLn('');
+    PrintLn('=== Array Assignment ===');
+
+    var source: array of Variant := ['a', 'b', 'c'];
+    var dest: array of Variant;
+
+    dest := source;
+    PrintLn('After assignment, dest length: ' + IntToStr(Length(dest)));
+    PrintLn('dest[0] = ' + VarToStr(dest[0]));
+    PrintLn('dest[1] = ' + VarToStr(dest[1]));
+    PrintLn('dest[2] = ' + VarToStr(dest[2]));
+end.

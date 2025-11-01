@@ -186,7 +186,7 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 			a.addError("cannot infer type for empty array literal at %s", lit.Token.Pos.String())
 			return nil
 		}
-		// Task 9.156: Allow empty arrays for array of const (Format function)
+		// Task 9.156 & 9.225: Allow empty arrays for array of const / array of Variant (Format function)
 		lit.SetType(&ast.TypeAnnotation{
 			Token: lit.Token,
 			Name:  originalExpectedType.String(),
@@ -210,10 +210,12 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 		}
 
 		if expectedArrayType != nil {
-			// Task 9.156: Allow any type when expected element type is Const (array of const)
+			// Task 9.225 & 9.235: Allow any type when expected element type is Variant (array of const)
 			// This enables heterogeneous arrays like ['string', 123, 3.14] for Format()
-			if expectedArrayType.ElementType.Equals(types.CONST) {
-				// Accept any element type for array of const
+			// Migrated from CONST to VARIANT for proper dynamic typing
+			elemTypeUnderlying := types.GetUnderlyingType(expectedArrayType.ElementType)
+			if elemTypeUnderlying.TypeKind() == "VARIANT" {
+				// Accept any element type for array of Variant
 				continue
 			}
 

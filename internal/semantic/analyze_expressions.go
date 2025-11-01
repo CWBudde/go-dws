@@ -698,7 +698,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					fmtType.String(), expr.Token.Pos.String())
 			}
 			// Second argument: array of values (must be Array type)
-			// Task 9.156: Pass ARRAY_OF_CONST as expected type to allow heterogeneous arrays
+			// Task 9.156 & 9.236: Pass ARRAY_OF_CONST (array of Variant) as expected type
+			// This allows heterogeneous arrays like ['string', 123, 3.14]
 			arrType := a.analyzeExpressionWithExpectedType(expr.Arguments[1], types.ARRAY_OF_CONST)
 			if arrType != nil {
 				if _, isArray := arrType.(*types.ArrayType); !isArray {
@@ -1861,6 +1862,90 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				}
 				return methodType.ReturnType
 			}
+		}
+
+		// Task 9.232: Variant introspection functions
+		if funcIdent.Value == "VarType" {
+			// VarType takes one Variant argument and returns an integer type code
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'VarType' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze the argument (can be Variant or any type)
+			a.analyzeExpression(expr.Arguments[0])
+			return types.INTEGER
+		}
+
+		if funcIdent.Value == "VarIsNull" || funcIdent.Value == "VarIsEmpty" {
+			// VarIsNull/VarIsEmpty take one Variant argument and return a boolean
+			if len(expr.Arguments) != 1 {
+				a.addError("function '%s' expects 1 argument, got %d at %s",
+					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
+				return types.BOOLEAN
+			}
+			// Analyze the argument (can be Variant or any type)
+			a.analyzeExpression(expr.Arguments[0])
+			return types.BOOLEAN
+		}
+
+		if funcIdent.Value == "VarIsNumeric" {
+			// VarIsNumeric takes one Variant argument and returns a boolean
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'VarIsNumeric' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.BOOLEAN
+			}
+			// Analyze the argument (can be Variant or any type)
+			a.analyzeExpression(expr.Arguments[0])
+			return types.BOOLEAN
+		}
+
+		// Task 9.233: Variant conversion functions
+		if funcIdent.Value == "VarToStr" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'VarToStr' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			a.analyzeExpression(expr.Arguments[0])
+			return types.STRING
+		}
+
+		if funcIdent.Value == "VarToInt" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'VarToInt' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			a.analyzeExpression(expr.Arguments[0])
+			return types.INTEGER
+		}
+
+		if funcIdent.Value == "VarToFloat" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'VarToFloat' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			a.analyzeExpression(expr.Arguments[0])
+			return types.FLOAT
+		}
+
+		if funcIdent.Value == "VarAsType" {
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'VarAsType' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VARIANT
+			}
+			a.analyzeExpression(expr.Arguments[0])
+			argType := a.analyzeExpression(expr.Arguments[1])
+			// Second argument should be Integer (type code)
+			if argType != nil && !argType.Equals(types.INTEGER) {
+				a.addError("VarAsType type code must be Integer, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.VARIANT
 		}
 
 		a.addError("undefined function '%s' at %s", funcIdent.Value, expr.Token.Pos.String())

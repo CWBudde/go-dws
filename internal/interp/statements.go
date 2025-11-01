@@ -144,6 +144,11 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 					value = converted
 				}
 			}
+
+			// Task 9.227: Box value if target type is Variant
+			if strings.EqualFold(typeName, "Variant") {
+				value = boxVariant(value)
+			}
 		}
 	} else {
 		// No initializer - check if we need to initialize based on type
@@ -203,6 +208,9 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 							value = &StringValue{Value: ""}
 						case "boolean":
 							value = &BooleanValue{Value: false}
+						case "variant":
+							// Task 9.227: Initialize Variant with nil/unassigned value
+							value = &VariantValue{Value: nil, ActualType: nil}
 						default:
 							value = &NilValue{}
 						}
@@ -290,6 +298,9 @@ func (i *Interpreter) createZeroValue(typeAnnotation *ast.TypeAnnotation) Value 
 		return &StringValue{Value: ""}
 	case "boolean":
 		return &BooleanValue{Value: false}
+	case "variant":
+		// Task 9.227: Initialize Variant with nil/unassigned value
+		return &VariantValue{Value: nil, ActualType: nil}
 	default:
 		return &NilValue{}
 	}
@@ -568,6 +579,11 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 			if converted, ok := i.tryImplicitConversion(value, targetType); ok {
 				value = converted
 			}
+		}
+
+		// Task 9.227: Box value if target is a Variant
+		if targetType == "VARIANT" && sourceType != "VARIANT" {
+			value = boxVariant(value)
 		}
 	}
 

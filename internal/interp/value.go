@@ -198,6 +198,127 @@ type ExternalVarValue struct {
 	ExternalName string // The external name for FFI binding (may be empty)
 }
 
+// VariantValue represents a Variant value in DWScript.
+// Task 9.221: Variant is a dynamic type that can hold any runtime value.
+//
+// The VariantValue wraps another Value and tracks its actual runtime type.
+// This enables:
+// - Heterogeneous arrays (array of Variant)
+// - Dynamic type conversions at runtime
+// - Type introspection (VarType, VarIsNull, etc.)
+// - Polymorphic function parameters (array of const)
+//
+// Similar to Delphi's TVarData structure and DWScript's IDataContext for variants.
+// The wrapped value can be any Value type: Integer, Float, String, Boolean,
+// Array, Record, Object, etc.
+//
+// Example:
+//   var v: Variant := 42;
+//   // Creates: VariantValue{Value: IntegerValue{42}, ActualType: INTEGER}
+//
+//   v := 'hello';
+//   // Creates: VariantValue{Value: StringValue{'hello'}, ActualType: STRING}
+//
+// See reference/dwscript-original/Source/dwsVariantFunctions.pas
+type VariantValue struct {
+	Value      Value      // The wrapped runtime value
+	ActualType types.Type // The actual type of the wrapped value (for type checking)
+}
+
+// Type returns "VARIANT" to identify this as a Variant value.
+func (v *VariantValue) Type() string {
+	return "VARIANT"
+}
+
+// String returns the string representation by delegating to the wrapped value.
+// This allows Variant values to be printed naturally.
+func (v *VariantValue) String() string {
+	if v.Value == nil {
+		return "Unassigned" // Similar to Delphi's unassigned variant
+	}
+	return v.Value.String()
+}
+
+// ============================================================================
+// Variant Boxing/Unboxing Helpers (Task 9.227 & 9.228)
+// ============================================================================
+
+// boxVariant wraps any Value in a VariantValue for dynamic typing.
+// Task 9.227: Implement VariantValue boxing in interpreter.
+//
+// Boxing preserves the original value and tracks its type for later unboxing.
+// Examples:
+//   - boxVariant(&IntegerValue{42}) → VariantValue{Value: IntegerValue{42}, ActualType: INTEGER}
+//   - boxVariant(&StringValue{"hello"}) → VariantValue{Value: StringValue{"hello"}, ActualType: STRING}
+//   - boxVariant(nil) → VariantValue{Value: nil, ActualType: nil}
+func boxVariant(value Value) *VariantValue {
+	if value == nil {
+		return &VariantValue{Value: nil, ActualType: nil}
+	}
+
+	// If already a Variant, return as-is (no double-wrapping)
+	if variant, ok := value.(*VariantValue); ok {
+		return variant
+	}
+
+	// Map runtime Value type to semantic types.Type
+	var actualType types.Type
+	switch value.Type() {
+	case "INTEGER":
+		actualType = types.INTEGER
+	case "FLOAT":
+		actualType = types.FLOAT
+	case "STRING":
+		actualType = types.STRING
+	case "BOOLEAN":
+		actualType = types.BOOLEAN
+	case "NIL":
+		actualType = nil // nil has no type
+	// Complex types (arrays, records, objects) will be added as needed
+	// For now, we store nil for ActualType and rely on Value.Type()
+	default:
+		actualType = nil
+	}
+
+	return &VariantValue{
+		Value:      value,
+		ActualType: actualType,
+	}
+}
+
+// unboxVariant extracts the underlying Value from a VariantValue.
+// Task 9.228: Implement VariantValue unboxing in interpreter.
+//
+// Returns the wrapped value and true if successful, or nil and false if not a Variant.
+// Examples:
+//   - unboxVariant(VariantValue{Value: IntegerValue{42}}) → (IntegerValue{42}, true)
+//   - unboxVariant(IntegerValue{42}) → (nil, false)
+func unboxVariant(value Value) (Value, bool) {
+	variant, ok := value.(*VariantValue)
+	if !ok {
+		return nil, false
+	}
+	return variant.Value, true
+}
+
+// unwrapVariant returns the underlying value if input is a Variant, otherwise returns input as-is.
+// Task 9.228: Helper for operations that need to work with the actual value.
+//
+// Unlike unboxVariant, this always returns a valid Value (never nil, false).
+// Examples:
+//   - unwrapVariant(VariantValue{Value: IntegerValue{42}}) → IntegerValue{42}
+//   - unwrapVariant(IntegerValue{42}) → IntegerValue{42}
+//   - unwrapVariant(VariantValue{Value: nil}) → NilValue{}
+func unwrapVariant(value Value) Value {
+	if variant, ok := value.(*VariantValue); ok {
+		if variant.Value == nil {
+			return &NilValue{}
+		}
+		return variant.Value
+	}
+	return value
+}
+
 // Type returns "EXTERNAL_VAR".
 func (e *ExternalVarValue) Type() string {
 	return "EXTERNAL_VAR"

@@ -309,7 +309,12 @@ func (i *Interpreter) builtinFormat(args []Value) Value {
 		}
 		spec := specs[idx]
 
-		switch v := elem.(type) {
+		// Task 9.236: Unbox Variant values for Format() function
+		// Since ARRAY_OF_CONST now uses VARIANT element type (Task 9.235),
+		// we need to unwrap Variant values before formatting
+		unwrapped := unwrapVariant(elem)
+
+		switch v := unwrapped.(type) {
 		case *IntegerValue:
 			// %d, %x, %X, %o, %v are valid for integers
 			switch spec.verb {
@@ -349,7 +354,7 @@ func (i *Interpreter) builtinFormat(args []Value) Value {
 		case *BooleanValue:
 			goArgs[idx] = v.Value
 		default:
-			return i.newErrorWithLocation(i.currentNode, "Format() cannot format value of type %s at index %d", elem.Type(), idx)
+			return i.newErrorWithLocation(i.currentNode, "Format() cannot format value of type %s at index %d", unwrapped.Type(), idx)
 		}
 	}
 

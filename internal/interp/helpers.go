@@ -489,8 +489,12 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeAnnot *ast.TypeAnnotation) t
 	case "Boolean":
 		return types.BOOLEAN
 	case "Const":
-		// Task 9.156: Support Const type for array of const (heterogeneous arrays)
-		return types.CONST
+		// Task 9.235: Migrate Const to Variant for proper dynamic typing
+		// "Const" was a temporary workaround, now redirects to VARIANT
+		return types.VARIANT
+	case "Variant":
+		// Task 9.227: Support Variant type for dynamic values
+		return types.VARIANT
 	}
 
 	// Check for class types (stored in i.classes map)
