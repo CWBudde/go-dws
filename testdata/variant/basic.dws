@@ -1,0 +1,79 @@
+// Task 9.238: Variant Type Basic Usage
+// Tests: declarations, assignments, type checking
+
+var v1: Variant;
+var v2: Variant := 42;
+var v3: Variant := 'hello';
+var v4: Variant := 3.14;
+var v5: Variant := True;
+
+begin
+    PrintLn('=== Variant Declarations ===');
+
+    // Uninitialized variant
+    PrintLn('v1 is null: ' + BoolToStr(VarIsNull(v1)));
+    PrintLn('v1 type: ' + IntToStr(VarType(v1)));
+
+    // Initialized variants
+    PrintLn('v2 value: ' + VarToStr(v2));
+    PrintLn('v2 type: ' + IntToStr(VarType(v2)));
+
+    PrintLn('v3 value: ' + VarToStr(v3));
+    PrintLn('v3 type: ' + IntToStr(VarType(v3)));
+
+    PrintLn('v4 value: ' + VarToStr(v4));
+    PrintLn('v4 type: ' + IntToStr(VarType(v4)));
+
+    PrintLn('v5 value: ' + VarToStr(v5));
+    PrintLn('v5 type: ' + IntToStr(VarType(v5)));
+
+    PrintLn('');
+    PrintLn('=== Dynamic Assignment ===');
+
+    // Reassign v1 to different types
+    v1 := 100;
+    PrintLn('v1 := 100');
+    PrintLn('v1 type: ' + IntToStr(VarType(v1)));
+    PrintLn('v1 is numeric: ' + BoolToStr(VarIsNumeric(v1)));
+
+    v1 := 'world';
+    PrintLn('v1 := ''world''');
+    PrintLn('v1 type: ' + IntToStr(VarType(v1)));
+    PrintLn('v1 value: ' + VarToStr(v1));
+
+    v1 := 2.71828;
+    PrintLn('v1 := 2.71828');
+    PrintLn('v1 type: ' + IntToStr(VarType(v1)));
+    PrintLn('v1 is numeric: ' + BoolToStr(VarIsNumeric(v1)));
+
+    PrintLn('');
+    PrintLn('=== Conversion to Typed Variables ===');
+
+    var i: Integer;
+    var f: Float;
+    var s: String;
+
+    // Convert from variants to typed variables
+    i := VarToInt(v2);  // v2 = 42 (Integer)
+    PrintLn('i := VarToInt(v2): ' + IntToStr(i));
+
+    f := VarToFloat(v4);  // v4 = 3.14 (Float)
+    PrintLn('f := VarToFloat(v4): ' + FloatToStr(f));
+
+    s := VarToStr(v3);  // v3 = 'hello' (String)
+    PrintLn('s := VarToStr(v3): ' + s);
+
+    PrintLn('');
+    PrintLn('=== Variant to Variant Assignment ===');
+
+    var vCopy: Variant;
+    vCopy := v2;
+    PrintLn('vCopy := v2');
+    PrintLn('vCopy type: ' + IntToStr(VarType(vCopy)));
+    PrintLn('vCopy value: ' + VarToStr(vCopy));
+
+    vCopy := v3;
+    PrintLn('vCopy := v3');
+    PrintLn('vCopy type: ' + IntToStr(VarType(vCopy)));
+    PrintLn('vCopy value: ' + VarToStr(vCopy));
+end.

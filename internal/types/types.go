@@ -112,6 +112,7 @@ func (t *VoidType) Equals(other Type) bool {
 // ConstType represents the "const" type used in "array of const" parameters
 // Task 9.156: Similar to Pascal's "const" or Variant type - can hold any value
 // This is used specifically for builtin functions like Format that accept heterogeneous arrays
+// DEPRECATED: This is a temporary workaround. Use VariantType instead (Task 9.220+)
 type ConstType struct{}
 
 func (t *ConstType) String() string   { return "Const" }
@@ -120,6 +121,42 @@ func (t *ConstType) Equals(other Type) bool {
 	// Resolve type aliases before comparison
 	other = GetUnderlyingType(other)
 	_, ok := other.(*ConstType)
+	return ok
+}
+
+// VariantType represents the Variant type in DWScript.
+// Task 9.220: Variant is DWScript's dynamic type that can hold any value at runtime.
+//
+// The Variant type provides:
+// - Dynamic, heterogeneous value storage with runtime type tracking
+// - Automatic type conversions between compatible types (Integer ↔ Float, numeric ↔ String)
+// - Support for all basic operations (arithmetic, comparison, concatenation)
+// - Used in "array of const" parameters for variadic-style functions
+// - Compatible with all DWScript types (Integer, Float, String, Boolean, objects, arrays, records)
+//
+// Unlike the temporary ConstType workaround, VariantType follows DWScript/Delphi semantics:
+// - Variables can be declared as Variant: var v: Variant;
+// - Any value can be assigned to a Variant (implicit boxing)
+// - Variants can be assigned to typed variables with runtime checking (explicit unboxing)
+// - Operations on Variants use runtime type information for type coercion
+//
+// Example usage:
+//   var v: Variant;
+//   v := 42;          // Stores Integer
+//   v := 'hello';     // Stores String
+//   v := 3.14;        // Stores Float
+//   var i: Integer := v;  // Runtime type check and unboxing
+//
+// Similar to Delphi's TVarData and DWScript's TdwsVariant.
+// See reference/dwscript-original/Source/dwsVariantFunctions.pas
+type VariantType struct{}
+
+func (t *VariantType) String() string { return "Variant" }
+func (t *VariantType) TypeKind() string { return "VARIANT" }
+func (t *VariantType) Equals(other Type) bool {
+	// Resolve type aliases before comparison
+	other = GetUnderlyingType(other)
+	_, ok := other.(*VariantType)
 	return ok
 }
 
@@ -137,12 +174,14 @@ var (
 	DATETIME = &DateTimeType{} // Task 9.93: TDateTime type
 	NIL      = &NilType{}
 	VOID     = &VoidType{}
-	CONST    = &ConstType{} // Task 9.156: Const type for heterogeneous arrays
+	CONST    = &ConstType{}   // Task 9.156: DEPRECATED - use VARIANT instead
+	VARIANT  = &VariantType{} // Task 9.220: Variant type for dynamic values
 )
 
 // ARRAY_OF_CONST is a special array type used for builtin functions like Format
 // that accept heterogeneous arrays (array of const in Pascal)
-var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
+// Task 9.235: Migrated from CONST to VARIANT for proper dynamic typing
+var ARRAY_OF_CONST = NewDynamicArrayType(VARIANT)
 
 // Task 7.75: IINTERFACE is the base interface type (like IUnknown in COM)
 // All interfaces can inherit from this root interface.
@@ -312,6 +351,8 @@ func TypeFromString(name string) (Type, error) {
 		return DATETIME, nil
 	case "Void":
 		return VOID, nil
+	case "Variant":
+		return VARIANT, nil
 	default:
 		return nil, fmt.Errorf("unknown type: %s", name)
 	}

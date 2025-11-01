@@ -126,6 +126,10 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 	case left.Type() == "BOOLEAN" && right.Type() == "BOOLEAN":
 		return i.evalBooleanBinaryOp(expr.Operator, left, right)
 
+	// Task 9.229 & 9.230: Handle Variant operations
+	case left.Type() == "VARIANT" || right.Type() == "VARIANT":
+		return i.evalVariantBinaryOp(expr.Operator, left, right, expr)
+
 	// Handle object and nil comparisons (=, <>)
 	case expr.Operator == "=" || expr.Operator == "<>":
 		// Check if either operand is nil or an object instance
@@ -393,6 +397,100 @@ func (i *Interpreter) evalBooleanBinaryOp(op string, left, right Value) Value {
 	default:
 		return newError("unknown operator: %s %s %s", left.Type(), op, right.Type())
 	}
+}
+
+// evalVariantBinaryOp evaluates binary operations on Variant values.
+// Task 9.229: Implement Variant arithmetic operators (+, -, *, /, div, mod)
+// Task 9.230: Implement Variant comparison operators (=, <>, <, >, <=, >=)
+//
+// Variant operations follow these rules:
+//   - Unwrap operands to get actual runtime values
+//   - Apply numeric promotion (Integer + Float → Float)
+//   - Support string concatenation with + operator
+//   - Raise runtime error if types are incompatible
+func (i *Interpreter) evalVariantBinaryOp(op string, left, right Value, node ast.Node) Value {
+	// Unwrap Variant values to get the actual runtime values
+	leftVal := unwrapVariant(left)
+	rightVal := unwrapVariant(right)
+
+	// Handle nil/unassigned Variants
+	_, leftIsNil := leftVal.(*NilValue)
+	_, rightIsNil := rightVal.(*NilValue)
+
+	// For comparison operators with nil, handle specially
+	if (op == "=" || op == "<>") && (leftIsNil || rightIsNil) {
+		if leftIsNil && rightIsNil {
+			return &BooleanValue{Value: op == "="}
+		}
+		return &BooleanValue{Value: op == "<>"}
+	}
+
+	// Error if either operand is nil for non-comparison operators
+	if leftIsNil {
+		return i.newErrorWithLocation(node, "cannot perform operation on unassigned Variant")
+	}
+	if rightIsNil {
+		return i.newErrorWithLocation(node, "cannot perform operation on unassigned Variant")
+	}
+
+	leftType := leftVal.Type()
+	rightType := rightVal.Type()
+
+	// Dispatch based on unwrapped types
+	switch {
+	// Both integers
+	case leftType == "INTEGER" && rightType == "INTEGER":
+		return i.evalIntegerBinaryOp(op, leftVal, rightVal)
+
+	// Either is float → promote to float
+	case leftType == "FLOAT" || rightType == "FLOAT":
+		return i.evalFloatBinaryOp(op, leftVal, rightVal)
+
+	// Both strings
+	case leftType == "STRING" && rightType == "STRING":
+		return i.evalStringBinaryOp(op, leftVal, rightVal)
+
+	// Both booleans
+	case leftType == "BOOLEAN" && rightType == "BOOLEAN":
+		return i.evalBooleanBinaryOp(op, leftVal, rightVal)
+
+	// String + any type → string concatenation (for + operator only)
+	case op == "+" && (leftType == "STRING" || rightType == "STRING"):
+		leftStr := i.convertToString(leftVal)
+		rightStr := i.convertToString(rightVal)
+		return &StringValue{Value: leftStr + rightStr}
+
+	// Numeric type mismatch → try conversion
+	case isNumericType(leftType) && isNumericType(rightType):
+		// This shouldn't happen since we handle Integer and Float above,
+		// but included for completeness
+		return i.evalFloatBinaryOp(op, leftVal, rightVal)
+
+	// For comparison operators, try comparing as strings
+	case (op == "=" || op == "<>" || op == "<" || op == ">" || op == "<=" || op == ">="):
+		// Convert both to strings and compare
+		leftStr := i.convertToString(leftVal)
+		rightStr := i.convertToString(rightVal)
+		return i.evalStringBinaryOp(op, &StringValue{Value: leftStr}, &StringValue{Value: rightStr})
+
+	default:
+		return i.newErrorWithLocation(node, "incompatible Variant types for operator %s: %s and %s",
+			op, leftType, rightType)
+	}
+}
+
+// isNumericType checks if a type is numeric (INTEGER or FLOAT).
+func isNumericType(typeStr string) bool {
+	return typeStr == "INTEGER" || typeStr == "FLOAT"
+}
+
+// convertToString converts a Value to its string representation.
+// Used for Variant string concatenation and comparison.
+func (i *Interpreter) convertToString(val Value) string {
+	if val == nil {
+		return ""
+	}
+	return val.String()
 }
 
 // evalUnaryExpression evaluates a unary expression.

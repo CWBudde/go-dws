@@ -1,0 +1,82 @@
+// Task 9.238: Variant Arithmetic Operations
+// Tests: arithmetic, comparison, string operations
+
+var v1: Variant := 10;
+var v2: Variant := 3;
+var v3: Variant := 5.5;
+var v4: Variant := 2.0;
+
+begin
+    PrintLn('=== Integer Arithmetic ===');
+    PrintLn('v1 = ' + VarToStr(v1));
+    PrintLn('v2 = ' + VarToStr(v2));
+
+    PrintLn('v1 + v2 = ' + VarToStr(v1 + v2));
+    PrintLn('v1 - v2 = ' + VarToStr(v1 - v2));
+    PrintLn('v1 * v2 = ' + VarToStr(v1 * v2));
+    PrintLn('v1 div v2 = ' + VarToStr(v1 div v2));
+    PrintLn('v1 mod v2 = ' + VarToStr(v1 mod v2));
+
+    PrintLn('');
+    PrintLn('=== Float Arithmetic ===');
+    PrintLn('v3 = ' + VarToStr(v3));
+    PrintLn('v4 = ' + VarToStr(v4));
+
+    PrintLn('v3 + v4 = ' + VarToStr(v3 + v4));
+    PrintLn('v3 - v4 = ' + VarToStr(v3 - v4));
+    PrintLn('v3 * v4 = ' + VarToStr(v3 * v4));
+    PrintLn('v3 / v4 = ' + VarToStr(v3 / v4));
+
+    PrintLn('');
+    PrintLn('=== Mixed Integer/Float Arithmetic ===');
+    PrintLn('v1 (int) + v3 (float) = ' + VarToStr(v1 + v3));
+    PrintLn('v1 (int) * v4 (float) = ' + VarToStr(v1 * v4));
+    PrintLn('v3 (float) - v2 (int) = ' + VarToStr(v3 - v2));
+
+    PrintLn('');
+    PrintLn('=== Comparison Operations ===');
+    PrintLn('v1 = v1: ' + BoolToStr(v1 = v1));
+    PrintLn('v1 = v2: ' + BoolToStr(v1 = v2));
+    PrintLn('v1 <> v2: ' + BoolToStr(v1 <> v2));
+    PrintLn('v1 > v2: ' + BoolToStr(v1 > v2));
+    PrintLn('v1 < v2: ' + BoolToStr(v1 < v2));
+    PrintLn('v1 >= v2: ' + BoolToStr(v1 >= v2));
+    PrintLn('v1 <= v2: ' + BoolToStr(v1 <= v2));
+
+    PrintLn('');
+    PrintLn('=== String Operations ===');
+    var s1: Variant := 'Hello';
+    var s2: Variant := 'World';
+
+    PrintLn('s1 = ' + VarToStr(s1));
+    PrintLn('s2 = ' + VarToStr(s2));
+    PrintLn('s1 + '' '' + s2 = ' + VarToStr(s1 + ' ' + s2));
+
+    PrintLn('');
+    PrintLn('=== String Comparisons ===');
+    PrintLn('s1 = s2: ' + BoolToStr(s1 = s2));
+    PrintLn('s1 <> s2: ' + BoolToStr(s1 <> s2));
+    PrintLn('s1 < s2: ' + BoolToStr(s1 < s2));
+
+    PrintLn('');
+    PrintLn('=== Boolean Operations ===');
+    var b1: Variant := True;
+    var b2: Variant := False;
+
+    PrintLn('b1 = ' + VarToStr(b1));
+    PrintLn('b2 = ' + VarToStr(b2));
+    PrintLn('b1 and b2: ' + VarToStr(b1 and b2));
+    PrintLn('b1 or b2: ' + VarToStr(b1 or b2));
+    PrintLn('not b1: ' + VarToStr(not b1));
+    PrintLn('not b2: ' + VarToStr(not b2));
+
+    PrintLn('');
+    PrintLn('=== Unary Operations ===');
+    var vPos: Variant := 42;
+    var vNeg: Variant := -42;
+
+    PrintLn('vPos = ' + VarToStr(vPos));
+    PrintLn('-vPos = ' + VarToStr(-vPos));
+    PrintLn('vNeg = ' + VarToStr(vNeg));
+    PrintLn('-vNeg = ' + VarToStr(-vNeg));
+end.

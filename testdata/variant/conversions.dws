@@ -1,0 +1,80 @@
+// Task 9.238: Variant Type Conversions
+// Tests: VarToStr, VarToInt, VarToFloat, VarAsType
+
+var vInt: Variant := 42;
+var vFloat: Variant := 3.14159;
+var vStr: Variant := 'Hello';
+var vBool: Variant := True;
+var vEmpty: Variant;
+
+begin
+    PrintLn('=== VarToStr Conversions ===');
+    PrintLn('VarToStr(42) = ' + VarToStr(vInt));
+    PrintLn('VarToStr(3.14159) = ' + VarToStr(vFloat));
+    PrintLn('VarToStr(''Hello'') = ' + VarToStr(vStr));
+    PrintLn('VarToStr(True) = ' + VarToStr(vBool));
+    PrintLn('VarToStr(empty) = "' + VarToStr(vEmpty) + '"');
+
+    PrintLn('');
+    PrintLn('=== VarToInt Conversions ===');
+    PrintLn('VarToInt(42) = ' + IntToStr(VarToInt(vInt)));
+    PrintLn('VarToInt(3.14159) = ' + IntToStr(VarToInt(vFloat)));  // Truncates to 3
+    PrintLn('VarToInt(True) = ' + IntToStr(VarToInt(vBool)));      // 1
+    PrintLn('VarToInt(empty) = ' + IntToStr(VarToInt(vEmpty)));    // 0
+
+    var vNumStr: Variant := '123';
+    PrintLn('VarToInt(''123'') = ' + IntToStr(VarToInt(vNumStr)));
+
+    PrintLn('');
+    PrintLn('=== VarToFloat Conversions ===');
+    PrintLn('VarToFloat(42) = ' + FloatToStr(VarToFloat(vInt)));
+    PrintLn('VarToFloat(3.14159) = ' + FloatToStr(VarToFloat(vFloat)));
+    PrintLn('VarToFloat(True) = ' + FloatToStr(VarToFloat(vBool)));   // 1.0
+    PrintLn('VarToFloat(empty) = ' + FloatToStr(VarToFloat(vEmpty))); // 0.0
+
+    var vFloatStr: Variant := '2.71828';
+    PrintLn('VarToFloat(''2.71828'') = ' + FloatToStr(VarToFloat(vFloatStr)));
+
+    PrintLn('');
+    PrintLn('=== VarAsType Conversions ===');
+
+    // Convert to Integer (type code 3)
+    PrintLn('VarAsType(''456'', varInteger):');
+    var vNum: Variant := '456';
+    var converted: Variant := VarAsType(vNum, 3);
+    PrintLn('  Result type: ' + IntToStr(VarType(converted)));
+    PrintLn('  Result value: ' + IntToStr(VarToInt(converted)));
+
+    // Convert to Float (type code 5)
+    PrintLn('VarAsType(42, varDouble):');
+    var asFloat: Variant := VarAsType(vInt, 5);
+    PrintLn('  Result type: ' + IntToStr(VarType(asFloat)));
+    PrintLn('  Result value: ' + FloatToStr(VarToFloat(asFloat)));
+
+    // Convert to String (type code 256)
+    PrintLn('VarAsType(42, varString):');
+    var asString: Variant := VarAsType(vInt, 256);
+    PrintLn('  Result type: ' + IntToStr(VarType(asString)));
+    PrintLn('  Result value: ' + VarToStr(asString));
+
+    PrintLn('');
+    PrintLn('=== Explicit Conversions to Typed Variables ===');
+
+    // Variant to typed variable using conversion functions
+    var i: Integer := VarToInt(vInt);
+    var f: Float := VarToFloat(vFloat);
+    var s: String := VarToStr(vStr);
+
+    PrintLn('Integer from Variant: ' + IntToStr(i));
+    PrintLn('Float from Variant: ' + FloatToStr(f));
+    PrintLn('String from Variant: ' + s);
+
+    PrintLn('');
+    PrintLn('=== Type Checking During Conversion ===');
+
+    PrintLn('VarIsNumeric(42): ' + BoolToStr(VarIsNumeric(vInt)));
+    PrintLn('VarIsNumeric(3.14): ' + BoolToStr(VarIsNumeric(vFloat)));
+    PrintLn('VarIsNumeric(''Hello''): ' + BoolToStr(VarIsNumeric(vStr)));
+    PrintLn('VarIsNumeric(True): ' + BoolToStr(VarIsNumeric(vBool)));
+    PrintLn('VarIsNumeric(empty): ' + BoolToStr(VarIsNumeric(vEmpty)));
+end.

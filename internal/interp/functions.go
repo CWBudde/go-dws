@@ -352,6 +352,24 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinUnixTimeMSecToDateTime(args)
 	case "DateTimeToUnixTimeMSec":
 		return i.builtinDateTimeToUnixTimeMSec(args)
+	// Task 9.232: Variant introspection functions
+	case "VarType":
+		return i.builtinVarType(args)
+	case "VarIsNull":
+		return i.builtinVarIsNull(args)
+	case "VarIsEmpty":
+		return i.builtinVarIsEmpty(args)
+	case "VarIsNumeric":
+		return i.builtinVarIsNumeric(args)
+	// Task 9.233: Variant conversion functions
+	case "VarToStr":
+		return i.builtinVarToStr(args)
+	case "VarToInt":
+		return i.builtinVarToInt(args)
+	case "VarToFloat":
+		return i.builtinVarToFloat(args)
+	case "VarAsType":
+		return i.builtinVarAsType(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}

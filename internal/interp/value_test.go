@@ -230,6 +230,7 @@ func TestValueInterface(_ *testing.T) {
 	var _ Value = &StringValue{}
 	var _ Value = &BooleanValue{}
 	var _ Value = &NilValue{}
+	var _ Value = &VariantValue{} // Task 9.222
 }
 
 // Test GoInt conversion helper
@@ -368,6 +369,183 @@ func TestGoBool(t *testing.T) {
 			_, err := GoBool(tt.value)
 			if err == nil {
 				t.Errorf("GoBool(%s) expected error, got nil", tt.name)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// VariantValue Tests (Task 9.222)
+// ============================================================================
+
+// Test VariantValue wrapping Integer
+func TestVariantValueInteger(t *testing.T) {
+	intVal := &IntegerValue{Value: 42}
+	variant := &VariantValue{
+		Value:      intVal,
+		ActualType: nil, // types.INTEGER would be set in actual usage
+	}
+
+	// Test Type() returns "VARIANT"
+	if got := variant.Type(); got != "VARIANT" {
+		t.Errorf("VariantValue.Type() = %v, want VARIANT", got)
+	}
+
+	// Test String() delegates to wrapped value
+	if got := variant.String(); got != "42" {
+		t.Errorf("VariantValue.String() = %v, want 42", got)
+	}
+
+	// Test that wrapped value is accessible
+	if variant.Value != intVal {
+		t.Error("VariantValue should preserve wrapped value")
+	}
+}
+
+// Test VariantValue wrapping String
+func TestVariantValueString(t *testing.T) {
+	strVal := &StringValue{Value: "hello"}
+	variant := &VariantValue{
+		Value:      strVal,
+		ActualType: nil, // types.STRING would be set in actual usage
+	}
+
+	// Test Type() returns "VARIANT"
+	if got := variant.Type(); got != "VARIANT" {
+		t.Errorf("VariantValue.Type() = %v, want VARIANT", got)
+	}
+
+	// Test String() delegates to wrapped value
+	if got := variant.String(); got != "hello" {
+		t.Errorf("VariantValue.String() = %v, want hello", got)
+	}
+
+	// Test that wrapped value is accessible
+	if variant.Value != strVal {
+		t.Error("VariantValue should preserve wrapped value")
+	}
+}
+
+// Test VariantValue wrapping Float
+func TestVariantValueFloat(t *testing.T) {
+	floatVal := &FloatValue{Value: 3.14}
+	variant := &VariantValue{
+		Value:      floatVal,
+		ActualType: nil, // types.FLOAT would be set in actual usage
+	}
+
+	// Test Type() returns "VARIANT"
+	if got := variant.Type(); got != "VARIANT" {
+		t.Errorf("VariantValue.Type() = %v, want VARIANT", got)
+	}
+
+	// Test String() delegates to wrapped value
+	if got := variant.String(); got != "3.14" {
+		t.Errorf("VariantValue.String() = %v, want 3.14", got)
+	}
+}
+
+// Test VariantValue wrapping Boolean
+func TestVariantValueBoolean(t *testing.T) {
+	boolVal := &BooleanValue{Value: true}
+	variant := &VariantValue{
+		Value:      boolVal,
+		ActualType: nil, // types.BOOLEAN would be set in actual usage
+	}
+
+	// Test Type() returns "VARIANT"
+	if got := variant.Type(); got != "VARIANT" {
+		t.Errorf("VariantValue.Type() = %v, want VARIANT", got)
+	}
+
+	// Test String() delegates to wrapped value
+	if got := variant.String(); got != "true" {
+		t.Errorf("VariantValue.String() = %v, want true", got)
+	}
+}
+
+// Test unassigned Variant (nil wrapped value)
+func TestVariantValueUnassigned(t *testing.T) {
+	variant := &VariantValue{
+		Value:      nil,
+		ActualType: nil,
+	}
+
+	// Test Type() returns "VARIANT"
+	if got := variant.Type(); got != "VARIANT" {
+		t.Errorf("VariantValue.Type() = %v, want VARIANT", got)
+	}
+
+	// Test String() returns "Unassigned" for nil value
+	if got := variant.String(); got != "Unassigned" {
+		t.Errorf("VariantValue.String() = %v, want Unassigned", got)
+	}
+}
+
+// Test VariantValue with different wrapped types
+func TestVariantValueWrapping(t *testing.T) {
+	tests := []struct {
+		name        string
+		wrappedVal  Value
+		expectedStr string
+	}{
+		{
+			name:        "wrapping integer",
+			wrappedVal:  &IntegerValue{Value: 100},
+			expectedStr: "100",
+		},
+		{
+			name:        "wrapping negative integer",
+			wrappedVal:  &IntegerValue{Value: -50},
+			expectedStr: "-50",
+		},
+		{
+			name:        "wrapping string",
+			wrappedVal:  &StringValue{Value: "test"},
+			expectedStr: "test",
+		},
+		{
+			name:        "wrapping empty string",
+			wrappedVal:  &StringValue{Value: ""},
+			expectedStr: "",
+		},
+		{
+			name:        "wrapping float",
+			wrappedVal:  &FloatValue{Value: 2.5},
+			expectedStr: "2.5",
+		},
+		{
+			name:        "wrapping boolean true",
+			wrappedVal:  &BooleanValue{Value: true},
+			expectedStr: "true",
+		},
+		{
+			name:        "wrapping boolean false",
+			wrappedVal:  &BooleanValue{Value: false},
+			expectedStr: "false",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			variant := &VariantValue{
+				Value:      tt.wrappedVal,
+				ActualType: nil,
+			}
+
+			// All variants should have Type() = "VARIANT"
+			if got := variant.Type(); got != "VARIANT" {
+				t.Errorf("Type() = %v, want VARIANT", got)
+			}
+
+			// String() should delegate to wrapped value
+			if got := variant.String(); got != tt.expectedStr {
+				t.Errorf("String() = %v, want %v", got, tt.expectedStr)
+			}
+
+			// Wrapped value should be accessible
+			if variant.Value != tt.wrappedVal {
+				t.Error("Wrapped value should be preserved")
 			}
 		})
 	}

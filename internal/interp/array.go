@@ -291,10 +291,11 @@ func (i *Interpreter) coerceArrayElements(arrayType *types.ArrayType, values []V
 			valType = types.GetUnderlyingType(valueTypes[idx])
 		}
 
-		// Task 9.156: Allow any type when expected element type is Const (array of const)
-		// This enables heterogeneous arrays like ['string', 123, 3.14] for Format()
-		if underlyingElementType.Equals(types.CONST) {
-			coerced[idx] = val
+		// Task 9.227 & 9.235: Box values when expected element type is Variant
+		// This enables heterogeneous arrays like [1, "hello", 3.14, true] for Format()
+		// Replaces the old CONST workaround with proper Variant boxing
+		if underlyingElementType.Equals(types.VARIANT) {
+			coerced[idx] = boxVariant(val)
 			continue
 		}
 

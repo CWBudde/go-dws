@@ -235,6 +235,7 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 	if types.IsCompatible(from, to) {
 		return true
 	}
+
 	// Allow assigning nil to class types (and vice versa for comparison)
 	if from.TypeKind() == "NIL" && to.TypeKind() == "CLASS" {
 		return true
@@ -288,6 +289,18 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 	// Task 9.173: Resolve type aliases before checking function pointer compatibility
 	toUnderlying := types.GetUnderlyingType(to)
 	fromUnderlying := types.GetUnderlyingType(from)
+
+	// Task 9.224: Variant assignment rules
+	// Any type can be assigned TO Variant (implicit boxing)
+	if toUnderlying.TypeKind() == "VARIANT" {
+		return true
+	}
+
+	// Variant can be assigned FROM Variant (preserves wrapped value)
+	// Note: Variant to typed variable requires runtime checking (will be implemented in interpreter)
+	if fromUnderlying.TypeKind() == "VARIANT" && toUnderlying.TypeKind() == "VARIANT" {
+		return true
+	}
 
 	if toUnderlying.TypeKind() == "FUNCTION_POINTER" || toUnderlying.TypeKind() == "METHOD_POINTER" {
 		// Use dedicated function pointer validation which provides detailed errors
