@@ -164,6 +164,9 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 		return types.STRING, nil
 	case "Boolean":
 		return types.BOOLEAN, nil
+	case "Const":
+		// Task 9.156: Support Const type for array of const (heterogeneous arrays)
+		return types.CONST, nil
 	default:
 		// Check for custom types (enums, records, arrays, subranges)
 		// Try enum type

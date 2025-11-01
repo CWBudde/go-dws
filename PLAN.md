@@ -167,30 +167,6 @@ Targeted backlog from Stage 8 that still needs implementation or polish.
   - [ ] Handle re-entrancy
 - [ ] 9.18 Add tests for advanced features
 
-#### Documentation and Examples (3 tasks)
-
-- [x] 9.61 Create `docs/ffi-guide.md`:
-  - [x] Complete guide to FFI usage
-  - [x] Type mapping table
-  - [x] Registration examples
-  - [x] Error handling guide
-  - [x] Best practices
-- [x] 9.62 Create example in `examples/ffi/`:
-  - [x] Go program that registers functions
-  - [x] DWScript script that calls them
-  - [x] Demonstrate various types and features
-- [ ] 9.63 Add API documentation to `pkg/dwscript/`
-
-#### Testing & Fixtures (3 tasks)
-
-- [x] 9.64 Create test scripts in `testdata/ffi/`:
-  - [x] `basic_ffi.dws` - Call simple Go functions
-  - [x] `array_passing.dws` - Pass arrays to Go
-  - [x] `error_handling.dws` - Handle Go errors
-  - [x] Expected outputs
-- [x] 9.65 Create Go test suite for FFI
-- [x] 9.66 Add integration tests calling real Go functions
-
 ---
 
 #### Full Contextual Type Inference (FUTURE ENHANCEMENT)
@@ -558,6 +534,203 @@ PrintLn(s.ToUpper()); // Output: HELLO
 
 ---
 
+### Variant Type System (HIGH PRIORITY - FOUNDATIONAL)
+
+**Summary**: Implement DWScript's Variant type for dynamic, heterogeneous value storage. This is a foundational feature required for full DWScript compatibility and enables many advanced features like `array of const`, JSON support, and COM interop.
+
+**Current Status**: Temporary workaround implemented for Task 9.156 using `ConstType` and `ARRAY_OF_CONST` to enable Format() function with heterogeneous arrays. This is NOT DWScript-compatible and should be replaced with proper Variant type.
+
+**Context**: DWScript (like Delphi) has a `Variant` type that can hold any value at runtime with dynamic type checking. It's used extensively for:
+- `array of const` parameters (heterogeneous argument lists)
+- COM/OLE automation
+- Dynamic scripting scenarios
+- JSON/dynamic data structures
+- Database field values
+
+**Reference**: Original DWScript implementation in `reference/dwscript-original/Source/dwsVariant.pas`
+
+#### Current Workaround (Task 9.156 - TEMPORARY)
+
+**Implementation**: Added `ConstType` as a marker type to allow heterogeneous arrays specifically for builtin functions:
+
+```go
+// internal/types/types.go
+type ConstType struct{}  // Marker type, not a real Variant
+var CONST = &ConstType{}
+var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
+
+// Semantic analyzer passes ARRAY_OF_CONST as expected type for Format's second argument
+// This allows ['string', 123, 3.14] to type-check
+```
+
+**Limitations of Workaround**:
+- Only works in specific contexts (Format function arguments)
+- No runtime Variant value representation
+- Cannot declare `var v: Variant;` variables
+- Cannot assign Variant values
+- Not usable in user-defined functions with `array of const` parameters
+- No VarType(), VarAsType(), VarIsNull() builtin functions
+- Diverges from DWScript compatibility
+
+**Migration Path**: Once proper Variant type is implemented:
+1. Replace `ConstType` with `VariantType`
+2. Replace `ARRAY_OF_CONST` with `NewDynamicArrayType(VARIANT)`
+3. Update Format() and other builtins to use Variant-based arrays
+4. Add runtime Variant value representation (VarRec in Delphi)
+5. Remove workaround code
+
+#### Variant Type System Design (15 tasks)
+
+**Design Goals**:
+- Full DWScript compatibility for Variant type
+- Efficient runtime representation
+- Type-safe conversions
+- Support for all DWScript types (Integer, Float, String, Boolean, Object, Array, Record)
+
+##### Type Definition (3 tasks)
+
+- [ ] 9.220 Define `VariantType` in `internal/types/types.go`:
+  - [ ] Implement Type interface (String, Equals, TypeKind)
+  - [ ] Add singleton `var VARIANT = &VariantType{}`
+  - [ ] Document that Variant can hold any runtime value
+
+- [ ] 9.221 Define runtime Variant value in `internal/interp/value.go`:
+  - [ ] `type VariantValue struct { Value Value; ActualType types.Type }`
+  - [ ] Wraps any other Value type with dynamic type tracking
+  - [ ] Similar to Delphi's TVarData / VarRec structures
+
+- [ ] 9.222 Add Variant type tests:
+  - [ ] Test Variant type equality
+  - [ ] Test Variant in type resolution
+  - [ ] Test Variant with type aliases
+
+##### Semantic Analysis (4 tasks)
+
+- [ ] 9.223 Support Variant variable declarations:
+  - [ ] `var v: Variant;` - declares uninitialized Variant
+  - [ ] `var v: Variant := 42;` - initializes with Integer
+  - [ ] `var v: Variant := 'hello';` - initializes with String
+  - [ ] Update `analyzeVarDecl` to handle Variant type
+
+- [ ] 9.224 Implement Variant assignment rules in `canAssign()`:
+  - [ ] Any type can be assigned TO Variant (implicit boxing)
+  - [ ] Variant can be assigned FROM with runtime type checking
+  - [ ] Variant-to-Variant assignment preserves wrapped value
+
+- [ ] 9.225 Support `array of const` parameter type:
+  - [ ] Parse `array of const` as special array type
+  - [ ] Equivalent to `array of Variant` semantically
+  - [ ] Allow in function/procedure parameter lists
+  - [ ] Update parser to recognize `const` keyword in array type context
+
+- [ ] 9.226 Add semantic analysis tests:
+  - [ ] Test Variant variable declarations and assignments
+  - [ ] Test heterogeneous array literals with Variant element type
+  - [ ] Test `array of const` parameters
+  - [ ] Test type errors (invalid Variant operations)
+
+##### Runtime Support (5 tasks)
+
+- [ ] 9.227 Implement VariantValue boxing in interpreter:
+  - [ ] Box primitive values (Integer → VariantValue)
+  - [ ] Box complex values (Arrays, Records, Objects)
+  - [ ] Preserve type information for unboxing
+
+- [ ] 9.228 Implement VariantValue unboxing in interpreter:
+  - [ ] Unbox to expected type with runtime checking
+  - [ ] Implicit conversions (Integer → Float, String → Integer)
+  - [ ] Raise runtime error on invalid conversion
+
+- [ ] 9.229 Implement Variant arithmetic operators:
+  - [ ] Variant + Variant → numeric promotion rules
+  - [ ] Variant * Variant → follows Delphi semantics
+  - [ ] String concatenation with Variant
+  - [ ] Handle type mismatches at runtime
+
+- [ ] 9.230 Implement Variant comparison operators:
+  - [ ] Variant = Variant → value equality with type coercion
+  - [ ] Variant <> Variant → inequality
+  - [ ] Variant < Variant → numeric/string comparison
+  - [ ] Boolean result type
+
+- [ ] 9.231 Add runtime tests:
+  - [ ] Test Variant value boxing/unboxing
+  - [ ] Test Variant arithmetic and comparisons
+  - [ ] Test Variant in arrays and records
+  - [ ] Test runtime type errors
+
+##### Built-in Functions (3 tasks)
+
+- [ ] 9.232 Implement Variant introspection functions:
+  - [ ] `VarType(v: Variant): Integer` - returns type code
+  - [ ] `VarIsNull(v: Variant): Boolean` - checks if uninitialized
+  - [ ] `VarIsEmpty(v: Variant): Boolean` - checks if empty
+  - [ ] `VarIsNumeric(v: Variant): Boolean` - checks if numeric type
+
+- [ ] 9.233 Implement Variant conversion functions:
+  - [ ] `VarAsType(v: Variant, varType: Integer): Variant` - explicit conversion
+  - [ ] `VarToStr(v: Variant): String` - convert to string
+  - [ ] `VarToInt(v: Variant): Integer` - convert to integer
+  - [ ] `VarToFloat(v: Variant): Float` - convert to float
+
+- [ ] 9.234 Add builtin function tests:
+  - [ ] Test VarType with different value types
+  - [ ] Test VarIsNull, VarIsEmpty, VarIsNumeric
+  - [ ] Test VarToStr, VarToInt, VarToFloat conversions
+  - [ ] Test error handling for invalid conversions
+
+#### Migration from ConstType Workaround (3 tasks)
+
+- [ ] 9.235 Replace ConstType with VariantType:
+  - [ ] Change `CONST` singleton to `VARIANT`
+  - [ ] Update `ARRAY_OF_CONST` to use VARIANT element type
+  - [ ] Remove ConstType struct definition
+
+- [ ] 9.236 Update Format() function to use Variant arrays:
+  - [ ] Update semantic analysis to expect `array of Variant`
+  - [ ] Update runtime to unbox Variant values for formatting
+  - [ ] Ensure all format specifiers work with Variant values
+
+- [ ] 9.237 Verify Format test suite with Variant implementation:
+  - [ ] Run `testdata/string_functions/format.dws`
+  - [ ] Verify all heterogeneous array cases work
+  - [ ] Compare output with reference DWScript
+  - [ ] Update test expectations if needed
+
+#### Testing & Documentation (2 tasks)
+
+- [ ] 9.238 Create comprehensive Variant test suite:
+  - [ ] Create `testdata/variant/basic.dws` - declarations, assignments
+  - [ ] Create `testdata/variant/arithmetic.dws` - operations
+  - [ ] Create `testdata/variant/conversions.dws` - type conversions
+  - [ ] Create `testdata/variant/array_of_const.dws` - heterogeneous arrays
+  - [ ] Expected output files
+
+- [ ] 9.239 Document Variant type in `docs/variant.md`:
+  - [ ] Variant type overview and use cases
+  - [ ] Boxing and unboxing semantics
+  - [ ] Type conversion rules
+  - [ ] `array of const` parameter pattern
+  - [ ] Built-in Variant functions reference
+  - [ ] Comparison with Delphi/DWScript Variant behavior
+  - [ ] Performance considerations
+
+**Total**: 27 tasks (15 core implementation + 9 migration/testing + 3 documentation)
+
+**Dependencies**:
+- None (foundational feature)
+
+**Enables**:
+- Task 9.156 (Format function) - proper implementation
+- JSON Support (requires Variant for dynamic values)
+- COM/OLE Automation (if implemented)
+- Database integration (Variant field values)
+- User-defined functions with `array of const` parameters
+
+**Priority**: HIGH - Many features depend on this, current workaround is fragile
+
+---
+
 ### JSON Support (MEDIUM PRIORITY)
 
 **Summary**: Implement JSON parsing and serialization for modern data interchange. Enables DWScript to work with JSON APIs and configuration files.
@@ -725,22 +898,49 @@ PrintLn(s.ToUpper()); // Output: HELLO
 - [ ] 9.154 Create stress tests for complex features
 - [ ] 9.155 Achieve >85% overall code coverage
 
-### Format Function Testing (DEFERRED)
+### Format Function Testing (USING TEMPORARY WORKAROUND)
 
-**Summary**: Create comprehensive test fixtures for the Format() built-in function. Deferred from task 9.52 due to DWScript's set literal syntax `[...]` conflicting with Format's array parameter requirements.
+**Summary**: Create comprehensive test fixtures for the Format() built-in function. Originally deferred from task 9.52 due to heterogeneous array literal limitations. Now being implemented using temporary `ConstType` workaround until proper Variant type is available.
+
+**Status**: IN PROGRESS - Using ConstType/ARRAY_OF_CONST workaround (see "Variant Type System" section above for proper implementation plan)
+
+**Approach**: Implemented temporary semantic analyzer changes to accept heterogeneous array literals `['string', 123, 3.14]` specifically for Format() builtin. This allows Format tests to work but is NOT DWScript-compatible for general use.
+
+**Migration Path**: Once tasks 9.220-9.237 (Variant Type System) are complete, this workaround will be replaced with proper `array of const` / `array of Variant` support.
 
 #### Task Details (1 task)
 
-- [ ] 9.156 Create Format function test fixtures:
-  - [ ] Implement proper array construction for Format args (using `array of` or alternative syntax)
-  - [ ] Create `testdata/string_functions/format.dws` with Format examples
-  - [ ] Test %s (string), %d (integer), %f (float) specifiers
-  - [ ] Test width and precision: %5d, %.2f, %8.2f
-  - [ ] Test %% (literal percent)
-  - [ ] Test multiple arguments
-  - [ ] Create expected output file
-  - [ ] Add CLI integration tests for Format
-  - [ ] Document Format syntax in `docs/builtins.md` (Task 9.51)
+- [x] 9.156 Create Format function test fixtures: ✅ COMPLETE
+  - [x] ~~Implement proper array construction for Format args~~ ✅ DONE (temporary ConstType workaround)
+  - [x] ~~Create `testdata/string_functions/format.dws` with Format examples~~ ✅ EXISTS (82 lines, comprehensive)
+  - [x] ~~Fix semantic analyzer to allow heterogeneous arrays for Format:~~ ✅ DONE
+    - [x] ~~Allow empty array literals `[]` in Format context~~ ✅ DONE
+    - [x] ~~Allow mixed-type arrays `['string', 123, 3.14]`~~ ✅ DONE
+    - [x] ~~Fix parser heuristic to not misinterpret `[varName]` as set literal~~ ✅ DONE
+  - [x] ~~Test %s (string), %d (integer), %f (float) specifiers~~ ✅ DONE (in format.dws)
+  - [x] ~~Test width and precision: %5d, %.2f, %8.2f~~ ✅ DONE (in format.dws)
+  - [x] ~~Test %% (literal percent)~~ ✅ DONE (in format.dws)
+  - [x] ~~Test multiple arguments~~ ✅ DONE (in format.dws)
+  - [x] ~~Create expected output file `testdata/string_functions/format.out`~~ ✅ DONE (35 lines)
+  - [x] ~~Add CLI integration tests for Format in `cmd/dwscript/string_functions_test.go`~~ ✅ DONE
+  - [x] ~~Document Format syntax in `docs/builtins.md`~~ ✅ DONE (lines 8-118)
+
+**Implementation Summary**:
+- Added `ConstType` to type system (`internal/types/types.go` lines 112-124)
+- Added `CONST` singleton and `ARRAY_OF_CONST` type (lines 140, 145)
+- Modified semantic analyzer to:
+  - Pass `ARRAY_OF_CONST` as expected type for Format's second argument (`analyze_expressions.go:681`)
+  - Allow heterogeneous elements when element type is `CONST` (`analyze_arrays.go:213-218`)
+  - Convert `SetLiteral` to `ArrayLiteral` when expected type is array (`analyze_expressions.go:89-111`)
+  - Set type annotation on `SetLiteral` so interpreter knows to treat it as array
+- Added interpreter support:
+  - `Const` type resolution in `resolveType()` (`record.go:167-169`, `helpers.go:491-493`)
+  - Allow any value type when array element type is `CONST` (`array.go:294-299`)
+  - Check `SetLiteral.Type` annotation and evaluate as array if needed (`set.go:21-36`)
+- Parser kept unchanged (still uses `shouldParseAsSetLiteral()` heuristic)
+- All Format tests pass (35 lines of expected output)
+- All parser tests pass (SetLiteral tests still work correctly)
+- CLI integration tests pass
 
 ---
 
