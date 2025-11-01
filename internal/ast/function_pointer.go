@@ -75,7 +75,7 @@ func (fpt *FunctionPointerTypeNode) Pos() lexer.Position {
 	return fpt.Token.Pos
 }
 
-// typeExpressionNode marks this as a type expression (Task 9.49)
+// typeExpressionNode marks this as a type expression
 func (fpt *FunctionPointerTypeNode) typeExpressionNode() {}
 
 // AddressOfExpression represents the address-of operator (@) applied to a function or procedure.

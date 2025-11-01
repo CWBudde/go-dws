@@ -1,0 +1,69 @@
+// Multiple access to lazy parameters
+// Demonstrates that each access to a lazy parameter re-evaluates the expression
+// This is critical for understanding lazy parameter semantics
+
+var counter: Integer;
+
+// Function that increments counter and returns current value
+function GetNext: Integer;
+begin
+   counter := counter + 1;
+   PrintLn('GetNext called, counter = ' + IntToStr(counter));
+   Result := counter;
+end;
+
+// Function that accesses the lazy parameter three times
+function TripleAccess(lazy x: Integer): Integer;
+begin
+   PrintLn('First access to x:');
+   Result := x;
+   PrintLn('Value: ' + IntToStr(Result));
+
+   PrintLn('Second access to x:');
+   Result := Result + x;
+   PrintLn('Value after adding x: ' + IntToStr(Result));
+
+   PrintLn('Third access to x:');
+   Result := Result + x;
+   PrintLn('Final value: ' + IntToStr(Result));
+end;
+
+// Function that accesses lazy parameter with different contexts
+var globalValue: Integer;
+
+function AccessWithMutation(lazy expr: Integer): Integer;
+begin
+   PrintLn('Access 1 (globalValue = ' + IntToStr(globalValue) + '):');
+   Result := expr;
+
+   globalValue := globalValue + 10;
+   PrintLn('Access 2 (globalValue = ' + IntToStr(globalValue) + '):');
+   Result := Result + expr;
+
+   globalValue := globalValue + 10;
+   PrintLn('Access 3 (globalValue = ' + IntToStr(globalValue) + '):');
+   Result := Result + expr;
+end;
+
+var result: Integer;
+
+begin
+   PrintLn('=== Test 1: Multiple access with side effects ===');
+   counter := 0;
+   result := TripleAccess(GetNext());
+   PrintLn('Result: ' + IntToStr(result));
+   PrintLn('');
+
+   PrintLn('=== Test 2: Lazy parameter sees variable mutations ===');
+   globalValue := 5;
+   result := AccessWithMutation(globalValue * 2);
+   PrintLn('Result: ' + IntToStr(result));
+   PrintLn('Expected: 10 + 30 + 50 = 90');
+   PrintLn('');
+
+   PrintLn('=== Test 3: Simple expression evaluated multiple times ===');
+   counter := 100;
+   result := TripleAccess(counter + 7);
+   PrintLn('Result: ' + IntToStr(result));
+   PrintLn('Expected: 107 + 107 + 107 = 321');
+end.

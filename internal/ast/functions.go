@@ -13,16 +13,25 @@ import (
 //
 //	x: Integer
 //	var s: String
+//	lazy expr: Integer
 //	a, b: Float
+//
+// Lazy parameters capture expressions, not values. The expression is re-evaluated
+// each time the parameter is accessed within the function body, enabling patterns
+// like Jensen's Device, conditional evaluation, and deferred computation.
 type Parameter struct {
-	Name  *Identifier
-	Type  *TypeAnnotation
-	Token lexer.Token
-	ByRef bool
+	Name   *Identifier
+	Type   *TypeAnnotation
+	Token  lexer.Token
+	IsLazy bool // lazy parameter modifier - captures expression, not value
+	ByRef  bool // var parameter modifier - pass by reference
 }
 
 func (p *Parameter) String() string {
 	result := ""
+	if p.IsLazy {
+		result += "lazy "
+	}
 	if p.ByRef {
 		result += "var "
 	}

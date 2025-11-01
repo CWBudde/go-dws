@@ -604,7 +604,7 @@ func TestUnaryOperatorOverload(t *testing.T) {
 // This is deferred to a future enhancement task.
 
 // ============================================================================
-// Compound Assignment Operator Tests (Task 9.13-9.16)
+// Compound Assignment Operator Tests
 // ============================================================================
 
 func TestCompoundAssignmentPlusInteger(t *testing.T) {

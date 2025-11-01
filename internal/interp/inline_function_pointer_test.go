@@ -402,7 +402,7 @@ func TestInlineFunctionPointerWithBooleanReturn(t *testing.T) {
 }
 
 // ==============================================================================
-// Inline Function Pointer with Closures/Lambdas Tests (Task 9.51)
+// Inline Function Pointer with Closures/Lambdas Tests
 // ==============================================================================
 
 func TestInlineFunctionPointerWithLambdaAssignment(t *testing.T) {

@@ -757,7 +757,7 @@ func TestHandlerOrderMatters(t *testing.T) {
 }
 
 // ============================================================================
-// Additional Missing Tests (Task 8.220, 8.222)
+// Additional Missing Tests
 // ============================================================================
 
 // TestTryFinallyWithReturn tests that finally executes even when returning from try block

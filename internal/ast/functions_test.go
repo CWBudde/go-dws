@@ -42,6 +42,17 @@ func TestParameterString(t *testing.T) {
 			},
 			expected: "x: Float",
 		},
+		{
+			name: "lazy parameter",
+			param: &Parameter{
+				Token:  lexer.Token{Type: lexer.IDENT, Literal: "expr"},
+				Name:   &Identifier{Value: "expr"},
+				Type:   &TypeAnnotation{Name: "Integer"},
+				IsLazy: true,
+				ByRef:  false,
+			},
+			expected: "lazy expr: Integer",
+		},
 	}
 
 	for _, tt := range tests {
@@ -147,6 +158,25 @@ func TestFunctionDeclString(t *testing.T) {
 				},
 			},
 			expected: "function Process(var data: String): Boolean begin\nend",
+		},
+		{
+			name: "function with lazy parameter",
+			fn: &FunctionDecl{
+				Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+				Name:  &Identifier{Value: "Compute"},
+				Parameters: []*Parameter{
+					{
+						Name:   &Identifier{Value: "expr"},
+						Type:   &TypeAnnotation{Name: "Integer"},
+						IsLazy: true,
+					},
+				},
+				ReturnType: &TypeAnnotation{Name: "Integer"},
+				Body: &BlockStatement{
+					Statements: []Statement{},
+				},
+			},
+			expected: "function Compute(lazy expr: Integer): Integer begin\nend",
 		},
 	}
 

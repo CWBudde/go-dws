@@ -7,9 +7,15 @@ import (
 // FunctionType represents a function or procedure signature.
 // It includes parameter types and an optional return type.
 // For procedures (no return value), ReturnType should be VOID.
+//
+// Metadata arrays (ParamNames, LazyParams, VarParams) are parallel to Parameters
+// and store additional information about each parameter for validation and interpretation.
 type FunctionType struct {
 	ReturnType Type
 	Parameters []Type
+	ParamNames []string // Parameter names for better error messages
+	LazyParams []bool   // true if parameter is lazy (expression capture)
+	VarParams  []bool   // true if parameter is var/byref (pass by reference)
 }
 
 // String returns a string representation of the function type.
@@ -75,18 +81,39 @@ func (ft *FunctionType) IsFunction() bool {
 	return !ft.IsProcedure()
 }
 
-// NewFunctionType creates a new function type with the given parameters and return type
+// NewFunctionType creates a new function type with the given parameters and return type.
+// Metadata arrays are initialized to empty (no lazy or var parameters).
 func NewFunctionType(params []Type, returnType Type) *FunctionType {
 	return &FunctionType{
 		Parameters: params,
 		ReturnType: returnType,
+		ParamNames: make([]string, len(params)),
+		LazyParams: make([]bool, len(params)),
+		VarParams:  make([]bool, len(params)),
 	}
 }
 
-// NewProcedureType creates a new procedure type (returns void)
+// NewProcedureType creates a new procedure type (returns void).
+// Metadata arrays are initialized to empty (no lazy or var parameters).
 func NewProcedureType(params []Type) *FunctionType {
 	return &FunctionType{
 		Parameters: params,
 		ReturnType: VOID,
+		ParamNames: make([]string, len(params)),
+		LazyParams: make([]bool, len(params)),
+		VarParams:  make([]bool, len(params)),
+	}
+}
+
+// NewFunctionTypeWithMetadata creates a new function type with full parameter metadata.
+// This is used during semantic analysis to track lazy and var parameter modifiers.
+// All arrays (params, names, lazy, varParams) must have the same length.
+func NewFunctionTypeWithMetadata(params []Type, names []string, lazy []bool, varParams []bool, returnType Type) *FunctionType {
+	return &FunctionType{
+		Parameters: params,
+		ReturnType: returnType,
+		ParamNames: names,
+		LazyParams: lazy,
+		VarParams:  varParams,
 	}
 }

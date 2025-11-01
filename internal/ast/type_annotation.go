@@ -28,7 +28,7 @@ func (ta *TypeAnnotation) Pos() lexer.Position {
 	return ta.Token.Pos
 }
 
-// typeExpressionNode marks this as a type expression (Task 9.49)
+// typeExpressionNode marks this as a type expression
 func (ta *TypeAnnotation) typeExpressionNode() {}
 
 // TypedExpression is an interface that all expressions with type information must implement.

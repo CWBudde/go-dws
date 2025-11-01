@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Type Expression Helpers (Task 9.170.1)
+// Type Expression Helpers
 // ============================================================================
 
 // getTypeExpressionName extracts a type name string from a TypeExpression.
@@ -256,14 +256,14 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 				return true
 			}
 		}
-		// Task 9.207: Allow assigning a class to an interface it implements
+		// Task 9.128: Allow assigning a class to an interface it implements
 		if toInterface, ok := to.(*types.InterfaceType); ok {
 			if fromClass.ImplementsInterface(toInterface) {
 				return true
 			}
 		}
 	}
-	// Task 9.209: Allow assigning an interface to another compatible interface
+	// Task 9.130: Allow assigning an interface to another compatible interface
 	if fromInterface, ok := from.(*types.InterfaceType); ok {
 		if toInterface, ok := to.(*types.InterfaceType); ok {
 			// Same interface or derived interface can be assigned to base interface

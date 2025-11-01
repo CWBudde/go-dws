@@ -263,7 +263,7 @@ func TestArrayElementAccess(t *testing.T) {
 }
 
 // ============================================================================
-// Inline Array Type Tests (Task 9.54, 9.55)
+// Inline Array Type Tests
 // ============================================================================
 
 func TestInlineArrayTypes(t *testing.T) {
@@ -433,7 +433,7 @@ func TestInlineArrayTypeErrors(t *testing.T) {
 }
 
 // ============================================================================
-// Array Instantiation with 'new' Keyword Tests (Task 9.163)
+// Array Instantiation with 'new' Keyword Tests
 // ============================================================================
 
 func TestNewArrayExpression(t *testing.T) {

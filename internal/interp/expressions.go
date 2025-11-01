@@ -25,6 +25,13 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 		if extVar, isExternal := val.(*ExternalVarValue); isExternal {
 			return i.newErrorWithLocation(node, "Unsupported external variable access: %s", extVar.Name)
 		}
+
+		// Task 9.142: Check if this is a lazy parameter (LazyThunk)
+		// If so, force evaluation - each access re-evaluates the expression
+		if thunk, isLazy := val.(*LazyThunk); isLazy {
+			return thunk.Evaluate()
+		}
+
 		return val
 	}
 

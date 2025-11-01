@@ -435,7 +435,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		// Ord and Integer built-in functions (Task 8.51, 8.52)
+		// Ord and Integer built-in functions
 		if funcIdent.Value == "Ord" || funcIdent.Value == "Integer" {
 			// These functions take one argument and return an integer
 			if len(expr.Arguments) != 1 {
@@ -470,7 +470,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// Copy built-in function (Task 8.183, Task 9.67)
+		// Copy built-in function
 		if funcIdent.Value == "Copy" {
 			// Copy has two overloads:
 			// - Copy(arr) - returns copy of array
@@ -1973,13 +1973,30 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	}
 
 	// Check argument types
+	// Task 9.137: Handle lazy parameters - validate expression type without evaluating
 	for i, arg := range expr.Arguments {
-		argType := a.analyzeExpression(arg)
 		expectedType := funcType.Parameters[i]
-		if argType != nil && !a.canAssign(argType, expectedType) {
-			a.addError("argument %d to function '%s' has type %s, expected %s at %s",
-				i+1, funcIdent.Value, argType.String(), expectedType.String(),
-				expr.Token.Pos.String())
+
+		// Check if this parameter is lazy
+		isLazy := len(funcType.LazyParams) > i && funcType.LazyParams[i]
+
+		if isLazy {
+			// For lazy parameters, check expression type but don't evaluate
+			// The expression will be passed as-is to the interpreter for deferred evaluation
+			argType := a.analyzeExpression(arg)
+			if argType != nil && !a.canAssign(argType, expectedType) {
+				a.addError("lazy argument %d to function '%s' has type %s, expected %s at %s",
+					i+1, funcIdent.Value, argType.String(), expectedType.String(),
+					expr.Token.Pos.String())
+			}
+		} else {
+			// Regular parameter: validate type normally
+			argType := a.analyzeExpression(arg)
+			if argType != nil && !a.canAssign(argType, expectedType) {
+				a.addError("argument %d to function '%s' has type %s, expected %s at %s",
+					i+1, funcIdent.Value, argType.String(), expectedType.String(),
+					expr.Token.Pos.String())
+			}
 		}
 	}
 

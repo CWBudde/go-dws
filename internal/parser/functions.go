@@ -256,15 +256,28 @@ func (p *Parser) parseParameterList() []*ast.Parameter {
 }
 
 // parseParameterGroup parses a group of parameters with the same type.
-// Syntax: name: Type  or  name1, name2, name3: Type  or  var name: Type
+// Syntax: name: Type  or  name1, name2, name3: Type  or  var name: Type  or  lazy name: Type
 func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	params := []*ast.Parameter{}
+
+	// Check for 'lazy' keyword (expression capture)
+	isLazy := false
+	if p.curTokenIs(lexer.LAZY) {
+		isLazy = true
+		p.nextToken() // move past 'lazy'
+	}
 
 	// Check for 'var' keyword (pass by reference)
 	byRef := false
 	if p.curTokenIs(lexer.VAR) {
 		byRef = true
 		p.nextToken() // move past 'var'
+	}
+
+	// Check for mutually exclusive modifiers
+	if isLazy && byRef {
+		p.addError("lazy and var modifiers are mutually exclusive")
+		return nil
 	}
 
 	// Collect parameter names separated by commas
@@ -336,10 +349,11 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	// Create a parameter for each name with the same type
 	for _, name := range names {
 		param := &ast.Parameter{
-			Token: name.Token,
-			Name:  name,
-			Type:  typeAnnotation,
-			ByRef: byRef,
+			Token:  name.Token,
+			Name:   name,
+			Type:   typeAnnotation,
+			IsLazy: isLazy,
+			ByRef:  byRef,
 		}
 		params = append(params, param)
 	}

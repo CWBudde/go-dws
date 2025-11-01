@@ -18,14 +18,26 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		if val, exists := i.env.Get(funcIdent.Value); exists {
 			// Check if it's a function pointer
 			if funcPtr, isFuncPtr := val.(*FunctionPointerValue); isFuncPtr {
-				// Evaluate arguments
+				// Prepare arguments - check for lazy parameters in the function pointer's declaration
 				args := make([]Value, len(expr.Arguments))
 				for idx, arg := range expr.Arguments {
-					argVal := i.Eval(arg)
-					if isError(argVal) {
-						return argVal
+					// Check if this parameter is lazy (only for regular function pointers, not lambdas)
+					isLazy := false
+					if funcPtr.Function != nil && idx < len(funcPtr.Function.Parameters) {
+						isLazy = funcPtr.Function.Parameters[idx].IsLazy
 					}
-					args[idx] = argVal
+
+					if isLazy {
+						// For lazy parameters, create a LazyThunk
+						args[idx] = NewLazyThunk(arg, i.env, i)
+					} else {
+						// For regular parameters, evaluate immediately
+						argVal := i.Eval(arg)
+						if isError(argVal) {
+							return argVal
+						}
+						args[idx] = argVal
+					}
 				}
 				// Call through the function pointer
 				return i.callFunctionPointer(funcPtr, args, expr)
@@ -42,14 +54,23 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 					// Resolve the qualified function
 					fn, err := i.ResolveQualifiedFunction(unitIdent.Value, memberAccess.Member.Value)
 					if err == nil {
-						// Found the function - evaluate arguments and call it
+						// Prepare arguments - lazy parameters get LazyThunks, regular parameters get evaluated
 						args := make([]Value, len(expr.Arguments))
 						for idx, arg := range expr.Arguments {
-							val := i.Eval(arg)
-							if isError(val) {
-								return val
+							// Check if this parameter is lazy
+							isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+
+							if isLazy {
+								// For lazy parameters, create a LazyThunk
+								args[idx] = NewLazyThunk(arg, i.env, i)
+							} else {
+								// For regular parameters, evaluate immediately
+								val := i.Eval(arg)
+								if isError(val) {
+									return val
+								}
+								args[idx] = val
 							}
-							args[idx] = val
 						}
 						return i.callUserFunction(fn, args)
 					}
@@ -71,14 +92,24 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 
 	// Check if it's a user-defined function first
 	if fn, exists := i.functions[funcName.Value]; exists {
-		// Evaluate all arguments
+		// Prepare arguments - lazy parameters get LazyThunks, regular parameters get evaluated
 		args := make([]Value, len(expr.Arguments))
 		for idx, arg := range expr.Arguments {
-			val := i.Eval(arg)
-			if isError(val) {
-				return val
+			// Check if this parameter is lazy
+			isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+
+			if isLazy {
+				// For lazy parameters, create a LazyThunk with the unevaluated expression
+				// and the current environment (captured from call site)
+				args[idx] = NewLazyThunk(arg, i.env, i)
+			} else {
+				// For regular parameters, evaluate the expression immediately
+				val := i.Eval(arg)
+				if isError(val) {
+					return val
+				}
+				args[idx] = val
 			}
-			args[idx] = val
 		}
 		return i.callUserFunction(fn, args)
 	}
@@ -375,7 +406,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	}
 }
 
-// callExternalFunction calls an external Go function registered via FFI (Task 9.32).
+// callExternalFunction calls an external Go function registered via FFI
 // It uses the existing FFI error handling infrastructure to safely call the Go function
 // and convert any errors or panics to DWScript exceptions.
 func (i *Interpreter) callExternalFunction(extFunc *ExternalFunctionValue, args []Value) Value {

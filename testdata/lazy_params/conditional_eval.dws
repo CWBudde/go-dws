@@ -1,0 +1,55 @@
+// Conditional evaluation with lazy parameters
+// Demonstrates that lazy parameters are only evaluated when accessed
+// This implements a ternary-like operator without compiler magic
+
+var evaluationCount: Integer;
+
+// Expensive computation that tracks how many times it's called
+function ExpensiveTrue: Integer;
+begin
+   evaluationCount := evaluationCount + 1;
+   PrintLn('ExpensiveTrue called (count: ' + IntToStr(evaluationCount) + ')');
+   Result := 42;
+end;
+
+function ExpensiveFalse: Integer;
+begin
+   evaluationCount := evaluationCount + 1;
+   PrintLn('ExpensiveFalse called (count: ' + IntToStr(evaluationCount) + ')');
+   Result := 99;
+end;
+
+// Ternary-like function using lazy parameters
+// Only the selected branch is evaluated
+function IfThen(cond: Boolean; lazy trueVal: Integer; lazy falseVal: Integer): Integer;
+begin
+   if cond then
+      Result := trueVal
+   else
+      Result := falseVal;
+end;
+
+var result: Integer;
+
+begin
+   PrintLn('=== Test 1: Condition is true ===');
+   evaluationCount := 0;
+   result := IfThen(true, ExpensiveTrue(), ExpensiveFalse());
+   PrintLn('Result: ' + IntToStr(result));
+   PrintLn('Total evaluations: ' + IntToStr(evaluationCount));
+   PrintLn('');
+
+   PrintLn('=== Test 2: Condition is false ===');
+   evaluationCount := 0;
+   result := IfThen(false, ExpensiveTrue(), ExpensiveFalse());
+   PrintLn('Result: ' + IntToStr(result));
+   PrintLn('Total evaluations: ' + IntToStr(evaluationCount));
+   PrintLn('');
+
+   PrintLn('=== Test 3: With simple expressions ===');
+   result := IfThen(5 > 3, 100, 200);
+   PrintLn('5 > 3 ? 100 : 200 = ' + IntToStr(result));
+
+   result := IfThen(5 < 3, 100, 200);
+   PrintLn('5 < 3 ? 100 : 200 = ' + IntToStr(result));
+end.
