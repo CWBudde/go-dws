@@ -134,21 +134,22 @@ func extractTimeComponents(dt float64) (hour, minute, second, millisecond int) {
 // formatDateTime formats a TDateTime value according to a format string.
 // This implements DWScript's FormatDateTime function with Delphi-style format specifiers.
 //
-// Supported format specifiers (Task 9.107):
-//   yyyy - 4-digit year (e.g., 2023)
-//   yy   - 2-digit year (e.g., 23)
-//   mm   - 2-digit month (01-12)
-//   m    - month without leading zero (1-12)
-//   dd   - 2-digit day (01-31)
-//   d    - day without leading zero (1-31)
-//   hh   - 2-digit hour, 24h format (00-23)
-//   h    - hour without leading zero, 24h format (0-23)
-//   nn   - 2-digit minute (00-59)
-//   n    - minute without leading zero (0-59)
-//   ss   - 2-digit second (00-59)
-//   s    - second without leading zero (0-59)
-//   zzz  - 3-digit millisecond (000-999)
-//   z    - millisecond without leading zeros (0-999)
+// Supported format specifiers:
+//
+//	yyyy - 4-digit year (e.g., 2023)
+//	yy   - 2-digit year (e.g., 23)
+//	mm   - 2-digit month (01-12)
+//	m    - month without leading zero (1-12)
+//	dd   - 2-digit day (01-31)
+//	d    - day without leading zero (1-31)
+//	hh   - 2-digit hour, 24h format (00-23)
+//	h    - hour without leading zero, 24h format (0-23)
+//	nn   - 2-digit minute (00-59)
+//	n    - minute without leading zero (0-59)
+//	ss   - 2-digit second (00-59)
+//	s    - second without leading zero (0-59)
+//	zzz  - 3-digit millisecond (000-999)
+//	z    - millisecond without leading zeros (0-999)
 //
 // Note: Format specifiers are case-sensitive.
 func formatDateTime(format string, dt float64) string {

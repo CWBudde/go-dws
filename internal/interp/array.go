@@ -54,6 +54,7 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 
 // evalIndexExpression evaluates array/string indexing: arr[i]
 // Task 8.129: Implement array indexing (read).
+// Task 9.97: Implement JSON object property access and array indexing.
 func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 	if expr == nil {
 		return &ErrorValue{Message: "nil index expression"}
@@ -71,7 +72,15 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 		return indexVal
 	}
 
-	// Index must be an integer
+	// Task 9.97: Check if left side is a JSON value (wrapped in Variant)
+	// JSON objects support string indexing: obj['propertyName']
+	// JSON arrays support integer indexing: arr[0]
+	unwrapped := unwrapVariant(leftVal)
+	if jsonVal, ok := unwrapped.(*JSONValue); ok {
+		return i.indexJSON(jsonVal, indexVal, expr)
+	}
+
+	// Index must be an integer for arrays and strings
 	indexInt, ok := indexVal.(*IntegerValue)
 	if !ok {
 		return i.newErrorWithLocation(expr, "index must be an integer, got %s", indexVal.Type())
@@ -143,6 +152,54 @@ func (i *Interpreter) indexString(str *StringValue, index int, expr *ast.IndexEx
 	// Convert to 0-based index
 	char := string(str.Value[index-1])
 	return &StringValue{Value: char}
+}
+
+// indexJSON performs JSON value indexing.
+// Task 9.97: Support both object property access (string index) and array element access (integer index).
+//
+// For JSON objects: obj['propertyName'] returns the value or nil if not found
+// For JSON arrays: arr[index] returns the element or nil if out of bounds
+func (i *Interpreter) indexJSON(jsonVal *JSONValue, indexVal Value, expr *ast.IndexExpression) Value {
+	if jsonVal.Value == nil {
+		return jsonValueToVariant(nil) // nil/null JSON value
+	}
+
+	kind := jsonVal.Value.Kind()
+
+	// JSON Object: support string indexing
+	if kind == 2 { // KindObject
+		// Index must be a string for object property access
+		indexStr, ok := indexVal.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(expr, "JSON object index must be a string, got %s", indexVal.Type())
+		}
+
+		// Get the property value (returns nil if not found)
+		propValue := jsonVal.Value.ObjectGet(indexStr.Value)
+
+		// Convert the JSON value to a Variant (nil becomes JSON null)
+		return jsonValueToVariant(propValue)
+	}
+
+	// JSON Array: support integer indexing
+	if kind == 3 { // KindArray
+		// Index must be an integer
+		indexInt, ok := indexVal.(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(expr, "JSON array index must be an integer, got %s", indexVal.Type())
+		}
+
+		index := int(indexInt.Value)
+
+		// Get the array element (returns nil if out of bounds)
+		elemValue := jsonVal.Value.ArrayGet(index)
+
+		// Convert the JSON value to a Variant (nil becomes JSON null)
+		return jsonValueToVariant(elemValue)
+	}
+
+	// Not an object or array
+	return i.newErrorWithLocation(expr, "cannot index JSON %s", kind)
 }
 
 // ArrayTypeValue is an internal value that stores array type metadata in the environment.

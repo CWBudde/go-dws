@@ -9,14 +9,14 @@ import (
 
 func TestParseHelperDeclaration(t *testing.T) {
 	tests := []struct {
-		name          string
-		input         string
-		expectedName  string
-		expectedFor   string
-		isRecordHelper bool
-		methodCount   int
-		propertyCount int
-		classVarCount int
+		name            string
+		input           string
+		expectedName    string
+		expectedFor     string
+		isRecordHelper  bool
+		methodCount     int
+		propertyCount   int
+		classVarCount   int
 		classConstCount int
 	}{
 		{
@@ -76,10 +76,10 @@ func TestParseHelperDeclaration(t *testing.T) {
 			input: `type TMathHelper = helper for Float
 				class const PI = 3.14159;
 			end;`,
-			expectedName:     "TMathHelper",
-			expectedFor:      "Float",
-			isRecordHelper:   false,
-			classConstCount:  1,
+			expectedName:    "TMathHelper",
+			expectedFor:     "Float",
+			isRecordHelper:  false,
+			classConstCount: 1,
 		},
 		{
 			name: "helper with private and public sections",
@@ -104,13 +104,13 @@ func TestParseHelperDeclaration(t *testing.T) {
 				function IsPositive: Boolean;
 				property AsString: String read ToString;
 			end;`,
-			expectedName:     "TFullHelper",
-			expectedFor:      "Integer",
-			isRecordHelper:   false,
-			methodCount:      1,
-			propertyCount:    1,
-			classVarCount:    1,
-			classConstCount:  1,
+			expectedName:    "TFullHelper",
+			expectedFor:     "Integer",
+			isRecordHelper:  false,
+			methodCount:     1,
+			propertyCount:   1,
+			classVarCount:   1,
+			classConstCount: 1,
 		},
 	}
 
@@ -232,10 +232,10 @@ func TestParseHelperErrors(t *testing.T) {
 func TestParseRecordVsHelper(t *testing.T) {
 	// Test that we can correctly distinguish between record and helper declarations
 	tests := []struct {
-		name         string
-		input        string
-		isHelper     bool
-		isRecord     bool
+		name     string
+		input    string
+		isHelper bool
+		isRecord bool
 	}{
 		{
 			name: "regular record",

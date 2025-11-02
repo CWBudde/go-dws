@@ -66,6 +66,45 @@ func (i *Interpreter) getLocationFromNode(node ast.Node) string {
 	return ""
 }
 
+// ContractFailureError represents a contract violation (precondition or postcondition failure).
+type ContractFailureError struct {
+	FunctionName  string
+	ConditionType string // "Pre-condition" or "Post-condition"
+	ConditionExpr string // The condition expression that failed
+	CustomMessage string // Optional custom error message
+	Line          int
+	Column        int
+}
+
+func (e *ContractFailureError) Type() string { return "ERROR" }
+
+func (e *ContractFailureError) String() string {
+	location := fmt.Sprintf("[%d:%d]", e.Line, e.Column)
+	message := e.CustomMessage
+	if message == "" {
+		message = e.ConditionExpr
+	}
+	return fmt.Sprintf("%s failed in %s %s: %s", e.ConditionType, e.FunctionName, location, message)
+}
+
+// newContractError creates a new ContractFailureError.
+func newContractError(funcName, condType string, condition *ast.Condition) *ContractFailureError {
+	var message string
+	if condition.Message != nil {
+		// Message will be evaluated at runtime and passed in
+		message = ""
+	}
+
+	return &ContractFailureError{
+		FunctionName:  funcName,
+		ConditionType: condType,
+		ConditionExpr: condition.Test.String(),
+		CustomMessage: message,
+		Line:          condition.Token.Pos.Line,
+		Column:        condition.Token.Pos.Column,
+	}
+}
+
 // isError checks if a value is an error.
 func isError(val Value) bool {
 	if val != nil {

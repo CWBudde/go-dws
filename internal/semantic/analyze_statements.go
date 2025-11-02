@@ -222,7 +222,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			return
 		}
 
-		// Check if variable is read-only (Task 8.207, 8.255)
+		// Check if variable is read-only
 		if sym.ReadOnly {
 			if sym.IsConst {
 				a.addError("Cannot assign to constant '%s' at %s", target.Value, stmt.Token.Pos.String())
@@ -582,7 +582,7 @@ func (a *Analyzer) analyzeCase(stmt *ast.CaseStatement) {
 	}
 }
 
-// analyzeBreakStatement analyzes a break statement (Task 8.235d)
+// analyzeBreakStatement analyzes a break statement
 func (a *Analyzer) analyzeBreakStatement(stmt *ast.BreakStatement) {
 	// Task 8.235h: Check if we're inside a finally block
 	if a.inFinallyBlock {
@@ -598,7 +598,7 @@ func (a *Analyzer) analyzeBreakStatement(stmt *ast.BreakStatement) {
 	// Valid break statement - no further analysis needed
 }
 
-// analyzeContinueStatement analyzes a continue statement (Task 8.235e)
+// analyzeContinueStatement analyzes a continue statement
 func (a *Analyzer) analyzeContinueStatement(stmt *ast.ContinueStatement) {
 	// Task 8.235h: Check if we're inside a finally block
 	if a.inFinallyBlock {
@@ -614,7 +614,7 @@ func (a *Analyzer) analyzeContinueStatement(stmt *ast.ContinueStatement) {
 	// Valid continue statement - no further analysis needed
 }
 
-// analyzeExitStatement analyzes an exit statement (Task 8.235f)
+// analyzeExitStatement analyzes an exit statement
 func (a *Analyzer) analyzeExitStatement(stmt *ast.ExitStatement) {
 	// Task 8.235h: Check if we're inside a finally block
 	if a.inFinallyBlock {

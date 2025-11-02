@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Record Type Analysis (Task 8.68-8.71)
+// Record Type Analysis
 // ============================================================================
 
 // analyzeRecordDecl analyzes a record type declaration.
@@ -55,7 +55,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		recordType.Fields[fieldName] = fieldType
 	}
 
-	// Process methods if any (Task 8.61c)
+	// Process methods if any
 	for _, method := range decl.Methods {
 		methodName := method.Name.Value
 
@@ -92,7 +92,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		recordType.Methods[methodName] = funcType
 	}
 
-	// Process properties if any (Task 8.61d)
+	// Process properties if any
 	for _, prop := range decl.Properties {
 		propName := prop.Name.Value
 

@@ -134,7 +134,7 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 
 	// Parse record body until 'end'
 	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
-		// Check for visibility modifiers (Task 8.61b)
+		// Check for visibility modifiers
 		if p.curTokenIs(lexer.PRIVATE) {
 			currentVisibility = ast.VisibilityPrivate
 			p.nextToken()
@@ -150,7 +150,7 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 			continue
 		}
 
-		// Check for method declarations (Task 8.61c)
+		// Check for method declarations
 		if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
 			method := p.parseFunctionDeclaration()
 			if method != nil {
@@ -160,7 +160,7 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 			continue
 		}
 
-		// Check for property declarations (Task 8.61d)
+		// Check for property declarations
 		if p.curTokenIs(lexer.PROPERTY) {
 			prop := p.parseRecordPropertyDeclaration()
 			if prop != nil {

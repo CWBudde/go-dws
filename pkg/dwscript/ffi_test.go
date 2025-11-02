@@ -722,16 +722,16 @@ func TestRegisterFunctionWithMap(t *testing.T) {
 	}
 }
 
-// TestCallingConventions tests the FFI calling convention design (Task 9.34 & 9.35).
+// TestCallingConventions tests the FFI calling convention design.
 func TestCallingConventions(t *testing.T) {
 	t.Run("TypeSafeMarshaling", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
-		
+
 		// Register function with specific types
 		engine.RegisterFunction("TypedFunc", func(i int64, f float64, s string, b bool) string {
 			return fmt.Sprintf("i=%d f=%.1f s=%s b=%v", i, f, s, b)
 		})
-		
+
 		var buf bytes.Buffer
 		engine.SetOutput(&buf)
 		_, err := engine.Eval(`
@@ -741,17 +741,17 @@ func TestCallingConventions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
 		}
-		
+
 		output := strings.TrimSpace(buf.String())
 		expected := "i=42 f=3.1 s=hello b=true"
 		if output != expected {
 			t.Errorf("expected '%s', got '%s'", expected, output)
 		}
 	})
-	
+
 	t.Run("ErrorReturnsAsExceptions", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
-		
+
 		// Function that returns error
 		engine.RegisterFunction("MayFail", func(shouldFail bool) (string, error) {
 			if shouldFail {
@@ -759,10 +759,10 @@ func TestCallingConventions(t *testing.T) {
 			}
 			return "success", nil
 		})
-		
+
 		var buf bytes.Buffer
 		engine.SetOutput(&buf)
-		
+
 		// Test success case
 		_, err := engine.Eval(`
 			var result := MayFail(false);
@@ -771,12 +771,12 @@ func TestCallingConventions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
 		}
-		
+
 		output := strings.TrimSpace(buf.String())
 		if output != "success" {
 			t.Errorf("expected 'success', got '%s'", output)
 		}
-		
+
 		// Test error case - should be caught as exception
 		buf.Reset()
 		_, err = engine.Eval(`
@@ -791,16 +791,16 @@ func TestCallingConventions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
 		}
-		
+
 		output = strings.TrimSpace(buf.String())
 		if !strings.Contains(output, "intentional failure") {
 			t.Errorf("expected error message in output, got '%s'", output)
 		}
 	})
-	
+
 	t.Run("PanicRecovery", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
-		
+
 		// Function that panics
 		engine.RegisterFunction("MayPanic", func(shouldPanic bool) string {
 			if shouldPanic {
@@ -808,10 +808,10 @@ func TestCallingConventions(t *testing.T) {
 			}
 			return "ok"
 		})
-		
+
 		var buf bytes.Buffer
 		engine.SetOutput(&buf)
-		
+
 		// Panic should be caught and converted to exception
 		_, err := engine.Eval(`
 			try
@@ -825,16 +825,16 @@ func TestCallingConventions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
 		}
-		
+
 		output := strings.TrimSpace(buf.String())
 		if output != "Caught panic" {
 			t.Errorf("expected 'Caught panic', got '%s'", output)
 		}
 	})
-	
+
 	t.Run("VariadicLikeBehavior", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
-		
+
 		// Use slice for variadic-like behavior
 		engine.RegisterFunction("SumAll", func(numbers []int64) int64 {
 			sum := int64(0)
@@ -843,10 +843,10 @@ func TestCallingConventions(t *testing.T) {
 			}
 			return sum
 		})
-		
+
 		var buf bytes.Buffer
 		engine.SetOutput(&buf)
-		
+
 		// Can pass arrays of different lengths
 		_, err := engine.Eval(`
 			var sum1 := SumAll([1, 2, 3]);
@@ -860,7 +860,7 @@ func TestCallingConventions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
 		}
-		
+
 		lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
 		if len(lines) != 3 {
 			t.Fatalf("expected 3 lines, got %d", len(lines))
@@ -869,30 +869,30 @@ func TestCallingConventions(t *testing.T) {
 			t.Errorf("unexpected sums: %v", lines)
 		}
 	})
-	
+
 	t.Run("MultipleReturnSignatures", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
-		
+
 		// Just T
 		engine.RegisterFunction("ReturnValue", func() int64 { return 42 })
-		
+
 		// (T, error) with nil error
 		engine.RegisterFunction("ReturnValueNoError", func() (int64, error) { return 99, nil })
-		
+
 		// Just error (procedure)
 		callCount := 0
 		engine.RegisterFunction("ProcWithError", func() error {
 			callCount++
 			return nil
 		})
-		
+
 		// No return (void procedure)
 		voidCallCount := 0
 		engine.RegisterFunction("VoidProc", func() { voidCallCount++ })
-		
+
 		var buf bytes.Buffer
 		engine.SetOutput(&buf)
-		
+
 		_, err := engine.Eval(`
 			var v1 := ReturnValue();
 			var v2 := ReturnValueNoError();
@@ -904,7 +904,7 @@ func TestCallingConventions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
 		}
-		
+
 		lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
 		if len(lines) != 2 {
 			t.Fatalf("expected 2 lines, got %d", len(lines))
@@ -919,15 +919,15 @@ func TestCallingConventions(t *testing.T) {
 			t.Errorf("expected VoidProc to be called once, got %d", voidCallCount)
 		}
 	})
-	
+
 	t.Run("ArgumentValidation", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
-		
+
 		engine.RegisterFunction("RequiresTwoArgs", func(a, b int64) int64 { return a + b })
-		
+
 		var buf bytes.Buffer
 		engine.SetOutput(&buf)
-		
+
 		// Wrong argument count should raise exception
 		_, err := engine.Eval(`
 			try
@@ -941,21 +941,21 @@ func TestCallingConventions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
 		}
-		
+
 		output := strings.TrimSpace(buf.String())
 		if output != "Caught argument error" {
 			t.Errorf("expected 'Caught argument error', got '%s'", output)
 		}
 	})
-	
+
 	t.Run("TypeMismatchValidation", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
-		
+
 		engine.RegisterFunction("RequiresInt", func(n int64) int64 { return n * 2 })
-		
+
 		var buf bytes.Buffer
 		engine.SetOutput(&buf)
-		
+
 		// Wrong type should raise exception
 		_, err := engine.Eval(`
 			try
@@ -969,7 +969,7 @@ func TestCallingConventions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
 		}
-		
+
 		output := strings.TrimSpace(buf.String())
 		if output != "Caught type error" {
 			t.Errorf("expected 'Caught type error', got '%s'", output)
@@ -977,20 +977,20 @@ func TestCallingConventions(t *testing.T) {
 	})
 }
 
-// TestAPIDesign tests the overall API design for FFI (Task 9.35).
+// TestAPIDesign tests the overall API design for FFI.
 func TestAPIDesign(t *testing.T) {
 	t.Run("SimpleRegistration", func(t *testing.T) {
 		engine, err := New(WithTypeCheck(false))
 		if err != nil {
 			t.Fatalf("failed to create engine: %v", err)
 		}
-		
+
 		// Registration should be simple and type-safe
 		err = engine.RegisterFunction("Double", func(x int64) int64 { return x * 2 })
 		if err != nil {
 			t.Fatalf("registration failed: %v", err)
 		}
-		
+
 		// Should work immediately
 		var buf bytes.Buffer
 		engine.SetOutput(&buf)
@@ -998,20 +998,20 @@ func TestAPIDesign(t *testing.T) {
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
 		}
-		
+
 		if strings.TrimSpace(buf.String()) != "42" {
 			t.Errorf("expected '42', got '%s'", buf.String())
 		}
 	})
-	
+
 	t.Run("ChainedRegistration", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
-		
+
 		// Multiple registrations
 		engine.RegisterFunction("F1", func() int64 { return 1 })
 		engine.RegisterFunction("F2", func() int64 { return 2 })
 		engine.RegisterFunction("F3", func() int64 { return 3 })
-		
+
 		var buf bytes.Buffer
 		engine.SetOutput(&buf)
 		_, err := engine.Eval(`
@@ -1021,15 +1021,15 @@ func TestAPIDesign(t *testing.T) {
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
 		}
-		
+
 		if strings.TrimSpace(buf.String()) != "6" {
 			t.Errorf("expected '6', got '%s'", buf.String())
 		}
 	})
-	
+
 	t.Run("ErrorReporting", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
-		
+
 		// Registration errors should be clear
 		err := engine.RegisterFunction("BadFunc", "not a function")
 		if err == nil {
@@ -1038,7 +1038,7 @@ func TestAPIDesign(t *testing.T) {
 		if !strings.Contains(err.Error(), "function") {
 			t.Errorf("expected error message about function, got: %v", err)
 		}
-		
+
 		// Duplicate registration
 		engine.RegisterFunction("MyFunc", func() {})
 		err = engine.RegisterFunction("MyFunc", func() {})
@@ -1046,15 +1046,15 @@ func TestAPIDesign(t *testing.T) {
 			t.Error("expected error when registering duplicate function")
 		}
 	})
-	
+
 	t.Run("ComplexWorkflow", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
-		
+
 		// Realistic workflow: data processing
 		engine.RegisterFunction("LoadData", func() []int64 {
 			return []int64{5, 2, 8, 1, 9, 3}
 		})
-		
+
 		engine.RegisterFunction("FilterEven", func(numbers []int64) []int64 {
 			result := []int64{}
 			for _, n := range numbers {
@@ -1064,7 +1064,7 @@ func TestAPIDesign(t *testing.T) {
 			}
 			return result
 		})
-		
+
 		engine.RegisterFunction("Sum", func(numbers []int64) int64 {
 			sum := int64(0)
 			for _, n := range numbers {
@@ -1072,7 +1072,7 @@ func TestAPIDesign(t *testing.T) {
 			}
 			return sum
 		})
-		
+
 		var buf bytes.Buffer
 		engine.SetOutput(&buf)
 		_, err := engine.Eval(`
@@ -1084,7 +1084,7 @@ func TestAPIDesign(t *testing.T) {
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
 		}
-		
+
 		// Even numbers: 2, 8 -> sum = 10
 		if strings.TrimSpace(buf.String()) != "10" {
 			t.Errorf("expected '10', got '%s'", buf.String())
@@ -1092,7 +1092,7 @@ func TestAPIDesign(t *testing.T) {
 	})
 }
 
-// TestPanicConversionToException tests that all types of Go panics are converted to EHost exceptions (Task 9.54a).
+// TestPanicConversionToException tests that all types of Go panics are converted to EHost exceptions.
 func TestPanicConversionToException(t *testing.T) {
 	t.Run("StringPanic", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
@@ -1262,7 +1262,7 @@ func TestPanicConversionToException(t *testing.T) {
 	})
 }
 
-// TestPanicPropagationNestedFFI tests that panics propagate correctly through nested FFI calls (Task 9.54b).
+// TestPanicPropagationNestedFFI tests that panics propagate correctly through nested FFI calls.
 func TestPanicPropagationNestedFFI(t *testing.T) {
 	t.Run("MultipleFFICallsWithPanic", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
@@ -1392,7 +1392,7 @@ func TestPanicPropagationNestedFFI(t *testing.T) {
 	})
 }
 
-// TestFinallyBlocksWithPanics tests that finally blocks execute correctly when FFI functions panic (Task 9.54c).
+// TestFinallyBlocksWithPanics tests that finally blocks execute correctly when FFI functions panic.
 func TestFinallyBlocksWithPanics(t *testing.T) {
 	t.Run("FinallyExecutesOnPanic", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
@@ -1610,4 +1610,3 @@ func TestFinallyBlocksWithPanics(t *testing.T) {
 		}
 	})
 }
-

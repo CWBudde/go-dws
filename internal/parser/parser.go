@@ -264,6 +264,13 @@ func (p *Parser) ParseProgram() *ast.Program {
 		return program
 	}
 
+	// Task 9.130: Handle optional program declaration
+	// If the file starts with 'program', parse and skip it
+	if p.curTokenIs(lexer.PROGRAM) {
+		p.parseProgramDeclaration()
+		p.nextToken() // Move past the semicolon to the next token
+	}
+
 	// Otherwise, parse as a regular program
 	for !p.curTokenIs(lexer.EOF) {
 		// Skip semicolons at statement level

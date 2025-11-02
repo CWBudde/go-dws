@@ -163,7 +163,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		classInfo.Destructor = destructor
 	}
 
-	// Register properties (Task 8.53 - copy property metadata from AST)
+	// Register properties
 	// Properties are registered after fields and methods so they can reference them
 	for _, propDecl := range cd.Properties {
 		if propDecl == nil {

@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Break Statement Semantic Analysis Tests (Task 8.235p)
+// Break Statement Semantic Analysis Tests
 // ============================================================================
 
 // TestBreakOutsideLoop tests that break outside a loop produces a semantic error
@@ -147,7 +147,7 @@ func TestBreakInNestedLoops(t *testing.T) {
 }
 
 // ============================================================================
-// Continue Statement Semantic Analysis Tests (Task 8.235p)
+// Continue Statement Semantic Analysis Tests
 // ============================================================================
 
 // TestContinueOutsideLoop tests that continue outside a loop produces a semantic error
@@ -292,7 +292,7 @@ func TestContinueInNestedLoops(t *testing.T) {
 }
 
 // ============================================================================
-// Exit Statement Semantic Analysis Tests (Task 8.235p)
+// Exit Statement Semantic Analysis Tests
 // ============================================================================
 
 // TestExitWithValueAtProgramLevel tests that exit with value at program level produces error
@@ -405,7 +405,7 @@ func TestExitInProcedure(t *testing.T) {
 }
 
 // ============================================================================
-// Combined Tests (Task 8.235p)
+// Combined Tests
 // ============================================================================
 
 // TestBreakContinueWithExceptionHandling tests break/continue with try-except
@@ -434,7 +434,7 @@ func TestBreakContinueWithExceptionHandling(t *testing.T) {
 }
 
 // ============================================================================
-// For-In Statement Semantic Analysis Tests (Task 9.24)
+// For-In Statement Semantic Analysis Tests
 // ============================================================================
 
 // TestForInWithArray tests for-in loop with array type

@@ -1259,21 +1259,21 @@ func (i *Interpreter) evalCaseStatement(stmt *ast.CaseStatement) Value {
 	return &NilValue{}
 }
 
-// evalBreakStatement evaluates a break statement (Task 8.235j).
+// evalBreakStatement evaluates a break statement
 // Sets the break signal to exit the innermost loop.
 func (i *Interpreter) evalBreakStatement(_ *ast.BreakStatement) Value {
 	i.breakSignal = true
 	return &NilValue{}
 }
 
-// evalContinueStatement evaluates a continue statement (Task 8.235k).
+// evalContinueStatement evaluates a continue statement
 // Sets the continue signal to skip to the next iteration of the innermost loop.
 func (i *Interpreter) evalContinueStatement(_ *ast.ContinueStatement) Value {
 	i.continueSignal = true
 	return &NilValue{}
 }
 
-// evalExitStatement evaluates an exit statement (Task 8.235l).
+// evalExitStatement evaluates an exit statement
 // Sets the exit signal to exit the current function.
 // If at program level, sets exit signal to terminate the program.
 // evalReturnStatement handles return statements in lambda expressions.

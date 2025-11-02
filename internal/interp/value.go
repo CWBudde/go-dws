@@ -98,6 +98,31 @@ func (n *NilValue) String() string {
 	return "nil"
 }
 
+// TypeMetaValue represents a type name as a runtime value in DWScript.
+// Task 9.133: DWScript allows type names like `Integer` to be used as values.
+// This is used for reflection and type-based operations like High(Integer), Low(Integer).
+//
+// Examples:
+//   - High(Integer) where `Integer` is a TypeMetaValue wrapping types.INTEGER
+//   - Low(Boolean) where `Boolean` is a TypeMetaValue wrapping types.BOOLEAN
+//   - High(TColor) where `TColor` is a TypeMetaValue wrapping the enum type
+//
+// See reference/dwscript-original/Source/dwsExprs.pas for type info expressions.
+type TypeMetaValue struct {
+	TypeInfo types.Type // The type metadata (e.g., types.INTEGER, types.FLOAT, enum type)
+	TypeName string     // The type name for display (e.g., "Integer", "TColor")
+}
+
+// Type returns "TYPE_META".
+func (t *TypeMetaValue) Type() string {
+	return "TYPE_META"
+}
+
+// String returns the type name.
+func (t *TypeMetaValue) String() string {
+	return t.TypeName
+}
+
 // EnumValue represents an enum value in DWScript.
 // Task 8.49: Store enum values with their ordinal value and type name.
 type EnumValue struct {
@@ -359,6 +384,15 @@ func NewBooleanValue(v bool) Value {
 // NewNilValue creates a new NilValue.
 func NewNilValue() Value {
 	return &NilValue{}
+}
+
+// NewTypeMetaValue creates a new TypeMetaValue.
+// Task 9.133: Constructor for type meta-values.
+func NewTypeMetaValue(typeInfo types.Type, typeName string) Value {
+	return &TypeMetaValue{
+		TypeInfo: typeInfo,
+		TypeName: typeName,
+	}
 }
 
 // NewRecordValue creates a new RecordValue with the given record type.
@@ -692,8 +726,9 @@ func NewLambdaValue(
 // They can be boxed in Variants to support heterogeneous collections.
 //
 // Example:
-//   var obj := JSON.Parse('{"name": "John", "age": 30}');
-//   PrintLn(obj.name);  // Outputs: John
+//
+//	var obj := JSON.Parse('{"name": "John", "age": 30}');
+//	PrintLn(obj.name);  // Outputs: John
 //
 // See reference/dwscript-original/Source/dwsJSONConnector.pas for the original
 // TdwsJSONConnectorType implementation.

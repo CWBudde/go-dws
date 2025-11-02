@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // ============================================================================
@@ -30,8 +31,9 @@ import (
 // Task 9.92: Raises exception on invalid JSON with position information.
 //
 // Example:
-//   var obj := JSON.Parse('{"name": "John", "age": 30}');
-//   PrintLn(obj); // Outputs: {name: John, age: 30}
+//
+//	var obj := JSON.Parse('{"name": "John", "age": 30}');
+//	PrintLn(obj); // Outputs: {name: John, age: 30}
 func (i *Interpreter) builtinParseJSON(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "JSON.Parse() expects exactly 1 argument, got %d", len(args))
@@ -178,4 +180,328 @@ func offsetToLineCol(jsonStr string, offset int64) (line int, col int) {
 	}
 
 	return line, col
+}
+
+// ============================================================================
+// JSON Serialization Built-in Functions
+// Task 9.94-9.95: ToJSON and ToJSONFormatted
+// ============================================================================
+
+// builtinToJSON implements the ToJSON() built-in function.
+// Task 9.94: Serialize DWScript value to compact JSON string.
+//
+// Syntax: ToJSON(value: Variant): String
+//
+// Converts a DWScript value to a JSON string representation.
+// Supported types:
+//   - Primitives (Integer, Float, String, Boolean, Nil) → JSON primitives
+//   - Arrays → JSON arrays (recursive)
+//   - Records → JSON objects (recursive)
+//   - JSON values → preserved as-is
+//   - Variants → unwrapped and converted
+//
+// Unsupported types (Enums, Sets, Objects, Functions) are converted to null.
+//
+// Example:
+//
+//	var obj := NewRecord();
+//	obj.name := 'John';
+//	obj.age := 30;
+//	var json := ToJSON(obj);
+//	PrintLn(json); // Outputs: {"name":"John","age":30}
+func (i *Interpreter) builtinToJSON(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "ToJSON() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Convert the value to JSON using the existing valueToJSONValue helper
+	jsonVal := valueToJSONValue(args[0])
+
+	// Serialize to compact JSON using encoding/json
+	jsonBytes, err := json.Marshal(jsonVal)
+	if err != nil {
+		return i.newErrorWithLocation(i.currentNode, "ToJSON() serialization error: %s", err.Error())
+	}
+
+	return &StringValue{Value: string(jsonBytes)}
+}
+
+// builtinToJSONFormatted implements the ToJSONFormatted() built-in function.
+// Task 9.95: Serialize DWScript value to formatted JSON string with indentation.
+//
+// Syntax: ToJSONFormatted(value: Variant, indent: Integer): String
+//
+// Converts a DWScript value to a pretty-printed JSON string with the specified
+// indentation level. Each nesting level is indented by 'indent' spaces.
+//
+// Parameters:
+//   - value: The value to serialize
+//   - indent: Number of spaces per indentation level (typically 2 or 4)
+//
+// Example:
+//
+//	var obj := NewRecord();
+//	obj.name := 'John';
+//	obj.age := 30;
+//	var json := ToJSONFormatted(obj, 2);
+//	PrintLn(json);
+//	// Outputs:
+//	// {
+//	//   "name": "John",
+//	//   "age": 30
+//	// }
+func (i *Interpreter) builtinToJSONFormatted(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "ToJSONFormatted() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// Extract indent parameter
+	indentVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ToJSONFormatted() expects Integer as second argument, got %s", args[1].Type())
+	}
+
+	// Validate indent (must be non-negative)
+	indent := int(indentVal.Value)
+	if indent < 0 {
+		return i.newErrorWithLocation(i.currentNode, "ToJSONFormatted() indent must be non-negative, got %d", indent)
+	}
+
+	// Convert the value to JSON using the existing valueToJSONValue helper
+	jsonVal := valueToJSONValue(args[0])
+
+	// Build indent string (e.g., "  " for indent=2)
+	indentStr := strings.Repeat(" ", indent)
+
+	// Serialize to formatted JSON using encoding/json.MarshalIndent
+	jsonBytes, err := json.MarshalIndent(jsonVal, "", indentStr)
+	if err != nil {
+		return i.newErrorWithLocation(i.currentNode, "ToJSONFormatted() serialization error: %s", err.Error())
+	}
+
+	return &StringValue{Value: string(jsonBytes)}
+}
+
+// ============================================================================
+// JSON Object Access Built-in Functions
+// Task 9.98-9.100: JSONHasField, JSONKeys, JSONValues
+// ============================================================================
+
+// builtinJSONHasField implements the JSONHasField() built-in function.
+// Task 9.98: Check if a JSON object has a specific field.
+//
+// Syntax: JSONHasField(obj: Variant, field: String): Boolean
+//
+// Returns True if the JSON object contains the specified field, False otherwise.
+// If the value is not a JSON object, returns False.
+//
+// Example:
+//
+//	var obj := JSON.Parse('{"name": "John", "age": 30}');
+//	PrintLn(JSONHasField(obj, 'name'));    // Outputs: true
+//	PrintLn(JSONHasField(obj, 'email'));   // Outputs: false
+func (i *Interpreter) builtinJSONHasField(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "JSONHasField() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// Unwrap the first argument to get the JSON value
+	objVal := unwrapVariant(args[0])
+
+	// Check if it's a JSON value
+	jsonVal, ok := objVal.(*JSONValue)
+	if !ok {
+		// Not a JSON value - return false
+		return &BooleanValue{Value: false}
+	}
+
+	// Check if the JSON value is an object
+	if jsonVal.Value == nil || jsonVal.Value.Kind() != 2 { // KindObject = 2
+		// Not a JSON object - return false
+		return &BooleanValue{Value: false}
+	}
+
+	// Extract the field name
+	fieldName, ok := args[1].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "JSONHasField() expects String as second argument, got %s", args[1].Type())
+	}
+
+	// Check if the field exists
+	fieldValue := jsonVal.Value.ObjectGet(fieldName.Value)
+	return &BooleanValue{Value: fieldValue != nil}
+}
+
+// builtinJSONKeys implements the JSONKeys() built-in function.
+// Task 9.99: Return an array of all keys in a JSON object.
+//
+// Syntax: JSONKeys(obj: Variant): array of String
+//
+// Returns an array containing all the keys of the JSON object in insertion order.
+// If the value is not a JSON object, returns an empty array.
+//
+// Example:
+//
+//	var obj := JSON.Parse('{"name": "John", "age": 30, "city": "NYC"}');
+//	var keys := JSONKeys(obj);
+//	for var i := 0 to Length(keys) - 1 do
+//	    PrintLn(keys[i]);
+//	// Outputs: name, age, city (in insertion order)
+func (i *Interpreter) builtinJSONKeys(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "JSONKeys() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Unwrap the argument to get the JSON value
+	objVal := unwrapVariant(args[0])
+
+	// Check if it's a JSON value
+	jsonVal, ok := objVal.(*JSONValue)
+	if !ok {
+		// Not a JSON value - return empty array
+		return i.createEmptyStringArray()
+	}
+
+	// Check if the JSON value is an object
+	if jsonVal.Value == nil || jsonVal.Value.Kind() != 2 { // KindObject = 2
+		// Not a JSON object - return empty array
+		return i.createEmptyStringArray()
+	}
+
+	// Get the keys in insertion order
+	keys := jsonVal.Value.ObjectKeys()
+
+	// Convert to array of StringValue
+	elements := make([]Value, len(keys))
+	for idx, key := range keys {
+		elements[idx] = &StringValue{Value: key}
+	}
+
+	// Create array type: array of String
+	arrayType := types.NewDynamicArrayType(types.STRING)
+
+	return &ArrayValue{
+		ArrayType: arrayType,
+		Elements:  elements,
+	}
+}
+
+// builtinJSONValues implements the JSONValues() built-in function.
+// Task 9.100: Return an array of all values in a JSON object.
+//
+// Syntax: JSONValues(obj: Variant): array of Variant
+//
+// Returns an array containing all the values of the JSON object in the same order as JSONKeys().
+// Each value is wrapped in a Variant. If the value is not a JSON object, returns an empty array.
+//
+// Example:
+//
+//	var obj := JSON.Parse('{"name": "John", "age": 30}');
+//	var values := JSONValues(obj);
+//	for var i := 0 to Length(values) - 1 do
+//	    PrintLn(values[i]);
+//	// Outputs: John, 30
+func (i *Interpreter) builtinJSONValues(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "JSONValues() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Unwrap the argument to get the JSON value
+	objVal := unwrapVariant(args[0])
+
+	// Check if it's a JSON value
+	jsonVal, ok := objVal.(*JSONValue)
+	if !ok {
+		// Not a JSON value - return empty array
+		return i.createEmptyVariantArray()
+	}
+
+	// Check if the JSON value is an object
+	if jsonVal.Value == nil || jsonVal.Value.Kind() != 2 { // KindObject = 2
+		// Not a JSON object - return empty array
+		return i.createEmptyVariantArray()
+	}
+
+	// Get the keys in insertion order
+	keys := jsonVal.Value.ObjectKeys()
+
+	// Get the values in the same order
+	elements := make([]Value, len(keys))
+	for idx, key := range keys {
+		fieldValue := jsonVal.Value.ObjectGet(key)
+		// Convert JSON value to Variant
+		elements[idx] = jsonValueToVariant(fieldValue)
+	}
+
+	// Create array type: array of Variant
+	arrayType := types.NewDynamicArrayType(types.VARIANT)
+
+	return &ArrayValue{
+		ArrayType: arrayType,
+		Elements:  elements,
+	}
+}
+
+// createEmptyStringArray creates an empty dynamic array of String.
+func (i *Interpreter) createEmptyStringArray() *ArrayValue {
+	arrayType := types.NewDynamicArrayType(types.STRING)
+	return &ArrayValue{
+		ArrayType: arrayType,
+		Elements:  []Value{},
+	}
+}
+
+// createEmptyVariantArray creates an empty dynamic array of Variant.
+func (i *Interpreter) createEmptyVariantArray() *ArrayValue {
+	arrayType := types.NewDynamicArrayType(types.VARIANT)
+	return &ArrayValue{
+		ArrayType: arrayType,
+		Elements:  []Value{},
+	}
+}
+
+// ============================================================================
+// JSON Array Length Built-in Function
+// Task 9.102: JSONLength
+// ============================================================================
+
+// builtinJSONLength implements the JSONLength() built-in function.
+// Task 9.102: Return the length of a JSON array.
+//
+// Syntax: JSONLength(arr: Variant): Integer
+//
+// Returns the number of elements in a JSON array.
+// If the value is not a JSON array, returns 0.
+//
+// Example:
+//
+//	var arr := ParseJSON('[10, 20, 30, 40, 50]');
+//	PrintLn(JSONLength(arr));  // Outputs: 5
+//
+//	var obj := ParseJSON('{"name": "John"}');
+//	PrintLn(JSONLength(obj));  // Outputs: 0 (not an array)
+func (i *Interpreter) builtinJSONLength(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "JSONLength() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Unwrap the argument to get the JSON value
+	arrVal := unwrapVariant(args[0])
+
+	// Check if it's a JSON value
+	jsonVal, ok := arrVal.(*JSONValue)
+	if !ok {
+		// Not a JSON value - return 0
+		return &IntegerValue{Value: 0}
+	}
+
+	// Check if the JSON value is an array
+	if jsonVal.Value == nil || jsonVal.Value.Kind() != 3 { // KindArray = 3
+		// Not a JSON array - return 0
+		return &IntegerValue{Value: 0}
+	}
+
+	// Get the array length
+	length := jsonVal.Value.ArrayLen()
+	return &IntegerValue{Value: int64(length)}
 }

@@ -879,11 +879,8 @@ func TestParseNewArrayExpressionErrors(t *testing.T) {
 		input       string
 		expectedErr string
 	}{
-		{
-			name:        "Missing opening bracket",
-			input:       `new Integer;`,
-			expectedErr: "expected '[' or '('",
-		},
+		// NOTE: "new Integer;" is now valid syntax
+		// It will fail at semantic analysis since Integer is not a class, but parses OK
 		{
 			name:        "Missing closing bracket",
 			input:       `new Integer[16;`,
@@ -934,7 +931,7 @@ func TestParseNewArrayExpressionErrors(t *testing.T) {
 }
 
 // ============================================================================
-// Multi-Index Comma Syntax Tests (Task 9.172)
+// Multi-Index Comma Syntax Tests
 // ============================================================================
 
 func TestParseMultiIndexCommaSyntax(t *testing.T) {

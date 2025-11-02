@@ -1,0 +1,157 @@
+// Edge cases and special scenarios for Variant testing
+// Tests VarClear(), empty Variant operations, and edge conditions
+
+// ============================================================================
+// VarClear() Tests
+// ============================================================================
+
+PrintLn('=== VarClear Tests ===');
+
+var v1: Variant;
+PrintLn('Empty variant:');
+PrintLn(VarIsNull(v1));           // True
+
+v1 := 42;
+PrintLn('After assignment:');
+PrintLn(VarIsNull(v1));           // False
+PrintLn(VarType(v1));             // 3 (integer)
+
+v1 := VarClear(v1);
+PrintLn('After VarClear:');
+PrintLn(VarIsNull(v1));           // True
+PrintLn(VarType(v1));             // 0 (empty)
+
+// ============================================================================
+// Empty Variant Operations
+// ============================================================================
+
+PrintLn('');
+PrintLn('=== Empty Variant Operations ===');
+
+var empty1, empty2: Variant;
+PrintLn('Two empty variants:');
+PrintLn(VarIsNull(empty1));       // True
+PrintLn(VarIsNull(empty2));       // True
+PrintLn(VarIsNumeric(empty1));    // False
+
+// ============================================================================
+// Type Conversion Edge Cases
+// ============================================================================
+
+PrintLn('');
+PrintLn('=== Type Conversion Edge Cases ===');
+
+// Empty Variant conversions
+var emptyVar: Variant;
+PrintLn('Empty variant conversions:');
+PrintLn(VarToStr(emptyVar));      // Empty string
+PrintLn(VarToInt(emptyVar));      // 0
+PrintLn(VarToFloat(emptyVar));    // 0.0
+
+// Boolean conversions
+var boolVar: Variant := True;
+PrintLn('Boolean conversions:');
+PrintLn(VarToStr(boolVar));       // 'True'
+PrintLn(VarToInt(boolVar));       // 1
+PrintLn(VarToFloat(boolVar));     // 1.0
+
+// ============================================================================
+// Variant Reassignment Tests
+// ============================================================================
+
+PrintLn('');
+PrintLn('=== Variant Reassignment ===');
+
+var v: Variant;
+PrintLn('Initial state:');
+PrintLn(VarType(v));              // 0 (empty)
+
+v := 42;
+PrintLn('After integer assignment:');
+PrintLn(VarType(v));              // 3 (integer)
+PrintLn(v);                       // 42
+
+v := 'text';
+PrintLn('After string assignment:');
+PrintLn(VarType(v));              // 256 (string)
+PrintLn(v);                       // text
+
+v := 3.14;
+PrintLn('After float assignment:');
+PrintLn(VarType(v));              // 5 (float)
+PrintLn(v);                       // 3.14
+
+v := False;
+PrintLn('After boolean assignment:');
+PrintLn(VarType(v));              // 11 (boolean)
+PrintLn(v);                       // False
+
+v := VarClear(v);
+PrintLn('After VarClear:');
+PrintLn(VarType(v));              // 0 (empty)
+PrintLn(VarIsNull(v));            // True
+
+// ============================================================================
+// Nested Variant Prevention
+// ============================================================================
+
+PrintLn('');
+PrintLn('=== Nested Variant Prevention ===');
+
+var vNest1: Variant := 42;
+var vNest2: Variant := vNest1;    // Should unwrap then re-wrap
+PrintLn('Variant assigned to Variant:');
+PrintLn(VarType(vNest2));         // Should be 3 (integer), not Variant
+PrintLn(vNest2);                  // 42
+
+// ============================================================================
+// Boundary Value Tests
+// ============================================================================
+
+PrintLn('');
+PrintLn('=== Boundary Values ===');
+
+var maxInt: Variant := 2147483647;
+PrintLn('MaxInt:');
+PrintLn(VarType(maxInt));         // 3 (integer)
+PrintLn(maxInt);                  // 2147483647
+
+var minInt: Variant := -2147483648;
+PrintLn('MinInt:');
+PrintLn(VarType(minInt));         // 3 (integer)
+PrintLn(minInt);                  // -2147483648
+
+var zeroInt: Variant := 0;
+PrintLn('Zero integer:');
+PrintLn(VarIsNumeric(zeroInt));   // True
+PrintLn(zeroInt);                 // 0
+
+var zeroFloat: Variant := 0.0;
+PrintLn('Zero float:');
+PrintLn(VarIsNumeric(zeroFloat)); // True
+PrintLn(zeroFloat);               // 0
+
+// ============================================================================
+// VarAsType Edge Cases
+// ============================================================================
+
+PrintLn('');
+PrintLn('=== VarAsType Edge Cases ===');
+
+var intVar: Variant := 42;
+var converted: Variant;
+
+converted := VarAsType(intVar, 5);  // Convert to float (varDouble)
+PrintLn('Int to Float via VarAsType:');
+PrintLn(VarType(converted));      // 5 (float)
+PrintLn(converted);               // 42 or 42.0
+
+converted := VarAsType(intVar, 256); // Convert to string
+PrintLn('Int to String via VarAsType:');
+PrintLn(VarType(converted));      // 256 (string)
+PrintLn(converted);               // '42'
+
+converted := VarAsType(intVar, 0);   // Convert to empty
+PrintLn('Int to Empty via VarAsType:');
+PrintLn(VarType(converted));      // 0 (empty)
+PrintLn(VarIsNull(converted));    // True

@@ -68,7 +68,7 @@ func (sv *SubrangeValue) ValidateAndSet(value int) error {
 	return nil
 }
 
-// evalTypeDeclaration evaluates a type declaration (Task 9.21, Task 9.100)
+// evalTypeDeclaration evaluates a type declaration
 // Handles type aliases: type TUserID = Integer;
 // Handles subrange types: type TDigit = 0..9;
 func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {

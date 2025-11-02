@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Exception Class Registration Tests (Task 8.203-8.204)
+// Exception Class Registration Tests
 // ============================================================================
 
 // Task 8.203: Test that Exception base class is registered as a built-in type
@@ -151,7 +151,7 @@ func TestRaiseNonExceptionType(t *testing.T) {
 }
 
 // ============================================================================
-// Try/Except Semantic Analysis Tests (Task 8.205-8.207)
+// Try/Except Semantic Analysis Tests
 // ============================================================================
 
 // Task 8.205: Test basic try/except structure

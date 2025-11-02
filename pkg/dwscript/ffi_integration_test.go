@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// TestFFIBasicIntegration tests basic FFI functionality using test scripts (Task 9.65).
+// TestFFIBasicIntegration tests basic FFI functionality using test scripts.
 func TestFFIBasicIntegration(t *testing.T) {
 	engine, err := New(WithTypeCheck(false))
 	if err != nil {
@@ -27,7 +27,7 @@ func TestFFIBasicIntegration(t *testing.T) {
 	runTestScript(t, engine, "../../testdata/ffi/basic_ffi.dws", "../../testdata/ffi/basic_ffi.expected")
 }
 
-// TestFFIArrayIntegration tests array passing with FFI using test scripts (Task 9.65).
+// TestFFIArrayIntegration tests array passing with FFI using test scripts.
 func TestFFIArrayIntegration(t *testing.T) {
 	engine, err := New(WithTypeCheck(false))
 	if err != nil {
@@ -77,7 +77,7 @@ func TestFFIArrayIntegration(t *testing.T) {
 	runTestScript(t, engine, "../../testdata/ffi/array_passing.dws", "../../testdata/ffi/array_passing.expected")
 }
 
-// TestFFIErrorIntegration tests error handling with FFI using test scripts (Task 9.65).
+// TestFFIErrorIntegration tests error handling with FFI using test scripts.
 func TestFFIErrorIntegration(t *testing.T) {
 	engine, err := New(WithTypeCheck(false))
 	if err != nil {
@@ -108,7 +108,7 @@ func TestFFIErrorIntegration(t *testing.T) {
 	runTestScript(t, engine, "../../testdata/ffi/error_handling.dws", "../../testdata/ffi/error_handling.expected")
 }
 
-// TestFFIRealGoFunctions tests FFI with real-world Go standard library functions (Task 9.66).
+// TestFFIRealGoFunctions tests FFI with real-world Go standard library functions.
 func TestFFIRealGoFunctions(t *testing.T) {
 	t.Run("StringsPackage", func(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))

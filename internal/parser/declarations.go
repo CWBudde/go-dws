@@ -68,3 +68,32 @@ func (p *Parser) parseConstDeclaration() ast.Statement {
 
 	return stmt
 }
+
+// parseProgramDeclaration parses an optional program declaration at the start of a file.
+// Syntax: program ProgramName;
+// The program declaration is optional in DWScript and doesn't affect execution.
+// It is parsed and then discarded (not added to the AST).
+func (p *Parser) parseProgramDeclaration() {
+	// We're on the PROGRAM token
+	if !p.curTokenIs(lexer.PROGRAM) {
+		return
+	}
+
+	// Expect identifier (program name)
+	if !p.expectPeek(lexer.IDENT) {
+		p.addError("expected program name after 'program' keyword")
+		return
+	}
+
+	// Note: We could store the program name if needed, but DWScript ignores it
+	// programName := p.curToken.Literal
+
+	// Expect semicolon
+	if !p.expectPeek(lexer.SEMICOLON) {
+		p.addError("expected ';' after program name")
+		return
+	}
+
+	// Successfully parsed program declaration
+	// The program name is not stored in the AST as it doesn't affect execution
+}

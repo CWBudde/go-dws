@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Loop Control Statement Parser Tests (Tasks 8.233-8.235b)
+// Loop Control Statement Parser Tests
 // ============================================================================
 
 // TestParseBreakStatement tests parsing break statements

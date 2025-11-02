@@ -589,6 +589,26 @@ end
 			`,
 			expected: "1.1, 2.2",
 		},
+		{
+			name: "Integer to Float coercion (Task 9.163)",
+			input: `
+var i: Integer := 42;
+begin
+	FloatToStr(i);
+end
+			`,
+			expected: "42",
+		},
+		{
+			name: "Integer expression to Float coercion (Task 9.163)",
+			input: `
+var i: Integer := 1;
+begin
+	FloatToStr(i + 1);
+end
+			`,
+			expected: "2",
+		},
 	}
 
 	for _, tt := range tests {
@@ -638,15 +658,7 @@ begin
 end
 			`,
 		},
-		{
-			name: "Non-float argument - integer",
-			input: `
-var x: Integer := 42;
-begin
-	FloatToStr(x);
-end
-			`,
-		},
+		// Note: Integer arguments are now valid (implicit Integer→Float coercion, Task 9.163)
 	}
 
 	for _, tt := range tests {

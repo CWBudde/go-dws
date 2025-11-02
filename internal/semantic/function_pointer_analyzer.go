@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Function Pointer Type Declaration Analysis (Task 9.159)
+// Function Pointer Type Declaration Analysis
 // ============================================================================
 
 // analyzeFunctionPointerTypeDeclaration analyzes a function pointer type declaration.
@@ -96,7 +96,7 @@ func (a *Analyzer) analyzeFunctionPointerTypeDeclaration(decl *ast.TypeDeclarati
 }
 
 // ============================================================================
-// Address-of Expression Analysis (Task 9.160)
+// Address-of Expression Analysis
 // ============================================================================
 
 // analyzeAddressOfExpression analyzes an address-of expression (@FunctionName).
@@ -176,7 +176,7 @@ func (a *Analyzer) analyzeAddressOfFunction(funcName string, expr *ast.AddressOf
 }
 
 // ============================================================================
-// Function Pointer Assignment Validation (Task 9.161)
+// Function Pointer Assignment Validation
 // ============================================================================
 
 // NOTE: Function pointer assignment validation is handled by the IsCompatibleWith
@@ -184,7 +184,7 @@ func (a *Analyzer) analyzeAddressOfFunction(funcName string, expr *ast.AddressOf
 // This provides automatic compatibility checking for all assignment types.
 
 // ============================================================================
-// Function Pointer Call Validation (Task 9.162)
+// Function Pointer Call Validation
 // ============================================================================
 
 // analyzeFunctionPointerCall analyzes a call to a function pointer variable.

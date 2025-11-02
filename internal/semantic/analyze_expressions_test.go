@@ -141,7 +141,7 @@ func TestUnaryOperationsError(t *testing.T) {
 }
 
 // ============================================================================
-// Character Literal Tests (Task 9.29)
+// Character Literal Tests
 // ============================================================================
 
 func TestCharLiteralAsString(t *testing.T) {
@@ -199,7 +199,7 @@ func TestCharLiteralInComparison(t *testing.T) {
 }
 
 // ============================================================================
-// Format Built-in Function Tests (Task 9.51a)
+// Format Built-in Function Tests
 // ============================================================================
 
 func TestFormatBuiltInFunction(t *testing.T) {

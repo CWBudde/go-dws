@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// Enum Declaration Tests (Task 8.48 - Interpreter Support)
+// Enum Declaration Tests
 // ============================================================================
 
 func TestEnumDeclaration(t *testing.T) {
@@ -51,7 +51,7 @@ func TestEnumDeclaration(t *testing.T) {
 }
 
 // ============================================================================
-// Enum Value Tests (Task 8.49 - Store enum values)
+// Enum Value Tests
 // ============================================================================
 
 func TestEnumValueStorage(t *testing.T) {
@@ -92,7 +92,7 @@ func TestEnumValueStorage(t *testing.T) {
 }
 
 // ============================================================================
-// Enum Literal Tests (Task 8.50 - Evaluate enum literals)
+// Enum Literal Tests
 // ============================================================================
 
 func TestEnumLiteralEvaluation(t *testing.T) {

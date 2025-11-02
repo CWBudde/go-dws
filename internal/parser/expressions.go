@@ -40,9 +40,29 @@ func (p *Parser) parseIdentifier() ast.Expression {
 func (p *Parser) parseIntegerLiteral() ast.Expression {
 	lit := &ast.IntegerLiteral{Token: p.curToken}
 
-	value, err := strconv.ParseInt(p.curToken.Literal, 10, 64)
+	literal := p.curToken.Literal
+
+	var (
+		value int64
+		err   error
+	)
+
+	switch {
+	case len(literal) > 0 && literal[0] == '$':
+		// Hexadecimal with $ prefix (Pascal style)
+		value, err = strconv.ParseInt(literal[1:], 16, 64)
+	case len(literal) > 1 && (literal[0:2] == "0x" || literal[0:2] == "0X"):
+		// Hexadecimal with 0x/0X prefix
+		value, err = strconv.ParseInt(literal[2:], 16, 64)
+	case len(literal) > 0 && literal[0] == '%':
+		// Binary with % prefix
+		value, err = strconv.ParseInt(literal[1:], 2, 64)
+	default:
+		value, err = strconv.ParseInt(literal, 10, 64)
+	}
+
 	if err != nil {
-		msg := fmt.Sprintf("could not parse %q as integer", p.curToken.Literal)
+		msg := fmt.Sprintf("could not parse %q as integer", literal)
 		p.addError(msg)
 		return nil
 	}
@@ -287,8 +307,8 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 	}
 
 	return &ast.CallExpression{
-		Token:    p.curToken,
-		Function: typeName,
+		Token:     p.curToken,
+		Function:  typeName,
 		Arguments: args,
 	}
 }
@@ -539,7 +559,7 @@ func (p *Parser) parseNewExpression() ast.Expression {
 		Value: p.curToken.Literal,
 	}
 
-	// Check what follows: '(' for class, '[' for array
+	// Check what follows: '(' for class, '[' for array, or nothing for zero-arg constructor
 	if p.peekTokenIs(lexer.LBRACK) {
 		// Array instantiation: new TypeName[size, ...]
 		return p.parseNewArrayExpression(newToken, typeName)
@@ -547,10 +567,13 @@ func (p *Parser) parseNewExpression() ast.Expression {
 		// Class instantiation: new ClassName(args)
 		return p.parseNewClassExpression(newToken, typeName)
 	} else {
-		// Neither '(' nor '[' - invalid syntax
-		p.addError(fmt.Sprintf("expected '[' or '(' after 'new %s', got %s instead at %d:%d",
-			typeName.Value, p.peekToken.Type, p.peekToken.Pos.Line, p.peekToken.Pos.Column))
-		return nil
+		// No parentheses - treat as zero-argument constructor
+		// DWScript allows: new TTest (equivalent to new TTest())
+		return &ast.NewExpression{
+			Token:     newToken,
+			ClassName: typeName,
+			Arguments: []ast.Expression{},
+		}
 	}
 }
 

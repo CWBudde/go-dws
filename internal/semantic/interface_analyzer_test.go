@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// Interface Declaration Tests (Task 7.104-7.105)
+// Interface Declaration Tests
 // ============================================================================
 
 // TestInterfaceDeclaration tests basic interface declaration analysis
@@ -151,7 +151,7 @@ func TestMultipleInterfaces(t *testing.T) {
 }
 
 // ============================================================================
-// Interface Variable Declaration Tests (Task 9.129)
+// Interface Variable Declaration Tests
 // ============================================================================
 
 // TestInterfaceVariableDeclaration tests declaring variables with interface types
@@ -255,7 +255,7 @@ func TestMultipleInterfaceVariables(t *testing.T) {
 }
 
 // ============================================================================
-// Interface Assignment Type Checking Tests (Task 9.130)
+// Interface Assignment Type Checking Tests
 // ============================================================================
 
 // TestValidClassToInterfaceAssignment tests that a class implementing an interface can be assigned

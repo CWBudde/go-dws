@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
 )
 
@@ -36,6 +37,11 @@ type Interpreter struct {
 	breakSignal    bool // Set by exit statement, cleared by function return
 
 	helpers map[string][]*HelperInfo // Task 9.86-9.87: Helper types (type name -> list of helpers)
+
+	// oldValuesStack stores captured values for 'old' expressions in postconditions.
+	// Each function call pushes a map of captured values, which is popped after
+	// postcondition evaluation. Supports nested function calls properly.
+	oldValuesStack []map[string]Value // Task 9.146: Old value capture for contract postconditions
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -101,6 +107,13 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 	// Initialize ExceptObject to nil
 	// ExceptObject is a built-in global variable that holds the current exception
 	env.Define("ExceptObject", &NilValue{})
+
+	// Register built-in type meta-values (Task 9.133)
+	// These allow type names to be used as runtime values, e.g., High(Integer)
+	env.Define("Integer", NewTypeMetaValue(types.INTEGER, "Integer"))
+	env.Define("Float", NewTypeMetaValue(types.FLOAT, "Float"))
+	env.Define("String", NewTypeMetaValue(types.STRING, "String"))
+	env.Define("Boolean", NewTypeMetaValue(types.BOOLEAN, "Boolean"))
 
 	return interp
 }
@@ -284,6 +297,15 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.LambdaExpression:
 		// Evaluate lambda expression to create closure
 		return i.evalLambdaExpression(node)
+
+	case *ast.OldExpression:
+		// Task 9.150: Evaluate 'old' expressions in postconditions
+		identName := node.Identifier.Value
+		oldValue, found := i.getOldValue(identName)
+		if !found {
+			return newError("old value for '%s' not captured (internal error)", identName)
+		}
+		return oldValue
 
 	default:
 		return newError("unknown node type: %T", node)

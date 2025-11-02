@@ -261,6 +261,22 @@ PrintLn(VarIsNumeric(v2));  // True
 PrintLn(VarIsNumeric(v3));  // False
 ```
 
+#### VarClear(v: Variant): Variant
+
+Clears a Variant and returns an empty/uninitialized Variant:
+
+```pascal
+var v: Variant := 42;
+PrintLn(VarIsNull(v));     // False
+PrintLn(VarType(v));       // 3 (varInteger)
+
+v := VarClear(v);
+PrintLn(VarIsNull(v));     // True
+PrintLn(VarType(v));       // 0 (varEmpty)
+```
+
+**Note**: In standard DWScript, VarClear is a procedure with a `var` parameter that modifies the variable in place. This implementation returns an empty Variant that must be assigned back: `v := VarClear(v)`.
+
 ### Conversion Functions
 
 See "Type Conversion Rules" section above for:
@@ -498,6 +514,160 @@ end else begin
 end;
 ```
 
+## Debugging & Troubleshooting
+
+### Inspecting Variant Contents
+
+Use built-in functions to examine Variants:
+
+```pascal
+var v: Variant := someValue;
+
+// Check type
+PrintLn('Type code: ' + IntToStr(VarType(v)));
+
+// Check if initialized
+if VarIsNull(v) then
+    PrintLn('Variant is uninitialized')
+else
+    PrintLn('Variant contains: ' + VarToStr(v));
+
+// Check if numeric
+if VarIsNumeric(v) then
+    PrintLn('Can perform arithmetic');
+```
+
+### Common Issues
+
+#### Uninitialized Variants
+
+**Problem**: Using a Variant before assignment.
+
+```pascal
+var v: Variant;
+PrintLn(v);  // Prints empty (VarType = 0)
+```
+
+**Solution**: Always initialize Variants before use or check with `VarIsNull()`.
+
+```pascal
+var v: Variant;
+if VarIsNull(v) then
+    v := 0;  // Assign default value
+```
+
+#### Type Conversion Failures
+
+**Problem**: Invalid string-to-numeric conversions raise errors.
+
+```pascal
+var v: Variant := 'hello';
+PrintLn(VarToInt(v));  // ERROR: cannot convert string 'hello' to Integer
+```
+
+**Solution**: Validate before converting or use try-except.
+
+```pascal
+var v: Variant := 'hello';
+if VarIsNumeric(v) then
+    PrintLn(VarToInt(v))
+else
+    PrintLn('Not numeric');
+```
+
+#### Performance with Large Arrays
+
+**Problem**: Boxing/unboxing has overhead for large arrays of Variant.
+
+**Solution**: Use typed arrays when possible. Only use `array of Variant` for truly heterogeneous data.
+
+```pascal
+// Prefer typed arrays:
+var nums: array of Integer := [1, 2, 3];  // Fast
+
+// Use Variants only when needed:
+var mixed: array of Variant := [1, 'two', 3.0];  // Slower
+```
+
+### Debugging Tips
+
+1. **Print VarType codes** to understand what's stored:
+   ```pascal
+   PrintLn('VarType: ' + IntToStr(VarType(myVar)));
+   ```
+
+2. **Use VarToStr for inspection** (works with all types):
+   ```pascal
+   PrintLn('Value: ' + VarToStr(myVar));
+   ```
+
+3. **Check semantic analysis warnings** - enable with `--type-check` flag.
+
+## Edge Cases & Gotchas
+
+### Nested Variants
+
+Variants **do not** nest. Assigning a Variant to another Variant unwraps then re-wraps:
+
+```pascal
+var v1: Variant := 42;
+var v2: Variant := v1;
+PrintLn(VarType(v2));  // 3 (Integer), NOT Variant
+```
+
+This prevents "Variant of Variant" situations.
+
+### Empty Variant Behavior
+
+Empty Variants convert to sensible defaults:
+
+```pascal
+var v: Variant;  // Uninitialized
+PrintLn(VarToInt(v));    // 0
+PrintLn(VarToFloat(v));  // 0.0
+PrintLn(VarToStr(v));    // "" (empty string)
+```
+
+### Boolean Conversions
+
+Booleans convert to numeric values:
+
+```pascal
+var v: Variant := True;
+PrintLn(VarToInt(v));    // 1
+PrintLn(VarToFloat(v));  // 1.0
+
+v := False;
+PrintLn(VarToInt(v));    // 0
+```
+
+### VarClear Limitation
+
+VarClear must assign back (no var parameters yet):
+
+```pascal
+var v: Variant := 42;
+VarClear(v);           // Does nothing - return value not assigned!
+v := VarClear(v);      // Correct - assigns empty Variant
+```
+
+### Type Code Compatibility
+
+Use official VarType codes for portability:
+
+```pascal
+const
+    varEmpty = 0;
+    varInteger = 3;
+    varDouble = 5;
+    varBoolean = 11;
+    varString = 256;
+
+var v: Variant := 42;
+if VarType(v) = varInteger then
+    PrintLn('Integer variant');
+```
+
 ## Test Suite
 
 Comprehensive tests are available in `testdata/variant/`:
@@ -506,12 +676,13 @@ Comprehensive tests are available in `testdata/variant/`:
 - `conversions.dws` - Type conversions and VarToX functions
 - `array_of_const.dws` - Heterogeneous arrays and Format()
 - `arithmetic.dws` - Operations (requires semantic support)
+- `edge_cases.dws` - VarClear(), empty Variants, boundary values
 
 Run tests:
 ```bash
-./bin/dwscript run testdata/variant/basic.dws
-./bin/dwscript run testdata/variant/conversions.dws
-./bin/dwscript run testdata/variant/array_of_const.dws
+./bin/dwscript run --type-check=false testdata/variant/basic.dws
+./bin/dwscript run --type-check=false testdata/variant/conversions.dws
+./bin/dwscript run --type-check=false testdata/variant/edge_cases.dws
 ```
 
 ## References

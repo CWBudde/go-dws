@@ -333,7 +333,7 @@ func TestLambdaReassignment(t *testing.T) {
 }
 
 // ==============================================================================
-// Nested Lambda Tests (Task 9.226)
+// Nested Lambda Tests
 // ==============================================================================
 
 func TestNestedLambdas(t *testing.T) {
@@ -542,7 +542,7 @@ func TestLambdaNoCapturedVariables(t *testing.T) {
 }
 
 // ==============================================================================
-// Closure Creation in Loops (Task 9.226)
+// Closure Creation in Loops
 // ==============================================================================
 
 func TestLambdaCapturesLoopVariable(t *testing.T) {
@@ -572,7 +572,7 @@ func TestLambdaCapturesLoopVariable(t *testing.T) {
 }
 
 // ==============================================================================
-// Multiple Lambdas Sharing Captures (Task 9.226)
+// Multiple Lambdas Sharing Captures
 // ==============================================================================
 
 func TestMultipleLambdasShareCapturedVariable(t *testing.T) {
@@ -675,7 +675,7 @@ func TestLambdaModifiesArray(t *testing.T) {
 }
 
 // ==============================================================================
-// Higher-Order Functions Tests (Task 9.228)
+// Higher-Order Functions Tests
 // ==============================================================================
 
 func TestMapBasic(t *testing.T) {

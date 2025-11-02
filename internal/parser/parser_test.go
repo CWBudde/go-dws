@@ -72,6 +72,51 @@ func TestIntegerLiterals(t *testing.T) {
 	}
 }
 
+func TestIntegerLiterals_AlternateBases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{name: "hex_dollar_prefix", input: "$2A;", expected: 42},
+		{name: "hex_zero_x_prefix_lower", input: "0x2a;", expected: 42},
+		{name: "hex_zero_x_prefix_upper", input: "0X2A;", expected: 42},
+		{name: "binary_percent_prefix", input: "%101010;", expected: 42},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.ExpressionStatement. got=%T", program.Statements[0])
+			}
+
+			literal, ok := stmt.Expression.(*ast.IntegerLiteral)
+			if !ok {
+				t.Fatalf("expression is not ast.IntegerLiteral. got=%T", stmt.Expression)
+			}
+
+			if literal.Value != tt.expected {
+				t.Errorf("literal.Value = %d, want %d", literal.Value, tt.expected)
+			}
+
+			if literal.TokenLiteral() != strings.TrimSuffix(tt.input, ";") {
+				t.Errorf("literal.TokenLiteral() = %q, want %q", literal.TokenLiteral(), strings.TrimSuffix(tt.input, ";"))
+			}
+		})
+	}
+}
+
 // TestFloatLiterals tests parsing of float literals.
 func TestFloatLiterals(t *testing.T) {
 	tests := []struct {

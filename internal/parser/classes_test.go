@@ -410,6 +410,41 @@ func TestNewExpressionNoArguments(t *testing.T) {
 	}
 }
 
+func TestNewExpressionOptionalParentheses(t *testing.T) {
+	// Task 9.131: Test that parentheses are optional for parameterless constructors
+	input := `new TTest`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ExpressionStatement. got=%T",
+			program.Statements[0])
+	}
+
+	newExpr, ok := stmt.Expression.(*ast.NewExpression)
+	if !ok {
+		t.Fatalf("stmt.Expression is not *ast.NewExpression. got=%T",
+			stmt.Expression)
+	}
+
+	if newExpr.ClassName.Value != "TTest" {
+		t.Errorf("newExpr.ClassName.Value not 'TTest'. got=%s", newExpr.ClassName.Value)
+	}
+
+	if len(newExpr.Arguments) != 0 {
+		t.Fatalf("newExpr.Arguments should be empty. got=%d", len(newExpr.Arguments))
+	}
+}
+
 // ============================================================================
 // Member Access Parsing Tests
 // ============================================================================

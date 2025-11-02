@@ -401,12 +401,75 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinVarToFloat(args)
 	case "VarAsType":
 		return i.builtinVarAsType(args)
+	case "VarClear":
+		return i.builtinVarClear(args)
 	// Task 9.91: JSON parsing functions
 	case "ParseJSON":
 		return i.builtinParseJSON(args)
+	// Task 9.94-9.95: JSON serialization functions
+	case "ToJSON":
+		return i.builtinToJSON(args)
+	case "ToJSONFormatted":
+		return i.builtinToJSONFormatted(args)
+	// Task 9.98-9.100: JSON object access functions
+	case "JSONHasField":
+		return i.builtinJSONHasField(args)
+	case "JSONKeys":
+		return i.builtinJSONKeys(args)
+	case "JSONValues":
+		return i.builtinJSONValues(args)
+	// Task 9.102: JSON array length function
+	case "JSONLength":
+		return i.builtinJSONLength(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
+}
+
+// isBuiltinFunction checks if a name refers to a built-in function.
+// Task 9.132: Helper for checking parameterless built-in function calls.
+func (i *Interpreter) isBuiltinFunction(name string) bool {
+	// Check external functions first
+	if i.externalFunctions != nil {
+		if _, ok := i.externalFunctions.Get(name); ok {
+			return true
+		}
+	}
+
+	// Check built-in functions (same list as in callBuiltin switch)
+	switch name {
+	case "PrintLn", "Print", "Ord", "Integer", "Length", "Copy", "Concat",
+		"IndexOf", "Contains", "Reverse", "Sort", "Pos", "UpperCase",
+		"LowerCase", "Trim", "TrimLeft", "TrimRight", "StringReplace",
+		"Format", "Abs", "Min", "Max", "Sqr", "Power", "Sqrt", "Sin",
+		"Cos", "Tan", "Random", "Randomize", "Exp", "Ln", "Round",
+		"Trunc", "Frac", "Chr", "SetLength", "High", "Low", "Assigned",
+		"TypeOf", "SizeOf", "TypeName", "Delete", "StrToInt", "StrToFloat",
+		"IntToStr", "FloatToStr", "FloatToStrF", "BoolToStr", "StrToBool",
+		"VarToStr", "VarToInt", "VarToFloat", "VarAsType", "VarIsNull", "VarIsEmpty", "VarIsNumeric", "VarType", "VarClear",
+		"Include", "Exclude", "Map", "Filter", "Reduce", "ForEach",
+		"Now", "Date", "Time", "UTCDateTime", "EncodeDate", "EncodeTime",
+		"EncodeDateTime", "YearOf", "MonthOf", "DayOf", "HourOf", "MinuteOf",
+		"SecondOf", "MillisecondOf", "DayOfWeek", "DayOfYear", "WeekOfYear",
+		"DateTimeToStr", "DateToStr", "TimeToStr", "FormatDateTime",
+		"IncYear", "IncMonth", "IncWeek", "IncDay", "IncHour", "IncMinute",
+		"IncSecond", "IncMillisecond", "DaysBetween", "HoursBetween",
+		"MinutesBetween", "SecondsBetween", "MillisecondsBetween",
+		"IsLeapYear", "DaysInMonth", "DaysInYear", "StartOfDay", "EndOfDay",
+		"StartOfMonth", "EndOfMonth", "StartOfYear", "EndOfYear", "IsToday",
+		"IsYesterday", "IsTomorrow", "IsSameDay", "CompareDate", "CompareTime",
+		"CompareDateTime", "ParseJSON", "ToJSON", "ToJSONFormatted",
+		"JSONHasField", "JSONKeys", "JSONValues", "JSONLength":
+		return true
+	default:
+		return false
+	}
+}
+
+// callBuiltinFunction calls a built-in function by name with the given arguments.
+// Task 9.132: Helper for calling parameterless built-in functions from identifier context.
+func (i *Interpreter) callBuiltinFunction(name string, args []Value) Value {
+	return i.callBuiltin(name, args)
 }
 
 // callExternalFunction calls an external Go function registered via FFI
@@ -511,6 +574,20 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		i.env.Define(fn.Name.Value, resultValue)
 	}
 
+	// Task 9.147: Check preconditions before executing function body
+	if fn.PreConditions != nil {
+		if err := i.checkPreconditions(fn.Name.Value, fn.PreConditions, i.env); err != nil {
+			i.env = savedEnv
+			return err
+		}
+	}
+
+	// Task 9.146: Capture old values for postcondition evaluation
+	oldValues := i.captureOldValues(fn, i.env)
+	i.pushOldValues(oldValues)
+	// Ensure old values are popped even if function exits early
+	defer i.popOldValues()
+
 	// Execute the function body
 	if fn.Body == nil {
 		// Function has no body (forward declaration) - this is an error
@@ -567,6 +644,15 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	} else {
 		// Procedure - no return value
 		returnValue = &NilValue{}
+	}
+
+	// Task 9.149: Check postconditions after function body executes
+	// Note: old values are available via oldValuesStack during postcondition evaluation
+	if fn.PostConditions != nil {
+		if err := i.checkPostconditions(fn.Name.Value, fn.PostConditions, i.env); err != nil {
+			i.env = savedEnv
+			return err
+		}
 	}
 
 	// Restore the original environment

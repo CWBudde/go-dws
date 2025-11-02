@@ -16,7 +16,7 @@ func TestConditionString(t *testing.T) {
 		{
 			name: "simple condition without message",
 			cond: &Condition{
-				Test: &Identifier{Value: "x", Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}},
+				Test:  &Identifier{Value: "x", Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}},
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 			},
 			expected: "x",

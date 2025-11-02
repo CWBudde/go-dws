@@ -1,0 +1,43 @@
+// Test JSONLength - Task 9.102
+// Tests the JSONLength built-in function for JSON arrays
+
+// Test with various array sizes
+var emptyArr := ParseJSON('[]');
+PrintLn('Empty array length: ' + IntToStr(JSONLength(emptyArr)));  // Should print: 0
+
+var arr1 := ParseJSON('[10]');
+PrintLn('Single element array length: ' + IntToStr(JSONLength(arr1)));  // Should print: 1
+
+var arr5 := ParseJSON('[10, 20, 30, 40, 50]');
+PrintLn('Five element array length: ' + IntToStr(JSONLength(arr5)));  // Should print: 5
+
+var arr10 := ParseJSON('[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]');
+PrintLn('Ten element array length: ' + IntToStr(JSONLength(arr10)));  // Should print: 10
+
+// Test with mixed types in array
+var mixed := ParseJSON('[1, "hello", true, null, {"key": "value"}]');
+PrintLn('Mixed array length: ' + IntToStr(JSONLength(mixed)));  // Should print: 5
+
+// Test with nested arrays
+var nested := ParseJSON('[[1, 2], [3, 4], [5, 6]]');
+PrintLn('Nested array length: ' + IntToStr(JSONLength(nested)));  // Should print: 3
+
+// Test with non-arrays (should return 0)
+var obj := ParseJSON('{"name": "John", "age": 30}');
+PrintLn('Object length: ' + IntToStr(JSONLength(obj)));  // Should print: 0
+
+var num := ParseJSON('42');
+PrintLn('Number length: ' + IntToStr(JSONLength(num)));  // Should print: 0
+
+var bool := ParseJSON('true');
+PrintLn('Boolean length: ' + IntToStr(JSONLength(bool)));  // Should print: 0
+
+var nullVal := ParseJSON('null');
+PrintLn('Null length: ' + IntToStr(JSONLength(nullVal)));  // Should print: 0
+
+// Test combining with array indexing
+var testArr := ParseJSON('[100, 200, 300]');
+var len := JSONLength(testArr);
+PrintLn('Array length: ' + IntToStr(len));
+for var i := 0 to len - 1 do
+    PrintLn('Element ' + IntToStr(i) + ': ' + VarToStr(testArr[i]));

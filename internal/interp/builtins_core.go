@@ -2,8 +2,11 @@ package interp
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
+
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // builtinPrintLn implements the PrintLn built-in function.
@@ -326,12 +329,45 @@ func (i *Interpreter) builtinSort(args []Value) Value {
 // It returns the lower bound of an array or the lowest value of an enum type.
 // Task 8.132: Low() function for arrays
 // Task 9.31: Low() function for enums
+// Task 9.134: Low() function for type meta-values
 func (i *Interpreter) builtinLow(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Low() expects exactly 1 argument, got %d", len(args))
 	}
 
 	arg := args[0]
+
+	// Task 9.134: Handle type meta-values (type names as values)
+	if typeMetaVal, ok := arg.(*TypeMetaValue); ok {
+		// Handle built-in types
+		switch typeMetaVal.TypeInfo {
+		case types.INTEGER:
+			return &IntegerValue{Value: math.MinInt64}
+		case types.FLOAT:
+			return &FloatValue{Value: -math.MaxFloat64}
+		case types.BOOLEAN:
+			return &BooleanValue{Value: false}
+		}
+
+		// Handle enum types
+		if enumType, ok := typeMetaVal.TypeInfo.(*types.EnumType); ok {
+			if len(enumType.OrderedNames) == 0 {
+				return i.newErrorWithLocation(i.currentNode, "enum type '%s' has no values", typeMetaVal.TypeName)
+			}
+
+			// Return the first enum value
+			firstValueName := enumType.OrderedNames[0]
+			firstOrdinal := enumType.Values[firstValueName]
+
+			return &EnumValue{
+				TypeName:     typeMetaVal.TypeName,
+				ValueName:    firstValueName,
+				OrdinalValue: firstOrdinal,
+			}
+		}
+
+		return i.newErrorWithLocation(i.currentNode, "Low() not supported for type %s", typeMetaVal.TypeName)
+	}
 
 	// Handle array values
 	if arrayVal, ok := arg.(*ArrayValue); ok {
@@ -377,19 +413,52 @@ func (i *Interpreter) builtinLow(args []Value) Value {
 		}
 	}
 
-	return i.newErrorWithLocation(i.currentNode, "Low() expects array or enum, got %s", arg.Type())
+	return i.newErrorWithLocation(i.currentNode, "Low() expects array, enum, or type name, got %s", arg.Type())
 }
 
 // builtinHigh implements the High() built-in function.
 // It returns the upper bound of an array or the highest value of an enum type.
 // Task 8.133: High() function for arrays
 // Task 9.32: High() function for enums
+// Task 9.134: High() function for type meta-values
 func (i *Interpreter) builtinHigh(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "High() expects exactly 1 argument, got %d", len(args))
 	}
 
 	arg := args[0]
+
+	// Task 9.134: Handle type meta-values (type names as values)
+	if typeMetaVal, ok := arg.(*TypeMetaValue); ok {
+		// Handle built-in types
+		switch typeMetaVal.TypeInfo {
+		case types.INTEGER:
+			return &IntegerValue{Value: math.MaxInt64}
+		case types.FLOAT:
+			return &FloatValue{Value: math.MaxFloat64}
+		case types.BOOLEAN:
+			return &BooleanValue{Value: true}
+		}
+
+		// Handle enum types
+		if enumType, ok := typeMetaVal.TypeInfo.(*types.EnumType); ok {
+			if len(enumType.OrderedNames) == 0 {
+				return i.newErrorWithLocation(i.currentNode, "enum type '%s' has no values", typeMetaVal.TypeName)
+			}
+
+			// Return the last enum value
+			lastValueName := enumType.OrderedNames[len(enumType.OrderedNames)-1]
+			lastOrdinal := enumType.Values[lastValueName]
+
+			return &EnumValue{
+				TypeName:     typeMetaVal.TypeName,
+				ValueName:    lastValueName,
+				OrdinalValue: lastOrdinal,
+			}
+		}
+
+		return i.newErrorWithLocation(i.currentNode, "High() not supported for type %s", typeMetaVal.TypeName)
+	}
 
 	// Handle array values
 	if arrayVal, ok := arg.(*ArrayValue); ok {
@@ -436,7 +505,7 @@ func (i *Interpreter) builtinHigh(args []Value) Value {
 		}
 	}
 
-	return i.newErrorWithLocation(i.currentNode, "High() expects array or enum, got %s", arg.Type())
+	return i.newErrorWithLocation(i.currentNode, "High() expects array, enum, or type name, got %s", arg.Type())
 }
 
 // builtinSetLength implements the SetLength() built-in function.
@@ -637,15 +706,21 @@ func (i *Interpreter) builtinFloatToStr(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "FloatToStr() expects exactly 1 argument, got %d", len(args))
 	}
 
-	// Argument must be a float
-	floatVal, ok := args[0].(*FloatValue)
-	if !ok {
+	// Argument can be Float or Integer (implicit coercion)
+	var floatValue float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		floatValue = v.Value
+	case *IntegerValue:
+		// Implicit Integer→Float coercion
+		floatValue = float64(v.Value)
+	default:
 		return i.newErrorWithLocation(i.currentNode, "FloatToStr() expects float argument, got %s", args[0].Type())
 	}
 
 	// Convert float to string using Go's strconv
 	// Use 'g' format for general representation (like DWScript's FloatToStr)
-	result := fmt.Sprintf("%g", floatVal.Value)
+	result := fmt.Sprintf("%g", floatValue)
 	return &StringValue{Value: result}
 }
 

@@ -133,7 +133,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 
 	p.parseClassParentAndInterfaces(classDecl)
 
-	// Check for 'abstract' keyword (Task 7.65b)
+	// Check for 'abstract' keyword
 	// Syntax: type TShape = class abstract
 	// Syntax: type TShape = class abstract(TParent)
 	if p.peekTokenIs(lexer.ABSTRACT) {
@@ -168,7 +168,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	classDecl.Operators = []*ast.OperatorDecl{}
 	classDecl.Properties = []*ast.PropertyDecl{}
 
-	// Default visibility is public (Task 7.63e)
+	// Default visibility is public
 	currentVisibility := ast.VisibilityPublic
 
 	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
@@ -178,7 +178,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 			continue
 		}
 
-		// Check for visibility section keywords (Task 7.63b-d)
+		// Check for visibility section keywords
 		if p.curTokenIs(lexer.PRIVATE) {
 			currentVisibility = ast.VisibilityPrivate
 			p.nextToken()
@@ -295,7 +295,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 
 // parseFieldDeclaration parses a field declaration within a class.
 // Syntax: FieldName: Type; or FieldName1, FieldName2, FieldName3: Type;
-// The visibility parameter specifies the access level for this field (Task 7.63f).
+// The visibility parameter specifies the access level for this field.
 // Returns a slice of FieldDecl nodes (one per field name) since DWScript supports
 // comma-separated field names with a single type annotation.
 func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
