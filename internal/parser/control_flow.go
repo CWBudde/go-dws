@@ -189,7 +189,7 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 // parseForStatement parses a for loop statement.
 // Syntax:
 //
-//	for <variable> := <start> to|downto <end> do <statement>
+//	for <variable> := <start> to|downto <end> [step <step>] do <statement>
 //	for [var] <variable> in <expression> do <statement>
 func (p *Parser) parseForStatement() ast.Statement {
 	forToken := p.curToken
@@ -256,6 +256,18 @@ func (p *Parser) parseForStatement() ast.Statement {
 	if stmt.End == nil {
 		p.addError("expected end expression in for loop")
 		return nil
+	}
+
+	// Check for optional 'step' keyword
+	if p.peekTokenIs(lexer.STEP) {
+		p.nextToken() // move to 'step'
+		p.nextToken() // move to step expression
+		stmt.Step = p.parseExpression(LOWEST)
+
+		if stmt.Step == nil {
+			p.addError("expected expression after 'step'")
+			return nil
+		}
 	}
 
 	// Expect 'do' keyword

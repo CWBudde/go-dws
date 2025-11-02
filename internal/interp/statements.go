@@ -983,6 +983,27 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 		return newError("for loop end value must be integer, got %s", endVal.Type())
 	}
 
+	// Task 9.154: Evaluate step expression if present
+	stepValue := int64(1) // Default step value
+	if stmt.Step != nil {
+		stepVal := i.Eval(stmt.Step)
+		if isError(stepVal) {
+			return stepVal
+		}
+
+		stepInt, ok := stepVal.(*IntegerValue)
+		if !ok {
+			return newError("for loop step value must be integer, got %s", stepVal.Type())
+		}
+
+		// Validate step value is strictly positive
+		if stepInt.Value <= 0 {
+			return newError("FOR loop STEP should be strictly positive: %d", stepInt.Value)
+		}
+
+		stepValue = stepInt.Value
+	}
+
 	// Create a new enclosed environment for the loop variable
 	// This ensures the loop variable is scoped to the loop body
 	loopEnv := NewEnclosedEnvironment(i.env)
@@ -994,8 +1015,8 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 
 	// Execute the loop based on direction
 	if stmt.Direction == ast.ForTo {
-		// Ascending loop: for i := start to end
-		for current := startInt.Value; current <= endInt.Value; current++ {
+		// Task 9.155: Ascending loop with step support
+		for current := startInt.Value; current <= endInt.Value; current += stepValue {
 			// Set the loop variable to the current value
 			i.env.Define(loopVarName, &IntegerValue{Value: current})
 
@@ -1022,8 +1043,8 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 			}
 		}
 	} else {
-		// Descending loop: for i := start downto end
-		for current := startInt.Value; current >= endInt.Value; current-- {
+		// Task 9.155: Descending loop with step support
+		for current := startInt.Value; current >= endInt.Value; current -= stepValue {
 			// Set the loop variable to the current value
 			i.env.Define(loopVarName, &IntegerValue{Value: current})
 

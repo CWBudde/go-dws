@@ -2753,6 +2753,193 @@ end;`,
 				}
 			},
 		},
+		{
+			name:  "for loop ascending with step",
+			input: "for i := 1 to 10 step 2 do PrintLn(i);",
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test start expression: 1
+				if !testIntegerLiteral(t, stmt.Start, 1) {
+					return
+				}
+
+				// Test end expression: 10
+				if !testIntegerLiteral(t, stmt.End, 10) {
+					return
+				}
+
+				// Test direction: to
+				if stmt.Direction != ast.ForTo {
+					t.Errorf("direction = %v, want ForTo", stmt.Direction)
+				}
+
+				// Test step expression: 2
+				if stmt.Step == nil {
+					t.Fatal("step should not be nil")
+				}
+				if !testIntegerLiteral(t, stmt.Step, 2) {
+					return
+				}
+
+				// Test body: PrintLn(i)
+				bodyExpr, ok := stmt.Body.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("body is not ExpressionStatement. got=%T", stmt.Body)
+				}
+
+				call, ok := bodyExpr.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("body expression is not CallExpression. got=%T", bodyExpr.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+			},
+		},
+		{
+			name:  "for loop descending with step",
+			input: "for i := 10 downto 1 step 3 do PrintLn(i);",
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test start expression: 10
+				if !testIntegerLiteral(t, stmt.Start, 10) {
+					return
+				}
+
+				// Test end expression: 1
+				if !testIntegerLiteral(t, stmt.End, 1) {
+					return
+				}
+
+				// Test direction: downto
+				if stmt.Direction != ast.ForDownto {
+					t.Errorf("direction = %v, want ForDownto", stmt.Direction)
+				}
+
+				// Test step expression: 3
+				if stmt.Step == nil {
+					t.Fatal("step should not be nil")
+				}
+				if !testIntegerLiteral(t, stmt.Step, 3) {
+					return
+				}
+
+				// Test body: PrintLn(i)
+				bodyExpr, ok := stmt.Body.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("body is not ExpressionStatement. got=%T", stmt.Body)
+				}
+
+				call, ok := bodyExpr.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("body expression is not CallExpression. got=%T", bodyExpr.Expression)
+				}
+
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+			},
+		},
+		{
+			name:  "for loop with step expression",
+			input: "for i := 1 to 100 step (x * 2) do PrintLn(i);",
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test start expression: 1
+				if !testIntegerLiteral(t, stmt.Start, 1) {
+					return
+				}
+
+				// Test end expression: 100
+				if !testIntegerLiteral(t, stmt.End, 100) {
+					return
+				}
+
+				// Test direction: to
+				if stmt.Direction != ast.ForTo {
+					t.Errorf("direction = %v, want ForTo", stmt.Direction)
+				}
+
+				// Test step expression: x * 2
+				if stmt.Step == nil {
+					t.Fatal("step should not be nil")
+				}
+				if !testInfixExpression(t, stmt.Step, "x", "*", 2) {
+					return
+				}
+			},
+		},
+		{
+			name:  "for loop with inline var and step",
+			input: "for var i := 0 to 20 step 5 do PrintLn(i);",
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test inline var flag
+				if !stmt.InlineVar {
+					t.Fatal("expected inline var flag set")
+				}
+
+				// Test loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test start expression: 0
+				if !testIntegerLiteral(t, stmt.Start, 0) {
+					return
+				}
+
+				// Test end expression: 20
+				if !testIntegerLiteral(t, stmt.End, 20) {
+					return
+				}
+
+				// Test direction: to
+				if stmt.Direction != ast.ForTo {
+					t.Errorf("direction = %v, want ForTo", stmt.Direction)
+				}
+
+				// Test step expression: 5
+				if stmt.Step == nil {
+					t.Fatal("step should not be nil")
+				}
+				if !testIntegerLiteral(t, stmt.Step, 5) {
+					return
+				}
+			},
+		},
+		{
+			name:  "for loop without step still works (backward compatibility)",
+			input: "for i := 1 to 10 do PrintLn(i);",
+			assertions: func(t *testing.T, stmt *ast.ForStatement) {
+				// Test that step is nil when not specified
+				if stmt.Step != nil {
+					t.Errorf("step should be nil when not specified, got %v", stmt.Step)
+				}
+
+				// Test loop variable
+				if stmt.Variable.Value != "i" {
+					t.Errorf("loop variable = %q, want 'i'", stmt.Variable.Value)
+				}
+
+				// Test direction
+				if stmt.Direction != ast.ForTo {
+					t.Errorf("direction = %v, want ForTo", stmt.Direction)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -2771,6 +2958,34 @@ end;`,
 			}
 
 			tt.assertions(t, stmt)
+		})
+	}
+}
+
+// TestForStatementStepErrors tests error handling for for loops with step keyword.
+func TestForStatementStepErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "missing step expression after step keyword",
+			input: "for i := 1 to 10 step do PrintLn(i);",
+		},
+		{
+			name:  "missing do after step",
+			input: "for i := 1 to 10 step 2 PrintLn(i);",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			p.ParseProgram()
+
+			if len(p.errors) == 0 {
+				t.Errorf("expected parser error for %q, got none", tt.name)
+			}
 		})
 	}
 }

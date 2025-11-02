@@ -1,0 +1,28 @@
+// Simplified Lucas-Lehmer primality test for Mersenne numbers
+// Demonstrates for loop with step 2 (testing only odd numbers)
+
+function IsMersennePrime(p : Integer) : Boolean;
+var
+   i, s, m_p : Integer;
+begin
+   if p = 2 then
+      Result := True
+   else begin
+      m_p := (1 shl p) - 1;
+      s := 4;
+      for i := 3 to p do
+         s := (s * s - 2) mod m_p;
+      Result := (s = 0);
+   end;
+end;
+
+// Test small range (up to 20)
+PrintLn('Finding Mersenne primes in M[2..20]:');
+Print('M2');
+
+// Use step 2 to check only odd numbers (even numbers > 2 can't be prime)
+for p := 3 to 20 step 2 do begin
+   if IsMersennePrime(p) then
+      Print(' M' + IntToStr(p));
+end;
+PrintLn('');

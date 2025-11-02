@@ -1,0 +1,34 @@
+// For loop step validation tests
+// Tests that valid steps work correctly
+// Note: Zero and negative steps would cause runtime errors
+
+// Test 1: Minimum valid step (1)
+PrintLn('Test 1: Minimum valid step (step = 1)');
+for i := 1 to 5 step 1 do
+    PrintLn(i);
+
+PrintLn('');
+
+// Test 2: Large valid step
+PrintLn('Test 2: Large valid step (step = 100)');
+for i := 1 to 500 step 100 do
+    PrintLn(i);
+
+PrintLn('');
+
+// Test 3: Step larger than range
+PrintLn('Test 3: Step larger than range (step = 1000)');
+for i := 1 to 10 step 1000 do
+    PrintLn(i);
+
+PrintLn('');
+
+// Test 4: Multiple valid steps in sequence
+PrintLn('Test 4: Multiple loops with different steps');
+for i := 0 to 10 step 2 do
+    PrintLn('  ' + IntToStr(i));
+for i := 100 downto 80 step 5 do
+    PrintLn('  ' + IntToStr(i));
+
+PrintLn('');
+PrintLn('All validation tests passed!');

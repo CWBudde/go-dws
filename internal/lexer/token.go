@@ -61,6 +61,7 @@ var keywords = map[string]TokenType{
 	"for":      FOR,
 	"to":       TO,
 	"downto":   DOWNTO,
+	"step":     STEP,
 	"do":       DO,
 	"break":    BREAK,
 	"continue": CONTINUE,

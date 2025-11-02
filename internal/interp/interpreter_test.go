@@ -875,6 +875,111 @@ func TestForStatementExecution(t *testing.T) {
 	}
 }
 
+// TestForStatementWithStep tests for loop execution with step keyword (Task 9.156).
+func TestForStatementWithStep(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Ascending for loop with step 2",
+			input:    `for i := 1 to 5 step 2 do PrintLn(i)`,
+			expected: "1\n3\n5\n",
+		},
+		{
+			name:     "Descending for loop with step 3",
+			input:    `for i := 10 downto 1 step 3 do PrintLn(i)`,
+			expected: "10\n7\n4\n1\n",
+		},
+		{
+			name:     "For loop with step expression",
+			input:    `var s := 2; for i := 0 to 10 step (s + 1) do PrintLn(i)`,
+			expected: "0\n3\n6\n9\n",
+		},
+		{
+			name:     "For loop with step variable",
+			input:    `var stepSize := 5; for i := 0 to 20 step stepSize do PrintLn(i)`,
+			expected: "0\n5\n10\n15\n20\n",
+		},
+		{
+			name:     "Step larger than range",
+			input:    `for i := 1 to 3 step 10 do PrintLn(i)`,
+			expected: "1\n",
+		},
+		{
+			name:     "Large step ascending",
+			input:    `for i := 1 to 100 step 50 do PrintLn(i)`,
+			expected: "1\n51\n",
+		},
+		{
+			name:     "Sum using for loop with step",
+			input:    `var sum := 0; for i := 2 to 10 step 2 do sum := sum + i; PrintLn(sum)`,
+			expected: "30\n",
+		},
+		{
+			name:     "For loop with step and inline var",
+			input:    `for var i := 0 to 10 step 3 do PrintLn(i)`,
+			expected: "0\n3\n6\n9\n",
+		},
+		{
+			name:     "For loop without step still works (backward compatibility)",
+			input:    `for i := 1 to 5 do PrintLn(i)`,
+			expected: "1\n2\n3\n4\n5\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expected {
+				t.Errorf("wrong output.\nexpected=%q\ngot=%q", tt.expected, output)
+			}
+		})
+	}
+}
+
+// TestForStatementStepErrors tests error handling for invalid step values (Task 9.156).
+func TestForStatementStepErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name:          "Step value zero",
+			input:         `for i := 1 to 5 step 0 do PrintLn(i)`,
+			expectedError: "FOR loop STEP should be strictly positive: 0",
+		},
+		{
+			name:          "Step value negative",
+			input:         `var s := -1; for i := 1 to 5 step s do PrintLn(i)`,
+			expectedError: "FOR loop STEP should be strictly positive: -1",
+		},
+		{
+			name:          "Step value negative literal",
+			input:         `for i := 1 to 5 step -2 do PrintLn(i)`,
+			expectedError: "FOR loop STEP should be strictly positive: -2",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, _ := testEvalWithOutput(tt.input)
+			if result == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			errVal, ok := result.(*ErrorValue)
+			if !ok {
+				t.Fatalf("expected ErrorValue, got %T", result)
+			}
+			if errVal.Message != tt.expectedError {
+				t.Errorf("wrong error message.\nexpected=%q\ngot=%q", tt.expectedError, errVal.Message)
+			}
+		})
+	}
+}
+
 // TestCaseStatementExecution tests case statement execution.
 func TestCaseStatementExecution(t *testing.T) {
 	tests := []struct {

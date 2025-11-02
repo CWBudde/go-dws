@@ -116,6 +116,7 @@ func (fd ForDirection) String() string {
 //	for i := 1 to 10 do PrintLn(i);
 //	for i := 10 downto 1 do PrintLn(i);
 //	for i := start to end do begin ... end;
+//	for i := 1 to 10 step 2 do PrintLn(i);
 type ForStatement struct {
 	Start     Expression
 	End       Expression
@@ -123,6 +124,7 @@ type ForStatement struct {
 	Variable  *Identifier
 	Token     lexer.Token
 	Direction ForDirection
+	Step      Expression // Optional step value (nil if not specified, defaults to 1)
 	InlineVar bool
 }
 
@@ -143,6 +145,10 @@ func (fs *ForStatement) String() string {
 	out.WriteString(fs.Direction.String())
 	out.WriteString(" ")
 	out.WriteString(fs.End.String())
+	if fs.Step != nil {
+		out.WriteString(" step ")
+		out.WriteString(fs.Step.String())
+	}
 	out.WriteString(" do ")
 	out.WriteString(fs.Body.String())
 

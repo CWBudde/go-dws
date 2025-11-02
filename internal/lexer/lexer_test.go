@@ -45,7 +45,7 @@ func TestNextToken(t *testing.T) {
 }
 
 func TestKeywords(t *testing.T) {
-	input := `begin end if then else while for do
+	input := `begin end if then else while for step do
 		function procedure class var const
 		true false nil and or not xor
 		try except finally raise
@@ -62,6 +62,7 @@ func TestKeywords(t *testing.T) {
 		{"else", ELSE},
 		{"while", WHILE},
 		{"for", FOR},
+		{"step", STEP},
 		{"do", DO},
 		{"function", FUNCTION},
 		{"procedure", PROCEDURE},
@@ -781,7 +782,7 @@ func TestAllKeywords(t *testing.T) {
 	// Test all keywords to ensure none are missed
 	keywords := []string{
 		"begin", "end", "if", "then", "else", "case", "of",
-		"while", "repeat", "until", "for", "to", "downto", "do",
+		"while", "repeat", "until", "for", "to", "downto", "step", "do",
 		"break", "continue", "exit", "with", "asm",
 		"var", "const", "type", "record", "array", "set", "enum", "flags",
 		"resourcestring", "namespace", "unit", "uses", "program", "library",

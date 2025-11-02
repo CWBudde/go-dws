@@ -436,6 +436,33 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 			endType.String(), stmt.Token.Pos.String())
 	}
 
+	// Task 9.152: Analyze step expression if present
+	if stmt.Step != nil {
+		stepType := a.analyzeExpression(stmt.Step)
+
+		// Validate step expression type is Integer
+		if stepType != nil && stepType != types.INTEGER {
+			a.addError("for loop step must be Integer, got %s at %s",
+				stepType.String(), stmt.Token.Pos.String())
+		}
+
+		// Optional optimization: check constant step values at compile time
+		if stepLiteral, ok := stmt.Step.(*ast.IntegerLiteral); ok {
+			if stepLiteral.Value <= 0 {
+				a.addError("for loop step must be strictly positive, got %d at %s",
+					stepLiteral.Value, stmt.Token.Pos.String())
+			}
+		} else if unaryExpr, ok := stmt.Step.(*ast.UnaryExpression); ok {
+			// Check for negative integer literals: -1, -5, etc.
+			if unaryExpr.Operator == "-" {
+				if innerLiteral, ok := unaryExpr.Right.(*ast.IntegerLiteral); ok {
+					a.addError("for loop step must be strictly positive, got %d at %s",
+						-innerLiteral.Value, stmt.Token.Pos.String())
+				}
+			}
+		}
+	}
+
 	// Define loop variable (typically Integer)
 	var loopVarType types.Type = types.INTEGER
 	if startType != nil && types.IsOrdinalType(startType) {
