@@ -8,14 +8,15 @@ import (
 // It includes parameter types and an optional return type.
 // For procedures (no return value), ReturnType should be VOID.
 //
-// Metadata arrays (ParamNames, LazyParams, VarParams) are parallel to Parameters
+// Metadata arrays (ParamNames, LazyParams, VarParams, ConstParams) are parallel to Parameters
 // and store additional information about each parameter for validation and interpretation.
 type FunctionType struct {
-	ReturnType Type
-	Parameters []Type
-	ParamNames []string // Parameter names for better error messages
-	LazyParams []bool   // true if parameter is lazy (expression capture)
-	VarParams  []bool   // true if parameter is var/byref (pass by reference)
+	ReturnType  Type
+	Parameters  []Type
+	ParamNames  []string // Parameter names for better error messages
+	LazyParams  []bool   // true if parameter is lazy (expression capture)
+	VarParams   []bool   // true if parameter is var/byref (pass by reference)
+	ConstParams []bool   // true if parameter is const (read-only, pass by const-reference)
 }
 
 // String returns a string representation of the function type.
@@ -106,14 +107,15 @@ func NewProcedureType(params []Type) *FunctionType {
 }
 
 // NewFunctionTypeWithMetadata creates a new function type with full parameter metadata.
-// This is used during semantic analysis to track lazy and var parameter modifiers.
-// All arrays (params, names, lazy, varParams) must have the same length.
-func NewFunctionTypeWithMetadata(params []Type, names []string, lazy []bool, varParams []bool, returnType Type) *FunctionType {
+// This is used during semantic analysis to track lazy, var, and const parameter modifiers.
+// All arrays (params, names, lazy, varParams, constParams) must have the same length.
+func NewFunctionTypeWithMetadata(params []Type, names []string, lazy []bool, varParams []bool, constParams []bool, returnType Type) *FunctionType {
 	return &FunctionType{
-		Parameters: params,
-		ReturnType: returnType,
-		ParamNames: names,
-		LazyParams: lazy,
-		VarParams:  varParams,
+		Parameters:  params,
+		ReturnType:  returnType,
+		ParamNames:  names,
+		LazyParams:  lazy,
+		VarParams:   varParams,
+		ConstParams: constParams,
 	}
 }

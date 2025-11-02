@@ -20,16 +20,27 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	// This is a regular function (not a method implementation)
 	// Convert parameter types and return type
 	// Task 9.102: Use resolveType to support user-defined types like subranges
-	// Task 9.136: Extract parameter metadata (names, lazy, var flags)
+	// Task 9.136: Extract parameter metadata (names, lazy, var, const flags)
 	paramTypes := make([]types.Type, 0, len(decl.Parameters))
 	paramNames := make([]string, 0, len(decl.Parameters))
 	lazyParams := make([]bool, 0, len(decl.Parameters))
 	varParams := make([]bool, 0, len(decl.Parameters))
+	constParams := make([]bool, 0, len(decl.Parameters))
 
 	for _, param := range decl.Parameters {
-		// Task 9.136: Validate that lazy and var are mutually exclusive
-		if param.IsLazy && param.ByRef {
-			a.addError("parameter '%s' cannot be both lazy and var in function '%s' at %s",
+		// Validate that lazy, var, and const are mutually exclusive
+		exclusiveCount := 0
+		if param.IsLazy {
+			exclusiveCount++
+		}
+		if param.ByRef {
+			exclusiveCount++
+		}
+		if param.IsConst {
+			exclusiveCount++
+		}
+		if exclusiveCount > 1 {
+			a.addError("parameter '%s' cannot have multiple modifiers (lazy/var/const) in function '%s' at %s",
 				param.Name.Value, decl.Name.Value, param.Token.Pos.String())
 			return
 		}
@@ -49,6 +60,7 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 		paramNames = append(paramNames, param.Name.Value)
 		lazyParams = append(lazyParams, param.IsLazy)
 		varParams = append(varParams, param.ByRef)
+		constParams = append(constParams, param.IsConst)
 	}
 
 	// Determine return type
@@ -72,8 +84,8 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	}
 
 	// Create function type with metadata and add to symbol table
-	// Task 9.136: Use NewFunctionTypeWithMetadata to include lazy and var parameter info
-	funcType := types.NewFunctionTypeWithMetadata(paramTypes, paramNames, lazyParams, varParams, returnType)
+	// Task 9.136: Use NewFunctionTypeWithMetadata to include lazy, var, and const parameter info
+	funcType := types.NewFunctionTypeWithMetadata(paramTypes, paramNames, lazyParams, varParams, constParams, returnType)
 	a.symbols.DefineFunction(decl.Name.Value, funcType)
 
 	// Analyze function body in new scope
@@ -83,7 +95,12 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 
 	// Add parameters to function scope
 	for i, param := range decl.Parameters {
-		a.symbols.Define(param.Name.Value, paramTypes[i])
+		// Const parameters are read-only
+		if param.IsConst {
+			a.symbols.DefineReadOnly(param.Name.Value, paramTypes[i])
+		} else {
+			a.symbols.Define(param.Name.Value, paramTypes[i])
+		}
 	}
 
 	// For functions (not procedures), add Result variable
