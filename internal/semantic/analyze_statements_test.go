@@ -217,6 +217,77 @@ func TestForStatementNonOrdinalType(t *testing.T) {
 	expectError(t, input, "ordinal type")
 }
 
+// Task 9.153: Semantic tests for for-loop step feature
+func TestForStatementWithStepInteger(t *testing.T) {
+	input := `
+		var sum: Integer := 0;
+		for i := 1 to 10 step 2 do
+			sum := sum + i;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestForStatementWithStepExpression(t *testing.T) {
+	input := `
+		var x: Integer := 1;
+		var sum: Integer := 0;
+		for i := 1 to 10 step (x + 1) do
+			sum := sum + i;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestForStatementWithStepVariable(t *testing.T) {
+	input := `
+		var stepValue: Integer := 2;
+		var sum: Integer := 0;
+		for i := 1 to 10 step stepValue do
+			sum := sum + i;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestForStatementStepFloatError(t *testing.T) {
+	input := `
+		for i := 1 to 10 step 2.5 do
+			PrintLn(i);
+	`
+	expectError(t, input, "step must be Integer")
+}
+
+func TestForStatementStepStringError(t *testing.T) {
+	input := `
+		for i := 1 to 10 step "text" do
+			PrintLn(i);
+	`
+	expectError(t, input, "step must be Integer")
+}
+
+func TestForStatementStepZeroError(t *testing.T) {
+	input := `
+		for i := 1 to 10 step 0 do
+			PrintLn(i);
+	`
+	expectError(t, input, "step must be strictly positive")
+}
+
+func TestForStatementStepNegativeError(t *testing.T) {
+	input := `
+		for i := 1 to 10 step -1 do
+			PrintLn(i);
+	`
+	expectError(t, input, "step must be strictly positive")
+}
+
+func TestForStatementDowntoWithStep(t *testing.T) {
+	input := `
+		var sum: Integer := 0;
+		for i := 10 downto 1 step 3 do
+			sum := sum + i;
+	`
+	expectNoErrors(t, input)
+}
+
 func TestCaseStatement(t *testing.T) {
 	input := `
 		var x: Integer := 5;

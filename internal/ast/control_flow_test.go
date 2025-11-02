@@ -163,6 +163,91 @@ func TestForStatementString(t *testing.T) {
 			},
 			expected: "for i := 10 downto 1 do PrintLn(i)",
 		},
+		{
+			name: "for loop ascending with step",
+			stmt: &ForStatement{
+				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
+				Variable:  &Identifier{Value: "i"},
+				Start:     &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
+				End:       &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
+				Direction: ForTo,
+				Step:      &IntegerLiteral{Token: lexer.Token{Literal: "2"}},
+				Body: &ExpressionStatement{
+					Expression: &CallExpression{
+						Function: &Identifier{Value: "PrintLn"},
+						Arguments: []Expression{
+							&Identifier{Value: "i"},
+						},
+					},
+				},
+			},
+			expected: "for i := 1 to 10 step 2 do PrintLn(i)",
+		},
+		{
+			name: "for loop descending with step",
+			stmt: &ForStatement{
+				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
+				Variable:  &Identifier{Value: "i"},
+				Start:     &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
+				End:       &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
+				Direction: ForDownto,
+				Step:      &IntegerLiteral{Token: lexer.Token{Literal: "3"}},
+				Body: &ExpressionStatement{
+					Expression: &CallExpression{
+						Function: &Identifier{Value: "PrintLn"},
+						Arguments: []Expression{
+							&Identifier{Value: "i"},
+						},
+					},
+				},
+			},
+			expected: "for i := 10 downto 1 step 3 do PrintLn(i)",
+		},
+		{
+			name: "for loop with step expression",
+			stmt: &ForStatement{
+				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
+				Variable:  &Identifier{Value: "i"},
+				Start:     &IntegerLiteral{Token: lexer.Token{Literal: "0"}},
+				End:       &IntegerLiteral{Token: lexer.Token{Literal: "20"}},
+				Direction: ForTo,
+				Step: &BinaryExpression{
+					Left:     &IntegerLiteral{Token: lexer.Token{Literal: "2"}},
+					Operator: "+",
+					Right:    &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
+				},
+				Body: &ExpressionStatement{
+					Expression: &CallExpression{
+						Function: &Identifier{Value: "PrintLn"},
+						Arguments: []Expression{
+							&Identifier{Value: "i"},
+						},
+					},
+				},
+			},
+			expected: "for i := 0 to 20 step (2 + 1) do PrintLn(i)",
+		},
+		{
+			name: "for loop with inline var and step",
+			stmt: &ForStatement{
+				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
+				Variable:  &Identifier{Value: "i"},
+				Start:     &IntegerLiteral{Token: lexer.Token{Literal: "0"}},
+				End:       &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
+				Direction: ForTo,
+				Step:      &IntegerLiteral{Token: lexer.Token{Literal: "2"}},
+				InlineVar: true,
+				Body: &ExpressionStatement{
+					Expression: &CallExpression{
+						Function: &Identifier{Value: "PrintLn"},
+						Arguments: []Expression{
+							&Identifier{Value: "i"},
+						},
+					},
+				},
+			},
+			expected: "for var i := 0 to 10 step 2 do PrintLn(i)",
+		},
 	}
 
 	for _, tt := range tests {

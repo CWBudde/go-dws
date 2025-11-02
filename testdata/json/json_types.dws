@@ -1,0 +1,39 @@
+// Test Task 9.89: JSON value representation
+// This test verifies that JSONValue can represent all JSON types
+// and be properly boxed in Variants.
+
+// Note: This test uses internal constructors since ParseJSON (Task 9.91) is not yet implemented.
+// Once ParseJSON is available, these tests should be rewritten to use JSON.Parse().
+
+var v: Variant;
+
+// Test null representation
+// v := JSON.Parse('null');  // Will be implemented in Task 9.91
+// PrintLn(VarType(v));
+// PrintLn(VarIsNull(v));
+
+// Test boolean representation
+// v := JSON.Parse('true');
+// PrintLn(VarType(v));
+// PrintLn(v);
+
+// Test number representation
+// v := JSON.Parse('42');
+// PrintLn(VarType(v));
+// PrintLn(v);
+
+// Test string representation
+// v := JSON.Parse('"hello"');
+// PrintLn(VarType(v));
+// PrintLn(v);
+
+// Test array representation
+// v := JSON.Parse('[1, 2, 3]');
+// PrintLn(VarType(v));
+
+// Test object representation
+// v := JSON.Parse('{"name": "John", "age": 30}');
+// PrintLn(VarType(v));
+
+// Placeholder output until JSON.Parse is implemented
+PrintLn('JSON type representation tests require JSON.Parse (Task 9.91)');

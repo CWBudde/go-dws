@@ -1,0 +1,51 @@
+// For loop step with variable expressions
+
+// Test 1: Step from variable
+var stepSize := 3;
+PrintLn('Test 1: Step from variable (stepSize = 3)');
+for i := 1 to 20 step stepSize do
+    PrintLn(i);
+
+PrintLn('');
+
+// Test 2: Step from expression
+var multiplier := 2;
+PrintLn('Test 2: Step from expression (multiplier * 2 + 1 = 5)');
+for i := 0 to 30 step (multiplier * 2 + 1) do
+    PrintLn(i);
+
+PrintLn('');
+
+// Test 3: Step from function call
+function GetStep(): Integer;
+begin
+    Result := 4;
+end;
+
+PrintLn('Test 3: Step from function call (GetStep() = 4)');
+for i := 10 to 50 step GetStep() do
+    PrintLn(i);
+
+PrintLn('');
+
+// Test 4: Descending with variable step
+var descendStep := 7;
+PrintLn('Test 4: Descending with variable step (descendStep = 7)');
+for i := 50 downto 1 step descendStep do
+    PrintLn(i);
+
+PrintLn('');
+
+// Test 5: Step evaluated once (side effects)
+var counter := 0;
+
+function IncrementAndReturn(): Integer;
+begin
+    counter := counter + 1;
+    Result := 2;
+end;
+
+PrintLn('Test 5: Step evaluated once (counter increments)');
+for i := 1 to 10 step IncrementAndReturn() do
+    PrintLn(i);
+PrintLn('Counter: ' + IntToStr(counter));

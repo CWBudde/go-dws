@@ -9,28 +9,29 @@ import "strconv"
 // VarType constants - DWScript/Delphi-compatible type codes
 // See: https://docwiki.embarcadero.com/Libraries/en/System.Variants.VarType
 const (
-	varEmpty    = 0  // Unassigned/Empty
-	varNull     = 1  // Null (SQL NULL)
-	varSmallint = 2  // 16-bit signed integer
-	varInteger  = 3  // 32-bit signed integer
-	varSingle   = 4  // Single precision float
-	varDouble   = 5  // Double precision float
-	varCurrency = 6  // Currency type
-	varDate     = 7  // TDateTime
-	varOleStr   = 8  // OLE String
-	varDispatch = 9  // IDispatch
-	varError    = 10 // Error code
-	varBoolean  = 11 // Boolean
-	varVariant  = 12 // Variant (nested)
-	varUnknown  = 13 // IUnknown
-	varDecimal  = 14 // Decimal
-	varByte     = 17 // Byte (unsigned 8-bit)
-	varWord     = 18 // Word (unsigned 16-bit)
-	varLongWord = 19 // LongWord (unsigned 32-bit)
-	varInt64    = 20 // 64-bit signed integer
-	varUInt64   = 21 // 64-bit unsigned integer
-	varString   = 256 // String (Unicode)
+	varEmpty    = 0      // Unassigned/Empty
+	varNull     = 1      // Null (SQL NULL)
+	varSmallint = 2      // 16-bit signed integer
+	varInteger  = 3      // 32-bit signed integer
+	varSingle   = 4      // Single precision float
+	varDouble   = 5      // Double precision float
+	varCurrency = 6      // Currency type
+	varDate     = 7      // TDateTime
+	varOleStr   = 8      // OLE String
+	varDispatch = 9      // IDispatch
+	varError    = 10     // Error code
+	varBoolean  = 11     // Boolean
+	varVariant  = 12     // Variant (nested)
+	varUnknown  = 13     // IUnknown
+	varDecimal  = 14     // Decimal
+	varByte     = 17     // Byte (unsigned 8-bit)
+	varWord     = 18     // Word (unsigned 16-bit)
+	varLongWord = 19     // LongWord (unsigned 32-bit)
+	varInt64    = 20     // 64-bit signed integer
+	varUInt64   = 21     // 64-bit unsigned integer
+	varString   = 256    // String (Unicode)
 	varArray    = 0x2000 // Array flag (ORed with element type)
+	varJSON     = 0x1000 // JSON object (Task 9.89: Custom code for JSON values)
 )
 
 // builtinVarType implements the VarType() built-in function.
@@ -78,7 +79,7 @@ func (i *Interpreter) varTypeFromValue(val Value) Value {
 		return &IntegerValue{Value: varEmpty}
 	}
 
-	switch val.(type) {
+	switch v := val.(type) {
 	case *IntegerValue:
 		return &IntegerValue{Value: varInteger}
 	case *FloatValue:
@@ -96,6 +97,10 @@ func (i *Interpreter) varTypeFromValue(val Value) Value {
 	case *VariantValue:
 		// Nested variant
 		return &IntegerValue{Value: varVariant}
+	case *JSONValue:
+		// Task 9.89: Return VarType code based on JSON kind
+		typeCode := jsonKindToVarType(v.Value.Kind())
+		return &IntegerValue{Value: typeCode}
 	default:
 		// Unknown type - treat as empty
 		return &IntegerValue{Value: varEmpty}

@@ -225,3 +225,39 @@ func (v *Value) ArrayElements() []*Value {
 	copy(elements, v.arrElems)
 	return elements
 }
+
+// ============================================================================
+// Primitive Value Getters
+// ============================================================================
+
+// BoolValue returns the boolean value if this is a KindBoolean, otherwise returns false.
+func (v *Value) BoolValue() bool {
+	if v == nil || v.kind != KindBoolean {
+		return false
+	}
+	return v.bool
+}
+
+// StringValue returns the string value if this is a KindString, otherwise returns empty string.
+func (v *Value) StringValue() string {
+	if v == nil || v.kind != KindString {
+		return ""
+	}
+	return v.str
+}
+
+// NumberValue returns the float64 value if this is a KindNumber, otherwise returns 0.0.
+func (v *Value) NumberValue() float64 {
+	if v == nil || v.kind != KindNumber {
+		return 0.0
+	}
+	return v.num
+}
+
+// Int64Value returns the int64 value if this is a KindInt64, otherwise returns 0.
+func (v *Value) Int64Value() int64 {
+	if v == nil || v.kind != KindInt64 {
+		return 0
+	}
+	return v.i64
+}

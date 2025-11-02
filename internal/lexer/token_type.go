@@ -39,6 +39,7 @@ const (
 	FOR      // for
 	TO       // to
 	DOWNTO   // downto
+	STEP     // step
 	DO       // do
 	BREAK    // break
 	CONTINUE // continue
@@ -290,6 +291,7 @@ var tokenTypeStrings = [...]string{
 	FOR:      "FOR",
 	TO:       "TO",
 	DOWNTO:   "DOWNTO",
+	STEP:     "STEP",
 	DO:       "DO",
 	BREAK:    "BREAK",
 	CONTINUE: "CONTINUE",

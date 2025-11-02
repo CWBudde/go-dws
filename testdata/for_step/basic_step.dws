@@ -1,0 +1,41 @@
+// Basic for loop step tests
+
+// Test 1: Ascending with step 2
+PrintLn('Test 1: for i := 1 to 10 step 2');
+for i := 1 to 10 step 2 do
+    PrintLn(i);
+
+PrintLn('');
+
+// Test 2: Descending with step 3
+PrintLn('Test 2: for i := 20 downto 1 step 3');
+for i := 20 downto 1 step 3 do
+    PrintLn(i);
+
+PrintLn('');
+
+// Test 3: Step equals 1 (should behave like no step)
+PrintLn('Test 3: for i := 5 to 8 step 1');
+for i := 5 to 8 step 1 do
+    PrintLn(i);
+
+PrintLn('');
+
+// Test 4: Large step (larger than range)
+PrintLn('Test 4: for i := 1 to 5 step 10');
+for i := 1 to 5 step 10 do
+    PrintLn(i);
+
+PrintLn('');
+
+// Test 5: Ascending with step 5
+PrintLn('Test 5: for i := 0 to 20 step 5');
+for i := 0 to 20 step 5 do
+    PrintLn(i);
+
+PrintLn('');
+
+// Test 6: Inline variable declaration with step
+PrintLn('Test 6: for var j := 2 to 16 step 3');
+for var j := 2 to 16 step 3 do
+    PrintLn(j);
