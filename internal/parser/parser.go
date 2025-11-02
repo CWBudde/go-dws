@@ -104,6 +104,7 @@ func New(l *lexer.Lexer) *Parser {
 	// Register keywords that can be used as identifiers in expression context
 	// In DWScript/Object Pascal, some keywords can be used as identifiers
 	p.registerPrefix(lexer.HELPER, p.parseIdentifier)
+	p.registerPrefix(lexer.STEP, p.parseIdentifier) // 'step' is contextual - keyword in for loops, identifier elsewhere
 
 	// Register infix parse functions
 	p.registerInfix(lexer.LPAREN, p.parseCallExpression)
@@ -179,6 +180,25 @@ func (p *Parser) expectPeek(t lexer.TokenType) bool {
 		return true
 	}
 	p.peekError(t)
+	return false
+}
+
+// isIdentifierToken checks if a token type can be used as an identifier.
+// This includes IDENT and contextual keywords like STEP that are keywords in
+// specific contexts (for loops) but can be used as variable names elsewhere.
+func (p *Parser) isIdentifierToken(t lexer.TokenType) bool {
+	return t == lexer.IDENT || t == lexer.STEP
+}
+
+// expectIdentifier checks if the peek token can be used as an identifier and advances if so.
+// Returns true if the token is valid as an identifier, false otherwise (and adds an error).
+// This allows contextual keywords like 'step' to be used as variable names.
+func (p *Parser) expectIdentifier() bool {
+	if p.isIdentifierToken(p.peekToken.Type) {
+		p.nextToken()
+		return true
+	}
+	p.peekError(lexer.IDENT)
 	return false
 }
 

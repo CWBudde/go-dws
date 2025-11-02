@@ -20,13 +20,33 @@ func (p *Parser) parseConstDeclaration() ast.Statement {
 	// Check for optional type annotation (: Type)
 	if p.peekTokenIs(lexer.COLON) {
 		p.nextToken() // move to ':'
-		if !p.expectPeek(lexer.IDENT) {
-			p.addError("expected type identifier after ':' in const declaration")
+
+		// Parse type expression (can be simple type, function pointer, or array type)
+		p.nextToken() // move to type expression
+		typeExpr := p.parseTypeExpression()
+		if typeExpr == nil {
+			p.addError("expected type expression after ':' in const declaration")
 			return stmt
 		}
-		stmt.Type = &ast.TypeAnnotation{
-			Token: p.curToken,
-			Name:  p.curToken.Literal,
+
+		// Convert TypeExpression to TypeAnnotation
+		// TODO: Update ConstDecl struct to accept TypeExpression instead of TypeAnnotation
+		switch te := typeExpr.(type) {
+		case *ast.TypeAnnotation:
+			stmt.Type = te
+		case *ast.FunctionPointerTypeNode:
+			stmt.Type = &ast.TypeAnnotation{
+				Token: te.Token,
+				Name:  te.String(),
+			}
+		case *ast.ArrayTypeNode:
+			stmt.Type = &ast.TypeAnnotation{
+				Token: te.Token,
+				Name:  te.String(),
+			}
+		default:
+			p.addError("unsupported type expression in const declaration")
+			return stmt
 		}
 	}
 

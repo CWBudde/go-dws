@@ -284,8 +284,8 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	names := []*ast.Identifier{}
 
 	for {
-		// Parse parameter name
-		if !p.curTokenIs(lexer.IDENT) {
+		// Parse parameter name (can be IDENT or contextual keywords like STEP)
+		if !p.isIdentifierToken(p.curToken.Type) {
 			p.addError("expected parameter name")
 			return nil
 		}

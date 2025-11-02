@@ -72,7 +72,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseUsesClause()
 	default:
 		// Check for assignment (simple or member assignment)
-		if p.curToken.Type == lexer.IDENT {
+		if p.isIdentifierToken(p.curToken.Type) {
 			// Could be:
 			// 1. x := value (assignment)
 			// 2. obj.field := value (member assignment)
@@ -163,10 +163,10 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 	// or if we need to advance to it (after 'var' keyword)
 	if p.curTokenIs(lexer.VAR) {
 		// After 'var' keyword, expect identifier next
-		if !p.expectPeek(lexer.IDENT) {
+		if !p.expectIdentifier() {
 			return nil
 		}
-	} else if !p.curTokenIs(lexer.IDENT) {
+	} else if !p.isIdentifierToken(p.curToken.Type) {
 		// Should already be at an identifier
 		p.addError("expected identifier in var declaration")
 		return nil
@@ -176,7 +176,7 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 	// Parse pattern: IDENT (, IDENT)* : TYPE [:= VALUE]
 	stmt.Names = []*ast.Identifier{}
 	for {
-		if !p.curTokenIs(lexer.IDENT) {
+		if !p.isIdentifierToken(p.curToken.Type) {
 			p.addError("expected identifier in var declaration")
 			return nil
 		}
@@ -189,7 +189,9 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 		// Check if there are more names (comma-separated)
 		if p.peekTokenIs(lexer.COMMA) {
 			p.nextToken() // move to ','
-			p.nextToken() // move past ','
+			if !p.expectIdentifier() {
+				return nil
+			}
 			continue
 		}
 

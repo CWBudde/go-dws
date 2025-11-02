@@ -147,25 +147,46 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 }
 
 // parseRepeatStatement parses a repeat-until loop statement.
-// Syntax: repeat <statement> until <condition>
+// Syntax: repeat <statements> until <condition>
+// Note: The body can contain multiple statements
 func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 	stmt := &ast.RepeatStatement{Token: p.curToken}
 
-	// Move past 'repeat' and parse the body statement
+	// Move past 'repeat'
 	p.nextToken()
-	stmt.Body = p.parseStatement()
 
-	if stmt.Body == nil {
-		p.addError("expected statement after 'repeat'")
-		return nil
+	// Parse multiple statements until 'until' is encountered
+	block := &ast.BlockStatement{Token: p.curToken}
+	block.Statements = []ast.Statement{}
+
+	for !p.curTokenIs(lexer.UNTIL) && !p.curTokenIs(lexer.EOF) {
+		// Skip semicolons
+		if p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+			continue
+		}
+
+		bodyStmt := p.parseStatement()
+		if bodyStmt != nil {
+			block.Statements = append(block.Statements, bodyStmt)
+		}
+
+		p.nextToken()
+
+		// Skip any semicolons after the statement
+		for p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+		}
 	}
 
-	// Advance past the statement
-	p.nextToken()
-
-	// Skip any optional semicolons before 'until'
-	for p.curTokenIs(lexer.SEMICOLON) {
-		p.nextToken()
+	// If only one statement, use it directly; otherwise use the block
+	if len(block.Statements) == 1 {
+		stmt.Body = block.Statements[0]
+	} else if len(block.Statements) > 1 {
+		stmt.Body = block
+	} else {
+		p.addError("expected at least one statement in repeat body")
+		return nil
 	}
 
 	// Expect 'until' keyword
