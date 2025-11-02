@@ -70,6 +70,9 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 	case *ast.LambdaExpression:
 		// Task 9.216: Handle lambda expressions
 		return a.analyzeLambdaExpression(e)
+	case *ast.OldExpression:
+		// Task 9.143: Handle 'old' expressions in postconditions
+		return a.analyzeOldExpression(e)
 	default:
 		a.addError("unknown expression type: %T", expr)
 		return nil
@@ -2018,4 +2021,22 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	}
 
 	return funcType.ReturnType
+}
+
+// analyzeOldExpression analyzes an 'old' expression in a postcondition
+// Task 9.143: Return the type of the referenced identifier
+func (a *Analyzer) analyzeOldExpression(expr *ast.OldExpression) types.Type {
+	if expr.Identifier == nil {
+		return nil
+	}
+
+	// Look up the identifier in the symbol table
+	sym, ok := a.symbols.Resolve(expr.Identifier.Value)
+	if !ok {
+		// Error already reported in validateOldExpressions
+		return nil
+	}
+
+	// Return the type of the identifier
+	return sym.Type
 }

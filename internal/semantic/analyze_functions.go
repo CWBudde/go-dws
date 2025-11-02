@@ -120,6 +120,14 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	if decl.Body != nil {
 		a.analyzeBlock(decl.Body)
 	}
+
+	// Task 9.140-9.143: Analyze contract conditions (require/ensure)
+	if decl.PreConditions != nil {
+		a.checkPreconditions(decl.PreConditions, decl.Name.Value)
+	}
+	if decl.PostConditions != nil {
+		a.checkPostconditions(decl.PostConditions, decl.Name.Value)
+	}
 }
 
 // analyzeReturn analyzes a return statement
@@ -173,5 +181,115 @@ func (a *Analyzer) analyzeReturn(stmt *ast.ReturnStatement) {
 		if expectedType != types.VOID {
 			a.addError("function must return a value at %s", stmt.Token.Pos.String())
 		}
+	}
+}
+
+// ============================================================================
+// Contract Analysis (Design by Contract)
+// Tasks 9.140-9.145
+// ============================================================================
+
+// checkPreconditions validates precondition (require) expressions
+// Task 9.140: Validate precondition expressions are boolean type
+func (a *Analyzer) checkPreconditions(preconds *ast.PreConditions, funcName string) {
+	if preconds == nil {
+		return
+	}
+
+	for _, cond := range preconds.Conditions {
+		// Task 9.140: Validate test expression is boolean
+		testType := a.analyzeExpression(cond.Test)
+		if testType != nil && testType != types.BOOLEAN {
+			a.addError("precondition must be boolean expression in function '%s', got %s at %s",
+				funcName, testType.String(), cond.Token.Pos.String())
+		}
+
+		// Task 9.142: Validate message expression is string (if present)
+		if cond.Message != nil {
+			msgType := a.analyzeExpression(cond.Message)
+			if msgType != nil && msgType != types.STRING {
+				a.addError("condition message must be string expression in function '%s', got %s at %s",
+					funcName, msgType.String(), cond.Token.Pos.String())
+			}
+		}
+	}
+}
+
+// checkPostconditions validates postcondition (ensure) expressions
+// Task 9.141: Validate postcondition expressions are boolean type
+// Task 9.143: Validate 'old' keyword usage
+func (a *Analyzer) checkPostconditions(postconds *ast.PostConditions, funcName string) {
+	if postconds == nil {
+		return
+	}
+
+	for _, cond := range postconds.Conditions {
+		// Task 9.141: Validate test expression is boolean
+		testType := a.analyzeExpression(cond.Test)
+		if testType != nil && testType != types.BOOLEAN {
+			a.addError("postcondition must be boolean expression in function '%s', got %s at %s",
+				funcName, testType.String(), cond.Token.Pos.String())
+		}
+
+		// Task 9.142: Validate message expression is string (if present)
+		if cond.Message != nil {
+			msgType := a.analyzeExpression(cond.Message)
+			if msgType != nil && msgType != types.STRING {
+				a.addError("condition message must be string expression in function '%s', got %s at %s",
+					funcName, msgType.String(), cond.Token.Pos.String())
+			}
+		}
+
+		// Task 9.143: Validate 'old' expressions (check undefined identifiers)
+		a.validateOldExpressions(cond.Test, funcName)
+	}
+}
+
+// validateOldExpressions recursively validates 'old' keyword usage
+// Task 9.143: Ensure referenced identifiers exist in scope
+func (a *Analyzer) validateOldExpressions(expr ast.Expression, funcName string) {
+	if expr == nil {
+		return
+	}
+
+	switch e := expr.(type) {
+	case *ast.OldExpression:
+		// Validate that the referenced identifier is defined
+		if e.Identifier != nil {
+			if _, ok := a.symbols.Resolve(e.Identifier.Value); !ok {
+				a.addError("old() references undefined identifier '%s' in function '%s' at %s",
+					e.Identifier.Value, funcName, e.Token.Pos.String())
+			}
+		}
+
+	case *ast.BinaryExpression:
+		// Recursively check both sides
+		a.validateOldExpressions(e.Left, funcName)
+		a.validateOldExpressions(e.Right, funcName)
+
+	case *ast.UnaryExpression:
+		// Recursively check operand
+		a.validateOldExpressions(e.Right, funcName)
+
+	case *ast.GroupedExpression:
+		// Recursively check grouped expression
+		a.validateOldExpressions(e.Expression, funcName)
+
+	case *ast.CallExpression:
+		// Check all arguments
+		for _, arg := range e.Arguments {
+			a.validateOldExpressions(arg, funcName)
+		}
+
+	case *ast.IndexExpression:
+		// Check index expression
+		a.validateOldExpressions(e.Left, funcName)
+		if e.Index != nil {
+			a.validateOldExpressions(e.Index, funcName)
+		}
+
+	// For literals and identifiers, no further validation needed
+	default:
+		// No old expressions in other node types
 	}
 }

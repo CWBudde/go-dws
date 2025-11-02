@@ -1,0 +1,22 @@
+// Test multiple preconditions and postconditions
+function Clamp(x, min, max: Integer): Integer;
+require
+	min <= max : 'min must not exceed max';
+begin
+	if x < min then
+		Result := min
+	else if x > max then
+		Result := max
+	else
+		Result := x;
+end;
+ensure
+	Result >= min : 'result must be at least min';
+	Result <= max : 'result must be at most max';
+
+begin
+	PrintLn(Clamp(5, 0, 10));    // Should print 5
+	PrintLn(Clamp(-5, 0, 10));   // Should print 0
+	PrintLn(Clamp(15, 0, 10));   // Should print 10
+	// PrintLn(Clamp(5, 10, 0));  // Would fail precondition
+end.

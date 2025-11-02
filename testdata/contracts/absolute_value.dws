@@ -1,0 +1,16 @@
+// Test postcondition with simple invariant
+function Abs(x: Integer): Integer;
+begin
+	if x < 0 then
+		Result := -x
+	else
+		Result := x;
+end;
+ensure
+	Result >= 0 : 'absolute value must be non-negative';
+
+begin
+	PrintLn(Abs(-5));   // Should print 5
+	PrintLn(Abs(10));   // Should print 10
+	PrintLn(Abs(0));    // Should print 0
+end.

@@ -1,0 +1,14 @@
+// Test contract with precondition to prevent division by zero
+function SafeDivide(a, b: Float): Float;
+require
+	b <> 0.0 : 'divisor cannot be zero';
+begin
+	Result := a / b;
+end;
+ensure
+	Result * b = a : 'division result verification failed';
+
+begin
+	PrintLn(SafeDivide(10.0, 2.0));  // Should print 5.0
+	// PrintLn(SafeDivide(10.0, 0.0));  // Would fail precondition
+end.

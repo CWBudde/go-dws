@@ -136,9 +136,15 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		}
 	}
 
+	// Parse preconditions (require block) if present
+	if p.peekTokenIs(lexer.REQUIRE) {
+		p.nextToken() // move to REQUIRE
+		fn.PreConditions = p.parsePreConditions()
+	}
+
 	// Check if this is a forward declaration (no body)
 	// Forward declarations end with a semicolon instead of begin...end or local declarations
-	if !p.peekTokenIs(lexer.BEGIN) && !p.peekTokenIs(lexer.VAR) && !p.peekTokenIs(lexer.CONST) {
+	if !p.peekTokenIs(lexer.BEGIN) && !p.peekTokenIs(lexer.VAR) && !p.peekTokenIs(lexer.CONST) && !p.peekTokenIs(lexer.REQUIRE) {
 		// This is a forward declaration (method declaration in class body)
 		// Body will be provided later in method implementation outside class
 		return fn
@@ -220,6 +226,12 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	// Expect semicolon after end
 	if !p.expectPeek(lexer.SEMICOLON) {
 		return nil
+	}
+
+	// Parse postconditions (ensure block) if present
+	if p.peekTokenIs(lexer.ENSURE) {
+		p.nextToken() // move to ENSURE
+		fn.PostConditions = p.parsePostConditions()
 	}
 
 	return fn

@@ -56,22 +56,35 @@ func (p *Parameter) String() string {
 //	function DoWork(): Integer; virtual; begin ... end;  // virtual method
 //	function DoWork(): Integer; override; begin ... end;  // override method
 //	function GetArea(): Float; abstract;  // abstract method
+//
+// With contracts:
+//
+//	function DotProduct(a, b: array of Float): Float;
+//	require
+//	   a.Length = b.Length;
+//	begin
+//	   // ... implementation
+//	end;
+//	ensure
+//	   Result >= 0;
 type FunctionDecl struct {
-	Name          *Identifier
-	ClassName     *Identifier
-	ReturnType    *TypeAnnotation
-	Body          *BlockStatement
-	ExternalName  string
-	Parameters    []*Parameter
-	Token         lexer.Token
-	Visibility    Visibility
-	IsDestructor  bool
-	IsConstructor bool
-	IsVirtual     bool
-	IsOverride    bool
-	IsAbstract    bool
-	IsExternal    bool
-	IsClassMethod bool
+	Name           *Identifier
+	ClassName      *Identifier
+	ReturnType     *TypeAnnotation
+	Body           *BlockStatement
+	ExternalName   string
+	Parameters     []*Parameter
+	Token          lexer.Token
+	PreConditions  *PreConditions  // Preconditions (require)
+	PostConditions *PostConditions // Postconditions (ensure)
+	Visibility     Visibility
+	IsDestructor   bool
+	IsConstructor  bool
+	IsVirtual      bool
+	IsOverride     bool
+	IsAbstract     bool
+	IsExternal     bool
+	IsClassMethod  bool
 }
 
 func (fd *FunctionDecl) statementNode()       {}
@@ -118,10 +131,22 @@ func (fd *FunctionDecl) String() string {
 		out.WriteString("; abstract")
 	}
 
+	// Write preconditions if present
+	if fd.PreConditions != nil {
+		out.WriteString("\n")
+		out.WriteString(fd.PreConditions.String())
+	}
+
 	// Write body (abstract methods have no body)
 	if fd.Body != nil {
 		out.WriteString(" ")
 		out.WriteString(fd.Body.String())
+	}
+
+	// Write postconditions if present
+	if fd.PostConditions != nil {
+		out.WriteString("\n")
+		out.WriteString(fd.PostConditions.String())
 	}
 
 	return out.String()

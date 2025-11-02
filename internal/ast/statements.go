@@ -141,3 +141,120 @@ func (ce *CallExpression) String() string {
 }
 func (ce *CallExpression) GetType() *TypeAnnotation    { return ce.Type }
 func (ce *CallExpression) SetType(typ *TypeAnnotation) { ce.Type = typ }
+
+// Condition represents a single contract condition (precondition or postcondition).
+// A condition consists of a test expression (must be boolean) and an optional message.
+// Examples:
+//
+//	x > 0
+//	x > 0 : 'x must be positive'
+//	a.Length = b.Length : 'arrays must have same length'
+type Condition struct {
+	Test    Expression // Must evaluate to boolean
+	Message Expression // Optional string message (if nil, use source code as message)
+	Token   lexer.Token
+}
+
+func (c *Condition) statementNode()       {}
+func (c *Condition) TokenLiteral() string { return c.Token.Literal }
+func (c *Condition) Pos() lexer.Position  { return c.Token.Pos }
+func (c *Condition) String() string {
+	var out bytes.Buffer
+
+	if c.Test != nil {
+		out.WriteString(c.Test.String())
+	}
+
+	if c.Message != nil {
+		out.WriteString(" : ")
+		out.WriteString(c.Message.String())
+	}
+
+	return out.String()
+}
+
+// PreConditions represents a collection of preconditions for a function/method.
+// Preconditions are checked before the function body executes.
+// Example:
+//
+//	require
+//	   x > 0;
+//	   y <> 0 : 'y cannot be zero';
+type PreConditions struct {
+	Conditions []*Condition
+	Token      lexer.Token // The REQUIRE token
+}
+
+func (pc *PreConditions) statementNode()       {}
+func (pc *PreConditions) TokenLiteral() string { return pc.Token.Literal }
+func (pc *PreConditions) Pos() lexer.Position  { return pc.Token.Pos }
+func (pc *PreConditions) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("require\n")
+	for i, cond := range pc.Conditions {
+		out.WriteString("   ")
+		out.WriteString(cond.String())
+		if i < len(pc.Conditions)-1 {
+			out.WriteString(";")
+		}
+		out.WriteString("\n")
+	}
+
+	return out.String()
+}
+
+// PostConditions represents a collection of postconditions for a function/method.
+// Postconditions are checked after the function body executes, before returning.
+// They can reference 'old' values captured before execution.
+// Example:
+//
+//	ensure
+//	   Result > 0;
+//	   Result = old x + 1 : 'result must be one more than original x';
+type PostConditions struct {
+	Conditions []*Condition
+	Token      lexer.Token // The ENSURE token
+}
+
+func (pc *PostConditions) statementNode()       {}
+func (pc *PostConditions) TokenLiteral() string { return pc.Token.Literal }
+func (pc *PostConditions) Pos() lexer.Position  { return pc.Token.Pos }
+func (pc *PostConditions) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("ensure\n")
+	for i, cond := range pc.Conditions {
+		out.WriteString("   ")
+		out.WriteString(cond.String())
+		if i < len(pc.Conditions)-1 {
+			out.WriteString(";")
+		}
+		out.WriteString("\n")
+	}
+
+	return out.String()
+}
+
+// OldExpression represents a reference to a pre-execution value in a postcondition.
+// The 'old' keyword captures the value of a variable/parameter before function execution.
+// Syntax: old identifier (no parentheses)
+// Examples:
+//
+//	old x
+//	old val
+//	Result = old count + 1
+type OldExpression struct {
+	Identifier *Identifier
+	Type       *TypeAnnotation
+	Token      lexer.Token // The OLD token
+}
+
+func (oe *OldExpression) expressionNode()      {}
+func (oe *OldExpression) TokenLiteral() string { return oe.Token.Literal }
+func (oe *OldExpression) Pos() lexer.Position  { return oe.Token.Pos }
+func (oe *OldExpression) String() string {
+	return "old " + oe.Identifier.String()
+}
+func (oe *OldExpression) GetType() *TypeAnnotation    { return oe.Type }
+func (oe *OldExpression) SetType(typ *TypeAnnotation) { oe.Type = typ }
