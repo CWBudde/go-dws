@@ -269,7 +269,7 @@ func TestParseConstDeclarationErrors(t *testing.T) {
 		{"const PI;", "expected '=' or ':=' after const name"},
 		{"const PI =;", "no prefix parse function for SEMICOLON found"},
 		{"const = 3.14;", "expected next token to be IDENT"},
-		{"const PI: = 3.14;", "expected type identifier after ':' in const declaration"},
+		{"const PI: = 3.14;", "expected type expression after ':' in const declaration"},
 	}
 
 	for _, tt := range tests {
@@ -688,5 +688,193 @@ func TestParseMixedTypeDeclarations(t *testing.T) {
 	}
 	if !stmt3.IsSubrange {
 		t.Error("Fourth declaration should be subrange")
+	}
+}
+
+// ============================================================================
+// Const Declaration with Array Types Tests
+// ============================================================================
+
+// TestParseConstDeclarationWithArrayType tests parsing const declarations with array types
+func TestParseConstDeclarationWithArrayType(t *testing.T) {
+	tests := []struct {
+		name             string
+		input            string
+		expectedConstName string
+		expectedTypeName string
+	}{
+		{
+			name:             "Dynamic array of integers",
+			input:            `const arr: array of Integer = [1, 2, 3];`,
+			expectedConstName: "arr",
+			expectedTypeName: "array of Integer",
+		},
+		{
+			name:             "Static array with bounds",
+			input:            `const good: array [0..13] of Integer = [1600,1660,1724];`,
+			expectedConstName: "good",
+			expectedTypeName: "array[0..13] of Integer",
+		},
+		{
+			name:             "Array with negative bounds",
+			input:            `const temps: array [-10..10] of Float = [0.0];`,
+			expectedConstName: "temps",
+			expectedTypeName: "array[-10..10] of Float",
+		},
+		{
+			name:             "Nested arrays",
+			input:            `const matrix: array of array of Integer = [[1, 2], [3, 4]];`,
+			expectedConstName: "matrix",
+			expectedTypeName: "array of array of Integer",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+					len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.ConstDecl)
+			if !ok {
+				t.Fatalf("program.Statements[0] is not *ast.ConstDecl. got=%T",
+					program.Statements[0])
+			}
+
+			if stmt.Name.Value != tt.expectedConstName {
+				t.Errorf("stmt.Name.Value not %q. got=%s", tt.expectedConstName, stmt.Name.Value)
+			}
+
+			if stmt.Type == nil {
+				t.Fatal("stmt.Type should not be nil for typed const")
+			}
+
+			if stmt.Type.Name != tt.expectedTypeName {
+				t.Errorf("stmt.Type.Name not %q. got=%s", tt.expectedTypeName, stmt.Type.Name)
+			}
+
+			// Verify value is an array literal
+			_, ok = stmt.Value.(*ast.ArrayLiteralExpression)
+			if !ok {
+				t.Fatalf("stmt.Value is not *ast.ArrayLiteralExpression. got=%T", stmt.Value)
+			}
+		})
+	}
+}
+
+// TestParseConstDeclarationLeapYear tests the specific failing case from Leap_year.dws
+func TestParseConstDeclarationLeapYear(t *testing.T) {
+	input := `
+const good : array [0..13] of Integer =
+   [1600,1660,1724,1788,1848,1912,1972,2032,2092,2156,2220,2280,2344,2348];
+const bad : array [0..13] of Integer =
+   [1698,1699,1700,1750,1800,1810,1900,1901,1973,2100,2107,2200,2203,2289];
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 2 {
+		t.Fatalf("program.Statements does not contain 2 statements. got=%d",
+			len(program.Statements))
+	}
+
+	// Test first const (good)
+	stmt1, ok := program.Statements[0].(*ast.ConstDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ConstDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if stmt1.Name.Value != "good" {
+		t.Errorf("stmt1.Name.Value not 'good'. got=%s", stmt1.Name.Value)
+	}
+
+	if stmt1.Type == nil {
+		t.Fatal("stmt1.Type should not be nil")
+	}
+
+	if stmt1.Type.Name != "array[0..13] of Integer" {
+		t.Errorf("stmt1.Type.Name not 'array[0..13] of Integer'. got=%s", stmt1.Type.Name)
+	}
+
+	arr1, ok := stmt1.Value.(*ast.ArrayLiteralExpression)
+	if !ok {
+		t.Fatalf("stmt1.Value is not *ast.ArrayLiteralExpression. got=%T", stmt1.Value)
+	}
+
+	if len(arr1.Elements) != 14 {
+		t.Errorf("arr1.Elements should have 14 elements. got=%d", len(arr1.Elements))
+	}
+
+	// Test second const (bad)
+	stmt2, ok := program.Statements[1].(*ast.ConstDecl)
+	if !ok {
+		t.Fatalf("program.Statements[1] is not *ast.ConstDecl. got=%T",
+			program.Statements[1])
+	}
+
+	if stmt2.Name.Value != "bad" {
+		t.Errorf("stmt2.Name.Value not 'bad'. got=%s", stmt2.Name.Value)
+	}
+
+	if stmt2.Type == nil {
+		t.Fatal("stmt2.Type should not be nil")
+	}
+
+	if stmt2.Type.Name != "array[0..13] of Integer" {
+		t.Errorf("stmt2.Type.Name not 'array[0..13] of Integer'. got=%s", stmt2.Type.Name)
+	}
+
+	arr2, ok := stmt2.Value.(*ast.ArrayLiteralExpression)
+	if !ok {
+		t.Fatalf("stmt2.Value is not *ast.ArrayLiteralExpression. got=%T", stmt2.Value)
+	}
+
+	if len(arr2.Elements) != 14 {
+		t.Errorf("arr2.Elements should have 14 elements. got=%d", len(arr2.Elements))
+	}
+}
+
+// TestParseConstDeclarationWithFunctionPointerType tests const with function pointer types
+func TestParseConstDeclarationWithFunctionPointerType(t *testing.T) {
+	input := `const callback: function(x: Integer): Boolean = nil;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ConstDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ConstDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if stmt.Name.Value != "callback" {
+		t.Errorf("stmt.Name.Value not 'callback'. got=%s", stmt.Name.Value)
+	}
+
+	if stmt.Type == nil {
+		t.Fatal("stmt.Type should not be nil")
+	}
+
+	// Function pointer type is stored as string representation
+	expectedType := "function(x: Integer): Boolean"
+	if stmt.Type.Name != expectedType {
+		t.Errorf("stmt.Type.Name not %q. got=%s", expectedType, stmt.Type.Name)
 	}
 }

@@ -1,0 +1,44 @@
+// Test Task 9.91: Basic JSON parsing
+// Parse simple JSON values and verify they work correctly
+
+var v: Variant;
+
+// Test null
+v := ParseJSON('null');
+PrintLn('null: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Test boolean true
+v := ParseJSON('true');
+PrintLn('true: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Test boolean false
+v := ParseJSON('false');
+PrintLn('false: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Test integer
+v := ParseJSON('42');
+PrintLn('42: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Test negative integer
+v := ParseJSON('-123');
+PrintLn('-123: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Test float
+v := ParseJSON('3.14');
+PrintLn('3.14: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Test string
+v := ParseJSON('"hello world"');
+PrintLn('string: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Test empty string
+v := ParseJSON('""');
+PrintLn('empty string: ', v);
+PrintLn('VarType: ', VarType(v));

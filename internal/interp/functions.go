@@ -401,6 +401,9 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinVarToFloat(args)
 	case "VarAsType":
 		return i.builtinVarAsType(args)
+	// Task 9.91: JSON parsing functions
+	case "ParseJSON":
+		return i.builtinParseJSON(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}

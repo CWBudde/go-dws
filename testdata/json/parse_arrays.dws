@@ -1,0 +1,23 @@
+// Test Task 9.91: Parse JSON arrays
+
+var v: Variant;
+
+// Empty array
+v := ParseJSON('[]');
+PrintLn('empty array: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Array with integers
+v := ParseJSON('[1, 2, 3]');
+PrintLn('int array: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Array with mixed types
+v := ParseJSON('[1, "hello", true, null]');
+PrintLn('mixed array: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Nested arrays
+v := ParseJSON('[[1, 2], [3, 4]]');
+PrintLn('nested array: ', v);
+PrintLn('VarType: ', VarType(v));

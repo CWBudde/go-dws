@@ -1,0 +1,41 @@
+// Test Task 9.93: Edge cases in JSON parsing
+
+var v: Variant;
+
+// Large integer
+v := ParseJSON('9223372036854775807');
+PrintLn('large int: ', v);
+
+// Scientific notation
+v := ParseJSON('1.23e10');
+PrintLn('scientific: ', v);
+
+// Negative scientific notation
+v := ParseJSON('-4.56e-5');
+PrintLn('neg scientific: ', v);
+
+// Unicode escape sequences
+v := ParseJSON('"\u0048\u0065\u006C\u006C\u006F"');
+PrintLn('unicode: ', v);
+
+// Escaped characters
+v := ParseJSON('"Line 1\nLine 2"');
+PrintLn('escaped newline');
+
+// Escaped quotes
+v := ParseJSON('"Say \"Hello\""');
+PrintLn('escaped quotes: ', v);
+
+// Whitespace handling
+v := ParseJSON('  {  "a"  :  1  }  ');
+PrintLn('whitespace: ', v);
+
+// Zero
+v := ParseJSON('0');
+PrintLn('zero: ', v);
+
+// Negative zero (float)
+v := ParseJSON('-0.0');
+PrintLn('neg zero: ', v);
+
+PrintLn('All edge cases passed');

@@ -761,18 +761,20 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 #### Built-in Functions - Parsing (3 tasks)
 
-- [ ] 9.91 Implement `ParseJSON(s: String): Variant`:
-  - [ ] Parse JSON string
-  - [ ] Return DWScript variant/dynamic type
-  - [ ] Use Go's `encoding/json` internally
-  - [ ] Map JSON types to DWScript types:
-    - [ ] JSON object → dynamic record or map
-    - [ ] JSON array → dynamic array
-    - [ ] JSON primitives → corresponding DWScript types
-- [ ] 9.92 Handle parsing errors:
-  - [ ] Raise exception on invalid JSON
-  - [ ] Include error position and message
-- [ ] 9.93 Add tests for JSON parsing
+- [x] 9.91 Implement `ParseJSON(s: String): Variant`:
+  - [x] Parse JSON string
+  - [x] Return DWScript variant/dynamic type
+  - [x] Use Go's `encoding/json` internally
+  - [x] Map JSON types to DWScript types:
+    - [x] JSON object → JSONValue wrapper (reference semantics)
+    - [x] JSON array → JSONValue wrapper (reference semantics)
+    - [x] JSON primitives → corresponding DWScript types
+- [x] 9.92 Handle parsing errors:
+  - [x] Raise exception on invalid JSON
+  - [x] Include error position and message
+- [~] 9.93 Add tests for JSON parsing (BLOCKED: lexer bug with quote escaping - see TODO below)
+
+**NOTE**: Tasks 9.91-9.92 are functionally complete. Task 9.93 is blocked by a lexer bug where double quotes inside single-quoted strings are incorrectly stripped (e.g., `'"hello"'` becomes `hello` instead of `"hello"`). This prevents writing JSON test cases that contain string values. The ParseJSON function itself works correctly when given proper JSON strings.
 
 #### Built-in Functions - Serialization (3 tasks)
 
@@ -911,6 +913,7 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 - [ ] 9.125 Fix any discrepancies
 - [ ] 9.126 Create stress tests for complex features
 - [ ] 9.127 Achieve >85% overall code coverage
+- [x] 9.128 Fix 'step' contextual keyword conflict - allow 'step' as variable name outside for loops
 
 ---
 

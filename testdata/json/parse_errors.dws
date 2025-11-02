@@ -1,0 +1,48 @@
+// Test Task 9.92: JSON parsing error handling
+
+// Test invalid JSON - will throw exception
+try
+  var v := ParseJSON('invalid json');
+  PrintLn('Should not reach here');
+except
+  on E: Exception do
+    PrintLn('Caught error: invalid JSON');
+end;
+
+// Test unclosed string
+try
+  var v := ParseJSON('{"name": "unclosed');
+  PrintLn('Should not reach here');
+except
+  on E: Exception do
+    PrintLn('Caught error: unclosed string');
+end;
+
+// Test missing comma
+try
+  var v := ParseJSON('{"a": 1 "b": 2}');
+  PrintLn('Should not reach here');
+except
+  on E: Exception do
+    PrintLn('Caught error: missing comma');
+end;
+
+// Test trailing comma (not allowed in strict JSON)
+try
+  var v := ParseJSON('[1, 2, 3,]');
+  PrintLn('Should not reach here');
+except
+  on E: Exception do
+    PrintLn('Caught error: trailing comma');
+end;
+
+// Test empty string
+try
+  var v := ParseJSON('');
+  PrintLn('Should not reach here');
+except
+  on E: Exception do
+    PrintLn('Caught error: empty string');
+end;
+
+PrintLn('All error cases handled correctly');

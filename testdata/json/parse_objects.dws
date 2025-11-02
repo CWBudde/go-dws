@@ -1,0 +1,23 @@
+// Test Task 9.91: Parse JSON objects
+
+var v: Variant;
+
+// Empty object
+v := ParseJSON('{}');
+PrintLn('empty object: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Simple object
+v := ParseJSON('{"name": "John", "age": 30}');
+PrintLn('simple object: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Object with mixed types
+v := ParseJSON('{"name": "Alice", "age": 25, "active": true, "score": 3.14}');
+PrintLn('mixed object: ', v);
+PrintLn('VarType: ', VarType(v));
+
+// Nested object
+v := ParseJSON('{"person": {"name": "Bob", "age": 35}, "city": "NYC"}');
+PrintLn('nested object: ', v);
+PrintLn('VarType: ', VarType(v));

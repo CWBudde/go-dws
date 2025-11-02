@@ -1948,6 +1948,23 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VARIANT
 		}
 
+		// Task 9.91: ParseJSON built-in function
+		if funcIdent.Value == "ParseJSON" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'ParseJSON' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VARIANT
+			}
+			// Analyze the argument (should be a string)
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && !argType.Equals(types.STRING) {
+				a.addError("ParseJSON expects String argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			// Returns Variant containing a JSONValue
+			return types.VARIANT
+		}
+
 		a.addError("undefined function '%s' at %s", funcIdent.Value, expr.Token.Pos.String())
 		return nil
 	}

@@ -4358,3 +4358,92 @@ func TestNewKeywordExpression(t *testing.T) {
 		})
 	}
 }
+
+// TestContextualKeywordStep tests that 'step' can be used both as a keyword in for loops
+// and as a variable name in other contexts.
+func TestContextualKeywordStep(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		shouldParse bool
+	}{
+		{
+			name: "step as variable name in declaration",
+			input: `
+				var step: Integer;
+			`,
+			shouldParse: true,
+		},
+		{
+			name: "step as variable name with initialization",
+			input: `
+				var step := 0;
+			`,
+			shouldParse: true,
+		},
+		{
+			name: "step in assignment statement",
+			input: `
+				var step := 1;
+				step := 2;
+			`,
+			shouldParse: true,
+		},
+		{
+			name: "step in expression",
+			input: `
+				var step := 1;
+				var result := step + 5;
+			`,
+			shouldParse: true,
+		},
+		{
+			name: "step as keyword in for loop",
+			input: `
+				for i := 1 to 10 step 2 do
+					PrintLn(i);
+			`,
+			shouldParse: true,
+		},
+		{
+			name: "step used in both contexts",
+			input: `
+				var step := 2;
+				for i := 1 to 10 step step do
+					PrintLn(i);
+			`,
+			shouldParse: true,
+		},
+		{
+			name: "step in function parameter",
+			input: `
+				function Process(step: Integer): Integer;
+				begin
+					Result := step * 2;
+				end;
+			`,
+			shouldParse: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+
+			if tt.shouldParse {
+				checkParserErrors(t, p)
+				if program == nil {
+					t.Fatal("ParseProgram() returned nil")
+				}
+				if len(program.Statements) == 0 {
+					t.Fatal("ParseProgram() returned empty statements")
+				}
+			} else {
+				if len(p.Errors()) == 0 {
+					t.Fatalf("expected parser errors, but got none")
+				}
+			}
+		})
+	}
+}
