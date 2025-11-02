@@ -812,3 +812,168 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 
 	return params
 }
+
+// parseCondition parses a single contract condition.
+// Syntax: boolean_expression [: "error message"]
+// Returns a Condition node with the test expression and optional custom message.
+func (p *Parser) parseCondition() *ast.Condition {
+	// Parse the test expression (should be boolean, but type checking is done in semantic phase)
+	testExpr := p.parseExpression(LOWEST)
+	if testExpr == nil {
+		return nil
+	}
+
+	condition := &ast.Condition{
+		Token: p.curToken,
+		Test:  testExpr,
+	}
+
+	// Check for optional custom message: : "message"
+	if p.peekTokenIs(lexer.COLON) {
+		p.nextToken() // consume the colon
+
+		// Expect a string literal for the error message
+		if !p.expectPeek(lexer.STRING) {
+			p.addError("expected string literal after ':' in contract condition")
+			return nil
+		}
+
+		condition.Message = &ast.StringLiteral{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		}
+	}
+
+	return condition
+}
+
+// parseOldExpression parses an 'old' expression for contract postconditions.
+// Syntax: old identifier
+// The 'old' keyword can only be used in postconditions to reference pre-execution values.
+func (p *Parser) parseOldExpression() ast.Expression {
+	token := p.curToken // the OLD token
+
+	// Validate that we're in a postcondition context
+	if !p.parsingPostCondition {
+		msg := fmt.Sprintf("'old' keyword can only be used in postconditions at line %d, column %d",
+			token.Pos.Line, token.Pos.Column)
+		p.addError(msg)
+		return nil
+	}
+
+	// Expect an identifier after 'old'
+	if !p.expectPeek(lexer.IDENT) {
+		return nil
+	}
+
+	identifier := &ast.Identifier{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
+	}
+
+	return &ast.OldExpression{
+		Token:      token,
+		Identifier: identifier,
+	}
+}
+
+// parsePreConditions parses function preconditions (require block).
+// Syntax: require condition1; condition2; ...
+// Returns a PreConditions node containing all parsed conditions.
+func (p *Parser) parsePreConditions() *ast.PreConditions {
+	requireToken := p.curToken // the REQUIRE token
+
+	// Advance to the first condition
+	p.nextToken()
+
+	var conditions []*ast.Condition
+
+	// Parse first condition
+	condition := p.parseCondition()
+	if condition == nil {
+		p.addError("expected at least one condition after 'require'")
+		return nil
+	}
+	conditions = append(conditions, condition)
+
+	// Parse additional conditions separated by semicolons
+	for p.peekTokenIs(lexer.SEMICOLON) {
+		p.nextToken() // consume the semicolon
+
+		// Check if we've reached the end of preconditions (peek at next token)
+		// (beginning of var/const/begin or postconditions or EOF)
+		if p.peekTokenIs(lexer.VAR) || p.peekTokenIs(lexer.CONST) ||
+			p.peekTokenIs(lexer.BEGIN) || p.peekTokenIs(lexer.ENSURE) ||
+			p.peekTokenIs(lexer.EOF) {
+			break
+		}
+
+		p.nextToken() // move to the next condition
+
+		condition := p.parseCondition()
+		if condition == nil {
+			break
+		}
+		conditions = append(conditions, condition)
+	}
+
+	return &ast.PreConditions{
+		Token:      requireToken,
+		Conditions: conditions,
+	}
+}
+
+// parsePostConditions parses function postconditions (ensure block).
+// Syntax: ensure condition1; condition2; ...
+// Returns a PostConditions node containing all parsed conditions.
+// Sets parsingPostCondition flag to enable 'old' keyword parsing.
+func (p *Parser) parsePostConditions() *ast.PostConditions {
+	ensureToken := p.curToken // the ENSURE token
+
+	// Enable 'old' keyword parsing
+	p.parsingPostCondition = true
+	defer func() {
+		p.parsingPostCondition = false
+	}()
+
+	// Advance to the first condition
+	p.nextToken()
+
+	var conditions []*ast.Condition
+
+	// Parse first condition
+	condition := p.parseCondition()
+	if condition == nil {
+		p.addError("expected at least one condition after 'ensure'")
+		return nil
+	}
+	conditions = append(conditions, condition)
+
+	// Parse additional conditions separated by semicolons
+	for p.peekTokenIs(lexer.SEMICOLON) {
+		p.nextToken() // consume the semicolon
+
+		// Check if we've reached the end of postconditions (peek at next token)
+		// (next function/procedure/type/begin/end/etc. or EOF)
+		if p.peekTokenIs(lexer.FUNCTION) || p.peekTokenIs(lexer.PROCEDURE) ||
+			p.peekTokenIs(lexer.TYPE) || p.peekTokenIs(lexer.VAR) ||
+			p.peekTokenIs(lexer.CONST) || p.peekTokenIs(lexer.BEGIN) ||
+			p.peekTokenIs(lexer.END) || p.peekTokenIs(lexer.IMPLEMENTATION) ||
+			p.peekTokenIs(lexer.EOF) {
+			break
+		}
+
+		p.nextToken() // move to the next condition
+
+		condition := p.parseCondition()
+		if condition == nil {
+			break
+		}
+		conditions = append(conditions, condition)
+	}
+
+	return &ast.PostConditions{
+		Token:      ensureToken,
+		Conditions: conditions,
+	}
+}

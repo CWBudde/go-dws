@@ -70,6 +70,7 @@ type Parser struct {
 	curToken               lexer.Token
 	peekToken              lexer.Token
 	enableSemanticAnalysis bool
+	parsingPostCondition   bool // True when parsing postconditions (for 'old' keyword)
 }
 
 // New creates a new Parser instance.
@@ -100,6 +101,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.NEW, p.parseNewExpression)       // new keyword: new Exception('msg')
 	p.registerPrefix(lexer.AT, p.parseAddressOfExpression)  // Address-of operator: @FunctionName
 	p.registerPrefix(lexer.LAMBDA, p.parseLambdaExpression) // Lambda expressions: lambda(x) => x * 2
+	p.registerPrefix(lexer.OLD, p.parseOldExpression)       // old keyword: old identifier (postconditions only)
 
 	// Register keywords that can be used as identifiers in expression context
 	// In DWScript/Object Pascal, some keywords can be used as identifiers

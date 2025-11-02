@@ -1,0 +1,13 @@
+// Test postcondition with 'old' keyword
+function Increment(x: Integer): Integer;
+begin
+	Result := x + 1;
+end;
+ensure
+	Result = old x + 1 : 'result must be one more than input';
+
+begin
+	PrintLn(Increment(5));   // Should print 6
+	PrintLn(Increment(0));   // Should print 1
+	PrintLn(Increment(-1));  // Should print 0
+end.

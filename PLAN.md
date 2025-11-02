@@ -901,9 +901,194 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 ### Contracts (Design by Contract)
 
-- [ ] 9.119 Parse require/ensure clauses (if supported)
-- [ ] 9.120 Implement contract checking at runtime
-- [ ] 9.121 Test contracts
+**Overview**: Implement DWScript's complete contract system with preconditions (`require`), postconditions (`ensure`), `old` keyword for referencing pre-execution values, and proper OOP inheritance semantics following Liskov substitution principle.
+
+**Reference**:
+
+- <https://www.delphitools.info/2011/01/19/leaps-and-bounds-of-dwscript/>
+- `reference/dwscript_original/dwsSymbols.pas` (lines 823-871)
+- `reference/dwscript_original/dwsExprs.pas` (lines 1210-1254, 3218-3254)
+- `reference/dwscript_original/dwsCompiler.pas` (lines 4061-4265)
+
+#### Phase 1: AST Nodes (9 tasks) ✅ COMPLETE
+
+- [x] 9.119 Create `Condition` struct in `ast/statements.go`
+  - Fields: `Test Expression` (must be boolean), `Message Expression` (optional string)
+  - Implements `Node`, `Statement` interfaces
+  - Add `String()` method for debugging
+- [x] 9.120 Create `PreConditions` collection node
+  - Fields: `Conditions []Condition`, `Token token.Token`
+  - Implements `Node`, `Statement` interfaces
+  - Add `String()` method showing all conditions
+- [x] 9.121 Create `PostConditions` collection node
+  - Same structure as `PreConditions`
+  - Separate type for semantic distinction
+- [x] 9.122 Add contract fields to `FunctionDeclaration` in `ast/functions.go`
+  - Add `PreConditions *PreConditions` field
+  - Add `PostConditions *PostConditions` field
+  - Update `String()` method to show contracts
+- [x] 9.123 Add contract fields to `MethodDeclaration` (for OOP support)
+  - Methods use `FunctionDecl` type, so already have contract support
+  - Will enable inheritance semantics in later phase
+- [x] 9.124 Create `OldExpression` node in `ast/statements.go`
+  - Fields: `Token token.Token` (the OLD token), `Identifier *Identifier`
+  - Implements `Node`, `Expression` interfaces
+  - Syntax: `old identifier` (no parentheses, matches DWScript reference)
+- [x] 9.125 Implement `TokenLiteral()` methods for all new nodes
+  - Required for error reporting with proper source positions
+- [x] 9.126 Add contract nodes to AST visitor patterns (if implemented)
+  - N/A: No visitor pattern currently implemented
+- [x] 9.127 Write AST node unit tests
+  - Test `String()` output matches expected format
+  - Test node construction and field access
+  - Created `ast/contracts_test.go` with 10 comprehensive tests
+
+#### Phase 2: Parser (12 tasks) ✅ COMPLETE
+
+- [x] 9.128 Parse `require` keyword in function/method declarations
+  - After function signature, before `var`/`const`/`begin`
+  - Set up loop to parse multiple conditions
+  - Entry point: `parseFunctionDeclaration()` in `parser/functions.go`
+- [x] 9.129 Implement `parseCondition()` helper method
+  - Parse boolean expression (will validate type in semantic phase)
+  - Check for optional `: "string literal"` suffix for custom message
+  - Return `Condition` struct
+  - Implemented in `parser/expressions.go`
+- [x] 9.130 Parse multiple preconditions (semicolon-separated)
+  - Loop until non-semicolon token or declaration keyword (`var`, `const`, `begin`)
+  - Collect all conditions into `PreConditions` node
+  - Handle empty condition list (just `require` keyword) as error
+- [x] 9.131 Parse `ensure` keyword after function body
+  - After `end` keyword of function block
+  - Before next function/procedure/type/implementation/end keyword
+  - Use same `parseCondition()` logic
+- [x] 9.132 Parse multiple postconditions (same logic as preconditions)
+  - Collect into `PostConditions` node
+- [x] 9.133 Enable `old` keyword parsing in postcondition context
+  - Add parser flag: `parsingPostCondition bool`
+  - Set to true when parsing `ensure` block
+  - Register prefix parse function for `OLD` token
+- [x] 9.134 Implement `parseOldExpression()` method
+  - Expect `old identifier` syntax (no parentheses)
+  - Parse identifier following `old` keyword
+  - Validate only used in postconditions (check `parsingPostCondition` flag)
+  - Return `OldExpression` node
+- [x] 9.135 Handle condition parsing errors gracefully
+  - Missing semicolon between conditions
+  - Non-boolean expressions (defer to semantic phase)
+  - Unterminated string messages
+  - `old` outside postconditions (report error immediately)
+- [x] 9.136 Add parser tests for preconditions
+  - Single condition, multiple conditions
+  - With and without custom messages
+  - Error cases (missing expressions, syntax errors)
+  - Created `parser/contracts_test.go` with comprehensive tests
+- [x] 9.137 Add parser tests for postconditions
+  - Same coverage as preconditions
+  - Test `old` expressions in various contexts
+  - All tests pass
+- [x] 9.138 Add parser tests for combined pre/post conditions
+  - Functions with both `require` and `ensure`
+  - Edge cases: empty bodies, multiple returns, nested functions
+  - TestParseCombinedContracts, TestParseContractsWithLocalVars
+- [x] 9.139 Test parser error recovery
+  - Ensure parser continues after contract errors
+  - Verify error messages include proper source positions
+  - TestParseOldOutsidePostconditionError validates error handling
+  - Created testdata examples: division.dws, increment.dws, clamp.dws, etc.
+
+#### Phase 3: Semantic Analysis (6 tasks) ✅ COMPLETE (5/6 tasks, Task 9.144 deferred)
+
+- [x] 9.140 Validate precondition expressions are boolean type
+  - In `semantic/analyze_functions.go`, added `checkPreconditions()` method
+  - Type-check each condition's `Test` expression
+  - Report error if not boolean: "precondition must be boolean expression"
+  - Implemented and tested ✅
+- [x] 9.141 Validate postcondition expressions are boolean type
+  - Same logic as preconditions in `checkPostconditions()` method
+  - Error message: "postcondition must be boolean expression"
+  - Implemented and tested ✅
+- [x] 9.142 Validate message expressions are string type
+  - Check optional `Message` field in each condition
+  - Messages are validated as string type
+  - Note: Parser enforces STRING literal after colon, semantic check redundant for literals
+  - Implemented and tested ✅
+- [x] 9.143 Validate `old` keyword usage
+  - Parser validates `old` only in postconditions
+  - Added `validateOldExpressions()` to recursively check undefined identifiers
+  - Added `analyzeOldExpression()` in `analyze_expressions.go` for type inference
+  - Error if referencing undefined variable: "old() references undefined identifier"
+  - Implemented and tested ✅
+- [ ] 9.144 Check method contract inheritance (OOP) - DEFERRED
+  - Will implement with full OOP inheritance support in Stage 7
+  - Requires class hierarchy analysis and method overriding support
+  - Liskov substitution principle to be implemented later
+- [x] 9.145 Add semantic analysis tests
+  - Created `semantic/contracts_test.go` with 6 comprehensive tests
+  - Boolean type validation for preconditions and postconditions ✅
+  - String type validation for messages ✅
+  - `old` expression validation (defined/undefined identifiers) ✅
+  - Multiple conditions testing ✅
+  - Type inference testing ✅
+  - All tests pass ✅
+
+#### Phase 4: Interpreter/Runtime (6 tasks)
+
+- [ ] 9.146 Implement `old` value capture in interpreter
+  - In `interp/interpreter.go`, before function execution:
+  - Create `oldValues map[string]interface{}` for current call
+  - Traverse postconditions to find all `OldExpression` nodes
+  - Evaluate and store current values: `oldValues[ident] = env.Get(ident)`
+- [ ] 9.147 Evaluate preconditions before function body
+  - In function call handler, after parameter binding:
+  - Loop through `PreConditions.Conditions`
+  - Evaluate each `Test` expression
+  - If false, raise assertion error (next task)
+- [ ] 9.148 Implement contract failure error handling
+  - Create `EAssertionFailed` error type in `errors/errors.go`
+  - Format: `"Pre-condition failed in FuncName [line:col]: message"`
+  - Use custom message if provided, else condition source code
+  - Include stack trace for debugging
+- [ ] 9.149 Evaluate postconditions after function body
+  - After body execution, before returning:
+  - Make `oldValues` map available in evaluation environment
+  - Loop through `PostConditions.Conditions`
+  - Evaluate each `Test` (can reference `old` values)
+  - If false, raise assertion error with: `"Post-condition failed in FuncName [line:col]: message"`
+- [ ] 9.150 Implement `OldExpression` evaluation
+  - In expression evaluator, handle `OldExpression`:
+  - Look up identifier in `oldValues` map
+  - Error if not found: "internal error: old value not captured"
+- [ ] 9.151 Handle method contract inheritance at runtime
+  - For preconditions: Only evaluate base class conditions (weakening)
+  - For postconditions: Evaluate conditions from all ancestor classes (strengthening)
+  - Walk up method override chain to collect conditions
+
+#### Phase 5: Testing & Integration (5 tasks)
+
+- [ ] 9.152 Port DWScript reference contract tests
+  - Port `testdata/contracts_*.pas` files (9+ files found)
+  - Convert to `.dws` format
+  - Create expected output files
+  - Add to test suite
+- [ ] 9.153 Fix Rosetta Code examples
+  - `examples/rosetta/Dot_product.dws` (requires `require` keyword)
+  - `examples/rosetta/Assertions.dws` (if exists)
+  - Verify all tests pass
+- [ ] 9.154 Create comprehensive contract test suite
+  - Test all scenarios: basic pre/post, multiple conditions, custom messages
+  - Test `old` keyword with parameters, locals, var parameters
+  - Test inheritance: base only, derived adds postconditions
+  - Test error cases: failed preconditions, failed postconditions
+  - Test edge cases: recursive functions with contracts, nested calls
+- [ ] 9.155 Add contract examples to documentation
+  - Update `README.md` with contract feature description
+  - Create `docs/contracts.md` with full specification and examples
+  - Document syntax, semantics, inheritance rules
+- [ ] 9.156 Update CLI help and PLAN.md completion markers
+  - Mark tasks 9.119-9.156 as complete
+  - Update phase 9 statistics
+  - Add contracts to feature list in README
 
 ### Comprehensive Testing (Stage 8)
 
@@ -919,12 +1104,12 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 
 ## Phase 9 Summary
 
-**Total Tasks**: ~255 tasks
-**Estimated Effort**: ~30 weeks (~7.5 months)
+**Total Tasks**: ~290 tasks (updated from ~255)
+**Estimated Effort**: ~34 weeks (~8.5 months)
 
-### Priority Breakdown:
+### Priority Breakdown
 
-**HIGH PRIORITY** (~173 tasks, ~20 weeks):
+**HIGH PRIORITY** (~208 tasks, ~24 weeks):
 
 - Subrange Types: 12 tasks
 - Units/Modules System: 45 tasks (CRITICAL for multi-file projects)
@@ -932,6 +1117,7 @@ var ARRAY_OF_CONST = NewDynamicArrayType(CONST)
 - External Function Registration (FFI): 35 tasks
 - Array Instantiation (`new TypeName[size]`): 12 tasks (CRITICAL for Rosetta Code examples)
 - For Loop Step Keyword: 11 tasks (REQUIRED for Lucas-Lehmer test and other Rosetta Code examples)
+- **Contracts (Design by Contract): 38 tasks** (REQUIRED for Rosetta Code examples like Dot_product)
 
 **MEDIUM-HIGH PRIORITY** (~15 tasks, ~2 weeks):
 
