@@ -197,4 +197,3 @@ func TestRecordDecl(t *testing.T) {
 		// For now, just check it returns something
 	})
 }
-

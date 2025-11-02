@@ -1,6 +1,8 @@
 // Package jsonvalue provides an internal representation of DWScript JSON values.
 package jsonvalue
 
+import "encoding/json"
+
 // Kind represents the type of a JSON value. It mirrors the DWScript TdwsJSONValueType.
 type Kind uint8
 
@@ -260,4 +262,45 @@ func (v *Value) Int64Value() int64 {
 		return 0
 	}
 	return v.i64
+}
+
+// ============================================================================
+// JSON Serialization
+// Task 9.94: MarshalJSON enables Go's encoding/json to serialize jsonvalue.Value
+// ============================================================================
+
+// MarshalJSON implements json.Marshaler interface for *Value.
+// This allows jsonvalue.Value to be serialized directly using encoding/json.Marshal().
+func (v *Value) MarshalJSON() ([]byte, error) {
+	if v == nil {
+		return []byte("null"), nil
+	}
+
+	switch v.kind {
+	case KindUndefined, KindNull:
+		return []byte("null"), nil
+	case KindBoolean:
+		if v.bool {
+			return []byte("true"), nil
+		}
+		return []byte("false"), nil
+	case KindInt64:
+		// Convert to interface{} and let encoding/json handle the formatting
+		return json.Marshal(v.i64)
+	case KindNumber:
+		return json.Marshal(v.num)
+	case KindString:
+		return json.Marshal(v.str)
+	case KindArray:
+		// Recursively marshal array elements
+		return json.Marshal(v.arrElems)
+	case KindObject:
+		// Build a map preserving insertion order isn't directly supported by encoding/json,
+		// but we can marshal a map. The order will be alphabetical in the output.
+		// For formatted output with order preservation, we'd need custom serialization.
+		// For now, use the map directly.
+		return json.Marshal(v.objEntries)
+	default:
+		return []byte("null"), nil
+	}
 }

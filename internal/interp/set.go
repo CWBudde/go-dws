@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Set Literal Evaluation (Task 8.106-8.107)
+// Set Literal Evaluation
 // ============================================================================
 
 // evalSetLiteral evaluates a set literal expression.
@@ -166,7 +166,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 }
 
 // ============================================================================
-// Set Binary Operations (Tasks 8.110-8.112)
+// Set Binary Operations
 // ============================================================================
 
 // evalBinarySetOperation evaluates binary operations on sets.
@@ -238,7 +238,7 @@ func (i *Interpreter) evalSetMembership(element *EnumValue, set *SetValue) Value
 }
 
 // ============================================================================
-// Include/Exclude Methods (Tasks 8.108-8.109)
+// Include/Exclude Methods
 // ============================================================================
 
 // evalSetInclude implements the Include method for sets.

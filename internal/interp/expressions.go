@@ -93,6 +93,13 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 		}
 	}
 
+	// Task 9.132: Check if this is a parameterless built-in function
+	// Built-in functions like PrintLn can be called without parentheses
+	if i.isBuiltinFunction(node.Value) {
+		// Call the built-in function with no arguments
+		return i.callBuiltinFunction(node.Value, []Value{})
+	}
+
 	// Still not found - return error
 	return i.newErrorWithLocation(node, "undefined variable '%s'", node.Value)
 }

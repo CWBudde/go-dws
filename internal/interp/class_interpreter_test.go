@@ -79,6 +79,77 @@ func TestObjectCreation(t *testing.T) {
 	}
 }
 
+// Task 9.131: Test optional parentheses for new expression
+func TestNewExpressionOptionalParentheses(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string // Expected object class name
+	}{
+		{
+			name: "new with keyword and no parentheses",
+			input: `
+				type TTest = class
+					Value: Integer;
+				end;
+
+				var t: TTest;
+				t := new TTest;
+			`,
+			expected: "TTest",
+		},
+		{
+			name: "new with keyword and empty parentheses",
+			input: `
+				type TTest = class
+					Value: Integer;
+				end;
+
+				var t: TTest;
+				t := new TTest();
+			`,
+			expected: "TTest",
+		},
+		{
+			name: "multiple new expressions without parentheses",
+			input: `
+				type TBase = class
+					X: Integer;
+				end;
+
+				type TSub = class(TBase)
+					Y: Integer;
+				end;
+
+				var b: TBase;
+				var s: TSub;
+				b := new TBase;
+				s := new TSub;
+			`,
+			expected: "TSub",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEvalClass(tt.input)
+
+			if isError(result) {
+				t.Fatalf("Evaluation error: %s", result.String())
+			}
+
+			obj, ok := AsObject(result)
+			if !ok {
+				t.Fatalf("Expected object, got %s", result.Type())
+			}
+
+			if obj.Class.Name != tt.expected {
+				t.Errorf("Expected class name %s, got %s", tt.expected, obj.Class.Name)
+			}
+		})
+	}
+}
+
 // Test 7.46: TestFieldAccess
 func TestFieldAccess(t *testing.T) {
 	tests := []struct {
@@ -711,7 +782,7 @@ func TestNonVirtualMethodDynamicDispatch(t *testing.T) {
 }
 
 // ============================================================================
-// New Keyword Tests (Task 8.260f)
+// New Keyword Tests
 // ============================================================================
 
 func TestNewKeywordSimpleClass(t *testing.T) {

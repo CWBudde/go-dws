@@ -202,9 +202,9 @@ func TestJSONValue_VariantBoxing(t *testing.T) {
 // TestJSONValue_VarTypeIntegration verifies VarType works with JSON values
 func TestJSONValue_VarTypeIntegration(t *testing.T) {
 	tests := []struct {
-		name         string
-		setup        func() *jsonvalue.Value
-		wantVarType  int64
+		name        string
+		setup       func() *jsonvalue.Value
+		wantVarType int64
 	}{
 		{"null", jsonvalue.NewNull, varNull},
 		{"boolean", func() *jsonvalue.Value { return jsonvalue.NewBoolean(true) }, varBoolean},

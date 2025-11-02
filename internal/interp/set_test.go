@@ -160,7 +160,7 @@ func TestSetValue_RemoveElement(t *testing.T) {
 }
 
 // ============================================================================
-// Set Literal Evaluation Tests (Tasks 8.106-8.107)
+// Set Literal Evaluation Tests
 // ============================================================================
 
 // TestEvalSetLiteral_Simple tests evaluating a simple set literal with elements.
@@ -322,7 +322,7 @@ func TestEvalSetLiteral_MixedRangeAndElements(t *testing.T) {
 }
 
 // ============================================================================
-// Set Binary Operations Tests (Tasks 8.110-8.112)
+// Set Binary Operations Tests
 // ============================================================================
 
 // TestSetUnion tests set union operation (+).
@@ -437,7 +437,7 @@ func TestSetMembership(t *testing.T) {
 }
 
 // ============================================================================
-// Include/Exclude Methods (Tasks 8.108-8.109)
+// Include/Exclude Methods.
 // ============================================================================
 
 // TestSetInclude tests the Include method.

@@ -108,9 +108,9 @@ func (pd RecordPropertyDecl) String() string {
 // DWScript syntax: fieldName: value
 // The Name can be nil for positional initialization (not yet implemented).
 type FieldInitializer struct {
-	Name  *Identifier  // Field name (nil for positional initialization)
-	Value Expression   // Field value expression
-	Token lexer.Token  // The field name token or first token of value
+	Name  *Identifier // Field name (nil for positional initialization)
+	Value Expression  // Field value expression
+	Token lexer.Token // The field name token or first token of value
 }
 
 // String returns a string representation of the field initializer.
@@ -134,13 +134,14 @@ func (fi *FieldInitializer) String() string {
 //   - Anonymous: (x: 10; y: 20)
 //   - Typed: TPoint(x: 10; y: 20)
 //   - Semicolons or commas as separators: (a: 1; b: 2) or (a: 1, b: 2)
+//
 // Examples from Death_Star.dws:
 //   - const big : TSphere = (cx: 20; cy: 20; cz: 0; r: 20);
 //   - const small : TSphere = (cx: 7; cy: 7; cz: -10; r: 15);
 type RecordLiteralExpression struct {
-	TypeName *Identifier           // Optional type name (nil for anonymous records)
-	Fields   []*FieldInitializer   // Field initializers
-	Token    lexer.Token           // The '(' token or type name token
+	TypeName *Identifier         // Optional type name (nil for anonymous records)
+	Fields   []*FieldInitializer // Field initializers
+	Token    lexer.Token         // The '(' token or type name token
 }
 
 func (rle *RecordLiteralExpression) expressionNode()      {}

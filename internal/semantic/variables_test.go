@@ -64,7 +64,7 @@ func TestVarTypeInferenceNilInitializerError(t *testing.T) {
 }
 
 // ============================================================================
-// Variant Variable Tests (Task 9.147)
+// Variant Variable Tests
 // ============================================================================
 
 // Task 9.144 & 9.147: Test Variant variable declarations

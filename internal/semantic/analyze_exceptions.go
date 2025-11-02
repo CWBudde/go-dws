@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Exception Statement Analysis (Tasks 8.205-8.210)
+// Exception Statement Analysis
 // ============================================================================
 
 // Task 8.208: Analyze raise statement

@@ -117,16 +117,16 @@ func TestCharLiterals(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"#65", "A"},           // Decimal: A
-		{"#$41", "A"},          // Hex: A
-		{"#13", "\r"},          // Carriage return
-		{"#10", "\n"},          // Line feed
-		{"#$61", "a"},          // Hex: a
-		{"#32", " "},           // Space
-		{"#$0D", "\r"},         // Hex CR
-		{"#$0A", "\n"},         // Hex LF
-		{"#48", "0"},           // Digit 0
-		{"#$30", "0"},          // Hex digit 0
+		{"#65", "A"},   // Decimal: A
+		{"#$41", "A"},  // Hex: A
+		{"#13", "\r"},  // Carriage return
+		{"#10", "\n"},  // Line feed
+		{"#$61", "a"},  // Hex: a
+		{"#32", " "},   // Space
+		{"#$0D", "\r"}, // Hex CR
+		{"#$0A", "\n"}, // Hex LF
+		{"#48", "0"},   // Digit 0
+		{"#$30", "0"},  // Hex digit 0
 	}
 
 	for _, tt := range tests {
@@ -875,7 +875,7 @@ func TestForStatementExecution(t *testing.T) {
 	}
 }
 
-// TestForStatementWithStep tests for loop execution with step keyword (Task 9.156).
+// TestForStatementWithStep tests for loop execution with step keyword.
 func TestForStatementWithStep(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -939,7 +939,7 @@ func TestForStatementWithStep(t *testing.T) {
 	}
 }
 
-// TestForStatementStepErrors tests error handling for invalid step values (Task 9.156).
+// TestForStatementStepErrors tests error handling for invalid step values.
 func TestForStatementStepErrors(t *testing.T) {
 	tests := []struct {
 		name          string

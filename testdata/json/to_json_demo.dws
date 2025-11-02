@@ -1,0 +1,36 @@
+// Demonstration of ToJSON and ToJSONFormatted functions
+// Tasks 9.94-9.96: JSON serialization
+
+// Test 1: Serialize primitives
+PrintLn('=== Primitives ===');
+PrintLn(ToJSON(42));
+PrintLn(ToJSON(3.14));
+PrintLn(ToJSON('hello'));
+PrintLn(ToJSON(true));
+PrintLn(ToJSON(false));
+
+// Test 2: Serialize arrays
+PrintLn('');
+PrintLn('=== Arrays ===');
+var arr: array of Integer;
+SetLength(arr, 3);
+arr[0] := 1;
+arr[1] := 2;
+arr[2] := 3;
+PrintLn(ToJSON(arr));
+
+// Test 3: Serialize with formatting
+PrintLn('');
+PrintLn('=== Formatted (indent=2) ===');
+PrintLn(ToJSONFormatted(arr, 2));
+
+// Test 4: Mixed type array via Variant
+PrintLn('');
+PrintLn('=== Mixed Types ===');
+var mixed: array of Variant;
+SetLength(mixed, 4);
+mixed[0] := 42;
+mixed[1] := 'hello';
+mixed[2] := true;
+mixed[3] := 3.14;
+PrintLn(ToJSON(mixed));

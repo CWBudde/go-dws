@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Helper Support (Task 9.86-9.89)
+// Helper Support
 // ============================================================================
 
 // HelperInfo stores runtime information about a helper type
@@ -92,7 +92,7 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 		helperInfo.Properties[prop.Name.Value] = propInfo
 	}
 
-	// Initialize class variables (Task 9.87)
+	// Initialize class variables
 	for _, classVar := range decl.ClassVars {
 		varType := i.resolveTypeFromExpression(classVar.Type)
 		if varType == nil {
@@ -118,7 +118,7 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 		helperInfo.ClassVars[classVar.Name.Value] = defaultValue
 	}
 
-	// Initialize class constants (Task 9.87)
+	// Initialize class constants
 	for _, classConst := range decl.ClassConsts {
 		// Evaluate the constant value
 		constValue := i.Eval(classConst.Value)
@@ -263,7 +263,7 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	// Bind Self to the target value (the value being extended)
 	i.env.Define("Self", selfValue)
 
-	// Bind helper class vars and consts (Task 9.87)
+	// Bind helper class vars and consts
 	for name, value := range helper.ClassVars {
 		i.env.Define(name, value)
 	}
@@ -522,7 +522,7 @@ func extractSimpleTypeName(typeName string) string {
 }
 
 // ============================================================================
-// Built-in Array Helpers (Task 9.171)
+// Built-in Array Helpers
 // ============================================================================
 
 // evalBuiltinHelperProperty evaluates a built-in helper property

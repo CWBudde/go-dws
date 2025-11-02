@@ -14,7 +14,7 @@ import (
 // ============================================================================
 
 // ============================================================================
-// Boxing/Unboxing Tests (Task 9.227 & 9.228)
+// Boxing/Unboxing Tests
 // ============================================================================
 
 func TestVariantBoxingInteger(t *testing.T) {
@@ -184,7 +184,7 @@ func TestVariantUnwrapping(t *testing.T) {
 }
 
 // ============================================================================
-// Arithmetic Operation Tests (Task 9.229)
+// Arithmetic Operation Tests
 // ============================================================================
 
 func TestVariantArithmeticIntegerPlusInteger(t *testing.T) {
@@ -318,7 +318,7 @@ func TestVariantArithmeticStringPlusInteger(t *testing.T) {
 }
 
 // ============================================================================
-// Comparison Operation Tests (Task 9.230)
+// Comparison Operation Tests
 // ============================================================================
 
 func TestVariantComparisonIntegerEquals(t *testing.T) {
@@ -506,7 +506,7 @@ func TestVariantHeterogeneousArray(t *testing.T) {
 }
 
 // ============================================================================
-// Variant Introspection Function Tests (Task 9.232)
+// Variant Introspection Function Tests
 // ============================================================================
 
 func TestVarTypeInteger(t *testing.T) {
@@ -749,7 +749,7 @@ func TestVariantIntrospectionCombined(t *testing.T) {
 }
 
 // ============================================================================
-// Variant Conversion Functions (Task 9.233 & 9.234)
+// Variant Conversion Functions
 // ============================================================================
 
 func TestVarToStrInteger(t *testing.T) {
@@ -1247,6 +1247,56 @@ func expectInteger(t *testing.T, val Value, expected int64) {
 	t.Helper()
 	testIntegerValue(t, val, expected)
 }
+
+// ============================================================================
+// VarClear Tests
+// ============================================================================
+
+func TestVarClearBasic(t *testing.T) {
+	source := `
+	var v: Variant := 42;
+	var cleared: Variant;
+	cleared := VarClear(v);
+	PrintLn(VarIsNull(cleared));
+	PrintLn(VarType(cleared));
+	`
+	val := testEval(source)
+	if isError(val) {
+		t.Fatalf("unexpected error: %v", val)
+	}
+}
+
+func TestVarClearOnEmptyVariant(t *testing.T) {
+	source := `
+	var v: Variant;
+	var cleared: Variant := VarClear(v);
+	PrintLn(VarIsNull(cleared));
+	`
+	val := testEval(source)
+	if isError(val) {
+		t.Fatalf("unexpected error: %v", val)
+	}
+}
+
+func TestVarClearReassignment(t *testing.T) {
+	source := `
+	var v: Variant := 'hello';
+	PrintLn(VarType(v));  // Should be 256 (string)
+	v := VarClear(v);
+	PrintLn(VarIsNull(v));  // Should be True
+	PrintLn(VarType(v));  // Should be 0 (empty)
+	v := 99;
+	PrintLn(VarType(v));  // Should be 3 (integer)
+	`
+	val := testEval(source)
+	if isError(val) {
+		t.Fatalf("unexpected error: %v", val)
+	}
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
 
 func expectFloat(t *testing.T, val Value, expected float64) {
 	t.Helper()

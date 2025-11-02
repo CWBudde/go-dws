@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Record Declaration Parser Tests (Task 8.61, 8.67)
+// Record Declaration Parser Tests
 // ============================================================================
 
 // Task 8.61a: Test basic record declaration parsing
@@ -241,7 +241,7 @@ func TestParseRecordWithProperties(t *testing.T) {
 }
 
 // ============================================================================
-// Record Literal Parser Tests (Task 8.63, 8.64, 8.67)
+// Record Literal Parser Tests
 // ============================================================================
 
 // Task 8.63: Test record literal parsing (named fields)
@@ -364,7 +364,7 @@ func TestParseRecordConstructor(t *testing.T) {
 }
 
 // ============================================================================
-// Record Field Access and Method Calls Parser Tests (Task 8.65, 8.66, 8.67)
+// Record Field Access and Method Calls Parser Tests
 // ============================================================================
 
 // Task 8.65: Test record field access

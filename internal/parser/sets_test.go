@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Set Type Declaration Parser Tests (Task 8.91-8.92)
+// Set Type Declaration Parser Tests
 // ============================================================================
 
 // Task 8.91a: Test basic set type declaration parsing
@@ -117,7 +117,7 @@ func TestParseInlineSetDeclaration(t *testing.T) {
 }
 
 // ============================================================================
-// Set Literal Parser Tests (Task 8.93-8.95)
+// Set Literal Parser Tests
 // ============================================================================
 
 // Task 8.93: Test parsing set literals with elements
@@ -310,7 +310,7 @@ func TestParseSetRange(t *testing.T) {
 }
 
 // ============================================================================
-// Set Operators Parser Tests (Task 8.96-8.97)
+// Set Operators Parser Tests
 // ============================================================================
 
 // Task 8.96-8.97: Test set operations and 'in' operator

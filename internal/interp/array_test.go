@@ -95,7 +95,7 @@ func TestArrayValue_WithElements(t *testing.T) {
 }
 
 // ============================================================================
-// Array Indexing Tests (Task 8.129 - Reading)
+// Array Indexing Tests
 // ============================================================================
 
 // TestArrayDeclaration_Basic tests that array type declarations work.
@@ -204,7 +204,7 @@ func TestArrayIndexing_OutOfBoundsStatic(t *testing.T) {
 }
 
 // ============================================================================//
-// Array Literal Evaluation Tests (Task 9.188-9.189)
+// Array Literal Evaluation Tests
 // ============================================================================//
 
 func TestArrayLiteralEvaluation(t *testing.T) {
@@ -1393,7 +1393,7 @@ end
 }
 
 // ============================================================================
-// Error Cases for Low, High, SetLength (Tasks 8.131-8.133)
+// Error Cases for Low, High, SetLength
 // ============================================================================
 
 // TestBuiltinLowHighSetLength_ErrorCases tests error handling.
@@ -1776,7 +1776,7 @@ end
 }
 
 // ============================================================================
-// Error Cases for Add and Delete (Tasks 8.134-8.135)
+// Error Cases for Add and Delete
 // ============================================================================
 
 // TestBuiltinAddDelete_ErrorCases tests error handling for Add() and Delete().
@@ -2115,7 +2115,7 @@ end
 }
 
 // ============================================================================
-// IndexOf Tests (Tasks 9.69-9.71)
+// IndexOf Tests
 // ============================================================================
 
 // TestArrayIndexOf_BasicFound tests IndexOf finding the first occurrence.
@@ -2407,7 +2407,7 @@ end
 }
 
 // ============================================================================
-// Contains Tests (Tasks 9.72-9.73)
+// Contains Tests
 // ============================================================================
 
 // TestArrayContains_Found tests Contains returning true when value exists.
@@ -2616,7 +2616,7 @@ end
 }
 
 // ============================================================================
-// Reverse Tests (Tasks 9.74-9.75)
+// Reverse Tests
 // ============================================================================
 
 // TestArrayReverse_OddLength tests reversing an odd-length array.
@@ -2793,7 +2793,7 @@ end
 }
 
 // ============================================================================
-// Sort Tests (Tasks 9.76, 9.78)
+// Sort Tests
 // ============================================================================
 
 // TestArraySort_Integers tests sorting an integer array.
@@ -3355,7 +3355,7 @@ end
 }
 
 // ============================================================================
-// Inline Array Type Tests (Task 9.54, 9.55, 9.56)
+// Inline Array Type Tests
 // ============================================================================
 
 func TestInlineArrayTypes_DynamicArrayVariable(t *testing.T) {
@@ -3550,7 +3550,7 @@ end
 }
 
 // ============================================================================
-// Array Instantiation with new Keyword Tests (Task 9.166)
+// Array Instantiation with new Keyword Tests
 // ============================================================================
 
 // TestNewArrayExpression_Integer1D tests creating a 1D array of integers.

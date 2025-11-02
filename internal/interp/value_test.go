@@ -131,6 +131,53 @@ func TestNilValue(t *testing.T) {
 	}
 }
 
+// Task 9.133: Test TypeMetaValue
+func TestTypeMetaValue(t *testing.T) {
+	tests := []struct {
+		name         string
+		typeInfo     interface{} // Use interface{} to avoid import issues
+		typeName     string
+		wantType     string
+		wantStr      string
+	}{
+		{
+			name:     "Integer type meta-value",
+			typeName: "Integer",
+			wantType: "TYPE_META",
+			wantStr:  "Integer",
+		},
+		{
+			name:     "Float type meta-value",
+			typeName: "Float",
+			wantType: "TYPE_META",
+			wantStr:  "Float",
+		},
+		{
+			name:     "Boolean type meta-value",
+			typeName: "Boolean",
+			wantType: "TYPE_META",
+			wantStr:  "Boolean",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := &TypeMetaValue{
+				TypeInfo: nil, // TypeInfo is internal to the type system
+				TypeName: tt.typeName,
+			}
+
+			if got := val.Type(); got != tt.wantType {
+				t.Errorf("TypeMetaValue.Type() = %v, want %v", got, tt.wantType)
+			}
+
+			if got := val.String(); got != tt.wantStr {
+				t.Errorf("TypeMetaValue.String() = %v, want %v", got, tt.wantStr)
+			}
+		})
+	}
+}
+
 // RED: Write failing test for helper conversion functions
 func TestNewIntegerValue(t *testing.T) {
 	val := NewIntegerValue(42)
@@ -375,7 +422,7 @@ func TestGoBool(t *testing.T) {
 }
 
 // ============================================================================
-// VariantValue Tests (Task 9.222)
+// VariantValue Tests
 // ============================================================================
 
 // Test VariantValue wrapping Integer

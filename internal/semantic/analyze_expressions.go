@@ -144,6 +144,20 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 
 // analyzeIdentifier analyzes an identifier and returns its type
 func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
+	// Task 9.133: Handle built-in type names as type meta-values
+	// These identifiers represent type names that can be used as runtime values
+	// (e.g., High(Integer), Low(Boolean))
+	switch ident.Value {
+	case "Integer":
+		return types.INTEGER
+	case "Float":
+		return types.FLOAT
+	case "Boolean":
+		return types.BOOLEAN
+	case "String":
+		return types.STRING
+	}
+
 	// Handle built-in ExceptObject variable
 	// ExceptObject is a global variable that holds the current exception (or nil)
 	if ident.Value == "ExceptObject" {
@@ -190,6 +204,16 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 				return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
 			}
 		}
+
+		// Task 9.132: Check if this is a built-in function used without parentheses
+		// In DWScript, built-in functions like PrintLn can be called without parentheses
+		// The semantic analyzer should allow this and treat them as procedure calls
+		if a.isBuiltinFunction(ident.Value) {
+			// Return Void type for built-in procedures (or appropriate type for functions)
+			// For simplicity, we'll return VOID type which means "any" - the interpreter will handle it
+			return types.VOID
+		}
+
 		a.addError("undefined variable '%s' at %s", ident.Value, ident.Token.Pos.String())
 		return nil
 	}
@@ -686,7 +710,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// Format built-in function (Task 9.51a, Task 9.156)
+		// Format built-in function
 		if funcIdent.Value == "Format" {
 			// Format takes exactly 2 arguments: format string and array of values
 			if len(expr.Arguments) != 2 {
@@ -1079,9 +1103,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		// Low built-in function (Task 8.132, extended in Task 9.31)
+		// Low built-in function
 		if funcIdent.Value == "Low" {
-			// Low takes one argument (array or enum) and returns an integer (for arrays) or enum value (for enums)
+			// Low takes one argument (array, enum, or type meta-value) and returns a value of the appropriate type
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Low' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1089,7 +1113,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			// Analyze the argument
 			argType := a.analyzeExpression(expr.Arguments[0])
-			// Verify it's an array or enum
+			// Verify it's an array, enum, or basic type (type meta-value)
 			if argType != nil {
 				if _, isArray := argType.(*types.ArrayType); isArray {
 					// For arrays, return Integer
@@ -1099,16 +1123,28 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					// For enums, return the same enum type
 					return enumType
 				}
-				// Neither array nor enum
-				a.addError("function 'Low' expects array or enum, got %s at %s",
+				// Task 9.134: Handle type meta-values (Integer, Float, Boolean, String)
+				switch argType {
+				case types.INTEGER:
+					return types.INTEGER
+				case types.FLOAT:
+					return types.FLOAT
+				case types.BOOLEAN:
+					return types.BOOLEAN
+				case types.STRING:
+					// String doesn't have a low value, but we allow it for consistency
+					return types.INTEGER
+				}
+				// Neither array, enum, nor type meta-value
+				a.addError("function 'Low' expects array, enum, or type name, got %s at %s",
 					argType.String(), expr.Token.Pos.String())
 			}
 			return types.INTEGER
 		}
 
-		// High built-in function (Task 8.133, extended in Task 9.32)
+		// High built-in function
 		if funcIdent.Value == "High" {
-			// High takes one argument (array or enum) and returns an integer (for arrays) or enum value (for enums)
+			// High takes one argument (array, enum, or type meta-value) and returns a value of the appropriate type
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'High' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1116,7 +1152,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 			// Analyze the argument
 			argType := a.analyzeExpression(expr.Arguments[0])
-			// Verify it's an array or enum
+			// Verify it's an array, enum, or basic type (type meta-value)
 			if argType != nil {
 				if _, isArray := argType.(*types.ArrayType); isArray {
 					// For arrays, return Integer
@@ -1126,8 +1162,20 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					// For enums, return the same enum type
 					return enumType
 				}
-				// Neither array nor enum
-				a.addError("function 'High' expects array or enum, got %s at %s",
+				// Task 9.134: Handle type meta-values (Integer, Float, Boolean, String)
+				switch argType {
+				case types.INTEGER:
+					return types.INTEGER
+				case types.FLOAT:
+					return types.FLOAT
+				case types.BOOLEAN:
+					return types.BOOLEAN
+				case types.STRING:
+					// String doesn't have a high value, but we allow it for consistency
+					return types.INTEGER
+				}
+				// Neither array, enum, nor type meta-value
+				a.addError("function 'High' expects array, enum, or type name, got %s at %s",
 					argType.String(), expr.Token.Pos.String())
 			}
 			return types.INTEGER
@@ -1179,7 +1227,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		// Delete built-in function (Tasks 8.135, 9.44 - overloaded)
+		// Delete built-in function
 		// Delete(array, index) - for arrays (2 args)
 		// Delete(string, pos, count) - for strings (3 args)
 		if funcIdent.Value == "Delete" {
@@ -1278,16 +1326,16 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					len(expr.Arguments), expr.Token.Pos.String())
 				return types.STRING
 			}
-			// Analyze the argument and verify it's Float
+			// Analyze the argument and verify it's Float (or coercible to Float, e.g. Integer)
 			argType := a.analyzeExpression(expr.Arguments[0])
-			if argType != nil && argType != types.FLOAT {
+			if argType != nil && !a.canAssign(argType, types.FLOAT) {
 				a.addError("function 'FloatToStr' expects Float as argument, got %s at %s",
 					argType.String(), expr.Token.Pos.String())
 			}
 			return types.STRING
 		}
 
-		// BoolToStr built-in function (Task 9.245)
+		// BoolToStr built-in function
 		if funcIdent.Value == "BoolToStr" {
 			// BoolToStr takes one boolean argument and returns a string
 			if len(expr.Arguments) != 1 {
@@ -1357,7 +1405,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		// Dec built-in procedure (Task 9.25 - not yet implemented in interpreter)
+		// Dec built-in procedure
 		if funcIdent.Value == "Dec" {
 			// Dec takes 1-2 arguments: variable and optional delta
 			if len(expr.Arguments) < 1 || len(expr.Arguments) > 2 {
@@ -1968,6 +2016,96 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VARIANT
 		}
 
+		// Task 9.94: ToJSON built-in function
+		if funcIdent.Value == "ToJSON" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'ToJSON' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze the argument (can be any type)
+			a.analyzeExpression(expr.Arguments[0])
+			// Returns String
+			return types.STRING
+		}
+
+		// Task 9.95: ToJSONFormatted built-in function
+		if funcIdent.Value == "ToJSONFormatted" {
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'ToJSONFormatted' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze first argument (can be any type)
+			a.analyzeExpression(expr.Arguments[0])
+			// Analyze second argument (should be Integer)
+			indentType := a.analyzeExpression(expr.Arguments[1])
+			if indentType != nil && !indentType.Equals(types.INTEGER) {
+				a.addError("ToJSONFormatted expects Integer as second argument, got %s at %s",
+					indentType.String(), expr.Token.Pos.String())
+			}
+			// Returns String
+			return types.STRING
+		}
+
+		// Task 9.98: JSONHasField built-in function
+		if funcIdent.Value == "JSONHasField" {
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'JSONHasField' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.BOOLEAN
+			}
+			// Analyze both arguments (object, field name)
+			a.analyzeExpression(expr.Arguments[0])
+			fieldType := a.analyzeExpression(expr.Arguments[1])
+			// Second argument must be String
+			if fieldType != nil && !fieldType.Equals(types.STRING) {
+				a.addError("JSONHasField expects String as second argument, got %s at %s",
+					fieldType.String(), expr.Token.Pos.String())
+			}
+			// Returns Boolean
+			return types.BOOLEAN
+		}
+
+		// Task 9.99: JSONKeys built-in function
+		if funcIdent.Value == "JSONKeys" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'JSONKeys' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.NewDynamicArrayType(types.STRING)
+			}
+			// Analyze argument
+			a.analyzeExpression(expr.Arguments[0])
+			// Returns array of String
+			return types.NewDynamicArrayType(types.STRING)
+		}
+
+		// Task 9.100: JSONValues built-in function
+		if funcIdent.Value == "JSONValues" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'JSONValues' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.NewDynamicArrayType(types.VARIANT)
+			}
+			// Analyze argument
+			a.analyzeExpression(expr.Arguments[0])
+			// Returns array of Variant
+			return types.NewDynamicArrayType(types.VARIANT)
+		}
+
+		// Task 9.102: JSONLength built-in function
+		if funcIdent.Value == "JSONLength" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'JSONLength' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER
+			}
+			// Analyze argument
+			a.analyzeExpression(expr.Arguments[0])
+			// Returns Integer
+			return types.INTEGER
+		}
+
 		a.addError("undefined function '%s' at %s", funcIdent.Value, expr.Token.Pos.String())
 		return nil
 	}
@@ -2039,4 +2177,38 @@ func (a *Analyzer) analyzeOldExpression(expr *ast.OldExpression) types.Type {
 
 	// Return the type of the identifier
 	return sym.Type
+}
+
+// isBuiltinFunction checks if a name refers to a built-in function.
+// Task 9.132: Helper for semantic analysis of parameterless built-in function calls.
+func (a *Analyzer) isBuiltinFunction(name string) bool {
+	// List of all built-in functions that can be called without parentheses
+	// This should match the list in the interpreter's isBuiltinFunction
+	switch name {
+	case "PrintLn", "Print", "Ord", "Integer", "Length", "Copy", "Concat",
+		"IndexOf", "Contains", "Reverse", "Sort", "Pos", "UpperCase",
+		"LowerCase", "Trim", "TrimLeft", "TrimRight", "StringReplace",
+		"Format", "Abs", "Min", "Max", "Sqr", "Power", "Sqrt", "Sin",
+		"Cos", "Tan", "Random", "Randomize", "Exp", "Ln", "Round",
+		"Trunc", "Frac", "Chr", "SetLength", "High", "Low", "Assigned",
+		"TypeOf", "SizeOf", "TypeName", "Delete", "StrToInt", "StrToFloat",
+		"IntToStr", "FloatToStr", "FloatToStrF", "BoolToStr", "StrToBool",
+		"VarToStr", "VarIsNull", "VarIsEmpty", "VarType", "VarClear",
+		"Include", "Exclude", "Map", "Filter", "Reduce", "ForEach",
+		"Now", "Date", "Time", "UTCDateTime", "EncodeDate", "EncodeTime",
+		"EncodeDateTime", "YearOf", "MonthOf", "DayOf", "HourOf", "MinuteOf",
+		"SecondOf", "MillisecondOf", "DayOfWeek", "DayOfYear", "WeekOfYear",
+		"DateTimeToStr", "DateToStr", "TimeToStr", "FormatDateTime",
+		"IncYear", "IncMonth", "IncWeek", "IncDay", "IncHour", "IncMinute",
+		"IncSecond", "IncMillisecond", "DaysBetween", "HoursBetween",
+		"MinutesBetween", "SecondsBetween", "MillisecondsBetween",
+		"IsLeapYear", "DaysInMonth", "DaysInYear", "StartOfDay", "EndOfDay",
+		"StartOfMonth", "EndOfMonth", "StartOfYear", "EndOfYear", "IsToday",
+		"IsYesterday", "IsTomorrow", "IsSameDay", "CompareDate", "CompareTime",
+		"CompareDateTime", "ParseJSON", "ToJSON", "ToJSONFormatted",
+		"JSONHasField", "JSONKeys", "JSONValues", "JSONLength":
+		return true
+	default:
+		return false
+	}
 }

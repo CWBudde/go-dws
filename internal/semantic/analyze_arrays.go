@@ -90,6 +90,15 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			return types.STRING
 		}
 
+		// Task 9.97: Allow indexing of Variant types (can contain JSON objects/arrays)
+		// At runtime, the interpreter will handle JSON object property access and array indexing
+		if leftType.Equals(types.VARIANT) {
+			// Analyze the index expression (can be string or integer)
+			a.analyzeExpression(expr.Index)
+			// Result type is Variant since we don't know the JSON structure at compile time
+			return types.VARIANT
+		}
+
 		a.addError("cannot index non-array type %s at %s",
 			leftType.String(), expr.Token.Pos.String())
 		return nil

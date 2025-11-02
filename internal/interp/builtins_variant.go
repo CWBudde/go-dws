@@ -3,7 +3,7 @@ package interp
 import "strconv"
 
 // ============================================================================
-// Variant Introspection Functions (Task 9.232)
+// Variant Introspection Functions
 // ============================================================================
 
 // VarType constants - DWScript/Delphi-compatible type codes
@@ -31,7 +31,7 @@ const (
 	varUInt64   = 21     // 64-bit unsigned integer
 	varString   = 256    // String (Unicode)
 	varArray    = 0x2000 // Array flag (ORed with element type)
-	varJSON     = 0x1000 // JSON object (Task 9.89: Custom code for JSON values)
+	varJSON     = 0x1000 // JSON object
 )
 
 // builtinVarType implements the VarType() built-in function.
@@ -47,8 +47,9 @@ const (
 //   - varString (256): String value
 //
 // Example:
-//   var v: Variant := 42;
-//   PrintLn(VarType(v));  // Outputs: 3 (varInteger)
+//
+//	var v: Variant := 42;
+//	PrintLn(VarType(v));  // Outputs: 3 (varInteger)
 func (i *Interpreter) builtinVarType(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "VarType() expects exactly 1 argument, got %d", len(args))
@@ -117,10 +118,11 @@ func (i *Interpreter) varTypeFromValue(val Value) Value {
 // (unlike VBScript which distinguishes them).
 //
 // Example:
-//   var v: Variant;
-//   PrintLn(VarIsNull(v));  // Outputs: true
-//   v := 42;
-//   PrintLn(VarIsNull(v));  // Outputs: false
+//
+//	var v: Variant;
+//	PrintLn(VarIsNull(v));  // Outputs: true
+//	v := 42;
+//	PrintLn(VarIsNull(v));  // Outputs: false
 func (i *Interpreter) builtinVarIsNull(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "VarIsNull() expects exactly 1 argument, got %d", len(args))
@@ -149,10 +151,11 @@ func (i *Interpreter) builtinVarIsNull(args []Value) Value {
 // This differs from VBScript where Empty and Null are distinct states.
 //
 // Example:
-//   var v: Variant;
-//   PrintLn(VarIsEmpty(v));  // Outputs: true
-//   v := "hello";
-//   PrintLn(VarIsEmpty(v));  // Outputs: false
+//
+//	var v: Variant;
+//	PrintLn(VarIsEmpty(v));  // Outputs: true
+//	v := "hello";
+//	PrintLn(VarIsEmpty(v));  // Outputs: false
 func (i *Interpreter) builtinVarIsEmpty(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "VarIsEmpty() expects exactly 1 argument, got %d", len(args))
@@ -171,10 +174,11 @@ func (i *Interpreter) builtinVarIsEmpty(args []Value) Value {
 // Unassigned Variants return False.
 //
 // Example:
-//   var v: Variant := 42;
-//   PrintLn(VarIsNumeric(v));  // Outputs: true
-//   v := "hello";
-//   PrintLn(VarIsNumeric(v));  // Outputs: false
+//
+//	var v: Variant := 42;
+//	PrintLn(VarIsNumeric(v));  // Outputs: true
+//	v := "hello";
+//	PrintLn(VarIsNumeric(v));  // Outputs: false
 func (i *Interpreter) builtinVarIsNumeric(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "VarIsNumeric() expects exactly 1 argument, got %d", len(args))
@@ -195,7 +199,7 @@ func (i *Interpreter) builtinVarIsNumeric(args []Value) Value {
 }
 
 // ============================================================================
-// Variant Conversion Functions (Task 9.233)
+// Variant Conversion Functions
 // ============================================================================
 
 // builtinVarToStr implements the VarToStr() built-in function.
@@ -211,8 +215,9 @@ func (i *Interpreter) builtinVarIsNumeric(args []Value) Value {
 //   - Empty/Null: empty string ""
 //
 // Example:
-//   var v: Variant := 42;
-//   PrintLn(VarToStr(v));  // Outputs: "42"
+//
+//	var v: Variant := 42;
+//	PrintLn(VarToStr(v));  // Outputs: "42"
 func (i *Interpreter) builtinVarToStr(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "VarToStr() expects exactly 1 argument, got %d", len(args))
@@ -248,8 +253,9 @@ func (i *Interpreter) builtinVarToStr(args []Value) Value {
 // Returns error if conversion is not possible (e.g., "abc" cannot convert to Integer).
 //
 // Example:
-//   var v: Variant := 3.14;
-//   PrintLn(VarToInt(v));  // Outputs: 3
+//
+//	var v: Variant := 3.14;
+//	PrintLn(VarToInt(v));  // Outputs: 3
 func (i *Interpreter) builtinVarToInt(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "VarToInt() expects exactly 1 argument, got %d", len(args))
@@ -304,8 +310,9 @@ func (i *Interpreter) builtinVarToInt(args []Value) Value {
 // Returns error if conversion is not possible (e.g., "abc" cannot convert to Float).
 //
 // Example:
-//   var v: Variant := 42;
-//   PrintLn(VarToFloat(v));  // Outputs: 42.0
+//
+//	var v: Variant := 42;
+//	PrintLn(VarToFloat(v));  // Outputs: 42.0
 func (i *Interpreter) builtinVarToFloat(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "VarToFloat() expects exactly 1 argument, got %d", len(args))
@@ -359,9 +366,10 @@ func (i *Interpreter) builtinVarToFloat(args []Value) Value {
 // Returns a new Variant with the converted value.
 //
 // Example:
-//   var v: Variant := "42";
-//   var i: Variant := VarAsType(v, 3);  // Convert to Integer
-//   PrintLn(VarToInt(i));  // Outputs: 42
+//
+//	var v: Variant := "42";
+//	var i: Variant := VarAsType(v, 3);  // Convert to Integer
+//	PrintLn(VarToInt(i));  // Outputs: 42
 func (i *Interpreter) builtinVarAsType(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "VarAsType() expects exactly 2 arguments, got %d", len(args))
@@ -441,4 +449,31 @@ func (i *Interpreter) builtinVarAsType(args []Value) Value {
 
 	// Box the converted value back into a Variant
 	return boxVariant(converted)
+}
+
+// builtinVarClear implements the VarClear() built-in function.
+// Clears a Variant and sets it to empty/uninitialized state.
+//
+// Syntax: VarClear(v: Variant): Variant
+//
+// Note: In standard DWScript, VarClear is a procedure with a var parameter.
+// This implementation returns an empty Variant that should be assigned back:
+//   v := VarClear(v);  // Assigns empty Variant to v
+//
+// Returns: An empty Variant (VarType = varEmpty)
+//
+// Example:
+//
+//	var v: Variant := 42;
+//	PrintLn(VarType(v));     // Outputs: 3 (varInteger)
+//	v := VarClear(v);
+//	PrintLn(VarIsNull(v));   // Outputs: True
+func (i *Interpreter) builtinVarClear(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "VarClear() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Return an empty Variant regardless of input
+	// This clears the Variant to uninitialized state
+	return &VariantValue{Value: nil, ActualType: nil}
 }

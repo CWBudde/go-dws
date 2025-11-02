@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Basic Property Parsing Tests (Tasks 8.36-8.38)
+// Basic Property Parsing Tests
 // ============================================================================
 
 func TestPropertyBasicReadWrite(t *testing.T) {
@@ -227,7 +227,7 @@ func TestPropertyExpressionRead(t *testing.T) {
 }
 
 // ============================================================================
-// Indexed, Default, and Auto Properties (Tasks 8.39-8.41)
+// Indexed, Default, and Auto Properties
 // ============================================================================
 
 func TestPropertyIndexed(t *testing.T) {
@@ -420,7 +420,7 @@ func TestPropertyErrors(t *testing.T) {
 }
 
 // ============================================================================
-// Class Integration Tests (Tasks 8.42-8.44)
+// Class Integration Tests
 // ============================================================================
 
 func TestClassWithProperties(t *testing.T) {

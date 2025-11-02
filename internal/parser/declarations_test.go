@@ -426,7 +426,7 @@ func TestParseMultipleTypeAliases(t *testing.T) {
 }
 
 // ============================================================================
-// Subrange Type Declaration Tests (Tasks 9.96-9.97)
+// Subrange Type Declaration Tests
 // ============================================================================
 
 // TestParseSubrangeType tests parsing subrange type declarations
@@ -698,34 +698,34 @@ func TestParseMixedTypeDeclarations(t *testing.T) {
 // TestParseConstDeclarationWithArrayType tests parsing const declarations with array types
 func TestParseConstDeclarationWithArrayType(t *testing.T) {
 	tests := []struct {
-		name             string
-		input            string
+		name              string
+		input             string
 		expectedConstName string
-		expectedTypeName string
+		expectedTypeName  string
 	}{
 		{
-			name:             "Dynamic array of integers",
-			input:            `const arr: array of Integer = [1, 2, 3];`,
+			name:              "Dynamic array of integers",
+			input:             `const arr: array of Integer = [1, 2, 3];`,
 			expectedConstName: "arr",
-			expectedTypeName: "array of Integer",
+			expectedTypeName:  "array of Integer",
 		},
 		{
-			name:             "Static array with bounds",
-			input:            `const good: array [0..13] of Integer = [1600,1660,1724];`,
+			name:              "Static array with bounds",
+			input:             `const good: array [0..13] of Integer = [1600,1660,1724];`,
 			expectedConstName: "good",
-			expectedTypeName: "array[0..13] of Integer",
+			expectedTypeName:  "array[0..13] of Integer",
 		},
 		{
-			name:             "Array with negative bounds",
-			input:            `const temps: array [-10..10] of Float = [0.0];`,
+			name:              "Array with negative bounds",
+			input:             `const temps: array [-10..10] of Float = [0.0];`,
 			expectedConstName: "temps",
-			expectedTypeName: "array[-10..10] of Float",
+			expectedTypeName:  "array[-10..10] of Float",
 		},
 		{
-			name:             "Nested arrays",
-			input:            `const matrix: array of array of Integer = [[1, 2], [3, 4]];`,
+			name:              "Nested arrays",
+			input:             `const matrix: array of array of Integer = [[1, 2], [3, 4]];`,
 			expectedConstName: "matrix",
-			expectedTypeName: "array of array of Integer",
+			expectedTypeName:  "array of array of Integer",
 		},
 	}
 
@@ -876,5 +876,204 @@ func TestParseConstDeclarationWithFunctionPointerType(t *testing.T) {
 	expectedType := "function(x: Integer): Boolean"
 	if stmt.Type.Name != expectedType {
 		t.Errorf("stmt.Type.Name not %q. got=%s", expectedType, stmt.Type.Name)
+	}
+}
+
+// ============================================================================
+// Program Declaration Tests
+// ============================================================================
+
+// TestParseProgramDeclaration tests parsing program declarations at file start
+func TestParseProgramDeclaration(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "Simple program declaration",
+			input: `program Test;
+begin
+  PrintLn('Hello');
+end`,
+		},
+		{
+			name: "Program with variable section",
+			input: `program MyProgram;
+var x: Integer;
+begin
+  x := 42;
+end`,
+		},
+		{
+			name: "Program with const and var sections",
+			input: `program Test;
+const C1 = 1;
+var v1: Integer;
+begin
+  PrintLn(C1);
+end`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			// Program should parse successfully
+			// The program declaration is skipped and not added to AST
+			// So we just verify there are no parse errors
+			if len(p.errors) > 0 {
+				t.Errorf("unexpected parser errors: %v", p.errors)
+			}
+
+			// Verify the program has statements (after the program declaration)
+			if len(program.Statements) == 0 {
+				t.Error("program should have statements after program declaration")
+			}
+		})
+	}
+}
+
+// TestParseProgramDeclarationOptional tests that program declaration is optional
+func TestParseProgramDeclarationOptional(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantStmts  int
+		checkFirst bool // Whether to check the first statement type
+	}{
+		{
+			name: "Without program declaration",
+			input: `begin
+  PrintLn('Hello');
+end`,
+			wantStmts:  1,
+			checkFirst: true,
+		},
+		{
+			name: "With program declaration",
+			input: `program Test;
+begin
+  PrintLn('Hello');
+end`,
+			wantStmts:  1,
+			checkFirst: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != tt.wantStmts {
+				t.Errorf("program.Statements should have %d statements. got=%d",
+					tt.wantStmts, len(program.Statements))
+			}
+
+			if tt.checkFirst && len(program.Statements) > 0 {
+				// First statement should be a block statement (the begin/end)
+				_, ok := program.Statements[0].(*ast.BlockStatement)
+				if !ok {
+					t.Errorf("first statement should be *ast.BlockStatement. got=%T",
+						program.Statements[0])
+				}
+			}
+		})
+	}
+}
+
+// TestParseProgramDeclarationErrors tests error cases in program declarations
+func TestParseProgramDeclarationErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name:          "Missing program name",
+			input:         `program;`,
+			expectedError: "expected program name after 'program' keyword",
+		},
+		{
+			name:          "Missing semicolon",
+			input:         `program Test`,
+			expectedError: "expected ';' after program name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			p.ParseProgram()
+
+			if len(p.errors) == 0 {
+				t.Errorf("expected parser error for input %q, but got none", tt.input)
+				return
+			}
+
+			found := false
+			for _, err := range p.errors {
+				if strings.Contains(err, tt.expectedError) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Errorf("expected error containing %q, got errors: %v",
+					tt.expectedError, p.errors)
+			}
+		})
+	}
+}
+
+// TestParseProgramVsUnit tests that program and unit declarations are mutually exclusive
+func TestParseProgramVsUnit(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantError bool
+	}{
+		{
+			name: "Program declaration (valid)",
+			input: `program Test;
+begin
+  PrintLn('Hello');
+end`,
+			wantError: false,
+		},
+		{
+			name: "Unit declaration (valid)",
+			input: `unit TestUnit;
+interface
+implementation
+end.`,
+			wantError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			p.ParseProgram()
+
+			hasError := len(p.errors) > 0
+
+			if hasError != tt.wantError {
+				if tt.wantError {
+					t.Errorf("expected parser errors, got none")
+				} else {
+					t.Errorf("unexpected parser errors: %v", p.errors)
+				}
+			}
+		})
 	}
 }
