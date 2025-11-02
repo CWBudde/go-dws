@@ -13,22 +13,30 @@ import (
 //
 //	x: Integer
 //	var s: String
+//	const data: array of Integer
 //	lazy expr: Integer
 //	a, b: Float
 //
 // Lazy parameters capture expressions, not values. The expression is re-evaluated
 // each time the parameter is accessed within the function body, enabling patterns
 // like Jensen's Device, conditional evaluation, and deferred computation.
+//
+// Const parameters are passed by const-reference, preventing modification while
+// avoiding copy overhead for large types like arrays and records.
 type Parameter struct {
-	Name   *Identifier
-	Type   *TypeAnnotation
-	Token  lexer.Token
-	IsLazy bool // lazy parameter modifier - captures expression, not value
-	ByRef  bool // var parameter modifier - pass by reference
+	Name    *Identifier
+	Type    *TypeAnnotation
+	Token   lexer.Token
+	IsLazy  bool // lazy parameter modifier - captures expression, not value
+	ByRef   bool // var parameter modifier - pass by reference
+	IsConst bool // const parameter modifier - pass by const-reference
 }
 
 func (p *Parameter) String() string {
 	result := ""
+	if p.IsConst {
+		result += "const "
+	}
 	if p.IsLazy {
 		result += "lazy "
 	}

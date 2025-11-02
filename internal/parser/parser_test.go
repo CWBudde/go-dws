@@ -4096,6 +4096,121 @@ func TestParameters(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:  "const parameter - basic",
+			input: "procedure Process(const data: array of Integer); begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 1 {
+					t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+				}
+				param := fn.Parameters[0]
+				if !param.IsConst {
+					t.Error("param should be const")
+				}
+				if param.ByRef {
+					t.Error("param should not be by reference")
+				}
+				if param.IsLazy {
+					t.Error("param should not be lazy")
+				}
+				if param.Name.Value != "data" {
+					t.Errorf("param name = %q, want 'data'", param.Name.Value)
+				}
+			},
+		},
+		{
+			name:  "const parameter - with string type",
+			input: "procedure Display(const message: String); begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 1 {
+					t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+				}
+				param := fn.Parameters[0]
+				if !param.IsConst {
+					t.Error("param should be const")
+				}
+				if param.Name.Value != "message" {
+					t.Errorf("param name = %q, want 'message'", param.Name.Value)
+				}
+				if param.Type == nil || param.Type.Name != "String" {
+					t.Errorf("param type = %q, want 'String'", param.Type)
+				}
+			},
+		},
+		{
+			name:  "const parameter - mixed with var and regular parameters",
+			input: "procedure Update(const src: String; var dest: String; count: Integer); begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 3 {
+					t.Fatalf("expected 3 parameters, got %d", len(fn.Parameters))
+				}
+
+				// First parameter should be const
+				if !fn.Parameters[0].IsConst {
+					t.Error("param[0] should be const")
+				}
+				if fn.Parameters[0].ByRef {
+					t.Error("param[0] should not be by reference")
+				}
+				if fn.Parameters[0].Name.Value != "src" {
+					t.Errorf("param[0] name = %q, want 'src'", fn.Parameters[0].Name.Value)
+				}
+
+				// Second parameter should be var (by reference)
+				if fn.Parameters[1].IsConst {
+					t.Error("param[1] should not be const")
+				}
+				if !fn.Parameters[1].ByRef {
+					t.Error("param[1] should be by reference")
+				}
+				if fn.Parameters[1].Name.Value != "dest" {
+					t.Errorf("param[1] name = %q, want 'dest'", fn.Parameters[1].Name.Value)
+				}
+
+				// Third parameter should be regular (not const, not by reference)
+				if fn.Parameters[2].IsConst {
+					t.Error("param[2] should not be const")
+				}
+				if fn.Parameters[2].ByRef {
+					t.Error("param[2] should not be by reference")
+				}
+				if fn.Parameters[2].Name.Value != "count" {
+					t.Errorf("param[2] name = %q, want 'count'", fn.Parameters[2].Name.Value)
+				}
+			},
+		},
+		{
+			name:  "const parameter - multiple const parameters with shared type",
+			input: "procedure Compare(const a, b: Integer); begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 2 {
+					t.Fatalf("expected 2 parameters, got %d", len(fn.Parameters))
+				}
+
+				// Both parameters should be const
+				if !fn.Parameters[0].IsConst {
+					t.Error("param[0] should be const")
+				}
+				if !fn.Parameters[1].IsConst {
+					t.Error("param[1] should be const")
+				}
+
+				if fn.Parameters[0].Name.Value != "a" {
+					t.Errorf("param[0] name = %q, want 'a'", fn.Parameters[0].Name.Value)
+				}
+				if fn.Parameters[1].Name.Value != "b" {
+					t.Errorf("param[1] name = %q, want 'b'", fn.Parameters[1].Name.Value)
+				}
+
+				// Both should have Integer type
+				if fn.Parameters[0].Type == nil || fn.Parameters[0].Type.Name != "Integer" {
+					t.Errorf("param[0] type = %q, want 'Integer'", fn.Parameters[0].Type)
+				}
+				if fn.Parameters[1].Type == nil || fn.Parameters[1].Type.Name != "Integer" {
+					t.Errorf("param[1] type = %q, want 'Integer'", fn.Parameters[1].Type)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -4128,7 +4243,7 @@ func TestParameterErrors(t *testing.T) {
 		{
 			name:          "lazy and var are mutually exclusive",
 			input:         "function Test(lazy var x: Integer): Integer; begin end;",
-			errorContains: "lazy and var modifiers are mutually exclusive",
+			errorContains: "parameter modifiers are mutually exclusive",
 		},
 	}
 
