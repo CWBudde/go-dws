@@ -357,6 +357,7 @@ func charLiteralToRune(literal string) (rune, bool) {
 // readStringOrCharSequence reads a sequence of adjacent string and character literals
 // and concatenates them into a single string value.
 // This handles DWScript's implicit concatenation: 'hello'#13#10'world' → "hello\r\nworld"
+// Note: Only truly adjacent literals (no whitespace) are concatenated.
 func (l *Lexer) readStringOrCharSequence() (string, error) {
 	var builder strings.Builder
 	var lastError error
@@ -394,27 +395,10 @@ func (l *Lexer) readStringOrCharSequence() (string, error) {
 			return builder.String(), lastError
 		}
 
-		// Skip any whitespace and check if there's another string/char literal
-		savedPos := l.position
-		savedLine := l.line
-		savedColumn := l.column
-		savedCh := l.ch
-
-		l.skipWhitespace()
-
-		// Check if next token is a string or char literal
+		// Check if next token is immediately adjacent (no whitespace allowed)
+		// Only concatenate truly adjacent string/char literals
 		if l.ch != '\'' && l.ch != '"' && l.ch != '#' {
-			// Restore position if not a string/char literal
-			l.position = savedPos
-			l.line = savedLine
-			l.column = savedColumn
-			l.ch = savedCh
-			l.readPosition = savedPos
-			if savedPos < len(l.input) {
-				r, size := utf8.DecodeRuneInString(l.input[savedPos:])
-				l.ch = r
-				l.readPosition = savedPos + size
-			}
+			// No more adjacent literals
 			return builder.String(), lastError
 		}
 	}
