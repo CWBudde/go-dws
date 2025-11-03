@@ -47,10 +47,7 @@ func TestRosettaStringLiterals(t *testing.T) {
 				tokenType TokenType
 				literal   string
 			}{
-				{STRING, `first line`},
-				{CHAR, "#13"},
-				{CHAR, "#10"},
-				{STRING, `second line`},
+				{STRING, "first line\r\nsecond line"},
 				{EOF, ""},
 			},
 		},
@@ -94,10 +91,7 @@ func TestRosettaStringLiterals(t *testing.T) {
 				{CONST, "const"},
 				{IDENT, "s2"},
 				{ASSIGN, ":="},
-				{STRING, `first line`},
-				{CHAR, "#13"},
-				{CHAR, "#10"},
-				{STRING, `second line`},
+				{STRING, "first line\r\nsecond line"},
 				{SEMICOLON, ";"},
 				{EOF, ""},
 			},
@@ -172,6 +166,8 @@ func TestStringLiteralEscaping(t *testing.T) {
 }
 
 // TestCharLiteralsCRLF tests character literals specifically for CR and LF
+// Character literals are now automatically converted to their actual character values
+// and returned as STRING tokens (with implicit concatenation support)
 func TestCharLiteralsCRLF(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -181,17 +177,17 @@ func TestCharLiteralsCRLF(t *testing.T) {
 		{
 			name:            "carriage return #13",
 			input:           "#13",
-			expectedLiteral: "#13",
+			expectedLiteral: "\r",
 		},
 		{
 			name:            "line feed #10",
 			input:           "#10",
-			expectedLiteral: "#10",
+			expectedLiteral: "\n",
 		},
 		{
 			name:            "CR+LF sequence",
 			input:           "#13#10",
-			expectedLiteral: "#13", // First token
+			expectedLiteral: "\r\n",
 		},
 	}
 
@@ -200,8 +196,8 @@ func TestCharLiteralsCRLF(t *testing.T) {
 			l := New(tt.input)
 			tok := l.NextToken()
 
-			if tok.Type != CHAR {
-				t.Fatalf("expected CHAR token, got %q", tok.Type)
+			if tok.Type != STRING {
+				t.Fatalf("expected STRING token, got %q", tok.Type)
 			}
 
 			if tok.Literal != tt.expectedLiteral {
