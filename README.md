@@ -11,6 +11,7 @@ go-dws is a faithful implementation of the DWScript scripting language in Go, pr
 - Strong static typing with type inference
 - Object-oriented programming (classes, interfaces, inheritance)
 - Functions and procedures with nested scopes
+- **Design by Contract** (preconditions, postconditions, `old` keyword)
 - Operator overloading
 - Exception handling
 - Comprehensive built-in functions
@@ -133,6 +134,12 @@ go build -o bin/dwscript ./cmd/dwscript
 
 ```bash
 ./bin/dwscript run -e "function Add(a, b: Integer): Integer; begin Result := a + b; end; begin PrintLn(Add(5, 3)); end."
+```
+
+**Contracts (Design by Contract)**:
+
+```bash
+./bin/dwscript run -e "function Divide(a, b: Float): Float; require b <> 0; begin Result := a / b; end; begin PrintLn(Divide(10.0, 2.0)); end."
 ```
 
 ## Embedding in Go Applications
@@ -619,6 +626,10 @@ This project is a port/reimplementation and will respect the original DWScript l
 - [JavaScript API Reference](docs/wasm/API.md)
 - [WASM Build Guide](docs/wasm/BUILD.md)
 - [Playground Quick Start](playground/README.md)
+
+### Language Features
+
+- [Contracts (Design by Contract)](docs/contracts.md) - Preconditions, postconditions, and `old` keyword
 
 ### OOP Features
 

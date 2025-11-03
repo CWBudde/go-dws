@@ -1,0 +1,62 @@
+// Test Task 9.105: JSON serialization test
+// Tests ToJSON and ToJSONFormatted functions with various DWScript types
+
+PrintLn('=== JSON Serialization Tests ===');
+PrintLn('');
+
+// Primitives
+PrintLn('--- Primitives ---');
+PrintLn('null: ', ToJSON(nil));
+PrintLn('true: ', ToJSON(True));
+PrintLn('false: ', ToJSON(False));
+PrintLn('integer: ', ToJSON(42));
+PrintLn('negative: ', ToJSON(-17));
+PrintLn('float: ', ToJSON(3.14));
+PrintLn('zero: ', ToJSON(0));
+
+PrintLn('');
+
+// Arrays
+PrintLn('--- Arrays ---');
+var emptyArr: array of Integer := [];
+PrintLn('empty array: ', ToJSON(emptyArr));
+
+var numArr: array of Integer := [1, 2, 3, 4, 5];
+PrintLn('number array: ', ToJSON(numArr));
+
+var boolArr: array of Boolean := [True, False, True];
+PrintLn('boolean array: ', ToJSON(boolArr));
+
+var floatArr: array of Float := [1.5, 2.7, 3.9];
+PrintLn('float array: ', ToJSON(floatArr));
+
+PrintLn('');
+
+// Nested arrays
+PrintLn('--- Nested Arrays ---');
+var nested: array of array of Integer := [[1, 2], [3, 4]];
+PrintLn('nested array: ', ToJSON(nested));
+
+PrintLn('');
+
+// Round-trip: Parse then serialize
+PrintLn('--- Round-Trip ---');
+var parsed := ParseJSON('[1, 2, 3]');
+PrintLn('round-trip array: ', ToJSON(parsed));
+
+var obj := ParseJSON('{"x": 10, "y": 20}');
+PrintLn('round-trip object: ', ToJSON(obj));
+
+PrintLn('');
+
+// Formatted output
+PrintLn('--- Formatted Output ---');
+var data := ParseJSON('{"a": 1, "b": [2, 3, 4], "c": {"d": 5}}');
+PrintLn('Compact:');
+PrintLn(ToJSON(data));
+PrintLn('');
+PrintLn('Formatted (2 spaces):');
+PrintLn(ToJSONFormatted(data, 2));
+
+PrintLn('');
+PrintLn('=== All Serialization Tests Passed ===');

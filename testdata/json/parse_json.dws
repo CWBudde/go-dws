@@ -1,0 +1,83 @@
+// Test Task 9.105: Comprehensive JSON parsing test
+// Tests parsing of various JSON types including primitives, arrays, objects, and nested structures
+
+PrintLn('=== JSON Parsing Tests ===');
+PrintLn('');
+
+// Primitives
+PrintLn('--- Primitives ---');
+var nullVal := ParseJSON('null');
+PrintLn('null: ', nullVal);
+
+var boolTrue := ParseJSON('true');
+PrintLn('boolean true: ', boolTrue);
+
+var boolFalse := ParseJSON('false');
+PrintLn('boolean false: ', boolFalse);
+
+var intVal := ParseJSON('42');
+PrintLn('integer: ', intVal);
+
+var floatVal := ParseJSON('3.14');
+PrintLn('float: ', floatVal);
+
+PrintLn('');
+
+// Arrays
+PrintLn('--- Arrays ---');
+var emptyArr := ParseJSON('[]');
+PrintLn('empty array length: ', JSONLength(emptyArr));
+
+var numArr := ParseJSON('[1, 2, 3, 4, 5]');
+PrintLn('number array length: ', JSONLength(numArr));
+PrintLn('number array [0]: ', numArr[0]);
+PrintLn('number array [4]: ', numArr[4]);
+
+var mixedArr := ParseJSON('[1, 2.5, true, null]');
+PrintLn('mixed array length: ', JSONLength(mixedArr));
+PrintLn('mixed [0]: ', mixedArr[0]);
+PrintLn('mixed [1]: ', mixedArr[1]);
+PrintLn('mixed [2]: ', mixedArr[2]);
+PrintLn('mixed [3]: ', mixedArr[3]);
+
+PrintLn('');
+
+// Objects
+PrintLn('--- Objects ---');
+var emptyObj := ParseJSON('{}');
+PrintLn('empty object keys: ', JSONKeys(emptyObj).Length);
+
+var simpleObj := ParseJSON('{"age": 30, "active": true, "score": 95.5}');
+PrintLn('simple object keys: ', JSONKeys(simpleObj).Length);
+PrintLn('age: ', simpleObj['age']);
+PrintLn('active: ', simpleObj['active']);
+PrintLn('score: ', simpleObj['score']);
+
+PrintLn('');
+
+// Nested structures
+PrintLn('--- Nested Structures ---');
+var nested := ParseJSON('{"data": {"id": 123, "scores": [95, 87, 92]}, "count": 3}');
+PrintLn('nested object has data: ', JSONHasField(nested, 'data'));
+var data := nested['data'];
+PrintLn('data id: ', data['id']);
+var scores := data['scores'];
+PrintLn('scores length: ', JSONLength(scores));
+PrintLn('first score: ', scores[0]);
+PrintLn('count: ', nested['count']);
+
+PrintLn('');
+
+// Arrays of objects
+PrintLn('--- Arrays of Objects ---');
+var items := ParseJSON('[{"id": 1, "price": 9.99}, {"id": 2, "price": 14.50}]');
+PrintLn('items length: ', JSONLength(items));
+var firstItem := items[0];
+PrintLn('first item id: ', firstItem['id']);
+PrintLn('first item price: ', firstItem['price']);
+var secondItem := items[1];
+PrintLn('second item id: ', secondItem['id']);
+PrintLn('second item price: ', secondItem['price']);
+
+PrintLn('');
+PrintLn('=== All Parsing Tests Passed ===');

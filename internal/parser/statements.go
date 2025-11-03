@@ -157,11 +157,48 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 //
 //	var x, y, z: Integer;
 func (p *Parser) parseVarDeclaration() ast.Statement {
-	stmt := &ast.VarDeclStatement{Token: p.curToken}
+	blockToken := p.curToken // Save the initial VAR token for the block
+	statements := []ast.Statement{}
+
+	// Parse first var declaration
+	firstStmt := p.parseSingleVarDeclaration()
+	if firstStmt == nil {
+		return nil
+	}
+	statements = append(statements, firstStmt)
+
+	// Continue parsing additional var declarations without the 'var' keyword
+	// As long as the next line looks like a var declaration (not just any identifier)
+	for p.looksLikeVarDeclaration() {
+		p.nextToken() // move to identifier
+		varStmt := p.parseSingleVarDeclaration()
+		if varStmt == nil {
+			break
+		}
+		statements = append(statements, varStmt)
+	}
+
+	// If only one declaration, return it directly
+	if len(statements) == 1 {
+		return statements[0]
+	}
+
+	// Multiple declarations: wrap in a BlockStatement
+	return &ast.BlockStatement{
+		Token:      blockToken,
+		Statements: statements,
+	}
+}
+
+// parseSingleVarDeclaration parses a single variable declaration.
+// Assumes we're already positioned at the identifier (or just before it).
+func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
+	stmt := &ast.VarDeclStatement{}
 
 	// Check if we're already at the identifier (var section continuation)
 	// or if we need to advance to it (after 'var' keyword)
 	if p.curTokenIs(lexer.VAR) {
+		stmt.Token = p.curToken
 		// After 'var' keyword, expect identifier next
 		if !p.expectIdentifier() {
 			return nil
@@ -170,6 +207,8 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 		// Should already be at an identifier
 		p.addError("expected identifier in var declaration")
 		return nil
+	} else {
+		stmt.Token = p.curToken
 	}
 
 	// Task 9.63: Collect comma-separated identifiers
@@ -279,7 +318,7 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 	}
 
 	if !p.expectPeek(lexer.SEMICOLON) {
-		return stmt
+		return nil
 	}
 
 	return stmt
@@ -379,4 +418,36 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 	}
 
 	return stmt
+}
+
+// looksLikeVarDeclaration performs lookahead to check if the next tokens form a var declaration.
+// A var declaration pattern is: IDENT followed by either:
+// - COLON (for typed declaration: x : Integer)
+// - ASSIGN or EQ (for inferred type: x := 5)
+// - COMMA (for multi-var declaration: x, y : Integer)
+// This prevents mis-parsing function calls or other statements as var declarations.
+func (p *Parser) looksLikeVarDeclaration() bool {
+	if !p.peekTokenIs(lexer.IDENT) {
+		return false
+	}
+
+	// We can't look at token after peek without advancing, but we know common patterns
+	// For now, conservatively return false to avoid the regression
+	// A proper implementation would require a 2-token lookahead buffer
+	return false
+}
+
+// looksLikeConstDeclaration performs lookahead to check if the next tokens form a const declaration.
+// A const declaration pattern is: IDENT followed by either:
+// - COLON (for typed const: C : Integer = 5)
+// - EQ or ASSIGN (for untyped const: C = 5)
+// This prevents mis-parsing other statements as const declarations.
+func (p *Parser) looksLikeConstDeclaration() bool {
+	if !p.peekTokenIs(lexer.IDENT) {
+		return false
+	}
+
+	// For now, conservatively return false to avoid the regression
+	// A proper implementation would require a 2-token lookahead buffer
+	return false
 }

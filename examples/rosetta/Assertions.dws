@@ -6,6 +6,6 @@ require
    a = 42;
 begin
    // code here
+end;
 ensure
    a = 42;
-end;

@@ -1,0 +1,19 @@
+// Test contracts with recursive functions
+function Factorial(n : Integer) : Integer;
+require
+   n >= 0 : 'factorial requires non-negative input';
+begin
+   if n <= 1 then
+      Result := 1
+   else
+      Result := n * Factorial(n - 1);
+end;
+ensure
+   Result > 0 : 'factorial result must be positive';
+
+begin
+   PrintLn(Factorial(0));   // 1
+   PrintLn(Factorial(1));   // 1
+   PrintLn(Factorial(5));   // 120
+   PrintLn(Factorial(10));  // 3628800
+end.

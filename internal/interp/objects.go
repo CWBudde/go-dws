@@ -878,3 +878,130 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 	return returnValue
 }
+
+// evalInheritedExpression evaluates an inherited method call.
+// Syntax: inherited MethodName(args) or inherited (bare, calls same method in parent)
+// Task 9.164: Implement inherited keyword
+func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value {
+	// Get current Self (must be in a method context)
+	selfVal, exists := i.env.Get("Self")
+	if !exists {
+		return i.newErrorWithLocation(ie, "inherited can only be used inside a method")
+	}
+
+	obj, ok := selfVal.(*ObjectInstance)
+	if !ok {
+		return i.newErrorWithLocation(ie, "inherited requires Self to be an object instance")
+	}
+
+	// Get the parent class
+	classInfo := obj.Class
+	if classInfo.Parent == nil {
+		return i.newErrorWithLocation(ie, "class '%s' has no parent class", classInfo.Name)
+	}
+
+	parentClass := classInfo.Parent
+
+	// Determine which method to call
+	var methodName string
+	if ie.Method != nil {
+		// Explicit method name provided: inherited MethodName(args)
+		methodName = ie.Method.Value
+	} else {
+		// Bare inherited: need to get the current method name from environment
+		currentMethodVal, exists := i.env.Get("__CurrentMethod__")
+		if !exists {
+			return i.newErrorWithLocation(ie, "bare 'inherited' requires method context")
+		}
+		currentMethodName, ok := currentMethodVal.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(ie, "invalid method context")
+		}
+		methodName = currentMethodName.Value
+	}
+
+	// Look up the method in the parent class
+	parentMethod, exists := parentClass.Methods[methodName]
+	if !exists {
+		return i.newErrorWithLocation(ie, "method '%s' not found in parent class '%s'", methodName, parentClass.Name)
+	}
+
+	// Evaluate arguments
+	args := make([]Value, len(ie.Arguments))
+	for idx, arg := range ie.Arguments {
+		val := i.Eval(arg)
+		if isError(val) {
+			return val
+		}
+		args[idx] = val
+	}
+
+	// Check argument count matches parameter count
+	if len(args) != len(parentMethod.Parameters) {
+		return i.newErrorWithLocation(ie, "wrong number of arguments for method '%s': expected %d, got %d",
+			methodName, len(parentMethod.Parameters), len(args))
+	}
+
+	// Create method environment (with Self binding)
+	methodEnv := NewEnclosedEnvironment(i.env)
+	savedEnv := i.env
+	i.env = methodEnv
+
+	// Bind Self to the current object
+	i.env.Define("Self", obj)
+
+	// Bind __CurrentClass__ to parent class
+	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: parentClass})
+
+	// Bind __CurrentMethod__ for nested inherited calls
+	i.env.Define("__CurrentMethod__", &StringValue{Value: methodName})
+
+	// Bind method parameters to arguments with implicit conversion
+	for idx, param := range parentMethod.Parameters {
+		arg := args[idx]
+
+		// Apply implicit conversion if parameter has a type and types don't match
+		if param.Type != nil {
+			paramTypeName := param.Type.Name
+			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+				arg = converted
+			}
+		}
+
+		i.env.Define(param.Name.Value, arg)
+	}
+
+	// For functions (not procedures), initialize the Result variable
+	if parentMethod.ReturnType != nil {
+		i.env.Define("Result", &NilValue{})
+		// Also define the method name as an alias for Result (DWScript style)
+		i.env.Define(parentMethod.Name.Value, &NilValue{})
+	}
+
+	// Execute parent method body
+	_ = i.Eval(parentMethod.Body)
+
+	// Handle function return value
+	var returnValue Value
+	if parentMethod.ReturnType != nil {
+		// For functions, check if Result was set
+		if resultVal, ok := i.env.Get("Result"); ok {
+			returnValue = resultVal
+		} else {
+			// Check if the method name was used as return value (DWScript style)
+			if methodVal, ok := i.env.Get(parentMethod.Name.Value); ok {
+				returnValue = methodVal
+			} else {
+				returnValue = &NilValue{}
+			}
+		}
+	} else {
+		// Procedure - no return value
+		returnValue = &NilValue{}
+	}
+
+	// Restore environment
+	i.env = savedEnv
+
+	return returnValue
+}

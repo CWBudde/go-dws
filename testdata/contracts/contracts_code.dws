@@ -1,0 +1,12 @@
+function TestRequire(x, y : Integer): Float;
+require
+   x <> 0;
+   y <> 0;
+begin
+   Result := 1.0 / x + 1.0 / y
+end;
+
+begin
+   PrintLn(TestRequire(1, 1));  // Should work: 1/1 + 1/1 = 2.0
+   PrintLn(TestRequire(2, 2));  // Should work: 1/2 + 1/2 = 1.0
+end.

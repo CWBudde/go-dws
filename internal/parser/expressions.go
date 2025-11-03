@@ -648,6 +648,40 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 	}
 }
 
+// parseInheritedExpression parses an inherited expression.
+// Supports three forms:
+//   - inherited                  // Bare inherited (calls same method in parent)
+//   - inherited MethodName       // Call parent method (no args)
+//   - inherited MethodName(args) // Call parent method with args
+//
+// Task 9.164: Implement inherited keyword
+func (p *Parser) parseInheritedExpression() ast.Expression {
+	inheritedExpr := &ast.InheritedExpression{
+		Token: p.curToken, // The 'inherited' keyword
+	}
+
+	// Check if there's a method name following
+	if p.peekTokenIs(lexer.IDENT) {
+		p.nextToken() // move to identifier
+		inheritedExpr.Method = &ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		}
+		inheritedExpr.IsMember = true
+
+		// Check if there's a call (parentheses)
+		if p.peekTokenIs(lexer.LPAREN) {
+			p.nextToken() // move to '('
+			inheritedExpr.IsCall = true
+
+			// Parse arguments
+			inheritedExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
+		}
+	}
+
+	return inheritedExpr
+}
+
 // parseLambdaExpression parses a lambda/anonymous function expression.
 // Supports both full and shorthand syntax:
 //   - Full: lambda(x: Integer): Integer begin Result := x * 2; end
