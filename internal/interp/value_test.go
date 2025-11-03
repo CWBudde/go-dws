@@ -134,11 +134,11 @@ func TestNilValue(t *testing.T) {
 // Task 9.133: Test TypeMetaValue
 func TestTypeMetaValue(t *testing.T) {
 	tests := []struct {
-		name         string
-		typeInfo     interface{} // Use interface{} to avoid import issues
-		typeName     string
-		wantType     string
-		wantStr      string
+		name     string
+		typeInfo interface{} // Use interface{} to avoid import issues
+		typeName string
+		wantType string
+		wantStr  string
 	}{
 		{
 			name:     "Integer type meta-value",

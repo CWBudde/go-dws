@@ -458,7 +458,8 @@ func (i *Interpreter) builtinVarAsType(args []Value) Value {
 //
 // Note: In standard DWScript, VarClear is a procedure with a var parameter.
 // This implementation returns an empty Variant that should be assigned back:
-//   v := VarClear(v);  // Assigns empty Variant to v
+//
+//	v := VarClear(v);  // Assigns empty Variant to v
 //
 // Returns: An empty Variant (VarType = varEmpty)
 //

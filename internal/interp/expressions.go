@@ -126,6 +126,11 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 		return result
 	}
 
+	// Handle 'in' operator for array membership checking
+	if expr.Operator == "in" {
+		return i.evalInOperator(left, right, expr)
+	}
+
 	// Handle operations based on operand types
 	switch {
 	case left.Type() == "INTEGER" && right.Type() == "INTEGER":
@@ -762,4 +767,26 @@ func (i *Interpreter) getFunctionPointerTypeFromAnnotation(typeAnnotation *ast.T
 	// For now, return nil to trigger the fallback in evalLambdaExpression
 
 	return nil
+}
+
+// evalInOperator evaluates the 'in' operator for checking membership in arrays
+// Syntax: value in array
+// Returns: Boolean indicating whether value is found in the array
+func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node) Value {
+	// Check if container is an array
+	arrVal, ok := container.(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(node, "type mismatch: %s in %s", value.Type(), container.Type())
+	}
+
+	// Search for the value in the array
+	for _, elem := range arrVal.Elements {
+		// Compare values for equality
+		if i.valuesEqual(value, elem) {
+			return &BooleanValue{Value: true}
+		}
+	}
+
+	// Value not found
+	return &BooleanValue{Value: false}
 }

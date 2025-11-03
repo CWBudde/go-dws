@@ -415,13 +415,13 @@ func TestToJSON_JSONValues(t *testing.T) {
 
 func TestToJSON_ErrorCases(t *testing.T) {
 	tests := []struct {
-		name        string
-		args        []Value
+		name          string
+		args          []Value
 		wantErrSubstr string
 	}{
 		{
-			name:        "no arguments",
-			args:        []Value{},
+			name:          "no arguments",
+			args:          []Value{},
 			wantErrSubstr: "expects exactly 1 argument",
 		},
 		{
@@ -540,13 +540,13 @@ func TestToJSONFormatted_Basic(t *testing.T) {
 
 func TestToJSONFormatted_ErrorCases(t *testing.T) {
 	tests := []struct {
-		name        string
-		args        []Value
+		name          string
+		args          []Value
 		wantErrSubstr string
 	}{
 		{
-			name:        "no arguments",
-			args:        []Value{},
+			name:          "no arguments",
+			args:          []Value{},
 			wantErrSubstr: "expects exactly 2 arguments",
 		},
 		{

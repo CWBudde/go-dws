@@ -334,12 +334,12 @@ func (mc *MethodCallExpression) String() string {
 //
 // Task 9.164: Implement inherited keyword
 type InheritedExpression struct {
-	Token      lexer.Token     // The 'inherited' token
-	Method     *Identifier     // Optional method name (nil for bare 'inherited')
-	Arguments  []Expression    // Optional arguments for method call
-	Type       *TypeAnnotation // Result type
-	IsCall     bool            // True if this is a method call (has arguments or parentheses)
-	IsMember   bool            // True if this accesses a member (has method name but no call)
+	Token     lexer.Token     // The 'inherited' token
+	Method    *Identifier     // Optional method name (nil for bare 'inherited')
+	Arguments []Expression    // Optional arguments for method call
+	Type      *TypeAnnotation // Result type
+	IsCall    bool            // True if this is a method call (has arguments or parentheses)
+	IsMember  bool            // True if this accesses a member (has method name but no call)
 }
 
 func (ie *InheritedExpression) expressionNode()             {}

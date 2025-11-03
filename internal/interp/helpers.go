@@ -385,6 +385,29 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		}
 		return &StringValue{Value: builder.String()}
 
+	case "__array_add":
+		// Implements arr.Add(value) - adds an element to a dynamic array
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "Array.Add expects exactly 1 argument")
+		}
+		arrVal, ok := selfValue.(*ArrayValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.Add requires array receiver")
+		}
+
+		// Check if it's a dynamic array (static arrays cannot use Add)
+		if !arrVal.ArrayType.IsDynamic() {
+			return i.newErrorWithLocation(node, "Add() can only be used with dynamic arrays, not static arrays")
+		}
+
+		// For dynamic arrays, just append the element
+		// Type checking should have been done at semantic analysis
+		valueToAdd := args[0]
+		arrVal.Elements = append(arrVal.Elements, valueToAdd)
+
+		// Return nil (procedure, not a function)
+		return &NilValue{}
+
 	default:
 		return i.newErrorWithLocation(node, "unknown built-in helper method '%s'", spec)
 	}
@@ -598,6 +621,7 @@ func (i *Interpreter) initArrayHelpers() {
 		ClassVars:      make(map[string]Value),
 		ClassConsts:    make(map[string]Value),
 		IsRecordHelper: false,
+		BuiltinMethods: make(map[string]string),
 	}
 
 	// Task 9.171.4: Register .Length property
@@ -626,6 +650,10 @@ func (i *Interpreter) initArrayHelpers() {
 		ReadSpec:  "__array_low",
 		WriteKind: types.PropAccessNone,
 	}
+
+	// Register .Add() method for dynamic arrays
+	// This allows: arr.Add(value) syntax
+	arrayHelper.BuiltinMethods["Add"] = "__array_add"
 
 	// Register helper for ARRAY type
 	i.helpers["ARRAY"] = append(i.helpers["ARRAY"], arrayHelper)

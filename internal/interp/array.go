@@ -58,14 +58,16 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 
 // collectIndices flattens nested IndexExpression nodes for multi-index properties.
 // The parser converts multi-index syntax like obj.Data[1, 2] into nested IndexExpression nodes:
-//   ((obj.Data)[1])[2]
+//
+//	((obj.Data)[1])[2]
 //
 // This function walks the chain and extracts:
 //   - base: The actual object.property being accessed (e.g., obj.Data)
 //   - indices: All index expressions in order (e.g., [1, 2])
 //
 // This supports multi-dimensional indexed properties like:
-//   property Cells[x, y: Integer]: Float read GetCell write SetCell;
+//
+//	property Cells[x, y: Integer]: Float read GetCell write SetCell;
 //
 // Task 9.2d: Support multi-index properties (e.g., Data[x, y: Integer])
 func collectIndices(expr *ast.IndexExpression) (base ast.Expression, indices []ast.Expression) {
