@@ -382,10 +382,10 @@ func TestCharLiterals(t *testing.T) {
 		expectedLiteral string
 		expectedType    TokenType
 	}{
-		{"#65", CHAR},    // #65 = ASCII 'A'
-		{"#$41", CHAR},   // #$41 = ASCII 'A' (hex)
-		{"#13", CHAR},    // #13 = CR
-		{"#10", CHAR},    // #10 = LF
+		{"#65", CHAR},  // #65 = ASCII 'A'
+		{"#$41", CHAR}, // #$41 = ASCII 'A' (hex)
+		{"#13", CHAR},  // #13 = CR
+		{"#10", CHAR},  // #10 = LF
 		{"", EOF},
 	}
 
