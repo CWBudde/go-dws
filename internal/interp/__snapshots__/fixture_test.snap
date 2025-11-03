@@ -8,3 +8,48 @@ for_downto_100.pas_output
 for_to_100.pas_output
 
 ---
+
+[TestDWScriptFixtures/SimpleScripts/conditionals_nested2 - 1]
+conditionals_nested2.pas_output
+
+---
+
+[TestDWScriptFixtures/SimpleScripts/for_downto_100 - 1]
+for_downto_100.pas_output
+
+---
+
+[TestDWScriptFixtures/SimpleScripts/for_to_100 - 1]
+for_to_100.pas_output
+
+---
+
+[TestDWScriptFixtures/SimpleScripts/string_bounds - 1]
+string_bounds.pas_output
+
+---
+
+[TestDWScriptFixtures/InterfacesPass/declare_emtpy_interface - 1]
+declare_emtpy_interface.pas_output
+
+---
+
+[TestDWScriptFixtures/InterfacesPass/declare_interface - 1]
+declare_interface.pas_output
+
+---
+
+[TestDWScriptFixtures/InterfacesPass/implement_interface1 - 1]
+implement_interface1.pas_output
+
+---
+
+[TestDWScriptFixtures/InterfacesPass/interface_inheritance_declare - 1]
+interface_inheritance_declare.pas_output
+
+---
+
+[TestDWScriptFixtures/InterfacesPass/interface_inheritance_declare_ex - 1]
+interface_inheritance_declare_ex.pas_output
+
+---

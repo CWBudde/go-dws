@@ -166,27 +166,31 @@ func TestStringLiteralEscaping(t *testing.T) {
 }
 
 // TestCharLiteralsCRLF tests character literals specifically for CR and LF
-// Character literals are now automatically converted to their actual character values
-// and returned as STRING tokens (with implicit concatenation support)
+// Standalone character literals are returned as CHAR tokens with the literal value.
+// Concatenated sequences are returned as STRING tokens with converted values.
 func TestCharLiteralsCRLF(t *testing.T) {
 	tests := []struct {
 		name            string
 		input           string
+		expectedType    TokenType
 		expectedLiteral string
 	}{
 		{
-			name:            "carriage return #13",
+			name:            "carriage return #13 (standalone)",
 			input:           "#13",
-			expectedLiteral: "\r",
+			expectedType:    CHAR,
+			expectedLiteral: "#13",
 		},
 		{
-			name:            "line feed #10",
+			name:            "line feed #10 (standalone)",
 			input:           "#10",
-			expectedLiteral: "\n",
+			expectedType:    CHAR,
+			expectedLiteral: "#10",
 		},
 		{
-			name:            "CR+LF sequence",
+			name:            "CR+LF sequence (concatenated)",
 			input:           "#13#10",
+			expectedType:    STRING,
 			expectedLiteral: "\r\n",
 		},
 	}
@@ -196,8 +200,8 @@ func TestCharLiteralsCRLF(t *testing.T) {
 			l := New(tt.input)
 			tok := l.NextToken()
 
-			if tok.Type != STRING {
-				t.Fatalf("expected STRING token, got %q", tok.Type)
+			if tok.Type != tt.expectedType {
+				t.Fatalf("expected %q token, got %q", tt.expectedType, tok.Type)
 			}
 
 			if tok.Literal != tt.expectedLiteral {

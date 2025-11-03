@@ -184,13 +184,25 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
 
 ### Testing Philosophy
 
-The project maintains high test coverage (>90% for lexer, >80% for parser). When adding features:
+The project maintains high test coverage (>90% for lexer, >80% for parser) and includes the complete DWScript test suite (~2,100 tests in `testdata/fixtures/`). When adding features:
 
 1. Write tests FIRST (TDD approach as per PLAN.md)
 2. Test both success and error cases
 3. Include edge cases (empty input, malformed syntax, boundary values)
 4. Use table-driven tests for multiple similar cases
-5. Mirror DWScript's original test suite where possible
+5. Run fixture tests to verify compatibility with original DWScript
+6. Update `testdata/fixtures/TEST_STATUS.md` as tests pass
+
+**Running Fixture Tests**:
+```bash
+# Run all fixture tests
+go test -v ./internal/interp -run TestDWScriptFixtures
+
+# Run specific category
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts
+
+# See testdata/fixtures/README.md for more options
+```
 
 ### Error Handling
 
@@ -243,9 +255,12 @@ When implementing new stages:
 
 ## Reference Material
 
-- Original DWScript source: `reference/dwscript-original/`
+- Original DWScript source: `reference/dwscript-original/` (for reference only)
 - DWScript language reference: https://www.delphitools.info/dwscript/
-- Test scripts: `testdata/*.dws`
+- Test scripts: `testdata/*.dws` (custom test scripts)
+- Comprehensive test suite: `testdata/fixtures/` (~2,100 tests from original DWScript)
+  - See `testdata/fixtures/README.md` for test structure and usage
+  - See `testdata/fixtures/TEST_STATUS.md` for current pass/fail status
 
 ## Notes for Future Development
 

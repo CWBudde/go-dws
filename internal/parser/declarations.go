@@ -85,8 +85,19 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 				Name:  te.String(),
 			}
 		case *ast.ArrayTypeNode:
+			// Check if Token is nil to prevent panics (defensive programming)
+			if te == nil {
+				p.addError("array type expression is nil in const declaration")
+				return stmt
+			}
+			// Use the array token or create a dummy token if nil
+			token := te.Token
+			if token.Type == 0 || token.Literal == "" {
+				// Create a dummy token to prevent nil pointer issues
+				token = lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{}}
+			}
 			stmt.Type = &ast.TypeAnnotation{
-				Token: te.Token,
+				Token: token,
 				Name:  te.String(),
 			}
 		default:

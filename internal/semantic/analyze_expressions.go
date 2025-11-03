@@ -442,10 +442,49 @@ func (a *Analyzer) analyzeUnaryExpression(expr *ast.UnaryExpression) types.Type 
 
 // analyzeCallExpression analyzes a function call and returns its type
 func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
-	// Get function name
+	// Handle member access expressions (method calls like obj.Method())
+	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
+		// Analyze the member access to get the method type
+		methodType := a.analyzeMemberAccessExpression(memberAccess)
+		if methodType == nil {
+			// Error already reported by analyzeMemberAccessExpression
+			return nil
+		}
+
+		// Verify it's a function type
+		funcType, ok := methodType.(*types.FunctionType)
+		if !ok {
+			a.addError("cannot call non-function type %s at %s",
+				methodType.String(), expr.Token.Pos.String())
+			return nil
+		}
+
+		// Validate argument count
+		if len(expr.Arguments) != len(funcType.Parameters) {
+			a.addError("method call expects %d argument(s), got %d at %s",
+				len(funcType.Parameters), len(expr.Arguments), expr.Token.Pos.String())
+		}
+
+		// Validate argument types
+		for i, arg := range expr.Arguments {
+			if i >= len(funcType.Parameters) {
+				break // Already reported count mismatch
+			}
+			argType := a.analyzeExpression(arg)
+			if argType != nil && !a.canAssign(argType, funcType.Parameters[i]) {
+				a.addError("argument %d has type %s, expected %s at %s",
+					i+1, argType.String(), funcType.Parameters[i].String(),
+					expr.Token.Pos.String())
+			}
+		}
+
+		return funcType.ReturnType
+	}
+
+	// Handle regular function calls (identifier-based)
 	funcIdent, ok := expr.Function.(*ast.Identifier)
 	if !ok {
-		a.addError("function call must use identifier at %s", expr.Token.Pos.String())
+		a.addError("function call must use identifier or member access at %s", expr.Token.Pos.String())
 		return nil
 	}
 

@@ -314,6 +314,29 @@ func (l *Lexer) readCharLiteral() string {
 	return l.input[startPos:l.position]
 }
 
+// isCharLiteralStandalone checks if the '#' at the current position starts a standalone
+// character literal (not part of a string concatenation sequence).
+// Returns true if standalone, false if followed immediately by another string/char literal.
+func (l *Lexer) isCharLiteralStandalone() bool {
+	// Save current state
+	savedPos := l.position
+	savedReadPos := l.readPosition
+	savedCh := l.ch
+
+	// Read the character literal to see what follows
+	_ = l.readCharLiteral()
+
+	// Check if immediately followed by another string/char literal (no whitespace)
+	isStandalone := l.ch != '#' && l.ch != '\'' && l.ch != '"'
+
+	// Restore state
+	l.position = savedPos
+	l.readPosition = savedReadPos
+	l.ch = savedCh
+
+	return isStandalone
+}
+
 // charLiteralToRune converts a character literal string (like "#13" or "#$0D") to a rune.
 // Returns the rune and true on success, or 0 and false if the literal is invalid.
 func charLiteralToRune(literal string) (rune, bool) {
@@ -700,7 +723,23 @@ func (l *Lexer) NextToken() Token {
 			l.readChar()
 		}
 
-	case '#', '\'', '"':
+	case '#':
+		// Character literal - check if standalone or part of concatenation
+		if l.isCharLiteralStandalone() {
+			// Standalone character literal: emit CHAR token
+			literal := l.readCharLiteral()
+			tok = NewToken(CHAR, literal, pos)
+		} else {
+			// Part of string concatenation: 'hello'#13#10 → "hello\r\n"
+			literal, err := l.readStringOrCharSequence()
+			if err != nil {
+				tok = NewToken(ILLEGAL, literal, pos)
+			} else {
+				tok = NewToken(STRING, literal, pos)
+			}
+		}
+
+	case '\'', '"':
 		// String or character literal (with automatic concatenation)
 		// DWScript concatenates adjacent string/char literals: 'hello'#13#10 → "hello\r\n"
 		literal, err := l.readStringOrCharSequence()
