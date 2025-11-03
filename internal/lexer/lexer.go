@@ -314,6 +314,112 @@ func (l *Lexer) readCharLiteral() string {
 	return l.input[startPos:l.position]
 }
 
+// charLiteralToRune converts a character literal string (like "#13" or "#$0D") to a rune.
+// Returns the rune and true on success, or 0 and false if the literal is invalid.
+func charLiteralToRune(literal string) (rune, bool) {
+	if len(literal) < 2 || literal[0] != '#' {
+		return 0, false
+	}
+
+	var value int
+	var base int
+	start := 1
+
+	// Check for hex prefix
+	if len(literal) > 2 && literal[1] == '$' {
+		base = 16
+		start = 2
+	} else {
+		base = 10
+	}
+
+	// Parse the numeric value
+	for i := start; i < len(literal); i++ {
+		var digit int
+		ch := literal[i]
+
+		if ch >= '0' && ch <= '9' {
+			digit = int(ch - '0')
+		} else if base == 16 && ch >= 'a' && ch <= 'f' {
+			digit = int(ch - 'a' + 10)
+		} else if base == 16 && ch >= 'A' && ch <= 'F' {
+			digit = int(ch - 'A' + 10)
+		} else {
+			return 0, false
+		}
+
+		value = value*base + digit
+	}
+
+	return rune(value), true
+}
+
+// readStringOrCharSequence reads a sequence of adjacent string and character literals
+// and concatenates them into a single string value.
+// This handles DWScript's implicit concatenation: 'hello'#13#10'world' → "hello\r\nworld"
+func (l *Lexer) readStringOrCharSequence() (string, error) {
+	var builder strings.Builder
+	var lastError error
+
+	for {
+		// Save position for potential error reporting
+		pos := l.currentPos()
+
+		switch l.ch {
+		case '\'', '"':
+			// Read string literal
+			quote := l.ch
+			literal, err := l.readString(quote)
+			if err != nil {
+				lastError = err
+				return builder.String(), err
+			}
+			builder.WriteString(literal)
+
+		case '#':
+			// Read character literal
+			literal := l.readCharLiteral()
+			r, ok := charLiteralToRune(literal)
+			if !ok {
+				lastError = &LexerError{
+					Message: "invalid character literal: " + literal,
+					Pos:     pos,
+				}
+				return builder.String(), lastError
+			}
+			builder.WriteRune(r)
+
+		default:
+			// No more string/char literals to concatenate
+			return builder.String(), lastError
+		}
+
+		// Skip any whitespace and check if there's another string/char literal
+		savedPos := l.position
+		savedLine := l.line
+		savedColumn := l.column
+		savedCh := l.ch
+
+		l.skipWhitespace()
+
+		// Check if next token is a string or char literal
+		if l.ch != '\'' && l.ch != '"' && l.ch != '#' {
+			// Restore position if not a string/char literal
+			l.position = savedPos
+			l.line = savedLine
+			l.column = savedColumn
+			l.ch = savedCh
+			l.readPosition = savedPos
+			if savedPos < len(l.input) {
+				r, size := utf8.DecodeRuneInString(l.input[savedPos:])
+				l.ch = r
+				l.readPosition = savedPos + size
+			}
+			return builder.String(), lastError
+		}
+	}
+}
+
 // NextToken returns the next token from the input.
 func (l *Lexer) NextToken() Token {
 	l.skipWhitespace()
@@ -610,15 +716,10 @@ func (l *Lexer) NextToken() Token {
 			l.readChar()
 		}
 
-	case '#':
-		// Character literal
-		literal := l.readCharLiteral()
-		tok = NewToken(CHAR, literal, pos)
-
-	case '\'', '"':
-		// String literal
-		quote := l.ch
-		literal, err := l.readString(quote)
+	case '#', '\'', '"':
+		// String or character literal (with automatic concatenation)
+		// DWScript concatenates adjacent string/char literals: 'hello'#13#10 → "hello\r\n"
+		literal, err := l.readStringOrCharSequence()
 		if err != nil {
 			tok = NewToken(ILLEGAL, literal, pos)
 		} else {

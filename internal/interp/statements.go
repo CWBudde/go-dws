@@ -168,8 +168,9 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			} else if typeVal, ok := i.env.Get("__record_type_" + typeName); ok {
 				// Check if this is a record type
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
-					// Initialize with empty record value
-					value = NewRecordValue(rtv.RecordType)
+					// Initialize with empty record value (Task 9.7: pass methods)
+					// Task 9.7e1: Use createRecordValue for proper nested record initialization
+					value = i.createRecordValue(rtv.RecordType, rtv.Methods)
 				} else {
 					value = &NilValue{}
 				}
@@ -265,7 +266,8 @@ func (i *Interpreter) createZeroValue(typeAnnotation *ast.TypeAnnotation) Value 
 	// Check if this is a record type
 	if typeVal, ok := i.env.Get("__record_type_" + typeName); ok {
 		if rtv, ok := typeVal.(*RecordTypeValue); ok {
-			return NewRecordValue(rtv.RecordType)
+			// Task 9.7e1: Use createRecordValue for proper nested record initialization
+			return i.createRecordValue(rtv.RecordType, rtv.Methods)
 		}
 	}
 
@@ -744,13 +746,48 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 
 // evalIndexAssignment handles array index assignment: arr[i] := value
 func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Value, stmt *ast.AssignmentStatement) Value {
-	// Evaluate the array expression
+	// Task 9.2d: Check if this might be a multi-index property write
+	// We only flatten indices if the base is a MemberAccessExpression (property access)
+	// For regular array writes like arr[i][j] := value, we process each level separately
+	base, indices := collectIndices(target)
+
+	// Task 9.2b + 9.2d: Check if this is indexed property write: obj.Property[index1, index2, ...] := value
+	// Only flatten indices for property access, not for regular arrays
+	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok {
+		// Evaluate the object being accessed
+		objVal := i.Eval(memberAccess.Object)
+		if isError(objVal) {
+			return objVal
+		}
+
+		// Check if it's a class instance with an indexed property
+		if obj, ok := AsObject(objVal); ok {
+			propInfo := obj.Class.lookupProperty(memberAccess.Member.Value)
+			if propInfo != nil && propInfo.IsIndexed {
+				// This is a multi-index property write: flatten and evaluate ALL indices
+				indexVals := make([]Value, len(indices))
+				for idx, indexExpr := range indices {
+					indexVals[idx] = i.Eval(indexExpr)
+					if isError(indexVals[idx]) {
+						return indexVals[idx]
+					}
+				}
+
+				// Call indexed property write with all indices
+				return i.evalIndexedPropertyWrite(obj, propInfo, indexVals, value, stmt)
+			}
+		}
+	}
+
+	// Not a property access - this is regular array indexing
+	// Process ONLY the outermost index, not all nested indices
+	// This allows FData[x][y] := value to work as: (FData[x])[y] := value
 	arrayVal := i.Eval(target.Left)
 	if isError(arrayVal) {
 		return arrayVal
 	}
 
-	// Evaluate the index expression
+	// Evaluate the index for this level only
 	indexVal := i.Eval(target.Index)
 	if isError(indexVal) {
 		return indexVal

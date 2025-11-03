@@ -143,10 +143,12 @@ func (e *EnumValue) String() string {
 
 // RecordValue represents a record value in DWScript.
 // Task 8.73: Store record type metadata and field values.
-// Records are value types (like structs) with fields.
+// Task 9.7: Extended to include method declarations for runtime invocation.
+// Records are value types (like structs) with fields and methods.
 type RecordValue struct {
-	RecordType *types.RecordType // The record type metadata
-	Fields     map[string]Value  // Field name -> runtime value mapping
+	RecordType *types.RecordType            // The record type metadata
+	Fields     map[string]Value             // Field name -> runtime value mapping
+	Methods    map[string]*ast.FunctionDecl // Method name -> AST declaration (Task 9.7)
 }
 
 // Type returns the record type name (e.g., "TFoo") or "RECORD" if unnamed.
@@ -196,6 +198,7 @@ func (r *RecordValue) String() string {
 
 // Copy creates a deep copy of the record value
 // Records have value semantics in DWScript, so assignment should copy.
+// Task 9.7: Updated to copy methods as well.
 func (r *RecordValue) Copy() *RecordValue {
 	copiedFields := make(map[string]Value, len(r.Fields))
 
@@ -213,7 +216,23 @@ func (r *RecordValue) Copy() *RecordValue {
 	return &RecordValue{
 		RecordType: r.RecordType,
 		Fields:     copiedFields,
+		Methods:    r.Methods, // Methods are shared (AST nodes are immutable)
 	}
+}
+
+// GetMethod retrieves a method declaration by name.
+// Task 9.7: Helper for record method invocation.
+func (r *RecordValue) GetMethod(name string) *ast.FunctionDecl {
+	if r.Methods == nil {
+		return nil
+	}
+	return r.Methods[name]
+}
+
+// HasMethod checks if a method exists on the record.
+// Task 9.7: Helper for record method resolution.
+func (r *RecordValue) HasMethod(name string) bool {
+	return r.GetMethod(name) != nil
 }
 
 // ExternalVarValue represents an external variable marker.
@@ -395,13 +414,57 @@ func NewTypeMetaValue(typeInfo types.Type, typeName string) Value {
 	}
 }
 
-// NewRecordValue creates a new RecordValue with the given record type.
-// Task 8.73: Initialize the fields map.
-func NewRecordValue(recordType *types.RecordType) Value {
+// getZeroValueForType returns the zero value for a given type.
+// Task 9.7e1: Helper to initialize record fields with appropriate zero values.
+// For nested records, methods should be provided via the methodsLookup callback.
+func getZeroValueForType(t types.Type, methodsLookup func(*types.RecordType) map[string]*ast.FunctionDecl) Value {
+	switch t {
+	case types.INTEGER:
+		return &IntegerValue{Value: 0}
+	case types.FLOAT:
+		return &FloatValue{Value: 0.0}
+	case types.STRING:
+		return &StringValue{Value: ""}
+	case types.BOOLEAN:
+		return &BooleanValue{Value: false}
+	default:
+		// Task 9.7e1: Handle nested records - recursively create RecordValue instances
+		if recordType, ok := t.(*types.RecordType); ok {
+			// For record types, create a new RecordValue instance with methods
+			var methods map[string]*ast.FunctionDecl
+			if methodsLookup != nil {
+				methods = methodsLookup(recordType)
+			}
+			return newRecordValueInternal(recordType, methods, methodsLookup)
+		}
+		// For other complex types (classes, arrays, etc.), return nil
+		return &NilValue{}
+	}
+}
+
+// newRecordValueInternal is the internal implementation that supports recursive initialization.
+func newRecordValueInternal(recordType *types.RecordType, methods map[string]*ast.FunctionDecl, methodsLookup func(*types.RecordType) map[string]*ast.FunctionDecl) *RecordValue {
+	fields := make(map[string]Value)
+
+	// Task 9.7e1: Initialize all fields with zero values
+	// This ensures fields are accessible in record methods even before being explicitly assigned
+	for fieldName, fieldType := range recordType.Fields {
+		fields[fieldName] = getZeroValueForType(fieldType, methodsLookup)
+	}
+
 	return &RecordValue{
 		RecordType: recordType,
-		Fields:     make(map[string]Value),
+		Fields:     fields,
+		Methods:    methods,
 	}
+}
+
+// NewRecordValue creates a new RecordValue with the given record type.
+// Task 8.73: Initialize the fields map.
+// Task 9.7: Add methods parameter for record method invocation.
+// Task 9.7e1: Initialize fields with zero values so they can be accessed in methods.
+func NewRecordValue(recordType *types.RecordType, methods map[string]*ast.FunctionDecl) Value {
+	return newRecordValueInternal(recordType, methods, nil)
 }
 
 // ClassInfoValue is a special internal value type used to track the current class context

@@ -40,20 +40,40 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 	// Create the record type
 	recordType := types.NewRecordType(recordName, fields)
 
-	// TODO: Handle methods and properties if needed
+	// Task 9.7: Store method AST nodes for runtime invocation
+	// Build maps for instance methods and static methods (class function/procedure)
+	// Task 9.7f: Separate static methods from instance methods
+	methods := make(map[string]*ast.FunctionDecl)
+	staticMethods := make(map[string]*ast.FunctionDecl)
+	for _, method := range decl.Methods {
+		if method.IsClassMethod {
+			staticMethods[method.Name.Value] = method
+		} else {
+			methods[method.Name.Value] = method
+		}
+	}
+
+	// TODO: Handle properties if needed
 
 	// Store record type metadata in environment with special key
 	// This allows variable declarations to resolve the type
 	recordTypeKey := "__record_type_" + recordName
-	i.env.Define(recordTypeKey, &RecordTypeValue{RecordType: recordType})
+	i.env.Define(recordTypeKey, &RecordTypeValue{
+		RecordType:    recordType,
+		Methods:       methods,
+		StaticMethods: staticMethods,
+	})
 
 	return &NilValue{}
 }
 
 // RecordTypeValue is an internal value type used to store record type metadata
 // in the interpreter's environment.
+// Task 9.7: Extended to include method AST nodes for runtime execution.
 type RecordTypeValue struct {
-	RecordType *types.RecordType
+	RecordType    *types.RecordType
+	Methods       map[string]*ast.FunctionDecl // Instance methods: Method name -> AST declaration
+	StaticMethods map[string]*ast.FunctionDecl // Static methods: Method name -> AST declaration (class function/procedure)
 }
 
 // Type returns "RECORD_TYPE".
@@ -64,6 +84,24 @@ func (r *RecordTypeValue) Type() string {
 // String returns the record type name.
 func (r *RecordTypeValue) String() string {
 	return r.RecordType.Name
+}
+
+// createRecordValue creates a new RecordValue with proper method lookup for nested records.
+// Task 9.7e1: Helper to create records with method resolution for nested record fields.
+func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods map[string]*ast.FunctionDecl) Value {
+	// Create a method lookup callback that can resolve methods for nested records
+	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
+		// Look up the record type in the environment
+		key := "__record_type_" + rt.Name
+		if typeVal, ok := i.env.Get(key); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				return rtv.Methods
+			}
+		}
+		return nil
+	}
+
+	return newRecordValueInternal(recordType, methods, methodsLookup)
 }
 
 // ============================================================================

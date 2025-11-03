@@ -54,7 +54,27 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 			continue
 		}
 
-		// Check for method declarations
+		// Check for 'class function' / 'class procedure' (static methods)
+		if p.curTokenIs(lexer.CLASS) {
+			p.nextToken() // move past 'class'
+
+			if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
+				// Class method: class function/procedure ...
+				method := p.parseFunctionDeclaration()
+				if method != nil {
+					method.IsClassMethod = true // Mark as static method
+					recordDecl.Methods = append(recordDecl.Methods, method)
+				}
+				p.nextToken()
+				continue
+			} else {
+				p.addError("expected 'function' or 'procedure' after 'class' keyword in record")
+				p.nextToken()
+				continue
+			}
+		}
+
+		// Check for method declarations (instance methods)
 		if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
 			method := p.parseFunctionDeclaration()
 			if method != nil {
@@ -150,7 +170,27 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 			continue
 		}
 
-		// Check for method declarations
+		// Check for 'class function' / 'class procedure' (static methods)
+		if p.curTokenIs(lexer.CLASS) {
+			p.nextToken() // move past 'class'
+
+			if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
+				// Class method: class function/procedure ...
+				method := p.parseFunctionDeclaration()
+				if method != nil {
+					method.IsClassMethod = true // Mark as static method
+					recordDecl.Methods = append(recordDecl.Methods, method)
+				}
+				p.nextToken()
+				continue
+			} else {
+				p.addError("expected 'function' or 'procedure' after 'class' keyword in record")
+				p.nextToken()
+				continue
+			}
+		}
+
+		// Check for method declarations (instance methods)
 		if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
 			method := p.parseFunctionDeclaration()
 			if method != nil {

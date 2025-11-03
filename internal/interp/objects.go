@@ -311,6 +311,11 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			return i.newErrorWithLocation(node, "property '%s' read specifier '%s' not found as field or method", propInfo.Name, propInfo.ReadSpec)
 		}
 
+		// Task 9.1c: Indexed properties must be accessed with index syntax
+		if propInfo.IsIndexed {
+			return i.newErrorWithLocation(node, "indexed property '%s' requires index arguments (e.g., obj.%s[index])", propInfo.Name, propInfo.Name)
+		}
+
 		// Call the getter method
 		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
@@ -349,13 +354,18 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 
 	case types.PropAccessMethod:
 		// Task 8.53b: Method access - call getter method
+		// Task 9.1c: Indexed properties must be accessed with index syntax
+		if propInfo.IsIndexed {
+			return i.newErrorWithLocation(node, "indexed property '%s' requires index arguments (e.g., obj.%s[index])", propInfo.Name, propInfo.Name)
+		}
+
 		// Check if method exists
 		method := obj.Class.lookupMethod(propInfo.ReadSpec)
 		if method == nil {
 			return i.newErrorWithLocation(node, "property '%s' getter method '%s' not found", propInfo.Name, propInfo.ReadSpec)
 		}
 
-		// Call the getter method with no arguments (indexed properties handled separately)
+		// Call the getter method with no arguments
 		// Create method environment with Self bound to object
 		methodEnv := NewEnclosedEnvironment(i.env)
 		savedEnv := i.env
@@ -393,12 +403,190 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		return returnValue
 
 	case types.PropAccessExpression:
-		// Task 8.53c / 8.56: Expression access - evaluate expression in context of object
-		// For now, return an error as expression evaluation is complex
-		return i.newErrorWithLocation(node, "expression-based property getters not yet supported")
+		// Task 9.3c: Expression access - evaluate expression in context of object
+		// Retrieve the AST expression from PropertyInfo
+		if propInfo.ReadExpr == nil {
+			return i.newErrorWithLocation(node, "property '%s' has expression-based getter but no expression stored", propInfo.Name)
+		}
+
+		// Type-assert to ast.Expression
+		exprNode, ok := propInfo.ReadExpr.(ast.Expression)
+		if !ok {
+			return i.newErrorWithLocation(node, "property '%s' has invalid expression type", propInfo.Name)
+		}
+
+		// Unwrap GroupedExpression if present (parser wraps expressions in parentheses)
+		if groupedExpr, ok := exprNode.(*ast.GroupedExpression); ok {
+			exprNode = groupedExpr.Expression
+		}
+
+		// Create new environment with Self bound to object
+		exprEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = exprEnv
+
+		// Bind Self to the object instance
+		i.env.Define("Self", obj)
+
+		// Bind all object fields to environment so they can be accessed directly
+		// This allows expressions like (FWidth * FHeight) to work
+		for fieldName, fieldValue := range obj.Fields {
+			i.env.Define(fieldName, fieldValue)
+		}
+
+		// Evaluate the expression AST node
+		result := i.Eval(exprNode)
+
+		// Restore environment
+		i.env = savedEnv
+
+		return result
 
 	default:
 		return i.newErrorWithLocation(node, "property '%s' has no read access", propInfo.Name)
+	}
+}
+
+// evalIndexedPropertyRead evaluates an indexed property read operation: obj.Property[index]
+// Task 9.1c: Support indexed property reads end-to-end.
+// Calls the property getter method with index parameter(s).
+func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *types.PropertyInfo, indices []Value, node ast.Node) Value {
+	// Note: PropAccessKind is set to PropAccessField at registration time for both fields and methods
+	// We need to check at runtime whether it's actually a field or method
+	switch propInfo.ReadKind {
+	case types.PropAccessField, types.PropAccessMethod:
+		// Check if it's actually a field (not allowed for indexed properties)
+		if _, exists := obj.Class.Fields[propInfo.ReadSpec]; exists {
+			return i.newErrorWithLocation(node, "indexed property '%s' requires a getter method, not a field", propInfo.Name)
+		}
+
+		// Look up the getter method
+		method := obj.Class.lookupMethod(propInfo.ReadSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "indexed property '%s' getter method '%s' not found", propInfo.Name, propInfo.ReadSpec)
+		}
+
+		// Verify method has correct number of parameters (index params, no value param)
+		expectedParamCount := len(indices)
+		if len(method.Parameters) != expectedParamCount {
+			return i.newErrorWithLocation(node, "indexed property '%s' getter method '%s' expects %d parameter(s), got %d index argument(s)",
+				propInfo.Name, propInfo.ReadSpec, len(method.Parameters), len(indices))
+		}
+
+		// Create method environment
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// Bind index parameters
+		for idx, param := range method.Parameters {
+			if idx < len(indices) {
+				i.env.Define(param.Name.Value, indices[idx])
+			}
+		}
+
+		// For functions, initialize the Result variable
+		if method.ReturnType != nil {
+			i.env.Define("Result", &NilValue{})
+			i.env.Define(method.Name.Value, &NilValue{})
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Get return value
+		var returnValue Value
+		if method.ReturnType != nil {
+			if resultVal, ok := i.env.Get("Result"); ok {
+				returnValue = resultVal
+			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				returnValue = methodNameVal
+			} else {
+				returnValue = &NilValue{}
+			}
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return returnValue
+
+	case types.PropAccessExpression:
+		// Expression-based indexed properties not supported yet
+		return i.newErrorWithLocation(node, "expression-based indexed property getters not yet supported")
+
+	default:
+		return i.newErrorWithLocation(node, "indexed property '%s' has no read access", propInfo.Name)
+	}
+}
+
+// evalIndexedPropertyWrite evaluates an indexed property write operation: obj.Property[index] := value
+// Task 9.2b: Support indexed property writes.
+// Calls the property setter method with index parameter(s) followed by the value.
+func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *types.PropertyInfo, indices []Value, value Value, node ast.Node) Value {
+	// Note: PropAccessKind is set to PropAccessField at registration time for both fields and methods
+	// We need to check at runtime whether it's actually a field or method
+	switch propInfo.WriteKind {
+	case types.PropAccessField, types.PropAccessMethod:
+		// Check if it's actually a field (not allowed for indexed properties)
+		if _, exists := obj.Class.Fields[propInfo.WriteSpec]; exists {
+			return i.newErrorWithLocation(node, "indexed property '%s' requires a setter method, not a field", propInfo.Name)
+		}
+
+		// Look up the setter method
+		method := obj.Class.lookupMethod(propInfo.WriteSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "indexed property '%s' setter method '%s' not found", propInfo.Name, propInfo.WriteSpec)
+		}
+
+		// Verify method has correct number of parameters (index params + value param)
+		expectedParamCount := len(indices) + 1 // indices + value
+		if len(method.Parameters) != expectedParamCount {
+			return i.newErrorWithLocation(node, "indexed property '%s' setter method '%s' expects %d parameter(s) (indices + value), got %d",
+				propInfo.Name, propInfo.WriteSpec, expectedParamCount, len(method.Parameters))
+		}
+
+		// Create method environment
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// Bind index parameters (all but the last parameter)
+		for idx := 0; idx < len(indices); idx++ {
+			if idx < len(method.Parameters) {
+				i.env.Define(method.Parameters[idx].Name.Value, indices[idx])
+			}
+		}
+
+		// Bind value parameter (last parameter)
+		if len(method.Parameters) > 0 {
+			lastParamIdx := len(method.Parameters) - 1
+			i.env.Define(method.Parameters[lastParamIdx].Name.Value, value)
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Restore environment
+		i.env = savedEnv
+
+		// DWScript assignment is an expression that returns the assigned value
+		return value
+
+	case types.PropAccessNone:
+		// Read-only property
+		return i.newErrorWithLocation(node, "indexed property '%s' is read-only", propInfo.Name)
+
+	default:
+		return i.newErrorWithLocation(node, "indexed property '%s' has no write access", propInfo.Name)
 	}
 }
 
@@ -727,12 +915,37 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				return i.newErrorWithLocation(mc, "method '%s' not found in class '%s'", mc.Method.Value, classInfo.Name)
 			}
 		}
+
+		// Task 9.7f: Check if this identifier refers to a record type
+		recordTypeKey := "__record_type_" + ident.Value
+		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				// This is TRecord.Method() - check for static method
+				if staticMethod, exists := rtv.StaticMethods[mc.Method.Value]; exists {
+					// Execute static method WITHOUT Self binding
+					return i.callRecordStaticMethod(rtv, staticMethod, mc.Arguments, mc)
+				}
+				// Static method not found
+				return i.newErrorWithLocation(mc, "static method '%s' not found in record type '%s'", mc.Method.Value, ident.Value)
+			}
+		}
 	}
 
 	// Not static method call - evaluate the object expression for instance method call
 	objVal := i.Eval(mc.Object)
 	if isError(objVal) {
 		return objVal
+	}
+
+	// Task 9.7: Check if it's a record value with methods
+	if recVal, ok := objVal.(*RecordValue); ok {
+		// Convert MethodCallExpression to member access for record method calls
+		memberAccess := &ast.MemberAccessExpression{
+			Token:  mc.Token,
+			Object: mc.Object,
+			Member: mc.Method,
+		}
+		return i.evalRecordMethodCall(recVal, memberAccess, mc.Arguments, mc.Object)
 	}
 
 	// Check if it's an object instance
