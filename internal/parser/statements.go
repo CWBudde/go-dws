@@ -265,8 +265,19 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 			}
 		case *ast.ArrayTypeNode:
 			// For array types, we create a synthetic TypeAnnotation
+			// Check if Token is nil to prevent panics (defensive programming)
+			if te == nil {
+				p.addError("array type expression is nil in var declaration")
+				return stmt
+			}
+			// Use the array token or create a dummy token if nil
+			token := te.Token
+			if token.Type == 0 || token.Literal == "" {
+				// Create a dummy token to prevent nil pointer issues
+				token = lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{}}
+			}
 			stmt.Type = &ast.TypeAnnotation{
-				Token: te.Token,
+				Token: token,
 				Name:  te.String(), // Use the full array type signature as the type name
 			}
 		default:

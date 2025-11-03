@@ -427,6 +427,8 @@ go-dws/
 │   ├── wasm/          # WASM-specific docs (API.md, BUILD.md, PLAYGROUND.md)
 │   └── plans/         # Design documents
 ├── testdata/           # Test scripts and data
+│   ├── fixtures/      # Comprehensive test suite (~2,100 tests from original DWScript)
+│   └── *.dws          # Custom test scripts
 ├── reference/          # DWScript original source (read-only reference)
 ├── PLAN.md             # Detailed implementation roadmap
 └── goal.md             # High-level project goals and strategy
@@ -465,10 +467,18 @@ cd go-dws
 # Install dependencies
 go mod download
 
-# Run tests (when available)
+# Run all tests
 go test ./...
 
-# Build CLI (when available)
+# Run comprehensive DWScript fixture tests (~2,100 tests)
+go test -v ./internal/interp -run TestDWScriptFixtures
+
+# Run specific test category
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts
+
+# See testdata/fixtures/README.md for more test options
+
+# Build CLI
 go build ./cmd/dwscript
 ```
 

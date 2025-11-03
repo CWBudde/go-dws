@@ -133,9 +133,9 @@ func TestRandomIntFunction(t *testing.T) {
 		"RandomInt(10) =",
 		"RandomInt(100) =",
 		"RandomInt(5) =",
-		"RandomInt(1) =  0", // This one is deterministic
-		"All values in range:  true",
-		"Valid random values generated:  10 /10",
+		"RandomInt(1) = 0", // This one is deterministic
+		"All values in range: true",
+		"Valid random values generated: 10/10",
 	}
 
 	for _, pattern := range expectedPatterns {

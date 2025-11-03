@@ -632,18 +632,18 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	if !ok {
 		// Task 9.7: Check if object is a record type with methods
 		if recordType, isRecord := objectType.(*types.RecordType); isRecord {
-			// Records can have methods - check if this method exists
-			if !recordType.HasMethod(methodName) {
-				a.addError("method '%s' not found in record type '%s' at %s",
-					methodName, recordType.Name, expr.Token.Pos.String())
-				return nil
-			}
-
+			// Records can have methods - check if this method exists in the record itself
 			method := recordType.GetMethod(methodName)
 			if method == nil {
-				a.addError("method '%s' not found in record type '%s' at %s",
-					methodName, recordType.Name, expr.Token.Pos.String())
-				return nil
+				// Method not found in record, check if a helper provides it
+				_, helperMethod := a.hasHelperMethod(objectType, methodName)
+				if helperMethod == nil {
+					a.addError("method '%s' not found in record type '%s' at %s",
+						methodName, recordType.Name, expr.Token.Pos.String())
+					return nil
+				}
+				// Use the helper method
+				method = helperMethod
 			}
 
 			// Validate method arguments
