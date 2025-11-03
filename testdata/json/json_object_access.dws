@@ -1,0 +1,91 @@
+// Test JSON Object Access - Tasks 9.97-9.100
+// Tests: JSONHasField, JSONKeys, JSONValues, and object property indexing
+
+// Test 9.97: JSON object property access using bracket notation
+var obj := ParseJSON('{"name": "John", "age": 30, "city": "NYC"}');
+PrintLn('Property access tests:');
+PrintLn(obj['name']);      // Should print: John
+PrintLn(obj['age']);       // Should print: 30
+PrintLn(obj['city']);      // Should print: NYC
+PrintLn(obj['missing']);   // Should print: nil/null
+
+// Test 9.97: JSON array indexing
+var arr := ParseJSON('[10, 20, 30, 40, 50]');
+PrintLn('');
+PrintLn('Array indexing tests:');
+PrintLn(arr[0]);    // Should print: 10
+PrintLn(arr[2]);    // Should print: 30
+PrintLn(arr[4]);    // Should print: 50
+PrintLn(arr[99]);   // Should print: nil/null
+
+// Test 9.98: JSONHasField function
+PrintLn('');
+PrintLn('JSONHasField tests:');
+PrintLn(JSONHasField(obj, 'name'));     // Should print: true
+PrintLn(JSONHasField(obj, 'age'));      // Should print: true
+PrintLn(JSONHasField(obj, 'email'));    // Should print: false
+PrintLn(JSONHasField(obj, 'missing'));  // Should print: false
+
+// Test JSONHasField with non-objects
+PrintLn(JSONHasField(arr, 'name'));     // Should print: false (array, not object)
+var num := ParseJSON('42');
+PrintLn(JSONHasField(num, 'name'));     // Should print: false (number, not object)
+
+// Test 9.99: JSONKeys function
+PrintLn('');
+PrintLn('JSONKeys tests:');
+var keys := JSONKeys(obj);
+PrintLn('Number of keys: ' + IntToStr(Length(keys)));  // Should print: 3
+// Note: key order may vary due to Go map iteration randomization
+//for var i := 0 to Length(keys) - 1 do
+//    PrintLn('Key ' + IntToStr(i) + ': ' + keys[i]);
+PrintLn('Has name key: ' + BoolToStr(JSONHasField(obj, 'name')));
+PrintLn('Has age key: ' + BoolToStr(JSONHasField(obj, 'age')));
+PrintLn('Has city key: ' + BoolToStr(JSONHasField(obj, 'city')));
+
+// Test JSONKeys with empty object
+var emptyObj := ParseJSON('{}');
+var emptyKeys := JSONKeys(emptyObj);
+PrintLn('Empty object keys: ' + IntToStr(Length(emptyKeys)));  // Should print: 0
+
+// Test JSONKeys with non-object
+var arrKeys := JSONKeys(arr);
+PrintLn('Array keys: ' + IntToStr(Length(arrKeys)));  // Should print: 0
+
+// Test 9.100: JSONValues function
+PrintLn('');
+PrintLn('JSONValues tests:');
+var values := JSONValues(obj);
+PrintLn('Number of values: ' + IntToStr(Length(values)));  // Should print: 3
+// Note: value order matches key order (which may vary)
+// Just verify we can access all values
+PrintLn('Values are accessible: ' + BoolToStr(Length(values) = 3));
+
+// Test JSONValues with empty object
+var emptyValues := JSONValues(emptyObj);
+PrintLn('Empty object values: ' + IntToStr(Length(emptyValues)));  // Should print: 0
+
+// Test JSONValues with non-object
+var arrValues := JSONValues(arr);
+PrintLn('Array values: ' + IntToStr(Length(arrValues)));  // Should print: 0
+
+// Test nested objects
+PrintLn('');
+PrintLn('Nested object tests:');
+var nested := ParseJSON('{"person": {"name": "Alice", "age": 25}, "location": "Paris"}');
+var person := nested['person'];
+PrintLn(person['name']);   // Should print: Alice
+PrintLn(person['age']);    // Should print: 25
+PrintLn(nested['location']); // Should print: Paris
+
+// Test JSONKeys and JSONValues consistency
+PrintLn('');
+PrintLn('Key-value consistency test:');
+var test := ParseJSON('{"a": 100, "b": 200, "c": 300}');
+var testKeys := JSONKeys(test);
+var testValues := JSONValues(test);
+PrintLn('Keys and values have same length: ' + BoolToStr(Length(testKeys) = Length(testValues)));
+// Verify we can access fields
+PrintLn('Can access field a: ' + BoolToStr(JSONHasField(test, 'a')));
+PrintLn('Can access field b: ' + BoolToStr(JSONHasField(test, 'b')));
+PrintLn('Can access field c: ' + BoolToStr(JSONHasField(test, 'c')));

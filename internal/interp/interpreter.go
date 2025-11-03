@@ -276,6 +276,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.MethodCallExpression:
 		return i.evalMethodCall(node)
 
+	case *ast.InheritedExpression:
+		return i.evalInheritedExpression(node)
+
 	case *ast.EnumLiteral:
 		return i.evalEnumLiteral(node)
 

@@ -5,16 +5,61 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-// parseConstDeclaration parses a constant declaration.
+// parseConstDeclaration parses one or more constant declarations in a const block.
 // Syntax: const NAME = VALUE; or const NAME := VALUE; or const NAME: TYPE = VALUE;
+// DWScript allows block syntax: const C1 = 1; C2 = 2; (one const keyword, multiple declarations)
+// This function returns a BlockStatement containing all const declarations in the block.
 func (p *Parser) parseConstDeclaration() ast.Statement {
-	stmt := &ast.ConstDecl{Token: p.curToken}
+	blockToken := p.curToken // Save the initial CONST token for the block
+	statements := []ast.Statement{}
 
-	// Expect identifier (const name)
-	if !p.expectPeek(lexer.IDENT) {
+	// Parse first const declaration
+	firstStmt := p.parseSingleConstDeclaration()
+	if firstStmt == nil {
+		return nil
+	}
+	statements = append(statements, firstStmt)
+
+	// Continue parsing additional const declarations without the 'const' keyword
+	// As long as the next line looks like a const declaration (not just any identifier)
+	for p.looksLikeConstDeclaration() {
+		p.nextToken() // move to identifier
+		constStmt := p.parseSingleConstDeclaration()
+		if constStmt == nil {
+			break
+		}
+		statements = append(statements, constStmt)
+	}
+
+	// If only one declaration, return it directly
+	if len(statements) == 1 {
+		return statements[0]
+	}
+
+	// Multiple declarations: wrap in a BlockStatement
+	return &ast.BlockStatement{
+		Token:      blockToken,
+		Statements: statements,
+	}
+}
+
+// parseSingleConstDeclaration parses a single constant declaration.
+// Assumes we're already positioned at the identifier (or just before it).
+func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
+	// If we're at CONST token, advance to identifier
+	if p.curTokenIs(lexer.CONST) {
+		if !p.expectPeek(lexer.IDENT) {
+			return nil
+		}
+	}
+
+	// We should now be at the identifier
+	if !p.isIdentifierToken(p.curToken.Type) {
+		p.addError("expected identifier in const declaration")
 		return nil
 	}
 
+	stmt := &ast.ConstDecl{Token: p.curToken}
 	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
 	// Check for optional type annotation (: Type)

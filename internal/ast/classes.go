@@ -322,3 +322,49 @@ func (mc *MethodCallExpression) String() string {
 
 	return out.String()
 }
+
+// InheritedExpression represents a call to the parent class's implementation.
+// Used in overridden methods to call the base class method.
+//
+// DWScript syntax:
+//
+//	inherited MethodName(args)
+//	inherited MethodName
+//	inherited
+//
+// Task 9.164: Implement inherited keyword
+type InheritedExpression struct {
+	Token      lexer.Token     // The 'inherited' token
+	Method     *Identifier     // Optional method name (nil for bare 'inherited')
+	Arguments  []Expression    // Optional arguments for method call
+	Type       *TypeAnnotation // Result type
+	IsCall     bool            // True if this is a method call (has arguments or parentheses)
+	IsMember   bool            // True if this accesses a member (has method name but no call)
+}
+
+func (ie *InheritedExpression) expressionNode()             {}
+func (ie *InheritedExpression) TokenLiteral() string        { return ie.Token.Literal }
+func (ie *InheritedExpression) Pos() lexer.Position         { return ie.Token.Pos }
+func (ie *InheritedExpression) GetType() *TypeAnnotation    { return ie.Type }
+func (ie *InheritedExpression) SetType(typ *TypeAnnotation) { ie.Type = typ }
+func (ie *InheritedExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("inherited")
+
+	if ie.Method != nil {
+		out.WriteString(" ")
+		out.WriteString(ie.Method.String())
+
+		if ie.IsCall {
+			out.WriteString("(")
+			args := []string{}
+			for _, arg := range ie.Arguments {
+				args = append(args, arg.String())
+			}
+			out.WriteString(strings.Join(args, ", "))
+			out.WriteString(")")
+		}
+	}
+
+	return out.String()
+}

@@ -1,0 +1,29 @@
+// Test preconditions
+procedure TestPositive(i : Integer);
+require
+   i >= 0;
+   i > 0 : 'must be strictly positive';
+begin
+   PrintLn('TestPositive ' + IntToStr(i));
+end;
+
+// Test postconditions
+function TestInc(i : Integer) : Integer;
+begin
+   Result := i + 1;
+   PrintLn('TestInc ' + IntToStr(Result));
+end;
+ensure
+   Result >= 0;
+   Result > 10 : 'must be above 10';
+
+begin
+   // Call with valid input
+   TestPositive(10);
+   PrintLn('Success: TestPositive(10)');
+
+   // Call TestInc with valid input
+   var x : Integer;
+   x := TestInc(10);
+   PrintLn('Success: TestInc(10) = ' + IntToStr(x));
+end.

@@ -1,0 +1,33 @@
+// Test contracts with nested function calls
+function Double(x : Integer) : Integer;
+require
+   x >= 0;
+begin
+   Result := x * 2;
+end;
+ensure
+   Result = old x * 2;
+
+function Quadruple(x : Integer) : Integer;
+require
+   x >= 0;
+begin
+   Result := Double(Double(x));
+end;
+ensure
+   Result = old x * 4;
+
+function Octuple(x : Integer) : Integer;
+require
+   x >= 0;
+begin
+   Result := Double(Quadruple(x));
+end;
+ensure
+   Result = old x * 8;
+
+begin
+   PrintLn(Double(5));      // 10
+   PrintLn(Quadruple(5));   // 20
+   PrintLn(Octuple(5));     // 40
+end.

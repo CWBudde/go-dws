@@ -1,0 +1,28 @@
+// Test 'old' keyword in postconditions
+function IncFunc(val, delta : Integer) : Integer;
+begin
+   Result := val + delta;
+end;
+ensure
+   Result = old val + delta;
+
+function IncBy1(val : Integer) : Integer;
+begin
+   Result := val + 1;
+end;
+ensure
+   Result = old val + 1;
+
+begin
+   // Test with delta=1
+   var v : Integer;
+   v := IncBy1(5);
+   PrintLn(v);  // Should print 6
+
+   v := IncBy1(10);
+   PrintLn(v);  // Should print 11
+
+   // Test with delta=5
+   v := IncFunc(10, 5);
+   PrintLn(v);  // Should print 15
+end.

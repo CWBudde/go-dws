@@ -1,0 +1,82 @@
+// Test Task 9.105: JSON array access test
+// Tests array indexing, JSONLength, and iteration over JSON arrays
+
+PrintLn('=== JSON Array Access Tests ===');
+PrintLn('');
+
+// Basic array access
+PrintLn('--- Basic Array Access ---');
+var arr := ParseJSON('[10, 20, 30, 40, 50]');
+PrintLn('array[0]: ', arr[0]);
+PrintLn('array[2]: ', arr[2]);
+PrintLn('array[4]: ', arr[4]);
+
+PrintLn('');
+
+// Array length
+PrintLn('--- Array Length ---');
+PrintLn('length: ', JSONLength(arr));
+
+var emptyArr := ParseJSON('[]');
+PrintLn('empty array length: ', JSONLength(emptyArr));
+
+var singleArr := ParseJSON('[42]');
+PrintLn('single element length: ', JSONLength(singleArr));
+
+PrintLn('');
+
+// Iterate over array
+PrintLn('--- Array Iteration ---');
+var nums := ParseJSON('[1, 2, 3, 4, 5]');
+PrintLn('Iterating over array:');
+for var i := 0 to JSONLength(nums) - 1 do
+    PrintLn('  [', i, ']: ', nums[i]);
+
+PrintLn('');
+
+// Nested arrays
+PrintLn('--- Nested Arrays ---');
+var matrix := ParseJSON('[[1, 2, 3], [4, 5, 6], [7, 8, 9]]');
+PrintLn('matrix length: ', JSONLength(matrix));
+var row0 := matrix[0];
+PrintLn('row 0 length: ', JSONLength(row0));
+PrintLn('matrix[0][0]: ', row0[0]);
+PrintLn('matrix[0][2]: ', row0[2]);
+var row1 := matrix[1];
+PrintLn('matrix[1][1]: ', row1[1]);
+
+PrintLn('');
+
+// Mixed type arrays
+PrintLn('--- Mixed Type Arrays ---');
+var mixed := ParseJSON('[1, 2.5, true, false, null]');
+PrintLn('mixed length: ', JSONLength(mixed));
+PrintLn('mixed[0] (int): ', mixed[0]);
+PrintLn('mixed[1] (float): ', mixed[1]);
+PrintLn('mixed[2] (bool): ', mixed[2]);
+PrintLn('mixed[3] (bool): ', mixed[3]);
+PrintLn('mixed[4] (null): ', mixed[4]);
+
+PrintLn('');
+
+// Array of objects
+PrintLn('--- Array of Objects ---');
+var objects := ParseJSON('[{"id": 1, "value": 100}, {"id": 2, "value": 200}]');
+PrintLn('objects length: ', JSONLength(objects));
+var obj0 := objects[0];
+PrintLn('objects[0].id: ', obj0['id']);
+PrintLn('objects[0].value: ', obj0['value']);
+var obj1 := objects[1];
+PrintLn('objects[1].id: ', obj1['id']);
+PrintLn('objects[1].value: ', obj1['value']);
+
+PrintLn('');
+
+// Out of bounds access
+PrintLn('--- Out of Bounds ---');
+var small := ParseJSON('[1, 2, 3]');
+PrintLn('small[5] (out of bounds): ', small[5]);
+PrintLn('small[-1] (negative index): ', small[-1]);
+
+PrintLn('');
+PrintLn('=== All Array Access Tests Passed ===');
