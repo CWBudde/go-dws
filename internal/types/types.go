@@ -385,6 +385,7 @@ type PropertyInfo struct {
 	WriteSpec string
 	ReadKind  PropAccessKind
 	WriteKind PropAccessKind
+	ReadExpr  interface{} // Task 9.3c: AST expression node for expression-based getters (ast.Expression)
 	IsIndexed bool
 	IsDefault bool
 }

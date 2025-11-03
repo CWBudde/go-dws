@@ -45,8 +45,23 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		}
 	}
 
-	// Check if this is a unit-qualified function call (UnitName.FunctionName)
+	// Check if this is a unit-qualified function call (UnitName.FunctionName) or record method call
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
+		// First, evaluate the object part to see what we're dealing with
+		objVal := i.Eval(memberAccess.Object)
+		if isError(objVal) {
+			return objVal
+		}
+
+		// Task 9.7b: Check if this is a record method call (record.Method(...))
+		// Implementation Strategy (Task 9.7a): Integrate with class method system (Option 2)
+		// Records are value types, but methods work similarly to class methods.
+		// Key difference: For mutating methods (procedures), we need copy-back semantics.
+		if recVal, ok := objVal.(*RecordValue); ok {
+			return i.evalRecordMethodCall(recVal, memberAccess, expr.Arguments, memberAccess.Object)
+		}
+
+		// Check if the left side is a unit identifier (for qualified access: UnitName.FunctionName)
 		if unitIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
 			// This could be a unit-qualified call: UnitName.FunctionName()
 			if i.unitRegistry != nil {
@@ -565,7 +580,8 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		recordTypeKey := "__record_type_" + returnTypeName
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				resultValue = NewRecordValue(rtv.RecordType)
+				// Task 9.7e1: Use createRecordValue for proper nested record initialization
+				resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
 			}
 		}
 
@@ -769,7 +785,8 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 		recordTypeKey := "__record_type_" + returnTypeName
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				resultValue = NewRecordValue(rtv.RecordType)
+				// Task 9.7e1: Use createRecordValue for proper nested record initialization
+				resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
 			}
 		}
 
@@ -811,6 +828,381 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 		}
 	} else {
 		// Procedure lambda - no return value
+		returnValue = &NilValue{}
+	}
+
+	// Restore environment
+	i.env = savedEnv
+
+	return returnValue
+}
+
+// evalRecordMethodCall evaluates a method call on a record value (record.Method(...)).
+// Task 9.7b-9.7c: Implement record method invocation and resolution.
+//
+// Records are value types in DWScript (unlike classes which are reference types).
+// This means:
+//   - Methods execute with Self bound to the record instance
+//   - For mutating methods (procedures that modify Self), we need copy-back semantics
+//   - No inheritance - simple method lookup in RecordType.Methods
+//
+// Parameters:
+//   - recVal: The record instance to call the method on
+//   - memberAccess: The member access expression containing the method name
+//   - argExprs: The argument expressions to evaluate
+//
+// Example:
+//
+//	type TPoint = record
+//	  X, Y: Integer;
+//	  function Distance: Float;
+//	  begin
+//	    Result := Sqrt(X*X + Y*Y);
+//	  end;
+//	  procedure Move(dx, dy: Integer);
+//	  begin
+//	    X := X + dx;
+//	    Y := Y + dy;
+//	  end;
+//	end;
+//
+//	var p: TPoint;
+//	p.X := 3; p.Y := 4;
+//	var d := p.Distance();  // Returns 5.0
+//	p.Move(1, 1);           // Modifies p to (4, 5)
+func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *ast.MemberAccessExpression, argExprs []ast.Expression, objExpr ast.Expression) Value {
+	methodName := memberAccess.Member.Value
+
+	// Task 9.7c: Method resolution - lookup in RecordValue.Methods
+	// No inheritance needed for records (unlike classes)
+	if !recVal.HasMethod(methodName) {
+		// Check if helpers provide this method
+		helper, helperMethod, builtinSpec := i.findHelperMethod(recVal, methodName)
+		if helperMethod == nil && builtinSpec == "" {
+			if recVal.RecordType != nil {
+				return i.newErrorWithLocation(memberAccess, "method '%s' not found in record type '%s' (no helper found)",
+					methodName, recVal.RecordType.Name)
+			}
+			return i.newErrorWithLocation(memberAccess, "method '%s' not found (no helper found)", methodName)
+		}
+
+		// Evaluate method arguments
+		args := make([]Value, len(argExprs))
+		for idx, arg := range argExprs {
+			val := i.Eval(arg)
+			if isError(val) {
+				return val
+			}
+			args[idx] = val
+		}
+
+		// Call the helper method
+		return i.callHelperMethod(helper, helperMethod, builtinSpec, recVal, args, memberAccess)
+	}
+
+	method := recVal.GetMethod(methodName)
+	if method == nil {
+		return i.newErrorWithLocation(memberAccess, "method '%s' not found in record type '%s'",
+			methodName, recVal.RecordType.Name)
+	}
+
+	// Evaluate method arguments
+	args := make([]Value, len(argExprs))
+	for idx, arg := range argExprs {
+		val := i.Eval(arg)
+		if isError(val) {
+			return val
+		}
+		args[idx] = val
+	}
+
+	// Check argument count matches parameter count
+	if len(args) != len(method.Parameters) {
+		return i.newErrorWithLocation(memberAccess, "wrong number of arguments for method '%s': expected %d, got %d",
+			methodName, len(method.Parameters), len(args))
+	}
+
+	// Create method environment with Self bound to the record
+	// IMPORTANT: Records are value types, so we need to work with a copy
+	// For mutating methods, we'll need to copy back changes to the original
+	methodEnv := NewEnclosedEnvironment(i.env)
+	savedEnv := i.env
+	i.env = methodEnv
+
+	// Make a copy of the record for the method execution
+	// This implements value semantics - the method works on a copy
+	recordCopy := recVal.Copy()
+
+	// Bind Self to the record copy
+	i.env.Define("Self", recordCopy)
+
+	// Task 9.7e1: Bind all record fields to environment so they can be accessed directly
+	// This allows code like "X := X + dx" to work without needing "Self.X"
+	// Similar to how class property expressions bind fields (see objects.go:431-435)
+	for fieldName, fieldValue := range recordCopy.Fields {
+		i.env.Define(fieldName, fieldValue)
+	}
+
+	// Push method name onto call stack for stack traces
+	fullMethodName := recVal.RecordType.Name + "." + methodName
+	i.callStack = append(i.callStack, fullMethodName)
+	defer func() {
+		if len(i.callStack) > 0 {
+			i.callStack = i.callStack[:len(i.callStack)-1]
+		}
+	}()
+
+	// Bind method parameters to arguments with implicit conversion
+	for idx, param := range method.Parameters {
+		arg := args[idx]
+
+		// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+		if param.Type != nil {
+			paramTypeName := param.Type.Name
+			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+				arg = converted
+			}
+		}
+
+		if param.ByRef {
+			// By-reference parameter (TODO: implement proper by-ref support)
+			i.env.Define(param.Name.Value, arg)
+		} else {
+			// By-value parameter
+			i.env.Define(param.Name.Value, arg)
+		}
+	}
+
+	// For functions (not procedures), initialize the Result variable
+	if method.ReturnType != nil {
+		// Initialize Result based on return type
+		var resultValue Value = &NilValue{}
+
+		// Check if return type is a record
+		returnTypeName := method.ReturnType.Name
+		recordTypeKey := "__record_type_" + returnTypeName
+		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				// Task 9.7e1: Use createRecordValue for proper nested record initialization
+				resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
+			}
+		}
+
+		i.env.Define("Result", resultValue)
+		// Also define the method name as an alias for Result (DWScript style)
+		i.env.Define(method.Name.Value, resultValue)
+	}
+
+	// Execute method body
+	if method.Body == nil {
+		i.env = savedEnv
+		return i.newErrorWithLocation(memberAccess, "method '%s' has no body", methodName)
+	}
+
+	bodyResult := i.Eval(method.Body)
+
+	// If an error occurred during execution, propagate it
+	if isError(bodyResult) {
+		i.env = savedEnv
+		return bodyResult
+	}
+
+	// If an exception was raised during method execution, propagate it immediately
+	if i.exception != nil {
+		i.env = savedEnv
+		return &NilValue{}
+	}
+
+	// Handle exit signal
+	if i.exitSignal {
+		i.exitSignal = false
+	}
+
+	// Extract return value
+	var returnValue Value
+	if method.ReturnType != nil {
+		// Method has a return type - get the Result value
+		resultVal, resultOk := i.env.Get("Result")
+		methodNameVal, methodNameOk := i.env.Get(method.Name.Value)
+
+		// Use whichever variable is not nil, preferring Result if both are set
+		if resultOk && resultVal.Type() != "NIL" {
+			returnValue = resultVal
+		} else if methodNameOk && methodNameVal.Type() != "NIL" {
+			returnValue = methodNameVal
+		} else if resultOk {
+			returnValue = resultVal
+		} else if methodNameOk {
+			returnValue = methodNameVal
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		// Task 8.19c: Apply implicit conversion if return type doesn't match
+		if returnValue.Type() != "NIL" {
+			expectedReturnType := method.ReturnType.Name
+			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
+				returnValue = converted
+			}
+		}
+	} else {
+		// Procedure - no return value
+		// But we need to handle copy-back for mutating procedures
+		returnValue = &NilValue{}
+
+		// Copy-back semantics for procedures:
+		// If the method is a procedure (no return type), it may have modified Self.
+		// We need to update the original record with the modified fields.
+		// However, since we evaluated the object expression already, we can't directly
+		// modify the original. This is a limitation of the current approach.
+		//
+		// TODO: For full copy-back semantics, we would need to:
+		// 1. Track the lvalue (variable) that holds the record
+		// 2. Update that variable with the modified record copy
+		//
+		// For now, we return the modified copy and rely on assignment handling.
+	}
+
+	// Task 9.7e1: Copy modified field values back from environment to record copy
+	// This ensures that any field modifications made during method execution are preserved
+	for fieldName := range recordCopy.Fields {
+		if updatedVal, exists := i.env.Get(fieldName); exists {
+			recordCopy.Fields[fieldName] = updatedVal
+		}
+	}
+
+	// Restore environment
+	i.env = savedEnv
+
+	// Task 9.7e1: Update the original variable with the modified record copy
+	// This implements proper value semantics for records - mutations persist
+	// Check if the object expression is a simple identifier (variable)
+	if ident, ok := objExpr.(*ast.Identifier); ok {
+		// Update the variable in the environment with the modified copy
+		// This makes mutations visible: p.SetCoords(10, 20) updates p
+		i.env.Set(ident.Value, recordCopy)
+	}
+
+	return returnValue
+}
+
+// callRecordStaticMethod executes a static record method (class function/procedure).
+// Task 9.7f: Static record methods don't have Self binding and are called on the type, not instances.
+// Example: TPoint.Origin() where Origin is declared as "class function Origin: TPoint"
+//
+// Parameters:
+//   - rtv: The RecordTypeValue containing the static method
+//   - method: The FunctionDecl AST node for the static method
+//   - argExprs: The argument expressions from the call site
+//   - callNode: The call node for error reporting
+//
+// Static methods behave like regular functions but are scoped to the record type.
+// They cannot access instance fields (no Self) but can return values of the record type.
+func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.FunctionDecl, argExprs []ast.Expression, callNode ast.Node) Value {
+	methodName := method.Name.Value
+
+	// Evaluate method arguments
+	args := make([]Value, len(argExprs))
+	for idx, arg := range argExprs {
+		val := i.Eval(arg)
+		if isError(val) {
+			return val
+		}
+		args[idx] = val
+	}
+
+	// Check argument count matches parameter count
+	if len(args) != len(method.Parameters) {
+		return i.newErrorWithLocation(callNode, "wrong number of arguments for static method '%s': expected %d, got %d",
+			methodName, len(method.Parameters), len(args))
+	}
+
+	// Create method environment (NO Self binding for static methods)
+	methodEnv := NewEnclosedEnvironment(i.env)
+	savedEnv := i.env
+	i.env = methodEnv
+
+	// Push method name onto call stack for stack traces
+	fullMethodName := rtv.RecordType.Name + "." + methodName
+	i.callStack = append(i.callStack, fullMethodName)
+	defer func() {
+		if len(i.callStack) > 0 {
+			i.callStack = i.callStack[:len(i.callStack)-1]
+		}
+	}()
+
+	// Bind method parameters to arguments with implicit conversion
+	for idx, param := range method.Parameters {
+		arg := args[idx]
+
+		// Apply implicit conversion if parameter has a type and types don't match
+		if param.Type != nil {
+			paramTypeName := param.Type.Name
+			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+				arg = converted
+			}
+		}
+
+		i.env.Define(param.Name.Value, arg)
+	}
+
+	// For functions (not procedures), initialize the Result variable
+	if method.ReturnType != nil {
+		// Initialize Result based on return type
+		var resultValue Value = &NilValue{}
+
+		// Check if return type is a record
+		// Task 9.7f: For static record methods returning records, initialize Result properly
+		returnTypeName := method.ReturnType.Name
+		recordTypeKey := "__record_type_" + returnTypeName
+		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if recordTV, ok := typeVal.(*RecordTypeValue); ok {
+				// Return type is a record - create an instance
+				resultValue = i.createRecordValue(recordTV.RecordType, recordTV.Methods)
+			}
+		}
+
+		i.env.Define("Result", resultValue)
+		// Also define the method name as an alias for Result (DWScript style)
+		i.env.Define(methodName, resultValue)
+	}
+
+	// Execute method body
+	result := i.Eval(method.Body)
+	if isError(result) {
+		i.env = savedEnv
+		return result
+	}
+
+	// Extract return value (same logic as class methods)
+	var returnValue Value
+	if method.ReturnType != nil {
+		// Check both Result and method name variable
+		resultVal, resultOk := i.env.Get("Result")
+		methodNameVal, methodNameOk := i.env.Get(methodName)
+
+		// Use whichever variable is not nil, preferring Result if both are set
+		if resultOk && resultVal.Type() != "NIL" {
+			returnValue = resultVal
+		} else if methodNameOk && methodNameVal.Type() != "NIL" {
+			returnValue = methodNameVal
+		} else if resultOk {
+			returnValue = resultVal
+		} else if methodNameOk {
+			returnValue = methodNameVal
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		// Apply implicit conversion if return type doesn't match
+		if returnValue.Type() != "NIL" {
+			expectedReturnType := method.ReturnType.Name
+			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
+				returnValue = converted
+			}
+		}
+	} else {
+		// Procedure - no return value
 		returnValue = &NilValue{}
 	}
 

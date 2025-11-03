@@ -532,6 +532,13 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return fieldType
 	}
 
+	// Task 9.3: Look up property in class (including inherited properties)
+	propInfo, propFound := classType.GetProperty(memberName)
+	if propFound {
+		// Property access returns the property type
+		return propInfo.Type
+	}
+
 	// Look up method in class (for method references)
 	methodType, found := classType.GetMethod(memberName)
 	if found {
@@ -623,7 +630,45 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// Check if object is a class type
 	classType, ok := objectType.(*types.ClassType)
 	if !ok {
-		// Task 9.83: For non-class types, check if helpers provide this method
+		// Task 9.7: Check if object is a record type with methods
+		if recordType, isRecord := objectType.(*types.RecordType); isRecord {
+			// Records can have methods - check if this method exists
+			if !recordType.HasMethod(methodName) {
+				a.addError("method '%s' not found in record type '%s' at %s",
+					methodName, recordType.Name, expr.Token.Pos.String())
+				return nil
+			}
+
+			method := recordType.GetMethod(methodName)
+			if method == nil {
+				a.addError("method '%s' not found in record type '%s' at %s",
+					methodName, recordType.Name, expr.Token.Pos.String())
+				return nil
+			}
+
+			// Validate method arguments
+			if len(expr.Arguments) != len(method.Parameters) {
+				a.addError("record method '%s' expects %d arguments, got %d at %s",
+					methodName, len(method.Parameters), len(expr.Arguments),
+					expr.Token.Pos.String())
+				return method.ReturnType
+			}
+
+			// Check argument types
+			for i, arg := range expr.Arguments {
+				argType := a.analyzeExpression(arg)
+				expectedType := method.Parameters[i]
+				if argType != nil && !a.canAssign(argType, expectedType) {
+					a.addError("argument %d to record method '%s' has type %s, expected %s at %s",
+						i+1, methodName, argType.String(), expectedType.String(),
+						expr.Token.Pos.String())
+				}
+			}
+
+			return method.ReturnType
+		}
+
+		// Task 9.83: For non-class, non-record types, check if helpers provide this method
 		_, helperMethod := a.hasHelperMethod(objectType, methodName)
 		if helperMethod == nil {
 			a.addError("method call on type %s requires a helper, got no helper with method '%s' at %s",

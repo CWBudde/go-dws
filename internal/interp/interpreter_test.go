@@ -367,9 +367,9 @@ func TestBuiltinPrintLn(t *testing.T) {
 		expected string
 	}{
 		{`PrintLn("hello")`, "hello\n"},
-		{`PrintLn("hello", "world")`, "hello world\n"},
+		{`PrintLn("hello", "world")`, "helloworld\n"},
 		{`PrintLn(5)`, "5\n"},
-		{`PrintLn(5, 10)`, "5 10\n"},
+		{`PrintLn(5, 10)`, "510\n"},
 		{`PrintLn(true)`, "true\n"},
 	}
 
@@ -388,7 +388,7 @@ func TestBuiltinPrint(t *testing.T) {
 		expected string
 	}{
 		{`Print("hello")`, "hello"},
-		{`Print("hello", "world")`, "hello world"},
+		{`Print("hello", "world")`, "helloworld"},
 		{`Print(5); Print(10)`, "510"},
 	}
 
@@ -816,7 +816,7 @@ func TestForStatementExecution(t *testing.T) {
 		{
 			name:     "Nested for loops",
 			input:    `for i := 1 to 3 do begin for j := 1 to 3 do Print(i * j, " "); PrintLn("") end`,
-			expected: "1  2  3  \n2  4  6  \n3  6  9  \n",
+			expected: "1 2 3 \n2 4 6 \n3 6 9 \n",
 		},
 		{
 			name:     "For loop variable scoping",

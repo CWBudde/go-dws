@@ -11,7 +11,7 @@ import (
 
 // builtinPrintLn implements the PrintLn built-in function.
 // It prints all arguments followed by a newline.
-// DWScript concatenates arguments without spaces.
+// Like Pascal's WriteLn, arguments are concatenated without spaces.
 func (i *Interpreter) builtinPrintLn(args []Value) Value {
 	// If output is nil, silently discard output (some tests use New(nil))
 	if i.output == nil {
@@ -31,7 +31,7 @@ func (i *Interpreter) builtinPrintLn(args []Value) Value {
 
 // builtinPrint implements the Print built-in function.
 // It prints all arguments without a newline.
-// DWScript concatenates arguments without spaces.
+// Like Pascal's Write, arguments are concatenated without spaces.
 func (i *Interpreter) builtinPrint(args []Value) Value {
 	// If output is nil, silently discard output (some tests use New(nil))
 	if i.output == nil {

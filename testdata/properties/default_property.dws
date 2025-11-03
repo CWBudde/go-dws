@@ -1,0 +1,61 @@
+// Test default indexed property functionality
+// Task 9.4c: Default properties allow array-like syntax on objects
+
+type TIntArray = class
+	FData: array of Integer;
+
+	function GetValue(Idx: Integer): Integer;
+	begin
+		if (Idx >= 0) and (Idx < Length(FData)) then
+			Result := FData[Idx]
+		else
+			Result := -1;
+	end;
+
+	procedure SetValue(Idx: Integer; Value: Integer);
+	begin
+		if (Idx >= 0) and (Idx < Length(FData)) then
+			FData[Idx] := Value;
+	end;
+
+	constructor Create(Size: Integer);
+	var i: Integer;
+	begin
+		SetLength(FData, Size);
+		for i := 0 to Size - 1 do
+			FData[i] := 0;
+	end;
+
+	// Default property allows obj[i] syntax
+	property Values[Idx: Integer]: Integer read GetValue write SetValue; default;
+	property Count: Integer read (Length(FData));
+end;
+
+// Test program
+var arr := TIntArray.Create(5);
+
+// Test default property write using array syntax
+arr[0] := 10;
+arr[1] := 20;
+arr[2] := 30;
+arr[3] := 40;
+arr[4] := 50;
+
+// Test default property read using array syntax
+PrintLn('arr[0]: ' + IntToStr(arr[0]));
+PrintLn('arr[1]: ' + IntToStr(arr[1]));
+PrintLn('arr[2]: ' + IntToStr(arr[2]));
+PrintLn('arr[3]: ' + IntToStr(arr[3]));
+PrintLn('arr[4]: ' + IntToStr(arr[4]));
+
+// Test explicit property access
+PrintLn('arr.Values[2]: ' + IntToStr(arr.Values[2]));
+
+// Test count property
+PrintLn('Count: ' + IntToStr(arr.Count));
+
+// Test with variable index
+var idx: Integer;
+idx := 1;
+arr[idx] := 25;
+PrintLn('After arr[idx] := 25: ' + IntToStr(arr[1]));

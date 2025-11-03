@@ -1,0 +1,73 @@
+// Multi-Index Property Test
+// Task 9.2d: Support multi-dimensional indexed properties
+
+type TMatrix = class
+  FData: array of array of Integer;
+
+  function GetCell(row, col: Integer): Integer;
+  begin
+    Result := FData[row][col];
+  end;
+
+  procedure SetCell(row, col: Integer; value: Integer);
+  begin
+    FData[row][col] := value;
+  end;
+
+  property Cells[row, col: Integer]: Integer read GetCell write SetCell;
+
+  constructor Create;
+  begin
+    FData := [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
+  end;
+end;
+
+// Create a 3x3 matrix
+var matrix := TMatrix.Create();
+
+// Test reading multi-index property
+PrintLn('Matrix[0,0] = ' + IntToStr(matrix.Cells[0, 0]));  // Should print 1
+PrintLn('Matrix[1,1] = ' + IntToStr(matrix.Cells[1, 1]));  // Should print 5
+PrintLn('Matrix[2,2] = ' + IntToStr(matrix.Cells[2, 2]));  // Should print 9
+
+// Test writing to multi-index property
+matrix.Cells[0, 0] := 100;
+matrix.Cells[1, 1] := 200;
+matrix.Cells[2, 2] := 300;
+
+// Verify writes
+PrintLn('After write:');
+PrintLn('Matrix[0,0] = ' + IntToStr(matrix.Cells[0, 0]));  // Should print 100
+PrintLn('Matrix[1,1] = ' + IntToStr(matrix.Cells[1, 1]));  // Should print 200
+PrintLn('Matrix[2,2] = ' + IntToStr(matrix.Cells[2, 2]));  // Should print 300
+
+// Test 3D indexed property (voxel grid)
+type TVoxelGrid = class
+  FVoxels: array of array of array of Float;
+
+  function GetVoxel(x, y, z: Integer): Float;
+  begin
+    Result := FVoxels[x][y][z];
+  end;
+
+  procedure SetVoxel(x, y, z: Integer; value: Float);
+  begin
+    FVoxels[x][y][z] := value;
+  end;
+
+  property Voxels[x, y, z: Integer]: Float read GetVoxel write SetVoxel;
+
+  constructor Create;
+  begin
+    FVoxels := [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]];
+  end;
+end;
+
+PrintLn('');
+PrintLn('3D Voxel Grid:');
+var grid := TVoxelGrid.Create();
+PrintLn('Voxel[0,0,0] = ' + FloatToStr(grid.Voxels[0, 0, 0]));  // Should print 1.0
+PrintLn('Voxel[1,1,1] = ' + FloatToStr(grid.Voxels[1, 1, 1]));  // Should print 8.0
+
+grid.Voxels[0, 1, 0] := 99.5;
+PrintLn('After write: Voxel[0,1,0] = ' + FloatToStr(grid.Voxels[0, 1, 0]));  // Should print 99.5

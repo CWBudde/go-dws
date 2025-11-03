@@ -1,0 +1,42 @@
+// Task 9.7e: Integration test for record method invocation
+// This test demonstrates record methods with both functions and procedures
+
+type TPoint = record
+	X, Y: Integer;
+
+	// Function that returns a value
+	function Distance: Float;
+	begin
+		Result := Sqrt(X*X + Y*Y);
+	end;
+
+	// Procedure that modifies Self
+	procedure Move(dx, dy: Integer);
+	begin
+		X := X + dx;
+		Y := Y + dy;
+	end;
+
+	// Function with parameters
+	function DistanceFrom(otherX, otherY: Integer): Float;
+	begin
+		var dx := X - otherX;
+		var dy := Y - otherY;
+		Result := Sqrt(dx*dx + dy*dy);
+	end;
+end;
+
+var p: TPoint;
+p.X := 3;
+p.Y := 4;
+
+// Test method that returns a value
+PrintLn('Distance from origin: ' + FloatToStr(p.Distance()));
+
+// Test method with parameters
+PrintLn('Distance from (6,8): ' + FloatToStr(p.DistanceFrom(6, 8)));
+
+// Test procedure that modifies the record
+p.Move(1, 1);
+PrintLn('After Move(1,1): X=' + IntToStr(p.X) + ', Y=' + IntToStr(p.Y));
+PrintLn('New distance: ' + FloatToStr(p.Distance()));

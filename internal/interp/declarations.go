@@ -240,9 +240,10 @@ func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Pro
 			// Mark as field for now - evalPropertyRead will check both fields and methods
 			propInfo.ReadKind = types.PropAccessField
 		} else {
-			// It's an expression
+			// It's an expression (Task 9.3c)
 			propInfo.ReadKind = types.PropAccessExpression
 			propInfo.ReadSpec = propDecl.ReadSpec.String()
+			propInfo.ReadExpr = propDecl.ReadSpec // Store AST node for evaluation
 		}
 	} else {
 		propInfo.ReadKind = types.PropAccessNone

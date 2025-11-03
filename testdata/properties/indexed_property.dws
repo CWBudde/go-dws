@@ -1,0 +1,22 @@
+// Test indexed property functionality
+// Task 9.1c: Support indexed property reads end-to-end
+
+type TStringArray = class
+	FData: array of String;
+	function GetItem(i: Integer): String; begin if (i >= 0) and (i < Length(FData)) then Result := FData[i] else Result := ''; end;
+	property Items[i: Integer]: String read GetItem;
+	constructor Create; begin FData := ['item0', 'item1', 'item2', 'item3', 'item4']; end;
+end;
+
+// Test program
+var arr := TStringArray.Create();
+
+// Test indexed property read
+PrintLn('Item 0: ' + arr.Items[0]);
+PrintLn('Item 2: ' + arr.Items[2]);
+PrintLn('Item 4: ' + arr.Items[4]);
+
+// Test with variable index
+var idx: Integer;
+idx := 3;
+PrintLn('Item at idx (3): ' + arr.Items[idx]);

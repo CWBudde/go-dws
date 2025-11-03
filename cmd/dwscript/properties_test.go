@@ -278,3 +278,136 @@ end
 		t.Errorf("Unexpected error in property inheritance: %s", output)
 	}
 }
+
+// TestIndexedProperty tests indexed property functionality via CLI
+// Task 9.4a: Test indexed properties with array-like accessors
+func TestIndexedProperty(t *testing.T) {
+	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Skipf("Skipping CLI tests: failed to build CLI: %v", err)
+	}
+
+	script := "../../testdata/properties/indexed_property.dws"
+
+	// Check if script exists
+	if _, err := os.Stat(script); os.IsNotExist(err) {
+		t.Skipf("Script %s does not exist, skipping", script)
+	}
+
+	cmd := exec.Command("../../bin/dwscript", "run", script)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		t.Errorf("Failed to run indexed property test: %v\nOutput: %s", err, output)
+		return
+	}
+
+	// Verify expected output
+	expectedOutputs := []string{
+		"Item 0: item0",
+		"Item 2: item2",
+		"Item 4: item4",
+		"Item at idx (3): item3",
+	}
+
+	outputStr := string(output)
+	for _, expected := range expectedOutputs {
+		if !strings.Contains(outputStr, expected) {
+			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, outputStr)
+		}
+	}
+}
+
+// TestExpressionProperty tests expression-based property getters via CLI
+// Task 9.4b: Test properties with computed getters
+func TestExpressionProperty(t *testing.T) {
+	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Skipf("Skipping CLI tests: failed to build CLI: %v", err)
+	}
+
+	script := "../../testdata/properties/expression_property.dws"
+
+	// Check if script exists
+	if _, err := os.Stat(script); os.IsNotExist(err) {
+		t.Skipf("Script %s does not exist, skipping", script)
+	}
+
+	cmd := exec.Command("../../bin/dwscript", "run", script)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		t.Errorf("Failed to run expression property test: %v\nOutput: %s", err, output)
+		return
+	}
+
+	// Verify expected output
+	expectedOutputs := []string{
+		"Width: 10",
+		"Height: 5",
+		"Area: 50",
+		"Perimeter: 30",
+		"HalfWidth: 5",
+		"New Area: 200",
+		"New Perimeter: 60",
+		"New HalfWidth: 10",
+		"Initial IsEmpty: True",
+		"Count: 3",
+		"IsEmpty: False",
+		"TotalValue: 15",
+	}
+
+	outputStr := string(output)
+	for _, expected := range expectedOutputs {
+		if !strings.Contains(outputStr, expected) {
+			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, outputStr)
+		}
+	}
+}
+
+// TestDefaultProperty tests default indexed properties via CLI
+// Task 9.4c: Test default properties allowing array-like syntax
+// NOTE: Default properties (obj[index] syntax) are not yet implemented.
+// This test currently skips but the test file exists for future implementation.
+func TestDefaultProperty(t *testing.T) {
+	t.Skip("Default property implementation (obj[index] syntax for objects with default properties) is pending")
+
+	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
+	if err := buildCmd.Run(); err != nil {
+		t.Skipf("Skipping CLI tests: failed to build CLI: %v", err)
+	}
+
+	script := "../../testdata/properties/default_property.dws"
+
+	// Check if script exists
+	if _, err := os.Stat(script); os.IsNotExist(err) {
+		t.Skipf("Script %s does not exist, skipping", script)
+	}
+
+	cmd := exec.Command("../../bin/dwscript", "run", script)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		t.Errorf("Failed to run default property test: %v\nOutput: %s", err, output)
+		return
+	}
+
+	// Verify expected output
+	expectedOutputs := []string{
+		"arr[0]: 10",
+		"arr[1]: 20",
+		"arr[2]: 30",
+		"arr[3]: 40",
+		"arr[4]: 50",
+		"arr.Values[2]: 30",
+		"Count: 5",
+		"After arr[idx] := 25: 25",
+	}
+
+	outputStr := string(output)
+	for _, expected := range expectedOutputs {
+		if !strings.Contains(outputStr, expected) {
+			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, outputStr)
+		}
+	}
+}

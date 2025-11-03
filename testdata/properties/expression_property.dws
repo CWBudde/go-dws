@@ -1,0 +1,75 @@
+// Test expression-based property getters
+// Task 9.3c: Properties can use inline expressions as getters
+
+type TRectangle = class
+	FWidth: Integer;
+	FHeight: Integer;
+
+	// Expression-based properties using arithmetic
+	property Area: Integer read (FWidth * FHeight);
+	property Perimeter: Integer read (2 * (FWidth + FHeight));
+
+	// Expression with division
+	property HalfWidth: Integer read (FWidth div 2);
+
+	constructor Create(w, h: Integer);
+	begin
+		FWidth := w;
+		FHeight := h;
+	end;
+end;
+
+type TDataHolder = class
+	FCount: Integer;
+	FMultiplier: Integer;
+
+	// Expression with field access
+	property IsEmpty: Boolean read (FCount = 0);
+
+	// Complex expression
+	property TotalValue: Integer read (FCount * FMultiplier);
+
+	constructor Create;
+	begin
+		FCount := 0;
+		FMultiplier := 1;
+	end;
+
+	procedure AddValue(value: Integer);
+	begin
+		FCount := FCount + 1;
+	end;
+end;
+
+// Test Rectangle with expression-based properties
+var rect := TRectangle.Create(10, 5);
+PrintLn('Width: ' + IntToStr(rect.FWidth));
+PrintLn('Height: ' + IntToStr(rect.FHeight));
+PrintLn('Area: ' + IntToStr(rect.Area));
+PrintLn('Perimeter: ' + IntToStr(rect.Perimeter));
+PrintLn('HalfWidth: ' + IntToStr(rect.HalfWidth));
+
+// Change dimensions and verify expressions recalculate
+rect.FWidth := 20;
+rect.FHeight := 10;
+PrintLn('');
+PrintLn('After changing dimensions:');
+PrintLn('New Area: ' + IntToStr(rect.Area));
+PrintLn('New Perimeter: ' + IntToStr(rect.Perimeter));
+PrintLn('New HalfWidth: ' + IntToStr(rect.HalfWidth));
+
+// Test DataHolder with expression-based properties
+var data := TDataHolder.Create();
+PrintLn('');
+PrintLn('Initial IsEmpty: ' + BoolToStr(data.IsEmpty));
+
+data.AddValue(10);
+data.AddValue(20);
+data.AddValue(30);
+PrintLn('');
+PrintLn('After adding values:');
+PrintLn('Count: ' + IntToStr(data.FCount));
+PrintLn('IsEmpty: ' + BoolToStr(data.IsEmpty));
+
+data.FMultiplier := 5;
+PrintLn('TotalValue: ' + IntToStr(data.TotalValue));

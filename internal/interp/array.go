@@ -52,21 +52,97 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 	return &NilValue{} // Type declarations don't return a value
 }
 
+// ============================================================================
+// Multi-Index Support (Task 9.2d)
+// ============================================================================
+
+// collectIndices flattens nested IndexExpression nodes for multi-index properties.
+// The parser converts multi-index syntax like obj.Data[1, 2] into nested IndexExpression nodes:
+//   ((obj.Data)[1])[2]
+//
+// This function walks the chain and extracts:
+//   - base: The actual object.property being accessed (e.g., obj.Data)
+//   - indices: All index expressions in order (e.g., [1, 2])
+//
+// This supports multi-dimensional indexed properties like:
+//   property Cells[x, y: Integer]: Float read GetCell write SetCell;
+//
+// Task 9.2d: Support multi-index properties (e.g., Data[x, y: Integer])
+func collectIndices(expr *ast.IndexExpression) (base ast.Expression, indices []ast.Expression) {
+	indices = make([]ast.Expression, 0, 4) // Most properties have ≤4 dimensions
+	current := expr
+
+	// Walk down the chain of nested IndexExpression nodes
+	for {
+		// Prepend this level's index to maintain left-to-right order
+		// We prepend because we're traversing from outermost to innermost
+		indices = append([]ast.Expression{current.Index}, indices...)
+
+		// Check if Left is another IndexExpression (nested)
+		if leftIndex, ok := current.Left.(*ast.IndexExpression); ok {
+			current = leftIndex
+			continue
+		}
+
+		// Found the base expression (e.g., obj.Property or arr)
+		base = current.Left
+		break
+	}
+
+	return base, indices
+}
+
 // evalIndexExpression evaluates array/string indexing: arr[i]
 // Task 8.129: Implement array indexing (read).
 // Task 9.97: Implement JSON object property access and array indexing.
+// Task 9.2d: Support multi-index properties (e.g., obj.Data[x, y]).
 func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 	if expr == nil {
 		return &ErrorValue{Message: "nil index expression"}
 	}
 
-	// Evaluate the left side (what's being indexed)
+	// Task 9.2d: Check if this might be a multi-index property access
+	// We only flatten indices if the base is a MemberAccessExpression (property access)
+	// For regular array access like arr[i][j], we process each level separately
+	base, indices := collectIndices(expr)
+
+	// Task 9.1c + 9.2d: Check if this is indexed property access: obj.Property[index1, index2, ...]
+	// Only flatten indices for property access, not for regular arrays
+	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok {
+		// Evaluate the object being accessed
+		objVal := i.Eval(memberAccess.Object)
+		if isError(objVal) {
+			return objVal
+		}
+
+		// Check if it's a class instance with an indexed property
+		if obj, ok := AsObject(objVal); ok {
+			propInfo := obj.Class.lookupProperty(memberAccess.Member.Value)
+			if propInfo != nil && propInfo.IsIndexed {
+				// This is a multi-index property access: flatten and evaluate ALL indices
+				indexVals := make([]Value, len(indices))
+				for idx, indexExpr := range indices {
+					indexVals[idx] = i.Eval(indexExpr)
+					if isError(indexVals[idx]) {
+						return indexVals[idx]
+					}
+				}
+
+				// Call indexed property read with all indices
+				return i.evalIndexedPropertyRead(obj, propInfo, indexVals, expr)
+			}
+		}
+	}
+
+	// Not a property access - this is regular array/string indexing
+	// Process ONLY the outermost index, not all nested indices
+	// This allows FData[x][y] to work as: (FData[x])[y]
 	leftVal := i.Eval(expr.Left)
 	if isError(leftVal) {
 		return leftVal
 	}
 
-	// Evaluate the index
+	// Evaluate the index for this level only
 	indexVal := i.Eval(expr.Index)
 	if isError(indexVal) {
 		return indexVal
