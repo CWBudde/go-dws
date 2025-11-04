@@ -10,6 +10,12 @@ import (
 	"github.com/cwbudde/go-dws/internal/units"
 )
 
+// DefaultMaxRecursionDepth is the default maximum recursion depth for function calls.
+// This matches DWScript's default limit (see dwsCompiler.pas:39 cDefaultMaxRecursionDepth).
+// When the call stack reaches this depth, the interpreter raises an EScriptStackOverflow exception
+// to prevent infinite recursion and potential Go runtime stack overflow.
+const DefaultMaxRecursionDepth = 1024
+
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 type Interpreter struct {
 	currentNode       ast.Node                     // Current AST node being evaluated (for error reporting)
@@ -24,6 +30,7 @@ type Interpreter struct {
 	classes           map[string]*ClassInfo        // Registry of class definitions
 	handlerException  *ExceptionValue              // Exception being handled (for bare raise)
 	callStack         []string                     // Stack of currently executing function names (for stack traces)
+	maxRecursionDepth int                          // Maximum allowed recursion depth (prevents stack overflow)
 	initializedUnits  map[string]bool              // Track which units have been initialized
 	unitRegistry      *units.UnitRegistry          // Registry for managing loaded units
 	loadedUnits       []string                     // Units loaded in order (for initialization/finalization)
@@ -59,32 +66,43 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 	// Randomize() can be called to re-seed with current time
 	source := rand.NewSource(1)
 	interp := &Interpreter{
-		env:              env,
-		output:           output,
-		functions:        make(map[string]*ast.FunctionDecl),
-		classes:          make(map[string]*ClassInfo),
-		interfaces:       make(map[string]*InterfaceInfo), // Task 7.118
-		globalOperators:  newRuntimeOperatorRegistry(),
-		conversions:      newRuntimeConversionRegistry(),
-		rand:             rand.New(source),
-		loadedUnits:      make([]string, 0),
-		initializedUnits: make(map[string]bool),
+		env:               env,
+		output:            output,
+		functions:         make(map[string]*ast.FunctionDecl),
+		classes:           make(map[string]*ClassInfo),
+		interfaces:        make(map[string]*InterfaceInfo), // Task 7.118
+		globalOperators:   newRuntimeOperatorRegistry(),
+		conversions:       newRuntimeConversionRegistry(),
+		rand:              rand.New(source),
+		loadedUnits:       make([]string, 0),
+		initializedUnits:  make(map[string]bool),
+		maxRecursionDepth: DefaultMaxRecursionDepth,
 	}
 
-	// Extract external functions from options if provided
+	// Extract external functions and recursion depth from options if provided
 	if opts != nil {
-		// Use reflection to extract ExternalFunctions field
+		// Use reflection to extract fields
 		// We can't import pkg/dwscript here due to circular dependency,
-		// so we use reflection to access the field
+		// so we use reflection to access the fields
 		val := reflect.ValueOf(opts)
 		if val.Kind() == reflect.Ptr {
 			val = val.Elem()
 		}
 		if val.Kind() == reflect.Struct {
+			// Extract ExternalFunctions
 			field := val.FieldByName("ExternalFunctions")
 			if field.IsValid() && !field.IsNil() {
 				if registry, ok := field.Interface().(*ExternalFunctionRegistry); ok {
 					interp.externalFunctions = registry
+				}
+			}
+
+			// Extract MaxRecursionDepth (Task 9.11)
+			depthField := val.FieldByName("MaxRecursionDepth")
+			if depthField.IsValid() && depthField.Kind() == reflect.Int {
+				depth := int(depthField.Int())
+				if depth > 0 {
+					interp.maxRecursionDepth = depth
 				}
 			}
 		}

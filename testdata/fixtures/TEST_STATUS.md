@@ -2,8 +2,8 @@
 
 This document tracks the current status of the DWScript test fixtures against the go-dws implementation.
 
-**Last Updated**: 2025-11-03
-**Implementation Stage**: Stage 8 (Classes and OOP, Advanced features)
+**Last Updated**: 2025-11-04
+**Implementation Stage**: Stage 9 (Advanced features, Runtime limits)
 
 ## Overall Statistics
 
@@ -23,7 +23,7 @@ This document tracks the current status of the DWScript test fixtures against th
 | Category | Tests | Status | Pass | Fail | Skip | Notes |
 |----------|-------|--------|------|------|------|-------|
 | SimpleScripts | 442 | 🟡 Partial | TBD | TBD | TBD | Core language features |
-| Algorithms | 53 | 🔴 Testing | TBD | TBD | TBD | Algorithm implementations |
+| Algorithms | 53 | 🟡 Partial | 1 | 52 | 0 | Algorithm implementations; max_recursion.pas ✅ |
 | ArrayPass | 115 | 🔴 Testing | TBD | TBD | TBD | Array operations |
 | AssociativePass | 27 | 🔴 Testing | TBD | TBD | TBD | Associative arrays |
 | SetOfPass | 25 | 🔴 Testing | TBD | TBD | TBD | Set operations |
