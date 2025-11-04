@@ -206,16 +206,21 @@ func runScript(_ *cobra.Command, args []string) error {
 
 	// Check for unhandled exceptions
 	if exc := interpreter.GetException(); exc != nil {
-		// Format and print unhandled exception with stack trace
-		fmt.Fprintln(os.Stderr, "Runtime Error: Unhandled exception")
-		fmt.Fprintf(os.Stderr, "  %s: %s\n", exc.ClassInfo.Name, exc.Message)
+		// Format and print unhandled exception with position (if available) and stack trace
+		// DWScript format: "Runtime Error: <Message> [line: N, column: M]"
+		if exc.Position != nil {
+			fmt.Fprintf(os.Stderr, "Runtime Error: %s: %s [line: %d, column: %d]\n",
+				exc.ClassInfo.Name, exc.Message, exc.Position.Line, exc.Position.Column)
+		} else {
+			// If no position (e.g., internal errors), use simple format
+			fmt.Fprintf(os.Stderr, "Runtime Error: %s: %s\n", exc.ClassInfo.Name, exc.Message)
+		}
 
-		// Print stack trace if available
+		// Print stack trace if available (Task 9.108)
+		// The StackTrace.String() method formats each frame with position info
 		if len(exc.CallStack) > 0 {
-			fmt.Fprintln(os.Stderr, "\nCall stack:")
-			for i := len(exc.CallStack) - 1; i >= 0; i-- {
-				fmt.Fprintf(os.Stderr, "  at %s\n", exc.CallStack[i])
-			}
+			fmt.Fprint(os.Stderr, exc.CallStack.String())
+			fmt.Fprintln(os.Stderr) // Add final newline
 		}
 
 		return fmt.Errorf("unhandled exception: %s", exc.Message)

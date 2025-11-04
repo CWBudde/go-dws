@@ -6,6 +6,8 @@ import (
 	"reflect"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
 )
@@ -29,7 +31,7 @@ type Interpreter struct {
 	env               *Environment                 // The current execution environment
 	classes           map[string]*ClassInfo        // Registry of class definitions
 	handlerException  *ExceptionValue              // Exception being handled (for bare raise)
-	callStack         []string                     // Stack of currently executing function names (for stack traces)
+	callStack         errors.StackTrace            // Stack of currently executing functions with position info (for stack traces)
 	maxRecursionDepth int                          // Maximum allowed recursion depth (prevents stack overflow)
 	initializedUnits  map[string]bool              // Track which units have been initialized
 	unitRegistry      *units.UnitRegistry          // Registry for managing loaded units
@@ -77,6 +79,7 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 		loadedUnits:       make([]string, 0),
 		initializedUnits:  make(map[string]bool),
 		maxRecursionDepth: DefaultMaxRecursionDepth,
+		callStack:         errors.NewStackTrace(), // Task 9.108: Initialize stack trace
 	}
 
 	// Extract external functions and recursion depth from options if provided
@@ -143,12 +146,33 @@ func (i *Interpreter) GetException() *ExceptionValue {
 }
 
 // GetCallStack returns a copy of the current call stack.
-// Returns function names in the order they were called (oldest to newest).
-func (i *Interpreter) GetCallStack() []string {
+// Returns stack frames in the order they were called (oldest to newest).
+func (i *Interpreter) GetCallStack() errors.StackTrace {
 	// Return a copy to prevent external modification
-	stack := make([]string, len(i.callStack))
+	stack := make(errors.StackTrace, len(i.callStack))
 	copy(stack, i.callStack)
 	return stack
+}
+
+// pushCallStack adds a new frame to the call stack with the given function name.
+// The position is taken from the current node being evaluated.
+// Task 9.108: Push frame on function entry
+func (i *Interpreter) pushCallStack(functionName string) {
+	var pos *lexer.Position
+	if i.currentNode != nil {
+		nodePos := i.currentNode.Pos()
+		pos = &nodePos
+	}
+	frame := errors.NewStackFrame(functionName, "", pos)
+	i.callStack = append(i.callStack, frame)
+}
+
+// popCallStack removes the most recent frame from the call stack.
+// Task 9.108: Pop frame on function exit
+func (i *Interpreter) popCallStack() {
+	if len(i.callStack) > 0 {
+		i.callStack = i.callStack[:len(i.callStack)-1]
+	}
 }
 
 // Eval evaluates an AST node and returns its value.

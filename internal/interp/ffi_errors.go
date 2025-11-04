@@ -3,6 +3,8 @@ package interp
 import (
 	"fmt"
 	"runtime"
+
+	"github.com/cwbudde/go-dws/internal/errors"
 )
 
 // raiseGoErrorAsException converts a Go error returned from host code into a DWScript exception.
@@ -15,8 +17,8 @@ func (i *Interpreter) raiseGoErrorAsException(err error) {
 	message := err.Error()
 	goType := fmt.Sprintf("%T", err)
 
-	// Capture current DWScript call stack for diagnostics.
-	callStack := make([]string, len(i.callStack))
+	// Capture current DWScript call stack for diagnostics. (Task 9.108)
+	callStack := make(errors.StackTrace, len(i.callStack))
 	copy(callStack, i.callStack)
 
 	// Look up EHost class; fall back to basic Exception if it is unavailable.
@@ -40,10 +42,12 @@ func (i *Interpreter) raiseGoErrorAsException(err error) {
 		instance.SetField("ExceptionClass", &StringValue{Value: goType})
 	}
 
+	// Position is nil for FFI errors (they don't originate from DWScript source)
 	i.exception = &ExceptionValue{
 		ClassInfo: hostClass,
 		Instance:  instance,
 		Message:   message,
+		Position:  nil,
 		CallStack: callStack,
 	}
 }
@@ -93,8 +97,8 @@ func (i *Interpreter) raiseGoPanicAsException(panicValue interface{}) {
 		message = message + "\n" + string(stackBuf[:n])
 	}
 
-	// Capture current DWScript call stack.
-	callStack := make([]string, len(i.callStack))
+	// Capture current DWScript call stack. (Task 9.108)
+	callStack := make(errors.StackTrace, len(i.callStack))
 	copy(callStack, i.callStack)
 
 	// Reuse exception creation logic.
@@ -114,10 +118,12 @@ func (i *Interpreter) raiseGoPanicAsException(panicValue interface{}) {
 		instance.SetField("ExceptionClass", &StringValue{Value: typeName})
 	}
 
+	// Position is nil for FFI errors (they don't originate from DWScript source)
 	i.exception = &ExceptionValue{
 		ClassInfo: hostClass,
 		Instance:  instance,
 		Message:   message,
+		Position:  nil,
 		CallStack: callStack,
 	}
 }

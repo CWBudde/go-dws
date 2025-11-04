@@ -1,0 +1,4 @@
+// Test for unhandled exception display format
+begin
+  raise Exception.Create('Test exception message');
+end.

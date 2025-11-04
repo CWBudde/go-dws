@@ -108,9 +108,9 @@ func TestGoErrorToExceptionConversion(t *testing.T) {
 	t.Run("CallStackCaptured", func(t *testing.T) {
 		interp := newTestInterpreter()
 
-		// Push some call frames
-		interp.callStack = append(interp.callStack, "function1")
-		interp.callStack = append(interp.callStack, "function2")
+		// Push some call frames (Task 9.108)
+		interp.pushCallStack("function1")
+		interp.pushCallStack("function2")
 
 		testErr := errors.New("error in nested call")
 		interp.raiseGoErrorAsException(testErr)
@@ -123,8 +123,8 @@ func TestGoErrorToExceptionConversion(t *testing.T) {
 			t.Errorf("expected call stack length 2, got %d", len(interp.exception.CallStack))
 		}
 
-		if interp.exception.CallStack[0] != "function1" {
-			t.Errorf("expected first call stack entry 'function1', got %q", interp.exception.CallStack[0])
+		if interp.exception.CallStack[0].FunctionName != "function1" {
+			t.Errorf("expected first call stack entry 'function1', got %q", interp.exception.CallStack[0].FunctionName)
 		}
 	})
 
@@ -146,11 +146,11 @@ func TestErrorPropagationNestedCalls(t *testing.T) {
 	t.Run("ErrorInNestedGoFunction", func(t *testing.T) {
 		interp := newTestInterpreter()
 
-		// Simulate nested call stack: DWScript → Go func A → DWScript → Go func B (errors)
+		// Simulate nested call stack: DWScript → Go func A → DWScript → Go func B (errors) (Task 9.108)
 		// Set up call stack to simulate this
-		interp.callStack = append(interp.callStack, "outerDWScriptFunction")
-		interp.callStack = append(interp.callStack, "goFunctionA")
-		interp.callStack = append(interp.callStack, "innerDWScriptFunction")
+		interp.pushCallStack("outerDWScriptFunction")
+		interp.pushCallStack("goFunctionA")
+		interp.pushCallStack("innerDWScriptFunction")
 
 		// Function B returns an error
 		testErr := errors.New("error in nested function")
@@ -170,14 +170,14 @@ func TestErrorPropagationNestedCalls(t *testing.T) {
 			t.Errorf("expected call stack length 3, got %d", len(interp.exception.CallStack))
 		}
 
-		// Verify call stack frames are correct
+		// Verify call stack frames are correct (Task 9.108)
 		expectedFrames := []string{"outerDWScriptFunction", "goFunctionA", "innerDWScriptFunction"}
 		for i, expected := range expectedFrames {
 			if i >= len(interp.exception.CallStack) {
 				break
 			}
-			if interp.exception.CallStack[i] != expected {
-				t.Errorf("call stack frame %d: expected %q, got %q", i, expected, interp.exception.CallStack[i])
+			if interp.exception.CallStack[i].FunctionName != expected {
+				t.Errorf("call stack frame %d: expected %q, got %q", i, expected, interp.exception.CallStack[i].FunctionName)
 			}
 		}
 	})
@@ -185,9 +185,9 @@ func TestErrorPropagationNestedCalls(t *testing.T) {
 	t.Run("MultipleNestedErrors", func(t *testing.T) {
 		interp := newTestInterpreter()
 
-		// First error in nested call
-		interp.callStack = append(interp.callStack, "level1")
-		interp.callStack = append(interp.callStack, "level2")
+		// First error in nested call (Task 9.108)
+		interp.pushCallStack("level1")
+		interp.pushCallStack("level2")
 
 		firstErr := errors.New("first error")
 		interp.raiseGoErrorAsException(firstErr)
@@ -203,7 +203,7 @@ func TestErrorPropagationNestedCalls(t *testing.T) {
 
 		// Clear exception and test second error
 		interp.exception = nil
-		interp.callStack = append(interp.callStack, "level3")
+		interp.pushCallStack("level3")
 
 		secondErr := errors.New("second error")
 		interp.raiseGoErrorAsException(secondErr)

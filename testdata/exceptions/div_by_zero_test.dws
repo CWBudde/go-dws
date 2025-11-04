@@ -1,0 +1,7 @@
+// Test for division by zero exception
+var x, y: Integer;
+begin
+  x := 10;
+  y := 0;
+  PrintLn(x div y);
+end.
