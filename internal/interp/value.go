@@ -521,12 +521,15 @@ func GoBool(v Value) (bool, error) {
 // ============================================================================
 
 // SetValue represents a set value in DWScript.
-// Sets are based on enum types and use bitset representation for efficiency.
-// For small enums (≤64 values), we use uint64 as a bitset.
-// For large enums (>64 values), we would use map[int]bool (not yet implemented).
+// Sets are based on enum types and use hybrid storage for efficiency.
+// Task 9.8: Support both small and large enums:
+//   - Small enums (≤64 values): uint64 bitset (fast, 8 bytes)
+//   - Large enums (>64 values): map[int]bool (unlimited size)
+// The storage strategy is determined by SetType.StorageKind.
 type SetValue struct {
-	SetType  *types.SetType // The set type metadata
-	Elements uint64         // Bitset for small enums (each bit = one enum value)
+	SetType  *types.SetType // The set type metadata (includes storage strategy)
+	Elements uint64         // Bitset for small enums (used when StorageKind == Bitmask)
+	MapStore map[int]bool   // Map for large enums (used when StorageKind == Map)
 }
 
 // Type returns "SET".
@@ -536,14 +539,19 @@ func (s *SetValue) Type() string {
 
 // String returns the string representation of the set.
 // Format: [element1, element2, ...] or [] for empty set
+// Task 9.8: Works with both bitmask and map storage.
 func (s *SetValue) String() string {
-	if s.Elements == 0 {
+	// Quick check for empty set (both storage types)
+	if s.SetType.StorageKind == types.SetStorageBitmask && s.Elements == 0 {
+		return "[]"
+	}
+	if s.SetType.StorageKind == types.SetStorageMap && len(s.MapStore) == 0 {
 		return "[]"
 	}
 
 	var elements []string
 
-	// Iterate through all possible enum values
+	// Iterate through all possible enum values in order
 	if s.SetType != nil && s.SetType.ElementType != nil {
 		for _, name := range s.SetType.ElementType.OrderedNames {
 			ordinal := s.SetType.ElementType.Values[name]
@@ -561,40 +569,87 @@ func (s *SetValue) String() string {
 }
 
 // HasElement checks if an element with the given ordinal value is in the set.
+// Task 9.8: Supports both bitmask and map storage.
 func (s *SetValue) HasElement(ordinal int) bool {
-	if ordinal < 0 || ordinal >= 64 {
-		return false // Out of range for bitset
+	if ordinal < 0 {
+		return false // Negative ordinals are invalid
 	}
-	mask := uint64(1) << uint(ordinal)
-	return (s.Elements & mask) != 0
+
+	// Choose storage backend based on set type
+	switch s.SetType.StorageKind {
+	case types.SetStorageBitmask:
+		if ordinal >= 64 {
+			return false // Out of range for bitset
+		}
+		mask := uint64(1) << uint(ordinal)
+		return (s.Elements & mask) != 0
+
+	case types.SetStorageMap:
+		return s.MapStore[ordinal]
+
+	default:
+		return false
+	}
 }
 
 // AddElement adds an element with the given ordinal value to the set.
 // This mutates the set in place (used for Include).
+// Task 9.8: Supports both bitmask and map storage.
 func (s *SetValue) AddElement(ordinal int) {
-	if ordinal < 0 || ordinal >= 64 {
-		return // Out of range for bitset
+	if ordinal < 0 {
+		return // Negative ordinals are invalid
 	}
-	mask := uint64(1) << uint(ordinal)
-	s.Elements |= mask
+
+	// Choose storage backend based on set type
+	switch s.SetType.StorageKind {
+	case types.SetStorageBitmask:
+		if ordinal >= 64 {
+			return // Out of range for bitset
+		}
+		mask := uint64(1) << uint(ordinal)
+		s.Elements |= mask
+
+	case types.SetStorageMap:
+		s.MapStore[ordinal] = true
+	}
 }
 
 // RemoveElement removes an element with the given ordinal value from the set.
 // This mutates the set in place (used for Exclude).
+// Task 9.8: Supports both bitmask and map storage.
 func (s *SetValue) RemoveElement(ordinal int) {
-	if ordinal < 0 || ordinal >= 64 {
-		return // Out of range for bitset
+	if ordinal < 0 {
+		return // Negative ordinals are invalid
 	}
-	mask := uint64(1) << uint(ordinal)
-	s.Elements &^= mask // AND NOT to clear the bit
+
+	// Choose storage backend based on set type
+	switch s.SetType.StorageKind {
+	case types.SetStorageBitmask:
+		if ordinal >= 64 {
+			return // Out of range for bitset
+		}
+		mask := uint64(1) << uint(ordinal)
+		s.Elements &^= mask // AND NOT to clear the bit
+
+	case types.SetStorageMap:
+		delete(s.MapStore, ordinal)
+	}
 }
 
 // NewSetValue creates a new empty SetValue with the given set type.
+// Task 9.8: Initializes the appropriate storage backend (bitmask or map).
 func NewSetValue(setType *types.SetType) *SetValue {
-	return &SetValue{
+	sv := &SetValue{
 		SetType:  setType,
 		Elements: 0,
 	}
+
+	// Initialize map storage if needed for large enums
+	if setType.StorageKind == types.SetStorageMap {
+		sv.MapStore = make(map[int]bool)
+	}
+
+	return sv
 }
 
 // ============================================================================

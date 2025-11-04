@@ -438,7 +438,7 @@ func TestUnhandledExceptionStackTrace(t *testing.T) {
 
 			err := cmd.Run()
 			if err == nil {
-				t.Skipf("Expected script to fail with unhandled exception (implementation not complete)")
+				t.Fatalf("Expected script to fail with unhandled exception, but it succeeded")
 			}
 
 			stderrOutput := errOut.String()

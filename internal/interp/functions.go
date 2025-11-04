@@ -560,14 +560,10 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		return i.raiseMaxRecursionExceeded()
 	}
 
-	// Push function name onto call stack for stack traces
-	i.callStack = append(i.callStack, fn.Name.Value)
+	// Push function name onto call stack for stack traces (Task 9.108)
+	i.pushCallStack(fn.Name.Value)
 	// Ensure it's popped when function exits (even if exception occurs)
-	defer func() {
-		if len(i.callStack) > 0 {
-			i.callStack = i.callStack[:len(i.callStack)-1]
-		}
-	}()
+	defer i.popCallStack()
 
 	// Bind parameters to arguments
 	for idx, param := range fn.Parameters {
@@ -777,13 +773,9 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 		return i.raiseMaxRecursionExceeded()
 	}
 
-	// Push lambda marker onto call stack for stack traces
-	i.callStack = append(i.callStack, "<lambda>")
-	defer func() {
-		if len(i.callStack) > 0 {
-			i.callStack = i.callStack[:len(i.callStack)-1]
-		}
-	}()
+	// Push lambda marker onto call stack for stack traces (Task 9.108)
+	i.pushCallStack("<lambda>")
+	defer i.popCallStack()
 
 	// Bind parameters to arguments
 	for idx, param := range lambda.Parameters {
@@ -976,14 +968,10 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		return i.raiseMaxRecursionExceeded()
 	}
 
-	// Push method name onto call stack for stack traces
+	// Push method name onto call stack for stack traces (Task 9.108)
 	fullMethodName := recVal.RecordType.Name + "." + methodName
-	i.callStack = append(i.callStack, fullMethodName)
-	defer func() {
-		if len(i.callStack) > 0 {
-			i.callStack = i.callStack[:len(i.callStack)-1]
-		}
-	}()
+	i.pushCallStack(fullMethodName)
+	defer i.popCallStack()
 
 	// Bind method parameters to arguments with implicit conversion
 	for idx, param := range method.Parameters {
@@ -1161,14 +1149,10 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 		return i.raiseMaxRecursionExceeded()
 	}
 
-	// Push method name onto call stack for stack traces
+	// Push method name onto call stack for stack traces (Task 9.108)
 	fullMethodName := rtv.RecordType.Name + "." + methodName
-	i.callStack = append(i.callStack, fullMethodName)
-	defer func() {
-		if len(i.callStack) > 0 {
-			i.callStack = i.callStack[:len(i.callStack)-1]
-		}
-	}()
+	i.pushCallStack(fullMethodName)
+	defer i.popCallStack()
 
 	// Bind method parameters to arguments with implicit conversion
 	for idx, param := range method.Parameters {

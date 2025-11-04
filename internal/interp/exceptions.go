@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
@@ -12,12 +14,13 @@ import (
 // ============================================================================
 
 // ExceptionValue represents an exception object at runtime.
-// It holds the exception class type, the message, and the call stack at the point of raise.
+// It holds the exception class type, the message, position, and the call stack at the point of raise.
 type ExceptionValue struct {
 	ClassInfo *ClassInfo
 	Instance  *ObjectInstance
 	Message   string
-	CallStack []string // Function names in the call stack when exception was raised
+	Position  *lexer.Position  // Position where the exception was raised (for error reporting)
+	CallStack errors.StackTrace // Stack trace at the point the exception was raised (Task 9.108)
 }
 
 // Type returns the type of this exception value.
@@ -102,8 +105,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 func (i *Interpreter) raiseMaxRecursionExceeded() Value {
 	message := fmt.Sprintf("Maximal recursion exceeded (%d)", i.maxRecursionDepth)
 
-	// Capture current call stack
-	callStack := make([]string, len(i.callStack))
+	// Capture current call stack (Task 9.108)
+	callStack := make(errors.StackTrace, len(i.callStack))
 	copy(callStack, i.callStack)
 
 	// Look up EScriptStackOverflow class
@@ -123,10 +126,12 @@ func (i *Interpreter) raiseMaxRecursionExceeded() Value {
 	instance.SetField("Message", &StringValue{Value: message})
 
 	// Set the exception
+	// Position is nil for internally-raised exceptions like recursion overflow
 	i.exception = &ExceptionValue{
 		ClassInfo: stackOverflowClass,
 		Instance:  instance,
 		Message:   message,
+		Position:  nil,
 		CallStack: callStack,
 	}
 
@@ -319,14 +324,18 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 		}
 	}
 
-	// Capture current call stack (make a copy to avoid slice aliasing)
-	callStack := make([]string, len(i.callStack))
+	// Capture current call stack (make a copy to avoid slice aliasing) (Task 9.108)
+	callStack := make(errors.StackTrace, len(i.callStack))
 	copy(callStack, i.callStack)
+
+	// Capture position of the raise statement
+	pos := stmt.Token.Pos
 
 	i.exception = &ExceptionValue{
 		ClassInfo: classInfo,
 		Message:   message,
 		Instance:  obj,
+		Position:  &pos,
 		CallStack: callStack,
 	}
 

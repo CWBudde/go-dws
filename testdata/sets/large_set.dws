@@ -1,0 +1,160 @@
+// Task 9.10d: Integration fixture for large set operations (>64 elements)
+// Tests set operations with 71-element enum (triggers map storage)
+//
+// NOTE: This file currently cannot run due to parser limitations:
+// - Set type declarations ("set of") are not yet supported in type section parsing
+// - This is a known limitation tracked separately from Task 9.10
+// - The .out file contains manually verified expected output based on unit tests
+// - Once parser support is added, this file should run and match the .out file
+//
+// Expected behavior (verified by unit tests in internal/interp/set_test.go):
+// - 71-element enum triggers SetStorageMap (not bitmask)
+// - All set operations work correctly with map storage
+// - Elements beyond index 64 (E65, E70) work correctly
+// - For-in iteration maintains enum definition order
+
+type
+  TLargeEnum = (
+    E00, E01, E02, E03, E04, E05, E06, E07, E08, E09,
+    E10, E11, E12, E13, E14, E15, E16, E17, E18, E19,
+    E20, E21, E22, E23, E24, E25, E26, E27, E28, E29,
+    E30, E31, E32, E33, E34, E35, E36, E37, E38, E39,
+    E40, E41, E42, E43, E44, E45, E46, E47, E48, E49,
+    E50, E51, E52, E53, E54, E55, E56, E57, E58, E59,
+    E60, E61, E62, E63, E64, E65, E66, E67, E68, E69,
+    E70
+  );
+  TLargeSet = set of TLargeEnum;
+
+var
+  s1, s2, s3: TLargeSet;
+
+begin
+  // Create set with specific elements including ones beyond 64-bit boundary
+  s1 := [E00, E05, E10, E65, E70];
+  s2 := [E05, E65];
+
+  // Test membership - E05 in s1 (expect True)
+  if E05 in s1 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  // Test membership - E20 in s1 (expect False)
+  if E20 in s1 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  // Test membership - E65 in s1 (expect True - beyond 64-bit)
+  if E65 in s1 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  // Test membership - E70 in s1 (expect True - beyond 64-bit)
+  if E70 in s1 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  // Test union: s1 + s2
+  s3 := s1 + s2;
+
+  if E00 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E05 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E10 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E65 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E70 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E20 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  // Test difference: s1 - s2
+  s3 := s1 - s2;
+
+  if E00 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E05 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E10 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E65 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E70 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  // Test intersection: s1 * s2
+  s3 := s1 * s2;
+
+  if E00 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E05 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E10 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E65 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  if E70 in s3 then
+    PrintLn('True')
+  else
+    PrintLn('False');
+
+  // Test for-in iteration (should be in enum order)
+  PrintLn('For-in iteration:');
+  for e in s1 do
+    PrintLn(Ord(e));
+
+  // Test with larger set
+  s3 := [E00, E10, E20, E30, E40, E50, E60, E65, E68, E70];
+  PrintLn('Larger set iteration:');
+  for e in s3 do
+    PrintLn(Ord(e));
+end.

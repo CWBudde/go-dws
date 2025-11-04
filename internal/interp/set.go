@@ -36,9 +36,10 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		}
 	}
 
-	// Evaluate all elements and determine the enum type
+	// Task 9.8: Evaluate all elements and determine the enum type
+	// Use a temporary map to collect ordinals, then populate the correct storage
 	var enumType *types.EnumType
-	var elements uint64 // Bitset for the set
+	ordinals := make(map[int]bool) // Temporary collection of ordinals
 
 	for _, elem := range literal.Elements {
 		// Check if this is a range expression (one..five)
@@ -89,11 +90,11 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 			// Handle both forward and reverse ranges
 			if startOrd <= endOrd {
 				for ord := startOrd; ord <= endOrd; ord++ {
-					elements |= (1 << uint(ord))
+					ordinals[ord] = true
 				}
 			} else {
 				for ord := startOrd; ord >= endOrd; ord-- {
-					elements |= (1 << uint(ord))
+					ordinals[ord] = true
 				}
 			}
 		} else {
@@ -134,14 +135,14 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 				}
 			}
 
-			// Add element to bitset
+			// Add element to temporary map (no 64-element limit!)
 			ordinal := enumVal.OrdinalValue
-			if ordinal < 0 || ordinal >= 64 {
+			if ordinal < 0 {
 				return &ErrorValue{
-					Message: fmt.Sprintf("enum ordinal %d out of range for bitset", ordinal),
+					Message: fmt.Sprintf("enum ordinal %d is negative", ordinal),
 				}
 			}
-			elements |= (1 << uint(ordinal))
+			ordinals[ordinal] = true
 		}
 	}
 
@@ -155,14 +156,34 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		}
 	}
 
-	// Create the SetType
+	// Task 9.8: Create the SetType (automatically selects storage strategy)
 	setType := types.NewSetType(enumType)
 
-	// Create and return the SetValue
-	return &SetValue{
-		SetType:  setType,
-		Elements: elements,
+	// Task 9.8: Create SetValue and populate the correct storage backend
+	setValue := NewSetValue(setType)
+
+	// Populate storage based on strategy
+	switch setType.StorageKind {
+	case types.SetStorageBitmask:
+		// Use bitmask - convert map to bitset
+		var elements uint64
+		for ordinal := range ordinals {
+			if ordinal >= 64 {
+				// This shouldn't happen if NewSetType chose bitmask correctly
+				return &ErrorValue{
+					Message: fmt.Sprintf("enum ordinal %d out of range for bitmask storage", ordinal),
+				}
+			}
+			elements |= (1 << uint(ordinal))
+		}
+		setValue.Elements = elements
+
+	case types.SetStorageMap:
+		// Use map - directly assign the ordinals map
+		setValue.MapStore = ordinals
 	}
+
+	return setValue
 }
 
 // ============================================================================
@@ -171,6 +192,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 
 // evalBinarySetOperation evaluates binary operations on sets.
 // Supported operations: + (union), - (difference), * (intersection)
+// Task 9.8: Supports both bitmask and map storage.
 func (i *Interpreter) evalBinarySetOperation(left, right *SetValue, operator string) Value {
 	if left == nil || right == nil {
 		return &ErrorValue{Message: "nil set operand"}
@@ -184,32 +206,72 @@ func (i *Interpreter) evalBinarySetOperation(left, right *SetValue, operator str
 		}
 	}
 
-	var resultElements uint64
+	// Create result set with same type
+	result := NewSetValue(left.SetType)
 
-	switch operator {
-	case "+":
-		// Union: bitwise OR
-		resultElements = left.Elements | right.Elements
+	// Choose operation based on storage kind
+	switch left.SetType.StorageKind {
+	case types.SetStorageBitmask:
+		// Fast bitwise operations for bitmask storage
+		var resultElements uint64
 
-	case "-":
-		// Difference: bitwise AND NOT
-		resultElements = left.Elements &^ right.Elements
+		switch operator {
+		case "+":
+			// Union: bitwise OR
+			resultElements = left.Elements | right.Elements
 
-	case "*":
-		// Intersection: bitwise AND
-		resultElements = left.Elements & right.Elements
+		case "-":
+			// Difference: bitwise AND NOT
+			resultElements = left.Elements &^ right.Elements
 
-	default:
-		return &ErrorValue{
-			Message: fmt.Sprintf("unsupported set operation: %s", operator),
+		case "*":
+			// Intersection: bitwise AND
+			resultElements = left.Elements & right.Elements
+
+		default:
+			return &ErrorValue{
+				Message: fmt.Sprintf("unsupported set operation: %s", operator),
+			}
+		}
+
+		result.Elements = resultElements
+
+	case types.SetStorageMap:
+		// Map-based operations for large sets
+		switch operator {
+		case "+":
+			// Union: add all elements from both sets
+			for ordinal := range left.MapStore {
+				result.MapStore[ordinal] = true
+			}
+			for ordinal := range right.MapStore {
+				result.MapStore[ordinal] = true
+			}
+
+		case "-":
+			// Difference: elements in left but not in right
+			for ordinal := range left.MapStore {
+				if !right.MapStore[ordinal] {
+					result.MapStore[ordinal] = true
+				}
+			}
+
+		case "*":
+			// Intersection: elements in both sets
+			for ordinal := range left.MapStore {
+				if right.MapStore[ordinal] {
+					result.MapStore[ordinal] = true
+				}
+			}
+
+		default:
+			return &ErrorValue{
+				Message: fmt.Sprintf("unsupported set operation: %s", operator),
+			}
 		}
 	}
 
-	// Return new SetValue with result
-	return &SetValue{
-		SetType:  left.SetType,
-		Elements: resultElements,
-	}
+	return result
 }
 
 // ============================================================================

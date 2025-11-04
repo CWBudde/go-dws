@@ -375,10 +375,13 @@ func (i *Interpreter) builtinAssert(args []Value) Value {
 	instance.Fields["Message"] = &StringValue{Value: message}
 
 	// Create exception value and set it
+	// Position is nil for built-in function exceptions
 	i.exception = &ExceptionValue{
 		ClassInfo: assertClass,
 		Message:   message,
 		Instance:  instance,
+		Position:  nil,
+		CallStack: nil,
 	}
 
 	return nil

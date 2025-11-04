@@ -249,8 +249,34 @@ func NewRecordType(name string, fields map[string]Type) *RecordType {
 }
 
 // ============================================================================
-// SetType (Task 8.81-8.84)
+// SetType (Task 8.81-8.84, Task 9.8)
 // ============================================================================
+
+// SetStorageKind determines the internal storage strategy for set values.
+// Task 9.8: Support for large enums (>64 values) using hybrid storage.
+type SetStorageKind int
+
+const (
+	// SetStorageBitmask uses a uint64 bitset for small enums (≤64 values).
+	// This is the default and most efficient storage for common cases.
+	SetStorageBitmask SetStorageKind = iota
+
+	// SetStorageMap uses map[int]bool for large enums (>64 values).
+	// This allows unlimited set sizes with reasonable performance.
+	SetStorageMap
+)
+
+// String returns a string representation of the storage kind
+func (sk SetStorageKind) String() string {
+	switch sk {
+	case SetStorageBitmask:
+		return "bitmask"
+	case SetStorageMap:
+		return "map"
+	default:
+		return "unknown"
+	}
+}
 
 // SetType represents a set type.
 // Sets are always based on enum types and support operations like Include, Exclude,
@@ -258,8 +284,12 @@ func NewRecordType(name string, fields map[string]Type) *RecordType {
 // Examples:
 //   - type TDays = set of TWeekday;
 //   - var flags: set of TOption;
+//
+// Task 9.8: SetType now tracks the storage strategy (bitmask vs map) based on
+// the enum size, determined at type creation time.
 type SetType struct {
-	ElementType *EnumType // Type of elements in the set (sets are always of enum type)
+	ElementType *EnumType      // Type of elements in the set (sets are always of enum type)
+	StorageKind SetStorageKind // Storage strategy: bitmask (≤64 values) or map (>64 values)
 }
 
 // String returns a string representation of the set type
@@ -287,9 +317,22 @@ func (st *SetType) Equals(other Type) bool {
 // NewSetType creates a new set type with the given element type.
 // Task 8.82: Factory function for creating set types.
 // Task 8.83: Validates that element type is an enum (ordinal type).
+// Task 9.8: Automatically determines storage strategy based on enum size.
+//
+// Storage selection:
+//   - If enum has ≤64 values: uses bitmask (fast, memory-efficient)
+//   - If enum has >64 values: uses map (unlimited size)
+//   - If elementType is nil: defaults to bitmask (will be validated later)
 func NewSetType(elementType *EnumType) *SetType {
+	// Determine storage strategy based on enum size
+	storageKind := SetStorageBitmask
+	if elementType != nil && len(elementType.OrderedNames) > 64 {
+		storageKind = SetStorageMap
+	}
+
 	return &SetType{
 		ElementType: elementType,
+		StorageKind: storageKind,
 	}
 }
 

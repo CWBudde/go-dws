@@ -1,0 +1,14 @@
+// Test for unhandled exception with call stack
+procedure Bar;
+begin
+  raise Exception.Create('Error in Bar');
+end;
+
+procedure Foo;
+begin
+  Bar();
+end;
+
+begin
+  Foo();
+end.

@@ -732,14 +732,10 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					return i.raiseMaxRecursionExceeded()
 				}
 
-				// Task 9.x: Push method name onto call stack for stack traces
+				// Task 9.108: Push method name onto call stack for stack traces
 				fullMethodName := classInfo.Name + "." + mc.Method.Value
-				i.callStack = append(i.callStack, fullMethodName)
-				defer func() {
-					if len(i.callStack) > 0 {
-						i.callStack = i.callStack[:len(i.callStack)-1]
-					}
-				}()
+				i.pushCallStack(fullMethodName)
+				defer i.popCallStack()
 
 				// Bind __CurrentClass__ so class variables can be accessed
 				i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
@@ -1043,14 +1039,10 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		return i.raiseMaxRecursionExceeded()
 	}
 
-	// Task 9.x: Push method name onto call stack for stack traces
+	// Task 9.108: Push method name onto call stack for stack traces
 	fullMethodName := obj.Class.Name + "." + mc.Method.Value
-	i.callStack = append(i.callStack, fullMethodName)
-	defer func() {
-		if len(i.callStack) > 0 {
-			i.callStack = i.callStack[:len(i.callStack)-1]
-		}
-	}()
+	i.pushCallStack(fullMethodName)
+	defer i.popCallStack()
 
 	// Bind Self to the object
 	i.env.Define("Self", obj)
