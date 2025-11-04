@@ -206,3 +206,290 @@ func TestVarDeclarationTypeInference(t *testing.T) {
 		})
 	}
 }
+
+func TestVarDeclarations(t *testing.T) {
+	input := `
+var x: Integer;
+var y := 5;
+var s: String := 'hello';
+`
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 3 {
+		t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+	}
+
+	tests := []struct {
+		assertValue func(*testing.T, ast.Expression)
+		name        string
+		expectedVar string
+		expectedTyp string
+		expectValue bool
+	}{
+		{
+			name:        "typed declaration without initializer",
+			expectedVar: "x",
+			expectedTyp: "Integer",
+			expectValue: false,
+		},
+		{
+			name:        "inferred integer declaration",
+			expectedVar: "y",
+			expectedTyp: "",
+			expectValue: true,
+			assertValue: func(t *testing.T, expr ast.Expression) {
+				if !testIntegerLiteral(t, expr, 5) {
+					t.Fatalf("value is not expected integer literal")
+				}
+			},
+		},
+		{
+			name:        "string declaration with type",
+			expectedVar: "s",
+			expectedTyp: "String",
+			expectValue: true,
+			assertValue: func(t *testing.T, expr ast.Expression) {
+				if !testStringLiteralExpression(t, expr, "hello") {
+					t.Fatalf("value is not expected string literal")
+				}
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stmt, ok := program.Statements[i].(*ast.VarDeclStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.VarDeclStatement. got=%T", program.Statements[i])
+			}
+
+			if len(stmt.Names) == 0 || stmt.Names[0].Value != tt.expectedVar {
+				if len(stmt.Names) == 0 {
+					t.Errorf("stmt.Names is empty, want %q", tt.expectedVar)
+				} else {
+					t.Errorf("stmt.Names[0].Value = %q, want %q", stmt.Names[0].Value, tt.expectedVar)
+				}
+			}
+
+			if (stmt.Type == nil && tt.expectedTyp != "") || (stmt.Type != nil && stmt.Type.Name != tt.expectedTyp) {
+				t.Errorf("stmt.Type = %q, want %q", stmt.Type, tt.expectedTyp)
+			}
+
+			if tt.expectValue {
+				if stmt.Value == nil {
+					t.Fatalf("expected initialization expression")
+				}
+				tt.assertValue(t, stmt.Value)
+			} else if stmt.Value != nil {
+				t.Fatalf("expected no initialization, got %T", stmt.Value)
+			}
+		})
+	}
+}
+
+// TestExternalVarParsing tests parsing of external variable declarations.
+// Task 7.143: External variables are declared with the 'external' keyword:
+//
+//	var x: Integer; external;
+//	var y: String; external 'externalName';
+func TestExternalVarParsing(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		expectedVar  string
+		expectedType string
+		externalName string
+		isExternal   bool
+		expectError  bool
+	}{
+		{
+			name:         "external variable without custom name",
+			input:        "var x: Integer external;",
+			expectedVar:  "x",
+			expectedType: "Integer",
+			isExternal:   true,
+			externalName: "",
+		},
+		{
+			name:         "external variable with custom name",
+			input:        "var y: String external 'customName';",
+			expectedVar:  "y",
+			expectedType: "String",
+			isExternal:   true,
+			externalName: "customName",
+		},
+		{
+			name:         "regular variable (not external)",
+			input:        "var z: Float;",
+			expectedVar:  "z",
+			expectedType: "Float",
+			isExternal:   false,
+			externalName: "",
+		},
+		{
+			name:         "regular variable with initialization",
+			input:        "var w: Integer := 42;",
+			expectedVar:  "w",
+			expectedType: "Integer",
+			isExternal:   false,
+			externalName: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+
+			if tt.expectError {
+				if len(p.Errors()) == 0 {
+					t.Fatalf("expected parser error, got none")
+				}
+				return
+			}
+
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.VarDeclStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.VarDeclStatement. got=%T", program.Statements[0])
+			}
+
+			if len(stmt.Names) == 0 || stmt.Names[0].Value != tt.expectedVar {
+				if len(stmt.Names) == 0 {
+					t.Errorf("stmt.Names is empty, want %q", tt.expectedVar)
+				} else {
+					t.Errorf("stmt.Names[0].Value = %q, want %q", stmt.Names[0].Value, tt.expectedVar)
+				}
+			}
+
+			if stmt.Type == nil || stmt.Type.Name != tt.expectedType {
+				var gotType string
+				if stmt.Type != nil {
+					gotType = stmt.Type.Name
+				}
+				t.Errorf("stmt.Type.Name = %q, want %q", gotType, tt.expectedType)
+			}
+
+			if stmt.IsExternal != tt.isExternal {
+				t.Errorf("stmt.IsExternal = %v, want %v", stmt.IsExternal, tt.isExternal)
+			}
+
+			if stmt.ExternalName != tt.externalName {
+				t.Errorf("stmt.ExternalName = %q, want %q", stmt.ExternalName, tt.externalName)
+			}
+		})
+	}
+}
+
+// TestMultiIdentifierVarDeclarations tests parsing of multi-identifier variable declarations.
+// Task 9.63: DWScript allows comma-separated variable names like `var a, b, c: Integer;`.
+func TestMultiIdentifierVarDeclarations(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedNames []string
+		expectedType  string
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:          "two variables",
+			input:         "var x, y: Integer;",
+			expectedNames: []string{"x", "y"},
+			expectedType:  "Integer",
+		},
+		{
+			name:          "three variables",
+			input:         "var a, b, c: String;",
+			expectedNames: []string{"a", "b", "c"},
+			expectedType:  "String",
+		},
+		{
+			name:          "many variables",
+			input:         "var i, j, k, l, m: Integer;",
+			expectedNames: []string{"i", "j", "k", "l", "m"},
+			expectedType:  "Integer",
+		},
+		{
+			name:          "reject initializer with multiple names",
+			input:         "var x, y: Integer := 42;",
+			expectError:   true,
+			errorContains: "cannot use initializer with multiple variable names",
+		},
+		{
+			name:          "reject initializer without type",
+			input:         "var a, b := 5;",
+			expectError:   true,
+			errorContains: "cannot use initializer with multiple variable names",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+
+			if tt.expectError {
+				if len(p.Errors()) == 0 {
+					t.Fatalf("expected error containing %q, got no errors", tt.errorContains)
+				}
+				found := false
+				for _, err := range p.Errors() {
+					if strings.Contains(err, tt.errorContains) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error containing %q, got %v", tt.errorContains, p.Errors())
+				}
+				return
+			}
+
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has wrong number of statements. got=%d", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.VarDeclStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.VarDeclStatement. got=%T", program.Statements[0])
+			}
+
+			if len(stmt.Names) != len(tt.expectedNames) {
+				t.Fatalf("wrong number of names. got=%d, want=%d", len(stmt.Names), len(tt.expectedNames))
+			}
+
+			for i, expectedName := range tt.expectedNames {
+				if stmt.Names[i].Value != expectedName {
+					t.Errorf("name[%d] = %q, want %q", i, stmt.Names[i].Value, expectedName)
+				}
+			}
+
+			if stmt.Type == nil || stmt.Type.Name != tt.expectedType {
+				var typeName string
+				if stmt.Type != nil {
+					typeName = stmt.Type.Name
+				}
+				t.Errorf("stmt.Type.Name = %q, want %q", typeName, tt.expectedType)
+			}
+
+			// Test String() method for multi-names
+			expectedStr := "var " + strings.Join(tt.expectedNames, ", ") + ": " + tt.expectedType
+			if stmt.String() != expectedStr {
+				t.Errorf("stmt.String() = %q, want %q", stmt.String(), expectedStr)
+			}
+		})
+	}
+}
+
+// TestAssignmentStatements tests parsing of assignment statements.
