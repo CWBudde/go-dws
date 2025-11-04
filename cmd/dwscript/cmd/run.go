@@ -16,12 +16,12 @@ import (
 )
 
 var (
-	evalExpr      string
-	dumpAST       bool
-	trace         bool
-	typeCheck     bool
-	showUnits     bool
-	maxRecursion  int
+	evalExpr     string
+	dumpAST      bool
+	trace        bool
+	typeCheck    bool
+	showUnits    bool
+	maxRecursion int
 )
 
 var runCmd = &cobra.Command{
