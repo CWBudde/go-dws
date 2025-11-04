@@ -175,6 +175,21 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		}
 	}
 
+	// Normalize function name for case-insensitive matching (DWScript is case-insensitive)
+	// Only normalize known functions to avoid breaking camelCase/PascalCase names
+	lowerName := strings.ToLower(name)
+	switch lowerName {
+	case "println":
+		name = "PrintLn"
+	case "print":
+		name = "Print"
+	case "inc":
+		name = "Inc"
+	case "dec":
+		name = "Dec"
+		// Add more as needed, but default is to leave name as-is to preserve camelCase
+	}
+
 	switch name {
 	case "PrintLn":
 		return i.builtinPrintLn(args)
@@ -539,6 +554,12 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	savedEnv := i.env
 	i.env = funcEnv
 
+	// Task 9.5: Check recursion depth before pushing to call stack
+	if len(i.callStack) >= i.maxRecursionDepth {
+		i.env = savedEnv // Restore environment before raising exception
+		return i.raiseMaxRecursionExceeded()
+	}
+
 	// Push function name onto call stack for stack traces
 	i.callStack = append(i.callStack, fn.Name.Value)
 	// Ensure it's popped when function exits (even if exception occurs)
@@ -750,6 +771,12 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 	savedEnv := i.env
 	i.env = lambdaEnv
 
+	// Task 9.6: Check recursion depth before pushing to call stack
+	if len(i.callStack) >= i.maxRecursionDepth {
+		i.env = savedEnv // Restore environment before raising exception
+		return i.raiseMaxRecursionExceeded()
+	}
+
 	// Push lambda marker onto call stack for stack traces
 	i.callStack = append(i.callStack, "<lambda>")
 	defer func() {
@@ -943,6 +970,12 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		i.env.Define(fieldName, fieldValue)
 	}
 
+	// Task 9.7: Check recursion depth before pushing to call stack
+	if len(i.callStack) >= i.maxRecursionDepth {
+		i.env = savedEnv // Restore environment before raising exception
+		return i.raiseMaxRecursionExceeded()
+	}
+
 	// Push method name onto call stack for stack traces
 	fullMethodName := recVal.RecordType.Name + "." + methodName
 	i.callStack = append(i.callStack, fullMethodName)
@@ -1121,6 +1154,12 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 	methodEnv := NewEnclosedEnvironment(i.env)
 	savedEnv := i.env
 	i.env = methodEnv
+
+	// Task 9.8: Check recursion depth before pushing to call stack
+	if len(i.callStack) >= i.maxRecursionDepth {
+		i.env = savedEnv // Restore environment before raising exception
+		return i.raiseMaxRecursionExceeded()
+	}
 
 	// Push method name onto call stack for stack traces
 	fullMethodName := rtv.RecordType.Name + "." + methodName

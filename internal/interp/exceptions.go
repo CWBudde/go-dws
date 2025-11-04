@@ -67,6 +67,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		"EDivByZero",
 		"EAssertionFailed",
 		"EInvalidOp",
+		"EScriptStackOverflow", // Task 9.3: Stack overflow exception for recursion depth limit
 	}
 
 	for _, excName := range standardExceptions {
@@ -92,6 +93,44 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	eHostClass.Constructors["Create"] = nil
 
 	i.classes["EHost"] = eHostClass
+}
+
+// raiseMaxRecursionExceeded raises an EScriptStackOverflow exception when the
+// maximum recursion depth is exceeded. This prevents infinite recursion and
+// stack overflow errors.
+// Task 9.4: Implement raiseMaxRecursionExceeded() helper
+func (i *Interpreter) raiseMaxRecursionExceeded() Value {
+	message := fmt.Sprintf("Maximal recursion exceeded (%d)", i.maxRecursionDepth)
+
+	// Capture current call stack
+	callStack := make([]string, len(i.callStack))
+	copy(callStack, i.callStack)
+
+	// Look up EScriptStackOverflow class
+	stackOverflowClass, ok := i.classes["EScriptStackOverflow"]
+	if !ok {
+		// Fall back to Exception if EScriptStackOverflow isn't registered
+		if baseClass, exists := i.classes["Exception"]; exists {
+			stackOverflowClass = baseClass
+		} else {
+			// As a last resort, return NilValue without setting exception
+			return &NilValue{}
+		}
+	}
+
+	// Create exception instance
+	instance := NewObjectInstance(stackOverflowClass)
+	instance.SetField("Message", &StringValue{Value: message})
+
+	// Set the exception
+	i.exception = &ExceptionValue{
+		ClassInfo: stackOverflowClass,
+		Instance:  instance,
+		Message:   message,
+		CallStack: callStack,
+	}
+
+	return &NilValue{}
 }
 
 // ============================================================================

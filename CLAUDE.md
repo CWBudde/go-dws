@@ -62,6 +62,12 @@ go fmt ./...
 ./bin/dwscript parse testdata/simple.dws
 ./bin/dwscript parse -e "3 + 5 * 2"
 
+# Run a script
+./bin/dwscript run script.dws
+
+# Run with custom recursion limit (default: 1024)
+./bin/dwscript run --max-recursion 2048 script.dws
+
 # Show version
 ./bin/dwscript version
 ```
@@ -181,6 +187,15 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
 - Unscoped access: `var color := Red;`
 - Built-ins: `Ord(enumValue)`, `Integer(enumValue)`
 - See `docs/enums.md` for complete documentation
+
+**Recursion Limits** (Task 9.1-9.12):
+- Default maximum recursion depth: 1024 (matches DWScript's `cDefaultMaxRecursionDepth`)
+- Configurable via API: `dwscript.WithMaxRecursionDepth(2048)`
+- Configurable via CLI: `--max-recursion 2048`
+- Raises `EScriptStackOverflow` exception when limit exceeded
+- Protected call sites: user functions, lambdas, record methods (instance & static), class methods (instance & static)
+- Call stack tracking for accurate stack traces in exceptions
+- See `internal/interp/recursion_test.go` for comprehensive test cases
 
 ### Testing Philosophy
 

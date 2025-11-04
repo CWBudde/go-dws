@@ -142,6 +142,47 @@ go build -o bin/dwscript ./cmd/dwscript
 ./bin/dwscript run -e "function Divide(a, b: Float): Float; require b <> 0; begin Result := a / b; end; begin PrintLn(Divide(10.0, 2.0)); end."
 ```
 
+## Configuration
+
+### Recursion Limits
+
+go-dws protects against infinite recursion by limiting the maximum call stack depth. By default, the limit is set to **1024** (matching DWScript's default), but you can configure it:
+
+**CLI Usage:**
+
+```bash
+# Run with custom recursion limit
+./bin/dwscript run --max-recursion 2048 script.dws
+```
+
+**API Usage:**
+
+```go
+import "github.com/cwbudde/go-dws/pkg/dwscript"
+
+engine, _ := dwscript.New(
+    dwscript.WithMaxRecursionDepth(2048),
+)
+```
+
+When the recursion limit is exceeded, the interpreter raises an `EScriptStackOverflow` exception, which can be caught using try/except:
+
+```pascal
+procedure DeepRecursion;
+begin
+    DeepRecursion;  // Infinite recursion
+end;
+
+begin
+    try
+        DeepRecursion;
+    except
+        on E: EScriptStackOverflow do
+            PrintLn('Maximum recursion depth exceeded');
+    end;
+end.
+```
+
 ## Embedding in Go Applications
 
 go-dws can be used as a library to embed the DWScript interpreter in your Go applications:

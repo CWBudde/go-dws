@@ -16,11 +16,12 @@ import (
 )
 
 var (
-	evalExpr  string
-	dumpAST   bool
-	trace     bool
-	typeCheck bool
-	showUnits bool
+	evalExpr      string
+	dumpAST       bool
+	trace         bool
+	typeCheck     bool
+	showUnits     bool
+	maxRecursion  int
 )
 
 var runCmd = &cobra.Command{
@@ -39,7 +40,10 @@ Examples:
   dwscript run --dump-ast script.dws
 
   # Run with execution trace
-  dwscript run --trace script.dws`,
+  dwscript run --trace script.dws
+
+  # Run with custom recursion limit
+  dwscript run --max-recursion 2048 script.dws`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runScript,
 }
@@ -52,6 +56,7 @@ func init() {
 	runCmd.Flags().BoolVar(&trace, "trace", false, "trace execution (for debugging)")
 	runCmd.Flags().BoolVar(&typeCheck, "type-check", true, "perform semantic type checking before execution (default: true)")
 	runCmd.Flags().BoolVar(&showUnits, "show-units", false, "display unit dependency tree")
+	runCmd.Flags().IntVar(&maxRecursion, "max-recursion", 1024, "maximum recursion depth (default: 1024)")
 }
 
 func runScript(_ *cobra.Command, args []string) error {
@@ -122,7 +127,13 @@ func runScript(_ *cobra.Command, args []string) error {
 	}
 
 	// Interpreter: execute the program
-	interpreter := interp.New(os.Stdout)
+	// Create a simple options struct for passing maxRecursionDepth
+	opts := struct {
+		MaxRecursionDepth int
+	}{
+		MaxRecursionDepth: maxRecursion,
+	}
+	interpreter := interp.NewWithOptions(os.Stdout, opts)
 
 	// Set up unit registry if search paths are provided or if we're running from a file
 	// Task 9.139: Add unit search path support
