@@ -19,7 +19,7 @@ type ExceptionValue struct {
 	ClassInfo *ClassInfo
 	Instance  *ObjectInstance
 	Message   string
-	Position  *lexer.Position  // Position where the exception was raised (for error reporting)
+	Position  *lexer.Position   // Position where the exception was raised (for error reporting)
 	CallStack errors.StackTrace // Stack trace at the point the exception was raised (Task 9.108)
 }
 

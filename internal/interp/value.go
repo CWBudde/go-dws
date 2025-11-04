@@ -525,6 +525,7 @@ func GoBool(v Value) (bool, error) {
 // Task 9.8: Support both small and large enums:
 //   - Small enums (≤64 values): uint64 bitset (fast, 8 bytes)
 //   - Large enums (>64 values): map[int]bool (unlimited size)
+//
 // The storage strategy is determined by SetType.StorageKind.
 type SetValue struct {
 	SetType  *types.SetType // The set type metadata (includes storage strategy)

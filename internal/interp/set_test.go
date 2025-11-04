@@ -1321,8 +1321,8 @@ func TestLargeSet_ForInFirstAndLastOnly(t *testing.T) {
 
 	// Create set with only first and last elements
 	boundarySet := NewSetValue(setType)
-	boundarySet.AddElement(0)   // First
-	boundarySet.AddElement(99)  // Last
+	boundarySet.AddElement(0)  // First
+	boundarySet.AddElement(99) // Last
 
 	// Iterate and collect
 	var collected []string
