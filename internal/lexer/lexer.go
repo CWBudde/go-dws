@@ -17,7 +17,18 @@ type Lexer struct {
 }
 
 // New creates a new Lexer for the given input string.
+// Automatically detects and strips UTF-8 BOM (0xEF 0xBB 0xBF) if present at the start.
+// This matches the behavior of the original DWScript which strips BOMs during file reading.
 func New(input string) *Lexer {
+	// Strip UTF-8 BOM if present (matches DWScript behavior)
+	// UTF-8 BOM: EF BB BF (239 187 191)
+	if len(input) >= 3 &&
+		input[0] == 0xEF &&
+		input[1] == 0xBB &&
+		input[2] == 0xBF {
+		input = input[3:]
+	}
+
 	l := &Lexer{
 		input:  input,
 		line:   1,
