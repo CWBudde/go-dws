@@ -468,6 +468,305 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
 
 ---
 
+### Fixture Test Failures (Algorithms Category) ❌ 0% COMPLETE (HIGH PRIORITY)
+
+**Summary**: 43 out of 53 tests in the Algorithms category fail. These failures reveal missing parser features, runtime errors, and logic bugs that need to be addressed for DWScript compatibility.
+
+**Status**: 0/43 tasks complete. 10 tests pass: dot_product, execute_hq9plus, fibonacci, fizz_buzz, hanoi, happy_numbers, leap_year, mandelbrot, max_recursion, yin_yang
+
+**Test Results**: Category Algorithms: 10 passed, 43 failed, 0 skipped
+
+#### Parse Errors - Const Array Bounds (4 tasks)
+
+- [ ] 9.205 Fix bubble_sort.pas const array bounds:
+  - [ ] Error: `expected next token to be INT, got IDENT instead at 13:25`
+  - [ ] Root cause: Array bounds use const identifiers, not literal integers
+  - [ ] Example: `array[0..MAX_SIZE] of Integer`
+  - [ ] Priority: HIGH - affects multiple tests
+  - [ ] Requires: Const expression evaluation in parser
+  - [ ] File: testdata/fixtures/Algorithms/bubble_sort.pas
+
+- [ ] 9.206 Fix quicksort.pas const array bounds:
+  - [ ] Error: `expected next token to be INT, got IDENT instead at 11:25`
+  - [ ] Root cause: Same as 9.205
+  - [ ] Priority: HIGH
+  - [ ] File: testdata/fixtures/Algorithms/quicksort.pas
+
+- [ ] 9.207 Fix quicksort_iterative.pas const array bounds:
+  - [ ] Error: `expected next token to be INT, got IDENT instead at 11:25`
+  - [ ] Root cause: Same as 9.205
+  - [ ] Priority: HIGH
+  - [ ] File: testdata/fixtures/Algorithms/quicksort_iterative.pas
+
+- [ ] 9.208 Fix selection_sort.pas const array bounds:
+  - [ ] Error: `expected next token to be INT, got IDENT instead at 11:25`
+  - [ ] Root cause: Same as 9.205
+  - [ ] Priority: HIGH
+  - [ ] File: testdata/fixtures/Algorithms/selection_sort.pas
+
+#### Parse Errors - Case Statement Syntax (2 tasks)
+
+- [ ] 9.209 Fix bottles_of_beer.pas case statement:
+  - [ ] Error: `expected 'end' to close case statement at 100:7`
+  - [ ] Additional: `no prefix parse function for METHOD found at 109:1`
+  - [ ] Root cause: Case statement parser doesn't handle all syntax variants
+  - [ ] Priority: MEDIUM
+  - [ ] File: testdata/fixtures/Algorithms/bottles_of_beer.pas
+
+- [ ] 9.210 Fix vigenere.pas case statement:
+  - [ ] Error: `expected next token to be COLON, got DOTDOT instead at 25:16`
+  - [ ] Root cause: Case range syntax `'A'..'Z':`
+  - [ ] Priority: MEDIUM
+  - [ ] Requires: Range expressions in case statements
+  - [ ] File: testdata/fixtures/Algorithms/vigenere.pas
+
+#### Parse Errors - Advanced Array Syntax (3 tasks)
+
+- [ ] 9.211 Fix lu_factorization.pas array of array:
+  - [ ] Error: `expected next token to be IDENT, got ARRAY instead at 1:24`
+  - [ ] Root cause: `type TMatrix = array of array of Float;`
+  - [ ] Priority: HIGH - needed for matrix operations
+  - [ ] Requires: Multi-dimensional dynamic array support
+  - [ ] File: testdata/fixtures/Algorithms/lu_factorization.pas
+
+- [ ] 9.212 Fix pi.pas multidimensional array:
+  - [ ] Error: `expected next token to be RBRACK, got ASTERISK instead at 4:18`
+  - [ ] Root cause: Syntax like `array[0..1, 0..2*DIGITS] of Integer`
+  - [ ] Priority: HIGH - multi-dim arrays are common
+  - [ ] Requires: Parser support for comma-separated dimensions
+  - [ ] File: testdata/fixtures/Algorithms/pi.pas
+
+- [ ] 9.213 Fix eratosthene.pas set type:
+  - [ ] Error: `expected type expression, got set at 3:13`
+  - [ ] Root cause: `var primes: set of 2..1000;`
+  - [ ] Priority: MEDIUM
+  - [ ] Requires: Set type declarations
+  - [ ] File: testdata/fixtures/Algorithms/eratosthene.pas
+
+#### Parse Errors - Function Overloading (1 task)
+
+- [ ] 9.214 Fix lerp.pas overload keyword:
+  - [ ] Error: `no prefix parse function for OVERLOAD found at 10:54` (4 occurrences)
+  - [ ] Root cause: OVERLOAD keyword not supported in parser
+  - [ ] Priority: LOW - Stage 7 feature
+  - [ ] Requires: Function overloading support
+  - [ ] File: testdata/fixtures/Algorithms/lerp.pas
+
+#### Runtime Errors - Array Helper Methods (3 tasks)
+
+- [ ] 9.215 Fix array_stats.pas SetLength helper:
+  - [ ] Error: `cannot call method 'SetLength' on type 'ARRAY' (no helper found)`
+  - [ ] Root cause: Missing array helper for SetLength
+  - [ ] Priority: HIGH - critical array operation
+  - [ ] Requires: Array helper implementation
+  - [ ] File: testdata/fixtures/Algorithms/array_stats.pas
+
+- [ ] 9.216 Fix one_dim_automata.pas low helper:
+  - [ ] Error: `cannot access member 'low' of type 'ARRAY' (no helper found)`
+  - [ ] Root cause: Missing array helper for low bound
+  - [ ] Priority: HIGH - needed for array iteration
+  - [ ] Requires: Array helper implementation
+  - [ ] File: testdata/fixtures/Algorithms/one_dim_automata.pas
+
+- [ ] 9.217 Fix primes.pas High helper:
+  - [ ] Error: `cannot access member 'High' of type 'NIL' (no helper found)`
+  - [ ] Root cause: Missing array helper for upper bound
+  - [ ] Priority: HIGH - needed for array iteration
+  - [ ] Requires: Array helper implementation
+  - [ ] File: testdata/fixtures/Algorithms/primes.pas
+
+#### Runtime Errors - NOT Operator with Variants (2 tasks)
+
+- [ ] 9.218 Fix 100_doors.pas NOT operator:
+  - [ ] Error: `NOT operator requires Boolean or Integer operand, got NIL at line 7, column 32`
+  - [ ] Root cause: NOT operator doesn't handle variant/dynamic types
+  - [ ] Priority: MEDIUM
+  - [ ] Requires: Better type coercion in operators
+  - [ ] File: testdata/fixtures/Algorithms/100_doors.pas
+
+- [ ] 9.219 Fix crc32.pas NOT operator:
+  - [ ] Error: `NOT operator requires Boolean or Integer operand, got NIL at line 7, column 24`
+  - [ ] Root cause: Same as 9.218
+  - [ ] Priority: MEDIUM
+  - [ ] File: testdata/fixtures/Algorithms/crc32.pas
+
+#### Runtime Errors - NIL Handling (3 tasks)
+
+- [ ] 9.220 Fix evenly_divisible.pas NIL indexing:
+  - [ ] Error: `cannot index type NIL`
+  - [ ] Root cause: NIL value being indexed as array
+  - [ ] Priority: MEDIUM
+  - [ ] Requires: Better NIL checking
+  - [ ] File: testdata/fixtures/Algorithms/evenly_divisible.pas
+
+- [ ] 9.221 Fix factorize.pas STRING + NIL:
+  - [ ] Error: `type mismatch: STRING + NIL at line 18, column 31`
+  - [ ] Root cause: NIL in string concatenation
+  - [ ] Priority: MEDIUM
+  - [ ] Requires: Better NIL coercion to string
+  - [ ] File: testdata/fixtures/Algorithms/factorize.pas
+
+- [ ] 9.222 Fix jensen_device.pas array type inference:
+  - [ ] Error: `cannot determine array type for literal`
+  - [ ] Root cause: Array literal type inference failure
+  - [ ] Priority: MEDIUM
+  - [ ] Related to: Task 9.24 (array literal syntax)
+  - [ ] File: testdata/fixtures/Algorithms/jensen_device.pas
+
+#### Runtime Errors - Missing Built-in Functions (2 tasks)
+
+- [ ] 9.223 Fix gray_code.pas IntToBin function:
+  - [ ] Error: `undefined function: IntToBin at line 22, column 35`
+  - [ ] Root cause: Missing IntToBin built-in function
+  - [ ] Priority: MEDIUM
+  - [ ] Requires: Add IntToBin to string conversion builtins
+  - [ ] File: testdata/fixtures/Algorithms/gray_code.pas
+
+- [ ] 9.224 Fix lucas_lehmer.pas Log2 function:
+  - [ ] Error: `undefined function: Log2 at line 16, column 36`
+  - [ ] Root cause: Missing Log2 math function
+  - [ ] Priority: MEDIUM
+  - [ ] Requires: Add Log2 to math builtins
+  - [ ] File: testdata/fixtures/Algorithms/lucas_lehmer.pas
+
+#### Runtime Errors - Type Constraints (3 tasks)
+
+- [ ] 9.225 Fix fast_search.pas element type:
+  - [ ] Error: `unknown element type 'integer'`
+  - [ ] Root cause: Element type resolution issue
+  - [ ] Priority: MEDIUM
+  - [ ] Requires: Better type name resolution
+  - [ ] File: testdata/fixtures/Algorithms/fast_search.pas
+
+- [ ] 9.226 Fix multiplication_table.pas set literals:
+  - [ ] Error: `set element must be an enum value, got INTEGER`
+  - [ ] Root cause: Set literals only accept enum values currently
+  - [ ] Priority: MEDIUM
+  - [ ] Requires: Support integer ranges in sets
+  - [ ] File: testdata/fixtures/Algorithms/multiplication_table.pas
+
+- [ ] 9.227 Fix sum_of_a_series.pas set literals:
+  - [ ] Error: `set element must be an enum value, got FLOAT`
+  - [ ] Root cause: Same as 9.226
+  - [ ] Priority: MEDIUM
+  - [ ] File: testdata/fixtures/Algorithms/sum_of_a_series.pas
+
+#### Runtime Errors - Variable Scoping (2 tasks)
+
+- [ ] 9.228 Fix high_order_func.pas undefined variable:
+  - [ ] Error: `undefined variable 'Second' at line 13, column 15`
+  - [ ] Root cause: Variable scoping issue or missing declaration
+  - [ ] Priority: LOW
+  - [ ] Requires: Investigation of variable resolution
+  - [ ] File: testdata/fixtures/Algorithms/high_order_func.pas
+
+- [ ] 9.229 Fix roots_of_a_function.pas undefined variable:
+  - [ ] Error: `undefined variable 'f' at line 44, column 32`
+  - [ ] Root cause: Function parameter scoping issue
+  - [ ] Priority: LOW
+  - [ ] Requires: Investigation of parameter passing
+  - [ ] File: testdata/fixtures/Algorithms/roots_of_a_function.pas
+
+#### Output Mismatches - Empty Output (8 tasks)
+
+- [ ] 9.230 Fix Levenshtein.pas empty output:
+  - [ ] Expected: `kitten -> sitting = 3\nrosettacode -> raisethysword = 8`
+  - [ ] Actual: (empty)
+  - [ ] Root cause: Algorithm not producing output
+  - [ ] Priority: MEDIUM
+  - [ ] File: testdata/fixtures/Algorithms/Levenshtein.pas
+
+- [ ] 9.231 Fix death_star.pas empty output:
+  - [ ] Expected: ASCII art of death star (98 lines)
+  - [ ] Actual: (empty)
+  - [ ] Root cause: Graphics algorithm not executing
+  - [ ] Priority: LOW - complex graphics
+  - [ ] File: testdata/fixtures/Algorithms/death_star.pas
+
+- [ ] 9.232 Fix horizontal_sundial.pas empty output:
+  - [ ] Expected: Sundial calculations (14 lines)
+  - [ ] Actual: (empty)
+  - [ ] Root cause: Math calculations not producing output
+  - [ ] Priority: LOW
+  - [ ] File: testdata/fixtures/Algorithms/horizontal_sundial.pas
+
+- [ ] 9.233 Fix koch.pas empty output:
+  - [ ] Expected: Koch curve line segments (180 lines)
+  - [ ] Actual: (empty)
+  - [ ] Root cause: Recursive algorithm not executing
+  - [ ] Priority: LOW
+  - [ ] File: testdata/fixtures/Algorithms/koch.pas
+
+- [ ] 9.234 Fix pascal_triangle.pas empty output:
+  - [ ] Expected: Pascal's triangle (9 lines)
+  - [ ] Actual: (empty)
+  - [ ] Root cause: Algorithm not producing output
+  - [ ] Priority: MEDIUM
+  - [ ] File: testdata/fixtures/Algorithms/pascal_triangle.pas
+
+- [ ] 9.235 Fix sierpinski.pas empty output:
+  - [ ] Expected: Sierpinski triangle (16 lines)
+  - [ ] Actual: (empty)
+  - [ ] Root cause: Algorithm not producing output
+  - [ ] Priority: LOW
+  - [ ] File: testdata/fixtures/Algorithms/sierpinski.pas
+
+- [ ] 9.236 Fix sierpinski_carpet.pas empty output:
+  - [ ] Expected: Sierpinski carpet (27 lines)
+  - [ ] Actual: (empty)
+  - [ ] Root cause: Algorithm not producing output
+  - [ ] Priority: LOW
+  - [ ] File: testdata/fixtures/Algorithms/sierpinski_carpet.pas
+
+- [ ] 9.237 Fix quicksort_dyn.pas incomplete output:
+  - [ ] Expected: `Swaps: >=100` and sorted array 0-99
+  - [ ] Actual: `Swaps: <100` and empty data
+  - [ ] Root cause: QuickSort algorithm bug or incomplete execution
+  - [ ] Priority: HIGH - critical algorithm
+  - [ ] File: testdata/fixtures/Algorithms/quicksort_dyn.pas
+
+#### Output Mismatches - Incorrect Calculations (2 tasks)
+
+- [ ] 9.238 Fix cholesky_decomposition.pas matrix calc:
+  - [ ] Error: Incorrect matrix values (all zeros in many positions)
+  - [ ] Expected: Specific float values (e.g., 3.00000, 6.56591)
+  - [ ] Actual: Mostly zeros
+  - [ ] Root cause: Matrix decomposition algorithm bug
+  - [ ] Priority: MEDIUM
+  - [ ] File: testdata/fixtures/Algorithms/cholesky_decomposition.pas
+
+- [ ] 9.239 Fix gnome_sort.pas sorting logic:
+  - [ ] Expected: Sorted array `{0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15}`
+  - [ ] Actual: Unsorted array (same as input)
+  - [ ] Root cause: Gnome sort algorithm not modifying array
+  - [ ] Priority: HIGH - sorting is fundamental
+  - [ ] File: testdata/fixtures/Algorithms/gnome_sort.pas
+
+#### Output Mismatches - Partial Output (3 tasks)
+
+- [ ] 9.240 Fix draw_sphere.pas incomplete output:
+  - [ ] Expected: 39x39 PGM image (full sphere)
+  - [ ] Actual: Only first line of data
+  - [ ] Root cause: Loop terminating early or output truncated
+  - [ ] Priority: MEDIUM
+  - [ ] File: testdata/fixtures/Algorithms/draw_sphere.pas
+
+- [ ] 9.241 Fix extract_ranges.pas missing range:
+  - [ ] Expected: `0-2,4,6-8,11,12,14-25,27-33,35-39`
+  - [ ] Actual: `0-2,4,6-8,11,12,14-25,27-33,35`
+  - [ ] Root cause: Missing final range `36-39`
+  - [ ] Priority: LOW - minor logic bug
+  - [ ] File: testdata/fixtures/Algorithms/extract_ranges.pas
+
+- [ ] 9.242 Fix roman_numerals.pas nil output:
+  - [ ] Expected: `CDLV`, `MMMCDLVI`, `MMCDLXXXVIII`
+  - [ ] Actual: `nil`, `nil`, `nil`
+  - [ ] Root cause: Function returning nil instead of string
+  - [ ] Priority: MEDIUM
+  - [ ] File: testdata/fixtures/Algorithms/roman_numerals.pas
+
+---
+
 ### Improved Error Messages and Stack Traces ✅ 90% COMPLETE (MEDIUM PRIORITY)
 
 **Summary**: Enhance error reporting with better messages, stack traces, and debugging information. Improves developer experience significantly.

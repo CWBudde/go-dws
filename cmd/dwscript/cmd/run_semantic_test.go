@@ -19,7 +19,7 @@ func TestRunWithSemanticErrors(t *testing.T) {
 			name:          "type mismatch error",
 			input:         "var x: Integer := 'hello';",
 			expectError:   true,
-			errorContains: "cannot assign String to Integer",
+			errorContains: "Cannot assign String to Integer",
 		},
 		{
 			name:          "undefined variable error",
