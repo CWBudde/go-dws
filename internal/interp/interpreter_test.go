@@ -1201,6 +1201,194 @@ func TestCaseStatementExecution(t *testing.T) {
 	}
 }
 
+// TestCaseStatementWithRanges tests case statement execution with range expressions.
+func TestCaseStatementWithRanges(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Character range uppercase",
+			input: `
+				var ch := 'B';
+				case ch of
+					'A'..'Z': PrintLn('UPPER');
+					'a'..'z': PrintLn('lower');
+				else
+					PrintLn('other');
+				end
+			`,
+			expected: "UPPER\n",
+		},
+		{
+			name: "Character range lowercase",
+			input: `
+				var ch := 'g';
+				case ch of
+					'A'..'Z': PrintLn('UPPER');
+					'a'..'z': PrintLn('lower');
+				else
+					PrintLn('other');
+				end
+			`,
+			expected: "lower\n",
+		},
+		{
+			name: "Character range no match",
+			input: `
+				var ch := '5';
+				case ch of
+					'A'..'Z': PrintLn('UPPER');
+					'a'..'z': PrintLn('lower');
+				else
+					PrintLn('other');
+				end
+			`,
+			expected: "other\n",
+		},
+		{
+			name: "Integer range",
+			input: `
+				var x := 5;
+				case x of
+					1..10: PrintLn('1-10');
+					11..20: PrintLn('11-20');
+				else
+					PrintLn('other');
+				end
+			`,
+			expected: "1-10\n",
+		},
+		{
+			name: "Integer range boundary start",
+			input: `
+				var x := 1;
+				case x of
+					1..10: PrintLn('1-10');
+					11..20: PrintLn('11-20');
+				end
+			`,
+			expected: "1-10\n",
+		},
+		{
+			name: "Integer range boundary end",
+			input: `
+				var x := 10;
+				case x of
+					1..10: PrintLn('1-10');
+					11..20: PrintLn('11-20');
+				end
+			`,
+			expected: "1-10\n",
+		},
+		{
+			name: "Integer range second branch",
+			input: `
+				var x := 15;
+				case x of
+					1..10: PrintLn('1-10');
+					11..20: PrintLn('11-20');
+				end
+			`,
+			expected: "11-20\n",
+		},
+		{
+			name: "Integer range no match",
+			input: `
+				var x := 25;
+				case x of
+					1..10: PrintLn('1-10');
+					11..20: PrintLn('11-20');
+				else
+					PrintLn('other');
+				end
+			`,
+			expected: "other\n",
+		},
+		{
+			name: "Mixed ranges and single values",
+			input: `
+				var x := 4;
+				case x of
+					1, 3..5, 7: PrintLn('match');
+					2, 6: PrintLn('even');
+				else
+					PrintLn('other');
+				end
+			`,
+			expected: "match\n",
+		},
+		{
+			name: "Mixed - single value before range",
+			input: `
+				var x := 1;
+				case x of
+					1, 3..5, 7: PrintLn('match');
+					2, 6: PrintLn('even');
+				end
+			`,
+			expected: "match\n",
+		},
+		{
+			name: "Mixed - single value after range",
+			input: `
+				var x := 7;
+				case x of
+					1, 3..5, 7: PrintLn('match');
+					2, 6: PrintLn('even');
+				end
+			`,
+			expected: "match\n",
+		},
+		{
+			name: "Mixed - second branch single value",
+			input: `
+				var x := 2;
+				case x of
+					1, 3..5, 7: PrintLn('match');
+					2, 6: PrintLn('even');
+				end
+			`,
+			expected: "even\n",
+		},
+		{
+			name: "Float range",
+			input: `
+				var x := 5.5;
+				case x of
+					1.0..10.0: PrintLn('1-10');
+					10.1..20.0: PrintLn('10-20');
+				else
+					PrintLn('other');
+				end
+			`,
+			expected: "1-10\n",
+		},
+		{
+			name: "Multiple ranges",
+			input: `
+				var x := 15;
+				case x of
+					0..9: PrintLn('single digit');
+					10..99: PrintLn('double digit');
+					100..999: PrintLn('triple digit');
+				end
+			`,
+			expected: "double digit\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expected {
+				t.Errorf("wrong output.\nexpected=%q\ngot=%q", tt.expected, output)
+			}
+		})
+	}
+}
+
 // TestFunctionCalls tests user-defined function calls.
 func TestFunctionCalls(t *testing.T) {
 	tests := []struct {

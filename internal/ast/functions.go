@@ -85,6 +85,7 @@ type FunctionDecl struct {
 	IsAbstract     bool
 	IsExternal     bool
 	IsClassMethod  bool
+	IsOverload     bool // Function/method can be overloaded
 }
 
 func (fd *FunctionDecl) statementNode()       {}
@@ -120,7 +121,7 @@ func (fd *FunctionDecl) String() string {
 		out.WriteString(fd.ReturnType.String())
 	}
 
-	// Write virtual/override/abstract directives
+	// Write virtual/override/abstract/overload directives
 	if fd.IsVirtual {
 		out.WriteString("; virtual")
 	}
@@ -129,6 +130,9 @@ func (fd *FunctionDecl) String() string {
 	}
 	if fd.IsAbstract {
 		out.WriteString("; abstract")
+	}
+	if fd.IsOverload {
+		out.WriteString("; overload")
 	}
 
 	// Write preconditions if present

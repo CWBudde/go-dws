@@ -731,3 +731,87 @@ func TestArrayHelperInForLoop(t *testing.T) {
 		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
 	}
 }
+
+// Task 9.217: Test case-insensitive array helper property access
+func TestArrayHelperCaseInsensitive(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "lowercase properties",
+			input: `
+				var arr: array of Integer;
+				begin
+					SetLength(arr, 5);
+					PrintLn(arr.length);
+					PrintLn(arr.low);
+					PrintLn(arr.high);
+				end.
+			`,
+			expected: "5\n0\n4\n",
+		},
+		{
+			name: "uppercase properties",
+			input: `
+				var arr: array of Integer;
+				begin
+					SetLength(arr, 3);
+					PrintLn(arr.LENGTH);
+					PrintLn(arr.LOW);
+					PrintLn(arr.HIGH);
+				end.
+			`,
+			expected: "3\n0\n2\n",
+		},
+		{
+			name: "mixed case properties",
+			input: `
+				var arr: array of Integer;
+				begin
+					SetLength(arr, 4);
+					PrintLn(arr.LeNgTh);
+					PrintLn(arr.LoW);
+					PrintLn(arr.HiGh);
+				end.
+			`,
+			expected: "4\n0\n3\n",
+		},
+		{
+			name: "lowercase in for loop (like one_dim_automata.pas)",
+			input: `
+				var arr: array of Integer;
+				var i: Integer;
+				begin
+					SetLength(arr, 5);
+					arr[0] := 1;
+					arr[1] := 2;
+					arr[2] := 3;
+					arr[3] := 4;
+					arr[4] := 5;
+
+					for i := arr.low+1 to arr.high-1 do
+						PrintLn(arr[i]);
+				end.
+			`,
+			expected: "2\n3\n4\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out bytes.Buffer
+			interp := New(&out)
+			result := interpret(interp, tt.input)
+
+			if isError(result) {
+				t.Fatalf("interpreter error: %s", result.String())
+			}
+
+			if out.String() != tt.expected {
+				t.Errorf("wrong output. expected=%q, got=%q", tt.expected, out.String())
+			}
+		})
+	}
+}

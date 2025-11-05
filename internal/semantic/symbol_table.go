@@ -12,6 +12,7 @@ type Symbol struct {
 	Name     string
 	ReadOnly bool
 	IsConst  bool
+	Value    interface{} // Compile-time constant value (nil for non-constants)
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.
@@ -62,12 +63,14 @@ func (st *SymbolTable) DefineReadOnly(name string, typ types.Type) {
 }
 
 // DefineConst defines a new constant symbol in the current scope
-func (st *SymbolTable) DefineConst(name string, typ types.Type) {
+// Task 9.205: Added value parameter to store compile-time constant values
+func (st *SymbolTable) DefineConst(name string, typ types.Type, value interface{}) {
 	st.symbols[strings.ToLower(name)] = &Symbol{
 		Name:     name, // Keep original case for error messages
 		Type:     typ,
 		ReadOnly: true,
 		IsConst:  true,
+		Value:    value,
 	}
 }
 

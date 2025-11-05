@@ -719,7 +719,7 @@ func TestParseConstDeclarationWithArrayType(t *testing.T) {
 			name:              "Array with negative bounds",
 			input:             `const temps: array [-10..10] of Float = [0.0];`,
 			expectedConstName: "temps",
-			expectedTypeName:  "array[-10..10] of Float",
+			expectedTypeName:  "array[(-10)..10] of Float",
 		},
 		{
 			name:              "Nested arrays",

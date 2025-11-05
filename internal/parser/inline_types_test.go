@@ -352,8 +352,8 @@ func TestArrayReturnTypes(t *testing.T) {
 		},
 		{
 			name:           "negative bounds array return type",
-			input:          "function GetCentered(): array[-10..10] of Integer; begin end;",
-			expectedReturn: "array[-10..10] of Integer",
+			input:          "function GetCentered(): array[(-10)..10] of Integer; begin end;",
+			expectedReturn: "array[(-10)..10] of Integer",
 			wantErr:        false,
 		},
 		{

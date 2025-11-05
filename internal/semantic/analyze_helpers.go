@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -8,6 +10,28 @@ import (
 // ============================================================================
 // Helper Type Analysis
 // ============================================================================
+
+// findPropertyCaseInsensitive searches for a property by name using case-insensitive comparison.
+// Task 9.217: Support case-insensitive helper property lookup
+func findPropertyCaseInsensitive(props map[string]*types.PropertyInfo, name string) *types.PropertyInfo {
+	for key, prop := range props {
+		if strings.EqualFold(key, name) {
+			return prop
+		}
+	}
+	return nil
+}
+
+// findMethodCaseInsensitive searches for a method by name using case-insensitive comparison.
+// Task 9.217: Support case-insensitive helper method lookup
+func findMethodCaseInsensitive(methods map[string]*types.FunctionType, name string) *types.FunctionType {
+	for key, method := range methods {
+		if strings.EqualFold(key, name) {
+			return method
+		}
+	}
+	return nil
+}
 
 // analyzeHelperDecl analyzes a helper type declaration.
 // Helpers extend existing types with additional methods, properties, and class members.
@@ -259,9 +283,10 @@ func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) (*types.He
 
 	// Check each helper in reverse order so user-defined helpers (added later)
 	// take precedence over built-in helpers registered during initialization.
+	// Task 9.217: Use case-insensitive lookup for DWScript compatibility
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
-		if method, ok := helper.Methods[methodName]; ok {
+		if method := findMethodCaseInsensitive(helper.Methods, methodName); method != nil {
 			return helper, method
 		}
 	}
@@ -278,9 +303,10 @@ func (a *Analyzer) hasHelperProperty(typ types.Type, propName string) (*types.He
 	}
 
 	// Check each helper in order (first match wins)
+	// Task 9.217: Use case-insensitive lookup for DWScript compatibility
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
-		if prop, ok := helper.Properties[propName]; ok {
+		if prop := findPropertyCaseInsensitive(helper.Properties, propName); prop != nil {
 			return helper, prop
 		}
 	}
@@ -326,6 +352,14 @@ func (a *Analyzer) initArrayHelpers() {
 		ReadSpec:  "__array_low",
 		WriteKind: types.PropAccessNone,
 	}
+
+	// Register .Add() method for dynamic arrays
+	arrayHelper.Methods["Add"] = types.NewProcedureType([]types.Type{nil}) // Takes one parameter (element to add)
+	arrayHelper.BuiltinMethods["Add"] = "__array_add"
+
+	// Task 9.216: Register .SetLength() method for dynamic arrays
+	arrayHelper.Methods["SetLength"] = types.NewProcedureType([]types.Type{types.INTEGER})
+	arrayHelper.BuiltinMethods["SetLength"] = "__array_setlength"
 
 	// Register helper for ARRAY type (generic catch-all)
 	a.helpers["ARRAY"] = append(a.helpers["ARRAY"], arrayHelper)

@@ -34,7 +34,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseTryStatement()
 	case lexer.RAISE:
 		return p.parseRaiseStatement()
-	case lexer.FUNCTION, lexer.PROCEDURE:
+	case lexer.FUNCTION, lexer.PROCEDURE, lexer.METHOD:
 		return p.parseFunctionDeclaration()
 	case lexer.OPERATOR:
 		return p.parseOperatorDeclaration()
@@ -277,8 +277,17 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 				token = lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{}}
 			}
 			stmt.Type = &ast.TypeAnnotation{
-				Token: token,
-				Name:  te.String(), // Use the full array type signature as the type name
+				Token:      token,
+				Name:       te.String(), // Use the full array type signature as the type name
+				InlineType: te,          // Store the AST node for semantic analyzer to evaluate bounds
+			}
+		case *ast.SetTypeNode:
+			// For set types, we create a synthetic TypeAnnotation
+			// Task 9.213: Handle inline set type expressions
+			stmt.Type = &ast.TypeAnnotation{
+				Token:      te.Token,
+				Name:       te.String(), // Use the full set type signature as the type name
+				InlineType: te,          // Store the AST node for semantic analyzer
 			}
 		default:
 			p.addError("unsupported type expression in var declaration")

@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -31,14 +33,8 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 		return
 	}
 
-	// Validate bounds if static array
-	if arrayType.LowBound != nil && arrayType.HighBound != nil {
-		if *arrayType.LowBound > *arrayType.HighBound {
-			a.addError("invalid array bounds: lower bound (%d) > upper bound (%d) at %s",
-				*arrayType.LowBound, *arrayType.HighBound, decl.Token.Pos.String())
-			return
-		}
-	}
+	// Task 9.205: Bounds validation is now done after evaluating const expressions
+	// (see below where evaluateConstantInt is called)
 
 	// Resolve the element type using resolveType helper
 	elementTypeName := arrayType.ElementType.Name
@@ -53,11 +49,33 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 	if arrayType.IsDynamic() {
 		arrType = types.NewDynamicArrayType(elementType)
 	} else {
-		arrType = types.NewStaticArrayType(elementType, *arrayType.LowBound, *arrayType.HighBound)
+		// Task 9.205: Evaluate bound expressions at semantic analysis time
+		lowBound, err := a.evaluateConstantInt(arrayType.LowBound)
+		if err != nil {
+			a.addError("array lower bound must be a compile-time constant integer at %s: %v",
+				decl.Token.Pos.String(), err)
+			return
+		}
+		highBound, err := a.evaluateConstantInt(arrayType.HighBound)
+		if err != nil {
+			a.addError("array upper bound must be a compile-time constant integer at %s: %v",
+				decl.Token.Pos.String(), err)
+			return
+		}
+
+		// Validate bounds
+		if lowBound > highBound {
+			a.addError("array lower bound (%d) cannot be greater than upper bound (%d) at %s",
+				lowBound, highBound, decl.Token.Pos.String())
+			return
+		}
+
+		arrType = types.NewStaticArrayType(elementType, lowBound, highBound)
 	}
 
 	// Register the array type in the arrays registry
-	a.arrays[arrayName] = arrType
+	// Use lowercase key for case-insensitive lookup
+	a.arrays[strings.ToLower(arrayName)] = arrType
 }
 
 // analyzeIndexExpression analyzes an array/string indexing expression

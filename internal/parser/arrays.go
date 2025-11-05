@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strconv"
-
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
@@ -43,6 +41,13 @@ import (
 //   - type TDynamic = array of String;          (dynamic array without bounds)
 //
 // Task 8.122: Parse array type declarations
+// Task 9.212: Extended to support comma-separated multidimensional arrays
+//
+// Supports both single and multi-dimensional syntax:
+//   - type TMatrix = array[0..1, 0..2] of Integer;    (2D)
+//   - type TCube = array[1..3, 1..4, 1..5] of Float;  (3D)
+//
+// Multi-dimensional arrays are desugared into nested array types.
 func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.ArrayDecl {
 	arrayDecl := &ast.ArrayDecl{
 		Token: typeToken, // The 'type' token
@@ -51,26 +56,24 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 
 	arrayToken := p.curToken // Save 'array' token
 
-	// Check for bounds: array[low..high]
-	var lowBound *int
-	var highBound *int
+	// Collect all dimensions (comma-separated)
+	// Task 9.205: Parse expressions (not just literals) for bounds
+	// Task 9.212: Support multidimensional arrays with comma-separated dimensions
+	type dimensionPair struct {
+		low, high ast.Expression
+	}
+	var dimensions []dimensionPair
 
 	if p.peekTokenIs(lexer.LBRACK) {
 		p.nextToken() // move to '['
 
-		// Parse low bound
-		if !p.expectPeek(lexer.INT) {
-			p.addError("expected integer for array lower bound")
+		// Parse first dimension
+		p.nextToken() // move to start of expression
+		lowBound := p.parseExpression(LOWEST)
+		if lowBound == nil {
+			p.addError("invalid array lower bound expression")
 			return nil
 		}
-
-		low, err := strconv.ParseInt(p.curToken.Literal, 10, 64)
-		if err != nil {
-			p.addError("invalid integer for array lower bound")
-			return nil
-		}
-		lowInt := int(low)
-		lowBound = &lowInt
 
 		// Expect '..'
 		if !p.expectPeek(lexer.DOTDOT) {
@@ -78,19 +81,41 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 			return nil
 		}
 
-		// Parse high bound
-		if !p.expectPeek(lexer.INT) {
-			p.addError("expected integer for array upper bound")
+		// Parse high bound expression
+		p.nextToken() // move to start of expression
+		highBound := p.parseExpression(LOWEST)
+		if highBound == nil {
+			p.addError("invalid array upper bound expression")
 			return nil
 		}
 
-		high, err := strconv.ParseInt(p.curToken.Literal, 10, 64)
-		if err != nil {
-			p.addError("invalid integer for array upper bound")
-			return nil
+		dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+
+		// Parse additional dimensions (comma-separated)
+		// Task 9.212: Support multidimensional arrays like array[0..1, 0..2]
+		for p.peekTokenIs(lexer.COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // move to next low bound
+			lowBound := p.parseExpression(LOWEST)
+			if lowBound == nil {
+				p.addError("invalid array lower bound expression in multi-dimensional array")
+				return nil
+			}
+
+			if !p.expectPeek(lexer.DOTDOT) {
+				p.addError("expected '..' in array bounds")
+				return nil
+			}
+
+			p.nextToken() // move to high bound
+			highBound := p.parseExpression(LOWEST)
+			if highBound == nil {
+				p.addError("invalid array upper bound expression in multi-dimensional array")
+				return nil
+			}
+
+			dimensions = append(dimensions, dimensionPair{lowBound, highBound})
 		}
-		highInt := int(high)
-		highBound = &highInt
 
 		// Expect ']'
 		if !p.expectPeek(lexer.RBRACK) {
@@ -103,24 +128,63 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 		return nil
 	}
 
-	// Parse element type
-	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected type identifier after 'of' in array declaration")
+	// Parse element type (can be any type expression, including nested arrays)
+	p.nextToken() // move to element type
+	elementTypeExpr := p.parseTypeExpression()
+	if elementTypeExpr == nil {
+		p.addError("expected type expression after 'array of'")
 		return nil
 	}
 
+	// Convert TypeExpression to string representation for TypeAnnotation
+	// This allows the semantic analyzer to resolve it via resolveInlineArrayType
 	elementType := &ast.TypeAnnotation{
 		Token: p.curToken,
-		Name:  p.curToken.Literal,
+		Name:  elementTypeExpr.String(),
 	}
 
-	// Create ArrayTypeAnnotation and assign to ArrayDecl
-	arrayDecl.ArrayType = &ast.ArrayTypeAnnotation{
-		Token:       arrayToken,
-		ElementType: elementType,
-		LowBound:    lowBound,
-		HighBound:   highBound,
+	// Build nested array type annotations if we have dimensions
+	// This desugars: array[0..1, 0..2] of Integer
+	//           into: array[0..1] of (array[0..2] of Integer)
+	var arrayType *ast.ArrayTypeAnnotation
+	if len(dimensions) == 0 {
+		// Dynamic array without bounds
+		arrayType = &ast.ArrayTypeAnnotation{
+			Token:       arrayToken,
+			ElementType: elementType,
+			LowBound:    nil,
+			HighBound:   nil,
+		}
+	} else {
+		// Build from innermost to outermost
+		// Start with the element type
+		currentElementType := elementType
+
+		// For each dimension (starting from the last), create an array type annotation
+		for i := len(dimensions) - 1; i >= 0; i-- {
+			// Create a new array type annotation with the current element type
+			newArrayType := &ast.ArrayTypeAnnotation{
+				Token:       arrayToken,
+				ElementType: currentElementType,
+				LowBound:    dimensions[i].low,
+				HighBound:   dimensions[i].high,
+			}
+
+			// For the next iteration, wrap this array type as a TypeAnnotation
+			if i > 0 {
+				// Create a wrapper TypeAnnotation pointing to this array type
+				currentElementType = &ast.TypeAnnotation{
+					Token: arrayToken,
+					Name:  newArrayType.String(),
+				}
+			} else {
+				// This is the outermost dimension, use it directly
+				arrayType = newArrayType
+			}
+		}
 	}
+
+	arrayDecl.ArrayType = arrayType
 
 	// Expect semicolon
 	if !p.expectPeek(lexer.SEMICOLON) {

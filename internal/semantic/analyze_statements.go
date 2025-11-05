@@ -101,11 +101,24 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	var err error
 
 	if stmt.Type != nil {
-		// Explicit type annotation - use resolveType to handle both basic and class types
-		varType, err = a.resolveType(stmt.Type.Name)
-		if err != nil {
-			a.addError("unknown type '%s' at %s", stmt.Type.Name, stmt.Token.Pos.String())
-			return
+		// Explicit type annotation - check for inline type first (arrays, function pointers)
+		// Task: Fix negative array bounds like array[-5..5]
+		if stmt.Type.InlineType != nil {
+			// Use the stored AST node for complex types to avoid string conversion issues
+			varType, err = a.resolveTypeExpression(stmt.Type.InlineType)
+			if err != nil {
+				// Get type name for error message
+				typeName := getTypeExpressionName(stmt.Type.InlineType)
+				a.addError("unknown type '%s' at %s", typeName, stmt.Token.Pos.String())
+				return
+			}
+		} else {
+			// Simple type name (Integer, String, etc.)
+			varType, err = a.resolveType(stmt.Type.Name)
+			if err != nil {
+				a.addError("unknown type '%s' at %s", stmt.Type.Name, stmt.Token.Pos.String())
+				return
+			}
 		}
 	}
 
@@ -213,8 +226,16 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 		}
 	}
 
-	// Add constant to symbol table as read-only const
-	a.symbols.DefineConst(stmt.Name.Value, constType)
+	// Task 9.205: Evaluate the constant value at compile time
+	constValue, err := a.evaluateConstant(stmt.Value)
+	if err != nil {
+		a.addError("constant '%s' value must be a compile-time constant at %s: %v",
+			stmt.Name.Value, stmt.Token.Pos.String(), err)
+		return
+	}
+
+	// Add constant to symbol table with its compile-time value
+	a.symbols.DefineConst(stmt.Name.Value, constType, constValue)
 }
 
 // analyzeAssignment analyzes an assignment statement
@@ -575,11 +596,43 @@ func (a *Analyzer) analyzeCase(stmt *ast.CaseStatement) {
 	for _, branch := range stmt.Cases {
 		// Check that case values are compatible with case expression
 		for _, value := range branch.Values {
-			valueType := a.analyzeExpression(value)
-			if caseType != nil && valueType != nil {
-				if !a.canAssign(valueType, caseType) {
-					a.addError("case value type %s incompatible with case expression type %s",
-						valueType.String(), caseType.String())
+			// Check if this is a range expression
+			if rangeExpr, isRange := value.(*ast.RangeExpression); isRange {
+				// Analyze both start and end of range
+				startType := a.analyzeExpression(rangeExpr.Start)
+				endType := a.analyzeExpression(rangeExpr.End)
+
+				// Check start is compatible with case expression
+				if caseType != nil && startType != nil {
+					if !a.canAssign(startType, caseType) {
+						a.addError("case range start type %s incompatible with case expression type %s at %s",
+							startType.String(), caseType.String(), rangeExpr.Start.Pos().String())
+					}
+				}
+
+				// Check end is compatible with case expression
+				if caseType != nil && endType != nil {
+					if !a.canAssign(endType, caseType) {
+						a.addError("case range end type %s incompatible with case expression type %s at %s",
+							endType.String(), caseType.String(), rangeExpr.End.Pos().String())
+					}
+				}
+
+				// Check start and end are compatible with each other
+				if startType != nil && endType != nil {
+					if !a.canAssign(startType, endType) && !a.canAssign(endType, startType) {
+						a.addError("case range start type %s and end type %s are incompatible at %s",
+							startType.String(), endType.String(), rangeExpr.Pos().String())
+					}
+				}
+			} else {
+				// Regular value (not a range)
+				valueType := a.analyzeExpression(value)
+				if caseType != nil && valueType != nil {
+					if !a.canAssign(valueType, caseType) {
+						a.addError("case value type %s incompatible with case expression type %s",
+							valueType.String(), caseType.String())
+					}
 				}
 			}
 		}

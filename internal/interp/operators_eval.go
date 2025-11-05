@@ -83,9 +83,12 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 		i.env.Define(param.Name.Value, arg)
 	}
 
+	// Task 9.221: Use appropriate default value based on return type
 	if method.ReturnType != nil {
-		i.env.Define("Result", &NilValue{})
-		i.env.Define(method.Name.Value, &NilValue{})
+		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+		defaultVal := i.getDefaultValue(returnType)
+		i.env.Define("Result", defaultVal)
+		i.env.Define(method.Name.Value, defaultVal)
 	}
 
 	result := i.Eval(method.Body)
@@ -133,9 +136,12 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 		i.env.Define(param.Name.Value, arg)
 	}
 
+	// Task 9.221: Use appropriate default value based on return type
 	if method.ReturnType != nil {
-		i.env.Define("Result", &NilValue{})
-		i.env.Define(method.Name.Value, &NilValue{})
+		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+		defaultVal := i.getDefaultValue(returnType)
+		i.env.Define("Result", defaultVal)
+		i.env.Define(method.Name.Value, defaultVal)
 	}
 
 	result := i.Eval(method.Body)

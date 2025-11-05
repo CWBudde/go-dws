@@ -654,6 +654,334 @@ end;`,
 				}
 			},
 		},
+		{
+			name: "case with multiple statements in else clause",
+			input: `case x of
+  1: PrintLn('one');
+else
+  Line := 'other';
+  Counter := Counter - 1;
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "x") {
+					return
+				}
+
+				// Test number of branches
+				if len(stmt.Cases) != 1 {
+					t.Fatalf("case has %d branches, want 1", len(stmt.Cases))
+				}
+
+				// Test else branch exists and is a BlockStatement
+				if stmt.Else == nil {
+					t.Fatal("else branch should not be nil")
+				}
+
+				block, ok := stmt.Else.(*ast.BlockStatement)
+				if !ok {
+					t.Fatalf("else branch is not BlockStatement. got=%T", stmt.Else)
+				}
+
+				// Test that block has 2 statements
+				if len(block.Statements) != 2 {
+					t.Fatalf("else block has %d statements, want 2", len(block.Statements))
+				}
+
+				// Test first statement: Line := 'other'
+				assign1, ok := block.Statements[0].(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("first statement is not AssignmentStatement. got=%T", block.Statements[0])
+				}
+
+				assign1Target, ok := assign1.Target.(*ast.Identifier)
+				if !ok {
+					t.Fatalf("assign1.Target is not *ast.Identifier. got=%T", assign1.Target)
+				}
+				if assign1Target.Value != "Line" {
+					t.Errorf("first assignment name = %q, want 'Line'", assign1Target.Value)
+				}
+
+				if !testStringLiteralExpression(t, assign1.Value, "other") {
+					return
+				}
+
+				// Test second statement: Counter := Counter - 1
+				assign2, ok := block.Statements[1].(*ast.AssignmentStatement)
+				if !ok {
+					t.Fatalf("second statement is not AssignmentStatement. got=%T", block.Statements[1])
+				}
+
+				assign2Target, ok := assign2.Target.(*ast.Identifier)
+				if !ok {
+					t.Fatalf("assign2.Target is not *ast.Identifier. got=%T", assign2.Target)
+				}
+				if assign2Target.Value != "Counter" {
+					t.Errorf("second assignment name = %q, want 'Counter'", assign2Target.Value)
+				}
+
+				// Test Counter - 1 expression
+				if !testInfixExpression(t, assign2.Value, "Counter", "-", 1) {
+					return
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has %d statements, want 1", len(program.Statements))
+			}
+
+			stmt, ok := program.Statements[0].(*ast.CaseStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.CaseStatement. got=%T", program.Statements[0])
+			}
+
+			tt.assertions(t, stmt)
+		})
+	}
+}
+
+// TestCaseStatementsWithRanges tests parsing of case statements with range expressions.
+func TestCaseStatementsWithRanges(t *testing.T) {
+	tests := []struct {
+		assertions func(*testing.T, *ast.CaseStatement)
+		name       string
+		input      string
+	}{
+		{
+			name: "case with character range",
+			input: `case ch of
+  'A'..'Z': PrintLn('uppercase');
+  'a'..'z': PrintLn('lowercase');
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "ch") {
+					return
+				}
+
+				// Test number of branches
+				if len(stmt.Cases) != 2 {
+					t.Fatalf("case has %d branches, want 2", len(stmt.Cases))
+				}
+
+				// Test first branch: 'A'..'Z'
+				branch1 := stmt.Cases[0]
+				if len(branch1.Values) != 1 {
+					t.Fatalf("branch1 has %d values, want 1", len(branch1.Values))
+				}
+
+				rangeExpr1, ok := branch1.Values[0].(*ast.RangeExpression)
+				if !ok {
+					t.Fatalf("branch1 value is not RangeExpression. got=%T", branch1.Values[0])
+				}
+
+				if !testStringLiteralExpression(t, rangeExpr1.Start, "A") {
+					return
+				}
+				if !testStringLiteralExpression(t, rangeExpr1.End, "Z") {
+					return
+				}
+
+				// Test second branch: 'a'..'z'
+				branch2 := stmt.Cases[1]
+				if len(branch2.Values) != 1 {
+					t.Fatalf("branch2 has %d values, want 1", len(branch2.Values))
+				}
+
+				rangeExpr2, ok := branch2.Values[0].(*ast.RangeExpression)
+				if !ok {
+					t.Fatalf("branch2 value is not RangeExpression. got=%T", branch2.Values[0])
+				}
+
+				if !testStringLiteralExpression(t, rangeExpr2.Start, "a") {
+					return
+				}
+				if !testStringLiteralExpression(t, rangeExpr2.End, "z") {
+					return
+				}
+			},
+		},
+		{
+			name: "case with integer range",
+			input: `case x of
+  1..10: PrintLn('1-10');
+  11..20: PrintLn('11-20');
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "x") {
+					return
+				}
+
+				// Test number of branches
+				if len(stmt.Cases) != 2 {
+					t.Fatalf("case has %d branches, want 2", len(stmt.Cases))
+				}
+
+				// Test first branch: 1..10
+				branch1 := stmt.Cases[0]
+				rangeExpr1, ok := branch1.Values[0].(*ast.RangeExpression)
+				if !ok {
+					t.Fatalf("branch1 value is not RangeExpression. got=%T", branch1.Values[0])
+				}
+
+				if !testIntegerLiteral(t, rangeExpr1.Start, 1) {
+					return
+				}
+				if !testIntegerLiteral(t, rangeExpr1.End, 10) {
+					return
+				}
+
+				// Test second branch: 11..20
+				branch2 := stmt.Cases[1]
+				rangeExpr2, ok := branch2.Values[0].(*ast.RangeExpression)
+				if !ok {
+					t.Fatalf("branch2 value is not RangeExpression. got=%T", branch2.Values[0])
+				}
+
+				if !testIntegerLiteral(t, rangeExpr2.Start, 11) {
+					return
+				}
+				if !testIntegerLiteral(t, rangeExpr2.End, 20) {
+					return
+				}
+			},
+		},
+		{
+			name: "case with mixed ranges and single values",
+			input: `case x of
+  1, 3..5, 7: PrintLn('odd or range');
+  2, 4, 6: PrintLn('even');
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "x") {
+					return
+				}
+
+				// Test number of branches
+				if len(stmt.Cases) != 2 {
+					t.Fatalf("case has %d branches, want 2", len(stmt.Cases))
+				}
+
+				// Test first branch: 1, 3..5, 7
+				branch1 := stmt.Cases[0]
+				if len(branch1.Values) != 3 {
+					t.Fatalf("branch1 has %d values, want 3", len(branch1.Values))
+				}
+
+				// First value: 1 (integer literal)
+				if !testIntegerLiteral(t, branch1.Values[0], 1) {
+					return
+				}
+
+				// Second value: 3..5 (range)
+				rangeExpr, ok := branch1.Values[1].(*ast.RangeExpression)
+				if !ok {
+					t.Fatalf("branch1 value[1] is not RangeExpression. got=%T", branch1.Values[1])
+				}
+				if !testIntegerLiteral(t, rangeExpr.Start, 3) {
+					return
+				}
+				if !testIntegerLiteral(t, rangeExpr.End, 5) {
+					return
+				}
+
+				// Third value: 7 (integer literal)
+				if !testIntegerLiteral(t, branch1.Values[2], 7) {
+					return
+				}
+
+				// Test second branch: 2, 4, 6 (all single values)
+				branch2 := stmt.Cases[1]
+				if len(branch2.Values) != 3 {
+					t.Fatalf("branch2 has %d values, want 3", len(branch2.Values))
+				}
+
+				if !testIntegerLiteral(t, branch2.Values[0], 2) {
+					return
+				}
+				if !testIntegerLiteral(t, branch2.Values[1], 4) {
+					return
+				}
+				if !testIntegerLiteral(t, branch2.Values[2], 6) {
+					return
+				}
+			},
+		},
+		{
+			name: "case with range and else",
+			input: `case x of
+  0..9: PrintLn('single digit');
+  10..99: PrintLn('double digit');
+else
+  PrintLn('other');
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "x") {
+					return
+				}
+
+				// Test number of branches
+				if len(stmt.Cases) != 2 {
+					t.Fatalf("case has %d branches, want 2", len(stmt.Cases))
+				}
+
+				// Test first branch: 0..9
+				branch1 := stmt.Cases[0]
+				rangeExpr1, ok := branch1.Values[0].(*ast.RangeExpression)
+				if !ok {
+					t.Fatalf("branch1 value is not RangeExpression. got=%T", branch1.Values[0])
+				}
+
+				if !testIntegerLiteral(t, rangeExpr1.Start, 0) {
+					return
+				}
+				if !testIntegerLiteral(t, rangeExpr1.End, 9) {
+					return
+				}
+
+				// Test else branch exists
+				if stmt.Else == nil {
+					t.Fatal("else branch should not be nil")
+				}
+			},
+		},
+		{
+			name: "case with variable range bounds",
+			input: `case x of
+  min_val..max_val: PrintLn('in range');
+end;`,
+			assertions: func(t *testing.T, stmt *ast.CaseStatement) {
+				// Test case expression
+				if !testIdentifier(t, stmt.Expression, "x") {
+					return
+				}
+
+				// Test branch has range with identifier bounds
+				branch := stmt.Cases[0]
+				rangeExpr, ok := branch.Values[0].(*ast.RangeExpression)
+				if !ok {
+					t.Fatalf("branch value is not RangeExpression. got=%T", branch.Values[0])
+				}
+
+				if !testIdentifier(t, rangeExpr.Start, "min_val") {
+					return
+				}
+				if !testIdentifier(t, rangeExpr.End, "max_val") {
+					return
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

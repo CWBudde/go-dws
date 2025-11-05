@@ -216,8 +216,8 @@ func TestParseTypeExpression_ArrayType(t *testing.T) {
 		},
 		{
 			name:     "static array negative bounds",
-			input:    "array[-10..10] of Integer",
-			expected: "array[-10..10] of Integer",
+			input:    "array[(-10)..10] of Integer",
+			expected: "array[(-10)..10] of Integer",
 			wantErr:  false,
 		},
 		{

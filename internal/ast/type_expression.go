@@ -20,6 +20,7 @@ var (
 	_ TypeExpression = (*TypeAnnotation)(nil)
 	_ TypeExpression = (*FunctionPointerTypeNode)(nil)
 	_ TypeExpression = (*ArrayTypeNode)(nil)
+	_ TypeExpression = (*SetTypeNode)(nil)
 )
 
 // ArrayTypeNode represents an array type in inline type expressions.
@@ -39,8 +40,8 @@ var (
 type ArrayTypeNode struct {
 	Token       lexer.Token    // The 'array' token
 	ElementType TypeExpression // The element type (can be any type expression)
-	LowBound    *int           // Low bound for static arrays (nil for dynamic)
-	HighBound   *int           // High bound for static arrays (nil for dynamic)
+	LowBound    Expression     // Low bound for static arrays (nil for dynamic)
+	HighBound   Expression     // High bound for static arrays (nil for dynamic)
 }
 
 // String returns a string representation of the array type.
@@ -52,8 +53,8 @@ func (at *ArrayTypeNode) String() string {
 	// Static array with bounds: array[1..10] of Integer
 	if at.IsStatic() {
 		return "array[" +
-			intToString(*at.LowBound) + ".." +
-			intToString(*at.HighBound) + "] of " +
+			at.LowBound.String() + ".." +
+			at.HighBound.String() + "] of " +
 			at.ElementType.String()
 	}
 
@@ -71,15 +72,6 @@ func (at *ArrayTypeNode) IsStatic() bool {
 	return !at.IsDynamic()
 }
 
-// Size returns the number of elements in a static array.
-// Returns -1 for dynamic arrays.
-func (at *ArrayTypeNode) Size() int {
-	if at.IsDynamic() {
-		return -1
-	}
-	return *at.HighBound - *at.LowBound + 1
-}
-
 // TokenLiteral returns the literal value of the token.
 func (at *ArrayTypeNode) TokenLiteral() string {
 	return at.Token.Literal
@@ -93,14 +85,36 @@ func (at *ArrayTypeNode) Pos() lexer.Position {
 // typeExpressionNode marks this as a type expression
 func (at *ArrayTypeNode) typeExpressionNode() {}
 
-// intToString converts an integer to a string.
-// Helper function for String() method.
-func intToString(n int) string {
-	if n < 0 {
-		return "-" + intToString(-n)
-	}
-	if n < 10 {
-		return string(rune('0' + n))
-	}
-	return intToString(n/10) + string(rune('0'+n%10))
+// SetTypeNode represents a set type in inline type expressions.
+//
+// Examples:
+//   - set of TEnum (set of named enum type)
+//   - set of (A, B, C) (set of inline anonymous enum)
+//   - set of 2..1000 (set of inline subrange - if supported)
+//
+// Task 9.213: Created to support inline set type syntax
+type SetTypeNode struct {
+	Token       lexer.Token    // The 'set' token
+	ElementType TypeExpression // The element type (enum or subrange)
 }
+
+// String returns a string representation of the set type.
+func (st *SetTypeNode) String() string {
+	if st == nil || st.ElementType == nil {
+		return "set of <invalid>"
+	}
+	return "set of " + st.ElementType.String()
+}
+
+// TokenLiteral returns the literal value of the token.
+func (st *SetTypeNode) TokenLiteral() string {
+	return st.Token.Literal
+}
+
+// Pos returns the position of the node in the source code.
+func (st *SetTypeNode) Pos() lexer.Position {
+	return st.Token.Pos
+}
+
+// typeExpressionNode marks this as a type expression
+func (st *SetTypeNode) typeExpressionNode() {}

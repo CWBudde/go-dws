@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
@@ -424,4 +425,106 @@ func containsInMiddle(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// TestCaseInsensitiveTypeNames tests that type names are case-insensitive
+// DWScript (like Pascal) is case-insensitive for all identifiers including type names
+func TestCaseInsensitiveTypeNames(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		shouldPass bool
+	}{
+		{
+			name: "lowercase integer in class field",
+			input: `
+				type TMyClass = class
+					FValue: integer;
+				end;
+				var obj := TMyClass.Create();
+				obj.FValue := 42;
+			`,
+			shouldPass: true,
+		},
+		{
+			name: "uppercase INTEGER in class field",
+			input: `
+				type TMyClass = class
+					FValue: INTEGER;
+				end;
+				var obj := TMyClass.Create();
+				obj.FValue := 99;
+			`,
+			shouldPass: true,
+		},
+		{
+			name: "mixed case InTeGeR in class field",
+			input: `
+				type TMyClass = class
+					FValue: InTeGeR;
+				end;
+				var obj := TMyClass.Create();
+				obj.FValue := 123;
+			`,
+			shouldPass: true,
+		},
+		{
+			name: "lowercase string in class field",
+			input: `
+				type TMyClass = class
+					FName: string;
+				end;
+				var obj := TMyClass.Create();
+				obj.FName := 'test';
+			`,
+			shouldPass: true,
+		},
+		{
+			name: "lowercase boolean in class field",
+			input: `
+				type TMyClass = class
+					FFlag: boolean;
+				end;
+				var obj := TMyClass.Create();
+				obj.FFlag := true;
+			`,
+			shouldPass: true,
+		},
+		{
+			name: "lowercase float in class field",
+			input: `
+				type TMyClass = class
+					FValue: float;
+				end;
+				var obj := TMyClass.Create();
+				obj.FValue := 3.14;
+			`,
+			shouldPass: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("Parser errors: %v", p.Errors())
+			}
+
+			interp := New(nil)
+			result := interp.Eval(program)
+
+			if tt.shouldPass {
+				if result != nil && result.Type() == "ERROR" {
+					t.Errorf("Unexpected error: %s", result.String())
+				}
+			} else {
+				if result == nil || result.Type() != "ERROR" {
+					t.Errorf("Expected error but got none")
+				}
+			}
+		})
+	}
 }

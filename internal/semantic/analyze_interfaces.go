@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -47,7 +49,8 @@ func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 	}
 
 	// Register interface in the registry
-	a.interfaces[interfaceName] = interfaceType
+	// Use lowercase key for case-insensitive lookup
+	a.interfaces[strings.ToLower(interfaceName)] = interfaceType
 }
 
 // analyzeInterfaceMethodDecl analyzes an interface method declaration

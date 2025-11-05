@@ -423,6 +423,58 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER // Default to INTEGER if type is unknown
 		}
 
+		// MaxInt built-in function
+		if funcIdent.Value == "MaxInt" {
+			// MaxInt() with 0 args returns max integer constant
+			// MaxInt(a, b) with 2 args returns maximum of two integers
+			if len(expr.Arguments) == 0 {
+				return types.INTEGER
+			}
+			if len(expr.Arguments) == 2 {
+				// Analyze both arguments and verify they're Integer
+				arg1Type := a.analyzeExpression(expr.Arguments[0])
+				arg2Type := a.analyzeExpression(expr.Arguments[1])
+
+				if arg1Type != nil && arg2Type != nil {
+					// Verify both are Integer (not Float)
+					if arg1Type != types.INTEGER || arg2Type != types.INTEGER {
+						a.addError("function 'MaxInt' expects Integer arguments, got %s and %s at %s",
+							arg1Type.String(), arg2Type.String(), expr.Token.Pos.String())
+					}
+				}
+				return types.INTEGER
+			}
+			a.addError("function 'MaxInt' expects 0 or 2 arguments, got %d at %s",
+				len(expr.Arguments), expr.Token.Pos.String())
+			return types.INTEGER
+		}
+
+		// MinInt built-in function
+		if funcIdent.Value == "MinInt" {
+			// MinInt() with 0 args returns min integer constant
+			// MinInt(a, b) with 2 args returns minimum of two integers
+			if len(expr.Arguments) == 0 {
+				return types.INTEGER
+			}
+			if len(expr.Arguments) == 2 {
+				// Analyze both arguments and verify they're Integer
+				arg1Type := a.analyzeExpression(expr.Arguments[0])
+				arg2Type := a.analyzeExpression(expr.Arguments[1])
+
+				if arg1Type != nil && arg2Type != nil {
+					// Verify both are Integer (not Float)
+					if arg1Type != types.INTEGER || arg2Type != types.INTEGER {
+						a.addError("function 'MinInt' expects Integer arguments, got %s and %s at %s",
+							arg1Type.String(), arg2Type.String(), expr.Token.Pos.String())
+					}
+				}
+				return types.INTEGER
+			}
+			a.addError("function 'MinInt' expects 0 or 2 arguments, got %d at %s",
+				len(expr.Arguments), expr.Token.Pos.String())
+			return types.INTEGER
+		}
+
 		// Sqr built-in function
 		if funcIdent.Value == "Sqr" {
 			// Sqr takes one numeric argument and returns x*x, preserving type
@@ -575,6 +627,25 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					argType.String(), expr.Token.Pos.String())
 			}
 			// Always returns Integer
+			return types.INTEGER
+		}
+
+		// Unsigned32 built-in function
+		// Task 9.219: Unsigned32() converts Integer to unsigned 32-bit representation
+		if funcIdent.Value == "Unsigned32" {
+			// Unsigned32 takes one Integer argument and returns Integer (as uint32)
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Unsigned32' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER // Default to INTEGER on error
+			}
+			// Analyze argument and verify it's Integer
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER {
+				a.addError("function 'Unsigned32' expects Integer argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			// Always returns Integer (holding uint32 value)
 			return types.INTEGER
 		}
 
@@ -1823,6 +1894,7 @@ func (a *Analyzer) isBuiltinFunction(name string) bool {
 		"IntToStr", "FloatToStr", "FloatToStrF", "BoolToStr", "StrToBool",
 		"VarToStr", "VarIsNull", "VarIsEmpty", "VarType", "VarClear",
 		"Include", "Exclude", "Map", "Filter", "Reduce", "ForEach",
+		"MaxInt", "MinInt",
 		"Now", "Date", "Time", "UTCDateTime", "EncodeDate", "EncodeTime",
 		"EncodeDateTime", "YearOf", "MonthOf", "DayOf", "HourOf", "MinuteOf",
 		"SecondOf", "MillisecondOf", "DayOfWeek", "DayOfYear", "WeekOfYear",
