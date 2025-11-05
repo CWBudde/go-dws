@@ -123,8 +123,16 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 					convertible = true
 					for _, elem := range e.Elements {
 						switch elem.(type) {
-						case *ast.Identifier, *ast.RangeExpression:
-							// valid set elements
+						case *ast.Identifier:
+							// Identifiers are valid (enum values)
+						case *ast.RangeExpression:
+							// Ranges are valid (e.g., 1..10, 'a'..'z')
+						case *ast.IntegerLiteral:
+							// Task 9.226: Integer literals are valid
+						case *ast.CharLiteral, *ast.StringLiteral:
+							// Task 9.226: Character/string literals are valid
+						case *ast.BooleanLiteral:
+							// Task 9.226: Boolean literals are valid
 						default:
 							convertible = false
 						}

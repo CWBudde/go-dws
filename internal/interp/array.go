@@ -714,10 +714,13 @@ func (i *Interpreter) createZeroValueForType(typ types.Type) Value {
 	case types.BOOLEAN:
 		return &BooleanValue{Value: false}
 	default:
-		// For complex types (arrays, records, etc.), use nil for now
-		// In the future, we may want to recursively initialize these
+		// For complex types (arrays, records, etc.), initialize them properly
 		if arrayType, ok := typ.(*types.ArrayType); ok {
 			return NewArrayValue(arrayType)
+		}
+		// Task 9.36: Initialize record types properly for array elements
+		if recordType, ok := typ.(*types.RecordType); ok {
+			return i.createRecordValue(recordType, nil)
 		}
 		return &NilValue{}
 	}

@@ -601,6 +601,226 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
+		// DegToRad built-in function (Task 9.232)
+		if funcIdent.Value == "DegToRad" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'DegToRad' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER && argType != types.FLOAT {
+				a.addError("function 'DegToRad' expects Integer or Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// RadToDeg built-in function (Task 9.232)
+		if funcIdent.Value == "RadToDeg" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'RadToDeg' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER && argType != types.FLOAT {
+				a.addError("function 'RadToDeg' expects Integer or Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// ArcSin built-in function (Task 9.232)
+		if funcIdent.Value == "ArcSin" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'ArcSin' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER && argType != types.FLOAT {
+				a.addError("function 'ArcSin' expects Integer or Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// ArcCos built-in function (Task 9.232)
+		if funcIdent.Value == "ArcCos" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'ArcCos' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER && argType != types.FLOAT {
+				a.addError("function 'ArcCos' expects Integer or Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// ArcTan built-in function (Task 9.232)
+		if funcIdent.Value == "ArcTan" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'ArcTan' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER && argType != types.FLOAT {
+				a.addError("function 'ArcTan' expects Integer or Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// ArcTan2 built-in function (Task 9.232)
+		if funcIdent.Value == "ArcTan2" {
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'ArcTan2' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			yType := a.analyzeExpression(expr.Arguments[0])
+			xType := a.analyzeExpression(expr.Arguments[1])
+			if yType != nil && yType != types.INTEGER && yType != types.FLOAT {
+				a.addError("function 'ArcTan2' expects Integer or Float as first argument, got %s at %s",
+					yType.String(), expr.Token.Pos.String())
+			}
+			if xType != nil && xType != types.INTEGER && xType != types.FLOAT {
+				a.addError("function 'ArcTan2' expects Integer or Float as second argument, got %s at %s",
+					xType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// CoTan built-in function (Task 9.232)
+		if funcIdent.Value == "CoTan" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'CoTan' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER && argType != types.FLOAT {
+				a.addError("function 'CoTan' expects Integer or Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// Hypot built-in function (Task 9.232)
+		if funcIdent.Value == "Hypot" {
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'Hypot' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			xType := a.analyzeExpression(expr.Arguments[0])
+			yType := a.analyzeExpression(expr.Arguments[1])
+			if xType != nil && xType != types.INTEGER && xType != types.FLOAT {
+				a.addError("function 'Hypot' expects Integer or Float as first argument, got %s at %s",
+					xType.String(), expr.Token.Pos.String())
+			}
+			if yType != nil && yType != types.INTEGER && yType != types.FLOAT {
+				a.addError("function 'Hypot' expects Integer or Float as second argument, got %s at %s",
+					yType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// Sinh built-in function (Task 9.232)
+		if funcIdent.Value == "Sinh" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Sinh' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER && argType != types.FLOAT {
+				a.addError("function 'Sinh' expects Integer or Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// Cosh built-in function (Task 9.232)
+		if funcIdent.Value == "Cosh" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Cosh' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER && argType != types.FLOAT {
+				a.addError("function 'Cosh' expects Integer or Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// Tanh built-in function (Task 9.232)
+		if funcIdent.Value == "Tanh" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Tanh' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER && argType != types.FLOAT {
+				a.addError("function 'Tanh' expects Integer or Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// ArcSinh built-in function (Task 9.232)
+		if funcIdent.Value == "ArcSinh" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'ArcSinh' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER && argType != types.FLOAT {
+				a.addError("function 'ArcSinh' expects Integer or Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// ArcCosh built-in function (Task 9.232)
+		if funcIdent.Value == "ArcCosh" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'ArcCosh' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER && argType != types.FLOAT {
+				a.addError("function 'ArcCosh' expects Integer or Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
+		// ArcTanh built-in function (Task 9.232)
+		if funcIdent.Value == "ArcTanh" {
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'ArcTanh' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil && argType != types.INTEGER && argType != types.FLOAT {
+				a.addError("function 'ArcTanh' expects Integer or Float as argument, got %s at %s",
+					argType.String(), expr.Token.Pos.String())
+			}
+			return types.FLOAT
+		}
+
 		// Random built-in function
 		if funcIdent.Value == "Random" {
 			// Random takes no arguments and always returns Float
@@ -693,6 +913,26 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			if argType != nil {
 				if argType != types.INTEGER && argType != types.FLOAT {
 					a.addError("function 'Ln' expects Integer or Float as argument, got %s at %s",
+						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			// Always returns Float
+			return types.FLOAT
+		}
+
+		// Log2 built-in function - Task 9.38
+		if funcIdent.Value == "Log2" {
+			// Log2 takes one numeric argument and always returns Float
+			if len(expr.Arguments) != 1 {
+				a.addError("function 'Log2' expects 1 argument, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT
+			}
+			// Analyze the argument and verify it's Integer or Float
+			argType := a.analyzeExpression(expr.Arguments[0])
+			if argType != nil {
+				if argType != types.INTEGER && argType != types.FLOAT {
+					a.addError("function 'Log2' expects Integer or Float as argument, got %s at %s",
 						argType.String(), expr.Token.Pos.String())
 				}
 			}
@@ -973,6 +1213,45 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				} else {
 					a.addError("function 'IntToStr' expects Integer as argument, got %s at %s",
 						argType.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.STRING
+		}
+
+		// IntToBin built-in function - Task 9.37
+		if funcIdent.Value == "IntToBin" {
+			// IntToBin takes two integer arguments (value, digits) and returns a string
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'IntToBin' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// Analyze first argument (value) - must be Integer or subrange of Integer
+			argType1 := a.analyzeExpression(expr.Arguments[0])
+			if argType1 != nil && argType1 != types.INTEGER {
+				// Check if it's a subrange type with Integer base
+				if subrange, ok := argType1.(*types.SubrangeType); ok {
+					if subrange.BaseType != types.INTEGER {
+						a.addError("function 'IntToBin' expects Integer as first argument, got %s at %s",
+							argType1.String(), expr.Token.Pos.String())
+					}
+				} else {
+					a.addError("function 'IntToBin' expects Integer as first argument, got %s at %s",
+						argType1.String(), expr.Token.Pos.String())
+				}
+			}
+			// Analyze second argument (digits) - must be Integer
+			argType2 := a.analyzeExpression(expr.Arguments[1])
+			if argType2 != nil && argType2 != types.INTEGER {
+				// Check if it's a subrange type with Integer base
+				if subrange, ok := argType2.(*types.SubrangeType); ok {
+					if subrange.BaseType != types.INTEGER {
+						a.addError("function 'IntToBin' expects Integer as second argument, got %s at %s",
+							argType2.String(), expr.Token.Pos.String())
+					}
+				} else {
+					a.addError("function 'IntToBin' expects Integer as second argument, got %s at %s",
+						argType2.String(), expr.Token.Pos.String())
 				}
 			}
 			return types.STRING
@@ -1888,10 +2167,12 @@ func (a *Analyzer) isBuiltinFunction(name string) bool {
 		"IndexOf", "Contains", "Reverse", "Sort", "Pos", "UpperCase",
 		"LowerCase", "Trim", "TrimLeft", "TrimRight", "StringReplace",
 		"Format", "Abs", "Min", "Max", "Sqr", "Power", "Sqrt", "Sin",
-		"Cos", "Tan", "Random", "Randomize", "Exp", "Ln", "Round",
+		"Cos", "Tan", "Random", "Randomize", "Exp", "Ln", "Log2", "Round",
 		"Trunc", "Frac", "Chr", "SetLength", "High", "Low", "Assigned",
+		"DegToRad", "RadToDeg", "ArcSin", "ArcCos", "ArcTan", "ArcTan2",
+		"CoTan", "Hypot", "Sinh", "Cosh", "Tanh", "ArcSinh", "ArcCosh", "ArcTanh",
 		"TypeOf", "SizeOf", "TypeName", "Delete", "StrToInt", "StrToFloat",
-		"IntToStr", "FloatToStr", "FloatToStrF", "BoolToStr", "StrToBool",
+		"IntToStr", "IntToBin", "FloatToStr", "FloatToStrF", "BoolToStr", "StrToBool",
 		"VarToStr", "VarIsNull", "VarIsEmpty", "VarType", "VarClear",
 		"Include", "Exclude", "Map", "Filter", "Reduce", "ForEach",
 		"MaxInt", "MinInt",

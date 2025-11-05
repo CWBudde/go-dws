@@ -142,16 +142,18 @@ end;
 - Integer() cast function
 - Case statement support with enums
 - Semantic validation (duplicate names/values)
+- `.Value` property for enum values (returns ordinal value)
+- `.Name` property for enum values (returns value name as string)
+- `.QualifiedName` property (returns TypeName.ValueName)
+- `High()` and `Low()` functions for enums
+- For-in loops with enums
 
 ### ⏳ Planned Features
 
-- `.Value` property for enum values
-- `.Name` property for enum values
-- `.QualifiedName` property
 - Enum comparison operators
-- `High()` and `Low()` functions for enums
-- For-in loops with enums
 - Enum-based sets (set of TColor)
+- Enum type casting (TEnum(ordinal))
+- Scoped enum member access through type (TEnum.Value)
 
 ## Examples
 

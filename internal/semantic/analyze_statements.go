@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -248,6 +250,57 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 	case *ast.Identifier:
 		// Simple variable assignment: x := value or x += value
 		sym, ok := a.symbols.Resolve(target.Value)
+
+		// Task 9.32b/9.32c: If variable not found, check for implicit Self field/property
+		if !ok && a.currentClass != nil {
+			// Check if it's a field of the current class
+			if fieldType, exists := a.currentClass.Fields[target.Value]; exists {
+				valueType := a.analyzeExpressionWithExpectedType(stmt.Value, fieldType)
+				if valueType == nil {
+					return
+				}
+				if isCompound {
+					if !a.isCompoundOperatorValid(stmt.Operator, fieldType, valueType, stmt.Token.Pos) {
+						return
+					}
+				}
+				if !a.canAssign(valueType, fieldType) {
+					a.addError("cannot assign %s to %s at %s",
+						valueType.String(), fieldType.String(), stmt.Token.Pos.String())
+				}
+				return
+			}
+
+			// Check if it's a property of the current class
+			// DWScript is case-insensitive, so we need to search all properties
+			// Also search parent class hierarchy
+			for class := a.currentClass; class != nil; class = class.Parent {
+				for propName, propInfo := range class.Properties {
+					if strings.EqualFold(propName, target.Value) {
+						// Check if property is writable
+						if propInfo.WriteKind == types.PropAccessNone {
+							a.addError("property '%s' is read-only at %s", target.Value, stmt.Token.Pos.String())
+							return
+						}
+						valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
+						if valueType == nil {
+							return
+						}
+						if isCompound {
+							if !a.isCompoundOperatorValid(stmt.Operator, propInfo.Type, valueType, stmt.Token.Pos) {
+								return
+							}
+						}
+						if !a.canAssign(valueType, propInfo.Type) {
+							a.addError("cannot assign %s to %s at %s",
+								valueType.String(), propInfo.Type.String(), stmt.Token.Pos.String())
+						}
+						return
+					}
+				}
+			}
+		}
+
 		if !ok {
 			// Task 9.110: Use structured error for undefined variable
 			a.addStructuredError(NewUndefinedVariable(stmt.Token.Pos, target.Value))

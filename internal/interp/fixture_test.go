@@ -11,6 +11,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/gkampitakis/go-snaps/snaps"
 )
 
@@ -645,6 +646,25 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 	// For success tests, we expect no parse errors
 	if len(parseErrors) > 0 {
 		t.Errorf("Unexpected parse errors for %s: %v", filepath.Base(pasFile), parseErrors)
+		return testResultFailed
+	}
+
+	// Run semantic analysis before execution (Task 9.230)
+	// This enables proper type checking and disambiguation of array vs set literals
+	analyzer := semantic.NewAnalyzer()
+	analyzer.SetSource(source, pasFile)
+
+	if err := analyzer.Analyze(program); err != nil {
+		// For success tests, semantic errors are failures
+		// Format errors nicely for debugging
+		var errorMsg strings.Builder
+		errorMsg.WriteString("Semantic analysis failed:\n")
+		for _, semErr := range analyzer.Errors() {
+			errorMsg.WriteString("  - ")
+			errorMsg.WriteString(semErr)
+			errorMsg.WriteString("\n")
+		}
+		t.Errorf("%s: %s", filepath.Base(pasFile), errorMsg.String())
 		return testResultFailed
 	}
 

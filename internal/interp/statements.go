@@ -594,10 +594,37 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 
 // evalSimpleAssignment handles simple variable assignment: x := value
 func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, _ *ast.AssignmentStatement) Value {
-	// Check if trying to assign to an external variable
-	// Apply implicit conversion if types don't match
-	// Validate subrange assignments
+	// Task 9.35: Check if target is a var parameter (ReferenceValue)
 	if existingVal, ok := i.env.Get(target.Value); ok {
+		if refVal, isRef := existingVal.(*ReferenceValue); isRef {
+			// This is a var parameter - write through the reference
+			// First get the current value to check type compatibility
+			currentVal, err := refVal.Dereference()
+			if err != nil {
+				return &ErrorValue{Message: err.Error()}
+			}
+
+			// Try implicit conversion if types don't match
+			targetType := currentVal.Type()
+			sourceType := value.Type()
+			if targetType != sourceType {
+				if converted, ok := i.tryImplicitConversion(value, targetType); ok {
+					value = converted
+				}
+			}
+
+			// Box value if target is a Variant
+			if targetType == "VARIANT" && sourceType != "VARIANT" {
+				value = boxVariant(value)
+			}
+
+			// Write through the reference
+			if err := refVal.Assign(value); err != nil {
+				return &ErrorValue{Message: err.Error()}
+			}
+			return value
+		}
+
 		if extVar, isExternal := existingVal.(*ExternalVarValue); isExternal {
 			return newError("Unsupported external variable assignment: %s", extVar.Name)
 		}
@@ -657,6 +684,19 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 			if _, exists := obj.Class.ClassVars[target.Value]; exists {
 				obj.Class.ClassVars[target.Value] = value
 				return value
+			}
+			// Task 9.32b: Check if it's a property (properties can be assigned without Self.)
+			if propInfo := obj.Class.lookupProperty(target.Value); propInfo != nil {
+				// For field-backed properties, write the field directly to avoid recursion
+				if propInfo.WriteKind == types.PropAccessField {
+					// Check if WriteSpec is actually a field (not a method)
+					if _, isField := obj.Class.Fields[propInfo.WriteSpec]; isField {
+						obj.SetField(propInfo.WriteSpec, value)
+						return value
+					}
+				}
+				// For method-backed properties, use evalPropertyWrite
+				return i.evalPropertyWrite(obj, propInfo, value, target)
 			}
 		}
 	}
@@ -1222,43 +1262,52 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			return newError("invalid set type for iteration")
 		}
 
-		enumType := col.SetType.ElementType
-		// Iterate through enum values in their defined order
-		for _, name := range enumType.OrderedNames {
-			ordinal := enumType.Values[name]
-			// Check if this enum value is in the set
-			if col.HasElement(ordinal) {
-				// Create an enum value for this element
-				enumVal := &EnumValue{
-					TypeName:     enumType.Name,
-					ValueName:    name,
-					OrdinalValue: ordinal,
-				}
+		// Task 9.226: Handle iteration over different set element types
+		elementType := col.SetType.ElementType
 
-				// Assign the enum value to the loop variable
-				i.env.Define(loopVarName, enumVal)
+		// For enum sets, iterate through enum values in their defined order
+		if enumType, ok := elementType.(*types.EnumType); ok {
+			for _, name := range enumType.OrderedNames {
+				ordinal := enumType.Values[name]
+				// Check if this enum value is in the set
+				if col.HasElement(ordinal) {
+					// Create an enum value for this element
+					enumVal := &EnumValue{
+						TypeName:     enumType.Name,
+						ValueName:    name,
+						OrdinalValue: ordinal,
+					}
 
-				// Execute the body
-				result = i.Eval(stmt.Body)
-				if isError(result) {
-					i.env = savedEnv // Restore environment before returning
-					return result
-				}
+					// Assign the enum value to the loop variable
+					i.env.Define(loopVarName, enumVal)
 
-				// Handle control flow signals (break, continue, exit)
-				if i.breakSignal {
-					i.breakSignal = false // Clear signal
-					break
-				}
-				if i.continueSignal {
-					i.continueSignal = false // Clear signal
-					continue
-				}
-				if i.exitSignal {
-					// Don't clear the signal - let the function handle it
-					break
+					// Execute the body
+					result = i.Eval(stmt.Body)
+					if isError(result) {
+						i.env = savedEnv // Restore environment before returning
+						return result
+					}
+
+					// Handle control flow signals (break, continue, exit)
+					if i.breakSignal {
+						i.breakSignal = false // Clear signal
+						break
+					}
+					if i.continueSignal {
+						i.continueSignal = false // Clear signal
+						continue
+					}
+					if i.exitSignal {
+						// Don't clear the signal - let the function handle it
+						break
+					}
 				}
 			}
+		} else {
+			// For non-enum sets (Integer, String, Boolean), iterate over ordinal values
+			// This is less common but supported for completeness
+			i.env = savedEnv
+			return newError("iteration over non-enum sets not yet implemented")
 		}
 
 	case *StringValue:

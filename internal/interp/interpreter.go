@@ -2,6 +2,7 @@ package interp
 
 import (
 	"io"
+	"math"
 	"math/rand"
 	"reflect"
 
@@ -17,6 +18,14 @@ import (
 // When the call stack reaches this depth, the interpreter raises an EScriptStackOverflow exception
 // to prevent infinite recursion and potential Go runtime stack overflow.
 const DefaultMaxRecursionDepth = 1024
+
+// PropertyEvalContext tracks the state during property getter/setter evaluation.
+// Task 9.32c: This prevents infinite recursion when properties access other members.
+type PropertyEvalContext struct {
+	inPropertyGetter bool     // True when inside a property getter method
+	inPropertySetter bool     // True when inside a property setter method
+	propertyChain    []string // Track chain of properties being evaluated (e.g., ["Line", "GetLine"])
+}
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 type Interpreter struct {
@@ -46,6 +55,9 @@ type Interpreter struct {
 	breakSignal    bool // Set by exit statement, cleared by function return
 
 	helpers map[string][]*HelperInfo // Task 9.86-9.87: Helper types (type name -> list of helpers)
+
+	// Task 9.32c: Property evaluation context for recursion prevention
+	propContext *PropertyEvalContext // Tracks property getter/setter evaluation state
 
 	// oldValuesStack stores captured values for 'old' expressions in postconditions.
 	// Each function call pushes a map of captured values, which is popped after
@@ -142,6 +154,9 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 	env.Define("Float", NewTypeMetaValue(types.FLOAT, "Float"))
 	env.Define("String", NewTypeMetaValue(types.STRING, "String"))
 	env.Define("Boolean", NewTypeMetaValue(types.BOOLEAN, "Boolean"))
+
+	// Register mathematical constants (Task 9.232)
+	env.Define("PI", &FloatValue{Value: math.Pi})
 
 	return interp
 }

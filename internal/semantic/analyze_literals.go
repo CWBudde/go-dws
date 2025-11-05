@@ -270,50 +270,86 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 		return nil
 	}
 
-	// Analyze all elements and check they are of the same enum type
-	var elementEnumType *types.EnumType
+	// Analyze all elements and check they are of the same ordinal type
+	// Task 9.226: Support all ordinal types (Integer, String/Char, Enum, Subrange)
+	var elementType types.Type
 	for i, elem := range lit.Elements {
-		elemType := a.analyzeExpression(elem)
-		if elemType == nil {
-			// Error already reported
-			continue
-		}
+		var elemType types.Type
 
-		// Element must be an enum type
-		enumType, ok := elemType.(*types.EnumType)
-		if !ok {
-			a.addError("set element must be an enum value, got %s at %s",
-				elemType.String(), elem.Pos().String())
-			continue
-		}
+		// Check if this is a range expression (e.g., 1..10 or 'a'..'z')
+		if rangeExpr, isRange := elem.(*ast.RangeExpression); isRange {
+			// Analyze start and end of range
+			startType := a.analyzeExpression(rangeExpr.Start)
+			endType := a.analyzeExpression(rangeExpr.End)
 
-		// First element determines the enum type
-		if i == 0 {
-			elementEnumType = enumType
+			if startType == nil || endType == nil {
+				// Error already reported
+				continue
+			}
+
+			// Both bounds must be ordinal types
+			if !types.IsOrdinalType(startType) {
+				a.addError("range start must be an ordinal type, got %s at %s",
+					startType.String(), rangeExpr.Start.Pos().String())
+				continue
+			}
+			if !types.IsOrdinalType(endType) {
+				a.addError("range end must be an ordinal type, got %s at %s",
+					endType.String(), rangeExpr.End.Pos().String())
+				continue
+			}
+
+			// Both bounds must be the same type
+			if !startType.Equals(endType) {
+				a.addError("range start and end must have the same type: got %s and %s at %s",
+					startType.String(), endType.String(), rangeExpr.Pos().String())
+				continue
+			}
+
+			elemType = startType
 		} else {
-			// All elements must be of the same enum type
-			if !enumType.Equals(elementEnumType) {
+			// Regular element (not a range)
+			elemType = a.analyzeExpression(elem)
+			if elemType == nil {
+				// Error already reported
+				continue
+			}
+
+			// Element must be an ordinal type
+			if !types.IsOrdinalType(elemType) {
+				a.addError("set element must be an ordinal value, got %s at %s",
+					elemType.String(), elem.Pos().String())
+				continue
+			}
+		}
+
+		// First element determines the element type
+		if i == 0 {
+			elementType = elemType
+		} else {
+			// All elements must be of the same ordinal type
+			if !elemType.Equals(elementType) {
 				a.addError("type mismatch in set literal: expected %s, got %s at %s",
-					elementEnumType.String(), enumType.String(), elem.Pos().String())
+					elementType.String(), elemType.String(), elem.Pos().String())
 			}
 		}
 	}
 
-	if elementEnumType == nil {
+	if elementType == nil {
 		// All elements had errors
 		return nil
 	}
 
 	// If we have an expected set type, verify the element type matches
 	if expectedSetType != nil {
-		if !elementEnumType.Equals(expectedSetType.ElementType) {
+		if !elementType.Equals(expectedSetType.ElementType) {
 			a.addError("type mismatch in set literal: expected set of %s, got set of %s at %s",
-				expectedSetType.ElementType.String(), elementEnumType.String(), lit.Token.Pos.String())
+				expectedSetType.ElementType.String(), elementType.String(), lit.Token.Pos.String())
 			return expectedSetType // Return expected type to continue analysis
 		}
 		return expectedSetType
 	}
 
 	// Create and return a new set type based on inferred element type
-	return types.NewSetType(elementEnumType)
+	return types.NewSetType(elementType)
 }

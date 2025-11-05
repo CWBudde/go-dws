@@ -564,3 +564,140 @@ func TestEnumValueProperty(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Enum .Name Helper Property Tests
+// ============================================================================
+
+func TestEnumNameProperty(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name: "enum name property basic",
+			input: `
+				type TColor = (Red, Green, Blue);
+				PrintLn(Red.Name);
+				PrintLn(Green.Name);
+				PrintLn(Blue.Name);
+			`,
+			expect: "Red\nGreen\nBlue\n",
+		},
+		{
+			name: "enum name property with explicit ordinals",
+			input: `
+				type TStatus = (Ok = 100, Error = 200);
+				PrintLn(Ok.Name);
+				PrintLn(Error.Name);
+			`,
+			expect: "Ok\nError\n",
+		},
+		{
+			name: "enum name property from variable",
+			input: `
+				type TColor = (Red, Green, Blue);
+				var c := Green;
+				PrintLn(c.Name);
+			`,
+			expect: "Green\n",
+		},
+		{
+			name: "enum name property in for-in loop",
+			input: `
+				type TEnum = (enOne, enTwo, enThree);
+				for var e in TEnum do
+					PrintLn(e.Name);
+			`,
+			expect: "enOne\nenTwo\nenThree\n",
+		},
+		{
+			name: "enum name property in string concatenation",
+			input: `
+				type TColor = (Red, Green, Blue);
+				var c := Red;
+				PrintLn('Color: ' + c.Name);
+			`,
+			expect: "Color: Red\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expect {
+				t.Errorf("expected %q, got %q", tt.expect, output)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Enum .QualifiedName Helper Property Tests
+// ============================================================================
+
+func TestEnumQualifiedNameProperty(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name: "enum qualifiedname property basic",
+			input: `
+				type TColor = (Red, Green, Blue);
+				PrintLn(Red.QualifiedName);
+				PrintLn(Green.QualifiedName);
+				PrintLn(Blue.QualifiedName);
+			`,
+			expect: "TColor.Red\nTColor.Green\nTColor.Blue\n",
+		},
+		{
+			name: "enum qualifiedname property with explicit ordinals",
+			input: `
+				type TStatus = (Ok = 100, Error = 200);
+				PrintLn(Ok.QualifiedName);
+				PrintLn(Error.QualifiedName);
+			`,
+			expect: "TStatus.Ok\nTStatus.Error\n",
+		},
+		{
+			name: "enum qualifiedname property from variable",
+			input: `
+				type TColor = (Red, Green, Blue);
+				var c := Green;
+				PrintLn(c.QualifiedName);
+			`,
+			expect: "TColor.Green\n",
+		},
+		{
+			name: "enum qualifiedname property in for-in loop",
+			input: `
+				type TEnum = (enOne, enTwo, enThree);
+				for var e in TEnum do
+					PrintLn(e.QualifiedName);
+			`,
+			expect: "TEnum.enOne\nTEnum.enTwo\nTEnum.enThree\n",
+		},
+		{
+			name: "enum qualifiedname vs name difference",
+			input: `
+				type TPriority = (Low, High);
+				var p := Low;
+				PrintLn(p.Name);
+				PrintLn(p.QualifiedName);
+			`,
+			expect: "Low\nTPriority.Low\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expect {
+				t.Errorf("expected %q, got %q", tt.expect, output)
+			}
+		})
+	}
+}

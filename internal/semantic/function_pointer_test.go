@@ -697,3 +697,309 @@ func TestFunctionPointerVarDeclaration(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// Task 9.228: Implicit Function-to-Function-Pointer Conversion Tests
+// ============================================================================
+
+// TestImplicitFunctionToPointerConversion tests that functions are implicitly
+// converted to function pointers when used as values (without @ operator).
+// Task 9.228: Test implicit conversion for higher-order functions
+func TestImplicitFunctionToPointerConversion(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "pass function as argument without @ operator",
+			input: `
+				type TFnType = function(x: Float): Float;
+
+				function First(f: TFnType): Float;
+				begin
+					Result := f(1.0) + 2.0;
+				end;
+
+				function Second(f: Float): Float;
+				begin
+					Result := f / 2.0;
+				end;
+
+				var result: Float;
+				begin
+					result := First(Second);
+				end.
+			`,
+		},
+		{
+			name: "assign function to function pointer variable without @ operator",
+			input: `
+				function Add(a, b: Integer): Integer;
+				begin
+					Result := a + b;
+				end;
+
+				type TBinaryOp = function(x, y: Integer): Integer;
+				var op: TBinaryOp;
+				begin
+					op := Add;
+				end.
+			`,
+		},
+		{
+			name: "assign procedure to procedure pointer variable without @ operator",
+			input: `
+				procedure PrintMsg(msg: String);
+				begin
+					PrintLn(msg);
+				end;
+
+				type TCallback = procedure(s: String);
+				var callback: TCallback;
+				begin
+					callback := PrintMsg;
+				end.
+			`,
+		},
+		{
+			name: "pass multiple functions as arguments",
+			input: `
+				type TFunc = function(x: Integer): Integer;
+
+				function Apply(f: TFunc; g: TFunc; value: Integer): Integer;
+				begin
+					Result := f(g(value));
+				end;
+
+				function Double(x: Integer): Integer;
+				begin
+					Result := x * 2;
+				end;
+
+				function Inc(x: Integer): Integer;
+				begin
+					Result := x + 1;
+				end;
+
+				var result: Integer;
+				begin
+					result := Apply(Double, Inc, 5);
+				end.
+			`,
+		},
+		{
+			name: "function pointer with no parameters",
+			input: `
+				function GetAnswer(): Integer;
+				begin
+					Result := 42;
+				end;
+
+				type TGetter = function(): Integer;
+				var getter: TGetter;
+				begin
+					getter := GetAnswer;
+				end.
+			`,
+		},
+		{
+			name: "inline function pointer type",
+			input: `
+				function Add(a, b: Integer): Integer;
+				begin
+					Result := a + b;
+				end;
+
+				var op: function(x, y: Integer): Integer;
+				begin
+					op := Add;
+				end.
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			a := NewAnalyzer()
+			err := a.Analyze(program)
+			if err != nil {
+				t.Errorf("expected no semantic errors, got: %v", err)
+			}
+			if len(a.Errors()) != 0 {
+				t.Errorf("expected no errors, got: %v", a.Errors())
+			}
+		})
+	}
+}
+
+// TestImplicitFunctionToPointerConversionErrors tests error cases where
+// implicit conversion should fail due to signature mismatches.
+// Task 9.228: Test that type checking still works with implicit conversion
+func TestImplicitFunctionToPointerConversionErrors(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectedErr string
+	}{
+		{
+			name: "incompatible parameter count",
+			input: `
+				type TUnaryOp = function(x: Integer): Integer;
+
+				function Add(a, b: Integer): Integer;
+				begin
+					Result := a + b;
+				end;
+
+				var op: TUnaryOp;
+				begin
+					op := Add;
+				end.
+			`,
+			expectedErr: "cannot assign",
+		},
+		{
+			name: "incompatible parameter types",
+			input: `
+				type TStringFunc = function(s: String): Integer;
+
+				function ProcessInt(x: Integer): Integer;
+				begin
+					Result := x * 2;
+				end;
+
+				var f: TStringFunc;
+				begin
+					f := ProcessInt;
+				end.
+			`,
+			expectedErr: "cannot assign",
+		},
+		{
+			name: "incompatible return types",
+			input: `
+				type TFunc = function(x: Integer): String;
+
+				function Double(x: Integer): Integer;
+				begin
+					Result := x * 2;
+				end;
+
+				var f: TFunc;
+				begin
+					f := Double;
+				end.
+			`,
+			expectedErr: "cannot assign",
+		},
+		{
+			name: "function vs procedure mismatch",
+			input: `
+				type TFunc = function(x: Integer): Integer;
+
+				procedure DoSomething(x: Integer);
+				begin
+					PrintLn(x);
+				end;
+
+				var f: TFunc;
+				begin
+					f := DoSomething;
+				end.
+			`,
+			expectedErr: "cannot assign",
+		},
+		{
+			name: "passing wrong function signature as argument",
+			input: `
+				type TFunc = function(x: Float): Float;
+
+				function Apply(f: TFunc): Float;
+				begin
+					Result := f(1.0);
+				end;
+
+				function WrongFunc(x: Integer): Integer;
+				begin
+					Result := x;
+				end;
+
+				var result: Float;
+				begin
+					result := Apply(WrongFunc);
+				end.
+			`,
+			expectedErr: "argument 1 to function",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			a := NewAnalyzer()
+			err := a.Analyze(program)
+			if err == nil {
+				t.Errorf("expected semantic error containing '%s', got no error", tt.expectedErr)
+				return
+			}
+
+			if !strings.Contains(err.Error(), tt.expectedErr) {
+				t.Errorf("expected error containing '%s', got: %v", tt.expectedErr, err)
+			}
+		})
+	}
+}
+
+// TestBothExplicitAndImplicitConversion tests that both @ operator and implicit
+// conversion work correctly in the same program.
+// Task 9.228: Test backward compatibility with @ operator
+func TestBothExplicitAndImplicitConversion(t *testing.T) {
+	input := `
+		type TBinaryOp = function(x, y: Integer): Integer;
+
+		function Add(a, b: Integer): Integer;
+		begin
+			Result := a + b;
+		end;
+
+		function Sub(a, b: Integer): Integer;
+		begin
+			Result := a - b;
+		end;
+
+		var op1, op2: TBinaryOp;
+		begin
+			op1 := @Add;     // Explicit with @
+			op2 := Sub;      // Implicit without @
+		end.
+	`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	a := NewAnalyzer()
+	err := a.Analyze(program)
+	if err != nil {
+		t.Errorf("expected no semantic errors, got: %v", err)
+	}
+	if len(a.Errors()) != 0 {
+		t.Errorf("expected no errors, got: %v", a.Errors())
+	}
+}
