@@ -1,0 +1,16 @@
+// Type Error: Function parameter type mismatch
+// This demonstrates clear error messages for function calls
+
+procedure ProcessNumber(value: Integer);
+begin
+  PrintLn('Processing: ' + IntToStr(value));
+end;
+
+var x: Float := 3.14;
+
+// ERROR: Type mismatch in function call
+ProcessNumber(x);   // This will fail with a message showing:
+                    // - Function name: ProcessNumber
+                    // - Expected parameter type: Integer
+                    // - Actual argument type: Float
+                    // - Parameter position: 1

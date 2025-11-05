@@ -1,0 +1,22 @@
+// Runtime Error: Division by zero
+// This demonstrates enhanced runtime error messages with operand values
+
+procedure Divide(a, b: Integer);
+var
+  result: Integer;
+begin
+  PrintLn('Attempting division: ' + IntToStr(a) + ' / ' + IntToStr(b));
+
+  // ERROR: Division by zero
+  result := a div b;  // When b=0, this will fail with a message showing:
+                      // - Error type: Division by zero
+                      // - Left operand value: a
+                      // - Right operand value: 0
+                      // - Line and column information
+                      // - Source code snippet highlighting the error
+
+  PrintLn('Result: ' + IntToStr(result));
+end;
+
+Divide(10, 5);  // OK: 10 / 5 = 2
+Divide(10, 0);  // ERROR: Division by zero

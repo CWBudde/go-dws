@@ -1,0 +1,15 @@
+// Type Error: Assignment type mismatch
+// This demonstrates improved type error messages with context
+
+var count: Integer;
+var price: Float;
+
+count := 42;        // OK: Integer to Integer
+price := 3.14;      // OK: Float to Float
+
+// ERROR: Cannot assign Float to Integer variable
+count := price;     // This will fail with a clear error message showing:
+                    // - Expected type: Integer
+                    // - Actual type: Float
+                    // - Variable name: count
+                    // - Line and column information

@@ -313,3 +313,108 @@ func TestTypeMetaValueInEnvironment(t *testing.T) {
 		})
 	}
 }
+
+// TestEnumTypeMetaValues tests enum type names as runtime values.
+// Task 9.161: Enum type names should be available as type meta-values.
+func TestEnumTypeMetaValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Enum type meta-value exists",
+			input: `
+type TColor = (Red, Green, Blue);
+PrintLn(TColor);
+`,
+			expected: "TColor\n",
+		},
+		{
+			name: "High(EnumType) returns highest enum value",
+			input: `
+type TColor = (Red, Green, Blue);
+PrintLn(High(TColor));
+`,
+			expected: "Blue\n",
+		},
+		{
+			name: "Low(EnumType) returns lowest enum value",
+			input: `
+type TColor = (Red, Green, Blue);
+PrintLn(Low(TColor));
+`,
+			expected: "Red\n",
+		},
+		{
+			name: "High(EnumType) with explicit values",
+			input: `
+type TStatus = (Ok = 0, Warning = 5, Error = 10);
+PrintLn(Ord(High(TStatus)));
+`,
+			expected: "10\n",
+		},
+		{
+			name: "Low(EnumType) with explicit values",
+			input: `
+type TStatus = (Ok = 0, Warning = 5, Error = 10);
+PrintLn(Ord(Low(TStatus)));
+`,
+			expected: "0\n",
+		},
+		{
+			name: "High/Low with multiple enum types",
+			input: `
+type TColor = (Red, Green, Blue);
+type TPriority = (Low, Medium, High);
+PrintLn(High(TColor));
+PrintLn(Low(TPriority));
+`,
+			expected: "Blue\nLow\n",
+		},
+		{
+			name: "Enum type meta-value in variable",
+			input: `
+type TColor = (Red, Green, Blue);
+var c: TColor := High(TColor);
+PrintLn(c);
+`,
+			expected: "Blue\n",
+		},
+		{
+			name: "Ord() of High/Low enum type meta-value",
+			input: `
+type TColor = (Red, Green, Blue);
+PrintLn(Ord(Low(TColor)));
+PrintLn(Ord(High(TColor)));
+`,
+			expected: "0\n2\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+			}
+
+			var buf bytes.Buffer
+			interp := New(&buf)
+			val := interp.Eval(program)
+
+			// Check for errors
+			if errVal, ok := val.(*ErrorValue); ok {
+				t.Fatalf("evaluation error: %s", errVal.Message)
+			}
+
+			output := buf.String()
+			if output != tt.expected {
+				t.Errorf("output mismatch:\ngot:  %q\nwant: %q", output, tt.expected)
+			}
+		})
+	}
+}

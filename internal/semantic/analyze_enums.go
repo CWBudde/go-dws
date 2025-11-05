@@ -80,4 +80,9 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 		_ = ordinalValue // We don't need the ordinal value for type checking
 		a.symbols.Define(valueName, enumType)
 	}
+
+	// Task 9.161: Register enum type name as an identifier
+	// This allows the type name to be used as a runtime value in expressions
+	// like High(TColor) or Low(TColor)
+	a.symbols.Define(enumName, enumType)
 }

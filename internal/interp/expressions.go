@@ -1,6 +1,8 @@
 package interp
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -245,19 +247,46 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 		return &IntegerValue{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
-			return i.newErrorWithLocation(i.currentNode, "division by zero")
+			// Task 9.111: Enhanced error with operand values
+			return i.NewRuntimeError(
+				i.currentNode,
+				"division_by_zero",
+				fmt.Sprintf("Division by zero: %d / %d", leftVal, rightVal),
+				map[string]string{
+					"left":  fmt.Sprintf("%d", leftVal),
+					"right": fmt.Sprintf("%d", rightVal),
+				},
+			)
 		}
 		// Integer division in DWScript uses / for float division
 		// We'll convert to float for division
 		return &FloatValue{Value: float64(leftVal) / float64(rightVal)}
 	case "div":
 		if rightVal == 0 {
-			return i.newErrorWithLocation(i.currentNode, "division by zero")
+			// Task 9.111: Enhanced error with operand values
+			return i.NewRuntimeError(
+				i.currentNode,
+				"division_by_zero",
+				fmt.Sprintf("Division by zero: %d div %d", leftVal, rightVal),
+				map[string]string{
+					"left":  fmt.Sprintf("%d", leftVal),
+					"right": fmt.Sprintf("%d", rightVal),
+				},
+			)
 		}
 		return &IntegerValue{Value: leftVal / rightVal}
 	case "mod":
 		if rightVal == 0 {
-			return i.newErrorWithLocation(i.currentNode, "division by zero")
+			// Task 9.111: Enhanced error with operand values
+			return i.NewRuntimeError(
+				i.currentNode,
+				"modulo_by_zero",
+				fmt.Sprintf("Modulo by zero: %d mod %d", leftVal, rightVal),
+				map[string]string{
+					"left":  fmt.Sprintf("%d", leftVal),
+					"right": fmt.Sprintf("%d", rightVal),
+				},
+			)
 		}
 		return &IntegerValue{Value: leftVal % rightVal}
 	case "shl":
@@ -332,7 +361,16 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 		return &FloatValue{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
-			return i.newErrorWithLocation(i.currentNode, "division by zero")
+			// Task 9.111: Enhanced error with operand values
+			return i.NewRuntimeError(
+				i.currentNode,
+				"division_by_zero",
+				fmt.Sprintf("Division by zero: %v / %v", leftVal, rightVal),
+				map[string]string{
+					"left":  fmt.Sprintf("%v", leftVal),
+					"right": fmt.Sprintf("%v", rightVal),
+				},
+			)
 		}
 		return &FloatValue{Value: leftVal / rightVal}
 	case "=":

@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
 // ErrorValue represents a runtime error.
@@ -111,4 +113,101 @@ func isError(val Value) bool {
 		return val.Type() == "ERROR"
 	}
 	return false
+}
+
+// RuntimeError represents a structured runtime error with rich context
+// Task 9.111: Enhanced runtime error messages
+type RuntimeError struct {
+	Message     string
+	Pos         *lexer.Position
+	Expression  string            // The expression that failed
+	Values      map[string]string // Runtime values as strings
+	SourceCode  string            // Full source code
+	SourceFile  string            // Source filename
+	ErrorType   string            // Error classification
+	CallStack   errors.StackTrace // Call stack at time of error
+}
+
+// Type implements the Value interface
+func (r *RuntimeError) Type() string { return "ERROR" }
+
+// String implements the Value interface
+func (r *RuntimeError) String() string {
+	if r.Pos != nil {
+		return fmt.Sprintf("Runtime error at line %d: %s", r.Pos.Line, r.Message)
+	}
+	return fmt.Sprintf("Runtime error: %s", r.Message)
+}
+
+// ToCompilerError converts a RuntimeError to a CompilerError for display
+func (r *RuntimeError) ToCompilerError() *errors.CompilerError {
+	if r.Pos == nil || r.SourceCode == "" {
+		// Fall back to simple error if no position info
+		return nil
+	}
+
+	message := r.Message
+
+	// Add runtime values if available
+	if len(r.Values) > 0 {
+		message += "\n"
+		for name, value := range r.Values {
+			message += fmt.Sprintf("  %s = %s\n", name, value)
+		}
+	}
+
+	return errors.NewCompilerError(*r.Pos, message, r.SourceCode, r.SourceFile)
+}
+
+// NewRuntimeError creates a new structured runtime error
+// Task 9.111: Create rich runtime errors
+func (i *Interpreter) NewRuntimeError(node ast.Node, errorType, message string, values map[string]string) *RuntimeError {
+	var pos *lexer.Position
+	var expr string
+
+	if node != nil {
+		// Extract position from node
+		p := i.getPositionFromNode(node)
+		pos = &p
+		expr = node.String()
+	}
+
+	return &RuntimeError{
+		Message:    message,
+		Pos:        pos,
+		Expression: expr,
+		Values:     values,
+		SourceCode: i.sourceCode,
+		SourceFile: i.sourceFile,
+		ErrorType:  errorType,
+		CallStack:  i.callStack,
+	}
+}
+
+// getPositionFromNode extracts position from an AST node
+func (i *Interpreter) getPositionFromNode(node ast.Node) lexer.Position {
+	// Try to extract token information from various node types
+	switch n := node.(type) {
+	case *ast.Identifier:
+		return n.Token.Pos
+	case *ast.IntegerLiteral:
+		return n.Token.Pos
+	case *ast.FloatLiteral:
+		return n.Token.Pos
+	case *ast.StringLiteral:
+		return n.Token.Pos
+	case *ast.BooleanLiteral:
+		return n.Token.Pos
+	case *ast.BinaryExpression:
+		return n.Token.Pos
+	case *ast.UnaryExpression:
+		return n.Token.Pos
+	case *ast.CallExpression:
+		return n.Token.Pos
+	case *ast.VarDeclStatement:
+		return n.Token.Pos
+	case *ast.AssignmentStatement:
+		return n.Token.Pos
+	}
+	return lexer.Position{}
 }

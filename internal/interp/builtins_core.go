@@ -769,3 +769,61 @@ func (i *Interpreter) builtinBoolToStr(args []Value) Value {
 	}
 	return &StringValue{Value: "False"}
 }
+
+// builtinGetStackTrace implements the GetStackTrace() built-in function.
+// It returns the current call stack as a formatted string.
+// GetStackTrace(): String
+// Task 9.114: Exception Enhancements - GetStackTrace() built-in
+func (i *Interpreter) builtinGetStackTrace(args []Value) Value {
+	if len(args) != 0 {
+		return i.newErrorWithLocation(i.currentNode, "GetStackTrace() expects no arguments, got %d", len(args))
+	}
+
+	// Return the current call stack as a string
+	// The String() method of StackTrace formats it nicely with one frame per line
+	return &StringValue{Value: i.callStack.String()}
+}
+
+// builtinGetCallStack implements the GetCallStack() built-in function.
+// It returns the current call stack as an array of records containing frame information.
+// GetCallStack(): array of record
+// Task 9.116: Debugging Information - GetCallStack() built-in
+func (i *Interpreter) builtinGetCallStack(args []Value) Value {
+	if len(args) != 0 {
+		return i.newErrorWithLocation(i.currentNode, "GetCallStack() expects no arguments, got %d", len(args))
+	}
+
+	// Create an array to hold the stack frames
+	frames := make([]Value, 0, len(i.callStack))
+
+	// Convert each stack frame to a record
+	for _, frame := range i.callStack {
+		// Create a record value with FunctionName, FileName, and Line fields
+		recordFields := make(map[string]Value)
+		recordFields["FunctionName"] = &StringValue{Value: frame.FunctionName}
+		recordFields["FileName"] = &StringValue{Value: frame.FileName}
+
+		// Set line and column information
+		if frame.Position != nil {
+			recordFields["Line"] = &IntegerValue{Value: int64(frame.Position.Line)}
+			recordFields["Column"] = &IntegerValue{Value: int64(frame.Position.Column)}
+		} else {
+			recordFields["Line"] = &IntegerValue{Value: 0}
+			recordFields["Column"] = &IntegerValue{Value: 0}
+		}
+
+		// Create a record value
+		// Note: We use a simple map-based structure since we don't have a formal record type here
+		// In practice, this will be accessed via dynamic field access
+		recordValue := &RecordValue{
+			Fields: recordFields,
+		}
+
+		frames = append(frames, recordValue)
+	}
+
+	// Return as a dynamic array
+	return &ArrayValue{
+		Elements: frames,
+	}
+}

@@ -56,6 +56,9 @@ type Analyzer struct {
 	unitSymbols        map[string]*SymbolTable // Unit name -> symbol table for qualified access
 	globalOperators    *types.OperatorRegistry
 	errors             []string
+	structuredErrors   []*SemanticError // Task 9.110: Structured errors with rich context
+	sourceCode         string           // Task 9.110: Source code for error display
+	sourceFile         string           // Task 9.110: Source filename for error display
 	loopDepth          int
 	inExceptionHandler bool
 	inFinallyBlock     bool
@@ -66,20 +69,21 @@ type Analyzer struct {
 // NewAnalyzer creates a new semantic analyzer
 func NewAnalyzer() *Analyzer {
 	a := &Analyzer{
-		symbols:            NewSymbolTable(),
-		unitSymbols:        make(map[string]*SymbolTable),
-		errors:             make([]string, 0),
-		classes:            make(map[string]*types.ClassType),
-		interfaces:         make(map[string]*types.InterfaceType),
-		enums:              make(map[string]*types.EnumType),
-		records:            make(map[string]*types.RecordType),
-		sets:               make(map[string]*types.SetType),
-		arrays:             make(map[string]*types.ArrayType),
-		typeAliases:        make(map[string]*types.TypeAlias),
-		subranges:          make(map[string]*types.SubrangeType),
-		functionPointers:   make(map[string]*types.FunctionPointerType), // Task 9.159
-		helpers:            make(map[string][]*types.HelperType),        // Task 9.82
-		globalOperators:    types.NewOperatorRegistry(),
+		symbols:          NewSymbolTable(),
+		unitSymbols:      make(map[string]*SymbolTable),
+		errors:           make([]string, 0),
+		structuredErrors: make([]*SemanticError, 0), // Task 9.110
+		classes:          make(map[string]*types.ClassType),
+		interfaces:       make(map[string]*types.InterfaceType),
+		enums:            make(map[string]*types.EnumType),
+		records:          make(map[string]*types.RecordType),
+		sets:             make(map[string]*types.SetType),
+		arrays:           make(map[string]*types.ArrayType),
+		typeAliases:      make(map[string]*types.TypeAlias),
+		subranges:        make(map[string]*types.SubrangeType),
+		functionPointers: make(map[string]*types.FunctionPointerType), // Task 9.159
+		helpers:          make(map[string][]*types.HelperType),        // Task 9.82
+		globalOperators:  types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
 	}
 
@@ -222,9 +226,30 @@ func (a *Analyzer) Errors() []string {
 	return a.errors
 }
 
+// StructuredErrors returns all accumulated structured semantic errors
+// Task 9.110: New method for structured error access
+func (a *Analyzer) StructuredErrors() []*SemanticError {
+	return a.structuredErrors
+}
+
+// SetSource sets the source code and filename for error display
+// Task 9.110: Allows rich error messages with source snippets
+func (a *Analyzer) SetSource(source, filename string) {
+	a.sourceCode = source
+	a.sourceFile = filename
+}
+
 // addError adds a semantic error to the error list
 func (a *Analyzer) addError(format string, args ...any) {
 	a.errors = append(a.errors, fmt.Sprintf(format, args...))
+}
+
+// addStructuredError adds a structured semantic error
+// Task 9.110: New method for adding rich errors
+func (a *Analyzer) addStructuredError(err *SemanticError) {
+	a.structuredErrors = append(a.structuredErrors, err)
+	// Also add to string errors for backward compatibility
+	a.errors = append(a.errors, err.Error())
 }
 
 // canAssign checks assignment compatibility, accounting for implicit conversions.

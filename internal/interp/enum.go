@@ -69,6 +69,11 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 	enumTypeKey := "__enum_type_" + enumName
 	i.env.Define(enumTypeKey, &EnumTypeValue{EnumType: enumType})
 
+	// Task 9.161: Register enum type name as a TypeMetaValue
+	// This allows the type name to be used as a runtime value in expressions
+	// like High(TColor) or Low(TColor), just like built-in types (Integer, Float, etc.)
+	i.env.Define(enumName, NewTypeMetaValue(enumType, enumName))
+
 	return &NilValue{}
 }
 

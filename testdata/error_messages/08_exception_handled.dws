@@ -1,0 +1,46 @@
+// Exception: Handled exception showing try-except
+// This demonstrates proper exception handling with clear messages
+
+procedure RiskyOperation(value: Integer);
+begin
+  if value < 0 then
+    raise Exception.Create('Value must be non-negative');
+
+  if value = 0 then
+    raise EDivByZero.Create('Cannot process zero');
+
+  PrintLn('Processing value: ' + IntToStr(value));
+end;
+
+procedure SafeCall(value: Integer);
+begin
+  try
+    RiskyOperation(value);
+    PrintLn('Success!');
+  except
+    on E: EDivByZero do
+    begin
+      PrintLn('Caught division-related error: ' + E.Message);
+      // Stack trace is available here via GetStackTrace()
+      PrintLn('Stack at catch: ' + GetStackTrace());
+    end;
+    on E: Exception do
+    begin
+      PrintLn('Caught general exception: ' + E.Message);
+    end;
+  end;
+end;
+
+PrintLn('=== Exception Handling Demo ===');
+PrintLn('');
+
+SafeCall(10);   // OK
+PrintLn('');
+
+SafeCall(0);    // Caught as EDivByZero
+PrintLn('');
+
+SafeCall(-5);   // Caught as Exception
+PrintLn('');
+
+PrintLn('All exceptions were handled properly');
