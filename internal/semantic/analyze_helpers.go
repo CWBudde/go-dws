@@ -269,6 +269,15 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 		}
 	}
 
+	// Task 9.31: For enum types, also include generic ENUM helpers
+	if _, isEnum := typ.(*types.EnumType); isEnum {
+		enumHelpers := a.helpers["ENUM"]
+		if enumHelpers != nil {
+			// Combine type-specific helpers with generic enum helpers
+			helpers = append(helpers, enumHelpers...)
+		}
+	}
+
 	return helpers
 }
 
@@ -421,4 +430,28 @@ func (a *Analyzer) initIntrinsicHelpers() {
 	stringArrayHelper.Methods["Join"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
 	stringArrayHelper.BuiltinMethods["Join"] = "__string_array_join"
 	register(stringArrayHelper.TargetType.String(), stringArrayHelper)
+}
+
+// initEnumHelpers registers built-in helpers for enumerated types.
+// Task 9.31: Implement enum .Value helper property
+func (a *Analyzer) initEnumHelpers() {
+	// Create a helper for the generic ENUM type
+	// Since we need to support all enum types, we'll register this for "ENUM"
+	enumHelper := types.NewHelperType("__TEnumIntrinsicHelper", nil, false)
+
+	// Task 9.31: Register .Value property (returns ordinal value)
+	enumHelper.Properties["Value"] = &types.PropertyInfo{
+		Name:      "Value",
+		Type:      types.INTEGER,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__enum_value",
+		WriteKind: types.PropAccessNone,
+	}
+
+	// Register helper for ENUM type (generic catch-all)
+	// This will be checked in getHelpersForType for all enum types
+	if a.helpers["ENUM"] == nil {
+		a.helpers["ENUM"] = make([]*types.HelperType, 0)
+	}
+	a.helpers["ENUM"] = append(a.helpers["ENUM"], enumHelper)
 }

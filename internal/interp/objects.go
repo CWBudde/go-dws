@@ -170,12 +170,66 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		// Check if this identifier refers to a class
 		if classInfo, exists := i.classes[ident.Value]; exists {
 			// This is static access: TClass.Variable
-			// Look up the class variable
-			if classVarValue, exists := classInfo.ClassVars[ma.Member.Value]; exists {
+			memberName := ma.Member.Value
+
+			// 1. Try class variables first
+			if classVarValue, exists := classInfo.ClassVars[memberName]; exists {
 				return classVarValue
 			}
-			// Not a class variable - this is an error
-			return i.newErrorWithLocation(ma, "class variable '%s' not found in class '%s'", ma.Member.Value, classInfo.Name)
+
+			// 2. Task 9.32: Try constructors (with inheritance support)
+			if classInfo.HasConstructor(memberName) {
+				// Find the constructor in the hierarchy
+				constructor := i.lookupConstructorInHierarchy(classInfo, memberName)
+				if constructor != nil {
+					// Check if parameterless
+					if len(constructor.Parameters) == 0 {
+						// Auto-invoke: create object and run constructor
+						// Create synthetic MethodCallExpression to reuse existing logic
+						methodCall := &ast.MethodCallExpression{
+							Token:     ma.Token,
+							Object:    ma.Object, // TClassName identifier
+							Method:    ma.Member, // Constructor name
+							Arguments: []ast.Expression{},
+						}
+						return i.evalMethodCall(methodCall)
+					}
+					// Constructor has parameters - return error for now
+					// (constructor pointers not yet supported)
+					return i.newErrorWithLocation(ma, "constructor '%s' requires arguments - use parentheses", memberName)
+				}
+			}
+
+			// 3. Task 9.32: Try class methods (static methods)
+			if classMethod := i.lookupClassMethodInHierarchy(classInfo, memberName); classMethod != nil {
+				// Check if parameterless
+				if len(classMethod.Parameters) == 0 {
+					// Auto-invoke the class method
+					methodCall := &ast.MethodCallExpression{
+						Token:     ma.Token,
+						Object:    ma.Object,
+						Method:    ma.Member,
+						Arguments: []ast.Expression{},
+					}
+					return i.evalMethodCall(methodCall)
+				}
+				// Class method has parameters - return as function pointer
+				paramTypes := make([]types.Type, len(classMethod.Parameters))
+				for idx, param := range classMethod.Parameters {
+					if param.Type != nil {
+						paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+					}
+				}
+				var returnType types.Type
+				if classMethod.ReturnType != nil {
+					returnType = i.getTypeFromAnnotation(classMethod.ReturnType)
+				}
+				pointerType := types.NewFunctionPointerType(paramTypes, returnType)
+				return NewFunctionPointerValue(classMethod, i.env, nil, pointerType)
+			}
+
+			// 4. Not found anywhere - error
+			return i.newErrorWithLocation(ma, "member '%s' not found in class '%s'", memberName, classInfo.Name)
 		}
 
 		// Check if this identifier refers to an enum type (for scoped access: TColor.Red)
@@ -288,6 +342,30 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	}
 
 	return fieldValue
+}
+
+// lookupConstructorInHierarchy searches for a constructor by name in the class hierarchy.
+// It walks the parent chain starting from the given class.
+// Returns the constructor declaration, or nil if not found.
+func (i *Interpreter) lookupConstructorInHierarchy(classInfo *ClassInfo, name string) *ast.FunctionDecl {
+	for current := classInfo; current != nil; current = current.Parent {
+		if constructor, exists := current.Constructors[name]; exists {
+			return constructor
+		}
+	}
+	return nil
+}
+
+// lookupClassMethodInHierarchy searches for a class method by name in the class hierarchy.
+// It walks the parent chain starting from the given class.
+// Returns the method declaration, or nil if not found.
+func (i *Interpreter) lookupClassMethodInHierarchy(classInfo *ClassInfo, name string) *ast.FunctionDecl {
+	for current := classInfo; current != nil; current = current.Parent {
+		if method, exists := current.ClassMethods[name]; exists {
+			return method
+		}
+	}
+	return nil
 }
 
 // evalPropertyRead evaluates a property read access.

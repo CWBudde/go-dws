@@ -21,7 +21,8 @@ func (a *Analyzer) analyzeSetDecl(decl *ast.SetDecl) {
 	setName := decl.Name.Value
 
 	// Check if set type is already declared
-	if _, exists := a.sets[setName]; exists {
+	// Use lowercase for case-insensitive duplicate check
+	if _, exists := a.sets[strings.ToLower(setName)]; exists {
 		a.addError("set type '%s' already declared at %s", setName, decl.Token.Pos.String())
 		return
 	}
@@ -31,7 +32,8 @@ func (a *Analyzer) analyzeSetDecl(decl *ast.SetDecl) {
 	elementTypeName := decl.ElementType.Name
 
 	// First check if it's an enum type
-	enumType, exists := a.enums[elementTypeName]
+	// Use lowercase for case-insensitive lookup
+	enumType, exists := a.enums[strings.ToLower(elementTypeName)]
 	if !exists {
 		a.addError("unknown type '%s' at %s", elementTypeName, decl.Token.Pos.String())
 		return

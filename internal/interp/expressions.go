@@ -811,11 +811,22 @@ func (i *Interpreter) getFunctionPointerTypeFromAnnotation(typeAnnotation *ast.T
 	return nil
 }
 
-// evalInOperator evaluates the 'in' operator for checking membership in arrays
-// Syntax: value in array
-// Returns: Boolean indicating whether value is found in the array
+// evalInOperator evaluates the 'in' operator for checking membership in sets or arrays
+// Syntax: value in container
+// Returns: Boolean indicating whether value is found in the container
 func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node) Value {
-	// Check if container is an array
+	// Task 9.214: Handle set membership
+	if setVal, ok := container.(*SetValue); ok {
+		// Value must be an enum to be in a set
+		enumVal, ok := value.(*EnumValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "type mismatch: %s in set", value.Type())
+		}
+		// Use existing evalSetMembership function from set.go
+		return i.evalSetMembership(enumVal, setVal)
+	}
+
+	// Handle array membership (existing code)
 	arrVal, ok := container.(*ArrayValue)
 	if !ok {
 		return i.newErrorWithLocation(node, "type mismatch: %s in %s", value.Type(), container.Type())

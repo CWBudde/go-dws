@@ -22,7 +22,8 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	recordName := decl.Name.Value
 
 	// Task 8.68: Check if record is already declared
-	if _, exists := a.records[recordName]; exists {
+	// Use lowercase for case-insensitive duplicate check
+	if _, exists := a.records[strings.ToLower(recordName)]; exists {
 		a.addError("record type '%s' already declared at %s", recordName, decl.Token.Pos.String())
 		return
 	}

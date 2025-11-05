@@ -235,3 +235,332 @@ func TestIntegerCast(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// For-In Enum Type Iteration Tests (Task 9.213)
+// ============================================================================
+
+func TestForInEnumType_Basic(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name: "iterate small enum",
+			input: `
+				type TColor = (Red, Green, Blue);
+				for var color in TColor do
+					PrintLn(color);
+			`,
+			expect: "Red\nGreen\nBlue\n",
+		},
+		{
+			name: "iterate enum with two values",
+			input: `
+				type TBool = (False, True);
+				for var b in TBool do
+					PrintLn(b);
+			`,
+			expect: "False\nTrue\n",
+		},
+		{
+			name: "iterate single value enum",
+			input: `
+				type TSingle = (OnlyOne);
+				for var s in TSingle do
+					PrintLn(s);
+			`,
+			expect: "OnlyOne\n",
+		},
+		{
+			name: "access ordinal value in loop",
+			input: `
+				type TColor = (Red, Green, Blue);
+				for var color in TColor do
+					PrintLn(Ord(color));
+			`,
+			expect: "0\n1\n2\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expect {
+				t.Errorf("expected %q, got %q", tt.expect, output)
+			}
+		})
+	}
+}
+
+func TestForInEnumType_ExplicitOrdinals(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name: "enum with explicit ordinals",
+			input: `
+				type TStatus = (Ok = 10, Warning = 20, Error = 30);
+				for var s in TStatus do begin
+					PrintLn(s);
+					PrintLn(Ord(s));
+				end;
+			`,
+			expect: "Ok\n10\nWarning\n20\nError\n30\n",
+		},
+		{
+			name: "enum with mixed ordinals",
+			input: `
+				type TPriority = (Low, Medium = 5, High);
+				for var p in TPriority do begin
+					PrintLn(p);
+					PrintLn(Ord(p));
+				end;
+			`,
+			expect: "Low\n0\nMedium\n5\nHigh\n6\n",
+		},
+		{
+			name: "enum with gaps in ordinals",
+			input: `
+				type TLevel = (None = 0, Low = 10, High = 100);
+				var count := 0;
+				for var level in TLevel do
+					count := count + 1;
+				PrintLn(count);
+			`,
+			expect: "3\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expect {
+				t.Errorf("expected %q, got %q", tt.expect, output)
+			}
+		})
+	}
+}
+
+func TestForInEnumType_ControlFlow(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name: "break in enum for-in loop",
+			input: `
+				type TColor = (Red, Green, Blue, Yellow, Orange);
+				for var color in TColor do begin
+					PrintLn(color);
+					if Ord(color) >= 2 then
+						break;
+				end;
+			`,
+			expect: "Red\nGreen\nBlue\n",
+		},
+		{
+			name: "continue in enum for-in loop",
+			input: `
+				type TColor = (Red, Green, Blue, Yellow);
+				for var color in TColor do begin
+					if Ord(color) = 1 then
+						continue;
+					PrintLn(color);
+				end;
+			`,
+			expect: "Red\nBlue\nYellow\n",
+		},
+		{
+			name: "nested enum for-in loops",
+			input: `
+				type TFirst = (A, B);
+				type TSecond = (X, Y);
+				var count := 0;
+				for var f in TFirst do
+					for var s in TSecond do
+						count := count + 1;
+				PrintLn(count);
+			`,
+			expect: "4\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expect {
+				t.Errorf("expected %q, got %q", tt.expect, output)
+			}
+		})
+	}
+}
+
+func TestForInEnumType_LargeEnum(t *testing.T) {
+	// Test with an enum that has only two explicitly declared values
+	// but with large ordinal values (like eratosthene.pas uses)
+	input := `
+		type TRange = enum (Low = 2, High = 1000);
+		var count := 0;
+		for var e in TRange do
+			count := count + 1;
+		PrintLn(count);
+	`
+	_, output := testEvalWithOutput(input)
+	// TRange has only 2 values: Low (2) and High (1000)
+	expect := "2\n"
+	if output != expect {
+		t.Errorf("expected %q, got %q", expect, output)
+	}
+}
+
+func TestForInEnumType_OrdinalValues(t *testing.T) {
+	// Test that iteration provides enum values with correct ordinals
+	input := `
+		type TRange = enum (Low = 2, High = 1000);
+		for var e in TRange do
+			PrintLn(Ord(e));
+	`
+	_, output := testEvalWithOutput(input)
+	expect := "2\n1000\n"
+	if output != expect {
+		t.Errorf("expected %q, got %q", expect, output)
+	}
+}
+
+func TestForInEnumType_ErrorCase(t *testing.T) {
+	// Test error when trying to iterate over non-enum type metadata
+	input := `
+		for var i in Integer do
+			PrintLn(i);
+	`
+	result, _ := testEvalWithOutput(input)
+	if result == nil {
+		t.Fatal("expected error result, got nil")
+	}
+	if err, ok := result.(*ErrorValue); ok {
+		expected := "for-in loop: can only iterate over enum types, got Integer"
+		if err.Message != expected {
+			t.Errorf("expected error %q, got %q", expected, err.Message)
+		}
+	} else {
+		t.Errorf("expected ErrorValue, got %T", result)
+	}
+}
+
+// ============================================================================
+// Enum .Value Helper Property Tests (Task 9.31)
+// ============================================================================
+
+func TestEnumValueProperty(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name: "enum value property with implicit ordinals",
+			input: `
+				type TColor = (Red, Green, Blue);
+				var color := Red;
+				PrintLn(color.Value);
+			`,
+			expect: "0\n",
+		},
+		{
+			name: "enum value property with explicit ordinals",
+			input: `
+				type TStatus = (Ok = 100, Error = 200);
+				PrintLn(Ok.Value);
+				PrintLn(Error.Value);
+			`,
+			expect: "100\n200\n",
+		},
+		{
+			name: "scoped enum value property",
+			input: `
+				type TColor = (Red, Green, Blue);
+				PrintLn(TColor.Green.Value);
+			`,
+			expect: "1\n",
+		},
+		{
+			name: "enum value property with chaining",
+			input: `
+				type TEnum = (eOne=1, eTwo, eThree);
+				PrintLn(eTwo.Value.ToString);
+			`,
+			expect: "2\n",
+		},
+		{
+			name: "enum value property in expression",
+			input: `
+				type TPriority = (Low, Medium = 5, High);
+				var p := High;
+				PrintLn(p.Value * 2);
+			`,
+			expect: "12\n",
+		},
+		{
+			name: "enum value property vs Ord equivalence",
+			input: `
+				type TColor = (Red, Green, Blue);
+				var c := Green;
+				PrintLn(c.Value = Ord(c));
+			`,
+			expect: "true\n",
+		},
+		{
+			name: "all values from enum with mixed ordinals",
+			input: `
+				type TEnum = (eOne=1, eTwo, eThree);
+				PrintLn(eOne.Value);
+				PrintLn(eTwo.Value);
+				PrintLn(eThree.Value);
+			`,
+			expect: "1\n2\n3\n",
+		},
+		{
+			name: "enum value property in variable assignment",
+			input: `
+				type TColor = (Red, Green, Blue);
+				var c := Blue;
+				var ordinal: Integer := c.Value;
+				PrintLn(ordinal);
+			`,
+			expect: "2\n",
+		},
+		{
+			name: "enum value property in comparison",
+			input: `
+				type TPriority = (Low = 1, Medium = 5, High = 10);
+				var p1 := Low;
+				var p2 := High;
+				PrintLn(p1.Value < p2.Value);
+			`,
+			expect: "true\n",
+		},
+		{
+			name: "enum value property with for-in loop",
+			input: `
+				type TColor = (Red, Green, Blue);
+				for var c in TColor do
+					PrintLn(c.Value);
+			`,
+			expect: "0\n1\n2\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expect {
+				t.Errorf("expected %q, got %q", tt.expect, output)
+			}
+		})
+	}
+}

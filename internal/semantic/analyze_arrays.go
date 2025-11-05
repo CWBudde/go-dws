@@ -21,7 +21,8 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 	arrayName := decl.Name.Value
 
 	// Check if array type is already declared
-	if _, exists := a.arrays[arrayName]; exists {
+	// Use lowercase for case-insensitive duplicate check
+	if _, exists := a.arrays[strings.ToLower(arrayName)]; exists {
 		a.addError("type '%s' already declared at %s", arrayName, decl.Token.Pos.String())
 		return
 	}

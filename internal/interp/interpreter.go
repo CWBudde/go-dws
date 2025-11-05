@@ -129,6 +129,9 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 	// Register built-in helpers for primitive types (Task 9.205)
 	interp.initIntrinsicHelpers()
 
+	// Register built-in enum helpers (Task 9.31)
+	interp.initEnumHelpers()
+
 	// Initialize ExceptObject to nil
 	// ExceptObject is a built-in global variable that holds the current exception
 	env.Define("ExceptObject", &NilValue{})

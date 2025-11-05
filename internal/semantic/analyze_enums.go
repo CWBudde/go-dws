@@ -20,7 +20,8 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 	enumName := decl.Name.Value
 
 	// Task 8.45: Check if enum is already declared
-	if _, exists := a.enums[enumName]; exists {
+	// Use lowercase for case-insensitive duplicate check
+	if _, exists := a.enums[strings.ToLower(enumName)]; exists {
 		a.addError("enum type '%s' already declared at %s", enumName, decl.Token.Pos.String())
 		return
 	}

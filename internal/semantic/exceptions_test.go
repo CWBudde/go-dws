@@ -18,7 +18,8 @@ func TestExceptionClassRegistered(t *testing.T) {
 	analyzer := NewAnalyzer()
 
 	// Exception should be registered as a built-in class
-	exceptionClass, exists := analyzer.classes["Exception"]
+	// Use lowercase for case-insensitive lookup
+	exceptionClass, exists := analyzer.classes["exception"]
 	if !exists {
 		t.Fatal("Exception class should be registered as a built-in type")
 	}
@@ -51,7 +52,8 @@ func TestStandardExceptionTypesRegistered(t *testing.T) {
 	}
 
 	for _, excName := range standardExceptions {
-		excClass, exists := analyzer.classes[excName]
+		// Use lowercase for case-insensitive lookup
+		excClass, exists := analyzer.classes[strings.ToLower(excName)]
 		if !exists {
 			t.Errorf("%s should be registered as a built-in exception type", excName)
 			continue

@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -33,7 +35,8 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 	// ExceptObject is a global variable that holds the current exception (or nil)
 	if ident.Value == "ExceptObject" {
 		// ExceptObject is always of type Exception (the base exception class)
-		if exceptionClass, exists := a.classes["Exception"]; exists {
+		// Task 9.285: Use lowercase for case-insensitive lookup
+		if exceptionClass, exists := a.classes["exception"]; exists {
 			return exceptionClass
 		}
 		// If Exception class doesn't exist (shouldn't happen), return nil
@@ -43,7 +46,8 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 
 	sym, ok := a.symbols.Resolve(ident.Value)
 	if !ok {
-		if classType, exists := a.classes[ident.Value]; exists {
+		// Task 9.285: Use lowercase for case-insensitive lookup
+		if classType, exists := a.classes[strings.ToLower(ident.Value)]; exists {
 			return classType
 		}
 		if a.currentClass != nil {
