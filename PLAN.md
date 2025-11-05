@@ -478,7 +478,7 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
 
 #### Parse Errors - Case Statement Syntax (2 tasks) - 50% COMPLETE
 
-- [x] 9.209 Fix bottles_of_beer.pas case statement:
+- [x] 9.25 Fix bottles_of_beer.pas case statement:
   - [x] Error: `expected 'end' to close case statement at 100:7`
   - [x] Additional: `no prefix parse function for METHOD found at 109:1`
   - [x] Root cause: Case statement parser doesn't handle all syntax variants
@@ -490,7 +490,7 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
   - [x] BONUS: Fixed case-insensitive type name resolution (runtime bug)
   - [x] NOTE: Parsing complete. Runtime error remains (see task 9.214.1 for constructor access)
 
-- [x] 9.210 Fix vigenere.pas case statement:
+- [x] 9.26 Fix vigenere.pas case statement:
   - [x] Error: `expected next token to be COLON, got DOTDOT instead at 25:16`
   - [x] Root cause: Case range syntax `'A'..'Z':`
   - [x] Priority: MEDIUM
@@ -505,7 +505,7 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
 
 #### Parse Errors - Advanced Array Syntax (3 tasks) - 33% COMPLETE
 
-- [x] 9.211 Fix lu_factorization.pas array of array:
+- [x] 9.27 Fix lu_factorization.pas array of array:
   - [x] Error: `expected next token to be IDENT, got ARRAY instead at 1:24`
   - [x] Root cause: `type TMatrix = array of array of Float;`
   - [x] Priority: HIGH - needed for matrix operations
@@ -516,7 +516,7 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
   - [x] Tests: Added 4 parser tests and 6 semantic tests for nested arrays (2D, 3D, static, mixed)
   - [x] Verified: lu_factorization.pas now parses successfully
 
-- [x] 9.212 Fix pi.pas multidimensional array:
+- [x] 9.28 Fix pi.pas multidimensional array:
   - [x] Error: `expected next token to be RBRACK, got ASTERISK instead at 4:18`
   - [x] Root cause: Syntax like `array[0..1, 0..2*DIGITS] of Integer`
   - [x] Priority: HIGH - multi-dim arrays are common
@@ -528,16 +528,63 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
   - [x] Tests: Added TestParseMultiDimensionalArrayTypes with 6 test cases
   - [x] Verified: const_array5.pas now parses successfully
 
-- [ ] 9.213 Fix eratosthene.pas set type:
-  - [ ] Error: `expected type expression, got set at 3:13`
-  - [ ] Root cause: `var primes: set of 2..1000;`
-  - [ ] Priority: MEDIUM
-  - [ ] Requires: Set type declarations
-  - [ ] File: testdata/fixtures/Algorithms/eratosthene.pas
+- [x] 9.29 Fix eratosthene.pas for-in enum type iteration:
+  - [x] Error: `for-in loop: cannot iterate over TYPE_META`
+  - [x] Root cause: `for var e in TRange do` - iterating over enum type directly
+  - [x] Issue: evalForInStatement() handles ArrayValue, SetValue, StringValue but not TypeMetaValue
+  - [x] DWScript behavior: `for var e in TEnumType do` should iterate over all enum values
+  - [x] Fix location: `internal/interp/statements.go` lines 1279-1323 in `evalForInStatement()`
+  - [x] Solution: Add case for `*TypeMetaValue` with enum type, iterate OrderedNames
+  - [x] Also fixed: Semantic analyzer now recognizes EnumType as enumerable (analyze_statements.go:546-551)
+  - [x] Tests: Added 6 comprehensive test functions in enum_test.go (lines 243-456)
+  - [x] Priority: MEDIUM - blocks eratosthene.pas execution
+  - [x] Note: eratosthene.pas still fails due to set initialization issue (see task 9.214)
+  - [x] File: testdata/fixtures/Algorithms/eratosthene.pas (line 7: `for var e in TRange do`)
+
+- [x] 9.30 Fix set variable initialization and membership:
+  - [x] Error: `type mismatch: ENUM in NIL at line 8, column 9` in eratosthene.pas
+  - [x] Root cause: Uninitialized set variables default to NIL instead of empty sets
+  - [x] Issue 1: `createZeroValue()` doesn't handle "set of" types (statements.go:249-322)
+  - [x] Issue 2: Need to parse "set of \<EnumType\>" type expressions
+  - [x] Issue 3: Verify "in" operator properly handles SetValue (already works)
+  - [x] Fix location 1: `internal/interp/statements.go` createZeroValue() (lines 279-286)
+  - [x] Fix location 2: `internal/interp/statements.go` evalVarDeclStatement() (lines 169-176)
+  - [x] Fix location 3: `internal/interp/expressions.go` evalInOperator() (lines 818-827)
+  - [x] Solution: Add "set of" type handling to create empty SetValue instances
+  - [x] Implementation: Created parseInlineSetType() helper (functions.go:1348-1379)
+  - [x] Tests: Added 6 test functions in set_test.go (lines 1517-1726)
+  - [x] Priority: HIGH - blocks eratosthene.pas and likely many other set-based tests
+  - [x] Result: eratosthene.pas now progresses to next error (enum .Value helper missing)
+  - [x] File: testdata/fixtures/Algorithms/eratosthene.pas (line 3: `var sieve : set of TRange;`)
+  - [x] Note: Named set type aliases (type TSet = set of T) need separate semantic analyzer support
+
+#### Runtime Errors - Enum Helper Properties (1 task) - 100% COMPLETE ✅
+
+- [x] 9.31 Implement enum .Value helper property:
+  - [x] Error: `cannot access member 'Value' of type 'ENUM' (no helper found)` in eratosthene.pas
+  - [x] Root cause: Enum types don't have registered helper properties
+  - [x] Issue: `e.Value` should return the enum's ordinal value (same as `Ord(e)`)
+  - [x] DWScript behavior: `.Value` is a read-only property that returns the integer ordinal
+  - [x] Fix location: Need to register enum helpers in semantic analyzer and interpreter
+  - [x] Pattern: Similar to string helpers (Length, etc.) or array helpers (Low, High)
+  - [x] Implementation: Register in semantic analyzer's helper system
+  - [x] Alternative: Could implement as pseudo-property in evalMemberAccess for EnumValue
+  - [x] Tests: Add tests for enum.Value in enum_test.go
+  - [x] Priority: HIGH - blocks eratosthene.pas (line 9: `PrintLn(e.Value);`)
+  - [x] File: testdata/fixtures/Algorithms/eratosthene.pas
+  - [x] Solution: Registered enum helpers in both semantic analyzer and interpreter
+  - [x] Files modified:
+    - [x] internal/semantic/analyze_helpers.go: Added initEnumHelpers() and updated getHelpersForType()
+    - [x] internal/semantic/analyzer.go: Called initEnumHelpers() in NewAnalyzer()
+    - [x] internal/interp/helpers.go: Added initEnumHelpers(), evalBuiltinHelperProperty() case, updated getHelpersForValue()
+    - [x] internal/interp/interpreter.go: Called initEnumHelpers() in NewWithOptions()
+    - [x] internal/interp/enum_test.go: Added TestEnumValueProperty() with 10 test cases
+    - [x] internal/semantic/enum_test.go: Added TestEnumValueHelperProperty() with 5 test cases
+  - [x] All tests pass successfully
 
 #### Runtime Errors - Constructor/Class Method Access (1 task) - 0% COMPLETE
 
-- [ ] 9.215 Fix bottles_of_beer.pas constructor access without parentheses:
+- [ ] 9.32 Fix bottles_of_beer.pas constructor access without parentheses:
   - [ ] Error: `class variable 'Create' not found in class 'TBottlesSinger'`
   - [ ] Root cause: `evalMemberAccess` only checks class variables, not constructors/methods
   - [ ] Issue: `TBottlesSinger.Create` (no parentheses) parsed as `MemberAccessExpression`
@@ -562,7 +609,7 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
 
 #### Runtime Errors - NIL Handling (3 tasks)
 
-- [x] 9.220 Fix evenly_divisible.pas - Add MaxInt/MinInt functions: ✅ DONE
+- [x] 9.33 Fix evenly_divisible.pas - Add MaxInt/MinInt functions: ✅ DONE
   - [x] Error: `undefined function: MaxInt` (not NIL indexing as originally thought)
   - [x] Root cause: Missing MaxInt/MinInt built-in functions
   - [x] Priority: MEDIUM
@@ -578,7 +625,7 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
   - [x] Note: evenly_divisible.pas still has Inc(Result[i]) issues (separate bug)
   - [x] File: testdata/fixtures/Algorithms/evenly_divisible.pas
 
-- [x] 9.221 Fix factorize.pas STRING + NIL: ✅ DONE
+- [x] 9.34 Fix factorize.pas STRING + NIL: ✅ DONE
   - [x] Error: `type mismatch: STRING + NIL at line 18, column 31` - FIXED
   - [x] Root cause: String function results incorrectly initialized to NIL instead of empty string
   - [x] Priority: MEDIUM
@@ -599,7 +646,7 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
   - [x] Note: factorize.pas still fails on missing SubStr() function (separate task)
   - [x] File: testdata/fixtures/Algorithms/factorize.pas
 
-- [ ] 9.222 Fix jensen_device.pas array type inference:
+- [ ] 9.35 Fix jensen_device.pas array type inference:
   - [ ] Error: `cannot determine array type for literal`
   - [ ] Root cause: Array literal type inference failure
   - [ ] Priority: MEDIUM
@@ -608,7 +655,7 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
 
 #### Runtime Errors - Array/Record Interactions (1 task)
 
-- [ ] 9.230 Fix record field assignment through array indexing:
+- [ ] 9.36 Fix record field assignment through array indexing:
   - [ ] Error: Assignment like `points[2].x := 30` doesn't work (field remains 0)
   - [ ] Root cause: Chained member access with array indexing not properly handling assignment
   - [ ] Issue: `arrayVar[index].field := value` pattern fails to update the record field
@@ -628,14 +675,14 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
 
 #### Runtime Errors - Missing Built-in Functions (2 tasks)
 
-- [ ] 9.223 Fix gray_code.pas IntToBin function:
+- [ ] 9.37 Fix gray_code.pas IntToBin function:
   - [ ] Error: `undefined function: IntToBin at line 22, column 35`
   - [ ] Root cause: Missing IntToBin built-in function
   - [ ] Priority: MEDIUM
   - [ ] Requires: Add IntToBin to string conversion builtins
   - [ ] File: testdata/fixtures/Algorithms/gray_code.pas
 
-- [ ] 9.224 Fix lucas_lehmer.pas Log2 function:
+- [ ] 9.38 Fix lucas_lehmer.pas Log2 function:
   - [ ] Error: `undefined function: Log2 at line 16, column 36`
   - [ ] Root cause: Missing Log2 math function
   - [ ] Priority: MEDIUM
@@ -805,90 +852,6 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
     - [ ] lerp.pas should execute successfully after fix
     - [ ] All existing record method tests should still pass
     - [ ] New test cases should cover gaps (parameterless, temporaries)
-
----
-
-### Forward Method Declaration Support (Tasks 9.279-9.285) - 14% COMPLETE
-
-**Goal**: Fix out-of-line method implementations to match DWScript semantics
-**Status**: 1/7 tasks complete
-**Priority**: HIGH - Breaks classes.dws example test
-**Reference**: DWScript dwsCompiler.pas (ReadMethodImpl, ClearIsForwarded)
-**Issue**: Example script `examples/scripts/classes.dws` fails with "unknown type 'TPerson'" when trying to implement methods outside class body
-
-**Background**: In DWScript, methods can be declared in the class body (interface) and implemented separately (implementation). The original DWScript uses a two-phase approach where method signatures are registered as "forward" declarations during class analysis, then implementations are attached to these existing symbols. Our current implementation incorrectly treats out-of-line implementations as new declarations instead of looking up and completing forward declarations.
-
-- [x] 9.279 Add IsForwarded field to types.MethodInfo: ✅
-  - [x] Added `ForwardedMethods map[string]bool` field to `ClassType` struct in `internal/types/types.go`
-  - [x] Track methods awaiting implementation (declared but no body yet)
-  - [x] Initialized in `NewClassType()` constructor
-  - [x] Will be set to `true` when method is declared in class body without implementation
-  - [x] Will be set to `false` when implementation body is attached
-  - [x] Used for post-analysis validation to detect missing implementations
-
-- [ ] 9.280 Mark methods as forward during class analysis:
-  - [ ] In `analyzeMethodDecl()` when called from `analyzeClassDecl()`
-  - [ ] Check if method has no body (`method.Body == nil`)
-  - [ ] If no body, set `methodInfo.IsForwarded = true` in classType.Methods map
-  - [ ] Methods declared in class interface section are implicitly forward
-
-- [ ] 9.281 Implement method lookup in analyzeMethodImplementation():
-  - [ ] In `analyzeMethodImplementation()` at line 178 of analyze_classes.go
-  - [ ] After looking up class, look up method name in `classType.Methods` map
-  - [ ] Use case-insensitive lookup: `strings.ToLower(methodName)`
-  - [ ] If method not found in class, report error "method 'X' not declared in class 'Y'"
-  - [ ] If found, proceed to validate signature and attach implementation
-
-- [ ] 9.282 Add signature validation for out-of-line implementations:
-  - [ ] Compare declared vs implementation signatures
-  - [ ] Validate parameter count matches
-  - [ ] Validate parameter types match (use type compatibility rules)
-  - [ ] Validate return type matches
-  - [ ] DWScript allows omitting parameter names in implementation if they match declaration
-  - [ ] Report clear errors for mismatches with both signatures shown
-
-- [ ] 9.283 Attach implementation and clear forward flag:
-  - [ ] Update existing MethodInfo in `classType.Methods` with implementation body
-  - [ ] Set `methodInfo.IsForwarded = false`
-  - [ ] Preserve all other method metadata (visibility, virtual, override, etc.)
-  - [ ] Don't create a duplicate method entry
-  - [ ] Analyze method body with proper class context (Self, fields accessible)
-
-- [ ] 9.284 Add post-analysis validation for missing implementations:
-  - [ ] After `Analyze()` completes all statements, call new `validateMethodImplementations()`
-  - [ ] Iterate through all classes in `a.classes` map
-  - [ ] For each class, check each method in `Methods` map
-  - [ ] If `method.IsForwarded == true`: check if abstract or external
-  - [ ] Skip abstract methods (`method.IsAbstract == true`)
-  - [ ] Skip external methods (`method.IsExternal == true`)
-  - [ ] Report error for any other forwarded methods: "method 'X.Y' declared but not implemented"
-  - [ ] Include method signature and declaration position in error
-
-- [ ] 9.285 Fix case-insensitive class lookup bug:
-  - [ ] In `analyzeMethodImplementation()` at line 182 of analyze_classes.go
-  - [ ] Currently uses `className` directly: `a.classes[className]`
-  - [ ] Should use `strings.ToLower(className)` to match registration at line 137
-  - [ ] Add test case for class name with different casing in implementation
-  - [ ] Example: `type TPerson = class` then `constructor tperson.Create`
-  - [ ] This is a quick-win bug fix independent of other tasks
-
-**Implementation Order**:
-
-1. Task 9.285 first (quick case-sensitivity bug fix)
-2. Tasks 9.279-9.280 (add forward tracking infrastructure)
-3. Tasks 9.281-9.283 (implement proper method lookup and attachment)
-4. Task 9.284 (add validation for missing implementations)
-
-**Files to Modify**:
-
-- `internal/types/types.go` - Add IsForwarded to MethodInfo struct
-- `internal/semantic/analyze_classes.go` - Modify analyzeMethodDecl, analyzeMethodImplementation
-- `internal/semantic/analyzer.go` - Add validateMethodImplementations() called from Analyze()
-
-**Test Files**:
-
-- `examples/scripts/classes.dws` - Should pass after implementation
-- `pkg/dwscript/example_scripts_test.go` - TestExampleScripts/classes should pass
 
 ---
 
@@ -1123,265 +1086,13 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
 
 ### Improved Error Messages and Stack Traces ✅ 90% COMPLETE (MEDIUM PRIORITY)
 
-**Summary**: Enhance error reporting with better messages, stack traces, and debugging information. Improves developer experience significantly.
-
-**Status**: 10/12 tasks complete. Tasks 9.110-9.114, 9.116-9.118 complete. Task 9.115 partial (EndPos deferred). Task 9.116 complete.
-
-**Reference**: docs/missing-features-recommendations.md lines 299-302
-
-#### Stack Trace Infrastructure (3 tasks) ✅ COMPLETE
-
-- [x] 9.107 Create `errors/stack_trace.go`: ✅ COMPLETE
-  - [x] Define `StackFrame` struct with `FunctionName`, `FileName`, `Position` (line/column)
-  - [x] Define `StackTrace` type as `[]StackFrame`
-  - [x] Implement `String()` method for formatted output (DWScript-compatible format)
-  - [x] Add helper methods: `Top()`, `Bottom()`, `Depth()`, `Reverse()`
-- [x] 9.108 Implement stack trace capture in interpreter: ✅ COMPLETE
-  - [x] Track call stack during execution (updated `Interpreter.callStack` to use `StackTrace`)
-  - [x] Push frame on function entry (via `pushCallStack()` helper)
-  - [x] Pop frame on function exit (via `popCallStack()` helper)
-  - [x] Capture stack on error/exception (updated `ExceptionValue.CallStack` to use `StackTrace`)
-  - [x] Include position information from current AST node
-  - [x] Updated all call sites: user functions, lambdas, record methods, class methods
-- [x] 9.109 Add tests for stack trace capture: ✅ COMPLETE
-  - [x] Comprehensive unit tests in `internal/errors/stack_trace_test.go`
-  - [x] Updated FFI error tests to use new `StackTrace` type
-  - [x] Verified exception CLI tests pass with new format
-
-#### Error Message Improvements (3 tasks)
-
-- [x] 9.110 Improve type error messages: ✅ COMPLETE
-  - [x] Before: "Type mismatch"
-  - [x] After: "Cannot assign Float to Integer variable 'count' at line 42"
-  - [x] Include expected and actual types
-  - [x] Include variable name and location
-  - [x] Created `SemanticError` type in `internal/semantic/errors.go`
-  - [x] Updated key error sites (variable declarations, constants, undefined variables)
-  - [x] Updated CLI to use structured errors with `ToCompilerError()` conversion
-- [x] 9.111 Improve runtime error messages: ✅ COMPLETE
-  - [x] Created `RuntimeError` type in `internal/interp/errors.go`
-  - [x] Added `sourceCode` and `sourceFile` fields to Interpreter
-  - [x] Implemented `ToCompilerError()` conversion for runtime errors
-  - [x] Updated division by zero error sites in `expressions.go` and `statements.go`
-  - [x] Show values involved: "Division by zero: 10 / 0" with left/right operand display
-  - [x] Updated CLI to use CompilerError formatting for RuntimeError
-  - [x] Added `SetSource()` method to pass source context to interpreter
-- [x] 9.112 Add source code snippets to errors: ✅ COMPLETE
-  - [x] Show the line that caused error (already implemented in `errors.CompilerError`)
-  - [x] Highlight error position with `^` and color (already implemented)
-  - [x] Show 1-2 lines of context (already implemented in `errors.CompilerError`)
-
-#### Exception Enhancements (2 tasks) ✅ COMPLETE
-
-- [x] 9.113 Add stack trace to exception objects: ✅ COMPLETE
-  - [x] Store `StackTrace` in exception
-  - [x] Display on uncaught exception
-  - [x] Format nicely for CLI output
-- [x] 9.114 Implement `GetStackTrace()` built-in: ✅ COMPLETE
-  - [x] Return current stack trace as string
-  - [x] Useful for logging and debugging
-
-#### Debugging Information (2 tasks) - PARTIAL (1/2 complete)
-
 - [x] 9.115 Add source position to all AST nodes: PARTIAL
   - [x] Audit nodes for missing `Pos` fields ✅ COMPLETE (all nodes have Pos via Token field)
   - [ ] Add `EndPos` for better range reporting (DEFERRED - requires extensive parser refactoring)
   - [ ] Use in error messages (partially done - current error messages use start position)
-- [x] 9.116 Implement call stack inspection: ✅ COMPLETE
-  - [x] `GetCallStack()` returns array of frame info
-  - [x] Each frame: function name, file, line, column
-  - [x] Accessible from DWScript code as array of records
-
-#### Testing & Documentation (2 tasks) ✅ COMPLETE
-
-- [x] 9.117 Create test fixtures demonstrating error messages: ✅ COMPLETE
-  - [x] Type errors with clear messages (fixtures 01-03)
-  - [x] Runtime errors with stack traces (fixtures 04-05)
-  - [x] Exception handling with stack traces (fixtures 06-08)
-  - [x] Compare before/after error message quality (documented in fixtures)
-  - [x] Created 9 comprehensive test fixtures in `testdata/error_messages/`
-  - [x] Added README.md explaining fixture usage
-- [x] 9.118 Document error message format in `docs/error-messages.md`: ✅ COMPLETE
-  - [x] Complete documentation of all error types
-  - [x] Format specifications and examples
-  - [x] Before/after comparisons
-  - [x] Best practices and usage guidelines
 
 ---
 
-### Contracts (Design by Contract) ✅ 94.7% COMPLETE (36/38 tasks, 2 deferred to Stage 7)
-
-**Overview**: Implement DWScript's complete contract system with preconditions (`require`), postconditions (`ensure`), `old` keyword for referencing pre-execution values, and proper OOP inheritance semantics following Liskov substitution principle.
-
-**Status**: Core contracts implementation COMPLETE. All parsing, semantic analysis, runtime execution, and testing complete. Only OOP method inheritance deferred to Stage 7.
-
-**Reference**:
-
-- <https://www.delphitools.info/2011/01/19/leaps-and-bounds-of-dwscript/>
-- `reference/dwscript_original/dwsSymbols.pas` (lines 823-871)
-- `reference/dwscript_original/dwsExprs.pas` (lines 1210-1254, 3218-3254)
-- `reference/dwscript_original/dwsCompiler.pas` (lines 4061-4265)
-
-#### Phase 1: AST Nodes (9 tasks) ✅ COMPLETE
-
-- [x] 9.119 Create `Condition` struct in `ast/statements.go`
-  - Fields: `Test Expression` (must be boolean), `Message Expression` (optional string)
-  - Implements `Node`, `Statement` interfaces
-  - Add `String()` method for debugging
-- [x] 9.120 Create `PreConditions` collection node
-  - Fields: `Conditions []Condition`, `Token token.Token`
-  - Implements `Node`, `Statement` interfaces
-  - Add `String()` method showing all conditions
-- [x] 9.121 Create `PostConditions` collection node
-  - Same structure as `PreConditions`
-  - Separate type for semantic distinction
-- [x] 9.122 Add contract fields to `FunctionDeclaration` in `ast/functions.go`
-  - Add `PreConditions *PreConditions` field
-  - Add `PostConditions *PostConditions` field
-  - Update `String()` method to show contracts
-- [x] 9.123 Add contract fields to `MethodDeclaration` (for OOP support)
-  - Methods use `FunctionDecl` type, so already have contract support
-  - Will enable inheritance semantics in later phase
-- [x] 9.124 Create `OldExpression` node in `ast/statements.go`
-  - Fields: `Token token.Token` (the OLD token), `Identifier *Identifier`
-  - Implements `Node`, `Expression` interfaces
-  - Syntax: `old identifier` (no parentheses, matches DWScript reference)
-- [x] 9.125 Implement `TokenLiteral()` methods for all new nodes
-  - Required for error reporting with proper source positions
-- [x] 9.126 Add contract nodes to AST visitor patterns (if implemented)
-  - N/A: No visitor pattern currently implemented
-- [x] 9.127 Write AST node unit tests
-  - Test `String()` output matches expected format
-  - Test node construction and field access
-  - Created `ast/contracts_test.go` with 10 comprehensive tests
-
-#### Phase 2: Parser (12 tasks) ✅ COMPLETE
-
-- [x] 9.128 Parse `require` keyword in function/method declarations
-  - After function signature, before `var`/`const`/`begin`
-  - Set up loop to parse multiple conditions
-  - Entry point: `parseFunctionDeclaration()` in `parser/functions.go`
-- [x] 9.129 Implement `parseCondition()` helper method
-  - Parse boolean expression (will validate type in semantic phase)
-  - Check for optional `: "string literal"` suffix for custom message
-  - Return `Condition` struct
-  - Implemented in `parser/expressions.go`
-- [x] 9.130 Parse multiple preconditions (semicolon-separated)
-  - Loop until non-semicolon token or declaration keyword (`var`, `const`, `begin`)
-  - Collect all conditions into `PreConditions` node
-  - Handle empty condition list (just `require` keyword) as error
-- [x] 9.131 Parse `ensure` keyword after function body
-  - After `end` keyword of function block
-  - Before next function/procedure/type/implementation/end keyword
-  - Use same `parseCondition()` logic
-- [x] 9.132 Parse multiple postconditions (same logic as preconditions)
-  - Collect into `PostConditions` node
-- [x] 9.133 Enable `old` keyword parsing in postcondition context
-  - Add parser flag: `parsingPostCondition bool`
-  - Set to true when parsing `ensure` block
-  - Register prefix parse function for `OLD` token
-- [x] 9.134 Implement `parseOldExpression()` method
-  - Expect `old identifier` syntax (no parentheses)
-  - Parse identifier following `old` keyword
-  - Validate only used in postconditions (check `parsingPostCondition` flag)
-  - Return `OldExpression` node
-- [x] 9.135 Handle condition parsing errors gracefully
-  - Missing semicolon between conditions
-  - Non-boolean expressions (defer to semantic phase)
-  - Unterminated string messages
-  - `old` outside postconditions (report error immediately)
-- [x] 9.136 Add parser tests for preconditions
-  - Single condition, multiple conditions
-  - With and without custom messages
-  - Error cases (missing expressions, syntax errors)
-  - Created `parser/contracts_test.go` with comprehensive tests
-- [x] 9.137 Add parser tests for postconditions
-  - Same coverage as preconditions
-  - Test `old` expressions in various contexts
-  - All tests pass
-- [x] 9.138 Add parser tests for combined pre/post conditions
-  - Functions with both `require` and `ensure`
-  - Edge cases: empty bodies, multiple returns, nested functions
-  - TestParseCombinedContracts, TestParseContractsWithLocalVars
-- [x] 9.139 Test parser error recovery
-  - Ensure parser continues after contract errors
-  - Verify error messages include proper source positions
-  - TestParseOldOutsidePostconditionError validates error handling
-  - Created testdata examples: division.dws, increment.dws, clamp.dws, etc.
-
-#### Phase 3: Semantic Analysis (6 tasks) ✅ COMPLETE (5/6 tasks, Task 9.144 deferred)
-
-- [x] 9.140 Validate precondition expressions are boolean type
-  - In `semantic/analyze_functions.go`, added `checkPreconditions()` method
-  - Type-check each condition's `Test` expression
-  - Report error if not boolean: "precondition must be boolean expression"
-  - Implemented and tested ✅
-- [x] 9.141 Validate postcondition expressions are boolean type
-  - Same logic as preconditions in `checkPostconditions()` method
-  - Error message: "postcondition must be boolean expression"
-  - Implemented and tested ✅
-- [x] 9.142 Validate message expressions are string type
-  - Check optional `Message` field in each condition
-  - Messages are validated as string type
-  - Note: Parser enforces STRING literal after colon, semantic check redundant for literals
-  - Implemented and tested ✅
-- [x] 9.143 Validate `old` keyword usage
-  - Parser validates `old` only in postconditions
-  - Added `validateOldExpressions()` to recursively check undefined identifiers
-  - Added `analyzeOldExpression()` in `analyze_expressions.go` for type inference
-  - Error if referencing undefined variable: "old() references undefined identifier"
-  - Implemented and tested ✅
-- [ ] 9.144 Check method contract inheritance (OOP) - DEFERRED
-  - Will implement with full OOP inheritance support in Stage 7
-  - Requires class hierarchy analysis and method overriding support
-  - Liskov substitution principle to be implemented later
-- [x] 9.145 Add semantic analysis tests
-  - Created `semantic/contracts_test.go` with 6 comprehensive tests
-  - Boolean type validation for preconditions and postconditions ✅
-  - String type validation for messages ✅
-  - `old` expression validation (defined/undefined identifiers) ✅
-  - Multiple conditions testing ✅
-  - Type inference testing ✅
-  - All tests pass ✅
-
-#### Phase 4: Interpreter/Runtime (6 tasks) ✅ COMPLETE (5/6 - Task 9.151 deferred to Stage 7)
-
-- [x] 9.146 Implement `old` value capture in interpreter ✅
-  - In `interp/interpreter.go`, before function execution:
-  - Create `oldValues map[string]interface{}` for current call
-  - Traverse postconditions to find all `OldExpression` nodes
-  - Evaluate and store current values: `oldValues[ident] = env.Get(ident)`
-  - **Implementation**: Added `oldValuesStack []map[string]Value` to Interpreter struct
-  - **Implementation**: Created `captureOldValues()` and `findOldExpressions()` in contracts.go
-  - **Implementation**: Push/pop old values around function body execution
-- [x] 9.147 Evaluate preconditions before function body ✅
-  - In function call handler, after parameter binding:
-  - Loop through `PreConditions.Conditions`
-  - Evaluate each `Test` expression
-  - If false, raise assertion error (next task)
-  - **Implementation**: Added `checkPreconditions()` in contracts.go
-  - **Implementation**: Integrated in callUserFunction after parameter binding
-- [x] 9.148 Implement contract failure error handling ✅
-  - Create `EAssertionFailed` error type in `errors/errors.go`
-  - Format: `"Pre-condition failed in FuncName [line:col]: message"`
-  - Use custom message if provided, else condition source code
-  - Include stack trace for debugging
-  - **Implementation**: Created ContractFailureError type in errors.go
-  - **Implementation**: Format includes function name, condition type, location, and message
-- [x] 9.149 Evaluate postconditions after function body ✅
-  - After body execution, before returning:
-  - Make `oldValues` map available in evaluation environment
-  - Loop through `PostConditions.Conditions`
-  - Evaluate each `Test` (can reference `old` values)
-  - If false, raise assertion error with: `"Post-condition failed in FuncName [line:col]: message"`
-  - **Implementation**: Added `checkPostconditions()` in contracts.go
-  - **Implementation**: Integrated in callUserFunction after body execution, before return
-- [x] 9.150 Implement `OldExpression` evaluation ✅
-  - In expression evaluator, handle `OldExpression`:
-  - Look up identifier in `oldValues` map
-  - Error if not found: "internal error: old value not captured"
-  - **Implementation**: Added case in Interpreter.Eval() for *ast.OldExpression
-  - **Implementation**: Added getOldValue() helper method
 - [ ] 9.151 Handle method contract inheritance at runtime
   - For preconditions: Only evaluate base class conditions (weakening)
   - For postconditions: Evaluate conditions from all ancestor classes (strengthening)

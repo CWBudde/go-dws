@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -96,6 +97,9 @@ func NewAnalyzer() *Analyzer {
 	// Task 9.205: Register built-in helpers for primitive types
 	a.initIntrinsicHelpers()
 
+	// Task 9.31: Register built-in enum helpers
+	a.initEnumHelpers()
+
 	return a
 }
 
@@ -132,7 +136,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		ReturnType: types.STRING,
 	}
 
-	a.classes["TObject"] = objectClass
+	// Task 9.285: Use lowercase for case-insensitive lookup
+	a.classes["tobject"] = objectClass
 
 	// Task 8.203: Define Exception base class
 	exceptionClass := &types.ClassType{
@@ -160,7 +165,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		ReturnType: exceptionClass,
 	}
 
-	a.classes["Exception"] = exceptionClass
+	// Task 9.285: Use lowercase for case-insensitive lookup
+	a.classes["exception"] = exceptionClass
 
 	// Task 8.204: Define standard exception types
 	standardExceptions := []string{
@@ -197,7 +203,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 			ReturnType: excClass,
 		}
 
-		a.classes[excName] = excClass
+		// Task 9.285: Use lowercase for case-insensitive lookup
+		a.classes[strings.ToLower(excName)] = excClass
 	}
 }
 
@@ -213,12 +220,60 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		a.analyzeStatement(stmt)
 	}
 
+	// Task 9.284: Validate that all forward-declared methods have implementations
+	a.validateMethodImplementations()
+
 	// If we accumulated errors, return them
 	if len(a.errors) > 0 {
 		return &AnalysisError{Errors: a.errors}
 	}
 
 	return nil
+}
+
+// validateMethodImplementations checks that all forward-declared methods have implementations
+// Task 9.284: Post-analysis validation for missing method implementations
+func (a *Analyzer) validateMethodImplementations() {
+	// Iterate through all classes
+	// Note: className is the lowercase map key, use classType.Name for original case
+	for _, classType := range a.classes {
+		// Check each method in the class
+		for methodName := range classType.Methods {
+			// Check if method is still marked as forward (not implemented)
+			if classType.ForwardedMethods[methodName] {
+				// Skip abstract methods - they don't need implementations
+				if classType.AbstractMethods[methodName] {
+					continue
+				}
+
+				// Skip external methods - they are implemented externally
+				if classType.IsExternal {
+					continue
+				}
+
+				// This method was declared but never implemented
+				// Use classType.Name to preserve original case in error messages
+				a.addError("method '%s.%s' declared but not implemented",
+					classType.Name, methodName)
+			}
+		}
+
+		// Also check constructors
+		for ctorName := range classType.Constructors {
+			// Check if constructor is still marked as forward (not implemented)
+			if classType.ForwardedMethods[ctorName] {
+				// Skip if class is external
+				if classType.IsExternal {
+					continue
+				}
+
+				// This constructor was declared but never implemented
+				// Use classType.Name to preserve original case in error messages
+				a.addError("constructor '%s.%s' declared but not implemented",
+					classType.Name, ctorName)
+			}
+		}
+	}
 }
 
 // Errors returns all accumulated semantic errors

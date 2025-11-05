@@ -102,7 +102,8 @@ func (a *Analyzer) analyzeExceptionHandler(handler *ast.ExceptionHandler) {
 	} else {
 		// Bare except handler - catches all exceptions
 		// Use Exception as the type for the scope
-		if exceptionClass, exists := a.classes["Exception"]; exists {
+		// Task 9.285: Use lowercase for case-insensitive lookup
+		if exceptionClass, exists := a.classes["exception"]; exists {
 			excType = exceptionClass
 		}
 	}

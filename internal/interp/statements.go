@@ -166,6 +166,14 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 				} else {
 					value = &NilValue{}
 				}
+			} else if strings.HasPrefix(typeName, "set of ") {
+				// Task 9.214: Inline set types like "set of TColor"
+				setType := i.parseInlineSetType(typeName)
+				if setType != nil {
+					value = NewSetValue(setType)
+				} else {
+					value = &NilValue{}
+				}
 			} else if typeVal, ok := i.env.Get("__record_type_" + typeName); ok {
 				// Check if this is a record type
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
@@ -272,6 +280,15 @@ func (i *Interpreter) createZeroValue(typeAnnotation *ast.TypeAnnotation) Value 
 		arrayType := i.parseInlineArrayType(typeName)
 		if arrayType != nil {
 			return NewArrayValue(arrayType)
+		}
+		return &NilValue{}
+	}
+
+	// Task 9.214: Check for inline set types
+	if strings.HasPrefix(typeName, "set of ") {
+		setType := i.parseInlineSetType(typeName)
+		if setType != nil {
+			return NewSetValue(setType)
 		}
 		return &NilValue{}
 	}
@@ -1253,6 +1270,52 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 
 			// Assign the character to the loop variable
 			i.env.Define(loopVarName, charVal)
+
+			// Execute the body
+			result = i.Eval(stmt.Body)
+			if isError(result) {
+				i.env = savedEnv // Restore environment before returning
+				return result
+			}
+
+			// Handle control flow signals (break, continue, exit)
+			if i.breakSignal {
+				i.breakSignal = false // Clear signal
+				break
+			}
+			if i.continueSignal {
+				i.continueSignal = false // Clear signal
+				continue
+			}
+			if i.exitSignal {
+				// Don't clear the signal - let the function handle it
+				break
+			}
+		}
+
+	case *TypeMetaValue:
+		// Task 9.213: Iterate over enum type values
+		// When iterating over an enum type directly (e.g., for var e in TColor do),
+		// we iterate over all values of the enum type in declaration order.
+		// This is similar to set iteration but without checking membership.
+		enumType, ok := col.TypeInfo.(*types.EnumType)
+		if !ok {
+			i.env = savedEnv
+			return newError("for-in loop: can only iterate over enum types, got %s", col.TypeName)
+		}
+
+		// Iterate through enum values in their defined order
+		for _, name := range enumType.OrderedNames {
+			ordinal := enumType.Values[name]
+			// Create an enum value for this element
+			enumVal := &EnumValue{
+				TypeName:     enumType.Name,
+				ValueName:    name,
+				OrdinalValue: ordinal,
+			}
+
+			// Assign the enum value to the loop variable
+			i.env.Define(loopVarName, enumVal)
 
 			// Execute the body
 			result = i.Eval(stmt.Body)

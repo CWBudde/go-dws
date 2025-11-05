@@ -244,6 +244,18 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 			combined = append(combined, h...)
 		}
 		return combined
+	case *EnumValue:
+		// Task 9.31: Enum helper properties support
+		// First try specific enum type (e.g., "TColor"), then generic ENUM helpers
+		specific := v.TypeName
+		var combined []*HelperInfo
+		if h, ok := i.helpers[specific]; ok {
+			combined = append(combined, h...)
+		}
+		if h, ok := i.helpers["ENUM"]; ok {
+			combined = append(combined, h...)
+		}
+		return combined
 	default:
 		// For other types, try to extract type name from Type() method
 		typeName = v.Type()
@@ -745,6 +757,14 @@ func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value
 		}
 		return &StringValue{Value: "False"}
 
+	case "__enum_value":
+		// Task 9.31: Implement enum .Value helper property
+		enumVal, ok := selfValue.(*EnumValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Enum.Value property requires enum receiver")
+		}
+		return &IntegerValue{Value: int64(enumVal.OrdinalValue)}
+
 	default:
 		return i.newErrorWithLocation(node, "unknown built-in property '%s'", propSpec)
 	}
@@ -863,4 +883,27 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	stringArrayHelper.Methods["Join"] = nil
 	stringArrayHelper.BuiltinMethods["Join"] = "__string_array_join"
 	register(stringArrayType.String(), stringArrayHelper)
+}
+
+// initEnumHelpers registers built-in helpers for enumerated types.
+// Task 9.31: Implement enum .Value helper property
+func (i *Interpreter) initEnumHelpers() {
+	if i.helpers == nil {
+		i.helpers = make(map[string][]*HelperInfo)
+	}
+
+	// Create a helper for the generic ENUM type
+	enumHelper := NewHelperInfo("__TEnumIntrinsicHelper", nil, false)
+
+	// Task 9.31: Register .Value property (returns ordinal value)
+	enumHelper.Properties["Value"] = &types.PropertyInfo{
+		Name:      "Value",
+		Type:      types.INTEGER,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__enum_value",
+		WriteKind: types.PropAccessNone,
+	}
+
+	// Register helper for ENUM type (generic catch-all)
+	i.helpers["ENUM"] = append(i.helpers["ENUM"], enumHelper)
 }

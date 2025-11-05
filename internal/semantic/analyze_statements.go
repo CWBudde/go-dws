@@ -543,6 +543,13 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 			// In DWScript, characters are represented as strings
 			elementType = types.STRING
 
+		case *types.EnumType:
+			// Task 9.213: Enum types are enumerable
+			// When iterating over an enum type directly (e.g., for var e in TColor do),
+			// we iterate over all values of the enum type
+			// The element type is the enum type itself
+			elementType = ct
+
 		case *types.TypeAlias:
 			// Unwrap type alias and check the underlying type
 			underlyingType := ct.AliasedType
@@ -554,6 +561,9 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 				elementType = ut.ElementType
 			case *types.StringType:
 				elementType = types.STRING
+			case *types.EnumType:
+				// Task 9.213: Aliased enum types are also enumerable
+				elementType = ut
 			default:
 				a.addError("for-in collection type %s (alias of %s) is not enumerable at %s",
 					ct.String(), underlyingType.String(), stmt.Token.Pos.String())

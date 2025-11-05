@@ -254,3 +254,61 @@ func TestEnumTypeMetaValues(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Enum .Value Helper Property Tests (Task 9.31)
+// ============================================================================
+
+func TestEnumValueHelperProperty(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "enum value property access",
+			input: `
+				type TColor = (Red, Green, Blue);
+				var c := Red;
+				var ordinal: Integer := c.Value;
+			`,
+		},
+		{
+			name: "scoped enum value property",
+			input: `
+				type TColor = (Red, Green, Blue);
+				var c := Green;
+				var ordinal: Integer := c.Value;
+			`,
+		},
+		{
+			name: "enum value property in expression",
+			input: `
+				type TPriority = (Low, Medium = 5, High);
+				var p := High;
+				var doubled := p.Value * 2;
+			`,
+		},
+		{
+			name: "enum value property chaining",
+			input: `
+				type TEnum = (eOne=1, eTwo, eThree);
+				var s: String := eTwo.Value.ToString;
+			`,
+		},
+		{
+			name: "enum value property in comparison",
+			input: `
+				type TPriority = (Low = 1, Medium = 5, High = 10);
+				var p1 := Low;
+				var p2 := High;
+				var result := p1.Value < p2.Value;
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectNoErrors(t, tt.input)
+		})
+	}
+}

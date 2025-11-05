@@ -1,6 +1,7 @@
 package semantic
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -16,7 +17,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	className := decl.Name.Value
 
 	// Check if class is already declared
-	if _, exists := a.classes[className]; exists {
+	// Task 9.285: Use lowercase for case-insensitive lookup
+	if _, exists := a.classes[strings.ToLower(className)]; exists {
 		a.addError("class '%s' already declared at %s", className, decl.Token.Pos.String())
 		return
 	}
@@ -26,7 +28,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	if decl.Parent != nil {
 		parentName := decl.Parent.Value
 		var found bool
-		parentClass, found = a.classes[parentName]
+		// Task 9.285: Use lowercase for case-insensitive lookup
+		parentClass, found = a.classes[strings.ToLower(parentName)]
 		if !found {
 			a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 			return
@@ -133,7 +136,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	}
 
 	// Register class before analyzing methods (so methods can reference the class)
-	// Use lowercase key for case-insensitive lookup
+	// Task 9.285: Use lowercase for case-insensitive lookup
 	a.classes[strings.ToLower(className)] = classType
 
 	// Analyze methods
@@ -179,11 +182,37 @@ func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
 	className := decl.ClassName.Value
 
 	// Look up the class
-	classType, exists := a.classes[className]
+	// Task 9.285: Use lowercase for case-insensitive lookup
+	classType, exists := a.classes[strings.ToLower(className)]
 	if !exists {
 		a.addError("unknown type '%s' at %s", className, decl.Token.Pos.String())
 		return
 	}
+
+	// Task 9.281: Look up the method in the class to ensure it was declared
+	methodName := decl.Name.Value
+	declaredMethod, methodExists := classType.Methods[methodName]
+	if !methodExists {
+		// Check constructor map too
+		if decl.IsConstructor {
+			declaredMethod, methodExists = classType.Constructors[methodName]
+		}
+	}
+
+	if !methodExists {
+		a.addError("method '%s' not declared in class '%s' at %s",
+			methodName, className, decl.Token.Pos.String())
+		return
+	}
+
+	// Task 9.282: Validate signature matches the declaration
+	if err := a.validateMethodSignature(decl, declaredMethod, className); err != nil {
+		a.addError("%s at %s", err.Error(), decl.Token.Pos.String())
+		return
+	}
+
+	// Task 9.283: Clear the forward flag since we now have an implementation
+	delete(classType.ForwardedMethods, methodName)
 
 	// Set the current class context
 	previousClass := a.currentClass
@@ -193,6 +222,63 @@ func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
 	// Use analyzeMethodDecl to analyze the method body with proper scope
 	// This will set up Self, fields, and all method scope correctly
 	a.analyzeMethodDecl(decl, classType)
+}
+
+// validateMethodSignature validates that an out-of-line method implementation
+// signature matches the forward declaration (Task 9.282)
+func (a *Analyzer) validateMethodSignature(implDecl *ast.FunctionDecl, declaredType *types.FunctionType, className string) error {
+	// Resolve parameter types from implementation
+	implParamTypes := make([]types.Type, 0, len(implDecl.Parameters))
+	for _, param := range implDecl.Parameters {
+		if param.Type == nil {
+			// DWScript allows omitting parameter types in implementation if they match declaration
+			// We'll accept this and rely on the declared types
+			continue
+		}
+		paramType, err := a.resolveType(param.Type.Name)
+		if err != nil {
+			return fmt.Errorf("unknown parameter type '%s' in method '%s.%s'",
+				param.Type.Name, className, implDecl.Name.Value)
+		}
+		implParamTypes = append(implParamTypes, paramType)
+	}
+
+	// If implementation specifies parameter types, validate count matches
+	if len(implParamTypes) > 0 && len(implParamTypes) != len(declaredType.Parameters) {
+		return fmt.Errorf("method '%s.%s' implementation has %d parameters, but declaration has %d",
+			className, implDecl.Name.Value, len(implParamTypes), len(declaredType.Parameters))
+	}
+
+	// Validate parameter types match (if implementation specifies them)
+	for i, implType := range implParamTypes {
+		if i >= len(declaredType.Parameters) {
+			break
+		}
+		declType := declaredType.Parameters[i]
+		if !implType.Equals(declType) {
+			return fmt.Errorf("method '%s.%s' parameter %d has type %s in implementation, but %s in declaration",
+				className, implDecl.Name.Value, i+1, implType.String(), declType.String())
+		}
+	}
+
+	// Resolve return type from implementation (if specified)
+	var implReturnType types.Type
+	if implDecl.ReturnType != nil {
+		var err error
+		implReturnType, err = a.resolveType(implDecl.ReturnType.Name)
+		if err != nil {
+			return fmt.Errorf("unknown return type '%s' in method '%s.%s'",
+				implDecl.ReturnType.Name, className, implDecl.Name.Value)
+		}
+
+		// Validate return type matches
+		if !implReturnType.Equals(declaredType.ReturnType) {
+			return fmt.Errorf("method '%s.%s' has return type %s in implementation, but %s in declaration",
+				className, implDecl.Name.Value, implReturnType.String(), declaredType.ReturnType.String())
+		}
+	}
+
+	return nil
 }
 
 // analyzeMethodDecl analyzes a method declaration within a class (Task 7.56, 7.61)
@@ -430,7 +516,8 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	className := expr.ClassName.Value
 
 	// Look up class in registry
-	classType, found := a.classes[className]
+	// Task 9.285: Use lowercase for case-insensitive lookup
+	classType, found := a.classes[strings.ToLower(className)]
 	if !found {
 		a.addError("undefined class '%s' at %s", className, expr.Token.Pos.String())
 		return nil

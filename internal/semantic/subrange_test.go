@@ -76,7 +76,8 @@ func TestSubrangeTypeRegistration(t *testing.T) {
 			}
 
 			// Check that subrange type was registered
-			subrangeType, found := analyzer.subranges[tt.typeName]
+			// Use lowercase for case-insensitive lookup
+			subrangeType, found := analyzer.subranges[strings.ToLower(tt.typeName)]
 			if !found {
 				t.Fatalf("Subrange type %s was not registered", tt.typeName)
 			}
@@ -372,7 +373,8 @@ func TestSubrangeWithUnaryMinus(t *testing.T) {
 	}
 
 	// Check bounds
-	subrangeType, found := analyzer.subranges["TNegative"]
+	// Use lowercase for case-insensitive lookup
+	subrangeType, found := analyzer.subranges["tnegative"]
 	if !found {
 		t.Fatal("Subrange type TNegative was not registered")
 	}
@@ -416,13 +418,14 @@ func TestMultipleSubrangeDeclarations(t *testing.T) {
 	}
 
 	// Verify all three subrange types were registered
-	if _, found := analyzer.subranges["TDigit"]; !found {
+	// Use lowercase for case-insensitive lookup
+	if _, found := analyzer.subranges["tdigit"]; !found {
 		t.Error("TDigit was not registered")
 	}
-	if _, found := analyzer.subranges["TPercent"]; !found {
+	if _, found := analyzer.subranges["tpercent"]; !found {
 		t.Error("TPercent was not registered")
 	}
-	if _, found := analyzer.subranges["TTemperature"]; !found {
+	if _, found := analyzer.subranges["ttemperature"]; !found {
 		t.Error("TTemperature was not registered")
 	}
 
@@ -529,7 +532,8 @@ func TestSubrangeInProgram(t *testing.T) {
 	}
 
 	// Verify subrange types are registered
-	digitType, digitFound := analyzer.subranges["TDigit"]
+	// Use lowercase for case-insensitive lookup
+	digitType, digitFound := analyzer.subranges["tdigit"]
 	if !digitFound {
 		t.Error("TDigit type not found")
 	} else {
@@ -538,7 +542,7 @@ func TestSubrangeInProgram(t *testing.T) {
 		}
 	}
 
-	percentType, percentFound := analyzer.subranges["TPercent"]
+	percentType, percentFound := analyzer.subranges["tpercent"]
 	if !percentFound {
 		t.Error("TPercent type not found")
 	} else {

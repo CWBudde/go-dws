@@ -1345,6 +1345,39 @@ func (i *Interpreter) parseInlineArrayType(signature string) *types.ArrayType {
 	return types.NewDynamicArrayType(elementType)
 }
 
+// parseInlineSetType parses inline set type syntax like "set of TEnumType".
+// Returns the SetType, or nil if the string doesn't match the expected format.
+// Task 9.214: Support set variable initialization
+func (i *Interpreter) parseInlineSetType(signature string) *types.SetType {
+	// Check for "set of " prefix
+	if !strings.HasPrefix(signature, "set of ") {
+		return nil
+	}
+
+	// Extract enum type name: "set of TColor" → "TColor"
+	enumTypeName := strings.TrimSpace(signature[7:]) // Skip "set of "
+	if enumTypeName == "" {
+		return nil
+	}
+
+	// Look up the enum type in the environment
+	// Enum types are stored with "__enum_type_" prefix
+	typeKey := "__enum_type_" + enumTypeName
+	typeVal, ok := i.env.Get(typeKey)
+	if !ok {
+		return nil
+	}
+
+	// Extract the EnumType from the EnumTypeValue
+	enumTypeVal, ok := typeVal.(*EnumTypeValue)
+	if !ok {
+		return nil
+	}
+
+	// Create and return the set type
+	return types.NewSetType(enumTypeVal.EnumType)
+}
+
 // resolveArrayTypeNode resolves an ArrayTypeNode directly from the AST.
 // This avoids string conversion issues with parentheses in bound expressions like (-5).
 // Task: Fix negative array bounds like array[-5..5]
