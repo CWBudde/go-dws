@@ -1,0 +1,37 @@
+// Exception: Nested function calls with stack trace
+// This demonstrates exception stack traces through multiple call levels
+
+procedure Level4();
+begin
+  PrintLn('Level 4: About to raise exception');
+  raise Exception.Create('Error from deep in the call stack');
+end;
+
+procedure Level3();
+begin
+  PrintLn('Level 3: Calling Level 4');
+  Level4();
+end;
+
+procedure Level2();
+begin
+  PrintLn('Level 2: Calling Level 3');
+  Level3();
+end;
+
+procedure Level1();
+begin
+  PrintLn('Level 1: Calling Level 2');
+  Level2();
+end;
+
+PrintLn('=== Exception with Nested Stack Trace ===');
+PrintLn('');
+
+// This will show a complete stack trace:
+// Runtime Error: Exception: Error from deep in the call stack [line: X, column: Y]
+// Level4 [line: X, column: Y]
+// Level3 [line: X, column: Y]
+// Level2 [line: X, column: Y]
+// Level1 [line: X, column: Y]
+Level1();

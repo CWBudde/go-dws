@@ -208,3 +208,49 @@ func TestEnumOrdinalValues(t *testing.T) {
 		})
 	}
 }
+
+// TestEnumTypeMetaValues tests enum type names as runtime values.
+// Task 9.161: Enum type names should be usable in expressions.
+func TestEnumTypeMetaValues(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "enum type name as identifier",
+			input: `
+				type TColor = (Red, Green, Blue);
+				var x := TColor;
+			`,
+		},
+		{
+			name: "enum type name in High()",
+			input: `
+				type TColor = (Red, Green, Blue);
+				var highest: TColor := High(TColor);
+			`,
+		},
+		{
+			name: "enum type name in Low()",
+			input: `
+				type TColor = (Red, Green, Blue);
+				var lowest: TColor := Low(TColor);
+			`,
+		},
+		{
+			name: "multiple enum type meta-values",
+			input: `
+				type TColor = (Red, Green, Blue);
+				type TSize = (Small, Medium, Large);
+				var c := High(TColor);
+				var s := Low(TSize);
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectNoErrors(t, tt.input)
+		})
+	}
+}

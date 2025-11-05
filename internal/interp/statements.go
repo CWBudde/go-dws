@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -522,7 +523,16 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 		case *IntegerValue:
 			if r, ok := right.(*IntegerValue); ok {
 				if r.Value == 0 {
-					return i.newErrorWithLocation(stmt, "division by zero")
+					// Task 9.111: Enhanced error with operand values
+					return i.NewRuntimeError(
+						stmt,
+						"division_by_zero",
+						fmt.Sprintf("Division by zero: %d /= %d", l.Value, r.Value),
+						map[string]string{
+							"left":  fmt.Sprintf("%d", l.Value),
+							"right": fmt.Sprintf("%d", r.Value),
+						},
+					)
 				}
 				return &IntegerValue{Value: l.Value / r.Value}
 			}
@@ -530,7 +540,16 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 		case *FloatValue:
 			if r, ok := right.(*FloatValue); ok {
 				if r.Value == 0.0 {
-					return i.newErrorWithLocation(stmt, "division by zero")
+					// Task 9.111: Enhanced error with operand values
+					return i.NewRuntimeError(
+						stmt,
+						"division_by_zero",
+						fmt.Sprintf("Division by zero: %v /= %v", l.Value, r.Value),
+						map[string]string{
+							"left":  fmt.Sprintf("%v", l.Value),
+							"right": fmt.Sprintf("%v", r.Value),
+						},
+					)
 				}
 				return &FloatValue{Value: l.Value / r.Value}
 			}

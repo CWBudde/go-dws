@@ -1,0 +1,26 @@
+// Demonstration of exception stack traces (Task 9.113)
+// This script raises an unhandled exception to show the stack trace
+
+procedure DeepFunction();
+begin
+  PrintLn('About to raise an exception...');
+  raise Exception.Create('Error from deep in the call stack');
+end;
+
+procedure MiddleFunction();
+begin
+  PrintLn('Calling DeepFunction...');
+  DeepFunction();
+end;
+
+procedure TopFunction();
+begin
+  PrintLn('Calling MiddleFunction...');
+  MiddleFunction();
+end;
+
+PrintLn('=== Exception Stack Trace Demo ===');
+PrintLn('This will demonstrate an unhandled exception with full stack trace.');
+PrintLn('');
+
+TopFunction();

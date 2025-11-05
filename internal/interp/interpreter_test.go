@@ -495,9 +495,22 @@ func TestDivisionByZero(t *testing.T) {
 			continue
 		}
 
-		errVal := val.(*ErrorValue)
-		if !strings.Contains(errVal.Message, "division by zero") {
-			t.Errorf("wrong error message for %q. got=%q", input, errVal.Message)
+		// Task 9.111: Handle both RuntimeError and ErrorValue
+		var errMsg string
+		switch err := val.(type) {
+		case *RuntimeError:
+			errMsg = err.Message
+		case *ErrorValue:
+			errMsg = err.Message
+		default:
+			t.Errorf("unexpected error type: %T", val)
+			continue
+		}
+
+		// Check for division or modulo by zero
+		errMsgLower := strings.ToLower(errMsg)
+		if !strings.Contains(errMsgLower, "by zero") {
+			t.Errorf("wrong error message for %q. got=%q", input, errMsg)
 		}
 	}
 }

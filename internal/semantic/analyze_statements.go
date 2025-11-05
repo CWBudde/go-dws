@@ -134,8 +134,13 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 		} else {
 			// Check that initializer type is compatible with declared type
 			if !a.canAssign(initType, varType) {
-				a.addError("cannot assign %s to %s in variable declaration at %s",
-					initType.String(), varType.String(), stmt.Token.Pos.String())
+				// Task 9.110: Use structured error for type mismatch
+				a.addStructuredError(NewTypeMismatch(
+					stmt.Token.Pos,
+					firstName, // Variable name
+					varType,   // Expected type
+					initType,  // Got type
+				))
 				return
 			}
 		}
@@ -197,8 +202,13 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	} else {
 		// Check that value type is compatible with declared type
 		if !a.canAssign(valueType, constType) {
-			a.addError("cannot assign %s to %s in constant declaration at %s",
-				valueType.String(), constType.String(), stmt.Token.Pos.String())
+			// Task 9.110: Use structured error for type mismatch
+			a.addStructuredError(NewTypeMismatch(
+				stmt.Token.Pos,
+				stmt.Name.Value, // Constant name
+				constType,       // Expected type
+				valueType,       // Got type
+			))
 			return
 		}
 	}
@@ -218,7 +228,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		// Simple variable assignment: x := value or x += value
 		sym, ok := a.symbols.Resolve(target.Value)
 		if !ok {
-			a.addError("undefined variable '%s' at %s", target.Value, stmt.Token.Pos.String())
+			// Task 9.110: Use structured error for undefined variable
+			a.addStructuredError(NewUndefinedVariable(stmt.Token.Pos, target.Value))
 			return
 		}
 

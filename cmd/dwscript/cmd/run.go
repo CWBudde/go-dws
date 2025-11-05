@@ -105,12 +105,25 @@ func runScript(_ *cobra.Command, args []string) error {
 	// aren't available until runtime
 	if typeCheck && !hasUnits {
 		analyzer := semantic.NewAnalyzer()
+		// Task 9.110: Set source code for rich error messages
+		analyzer.SetSource(input, filename)
+
 		if err := analyzer.Analyze(program); err != nil {
 			// Set errors on parser for compatibility
 			p.SetSemanticErrors(analyzer.Errors())
 
-			// Convert string errors to CompilerError format with pretty output
-			compilerErrors := errors.FromStringErrors(analyzer.Errors(), input, filename)
+			// Task 9.110: Use structured errors if available, fall back to string errors
+			var compilerErrors []*errors.CompilerError
+			if len(analyzer.StructuredErrors()) > 0 {
+				// Convert structured errors directly to CompilerError
+				for _, semErr := range analyzer.StructuredErrors() {
+					compilerErrors = append(compilerErrors, semErr.ToCompilerError(input, filename))
+				}
+			} else {
+				// Fall back to string error conversion for backward compatibility
+				compilerErrors = errors.FromStringErrors(analyzer.Errors(), input, filename)
+			}
+
 			fmt.Fprint(os.Stderr, errors.FormatErrors(compilerErrors, true))
 			fmt.Fprintln(os.Stderr) // Add newline
 			return fmt.Errorf("semantic analysis failed with %d error(s)", len(analyzer.Errors()))
@@ -134,6 +147,9 @@ func runScript(_ *cobra.Command, args []string) error {
 		MaxRecursionDepth: maxRecursion,
 	}
 	interpreter := interp.NewWithOptions(os.Stdout, opts)
+
+	// Task 9.111: Set source code for enhanced runtime error messages
+	interpreter.SetSource(input, filename)
 
 	// Set up unit registry if search paths are provided or if we're running from a file
 	// Task 9.139: Add unit search path support
@@ -228,6 +244,16 @@ func runScript(_ *cobra.Command, args []string) error {
 
 	// Check for runtime errors
 	if result != nil && result.Type() == "ERROR" {
+		// Task 9.111: Check if it's a structured RuntimeError with rich formatting
+		if runtimeErr, ok := result.(*interp.RuntimeError); ok {
+			if compilerErr := runtimeErr.ToCompilerError(); compilerErr != nil {
+				// Use rich error formatting with source snippet
+				fmt.Fprint(os.Stderr, compilerErr.Format(true))
+				fmt.Fprintln(os.Stderr)
+				return fmt.Errorf("execution failed")
+			}
+		}
+		// Fall back to simple error display for non-structured errors
 		fmt.Fprintf(os.Stderr, "Runtime error: %s\n", result.String())
 		return fmt.Errorf("execution failed")
 	}

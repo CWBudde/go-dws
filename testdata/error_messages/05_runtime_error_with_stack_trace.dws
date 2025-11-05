@@ -1,0 +1,32 @@
+// Runtime Error: Division by zero with complete stack trace
+// This demonstrates stack traces in runtime errors
+
+procedure DeepCalculation(x: Integer);
+var
+  result: Integer;
+begin
+  result := 100 div x;  // ERROR when x=0
+  PrintLn('Result: ' + IntToStr(result));
+end;
+
+procedure MiddleLayer(value: Integer);
+begin
+  DeepCalculation(value);
+end;
+
+procedure TopLevel(input: Integer);
+begin
+  MiddleLayer(input);
+end;
+
+PrintLn('=== Runtime Error with Stack Trace Demo ===');
+PrintLn('');
+
+TopLevel(5);   // OK: Will complete successfully
+PrintLn('First call succeeded');
+PrintLn('');
+
+TopLevel(0);   // ERROR: Division by zero with full stack trace showing:
+               // - DeepCalculation [line: X, column: Y]
+               // - MiddleLayer [line: X, column: Y]
+               // - TopLevel [line: X, column: Y]

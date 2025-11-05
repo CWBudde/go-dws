@@ -1,0 +1,25 @@
+// Exception: Simple exception with stack trace
+// This demonstrates exception handling with clear error messages
+
+procedure MayFail(shouldFail: Boolean);
+begin
+  if shouldFail then
+    raise Exception.Create('Operation failed intentionally');
+
+  PrintLn('Operation succeeded');
+end;
+
+PrintLn('=== Simple Exception Demo ===');
+PrintLn('');
+
+// Call that succeeds
+MayFail(False);
+PrintLn('');
+
+// Call that fails with exception
+// When this raises, you'll see:
+// - Exception class: Exception
+// - Exception message: Operation failed intentionally
+// - Line and column where raised
+// - Stack trace showing MayFail was called from here
+MayFail(True);

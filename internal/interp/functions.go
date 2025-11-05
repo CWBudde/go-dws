@@ -451,6 +451,12 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	// Task 9.102: JSON array length function
 	case "JSONLength":
 		return i.builtinJSONLength(args)
+	// Task 9.114: Exception Enhancements - GetStackTrace() built-in
+	case "GetStackTrace":
+		return i.builtinGetStackTrace(args)
+	// Task 9.116: Debugging Information - GetCallStack() built-in
+	case "GetCallStack":
+		return i.builtinGetCallStack(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
@@ -489,7 +495,8 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 		"StartOfMonth", "EndOfMonth", "StartOfYear", "EndOfYear", "IsToday",
 		"IsYesterday", "IsTomorrow", "IsSameDay", "CompareDate", "CompareTime",
 		"CompareDateTime", "ParseJSON", "ToJSON", "ToJSONFormatted",
-		"JSONHasField", "JSONKeys", "JSONValues", "JSONLength":
+		"JSONHasField", "JSONKeys", "JSONValues", "JSONLength",
+		"GetStackTrace", "GetCallStack":
 		return true
 	default:
 		return false

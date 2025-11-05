@@ -468,9 +468,11 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
 
 ---
 
-### Improved Error Messages and Stack Traces (MEDIUM PRIORITY)
+### Improved Error Messages and Stack Traces ✅ 90% COMPLETE (MEDIUM PRIORITY)
 
 **Summary**: Enhance error reporting with better messages, stack traces, and debugging information. Improves developer experience significantly.
+
+**Status**: 10/12 tasks complete. Tasks 9.110-9.114, 9.116-9.118 complete. Task 9.115 partial (EndPos deferred). Task 9.116 complete.
 
 **Reference**: docs/missing-features-recommendations.md lines 299-302
 
@@ -495,49 +497,62 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
 
 #### Error Message Improvements (3 tasks)
 
-- [ ] 9.110 Improve type error messages:
-  - [ ] Before: "Type mismatch"
-  - [ ] After: "Cannot assign Float to Integer variable 'count' at line 42"
-  - [ ] Include expected and actual types
-  - [ ] Include variable name and location
-- [ ] 9.111 Improve runtime error messages:
-  - [ ] Include expression that failed
-  - [ ] Show values involved: "Division by zero: 10 / 0 at line 15"
-  - [ ] Context from surrounding code
-- [ ] 9.112 Add source code snippets to errors:
-  - [ ] Show the line that caused error
-  - [ ] Highlight error position with `^` or color
-  - [ ] Show 1-2 lines of context
+- [x] 9.110 Improve type error messages: ✅ COMPLETE
+  - [x] Before: "Type mismatch"
+  - [x] After: "Cannot assign Float to Integer variable 'count' at line 42"
+  - [x] Include expected and actual types
+  - [x] Include variable name and location
+  - [x] Created `SemanticError` type in `internal/semantic/errors.go`
+  - [x] Updated key error sites (variable declarations, constants, undefined variables)
+  - [x] Updated CLI to use structured errors with `ToCompilerError()` conversion
+- [x] 9.111 Improve runtime error messages: ✅ COMPLETE
+  - [x] Created `RuntimeError` type in `internal/interp/errors.go`
+  - [x] Added `sourceCode` and `sourceFile` fields to Interpreter
+  - [x] Implemented `ToCompilerError()` conversion for runtime errors
+  - [x] Updated division by zero error sites in `expressions.go` and `statements.go`
+  - [x] Show values involved: "Division by zero: 10 / 0" with left/right operand display
+  - [x] Updated CLI to use CompilerError formatting for RuntimeError
+  - [x] Added `SetSource()` method to pass source context to interpreter
+- [x] 9.112 Add source code snippets to errors: ✅ COMPLETE
+  - [x] Show the line that caused error (already implemented in `errors.CompilerError`)
+  - [x] Highlight error position with `^` and color (already implemented)
+  - [x] Show 1-2 lines of context (already implemented in `errors.CompilerError`)
 
-#### Exception Enhancements (2 tasks)
+#### Exception Enhancements (2 tasks) ✅ COMPLETE
 
-- [ ] 9.113 Add stack trace to exception objects:
-  - [ ] Store `StackTrace` in exception
-  - [ ] Display on uncaught exception
-  - [ ] Format nicely for CLI output
-- [ ] 9.114 Implement `GetStackTrace()` built-in:
-  - [ ] Return current stack trace as string
-  - [ ] Useful for logging and debugging
+- [x] 9.113 Add stack trace to exception objects: ✅ COMPLETE
+  - [x] Store `StackTrace` in exception
+  - [x] Display on uncaught exception
+  - [x] Format nicely for CLI output
+- [x] 9.114 Implement `GetStackTrace()` built-in: ✅ COMPLETE
+  - [x] Return current stack trace as string
+  - [x] Useful for logging and debugging
 
-#### Debugging Information (2 tasks)
+#### Debugging Information (2 tasks) - PARTIAL (1/2 complete)
 
-- [ ] 9.115 Add source position to all AST nodes:
-  - [ ] Audit nodes for missing `Pos` fields
-  - [ ] Add `EndPos` for better range reporting
-  - [ ] Use in error messages
-- [ ] 9.116 Implement call stack inspection:
-  - [ ] `GetCallStack()` returns array of frame info
-  - [ ] Each frame: function name, file, line
-  - [ ] Accessible from DWScript code
+- [x] 9.115 Add source position to all AST nodes: PARTIAL
+  - [x] Audit nodes for missing `Pos` fields ✅ COMPLETE (all nodes have Pos via Token field)
+  - [ ] Add `EndPos` for better range reporting (DEFERRED - requires extensive parser refactoring)
+  - [ ] Use in error messages (partially done - current error messages use start position)
+- [x] 9.116 Implement call stack inspection: ✅ COMPLETE
+  - [x] `GetCallStack()` returns array of frame info
+  - [x] Each frame: function name, file, line, column
+  - [x] Accessible from DWScript code as array of records
 
-#### Testing & Documentation (2 tasks)
+#### Testing & Documentation (2 tasks) ✅ COMPLETE
 
-- [ ] 9.117 Create test fixtures demonstrating error messages:
-  - [ ] Type errors with clear messages
-  - [ ] Runtime errors with stack traces
-  - [ ] Exception handling with stack traces
-  - [ ] Compare before/after error message quality
-- [ ] 9.118 Document error message format in `docs/error-messages.md`
+- [x] 9.117 Create test fixtures demonstrating error messages: ✅ COMPLETE
+  - [x] Type errors with clear messages (fixtures 01-03)
+  - [x] Runtime errors with stack traces (fixtures 04-05)
+  - [x] Exception handling with stack traces (fixtures 06-08)
+  - [x] Compare before/after error message quality (documented in fixtures)
+  - [x] Created 9 comprehensive test fixtures in `testdata/error_messages/`
+  - [x] Added README.md explaining fixture usage
+- [x] 9.118 Document error message format in `docs/error-messages.md`: ✅ COMPLETE
+  - [x] Complete documentation of all error types
+  - [x] Format specifications and examples
+  - [x] Before/after comparisons
+  - [x] Best practices and usage guidelines
 
 ---
 
@@ -714,168 +729,21 @@ var f: TComparator := lambda(x: Integer, y) => x - y;  // y inferred as Integer
   - Error if not found: "internal error: old value not captured"
   - **Implementation**: Added case in Interpreter.Eval() for *ast.OldExpression
   - **Implementation**: Added getOldValue() helper method
-- [ ] 9.151 Handle method contract inheritance at runtime **DEFERRED TO STAGE 7**
+- [ ] 9.151 Handle method contract inheritance at runtime
   - For preconditions: Only evaluate base class conditions (weakening)
   - For postconditions: Evaluate conditions from all ancestor classes (strengthening)
   - Walk up method override chain to collect conditions
   - **Reason**: Stage 7 (OOP/Classes) not yet complete; requires class hierarchy support
 
-#### Phase 5: Testing & Integration (5 tasks) ✅ COMPLETE
-
-- [x] 9.152 Port DWScript reference contract tests ✅
-  - Ported 3 SimpleScripts tests to testdata/contracts/:
-    - `procedure_contracts.dws` - Basic pre/postconditions
-    - `contracts_old.dws` - `old` keyword usage
-    - `contracts_code.dws` - Precondition validation
-  - Created expected `.out` files for each
-  - All tests passing ✅
-- [x] 9.153 Fix Rosetta Code examples ✅
-  - Fixed `examples/rosetta/Assertions.dws` (moved `ensure` after `end`)
-  - Fixed `examples/rosetta/Dot_product.dws` (removed Vector dependency)
-  - Both examples now run successfully ✅
-- [x] 9.154 Create comprehensive contract test suite ✅
-  - Added `recursive_factorial.dws` - Contracts with recursive functions
-  - Added `nested_calls.dws` - Contracts with nested function calls
-  - Added `multiple_conditions.dws` - Multiple pre/postconditions
-  - All 9 contract tests passing (6 new + 3 existing) ✅
-  - Note: var parameters with `old` deferred (var parameters have pre-existing bug)
-  - Note: Method inheritance tests deferred to Stage 7 (requires OOP completion)
-- [x] 9.155 Add contract examples to documentation ✅
-  - Created `docs/contracts.md` with complete specification:
-    - Syntax for `require`, `ensure`, and `old` keyword
-    - Multiple examples (simple preconditions, postconditions, recursive, etc.)
-    - Error message format documentation
-    - Best practices and limitations
-  - Updated `README.md`:
-    - Added contracts to feature list
-    - Added contracts quick example
-    - Added link to docs/contracts.md
-- [x] 9.156 Update CLI help and PLAN.md completion markers ✅
-  - Updated PLAN.md with Phase 5 completion status
-  - CLI help for contracts pending (minor enhancement)
-  - Update phase 9 statistics
-  - Add contracts to feature list in README
-
 ---
 
-### Fixture Test Infrastructure & Missing Features (8 tasks)
+### Comprehensive Testing
 
-**Summary**: These tasks were identified by running the comprehensive fixture test suite (`internal/interp/fixture_test.go`) against the DWScript reference implementation's test scripts. The fixture tests currently run 20 conservative tests from the 983-test reference suite (442 SimpleScripts + 541 FailureScripts). Fixing these issues will significantly improve compatibility with real-world DWScript code and enable testing against the full reference test suite.
-
-**Current Status**: 14/20 tests passing (70%). The 6 failures expose missing language features across parser, semantic analysis, and built-in functions.
-
-**Implementation Tasks**:
-
-- [x] 9.157 Add `normalizeOutput()` helper function to `fixture_test.go`: ✅ DONE
-  - [x] Quick fix: Function already exists in `interface_reference_test.go` (same package)
-  - [x] Normalizes line endings and whitespace for cross-platform test compatibility
-  - [x] Required for comparing expected vs actual output from reference tests
-  - [x] **Impact**: Unblocks basic test infrastructure (compilation fix)
-  - [x] **Note**: No code changes needed - `fixture_test.go` can use the function from `interface_reference_test.go` as they're in the same package
-
-- [x] 9.158 Parser support for optional `program Name;` declarations: ✅ DONE
-  - [x] Lexer already recognizes `PROGRAM` token (was already present)
-  - [x] Added `parseProgramDeclaration()` in `internal/parser/declarations.go`
-  - [x] Integrated into `ParseProgram()` to detect and skip program declarations
-  - [x] Syntax: `program MyProgram;` at beginning of file
-  - [x] Program declaration is parsed and discarded (doesn't affect execution)
-  - [x] Added comprehensive parser tests in `declarations_test.go`
-  - [x] **Impact**: Partially fixes `program.pas` and `programDot.pas` test failures
-  - [x] **Note**: These fixture tests still fail due to **const block syntax** (separate issue)
-    - Files use `const\n  C1 = 1;\n  C2 = 2;` (one `const` keyword, multiple declarations)
-    - Current parser expects `const C1 = 1; const C2 = 2;` (repeat `const` keyword)
-    - This is a separate parser feature that needs implementation (tracked separately)
-  - [x] **Verification**: Program declaration parsing works correctly:
-    - `program Test; begin PrintLn('Hello'); end` ✅ Works
-    - `const C1 := 1; const C2 := 2;` ✅ Works (separate const keywords)
-  - [x] **Reference**: DWScript allows but doesn't require program declarations
-
-- [x] 9.159 Make constructor parentheses optional in `new` expressions:
-  - [x] Current: Parser requires `new TTest()`
-  - [x] DWScript allows: `new TTest` (no parentheses for zero-argument constructors)
-  - [x] Update parser's `parseNewExpression()` to make `()` optional
-  - [x] Semantic analysis should treat `new TTest` as `new TTest()`
-  - [x] **Impact**: Fixes `empty_body.pas` test failure
-  - [x] **Reference**: Common DWScript pattern for simple object creation
-
-- [x] 9.160 Allow zero-argument procedure calls without parentheses:
-  - [x] Current: `PrintLn;` treated as identifier, not procedure call
-  - [x] DWScript allows: `PrintLn;` equivalent to `PrintLn();`
-  - [x] Parser or semantic analyzer needs to detect this pattern
-  - [x] Option A: Parser recognizes known procedures and treats `;` as call
-  - [x] Option B: Semantic analyzer converts identifier to zero-arg call
-  - [x] **Impact**: Fixes `print_multi_args.pas` test failure
-  - [x] **Reference**: Classic Pascal feature for procedure calls
-
-- [x] 9.161 Implement type meta-values (type names as runtime values):
-  - [x] DWScript allows type names like `Integer` to be used as values
-  - [x] Used for reflection and type-based operations
-  - [x] Example: `High(Integer)` where `Integer` is a type meta-value
-  - [x] Type system needs `TypeMetaValue` or similar runtime representation
-  - [x] Parser should allow type names in expression contexts
-  - [x] Semantic analysis validates type meta-value usage
-  - [x] **Impact**: Required for `mult_by2.pas` test (uses `High(Integer)`)
-  - [x] **Reference**: Part of DWScript's reflection system
-
-- [x] 9.162 Implement `High()` and `Low()` built-in functions:
-  - [x] `High(TypeName)` returns maximum value for the type
-  - [x] `Low(TypeName)` returns minimum value for the type
-  - [x] Support ordinal types: Integer, Float, Boolean, Char, enums
-  - [x] Examples:
-    - `High(Integer)` → `9223372036854775807` (Int64 max)
-    - `Low(Integer)` → `-9223372036854775808` (Int64 min)
-    - `High(Boolean)` → `True`
-    - `Low(TColor)` → first enum value
-  - [x] Add to built-in function registry in interpreter
-  - [x] **Impact**: Fixes `mult_by2.pas` test failure
-  - [x] **Reference**: Standard DWScript/Pascal built-ins for type bounds
-
-- [x] 9.163 Add implicit integer→float coercion in built-in function calls:
-  - [x] Current: `FloatToStr(i+1)` fails when `i` is Integer
-  - [x] DWScript automatically coerces Integer to Float in mixed contexts
-  - [x] Option A: Make `FloatToStr()` accept both Integer and Float arguments
-  - [x] Option B: Add implicit coercion in semantic analysis for function calls
-  - [x] Option B is more general and matches DWScript behavior
-  - [x] Update semantic analyzer's function call type checking
-  - [x] **Impact**: Fixes `int_float.pas` test failure
-  - [x] **Reference**: DWScript's flexible type coercion rules
-
-- [ ] 9.164 Parser/semantic support for `inherited` keyword:
-  - [ ] Used in class methods to call parent class implementations
-  - [ ] Syntax: `inherited;` or `inherited MethodName(args);`
-  - [ ] Parser needs to recognize `inherited` as expression prefix
-  - [ ] Semantic analysis validates `inherited` usage (only in class methods)
-  - [ ] Interpreter resolves to parent class method and executes
-  - [ ] **Impact**: Fixes `empty_body.pas` test failure
-  - [ ] **Reference**: Core OOP feature from Stage 7 (already partially implemented)
-  - [ ] **Note**: This may already be partially implemented; check Stage 7 OOP code
-
-**Additional Issue Discovered**: Several fixture tests (`program.pas`, `programDot.pas`) use **const block syntax** which is not yet implemented:
-- DWScript allows: `const\n  C1 = 1;\n  C2 = 2;` (one `const` keyword, multiple declarations in a block)
-- Current parser requires: `const C1 = 1; const C2 = 2;` (repeat `const` for each declaration)
-- This is a separate parser feature that needs implementation (not covered by tasks 9.129-9.136)
-- Similar block syntax likely needed for `var` declarations as well
-- **Recommendation**: Add new task for "Declaration Block Syntax" to handle `const`/`var` blocks
-
-**Test Expansion Opportunity**: Once these 8 issues are fixed, expand the `workingTests` map in `filterTestFiles()` to include more tests from the reference suite. The current 20-test whitelist is very conservative; many more tests likely work with these fixes.
-
-**Reference Test Suite Structure**:
-- Location: `reference/dwscript-original/Test/`
-- SimpleScripts: 442 tests (basic language features)
-- FailureScripts: 541 tests (error handling and edge cases)
-- Each test: `.pas` source file + `.txt` expected output file
-
----
-
-### Comprehensive Testing (Stage 8)
-
-- [ ] 9.165 Port DWScript's test suite (if available)
-- [ ] 9.166 Run DWScript example scripts from documentation
-- [ ] 9.167 Compare outputs with original DWScript
-- [ ] 9.168 Fix any discrepancies
-- [ ] 9.169 Create stress tests for complex features
-- [ ] 9.170 Achieve >85% overall code coverage
-- [x] 9.171 Fix 'step' contextual keyword conflict - allow 'step' as variable name outside for loops
+- [ ] 9.157 Run DWScript example scripts from documentation
+- [ ] 9.158 Compare outputs with original DWScript
+- [ ] 9.159 Fix any discrepancies
+- [ ] 9.160 Create stress tests for complex features
+- [ ] 9.161 Achieve >85% overall code coverage
 
 ---
 

@@ -1,0 +1,12 @@
+// Type Error: Undefined variable
+// This demonstrates clear error messages for undefined identifiers
+
+var count: Integer := 10;
+
+PrintLn(IntToStr(count));  // OK: count is defined
+
+// ERROR: Undefined variable
+PrintLn(IntToStr(total));  // This will fail with a message showing:
+                           // - Variable name: total
+                           // - Line and column where it's used
+                           // - Clear indication it's not defined

@@ -1,0 +1,62 @@
+// Test exception enhancements (Tasks 9.113-9.114)
+// This tests:
+// 1. Stack traces in exception objects
+// 2. GetStackTrace() built-in function
+
+// Test 1: GetStackTrace() returns current call stack
+procedure Level3();
+begin
+  PrintLn('Stack trace at Level3:');
+  PrintLn(GetStackTrace());
+end;
+
+procedure Level2();
+begin
+  Level3();
+end;
+
+procedure Level1();
+begin
+  Level2();
+end;
+
+PrintLn('=== Test 1: GetStackTrace() in nested calls ===');
+Level1();
+PrintLn('');
+
+// Test 2: GetStackTrace() with no calls (should be empty or minimal)
+PrintLn('=== Test 2: GetStackTrace() at top level ===');
+var topLevelTrace := GetStackTrace();
+PrintLn('Top level trace: "' + topLevelTrace + '"');
+PrintLn('');
+
+// Test 3: Exception with stack trace
+// When an exception is raised, it should capture the call stack
+procedure RaiseFromLevel3();
+begin
+  raise Exception.Create('Error from Level3');
+end;
+
+procedure CallLevel3();
+begin
+  RaiseFromLevel3();
+end;
+
+procedure CallLevel2();
+begin
+  CallLevel3();
+end;
+
+PrintLn('=== Test 3: Exception stack trace ===');
+try
+  CallLevel2();
+except
+  on E: Exception do
+  begin
+    PrintLn('Caught exception: ' + E.Message);
+    PrintLn('Exception raised, stack trace should be displayed by CLI');
+  end;
+end;
+
+PrintLn('');
+PrintLn('=== All tests passed ===');

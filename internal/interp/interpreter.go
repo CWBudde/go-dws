@@ -51,6 +51,10 @@ type Interpreter struct {
 	// Each function call pushes a map of captured values, which is popped after
 	// postcondition evaluation. Supports nested function calls properly.
 	oldValuesStack []map[string]Value // Task 9.146: Old value capture for contract postconditions
+
+	// Task 9.111: Source code context for rich error messages
+	sourceCode string // Full source code for error display
+	sourceFile string // Source filename for error display
 }
 
 // New creates a new Interpreter with a fresh global environment.

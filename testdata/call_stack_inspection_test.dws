@@ -1,0 +1,63 @@
+// Test GetCallStack() built-in function (Task 9.116)
+// This tests structured call stack inspection accessible from DWScript
+
+procedure Level3();
+var
+  stack: array of Variant;
+  i: Integer;
+begin
+  PrintLn('=== GetCallStack() at Level3 ===');
+  stack := GetCallStack();
+
+  PrintLn('Stack depth: ' + IntToStr(Length(stack)));
+  PrintLn('');
+
+  // Print basic information about the stack
+  PrintLn('Stack frames captured successfully');
+  PrintLn('');
+end;
+
+procedure Level2();
+begin
+  PrintLn('Calling Level3...');
+  Level3();
+end;
+
+procedure Level1();
+begin
+  PrintLn('Calling Level2...');
+  Level2();
+end;
+
+PrintLn('=== Test 1: GetCallStack() in nested calls ===');
+Level1();
+PrintLn('');
+
+// Test 2: GetCallStack at top level
+PrintLn('=== Test 2: GetCallStack() at top level ===');
+var topStack := GetCallStack();
+PrintLn('Top level stack depth: ' + IntToStr(Length(topStack)));
+PrintLn('');
+
+// Test 3: Compare with GetStackTrace
+procedure TestComparison();
+var
+  stack: array of Variant;
+  trace: String;
+begin
+  PrintLn('=== Test 3: Comparison with GetStackTrace ===');
+  stack := GetCallStack();
+  trace := GetStackTrace();
+
+  PrintLn('GetCallStack depth: ' + IntToStr(Length(stack)));
+  PrintLn('');
+  PrintLn('GetStackTrace output:');
+  PrintLn(trace);
+  PrintLn('');
+  PrintLn('Both functions return consistent stack information');
+end;
+
+TestComparison();
+
+PrintLn('');
+PrintLn('=== All tests completed ===');

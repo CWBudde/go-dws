@@ -1,0 +1,48 @@
+// Combined: Multiple error types in one script
+// This demonstrates various error messages for comparison
+
+// 1. Type error example (commented out to allow script to run)
+// var x: Integer := 'hello';  // Would show: Cannot assign String to Integer
+
+// 2. Successful operations
+procedure Calculate(a, b: Integer): Integer;
+var
+  result: Integer;
+begin
+  result := a + b;
+  PrintLn('Calculation: ' + IntToStr(a) + ' + ' + IntToStr(b) + ' = ' + IntToStr(result));
+  Result := result;
+end;
+
+// 3. Function with potential errors
+procedure DivideAndPrint(numerator, denominator: Integer);
+var
+  result: Integer;
+begin
+  try
+    result := numerator div denominator;
+    PrintLn('Division: ' + IntToStr(numerator) + ' / ' + IntToStr(denominator) + ' = ' + IntToStr(result));
+  except
+    on E: Exception do
+    begin
+      PrintLn('ERROR: ' + E.Message);
+      PrintLn('Call stack:');
+      PrintLn(GetStackTrace());
+    end;
+  end;
+end;
+
+PrintLn('=== Combined Error Demonstration ===');
+PrintLn('');
+
+// Successful operations
+Calculate(10, 20);
+DivideAndPrint(100, 10);
+PrintLn('');
+
+// Runtime error (handled)
+PrintLn('Now attempting division by zero (handled):');
+DivideAndPrint(100, 0);
+PrintLn('');
+
+PrintLn('Script completed - errors were handled gracefully');
