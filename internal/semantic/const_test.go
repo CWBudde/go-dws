@@ -63,7 +63,7 @@ func TestConstWithVariableReference(t *testing.T) {
 		var x: Integer := 10;
 		const MAX = x;
 	`
-	// This should error because const values must be constant expressions
-	// For now, we'll allow any expression, but could be enhanced in the future
-	expectNoErrors(t, input) // We'll validate this as constant later
+	// Task 9.205: Const values must be compile-time constants
+	// This should error because x is a variable, not a constant
+	expectError(t, input, "identifier 'x' is not a constant")
 }

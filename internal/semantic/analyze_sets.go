@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -39,7 +41,8 @@ func (a *Analyzer) analyzeSetDecl(decl *ast.SetDecl) {
 	setType := types.NewSetType(enumType)
 
 	// Task 8.99: Register the set type
-	a.sets[setName] = setType
+	// Use lowercase key for case-insensitive lookup
+	a.sets[strings.ToLower(setName)] = setType
 }
 
 // analyzeSetLiteralWithContext analyzes a set literal expression with optional type context

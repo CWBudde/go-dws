@@ -37,6 +37,11 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 		// Array type: array of ElementType
 		return p.parseArrayType()
 
+	case lexer.SET:
+		// Set type: set of ElementType
+		// Task 9.213: Parse inline set type expressions
+		return p.parseSetType()
+
 	default:
 		p.addError("expected type expression, got " + p.curToken.Literal)
 		return nil
@@ -143,25 +148,37 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 //
 // Task 9.51: Created to support array of Type syntax
 // Task 9.54: Extended to support static array bounds
+// Task 9.212: Extended to support comma-separated multidimensional arrays
+//
+// Supports both single and multi-dimensional syntax:
+//   - array[0..10] of Integer         (single dimension)
+//   - array[0..1, 0..2] of Integer    (2D, comma-separated)
+//   - array[1..3, 1..4, 1..5] of Float (3D, comma-separated)
+//
+// Multi-dimensional arrays are desugared into nested array types:
+//
+//	array[0..1, 0..2] of Integer
+//	→ array[0..1] of array[0..2] of Integer
 func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	// Current token is ARRAY
 	arrayToken := p.curToken
 
-	// Check for bounds: array[low..high]
-	var lowBound *int
-	var highBound *int
+	// Collect all dimensions (comma-separated)
+	type dimensionPair struct {
+		low, high ast.Expression
+	}
+	var dimensions []dimensionPair
 
 	if p.peekTokenIs(lexer.LBRACK) {
 		p.nextToken() // move to '['
 
-		// Parse low bound (may be negative)
+		// Parse first dimension
 		p.nextToken() // move to low bound
-		low, err := p.parseArrayBound()
-		if err != nil {
-			p.addError("invalid array lower bound: " + err.Error())
+		lowBound := p.parseArrayBound()
+		if lowBound == nil {
+			p.addError("invalid array lower bound expression")
 			return nil
 		}
-		lowBound = &low
 
 		// Expect '..'
 		if !p.expectPeek(lexer.DOTDOT) {
@@ -169,22 +186,46 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 			return nil
 		}
 
-		// Parse high bound (may be negative)
+		// Parse high bound expression
 		p.nextToken() // move to high bound
-		high, err := p.parseArrayBound()
-		if err != nil {
-			p.addError("invalid array upper bound: " + err.Error())
-			return nil
-		}
-		highBound = &high
-
-		// Validate bounds
-		if *lowBound > *highBound {
-			p.addError("array lower bound cannot be greater than upper bound")
+		highBound := p.parseArrayBound()
+		if highBound == nil {
+			p.addError("invalid array upper bound expression")
 			return nil
 		}
 
-		// Expect ']'
+		dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+
+		// Parse additional dimensions (comma-separated)
+		// Task 9.212: Support multidimensional arrays like array[0..1, 0..2]
+		for p.peekTokenIs(lexer.COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // move to next low bound
+			lowBound := p.parseArrayBound()
+			if lowBound == nil {
+				p.addError("invalid array lower bound expression in multi-dimensional array")
+				return nil
+			}
+
+			if !p.expectPeek(lexer.DOTDOT) {
+				p.addError("expected '..' in array bounds")
+				return nil
+			}
+
+			p.nextToken() // move to high bound
+			highBound := p.parseArrayBound()
+			if highBound == nil {
+				p.addError("invalid array upper bound expression in multi-dimensional array")
+				return nil
+			}
+
+			dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+		}
+
+		// Note: Bounds validation is now deferred to semantic analysis phase
+		// since bounds may be constant expressions that need evaluation
+
+		// Now expect ']'
 		if !p.expectPeek(lexer.RBRACK) {
 			p.addError("expected ']' after array bounds")
 			return nil
@@ -205,12 +246,30 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 		return nil
 	}
 
-	return &ast.ArrayTypeNode{
-		Token:       arrayToken,
-		ElementType: elementType,
-		LowBound:    lowBound,
-		HighBound:   highBound,
+	// If no dimensions, return simple dynamic array
+	if len(dimensions) == 0 {
+		return &ast.ArrayTypeNode{
+			Token:       arrayToken,
+			ElementType: elementType,
+			LowBound:    nil,
+			HighBound:   nil,
+		}
 	}
+
+	// Build nested array types from innermost to outermost
+	// This desugars: array[0..1, 0..2] of Integer
+	//           into: array[0..1] of (array[0..2] of Integer)
+	result := elementType
+	for i := len(dimensions) - 1; i >= 0; i-- {
+		result = &ast.ArrayTypeNode{
+			Token:       arrayToken,
+			ElementType: result,
+			LowBound:    dimensions[i].low,
+			HighBound:   dimensions[i].high,
+		}
+	}
+
+	return result.(*ast.ArrayTypeNode)
 }
 
 // parseInt parses a string as an integer.
@@ -223,26 +282,22 @@ func parseInt(s string) (int, error) {
 	return int(val), nil
 }
 
-// parseArrayBound parses an array bound which may be negative.
-// Current token should be at the bound value (INT or MINUS).
-// Returns the integer value and any error.
-func (p *Parser) parseArrayBound() (int, error) {
-	// Check for negative number
-	if p.curTokenIs(lexer.MINUS) {
-		// Negative bound: -N
-		if !p.expectPeek(lexer.INT) {
-			return 0, strconv.ErrSyntax
-		}
-		val, err := parseInt(p.curToken.Literal)
-		if err != nil {
-			return 0, err
-		}
-		return -val, nil
-	}
-
-	// Positive bound
-	if !p.curTokenIs(lexer.INT) {
-		return 0, strconv.ErrSyntax
-	}
-	return parseInt(p.curToken.Literal)
+// parseArrayBound parses an array bound expression.
+// Array bounds can be:
+// - Integer literals: 10, -5
+// - Constant identifiers: size, maxIndex
+// - Constant expressions: size - 1, maxIndex + 10
+//
+// Current token should be at the start of the bound expression.
+// Returns the parsed expression or nil on error.
+//
+// Task 9.205: Changed to return ast.Expression instead of int to support const expressions
+func (p *Parser) parseArrayBound() ast.Expression {
+	// Parse as a general expression
+	// This handles:
+	// - Integer literals: 10
+	// - Unary expressions: -5
+	// - Identifiers: size
+	// - Binary expressions: size - 1
+	return p.parseExpression(LOWEST)
 }

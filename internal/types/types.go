@@ -1,6 +1,9 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Type represents a DWScript type at compile-time.
 // This is used for static type checking during semantic analysis,
@@ -338,21 +341,22 @@ func IsOrdinalType(t Type) bool {
 
 // TypeFromString converts a type name string to a Type
 // This is useful for parsing type annotations
+// DWScript is case-insensitive, so this function normalizes the input
 func TypeFromString(name string) (Type, error) {
-	switch name {
-	case "Integer":
+	switch strings.ToLower(name) {
+	case "integer":
 		return INTEGER, nil
-	case "Float":
+	case "float":
 		return FLOAT, nil
-	case "String":
+	case "string":
 		return STRING, nil
-	case "Boolean":
+	case "boolean":
 		return BOOLEAN, nil
-	case "TDateTime":
+	case "tdatetime":
 		return DATETIME, nil
-	case "Void":
+	case "void":
 		return VOID, nil
-	case "Variant":
+	case "variant":
 		return VARIANT, nil
 	default:
 		return nil, fmt.Errorf("unknown type: %s", name)
@@ -395,6 +399,7 @@ type PropertyInfo struct {
 type ClassType struct {
 	OverrideMethods  map[string]bool
 	AbstractMethods  map[string]bool
+	ForwardedMethods map[string]bool // Task 9.279: Track methods declared but not yet implemented
 	Fields           map[string]Type
 	ClassVars        map[string]Type
 	Methods          map[string]*FunctionType
@@ -591,6 +596,7 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		VirtualMethods:   make(map[string]bool), // Task 7.64
 		OverrideMethods:  make(map[string]bool), // Task 7.64
 		AbstractMethods:  make(map[string]bool), // Task 7.65
+		ForwardedMethods: make(map[string]bool), // Task 9.279
 		Operators:        NewOperatorRegistry(),
 		Constructors:     make(map[string]*FunctionType),
 		ClassMethodFlags: make(map[string]bool),

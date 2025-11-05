@@ -6,8 +6,9 @@ import "github.com/cwbudde/go-dws/internal/lexer"
 // This is used for variable declarations, parameters, and return types.
 // Example: `: Integer` in `var x: Integer := 5;`
 type TypeAnnotation struct {
-	Name  string
-	Token lexer.Token
+	Name       string
+	Token      lexer.Token
+	InlineType TypeExpression // For complex inline types (arrays, function pointers) that need AST evaluation
 }
 
 // String returns the string representation of the type annotation

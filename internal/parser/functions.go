@@ -66,6 +66,13 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 				Token: te.Token,
 				Name:  te.String(), // Use the full function pointer signature as the type name
 			}
+		case *ast.SetTypeNode:
+			// For set types, we create a synthetic TypeAnnotation
+			// Task 9.213: Handle inline set type expressions in return types
+			fn.ReturnType = &ast.TypeAnnotation{
+				Token: te.Token,
+				Name:  te.String(), // Use the full set type signature as the type name
+			}
 		case *ast.ArrayTypeNode:
 			// For array types, we create a synthetic TypeAnnotation
 			// Check if Token is nil to prevent panics (defensive programming)
@@ -94,7 +101,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		return nil
 	}
 
-	// Check for optional directives: static, virtual, override, external
+	// Check for optional directives: static, virtual, override, abstract, external, overload
 	for {
 		if p.peekTokenIs(lexer.STATIC) {
 			p.nextToken() // move to 'static'
@@ -142,6 +149,14 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			}
 			// External methods have no body, return early
 			return fn
+		} else if p.peekTokenIs(lexer.OVERLOAD) {
+			// Overload directive: function Test(x: Integer): Float; overload;
+			// Task 9.244 - Parse overload keyword in function declarations
+			p.nextToken() // move to 'overload'
+			fn.IsOverload = true
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
 		} else {
 			break // No more directives
 		}
@@ -381,6 +396,13 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		typeAnnotation = &ast.TypeAnnotation{
 			Token: token,
 			Name:  te.String(), // Use the full array type signature as the type name
+		}
+	case *ast.SetTypeNode:
+		// For set types, we create a synthetic TypeAnnotation
+		// Task 9.213: Handle inline set type expressions in parameters
+		typeAnnotation = &ast.TypeAnnotation{
+			Token: te.Token,
+			Name:  te.String(), // Use the full set type signature as the type name
 		}
 	default:
 		p.addError("unsupported type expression in parameter")

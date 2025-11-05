@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -70,7 +72,8 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 	}
 
 	// Task 8.43: Register the enum type
-	a.enums[enumName] = enumType
+	// Use lowercase key for case-insensitive lookup
+	a.enums[strings.ToLower(enumName)] = enumType
 
 	// Task 8.44: Register each enum value as a constant in the symbol table
 	for valueName, ordinalValue := range enumType.Values {

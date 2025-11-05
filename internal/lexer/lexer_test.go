@@ -1514,8 +1514,8 @@ func TestBOMHandling(t *testing.T) {
 func TestBOMWithRealFixtureContent(t *testing.T) {
 	// Test with actual content similar to the failing fixture files
 	tests := []struct {
-		name     string
-		input    string
+		name      string
+		input     string
 		numTokens int // Approximate number of tokens to verify parsing continues
 	}{
 		{

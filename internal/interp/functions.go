@@ -265,6 +265,12 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinFloor(args)
 	case "RandomInt":
 		return i.builtinRandomInt(args)
+	case "Unsigned32":
+		return i.builtinUnsigned32(args)
+	case "MaxInt":
+		return i.builtinMaxInt(args)
+	case "MinInt":
+		return i.builtinMinInt(args)
 	case "Low":
 		return i.builtinLow(args)
 	case "High":
@@ -484,6 +490,7 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 		"IntToStr", "FloatToStr", "FloatToStrF", "BoolToStr", "StrToBool",
 		"VarToStr", "VarToInt", "VarToFloat", "VarAsType", "VarIsNull", "VarIsEmpty", "VarIsNumeric", "VarType", "VarClear",
 		"Include", "Exclude", "Map", "Filter", "Reduce", "ForEach",
+		"MaxInt", "MinInt",
 		"Now", "Date", "Time", "UTCDateTime", "EncodeDate", "EncodeTime",
 		"EncodeDateTime", "YearOf", "MonthOf", "DayOf", "HourOf", "MinuteOf",
 		"SecondOf", "MillisecondOf", "DayOfWeek", "DayOfYear", "WeekOfYear",
@@ -596,10 +603,11 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 
 	// For functions (not procedures), initialize the Result variable
 	if fn.ReturnType != nil {
-		// Initialize Result based on return type
-		var resultValue Value = &NilValue{}
+		// Task 9.221: Initialize Result based on return type with appropriate defaults
+		returnType := i.resolveTypeFromAnnotation(fn.ReturnType)
+		var resultValue Value = i.getDefaultValue(returnType)
 
-		// Check if return type is a record
+		// Check if return type is a record (overrides default)
 		returnTypeName := fn.ReturnType.Name
 		recordTypeKey := "__record_type_" + returnTypeName
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
@@ -607,6 +615,30 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 				// Task 9.7e1: Use createRecordValue for proper nested record initialization
 				resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
 			}
+		}
+
+		// Task 9.218: Check if return type is an array (overrides default)
+		// Array return types should be initialized to empty arrays, not NIL
+		// This allows methods like .Add() and .High to work on the Result variable
+		arrayTypeKey := "__array_type_" + returnTypeName
+		if typeVal, ok := i.env.Get(arrayTypeKey); ok {
+			if atv, ok := typeVal.(*ArrayTypeValue); ok {
+				resultValue = NewArrayValue(atv.ArrayType)
+			}
+		} else if strings.HasPrefix(returnTypeName, "array of ") || strings.HasPrefix(returnTypeName, "array[") {
+			// Task 9.218: Handle inline array return types like "array of Integer"
+			// For inline array types, create the array type directly from the type name
+			elementTypeName := strings.TrimPrefix(returnTypeName, "array of ")
+			if elementTypeName != returnTypeName {
+				// Dynamic array: "array of Integer" -> elementTypeName = "Integer"
+				elementType, err := i.resolveType(elementTypeName)
+				if err == nil {
+					arrayType := types.NewDynamicArrayType(elementType)
+					resultValue = NewArrayValue(arrayType)
+				}
+			}
+			// TODO: Handle static inline arrays like "array[1..10] of Integer"
+			// For now, those should use named types
 		}
 
 		i.env.Define("Result", resultValue)
@@ -803,10 +835,11 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 
 	// For functions (not procedures), initialize the Result variable
 	if lambda.ReturnType != nil {
-		// Initialize Result based on return type
-		var resultValue Value = &NilValue{}
+		// Task 9.221: Initialize Result based on return type with appropriate defaults
+		returnType := i.resolveTypeFromAnnotation(lambda.ReturnType)
+		var resultValue Value = i.getDefaultValue(returnType)
 
-		// Check if return type is a record
+		// Check if return type is a record (overrides default)
 		returnTypeName := lambda.ReturnType.Name
 		recordTypeKey := "__record_type_" + returnTypeName
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
@@ -1003,10 +1036,11 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 
 	// For functions (not procedures), initialize the Result variable
 	if method.ReturnType != nil {
-		// Initialize Result based on return type
-		var resultValue Value = &NilValue{}
+		// Task 9.221: Initialize Result based on return type with appropriate defaults
+		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+		var resultValue Value = i.getDefaultValue(returnType)
 
-		// Check if return type is a record
+		// Check if return type is a record (overrides default)
 		returnTypeName := method.ReturnType.Name
 		recordTypeKey := "__record_type_" + returnTypeName
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
@@ -1178,10 +1212,11 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 
 	// For functions (not procedures), initialize the Result variable
 	if method.ReturnType != nil {
-		// Initialize Result based on return type
-		var resultValue Value = &NilValue{}
+		// Task 9.221: Initialize Result based on return type with appropriate defaults
+		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+		var resultValue Value = i.getDefaultValue(returnType)
 
-		// Check if return type is a record
+		// Check if return type is a record (overrides default)
 		// Task 9.7f: For static record methods returning records, initialize Result properly
 		returnTypeName := method.ReturnType.Name
 		recordTypeKey := "__record_type_" + returnTypeName
@@ -1308,4 +1343,65 @@ func (i *Interpreter) parseInlineArrayType(signature string) *types.ArrayType {
 		return types.NewStaticArrayType(elementType, *lowBound, *highBound)
 	}
 	return types.NewDynamicArrayType(elementType)
+}
+
+// resolveArrayTypeNode resolves an ArrayTypeNode directly from the AST.
+// This avoids string conversion issues with parentheses in bound expressions like (-5).
+// Task: Fix negative array bounds like array[-5..5]
+func (i *Interpreter) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) *types.ArrayType {
+	if arrayNode == nil {
+		return nil
+	}
+
+	// Resolve element type first
+	var elementType types.Type
+
+	// Check if element type is also an array (nested arrays)
+	if nestedArray, ok := arrayNode.ElementType.(*ast.ArrayTypeNode); ok {
+		elementType = i.resolveArrayTypeNode(nestedArray)
+		if elementType == nil {
+			return nil
+		}
+	} else {
+		// Get element type name and resolve it
+		var elementTypeName string
+		if typeAnnot, ok := arrayNode.ElementType.(*ast.TypeAnnotation); ok {
+			elementTypeName = typeAnnot.Name
+		} else {
+			elementTypeName = arrayNode.ElementType.String()
+		}
+
+		var err error
+		elementType, err = i.resolveType(elementTypeName)
+		if err != nil || elementType == nil {
+			return nil
+		}
+	}
+
+	// Check if dynamic or static array
+	if arrayNode.IsDynamic() {
+		return types.NewDynamicArrayType(elementType)
+	}
+
+	// Static array - evaluate bounds by interpreting the expressions
+	// For constant expressions (literals, unary minus), we can evaluate them directly
+	lowVal := i.Eval(arrayNode.LowBound)
+	if isError(lowVal) {
+		return nil
+	}
+	lowBound, ok := lowVal.(*IntegerValue)
+	if !ok {
+		return nil
+	}
+
+	highVal := i.Eval(arrayNode.HighBound)
+	if isError(highVal) {
+		return nil
+	}
+	highBound, ok := highVal.(*IntegerValue)
+	if !ok {
+		return nil
+	}
+
+	return types.NewStaticArrayType(elementType, int(lowBound.Value), int(highBound.Value))
 }

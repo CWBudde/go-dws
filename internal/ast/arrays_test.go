@@ -14,14 +14,13 @@ func TestArrayTypeAnnotation(t *testing.T) {
 	t.Run("Static array type", func(t *testing.T) {
 		// array[1..10] of Integer
 		tok := lexer.Token{Type: lexer.ARRAY, Literal: "array"}
+		intTok := lexer.Token{Type: lexer.INT, Literal: "1"}
 
-		lowBound := 1
-		highBound := 10
 		arrayType := &ArrayTypeAnnotation{
 			Token:       tok,
 			ElementType: &TypeAnnotation{Token: tok, Name: "Integer"},
-			LowBound:    &lowBound,
-			HighBound:   &highBound,
+			LowBound:    &IntegerLiteral{Token: intTok, Value: 1},
+			HighBound:   &IntegerLiteral{Token: intTok, Value: 10},
 		}
 
 		// Test TokenLiteral()
@@ -34,12 +33,18 @@ func TestArrayTypeAnnotation(t *testing.T) {
 			t.Errorf("ElementType.Name = %v, want 'Integer'", arrayType.ElementType.Name)
 		}
 
-		// Test bounds
-		if arrayType.LowBound == nil || *arrayType.LowBound != 1 {
-			t.Errorf("LowBound = %v, want 1", arrayType.LowBound)
+		// Test bounds - they should be IntegerLiteral expressions
+		if arrayType.LowBound == nil {
+			t.Error("LowBound should not be nil")
 		}
-		if arrayType.HighBound == nil || *arrayType.HighBound != 10 {
-			t.Errorf("HighBound = %v, want 10", arrayType.HighBound)
+		if lowBoundLit, ok := arrayType.LowBound.(*IntegerLiteral); !ok || lowBoundLit.Value != 1 {
+			t.Errorf("LowBound should be IntegerLiteral with value 1")
+		}
+		if arrayType.HighBound == nil {
+			t.Error("HighBound should not be nil")
+		}
+		if highBoundLit, ok := arrayType.HighBound.(*IntegerLiteral); !ok || highBoundLit.Value != 10 {
+			t.Errorf("HighBound should be IntegerLiteral with value 10")
 		}
 
 		// Test IsStatic
@@ -66,10 +71,10 @@ func TestArrayTypeAnnotation(t *testing.T) {
 
 		// Test bounds are nil
 		if arrayType.LowBound != nil {
-			t.Errorf("LowBound should be nil for dynamic array, got %v", *arrayType.LowBound)
+			t.Errorf("LowBound should be nil for dynamic array, got %v", arrayType.LowBound)
 		}
 		if arrayType.HighBound != nil {
-			t.Errorf("HighBound should be nil for dynamic array, got %v", *arrayType.HighBound)
+			t.Errorf("HighBound should be nil for dynamic array, got %v", arrayType.HighBound)
 		}
 
 		// Test IsDynamic
@@ -85,14 +90,14 @@ func TestArrayTypeAnnotation(t *testing.T) {
 
 	t.Run("String() method for static array", func(t *testing.T) {
 		tok := lexer.Token{Type: lexer.ARRAY, Literal: "array"}
+		lowTok := lexer.Token{Type: lexer.INT, Literal: "1"}
+		highTok := lexer.Token{Type: lexer.INT, Literal: "10"}
 
-		lowBound := 1
-		highBound := 10
 		arrayType := &ArrayTypeAnnotation{
 			Token:       tok,
 			ElementType: &TypeAnnotation{Token: tok, Name: "Integer"},
-			LowBound:    &lowBound,
-			HighBound:   &highBound,
+			LowBound:    &IntegerLiteral{Token: lowTok, Value: 1},
+			HighBound:   &IntegerLiteral{Token: highTok, Value: 10},
 		}
 
 		str := arrayType.String()

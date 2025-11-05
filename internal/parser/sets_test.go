@@ -412,3 +412,142 @@ func TestParseComplexSetExpressions(t *testing.T) {
 		}
 	})
 }
+
+// ============================================================================
+// Inline Set Type Parser Tests
+// ============================================================================
+
+// Task 9.213: Test parsing inline set types in variable declarations
+func TestParseInlineSetType(t *testing.T) {
+	t.Run("Variable with inline set type", func(t *testing.T) {
+		input := `var sieve : set of TRange;`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		varDecl, ok := program.Statements[0].(*ast.VarDeclStatement)
+		if !ok {
+			t.Fatalf("statement is not *ast.VarDeclStatement, got %T", program.Statements[0])
+		}
+
+		if len(varDecl.Names) != 1 {
+			t.Fatalf("varDecl should have 1 name, got %d", len(varDecl.Names))
+		}
+
+		if varDecl.Names[0].Value != "sieve" {
+			t.Errorf("varDecl.Names[0].Value = %s, want 'sieve'", varDecl.Names[0].Value)
+		}
+
+		// Type should be a TypeAnnotation with InlineType set to SetTypeNode
+		if varDecl.Type == nil {
+			t.Fatalf("varDecl.Type should not be nil")
+		}
+
+		if varDecl.Type.Name != "set of TRange" {
+			t.Errorf("varDecl.Type.Name = %s, want 'set of TRange'", varDecl.Type.Name)
+		}
+
+		// Check InlineType
+		setType, ok := varDecl.Type.InlineType.(*ast.SetTypeNode)
+		if !ok {
+			t.Fatalf("varDecl.Type.InlineType is not *ast.SetTypeNode, got %T", varDecl.Type.InlineType)
+		}
+
+		// Check element type
+		elemType, ok := setType.ElementType.(*ast.TypeAnnotation)
+		if !ok {
+			t.Fatalf("setType.ElementType is not *ast.TypeAnnotation, got %T", setType.ElementType)
+		}
+
+		if elemType.Name != "TRange" {
+			t.Errorf("elemType.Name = %s, want 'TRange'", elemType.Name)
+		}
+	})
+
+	t.Run("Multiple variables with inline set type", func(t *testing.T) {
+		input := `var s1, s2 : set of TEnum;`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		varDecl := program.Statements[0].(*ast.VarDeclStatement)
+
+		if len(varDecl.Names) != 2 {
+			t.Fatalf("varDecl should have 2 names, got %d", len(varDecl.Names))
+		}
+
+		if varDecl.Type.Name != "set of TEnum" {
+			t.Errorf("varDecl.Type.Name = %s, want 'set of TEnum'", varDecl.Type.Name)
+		}
+	})
+
+	t.Run("Function parameter with inline set type", func(t *testing.T) {
+		input := `function Test(s: set of TEnum): Boolean; begin end;`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		funcDecl, ok := program.Statements[0].(*ast.FunctionDecl)
+		if !ok {
+			t.Fatalf("statement is not *ast.FunctionDecl, got %T", program.Statements[0])
+		}
+
+		if len(funcDecl.Parameters) != 1 {
+			t.Fatalf("function should have 1 parameter, got %d", len(funcDecl.Parameters))
+		}
+
+		param := funcDecl.Parameters[0]
+		if param.Name.Value != "s" {
+			t.Errorf("parameter name = %s, want 's'", param.Name.Value)
+		}
+
+		if param.Type.Name != "set of TEnum" {
+			t.Errorf("parameter type = %s, want 'set of TEnum'", param.Type.Name)
+		}
+	})
+
+	t.Run("Function return type with inline set type", func(t *testing.T) {
+		input := `function GetSet(): set of TEnum; begin end;`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		funcDecl, ok := program.Statements[0].(*ast.FunctionDecl)
+		if !ok {
+			t.Fatalf("statement is not *ast.FunctionDecl, got %T", program.Statements[0])
+		}
+
+		if funcDecl.ReturnType.Name != "set of TEnum" {
+			t.Errorf("return type = %s, want 'set of TEnum'", funcDecl.ReturnType.Name)
+		}
+	})
+
+	t.Run("String() method for SetTypeNode", func(t *testing.T) {
+		input := `var s : set of TEnum;`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		varDecl := program.Statements[0].(*ast.VarDeclStatement)
+		setType := varDecl.Type.InlineType.(*ast.SetTypeNode)
+
+		str := setType.String()
+		if str != "set of TEnum" {
+			t.Errorf("SetTypeNode.String() = %s, want 'set of TEnum'", str)
+		}
+	})
+}

@@ -37,7 +37,27 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 	if arrayTypeAnnotation.IsDynamic() {
 		arrayType = types.NewDynamicArrayType(elementType)
 	} else {
-		arrayType = types.NewStaticArrayType(elementType, *arrayTypeAnnotation.LowBound, *arrayTypeAnnotation.HighBound)
+		// Task 9.205: Evaluate bound expressions at runtime
+		lowBoundVal := i.Eval(arrayTypeAnnotation.LowBound)
+		if isError(lowBoundVal) {
+			return lowBoundVal
+		}
+		highBoundVal := i.Eval(arrayTypeAnnotation.HighBound)
+		if isError(highBoundVal) {
+			return highBoundVal
+		}
+
+		// Extract integer values
+		lowBound, ok := lowBoundVal.(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(decl, "array lower bound must be an integer")
+		}
+		highBound, ok := highBoundVal.(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(decl, "array upper bound must be an integer")
+		}
+
+		arrayType = types.NewStaticArrayType(elementType, int(lowBound.Value), int(highBound.Value))
 	}
 
 	// Store array type in environment with a special prefix
@@ -213,8 +233,9 @@ func (i *Interpreter) indexArray(arr *ArrayValue, index int, expr *ast.IndexExpr
 	// Return the element
 	elem := arr.Elements[physicalIndex]
 	if elem == nil {
-		// Return nil value for uninitialized elements
-		return &NilValue{}
+		// Task 9.219: Return properly typed zero value for uninitialized elements
+		// This allows operators like NOT to work correctly with type information
+		return getZeroValueForType(arr.ArrayType.ElementType, nil)
 	}
 
 	return elem

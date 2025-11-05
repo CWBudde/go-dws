@@ -4,7 +4,6 @@ package ast
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -62,10 +61,12 @@ func (ad *ArrayDecl) Pos() lexer.Position {
 // Examples:
 //   - array[1..10] of Integer (static, with bounds)
 //   - array of String (dynamic, no bounds)
+//
+// Task 9.205: Changed bounds from *int to Expression to support const expressions
 type ArrayTypeAnnotation struct {
 	ElementType *TypeAnnotation
-	LowBound    *int
-	HighBound   *int
+	LowBound    Expression
+	HighBound   Expression
 	Token       lexer.Token
 }
 
@@ -81,7 +82,11 @@ func (ata *ArrayTypeAnnotation) String() string {
 	out.WriteString("array")
 
 	if ata.LowBound != nil && ata.HighBound != nil {
-		out.WriteString(fmt.Sprintf("[%d..%d]", *ata.LowBound, *ata.HighBound))
+		out.WriteString("[")
+		out.WriteString(ata.LowBound.String())
+		out.WriteString("..")
+		out.WriteString(ata.HighBound.String())
+		out.WriteString("]")
 	}
 
 	out.WriteString(" of ")

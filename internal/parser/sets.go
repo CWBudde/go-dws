@@ -44,6 +44,43 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 	return setDecl
 }
 
+// parseSetType parses an inline set type expression.
+// Called when we encounter 'set' in a type context.
+// Current token should be 'set'.
+//
+// Syntax:
+//   - set of TypeName
+//   - set of (A, B, C)  // inline anonymous enum (if supported)
+//
+// Task 9.213: Parse inline set type expressions
+func (p *Parser) parseSetType() *ast.SetTypeNode {
+	setToken := p.curToken // The 'set' token
+
+	// Expect 'of' keyword
+	if !p.expectPeek(lexer.OF) {
+		p.addError("expected 'of' after 'set' in set type")
+		return nil
+	}
+
+	// Parse element type
+	p.nextToken() // move to element type
+
+	// Element type can be:
+	// 1. Simple identifier: TEnum
+	// 2. Inline anonymous enum: (A, B, C) - would be handled by parseTypeExpression
+	// 3. Subrange: 1..100 - might need special handling in future
+	elementType := p.parseTypeExpression()
+	if elementType == nil {
+		p.addError("expected type expression after 'set of'")
+		return nil
+	}
+
+	return &ast.SetTypeNode{
+		Token:       setToken,
+		ElementType: elementType,
+	}
+}
+
 // parseSetLiteral parses a set literal expression.
 // Syntax:
 //   - [one, two, three]       // elements

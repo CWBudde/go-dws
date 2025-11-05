@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -11,9 +12,66 @@ import (
 // Type Declaration Analysis
 // ============================================================================
 
+// evaluateConstant evaluates a compile-time constant expression.
+// Returns the constant value and an error if the expression is not a constant.
+// Task 9.205: Used for const declarations to store compile-time values.
+func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
+	if expr == nil {
+		return nil, fmt.Errorf("nil expression")
+	}
+
+	switch e := expr.(type) {
+	case *ast.IntegerLiteral:
+		return int(e.Value), nil
+
+	case *ast.FloatLiteral:
+		return e.Value, nil
+
+	case *ast.StringLiteral:
+		return e.Value, nil
+
+	case *ast.BooleanLiteral:
+		return e.Value, nil
+
+	case *ast.Identifier:
+		// Constant identifier reference
+		sym, ok := a.symbols.Resolve(e.Value)
+		if !ok {
+			return nil, fmt.Errorf("undefined identifier '%s'", e.Value)
+		}
+		if !sym.IsConst {
+			return nil, fmt.Errorf("identifier '%s' is not a constant", e.Value)
+		}
+		return sym.Value, nil
+
+	case *ast.UnaryExpression:
+		// Delegate to evaluateConstantInt for integer unary ops
+		if e.Operator == "-" || e.Operator == "+" {
+			val, err := a.evaluateConstantInt(expr)
+			if err != nil {
+				return nil, err
+			}
+			return val, nil
+		}
+		return nil, fmt.Errorf("non-constant unary expression")
+
+	case *ast.BinaryExpression:
+		// Delegate to evaluateConstantInt for integer binary ops
+		val, err := a.evaluateConstantInt(expr)
+		if err != nil {
+			return nil, err
+		}
+		return val, nil
+
+	default:
+		return nil, fmt.Errorf("expression is not a compile-time constant")
+	}
+}
+
 // evaluateConstantInt evaluates a compile-time constant integer expression.
 // Returns the integer value and an error if the expression is not a constant.
 // Task 9.98: Used for subrange bound evaluation.
+// Task 9.205: Extended to handle identifiers (const references) and binary expressions.
 func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 	if expr == nil {
 		return 0, fmt.Errorf("nil expression")
@@ -24,8 +82,29 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 		// Direct integer literal
 		return int(e.Value), nil
 
+	case *ast.Identifier:
+		// Constant identifier reference: size, maxIndex, etc.
+		// Look up the constant in the symbol table
+		sym, ok := a.symbols.Resolve(e.Value)
+		if !ok {
+			return 0, fmt.Errorf("undefined identifier '%s'", e.Value)
+		}
+		if !sym.IsConst {
+			return 0, fmt.Errorf("identifier '%s' is not a constant", e.Value)
+		}
+		// Get the constant value
+		if sym.Value == nil {
+			return 0, fmt.Errorf("constant '%s' has no value", e.Value)
+		}
+		// Convert to int
+		intVal, ok := sym.Value.(int)
+		if !ok {
+			return 0, fmt.Errorf("constant '%s' is not an integer", e.Value)
+		}
+		return intVal, nil
+
 	case *ast.UnaryExpression:
-		// Handle negative numbers: -40
+		// Handle negative numbers: -40, -size
 		if e.Operator == "-" {
 			value, err := a.evaluateConstantInt(e.Right)
 			if err != nil {
@@ -38,6 +117,39 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 			return a.evaluateConstantInt(e.Right)
 		}
 		return 0, fmt.Errorf("non-constant unary expression with operator %s", e.Operator)
+
+	case *ast.BinaryExpression:
+		// Handle binary expressions: size - 1, maxIndex + 10, etc.
+		left, err := a.evaluateConstantInt(e.Left)
+		if err != nil {
+			return 0, err
+		}
+		right, err := a.evaluateConstantInt(e.Right)
+		if err != nil {
+			return 0, err
+		}
+
+		// Evaluate based on operator
+		switch e.Operator {
+		case "+":
+			return left + right, nil
+		case "-":
+			return left - right, nil
+		case "*":
+			return left * right, nil
+		case "div":
+			if right == 0 {
+				return 0, fmt.Errorf("division by zero")
+			}
+			return left / right, nil
+		case "mod":
+			if right == 0 {
+				return 0, fmt.Errorf("modulo by zero")
+			}
+			return left % right, nil
+		default:
+			return 0, fmt.Errorf("non-constant binary operator '%s'", e.Operator)
+		}
 
 	default:
 		return 0, fmt.Errorf("expression is not a compile-time constant integer")
@@ -98,7 +210,8 @@ func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 			HighBound: highBound,
 		}
 
-		a.subranges[decl.Name.Value] = subrangeType
+		// Use lowercase key for case-insensitive lookup
+		a.subranges[strings.ToLower(decl.Name.Value)] = subrangeType
 		return
 	}
 
@@ -117,6 +230,7 @@ func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 			AliasedType: aliasedType,
 		}
 
-		a.typeAliases[decl.Name.Value] = typeAlias
+		// Use lowercase key for case-insensitive lookup
+		a.typeAliases[strings.ToLower(decl.Name.Value)] = typeAlias
 	}
 }

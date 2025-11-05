@@ -330,11 +330,18 @@ end;
 	if !ok {
 		t.Fatalf("field3.Type is not *ast.ArrayTypeNode. got=%T", field3.Type)
 	}
-	if arrayType3.LowBound == nil || *arrayType3.LowBound != 1 {
-		t.Errorf("field3 LowBound not 1. got=%v", arrayType3.LowBound)
+	// Task 9.205: Bounds are now expressions, check if they're integer literals
+	if arrayType3.LowBound == nil {
+		t.Error("field3 LowBound should not be nil")
 	}
-	if arrayType3.HighBound == nil || *arrayType3.HighBound != 10 {
-		t.Errorf("field3 HighBound not 10. got=%v", arrayType3.HighBound)
+	if lowBound, ok := arrayType3.LowBound.(*ast.IntegerLiteral); !ok || lowBound.Value != 1 {
+		t.Errorf("field3 LowBound not IntegerLiteral with value 1. got=%v", arrayType3.LowBound)
+	}
+	if arrayType3.HighBound == nil {
+		t.Error("field3 HighBound should not be nil")
+	}
+	if highBound, ok := arrayType3.HighBound.(*ast.IntegerLiteral); !ok || highBound.Value != 10 {
+		t.Errorf("field3 HighBound not IntegerLiteral with value 10. got=%v", arrayType3.HighBound)
 	}
 }
 

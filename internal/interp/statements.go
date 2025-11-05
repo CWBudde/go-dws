@@ -253,9 +253,21 @@ func (i *Interpreter) createZeroValue(typeAnnotation *ast.TypeAnnotation) Value 
 		return &NilValue{}
 	}
 
+	// Check for inline types stored in AST (arrays, function pointers)
+	// Task: Fix negative array bounds - use AST node directly instead of parsing string
+	if typeAnnotation.InlineType != nil {
+		if arrayNode, ok := typeAnnotation.InlineType.(*ast.ArrayTypeNode); ok {
+			arrayType := i.resolveArrayTypeNode(arrayNode)
+			if arrayType != nil {
+				return NewArrayValue(arrayType)
+			}
+			return &NilValue{}
+		}
+	}
+
 	typeName := typeAnnotation.Name
 
-	// Check for inline array types first
+	// Check for inline array types from string (fallback for older code)
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
 		arrayType := i.parseInlineArrayType(typeName)
 		if arrayType != nil {
@@ -1292,16 +1304,36 @@ func (i *Interpreter) evalCaseStatement(stmt *ast.CaseStatement) Value {
 	for _, branch := range stmt.Cases {
 		// Check each value in this branch
 		for _, branchVal := range branch.Values {
-			// Evaluate the branch value
-			branchValue := i.Eval(branchVal)
-			if isError(branchValue) {
-				return branchValue
-			}
+			// Check if this is a range expression
+			if rangeExpr, isRange := branchVal.(*ast.RangeExpression); isRange {
+				// Evaluate start and end of range
+				startValue := i.Eval(rangeExpr.Start)
+				if isError(startValue) {
+					return startValue
+				}
 
-			// Check if values match
-			if i.valuesEqual(caseValue, branchValue) {
-				// Execute this branch's statement
-				return i.Eval(branch.Statement)
+				endValue := i.Eval(rangeExpr.End)
+				if isError(endValue) {
+					return endValue
+				}
+
+				// Check if caseValue is within range [start, end]
+				if i.isInRange(caseValue, startValue, endValue) {
+					// Execute this branch's statement
+					return i.Eval(branch.Statement)
+				}
+			} else {
+				// Regular value comparison
+				branchValue := i.Eval(branchVal)
+				if isError(branchValue) {
+					return branchValue
+				}
+
+				// Check if values match
+				if i.valuesEqual(caseValue, branchValue) {
+					// Execute this branch's statement
+					return i.Eval(branch.Statement)
+				}
 			}
 		}
 	}
@@ -1434,4 +1466,50 @@ func (i *Interpreter) valuesEqual(left, right Value) bool {
 		// For other types, use string comparison as fallback
 		return left.String() == right.String()
 	}
+}
+
+// isInRange checks if value is within the range [start, end] inclusive.
+// Supports Integer, Float, String (character), and Enum values.
+func (i *Interpreter) isInRange(value, start, end Value) bool {
+	// Handle different value types
+	switch v := value.(type) {
+	case *IntegerValue:
+		startInt, startOk := start.(*IntegerValue)
+		endInt, endOk := end.(*IntegerValue)
+		if startOk && endOk {
+			return v.Value >= startInt.Value && v.Value <= endInt.Value
+		}
+
+	case *FloatValue:
+		startFloat, startOk := start.(*FloatValue)
+		endFloat, endOk := end.(*FloatValue)
+		if startOk && endOk {
+			return v.Value >= startFloat.Value && v.Value <= endFloat.Value
+		}
+
+	case *StringValue:
+		// For strings, compare character by character
+		startStr, startOk := start.(*StringValue)
+		endStr, endOk := end.(*StringValue)
+		if startOk && endOk && len(v.Value) == 1 && len(startStr.Value) == 1 && len(endStr.Value) == 1 {
+			// Single character comparison (for 'A'..'Z' style ranges)
+			charVal := v.Value[0]
+			charStart := startStr.Value[0]
+			charEnd := endStr.Value[0]
+			return charVal >= charStart && charVal <= charEnd
+		}
+		// Fall back to string comparison for multi-char strings
+		if startOk && endOk {
+			return v.Value >= startStr.Value && v.Value <= endStr.Value
+		}
+
+	case *EnumValue:
+		startEnum, startOk := start.(*EnumValue)
+		endEnum, endOk := end.(*EnumValue)
+		if startOk && endOk && v.TypeName == startEnum.TypeName && v.TypeName == endEnum.TypeName {
+			return v.OrdinalValue >= startEnum.OrdinalValue && v.OrdinalValue <= endEnum.OrdinalValue
+		}
+	}
+
+	return false
 }

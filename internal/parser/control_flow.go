@@ -383,27 +383,72 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 
 		branch := &ast.CaseBranch{Token: p.curToken}
 
-		// Parse comma-separated value list
+		// Parse comma-separated value list (with range support)
 		branch.Values = []ast.Expression{}
 
-		// Parse first value
+		// Parse first value or range
 		value := p.parseExpression(LOWEST)
 		if value == nil {
 			p.addError("expected value in case branch")
 			return nil
 		}
-		branch.Values = append(branch.Values, value)
 
-		// Parse additional comma-separated values
+		// Check for range operator (..)
+		if p.peekTokenIs(lexer.DOTDOT) {
+			p.nextToken() // move to '..'
+			rangeToken := p.curToken
+
+			p.nextToken() // move to end expression
+			endValue := p.parseExpression(LOWEST)
+			if endValue == nil {
+				p.addError("expected expression after '..' in case range")
+				return nil
+			}
+
+			// Create RangeExpression
+			rangeExpr := &ast.RangeExpression{
+				Token: rangeToken,
+				Start: value,
+				End:   endValue,
+			}
+			branch.Values = append(branch.Values, rangeExpr)
+		} else {
+			// Simple value (not a range)
+			branch.Values = append(branch.Values, value)
+		}
+
+		// Parse additional comma-separated values/ranges
 		for p.peekTokenIs(lexer.COMMA) {
 			p.nextToken() // move to comma
 			p.nextToken() // move to next value
+
 			value := p.parseExpression(LOWEST)
 			if value == nil {
 				p.addError("expected value after comma in case branch")
 				return nil
 			}
-			branch.Values = append(branch.Values, value)
+
+			// Check for range
+			if p.peekTokenIs(lexer.DOTDOT) {
+				p.nextToken() // move to '..'
+				rangeToken := p.curToken
+
+				p.nextToken() // move to end expression
+				endValue := p.parseExpression(LOWEST)
+				if endValue == nil {
+					p.addError("expected expression after '..' in case range")
+					return nil
+				}
+
+				rangeExpr := &ast.RangeExpression{
+					Token: rangeToken,
+					Start: value,
+					End:   endValue,
+				}
+				branch.Values = append(branch.Values, rangeExpr)
+			} else {
+				branch.Values = append(branch.Values, value)
+			}
 		}
 
 		// Expect ':' after value(s)
@@ -434,19 +479,40 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 	// Check for optional 'else' branch
 	if p.curTokenIs(lexer.ELSE) {
 		p.nextToken() // move past 'else'
-		stmt.Else = p.parseStatement()
 
-		if stmt.Else == nil {
-			p.addError("expected statement after 'else' in case statement")
-			return nil
+		// Parse multiple statements until 'end' is encountered (like repeat-until)
+		// DWScript allows multiple statements in else clause without begin-end
+		block := &ast.BlockStatement{Token: p.curToken}
+		block.Statements = []ast.Statement{}
+
+		for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
+			// Skip semicolons
+			if p.curTokenIs(lexer.SEMICOLON) {
+				p.nextToken()
+				continue
+			}
+
+			elseStmt := p.parseStatement()
+			if elseStmt != nil {
+				block.Statements = append(block.Statements, elseStmt)
+			}
+
+			p.nextToken()
+
+			// Skip any semicolons after the statement
+			for p.curTokenIs(lexer.SEMICOLON) {
+				p.nextToken()
+			}
 		}
 
-		// Move to 'end' or semicolon
-		p.nextToken()
-
-		// Skip any trailing semicolons before 'end'
-		for p.curTokenIs(lexer.SEMICOLON) {
-			p.nextToken()
+		// If only one statement, use it directly; otherwise use the block
+		if len(block.Statements) == 1 {
+			stmt.Else = block.Statements[0]
+		} else if len(block.Statements) > 1 {
+			stmt.Else = block
+		} else {
+			p.addError("expected statement after 'else' in case statement")
+			return nil
 		}
 	}
 

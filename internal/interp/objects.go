@@ -325,9 +325,12 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		i.env.Define("Self", obj)
 
 		// For functions, initialize the Result variable
+		// Task 9.221: Use appropriate default value based on return type
 		if method.ReturnType != nil {
-			i.env.Define("Result", &NilValue{})
-			i.env.Define(method.Name.Value, &NilValue{})
+			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+			defaultVal := i.getDefaultValue(returnType)
+			i.env.Define("Result", defaultVal)
+			i.env.Define(method.Name.Value, defaultVal)
 		}
 
 		// Execute method body
@@ -375,9 +378,12 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		i.env.Define("Self", obj)
 
 		// For functions, initialize the Result variable
+		// Task 9.221: Use appropriate default value based on return type
 		if method.ReturnType != nil {
-			i.env.Define("Result", &NilValue{})
-			i.env.Define(method.Name.Value, &NilValue{})
+			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+			defaultVal := i.getDefaultValue(returnType)
+			i.env.Define("Result", defaultVal)
+			i.env.Define(method.Name.Value, defaultVal)
 		}
 
 		// Execute method body
@@ -489,9 +495,12 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 		}
 
 		// For functions, initialize the Result variable
+		// Task 9.221: Use appropriate default value based on return type
 		if method.ReturnType != nil {
-			i.env.Define("Result", &NilValue{})
-			i.env.Define(method.Name.Value, &NilValue{})
+			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+			defaultVal := i.getDefaultValue(returnType)
+			i.env.Define("Result", defaultVal)
+			i.env.Define(method.Name.Value, defaultVal)
 		}
 
 		// Execute method body
@@ -756,10 +765,13 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				}
 
 				// For functions (not procedures), initialize the Result variable
+				// Task 9.221: Use appropriate default value based on return type
 				if classMethod.ReturnType != nil {
-					i.env.Define("Result", &NilValue{})
+					returnType := i.resolveTypeFromAnnotation(classMethod.ReturnType)
+					defaultVal := i.getDefaultValue(returnType)
+					i.env.Define("Result", defaultVal)
 					// Also define the method name as an alias for Result (DWScript style)
-					i.env.Define(classMethod.Name.Value, &NilValue{})
+					i.env.Define(classMethod.Name.Value, defaultVal)
 				}
 
 				// Execute method body
@@ -869,10 +881,19 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 				// For functions (not procedures), initialize the Result variable
 				// For constructors, always initialize Result even if no explicit return type
+				// Task 9.221: Use appropriate default value based on return type
 				if instanceMethod.ReturnType != nil || instanceMethod.IsConstructor {
-					i.env.Define("Result", &NilValue{})
+					var defaultVal Value
+					if instanceMethod.IsConstructor {
+						// Constructors default to NIL (or will be set to Self)
+						defaultVal = &NilValue{}
+					} else {
+						returnType := i.resolveTypeFromAnnotation(instanceMethod.ReturnType)
+						defaultVal = i.getDefaultValue(returnType)
+					}
+					i.env.Define("Result", defaultVal)
 					// Also define the method name as an alias for Result (DWScript style)
-					i.env.Define(instanceMethod.Name.Value, &NilValue{})
+					i.env.Define(instanceMethod.Name.Value, defaultVal)
 				}
 
 				// Execute method body
@@ -1063,10 +1084,13 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	}
 
 	// For functions (not procedures), initialize the Result variable
+	// Task 9.221: Use appropriate default value based on return type
 	if method.ReturnType != nil {
-		i.env.Define("Result", &NilValue{})
+		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+		defaultVal := i.getDefaultValue(returnType)
+		i.env.Define("Result", defaultVal)
 		// Also define the method name as an alias for Result (DWScript style)
-		i.env.Define(method.Name.Value, &NilValue{})
+		i.env.Define(method.Name.Value, defaultVal)
 	}
 
 	// Execute method body
@@ -1207,10 +1231,13 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 	}
 
 	// For functions (not procedures), initialize the Result variable
+	// Task 9.221: Use appropriate default value based on return type
 	if parentMethod.ReturnType != nil {
-		i.env.Define("Result", &NilValue{})
+		returnType := i.resolveTypeFromAnnotation(parentMethod.ReturnType)
+		defaultVal := i.getDefaultValue(returnType)
+		i.env.Define("Result", defaultVal)
 		// Also define the method name as an alias for Result (DWScript style)
-		i.env.Define(parentMethod.Name.Value, &NilValue{})
+		i.env.Define(parentMethod.Name.Value, defaultVal)
 	}
 
 	// Execute parent method body

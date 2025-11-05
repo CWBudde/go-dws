@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -116,7 +118,8 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	}
 
 	// Register the record type
-	a.records[recordName] = recordType
+	// Use lowercase key for case-insensitive lookup
+	a.records[strings.ToLower(recordName)] = recordType
 
 	// Also register in symbol table as a type
 	a.symbols.Define(recordName, recordType)

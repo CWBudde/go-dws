@@ -12,8 +12,27 @@ import (
 // Type Resolution
 // ============================================================================
 
+// resolveTypeExpression resolves a TypeExpression directly from the AST to a Type.
+// This is preferred over resolveType(getTypeExpressionName()) because it avoids
+// string conversion issues with complex expressions like negative array bounds.
+func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (types.Type, error) {
+	if typeExpr == nil {
+		return nil, fmt.Errorf("nil type expression")
+	}
+
+	// Handle ArrayTypeNode directly to avoid string conversion issues
+	if arrayNode, ok := typeExpr.(*ast.ArrayTypeNode); ok {
+		return a.resolveArrayTypeNode(arrayNode)
+	}
+
+	// For other type expressions, fall back to string-based resolution
+	typeName := getTypeExpressionName(typeExpr)
+	return a.resolveType(typeName)
+}
+
 // resolveType resolves a type name to a Type
 // Handles basic types, class types, enum types, inline function pointer types, and inline array types
+// DWScript is case-insensitive, so type names are normalized to lowercase for lookups
 func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	// Task 9.50: Check for inline function pointer types first
 	// These are synthetic TypeAnnotations created by the parser with full signatures
@@ -29,49 +48,53 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 		return a.resolveInlineArrayType(typeName)
 	}
 
-	// Try basic types first
+	// Normalize type name for case-insensitive lookup
+	// DWScript is case-insensitive, so "integer", "Integer", and "INTEGER" should all work
+	normalizedName := strings.ToLower(typeName)
+
+	// Try basic types first (TypeFromString now handles case-insensitivity)
 	basicType, err := types.TypeFromString(typeName)
 	if err == nil {
 		return basicType, nil
 	}
 
 	// Try class types
-	if classType, found := a.classes[typeName]; found {
+	if classType, found := a.classes[normalizedName]; found {
 		return classType, nil
 	}
 
 	// Task 9.128: Try interface types
-	if interfaceType, found := a.interfaces[typeName]; found {
+	if interfaceType, found := a.interfaces[normalizedName]; found {
 		return interfaceType, nil
 	}
 
 	// Try enum types
-	if enumType, found := a.enums[typeName]; found {
+	if enumType, found := a.enums[normalizedName]; found {
 		return enumType, nil
 	}
 
 	// Try record types
-	if recordType, found := a.records[typeName]; found {
+	if recordType, found := a.records[normalizedName]; found {
 		return recordType, nil
 	}
 
 	// Try set types
-	if setType, found := a.sets[typeName]; found {
+	if setType, found := a.sets[normalizedName]; found {
 		return setType, nil
 	}
 
 	// Try array types
-	if arrayType, found := a.arrays[typeName]; found {
+	if arrayType, found := a.arrays[normalizedName]; found {
 		return arrayType, nil
 	}
 
 	// Try type aliases
-	if typeAlias, found := a.typeAliases[typeName]; found {
+	if typeAlias, found := a.typeAliases[normalizedName]; found {
 		return typeAlias, nil
 	}
 
 	// Try subrange types
-	if subrangeType, found := a.subranges[typeName]; found {
+	if subrangeType, found := a.subranges[normalizedName]; found {
 		return subrangeType, nil
 	}
 
@@ -265,6 +288,57 @@ func (a *Analyzer) resolveInlineArrayType(signature string) (types.Type, error) 
 		return types.NewStaticArrayType(elementType, *lowBound, *highBound), nil
 	}
 	return types.NewDynamicArrayType(elementType), nil
+}
+
+// resolveArrayTypeNode resolves an ArrayTypeNode directly from the AST.
+// This avoids string conversion issues with parentheses in bound expressions.
+// Task: Fix negative array bounds like array[-5..5]
+func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Type, error) {
+	if arrayNode == nil {
+		return nil, fmt.Errorf("nil array type node")
+	}
+
+	// Resolve element type first
+	var elementType types.Type
+	var err error
+
+	// Check if element type is also an array (nested arrays)
+	if nestedArray, ok := arrayNode.ElementType.(*ast.ArrayTypeNode); ok {
+		elementType, err = a.resolveArrayTypeNode(nestedArray)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Get element type name
+		elementTypeName := getTypeExpressionName(arrayNode.ElementType)
+		elementType, err = a.resolveType(elementTypeName)
+		if err != nil {
+			return nil, fmt.Errorf("unknown element type '%s': %w", elementTypeName, err)
+		}
+	}
+
+	// Check if dynamic or static array
+	if arrayNode.IsDynamic() {
+		return types.NewDynamicArrayType(elementType), nil
+	}
+
+	// Static array - evaluate bounds using evaluateConstantInt
+	lowBound, err := a.evaluateConstantInt(arrayNode.LowBound)
+	if err != nil {
+		return nil, fmt.Errorf("array lower bound must be a compile-time constant: %w", err)
+	}
+
+	highBound, err := a.evaluateConstantInt(arrayNode.HighBound)
+	if err != nil {
+		return nil, fmt.Errorf("array upper bound must be a compile-time constant: %w", err)
+	}
+
+	// Validate bounds
+	if lowBound > highBound {
+		return nil, fmt.Errorf("array lower bound (%d) cannot be greater than upper bound (%d)", lowBound, highBound)
+	}
+
+	return types.NewStaticArrayType(elementType, lowBound, highBound), nil
 }
 
 // resolveOperatorType resolves type annotations used in operator declarations.

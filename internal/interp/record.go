@@ -193,20 +193,24 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 		return nil, fmt.Errorf("invalid inline array type: %s", typeName)
 	}
 
-	switch typeName {
-	case "Integer":
+	// Normalize type name to lowercase for case-insensitive comparison
+	// DWScript (like Pascal) is case-insensitive for all identifiers including type names
+	lowerTypeName := strings.ToLower(typeName)
+
+	switch lowerTypeName {
+	case "integer":
 		return types.INTEGER, nil
-	case "Float":
+	case "float":
 		return types.FLOAT, nil
-	case "String":
+	case "string":
 		return types.STRING, nil
-	case "Boolean":
+	case "boolean":
 		return types.BOOLEAN, nil
-	case "Const":
+	case "const":
 		// Task 9.235: Migrate Const to Variant for proper dynamic typing
 		// "Const" was a temporary workaround, now redirects to VARIANT
 		return types.VARIANT, nil
-	case "Variant":
+	case "variant":
 		// Task 9.227: Support Variant type for dynamic values
 		return types.VARIANT, nil
 	default:

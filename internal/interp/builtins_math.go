@@ -511,3 +511,86 @@ func (i *Interpreter) builtinRandomInt(args []Value) Value {
 	randomValue := rand.Intn(int(max))
 	return &IntegerValue{Value: int64(randomValue)}
 }
+
+// builtinUnsigned32 implements the Unsigned32() built-in function.
+// It converts an Integer to its unsigned 32-bit representation.
+// Unsigned32(x) - converts Integer to unsigned 32-bit value (wraps around)
+// Task 9.219: Unsigned32() function for bitwise operations
+func (i *Interpreter) builtinUnsigned32(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Unsigned32() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+
+	// Only accept Integer argument
+	intVal, ok := arg.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Unsigned32() expects Integer as argument, got %s", arg.Type())
+	}
+
+	// Convert to uint32 (truncates to lower 32 bits) then back to int64
+	// This mimics Cardinal(value) in Delphi: wraps around within uint32 range
+	result := int64(uint32(intVal.Value))
+	return &IntegerValue{Value: result}
+}
+
+// builtinMaxInt implements the MaxInt() built-in function.
+// It returns the maximum integer constant or the maximum of two integers.
+// MaxInt() - returns math.MaxInt64 (9223372036854775807)
+// MaxInt(a, b) - returns maximum of two Integer values
+// Task 9.220: MaxInt() function for integer comparisons
+func (i *Interpreter) builtinMaxInt(args []Value) Value {
+	// No arguments - return maximum integer constant
+	if len(args) == 0 {
+		return &IntegerValue{Value: math.MaxInt64}
+	}
+
+	// Two arguments - return maximum of two integers
+	if len(args) == 2 {
+		left, ok1 := args[0].(*IntegerValue)
+		right, ok2 := args[1].(*IntegerValue)
+
+		if !ok1 || !ok2 {
+			return i.newErrorWithLocation(i.currentNode, "MaxInt() expects Integer arguments, got %s and %s", args[0].Type(), args[1].Type())
+		}
+
+		if left.Value > right.Value {
+			return left
+		}
+		return right
+	}
+
+	// Invalid number of arguments
+	return i.newErrorWithLocation(i.currentNode, "MaxInt() expects 0 or 2 arguments, got %d", len(args))
+}
+
+// builtinMinInt implements the MinInt() built-in function.
+// It returns the minimum integer constant or the minimum of two integers.
+// MinInt() - returns math.MinInt64 (-9223372036854775808)
+// MinInt(a, b) - returns minimum of two Integer values
+// Task 9.220: MinInt() function for integer comparisons
+func (i *Interpreter) builtinMinInt(args []Value) Value {
+	// No arguments - return minimum integer constant
+	if len(args) == 0 {
+		return &IntegerValue{Value: math.MinInt64}
+	}
+
+	// Two arguments - return minimum of two integers
+	if len(args) == 2 {
+		left, ok1 := args[0].(*IntegerValue)
+		right, ok2 := args[1].(*IntegerValue)
+
+		if !ok1 || !ok2 {
+			return i.newErrorWithLocation(i.currentNode, "MinInt() expects Integer arguments, got %s and %s", args[0].Type(), args[1].Type())
+		}
+
+		if left.Value < right.Value {
+			return left
+		}
+		return right
+	}
+
+	// Invalid number of arguments
+	return i.newErrorWithLocation(i.currentNode, "MinInt() expects 0 or 2 arguments, got %d", len(args))
+}

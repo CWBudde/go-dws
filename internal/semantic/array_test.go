@@ -40,6 +40,48 @@ func TestArrayTypeRegistration(t *testing.T) {
 				type TFloatArray = array[0..4] of Float;
 			`,
 		},
+		// Task 9.211: Test nested array type declarations
+		{
+			name: "nested dynamic array - 2D",
+			input: `
+				type Matrix = array of array of Float;
+			`,
+		},
+		{
+			name: "nested dynamic array - 3D",
+			input: `
+				type Tensor = array of array of array of Integer;
+			`,
+		},
+		{
+			name: "nested static arrays",
+			input: `
+				type Grid = array[1..10] of array[1..20] of Boolean;
+			`,
+		},
+		{
+			name: "mixed static and dynamic nested arrays",
+			input: `
+				type MixedArray = array of array[0..99] of String;
+			`,
+		},
+		{
+			name: "nested array with variable usage",
+			input: `
+				type Matrix = array of array of Float;
+				var m: Matrix;
+			`,
+		},
+		{
+			name: "nested array initialization",
+			input: `
+				type Matrix = array of array of Integer;
+				var m: Matrix;
+				begin
+					m := [[1, 2], [3, 4]];
+				end
+			`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -75,7 +117,7 @@ func TestArrayTypeErrors(t *testing.T) {
 			input: `
 				type TBadArray = array[10..1] of Integer;
 			`,
-			expectedError: "invalid array bounds: lower bound (10) > upper bound (1)",
+			expectedError: "array lower bound (10) cannot be greater than upper bound (1)",
 		},
 		{
 			name: "undefined array type in variable",

@@ -1343,3 +1343,92 @@ func testRunProgram(t *testing.T, source string) {
 		t.Fatalf("unexpected runtime error: %v", val)
 	}
 }
+
+// ============================================================================
+// Task 9.219: NOT operator with Variant and uninitialized values
+// ============================================================================
+
+// TestNotOperatorWithVariant tests that the NOT operator works with Variant values.
+func TestNotOperatorWithVariant(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "NOT with uninitialized Boolean in array",
+			input:    "var arr: array [1..2] of Boolean; arr[1] := not arr[1]; PrintLn(arr[1]);",
+			expected: "true\n",
+		},
+		{
+			name:     "NOT with initialized Boolean (true)",
+			input:    "var arr: array [1..2] of Boolean; arr[1] := true; arr[1] := not arr[1]; PrintLn(arr[1]);",
+			expected: "false\n",
+		},
+		{
+			name:     "NOT with initialized Boolean (false)",
+			input:    "var arr: array [1..2] of Boolean; arr[1] := false; arr[1] := not arr[1]; PrintLn(arr[1]);",
+			expected: "true\n",
+		},
+		{
+			name:     "Bitwise NOT with uninitialized Integer in array",
+			input:    "var arr: array [1..2] of Integer; arr[1] := not arr[1]; PrintLn(arr[1]);",
+			expected: "-1\n", // NOT 0 = -1 (bitwise complement)
+		},
+		{
+			name:     "Bitwise NOT with initialized Integer",
+			input:    "var arr: array [1..2] of Integer; arr[1] := 42; arr[1] := not arr[1]; PrintLn(arr[1]);",
+			expected: "-43\n", // NOT 42 = -43 (bitwise complement)
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, output := testEvalWithOutput(tt.input)
+			if isError(result) {
+				t.Fatalf("unexpected error: %v", result)
+			}
+
+			if output != tt.expected {
+				t.Errorf("expected output %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+// TestNotOperatorWith100Doors tests the specific case from 100_doors.pas.
+func TestNotOperatorWith100Doors(t *testing.T) {
+	input := `
+		var doors : array [1..100] of Boolean;
+		var i, j : Integer;
+
+		for i:=1 to 100 do
+		   for j:=i to 100 do
+		      if (j mod i)=0 then
+		         doors[j] := not doors[j];
+
+		for i:=1 to 100 do
+		   if doors[i] then
+		      PrintLn('Door '+IntToStr(i)+' is open');
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %v", result)
+	}
+
+	// Expected output: doors at perfect square positions (1, 4, 9, 16, 25, 36, 49, 64, 81, 100)
+	expectedDoors := []int{1, 4, 9, 16, 25, 36, 49, 64, 81, 100}
+	outputLines := strings.Split(strings.TrimSpace(output), "\n")
+
+	if len(outputLines) != len(expectedDoors) {
+		t.Fatalf("expected %d doors open, got %d", len(expectedDoors), len(outputLines))
+	}
+
+	for i := range expectedDoors {
+		// Just check the door number is in the output
+		if !strings.Contains(outputLines[i], "Door") || !strings.Contains(outputLines[i], "is open") {
+			t.Errorf("line %d: unexpected format: %q", i, outputLines[i])
+		}
+	}
+}

@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -131,7 +133,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	}
 
 	// Register class before analyzing methods (so methods can reference the class)
-	a.classes[className] = classType
+	// Use lowercase key for case-insensitive lookup
+	a.classes[strings.ToLower(className)] = classType
 
 	// Analyze methods
 	previousClass := a.currentClass
@@ -245,6 +248,12 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	classType.VirtualMethods[method.Name.Value] = method.IsVirtual
 	classType.OverrideMethods[method.Name.Value] = method.IsOverride
 	classType.AbstractMethods[method.Name.Value] = method.IsAbstract
+
+	// Task 9.280: Mark method as forward if it has no body (declaration without implementation)
+	// Methods declared in class body without implementation are implicitly forward
+	if method.Body == nil {
+		classType.ForwardedMethods[method.Name.Value] = true
+	}
 
 	// Analyze method body in new scope
 	oldSymbols := a.symbols
@@ -687,11 +696,14 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		// Check argument types
 		for i, arg := range expr.Arguments {
 			argType := a.analyzeExpression(arg)
-			expectedType := helperMethod.Parameters[i]
-			if argType != nil && !a.canAssign(argType, expectedType) {
-				a.addError("argument %d to helper method '%s' has type %s, expected %s at %s",
-					i+1, methodName, argType.String(), expectedType.String(),
-					expr.Token.Pos.String())
+			// Task 9.218: Guard against nil Parameters (properties have no parameters)
+			if helperMethod.Parameters != nil && i < len(helperMethod.Parameters) {
+				expectedType := helperMethod.Parameters[i]
+				if argType != nil && expectedType != nil && !a.canAssign(argType, expectedType) {
+					a.addError("argument %d to helper method '%s' has type %s, expected %s at %s",
+						i+1, methodName, argType.String(), expectedType.String(),
+						expr.Token.Pos.String())
+				}
 			}
 		}
 

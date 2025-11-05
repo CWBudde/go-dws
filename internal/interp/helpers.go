@@ -39,6 +39,71 @@ func NewHelperInfo(name string, targetType types.Type, isRecordHelper bool) *Hel
 	}
 }
 
+// findPropertyCaseInsensitive searches for a property by name using case-insensitive comparison.
+// Task 9.217: Support case-insensitive helper property lookup
+func findPropertyCaseInsensitive(props map[string]*types.PropertyInfo, name string) *types.PropertyInfo {
+	for key, prop := range props {
+		if strings.EqualFold(key, name) {
+			return prop
+		}
+	}
+	return nil
+}
+
+// findMethodCaseInsensitive searches for a method by name using case-insensitive comparison.
+// Task 9.217: Support case-insensitive helper method lookup
+func findMethodCaseInsensitive(methods map[string]*ast.FunctionDecl, name string) *ast.FunctionDecl {
+	for key, method := range methods {
+		if strings.EqualFold(key, name) {
+			return method
+		}
+	}
+	return nil
+}
+
+// findBuiltinMethodCaseInsensitive searches for a builtin method spec by name using case-insensitive comparison.
+// Task 9.217: Support case-insensitive builtin method lookup
+func findBuiltinMethodCaseInsensitive(builtinMethods map[string]string, name string) (string, bool) {
+	for key, spec := range builtinMethods {
+		if strings.EqualFold(key, name) {
+			return spec, true
+		}
+	}
+	return "", false
+}
+
+// getDefaultValue returns the default/zero value for a given type.
+// This is used for Result variable initialization in functions.
+// Task 9.221: Fix STRING + NIL by initializing string results to empty string
+func (i *Interpreter) getDefaultValue(typ types.Type) Value {
+	if typ == nil {
+		return &NilValue{}
+	}
+
+	switch typ.TypeKind() {
+	case "STRING":
+		return &StringValue{Value: ""}
+	case "INTEGER":
+		return &IntegerValue{Value: 0}
+	case "FLOAT":
+		return &FloatValue{Value: 0.0}
+	case "BOOLEAN":
+		return &BooleanValue{Value: false}
+	case "CLASS", "INTERFACE", "FUNCTION_POINTER", "METHOD_POINTER":
+		return &NilValue{}
+	case "ARRAY":
+		// Dynamic arrays default to NIL
+		return &NilValue{}
+	case "RECORD":
+		// Records should be initialized with default field values
+		// For now, return NIL (will be enhanced in future tasks if needed)
+		return &NilValue{}
+	default:
+		// Unknown types default to NIL
+		return &NilValue{}
+	}
+}
+
 // evalHelperDeclaration processes a helper declaration at runtime.
 // Task 9.86: Implement helper method dispatch
 // Task 9.87: Implement helper method storage (class vars/consts)
@@ -197,10 +262,11 @@ func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInf
 	}
 
 	// Search helpers in reverse order so later (user-defined) helpers override earlier ones.
+	// Task 9.217: Use case-insensitive lookup for DWScript compatibility
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
-		if method, exists := helper.Methods[methodName]; exists {
-			if spec, ok := helper.BuiltinMethods[methodName]; ok {
+		if method := findMethodCaseInsensitive(helper.Methods, methodName); method != nil {
+			if spec, ok := findBuiltinMethodCaseInsensitive(helper.BuiltinMethods, methodName); ok {
 				return helper, method, spec
 			}
 			return helper, method, ""
@@ -210,7 +276,7 @@ func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInf
 	// If no declared method, check for builtin-only entries
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
-		if spec, ok := helper.BuiltinMethods[methodName]; ok {
+		if spec, ok := findBuiltinMethodCaseInsensitive(helper.BuiltinMethods, methodName); ok {
 			return helper, nil, spec
 		}
 	}
@@ -226,9 +292,10 @@ func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInf
 	}
 
 	// Search helpers in reverse order so later helpers override earlier ones
+	// Task 9.217: Use case-insensitive lookup for DWScript compatibility
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
-		if prop, exists := helper.Properties[propName]; exists {
+		if prop := findPropertyCaseInsensitive(helper.Properties, propName); prop != nil {
 			return helper, prop
 		}
 	}
@@ -277,9 +344,12 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	}
 
 	// For functions, initialize the Result variable
+	// Task 9.221: Use appropriate default value based on return type
 	if method.ReturnType != nil {
-		i.env.Define("Result", &NilValue{})
-		i.env.Define(method.Name.Value, &NilValue{})
+		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+		defaultVal := i.getDefaultValue(returnType)
+		i.env.Define("Result", defaultVal)
+		i.env.Define(method.Name.Value, defaultVal)
 	}
 
 	// Execute method body
@@ -408,6 +478,54 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		// Return nil (procedure, not a function)
 		return &NilValue{}
 
+	case "__array_setlength":
+		// Task 9.216: Implements arr.SetLength(newLength) - resizes a dynamic array
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "Array.SetLength expects exactly 1 argument")
+		}
+		arrVal, ok := selfValue.(*ArrayValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.SetLength requires array receiver")
+		}
+
+		// Check if it's a dynamic array (static arrays cannot use SetLength)
+		if !arrVal.ArrayType.IsDynamic() {
+			return i.newErrorWithLocation(node, "SetLength() can only be used with dynamic arrays, not static arrays")
+		}
+
+		// Get the new length
+		lengthInt, ok := args[0].(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.SetLength expects integer argument, got %s", args[0].Type())
+		}
+
+		newLength := int(lengthInt.Value)
+		if newLength < 0 {
+			return i.newErrorWithLocation(node, "Array.SetLength expects non-negative length, got %d", newLength)
+		}
+
+		currentLength := len(arrVal.Elements)
+
+		if newLength == currentLength {
+			// No change
+			return &NilValue{}
+		}
+
+		if newLength < currentLength {
+			// Truncate the slice
+			arrVal.Elements = arrVal.Elements[:newLength]
+			return &NilValue{}
+		}
+
+		// Extend the slice with default values
+		elementType := arrVal.ArrayType.ElementType
+		for j := currentLength; j < newLength; j++ {
+			arrVal.Elements = append(arrVal.Elements, getZeroValueForType(elementType, nil))
+		}
+
+		// Return nil (procedure, not a function)
+		return &NilValue{}
+
 	default:
 		return i.newErrorWithLocation(node, "unknown built-in helper method '%s'", spec)
 	}
@@ -476,11 +594,33 @@ func (i *Interpreter) resolveTypeFromExpression(typeExpr ast.TypeExpression) typ
 		if elementType == nil {
 			return nil
 		}
-		return &types.ArrayType{
-			ElementType: elementType,
-			LowBound:    arrayType.LowBound,
-			HighBound:   arrayType.HighBound,
+
+		// Task 9.205: Evaluate bound expressions if this is a static array
+		if arrayType.IsDynamic() {
+			return types.NewDynamicArrayType(elementType)
 		}
+
+		// Evaluate low bound
+		lowBoundVal := i.Eval(arrayType.LowBound)
+		if isError(lowBoundVal) {
+			return nil
+		}
+		lowBound, ok := lowBoundVal.(*IntegerValue)
+		if !ok {
+			return nil
+		}
+
+		// Evaluate high bound
+		highBoundVal := i.Eval(arrayType.HighBound)
+		if isError(highBoundVal) {
+			return nil
+		}
+		highBound, ok := highBoundVal.(*IntegerValue)
+		if !ok {
+			return nil
+		}
+
+		return types.NewStaticArrayType(elementType, int(lowBound.Value), int(highBound.Value))
 	}
 
 	// For function pointer types, we need full type information
@@ -501,26 +641,31 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeAnnot *ast.TypeAnnotation) t
 
 	typeName := typeAnnot.Name
 
-	// Check basic types
-	switch typeName {
-	case "Integer":
+	// Normalize type name to lowercase for case-insensitive comparison
+	// DWScript (like Pascal) is case-insensitive for all identifiers including type names
+	lowerTypeName := strings.ToLower(typeName)
+
+	// Check basic types (case-insensitive)
+	switch lowerTypeName {
+	case "integer":
 		return types.INTEGER
-	case "Float":
+	case "float":
 		return types.FLOAT
-	case "String":
+	case "string":
 		return types.STRING
-	case "Boolean":
+	case "boolean":
 		return types.BOOLEAN
-	case "Const":
+	case "const":
 		// Task 9.235: Migrate Const to Variant for proper dynamic typing
 		// "Const" was a temporary workaround, now redirects to VARIANT
 		return types.VARIANT
-	case "Variant":
+	case "variant":
 		// Task 9.227: Support Variant type for dynamic values
 		return types.VARIANT
 	}
 
 	// Check for class types (stored in i.classes map)
+	// Preserve original case for custom type lookup
 	if classInfo, ok := i.classes[typeName]; ok {
 		return types.NewClassType(classInfo.Name, nil)
 	}
@@ -654,6 +799,10 @@ func (i *Interpreter) initArrayHelpers() {
 	// Register .Add() method for dynamic arrays
 	// This allows: arr.Add(value) syntax
 	arrayHelper.BuiltinMethods["Add"] = "__array_add"
+
+	// Task 9.216: Register .SetLength() method for dynamic arrays
+	// This allows: arr.SetLength(newLength) syntax
+	arrayHelper.BuiltinMethods["SetLength"] = "__array_setlength"
 
 	// Register helper for ARRAY type
 	i.helpers["ARRAY"] = append(i.helpers["ARRAY"], arrayHelper)

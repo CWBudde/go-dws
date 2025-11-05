@@ -2966,3 +2966,344 @@ end
 		})
 	}
 }
+
+// TestBuiltinUnsigned32_BasicUsage tests Unsigned32() with typical values.
+// Unsigned32(x) converts signed Integer to unsigned 32-bit representation
+// Task 9.219: Unsigned32() function for bitwise operations
+func TestBuiltinUnsigned32_BasicUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "Zero",
+			input: `
+begin
+	Unsigned32(0);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "Positive value within range",
+			input: `
+begin
+	Unsigned32(255);
+end
+			`,
+			expected: 255,
+		},
+		{
+			name: "Max positive int32",
+			input: `
+begin
+	Unsigned32(2147483647);
+end
+			`,
+			expected: 2147483647,
+		},
+		{
+			name: "Small positive value",
+			input: `
+begin
+	Unsigned32(1);
+end
+			`,
+			expected: 1,
+		},
+		{
+			name: "Large positive value",
+			input: `
+begin
+	Unsigned32(1000000);
+end
+			`,
+			expected: 1000000,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			intVal, ok := result.(*IntegerValue)
+			if !ok {
+				t.Fatalf("result is not *IntegerValue. got=%T (%+v)", result, result)
+			}
+
+			if intVal.Value != tt.expected {
+				t.Errorf("Unsigned32() = %d, want %d", intVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinUnsigned32_NegativeValues tests Unsigned32() wrapping behavior with negative values.
+// Task 9.219: Unsigned32() wraparound for negative integers
+func TestBuiltinUnsigned32_NegativeValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "Negative one wraps to max uint32",
+			input: `
+begin
+	Unsigned32(-1);
+end
+			`,
+			expected: 4294967295, // 0xFFFFFFFF
+		},
+		{
+			name: "Min negative int32 wraps correctly",
+			input: `
+begin
+	Unsigned32(-2147483648);
+end
+			`,
+			expected: 2147483648, // 0x80000000
+		},
+		{
+			name: "Small negative value",
+			input: `
+begin
+	Unsigned32(-100);
+end
+			`,
+			expected: 4294967196, // 0xFFFFFF9C
+		},
+		{
+			name: "Negative value in expression",
+			input: `
+begin
+	Unsigned32(-5);
+end
+			`,
+			expected: 4294967291, // 0xFFFFFFFB
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			intVal, ok := result.(*IntegerValue)
+			if !ok {
+				t.Fatalf("result is not *IntegerValue. got=%T (%+v)", result, result)
+			}
+
+			if intVal.Value != tt.expected {
+				t.Errorf("Unsigned32() = %d (0x%X), want %d (0x%X)",
+					intVal.Value, intVal.Value, tt.expected, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinUnsigned32_OverflowBehavior tests Unsigned32() with values larger than uint32.
+// Task 9.219: Unsigned32() truncates to lower 32 bits
+func TestBuiltinUnsigned32_OverflowBehavior(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "Max uint32 value",
+			input: `
+var i: Integer := $FFFFFFFF;
+begin
+	Unsigned32(i);
+end
+			`,
+			expected: 4294967295, // 0xFFFFFFFF
+		},
+		{
+			name: "Max uint32 + 1 wraps to 0",
+			input: `
+var i: Integer := $FFFFFFFF;
+begin
+	Unsigned32(i + 1);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "Value with upper bits set truncates",
+			input: `
+var i: Integer := $100000001;
+begin
+	Unsigned32(i);
+end
+			`,
+			expected: 1, // Only lower 32 bits: 0x00000001
+		},
+		{
+			name: "Large value truncates correctly",
+			input: `
+var i: Integer := $1FFFFFFFF;
+begin
+	Unsigned32(i);
+end
+			`,
+			expected: 4294967295, // Lower 32 bits: 0xFFFFFFFF
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			intVal, ok := result.(*IntegerValue)
+			if !ok {
+				t.Fatalf("result is not *IntegerValue. got=%T (%+v)", result, result)
+			}
+
+			if intVal.Value != tt.expected {
+				t.Errorf("Unsigned32() = %d (0x%X), want %d (0x%X)",
+					intVal.Value, intVal.Value, tt.expected, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinUnsigned32_WithVariables tests Unsigned32() with variables and expressions.
+// Task 9.219: Unsigned32() with variable inputs
+func TestBuiltinUnsigned32_WithVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "Variable holding positive value",
+			input: `
+var i: Integer := 42;
+begin
+	Unsigned32(i);
+end
+			`,
+			expected: 42,
+		},
+		{
+			name: "Variable holding negative value",
+			input: `
+var i: Integer := -1;
+begin
+	Unsigned32(i);
+end
+			`,
+			expected: 4294967295,
+		},
+		{
+			name: "Expression result",
+			input: `
+begin
+	Unsigned32(10 - 15);
+end
+			`,
+			expected: 4294967291, // Unsigned32(-5)
+		},
+		{
+			name: "Multiple conversions in sequence",
+			input: `
+var i: Integer := 1;
+var u1 := Unsigned32(i);
+i := -1;
+var u2 := Unsigned32(i);
+begin
+	u1 + u2;
+end
+			`,
+			expected: 4294967296, // 1 + 4294967295
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			intVal, ok := result.(*IntegerValue)
+			if !ok {
+				t.Fatalf("result is not *IntegerValue. got=%T (%+v)", result, result)
+			}
+
+			if intVal.Value != tt.expected {
+				t.Errorf("result = %d, want %d", intVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinUnsigned32_Errors tests Unsigned32() error cases.
+// Task 9.219: Unsigned32() error handling
+func TestBuiltinUnsigned32_Errors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name: "No arguments",
+			input: `
+begin
+	Unsigned32();
+end
+			`,
+			expectedError: "Unsigned32() expects exactly 1 argument",
+		},
+		{
+			name: "Too many arguments",
+			input: `
+begin
+	Unsigned32(10, 20);
+end
+			`,
+			expectedError: "Unsigned32() expects exactly 1 argument",
+		},
+		{
+			name: "String argument",
+			input: `
+begin
+	Unsigned32("hello");
+end
+			`,
+			expectedError: "Unsigned32() expects Integer",
+		},
+		{
+			name: "Float argument",
+			input: `
+begin
+	Unsigned32(10.5);
+end
+			`,
+			expectedError: "Unsigned32() expects Integer",
+		},
+		{
+			name: "Boolean argument",
+			input: `
+begin
+	Unsigned32(true);
+end
+			`,
+			expectedError: "Unsigned32() expects Integer",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			errVal, ok := result.(*ErrorValue)
+			if !ok {
+				t.Fatalf("expected error, got=%T (%+v)", result, result)
+			}
+
+			if !strings.Contains(errVal.Message, tt.expectedError) {
+				t.Errorf("error message = %q, want to contain %q", errVal.Message, tt.expectedError)
+			}
+		})
+	}
+}

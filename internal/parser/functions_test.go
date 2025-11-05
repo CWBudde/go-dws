@@ -814,3 +814,188 @@ func TestContextualKeywordStep(t *testing.T) {
 		})
 	}
 }
+
+func TestMethodDeclarations(t *testing.T) {
+	tests := []struct {
+		expected func(*testing.T, ast.Statement)
+		name     string
+		input    string
+	}{
+		{
+			name:  "method implementation with qualified name",
+			input: "method TMyClass.DoSomething : String; begin Result := 'test'; end;",
+			expected: func(t *testing.T, stmt ast.Statement) {
+				fn, ok := stmt.(*ast.FunctionDecl)
+				if !ok {
+					t.Fatalf("stmt is not *ast.FunctionDecl. got=%T", stmt)
+				}
+				if fn.Name.Value != "DoSomething" {
+					t.Errorf("method name = %q, want %q", fn.Name.Value, "DoSomething")
+				}
+				if fn.ClassName == nil || fn.ClassName.Value != "TMyClass" {
+					className := ""
+					if fn.ClassName != nil {
+						className = fn.ClassName.Value
+					}
+					t.Errorf("class name = %q, want %q", className, "TMyClass")
+				}
+				if fn.ReturnType == nil || fn.ReturnType.Name != "String" {
+					t.Errorf("return type = %v, want %q", fn.ReturnType, "String")
+				}
+			},
+		},
+		{
+			name:  "method implementation with parameters",
+			input: "method TBottlesSinger.Sing : String; begin PrepareLine; Result := Line; end;",
+			expected: func(t *testing.T, stmt ast.Statement) {
+				fn, ok := stmt.(*ast.FunctionDecl)
+				if !ok {
+					t.Fatalf("stmt is not *ast.FunctionDecl. got=%T", stmt)
+				}
+				if fn.Name.Value != "Sing" {
+					t.Errorf("method name = %q, want %q", fn.Name.Value, "Sing")
+				}
+				if fn.ClassName == nil || fn.ClassName.Value != "TBottlesSinger" {
+					className := ""
+					if fn.ClassName != nil {
+						className = fn.ClassName.Value
+					}
+					t.Errorf("class name = %q, want %q", className, "TBottlesSinger")
+				}
+				if fn.ReturnType == nil || fn.ReturnType.Name != "String" {
+					t.Errorf("return type = %v, want %q", fn.ReturnType, "String")
+				}
+			},
+		},
+		{
+			name:  "method procedure implementation",
+			input: "method TMyClass.Initialize; begin Value := 0; end;",
+			expected: func(t *testing.T, stmt ast.Statement) {
+				fn, ok := stmt.(*ast.FunctionDecl)
+				if !ok {
+					t.Fatalf("stmt is not *ast.FunctionDecl. got=%T", stmt)
+				}
+				if fn.Name.Value != "Initialize" {
+					t.Errorf("method name = %q, want %q", fn.Name.Value, "Initialize")
+				}
+				if fn.ClassName == nil || fn.ClassName.Value != "TMyClass" {
+					className := ""
+					if fn.ClassName != nil {
+						className = fn.ClassName.Value
+					}
+					t.Errorf("class name = %q, want %q", className, "TMyClass")
+				}
+				if fn.ReturnType != nil {
+					t.Errorf("return type = %v, want nil for procedure", fn.ReturnType)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has %d statements, want 1", len(program.Statements))
+			}
+
+			tt.expected(t, program.Statements[0])
+		})
+	}
+}
+
+// TestOverloadDirective tests parsing of the overload directive on functions
+// Task 9.244 - Parse overload keyword in function declarations
+func TestOverloadDirective(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected func(*testing.T, *ast.FunctionDecl)
+	}{
+		{
+			name:  "function with overload directive",
+			input: "function Test(x: Integer): Float; overload; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if fn.Name.Value != "Test" {
+					t.Errorf("function name = %q, want 'Test'", fn.Name.Value)
+				}
+				if !fn.IsOverload {
+					t.Error("fn.IsOverload should be true")
+				}
+				if fn.IsVirtual || fn.IsOverride || fn.IsAbstract {
+					t.Error("no other directives should be set")
+				}
+			},
+		},
+		{
+			name:  "procedure with overload directive",
+			input: "procedure Print(msg: String); overload; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if fn.Name.Value != "Print" {
+					t.Errorf("function name = %q, want 'Print'", fn.Name.Value)
+				}
+				if !fn.IsOverload {
+					t.Error("fn.IsOverload should be true")
+				}
+				if fn.ReturnType != nil {
+					t.Errorf("procedure should have no return type, got %v", fn.ReturnType)
+				}
+			},
+		},
+		{
+			name:  "function with virtual and overload directives",
+			input: "function DoWork(): Integer; virtual; overload; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if fn.Name.Value != "DoWork" {
+					t.Errorf("function name = %q, want 'DoWork'", fn.Name.Value)
+				}
+				if !fn.IsVirtual {
+					t.Error("fn.IsVirtual should be true")
+				}
+				if !fn.IsOverload {
+					t.Error("fn.IsOverload should be true")
+				}
+				if fn.IsOverride || fn.IsAbstract {
+					t.Error("IsOverride and IsAbstract should be false")
+				}
+			},
+		},
+		{
+			name:  "function with overload only (no body - forward declaration)",
+			input: "function Helper(s: String): Boolean; overload;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if fn.Name.Value != "Helper" {
+					t.Errorf("function name = %q, want 'Helper'", fn.Name.Value)
+				}
+				if !fn.IsOverload {
+					t.Error("fn.IsOverload should be true")
+				}
+				if fn.Body != nil {
+					t.Error("forward declaration should have no body")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has %d statements, want 1", len(program.Statements))
+			}
+
+			fn, ok := program.Statements[0].(*ast.FunctionDecl)
+			if !ok {
+				t.Fatalf("statement is not *ast.FunctionDecl, got %T", program.Statements[0])
+			}
+
+			tt.expected(t, fn)
+		})
+	}
+}
