@@ -69,21 +69,21 @@ type Analyzer struct {
 // NewAnalyzer creates a new semantic analyzer
 func NewAnalyzer() *Analyzer {
 	a := &Analyzer{
-		symbols:          NewSymbolTable(),
-		unitSymbols:      make(map[string]*SymbolTable),
-		errors:           make([]string, 0),
-		structuredErrors: make([]*SemanticError, 0), // Task 9.110
-		classes:          make(map[string]*types.ClassType),
-		interfaces:       make(map[string]*types.InterfaceType),
-		enums:            make(map[string]*types.EnumType),
-		records:          make(map[string]*types.RecordType),
-		sets:             make(map[string]*types.SetType),
-		arrays:           make(map[string]*types.ArrayType),
-		typeAliases:      make(map[string]*types.TypeAlias),
-		subranges:        make(map[string]*types.SubrangeType),
-		functionPointers: make(map[string]*types.FunctionPointerType), // Task 9.159
-		helpers:          make(map[string][]*types.HelperType),        // Task 9.82
-		globalOperators:  types.NewOperatorRegistry(),
+		symbols:            NewSymbolTable(),
+		unitSymbols:        make(map[string]*SymbolTable),
+		errors:             make([]string, 0),
+		structuredErrors:   make([]*SemanticError, 0), // Task 9.110
+		classes:            make(map[string]*types.ClassType),
+		interfaces:         make(map[string]*types.InterfaceType),
+		enums:              make(map[string]*types.EnumType),
+		records:            make(map[string]*types.RecordType),
+		sets:               make(map[string]*types.SetType),
+		arrays:             make(map[string]*types.ArrayType),
+		typeAliases:        make(map[string]*types.TypeAlias),
+		subranges:          make(map[string]*types.SubrangeType),
+		functionPointers:   make(map[string]*types.FunctionPointerType), // Task 9.159
+		helpers:            make(map[string][]*types.HelperType),        // Task 9.82
+		globalOperators:    types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
 	}
 

@@ -118,14 +118,14 @@ func isError(val Value) bool {
 // RuntimeError represents a structured runtime error with rich context
 // Task 9.111: Enhanced runtime error messages
 type RuntimeError struct {
-	Message     string
-	Pos         *lexer.Position
-	Expression  string            // The expression that failed
-	Values      map[string]string // Runtime values as strings
-	SourceCode  string            // Full source code
-	SourceFile  string            // Source filename
-	ErrorType   string            // Error classification
-	CallStack   errors.StackTrace // Call stack at time of error
+	Message    string
+	Pos        *lexer.Position
+	Expression string            // The expression that failed
+	Values     map[string]string // Runtime values as strings
+	SourceCode string            // Full source code
+	SourceFile string            // Source filename
+	ErrorType  string            // Error classification
+	CallStack  errors.StackTrace // Call stack at time of error
 }
 
 // Type implements the Value interface
