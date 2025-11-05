@@ -36,57 +36,84 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		}
 	}
 
-	// Task 9.8: Evaluate all elements and determine the enum type
+	// Task 9.8/9.226: Evaluate all elements and determine the ordinal type
 	// Use a temporary map to collect ordinals, then populate the correct storage
-	var enumType *types.EnumType
+	var elementType types.Type
+	var enumType *types.EnumType   // For enum-specific handling
 	ordinals := make(map[int]bool) // Temporary collection of ordinals
 
 	for _, elem := range literal.Elements {
-		// Check if this is a range expression (one..five)
+		// Check if this is a range expression (e.g., 1..10, 'a'..'z', one..five)
 		if rangeExpr, ok := elem.(*ast.RangeExpression); ok {
 			// Evaluate range: expand to all values between start and end
 			startVal := i.Eval(rangeExpr.Start)
 			endVal := i.Eval(rangeExpr.End)
 
-			// Both must be enum values
-			startEnum, ok1 := startVal.(*EnumValue)
-			endEnum, ok2 := endVal.(*EnumValue)
+			if isError(startVal) {
+				return startVal
+			}
+			if isError(endVal) {
+				return endVal
+			}
 
-			if !ok1 || !ok2 {
+			// Extract ordinal values from start and end
+			startOrd, err1 := GetOrdinalValue(startVal)
+			endOrd, err2 := GetOrdinalValue(endVal)
+
+			if err1 != nil {
 				return &ErrorValue{
-					Message: fmt.Sprintf("range endpoints must be enum values at %s", rangeExpr.Pos().String()),
+					Message: fmt.Sprintf("range start must be ordinal type: %s at %s",
+						err1.Error(), rangeExpr.Start.Pos().String()),
+				}
+			}
+			if err2 != nil {
+				return &ErrorValue{
+					Message: fmt.Sprintf("range end must be ordinal type: %s at %s",
+						err2.Error(), rangeExpr.End.Pos().String()),
 				}
 			}
 
-			// Types must match
-			if startEnum.TypeName != endEnum.TypeName {
-				return &ErrorValue{
-					Message: fmt.Sprintf("range endpoints must be of same type at %s", rangeExpr.Pos().String()),
+			// Determine element type from first range
+			if elementType == nil {
+				// Special handling for enum types
+				if enumVal, isEnum := startVal.(*EnumValue); isEnum {
+					// Get enum type from environment
+					typeVal, ok := i.env.Get("__enum_type_" + enumVal.TypeName)
+					if !ok {
+						return &ErrorValue{
+							Message: fmt.Sprintf("unknown enum type '%s'", enumVal.TypeName),
+						}
+					}
+					enumTypeVal, ok := typeVal.(*EnumTypeValue)
+					if !ok {
+						return &ErrorValue{
+							Message: fmt.Sprintf("invalid enum type for '%s'", enumVal.TypeName),
+						}
+					}
+					enumType = enumTypeVal.EnumType
+					elementType = enumType
+				} else {
+					// Non-enum ordinal type (Integer, String/Char, Boolean)
+					elementType = GetOrdinalType(startVal)
 				}
 			}
 
-			// Set enum type if not set yet
-			if enumType == nil {
-				// Get enum type from environment
-				typeVal, ok := i.env.Get("__enum_type_" + startEnum.TypeName)
-				if !ok {
+			// Verify both endpoints are same type
+			if enumVal1, ok1 := startVal.(*EnumValue); ok1 {
+				if enumVal2, ok2 := endVal.(*EnumValue); ok2 {
+					if enumVal1.TypeName != enumVal2.TypeName {
+						return &ErrorValue{
+							Message: fmt.Sprintf("range endpoints must be same enum type at %s", rangeExpr.Pos().String()),
+						}
+					}
+				} else {
 					return &ErrorValue{
-						Message: fmt.Sprintf("unknown enum type '%s'", startEnum.TypeName),
+						Message: fmt.Sprintf("range endpoints type mismatch at %s", rangeExpr.Pos().String()),
 					}
 				}
-				enumTypeVal, ok := typeVal.(*EnumTypeValue)
-				if !ok {
-					return &ErrorValue{
-						Message: fmt.Sprintf("invalid enum type for '%s'", startEnum.TypeName),
-					}
-				}
-				enumType = enumTypeVal.EnumType
 			}
 
 			// Add all values in the range [start..end] inclusive
-			startOrd := startEnum.OrdinalValue
-			endOrd := endEnum.OrdinalValue
-
 			// Handle both forward and reverse ranges
 			if startOrd <= endOrd {
 				for ord := startOrd; ord <= endOrd; ord++ {
@@ -101,54 +128,69 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 			// Simple element (not a range)
 			elemVal := i.Eval(elem)
 
-			// Must be an enum value
-			enumVal, ok := elemVal.(*EnumValue)
-			if !ok {
+			if isError(elemVal) {
+				return elemVal
+			}
+
+			// Extract ordinal value
+			ordinal, err := GetOrdinalValue(elemVal)
+			if err != nil {
 				return &ErrorValue{
-					Message: fmt.Sprintf("set element must be an enum value, got %s", elemVal.Type()),
+					Message: fmt.Sprintf("set element must be ordinal type: %s at %s",
+						err.Error(), elem.Pos().String()),
 				}
 			}
 
-			// Set enum type if not set yet (from first element)
-			if enumType == nil {
-				// Get enum type from environment
-				typeVal, ok := i.env.Get("__enum_type_" + enumVal.TypeName)
-				if !ok {
-					return &ErrorValue{
-						Message: fmt.Sprintf("unknown enum type '%s'", enumVal.TypeName),
+			// Determine element type from first element
+			if elementType == nil {
+				// Special handling for enum types
+				if enumVal, isEnum := elemVal.(*EnumValue); isEnum {
+					// Get enum type from environment
+					typeVal, ok := i.env.Get("__enum_type_" + enumVal.TypeName)
+					if !ok {
+						return &ErrorValue{
+							Message: fmt.Sprintf("unknown enum type '%s'", enumVal.TypeName),
+						}
 					}
-				}
-				enumTypeVal, ok := typeVal.(*EnumTypeValue)
-				if !ok {
-					return &ErrorValue{
-						Message: fmt.Sprintf("invalid enum type for '%s'", enumVal.TypeName),
+					enumTypeVal, ok := typeVal.(*EnumTypeValue)
+					if !ok {
+						return &ErrorValue{
+							Message: fmt.Sprintf("invalid enum type for '%s'", enumVal.TypeName),
+						}
 					}
+					enumType = enumTypeVal.EnumType
+					elementType = enumType
+				} else {
+					// Non-enum ordinal type
+					elementType = GetOrdinalType(elemVal)
 				}
-				enumType = enumTypeVal.EnumType
 			} else {
-				// Verify all elements are of the same enum type
-				if enumVal.TypeName != enumType.Name {
-					return &ErrorValue{
-						Message: fmt.Sprintf("type mismatch in set literal: expected %s, got %s",
-							enumType.Name, enumVal.TypeName),
+				// Verify all elements are of the same type
+				if enumType != nil {
+					// Expecting enum values
+					if enumVal, ok := elemVal.(*EnumValue); ok {
+						if enumVal.TypeName != enumType.Name {
+							return &ErrorValue{
+								Message: fmt.Sprintf("type mismatch in set literal: expected %s, got %s",
+									enumType.Name, enumVal.TypeName),
+							}
+						}
+					} else {
+						return &ErrorValue{
+							Message: fmt.Sprintf("type mismatch in set literal: expected enum %s, got %s",
+								enumType.Name, elemVal.Type()),
+						}
 					}
 				}
 			}
 
-			// Add element to temporary map (no 64-element limit!)
-			ordinal := enumVal.OrdinalValue
-			if ordinal < 0 {
-				return &ErrorValue{
-					Message: fmt.Sprintf("enum ordinal %d is negative", ordinal),
-				}
-			}
+			// Add element to temporary map
 			ordinals[ordinal] = true
 		}
 	}
 
-	// Handle empty set - if no enum type determined, we can't infer it
-	// For now, create an empty set with nil type (will be inferred from context)
-	if enumType == nil && len(literal.Elements) == 0 {
+	// Handle empty set - if no element type determined, we can't infer it
+	if elementType == nil && len(literal.Elements) == 0 {
 		// Empty set - try to get type from literal's type annotation
 		// For now, return error - empty sets need type context
 		return &ErrorValue{
@@ -156,8 +198,8 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		}
 	}
 
-	// Task 9.8: Create the SetType (automatically selects storage strategy)
-	setType := types.NewSetType(enumType)
+	// Task 9.8/9.226: Create the SetType (automatically selects storage strategy)
+	setType := types.NewSetType(elementType)
 
 	// Task 9.8: Create SetValue and populate the correct storage backend
 	setValue := NewSetValue(setType)
@@ -280,21 +322,28 @@ func (i *Interpreter) evalBinarySetOperation(left, right *SetValue, operator str
 
 // evalSetMembership evaluates the 'in' operator for sets.
 // Returns true if the element is in the set, false otherwise.
-func (i *Interpreter) evalSetMembership(element *EnumValue, set *SetValue) Value {
+// Task 9.226: Generalized to accept any ordinal value.
+func (i *Interpreter) evalSetMembership(element Value, ordinal int, set *SetValue) Value {
 	if element == nil || set == nil {
 		return &ErrorValue{Message: "nil operand in membership test"}
 	}
 
-	// Verify the element type matches the set's element type
-	if element.TypeName != set.SetType.ElementType.Name {
-		return &ErrorValue{
-			Message: fmt.Sprintf("type mismatch: %s not in set of %s",
-				element.TypeName, set.SetType.ElementType.Name),
+	// Type checking is done by semantic analyzer and GetOrdinalValue
+	// Just verify element type is compatible with set's element type
+	// For enum sets, verify the enum type matches
+	if enumVal, ok := element.(*EnumValue); ok {
+		if enumType, ok := set.SetType.ElementType.(*types.EnumType); ok {
+			if enumVal.TypeName != enumType.Name {
+				return &ErrorValue{
+					Message: fmt.Sprintf("type mismatch: enum %s not in set of %s",
+						enumVal.TypeName, enumType.Name),
+				}
+			}
 		}
 	}
 
-	// Check if the element is in the set
-	isInSet := set.HasElement(element.OrdinalValue)
+	// Check if the element is in the set using the ordinal value
+	isInSet := set.HasElement(ordinal)
 
 	return &BooleanValue{Value: isInSet}
 }
@@ -305,42 +354,68 @@ func (i *Interpreter) evalSetMembership(element *EnumValue, set *SetValue) Value
 
 // evalSetInclude implements the Include method for sets.
 // This mutates the set by adding the element.
-func (i *Interpreter) evalSetInclude(set *SetValue, element *EnumValue) Value {
+// Task 9.226: Generalized to accept any ordinal value.
+func (i *Interpreter) evalSetInclude(set *SetValue, element Value) Value {
 	if set == nil || element == nil {
 		return &ErrorValue{Message: "nil operand in Include"}
 	}
 
-	// Verify the element type matches the set's element type
-	if element.TypeName != set.SetType.ElementType.Name {
+	// Extract ordinal value
+	ordinal, err := GetOrdinalValue(element)
+	if err != nil {
 		return &ErrorValue{
-			Message: fmt.Sprintf("type mismatch: cannot add %s to set of %s",
-				element.TypeName, set.SetType.ElementType.Name),
+			Message: fmt.Sprintf("Include requires ordinal value: %s", err.Error()),
+		}
+	}
+
+	// For enum sets, verify the enum type matches
+	if enumVal, ok := element.(*EnumValue); ok {
+		if enumType, ok := set.SetType.ElementType.(*types.EnumType); ok {
+			if enumVal.TypeName != enumType.Name {
+				return &ErrorValue{
+					Message: fmt.Sprintf("type mismatch: cannot add enum %s to set of %s",
+						enumVal.TypeName, enumType.Name),
+				}
+			}
 		}
 	}
 
 	// Add the element to the set (mutates in place)
-	set.AddElement(element.OrdinalValue)
+	set.AddElement(ordinal)
 
 	return &NilValue{}
 }
 
 // evalSetExclude implements the Exclude method for sets.
 // This mutates the set by removing the element.
-func (i *Interpreter) evalSetExclude(set *SetValue, element *EnumValue) Value {
+// Task 9.226: Generalized to accept any ordinal value.
+func (i *Interpreter) evalSetExclude(set *SetValue, element Value) Value {
 	if set == nil || element == nil {
 		return &ErrorValue{Message: "nil operand in Exclude"}
 	}
 
-	// Verify the element type matches the set's element type
-	if element.TypeName != set.SetType.ElementType.Name {
+	// Extract ordinal value
+	ordinal, err := GetOrdinalValue(element)
+	if err != nil {
 		return &ErrorValue{
-			Message: fmt.Sprintf("type mismatch: cannot remove %s from set of %s",
-				element.TypeName, set.SetType.ElementType.Name),
+			Message: fmt.Sprintf("Exclude requires ordinal value: %s", err.Error()),
+		}
+	}
+
+	// For enum sets, verify the enum type matches
+	if enumVal, ok := element.(*EnumValue); ok {
+		if enumType, ok := set.SetType.ElementType.(*types.EnumType); ok {
+			if enumVal.TypeName != enumType.Name {
+				return &ErrorValue{
+					Message: fmt.Sprintf("type mismatch: cannot remove enum %s from set of %s",
+						enumVal.TypeName, enumType.Name),
+				}
+			}
 		}
 	}
 
 	// Remove the element from the set (mutates in place)
-	set.RemoveElement(element.OrdinalValue)
+	set.RemoveElement(ordinal)
 
 	return &NilValue{}
 }

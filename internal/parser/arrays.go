@@ -363,16 +363,52 @@ func shouldParseAsSetLiteral(elements []ast.Expression) bool {
 		return false
 	}
 
+	// Sets are primarily for enum values. The key heuristic:
+	// - If ANY element is a RangeExpression (e.g., Red..Blue), treat as set
+	// - If ALL elements are plain Identifiers (potential enum values), treat as set
+	// - If elements contain literals (integers, strings, booleans) WITHOUT ranges, treat as array
+	//
+	// This matches DWScript behavior:
+	//   [1, 2, 3]        -> array literal
+	//   [Red, Blue]      -> set literal (enum identifiers)
+	//   [1..10]          -> set literal (range)
+	//   [Red..Blue, Green] -> set literal (mix of range and identifier)
+
+	hasRange := false
+	hasLiteral := false
+	allIdentifiers := true
+
 	for _, elem := range elements {
 		switch elem.(type) {
-		case *ast.Identifier:
-			// Identifiers remain valid set elements
 		case *ast.RangeExpression:
-			// Ranges are valid in set literals
+			hasRange = true
+			allIdentifiers = false
+		case *ast.Identifier:
+			// Keep allIdentifiers true
+		case *ast.IntegerLiteral, *ast.CharLiteral, *ast.StringLiteral, *ast.BooleanLiteral:
+			hasLiteral = true
+			allIdentifiers = false
 		default:
+			// Complex expressions (binary ops, calls, etc.) indicate array literal
 			return false
 		}
 	}
 
-	return true
+	// If there's a range expression, it's definitely a set
+	if hasRange {
+		return true
+	}
+
+	// If all elements are identifiers (no literals), treat as set (enum values)
+	if allIdentifiers {
+		return true
+	}
+
+	// If there are literals (and no ranges), treat as array
+	if hasLiteral {
+		return false
+	}
+
+	// Default to array for safety
+	return false
 }

@@ -371,6 +371,33 @@ func (i *Interpreter) lookupClassMethodInHierarchy(classInfo *ClassInfo, name st
 // evalPropertyRead evaluates a property read access.
 // Handles field-backed, method-backed, and expression-backed properties.
 func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.PropertyInfo, node ast.Node) Value {
+	// Task 9.32c: Initialize property evaluation context if needed
+	if i.propContext == nil {
+		i.propContext = &PropertyEvalContext{
+			propertyChain: make([]string, 0),
+		}
+	}
+
+	// Task 9.32c: Check for circular property references
+	for _, prop := range i.propContext.propertyChain {
+		if prop == propInfo.Name {
+			return i.newErrorWithLocation(node, "circular property reference detected: %s", propInfo.Name)
+		}
+	}
+
+	// Task 9.32c: Push property onto chain
+	i.propContext.propertyChain = append(i.propContext.propertyChain, propInfo.Name)
+	defer func() {
+		// Pop property from chain when done
+		if len(i.propContext.propertyChain) > 0 {
+			i.propContext.propertyChain = i.propContext.propertyChain[:len(i.propContext.propertyChain)-1]
+		}
+		// Clear context if chain is empty
+		if len(i.propContext.propertyChain) == 0 {
+			i.propContext = nil
+		}
+	}()
+
 	switch propInfo.ReadKind {
 	case types.PropAccessField:
 		// Task 8.53a: Field or method access - check at runtime which it is
@@ -410,6 +437,13 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			i.env.Define("Result", defaultVal)
 			i.env.Define(method.Name.Value, defaultVal)
 		}
+
+		// Task 9.32c: Set flag to indicate we're inside a property getter
+		savedInGetter := i.propContext.inPropertyGetter
+		i.propContext.inPropertyGetter = true
+		defer func() {
+			i.propContext.inPropertyGetter = savedInGetter
+		}()
 
 		// Execute method body
 		i.Eval(method.Body)
@@ -463,6 +497,13 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			i.env.Define("Result", defaultVal)
 			i.env.Define(method.Name.Value, defaultVal)
 		}
+
+		// Task 9.32c: Set flag to indicate we're inside a property getter
+		savedInGetter := i.propContext.inPropertyGetter
+		i.propContext.inPropertyGetter = true
+		defer func() {
+			i.propContext.inPropertyGetter = savedInGetter
+		}()
 
 		// Execute method body
 		i.Eval(method.Body)
@@ -680,6 +721,33 @@ func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *ty
 // evalPropertyWrite evaluates a property write access.
 // Handles field-backed and method-backed property setters.
 func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.PropertyInfo, value Value, node ast.Node) Value {
+	// Task 9.32c: Initialize property evaluation context if needed
+	if i.propContext == nil {
+		i.propContext = &PropertyEvalContext{
+			propertyChain: make([]string, 0),
+		}
+	}
+
+	// Task 9.32c: Check for circular property references
+	for _, prop := range i.propContext.propertyChain {
+		if prop == propInfo.Name {
+			return i.newErrorWithLocation(node, "circular property reference detected: %s", propInfo.Name)
+		}
+	}
+
+	// Task 9.32c: Push property onto chain
+	i.propContext.propertyChain = append(i.propContext.propertyChain, propInfo.Name)
+	defer func() {
+		// Pop property from chain when done
+		if len(i.propContext.propertyChain) > 0 {
+			i.propContext.propertyChain = i.propContext.propertyChain[:len(i.propContext.propertyChain)-1]
+		}
+		// Clear context if chain is empty
+		if len(i.propContext.propertyChain) == 0 {
+			i.propContext = nil
+		}
+	}()
+
 	switch propInfo.WriteKind {
 	case types.PropAccessField:
 		// Task 8.54a: Field or method access - check at runtime which it is
@@ -708,6 +776,13 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 			paramName := method.Parameters[0].Name.Value
 			i.env.Define(paramName, value)
 		}
+
+		// Task 9.32c: Set flag to indicate we're inside a property setter
+		savedInSetter := i.propContext.inPropertySetter
+		i.propContext.inPropertySetter = true
+		defer func() {
+			i.propContext.inPropertySetter = savedInSetter
+		}()
 
 		// Execute method body
 		i.Eval(method.Body)
@@ -738,6 +813,13 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		if len(method.Parameters) >= 1 {
 			i.env.Define(method.Parameters[0].Name.Value, value)
 		}
+
+		// Task 9.32c: Set flag to indicate we're inside a property setter
+		savedInSetter := i.propContext.inPropertySetter
+		i.propContext.inPropertySetter = true
+		defer func() {
+			i.propContext.inPropertySetter = savedInSetter
+		}()
 
 		// Execute method body
 		i.Eval(method.Body)
@@ -786,9 +868,17 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 		// Check if this identifier refers to a class
 		if classInfo, exists := i.classes[ident.Value]; exists {
-			// Check if this is a class method (static method) or instance method called as constructor
+			// Check if this is a class method (static method) or instance method/constructor
 			classMethod, isClassMethod := classInfo.ClassMethods[mc.Method.Value]
 			instanceMethod, isInstanceMethod := classInfo.Methods[mc.Method.Value]
+			// Task 9.32: Also check constructors (they're stored separately from Methods)
+			// Use lookupConstructorInHierarchy to support inheritance
+			if !isInstanceMethod {
+				if constructor := i.lookupConstructorInHierarchy(classInfo, mc.Method.Value); constructor != nil {
+					instanceMethod = constructor
+					isInstanceMethod = true
+				}
+			}
 
 			if isClassMethod {
 				// This is a class method - execute it without Self binding
@@ -984,24 +1074,27 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				// Extract return value (same logic as regular functions)
 				var returnValue Value
 				if instanceMethod.ReturnType != nil || instanceMethod.IsConstructor {
-					// Check both Result and method name variable
-					resultVal, resultOk := i.env.Get("Result")
-					methodNameVal, methodNameOk := i.env.Get(instanceMethod.Name.Value)
-
-					// Use whichever variable is not nil, preferring Result if both are set
-					if resultOk && resultVal.Type() != "NIL" {
-						returnValue = resultVal
-					} else if methodNameOk && methodNameVal.Type() != "NIL" {
-						returnValue = methodNameVal
-					} else if resultOk {
-						returnValue = resultVal
-					} else if methodNameOk {
-						returnValue = methodNameVal
-					} else if instanceMethod.IsConstructor {
-						// Constructors return the object instance by default
+					// Task 9.32: For constructors, always return the object instance
+					// (constructors don't use Result variables)
+					if instanceMethod.IsConstructor {
 						returnValue = obj
 					} else {
-						returnValue = &NilValue{}
+						// Check both Result and method name variable
+						resultVal, resultOk := i.env.Get("Result")
+						methodNameVal, methodNameOk := i.env.Get(instanceMethod.Name.Value)
+
+						// Use whichever variable is not nil, preferring Result if both are set
+						if resultOk && resultVal.Type() != "NIL" {
+							returnValue = resultVal
+						} else if methodNameOk && methodNameVal.Type() != "NIL" {
+							returnValue = methodNameVal
+						} else if resultOk {
+							returnValue = resultVal
+						} else if methodNameOk {
+							returnValue = methodNameVal
+						} else {
+							returnValue = &NilValue{}
+						}
 					}
 
 					// Task 8.19c: Apply implicit conversion if return type doesn't match (but not for constructors)

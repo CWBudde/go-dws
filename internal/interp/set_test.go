@@ -424,14 +424,14 @@ func TestSetMembership(t *testing.T) {
 
 	// Test membership for Red (should be in set)
 	redEnum := &EnumValue{TypeName: "TColor", ValueName: "Red", OrdinalValue: 0}
-	result := interp.evalSetMembership(redEnum, set)
+	result := interp.evalSetMembership(redEnum, 0, set)
 	if boolVal, ok := result.(*BooleanValue); !ok || !boolVal.Value {
 		t.Error("expected Red to be in set")
 	}
 
 	// Test membership for Green (should NOT be in set)
 	greenEnum := &EnumValue{TypeName: "TColor", ValueName: "Green", OrdinalValue: 1}
-	result = interp.evalSetMembership(greenEnum, set)
+	result = interp.evalSetMembership(greenEnum, 1, set)
 	if boolVal, ok := result.(*BooleanValue); !ok || boolVal.Value {
 		t.Error("expected Green to NOT be in set")
 	}

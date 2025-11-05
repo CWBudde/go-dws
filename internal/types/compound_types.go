@@ -279,16 +279,20 @@ func (sk SetStorageKind) String() string {
 }
 
 // SetType represents a set type.
-// Sets are always based on enum types and support operations like Include, Exclude,
-// union (+), difference (-), intersection (*), and membership tests (in).
+// Sets are based on ordinal types (enum, integer, char/string, subrange) and support
+// operations like Include, Exclude, union (+), difference (-), intersection (*), and
+// membership tests (in).
 // Examples:
-//   - type TDays = set of TWeekday;
-//   - var flags: set of TOption;
+//   - type TDays = set of TWeekday;  // enum-based set
+//   - var flags: set of TOption;      // enum-based set
+//   - var digits: set of [0..9];      // integer subrange set
+//   - var letters: set of ['a'..'z']; // character range set
 //
 // Task 9.8: SetType now tracks the storage strategy (bitmask vs map) based on
-// the enum size, determined at type creation time.
+// the element type size, determined at type creation time.
+// Task 9.226: Extended to support all ordinal types (Integer, Enum, String, Subrange).
 type SetType struct {
-	ElementType *EnumType      // Type of elements in the set (sets are always of enum type)
+	ElementType Type           // Type of elements in the set (any ordinal type)
 	StorageKind SetStorageKind // Storage strategy: bitmask (≤64 values) or map (>64 values)
 }
 
@@ -316,18 +320,46 @@ func (st *SetType) Equals(other Type) bool {
 
 // NewSetType creates a new set type with the given element type.
 // Task 8.82: Factory function for creating set types.
-// Task 8.83: Validates that element type is an enum (ordinal type).
-// Task 9.8: Automatically determines storage strategy based on enum size.
+// Task 8.83: Validates that element type is an ordinal type.
+// Task 9.8: Automatically determines storage strategy based on element type size.
+// Task 9.226: Generalized to accept any ordinal type (Integer, Enum, String, Subrange).
 //
 // Storage selection:
-//   - If enum has ≤64 values: uses bitmask (fast, memory-efficient)
-//   - If enum has >64 values: uses map (unlimited size)
+//   - If element type has ≤64 possible values: uses bitmask (fast, memory-efficient)
+//   - If element type has >64 possible values: uses map (unlimited size)
 //   - If elementType is nil: defaults to bitmask (will be validated later)
-func NewSetType(elementType *EnumType) *SetType {
-	// Determine storage strategy based on enum size
+//
+// For different element types:
+//   - EnumType: count of enum values
+//   - SubrangeType: (HighBound - LowBound + 1)
+//   - IntegerType: always uses map (unbounded)
+//   - StringType: always uses map (unbounded, used for character sets)
+func NewSetType(elementType Type) *SetType {
+	// Determine storage strategy based on element type size
 	storageKind := SetStorageBitmask
-	if elementType != nil && len(elementType.OrderedNames) > 64 {
-		storageKind = SetStorageMap
+
+	if elementType != nil {
+		switch et := elementType.(type) {
+		case *EnumType:
+			// Use map storage for large enums (>64 values)
+			if len(et.OrderedNames) > 64 {
+				storageKind = SetStorageMap
+			}
+		case *SubrangeType:
+			// Use map storage for large subranges (>64 values)
+			rangeSize := et.HighBound - et.LowBound + 1
+			if rangeSize > 64 {
+				storageKind = SetStorageMap
+			}
+		case *IntegerType, *StringType:
+			// Unbounded types always use map storage
+			// (Integer sets and char/string sets can have arbitrary values)
+			storageKind = SetStorageMap
+		default:
+			// For other types (shouldn't happen for valid ordinal types),
+			// default to bitmask and let validation catch it later
+			storageKind = SetStorageBitmask
+		}
 	}
 
 	return &SetType{

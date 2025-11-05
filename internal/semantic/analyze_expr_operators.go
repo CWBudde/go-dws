@@ -51,6 +51,27 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 			return classType
 		}
 		if a.currentClass != nil {
+			// Task 9.32b/9.32c: Check if identifier is a field of the current class (implicit Self)
+			if fieldType, exists := a.currentClass.Fields[ident.Value]; exists {
+				return fieldType
+			}
+
+			// Task 9.32b/9.32c: Check if identifier is a property of the current class (implicit Self)
+			// DWScript is case-insensitive, so we need to search all properties
+			// Also search parent class hierarchy
+			for class := a.currentClass; class != nil; class = class.Parent {
+				for propName, propInfo := range class.Properties {
+					if strings.EqualFold(propName, ident.Value) {
+						// For write-only properties, check if read access is defined
+						if propInfo.ReadKind == types.PropAccessNone {
+							a.addError("property '%s' is write-only at %s", ident.Value, ident.Token.Pos.String())
+							return nil
+						}
+						return propInfo.Type
+					}
+				}
+			}
+
 			if owner := a.getFieldOwner(a.currentClass.Parent, ident.Value); owner != nil {
 				if visibility, ok := owner.FieldVisibility[ident.Value]; ok && visibility == int(ast.VisibilityPrivate) {
 					a.addError("cannot access private field '%s' of class '%s' at %s",
@@ -92,21 +113,61 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 		a.addError("undefined variable '%s' at %s", ident.Value, ident.Token.Pos.String())
 		return nil
 	}
+
+	// Task 9.228: When a function is referenced as a value (not called),
+	// implicitly convert it to a function pointer type.
+	// This allows functions to be passed as arguments to higher-order functions.
+	// Example: PrintLn(First(Second)) where Second is a function
+	if funcType, ok := sym.Type.(*types.FunctionType); ok {
+		// Convert function type to function pointer type
+		// Note: FunctionType uses VOID for procedures, but FunctionPointerType uses nil
+		returnType := funcType.ReturnType
+		if funcType.IsProcedure() {
+			returnType = nil
+		}
+		return types.NewFunctionPointerType(funcType.Parameters, returnType)
+	}
+
 	return sym.Type
 }
 
 // analyzeBinaryExpression analyzes a binary expression and returns its type
 func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Type {
-	// Analyze left and right operands
-	leftType := a.analyzeExpression(expr.Left)
-	rightType := a.analyzeExpression(expr.Right)
-
-	if leftType == nil || rightType == nil {
-		// Errors already reported
-		return nil
-	}
-
 	operator := expr.Operator
+
+	// Task 9.226: Special handling for IN operator
+	// For the IN operator, analyze the right operand with expected set type context
+	// so that array literals like [1, 2, 3] can be converted to set literals
+	var leftType, rightType types.Type
+	if operator == "in" {
+		// Analyze left operand first to infer the set element type
+		leftType = a.analyzeExpression(expr.Left)
+		if leftType == nil {
+			return nil
+		}
+
+		// For IN operator, the right operand should be a set
+		// If left is an ordinal type, expect a set of that type
+		var expectedSetType types.Type
+		if types.IsOrdinalType(leftType) {
+			expectedSetType = types.NewSetType(leftType)
+		}
+
+		// Analyze right operand with expected set type
+		rightType = a.analyzeExpressionWithExpectedType(expr.Right, expectedSetType)
+		if rightType == nil {
+			return nil
+		}
+	} else {
+		// For other operators, analyze both operands without type context
+		leftType = a.analyzeExpression(expr.Left)
+		rightType = a.analyzeExpression(expr.Right)
+
+		if leftType == nil || rightType == nil {
+			// Errors already reported
+			return nil
+		}
+	}
 
 	if sig, ok := a.resolveBinaryOperator(operator, leftType, rightType); ok {
 		if sig.ResultType != nil {
@@ -236,7 +297,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		return nil
 	}
 
-	// Task 8.103: Handle 'in' operator for set membership
+	// Task 8.103/9.226: Handle 'in' operator for set membership
 	if operator == "in" {
 		// Right operand must be a set type
 		rightSetType, isSet := rightType.(*types.SetType)
@@ -246,18 +307,20 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			return nil
 		}
 
-		// Left operand must be an enum type matching the set's element type
-		leftEnumType, isEnum := leftType.(*types.EnumType)
-		if !isEnum {
-			a.addError("'in' operator requires enum value as left operand, got %s at %s",
+		// Left operand must be an ordinal type matching the set's element type
+		if !types.IsOrdinalType(leftType) {
+			a.addError("'in' operator requires ordinal value as left operand, got %s at %s",
 				leftType.String(), expr.Token.Pos.String())
 			return nil
 		}
 
-		// Element types must match
-		if !leftEnumType.Equals(rightSetType.ElementType) {
+		// Element types must match (resolve underlying types for comparison)
+		leftResolved := types.GetUnderlyingType(leftType)
+		rightResolved := types.GetUnderlyingType(rightSetType.ElementType)
+
+		if !leftResolved.Equals(rightResolved) {
 			a.addError("type mismatch in 'in' operator: %s is not compatible with set of %s at %s",
-				leftEnumType.String(), rightSetType.ElementType.String(), expr.Token.Pos.String())
+				leftType.String(), rightSetType.ElementType.String(), expr.Token.Pos.String())
 			return nil
 		}
 

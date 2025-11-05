@@ -18,18 +18,35 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		if val, exists := i.env.Get(funcIdent.Value); exists {
 			// Check if it's a function pointer
 			if funcPtr, isFuncPtr := val.(*FunctionPointerValue); isFuncPtr {
-				// Prepare arguments - check for lazy parameters in the function pointer's declaration
+				// Prepare arguments - check for lazy and var parameters in the function pointer's declaration
 				args := make([]Value, len(expr.Arguments))
 				for idx, arg := range expr.Arguments {
-					// Check if this parameter is lazy (only for regular function pointers, not lambdas)
+					// Check parameter flags (only for regular function pointers, not lambdas)
 					isLazy := false
+					isByRef := false
 					if funcPtr.Function != nil && idx < len(funcPtr.Function.Parameters) {
 						isLazy = funcPtr.Function.Parameters[idx].IsLazy
+						isByRef = funcPtr.Function.Parameters[idx].ByRef
 					}
 
 					if isLazy {
 						// For lazy parameters, create a LazyThunk
 						args[idx] = NewLazyThunk(arg, i.env, i)
+					} else if isByRef {
+						// Task 9.35: For var parameters, create a reference or pass through existing reference
+						if argIdent, ok := arg.(*ast.Identifier); ok {
+							if val, exists := i.env.Get(argIdent.Value); exists {
+								if refVal, isRef := val.(*ReferenceValue); isRef {
+									args[idx] = refVal // Pass through existing reference
+								} else {
+									args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+								}
+							} else {
+								args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+							}
+						} else {
+							return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+						}
 					} else {
 						// For regular parameters, evaluate immediately
 						argVal := i.Eval(arg)
@@ -69,15 +86,31 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 					// Resolve the qualified function
 					fn, err := i.ResolveQualifiedFunction(unitIdent.Value, memberAccess.Member.Value)
 					if err == nil {
-						// Prepare arguments - lazy parameters get LazyThunks, regular parameters get evaluated
+						// Prepare arguments - lazy parameters get LazyThunks, var parameters get References, regular parameters get evaluated
 						args := make([]Value, len(expr.Arguments))
 						for idx, arg := range expr.Arguments {
-							// Check if this parameter is lazy
+							// Check parameter flags
 							isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+							isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
 
 							if isLazy {
 								// For lazy parameters, create a LazyThunk
 								args[idx] = NewLazyThunk(arg, i.env, i)
+							} else if isByRef {
+								// Task 9.35: For var parameters, create a reference or pass through existing reference
+								if argIdent, ok := arg.(*ast.Identifier); ok {
+									if val, exists := i.env.Get(argIdent.Value); exists {
+										if refVal, isRef := val.(*ReferenceValue); isRef {
+											args[idx] = refVal // Pass through existing reference
+										} else {
+											args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+										}
+									} else {
+										args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+									}
+								} else {
+									return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+								}
 							} else {
 								// For regular parameters, evaluate immediately
 								val := i.Eval(arg)
@@ -107,16 +140,44 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 
 	// Check if it's a user-defined function first
 	if fn, exists := i.functions[funcName.Value]; exists {
-		// Prepare arguments - lazy parameters get LazyThunks, regular parameters get evaluated
+		// Prepare arguments - lazy parameters get LazyThunks, var parameters get References, regular parameters get evaluated
 		args := make([]Value, len(expr.Arguments))
 		for idx, arg := range expr.Arguments {
-			// Check if this parameter is lazy
+			// Check parameter flags
 			isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+			isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
 
 			if isLazy {
 				// For lazy parameters, create a LazyThunk with the unevaluated expression
 				// and the current environment (captured from call site)
 				args[idx] = NewLazyThunk(arg, i.env, i)
+			} else if isByRef {
+				// Task 9.35: For var parameters, create a reference to the variable
+				// instead of copying its value
+				if argIdent, ok := arg.(*ast.Identifier); ok {
+					// Check if the variable is already a reference (var parameter passed through)
+					if val, exists := i.env.Get(argIdent.Value); exists {
+						if refVal, isRef := val.(*ReferenceValue); isRef {
+							// Already a reference - pass it through
+							args[idx] = refVal
+						} else {
+							// Regular variable - create a reference
+							args[idx] = &ReferenceValue{
+								Env:     i.env,
+								VarName: argIdent.Value,
+							}
+						}
+					} else {
+						// Variable doesn't exist - create reference anyway (will error on access)
+						args[idx] = &ReferenceValue{
+							Env:     i.env,
+							VarName: argIdent.Value,
+						}
+					}
+				} else {
+					// Var parameter must be a variable reference
+					return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+				}
 			} else {
 				// For regular parameters, evaluate the expression immediately
 				val := i.Eval(arg)
@@ -255,6 +316,8 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinExp(args)
 	case "Ln":
 		return i.builtinLn(args)
+	case "Log2":
+		return i.builtinLog2(args)
 	case "Round":
 		return i.builtinRound(args)
 	case "Trunc":
@@ -271,6 +334,34 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinMaxInt(args)
 	case "MinInt":
 		return i.builtinMinInt(args)
+	case "DegToRad":
+		return i.builtinDegToRad(args)
+	case "RadToDeg":
+		return i.builtinRadToDeg(args)
+	case "ArcSin":
+		return i.builtinArcSin(args)
+	case "ArcCos":
+		return i.builtinArcCos(args)
+	case "ArcTan":
+		return i.builtinArcTan(args)
+	case "ArcTan2":
+		return i.builtinArcTan2(args)
+	case "CoTan":
+		return i.builtinCoTan(args)
+	case "Hypot":
+		return i.builtinHypot(args)
+	case "Sinh":
+		return i.builtinSinh(args)
+	case "Cosh":
+		return i.builtinCosh(args)
+	case "Tanh":
+		return i.builtinTanh(args)
+	case "ArcSinh":
+		return i.builtinArcSinh(args)
+	case "ArcCosh":
+		return i.builtinArcCosh(args)
+	case "ArcTanh":
+		return i.builtinArcTanh(args)
 	case "Low":
 		return i.builtinLow(args)
 	case "High":
@@ -283,6 +374,8 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinDelete(args)
 	case "IntToStr":
 		return i.builtinIntToStr(args)
+	case "IntToBin":
+		return i.builtinIntToBin(args)
 	case "StrToInt":
 		return i.builtinStrToInt(args)
 	case "FloatToStr":
@@ -486,6 +579,8 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 		"Format", "Abs", "Min", "Max", "Sqr", "Power", "Sqrt", "Sin",
 		"Cos", "Tan", "Random", "Randomize", "Exp", "Ln", "Round",
 		"Trunc", "Frac", "Chr", "SetLength", "High", "Low", "Assigned",
+		"DegToRad", "RadToDeg", "ArcSin", "ArcCos", "ArcTan", "ArcTan2",
+		"CoTan", "Hypot", "Sinh", "Cosh", "Tanh", "ArcSinh", "ArcCosh", "ArcTanh",
 		"TypeOf", "SizeOf", "TypeName", "Delete", "StrToInt", "StrToFloat",
 		"IntToStr", "FloatToStr", "FloatToStrF", "BoolToStr", "StrToBool",
 		"VarToStr", "VarToInt", "VarToFloat", "VarAsType", "VarIsNull", "VarIsEmpty", "VarIsNumeric", "VarType", "VarClear",
@@ -583,22 +678,22 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	for idx, param := range fn.Parameters {
 		arg := args[idx]
 
-		// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
-		if param.Type != nil {
-			paramTypeName := param.Type.Name
-			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
-				arg = converted
+		// Task 9.35: For var parameters, arg should already be a ReferenceValue
+		// Don't apply implicit conversion to references - they need to stay as references
+		if !param.ByRef {
+			// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+			if param.Type != nil {
+				paramTypeName := param.Type.Name
+				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+					arg = converted
+				}
 			}
 		}
 
-		if param.ByRef {
-			// By-reference parameter - we need to handle this specially
-			// For now, we'll pass by value (TODO: implement proper by-ref support)
-			i.env.Define(param.Name.Value, arg)
-		} else {
-			// By-value parameter
-			i.env.Define(param.Name.Value, arg)
-		}
+		// Store the argument in the function's environment
+		// For var parameters, this will be a ReferenceValue
+		// For regular parameters, this will be the actual value
+		i.env.Define(param.Name.Value, arg)
 	}
 
 	// For functions (not procedures), initialize the Result variable

@@ -665,6 +665,83 @@ func (i *Interpreter) builtinIntToStr(args []Value) Value {
 	return &StringValue{Value: result}
 }
 
+// builtinIntToBin implements the IntToBin() built-in function.
+// It converts an integer to its binary string representation with specified width.
+// IntToBin(v: Integer, digits: Integer): String
+// Task 9.37: IntToBin() function for binary string conversion
+func (i *Interpreter) builtinIntToBin(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "IntToBin() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: integer value to convert
+	var value int64
+	switch v := args[0].(type) {
+	case *IntegerValue:
+		value = v.Value
+	case *SubrangeValue:
+		value = int64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "IntToBin() expects integer as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: minimum number of digits
+	var digits int64
+	switch d := args[1].(type) {
+	case *IntegerValue:
+		digits = d.Value
+	case *SubrangeValue:
+		digits = int64(d.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "IntToBin() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	// Convert to binary string
+	// For negative numbers, we use two's complement representation (64-bit)
+	var result string
+	if value < 0 {
+		// Negative numbers: use full 64-bit two's complement
+		// This matches DWScript behavior
+		uValue := uint64(value)
+		for i := 63; i >= 0; i-- {
+			if (uValue & (1 << uint(i))) != 0 {
+				result += "1"
+			} else {
+				result += "0"
+			}
+		}
+	} else {
+		// Positive numbers: convert using bit operations
+		// Build string from least significant bit to most significant
+		remaining := digits
+		temp := value
+
+		// Build the binary representation
+		var bits []byte
+		for temp != 0 || remaining > 0 {
+			if (temp & 1) == 1 {
+				bits = append(bits, '1')
+			} else {
+				bits = append(bits, '0')
+			}
+			temp >>= 1
+			remaining--
+		}
+
+		// Reverse the bits to get correct order (most significant first)
+		for i := len(bits) - 1; i >= 0; i-- {
+			result += string(bits[i])
+		}
+
+		// Handle special case of zero with no bits
+		if result == "" {
+			result = "0"
+		}
+	}
+
+	return &StringValue{Value: result}
+}
+
 // builtinStrToInt implements the StrToInt() built-in function.
 // It converts a string to an integer, raising an error if the string is invalid.
 // StrToInt(s: String): Integer

@@ -765,6 +765,33 @@ func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value
 		}
 		return &IntegerValue{Value: int64(enumVal.OrdinalValue)}
 
+	case "__enum_name":
+		// Implement enum .Name helper property
+		enumVal, ok := selfValue.(*EnumValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Enum.Name property requires enum receiver")
+		}
+		// Return just the value name (e.g., "Red" for TColor.Red)
+		// If the enum value doesn't have a name (invalid ordinal), return "?"
+		if enumVal.ValueName == "" {
+			return &StringValue{Value: "?"}
+		}
+		return &StringValue{Value: enumVal.ValueName}
+
+	case "__enum_qualifiedname":
+		// Implement enum .QualifiedName helper property
+		enumVal, ok := selfValue.(*EnumValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Enum.QualifiedName property requires enum receiver")
+		}
+		// Return TypeName.ValueName (e.g., "TColor.Red")
+		// If the enum value doesn't have a name (invalid ordinal), return "TypeName.?"
+		valueName := enumVal.ValueName
+		if valueName == "" {
+			valueName = "?"
+		}
+		return &StringValue{Value: enumVal.TypeName + "." + valueName}
+
 	default:
 		return i.newErrorWithLocation(node, "unknown built-in property '%s'", propSpec)
 	}
@@ -887,6 +914,7 @@ func (i *Interpreter) initIntrinsicHelpers() {
 
 // initEnumHelpers registers built-in helpers for enumerated types.
 // Task 9.31: Implement enum .Value helper property
+// Also implements .Name and .QualifiedName properties
 func (i *Interpreter) initEnumHelpers() {
 	if i.helpers == nil {
 		i.helpers = make(map[string][]*HelperInfo)
@@ -901,6 +929,24 @@ func (i *Interpreter) initEnumHelpers() {
 		Type:      types.INTEGER,
 		ReadKind:  types.PropAccessBuiltin,
 		ReadSpec:  "__enum_value",
+		WriteKind: types.PropAccessNone,
+	}
+
+	// Register .Name property (returns enum value name as string)
+	enumHelper.Properties["Name"] = &types.PropertyInfo{
+		Name:      "Name",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__enum_name",
+		WriteKind: types.PropAccessNone,
+	}
+
+	// Register .QualifiedName property (returns TypeName.ValueName)
+	enumHelper.Properties["QualifiedName"] = &types.PropertyInfo{
+		Name:      "QualifiedName",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__enum_qualifiedname",
 		WriteKind: types.PropAccessNone,
 	}
 

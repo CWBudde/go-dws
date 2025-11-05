@@ -29,6 +29,18 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", varName)
 	}
 
+	// Task 9.35: Handle var parameters (ReferenceValue)
+	var refVal *ReferenceValue
+	if ref, isRef := currentVal.(*ReferenceValue); isRef {
+		refVal = ref
+		// Dereference to get the actual value
+		actualVal, err := ref.Dereference()
+		if err != nil {
+			return i.newErrorWithLocation(i.currentNode, "%s", err.Error())
+		}
+		currentVal = actualVal
+	}
+
 	// Get delta (default 1)
 	delta := int64(1)
 	if len(args) == 2 {
@@ -48,8 +60,15 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 	case *IntegerValue:
 		// Increment integer by delta
 		newValue := &IntegerValue{Value: val.Value + delta}
-		if err := i.env.Set(varName, newValue); err != nil {
-			return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+		// Task 9.35: If this is a var parameter, write through the reference
+		if refVal != nil {
+			if err := refVal.Assign(newValue); err != nil {
+				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+			}
+		} else {
+			if err := i.env.Set(varName, newValue); err != nil {
+				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+			}
 		}
 		return &NilValue{}
 
@@ -102,8 +121,15 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 			OrdinalValue: nextOrdinal,
 		}
 
-		if err := i.env.Set(varName, newValue); err != nil {
-			return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+		// Task 9.35: If this is a var parameter, write through the reference
+		if refVal != nil {
+			if err := refVal.Assign(newValue); err != nil {
+				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+			}
+		} else {
+			if err := i.env.Set(varName, newValue); err != nil {
+				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+			}
 		}
 		return &NilValue{}
 
@@ -135,6 +161,18 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", varName)
 	}
 
+	// Task 9.35: Handle var parameters (ReferenceValue)
+	var refVal *ReferenceValue
+	if ref, isRef := currentVal.(*ReferenceValue); isRef {
+		refVal = ref
+		// Dereference to get the actual value
+		actualVal, err := ref.Dereference()
+		if err != nil {
+			return i.newErrorWithLocation(i.currentNode, "%s", err.Error())
+		}
+		currentVal = actualVal
+	}
+
 	// Get delta (default 1)
 	delta := int64(1)
 	if len(args) == 2 {
@@ -154,8 +192,15 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 	case *IntegerValue:
 		// Decrement integer by delta
 		newValue := &IntegerValue{Value: val.Value - delta}
-		if err := i.env.Set(varName, newValue); err != nil {
-			return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+		// Task 9.35: If this is a var parameter, write through the reference
+		if refVal != nil {
+			if err := refVal.Assign(newValue); err != nil {
+				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+			}
+		} else {
+			if err := i.env.Set(varName, newValue); err != nil {
+				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+			}
 		}
 		return &NilValue{}
 
@@ -208,8 +253,15 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 			OrdinalValue: prevOrdinal,
 		}
 
-		if err := i.env.Set(varName, newValue); err != nil {
-			return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+		// Task 9.35: If this is a var parameter, write through the reference
+		if refVal != nil {
+			if err := refVal.Assign(newValue); err != nil {
+				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+			}
+		} else {
+			if err := i.env.Set(varName, newValue); err != nil {
+				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+			}
 		}
 		return &NilValue{}
 

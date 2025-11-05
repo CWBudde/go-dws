@@ -243,6 +243,59 @@ type ExternalVarValue struct {
 	ExternalName string // The external name for FFI binding (may be empty)
 }
 
+// ReferenceValue represents a reference to a variable in another environment.
+// Task 9.35: This is used to implement var parameters (by-reference parameters).
+//
+// When a function has a var parameter, instead of copying the argument value,
+// we create a ReferenceValue that points to the original variable in the caller's
+// environment. This allows the function to modify the caller's variable.
+//
+// Example:
+//
+//	procedure Increment(var x: Integer);
+//	begin
+//	  x := x + 1;  // Modifies the caller's variable through the reference
+//	end;
+//
+//	var n := 5;
+//	Increment(n);  // n becomes 6
+//
+// Implementation:
+//   - When calling Increment(n), instead of passing IntegerValue{5}, we pass
+//     ReferenceValue{Env: callerEnv, VarName: "n"}
+//   - When the function reads x, it dereferences to get the current value from callerEnv
+//   - When the function assigns to x, it writes to the original variable in callerEnv
+type ReferenceValue struct {
+	Env     *Environment // The environment containing the variable
+	VarName string       // The name of the variable being referenced
+}
+
+// Type returns "REFERENCE".
+func (r *ReferenceValue) Type() string {
+	return "REFERENCE"
+}
+
+// String returns a description of the reference.
+func (r *ReferenceValue) String() string {
+	return fmt.Sprintf("&%s", r.VarName)
+}
+
+// Dereference returns the current value of the referenced variable.
+// Task 9.35: Helper to read through a reference.
+func (r *ReferenceValue) Dereference() (Value, error) {
+	val, ok := r.Env.Get(r.VarName)
+	if !ok {
+		return nil, fmt.Errorf("referenced variable %s not found", r.VarName)
+	}
+	return val, nil
+}
+
+// Assign sets the value of the referenced variable.
+// Task 9.35: Helper to write through a reference.
+func (r *ReferenceValue) Assign(value Value) error {
+	return r.Env.Set(r.VarName, value)
+}
+
 // VariantValue represents a Variant value in DWScript.
 // Task 9.221: Variant is a dynamic type that can hold any runtime value.
 //
@@ -552,12 +605,40 @@ func (s *SetValue) String() string {
 
 	var elements []string
 
-	// Iterate through all possible enum values in order
+	// Task 9.226: Handle different element types for display
 	if s.SetType != nil && s.SetType.ElementType != nil {
-		for _, name := range s.SetType.ElementType.OrderedNames {
-			ordinal := s.SetType.ElementType.Values[name]
-			if s.HasElement(ordinal) {
-				elements = append(elements, name)
+		// For enum sets, show enum names in order
+		if enumType, ok := s.SetType.ElementType.(*types.EnumType); ok {
+			for _, name := range enumType.OrderedNames {
+				ordinal := enumType.Values[name]
+				if s.HasElement(ordinal) {
+					elements = append(elements, name)
+				}
+			}
+		} else {
+			// For non-enum sets (Integer, String, Boolean), show ordinal values
+			// Collect ordinals that are in the set
+			ordinals := make([]int, 0)
+
+			switch s.SetType.StorageKind {
+			case types.SetStorageBitmask:
+				// Extract ordinals from bitmask
+				for i := 0; i < 64; i++ {
+					if s.HasElement(i) {
+						ordinals = append(ordinals, i)
+					}
+				}
+			case types.SetStorageMap:
+				// Extract ordinals from map
+				for ordinal := range s.MapStore {
+					ordinals = append(ordinals, ordinal)
+				}
+				sort.Ints(ordinals)
+			}
+
+			// Convert ordinals to strings based on element type
+			for _, ord := range ordinals {
+				elements = append(elements, fmt.Sprintf("%d", ord))
 			}
 		}
 	}
@@ -703,10 +784,15 @@ func NewArrayValue(arrayType *types.ArrayType) *ArrayValue {
 		elements = make([]Value, size)
 
 		// Task 9.56: For nested arrays, initialize each element as an array
+		// Task 9.36: For record elements, initialize each element as a record
 		if arrayType.ElementType != nil {
 			if nestedArrayType, ok := arrayType.ElementType.(*types.ArrayType); ok {
 				for i := 0; i < size; i++ {
 					elements[i] = NewArrayValue(nestedArrayType)
+				}
+			} else if recordType, ok := arrayType.ElementType.(*types.RecordType); ok {
+				for i := 0; i < size; i++ {
+					elements[i] = NewRecordValue(recordType, nil)
 				}
 			}
 		}
@@ -970,4 +1056,66 @@ func (j *JSONValue) jsonArrayToString(v *jsonvalue.Value) string {
 // NewJSONValue creates a new JSONValue wrapping a jsonvalue.Value.
 func NewJSONValue(v *jsonvalue.Value) *JSONValue {
 	return &JSONValue{Value: v}
+}
+
+// ============================================================================
+// Ordinal Value Utilities (Task 9.226)
+// ============================================================================
+
+// GetOrdinalValue extracts the ordinal value from any ordinal type value.
+// Ordinal types include: Integer, Enum, String (single character), Boolean.
+// Returns the ordinal value and an error if the value is not an ordinal type.
+// Task 9.226: Helper function for set literal evaluation with multiple ordinal types.
+func GetOrdinalValue(val Value) (int, error) {
+	switch v := val.(type) {
+	case *IntegerValue:
+		// Integer values are their own ordinals
+		return int(v.Value), nil
+
+	case *EnumValue:
+		// Enum values have an ordinal value field
+		return v.OrdinalValue, nil
+
+	case *StringValue:
+		// String values represent characters - use the first character's Unicode code point
+		if len(v.Value) == 0 {
+			return 0, fmt.Errorf("cannot get ordinal value of empty string")
+		}
+		if len(v.Value) > 1 {
+			return 0, fmt.Errorf("cannot get ordinal value of multi-character string '%s'", v.Value)
+		}
+		// Return the Unicode code point of the single character
+		return int([]rune(v.Value)[0]), nil
+
+	case *BooleanValue:
+		// Boolean: False=0, True=1
+		if v.Value {
+			return 1, nil
+		}
+		return 0, nil
+
+	default:
+		return 0, fmt.Errorf("value of type %s is not an ordinal type", val.Type())
+	}
+}
+
+// GetOrdinalType extracts the Type from a runtime value.
+// Returns the appropriate type for the value to use in set types.
+// Task 9.226: Helper function for determining set element type.
+func GetOrdinalType(val Value) types.Type {
+	switch val.(type) {
+	case *IntegerValue:
+		return types.INTEGER
+	case *EnumValue:
+		// For enum values, we need the specific enum type
+		// This is handled separately in evalSetLiteral
+		return nil
+	case *StringValue:
+		// Character literals are represented as strings
+		return types.STRING
+	case *BooleanValue:
+		return types.BOOLEAN
+	default:
+		return nil
+	}
 }

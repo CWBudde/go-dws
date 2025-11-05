@@ -434,6 +434,7 @@ func (a *Analyzer) initIntrinsicHelpers() {
 
 // initEnumHelpers registers built-in helpers for enumerated types.
 // Task 9.31: Implement enum .Value helper property
+// Also implements .Name and .QualifiedName properties
 func (a *Analyzer) initEnumHelpers() {
 	// Create a helper for the generic ENUM type
 	// Since we need to support all enum types, we'll register this for "ENUM"
@@ -445,6 +446,24 @@ func (a *Analyzer) initEnumHelpers() {
 		Type:      types.INTEGER,
 		ReadKind:  types.PropAccessBuiltin,
 		ReadSpec:  "__enum_value",
+		WriteKind: types.PropAccessNone,
+	}
+
+	// Register .Name property (returns enum value name as string)
+	enumHelper.Properties["Name"] = &types.PropertyInfo{
+		Name:      "Name",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__enum_name",
+		WriteKind: types.PropAccessNone,
+	}
+
+	// Register .QualifiedName property (returns TypeName.ValueName)
+	enumHelper.Properties["QualifiedName"] = &types.PropertyInfo{
+		Name:      "QualifiedName",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__enum_qualifiedname",
 		WriteKind: types.PropAccessNone,
 	}
 
