@@ -590,6 +590,24 @@ func (a *Analyzer) methodSignaturesMatch(sig1, sig2 *types.FunctionType) bool {
 	return true
 }
 
+// parametersMatch checks if two function signatures have the same parameters (ignoring return type)
+// Task 9.62: Used to detect ambiguous overloads where parameters match but return types differ
+func (a *Analyzer) parametersMatch(sig1, sig2 *types.FunctionType) bool {
+	// Check parameter count
+	if len(sig1.Parameters) != len(sig2.Parameters) {
+		return false
+	}
+
+	// Check parameter types
+	for i := range sig1.Parameters {
+		if !sig1.Parameters[i].Equals(sig2.Parameters[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // ============================================================================
 // Abstract Method Helpers
 // ============================================================================
