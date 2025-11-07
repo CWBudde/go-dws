@@ -9,7 +9,6 @@ import (
 )
 
 // TestHelpersScriptsExist verifies all helpers test scripts exist
-// Task 9.90: Create integration tests for helpers
 func TestHelpersScriptsExist(t *testing.T) {
 	scripts := []string{
 		"../../testdata/helpers/string_helper.dws",

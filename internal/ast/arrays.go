@@ -61,8 +61,6 @@ func (ad *ArrayDecl) Pos() lexer.Position {
 // Examples:
 //   - array[1..10] of Integer (static, with bounds)
 //   - array of String (dynamic, no bounds)
-//
-// Task 9.205: Changed bounds from *int to Expression to support const expressions
 type ArrayTypeAnnotation struct {
 	ElementType *TypeAnnotation
 	LowBound    Expression

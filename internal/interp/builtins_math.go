@@ -1022,3 +1022,101 @@ func (i *Interpreter) builtinArcTanh(args []Value) Value {
 
 	return &FloatValue{Value: math.Atanh(value)}
 }
+
+// builtinClampInt implements the ClampInt() built-in function.
+// It clamps an integer value to a range [min, max].
+// ClampInt(value, min, max: Integer): Integer
+// Task 9.25: ClampInt() function for death_star.pas
+func (i *Interpreter) builtinClampInt(args []Value) Value {
+	if len(args) != 3 {
+		return i.newErrorWithLocation(i.currentNode, "ClampInt() expects exactly 3 arguments, got %d", len(args))
+	}
+
+	// Extract value
+	valueArg := args[0]
+	valueInt, ok := valueArg.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ClampInt() expects Integer for argument 1, got %s", valueArg.Type())
+	}
+	value := valueInt.Value
+
+	// Extract min
+	minArg := args[1]
+	minInt, ok := minArg.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ClampInt() expects Integer for argument 2, got %s", minArg.Type())
+	}
+	min := minInt.Value
+
+	// Extract max
+	maxArg := args[2]
+	maxInt, ok := maxArg.(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ClampInt() expects Integer for argument 3, got %s", maxArg.Type())
+	}
+	max := maxInt.Value
+
+	// Clamp the value
+	result := value
+	if result < min {
+		result = min
+	} else if result > max {
+		result = max
+	}
+
+	return &IntegerValue{Value: result}
+}
+
+// builtinClamp implements the Clamp() built-in function.
+// It clamps a float value to a range [min, max].
+// Clamp(value, min, max: Float): Float
+// Accepts mixed Integer/Float arguments (converts to Float)
+// Task 9.25: Clamp() function for death_star.pas
+func (i *Interpreter) builtinClamp(args []Value) Value {
+	if len(args) != 3 {
+		return i.newErrorWithLocation(i.currentNode, "Clamp() expects exactly 3 arguments, got %d", len(args))
+	}
+
+	// Extract value (convert to float)
+	var value float64
+	switch v := args[0].(type) {
+	case *IntegerValue:
+		value = float64(v.Value)
+	case *FloatValue:
+		value = v.Value
+	default:
+		return i.newErrorWithLocation(i.currentNode, "Clamp() expects Integer or Float for argument 1, got %s", args[0].Type())
+	}
+
+	// Extract min (convert to float)
+	var min float64
+	switch v := args[1].(type) {
+	case *IntegerValue:
+		min = float64(v.Value)
+	case *FloatValue:
+		min = v.Value
+	default:
+		return i.newErrorWithLocation(i.currentNode, "Clamp() expects Integer or Float for argument 2, got %s", args[1].Type())
+	}
+
+	// Extract max (convert to float)
+	var max float64
+	switch v := args[2].(type) {
+	case *IntegerValue:
+		max = float64(v.Value)
+	case *FloatValue:
+		max = v.Value
+	default:
+		return i.newErrorWithLocation(i.currentNode, "Clamp() expects Integer or Float for argument 3, got %s", args[2].Type())
+	}
+
+	// Clamp the value
+	result := value
+	if result < min {
+		result = min
+	} else if result > max {
+		result = max
+	}
+
+	return &FloatValue{Value: result}
+}

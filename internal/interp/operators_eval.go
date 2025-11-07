@@ -233,6 +233,13 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 	const maxConversionChainDepth = 3
 	path := i.conversions.findConversionPath(normalizedSource, normalizedTarget, maxConversionChainDepth)
 	if len(path) < 2 {
+		// Task 9.26: Built-in implicit coercions (horizontal_sundial.pas fix)
+		// Integer → Float is always allowed in Pascal/Delphi (automatic widening)
+		if normalizedSource == "INTEGER" && normalizedTarget == "FLOAT" {
+			if intVal, ok := value.(*IntegerValue); ok {
+				return &FloatValue{Value: float64(intVal.Value)}, true
+			}
+		}
 		return value, false
 	}
 

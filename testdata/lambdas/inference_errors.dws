@@ -1,0 +1,118 @@
+// This file contains intentional errors to test error handling
+
+// ============================================================================
+// Error 1: Parameter count mismatch
+// ============================================================================
+
+type TBinaryFunc = function(a, b: Integer): Integer;
+
+var wrongCount: TBinaryFunc;
+begin
+  // ERROR: Lambda has 1 parameter, but TBinaryFunc expects 2
+  wrongCount := lambda(x) => x * 2;
+end;
+
+// ============================================================================
+// Error 2: Explicit parameter type conflicts with expected
+// ============================================================================
+
+type TIntFunc = function(x: Integer): Integer;
+
+var wrongType: TIntFunc;
+begin
+  // ERROR: Parameter 'x' declared as String, but TIntFunc expects Integer
+  wrongType := lambda(x: String) => Length(x);
+end;
+
+// ============================================================================
+// Error 3: Return type incompatible with expected
+// ============================================================================
+
+var wrongReturn: TIntFunc;
+begin
+  // ERROR: Lambda returns String, but TIntFunc expects Integer
+  wrongReturn := lambda(x) => IntToStr(x);
+end;
+
+// ============================================================================
+// Error 4: Cannot infer without context
+// ============================================================================
+
+begin
+  // ERROR: No type context available, explicit types required
+  var noContext := lambda(x) => x * 2;
+end;
+
+// ============================================================================
+// Error 5: Parameter count mismatch in function call
+// ============================================================================
+
+type TUnaryFunc = function(x: Integer): Integer;
+
+procedure Apply(n: Integer; f: TUnaryFunc);
+begin
+  PrintLn(IntToStr(f(n)));
+end;
+
+begin
+  // ERROR: Lambda has 2 parameters, but Apply expects TUnaryFunc (1 parameter)
+  Apply(5, lambda(x, y) => x + y);
+end;
+
+// ============================================================================
+// Error 6: Mixed partial annotation with wrong explicit type
+// ============================================================================
+
+var mixed: TBinaryFunc;
+begin
+  // ERROR: First parameter 'a' declared as String, conflicts with Integer expected
+  mixed := lambda(a: String; b) => Length(a) + b;
+end;
+
+// ============================================================================
+// Error 7: Too many parameters with some inferred
+// ============================================================================
+
+begin
+  // ERROR: Lambda has 3 parameters, TBinaryFunc expects 2
+  var tooMany: TBinaryFunc := lambda(a, b, c) => a + b + c;
+end;
+
+// ============================================================================
+// Error 8: Procedure returning value
+// ============================================================================
+
+type TProc = procedure(x: Integer);
+
+function MakeProc(): TProc;
+begin
+  // ERROR: Cannot return procedure from function expecting TProc
+  // Actually this should work - but if the lambda tries to return a value it won't
+  Result := lambda(x) begin
+    PrintLn(IntToStr(x));
+  end;
+end;
+
+// ============================================================================
+// Error 9: Incompatible return type in return statement
+// ============================================================================
+
+function MakeStringFunc(): function(x: Integer): String;
+begin
+  // ERROR: Lambda returns Integer, but function expects lambda returning String
+  Result := lambda(x) => x * 2;
+end;
+
+// ============================================================================
+// Error 10: Return type mismatch with closure
+// ============================================================================
+
+type TStringFunc = function(x: Integer): String;
+
+function MakeWrongReturn(): TStringFunc;
+begin
+  // ERROR: Lambda returns Integer, but TStringFunc expects String return
+  Result := lambda(x) => x + 100;
+end;
+
+PrintLn('This file should not run - it contains intentional errors for testing!');

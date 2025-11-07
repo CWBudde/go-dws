@@ -280,7 +280,6 @@ end
 }
 
 // TestIndexedProperty tests indexed property functionality via CLI
-// Task 9.4a: Test indexed properties with array-like accessors
 func TestIndexedProperty(t *testing.T) {
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
 	if err := buildCmd.Run(); err != nil {
@@ -319,7 +318,6 @@ func TestIndexedProperty(t *testing.T) {
 }
 
 // TestExpressionProperty tests expression-based property getters via CLI
-// Task 9.4b: Test properties with computed getters
 func TestExpressionProperty(t *testing.T) {
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
 	if err := buildCmd.Run(); err != nil {
@@ -366,7 +364,7 @@ func TestExpressionProperty(t *testing.T) {
 }
 
 // TestDefaultProperty tests default indexed properties via CLI
-// Task 9.4c: Test default properties allowing array-like syntax
+//
 // NOTE: Default properties (obj[index] syntax) are not yet implemented.
 // This test currently skips but the test file exists for future implementation.
 func TestDefaultProperty(t *testing.T) {

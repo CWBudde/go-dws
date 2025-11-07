@@ -1,5 +1,4 @@
 // Test script for Reverse() array function
-// Task 9.79: Reverse array
 
 type TIntArray = array of Integer;
 type TStringArray = array of String;

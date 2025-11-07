@@ -7,7 +7,6 @@ import (
 )
 
 // TestLargeSet tests the CLI with large set operations (>64 elements)
-// Task 9.10f: CLI integration tests for set operations
 //
 // NOTE: These tests are currently skipped because the parser does not yet support
 // "set of" type declarations in the type section. Once parser support is added,
@@ -56,7 +55,6 @@ func TestLargeSet(t *testing.T) {
 }
 
 // TestForInSet tests the CLI with for-in loop over sets
-// Task 9.10f: CLI integration tests for for-in loop over sets
 //
 // NOTE: This test is currently skipped because the parser does not yet support
 // "set of" type declarations in the type section. Once parser support is added,

@@ -1,5 +1,4 @@
 // Using type aliases in declarations and assignments
-// Task 9.22: Test type compatibility and assignments
 
 type TUserID = Integer;
 type TCount = Integer;

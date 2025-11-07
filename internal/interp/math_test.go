@@ -3307,3 +3307,576 @@ end
 		})
 	}
 }
+
+// TestBuiltinClampInt_BasicUsage tests ClampInt() with various value ranges.
+// ClampInt(value, min, max) clamps value to [min, max]
+// Task 9.25: ClampInt() function for death_star.pas
+func TestBuiltinClampInt_BasicUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "Value within range",
+			input: `
+begin
+	ClampInt(5, 1, 10);
+end
+			`,
+			expected: 5,
+		},
+		{
+			name: "Value below min",
+			input: `
+begin
+	ClampInt(0, 1, 10);
+end
+			`,
+			expected: 1,
+		},
+		{
+			name: "Value above max",
+			input: `
+begin
+	ClampInt(15, 1, 10);
+end
+			`,
+			expected: 10,
+		},
+		{
+			name: "Value equals min",
+			input: `
+begin
+	ClampInt(1, 1, 10);
+end
+			`,
+			expected: 1,
+		},
+		{
+			name: "Value equals max",
+			input: `
+begin
+	ClampInt(10, 1, 10);
+end
+			`,
+			expected: 10,
+		},
+		{
+			name: "Negative range - value in range",
+			input: `
+begin
+	ClampInt(-5, -10, -1);
+end
+			`,
+			expected: -5,
+		},
+		{
+			name: "Negative range - value below min",
+			input: `
+begin
+	ClampInt(-15, -10, -1);
+end
+			`,
+			expected: -10,
+		},
+		{
+			name: "Negative range - value above max",
+			input: `
+begin
+	ClampInt(0, -10, -1);
+end
+			`,
+			expected: -1,
+		},
+		{
+			name: "Zero in range",
+			input: `
+begin
+	ClampInt(0, -5, 5);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "Single value range",
+			input: `
+begin
+	ClampInt(10, 5, 5);
+end
+			`,
+			expected: 5,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			intVal, ok := result.(*IntegerValue)
+			if !ok {
+				t.Fatalf("result is not *IntegerValue. got=%T (%+v)", result, result)
+			}
+
+			if intVal.Value != tt.expected {
+				t.Errorf("ClampInt() = %d, want %d", intVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinClampInt_WithVariables tests ClampInt() with variables and expressions.
+// Task 9.25: ClampInt() with variable inputs
+func TestBuiltinClampInt_WithVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "Variable arguments",
+			input: `
+var value: Integer := 15;
+var min: Integer := 1;
+var max: Integer := 10;
+begin
+	ClampInt(value, min, max);
+end
+			`,
+			expected: 10,
+		},
+		{
+			name: "Expression as value",
+			input: `
+begin
+	ClampInt(5 + 10, 1, 10);
+end
+			`,
+			expected: 10,
+		},
+		{
+			name: "From death_star.pas example",
+			input: `
+var intensity: Integer := 4;
+var cShades: String := '.:-=+*#%@';
+begin
+	ClampInt(intensity + 1, 1, Length(cShades));
+end
+			`,
+			expected: 5,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			intVal, ok := result.(*IntegerValue)
+			if !ok {
+				t.Fatalf("result is not *IntegerValue. got=%T (%+v)", result, result)
+			}
+
+			if intVal.Value != tt.expected {
+				t.Errorf("ClampInt() = %d, want %d", intVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinClampInt_Errors tests ClampInt() error cases.
+// Task 9.25: ClampInt() error handling
+func TestBuiltinClampInt_Errors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name: "No arguments",
+			input: `
+begin
+	ClampInt();
+end
+			`,
+			expectedError: "ClampInt() expects exactly 3 arguments",
+		},
+		{
+			name: "Too few arguments",
+			input: `
+begin
+	ClampInt(5, 1);
+end
+			`,
+			expectedError: "ClampInt() expects exactly 3 arguments",
+		},
+		{
+			name: "Too many arguments",
+			input: `
+begin
+	ClampInt(5, 1, 10, 15);
+end
+			`,
+			expectedError: "ClampInt() expects exactly 3 arguments",
+		},
+		{
+			name: "String value argument",
+			input: `
+begin
+	ClampInt("hello", 1, 10);
+end
+			`,
+			expectedError: "ClampInt() expects Integer",
+		},
+		{
+			name: "Float value argument",
+			input: `
+begin
+	ClampInt(5.5, 1, 10);
+end
+			`,
+			expectedError: "ClampInt() expects Integer",
+		},
+		{
+			name: "Float min argument",
+			input: `
+begin
+	ClampInt(5, 1.5, 10);
+end
+			`,
+			expectedError: "ClampInt() expects Integer",
+		},
+		{
+			name: "Float max argument",
+			input: `
+begin
+	ClampInt(5, 1, 10.5);
+end
+			`,
+			expectedError: "ClampInt() expects Integer",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			errVal, ok := result.(*ErrorValue)
+			if !ok {
+				t.Fatalf("expected error, got=%T (%+v)", result, result)
+			}
+
+			if !strings.Contains(errVal.Message, tt.expectedError) {
+				t.Errorf("error message = %q, want to contain %q", errVal.Message, tt.expectedError)
+			}
+		})
+	}
+}
+
+// TestBuiltinClamp_BasicUsage tests Clamp() with various float value ranges.
+// Clamp(value, min, max) clamps value to [min, max] and returns Float
+// Task 9.25: Clamp() function for death_star.pas
+func TestBuiltinClamp_BasicUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected float64
+	}{
+		{
+			name: "Float value within range",
+			input: `
+begin
+	Clamp(5.5, 1.0, 10.0);
+end
+			`,
+			expected: 5.5,
+		},
+		{
+			name: "Float value below min",
+			input: `
+begin
+	Clamp(0.5, 1.0, 10.0);
+end
+			`,
+			expected: 1.0,
+		},
+		{
+			name: "Float value above max",
+			input: `
+begin
+	Clamp(15.5, 1.0, 10.0);
+end
+			`,
+			expected: 10.0,
+		},
+		{
+			name: "Float value equals min",
+			input: `
+begin
+	Clamp(1.0, 1.0, 10.0);
+end
+			`,
+			expected: 1.0,
+		},
+		{
+			name: "Float value equals max",
+			input: `
+begin
+	Clamp(10.0, 1.0, 10.0);
+end
+			`,
+			expected: 10.0,
+		},
+		{
+			name: "Negative float range",
+			input: `
+begin
+	Clamp(-5.5, -10.0, -1.0);
+end
+			`,
+			expected: -5.5,
+		},
+		{
+			name: "Zero in range",
+			input: `
+begin
+	Clamp(0.0, -5.0, 5.0);
+end
+			`,
+			expected: 0.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			floatVal, ok := result.(*FloatValue)
+			if !ok {
+				t.Fatalf("result is not *FloatValue. got=%T (%+v)", result, result)
+			}
+
+			if floatVal.Value != tt.expected {
+				t.Errorf("Clamp() = %f, want %f", floatVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinClamp_MixedTypes tests Clamp() with mixed Integer/Float arguments.
+// Task 9.25: Clamp() with mixed numeric types
+func TestBuiltinClamp_MixedTypes(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected float64
+	}{
+		{
+			name: "Integer value, float bounds",
+			input: `
+begin
+	Clamp(5, 1.0, 10.0);
+end
+			`,
+			expected: 5.0,
+		},
+		{
+			name: "Float value, integer bounds",
+			input: `
+begin
+	Clamp(5.5, 1, 10);
+end
+			`,
+			expected: 5.5,
+		},
+		{
+			name: "All integers (promoted to Float)",
+			input: `
+begin
+	Clamp(5, 1, 10);
+end
+			`,
+			expected: 5.0,
+		},
+		{
+			name: "Integer value clamped by integer min",
+			input: `
+begin
+	Clamp(0, 1, 10);
+end
+			`,
+			expected: 1.0,
+		},
+		{
+			name: "Mixed types - value exceeds max",
+			input: `
+begin
+	Clamp(15, 1.0, 10);
+end
+			`,
+			expected: 10.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			floatVal, ok := result.(*FloatValue)
+			if !ok {
+				t.Fatalf("result is not *FloatValue. got=%T (%+v)", result, result)
+			}
+
+			if floatVal.Value != tt.expected {
+				t.Errorf("Clamp() = %f, want %f", floatVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinClamp_WithVariables tests Clamp() with variables and expressions.
+// Task 9.25: Clamp() with variable inputs
+func TestBuiltinClamp_WithVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected float64
+	}{
+		{
+			name: "Variable arguments",
+			input: `
+var value: Float := 15.5;
+var min: Float := 1.0;
+var max: Float := 10.0;
+begin
+	Clamp(value, min, max);
+end
+			`,
+			expected: 10.0,
+		},
+		{
+			name: "Expression as value",
+			input: `
+begin
+	Clamp(5.5 + 10.0, 1.0, 10.0);
+end
+			`,
+			expected: 10.0,
+		},
+		{
+			name: "Integer variables",
+			input: `
+var value: Integer := 15;
+var min: Integer := 1;
+var max: Integer := 10;
+begin
+	Clamp(value, min, max);
+end
+			`,
+			expected: 10.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			floatVal, ok := result.(*FloatValue)
+			if !ok {
+				t.Fatalf("result is not *FloatValue. got=%T (%+v)", result, result)
+			}
+
+			if floatVal.Value != tt.expected {
+				t.Errorf("Clamp() = %f, want %f", floatVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinClamp_Errors tests Clamp() error cases.
+// Task 9.25: Clamp() error handling
+func TestBuiltinClamp_Errors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name: "No arguments",
+			input: `
+begin
+	Clamp();
+end
+			`,
+			expectedError: "Clamp() expects exactly 3 arguments",
+		},
+		{
+			name: "Too few arguments",
+			input: `
+begin
+	Clamp(5.0, 1.0);
+end
+			`,
+			expectedError: "Clamp() expects exactly 3 arguments",
+		},
+		{
+			name: "Too many arguments",
+			input: `
+begin
+	Clamp(5.0, 1.0, 10.0, 15.0);
+end
+			`,
+			expectedError: "Clamp() expects exactly 3 arguments",
+		},
+		{
+			name: "String value argument",
+			input: `
+begin
+	Clamp("hello", 1.0, 10.0);
+end
+			`,
+			expectedError: "Clamp() expects Integer or Float",
+		},
+		{
+			name: "Boolean value argument",
+			input: `
+begin
+	Clamp(true, 1.0, 10.0);
+end
+			`,
+			expectedError: "Clamp() expects Integer or Float",
+		},
+		{
+			name: "String min argument",
+			input: `
+begin
+	Clamp(5.0, "hello", 10.0);
+end
+			`,
+			expectedError: "Clamp() expects Integer or Float",
+		},
+		{
+			name: "Boolean max argument",
+			input: `
+begin
+	Clamp(5.0, 1.0, false);
+end
+			`,
+			expectedError: "Clamp() expects Integer or Float",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			errVal, ok := result.(*ErrorValue)
+			if !ok {
+				t.Fatalf("expected error, got=%T (%+v)", result, result)
+			}
+
+			if !strings.Contains(errVal.Message, tt.expectedError) {
+				t.Errorf("error message = %q, want to contain %q", errVal.Message, tt.expectedError)
+			}
+		})
+	}
+}

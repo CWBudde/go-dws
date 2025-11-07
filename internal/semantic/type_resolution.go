@@ -34,6 +34,12 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (types.Typ
 // Handles basic types, class types, enum types, inline function pointer types, and inline array types
 // DWScript is case-insensitive, so type names are normalized to lowercase for lookups
 func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
+	// Task 9.21.4.3: Handle "const" pseudo-type (used in "array of const")
+	// "const" is a special DWScript keyword that means "any type" (Variant)
+	if strings.ToLower(typeName) == "const" {
+		return types.VARIANT, nil
+	}
+
 	// Task 9.50: Check for inline function pointer types first
 	// These are synthetic TypeAnnotations created by the parser with full signatures
 	// Examples: "function(x: Integer): Integer", "procedure(msg: String)", "function(): Boolean of object"
@@ -175,6 +181,17 @@ func (a *Analyzer) parseInlineParameters(paramsStr string) ([]types.Type, error)
 		return []types.Type{}, nil
 	}
 
+	// Detect format by checking for colon
+	// Full syntax: "name: Type" or "name1, name2: Type"
+	// Shorthand syntax: "Type" or "Type1, Type2" or "Type1; Type2"
+	hasColon := strings.Contains(paramsStr, ":")
+
+	if !hasColon {
+		// Shorthand format: just types, no names
+		return a.parseShorthandParameters(paramsStr)
+	}
+
+	// Full format with names (existing logic)
 	paramTypes := []types.Type{}
 
 	// Split by semicolon to get parameter groups
@@ -204,12 +221,54 @@ func (a *Analyzer) parseInlineParameters(paramsStr string) ([]types.Type, error)
 
 		// Count how many parameters have this type (by counting commas + 1)
 		namesStr := strings.TrimSpace(parts[0])
+		// Remove modifiers (const, var, lazy) from count
+		namesStr = strings.TrimPrefix(namesStr, "const ")
+		namesStr = strings.TrimPrefix(namesStr, "var ")
+		namesStr = strings.TrimPrefix(namesStr, "lazy ")
+		namesStr = strings.TrimSpace(namesStr)
+
 		paramCount := strings.Count(namesStr, ",") + 1
 
 		// Add the type for each parameter name
 		for i := 0; i < paramCount; i++ {
 			paramTypes = append(paramTypes, paramType)
 		}
+	}
+
+	return paramTypes, nil
+}
+
+// parseShorthandParameters parses shorthand parameter syntax (types only, no names).
+// Format: "Type1, Type2, ..." or "Type1; Type2; ..."
+// Both comma and semicolon are treated as separators.
+func (a *Analyzer) parseShorthandParameters(paramsStr string) ([]types.Type, error) {
+	paramTypes := []types.Type{}
+
+	// Split by both comma and semicolon
+	// Replace semicolons with commas for uniform splitting
+	paramsStr = strings.ReplaceAll(paramsStr, ";", ",")
+
+	typeNames := strings.Split(paramsStr, ",")
+
+	for _, typeName := range typeNames {
+		typeName = strings.TrimSpace(typeName)
+		if typeName == "" {
+			continue
+		}
+
+		// Remove modifiers if present
+		typeName = strings.TrimPrefix(typeName, "const ")
+		typeName = strings.TrimPrefix(typeName, "var ")
+		typeName = strings.TrimPrefix(typeName, "lazy ")
+		typeName = strings.TrimSpace(typeName)
+
+		// Resolve the type
+		paramType, err := a.resolveType(typeName)
+		if err != nil {
+			return nil, fmt.Errorf("unknown parameter type '%s'", typeName)
+		}
+
+		paramTypes = append(paramTypes, paramType)
 	}
 
 	return paramTypes, nil

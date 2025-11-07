@@ -9,7 +9,6 @@ import (
 )
 
 // TestFunctionPointerScriptsExist verifies all function pointer test scripts exist
-// Task 9.170: Create integration tests for function pointers
 func TestFunctionPointerScriptsExist(t *testing.T) {
 	scripts := []string{
 		"../../testdata/function_pointers/basic_function_pointer.dws",
@@ -30,7 +29,6 @@ func TestFunctionPointerScriptsExist(t *testing.T) {
 }
 
 // TestFunctionPointerParsing tests that function pointer scripts parse correctly
-// This validates tasks 9.146-9.163 (type system, AST, parser, semantic analysis)
 func TestFunctionPointerParsing(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

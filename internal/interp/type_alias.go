@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -120,7 +121,8 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 		}
 
 		// Store in environment with special prefix
-		typeKey := "__subrange_type_" + decl.Name.Value
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		typeKey := "__subrange_type_" + strings.ToLower(decl.Name.Value)
 		i.env.Define(typeKey, subrangeTypeValue)
 
 		return &NilValue{}
@@ -178,7 +180,8 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 		}
 
 		// Store in environment with special prefix
-		typeKey := "__type_alias_" + decl.Name.Value
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		typeKey := "__type_alias_" + strings.ToLower(decl.Name.Value)
 		i.env.Define(typeKey, typeAlias)
 
 		return &NilValue{}

@@ -339,7 +339,6 @@ func TestRecordTypeWithProperties(t *testing.T) {
 
 func TestTypeAlias(t *testing.T) {
 	t.Run("Create type alias", func(t *testing.T) {
-		// Task 9.14: Test creating type alias
 		// type TUserID = Integer;
 		userID := &TypeAlias{
 			Name:        "TUserID",
@@ -363,7 +362,6 @@ func TestTypeAlias(t *testing.T) {
 	})
 
 	t.Run("Alias equality with underlying type", func(t *testing.T) {
-		// Task 9.14: Test alias equality with underlying type
 		// type MyInt = Integer;
 		// MyInt should equal Integer
 		myInt := &TypeAlias{
@@ -381,7 +379,6 @@ func TestTypeAlias(t *testing.T) {
 	})
 
 	t.Run("Alias inequality with different types", func(t *testing.T) {
-		// Task 9.14: Test alias inequality with different types
 		// type MyInt = Integer;
 		// MyInt should NOT equal String
 		myInt := &TypeAlias{
@@ -433,7 +430,6 @@ func TestTypeAlias(t *testing.T) {
 	})
 
 	t.Run("Nested aliases", func(t *testing.T) {
-		// Task 9.14: Test nested aliases
 		// type A = Integer;
 		// type B = A;
 		// B should behave like Integer
@@ -697,7 +693,7 @@ func TestGetUnderlyingType(t *testing.T) {
 		}
 	})
 
-	// Task 9.222: Test Variant with type aliases
+	// Test Variant with type aliases
 	t.Run("Variant type alias", func(t *testing.T) {
 		// type MyVariant = Variant;
 		myVariant := &TypeAlias{

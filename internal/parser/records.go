@@ -300,8 +300,6 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 //
 // Called when we see '(' and need to determine if it's a record literal or grouped expression.
 // This is called from parseGroupedExpression when it detects a record literal pattern.
-//
-// Task 9.169-9.174: Parse record literals with named fields
 func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 	recordLit := &ast.RecordLiteralExpression{
 		Token:    p.curToken, // '(' token

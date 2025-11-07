@@ -417,7 +417,7 @@ func TestParseComplexSetExpressions(t *testing.T) {
 // Inline Set Type Parser Tests
 // ============================================================================
 
-// Task 9.213: Test parsing inline set types in variable declarations
+// Test parsing inline set types in variable declarations
 func TestParseInlineSetType(t *testing.T) {
 	t.Run("Variable with inline set type", func(t *testing.T) {
 		input := `var sieve : set of TRange;`

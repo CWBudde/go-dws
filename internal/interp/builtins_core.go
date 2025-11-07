@@ -49,8 +49,9 @@ func (i *Interpreter) builtinPrint(args []Value) Value {
 }
 
 // builtinOrd implements the Ord() built-in function.
-// It returns the ordinal value of an enum, boolean, or character.
+// It returns the ordinal value of an enum, boolean, character, or integer.
 // Task 8.51: Ord() function for enums
+// Task 9.226: Extended to support strings (for character literals)
 func (i *Interpreter) builtinOrd(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Ord() expects exactly 1 argument, got %d", len(args))
@@ -76,7 +77,19 @@ func (i *Interpreter) builtinOrd(args []Value) Value {
 		return intVal
 	}
 
-	return i.newErrorWithLocation(i.currentNode, "Ord() expects enum, boolean, or integer, got %s", arg.Type())
+	// Handle string values (characters)
+	// In DWScript, character literals are single-character strings
+	if strVal, ok := arg.(*StringValue); ok {
+		if len(strVal.Value) == 0 {
+			// Empty string returns 0 (per DWScript fixtures: ord.pas line 4)
+			return &IntegerValue{Value: 0}
+		}
+		// Return the Unicode code point of the first character
+		runes := []rune(strVal.Value)
+		return &IntegerValue{Value: int64(runes[0])}
+	}
+
+	return i.newErrorWithLocation(i.currentNode, "Ord() expects enum, boolean, integer, or string, got %s", arg.Type())
 }
 
 // builtinInteger implements the Integer() cast function.
@@ -382,7 +395,8 @@ func (i *Interpreter) builtinLow(args []Value) Value {
 	// Handle enum values
 	if enumVal, ok := arg.(*EnumValue); ok {
 		// Look up the enum type metadata
-		enumTypeKey := "__enum_type_" + enumVal.TypeName
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		enumTypeKey := "__enum_type_" + strings.ToLower(enumVal.TypeName)
 		typeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "enum type '%s' not found", enumVal.TypeName)
@@ -474,7 +488,8 @@ func (i *Interpreter) builtinHigh(args []Value) Value {
 	// Handle enum values
 	if enumVal, ok := arg.(*EnumValue); ok {
 		// Look up the enum type metadata
-		enumTypeKey := "__enum_type_" + enumVal.TypeName
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		enumTypeKey := "__enum_type_" + strings.ToLower(enumVal.TypeName)
 		typeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "enum type '%s' not found", enumVal.TypeName)

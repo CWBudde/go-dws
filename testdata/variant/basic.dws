@@ -1,4 +1,3 @@
-// Task 9.238: Variant Type Basic Usage
 // Tests: declarations, assignments, type checking
 
 var v1: Variant;

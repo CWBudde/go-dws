@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -56,12 +57,93 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 		return nil, fmt.Errorf("non-constant unary expression")
 
 	case *ast.BinaryExpression:
-		// Delegate to evaluateConstantInt for integer binary ops
-		val, err := a.evaluateConstantInt(expr)
+		// Handle binary expressions - need to check if operands are floats or ints
+		leftVal, err := a.evaluateConstant(e.Left)
 		if err != nil {
 			return nil, err
 		}
-		return val, nil
+		rightVal, err := a.evaluateConstant(e.Right)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check if either operand is a float
+		leftFloat, leftIsFloat := leftVal.(float64)
+		rightFloat, rightIsFloat := rightVal.(float64)
+		leftInt, leftIsInt := leftVal.(int)
+		rightInt, rightIsInt := rightVal.(int)
+
+		// Convert to common type
+		var left, right float64
+		isFloat := leftIsFloat || rightIsFloat || e.Operator == "/"
+
+		if leftIsFloat {
+			left = leftFloat
+		} else if leftIsInt {
+			left = float64(leftInt)
+		} else {
+			return nil, fmt.Errorf("left operand is not numeric")
+		}
+
+		if rightIsFloat {
+			right = rightFloat
+		} else if rightIsInt {
+			right = float64(rightInt)
+		} else {
+			return nil, fmt.Errorf("right operand is not numeric")
+		}
+
+		// Evaluate based on operator
+		var result float64
+		switch e.Operator {
+		case "+":
+			result = left + right
+		case "-":
+			result = left - right
+		case "*":
+			result = left * right
+		case "/":
+			if right == 0 {
+				return nil, fmt.Errorf("division by zero")
+			}
+			result = left / right
+			isFloat = true // Division always returns float
+		case "div":
+			if right == 0 {
+				return nil, fmt.Errorf("division by zero")
+			}
+			return int(left) / int(right), nil
+		case "mod":
+			if right == 0 {
+				return nil, fmt.Errorf("modulo by zero")
+			}
+			return int(left) % int(right), nil
+		default:
+			return nil, fmt.Errorf("non-constant binary operator '%s'", e.Operator)
+		}
+
+		// Return appropriate type
+		if isFloat {
+			return result, nil
+		}
+		return int(result), nil
+
+	case *ast.CallExpression:
+		// Task 9.38: Support compile-time evaluation of built-in functions
+		return a.evaluateConstantFunction(e)
+
+	case *ast.RecordLiteralExpression:
+		// Task 9.25: Support record literals in const declarations
+		// Evaluate all field values recursively to ensure they're constants
+		constFields := make(map[string]interface{})
+		for _, field := range e.Fields {
+			fieldVal, err := a.evaluateConstant(field.Value)
+			if err != nil {
+				return nil, fmt.Errorf("record field '%s' is not constant: %v", field.Name.Value, err)
+			}
+			constFields[field.Name.Value] = fieldVal
+		}
+		return constFields, nil
 
 	default:
 		return nil, fmt.Errorf("expression is not a compile-time constant")
@@ -120,6 +202,24 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 
 	case *ast.BinaryExpression:
 		// Handle binary expressions: size - 1, maxIndex + 10, etc.
+		// For division operator, we need to handle float conversion
+		if e.Operator == "/" {
+			// Division returns float, need to convert back to int
+			val, err := a.evaluateConstant(expr)
+			if err != nil {
+				return 0, err
+			}
+			// Convert to int (truncate)
+			switch v := val.(type) {
+			case int:
+				return v, nil
+			case float64:
+				return int(v), nil
+			default:
+				return 0, fmt.Errorf("division result is not numeric")
+			}
+		}
+
 		left, err := a.evaluateConstantInt(e.Left)
 		if err != nil {
 			return 0, err
@@ -151,8 +251,231 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 			return 0, fmt.Errorf("non-constant binary operator '%s'", e.Operator)
 		}
 
+	case *ast.CallExpression:
+		// Task 9.38: Support compile-time evaluation of built-in functions
+		val, err := a.evaluateConstantFunction(e)
+		if err != nil {
+			return 0, err
+		}
+		// Convert to int
+		switch v := val.(type) {
+		case int:
+			return v, nil
+		case float64:
+			return int(v), nil
+		default:
+			return 0, fmt.Errorf("function result is not numeric")
+		}
+
 	default:
 		return 0, fmt.Errorf("expression is not a compile-time constant integer")
+	}
+}
+
+// evaluateConstantFunction evaluates a compile-time constant function call.
+// Task 9.38: Support compile-time evaluation of built-in functions like High(), Log2(), Floor().
+func (a *Analyzer) evaluateConstantFunction(call *ast.CallExpression) (interface{}, error) {
+	if call == nil || call.Function == nil {
+		return nil, fmt.Errorf("nil function call")
+	}
+
+	// Get function name
+	funcName := ""
+	if ident, ok := call.Function.(*ast.Identifier); ok {
+		funcName = strings.ToLower(ident.Value)
+	} else {
+		return nil, fmt.Errorf("function call is not a compile-time constant")
+	}
+
+	// Only support compile-time evaluable built-in functions
+	switch funcName {
+	case "high":
+		return a.evaluateConstantHigh(call.Arguments)
+	case "low":
+		return a.evaluateConstantLow(call.Arguments)
+	case "log2":
+		return a.evaluateConstantLog2(call.Arguments)
+	case "floor":
+		return a.evaluateConstantFloor(call.Arguments)
+	case "ceil":
+		return a.evaluateConstantCeil(call.Arguments)
+	case "round":
+		return a.evaluateConstantRound(call.Arguments)
+	default:
+		return nil, fmt.Errorf("function '%s' is not a compile-time constant", funcName)
+	}
+}
+
+// evaluateConstantHigh evaluates High() at compile time.
+func (a *Analyzer) evaluateConstantHigh(args []ast.Expression) (interface{}, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("High() expects exactly 1 argument")
+	}
+
+	// Check if it's a type identifier (e.g., High(Integer))
+	if ident, ok := args[0].(*ast.Identifier); ok {
+		typeName := strings.ToLower(ident.Value)
+		switch typeName {
+		case "integer":
+			return math.MaxInt64, nil
+		case "boolean":
+			return true, nil
+		default:
+			// Check if it's a user-defined type
+			sym, ok := a.symbols.Resolve(ident.Value)
+			if !ok {
+				return nil, fmt.Errorf("undefined type '%s'", ident.Value)
+			}
+			// Handle enum types
+			if sym.Type != nil {
+				if enumType, ok := sym.Type.(*types.EnumType); ok {
+					if len(enumType.OrderedNames) == 0 {
+						return nil, fmt.Errorf("enum type '%s' has no values", ident.Value)
+					}
+					lastValueName := enumType.OrderedNames[len(enumType.OrderedNames)-1]
+					return enumType.Values[lastValueName], nil
+				}
+			}
+			return nil, fmt.Errorf("High() not supported for type %s", ident.Value)
+		}
+	}
+
+	return nil, fmt.Errorf("High() argument must be a type name")
+}
+
+// evaluateConstantLow evaluates Low() at compile time.
+func (a *Analyzer) evaluateConstantLow(args []ast.Expression) (interface{}, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("Low() expects exactly 1 argument")
+	}
+
+	// Check if it's a type identifier (e.g., Low(Integer))
+	if ident, ok := args[0].(*ast.Identifier); ok {
+		typeName := strings.ToLower(ident.Value)
+		switch typeName {
+		case "integer":
+			return math.MinInt64, nil
+		case "boolean":
+			return false, nil
+		default:
+			// Check if it's a user-defined type
+			sym, ok := a.symbols.Resolve(ident.Value)
+			if !ok {
+				return nil, fmt.Errorf("undefined type '%s'", ident.Value)
+			}
+			// Handle enum types
+			if sym.Type != nil {
+				if enumType, ok := sym.Type.(*types.EnumType); ok {
+					if len(enumType.OrderedNames) == 0 {
+						return nil, fmt.Errorf("enum type '%s' has no values", ident.Value)
+					}
+					firstValueName := enumType.OrderedNames[0]
+					return enumType.Values[firstValueName], nil
+				}
+			}
+			return nil, fmt.Errorf("Low() not supported for type %s", ident.Value)
+		}
+	}
+
+	return nil, fmt.Errorf("Low() argument must be a type name")
+}
+
+// evaluateConstantLog2 evaluates Log2() at compile time.
+func (a *Analyzer) evaluateConstantLog2(args []ast.Expression) (interface{}, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("Log2() expects exactly 1 argument")
+	}
+
+	// Evaluate argument
+	val, err := a.evaluateConstant(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to float64
+	var floatVal float64
+	switch v := val.(type) {
+	case int:
+		floatVal = float64(v)
+	case float64:
+		floatVal = v
+	default:
+		return nil, fmt.Errorf("Log2() expects numeric argument")
+	}
+
+	if floatVal <= 0 {
+		return nil, fmt.Errorf("Log2() of non-positive number")
+	}
+
+	return math.Log2(floatVal), nil
+}
+
+// evaluateConstantFloor evaluates Floor() at compile time.
+func (a *Analyzer) evaluateConstantFloor(args []ast.Expression) (interface{}, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("Floor() expects exactly 1 argument")
+	}
+
+	// Evaluate argument
+	val, err := a.evaluateConstant(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to float64 and apply floor
+	switch v := val.(type) {
+	case int:
+		return v, nil // Already an integer
+	case float64:
+		return int(math.Floor(v)), nil
+	default:
+		return nil, fmt.Errorf("Floor() expects numeric argument")
+	}
+}
+
+// evaluateConstantCeil evaluates Ceil() at compile time.
+func (a *Analyzer) evaluateConstantCeil(args []ast.Expression) (interface{}, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("Ceil() expects exactly 1 argument")
+	}
+
+	// Evaluate argument
+	val, err := a.evaluateConstant(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to float64 and apply ceil
+	switch v := val.(type) {
+	case int:
+		return v, nil // Already an integer
+	case float64:
+		return int(math.Ceil(v)), nil
+	default:
+		return nil, fmt.Errorf("Ceil() expects numeric argument")
+	}
+}
+
+// evaluateConstantRound evaluates Round() at compile time.
+func (a *Analyzer) evaluateConstantRound(args []ast.Expression) (interface{}, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("Round() expects exactly 1 argument")
+	}
+
+	// Evaluate argument
+	val, err := a.evaluateConstant(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to float64 and apply round
+	switch v := val.(type) {
+	case int:
+		return v, nil // Already an integer
+	case float64:
+		return int(math.Round(v)), nil
+	default:
+		return nil, fmt.Errorf("Round() expects numeric argument")
 	}
 }
 

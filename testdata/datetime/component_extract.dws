@@ -1,5 +1,4 @@
 // Test DateTime component extraction functions
-// Task 9.105
 
 var dt: Float;
 

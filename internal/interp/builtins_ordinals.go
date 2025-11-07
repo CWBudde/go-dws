@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 )
@@ -79,7 +80,8 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 		}
 
 		// Get the enum type metadata
-		enumTypeKey := "__enum_type_" + val.TypeName
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "enum type metadata not found for %s", val.TypeName)
@@ -211,7 +213,8 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 		}
 
 		// Get the enum type metadata
-		enumTypeKey := "__enum_type_" + val.TypeName
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "enum type metadata not found for %s", val.TypeName)
@@ -284,7 +287,8 @@ func (i *Interpreter) builtinSucc(args []Value) Value {
 	case *IntegerValue:
 		return &IntegerValue{Value: val.Value + 1}
 	case *EnumValue:
-		enumTypeKey := "__enum_type_" + val.TypeName
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "enum type metadata not found for %s", val.TypeName)
@@ -335,7 +339,8 @@ func (i *Interpreter) builtinPred(args []Value) Value {
 	case *IntegerValue:
 		return &IntegerValue{Value: val.Value - 1}
 	case *EnumValue:
-		enumTypeKey := "__enum_type_" + val.TypeName
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
 			return i.newErrorWithLocation(i.currentNode, "enum type metadata not found for %s", val.TypeName)

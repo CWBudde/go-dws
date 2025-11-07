@@ -9,7 +9,6 @@ import (
 )
 
 // TestLambdaScriptsExist verifies all lambda test scripts exist
-// Task 9.232: Add CLI integration tests for lambdas
 func TestLambdaScriptsExist(t *testing.T) {
 	scripts := []string{
 		"../../testdata/lambdas/basic_lambda.dws",

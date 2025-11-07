@@ -8,7 +8,6 @@ import (
 )
 
 // TestStringFunctions tests the CLI with string function scripts
-// Task 9.53: CLI integration tests for string functions (Trim, Insert, Delete, StringReplace)
 func TestStringFunctions(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

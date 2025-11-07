@@ -1,5 +1,4 @@
 // Test basic 1D array creation and access with new keyword
-// Task 9.167: Basic array instantiation test
 
 // Create an array of 5 integers
 var numbers := new Integer[5];

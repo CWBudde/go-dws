@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -59,7 +61,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	sym, ok := a.symbols.Resolve(funcIdent.Value)
 	if !ok {
 		// Check if it's a built-in function
-		if funcIdent.Value == "PrintLn" || funcIdent.Value == "Print" {
+		if strings.EqualFold(funcIdent.Value, "PrintLn") || strings.EqualFold(funcIdent.Value, "Print") {
 			// Built-in functions - allow any arguments
 			// Analyze arguments for side effects
 			for _, arg := range expr.Arguments {
@@ -69,7 +71,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Ord and Integer built-in functions
-		if funcIdent.Value == "Ord" || funcIdent.Value == "Integer" {
+		if strings.EqualFold(funcIdent.Value, "Ord") || strings.EqualFold(funcIdent.Value, "Integer") {
 			// These functions take one argument and return an integer
 			if len(expr.Arguments) != 1 {
 				a.addError("function '%s' expects 1 argument, got %d at %s",
@@ -82,7 +84,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Length built-in function
-		if funcIdent.Value == "Length" {
+		if strings.EqualFold(funcIdent.Value, "Length") {
 			// Length takes one argument (array or string) and returns an integer
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Length' expects 1 argument, got %d at %s",
@@ -104,7 +106,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Copy built-in function
-		if funcIdent.Value == "Copy" {
+		if strings.EqualFold(funcIdent.Value, "Copy") {
 			// Copy has two overloads:
 			// - Copy(arr) - returns copy of array
 			// - Copy(str, index, count) - returns substring
@@ -153,7 +155,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Concat built-in function
-		if funcIdent.Value == "Concat" {
+		if strings.EqualFold(funcIdent.Value, "Concat") {
 			// Concat takes at least one argument (all strings) and returns a string
 			if len(expr.Arguments) == 0 {
 				a.addError("function 'Concat' expects at least 1 argument, got 0 at %s",
@@ -172,7 +174,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Pos built-in function
-		if funcIdent.Value == "Pos" {
+		if strings.EqualFold(funcIdent.Value, "Pos") {
 			// Pos takes two string arguments and returns an integer
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Pos' expects 2 arguments, got %d at %s",
@@ -195,7 +197,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// UpperCase built-in function
-		if funcIdent.Value == "UpperCase" {
+		if strings.EqualFold(funcIdent.Value, "UpperCase") {
 			// UpperCase takes one string argument and returns a string
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'UpperCase' expects 1 argument, got %d at %s",
@@ -212,7 +214,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// LowerCase built-in function
-		if funcIdent.Value == "LowerCase" {
+		if strings.EqualFold(funcIdent.Value, "LowerCase") {
 			// LowerCase takes one string argument and returns a string
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'LowerCase' expects 1 argument, got %d at %s",
@@ -229,7 +231,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Trim built-in function
-		if funcIdent.Value == "Trim" {
+		if strings.EqualFold(funcIdent.Value, "Trim") {
 			// Trim takes one string argument and returns a string
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Trim' expects 1 argument, got %d at %s",
@@ -246,7 +248,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// TrimLeft built-in function
-		if funcIdent.Value == "TrimLeft" {
+		if strings.EqualFold(funcIdent.Value, "TrimLeft") {
 			// TrimLeft takes one string argument and returns a string
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'TrimLeft' expects 1 argument, got %d at %s",
@@ -263,7 +265,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// TrimRight built-in function
-		if funcIdent.Value == "TrimRight" {
+		if strings.EqualFold(funcIdent.Value, "TrimRight") {
 			// TrimRight takes one string argument and returns a string
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'TrimRight' expects 1 argument, got %d at %s",
@@ -280,7 +282,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// StringReplace built-in function
-		if funcIdent.Value == "StringReplace" {
+		if strings.EqualFold(funcIdent.Value, "StringReplace") {
 			// StringReplace takes 3-4 arguments: str, old, new, [count]
 			if len(expr.Arguments) < 3 || len(expr.Arguments) > 4 {
 				a.addError("function 'StringReplace' expects 3 or 4 arguments, got %d at %s",
@@ -316,8 +318,31 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
+		// StringOfChar built-in function
+		if strings.EqualFold(funcIdent.Value, "StringOfChar") {
+			// StringOfChar takes exactly 2 arguments: character (string) and count (integer)
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'StringOfChar' expects 2 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.STRING
+			}
+			// First argument: character (string)
+			arg1Type := a.analyzeExpression(expr.Arguments[0])
+			if arg1Type != nil && arg1Type != types.STRING {
+				a.addError("function 'StringOfChar' expects string as first argument, got %s at %s",
+					arg1Type.String(), expr.Token.Pos.String())
+			}
+			// Second argument: count (integer)
+			arg2Type := a.analyzeExpression(expr.Arguments[1])
+			if arg2Type != nil && arg2Type != types.INTEGER {
+				a.addError("function 'StringOfChar' expects integer as second argument, got %s at %s",
+					arg2Type.String(), expr.Token.Pos.String())
+			}
+			return types.STRING
+		}
+
 		// Format built-in function
-		if funcIdent.Value == "Format" {
+		if strings.EqualFold(funcIdent.Value, "Format") {
 			// Format takes exactly 2 arguments: format string and array of values
 			if len(expr.Arguments) != 2 {
 				a.addError("Format() expects exactly 2 arguments, got %d at %s",
@@ -344,7 +369,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Abs built-in function
-		if funcIdent.Value == "Abs" {
+		if strings.EqualFold(funcIdent.Value, "Abs") {
 			// Abs takes one numeric argument and returns the same type
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Abs' expects 1 argument, got %d at %s",
@@ -366,7 +391,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Min built-in function
-		if funcIdent.Value == "Min" {
+		if strings.EqualFold(funcIdent.Value, "Min") {
 			// Min takes two numeric arguments and returns the smaller value
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Min' expects 2 arguments, got %d at %s",
@@ -395,7 +420,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Max built-in function
-		if funcIdent.Value == "Max" {
+		if strings.EqualFold(funcIdent.Value, "Max") {
 			// Max takes two numeric arguments and returns the larger value
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Max' expects 2 arguments, got %d at %s",
@@ -423,8 +448,56 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER // Default to INTEGER if type is unknown
 		}
 
+		// ClampInt built-in function
+		if strings.EqualFold(funcIdent.Value, "ClampInt") {
+			// ClampInt takes three integer arguments: value, min, max
+			if len(expr.Arguments) != 3 {
+				a.addError("function 'ClampInt' expects 3 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.INTEGER // Default to INTEGER on error
+			}
+			// Analyze all three arguments and verify they're Integer
+			arg1Type := a.analyzeExpression(expr.Arguments[0])
+			arg2Type := a.analyzeExpression(expr.Arguments[1])
+			arg3Type := a.analyzeExpression(expr.Arguments[2])
+
+			if arg1Type != nil && arg2Type != nil && arg3Type != nil {
+				// Verify all are Integer (not Float)
+				if arg1Type != types.INTEGER || arg2Type != types.INTEGER || arg3Type != types.INTEGER {
+					a.addError("function 'ClampInt' expects Integer arguments, got %s, %s, %s at %s",
+						arg1Type.String(), arg2Type.String(), arg3Type.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.INTEGER
+		}
+
+		// Clamp built-in function
+		if strings.EqualFold(funcIdent.Value, "Clamp") {
+			// Clamp takes three numeric arguments: value, min, max (returns Float)
+			if len(expr.Arguments) != 3 {
+				a.addError("function 'Clamp' expects 3 arguments, got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.FLOAT // Default to FLOAT on error
+			}
+			// Analyze all three arguments and verify they're numeric
+			arg1Type := a.analyzeExpression(expr.Arguments[0])
+			arg2Type := a.analyzeExpression(expr.Arguments[1])
+			arg3Type := a.analyzeExpression(expr.Arguments[2])
+
+			if arg1Type != nil && arg2Type != nil && arg3Type != nil {
+				// Verify all are numeric
+				if (arg1Type != types.INTEGER && arg1Type != types.FLOAT) ||
+					(arg2Type != types.INTEGER && arg2Type != types.FLOAT) ||
+					(arg3Type != types.INTEGER && arg3Type != types.FLOAT) {
+					a.addError("function 'Clamp' expects Integer or Float arguments, got %s, %s, %s at %s",
+						arg1Type.String(), arg2Type.String(), arg3Type.String(), expr.Token.Pos.String())
+				}
+			}
+			return types.FLOAT // Always returns Float
+		}
+
 		// MaxInt built-in function
-		if funcIdent.Value == "MaxInt" {
+		if strings.EqualFold(funcIdent.Value, "MaxInt") {
 			// MaxInt() with 0 args returns max integer constant
 			// MaxInt(a, b) with 2 args returns maximum of two integers
 			if len(expr.Arguments) == 0 {
@@ -450,7 +523,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// MinInt built-in function
-		if funcIdent.Value == "MinInt" {
+		if strings.EqualFold(funcIdent.Value, "MinInt") {
 			// MinInt() with 0 args returns min integer constant
 			// MinInt(a, b) with 2 args returns minimum of two integers
 			if len(expr.Arguments) == 0 {
@@ -476,7 +549,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Sqr built-in function
-		if funcIdent.Value == "Sqr" {
+		if strings.EqualFold(funcIdent.Value, "Sqr") {
 			// Sqr takes one numeric argument and returns x*x, preserving type
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Sqr' expects 1 argument, got %d at %s",
@@ -498,7 +571,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Power built-in function
-		if funcIdent.Value == "Power" {
+		if strings.EqualFold(funcIdent.Value, "Power") {
 			// Power takes two numeric arguments and always returns Float
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Power' expects 2 arguments, got %d at %s",
@@ -522,7 +595,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Sqrt built-in function
-		if funcIdent.Value == "Sqrt" {
+		if strings.EqualFold(funcIdent.Value, "Sqrt") {
 			// Sqrt takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Sqrt' expects 1 argument, got %d at %s",
@@ -542,7 +615,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Sin built-in function
-		if funcIdent.Value == "Sin" {
+		if strings.EqualFold(funcIdent.Value, "Sin") {
 			// Sin takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Sin' expects 1 argument, got %d at %s",
@@ -562,7 +635,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Cos built-in function
-		if funcIdent.Value == "Cos" {
+		if strings.EqualFold(funcIdent.Value, "Cos") {
 			// Cos takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Cos' expects 1 argument, got %d at %s",
@@ -582,7 +655,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Tan built-in function
-		if funcIdent.Value == "Tan" {
+		if strings.EqualFold(funcIdent.Value, "Tan") {
 			// Tan takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Tan' expects 1 argument, got %d at %s",
@@ -602,7 +675,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// DegToRad built-in function (Task 9.232)
-		if funcIdent.Value == "DegToRad" {
+		if strings.EqualFold(funcIdent.Value, "DegToRad") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'DegToRad' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -617,7 +690,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// RadToDeg built-in function (Task 9.232)
-		if funcIdent.Value == "RadToDeg" {
+		if strings.EqualFold(funcIdent.Value, "RadToDeg") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'RadToDeg' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -632,7 +705,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// ArcSin built-in function (Task 9.232)
-		if funcIdent.Value == "ArcSin" {
+		if strings.EqualFold(funcIdent.Value, "ArcSin") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'ArcSin' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -647,7 +720,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// ArcCos built-in function (Task 9.232)
-		if funcIdent.Value == "ArcCos" {
+		if strings.EqualFold(funcIdent.Value, "ArcCos") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'ArcCos' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -662,7 +735,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// ArcTan built-in function (Task 9.232)
-		if funcIdent.Value == "ArcTan" {
+		if strings.EqualFold(funcIdent.Value, "ArcTan") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'ArcTan' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -677,7 +750,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// ArcTan2 built-in function (Task 9.232)
-		if funcIdent.Value == "ArcTan2" {
+		if strings.EqualFold(funcIdent.Value, "ArcTan2") {
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'ArcTan2' expects 2 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -697,7 +770,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// CoTan built-in function (Task 9.232)
-		if funcIdent.Value == "CoTan" {
+		if strings.EqualFold(funcIdent.Value, "CoTan") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'CoTan' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -712,7 +785,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Hypot built-in function (Task 9.232)
-		if funcIdent.Value == "Hypot" {
+		if strings.EqualFold(funcIdent.Value, "Hypot") {
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Hypot' expects 2 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -732,7 +805,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Sinh built-in function (Task 9.232)
-		if funcIdent.Value == "Sinh" {
+		if strings.EqualFold(funcIdent.Value, "Sinh") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Sinh' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -747,7 +820,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Cosh built-in function (Task 9.232)
-		if funcIdent.Value == "Cosh" {
+		if strings.EqualFold(funcIdent.Value, "Cosh") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Cosh' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -762,7 +835,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Tanh built-in function (Task 9.232)
-		if funcIdent.Value == "Tanh" {
+		if strings.EqualFold(funcIdent.Value, "Tanh") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Tanh' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -777,7 +850,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// ArcSinh built-in function (Task 9.232)
-		if funcIdent.Value == "ArcSinh" {
+		if strings.EqualFold(funcIdent.Value, "ArcSinh") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'ArcSinh' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -792,7 +865,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// ArcCosh built-in function (Task 9.232)
-		if funcIdent.Value == "ArcCosh" {
+		if strings.EqualFold(funcIdent.Value, "ArcCosh") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'ArcCosh' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -807,7 +880,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// ArcTanh built-in function (Task 9.232)
-		if funcIdent.Value == "ArcTanh" {
+		if strings.EqualFold(funcIdent.Value, "ArcTanh") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'ArcTanh' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -822,7 +895,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Random built-in function
-		if funcIdent.Value == "Random" {
+		if strings.EqualFold(funcIdent.Value, "Random") {
 			// Random takes no arguments and always returns Float
 			if len(expr.Arguments) != 0 {
 				a.addError("function 'Random' expects no arguments, got %d at %s",
@@ -833,7 +906,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// RandomInt built-in function
-		if funcIdent.Value == "RandomInt" {
+		if strings.EqualFold(funcIdent.Value, "RandomInt") {
 			// RandomInt takes one Integer argument and returns random Integer in [0, max)
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'RandomInt' expects 1 argument, got %d at %s",
@@ -852,7 +925,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 		// Unsigned32 built-in function
 		// Task 9.219: Unsigned32() converts Integer to unsigned 32-bit representation
-		if funcIdent.Value == "Unsigned32" {
+		if strings.EqualFold(funcIdent.Value, "Unsigned32") {
 			// Unsigned32 takes one Integer argument and returns Integer (as uint32)
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Unsigned32' expects 1 argument, got %d at %s",
@@ -870,7 +943,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Randomize built-in procedure
-		if funcIdent.Value == "Randomize" {
+		if strings.EqualFold(funcIdent.Value, "Randomize") {
 			// Randomize takes no arguments and returns nothing (nil/void)
 			if len(expr.Arguments) != 0 {
 				a.addError("function 'Randomize' expects no arguments, got %d at %s",
@@ -881,7 +954,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Exp built-in function
-		if funcIdent.Value == "Exp" {
+		if strings.EqualFold(funcIdent.Value, "Exp") {
 			// Exp takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Exp' expects 1 argument, got %d at %s",
@@ -901,7 +974,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Ln built-in function
-		if funcIdent.Value == "Ln" {
+		if strings.EqualFold(funcIdent.Value, "Ln") {
 			// Ln takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Ln' expects 1 argument, got %d at %s",
@@ -921,7 +994,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Log2 built-in function - Task 9.38
-		if funcIdent.Value == "Log2" {
+		if strings.EqualFold(funcIdent.Value, "Log2") {
 			// Log2 takes one numeric argument and always returns Float
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Log2' expects 1 argument, got %d at %s",
@@ -941,7 +1014,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Round built-in function
-		if funcIdent.Value == "Round" {
+		if strings.EqualFold(funcIdent.Value, "Round") {
 			// Round takes one numeric argument and always returns Integer
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Round' expects 1 argument, got %d at %s",
@@ -961,7 +1034,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Trunc built-in function
-		if funcIdent.Value == "Trunc" {
+		if strings.EqualFold(funcIdent.Value, "Trunc") {
 			// Trunc takes one numeric argument and always returns Integer
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Trunc' expects 1 argument, got %d at %s",
@@ -981,7 +1054,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Ceil built-in function
-		if funcIdent.Value == "Ceil" {
+		if strings.EqualFold(funcIdent.Value, "Ceil") {
 			// Ceil takes one numeric argument and always returns Integer
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Ceil' expects 1 argument, got %d at %s",
@@ -1001,7 +1074,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Floor built-in function
-		if funcIdent.Value == "Floor" {
+		if strings.EqualFold(funcIdent.Value, "Floor") {
 			// Floor takes one numeric argument and always returns Integer
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Floor' expects 1 argument, got %d at %s",
@@ -1021,7 +1094,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Low built-in function
-		if funcIdent.Value == "Low" {
+		if strings.EqualFold(funcIdent.Value, "Low") {
 			// Low takes one argument (array, enum, or type meta-value) and returns a value of the appropriate type
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Low' expects 1 argument, got %d at %s",
@@ -1060,7 +1133,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// High built-in function
-		if funcIdent.Value == "High" {
+		if strings.EqualFold(funcIdent.Value, "High") {
 			// High takes one argument (array, enum, or type meta-value) and returns a value of the appropriate type
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'High' expects 1 argument, got %d at %s",
@@ -1099,7 +1172,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// SetLength built-in function
-		if funcIdent.Value == "SetLength" {
+		if strings.EqualFold(funcIdent.Value, "SetLength") {
 			// SetLength takes two arguments (array, integer) and returns void
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'SetLength' expects 2 arguments, got %d at %s",
@@ -1124,7 +1197,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Add built-in function
-		if funcIdent.Value == "Add" {
+		if strings.EqualFold(funcIdent.Value, "Add") {
 			// Add takes two arguments (array, element) and returns void
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Add' expects 2 arguments, got %d at %s",
@@ -1147,7 +1220,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		// Delete built-in function
 		// Delete(array, index) - for arrays (2 args)
 		// Delete(string, pos, count) - for strings (3 args)
-		if funcIdent.Value == "Delete" {
+		if strings.EqualFold(funcIdent.Value, "Delete") {
 			if len(expr.Arguments) == 2 {
 				// Array delete: Delete(array, index)
 				argType := a.analyzeExpression(expr.Arguments[0])
@@ -1194,7 +1267,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// IntToStr built-in function
-		if funcIdent.Value == "IntToStr" {
+		if strings.EqualFold(funcIdent.Value, "IntToStr") {
 			// IntToStr takes one integer argument and returns a string
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'IntToStr' expects 1 argument, got %d at %s",
@@ -1219,7 +1292,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// IntToBin built-in function - Task 9.37
-		if funcIdent.Value == "IntToBin" {
+		if strings.EqualFold(funcIdent.Value, "IntToBin") {
 			// IntToBin takes two integer arguments (value, digits) and returns a string
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'IntToBin' expects 2 arguments, got %d at %s",
@@ -1258,7 +1331,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// StrToInt built-in function
-		if funcIdent.Value == "StrToInt" {
+		if strings.EqualFold(funcIdent.Value, "StrToInt") {
 			// StrToInt takes one string argument and returns an integer
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'StrToInt' expects 1 argument, got %d at %s",
@@ -1275,7 +1348,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// FloatToStr built-in function
-		if funcIdent.Value == "FloatToStr" {
+		if strings.EqualFold(funcIdent.Value, "FloatToStr") {
 			// FloatToStr takes one float argument and returns a string
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'FloatToStr' expects 1 argument, got %d at %s",
@@ -1292,7 +1365,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// BoolToStr built-in function
-		if funcIdent.Value == "BoolToStr" {
+		if strings.EqualFold(funcIdent.Value, "BoolToStr") {
 			// BoolToStr takes one boolean argument and returns a string
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'BoolToStr' expects 1 argument, got %d at %s",
@@ -1309,7 +1382,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// StrToFloat built-in function
-		if funcIdent.Value == "StrToFloat" {
+		if strings.EqualFold(funcIdent.Value, "StrToFloat") {
 			// StrToFloat takes one string argument and returns a float
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'StrToFloat' expects 1 argument, got %d at %s",
@@ -1326,7 +1399,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Inc built-in procedure
-		if funcIdent.Value == "Inc" {
+		if strings.EqualFold(funcIdent.Value, "Inc") {
 			// Inc takes 1-2 arguments: variable and optional delta
 			if len(expr.Arguments) < 1 || len(expr.Arguments) > 2 {
 				a.addError("function 'Inc' expects 1-2 arguments, got %d at %s",
@@ -1362,7 +1435,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Dec built-in procedure
-		if funcIdent.Value == "Dec" {
+		if strings.EqualFold(funcIdent.Value, "Dec") {
 			// Dec takes 1-2 arguments: variable and optional delta
 			if len(expr.Arguments) < 1 || len(expr.Arguments) > 2 {
 				a.addError("function 'Dec' expects 1-2 arguments, got %d at %s",
@@ -1398,7 +1471,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Succ built-in function
-		if funcIdent.Value == "Succ" {
+		if strings.EqualFold(funcIdent.Value, "Succ") {
 			// Succ takes 1 argument: ordinal value
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Succ' expects 1 argument, got %d at %s",
@@ -1422,7 +1495,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Pred built-in function
-		if funcIdent.Value == "Pred" {
+		if strings.EqualFold(funcIdent.Value, "Pred") {
 			// Pred takes 1 argument: ordinal value
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'Pred' expects 1 argument, got %d at %s",
@@ -1446,7 +1519,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Assert built-in procedure
-		if funcIdent.Value == "Assert" {
+		if strings.EqualFold(funcIdent.Value, "Assert") {
 			// Assert takes 1-2 arguments: Boolean condition and optional String message
 			if len(expr.Arguments) < 1 || len(expr.Arguments) > 2 {
 				a.addError("function 'Assert' expects 1-2 arguments, got %d at %s",
@@ -1471,7 +1544,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Insert built-in procedure
-		if funcIdent.Value == "Insert" {
+		if strings.EqualFold(funcIdent.Value, "Insert") {
 			if len(expr.Arguments) != 3 {
 				a.addError("function 'Insert' expects 3 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1501,7 +1574,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.227: Higher-order functions for working with lambdas
-		if funcIdent.Value == "Map" {
+		if strings.EqualFold(funcIdent.Value, "Map") {
 			// Map(array, lambda) -> array
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Map' expects 2 arguments (array, lambda), got %d at %s",
@@ -1518,7 +1591,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		if funcIdent.Value == "Filter" {
+		if strings.EqualFold(funcIdent.Value, "Filter") {
 			// Filter(array, predicate) -> array
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'Filter' expects 2 arguments (array, predicate), got %d at %s",
@@ -1535,7 +1608,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		if funcIdent.Value == "Reduce" {
+		if strings.EqualFold(funcIdent.Value, "Reduce") {
 			// Reduce(array, lambda, initial) -> value
 			if len(expr.Arguments) != 3 {
 				a.addError("function 'Reduce' expects 3 arguments (array, lambda, initial), got %d at %s",
@@ -1550,7 +1623,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return initialType
 		}
 
-		if funcIdent.Value == "ForEach" {
+		if strings.EqualFold(funcIdent.Value, "ForEach") {
 			// ForEach(array, lambda) -> void
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'ForEach' expects 2 arguments (array, lambda), got %d at %s",
@@ -1564,23 +1637,23 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.95-9.97: Current date/time functions
-		if funcIdent.Value == "Now" || funcIdent.Value == "Date" ||
-			funcIdent.Value == "Time" || funcIdent.Value == "UTCDateTime" ||
-			funcIdent.Value == "UnixTime" || funcIdent.Value == "UnixTimeMSec" {
+		if strings.EqualFold(funcIdent.Value, "Now") || strings.EqualFold(funcIdent.Value, "Date") ||
+			strings.EqualFold(funcIdent.Value, "Time") || strings.EqualFold(funcIdent.Value, "UTCDateTime") ||
+			strings.EqualFold(funcIdent.Value, "UnixTime") || strings.EqualFold(funcIdent.Value, "UnixTimeMSec") {
 			if len(expr.Arguments) != 0 {
 				a.addError("function '%s' expects 0 arguments, got %d at %s",
 					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
 			}
 			// Now, Date, Time, UTCDateTime return Float (TDateTime)
 			// UnixTime, UnixTimeMSec return Integer
-			if funcIdent.Value == "UnixTime" || funcIdent.Value == "UnixTimeMSec" {
+			if strings.EqualFold(funcIdent.Value, "UnixTime") || strings.EqualFold(funcIdent.Value, "UnixTimeMSec") {
 				return types.INTEGER
 			}
 			return types.FLOAT
 		}
 
 		// Task 9.99-9.101: Date encoding functions
-		if funcIdent.Value == "EncodeDate" {
+		if strings.EqualFold(funcIdent.Value, "EncodeDate") {
 			if len(expr.Arguments) != 3 {
 				a.addError("function 'EncodeDate' expects 3 arguments (year, month, day), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1595,7 +1668,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		if funcIdent.Value == "EncodeTime" {
+		if strings.EqualFold(funcIdent.Value, "EncodeTime") {
 			if len(expr.Arguments) != 4 {
 				a.addError("function 'EncodeTime' expects 4 arguments (hour, minute, second, msec), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1610,7 +1683,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		if funcIdent.Value == "EncodeDateTime" {
+		if strings.EqualFold(funcIdent.Value, "EncodeDateTime") {
 			if len(expr.Arguments) != 7 {
 				a.addError("function 'EncodeDateTime' expects 7 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1626,7 +1699,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.103-9.104: Date decoding functions (var parameters)
-		if funcIdent.Value == "DecodeDate" {
+		if strings.EqualFold(funcIdent.Value, "DecodeDate") {
 			if len(expr.Arguments) != 4 {
 				a.addError("function 'DecodeDate' expects 4 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1646,7 +1719,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
-		if funcIdent.Value == "DecodeTime" {
+		if strings.EqualFold(funcIdent.Value, "DecodeTime") {
 			if len(expr.Arguments) != 5 {
 				a.addError("function 'DecodeTime' expects 5 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1667,12 +1740,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.105: Component extraction functions
-		if funcIdent.Value == "YearOf" || funcIdent.Value == "MonthOf" ||
-			funcIdent.Value == "DayOf" || funcIdent.Value == "HourOf" ||
-			funcIdent.Value == "MinuteOf" || funcIdent.Value == "SecondOf" ||
-			funcIdent.Value == "DayOfWeek" || funcIdent.Value == "DayOfTheWeek" ||
-			funcIdent.Value == "DayOfYear" || funcIdent.Value == "WeekNumber" ||
-			funcIdent.Value == "YearOfWeek" {
+		if strings.EqualFold(funcIdent.Value, "YearOf") || strings.EqualFold(funcIdent.Value, "MonthOf") ||
+			strings.EqualFold(funcIdent.Value, "DayOf") || strings.EqualFold(funcIdent.Value, "HourOf") ||
+			strings.EqualFold(funcIdent.Value, "MinuteOf") || strings.EqualFold(funcIdent.Value, "SecondOf") ||
+			strings.EqualFold(funcIdent.Value, "DayOfWeek") || strings.EqualFold(funcIdent.Value, "DayOfTheWeek") ||
+			strings.EqualFold(funcIdent.Value, "DayOfYear") || strings.EqualFold(funcIdent.Value, "WeekNumber") ||
+			strings.EqualFold(funcIdent.Value, "YearOfWeek") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function '%s' expects 1 argument (TDateTime), got %d at %s",
 					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
@@ -1688,7 +1761,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.107-9.109: Formatting functions
-		if funcIdent.Value == "FormatDateTime" {
+		if strings.EqualFold(funcIdent.Value, "FormatDateTime") {
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'FormatDateTime' expects 2 arguments (format, dt), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1710,9 +1783,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		if funcIdent.Value == "DateTimeToStr" || funcIdent.Value == "DateToStr" ||
-			funcIdent.Value == "TimeToStr" || funcIdent.Value == "DateToISO8601" ||
-			funcIdent.Value == "DateTimeToISO8601" || funcIdent.Value == "DateTimeToRFC822" {
+		if strings.EqualFold(funcIdent.Value, "DateTimeToStr") || strings.EqualFold(funcIdent.Value, "DateToStr") ||
+			strings.EqualFold(funcIdent.Value, "TimeToStr") || strings.EqualFold(funcIdent.Value, "DateToISO8601") ||
+			strings.EqualFold(funcIdent.Value, "DateTimeToISO8601") || strings.EqualFold(funcIdent.Value, "DateTimeToRFC822") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function '%s' expects 1 argument (TDateTime), got %d at %s",
 					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
@@ -1728,9 +1801,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.110-9.111: Parsing functions
-		if funcIdent.Value == "StrToDate" || funcIdent.Value == "StrToDateTime" ||
-			funcIdent.Value == "StrToTime" || funcIdent.Value == "ISO8601ToDateTime" ||
-			funcIdent.Value == "RFC822ToDateTime" {
+		if strings.EqualFold(funcIdent.Value, "StrToDate") || strings.EqualFold(funcIdent.Value, "StrToDateTime") ||
+			strings.EqualFold(funcIdent.Value, "StrToTime") || strings.EqualFold(funcIdent.Value, "ISO8601ToDateTime") ||
+			strings.EqualFold(funcIdent.Value, "RFC822ToDateTime") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function '%s' expects 1 argument (String), got %d at %s",
 					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
@@ -1746,9 +1819,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.113: Incrementing functions
-		if funcIdent.Value == "IncYear" || funcIdent.Value == "IncMonth" ||
-			funcIdent.Value == "IncDay" || funcIdent.Value == "IncHour" ||
-			funcIdent.Value == "IncMinute" || funcIdent.Value == "IncSecond" {
+		if strings.EqualFold(funcIdent.Value, "IncYear") || strings.EqualFold(funcIdent.Value, "IncMonth") ||
+			strings.EqualFold(funcIdent.Value, "IncDay") || strings.EqualFold(funcIdent.Value, "IncHour") ||
+			strings.EqualFold(funcIdent.Value, "IncMinute") || strings.EqualFold(funcIdent.Value, "IncSecond") {
 			if len(expr.Arguments) != 2 {
 				a.addError("function '%s' expects 2 arguments (dt, amount), got %d at %s",
 					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
@@ -1771,8 +1844,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.114: Date difference functions
-		if funcIdent.Value == "DaysBetween" || funcIdent.Value == "HoursBetween" ||
-			funcIdent.Value == "MinutesBetween" || funcIdent.Value == "SecondsBetween" {
+		if strings.EqualFold(funcIdent.Value, "DaysBetween") || strings.EqualFold(funcIdent.Value, "HoursBetween") ||
+			strings.EqualFold(funcIdent.Value, "MinutesBetween") || strings.EqualFold(funcIdent.Value, "SecondsBetween") {
 			if len(expr.Arguments) != 2 {
 				a.addError("function '%s' expects 2 arguments (dt1, dt2), got %d at %s",
 					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
@@ -1788,7 +1861,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Special date functions
-		if funcIdent.Value == "IsLeapYear" {
+		if strings.EqualFold(funcIdent.Value, "IsLeapYear") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'IsLeapYear' expects 1 argument (year), got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1803,9 +1876,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.BOOLEAN
 		}
 
-		if funcIdent.Value == "FirstDayOfYear" || funcIdent.Value == "FirstDayOfNextYear" ||
-			funcIdent.Value == "FirstDayOfMonth" || funcIdent.Value == "FirstDayOfNextMonth" ||
-			funcIdent.Value == "FirstDayOfWeek" {
+		if strings.EqualFold(funcIdent.Value, "FirstDayOfYear") || strings.EqualFold(funcIdent.Value, "FirstDayOfNextYear") ||
+			strings.EqualFold(funcIdent.Value, "FirstDayOfMonth") || strings.EqualFold(funcIdent.Value, "FirstDayOfNextMonth") ||
+			strings.EqualFold(funcIdent.Value, "FirstDayOfWeek") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function '%s' expects 1 argument (TDateTime), got %d at %s",
 					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
@@ -1821,7 +1894,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Unix time conversion functions
-		if funcIdent.Value == "UnixTimeToDateTime" || funcIdent.Value == "UnixTimeMSecToDateTime" {
+		if strings.EqualFold(funcIdent.Value, "UnixTimeToDateTime") || strings.EqualFold(funcIdent.Value, "UnixTimeMSecToDateTime") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function '%s' expects 1 argument (unixTime), got %d at %s",
 					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
@@ -1836,7 +1909,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		if funcIdent.Value == "DateTimeToUnixTime" || funcIdent.Value == "DateTimeToUnixTimeMSec" {
+		if strings.EqualFold(funcIdent.Value, "DateTimeToUnixTime") || strings.EqualFold(funcIdent.Value, "DateTimeToUnixTimeMSec") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function '%s' expects 1 argument (TDateTime), got %d at %s",
 					funcIdent.Value, len(expr.Arguments), expr.Token.Pos.String())
@@ -1872,7 +1945,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.232: Variant introspection functions
-		if funcIdent.Value == "VarType" {
+		if strings.EqualFold(funcIdent.Value, "VarType") {
 			// VarType takes one Variant argument and returns an integer type code
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'VarType' expects 1 argument, got %d at %s",
@@ -1884,7 +1957,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		if funcIdent.Value == "VarIsNull" || funcIdent.Value == "VarIsEmpty" {
+		if strings.EqualFold(funcIdent.Value, "VarIsNull") || strings.EqualFold(funcIdent.Value, "VarIsEmpty") {
 			// VarIsNull/VarIsEmpty take one Variant argument and return a boolean
 			if len(expr.Arguments) != 1 {
 				a.addError("function '%s' expects 1 argument, got %d at %s",
@@ -1896,7 +1969,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.BOOLEAN
 		}
 
-		if funcIdent.Value == "VarIsNumeric" {
+		if strings.EqualFold(funcIdent.Value, "VarIsNumeric") {
 			// VarIsNumeric takes one Variant argument and returns a boolean
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'VarIsNumeric' expects 1 argument, got %d at %s",
@@ -1909,7 +1982,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.233: Variant conversion functions
-		if funcIdent.Value == "VarToStr" {
+		if strings.EqualFold(funcIdent.Value, "VarToStr") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'VarToStr' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1919,7 +1992,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		if funcIdent.Value == "VarToInt" {
+		if strings.EqualFold(funcIdent.Value, "VarToInt") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'VarToInt' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1929,7 +2002,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.INTEGER
 		}
 
-		if funcIdent.Value == "VarToFloat" {
+		if strings.EqualFold(funcIdent.Value, "VarToFloat") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'VarToFloat' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1939,7 +2012,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		if funcIdent.Value == "VarAsType" {
+		if strings.EqualFold(funcIdent.Value, "VarAsType") {
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'VarAsType' expects 2 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1956,7 +2029,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.91: ParseJSON built-in function
-		if funcIdent.Value == "ParseJSON" {
+		if strings.EqualFold(funcIdent.Value, "ParseJSON") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'ParseJSON' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1973,7 +2046,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.94: ToJSON built-in function
-		if funcIdent.Value == "ToJSON" {
+		if strings.EqualFold(funcIdent.Value, "ToJSON") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'ToJSON' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -1986,7 +2059,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.95: ToJSONFormatted built-in function
-		if funcIdent.Value == "ToJSONFormatted" {
+		if strings.EqualFold(funcIdent.Value, "ToJSONFormatted") {
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'ToJSONFormatted' expects 2 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -2005,7 +2078,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.98: JSONHasField built-in function
-		if funcIdent.Value == "JSONHasField" {
+		if strings.EqualFold(funcIdent.Value, "JSONHasField") {
 			if len(expr.Arguments) != 2 {
 				a.addError("function 'JSONHasField' expects 2 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -2024,7 +2097,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.99: JSONKeys built-in function
-		if funcIdent.Value == "JSONKeys" {
+		if strings.EqualFold(funcIdent.Value, "JSONKeys") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'JSONKeys' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -2037,7 +2110,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.100: JSONValues built-in function
-		if funcIdent.Value == "JSONValues" {
+		if strings.EqualFold(funcIdent.Value, "JSONValues") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'JSONValues' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -2050,7 +2123,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.102: JSONLength built-in function
-		if funcIdent.Value == "JSONLength" {
+		if strings.EqualFold(funcIdent.Value, "JSONLength") {
 			if len(expr.Arguments) != 1 {
 				a.addError("function 'JSONLength' expects 1 argument, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -2063,7 +2136,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.114: GetStackTrace() built-in function
-		if funcIdent.Value == "GetStackTrace" {
+		if strings.EqualFold(funcIdent.Value, "GetStackTrace") {
 			if len(expr.Arguments) != 0 {
 				a.addError("function 'GetStackTrace' expects 0 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -2073,7 +2146,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.116: GetCallStack() built-in function
-		if funcIdent.Value == "GetCallStack" {
+		if strings.EqualFold(funcIdent.Value, "GetCallStack") {
 			if len(expr.Arguments) != 0 {
 				a.addError("function 'GetCallStack' expects 0 arguments, got %d at %s",
 					len(expr.Arguments), expr.Token.Pos.String())
@@ -2100,9 +2173,24 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		return nil
 	}
 
-	// Check argument count
-	if len(expr.Arguments) != len(funcType.Parameters) {
-		a.addError("function '%s' expects %d arguments, got %d at %s",
+	// Task 9.1: Check argument count with optional parameters support
+	// Count required parameters (those without defaults)
+	requiredParams := 0
+	for _, defaultVal := range funcType.DefaultValues {
+		if defaultVal == nil {
+			requiredParams++
+		}
+	}
+
+	// Check argument count is within valid range
+	if len(expr.Arguments) < requiredParams {
+		a.addError("function '%s' expects at least %d arguments, got %d at %s",
+			funcIdent.Value, requiredParams, len(expr.Arguments),
+			expr.Token.Pos.String())
+		return nil
+	}
+	if len(expr.Arguments) > len(funcType.Parameters) {
+		a.addError("function '%s' expects at most %d arguments, got %d at %s",
 			funcIdent.Value, len(funcType.Parameters), len(expr.Arguments),
 			expr.Token.Pos.String())
 		return nil
@@ -2165,7 +2253,7 @@ func (a *Analyzer) isBuiltinFunction(name string) bool {
 	switch name {
 	case "PrintLn", "Print", "Ord", "Integer", "Length", "Copy", "Concat",
 		"IndexOf", "Contains", "Reverse", "Sort", "Pos", "UpperCase",
-		"LowerCase", "Trim", "TrimLeft", "TrimRight", "StringReplace",
+		"LowerCase", "Trim", "TrimLeft", "TrimRight", "StringReplace", "StringOfChar",
 		"Format", "Abs", "Min", "Max", "Sqr", "Power", "Sqrt", "Sin",
 		"Cos", "Tan", "Random", "Randomize", "Exp", "Ln", "Log2", "Round",
 		"Trunc", "Frac", "Chr", "SetLength", "High", "Low", "Assigned",

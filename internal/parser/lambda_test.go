@@ -196,7 +196,6 @@ func TestParseLambdaExpressions(t *testing.T) {
 }
 
 // TestParseLambdaInExpressionContext tests lambda expressions in various contexts.
-// Task 9.214: Handle lambda in expression context
 func TestParseLambdaInExpressionContext(t *testing.T) {
 	tests := []struct {
 		name  string

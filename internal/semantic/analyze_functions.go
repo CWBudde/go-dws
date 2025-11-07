@@ -21,11 +21,14 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	// Convert parameter types and return type
 	// Task 9.102: Use resolveType to support user-defined types like subranges
 	// Task 9.136: Extract parameter metadata (names, lazy, var, const flags)
+	// Task 9.1: Extract default value expressions for optional parameters
 	paramTypes := make([]types.Type, 0, len(decl.Parameters))
 	paramNames := make([]string, 0, len(decl.Parameters))
+	defaultValues := make([]interface{}, 0, len(decl.Parameters))
 	lazyParams := make([]bool, 0, len(decl.Parameters))
 	varParams := make([]bool, 0, len(decl.Parameters))
 	constParams := make([]bool, 0, len(decl.Parameters))
+	foundOptional := false // Track if we've seen an optional parameter
 
 	for _, param := range decl.Parameters {
 		// Validate that lazy, var, and const are mutually exclusive
@@ -45,6 +48,24 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 			return
 		}
 
+		// Task 9.1b: Validate optional parameter rules
+		if param.DefaultValue != nil {
+			// This is an optional parameter
+			foundOptional = true
+
+			// Optional parameters cannot have modifiers
+			if param.IsLazy || param.ByRef || param.IsConst {
+				a.addError("optional parameter '%s' cannot have lazy, var, or const modifiers in function '%s' at %s",
+					param.Name.Value, decl.Name.Value, param.Token.Pos.String())
+				return
+			}
+		} else if foundOptional {
+			// Required parameter after optional parameter
+			a.addError("required parameter '%s' cannot come after optional parameters in function '%s' at %s",
+				param.Name.Value, decl.Name.Value, param.Token.Pos.String())
+			return
+		}
+
 		if param.Type == nil {
 			a.addError("parameter '%s' missing type annotation in function '%s'",
 				param.Name.Value, decl.Name.Value)
@@ -56,8 +77,29 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 				param.Type.Name, decl.Name.Value, err)
 			return
 		}
+
+		// Task 9.1b: Type-check default value if present
+		if param.DefaultValue != nil {
+			// Analyze default value expression to get its type
+			defaultType := a.analyzeExpression(param.DefaultValue)
+			if defaultType == nil {
+				a.addError("invalid default value for parameter '%s' in function '%s'",
+					param.Name.Value, decl.Name.Value)
+				return
+			}
+
+			// Check if default value type matches parameter type
+			// Use Equals for type checking (allows implicit conversions handled elsewhere)
+			if !paramType.Equals(defaultType) && !defaultType.Equals(paramType) {
+				a.addError("default value type '%s' does not match parameter type '%s' for parameter '%s' in function '%s'",
+					defaultType.String(), paramType.String(), param.Name.Value, decl.Name.Value)
+				return
+			}
+		}
+
 		paramTypes = append(paramTypes, paramType)
 		paramNames = append(paramNames, param.Name.Value)
+		defaultValues = append(defaultValues, param.DefaultValue) // Store AST expression (may be nil)
 		lazyParams = append(lazyParams, param.IsLazy)
 		varParams = append(varParams, param.ByRef)
 		constParams = append(constParams, param.IsConst)
@@ -85,7 +127,31 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 
 	// Create function type with metadata and add to symbol table
 	// Task 9.136: Use NewFunctionTypeWithMetadata to include lazy, var, and const parameter info
-	funcType := types.NewFunctionTypeWithMetadata(paramTypes, paramNames, lazyParams, varParams, constParams, returnType)
+	// Task 9.1: Include default value expressions for optional parameters
+	// Task 9.21.4.3: Detect variadic parameters (last parameter is array type)
+	var funcType *types.FunctionType
+	if len(paramTypes) > 0 {
+		// Check if last parameter is a dynamic array (variadic)
+		lastParamType := paramTypes[len(paramTypes)-1]
+		if arrayType, ok := lastParamType.(*types.ArrayType); ok && arrayType.IsDynamic() {
+			// This is a variadic parameter
+			variadicType := arrayType.ElementType
+			funcType = types.NewVariadicFunctionTypeWithMetadata(
+				paramTypes, paramNames, defaultValues, lazyParams, varParams, constParams,
+				variadicType, returnType,
+			)
+		} else {
+			// Regular (non-variadic) function
+			funcType = types.NewFunctionTypeWithMetadata(
+				paramTypes, paramNames, defaultValues, lazyParams, varParams, constParams, returnType,
+			)
+		}
+	} else {
+		// No parameters - create regular function type
+		funcType = types.NewFunctionTypeWithMetadata(
+			paramTypes, paramNames, defaultValues, lazyParams, varParams, constParams, returnType,
+		)
+	}
 	a.symbols.DefineFunction(decl.Name.Value, funcType)
 
 	// Analyze function body in new scope
@@ -159,6 +225,7 @@ func (a *Analyzer) analyzeReturn(stmt *ast.ReturnStatement) {
 	} else if a.inLambda {
 		// In lambda context - just analyze the return value
 		// The type checking will be done during lambda return type inference
+		// Task 9.19: Use context-aware analysis for type inference (e.g., nested lambdas)
 		if stmt.ReturnValue != nil {
 			a.analyzeExpression(stmt.ReturnValue)
 		}
@@ -172,7 +239,8 @@ func (a *Analyzer) analyzeReturn(stmt *ast.ReturnStatement) {
 			return
 		}
 
-		returnType := a.analyzeExpression(stmt.ReturnValue)
+		// Task 9.19: Use context-aware analysis for type inference (e.g., lambdas)
+		returnType := a.analyzeExpressionWithExpectedType(stmt.ReturnValue, expectedType)
 		if returnType != nil && !a.canAssign(returnType, expectedType) {
 			a.addError("return type %s incompatible with function return type %s at %s",
 				returnType.String(), expectedType.String(), stmt.Token.Pos.String())

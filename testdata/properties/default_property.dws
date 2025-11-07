@@ -1,5 +1,4 @@
 // Test default indexed property functionality
-// Task 9.4c: Default properties allow array-like syntax on objects
 
 type TIntArray = class
 	FData: array of Integer;

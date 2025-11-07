@@ -8,7 +8,6 @@ import (
 )
 
 // TestAssertIntegration tests the CLI with Assert function scripts
-// Task 9.37-9.39: Create CLI integration tests for Assert function
 func TestAssertIntegration(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

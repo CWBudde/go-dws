@@ -1243,3 +1243,208 @@ end
 		})
 	}
 }
+
+// TestImplicitIntegerToFloatCoercion tests implicit Integer→Float conversion in function calls.
+// Task 9.26: horizontal_sundial.pas fix - Integer arguments should automatically widen to Float parameters
+func TestImplicitIntegerToFloatCoercion(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected interface{}
+	}{
+		{
+			name: "Integer literal to Float parameter",
+			input: `
+function TestFunc(f: Float): Float;
+begin
+	Result := f * 2.0;
+end;
+
+begin
+	TestFunc(5);  // Integer literal should auto-convert to Float
+end
+			`,
+			expected: 10.0,
+		},
+		{
+			name: "Integer variable to Float parameter",
+			input: `
+function TestFunc(f: Float): Float;
+begin
+	Result := f + 1.0;
+end;
+
+var x: Integer := 42;
+begin
+	TestFunc(x);  // Integer variable should auto-convert to Float
+end
+			`,
+			expected: 43.0,
+		},
+		{
+			name: "Integer expression to Float parameter",
+			input: `
+function TestFunc(f: Float): Float;
+begin
+	Result := f + 0.0;  // Ensure Float operation
+end;
+
+begin
+	TestFunc(10 + 5);  // Integer expression should auto-convert to Float
+end
+			`,
+			expected: 15.0,
+		},
+		{
+			name: "Multiple parameters with Integer coercion",
+			input: `
+function Add3(a, b, c: Float): Float;
+begin
+	Result := a + b + c;
+end;
+
+begin
+	Add3(1, 2.5, 3);  // First and third are Integer literals
+end
+			`,
+			expected: 6.5,
+		},
+		{
+			name: "Negative integer to Float parameter",
+			input: `
+function TestFunc(f: Float): Float;
+begin
+	Result := f * 1.0;  // Ensure Float operation
+end;
+
+begin
+	TestFunc(-150);  // Negative integer literal (from horizontal_sundial.pas)
+end
+			`,
+			expected: -150.0,
+		},
+		{
+			name: "Mixed Float and Integer arguments",
+			input: `
+function PrintSundial(lat, lon: Float; meridian: Float): Float;
+begin
+	Result := lat + lon + meridian;
+end;
+
+begin
+	PrintSundial(-4.95, -150.5, -150);  // Third arg is Integer (sundial case)
+end
+			`,
+			expected: -305.45,
+		},
+		{
+			name: "Integer in Format-like call",
+			input: `
+function FormatFloat(fmt: String; value: Float): String;
+begin
+	Result := fmt + FloatToStr(value);
+end;
+
+begin
+	FormatFloat("%7.2f", 42);  // Integer 42 should convert to 42.0
+end
+			`,
+			expected: "%7.2f42",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			if isError(result) {
+				t.Fatalf("evaluation error: %+v", result)
+			}
+
+			switch expected := tt.expected.(type) {
+			case float64:
+				floatVal, ok := result.(*FloatValue)
+				if !ok {
+					t.Fatalf("result is not *FloatValue. got=%T (%+v)", result, result)
+				}
+				if floatVal.Value != expected {
+					t.Errorf("result = %f, want %f", floatVal.Value, expected)
+				}
+			case string:
+				strVal, ok := result.(*StringValue)
+				if !ok {
+					t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+				}
+				if strVal.Value != expected {
+					t.Errorf("result = %q, want %q", strVal.Value, expected)
+				}
+			}
+		})
+	}
+}
+
+// TestImplicitIntegerToFloatCoercion_BuiltinFunctions tests Integer→Float coercion with built-in functions.
+func TestImplicitIntegerToFloatCoercion_BuiltinFunctions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected interface{}
+	}{
+		{
+			name: "Sin with Integer argument",
+			input: `
+begin
+	Sin(0);  // Integer 0 should convert to 0.0
+end
+			`,
+			expected: 0.0,
+		},
+		{
+			name: "Cos with Integer argument",
+			input: `
+begin
+	Cos(0);  // Integer 0 should convert to 0.0
+end
+			`,
+			expected: 1.0,
+		},
+		{
+			name: "Sqrt with Integer argument",
+			input: `
+begin
+	Sqrt(4);  // Integer 4 should convert to 4.0
+end
+			`,
+			expected: 2.0,
+		},
+		{
+			name: "Power with Integer arguments",
+			input: `
+begin
+	Power(2, 3);  // Both integers should convert to floats
+end
+			`,
+			expected: 8.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			if isError(result) {
+				t.Fatalf("evaluation error: %+v", result)
+			}
+
+			floatVal, ok := result.(*FloatValue)
+			if !ok {
+				t.Fatalf("result is not *FloatValue. got=%T (%+v)", result, result)
+			}
+
+			expected := tt.expected.(float64)
+			if floatVal.Value != expected {
+				t.Errorf("result = %f, want %f", floatVal.Value, expected)
+			}
+		})
+	}
+}

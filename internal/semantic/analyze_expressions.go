@@ -83,7 +83,33 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 }
 
 // analyzeExpressionWithExpectedType analyzes an expression with optional expected type context.
-// Used for literals that require context (records, sets, arrays) to resolve their types.
+// This enables context-sensitive type inference for expressions that benefit from knowing
+// the expected type (e.g., lambda parameters, set/array literals, record literals).
+//
+// Task 9.19: Context-aware expression analysis infrastructure.
+//
+// Currently supported expression types with context inference:
+//
+//   - RecordLiteralExpression: Validates record literal fields against expected record type
+//   - SetLiteral: Converts to ArrayLiteral when expected type is array (e.g., array of const)
+//   - ArrayLiteralExpression: Converts to SetLiteral when expected type is set
+//   - LambdaExpression: Infers parameter types from expected function pointer type (Task 9.19)
+//
+// For all other expression types, falls back to analyzeExpression() without context.
+//
+// Context-aware analysis is used in:
+//   - Variable declarations: var x: T := <expr>  (expected type = T)
+//   - Assignments: x := <expr>                    (expected type = type of x)
+//   - Function arguments: f(<expr>)               (expected type = parameter type)
+//   - Return statements: return <expr>            (expected type = function return type)
+//   - Array elements: arr[i] := <expr>            (expected type = array element type)
+//
+// Parameters:
+//   - expr: The expression to analyze
+//   - expectedType: The expected type from context (may be nil if no context available)
+//
+// Returns:
+//   - The actual type of the expression, or nil if analysis failed
 func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expectedType types.Type) types.Type {
 	if expr == nil {
 		return nil
@@ -148,6 +174,18 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 			}
 		}
 		return a.analyzeArrayLiteral(e, expectedType)
+	case *ast.LambdaExpression:
+		// Task 9.19: Lambda parameter type inference from context
+		// If expected type is a function pointer type, use it to infer parameter types
+		if expectedType != nil {
+			// Get underlying type to handle type aliases (e.g., type TFunc = function...)
+			underlyingType := types.GetUnderlyingType(expectedType)
+			if funcPtrType, ok := underlyingType.(*types.FunctionPointerType); ok {
+				return a.analyzeLambdaExpressionWithContext(e, funcPtrType)
+			}
+		}
+		// No expected type or not a function pointer - use regular analysis
+		return a.analyzeLambdaExpression(e)
 	default:
 		return a.analyzeExpression(expr)
 	}

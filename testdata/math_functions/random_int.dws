@@ -1,5 +1,4 @@
 // Test RandomInt() function
-// Task 9.65: RandomInt test fixture
 // RandomInt(max) returns a random integer in [0, max)
 
 begin

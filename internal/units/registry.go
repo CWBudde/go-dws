@@ -83,7 +83,7 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 		return unit, nil
 	}
 
-	// Task 9.140: Check compilation cache before parsing
+	// Check compilation cache before parsing
 	if cachedUnit, found := r.cache.Get(normalized); found {
 		// Unit found in cache and is still valid - use it
 		r.units[normalized] = cachedUnit
@@ -202,7 +202,7 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 		return nil, err
 	}
 
-	// Task 9.140: Add to compilation cache
+	// Add to compilation cache
 	r.cache.Put(normalized, unit, filePath)
 
 	return unit, nil

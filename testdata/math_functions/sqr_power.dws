@@ -1,5 +1,4 @@
 // Test Sqr() and Power() functions
-// Task 9.65: Sqr/Power test fixture
 // Sqr(x) returns x * x (preserving type)
 // Power(x, y) returns x^y as Float
 

@@ -1,4 +1,3 @@
-// Task 9.7e: Integration test for record method invocation
 // This test demonstrates record methods with both functions and procedures
 
 type TPoint = record

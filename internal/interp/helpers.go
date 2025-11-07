@@ -683,7 +683,8 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeAnnot *ast.TypeAnnotation) t
 	}
 
 	// Check for record types (stored with special prefix in environment)
-	recordTypeKey := "__record_type_" + typeName
+	// Task 9.225: Normalize to lowercase for case-insensitive lookups
+	recordTypeKey := "__record_type_" + strings.ToLower(typeName)
 	if typeVal, ok := i.env.Get(recordTypeKey); ok {
 		if recordTypeVal, ok := typeVal.(*RecordTypeValue); ok {
 			return recordTypeVal.RecordType

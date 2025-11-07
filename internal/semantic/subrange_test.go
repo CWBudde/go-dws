@@ -598,7 +598,7 @@ func TestEvaluateConstantInt(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name: "Non-constant expression (binary)",
+			name: "Constant binary expression",
 			expr: &ast.BinaryExpression{
 				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
 				Operator: "+",
@@ -611,8 +611,8 @@ func TestEvaluateConstantInt(t *testing.T) {
 					Value: 5,
 				},
 			},
-			expected:    0,
-			shouldError: true,
+			expected:    10,
+			shouldError: false,
 		},
 		{
 			name: "Non-constant expression (identifier)",

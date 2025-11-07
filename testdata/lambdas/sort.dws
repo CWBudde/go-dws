@@ -1,5 +1,4 @@
 // Integration test for Sort() with lambda comparators
-// Task 9.33: Sort(arr, comparator)
 // Reference: reference/dwscript-original/Test/LambdaPass/sort.pas
 
 type TIntArray = array of Integer;

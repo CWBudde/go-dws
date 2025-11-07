@@ -1,5 +1,4 @@
 // Test script for Sort() array function
-// Task 9.79: Sort arrays
 
 type TIntArray = array of Integer;
 type TStringArray = array of String;

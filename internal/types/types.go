@@ -113,7 +113,7 @@ func (t *VoidType) Equals(other Type) bool {
 }
 
 // ConstType represents the "const" type used in "array of const" parameters
-// Task 9.156: Similar to Pascal's "const" or Variant type - can hold any value
+// Similar to Pascal's "const" or Variant type - can hold any value
 // This is used specifically for builtin functions like Format that accept heterogeneous arrays
 // DEPRECATED: This is a temporary workaround. Use VariantType instead
 type ConstType struct{}
@@ -128,7 +128,7 @@ func (t *ConstType) Equals(other Type) bool {
 }
 
 // VariantType represents the Variant type in DWScript.
-// Task 9.220: Variant is DWScript's dynamic type that can hold any value at runtime.
+// Variant is DWScript's dynamic type that can hold any value at runtime.
 //
 // The Variant type provides:
 // - Dynamic, heterogeneous value storage with runtime type tracking
@@ -175,16 +175,15 @@ var (
 	FLOAT    = &FloatType{}
 	STRING   = &StringType{}
 	BOOLEAN  = &BooleanType{}
-	DATETIME = &DateTimeType{} // Task 9.93: TDateTime type
+	DATETIME = &DateTimeType{}
 	NIL      = &NilType{}
 	VOID     = &VoidType{}
-	CONST    = &ConstType{}   // Task 9.156: DEPRECATED - use VARIANT instead
-	VARIANT  = &VariantType{} // Task 9.220: Variant type for dynamic values
+	CONST    = &ConstType{}
+	VARIANT  = &VariantType{}
 )
 
 // ARRAY_OF_CONST is a special array type used for builtin functions like Format
 // that accept heterogeneous arrays (array of const in Pascal)
-// Task 9.235: Migrated from CONST to VARIANT for proper dynamic typing
 var ARRAY_OF_CONST = NewDynamicArrayType(VARIANT)
 
 // Task 7.75: IINTERFACE is the base interface type (like IUnknown in COM)
@@ -303,7 +302,6 @@ func (s *SubrangeType) Contains(value int) bool {
 
 // ValidateRange validates that a value is within the subrange bounds.
 // Returns an error if the value is outside the allowed range.
-// Task 9.92
 func ValidateRange(value int, subrange *SubrangeType) error {
 	if !subrange.Contains(value) {
 		return fmt.Errorf("value %d is out of range for type %s (%d..%d)",
@@ -337,8 +335,6 @@ func IsNumericType(t Type) bool {
 //   - for loops (Integer, Boolean, Enum, Subrange)
 //   - set elements (Integer, String/Char, Enum, Subrange)
 //   - ranges (e.g., [1..10], ['a'..'z'])
-//
-// Task 9.226: Extended to include String (for character literals) and Subrange types.
 func IsOrdinalType(t Type) bool {
 	// Resolve type aliases before checking
 	t = GetUnderlyingType(t)
@@ -398,7 +394,7 @@ type PropertyInfo struct {
 	WriteSpec string
 	ReadKind  PropAccessKind
 	WriteKind PropAccessKind
-	ReadExpr  interface{} // Task 9.3c: AST expression node for expression-based getters (ast.Expression)
+	ReadExpr  any
 	IsIndexed bool
 	IsDefault bool
 }
@@ -408,7 +404,7 @@ type PropertyInfo struct {
 type ClassType struct {
 	OverrideMethods  map[string]bool
 	AbstractMethods  map[string]bool
-	ForwardedMethods map[string]bool // Task 9.279: Track methods declared but not yet implemented
+	ForwardedMethods map[string]bool
 	Fields           map[string]Type
 	ClassVars        map[string]Type
 	Methods          map[string]*FunctionType
@@ -566,7 +562,6 @@ func (ct *ClassType) GetProperty(name string) (*PropertyInfo, bool) {
 
 // ImplementsInterface checks if this class implements the given interface.
 // It checks both the class itself and its parent classes.
-// Task 9.128: Interface implementation check for assignment compatibility
 func (ct *ClassType) ImplementsInterface(iface *InterfaceType) bool {
 	if ct == nil || iface == nil {
 		return false
@@ -600,16 +595,16 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		Fields:           make(map[string]Type),
 		ClassVars:        make(map[string]Type),
 		Methods:          make(map[string]*FunctionType),
-		FieldVisibility:  make(map[string]int),  // Task 7.63f
-		MethodVisibility: make(map[string]int),  // Task 7.63f
-		VirtualMethods:   make(map[string]bool), // Task 7.64
-		OverrideMethods:  make(map[string]bool), // Task 7.64
-		AbstractMethods:  make(map[string]bool), // Task 7.65
-		ForwardedMethods: make(map[string]bool), // Task 9.279
+		FieldVisibility:  make(map[string]int),
+		MethodVisibility: make(map[string]int),
+		VirtualMethods:   make(map[string]bool),
+		OverrideMethods:  make(map[string]bool),
+		AbstractMethods:  make(map[string]bool),
+		ForwardedMethods: make(map[string]bool),
 		Operators:        NewOperatorRegistry(),
 		Constructors:     make(map[string]*FunctionType),
 		ClassMethodFlags: make(map[string]bool),
-		Properties:       make(map[string]*PropertyInfo), // Task 8.27
+		Properties:       make(map[string]*PropertyInfo),
 	}
 }
 
@@ -658,7 +653,6 @@ func (it *InterfaceType) GetMethod(name string) (*FunctionType, bool) {
 
 // InheritsFrom checks if this interface inherits from (extends) another interface.
 // It checks the entire parent chain.
-// Task 9.128: Interface inheritance check for assignment compatibility
 func (it *InterfaceType) InheritsFrom(parent *InterfaceType) bool {
 	if it == nil || parent == nil {
 		return false

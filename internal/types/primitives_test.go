@@ -21,7 +21,7 @@ func TestBasicTypes(t *testing.T) {
 		{"Boolean", BOOLEAN, "Boolean", "BOOLEAN"},
 		{"Nil", NIL, "Nil", "NIL"},
 		{"Void", VOID, "Void", "VOID"},
-		{"Variant", VARIANT, "Variant", "VARIANT"}, // Task 9.222
+		{"Variant", VARIANT, "Variant", "VARIANT"},
 	}
 
 	for _, tt := range tests {
@@ -49,12 +49,12 @@ func TestBasicTypeEquality(t *testing.T) {
 		{a: BOOLEAN, b: BOOLEAN, name: "Boolean equals Boolean", expected: true},
 		{a: NIL, b: NIL, name: "Nil equals Nil", expected: true},
 		{a: VOID, b: VOID, name: "Void equals Void", expected: true},
-		{a: VARIANT, b: VARIANT, name: "Variant equals Variant", expected: true}, // Task 9.222
+		{a: VARIANT, b: VARIANT, name: "Variant equals Variant", expected: true},
 		{a: INTEGER, b: FLOAT, name: "Integer not equals Float", expected: false},
 		{a: STRING, b: BOOLEAN, name: "String not equals Boolean", expected: false},
 		{a: INTEGER, b: STRING, name: "Integer not equals String", expected: false},
-		{a: VARIANT, b: INTEGER, name: "Variant not equals Integer", expected: false}, // Task 9.222
-		{a: VARIANT, b: STRING, name: "Variant not equals String", expected: false},   // Task 9.222
+		{a: VARIANT, b: INTEGER, name: "Variant not equals Integer", expected: false},
+		{a: VARIANT, b: STRING, name: "Variant not equals String", expected: false},
 	}
 
 	for _, tt := range tests {
@@ -113,8 +113,11 @@ func TestTypeUtilities(t *testing.T) {
 		if IsOrdinalType(FLOAT) {
 			t.Error("FLOAT should not be ordinal")
 		}
-		if IsOrdinalType(STRING) {
-			t.Error("STRING should not be ordinal")
+		// In DWScript, STRING is treated as ordinal because there's no separate Char type.
+		// Character literals are single-character strings, and Ord() works on strings.
+		// This allows strings to be used in sets (e.g., ['a'..'z']) and with Ord().
+		if !IsOrdinalType(STRING) {
+			t.Error("STRING should be ordinal (DWScript treats character literals as strings)")
 		}
 	})
 }
@@ -131,7 +134,7 @@ func TestTypeFromString(t *testing.T) {
 		{expected: STRING, name: "String", input: "String", wantErr: false},
 		{expected: BOOLEAN, name: "Boolean", input: "Boolean", wantErr: false},
 		{expected: VOID, name: "Void", input: "Void", wantErr: false},
-		{expected: VARIANT, name: "Variant", input: "Variant", wantErr: false}, // Task 9.222
+		{expected: VARIANT, name: "Variant", input: "Variant", wantErr: false},
 		{expected: nil, name: "Unknown", input: "Unknown", wantErr: true},
 		{expected: nil, name: "Empty", input: "", wantErr: true},
 	}

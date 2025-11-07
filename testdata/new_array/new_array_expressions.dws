@@ -1,5 +1,4 @@
 // Test array creation with dynamic size expressions
-// Task 9.167: Expression-based array sizes
 
 PrintLn('Dynamic Size Expressions:');
 PrintLn('=========================');

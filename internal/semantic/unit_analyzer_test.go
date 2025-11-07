@@ -623,8 +623,6 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 // TestSemanticAnalysis_CircularDependencyAtSemanticLevel tests that
 // circular dependencies are caught during semantic analysis
 func TestSemanticAnalysis_CircularDependencyAtSemanticLevel(t *testing.T) {
-	// Task 9.129: Test circular dependency detection
-
 	// Note: Circular dependencies are primarily caught at the registry level
 	// during unit loading. This test verifies the semantic layer doesn't break
 	// when units reference each other (which shouldn't happen due to registry checks).
@@ -641,8 +639,6 @@ func TestSemanticAnalysis_CircularDependencyAtSemanticLevel(t *testing.T) {
 // TestSemanticAnalysis_NamespaceConflictResolution tests that
 // namespace conflicts are properly detected and qualified access resolves them
 func TestSemanticAnalysis_NamespaceConflictResolution(t *testing.T) {
-	// Task 9.130: Test namespace resolution and conflicts
-
 	// Create two units with conflicting symbol names
 	unit1Symbols := NewSymbolTable()
 	unit1Symbols.DefineFunction("Compute", &types.FunctionType{

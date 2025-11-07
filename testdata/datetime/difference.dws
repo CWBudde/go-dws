@@ -1,5 +1,4 @@
 // Test DateTime difference functions
-// Task 9.114
 
 var dt1, dt2: Float;
 

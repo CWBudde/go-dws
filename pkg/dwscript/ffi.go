@@ -13,6 +13,7 @@ type FunctionSignature struct {
 	Name       string   // Function name as it appears in DWScript
 	ParamTypes []string // Parameter type names (e.g., "Integer", "String", "Boolean")
 	ReturnType string   // Return type name (e.g., "Integer", "Void")
+	IsVariadic bool     // True if the function accepts a variable number of arguments
 }
 
 // String returns a human-readable representation of the signature.
@@ -20,7 +21,19 @@ func (sig *FunctionSignature) String() string {
 	if len(sig.ParamTypes) == 0 {
 		return fmt.Sprintf("%s(): %s", sig.Name, sig.ReturnType)
 	}
-	return fmt.Sprintf("%s(%v): %s", sig.Name, sig.ParamTypes, sig.ReturnType)
+
+	// Format params, marking last param as variadic if applicable
+	paramsStr := fmt.Sprintf("%v", sig.ParamTypes)
+	if sig.IsVariadic && len(sig.ParamTypes) > 0 {
+		// Show the last param as "...Type" instead of "array of Type"
+		lastParam := sig.ParamTypes[len(sig.ParamTypes)-1]
+		modifiedParams := make([]string, len(sig.ParamTypes))
+		copy(modifiedParams, sig.ParamTypes)
+		modifiedParams[len(modifiedParams)-1] = "..." + lastParam
+		paramsStr = fmt.Sprintf("%v", modifiedParams)
+	}
+
+	return fmt.Sprintf("%s(%s): %s", sig.Name, paramsStr, sig.ReturnType)
 }
 
 // ExternalFunction represents a Go function that can be called from DWScript.
@@ -69,9 +82,7 @@ type ExternalFunction interface {
 //   - func(params...) (T, error)     - returns value, error becomes exception
 //   - func(params...) error          - procedure with error handling
 //   - func(params...)                - void procedure
-//
-// Note: For variadic behavior, use []T as the parameter type and pass an array
-// from DWScript. True Go variadic functions (...T) are not yet supported.
+//   - func(params, ...T)             - variadic function (Go's ...T syntax supported)
 //
 // Example:
 //
@@ -131,25 +142,78 @@ type externalFunctionWrapper struct {
 
 // Call implements ExternalFunction.Call
 func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error) {
+	fnType := w.goFunc.Type()
+	numParams := fnType.NumIn()
+
 	// Validate argument count
-	numParams := w.goFunc.Type().NumIn()
-	if len(args) != numParams {
-		return nil, fmt.Errorf("function %s expects %d arguments, got %d",
-			w.name, numParams, len(args))
+	if w.signature.IsVariadic {
+		// For variadic functions, we need at least (numParams - 1) arguments
+		// The last parameter is the variadic slice, which can be empty
+		minArgs := numParams - 1
+		if len(args) < minArgs {
+			return nil, fmt.Errorf("function %s expects at least %d arguments, got %d",
+				w.name, minArgs, len(args))
+		}
+	} else {
+		// Non-variadic functions must have exact argument count
+		if len(args) != numParams {
+			return nil, fmt.Errorf("function %s expects %d arguments, got %d",
+				w.name, numParams, len(args))
+		}
 	}
 
 	// Marshal DWScript values to Go values
-	goArgs := make([]reflect.Value, numParams)
-	for i := 0; i < numParams; i++ {
-		goArg, err := interp.MarshalToGo(args[i], w.goFunc.Type().In(i))
-		if err != nil {
-			return nil, fmt.Errorf("argument %d: %w", i, err)
+	var goArgs []reflect.Value
+
+	if w.signature.IsVariadic {
+		// Handle variadic function: pack extra arguments into a slice
+		numRequiredParams := numParams - 1
+		goArgs = make([]reflect.Value, numParams)
+
+		// Marshal required (non-variadic) parameters
+		for i := 0; i < numRequiredParams; i++ {
+			goArg, err := interp.MarshalToGo(args[i], fnType.In(i))
+			if err != nil {
+				return nil, fmt.Errorf("argument %d: %w", i, err)
+			}
+			goArgs[i] = reflect.ValueOf(goArg)
 		}
-		goArgs[i] = reflect.ValueOf(goArg)
+
+		// Pack variadic arguments into a slice
+		variadicType := fnType.In(numRequiredParams).Elem() // Get element type of slice
+		numVariadicArgs := len(args) - numRequiredParams
+		variadicSlice := reflect.MakeSlice(fnType.In(numRequiredParams), numVariadicArgs, numVariadicArgs)
+
+		for i := 0; i < numVariadicArgs; i++ {
+			argIdx := numRequiredParams + i
+			goArg, err := interp.MarshalToGo(args[argIdx], variadicType)
+			if err != nil {
+				return nil, fmt.Errorf("variadic argument %d: %w", i, err)
+			}
+			variadicSlice.Index(i).Set(reflect.ValueOf(goArg))
+		}
+
+		goArgs[numRequiredParams] = variadicSlice
+	} else {
+		// Non-variadic function: marshal arguments normally
+		goArgs = make([]reflect.Value, numParams)
+		for i := 0; i < numParams; i++ {
+			goArg, err := interp.MarshalToGo(args[i], fnType.In(i))
+			if err != nil {
+				return nil, fmt.Errorf("argument %d: %w", i, err)
+			}
+			goArgs[i] = reflect.ValueOf(goArg)
+		}
 	}
 
 	// Call the Go function
-	results := w.goFunc.Call(goArgs)
+	var results []reflect.Value
+	if w.signature.IsVariadic {
+		// Use CallSlice for variadic functions - this unpacks the last argument
+		results = w.goFunc.CallSlice(goArgs)
+	} else {
+		results = w.goFunc.Call(goArgs)
+	}
 
 	// Handle return values
 	return handleReturnValues(results)
@@ -166,6 +230,7 @@ func detectSignature(name string, fnType reflect.Type) (*FunctionSignature, erro
 		Name:       name,
 		ParamTypes: make([]string, 0, fnType.NumIn()),
 		ReturnType: "Void",
+		IsVariadic: fnType.IsVariadic(),
 	}
 
 	// Analyze parameters

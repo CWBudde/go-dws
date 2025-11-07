@@ -249,6 +249,39 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 	switch target := stmt.Target.(type) {
 	case *ast.Identifier:
 		// Simple variable assignment: x := value or x += value
+
+		// Special case: In DWScript, you can assign to the function name to set the return value
+		// Check if we're inside a function and the target matches the function name
+		if a.currentFunction != nil && strings.EqualFold(target.Value, a.currentFunction.Name.Value) {
+			// Assigning to function name - treat it as assigning to Result
+			if a.currentFunction.ReturnType == nil {
+				a.addError("cannot assign to procedure name '%s' (procedures have no return value) at %s",
+					target.Value, stmt.Token.Pos.String())
+				return
+			}
+
+			// Get the return type
+			returnType, err := a.resolveType(a.currentFunction.ReturnType.Name)
+			if err != nil || returnType == nil {
+				a.addError("cannot resolve return type '%s' at %s",
+					a.currentFunction.ReturnType.Name, stmt.Token.Pos.String())
+				return
+			}
+
+			// Analyze the value being assigned
+			valueType := a.analyzeExpressionWithExpectedType(stmt.Value, returnType)
+			if valueType == nil {
+				return
+			}
+
+			// Check type compatibility
+			if !a.canAssign(valueType, returnType) {
+				a.addError("cannot assign %s to %s at %s",
+					valueType.String(), returnType.String(), stmt.Token.Pos.String())
+			}
+			return
+		}
+
 		sym, ok := a.symbols.Resolve(target.Value)
 
 		// Task 9.32b/9.32c: If variable not found, check for implicit Self field/property

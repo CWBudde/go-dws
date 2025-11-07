@@ -8,7 +8,6 @@ import (
 )
 
 // TestTypeAliases tests the CLI with type alias scripts
-// Task 9.23: CLI integration tests for type aliases
 func TestTypeAliases(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

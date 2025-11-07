@@ -154,6 +154,175 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 	return funcPtrType
 }
 
+// analyzeLambdaExpressionWithContext analyzes a lambda expression with expected function pointer type.
+// This enables parameter type inference from the context where the lambda is used.
+//
+// Task 9.19: Parameter type inference from context.
+// Examples:
+//   - var f: TFunc := lambda(x) => x * 2  (x type inferred from TFunc)
+//   - Apply(5, lambda(n) => n * 2)        (n type inferred from Apply's signature)
+//   - return lambda(x) => x * 2           (x type inferred from function return type)
+//
+// The function validates that:
+//   - Parameter count matches expected type
+//   - Explicit parameter types are compatible with expected types
+//   - Inferred parameter types are used for untyped parameters
+func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression, expectedFuncType *types.FunctionPointerType) types.Type {
+	if expr == nil || expectedFuncType == nil {
+		return nil
+	}
+
+	// Task 9.19.3: Validate parameter count compatibility
+	if len(expr.Parameters) != len(expectedFuncType.Parameters) {
+		a.addError("lambda has %d parameters but expected function type has %d at %s",
+			len(expr.Parameters), len(expectedFuncType.Parameters), expr.Token.Pos.String())
+		return nil
+	}
+
+	// Task 9.216: Check for duplicate parameter names
+	paramNames := make(map[string]bool)
+	for _, param := range expr.Parameters {
+		if paramNames[param.Name.Value] {
+			a.addError("duplicate parameter name '%s' in lambda at %s",
+				param.Name.Value, param.Name.Token.Pos.String())
+			return nil
+		}
+		paramNames[param.Name.Value] = true
+	}
+
+	// Task 9.19.3: Infer types for untyped parameters, validate explicit types
+	paramTypes := make([]types.Type, 0, len(expr.Parameters))
+
+	for i, param := range expr.Parameters {
+		expectedParamType := expectedFuncType.Parameters[i]
+
+		if param.Type == nil {
+			// No explicit type - infer from expected type
+			paramTypes = append(paramTypes, expectedParamType)
+
+			// Create TypeAnnotation and attach to parameter for later use
+			// This allows the interpreter to know the parameter type
+			param.Type = &ast.TypeAnnotation{
+				Token: param.Token,
+				Name:  expectedParamType.String(),
+			}
+		} else {
+			// Explicit type provided - validate it's compatible with expected type
+			paramType, err := a.resolveType(param.Type.Name)
+			if err != nil {
+				a.addError("unknown parameter type '%s' in lambda at %s",
+					param.Type.Name, param.Type.Token.Pos.String())
+				return nil
+			}
+
+			// Check compatibility with expected type
+			if !a.canAssign(paramType, expectedParamType) {
+				a.addError("parameter '%s' has type %s but expected type requires %s at %s",
+					param.Name.Value, paramType.String(), expectedParamType.String(),
+					param.Name.Token.Pos.String())
+				return nil
+			}
+
+			paramTypes = append(paramTypes, paramType)
+		}
+	}
+
+	// Now we have all parameter types (either inferred or explicit)
+	// Continue with standard lambda analysis
+
+	// Task 9.216: Create new scope for lambda body
+	oldSymbols := a.symbols
+	lambdaScope := NewEnclosedSymbolTable(oldSymbols)
+	a.symbols = lambdaScope
+	defer func() { a.symbols = oldSymbols }()
+
+	// Add parameters to lambda scope
+	for i, param := range expr.Parameters {
+		a.symbols.Define(param.Name.Value, paramTypes[i])
+	}
+
+	// Track that we're in a lambda to allow return statements
+	previousInLambda := a.inLambda
+	a.inLambda = true
+	defer func() { a.inLambda = previousInLambda }()
+
+	// Task 9.216: Determine or infer return type
+	var returnType types.Type
+	if expr.ReturnType != nil {
+		// Explicit return type specified
+		var err error
+		returnType, err = a.resolveType(expr.ReturnType.Name)
+		if err != nil {
+			a.addError("unknown return type '%s' in lambda at %s",
+				expr.ReturnType.Name, expr.ReturnType.Token.Pos.String())
+			return nil
+		}
+
+		// Check compatibility with expected return type if available
+		if expectedFuncType.ReturnType != nil {
+			if !a.canAssign(returnType, expectedFuncType.ReturnType) {
+				a.addError("lambda return type %s incompatible with expected return type %s at %s",
+					returnType.String(), expectedFuncType.ReturnType.String(),
+					expr.Token.Pos.String())
+				return nil
+			}
+		}
+
+		// Add Result variable for lambdas with explicit return type
+		if returnType != types.VOID {
+			a.symbols.Define("Result", returnType)
+		}
+	} else {
+		// No explicit return type - infer from body
+		returnType = a.inferReturnTypeFromBody(expr.Body)
+		if returnType == nil {
+			a.addError("cannot infer return type for lambda at %s",
+				expr.Token.Pos.String())
+			return nil
+		}
+
+		// Check compatibility with expected return type if available
+		if expectedFuncType.ReturnType != nil {
+			if !a.canAssign(returnType, expectedFuncType.ReturnType) {
+				a.addError("inferred lambda return type %s incompatible with expected return type %s at %s",
+					returnType.String(), expectedFuncType.ReturnType.String(),
+					expr.Token.Pos.String())
+				return nil
+			}
+		}
+
+		// Add Result variable now that we know the type
+		if returnType != types.VOID {
+			a.symbols.Define("Result", returnType)
+		}
+	}
+
+	// Analyze lambda body (only if we had an explicit return type)
+	// If return type was inferred, the body was already analyzed during inference
+	if expr.ReturnType != nil && expr.Body != nil {
+		a.analyzeBlock(expr.Body)
+	}
+
+	// Task 9.217: Perform closure capture analysis
+	capturedVars := a.analyzeCapturedVariables(expr.Body, lambdaScope, oldSymbols)
+	expr.CapturedVars = capturedVars
+
+	// Create function pointer type matching the lambda signature
+	var funcPtrReturnType types.Type
+	if returnType != nil && returnType != types.VOID {
+		funcPtrReturnType = returnType
+	}
+	funcPtrType := types.NewFunctionPointerType(paramTypes, funcPtrReturnType)
+
+	// Set the type annotation on the expression
+	typeAnnotation := &ast.TypeAnnotation{
+		Name: fmt.Sprintf("lambda%s", funcPtrType.String()),
+	}
+	expr.Type = typeAnnotation
+
+	return funcPtrType
+}
+
 // inferReturnTypeFromBody attempts to infer the return type from a lambda body.
 // It walks through the body statements looking for return statements and Result assignments.
 //

@@ -283,8 +283,16 @@ func (a *Analyzer) validateMethodSignature(implDecl *ast.FunctionDecl, declaredT
 
 // analyzeMethodDecl analyzes a method declaration within a class (Task 7.56, 7.61)
 func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.ClassType) {
-	// Convert parameter types
+	// Convert parameter types and extract metadata
+	// Task 9.21.4.3: Extract parameter metadata including variadic detection
+	// Task 9.1: Extract default values for optional parameters
 	paramTypes := make([]types.Type, 0, len(method.Parameters))
+	paramNames := make([]string, 0, len(method.Parameters))
+	defaultValues := make([]interface{}, 0, len(method.Parameters))
+	lazyParams := make([]bool, 0, len(method.Parameters))
+	varParams := make([]bool, 0, len(method.Parameters))
+	constParams := make([]bool, 0, len(method.Parameters))
+
 	for _, param := range method.Parameters {
 		if param.Type == nil {
 			a.addError("parameter '%s' missing type annotation in method '%s'",
@@ -299,6 +307,11 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 			return
 		}
 		paramTypes = append(paramTypes, paramType)
+		paramNames = append(paramNames, param.Name.Value)
+		defaultValues = append(defaultValues, param.DefaultValue) // Store default value (may be nil)
+		lazyParams = append(lazyParams, param.IsLazy)
+		varParams = append(varParams, param.ByRef)
+		constParams = append(constParams, param.IsConst)
 	}
 
 	// Determine return type
@@ -315,8 +328,32 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		returnType = types.VOID
 	}
 
-	// Create function type and add to class methods
-	funcType := types.NewFunctionType(paramTypes, returnType)
+	// Create function type with metadata and add to class methods
+	// Task 9.21.4.3: Detect variadic parameters (last parameter is array type)
+	// Task 9.1: Include default values in function type metadata
+	var funcType *types.FunctionType
+	if len(paramTypes) > 0 {
+		// Check if last parameter is a dynamic array (variadic)
+		lastParamType := paramTypes[len(paramTypes)-1]
+		if arrayType, ok := lastParamType.(*types.ArrayType); ok && arrayType.IsDynamic() {
+			// This is a variadic parameter
+			variadicType := arrayType.ElementType
+			funcType = types.NewVariadicFunctionTypeWithMetadata(
+				paramTypes, paramNames, defaultValues, lazyParams, varParams, constParams,
+				variadicType, returnType,
+			)
+		} else {
+			// Regular (non-variadic) function
+			funcType = types.NewFunctionTypeWithMetadata(
+				paramTypes, paramNames, defaultValues, lazyParams, varParams, constParams, returnType,
+			)
+		}
+	} else {
+		// No parameters - create regular function type
+		funcType = types.NewFunctionTypeWithMetadata(
+			paramTypes, paramNames, defaultValues, lazyParams, varParams, constParams, returnType,
+		)
+	}
 	classType.Methods[method.Name.Value] = funcType
 	if method.IsConstructor {
 		classType.Constructors[method.Name.Value] = funcType
@@ -350,8 +387,8 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	if method.IsClassMethod {
 		// Class methods (static methods) do NOT have access to Self or instance fields
 		// They can only access class variables (static fields)
-		// Do NOT add Self to scope
-		// Do NOT add instance fields to scope
+		// DO NOT add Self to scope
+		// DO NOT add instance fields to scope
 
 		// Add class variables to scope
 		for classVarName, classVarType := range classType.ClassVars {
@@ -399,6 +436,11 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	previousFunc := a.currentFunction
 	a.currentFunction = method
 	defer func() { a.currentFunction = previousFunc }()
+
+	// Set inClassMethod flag for class methods
+	previousInClassMethod := a.inClassMethod
+	a.inClassMethod = method.IsClassMethod
+	defer func() { a.inClassMethod = previousInClassMethod }()
 
 	// Task 7.64e-h: Validate virtual/override usage
 	a.validateVirtualOverride(method, classType, funcType)

@@ -21,6 +21,7 @@ func TestDefineOverload_TwoFunctionsDifferentParamCount(t *testing.T) {
 	func1 := types.NewFunctionTypeWithMetadata(
 		[]types.Type{types.INTEGER, types.INTEGER}, // params
 		[]string{"a", "b"},                         // names
+		nil,                                        // defaults
 		[]bool{false, false},                       // lazy flags
 		[]bool{false, false},                       // var flags
 		[]bool{false, false},                       // const flags
@@ -35,6 +36,7 @@ func TestDefineOverload_TwoFunctionsDifferentParamCount(t *testing.T) {
 	func2 := types.NewFunctionTypeWithMetadata(
 		[]types.Type{types.INTEGER, types.INTEGER, types.INTEGER}, // params
 		[]string{"a", "b", "c"},                                   // names
+		nil,                                                       // defaults
 		[]bool{false, false, false},                               // lazy
 		[]bool{false, false, false},                               // var
 		[]bool{false, false, false},                               // const
@@ -59,13 +61,12 @@ func TestDefineOverload_TwoFunctionsSameCountDifferentTypes(t *testing.T) {
 	st := NewSymbolTable()
 
 	// Define first overload: Convert(value: Integer): String
-	func1 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"value"},           // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.STRING,                // return type
+	func1 := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"value"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 	err := st.DefineOverload("Convert", func1, true)
 	if err != nil {
@@ -73,13 +74,12 @@ func TestDefineOverload_TwoFunctionsSameCountDifferentTypes(t *testing.T) {
 	}
 
 	// Define second overload: Convert(value: Float): String
-	func2 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.FLOAT}, // params
-		[]string{"value"},         // names
-		[]bool{false},             // lazy
-		[]bool{false},             // var
-		[]bool{false},             // const
-		types.STRING,              // return type
+	func2 := types.NewFunctionTypeWithMetadata([]types.Type{types.FLOAT}, // params
+		[]string{"value"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 	err = st.DefineOverload("Convert", func2, true)
 	if err != nil {
@@ -97,25 +97,24 @@ func TestDefineOverload_ThreeOverloads(t *testing.T) {
 	st := NewSymbolTable()
 
 	// Define three overloads of Print
-	func1 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.STRING}, // params
-		[]string{"msg"},            // names
-		[]bool{false},              // lazy
-		[]bool{false},              // var
-		[]bool{false},              // const
-		types.VOID,                 // return type
+	func1 := types.NewFunctionTypeWithMetadata([]types.Type{types.STRING}, // params
+		[]string{"msg"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.VOID,    // return type
 	)
-	func2 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"value"},           // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.VOID,                  // return type
+	func2 := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"value"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.VOID,    // return type
 	)
 	func3 := types.NewFunctionTypeWithMetadata(
 		[]types.Type{types.STRING, types.INTEGER}, // params
 		[]string{"msg", "count"},                  // names
+		nil,                                       // defaults
 		[]bool{false, false},                      // lazy
 		[]bool{false, false},                      // var
 		[]bool{false, false},                      // const
@@ -140,22 +139,20 @@ func TestDefineOverload_DifferentReturnTypes(t *testing.T) {
 
 	// In DWScript, overloads can differ only in return type is allowed
 	// Get(key: String): String
-	func1 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.STRING}, // params
-		[]string{"key"},            // names
-		[]bool{false},              // lazy
-		[]bool{false},              // var
-		[]bool{false},              // const
-		types.STRING,               // return type
+	func1 := types.NewFunctionTypeWithMetadata([]types.Type{types.STRING}, // params
+		[]string{"key"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 	// Get(key: String): Integer
-	func2 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.STRING}, // params
-		[]string{"key"},            // names
-		[]bool{false},              // lazy
-		[]bool{false},              // var
-		[]bool{false},              // const
-		types.INTEGER,              // return type
+	func2 := types.NewFunctionTypeWithMetadata([]types.Type{types.STRING}, // params
+		[]string{"key"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.INTEGER, // return type
 	)
 
 	st.DefineOverload("Get", func1, true)
@@ -174,22 +171,20 @@ func TestDefineOverload_ProceduresAndFunctions(t *testing.T) {
 	st := NewSymbolTable()
 
 	// Procedure: DoSomething(x: Integer)
-	proc := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.VOID,                  // return type
+	proc := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.VOID,    // return type
 	)
 	// Function: DoSomething(x: Integer): String
-	func1 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.STRING,                // return type
+	func1 := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 
 	st.DefineOverload("DoSomething", proc, true)
@@ -211,21 +206,19 @@ func TestDefineOverload_ProceduresAndFunctions(t *testing.T) {
 func TestGetOverloadSet_MultipleOverloads(t *testing.T) {
 	st := NewSymbolTable()
 
-	func1 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.STRING,                // return type
+	func1 := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
-	func2 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.STRING}, // params
-		[]string{"s"},              // names
-		[]bool{false},              // lazy
-		[]bool{false},              // var
-		[]bool{false},              // const
-		types.STRING,               // return type
+	func2 := types.NewFunctionTypeWithMetadata([]types.Type{types.STRING}, // params
+		[]string{"s"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 
 	st.DefineOverload("Format", func1, true)
@@ -248,13 +241,12 @@ func TestGetOverloadSet_MultipleOverloads(t *testing.T) {
 func TestGetOverloadSet_SingleFunction(t *testing.T) {
 	st := NewSymbolTable()
 
-	funcType := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.INTEGER,               // return type
+	funcType := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.INTEGER, // return type
 	)
 	st.DefineFunction("Square", funcType)
 
@@ -283,13 +275,12 @@ func TestGetOverloadSet_NonExistentFunction(t *testing.T) {
 func TestGetOverloadSet_CaseInsensitive(t *testing.T) {
 	st := NewSymbolTable()
 
-	funcType := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.INTEGER,               // return type
+	funcType := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.INTEGER, // return type
 	)
 	st.DefineOverload("MyFunc", funcType, true)
 
@@ -316,6 +307,7 @@ func TestDefineOverload_DuplicateSignatureError(t *testing.T) {
 	funcType := types.NewFunctionTypeWithMetadata(
 		[]types.Type{types.INTEGER, types.STRING}, // params
 		[]string{"x", "s"},                        // names
+		nil,                                       // defaults
 		[]bool{false, false},                      // lazy
 		[]bool{false, false},                      // var
 		[]bool{false, false},                      // const
@@ -341,21 +333,19 @@ func TestDefineOverload_DuplicateSignatureError(t *testing.T) {
 func TestDefineOverload_MissingOverloadDirectiveError(t *testing.T) {
 	st := NewSymbolTable()
 
-	func1 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.STRING,                // return type
+	func1 := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
-	func2 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.STRING}, // params
-		[]string{"s"},              // names
-		[]bool{false},              // lazy
-		[]bool{false},              // var
-		[]bool{false},              // const
-		types.STRING,               // return type
+	func2 := types.NewFunctionTypeWithMetadata([]types.Type{types.STRING}, // params
+		[]string{"s"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 
 	// Define first overload with directive
@@ -375,13 +365,12 @@ func TestDefineOverload_NonFunctionSymbolError(t *testing.T) {
 	st.Define("MyVar", types.INTEGER)
 
 	// Try to define function with same name
-	funcType := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.STRING,                // return type
+	funcType := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 
 	err := st.DefineOverload("MyVar", funcType, true)
@@ -396,17 +385,17 @@ func TestDefineOverload_NonFunctionSymbolError(t *testing.T) {
 func TestDefineOverload_SuccessWithDifferentSignatures(t *testing.T) {
 	st := NewSymbolTable()
 
-	func1 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.STRING,                // return type
+	func1 := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 	func2 := types.NewFunctionTypeWithMetadata(
 		[]types.Type{types.INTEGER, types.INTEGER}, // params
 		[]string{"x", "y"},                         // names
+		nil,                                        // defaults
 		[]bool{false, false},                       // lazy
 		[]bool{false, false},                       // var
 		[]bool{false, false},                       // const
@@ -424,21 +413,19 @@ func TestDefineOverload_SuccessWithDifferentSignatures(t *testing.T) {
 func TestDefineOverload_BothHaveOverloadDirective(t *testing.T) {
 	st := NewSymbolTable()
 
-	func1 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.VOID,                  // return type
+	func1 := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.VOID,    // return type
 	)
-	func2 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.STRING}, // params
-		[]string{"s"},              // names
-		[]bool{false},              // lazy
-		[]bool{false},              // var
-		[]bool{false},              // const
-		types.VOID,                 // return type
+	func2 := types.NewFunctionTypeWithMetadata([]types.Type{types.STRING}, // params
+		[]string{"s"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.VOID,    // return type
 	)
 
 	// Both have overload directive = true
@@ -457,6 +444,7 @@ func TestDefineOverload_DifferentParameterModifiers(t *testing.T) {
 	func1 := types.NewFunctionTypeWithMetadata(
 		[]types.Type{types.INTEGER, types.INTEGER}, // params
 		[]string{"a", "b"},                         // names
+		nil,                                        // defaults
 		[]bool{false, false},                       // lazy
 		[]bool{true, true},                         // var
 		[]bool{false, false},                       // const
@@ -466,6 +454,7 @@ func TestDefineOverload_DifferentParameterModifiers(t *testing.T) {
 	func2 := types.NewFunctionTypeWithMetadata(
 		[]types.Type{types.INTEGER, types.INTEGER}, // params
 		[]string{"a", "b"},                         // names
+		nil,                                        // defaults
 		[]bool{false, false},                       // lazy
 		[]bool{false, false},                       // var
 		[]bool{true, true},                         // const
@@ -494,21 +483,19 @@ func TestDefineOverload_DifferentParameterModifiers(t *testing.T) {
 func TestDefineOverload_GlobalScope(t *testing.T) {
 	st := NewSymbolTable()
 
-	func1 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.STRING,                // return type
+	func1 := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
-	func2 := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.STRING}, // params
-		[]string{"s"},              // names
-		[]bool{false},              // lazy
-		[]bool{false},              // var
-		[]bool{false},              // const
-		types.STRING,               // return type
+	func2 := types.NewFunctionTypeWithMetadata([]types.Type{types.STRING}, // params
+		[]string{"s"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 
 	st.DefineOverload("ToString", func1, true)
@@ -525,24 +512,22 @@ func TestDefineOverload_NestedScope(t *testing.T) {
 	local := NewEnclosedSymbolTable(global)
 
 	// Define overload in global scope
-	globalFunc := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.STRING,                // return type
+	globalFunc := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 	global.DefineOverload("Helper", globalFunc, true)
 
 	// Define different overload in local scope
-	localFunc := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.STRING}, // params
-		[]string{"s"},              // names
-		[]bool{false},              // lazy
-		[]bool{false},              // var
-		[]bool{false},              // const
-		types.STRING,               // return type
+	localFunc := types.NewFunctionTypeWithMetadata([]types.Type{types.STRING}, // params
+		[]string{"s"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 	local.DefineOverload("Helper", localFunc, true)
 
@@ -564,24 +549,22 @@ func TestDefineOverload_InnerScopeHidesOuter(t *testing.T) {
 	inner := NewEnclosedSymbolTable(outer)
 
 	// Define in outer scope
-	outerFunc := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.STRING,                // return type
+	outerFunc := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 	outer.DefineOverload("Calculate", outerFunc, true)
 
 	// Define in inner scope (shadows outer)
-	innerFunc := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.FLOAT}, // params
-		[]string{"x"},             // names
-		[]bool{false},             // lazy
-		[]bool{false},             // var
-		[]bool{false},             // const
-		types.STRING,              // return type
+	innerFunc := types.NewFunctionTypeWithMetadata([]types.Type{types.FLOAT}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 	inner.DefineOverload("Calculate", innerFunc, true)
 
@@ -603,13 +586,12 @@ func TestDefineOverload_ResolveAcrossScopes(t *testing.T) {
 	local := NewEnclosedSymbolTable(global)
 
 	// Define in global scope
-	globalFunc := types.NewFunctionTypeWithMetadata(
-		[]types.Type{types.INTEGER}, // params
-		[]string{"x"},               // names
-		[]bool{false},               // lazy
-		[]bool{false},               // var
-		[]bool{false},               // const
-		types.STRING,                // return type
+	globalFunc := types.NewFunctionTypeWithMetadata([]types.Type{types.INTEGER}, // params
+		[]string{"x"}, nil, // names
+		[]bool{false}, // lazy
+		[]bool{false}, // var
+		[]bool{false}, // const
+		types.STRING,  // return type
 	)
 	global.DefineOverload("Util", globalFunc, true)
 

@@ -67,3 +67,50 @@ func TestConstWithVariableReference(t *testing.T) {
 	// This should error because x is a variable, not a constant
 	expectError(t, input, "identifier 'x' is not a constant")
 }
+
+// ============================================================================
+// Const with Built-in Function Calls (Task 9.38)
+// ============================================================================
+
+func TestConstWithHighFunction(t *testing.T) {
+	input := `const MAX = High(Integer);`
+	expectNoErrors(t, input)
+}
+
+func TestConstWithFloorFunction(t *testing.T) {
+	input := `const VAL = Floor(3.7);`
+	expectNoErrors(t, input)
+}
+
+func TestConstWithLog2Function(t *testing.T) {
+	input := `const VAL = Log2(16.0);`
+	expectNoErrors(t, input)
+}
+
+func TestConstWithNestedFunctions(t *testing.T) {
+	input := `const VAL = Floor(Log2(256.0));`
+	expectNoErrors(t, input)
+}
+
+func TestConstWithComplexExpression(t *testing.T) {
+	// This is the exact pattern from lucas_lehmer.pas
+	input := `const upperBound = Floor(Log2(High(Integer))/2) - 1;`
+	expectNoErrors(t, input)
+}
+
+func TestConstWithFunctionAndArithmetic(t *testing.T) {
+	input := `const VAL = High(Integer) / 2;`
+	expectNoErrors(t, input)
+}
+
+func TestConstWithUnsupportedFunction(t *testing.T) {
+	input := `
+		function MyFunc(): Integer;
+		begin
+			Result := 42;
+		end;
+		const VAL = MyFunc();
+	`
+	// User-defined functions are not compile-time evaluable
+	expectError(t, input, "not a compile-time constant")
+}

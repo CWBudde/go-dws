@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Task 9.174: Parser Tests for Record Literals with Named Fields
+// Parser Tests for Record Literals with Named Fields
 // ============================================================================
 
 func TestParseRecordLiteral_Anonymous(t *testing.T) {

@@ -1,0 +1,4 @@
+type TColor = (Red, Green, Blue);
+var c: TColor := Red;
+var next: TColor := Succ(c);
+PrintLn(Ord(next));

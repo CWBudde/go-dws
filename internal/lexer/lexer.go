@@ -88,6 +88,13 @@ func (l *Lexer) currentPos() Position {
 	}
 }
 
+// Input returns the source code being tokenized.
+// This allows parser to create temporary lexers for lookahead.
+// Task 9.301: Added for function pointer syntax detection
+func (l *Lexer) Input() string {
+	return l.input
+}
+
 // skipWhitespace skips over whitespace characters (space, tab, newline, carriage return).
 func (l *Lexer) skipWhitespace() {
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {

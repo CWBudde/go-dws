@@ -1,4 +1,3 @@
-// Task 9.10d: Integration fixture for large set operations (>64 elements)
 // Tests set operations with 71-element enum (triggers map storage)
 //
 // NOTE: This file currently cannot run due to parser limitations:

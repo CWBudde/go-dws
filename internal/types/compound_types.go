@@ -453,8 +453,6 @@ func NewEnumType(name string, values map[string]int, orderedNames []string) *Enu
 //	type TPointHelper = record helper for TPoint
 //	  function Distance: Float;
 //	end;
-//
-// Task 9.73: Helper type definition
 type HelperType struct {
 	Name           string                   // Helper type name (e.g., "TStringHelper")
 	TargetType     Type                     // Type being extended (e.g., String, TPoint)

@@ -1,5 +1,4 @@
 // Test file for static array inline type syntax in function parameters
-// Task 9.54: Static array bounds support in inline type expressions
 
 program StaticArraysInParams;
 

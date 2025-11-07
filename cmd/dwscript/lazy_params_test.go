@@ -9,7 +9,6 @@ import (
 )
 
 // TestLazyParamsScriptsExist verifies all lazy parameter test scripts exist
-// Task 9.145: Create test scripts in testdata/lazy_params/
 func TestLazyParamsScriptsExist(t *testing.T) {
 	scripts := []string{
 		"../../testdata/lazy_params/jensens_device.dws",
@@ -82,7 +81,6 @@ func TestLazyParamsParsing(t *testing.T) {
 }
 
 // TestLazyParamsExecution validates that lazy parameter scripts produce expected output
-// Task 9.146: Add CLI integration tests
 func TestLazyParamsExecution(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

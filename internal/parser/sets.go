@@ -51,8 +51,6 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 // Syntax:
 //   - set of TypeName
 //   - set of (A, B, C)  // inline anonymous enum (if supported)
-//
-// Task 9.213: Parse inline set type expressions
 func (p *Parser) parseSetType() *ast.SetTypeNode {
 	setToken := p.curToken // The 'set' token
 
