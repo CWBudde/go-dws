@@ -1,6 +1,70 @@
 // Copyright (c) 2024 MeKo-Tech
 // SPDX-License-Identifier: MIT
 
+// Package dwscript provides structured error handling for DWScript compilation and execution.
+//
+// # Error Message Format Standards
+//
+// The go-dws error system follows these conventions for IDE integration and consistency:
+//
+// 1. **Position Information**: Always separate from message text
+//   - Error messages should NOT contain position info in the text (e.g., no "at 5:10")
+//   - Position is stored in Error.Line, Error.Column fields (1-indexed)
+//   - Format when displayed: "severity at line:column: message [CODE]"
+//   - Example: "error at 10:5: undefined variable 'x' [E_UNDEFINED_VAR]"
+//
+// 2. **Message Clarity**: Clear, concise, actionable
+//   - Start with what went wrong (e.g., "undefined variable", "type mismatch")
+//   - Include relevant context (variable names, types, etc.)
+//   - Avoid redundant information
+//   - Good: "undefined variable 'x'"
+//   - Bad: "error: undefined variable 'x' at line 10 column 5"
+//
+// 3. **Severity Levels**:
+//   - SeverityError: Critical errors preventing compilation/execution
+//   - SeverityWarning: Non-critical issues that should be addressed
+//   - SeverityInfo: Informational messages
+//   - SeverityHint: Subtle suggestions for improvement
+//
+// 4. **Error Codes**: Optional but recommended for programmatic handling
+//   - Format: E_* for errors, W_* for warnings
+//   - Examples: E_UNDEFINED_VAR, E_TYPE_MISMATCH, W_UNUSED_VAR
+//   - Allows IDEs to provide specific quick fixes
+//
+// 5. **Error Spans**: Use Length field to highlight problematic code
+//   - Length indicates how many characters are affected
+//   - 0 means point error (no specific span)
+//   - Allows IDEs to show squiggly lines under exact problematic code
+//
+// # LSP Integration
+//
+// The Error struct is designed to map directly to LSP Diagnostic:
+//   - Error.Line, Error.Column → diagnostic.range.start
+//   - Error.Length → diagnostic.range.end (start + length)
+//   - Error.Severity → diagnostic.severity
+//   - Error.Code → diagnostic.code
+//   - Error.Message → diagnostic.message
+//
+// # Example Usage
+//
+//	// Creating a structured error
+//	err := dwscript.NewError(
+//	    "undefined variable 'x'",
+//	    10,    // line
+//	    5,     // column
+//	    1,     // length (1 character)
+//	    dwscript.SeverityError,
+//	    "E_UNDEFINED_VAR",
+//	)
+//
+//	// Formatting for console output
+//	fmt.Println(err.Error())
+//	// Output: error at 10:5: undefined variable 'x' [E_UNDEFINED_VAR]
+//
+//	// Accessing structured fields for IDE integration
+//	if err.IsError() {
+//	    showDiagnostic(err.Line, err.Column, err.Length, err.Message)
+//	}
 package dwscript
 
 import (
