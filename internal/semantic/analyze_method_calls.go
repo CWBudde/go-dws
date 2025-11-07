@@ -135,27 +135,56 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		return types.STRING
 	}
 
-	// Look up method in class (including inherited methods)
-	methodType, found := classType.GetMethod(methodName)
+	// Task 9.61: Check if method is overloaded
+	var methodType *types.FunctionType
+	methodOwner := a.getMethodOwner(classType, methodName)
+	overloads := a.getMethodOverloadsInHierarchy(methodName, classType)
 
-	// Task 9.83: If not found in class, check helpers
-	if !found {
+	if len(overloads) > 1 {
+		// Method is overloaded - resolve based on argument types
+		// Analyze argument types first
+		argTypes := make([]types.Type, len(expr.Arguments))
+		for i, arg := range expr.Arguments {
+			argType := a.analyzeExpression(arg)
+			if argType == nil {
+				return nil // Error already reported
+			}
+			argTypes[i] = argType
+		}
+
+		// Convert MethodInfo to Symbol for ResolveOverload
+		candidates := make([]*Symbol, len(overloads))
+		for i, overload := range overloads {
+			candidates[i] = &Symbol{
+				Type: overload.Signature,
+			}
+		}
+
+		// Resolve overload based on argument types
+		selected, err := ResolveOverload(candidates, argTypes)
+		if err != nil {
+			a.addError("cannot resolve overload for method '%s': %v at %s", methodName, err, expr.Token.Pos.String())
+			return nil
+		}
+
+		methodType = selected.Type.(*types.FunctionType)
+	} else if len(overloads) == 1 {
+		// Single method (not overloaded)
+		methodType = overloads[0].Signature
+	} else {
+		// Method not found - check helpers
 		_, helperMethod := a.hasHelperMethod(objectType, methodName)
 		if helperMethod != nil {
 			methodType = helperMethod
-			found = true
+		} else {
+			a.addError("class '%s' has no method '%s' at %s",
+				classType.Name, methodName, expr.Token.Pos.String())
+			return nil
 		}
 	}
 
-	if !found {
-		a.addError("class '%s' has no method '%s' at %s",
-			classType.Name, methodName, expr.Token.Pos.String())
-		return nil
-	}
-
 	// Check method visibility (Task 7.63k)
-	methodOwner := a.getMethodOwner(classType, methodName)
-	if methodOwner != nil {
+	if methodOwner != nil && len(overloads) > 0 {
 		visibility, hasVisibility := methodOwner.MethodVisibility[methodName]
 		if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {
 			visibilityStr := ast.Visibility(visibility).String()
@@ -170,22 +199,25 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 	}
 
-	// Check argument count
-	if len(expr.Arguments) != len(methodType.Parameters) {
-		a.addError("method '%s' of class '%s' expects %d arguments, got %d at %s",
-			methodName, classType.Name, len(methodType.Parameters), len(expr.Arguments),
-			expr.Token.Pos.String())
-		return methodType.ReturnType
-	}
-
-	// Check argument types
-	for i, arg := range expr.Arguments {
-		argType := a.analyzeExpression(arg)
-		expectedType := methodType.Parameters[i]
-		if argType != nil && !a.canAssign(argType, expectedType) {
-			a.addError("argument %d to method '%s' of class '%s' has type %s, expected %s at %s",
-				i+1, methodName, classType.Name, argType.String(), expectedType.String(),
+	// For non-overloaded methods, check argument types (overloaded methods already validated by ResolveOverload)
+	if len(overloads) <= 1 {
+		// Check argument count
+		if len(expr.Arguments) != len(methodType.Parameters) {
+			a.addError("method '%s' of class '%s' expects %d arguments, got %d at %s",
+				methodName, classType.Name, len(methodType.Parameters), len(expr.Arguments),
 				expr.Token.Pos.String())
+			return methodType.ReturnType
+		}
+
+		// Check argument types
+		for i, arg := range expr.Arguments {
+			argType := a.analyzeExpression(arg)
+			expectedType := methodType.Parameters[i]
+			if argType != nil && !a.canAssign(argType, expectedType) {
+				a.addError("argument %d to method '%s' of class '%s' has type %s, expected %s at %s",
+					i+1, methodName, classType.Name, argType.String(), expectedType.String(),
+					expr.Token.Pos.String())
+			}
 		}
 	}
 
