@@ -101,8 +101,50 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 		}
 	}
 
+	// Task 9.68: Resolve constructor overload based on arguments
+	// Check for constructor overloads first (supports both TClass.Create and new TClass)
+	var constructor *ast.FunctionDecl
+	constructorName := "Create" // Default constructor name for NewExpression
+
+	// Get all constructor overloads
+	constructorOverloads := classInfo.ConstructorOverloads[constructorName]
+	if len(constructorOverloads) == 0 && classInfo.Constructor != nil && classInfo.Constructor.Name.Value == constructorName {
+		// Fallback to single constructor if no overloads
+		constructorOverloads = []*ast.FunctionDecl{classInfo.Constructor}
+	}
+
+	// Task 9.68: Special handling for implicit parameterless constructor
+	// If calling with 0 arguments and no parameterless constructor exists,
+	// allow it (just initialize fields with default values)
+	if len(ne.Arguments) == 0 && len(constructorOverloads) > 0 {
+		hasParameterlessConstructor := false
+		for _, ctor := range constructorOverloads {
+			if len(ctor.Parameters) == 0 {
+				hasParameterlessConstructor = true
+				break
+			}
+		}
+		if !hasParameterlessConstructor {
+			// No constructor body to execute - just return object with default fields
+			// (fields already initialized above)
+			return obj
+		}
+	}
+
+	// Resolve overload if multiple constructors exist
+	if len(constructorOverloads) > 0 {
+		var err error
+		constructor, err = i.resolveMethodOverload(className, constructorName, constructorOverloads, ne.Arguments)
+		if err != nil {
+			return i.newErrorWithLocation(ne, "%s", err.Error())
+		}
+	} else {
+		// No constructor found - use default (empty) constructor
+		constructor = nil
+	}
+
 	// Call constructor if present
-	if classInfo.Constructor != nil {
+	if constructor != nil {
 		// Evaluate constructor arguments
 		args := make([]Value, len(ne.Arguments))
 		for idx, arg := range ne.Arguments {
@@ -111,6 +153,12 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 				return val
 			}
 			args[idx] = val
+		}
+
+		// Check argument count matches parameter count
+		if len(args) != len(constructor.Parameters) {
+			return i.newErrorWithLocation(ne, "wrong number of arguments for constructor '%s': expected %d, got %d",
+				constructorName, len(constructor.Parameters), len(args))
 		}
 
 		// Create method environment with Self bound to object
@@ -122,7 +170,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 		i.env.Define("Self", obj)
 
 		// Bind constructor parameters to arguments
-		for idx, param := range classInfo.Constructor.Parameters {
+		for idx, param := range constructor.Parameters {
 			if idx < len(args) {
 				i.env.Define(param.Name.Value, args[idx])
 			}
@@ -130,13 +178,13 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 
 		// For constructors with return types, initialize the Result variable
 		// This allows constructors to use "Result := Self" to return the object
-		if classInfo.Constructor.ReturnType != nil {
+		if constructor.ReturnType != nil {
 			i.env.Define("Result", obj)
-			i.env.Define(classInfo.Constructor.Name.Value, obj)
+			i.env.Define(constructor.Name.Value, obj)
 		}
 
 		// Execute constructor body
-		result := i.Eval(classInfo.Constructor.Body)
+		result := i.Eval(constructor.Body)
 		if isError(result) {
 			i.env = savedEnv
 			return result
@@ -170,8 +218,15 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			}
 		}
 
-		// Check if this identifier refers to a class
-		if classInfo, exists := i.classes[ident.Value]; exists {
+		// Task 9.68: Check if this identifier refers to a class (case-insensitive)
+		var classInfo *ClassInfo
+		for className, class := range i.classes {
+			if strings.EqualFold(className, ident.Value) {
+				classInfo = class
+				break
+			}
+		}
+		if classInfo != nil {
 			// This is static access: TClass.Variable
 			memberName := ma.Member.Value
 
@@ -181,6 +236,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			}
 
 			// 2. Task 9.32: Try constructors (with inheritance support)
+			// Task 9.68: Also handle implicit parameterless constructor
 			if classInfo.HasConstructor(memberName) {
 				// Find the constructor in the hierarchy
 				constructor := i.lookupConstructorInHierarchy(classInfo, memberName)
@@ -197,9 +253,16 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 						}
 						return i.evalMethodCall(methodCall)
 					}
-					// Constructor has parameters - return error for now
-					// (constructor pointers not yet supported)
-					return i.newErrorWithLocation(ma, "constructor '%s' requires arguments - use parentheses", memberName)
+					// Task 9.68: Constructor has parameters - but allow implicit parameterless call
+					// Create synthetic MethodCallExpression with 0 arguments
+					// The evalMethodCall will handle the implicit parameterless constructor
+					methodCall := &ast.MethodCallExpression{
+						Token:     ma.Token,
+						Object:    ma.Object, // TClassName identifier
+						Method:    ma.Member, // Constructor name
+						Arguments: []ast.Expression{},
+					}
+					return i.evalMethodCall(methodCall)
 				}
 			}
 
@@ -276,6 +339,55 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			return i.newErrorWithLocation(ma, "field '%s' not found in record '%s'", ma.Member.Value, recordVal.RecordType.Name)
 		}
 		return fieldValue
+	}
+
+	// Task 9.68: Check if it's a ClassInfoValue (class type identifier)
+	// This handles cases like TObj.Create where TObj was evaluated to a ClassInfoValue
+	if classInfoVal, ok := objVal.(*ClassInfoValue); ok {
+		classInfo := classInfoVal.ClassInfo
+		memberName := ma.Member.Value
+
+		// Try constructors (same logic as above for identifier check)
+		if classInfo.HasConstructor(memberName) {
+			constructor := i.lookupConstructorInHierarchy(classInfo, memberName)
+			if constructor != nil {
+				// Auto-invoke constructor (with or without parameters)
+				methodCall := &ast.MethodCallExpression{
+					Token:     ma.Token,
+					Object:    ma.Object,
+					Method:    ma.Member,
+					Arguments: []ast.Expression{},
+				}
+				return i.evalMethodCall(methodCall)
+			}
+		}
+
+		// Try class methods
+		if classMethod := i.lookupClassMethodInHierarchy(classInfo, memberName); classMethod != nil {
+			if len(classMethod.Parameters) == 0 {
+				methodCall := &ast.MethodCallExpression{
+					Token:     ma.Token,
+					Object:    ma.Object,
+					Method:    ma.Member,
+					Arguments: []ast.Expression{},
+				}
+				return i.evalMethodCall(methodCall)
+			}
+			paramTypes := make([]types.Type, len(classMethod.Parameters))
+			for idx, param := range classMethod.Parameters {
+				if param.Type != nil {
+					paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+				}
+			}
+			var returnType types.Type
+			if classMethod.ReturnType != nil {
+				returnType = i.getTypeFromAnnotation(classMethod.ReturnType)
+			}
+			pointerType := types.NewFunctionPointerType(paramTypes, returnType)
+			return NewFunctionPointerValue(classMethod, i.env, nil, pointerType)
+		}
+
+		return i.newErrorWithLocation(ma, "member '%s' not found in class '%s'", memberName, classInfo.Name)
 	}
 
 	// Check if it's an object instance
@@ -876,12 +988,46 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			classMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, mc.Method.Value, true)
 			instanceMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, mc.Method.Value, false)
 
-			// Also check constructor overloads separately (Task 9.68)
-			constructorOverloads := classInfo.ConstructorOverloads[mc.Method.Value]
+			// Task 9.68: getMethodOverloadsInHierarchy now handles constructors automatically
+			constructorOverloads := i.getMethodOverloadsInHierarchy(classInfo, mc.Method.Value, false)
 			if len(constructorOverloads) == 0 && mc.Method.Value == "Create" {
 				// Fallback to checking if there's a single constructor
 				if constructor := i.lookupConstructorInHierarchy(classInfo, mc.Method.Value); constructor != nil {
 					constructorOverloads = []*ast.FunctionDecl{constructor}
+				}
+			}
+
+			// Task 9.68: Special handling for constructor calls with 0 arguments
+			// If no parameterless constructor exists but we're calling with 0 args,
+			// allow it as an implicit parameterless constructor (just initialize fields)
+			if len(mc.Arguments) == 0 && len(constructorOverloads) > 0 {
+				hasParameterlessConstructor := false
+				for _, ctor := range constructorOverloads {
+					if len(ctor.Parameters) == 0 {
+						hasParameterlessConstructor = true
+						break
+					}
+				}
+				if !hasParameterlessConstructor {
+					// Create object with default field values (no constructor body execution)
+					obj := NewObjectInstance(classInfo)
+					for fieldName, fieldType := range classInfo.Fields {
+						var defaultValue Value
+						switch fieldType {
+						case types.INTEGER:
+							defaultValue = &IntegerValue{Value: 0}
+						case types.FLOAT:
+							defaultValue = &FloatValue{Value: 0.0}
+						case types.STRING:
+							defaultValue = &StringValue{Value: ""}
+						case types.BOOLEAN:
+							defaultValue = &BooleanValue{Value: false}
+						default:
+							defaultValue = &NilValue{}
+						}
+						obj.SetField(fieldName, defaultValue)
+					}
+					return obj
 				}
 			}
 
@@ -1436,10 +1582,26 @@ func (i *Interpreter) resolveMethodOverload(className, methodName string, overlo
 
 // getMethodOverloadsInHierarchy collects all overloads of a method from the class hierarchy.
 // Task 9.67: Support inheritance for method overloads
+// Task 9.68: Also includes constructor overloads when the method name is a constructor
 func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, methodName string, isClassMethod bool) []*ast.FunctionDecl {
 	var result []*ast.FunctionDecl
 
-	// Walk up the class hierarchy
+	// Task 9.68: Check if this is a constructor call
+	// Constructors are stored separately in ConstructorOverloads
+	constructorOverloads := classInfo.ConstructorOverloads[methodName]
+	if len(constructorOverloads) > 0 {
+		// This is a constructor - include constructor overloads
+		result = append(result, constructorOverloads...)
+
+		// Task 9.68: Check if we need to handle parameterless constructor calls
+		// DWScript allows calling constructors with no arguments even if only
+		// parameterized constructors are declared (implicit parameterless constructor)
+		// Note: The actual "no-op" constructor behavior is handled in evalMethodCall
+		// by creating an object and calling the selected constructor
+		return result
+	}
+
+	// Walk up the class hierarchy for regular methods
 	for classInfo != nil {
 		var overloads []*ast.FunctionDecl
 		if isClassMethod {
