@@ -43,7 +43,9 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 	}
 
 	// Store regular function in the registry
-	i.functions[fn.Name.Value] = fn
+	// Task 9.66: Support overloading by storing multiple functions per name
+	funcName := fn.Name.Value
+	i.functions[funcName] = append(i.functions[funcName], fn)
 	return &NilValue{}
 }
 
