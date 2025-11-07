@@ -70,12 +70,12 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 
 	expectInstructions(t, chunk, []expectedInstruction{
 		{OpLoadConst0, 0, 0},
-		{OpStoreLocal, 0, 0},
-		{OpLoadLocal, 0, 0},
+		{OpStoreGlobal, 0, 0},
+		{OpLoadGlobal, 0, 0},
 		{OpLoadConst1, 0, 0},
 		{OpAddInt, 0, 0},
-		{OpStoreLocal, 0, 0},
-		{OpLoadLocal, 0, 0},
+		{OpStoreGlobal, 0, 0},
+		{OpLoadGlobal, 0, 0},
 		{OpReturn, 1, 0},
 	})
 
@@ -175,17 +175,17 @@ func TestCompiler_IfElse(t *testing.T) {
 
 	expectInstructions(t, chunk, []expectedInstruction{
 		{OpLoadTrue, 0, 0},
-		{OpStoreLocal, 0, 0},
+		{OpStoreGlobal, 0, 0},
 		{OpLoadConst0, 0, 0},
-		{OpStoreLocal, 0, 1},
-		{OpLoadLocal, 0, 0},
+		{OpStoreGlobal, 0, 1},
+		{OpLoadGlobal, 0, 0},
 		{OpJumpIfFalse, 0, 3},
 		{OpLoadConst1, 0, 0},
-		{OpStoreLocal, 0, 1},
+		{OpStoreGlobal, 0, 1},
 		{OpJump, 0, 2},
 		{OpLoadConst, 0, 2},
-		{OpStoreLocal, 0, 1},
-		{OpLoadLocal, 0, 1},
+		{OpStoreGlobal, 0, 1},
+		{OpLoadGlobal, 0, 1},
 		{OpReturn, 1, 0},
 	})
 
@@ -282,8 +282,8 @@ func TestCompiler_CallExpression(t *testing.T) {
 
 	expectInstructions(t, chunk, []expectedInstruction{
 		{OpLoadNil, 0, 0},
-		{OpStoreLocal, 0, 0},
-		{OpLoadLocal, 0, 0},
+		{OpStoreGlobal, 0, 0},
+		{OpLoadGlobal, 0, 0},
 		{OpLoadConst0, 0, 0},
 		{OpLoadConst1, 0, 0},
 		{OpCallIndirect, 2, 0},
@@ -298,6 +298,216 @@ func TestCompiler_CallExpression(t *testing.T) {
 	}
 	if got := chunk.GetConstant(1).AsInt(); got != 2 {
 		t.Errorf("Constant 1 = %d, want 2", got)
+	}
+}
+
+func TestCompiler_LambdaCapturesLocal(t *testing.T) {
+	intType := &ast.TypeAnnotation{Name: "Integer"}
+
+	countIdent := &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(2, 5)}, Value: "count", Type: intType}
+	incrementIdent := &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "increment", Pos: pos(3, 5)}, Value: "increment"}
+
+	innerLambda := &ast.LambdaExpression{
+		Token:      lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(4, 10)},
+		ReturnType: intType,
+		Body: &ast.BlockStatement{
+			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			Statements: []ast.Statement{
+				&ast.AssignmentStatement{
+					Token:    lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(5, 3)},
+					Operator: lexer.ASSIGN,
+					Target: &ast.Identifier{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(5, 3)},
+						Value: "count",
+						Type:  intType,
+					},
+					Value: &ast.BinaryExpression{
+						Token:    lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(5, 15)},
+						Operator: "+",
+						Left: &ast.Identifier{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(5, 12)},
+							Value: "count",
+							Type:  intType,
+						},
+						Right: &ast.IntegerLiteral{
+							Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(5, 17)},
+							Value: 1,
+							Type:  intType,
+						},
+						Type: intType,
+					},
+				},
+				&ast.ReturnStatement{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(6, 3)},
+					ReturnValue: &ast.Identifier{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(6, 11)},
+						Value: "count",
+						Type:  intType,
+					},
+				},
+			},
+		},
+	}
+
+	outerLambda := &ast.LambdaExpression{
+		Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(1, 10)},
+		Body: &ast.BlockStatement{
+			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			Statements: []ast.Statement{
+				&ast.VarDeclStatement{
+					Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(2, 1)},
+					Names: []*ast.Identifier{
+						countIdent,
+					},
+					Type: intType,
+					Value: &ast.IntegerLiteral{
+						Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(2, 15)},
+						Value: 0,
+						Type:  intType,
+					},
+				},
+				&ast.VarDeclStatement{
+					Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(3, 1)},
+					Names: []*ast.Identifier{
+						incrementIdent,
+					},
+					Value: innerLambda,
+				},
+				&ast.ReturnStatement{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(4, 1)},
+					ReturnValue: &ast.Identifier{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "increment", Pos: pos(4, 9)},
+						Value: "increment",
+					},
+				},
+			},
+		},
+	}
+
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.VarDeclStatement{
+				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+				Names: []*ast.Identifier{
+					{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "makeCounter", Pos: pos(1, 5)},
+						Value: "makeCounter",
+					},
+				},
+				Value: outerLambda,
+			},
+		},
+	}
+
+	compiler := NewCompiler("lambda_test")
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+
+	outerFn := firstFunctionValue(chunk.Constants)
+	if outerFn == nil {
+		t.Fatalf("expected outer lambda function constant")
+	}
+	if len(outerFn.UpvalueDefs) != 0 {
+		t.Fatalf("outer lambda should not capture upvalues, got %d", len(outerFn.UpvalueDefs))
+	}
+
+	innerFn := firstFunctionValue(outerFn.Chunk.Constants)
+	if innerFn == nil {
+		t.Fatalf("expected inner lambda function constant")
+	}
+	if len(innerFn.UpvalueDefs) != 1 {
+		t.Fatalf("inner lambda should capture one upvalue, got %d", len(innerFn.UpvalueDefs))
+	}
+	if !innerFn.UpvalueDefs[0].IsLocal {
+		t.Fatalf("inner lambda upvalue should capture parent local slot")
+	}
+
+	hasLoadUpvalue := false
+	hasStoreUpvalue := false
+	for _, inst := range innerFn.Chunk.Code {
+		switch inst.OpCode() {
+		case OpLoadUpvalue:
+			hasLoadUpvalue = true
+		case OpStoreUpvalue:
+			hasStoreUpvalue = true
+		}
+	}
+
+	if !hasLoadUpvalue {
+		t.Fatalf("inner lambda bytecode missing LOAD_UPVALUE instruction")
+	}
+	if !hasStoreUpvalue {
+		t.Fatalf("inner lambda bytecode missing STORE_UPVALUE instruction")
+	}
+}
+
+func TestCompiler_MemberAccess(t *testing.T) {
+	objIdent := &ast.Identifier{
+		Token: lexer.Token{Type: lexer.IDENT, Literal: "obj", Pos: pos(1, 5)},
+		Value: "obj",
+	}
+	memberName := &ast.Identifier{
+		Token: lexer.Token{Type: lexer.IDENT, Literal: "value", Pos: pos(2, 8)},
+		Value: "value",
+	}
+
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.VarDeclStatement{
+				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+				Names: []*ast.Identifier{objIdent},
+			},
+			&ast.AssignmentStatement{
+				Token:    lexer.Token{Type: lexer.IDENT, Literal: "obj", Pos: pos(2, 1)},
+				Operator: lexer.ASSIGN,
+				Target: &ast.MemberAccessExpression{
+					Token:  lexer.Token{Type: lexer.DOT, Literal: ".", Pos: pos(2, 6)},
+					Object: &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "obj", Pos: pos(2, 1)}, Value: "obj"},
+					Member: memberName,
+				},
+				Value: &ast.IntegerLiteral{
+					Token: lexer.Token{Type: lexer.INT, Literal: "42", Pos: pos(2, 15)},
+					Value: 42,
+				},
+			},
+			&ast.ReturnStatement{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(3, 1)},
+				ReturnValue: &ast.MemberAccessExpression{
+					Token:  lexer.Token{Type: lexer.DOT, Literal: ".", Pos: pos(3, 6)},
+					Object: &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "obj", Pos: pos(3, 1)}, Value: "obj"},
+					Member: memberName,
+				},
+			},
+		},
+	}
+
+	compiler := NewCompiler("member_test")
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+
+	expectInstructions(t, chunk, []expectedInstruction{
+		{OpLoadNil, 0, 0},
+		{OpStoreGlobal, 0, 0},
+		{OpLoadGlobal, 0, 0},
+		{OpLoadConst0, 0, 0},
+		{OpSetProperty, 0, 1},
+		{OpLoadGlobal, 0, 0},
+		{OpGetProperty, 0, 1},
+		{OpReturn, 1, 0},
+	})
+
+	if chunk.ConstantCount() != 2 {
+		t.Fatalf("ConstantCount() = %d, want 2", chunk.ConstantCount())
+	}
+	if got := chunk.GetConstant(0).AsInt(); got != 42 {
+		t.Errorf("Constant 0 = %d, want 42", got)
+	}
+	if got := chunk.GetConstant(1).AsString(); got != "value" {
+		t.Errorf("Constant 1 = %q, want \"value\"", got)
 	}
 }
 
@@ -371,17 +581,17 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 
 	expectedOpcodes := []OpCode{
 		OpLoadConst0,
-		OpStoreLocal,
-		OpLoadLocal,
+		OpStoreGlobal,
+		OpLoadGlobal,
 		OpLoadConst1,
 		OpAddInt,
-		OpStoreLocal,
-		OpLoadLocal,
+		OpStoreGlobal,
+		OpLoadGlobal,
 		OpLoadConst,
 		OpGreater,
 		OpJumpIfTrue,
 		OpLoop,
-		OpLoadLocal,
+		OpLoadGlobal,
 		OpReturn,
 	}
 
@@ -472,6 +682,15 @@ type expectedInstruction struct {
 	b  uint16
 }
 
+func firstFunctionValue(constants []Value) *FunctionObject {
+	for _, val := range constants {
+		if val.IsFunction() {
+			return val.AsFunction()
+		}
+	}
+	return nil
+}
+
 func expectInstructions(t *testing.T, chunk *Chunk, expected []expectedInstruction) {
 	t.Helper()
 
@@ -500,6 +719,7 @@ func pos(line, column int) lexer.Position {
 func executeChunk(t testing.TB, chunk *Chunk) Value {
 	t.Helper()
 	stack := make([]Value, 0, 16)
+	globals := make(map[int]Value)
 	push := func(v Value) {
 		stack = append(stack, v)
 	}
@@ -552,6 +772,16 @@ func executeChunk(t testing.TB, chunk *Chunk) Value {
 				t.Fatalf("local index %d out of range", idx)
 			}
 			locals[idx] = pop()
+		case OpLoadGlobal:
+			idx := int(inst.B())
+			if val, ok := globals[idx]; ok {
+				push(val)
+			} else {
+				push(NilValue())
+			}
+		case OpStoreGlobal:
+			idx := int(inst.B())
+			globals[idx] = pop()
 		case OpLoadLocal:
 			idx := int(inst.B())
 			if idx >= len(locals) {

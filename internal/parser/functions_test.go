@@ -1093,6 +1093,253 @@ func TestOverloadDirective(t *testing.T) {
 	}
 }
 
+// TestOverloadDirectiveComprehensive tests parsing of the overload directive on all declaration types
+func TestOverloadDirectiveComprehensive(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected func(*testing.T, ast.Node)
+	}{
+		{
+			name: "class method with overload directive",
+			input: `type TTest = class
+				public
+					function Calculate(x: Integer): Float; overload;
+				end;`,
+			expected: func(t *testing.T, node ast.Node) {
+				prog, ok := node.(*ast.Program)
+				if !ok {
+					t.Fatalf("node is not *ast.Program, got %T", node)
+				}
+				if len(prog.Statements) != 1 {
+					t.Fatalf("program has %d statements, want 1", len(prog.Statements))
+				}
+				classDecl, ok := prog.Statements[0].(*ast.ClassDecl)
+				if !ok {
+					t.Fatalf("statement is not *ast.ClassDecl, got %T", prog.Statements[0])
+				}
+				if len(classDecl.Methods) != 1 {
+					t.Fatalf("class has %d methods, want 1", len(classDecl.Methods))
+				}
+				method := classDecl.Methods[0]
+				if method.Name.Value != "Calculate" {
+					t.Errorf("method name = %q, want 'Calculate'", method.Name.Value)
+				}
+				if !method.IsOverload {
+					t.Error("method.IsOverload should be true")
+				}
+			},
+		},
+		{
+			name: "class method with virtual and overload directives",
+			input: `type TBase = class
+				public
+					function Process(x: Integer): String; virtual; overload;
+				end;`,
+			expected: func(t *testing.T, node ast.Node) {
+				prog, ok := node.(*ast.Program)
+				if !ok {
+					t.Fatalf("node is not *ast.Program, got %T", node)
+				}
+				classDecl := prog.Statements[0].(*ast.ClassDecl)
+				method := classDecl.Methods[0]
+				if !method.IsVirtual {
+					t.Error("method.IsVirtual should be true")
+				}
+				if !method.IsOverload {
+					t.Error("method.IsOverload should be true")
+				}
+			},
+		},
+		{
+			name: "constructor with overload directive",
+			input: `type TPoint = class
+				public
+					constructor Create(x, y: Float); overload;
+				end;`,
+			expected: func(t *testing.T, node ast.Node) {
+				prog, ok := node.(*ast.Program)
+				if !ok {
+					t.Fatalf("node is not *ast.Program, got %T", node)
+				}
+				classDecl := prog.Statements[0].(*ast.ClassDecl)
+				if len(classDecl.Methods) != 1 {
+					t.Fatalf("class has %d methods, want 1", len(classDecl.Methods))
+				}
+				method := classDecl.Methods[0]
+				if method.Name.Value != "Create" {
+					t.Errorf("constructor name = %q, want 'Create'", method.Name.Value)
+				}
+				if !method.IsConstructor {
+					t.Error("method.IsConstructor should be true")
+				}
+				if !method.IsOverload {
+					t.Error("method.IsOverload should be true")
+				}
+			},
+		},
+		{
+			name: "class method with overload directive",
+			input: `type THelper = class
+				public
+					class function Parse(s: String): Integer; overload;
+				end;`,
+			expected: func(t *testing.T, node ast.Node) {
+				prog, ok := node.(*ast.Program)
+				if !ok {
+					t.Fatalf("node is not *ast.Program, got %T", node)
+				}
+				classDecl := prog.Statements[0].(*ast.ClassDecl)
+				method := classDecl.Methods[0]
+				if method.Name.Value != "Parse" {
+					t.Errorf("method name = %q, want 'Parse'", method.Name.Value)
+				}
+				if !method.IsClassMethod {
+					t.Error("method.IsClassMethod should be true")
+				}
+				if !method.IsOverload {
+					t.Error("method.IsOverload should be true")
+				}
+			},
+		},
+		{
+			name: "record method with overload directive",
+			input: `type TVector = record
+				x, y: Float;
+				function Length(): Float; overload;
+			end;`,
+			expected: func(t *testing.T, node ast.Node) {
+				prog, ok := node.(*ast.Program)
+				if !ok {
+					t.Fatalf("node is not *ast.Program, got %T", node)
+				}
+				recordDecl, ok := prog.Statements[0].(*ast.RecordDecl)
+				if !ok {
+					t.Fatalf("statement is not *ast.RecordDecl, got %T", prog.Statements[0])
+				}
+				if len(recordDecl.Methods) != 1 {
+					t.Fatalf("record has %d methods, want 1", len(recordDecl.Methods))
+				}
+				method := recordDecl.Methods[0]
+				if method.Name.Value != "Length" {
+					t.Errorf("method name = %q, want 'Length'", method.Name.Value)
+				}
+				if !method.IsOverload {
+					t.Error("method.IsOverload should be true")
+				}
+			},
+		},
+		{
+			name: "multiple overloaded functions in sequence",
+			input: `function Test(x: Integer): Integer; overload; begin end;
+function Test(x, y: Integer): Integer; overload; begin end;
+function Test(s: String): String; overload; begin end;`,
+			expected: func(t *testing.T, node ast.Node) {
+				prog, ok := node.(*ast.Program)
+				if !ok {
+					t.Fatalf("node is not *ast.Program, got %T", node)
+				}
+				if len(prog.Statements) != 3 {
+					t.Fatalf("program has %d statements, want 3", len(prog.Statements))
+				}
+				for i, stmt := range prog.Statements {
+					fn, ok := stmt.(*ast.FunctionDecl)
+					if !ok {
+						t.Fatalf("statement %d is not *ast.FunctionDecl, got %T", i, stmt)
+					}
+					if fn.Name.Value != "Test" {
+						t.Errorf("function %d name = %q, want 'Test'", i, fn.Name.Value)
+					}
+					if !fn.IsOverload {
+						t.Errorf("function %d IsOverload should be true", i)
+					}
+				}
+			},
+		},
+		{
+			name: "forward declaration with overload",
+			input: `function Helper(x: Integer): String; overload;
+function Helper(x: Float): String; overload;`,
+			expected: func(t *testing.T, node ast.Node) {
+				prog, ok := node.(*ast.Program)
+				if !ok {
+					t.Fatalf("node is not *ast.Program, got %T", node)
+				}
+				if len(prog.Statements) != 2 {
+					t.Fatalf("program has %d statements, want 2", len(prog.Statements))
+				}
+				for i, stmt := range prog.Statements {
+					fn, ok := stmt.(*ast.FunctionDecl)
+					if !ok {
+						t.Fatalf("statement %d is not *ast.FunctionDecl, got %T", i, stmt)
+					}
+					if !fn.IsOverload {
+						t.Errorf("function %d IsOverload should be true", i)
+					}
+					if fn.Body != nil {
+						t.Errorf("forward declaration %d should have no body", i)
+					}
+				}
+			},
+		},
+		{
+			name: "overload with override directive",
+			input: `type TDerived = class
+				public
+					function DoWork(x: Integer): String; override; overload;
+				end;`,
+			expected: func(t *testing.T, node ast.Node) {
+				prog, ok := node.(*ast.Program)
+				if !ok {
+					t.Fatalf("node is not *ast.Program, got %T", node)
+				}
+				classDecl := prog.Statements[0].(*ast.ClassDecl)
+				method := classDecl.Methods[0]
+				if !method.IsOverride {
+					t.Error("method.IsOverride should be true")
+				}
+				if !method.IsOverload {
+					t.Error("method.IsOverload should be true")
+				}
+			},
+		},
+		{
+			name: "abstract method with overload directive",
+			input: `type TShape = class abstract
+				public
+					function Area(scale: Float): Float; abstract; overload;
+				end;`,
+			expected: func(t *testing.T, node ast.Node) {
+				prog, ok := node.(*ast.Program)
+				if !ok {
+					t.Fatalf("node is not *ast.Program, got %T", node)
+				}
+				classDecl := prog.Statements[0].(*ast.ClassDecl)
+				if !classDecl.IsAbstract {
+					t.Error("class should be abstract")
+				}
+				method := classDecl.Methods[0]
+				if !method.IsAbstract {
+					t.Error("method.IsAbstract should be true")
+				}
+				if !method.IsOverload {
+					t.Error("method.IsOverload should be true")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			tt.expected(t, program)
+		})
+	}
+}
+
 func TestOptionalParameters(t *testing.T) {
 	tests := []struct {
 		name     string

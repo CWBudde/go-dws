@@ -129,10 +129,8 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			if !p.expectPeek(lexer.SEMICOLON) {
 				return nil
 			}
-			// Abstract methods have no body, return early
-			// End position is at the semicolon after 'abstract'
-			fn.EndPos = p.endPosFromToken(p.curToken)
-			return fn
+			// Continue parsing directives (e.g., overload)
+			// Don't return early here
 		} else if p.peekTokenIs(lexer.EXTERNAL) {
 			// External method: procedure Hello; external 'world';
 			p.nextToken() // move to 'external'
@@ -147,10 +145,8 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			if !p.expectPeek(lexer.SEMICOLON) {
 				return nil
 			}
-			// External methods have no body, return early
-			// End position is at the semicolon after 'external' or external name
-			fn.EndPos = p.endPosFromToken(p.curToken)
-			return fn
+			// Continue parsing directives (e.g., overload)
+			// Don't return early here
 		} else if p.peekTokenIs(lexer.OVERLOAD) {
 			// Overload directive: function Test(x: Integer): Float; overload;
 			p.nextToken() // move to 'overload'
