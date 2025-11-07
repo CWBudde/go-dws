@@ -1157,12 +1157,15 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
   - [ ] Add method: `func (p *Program) DefinitionAt(pos Position) (*Position, bool)`
   - [ ] Return definition location for identifier at position
 
-- [ ] **10.17 Update error formatting for better IDE integration**
-  - [ ] Ensure error messages are clear and concise
-  - [ ] Remove redundant position info from message text
-  - [ ] Use consistent error message format
-  - [ ] Add suggested fixes where applicable (future enhancement)
-  - [ ] Document error message format
+- [x] **10.17 Update error formatting for better IDE integration** ✅ DONE
+  - [x] Ensure error messages are clear and concise
+  - [x] Remove redundant position info from message text
+  - [x] Use consistent error message format
+  - [x] Improved `convertSemanticError` to extract position from error strings
+  - [x] Added `extractPositionFromError` helper function
+  - [x] Documented error message format standards in package documentation
+  - [x] Comprehensive tests for error formatting
+  - [ ] Add suggested fixes where applicable (future enhancement - deferred)
 
 - [ ] **10.18 Write unit tests for structured errors**
   - [ ] Create `pkg/dwscript/error_test.go`
