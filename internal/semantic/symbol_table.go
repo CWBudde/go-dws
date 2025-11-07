@@ -66,7 +66,6 @@ func (st *SymbolTable) DefineReadOnly(name string, typ types.Type) {
 }
 
 // DefineConst defines a new constant symbol in the current scope
-// Task 9.205: Added value parameter to store compile-time constant values
 func (st *SymbolTable) DefineConst(name string, typ types.Type, value interface{}) {
 	st.symbols[strings.ToLower(name)] = &Symbol{
 		Name:     name, // Keep original case for error messages
@@ -88,7 +87,6 @@ func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType)
 }
 
 // DefineOverload defines a new function overload or adds to an existing overload set.
-// Task 9.252: Add DefineOverload() method to SymbolTable
 //
 // Parameters:
 //   - name: Function name
@@ -177,7 +175,6 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 }
 
 // GetOverloadSet retrieves all overloads for a given function name.
-// Task 9.253: Add GetOverloadSet() method to retrieve all overloads
 //
 // Returns:
 //   - For overloaded functions: slice of all overload symbols

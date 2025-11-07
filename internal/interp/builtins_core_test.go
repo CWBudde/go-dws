@@ -11,7 +11,7 @@ import (
 )
 
 // TestHighWithTypeMetaValues tests High() with type meta-values.
-// Task 9.134: High() should work with type names (Integer, Float, Boolean).
+// High() should work with type names (Integer, Float, Boolean).
 func TestHighWithTypeMetaValues(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -63,7 +63,7 @@ func TestHighWithTypeMetaValues(t *testing.T) {
 }
 
 // TestLowWithTypeMetaValues tests Low() with type meta-values.
-// Task 9.134: Low() should work with type names (Integer, Float, Boolean).
+// Low() should work with type names (Integer, Float, Boolean).
 func TestLowWithTypeMetaValues(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -258,7 +258,7 @@ func TestHighLowDirectValues(t *testing.T) {
 }
 
 // TestTypeMetaValueInEnvironment tests that type meta-values are registered in the environment.
-// Task 9.133: Type names should be available as identifiers.
+// Type names should be available as identifiers.
 func TestTypeMetaValueInEnvironment(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -315,7 +315,6 @@ func TestTypeMetaValueInEnvironment(t *testing.T) {
 }
 
 // TestEnumTypeMetaValues tests enum type names as runtime values.
-// Task 9.161: Enum type names should be available as type meta-values.
 func TestEnumTypeMetaValues(t *testing.T) {
 	tests := []struct {
 		name     string

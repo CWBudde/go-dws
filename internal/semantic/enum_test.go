@@ -210,7 +210,6 @@ func TestEnumOrdinalValues(t *testing.T) {
 }
 
 // TestEnumTypeMetaValues tests enum type names as runtime values.
-// Task 9.161: Enum type names should be usable in expressions.
 func TestEnumTypeMetaValues(t *testing.T) {
 	tests := []struct {
 		name  string

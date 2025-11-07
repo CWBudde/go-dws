@@ -67,11 +67,11 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 
 	// Store enum type metadata in environment with special key
 	// This allows variable declarations to resolve the type
-	// Task 9.225: Normalize to lowercase for case-insensitive lookups
+	// Normalize to lowercase for case-insensitive lookups
 	enumTypeKey := "__enum_type_" + strings.ToLower(enumName)
 	i.env.Define(enumTypeKey, &EnumTypeValue{EnumType: enumType})
 
-	// Task 9.161: Register enum type name as a TypeMetaValue
+	// Register enum type name as a TypeMetaValue
 	// This allows the type name to be used as a runtime value in expressions
 	// like High(TColor) or Low(TColor), just like built-in types (Integer, Float, etc.)
 	i.env.Define(enumName, NewTypeMetaValue(enumType, enumName))

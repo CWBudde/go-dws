@@ -8,7 +8,6 @@ import (
 )
 
 // TestConstDeclarations tests the CLI with const declaration scripts
-// Task 8.260: Create CLI integration tests for const declarations
 func TestConstDeclarations(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

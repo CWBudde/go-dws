@@ -105,7 +105,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 
 		// Resolve field type using type expression
-		// Task 9.170.1: Updated to support inline array types
 		fieldType := i.resolveTypeFromExpression(field.Type)
 		if fieldType == nil {
 			return i.newErrorWithLocation(field, "unknown or invalid type for field '%s'", field.Name.Value)

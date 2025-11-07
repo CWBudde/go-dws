@@ -12,8 +12,6 @@ import (
 // ============================================================================
 
 // analyzeRecordDecl analyzes a record type declaration.
-// Task 8.68: Register record types in symbol table
-// Task 8.69: Validate record field declarations
 func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	if decl == nil {
 		return
@@ -21,7 +19,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 	recordName := decl.Name.Value
 
-	// Task 8.68: Check if record is already declared
+	// Check if record is already declared
 	// Use lowercase for case-insensitive duplicate check
 	if _, exists := a.records[strings.ToLower(recordName)]; exists {
 		a.addError("record type '%s' already declared at %s", recordName, decl.Token.Pos.String())
@@ -31,7 +29,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	// Create the record type
 	recordType := types.NewRecordType(recordName, make(map[string]types.Type))
 
-	// Task 8.69: Validate field declarations
+	// Validate field declarations
 	// Track field names to detect duplicates
 	fieldNames := make(map[string]bool)
 
@@ -126,11 +124,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	a.symbols.Define(recordName, recordType)
 }
 
-// analyzeRecordLiteral analyzes a record literal expression.
-// Task 8.70: Type-check record literals (field names/types match, positional vs named)
-// Task 9.175: Support anonymous record literals (require expectedType)
-// Task 9.176: Support typed record literals (use lit.TypeName)
-// Task 8.71: Type-check record field access (field exists, visibility rules)
+// analyzeRecordFieldAccess analyzes access to a record field.
 func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string) types.Type {
 	// Get the type of the object
 	objType := a.analyzeExpression(obj)
@@ -148,7 +142,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 	// Check if the field exists
 	fieldType, exists := recordType.Fields[fieldName]
 	if !exists {
-		// Task 9.83: Check if a helper provides this member
+		// Check if a helper provides this member
 		_, helperMethod := a.hasHelperMethod(objType, fieldName)
 		if helperMethod != nil {
 			return helperMethod

@@ -8,7 +8,6 @@ import (
 )
 
 // TestControlFlowStatements tests the CLI with control flow scripts
-// Task 8.235u: Create CLI integration tests for control flow statements
 func TestControlFlowStatements(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

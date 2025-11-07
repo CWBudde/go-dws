@@ -6,7 +6,6 @@ import (
 )
 
 // builtinArrayCopy creates a deep copy of an array.
-// Task 9.67: Implement Copy(arr) for arrays
 //
 // For dynamic arrays: creates new array with same elements
 // For static arrays: copies elements to new array
@@ -26,7 +25,6 @@ func (i *Interpreter) builtinArrayCopy(arr *ArrayValue) Value {
 }
 
 // builtinArrayIndexOf searches an array for a value and returns its 0-based index.
-// Tasks 9.69-9.70: Implement IndexOf(arr, value) and IndexOf(arr, value, startIndex)
 //
 // Returns 0-based index of first occurrence (0 = first element)
 // Returns -1 if not found or invalid startIndex
@@ -50,7 +48,6 @@ func (i *Interpreter) builtinArrayIndexOf(arr *ArrayValue, value Value, startInd
 }
 
 // builtinArrayContains checks if an array contains a specific value.
-// Task 9.72: Implement Contains(arr, value)
 //
 // Returns true if value is found in array, false otherwise
 // Uses builtinArrayIndexOf internally
@@ -69,7 +66,6 @@ func (i *Interpreter) builtinArrayContains(arr *ArrayValue, value Value) Value {
 }
 
 // builtinArrayReverse reverses an array in place.
-// Task 9.74: Implement Reverse(arr)
 //
 // Modifies array by reversing elements in place
 // Swaps elements from both ends moving inward
@@ -89,7 +85,6 @@ func (i *Interpreter) builtinArrayReverse(arr *ArrayValue) Value {
 }
 
 // builtinArraySort sorts an array in place using default comparison.
-// Task 9.76: Implement Sort(arr)
 //
 // Sorts integers numerically, strings lexicographically
 // Uses Go's sort.Slice() for efficient sorting
@@ -162,7 +157,6 @@ func (i *Interpreter) builtinArraySort(arr *ArrayValue) Value {
 }
 
 // builtinArraySortWithComparator sorts an array in place using a custom comparator function.
-// Task 9.33: Implement Sort(arr, comparator)
 //
 // The comparator function must:
 // - Accept 2 parameters of the same type as the array elements

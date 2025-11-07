@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// Task 7.139: External Class Semantic Tests
+// External Class Semantic Tests
 // ============================================================================
 
 func TestExternalClassSemantics(t *testing.T) {

@@ -131,7 +131,7 @@ func TestNilValue(t *testing.T) {
 	}
 }
 
-// Task 9.133: Test TypeMetaValue
+// Test TypeMetaValue
 func TestTypeMetaValue(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -277,7 +277,7 @@ func TestValueInterface(_ *testing.T) {
 	var _ Value = &StringValue{}
 	var _ Value = &BooleanValue{}
 	var _ Value = &NilValue{}
-	var _ Value = &VariantValue{} // Task 9.222
+	var _ Value = &VariantValue{}
 }
 
 // Test GoInt conversion helper

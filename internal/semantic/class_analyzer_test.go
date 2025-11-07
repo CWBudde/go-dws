@@ -348,7 +348,6 @@ func TestMemberAccessNonObjectType(t *testing.T) {
 		var x: Integer := 42;
 		var y := x.SomeField;
 	`
-	// Task 9.83: With helper support, the error message changed
 	expectError(t, input, "requires a helper")
 }
 

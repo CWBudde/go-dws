@@ -487,7 +487,7 @@ end;
 }
 
 func TestPropertyAccessInExpression(t *testing.T) {
-	// Task 8.43: Property access is parsed as member access
+	// Property access is parsed as member access
 	// This is already handled by existing expression parser
 	input := "obj.Name"
 
@@ -515,7 +515,7 @@ func TestPropertyAccessInExpression(t *testing.T) {
 }
 
 func TestPropertyAssignment(t *testing.T) {
-	// Task 8.44: Property assignment is parsed as assignment to member
+	// Property assignment is parsed as assignment to member
 	// This is already handled by existing statement parser
 	input := "obj.Name := 'John';"
 

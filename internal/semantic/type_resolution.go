@@ -34,20 +34,20 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (types.Typ
 // Handles basic types, class types, enum types, inline function pointer types, and inline array types
 // DWScript is case-insensitive, so type names are normalized to lowercase for lookups
 func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
-	// Task 9.21.4.3: Handle "const" pseudo-type (used in "array of const")
+	// Handle "const" pseudo-type (used in "array of const")
 	// "const" is a special DWScript keyword that means "any type" (Variant)
 	if strings.ToLower(typeName) == "const" {
 		return types.VARIANT, nil
 	}
 
-	// Task 9.50: Check for inline function pointer types first
+	// Check for inline function pointer types first
 	// These are synthetic TypeAnnotations created by the parser with full signatures
 	// Examples: "function(x: Integer): Integer", "procedure(msg: String)", "function(): Boolean of object"
 	if strings.HasPrefix(typeName, "function(") || strings.HasPrefix(typeName, "procedure(") {
 		return a.resolveInlineFunctionPointerType(typeName)
 	}
 
-	// Task 9.54: Check for inline array types
+	// Check for inline array types
 	// These are synthetic TypeAnnotations created by the parser with full signatures
 	// Examples: "array of Integer", "array[1..10] of String", "array of array of Integer"
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
@@ -69,7 +69,7 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 		return classType, nil
 	}
 
-	// Task 9.128: Try interface types
+	// Try interface types
 	if interfaceType, found := a.interfaces[normalizedName]; found {
 		return interfaceType, nil
 	}
@@ -108,7 +108,6 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 }
 
 // resolveInlineFunctionPointerType parses an inline function pointer type signature.
-// Task 9.50: Support for inline function pointer types in variables and parameters.
 //
 // Examples:
 //   - "function(x: Integer): Integer" -> FunctionPointerType with 1 param, Integer return
@@ -171,7 +170,6 @@ func (a *Analyzer) resolveInlineFunctionPointerType(signature string) (types.Typ
 }
 
 // parseInlineParameters parses the parameter list from an inline function pointer signature.
-// Task 9.50: Extract parameter types from signature strings like "x: Integer; y: String"
 //
 // Format: "param1: Type1; param2, param3: Type2; ..."
 // Returns a slice of parameter types in order.
@@ -275,7 +273,6 @@ func (a *Analyzer) parseShorthandParameters(paramsStr string) ([]types.Type, err
 }
 
 // resolveInlineArrayType parses an inline array type signature.
-// Task 9.54: Support for inline array types in variables and parameters.
 //
 // Examples:
 //   - "array of Integer" -> DynamicArrayType of Integer

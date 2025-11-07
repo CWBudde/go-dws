@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Task 9.178: Integration Tests for Record Literals
+// Integration Tests for Record Literals
 // ============================================================================
 
 func TestEvalRecordLiteral_TypedSimple(t *testing.T) {

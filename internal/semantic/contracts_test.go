@@ -10,7 +10,6 @@ import (
 )
 
 // TestContractPreconditionBooleanType tests that preconditions must be boolean
-// Task 9.140
 func TestContractPreconditionBooleanType(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -88,7 +87,6 @@ end;
 }
 
 // TestContractPostconditionBooleanType tests that postconditions must be boolean
-// Task 9.141
 func TestContractPostconditionBooleanType(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -153,7 +151,6 @@ ensure
 }
 
 // TestContractMessageStringType tests that contract messages must be strings
-// Task 9.142
 func TestContractMessageStringType(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -211,7 +208,6 @@ end;
 }
 
 // TestContractOldExpressionValidation tests validation of 'old' expressions
-// Task 9.143
 func TestContractOldExpressionValidation(t *testing.T) {
 	tests := []struct {
 		name        string

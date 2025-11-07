@@ -67,7 +67,7 @@ func TestVarTypeInferenceNilInitializerError(t *testing.T) {
 // Variant Variable Tests
 // ============================================================================
 
-// Task 9.144 & 9.147: Test Variant variable declarations
+// Test Variant variable declarations
 func TestVariantVarDeclaration(t *testing.T) {
 	// Uninitialized Variant
 	typ := inferVariableType(t, "var v: Variant;", "v")
@@ -76,7 +76,7 @@ func TestVariantVarDeclaration(t *testing.T) {
 	}
 }
 
-// Task 9.144 & 9.147: Test Variant variable with Integer initializer
+// Test Variant variable with Integer initializer
 func TestVariantVarWithIntegerInit(t *testing.T) {
 	typ := inferVariableType(t, "var v: Variant := 42;", "v")
 	if !typ.Equals(types.VARIANT) {
@@ -84,7 +84,7 @@ func TestVariantVarWithIntegerInit(t *testing.T) {
 	}
 }
 
-// Task 9.144 & 9.147: Test Variant variable with String initializer
+// Test Variant variable with String initializer
 func TestVariantVarWithStringInit(t *testing.T) {
 	typ := inferVariableType(t, `var v: Variant := "hello";`, "v")
 	if !typ.Equals(types.VARIANT) {
@@ -92,7 +92,7 @@ func TestVariantVarWithStringInit(t *testing.T) {
 	}
 }
 
-// Task 9.223 & 9.226: Test Variant variable with Float initializer
+// Test Variant variable with Float initializer
 func TestVariantVarWithFloatInit(t *testing.T) {
 	typ := inferVariableType(t, "var v: Variant := 3.14;", "v")
 	if !typ.Equals(types.VARIANT) {
@@ -100,7 +100,7 @@ func TestVariantVarWithFloatInit(t *testing.T) {
 	}
 }
 
-// Task 9.223 & 9.226: Test Variant variable with Boolean initializer
+// Test Variant variable with Boolean initializer
 func TestVariantVarWithBooleanInit(t *testing.T) {
 	typ := inferVariableType(t, "var v: Variant := true;", "v")
 	if !typ.Equals(types.VARIANT) {
@@ -108,7 +108,7 @@ func TestVariantVarWithBooleanInit(t *testing.T) {
 	}
 }
 
-// Task 9.224 & 9.226: Test assignment of different types to Variant
+// Test assignment of different types to Variant
 func TestVariantAssignmentFromInteger(t *testing.T) {
 	input := `
 	var v: Variant;
@@ -149,7 +149,7 @@ func TestVariantAssignmentFromBoolean(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-// Task 9.224 & 9.226: Test Variant-to-Variant assignment
+// Test Variant-to-Variant assignment
 func TestVariantToVariantAssignment(t *testing.T) {
 	input := `
 	var v1: Variant := 42;
@@ -160,7 +160,7 @@ func TestVariantToVariantAssignment(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-// Task 9.226: Test type inference does NOT infer Variant from Variant initializer
+// Test type inference does NOT infer Variant from Variant initializer
 // (should use actual wrapped type semantics in later tasks)
 func TestVariantInferencePreservesVariantType(t *testing.T) {
 	typ := inferVariableType(t, "var v1: Variant := 42; var v2 := v1;", "v2")
@@ -170,7 +170,7 @@ func TestVariantInferencePreservesVariantType(t *testing.T) {
 	}
 }
 
-// Task 9.225 & 9.226: Test heterogeneous array with Variant element type
+// Test heterogeneous array with Variant element type
 func TestHeterogeneousArrayWithVariantType(t *testing.T) {
 	input := `
 	var arr: array of Variant := [1, "hello", 3.14, true];
@@ -178,7 +178,7 @@ func TestHeterogeneousArrayWithVariantType(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-// Task 9.225 & 9.226: Test empty array with Variant element type
+// Test empty array with Variant element type
 func TestEmptyVariantArray(t *testing.T) {
 	input := `
 	var arr: array of Variant := [];
@@ -186,7 +186,7 @@ func TestEmptyVariantArray(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-// Task 9.226: Test multiple Variant variables
+// Test multiple Variant variables
 func TestMultipleVariantDeclarations(t *testing.T) {
 	input := `
 	var v1: Variant := 10;
@@ -210,7 +210,7 @@ func TestMultipleVariantDeclarations(t *testing.T) {
 	}
 }
 
-// Task 9.226: Test Variant with type alias
+// Test Variant with type alias
 func TestVariantWithTypeAlias(t *testing.T) {
 	input := `
 	type MyVariant = Variant;

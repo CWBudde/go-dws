@@ -1,5 +1,4 @@
 // Const Types Tests
-// Task 8.259: Test different const types with type annotations
 
 begin
   PrintLn('=== Const Types Tests ===');

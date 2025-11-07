@@ -7,7 +7,7 @@ import (
 )
 
 // ============================================================================
-// Task 9.255: Unit Tests for Overload Set Storage and Retrieval
+// Unit Tests for Overload Set Storage and Retrieval
 // ============================================================================
 
 // ============================================================================
@@ -466,8 +466,6 @@ func TestDefineOverload_DifferentParameterModifiers(t *testing.T) {
 
 	// NOTE: Currently FunctionType.Equals() doesn't check parameter modifiers,
 	// so this will fail with duplicate signature error.
-	// Task 9.256-9.262 will implement proper signature matching with modifiers.
-	// For now, we expect an error.
 	if err == nil {
 		t.Fatal("Expected error (current limitation: parameter modifiers not checked in signature)")
 	}

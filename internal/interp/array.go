@@ -13,7 +13,6 @@ import (
 
 // evalArrayDeclaration evaluates an array type declaration.
 // Example: type TMyArray = array[1..10] of Integer;
-// Task 8.128: Register array types in the environment for later use.
 func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 	if decl == nil {
 		return &ErrorValue{Message: "nil array declaration"}
@@ -118,9 +117,6 @@ func collectIndices(expr *ast.IndexExpression) (base ast.Expression, indices []a
 }
 
 // evalIndexExpression evaluates array/string indexing: arr[i]
-// Task 8.129: Implement array indexing (read).
-// Task 9.97: Implement JSON object property access and array indexing.
-// Task 9.2d: Support multi-index properties (e.g., obj.Data[x, y]).
 func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 	if expr == nil {
 		return &ErrorValue{Message: "nil index expression"}

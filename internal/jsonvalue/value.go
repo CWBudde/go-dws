@@ -266,7 +266,7 @@ func (v *Value) Int64Value() int64 {
 
 // ============================================================================
 // JSON Serialization
-// Task 9.94: MarshalJSON enables Go's encoding/json to serialize jsonvalue.Value
+// MarshalJSON enables Go's encoding/json to serialize jsonvalue.Value
 // ============================================================================
 
 // MarshalJSON implements json.Marshaler interface for *Value.

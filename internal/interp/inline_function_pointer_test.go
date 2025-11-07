@@ -11,7 +11,7 @@ import (
 )
 
 // ============================================================================
-// Task 9.51: Inline Function Pointer Interpreter Tests
+// Inline Function Pointer Interpreter Tests
 // ============================================================================
 
 // Helper function to run inline function pointer test code
@@ -458,7 +458,7 @@ func TestInlineFunctionPointerWithLambdaCall(t *testing.T) {
 }
 
 func TestInlineFunctionPointerWithClosureCapture(t *testing.T) {
-	// Task 9.51: Verify closure semantics with inline function pointer types
+	// Verify closure semantics with inline function pointer types
 	input := `
 		var factor: Integer := 10;
 		var multiply: function(x: Integer): Integer;
@@ -487,7 +487,7 @@ func TestInlineFunctionPointerWithClosureCapture(t *testing.T) {
 }
 
 func TestInlineProcedurePointerWithClosureMutation(t *testing.T) {
-	// Task 9.51: Verify closure semantics - mutations should be visible
+	// Verify closure semantics - mutations should be visible
 	input := `
 		var counter: Integer := 0;
 		var increment: procedure();

@@ -200,7 +200,7 @@ func TestRecordTypeEquality(t *testing.T) {
 	}
 }
 
-// Task 8.55: Test RecordType with methods and properties
+// Test RecordType with methods and properties
 func TestRecordTypeWithMethods(t *testing.T) {
 	t.Run("Record with methods", func(t *testing.T) {
 		fields := map[string]Type{
@@ -863,8 +863,8 @@ func TestEnumType(t *testing.T) {
 		}
 	})
 
+	// Test that enums are ordinal types
 	t.Run("IsOrdinalType with Enum", func(t *testing.T) {
-		// Task 8.31: Test that enums are ordinal types
 		colorEnum := &EnumType{
 			Name:         "TColor",
 			Values:       map[string]int{"Red": 0, "Green": 1, "Blue": 2},

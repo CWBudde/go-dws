@@ -1,5 +1,4 @@
 // Basic Const Declaration Tests
-// Task 8.259: Test simple const declarations and usage
 
 begin
   PrintLn('=== Basic Const Declaration Tests ===');

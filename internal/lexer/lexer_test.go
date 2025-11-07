@@ -950,7 +950,7 @@ func TestNewKeyword(t *testing.T) {
 }
 
 // TestLambdaExpressions tests tokenization of lambda expressions
-// Task 9.211: Add lambda keyword to lexer
+// Add lambda keyword to lexer
 func TestLambdaExpressions(t *testing.T) {
 	tests := []struct {
 		name     string

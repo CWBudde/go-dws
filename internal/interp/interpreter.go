@@ -20,7 +20,6 @@ import (
 const DefaultMaxRecursionDepth = 1024
 
 // PropertyEvalContext tracks the state during property getter/setter evaluation.
-// Task 9.32c: This prevents infinite recursion when properties access other members.
 type PropertyEvalContext struct {
 	inPropertyGetter bool     // True when inside a property getter method
 	inPropertySetter bool     // True when inside a property setter method
@@ -54,17 +53,17 @@ type Interpreter struct {
 	continueSignal bool // Set by continue statement, cleared by loop
 	breakSignal    bool // Set by exit statement, cleared by function return
 
-	helpers map[string][]*HelperInfo // Task 9.86-9.87: Helper types (type name -> list of helpers)
+	helpers map[string][]*HelperInfo
 
-	// Task 9.32c: Property evaluation context for recursion prevention
+	// Property evaluation context for recursion prevention
 	propContext *PropertyEvalContext // Tracks property getter/setter evaluation state
 
 	// oldValuesStack stores captured values for 'old' expressions in postconditions.
 	// Each function call pushes a map of captured values, which is popped after
 	// postcondition evaluation. Supports nested function calls properly.
-	oldValuesStack []map[string]Value // Task 9.146: Old value capture for contract postconditions
+	oldValuesStack []map[string]Value // Old value capture for contract postconditions
 
-	// Task 9.111: Source code context for rich error messages
+	// Source code context for rich error messages
 	sourceCode string // Full source code for error display
 	sourceFile string // Source filename for error display
 }
@@ -88,14 +87,14 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 		output:            output,
 		functions:         make(map[string]*ast.FunctionDecl),
 		classes:           make(map[string]*ClassInfo),
-		interfaces:        make(map[string]*InterfaceInfo), // Task 7.118
+		interfaces:        make(map[string]*InterfaceInfo),
 		globalOperators:   newRuntimeOperatorRegistry(),
 		conversions:       newRuntimeConversionRegistry(),
 		rand:              rand.New(source),
 		loadedUnits:       make([]string, 0),
 		initializedUnits:  make(map[string]bool),
 		maxRecursionDepth: DefaultMaxRecursionDepth,
-		callStack:         errors.NewStackTrace(), // Task 9.108: Initialize stack trace
+		callStack:         errors.NewStackTrace(), // Initialize stack trace
 	}
 
 	// Extract external functions and recursion depth from options if provided
@@ -178,7 +177,6 @@ func (i *Interpreter) GetCallStack() errors.StackTrace {
 
 // pushCallStack adds a new frame to the call stack with the given function name.
 // The position is taken from the current node being evaluated.
-// Task 9.108: Push frame on function entry
 func (i *Interpreter) pushCallStack(functionName string) {
 	var pos *lexer.Position
 	if i.currentNode != nil {
@@ -190,7 +188,6 @@ func (i *Interpreter) pushCallStack(functionName string) {
 }
 
 // popCallStack removes the most recent frame from the call stack.
-// Task 9.108: Pop frame on function exit
 func (i *Interpreter) popCallStack() {
 	if len(i.callStack) > 0 {
 		i.callStack = i.callStack[:len(i.callStack)-1]
@@ -366,7 +363,7 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return i.evalLambdaExpression(node)
 
 	case *ast.OldExpression:
-		// Task 9.150: Evaluate 'old' expressions in postconditions
+		// Evaluate 'old' expressions in postconditions
 		identName := node.Identifier.Value
 		oldValue, found := i.getOldValue(identName)
 		if !found {

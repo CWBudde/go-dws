@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Task 9.161: Inherited Expression Semantic Tests
+// Inherited Expression Semantic Tests
 // ============================================================================
 
 func TestInheritedExpression(t *testing.T) {

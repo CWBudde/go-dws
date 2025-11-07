@@ -45,7 +45,6 @@ func (sv *SubrangeTypeValue) String() string {
 }
 
 // SubrangeValue wraps an integer value with subrange bounds checking.
-// Task 9.100: Runtime subrange validation
 type SubrangeValue struct {
 	SubrangeType *types.SubrangeType
 	Value        int
@@ -77,7 +76,7 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 		return &ErrorValue{Message: "nil type declaration"}
 	}
 
-	// Task 9.100: Handle subrange types
+	// Handle subrange types
 	if decl.IsSubrange {
 		// Evaluate low bound
 		lowBoundVal := i.Eval(decl.LowBound)
@@ -121,14 +120,13 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 		}
 
 		// Store in environment with special prefix
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
 		typeKey := "__subrange_type_" + strings.ToLower(decl.Name.Value)
 		i.env.Define(typeKey, subrangeTypeValue)
 
 		return &NilValue{}
 	}
 
-	// Task 9.164-9.167: Handle function pointer type declarations
+	// Handle function pointer type declarations
 	if decl.IsFunctionPointer {
 		if decl.FunctionPointerType == nil {
 			return &ErrorValue{Message: "function pointer type declaration has no type information"}
@@ -180,7 +178,6 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 		}
 
 		// Store in environment with special prefix
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
 		typeKey := "__type_alias_" + strings.ToLower(decl.Name.Value)
 		i.env.Define(typeKey, typeAlias)
 

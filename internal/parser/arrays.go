@@ -40,9 +40,6 @@ import (
 //   - type TMyArray = array[1..10] of Integer;  (static array with bounds)
 //   - type TDynamic = array of String;          (dynamic array without bounds)
 //
-// Task 8.122: Parse array type declarations
-// Task 9.212: Extended to support comma-separated multidimensional arrays
-//
 // Supports both single and multi-dimensional syntax:
 //   - type TMatrix = array[0..1, 0..2] of Integer;    (2D)
 //   - type TCube = array[1..3, 1..4, 1..5] of Float;  (3D)
@@ -57,8 +54,6 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 	arrayToken := p.curToken // Save 'array' token
 
 	// Collect all dimensions (comma-separated)
-	// Task 9.205: Parse expressions (not just literals) for bounds
-	// Task 9.212: Support multidimensional arrays with comma-separated dimensions
 	type dimensionPair struct {
 		low, high ast.Expression
 	}
@@ -92,7 +87,6 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 		dimensions = append(dimensions, dimensionPair{lowBound, highBound})
 
 		// Parse additional dimensions (comma-separated)
-		// Task 9.212: Support multidimensional arrays like array[0..1, 0..2]
 		for p.peekTokenIs(lexer.COMMA) {
 			p.nextToken() // consume comma
 			p.nextToken() // move to next low bound
@@ -205,9 +199,6 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 //   - arr[i][j]   (nested indexing)
 //   - arr[i, j]   (multi-index comma syntax, desugared to arr[i][j])
 //   - arr[i, j, k] (3D comma syntax, desugared to arr[i][j][k])
-//
-// Task 8.124: Parse array indexing expressions
-// Task 9.172: Multi-index array syntax (arr[i, j])
 func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	lbrackToken := p.curToken // Save the '[' token for error reporting
 

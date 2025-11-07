@@ -9,7 +9,6 @@ import (
 )
 
 // TestClassesIntegration tests the CLI with class feature scripts
-// Task 7.151: Verify CLI correctly executes class programs
 func TestClassesIntegration(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

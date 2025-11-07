@@ -79,7 +79,7 @@ func TestObjectCreation(t *testing.T) {
 	}
 }
 
-// Task 9.131: Test optional parentheses for new expression
+// Test optional parentheses for new expression
 func TestNewExpressionOptionalParentheses(t *testing.T) {
 	tests := []struct {
 		name     string

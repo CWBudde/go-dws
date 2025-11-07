@@ -1,5 +1,4 @@
 // Package types_test contains tests for compound types (arrays, records, sets, enums).
-// Task 9.10a: Comprehensive tests for SetType with focus on storage kind selection.
 package types
 
 import (
@@ -20,7 +19,7 @@ func TestSetType(t *testing.T) {
 	}
 
 	t.Run("Create basic set type", func(t *testing.T) {
-		// Task 8.81: Create SetType with NewSetType factory
+		// Create SetType with NewSetType factory
 		setType := NewSetType(colorEnum)
 
 		// Test String() method - should be "set of TColor"
@@ -40,8 +39,8 @@ func TestSetType(t *testing.T) {
 		}
 	})
 
+	// Test Equals() method
 	t.Run("Set type equality", func(t *testing.T) {
-		// Task 8.81: Test Equals() method
 		enum1 := &EnumType{
 			Name:         "TColor",
 			Values:       map[string]int{"Red": 0, "Green": 1, "Blue": 2},
@@ -79,7 +78,7 @@ func TestSetType(t *testing.T) {
 	})
 
 	t.Run("Set type with nil element type", func(t *testing.T) {
-		// Task 8.83: Validation - ensure nil enum type is handled
+		// Validation - ensure nil enum type is handled
 		// For now, we allow it to be created (validation will be added in semantic analysis)
 		setType := NewSetType(nil)
 		if setType == nil {
@@ -155,7 +154,6 @@ func TestSetType(t *testing.T) {
 // ============================================================================
 
 // TestSetStorageKind_SmallEnums tests that small enums use bitmask storage.
-// Task 9.10a: Verify storage kind selection for enums ≤64 values.
 func TestSetStorageKind_SmallEnums(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -188,7 +186,6 @@ func TestSetStorageKind_SmallEnums(t *testing.T) {
 }
 
 // TestSetStorageKind_LargeEnums tests that large enums use map storage.
-// Task 9.10a: Verify storage kind selection for enums >64 values.
 func TestSetStorageKind_LargeEnums(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -226,7 +223,6 @@ func TestSetStorageKind_LargeEnums(t *testing.T) {
 }
 
 // TestSetStorageKind_Boundary tests the exact boundary between bitmask and map storage.
-// Task 9.10a: Ensure 64→65 element transition changes storage kind.
 func TestSetStorageKind_Boundary(t *testing.T) {
 	// Create enum with exactly 64 elements (should use bitmask)
 	enum64 := createEnumWithSize(t, "TEnum64", 64)
@@ -252,7 +248,6 @@ func TestSetStorageKind_Boundary(t *testing.T) {
 
 // TestSetType_EqualityWithDifferentStorageKinds tests that sets with different
 // storage kinds can still be equal if their element types are compatible.
-// Task 9.10a: Verify type equality is independent of storage strategy.
 func TestSetType_EqualityWithDifferentStorageKinds(t *testing.T) {
 	// Create two enums with same name but different sizes
 	smallEnum := &EnumType{
@@ -302,7 +297,7 @@ func TestSetType_EqualityWithDifferentStorageKinds(t *testing.T) {
 }
 
 // TestSetType_LargeEnumString tests String() method with large enums.
-// Task 9.10a: Ensure string representation works for large sets.
+// Ensure string representation works for large sets.
 func TestSetType_LargeEnumString(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -338,7 +333,6 @@ func TestSetType_LargeEnumString(t *testing.T) {
 
 // createEnumWithSize creates an EnumType with the specified number of elements.
 // Elements are named E00, E01, E02, ... E99, E100, etc.
-// Task 9.10a: Helper for generating test enums of various sizes.
 func createEnumWithSize(t *testing.T, name string, size int) *EnumType {
 	t.Helper()
 

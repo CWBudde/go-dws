@@ -64,11 +64,6 @@ type TypedExpression interface {
 // Full type definitions (enums, records, classes) will use specialized
 // declaration nodes (EnumDecl, RecordDecl, ClassDecl) but may eventually
 // be unified under this node.
-//
-// Task 9.15: This node currently supports type aliases. Future tasks will
-// extend it to handle all type declarations.
-// Task 9.94: Extended to support subrange types with IsSubrange, LowBound, and HighBound.
-// Task 9.155: Extended to support function pointer types with FunctionPointerType and IsFunctionPointer.
 type TypeDeclaration struct {
 	Name                *Identifier
 	AliasedType         *TypeAnnotation
@@ -93,13 +88,11 @@ func (td *TypeDeclaration) Pos() lexer.Position  { return td.Token.Pos }
 func (td *TypeDeclaration) String() string {
 	if td.IsSubrange {
 		// Subrange type: type TDigit = 0..9;
-		// Task 9.94: Format as "type Name = Low..High"
 		return "type " + td.Name.String() + " = " + td.LowBound.String() + ".." + td.HighBound.String()
 	}
 
 	if td.IsFunctionPointer {
 		// Function pointer type: type TFunc = function(x: Integer): Boolean;
-		// Task 9.155: Format as "type Name = function/procedure..."
 		return "type " + td.Name.String() + " = " + td.FunctionPointerType.String()
 	}
 

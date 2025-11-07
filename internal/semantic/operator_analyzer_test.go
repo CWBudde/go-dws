@@ -44,7 +44,7 @@ func TestDuplicateGlobalOperator(t *testing.T) {
 	expectError(t, input, "already defined")
 }
 
-// Task 8.22d: Test class operator overload validation
+// Test class operator overload validation
 func TestClassOperatorOverload(t *testing.T) {
 	input := `
 		type TTest = class
@@ -74,7 +74,7 @@ func TestClassOperatorOverload(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-// Task 8.22e: Test operator signature mismatch errors
+// Test operator signature mismatch errors
 func TestOperatorSignatureMismatch(t *testing.T) {
 	// Test 1: Wrong number of parameters
 	t.Run("wrong parameter count", func(t *testing.T) {
@@ -120,7 +120,7 @@ func TestOperatorSignatureMismatch(t *testing.T) {
 	})
 }
 
-// Task 8.22f: Test invalid binding function (not found, wrong signature)
+// Test invalid binding function (not found, wrong signature)
 func TestInvalidBindingFunction(t *testing.T) {
 	// Test 1: Binding function not found
 	t.Run("binding not found", func(t *testing.T) {

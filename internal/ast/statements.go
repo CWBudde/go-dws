@@ -15,8 +15,8 @@ import (
 //	var x: Integer := 42;
 //	var x := 5;
 //	var x, y, z: Integer;                 // Multi-identifier declaration
-//	var y: String; external;              // Task 7.143
-//	var z: Integer; external 'externalZ'; // Task 7.143
+//	var y: String; external;
+//	var z: Integer; external 'externalZ';
 type VarDeclStatement struct {
 	Value        Expression
 	Names        []*Identifier // Changed from Name to support multi-identifier declarations

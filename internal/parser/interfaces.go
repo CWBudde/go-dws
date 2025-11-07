@@ -28,7 +28,8 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 	}
 
 	// Now peek to see what kind of type declaration this is
-	// Task 9.96: Check for subrange or type alias
+	//
+	// Check for subrange or type alias
 	// Subrange: type TDigit = 0..9;
 	// Type alias: type TUserID = Integer;
 
@@ -116,13 +117,11 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 		// Function pointer: type TFunc = function(x: Integer): Boolean;
 		// Procedure pointer: type TProc = procedure(msg: String);
 		// Method pointer: type TEvent = procedure(Sender: TObject) of object;
-		// Task 9.155: Function pointer type declaration support
 		p.nextToken() // move to FUNCTION or PROCEDURE
 		return p.parseFunctionPointerTypeDeclaration(nameIdent, typeToken)
 	} else if p.peekTokenIs(lexer.HELPER) {
 		// Helper declaration (without "record" keyword):
 		// type THelper = helper for TypeName ... end;
-		// Task 9.76-9.78: Helper type support
 		p.nextToken() // move to HELPER
 		return p.parseHelperDeclaration(nameIdent, typeToken, false)
 	}
@@ -141,8 +140,6 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 //   - type TProc = procedure(msg: String);
 //   - type TCallback = procedure;
 //   - type TEvent = procedure(Sender: TObject) of object;
-//
-// Task 9.155: Function pointer type declaration support
 func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
 	// Current token is FUNCTION or PROCEDURE
 	funcOrProcToken := p.curToken

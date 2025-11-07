@@ -17,7 +17,6 @@ func minInt(a, b int) int {
 }
 
 // TestCompositeTypesScriptsExist verifies all composite types test scripts exist
-// Task 8.146: Create integration tests for composite types
 func TestCompositeTypesScriptsExist(t *testing.T) {
 	scripts := []string{
 		"../../testdata/enums.dws",
@@ -380,7 +379,6 @@ func TestArrayFeatures(t *testing.T) {
 }
 
 // TestOperatorOverloading tests operator overloading feature via CLI
-// Task 8.25: Add CLI integration test running representative operator overloading scripts
 func TestOperatorOverloading(t *testing.T) {
 	// Build the CLI if needed
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

@@ -113,7 +113,6 @@ func (r *runtimeConversionRegistry) findImplicit(from, to string) (*runtimeConve
 // findConversionPath uses BFS to find the shortest path of implicit conversions from source to target type.
 // Returns a slice of intermediate type names representing the conversion path, or nil if no path exists.
 // maxDepth limits the number of conversions in the chain (e.g., maxDepth=3 allows A->B->C->D).
-// Task 8.19d: Support chained implicit conversions.
 func (r *runtimeConversionRegistry) findConversionPath(from, to string, maxDepth int) []string {
 	if r == nil || maxDepth <= 0 {
 		return nil

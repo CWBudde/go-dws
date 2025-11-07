@@ -73,6 +73,10 @@ func (r *ExternalFunctionRegistry) List() []string {
 type ExternalFunctionWrapper interface {
 	// Call invokes the wrapped function with DWScript values.
 	Call(args []Value) (Value, error)
+
+	// GetVarParams returns a slice indicating which parameters are by-reference (var parameters).
+	// Task 9.2d: Needed to create ReferenceValues for var parameters before calling.
+	GetVarParams() []bool
 }
 
 // ExternalFunctionValue represents an external Go function as a DWScript value.

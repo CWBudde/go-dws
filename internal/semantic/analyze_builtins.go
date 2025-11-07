@@ -39,6 +39,14 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			if i >= len(funcType.Parameters) {
 				break // Already reported count mismatch
 			}
+
+			// Task 9.2b: Validate var parameter receives an lvalue
+			isVar := len(funcType.VarParams) > i && funcType.VarParams[i]
+			if isVar && !a.isLValue(arg) {
+				a.addError("var parameter %d requires a variable (identifier, array element, or field), got %s at %s",
+					i+1, arg.String(), arg.Pos().String())
+			}
+
 			argType := a.analyzeExpression(arg)
 			if argType != nil && !a.canAssign(argType, funcType.Parameters[i]) {
 				a.addError("argument %d has type %s, expected %s at %s",
@@ -2198,11 +2206,21 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 	// Check argument types
 	// Task 9.137: Handle lazy parameters - validate expression type without evaluating
+	// Task 9.2b: Handle var parameters - validate that argument is an lvalue
 	for i, arg := range expr.Arguments {
 		expectedType := funcType.Parameters[i]
 
 		// Check if this parameter is lazy
 		isLazy := len(funcType.LazyParams) > i && funcType.LazyParams[i]
+
+		// Check if this parameter is var (by-reference)
+		isVar := len(funcType.VarParams) > i && funcType.VarParams[i]
+
+		// Task 9.2b: Validate var parameter receives an lvalue
+		if isVar && !a.isLValue(arg) {
+			a.addError("var parameter %d to function '%s' requires a variable (identifier, array element, or field), got %s at %s",
+				i+1, funcIdent.Value, arg.String(), arg.Pos().String())
+		}
 
 		if isLazy {
 			// For lazy parameters, check expression type but don't evaluate
@@ -2243,6 +2261,25 @@ func (a *Analyzer) analyzeOldExpression(expr *ast.OldExpression) types.Type {
 
 	// Return the type of the identifier
 	return sym.Type
+}
+
+// isLValue checks if an expression is an lvalue (can be assigned to).
+// Task 9.2b: Used to validate arguments to var parameters.
+// An lvalue is:
+//   - An identifier (variable)
+//   - An index expression (array[i], string[i])
+//   - A member access expression (record.field, object.field)
+func (a *Analyzer) isLValue(expr ast.Expression) bool {
+	switch expr.(type) {
+	case *ast.Identifier:
+		return true
+	case *ast.IndexExpression:
+		return true
+	case *ast.MemberAccessExpression:
+		return true
+	default:
+		return false
+	}
 }
 
 // isBuiltinFunction checks if a name refers to a built-in function.

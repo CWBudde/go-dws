@@ -15,7 +15,6 @@ import (
 // ============================================================================
 
 // TestSubrangeTypeRegistration tests that subrange types are properly registered
-// Task 9.99: Test subrange type registration
 func TestSubrangeTypeRegistration(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -104,7 +103,6 @@ func TestSubrangeTypeRegistration(t *testing.T) {
 }
 
 // TestSubrangeVariableDeclaration tests using subrange types in variable declarations
-// Task 9.99: Test using subrange in variable declaration
 func TestSubrangeVariableDeclaration(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -171,7 +169,6 @@ func TestSubrangeVariableDeclaration(t *testing.T) {
 }
 
 // TestSubrangeErrorLowGreaterThanHigh tests that low > high generates an error
-// Task 9.99: Test error: low > high
 func TestSubrangeErrorLowGreaterThanHigh(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -221,9 +218,6 @@ func TestSubrangeErrorLowGreaterThanHigh(t *testing.T) {
 }
 
 // TestSubrangeErrorNonConstantBounds tests that non-constant bounds generate errors
-// Task 9.99: Test error: non-constant bounds
-// Note: Some non-constant bounds are caught by the parser (e.g., identifiers, expressions),
-// others make it to the semantic analyzer. We test the cases that reach semantic analysis.
 func TestSubrangeErrorNonConstantBounds(t *testing.T) {
 	tests := []struct {
 		name  string

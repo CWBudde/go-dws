@@ -59,6 +59,17 @@ The FFI automatically converts between Go and DWScript types:
 | `[]T` | `array of T` | Dynamic arrays, element type must be supported |
 | `map[string]T` | `record` | String-keyed maps become records |
 
+### Supported Pointer Types (Var Parameters)
+
+| Go Type | DWScript Usage | Notes |
+|---------|----------------|-------|
+| `*int64`, `*int`, etc. | `var Integer` | By-reference integer parameter |
+| `*float64`, `*float32` | `var Float` | By-reference float parameter |
+| `*string` | `var String` | By-reference string parameter |
+| `*bool` | `var Boolean` | By-reference boolean parameter |
+
+See [Var Parameters](#var-parameters-by-reference) for details.
+
 ### Unsupported Types
 
 The following Go types are not currently supported:
@@ -66,7 +77,7 @@ The following Go types are not currently supported:
 - Channels (`chan T`)
 - Functions (`func`)
 - Interfaces (except `error`)
-- Pointers (except for `nil`)
+- Pointers to unsupported types (e.g., `*struct`)
 - Structs (use maps or slices instead)
 - Custom types
 
@@ -367,6 +378,442 @@ end;
 var status := ProcessConfig(config);
 PrintLn(status);
 ```
+
+### Var Parameters (By-Reference)
+
+**Task 9.2d**: Go functions with pointer parameters are automatically treated as `var` parameters in DWScript, enabling modification of caller variables.
+
+#### Basic Usage
+
+```go
+// Register Go function with pointer parameter
+engine.RegisterFunction("Increment", func(x *int64) {
+    *x++
+})
+
+// Register swap function with two pointers
+engine.RegisterFunction("Swap", func(a, b *int64) {
+    temp := *a
+    *a = *b
+    *b = temp
+})
+```
+
+DWScript usage:
+
+```pascal
+var n: Integer := 5;
+Increment(n);
+PrintLn(IntToStr(n)); // Output: 6
+
+var x: Integer := 10;
+var y: Integer := 20;
+Swap(x, y);
+PrintLn(IntToStr(x)); // Output: 20
+PrintLn(IntToStr(y)); // Output: 10
+```
+
+#### Supported Pointer Types
+
+All basic types can be used as var parameters:
+
+| Go Pointer Type | DWScript Type | Example |
+|-----------------|---------------|---------|
+| `*int64` | `var Integer` | `func Increment(x *int64)` |
+| `*float64` | `var Float` | `func Double(x *float64)` |
+| `*string` | `var String` | `func MakeUpperCase(s *string)` |
+| `*bool` | `var Boolean` | `func Toggle(b *bool)` |
+
+#### Mixed Parameters
+
+Functions can mix regular value parameters with var parameters:
+
+```go
+engine.RegisterFunction("AddAndStore", func(result *int64, a, b int64) {
+    *result = a + b
+})
+```
+
+```pascal
+var sum: Integer := 0;
+AddAndStore(sum, 15, 27);
+PrintLn(IntToStr(sum)); // Output: 42
+```
+
+#### Requirements and Validation
+
+1. **Var parameters must be variables** - Literals and expressions cannot be passed:
+   ```pascal
+   // Valid
+   var n: Integer := 5;
+   Increment(n);  // OK
+
+   // Invalid - will raise compile error
+   Increment(42);  // Error: var parameter requires a variable
+   ```
+
+2. **Type matching** - The variable type must match the pointer element type:
+   ```pascal
+   var x: Integer := 5;
+   var y: Float := 3.14;
+
+   Increment(x);  // OK: *int64 matches Integer
+   Increment(y);  // Error: type mismatch
+   ```
+
+3. **Semantic validation** - The compiler checks var parameter usage at compile time
+
+#### Implementation Details
+
+When a Go function parameter is a pointer type:
+
+1. The FFI automatically marks it as a `var` parameter
+2. DWScript creates a `ReferenceValue` wrapper around the variable
+3. The value is marshaled to a Go pointer before the call
+4. After the call, the modified value is unmarshaled back to DWScript
+5. The original variable is updated with the new value
+
+This ensures that modifications made by the Go function are reflected in the DWScript variable, just like native DWScript var parameters.
+
+#### Best Practices for Var Parameters
+
+1. **Use pointer semantics consistently**:
+   ```go
+   // Good: Clear that x will be modified
+   func Increment(x *int64) {
+       *x++
+   }
+
+   // Avoid: Returning modified value defeats purpose of var parameter
+   func Increment(x *int64) int64 {
+       *x++
+       return *x  // Unnecessary
+   }
+   ```
+
+2. **Document side effects**:
+   ```go
+   // IncrementCounter increases the counter by 1 and returns the new value.
+   // The counter parameter is modified in place.
+   func IncrementCounter(counter *int64) int64 {
+       *counter++
+       return *counter
+   }
+   ```
+
+3. **Prefer var parameters for output values**:
+   ```go
+   // Good: Clear output parameter
+   func ParseCoordinates(input string, x, y *float64) error {
+       // Parse and set *x and *y
+       return nil
+   }
+
+   // Alternative: Return values (also valid)
+   func ParseCoordinates(input string) (x, y float64, err error) {
+       // Parse and return
+       return x, y, nil
+   }
+   ```
+
+4. **Null safety**: The FFI ensures pointers are never nil when calling from DWScript, as all var parameters must reference valid variables.
+
+### Registering Go Methods
+
+**Task 9.3**: The FFI supports registering methods from Go structs, making them callable from DWScript. This allows you to expose stateful Go objects to your scripts.
+
+#### Two Registration Approaches
+
+**Approach 1: Method Values (Recommended)**
+
+The simplest way to register methods is to use Go's method value syntax with the existing `RegisterFunction` API:
+
+```go
+type Counter struct {
+    value int64
+}
+
+func (c *Counter) Increment() {
+    c.value++
+}
+
+func (c *Counter) Add(x int64) {
+    c.value += x
+}
+
+func (c *Counter) GetValue() int64 {
+    return c.value
+}
+
+// Create instance and register methods using method values
+counter := &Counter{value: 0}
+engine.RegisterFunction("Increment", counter.Increment)
+engine.RegisterFunction("Add", counter.Add)
+engine.RegisterFunction("GetValue", counter.GetValue)
+```
+
+DWScript usage:
+
+```pascal
+Increment();
+Add(5);
+var result := GetValue();
+PrintLn(IntToStr(result)); // Output: 6
+```
+
+**Approach 2: RegisterMethod API (More Explicit)**
+
+For more explicit registration with validation, use the `RegisterMethod` API:
+
+```go
+counter := &Counter{value: 0}
+engine.RegisterMethod("Increment", counter, "Increment")
+engine.RegisterMethod("Add", counter, "Add")
+engine.RegisterMethod("GetValue", counter, "GetValue")
+```
+
+Both approaches work identically; `RegisterMethod` adds validation that the method exists on the receiver type.
+
+#### How It Works
+
+When you register a method:
+
+1. **Method values automatically bind the receiver**: Go's method value mechanism (`obj.Method`) creates a closure that captures the receiver
+2. **The receiver is preserved**: Each time DWScript calls the function, it operates on the same Go object
+3. **State is maintained**: Changes to the receiver's fields persist across calls
+4. **No special handling needed**: The FFI treats method values like regular functions
+
+#### Pointer vs Value Receivers
+
+The choice between pointer and value receivers affects whether modifications persist:
+
+**Pointer Receivers** (Most Common):
+
+```go
+type Calculator struct {
+    result float64
+}
+
+// Pointer receiver (*Calculator) - can modify state
+func (c *Calculator) Add(x float64) {
+    c.result += x  // Modifies the original Calculator
+}
+
+func (c *Calculator) GetResult() float64 {
+    return c.result
+}
+
+calc := &Calculator{result: 10.0}
+engine.RegisterMethod("Add", calc, "Add")
+engine.RegisterMethod("GetResult", calc, "GetResult")
+```
+
+```pascal
+Add(5.0);
+Add(3.0);
+var result := GetResult();
+PrintLn(FloatToStr(result)); // Output: 18.0
+```
+
+**Value Receivers** (Read-Only):
+
+```go
+type Point struct {
+    x, y float64
+}
+
+// Value receiver (Point) - operates on a copy
+func (p Point) Distance() float64 {
+    return math.Sqrt(p.x*p.x + p.y*p.y)
+}
+
+point := Point{x: 3.0, y: 4.0}
+engine.RegisterMethod("Distance", point, "Distance")
+```
+
+```pascal
+var dist := Distance();
+PrintLn(FloatToStr(dist)); // Output: 5.0
+```
+
+**Rule of Thumb**: Use pointer receivers (`*T`) when methods need to modify state; use value receivers (`T`) for read-only operations.
+
+#### Multiple Instances
+
+You can register methods from multiple instances to provide separate state:
+
+```go
+counter1 := &Counter{value: 0}
+counter2 := &Counter{value: 100}
+
+// Register with different names to distinguish instances
+engine.RegisterMethod("Counter1Add", counter1, "Add")
+engine.RegisterMethod("Counter1Get", counter1, "GetValue")
+
+engine.RegisterMethod("Counter2Add", counter2, "Add")
+engine.RegisterMethod("Counter2Get", counter2, "GetValue")
+```
+
+```pascal
+Counter1Add(5);   // counter1 = 5
+Counter2Add(10);  // counter2 = 110
+
+PrintLn(IntToStr(Counter1Get())); // Output: 5
+PrintLn(IntToStr(Counter2Get())); // Output: 110
+```
+
+#### Complex Example: Calculator with Multiple Operations
+
+```go
+type Calculator struct {
+    result float64
+    ops    int64
+}
+
+func (c *Calculator) Add(x float64) {
+    c.result += x
+    c.ops++
+}
+
+func (c *Calculator) Multiply(x float64) {
+    c.result *= x
+    c.ops++
+}
+
+func (c *Calculator) GetResult() float64 {
+    return c.result
+}
+
+func (c *Calculator) GetOpsCount() int64 {
+    return c.ops
+}
+
+func (c *Calculator) Reset() {
+    c.result = 0.0
+    c.ops = 0
+}
+
+calc := &Calculator{result: 10.0}
+engine.RegisterMethod("Add", calc, "Add")
+engine.RegisterMethod("Multiply", calc, "Multiply")
+engine.RegisterMethod("GetResult", calc, "GetResult")
+engine.RegisterMethod("GetOpsCount", calc, "GetOpsCount")
+engine.RegisterMethod("Reset", calc, "Reset")
+```
+
+```pascal
+Add(5.0);      // 15.0
+Multiply(2.0); // 30.0
+Add(10.0);     // 40.0
+
+var result := GetResult();
+var ops := GetOpsCount();
+PrintLn(FloatToStr(result)); // Output: 40.0
+PrintLn(IntToStr(ops));      // Output: 3
+
+Reset();
+Add(100.0);
+PrintLn(FloatToStr(GetResult())); // Output: 100.0
+```
+
+#### Method Registration Validation
+
+`RegisterMethod` validates registration and provides helpful error messages:
+
+```go
+counter := &Counter{value: 0}
+
+// Error: nil receiver
+engine.RegisterMethod("Test", nil, "Increment")
+// Returns: "cannot register method on nil receiver"
+
+// Error: empty method name
+engine.RegisterMethod("Test", counter, "")
+// Returns: "method name cannot be empty"
+
+// Error: method doesn't exist
+engine.RegisterMethod("Test", counter, "NonExistent")
+// Returns: "method NonExistent not found on type *Counter"
+
+// Error: unexported method (lowercase)
+engine.RegisterMethod("Test", counter, "privateMethod")
+// Returns: "method privateMethod not found on type *Counter"
+```
+
+#### When to Use Method Registration
+
+Use method registration when you need:
+
+1. **Stateful operations**: Object maintains state across multiple function calls
+2. **Encapsulation**: Group related functionality in a Go struct
+3. **Resource management**: Handle files, database connections, or other resources
+4. **Object-oriented patterns**: Expose Go objects to DWScript in an OO style
+
+Example use cases:
+- Database connection pools
+- HTTP clients with configuration
+- File handlers with buffering
+- Game entities with state
+- Configuration managers
+
+#### Limitations
+
+1. **No automatic instantiation**: DWScript cannot create new instances of Go types; you must create and register instances from Go
+2. **No method discovery**: DWScript cannot list available methods; you must document what's registered
+3. **Name conflicts**: Be careful not to override built-in DWScript functions (e.g., don't use "Inc" as it conflicts with the built-in `Inc()`)
+4. **Single receiver per registration**: Each registered method binds to one specific instance; for multiple instances, register methods with different names
+
+#### Best Practices
+
+1. **Use descriptive names** to avoid conflicts with built-ins:
+   ```go
+   // Good: Clear, specific names
+   engine.RegisterMethod("CounterIncrement", counter, "Increment")
+   engine.RegisterMethod("CounterGet", counter, "GetValue")
+
+   // Avoid: Generic names that might conflict
+   engine.RegisterMethod("Inc", counter, "Increment") // Conflicts with built-in Inc()
+   ```
+
+2. **Document receiver state** in method comments:
+   ```go
+   // Add increases the calculator's result by x and increments the operation counter.
+   func (c *Calculator) Add(x float64) {
+       c.result += x
+       c.ops++
+   }
+   ```
+
+3. **Use pointer receivers for stateful methods**:
+   ```go
+   // Good: Pointer receiver for state modification
+   func (c *Counter) Increment() { c.value++ }
+
+   // Bad: Value receiver doesn't persist changes
+   func (c Counter) Increment() { c.value++ } // Changes lost!
+   ```
+
+4. **Consider error handling** for methods that can fail:
+   ```go
+   func (db *Database) Query(sql string) ([]map[string]interface{}, error) {
+       // Return errors for invalid SQL, connection failures, etc.
+       return results, nil
+   }
+   ```
+
+5. **Initialize instances before registration**:
+   ```go
+   // Good: Fully initialized
+   db := &Database{connectionString: "..."}
+   if err := db.Connect(); err != nil {
+       log.Fatal(err)
+   }
+   engine.RegisterMethod("Query", db, "Query")
+
+   // Bad: Uninitialized, might panic
+   db := &Database{}
+   engine.RegisterMethod("Query", db, "Query") // db.Query() will fail
+   ```
 
 ## Best Practices
 

@@ -732,7 +732,7 @@ func TestArrayHelperInForLoop(t *testing.T) {
 	}
 }
 
-// Task 9.217: Test case-insensitive array helper property access
+// Test case-insensitive array helper property access
 func TestArrayHelperCaseInsensitive(t *testing.T) {
 	tests := []struct {
 		name     string

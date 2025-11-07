@@ -9,7 +9,6 @@ import (
 )
 
 // TestInheritanceIntegration tests the CLI with inheritance and polymorphism scripts
-// Task 7.151: Verify CLI correctly executes inheritance programs
 func TestInheritanceIntegration(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

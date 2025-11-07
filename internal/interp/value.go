@@ -236,8 +236,6 @@ func (r *RecordValue) HasMethod(name string) bool {
 }
 
 // ExternalVarValue represents an external variable marker.
-// Task 7.144: This is a special marker stored in the environment to indicate
-// that a variable is external. Attempting to read or write this value raises an error.
 type ExternalVarValue struct {
 	Name         string // The variable name in DWScript
 	ExternalName string // The external name for FFI binding (may be empty)

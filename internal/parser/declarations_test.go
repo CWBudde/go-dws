@@ -430,7 +430,6 @@ func TestParseMultipleTypeAliases(t *testing.T) {
 // ============================================================================
 
 // TestParseSubrangeType tests parsing subrange type declarations
-// Task 9.97: Parser tests for subrange types
 func TestParseSubrangeType(t *testing.T) {
 	tests := []struct {
 		name             string

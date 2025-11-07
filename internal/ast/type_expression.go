@@ -8,8 +8,6 @@ import "github.com/cwbudde/go-dws/internal/lexer"
 //
 // This allows types to be parsed and used inline in variable declarations,
 // parameter lists, and other contexts without requiring type aliases.
-//
-// Task 9.49: Created to support inline type expressions
 type TypeExpression interface {
 	Node
 	typeExpressionNode() // Marker method to identify type expressions
@@ -34,9 +32,6 @@ var (
 //   - array of array of Integer (nested dynamic arrays)
 //   - array[1..5] of array[1..10] of Integer (nested static arrays)
 //   - array of function(x: Integer): Boolean (array of function pointers)
-//
-// Task 9.51: Created to support inline array type syntax
-// Task 9.54: Extended to support static array bounds
 type ArrayTypeNode struct {
 	Token       lexer.Token    // The 'array' token
 	ElementType TypeExpression // The element type (can be any type expression)
@@ -91,8 +86,6 @@ func (at *ArrayTypeNode) typeExpressionNode() {}
 //   - set of TEnum (set of named enum type)
 //   - set of (A, B, C) (set of inline anonymous enum)
 //   - set of 2..1000 (set of inline subrange - if supported)
-//
-// Task 9.213: Created to support inline set type syntax
 type SetTypeNode struct {
 	Token       lexer.Token    // The 'set' token
 	ElementType TypeExpression // The element type (enum or subrange)

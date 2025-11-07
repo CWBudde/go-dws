@@ -137,6 +137,30 @@ func MarshalToGo(dwsValue Value, targetType reflect.Type) (any, error) {
 
 		return goMap.Interface(), nil
 
+	case reflect.Ptr:
+		// Task 9.2d: Handle pointer parameters (var parameters)
+		// For pointer types, we need to:
+		// 1. Get the underlying value from the DWScript variable
+		// 2. Marshal it to the pointed-to type
+		// 3. Create a Go pointer to that value
+		// 4. The pointer will be passed to the Go function, which can modify it
+		// 5. After the call, we'll unmarshal the modified value back (handled in Call())
+
+		// Get the pointed-to type
+		elemType := targetType.Elem()
+
+		// Marshal the DWScript value to the pointed-to type
+		elemValue, err := MarshalToGo(dwsValue, elemType)
+		if err != nil {
+			return nil, fmt.Errorf("pointer element: %w", err)
+		}
+
+		// Create a pointer to the marshaled value
+		ptrValue := reflect.New(elemType)
+		ptrValue.Elem().Set(reflect.ValueOf(elemValue))
+
+		return ptrValue.Interface(), nil
+
 	default:
 		return nil, fmt.Errorf("unsupported target type: %s", targetType)
 	}
@@ -240,4 +264,27 @@ func MarshalToDWS(goValue any) (Value, error) {
 	default:
 		return nil, fmt.Errorf("unsupported Go return type: %T", goValue)
 	}
+}
+
+// UnmarshalFromGoPtr reads a value from a Go pointer and converts it back to DWScript.
+// Task 9.2d: Used to sync modified values from Go var parameters back to DWScript.
+//
+// This function takes a Go pointer (reflect.Value) that was passed to a Go function
+// as a var parameter, reads the (potentially modified) value it points to, and converts
+// it back to a DWScript Value.
+//
+// Example:
+//
+//	func Increment(x *int64) { *x++ }
+//	// After calling Increment, we use UnmarshalFromGoPtr to get the modified value
+func UnmarshalFromGoPtr(ptrValue reflect.Value) (Value, error) {
+	if ptrValue.Kind() != reflect.Ptr {
+		return nil, fmt.Errorf("expected pointer, got %s", ptrValue.Kind())
+	}
+
+	// Dereference the pointer to get the actual value
+	elemValue := ptrValue.Elem()
+
+	// Convert the dereferenced value to DWScript
+	return MarshalToDWS(elemValue.Interface())
 }

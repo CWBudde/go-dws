@@ -896,7 +896,6 @@ end
 
 // TestBuiltinBoolToStr_BasicUsage tests BoolToStr() with basic boolean to string conversion.
 // BoolToStr(b) - converts boolean to string representation
-// Task 9.245: BoolToStr built-in function
 func TestBuiltinBoolToStr_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1245,7 +1244,6 @@ end
 }
 
 // TestImplicitIntegerToFloatCoercion tests implicit Integer→Float conversion in function calls.
-// Task 9.26: horizontal_sundial.pas fix - Integer arguments should automatically widen to Float parameters
 func TestImplicitIntegerToFloatCoercion(t *testing.T) {
 	tests := []struct {
 		name     string

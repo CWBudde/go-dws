@@ -20,7 +20,7 @@ import (
 //   - lambda(x: Integer) => x * 2 (shorthand, desugared to block)
 //   - lambda(a, b: Integer): Integer begin Result := a + b; end
 //
-// Task 9.216: Analysis steps:
+// Analysis steps:
 //   - Validate all parameter types exist (require explicit types for now)
 //   - Check for duplicate parameter names
 //   - Create new scope for lambda parameters

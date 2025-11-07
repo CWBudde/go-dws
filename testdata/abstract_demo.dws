@@ -1,5 +1,4 @@
 // Abstract Class Demonstration
-// Task 7.65: Demonstrates abstract classes and methods
 
 type TShape = class abstract
   FName: String;

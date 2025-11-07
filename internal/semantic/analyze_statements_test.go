@@ -217,7 +217,7 @@ func TestForStatementNonOrdinalType(t *testing.T) {
 	expectError(t, input, "ordinal type")
 }
 
-// Task 9.153: Semantic tests for for-loop step feature
+// Semantic tests for for-loop step feature
 func TestForStatementWithStepInteger(t *testing.T) {
 	input := `
 		var sum: Integer := 0;
