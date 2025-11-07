@@ -121,7 +121,26 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 
 	// Before returning error, check if this is a parameterless function/procedure call
 	// In DWScript, you can call parameterless procedures without parentheses: "Test;" instead of "Test();"
-	if fn, exists := i.functions[node.Value]; exists && fn != nil {
+	// Task 9.66: Handle overloaded functions
+	if overloads, exists := i.functions[node.Value]; exists && len(overloads) > 0 {
+		// For parameterless call or function pointer, resolve to the no-arg overload
+		var fn *ast.FunctionDecl
+		if len(overloads) == 1 {
+			fn = overloads[0]
+		} else {
+			// Multiple overloads - try to find the one with zero parameters
+			for _, candidate := range overloads {
+				if len(candidate.Parameters) == 0 {
+					fn = candidate
+					break
+				}
+			}
+			// If no zero-param overload, default to first one (for function pointer use)
+			if fn == nil {
+				fn = overloads[0]
+			}
+		}
+
 		// Check if function has zero parameters
 		if len(fn.Parameters) == 0 {
 			// Auto-invoke the parameterless function/procedure
@@ -711,12 +730,17 @@ func (i *Interpreter) evalAddressOfExpression(expr *ast.AddressOfExpression) Val
 
 // evalFunctionPointer creates a function pointer value for the named function.
 // If selfObject is non-nil, creates a method pointer.
+// Task 9.66: Handle overloaded functions - use first overload for function pointers
 func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.Node) Value {
 	// Look up the function in the function registry
-	function, exists := i.functions[name]
-	if !exists {
+	overloads, exists := i.functions[name]
+	if !exists || len(overloads) == 0 {
 		return newError("undefined function or procedure: %s", name)
 	}
+
+	// For overloaded functions, use the first overload
+	// Note: Function pointers cannot represent overload sets, only single functions
+	function := overloads[0]
 
 	// Get the function pointer type from the semantic analyzer's type information
 	// For now, create a basic function pointer type from the function signature

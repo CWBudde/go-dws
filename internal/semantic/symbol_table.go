@@ -9,13 +9,14 @@ import (
 
 // Symbol represents a symbol in the symbol table (variable or function)
 type Symbol struct {
-	Type          types.Type
-	Overloads     []*Symbol   // List of overloaded function symbols (nil for non-overloaded)
-	Value         interface{} // Compile-time constant value (nil for non-constants)
-	Name          string
-	ReadOnly      bool
-	IsConst       bool
-	IsOverloadSet bool // True if this symbol represents multiple overloaded functions
+	Type             types.Type
+	Overloads        []*Symbol   // List of overloaded function symbols (nil for non-overloaded)
+	Value            interface{} // Compile-time constant value (nil for non-constants)
+	Name             string
+	ReadOnly         bool
+	IsConst          bool
+	IsOverloadSet    bool // True if this symbol represents multiple overloaded functions
+	HasOverloadDirective bool // True if function has explicit 'overload' directive (Task 9.58)
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.
@@ -94,8 +95,9 @@ func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType)
 //   - hasOverloadDirective: Whether the function declaration has the 'overload' directive
 //
 // Returns error if:
-//   - Function exists without overload directive on either declaration
-//   - Exact duplicate signature exists (even with overload directive)
+//   - Function exists without overload directive on either declaration (Task 9.58)
+//   - Exact duplicate signature exists (Task 9.59)
+//   - Ambiguous overload with default parameters (Task 9.62)
 func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType, hasOverloadDirective bool) error {
 	lowerName := strings.ToLower(name)
 	existing, exists := st.symbols[lowerName]
@@ -103,12 +105,13 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 	if !exists {
 		// First declaration - create new symbol (may or may not be overloaded later)
 		st.symbols[lowerName] = &Symbol{
-			Name:          name,
-			Type:          funcType,
-			ReadOnly:      false,
-			IsConst:       false,
-			IsOverloadSet: false, // Not an overload set yet
-			Overloads:     nil,
+			Name:                 name,
+			Type:                 funcType,
+			ReadOnly:             false,
+			IsConst:              false,
+			IsOverloadSet:        false, // Not an overload set yet
+			Overloads:            nil,
+			HasOverloadDirective: hasOverloadDirective,
 		}
 		return nil
 	}
@@ -120,51 +123,102 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 		}
 	}
 
-	// Both the existing and new declaration must have overload directive
-	// Note: We can't check the existing one's directive here since we don't store it.
-	// This is a simplified version - a full implementation would track the directive.
-	// For now, we assume if we're calling DefineOverload, both have the directive.
-	if !hasOverloadDirective {
-		return fmt.Errorf("function '%s' already declared; use 'overload' directive for multiple definitions", name)
-	}
-
-	// Check for duplicate signature in existing overloads
+	// Task 9.58: Validate overload directive consistency
+	// If an existing function has the overload directive, or we're adding one with it,
+	// then all must have it (with exception: the last implementation can omit it in some cases)
 	if existing.IsOverloadSet {
+		// Check all existing overloads for directive consistency
 		for _, overload := range existing.Overloads {
-			if overload.Type.Equals(funcType) {
-				return fmt.Errorf("duplicate function signature for overloaded function '%s'", name)
+			if overload.HasOverloadDirective && !hasOverloadDirective {
+				return fmt.Errorf("overloaded %s '%s' must be marked with the 'overload' directive",
+					getFunctionKind(funcType), name)
 			}
 		}
-		// Add to existing overload set
-		existing.Overloads = append(existing.Overloads, &Symbol{
-			Name:          name,
-			Type:          funcType,
-			ReadOnly:      false,
-			IsConst:       false,
-			IsOverloadSet: false,
-			Overloads:     nil,
-		})
+	} else {
+		// Second overload - both first and second must have directive (or neither, for now)
+		if existing.HasOverloadDirective && !hasOverloadDirective {
+			return fmt.Errorf("overloaded %s '%s' must be marked with the 'overload' directive",
+				getFunctionKind(funcType), name)
+		}
+		if !existing.HasOverloadDirective && hasOverloadDirective {
+			// First one didn't have it, but second does - this is also an error
+			// However, DWScript allows this in some cases, so we'll be lenient here
+			// and just update the first one to mark it as part of an overload set
+			existing.HasOverloadDirective = true
+		}
+	}
+
+	// Task 9.59: Check for duplicate signature in existing overloads
+	// Note: In DWScript, functions with same parameters but different return types
+	// are allowed as overloads. Only if BOTH signature AND return type match is it a duplicate.
+	if existing.IsOverloadSet {
+		for _, overload := range existing.Overloads {
+			existingFunc := overload.Type.(*types.FunctionType)
+			// Check if signatures are equal (same parameters)
+			if SignaturesEqual(existingFunc, funcType) {
+				// Signatures match - check if return types also match
+				if existingFunc.ReturnType.Equals(funcType.ReturnType) {
+					// True duplicate - same signature AND same return type
+					if hasOverloadDirective && overload.HasOverloadDirective {
+						return fmt.Errorf("there is already a method with name \"%s\"", name)
+					}
+					return fmt.Errorf("'%s' already declared", name)
+				}
+				// Signatures match but return types differ - this is allowed in DWScript
+			}
+		}
 	} else {
 		// Check if new signature is different from existing
-		if existing.Type.Equals(funcType) {
-			return fmt.Errorf("duplicate function signature for overloaded function '%s'", name)
+		existingFunc := existing.Type.(*types.FunctionType)
+		if SignaturesEqual(existingFunc, funcType) {
+			// Signatures match - check if return types also match
+			if existingFunc.ReturnType.Equals(funcType.ReturnType) {
+				// True duplicate - same signature AND same return type
+				if hasOverloadDirective && existing.HasOverloadDirective {
+					return fmt.Errorf("there is already a method with name \"%s\"", name)
+				}
+				return fmt.Errorf("'%s' already declared", name)
+			}
+			// Signatures match but return types differ - this is allowed in DWScript
 		}
+	}
+
+	// Task 9.62: Check for ambiguous overloads (especially with default parameters)
+	if err := st.checkAmbiguousOverload(name, funcType, existing); err != nil {
+		return err
+	}
+
+	// Add the new overload
+	if existing.IsOverloadSet {
+		// Add to existing overload set
+		existing.Overloads = append(existing.Overloads, &Symbol{
+			Name:                 name,
+			Type:                 funcType,
+			ReadOnly:             false,
+			IsConst:              false,
+			IsOverloadSet:        false,
+			Overloads:            nil,
+			HasOverloadDirective: hasOverloadDirective,
+		})
+	} else {
 		// Convert to overload set (this is the second overload)
 		firstOverload := &Symbol{
-			Name:          existing.Name,
-			Type:          existing.Type,
-			ReadOnly:      false,
-			IsConst:       false,
-			IsOverloadSet: false,
-			Overloads:     nil,
+			Name:                 existing.Name,
+			Type:                 existing.Type,
+			ReadOnly:             false,
+			IsConst:              false,
+			IsOverloadSet:        false,
+			Overloads:            nil,
+			HasOverloadDirective: existing.HasOverloadDirective,
 		}
 		secondOverload := &Symbol{
-			Name:          name,
-			Type:          funcType,
-			ReadOnly:      false,
-			IsConst:       false,
-			IsOverloadSet: false,
-			Overloads:     nil,
+			Name:                 name,
+			Type:                 funcType,
+			ReadOnly:             false,
+			IsConst:              false,
+			IsOverloadSet:        false,
+			Overloads:            nil,
+			HasOverloadDirective: hasOverloadDirective,
 		}
 		existing.IsOverloadSet = true
 		existing.Overloads = []*Symbol{firstOverload, secondOverload}
@@ -172,6 +226,138 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 	}
 
 	return nil
+}
+
+// getFunctionKind returns "procedure" or "function" based on return type
+func getFunctionKind(funcType *types.FunctionType) string {
+	if funcType.ReturnType == types.VOID {
+		return "procedure"
+	}
+	return "function"
+}
+
+// checkAmbiguousOverload checks if a new overload would be ambiguous with existing overloads
+// Task 9.62: Detect ambiguous overloads, especially with default parameters
+func (st *SymbolTable) checkAmbiguousOverload(name string, newSig *types.FunctionType, existing *Symbol) error {
+	// Get all existing signatures
+	var existingSigs []*types.FunctionType
+	if existing.IsOverloadSet {
+		for _, overload := range existing.Overloads {
+			existingSigs = append(existingSigs, overload.Type.(*types.FunctionType))
+		}
+	} else {
+		existingSigs = []*types.FunctionType{existing.Type.(*types.FunctionType)}
+	}
+
+	// Check if the new signature could be ambiguous with any existing signature
+	// due to default parameters
+	for _, existingSig := range existingSigs {
+		if isAmbiguous(newSig, existingSig) {
+			return fmt.Errorf("overload of \"%s\" will be ambiguous with a previously declared version", name)
+		}
+	}
+
+	return nil
+}
+
+// isAmbiguous checks if two function signatures are ambiguous due to default parameters
+// Two signatures are ambiguous if there's a call that could match both
+// Note: In DWScript, same signature with different return types is allowed (not ambiguous)
+func isAmbiguous(sig1, sig2 *types.FunctionType) bool {
+	// If only return types differ, not ambiguous (DWScript allows this)
+	// The disambiguation happens based on the context where the result is used
+	if SignaturesEqual(sig1, sig2) && !sig1.ReturnType.Equals(sig2.ReturnType) {
+		return false // Not ambiguous - only return types differ
+	}
+
+	// Get the parameter counts and minimum required counts
+	params1 := len(sig1.Parameters)
+	params2 := len(sig2.Parameters)
+
+	// Count required parameters (non-default) for each signature
+	required1 := params1
+	required2 := params2
+
+	if sig1.DefaultValues != nil {
+		for i := len(sig1.DefaultValues) - 1; i >= 0; i-- {
+			if sig1.DefaultValues[i] != nil {
+				required1 = i
+			} else {
+				break
+			}
+		}
+	}
+
+	if sig2.DefaultValues != nil {
+		for i := len(sig2.DefaultValues) - 1; i >= 0; i-- {
+			if sig2.DefaultValues[i] != nil {
+				required2 = i
+			} else {
+				break
+			}
+		}
+	}
+
+	// Check if there's an overlap in the number of arguments that both could accept
+	minArgs1 := required1
+	maxArgs1 := params1
+	minArgs2 := required2
+	maxArgs2 := params2
+
+	// For each possible argument count, check if both signatures could match
+	for argCount := 0; argCount <= max(maxArgs1, maxArgs2); argCount++ {
+		// Check if both signatures accept this argument count
+		canAccept1 := argCount >= minArgs1 && argCount <= maxArgs1
+		canAccept2 := argCount >= minArgs2 && argCount <= maxArgs2
+
+		if canAccept1 && canAccept2 {
+			// Both signatures accept this number of arguments
+			// Check if the parameter types and modifiers are compatible
+			allMatch := true
+			for i := 0; i < argCount; i++ {
+				if i < params1 && i < params2 {
+					// Compare the types
+					if !sig1.Parameters[i].Equals(sig2.Parameters[i]) {
+						allMatch = false
+						break
+					}
+					// Also check parameter modifiers - different modifiers make signatures distinct
+					if i < len(sig1.VarParams) && i < len(sig2.VarParams) {
+						if sig1.VarParams[i] != sig2.VarParams[i] {
+							allMatch = false
+							break
+						}
+					}
+					if i < len(sig1.ConstParams) && i < len(sig2.ConstParams) {
+						if sig1.ConstParams[i] != sig2.ConstParams[i] {
+							allMatch = false
+							break
+						}
+					}
+					if i < len(sig1.LazyParams) && i < len(sig2.LazyParams) {
+						if sig1.LazyParams[i] != sig2.LazyParams[i] {
+							allMatch = false
+							break
+						}
+					}
+				}
+			}
+
+			if allMatch {
+				// This argument count would match both signatures - ambiguous!
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // GetOverloadSet retrieves all overloads for a given function name.

@@ -28,16 +28,16 @@ type PropertyEvalContext struct {
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 type Interpreter struct {
-	currentNode       ast.Node                     // Current AST node being evaluated (for error reporting)
-	output            io.Writer                    // Where to write output (e.g., from PrintLn)
-	rand              *rand.Rand                   // Random number generator for Random() and Randomize()
-	exception         *ExceptionValue              // Current active exception (nil if none)
-	interfaces        map[string]*InterfaceInfo    // Registry of interface definitions
-	functions         map[string]*ast.FunctionDecl // Registry of user-defined functions
-	globalOperators   *runtimeOperatorRegistry     // Global operator overloads
-	conversions       *runtimeConversionRegistry   // Global conversions
-	env               *Environment                 // The current execution environment
-	classes           map[string]*ClassInfo        // Registry of class definitions
+	currentNode       ast.Node                       // Current AST node being evaluated (for error reporting)
+	output            io.Writer                      // Where to write output (e.g., from PrintLn)
+	rand              *rand.Rand                     // Random number generator for Random() and Randomize()
+	exception         *ExceptionValue                // Current active exception (nil if none)
+	interfaces        map[string]*InterfaceInfo      // Registry of interface definitions
+	functions         map[string][]*ast.FunctionDecl // Registry of user-defined functions (Task 9.66: supports overloading)
+	globalOperators   *runtimeOperatorRegistry       // Global operator overloads
+	conversions       *runtimeConversionRegistry     // Global conversions
+	env               *Environment                   // The current execution environment
+	classes           map[string]*ClassInfo          // Registry of class definitions
 	handlerException  *ExceptionValue              // Exception being handled (for bare raise)
 	callStack         errors.StackTrace            // Stack of currently executing functions with position info (for stack traces)
 	maxRecursionDepth int                          // Maximum allowed recursion depth (prevents stack overflow)
@@ -85,7 +85,7 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 	interp := &Interpreter{
 		env:               env,
 		output:            output,
-		functions:         make(map[string]*ast.FunctionDecl),
+		functions:         make(map[string][]*ast.FunctionDecl), // Task 9.66: Support overloading
 		classes:           make(map[string]*ClassInfo),
 		interfaces:        make(map[string]*InterfaceInfo),
 		globalOperators:   newRuntimeOperatorRegistry(),
