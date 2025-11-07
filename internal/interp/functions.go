@@ -1710,7 +1710,8 @@ func (i *Interpreter) resolveOverload(funcName string, overloads []*ast.Function
 	// Use semantic analyzer's overload resolution
 	selected, err := semantic.ResolveOverload(candidates, argTypes)
 	if err != nil {
-		return nil, fmt.Errorf("cannot resolve overload for '%s': %v", funcName, err)
+		// Task 9.63: Use DWScript-compatible error message
+		return nil, fmt.Errorf("There is no overloaded version of \"%s\" that can be called with these arguments", funcName)
 	}
 
 	// Find which function declaration corresponds to the selected symbol
