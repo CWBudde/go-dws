@@ -443,6 +443,81 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 	}
 }
 
+func TestCompiler_BreakAndContinue(t *testing.T) {
+	boolType := &ast.TypeAnnotation{Name: "Boolean"}
+
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.WhileStatement{
+				Token:     lexer.Token{Type: lexer.WHILE, Literal: "while", Pos: pos(1, 1)},
+				Condition: &ast.BooleanLiteral{Token: lexer.Token{Type: lexer.TRUE, Literal: "True", Pos: pos(1, 7)}, Value: true, Type: boolType},
+				Body: &ast.BlockStatement{
+					Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+					Statements: []ast.Statement{
+						&ast.ContinueStatement{Token: lexer.Token{Type: lexer.CONTINUE, Literal: "continue", Pos: pos(2, 3)}},
+						&ast.BreakStatement{Token: lexer.Token{Type: lexer.BREAK, Literal: "break", Pos: pos(3, 3)}},
+					},
+				},
+			},
+		},
+	}
+
+	chunk := compileProgram(t, program)
+
+	foundLoop := false
+	foundPatchedBreak := false
+	for _, inst := range chunk.Code {
+		switch inst.OpCode() {
+		case OpLoop:
+			foundLoop = true
+		case OpJump:
+			if inst.B() != 0xFFFF {
+				foundPatchedBreak = true
+			}
+		}
+	}
+
+	if !foundLoop {
+		t.Fatalf("expected OpLoop instruction for continue")
+	}
+	if !foundPatchedBreak {
+		t.Fatalf("expected patched OpJump for break")
+	}
+}
+
+func TestCompiler_RepeatContinuePatchesToCondition(t *testing.T) {
+	boolType := &ast.TypeAnnotation{Name: "Boolean"}
+
+	repeatStmt := &ast.RepeatStatement{
+		Token: lexer.Token{Type: lexer.REPEAT, Literal: "repeat", Pos: pos(1, 1)},
+		Body: &ast.BlockStatement{
+			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			Statements: []ast.Statement{
+				&ast.ContinueStatement{Token: lexer.Token{Type: lexer.CONTINUE, Literal: "continue", Pos: pos(2, 3)}},
+			},
+		},
+		Condition: &ast.BooleanLiteral{Token: lexer.Token{Type: lexer.TRUE, Literal: "True", Pos: pos(3, 1)}, Value: true, Type: boolType},
+	}
+
+	program := &ast.Program{
+		Statements: []ast.Statement{repeatStmt},
+	}
+
+	chunk := compileProgram(t, program)
+
+	hasPatchedJump := false
+	for _, inst := range chunk.Code {
+		if inst.OpCode() == OpJump && inst.B() != 0xFFFF {
+			hasPatchedJump = true
+			break
+		}
+	}
+
+	if !hasPatchedJump {
+		t.Fatalf("expected repeat continue jump to be patched")
+	}
+}
+
 func TestCompiler_MemberAccess(t *testing.T) {
 	objIdent := &ast.Identifier{
 		Token: lexer.Token{Type: lexer.IDENT, Literal: "obj", Pos: pos(1, 5)},
@@ -714,6 +789,16 @@ func expectInstructions(t *testing.T, chunk *Chunk, expected []expectedInstructi
 
 func pos(line, column int) lexer.Position {
 	return lexer.Position{Line: line, Column: column}
+}
+
+func compileProgram(t *testing.T, program *ast.Program) *Chunk {
+	t.Helper()
+	compiler := NewCompiler("test_program")
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	return chunk
 }
 
 func executeChunk(t testing.TB, chunk *Chunk) Value {

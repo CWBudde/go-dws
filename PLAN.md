@@ -1563,10 +1563,10 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
     - [x] GET_PROPERTY / SET_PROPERTY hooked up for member access/assignment (compiler emits property-name constants)
     - _Remaining_: add closure capture tracking so upvalue instructions are emitted, and round out field/getter variations once object model expands.
 
-  - [ ] 12.18.7 Implement control flow instructions (1 week, MODERATE)
-    - [ ] JUMP, JUMP_IF_FALSE, JUMP_IF_TRUE
-    - [ ] LOOP (jump backward for while/for loops)
-    - [ ] Patch jump addresses during compilation
+  - [x] 12.18.7 Implement control flow instructions (1 week, MODERATE)
+    - [x] JUMP, JUMP_IF_FALSE, JUMP_IF_TRUE (compiler emits + VM dispatch already in place; break/continue leverage these)
+    - [x] LOOP (jump backward for while/for loops) *(continue now emits `OpLoop` for pre-test loops, repeat loops patch to condition)*
+    - [x] Patch jump addresses during compilation *(loop context tracks placeholders for breaks/continues and patches after body/condition compilation)*
 
   - [ ] 12.18.8 Implement function call instructions (1-2 weeks, COMPLEX)
     - [ ] CALL instruction with argument count
