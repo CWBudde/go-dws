@@ -87,8 +87,9 @@ func (e *Engine) Compile(source string) (*Program, error) {
 	}
 
 	// Type check (if enabled)
+	var analyzer *semantic.Analyzer
 	if e.options.TypeCheck {
-		analyzer := semantic.NewAnalyzer()
+		analyzer = semantic.NewAnalyzer()
 		if err := analyzer.Analyze(program); err != nil {
 			// Convert semantic errors
 			errors := convertSemanticError(err)
@@ -100,8 +101,9 @@ func (e *Engine) Compile(source string) (*Program, error) {
 	}
 
 	return &Program{
-		ast:     program,
-		options: e.options,
+		ast:      program,
+		analyzer: analyzer,
+		options:  e.options,
 	}, nil
 }
 
@@ -179,28 +181,15 @@ func (e *Engine) Parse(source string) (*ast.Program, error) {
 }
 
 // convertSemanticError converts semantic analysis errors to structured Error objects.
+// It extracts position information from error strings that contain " at line:column" format.
 func convertSemanticError(err error) []*Error {
 	// Check if it's already a semantic.AnalysisError
 	if analysisErr, ok := err.(*semantic.AnalysisError); ok {
 		errors := make([]*Error, 0, len(analysisErr.Errors))
 		for _, errStr := range analysisErr.Errors {
-			// Parse position from error string
-			line, column := 0, 0
-			message := errStr
-
-			// Try to extract position
-			var parsed bool
-			_, parseErr := fmt.Sscanf(errStr, "%s at %d:%d", &message, &line, &column)
-			if parseErr == nil {
-				parsed = true
-				if idx := strings.LastIndex(errStr, " at "); idx >= 0 {
-					message = errStr[:idx]
-				}
-			}
-
-			if !parsed {
-				message = errStr
-			}
+			// Extract position from error string if present
+			// Format: "error message at line:column"
+			line, column, message := extractPositionFromError(errStr)
 
 			errors = append(errors, &Error{
 				Message:  message,
@@ -225,6 +214,33 @@ func convertSemanticError(err error) []*Error {
 			Code:     "E_SEMANTIC",
 		},
 	}
+}
+
+// extractPositionFromError extracts position information from an error string.
+// Returns (line, column, message) where line and column are 0 if not found.
+// Handles error formats like:
+//   - "error message at 10:5"
+//   - "error message"
+func extractPositionFromError(errStr string) (int, int, string) {
+	// Look for " at line:column" pattern at the end of the string
+	idx := strings.LastIndex(errStr, " at ")
+	if idx == -1 {
+		return 0, 0, errStr
+	}
+
+	// Extract the position part
+	posPart := errStr[idx+4:] // Skip " at "
+	message := errStr[:idx]
+
+	// Try to parse "line:column"
+	var line, column int
+	n, err := fmt.Sscanf(posPart, "%d:%d", &line, &column)
+	if err != nil || n != 2 {
+		// Couldn't parse position, return original message
+		return 0, 0, errStr
+	}
+
+	return line, column, message
 }
 
 // Run executes a previously compiled Program and returns the result.
@@ -304,8 +320,9 @@ func (e *Engine) Eval(source string) (*Result, error) {
 // Program represents a compiled DWScript program.
 // It can be executed multiple times without re-compilation.
 type Program struct {
-	ast     *ast.Program
-	options Options
+	ast      *ast.Program
+	analyzer *semantic.Analyzer
+	options  Options
 }
 
 // AST returns the Abstract Syntax Tree of the compiled program.
