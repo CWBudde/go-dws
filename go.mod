@@ -1,6 +1,6 @@
 module github.com/cwbudde/go-dws
 
-go 1.25.0
+go 1.24
 
 require (
 	github.com/gkampitakis/go-snaps v0.5.15
