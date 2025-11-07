@@ -10,6 +10,18 @@ import (
 // ============================================================================
 // Expression Analysis
 // ============================================================================
+
+// analyzeCallExpressionWithContext analyzes a call expression with optional expected type context.
+// Task 9.19.2: The expected type can help with overload resolution in the future.
+// Currently, this is a wrapper that delegates to analyzeCallExpression, but can be extended
+// to use the expected type for disambiguating between multiple overloads.
+func (a *Analyzer) analyzeCallExpressionWithContext(expr *ast.CallExpression, expectedType types.Type) types.Type {
+	// TODO: Use expectedType for overload resolution when overloading is implemented
+	// For now, just delegate to the regular analysis
+	_ = expectedType // Mark as intentionally unused for now
+	return a.analyzeCallExpression(expr)
+}
+
 func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	// Handle member access expressions (method calls like obj.Method())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
