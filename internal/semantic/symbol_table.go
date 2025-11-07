@@ -231,8 +231,9 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 					// Not a forward+impl pair - this is a true duplicate
 					return fmt.Errorf("There is already a method with name \"%s\"", name)
 				}
-				// Task 9.62, 9.63: Signatures match but return types differ - this is AMBIGUOUS
-				return fmt.Errorf("Overload of \"%s\" will be ambiguous with a previously declared version", name)
+				// Signatures match but return types differ - this is a valid overload
+				// (procedures vs functions, or functions with different return types)
+				// Continue to allow this overload
 			}
 		}
 	} else {
@@ -244,8 +245,9 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 				// Task 9.63: True duplicate - same signature AND same return type
 				return fmt.Errorf("There is already a method with name \"%s\"", name)
 			}
-			// Task 9.62, 9.63: Signatures match but return types differ - this is AMBIGUOUS
-			return fmt.Errorf("Overload of \"%s\" will be ambiguous with a previously declared version", name)
+			// Signatures match but return types differ - this is a valid overload
+			// (procedures vs functions, or functions with different return types)
+			// Continue to allow this overload
 		}
 	}
 
