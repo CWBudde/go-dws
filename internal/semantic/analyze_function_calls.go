@@ -74,109 +74,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return resultType
 		}
 
-		// TrimRight built-in function
-		if strings.EqualFold(funcIdent.Value, "TrimRight") {
-			// TrimRight takes one string argument and returns a string
-			if len(expr.Arguments) != 1 {
-				a.addError("function 'TrimRight' expects 1 argument, got %d at %s",
-					len(expr.Arguments), expr.Token.Pos.String())
-				return types.STRING
-			}
-			// Analyze the argument and verify it's a string
-			argType := a.analyzeExpression(expr.Arguments[0])
-			if argType != nil && argType != types.STRING {
-				a.addError("function 'TrimRight' expects string as argument, got %s at %s",
-					argType.String(), expr.Token.Pos.String())
-			}
-			return types.STRING
-		}
-
-		// StringReplace built-in function
-		if strings.EqualFold(funcIdent.Value, "StringReplace") {
-			// StringReplace takes 3-4 arguments: str, old, new, [count]
-			if len(expr.Arguments) < 3 || len(expr.Arguments) > 4 {
-				a.addError("function 'StringReplace' expects 3 or 4 arguments, got %d at %s",
-					len(expr.Arguments), expr.Token.Pos.String())
-				return types.STRING
-			}
-			// First argument: string to search in
-			arg1Type := a.analyzeExpression(expr.Arguments[0])
-			if arg1Type != nil && arg1Type != types.STRING {
-				a.addError("function 'StringReplace' expects string as first argument, got %s at %s",
-					arg1Type.String(), expr.Token.Pos.String())
-			}
-			// Second argument: old substring
-			arg2Type := a.analyzeExpression(expr.Arguments[1])
-			if arg2Type != nil && arg2Type != types.STRING {
-				a.addError("function 'StringReplace' expects string as second argument, got %s at %s",
-					arg2Type.String(), expr.Token.Pos.String())
-			}
-			// Third argument: new substring
-			arg3Type := a.analyzeExpression(expr.Arguments[2])
-			if arg3Type != nil && arg3Type != types.STRING {
-				a.addError("function 'StringReplace' expects string as third argument, got %s at %s",
-					arg3Type.String(), expr.Token.Pos.String())
-			}
-			// Optional fourth argument: count (integer)
-			if len(expr.Arguments) == 4 {
-				arg4Type := a.analyzeExpression(expr.Arguments[3])
-				if arg4Type != nil && arg4Type != types.INTEGER {
-					a.addError("function 'StringReplace' expects integer as fourth argument, got %s at %s",
-						arg4Type.String(), expr.Token.Pos.String())
-				}
-			}
-			return types.STRING
-		}
-
-		// StringOfChar built-in function
-		if strings.EqualFold(funcIdent.Value, "StringOfChar") {
-			// StringOfChar takes exactly 2 arguments: character (string) and count (integer)
-			if len(expr.Arguments) != 2 {
-				a.addError("function 'StringOfChar' expects 2 arguments, got %d at %s",
-					len(expr.Arguments), expr.Token.Pos.String())
-				return types.STRING
-			}
-			// First argument: character (string)
-			arg1Type := a.analyzeExpression(expr.Arguments[0])
-			if arg1Type != nil && arg1Type != types.STRING {
-				a.addError("function 'StringOfChar' expects string as first argument, got %s at %s",
-					arg1Type.String(), expr.Token.Pos.String())
-			}
-			// Second argument: count (integer)
-			arg2Type := a.analyzeExpression(expr.Arguments[1])
-			if arg2Type != nil && arg2Type != types.INTEGER {
-				a.addError("function 'StringOfChar' expects integer as second argument, got %s at %s",
-					arg2Type.String(), expr.Token.Pos.String())
-			}
-			return types.STRING
-		}
-
-		// Format built-in function
-		if strings.EqualFold(funcIdent.Value, "Format") {
-			// Format takes exactly 2 arguments: format string and array of values
-			if len(expr.Arguments) != 2 {
-				a.addError("Format() expects exactly 2 arguments, got %d at %s",
-					len(expr.Arguments), expr.Token.Pos.String())
-				return types.STRING
-			}
-			// First argument: format string (must be String)
-			fmtType := a.analyzeExpression(expr.Arguments[0])
-			if fmtType != nil && fmtType != types.STRING {
-				a.addError("Format() expects string as first argument, got %s at %s",
-					fmtType.String(), expr.Token.Pos.String())
-			}
-			// Second argument: array of values (must be Array type)
-			// Task 9.156 & 9.236: Pass ARRAY_OF_CONST (array of Variant) as expected type
-			// This allows heterogeneous arrays like ['string', 123, 3.14]
-			arrType := a.analyzeExpressionWithExpectedType(expr.Arguments[1], types.ARRAY_OF_CONST)
-			if arrType != nil {
-				if _, isArray := arrType.(*types.ArrayType); !isArray {
-					a.addError("Format() expects array as second argument, got %s at %s",
-						arrType.String(), expr.Token.Pos.String())
-				}
-			}
-			return types.STRING
-		}
 
 		// Low built-in function
 		if strings.EqualFold(funcIdent.Value, "Low") {
@@ -430,23 +327,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					argType.String(), expr.Token.Pos.String())
 			}
 			return types.INTEGER
-		}
-
-		// FloatToStr built-in function
-		if strings.EqualFold(funcIdent.Value, "FloatToStr") {
-			// FloatToStr takes one float argument and returns a string
-			if len(expr.Arguments) != 1 {
-				a.addError("function 'FloatToStr' expects 1 argument, got %d at %s",
-					len(expr.Arguments), expr.Token.Pos.String())
-				return types.STRING
-			}
-			// Analyze the argument and verify it's Float (or coercible to Float, e.g. Integer)
-			argType := a.analyzeExpression(expr.Arguments[0])
-			if argType != nil && !a.canAssign(argType, types.FLOAT) {
-				a.addError("function 'FloatToStr' expects Float as argument, got %s at %s",
-					argType.String(), expr.Token.Pos.String())
-			}
-			return types.STRING
 		}
 
 		// BoolToStr built-in function
@@ -765,7 +645,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.STRING
 		}
 
-		// Task 9.110-9.111: Parsing functions
+		// Parsing functions
 		if strings.EqualFold(funcIdent.Value, "StrToDate") || strings.EqualFold(funcIdent.Value, "StrToDateTime") ||
 			strings.EqualFold(funcIdent.Value, "StrToTime") || strings.EqualFold(funcIdent.Value, "ISO8601ToDateTime") ||
 			strings.EqualFold(funcIdent.Value, "RFC822ToDateTime") {
@@ -783,7 +663,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.FLOAT
 		}
 
-		// Task 9.113: Incrementing functions
+		// Incrementing functions
 		if strings.EqualFold(funcIdent.Value, "IncYear") || strings.EqualFold(funcIdent.Value, "IncMonth") ||
 			strings.EqualFold(funcIdent.Value, "IncDay") || strings.EqualFold(funcIdent.Value, "IncHour") ||
 			strings.EqualFold(funcIdent.Value, "IncMinute") || strings.EqualFold(funcIdent.Value, "IncSecond") {
