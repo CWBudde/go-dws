@@ -554,22 +554,26 @@ func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *t
 	overloads := classType.GetMethodOverloads(methodName)
 	result = append(result, overloads...)
 
-	// Recursively collect from parent (only if not overridden in current class)
-	// If the current class has override methods, we don't want to include the parent's virtual methods
-	// because they're replaced by the overrides
+	// Recursively collect from parent (only if not hidden/overridden in current class)
+	// Task 9.21.6: Fix overload resolution - child methods hide parent methods with same signature
+	// In DWScript, when a child class defines a method with the same signature as a parent method,
+	// it hides/shadows the parent method (regardless of override keyword).
+	// We only want to include parent methods with DIFFERENT signatures (true overloads).
 	if classType.Parent != nil {
 		parentOverloads := a.getMethodOverloadsInHierarchy(methodName, classType.Parent)
 		for _, parentOverload := range parentOverloads {
-			// Check if this parent overload is overridden in the current class
-			overridden := false
+			// Check if this parent method is hidden by a child method with the same signature
+			hidden := false
 			for _, currentOverload := range overloads {
-				if currentOverload.IsOverride && a.methodSignaturesMatch(currentOverload.Signature, parentOverload.Signature) {
-					overridden = true
+				// A child method hides a parent method if they have the same signature
+				// (regardless of whether override keyword is used)
+				if a.methodSignaturesMatch(currentOverload.Signature, parentOverload.Signature) {
+					hidden = true
 					break
 				}
 			}
-			// Only add parent overload if it's not overridden
-			if !overridden {
+			// Only add parent method if it has a different signature (true overload)
+			if !hidden {
 				result = append(result, parentOverload)
 			}
 		}
