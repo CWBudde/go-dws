@@ -19,6 +19,14 @@ type IfStatement struct {
 	Consequence Statement
 	Alternative Statement
 	Token       lexer.Token
+	EndPos      lexer.Position
+}
+
+func (i *IfStatement) End() lexer.Position {
+	if i.EndPos.Line != 0 {
+		return i.EndPos
+	}
+	return i.Token.Pos
 }
 
 func (is *IfStatement) statementNode()       {}
@@ -49,6 +57,14 @@ type WhileStatement struct {
 	Condition Expression
 	Body      Statement
 	Token     lexer.Token
+	EndPos    lexer.Position
+}
+
+func (w *WhileStatement) End() lexer.Position {
+	if w.EndPos.Line != 0 {
+		return w.EndPos
+	}
+	return w.Token.Pos
 }
 
 func (ws *WhileStatement) statementNode()       {}
@@ -75,6 +91,14 @@ type RepeatStatement struct {
 	Body      Statement
 	Condition Expression
 	Token     lexer.Token
+	EndPos    lexer.Position
+}
+
+func (r *RepeatStatement) End() lexer.Position {
+	if r.EndPos.Line != 0 {
+		return r.EndPos
+	}
+	return r.Token.Pos
 }
 
 func (rs *RepeatStatement) statementNode()       {}
@@ -119,18 +143,28 @@ func (fd ForDirection) String() string {
 //	for i := 1 to 10 step 2 do PrintLn(i);
 type ForStatement struct {
 	Start     Expression
-	End       Expression
+	EndValue  Expression // Renamed from 'End' to avoid conflict with End() method
 	Body      Statement
 	Variable  *Identifier
 	Token     lexer.Token
 	Direction ForDirection
 	Step      Expression // Optional step value (nil if not specified, defaults to 1)
 	InlineVar bool
+	EndPos    lexer.Position
 }
 
 func (fs *ForStatement) statementNode()       {}
 func (fs *ForStatement) TokenLiteral() string { return fs.Token.Literal }
 func (fs *ForStatement) Pos() lexer.Position  { return fs.Token.Pos }
+func (fs *ForStatement) End() lexer.Position {
+	if fs.EndPos.Line != 0 {
+		return fs.EndPos
+	}
+	if fs.Body != nil {
+		return fs.Body.End()
+	}
+	return fs.Token.Pos
+}
 func (fs *ForStatement) String() string {
 	var out bytes.Buffer
 
@@ -144,7 +178,7 @@ func (fs *ForStatement) String() string {
 	out.WriteString(" ")
 	out.WriteString(fs.Direction.String())
 	out.WriteString(" ")
-	out.WriteString(fs.End.String())
+	out.WriteString(fs.EndValue.String())
 	if fs.Step != nil {
 		out.WriteString(" step ")
 		out.WriteString(fs.Step.String())
@@ -167,6 +201,14 @@ type ForInStatement struct {
 	Body       Statement   // Loop body
 	Token      lexer.Token // The 'for' token
 	InlineVar  bool        // true if 'var' keyword used
+	EndPos     lexer.Position
+}
+
+func (f *ForInStatement) End() lexer.Position {
+	if f.EndPos.Line != 0 {
+		return f.EndPos
+	}
+	return f.Token.Pos
 }
 
 func (fis *ForInStatement) statementNode()       {}
@@ -197,6 +239,14 @@ type CaseBranch struct {
 	Statement Statement
 	Values    []Expression
 	Token     lexer.Token
+	EndPos    lexer.Position
+}
+
+func (c *CaseBranch) End() lexer.Position {
+	if c.EndPos.Line != 0 {
+		return c.EndPos
+	}
+	return c.Token.Pos
 }
 
 func (cb *CaseBranch) String() string {
@@ -227,6 +277,14 @@ type CaseStatement struct {
 	Else       Statement
 	Cases      []*CaseBranch
 	Token      lexer.Token
+	EndPos     lexer.Position
+}
+
+func (c *CaseStatement) End() lexer.Position {
+	if c.EndPos.Line != 0 {
+		return c.EndPos
+	}
+	return c.Token.Pos
 }
 
 func (cs *CaseStatement) statementNode()       {}
@@ -267,7 +325,15 @@ func (cs *CaseStatement) String() string {
 //	   if shouldExit then break;
 //	end;
 type BreakStatement struct {
-	Token lexer.Token // The 'break' token
+	Token  lexer.Token // The 'break' token
+	EndPos lexer.Position
+}
+
+func (b *BreakStatement) End() lexer.Position {
+	if b.EndPos.Line != 0 {
+		return b.EndPos
+	}
+	return b.Token.Pos
 }
 
 func (bs *BreakStatement) statementNode()       {}
@@ -292,7 +358,15 @@ func (bs *BreakStatement) String() string {
 //	   end;
 //	end;
 type ContinueStatement struct {
-	Token lexer.Token // The 'continue' token
+	Token  lexer.Token // The 'continue' token
+	EndPos lexer.Position
+}
+
+func (c *ContinueStatement) End() lexer.Position {
+	if c.EndPos.Line != 0 {
+		return c.EndPos
+	}
+	return c.Token.Pos
 }
 
 func (cs *ContinueStatement) statementNode()       {}
@@ -319,6 +393,14 @@ func (cs *ContinueStatement) String() string {
 type ExitStatement struct {
 	ReturnValue Expression // Optional expression returned from Exit
 	Token       lexer.Token
+	EndPos      lexer.Position
+}
+
+func (e *ExitStatement) End() lexer.Position {
+	if e.EndPos.Line != 0 {
+		return e.EndPos
+	}
+	return e.Token.Pos
 }
 
 func (es *ExitStatement) statementNode()       {}

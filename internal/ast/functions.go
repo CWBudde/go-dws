@@ -36,6 +36,7 @@ type Parameter struct {
 	IsLazy       bool       // lazy parameter modifier - captures expression, not value
 	ByRef        bool       // var parameter modifier - pass by reference
 	IsConst      bool       // const parameter modifier - pass by const-reference
+	EndPos       lexer.Position
 }
 
 func (p *Parameter) String() string {
@@ -104,6 +105,14 @@ type FunctionDecl struct {
 	IsExternal     bool
 	IsClassMethod  bool
 	IsOverload     bool // Function/method can be overloaded
+	EndPos         lexer.Position
+}
+
+func (f *FunctionDecl) End() lexer.Position {
+	if f.EndPos.Line != 0 {
+		return f.EndPos
+	}
+	return f.Token.Pos
 }
 
 func (fd *FunctionDecl) statementNode()       {}
@@ -188,11 +197,21 @@ func (fd *FunctionDecl) String() string {
 type ReturnStatement struct {
 	ReturnValue Expression
 	Token       lexer.Token
+	EndPos      lexer.Position
 }
 
 func (rs *ReturnStatement) statementNode()       {}
 func (rs *ReturnStatement) TokenLiteral() string { return rs.Token.Literal }
 func (rs *ReturnStatement) Pos() lexer.Position  { return rs.Token.Pos }
+func (rs *ReturnStatement) End() lexer.Position {
+	if rs.EndPos.Line != 0 {
+		return rs.EndPos
+	}
+	if rs.ReturnValue != nil {
+		return rs.ReturnValue.End()
+	}
+	return rs.Token.Pos
+}
 func (rs *ReturnStatement) String() string {
 	if rs.ReturnValue == nil {
 		return rs.Token.Literal

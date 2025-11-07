@@ -484,7 +484,6 @@ func goTypeToDWS(goType reflect.Type) (string, error) {
 		}
 		return elemType, nil // Return the pointed-to type
 	case reflect.Func:
-		// Task 9.4a: func(...) -> "function" (callback support)
 		// For callbacks, we just return "function" as the type descriptor
 		// The actual marshaling will handle signature matching at runtime
 		return "function", nil

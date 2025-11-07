@@ -21,6 +21,14 @@ type ArrayDecl struct {
 	Name      *Identifier
 	ArrayType *ArrayTypeAnnotation
 	Token     lexer.Token
+	EndPos    lexer.Position
+}
+
+func (a *ArrayDecl) End() lexer.Position {
+	if a.EndPos.Line != 0 {
+		return a.EndPos
+	}
+	return a.Token.Pos
 }
 
 // statementNode implements the Statement interface
@@ -66,6 +74,14 @@ type ArrayTypeAnnotation struct {
 	LowBound    Expression
 	HighBound   Expression
 	Token       lexer.Token
+	EndPos      lexer.Position
+}
+
+func (a *ArrayTypeAnnotation) End() lexer.Position {
+	if a.EndPos.Line != 0 {
+		return a.EndPos
+	}
+	return a.Token.Pos
 }
 
 // TokenLiteral returns the literal value of the token
@@ -123,6 +139,14 @@ type ArrayLiteralExpression struct {
 	Type     *TypeAnnotation
 	Elements []Expression
 	Token    lexer.Token
+	EndPos   lexer.Position
+}
+
+func (a *ArrayLiteralExpression) End() lexer.Position {
+	if a.EndPos.Line != 0 {
+		return a.EndPos
+	}
+	return a.Token.Pos
 }
 
 // expressionNode implements the Expression interface
@@ -176,10 +200,18 @@ func (al *ArrayLiteralExpression) SetType(typ *TypeAnnotation) {
 //   - arr[i + 1]  // expression index
 //   - arr[i][j]   // nested indexing
 type IndexExpression struct {
-	Left  Expression
-	Index Expression
-	Type  *TypeAnnotation
-	Token lexer.Token
+	Left   Expression
+	Index  Expression
+	Type   *TypeAnnotation
+	Token  lexer.Token
+	EndPos lexer.Position
+}
+
+func (i *IndexExpression) End() lexer.Position {
+	if i.EndPos.Line != 0 {
+		return i.EndPos
+	}
+	return i.Token.Pos
 }
 
 // expressionNode implements the Expression interface
@@ -241,6 +273,14 @@ type NewArrayExpression struct {
 	ElementTypeName *Identifier     // The array element type name (e.g., Integer, String)
 	Dimensions      []Expression    // Size expression(s) for each dimension (1+ expressions)
 	Type            *TypeAnnotation // Inferred array type (for semantic analysis)
+	EndPos          lexer.Position
+}
+
+func (n *NewArrayExpression) End() lexer.Position {
+	if n.EndPos.Line != 0 {
+		return n.EndPos
+	}
+	return n.Token.Pos
 }
 
 // expressionNode implements the Expression interface

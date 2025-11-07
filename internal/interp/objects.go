@@ -154,7 +154,6 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Check if the left side is a class identifier (for static access: TClass.Variable)
 	if ident, ok := ma.Object.(*ast.Identifier); ok {
 		// First, check if this identifier refers to a unit (for qualified access: UnitName.Symbol)
-		// Task 9.134: Support unit-qualified access
 		if i.unitRegistry != nil {
 			if _, exists := i.unitRegistry.GetUnit(ident.Value); exists {
 				// This is unit-qualified access: UnitName.Symbol
@@ -236,7 +235,6 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Check if this identifier refers to an enum type (for scoped access: TColor.Red)
 		// Look for enum type metadata stored in environment
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
 		enumTypeKey := "__enum_type_" + strings.ToLower(ident.Value)
 		if enumTypeVal, ok := i.env.Get(enumTypeKey); ok {
 			if _, isEnumType := enumTypeVal.(*EnumTypeValue); isEnumType {
@@ -268,7 +266,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		// Access record field
 		fieldValue, exists := recordVal.Fields[ma.Member.Value]
 		if !exists {
-			// Task 9.86: Check if helpers provide this member
+			// Check if helpers provide this member
 			helper, helperProp := i.findHelperProperty(recordVal, ma.Member.Value)
 			if helperProp != nil {
 				return i.evalHelperPropertyRead(helper, helperProp, recordVal, ma)
@@ -281,7 +279,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
 	if !ok {
-		// Task 9.86: Not an object - check if helpers provide this member
+		// Not an object - check if helpers provide this member
 		helper, helperProp := i.findHelperProperty(objVal, ma.Member.Value)
 		if helperProp != nil {
 			return i.evalHelperPropertyRead(helper, helperProp, objVal, ma)
@@ -336,7 +334,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			return NewFunctionPointerValue(method, i.env, obj, pointerType)
 		}
 
-		// Task 9.86: Check if helpers provide this member
+		// Check if helpers provide this member
 		helper, helperProp := i.findHelperProperty(obj, memberName)
 		if helperProp != nil {
 			return i.evalHelperPropertyRead(helper, helperProp, obj, ma)
@@ -374,21 +372,21 @@ func (i *Interpreter) lookupClassMethodInHierarchy(classInfo *ClassInfo, name st
 // evalPropertyRead evaluates a property read access.
 // Handles field-backed, method-backed, and expression-backed properties.
 func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.PropertyInfo, node ast.Node) Value {
-	// Task 9.32c: Initialize property evaluation context if needed
+	// Initialize property evaluation context if needed
 	if i.propContext == nil {
 		i.propContext = &PropertyEvalContext{
 			propertyChain: make([]string, 0),
 		}
 	}
 
-	// Task 9.32c: Check for circular property references
+	// Check for circular property references
 	for _, prop := range i.propContext.propertyChain {
 		if prop == propInfo.Name {
 			return i.newErrorWithLocation(node, "circular property reference detected: %s", propInfo.Name)
 		}
 	}
 
-	// Task 9.32c: Push property onto chain
+	// Push property onto chain
 	i.propContext.propertyChain = append(i.propContext.propertyChain, propInfo.Name)
 	defer func() {
 		// Pop property from chain when done
@@ -433,7 +431,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		i.env.Define("Self", obj)
 
 		// For functions, initialize the Result variable
-		// Task 9.221: Use appropriate default value based on return type
+		// Use appropriate default value based on return type
 		if method.ReturnType != nil {
 			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
@@ -442,7 +440,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 		}
 
-		// Task 9.32c: Set flag to indicate we're inside a property getter
+		// Set flag to indicate we're inside a property getter
 		savedInGetter := i.propContext.inPropertyGetter
 		i.propContext.inPropertyGetter = true
 		defer func() {

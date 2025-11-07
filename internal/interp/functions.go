@@ -33,7 +33,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 						// For lazy parameters, create a LazyThunk
 						args[idx] = NewLazyThunk(arg, i.env, i)
 					} else if isByRef {
-						// Task 9.35: For var parameters, create a reference or pass through existing reference
+						// For var parameters, create a reference or pass through existing reference
 						if argIdent, ok := arg.(*ast.Identifier); ok {
 							if val, exists := i.env.Get(argIdent.Value); exists {
 								if refVal, isRef := val.(*ReferenceValue); isRef {
@@ -70,8 +70,8 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 			return objVal
 		}
 
-		// Task 9.7b: Check if this is a record method call (record.Method(...))
-		// Implementation Strategy (Task 9.7a): Integrate with class method system (Option 2)
+		// Check if this is a record method call (record.Method(...))
+		// Implementation Strategy: Integrate with class method system (Option 2)
 		// Records are value types, but methods work similarly to class methods.
 		// Key difference: For mutating methods (procedures), we need copy-back semantics.
 		if recVal, ok := objVal.(*RecordValue); ok {
@@ -97,7 +97,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 								// For lazy parameters, create a LazyThunk
 								args[idx] = NewLazyThunk(arg, i.env, i)
 							} else if isByRef {
-								// Task 9.35: For var parameters, create a reference or pass through existing reference
+								// For var parameters, create a reference or pass through existing reference
 								if argIdent, ok := arg.(*ast.Identifier); ok {
 									if val, exists := i.env.Get(argIdent.Value); exists {
 										if refVal, isRef := val.(*ReferenceValue); isRef {
@@ -152,7 +152,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 				// and the current environment (captured from call site)
 				args[idx] = NewLazyThunk(arg, i.env, i)
 			} else if isByRef {
-				// Task 9.35: For var parameters, create a reference to the variable
+				// For var parameters, create a reference to the variable
 				// instead of copying its value
 				if argIdent, ok := arg.(*ast.Identifier); ok {
 					// Check if the variable is already a reference (var parameter passed through)
@@ -213,7 +213,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		return i.callBuiltinWithVarParam(funcName.Value, expr.Arguments)
 	}
 
-	// Task 9.2d: Check if this is an external function with var parameters
+	// Check if this is an external function with var parameters
 	// We need to check BEFORE evaluating args to create ReferenceValues
 	if i.externalFunctions != nil {
 		if extFunc, ok := i.externalFunctions.Get(funcName.Value); ok {
@@ -225,7 +225,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 				isVarParam := idx < len(varParams) && varParams[idx]
 
 				if isVarParam {
-					// Task 9.2d: For var parameters, create a reference
+					// For var parameters, create a reference
 					if argIdent, ok := arg.(*ast.Identifier); ok {
 						if val, exists := i.env.Get(argIdent.Value); exists {
 							if refVal, isRef := val.(*ReferenceValue); isRef {
@@ -339,7 +339,7 @@ func normalizeBuiltinName(name string) string {
 
 // callBuiltin calls a built-in function by name.
 func (i *Interpreter) callBuiltin(name string, args []Value) Value {
-	// Task 9.32: Check for external Go functions first
+	// Check for external Go functions first
 	if i.externalFunctions != nil {
 		if extFunc, ok := i.externalFunctions.Get(name); ok {
 			return i.callExternalFunction(extFunc, args)
@@ -494,7 +494,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinPred(args)
 	case "Assert":
 		return i.builtinAssert(args)
-	// Task 9.227: Higher-order functions for working with arrays and lambdas
+	// Higher-order functions for working with arrays and lambdas
 	case "Map":
 		return i.builtinMap(args)
 	case "Filter":
@@ -503,7 +503,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinReduce(args)
 	case "ForEach":
 		return i.builtinForEach(args)
-	// Task 9.95-9.97: Current date/time functions
+	// Current date/time functions
 	case "Now":
 		return i.builtinNow(args)
 	case "Date":
@@ -512,14 +512,14 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinTime(args)
 	case "UTCDateTime":
 		return i.builtinUTCDateTime(args)
-	// Task 9.99-9.101: Date encoding functions
+	// Date encoding functions
 	case "EncodeDate":
 		return i.builtinEncodeDate(args)
 	case "EncodeTime":
 		return i.builtinEncodeTime(args)
 	case "EncodeDateTime":
 		return i.builtinEncodeDateTime(args)
-	// Task 9.105: Component extraction functions
+	// Component extraction functions
 	case "YearOf":
 		return i.builtinYearOf(args)
 	case "MonthOf":
@@ -542,7 +542,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinWeekNumber(args)
 	case "YearOfWeek":
 		return i.builtinYearOfWeek(args)
-	// Task 9.107-9.109: Formatting functions
+	// Formatting functions
 	case "FormatDateTime":
 		return i.builtinFormatDateTime(args)
 	case "DateTimeToStr":
@@ -557,7 +557,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinDateTimeToISO8601(args)
 	case "DateTimeToRFC822":
 		return i.builtinDateTimeToRFC822(args)
-	// Task 9.110-9.111: Parsing functions
+	// Parsing functions
 	case "StrToDate":
 		return i.builtinStrToDate(args)
 	case "StrToDateTime":
@@ -568,7 +568,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinISO8601ToDateTime(args)
 	case "RFC822ToDateTime":
 		return i.builtinRFC822ToDateTime(args)
-	// Task 9.113: Incrementing functions
+	// Incrementing functions
 	case "IncYear":
 		return i.builtinIncYear(args)
 	case "IncMonth":
@@ -581,7 +581,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinIncMinute(args)
 	case "IncSecond":
 		return i.builtinIncSecond(args)
-	// Task 9.114: Date difference functions
+	// Date difference functions
 	case "DaysBetween":
 		return i.builtinDaysBetween(args)
 	case "HoursBetween":
@@ -616,7 +616,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinUnixTimeMSecToDateTime(args)
 	case "DateTimeToUnixTimeMSec":
 		return i.builtinDateTimeToUnixTimeMSec(args)
-	// Task 9.232: Variant introspection functions
+	// Variant introspection functions
 	case "VarType":
 		return i.builtinVarType(args)
 	case "VarIsNull":
@@ -625,7 +625,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinVarIsEmpty(args)
 	case "VarIsNumeric":
 		return i.builtinVarIsNumeric(args)
-	// Task 9.233: Variant conversion functions
+	// Variant conversion functions
 	case "VarToStr":
 		return i.builtinVarToStr(args)
 	case "VarToInt":
@@ -636,28 +636,28 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinVarAsType(args)
 	case "VarClear":
 		return i.builtinVarClear(args)
-	// Task 9.91: JSON parsing functions
+	// JSON parsing functions
 	case "ParseJSON":
 		return i.builtinParseJSON(args)
-	// Task 9.94-9.95: JSON serialization functions
+	// JSON serialization functions
 	case "ToJSON":
 		return i.builtinToJSON(args)
 	case "ToJSONFormatted":
 		return i.builtinToJSONFormatted(args)
-	// Task 9.98-9.100: JSON object access functions
+	// JSON object access functions
 	case "JSONHasField":
 		return i.builtinJSONHasField(args)
 	case "JSONKeys":
 		return i.builtinJSONKeys(args)
 	case "JSONValues":
 		return i.builtinJSONValues(args)
-	// Task 9.102: JSON array length function
+	// JSON array length function
 	case "JSONLength":
 		return i.builtinJSONLength(args)
-	// Task 9.114: Exception Enhancements - GetStackTrace() built-in
+	// Exception Enhancements - GetStackTrace() built-in
 	case "GetStackTrace":
 		return i.builtinGetStackTrace(args)
-	// Task 9.116: Debugging Information - GetCallStack() built-in
+	// Debugging Information - GetCallStack() built-in
 	case "GetCallStack":
 		return i.builtinGetCallStack(args)
 	default:
@@ -666,7 +666,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 }
 
 // isBuiltinFunction checks if a name refers to a built-in function.
-// Task 9.132: Helper for checking parameterless built-in function calls.
+// Helper for checking parameterless built-in function calls.
 func (i *Interpreter) isBuiltinFunction(name string) bool {
 	// Check external functions first
 	if i.externalFunctions != nil {
@@ -710,7 +710,7 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 }
 
 // callBuiltinFunction calls a built-in function by name with the given arguments.
-// Task 9.132: Helper for calling parameterless built-in functions from identifier context.
+// Helper for calling parameterless built-in functions from identifier context.
 func (i *Interpreter) callBuiltinFunction(name string, args []Value) Value {
 	return i.callBuiltin(name, args)
 }
@@ -719,7 +719,7 @@ func (i *Interpreter) callBuiltinFunction(name string, args []Value) Value {
 // It uses the existing FFI error handling infrastructure to safely call the Go function
 // and convert any errors or panics to DWScript exceptions.
 func (i *Interpreter) callExternalFunction(extFunc *ExternalFunctionValue, args []Value) Value {
-	// Task 9.4: Set interpreter reference for callback support
+	// Set interpreter reference for callback support
 	// This allows the FFI wrapper to create Go callbacks that call back into DWScript
 	extFunc.Wrapper.SetInterpreter(i)
 
@@ -733,9 +733,6 @@ func (i *Interpreter) callExternalFunction(extFunc *ExternalFunctionValue, args 
 
 // callBuiltinWithVarParam calls a built-in function that requires var parameters.
 // These functions need access to the AST nodes to modify variables in place.
-// Task 9.24: Support for Inc/Dec which need to modify the first argument.
-// Task 9.43: Support for Insert which needs to modify the second argument.
-// Task 9.44: Support for Delete (string mode) which needs to modify the first argument.
 func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression) Value {
 	switch name {
 	case "Inc":
@@ -746,7 +743,7 @@ func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression
 		return i.builtinInsert(args)
 	case "Delete":
 		return i.builtinDeleteString(args)
-	// Task 9.103-9.104: Date decoding functions with var parameters
+	// Date decoding functions with var parameters
 	case "DecodeDate":
 		return i.builtinDecodeDate(args)
 	case "DecodeTime":
@@ -760,7 +757,7 @@ func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression
 // It creates a new environment, binds parameters to arguments, executes the body,
 // and extracts the return value from the Result variable or function name variable.
 func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value {
-	// Task 9.1c: Calculate required parameter count (parameters without defaults)
+	// Calculate required parameter count (parameters without defaults)
 	requiredParams := 0
 	for _, param := range fn.Parameters {
 		if param.DefaultValue == nil {
@@ -778,7 +775,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 			len(fn.Parameters), len(args))
 	}
 
-	// Task 9.1c: Fill in missing optional arguments with default values
+	// Fill in missing optional arguments with default values
 	// Evaluate default expressions in the CALLER'S environment
 	if len(args) < len(fn.Parameters) {
 		savedEnv := i.env // Save caller's environment
@@ -803,7 +800,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	savedEnv := i.env
 	i.env = funcEnv
 
-	// Task 9.5: Check recursion depth before pushing to call stack
+	// Check recursion depth before pushing to call stack
 	if len(i.callStack) >= i.maxRecursionDepth {
 		i.env = savedEnv // Restore environment before raising exception
 		return i.raiseMaxRecursionExceeded()
@@ -818,7 +815,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	for idx, param := range fn.Parameters {
 		arg := args[idx]
 
-		// Task 9.35: For var parameters, arg should already be a ReferenceValue
+		// For var parameters, arg should already be a ReferenceValue
 		// Don't apply implicit conversion to references - they need to stay as references
 		if !param.ByRef {
 			// Apply implicit conversion if parameter has a type and types don't match
@@ -838,32 +835,32 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 
 	// For functions (not procedures), initialize the Result variable
 	if fn.ReturnType != nil {
-		// Task 9.221: Initialize Result based on return type with appropriate defaults
+		// Initialize Result based on return type with appropriate defaults
 		returnType := i.resolveTypeFromAnnotation(fn.ReturnType)
 		var resultValue Value = i.getDefaultValue(returnType)
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := fn.ReturnType.Name
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		// Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				// Task 9.7e1: Use createRecordValue for proper nested record initialization
+				// Use createRecordValue for proper nested record initialization
 				resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
 			}
 		}
 
-		// Task 9.218: Check if return type is an array (overrides default)
+		// Check if return type is an array (overrides default)
 		// Array return types should be initialized to empty arrays, not NIL
 		// This allows methods like .Add() and .High to work on the Result variable
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		// Normalize to lowercase for case-insensitive lookups
 		arrayTypeKey := "__array_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(arrayTypeKey); ok {
 			if atv, ok := typeVal.(*ArrayTypeValue); ok {
 				resultValue = NewArrayValue(atv.ArrayType)
 			}
 		} else if strings.HasPrefix(returnTypeName, "array of ") || strings.HasPrefix(returnTypeName, "array[") {
-			// Task 9.218: Handle inline array return types like "array of Integer"
+			// Handle inline array return types like "array of Integer"
 			// For inline array types, create the array type directly from the type name
 			elementTypeName := strings.TrimPrefix(returnTypeName, "array of ")
 			if elementTypeName != returnTypeName {
@@ -886,7 +883,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		i.env.Define(fn.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 	}
 
-	// Task 9.147: Check preconditions before executing function body
+	// Check preconditions before executing function body
 	if fn.PreConditions != nil {
 		if err := i.checkPreconditions(fn.Name.Value, fn.PreConditions, i.env); err != nil {
 			i.env = savedEnv
@@ -894,7 +891,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		}
 	}
 
-	// Task 9.146: Capture old values for postcondition evaluation
+	// Capture old values for postcondition evaluation
 	oldValues := i.captureOldValues(fn, i.env)
 	i.pushOldValues(oldValues)
 	// Ensure old values are popped even if function exits early
@@ -964,12 +961,12 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 }
 
 // callFunctionPointer calls a function through a function pointer.
-// Task 9.166: Implement function pointer call execution.
+// Implement function pointer call execution.
 //
 // This handles both regular function pointers and method pointers.
 // For method pointers, it binds the Self object before calling.
 func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []Value, node ast.Node) Value {
-	// Task 9.223: Enhanced to handle lambda closures
+	// Enhanced to handle lambda closures
 
 	// Check if this is a lambda or a regular function pointer
 	if funcPtr.Lambda != nil {
@@ -1006,8 +1003,6 @@ func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []
 }
 
 // callLambda executes a lambda expression with its captured closure environment.
-// Task 9.223: Closure invocation - executes lambda body with closure environment.
-// Task 9.224: Variable capture - the closure environment provides reference semantics.
 //
 // The key difference from regular functions is that lambdas execute within their
 // closure environment, allowing them to access captured variables from outer scopes.
@@ -1036,7 +1031,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 	savedEnv := i.env
 	i.env = lambdaEnv
 
-	// Task 9.6: Check recursion depth before pushing to call stack
+	// Check recursion depth before pushing to call stack
 	if len(i.callStack) >= i.maxRecursionDepth {
 		i.env = savedEnv // Restore environment before raising exception
 		return i.raiseMaxRecursionExceeded()
@@ -1065,17 +1060,17 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 
 	// For functions (not procedures), initialize the Result variable
 	if lambda.ReturnType != nil {
-		// Task 9.221: Initialize Result based on return type with appropriate defaults
+		// Initialize Result based on return type with appropriate defaults
 		returnType := i.resolveTypeFromAnnotation(lambda.ReturnType)
 		var resultValue Value = i.getDefaultValue(returnType)
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := lambda.ReturnType.Name
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		// Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				// Task 9.7e1: Use createRecordValue for proper nested record initialization
+				// Use createRecordValue for proper nested record initialization
 				resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
 			}
 		}
@@ -1128,7 +1123,6 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 }
 
 // evalRecordMethodCall evaluates a method call on a record value (record.Method(...)).
-// Task 9.7b-9.7c: Implement record method invocation and resolution.
 //
 // Records are value types in DWScript (unlike classes which are reference types).
 // This means:
@@ -1163,7 +1157,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *ast.MemberAccessExpression, argExprs []ast.Expression, objExpr ast.Expression) Value {
 	methodName := memberAccess.Member.Value
 
-	// Task 9.7c: Method resolution - lookup in RecordValue.Methods
+	// Method resolution - lookup in RecordValue.Methods
 	// No inheritance needed for records (unlike classes)
 	if !recVal.HasMethod(methodName) {
 		// Check if helpers provide this method
@@ -1226,14 +1220,14 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	// Bind Self to the record copy
 	i.env.Define("Self", recordCopy)
 
-	// Task 9.7e1: Bind all record fields to environment so they can be accessed directly
+	// Bind all record fields to environment so they can be accessed directly
 	// This allows code like "X := X + dx" to work without needing "Self.X"
 	// Similar to how class property expressions bind fields (see objects.go:431-435)
 	for fieldName, fieldValue := range recordCopy.Fields {
 		i.env.Define(fieldName, fieldValue)
 	}
 
-	// Task 9.7: Check recursion depth before pushing to call stack
+	// Check recursion depth before pushing to call stack
 	if len(i.callStack) >= i.maxRecursionDepth {
 		i.env = savedEnv // Restore environment before raising exception
 		return i.raiseMaxRecursionExceeded()
@@ -1267,17 +1261,17 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 
 	// For functions (not procedures), initialize the Result variable
 	if method.ReturnType != nil {
-		// Task 9.221: Initialize Result based on return type with appropriate defaults
+		// Initialize Result based on return type with appropriate defaults
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		var resultValue Value = i.getDefaultValue(returnType)
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := method.ReturnType.Name
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		// Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				// Task 9.7e1: Use createRecordValue for proper nested record initialization
+				// Use createRecordValue for proper nested record initialization
 				resultValue = i.createRecordValue(rtv.RecordType, rtv.Methods)
 			}
 		}
@@ -1358,7 +1352,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		// For now, we return the modified copy and rely on assignment handling.
 	}
 
-	// Task 9.7e1: Copy modified field values back from environment to record copy
+	// Copy modified field values back from environment to record copy
 	// This ensures that any field modifications made during method execution are preserved
 	for fieldName := range recordCopy.Fields {
 		if updatedVal, exists := i.env.Get(fieldName); exists {
@@ -1369,7 +1363,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	// Restore environment
 	i.env = savedEnv
 
-	// Task 9.7e1: Update the original variable with the modified record copy
+	// Update the original variable with the modified record copy
 	// This implements proper value semantics for records - mutations persist
 	// Check if the object expression is a simple identifier (variable)
 	if ident, ok := objExpr.(*ast.Identifier); ok {
@@ -1382,7 +1376,6 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 }
 
 // callRecordStaticMethod executes a static record method (class function/procedure).
-// Task 9.7f: Static record methods don't have Self binding and are called on the type, not instances.
 // Example: TPoint.Origin() where Origin is declared as "class function Origin: TPoint"
 //
 // Parameters:
@@ -1417,7 +1410,7 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 	savedEnv := i.env
 	i.env = methodEnv
 
-	// Task 9.8: Check recursion depth before pushing to call stack
+	// Check recursion depth before pushing to call stack
 	if len(i.callStack) >= i.maxRecursionDepth {
 		i.env = savedEnv // Restore environment before raising exception
 		return i.raiseMaxRecursionExceeded()
@@ -1445,14 +1438,13 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 
 	// For functions (not procedures), initialize the Result variable
 	if method.ReturnType != nil {
-		// Task 9.221: Initialize Result based on return type with appropriate defaults
+		// Initialize Result based on return type with appropriate defaults
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		var resultValue Value = i.getDefaultValue(returnType)
 
 		// Check if return type is a record (overrides default)
-		// Task 9.7f: For static record methods returning records, initialize Result properly
 		returnTypeName := method.ReturnType.Name
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		// Normalize to lowercase for case-insensitive lookups
 		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if recordTV, ok := typeVal.(*RecordTypeValue); ok {
@@ -1513,7 +1505,6 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 }
 
 // parseInlineArrayType parses an inline array type signature and creates an ArrayType.
-// Task 9.56: Support for inline array type initialization in variable declarations.
 //
 // Examples:
 //   - "array of Integer" -> DynamicArrayType
@@ -1582,7 +1573,6 @@ func (i *Interpreter) parseInlineArrayType(signature string) *types.ArrayType {
 
 // parseInlineSetType parses inline set type syntax like "set of TEnumType".
 // Returns the SetType, or nil if the string doesn't match the expected format.
-// Task 9.214: Support set variable initialization
 func (i *Interpreter) parseInlineSetType(signature string) *types.SetType {
 	// Check for "set of " prefix
 	if !strings.HasPrefix(signature, "set of ") {
@@ -1597,7 +1587,6 @@ func (i *Interpreter) parseInlineSetType(signature string) *types.SetType {
 
 	// Look up the enum type in the environment
 	// Enum types are stored with "__enum_type_" prefix
-	// Task 9.225: Normalize to lowercase for case-insensitive lookups
 	typeKey := "__enum_type_" + strings.ToLower(enumTypeName)
 	typeVal, ok := i.env.Get(typeKey)
 	if !ok {

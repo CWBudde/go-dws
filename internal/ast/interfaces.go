@@ -26,6 +26,14 @@ type InterfaceMethodDecl struct {
 	ReturnType *TypeAnnotation
 	Parameters []*Parameter
 	Token      lexer.Token
+	EndPos     lexer.Position
+}
+
+func (i *InterfaceMethodDecl) End() lexer.Position {
+	if i.EndPos.Line != 0 {
+		return i.EndPos
+	}
+	return i.Token.Pos
 }
 
 func (imd *InterfaceMethodDecl) String() string {
@@ -83,6 +91,14 @@ type InterfaceDecl struct {
 	Methods      []*InterfaceMethodDecl
 	Token        lexer.Token
 	IsExternal   bool
+	EndPos       lexer.Position
+}
+
+func (i *InterfaceDecl) End() lexer.Position {
+	if i.EndPos.Line != 0 {
+		return i.EndPos
+	}
+	return i.Token.Pos
 }
 
 func (id *InterfaceDecl) statementNode()       {}

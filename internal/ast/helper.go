@@ -50,6 +50,14 @@ type HelperDecl struct {
 	PublicMembers  []Statement     // Members in public section
 	Token          lexer.Token     // The 'helper' token
 	IsRecordHelper bool            // true if "record helper", false if just "helper"
+	EndPos         lexer.Position
+}
+
+func (h *HelperDecl) End() lexer.Position {
+	if h.EndPos.Line != 0 {
+		return h.EndPos
+	}
+	return h.Token.Pos
 }
 
 func (hd *HelperDecl) statementNode()       {}

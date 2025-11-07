@@ -79,6 +79,9 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 		return nil
 	}
 
+	// Set EndPos to the position after the semicolon
+	decl.EndPos = p.endPosFromToken(p.curToken)
+
 	return decl
 }
 
@@ -169,6 +172,9 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 	if !p.expectPeek(lexer.SEMICOLON) {
 		return nil
 	}
+
+	// Set EndPos to the position after the semicolon
+	decl.EndPos = p.endPosFromToken(p.curToken)
 
 	return decl
 }

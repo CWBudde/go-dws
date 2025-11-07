@@ -279,7 +279,7 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 		if rangeExpr, isRange := elem.(*ast.RangeExpression); isRange {
 			// Analyze start and end of range
 			startType := a.analyzeExpression(rangeExpr.Start)
-			endType := a.analyzeExpression(rangeExpr.End)
+			endType := a.analyzeExpression(rangeExpr.RangeEnd)
 
 			if startType == nil || endType == nil {
 				// Error already reported
@@ -294,7 +294,7 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 			}
 			if !types.IsOrdinalType(endType) {
 				a.addError("range end must be an ordinal type, got %s at %s",
-					endType.String(), rangeExpr.End.Pos().String())
+					endType.String(), rangeExpr.RangeEnd.Pos().String())
 				continue
 			}
 

@@ -163,5 +163,8 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lex
 		return nil
 	}
 
+	// Set EndPos to the position after the semicolon
+	helperDecl.EndPos = p.endPosFromToken(p.curToken)
+
 	return helperDecl
 }

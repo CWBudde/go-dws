@@ -170,6 +170,9 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		}
 	}
 
+	// Set EndPos to the position after the final semicolon
+	prop.EndPos = p.endPosFromToken(p.curToken)
+
 	return prop
 }
 

@@ -130,6 +130,8 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 				return nil
 			}
 			// Abstract methods have no body, return early
+			// End position is at the semicolon after 'abstract'
+			fn.EndPos = p.endPosFromToken(p.curToken)
 			return fn
 		} else if p.peekTokenIs(lexer.EXTERNAL) {
 			// External method: procedure Hello; external 'world';
@@ -146,6 +148,8 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 				return nil
 			}
 			// External methods have no body, return early
+			// End position is at the semicolon after 'external' or external name
+			fn.EndPos = p.endPosFromToken(p.curToken)
 			return fn
 		} else if p.peekTokenIs(lexer.OVERLOAD) {
 			// Overload directive: function Test(x: Integer): Float; overload;
@@ -170,6 +174,8 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	if !p.peekTokenIs(lexer.BEGIN) && !p.peekTokenIs(lexer.VAR) && !p.peekTokenIs(lexer.CONST) && !p.peekTokenIs(lexer.REQUIRE) {
 		// This is a forward declaration (method declaration in class body)
 		// Body will be provided later in method implementation outside class
+		// End position is at the last semicolon we consumed
+		fn.EndPos = p.endPosFromToken(p.curToken)
 		return fn
 	}
 
@@ -255,6 +261,16 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	if p.peekTokenIs(lexer.ENSURE) {
 		p.nextToken() // move to ENSURE
 		fn.PostConditions = p.parsePostConditions()
+		// End position is after the postconditions
+		if fn.PostConditions != nil {
+			fn.EndPos = fn.PostConditions.End()
+		} else {
+			// Fallback if postconditions failed to parse
+			fn.EndPos = p.endPosFromToken(p.curToken)
+		}
+	} else {
+		// No postconditions - end position is at the semicolon after 'end'
+		fn.EndPos = p.endPosFromToken(p.curToken)
 	}
 
 	return fn

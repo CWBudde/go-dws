@@ -54,6 +54,14 @@ type LambdaExpression struct {
 	// CapturedVars is the list of variable names captured from outer scopes
 	// Set during semantic analysis
 	CapturedVars []string
+	EndPos       lexer.Position
+}
+
+func (l *LambdaExpression) End() lexer.Position {
+	if l.EndPos.Line != 0 {
+		return l.EndPos
+	}
+	return l.Token.Pos
 }
 
 // expressionNode marks this as an Expression node

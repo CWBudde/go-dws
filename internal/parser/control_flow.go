@@ -17,6 +17,7 @@ func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 		return nil
 	}
 
+	stmt.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at SEMICOLON
 	return stmt
 }
 
@@ -30,6 +31,7 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 		return nil
 	}
 
+	stmt.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at SEMICOLON
 	return stmt
 }
 
@@ -69,6 +71,7 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 		return nil
 	}
 
+	stmt.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at SEMICOLON
 	return stmt
 }
 
@@ -110,6 +113,11 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 			p.addError("expected statement after 'else'", ErrInvalidSyntax)
 			return nil
 		}
+		// End position is after the alternative statement
+		stmt.EndPos = stmt.Alternative.End()
+	} else {
+		// No else branch - end position is after the consequence
+		stmt.EndPos = stmt.Consequence.End()
 	}
 
 	return stmt
@@ -142,6 +150,9 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 		p.addError("expected statement after 'do'", ErrInvalidSyntax)
 		return nil
 	}
+
+	// End position is after the body statement
+	stmt.EndPos = stmt.Body.End()
 
 	return stmt
 }
@@ -203,6 +214,9 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 		p.addError("expected condition after 'until'", ErrInvalidExpression)
 		return nil
 	}
+
+	// End position is after the condition expression
+	stmt.EndPos = stmt.Condition.End()
 
 	return stmt
 }
@@ -272,9 +286,9 @@ func (p *Parser) parseForStatement() ast.Statement {
 
 	// Parse the end expression
 	p.nextToken()
-	stmt.End = p.parseExpression(LOWEST)
+	stmt.EndValue = p.parseExpression(LOWEST)
 
-	if stmt.End == nil {
+	if stmt.EndValue == nil {
 		p.addError("expected end expression in for loop", ErrInvalidExpression)
 		return nil
 	}
@@ -304,6 +318,9 @@ func (p *Parser) parseForStatement() ast.Statement {
 		p.addError("expected statement after 'do'", ErrInvalidSyntax)
 		return nil
 	}
+
+	// End position is after the body statement
+	stmt.EndPos = stmt.Body.End()
 
 	return stmt
 }
@@ -344,6 +361,9 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 		p.addError("expected statement after 'do'", ErrInvalidSyntax)
 		return nil
 	}
+
+	// End position is after the body statement
+	stmt.EndPos = stmt.Body.End()
 
 	return stmt
 }
@@ -407,9 +427,9 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 
 			// Create RangeExpression
 			rangeExpr := &ast.RangeExpression{
-				Token: rangeToken,
-				Start: value,
-				End:   endValue,
+				Token:    rangeToken,
+				Start:    value,
+				RangeEnd: endValue,
 			}
 			branch.Values = append(branch.Values, rangeExpr)
 		} else {
@@ -441,9 +461,9 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 				}
 
 				rangeExpr := &ast.RangeExpression{
-					Token: rangeToken,
-					Start: value,
-					End:   endValue,
+					Token:    rangeToken,
+					Start:    value,
+					RangeEnd: endValue,
 				}
 				branch.Values = append(branch.Values, rangeExpr)
 			} else {
@@ -521,6 +541,9 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 		p.addError("expected 'end' to close case statement", ErrMissingEnd)
 		return nil
 	}
+
+	// End position is at the 'end' keyword
+	stmt.EndPos = p.endPosFromToken(p.curToken)
 
 	return stmt
 }

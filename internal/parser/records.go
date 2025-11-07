@@ -114,6 +114,8 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 		return nil
 	}
 
+	recordDecl.EndPos = p.endPosFromToken(p.curToken)
+
 	return recordDecl
 }
 
@@ -230,6 +232,8 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 		return nil
 	}
 
+	recordDecl.EndPos = p.endPosFromToken(p.curToken)
+
 	return recordDecl
 }
 
@@ -308,6 +312,8 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 	// Check for empty literal
 	if p.peekTokenIs(lexer.RPAREN) {
 		p.nextToken() // move to ')'
+		// Set EndPos to after the ')'
+		recordLit.EndPos = p.endPosFromToken(p.curToken)
 		return recordLit
 	}
 
@@ -364,6 +370,8 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 		return nil
 	}
 
+	// Set EndPos to after the ')'
+	recordLit.EndPos = p.endPosFromToken(p.curToken)
 	return recordLit
 }
 

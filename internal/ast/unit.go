@@ -48,7 +48,15 @@ type UnitDeclaration struct {
 	FinalSection *BlockStatement
 
 	// Token is the 'unit' keyword token
-	Token lexer.Token
+	Token  lexer.Token
+	EndPos lexer.Position
+}
+
+func (u *UnitDeclaration) End() lexer.Position {
+	if u.EndPos.Line != 0 {
+		return u.EndPos
+	}
+	return u.Token.Pos
 }
 
 func (ud *UnitDeclaration) statementNode()       {}
@@ -122,7 +130,15 @@ type UsesClause struct {
 	Units []*Identifier
 
 	// Token is the 'uses' keyword token
-	Token lexer.Token
+	Token  lexer.Token
+	EndPos lexer.Position
+}
+
+func (u *UsesClause) End() lexer.Position {
+	if u.EndPos.Line != 0 {
+		return u.EndPos
+	}
+	return u.Token.Pos
 }
 
 func (uc *UsesClause) statementNode()       {}

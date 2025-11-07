@@ -452,7 +452,7 @@ func TestForStatements(t *testing.T) {
 				}
 
 				// Test end expression: 10
-				if !testIntegerLiteral(t, stmt.End, 10) {
+				if !testIntegerLiteral(t, stmt.EndValue, 10) {
 					return
 				}
 
@@ -500,7 +500,7 @@ func TestForStatements(t *testing.T) {
 				}
 
 				// Test end expression: 1
-				if !testIntegerLiteral(t, stmt.End, 1) {
+				if !testIntegerLiteral(t, stmt.EndValue, 1) {
 					return
 				}
 
@@ -541,7 +541,7 @@ func TestForStatements(t *testing.T) {
 					return
 				}
 
-				if !testIntegerLiteral(t, stmt.End, 10) {
+				if !testIntegerLiteral(t, stmt.EndValue, 10) {
 					return
 				}
 
@@ -645,7 +645,7 @@ end;`,
 				}
 
 				// Test end expression is an identifier (changed from 'end' to 'finish' to avoid keyword conflict)
-				if !testIdentifier(t, stmt.End, "finish") {
+				if !testIdentifier(t, stmt.EndValue, "finish") {
 					return
 				}
 
@@ -689,7 +689,7 @@ end;`,
 				}
 
 				// Test end expression is a binary expression: finish - 1
-				if !testInfixExpression(t, stmt.End, "finish", "-", 1) {
+				if !testInfixExpression(t, stmt.EndValue, "finish", "-", 1) {
 					return
 				}
 
@@ -762,7 +762,7 @@ end;`,
 				}
 
 				// Test end: 100
-				if !testIntegerLiteral(t, stmt.End, 100) {
+				if !testIntegerLiteral(t, stmt.EndValue, 100) {
 					return
 				}
 
@@ -805,7 +805,7 @@ end;`,
 				}
 
 				// Test end: 0
-				if !testIntegerLiteral(t, stmt.End, 0) {
+				if !testIntegerLiteral(t, stmt.EndValue, 0) {
 					return
 				}
 
@@ -830,7 +830,7 @@ end;`,
 				}
 
 				// Test end expression: 10
-				if !testIntegerLiteral(t, stmt.End, 10) {
+				if !testIntegerLiteral(t, stmt.EndValue, 10) {
 					return
 				}
 
@@ -878,7 +878,7 @@ end;`,
 				}
 
 				// Test end expression: 1
-				if !testIntegerLiteral(t, stmt.End, 1) {
+				if !testIntegerLiteral(t, stmt.EndValue, 1) {
 					return
 				}
 
@@ -926,7 +926,7 @@ end;`,
 				}
 
 				// Test end expression: 100
-				if !testIntegerLiteral(t, stmt.End, 100) {
+				if !testIntegerLiteral(t, stmt.EndValue, 100) {
 					return
 				}
 
@@ -964,7 +964,7 @@ end;`,
 				}
 
 				// Test end expression: 20
-				if !testIntegerLiteral(t, stmt.End, 20) {
+				if !testIntegerLiteral(t, stmt.EndValue, 20) {
 					return
 				}
 

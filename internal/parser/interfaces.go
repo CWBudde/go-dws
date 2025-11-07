@@ -51,13 +51,15 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 				return nil
 			}
 
-			return &ast.TypeDeclaration{
+			typeDecl := &ast.TypeDeclaration{
 				Token:      typeToken,
 				Name:       nameIdent,
 				IsSubrange: true,
 				LowBound:   lowBound,
 				HighBound:  highBound,
 			}
+			typeDecl.EndPos = p.endPosFromToken(p.curToken)
+			return typeDecl
 		}
 		// Not a subrange, fall through to error
 		p.addError("unexpected expression after '=' in type declaration (expected type name or subrange)", ErrUnexpectedToken)
@@ -75,12 +77,14 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 			return nil
 		}
 
-		return &ast.TypeDeclaration{
+		typeDecl := &ast.TypeDeclaration{
 			Token:       typeToken,
 			Name:        nameIdent,
 			IsAlias:     true,
 			AliasedType: aliasedType,
 		}
+		typeDecl.EndPos = p.endPosFromToken(p.curToken)
+		return typeDecl
 	} else if p.peekTokenIs(lexer.INTERFACE) {
 		p.nextToken() // move to INTERFACE
 		return p.parseInterfaceDeclarationBody(nameIdent)
@@ -200,11 +204,17 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 		if !p.expectPeek(lexer.IDENT) {
 			return nil
 		}
-		funcPtrType.ReturnType = &ast.TypeAnnotation{
+		returnType := &ast.TypeAnnotation{
 			Token: p.curToken,
 			Name:  p.curToken.Literal,
 		}
+		// EndPos is after the type identifier token
+		returnType.EndPos = p.endPosFromToken(p.curToken)
+		funcPtrType.ReturnType = returnType
 	}
+
+	// Save RPAREN token for EndPos calculation (for procedures without return type)
+	rparenToken := p.curToken
 
 	// Check for "of object" clause (method pointers)
 	if p.peekTokenIs(lexer.OF) {
@@ -213,6 +223,14 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 			return nil
 		}
 		funcPtrType.OfObject = true
+		// EndPos is after "object" token
+		funcPtrType.EndPos = p.endPosFromToken(p.curToken)
+	} else if funcPtrType.ReturnType != nil {
+		// EndPos is after return type for functions
+		funcPtrType.EndPos = funcPtrType.ReturnType.End()
+	} else {
+		// EndPos is after closing paren for procedures without "of object"
+		funcPtrType.EndPos = p.endPosFromToken(rparenToken)
 	}
 
 	// Expect semicolon
@@ -221,12 +239,14 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 	}
 
 	// Return the complete type declaration with function pointer type
-	return &ast.TypeDeclaration{
+	typeDecl := &ast.TypeDeclaration{
 		Token:               typeToken,
 		Name:                nameIdent,
 		FunctionPointerType: funcPtrType,
 		IsFunctionPointer:   true,
 	}
+	typeDecl.EndPos = p.endPosFromToken(p.curToken)
+	return typeDecl
 }
 
 // parseInterfaceDeclarationBody parses the body of an interface declaration.
@@ -266,6 +286,7 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 	// Check for forward declaration: type IForward = interface;
 	if p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken() // move to semicolon
+		interfaceDecl.EndPos = p.endPosFromToken(p.curToken)
 		return interfaceDecl
 	}
 
@@ -306,6 +327,8 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 	if !p.expectPeek(lexer.SEMICOLON) {
 		return nil
 	}
+
+	interfaceDecl.EndPos = p.endPosFromToken(p.curToken)
 
 	return interfaceDecl
 }

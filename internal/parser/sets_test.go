@@ -247,9 +247,9 @@ func TestParseSetRange(t *testing.T) {
 			t.Errorf("rangeExpr.Start should be identifier 'A'")
 		}
 
-		endIdent, ok := rangeExpr.End.(*ast.Identifier)
+		endIdent, ok := rangeExpr.RangeEnd.(*ast.Identifier)
 		if !ok || endIdent.Value != "C" {
-			t.Errorf("rangeExpr.End should be identifier 'C'")
+			t.Errorf("rangeExpr.RangeEnd should be identifier 'C'")
 		}
 	})
 

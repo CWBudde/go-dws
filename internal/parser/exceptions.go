@@ -21,6 +21,7 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 	// Check if this is a bare raise (no expression)
 	if p.peekTokenIs(lexer.SEMICOLON) || p.peekTokenIs(lexer.EOF) {
 		// Bare raise - re-raise current exception
+		stmt.EndPos = p.endPosFromToken(p.curToken)
 		return stmt
 	}
 
@@ -32,6 +33,9 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 		p.addError("expected exception expression after 'raise'", ErrInvalidExpression)
 		return nil
 	}
+
+	// End position is after the exception expression
+	stmt.EndPos = stmt.Exception.End()
 
 	return stmt
 }
@@ -95,6 +99,9 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 		p.addError("expected 'end' to close try statement", ErrMissingEnd)
 		return nil
 	}
+
+	// End position is at the 'end' keyword
+	stmt.EndPos = p.endPosFromToken(p.curToken)
 
 	return stmt
 }

@@ -14,10 +14,18 @@ import (
 //	const MAX_USERS: Integer = 1000;
 //	const APP_NAME = 'MyApp';
 type ConstDecl struct {
-	Value Expression
-	Name  *Identifier
-	Type  *TypeAnnotation
-	Token lexer.Token
+	Value  Expression
+	Name   *Identifier
+	Type   *TypeAnnotation
+	Token  lexer.Token
+	EndPos lexer.Position
+}
+
+func (c *ConstDecl) End() lexer.Position {
+	if c.EndPos.Line != 0 {
+		return c.EndPos
+	}
+	return c.Token.Pos
 }
 
 func (cd *ConstDecl) statementNode()       {}

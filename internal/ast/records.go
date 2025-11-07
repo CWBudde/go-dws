@@ -28,6 +28,14 @@ type RecordDecl struct {
 	Methods    []*FunctionDecl
 	Properties []RecordPropertyDecl
 	Token      lexer.Token
+	EndPos     lexer.Position
+}
+
+func (r *RecordDecl) End() lexer.Position {
+	if r.EndPos.Line != 0 {
+		return r.EndPos
+	}
+	return r.Token.Pos
 }
 
 func (rd *RecordDecl) statementNode()       {}
@@ -77,6 +85,14 @@ type RecordPropertyDecl struct {
 	ReadField  string
 	WriteField string
 	Token      lexer.Token
+	EndPos     lexer.Position
+}
+
+func (r *RecordPropertyDecl) End() lexer.Position {
+	if r.EndPos.Line != 0 {
+		return r.EndPos
+	}
+	return r.Token.Pos
 }
 
 func (pd RecordPropertyDecl) String() string {
@@ -108,9 +124,17 @@ func (pd RecordPropertyDecl) String() string {
 // DWScript syntax: fieldName: value
 // The Name can be nil for positional initialization (not yet implemented).
 type FieldInitializer struct {
-	Name  *Identifier // Field name (nil for positional initialization)
-	Value Expression  // Field value expression
-	Token lexer.Token // The field name token or first token of value
+	Name   *Identifier // Field name (nil for positional initialization)
+	Value  Expression  // Field value expression
+	Token  lexer.Token // The field name token or first token of value
+	EndPos lexer.Position
+}
+
+func (f *FieldInitializer) End() lexer.Position {
+	if f.EndPos.Line != 0 {
+		return f.EndPos
+	}
+	return f.Token.Pos
 }
 
 // String returns a string representation of the field initializer.
@@ -142,6 +166,14 @@ type RecordLiteralExpression struct {
 	TypeName *Identifier         // Optional type name (nil for anonymous records)
 	Fields   []*FieldInitializer // Field initializers
 	Token    lexer.Token         // The '(' token or type name token
+	EndPos   lexer.Position
+}
+
+func (r *RecordLiteralExpression) End() lexer.Position {
+	if r.EndPos.Line != 0 {
+		return r.EndPos
+	}
+	return r.Token.Pos
 }
 
 func (rle *RecordLiteralExpression) expressionNode()      {}

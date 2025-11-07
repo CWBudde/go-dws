@@ -19,11 +19,6 @@ import (
 //   - type TComparator = function(a, b: Integer): Integer;
 //   - type TCallback = procedure(msg: String);
 //   - type TNotifyEvent = procedure(Sender: TObject) of object;
-//
-// Task 9.159: Validation checks:
-//   - No duplicate parameter names
-//   - All parameter types exist and are valid
-//   - Return type exists and is valid (for functions)
 func (a *Analyzer) analyzeFunctionPointerTypeDeclaration(decl *ast.TypeDeclaration) {
 	if decl == nil || decl.FunctionPointerType == nil {
 		return

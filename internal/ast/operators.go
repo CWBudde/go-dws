@@ -53,6 +53,14 @@ type OperatorDecl struct {
 	Kind           OperatorKind
 	Arity          int
 	Visibility     Visibility
+	EndPos         lexer.Position
+}
+
+func (o *OperatorDecl) End() lexer.Position {
+	if o.EndPos.Line != 0 {
+		return o.EndPos
+	}
+	return o.Token.Pos
 }
 
 func (od *OperatorDecl) statementNode()       {}

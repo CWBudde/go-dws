@@ -131,7 +131,7 @@ func TestForStatementString(t *testing.T) {
 				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
 				Variable:  &Identifier{Value: "i"},
 				Start:     &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
-				End:       &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
+				EndValue:  &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
 				Direction: ForTo,
 				Body: &ExpressionStatement{
 					Expression: &CallExpression{
@@ -150,7 +150,7 @@ func TestForStatementString(t *testing.T) {
 				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
 				Variable:  &Identifier{Value: "i"},
 				Start:     &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
-				End:       &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
+				EndValue:  &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
 				Direction: ForDownto,
 				Body: &ExpressionStatement{
 					Expression: &CallExpression{
@@ -169,7 +169,7 @@ func TestForStatementString(t *testing.T) {
 				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
 				Variable:  &Identifier{Value: "i"},
 				Start:     &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
-				End:       &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
+				EndValue:  &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
 				Direction: ForTo,
 				Step:      &IntegerLiteral{Token: lexer.Token{Literal: "2"}},
 				Body: &ExpressionStatement{
@@ -189,7 +189,7 @@ func TestForStatementString(t *testing.T) {
 				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
 				Variable:  &Identifier{Value: "i"},
 				Start:     &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
-				End:       &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
+				EndValue:  &IntegerLiteral{Token: lexer.Token{Literal: "1"}},
 				Direction: ForDownto,
 				Step:      &IntegerLiteral{Token: lexer.Token{Literal: "3"}},
 				Body: &ExpressionStatement{
@@ -209,7 +209,7 @@ func TestForStatementString(t *testing.T) {
 				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
 				Variable:  &Identifier{Value: "i"},
 				Start:     &IntegerLiteral{Token: lexer.Token{Literal: "0"}},
-				End:       &IntegerLiteral{Token: lexer.Token{Literal: "20"}},
+				EndValue:  &IntegerLiteral{Token: lexer.Token{Literal: "20"}},
 				Direction: ForTo,
 				Step: &BinaryExpression{
 					Left:     &IntegerLiteral{Token: lexer.Token{Literal: "2"}},
@@ -233,7 +233,7 @@ func TestForStatementString(t *testing.T) {
 				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
 				Variable:  &Identifier{Value: "i"},
 				Start:     &IntegerLiteral{Token: lexer.Token{Literal: "0"}},
-				End:       &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
+				EndValue:  &IntegerLiteral{Token: lexer.Token{Literal: "10"}},
 				Direction: ForTo,
 				Step:      &IntegerLiteral{Token: lexer.Token{Literal: "2"}},
 				InlineVar: true,

@@ -71,10 +71,14 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 		return nil
 	}
 
-	return &ast.SetTypeNode{
+	setTypeNode := &ast.SetTypeNode{
 		Token:       setToken,
 		ElementType: elementType,
 	}
+	// EndPos is after element type
+	setTypeNode.EndPos = elementType.End()
+
+	return setTypeNode
 }
 
 // parseSetLiteral parses a set literal expression.
@@ -92,6 +96,8 @@ func (p *Parser) parseSetLiteral() ast.Expression {
 	// Check for empty set: []
 	if p.peekTokenIs(lexer.RBRACK) {
 		p.nextToken() // move to ']'
+		// Set EndPos to after the ']'
+		setLit.EndPos = p.endPosFromToken(p.curToken)
 		return setLit
 	}
 
@@ -112,10 +118,12 @@ func (p *Parser) parseSetLiteral() ast.Expression {
 
 			// Create a RangeExpression
 			rangeExpr := &ast.RangeExpression{
-				Token: rangeToken,
-				Start: start,
-				End:   end,
+				Token:    rangeToken,
+				Start:    start,
+				RangeEnd: end,
 			}
+			// Set EndPos to after the end expression
+			rangeExpr.EndPos = end.End()
 			setLit.Elements = append(setLit.Elements, rangeExpr)
 		} else {
 			// Simple element (not a range)
@@ -136,5 +144,7 @@ func (p *Parser) parseSetLiteral() ast.Expression {
 		}
 	}
 
+	// Set EndPos to after the ']'
+	setLit.EndPos = p.endPosFromToken(p.curToken)
 	return setLit
 }

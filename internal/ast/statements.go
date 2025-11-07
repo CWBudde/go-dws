@@ -25,6 +25,14 @@ type VarDeclStatement struct {
 	Token        lexer.Token
 	IsExternal   bool
 	Inferred     bool // true when the type is inferred from the initializer
+	EndPos       lexer.Position
+}
+
+func (v *VarDeclStatement) End() lexer.Position {
+	if v.EndPos.Line != 0 {
+		return v.EndPos
+	}
+	return v.Token.Pos
 }
 
 func (vds *VarDeclStatement) statementNode()       {}
@@ -73,6 +81,14 @@ type AssignmentStatement struct {
 	Value    Expression
 	Token    lexer.Token
 	Operator lexer.TokenType // ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN, TIMES_ASSIGN, DIVIDE_ASSIGN
+	EndPos   lexer.Position
+}
+
+func (a *AssignmentStatement) End() lexer.Position {
+	if a.EndPos.Line != 0 {
+		return a.EndPos
+	}
+	return a.Token.Pos
 }
 
 func (as *AssignmentStatement) statementNode()       {}
@@ -118,6 +134,14 @@ type CallExpression struct {
 	Type      *TypeAnnotation
 	Arguments []Expression
 	Token     lexer.Token
+	EndPos    lexer.Position
+}
+
+func (c *CallExpression) End() lexer.Position {
+	if c.EndPos.Line != 0 {
+		return c.EndPos
+	}
+	return c.Token.Pos
 }
 
 func (ce *CallExpression) expressionNode()      {}
@@ -153,11 +177,18 @@ type Condition struct {
 	Test    Expression // Must evaluate to boolean
 	Message Expression // Optional string message (if nil, use source code as message)
 	Token   lexer.Token
+	EndPos  lexer.Position
 }
 
 func (c *Condition) statementNode()       {}
 func (c *Condition) TokenLiteral() string { return c.Token.Literal }
 func (c *Condition) Pos() lexer.Position  { return c.Token.Pos }
+func (c *Condition) End() lexer.Position {
+	if c.EndPos.Line != 0 {
+		return c.EndPos
+	}
+	return c.Token.Pos
+}
 func (c *Condition) String() string {
 	var out bytes.Buffer
 
@@ -183,6 +214,14 @@ func (c *Condition) String() string {
 type PreConditions struct {
 	Conditions []*Condition
 	Token      lexer.Token // The REQUIRE token
+	EndPos     lexer.Position
+}
+
+func (p *PreConditions) End() lexer.Position {
+	if p.EndPos.Line != 0 {
+		return p.EndPos
+	}
+	return p.Token.Pos
 }
 
 func (pc *PreConditions) statementNode()       {}
@@ -215,6 +254,14 @@ func (pc *PreConditions) String() string {
 type PostConditions struct {
 	Conditions []*Condition
 	Token      lexer.Token // The ENSURE token
+	EndPos     lexer.Position
+}
+
+func (p *PostConditions) End() lexer.Position {
+	if p.EndPos.Line != 0 {
+		return p.EndPos
+	}
+	return p.Token.Pos
 }
 
 func (pc *PostConditions) statementNode()       {}
@@ -248,6 +295,14 @@ type OldExpression struct {
 	Identifier *Identifier
 	Type       *TypeAnnotation
 	Token      lexer.Token // The OLD token
+	EndPos     lexer.Position
+}
+
+func (o *OldExpression) End() lexer.Position {
+	if o.EndPos.Line != 0 {
+		return o.EndPos
+	}
+	return o.Token.Pos
 }
 
 func (oe *OldExpression) expressionNode()      {}

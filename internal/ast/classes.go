@@ -70,6 +70,14 @@ type ClassDecl struct {
 	Token        lexer.Token
 	IsAbstract   bool
 	IsExternal   bool
+	EndPos       lexer.Position
+}
+
+func (c *ClassDecl) End() lexer.Position {
+	if c.EndPos.Line != 0 {
+		return c.EndPos
+	}
+	return c.Token.Pos
 }
 
 func (cd *ClassDecl) statementNode()       {}
@@ -185,6 +193,14 @@ type FieldDecl struct {
 	Token      lexer.Token
 	Visibility Visibility
 	IsClassVar bool
+	EndPos     lexer.Position
+}
+
+func (f *FieldDecl) End() lexer.Position {
+	if f.EndPos.Line != 0 {
+		return f.EndPos
+	}
+	return f.Token.Pos
 }
 
 func (fd *FieldDecl) statementNode()       {}
@@ -226,6 +242,14 @@ type NewExpression struct {
 	Type      *TypeAnnotation // Inferred class type (for semantic analysis)
 	Arguments []Expression    // Constructor arguments
 	Token     lexer.Token     // The 'new' token or class name token
+	EndPos    lexer.Position
+}
+
+func (n *NewExpression) End() lexer.Position {
+	if n.EndPos.Line != 0 {
+		return n.EndPos
+	}
+	return n.Token.Pos
 }
 
 func (ne *NewExpression) expressionNode()             {}
@@ -265,6 +289,14 @@ type MemberAccessExpression struct {
 	Member *Identifier
 	Type   *TypeAnnotation
 	Token  lexer.Token
+	EndPos lexer.Position
+}
+
+func (m *MemberAccessExpression) End() lexer.Position {
+	if m.EndPos.Line != 0 {
+		return m.EndPos
+	}
+	return m.Token.Pos
 }
 
 func (ma *MemberAccessExpression) expressionNode()             {}
@@ -297,6 +329,14 @@ type MethodCallExpression struct {
 	Type      *TypeAnnotation
 	Arguments []Expression
 	Token     lexer.Token
+	EndPos    lexer.Position
+}
+
+func (m *MethodCallExpression) End() lexer.Position {
+	if m.EndPos.Line != 0 {
+		return m.EndPos
+	}
+	return m.Token.Pos
 }
 
 func (mc *MethodCallExpression) expressionNode()             {}
@@ -338,6 +378,14 @@ type InheritedExpression struct {
 	Type      *TypeAnnotation // Result type
 	IsCall    bool            // True if this is a method call (has arguments or parentheses)
 	IsMember  bool            // True if this accesses a member (has method name but no call)
+	EndPos    lexer.Position
+}
+
+func (i *InheritedExpression) End() lexer.Position {
+	if i.EndPos.Line != 0 {
+		return i.EndPos
+	}
+	return i.Token.Pos
 }
 
 func (ie *InheritedExpression) expressionNode()             {}

@@ -21,6 +21,14 @@ type SetDecl struct {
 	Name        *Identifier
 	ElementType *TypeAnnotation
 	Token       lexer.Token
+	EndPos      lexer.Position
+}
+
+func (s *SetDecl) End() lexer.Position {
+	if s.EndPos.Line != 0 {
+		return s.EndPos
+	}
+	return s.Token.Pos
 }
 
 // statementNode implements the Statement interface
@@ -67,6 +75,14 @@ type SetLiteral struct {
 	Type     *TypeAnnotation
 	Elements []Expression
 	Token    lexer.Token
+	EndPos   lexer.Position
+}
+
+func (s *SetLiteral) End() lexer.Position {
+	if s.EndPos.Line != 0 {
+		return s.EndPos
+	}
+	return s.Token.Pos
 }
 
 // expressionNode implements the Expression interface
