@@ -560,7 +560,7 @@ type TIntProc = procedure(value: Integer);
 
 ---
 
-### Function/Method Overloading Support (Tasks 9.243-9.277 + 9.44-forward) - 61% COMPLETE (22/36 tasks)
+### Function/Method Overloading Support (Tasks 9.38-9.72) - 61% COMPLETE (22/36 tasks)
 
 **Goal**: Implement complete function and method overloading support
 **Status**: 22 tasks complete, 1 in progress, 13 pending (Stages 1-3 ✅, Stages 4-6 in progress)
@@ -569,7 +569,7 @@ type TIntProc = procedure(value: Integer);
 **Test Files**: testdata/fixtures/OverloadsPass/ (39 tests - 2 passing), testdata/fixtures/OverloadsFail/ (11 tests)
 **Recent Fixes**: Forward declarations, panic fix, overload resolution in semantic analyzer
 
-#### Stage 1: Parser Support (Tasks 9.243-9.249 + 9.44-forward) - 100% COMPLETE ✅ (8/8 tasks done)
+#### Stage 1: Parser Support (Tasks 9.38-9.44b) - 100% COMPLETE ✅ (8/8 tasks done)
 
 - [x] 9.38 Add IsOverload field to FunctionDecl AST node:
   - [x] Add `IsOverload bool` field to `FunctionDecl` struct in `internal/ast/functions.go`
@@ -611,7 +611,7 @@ type TIntProc = procedure(value: Integer);
   - [x] Test forward declarations with overload
   - [x] Fixed parser bug: abstract/external directives now allow additional directives like overload
 
-- [x] 9.44-forward **Parse forward keyword in function/procedure declarations**:
+- [x] 9.44b **Parse forward keyword in function/procedure declarations**:
   - [x] Add support for `forward` directive in `parseFunctionDeclaration()`
   - [x] Parse `FORWARD` token after function signature (similar to overload)
   - [x] Add IsForward flag to FunctionDecl AST node
@@ -626,7 +626,7 @@ type TIntProc = procedure(value: Integer);
   - **Status**: ✅ COMPLETE - Parser and semantic analysis working
   - **Remaining**: Interpreter needs to skip forward declarations (separate task)
 
-#### Stage 2: Symbol Table Extensions (Tasks 9.250-9.255) - 100% COMPLETE ✅
+#### Stage 2: Symbol Table Extensions (Tasks 9.45-9.50) - 100% COMPLETE ✅
 
 - [x] 9.45 Design overload set data structure:
   - [x] Create `OverloadSet` type to store multiple function signatures
@@ -668,7 +668,7 @@ type TIntProc = procedure(value: Integer);
   - [x] Test nested scopes with overloads (4 tests)
   - File: internal/semantic/overload_test.go (19 comprehensive tests, all passing)
 
-#### Stage 3: Signature Matching (Tasks 9.256-9.262) - 100% COMPLETE ✅
+#### Stage 3: Signature Matching (Tasks 9.51-9.57) - 100% COMPLETE ✅
 
 - [x] 9.51 Implement function signature comparison:
   - [x] Created `SignaturesEqual(sig1, sig2 *types.FunctionType) bool` in `internal/semantic/overload_resolution.go`
@@ -721,7 +721,7 @@ type TIntProc = procedure(value: Integer);
   - [x] Parameter modifiers tested (TestOverloadResolutionWithModifiers)
   - [x] NOTE: Class inheritance and Variant compatibility to be enhanced when type system expands
 
-#### Stage 4: Semantic Validation (Tasks 9.263-9.269) - 14% COMPLETE (1/7 tasks done)
+#### Stage 4: Semantic Validation (Tasks 9.58-9.26649) - 14% COMPLETE (1/7 tasks done)
 
 - [ ] 9.58 Validate overload directive consistency:
   - [ ] Implement: If one overload has `overload`, all must have it
@@ -765,7 +765,7 @@ type TIntProc = procedure(value: Integer);
   - [ ] Ensure error messages match expected patterns
   - [ ] Document any DWScript incompatibilities
 
-#### Stage 5: Runtime Dispatch (Tasks 9.270-9.274) - 40% COMPLETE (2/5 tasks done)
+#### Stage 5: Runtime Dispatch (Tasks 9.65-9.69) - 40% COMPLETE (2/5 tasks done)
 
 - [x] 9.65 Update function call evaluation to resolve overloads:
   - [x] In semantic analyzer, check if function is overloaded (analyze_function_calls.go:252)
