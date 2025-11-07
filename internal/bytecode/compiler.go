@@ -107,6 +107,8 @@ func (c *Compiler) Compile(program *ast.Program) (*Chunk, error) {
 	c.nextGlobal = 0
 	c.enclosing = nil
 
+	c.initBuiltins()
+
 	if err := c.compileProgram(program); err != nil {
 		return nil, err
 	}
@@ -158,6 +160,10 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 		return c.compileWhile(node)
 	case *ast.RepeatStatement:
 		return c.compileRepeat(node)
+	case *ast.TryStatement:
+		return c.compileTryStatement(node)
+	case *ast.RaiseStatement:
+		return c.compileRaiseStatement(node)
 	case *ast.ReturnStatement:
 		return c.compileReturn(node)
 	case *ast.BreakStatement:
@@ -177,6 +183,18 @@ func (c *Compiler) compileBlock(block *ast.BlockStatement) error {
 		}
 	}
 	c.endScope()
+	return nil
+}
+
+func (c *Compiler) compileBlockStatements(block *ast.BlockStatement) error {
+	if block == nil {
+		return nil
+	}
+	for _, stmt := range block.Statements {
+		if err := c.compileStatement(stmt); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -235,6 +253,8 @@ func (c *Compiler) compileAssignment(stmt *ast.AssignmentStatement) error {
 		return c.compileIdentifierAssignment(target, stmt.Value)
 	case *ast.MemberAccessExpression:
 		return c.compileMemberAssignment(target, stmt.Value)
+	case *ast.IndexExpression:
+		return c.compileIndexAssignment(target, stmt.Value)
 	default:
 		return c.errorf(stmt.Target, "unsupported assignment target %T", stmt.Target)
 	}
@@ -335,6 +355,176 @@ func (c *Compiler) compileRepeat(stmt *ast.RepeatStatement) error {
 	}
 
 	return c.patchLoopBreaks(ctx)
+}
+
+func (c *Compiler) compileTryStatement(stmt *ast.TryStatement) error {
+	if stmt == nil || stmt.TryBlock == nil {
+		return c.errorf(stmt, "invalid try statement")
+	}
+
+	hasExcept := stmt.ExceptClause != nil
+	line := lineOf(stmt)
+	tryInst := c.chunk.Write(OpTry, 0, 0, line)
+
+	if err := c.compileBlockStatements(stmt.TryBlock); err != nil {
+		return err
+	}
+
+	jumpAfterTry := c.chunk.EmitJump(OpJump, line)
+
+	catchStart := -1
+	afterCatchJump := -1
+	if hasExcept {
+		catchStart = len(c.chunk.Code)
+		c.chunk.Write(OpCatch, 0, 0, line)
+		if err := c.compileExceptClause(stmt.ExceptClause); err != nil {
+			return err
+		}
+		afterCatchJump = c.chunk.EmitJump(OpJump, line)
+	}
+
+	finallyStart := len(c.chunk.Code)
+	c.chunk.Write(OpFinally, 0, 0, line)
+	if stmt.FinallyClause != nil {
+		if err := c.compileBlockStatements(stmt.FinallyClause.Block); err != nil {
+			return err
+		}
+	}
+	c.chunk.Write(OpFinally, 1, 0, line)
+
+	if err := c.patchJumpToTarget(jumpAfterTry, finallyStart); err != nil {
+		return err
+	}
+	if hasExcept {
+		if err := c.patchJumpToTarget(afterCatchJump, finallyStart); err != nil {
+			return err
+		}
+		if err := c.patchJumpToTarget(catchStart, finallyStart); err != nil {
+			return err
+		}
+	}
+
+	target := finallyStart
+	if hasExcept {
+		target = catchStart
+	}
+	if err := c.patchJumpToTarget(tryInst, target); err != nil {
+		return err
+	}
+
+	info := TryInfo{
+		CatchTarget:   catchStart,
+		FinallyTarget: finallyStart,
+		HasCatch:      hasExcept,
+		HasFinally:    true,
+	}
+	c.chunk.SetTryInfo(tryInst, info)
+
+	return nil
+}
+
+func (c *Compiler) compileExceptClause(clause *ast.ExceptClause) error {
+	if clause == nil {
+		return nil
+	}
+
+	c.beginScope()
+	defer c.endScope()
+
+	tmpSlot, err := c.declareSyntheticLocal("$exception")
+	if err != nil {
+		return err
+	}
+	line := lineOfExceptClause(clause)
+	if line == 0 {
+		line = c.lastLine
+	}
+	c.chunk.Write(OpStoreLocal, 0, tmpSlot, line)
+
+	endJumps := make([]int, 0, len(clause.Handlers)+1)
+
+	for _, handler := range clause.Handlers {
+		if handler == nil {
+			continue
+		}
+		handlerLine := lineOf(handler.Statement)
+		if handlerLine == 0 {
+			handlerLine = line
+		}
+
+		jumpIfNoMatch := -1
+		if handler.ExceptionType != nil {
+			typeConst := c.chunk.AddConstant(StringValue(handler.ExceptionType.Name))
+			c.chunk.Write(OpLoadLocal, 0, tmpSlot, handlerLine)
+			c.chunk.WriteSimple(OpGetClass, handlerLine)
+			c.chunk.Write(OpLoadConst, 0, uint16(typeConst), handlerLine)
+			c.chunk.WriteSimple(OpEqual, handlerLine)
+			jumpIfNoMatch = c.chunk.EmitJump(OpJumpIfFalse, handlerLine)
+		}
+
+		beginHandlerScope := false
+		if handler.Variable != nil {
+			beginHandlerScope = true
+			c.beginScope()
+			slot, err := c.declareLocal(handler.Variable, typeFromAnnotation(handler.ExceptionType))
+			if err != nil {
+				return err
+			}
+			c.chunk.Write(OpLoadLocal, 0, tmpSlot, handlerLine)
+			c.chunk.Write(OpStoreLocal, 0, slot, handlerLine)
+		}
+
+		if err := c.compileStatement(handler.Statement); err != nil {
+			return err
+		}
+
+		if beginHandlerScope {
+			c.endScope()
+		}
+
+		endJumps = append(endJumps, c.chunk.EmitJump(OpJump, handlerLine))
+		if jumpIfNoMatch >= 0 {
+			if err := c.patchJumpToTarget(jumpIfNoMatch, len(c.chunk.Code)); err != nil {
+				return err
+			}
+		}
+	}
+
+	if clause.ElseBlock != nil {
+		if err := c.compileBlock(clause.ElseBlock); err != nil {
+			return err
+		}
+	} else {
+		c.chunk.Write(OpLoadLocal, 0, tmpSlot, line)
+		c.chunk.WriteSimple(OpThrow, line)
+	}
+
+	endTarget := len(c.chunk.Code)
+	for _, jump := range endJumps {
+		if err := c.patchJumpToTarget(jump, endTarget); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Compiler) compileRaiseStatement(stmt *ast.RaiseStatement) error {
+	if stmt == nil {
+		return c.errorf(nil, "invalid raise statement")
+	}
+	line := lineOf(stmt)
+	if stmt.Exception == nil {
+		if err := c.loadExceptObject(line); err != nil {
+			return err
+		}
+	} else {
+		if err := c.compileExpression(stmt.Exception); err != nil {
+			return err
+		}
+	}
+	c.chunk.WriteSimple(OpThrow, line)
+	return nil
 }
 
 func (c *Compiler) compileReturn(stmt *ast.ReturnStatement) error {
@@ -470,8 +660,14 @@ func (c *Compiler) compileExpression(expr ast.Expression) error {
 		return nil
 	case *ast.Identifier:
 		return c.compileIdentifier(node)
+	case *ast.ArrayLiteralExpression:
+		return c.compileArrayLiteral(node)
+	case *ast.IndexExpression:
+		return c.compileIndexExpression(node)
 	case *ast.MemberAccessExpression:
 		return c.compileMemberAccess(node)
+	case *ast.NewExpression:
+		return c.compileNewExpression(node)
 	case *ast.LambdaExpression:
 		return c.compileLambdaExpression(node)
 	case *ast.MethodCallExpression:
@@ -514,6 +710,10 @@ func (c *Compiler) compileIdentifier(ident *ast.Identifier) error {
 func (c *Compiler) compileIdentifierAssignment(ident *ast.Identifier, value ast.Expression) error {
 	if err := c.compileExpression(value); err != nil {
 		return err
+	}
+
+	if strings.EqualFold(ident.Value, builtinExceptObjectName) {
+		return c.errorf(ident, "cannot assign to %s", builtinExceptObjectName)
 	}
 
 	if localInfo, ok := c.resolveLocal(ident.Value); ok {
@@ -577,6 +777,74 @@ func (c *Compiler) compileMemberAssignment(target *ast.MemberAccessExpression, v
 	}
 
 	c.chunk.Write(OpSetProperty, 0, nameIndex, lineOf(target))
+	return nil
+}
+
+func (c *Compiler) compileArrayLiteral(expr *ast.ArrayLiteralExpression) error {
+	if expr == nil {
+		return c.errorf(nil, "nil array literal expression")
+	}
+	for _, element := range expr.Elements {
+		if err := c.compileExpression(element); err != nil {
+			return err
+		}
+	}
+	count := len(expr.Elements)
+	if count > 0xFFFF {
+		return c.errorf(expr, "array literal has too many elements (%d)", count)
+	}
+	c.chunk.Write(OpNewArray, 0, uint16(count), lineOf(expr))
+	return nil
+}
+
+func (c *Compiler) compileIndexExpression(expr *ast.IndexExpression) error {
+	if expr == nil {
+		return c.errorf(nil, "nil index expression")
+	}
+	if err := c.compileExpression(expr.Left); err != nil {
+		return err
+	}
+	if err := c.compileExpression(expr.Index); err != nil {
+		return err
+	}
+	c.chunk.WriteSimple(OpArrayGet, lineOf(expr))
+	return nil
+}
+
+func (c *Compiler) compileIndexAssignment(target *ast.IndexExpression, value ast.Expression) error {
+	if target == nil {
+		return c.errorf(nil, "nil index assignment target")
+	}
+	if value != nil {
+		if err := c.compileExpression(value); err != nil {
+			return err
+		}
+	} else {
+		c.chunk.WriteSimple(OpLoadNil, lineOf(target))
+	}
+	if err := c.compileExpression(target.Left); err != nil {
+		return err
+	}
+	if err := c.compileExpression(target.Index); err != nil {
+		return err
+	}
+	c.chunk.WriteSimple(OpRotate3, lineOf(target))
+	c.chunk.WriteSimple(OpArraySet, lineOf(target))
+	return nil
+}
+
+func (c *Compiler) compileNewExpression(expr *ast.NewExpression) error {
+	if expr == nil || expr.ClassName == nil {
+		return c.errorf(expr, "invalid new expression")
+	}
+	if len(expr.Arguments) > 0 {
+		return c.errorf(expr, "constructors with arguments are not supported in bytecode yet")
+	}
+	constIdx := c.chunk.AddConstant(StringValue(expr.ClassName.Value))
+	if constIdx > 0xFFFF {
+		return c.errorf(expr, "constant pool overflow")
+	}
+	c.chunk.Write(OpNewObject, 0, uint16(constIdx), lineOf(expr))
 	return nil
 }
 
@@ -899,6 +1167,11 @@ func (c *Compiler) declareLocal(ident *ast.Identifier, typ types.Type) (uint16, 
 	return slot, nil
 }
 
+func (c *Compiler) declareSyntheticLocal(name string) (uint16, error) {
+	ident := &ast.Identifier{Value: name}
+	return c.declareLocal(ident, nil)
+}
+
 func (c *Compiler) declareGlobal(ident *ast.Identifier, typ types.Type) (uint16, error) {
 	if c.globals == nil {
 		c.globals = make(map[string]globalVar)
@@ -1080,6 +1353,15 @@ func (c *Compiler) ensureFunctionReturn(line int) {
 	}
 }
 
+func (c *Compiler) loadExceptObject(line int) error {
+	global, ok := c.resolveGlobal(builtinExceptObjectName)
+	if !ok {
+		return c.errorf(nil, "%s global not initialized", builtinExceptObjectName)
+	}
+	c.chunk.Write(OpLoadGlobal, 0, global.index, line)
+	return nil
+}
+
 func (c *Compiler) beginScope() {
 	c.scopeDepth++
 }
@@ -1097,6 +1379,25 @@ func (c *Compiler) endScope() {
 
 func (c *Compiler) isGlobalScope() bool {
 	return c.enclosing == nil && c.scopeDepth == 0
+}
+
+func (c *Compiler) initBuiltins() {
+	c.addBuiltinGlobal(builtinExceptObjectName)
+}
+
+func (c *Compiler) addBuiltinGlobal(name string) {
+	if c.globals == nil {
+		c.globals = make(map[string]globalVar)
+	}
+	key := strings.ToLower(name)
+	if _, exists := c.globals[key]; exists {
+		return
+	}
+	c.globals[key] = globalVar{
+		name:  name,
+		index: c.nextGlobal,
+	}
+	c.nextGlobal++
 }
 
 func (c *Compiler) hasEnclosingLocal(name string) bool {
@@ -1190,6 +1491,23 @@ func typeFromAnnotation(annotation *ast.TypeAnnotation) types.Type {
 	default:
 		return nil
 	}
+}
+
+func lineOfExceptClause(clause *ast.ExceptClause) int {
+	if clause == nil {
+		return 0
+	}
+	for _, handler := range clause.Handlers {
+		if handler != nil && handler.Statement != nil {
+			if line := lineOf(handler.Statement); line != 0 {
+				return line
+			}
+		}
+	}
+	if clause.ElseBlock != nil {
+		return lineOf(clause.ElseBlock)
+	}
+	return 0
 }
 
 func isFloatType(t types.Type) bool {

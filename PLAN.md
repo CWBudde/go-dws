@@ -1578,16 +1578,16 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
     - [x] Implement closures and upvalues *(lambda + nested functions capture locals; closure metadata drives `OpClosure` emission)*
     - [x] Support method calls and `Self` context *(compiler emits `OpCallMethod`, VM dispatch binds implicit `Self` via `OpGetSelf`)*
 
-  - [ ] 12.18.9 Implement array and object instructions (1 week, MODERATE)
-    - [ ] GET_INDEX, SET_INDEX for array access
-    - [ ] NEW_ARRAY, ARRAY_LENGTH
-    - [ ] NEW_OBJECT for class instantiation
-    - [ ] INVOKE_METHOD for method dispatch
+	- [x] 12.18.9 Implement array and object instructions (1 week, MODERATE)
+	    - [x] GET_INDEX, SET_INDEX for array access
+	    - [x] NEW_ARRAY, ARRAY_LENGTH
+	    - [x] NEW_OBJECT for class instantiation
+	    - [x] INVOKE_METHOD for method dispatch
 
-  - [ ] 12.18.10 Add exception handling instructions (1 week, MODERATE)
-    - [ ] TRY, CATCH, FINALLY, THROW instructions
-    - [ ] Exception stack unwinding
-    - [ ] Preserve stack traces across bytecode execution
+	- [x] 12.18.10 Add exception handling instructions (1 week, MODERATE)
+	    - [x] TRY, CATCH, FINALLY, THROW instructions
+	    - [x] Exception stack unwinding
+	    - [x] Preserve stack traces across bytecode execution
 
   - [ ] 12.18.11 Optimize bytecode generation (1-2 weeks, MODERATE)
     - Peephole optimization (combine adjacent instructions)

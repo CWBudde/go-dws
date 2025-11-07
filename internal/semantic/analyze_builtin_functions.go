@@ -330,6 +330,22 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	case "jsonlength":
 		return a.analyzeJSONLength(args, callExpr), true
 
+	// Variant Functions
+	case "vartype":
+		return a.analyzeVarType(args, callExpr), true
+	case "varisnull":
+		return a.analyzeVarIsNull(args, callExpr), true
+	case "varisempty":
+		return a.analyzeVarIsEmpty(args, callExpr), true
+	case "varisnumeric":
+		return a.analyzeVarIsNumeric(args, callExpr), true
+	case "vartoint":
+		return a.analyzeVarToInt(args, callExpr), true
+	case "vartofloat":
+		return a.analyzeVarToFloat(args, callExpr), true
+	case "varastype":
+		return a.analyzeVarAsType(args, callExpr), true
+
 	default:
 		// Not a built-in function
 		return nil, false

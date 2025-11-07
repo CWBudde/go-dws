@@ -16,10 +16,13 @@ const (
 
 // VM executes bytecode chunks produced by the compiler.
 type VM struct {
-	stack        []Value
-	frames       []callFrame
-	globals      []Value
-	openUpvalues []*Upvalue
+	stack             []Value
+	frames            []callFrame
+	globals           []Value
+	openUpvalues      []*Upvalue
+	exceptionHandlers []exceptionHandler
+	finallyStack      []finallyContext
+	exceptObject      Value
 }
 
 type callFrame struct {
@@ -30,13 +33,34 @@ type callFrame struct {
 	self    Value
 }
 
+type exceptionHandler struct {
+	info             TryInfo
+	frameIndex       int
+	stackDepth       int
+	exceptionValue   Value
+	exceptionActive  bool
+	exceptionHandled bool
+	catchCompleted   bool
+	prevExceptObject Value
+}
+
+type finallyContext struct {
+	exceptionValue   Value
+	exceptionActive  bool
+	exceptionHandled bool
+	prevExceptObject Value
+}
+
 // NewVM creates a new VM with default configuration.
 func NewVM() *VM {
 	return &VM{
-		stack:        make([]Value, 0, defaultStackCapacity),
-		frames:       make([]callFrame, 0, defaultFrameCapacity),
-		globals:      make([]Value, 0),
-		openUpvalues: make([]*Upvalue, 0),
+		stack:             make([]Value, 0, defaultStackCapacity),
+		frames:            make([]callFrame, 0, defaultFrameCapacity),
+		globals:           make([]Value, 0),
+		openUpvalues:      make([]*Upvalue, 0),
+		exceptionHandlers: make([]exceptionHandler, 0),
+		finallyStack:      make([]finallyContext, 0),
+		exceptObject:      NilValue(),
 	}
 }
 
@@ -275,6 +299,207 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), vm.typeError("STRING_CONCAT", "String", fmt.Sprintf("%s, %s", left.Type.String(), right.Type.String()))
 			}
 			vm.push(StringValue(left.AsString() + right.AsString()))
+		case OpTry:
+			tryInfo, ok := frame.chunk.TryInfoAt(frame.ip - 1)
+			if !ok {
+				return NilValue(), vm.runtimeError("TRY instruction missing metadata")
+			}
+			handler := exceptionHandler{
+				info:             tryInfo,
+				frameIndex:       len(vm.frames) - 1,
+				stackDepth:       len(vm.stack),
+				exceptionValue:   NilValue(),
+				exceptionActive:  false,
+				exceptionHandled: true,
+				catchCompleted:   !tryInfo.HasCatch,
+				prevExceptObject: vm.exceptObject,
+			}
+			vm.exceptionHandlers = append(vm.exceptionHandlers, handler)
+		case OpCatch:
+			if len(vm.exceptionHandlers) == 0 {
+				return NilValue(), vm.runtimeError("CATCH without active handler")
+			}
+			handler := &vm.exceptionHandlers[len(vm.exceptionHandlers)-1]
+			if !handler.info.HasCatch {
+				return NilValue(), vm.runtimeError("CATCH executed but handler has no catch block")
+			}
+			if !handler.exceptionActive {
+				return NilValue(), vm.runtimeError("CATCH executed without active exception")
+			}
+			handler.exceptionHandled = true
+			vm.setExceptObject(handler.exceptionValue)
+			vm.push(handler.exceptionValue)
+		case OpFinally:
+			if inst.A() == 0 {
+				ctx, err := vm.beginFinally()
+				if err != nil {
+					return NilValue(), err
+				}
+				vm.finallyStack = append(vm.finallyStack, ctx)
+			} else {
+				if len(vm.finallyStack) == 0 {
+					return NilValue(), vm.runtimeError("FINALLY exit without context")
+				}
+				ctx := vm.finallyStack[len(vm.finallyStack)-1]
+				vm.finallyStack = vm.finallyStack[:len(vm.finallyStack)-1]
+				vm.setExceptObject(ctx.prevExceptObject)
+				if ctx.exceptionActive && !ctx.exceptionHandled {
+					if err := vm.raiseException(ctx.exceptionValue); err != nil {
+						return NilValue(), err
+					}
+					continue
+				}
+			}
+		case OpThrow:
+			exc, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			if exc.IsNil() {
+				return NilValue(), vm.runtimeError("cannot raise nil exception")
+			}
+			vm.markTopHandlerUnhandled()
+			if err := vm.raiseException(exc); err != nil {
+				return NilValue(), err
+			}
+			continue
+		case OpNewArray:
+			elementCount := int(inst.B())
+			if elementCount < 0 {
+				return NilValue(), vm.runtimeError("NEW_ARRAY negative element count %d", elementCount)
+			}
+			if len(vm.stack) < elementCount {
+				return NilValue(), vm.runtimeError("NEW_ARRAY requires %d values on stack", elementCount)
+			}
+			elements := make([]Value, elementCount)
+			for i := elementCount - 1; i >= 0; i-- {
+				val, err := vm.pop()
+				if err != nil {
+					return NilValue(), err
+				}
+				elements[i] = val
+			}
+			vm.push(ArrayValue(NewArrayInstance(elements)))
+		case OpNewArraySized:
+			sizeVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			size, err := vm.requireInt(sizeVal, "NEW_ARRAY_SIZED")
+			if err != nil {
+				return NilValue(), err
+			}
+			if size < 0 {
+				return NilValue(), vm.runtimeError("NEW_ARRAY_SIZED negative size %d", size)
+			}
+			vm.push(ArrayValue(NewArrayInstanceWithLength(size)))
+		case OpArrayLength:
+			arrVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			arr, err := vm.requireArray(arrVal, "ARRAY_LENGTH")
+			if err != nil {
+				return NilValue(), err
+			}
+			vm.push(IntValue(int64(arr.Length())))
+		case OpArrayGet:
+			indexVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			arrVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			idx, err := vm.requireInt(indexVal, "ARRAY_GET index")
+			if err != nil {
+				return NilValue(), err
+			}
+			arr, err := vm.requireArray(arrVal, "ARRAY_GET")
+			if err != nil {
+				return NilValue(), err
+			}
+			value, ok := arr.Get(idx)
+			if !ok {
+				return NilValue(), vm.runtimeError("ARRAY_GET index %d out of range (length %d)", idx, arr.Length())
+			}
+			vm.push(value)
+		case OpArraySet:
+			value, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			indexVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			arrVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			idx, err := vm.requireInt(indexVal, "ARRAY_SET index")
+			if err != nil {
+				return NilValue(), err
+			}
+			arr, err := vm.requireArray(arrVal, "ARRAY_SET")
+			if err != nil {
+				return NilValue(), err
+			}
+			if !arr.Set(idx, value) {
+				return NilValue(), vm.runtimeError("ARRAY_SET index %d out of range (length %d)", idx, arr.Length())
+			}
+		case OpArraySetLength:
+			newLenVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			arrVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			newLen, err := vm.requireInt(newLenVal, "ARRAY_SET_LENGTH")
+			if err != nil {
+				return NilValue(), err
+			}
+			if newLen < 0 {
+				return NilValue(), vm.runtimeError("ARRAY_SET_LENGTH negative size %d", newLen)
+			}
+			arr, err := vm.requireArray(arrVal, "ARRAY_SET_LENGTH")
+			if err != nil {
+				return NilValue(), err
+			}
+			arr.Resize(newLen)
+		case OpArrayHigh:
+			arrVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			arr, err := vm.requireArray(arrVal, "ARRAY_HIGH")
+			if err != nil {
+				return NilValue(), err
+			}
+			if arr.Length() == 0 {
+				vm.push(IntValue(-1))
+			} else {
+				vm.push(IntValue(int64(arr.Length() - 1)))
+			}
+		case OpArrayLow:
+			arrVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			if _, err := vm.requireArray(arrVal, "ARRAY_LOW"); err != nil {
+				return NilValue(), err
+			}
+			vm.push(IntValue(0))
+		case OpNewObject:
+			classIdx := int(inst.B())
+			className, err := vm.constantAsString(frame.chunk, classIdx, "NEW_OBJECT")
+			if err != nil {
+				return NilValue(), err
+			}
+			vm.push(ObjectValue(NewObjectInstance(className)))
 		case OpGetField:
 			fieldIdx := int(inst.B())
 			name, err := vm.constantAsString(frame.chunk, fieldIdx, "GET_FIELD")
@@ -351,6 +576,20 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			}
 			obj := objVal.AsObject()
 			obj.SetProperty(name, value)
+		case OpGetClass:
+			objVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			if !objVal.IsObject() {
+				return NilValue(), vm.typeError("GET_CLASS", "Object", objVal.Type.String())
+			}
+			obj := objVal.AsObject()
+			className := ""
+			if obj != nil {
+				className = obj.ClassName
+			}
+			vm.push(StringValue(className))
 		case OpEqual:
 			right, err := vm.pop()
 			if err != nil {
@@ -574,7 +813,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), err
 			}
 			continue
-		case OpCallMethod, OpCallVirtual:
+		case OpCallMethod, OpCallVirtual, OpInvoke:
 			argCount := int(inst.A())
 			args, err := vm.popArgs(argCount)
 			if err != nil {
@@ -585,7 +824,11 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), err
 			}
 			nameIdx := int(inst.B())
-			name, err := vm.constantAsString(frame.chunk, nameIdx, "CALL_METHOD")
+			ctx := "CALL_METHOD"
+			if inst.OpCode() == OpInvoke {
+				ctx = "INVOKE"
+			}
+			name, err := vm.constantAsString(frame.chunk, nameIdx, ctx)
 			if err != nil {
 				return NilValue(), err
 			}
@@ -660,6 +903,10 @@ func (vm *VM) reset() {
 	vm.stack = vm.stack[:0]
 	vm.frames = vm.frames[:0]
 	vm.openUpvalues = vm.openUpvalues[:0]
+	vm.exceptionHandlers = vm.exceptionHandlers[:0]
+	vm.finallyStack = vm.finallyStack[:0]
+	vm.exceptObject = NilValue()
+	vm.setGlobal(builtinExceptObjectIndex, vm.exceptObject)
 }
 
 func (vm *VM) getGlobal(index int) Value {
@@ -790,6 +1037,24 @@ func (vm *VM) binaryFloatOpChecked(fn func(a, b float64) (float64, error)) error
 	return nil
 }
 
+func (vm *VM) requireArray(val Value, context string) (*ArrayInstance, error) {
+	if !val.IsArray() {
+		return nil, vm.typeError(context, "Array", val.Type.String())
+	}
+	arr := val.AsArray()
+	if arr == nil {
+		return nil, vm.runtimeError("%s on nil array", context)
+	}
+	return arr, nil
+}
+
+func (vm *VM) requireInt(val Value, context string) (int, error) {
+	if !val.IsInt() {
+		return 0, vm.typeError(context, "Integer", val.Type.String())
+	}
+	return int(val.AsInt()), nil
+}
+
 func (vm *VM) compare(op OpCode) (bool, error) {
 	right, err := vm.pop()
 	if err != nil {
@@ -847,6 +1112,8 @@ func (vm *VM) valuesEqual(a, b Value) bool {
 			return a.AsFloat() == b.AsFloat()
 		case ValueString:
 			return a.AsString() == b.AsString()
+		case ValueArray:
+			return a.AsArray() == b.AsArray()
 		case ValueFunction:
 			return a.AsFunction() == b.AsFunction()
 		case ValueClosure:
@@ -1068,6 +1335,100 @@ func (vm *VM) frameName(frame *callFrame) string {
 		return frame.chunk.Name
 	}
 	return "<script>"
+}
+
+func (vm *VM) setExceptObject(val Value) {
+	vm.exceptObject = val
+	vm.setGlobal(builtinExceptObjectIndex, val)
+}
+
+func (vm *VM) currentFrame() *callFrame {
+	if len(vm.frames) == 0 {
+		return nil
+	}
+	return &vm.frames[len(vm.frames)-1]
+}
+
+func (vm *VM) trimStack(depth int) {
+	if depth < 0 {
+		depth = 0
+	}
+	if len(vm.stack) > depth {
+		vm.stack = vm.stack[:depth]
+	}
+}
+
+func (vm *VM) unwindFramesTo(target int) {
+	if target < 0 {
+		target = 0
+	}
+	for len(vm.frames)-1 > target {
+		frame := &vm.frames[len(vm.frames)-1]
+		vm.closeUpvaluesForFrame(frame)
+		vm.frames = vm.frames[:len(vm.frames)-1]
+	}
+}
+
+func (vm *VM) beginFinally() (finallyContext, error) {
+	if len(vm.exceptionHandlers) == 0 {
+		return finallyContext{}, vm.runtimeError("FINALLY without matching TRY")
+	}
+	handler := vm.exceptionHandlers[len(vm.exceptionHandlers)-1]
+	vm.exceptionHandlers = vm.exceptionHandlers[:len(vm.exceptionHandlers)-1]
+	ctx := finallyContext{
+		exceptionValue:   handler.exceptionValue,
+		exceptionActive:  handler.exceptionActive,
+		exceptionHandled: handler.exceptionHandled,
+		prevExceptObject: handler.prevExceptObject,
+	}
+	if handler.exceptionActive {
+		vm.setExceptObject(handler.exceptionValue)
+	} else {
+		vm.setExceptObject(NilValue())
+	}
+	return ctx, nil
+}
+
+func (vm *VM) markTopHandlerUnhandled() {
+	if len(vm.exceptionHandlers) == 0 {
+		return
+	}
+	handler := &vm.exceptionHandlers[len(vm.exceptionHandlers)-1]
+	handler.exceptionHandled = false
+}
+
+func (vm *VM) raiseException(exc Value) error {
+	for len(vm.exceptionHandlers) > 0 {
+		idx := len(vm.exceptionHandlers) - 1
+		handler := &vm.exceptionHandlers[idx]
+		vm.unwindFramesTo(handler.frameIndex)
+		vm.trimStack(handler.stackDepth)
+		handler.exceptionValue = exc
+		if !handler.exceptionActive {
+			handler.exceptionActive = true
+			handler.exceptionHandled = !handler.info.HasCatch
+			handler.catchCompleted = !handler.info.HasCatch
+		}
+		if handler.info.HasCatch && !handler.catchCompleted {
+			handler.catchCompleted = true
+			frame := vm.currentFrame()
+			if frame == nil {
+				break
+			}
+			frame.ip = handler.info.CatchTarget
+			return nil
+		}
+		if handler.info.HasFinally && handler.info.FinallyTarget >= 0 {
+			frame := vm.currentFrame()
+			if frame == nil {
+				break
+			}
+			frame.ip = handler.info.FinallyTarget
+			return nil
+		}
+		vm.exceptionHandlers = vm.exceptionHandlers[:idx]
+	}
+	return vm.runtimeError("unhandled exception: %s", exc.String())
 }
 
 func max(a, b int) int {
