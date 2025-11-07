@@ -119,13 +119,7 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 		returnType = types.VOID
 	}
 
-	// Check if function is already declared
-	if a.symbols.IsDeclaredInCurrentScope(decl.Name.Value) {
-		a.addError("function '%s' already declared", decl.Name.Value)
-		return
-	}
-
-	// Create function type with metadata and add to symbol table
+	// Create function type with metadata
 	// Task 9.136: Use NewFunctionTypeWithMetadata to include lazy, var, and const parameter info
 	// Task 9.1: Include default value expressions for optional parameters
 	// Task 9.21.4.3: Detect variadic parameters (last parameter is array type)
@@ -152,7 +146,13 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 			paramTypes, paramNames, defaultValues, lazyParams, varParams, constParams, returnType,
 		)
 	}
-	a.symbols.DefineFunction(decl.Name.Value, funcType)
+
+	// Task 9.58-9.62: Use DefineOverload to handle overload validation
+	// DefineOverload handles both single functions and overload sets
+	if err := a.symbols.DefineOverload(decl.Name.Value, funcType, decl.IsOverload); err != nil {
+		a.addError("%s", err.Error())
+		return
+	}
 
 	// Analyze function body in new scope
 	oldSymbols := a.symbols
