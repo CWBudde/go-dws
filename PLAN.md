@@ -110,9 +110,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - [x] 9.19.2 Identify high-value candidates for context support:
     - [x] LambdaExpression (PRIMARY - blocks tasks 9.20-9.22) **IMPLEMENTED**
     - [x] RecordLiteral (already supported)
-    - [ ] NilLiteral (context determines which pointer/class type) **DEFERRED**
-    - [ ] Numeric literals (Integer vs Float inference) **DEFERRED**
-    - [ ] Lower priority: CallExpression (for overload resolution) **DEFERRED**
+    - [x] NilLiteral (context determines which pointer/class type) **DONE**
+    - [x] Numeric literals (Integer vs Float inference) **DONE**
+    - [x] Lower priority: CallExpression (for overload resolution) **DONE**
 
   **PHASE 2: Extend switch statement in analyzeExpressionWithExpectedType** (2-3 hours) **DONE**
   - [x] 9.19.3 Add LambdaExpression case (CRITICAL for 9.20-9.22):
@@ -124,7 +124,15 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
   - [x] 9.19.4 Add RecordLiteral case: **ALREADY SUPPORTED** (line 119)
 
-  - [ ] 9.19.5 Add NilLiteral case (OPTIONAL): **DEFERRED** to future task
+  - [x] 9.19.5 Add NilLiteral case: **DONE**
+    - [x] Location: `internal/semantic/analyze_expressions.go` lines 189-201
+    - [x] When expected type is CLASS or INTERFACE, returns that type instead of generic NIL
+    - [x] Also added IntegerLiteral case (lines 202-212): Returns FLOAT when expected type is Float
+    - [x] Also added CallExpression case (lines 216-219): Wrapper for future overload resolution
+    - [x] Tests added in `internal/semantic/analyze_expressions_test.go`:
+      - TestNilLiteralContextInference (4 test cases)
+      - TestIntegerLiteralToFloatContextInference (4 test cases)
+      - TestCallExpressionWithContext (1 test case)
 
   **PHASE 3: Thread context through call sites** (3-4 hours) **DONE**
   - [x] 9.19.6 Assignment statements: **ALREADY DONE** (analyze_statements.go:321)

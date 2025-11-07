@@ -94,6 +94,9 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 //   - SetLiteral: Converts to ArrayLiteral when expected type is array (e.g., array of const)
 //   - ArrayLiteralExpression: Converts to SetLiteral when expected type is set
 //   - LambdaExpression: Infers parameter types from expected function pointer type (Task 9.19)
+//   - NilLiteral: Returns the expected class/interface type instead of generic NIL (Task 9.19.5)
+//   - IntegerLiteral: Returns FLOAT type when expected type is Float (Task 9.19.2)
+//   - CallExpression: Passes expected type for future overload resolution (Task 9.19.2)
 //
 // For all other expression types, falls back to analyzeExpression() without context.
 //
@@ -186,6 +189,37 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 		}
 		// No expected type or not a function pointer - use regular analysis
 		return a.analyzeLambdaExpression(e)
+	case *ast.NilLiteral:
+		// Task 9.19.5: Nil literal type inference from context
+		// If expected type is a class or interface type, return that type instead of NIL
+		// This makes nil more specific and helps with type checking
+		if expectedType != nil {
+			underlyingType := types.GetUnderlyingType(expectedType)
+			typeKind := underlyingType.TypeKind()
+			if typeKind == "CLASS" || typeKind == "INTERFACE" {
+				return expectedType
+			}
+		}
+		// No expected type or not a class/interface - return generic NIL type
+		return types.NIL
+	case *ast.IntegerLiteral:
+		// Task 9.19.2: Integer literal type inference from context
+		// If expected type is Float, treat integer literal as float for better type compatibility
+		if expectedType != nil {
+			underlyingType := types.GetUnderlyingType(expectedType)
+			if underlyingType.TypeKind() == "FLOAT" {
+				return types.FLOAT
+			}
+		}
+		// Default to INTEGER type
+		return types.INTEGER
+	case *ast.FloatLiteral:
+		// Float literals are always FLOAT type regardless of context
+		return types.FLOAT
+	case *ast.CallExpression:
+		// Task 9.19.2: Call expression with context for overload resolution
+		// Pass expected type to help with overload resolution
+		return a.analyzeCallExpressionWithContext(e, expectedType)
 	default:
 		return a.analyzeExpression(expr)
 	}
