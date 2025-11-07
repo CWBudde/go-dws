@@ -328,8 +328,9 @@ func (i *Interpreter) ResolveQualifiedFunction(unitName, functionName string) (*
 	// (see tasks 9.108-9.110 where unit parsing is improved)
 	// For now, we assume the function was imported and is available globally.
 
-	if fn, ok := i.functions[functionName]; ok {
+	if overloads, ok := i.functions[functionName]; ok && len(overloads) > 0 {
 		// TODO: Verify this function actually belongs to this unit once we have proper
+		fn := overloads[0]
 		// unit-scoped symbol tables
 		return fn, nil
 	}

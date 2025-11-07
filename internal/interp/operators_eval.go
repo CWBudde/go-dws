@@ -42,10 +42,11 @@ func (i *Interpreter) invokeRuntimeOperator(entry *runtimeOperatorEntry, operand
 }
 
 func (i *Interpreter) invokeGlobalOperator(entry *runtimeOperatorEntry, operands []Value, node ast.Node) Value {
-	fn, exists := i.functions[entry.BindingName]
-	if !exists {
+	overloads, exists := i.functions[entry.BindingName]
+	if !exists || len(overloads) == 0 {
 		return i.newErrorWithLocation(node, "operator binding '%s' not found", entry.BindingName)
 	}
+	fn := overloads[0]
 	if len(fn.Parameters) != len(operands) {
 		return i.newErrorWithLocation(node, "operator '%s' expects %d operands, got %d", entry.Operator, len(fn.Parameters), len(operands))
 	}
@@ -210,11 +211,12 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 	entry, found := i.conversions.findImplicit(normalizedSource, normalizedTarget)
 	if found {
 		// Look up the conversion function
-		fn, exists := i.functions[entry.BindingName]
-		if !exists {
+		overloads, exists := i.functions[entry.BindingName]
+		if !exists || len(overloads) == 0 {
 			// This should not happen if semantic analysis passed
 			return value, false
 		}
+		fn := overloads[0]
 
 		// Call the conversion function with the value as argument
 		args := []Value{value}
@@ -254,10 +256,11 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 		}
 
 		// Look up the conversion function
-		fn, exists := i.functions[stepEntry.BindingName]
-		if !exists {
+		overloads, exists := i.functions[stepEntry.BindingName]
+		if !exists || len(overloads) == 0 {
 			return value, false
 		}
+		fn := overloads[0]
 
 		// Apply this conversion step
 		args := []Value{currentValue}
