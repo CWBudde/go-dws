@@ -223,8 +223,17 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	// Task 9.284: Validate that all forward-declared methods have implementations
 	a.validateMethodImplementations()
 
-	// If we accumulated errors, return them
-	if len(a.errors) > 0 {
+	// If we accumulated errors (not hints), return them
+	// Task 9.61.4: Hints don't prevent analysis from succeeding
+	hasActualErrors := false
+	for _, err := range a.errors {
+		if !strings.HasPrefix(err, "Hint:") {
+			hasActualErrors = true
+			break
+		}
+	}
+
+	if hasActualErrors {
 		return &AnalysisError{Errors: a.errors}
 	}
 
@@ -297,6 +306,12 @@ func (a *Analyzer) SetSource(source, filename string) {
 // addError adds a semantic error to the error list
 func (a *Analyzer) addError(format string, args ...any) {
 	a.errors = append(a.errors, fmt.Sprintf(format, args...))
+}
+
+// addHint adds a hint message (Task 9.61.4)
+// Hints are less severe than errors and don't prevent compilation
+func (a *Analyzer) addHint(format string, args ...any) {
+	a.errors = append(a.errors, fmt.Sprintf("Hint: "+format, args...))
 }
 
 // addStructuredError adds a structured semantic error

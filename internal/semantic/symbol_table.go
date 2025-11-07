@@ -196,8 +196,7 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 
 	// Task 9.59: Check for duplicate signature in existing overloads
 	// Task 9.60: Handle forward declarations in overload sets
-	// Note: In DWScript, functions with same parameters but different return types
-	// are allowed as overloads. Only if BOTH signature AND return type match is it a duplicate.
+	// Task 9.62: Functions with same parameters but different return types are AMBIGUOUS
 	if existing.IsOverloadSet {
 		for i, overload := range existing.Overloads {
 			existingFunc := overload.Type.(*types.FunctionType)
@@ -227,12 +226,10 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 					}
 
 					// Not a forward+impl pair - this is a true duplicate
-					if hasOverloadDirective && overload.HasOverloadDirective {
-						return fmt.Errorf("there is already a method with name \"%s\"", name)
-					}
-					return fmt.Errorf("'%s' already declared", name)
+					return fmt.Errorf("Overload of \"%s\" will be ambiguous with a previously declared version", name)
 				}
-				// Signatures match but return types differ - this is allowed in DWScript
+				// Task 9.62: Signatures match but return types differ - this is AMBIGUOUS
+				return fmt.Errorf("Overload of \"%s\" will be ambiguous with a previously declared version", name)
 			}
 		}
 	} else {
@@ -242,12 +239,10 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			// Signatures match - check if return types also match
 			if existingFunc.ReturnType.Equals(funcType.ReturnType) {
 				// True duplicate - same signature AND same return type
-				if hasOverloadDirective && existing.HasOverloadDirective {
-					return fmt.Errorf("there is already a method with name \"%s\"", name)
-				}
-				return fmt.Errorf("'%s' already declared", name)
+				return fmt.Errorf("Overload of \"%s\" will be ambiguous with a previously declared version", name)
 			}
-			// Signatures match but return types differ - this is allowed in DWScript
+			// Task 9.62: Signatures match but return types differ - this is AMBIGUOUS
+			return fmt.Errorf("Overload of \"%s\" will be ambiguous with a previously declared version", name)
 		}
 	}
 
