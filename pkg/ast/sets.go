@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -20,11 +20,11 @@ import (
 type SetDecl struct {
 	Name        *Identifier
 	ElementType *TypeAnnotation
-	Token       lexer.Token
-	EndPos      lexer.Position
+	Token       token.Token
+	EndPos      token.Position
 }
 
-func (s *SetDecl) End() lexer.Position {
+func (s *SetDecl) End() token.Position {
 	if s.EndPos.Line != 0 {
 		return s.EndPos
 	}
@@ -58,7 +58,7 @@ func (sd *SetDecl) String() string {
 }
 
 // Pos returns the position of the set declaration in the source code
-func (sd *SetDecl) Pos() lexer.Position {
+func (sd *SetDecl) Pos() token.Position {
 	return sd.Token.Pos
 }
 
@@ -74,11 +74,11 @@ func (sd *SetDecl) Pos() lexer.Position {
 type SetLiteral struct {
 	Type     *TypeAnnotation
 	Elements []Expression
-	Token    lexer.Token
-	EndPos   lexer.Position
+	Token    token.Token
+	EndPos   token.Position
 }
 
-func (s *SetLiteral) End() lexer.Position {
+func (s *SetLiteral) End() token.Position {
 	if s.EndPos.Line != 0 {
 		return s.EndPos
 	}
@@ -111,7 +111,7 @@ func (sl *SetLiteral) String() string {
 }
 
 // Pos returns the position of the set literal in the source code
-func (sl *SetLiteral) Pos() lexer.Position {
+func (sl *SetLiteral) Pos() token.Position {
 	return sl.Token.Pos
 }
 

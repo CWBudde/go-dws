@@ -1059,30 +1059,39 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
   - [x] Documentation updated with completion status
   - [x] Task 10.10 marked as complete
 
-- [ ] **10.11 Export AST types as public API**
-  - [ ] Create `pkg/ast/` directory
-  - [ ] Copy AST types from `internal/ast/` to `pkg/ast/`
-  - [ ] Update package declaration to `package ast`
-  - [ ] Add comprehensive package documentation
-  - [ ] Export all node types (capitalize struct names if needed)
-  - [ ] Keep `internal/ast/` as alias to `pkg/ast/` for internal use
-  - [ ] OR: Make `internal/ast/` types directly accessible (less preferred)
+- [x] **10.11 Export AST types as public API** ✅ COMPLETE
+  - [x] Create `pkg/token/` directory (for Position, Token, TokenType)
+  - [x] Create `pkg/ast/` directory with all AST node types
+  - [x] Export all node types (74+ types including Node, Expression, Statement interfaces)
+  - [x] Add comprehensive package documentation with examples
+  - [x] Keep `internal/ast/` as alias to `pkg/ast/` for backwards compatibility
+  - [x] Keep `internal/lexer/` token types as alias to `pkg/token/` for backwards compatibility
+  - [x] Update `pkg/dwscript/` to use public `pkg/ast` types
+  - [x] Create example tests demonstrating AST traversal
 
-- [ ] **10.12 Add AST accessor to Program type**
-  - [ ] Open `pkg/dwscript/dwscript.go`
-  - [ ] Add method: `func (p *Program) AST() *ast.Program`
-  - [ ] Return the underlying parsed AST
-  - [ ] Add documentation explaining AST structure
-  - [ ] Explain that AST is read-only, modifications won't affect execution
+- [x] **10.12 Add AST accessor to Program type** ✅ COMPLETE (done as part of 10.11)
+  - [x] Added `func (p *Program) AST() *ast.Program` method
+  - [x] Added comprehensive documentation explaining AST structure
+  - [x] Documented that AST is read-only
+  - [x] Added example showing AST traversal
   - [ ] Add example in documentation showing AST traversal
 
-- [ ] **10.13 Add parse-only mode for LSP use cases**
-  - [ ] Add method to Engine: `func (e *Engine) Parse(source string) (*ast.Program, error)`
-  - [ ] Parse source code without semantic analysis
-  - [ ] Return partial AST even if syntax errors exist (best-effort)
-  - [ ] Return structured syntax errors only (no type checking errors)
-  - [ ] Document use case: "For editors/IDEs that need AST without full compilation"
-  - [ ] Optimize for speed (skip expensive semantic checks)
+- [x] **10.13 Add parse-only mode for LSP use cases** ✅ COMPLETE
+  - [x] Added method to Engine: `func (e *Engine) Parse(source string) (*ast.Program, error)`
+  - [x] Parse source code without semantic analysis (skips type checking entirely)
+  - [x] Return partial AST even if syntax errors exist (best-effort parsing)
+  - [x] Return structured syntax errors only (no type checking errors)
+  - [x] Comprehensive documentation with LSP use case examples
+  - [x] Optimized for speed (skips expensive semantic checks)
+  - [x] Created 8 comprehensive tests covering all scenarios:
+    - Valid code parsing
+    - Invalid code with syntax errors
+    - Empty code
+    - Partial/incomplete code
+    - Comparison with Compile() method
+    - LSP use case simulation
+    - Error recovery with multiple errors
+    - Performance characteristics
 
 - [ ] **10.14 Create visitor pattern for AST traversal**
   - [ ] Create `pkg/ast/visitor.go`

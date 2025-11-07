@@ -24,11 +24,11 @@ import (
 	"io"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Engine is the main entry point for the DWScript interpreter.
@@ -103,6 +103,79 @@ func (e *Engine) Compile(source string) (*Program, error) {
 		ast:     program,
 		options: e.options,
 	}, nil
+}
+
+// Parse parses the given DWScript source code and returns the AST without
+// performing semantic analysis or type checking.
+//
+// This method is designed for use cases where you need the AST quickly,
+// such as in Language Server Protocol (LSP) implementations, code formatters,
+// syntax highlighters, or other editor tooling. It provides:
+//
+//   - Fast parsing without expensive semantic checks
+//   - Best-effort AST construction (returns partial AST even with syntax errors)
+//   - Structured syntax error information for diagnostics
+//
+// Unlike Compile(), Parse() will return a (potentially partial) AST even when
+// syntax errors are present. This allows editors to provide features like
+// syntax highlighting, code folding, and outline views even for invalid code.
+//
+// The returned AST should not be used for execution, as it has not been
+// type-checked and may be incomplete. Use Compile() instead if you need to
+// execute the code.
+//
+// Example usage in an LSP server:
+//
+//	engine, _ := dwscript.New()
+//	tree, errs := engine.Parse(documentText)
+//
+//	// Tree is available even if there are errors
+//	// Provide syntax highlighting based on the AST
+//	highlightCode(tree)
+//
+//	// Report syntax errors to the editor
+//	if errs != nil {
+//	    if compileErr, ok := errs.(*dwscript.CompileError); ok {
+//	        for _, err := range compileErr.Errors {
+//	            reportDiagnostic(err.Line, err.Column, err.Message)
+//	        }
+//	    }
+//	}
+func (e *Engine) Parse(source string) (*ast.Program, error) {
+	// Tokenize
+	l := lexer.New(source)
+
+	// Parse
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	// Always return the AST (even if there are errors)
+	// This is the key difference from Compile() - best-effort parsing
+
+	// If there are parse errors, convert them to structured errors
+	if len(p.Errors()) > 0 {
+		errors := make([]*Error, 0, len(p.Errors()))
+		for _, perr := range p.Errors() {
+			errors = append(errors, &Error{
+				Message:  perr.Message,
+				Line:     perr.Pos.Line,
+				Column:   perr.Pos.Column,
+				Length:   perr.Length,
+				Severity: SeverityError,
+				Code:     perr.Code,
+			})
+		}
+
+		// Return both the partial AST and the errors
+		// This allows editors to work with incomplete code
+		return program, &CompileError{
+			Stage:  "parsing",
+			Errors: errors,
+		}
+	}
+
+	// No errors - return the complete AST
+	return program, nil
 }
 
 // convertSemanticError converts semantic analysis errors to structured Error objects.
@@ -233,6 +306,25 @@ func (e *Engine) Eval(source string) (*Result, error) {
 type Program struct {
 	ast     *ast.Program
 	options Options
+}
+
+// AST returns the Abstract Syntax Tree of the compiled program.
+//
+// This method provides read-only access to the parsed and type-checked AST.
+// The AST can be used for static analysis, code transformation, or tooling.
+//
+// Note: Modifications to the returned AST will not affect program execution,
+// as the interpreter works with the original AST captured during compilation.
+//
+// Example usage:
+//
+//	program, _ := engine.Compile("var x: Integer := 42;")
+//	tree := program.AST()
+//	for _, stmt := range tree.Statements {
+//	    fmt.Printf("Statement: %s\n", stmt.String())
+//	}
+func (p *Program) AST() *ast.Program {
+	return p.ast
 }
 
 // Result represents the result of executing a DWScript program.

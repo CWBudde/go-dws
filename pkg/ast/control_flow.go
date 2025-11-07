@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // IfStatement represents an if-then-else conditional statement.
@@ -18,11 +18,11 @@ type IfStatement struct {
 	Condition   Expression
 	Consequence Statement
 	Alternative Statement
-	Token       lexer.Token
-	EndPos      lexer.Position
+	Token       token.Token
+	EndPos      token.Position
 }
 
-func (i *IfStatement) End() lexer.Position {
+func (i *IfStatement) End() token.Position {
 	if i.EndPos.Line != 0 {
 		return i.EndPos
 	}
@@ -31,7 +31,7 @@ func (i *IfStatement) End() lexer.Position {
 
 func (is *IfStatement) statementNode()       {}
 func (is *IfStatement) TokenLiteral() string { return is.Token.Literal }
-func (is *IfStatement) Pos() lexer.Position  { return is.Token.Pos }
+func (is *IfStatement) Pos() token.Position  { return is.Token.Pos }
 func (is *IfStatement) String() string {
 	var out bytes.Buffer
 
@@ -56,11 +56,11 @@ func (is *IfStatement) String() string {
 type WhileStatement struct {
 	Condition Expression
 	Body      Statement
-	Token     lexer.Token
-	EndPos    lexer.Position
+	Token     token.Token
+	EndPos    token.Position
 }
 
-func (w *WhileStatement) End() lexer.Position {
+func (w *WhileStatement) End() token.Position {
 	if w.EndPos.Line != 0 {
 		return w.EndPos
 	}
@@ -69,7 +69,7 @@ func (w *WhileStatement) End() lexer.Position {
 
 func (ws *WhileStatement) statementNode()       {}
 func (ws *WhileStatement) TokenLiteral() string { return ws.Token.Literal }
-func (ws *WhileStatement) Pos() lexer.Position  { return ws.Token.Pos }
+func (ws *WhileStatement) Pos() token.Position  { return ws.Token.Pos }
 func (ws *WhileStatement) String() string {
 	var out bytes.Buffer
 
@@ -90,11 +90,11 @@ func (ws *WhileStatement) String() string {
 type RepeatStatement struct {
 	Body      Statement
 	Condition Expression
-	Token     lexer.Token
-	EndPos    lexer.Position
+	Token     token.Token
+	EndPos    token.Position
 }
 
-func (r *RepeatStatement) End() lexer.Position {
+func (r *RepeatStatement) End() token.Position {
 	if r.EndPos.Line != 0 {
 		return r.EndPos
 	}
@@ -103,7 +103,7 @@ func (r *RepeatStatement) End() lexer.Position {
 
 func (rs *RepeatStatement) statementNode()       {}
 func (rs *RepeatStatement) TokenLiteral() string { return rs.Token.Literal }
-func (rs *RepeatStatement) Pos() lexer.Position  { return rs.Token.Pos }
+func (rs *RepeatStatement) Pos() token.Position  { return rs.Token.Pos }
 func (rs *RepeatStatement) String() string {
 	var out bytes.Buffer
 
@@ -146,17 +146,17 @@ type ForStatement struct {
 	EndValue  Expression // Renamed from 'End' to avoid conflict with End() method
 	Body      Statement
 	Variable  *Identifier
-	Token     lexer.Token
+	Token     token.Token
 	Direction ForDirection
 	Step      Expression // Optional step value (nil if not specified, defaults to 1)
 	InlineVar bool
-	EndPos    lexer.Position
+	EndPos    token.Position
 }
 
 func (fs *ForStatement) statementNode()       {}
 func (fs *ForStatement) TokenLiteral() string { return fs.Token.Literal }
-func (fs *ForStatement) Pos() lexer.Position  { return fs.Token.Pos }
-func (fs *ForStatement) End() lexer.Position {
+func (fs *ForStatement) Pos() token.Position  { return fs.Token.Pos }
+func (fs *ForStatement) End() token.Position {
 	if fs.EndPos.Line != 0 {
 		return fs.EndPos
 	}
@@ -199,12 +199,12 @@ type ForInStatement struct {
 	Variable   *Identifier // Loop variable
 	Collection Expression  // Expression to iterate over (set, array, string, range)
 	Body       Statement   // Loop body
-	Token      lexer.Token // The 'for' token
+	Token      token.Token // The 'for' token
 	InlineVar  bool        // true if 'var' keyword used
-	EndPos     lexer.Position
+	EndPos     token.Position
 }
 
-func (f *ForInStatement) End() lexer.Position {
+func (f *ForInStatement) End() token.Position {
 	if f.EndPos.Line != 0 {
 		return f.EndPos
 	}
@@ -213,7 +213,7 @@ func (f *ForInStatement) End() lexer.Position {
 
 func (fis *ForInStatement) statementNode()       {}
 func (fis *ForInStatement) TokenLiteral() string { return fis.Token.Literal }
-func (fis *ForInStatement) Pos() lexer.Position  { return fis.Token.Pos }
+func (fis *ForInStatement) Pos() token.Position  { return fis.Token.Pos }
 func (fis *ForInStatement) String() string {
 	var out bytes.Buffer
 
@@ -238,11 +238,11 @@ func (fis *ForInStatement) String() string {
 type CaseBranch struct {
 	Statement Statement
 	Values    []Expression
-	Token     lexer.Token
-	EndPos    lexer.Position
+	Token     token.Token
+	EndPos    token.Position
 }
 
-func (c *CaseBranch) End() lexer.Position {
+func (c *CaseBranch) End() token.Position {
 	if c.EndPos.Line != 0 {
 		return c.EndPos
 	}
@@ -276,11 +276,11 @@ type CaseStatement struct {
 	Expression Expression
 	Else       Statement
 	Cases      []*CaseBranch
-	Token      lexer.Token
-	EndPos     lexer.Position
+	Token      token.Token
+	EndPos     token.Position
 }
 
-func (c *CaseStatement) End() lexer.Position {
+func (c *CaseStatement) End() token.Position {
 	if c.EndPos.Line != 0 {
 		return c.EndPos
 	}
@@ -289,7 +289,7 @@ func (c *CaseStatement) End() lexer.Position {
 
 func (cs *CaseStatement) statementNode()       {}
 func (cs *CaseStatement) TokenLiteral() string { return cs.Token.Literal }
-func (cs *CaseStatement) Pos() lexer.Position  { return cs.Token.Pos }
+func (cs *CaseStatement) Pos() token.Position  { return cs.Token.Pos }
 func (cs *CaseStatement) String() string {
 	var out bytes.Buffer
 
@@ -325,11 +325,11 @@ func (cs *CaseStatement) String() string {
 //	   if shouldExit then break;
 //	end;
 type BreakStatement struct {
-	Token  lexer.Token // The 'break' token
-	EndPos lexer.Position
+	Token  token.Token // The 'break' token
+	EndPos token.Position
 }
 
-func (b *BreakStatement) End() lexer.Position {
+func (b *BreakStatement) End() token.Position {
 	if b.EndPos.Line != 0 {
 		return b.EndPos
 	}
@@ -338,7 +338,7 @@ func (b *BreakStatement) End() lexer.Position {
 
 func (bs *BreakStatement) statementNode()       {}
 func (bs *BreakStatement) TokenLiteral() string { return bs.Token.Literal }
-func (bs *BreakStatement) Pos() lexer.Position  { return bs.Token.Pos }
+func (bs *BreakStatement) Pos() token.Position  { return bs.Token.Pos }
 func (bs *BreakStatement) String() string {
 	return "break;"
 }
@@ -358,11 +358,11 @@ func (bs *BreakStatement) String() string {
 //	   end;
 //	end;
 type ContinueStatement struct {
-	Token  lexer.Token // The 'continue' token
-	EndPos lexer.Position
+	Token  token.Token // The 'continue' token
+	EndPos token.Position
 }
 
-func (c *ContinueStatement) End() lexer.Position {
+func (c *ContinueStatement) End() token.Position {
 	if c.EndPos.Line != 0 {
 		return c.EndPos
 	}
@@ -371,7 +371,7 @@ func (c *ContinueStatement) End() lexer.Position {
 
 func (cs *ContinueStatement) statementNode()       {}
 func (cs *ContinueStatement) TokenLiteral() string { return cs.Token.Literal }
-func (cs *ContinueStatement) Pos() lexer.Position  { return cs.Token.Pos }
+func (cs *ContinueStatement) Pos() token.Position  { return cs.Token.Pos }
 func (cs *ContinueStatement) String() string {
 	return "continue;"
 }
@@ -392,11 +392,11 @@ func (cs *ContinueStatement) String() string {
 //	end;
 type ExitStatement struct {
 	ReturnValue Expression // Optional expression returned from Exit
-	Token       lexer.Token
-	EndPos      lexer.Position
+	Token       token.Token
+	EndPos      token.Position
 }
 
-func (e *ExitStatement) End() lexer.Position {
+func (e *ExitStatement) End() token.Position {
 	if e.EndPos.Line != 0 {
 		return e.EndPos
 	}
@@ -405,7 +405,7 @@ func (e *ExitStatement) End() lexer.Position {
 
 func (es *ExitStatement) statementNode()       {}
 func (es *ExitStatement) TokenLiteral() string { return es.Token.Literal }
-func (es *ExitStatement) Pos() lexer.Position  { return es.Token.Pos }
+func (es *ExitStatement) Pos() token.Position  { return es.Token.Pos }
 func (es *ExitStatement) String() string {
 	var out bytes.Buffer
 	out.WriteString("Exit")

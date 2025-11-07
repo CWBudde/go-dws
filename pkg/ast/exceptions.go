@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // TryStatement represents a try...except...finally...end statement.
@@ -32,11 +32,11 @@ type TryStatement struct {
 	TryBlock      *BlockStatement
 	ExceptClause  *ExceptClause
 	FinallyClause *FinallyClause
-	Token         lexer.Token
-	EndPos        lexer.Position
+	Token         token.Token
+	EndPos        token.Position
 }
 
-func (t *TryStatement) End() lexer.Position {
+func (t *TryStatement) End() token.Position {
 	if t.EndPos.Line != 0 {
 		return t.EndPos
 	}
@@ -45,7 +45,7 @@ func (t *TryStatement) End() lexer.Position {
 
 func (ts *TryStatement) statementNode()       {}
 func (ts *TryStatement) TokenLiteral() string { return ts.Token.Literal }
-func (ts *TryStatement) Pos() lexer.Position  { return ts.Token.Pos }
+func (ts *TryStatement) Pos() token.Position  { return ts.Token.Pos }
 func (ts *TryStatement) String() string {
 	var out bytes.Buffer
 
@@ -92,11 +92,11 @@ func (ts *TryStatement) String() string {
 type ExceptClause struct {
 	ElseBlock *BlockStatement
 	Handlers  []*ExceptionHandler
-	Token     lexer.Token
-	EndPos    lexer.Position
+	Token     token.Token
+	EndPos    token.Position
 }
 
-func (e *ExceptClause) End() lexer.Position {
+func (e *ExceptClause) End() token.Position {
 	if e.EndPos.Line != 0 {
 		return e.EndPos
 	}
@@ -140,11 +140,11 @@ type ExceptionHandler struct {
 	Statement     Statement
 	Variable      *Identifier
 	ExceptionType *TypeAnnotation
-	Token         lexer.Token
-	EndPos        lexer.Position
+	Token         token.Token
+	EndPos        token.Position
 }
 
-func (e *ExceptionHandler) End() lexer.Position {
+func (e *ExceptionHandler) End() token.Position {
 	if e.EndPos.Line != 0 {
 		return e.EndPos
 	}
@@ -188,11 +188,11 @@ func (eh *ExceptionHandler) String() string {
 //	end;
 type FinallyClause struct {
 	Block  *BlockStatement
-	Token  lexer.Token
-	EndPos lexer.Position
+	Token  token.Token
+	EndPos token.Position
 }
 
-func (f *FinallyClause) End() lexer.Position {
+func (f *FinallyClause) End() token.Position {
 	if f.EndPos.Line != 0 {
 		return f.EndPos
 	}
@@ -223,11 +223,11 @@ func (fc *FinallyClause) String() string {
 //	raise; // re-raise
 type RaiseStatement struct {
 	Exception Expression
-	Token     lexer.Token
-	EndPos    lexer.Position
+	Token     token.Token
+	EndPos    token.Position
 }
 
-func (r *RaiseStatement) End() lexer.Position {
+func (r *RaiseStatement) End() token.Position {
 	if r.EndPos.Line != 0 {
 		return r.EndPos
 	}
@@ -236,7 +236,7 @@ func (r *RaiseStatement) End() lexer.Position {
 
 func (rs *RaiseStatement) statementNode()       {}
 func (rs *RaiseStatement) TokenLiteral() string { return rs.Token.Literal }
-func (rs *RaiseStatement) Pos() lexer.Position  { return rs.Token.Pos }
+func (rs *RaiseStatement) Pos() token.Position  { return rs.Token.Pos }
 func (rs *RaiseStatement) String() string {
 	var out bytes.Buffer
 

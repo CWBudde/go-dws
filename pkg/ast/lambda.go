@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // LambdaExpression represents a lambda/anonymous function expression.
@@ -30,7 +30,7 @@ import (
 //	var printer := lambda() begin PrintLn('Hello'); end;
 type LambdaExpression struct {
 	// Token is the 'lambda' keyword token
-	Token lexer.Token
+	Token token.Token
 
 	// Parameters is the parameter list (may have optional types)
 	Parameters []*Parameter
@@ -54,10 +54,10 @@ type LambdaExpression struct {
 	// CapturedVars is the list of variable names captured from outer scopes
 	// Set during semantic analysis
 	CapturedVars []string
-	EndPos       lexer.Position
+	EndPos       token.Position
 }
 
-func (l *LambdaExpression) End() lexer.Position {
+func (l *LambdaExpression) End() token.Position {
 	if l.EndPos.Line != 0 {
 		return l.EndPos
 	}
@@ -73,7 +73,7 @@ func (le *LambdaExpression) TokenLiteral() string {
 }
 
 // Pos returns the position of the lambda keyword
-func (le *LambdaExpression) Pos() lexer.Position {
+func (le *LambdaExpression) Pos() token.Position {
 	return le.Token.Pos
 }
 

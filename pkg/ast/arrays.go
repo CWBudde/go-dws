@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -20,11 +20,11 @@ import (
 type ArrayDecl struct {
 	Name      *Identifier
 	ArrayType *ArrayTypeAnnotation
-	Token     lexer.Token
-	EndPos    lexer.Position
+	Token     token.Token
+	EndPos    token.Position
 }
 
-func (a *ArrayDecl) End() lexer.Position {
+func (a *ArrayDecl) End() token.Position {
 	if a.EndPos.Line != 0 {
 		return a.EndPos
 	}
@@ -56,7 +56,7 @@ func (ad *ArrayDecl) String() string {
 }
 
 // Pos returns the position of the array declaration in the source code
-func (ad *ArrayDecl) Pos() lexer.Position {
+func (ad *ArrayDecl) Pos() token.Position {
 	return ad.Token.Pos
 }
 
@@ -73,11 +73,11 @@ type ArrayTypeAnnotation struct {
 	ElementType *TypeAnnotation
 	LowBound    Expression
 	HighBound   Expression
-	Token       lexer.Token
-	EndPos      lexer.Position
+	Token       token.Token
+	EndPos      token.Position
 }
 
-func (a *ArrayTypeAnnotation) End() lexer.Position {
+func (a *ArrayTypeAnnotation) End() token.Position {
 	if a.EndPos.Line != 0 {
 		return a.EndPos
 	}
@@ -112,7 +112,7 @@ func (ata *ArrayTypeAnnotation) String() string {
 }
 
 // Pos returns the position of the array type annotation in the source code
-func (ata *ArrayTypeAnnotation) Pos() lexer.Position {
+func (ata *ArrayTypeAnnotation) Pos() token.Position {
 	return ata.Token.Pos
 }
 
@@ -138,11 +138,11 @@ func (ata *ArrayTypeAnnotation) IsStatic() bool {
 type ArrayLiteralExpression struct {
 	Type     *TypeAnnotation
 	Elements []Expression
-	Token    lexer.Token
-	EndPos   lexer.Position
+	Token    token.Token
+	EndPos   token.Position
 }
 
-func (a *ArrayLiteralExpression) End() lexer.Position {
+func (a *ArrayLiteralExpression) End() token.Position {
 	if a.EndPos.Line != 0 {
 		return a.EndPos
 	}
@@ -175,7 +175,7 @@ func (al *ArrayLiteralExpression) String() string {
 }
 
 // Pos returns the position of the array literal in the source code
-func (al *ArrayLiteralExpression) Pos() lexer.Position {
+func (al *ArrayLiteralExpression) Pos() token.Position {
 	return al.Token.Pos
 }
 
@@ -203,11 +203,11 @@ type IndexExpression struct {
 	Left   Expression
 	Index  Expression
 	Type   *TypeAnnotation
-	Token  lexer.Token
-	EndPos lexer.Position
+	Token  token.Token
+	EndPos token.Position
 }
 
-func (i *IndexExpression) End() lexer.Position {
+func (i *IndexExpression) End() token.Position {
 	if i.EndPos.Line != 0 {
 		return i.EndPos
 	}
@@ -237,7 +237,7 @@ func (ie *IndexExpression) String() string {
 }
 
 // Pos returns the position of the index expression in the source code
-func (ie *IndexExpression) Pos() lexer.Position {
+func (ie *IndexExpression) Pos() token.Position {
 	return ie.Token.Pos
 }
 
@@ -269,14 +269,14 @@ func (ie *IndexExpression) SetType(typ *TypeAnnotation) {
 //   - ArrayLiteralExpression: for literal array values ([1, 2, 3])
 //   - ArrayTypeAnnotation: for array type declarations
 type NewArrayExpression struct {
-	Token           lexer.Token     // The 'new' token
+	Token           token.Token     // The 'new' token
 	ElementTypeName *Identifier     // The array element type name (e.g., Integer, String)
 	Dimensions      []Expression    // Size expression(s) for each dimension (1+ expressions)
 	Type            *TypeAnnotation // Inferred array type (for semantic analysis)
-	EndPos          lexer.Position
+	EndPos          token.Position
 }
 
-func (n *NewArrayExpression) End() lexer.Position {
+func (n *NewArrayExpression) End() token.Position {
 	if n.EndPos.Line != 0 {
 		return n.EndPos
 	}
@@ -292,7 +292,7 @@ func (nae *NewArrayExpression) TokenLiteral() string {
 }
 
 // Pos returns the position of the new array expression in the source code
-func (nae *NewArrayExpression) Pos() lexer.Position {
+func (nae *NewArrayExpression) Pos() token.Position {
 	return nae.Token.Pos
 }
 

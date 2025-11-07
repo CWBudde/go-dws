@@ -3,7 +3,7 @@ package ast
 import (
 	"bytes"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ConstDecl represents a constant declaration statement.
@@ -17,11 +17,11 @@ type ConstDecl struct {
 	Value  Expression
 	Name   *Identifier
 	Type   *TypeAnnotation
-	Token  lexer.Token
-	EndPos lexer.Position
+	Token  token.Token
+	EndPos token.Position
 }
 
-func (c *ConstDecl) End() lexer.Position {
+func (c *ConstDecl) End() token.Position {
 	if c.EndPos.Line != 0 {
 		return c.EndPos
 	}
@@ -30,7 +30,7 @@ func (c *ConstDecl) End() lexer.Position {
 
 func (cd *ConstDecl) statementNode()       {}
 func (cd *ConstDecl) TokenLiteral() string { return cd.Token.Literal }
-func (cd *ConstDecl) Pos() lexer.Position  { return cd.Token.Pos }
+func (cd *ConstDecl) Pos() token.Position  { return cd.Token.Pos }
 func (cd *ConstDecl) String() string {
 	var out bytes.Buffer
 
