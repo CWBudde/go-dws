@@ -27,6 +27,7 @@ type callFrame struct {
 	ip      int
 	locals  []Value
 	closure *Closure
+	self    Value
 }
 
 // NewVM creates a new VM with default configuration.
@@ -57,6 +58,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 		ip:      0,
 		locals:  locals,
 		closure: nil,
+		self:    NilValue(),
 	})
 
 	for len(vm.frames) > 0 {
@@ -98,6 +100,8 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			vm.push(BoolValue(true))
 		case OpLoadFalse:
 			vm.push(BoolValue(false))
+		case OpGetSelf:
+			vm.push(frame.self)
 		case OpLoadLocal:
 			idx := int(inst.B())
 			if idx >= len(frame.locals) {
@@ -570,7 +574,26 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), err
 			}
 			continue
-		case OpCallMethod, OpCallVirtual, OpCallBuiltin:
+		case OpCallMethod, OpCallVirtual:
+			argCount := int(inst.A())
+			args, err := vm.popArgs(argCount)
+			if err != nil {
+				return NilValue(), err
+			}
+			receiver, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			nameIdx := int(inst.B())
+			name, err := vm.constantAsString(frame.chunk, nameIdx, "CALL_METHOD")
+			if err != nil {
+				return NilValue(), err
+			}
+			if err := vm.invokeMethod(receiver, name, args); err != nil {
+				return NilValue(), err
+			}
+			continue
+		case OpCallBuiltin:
 			return NilValue(), vm.runtimeError("call opcode %v not implemented", inst.OpCode())
 		case OpClosure:
 			upvalueCount := int(inst.A())
@@ -869,6 +892,27 @@ func (vm *VM) typeError(context, expected, actual string) error {
 	return vm.runtimeError("%s expects %s but got %s", context, expected, actual)
 }
 
+func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) error {
+	if !receiver.IsObject() {
+		return vm.typeError("CALL_METHOD", "Object", receiver.Type.String())
+	}
+
+	obj := receiver.AsObject()
+	if obj == nil {
+		return vm.runtimeError("CALL_METHOD on nil object")
+	}
+
+	methodValue, ok := obj.GetField(methodName)
+	if !ok {
+		methodValue, ok = obj.GetProperty(methodName)
+		if !ok {
+			return vm.runtimeError("method %q not found on object %s", methodName, obj.ClassName)
+		}
+	}
+
+	return vm.callValueWithSelf(methodValue, args, receiver)
+}
+
 func (vm *VM) popArgs(argCount int) ([]Value, error) {
 	if argCount < 0 {
 		return nil, vm.runtimeError("negative arg count")
@@ -886,6 +930,10 @@ func (vm *VM) popArgs(argCount int) ([]Value, error) {
 }
 
 func (vm *VM) callValue(callee Value, args []Value) error {
+	return vm.callValueWithSelf(callee, args, NilValue())
+}
+
+func (vm *VM) callValueWithSelf(callee Value, args []Value, self Value) error {
 	switch callee.Type {
 	case ValueFunction:
 		fn := callee.AsFunction()
@@ -893,19 +941,19 @@ func (vm *VM) callValue(callee Value, args []Value) error {
 			return vm.runtimeError("invalid function value")
 		}
 		closure := vm.makeClosure(fn)
-		return vm.callClosure(closure, args)
+		return vm.callClosure(closure, args, self)
 	case ValueClosure:
 		cl := callee.AsClosure()
 		if cl == nil {
 			return vm.runtimeError("invalid closure value")
 		}
-		return vm.callClosure(cl, args)
+		return vm.callClosure(cl, args, self)
 	default:
 		return vm.runtimeError("attempt to call non-callable value of type %s", callee.Type.String())
 	}
 }
 
-func (vm *VM) callClosure(closure *Closure, args []Value) error {
+func (vm *VM) callClosure(closure *Closure, args []Value, self Value) error {
 	if closure == nil || closure.Function == nil {
 		return vm.runtimeError("invalid closure")
 	}
@@ -929,6 +977,7 @@ func (vm *VM) callClosure(closure *Closure, args []Value) error {
 		ip:      0,
 		locals:  locals,
 		closure: closure,
+		self:    self,
 	})
 	return nil
 }

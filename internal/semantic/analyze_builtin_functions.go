@@ -27,6 +27,38 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	// Type Conversion
 	case "ord", "integer":
 		return a.analyzeOrd(args, callExpr), true
+	case "inttostr":
+		return a.analyzeIntToStr(args, callExpr), true
+	case "inttobin":
+		return a.analyzeIntToBin(args, callExpr), true
+	case "strtoint":
+		return a.analyzeStrToInt(args, callExpr), true
+	case "booltostr":
+		return a.analyzeBoolToStr(args, callExpr), true
+	case "strtofloat":
+		return a.analyzeStrToFloat(args, callExpr), true
+	case "vartostr":
+		return a.analyzeVarToStr(args, callExpr), true
+	case "floattostr":
+		return a.analyzeFloatToStr(args, callExpr), true
+	case "floattostrf":
+		return a.analyzeFloatToStrF(args, callExpr), true
+	case "strtobool":
+		return a.analyzeStrToBool(args, callExpr), true
+	case "chr":
+		return a.analyzeChr(args, callExpr), true
+
+	// Array Functions
+	case "low":
+		return a.analyzeLow(args, callExpr), true
+	case "high":
+		return a.analyzeHigh(args, callExpr), true
+	case "setlength":
+		return a.analyzeSetLength(args, callExpr), true
+	case "add":
+		return a.analyzeAdd(args, callExpr), true
+	case "delete":
+		return a.analyzeDelete(args, callExpr), true
 
 	// String Functions
 	case "length":
@@ -153,6 +185,150 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeSucc(args, callExpr), true
 	case "pred":
 		return a.analyzePred(args, callExpr), true
+
+	// Date/Time Functions - Current time
+	case "now":
+		return a.analyzeNow(args, callExpr), true
+	case "date":
+		return a.analyzeDate(args, callExpr), true
+	case "time":
+		return a.analyzeTime(args, callExpr), true
+	case "utcdatetime":
+		return a.analyzeUTCDateTime(args, callExpr), true
+	case "unixtime":
+		return a.analyzeUnixTime(args, callExpr), true
+	case "unixtimemsec":
+		return a.analyzeUnixTimeMSec(args, callExpr), true
+
+	// Date/Time Functions - Encoding
+	case "encodedate":
+		return a.analyzeEncodeDate(args, callExpr), true
+	case "encodetime":
+		return a.analyzeEncodeTime(args, callExpr), true
+	case "encodedatetime":
+		return a.analyzeEncodeDateTime(args, callExpr), true
+
+	// Date/Time Functions - Decoding
+	case "decodedate":
+		return a.analyzeDecodeDate(args, callExpr), true
+	case "decodetime":
+		return a.analyzeDecodeTime(args, callExpr), true
+
+	// Date/Time Functions - Component extraction
+	case "yearof":
+		return a.analyzeYearOf(args, callExpr), true
+	case "monthof":
+		return a.analyzeMonthOf(args, callExpr), true
+	case "dayof":
+		return a.analyzeDayOf(args, callExpr), true
+	case "hourof":
+		return a.analyzeHourOf(args, callExpr), true
+	case "minuteof":
+		return a.analyzeMinuteOf(args, callExpr), true
+	case "secondof":
+		return a.analyzeSecondOf(args, callExpr), true
+	case "dayofweek":
+		return a.analyzeDayOfWeek(args, callExpr), true
+	case "dayoftheweek":
+		return a.analyzeDayOfTheWeek(args, callExpr), true
+	case "dayofyear":
+		return a.analyzeDayOfYear(args, callExpr), true
+	case "weeknumber":
+		return a.analyzeWeekNumber(args, callExpr), true
+	case "yearofweek":
+		return a.analyzeYearOfWeek(args, callExpr), true
+
+	// Date/Time Functions - Formatting
+	case "formatdatetime":
+		return a.analyzeFormatDateTime(args, callExpr), true
+	case "datetimetostr":
+		return a.analyzeDateTimeToStr(args, callExpr), true
+	case "datetostr":
+		return a.analyzeDateToStr(args, callExpr), true
+	case "timetostr":
+		return a.analyzeTimeToStr(args, callExpr), true
+	case "datetoiso8601":
+		return a.analyzeDateToISO8601(args, callExpr), true
+	case "datetimetoiso8601":
+		return a.analyzeDateTimeToISO8601(args, callExpr), true
+	case "datetimetorfc822":
+		return a.analyzeDateTimeToRFC822(args, callExpr), true
+
+	// Date/Time Functions - Parsing
+	case "strtodate":
+		return a.analyzeStrToDate(args, callExpr), true
+	case "strtodatetime":
+		return a.analyzeStrToDateTime(args, callExpr), true
+	case "strtotime":
+		return a.analyzeStrToTime(args, callExpr), true
+	case "iso8601todatetime":
+		return a.analyzeISO8601ToDateTime(args, callExpr), true
+	case "rfc822todatetime":
+		return a.analyzeRFC822ToDateTime(args, callExpr), true
+
+	// Date/Time Functions - Incrementing
+	case "incyear":
+		return a.analyzeIncYear(args, callExpr), true
+	case "incmonth":
+		return a.analyzeIncMonth(args, callExpr), true
+	case "incday":
+		return a.analyzeIncDay(args, callExpr), true
+	case "inchour":
+		return a.analyzeIncHour(args, callExpr), true
+	case "incminute":
+		return a.analyzeIncMinute(args, callExpr), true
+	case "incsecond":
+		return a.analyzeIncSecond(args, callExpr), true
+
+	// Date/Time Functions - Difference
+	case "daysbetween":
+		return a.analyzeDaysBetween(args, callExpr), true
+	case "hoursbetween":
+		return a.analyzeHoursBetween(args, callExpr), true
+	case "minutesbetween":
+		return a.analyzeMinutesBetween(args, callExpr), true
+	case "secondsbetween":
+		return a.analyzeSecondsBetween(args, callExpr), true
+
+	// Date/Time Functions - Special
+	case "isleapyear":
+		return a.analyzeIsLeapYear(args, callExpr), true
+	case "firstdayofyear":
+		return a.analyzeFirstDayOfYear(args, callExpr), true
+	case "firstdayofnextyear":
+		return a.analyzeFirstDayOfNextYear(args, callExpr), true
+	case "firstdayofmonth":
+		return a.analyzeFirstDayOfMonth(args, callExpr), true
+	case "firstdayofnextmonth":
+		return a.analyzeFirstDayOfNextMonth(args, callExpr), true
+	case "firstdayofweek":
+		return a.analyzeFirstDayOfWeek(args, callExpr), true
+
+	// Date/Time Functions - Unix time conversion
+	case "unixtimetodatetime":
+		return a.analyzeUnixTimeToDateTime(args, callExpr), true
+	case "unixtimemsectodatetime":
+		return a.analyzeUnixTimeMSecToDateTime(args, callExpr), true
+	case "datetimetounixtime":
+		return a.analyzeDateTimeToUnixTime(args, callExpr), true
+	case "datetimetounixtimemsec":
+		return a.analyzeDateTimeToUnixTimeMSec(args, callExpr), true
+
+	// JSON Functions
+	case "parsejson":
+		return a.analyzeParseJSON(args, callExpr), true
+	case "tojson":
+		return a.analyzeToJSON(args, callExpr), true
+	case "tojsonformatted":
+		return a.analyzeToJSONFormatted(args, callExpr), true
+	case "jsonhasfield":
+		return a.analyzeJSONHasField(args, callExpr), true
+	case "jsonkeys":
+		return a.analyzeJSONKeys(args, callExpr), true
+	case "jsonvalues":
+		return a.analyzeJSONValues(args, callExpr), true
+	case "jsonlength":
+		return a.analyzeJSONLength(args, callExpr), true
 
 	default:
 		// Not a built-in function

@@ -473,6 +473,33 @@ func TestVM_FieldInstructions(t *testing.T) {
 	})
 }
 
+func TestVM_CallMethodUsesSelf(t *testing.T) {
+	obj := NewObjectInstance("Counter")
+	obj.SetField("value", IntValue(99))
+
+	methodChunk := NewChunk("GetValue")
+	fieldNameIdx := methodChunk.AddConstant(StringValue("value"))
+	methodChunk.WriteSimple(OpGetSelf, 1)
+	methodChunk.Write(OpGetField, 0, uint16(fieldNameIdx), 1)
+	methodChunk.Write(OpReturn, 1, 0, 1)
+
+	methodFn := NewFunctionObject("GetValue", methodChunk, 0)
+	obj.SetField("getvalue", FunctionValue(methodFn))
+
+	mainChunk := NewChunk("main_method_call")
+	objIdx := mainChunk.AddConstant(ObjectValue(obj))
+	methodNameIdx := mainChunk.AddConstant(StringValue("getvalue"))
+	mainChunk.Write(OpLoadConst, 0, uint16(objIdx), 1)
+	mainChunk.Write(OpCallMethod, 0, uint16(methodNameIdx), 1)
+	mainChunk.Write(OpReturn, 1, 0, 1)
+
+	result := runChunk(t, mainChunk)
+	expected := IntValue(99)
+	if !valueEqual(result, expected) {
+		t.Fatalf("VM value = %v, want %v", result, expected)
+	}
+}
+
 func TestVM_ClosureCapturesUpvalue(t *testing.T) {
 	adderChunk := NewChunk("adder")
 	adderChunk.LocalCount = 1

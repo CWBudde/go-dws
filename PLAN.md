@@ -568,7 +568,7 @@ type TIntProc = procedure(value: Integer);
 **Reference**: DWScript dwsCompiler.pas (ReadFuncOverloaded, ResolveOverload)
 **Test Files**: testdata/fixtures/OverloadsPass/ (36 tests), testdata/fixtures/OverloadsFail/ (11 tests)
 
-#### Phase 1: Parser Support (Tasks 9.243-9.249) - 100% COMPLETE ✅
+#### Stage 1: Parser Support (Tasks 9.243-9.249) - 100% COMPLETE ✅
 
 - [x] 9.38 Add IsOverload field to FunctionDecl AST node:
   - [x] Add `IsOverload bool` field to `FunctionDecl` struct in `internal/ast/functions.go`
@@ -610,7 +610,7 @@ type TIntProc = procedure(value: Integer);
   - [x] Test forward declarations with overload
   - [x] Fixed parser bug: abstract/external directives now allow additional directives like overload
 
-#### Phase 2: Symbol Table Extensions (Tasks 9.250-9.255) - 100% COMPLETE ✅
+#### Stage 2: Symbol Table Extensions (Tasks 9.250-9.255) - 100% COMPLETE ✅
 
 - [x] 9.45 Design overload set data structure:
   - [x] Create `OverloadSet` type to store multiple function signatures
@@ -652,7 +652,7 @@ type TIntProc = procedure(value: Integer);
   - [x] Test nested scopes with overloads (4 tests)
   - File: internal/semantic/overload_test.go (19 comprehensive tests, all passing)
 
-#### Phase 3: Signature Matching (Tasks 9.256-9.262) - 100% COMPLETE ✅
+#### Stage 3: Signature Matching (Tasks 9.256-9.262) - 100% COMPLETE ✅
 
 - [x] 9.51 Implement function signature comparison:
   - [x] Created `SignaturesEqual(sig1, sig2 *types.FunctionType) bool` in `internal/semantic/overload_resolution.go`
@@ -705,7 +705,7 @@ type TIntProc = procedure(value: Integer);
   - [x] Parameter modifiers tested (TestOverloadResolutionWithModifiers)
   - [x] NOTE: Class inheritance and Variant compatibility to be enhanced when type system expands
 
-#### Phase 4: Semantic Validation (Tasks 9.263-9.269) - 0% COMPLETE
+#### Stage 4: Semantic Validation (Tasks 9.263-9.269) - 0% COMPLETE
 
 - [ ] 9.58 Validate overload directive consistency:
   - [ ] Implement: If one overload has `overload`, all must have it
@@ -746,7 +746,7 @@ type TIntProc = procedure(value: Integer);
   - [ ] Ensure error messages match expected patterns
   - [ ] Document any DWScript incompatibilities
 
-#### Phase 5: Runtime Dispatch (Tasks 9.270-9.274) - 0% COMPLETE
+#### Stage 5: Runtime Dispatch (Tasks 9.270-9.274) - 0% COMPLETE
 
 - [ ] 9.65 Update function call evaluation to resolve overloads:
   - [ ] In `evalCallExpression()`, check if function is overloaded
@@ -778,7 +778,7 @@ type TIntProc = procedure(value: Integer);
   - [ ] Test error messages for ambiguous/missing overloads
   - [ ] Benchmark overload resolution performance
 
-#### Phase 6: Integration & Testing (Tasks 9.275-9.277) - 0% COMPLETE
+#### Stage 6: Integration & Testing (Tasks 9.275-9.277) - 0% COMPLETE
 
 - [ ] 9.70 Run OverloadsPass/ fixture suite:
   - [ ] Execute all 36 passing tests
@@ -1572,11 +1572,11 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
     - [x] Patch jump addresses during compilation *(loop context tracks placeholders for breaks/continues and patches after body/condition compilation)*
 
   - [ ] 12.18.8 Implement function call instructions (1-2 weeks, COMPLEX)
-    - [ ] CALL instruction with argument count
-    - [ ] RETURN instruction
-    - [ ] Handle recursion and call stack depth
-    - [ ] Implement closures and upvalues
-    - [ ] Support method calls and `Self` context
+    - [x] CALL instruction with argument count *(compiler now emits `OpCall` for named functions, retaining `OpCallIndirect` for dynamic calls)*
+    - [x] RETURN instruction *(function/lambda compilation ensures trailing `OpReturn` and honors explicit returns)*
+    - [x] Handle recursion and call stack depth *(function declarations bind to globals/closures, enabling recursive calls and VM call stack reuse)*
+    - [x] Implement closures and upvalues *(lambda + nested functions capture locals; closure metadata drives `OpClosure` emission)*
+    - [x] Support method calls and `Self` context *(compiler emits `OpCallMethod`, VM dispatch binds implicit `Self` via `OpGetSelf`)*
 
   - [ ] 12.18.9 Implement array and object instructions (1 week, MODERATE)
     - [ ] GET_INDEX, SET_INDEX for array access
