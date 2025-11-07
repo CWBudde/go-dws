@@ -560,15 +560,15 @@ type TIntProc = procedure(value: Integer);
 
 ---
 
-### Function/Method Overloading Support (Tasks 9.243-9.277) - 40% COMPLETE
+### Function/Method Overloading Support (Tasks 9.243-9.277 + 9.44-forward) - 38% COMPLETE (14/36 tasks)
 
 **Goal**: Implement complete function and method overloading support
-**Status**: 14/35 tasks complete (Phases 1-3 complete)
+**Status**: 14/36 tasks complete (Phases 1-3 complete, Phase 1 has 1 pending: forward keyword)
 **Priority**: MEDIUM - Required for 76+ fixture tests in OverloadsPass/
 **Reference**: DWScript dwsCompiler.pas (ReadFuncOverloaded, ResolveOverload)
 **Test Files**: testdata/fixtures/OverloadsPass/ (36 tests), testdata/fixtures/OverloadsFail/ (11 tests)
 
-#### Stage 1: Parser Support (Tasks 9.243-9.249) - 100% COMPLETE ✅
+#### Stage 1: Parser Support (Tasks 9.243-9.249 + 9.44-forward) - 85% COMPLETE (7/8 tasks done)
 
 - [x] 9.38 Add IsOverload field to FunctionDecl AST node:
   - [x] Add `IsOverload bool` field to `FunctionDecl` struct in `internal/ast/functions.go`
@@ -609,6 +609,20 @@ type TIntProc = procedure(value: Integer);
   - [x] Test multiple directives: `virtual; overload;`, `override; overload;`, `abstract; overload;`
   - [x] Test forward declarations with overload
   - [x] Fixed parser bug: abstract/external directives now allow additional directives like overload
+
+- [ ] 9.44-forward **Parse forward keyword in function/procedure declarations**:
+  - [ ] Add support for `forward` directive in `parseFunctionDeclaration()`
+  - [ ] Parse `FORWARD` token after function signature (similar to overload)
+  - [ ] Create forward declaration AST node or flag in FunctionDecl
+  - [ ] Syntax: `function Foo(x: Integer): String; forward;`
+  - [ ] Syntax: `procedure Bar; forward;`
+  - [ ] Required for: testdata/fixtures/OverloadsPass/forwards.pas (and 9+ other tests)
+  - [ ] Required for: testdata/fixtures/OverloadsPass/overload_func_ptr_param.pas
+  - [ ] File: internal/parser/functions.go
+  - [ ] Add FORWARD token to lexer if not present: internal/lexer/token_type.go
+  - [ ] Semantic validation to match forward declaration with implementation (task 9.60)
+  - **Status**: Parser crashes prevented (nil checks added), but FORWARD keyword not recognized
+  - **Priority**: HIGH - Blocks 10+ OverloadsPass tests
 
 #### Stage 2: Symbol Table Extensions (Tasks 9.250-9.255) - 100% COMPLETE ✅
 
