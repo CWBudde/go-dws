@@ -20,15 +20,26 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 		}
 
 		// Update the method in the class (replacing the declaration with the implementation)
+		// Task 9.67: Support method overloading by storing multiple methods per name
+		// We need to replace the declaration with the implementation in the overload list
 		if fn.IsClassMethod {
 			classInfo.ClassMethods[fn.Name.Value] = fn
+			// Replace declaration with implementation in overload list
+			overloads := classInfo.ClassMethodOverloads[fn.Name.Value]
+			classInfo.ClassMethodOverloads[fn.Name.Value] = i.replaceMethodInOverloadList(overloads, fn)
 		} else {
 			classInfo.Methods[fn.Name.Value] = fn
+			// Replace declaration with implementation in overload list
+			overloads := classInfo.MethodOverloads[fn.Name.Value]
+			classInfo.MethodOverloads[fn.Name.Value] = i.replaceMethodInOverloadList(overloads, fn)
 		}
 
 		// Also store constructors
 		if fn.IsConstructor {
 			classInfo.Constructors[fn.Name.Value] = fn
+			// Task 9.67: Replace declaration with implementation in constructor overload list
+			overloads := classInfo.ConstructorOverloads[fn.Name.Value]
+			classInfo.ConstructorOverloads[fn.Name.Value] = i.replaceMethodInOverloadList(overloads, fn)
 			// Always update Constructor to use the implementation (which has the body)
 			// This replaces the declaration that was set during class parsing
 			classInfo.Constructor = fn
@@ -80,19 +91,28 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 
 		// Copy parent methods (child inherits all parent methods)
-		// Child methods with same name will override these
+		// Task 9.67: Also copy method overloads for inheritance
 		for methodName, methodDecl := range parentClass.Methods {
 			classInfo.Methods[methodName] = methodDecl
+		}
+		for methodName, overloads := range parentClass.MethodOverloads {
+			classInfo.MethodOverloads[methodName] = append([]*ast.FunctionDecl(nil), overloads...)
 		}
 
 		// Copy class methods
 		for methodName, methodDecl := range parentClass.ClassMethods {
 			classInfo.ClassMethods[methodName] = methodDecl
 		}
+		for methodName, overloads := range parentClass.ClassMethodOverloads {
+			classInfo.ClassMethodOverloads[methodName] = append([]*ast.FunctionDecl(nil), overloads...)
+		}
 
 		// Copy constructors
 		for name, constructor := range parentClass.Constructors {
 			classInfo.Constructors[name] = constructor
+		}
+		for name, overloads := range parentClass.ConstructorOverloads {
+			classInfo.ConstructorOverloads[name] = append([]*ast.FunctionDecl(nil), overloads...)
 		}
 
 		// Copy operator overloads
@@ -136,18 +156,25 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 
 	// Add own methods to ClassInfo (these override parent methods if same name)
+	// Task 9.67: Support method overloading by storing multiple methods per name
 	for _, method := range cd.Methods {
 		// Check if this is a class method (static method) or instance method
 		if method.IsClassMethod {
 			// Store in ClassMethods map - Task 7.61
 			classInfo.ClassMethods[method.Name.Value] = method
+			// Add to overload list
+			classInfo.ClassMethodOverloads[method.Name.Value] = append(classInfo.ClassMethodOverloads[method.Name.Value], method)
 		} else {
 			// Store in instance Methods map
 			classInfo.Methods[method.Name.Value] = method
+			// Add to overload list
+			classInfo.MethodOverloads[method.Name.Value] = append(classInfo.MethodOverloads[method.Name.Value], method)
 		}
 
 		if method.IsConstructor {
 			classInfo.Constructors[method.Name.Value] = method
+			// Task 9.67: Add to constructor overload list
+			classInfo.ConstructorOverloads[method.Name.Value] = append(classInfo.ConstructorOverloads[method.Name.Value], method)
 		}
 	}
 
@@ -424,4 +451,34 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 	}
 
 	return &NilValue{}
+}
+
+// replaceMethodInOverloadList replaces a method declaration with its implementation in the overload list.
+// Task 9.67: Helper for managing method overloads
+// This function finds a method with matching signature and replaces it, or appends if not found.
+func (i *Interpreter) replaceMethodInOverloadList(list []*ast.FunctionDecl, impl *ast.FunctionDecl) []*ast.FunctionDecl {
+	// Check if we already have a declaration for this overload signature
+	for idx, decl := range list {
+		// Match by parameter count and types
+		if len(decl.Parameters) == len(impl.Parameters) {
+			// Check if parameter types match
+			match := true
+			for pi := range decl.Parameters {
+				// Compare parameter types (simplified - just comparing names)
+				if decl.Parameters[pi].Type != nil && impl.Parameters[pi].Type != nil {
+					if decl.Parameters[pi].Type.Name != impl.Parameters[pi].Type.Name {
+						match = false
+						break
+					}
+				}
+			}
+			if match {
+				// Replace the declaration with the implementation
+				list[idx] = impl
+				return list
+			}
+		}
+	}
+	// No matching declaration found - append the implementation
+	return append(list, impl)
 }
