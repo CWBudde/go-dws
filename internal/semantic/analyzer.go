@@ -405,3 +405,48 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 	}
 	return false
 }
+
+// ============================================================================
+// Symbol Table Accessors (Task 10.15)
+// ============================================================================
+
+// GetSymbolTable returns the current symbol table.
+// This is used for extracting symbol information for LSP features.
+func (a *Analyzer) GetSymbolTable() *SymbolTable {
+	return a.symbols
+}
+
+// GetClasses returns the analyzer's class type map.
+func (a *Analyzer) GetClasses() map[string]*types.ClassType {
+	return a.classes
+}
+
+// GetInterfaces returns the analyzer's interface type map.
+func (a *Analyzer) GetInterfaces() map[string]*types.InterfaceType {
+	return a.interfaces
+}
+
+// GetEnums returns the analyzer's enum type map.
+func (a *Analyzer) GetEnums() map[string]*types.EnumType {
+	return a.enums
+}
+
+// GetRecords returns the analyzer's record type map.
+func (a *Analyzer) GetRecords() map[string]*types.RecordType {
+	return a.records
+}
+
+// GetArrayTypes returns the analyzer's array type map.
+func (a *Analyzer) GetArrayTypes() map[string]*types.ArrayType {
+	return a.arrays
+}
+
+// GetTypeAliases returns the analyzer's type alias map.
+func (a *Analyzer) GetTypeAliases() map[string]*types.TypeAlias {
+	return a.typeAliases
+}
+
+// GetFunctionPointers returns the analyzer's function pointer type map.
+func (a *Analyzer) GetFunctionPointers() map[string]*types.FunctionPointerType {
+	return a.functionPointers
+}
