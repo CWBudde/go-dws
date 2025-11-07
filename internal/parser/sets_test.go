@@ -11,7 +11,7 @@ import (
 // Set Type Declaration Parser Tests
 // ============================================================================
 
-// Task 8.91a: Test basic set type declaration parsing
+// Test basic set type declaration parsing
 func TestParseSetDeclaration(t *testing.T) {
 	t.Run("Basic set of enum type", func(t *testing.T) {
 		input := `type TDays = set of TWeekday;`
@@ -84,7 +84,7 @@ func TestParseSetDeclaration(t *testing.T) {
 	})
 }
 
-// Task 8.91b: Test inline anonymous enum in var declaration
+// Test inline anonymous enum in var declaration
 func TestParseInlineSetDeclaration(t *testing.T) {
 	t.Run("Var with inline anonymous enum", func(t *testing.T) {
 		// This is more complex - set of (Mon, Tue, Wed)
@@ -120,7 +120,7 @@ func TestParseInlineSetDeclaration(t *testing.T) {
 // Set Literal Parser Tests
 // ============================================================================
 
-// Task 8.93: Test parsing set literals with elements
+// Test parsing set literals with elements
 func TestParseSetLiteral(t *testing.T) {
 	t.Run("Set literal with elements", func(t *testing.T) {
 		input := `var s := [one, two, three];`
@@ -181,7 +181,7 @@ func TestParseSetLiteral(t *testing.T) {
 	})
 }
 
-// Task 8.95: Test parsing empty set
+// Test parsing empty set
 func TestParseEmptySet(t *testing.T) {
 	t.Run("Empty set literal", func(t *testing.T) {
 		input := `var s := [];`
@@ -215,7 +215,7 @@ func TestParseEmptySet(t *testing.T) {
 	})
 }
 
-// Task 8.94: Test parsing set range literals
+// Test parsing set range literals
 func TestParseSetRange(t *testing.T) {
 	t.Run("Single range", func(t *testing.T) {
 		input := `var s := [A..C];`
@@ -313,7 +313,7 @@ func TestParseSetRange(t *testing.T) {
 // Set Operators Parser Tests
 // ============================================================================
 
-// Task 8.96-8.97: Test set operations and 'in' operator
+// Test set operations and 'in' operator
 func TestParseSetOperators(t *testing.T) {
 	tests := []struct {
 		name     string

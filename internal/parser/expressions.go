@@ -63,7 +63,7 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as integer", literal)
-		p.addError(msg)
+		p.addError(msg, ErrInvalidExpression)
 		return nil
 	}
 
@@ -78,7 +78,7 @@ func (p *Parser) parseFloatLiteral() ast.Expression {
 	value, err := strconv.ParseFloat(p.curToken.Literal, 64)
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as float", p.curToken.Literal)
-		p.addError(msg)
+		p.addError(msg, ErrInvalidExpression)
 		return nil
 	}
 
@@ -141,7 +141,7 @@ func (p *Parser) parseCharLiteral() ast.Expression {
 	literal := p.curToken.Literal
 	if len(literal) < 2 || literal[0] != '#' {
 		msg := fmt.Sprintf("invalid character literal format: %q", literal)
-		p.addError(msg)
+		p.addError(msg, ErrInvalidExpression)
 		return nil
 	}
 
@@ -158,7 +158,7 @@ func (p *Parser) parseCharLiteral() ast.Expression {
 
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as character literal", literal)
-		p.addError(msg)
+		p.addError(msg, ErrInvalidExpression)
 		return nil
 	}
 
@@ -380,7 +380,7 @@ func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitia
 			p.nextToken()
 			break
 		} else {
-			p.addError("expected ',' or ')' in argument list")
+			p.addError("expected ',' or ')' in argument list", ErrUnexpectedToken)
 			return items, false
 		}
 	}
@@ -498,7 +498,7 @@ func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
 			// Parse value expression
 			value := p.parseExpression(LOWEST)
 			if value == nil {
-				p.addError("expected expression after ':' in record literal field")
+				p.addError("expected expression after ':' in record literal field", ErrInvalidExpression)
 				return nil
 			}
 
@@ -511,7 +511,7 @@ func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
 			recordLit.Fields = append(recordLit.Fields, fieldInit)
 		} else {
 			// Positional field - not yet supported
-			p.addError("positional record field initialization not yet supported")
+			p.addError("positional record field initialization not yet supported", ErrInvalidSyntax)
 			return nil
 		}
 
@@ -528,7 +528,7 @@ func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
 			p.nextToken() // move to ')'
 			break
 		} else {
-			p.addError("expected ',' or ';' or ')' in record literal")
+			p.addError("expected ',' or ';' or ')' in record literal", ErrUnexpectedToken)
 			return nil
 		}
 	}
@@ -615,7 +615,7 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 	firstDim := p.parseExpression(LOWEST)
 	if firstDim == nil {
 		p.addError(fmt.Sprintf("expected expression for array dimension at %d:%d",
-			p.curToken.Pos.Line, p.curToken.Pos.Column))
+			p.curToken.Pos.Line, p.curToken.Pos.Column), ErrInvalidExpression)
 		return nil
 	}
 	dimensions = append(dimensions, firstDim)
@@ -628,7 +628,7 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 		dim := p.parseExpression(LOWEST)
 		if dim == nil {
 			p.addError(fmt.Sprintf("expected expression for array dimension at %d:%d",
-				p.curToken.Pos.Line, p.curToken.Pos.Column))
+				p.curToken.Pos.Line, p.curToken.Pos.Column), ErrInvalidExpression)
 			return nil
 		}
 		dimensions = append(dimensions, dim)
@@ -703,7 +703,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 
 		// Parse return type
 		if !p.expectPeek(lexer.IDENT) {
-			p.addError("expected return type after ':'")
+			p.addError("expected return type after ':'", ErrExpectedType)
 			return nil
 		}
 
@@ -722,7 +722,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 		// Parse the expression
 		expr := p.parseExpression(LOWEST)
 		if expr == nil {
-			p.addError("expected expression after '=>'")
+			p.addError("expected expression after '=>'", ErrInvalidExpression)
 			return nil
 		}
 
@@ -747,7 +747,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 		lambdaExpr.IsShorthand = false
 
 	} else {
-		p.addError("expected '=>' or 'begin' after lambda parameters")
+		p.addError("expected '=>' or 'begin' after lambda parameters", ErrUnexpectedToken)
 		return nil
 	}
 
@@ -816,7 +816,7 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 	for {
 		// Parse parameter name
 		if !p.curTokenIs(lexer.IDENT) {
-			p.addError("expected parameter name")
+			p.addError("expected parameter name", ErrExpectedIdent)
 			return nil
 		}
 
@@ -842,7 +842,7 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 		p.nextToken() // move to ':'
 
 		if !p.expectPeek(lexer.IDENT) {
-			p.addError("expected type name after ':'")
+			p.addError("expected type name after ':'", ErrExpectedType)
 			return nil
 		}
 
@@ -887,7 +887,7 @@ func (p *Parser) parseCondition() *ast.Condition {
 
 		// Expect a string literal for the error message
 		if !p.expectPeek(lexer.STRING) {
-			p.addError("expected string literal after ':' in contract condition")
+			p.addError("expected string literal after ':' in contract condition", ErrUnexpectedToken)
 			return nil
 		}
 
@@ -910,7 +910,7 @@ func (p *Parser) parseOldExpression() ast.Expression {
 	if !p.parsingPostCondition {
 		msg := fmt.Sprintf("'old' keyword can only be used in postconditions at line %d, column %d",
 			token.Pos.Line, token.Pos.Column)
-		p.addError(msg)
+		p.addError(msg, ErrInvalidSyntax)
 		return nil
 	}
 
@@ -944,7 +944,7 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 	// Parse first condition
 	condition := p.parseCondition()
 	if condition == nil {
-		p.addError("expected at least one condition after 'require'")
+		p.addError("expected at least one condition after 'require'", ErrInvalidExpression)
 		return nil
 	}
 	conditions = append(conditions, condition)
@@ -997,7 +997,7 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 	// Parse first condition
 	condition := p.parseCondition()
 	if condition == nil {
-		p.addError("expected at least one condition after 'ensure'")
+		p.addError("expected at least one condition after 'ensure'", ErrInvalidExpression)
 		return nil
 	}
 	conditions = append(conditions, condition)

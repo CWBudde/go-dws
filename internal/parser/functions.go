@@ -37,7 +37,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		p.nextToken() // move to '('
 		fn.Parameters = p.parseParameterList()
 		if !p.curTokenIs(lexer.RPAREN) {
-			p.addError("expected ')' after parameter list")
+			p.addError("expected ')' after parameter list", ErrMissingRParen)
 			return nil
 		}
 	}
@@ -51,7 +51,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		// Parse type expression (can be simple type, function pointer, or array type)
 		typeExpr := p.parseTypeExpression()
 		if typeExpr == nil {
-			p.addError("expected return type after ':'")
+			p.addError("expected return type after ':'", ErrExpectedType)
 			return nil
 		}
 
@@ -77,7 +77,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			// For array types, we create a synthetic TypeAnnotation
 			// Check if Token is nil to prevent panics (defensive programming)
 			if te == nil {
-				p.addError("array type expression is nil in return type")
+				p.addError("array type expression is nil in return type", ErrInvalidType)
 				return nil
 			}
 			// Use the array token or create a dummy token if nil
@@ -91,7 +91,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 				Name:  te.String(), // Use the full array type signature as the type name
 			}
 		default:
-			p.addError("unsupported type expression in return type")
+			p.addError("unsupported type expression in return type", ErrInvalidType)
 			return nil
 		}
 	}
@@ -318,7 +318,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 
 	// Check for mutually exclusive modifiers
 	if (isLazy && byRef) || (isConst && byRef) || (isConst && isLazy) {
-		p.addError("parameter modifiers are mutually exclusive")
+		p.addError("parameter modifiers are mutually exclusive", ErrInvalidSyntax)
 		return nil
 	}
 
@@ -328,7 +328,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	for {
 		// Parse parameter name (can be IDENT or contextual keywords like STEP)
 		if !p.isIdentifierToken(p.curToken.Type) {
-			p.addError("expected parameter name")
+			p.addError("expected parameter name", ErrExpectedIdent)
 			return nil
 		}
 
@@ -357,7 +357,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	p.nextToken() // move past COLON to type expression start token
 	typeExpr := p.parseTypeExpression()
 	if typeExpr == nil {
-		p.addError("expected type expression after ':'")
+		p.addError("expected type expression after ':'", ErrExpectedType)
 		return nil
 	}
 
@@ -378,7 +378,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		// For array types, we create a synthetic TypeAnnotation
 		// Check if Token is nil to prevent panics (defensive programming)
 		if te == nil {
-			p.addError("array type expression is nil in parameter type")
+			p.addError("array type expression is nil in parameter type", ErrInvalidType)
 			return nil
 		}
 		// Use the array token or create a dummy token if nil
@@ -399,7 +399,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 			Name:  te.String(), // Use the full set type signature as the type name
 		}
 	default:
-		p.addError("unsupported type expression in parameter")
+		p.addError("unsupported type expression in parameter", ErrInvalidType)
 		return nil
 	}
 
@@ -409,7 +409,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	if p.peekTokenIs(lexer.EQ) {
 		// Validate that optional parameters don't have modifiers (lazy, var, const)
 		if isLazy || byRef || isConst {
-			p.addError("optional parameters cannot have lazy, var, or const modifiers")
+			p.addError("optional parameters cannot have lazy, var, or const modifiers", ErrInvalidSyntax)
 			return nil
 		}
 
@@ -419,7 +419,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		// Parse default value expression
 		defaultValue = p.parseExpression(LOWEST)
 		if defaultValue == nil {
-			p.addError("expected default value expression after '='")
+			p.addError("expected default value expression after '='", ErrInvalidExpression)
 			return nil
 		}
 	}
@@ -514,7 +514,7 @@ func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 		// Parse type expression (could be complex like "array of Integer" or "function(Integer): Integer")
 		typeExpr := p.parseTypeExpression()
 		if typeExpr == nil {
-			p.addError("expected type in function pointer parameter list")
+			p.addError("expected type in function pointer parameter list", ErrExpectedType)
 			return nil
 		}
 
@@ -546,7 +546,7 @@ func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 				Name:  te.String(),
 			}
 		default:
-			p.addError("unsupported type expression in function pointer parameter")
+			p.addError("unsupported type expression in function pointer parameter", ErrInvalidType)
 			return nil
 		}
 
@@ -577,7 +577,7 @@ func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 			p.nextToken() // move to RPAREN
 			break
 		} else {
-			p.addError("expected ',', ';', or ')' in function pointer parameter list")
+			p.addError("expected ',', ';', or ')' in function pointer parameter list", ErrUnexpectedToken)
 			return nil
 		}
 	}

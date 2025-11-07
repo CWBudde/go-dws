@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -32,7 +33,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 
 	// Check for empty enum
 	if p.curTokenIs(lexer.RPAREN) {
-		p.addError("enum declaration cannot be empty")
+		p.addError("enum declaration cannot be empty", ErrInvalidSyntax)
 		return nil
 	}
 
@@ -46,7 +47,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 			// Allow boolean keywords as enum value names
 			valueName = p.curToken.Literal
 		} else {
-			p.addError("expected enum value name, got " + p.curToken.Type.String())
+			p.addError("expected enum value name, got "+p.curToken.Type.String(), ErrExpectedIdent)
 			return nil
 		}
 
@@ -63,7 +64,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 			// Parse the value (could be negative)
 			value, err := p.parseEnumValue()
 			if err != nil {
-				p.addError("invalid enum value: " + err.Error())
+				p.addError("invalid enum value: "+err.Error(), ErrInvalidExpression)
 				return nil
 			}
 			enumValue.Value = &value
@@ -78,7 +79,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 		if p.curTokenIs(lexer.COMMA) {
 			p.nextToken() // move past comma to next value name
 		} else if !p.curTokenIs(lexer.RPAREN) {
-			p.addError("expected ',' or ')' in enum declaration, got " + p.curToken.Type.String())
+			p.addError("expected ',' or ')' in enum declaration, got "+p.curToken.Type.String(), ErrUnexpectedToken)
 			return nil
 		}
 	}
@@ -102,7 +103,7 @@ func (p *Parser) parseEnumValue() (int, error) {
 
 	// Parse integer value
 	if !p.curTokenIs(lexer.INT) {
-		return 0, &ParserError{Message: "expected integer value"}
+		return 0, fmt.Errorf("expected integer value")
 	}
 
 	value, err := strconv.Atoi(p.curToken.Literal)
@@ -115,13 +116,4 @@ func (p *Parser) parseEnumValue() (int, error) {
 	}
 
 	return value, nil
-}
-
-// ParserError represents a parser error
-type ParserError struct {
-	Message string
-}
-
-func (e *ParserError) Error() string {
-	return e.Message
 }

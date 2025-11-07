@@ -11,7 +11,7 @@ import (
 // Enum Declaration Parser Tests
 // ============================================================================
 
-// Task 8.37a: Test basic enum declaration parsing
+// Test basic enum declaration parsing
 func TestParseEnumDeclaration(t *testing.T) {
 	t.Run("Basic enum with implicit values", func(t *testing.T) {
 		input := `type TColor = (Red, Green, Blue);`
@@ -68,7 +68,7 @@ func TestParseEnumDeclaration(t *testing.T) {
 	})
 }
 
-// Task 8.37b: Test enum with explicit values
+// Test enum with explicit values
 func TestParseEnumWithExplicitValues(t *testing.T) {
 	t.Run("All explicit values", func(t *testing.T) {
 		input := `type TEnum = (One = 1, Two = 5, Three = 10);`
@@ -168,7 +168,7 @@ func TestParseEnumWithExplicitValues(t *testing.T) {
 	})
 }
 
-// Task 8.37c: Test scoped enum syntax
+// Test scoped enum syntax
 func TestParseScopedEnum(t *testing.T) {
 	t.Run("Scoped enum with 'enum' keyword", func(t *testing.T) {
 		input := `type TEnum = enum (One, Two, Three);`
@@ -197,7 +197,7 @@ func TestParseScopedEnum(t *testing.T) {
 	})
 }
 
-// Task 8.42: Comprehensive parser tests
+// Comprehensive parser tests
 func TestEnumParserErrorCases(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -230,7 +230,7 @@ func TestEnumParserErrorCases(t *testing.T) {
 	}
 }
 
-// Task 8.39-8.40: Test parsing enum literals in expressions
+// Test parsing enum literals in expressions
 func TestParseEnumLiteralsInExpressions(t *testing.T) {
 	t.Run("Simple enum value assignment", func(t *testing.T) {
 		input := `
@@ -326,7 +326,7 @@ func TestParseEnumLiteralsInExpressions(t *testing.T) {
 	})
 }
 
-// Task 8.41: Test .Name property access (this would be semantic analysis)
+// Test .Name property access (this would be semantic analysis)
 // The parser should handle it as normal member access
 func TestEnumDotNamePropertyAccess(t *testing.T) {
 	t.Run("Enum value .Name access", func(t *testing.T) {

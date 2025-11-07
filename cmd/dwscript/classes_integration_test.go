@@ -212,7 +212,7 @@ func TestClassCommandOutput(t *testing.T) {
 					PrintLn('Value:', s.Value);
 				end
 			`,
-			expectedOutput: "Value: 42",
+			expectedOutput: "Value:42",
 		},
 		{
 			name: "method call",
@@ -231,7 +231,7 @@ func TestClassCommandOutput(t *testing.T) {
 					PrintLn('Result:', calc.Add(10, 20));
 				end
 			`,
-			expectedOutput: "Result: 30",
+			expectedOutput: "Result:30",
 		},
 	}
 

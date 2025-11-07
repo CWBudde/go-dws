@@ -328,7 +328,7 @@ Inc(c, 2);
 				// Some tests might have parser errors, which is fine
 				// Just check if the error message contains what we expect
 				for _, err := range p.Errors() {
-					if err == tt.expectedError {
+					if err.Error() == tt.expectedError {
 						return
 					}
 				}
@@ -757,7 +757,7 @@ Dec(c, 2);
 				// Some tests might have parser errors, which is fine
 				// Just check if the error message contains what we expect
 				for _, err := range p.Errors() {
-					if err == tt.expectedError {
+					if err.Error() == tt.expectedError {
 						return
 					}
 				}
@@ -1216,7 +1216,7 @@ PrintLn(Pred());
 			if len(p.Errors()) != 0 {
 				// Some tests might have parser errors
 				for _, err := range p.Errors() {
-					if err == tt.expectedError {
+					if err.Error() == tt.expectedError {
 						return
 					}
 				}

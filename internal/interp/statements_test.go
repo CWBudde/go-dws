@@ -2,7 +2,6 @@ package interp
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -102,7 +101,7 @@ func TestExitStatementWithValues(t *testing.T) {
 			program := p.ParseProgram()
 
 			if len(p.Errors()) > 0 {
-				t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+				t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 			}
 
 			var buf bytes.Buffer

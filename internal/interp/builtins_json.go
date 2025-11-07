@@ -11,11 +11,9 @@ import (
 
 // ============================================================================
 // JSON Built-in Functions
-// Task 9.91-9.93: JSON parsing with error handling
 // ============================================================================
 
 // builtinParseJSON implements the JSON.Parse() built-in function.
-// Task 9.91: Parse JSON string and return as Variant.
 //
 // Syntax: JSON.Parse(s: String): Variant
 //
@@ -28,7 +26,7 @@ import (
 //   - array → JSON array
 //   - object → JSON object
 //
-// Task 9.92: Raises exception on invalid JSON with position information.
+// Raises exception on invalid JSON with position information.
 //
 // Example:
 //
@@ -47,7 +45,6 @@ func (i *Interpreter) builtinParseJSON(args []Value) Value {
 	}
 
 	// Parse JSON using Go's encoding/json
-	// Task 9.92: Parse errors are caught and reported with position information
 	jsonVal, err := parseJSONString(jsonStr.Value)
 	if err != nil {
 		// Format error message with position information if available
@@ -60,7 +57,6 @@ func (i *Interpreter) builtinParseJSON(args []Value) Value {
 }
 
 // parseJSONString parses a JSON string into a jsonvalue.Value.
-// Task 9.91: Uses Go's encoding/json internally.
 //
 // This function converts from Go's interface{} representation to our
 // type-safe jsonvalue.Value representation.
@@ -72,7 +68,7 @@ func parseJSONString(jsonStr string) (*jsonvalue.Value, error) {
 
 	err := decoder.Decode(&data)
 	if err != nil {
-		// Task 9.92: Return detailed error with position
+		// Return detailed error with position
 		return nil, formatJSONError(err, jsonStr)
 	}
 
@@ -141,7 +137,7 @@ func goValueToJSONValue(data interface{}) *jsonvalue.Value {
 }
 
 // formatJSONError formats a JSON parsing error with position information.
-// Task 9.92: Extract line and column from syntax errors.
+// Extract line and column from syntax errors.
 //
 // Go's json.SyntaxError includes offset information which we convert
 // to line:column format for better error messages.
@@ -163,7 +159,7 @@ func formatJSONError(err error, jsonStr string) error {
 }
 
 // offsetToLineCol converts a byte offset to line and column numbers.
-// Task 9.92: Helper for error position calculation.
+// Helper for error position calculation.
 //
 // Lines and columns are 1-indexed for user-facing error messages.
 func offsetToLineCol(jsonStr string, offset int64) (line int, col int) {
@@ -184,11 +180,9 @@ func offsetToLineCol(jsonStr string, offset int64) (line int, col int) {
 
 // ============================================================================
 // JSON Serialization Built-in Functions
-// Task 9.94-9.95: ToJSON and ToJSONFormatted
 // ============================================================================
 
 // builtinToJSON implements the ToJSON() built-in function.
-// Task 9.94: Serialize DWScript value to compact JSON string.
 //
 // Syntax: ToJSON(value: Variant): String
 //
@@ -227,7 +221,6 @@ func (i *Interpreter) builtinToJSON(args []Value) Value {
 }
 
 // builtinToJSONFormatted implements the ToJSONFormatted() built-in function.
-// Task 9.95: Serialize DWScript value to formatted JSON string with indentation.
 //
 // Syntax: ToJSONFormatted(value: Variant, indent: Integer): String
 //
@@ -284,11 +277,9 @@ func (i *Interpreter) builtinToJSONFormatted(args []Value) Value {
 
 // ============================================================================
 // JSON Object Access Built-in Functions
-// Task 9.98-9.100: JSONHasField, JSONKeys, JSONValues
 // ============================================================================
 
 // builtinJSONHasField implements the JSONHasField() built-in function.
-// Task 9.98: Check if a JSON object has a specific field.
 //
 // Syntax: JSONHasField(obj: Variant, field: String): Boolean
 //
@@ -333,7 +324,6 @@ func (i *Interpreter) builtinJSONHasField(args []Value) Value {
 }
 
 // builtinJSONKeys implements the JSONKeys() built-in function.
-// Task 9.99: Return an array of all keys in a JSON object.
 //
 // Syntax: JSONKeys(obj: Variant): array of String
 //
@@ -387,7 +377,6 @@ func (i *Interpreter) builtinJSONKeys(args []Value) Value {
 }
 
 // builtinJSONValues implements the JSONValues() built-in function.
-// Task 9.100: Return an array of all values in a JSON object.
 //
 // Syntax: JSONValues(obj: Variant): array of Variant
 //
@@ -462,11 +451,9 @@ func (i *Interpreter) createEmptyVariantArray() *ArrayValue {
 
 // ============================================================================
 // JSON Array Length Built-in Function
-// Task 9.102: JSONLength
 // ============================================================================
 
 // builtinJSONLength implements the JSONLength() built-in function.
-// Task 9.102: Return the length of a JSON array.
 //
 // Syntax: JSONLength(arr: Variant): Integer
 //

@@ -16,7 +16,7 @@ func testEvalSimple(input string) Value {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		panic("Parser errors: " + strings.Join(p.Errors(), "\n"))
+		panic("Parser errors: " + joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer

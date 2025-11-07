@@ -16,14 +16,10 @@ import (
 //   - property Items[index: Integer]: Type read GetItem write SetItem; (indexed)
 //   - property Items[i: Integer]: Type read GetItem; default; (default indexed)
 //   - property Name: Type; (auto-property, generates backing field)
-//
-// Task 8.36: Main entry point for property parsing
-// Task 8.37: Parse 'property Name : Type read ReadSpec;'
-// Task 8.38: Parse 'write WriteSpec' clause
 func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 	propToken := p.curToken // 'property' token
 
-	// Task 8.37: Parse property name
+	// Parse property name
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
 	}
@@ -32,14 +28,14 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		Value: p.curToken.Literal,
 	}
 
-	// Task 8.39: Check for indexed property parameters: property Items[index: Integer]
+	// Check for indexed property parameters: property Items[index: Integer]
 	var indexParams []*ast.Parameter
 	if p.peekTokenIs(lexer.LBRACK) {
 		p.nextToken() // move to '['
 
 		// Check for empty brackets (not allowed)
 		if p.peekTokenIs(lexer.RBRACK) {
-			p.addError("indexed property cannot have empty parameter list")
+			p.addError("indexed property cannot have empty parameter list", ErrInvalidSyntax)
 			return nil
 		}
 
@@ -58,7 +54,7 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 			// - ']' : end of parameters
 			// - ';' : more parameter groups follow
 			if !p.peekTokenIs(lexer.RBRACK) && !p.peekTokenIs(lexer.SEMICOLON) {
-				p.addError("expected ']' or ';' after indexed property parameter")
+				p.addError("expected ']' or ';' after indexed property parameter", ErrUnexpectedToken)
 				return nil
 			}
 
@@ -78,12 +74,12 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		}
 	}
 
-	// Task 8.37: Expect colon before type
+	// Expect colon before type
 	if !p.expectPeek(lexer.COLON) {
 		return nil
 	}
 
-	// Task 8.37: Parse property type
+	// Parse property type
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
 	}
@@ -100,7 +96,7 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		IsDefault:   false,
 	}
 
-	// Task 8.37: Parse optional 'read' clause
+	// Parse optional 'read' clause
 	// ReadSpec can be:
 	// - Identifier (field or method name)
 	// - Expression in parentheses: read (FValue * 2)
@@ -120,12 +116,12 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 				Value: p.curToken.Literal,
 			}
 		} else {
-			p.addError("expected identifier or expression after 'read'")
+			p.addError("expected identifier or expression after 'read'", ErrExpectedIdent)
 			return nil
 		}
 	}
 
-	// Task 8.38: Parse optional 'write' clause
+	// Parse optional 'write' clause
 	// WriteSpec can be:
 	// - Identifier (field or method name)
 	if p.peekTokenIs(lexer.WRITE) {
@@ -142,7 +138,7 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		}
 	}
 
-	// Task 8.41: If neither read nor write was specified, generate auto-property
+	// If neither read nor write was specified, generate auto-property
 	// Auto-property generates backing field FName (F + property name)
 	if prop.ReadSpec == nil && prop.WriteSpec == nil {
 		// Generate backing field name: F + property name
@@ -162,7 +158,7 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		return nil
 	}
 
-	// Task 8.40: Parse optional 'default;' keyword
+	// Parse optional 'default;' keyword
 	// This comes after the semicolon: property Items[i: Integer]: String read GetItem; default;
 	if p.peekTokenIs(lexer.DEFAULT) {
 		p.nextToken() // move to 'default'
@@ -189,7 +185,7 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	for {
 		// Parse parameter name (can be IDENT or keyword used as identifier)
 		if !p.curTokenIs(lexer.IDENT) && !p.curTokenIs(lexer.INDEX) {
-			p.addError("expected parameter name in indexed property")
+			p.addError("expected parameter name in indexed property", ErrExpectedIdent)
 			return nil
 		}
 

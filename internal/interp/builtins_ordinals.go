@@ -9,7 +9,6 @@ import (
 
 // builtinInc implements the Inc() built-in function.
 // It increments a variable in place: Inc(x) or Inc(x, delta)
-// Task 9.24: Inc() function for ordinal types (Integer, Enum)
 func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 	// Validate argument count (1-2 arguments)
 	if len(args) < 1 || len(args) > 2 {
@@ -30,7 +29,7 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", varName)
 	}
 
-	// Task 9.35: Handle var parameters (ReferenceValue)
+	// Handle var parameters (ReferenceValue)
 	var refVal *ReferenceValue
 	if ref, isRef := currentVal.(*ReferenceValue); isRef {
 		refVal = ref
@@ -61,7 +60,7 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 	case *IntegerValue:
 		// Increment integer by delta
 		newValue := &IntegerValue{Value: val.Value + delta}
-		// Task 9.35: If this is a var parameter, write through the reference
+		// If this is a var parameter, write through the reference
 		if refVal != nil {
 			if err := refVal.Assign(newValue); err != nil {
 				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
@@ -80,7 +79,7 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 		}
 
 		// Get the enum type metadata
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		// Normalize to lowercase for case-insensitive lookups
 		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
@@ -123,7 +122,7 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 			OrdinalValue: nextOrdinal,
 		}
 
-		// Task 9.35: If this is a var parameter, write through the reference
+		// If this is a var parameter, write through the reference
 		if refVal != nil {
 			if err := refVal.Assign(newValue); err != nil {
 				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
@@ -142,7 +141,7 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 
 // builtinDec implements the Dec() built-in function.
 // It decrements a variable in place: Dec(x) or Dec(x, delta)
-// Task 9.25: Dec() function for ordinal types (Integer, Enum)
+// Dec() function for ordinal types (Integer, Enum)
 func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 	// Validate argument count (1-2 arguments)
 	if len(args) < 1 || len(args) > 2 {
@@ -163,7 +162,7 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", varName)
 	}
 
-	// Task 9.35: Handle var parameters (ReferenceValue)
+	// Handle var parameters (ReferenceValue)
 	var refVal *ReferenceValue
 	if ref, isRef := currentVal.(*ReferenceValue); isRef {
 		refVal = ref
@@ -194,7 +193,7 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 	case *IntegerValue:
 		// Decrement integer by delta
 		newValue := &IntegerValue{Value: val.Value - delta}
-		// Task 9.35: If this is a var parameter, write through the reference
+		// If this is a var parameter, write through the reference
 		if refVal != nil {
 			if err := refVal.Assign(newValue); err != nil {
 				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
@@ -213,7 +212,7 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 		}
 
 		// Get the enum type metadata
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		// Normalize to lowercase for case-insensitive lookups
 		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
@@ -256,7 +255,7 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 			OrdinalValue: prevOrdinal,
 		}
 
-		// Task 9.35: If this is a var parameter, write through the reference
+		// If this is a var parameter, write through the reference
 		if refVal != nil {
 			if err := refVal.Assign(newValue); err != nil {
 				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
@@ -275,7 +274,7 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 
 // builtinSucc implements the Succ() built-in function.
 // It returns the successor of an ordinal value (Integer or Enum).
-// Task 9.35: Succ() function for ordinal types
+// Succ() function for ordinal types
 func (i *Interpreter) builtinSucc(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Succ() expects exactly 1 argument, got %d", len(args))
@@ -287,7 +286,7 @@ func (i *Interpreter) builtinSucc(args []Value) Value {
 	case *IntegerValue:
 		return &IntegerValue{Value: val.Value + 1}
 	case *EnumValue:
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		// Normalize to lowercase for case-insensitive lookups
 		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
@@ -327,7 +326,6 @@ func (i *Interpreter) builtinSucc(args []Value) Value {
 
 // builtinPred implements the Pred() built-in function.
 // It returns the predecessor of an ordinal value (Integer or Enum).
-// Task 9.35: Pred() function for ordinal types
 func (i *Interpreter) builtinPred(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Pred() expects exactly 1 argument, got %d", len(args))
@@ -339,7 +337,7 @@ func (i *Interpreter) builtinPred(args []Value) Value {
 	case *IntegerValue:
 		return &IntegerValue{Value: val.Value - 1}
 	case *EnumValue:
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		// Normalize to lowercase for case-insensitive lookups
 		enumTypeKey := "__enum_type_" + strings.ToLower(val.TypeName)
 		enumTypeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
@@ -379,7 +377,6 @@ func (i *Interpreter) builtinPred(args []Value) Value {
 
 // builtinAssert implements the Assert() built-in function.
 // Usage: Assert(condition) or Assert(condition, message)
-// Task 9.36: Assert() function for runtime assertions
 func (i *Interpreter) builtinAssert(args []Value) Value {
 	// Validate argument count (1-2 arguments)
 	if len(args) < 1 || len(args) > 2 {

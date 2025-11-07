@@ -65,7 +65,7 @@ type Parser struct {
 	l                      *lexer.Lexer
 	prefixParseFns         map[lexer.TokenType]prefixParseFn
 	infixParseFns          map[lexer.TokenType]infixParseFn
-	errors                 []string
+	errors                 []*ParserError
 	semanticErrors         []string
 	curToken               lexer.Token
 	peekToken              lexer.Token
@@ -77,7 +77,7 @@ type Parser struct {
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{
 		l:                      l,
-		errors:                 []string{},
+		errors:                 []*ParserError{},
 		prefixParseFns:         make(map[lexer.TokenType]prefixParseFn),
 		infixParseFns:          make(map[lexer.TokenType]infixParseFn),
 		enableSemanticAnalysis: false,
@@ -140,7 +140,7 @@ func New(l *lexer.Lexer) *Parser {
 }
 
 // Errors returns the list of parsing errors.
-func (p *Parser) Errors() []string {
+func (p *Parser) Errors() []*ParserError {
 	return p.errors
 }
 
@@ -207,21 +207,36 @@ func (p *Parser) expectIdentifier() bool {
 
 // peekError adds an error about an unexpected peek token.
 func (p *Parser) peekError(t lexer.TokenType) {
-	msg := fmt.Sprintf("expected next token to be %s, got %s instead at %d:%d",
-		t, p.peekToken.Type, p.peekToken.Pos.Line, p.peekToken.Pos.Column)
-	p.errors = append(p.errors, msg)
+	msg := fmt.Sprintf("expected next token to be %s, got %s instead", t, p.peekToken.Type)
+	err := NewParserError(
+		p.peekToken.Pos,
+		p.peekToken.Length(),
+		msg,
+		ErrUnexpectedToken,
+	)
+	p.errors = append(p.errors, err)
 }
 
-// addError adds a generic error message.
-func (p *Parser) addError(msg string) {
-	fullMsg := fmt.Sprintf("%s at %d:%d", msg, p.curToken.Pos.Line, p.curToken.Pos.Column)
-	p.errors = append(p.errors, fullMsg)
+// addError adds a generic error message with the specified error code.
+func (p *Parser) addError(msg string, code string) {
+	err := NewParserError(
+		p.curToken.Pos,
+		p.curToken.Length(),
+		msg,
+		code,
+	)
+	p.errors = append(p.errors, err)
+}
+
+// addGenericError adds a generic error message with a default error code.
+func (p *Parser) addGenericError(msg string) {
+	p.addError(msg, ErrInvalidExpression)
 }
 
 // noPrefixParseFnError adds an error for missing prefix parse function.
 func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
 	msg := fmt.Sprintf("no prefix parse function for %s found", t)
-	p.addError(msg)
+	p.addError(msg, ErrNoPrefixParse)
 }
 
 // registerPrefix registers a prefix parse function for a token type.

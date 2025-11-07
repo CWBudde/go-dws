@@ -51,7 +51,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 
 	i.classes["TObject"] = objectClass
 
-	// Task 8.203: Register Exception base class
+	// Register Exception base class
 	exceptionClass := NewClassInfo("Exception")
 	exceptionClass.Parent = objectClass // Exception inherits from TObject
 	exceptionClass.Fields["Message"] = types.STRING
@@ -63,7 +63,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 
 	i.classes["Exception"] = exceptionClass
 
-	// Task 8.204: Register standard exception types
+	// Register standard exception types
 	standardExceptions := []string{
 		"EConvertError",
 		"ERangeError",
@@ -142,7 +142,6 @@ func (i *Interpreter) raiseMaxRecursionExceeded() Value {
 // ============================================================================
 
 // evalTryStatement evaluates a try/except/finally statement.
-// Task 8.213: Implement evalTryStatement
 func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
 	// Set up finally block to run at the end
 	if stmt.FinallyClause != nil {
@@ -189,7 +188,6 @@ func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
 }
 
 // evalExceptClause evaluates an except clause.
-// Task 8.214: Implement evalExceptClause
 func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 	if i.exception == nil {
 		// No exception to handle
@@ -266,7 +264,6 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 }
 
 // matchesExceptionType checks if an exception matches a handler's type.
-// Task 8.215: Implement exception type matching
 func (i *Interpreter) matchesExceptionType(exc *ExceptionValue, typeAnnotation *ast.TypeAnnotation) bool {
 	if typeAnnotation == nil {
 		return true // Bare handler catches all
@@ -288,7 +285,6 @@ func (i *Interpreter) matchesExceptionType(exc *ExceptionValue, typeAnnotation *
 }
 
 // evalRaiseStatement evaluates a raise statement.
-// Task 8.216: Implement evalRaiseStatement
 func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 	// Bare raise - re-raise current exception
 	if stmt.Exception == nil {
@@ -354,7 +350,6 @@ func (i *Interpreter) evalStatement(stmt ast.Statement) Value {
 }
 
 // isExceptionClass checks if a class is an Exception or inherits from Exception.
-// Task 8.218: Helper for special exception constructor handling.
 func (i *Interpreter) isExceptionClass(classInfo *ClassInfo) bool {
 	current := classInfo
 	for current != nil {

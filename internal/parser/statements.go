@@ -47,7 +47,7 @@ func (p *Parser) parseStatement() ast.Statement {
 			}
 			return fn
 		}
-		p.addError("expected 'function' or 'procedure' after 'class'")
+		p.addError("expected 'function' or 'procedure' after 'class'", ErrUnexpectedToken)
 		return nil
 	case lexer.CONSTRUCTOR:
 		// Parse constructor implementation outside class body
@@ -64,7 +64,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		return method
 	case lexer.TYPE:
-		// Task 7.85: Dispatch to class or interface parser
+		// Dispatch to class or interface parser
 		// Both parsers will handle the full parsing starting from TYPE token
 		return p.parseTypeDeclaration()
 	case lexer.USES:
@@ -119,7 +119,7 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	}
 
 	if !p.curTokenIs(lexer.END) {
-		p.addError("expected 'end' to close block")
+		p.addError("expected 'end' to close block", ErrMissingEnd)
 		for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
 			p.nextToken()
 		}
@@ -147,13 +147,6 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 // Can be called in two contexts:
 //  1. After 'var' keyword: var x: Integer;
 //  2. In a var section without 'var': x: Integer; (curToken is already the IDENT)
-//
-// Task 7.143: Now supports external variables:
-//
-//	var x: Integer; external;
-//	var y: String; external 'externalName';
-//
-//	var x, y, z: Integer;
 func (p *Parser) parseVarDeclaration() ast.Statement {
 	blockToken := p.curToken // Save the initial VAR token for the block
 	statements := []ast.Statement{}
@@ -203,7 +196,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		}
 	} else if !p.isIdentifierToken(p.curToken.Type) {
 		// Should already be at an identifier
-		p.addError("expected identifier in var declaration")
+		p.addError("expected identifier in var declaration", ErrExpectedIdent)
 		return nil
 	} else {
 		stmt.Token = p.curToken
@@ -214,7 +207,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	stmt.Names = []*ast.Identifier{}
 	for {
 		if !p.isIdentifierToken(p.curToken.Type) {
-			p.addError("expected identifier in var declaration")
+			p.addError("expected identifier in var declaration", ErrExpectedIdent)
 			return nil
 		}
 
@@ -245,7 +238,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		p.nextToken() // move to type expression
 		typeExpr := p.parseTypeExpression()
 		if typeExpr == nil {
-			p.addError("expected type expression after ':' in var declaration")
+			p.addError("expected type expression after ':' in var declaration", ErrExpectedType)
 			return stmt
 		}
 
@@ -264,7 +257,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 			// For array types, we create a synthetic TypeAnnotation
 			// Check if Token is nil to prevent panics (defensive programming)
 			if te == nil {
-				p.addError("array type expression is nil in var declaration")
+				p.addError("array type expression is nil in var declaration", ErrInvalidType)
 				return stmt
 			}
 			// Use the array token or create a dummy token if nil
@@ -286,7 +279,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 				InlineType: te,          // Store the AST node for semantic analyzer
 			}
 		default:
-			p.addError("unsupported type expression in var declaration")
+			p.addError("unsupported type expression in var declaration", ErrInvalidType)
 			return stmt
 		}
 	}
@@ -294,7 +287,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	if hasExplicitType {
 		if p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ) {
 			if len(stmt.Names) > 1 {
-				p.addError("cannot use initializer with multiple variable names")
+				p.addError("cannot use initializer with multiple variable names", ErrInvalidSyntax)
 				return stmt
 			}
 
@@ -305,7 +298,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	} else {
 		if p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ) {
 			if len(stmt.Names) > 1 {
-				p.addError("cannot use initializer with multiple variable names")
+				p.addError("cannot use initializer with multiple variable names", ErrInvalidSyntax)
 				return stmt
 			}
 
@@ -314,13 +307,13 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 			p.nextToken()
 			stmt.Value = p.parseExpression(ASSIGN)
 		} else if p.peekTokenIs(lexer.SEMICOLON) || p.peekTokenIs(lexer.EXTERNAL) {
-			p.addError("variable declaration requires a type or initializer")
+			p.addError("variable declaration requires a type or initializer", ErrInvalidSyntax)
 		} else {
-			p.addError("expected ':', ':=' or '=' in variable declaration")
+			p.addError("expected ':', ':=' or '=' in variable declaration", ErrMissingColon)
 		}
 	}
 
-	// Task 7.143: Check for 'external' keyword
+	// Check for 'external' keyword
 	if p.peekTokenIs(lexer.EXTERNAL) {
 		p.nextToken() // move to 'external'
 		stmt.IsExternal = true
@@ -416,7 +409,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			return stmt
 
 		default:
-			p.addError("invalid assignment target")
+			p.addError("invalid assignment target", ErrInvalidSyntax)
 			return nil
 		}
 	}

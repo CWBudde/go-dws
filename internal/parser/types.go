@@ -52,7 +52,7 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 		return p.parseSetType()
 
 	default:
-		p.addError("expected type expression, got " + p.curToken.Literal)
+		p.addError("expected type expression, got "+p.curToken.Literal, ErrExpectedType)
 		return nil
 	}
 }
@@ -132,7 +132,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 
 	// Expect opening parenthesis for parameter list
 	if !p.expectPeek(lexer.LPAREN) {
-		p.addError("expected '(' after " + funcOrProcToken.Literal)
+		p.addError("expected '(' after "+funcOrProcToken.Literal, ErrMissingLParen)
 		return nil
 	}
 
@@ -169,7 +169,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 
 	// Expect closing parenthesis
 	if !p.curTokenIs(lexer.RPAREN) {
-		p.addError("expected ')' after parameter list in function pointer type")
+		p.addError("expected ')' after parameter list in function pointer type", ErrMissingRParen)
 		return nil
 	}
 
@@ -177,7 +177,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 	if isFunction {
 		// Expect colon and return type
 		if !p.expectPeek(lexer.COLON) {
-			p.addError("expected ':' after ')' in function pointer type")
+			p.addError("expected ':' after ')' in function pointer type", ErrMissingColon)
 			return nil
 		}
 
@@ -195,7 +195,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 		case *ast.TypeAnnotation:
 			funcPtrType.ReturnType = rt
 		default:
-			p.addError("complex return types not yet supported in function pointers")
+			p.addError("complex return types not yet supported in function pointers", ErrInvalidType)
 			return nil
 		}
 	}
@@ -204,7 +204,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 	if p.peekTokenIs(lexer.OF) {
 		p.nextToken() // move to OF
 		if !p.expectPeek(lexer.OBJECT) {
-			p.addError("expected 'object' after 'of' in function pointer type")
+			p.addError("expected .object. after .of. in function pointer type", ErrUnexpectedToken)
 			return nil
 		}
 		funcPtrType.OfObject = true
@@ -254,13 +254,13 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 		p.nextToken() // move to low bound
 		lowBound := p.parseArrayBound()
 		if lowBound == nil {
-			p.addError("invalid array lower bound expression")
+			p.addError("invalid array lower bound expression", ErrInvalidExpression)
 			return nil
 		}
 
 		// Expect '..'
 		if !p.expectPeek(lexer.DOTDOT) {
-			p.addError("expected '..' in array bounds")
+			p.addError("expected .... in array bounds", ErrUnexpectedToken)
 			return nil
 		}
 
@@ -268,7 +268,7 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 		p.nextToken() // move to high bound
 		highBound := p.parseArrayBound()
 		if highBound == nil {
-			p.addError("invalid array upper bound expression")
+			p.addError("invalid array upper bound expression", ErrInvalidExpression)
 			return nil
 		}
 
@@ -281,19 +281,19 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 			p.nextToken() // move to next low bound
 			lowBound := p.parseArrayBound()
 			if lowBound == nil {
-				p.addError("invalid array lower bound expression in multi-dimensional array")
+				p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
 				return nil
 			}
 
 			if !p.expectPeek(lexer.DOTDOT) {
-				p.addError("expected '..' in array bounds")
+				p.addError("expected .... in array bounds", ErrUnexpectedToken)
 				return nil
 			}
 
 			p.nextToken() // move to high bound
 			highBound := p.parseArrayBound()
 			if highBound == nil {
-				p.addError("invalid array upper bound expression in multi-dimensional array")
+				p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
 				return nil
 			}
 
@@ -305,14 +305,14 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 
 		// Now expect ']'
 		if !p.expectPeek(lexer.RBRACK) {
-			p.addError("expected ']' after array bounds")
+			p.addError("expected ']' after array bounds", ErrMissingRBracket)
 			return nil
 		}
 	}
 
 	// Expect 'of' keyword
 	if !p.expectPeek(lexer.OF) {
-		p.addError("expected 'of' after 'array' or 'array[bounds]'")
+		p.addError("expected .of. after .array. or .array[bounds].", ErrMissingOf)
 		return nil
 	}
 
@@ -320,7 +320,7 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	p.nextToken() // move to element type
 	elementType := p.parseTypeExpression()
 	if elementType == nil {
-		p.addError("expected type expression after 'array of'")
+		p.addError("expected type expression after .array of.", ErrExpectedType)
 		return nil
 	}
 

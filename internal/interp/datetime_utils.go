@@ -29,7 +29,7 @@ const (
 //   - Integer part = number of days since December 30, 1899
 //   - Fractional part = time of day (0.5 = noon, 0.25 = 6am)
 //
-// Task 9.93: Core conversion function for DateTime support
+// Core conversion function for DateTime support
 func goTimeToDelphiDateTime(t time.Time) float64 {
 	// Calculate days since Delphi epoch
 	duration := t.Sub(delphiEpoch)
@@ -40,7 +40,7 @@ func goTimeToDelphiDateTime(t time.Time) float64 {
 // delphiDateTimeToGoTime converts a Delphi TDateTime float64 to Go time.Time.
 // The result is in UTC timezone.
 //
-// Task 9.93: Core conversion function for DateTime support
+// Core conversion function for DateTime support
 func delphiDateTimeToGoTime(dt float64) time.Time {
 	// Calculate duration from epoch
 	seconds := dt * secondsPerDay
@@ -53,7 +53,7 @@ func delphiDateTimeToGoTime(dt float64) time.Time {
 // ============================================================================
 
 // isValidDate checks if the given year, month, day constitutes a valid date.
-// Task 9.99: Date validation for EncodeDate
+// Date validation for EncodeDate
 func isValidDate(year, month, day int) bool {
 	if year < 1 || year > 9999 {
 		return false
@@ -77,7 +77,6 @@ func isValidDate(year, month, day int) bool {
 }
 
 // isValidTime checks if the given hour, minute, second, millisecond constitutes valid time.
-// Task 9.100: Time validation for EncodeTime
 func isValidTime(hour, minute, second, millisecond int) bool {
 	return hour >= 0 && hour < 24 &&
 		minute >= 0 && minute < 60 &&
@@ -114,14 +113,12 @@ func daysInMonth(year, month int) int {
 // ============================================================================
 
 // extractDateComponents extracts year, month, day from a TDateTime value.
-// Task 9.103: Used by DecodeDate
 func extractDateComponents(dt float64) (year, month, day int) {
 	t := delphiDateTimeToGoTime(dt)
 	return t.Year(), int(t.Month()), t.Day()
 }
 
 // extractTimeComponents extracts hour, minute, second, millisecond from a TDateTime value.
-// Task 9.104: Used by DecodeTime
 func extractTimeComponents(dt float64) (hour, minute, second, millisecond int) {
 	t := delphiDateTimeToGoTime(dt)
 	return t.Hour(), t.Minute(), t.Second(), t.Nanosecond() / 1000000
@@ -205,7 +202,6 @@ func formatDateTime(format string, dt float64) string {
 
 // parseDateTime attempts to parse a date/time string in various common formats.
 // This is a simplified implementation that handles common ISO-8601 and locale-neutral formats.
-// Task 9.110-9.111: String to DateTime parsing
 func parseDateTime(s string) (float64, error) {
 	s = strings.TrimSpace(s)
 
@@ -233,7 +229,6 @@ func parseDateTime(s string) (float64, error) {
 }
 
 // parseDate attempts to parse a date string.
-// Task 9.110: StrToDate implementation
 func parseDate(s string) (float64, error) {
 	s = strings.TrimSpace(s)
 
@@ -256,7 +251,6 @@ func parseDate(s string) (float64, error) {
 }
 
 // parseTime attempts to parse a time string.
-// Task 9.111: StrToTime implementation (partial)
 func parseTime(s string) (float64, error) {
 	s = strings.TrimSpace(s)
 
@@ -281,14 +275,12 @@ func parseTime(s string) (float64, error) {
 // ============================================================================
 
 // formatISO8601 formats a TDateTime as ISO 8601 string (YYYY-MM-DDTHH:MM:SS).
-// Task 9.107: ISO8601 formatting
 func formatISO8601(dt float64) string {
 	t := delphiDateTimeToGoTime(dt)
 	return t.Format("2006-01-02T15:04:05")
 }
 
 // formatDateISO8601 formats just the date part as ISO 8601 (YYYY-MM-DD).
-// Task 9.107: ISO8601 date formatting
 func formatDateISO8601(dt float64) string {
 	t := delphiDateTimeToGoTime(dt)
 	return t.Format("2006-01-02")
@@ -296,7 +288,6 @@ func formatDateISO8601(dt float64) string {
 
 // parseISO8601 parses an ISO 8601 date/time string.
 // Supports formats: YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, YYYY-MM-DDTHH:MM:SSZ
-// Task 9.111: ISO8601 parsing
 func parseISO8601(s string) (float64, error) {
 	s = strings.TrimSpace(s)
 
@@ -321,14 +312,12 @@ func parseISO8601(s string) (float64, error) {
 // ============================================================================
 
 // formatRFC822 formats a TDateTime as RFC 822 string.
-// Task 9.107: RFC822 formatting
 func formatRFC822(dt float64) string {
 	t := delphiDateTimeToGoTime(dt)
 	return t.Format(time.RFC822)
 }
 
 // parseRFC822 parses an RFC 822 date/time string.
-// Task 9.111: RFC822 parsing
 func parseRFC822(s string) (float64, error) {
 	s = strings.TrimSpace(s)
 
@@ -347,14 +336,12 @@ func parseRFC822(s string) (float64, error) {
 // ============================================================================
 
 // unixTimeToDateTime converts Unix timestamp (seconds since 1970-01-01) to TDateTime.
-// Task 9.95: Unix time support
 func unixTimeToDateTime(unixTime int64) float64 {
 	t := time.Unix(unixTime, 0).UTC()
 	return goTimeToDelphiDateTime(t)
 }
 
 // unixTimeMSecToDateTime converts Unix timestamp in milliseconds to TDateTime.
-// Task 9.95: Unix time millisecond support
 func unixTimeMSecToDateTime(unixTimeMS int64) float64 {
 	seconds := unixTimeMS / 1000
 	nanoseconds := (unixTimeMS % 1000) * 1000000
@@ -380,7 +367,6 @@ func dateTimeToUnixTimeMSec(dt float64) int64 {
 
 // incMonths adds a number of months to a TDateTime value.
 // This correctly handles month boundaries and leap years.
-// Task 9.113: IncMonth implementation
 func incMonths(dt float64, months int) float64 {
 	t := delphiDateTimeToGoTime(dt)
 
@@ -412,7 +398,6 @@ func incMonths(dt float64, months int) float64 {
 }
 
 // incYears adds a number of years to a TDateTime value.
-// Task 9.113: IncYear implementation
 func incYears(dt float64, years int) float64 {
 	return incMonths(dt, years*12)
 }
@@ -422,28 +407,24 @@ func incYears(dt float64, years int) float64 {
 // ============================================================================
 
 // daysBetween calculates the number of whole days between two TDateTime values.
-// Task 9.114: DaysBetween implementation
 func daysBetween(dt1, dt2 float64) int {
 	diff := math.Abs(dt1 - dt2)
 	return int(math.Floor(diff))
 }
 
 // hoursBetween calculates the number of whole hours between two TDateTime values.
-// Task 9.114: HoursBetween implementation
 func hoursBetween(dt1, dt2 float64) int {
 	diff := math.Abs(dt1 - dt2)
 	return int(math.Floor(diff * 24.0))
 }
 
 // minutesBetween calculates the number of whole minutes between two TDateTime values.
-// Task 9.114: MinutesBetween implementation
 func minutesBetween(dt1, dt2 float64) int {
 	diff := math.Abs(dt1 - dt2)
 	return int(math.Floor(diff * 24.0 * 60.0))
 }
 
 // secondsBetween calculates the number of whole seconds between two TDateTime values.
-// Task 9.114: SecondsBetween implementation
 func secondsBetween(dt1, dt2 float64) int {
 	diff := math.Abs(dt1 - dt2)
 	return int(math.Floor(diff * secondsPerDay))
@@ -454,7 +435,6 @@ func secondsBetween(dt1, dt2 float64) int {
 // ============================================================================
 
 // firstDayOfYear returns the first day of the year for a given TDateTime.
-// Task 9.113: FirstDayOfYear implementation (mentioned in reference)
 func firstDayOfYear(dt float64) float64 {
 	t := delphiDateTimeToGoTime(dt)
 	result := time.Date(t.Year(), time.January, 1, 0, 0, 0, 0, time.UTC)
@@ -510,14 +490,12 @@ func firstDayOfWeek(dt float64) float64 {
 }
 
 // dayOfYear returns the day number within the year (1-366).
-// Task 9.105: DayOfYear implementation
 func dayOfYear(dt float64) int {
 	t := delphiDateTimeToGoTime(dt)
 	return t.YearDay()
 }
 
 // weekNumber calculates the ISO 8601 week number for a given TDateTime.
-// Task 9.105: WeekNumber implementation
 func weekNumber(dt float64) int {
 	t := delphiDateTimeToGoTime(dt)
 	_, week := t.ISOWeek()
@@ -525,7 +503,6 @@ func weekNumber(dt float64) int {
 }
 
 // yearOfWeek returns the year associated with the ISO 8601 week containing the date.
-// Task 9.105: YearOfWeek implementation
 func yearOfWeek(dt float64) int {
 	t := delphiDateTimeToGoTime(dt)
 	year, _ := t.ISOWeek()
@@ -533,7 +510,6 @@ func yearOfWeek(dt float64) int {
 }
 
 // dayOfWeek returns the day of week (1=Sunday, 7=Saturday) like Delphi's DayOfWeek.
-// Task 9.105: DayOfWeek implementation
 func dayOfWeek(dt float64) int {
 	t := delphiDateTimeToGoTime(dt)
 	// Go: Sunday=0, Monday=1, ..., Saturday=6
@@ -542,7 +518,6 @@ func dayOfWeek(dt float64) int {
 }
 
 // dayOfTheWeek returns the day of week (1=Monday, 7=Sunday) for ISO 8601 compatibility.
-// Task 9.105: DayOfTheWeek implementation
 func dayOfTheWeek(dt float64) int {
 	t := delphiDateTimeToGoTime(dt)
 	weekday := int(t.Weekday())
@@ -558,7 +533,6 @@ func dayOfTheWeek(dt float64) int {
 
 // parseCustomDateTime parses a datetime string according to a custom format specifier.
 // This is a simplified implementation of DWScript's ParseDateTime function.
-// Task 9.111: Custom format parsing
 func parseCustomDateTime(format, s string) (float64, error) {
 	// This is a simplified regex-based parser
 	// Convert format specifiers to regex patterns

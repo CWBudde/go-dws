@@ -498,7 +498,7 @@ func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
 			condType.String(), stmt.Token.Pos.String())
 	}
 
-	// Task 8.235g: Set loop context before analyzing body
+	// Set loop context before analyzing body
 	oldInLoop := a.inLoop
 	a.inLoop = true
 	a.loopDepth++
@@ -513,7 +513,7 @@ func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
 
 // analyzeRepeat analyzes a repeat-until statement
 func (a *Analyzer) analyzeRepeat(stmt *ast.RepeatStatement) {
-	// Task 8.235g: Set loop context before analyzing body
+	// Set loop context before analyzing body
 	oldInLoop := a.inLoop
 	a.inLoop = true
 	a.loopDepth++
@@ -588,7 +588,7 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 	}
 	a.symbols.Define(stmt.Variable.Value, loopVarType)
 
-	// Task 8.235g: Set loop context before analyzing body
+	// Set loop context before analyzing body
 	oldInLoop := a.inLoop
 	a.inLoop = true
 	a.loopDepth++
@@ -744,7 +744,7 @@ func (a *Analyzer) analyzeCase(stmt *ast.CaseStatement) {
 
 // analyzeBreakStatement analyzes a break statement
 func (a *Analyzer) analyzeBreakStatement(stmt *ast.BreakStatement) {
-	// Task 8.235h: Check if we're inside a finally block
+	// Check if we're inside a finally block
 	if a.inFinallyBlock {
 		a.addError("break statement not allowed in finally block at %s", stmt.Token.Pos.String())
 		return
@@ -760,7 +760,7 @@ func (a *Analyzer) analyzeBreakStatement(stmt *ast.BreakStatement) {
 
 // analyzeContinueStatement analyzes a continue statement
 func (a *Analyzer) analyzeContinueStatement(stmt *ast.ContinueStatement) {
-	// Task 8.235h: Check if we're inside a finally block
+	// Check if we're inside a finally block
 	if a.inFinallyBlock {
 		a.addError("continue statement not allowed in finally block at %s", stmt.Token.Pos.String())
 		return
@@ -776,7 +776,7 @@ func (a *Analyzer) analyzeContinueStatement(stmt *ast.ContinueStatement) {
 
 // analyzeExitStatement analyzes an exit statement
 func (a *Analyzer) analyzeExitStatement(stmt *ast.ExitStatement) {
-	// Task 8.235h: Check if we're inside a finally block
+	// Check if we're inside a finally block
 	if a.inFinallyBlock {
 		a.addError("exit statement not allowed in finally block at %s", stmt.Token.Pos.String())
 		return

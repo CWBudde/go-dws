@@ -29,7 +29,7 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 	stmt.Exception = p.parseExpression(LOWEST)
 
 	if stmt.Exception == nil {
-		p.addError("expected exception expression after 'raise'")
+		p.addError("expected exception expression after 'raise'", ErrInvalidExpression)
 		return nil
 	}
 
@@ -64,7 +64,7 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 	stmt.TryBlock = p.parseBlockStatementForTry()
 
 	if stmt.TryBlock == nil {
-		p.addError("expected statements after 'try'")
+		p.addError("expected statements after 'try'", ErrInvalidSyntax)
 		return nil
 	}
 
@@ -86,13 +86,13 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 
 	// Validate that at least one of except or finally is present
 	if stmt.ExceptClause == nil && stmt.FinallyClause == nil {
-		p.addError("expected 'except' or 'finally' after 'try' block")
+		p.addError("expected 'except' or 'finally' after 'try' block", ErrUnexpectedToken)
 		return nil
 	}
 
 	// Expect 'end' keyword
 	if !p.curTokenIs(lexer.END) {
-		p.addError("expected 'end' to close try statement")
+		p.addError("expected 'end' to close try statement", ErrMissingEnd)
 		return nil
 	}
 
@@ -251,7 +251,7 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 
 	// Parse variable name
 	if !p.curTokenIs(lexer.IDENT) {
-		p.addError("expected identifier after 'on'")
+		p.addError("expected identifier after 'on'", ErrExpectedIdent)
 		return nil
 	}
 
@@ -268,7 +268,7 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	// Parse exception type
 	p.nextToken()
 	if !p.curTokenIs(lexer.IDENT) {
-		p.addError("expected exception type after ':'")
+		p.addError("expected exception type after ':", ErrExpectedType)
 		return nil
 	}
 
@@ -287,7 +287,7 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	handler.Statement = p.parseStatement()
 
 	if handler.Statement == nil {
-		p.addError("expected statement after 'do'")
+		p.addError("expected statement after 'do'", ErrInvalidSyntax)
 		return nil
 	}
 

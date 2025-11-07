@@ -9,7 +9,6 @@ import (
 )
 
 // TestExceptionHandlingIntegration tests the CLI with exception handling scripts
-// Task 8.226: Create CLI integration tests for exception handling
 func TestExceptionHandlingIntegration(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
@@ -256,7 +255,6 @@ func TestExceptionHandlingIntegration(t *testing.T) {
 }
 
 // TestExceptionMessages verifies that exception messages are properly displayed
-// Task 8.226: Verify exception messages in output
 func TestExceptionMessages(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
@@ -358,7 +356,6 @@ func TestExceptionMessages(t *testing.T) {
 }
 
 // TestUnhandledExceptionStackTrace verifies that unhandled exceptions show stack traces
-// Task 8.226: Verify unhandled exceptions show stack trace
 func TestUnhandledExceptionStackTrace(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

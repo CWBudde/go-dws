@@ -321,6 +321,492 @@ func TestFFIRealGoFunctions(t *testing.T) {
 	})
 }
 
+// TestFFIVariadicWithCallbacks tests combining variadic parameters with callbacks.
+func TestFFIVariadicWithCallbacks(t *testing.T) {
+	engine, err := New(WithTypeCheck(false))
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+
+	var buf strings.Builder
+	engine.SetOutput(&buf)
+
+	// Register a variadic function that accepts a callback
+	// Note: We pass nums as a slice instead of individual variadic args since
+	// DWScript passes arrays as slices to Go
+	engine.RegisterFunction("ProcessInts", func(nums []int64, callback func(int64) int64) []int64 {
+		result := make([]int64, len(nums))
+		for i, num := range nums {
+			result[i] = callback(num)
+		}
+		return result
+	})
+
+	result, err := engine.Eval(`
+		// Define a callback that doubles a number
+		function Double(n: Integer): Integer;
+		begin
+			Result := n * 2;
+		end;
+
+		// Define a callback that squares a number
+		function Square(n: Integer): Integer;
+		begin
+			Result := n * n;
+		end;
+
+		// Test with Double callback
+		var doubled := ProcessInts([1, 2, 3, 4, 5], @Double);
+		if Length(doubled) <> 5 then
+			raise Exception.Create('Wrong length for doubled');
+		if doubled[0] <> 2 or doubled[4] <> 10 then
+			raise Exception.Create('Double callback failed');
+
+		// Test with Square callback
+		var squared := ProcessInts([2, 3, 4], @Square);
+		if Length(squared) <> 3 then
+			raise Exception.Create('Wrong length for squared');
+		if squared[0] <> 4 or squared[1] <> 9 or squared[2] <> 16 then
+			raise Exception.Create('Square callback failed');
+
+		// Test with inline lambda
+		var plusTen := ProcessInts([5, 15, 25], lambda(n: Integer): Integer begin
+			Result := n + 10;
+		end);
+		if plusTen[0] <> 15 or plusTen[1] <> 25 or plusTen[2] <> 35 then
+			raise Exception.Create('Lambda callback failed');
+
+		PrintLn('Variadic with callbacks test passed');
+	`)
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+	if !result.Success {
+		t.Fatal("test script failed")
+	}
+
+	expected := "Variadic with callbacks test passed\n"
+	output := buf.String()
+	if output != expected {
+		t.Errorf("expected output %q, got %q", expected, output)
+	}
+}
+
+// TestFFIVariadicWithVarParams tests combining variadic parameters with by-reference params.
+func TestFFIVariadicWithVarParams(t *testing.T) {
+	engine, err := New(WithTypeCheck(false))
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+
+	var buf strings.Builder
+	engine.SetOutput(&buf)
+
+	// Register a variadic function that uses a var param for output
+	engine.RegisterFunction("SumWithCount", func(count *int64, nums ...int64) int64 {
+		sum := int64(0)
+		for _, n := range nums {
+			sum += n
+		}
+		*count = int64(len(nums))
+		return sum
+	})
+
+	// Register another function that modifies multiple var params
+	engine.RegisterFunction("MinMaxSum", func(min, max, sum *int64, nums ...int64) {
+		if len(nums) == 0 {
+			*min, *max, *sum = 0, 0, 0
+			return
+		}
+		*min, *max, *sum = nums[0], nums[0], int64(0)
+		for _, n := range nums {
+			if n < *min {
+				*min = n
+			}
+			if n > *max {
+				*max = n
+			}
+			*sum += n
+		}
+	})
+
+	result, err := engine.Eval(`
+		// Test SumWithCount
+		var count: Integer := 0;
+		var total := SumWithCount(count, 10, 20, 30, 40, 50);
+		if total <> 150 then
+			raise Exception.Create('Sum incorrect');
+		if count <> 5 then
+			raise Exception.Create('Count incorrect');
+
+		// Test with different number of arguments
+		count := 0;
+		total := SumWithCount(count, 100, 200);
+		if total <> 300 then
+			raise Exception.Create('Sum incorrect for 2 args');
+		if count <> 2 then
+			raise Exception.Create('Count incorrect for 2 args');
+
+		// Test MinMaxSum
+		var minVal, maxVal, sumVal: Integer;
+		MinMaxSum(minVal, maxVal, sumVal, 5, 2, 9, 1, 7);
+		if minVal <> 1 then
+			raise Exception.Create('Min incorrect: ' + IntToStr(minVal));
+		if maxVal <> 9 then
+			raise Exception.Create('Max incorrect: ' + IntToStr(maxVal));
+		if sumVal <> 24 then
+			raise Exception.Create('Sum incorrect: ' + IntToStr(sumVal));
+
+		PrintLn('Variadic with var params test passed');
+	`)
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+	if !result.Success {
+		t.Fatal("test script failed")
+	}
+
+	expected := "Variadic with var params test passed\n"
+	output := buf.String()
+	if output != expected {
+		t.Errorf("expected output %q, got %q", expected, output)
+	}
+}
+
+// DataProcessor is a helper type for testing methods with callbacks.
+type DataProcessor struct {
+	data []int64
+}
+
+// ProcessEach applies callback to each element (helper for test)
+func (dp *DataProcessor) ProcessEach(callback func(int64) int64) []int64 {
+	result := make([]int64, len(dp.data))
+	for i, v := range dp.data {
+		result[i] = callback(v)
+	}
+	return result
+}
+
+// FilterWith filters elements using callback predicate (helper for test)
+func (dp *DataProcessor) FilterWith(predicate func(int64) bool) []int64 {
+	result := []int64{}
+	for _, v := range dp.data {
+		if predicate(v) {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
+// FindFirst returns first element matching predicate (helper for test)
+func (dp *DataProcessor) FindFirst(predicate func(int64) bool) int64 {
+	for _, v := range dp.data {
+		if predicate(v) {
+			return v
+		}
+	}
+	return 0
+}
+
+// ComplexProcessor is a helper type for testing complex feature combinations.
+type ComplexProcessor struct {
+	name string
+}
+
+// ProcessWithStats processes variadic args with callback and reports stats via var params
+func (cp *ComplexProcessor) ProcessWithStats(
+	callback func(int64) int64,
+	count *int64,
+	sum *int64,
+	nums ...int64,
+) []int64 {
+	result := make([]int64, len(nums))
+	*count = int64(len(nums))
+	*sum = int64(0)
+	for i, n := range nums {
+		result[i] = callback(n)
+		*sum += result[i]
+	}
+	return result
+}
+
+// TestFFIMethodsWithCallbacks tests calling Go methods that accept callbacks.
+func TestFFIMethodsWithCallbacks(t *testing.T) {
+	engine, err := New(WithTypeCheck(false))
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+
+	var buf strings.Builder
+	engine.SetOutput(&buf)
+
+	processor := &DataProcessor{data: []int64{1, 2, 3, 4, 5}}
+
+	// Method that applies a callback to each element
+	engine.RegisterMethod("ProcessEach", processor, "ProcessEach")
+	// Method that filters using a callback predicate
+	engine.RegisterMethod("FilterWith", processor, "FilterWith")
+	// Method that finds first matching element
+	engine.RegisterMethod("FindFirst", processor, "FindFirst")
+
+	result, err := engine.Eval(`
+		// Define a callback that checks if a number is even
+		function IsEven(n: Integer): Boolean;
+		begin
+			Result := (n mod 2) = 0;
+		end;
+
+		// Define a callback that checks if a number is > 3
+		function GreaterThanThree(n: Integer): Boolean;
+		begin
+			Result := n > 3;
+		end;
+
+		// Test FilterWith (should return [2, 4])
+		var evens := FilterWith(@IsEven);
+		if Length(evens) <> 2 then
+			raise Exception.Create('FilterWith length wrong');
+		if evens[0] <> 2 or evens[1] <> 4 then
+			raise Exception.Create('FilterWith values wrong');
+
+		// Test FilterWith with different predicate (should return [4, 5])
+		var greaterThanThree := FilterWith(@GreaterThanThree);
+		if Length(greaterThanThree) <> 2 then
+			raise Exception.Create('FilterWith >3 length wrong');
+		if greaterThanThree[0] <> 4 or greaterThanThree[1] <> 5 then
+			raise Exception.Create('FilterWith >3 values wrong');
+
+		// Test FindFirst (should return 2, the first even number)
+		var firstEven := FindFirst(@IsEven);
+		if firstEven <> 2 then
+			raise Exception.Create('FindFirst failed');
+
+		PrintLn('Methods with callbacks test passed');
+	`)
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+	if !result.Success {
+		t.Fatal("test script failed")
+	}
+
+	expected := "Methods with callbacks test passed\n"
+	output := buf.String()
+	if output != expected {
+		t.Errorf("expected output %q, got %q", expected, output)
+	}
+}
+
+// TestFFIComplexCombination tests combining 3+ features: methods, var params, and callbacks.
+func TestFFIComplexCombination(t *testing.T) {
+	engine, err := New(WithTypeCheck(false))
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+
+	var buf strings.Builder
+	engine.SetOutput(&buf)
+
+	processor := &ComplexProcessor{name: "TestProcessor"}
+
+	// Method with var param and callback
+	engine.RegisterMethod("ProcessWithStats", processor, "ProcessWithStats")
+
+	result, err := engine.Eval(`
+		// Define a callback
+		function Triple(n: Integer): Integer;
+		begin
+			Result := n * 3;
+		end;
+
+		// Test ProcessWithStats: passes data through callback and reports stats
+		var count, sum: Integer;
+		var processed := ProcessWithStats(@Triple, count, sum, 1, 2, 3, 4);
+
+		if Length(processed) <> 4 then
+			raise Exception.Create('Processed length wrong');
+		if processed[0] <> 3 or processed[3] <> 12 then
+			raise Exception.Create('Processed values wrong');
+		if count <> 4 then
+			raise Exception.Create('Count wrong: ' + IntToStr(count));
+		if sum <> 30 then // 3+6+9+12 = 30
+			raise Exception.Create('Sum wrong: ' + IntToStr(sum));
+
+		PrintLn('Complex combination test passed');
+	`)
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+	if !result.Success {
+		t.Fatal("test script failed")
+	}
+
+	expected := "Complex combination test passed\n"
+	output := buf.String()
+	if output != expected {
+		t.Errorf("expected output %q, got %q", expected, output)
+	}
+}
+
+// TestFFINestedCallbacks tests deeply nested callback chains.
+func TestFFINestedCallbacks(t *testing.T) {
+	engine, err := New(WithTypeCheck(false))
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+
+	var buf strings.Builder
+	engine.SetOutput(&buf)
+
+	// Function that takes a callback and applies it twice (nesting)
+	engine.RegisterFunction("ApplyTwice", func(callback func(int64) int64, n int64) int64 {
+		return callback(callback(n))
+	})
+
+	// Function that takes a callback and a number of times to apply it
+	engine.RegisterFunction("ApplyNTimes", func(callback func(int64) int64, n int64, times int64) int64 {
+		result := n
+		for i := int64(0); i < times; i++ {
+			result = callback(result)
+		}
+		return result
+	})
+
+	// Function that takes two callbacks and composes them
+	engine.RegisterFunction("Compose", func(f func(int64) int64, g func(int64) int64, n int64) int64 {
+		return f(g(n))
+	})
+
+	result, err := engine.Eval(`
+		function AddOne(n: Integer): Integer;
+		begin
+			Result := n + 1;
+		end;
+
+		function Double(n: Integer): Integer;
+		begin
+			Result := n * 2;
+		end;
+
+		// Test ApplyTwice: AddOne twice = +2
+		var result := ApplyTwice(@AddOne, 5);
+		if result <> 7 then
+			raise Exception.Create('ApplyTwice failed');
+
+		// Test ApplyNTimes: AddOne 5 times = +5
+		result := ApplyNTimes(@AddOne, 10, 5);
+		if result <> 15 then
+			raise Exception.Create('ApplyNTimes failed');
+
+		// Test Compose: Double then AddOne: (5*2)+1 = 11
+		result := Compose(@AddOne, @Double, 5);
+		if result <> 11 then
+			raise Exception.Create('Compose failed');
+
+		// Test Compose other direction: AddOne then Double: (5+1)*2 = 12
+		result := Compose(@Double, @AddOne, 5);
+		if result <> 12 then
+			raise Exception.Create('Compose reverse failed');
+
+		PrintLn('Nested callbacks test passed');
+	`)
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+	if !result.Success {
+		t.Fatal("test script failed")
+	}
+
+	expected := "Nested callbacks test passed\n"
+	output := buf.String()
+	if output != expected {
+		t.Errorf("expected output %q, got %q", expected, output)
+	}
+}
+
+// TestFFICallbacksWithErrors tests error propagation through callbacks.
+func TestFFICallbacksWithErrors(t *testing.T) {
+	engine, err := New(WithTypeCheck(false))
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+
+	var buf strings.Builder
+	engine.SetOutput(&buf)
+
+	// Function that applies callback and handles errors
+	engine.RegisterFunction("SafeApply", func(callback func(int64) (int64, error), n int64) (int64, error) {
+		return callback(n)
+	})
+
+	// Function that applies callback to array elements, stops on first error
+	engine.RegisterFunction("MapUntilError", func(callback func(int64) (int64, error), nums []int64) ([]int64, error) {
+		result := make([]int64, 0, len(nums))
+		for _, n := range nums {
+			val, err := callback(n)
+			if err != nil {
+				return result, err
+			}
+			result = append(result, val)
+		}
+		return result, nil
+	})
+
+	result, err := engine.Eval(`
+		function CheckedDivide(n: Integer): Integer;
+		begin
+			if n = 0 then
+				raise Exception.Create('Cannot divide by zero');
+			Result := 100 div n;
+		end;
+
+		// Test SafeApply with valid input
+		var result := SafeApply(@CheckedDivide, 5);
+		if result <> 20 then
+			raise Exception.Create('SafeApply valid case failed');
+
+		// Test SafeApply with error
+		try
+			result := SafeApply(@CheckedDivide, 0);
+			raise Exception.Create('Should have raised exception');
+		except
+			on E: EHost do begin
+				if not E.Message.Contains('Cannot divide by zero') then
+					raise Exception.Create('Wrong error message');
+			end;
+		end;
+
+		// Test MapUntilError with valid inputs
+		var mapped := MapUntilError(@CheckedDivide, [5, 4, 2, 1]);
+		if Length(mapped) <> 4 then
+			raise Exception.Create('MapUntilError length wrong');
+
+		// Test MapUntilError with error in middle
+		try
+			mapped := MapUntilError(@CheckedDivide, [5, 4, 0, 2]);
+			raise Exception.Create('MapUntilError should have raised exception');
+		except
+			on E: EHost do begin
+				// Error should occur, this is expected
+			end;
+		end;
+
+		PrintLn('Callbacks with errors test passed');
+	`)
+	if err != nil {
+		t.Fatalf("execution failed: %v", err)
+	}
+	if !result.Success {
+		t.Fatal("test script failed")
+	}
+
+	expected := "Callbacks with errors test passed\n"
+	output := buf.String()
+	if output != expected {
+		t.Errorf("expected output %q, got %q", expected, output)
+	}
+}
+
 // Helper function to run test script and compare output
 func runTestScript(t *testing.T, engine *Engine, scriptPath, expectedPath string) {
 	t.Helper()

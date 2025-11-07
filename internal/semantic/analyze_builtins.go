@@ -47,10 +47,11 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					i+1, arg.String(), arg.Pos().String())
 			}
 
-			argType := a.analyzeExpression(arg)
-			if argType != nil && !a.canAssign(argType, funcType.Parameters[i]) {
+			paramType := funcType.Parameters[i]
+			argType := a.analyzeExpressionWithExpectedType(arg, paramType)
+			if argType != nil && !a.canAssign(argType, paramType) {
 				a.addError("argument %d has type %s, expected %s at %s",
-					i+1, argType.String(), funcType.Parameters[i].String(),
+					i+1, argType.String(), paramType.String(),
 					expr.Token.Pos.String())
 			}
 		}
@@ -2192,9 +2193,18 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 	// Check argument count is within valid range
 	if len(expr.Arguments) < requiredParams {
-		a.addError("function '%s' expects at least %d arguments, got %d at %s",
-			funcIdent.Value, requiredParams, len(expr.Arguments),
-			expr.Token.Pos.String())
+		// Use more precise error message based on whether function has optional parameters
+		if requiredParams == len(funcType.Parameters) {
+			// All parameters are required
+			a.addError("function '%s' expects %d arguments, got %d at %s",
+				funcIdent.Value, requiredParams, len(expr.Arguments),
+				expr.Token.Pos.String())
+		} else {
+			// Function has optional parameters
+			a.addError("function '%s' expects at least %d arguments, got %d at %s",
+				funcIdent.Value, requiredParams, len(expr.Arguments),
+				expr.Token.Pos.String())
+		}
 		return nil
 	}
 	if len(expr.Arguments) > len(funcType.Parameters) {
@@ -2225,7 +2235,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		if isLazy {
 			// For lazy parameters, check expression type but don't evaluate
 			// The expression will be passed as-is to the interpreter for deferred evaluation
-			argType := a.analyzeExpression(arg)
+			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
 			if argType != nil && !a.canAssign(argType, expectedType) {
 				a.addError("lazy argument %d to function '%s' has type %s, expected %s at %s",
 					i+1, funcIdent.Value, argType.String(), expectedType.String(),
@@ -2233,7 +2243,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 		} else {
 			// Regular parameter: validate type normally
-			argType := a.analyzeExpression(arg)
+			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
 			if argType != nil && !a.canAssign(argType, expectedType) {
 				a.addError("argument %d to function '%s' has type %s, expected %s at %s",
 					i+1, funcIdent.Value, argType.String(), expectedType.String(),

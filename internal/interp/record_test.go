@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Task 8.73: RecordValue Creation Tests
+// RecordValue Creation Tests
 // ============================================================================
 
 func TestRecordValueCreation(t *testing.T) {
@@ -72,7 +72,7 @@ func TestRecordValueCreation(t *testing.T) {
 }
 
 // ============================================================================
-// Task 8.74: Record Literal Evaluation Tests
+// Record Literal Evaluation Tests
 // ============================================================================
 
 func TestEvalRecordLiteral(t *testing.T) {
@@ -187,7 +187,7 @@ func TestEvalRecordLiteral(t *testing.T) {
 }
 
 // ============================================================================
-// Task 8.75: Record Field Access (Read) Tests
+// Record Field Access (Read) Tests
 // ============================================================================
 
 func TestRecordFieldAccess(t *testing.T) {
@@ -278,7 +278,7 @@ func TestRecordFieldAccess(t *testing.T) {
 }
 
 // ============================================================================
-// Task 8.76: Record Field Assignment (Write) Tests
+// Record Field Assignment (Write) Tests
 // ============================================================================
 
 func TestRecordFieldAssignment(t *testing.T) {
@@ -378,7 +378,7 @@ func TestRecordFieldAssignment(t *testing.T) {
 }
 
 // ============================================================================
-// Task 8.77: Record Copying (Value Semantics) Tests
+// Record Copying (Value Semantics) Tests
 // ============================================================================
 
 func TestRecordCopying(t *testing.T) {
@@ -483,7 +483,7 @@ func TestRecordCopying(t *testing.T) {
 }
 
 // ============================================================================
-// Task 8.79: Record Comparison Tests
+// Record Comparison Tests
 // ============================================================================
 
 func TestRecordComparison(t *testing.T) {

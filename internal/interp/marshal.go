@@ -18,7 +18,11 @@ import (
 //   - BOOLEAN → bool
 //   - ARRAY → []T (Go slices)
 //   - RECORD → map[string]T (Go maps with string keys)
-func MarshalToGo(dwsValue Value, targetType reflect.Type) (any, error) {
+//   - FUNCTION POINTER → func(...) (Task 9.4a - callback support)
+//
+// The interp parameter is optional and only required for function pointer marshaling.
+// Pass nil if callbacks are not needed.
+func MarshalToGo(dwsValue Value, targetType reflect.Type, interp *Interpreter) (any, error) {
 	switch targetType.Kind() {
 	case reflect.Int64:
 		goVal, err := GoInt(dwsValue)
@@ -99,7 +103,7 @@ func MarshalToGo(dwsValue Value, targetType reflect.Type) (any, error) {
 
 		// Convert each element
 		for i, elem := range arrayVal.Elements {
-			goElem, err := MarshalToGo(elem, elemType)
+			goElem, err := MarshalToGo(elem, elemType, interp)
 			if err != nil {
 				return nil, fmt.Errorf("array element %d: %w", i, err)
 			}
@@ -128,7 +132,7 @@ func MarshalToGo(dwsValue Value, targetType reflect.Type) (any, error) {
 
 		// Convert each field
 		for key, fieldVal := range recordVal.Fields {
-			goElem, err := MarshalToGo(fieldVal, elemType)
+			goElem, err := MarshalToGo(fieldVal, elemType, interp)
 			if err != nil {
 				return nil, fmt.Errorf("record field %s: %w", key, err)
 			}
@@ -138,7 +142,7 @@ func MarshalToGo(dwsValue Value, targetType reflect.Type) (any, error) {
 		return goMap.Interface(), nil
 
 	case reflect.Ptr:
-		// Task 9.2d: Handle pointer parameters (var parameters)
+		// Handle pointer parameters (var parameters)
 		// For pointer types, we need to:
 		// 1. Get the underlying value from the DWScript variable
 		// 2. Marshal it to the pointed-to type
@@ -150,7 +154,7 @@ func MarshalToGo(dwsValue Value, targetType reflect.Type) (any, error) {
 		elemType := targetType.Elem()
 
 		// Marshal the DWScript value to the pointed-to type
-		elemValue, err := MarshalToGo(dwsValue, elemType)
+		elemValue, err := MarshalToGo(dwsValue, elemType, interp)
 		if err != nil {
 			return nil, fmt.Errorf("pointer element: %w", err)
 		}
@@ -160,6 +164,24 @@ func MarshalToGo(dwsValue Value, targetType reflect.Type) (any, error) {
 		ptrValue.Elem().Set(reflect.ValueOf(elemValue))
 
 		return ptrValue.Interface(), nil
+
+	case reflect.Func:
+		// Marshal DWScript function pointers to Go callbacks
+		// Check if DWScript value is a function pointer
+		funcPtr, ok := dwsValue.(*FunctionPointerValue)
+		if !ok {
+			return nil, fmt.Errorf("expected function pointer, got %s", dwsValue.Type())
+		}
+
+		// Require interpreter for callbacks
+		if interp == nil {
+			return nil, fmt.Errorf("interpreter required for function pointer marshaling")
+		}
+
+		// Create Go wrapper function using reflection
+		// The wrapper will capture the interpreter context and call back into DWScript
+		goWrapper := createGoFunctionWrapper(funcPtr, targetType, interp)
+		return goWrapper, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported target type: %s", targetType)
@@ -267,7 +289,6 @@ func MarshalToDWS(goValue any) (Value, error) {
 }
 
 // UnmarshalFromGoPtr reads a value from a Go pointer and converts it back to DWScript.
-// Task 9.2d: Used to sync modified values from Go var parameters back to DWScript.
 //
 // This function takes a Go pointer (reflect.Value) that was passed to a Go function
 // as a var parameter, reads the (potentially modified) value it points to, and converts

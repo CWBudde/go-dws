@@ -719,6 +719,10 @@ func (i *Interpreter) callBuiltinFunction(name string, args []Value) Value {
 // It uses the existing FFI error handling infrastructure to safely call the Go function
 // and convert any errors or panics to DWScript exceptions.
 func (i *Interpreter) callExternalFunction(extFunc *ExternalFunctionValue, args []Value) Value {
+	// Task 9.4: Set interpreter reference for callback support
+	// This allows the FFI wrapper to create Go callbacks that call back into DWScript
+	extFunc.Wrapper.SetInterpreter(i)
+
 	// Use the existing callExternalFunctionSafe wrapper which handles panics
 	// and converts them to EHost exceptions (from ffi_errors.go)
 	return i.callExternalFunctionSafe(func() (Value, error) {
@@ -817,7 +821,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		// Task 9.35: For var parameters, arg should already be a ReferenceValue
 		// Don't apply implicit conversion to references - they need to stay as references
 		if !param.ByRef {
-			// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+			// Apply implicit conversion if parameter has a type and types don't match
 			if param.Type != nil {
 				paramTypeName := param.Type.Name
 				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
@@ -911,7 +915,6 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		return &NilValue{} // Return NilValue - actual value doesn't matter when exception is active
 	}
 
-	// Task 8.235n: Handle exit signal
 	// If exit was called, clear the signal (don't propagate to caller)
 	if i.exitSignal {
 		i.exitSignal = false
@@ -933,7 +936,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 			returnValue = &NilValue{}
 		}
 
-		// Task 8.19c: Apply implicit conversion if return type doesn't match
+		// Apply implicit conversion if return type doesn't match
 		if returnValue.Type() != "NIL" {
 			expectedReturnType := fn.ReturnType.Name
 			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
@@ -945,7 +948,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		returnValue = &NilValue{}
 	}
 
-	// Task 9.149: Check postconditions after function body executes
+	// Check postconditions after function body executes
 	// Note: old values are available via oldValuesStack during postcondition evaluation
 	if fn.PostConditions != nil {
 		if err := i.checkPostconditions(fn.Name.Value, fn.PostConditions, i.env); err != nil {
@@ -1245,7 +1248,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	for idx, param := range method.Parameters {
 		arg := args[idx]
 
-		// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+		// Apply implicit conversion if parameter has a type and types don't match
 		if param.Type != nil {
 			paramTypeName := param.Type.Name
 			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
@@ -1330,7 +1333,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 			returnValue = &NilValue{}
 		}
 
-		// Task 8.19c: Apply implicit conversion if return type doesn't match
+		// Apply implicit conversion if return type doesn't match
 		if returnValue.Type() != "NIL" {
 			expectedReturnType := method.ReturnType.Name
 			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {

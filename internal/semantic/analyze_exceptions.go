@@ -9,7 +9,7 @@ import (
 // Exception Statement Analysis
 // ============================================================================
 
-// Task 8.208: Analyze raise statement
+// Analyze raise statement
 func (a *Analyzer) analyzeRaiseStatement(stmt *ast.RaiseStatement) {
 	// Bare raise (re-raise current exception)
 	if stmt.Exception == nil {
@@ -33,7 +33,7 @@ func (a *Analyzer) analyzeRaiseStatement(stmt *ast.RaiseStatement) {
 	}
 }
 
-// Task 8.205: Analyze try statement
+// Analyze try statement
 func (a *Analyzer) analyzeTryStatement(stmt *ast.TryStatement) {
 	// Analyze try block
 	if stmt.TryBlock != nil {
@@ -56,7 +56,7 @@ func (a *Analyzer) analyzeTryStatement(stmt *ast.TryStatement) {
 	}
 }
 
-// Task 8.206: Analyze except clause
+// Analyze except clause
 func (a *Analyzer) analyzeExceptClause(clause *ast.ExceptClause) {
 	// Track exception types to detect duplicates
 	seenTypes := make(map[string]bool)
@@ -81,7 +81,7 @@ func (a *Analyzer) analyzeExceptClause(clause *ast.ExceptClause) {
 	}
 }
 
-// Task 8.207: Analyze exception handler
+// Analyze exception handler
 func (a *Analyzer) analyzeExceptionHandler(handler *ast.ExceptionHandler) {
 	// For bare except handlers (handler.ExceptionType == nil), we don't need to validate the type
 	// Bare except catches all exceptions
@@ -130,7 +130,7 @@ func (a *Analyzer) analyzeExceptionHandler(handler *ast.ExceptionHandler) {
 	a.symbols = oldSymbols
 }
 
-// Task 8.209: Analyze finally clause
+// Analyze finally clause
 func (a *Analyzer) analyzeFinallyClause(clause *ast.FinallyClause) {
 	if clause.Block != nil {
 		// Set finally block context for control flow validation

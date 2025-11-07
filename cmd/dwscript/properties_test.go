@@ -9,7 +9,6 @@ import (
 )
 
 // TestPropertyScriptsExist verifies all property test scripts exist
-// Task 8.59: Create CLI integration tests for properties
 func TestPropertyScriptsExist(t *testing.T) {
 	scripts := []string{
 		"../../testdata/properties/basic_property.dws",
@@ -29,7 +28,6 @@ func TestPropertyScriptsExist(t *testing.T) {
 }
 
 // TestPropertyParsing tests that all property scripts parse correctly
-// Task 8.59: Verify property syntax parsing via CLI
 func TestPropertyParsing(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
@@ -71,7 +69,6 @@ func TestPropertyParsing(t *testing.T) {
 }
 
 // TestPropertyParseCommand tests parsing property features via CLI
-// Task 8.59: Test property declaration and access syntax
 func TestPropertyParseCommand(t *testing.T) {
 	// Build the CLI if needed
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
@@ -170,7 +167,6 @@ end;
 }
 
 // TestPropertyComplexSyntax tests more complex property declarations
-// Task 8.59: Verify advanced property syntax parses correctly
 func TestPropertyComplexSyntax(t *testing.T) {
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
 	if err := buildCmd.Run(); err != nil {
@@ -242,7 +238,6 @@ end;
 }
 
 // TestPropertyInheritance tests property inheritance through CLI
-// Task 8.59: Verify properties are inherited correctly
 func TestPropertyInheritance(t *testing.T) {
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
 	if err := buildCmd.Run(); err != nil {

@@ -14,10 +14,6 @@ import (
 // PropertyDecl represents a property declaration in a class.
 // Properties provide syntactic sugar for getter/setter access.
 //
-// Task 8.30a: Fields: Name, Type, ReadSpec, WriteSpec, IndexParams, IsDefault
-// Task 8.30b: ReadSpec can be: field name (Identifier), method name (Identifier), or expression (Expression)
-// Task 8.30c: WriteSpec can be: field name (Identifier), method name (Identifier), or nil (read-only)
-//
 // DWScript syntax examples:
 //
 //	property Name: String read FName write FName;                      // Field-backed
@@ -41,7 +37,6 @@ func (pd *PropertyDecl) TokenLiteral() string { return pd.Token.Literal }
 func (pd *PropertyDecl) Pos() lexer.Position  { return pd.Token.Pos }
 
 // String returns the string representation of the property declaration.
-// Task 8.34: Implement String() method
 func (pd *PropertyDecl) String() string {
 	var out bytes.Buffer
 

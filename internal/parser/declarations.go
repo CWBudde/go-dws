@@ -55,7 +55,7 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 
 	// We should now be at the identifier
 	if !p.isIdentifierToken(p.curToken.Type) {
-		p.addError("expected identifier in const declaration")
+		p.addError("expected identifier in const declaration", ErrExpectedIdent)
 		return nil
 	}
 
@@ -70,7 +70,7 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 		p.nextToken() // move to type expression
 		typeExpr := p.parseTypeExpression()
 		if typeExpr == nil {
-			p.addError("expected type expression after ':' in const declaration")
+			p.addError("expected type expression after ':' in const declaration", ErrExpectedType)
 			return stmt
 		}
 
@@ -87,7 +87,7 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 		case *ast.ArrayTypeNode:
 			// Check if Token is nil to prevent panics (defensive programming)
 			if te == nil {
-				p.addError("array type expression is nil in const declaration")
+				p.addError("array type expression is nil in const declaration", ErrInvalidType)
 				return stmt
 			}
 			// Use the array token or create a dummy token if nil
@@ -101,14 +101,14 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 				Name:  te.String(),
 			}
 		default:
-			p.addError("unsupported type expression in const declaration")
+			p.addError("unsupported type expression in const declaration", ErrInvalidType)
 			return stmt
 		}
 	}
 
 	// Expect '=' or ':=' token
 	if !p.peekTokenIs(lexer.EQ) && !p.peekTokenIs(lexer.ASSIGN) {
-		p.addError("expected '=' or ':=' after const name")
+		p.addError("expected '=' or ':=' after const name", ErrMissingAssign)
 		return stmt
 	}
 	p.nextToken() // move to '=' or ':='
@@ -137,7 +137,7 @@ func (p *Parser) parseProgramDeclaration() {
 
 	// Expect identifier (program name)
 	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected program name after 'program' keyword")
+		p.addError("expected program name after 'program' keyword", ErrExpectedIdent)
 		return
 	}
 
@@ -146,7 +146,7 @@ func (p *Parser) parseProgramDeclaration() {
 
 	// Expect semicolon
 	if !p.expectPeek(lexer.SEMICOLON) {
-		p.addError("expected ';' after program name")
+		p.addError("expected ';' after program name", ErrMissingSemicolon)
 		return
 	}
 

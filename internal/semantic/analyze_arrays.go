@@ -12,7 +12,6 @@ import (
 // ============================================================================
 
 // analyzeArrayDecl analyzes an array type declaration
-// Task 8.126: Register array types and validate bounds
 func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 	if decl == nil {
 		return
@@ -80,7 +79,6 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 }
 
 // analyzeIndexExpression analyzes an array/string indexing expression
-// Task 8.126: Type-check array indexing (index must be integer, result is element type)
 func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type {
 	if expr == nil {
 		return nil

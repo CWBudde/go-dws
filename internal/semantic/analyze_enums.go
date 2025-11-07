@@ -19,7 +19,7 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 
 	enumName := decl.Name.Value
 
-	// Task 8.45: Check if enum is already declared
+	// Check if enum is already declared
 	// Use lowercase for case-insensitive duplicate check
 	if _, exists := a.enums[strings.ToLower(enumName)]; exists {
 		a.addError("enum type '%s' already declared at %s", enumName, decl.Token.Pos.String())
@@ -33,8 +33,7 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 		OrderedNames: make([]string, 0, len(decl.Values)),
 	}
 
-	// Task 8.44: Register enum values and calculate ordinal values
-	// Task 8.45: Validate uniqueness and range
+	// Register enum values and calculate ordinal values
 	currentOrdinal := 0
 	usedValues := make(map[int]string) // Track used ordinal values to detect duplicates
 	usedNames := make(map[string]bool) // Track used names to detect duplicates
@@ -42,7 +41,7 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 	for _, enumValue := range decl.Values {
 		valueName := enumValue.Name
 
-		// Task 8.45: Check for duplicate value names
+		// Check for duplicate value names
 		if usedNames[valueName] {
 			a.addError("duplicate enum value '%s' in enum '%s' at %s",
 				valueName, enumName, decl.Token.Pos.String())
@@ -56,7 +55,7 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 			ordinalValue = *enumValue.Value
 		}
 
-		// Task 8.45: Check for duplicate ordinal values
+		// Check for duplicate ordinal values
 		if existingName, exists := usedValues[ordinalValue]; exists {
 			a.addError("duplicate enum ordinal value %d in enum '%s' (values '%s' and '%s') at %s",
 				ordinalValue, enumName, existingName, valueName, decl.Token.Pos.String())
@@ -72,11 +71,10 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 		currentOrdinal = ordinalValue + 1
 	}
 
-	// Task 8.43: Register the enum type
-	// Use lowercase key for case-insensitive lookup
+	// Register the enum type (use lowercase key for case-insensitive lookup)
 	a.enums[strings.ToLower(enumName)] = enumType
 
-	// Task 8.44: Register each enum value as a constant in the symbol table
+	// Register each enum value as a constant in the symbol table
 	for valueName, ordinalValue := range enumType.Values {
 		// Store enum values as constants with the enum type
 		// For now, we'll store them as the enum type itself

@@ -284,7 +284,7 @@ func TestParseConstDeclarationErrors(t *testing.T) {
 
 		found := false
 		for _, err := range p.errors {
-			if strings.Contains(err, tt.expectedError) {
+			if strings.Contains(err.Message, tt.expectedError) {
 				found = true
 				break
 			}
@@ -1019,7 +1019,7 @@ func TestParseProgramDeclarationErrors(t *testing.T) {
 
 			found := false
 			for _, err := range p.errors {
-				if strings.Contains(err, tt.expectedError) {
+				if strings.Contains(err.Message, tt.expectedError) {
 					found = true
 					break
 				}

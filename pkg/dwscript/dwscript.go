@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/interp"
@@ -67,9 +68,21 @@ func (e *Engine) Compile(source string) (*Program, error) {
 	p := parser.New(l)
 	program := p.ParseProgram()
 	if len(p.Errors()) > 0 {
+		// Convert parser errors to public Error type
+		errors := make([]*Error, 0, len(p.Errors()))
+		for _, perr := range p.Errors() {
+			errors = append(errors, &Error{
+				Message:  perr.Message,
+				Line:     perr.Pos.Line,
+				Column:   perr.Pos.Column,
+				Length:   perr.Length,
+				Severity: SeverityError,
+				Code:     perr.Code,
+			})
+		}
 		return nil, &CompileError{
 			Stage:  "parsing",
-			Errors: p.Errors(),
+			Errors: errors,
 		}
 	}
 
@@ -77,9 +90,11 @@ func (e *Engine) Compile(source string) (*Program, error) {
 	if e.options.TypeCheck {
 		analyzer := semantic.NewAnalyzer()
 		if err := analyzer.Analyze(program); err != nil {
+			// Convert semantic errors
+			errors := convertSemanticError(err)
 			return nil, &CompileError{
 				Stage:  "type checking",
-				Errors: []string{err.Error()},
+				Errors: errors,
 			}
 		}
 	}
@@ -88,6 +103,55 @@ func (e *Engine) Compile(source string) (*Program, error) {
 		ast:     program,
 		options: e.options,
 	}, nil
+}
+
+// convertSemanticError converts semantic analysis errors to structured Error objects.
+func convertSemanticError(err error) []*Error {
+	// Check if it's already a semantic.AnalysisError
+	if analysisErr, ok := err.(*semantic.AnalysisError); ok {
+		errors := make([]*Error, 0, len(analysisErr.Errors))
+		for _, errStr := range analysisErr.Errors {
+			// Parse position from error string
+			line, column := 0, 0
+			message := errStr
+
+			// Try to extract position
+			var parsed bool
+			_, parseErr := fmt.Sscanf(errStr, "%s at %d:%d", &message, &line, &column)
+			if parseErr == nil {
+				parsed = true
+				if idx := strings.LastIndex(errStr, " at "); idx >= 0 {
+					message = errStr[:idx]
+				}
+			}
+
+			if !parsed {
+				message = errStr
+			}
+
+			errors = append(errors, &Error{
+				Message:  message,
+				Line:     line,
+				Column:   column,
+				Length:   0,
+				Severity: SeverityError,
+				Code:     "E_SEMANTIC",
+			})
+		}
+		return errors
+	}
+
+	// Fallback: single error
+	return []*Error{
+		{
+			Message:  err.Error(),
+			Line:     0,
+			Column:   0,
+			Length:   0,
+			Severity: SeverityError,
+			Code:     "E_SEMANTIC",
+		},
+	}
 }
 
 // Run executes a previously compiled Program and returns the result.
@@ -185,15 +249,47 @@ type CompileError struct {
 	// Stage indicates which compilation stage failed ("parsing" or "type checking").
 	Stage string
 
-	// Errors contains one or more error messages describing what went wrong.
-	Errors []string
+	// Errors contains one or more structured errors describing what went wrong.
+	// Each error includes position information, severity, and error codes for LSP integration.
+	Errors []*Error
 }
 
 func (e *CompileError) Error() string {
 	if len(e.Errors) == 1 {
-		return fmt.Sprintf("%s error: %s", e.Stage, e.Errors[0])
+		return fmt.Sprintf("%s error: %s", e.Stage, e.Errors[0].Error())
 	}
-	return fmt.Sprintf("%s errors: %v", e.Stage, e.Errors)
+
+	// Format multiple errors
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%s errors (%d):\n", e.Stage, len(e.Errors))
+	for i, err := range e.Errors {
+		if i < 10 || i == len(e.Errors)-1 { // Show first 10 and last error
+			fmt.Fprintf(&buf, "  - %s\n", err.Error())
+		} else if i == 10 {
+			fmt.Fprintf(&buf, "  ... and %d more errors\n", len(e.Errors)-11)
+		}
+	}
+	return buf.String()
+}
+
+// HasErrors returns true if there are any errors (not just warnings).
+func (e *CompileError) HasErrors() bool {
+	for _, err := range e.Errors {
+		if err.IsError() {
+			return true
+		}
+	}
+	return false
+}
+
+// HasWarnings returns true if there are any warnings.
+func (e *CompileError) HasWarnings() bool {
+	for _, err := range e.Errors {
+		if err.IsWarning() {
+			return true
+		}
+	}
+	return false
 }
 
 // RuntimeError is returned when a program fails during execution.

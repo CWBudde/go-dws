@@ -38,9 +38,9 @@ func expectError(t *testing.T, input string, expectedError string) {
 	program := p.ParseProgram()
 
 	if perrs := p.Errors(); len(perrs) > 0 {
-		for _, msg := range perrs {
+		for _, err := range perrs {
 			// Use case-insensitive comparison for enhanced error messages
-			if strings.Contains(strings.ToLower(msg), strings.ToLower(expectedError)) {
+			if strings.Contains(strings.ToLower(err.Message), strings.ToLower(expectedError)) {
 				return
 			}
 		}

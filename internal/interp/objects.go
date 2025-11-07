@@ -263,7 +263,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		return objVal
 	}
 
-	// Task 8.75: Check if it's a record value
+	// Check if it's a record value
 	if recordVal, ok := objVal.(*RecordValue); ok {
 		// Access record field
 		fieldValue, exists := recordVal.Fields[ma.Member.Value]
@@ -298,7 +298,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		return &StringValue{Value: obj.Class.Name}
 	}
 
-	// Task 8.53: Check if this is a property access (properties take precedence over fields)
+	// Check if this is a property access (properties take precedence over fields)
 	if propInfo := obj.Class.lookupProperty(memberName); propInfo != nil {
 		return i.evalPropertyRead(obj, propInfo, ma)
 	}
@@ -306,9 +306,9 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Not a property - try direct field access
 	fieldValue := obj.GetField(memberName)
 	if fieldValue == nil {
-		// Task 9.173: Check if it's a method
+		// Check if it's a method
 		if method, exists := obj.Class.Methods[memberName]; exists {
-			// Task 9.173: If the method has no parameters, auto-invoke it
+			// If the method has no parameters, auto-invoke it
 			// This allows DWScript syntax: obj.Method instead of obj.Method()
 			if len(method.Parameters) == 0 {
 				// Create a synthetic method call expression to use existing infrastructure
@@ -403,7 +403,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 
 	switch propInfo.ReadKind {
 	case types.PropAccessField:
-		// Task 8.53a: Field or method access - check at runtime which it is
+		// Field or method access - check at runtime which it is
 		// First try as a field
 		if _, exists := obj.Class.Fields[propInfo.ReadSpec]; exists {
 			fieldValue := obj.GetField(propInfo.ReadSpec)
@@ -419,7 +419,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			return i.newErrorWithLocation(node, "property '%s' read specifier '%s' not found as field or method", propInfo.Name, propInfo.ReadSpec)
 		}
 
-		// Task 9.1c: Indexed properties must be accessed with index syntax
+		// Indexed properties must be accessed with index syntax
 		if propInfo.IsIndexed {
 			return i.newErrorWithLocation(node, "indexed property '%s' requires index arguments (e.g., obj.%s[index])", propInfo.Name, propInfo.Name)
 		}
@@ -472,8 +472,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		return returnValue
 
 	case types.PropAccessMethod:
-		// Task 8.53b: Method access - call getter method
-		// Task 9.1c: Indexed properties must be accessed with index syntax
+		// Indexed properties must be accessed with index syntax
 		if propInfo.IsIndexed {
 			return i.newErrorWithLocation(node, "indexed property '%s' requires index arguments (e.g., obj.%s[index])", propInfo.Name, propInfo.Name)
 		}
@@ -578,7 +577,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 }
 
 // evalIndexedPropertyRead evaluates an indexed property read operation: obj.Property[index]
-// Task 9.1c: Support indexed property reads end-to-end.
+// Support indexed property reads end-to-end.
 // Calls the property getter method with index parameter(s).
 func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *types.PropertyInfo, indices []Value, node ast.Node) Value {
 	// Note: PropAccessKind is set to PropAccessField at registration time for both fields and methods
@@ -756,7 +755,7 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 
 	switch propInfo.WriteKind {
 	case types.PropAccessField:
-		// Task 8.54a: Field or method access - check at runtime which it is
+		// Field or method access - check at runtime which it is
 		// First try as a field
 		if _, exists := obj.Class.Fields[propInfo.WriteSpec]; exists {
 			obj.SetField(propInfo.WriteSpec, value)
@@ -799,7 +798,6 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		return value
 
 	case types.PropAccessMethod:
-		// Task 8.54b: Method access - call setter method with value
 		// Check if method exists
 		method := obj.Class.lookupMethod(propInfo.WriteSpec)
 		if method == nil {
@@ -927,7 +925,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				for idx, param := range classMethod.Parameters {
 					arg := args[idx]
 
-					// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+					// Apply implicit conversion if parameter has a type and types don't match
 					if param.Type != nil {
 						paramTypeName := param.Type.Name
 						if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
@@ -975,7 +973,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 						returnValue = &NilValue{}
 					}
 
-					// Task 8.19c: Apply implicit conversion if return type doesn't match
+					// Apply implicit conversion if return type doesn't match
 					if returnValue.Type() != "NIL" {
 						expectedReturnType := classMethod.ReturnType.Name
 						if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
@@ -1042,7 +1040,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				for idx, param := range instanceMethod.Parameters {
 					arg := args[idx]
 
-					// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+					// Apply implicit conversion if parameter has a type and types don't match
 					if param.Type != nil {
 						paramTypeName := param.Type.Name
 						if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
@@ -1103,7 +1101,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 						}
 					}
 
-					// Task 8.19c: Apply implicit conversion if return type doesn't match (but not for constructors)
+					// Apply implicit conversion if return type doesn't match (but not for constructors)
 					if instanceMethod.ReturnType != nil && returnValue.Type() != "NIL" {
 						expectedReturnType := instanceMethod.ReturnType.Name
 						if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
@@ -1283,7 +1281,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	for idx, param := range method.Parameters {
 		arg := args[idx]
 
-		// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+		// Apply implicit conversion if parameter has a type and types don't match
 		if param.Type != nil {
 			paramTypeName := param.Type.Name
 			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
@@ -1331,7 +1329,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			returnValue = &NilValue{}
 		}
 
-		// Task 8.19c: Apply implicit conversion if return type doesn't match
+		// Apply implicit conversion if return type doesn't match
 		if returnValue.Type() != "NIL" {
 			expectedReturnType := method.ReturnType.Name
 			if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {

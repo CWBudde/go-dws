@@ -8,9 +8,6 @@ import (
 // parseTypeDeclaration determines whether this is a class, interface, or enum declaration
 // and dispatches to the appropriate parser.
 // Syntax: type Name = class... OR type Name = interface... OR type Name = (...)
-//
-// Task 7.85: Dispatcher for type declarations
-// Task 8.38: Added enum support
 func (p *Parser) parseTypeDeclaration() ast.Statement {
 	// Current token is TYPE
 	// Pattern: TYPE IDENT EQ (CLASS|INTERFACE|LPAREN|ENUM)
@@ -63,7 +60,7 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 			}
 		}
 		// Not a subrange, fall through to error
-		p.addError("unexpected expression after '=' in type declaration (expected type name or subrange)")
+		p.addError("unexpected expression after '=' in type declaration (expected type name or subrange)", ErrUnexpectedToken)
 		return nil
 	} else if p.peekTokenIs(lexer.IDENT) {
 		// Type alias: type TUserID = Integer;
@@ -98,12 +95,10 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 		return p.parseRecordOrHelperDeclaration(nameIdent, typeToken)
 	} else if p.peekTokenIs(lexer.SET) {
 		// Set declaration: type TDays = set of TWeekday;
-		// Task 8.91-8.92: Integrated set parsing
 		p.nextToken() // move to SET
 		return p.parseSetDeclaration(nameIdent, typeToken)
 	} else if p.peekTokenIs(lexer.ARRAY) {
 		// Array declaration: type TMyArray = array[1..10] of Integer;
-		// Task 8.122: Integrated array parsing
 		p.nextToken() // move to ARRAY
 		return p.parseArrayDeclaration(nameIdent, typeToken)
 	} else if p.peekTokenIs(lexer.LPAREN) {
@@ -127,7 +122,7 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 	}
 
 	// Unknown type declaration
-	p.addError("expected 'class', 'interface', 'enum', 'record', 'set', 'array', 'function', 'procedure', 'helper', or '(' after '=' in type declaration")
+	p.addError("expected 'class', 'interface', 'enum', 'record', 'set', 'array', 'function', 'procedure', 'helper', or '(' after '=' in type declaration", ErrUnexpectedToken)
 	return nil
 }
 
@@ -190,7 +185,7 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 
 	// Expect closing parenthesis
 	if !p.curTokenIs(lexer.RPAREN) {
-		p.addError("expected ')' after parameter list in function pointer type")
+		p.addError("expected ')' after parameter list in function pointer type", ErrMissingRParen)
 		return nil
 	}
 
@@ -237,8 +232,6 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 // parseInterfaceDeclarationBody parses the body of an interface declaration.
 // Called after 'type Name = interface' has already been parsed.
 // Current token should be 'interface'.
-//
-// Task 7.81: Parse interface declarations with inheritance and external support
 func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.InterfaceDecl {
 	interfaceDecl := &ast.InterfaceDecl{
 		Token: p.curToken, // 'interface' token
@@ -305,7 +298,7 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 
 	// Expect 'end'
 	if !p.curTokenIs(lexer.END) {
-		p.addError("expected 'end' to close interface declaration")
+		p.addError("expected 'end' to close interface declaration", ErrMissingEnd)
 		return nil
 	}
 
@@ -321,8 +314,6 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 // Syntax: procedure MethodName(params);
 //
 //	function MethodName(params): ReturnType;
-//
-// Task 7.82: Parse interface method declarations (abstract methods with no body)
 func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 	methodDecl := &ast.InterfaceMethodDecl{Token: p.curToken}
 
@@ -365,10 +356,10 @@ func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 		return nil
 	}
 
-	// Task 7.82: Error if body is present (interfaces are abstract)
+	// Error if body is present (interfaces are abstract)
 	// If we see 'begin' next, it's an error
 	if p.peekTokenIs(lexer.BEGIN) {
-		p.addError("interface methods cannot have a body")
+		p.addError("interface methods cannot have a body", ErrInvalidSyntax)
 		return nil
 	}
 

@@ -2,7 +2,6 @@ package interp
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -16,7 +15,7 @@ func testEvalClassStatic(input string) (Value, string) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		panic("Parser errors: " + strings.Join(p.Errors(), "\n"))
+		panic("Parser errors: " + joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer

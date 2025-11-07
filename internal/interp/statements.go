@@ -26,7 +26,7 @@ func (i *Interpreter) evalProgram(program *ast.Program) Value {
 			break
 		}
 
-		// Task 8.235n: Check if exit was called at program level
+		// Check if exit was called at program level
 		if i.exitSignal {
 			i.exitSignal = false // Clear signal
 			break                // Exit the program
@@ -471,7 +471,7 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 			return value
 		}
 
-		// Task 8.77: Records have value semantics - copy when assigning
+		// Records have value semantics - copy when assigning
 		if recordVal, ok := value.(*RecordValue); ok && !handledLiteral {
 			value = recordVal.Copy()
 		}
@@ -749,7 +749,7 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 		return objVal
 	}
 
-	// Task 8.76: Check if it's a record value
+	// Check if it's a record value
 	if recordVal, ok := objVal.(*RecordValue); ok {
 		fieldName := target.Member.Value
 		// Verify field exists in the record type
@@ -825,7 +825,7 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 
 	memberName := target.Member.Value
 
-	// Task 8.54: Check if this is a property assignment (properties take precedence over fields)
+	// Check if this is a property assignment (properties take precedence over fields)
 	if propInfo := obj.Class.lookupProperty(memberName); propInfo != nil {
 		return i.evalPropertyWrite(obj, propInfo, value, stmt)
 	}
@@ -959,7 +959,7 @@ func (i *Interpreter) evalBlockStatement(block *ast.BlockStatement) Value {
 			return nil
 		}
 
-		// Task 8.235o: Check for control flow signals and propagate them upward
+		// Check for control flow signals and propagate them upward
 		// These signals should propagate up to the appropriate control structure
 		if i.breakSignal || i.continueSignal || i.exitSignal {
 			return nil // Propagate signal upward by returning early
@@ -1024,7 +1024,7 @@ func (i *Interpreter) evalWhileStatement(stmt *ast.WhileStatement) Value {
 			return result
 		}
 
-		// Task 8.235m: Handle break/continue signals
+		// Handle break/continue signals
 		if i.breakSignal {
 			i.breakSignal = false // Clear signal
 			break
@@ -1033,7 +1033,7 @@ func (i *Interpreter) evalWhileStatement(stmt *ast.WhileStatement) Value {
 			i.continueSignal = false // Clear signal
 			continue
 		}
-		// Task 8.235m: Handle exit signal (exit from function while in loop)
+		// Handle exit signal (exit from function while in loop)
 		if i.exitSignal {
 			// Don't clear the signal - let the function handle it
 			break
@@ -1057,7 +1057,7 @@ func (i *Interpreter) evalRepeatStatement(stmt *ast.RepeatStatement) Value {
 			return result
 		}
 
-		// Task 8.235m: Handle break/continue signals
+		// Handle break/continue signals
 		if i.breakSignal {
 			i.breakSignal = false // Clear signal
 			break
@@ -1066,7 +1066,7 @@ func (i *Interpreter) evalRepeatStatement(stmt *ast.RepeatStatement) Value {
 			i.continueSignal = false // Clear signal
 			// Continue to condition check
 		}
-		// Task 8.235m: Handle exit signal (exit from function while in loop)
+		// Handle exit signal (exit from function while in loop)
 		if i.exitSignal {
 			// Don't clear the signal - let the function handle it
 			break
@@ -1161,7 +1161,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 				return result
 			}
 
-			// Task 8.235m: Handle break/continue signals
+			// Handle break/continue signals
 			if i.breakSignal {
 				i.breakSignal = false // Clear signal
 				break
@@ -1170,7 +1170,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 				i.continueSignal = false // Clear signal
 				continue
 			}
-			// Task 8.235m: Handle exit signal (exit from function while in loop)
+			// Handle exit signal (exit from function while in loop)
 			if i.exitSignal {
 				// Don't clear the signal - let the function handle it
 				break
@@ -1189,7 +1189,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 				return result
 			}
 
-			// Task 8.235m: Handle break/continue signals
+			// Handle break/continue signals
 			if i.breakSignal {
 				i.breakSignal = false // Clear signal
 				break
@@ -1198,7 +1198,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 				i.continueSignal = false // Clear signal
 				continue
 			}
-			// Task 8.235m: Handle exit signal (exit from function while in loop)
+			// Handle exit signal (exit from function while in loop)
 			if i.exitSignal {
 				// Don't clear the signal - let the function handle it
 				break

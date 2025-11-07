@@ -186,7 +186,7 @@ var (
 // that accept heterogeneous arrays (array of const in Pascal)
 var ARRAY_OF_CONST = NewDynamicArrayType(VARIANT)
 
-// Task 7.75: IINTERFACE is the base interface type (like IUnknown in COM)
+// IINTERFACE is the base interface type (like IUnknown in COM)
 // All interfaces can inherit from this root interface.
 var IINTERFACE = &InterfaceType{
 	Name:         "IInterface",
@@ -607,7 +607,6 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 
 // InterfaceType represents an interface type in DWScript.
 // Interfaces define a contract of methods that implementing classes must provide.
-// Task 7.73-7.74: Extended with Parent for inheritance, IsExternal/ExternalName for FFI
 type InterfaceType struct {
 	Parent       *InterfaceType
 	Methods      map[string]*FunctionType
@@ -669,7 +668,6 @@ func (it *InterfaceType) InheritsFrom(parent *InterfaceType) bool {
 
 // NewInterfaceType creates a new interface type with the given name.
 // Parent is set to nil (use explicit struct initialization for interface inheritance).
-// Task 7.74: Initializes all fields including IsExternal (false) and ExternalName (empty).
 func NewInterfaceType(name string) *InterfaceType {
 	return &InterfaceType{
 		Name:         name,
@@ -686,7 +684,6 @@ func NewInterfaceType(name string) *InterfaceType {
 
 // IsSubinterfaceOf checks if 'child' is a subinterface of 'parent'.
 // This includes checking the entire inheritance chain.
-// Task 7.77: Interface inheritance checking with circular detection.
 func IsSubinterfaceOf(child, parent *InterfaceType) bool {
 	if child == nil || parent == nil {
 		return false
@@ -705,7 +702,6 @@ func IsSubinterfaceOf(child, parent *InterfaceType) bool {
 }
 
 // GetAllInterfaceMethods returns all methods of an interface, including inherited methods.
-// Task 7.78: Interface method inheritance - collects methods from entire hierarchy.
 func GetAllInterfaceMethods(iface *InterfaceType) map[string]*FunctionType {
 	if iface == nil {
 		return make(map[string]*FunctionType)
@@ -764,7 +760,6 @@ func IsAssignableFrom(target, source Type) bool {
 		}
 	}
 
-	// Task 7.79: Interface to interface assignment (covariant)
 	// A derived interface can be assigned to a base interface
 	if targetInterface, ok := target.(*InterfaceType); ok {
 		if sourceInterface, ok := source.(*InterfaceType); ok {

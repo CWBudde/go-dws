@@ -10,18 +10,10 @@ import (
 // ============================================================================
 
 // analyzePropertyDecl validates a property declaration and registers it in the class metadata.
-// This function implements Tasks 8.46-8.51.
-//
-// Task 8.46: Register properties in class metadata
-// Task 8.47: Validate getter (read specifier)
-// Task 8.48: Validate setter (write specifier)
-// Task 8.49: Validate indexed properties
-// Task 8.50: Check for duplicate property names
-// Task 8.51: Validate default property restrictions
 func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.ClassType) {
 	propName := prop.Name.Value
 
-	// Task 8.50: Check for duplicate property names within class
+	//  Check for duplicate property names within class
 	if _, exists := classType.Properties[propName]; exists {
 		a.addError("duplicate property '%s' in class '%s' at %s",
 			propName, classType.Name, prop.Token.Pos.String())
@@ -42,7 +34,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		return
 	}
 
-	// Task 8.49a: Validate indexed property parameters have valid types
+	// Validate indexed property parameters have valid types
 	isIndexed := prop.IndexParams != nil && len(prop.IndexParams) > 0
 	var indexParamTypes []types.Type
 	if isIndexed {
@@ -70,17 +62,17 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		IsDefault: prop.IsDefault,
 	}
 
-	// Task 8.47: Validate read specifier
+	// Validate read specifier
 	if prop.ReadSpec != nil {
 		a.validateReadSpec(prop, classType, propInfo, indexParamTypes)
 	}
 
-	// Task 8.48: Validate write specifier
+	// Validate write specifier
 	if prop.WriteSpec != nil {
 		a.validateWriteSpec(prop, classType, propInfo, indexParamTypes)
 	}
 
-	// Task 8.51: Validate default property restrictions
+	// Validate default property restrictions
 	if prop.IsDefault {
 		// Default properties must be indexed
 		if !isIndexed {
@@ -99,7 +91,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		}
 	}
 
-	// Task 8.46: Register property in class metadata
+	// Register property in class metadata
 	classType.Properties[propName] = propInfo
 }
 
@@ -116,7 +108,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	if ident, ok := prop.ReadSpec.(*ast.Identifier); ok {
 		readSpecName := ident.Value
 
-		// Task 8.47a: If field, verify field exists and has matching type
+		// If field, verify field exists and has matching type
 		if fieldType, found := classType.GetField(readSpecName); found {
 			if !propType.Equals(fieldType) {
 				a.addError("property '%s' read field '%s' has type %s, expected %s at %s",
@@ -129,7 +121,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 			return
 		}
 
-		// Task 8.47b: If method, verify method exists with correct signature
+		// If method, verify method exists with correct signature
 		if methodType, found := classType.GetMethod(readSpecName); found {
 			// Getter signature: for indexed properties, method must accept index parameters
 			// and return property type. For non-indexed, method must take no parameters
@@ -143,7 +135,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 				return
 			}
 
-			// Task 8.49b: Verify getter signature includes index parameters
+			// Verify getter signature includes index parameters
 			for i, paramType := range indexParamTypes {
 				if !methodType.Parameters[i].Equals(paramType) {
 					a.addError("property '%s' getter method '%s' parameter %d has type %s, expected %s at %s",
@@ -174,7 +166,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		return
 	}
 
-	// Task 8.47c: If expression, validate expression type matches property type
+	// If expression, validate expression type matches property type
 	// Note: For now, we store the expression as a string. Full expression validation
 	// would require analyzing the expression in the context of the class.
 	// This is a simplified implementation that just marks it as expression-based.
@@ -200,7 +192,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 
 	writeSpecName := ident.Value
 
-	// Task 8.48a: If field, verify field exists and has matching type
+	// If field, verify field exists and has matching type
 	if fieldType, found := classType.GetField(writeSpecName); found {
 		if !propType.Equals(fieldType) {
 			a.addError("property '%s' write field '%s' has type %s, expected %s at %s",
@@ -213,7 +205,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		return
 	}
 
-	// Task 8.48b: If method, verify method exists with correct signature
+	// If method, verify method exists with correct signature
 	if methodType, found := classType.GetMethod(writeSpecName); found {
 		// Setter signature: for indexed properties, method must accept index parameters
 		// plus the property value. For non-indexed, method must take only the value parameter.
@@ -227,7 +219,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 			return
 		}
 
-		// Task 8.49b: Verify setter signature includes index parameters
+		// Verify setter signature includes index parameters
 		for i, paramType := range indexParamTypes {
 			if !methodType.Parameters[i].Equals(paramType) {
 				a.addError("property '%s' setter method '%s' parameter %d has type %s, expected %s at %s",
