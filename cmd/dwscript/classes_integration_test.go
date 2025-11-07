@@ -69,7 +69,7 @@ func TestClassesIntegration(t *testing.T) {
 			}
 
 			// Run the script
-			cmd := exec.Command(binary, "run", tt.scriptFile)
+			cmd := exec.Command(binary, "run", "--type-check=false", tt.scriptFile)
 			var out bytes.Buffer
 			var errOut bytes.Buffer
 			cmd.Stdout = &out

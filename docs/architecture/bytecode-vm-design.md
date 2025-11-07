@@ -16,6 +16,18 @@ This document synthesizes research on bytecode virtual machine (VM) instruction 
 
 ---
 
+## Runtime Selection (AST vs Bytecode)
+
+The VM can now be exercised end-to-end without custom harnesses:
+
+- **CLI:** `dwscript run script.dws --bytecode` executes the program via the bytecode VM instead of the AST interpreter (experimental; unit loading remains interpreter-only for now).
+- **Go API:** `dwscript.New(dwscript.WithCompileMode(dwscript.CompileModeBytecode))` compiles scripts to bytecode chunks and runs them through the VM. Omitting the option keeps the default AST interpreter.
+- **Benchmarks:** `pkg/dwscript/compile_mode_bench_test.go` compares interpreter vs VM execution time on the same workload so regressions are easy to spot.
+
+These hooks ensure feature work in the VM has high-visibility entry points while keeping AST execution as the default, battle-tested path.
+
+---
+
 ## 1. Stack-Based vs Register-Based VMs
 
 ### Performance Comparison
@@ -779,6 +791,28 @@ func (vm *VM) Run() error {
 **4. Computed Goto (future, non-standard Go)**
 - Replace switch with GCC/Clang computed goto
 - Requires cgo or assembler
+
+#### 8.2.1 Bytecode Optimization Pipeline
+
+The compiler now routes every `Chunk` through a configurable optimization pipeline (see `internal/bytecode/optimizer.go`). Each pass implements a small, local rewrite and the pass manager replays them in order whenever `Chunk.Optimize()` is invoked.
+
+- **Pass controls:** use `WithOptimizationPass(pass, enabled)` to toggle any pass when calling `Chunk.Optimize`. Passes default to `enabled=true`, so existing call sites can omit options.
+- **Named passes:** 
+  - `PassLiteralDiscard` removes literal `LOAD_*` instructions that are immediately popped.
+  - `PassStackShuffle` collapses redundant stack shuffles (e.g., `DUP`/`POP`, `SWAP` pairs, and `ROTATE3` triples).
+  - `PassInlineSmall` substitutes call sites to leaf functions (< ~10 instructions, no locals/upvalues/args) directly with their instruction stream.
+  - `PassConstPropagation` tracks simple literal locals/globals and folds straight-line arithmetic/comparison sequences down to single constant loads.
+  - `PassDeadCode` trims instructions that appear after unconditional terminators (`RETURN`, `HALT`, `JUMP`, etc.) unless another jump targets that instruction.
+- **Metadata safety:** the pass manager recomputes line tables, jump offsets, and try metadata after any pass mutates the instruction stream, so downstream tooling continues to report accurate locations.
+- **Future work:** additional passes (dead-code elimination, constant propagation, inlining) can be added by registering another `optimizerPass` item; the manager automatically honors the same toggle plumbing.
+
+Example:
+
+```go
+chunk.Optimize(
+    WithOptimizationPass(PassLiteralDiscard, false), // disable literal folding
+)
+```
 
 ---
 

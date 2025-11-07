@@ -12,9 +12,9 @@ import (
 // TestPositionSimpleStatements tests position tracking on simple statements (Task 10.19)
 func TestPositionSimpleStatements(t *testing.T) {
 	tests := []struct {
-		name      string
-		source    string
-		checkPos  func(t *testing.T, program *ast.Program)
+		name     string
+		source   string
+		checkPos func(t *testing.T, program *ast.Program)
 	}{
 		{
 			name:   "variable declaration",
@@ -296,9 +296,9 @@ func TestPositionWithUnicode(t *testing.T) {
 // TestPositionIsValid tests the Position.IsValid() method
 func TestPositionIsValid(t *testing.T) {
 	tests := []struct {
-		name  string
-		pos   token.Position
-		want  bool
+		name string
+		pos  token.Position
+		want bool
 	}{
 		{
 			name: "valid position",

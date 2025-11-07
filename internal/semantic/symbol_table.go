@@ -9,15 +9,15 @@ import (
 
 // Symbol represents a symbol in the symbol table (variable or function)
 type Symbol struct {
-	Type             types.Type
-	Overloads        []*Symbol   // List of overloaded function symbols (nil for non-overloaded)
-	Value            interface{} // Compile-time constant value (nil for non-constants)
-	Name             string
-	ReadOnly         bool
-	IsConst          bool
-	IsOverloadSet    bool // True if this symbol represents multiple overloaded functions
+	Type                 types.Type
+	Overloads            []*Symbol   // List of overloaded function symbols (nil for non-overloaded)
+	Value                interface{} // Compile-time constant value (nil for non-constants)
+	Name                 string
+	ReadOnly             bool
+	IsConst              bool
+	IsOverloadSet        bool // True if this symbol represents multiple overloaded functions
 	HasOverloadDirective bool // True if function has explicit 'overload' directive (Task 9.58)
-	IsForward        bool // True if this is a forward declaration (no body yet) (Task 9.60)
+	IsForward            bool // True if this is a forward declaration (no body yet) (Task 9.60)
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.

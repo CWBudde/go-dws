@@ -74,7 +74,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return resultType
 		}
 
-
 		// Low built-in function
 
 		// Assert built-in procedure
@@ -218,7 +217,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Task 9.232: Variant introspection functions
-
 
 		// Task 9.114: GetStackTrace() built-in function
 		if strings.EqualFold(funcIdent.Value, "GetStackTrace") {

@@ -215,8 +215,8 @@ const (
 
 // Re-export token functions
 var (
-	NewToken           = token.NewToken
-	LookupIdent        = token.LookupIdent
-	IsKeyword          = token.IsKeyword
-	GetKeywordLiteral  = token.GetKeywordLiteral
+	NewToken          = token.NewToken
+	LookupIdent       = token.LookupIdent
+	IsKeyword         = token.IsKeyword
+	GetKeywordLiteral = token.GetKeywordLiteral
 )

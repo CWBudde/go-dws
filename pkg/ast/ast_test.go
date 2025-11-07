@@ -131,8 +131,8 @@ end;
 // TestASTStructureForVariousPrograms tests AST structure for different code (Task 10.20)
 func TestASTStructureForVariousPrograms(t *testing.T) {
 	tests := []struct {
-		name          string
-		source        string
+		name           string
+		source         string
 		checkStructure func(t *testing.T, tree *ast.Program)
 	}{
 		{

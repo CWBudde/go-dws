@@ -24,6 +24,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/interp"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
@@ -100,10 +101,21 @@ func (e *Engine) Compile(source string) (*Program, error) {
 		}
 	}
 
+	var chunk *bytecode.Chunk
+	if e.options.CompileMode == CompileModeBytecode {
+		bc := bytecode.NewCompiler("dwscript")
+		var err error
+		chunk, err = bc.Compile(program)
+		if err != nil {
+			return nil, newBytecodeCompileError(err)
+		}
+	}
+
 	return &Program{
-		ast:      program,
-		analyzer: analyzer,
-		options:  e.options,
+		ast:           program,
+		analyzer:      analyzer,
+		options:       e.options,
+		bytecodeChunk: chunk,
 	}, nil
 }
 
@@ -216,6 +228,22 @@ func convertSemanticError(err error) []*Error {
 	}
 }
 
+func newBytecodeCompileError(err error) *CompileError {
+	return &CompileError{
+		Stage: "bytecode",
+		Errors: []*Error{
+			{
+				Message:  err.Error(),
+				Line:     0,
+				Column:   0,
+				Length:   0,
+				Severity: SeverityError,
+				Code:     "E_BYTECODE_COMPILE",
+			},
+		},
+	}
+}
+
 // extractPositionFromError extracts position information from an error string.
 // Returns (line, column, message) where line and column are 0 if not found.
 // Handles error formats like:
@@ -255,39 +283,67 @@ func (e *Engine) Run(program *Program) (*Result, error) {
 		output = &bytes.Buffer{}
 	}
 
-	// Set external functions in options for interpreter
+	if e.options.CompileMode == CompileModeBytecode {
+		return e.runBytecode(program, output)
+	}
+
+	return e.runInterpreter(program, output)
+}
+
+func (e *Engine) runInterpreter(program *Program, output io.Writer) (*Result, error) {
 	e.options.ExternalFunctions = e.externalFunctions
-
-	// Create interpreter with output writer and options
 	interpreter := interp.NewWithOptions(output, &e.options)
+	value := interpreter.Eval(program.ast)
 
-	// Execute
-	result := interpreter.Eval(program.ast)
-
-	// Check for runtime errors
-	if result != nil && result.Type() == "ERROR" {
-		outputStr := ""
-		if buf, ok := output.(*bytes.Buffer); ok {
-			outputStr = buf.String()
-		}
+	if value != nil && value.Type() == "ERROR" {
 		return &Result{
-				Output:  outputStr,
+				Output:  extractOutput(output),
 				Success: false,
 			}, &RuntimeError{
-				Message: result.String(),
+				Message: value.String(),
 			}
 	}
 
-	// Extract output if it was a buffer
-	outputStr := ""
-	if buf, ok := output.(*bytes.Buffer); ok {
-		outputStr = buf.String()
+	return &Result{
+		Output:  extractOutput(output),
+		Success: true,
+	}, nil
+}
+
+func (e *Engine) runBytecode(program *Program, output io.Writer) (*Result, error) {
+	chunk, err := program.ensureBytecodeChunk()
+	if err != nil {
+		return nil, err
+	}
+
+	vm := bytecode.NewVM()
+	if _, err := vm.Run(chunk); err != nil {
+		if runtimeErr, ok := err.(*bytecode.RuntimeError); ok {
+			return &Result{
+					Output:  extractOutput(output),
+					Success: false,
+				}, &RuntimeError{
+					Message: runtimeErr.Error(),
+				}
+		}
+
+		return &Result{
+			Output:  extractOutput(output),
+			Success: false,
+		}, err
 	}
 
 	return &Result{
-		Output:  outputStr,
+		Output:  extractOutput(output),
 		Success: true,
 	}, nil
+}
+
+func extractOutput(output io.Writer) string {
+	if buf, ok := output.(*bytes.Buffer); ok {
+		return buf.String()
+	}
+	return ""
 }
 
 // Eval is a convenience method that compiles and runs the source code in one call.
@@ -320,9 +376,10 @@ func (e *Engine) Eval(source string) (*Result, error) {
 // Program represents a compiled DWScript program.
 // It can be executed multiple times without re-compilation.
 type Program struct {
-	ast      *ast.Program
-	analyzer *semantic.Analyzer
-	options  Options
+	ast           *ast.Program
+	analyzer      *semantic.Analyzer
+	options       Options
+	bytecodeChunk *bytecode.Chunk
 }
 
 // AST returns the Abstract Syntax Tree of the compiled program.
@@ -342,6 +399,26 @@ type Program struct {
 //	}
 func (p *Program) AST() *ast.Program {
 	return p.ast
+}
+
+func (p *Program) ensureBytecodeChunk() (*bytecode.Chunk, error) {
+	if p == nil {
+		return nil, fmt.Errorf("program is nil")
+	}
+	if p.bytecodeChunk != nil {
+		return p.bytecodeChunk, nil
+	}
+	if p.ast == nil {
+		return nil, fmt.Errorf("bytecode compilation requires AST")
+	}
+
+	compiler := bytecode.NewCompiler("dwscript")
+	chunk, err := compiler.Compile(p.ast)
+	if err != nil {
+		return nil, err
+	}
+	p.bytecodeChunk = chunk
+	return chunk, nil
 }
 
 // Result represents the result of executing a DWScript program.

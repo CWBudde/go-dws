@@ -72,17 +72,17 @@ type (
 
 // Control flow
 type (
-	IfStatement     = pkgast.IfStatement
-	WhileStatement  = pkgast.WhileStatement
-	RepeatStatement = pkgast.RepeatStatement
-	ForStatement    = pkgast.ForStatement
-	ForInStatement  = pkgast.ForInStatement
-	CaseStatement   = pkgast.CaseStatement
-	CaseBranch      = pkgast.CaseBranch
-	BreakStatement  = pkgast.BreakStatement
+	IfStatement       = pkgast.IfStatement
+	WhileStatement    = pkgast.WhileStatement
+	RepeatStatement   = pkgast.RepeatStatement
+	ForStatement      = pkgast.ForStatement
+	ForInStatement    = pkgast.ForInStatement
+	CaseStatement     = pkgast.CaseStatement
+	CaseBranch        = pkgast.CaseBranch
+	BreakStatement    = pkgast.BreakStatement
 	ContinueStatement = pkgast.ContinueStatement
-	ExitStatement   = pkgast.ExitStatement
-	ForDirection    = pkgast.ForDirection
+	ExitStatement     = pkgast.ExitStatement
+	ForDirection      = pkgast.ForDirection
 )
 
 // Exception handling
@@ -96,34 +96,34 @@ type (
 
 // Declarations
 type (
-	FunctionDecl = pkgast.FunctionDecl
-	Parameter    = pkgast.Parameter
-	ClassDecl    = pkgast.ClassDecl
-	FieldDecl    = pkgast.FieldDecl
-	RecordDecl   = pkgast.RecordDecl
-	EnumDecl     = pkgast.EnumDecl
-	EnumValue    = pkgast.EnumValue
-	ArrayDecl    = pkgast.ArrayDecl
-	SetDecl      = pkgast.SetDecl
+	FunctionDecl        = pkgast.FunctionDecl
+	Parameter           = pkgast.Parameter
+	ClassDecl           = pkgast.ClassDecl
+	FieldDecl           = pkgast.FieldDecl
+	RecordDecl          = pkgast.RecordDecl
+	EnumDecl            = pkgast.EnumDecl
+	EnumValue           = pkgast.EnumValue
+	ArrayDecl           = pkgast.ArrayDecl
+	SetDecl             = pkgast.SetDecl
 	InterfaceDecl       = pkgast.InterfaceDecl
 	InterfaceMethodDecl = pkgast.InterfaceMethodDecl
-	OperatorDecl = pkgast.OperatorDecl
-	PropertyDecl = pkgast.PropertyDecl
-	HelperDecl   = pkgast.HelperDecl
-	UnitDeclaration = pkgast.UnitDeclaration
-	UsesClause   = pkgast.UsesClause
-	RecordPropertyDecl = pkgast.RecordPropertyDecl
-	FieldInitializer = pkgast.FieldInitializer
+	OperatorDecl        = pkgast.OperatorDecl
+	PropertyDecl        = pkgast.PropertyDecl
+	HelperDecl          = pkgast.HelperDecl
+	UnitDeclaration     = pkgast.UnitDeclaration
+	UsesClause          = pkgast.UsesClause
+	RecordPropertyDecl  = pkgast.RecordPropertyDecl
+	FieldInitializer    = pkgast.FieldInitializer
 )
 
 // Type nodes
 type (
-	TypeAnnotation      = pkgast.TypeAnnotation
-	ArrayTypeAnnotation = pkgast.ArrayTypeAnnotation
-	ArrayTypeNode       = pkgast.ArrayTypeNode
-	SetTypeNode         = pkgast.SetTypeNode
+	TypeAnnotation          = pkgast.TypeAnnotation
+	ArrayTypeAnnotation     = pkgast.ArrayTypeAnnotation
+	ArrayTypeNode           = pkgast.ArrayTypeNode
+	SetTypeNode             = pkgast.SetTypeNode
 	FunctionPointerTypeNode = pkgast.FunctionPointerTypeNode
-	TypeDeclaration     = pkgast.TypeDeclaration
+	TypeDeclaration         = pkgast.TypeDeclaration
 )
 
 // Supporting types
@@ -138,10 +138,10 @@ const (
 	VisibilityPrivate   = pkgast.VisibilityPrivate
 	VisibilityProtected = pkgast.VisibilityProtected
 	VisibilityPublic    = pkgast.VisibilityPublic
-	
+
 	ForTo     = pkgast.ForTo
 	ForDownto = pkgast.ForDownto
-	
+
 	OperatorKindGlobal     = pkgast.OperatorKindGlobal
 	OperatorKindClass      = pkgast.OperatorKindClass
 	OperatorKindConversion = pkgast.OperatorKindConversion

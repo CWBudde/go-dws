@@ -11,18 +11,19 @@ import (
 
 // Compiler converts AST nodes into bytecode chunks.
 type Compiler struct {
-	chunk      *Chunk
-	locals     []local
-	globals    map[string]globalVar
-	upvalues   []upvalue
-	loopStack  []*loopContext
-	functions  map[string]functionInfo
-	enclosing  *Compiler
-	scopeDepth int
-	nextSlot   uint16
-	maxSlot    uint16
-	nextGlobal uint16
-	lastLine   int
+	chunk           *Chunk
+	locals          []local
+	globals         map[string]globalVar
+	upvalues        []upvalue
+	loopStack       []*loopContext
+	functions       map[string]functionInfo
+	enclosing       *Compiler
+	scopeDepth      int
+	nextSlot        uint16
+	maxSlot         uint16
+	nextGlobal      uint16
+	lastLine        int
+	optimizeOptions []OptimizeOption
 }
 
 type local struct {
@@ -46,6 +47,7 @@ type upvalue struct {
 type functionInfo struct {
 	constIndex uint16
 	globalSlot uint16
+	fn         *FunctionObject
 }
 
 type loopKind int
@@ -62,28 +64,45 @@ type loopContext struct {
 	continueJumps []int
 }
 
+// CompilerOption configures a new compiler instance.
+type CompilerOption func(*Compiler)
+
 // NewCompiler creates a compiler for the given chunk name.
-func NewCompiler(chunkName string) *Compiler {
-	return newCompiler(chunkName, nil)
+func NewCompiler(chunkName string, opts ...CompilerOption) *Compiler {
+	return newCompiler(chunkName, nil, opts...)
 }
 
-func newCompiler(chunkName string, enclosing *Compiler) *Compiler {
+func newCompiler(chunkName string, enclosing *Compiler, opts ...CompilerOption) *Compiler {
 	globals := make(map[string]globalVar)
 	functions := make(map[string]functionInfo)
 	if enclosing != nil {
 		globals = enclosing.globals
 		functions = enclosing.functions
 	}
-	return &Compiler{
+	c := &Compiler{
 		chunk:     NewChunk(chunkName),
 		globals:   globals,
 		functions: functions,
 		enclosing: enclosing,
 	}
+	if enclosing != nil {
+		c.optimizeOptions = enclosing.optimizeOptions
+	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 func (c *Compiler) newChildCompiler(name string) *Compiler {
 	return newCompiler(name, c)
+}
+
+// WithCompilerOptimizeOptions overrides the optimization passes used by this compiler.
+func WithCompilerOptimizeOptions(opts ...OptimizeOption) CompilerOption {
+	return func(c *Compiler) {
+		c.optimizeOptions = opts
+	}
 }
 
 // Compile compiles the provided program into bytecode.
@@ -118,6 +137,8 @@ func (c *Compiler) Compile(program *ast.Program) (*Chunk, error) {
 	if c.needsHalt() {
 		c.chunk.WriteSimple(OpHalt, c.lastLine)
 	}
+
+	c.chunk.Optimize(c.optimizeOptions...)
 
 	return c.chunk, nil
 }
@@ -577,6 +598,7 @@ func (c *Compiler) compileFunctionDecl(fn *ast.FunctionDecl) error {
 	child.endScope()
 	child.chunk.LocalCount = int(child.maxSlot)
 	child.ensureFunctionReturn(lineOf(fn))
+	child.chunk.Optimize()
 
 	functionObject := NewFunctionObject(fn.Name.Value, child.chunk, len(fn.Parameters))
 	functionObject.UpvalueDefs = child.buildUpvalueDefs()
@@ -594,6 +616,7 @@ func (c *Compiler) compileFunctionDecl(fn *ast.FunctionDecl) error {
 	info := functionInfo{
 		constIndex: uint16(fnConstIndex),
 		globalSlot: globalSlot,
+		fn:         functionObject,
 	}
 	if c.functions == nil {
 		c.functions = make(map[string]functionInfo)
@@ -908,6 +931,7 @@ func (c *Compiler) compileLambdaExpression(expr *ast.LambdaExpression) error {
 	child.endScope()
 	child.chunk.LocalCount = int(child.maxSlot)
 	child.ensureFunctionReturn(lineOf(expr))
+	child.chunk.Optimize()
 
 	fn := NewFunctionObject(name, child.chunk, len(expr.Parameters))
 	fn.UpvalueDefs = child.buildUpvalueDefs()

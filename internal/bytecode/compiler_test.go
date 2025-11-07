@@ -14,6 +14,17 @@ const (
 	userGlobal1 = builtinExceptObjectIndex + 2
 )
 
+var testCompileOptimizeOptions = []OptimizeOption{
+	WithOptimizationPass(PassLiteralDiscard, false),
+	WithOptimizationPass(PassStackShuffle, false),
+	WithOptimizationPass(PassConstPropagation, false),
+	WithOptimizationPass(PassDeadCode, false),
+}
+
+func newTestCompiler(name string) *Compiler {
+	return NewCompiler(name, WithCompilerOptimizeOptions(testCompileOptimizeOptions...))
+}
+
 func TestCompiler_VarAssignReturn(t *testing.T) {
 	intType := &ast.TypeAnnotation{Name: "Integer"}
 
@@ -67,7 +78,7 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("test_function")
+	compiler := newTestCompiler("test_function")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -172,7 +183,7 @@ func TestCompiler_IfElse(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("test_if")
+	compiler := newTestCompiler("test_if")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -257,7 +268,7 @@ func TestCompiler_ArrayLiteralAndIndex(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("array_index")
+	compiler := newTestCompiler("array_index")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -312,7 +323,7 @@ func TestCompiler_NewExpression(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("new_expr")
+	compiler := newTestCompiler("new_expr")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -354,7 +365,7 @@ func TestCompiler_TryExceptTypedHandler(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("typed_catch")
+	compiler := newTestCompiler("typed_catch")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -405,7 +416,7 @@ func TestCompiler_TryExceptRethrowWithoutElse(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("typed_rethrow")
+	compiler := newTestCompiler("typed_rethrow")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -436,7 +447,7 @@ func TestCompiler_RaiseStatementExpression(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("raise_expr")
+	compiler := newTestCompiler("raise_expr")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -458,7 +469,7 @@ func TestCompiler_RaiseStatementBare(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("raise_bare")
+	compiler := newTestCompiler("raise_bare")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -521,7 +532,7 @@ func TestCompiler_TryFinallyMetadata(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("try_finally_meta")
+	compiler := newTestCompiler("try_finally_meta")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -579,7 +590,7 @@ func TestCompiler_ConstantFolding(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("fold_test")
+	compiler := newTestCompiler("fold_test")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -624,7 +635,7 @@ func TestCompiler_CallExpression(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("call_test")
+	compiler := newTestCompiler("call_test")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -749,7 +760,7 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("lambda_test")
+	compiler := newTestCompiler("lambda_test")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -908,7 +919,7 @@ func TestCompiler_MemberAccess(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("member_test")
+	compiler := newTestCompiler("member_test")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -1001,6 +1012,40 @@ func TestCompiler_SelfIdentifierEmitsGetSelf(t *testing.T) {
 	chunk := compileProgram(t, program)
 	if len(chunk.Code) == 0 || chunk.Code[0].OpCode() != OpGetSelf {
 		t.Fatalf("expected first instruction to be OpGetSelf, got %v", chunk.Code)
+	}
+}
+
+func TestCompiler_OptimizesLiteralExpressionStatements(t *testing.T) {
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.ExpressionStatement{
+				Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(1, 1)},
+				Expression: &ast.IntegerLiteral{
+					Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(1, 1)},
+					Value: 1,
+				},
+			},
+			&ast.ExpressionStatement{
+				Token: lexer.Token{Type: lexer.TRUE, Literal: "True", Pos: pos(2, 1)},
+				Expression: &ast.BooleanLiteral{
+					Token: lexer.Token{Type: lexer.TRUE, Literal: "True", Pos: pos(2, 1)},
+					Value: true,
+				},
+			},
+		},
+	}
+
+	compiler := NewCompiler("literal_opt")
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+
+	if len(chunk.Code) != 1 {
+		t.Fatalf("expected only OpHalt after optimizing literal expressions, got %d instructions", len(chunk.Code))
+	}
+	if chunk.Code[0].OpCode() != OpHalt {
+		t.Fatalf("expected remaining instruction to be OpHalt, got %v", chunk.Code[0].OpCode())
 	}
 }
 
@@ -1146,7 +1191,7 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("repeat_test")
+	compiler := newTestCompiler("repeat_test")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -1234,7 +1279,7 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 		},
 	}
 
-	compiler := NewCompiler("exec_test")
+	compiler := newTestCompiler("exec_test")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
@@ -1297,7 +1342,7 @@ func pos(line, column int) lexer.Position {
 
 func compileProgram(t *testing.T, program *ast.Program) *Chunk {
 	t.Helper()
-	compiler := NewCompiler("test_program")
+	compiler := newTestCompiler("test_program")
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)

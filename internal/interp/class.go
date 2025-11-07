@@ -11,41 +11,41 @@ import (
 // It stores information about a class's structure including fields, methods,
 // parent class, and constructor/destructor.
 type ClassInfo struct {
-	Constructor           *ast.FunctionDecl
-	Constructors          map[string]*ast.FunctionDecl
-	ConstructorOverloads  map[string][]*ast.FunctionDecl // Task 9.67: Overloaded constructors
-	Fields                map[string]types.Type
-	ClassVars             map[string]Value
-	Methods               map[string]*ast.FunctionDecl
-	MethodOverloads       map[string][]*ast.FunctionDecl // Task 9.67: Overloaded instance methods
-	ClassMethods          map[string]*ast.FunctionDecl
-	ClassMethodOverloads  map[string][]*ast.FunctionDecl // Task 9.67: Overloaded class methods
-	Properties            map[string]*types.PropertyInfo
-	Destructor            *ast.FunctionDecl
-	Parent                *ClassInfo
-	Operators             *runtimeOperatorRegistry
-	ExternalName          string
-	Name                  string
-	IsExternal            bool
-	IsAbstract            bool
+	Constructor          *ast.FunctionDecl
+	Constructors         map[string]*ast.FunctionDecl
+	ConstructorOverloads map[string][]*ast.FunctionDecl // Task 9.67: Overloaded constructors
+	Fields               map[string]types.Type
+	ClassVars            map[string]Value
+	Methods              map[string]*ast.FunctionDecl
+	MethodOverloads      map[string][]*ast.FunctionDecl // Task 9.67: Overloaded instance methods
+	ClassMethods         map[string]*ast.FunctionDecl
+	ClassMethodOverloads map[string][]*ast.FunctionDecl // Task 9.67: Overloaded class methods
+	Properties           map[string]*types.PropertyInfo
+	Destructor           *ast.FunctionDecl
+	Parent               *ClassInfo
+	Operators            *runtimeOperatorRegistry
+	ExternalName         string
+	Name                 string
+	IsExternal           bool
+	IsAbstract           bool
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.
 // Fields, Methods, ClassVars, ClassMethods, and Properties maps are initialized as empty.
 func NewClassInfo(name string) *ClassInfo {
 	return &ClassInfo{
-		Name:                  name,
-		Parent:                nil,
-		Fields:                make(map[string]types.Type),
-		ClassVars:             make(map[string]Value),
-		Methods:               make(map[string]*ast.FunctionDecl),
-		MethodOverloads:       make(map[string][]*ast.FunctionDecl),
-		ClassMethods:          make(map[string]*ast.FunctionDecl),
-		ClassMethodOverloads:  make(map[string][]*ast.FunctionDecl),
-		Operators:             newRuntimeOperatorRegistry(),
-		Constructors:          make(map[string]*ast.FunctionDecl),
-		ConstructorOverloads:  make(map[string][]*ast.FunctionDecl),
-		Properties:            make(map[string]*types.PropertyInfo),
+		Name:                 name,
+		Parent:               nil,
+		Fields:               make(map[string]types.Type),
+		ClassVars:            make(map[string]Value),
+		Methods:              make(map[string]*ast.FunctionDecl),
+		MethodOverloads:      make(map[string][]*ast.FunctionDecl),
+		ClassMethods:         make(map[string]*ast.FunctionDecl),
+		ClassMethodOverloads: make(map[string][]*ast.FunctionDecl),
+		Operators:            newRuntimeOperatorRegistry(),
+		Constructors:         make(map[string]*ast.FunctionDecl),
+		ConstructorOverloads: make(map[string][]*ast.FunctionDecl),
+		Properties:           make(map[string]*types.PropertyInfo),
 	}
 }
 

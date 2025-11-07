@@ -184,6 +184,7 @@
 //	    dwscript.WithMaxRecursionDepth(2048),
 //	    dwscript.WithOutput(os.Stdout),
 //	    dwscript.WithTypeCheck(true), // Enable type checking
+//	    dwscript.WithCompileMode(dwscript.CompileModeBytecode), // Use bytecode VM (experimental)
 //	)
 //
 // # Foreign Function Interface (FFI)

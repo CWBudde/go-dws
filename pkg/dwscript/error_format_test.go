@@ -8,10 +8,10 @@ import (
 // TestErrorFormatting tests that error messages follow the standard format (Task 10.17)
 func TestErrorFormatting(t *testing.T) {
 	tests := []struct {
-		name           string
-		source         string
-		expectError    bool
-		checkMessage   func(t *testing.T, err error)
+		name         string
+		source       string
+		expectError  bool
+		checkMessage func(t *testing.T, err error)
 	}{
 		{
 			name:        "undefined variable - position not in message text",
@@ -146,11 +146,11 @@ func TestErrorFormatting(t *testing.T) {
 // TestExtractPositionFromError tests the position extraction helper (Task 10.17)
 func TestExtractPositionFromError(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     string
-		wantLine  int
-		wantCol   int
-		wantMsg   string
+		name     string
+		input    string
+		wantLine int
+		wantCol  int
+		wantMsg  string
 	}{
 		{
 			name:     "error with position",

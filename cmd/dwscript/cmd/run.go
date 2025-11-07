@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp"
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -22,6 +23,7 @@ var (
 	typeCheck    bool
 	showUnits    bool
 	maxRecursion int
+	bytecodeMode bool
 )
 
 var runCmd = &cobra.Command{
@@ -57,6 +59,7 @@ func init() {
 	runCmd.Flags().BoolVar(&typeCheck, "type-check", true, "perform semantic type checking before execution (default: true)")
 	runCmd.Flags().BoolVar(&showUnits, "show-units", false, "display unit dependency tree")
 	runCmd.Flags().IntVar(&maxRecursion, "max-recursion", 1024, "maximum recursion depth (default: 1024)")
+	runCmd.Flags().BoolVar(&bytecodeMode, "bytecode", false, "execute via bytecode VM instead of AST interpreter (experimental)")
 }
 
 func runScript(_ *cobra.Command, args []string) error {
@@ -108,6 +111,22 @@ func runScript(_ *cobra.Command, args []string) error {
 	usedUnits := extractUsedUnits(program)
 	hasUnits := len(usedUnits) > 0
 
+	// Prepare unit search paths (shared by interpreter + bytecode modes)
+	searchPaths := append([]string{}, unitSearchPaths...)
+	if len(searchPaths) == 0 && filename != "<eval>" {
+		searchPaths = append(searchPaths, filepath.Dir(filename))
+	}
+
+	var unitRegistry *units.UnitRegistry
+	compiledProgram := program
+	if bytecodeMode {
+		var err error
+		compiledProgram, unitRegistry, err = buildBytecodeProgram(program, usedUnits, searchPaths)
+		if err != nil {
+			return fmt.Errorf("failed to prepare bytecode program: %w", err)
+		}
+	}
+
 	// Run semantic analysis if type checking is enabled
 	// Skip type checking if units are used, since symbols from units
 	// aren't available until runtime
@@ -143,8 +162,18 @@ func runScript(_ *cobra.Command, args []string) error {
 	// Dump AST if requested
 	if dumpAST {
 		fmt.Println("AST:")
-		fmt.Println(program.String())
+		fmt.Println(compiledProgram.String())
 		fmt.Println()
+	}
+
+	if bytecodeMode {
+		if showUnits && unitRegistry != nil && len(usedUnits) > 0 {
+			displayUnitDependencyTree(unitRegistry, usedUnits)
+		}
+		return executeBytecodeProgram(compiledProgram, bytecodeExecOptions{
+			filename: filename,
+			trace:    trace,
+		})
 	}
 
 	// Interpreter: execute the program
@@ -160,19 +189,11 @@ func runScript(_ *cobra.Command, args []string) error {
 	interpreter.SetSource(input, filename)
 
 	// Set up unit registry if search paths are provided or if we're running from a file
-	searchPaths := unitSearchPaths
-	if len(searchPaths) == 0 && filename != "<eval>" {
-		// Add the directory of the script file as a default search path
-		dir := filepath.Dir(filename)
-		searchPaths = append(searchPaths, dir)
-	}
-
 	if len(searchPaths) > 0 {
 		registry := units.NewUnitRegistry(searchPaths)
 		interpreter.SetUnitRegistry(registry)
 
 		// Check if the program uses any units and load them
-		usedUnits := extractUsedUnits(program)
 		if len(usedUnits) > 0 {
 			if verbose {
 				fmt.Fprintf(os.Stderr, "Loading %d unit(s)...\n", len(usedUnits))
@@ -268,6 +289,52 @@ func runScript(_ *cobra.Command, args []string) error {
 	return nil
 }
 
+type bytecodeExecOptions struct {
+	filename string
+	trace    bool
+}
+
+func executeBytecodeProgram(program *ast.Program, opts bytecodeExecOptions) error {
+	if program == nil {
+		return fmt.Errorf("bytecode execution: nil program")
+	}
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "[Bytecode mode enabled - executing %s]\n", opts.filename)
+	}
+
+	compiler := bytecode.NewCompiler(opts.filename)
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		return fmt.Errorf("bytecode compilation failed: %w", err)
+	}
+
+	if opts.trace {
+		fmt.Fprintf(os.Stderr, "\n== Bytecode Trace (%s) ==\n", chunk.Name)
+		bytecode.NewDisassembler(chunk, os.Stderr).Disassemble()
+	}
+
+	vm := bytecode.NewVM()
+	result, err := vm.Run(chunk)
+	if err != nil {
+		if runtimeErr, ok := err.(*bytecode.RuntimeError); ok {
+			fmt.Fprintf(os.Stderr, "Bytecode runtime error: %s\n", runtimeErr.Message)
+			if len(runtimeErr.Trace) > 0 {
+				fmt.Fprint(os.Stderr, runtimeErr.Trace.String())
+				fmt.Fprintln(os.Stderr)
+			}
+			return fmt.Errorf("bytecode execution failed: %w", runtimeErr)
+		}
+		return fmt.Errorf("bytecode execution failed: %w", err)
+	}
+
+	if verbose && !result.IsNil() {
+		fmt.Fprintf(os.Stderr, "Bytecode result: %s\n", result.String())
+	}
+
+	return nil
+}
+
 // extractUsedUnits extracts unit names from uses clauses in the program
 func extractUsedUnits(program *ast.Program) []string {
 	var usedUnits []string
@@ -346,4 +413,98 @@ func displayUnitAndDependencies(registry *units.UnitRegistry, unitName string, p
 			displayUnitAndDependencies(registry, depName, nextPrefix, displayed, isLastDep)
 		}
 	}
+}
+
+func buildBytecodeProgram(program *ast.Program, usedUnits []string, searchPaths []string) (*ast.Program, *units.UnitRegistry, error) {
+	if program == nil {
+		return nil, nil, fmt.Errorf("bytecode: nil program")
+	}
+
+	filteredMain := filterOutUses(program.Statements)
+	if len(usedUnits) == 0 {
+		if len(filteredMain) == len(program.Statements) {
+			return program, nil, nil
+		}
+		return &ast.Program{Statements: filteredMain}, nil, nil
+	}
+
+	registry := units.NewUnitRegistry(searchPaths)
+	for _, unitName := range usedUnits {
+		if _, err := registry.LoadUnit(unitName, searchPaths); err != nil {
+			return nil, nil, fmt.Errorf("failed to load unit '%s': %w", unitName, err)
+		}
+	}
+
+	order, err := registry.ComputeInitializationOrder()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to compute unit initialization order: %w", err)
+	}
+
+	combined := &ast.Program{}
+	combined.Statements = append(combined.Statements, collectUnitImplementation(order, registry)...)
+	combined.Statements = append(combined.Statements, collectUnitInitialization(order, registry)...)
+	combined.Statements = append(combined.Statements, filteredMain...)
+	combined.Statements = append(combined.Statements, collectUnitFinalization(order, registry)...)
+
+	return combined, registry, nil
+}
+
+func collectUnitImplementation(order []string, registry *units.UnitRegistry) []ast.Statement {
+	var stmts []ast.Statement
+	for _, name := range order {
+		unit, ok := registry.GetUnit(name)
+		if !ok || unit == nil {
+			continue
+		}
+		stmts = append(stmts, blockStatements(unit.ImplementationSection)...)
+	}
+	return stmts
+}
+
+func collectUnitInitialization(order []string, registry *units.UnitRegistry) []ast.Statement {
+	var stmts []ast.Statement
+	for _, name := range order {
+		unit, ok := registry.GetUnit(name)
+		if !ok || unit == nil {
+			continue
+		}
+		stmts = append(stmts, blockStatements(unit.InitializationSection)...)
+	}
+	return stmts
+}
+
+func collectUnitFinalization(order []string, registry *units.UnitRegistry) []ast.Statement {
+	var stmts []ast.Statement
+	for i := len(order) - 1; i >= 0; i-- {
+		unit, ok := registry.GetUnit(order[i])
+		if !ok || unit == nil {
+			continue
+		}
+		stmts = append(stmts, blockStatements(unit.FinalizationSection)...)
+	}
+	return stmts
+}
+
+func blockStatements(block *ast.BlockStatement) []ast.Statement {
+	if block == nil {
+		return nil
+	}
+	return filterOutUses(block.Statements)
+}
+
+func filterOutUses(stmts []ast.Statement) []ast.Statement {
+	if len(stmts) == 0 {
+		return nil
+	}
+	filtered := make([]ast.Statement, 0, len(stmts))
+	for _, stmt := range stmts {
+		if stmt == nil {
+			continue
+		}
+		if _, ok := stmt.(*ast.UsesClause); ok {
+			continue
+		}
+		filtered = append(filtered, stmt)
+	}
+	return filtered
 }
