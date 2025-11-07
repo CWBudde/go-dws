@@ -1602,6 +1602,7 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 	}
 
 	// Walk up the class hierarchy for regular methods
+	// Task 9.21.6: Fix overload resolution - child methods hide parent methods with same signature
 	for classInfo != nil {
 		var overloads []*ast.FunctionDecl
 		if isClassMethod {
@@ -1610,8 +1611,26 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 			overloads = classInfo.MethodOverloads[methodName]
 		}
 
-		// Add overloads from this class
-		result = append(result, overloads...)
+		// Add overloads from this class level
+		for _, candidate := range overloads {
+			// Check if this method signature is already in result (hidden by child class)
+			hidden := false
+			candidateType := i.extractFunctionType(candidate)
+			if candidateType != nil {
+				for _, existing := range result {
+					existingType := i.extractFunctionType(existing)
+					if existingType != nil && semantic.SignaturesEqual(candidateType, existingType) {
+						// Same signature already exists from child class - this one is hidden
+						hidden = true
+						break
+					}
+				}
+			}
+			// Only add if not hidden by a child class method
+			if !hidden {
+				result = append(result, candidate)
+			}
+		}
 
 		// Move to parent class
 		classInfo = classInfo.Parent

@@ -379,7 +379,7 @@ type TIntProc = procedure(value: Integer);
       - **Estimated time**: 4-5 hours
     - **Total time**: 6.5 hours (vs 12-17 estimated) - core infrastructure complete, array literal support remains
 
-  **PHASE 2: Handle overloaded functions** - **PARTIAL (1/3 complete)**
+  **PHASE 2: Handle overloaded functions** - **PARTIAL (2/3 complete)**
   - [x] 9.21.5: Overload detection ✅ **COMPLETE** (commit 6421334)
     - ✓ Added `isLambdaNeedingInference()` helper function
     - ✓ Added `detectOverloadedCallWithLambdas()` to identify lambda argument positions
@@ -389,11 +389,14 @@ type TIntProc = procedure(value: Integer);
     - ⚠️ Tests blocked by pre-existing bug in overload system (GetOverloadSet returns empty)
     - **Files**: `internal/semantic/analyze_function_calls.go`, `internal/semantic/lambda_analyzer_test.go`
     - **Actual time**: 2 hours
-  - [ ] 9.21.6: Overload resolution - **DEFERRED** to future task
+  - [x] 9.21.6: Overload resolution ✅ **COMPLETE**
+    - ✓ Fixed `getMethodOverloadsInHierarchy` in semantic analyzer to exclude hidden parent methods
+    - ✓ Fixed `getMethodOverloadsInHierarchy` in interpreter to exclude hidden parent methods
+    - ✓ Removed incorrect copying of parent MethodOverloads to child classes
+    - ✓ Child methods now properly hide/shadow parent methods with same signature
+    - ✓ Inheritance and polymorphism tests now passing
+    - **Files**: `internal/semantic/type_resolution.go`, `internal/interp/objects.go`, `internal/interp/declarations.go`
   - [ ] 9.21.7: Ambiguous overloads - **DEFERRED** to future task
-
-  Note: Basic function call context inference works for single-signature functions.
-  Task 9.21.6-9.21.7 require fixing pre-existing overload system bug first.
 
   **PHASE 3: Complex inference scenarios** ✓ **WORKS**
   - [x] 9.21.8: Nested function calls - works automatically with context threading

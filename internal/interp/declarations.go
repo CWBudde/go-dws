@@ -91,21 +91,18 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 
 		// Copy parent methods (child inherits all parent methods)
-		// Task 9.67: Also copy method overloads for inheritance
+		// Keep Methods and ClassMethods for backward compatibility (direct lookups)
 		for methodName, methodDecl := range parentClass.Methods {
 			classInfo.Methods[methodName] = methodDecl
 		}
-		for methodName, overloads := range parentClass.MethodOverloads {
-			classInfo.MethodOverloads[methodName] = append([]*ast.FunctionDecl(nil), overloads...)
-		}
-
-		// Copy class methods
 		for methodName, methodDecl := range parentClass.ClassMethods {
 			classInfo.ClassMethods[methodName] = methodDecl
 		}
-		for methodName, overloads := range parentClass.ClassMethodOverloads {
-			classInfo.ClassMethodOverloads[methodName] = append([]*ast.FunctionDecl(nil), overloads...)
-		}
+
+		// Task 9.21.6: DON'T copy MethodOverloads/ClassMethodOverloads from parent
+		// Each class should only store its OWN method overloads, not inherited ones.
+		// getMethodOverloadsInHierarchy will walk the hierarchy to collect them at call time.
+		// This prevents duplication when a child class overrides a parent method.
 
 		// Copy constructors
 		for name, constructor := range parentClass.Constructors {
