@@ -367,6 +367,28 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		Visibility:           int(method.Visibility),
 	}
 
+	// Task 9.62: Check for duplicate/ambiguous signatures before adding
+	existingOverloads := classType.GetMethodOverloads(method.Name.Value)
+	if method.IsConstructor {
+		existingOverloads = classType.GetConstructorOverloads(method.Name.Value)
+	}
+
+	for _, existing := range existingOverloads {
+		// Check if signatures are identical (duplicate)
+		if a.methodSignaturesMatch(funcType, existing.Signature) {
+			a.addError("Overload of \"%s\" will be ambiguous with a previously declared version at %s",
+				method.Name.Value, method.Token.Pos.String())
+			return
+		}
+
+		// Check if parameters match but return types differ (ambiguous)
+		if a.parametersMatch(funcType, existing.Signature) && !funcType.ReturnType.Equals(existing.Signature.ReturnType) {
+			a.addError("Overload of \"%s\" will be ambiguous with a previously declared version at %s",
+				method.Name.Value, method.Token.Pos.String())
+			return
+		}
+	}
+
 	if method.IsConstructor {
 		classType.AddConstructorOverload(method.Name.Value, methodInfo)
 	} else {
