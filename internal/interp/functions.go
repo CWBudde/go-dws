@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
@@ -139,7 +140,14 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	}
 
 	// Check if it's a user-defined function first
-	if fn, exists := i.functions[funcName.Value]; exists {
+	// Task 9.65: Handle function overloading
+	if overloads, exists := i.functions[funcName.Value]; exists && len(overloads) > 0 {
+		// Resolve overload based on argument types
+		fn, err := i.resolveOverload(funcName.Value, overloads, expr.Arguments)
+		if err != nil {
+			return i.newErrorWithLocation(expr, "%s", err.Error())
+		}
+
 		// Prepare arguments - lazy parameters get LazyThunks, var parameters get References, regular parameters get evaluated
 		args := make([]Value, len(expr.Arguments))
 		for idx, arg := range expr.Arguments {
@@ -1662,4 +1670,137 @@ func (i *Interpreter) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) *types.
 	}
 
 	return types.NewStaticArrayType(elementType, int(lowBound.Value), int(highBound.Value))
+}
+// resolveOverload selects the best matching function overload based on argument types.
+// Task 9.65: Runtime overload resolution
+func (i *Interpreter) resolveOverload(funcName string, overloads []*ast.FunctionDecl, argExprs []ast.Expression) (*ast.FunctionDecl, error) {
+	// If only one overload, use it (fast path)
+	if len(overloads) == 1 {
+		return overloads[0], nil
+	}
+
+	// Evaluate arguments to get their types (for non-lazy, non-var params)
+	// We need to evaluate them to determine types for overload resolution
+	argTypes := make([]types.Type, len(argExprs))
+	for idx, argExpr := range argExprs {
+		// Evaluate the argument to get its value and type
+		val := i.Eval(argExpr)
+		if isError(val) {
+			return nil, fmt.Errorf("error evaluating argument %d: %v", idx+1, val)
+		}
+		argTypes[idx] = i.getValueType(val)
+	}
+
+	// Convert function declarations to semantic symbols for resolution
+	// We need to extract the function types from the AST nodes
+	candidates := make([]*semantic.Symbol, len(overloads))
+	for idx, fn := range overloads {
+		funcType := i.extractFunctionType(fn)
+		if funcType == nil {
+			return nil, fmt.Errorf("unable to extract function type for overload %d of '%s'", idx+1, funcName)
+		}
+
+		candidates[idx] = &semantic.Symbol{
+			Name:                 fn.Name.Value,
+			Type:                 funcType,
+			HasOverloadDirective: fn.IsOverload,
+		}
+	}
+
+	// Use semantic analyzer's overload resolution
+	selected, err := semantic.ResolveOverload(candidates, argTypes)
+	if err != nil {
+		return nil, fmt.Errorf("cannot resolve overload for '%s': %v", funcName, err)
+	}
+
+	// Find which function declaration corresponds to the selected symbol
+	// We can match by comparing the function types
+	selectedType := selected.Type.(*types.FunctionType)
+	for _, fn := range overloads {
+		fnType := i.extractFunctionType(fn)
+		if fnType != nil && semantic.SignaturesEqual(fnType, selectedType) &&
+			fnType.ReturnType.Equals(selectedType.ReturnType) {
+			return fn, nil
+		}
+	}
+
+	return nil, fmt.Errorf("internal error: resolved overload not found in candidate list")
+}
+
+// extractFunctionType extracts a types.FunctionType from an ast.FunctionDecl
+// Task 9.65: Helper for overload resolution
+func (i *Interpreter) extractFunctionType(fn *ast.FunctionDecl) *types.FunctionType {
+	paramTypes := make([]types.Type, len(fn.Parameters))
+	paramNames := make([]string, len(fn.Parameters))
+	lazyParams := make([]bool, len(fn.Parameters))
+	varParams := make([]bool, len(fn.Parameters))
+	constParams := make([]bool, len(fn.Parameters))
+	defaultValues := make([]interface{}, len(fn.Parameters))
+
+	for idx, param := range fn.Parameters {
+		if param.Type == nil {
+			return nil // Invalid function
+		}
+
+		paramType, err := i.resolveType(param.Type.Name)
+		if err != nil {
+			return nil
+		}
+
+		paramTypes[idx] = paramType
+		paramNames[idx] = param.Name.Value
+		lazyParams[idx] = param.IsLazy
+		varParams[idx] = param.ByRef
+		constParams[idx] = param.IsConst
+		defaultValues[idx] = param.DefaultValue
+	}
+
+	var returnType types.Type
+	if fn.ReturnType != nil {
+		var err error
+		returnType, err = i.resolveType(fn.ReturnType.Name)
+		if err != nil {
+			returnType = types.VOID
+		}
+	} else {
+		returnType = types.VOID
+	}
+
+	return types.NewFunctionTypeWithMetadata(
+		paramTypes, paramNames, defaultValues,
+		lazyParams, varParams, constParams,
+		returnType,
+	)
+}
+
+// getValueType returns the types.Type for a runtime Value
+// Task 9.65: Helper for overload resolution
+func (i *Interpreter) getValueType(val Value) types.Type {
+	switch v := val.(type) {
+	case *IntegerValue:
+		return types.INTEGER
+	case *FloatValue:
+		return types.FLOAT
+	case *StringValue:
+		return types.STRING
+	case *BooleanValue:
+		return types.BOOLEAN
+	case *NilValue:
+		return types.NIL
+	case *VariantValue:
+		return types.VARIANT
+	case *RecordValue:
+		if v.RecordType != nil {
+			return v.RecordType
+		}
+		return types.NIL
+	default:
+		// For objects, arrays, and other complex types, try AsObject
+		if obj, ok := AsObject(val); ok && obj.Class != nil {
+			// TODO: Create custom type from class name when needed
+			return types.NIL
+		}
+		// For arrays and other types
+		return types.NIL
+	}
 }
