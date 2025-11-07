@@ -176,14 +176,16 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 		// Current is a forward - check all existing overloads for directive consistency
 		for _, overload := range existing.Overloads {
 			if overload.HasOverloadDirective && !hasOverloadDirective {
-				return fmt.Errorf("overloaded %s '%s' must be marked with the 'overload' directive",
+				// Task 9.63: Match DWScript error message format exactly
+				return fmt.Errorf("Overloaded %s \"%s\" must be marked with the \"overload\" directive",
 					getFunctionKind(funcType), name)
 			}
 		}
 	} else {
 		// Second overload (both forwards) - both first and second must have directive (or neither, for now)
 		if existing.HasOverloadDirective && !hasOverloadDirective {
-			return fmt.Errorf("overloaded %s '%s' must be marked with the 'overload' directive",
+			// Task 9.63: Match DWScript error message format exactly
+			return fmt.Errorf("Overloaded %s \"%s\" must be marked with the \"overload\" directive",
 				getFunctionKind(funcType), name)
 		}
 		if !existing.HasOverloadDirective && hasOverloadDirective {
@@ -225,10 +227,11 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 						return fmt.Errorf("duplicate forward declaration for '%s'", name)
 					}
 
+					// Task 9.63: True duplicate - use DWScript error message format
 					// Not a forward+impl pair - this is a true duplicate
-					return fmt.Errorf("Overload of \"%s\" will be ambiguous with a previously declared version", name)
+					return fmt.Errorf("There is already a method with name \"%s\"", name)
 				}
-				// Task 9.62: Signatures match but return types differ - this is AMBIGUOUS
+				// Task 9.62, 9.63: Signatures match but return types differ - this is AMBIGUOUS
 				return fmt.Errorf("Overload of \"%s\" will be ambiguous with a previously declared version", name)
 			}
 		}
@@ -238,10 +241,10 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 		if SignaturesEqual(existingFunc, funcType) {
 			// Signatures match - check if return types also match
 			if existingFunc.ReturnType.Equals(funcType.ReturnType) {
-				// True duplicate - same signature AND same return type
-				return fmt.Errorf("Overload of \"%s\" will be ambiguous with a previously declared version", name)
+				// Task 9.63: True duplicate - same signature AND same return type
+				return fmt.Errorf("There is already a method with name \"%s\"", name)
 			}
-			// Task 9.62: Signatures match but return types differ - this is AMBIGUOUS
+			// Task 9.62, 9.63: Signatures match but return types differ - this is AMBIGUOUS
 			return fmt.Errorf("Overload of \"%s\" will be ambiguous with a previously declared version", name)
 		}
 	}

@@ -374,17 +374,17 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	}
 
 	for _, existing := range existingOverloads {
-		// Check if signatures are identical (duplicate)
+		// Task 9.63: Check if signatures are identical (duplicate) - use DWScript error format
 		if a.methodSignaturesMatch(funcType, existing.Signature) {
-			a.addError("Overload of \"%s\" will be ambiguous with a previously declared version at %s",
-				method.Name.Value, method.Token.Pos.String())
+			a.addError("Syntax Error: There is already a method with name \"%s\" [line: %d, column: %d]",
+				method.Name.Value, method.Token.Pos.Line, method.Token.Pos.Column)
 			return
 		}
 
-		// Check if parameters match but return types differ (ambiguous)
+		// Task 9.63: Check if parameters match but return types differ (ambiguous)
 		if a.parametersMatch(funcType, existing.Signature) && !funcType.ReturnType.Equals(existing.Signature.ReturnType) {
-			a.addError("Overload of \"%s\" will be ambiguous with a previously declared version at %s",
-				method.Name.Value, method.Token.Pos.String())
+			a.addError("Syntax Error: Overload of \"%s\" will be ambiguous with a previously declared version [line: %d, column: %d]",
+				method.Name.Value, method.Token.Pos.Line, method.Token.Pos.Column)
 			return
 		}
 	}
