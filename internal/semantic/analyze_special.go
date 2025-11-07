@@ -8,6 +8,8 @@ import (
 // ============================================================================
 // Expression Analysis
 // ============================================================================
+
+// analyzeInheritedExpression analyzes an inherited expression and returns its type.
 func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types.Type {
 	// Validate that we're in a method context (must have currentClass set)
 	if a.currentClass == nil {
