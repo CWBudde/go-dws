@@ -293,22 +293,23 @@ func TestCallbackMultipleParameters(t *testing.T) {
 	}
 }
 
-// TestCallbackWithSideEffects_Skip tests callbacks with side effects (currently skipped).
-func TestCallbackWithSideEffects_Skip(t *testing.T) {
-	t.Skip("Skipping due to parser limitations with parameterless function pointers")
+// TestCallbackWithSideEffects tests callbacks with side effects.
+// Task 9.6: Parameterless callbacks in FFI - ENABLED
+func TestCallbackWithSideEffects(t *testing.T) {
 	engine, err := New(WithTypeCheck(false))
 	if err != nil {
 		t.Fatalf("failed to create engine: %v", err)
 	}
 
 	// Register Go function that calls callback multiple times
-	err = engine.RegisterFunction("Repeat", func(n int64, action func()) {
+	// Note: Using "DoNTimes" instead of "Repeat" to avoid conflict with DWScript repeat...until keyword
+	err = engine.RegisterFunction("DoNTimes", func(n int64, action func()) {
 		for i := int64(0); i < n; i++ {
 			action()
 		}
 	})
 	if err != nil {
-		t.Fatalf("failed to register Repeat: %v", err)
+		t.Fatalf("failed to register DoNTimes: %v", err)
 	}
 
 	var buf bytes.Buffer
@@ -323,7 +324,7 @@ func TestCallbackWithSideEffects_Skip(t *testing.T) {
 			PrintLn(IntToStr(counter));
 		end;
 
-		Repeat(5, @IncrementAndPrint);
+		DoNTimes(5, @IncrementAndPrint);
 	`)
 	if err != nil {
 		t.Fatalf("execution failed: %v", err)

@@ -177,16 +177,16 @@ type TIntProc = procedure(value: Integer);
   - [x] 9.5d Documentation: ✅ COMPLETE
   - [x] 9.5e Example programs: ✅ COMPLETE
 
-- [ ] 9.6 Support parameterless callbacks in FFI: ❌ NOT STARTED
-  - [ ] 9.6a Parser: Support function pointer references without parameters (`@ProcedureName` where procedure has no params)
-  - [ ] 9.6b FFI: Marshal DWScript parameterless procedures to Go `func()` callbacks
-  - [ ] 9.6c Interpreter: Handle function pointer expressions for zero-parameter functions
-  - [ ] 9.6d Tests: Enable `TestCallbackWithSideEffects_Skip` test in `ffi_callbacks_test.go:296`
-  - **Current Status**: Test skipped with message "Skipping due to parser limitations with parameterless function pointers"
-  - **Issue**: FFI can handle `func()` callbacks, but parser/interpreter cannot pass `@ProcedureName` for zero-parameter procedures
-  - **Example**: `Repeat(5, @IncrementAndPrint)` where `IncrementAndPrint` is a parameterless procedure
-  - **Priority**: LOW (workaround: use lambda with ignored parameter)
-  - **Files**: `internal/parser/expressions.go`, `internal/interp/ffi_callback.go`, `pkg/dwscript/ffi_callbacks_test.go`
+- [x] 9.6 Support parameterless callbacks in FFI: ✅ COMPLETE
+  - [x] 9.6a Parser: Support function pointer references without parameters (`@ProcedureName` where procedure has no params) ✅
+  - [x] 9.6b FFI: Marshal DWScript parameterless procedures to Go `func()` callbacks ✅
+  - [x] 9.6c Interpreter: Handle function pointer expressions for zero-parameter functions ✅
+  - [x] 9.6d Tests: Enabled `TestCallbackWithSideEffects` test in `ffi_callbacks_test.go:296` ✅
+  - **Resolution**: Feature already worked! Issue was test using reserved keyword "Repeat" (conflicts with repeat...until loop)
+  - **Fix**: Changed test to use "DoNTimes" instead of "Repeat" - test now passes
+  - **Example**: `DoNTimes(5, @IncrementAndPrint)` where `IncrementAndPrint` is a parameterless procedure
+  - **Implementation**: No code changes needed - parser, interpreter, and FFI already support parameterless callbacks
+  - **Files**: `pkg/dwscript/ffi_callbacks_test.go:296-348`
 
 ---
 
