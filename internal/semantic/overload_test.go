@@ -27,7 +27,7 @@ func TestDefineOverload_TwoFunctionsDifferentParamCount(t *testing.T) {
 		[]bool{false, false},                       // const flags
 		types.INTEGER,                              // return type
 	)
-	err := st.DefineOverload("Max", func1, true)
+	err := st.DefineOverload("Max", func1, true, false)
 	if err != nil {
 		t.Fatalf("DefineOverload failed for first overload: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestDefineOverload_TwoFunctionsDifferentParamCount(t *testing.T) {
 		[]bool{false, false, false},                               // const
 		types.INTEGER,                                             // return type
 	)
-	err = st.DefineOverload("Max", func2, true)
+	err = st.DefineOverload("Max", func2, true, false)
 	if err != nil {
 		t.Fatalf("DefineOverload failed for second overload: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestDefineOverload_TwoFunctionsSameCountDifferentTypes(t *testing.T) {
 		[]bool{false}, // const
 		types.STRING,  // return type
 	)
-	err := st.DefineOverload("Convert", func1, true)
+	err := st.DefineOverload("Convert", func1, true, false)
 	if err != nil {
 		t.Fatalf("DefineOverload failed for first overload: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestDefineOverload_TwoFunctionsSameCountDifferentTypes(t *testing.T) {
 		[]bool{false}, // const
 		types.STRING,  // return type
 	)
-	err = st.DefineOverload("Convert", func2, true)
+	err = st.DefineOverload("Convert", func2, true, false)
 	if err != nil {
 		t.Fatalf("DefineOverload failed for second overload: %v", err)
 	}
@@ -121,9 +121,9 @@ func TestDefineOverload_ThreeOverloads(t *testing.T) {
 		types.VOID,                                // return type
 	)
 
-	st.DefineOverload("Print", func1, true)
-	st.DefineOverload("Print", func2, true)
-	err := st.DefineOverload("Print", func3, true)
+	st.DefineOverload("Print", func1, true, false)
+	st.DefineOverload("Print", func2, true, false)
+	err := st.DefineOverload("Print", func3, true, false)
 	if err != nil {
 		t.Fatalf("DefineOverload failed for third overload: %v", err)
 	}
@@ -155,8 +155,8 @@ func TestDefineOverload_DifferentReturnTypes(t *testing.T) {
 		types.INTEGER, // return type
 	)
 
-	st.DefineOverload("Get", func1, true)
-	err := st.DefineOverload("Get", func2, true)
+	st.DefineOverload("Get", func1, true, false)
+	err := st.DefineOverload("Get", func2, true, false)
 	if err != nil {
 		t.Fatalf("DefineOverload failed: %v", err)
 	}
@@ -187,8 +187,8 @@ func TestDefineOverload_ProceduresAndFunctions(t *testing.T) {
 		types.STRING,  // return type
 	)
 
-	st.DefineOverload("DoSomething", proc, true)
-	err := st.DefineOverload("DoSomething", func1, true)
+	st.DefineOverload("DoSomething", proc, true, false)
+	err := st.DefineOverload("DoSomething", func1, true, false)
 	if err != nil {
 		t.Fatalf("DefineOverload failed: %v", err)
 	}
@@ -221,8 +221,8 @@ func TestGetOverloadSet_MultipleOverloads(t *testing.T) {
 		types.STRING,  // return type
 	)
 
-	st.DefineOverload("Format", func1, true)
-	st.DefineOverload("Format", func2, true)
+	st.DefineOverload("Format", func1, true, false)
+	st.DefineOverload("Format", func2, true, false)
 
 	overloads := st.GetOverloadSet("Format")
 	if overloads == nil {
@@ -282,7 +282,7 @@ func TestGetOverloadSet_CaseInsensitive(t *testing.T) {
 		[]bool{false}, // const
 		types.INTEGER, // return type
 	)
-	st.DefineOverload("MyFunc", funcType, true)
+	st.DefineOverload("MyFunc", funcType, true, false)
 
 	// DWScript is case-insensitive
 	overloads1 := st.GetOverloadSet("MyFunc")
@@ -315,13 +315,13 @@ func TestDefineOverload_DuplicateSignatureError(t *testing.T) {
 	)
 
 	// Define first time
-	err := st.DefineOverload("Process", funcType, true)
+	err := st.DefineOverload("Process", funcType, true, false)
 	if err != nil {
 		t.Fatalf("First DefineOverload should succeed: %v", err)
 	}
 
 	// Try to define exact same signature again
-	err = st.DefineOverload("Process", funcType, true)
+	err = st.DefineOverload("Process", funcType, true, false)
 	if err == nil {
 		t.Fatal("Expected error for duplicate signature, got nil")
 	}
@@ -351,10 +351,10 @@ func TestDefineOverload_MissingOverloadDirectiveError(t *testing.T) {
 	)
 
 	// Define first overload with directive
-	st.DefineOverload("Convert", func1, true)
+	st.DefineOverload("Convert", func1, true, false)
 
 	// Try to define second without directive (hasOverloadDirective = false)
-	err := st.DefineOverload("Convert", func2, false)
+	err := st.DefineOverload("Convert", func2, false, false)
 	if err == nil {
 		t.Fatal("Expected error when second declaration lacks 'overload' directive")
 	}
@@ -375,7 +375,7 @@ func TestDefineOverload_NonFunctionSymbolError(t *testing.T) {
 		types.STRING,  // return type
 	)
 
-	err := st.DefineOverload("MyVar", funcType, true)
+	err := st.DefineOverload("MyVar", funcType, true, false)
 	if err == nil {
 		t.Fatal("Expected error when trying to overload a non-function symbol")
 	}
@@ -404,8 +404,8 @@ func TestDefineOverload_SuccessWithDifferentSignatures(t *testing.T) {
 		types.STRING,                               // return type
 	)
 
-	err1 := st.DefineOverload("Build", func1, true)
-	err2 := st.DefineOverload("Build", func2, true)
+	err1 := st.DefineOverload("Build", func1, true, false)
+	err2 := st.DefineOverload("Build", func2, true, false)
 
 	if err1 != nil || err2 != nil {
 		t.Fatal("Both overload definitions should succeed with different signatures")
@@ -431,8 +431,8 @@ func TestDefineOverload_BothHaveOverloadDirective(t *testing.T) {
 	)
 
 	// Both have overload directive = true
-	err1 := st.DefineOverload("Log", func1, true)
-	err2 := st.DefineOverload("Log", func2, true)
+	err1 := st.DefineOverload("Log", func1, true, false)
+	err2 := st.DefineOverload("Log", func2, true, false)
 
 	if err1 != nil || err2 != nil {
 		t.Fatal("Both definitions should succeed when both have overload directive")
@@ -463,8 +463,8 @@ func TestDefineOverload_DifferentParameterModifiers(t *testing.T) {
 		types.VOID,                                 // return type
 	)
 
-	st.DefineOverload("Swap", func1, true)
-	err := st.DefineOverload("Swap", func2, true)
+	st.DefineOverload("Swap", func1, true, false)
+	err := st.DefineOverload("Swap", func2, true, false)
 
 	// Task 9.59: SignaturesEqual now checks parameter modifiers (var/const/lazy),
 	// so these two functions with different modifiers should be recognized as
@@ -502,8 +502,8 @@ func TestDefineOverload_GlobalScope(t *testing.T) {
 		types.STRING,  // return type
 	)
 
-	st.DefineOverload("ToString", func1, true)
-	st.DefineOverload("ToString", func2, true)
+	st.DefineOverload("ToString", func1, true, false)
+	st.DefineOverload("ToString", func2, true, false)
 
 	overloads := st.GetOverloadSet("ToString")
 	if len(overloads) != 2 {
@@ -523,7 +523,7 @@ func TestDefineOverload_NestedScope(t *testing.T) {
 		[]bool{false}, // const
 		types.STRING,  // return type
 	)
-	global.DefineOverload("Helper", globalFunc, true)
+	global.DefineOverload("Helper", globalFunc, true, false)
 
 	// Define different overload in local scope
 	localFunc := types.NewFunctionTypeWithMetadata([]types.Type{types.STRING}, // params
@@ -533,7 +533,7 @@ func TestDefineOverload_NestedScope(t *testing.T) {
 		[]bool{false}, // const
 		types.STRING,  // return type
 	)
-	local.DefineOverload("Helper", localFunc, true)
+	local.DefineOverload("Helper", localFunc, true, false)
 
 	// Local scope should have its own overload set
 	localOverloads := local.GetOverloadSet("Helper")
@@ -560,7 +560,7 @@ func TestDefineOverload_InnerScopeHidesOuter(t *testing.T) {
 		[]bool{false}, // const
 		types.STRING,  // return type
 	)
-	outer.DefineOverload("Calculate", outerFunc, true)
+	outer.DefineOverload("Calculate", outerFunc, true, false)
 
 	// Define in inner scope (shadows outer)
 	innerFunc := types.NewFunctionTypeWithMetadata([]types.Type{types.FLOAT}, // params
@@ -570,7 +570,7 @@ func TestDefineOverload_InnerScopeHidesOuter(t *testing.T) {
 		[]bool{false}, // const
 		types.STRING,  // return type
 	)
-	inner.DefineOverload("Calculate", innerFunc, true)
+	inner.DefineOverload("Calculate", innerFunc, true, false)
 
 	// GetOverloadSet from inner scope should only see inner definition
 	innerOverloads := inner.GetOverloadSet("Calculate")
@@ -597,7 +597,7 @@ func TestDefineOverload_ResolveAcrossScopes(t *testing.T) {
 		[]bool{false}, // const
 		types.STRING,  // return type
 	)
-	global.DefineOverload("Util", globalFunc, true)
+	global.DefineOverload("Util", globalFunc, true, false)
 
 	// Don't define in local scope - resolve should find global
 	sym, ok := local.Resolve("Util")
