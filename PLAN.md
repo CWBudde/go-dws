@@ -1093,14 +1093,25 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
     - Error recovery with multiple errors
     - Performance characteristics
 
-- [ ] **10.14 Create visitor pattern for AST traversal**
-  - [ ] Create `pkg/ast/visitor.go`
-  - [ ] Define `Visitor` interface:
-    - [ ] `Visit(node Node) (w Visitor)` - Standard Go AST walker pattern
-  - [ ] Implement `Walk(v Visitor, node Node)` function
-  - [ ] Handle all node types in Walk
-  - [ ] Add documentation with examples
-  - [ ] Add `Inspect(node Node, f func(Node) bool)` helper
+- [x] **10.14 Create visitor pattern for AST traversal** ✅ COMPLETE
+  - [x] Created `pkg/ast/visitor.go` (639 lines)
+  - [x] Defined `Visitor` interface with `Visit(node Node) (w Visitor)` method
+  - [x] Implemented `Walk(v Visitor, node Node)` function
+  - [x] Handles all 64+ AST node types correctly
+  - [x] Added comprehensive documentation with examples
+  - [x] Added `Inspect(node Node, f func(Node) bool)` helper for convenience
+  - [x] Created 9 comprehensive tests with examples:
+    - TestWalk_VisitsAllNodes
+    - TestWalk_VisitorReturnsNil
+    - TestInspect_FindsFunctions
+    - TestInspect_FindsVariables
+    - TestInspect_StopsTraversal
+    - TestInspect_NestedStructures
+    - TestWalk_AllNodeTypes
+    - TestInspect_ComplexExpressions
+    - TestWalk_WithNilNodes
+  - [x] All tests pass ✅
+  - [x] Follows standard Go `go/ast` package patterns
 
 - [ ] **10.15 Add symbol table access for semantic information**
   - [ ] Create `pkg/dwscript/symbols.go`
