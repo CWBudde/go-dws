@@ -105,6 +105,7 @@ type FunctionDecl struct {
 	IsExternal     bool
 	IsClassMethod  bool
 	IsOverload     bool // Function/method can be overloaded
+	IsForward      bool // Forward declaration (signature only, no body)
 	EndPos         token.Position
 }
 
@@ -148,7 +149,7 @@ func (fd *FunctionDecl) String() string {
 		out.WriteString(fd.ReturnType.String())
 	}
 
-	// Write virtual/override/abstract/overload directives
+	// Write virtual/override/abstract/overload/forward directives
 	if fd.IsVirtual {
 		out.WriteString("; virtual")
 	}
@@ -160,6 +161,9 @@ func (fd *FunctionDecl) String() string {
 	}
 	if fd.IsOverload {
 		out.WriteString("; overload")
+	}
+	if fd.IsForward {
+		out.WriteString("; forward")
 	}
 
 	// Write preconditions if present

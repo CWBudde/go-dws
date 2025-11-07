@@ -136,51 +136,68 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 		OfObject:   false,
 	}
 
-	// Expect opening parenthesis for parameter list
-	if !p.expectPeek(lexer.LPAREN) {
-		p.addError("expected '(' after "+funcOrProcToken.Literal, ErrMissingLParen)
-		return nil
-	}
+	// Check if parameter list is present (optional in DWScript)
+	// Function pointer types can be:
+	//   procedure - no parameters, no parentheses
+	//   procedure() - no parameters, with parentheses
+	//   procedure(x: Integer) - with parameters
+	//   function : Integer - no parameters, no parentheses
+	//   function() : Integer - no parameters, with parentheses
+	//   function(x: Integer) : Integer - with parameters
+	hasParentheses := p.peekTokenIs(lexer.LPAREN)
 
-	// Check if there are parameters (not just empty parens)
-	if !p.peekTokenIs(lexer.RPAREN) {
-		// Detect syntax type: full (with names) vs shorthand (types only)
-		// We need to determine if we have:
-		//   Full syntax: "name: Type" or "name1, name2: Type"
-		//   Shorthand: "Type" or "Type1, Type2"
-		//
-		// Strategy: Use simple lookahead WITHOUT advancing parser state.
-		// After we detect, advance once and parse accordingly.
+	// Track the token for EndPos calculation
+	var endToken lexer.Token
 
-		isFullSyntax := p.detectFunctionPointerFullSyntax()
+	if hasParentheses {
+		// Parameter list present with parentheses
+		p.nextToken() // move to LPAREN
 
-		// Now advance to first parameter/type token
-		p.nextToken()
+		// Check if there are parameters (not just empty parens)
+		if !p.peekTokenIs(lexer.RPAREN) {
+			// Detect syntax type: full (with names) vs shorthand (types only)
+			// We need to determine if we have:
+			//   Full syntax: "name: Type" or "name1, name2: Type"
+			//   Shorthand: "Type" or "Type1, Type2"
+			//
+			// Strategy: Use simple lookahead WITHOUT advancing parser state.
+			// After we detect, advance once and parse accordingly.
 
-		if isFullSyntax {
-			// Full syntax with parameter names
-			funcPtrType.Parameters = p.parseParameterListAtToken()
+			isFullSyntax := p.detectFunctionPointerFullSyntax()
+
+			// Now advance to first parameter/type token
+			p.nextToken()
+
+			if isFullSyntax {
+				// Full syntax with parameter names
+				funcPtrType.Parameters = p.parseParameterListAtToken()
+			} else {
+				// Shorthand syntax with only types
+				funcPtrType.Parameters = p.parseTypeOnlyParameterListAtToken()
+			}
+
+			if funcPtrType.Parameters == nil {
+				return nil
+			}
 		} else {
-			// Shorthand syntax with only types
-			funcPtrType.Parameters = p.parseTypeOnlyParameterListAtToken()
+			// Empty parameter list
+			p.nextToken() // move to RPAREN
 		}
 
-		if funcPtrType.Parameters == nil {
+		// Expect closing parenthesis
+		if !p.curTokenIs(lexer.RPAREN) {
+			p.addError("expected ')' after parameter list in function pointer type", ErrMissingRParen)
 			return nil
 		}
+
+		// Save RPAREN token for EndPos calculation
+		endToken = p.curToken
 	} else {
-		// Empty parameter list
-		p.nextToken() // move to RPAREN
+		// No parentheses - parameterless function/procedure pointer
+		// Current token is still FUNCTION or PROCEDURE
+		// Save the function/procedure token for EndPos
+		endToken = funcOrProcToken
 	}
-
-	// Expect closing parenthesis
-	if !p.curTokenIs(lexer.RPAREN) {
-		p.addError("expected ')' after parameter list in function pointer type", ErrMissingRParen)
-		return nil
-	}
-
-	// Save RPAREN token for EndPos calculation (for procedures without return type)
-	rparenToken := p.curToken
 
 	// Parse return type for functions (not procedures)
 	if isFunction {
@@ -213,7 +230,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 	if p.peekTokenIs(lexer.OF) {
 		p.nextToken() // move to OF
 		if !p.expectPeek(lexer.OBJECT) {
-			p.addError("expected .object. after .of. in function pointer type", ErrUnexpectedToken)
+			p.addError("expected 'object' after 'of' in function pointer type", ErrUnexpectedToken)
 			return nil
 		}
 		funcPtrType.OfObject = true
@@ -223,8 +240,8 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 		// EndPos is after return type for functions
 		funcPtrType.EndPos = funcPtrType.ReturnType.End()
 	} else {
-		// EndPos is after closing paren for procedures without "of object"
-		funcPtrType.EndPos = p.endPosFromToken(rparenToken)
+		// EndPos is after closing paren (if present) or function/procedure keyword
+		funcPtrType.EndPos = p.endPosFromToken(endToken)
 	}
 
 	return funcPtrType
