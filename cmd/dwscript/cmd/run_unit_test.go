@@ -182,6 +182,26 @@ PrintLn(Concat('Hello', 'World'));`
 	}
 }
 
+// TestRunBytecodeSimpleScript ensures bytecode mode executes simple programs.
+func TestRunBytecodeSimpleScript(t *testing.T) {
+	tempDir := t.TempDir()
+	script := `var x: Integer := 41;
+x := x + 1;`
+
+	scriptPath := filepath.Join(tempDir, "main.dws")
+	if err := os.WriteFile(scriptPath, []byte(script), 0o644); err != nil {
+		t.Fatalf("Failed to create script: %v", err)
+	}
+
+	oldBytecode := bytecodeMode
+	defer func() { bytecodeMode = oldBytecode }()
+	bytecodeMode = true
+
+	if err := runScript(runCmd, []string{scriptPath}); err != nil {
+		t.Fatalf("runScript in bytecode mode failed: %v", err)
+	}
+}
+
 // TestRunWithVerboseUnitLoading tests verbose output with -v flag
 func TestRunWithVerboseUnitLoading(t *testing.T) {
 	tempDir := t.TempDir()

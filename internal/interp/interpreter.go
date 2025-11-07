@@ -38,13 +38,13 @@ type Interpreter struct {
 	conversions       *runtimeConversionRegistry     // Global conversions
 	env               *Environment                   // The current execution environment
 	classes           map[string]*ClassInfo          // Registry of class definitions
-	handlerException  *ExceptionValue              // Exception being handled (for bare raise)
-	callStack         errors.StackTrace            // Stack of currently executing functions with position info (for stack traces)
-	maxRecursionDepth int                          // Maximum allowed recursion depth (prevents stack overflow)
-	initializedUnits  map[string]bool              // Track which units have been initialized
-	unitRegistry      *units.UnitRegistry          // Registry for managing loaded units
-	loadedUnits       []string                     // Units loaded in order (for initialization/finalization)
-	externalFunctions *ExternalFunctionRegistry    // Registry of external Go functions (Task 9.32)
+	handlerException  *ExceptionValue                // Exception being handled (for bare raise)
+	callStack         errors.StackTrace              // Stack of currently executing functions with position info (for stack traces)
+	maxRecursionDepth int                            // Maximum allowed recursion depth (prevents stack overflow)
+	initializedUnits  map[string]bool                // Track which units have been initialized
+	unitRegistry      *units.UnitRegistry            // Registry for managing loaded units
+	loadedUnits       []string                       // Units loaded in order (for initialization/finalization)
+	externalFunctions *ExternalFunctionRegistry      // Registry of external Go functions (Task 9.32)
 
 	// These flags signal control flow changes (break, continue, exit) and are checked
 	// after each statement. They propagate up the call stack until handled by the

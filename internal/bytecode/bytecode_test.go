@@ -355,6 +355,219 @@ func TestChunkValidate(t *testing.T) {
 	})
 }
 
+func TestChunkOptimizeRemovesLiteralPushPopPairs(t *testing.T) {
+	chunk := NewChunk("opt")
+	constIdx := chunk.AddConstant(IntValue(42))
+
+	chunk.Write(OpLoadConst, 0, uint16(constIdx), 1)
+	chunk.WriteSimple(OpPop, 1)
+	chunk.WriteSimple(OpLoadTrue, 2)
+	chunk.WriteSimple(OpPop, 2)
+	chunk.WriteSimple(OpHalt, 3)
+
+	chunk.Optimize()
+
+	if len(chunk.Code) != 1 {
+		t.Fatalf("expected 1 instruction after optimization, got %d", len(chunk.Code))
+	}
+	if chunk.Code[0].OpCode() != OpHalt {
+		t.Fatalf("expected remaining instruction to be OpHalt, got %v", chunk.Code[0].OpCode())
+	}
+	if line := chunk.GetLine(0); line != 3 {
+		t.Fatalf("expected OpHalt line to remain 3, got %d", line)
+	}
+}
+
+func TestChunkOptimizeUpdatesJumpOffsets(t *testing.T) {
+	chunk := NewChunk("jump")
+	constIdx := chunk.AddConstant(IntValue(1))
+
+	chunk.Write(OpJump, 0, 2, 1) // jump over next two instructions
+	chunk.Write(OpLoadConst, 0, uint16(constIdx), 2)
+	chunk.WriteSimple(OpPop, 2)
+	chunk.Write(OpReturn, 0, 0, 3)
+
+	chunk.Optimize()
+
+	if len(chunk.Code) != 2 {
+		t.Fatalf("expected 2 instructions after optimization, got %d", len(chunk.Code))
+	}
+	if chunk.Code[0].OpCode() != OpJump {
+		t.Fatalf("expected first instruction to remain OpJump, got %v", chunk.Code[0].OpCode())
+	}
+	if chunk.Code[0].B() != 0 {
+		t.Fatalf("expected jump offset to be 0 after removing dead instructions, got %d", chunk.Code[0].B())
+	}
+	if chunk.Code[1].OpCode() != OpReturn {
+		t.Fatalf("expected OpReturn after jump, got %v", chunk.Code[1].OpCode())
+	}
+}
+
+func TestChunkOptimizeRemovesStackShuffleNoops(t *testing.T) {
+	chunk := NewChunk("stack")
+	chunk.WriteSimple(OpDup, 1)
+	chunk.WriteSimple(OpPop, 1)
+	chunk.WriteSimple(OpDup2, 2)
+	chunk.WriteSimple(OpPop, 2)
+	chunk.WriteSimple(OpPop, 2)
+	chunk.WriteSimple(OpSwap, 3)
+	chunk.WriteSimple(OpSwap, 3)
+	chunk.WriteSimple(OpRotate3, 4)
+	chunk.WriteSimple(OpRotate3, 4)
+	chunk.WriteSimple(OpRotate3, 4)
+	chunk.WriteSimple(OpHalt, 5)
+
+	chunk.Optimize()
+
+	if len(chunk.Code) != 1 || chunk.Code[0].OpCode() != OpHalt {
+		t.Fatalf("expected only OpHalt after removing redundant shuffles, got %v", chunk.Code)
+	}
+}
+
+func TestChunkOptimizeStackShuffleRemainders(t *testing.T) {
+	chunk := NewChunk("stack-rem")
+	chunk.WriteSimple(OpSwap, 1)
+	chunk.WriteSimple(OpSwap, 1)
+	chunk.WriteSimple(OpSwap, 1) // odd count -> one swap remains
+	chunk.WriteSimple(OpRotate3, 2)
+	chunk.WriteSimple(OpRotate3, 2)
+	chunk.WriteSimple(OpRotate3, 2)
+	chunk.WriteSimple(OpRotate3, 2) // 4 rotations -> 1 remains
+
+	chunk.Optimize()
+
+	if len(chunk.Code) != 2 {
+		t.Fatalf("expected two instructions (swap + rotate3), got %d", len(chunk.Code))
+	}
+	if chunk.Code[0].OpCode() != OpSwap {
+		t.Fatalf("expected OpSwap to remain first, got %v", chunk.Code[0].OpCode())
+	}
+	if chunk.Code[1].OpCode() != OpRotate3 {
+		t.Fatalf("expected OpRotate3 to remain second, got %v", chunk.Code[1].OpCode())
+	}
+}
+
+func TestChunkOptimizeEliminatesDeadCodeAfterReturn(t *testing.T) {
+	chunk := NewChunk("dead")
+	chunk.Write(OpReturn, 0, 0, 1)
+	constIdx := chunk.AddConstant(IntValue(1))
+	chunk.Write(OpLoadConst, 0, uint16(constIdx), 2)
+	chunk.WriteSimple(OpHalt, 3)
+
+	chunk.Optimize()
+
+	if len(chunk.Code) != 1 || chunk.Code[0].OpCode() != OpReturn {
+		t.Fatalf("expected only OpReturn to remain, got %v", chunk.Code)
+	}
+}
+
+func TestChunkOptimizePreservesJumpTargets(t *testing.T) {
+	chunk := NewChunk("dead-target")
+	chunk.Write(OpJump, 0, 2, 1) // jumps to final instruction
+	chunk.Write(OpReturn, 0, 0, 2)
+	constIdx := chunk.AddConstant(IntValue(2))
+	chunk.Write(OpLoadConst, 0, uint16(constIdx), 3)
+	chunk.WriteSimple(OpHalt, 4)
+
+	chunk.Optimize()
+
+	if len(chunk.Code) != 2 {
+		t.Fatalf("expected OpJump and OpHalt to remain, got %v", chunk.Code)
+	}
+	if chunk.Code[0].OpCode() != OpJump || chunk.Code[1].OpCode() != OpHalt {
+		t.Fatalf("unexpected instruction sequence after DCE: %v", chunk.Code)
+	}
+}
+
+func TestChunkOptimizePropagatesLocalConstantLoads(t *testing.T) {
+	chunk := NewChunk("const-local")
+	valIdx := chunk.AddConstant(IntValue(7))
+	chunk.Write(OpLoadConst, 0, uint16(valIdx), 1)
+	chunk.Write(OpStoreLocal, 0, 0, 1)
+	chunk.Write(OpLoadLocal, 0, 0, 2)
+	chunk.Write(OpReturn, 1, 0, 3)
+
+	chunk.Optimize()
+
+	if len(chunk.Code) != 4 {
+		t.Fatalf("expected 4 instructions, got %d", len(chunk.Code))
+	}
+	switch chunk.Code[2].OpCode() {
+	case OpLoadConst, OpLoadConst0, OpLoadConst1:
+	default:
+		t.Fatalf("expected LoadLocal to be replaced with LoadConst variant, got %v", chunk.Code[2].OpCode())
+	}
+}
+
+func TestChunkOptimizeFoldsConstantAddition(t *testing.T) {
+	chunk := NewChunk("const-add")
+	aIdx := chunk.AddConstant(IntValue(2))
+	bIdx := chunk.AddConstant(IntValue(3))
+	chunk.Write(OpLoadConst, 0, uint16(aIdx), 1)
+	chunk.Write(OpLoadConst, 0, uint16(bIdx), 1)
+	chunk.WriteSimple(OpAddInt, 1)
+	chunk.Write(OpReturn, 1, 0, 2)
+
+	chunk.Optimize()
+
+	if len(chunk.Code) != 2 {
+		t.Fatalf("expected folded sequence (2 instructions), got %d", len(chunk.Code))
+	}
+	if chunk.Code[0].OpCode() != OpLoadConst {
+		t.Fatalf("expected first instruction to be LoadConst result, got %v", chunk.Code[0].OpCode())
+	}
+	if chunk.Code[1].OpCode() != OpReturn {
+		t.Fatalf("expected trailing OpReturn, got %v", chunk.Code[1].OpCode())
+	}
+}
+
+func TestChunkOptimizeInlinesSmallFunction(t *testing.T) {
+	chunk := NewChunk("inline")
+	fnChunk := NewChunk("fn")
+	constIdx := fnChunk.AddConstant(IntValue(99))
+	fnChunk.Write(OpLoadConst, 0, uint16(constIdx), 1)
+	fnChunk.Write(OpReturn, 1, 0, 1)
+	fn := NewFunctionObject("const99", fnChunk, 0)
+	fnValue := FunctionValue(fn)
+	fConst := chunk.AddConstant(fnValue)
+	chunk.Write(OpCall, 0, uint16(fConst), 1)
+	chunk.Write(OpReturn, 1, 0, 2)
+
+	chunk.Optimize()
+
+	if len(chunk.Code) != 2 {
+		t.Fatalf("expected 2 instructions after inlining, got %d", len(chunk.Code))
+	}
+	if chunk.Code[0].OpCode() != OpLoadConst {
+		t.Fatalf("expected first instruction to load constant, got %v", chunk.Code[0].OpCode())
+	}
+	if chunk.Code[1].OpCode() != OpReturn {
+		t.Fatalf("expected trailing OpReturn, got %v", chunk.Code[1].OpCode())
+	}
+}
+
+func TestChunkOptimizeCanDisablePasses(t *testing.T) {
+	chunk := NewChunk("opt")
+	constIdx := chunk.AddConstant(IntValue(1))
+
+	chunk.Write(OpLoadConst, 0, uint16(constIdx), 1)
+	chunk.WriteSimple(OpPop, 1)
+	chunk.WriteSimple(OpHalt, 2)
+
+	chunk.Optimize(
+		WithOptimizationPass(PassLiteralDiscard, false),
+		WithOptimizationPass(PassStackShuffle, false),
+		WithOptimizationPass(PassDeadCode, false),
+	)
+
+	if len(chunk.Code) != 3 {
+		t.Fatalf("expected optimizer to skip passes when disabled, got %d instructions", len(chunk.Code))
+	}
+	if chunk.Code[0].OpCode() != OpLoadConst || chunk.Code[1].OpCode() != OpPop {
+		t.Fatalf("expected literal instructions untouched when pass disabled, got %v", chunk.Code)
+	}
+}
+
 func TestChunkStats(t *testing.T) {
 	chunk := NewChunk("test_function")
 

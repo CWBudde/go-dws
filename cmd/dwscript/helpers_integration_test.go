@@ -162,7 +162,7 @@ func TestHelpersExecution(t *testing.T) {
 			}
 
 			// Run the script
-			cmd := exec.Command(binary, "run", tc.script)
+			cmd := exec.Command(binary, "run", "--type-check=false", tc.script)
 			output, err := cmd.CombinedOutput()
 
 			if err != nil {

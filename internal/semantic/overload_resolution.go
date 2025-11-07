@@ -73,10 +73,11 @@ func SignaturesEqual(sig1, sig2 *types.FunctionType) bool {
 // Lower distance means better match. Returns -1 if incompatible.
 //
 // Distance levels:
-//   0 = Exact match (same type)
-//   1 = Implicit conversion (Integer -> Float, derived class -> base class)
-//   2 = Variant conversion (any type -> Variant, Variant -> any type)
-//  -1 = Incompatible (no conversion possible)
+//
+//	 0 = Exact match (same type)
+//	 1 = Implicit conversion (Integer -> Float, derived class -> base class)
+//	 2 = Variant conversion (any type -> Variant, Variant -> any type)
+//	-1 = Incompatible (no conversion possible)
 //
 // This is used to rank overload candidates when multiple overloads could match
 // the provided arguments.

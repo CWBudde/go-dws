@@ -7,6 +7,27 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp"
 )
 
+// CompileMode selects which execution engine the DWScript runtime uses.
+type CompileMode int
+
+const (
+	// CompileModeAST executes programs using the existing AST interpreter.
+	CompileModeAST CompileMode = iota
+	// CompileModeBytecode compiles programs to bytecode and executes them on the VM.
+	CompileModeBytecode
+)
+
+func (m CompileMode) String() string {
+	switch m {
+	case CompileModeAST:
+		return "ast"
+	case CompileModeBytecode:
+		return "bytecode"
+	default:
+		return "unknown"
+	}
+}
+
 // Options configures the behavior of the DWScript engine.
 type Options struct {
 	Output            io.Writer
@@ -14,6 +35,7 @@ type Options struct {
 	Trace             bool
 	ExternalFunctions *interp.ExternalFunctionRegistry
 	MaxRecursionDepth int // Maximum recursion depth (default: 1024)
+	CompileMode       CompileMode
 }
 
 // Option is a function that configures an Engine's Options.
@@ -26,6 +48,7 @@ func defaultOptions() Options {
 		Output:            os.Stdout,
 		Trace:             false,
 		MaxRecursionDepth: 1024, // Default matches DWScript's cDefaultMaxRecursionDepth
+		CompileMode:       CompileModeAST,
 	}
 }
 
@@ -78,6 +101,14 @@ func WithTrace(enabled bool) Option {
 func WithMaxRecursionDepth(depth int) Option {
 	return func(opts *Options) error {
 		opts.MaxRecursionDepth = depth
+		return nil
+	}
+}
+
+// WithCompileMode selects which execution engine should be used (AST or bytecode VM).
+func WithCompileMode(mode CompileMode) Option {
+	return func(opts *Options) error {
+		opts.CompileMode = mode
 		return nil
 	}
 }

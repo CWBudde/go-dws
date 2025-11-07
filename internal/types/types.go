@@ -414,27 +414,27 @@ type MethodInfo struct {
 // ClassType represents a class type in DWScript.
 // Classes support inheritance, fields, methods, and class variables (static fields).
 type ClassType struct {
-	OverrideMethods   map[string]bool
-	AbstractMethods   map[string]bool
-	ForwardedMethods  map[string]bool
-	Fields            map[string]Type
-	ClassVars         map[string]Type
-	Methods           map[string]*FunctionType // Primary method signature (first or only overload)
-	MethodOverloads   map[string][]*MethodInfo // All overload variants (Task 9.61)
-	FieldVisibility   map[string]int
-	MethodVisibility  map[string]int
-	VirtualMethods    map[string]bool
-	Parent            *ClassType
-	Properties        map[string]*PropertyInfo
-	ClassMethodFlags  map[string]bool
-	Constructors      map[string]*FunctionType      // Primary constructor signature
-	ConstructorOverloads map[string][]*MethodInfo  // All constructor overload variants (Task 9.61)
-	Operators         *OperatorRegistry
-	ExternalName      string
-	Name              string
-	Interfaces        []*InterfaceType
-	IsAbstract        bool
-	IsExternal        bool
+	OverrideMethods      map[string]bool
+	AbstractMethods      map[string]bool
+	ForwardedMethods     map[string]bool
+	Fields               map[string]Type
+	ClassVars            map[string]Type
+	Methods              map[string]*FunctionType // Primary method signature (first or only overload)
+	MethodOverloads      map[string][]*MethodInfo // All overload variants (Task 9.61)
+	FieldVisibility      map[string]int
+	MethodVisibility     map[string]int
+	VirtualMethods       map[string]bool
+	Parent               *ClassType
+	Properties           map[string]*PropertyInfo
+	ClassMethodFlags     map[string]bool
+	Constructors         map[string]*FunctionType // Primary constructor signature
+	ConstructorOverloads map[string][]*MethodInfo // All constructor overload variants (Task 9.61)
+	Operators            *OperatorRegistry
+	ExternalName         string
+	Name                 string
+	Interfaces           []*InterfaceType
+	IsAbstract           bool
+	IsExternal           bool
 }
 
 // String returns the string representation of the class type
@@ -639,7 +639,7 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		Fields:               make(map[string]Type),
 		ClassVars:            make(map[string]Type),
 		Methods:              make(map[string]*FunctionType),
-		MethodOverloads:      make(map[string][]*MethodInfo),      // Task 9.61
+		MethodOverloads:      make(map[string][]*MethodInfo), // Task 9.61
 		FieldVisibility:      make(map[string]int),
 		MethodVisibility:     make(map[string]int),
 		VirtualMethods:       make(map[string]bool),
@@ -648,7 +648,7 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		ForwardedMethods:     make(map[string]bool),
 		Operators:            NewOperatorRegistry(),
 		Constructors:         make(map[string]*FunctionType),
-		ConstructorOverloads: make(map[string][]*MethodInfo),  // Task 9.61
+		ConstructorOverloads: make(map[string][]*MethodInfo), // Task 9.61
 		ClassMethodFlags:     make(map[string]bool),
 		Properties:           make(map[string]*PropertyInfo),
 	}

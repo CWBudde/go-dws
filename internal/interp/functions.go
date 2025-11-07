@@ -1671,6 +1671,7 @@ func (i *Interpreter) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) *types.
 
 	return types.NewStaticArrayType(elementType, int(lowBound.Value), int(highBound.Value))
 }
+
 // resolveOverload selects the best matching function overload based on argument types.
 // Task 9.65: Runtime overload resolution
 func (i *Interpreter) resolveOverload(funcName string, overloads []*ast.FunctionDecl, argExprs []ast.Expression) (*ast.FunctionDecl, error) {

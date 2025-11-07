@@ -717,15 +717,19 @@ func (c *Chunk) EmitLoop(loopStart int, line int) error {
 	return nil
 }
 
-// Optimize performs simple peephole optimizations on the bytecode.
-// This is optional and can be called after compilation is complete.
-func (c *Chunk) Optimize() {
-	// TODO: Implement peephole optimizations in task 11.18.11
-	// Examples:
-	// - LOAD_CONST followed by POP -> remove both
-	// - Multiple POPs -> single instruction
-	// - Constant folding for compile-time expressions
-	// - Jump to next instruction -> remove jump
+// Optimize performs bytecode optimizations using the pass manager.
+// Optional options can be provided to enable/disable individual passes.
+func (c *Chunk) Optimize(opts ...OptimizeOption) {
+	if c == nil || len(c.Code) == 0 {
+		return
+	}
+
+	config := defaultOptimizeConfig()
+	for _, opt := range opts {
+		opt(&config)
+	}
+
+	newChunkOptimizer(c, config).run()
 }
 
 // Stats returns statistics about the chunk for debugging.
