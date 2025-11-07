@@ -586,6 +586,160 @@ func TestCompiler_MemberAccess(t *testing.T) {
 	}
 }
 
+func TestCompiler_MethodCallEmitsCallMethod(t *testing.T) {
+	intType := &ast.TypeAnnotation{Name: "Integer"}
+
+	objIdent := &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "obj", Pos: pos(1, 5)}, Value: "obj", Type: intType}
+	methodName := &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "DoIt", Pos: pos(2, 10)}, Value: "DoIt"}
+
+	methodCall := &ast.MethodCallExpression{
+		Token: lexer.Token{Type: lexer.DOT, Literal: ".", Pos: pos(2, 8)},
+		Object: &ast.Identifier{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "obj", Pos: pos(2, 5)},
+			Value: "obj",
+			Type:  intType,
+		},
+		Method: methodName,
+		Arguments: []ast.Expression{
+			&ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(2, 15)}, Value: 1, Type: intType},
+		},
+	}
+
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.VarDeclStatement{
+				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+				Names: []*ast.Identifier{objIdent},
+				Type:  intType,
+				Value: &ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(1, 10)}, Value: 0, Type: intType},
+			},
+			&ast.ExpressionStatement{
+				Token:      lexer.Token{Type: lexer.IDENT, Literal: "DoIt", Pos: pos(2, 5)},
+				Expression: methodCall,
+			},
+		},
+	}
+
+	chunk := compileProgram(t, program)
+
+	foundCallMethod := false
+	for _, inst := range chunk.Code {
+		if inst.OpCode() == OpCallMethod {
+			foundCallMethod = true
+			break
+		}
+	}
+
+	if !foundCallMethod {
+		t.Fatalf("expected OpCallMethod in compiled chunk")
+	}
+}
+
+func TestCompiler_SelfIdentifierEmitsGetSelf(t *testing.T) {
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.ExpressionStatement{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Self", Pos: pos(1, 1)},
+				Expression: &ast.Identifier{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "Self", Pos: pos(1, 1)},
+					Value: "Self",
+				},
+			},
+		},
+	}
+
+	chunk := compileProgram(t, program)
+	if len(chunk.Code) == 0 || chunk.Code[0].OpCode() != OpGetSelf {
+		t.Fatalf("expected first instruction to be OpGetSelf, got %v", chunk.Code)
+	}
+}
+
+func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
+	intType := &ast.TypeAnnotation{Name: "Integer"}
+
+	paramX := &ast.Parameter{
+		Name: &ast.Identifier{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 20)},
+			Value: "x",
+			Type:  intType,
+		},
+		Type: intType,
+	}
+
+	addOneBody := &ast.BlockStatement{
+		Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+		Statements: []ast.Statement{
+			&ast.ReturnStatement{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(2, 5)},
+				ReturnValue: &ast.BinaryExpression{
+					Token:    lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(2, 15)},
+					Operator: "+",
+					Left: &ast.Identifier{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(2, 13)},
+						Value: "x",
+						Type:  intType,
+					},
+					Right: &ast.IntegerLiteral{
+						Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(2, 17)},
+						Value: 1,
+						Type:  intType,
+					},
+					Type: intType,
+				},
+			},
+		},
+	}
+
+	functionDecl := &ast.FunctionDecl{
+		Name:       &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "AddOne", Pos: pos(1, 1)}, Value: "AddOne"},
+		ReturnType: intType,
+		Parameters: []*ast.Parameter{paramX},
+		Body:       addOneBody,
+		Token:      lexer.Token{Type: lexer.FUNCTION, Literal: "function", Pos: pos(1, 1)},
+	}
+
+	callAddOne := &ast.CallExpression{
+		Token: lexer.Token{Type: lexer.LPAREN, Literal: "(", Pos: pos(4, 12)},
+		Function: &ast.Identifier{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "AddOne", Pos: pos(4, 5)},
+			Value: "AddOne",
+		},
+		Arguments: []ast.Expression{
+			&ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "41", Pos: pos(4, 13)}, Value: 41, Type: intType},
+		},
+	}
+
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			functionDecl,
+			&ast.ReturnStatement{
+				Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(4, 1)},
+				ReturnValue: callAddOne,
+			},
+		},
+	}
+
+	chunk := compileProgram(t, program)
+
+	hasCall := false
+	hasCallIndirect := false
+	for _, inst := range chunk.Code {
+		switch inst.OpCode() {
+		case OpCall:
+			hasCall = true
+		case OpCallIndirect:
+			hasCallIndirect = true
+		}
+	}
+
+	if !hasCall {
+		t.Fatalf("expected OpCall instruction for direct call")
+	}
+	if hasCallIndirect {
+		t.Fatalf("did not expect OpCallIndirect for direct call to named function")
+	}
+}
+
 func TestCompiler_RepeatLoop(t *testing.T) {
 	intType := &ast.TypeAnnotation{Name: "Integer"}
 	boolType := &ast.TypeAnnotation{Name: "Boolean"}

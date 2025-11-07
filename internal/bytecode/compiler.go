@@ -16,6 +16,7 @@ type Compiler struct {
 	globals    map[string]globalVar
 	upvalues   []upvalue
 	loopStack  []*loopContext
+	functions  map[string]functionInfo
 	enclosing  *Compiler
 	scopeDepth int
 	nextSlot   uint16
@@ -42,6 +43,11 @@ type upvalue struct {
 	isLocal bool
 }
 
+type functionInfo struct {
+	constIndex uint16
+	globalSlot uint16
+}
+
 type loopKind int
 
 const (
@@ -63,12 +69,15 @@ func NewCompiler(chunkName string) *Compiler {
 
 func newCompiler(chunkName string, enclosing *Compiler) *Compiler {
 	globals := make(map[string]globalVar)
+	functions := make(map[string]functionInfo)
 	if enclosing != nil {
 		globals = enclosing.globals
+		functions = enclosing.functions
 	}
 	return &Compiler{
 		chunk:     NewChunk(chunkName),
 		globals:   globals,
+		functions: functions,
 		enclosing: enclosing,
 	}
 }
@@ -90,6 +99,7 @@ func (c *Compiler) Compile(program *ast.Program) (*Chunk, error) {
 	c.locals = c.locals[:0]
 	c.upvalues = c.upvalues[:0]
 	c.globals = make(map[string]globalVar)
+	c.functions = make(map[string]functionInfo)
 	c.loopStack = c.loopStack[:0]
 	c.scopeDepth = 0
 	c.nextSlot = 0
@@ -140,6 +150,8 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 		return c.compileAssignment(node)
 	case *ast.ExpressionStatement:
 		return c.compileExpressionStatement(node)
+	case *ast.FunctionDecl:
+		return c.compileFunctionDecl(node)
 	case *ast.IfStatement:
 		return c.compileIf(node)
 	case *ast.WhileStatement:
@@ -338,6 +350,71 @@ func (c *Compiler) compileReturn(stmt *ast.ReturnStatement) error {
 	return nil
 }
 
+func (c *Compiler) compileFunctionDecl(fn *ast.FunctionDecl) error {
+	if fn.Name == nil {
+		return c.errorf(fn, "function declaration missing name")
+	}
+	if !c.isGlobalScope() {
+		return c.errorf(fn, "local function declarations are not supported yet")
+	}
+
+	globalSlot, err := c.declareGlobal(fn.Name, typeFromAnnotation(fn.ReturnType))
+	if err != nil {
+		return err
+	}
+
+	child := c.newChildCompiler(fn.Name.Value)
+	child.beginScope()
+
+	for _, param := range fn.Parameters {
+		if param == nil || param.Name == nil {
+			return c.errorf(fn, "function parameter missing identifier")
+		}
+		paramType := typeFromAnnotation(param.Type)
+		if _, err := child.declareLocal(param.Name, paramType); err != nil {
+			return err
+		}
+	}
+
+	if fn.Body == nil {
+		return c.errorf(fn, "function %s missing body", fn.Name.Value)
+	}
+
+	if err := child.compileBlock(fn.Body); err != nil {
+		return err
+	}
+
+	child.endScope()
+	child.chunk.LocalCount = int(child.maxSlot)
+	child.ensureFunctionReturn(lineOf(fn))
+
+	functionObject := NewFunctionObject(fn.Name.Value, child.chunk, len(fn.Parameters))
+	functionObject.UpvalueDefs = child.buildUpvalueDefs()
+
+	fnConstIndex := c.chunk.AddConstant(FunctionValue(functionObject))
+	if fnConstIndex > 0xFFFF {
+		return c.errorf(fn, "constant pool overflow")
+	}
+
+	upvalueCount := len(functionObject.UpvalueDefs)
+	if upvalueCount > 0xFF {
+		return c.errorf(fn, "too many upvalues in function %s", fn.Name.Value)
+	}
+
+	info := functionInfo{
+		constIndex: uint16(fnConstIndex),
+		globalSlot: globalSlot,
+	}
+	if c.functions == nil {
+		c.functions = make(map[string]functionInfo)
+	}
+	c.functions[strings.ToLower(fn.Name.Value)] = info
+
+	c.chunk.Write(OpClosure, byte(upvalueCount), uint16(fnConstIndex), lineOf(fn))
+	c.chunk.Write(OpStoreGlobal, 0, globalSlot, lineOf(fn))
+	return nil
+}
+
 func (c *Compiler) compileBreak(stmt *ast.BreakStatement) error {
 	loop := c.currentLoop()
 	if loop == nil {
@@ -397,6 +474,8 @@ func (c *Compiler) compileExpression(expr ast.Expression) error {
 		return c.compileMemberAccess(node)
 	case *ast.LambdaExpression:
 		return c.compileLambdaExpression(node)
+	case *ast.MethodCallExpression:
+		return c.compileMethodCallExpression(node)
 	case *ast.CallExpression:
 		return c.compileCallExpression(node)
 	case *ast.BinaryExpression:
@@ -419,6 +498,10 @@ func (c *Compiler) compileIdentifier(ident *ast.Identifier) error {
 		}
 		if globalInfo, found := c.resolveGlobal(ident.Value); found {
 			c.chunk.Write(OpLoadGlobal, 0, globalInfo.index, lineOf(ident))
+			return nil
+		}
+		if strings.EqualFold(ident.Value, "Self") {
+			c.chunk.WriteSimple(OpGetSelf, lineOf(ident))
 			return nil
 		}
 		return c.errorf(ident, "unknown identifier %q", ident.Value)
@@ -448,6 +531,10 @@ func (c *Compiler) compileIdentifierAssignment(ident *ast.Identifier, value ast.
 	if globalInfo, ok := c.resolveGlobal(ident.Value); ok {
 		c.chunk.Write(OpStoreGlobal, 0, globalInfo.index, lineOf(ident))
 		return nil
+	}
+
+	if strings.EqualFold(ident.Value, "Self") {
+		return c.errorf(ident, "cannot assign to Self")
 	}
 
 	return c.errorf(ident, "unknown variable %q", ident.Value)
@@ -490,6 +577,35 @@ func (c *Compiler) compileMemberAssignment(target *ast.MemberAccessExpression, v
 	}
 
 	c.chunk.Write(OpSetProperty, 0, nameIndex, lineOf(target))
+	return nil
+}
+
+func (c *Compiler) compileMethodCallExpression(expr *ast.MethodCallExpression) error {
+	if expr == nil || expr.Method == nil {
+		return c.errorf(expr, "invalid method call expression")
+	}
+
+	if err := c.compileExpression(expr.Object); err != nil {
+		return err
+	}
+
+	for _, arg := range expr.Arguments {
+		if err := c.compileExpression(arg); err != nil {
+			return err
+		}
+	}
+
+	argCount := len(expr.Arguments)
+	if argCount > 0xFF {
+		return c.errorf(expr, "too many arguments in method call: %d", argCount)
+	}
+
+	nameIndex, err := c.propertyNameIndex(expr.Method.Value, expr)
+	if err != nil {
+		return err
+	}
+
+	c.chunk.Write(OpCallMethod, byte(argCount), nameIndex, lineOf(expr))
 	return nil
 }
 
@@ -543,6 +659,23 @@ func (c *Compiler) compileLambdaExpression(expr *ast.LambdaExpression) error {
 }
 
 func (c *Compiler) compileCallExpression(expr *ast.CallExpression) error {
+	argCount := len(expr.Arguments)
+	if argCount > 0xFF {
+		return c.errorf(expr, "too many arguments in function call: %d", argCount)
+	}
+
+	if ident, ok := expr.Function.(*ast.Identifier); ok {
+		if info, ok := c.directCallInfo(ident); ok {
+			for _, arg := range expr.Arguments {
+				if err := c.compileExpression(arg); err != nil {
+					return err
+				}
+			}
+			c.chunk.Write(OpCall, byte(argCount), info.constIndex, lineOf(expr))
+			return nil
+		}
+	}
+
 	if err := c.compileExpression(expr.Function); err != nil {
 		return err
 	}
@@ -553,13 +686,24 @@ func (c *Compiler) compileCallExpression(expr *ast.CallExpression) error {
 		}
 	}
 
-	argCount := len(expr.Arguments)
-	if argCount > 0xFF {
-		return c.errorf(expr, "too many arguments in function call: %d", argCount)
-	}
-
 	c.chunk.Write(OpCallIndirect, byte(argCount), 0, lineOf(expr))
 	return nil
+}
+
+func (c *Compiler) directCallInfo(ident *ast.Identifier) (functionInfo, bool) {
+	if ident == nil || c.functions == nil {
+		return functionInfo{}, false
+	}
+
+	if _, ok := c.resolveLocal(ident.Value); ok {
+		return functionInfo{}, false
+	}
+	if c.hasEnclosingLocal(ident.Value) {
+		return functionInfo{}, false
+	}
+
+	info, ok := c.functions[strings.ToLower(ident.Value)]
+	return info, ok
 }
 
 func (c *Compiler) compileBinaryExpression(expr *ast.BinaryExpression) error {
@@ -953,6 +1097,15 @@ func (c *Compiler) endScope() {
 
 func (c *Compiler) isGlobalScope() bool {
 	return c.enclosing == nil && c.scopeDepth == 0
+}
+
+func (c *Compiler) hasEnclosingLocal(name string) bool {
+	for env := c.enclosing; env != nil; env = env.enclosing {
+		if _, ok := env.resolveLocal(name); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
