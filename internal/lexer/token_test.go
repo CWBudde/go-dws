@@ -429,19 +429,12 @@ func TestAllKeywordsCovered(t *testing.T) {
 
 	// Check that each keyword type can be looked up
 	for _, kt := range keywordTypes {
-		found := false
-		for kw, tokType := range keywords {
-			if tokType == kt {
-				found = true
-				// Verify LookupIdent returns the correct type
-				if got := LookupIdent(kw); got != kt {
-					t.Errorf("LookupIdent(%q) = %v, want %v", kw, got, kt)
-				}
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Keyword type %v (%s) has no entry in keywords map", kt, kt.String())
+		// Get the keyword string (e.g., "BEGIN" -> "begin")
+		kwStr := strings.ToLower(kt.String())
+
+		// Verify LookupIdent returns the correct type
+		if got := LookupIdent(kwStr); got != kt {
+			t.Errorf("LookupIdent(%q) = %v, want %v", kwStr, got, kt)
 		}
 	}
 }
