@@ -1019,3 +1019,155 @@ func TestVariadicLambdaInference(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Task 9.21.5: Tests for Overload Detection with Lambda Arguments
+// ============================================================================
+
+func TestOverloadDetectionWithLambdas(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		expectOk  bool
+		errorMsg  string
+	}{
+		{
+			name: "overloaded function with lambda - should detect and error",
+			input: `
+function Process(x: Integer; f: function(Integer): Integer): Integer; overload;
+begin
+	Result := f(x);
+end;
+
+function Process(x: String; f: function(String): String): String; overload;
+begin
+	Result := f(x);
+end;
+
+begin
+	// This should trigger task 9.21.5 detection
+	Process(5, lambda(n) => n * 2);
+end;
+			`,
+			expectOk: false,
+			errorMsg: "lambda type inference not yet supported for overloaded function",
+		},
+		{
+			name: "overloaded function with explicit lambda types - should work",
+			input: `
+function Process(x: Integer; f: function(Integer): Integer): Integer; overload;
+begin
+	Result := f(x);
+end;
+
+function Process(x: String; f: function(String): String): String; overload;
+begin
+	Result := f(x);
+end;
+
+begin
+	// Explicit types - should work fine
+	Process(5, lambda(n: Integer): Integer => n * 2);
+end;
+			`,
+			expectOk: true,
+			errorMsg: "",
+		},
+		{
+			name: "non-overloaded function with lambda - should work with inference",
+			input: `
+function Apply(x: Integer; f: function(Integer): Integer): Integer;
+begin
+	Result := f(x);
+end;
+
+begin
+	// No overloading - lambda inference works
+	Apply(5, lambda(n) => n * 2);
+end;
+			`,
+			expectOk: true,
+			errorMsg: "",
+		},
+		{
+			name: "overloaded function with multiple lambda arguments",
+			input: `
+function Combine(f: function(Integer): Integer; g: function(Integer): Integer): Integer; overload;
+begin
+	Result := f(1) + g(2);
+end;
+
+function Combine(f: function(String): String; g: function(String): String): String; overload;
+begin
+	Result := f('a') + g('b');
+end;
+
+begin
+	// Multiple lambdas without types - should detect both
+	Combine(lambda(x) => x * 2, lambda(y) => y + 1);
+end;
+			`,
+			expectOk: false,
+			errorMsg: "lambda type inference not yet supported for overloaded function",
+		},
+		{
+			name: "overloaded function with mixed arguments (lambda + non-lambda)",
+			input: `
+function Process(x: Integer; f: function(Integer): Integer): Integer; overload;
+begin
+	Result := f(x);
+end;
+
+function Process(x: String; f: function(String): String): String; overload;
+begin
+	Result := f(x);
+end;
+
+begin
+	// Lambda at position 1 (second argument)
+	Process(42, lambda(n) => n * 2);
+end;
+			`,
+			expectOk: false,
+			errorMsg: "lambda type inference not yet supported for overloaded function",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, err := analyzeSource(t, tt.input)
+
+			hasErrors := len(a.Errors()) > 0 || err != nil
+
+			if tt.expectOk && hasErrors {
+				t.Errorf("expected no errors, got: %v (analyzer errors: %v)", err, a.Errors())
+			} else if !tt.expectOk && !hasErrors {
+				t.Error("expected errors but got none")
+			}
+
+			// Check for specific error message if provided
+			if !tt.expectOk && tt.errorMsg != "" {
+				found := false
+				for _, errMsg := range a.Errors() {
+					// Simple substring match using Go's strings package would be better,
+					// but let's do a manual check for clarity
+					if len(errMsg) >= len(tt.errorMsg) {
+						for i := 0; i <= len(errMsg)-len(tt.errorMsg); i++ {
+							if errMsg[i:i+len(tt.errorMsg)] == tt.errorMsg {
+								found = true
+								break
+							}
+						}
+					}
+					if found {
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error containing '%s', but didn't find it in errors: %v",
+						tt.errorMsg, a.Errors())
+				}
+			}
+		})
+	}
+}

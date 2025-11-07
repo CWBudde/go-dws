@@ -255,6 +255,17 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return nil
 		}
 
+		// Task 9.21.5: Detect overloaded function calls with lambda arguments
+		hasLambdas, lambdaIndices := detectOverloadedCallWithLambdas(expr.Arguments)
+		if hasLambdas {
+			// We have lambda arguments that need type inference
+			// This requires special handling (tasks 9.21.6-9.21.7)
+			// For now, report that lambdas need explicit types when calling overloaded functions
+			a.addError("lambda type inference not yet supported for overloaded function '%s' - please provide explicit parameter types for lambda at argument position(s) %v at %s",
+				funcIdent.Value, lambdaIndices, expr.Token.Pos.String())
+			return nil
+		}
+
 		// Analyze argument types first
 		argTypes := make([]types.Type, len(expr.Arguments))
 		for i, arg := range expr.Arguments {
@@ -385,4 +396,47 @@ func (a *Analyzer) analyzeOldExpression(expr *ast.OldExpression) types.Type {
 
 	// Return the type of the identifier
 	return sym.Type
+}
+
+// ============================================================================
+// Task 9.21.5: Overload Detection with Lambda Arguments
+// ============================================================================
+
+// isLambdaNeedingInference checks if an expression is a lambda that needs type inference.
+// Returns true if the expression is a lambda with untyped parameters or untyped return.
+func isLambdaNeedingInference(expr ast.Expression) bool {
+	lambda, ok := expr.(*ast.LambdaExpression)
+	if !ok {
+		return false
+	}
+
+	// Check if any parameters lack type annotations
+	for _, param := range lambda.Parameters {
+		if param.Type == nil {
+			return true // Parameter needs type inference
+		}
+	}
+
+	// Check if return type lacks annotation (for statement-body lambdas)
+	// Note: shorthand lambdas always need return type inference from body
+	if lambda.ReturnType == nil {
+		return true
+	}
+
+	return false
+}
+
+// detectOverloadedCallWithLambdas detects when we're calling an overloaded function
+// with lambda arguments that need type inference.
+// Returns (hasLambdas bool, lambdaIndices []int)
+func detectOverloadedCallWithLambdas(args []ast.Expression) (bool, []int) {
+	lambdaIndices := []int{}
+
+	for i, arg := range args {
+		if isLambdaNeedingInference(arg) {
+			lambdaIndices = append(lambdaIndices, i)
+		}
+	}
+
+	return len(lambdaIndices) > 0, lambdaIndices
 }
