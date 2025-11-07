@@ -17,6 +17,7 @@ type Symbol struct {
 	IsConst          bool
 	IsOverloadSet    bool // True if this symbol represents multiple overloaded functions
 	HasOverloadDirective bool // True if function has explicit 'overload' directive (Task 9.58)
+	IsForward        bool // True if this is a forward declaration (no body yet) (Task 9.60)
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.
@@ -93,12 +94,14 @@ func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType)
 //   - name: Function name
 //   - funcType: Function signature
 //   - hasOverloadDirective: Whether the function declaration has the 'overload' directive
+//   - isForward: Whether this is a forward declaration (Task 9.60)
 //
 // Returns error if:
 //   - Function exists without overload directive on either declaration (Task 9.58)
 //   - Exact duplicate signature exists (Task 9.59)
 //   - Ambiguous overload with default parameters (Task 9.62)
-func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType, hasOverloadDirective bool) error {
+//   - Forward declaration doesn't match implementation (Task 9.60)
+func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType, hasOverloadDirective bool, isForward bool) error {
 	lowerName := strings.ToLower(name)
 	existing, exists := st.symbols[lowerName]
 
@@ -112,6 +115,7 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			IsOverloadSet:        false, // Not an overload set yet
 			Overloads:            nil,
 			HasOverloadDirective: hasOverloadDirective,
+			IsForward:            isForward, // Track if this is a forward declaration
 		}
 		return nil
 	}
@@ -123,11 +127,53 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 		}
 	}
 
+	// Task 9.60: Handle forward declarations
+	// If existing is a forward declaration and current is an implementation,
+	// replace the forward with the implementation
+	if !existing.IsOverloadSet && existing.IsForward && !isForward {
+		// This is an implementation following a forward declaration
+		existingFunc := existing.Type.(*types.FunctionType)
+
+		// Validate that signatures match
+		if !SignaturesEqual(existingFunc, funcType) {
+			return fmt.Errorf("implementation signature for '%s' does not match forward declaration", name)
+		}
+		if !existingFunc.ReturnType.Equals(funcType.ReturnType) {
+			return fmt.Errorf("implementation return type for '%s' does not match forward declaration", name)
+		}
+
+		// Validate overload directive consistency
+		// Forward can have 'overload' and implementation can omit it (DWScript allows this)
+		// But if forward omits 'overload', implementation should too
+		if !existing.HasOverloadDirective && hasOverloadDirective {
+			return fmt.Errorf("implementation has 'overload' directive but forward declaration does not for '%s'", name)
+		}
+		// Note: We allow existing.HasOverloadDirective && !hasOverloadDirective (forward has overload, impl doesn't)
+
+		// Replace forward declaration with implementation
+		existing.IsForward = false
+		existing.Type = funcType // Update to implementation's type (in case of minor differences)
+		return nil
+	}
+
+	// If existing is an implementation and current is forward, that's an error
+	// But allow multiple forward declarations with different signatures (overloads)
+	if !existing.IsForward && isForward {
+		return fmt.Errorf("forward declaration for '%s' must come before implementation", name)
+	}
+	// Note: We allow multiple forward declarations with different signatures (overloads)
+	// The duplicate forward check is handled below in the duplicate signature check
+
 	// Task 9.58: Validate overload directive consistency
+	// Task 9.60: Skip this check if current is an implementation (not forward) - it might be replacing a forward
+	// We'll check this later after we determine if it's a forward+impl pair
 	// If an existing function has the overload directive, or we're adding one with it,
-	// then all must have it (with exception: the last implementation can omit it in some cases)
-	if existing.IsOverloadSet {
-		// Check all existing overloads for directive consistency
+	// then all must have it (with exception: implementations can omit it if forwards have it)
+	if !isForward {
+		// Current is an implementation - defer overload directive check until after forward+impl check
+		// This will be validated in the duplicate signature check below
+	} else if existing.IsOverloadSet {
+		// Current is a forward - check all existing overloads for directive consistency
 		for _, overload := range existing.Overloads {
 			if overload.HasOverloadDirective && !hasOverloadDirective {
 				return fmt.Errorf("overloaded %s '%s' must be marked with the 'overload' directive",
@@ -135,7 +181,7 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			}
 		}
 	} else {
-		// Second overload - both first and second must have directive (or neither, for now)
+		// Second overload (both forwards) - both first and second must have directive (or neither, for now)
 		if existing.HasOverloadDirective && !hasOverloadDirective {
 			return fmt.Errorf("overloaded %s '%s' must be marked with the 'overload' directive",
 				getFunctionKind(funcType), name)
@@ -149,16 +195,38 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 	}
 
 	// Task 9.59: Check for duplicate signature in existing overloads
+	// Task 9.60: Handle forward declarations in overload sets
 	// Note: In DWScript, functions with same parameters but different return types
 	// are allowed as overloads. Only if BOTH signature AND return type match is it a duplicate.
 	if existing.IsOverloadSet {
-		for _, overload := range existing.Overloads {
+		for i, overload := range existing.Overloads {
 			existingFunc := overload.Type.(*types.FunctionType)
 			// Check if signatures are equal (same parameters)
 			if SignaturesEqual(existingFunc, funcType) {
 				// Signatures match - check if return types also match
 				if existingFunc.ReturnType.Equals(funcType.ReturnType) {
 					// True duplicate - same signature AND same return type
+
+					// Task 9.60: Check if this is a forward + implementation pair
+					if overload.IsForward && !isForward {
+						// Implementation following forward declaration in overload set
+						// Validate overload directive consistency
+						// Forward can have 'overload' and implementation can omit it (DWScript allows this)
+						if !overload.HasOverloadDirective && hasOverloadDirective {
+							return fmt.Errorf("implementation has 'overload' directive but forward declaration does not for '%s'", name)
+						}
+						// Replace the forward with the implementation
+						existing.Overloads[i].IsForward = false
+						existing.Overloads[i].Type = funcType
+						return nil
+					}
+
+					// Check for duplicate forwards (both are forward declarations with same signature)
+					if overload.IsForward && isForward {
+						return fmt.Errorf("duplicate forward declaration for '%s'", name)
+					}
+
+					// Not a forward+impl pair - this is a true duplicate
 					if hasOverloadDirective && overload.HasOverloadDirective {
 						return fmt.Errorf("there is already a method with name \"%s\"", name)
 					}
@@ -199,6 +267,7 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			IsOverloadSet:        false,
 			Overloads:            nil,
 			HasOverloadDirective: hasOverloadDirective,
+			IsForward:            isForward, // Track forward declarations in overload sets
 		})
 	} else {
 		// Convert to overload set (this is the second overload)
@@ -210,6 +279,7 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			IsOverloadSet:        false,
 			Overloads:            nil,
 			HasOverloadDirective: existing.HasOverloadDirective,
+			IsForward:            existing.IsForward, // Preserve forward status
 		}
 		secondOverload := &Symbol{
 			Name:                 name,
@@ -219,6 +289,7 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			IsOverloadSet:        false,
 			Overloads:            nil,
 			HasOverloadDirective: hasOverloadDirective,
+			IsForward:            isForward, // Track forward declarations
 		}
 		existing.IsOverloadSet = true
 		existing.Overloads = []*Symbol{firstOverload, secondOverload}
