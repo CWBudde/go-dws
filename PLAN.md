@@ -1642,7 +1642,7 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
     - [x] AND, OR, XOR bitwise operations
     - [x] Type coercion (int ↔ float)
 
-  - [ ] 12.18.6 Implement variable and memory instructions (1 week, MODERATE)
+  - [x] 12.18.6 Implement variable and memory instructions (1 week, MODERATE)
     - [x] LOAD_CONST / LOAD_LOCAL / STORE_LOCAL plumbing (baseline in place)
     - [x] LOAD_GLOBAL / STORE_GLOBAL implemented in compiler + VM (global symbols tracked, emitted bytecode)
     - [x] LOAD_UPVALUE / STORE_UPVALUE wired through compiler (lambda compiler builds closure metadata and emits capture instructions)
@@ -1654,79 +1654,79 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
     - [x] LOOP (jump backward for while/for loops) *(continue now emits `OpLoop` for pre-test loops, repeat loops patch to condition)*
     - [x] Patch jump addresses during compilation *(loop context tracks placeholders for breaks/continues and patches after body/condition compilation)*
 
-  - [ ] 12.18.8 Implement function call instructions (1-2 weeks, COMPLEX)
+  - [x] 12.18.8 Implement function call instructions (1-2 weeks, COMPLEX)
     - [x] CALL instruction with argument count *(compiler now emits `OpCall` for named functions, retaining `OpCallIndirect` for dynamic calls)*
     - [x] RETURN instruction *(function/lambda compilation ensures trailing `OpReturn` and honors explicit returns)*
     - [x] Handle recursion and call stack depth *(function declarations bind to globals/closures, enabling recursive calls and VM call stack reuse)*
     - [x] Implement closures and upvalues *(lambda + nested functions capture locals; closure metadata drives `OpClosure` emission)*
     - [x] Support method calls and `Self` context *(compiler emits `OpCallMethod`, VM dispatch binds implicit `Self` via `OpGetSelf`)*
 
-	- [x] 12.18.9 Implement array and object instructions (1 week, MODERATE)
-	    - [x] GET_INDEX, SET_INDEX for array access
-	    - [x] NEW_ARRAY, ARRAY_LENGTH
-	    - [x] NEW_OBJECT for class instantiation
-	    - [x] INVOKE_METHOD for method dispatch
+  - [x] 12.18.9 Implement array and object instructions (1 week, MODERATE)
+    - [x] GET_INDEX, SET_INDEX for array access
+    - [x] NEW_ARRAY, ARRAY_LENGTH
+    - [x] NEW_OBJECT for class instantiation
+    - [x] INVOKE_METHOD for method dispatch
 
-	- [x] 12.18.10 Add exception handling instructions (1 week, MODERATE)
-	    - [x] TRY, CATCH, FINALLY, THROW instructions
-	    - [x] Exception stack unwinding
-	    - [x] Preserve stack traces across bytecode execution
+  - [x] 12.18.10 Add exception handling instructions (1 week, MODERATE)
+    - [x] TRY, CATCH, FINALLY, THROW instructions
+    - [x] Exception stack unwinding
+    - [x] Preserve stack traces across bytecode execution
 
   - [ ] 12.18.11 Optimize bytecode generation (1-2 weeks, MODERATE)
-    - Peephole optimization (combine adjacent instructions)
-    - Dead code elimination
-    - Constant propagation
-    - Inline small functions (< 10 instructions)
+    - [ ] Peephole optimization (combine adjacent instructions)
+    - [ ] Dead code elimination
+    - [ ] Constant propagation
+    - [ ] Inline small functions (< 10 instructions)
 
   - [ ] 12.18.12 Integrate bytecode VM into interpreter (1 week, SIMPLE)
-    - Add `--bytecode` flag to CLI
-    - Modify `pkg/dwscript/dwscript.go` to support bytecode execution
-    - Add `CompileMode` option (AST vs Bytecode)
-    - Update benchmarks to compare modes
+    - [ ] Add `--bytecode` flag to CLI
+    - [ ] Modify `pkg/dwscript/dwscript.go` to support bytecode execution
+    - [ ] Add `CompileMode` option (AST vs Bytecode)
+    - [ ] Update benchmarks to compare modes
 
   - [ ] 12.18.13 Create bytecode test suite (1 week, MODERATE)
-    - Port existing interpreter tests to bytecode
-    - Test bytecode disassembler output
-    - Verify identical behavior to AST interpreter
-    - Add performance benchmarks
+    - [ ] Port existing interpreter tests to bytecode
+    - [ ] Test bytecode disassembler output
+    - [ ] Verify identical behavior to AST interpreter
+    - [ ] Add performance benchmarks
 
   - [ ] 12.18.14 Add bytecode serialization (optional) (3-5 days, SIMPLE)
-    - Implement bytecode file format (.dwc)
-    - Save/load compiled bytecode to disk
-    - Version bytecode format for compatibility
-    - Add `dwscript compile` command for bytecode
+    - [ ] Implement bytecode file format (.dwc)
+    - [ ] Save/load compiled bytecode to disk
+    - [ ] Version bytecode format for compatibility
+    - [ ] Add `dwscript compile` command for bytecode
 
   - [ ] 12.18.15 Document bytecode VM (3 days, SIMPLE)
-    - Write `docs/bytecode-vm.md` explaining architecture
-    - Document instruction set and opcodes
-    - Provide examples of bytecode output
-    - Update CLAUDE.md with bytecode information
+    - [ ] Write `docs/bytecode-vm.md` explaining architecture
+    - [ ] Document instruction set and opcodes
+    - [ ] Provide examples of bytecode output
+    - [ ] Update CLAUDE.md with bytecode information
 
   **Phase 1 Expected Results**: 2-3x faster than tree-walking interpreter, reasonable complexity
 
   #### Phase 2: Optional LLVM-Based JIT (DEFER - 18-25 weeks, VERY COMPLEX)
 
   - [ ] 12.18.16 Set up LLVM infrastructure (1 week, COMPLEX)
-    - Add `tinygo.org/x/go-llvm` dependency
-    - Configure build tags for LLVM versions (14-20)
-    - Create `internal/jit/` package
-    - Set up CGo build configuration
-    - Test on Linux, macOS, Windows (LLVM must be installed)
-    - **Platform Limitation**: Requires system LLVM installation
+    - [ ] Add `tinygo.org/x/go-llvm` dependency
+    - [ ] Configure build tags for LLVM versions (14-20)
+    - [ ] Create `internal/jit/` package
+    - [ ] Set up CGo build configuration
+    - [ ] Test on Linux, macOS, Windows (LLVM must be installed)
+    - [ ] **Platform Limitation**: Requires system LLVM installation
 
   - [ ] 12.18.17 Implement LLVM IR generator for expressions (2-3 weeks, VERY COMPLEX)
-    - Create `internal/jit/llvm_codegen.go`
-    - Generate LLVM IR for arithmetic operations
-    - Generate IR for comparisons and logic operations
-    - Handle type conversions (int ↔ float ↔ string)
-    - Implement constant folding in LLVM IR
-    - Test with simple expressions
+    - [ ] Create `internal/jit/llvm_codegen.go`
+    - [ ] Generate LLVM IR for arithmetic operations
+    - [ ] Generate IR for comparisons and logic operations
+    - [ ] Handle type conversions (int ↔ float ↔ string)
+    - [ ] Implement constant folding in LLVM IR
+    - [ ] Test with simple expressions
 
   - [ ] 12.18.18 Implement LLVM IR for control flow (2 weeks, VERY COMPLEX)
-    - Generate IR for if/else statements (branch instructions)
-    - Generate IR for while/for loops (phi nodes)
-    - Handle break/continue/exit signals
-    - Implement proper basic block structure
+    - [ ] Generate IR for if/else statements (branch instructions)
+    - [ ] Generate IR for while/for loops (phi nodes)
+    - [ ] Handle break/continue/exit signals
+    - [ ] Implement proper basic block structure
 
   - [ ] 12.18.19 Implement LLVM IR for function calls (2-3 weeks, VERY COMPLEX)
     - Define calling convention for DWScript functions
