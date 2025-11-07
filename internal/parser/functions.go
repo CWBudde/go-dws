@@ -382,6 +382,11 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	case *ast.FunctionPointerTypeNode:
 		// For function pointer types, we create a synthetic TypeAnnotation
 		// The semantic analyzer will recognize function pointer parameters by checking the type string
+		// Check if te is nil to prevent panics (defensive programming)
+		if te == nil {
+			p.addError("function pointer type expression is nil in parameter type", ErrInvalidType)
+			return nil
+		}
 		typeAnnotation = &ast.TypeAnnotation{
 			Token: te.Token,
 			Name:  te.String(), // Use the full function pointer signature as the type name
