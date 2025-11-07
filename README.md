@@ -219,6 +219,47 @@ func main() {
 
 For more examples and API documentation, see the [pkg/dwscript](https://pkg.go.dev/github.com/cwbudde/go-dws/pkg/dwscript) package documentation.
 
+## LSP & IDE Integration
+
+go-dws provides a rich API designed for Language Server Protocol (LSP) implementations and IDE tooling:
+
+- **Structured Errors**: Precise error positions with line, column, length, severity, and error codes
+- **AST Access**: Complete Abstract Syntax Tree with position metadata on all nodes
+- **Symbol Table**: Extract all symbols (variables, functions, classes) with type information
+- **Parse-Only Mode**: Fast syntax checking without type checking (`Parse()` method)
+- **Type Information**: Query type at any position in the source code
+
+**LSP Server**: A complete DWScript Language Server is available at [github.com/cwbudde/go-dws-lsp](https://github.com/cwbudde/go-dws-lsp)
+
+**Example - Structured Errors**:
+
+```go
+engine, _ := dwscript.New()
+_, err := engine.Compile(`var x: Integer := "not a number";`)
+
+if compileErr, ok := err.(*dwscript.CompileError); ok {
+    for _, e := range compileErr.Errors {
+        fmt.Printf("Line %d, Col %d: %s\n", e.Line, e.Column, e.Message)
+    }
+}
+```
+
+**Example - AST Traversal**:
+
+```go
+program, _ := engine.Compile(`function Add(a, b: Integer): Integer; ...`)
+
+// Visit all function declarations
+ast.Inspect(program.AST(), func(node ast.Node) bool {
+    if fn, ok := node.(*ast.FunctionDecl); ok {
+        fmt.Printf("Function: %s at line %d\n", fn.Name.Value, fn.Pos().Line)
+    }
+    return true
+})
+```
+
+For complete API documentation, see [pkg.go.dev/github.com/cwbudde/go-dws/pkg/dwscript](https://pkg.go.dev/github.com/cwbudde/go-dws/pkg/dwscript).
+
 ### Example Programs
 
 **Factorial Calculator** (`examples/factorial.dws`):
