@@ -1167,13 +1167,31 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
   - [x] Comprehensive tests for error formatting
   - [ ] Add suggested fixes where applicable (future enhancement - deferred)
 
-- [ ] **10.18 Write unit tests for structured errors**
-  - [ ] Create `pkg/dwscript/error_test.go`
-  - [ ] Test Error struct creation and formatting
-  - [ ] Test CompileError with multiple structured errors
-  - [ ] Test that positions are accurate
-  - [ ] Test severity levels (error vs warning)
-  - [ ] Test error codes if implemented
+- [x] **10.18 Write unit tests for structured errors** ✅ DONE (already complete)
+  - [x] `pkg/dwscript/error_test.go` already exists (194 lines, 7 test functions)
+  - [x] Test Error struct creation and formatting
+    - [x] TestNewError - validates all Error fields
+    - [x] TestNewErrorFromPosition - validates position-based creation
+    - [x] TestNewWarning - validates warning creation
+    - [x] TestError_Error - tests Error() method formatting
+  - [x] Test CompileError with multiple structured errors
+    - [x] TestCompileError_StructuredErrors - real compilation errors
+    - [x] TestCompileError_ManyErrors - tests truncation with 20+ errors
+  - [x] Test that positions are accurate
+    - [x] Position fields validated in TestCompileError_StructuredErrors
+    - [x] Position extraction tested in error_format_test.go
+  - [x] Test severity levels (error vs warning)
+    - [x] TestError_IsError - validates IsError() for all severities
+    - [x] TestError_IsWarning - validates IsWarning() for all severities
+    - [x] TestCompileError_HasErrors - tests HasErrors() and HasWarnings()
+    - [x] TestErrorSeverity_String - tests severity string formatting
+  - [x] Test error codes
+    - [x] Error codes validated in TestError_Error
+    - [x] Code field tested in TestNewError and TestNewWarning
+  - [x] Additional test files:
+    - [x] `compile_error_test.go` (192 lines, 4 test functions)
+    - [x] `error_format_test.go` (265 lines, 7 test functions, added in 10.17)
+  - [x] All 18 error-related tests passing ✅
 
 - [ ] **10.19 Write unit tests for AST position metadata**
   - [ ] Create `pkg/ast/position_test.go`
