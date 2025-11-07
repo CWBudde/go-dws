@@ -742,6 +742,20 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return propInfo.Type
 	}
 
+	// Task 9.68: Check for constructors first (constructors are stored separately)
+	constructorOverloads := classType.GetConstructorOverloads(memberName)
+	if len(constructorOverloads) > 0 {
+		// This is a constructor - return the class type (constructors return instances)
+		// For overloaded constructors, return the primary one or synthesize a type
+		// that represents all overloads
+		if len(constructorOverloads) == 1 {
+			return types.NewMethodPointerType(constructorOverloads[0].Signature.Parameters, classType)
+		}
+		// Multiple constructor overloads - return a generic constructor pointer type
+		// The actual overload will be resolved at call time
+		return types.NewMethodPointerType([]types.Type{}, classType)
+	}
+
 	// Look up method in class (for method references)
 	methodType, found := classType.GetMethod(memberName)
 	if found {
