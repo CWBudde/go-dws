@@ -246,16 +246,54 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		return nil
 	}
 
-	// Task 9.162: Check if it's a function pointer type first
-	if funcPtrType := a.analyzeFunctionPointerCall(expr, sym.Type); funcPtrType != nil {
-		return funcPtrType
-	}
+	// Task 9.65-9.66: Check if this is an overloaded function
+	// If so, resolve the overload set to select the best match
+	var funcType *types.FunctionType
+	if sym.IsOverloadSet {
+		// Get all overload candidates
+		candidates := a.symbols.GetOverloadSet(funcIdent.Value)
+		if candidates == nil || len(candidates) == 0 {
+			a.addError("no overload candidates found for '%s' at %s", funcIdent.Value, expr.Token.Pos.String())
+			return nil
+		}
 
-	// Check that symbol is a function
-	funcType, ok := sym.Type.(*types.FunctionType)
-	if !ok {
-		a.addError("'%s' is not a function at %s", funcIdent.Value, expr.Token.Pos.String())
-		return nil
+		// Analyze argument types first
+		argTypes := make([]types.Type, len(expr.Arguments))
+		for i, arg := range expr.Arguments {
+			argType := a.analyzeExpression(arg)
+			if argType == nil {
+				return nil // Error already reported
+			}
+			argTypes[i] = argType
+		}
+
+		// Resolve overload based on argument types
+		selected, err := ResolveOverload(candidates, argTypes)
+		if err != nil {
+			a.addError("cannot resolve overload for '%s': %v at %s", funcIdent.Value, err, expr.Token.Pos.String())
+			return nil
+		}
+
+		// Use the selected overload's function type
+		var ok bool
+		funcType, ok = selected.Type.(*types.FunctionType)
+		if !ok {
+			a.addError("selected overload for '%s' is not a function type at %s", funcIdent.Value, expr.Token.Pos.String())
+			return nil
+		}
+	} else {
+		// Task 9.162: Check if it's a function pointer type first
+		if funcPtrType := a.analyzeFunctionPointerCall(expr, sym.Type); funcPtrType != nil {
+			return funcPtrType
+		}
+
+		// Check that symbol is a function
+		var ok bool
+		funcType, ok = sym.Type.(*types.FunctionType)
+		if !ok {
+			a.addError("'%s' is not a function at %s", funcIdent.Value, expr.Token.Pos.String())
+			return nil
+		}
 	}
 
 	// Task 9.1: Check argument count with optional parameters support
