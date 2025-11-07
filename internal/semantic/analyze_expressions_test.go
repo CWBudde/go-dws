@@ -245,3 +245,141 @@ func TestFormatWrongArgumentTypes(t *testing.T) {
 		expectError(t, tt.input, tt.error)
 	}
 }
+
+// ============================================================================
+// Context-Aware Expression Analysis Tests (Task 9.19.2, 9.19.5)
+// ============================================================================
+
+func TestNilLiteralContextInference(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		valid bool
+	}{
+		{
+			name: "nil to class variable",
+			input: `
+				type TMyClass = class
+					Field: Integer;
+				end;
+				var obj: TMyClass;
+				begin
+					obj := nil;
+				end;
+			`,
+			valid: true,
+		},
+		{
+			name: "nil in class variable declaration",
+			input: `
+				type TMyClass = class
+					Field: Integer;
+				end;
+				var obj: TMyClass := nil;
+			`,
+			valid: true,
+		},
+		{
+			name: "nil to interface variable",
+			input: `
+				type IMyInterface = interface
+					procedure DoSomething;
+				end;
+				var intf: IMyInterface;
+				begin
+					intf := nil;
+				end;
+			`,
+			valid: true,
+		},
+		{
+			name: "nil inference without type annotation should fail",
+			input: `var obj := nil;`,
+			valid: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.valid {
+				expectNoErrors(t, tt.input)
+			} else {
+				_, err := analyzeSource(t, tt.input)
+				if err == nil {
+					t.Errorf("expected error for: %s", tt.input)
+				}
+			}
+		})
+	}
+}
+
+func TestIntegerLiteralToFloatContextInference(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		valid bool
+	}{
+		{
+			name:  "integer literal to float variable",
+			input: `var x: Float := 42;`,
+			valid: true,
+		},
+		{
+			name: "integer literal to float in assignment",
+			input: `
+				var x: Float;
+				begin
+					x := 10;
+				end;
+			`,
+			valid: true,
+		},
+		{
+			name: "integer literal to float function parameter",
+			input: `
+				function TestFunc(x: Float): Float;
+				begin
+					Result := x * 2.0;
+				end;
+				var result := TestFunc(5);
+			`,
+			valid: true,
+		},
+		{
+			name: "integer literal to float return value",
+			input: `
+				function GetFloat: Float;
+				begin
+					Result := 42;
+				end;
+			`,
+			valid: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.valid {
+				expectNoErrors(t, tt.input)
+			} else {
+				_, err := analyzeSource(t, tt.input)
+				if err == nil {
+					t.Errorf("expected error for: %s", tt.input)
+				}
+			}
+		})
+	}
+}
+
+func TestCallExpressionWithContext(t *testing.T) {
+	// Test that call expressions can be analyzed with expected type context
+	// This is currently a wrapper for future overload resolution
+	input := `
+		function GetValue: Integer;
+		begin
+			Result := 42;
+		end;
+		var x: Integer := GetValue();
+	`
+	expectNoErrors(t, input)
+}
