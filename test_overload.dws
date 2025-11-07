@@ -1,0 +1,24 @@
+type TTest = class
+  constructor Create;
+  procedure Test(s : String); overload;
+  procedure Test(i : Integer); overload;
+end;
+
+constructor TTest.Create;
+begin
+end;
+
+procedure TTest.Test(s : String);
+begin
+  PrintLn('String: ' + s);
+end;
+
+procedure TTest.Test(i : Integer);
+begin
+  PrintLn('Integer: ' + IntToStr(i));
+end;
+
+// Use new instead to bypass constructor lookup issues temporarily
+var o := new TTest;
+o.Test('hello');
+o.Test(123);

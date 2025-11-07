@@ -1,9 +1,11 @@
 package interp
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
@@ -870,19 +872,42 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 		// Check if this identifier refers to a class
 		if classInfo, exists := i.classes[ident.Value]; exists {
-			// Check if this is a class method (static method) or instance method/constructor
-			classMethod, isClassMethod := classInfo.ClassMethods[mc.Method.Value]
-			instanceMethod, isInstanceMethod := classInfo.Methods[mc.Method.Value]
-			// Task 9.32: Also check constructors (they're stored separately from Methods)
-			// Use lookupConstructorInHierarchy to support inheritance
-			if !isInstanceMethod {
+			// Task 9.67: Check for method overloads and resolve based on argument types
+			classMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, mc.Method.Value, true)
+			instanceMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, mc.Method.Value, false)
+
+			// Also check constructor overloads separately (Task 9.68)
+			constructorOverloads := classInfo.ConstructorOverloads[mc.Method.Value]
+			if len(constructorOverloads) == 0 && mc.Method.Value == "Create" {
+				// Fallback to checking if there's a single constructor
 				if constructor := i.lookupConstructorInHierarchy(classInfo, mc.Method.Value); constructor != nil {
-					instanceMethod = constructor
-					isInstanceMethod = true
+					constructorOverloads = []*ast.FunctionDecl{constructor}
 				}
 			}
 
-			if isClassMethod {
+			var classMethod *ast.FunctionDecl
+			var instanceMethod *ast.FunctionDecl
+			var err error
+
+			// Resolve class method overload
+			if len(classMethodOverloads) > 0 {
+				classMethod, err = i.resolveMethodOverload(classInfo.Name, mc.Method.Value, classMethodOverloads, mc.Arguments)
+				if err != nil && len(instanceMethodOverloads) == 0 && len(constructorOverloads) == 0 {
+					return i.newErrorWithLocation(mc, "%s", err.Error())
+				}
+			}
+
+			// Resolve instance method overload (including constructors)
+			allInstanceOverloads := append([]*ast.FunctionDecl(nil), instanceMethodOverloads...)
+			allInstanceOverloads = append(allInstanceOverloads, constructorOverloads...)
+			if len(allInstanceOverloads) > 0 {
+				instanceMethod, err = i.resolveMethodOverload(classInfo.Name, mc.Method.Value, allInstanceOverloads, mc.Arguments)
+				if err != nil && classMethod == nil {
+					return i.newErrorWithLocation(mc, "%s", err.Error())
+				}
+			}
+
+			if classMethod != nil {
 				// This is a class method - execute it without Self binding
 				// Evaluate method arguments
 				args := make([]Value, len(mc.Arguments))
@@ -987,7 +1012,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				i.env = savedEnv
 
 				return returnValue
-			} else if isInstanceMethod {
+			} else if instanceMethod != nil {
 				// This is an instance method being called from the class (e.g., TClass.Create())
 				// Create a new instance and call the method on it
 				obj := NewObjectInstance(classInfo)
@@ -1217,8 +1242,19 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		return &StringValue{Value: obj.Class.Name}
 	}
 
-	// Look up method in object's class
-	method := obj.GetMethod(mc.Method.Value)
+	// Task 9.67: Resolve method overload based on argument types
+	methodOverloads := i.getMethodOverloadsInHierarchy(obj.Class, mc.Method.Value, false)
+
+	var method *ast.FunctionDecl
+	var err error
+
+	if len(methodOverloads) > 0 {
+		method, err = i.resolveMethodOverload(obj.Class.Name, mc.Method.Value, methodOverloads, mc.Arguments)
+		if err != nil {
+			return i.newErrorWithLocation(mc, "%s", err.Error())
+		}
+	}
+
 	if method == nil {
 		// Task 9.86: Check if helpers provide this method
 		helper, helperMethod, builtinSpec := i.findHelperMethod(obj, mc.Method.Value)
@@ -1343,6 +1379,83 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	i.env = savedEnv
 
 	return returnValue
+}
+
+// resolveMethodOverload resolves method overload based on argument types.
+// Task 9.67: Overload resolution for method calls
+func (i *Interpreter) resolveMethodOverload(className, methodName string, overloads []*ast.FunctionDecl, argExprs []ast.Expression) (*ast.FunctionDecl, error) {
+	// If only one overload, use it (fast path)
+	if len(overloads) == 1 {
+		return overloads[0], nil
+	}
+
+	// Evaluate arguments to get their types
+	argTypes := make([]types.Type, len(argExprs))
+	for idx, argExpr := range argExprs {
+		val := i.Eval(argExpr)
+		if isError(val) {
+			return nil, fmt.Errorf("error evaluating argument %d: %v", idx+1, val)
+		}
+		argTypes[idx] = i.getValueType(val)
+	}
+
+	// Convert method declarations to semantic symbols for resolution
+	candidates := make([]*semantic.Symbol, len(overloads))
+	for idx, method := range overloads {
+		methodType := i.extractFunctionType(method)
+		if methodType == nil {
+			return nil, fmt.Errorf("unable to extract method type for overload %d of '%s.%s'", idx+1, className, methodName)
+		}
+
+		candidates[idx] = &semantic.Symbol{
+			Name:                 method.Name.Value,
+			Type:                 methodType,
+			HasOverloadDirective: method.IsOverload,
+		}
+	}
+
+	// Use semantic analyzer's overload resolution
+	selected, err := semantic.ResolveOverload(candidates, argTypes)
+	if err != nil {
+		// Task 9.63: Use DWScript-compatible error message
+		return nil, fmt.Errorf("There is no overloaded version of \"%s.%s\" that can be called with these arguments", className, methodName)
+	}
+
+	// Find which method declaration corresponds to the selected symbol
+	selectedType := selected.Type.(*types.FunctionType)
+	for _, method := range overloads {
+		methodType := i.extractFunctionType(method)
+		if methodType != nil && semantic.SignaturesEqual(methodType, selectedType) &&
+			methodType.ReturnType.Equals(selectedType.ReturnType) {
+			return method, nil
+		}
+	}
+
+	return nil, fmt.Errorf("internal error: resolved overload not found in candidate list")
+}
+
+// getMethodOverloadsInHierarchy collects all overloads of a method from the class hierarchy.
+// Task 9.67: Support inheritance for method overloads
+func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, methodName string, isClassMethod bool) []*ast.FunctionDecl {
+	var result []*ast.FunctionDecl
+
+	// Walk up the class hierarchy
+	for classInfo != nil {
+		var overloads []*ast.FunctionDecl
+		if isClassMethod {
+			overloads = classInfo.ClassMethodOverloads[methodName]
+		} else {
+			overloads = classInfo.MethodOverloads[methodName]
+		}
+
+		// Add overloads from this class
+		result = append(result, overloads...)
+
+		// Move to parent class
+		classInfo = classInfo.Parent
+	}
+
+	return result
 }
 
 // evalInheritedExpression evaluates an inherited method call.
