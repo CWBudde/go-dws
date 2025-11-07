@@ -441,6 +441,10 @@ func (st *SymbolTable) GetOverloadSet(name string) []*Symbol {
 	lowerName := strings.ToLower(name)
 	sym, ok := st.symbols[lowerName]
 	if !ok {
+		// Check outer scope recursively (like Resolve does)
+		if st.outer != nil {
+			return st.outer.GetOverloadSet(name)
+		}
 		return nil
 	}
 
