@@ -473,6 +473,187 @@ func TestVM_FieldInstructions(t *testing.T) {
 	})
 }
 
+func TestVM_ArrayInstructions(t *testing.T) {
+	chunk := NewChunk("array_ops")
+	chunk.LocalCount = 2
+	valTenIdx := chunk.AddConstant(IntValue(10))
+	valTwentyIdx := chunk.AddConstant(IntValue(20))
+	valNinetyNineIdx := chunk.AddConstant(IntValue(99))
+	indexOneIdx := chunk.AddConstant(IntValue(1))
+
+	// Build array [10, 20]
+	chunk.Write(OpLoadConst, 0, uint16(valTenIdx), 1)
+	chunk.Write(OpLoadConst, 0, uint16(valTwentyIdx), 1)
+	chunk.Write(OpNewArray, 0, 2, 1)
+	chunk.Write(OpStoreLocal, 0, 0, 1)
+
+	// Capture length
+	chunk.Write(OpLoadLocal, 0, 0, 1)
+	chunk.WriteSimple(OpArrayLength, 1)
+	chunk.Write(OpStoreLocal, 0, 1, 1)
+
+	// arr[1] := 99
+	chunk.Write(OpLoadLocal, 0, 0, 1)
+	chunk.Write(OpLoadConst, 0, uint16(indexOneIdx), 1)
+	chunk.Write(OpLoadConst, 0, uint16(valNinetyNineIdx), 1)
+	chunk.WriteSimple(OpArraySet, 1)
+
+	// Result := arr[1] + length
+	chunk.Write(OpLoadLocal, 0, 0, 1)
+	chunk.Write(OpLoadConst, 0, uint16(indexOneIdx), 1)
+	chunk.WriteSimple(OpArrayGet, 1)
+	chunk.Write(OpLoadLocal, 0, 1, 1)
+	chunk.WriteSimple(OpAddInt, 1)
+	chunk.Write(OpReturn, 1, 0, 1)
+
+	result := runChunk(t, chunk)
+	if !valueEqual(result, IntValue(101)) {
+		t.Fatalf("VM value = %v, want 101", result)
+	}
+}
+
+func TestVM_NewObjectAndInvoke(t *testing.T) {
+	methodChunk := NewChunk("Compute")
+	constIdx := methodChunk.AddConstant(IntValue(77))
+	methodChunk.Write(OpLoadConst, 0, uint16(constIdx), 1)
+	methodChunk.Write(OpReturn, 1, 0, 1)
+	methodFn := NewFunctionObject("Compute", methodChunk, 0)
+
+	chunk := NewChunk("invoke")
+	chunk.LocalCount = 1
+	classIdx := chunk.AddConstant(StringValue("TWidget"))
+	methodNameIdx := chunk.AddConstant(StringValue("compute"))
+	methodFnIdx := chunk.AddConstant(FunctionValue(methodFn))
+
+	chunk.Write(OpNewObject, 0, uint16(classIdx), 1)
+	chunk.Write(OpStoreLocal, 0, 0, 1)
+	chunk.Write(OpLoadLocal, 0, 0, 1)
+	chunk.Write(OpLoadConst, 0, uint16(methodFnIdx), 1)
+	chunk.Write(OpSetField, 0, uint16(methodNameIdx), 1)
+	chunk.Write(OpLoadLocal, 0, 0, 1)
+	chunk.Write(OpInvoke, 0, uint16(methodNameIdx), 1)
+	chunk.Write(OpReturn, 1, 0, 1)
+
+	result := runChunk(t, chunk)
+	if !valueEqual(result, IntValue(77)) {
+		t.Fatalf("VM value = %v, want 77", result)
+	}
+}
+
+func TestVM_TryFinallyExecutes(t *testing.T) {
+	chunk := NewChunk("try_finally")
+	chunk.LocalCount = 1
+	oneIdx := chunk.AddConstant(IntValue(1))
+	twoIdx := chunk.AddConstant(IntValue(2))
+
+	tryIdx := chunk.Write(OpTry, 0, 0, 1)
+	chunk.Write(OpLoadConst, 0, uint16(oneIdx), 1)
+	chunk.Write(OpStoreLocal, 0, 0, 1)
+	jumpToFinally := chunk.EmitJump(OpJump, 1)
+
+	finallyStart := len(chunk.Code)
+	chunk.Write(OpFinally, 0, 0, 1)
+	chunk.Write(OpLoadLocal, 0, 0, 1)
+	chunk.Write(OpLoadConst, 0, uint16(twoIdx), 1)
+	chunk.WriteSimple(OpAddInt, 1)
+	chunk.Write(OpStoreLocal, 0, 0, 1)
+	chunk.Write(OpFinally, 1, 0, 1)
+	chunk.Write(OpLoadLocal, 0, 0, 1)
+	chunk.Write(OpReturn, 1, 0, 1)
+
+	setInstructionTarget(t, chunk, jumpToFinally, finallyStart)
+	setInstructionTarget(t, chunk, tryIdx, finallyStart)
+	chunk.SetTryInfo(tryIdx, TryInfo{
+		CatchTarget:   -1,
+		FinallyTarget: finallyStart,
+		HasCatch:      false,
+		HasFinally:    true,
+	})
+
+	result := runChunk(t, chunk)
+	if !valueEqual(result, IntValue(3)) {
+		t.Fatalf("VM value = %v, want 3", result)
+	}
+}
+
+func TestVM_TryExceptHandlesException(t *testing.T) {
+	chunk := NewChunk("try_except")
+	chunk.LocalCount = 1
+	excIdx := chunk.AddConstant(ObjectValue(NewObjectInstance("Exception")))
+	fortyTwoIdx := chunk.AddConstant(IntValue(42))
+
+	tryIdx := chunk.Write(OpTry, 0, 0, 1)
+	chunk.Write(OpLoadConst, 0, uint16(excIdx), 1)
+	chunk.WriteSimple(OpThrow, 1)
+	jumpAfterTry := chunk.EmitJump(OpJump, 1)
+
+	catchStart := len(chunk.Code)
+	chunk.Write(OpCatch, 0, 0, 1)
+	chunk.WriteSimple(OpPop, 1)
+	chunk.Write(OpLoadConst, 0, uint16(fortyTwoIdx), 1)
+	chunk.Write(OpStoreLocal, 0, 0, 1)
+	afterCatchJump := chunk.EmitJump(OpJump, 1)
+
+	finallyStart := len(chunk.Code)
+	chunk.Write(OpFinally, 0, 0, 1)
+	chunk.Write(OpFinally, 1, 0, 1)
+	chunk.Write(OpLoadLocal, 0, 0, 1)
+	chunk.Write(OpReturn, 1, 0, 1)
+
+	setInstructionTarget(t, chunk, jumpAfterTry, finallyStart)
+	setInstructionTarget(t, chunk, afterCatchJump, finallyStart)
+	setInstructionTarget(t, chunk, catchStart, finallyStart)
+	setInstructionTarget(t, chunk, tryIdx, catchStart)
+	chunk.SetTryInfo(tryIdx, TryInfo{
+		CatchTarget:   catchStart,
+		FinallyTarget: finallyStart,
+		HasCatch:      true,
+		HasFinally:    true,
+	})
+
+	result := runChunk(t, chunk)
+	if !valueEqual(result, IntValue(42)) {
+		t.Fatalf("VM value = %v, want 42", result)
+	}
+}
+
+func TestVM_ThrowWithoutHandlerFails(t *testing.T) {
+	chunk := NewChunk("throw_only")
+	excIdx := chunk.AddConstant(ObjectValue(NewObjectInstance("Exception")))
+	chunk.Write(OpLoadConst, 0, uint16(excIdx), 1)
+	chunk.WriteSimple(OpThrow, 1)
+	chunk.WriteSimple(OpReturn, 1)
+
+	err := runChunkExpectError(t, chunk)
+	if err == nil {
+		t.Fatalf("expected runtime error")
+	}
+}
+
+func TestVM_TypedExceptHandlerMatches(t *testing.T) {
+	program := buildTypedExceptionProgram("MyError", "MyError", 5, nil)
+	result := runCompiledProgram(t, "typed_match", program)
+	if !valueEqual(result, IntValue(5)) {
+		t.Fatalf("VM value = %v, want 5", result)
+	}
+}
+
+func TestVM_TypedExceptElseExecutes(t *testing.T) {
+	elseValue := 9
+	program := buildTypedExceptionProgram("OtherError", "MyError", 5, &elseValue)
+	result := runCompiledProgram(t, "typed_else", program)
+	if !valueEqual(result, IntValue(9)) {
+		t.Fatalf("VM value = %v, want 9", result)
+	}
+}
+
+func TestVM_TypedExceptRethrowsWhenNoMatch(t *testing.T) {
+	program := buildTypedExceptionProgram("OtherError", "MyError", 5, nil)
+	if err := runCompiledProgramExpectError(t, "typed_rethrow", program); err == nil {
+		t.Fatalf("expected rethrow when no handler or else matches")
+	}
+}
+
 func TestVM_CallMethodUsesSelf(t *testing.T) {
 	obj := NewObjectInstance("Counter")
 	obj.SetField("value", IntValue(99))
@@ -600,4 +781,102 @@ func convertInterpreterValue(v interp.Value) (Value, error) {
 	default:
 		return Value{}, fmt.Errorf("unsupported interpreter value %T", v)
 	}
+}
+
+func compileProgramChunk(t *testing.T, name string, program *ast.Program) *Chunk {
+	t.Helper()
+	compiler := NewCompiler(name)
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	return chunk
+}
+
+func runCompiledProgram(t *testing.T, name string, program *ast.Program) Value {
+	t.Helper()
+	chunk := compileProgramChunk(t, name, program)
+	return runChunk(t, chunk)
+}
+
+func runCompiledProgramExpectError(t *testing.T, name string, program *ast.Program) error {
+	t.Helper()
+	chunk := compileProgramChunk(t, name, program)
+	return runChunkExpectError(t, chunk)
+}
+
+func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue int, elseValue *int) *ast.Program {
+	accIdent := &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(1, 5)}, Value: "acc"}
+	varDecl := &ast.VarDeclStatement{
+		Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+		Names: []*ast.Identifier{accIdent},
+		Value: &ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(1, 10)}, Value: 0},
+	}
+
+	raiseStmt := &ast.RaiseStatement{
+		Token: lexer.Token{Type: lexer.RAISE, Literal: "raise", Pos: pos(2, 3)},
+		Exception: &ast.NewExpression{
+			Token:     lexer.Token{Type: lexer.NEW, Literal: "new", Pos: pos(2, 9)},
+			ClassName: &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: thrownClass, Pos: pos(2, 13)}, Value: thrownClass},
+		},
+	}
+	tryBlock := &ast.BlockStatement{Statements: []ast.Statement{raiseStmt}}
+
+	handlerAssign := &ast.AssignmentStatement{
+		Token:    lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(3, 3)},
+		Operator: lexer.ASSIGN,
+		Target:   &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(3, 3)}, Value: "acc"},
+		Value:    &ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: fmt.Sprintf("%d", handlerValue), Pos: pos(3, 10)}, Value: int64(handlerValue)},
+	}
+
+	handler := &ast.ExceptionHandler{
+		Token:         lexer.Token{Type: lexer.ON, Literal: "on", Pos: pos(3, 1)},
+		Variable:      &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "E", Pos: pos(3, 4)}, Value: "E"},
+		ExceptionType: &ast.TypeAnnotation{Name: handlerClass},
+		Statement:     &ast.BlockStatement{Statements: []ast.Statement{handlerAssign}},
+	}
+
+	clause := &ast.ExceptClause{
+		Token:    lexer.Token{Type: lexer.EXCEPT, Literal: "except", Pos: pos(3, 1)},
+		Handlers: []*ast.ExceptionHandler{handler},
+	}
+	if elseValue != nil {
+		elseAssign := &ast.AssignmentStatement{
+			Token:    lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(4, 3)},
+			Operator: lexer.ASSIGN,
+			Target:   &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(4, 3)}, Value: "acc"},
+			Value:    &ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: fmt.Sprintf("%d", *elseValue), Pos: pos(4, 10)}, Value: int64(*elseValue)},
+		}
+		clause.ElseBlock = &ast.BlockStatement{Statements: []ast.Statement{elseAssign}}
+	}
+
+	tryStmt := &ast.TryStatement{
+		Token:        lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(2, 1)},
+		TryBlock:     tryBlock,
+		ExceptClause: clause,
+	}
+
+	returnStmt := &ast.ReturnStatement{
+		Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
+		ReturnValue: &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(5, 9)}, Value: "acc"},
+	}
+
+	return &ast.Program{Statements: []ast.Statement{varDecl, tryStmt, returnStmt}}
+}
+
+func runChunkExpectError(t *testing.T, chunk *Chunk) error {
+	t.Helper()
+	vm := NewVM()
+	_, err := vm.Run(chunk)
+	return err
+}
+
+func setInstructionTarget(t *testing.T, chunk *Chunk, instIndex, target int) {
+	t.Helper()
+	offset := target - instIndex - 1
+	if offset > 32767 || offset < -32768 {
+		t.Fatalf("offset out of range: %d", offset)
+	}
+	inst := chunk.Code[instIndex]
+	chunk.Code[instIndex] = MakeInstruction(inst.OpCode(), inst.A(), uint16(offset))
 }

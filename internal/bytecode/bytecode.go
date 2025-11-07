@@ -94,6 +94,11 @@ func StringValue(s string) Value {
 	return Value{Type: ValueString, Data: s}
 }
 
+// ArrayValue constructs a Value representing an array instance.
+func ArrayValue(arr *ArrayInstance) Value {
+	return Value{Type: ValueArray, Data: arr}
+}
+
 // ObjectValue constructs a Value representing an object instance.
 func ObjectValue(obj *ObjectInstance) Value {
 	return Value{Type: ValueObject, Data: obj}
@@ -134,6 +139,7 @@ func (v Value) IsBool() bool   { return v.Type == ValueBool }
 func (v Value) IsInt() bool    { return v.Type == ValueInt }
 func (v Value) IsFloat() bool  { return v.Type == ValueFloat }
 func (v Value) IsString() bool { return v.Type == ValueString }
+func (v Value) IsArray() bool  { return v.Type == ValueArray }
 func (v Value) IsNumber() bool { return v.Type == ValueInt || v.Type == ValueFloat }
 func (v Value) IsFunction() bool {
 	return v.Type == ValueFunction
@@ -175,6 +181,16 @@ func (v Value) AsString() string {
 		return v.Data.(string)
 	}
 	return ""
+}
+
+// AsArray returns the underlying array instance if the value is an array.
+func (v Value) AsArray() *ArrayInstance {
+	if v.Type == ValueArray {
+		if arr, ok := v.Data.(*ArrayInstance); ok {
+			return arr
+		}
+	}
+	return nil
 }
 
 // AsFunction returns the underlying function object if the value represents a function.
@@ -223,6 +239,11 @@ func (v Value) String() string {
 		return fmt.Sprintf("%g", v.Data.(float64))
 	case ValueString:
 		return fmt.Sprintf("%q", v.Data.(string))
+	case ValueArray:
+		if arr := v.AsArray(); arr != nil {
+			return arr.String()
+		}
+		return "[]"
 	case ValueFunction:
 		if fn := v.AsFunction(); fn != nil {
 			if fn.Name != "" {
@@ -289,6 +310,109 @@ func (uv *Upvalue) close() {
 		uv.closed = *uv.location
 		uv.location = nil
 	}
+}
+
+// ArrayInstance represents a dynamically sized array with value semantics for elements.
+type ArrayInstance struct {
+	elements []Value
+}
+
+// NewArrayInstance creates a new array initialized with the provided elements.
+// The slice is copied to preserve value semantics for literals.
+func NewArrayInstance(elements []Value) *ArrayInstance {
+	if len(elements) == 0 {
+		return &ArrayInstance{elements: make([]Value, 0)}
+	}
+	copyBuf := make([]Value, len(elements))
+	copy(copyBuf, elements)
+	return &ArrayInstance{elements: copyBuf}
+}
+
+// NewArrayInstanceWithLength allocates an array with the requested length.
+// Elements are initialized to NilValue.
+func NewArrayInstanceWithLength(length int) *ArrayInstance {
+	if length < 0 {
+		length = 0
+	}
+	elements := make([]Value, length)
+	for i := range elements {
+		elements[i] = NilValue()
+	}
+	return &ArrayInstance{elements: elements}
+}
+
+// Length returns the current number of elements in the array.
+func (a *ArrayInstance) Length() int {
+	if a == nil {
+		return 0
+	}
+	return len(a.elements)
+}
+
+// Get returns the element at the specified index.
+// The bool return reports if the index was within bounds.
+func (a *ArrayInstance) Get(index int) (Value, bool) {
+	if a == nil {
+		return NilValue(), false
+	}
+	if index < 0 || index >= len(a.elements) {
+		return NilValue(), false
+	}
+	return a.elements[index], true
+}
+
+// Set writes the element at the specified index.
+// Returns false if the index was out of range.
+func (a *ArrayInstance) Set(index int, value Value) bool {
+	if a == nil {
+		return false
+	}
+	if index < 0 || index >= len(a.elements) {
+		return false
+	}
+	a.elements[index] = value
+	return true
+}
+
+// Resize changes the logical length of the array, filling new slots with nil.
+func (a *ArrayInstance) Resize(length int) {
+	if a == nil {
+		return
+	}
+	if length < 0 {
+		length = 0
+	}
+	current := len(a.elements)
+	switch {
+	case length < current:
+		a.elements = a.elements[:length]
+	case length > current:
+		extra := make([]Value, length-current)
+		for i := range extra {
+			extra[i] = NilValue()
+		}
+		a.elements = append(a.elements, extra...)
+	}
+}
+
+// String formats the array value for debugging output.
+func (a *ArrayInstance) String() string {
+	if a == nil {
+		return "[]"
+	}
+	if len(a.elements) == 0 {
+		return "[]"
+	}
+	var builder strings.Builder
+	builder.WriteByte('[')
+	for i, elem := range a.elements {
+		if i > 0 {
+			builder.WriteString(", ")
+		}
+		builder.WriteString(elem.String())
+	}
+	builder.WriteByte(']')
+	return builder.String()
 }
 
 // ObjectInstance represents a simple object with mutable fields and properties.
@@ -384,6 +508,17 @@ type Chunk struct {
 
 	// Name is a human-readable name for this chunk (function name, script name, etc.)
 	Name string
+
+	// tryInfos stores metadata for try instructions keyed by instruction index.
+	tryInfos map[int]TryInfo
+}
+
+// TryInfo describes the catch/finally targets for a try instruction.
+type TryInfo struct {
+	CatchTarget   int
+	FinallyTarget int
+	HasCatch      bool
+	HasFinally    bool
 }
 
 // NewChunk creates a new empty bytecode chunk.
@@ -394,6 +529,7 @@ func NewChunk(name string) *Chunk {
 		Lines:      make([]LineInfo, 0, 16),
 		LocalCount: 0,
 		Name:       name,
+		tryInfos:   make(map[int]TryInfo),
 	}
 }
 
@@ -404,6 +540,26 @@ func (c *Chunk) WriteInstruction(instruction Instruction, line int) int {
 	c.Code = append(c.Code, instruction)
 	c.addLineInfo(index, line)
 	return index
+}
+
+// SetTryInfo records metadata for the try instruction at the given index.
+func (c *Chunk) SetTryInfo(index int, info TryInfo) {
+	if c == nil {
+		return
+	}
+	if c.tryInfos == nil {
+		c.tryInfos = make(map[int]TryInfo)
+	}
+	c.tryInfos[index] = info
+}
+
+// TryInfoAt retrieves try metadata for the instruction at the given index.
+func (c *Chunk) TryInfoAt(index int) (TryInfo, bool) {
+	if c == nil || c.tryInfos == nil {
+		return TryInfo{}, false
+	}
+	info, ok := c.tryInfos[index]
+	return info, ok
 }
 
 // Write is a convenience method for writing an instruction with operands.

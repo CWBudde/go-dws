@@ -9,6 +9,11 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
+const (
+	userGlobal0 = builtinExceptObjectIndex + 1
+	userGlobal1 = builtinExceptObjectIndex + 2
+)
+
 func TestCompiler_VarAssignReturn(t *testing.T) {
 	intType := &ast.TypeAnnotation{Name: "Integer"}
 
@@ -70,12 +75,12 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 
 	expectInstructions(t, chunk, []expectedInstruction{
 		{OpLoadConst0, 0, 0},
-		{OpStoreGlobal, 0, 0},
-		{OpLoadGlobal, 0, 0},
+		{OpStoreGlobal, 0, userGlobal0},
+		{OpLoadGlobal, 0, userGlobal0},
 		{OpLoadConst1, 0, 0},
 		{OpAddInt, 0, 0},
-		{OpStoreGlobal, 0, 0},
-		{OpLoadGlobal, 0, 0},
+		{OpStoreGlobal, 0, userGlobal0},
+		{OpLoadGlobal, 0, userGlobal0},
 		{OpReturn, 1, 0},
 	})
 
@@ -175,17 +180,17 @@ func TestCompiler_IfElse(t *testing.T) {
 
 	expectInstructions(t, chunk, []expectedInstruction{
 		{OpLoadTrue, 0, 0},
-		{OpStoreGlobal, 0, 0},
+		{OpStoreGlobal, 0, userGlobal0},
 		{OpLoadConst0, 0, 0},
-		{OpStoreGlobal, 0, 1},
-		{OpLoadGlobal, 0, 0},
+		{OpStoreGlobal, 0, userGlobal1},
+		{OpLoadGlobal, 0, userGlobal0},
 		{OpJumpIfFalse, 0, 3},
 		{OpLoadConst1, 0, 0},
-		{OpStoreGlobal, 0, 1},
+		{OpStoreGlobal, 0, userGlobal1},
 		{OpJump, 0, 2},
 		{OpLoadConst, 0, 2},
-		{OpStoreGlobal, 0, 1},
-		{OpLoadGlobal, 0, 1},
+		{OpStoreGlobal, 0, userGlobal1},
+		{OpLoadGlobal, 0, userGlobal1},
 		{OpReturn, 1, 0},
 	})
 
@@ -200,6 +205,351 @@ func TestCompiler_IfElse(t *testing.T) {
 	}
 	if got := chunk.GetConstant(2).AsInt(); got != 2 {
 		t.Errorf("Constant 2 = %d, want 2", got)
+	}
+}
+
+func TestCompiler_ArrayLiteralAndIndex(t *testing.T) {
+	arrIdent := &ast.Identifier{
+		Token: lexer.Token{Type: lexer.IDENT, Literal: "arr", Pos: pos(1, 1)},
+		Value: "arr",
+	}
+	arrayLiteral := &ast.ArrayLiteralExpression{
+		Token: lexer.Token{Type: lexer.LBRACK, Literal: "[", Pos: pos(1, 10)},
+		Elements: []ast.Expression{
+			&ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(1, 11)}, Value: 1},
+			&ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 14)}, Value: 2},
+		},
+	}
+	assignStmt := &ast.AssignmentStatement{
+		Token:    lexer.Token{Type: lexer.IDENT, Literal: "arr", Pos: pos(2, 1)},
+		Operator: lexer.ASSIGN,
+		Target: &ast.IndexExpression{
+			Token: lexer.Token{Type: lexer.LBRACK, Literal: "[", Pos: pos(2, 4)},
+			Left: &ast.Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "arr", Pos: pos(2, 1)},
+				Value: "arr",
+			},
+			Index: &ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(2, 8)}, Value: 1},
+		},
+		Value: &ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "5", Pos: pos(2, 13)}, Value: 5},
+	}
+	returnStmt := &ast.ReturnStatement{
+		Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(3, 1)},
+		ReturnValue: &ast.IndexExpression{
+			Token: lexer.Token{Type: lexer.LBRACK, Literal: "[", Pos: pos(3, 10)},
+			Left: &ast.Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "arr", Pos: pos(3, 8)},
+				Value: "arr",
+			},
+			Index: &ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(3, 12)}, Value: 0},
+		},
+	}
+
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.VarDeclStatement{
+				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+				Names: []*ast.Identifier{arrIdent},
+				Value: arrayLiteral,
+			},
+			assignStmt,
+			returnStmt,
+		},
+	}
+
+	compiler := NewCompiler("array_index")
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+
+	expectInstructions(t, chunk, []expectedInstruction{
+		{OpLoadConst0, 0, 0},
+		{OpLoadConst1, 0, 0},
+		{OpNewArray, 0, 2},
+		{OpStoreGlobal, 0, userGlobal0},
+		{OpLoadConst, 0, 2},
+		{OpLoadGlobal, 0, userGlobal0},
+		{OpLoadConst0, 0, 0},
+		{OpRotate3, 0, 0},
+		{OpArraySet, 0, 0},
+		{OpLoadGlobal, 0, userGlobal0},
+		{OpLoadConst, 0, 3},
+		{OpArrayGet, 0, 0},
+		{OpReturn, 1, 0},
+	})
+
+	if chunk.ConstantCount() != 4 {
+		t.Fatalf("ConstantCount() = %d, want 4", chunk.ConstantCount())
+	}
+	if got := chunk.GetConstant(0).AsInt(); got != 1 {
+		t.Errorf("Constant 0 = %d, want 1", got)
+	}
+	if got := chunk.GetConstant(1).AsInt(); got != 2 {
+		t.Errorf("Constant 1 = %d, want 2", got)
+	}
+	if got := chunk.GetConstant(2).AsInt(); got != 5 {
+		t.Errorf("Constant 2 = %d, want 5", got)
+	}
+	if got := chunk.GetConstant(3).AsInt(); got != 0 {
+		t.Errorf("Constant 3 = %d, want 0", got)
+	}
+}
+
+func TestCompiler_NewExpression(t *testing.T) {
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.ReturnStatement{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+				ReturnValue: &ast.NewExpression{
+					Token: lexer.Token{Type: lexer.NEW, Literal: "new", Pos: pos(1, 9)},
+					ClassName: &ast.Identifier{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "TPoint", Pos: pos(1, 13)},
+						Value: "TPoint",
+					},
+				},
+			},
+		},
+	}
+
+	compiler := NewCompiler("new_expr")
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+
+	expectInstructions(t, chunk, []expectedInstruction{
+		{OpNewObject, 0, 0},
+		{OpReturn, 1, 0},
+	})
+
+	if chunk.ConstantCount() != 1 {
+		t.Fatalf("ConstantCount() = %d, want 1", chunk.ConstantCount())
+	}
+	if got := chunk.GetConstant(0).AsString(); got != "TPoint" {
+		t.Fatalf("Constant 0 = %q, want TPoint", got)
+	}
+}
+
+func TestCompiler_TryExceptTypedHandler(t *testing.T) {
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.TryStatement{
+				Token: lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(1, 1)},
+				TryBlock: &ast.BlockStatement{Statements: []ast.Statement{
+					&ast.ExpressionStatement{Expression: &ast.NilLiteral{Token: lexer.Token{Type: lexer.NIL, Literal: "Nil", Pos: pos(1, 5)}}},
+				}},
+				ExceptClause: &ast.ExceptClause{
+					Token: lexer.Token{Type: lexer.EXCEPT, Literal: "except", Pos: pos(2, 1)},
+					Handlers: []*ast.ExceptionHandler{
+						{
+							Token:         lexer.Token{Type: lexer.ON, Literal: "on", Pos: pos(2, 3)},
+							Variable:      &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "E", Pos: pos(2, 6)}, Value: "E"},
+							ExceptionType: &ast.TypeAnnotation{Name: "MyError"},
+							Statement:     &ast.BlockStatement{},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	compiler := NewCompiler("typed_catch")
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+
+	foundGetClass := false
+	for _, inst := range chunk.Code {
+		if inst.OpCode() == OpGetClass {
+			foundGetClass = true
+			break
+		}
+	}
+	if !foundGetClass {
+		t.Fatalf("expected OpGetClass in emitted bytecode")
+	}
+}
+
+func TestCompiler_TryExceptRethrowWithoutElse(t *testing.T) {
+	assign := &ast.AssignmentStatement{
+		Token:    lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 3)},
+		Operator: lexer.ASSIGN,
+		Target:   &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 3)}, Value: "x"},
+		Value:    &ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(3, 10)}, Value: 1},
+	}
+
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.VarDeclStatement{
+				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+				Names: []*ast.Identifier{{Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)}, Value: "x"}},
+			},
+			&ast.TryStatement{
+				Token: lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(2, 1)},
+				TryBlock: &ast.BlockStatement{Statements: []ast.Statement{
+					&ast.ExpressionStatement{Expression: &ast.NilLiteral{Token: lexer.Token{Type: lexer.NIL, Literal: "Nil", Pos: pos(2, 5)}}},
+				}},
+				ExceptClause: &ast.ExceptClause{
+					Token: lexer.Token{Type: lexer.EXCEPT, Literal: "except", Pos: pos(3, 1)},
+					Handlers: []*ast.ExceptionHandler{
+						{
+							Token:         lexer.Token{Type: lexer.ON, Literal: "on", Pos: pos(3, 3)},
+							ExceptionType: &ast.TypeAnnotation{Name: "Other"},
+							Statement:     &ast.BlockStatement{Statements: []ast.Statement{assign}},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	compiler := NewCompiler("typed_rethrow")
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+
+	foundThrow := false
+	for _, inst := range chunk.Code {
+		if inst.OpCode() == OpThrow {
+			foundThrow = true
+			break
+		}
+	}
+	if !foundThrow {
+		t.Fatalf("expected OpThrow for unmatched typed handler")
+	}
+}
+
+func TestCompiler_RaiseStatementExpression(t *testing.T) {
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.RaiseStatement{
+				Token: lexer.Token{Type: lexer.RAISE, Literal: "raise", Pos: pos(1, 1)},
+				Exception: &ast.IntegerLiteral{
+					Token: lexer.Token{Type: lexer.INT, Literal: "5", Pos: pos(1, 7)},
+					Value: 5,
+				},
+			},
+		},
+	}
+
+	compiler := NewCompiler("raise_expr")
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+
+	expectInstructions(t, chunk, []expectedInstruction{
+		{OpLoadConst0, 0, 0},
+		{OpThrow, 0, 0},
+		{OpHalt, 0, 0},
+	})
+}
+
+func TestCompiler_RaiseStatementBare(t *testing.T) {
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.RaiseStatement{
+				Token: lexer.Token{Type: lexer.RAISE, Literal: "raise", Pos: pos(1, 1)},
+			},
+		},
+	}
+
+	compiler := NewCompiler("raise_bare")
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+
+	expectInstructions(t, chunk, []expectedInstruction{
+		{OpLoadGlobal, 0, builtinExceptObjectIndex},
+		{OpThrow, 0, 0},
+		{OpHalt, 0, 0},
+	})
+}
+
+func TestCompiler_TryFinallyMetadata(t *testing.T) {
+	ident := &ast.Identifier{
+		Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
+		Value: "x",
+	}
+
+	assignTry := &ast.AssignmentStatement{
+		Token:    lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(2, 3)},
+		Operator: lexer.ASSIGN,
+		Target: &ast.Identifier{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(2, 3)},
+			Value: "x",
+		},
+		Value: &ast.IntegerLiteral{
+			Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(2, 8)},
+			Value: 1,
+		},
+	}
+
+	assignFinally := &ast.AssignmentStatement{
+		Token:    lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 3)},
+		Operator: lexer.ASSIGN,
+		Target: &ast.Identifier{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 3)},
+			Value: "x",
+		},
+		Value: &ast.IntegerLiteral{
+			Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(3, 8)},
+			Value: 2,
+		},
+	}
+
+	program := &ast.Program{
+		Statements: []ast.Statement{
+			&ast.VarDeclStatement{
+				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+				Names: []*ast.Identifier{ident},
+				Value: &ast.IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(1, 10)}, Value: 0},
+			},
+			&ast.TryStatement{
+				Token:    lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(2, 1)},
+				TryBlock: &ast.BlockStatement{Statements: []ast.Statement{assignTry}},
+				FinallyClause: &ast.FinallyClause{
+					Token: lexer.Token{Type: lexer.FINALLY, Literal: "finally", Pos: pos(3, 1)},
+					Block: &ast.BlockStatement{Statements: []ast.Statement{assignFinally}},
+				},
+			},
+		},
+	}
+
+	compiler := NewCompiler("try_finally_meta")
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+
+	tryIndex := -1
+	for idx, inst := range chunk.Code {
+		if inst.OpCode() == OpTry {
+			tryIndex = idx
+			break
+		}
+	}
+	if tryIndex == -1 {
+		t.Fatalf("no OpTry emitted")
+	}
+
+	info, ok := chunk.TryInfoAt(tryIndex)
+	if !ok {
+		t.Fatalf("TryInfo missing")
+	}
+	if !info.HasFinally {
+		t.Fatalf("expected HasFinally")
+	}
+	if info.CatchTarget != -1 {
+		t.Fatalf("expected no catch target")
+	}
+	if info.FinallyTarget <= tryIndex {
+		t.Fatalf("invalid finally target: %d", info.FinallyTarget)
 	}
 }
 
@@ -282,8 +632,8 @@ func TestCompiler_CallExpression(t *testing.T) {
 
 	expectInstructions(t, chunk, []expectedInstruction{
 		{OpLoadNil, 0, 0},
-		{OpStoreGlobal, 0, 0},
-		{OpLoadGlobal, 0, 0},
+		{OpStoreGlobal, 0, userGlobal0},
+		{OpLoadGlobal, 0, userGlobal0},
 		{OpLoadConst0, 0, 0},
 		{OpLoadConst1, 0, 0},
 		{OpCallIndirect, 2, 0},
@@ -566,11 +916,11 @@ func TestCompiler_MemberAccess(t *testing.T) {
 
 	expectInstructions(t, chunk, []expectedInstruction{
 		{OpLoadNil, 0, 0},
-		{OpStoreGlobal, 0, 0},
-		{OpLoadGlobal, 0, 0},
+		{OpStoreGlobal, 0, userGlobal0},
+		{OpLoadGlobal, 0, userGlobal0},
 		{OpLoadConst0, 0, 0},
 		{OpSetProperty, 0, 1},
-		{OpLoadGlobal, 0, 0},
+		{OpLoadGlobal, 0, userGlobal0},
 		{OpGetProperty, 0, 1},
 		{OpReturn, 1, 0},
 	})
