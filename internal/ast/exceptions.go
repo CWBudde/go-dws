@@ -33,6 +33,14 @@ type TryStatement struct {
 	ExceptClause  *ExceptClause
 	FinallyClause *FinallyClause
 	Token         lexer.Token
+	EndPos        lexer.Position
+}
+
+func (t *TryStatement) End() lexer.Position {
+	if t.EndPos.Line != 0 {
+		return t.EndPos
+	}
+	return t.Token.Pos
 }
 
 func (ts *TryStatement) statementNode()       {}
@@ -85,6 +93,14 @@ type ExceptClause struct {
 	ElseBlock *BlockStatement
 	Handlers  []*ExceptionHandler
 	Token     lexer.Token
+	EndPos    lexer.Position
+}
+
+func (e *ExceptClause) End() lexer.Position {
+	if e.EndPos.Line != 0 {
+		return e.EndPos
+	}
+	return e.Token.Pos
 }
 
 func (ec *ExceptClause) String() string {
@@ -125,6 +141,14 @@ type ExceptionHandler struct {
 	Variable      *Identifier
 	ExceptionType *TypeAnnotation
 	Token         lexer.Token
+	EndPos        lexer.Position
+}
+
+func (e *ExceptionHandler) End() lexer.Position {
+	if e.EndPos.Line != 0 {
+		return e.EndPos
+	}
+	return e.Token.Pos
 }
 
 func (eh *ExceptionHandler) String() string {
@@ -163,8 +187,16 @@ func (eh *ExceptionHandler) String() string {
 //	  Cleanup();
 //	end;
 type FinallyClause struct {
-	Block *BlockStatement
-	Token lexer.Token
+	Block  *BlockStatement
+	Token  lexer.Token
+	EndPos lexer.Position
+}
+
+func (f *FinallyClause) End() lexer.Position {
+	if f.EndPos.Line != 0 {
+		return f.EndPos
+	}
+	return f.Token.Pos
 }
 
 func (fc *FinallyClause) String() string {
@@ -192,6 +224,14 @@ func (fc *FinallyClause) String() string {
 type RaiseStatement struct {
 	Exception Expression
 	Token     lexer.Token
+	EndPos    lexer.Position
+}
+
+func (r *RaiseStatement) End() lexer.Position {
+	if r.EndPos.Line != 0 {
+		return r.EndPos
+	}
+	return r.Token.Pos
 }
 
 func (rs *RaiseStatement) statementNode()       {}

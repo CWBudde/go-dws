@@ -262,8 +262,8 @@ func TestEvalSetLiteral_Range(t *testing.T) {
 	setLiteral := &ast.SetLiteral{
 		Elements: []ast.Expression{
 			&ast.RangeExpression{
-				Start: &ast.EnumLiteral{ValueName: "Red"},
-				End:   &ast.EnumLiteral{ValueName: "Blue"},
+				Start:    &ast.EnumLiteral{ValueName: "Red"},
+				RangeEnd: &ast.EnumLiteral{ValueName: "Blue"},
 			},
 		},
 	}
@@ -295,8 +295,8 @@ func TestEvalSetLiteral_MixedRangeAndElements(t *testing.T) {
 		Elements: []ast.Expression{
 			&ast.EnumLiteral{ValueName: "One"},
 			&ast.RangeExpression{
-				Start: &ast.EnumLiteral{ValueName: "Three"},
-				End:   &ast.EnumLiteral{ValueName: "Five"},
+				Start:    &ast.EnumLiteral{ValueName: "Three"},
+				RangeEnd: &ast.EnumLiteral{ValueName: "Five"},
 			},
 		},
 	}

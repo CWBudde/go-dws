@@ -120,6 +120,14 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 	// Expect semicolon
 	if p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken()
+		// End position is at the semicolon
+		stmt.EndPos = p.endPosFromToken(p.curToken)
+	} else if stmt.Value != nil {
+		// No semicolon - end position is after the value expression
+		stmt.EndPos = stmt.Value.End()
+	} else {
+		// Fallback - use current token
+		stmt.EndPos = p.endPosFromToken(p.curToken)
 	}
 
 	return stmt

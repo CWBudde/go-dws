@@ -234,6 +234,9 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 		return nil
 	}
 
+	// Set end position to after the ']'
+	result.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at RBRACK
+
 	return result
 }
 
@@ -280,11 +283,14 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 				return nil
 			}
 
-			elem = &ast.RangeExpression{
-				Token: rangeToken,
-				Start: elementExpr,
-				End:   endExpr,
+			rangeExpr := &ast.RangeExpression{
+				Token:    rangeToken,
+				Start:    elementExpr,
+				RangeEnd: endExpr,
 			}
+			// Set EndPos to after the end expression
+			rangeExpr.EndPos = endExpr.End()
+			elem = rangeExpr
 		}
 
 		elements = append(elements, elem)
@@ -334,16 +340,22 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 
 	// Determine if this should be treated as a set literal (all elements are identifiers or ranges)
 	if shouldParseAsSetLiteral(elements) {
-		return &ast.SetLiteral{
+		setLit := &ast.SetLiteral{
 			Token:    lbrackToken,
 			Elements: elements,
 		}
+		// Set EndPos to after the ']'
+		setLit.EndPos = p.endPosFromToken(p.curToken)
+		return setLit
 	}
 
-	return &ast.ArrayLiteralExpression{
+	arrayLit := &ast.ArrayLiteralExpression{
 		Token:    lbrackToken,
 		Elements: elements,
 	}
+	// Set EndPos to after the ']'
+	arrayLit.EndPos = p.endPosFromToken(p.curToken)
+	return arrayLit
 }
 
 // shouldParseAsSetLiteral determines if the parsed elements represent a set literal.

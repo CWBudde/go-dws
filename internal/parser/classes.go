@@ -292,6 +292,8 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		return nil
 	}
 
+	classDecl.EndPos = p.endPosFromToken(p.curToken)
+
 	return classDecl
 }
 
@@ -389,6 +391,7 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 
 			// Parse arguments (parseExpressionList handles the advancement)
 			newExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
+			newExpr.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at RPAREN
 
 			return newExpr
 		}
@@ -405,6 +408,7 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 
 		// Parse arguments (parseExpressionList handles the advancement)
 		methodCall.Arguments = p.parseExpressionList(lexer.RPAREN)
+		methodCall.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at RPAREN
 
 		return methodCall
 	}
@@ -415,6 +419,7 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		Object: left,
 		Member: memberName,
 	}
+	memberAccess.EndPos = memberName.End() // End position is after the member name
 
 	return memberAccess
 }

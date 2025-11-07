@@ -786,7 +786,7 @@ end;`,
 				if !testStringLiteralExpression(t, rangeExpr1.Start, "A") {
 					return
 				}
-				if !testStringLiteralExpression(t, rangeExpr1.End, "Z") {
+				if !testStringLiteralExpression(t, rangeExpr1.RangeEnd, "Z") {
 					return
 				}
 
@@ -804,7 +804,7 @@ end;`,
 				if !testStringLiteralExpression(t, rangeExpr2.Start, "a") {
 					return
 				}
-				if !testStringLiteralExpression(t, rangeExpr2.End, "z") {
+				if !testStringLiteralExpression(t, rangeExpr2.RangeEnd, "z") {
 					return
 				}
 			},
@@ -836,7 +836,7 @@ end;`,
 				if !testIntegerLiteral(t, rangeExpr1.Start, 1) {
 					return
 				}
-				if !testIntegerLiteral(t, rangeExpr1.End, 10) {
+				if !testIntegerLiteral(t, rangeExpr1.RangeEnd, 10) {
 					return
 				}
 
@@ -850,7 +850,7 @@ end;`,
 				if !testIntegerLiteral(t, rangeExpr2.Start, 11) {
 					return
 				}
-				if !testIntegerLiteral(t, rangeExpr2.End, 20) {
+				if !testIntegerLiteral(t, rangeExpr2.RangeEnd, 20) {
 					return
 				}
 			},
@@ -891,7 +891,7 @@ end;`,
 				if !testIntegerLiteral(t, rangeExpr.Start, 3) {
 					return
 				}
-				if !testIntegerLiteral(t, rangeExpr.End, 5) {
+				if !testIntegerLiteral(t, rangeExpr.RangeEnd, 5) {
 					return
 				}
 
@@ -946,7 +946,7 @@ end;`,
 				if !testIntegerLiteral(t, rangeExpr1.Start, 0) {
 					return
 				}
-				if !testIntegerLiteral(t, rangeExpr1.End, 9) {
+				if !testIntegerLiteral(t, rangeExpr1.RangeEnd, 9) {
 					return
 				}
 
@@ -977,7 +977,7 @@ end;`,
 				if !testIdentifier(t, rangeExpr.Start, "min_val") {
 					return
 				}
-				if !testIdentifier(t, rangeExpr.End, "max_val") {
+				if !testIdentifier(t, rangeExpr.RangeEnd, "max_val") {
 					return
 				}
 			},

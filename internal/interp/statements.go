@@ -1101,7 +1101,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 	}
 
 	// Evaluate end value
-	endVal := i.Eval(stmt.End)
+	endVal := i.Eval(stmt.EndValue)
 	if isError(endVal) {
 		return endVal
 	}
@@ -1433,7 +1433,7 @@ func (i *Interpreter) evalCaseStatement(stmt *ast.CaseStatement) Value {
 					return startValue
 				}
 
-				endValue := i.Eval(rangeExpr.End)
+				endValue := i.Eval(rangeExpr.RangeEnd)
 				if isError(endValue) {
 					return endValue
 				}

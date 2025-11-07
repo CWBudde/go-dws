@@ -123,8 +123,10 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 		for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
 			p.nextToken()
 		}
-		return block
 	}
+
+	// Set end position to the END keyword
+	block.EndPos = p.endPosFromToken(p.curToken)
 
 	return block
 }
@@ -135,9 +137,17 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 
 	stmt.Expression = p.parseExpression(LOWEST)
 
+	// Set end position based on expression
+	if stmt.Expression != nil {
+		stmt.EndPos = stmt.Expression.End()
+	} else {
+		stmt.EndPos = p.endPosFromToken(stmt.Token)
+	}
+
 	// Optional semicolon
 	if p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken()
+		stmt.EndPos = p.endPosFromToken(p.curToken) // Update to include semicolon
 	}
 
 	return stmt
@@ -329,6 +339,9 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		return nil
 	}
 
+	// End position is at the semicolon
+	stmt.EndPos = p.endPosFromToken(p.curToken)
+
 	return stmt
 }
 
@@ -368,9 +381,17 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			p.nextToken()
 			stmt.Value = p.parseExpression(ASSIGN)
 
+			// Set end position based on value expression
+			if stmt.Value != nil {
+				stmt.EndPos = stmt.Value.End()
+			} else {
+				stmt.EndPos = p.endPosFromToken(p.curToken)
+			}
+
 			// Optional semicolon
 			if p.peekTokenIs(lexer.SEMICOLON) {
 				p.nextToken()
+				stmt.EndPos = p.endPosFromToken(p.curToken) // Update to include semicolon
 			}
 			return stmt
 
@@ -385,9 +406,17 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			p.nextToken()
 			stmt.Value = p.parseExpression(ASSIGN)
 
+			// Set end position based on value expression
+			if stmt.Value != nil {
+				stmt.EndPos = stmt.Value.End()
+			} else {
+				stmt.EndPos = p.endPosFromToken(p.curToken)
+			}
+
 			// Optional semicolon
 			if p.peekTokenIs(lexer.SEMICOLON) {
 				p.nextToken()
+				stmt.EndPos = p.endPosFromToken(p.curToken) // Update to include semicolon
 			}
 			return stmt
 
@@ -402,9 +431,17 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			p.nextToken()
 			stmt.Value = p.parseExpression(ASSIGN)
 
+			// Set end position based on value expression
+			if stmt.Value != nil {
+				stmt.EndPos = stmt.Value.End()
+			} else {
+				stmt.EndPos = p.endPosFromToken(p.curToken)
+			}
+
 			// Optional semicolon
 			if p.peekTokenIs(lexer.SEMICOLON) {
 				p.nextToken()
+				stmt.EndPos = p.endPosFromToken(p.curToken) // Update to include semicolon
 			}
 			return stmt
 

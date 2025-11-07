@@ -33,12 +33,19 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 
 // parseIdentifier parses an identifier.
 func (p *Parser) parseIdentifier() ast.Expression {
-	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	return &ast.Identifier{
+		Token:  p.curToken,
+		Value:  p.curToken.Literal,
+		EndPos: p.endPosFromToken(p.curToken),
+	}
 }
 
 // parseIntegerLiteral parses an integer literal.
 func (p *Parser) parseIntegerLiteral() ast.Expression {
-	lit := &ast.IntegerLiteral{Token: p.curToken}
+	lit := &ast.IntegerLiteral{
+		Token:  p.curToken,
+		EndPos: p.endPosFromToken(p.curToken),
+	}
 
 	literal := p.curToken.Literal
 
@@ -73,7 +80,10 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 
 // parseFloatLiteral parses a floating-point literal.
 func (p *Parser) parseFloatLiteral() ast.Expression {
-	lit := &ast.FloatLiteral{Token: p.curToken}
+	lit := &ast.FloatLiteral{
+		Token:  p.curToken,
+		EndPos: p.endPosFromToken(p.curToken),
+	}
 
 	value, err := strconv.ParseFloat(p.curToken.Literal, 64)
 	if err != nil {
@@ -103,7 +113,11 @@ func (p *Parser) parseStringLiteral() ast.Expression {
 	// Handle escaped quotes ('' -> ')
 	value = unescapeString(value)
 
-	return &ast.StringLiteral{Token: p.curToken, Value: value}
+	return &ast.StringLiteral{
+		Token:  p.curToken,
+		Value:  value,
+		EndPos: p.endPosFromToken(p.curToken),
+	}
 }
 
 // unescapeString handles DWScript string escape sequences.
@@ -124,17 +138,27 @@ func unescapeString(s string) string {
 
 // parseBooleanLiteral parses a boolean literal.
 func (p *Parser) parseBooleanLiteral() ast.Expression {
-	return &ast.BooleanLiteral{Token: p.curToken, Value: p.curTokenIs(lexer.TRUE)}
+	return &ast.BooleanLiteral{
+		Token:  p.curToken,
+		Value:  p.curTokenIs(lexer.TRUE),
+		EndPos: p.endPosFromToken(p.curToken),
+	}
 }
 
 // parseNilLiteral parses a nil literal.
 func (p *Parser) parseNilLiteral() ast.Expression {
-	return &ast.NilLiteral{Token: p.curToken}
+	return &ast.NilLiteral{
+		Token:  p.curToken,
+		EndPos: p.endPosFromToken(p.curToken),
+	}
 }
 
 // parseCharLiteral parses a character literal (#65, #$41).
 func (p *Parser) parseCharLiteral() ast.Expression {
-	lit := &ast.CharLiteral{Token: p.curToken}
+	lit := &ast.CharLiteral{
+		Token:  p.curToken,
+		EndPos: p.endPosFromToken(p.curToken),
+	}
 
 	// Parse the character value from the token literal
 	// Token literal can be: "#65" (decimal) or "#$41" (hex)
@@ -177,6 +201,13 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 
 	expression.Right = p.parseExpression(PREFIX)
 
+	// Set end position based on the right expression
+	if expression.Right != nil {
+		expression.EndPos = expression.Right.End()
+	} else {
+		expression.EndPos = p.endPosFromToken(expression.Token)
+	}
+
 	return expression
 }
 
@@ -192,6 +223,13 @@ func (p *Parser) parseAddressOfExpression() ast.Expression {
 	// Parse the target expression (function/procedure name or member access)
 	expression.Operator = p.parseExpression(PREFIX)
 
+	// Set end position based on the target expression
+	if expression.Operator != nil {
+		expression.EndPos = expression.Operator.End()
+	} else {
+		expression.EndPos = p.endPosFromToken(expression.Token)
+	}
+
 	return expression
 }
 
@@ -206,6 +244,13 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	precedence := p.curPrecedence()
 	p.nextToken()
 	expression.Right = p.parseExpression(precedence)
+
+	// Set end position based on the right expression
+	if expression.Right != nil {
+		expression.EndPos = expression.Right.End()
+	} else {
+		expression.EndPos = p.endPosFromToken(expression.Token)
+	}
 
 	return expression
 }
@@ -227,6 +272,7 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	}
 
 	exp.Arguments = p.parseExpressionList(lexer.RPAREN)
+	exp.EndPos = p.endPosFromToken(p.curToken) // p.curToken is now at RPAREN
 
 	return exp
 }
@@ -672,7 +718,15 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 
 			// Parse arguments
 			inheritedExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
+			// Set end position after closing parenthesis (p.curToken is now at RPAREN)
+			inheritedExpr.EndPos = p.endPosFromToken(p.curToken)
+		} else {
+			// No call, just method name - end at method identifier
+			inheritedExpr.EndPos = inheritedExpr.Method.End()
 		}
+	} else {
+		// Bare 'inherited' keyword - end at the keyword itself
+		inheritedExpr.EndPos = p.endPosFromToken(inheritedExpr.Token)
 	}
 
 	return inheritedExpr
@@ -738,6 +792,13 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 		}
 		lambdaExpr.IsShorthand = true
 
+		// Set end position based on expression
+		if expr != nil {
+			lambdaExpr.EndPos = expr.End()
+		} else {
+			lambdaExpr.EndPos = p.endPosFromToken(p.curToken)
+		}
+
 	} else if p.peekTokenIs(lexer.BEGIN) {
 		// Full syntax: lambda(x: Integer) begin ... end
 		p.nextToken() // move to 'begin'
@@ -745,6 +806,13 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 		// Parse block statement
 		lambdaExpr.Body = p.parseBlockStatement()
 		lambdaExpr.IsShorthand = false
+
+		// Set end position based on body block
+		if lambdaExpr.Body != nil {
+			lambdaExpr.EndPos = lambdaExpr.Body.End()
+		} else {
+			lambdaExpr.EndPos = p.endPosFromToken(p.curToken)
+		}
 
 	} else {
 		p.addError("expected '=>' or 'begin' after lambda parameters", ErrUnexpectedToken)
@@ -895,6 +963,11 @@ func (p *Parser) parseCondition() *ast.Condition {
 			Token: p.curToken,
 			Value: p.curToken.Literal,
 		}
+		// EndPos is the end of the message string literal
+		condition.EndPos = p.endPosFromToken(p.curToken)
+	} else {
+		// EndPos is the end of the test expression
+		condition.EndPos = testExpr.End()
 	}
 
 	return condition
@@ -927,6 +1000,7 @@ func (p *Parser) parseOldExpression() ast.Expression {
 	return &ast.OldExpression{
 		Token:      token,
 		Identifier: identifier,
+		EndPos:     identifier.End(),
 	}
 }
 
@@ -970,10 +1044,17 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 		conditions = append(conditions, condition)
 	}
 
-	return &ast.PreConditions{
+	preConditions := &ast.PreConditions{
 		Token:      requireToken,
 		Conditions: conditions,
 	}
+
+	// EndPos is the end of the last condition
+	if len(conditions) > 0 {
+		preConditions.EndPos = conditions[len(conditions)-1].End()
+	}
+
+	return preConditions
 }
 
 // parsePostConditions parses function postconditions (ensure block).
@@ -1025,8 +1106,15 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 		conditions = append(conditions, condition)
 	}
 
-	return &ast.PostConditions{
+	postConditions := &ast.PostConditions{
 		Token:      ensureToken,
 		Conditions: conditions,
 	}
+
+	// EndPos is the end of the last condition
+	if len(conditions) > 0 {
+		postConditions.EndPos = conditions[len(conditions)-1].End()
+	}
+
+	return postConditions
 }

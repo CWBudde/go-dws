@@ -1535,7 +1535,6 @@ end
 
 // TestBuiltinMin_Integers tests Min() with integer values.
 // Min(a, b) returns the smaller of two values
-// Task 9.54: Min() function for integers
 func TestBuiltinMin_Integers(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1615,7 +1614,6 @@ end
 }
 
 // TestBuiltinMin_Floats tests Min() with float values.
-// Task 9.54: Min() function for floats
 func TestBuiltinMin_Floats(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1677,7 +1675,6 @@ end
 }
 
 // TestBuiltinMin_MixedTypes tests Min() with mixed Integer/Float types.
-// Task 9.54: Min() function with mixed types
 func TestBuiltinMin_MixedTypes(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1731,7 +1728,6 @@ end
 
 // TestBuiltinMax_Integers tests Max() with integer values.
 // Max(a, b) returns the larger of two values
-// Task 9.55: Max() function for integers
 func TestBuiltinMax_Integers(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1811,7 +1807,6 @@ end
 }
 
 // TestBuiltinMax_Floats tests Max() with float values.
-// Task 9.55: Max() function for floats
 func TestBuiltinMax_Floats(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1873,7 +1868,6 @@ end
 }
 
 // TestBuiltinMax_MixedTypes tests Max() with mixed Integer/Float types.
-// Task 9.55: Max() function with mixed types
 func TestBuiltinMax_MixedTypes(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1926,7 +1920,6 @@ end
 }
 
 // TestBuiltinMinMax_Errors tests Min() and Max() error cases.
-// Task 9.56: Min/Max error handling
 func TestBuiltinMinMax_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -2043,7 +2036,6 @@ end
 
 // TestBuiltinSqr_Integers tests Sqr() with integer values.
 // Sqr(x) returns x * x
-// Task 9.57: Sqr() function for integers
 func TestBuiltinSqr_Integers(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2114,7 +2106,6 @@ end
 }
 
 // TestBuiltinSqr_Floats tests Sqr() with float values.
-// Task 9.57: Sqr() function for floats
 func TestBuiltinSqr_Floats(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2177,7 +2168,6 @@ end
 
 // TestBuiltinPower_BasicUsage tests Power() with basic values.
 // Power(x, y) returns x^y as Float
-// Task 9.58: Power() function
 func TestBuiltinPower_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2266,7 +2256,6 @@ end
 }
 
 // TestBuiltinPower_SpecialCases tests Power() special cases.
-// Task 9.58: Power() special cases (0^0, etc.)
 func TestBuiltinPower_SpecialCases(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2319,7 +2308,6 @@ end
 }
 
 // TestBuiltinSqrPower_Errors tests Sqr() and Power() error cases.
-// Task 9.59: Sqr/Power error handling
 func TestBuiltinSqrPower_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -2418,7 +2406,6 @@ end
 
 // TestBuiltinCeil_BasicUsage tests Ceil() with basic values.
 // Ceil(x) rounds up to the nearest integer
-// Task 9.60: Ceil() function
 func TestBuiltinCeil_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2517,7 +2504,6 @@ end
 
 // TestBuiltinFloor_BasicUsage tests Floor() with basic values.
 // Floor(x) rounds down to the nearest integer
-// Task 9.61: Floor() function
 func TestBuiltinFloor_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2615,7 +2601,6 @@ end
 }
 
 // TestBuiltinCeilFloor_WithIntegers tests Ceil() and Floor() with Integer arguments.
-// Task 9.62: Ceil/Floor with integer inputs
 func TestBuiltinCeilFloor_WithIntegers(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2661,7 +2646,6 @@ end
 }
 
 // TestBuiltinCeilFloor_Errors tests Ceil() and Floor() error cases.
-// Task 9.62: Ceil/Floor error handling
 func TestBuiltinCeilFloor_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -2760,7 +2744,6 @@ end
 
 // TestBuiltinRandomInt_BasicUsage tests RandomInt() returns values in range [0, max).
 // RandomInt(max) returns a random Integer in range [0, max)
-// Task 9.64: RandomInt() basic functionality
 func TestBuiltinRandomInt_BasicUsage(t *testing.T) {
 	input := `
 var i: Integer;
@@ -2787,7 +2770,6 @@ end
 }
 
 // TestBuiltinRandomInt_ReturnType tests that RandomInt() returns Integer.
-// Task 9.64: RandomInt() return type validation
 func TestBuiltinRandomInt_ReturnType(t *testing.T) {
 	input := `
 begin
@@ -2803,7 +2785,6 @@ end
 }
 
 // TestBuiltinRandomInt_Variation tests that RandomInt() produces different values.
-// Task 9.64: RandomInt() produces varied output (probabilistic)
 func TestBuiltinRandomInt_Variation(t *testing.T) {
 	input := `
 var r1 := RandomInt(1000);
@@ -2827,7 +2808,6 @@ end
 }
 
 // TestBuiltinRandomInt_MaxOne tests RandomInt(1) always returns 0.
-// Task 9.64: RandomInt(1) edge case
 func TestBuiltinRandomInt_MaxOne(t *testing.T) {
 	input := `
 var i: Integer;
@@ -2854,7 +2834,6 @@ end
 }
 
 // TestBuiltinRandomInt_Errors tests RandomInt() error cases.
-// Task 9.64: RandomInt() error handling
 func TestBuiltinRandomInt_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -2944,7 +2923,6 @@ end
 
 // TestBuiltinUnsigned32_BasicUsage tests Unsigned32() with typical values.
 // Unsigned32(x) converts signed Integer to unsigned 32-bit representation
-// Task 9.219: Unsigned32() function for bitwise operations
 func TestBuiltinUnsigned32_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -3015,7 +2993,6 @@ end
 }
 
 // TestBuiltinUnsigned32_NegativeValues tests Unsigned32() wrapping behavior with negative values.
-// Task 9.219: Unsigned32() wraparound for negative integers
 func TestBuiltinUnsigned32_NegativeValues(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -3078,7 +3055,6 @@ end
 }
 
 // TestBuiltinUnsigned32_OverflowBehavior tests Unsigned32() with values larger than uint32.
-// Task 9.219: Unsigned32() truncates to lower 32 bits
 func TestBuiltinUnsigned32_OverflowBehavior(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -3145,7 +3121,6 @@ end
 }
 
 // TestBuiltinUnsigned32_WithVariables tests Unsigned32() with variables and expressions.
-// Task 9.219: Unsigned32() with variable inputs
 func TestBuiltinUnsigned32_WithVariables(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -3213,7 +3188,6 @@ end
 }
 
 // TestBuiltinUnsigned32_Errors tests Unsigned32() error cases.
-// Task 9.219: Unsigned32() error handling
 func TestBuiltinUnsigned32_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -3285,7 +3259,6 @@ end
 
 // TestBuiltinClampInt_BasicUsage tests ClampInt() with various value ranges.
 // ClampInt(value, min, max) clamps value to [min, max]
-// Task 9.25: ClampInt() function for death_star.pas
 func TestBuiltinClampInt_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -3401,7 +3374,6 @@ end
 }
 
 // TestBuiltinClampInt_WithVariables tests ClampInt() with variables and expressions.
-// Task 9.25: ClampInt() with variable inputs
 func TestBuiltinClampInt_WithVariables(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -3459,7 +3431,6 @@ end
 }
 
 // TestBuiltinClampInt_Errors tests ClampInt() error cases.
-// Task 9.25: ClampInt() error handling
 func TestBuiltinClampInt_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -3549,7 +3520,6 @@ end
 
 // TestBuiltinClamp_BasicUsage tests Clamp() with various float value ranges.
 // Clamp(value, min, max) clamps value to [min, max] and returns Float
-// Task 9.25: Clamp() function for death_star.pas
 func TestBuiltinClamp_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -3638,7 +3608,6 @@ end
 }
 
 // TestBuiltinClamp_MixedTypes tests Clamp() with mixed Integer/Float arguments.
-// Task 9.25: Clamp() with mixed numeric types
 func TestBuiltinClamp_MixedTypes(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -3709,7 +3678,6 @@ end
 }
 
 // TestBuiltinClamp_WithVariables tests Clamp() with variables and expressions.
-// Task 9.25: Clamp() with variable inputs
 func TestBuiltinClamp_WithVariables(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -3768,7 +3736,6 @@ end
 }
 
 // TestBuiltinClamp_Errors tests Clamp() error cases.
-// Task 9.25: Clamp() error handling
 func TestBuiltinClamp_Errors(t *testing.T) {
 	tests := []struct {
 		name          string

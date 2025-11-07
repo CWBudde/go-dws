@@ -542,7 +542,7 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 
 	// Analyze start and end expressions
 	startType := a.analyzeExpression(stmt.Start)
-	endType := a.analyzeExpression(stmt.End)
+	endType := a.analyzeExpression(stmt.EndValue)
 
 	// Check that both are ordinal types (Integer or Boolean)
 	if startType != nil && !types.IsOrdinalType(startType) {
@@ -696,7 +696,7 @@ func (a *Analyzer) analyzeCase(stmt *ast.CaseStatement) {
 			if rangeExpr, isRange := value.(*ast.RangeExpression); isRange {
 				// Analyze both start and end of range
 				startType := a.analyzeExpression(rangeExpr.Start)
-				endType := a.analyzeExpression(rangeExpr.End)
+				endType := a.analyzeExpression(rangeExpr.RangeEnd)
 
 				// Check start is compatible with case expression
 				if caseType != nil && startType != nil {
@@ -710,7 +710,7 @@ func (a *Analyzer) analyzeCase(stmt *ast.CaseStatement) {
 				if caseType != nil && endType != nil {
 					if !a.canAssign(endType, caseType) {
 						a.addError("case range end type %s incompatible with case expression type %s at %s",
-							endType.String(), caseType.String(), rangeExpr.End.Pos().String())
+							endType.String(), caseType.String(), rangeExpr.RangeEnd.Pos().String())
 					}
 				}
 

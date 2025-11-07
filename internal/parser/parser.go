@@ -1,3 +1,33 @@
+// Package parser implements the DWScript parser.
+//
+// POSITION TRACKING PATTERN (Task 10.10):
+//
+// All parsing functions should set the EndPos field on AST nodes they create.
+// The general pattern is:
+//
+//  1. For single-token nodes (literals, identifiers):
+//     node.EndPos = p.endPosFromToken(p.curToken)
+//
+// 2. For multi-token nodes:
+//   - Set EndPos after all tokens are consumed
+//   - Usually: node.EndPos = p.endPosFromToken(p.curToken)
+//   - Or delegate to child expression: node.EndPos = childExpr.End()
+//
+// 3. For nodes with optional semicolons:
+//   - Set EndPos first based on main content
+//   - Update EndPos if semicolon is consumed
+//
+// Example:
+//
+//	stmt.Expression = p.parseExpression(LOWEST)
+//	stmt.EndPos = stmt.Expression.End()
+//	if p.peekTokenIs(lexer.SEMICOLON) {
+//	    p.nextToken()
+//	    stmt.EndPos = p.endPosFromToken(p.curToken)
+//	}
+//
+// Note: As of task 10.10 implementation, position tracking is partially complete.
+// Many parsing functions still need EndPos population. Follow the pattern above.
 package parser
 
 import (
@@ -265,6 +295,15 @@ func (p *Parser) curPrecedence() int {
 	return LOWEST
 }
 
+// endPosFromToken calculates the end position of a token.
+// This is a helper function to populate EndPos fields in AST nodes.
+func (p *Parser) endPosFromToken(tok lexer.Token) lexer.Position {
+	pos := tok.Pos
+	pos.Column += tok.Length()
+	pos.Offset += tok.Length()
+	return pos
+}
+
 // ParseProgram parses the entire program and returns the AST root node.
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
@@ -306,6 +345,9 @@ func (p *Parser) ParseProgram() *ast.Program {
 		}
 		p.nextToken()
 	}
+
+	// Set end position to the last token processed
+	program.EndPos = p.endPosFromToken(p.curToken)
 
 	return program
 }

@@ -516,8 +516,8 @@ func (a *Analyzer) collectIdentifiers(node ast.Node) []string {
 		if n.Start != nil {
 			identifiers = append(identifiers, a.collectIdentifiers(n.Start)...)
 		}
-		if n.End != nil {
-			identifiers = append(identifiers, a.collectIdentifiers(n.End)...)
+		if n.EndValue != nil {
+			identifiers = append(identifiers, a.collectIdentifiers(n.EndValue)...)
 		}
 		if n.Body != nil {
 			identifiers = append(identifiers, a.collectIdentifiers(n.Body)...)

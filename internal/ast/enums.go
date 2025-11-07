@@ -27,6 +27,14 @@ type EnumDecl struct {
 	Name   *Identifier
 	Values []EnumValue
 	Token  lexer.Token
+	EndPos lexer.Position
+}
+
+func (e *EnumDecl) End() lexer.Position {
+	if e.EndPos.Line != 0 {
+		return e.EndPos
+	}
+	return e.Token.Pos
 }
 
 // statementNode implements the Statement interface
@@ -77,6 +85,14 @@ type EnumLiteral struct {
 	EnumName  string
 	ValueName string
 	Token     lexer.Token
+	EndPos    lexer.Position
+}
+
+func (e *EnumLiteral) End() lexer.Position {
+	if e.EndPos.Line != 0 {
+		return e.EndPos
+	}
+	return e.Token.Pos
 }
 
 // expressionNode implements the Expression interface

@@ -30,6 +30,14 @@ type PropertyDecl struct {
 	IndexParams []*Parameter
 	Token       lexer.Token
 	IsDefault   bool
+	EndPos      lexer.Position
+}
+
+func (p *PropertyDecl) End() lexer.Position {
+	if p.EndPos.Line != 0 {
+		return p.EndPos
+	}
+	return p.Token.Pos
 }
 
 func (pd *PropertyDecl) statementNode()       {}

@@ -40,7 +40,6 @@ func NewHelperInfo(name string, targetType types.Type, isRecordHelper bool) *Hel
 }
 
 // findPropertyCaseInsensitive searches for a property by name using case-insensitive comparison.
-// Task 9.217: Support case-insensitive helper property lookup
 func findPropertyCaseInsensitive(props map[string]*types.PropertyInfo, name string) *types.PropertyInfo {
 	for key, prop := range props {
 		if strings.EqualFold(key, name) {
@@ -51,7 +50,6 @@ func findPropertyCaseInsensitive(props map[string]*types.PropertyInfo, name stri
 }
 
 // findMethodCaseInsensitive searches for a method by name using case-insensitive comparison.
-// Task 9.217: Support case-insensitive helper method lookup
 func findMethodCaseInsensitive(methods map[string]*ast.FunctionDecl, name string) *ast.FunctionDecl {
 	for key, method := range methods {
 		if strings.EqualFold(key, name) {
@@ -62,7 +60,6 @@ func findMethodCaseInsensitive(methods map[string]*ast.FunctionDecl, name string
 }
 
 // findBuiltinMethodCaseInsensitive searches for a builtin method spec by name using case-insensitive comparison.
-// Task 9.217: Support case-insensitive builtin method lookup
 func findBuiltinMethodCaseInsensitive(builtinMethods map[string]string, name string) (string, bool) {
 	for key, spec := range builtinMethods {
 		if strings.EqualFold(key, name) {
@@ -74,7 +71,6 @@ func findBuiltinMethodCaseInsensitive(builtinMethods map[string]string, name str
 
 // getDefaultValue returns the default/zero value for a given type.
 // This is used for Result variable initialization in functions.
-// Task 9.221: Fix STRING + NIL by initializing string results to empty string
 func (i *Interpreter) getDefaultValue(typ types.Type) Value {
 	if typ == nil {
 		return &NilValue{}
@@ -105,8 +101,6 @@ func (i *Interpreter) getDefaultValue(typ types.Type) Value {
 }
 
 // evalHelperDeclaration processes a helper declaration at runtime.
-// Task 9.86: Implement helper method dispatch
-// Task 9.87: Implement helper method storage (class vars/consts)
 func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 	if decl == nil {
 		return &NilValue{}
@@ -233,7 +227,6 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 	case *RecordValue:
 		typeName = v.RecordType.Name
 	case *ArrayValue:
-		// Task 9.171: Array helper properties support
 		// First try specific array type (e.g., "array of String"), then generic ARRAY helpers
 		specific := v.ArrayType.String()
 		var combined []*HelperInfo
@@ -245,7 +238,6 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 		}
 		return combined
 	case *EnumValue:
-		// Task 9.31: Enum helper properties support
 		// First try specific enum type (e.g., "TColor"), then generic ENUM helpers
 		specific := v.TypeName
 		var combined []*HelperInfo
@@ -274,7 +266,6 @@ func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInf
 	}
 
 	// Search helpers in reverse order so later (user-defined) helpers override earlier ones.
-	// Task 9.217: Use case-insensitive lookup for DWScript compatibility
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if method := findMethodCaseInsensitive(helper.Methods, methodName); method != nil {
@@ -304,7 +295,6 @@ func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInf
 	}
 
 	// Search helpers in reverse order so later helpers override earlier ones
-	// Task 9.217: Use case-insensitive lookup for DWScript compatibility
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if prop := findPropertyCaseInsensitive(helper.Properties, propName); prop != nil {
@@ -316,7 +306,6 @@ func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInf
 }
 
 // callHelperMethod executes a helper method (user-defined or built-in) on a value
-// Task 9.86: Implement helper method dispatch
 func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionDecl,
 	builtinSpec string, selfValue Value, args []Value, node ast.Node) Value {
 
@@ -356,7 +345,6 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	}
 
 	// For functions, initialize the Result variable
-	// Task 9.221: Use appropriate default value based on return type
 	if method.ReturnType != nil {
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
@@ -491,7 +479,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		return &NilValue{}
 
 	case "__array_setlength":
-		// Task 9.216: Implements arr.SetLength(newLength) - resizes a dynamic array
+		// Implements arr.SetLength(newLength) - resizes a dynamic array
 		if len(args) != 1 {
 			return i.newErrorWithLocation(node, "Array.SetLength expects exactly 1 argument")
 		}
@@ -577,7 +565,7 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 			propInfo.Name, propInfo.ReadSpec)
 
 	case types.PropAccessBuiltin:
-		// Task 9.171: Built-in array helper properties
+		// Built-in array helper properties
 		return i.evalBuiltinHelperProperty(propInfo.ReadSpec, selfValue, node)
 
 	case types.PropAccessNone:
@@ -589,7 +577,6 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 }
 
 // resolveTypeFromExpression resolves a type from any TypeExpression.
-// Task 9.170.1: Added to support inline array types in class fields.
 func (i *Interpreter) resolveTypeFromExpression(typeExpr ast.TypeExpression) types.Type {
 	if typeExpr == nil {
 		return nil
@@ -607,7 +594,7 @@ func (i *Interpreter) resolveTypeFromExpression(typeExpr ast.TypeExpression) typ
 			return nil
 		}
 
-		// Task 9.205: Evaluate bound expressions if this is a static array
+		// Evaluate bound expressions if this is a static array
 		if arrayType.IsDynamic() {
 			return types.NewDynamicArrayType(elementType)
 		}
@@ -668,11 +655,11 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeAnnot *ast.TypeAnnotation) t
 	case "boolean":
 		return types.BOOLEAN
 	case "const":
-		// Task 9.235: Migrate Const to Variant for proper dynamic typing
+		// Migrate Const to Variant for proper dynamic typing
 		// "Const" was a temporary workaround, now redirects to VARIANT
 		return types.VARIANT
 	case "variant":
-		// Task 9.227: Support Variant type for dynamic values
+		// Support Variant type for dynamic values
 		return types.VARIANT
 	}
 
@@ -683,7 +670,7 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeAnnot *ast.TypeAnnotation) t
 	}
 
 	// Check for record types (stored with special prefix in environment)
-	// Task 9.225: Normalize to lowercase for case-insensitive lookups
+	// Normalize to lowercase for case-insensitive lookups
 	recordTypeKey := "__record_type_" + strings.ToLower(typeName)
 	if typeVal, ok := i.env.Get(recordTypeKey); ok {
 		if recordTypeVal, ok := typeVal.(*RecordTypeValue); ok {
@@ -707,7 +694,7 @@ func extractSimpleTypeName(typeName string) string {
 // ============================================================================
 
 // evalBuiltinHelperProperty evaluates a built-in helper property
-// Task 9.171: Implements .Length, .High, .Low for arrays
+// Implements .Length, .High, .Low for arrays
 func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value {
 	switch propSpec {
 	case "__array_length", "__array_high", "__array_low":
@@ -759,7 +746,7 @@ func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value
 		return &StringValue{Value: "False"}
 
 	case "__enum_value":
-		// Task 9.31: Implement enum .Value helper property
+		// Implement enum .Value helper property
 		enumVal, ok := selfValue.(*EnumValue)
 		if !ok {
 			return i.newErrorWithLocation(node, "Enum.Value property requires enum receiver")
@@ -799,7 +786,7 @@ func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value
 }
 
 // initArrayHelpers registers built-in helper properties for arrays
-// Task 9.171: Array Helper Properties (.High, .Low, .Length)
+// Array Helper Properties (.High, .Low, .Length)
 func (i *Interpreter) initArrayHelpers() {
 	if i.helpers == nil {
 		i.helpers = make(map[string][]*HelperInfo)
@@ -817,7 +804,7 @@ func (i *Interpreter) initArrayHelpers() {
 		BuiltinMethods: make(map[string]string),
 	}
 
-	// Task 9.171.4: Register .Length property
+	// Register .Length property
 	arrayHelper.Properties["Length"] = &types.PropertyInfo{
 		Name:      "Length",
 		Type:      types.INTEGER,
@@ -826,7 +813,7 @@ func (i *Interpreter) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Task 9.171.2: Register .High property
+	// Register .High property
 	arrayHelper.Properties["High"] = &types.PropertyInfo{
 		Name:      "High",
 		Type:      types.INTEGER,
@@ -835,7 +822,7 @@ func (i *Interpreter) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Task 9.171.3: Register .Low property
+	// Register .Low property
 	arrayHelper.Properties["Low"] = &types.PropertyInfo{
 		Name:      "Low",
 		Type:      types.INTEGER,
@@ -848,7 +835,7 @@ func (i *Interpreter) initArrayHelpers() {
 	// This allows: arr.Add(value) syntax
 	arrayHelper.BuiltinMethods["Add"] = "__array_add"
 
-	// Task 9.216: Register .SetLength() method for dynamic arrays
+	// Register .SetLength() method for dynamic arrays
 	// This allows: arr.SetLength(newLength) syntax
 	arrayHelper.BuiltinMethods["SetLength"] = "__array_setlength"
 
@@ -914,8 +901,6 @@ func (i *Interpreter) initIntrinsicHelpers() {
 }
 
 // initEnumHelpers registers built-in helpers for enumerated types.
-// Task 9.31: Implement enum .Value helper property
-// Also implements .Name and .QualifiedName properties
 func (i *Interpreter) initEnumHelpers() {
 	if i.helpers == nil {
 		i.helpers = make(map[string][]*HelperInfo)
@@ -924,7 +909,7 @@ func (i *Interpreter) initEnumHelpers() {
 	// Create a helper for the generic ENUM type
 	enumHelper := NewHelperInfo("__TEnumIntrinsicHelper", nil, false)
 
-	// Task 9.31: Register .Value property (returns ordinal value)
+	// Register .Value property (returns ordinal value)
 	enumHelper.Properties["Value"] = &types.PropertyInfo{
 		Name:      "Value",
 		Type:      types.INTEGER,

@@ -24,6 +24,7 @@ type FunctionPointerTypeNode struct {
 	ReturnType *TypeAnnotation // Return type (nil for procedures)
 	Token      lexer.Token     // The 'function' or 'procedure' token
 	OfObject   bool            // True for method pointers (procedure/function of object)
+	EndPos     lexer.Position
 }
 
 // String returns a string representation of the function pointer type.
@@ -75,6 +76,18 @@ func (fpt *FunctionPointerTypeNode) Pos() lexer.Position {
 	return fpt.Token.Pos
 }
 
+// End returns the end position of the node in the source code.
+func (fpt *FunctionPointerTypeNode) End() lexer.Position {
+	if fpt.EndPos.Line != 0 {
+		return fpt.EndPos
+	}
+	// Try to calculate from return type
+	if fpt.ReturnType != nil {
+		return fpt.ReturnType.End()
+	}
+	return fpt.Token.Pos
+}
+
 // typeExpressionNode marks this as a type expression
 func (fpt *FunctionPointerTypeNode) typeExpressionNode() {}
 
@@ -92,11 +105,21 @@ type AddressOfExpression struct {
 	Operator Expression      // The target function/procedure (usually an Identifier or member access)
 	Type     *TypeAnnotation // Type of the resulting function pointer
 	Token    lexer.Token     // The @ token
+	EndPos   lexer.Position
 }
 
-func (ao *AddressOfExpression) expressionNode()             {}
-func (ao *AddressOfExpression) TokenLiteral() string        { return ao.Token.Literal }
-func (ao *AddressOfExpression) Pos() lexer.Position         { return ao.Token.Pos }
+func (ao *AddressOfExpression) expressionNode()      {}
+func (ao *AddressOfExpression) TokenLiteral() string { return ao.Token.Literal }
+func (ao *AddressOfExpression) Pos() lexer.Position  { return ao.Token.Pos }
+func (ao *AddressOfExpression) End() lexer.Position {
+	if ao.EndPos.Line != 0 {
+		return ao.EndPos
+	}
+	if ao.Operator != nil {
+		return ao.Operator.End()
+	}
+	return ao.Token.Pos
+}
 func (ao *AddressOfExpression) GetType() *TypeAnnotation    { return ao.Type }
 func (ao *AddressOfExpression) SetType(typ *TypeAnnotation) { ao.Type = typ }
 

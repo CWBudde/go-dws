@@ -9,6 +9,7 @@ type TypeAnnotation struct {
 	Name       string
 	Token      lexer.Token
 	InlineType TypeExpression // For complex inline types (arrays, function pointers) that need AST evaluation
+	EndPos     lexer.Position
 }
 
 // String returns the string representation of the type annotation
@@ -27,6 +28,17 @@ func (ta *TypeAnnotation) TokenLiteral() string {
 // Pos returns the position of the type annotation
 func (ta *TypeAnnotation) Pos() lexer.Position {
 	return ta.Token.Pos
+}
+
+// End returns the end position of the type annotation
+func (ta *TypeAnnotation) End() lexer.Position {
+	if ta.EndPos.Line != 0 {
+		return ta.EndPos
+	}
+	pos := ta.Token.Pos
+	pos.Column += len(ta.Name)
+	pos.Offset += len(ta.Name)
+	return pos
 }
 
 // typeExpressionNode marks this as a type expression
@@ -74,6 +86,14 @@ type TypeDeclaration struct {
 	IsAlias             bool
 	IsSubrange          bool // For subrange types
 	IsFunctionPointer   bool // For function/procedure pointer types
+	EndPos              lexer.Position
+}
+
+func (t *TypeDeclaration) End() lexer.Position {
+	if t.EndPos.Line != 0 {
+		return t.EndPos
+	}
+	return t.Token.Pos
 }
 
 func (td *TypeDeclaration) statementNode()       {}

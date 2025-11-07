@@ -48,7 +48,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		if rangeExpr, ok := elem.(*ast.RangeExpression); ok {
 			// Evaluate range: expand to all values between start and end
 			startVal := i.Eval(rangeExpr.Start)
-			endVal := i.Eval(rangeExpr.End)
+			endVal := i.Eval(rangeExpr.RangeEnd)
 
 			if isError(startVal) {
 				return startVal
@@ -70,7 +70,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 			if err2 != nil {
 				return &ErrorValue{
 					Message: fmt.Sprintf("range end must be ordinal type: %s at %s",
-						err2.Error(), rangeExpr.End.Pos().String()),
+						err2.Error(), rangeExpr.RangeEnd.Pos().String()),
 				}
 			}
 

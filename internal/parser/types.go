@@ -24,19 +24,25 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 	switch p.curToken.Type {
 	case lexer.IDENT:
 		// Simple type identifier
-		return &ast.TypeAnnotation{
+		typeAnnotation := &ast.TypeAnnotation{
 			Token: p.curToken,
 			Name:  p.curToken.Literal,
 		}
+		// EndPos is after the type identifier token
+		typeAnnotation.EndPos = p.endPosFromToken(p.curToken)
+		return typeAnnotation
 
 	case lexer.CONST:
 		// Special case: "const" can be used as a type in "array of const"
 		// This represents a variant/heterogeneous array type
 		// Task 9.21.4: Support variadic parameters with array of const
-		return &ast.TypeAnnotation{
+		typeAnnotation := &ast.TypeAnnotation{
 			Token: p.curToken,
 			Name:  "const", // This will be interpreted as Variant type by semantic analyzer
 		}
+		// EndPos is after the const token
+		typeAnnotation.EndPos = p.endPosFromToken(p.curToken)
+		return typeAnnotation
 
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		// Inline function or procedure pointer type
@@ -173,6 +179,9 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 		return nil
 	}
 
+	// Save RPAREN token for EndPos calculation (for procedures without return type)
+	rparenToken := p.curToken
+
 	// Parse return type for functions (not procedures)
 	if isFunction {
 		// Expect colon and return type
@@ -208,6 +217,14 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 			return nil
 		}
 		funcPtrType.OfObject = true
+		// EndPos is after "object" token
+		funcPtrType.EndPos = p.endPosFromToken(p.curToken)
+	} else if funcPtrType.ReturnType != nil {
+		// EndPos is after return type for functions
+		funcPtrType.EndPos = funcPtrType.ReturnType.End()
+	} else {
+		// EndPos is after closing paren for procedures without "of object"
+		funcPtrType.EndPos = p.endPosFromToken(rparenToken)
 	}
 
 	return funcPtrType
@@ -326,12 +343,15 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 
 	// If no dimensions, return simple dynamic array
 	if len(dimensions) == 0 {
-		return &ast.ArrayTypeNode{
+		arrayNode := &ast.ArrayTypeNode{
 			Token:       arrayToken,
 			ElementType: elementType,
 			LowBound:    nil,
 			HighBound:   nil,
 		}
+		// EndPos is after element type
+		arrayNode.EndPos = elementType.End()
+		return arrayNode
 	}
 
 	// Build nested array types from innermost to outermost
@@ -339,12 +359,15 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	//           into: array[0..1] of (array[0..2] of Integer)
 	result := elementType
 	for i := len(dimensions) - 1; i >= 0; i-- {
-		result = &ast.ArrayTypeNode{
+		arrayNode := &ast.ArrayTypeNode{
 			Token:       arrayToken,
 			ElementType: result,
 			LowBound:    dimensions[i].low,
 			HighBound:   dimensions[i].high,
 		}
+		// EndPos is after the element type (which could be nested)
+		arrayNode.EndPos = result.End()
+		result = arrayNode
 	}
 
 	return result.(*ast.ArrayTypeNode)

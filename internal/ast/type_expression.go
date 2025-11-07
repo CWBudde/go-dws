@@ -37,6 +37,7 @@ type ArrayTypeNode struct {
 	ElementType TypeExpression // The element type (can be any type expression)
 	LowBound    Expression     // Low bound for static arrays (nil for dynamic)
 	HighBound   Expression     // High bound for static arrays (nil for dynamic)
+	EndPos      lexer.Position
 }
 
 // String returns a string representation of the array type.
@@ -77,6 +78,17 @@ func (at *ArrayTypeNode) Pos() lexer.Position {
 	return at.Token.Pos
 }
 
+// End returns the end position of the node in the source code.
+func (at *ArrayTypeNode) End() lexer.Position {
+	if at.EndPos.Line != 0 {
+		return at.EndPos
+	}
+	if at.ElementType != nil {
+		return at.ElementType.End()
+	}
+	return at.Token.Pos
+}
+
 // typeExpressionNode marks this as a type expression
 func (at *ArrayTypeNode) typeExpressionNode() {}
 
@@ -89,6 +101,7 @@ func (at *ArrayTypeNode) typeExpressionNode() {}
 type SetTypeNode struct {
 	Token       lexer.Token    // The 'set' token
 	ElementType TypeExpression // The element type (enum or subrange)
+	EndPos      lexer.Position
 }
 
 // String returns a string representation of the set type.
@@ -106,6 +119,17 @@ func (st *SetTypeNode) TokenLiteral() string {
 
 // Pos returns the position of the node in the source code.
 func (st *SetTypeNode) Pos() lexer.Position {
+	return st.Token.Pos
+}
+
+// End returns the end position of the node in the source code.
+func (st *SetTypeNode) End() lexer.Position {
+	if st.EndPos.Line != 0 {
+		return st.EndPos
+	}
+	if st.ElementType != nil {
+		return st.ElementType.End()
+	}
 	return st.Token.Pos
 }
 

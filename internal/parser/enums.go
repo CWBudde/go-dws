@@ -89,6 +89,9 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 		return nil
 	}
 
+	// End position is at the semicolon
+	enumDecl.EndPos = p.endPosFromToken(p.curToken)
+
 	return enumDecl
 }
 

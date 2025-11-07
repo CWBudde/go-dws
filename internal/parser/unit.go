@@ -74,6 +74,9 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 		return nil
 	}
 
+	// Set end position to the '.' token
+	unitDecl.EndPos = p.endPosFromToken(p.curToken)
+
 	return unitDecl
 }
 
@@ -116,6 +119,9 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 	if !p.expectPeek(lexer.SEMICOLON) {
 		return nil
 	}
+
+	// Set end position to the semicolon
+	usesClause.EndPos = p.endPosFromToken(p.curToken)
 
 	// Don't move past semicolon - ParseProgram will do that
 	return usesClause
