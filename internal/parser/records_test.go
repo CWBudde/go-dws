@@ -11,7 +11,7 @@ import (
 // Record Declaration Parser Tests
 // ============================================================================
 
-// Task 8.61a: Test basic record declaration parsing
+// Test basic record declaration parsing
 func TestParseRecordDeclaration(t *testing.T) {
 	t.Run("Basic record with simple fields", func(t *testing.T) {
 		input := `type TPoint = record X, Y: Integer; end;`
@@ -96,7 +96,7 @@ func TestParseRecordDeclaration(t *testing.T) {
 	})
 }
 
-// Task 8.61b: Test record with visibility sections
+// Test record with visibility sections
 func TestParseRecordWithVisibility(t *testing.T) {
 	t.Run("Record with private and public sections", func(t *testing.T) {
 		input := `type TPoint = record
@@ -135,7 +135,7 @@ func TestParseRecordWithVisibility(t *testing.T) {
 	})
 }
 
-// Task 8.61c: Test record with methods
+// Test record with methods
 func TestParseRecordWithMethods(t *testing.T) {
 	t.Run("Record with method declarations", func(t *testing.T) {
 		input := `type TPoint = record
@@ -176,7 +176,7 @@ func TestParseRecordWithMethods(t *testing.T) {
 	})
 }
 
-// Task 8.61d: Test record with properties
+// Test record with properties
 func TestParseRecordWithProperties(t *testing.T) {
 	t.Run("Record with property declarations", func(t *testing.T) {
 		input := `type TPoint = record
@@ -244,7 +244,7 @@ func TestParseRecordWithProperties(t *testing.T) {
 // Record Literal Parser Tests
 // ============================================================================
 
-// Task 8.63: Test record literal parsing (named fields)
+// Test record literal parsing (named fields)
 func TestParseRecordLiterals(t *testing.T) {
 	t.Run("Named field initialization", func(t *testing.T) {
 		input := `var p := (X: 10, Y: 20);`
@@ -311,7 +311,7 @@ func TestParseRecordLiterals(t *testing.T) {
 	})
 }
 
-// Task 8.64: Test typed record constructor syntax
+// Test typed record constructor syntax
 // Note: TPoint(X: 10, Y: 20) and TPoint(10, 20) parse as CallExpression
 // and are resolved to record constructors during semantic analysis
 func TestParseRecordConstructor(t *testing.T) {
@@ -367,7 +367,7 @@ func TestParseRecordConstructor(t *testing.T) {
 // Record Field Access and Method Calls Parser Tests
 // ============================================================================
 
-// Task 8.65: Test record field access
+// Test record field access
 func TestParseRecordFieldAccess(t *testing.T) {
 	t.Run("Read field access", func(t *testing.T) {
 		input := `var x := point.X;`
@@ -402,7 +402,7 @@ func TestParseRecordFieldAccess(t *testing.T) {
 	// The parser handles field access, assignment is checked during semantic phase
 }
 
-// Task 8.66: Test record method calls
+// Test record method calls
 func TestParseRecordMethodCalls(t *testing.T) {
 	t.Run("Method call with no arguments", func(t *testing.T) {
 		input := `var dist := point.GetDistance();`

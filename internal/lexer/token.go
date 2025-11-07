@@ -35,6 +35,14 @@ func (t Token) String() string {
 	return fmt.Sprintf("%s(%q) at %d:%d", t.Type, t.Literal, t.Pos.Line, t.Pos.Column)
 }
 
+// Length returns the length of the token in characters.
+// This is useful for error reporting and LSP integration, allowing tools
+// to highlight the exact span of code represented by this token.
+// For most tokens, this is simply the length of the Literal string.
+func (t Token) Length() int {
+	return len(t.Literal)
+}
+
 // NewToken creates a new token with the given type, literal, and position.
 func NewToken(tokenType TokenType, literal string, pos Position) Token {
 	return Token{

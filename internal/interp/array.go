@@ -38,7 +38,7 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 	if arrayTypeAnnotation.IsDynamic() {
 		arrayType = types.NewDynamicArrayType(elementType)
 	} else {
-		// Task 9.205: Evaluate bound expressions at runtime
+		// Evaluate bound expressions at runtime
 		lowBoundVal := i.Eval(arrayTypeAnnotation.LowBound)
 		if isError(lowBoundVal) {
 			return lowBoundVal
@@ -63,7 +63,6 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 
 	// Store array type in environment with a special prefix
 	// This allows var declarations to look up the type
-	// Task 9.225: Normalize to lowercase for case-insensitive lookups
 	typeKey := "__array_type_" + strings.ToLower(arrayName)
 	arrayTypeValue := &ArrayTypeValue{
 		Name:      arrayName,
@@ -90,8 +89,6 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 // This supports multi-dimensional indexed properties like:
 //
 //	property Cells[x, y: Integer]: Float read GetCell write SetCell;
-//
-// Task 9.2d: Support multi-index properties (e.g., Data[x, y: Integer])
 func collectIndices(expr *ast.IndexExpression) (base ast.Expression, indices []ast.Expression) {
 	indices = make([]ast.Expression, 0, 4) // Most properties have ≤4 dimensions
 	current := expr
@@ -122,12 +119,12 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 		return &ErrorValue{Message: "nil index expression"}
 	}
 
-	// Task 9.2d: Check if this might be a multi-index property access
+	// Check if this might be a multi-index property access
 	// We only flatten indices if the base is a MemberAccessExpression (property access)
 	// For regular array access like arr[i][j], we process each level separately
 	base, indices := collectIndices(expr)
 
-	// Task 9.1c + 9.2d: Check if this is indexed property access: obj.Property[index1, index2, ...]
+	// Check if this is indexed property access: obj.Property[index1, index2, ...]
 	// Only flatten indices for property access, not for regular arrays
 	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok {
 		// Evaluate the object being accessed
@@ -169,7 +166,7 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 		return indexVal
 	}
 
-	// Task 9.97: Check if left side is a JSON value (wrapped in Variant)
+	// Check if left side is a JSON value (wrapped in Variant)
 	// JSON objects support string indexing: obj['propertyName']
 	// JSON arrays support integer indexing: arr[0]
 	unwrapped := unwrapVariant(leftVal)
@@ -232,7 +229,7 @@ func (i *Interpreter) indexArray(arr *ArrayValue, index int, expr *ast.IndexExpr
 	// Return the element
 	elem := arr.Elements[physicalIndex]
 	if elem == nil {
-		// Task 9.219: Return properly typed zero value for uninitialized elements
+		// Return properly typed zero value for uninitialized elements
 		// This allows operators like NOT to work correctly with type information
 		return getZeroValueForType(arr.ArrayType.ElementType, nil)
 	}
@@ -253,7 +250,7 @@ func (i *Interpreter) indexString(str *StringValue, index int, expr *ast.IndexEx
 }
 
 // indexJSON performs JSON value indexing.
-// Task 9.97: Support both object property access (string index) and array element access (integer index).
+// Support both object property access (string index) and array element access (integer index).
 //
 // For JSON objects: obj['propertyName'] returns the value or nil if not found
 // For JSON arrays: arr[index] returns the element or nil if out of bounds
@@ -446,7 +443,7 @@ func (i *Interpreter) coerceArrayElements(arrayType *types.ArrayType, values []V
 			valType = types.GetUnderlyingType(valueTypes[idx])
 		}
 
-		// Task 9.148 & 9.156: Box values when expected element type is Variant
+		// Box values when expected element type is Variant
 		// This enables heterogeneous arrays like [1, "hello", 3.14, true] for Format()
 		// Replaces the old CONST workaround with proper Variant boxing
 		if underlyingElementType.Equals(types.VARIANT) {
@@ -517,7 +514,7 @@ func (i *Interpreter) typeFromValue(val Value) types.Type {
 	case *ArrayValue:
 		return v.ArrayType
 	case *EnumValue:
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		// Normalize to lowercase for case-insensitive lookups
 		if typeVal, ok := i.env.Get("__enum_type_" + strings.ToLower(v.TypeName)); ok {
 			if enumTypeVal, ok := typeVal.(*EnumTypeValue); ok {
 				return enumTypeVal.EnumType
@@ -582,7 +579,7 @@ func (i *Interpreter) evalArrayLiteralWithExpected(lit *ast.ArrayLiteralExpressi
 
 // evalNewArrayExpression evaluates a new array expression.
 // Example: new Integer[10] or new String[3, 4]
-// Task 9.164: Implement runtime support for dynamic array instantiation.
+// Implement runtime support for dynamic array instantiation.
 func (i *Interpreter) evalNewArrayExpression(expr *ast.NewArrayExpression) Value {
 	if expr == nil {
 		return &ErrorValue{Message: "nil new array expression"}
@@ -632,7 +629,6 @@ func (i *Interpreter) evalNewArrayExpression(expr *ast.NewArrayExpression) Value
 // createMultiDimArray creates a multi-dimensional array with the given dimensions.
 // For 1D arrays, creates a single array with the specified size.
 // For multi-dimensional arrays, recursively creates nested arrays.
-// Task 9.165: Implement helper for creating nested array structures.
 func (i *Interpreter) createMultiDimArray(elementType types.Type, dimensions []int) *ArrayValue {
 	if len(dimensions) == 0 {
 		// This shouldn't happen, but handle gracefully
@@ -718,7 +714,7 @@ func (i *Interpreter) createZeroValueForType(typ types.Type) Value {
 		if arrayType, ok := typ.(*types.ArrayType); ok {
 			return NewArrayValue(arrayType)
 		}
-		// Task 9.36: Initialize record types properly for array elements
+		// Initialize record types properly for array elements
 		if recordType, ok := typ.(*types.RecordType); ok {
 			return i.createRecordValue(recordType, nil)
 		}

@@ -605,7 +605,7 @@ func TestParameterErrors(t *testing.T) {
 			// Check that error message contains expected text
 			found := false
 			for _, err := range p.Errors() {
-				if strings.Contains(err, tt.errorContains) {
+				if strings.Contains(err.Message, tt.errorContains) {
 					found = true
 					break
 				}
@@ -1291,7 +1291,7 @@ func TestOptionalParametersErrors(t *testing.T) {
 
 			found := false
 			for _, err := range p.errors {
-				if strings.Contains(err, tt.expectedError) {
+				if strings.Contains(err.Message, tt.expectedError) {
 					found = true
 					break
 				}

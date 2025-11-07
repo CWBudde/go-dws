@@ -142,232 +142,40 @@ external procedure ForEach(arr: array of Integer; callback: TIntProc);
 type TIntProc = procedure(value: Integer);
 ```
 
-- [x] 9.1 Support optional parameters:
-
-  - [x] 9.1a Parser: Support default parameter values:
-    - **File**: `internal/parser/functions.go` (function parameter parsing)
-    - Parse `param: Type = defaultValue` syntax
-    - Store default value expression in `Parameter` AST node
-    - **AST change**: Add `DefaultValue Expression` to `Parameter` struct
-    - **Implementation**: Added in `parseParameterGroup()` at line 415
-    - **Tests**: Added `TestOptionalParameters` and `TestOptionalParametersErrors`
-
-  - [x] 9.1b Semantic analysis: Validate default values:
-    - **File**: `internal/semantic/analyze_functions.go`
-    - Type-check default value expression
-    - Ensure type matches parameter type
-    - Evaluate constant expressions at compile time (if possible)
-    - Rules: Optional params must come after required params
-    - **Implementation**: Added validation in `analyzeFunctionDecl()` at lines 52-97
-    - **Type system**: Added `DefaultValues []interface{}` to `FunctionType`
-    - **Call validation**: Updated in `internal/semantic/analyze_builtins.go` at lines 2176-2197
-
-  - [x] 9.1c Interpreter: Handle missing optional arguments:
-    - **File**: `internal/interp/functions.go` (function call evaluation)
-    - When calling function with optional params:
-      - If argument not provided, use default value
-      - Evaluate default value expression in caller's context
-      - Pass to function
-    - **Implementation**: Updated `callUserFunction()` at lines 719-755
-    - **Tests**: Comprehensive integration tests pass (simple, multiple, expression defaults)
-
-  - [x] 9.1d FFI: Map optional params to Go:
-    - **File**: `pkg/dwscript/ffi.go`
-    - **Challenge**: Go doesn't have optional parameters
-    - **Option 1**: Use function overloading (multiple Go functions)
-    - **Option 2**: Use variadic with type checking
-    - **Option 3**: Require all params, DWScript fills defaults before calling Go
-    - **Recommended**: Option 3 - simplest, no Go changes needed
-    - DWScript calls Go function with all parameters (fills in defaults)
-    - **Implementation**: Option 3 implemented - interpreter fills defaults before calling
-
-  - [x] 9.1e Add tests:
-    - **File**: `internal/parser/functions_test.go` - parse default values
-    - **Tests**: `TestOptionalParameters` (6 cases), `TestOptionalParametersErrors` (4 cases)
-    - **Integration**: Comprehensive end-to-end tests pass with various scenarios
-    - **File**: `internal/interp/functions_test.go` - call with/without optional args
-    - **File**: `pkg/dwscript/ffi_test.go` - FFI with optional params
+- [x] 9.1 Support optional parameters: ✅ COMPLETE
+  - [x] 9.1a Parser: `param: Type = defaultValue` syntax (`internal/parser/functions.go:415`)
+  - [x] 9.1b Semantic: Type-check defaults, validate ordering (`internal/semantic/analyze_functions.go:52-97`)
+  - [x] 9.1c Interpreter: Fill missing args with defaults (`internal/interp/functions.go:719-755`)
+  - [x] 9.1d FFI: DWScript fills defaults before calling Go (no Go changes needed)
+  - [x] 9.1e Tests: Parser (10 tests), interpreter, FFI - all passing ✅
 
 - [x] 9.2 Support by-reference parameters (var keyword): ✅ COMPLETE
-
-  - [x] 9.2a Parser: Support `var` parameter keyword ✅ COMPLETE
-    - **File**: `internal/parser/functions.go:315-320`
-    - Parses `var param: Type` syntax
-    - Stores in `ast.Parameter.ByRef` field
-
-  - [x] 9.2b Semantic analysis: Track var parameters: ✅ COMPLETE
-    - **File**: `internal/semantic/analyze_functions.go:29, 39-40, 104`
-    - Tracks var parameters in `types.FunctionType.VarParams` array
-    - **File**: `internal/semantic/analyze_builtins.go:2211-2223, 43-48`
-    - Validates var param must be lvalue (variable, array element, or field)
-    - Error: "var parameter requires a variable, cannot pass constant/literal"
-
-  - [x] 9.2c Interpreter: Pass by reference for var params: ✅ COMPLETE
-    - **Files**:
-      - `internal/interp/value.go:246-297` - `ReferenceValue` type
-      - `internal/interp/functions.go:35-49, 99-114, 227-241` - Creates references for var params
-      - `internal/interp/expressions.go:37-39` - Dereferences when reading
-      - `internal/interp/statements.go:606-610` - Writes through reference
-    - **Tests**: `internal/interp/var_param_test.go` (6 tests, all passing)
-
-  - [x] 9.2d FFI: Sync changes back to DWScript: ✅ COMPLETE
-    - **Files**:
-      - `pkg/dwscript/ffi.go:235, 243-244, 310-318` - Detects pointer types, tracks VarParams
-      - `pkg/dwscript/ffi.go:216-253` - Creates ReferenceValues for var params before calling
-      - `internal/interp/marshal.go:140-162` - Marshals to Go pointer
-      - `internal/interp/marshal.go:269-290` - Unmarshals from Go pointer back to DWScript
-      - `pkg/dwscript/ffi.go:181-288` - Updates DWScript variables after call
-      - `internal/interp/external_functions.go:77-79` - `GetVarParams()` interface method
-    - **Type mapping**: `*int64 → var Integer`, `*float64 → var Float`, `*string → var String`, `*bool → var Boolean`
-
-  - [x] 9.2e Add tests: ✅ COMPLETE
-    - **File**: `internal/interp/var_param_test.go` (6 DWScript tests)
-      - TestVarParam_BasicInteger, TestVarParam_MultipleModifications
-      - TestVarParam_MultipleVarParams, TestVarParam_WithLazy
-      - TestVarParam_ErrorNonVariable, TestVarParam_NestedCalls
-    - **File**: `pkg/dwscript/ffi_test.go:1989-2218` (6 FFI tests)
-      - TestFFI_VarParamBasic, TestFFI_VarParamSwap, TestFFI_VarParamString
-      - TestFFI_VarParamMixed, TestFFI_VarParamFloat, TestFFI_VarParamBool
-    - **All 12 tests passing** ✅
-    - **Documentation**: `docs/ffi.md:371-508` - Comprehensive var parameter guide
+  - [x] 9.2a Parser: `var param: Type` syntax (`internal/parser/functions.go:315-320`)
+  - [x] 9.2b Semantic: Track var params, validate lvalues (`internal/semantic/analyze_functions.go:29,39-40,104`)
+  - [x] 9.2c Interpreter: `ReferenceValue` type for by-ref passing (`internal/interp/value.go:246-297`)
+  - [x] 9.2d FFI: Go pointers (*T) → var params, sync changes back (`pkg/dwscript/ffi.go`, `internal/interp/marshal.go`)
+  - [x] 9.2e Tests: 12 tests (6 DWScript + 6 FFI) - all passing ✅, docs: `docs/ffi.md:371-508`
 
 - [x] 9.3 Support registering Go methods: ✅ COMPLETE
+  - [x] 9.3a Method values automatically bind receivers via closures (no detection needed)
+  - [x] 9.3b `RegisterMethod(name, receiver, methodName)` API (`pkg/dwscript/ffi.go:186-212`)
+  - [x] 9.3c Receiver binding automatic via Go's method value mechanism
+  - [x] 9.3d Tests: 7 tests (Counter, Calculator) - all passing ✅, docs: `docs/ffi.md:521-817`
 
-  - [x] 9.3a Detect method vs function in reflection: ✅ COMPLETE
-    - **File**: `pkg/dwscript/ffi.go` (function `RegisterFunction`)
-    - **Key insight**: Go reflection doesn't distinguish methods from functions
-    - **Solution**: Method values (`obj.Method`) automatically bind receivers via closures
-    - **Result**: Existing `RegisterFunction` already handles methods transparently
+- [x] 9.4 Support callback functions (DWScript → Go → DWScript): ✅ COMPLETE
+  - [x] 9.4a Marshal function pointers: `createGoFunctionWrapper()` with `reflect.MakeFunc` (`internal/interp/ffi_callback.go:170-241`)
+  - [x] 9.4b Call DWScript from Go: `callDWScriptFunction()` with marshaling & exception handling (`internal/interp/ffi_callback.go:26-85`)
+  - [x] 9.4c Re-entrancy: Automatic via existing environment/call stack infrastructure (recursion depth checked)
+  - [x] 9.4d Error handling: DWScript exceptions → Go errors, panic recovery (`internal/interp/ffi_callback.go:68-101`)
+  - [x] 9.4e Tests: 6 callback tests (forEach, map, nested, filter, multi-param) - all passing ✅
+  - [x] 9.4f Infrastructure: `SetInterpreter()` interface, `MarshalToGo` signature updated, function type support
 
-  - [x] 9.3b Add `RegisterMethod` API: ✅ COMPLETE
-    - **File**: `pkg/dwscript/ffi.go:186-212`
-    - New function: `RegisterMethod(name string, receiver any, methodName string) error`
-    - Looks up method by name using `reflect.MethodByName`
-    - Gets method value with `recvValue.Method(methodIndex)`
-    - Delegates to existing `RegisterFunction` with bound method
-    - **Both approaches supported**:
-      - Method values: `engine.RegisterFunction("Add", calc.Add)` (simpler)
-      - RegisterMethod: `engine.RegisterMethod("Add", calc, "Add")` (explicit)
-
-  - [x] 9.3c Bind receiver automatically: ✅ COMPLETE
-    - Go's method value mechanism handles this automatically
-    - When you call `obj.Method`, Go creates a closure that captures `obj`
-    - No special handling needed in FFI wrapper
-    - Receiver state persists across calls
-
-  - [x] 9.3d Add tests: ✅ COMPLETE
-    - **File**: `pkg/dwscript/ffi_test.go:2220-2647` (428 lines)
-    - **Test structs**: Counter (simple), Calculator (complex)
-    - **7 comprehensive tests**:
-      - `TestRegisterMethodValue` - method values approach
-      - `TestRegisterMethod` - RegisterMethod API
-      - `TestRegisterMethodPointerReceiver` - pointer receivers modify state
-      - `TestRegisterMethodWithReturnValue` - methods that return values
-      - `TestRegisterMethodMultipleInstances` - separate instances maintain separate state
-      - `TestRegisterMethodErrors` - validation (nil receiver, missing method, etc.)
-      - `TestRegisterMethodWithComplexOperations` - complex calculator scenario
-    - **All tests passing** ✅
-    - **Documentation**: `docs/ffi.md:521-817` - Comprehensive guide (296 lines)
-
-- [ ] 9.4 Support callback functions (DWScript → Go → DWScript):
-
-  - [ ] 9.4a Marshal DWScript function pointers to Go:
-    - **File**: `internal/interp/marshal.go` (function `marshalToGo`)
-    - Detect when DWScript value is function pointer (`FunctionValue`)
-    - Create Go function that wraps DWScript function
-    - **Implementation**:
-      ```go
-      // DWScript: func(x: Integer): Integer
-      // Go wrapper: func(x int) int {
-      //   return callDWScriptFunction(dwsFunc, x)
-      // }
-      ```
-    - Use reflection to create correct function signature
-
-  - [ ] 9.4b Implement DWScript function call from Go:
-    - **File**: `internal/interp/ffi.go`
-    - Function: `callDWScriptFunction(fn *FunctionValue, args ...any) any`
-    - Steps:
-      1. Marshal Go arguments to DWScript values
-      2. Create execution environment
-      3. Call DWScript function (reuse interpreter)
-      4. Get return value
-      5. Marshal back to Go
-    - **Thread safety**: Ensure interpreter state is safe for re-entry
-
-  - [ ] 9.4c Handle re-entrancy:
-    - **Challenge**: Go calls DWScript, which calls Go, which calls DWScript...
-    - **Solution**: Stack-based execution contexts
-    - Track call depth to prevent infinite recursion
-    - **Goroutine safety**: Lock interpreter state? Or require single-threaded?
-    - **File**: `internal/interp/interpreter.go`
-    - Add execution context stack
-    - Check max depth (e.g., 1000 calls)
-
-  - [ ] 9.4d Handle callback errors and panics:
-    - If DWScript callback raises exception:
-      - Convert to Go error/panic
-      - Propagate to Go caller
-    - If DWScript callback panics:
-      - Recover and convert to error
-      - Clean up execution state
-
-  - [ ] 9.4e Add tests:
-    - **File**: `pkg/dwscript/ffi_test.go`
-    - **Test**: `TestCallback` - Go function accepts DWScript function, calls it
-    - **Test**: `TestNestedCallback` - DWScript → Go → DWScript → Go
-    - **Test**: `TestCallbackError` - DWScript callback raises exception
-    - **Test**: `TestCallbackRecursion` - Detect infinite recursion
-    - **Example**:
-      ```go
-      // Go function
-      func ForEach(items []int, callback func(int)) {
-          for _, item := range items {
-              callback(item)
-          }
-      }
-
-      // DWScript
-      ForEach([1,2,3], lambda(x) => PrintLn(x));
-      ```
-
-- [ ] 9.5 Add comprehensive tests for advanced FFI features:
-
-  - [ ] 9.5a Integration tests combining features:
-    - **File**: `pkg/dwscript/ffi_integration_test.go`
-    - Variadic Go function with callbacks
-    - Optional params with var params
-    - Methods with callbacks
-    - Complex scenarios
-
-  - [ ] 9.5b Error handling tests:
-    - Invalid variadic arguments
-    - Wrong types for optional params
-    - Nil pointers for var params
-    - Callback type mismatches
-    - Re-entrancy limit exceeded
-
-  - [ ] 9.5c Performance benchmarks:
-    - **File**: `pkg/dwscript/ffi_bench_test.go`
-    - Benchmark FFI call overhead
-    - Benchmark marshaling cost for various types
-    - Benchmark callback overhead (DWScript → Go → DWScript)
-    - Compare to direct DWScript function calls
-
-  - [ ] 9.5d Documentation:
-    - **File**: `docs/ffi.md` (create or extend)
-    - Document all advanced FFI features
-    - Code examples for each feature
-    - Best practices
-    - Performance considerations
-    - Thread safety notes
-
-  - [ ] 9.5e Example programs:
-    - **Directory**: `examples/ffi/`
-    - `variadic.go` + `variadic.dws` - demonstrate variadic
-    - `callbacks.go` + `callbacks.dws` - demonstrate callbacks
-    - `methods.go` + `methods.dws` - demonstrate methods
-    - `full_example.go` + `full_example.dws` - combine all features
+- [x] 9.5 Add comprehensive tests for advanced FFI features: ✅ COMPLETE
+  - [x] 9.5a Integration tests combining features: ✅ COMPLETE
+  - [x] 9.5b Error handling tests: ✅ COMPLETE
+  - [x] 9.5c Performance benchmarks: ✅ COMPLETE
+  - [x] 9.5d Documentation: ✅ COMPLETE
+  - [x] 9.5e Example programs: ✅ COMPLETE
 
 ---
 
@@ -1040,53 +848,55 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
 
 **Goal**: Enhance the go-dws library to expose structured errors, AST access, and position metadata needed for LSP features.
 
-**Repository**: `github.com/CWBudde/go-dws`
-
-**Why This Phase**: The current go-dws API provides string-based errors and opaque Program objects. To implement LSP features (hover, go-to-definition, completion, etc.), we need structured error information, direct AST access, and position metadata on AST nodes.
+**Why This Phase**: The current go-dws API provides string-based errors and opaque Program objects. To implement LSP features (hover, go-to-definition, completion, etc.) in the future, we need structured error information, direct AST access, and position metadata on AST nodes.
 
 ### Tasks (42)
 
-- [ ] **10.1 Create structured error types in pkg/dwscript**
-  - [ ] Create `pkg/dwscript/error.go` file
-  - [ ] Define `Error` struct with fields:
-    - [ ] `Message string` - The error message
-    - [ ] `Line int` - 1-based line number
-    - [ ] `Column int` - 1-based column number
-    - [ ] `Length int` - Length of the error span in characters
-    - [ ] `Severity string` - Either "error" or "warning"
-    - [ ] `Code string` - Optional error code (e.g., "E001", "W002")
-  - [ ] Implement `Error() string` method to satisfy error interface
-  - [ ] Add documentation explaining 1-based indexing
+- [x] **10.1 Create structured error types in pkg/dwscript** ✅ DONE
+  - [x] Create `pkg/dwscript/error.go` file
+  - [x] Define `Error` struct with fields:
+    - [x] `Message string` - The error message
+    - [x] `Line int` - 1-based line number
+    - [x] `Column int` - 1-based column number
+    - [x] `Length int` - Length of the error span in characters
+    - [x] `Severity string` - Either "error" or "warning"
+    - [x] `Code string` - Optional error code (e.g., "E001", "W002")
+  - [x] Implement `Error() string` method to satisfy error interface
+  - [x] Add documentation explaining 1-based indexing
 
-- [ ] **10.2 Update CompileError to use structured errors**
-  - [ ] Change `CompileError.Errors` from `[]string` to `[]Error`
-  - [ ] Update `CompileError.Error()` method to format structured errors
-  - [ ] Ensure backwards compatibility or document breaking change
-  - [ ] Update all internal code that creates CompileError instances
+- [x] **10.2 Update CompileError to use structured errors** ✅ DONE
+  - [x] Change `CompileError.Errors` from `[]string` to `[]*Error`
+  - [x] Update `CompileError.Error()` method to format structured errors
+  - [x] Added helper methods: `HasErrors()`, `HasWarnings()`
+  - [x] Update Compile() method to convert errors to structured format
+  - [x] Note: Full position extraction will improve with Task 10.4
 
-- [ ] **10.3 Update internal lexer to capture position metadata**
-  - [ ] Verify `internal/lexer/token.go` includes position information
-  - [ ] Ensure Token struct has `Line`, `Column`, `Offset` fields
-  - [ ] If missing, add position tracking to tokenization
-  - [ ] Add `Length` calculation for tokens (end - start)
+- [x] **10.3 Update internal lexer to capture position metadata** ✅ DONE
+  - [x] Verified `internal/lexer/token.go` includes position information
+  - [x] Token struct already has `Line`, `Column`, `Offset` fields
+  - [x] Position tracking already implemented in lexer
+  - [x] Added `Length()` method to Token for error span calculation
 
-- [ ] **10.4 Update internal parser to capture error positions**
-  - [ ] Modify parser error generation to include line/column
-  - [ ] Change from `fmt.Sprintf()` strings to structured Error objects
-  - [ ] Extract position from current token when error occurs
-  - [ ] Calculate error span length where possible
-  - [ ] Update all parser error sites (syntax errors)
+- [x] **10.4 Update internal parser to capture error positions** ✅ DONE
+  - [x] Modified parser error handling to include token position
+  - [x] Errors now include line, column, and length from offending token
+  - [x] Verified position accuracy with test cases
+  - [x] Added unit tests for parser error position extraction
 
-- [ ] **10.5 Update internal semantic analyzer to capture error positions**
-  - [ ] Modify semantic analysis error generation
-  - [ ] Include position from AST node being analyzed
-  - [ ] Set appropriate severity (error vs warning)
-  - [ ] Add error codes for common semantic errors:
-    - [ ] "E_UNDEFINED_VAR" - Undefined variable
-    - [ ] "E_TYPE_MISMATCH" - Type mismatch
-    - [ ] "E_WRONG_ARG_COUNT" - Wrong argument count
-    - [ ] "W_UNUSED_VAR" - Unused variable (warning)
-    - [ ] "W_UNUSED_PARAM" - Unused parameter (warning)
+- [x] **10.5 Update internal semantic analyzer to capture error positions** ✅ DONE
+  - [x] Modified semantic analysis error generation
+  - [x] Already includes position from AST node being analyzed
+  - [x] Added Severity field to SemanticError (Error, Warning, Info, Hint)
+  - [x] Added error codes for common semantic errors:
+    - [x] ErrorTypeMismatch - Type mismatch (already existed)
+    - [x] ErrorUndefinedVariable - Undefined variable (already existed)
+    - [x] ErrorArgumentCount - Wrong argument count (already existed)
+    - [x] WarningUnusedVariable - Unused variable (NEW)
+    - [x] WarningUnusedParameter - Unused parameter (NEW)
+    - [x] WarningUnusedFunction - Unused function (NEW)
+    - [x] WarningDeprecated - Deprecated feature (NEW)
+  - [x] Added helper functions for creating warnings
+  - [x] Note: Duplicated ErrorSeverity type to avoid import cycle
 
 - [ ] **10.6 Add position metadata to AST node types**
   - [ ] Open `internal/ast/ast.go`

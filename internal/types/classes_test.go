@@ -676,7 +676,7 @@ func TestIsInterfaceType(t *testing.T) {
 // Interface Inheritance Tests
 // ============================================================================
 
-// Task 7.76: Test Equals() with hierarchy support for interfaces
+// Test Equals() with hierarchy support for interfaces
 func TestInterfaceEqualsWithHierarchy(t *testing.T) {
 	// Create interface hierarchy
 	iBase := NewInterfaceType("IBase")
@@ -733,7 +733,7 @@ func TestInterfaceEqualsWithHierarchy(t *testing.T) {
 	}
 }
 
-// Task 7.75: Test IINTERFACE base interface constant
+// Test IINTERFACE base interface constant
 func TestIINTERFACEConstant(t *testing.T) {
 	t.Run("IINTERFACE exists", func(t *testing.T) {
 		if IINTERFACE == nil {
@@ -760,7 +760,7 @@ func TestIINTERFACEConstant(t *testing.T) {
 	})
 }
 
-// Task 7.73-7.74: Test interface with Parent, IsExternal, ExternalName
+// Test interface with Parent, IsExternal, ExternalName
 func TestInterfaceTypeWithInheritance(t *testing.T) {
 	// Create base interface
 	iBase := NewInterfaceType("IBase")
@@ -821,7 +821,7 @@ func TestInterfaceTypeExternal(t *testing.T) {
 	})
 }
 
-// Task 7.77: Test interface inheritance checking
+// Test interface inheritance checking
 func TestIsSubinterfaceOf(t *testing.T) {
 	// Create interface hierarchy: IBase -> IMiddle -> IDerived
 	iBase := NewInterfaceType("IBase")
@@ -909,7 +909,7 @@ func TestIsSubinterfaceOf(t *testing.T) {
 	}
 }
 
-// Task 7.77: Test circular interface inheritance detection
+// Test circular interface inheritance detection
 func TestCircularInterfaceInheritance(t *testing.T) {
 	// This test will verify that we detect circular inheritance
 	// For now, we'll test the concept - actual implementation may vary
@@ -930,7 +930,7 @@ func TestCircularInterfaceInheritance(t *testing.T) {
 	})
 }
 
-// Task 7.78: Test interface method inheritance
+// Test interface method inheritance
 func TestInterfaceMethodInheritance(t *testing.T) {
 	// Create base interface with methods
 	iBase := NewInterfaceType("IBase")
@@ -965,7 +965,7 @@ func TestInterfaceMethodInheritance(t *testing.T) {
 	})
 }
 
-// Task 7.79: Test interface-to-interface assignment
+// Test interface-to-interface assignment
 func TestInterfaceToInterfaceAssignment(t *testing.T) {
 	// Create interface hierarchy
 	iBase := NewInterfaceType("IBase")
@@ -1024,7 +1024,7 @@ func TestInterfaceToInterfaceAssignment(t *testing.T) {
 	}
 }
 
-// Task 7.80: Test class with multiple interface implementation
+// Test class with multiple interface implementation
 func TestClassWithMultipleInterfaces(t *testing.T) {
 	// Create multiple interfaces
 	iReadable := NewInterfaceType("IReadable")
@@ -1054,7 +1054,7 @@ func TestClassWithMultipleInterfaces(t *testing.T) {
 	})
 }
 
-// Task 7.80: Test that ClassType has Interfaces field
+// Test that ClassType has Interfaces field
 func TestClassTypeInterfacesField(t *testing.T) {
 	iComparable := NewInterfaceType("IComparable")
 	iComparable.Methods["CompareTo"] = NewFunctionType([]Type{INTEGER}, INTEGER)
@@ -1196,7 +1196,7 @@ func TestMultipleInterfaceImplementation(t *testing.T) {
 }
 
 // ============================================================================
-// Task 7.137: External Class Tests
+// External Class Tests
 // ============================================================================
 
 // TestExternalClassFields tests that ClassType has IsExternal and ExternalName fields

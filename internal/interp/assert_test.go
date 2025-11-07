@@ -9,6 +9,24 @@ import (
 	"github.com/cwbudde/go-dws/internal/parser"
 )
 
+// joinParserErrors joins parser errors into a string
+func joinParserErrors(errors []*parser.ParserError) string {
+	strs := make([]string, len(errors))
+	for i, err := range errors {
+		strs[i] = err.Error()
+	}
+	return strings.Join(strs, "; ")
+}
+
+// joinParserErrorsNewline joins parser errors into a string with newlines
+func joinParserErrorsNewline(errors []*parser.ParserError) string {
+	strs := make([]string, len(errors))
+	for i, err := range errors {
+		strs[i] = err.Error()
+	}
+	return strings.Join(strs, "\n")
+}
+
 // ============================================================================
 // Assert Function Tests
 // ============================================================================
@@ -25,7 +43,7 @@ func TestAssertTrue(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -56,7 +74,7 @@ func TestAssertFalse(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -83,7 +101,7 @@ func TestAssertTrueWithMessage(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -114,7 +132,7 @@ func TestAssertFalseWithCustomMessage(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -155,7 +173,7 @@ func TestAssertInFunction(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -194,7 +212,7 @@ func TestAssertWithExpression(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -227,7 +245,7 @@ func TestAssertMessageFormat(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer

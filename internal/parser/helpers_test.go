@@ -296,7 +296,19 @@ func TestParseRecordVsHelper(t *testing.T) {
 }
 
 // Helper function to check if a string contains a substring (case-insensitive)
-func containsSubstring(s, substr string) bool {
+func containsSubstring(v interface{}, substr string) bool {
+	var s string
+	switch val := v.(type) {
+	case *ParserError:
+		if val == nil {
+			return false
+		}
+		s = val.Message
+	case string:
+		s = val
+	default:
+		return false
+	}
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
 		(len(s) > 0 && (s[0:len(substr)] == substr || containsSubstring(s[1:], substr))))
 }

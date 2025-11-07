@@ -2,7 +2,6 @@ package interp
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -35,7 +34,7 @@ func TestBreakExitsForLoop(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -75,7 +74,7 @@ func TestBreakExitsWhileLoop(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -116,7 +115,7 @@ func TestBreakExitsRepeatLoop(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -157,7 +156,7 @@ func TestContinueSkipsForLoopIteration(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -198,7 +197,7 @@ func TestContinueSkipsWhileLoopIteration(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -240,7 +239,7 @@ func TestContinueSkipsRepeatLoopIteration(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -283,7 +282,7 @@ func TestExitTerminatesFunctionImmediately(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -322,7 +321,7 @@ func TestExitInNestedFunctionDoesNotAffectCaller(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -357,7 +356,7 @@ func TestExitPreservesResultVariable(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -395,7 +394,7 @@ func TestExitInProcedure(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -445,7 +444,7 @@ func TestBreakInNestedLoopsOnlyExitsInnermost(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -487,7 +486,7 @@ func TestContinueInNestedLoopsOnlyAffectsInnermost(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -530,7 +529,7 @@ func TestBreakContinueWithExceptionHandling(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -575,7 +574,7 @@ func TestExitWithNestedFunctionCalls(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -609,7 +608,7 @@ func TestExitAtProgramLevel(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer

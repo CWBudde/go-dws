@@ -23,7 +23,7 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 	// Advance to the operator symbol/keyword (e.g., '+', 'in', 'implicit')
 	p.nextToken()
 	if !isOperatorSymbolToken(p.curToken.Type) {
-		p.addError("expected operator symbol after 'operator'")
+		p.addError("expected operator symbol after 'operator'", ErrExpectedOperator)
 		return nil
 	}
 
@@ -42,7 +42,7 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 	decl.OperandTypes = p.parseOperatorOperandTypes()
 	decl.Arity = len(decl.OperandTypes)
 	if decl.Arity == 0 {
-		p.addError("operator declaration requires at least one operand type")
+		p.addError("operator declaration requires at least one operand type", ErrInvalidSyntax)
 		return nil
 	}
 
@@ -50,7 +50,7 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 	if p.peekTokenIs(lexer.COLON) {
 		p.nextToken() // move to ':'
 		if !p.expectPeek(lexer.IDENT) {
-			p.addError("expected return type after ':' in operator declaration")
+			p.addError("expected return type after ':' in operator declaration", ErrExpectedType)
 			return nil
 		}
 		decl.ReturnType = &ast.TypeAnnotation{
@@ -61,11 +61,11 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 
 	// Expect 'uses' clause
 	if !p.expectPeek(lexer.USES) {
-		p.addError("expected 'uses' in operator declaration")
+		p.addError("expected 'uses' in operator declaration", ErrUnexpectedToken)
 		return nil
 	}
 	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected identifier after 'uses' in operator declaration")
+		p.addError("expected identifier after 'uses' in operator declaration", ErrExpectedIdent)
 		return nil
 	}
 
@@ -89,7 +89,7 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 //	class operator IN array of Integer uses ContainsArray;
 func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {
 	if !p.curTokenIs(lexer.OPERATOR) {
-		p.addError("expected 'operator' after 'class'")
+		p.addError("expected 'operator' after 'class'", ErrUnexpectedToken)
 		return nil
 	}
 
@@ -102,7 +102,7 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 	// Advance to operator symbol
 	p.nextToken()
 	if !isOperatorSymbolToken(p.curToken.Type) {
-		p.addError("expected operator symbol after 'class operator'")
+		p.addError("expected operator symbol after 'class operator'", ErrExpectedOperator)
 		return nil
 	}
 
@@ -118,7 +118,7 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 		decl.Arity = len(decl.OperandTypes)
 	} else {
 		if p.peekTokenIs(lexer.USES) || p.peekTokenIs(lexer.SEMICOLON) || p.peekTokenIs(lexer.COLON) {
-			p.addError("expected operand type in class operator declaration")
+			p.addError("expected operand type in class operator declaration", ErrExpectedType)
 			return nil
 		}
 
@@ -134,7 +134,7 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 		decl.Arity = len(decl.OperandTypes)
 	}
 	if decl.Arity == 0 {
-		p.addError("class operator declaration requires at least one operand type")
+		p.addError("class operator declaration requires at least one operand type", ErrInvalidSyntax)
 		return nil
 	}
 
@@ -153,11 +153,11 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 
 	// Expect 'uses' clause
 	if !p.expectPeek(lexer.USES) {
-		p.addError("expected 'uses' in class operator declaration")
+		p.addError("expected 'uses' in class operator declaration", ErrUnexpectedToken)
 		return nil
 	}
 	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected identifier after 'uses' in class operator declaration")
+		p.addError("expected identifier after 'uses' in class operator declaration", ErrExpectedIdent)
 		return nil
 	}
 
@@ -194,7 +194,7 @@ func (p *Parser) parseOperatorOperandTypes() []*ast.TypeAnnotation {
 		if !p.curTokenIs(lexer.IDENT) {
 			// Allow keywords like 'array' or 'set' in operator operand types.
 			if !p.curToken.Type.IsKeyword() {
-				p.addError("expected type identifier in operator operand list")
+				p.addError("expected type identifier in operator operand list", ErrExpectedType)
 				return operandTypes
 			}
 		}
@@ -216,11 +216,11 @@ func (p *Parser) parseOperatorOperandTypes() []*ast.TypeAnnotation {
 		}
 
 		if p.peekTokenIs(lexer.EOF) {
-			p.addError("unterminated operator operand list")
+			p.addError("unterminated operator operand list", ErrMissingRParen)
 			return operandTypes
 		}
 
-		p.addError("expected ',' or ')' in operator operand list")
+		p.addError("expected ',' or ')' in operator operand list", ErrUnexpectedToken)
 		return operandTypes
 	}
 
@@ -255,7 +255,7 @@ func normalizeOperatorSymbol(tok lexer.Token) string {
 // It assumes the current token is the first token of the type expression.
 func (p *Parser) parseTypeExpressionUntil(stopFn func(lexer.TokenType) bool) (*ast.TypeAnnotation, bool) {
 	if p.curToken.Type != lexer.IDENT && !p.curToken.Type.IsKeyword() {
-		p.addError("expected type identifier")
+		p.addError("expected type identifier", ErrExpectedType)
 		return nil, false
 	}
 

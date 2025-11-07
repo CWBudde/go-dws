@@ -12,7 +12,6 @@ import (
 
 // builtinNow implements the Now() built-in function.
 // Returns the current date and time as TDateTime.
-// Task 9.95: Now() function
 func (i *Interpreter) builtinNow(args []Value) Value {
 	if len(args) != 0 {
 		return i.newErrorWithLocation(i.currentNode, "Now() expects 0 arguments, got %d", len(args))
@@ -26,7 +25,6 @@ func (i *Interpreter) builtinNow(args []Value) Value {
 
 // builtinDate implements the Date() built-in function.
 // Returns the current date (time part = 0.0) as TDateTime.
-// Task 9.96: Date() function
 func (i *Interpreter) builtinDate(args []Value) Value {
 	if len(args) != 0 {
 		return i.newErrorWithLocation(i.currentNode, "Date() expects 0 arguments, got %d", len(args))
@@ -42,7 +40,6 @@ func (i *Interpreter) builtinDate(args []Value) Value {
 
 // builtinTime implements the Time() built-in function.
 // Returns the current time (date part = 0.0) as TDateTime.
-// Task 9.97: Time() function
 func (i *Interpreter) builtinTime(args []Value) Value {
 	if len(args) != 0 {
 		return i.newErrorWithLocation(i.currentNode, "Time() expects 0 arguments, got %d", len(args))
@@ -76,7 +73,6 @@ func (i *Interpreter) builtinUTCDateTime(args []Value) Value {
 // builtinEncodeDate implements the EncodeDate() built-in function.
 // Creates a TDateTime from year, month, day components.
 // EncodeDate(year, month, day: Integer): TDateTime
-// Task 9.99: EncodeDate function
 func (i *Interpreter) builtinEncodeDate(args []Value) Value {
 	if len(args) != 3 {
 		return i.newErrorWithLocation(i.currentNode, "EncodeDate() expects 3 arguments (year, month, day), got %d", len(args))
@@ -119,7 +115,6 @@ func (i *Interpreter) builtinEncodeDate(args []Value) Value {
 // builtinEncodeTime implements the EncodeTime() built-in function.
 // Creates a TDateTime from hour, minute, second, millisecond components.
 // EncodeTime(hour, minute, second, msec: Integer): TDateTime
-// Task 9.100: EncodeTime function
 func (i *Interpreter) builtinEncodeTime(args []Value) Value {
 	if len(args) != 4 {
 		return i.newErrorWithLocation(i.currentNode, "EncodeTime() expects 4 arguments (hour, minute, second, msec), got %d", len(args))
@@ -170,7 +165,6 @@ func (i *Interpreter) builtinEncodeTime(args []Value) Value {
 // builtinEncodeDateTime implements the EncodeDateTime() built-in function.
 // Creates a TDateTime from full date and time components.
 // EncodeDateTime(year, month, day, hour, minute, second, msec: Integer): TDateTime
-// Task 9.101: EncodeDateTime function
 func (i *Interpreter) builtinEncodeDateTime(args []Value) Value {
 	if len(args) != 7 {
 		return i.newErrorWithLocation(i.currentNode, "EncodeDateTime() expects 7 arguments (year, month, day, hour, minute, second, msec), got %d", len(args))
@@ -244,7 +238,6 @@ func (i *Interpreter) builtinEncodeDateTime(args []Value) Value {
 // builtinDecodeDate implements the DecodeDate() built-in function.
 // Extracts year, month, day components from a TDateTime.
 // DecodeDate(dt: TDateTime; var year, month, day: Integer)
-// Task 9.103: DecodeDate function with var parameters
 func (i *Interpreter) builtinDecodeDate(args []ast.Expression) Value {
 	if len(args) != 4 {
 		return i.newErrorWithLocation(i.currentNode, "DecodeDate() expects 4 arguments (dt, var year, var month, var day), got %d", len(args))
@@ -282,7 +275,6 @@ func (i *Interpreter) builtinDecodeDate(args []ast.Expression) Value {
 // builtinDecodeTime implements the DecodeTime() built-in function.
 // Extracts hour, minute, second, millisecond components from a TDateTime.
 // DecodeTime(dt: TDateTime; var hour, minute, second, msec: Integer)
-// Task 9.104: DecodeTime function with var parameters
 func (i *Interpreter) builtinDecodeTime(args []ast.Expression) Value {
 	if len(args) != 5 {
 		return i.newErrorWithLocation(i.currentNode, "DecodeTime() expects 5 arguments (dt, var hour, var minute, var second, var msec), got %d", len(args))
@@ -323,7 +315,6 @@ func (i *Interpreter) builtinDecodeTime(args []ast.Expression) Value {
 
 // builtinYearOf implements the YearOf() built-in function.
 // Returns the year component of a TDateTime.
-// Task 9.105: YearOf function
 func (i *Interpreter) builtinYearOf(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "YearOf() expects 1 argument, got %d", len(args))
@@ -340,7 +331,6 @@ func (i *Interpreter) builtinYearOf(args []Value) Value {
 
 // builtinMonthOf implements the MonthOf() built-in function.
 // Returns the month component of a TDateTime (1-12).
-// Task 9.105: MonthOf function
 func (i *Interpreter) builtinMonthOf(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "MonthOf() expects 1 argument, got %d", len(args))
@@ -357,7 +347,6 @@ func (i *Interpreter) builtinMonthOf(args []Value) Value {
 
 // builtinDayOf implements the DayOf() built-in function.
 // Returns the day component of a TDateTime (1-31).
-// Task 9.105: DayOf function
 func (i *Interpreter) builtinDayOf(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "DayOf() expects 1 argument, got %d", len(args))
@@ -374,7 +363,6 @@ func (i *Interpreter) builtinDayOf(args []Value) Value {
 
 // builtinHourOf implements the HourOf() built-in function.
 // Returns the hour component of a TDateTime (0-23).
-// Task 9.105: HourOf function
 func (i *Interpreter) builtinHourOf(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "HourOf() expects 1 argument, got %d", len(args))
@@ -391,7 +379,6 @@ func (i *Interpreter) builtinHourOf(args []Value) Value {
 
 // builtinMinuteOf implements the MinuteOf() built-in function.
 // Returns the minute component of a TDateTime (0-59).
-// Task 9.105: MinuteOf function
 func (i *Interpreter) builtinMinuteOf(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "MinuteOf() expects 1 argument, got %d", len(args))
@@ -408,7 +395,6 @@ func (i *Interpreter) builtinMinuteOf(args []Value) Value {
 
 // builtinSecondOf implements the SecondOf() built-in function.
 // Returns the second component of a TDateTime (0-59).
-// Task 9.105: SecondOf function
 func (i *Interpreter) builtinSecondOf(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "SecondOf() expects 1 argument, got %d", len(args))
@@ -425,7 +411,6 @@ func (i *Interpreter) builtinSecondOf(args []Value) Value {
 
 // builtinDayOfWeek implements the DayOfWeek() built-in function.
 // Returns the day of week (1=Sunday, 7=Saturday) like Delphi.
-// Task 9.105: DayOfWeek function
 func (i *Interpreter) builtinDayOfWeek(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "DayOfWeek() expects 1 argument, got %d", len(args))
@@ -442,7 +427,6 @@ func (i *Interpreter) builtinDayOfWeek(args []Value) Value {
 
 // builtinDayOfTheWeek implements the DayOfTheWeek() built-in function.
 // Returns the ISO day of week (1=Monday, 7=Sunday).
-// Task 9.105: DayOfTheWeek function
 func (i *Interpreter) builtinDayOfTheWeek(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "DayOfTheWeek() expects 1 argument, got %d", len(args))
@@ -459,7 +443,6 @@ func (i *Interpreter) builtinDayOfTheWeek(args []Value) Value {
 
 // builtinDayOfYear implements the DayOfYear() built-in function.
 // Returns the day number within the year (1-366).
-// Task 9.105: DayOfYear function
 func (i *Interpreter) builtinDayOfYear(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "DayOfYear() expects 1 argument, got %d", len(args))
@@ -476,7 +459,6 @@ func (i *Interpreter) builtinDayOfYear(args []Value) Value {
 
 // builtinWeekNumber implements the WeekNumber() built-in function.
 // Returns the ISO 8601 week number (1-53).
-// Task 9.105: WeekNumber function
 func (i *Interpreter) builtinWeekNumber(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "WeekNumber() expects 1 argument, got %d", len(args))
@@ -493,7 +475,6 @@ func (i *Interpreter) builtinWeekNumber(args []Value) Value {
 
 // builtinYearOfWeek implements the YearOfWeek() built-in function.
 // Returns the year of the ISO 8601 week.
-// Task 9.105: YearOfWeek function
 func (i *Interpreter) builtinYearOfWeek(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "YearOfWeek() expects 1 argument, got %d", len(args))
@@ -515,7 +496,6 @@ func (i *Interpreter) builtinYearOfWeek(args []Value) Value {
 // builtinFormatDateTime implements the FormatDateTime() built-in function.
 // Formats a TDateTime according to a format string.
 // FormatDateTime(format: String, dt: TDateTime): String
-// Task 9.107: FormatDateTime function
 func (i *Interpreter) builtinFormatDateTime(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "FormatDateTime() expects 2 arguments (format, dt), got %d", len(args))
@@ -539,7 +519,6 @@ func (i *Interpreter) builtinFormatDateTime(args []Value) Value {
 
 // builtinDateTimeToStr implements the DateTimeToStr() built-in function.
 // Converts a TDateTime to a string using default format.
-// Task 9.108: DateTimeToStr function
 func (i *Interpreter) builtinDateTimeToStr(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "DateTimeToStr() expects 1 argument, got %d", len(args))
@@ -557,7 +536,6 @@ func (i *Interpreter) builtinDateTimeToStr(args []Value) Value {
 
 // builtinDateToStr implements the DateToStr() built-in function.
 // Converts a TDateTime to a date string.
-// Task 9.108: DateToStr function
 func (i *Interpreter) builtinDateToStr(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "DateToStr() expects 1 argument, got %d", len(args))
@@ -575,7 +553,6 @@ func (i *Interpreter) builtinDateToStr(args []Value) Value {
 
 // builtinTimeToStr implements the TimeToStr() built-in function.
 // Converts a TDateTime to a time string.
-// Task 9.109: TimeToStr function
 func (i *Interpreter) builtinTimeToStr(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "TimeToStr() expects 1 argument, got %d", len(args))
@@ -593,7 +570,6 @@ func (i *Interpreter) builtinTimeToStr(args []Value) Value {
 
 // builtinDateToISO8601 implements the DateToISO8601() built-in function.
 // Formats date as ISO 8601 string (YYYY-MM-DD).
-// Task 9.107: ISO8601 formatting
 func (i *Interpreter) builtinDateToISO8601(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "DateToISO8601() expects 1 argument, got %d", len(args))
@@ -610,7 +586,6 @@ func (i *Interpreter) builtinDateToISO8601(args []Value) Value {
 
 // builtinDateTimeToISO8601 implements the DateTimeToISO8601() built-in function.
 // Formats datetime as ISO 8601 string (YYYY-MM-DDTHH:MM:SS).
-// Task 9.107: ISO8601 formatting
 func (i *Interpreter) builtinDateTimeToISO8601(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "DateTimeToISO8601() expects 1 argument, got %d", len(args))
@@ -627,7 +602,6 @@ func (i *Interpreter) builtinDateTimeToISO8601(args []Value) Value {
 
 // builtinDateTimeToRFC822 implements the DateTimeToRFC822() built-in function.
 // Formats datetime as RFC 822 string.
-// Task 9.107: RFC822 formatting
 func (i *Interpreter) builtinDateTimeToRFC822(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "DateTimeToRFC822() expects 1 argument, got %d", len(args))
@@ -648,7 +622,6 @@ func (i *Interpreter) builtinDateTimeToRFC822(args []Value) Value {
 
 // builtinStrToDate implements the StrToDate() built-in function.
 // Parses a date string to TDateTime.
-// Task 9.110: StrToDate function
 func (i *Interpreter) builtinStrToDate(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "StrToDate() expects 1 argument, got %d", len(args))
@@ -669,7 +642,6 @@ func (i *Interpreter) builtinStrToDate(args []Value) Value {
 
 // builtinStrToDateTime implements the StrToDateTime() built-in function.
 // Parses a datetime string to TDateTime.
-// Task 9.111: StrToDateTime function
 func (i *Interpreter) builtinStrToDateTime(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "StrToDateTime() expects 1 argument, got %d", len(args))
@@ -710,7 +682,6 @@ func (i *Interpreter) builtinStrToTime(args []Value) Value {
 
 // builtinISO8601ToDateTime implements the ISO8601ToDateTime() built-in function.
 // Parses an ISO 8601 string to TDateTime.
-// Task 9.111: ISO8601 parsing
 func (i *Interpreter) builtinISO8601ToDateTime(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "ISO8601ToDateTime() expects 1 argument, got %d", len(args))
@@ -731,7 +702,6 @@ func (i *Interpreter) builtinISO8601ToDateTime(args []Value) Value {
 
 // builtinRFC822ToDateTime implements the RFC822ToDateTime() built-in function.
 // Parses an RFC 822 string to TDateTime.
-// Task 9.111: RFC822 parsing
 func (i *Interpreter) builtinRFC822ToDateTime(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "RFC822ToDateTime() expects 1 argument, got %d", len(args))
@@ -756,7 +726,6 @@ func (i *Interpreter) builtinRFC822ToDateTime(args []Value) Value {
 
 // builtinIncYear implements the IncYear() built-in function.
 // Adds years to a TDateTime.
-// Task 9.113: IncYear function
 func (i *Interpreter) builtinIncYear(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "IncYear() expects 2 arguments (dt, years), got %d", len(args))
@@ -778,7 +747,6 @@ func (i *Interpreter) builtinIncYear(args []Value) Value {
 
 // builtinIncMonth implements the IncMonth() built-in function.
 // Adds months to a TDateTime.
-// Task 9.113: IncMonth function
 func (i *Interpreter) builtinIncMonth(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "IncMonth() expects 2 arguments (dt, months), got %d", len(args))
@@ -800,7 +768,6 @@ func (i *Interpreter) builtinIncMonth(args []Value) Value {
 
 // builtinIncDay implements the IncDay() built-in function.
 // Adds days to a TDateTime.
-// Task 9.113: IncDay function
 func (i *Interpreter) builtinIncDay(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "IncDay() expects 2 arguments (dt, days), got %d", len(args))
@@ -823,7 +790,6 @@ func (i *Interpreter) builtinIncDay(args []Value) Value {
 
 // builtinIncHour implements the IncHour() built-in function.
 // Adds hours to a TDateTime.
-// Task 9.113: IncHour function
 func (i *Interpreter) builtinIncHour(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "IncHour() expects 2 arguments (dt, hours), got %d", len(args))
@@ -846,7 +812,6 @@ func (i *Interpreter) builtinIncHour(args []Value) Value {
 
 // builtinIncMinute implements the IncMinute() built-in function.
 // Adds minutes to a TDateTime.
-// Task 9.113: IncMinute function
 func (i *Interpreter) builtinIncMinute(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "IncMinute() expects 2 arguments (dt, minutes), got %d", len(args))
@@ -869,7 +834,6 @@ func (i *Interpreter) builtinIncMinute(args []Value) Value {
 
 // builtinIncSecond implements the IncSecond() built-in function.
 // Adds seconds to a TDateTime.
-// Task 9.113: IncSecond function
 func (i *Interpreter) builtinIncSecond(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "IncSecond() expects 2 arguments (dt, seconds), got %d", len(args))
@@ -896,7 +860,6 @@ func (i *Interpreter) builtinIncSecond(args []Value) Value {
 
 // builtinDaysBetween implements the DaysBetween() built-in function.
 // Calculates whole days between two TDateTime values.
-// Task 9.114: DaysBetween function
 func (i *Interpreter) builtinDaysBetween(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "DaysBetween() expects 2 arguments (dt1, dt2), got %d", len(args))
@@ -918,7 +881,6 @@ func (i *Interpreter) builtinDaysBetween(args []Value) Value {
 
 // builtinHoursBetween implements the HoursBetween() built-in function.
 // Calculates whole hours between two TDateTime values.
-// Task 9.114: HoursBetween function
 func (i *Interpreter) builtinHoursBetween(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "HoursBetween() expects 2 arguments (dt1, dt2), got %d", len(args))
@@ -940,7 +902,6 @@ func (i *Interpreter) builtinHoursBetween(args []Value) Value {
 
 // builtinMinutesBetween implements the MinutesBetween() built-in function.
 // Calculates whole minutes between two TDateTime values.
-// Task 9.114: MinutesBetween function
 func (i *Interpreter) builtinMinutesBetween(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "MinutesBetween() expects 2 arguments (dt1, dt2), got %d", len(args))
@@ -962,7 +923,6 @@ func (i *Interpreter) builtinMinutesBetween(args []Value) Value {
 
 // builtinSecondsBetween implements the SecondsBetween() built-in function.
 // Calculates whole seconds between two TDateTime values.
-// Task 9.114: SecondsBetween function
 func (i *Interpreter) builtinSecondsBetween(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "SecondsBetween() expects 2 arguments (dt1, dt2), got %d", len(args))

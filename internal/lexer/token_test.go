@@ -158,6 +158,54 @@ func TestTokenString(t *testing.T) {
 	}
 }
 
+func TestTokenLength(t *testing.T) {
+	tests := []struct {
+		name     string
+		token    Token
+		expected int
+	}{
+		{
+			name:     "keyword",
+			token:    Token{Type: BEGIN, Literal: "begin"},
+			expected: 5,
+		},
+		{
+			name:     "identifier",
+			token:    Token{Type: IDENT, Literal: "myVariable"},
+			expected: 10,
+		},
+		{
+			name:     "integer",
+			token:    Token{Type: INT, Literal: "42"},
+			expected: 2,
+		},
+		{
+			name:     "string",
+			token:    Token{Type: STRING, Literal: "hello world"},
+			expected: 11,
+		},
+		{
+			name:     "operator",
+			token:    Token{Type: ASSIGN, Literal: ":="},
+			expected: 2,
+		},
+		{
+			name:     "empty literal",
+			token:    Token{Type: EOF, Literal: ""},
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.token.Length()
+			if got != tt.expected {
+				t.Errorf("Token.Length() = %d, want %d", got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestLookupIdent(t *testing.T) {
 	tests := []struct {
 		ident    string

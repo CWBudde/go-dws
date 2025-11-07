@@ -50,8 +50,6 @@ func (i *Interpreter) builtinPrint(args []Value) Value {
 
 // builtinOrd implements the Ord() built-in function.
 // It returns the ordinal value of an enum, boolean, character, or integer.
-// Task 8.51: Ord() function for enums
-// Task 9.226: Extended to support strings (for character literals)
 func (i *Interpreter) builtinOrd(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Ord() expects exactly 1 argument, got %d", len(args))
@@ -94,7 +92,6 @@ func (i *Interpreter) builtinOrd(args []Value) Value {
 
 // builtinInteger implements the Integer() cast function.
 // It converts values to integers.
-// Task 8.52: Integer() cast for enums
 func (i *Interpreter) builtinInteger(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Integer() expects exactly 1 argument, got %d", len(args))
@@ -130,7 +127,6 @@ func (i *Interpreter) builtinInteger(args []Value) Value {
 
 // builtinLength implements the Length() built-in function.
 // It returns the number of elements in an array or characters in a string.
-// Task 8.130: Length() function for arrays
 func (i *Interpreter) builtinLength(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Length() expects exactly 1 argument, got %d", len(args))
@@ -158,8 +154,6 @@ func (i *Interpreter) builtinLength(args []Value) Value {
 // It returns a substring of a string.
 // Copy(str, index, count) - index is 1-based, count is number of characters
 // Copy(arr) - creates a deep copy of an array
-// Task 8.183: Copy() function for strings
-// Task 9.67: Copy() function for arrays
 func (i *Interpreter) builtinCopy(args []Value) Value {
 	// Handle array copy: Copy(arr) - 1 argument
 	if len(args) == 1 {
@@ -263,7 +257,7 @@ func (i *Interpreter) builtinIndexOf(args []Value) Value {
 }
 
 // builtinContains implements the Contains() built-in function for arrays.
-// Task 9.72: Contains(arr, value)
+// Contains(arr, value)
 //
 // Returns true if array contains value, false otherwise
 func (i *Interpreter) builtinContains(args []Value) Value {
@@ -285,7 +279,7 @@ func (i *Interpreter) builtinContains(args []Value) Value {
 }
 
 // builtinReverse implements the Reverse() built-in function for arrays.
-// Task 9.74: Reverse(arr)
+// Reverse(arr)
 //
 // Reverses array elements in place
 func (i *Interpreter) builtinReverse(args []Value) Value {
@@ -304,8 +298,6 @@ func (i *Interpreter) builtinReverse(args []Value) Value {
 }
 
 // builtinSort implements the Sort() built-in function for arrays.
-// Task 9.76: Sort(arr) - sorts using default comparison
-// Task 9.33: Sort(arr, comparator) - sorts using custom comparator function
 //
 // Sorts array elements in place using default comparison or custom comparator
 func (i *Interpreter) builtinSort(args []Value) Value {
@@ -336,9 +328,6 @@ func (i *Interpreter) builtinSort(args []Value) Value {
 
 // builtinLow implements the Low() built-in function.
 // It returns the lower bound of an array or the lowest value of an enum type.
-// Task 8.132: Low() function for arrays
-// Task 9.31: Low() function for enums
-// Task 9.134: Low() function for type meta-values
 func (i *Interpreter) builtinLow(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Low() expects exactly 1 argument, got %d", len(args))
@@ -346,7 +335,7 @@ func (i *Interpreter) builtinLow(args []Value) Value {
 
 	arg := args[0]
 
-	// Task 9.134: Handle type meta-values (type names as values)
+	// Handle type meta-values (type names as values)
 	if typeMetaVal, ok := arg.(*TypeMetaValue); ok {
 		// Handle built-in types
 		switch typeMetaVal.TypeInfo {
@@ -395,7 +384,6 @@ func (i *Interpreter) builtinLow(args []Value) Value {
 	// Handle enum values
 	if enumVal, ok := arg.(*EnumValue); ok {
 		// Look up the enum type metadata
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
 		enumTypeKey := "__enum_type_" + strings.ToLower(enumVal.TypeName)
 		typeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
@@ -428,9 +416,6 @@ func (i *Interpreter) builtinLow(args []Value) Value {
 
 // builtinHigh implements the High() built-in function.
 // It returns the upper bound of an array or the highest value of an enum type.
-// Task 8.133: High() function for arrays
-// Task 9.32: High() function for enums
-// Task 9.134: High() function for type meta-values
 func (i *Interpreter) builtinHigh(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "High() expects exactly 1 argument, got %d", len(args))
@@ -438,7 +423,7 @@ func (i *Interpreter) builtinHigh(args []Value) Value {
 
 	arg := args[0]
 
-	// Task 9.134: Handle type meta-values (type names as values)
+	// Handle type meta-values (type names as values)
 	if typeMetaVal, ok := arg.(*TypeMetaValue); ok {
 		// Handle built-in types
 		switch typeMetaVal.TypeInfo {
@@ -488,7 +473,7 @@ func (i *Interpreter) builtinHigh(args []Value) Value {
 	// Handle enum values
 	if enumVal, ok := arg.(*EnumValue); ok {
 		// Look up the enum type metadata
-		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		// Normalize to lowercase for case-insensitive lookups
 		enumTypeKey := "__enum_type_" + strings.ToLower(enumVal.TypeName)
 		typeVal, ok := i.env.Get(enumTypeKey)
 		if !ok {
@@ -521,7 +506,6 @@ func (i *Interpreter) builtinHigh(args []Value) Value {
 
 // builtinSetLength implements the SetLength() built-in function.
 // It resizes a dynamic array to the specified length.
-// Task 8.131: SetLength() function for dynamic arrays
 func (i *Interpreter) builtinSetLength(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "SetLength() expects exactly 2 arguments, got %d", len(args))
@@ -577,7 +561,6 @@ func (i *Interpreter) builtinSetLength(args []Value) Value {
 
 // builtinAdd implements the Add() built-in function.
 // It appends an element to the end of a dynamic array.
-// Task 8.134: Add() function for dynamic arrays
 func (i *Interpreter) builtinAdd(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "Add() expects exactly 2 arguments, got %d", len(args))
@@ -610,7 +593,6 @@ func (i *Interpreter) builtinAdd(args []Value) Value {
 
 // builtinDelete implements the Delete() built-in function.
 // It removes an element at the specified index from a dynamic array.
-// Task 8.135: Delete() function for dynamic arrays
 func (i *Interpreter) builtinDelete(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "Delete() expects exactly 2 arguments, got %d", len(args))
@@ -656,8 +638,6 @@ func (i *Interpreter) builtinDelete(args []Value) Value {
 // builtinIntToStr implements the IntToStr() built-in function.
 // It converts an integer to its string representation.
 // IntToStr(i: Integer): String
-// Task 8.187: Type conversion functions
-// Task 9.102: Support subrange types (subrange values should be assignable to Integer)
 func (i *Interpreter) builtinIntToStr(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "IntToStr() expects exactly 1 argument, got %d", len(args))
@@ -683,7 +663,6 @@ func (i *Interpreter) builtinIntToStr(args []Value) Value {
 // builtinIntToBin implements the IntToBin() built-in function.
 // It converts an integer to its binary string representation with specified width.
 // IntToBin(v: Integer, digits: Integer): String
-// Task 9.37: IntToBin() function for binary string conversion
 func (i *Interpreter) builtinIntToBin(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "IntToBin() expects exactly 2 arguments, got %d", len(args))
@@ -760,7 +739,6 @@ func (i *Interpreter) builtinIntToBin(args []Value) Value {
 // builtinStrToInt implements the StrToInt() built-in function.
 // It converts a string to an integer, raising an error if the string is invalid.
 // StrToInt(s: String): Integer
-// Task 8.187: Type conversion functions
 func (i *Interpreter) builtinStrToInt(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "StrToInt() expects exactly 1 argument, got %d", len(args))
@@ -788,7 +766,6 @@ func (i *Interpreter) builtinStrToInt(args []Value) Value {
 // builtinFloatToStr implements the FloatToStr() built-in function.
 // It converts a float to its string representation.
 // FloatToStr(f: Float): String
-// Task 8.187: Type conversion functions
 func (i *Interpreter) builtinFloatToStr(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "FloatToStr() expects exactly 1 argument, got %d", len(args))
@@ -815,7 +792,6 @@ func (i *Interpreter) builtinFloatToStr(args []Value) Value {
 // builtinStrToFloat implements the StrToFloat() built-in function.
 // It converts a string to a float, raising an error if the string is invalid.
 // StrToFloat(s: String): Float
-// Task 8.187: Type conversion functions
 func (i *Interpreter) builtinStrToFloat(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "StrToFloat() expects exactly 1 argument, got %d", len(args))
@@ -842,7 +818,6 @@ func (i *Interpreter) builtinStrToFloat(args []Value) Value {
 // builtinBoolToStr implements the BoolToStr() built-in function.
 // It converts a boolean to its string representation ("True" or "False").
 // BoolToStr(b: Boolean): String
-// Task 9.245: Type conversion functions
 func (i *Interpreter) builtinBoolToStr(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "BoolToStr() expects exactly 1 argument, got %d", len(args))
@@ -865,7 +840,6 @@ func (i *Interpreter) builtinBoolToStr(args []Value) Value {
 // builtinGetStackTrace implements the GetStackTrace() built-in function.
 // It returns the current call stack as a formatted string.
 // GetStackTrace(): String
-// Task 9.114: Exception Enhancements - GetStackTrace() built-in
 func (i *Interpreter) builtinGetStackTrace(args []Value) Value {
 	if len(args) != 0 {
 		return i.newErrorWithLocation(i.currentNode, "GetStackTrace() expects no arguments, got %d", len(args))
@@ -879,7 +853,6 @@ func (i *Interpreter) builtinGetStackTrace(args []Value) Value {
 // builtinGetCallStack implements the GetCallStack() built-in function.
 // It returns the current call stack as an array of records containing frame information.
 // GetCallStack(): array of record
-// Task 9.116: Debugging Information - GetCallStack() built-in
 func (i *Interpreter) builtinGetCallStack(args []Value) Value {
 	if len(args) != 0 {
 		return i.newErrorWithLocation(i.currentNode, "GetCallStack() expects no arguments, got %d", len(args))

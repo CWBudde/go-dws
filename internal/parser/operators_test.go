@@ -131,7 +131,7 @@ operator in (Integer, Float) : Boolean uses DigitInFloat;
 	}
 }
 
-// Task 8.21b: Test parsing class operator
+// Test parsing class operator
 func TestParseOperatorDeclaration_ClassOperator(t *testing.T) {
 	input := `
 type TTest = class
@@ -191,7 +191,7 @@ end;
 	}
 }
 
-// Task 8.21d: Test parsing explicit conversion operator
+// Test parsing explicit conversion operator
 func TestParseOperatorDeclaration_ExplicitConversion(t *testing.T) {
 	input := `
 operator explicit (TFoo) : Integer uses FooToInt;
@@ -235,7 +235,7 @@ operator explicit (TFoo) : Integer uses FooToInt;
 	}
 }
 
-// Task 8.21e: Test parsing symbolic operators (==, !=, <<, >>, IN)
+// Test parsing symbolic operators (==, !=, <<, >>, IN)
 func TestParseOperatorDeclaration_SymbolicOperators(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -309,7 +309,7 @@ func TestParseOperatorDeclaration_SymbolicOperators(t *testing.T) {
 	}
 }
 
-// Task 8.21f: Test parsing unary operator
+// Test parsing unary operator
 func TestParseOperatorDeclaration_Unary(t *testing.T) {
 	input := `
 operator - (TCustom) : TCustom uses Negate;
@@ -353,7 +353,7 @@ operator - (TCustom) : TCustom uses Negate;
 	}
 }
 
-// Task 8.21g: Test parsing operator declarations with errors
+// Test parsing operator declarations with errors
 func TestParseOperatorDeclaration_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -399,7 +399,7 @@ func TestParseOperatorDeclaration_Errors(t *testing.T) {
 			// Check that at least one error contains the expected message (substring match)
 			foundExpected := false
 			for _, err := range p.errors {
-				if len(err) >= len(tt.expectedError) && err[:len(tt.expectedError)] == tt.expectedError {
+				if len(err.Message) >= len(tt.expectedError) && err.Message[:len(tt.expectedError)] == tt.expectedError {
 					foundExpected = true
 					break
 				}

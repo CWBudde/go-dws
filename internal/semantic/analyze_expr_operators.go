@@ -179,7 +179,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 
 	// Handle arithmetic operators
 	if operator == "+" || operator == "-" || operator == "*" || operator == "/" {
-		// Task 8.102: Check for set operations first
+		// Check for set operations first
 		leftSetType, leftIsSet := leftType.(*types.SetType)
 		rightSetType, rightIsSet := rightType.(*types.SetType)
 
@@ -298,7 +298,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		return nil
 	}
 
-	// Task 8.103/9.226: Handle 'in' operator for set membership
+	// Handle 'in' operator for set membership
 	if operator == "in" {
 		// Right operand must be a set type
 		rightSetType, isSet := rightType.(*types.SetType)

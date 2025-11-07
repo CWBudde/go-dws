@@ -10,7 +10,6 @@ import (
 // builtinConcat implements the Concat() built-in function.
 // It concatenates multiple strings together.
 // Concat(str1, str2, ...) - variable number of string arguments
-// Task 8.183: Concat() function for strings
 func (i *Interpreter) builtinConcat(args []Value) Value {
 	if len(args) == 0 {
 		return i.newErrorWithLocation(i.currentNode, "Concat() expects at least 1 argument, got 0")
@@ -33,7 +32,6 @@ func (i *Interpreter) builtinConcat(args []Value) Value {
 // builtinPos implements the Pos() built-in function.
 // It finds the position of a substring within a string.
 // Pos(substr, str) - returns 1-based position (0 if not found)
-// Task 8.183: Pos() function for strings
 func (i *Interpreter) builtinPos(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "Pos() expects exactly 2 arguments, got %d", len(args))
@@ -73,7 +71,6 @@ func (i *Interpreter) builtinPos(args []Value) Value {
 // builtinUpperCase implements the UpperCase() built-in function.
 // It converts a string to uppercase.
 // UpperCase(str) - returns uppercase version of the string
-// Task 8.183: UpperCase() function for strings
 func (i *Interpreter) builtinUpperCase(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "UpperCase() expects exactly 1 argument, got %d", len(args))
@@ -91,7 +88,6 @@ func (i *Interpreter) builtinUpperCase(args []Value) Value {
 // builtinLowerCase implements the LowerCase() built-in function.
 // It converts a string to lowercase.
 // LowerCase(str) - returns lowercase version of the string
-// Task 8.183: LowerCase() function for strings
 func (i *Interpreter) builtinLowerCase(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "LowerCase() expects exactly 1 argument, got %d", len(args))
@@ -109,7 +105,6 @@ func (i *Interpreter) builtinLowerCase(args []Value) Value {
 // builtinTrim implements the Trim() built-in function.
 // It removes leading and trailing whitespace from a string.
 // Trim(str) - returns string with whitespace removed from both ends
-// Task 9.40: Trim() function for strings
 func (i *Interpreter) builtinTrim(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Trim() expects exactly 1 argument, got %d", len(args))
@@ -127,7 +122,6 @@ func (i *Interpreter) builtinTrim(args []Value) Value {
 // builtinTrimLeft implements the TrimLeft() built-in function.
 // It removes leading whitespace from a string.
 // TrimLeft(str) - returns string with leading whitespace removed
-// Task 9.41: TrimLeft() function for strings
 func (i *Interpreter) builtinTrimLeft(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "TrimLeft() expects exactly 1 argument, got %d", len(args))
@@ -146,7 +140,6 @@ func (i *Interpreter) builtinTrimLeft(args []Value) Value {
 // builtinTrimRight implements the TrimRight() built-in function.
 // It removes trailing whitespace from a string.
 // TrimRight(str) - returns string with trailing whitespace removed
-// Task 9.41: TrimRight() function for strings
 func (i *Interpreter) builtinTrimRight(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "TrimRight() expects exactly 1 argument, got %d", len(args))
@@ -166,7 +159,6 @@ func (i *Interpreter) builtinTrimRight(args []Value) Value {
 // It replaces occurrences of a substring within a string.
 // StringReplace(str, old, new) - replaces all occurrences of old with new
 // StringReplace(str, old, new, count) - replaces count occurrences (count=-1 means all)
-// Task 9.46: StringReplace() function for strings
 func (i *Interpreter) builtinStringReplace(args []Value) Value {
 	// Accept 3 or 4 arguments
 	if len(args) < 3 || len(args) > 4 {
@@ -232,7 +224,6 @@ func (i *Interpreter) builtinStringReplace(args []Value) Value {
 // builtinStringOfChar implements the StringOfChar() built-in function.
 // It creates a string by repeating a character N times.
 // StringOfChar(ch, count) - returns a string with ch repeated count times
-// Task 9.226: StringOfChar() function for strings
 func (i *Interpreter) builtinStringOfChar(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "StringOfChar() expects exactly 2 arguments, got %d", len(args))
@@ -274,7 +265,8 @@ func (i *Interpreter) builtinStringOfChar(args []Value) Value {
 }
 
 // builtinFormat implements the Format() built-in function.
-// Task 9.48-9.49: Format() function for string formatting
+//
+// Format() function for string formatting
 // Supports: %s (string), %d (integer), %f (float), %% (literal %)
 // Optional: width and precision (%5d, %.2f, %8.2f)
 func (i *Interpreter) builtinFormat(args []Value) Value {
@@ -353,7 +345,7 @@ func (i *Interpreter) builtinFormat(args []Value) Value {
 		}
 		spec := specs[idx]
 
-		// Task 9.236: Unbox Variant values for Format() function
+		// Unbox Variant values for Format() function
 		// Since ARRAY_OF_CONST now uses VARIANT element type
 		// we need to unwrap Variant values before formatting
 		unwrapped := unwrapVariant(elem)
@@ -411,7 +403,6 @@ func (i *Interpreter) builtinFormat(args []Value) Value {
 // builtinInsert implements the Insert() built-in function.
 // It inserts a source string into a target string at the specified position.
 // Insert(source, target, pos) - modifies target in-place (1-based position)
-// Task 9.43: Insert() function for strings
 func (i *Interpreter) builtinInsert(args []ast.Expression) Value {
 	// Validate argument count (3 arguments)
 	if len(args) != 3 {
@@ -496,7 +487,6 @@ func (i *Interpreter) builtinInsert(args []ast.Expression) Value {
 // builtinDeleteString implements the Delete() built-in function for strings.
 // It deletes count characters from a string starting at the specified position.
 // Delete(s, pos, count) - modifies s in-place (1-based position)
-// Task 9.44: Delete() function for strings (3-parameter variant)
 func (i *Interpreter) builtinDeleteString(args []ast.Expression) Value {
 	// Validate argument count (3 arguments)
 	if len(args) != 3 {

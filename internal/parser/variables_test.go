@@ -144,7 +144,7 @@ func TestVarDeclarationTypeInference(t *testing.T) {
 				}
 				var found bool
 				for _, err := range p.Errors() {
-					if strings.Contains(err, tt.expectError) {
+					if strings.Contains(err.Message, tt.expectError) {
 						found = true
 						break
 					}
@@ -442,7 +442,7 @@ func TestMultiIdentifierVarDeclarations(t *testing.T) {
 				}
 				found := false
 				for _, err := range p.Errors() {
-					if strings.Contains(err, tt.errorContains) {
+					if strings.Contains(err.Message, tt.errorContains) {
 						found = true
 						break
 					}

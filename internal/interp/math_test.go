@@ -7,7 +7,6 @@ import (
 
 // TestBuiltinAbs_Integers tests Abs() with integer values.
 // Abs(x) returns the absolute value of x
-// Task 8.185: Abs() function for integers
 func TestBuiltinAbs_Integers(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -89,7 +88,6 @@ end
 }
 
 // TestBuiltinAbs_Floats tests Abs() with float values.
-// Task 8.185: Abs() function for floats
 func TestBuiltinAbs_Floats(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -171,7 +169,6 @@ end
 }
 
 // TestBuiltinAbs_Assignment tests Abs() in variable assignments.
-// Task 8.185: Abs() function in assignments
 func TestBuiltinAbs_Assignment(t *testing.T) {
 	tests := []struct {
 		expectedInt *int64
@@ -229,7 +226,6 @@ end
 }
 
 // TestBuiltinAbs_Errors tests Abs() error cases.
-// Task 8.185: Abs() error handling
 func TestBuiltinAbs_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -297,7 +293,6 @@ func ptr[T any](v T) *T {
 
 // TestBuiltinSqrt_BasicUsage tests Sqrt() with basic numeric values.
 // Sqrt(x) returns the square root of x as a Float
-// Task 8.185: Sqrt() function for math operations
 func TestBuiltinSqrt_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -386,7 +381,6 @@ end
 }
 
 // TestBuiltinSqrt_WithVariables tests Sqrt() with variables.
-// Task 8.185: Sqrt() function with variables
 func TestBuiltinSqrt_WithVariables(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -441,7 +435,6 @@ end
 }
 
 // TestBuiltinSqrt_Assignment tests Sqrt() in variable assignments.
-// Task 8.185: Sqrt() function in assignments
 func TestBuiltinSqrt_Assignment(t *testing.T) {
 	input := `
 var result: Float := Sqrt(16);
@@ -462,7 +455,6 @@ end
 }
 
 // TestBuiltinSqrt_Errors tests Sqrt() error cases.
-// Task 8.185: Sqrt() error handling
 func TestBuiltinSqrt_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -534,7 +526,6 @@ end
 
 // TestBuiltinSin_BasicUsage tests Sin() with basic values.
 // Sin(x) returns the sine of x (in radians) as a Float
-// Task 8.185: Sin() function for trigonometric operations
 func TestBuiltinSin_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -608,7 +599,6 @@ end
 
 // TestBuiltinCos_BasicUsage tests Cos() with basic values.
 // Cos(x) returns the cosine of x (in radians) as a Float
-// Task 8.185: Cos() function for trigonometric operations
 func TestBuiltinCos_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -682,7 +672,6 @@ end
 
 // TestBuiltinTan_BasicUsage tests Tan() with basic values.
 // Tan(x) returns the tangent of x (in radians) as a Float
-// Task 8.185: Tan() function for trigonometric operations
 func TestBuiltinTan_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -755,7 +744,6 @@ end
 }
 
 // TestBuiltinTrig_Errors tests trigonometric functions' error cases.
-// Task 8.185: Trigonometric function error handling
 func TestBuiltinTrig_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -845,7 +833,6 @@ end
 
 // TestBuiltinExp_BasicUsage tests Exp() with basic values.
 // Exp(x) returns e^x as a Float
-// Task 8.185: Exp() function for exponential operations
 func TestBuiltinExp_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -928,7 +915,6 @@ end
 
 // TestBuiltinLn_BasicUsage tests Ln() with basic values.
 // Ln(x) returns the natural logarithm (log base e) of x as a Float
-// Task 8.185: Ln() function for logarithmic operations
 func TestBuiltinLn_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1001,7 +987,6 @@ end
 }
 
 // TestBuiltinLnExp_Inverse tests that Ln and Exp are inverse functions.
-// Task 8.185: Verify Ln(Exp(x)) = x
 func TestBuiltinLnExp_Inverse(t *testing.T) {
 	input := `
 begin
@@ -1022,7 +1007,6 @@ end
 }
 
 // TestBuiltinLnExp_Errors tests Ln and Exp error cases.
-// Task 8.185: Ln and Exp error handling
 func TestBuiltinLnExp_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -1121,7 +1105,6 @@ end
 
 // TestBuiltinRound_BasicUsage tests Round() with basic values.
 // Round(x) rounds to the nearest integer and returns Integer
-// Task 8.185: Round() function for rounding operations
 func TestBuiltinRound_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1222,7 +1205,6 @@ end
 
 // TestBuiltinTrunc_BasicUsage tests Trunc() with basic values.
 // Trunc(x) truncates towards zero (removes decimal part) and returns Integer
-// Task 8.185: Trunc() function for truncation operations
 func TestBuiltinTrunc_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1322,7 +1304,6 @@ end
 }
 
 // TestBuiltinRoundTrunc_Errors tests Round() and Trunc() error cases.
-// Task 8.185: Round/Trunc error handling
 func TestBuiltinRoundTrunc_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -1403,7 +1384,6 @@ end
 
 // TestBuiltinRandom_BasicUsage tests Random() function.
 // Random() returns a random Float between 0 and 1 (exclusive)
-// Task 8.185: Random() function for random number generation
 func TestBuiltinRandom_BasicUsage(t *testing.T) {
 	// Test that Random returns values in range [0, 1)
 	input := `
@@ -1431,7 +1411,6 @@ end
 }
 
 // TestBuiltinRandom_ReturnType tests that Random() returns Float.
-// Task 8.185: Random() return type validation
 func TestBuiltinRandom_ReturnType(t *testing.T) {
 	input := `
 begin
@@ -1447,7 +1426,6 @@ end
 }
 
 // TestBuiltinRandom_Variation tests that Random() produces different values.
-// Task 8.185: Random() produces varied output
 func TestBuiltinRandom_Variation(t *testing.T) {
 	input := `
 var r1 := Random();
@@ -1471,7 +1449,6 @@ end
 
 // TestBuiltinRandomize_BasicUsage tests Randomize() function.
 // Randomize() seeds the random number generator
-// Task 8.185: Randomize() function
 func TestBuiltinRandomize_BasicUsage(t *testing.T) {
 	// Test that Randomize can be called
 	input := `
@@ -1489,7 +1466,6 @@ end
 }
 
 // TestBuiltinRandom_Errors tests Random() error cases.
-// Task 8.185: Random() error handling
 func TestBuiltinRandom_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -1524,7 +1500,6 @@ end
 }
 
 // TestBuiltinRandomize_Errors tests Randomize() error cases.
-// Task 8.185: Randomize() error handling
 func TestBuiltinRandomize_Errors(t *testing.T) {
 	tests := []struct {
 		name          string

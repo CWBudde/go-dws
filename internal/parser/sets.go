@@ -11,8 +11,6 @@ import (
 //
 // Syntax:
 //   - type TDays = set of TWeekday;
-//
-// Task 8.91: Parse set type declarations
 func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
 	setDecl := &ast.SetDecl{
 		Token: typeToken, // The 'type' token
@@ -26,7 +24,7 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 
 	// Advance to type identifier
 	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected type identifier after 'of' in set declaration")
+		p.addError("expected type identifier after 'of' in set declaration", ErrExpectedType)
 		return nil
 	}
 
@@ -56,7 +54,7 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 
 	// Expect 'of' keyword
 	if !p.expectPeek(lexer.OF) {
-		p.addError("expected 'of' after 'set' in set type")
+		p.addError("expected 'of' after 'set' in set type", ErrMissingOf)
 		return nil
 	}
 
@@ -69,7 +67,7 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 	// 3. Subrange: 1..100 - might need special handling in future
 	elementType := p.parseTypeExpression()
 	if elementType == nil {
-		p.addError("expected type expression after 'set of'")
+		p.addError("expected type expression after 'set of'", ErrExpectedType)
 		return nil
 	}
 
@@ -85,8 +83,6 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 //   - [A..C]                  // range
 //   - [one, three..five]      // mixed
 //   - []                      // empty set
-//
-// Task 8.93-8.95: Parse set literals
 func (p *Parser) parseSetLiteral() ast.Expression {
 	setLit := &ast.SetLiteral{
 		Token:    p.curToken, // The '[' token
@@ -135,7 +131,7 @@ func (p *Parser) parseSetLiteral() ast.Expression {
 			break
 		} else {
 			// Unexpected token
-			p.addError("expected ',' or ']' in set literal")
+			p.addError("expected ',' or ']' in set literal", ErrUnexpectedToken)
 			return nil
 		}
 	}

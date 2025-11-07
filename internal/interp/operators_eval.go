@@ -72,7 +72,7 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 	for idx, param := range method.Parameters {
 		arg := args[idx]
 
-		// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+		// Apply implicit conversion if parameter has a type and types don't match
 		if param.Type != nil {
 			paramTypeName := param.Type.Name
 			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
@@ -125,7 +125,7 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 	for idx, param := range method.Parameters {
 		arg := args[idx]
 
-		// Task 8.19b: Apply implicit conversion if parameter has a type and types don't match
+		// Apply implicit conversion if parameter has a type and types don't match
 		if param.Type != nil {
 			paramTypeName := param.Type.Name
 			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
@@ -176,7 +176,7 @@ func (i *Interpreter) extractReturnValue(method *ast.FunctionDecl, env *Environm
 		returnValue = &NilValue{}
 	}
 
-	// Task 8.19c: Apply implicit conversion if return type doesn't match
+	// Apply implicit conversion if return type doesn't match
 	if method.ReturnType != nil && returnValue.Type() != "NIL" {
 		expectedReturnType := method.ReturnType.Name
 		if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
@@ -189,8 +189,6 @@ func (i *Interpreter) extractReturnValue(method *ast.FunctionDecl, env *Environm
 
 // tryImplicitConversion attempts to apply an implicit conversion from source to target type.
 // Returns (convertedValue, true) if conversion found and applied, (original, false) otherwise.
-// Task 8.19a: Apply implicit conversions automatically at runtime.
-// Task 8.19d: Support chained implicit conversions (e.g., Integer -> String -> Custom).
 func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) (Value, bool) {
 	// Handle nil value
 	if value == nil {
@@ -208,7 +206,7 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 	normalizedSource := normalizeTypeAnnotation(sourceTypeName)
 	normalizedTarget := normalizeTypeAnnotation(targetTypeName)
 
-	// Task 8.19a: Try direct conversion first
+	// Try direct conversion first
 	entry, found := i.conversions.findImplicit(normalizedSource, normalizedTarget)
 	if found {
 		// Look up the conversion function
@@ -229,7 +227,7 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 		return result, true
 	}
 
-	// Task 8.19d: Try chained conversion if direct conversion not found
+	// Try chained conversion if direct conversion not found
 	const maxConversionChainDepth = 3
 	path := i.conversions.findConversionPath(normalizedSource, normalizedTarget, maxConversionChainDepth)
 	if len(path) < 2 {

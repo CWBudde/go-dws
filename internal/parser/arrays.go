@@ -66,13 +66,13 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 		p.nextToken() // move to start of expression
 		lowBound := p.parseExpression(LOWEST)
 		if lowBound == nil {
-			p.addError("invalid array lower bound expression")
+			p.addError("invalid array lower bound expression", ErrInvalidExpression)
 			return nil
 		}
 
 		// Expect '..'
 		if !p.expectPeek(lexer.DOTDOT) {
-			p.addError("expected '..' in array bounds")
+			p.addError("expected '..' in array bounds", ErrUnexpectedToken)
 			return nil
 		}
 
@@ -80,7 +80,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 		p.nextToken() // move to start of expression
 		highBound := p.parseExpression(LOWEST)
 		if highBound == nil {
-			p.addError("invalid array upper bound expression")
+			p.addError("invalid array upper bound expression", ErrInvalidExpression)
 			return nil
 		}
 
@@ -92,19 +92,19 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 			p.nextToken() // move to next low bound
 			lowBound := p.parseExpression(LOWEST)
 			if lowBound == nil {
-				p.addError("invalid array lower bound expression in multi-dimensional array")
+				p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
 				return nil
 			}
 
 			if !p.expectPeek(lexer.DOTDOT) {
-				p.addError("expected '..' in array bounds")
+				p.addError("expected '..' in array bounds", ErrUnexpectedToken)
 				return nil
 			}
 
 			p.nextToken() // move to high bound
 			highBound := p.parseExpression(LOWEST)
 			if highBound == nil {
-				p.addError("invalid array upper bound expression in multi-dimensional array")
+				p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
 				return nil
 			}
 
@@ -126,7 +126,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 	p.nextToken() // move to element type
 	elementTypeExpr := p.parseTypeExpression()
 	if elementTypeExpr == nil {
-		p.addError("expected type expression after 'array of'")
+		p.addError("expected type expression after 'array of'", ErrExpectedType)
 		return nil
 	}
 
@@ -306,7 +306,7 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 		}
 
 		// Unexpected token between elements
-		p.addError("expected ',' or ']' in array literal")
+		p.addError("expected ',' or ']' in array literal", ErrUnexpectedToken)
 
 		// Advance to the unexpected token to avoid infinite loops
 		p.nextToken()
@@ -320,7 +320,7 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 		}
 
 		if !p.curTokenIs(lexer.RBRACK) {
-			p.addError("expected closing ']' for array literal")
+			p.addError("expected closing ']' for array literal", ErrMissingRBracket)
 		}
 
 		return nil
@@ -328,7 +328,7 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 
 	if !p.curTokenIs(lexer.RBRACK) {
 		// Missing closing bracket
-		p.addError("expected closing ']' for array literal")
+		p.addError("expected closing ']' for array literal", ErrMissingRBracket)
 		return nil
 	}
 

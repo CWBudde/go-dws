@@ -35,7 +35,6 @@ const (
 )
 
 // builtinVarType implements the VarType() built-in function.
-// Task 9.232: Returns an integer type code identifying the actual type stored in a Variant.
 //
 // Syntax: VarType(v: Variant): Integer
 //
@@ -99,7 +98,7 @@ func (i *Interpreter) varTypeFromValue(val Value) Value {
 		// Nested variant
 		return &IntegerValue{Value: varVariant}
 	case *JSONValue:
-		// Task 9.89: Return VarType code based on JSON kind
+		// Return VarType code based on JSON kind
 		typeCode := jsonKindToVarType(v.Value.Kind())
 		return &IntegerValue{Value: typeCode}
 	default:
@@ -109,7 +108,6 @@ func (i *Interpreter) varTypeFromValue(val Value) Value {
 }
 
 // builtinVarIsNull implements the VarIsNull() built-in function.
-// Task 9.232: Checks if a Variant is unassigned/uninitialized.
 //
 // Syntax: VarIsNull(v: Variant): Boolean
 //
@@ -142,7 +140,6 @@ func (i *Interpreter) builtinVarIsNull(args []Value) Value {
 }
 
 // builtinVarIsEmpty implements the VarIsEmpty() built-in function.
-// Task 9.232: Checks if a Variant is empty/unassigned.
 //
 // Syntax: VarIsEmpty(v: Variant): Boolean
 //
@@ -166,7 +163,6 @@ func (i *Interpreter) builtinVarIsEmpty(args []Value) Value {
 }
 
 // builtinVarIsNumeric implements the VarIsNumeric() built-in function.
-// Task 9.232: Checks if a Variant contains a numeric type (Integer or Float).
 //
 // Syntax: VarIsNumeric(v: Variant): Boolean
 //
@@ -203,7 +199,6 @@ func (i *Interpreter) builtinVarIsNumeric(args []Value) Value {
 // ============================================================================
 
 // builtinVarToStr implements the VarToStr() built-in function.
-// Task 9.233: Converts a Variant value to a String.
 //
 // Syntax: VarToStr(v: Variant): String
 //
@@ -239,7 +234,6 @@ func (i *Interpreter) builtinVarToStr(args []Value) Value {
 }
 
 // builtinVarToInt implements the VarToInt() built-in function.
-// Task 9.233: Converts a Variant value to an Integer.
 //
 // Syntax: VarToInt(v: Variant): Integer
 //
@@ -296,7 +290,6 @@ func (i *Interpreter) builtinVarToInt(args []Value) Value {
 }
 
 // builtinVarToFloat implements the VarToFloat() built-in function.
-// Task 9.233: Converts a Variant value to a Float.
 //
 // Syntax: VarToFloat(v: Variant): Float
 //
@@ -353,7 +346,6 @@ func (i *Interpreter) builtinVarToFloat(args []Value) Value {
 }
 
 // builtinVarAsType implements the VarAsType() built-in function.
-// Task 9.233: Converts a Variant to a specific type using VarType codes.
 //
 // Syntax: VarAsType(v: Variant, varType: Integer): Variant
 //

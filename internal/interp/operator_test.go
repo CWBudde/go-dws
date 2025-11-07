@@ -274,7 +274,7 @@ func TestImplicitConversionInReturn(t *testing.T) {
 	}
 }
 
-// Task 8.19d: Test two-step conversion chain (Integer -> String -> TCustom)
+// Test two-step conversion chain (Integer -> String -> TCustom)
 func TestConversionChainTwoSteps(t *testing.T) {
 	input := `
 		type
@@ -312,7 +312,7 @@ func TestConversionChainTwoSteps(t *testing.T) {
 	}
 }
 
-// Task 8.19d: Test three-step conversion chain (Integer -> String -> TFoo -> TBar)
+// Test three-step conversion chain (Integer -> String -> TFoo -> TBar)
 func TestConversionChainThreeSteps(t *testing.T) {
 	input := `
 		type
@@ -361,7 +361,7 @@ func TestConversionChainThreeSteps(t *testing.T) {
 	}
 }
 
-// Task 8.19d: Test that missing conversion chain is handled gracefully
+// Test that missing conversion chain is handled gracefully
 func TestConversionChainNotFound(t *testing.T) {
 	input := `
 		type
@@ -394,7 +394,7 @@ func TestConversionChainNotFound(t *testing.T) {
 	}
 }
 
-// Task 8.19d: Test that conversion chains exceeding max depth are not used
+// Test that conversion chains exceeding max depth are not used
 func TestConversionChainMaxDepth(t *testing.T) {
 	input := `
 		type
@@ -453,7 +453,7 @@ func TestConversionChainMaxDepth(t *testing.T) {
 	}
 }
 
-// Task 8.19e: Port of implicit_record1.pas from DWScript reference tests
+// Port of implicit_record1.pas from DWScript reference tests
 // Tests Integer -> TFoo implicit conversion in assignment and var declaration
 func TestImplicitRecord1(t *testing.T) {
 	input := `
@@ -498,7 +498,7 @@ func TestImplicitRecord1(t *testing.T) {
 	}
 }
 
-// Task 8.19e: Port of implicit_record2.pas from DWScript reference tests
+// Port of implicit_record2.pas from DWScript reference tests
 // Tests TFoo -> Integer implicit conversion in function arguments and assignment
 func TestImplicitRecord2(t *testing.T) {
 	input := `
@@ -552,7 +552,7 @@ func TestImplicitRecord2(t *testing.T) {
 	}
 }
 
-// Task 8.23d: Test unary operator overload
+// Test unary operator overload
 func TestUnaryOperatorOverload(t *testing.T) {
 	input := `
 		type
@@ -586,19 +586,19 @@ func TestUnaryOperatorOverload(t *testing.T) {
 	}
 }
 
-// Task 8.23e: Symbolic operators test
+// Symbolic operators test
 // NOTE: Skipping this test as ==, !=, <<, >> require parser changes to register
 // them as infix operators. These operators CAN be overloaded (declarations parse fine),
 // but cannot yet be used in expressions without parser extension.
 // This is deferred to a future parser enhancement task.
 
-// Task 8.23h: Test operator inheritance (child class inherits parent operator)
+// Test operator inheritance (child class inherits parent operator)
 // NOTE: Skipping this test as operator inheritance is not yet implemented.
 // Child classes don't currently inherit parent class operators. This would require
 // changes to the operator lookup mechanism to search the class hierarchy.
 // This is deferred to a future enhancement task.
 
-// Task 8.23i: Test operator override (child overrides parent operator)
+// Test operator override (child overrides parent operator)
 // NOTE: Skipping this test as operator inheritance/override is not yet implemented.
 // This would require the same class hierarchy lookup changes as 8.23h.
 // This is deferred to a future enhancement task.

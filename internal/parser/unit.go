@@ -64,13 +64,13 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 
 	// Expect 'end'
 	if !p.curTokenIs(lexer.END) {
-		p.addError("expected 'end' to close unit")
+		p.addError("expected 'end' to close unit", ErrMissingEnd)
 		return nil
 	}
 
 	// Expect '.' after 'end'
 	if !p.expectPeek(lexer.DOT) {
-		p.addError("expected '.' after 'end' in unit declaration")
+		p.addError("expected '.' after 'end' in unit declaration", ErrUnexpectedToken)
 		return nil
 	}
 
@@ -102,7 +102,7 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 		p.nextToken() // move to next unit name
 
 		if !p.curTokenIs(lexer.IDENT) {
-			p.addError("expected unit name after comma in uses clause")
+			p.addError("expected unit name after comma in uses clause", ErrExpectedIdent)
 			return nil
 		}
 

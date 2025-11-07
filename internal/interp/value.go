@@ -124,7 +124,7 @@ func (t *TypeMetaValue) String() string {
 }
 
 // EnumValue represents an enum value in DWScript.
-// Task 8.49: Store enum values with their ordinal value and type name.
+// Store enum values with their ordinal value and type name.
 type EnumValue struct {
 	TypeName     string // Enum type name (e.g., "TColor")
 	ValueName    string // Enum value name (e.g., "Red")
@@ -142,9 +142,6 @@ func (e *EnumValue) String() string {
 }
 
 // RecordValue represents a record value in DWScript.
-// Task 8.73: Store record type metadata and field values.
-// Task 9.7: Extended to include method declarations for runtime invocation.
-// Records are value types (like structs) with fields and methods.
 type RecordValue struct {
 	RecordType *types.RecordType            // The record type metadata
 	Fields     map[string]Value             // Field name -> runtime value mapping
@@ -511,9 +508,6 @@ func newRecordValueInternal(recordType *types.RecordType, methods map[string]*as
 }
 
 // NewRecordValue creates a new RecordValue with the given record type.
-// Task 8.73: Initialize the fields map.
-// Task 9.7: Add methods parameter for record method invocation.
-// Task 9.7e1: Initialize fields with zero values so they can be accessed in methods.
 func NewRecordValue(recordType *types.RecordType, methods map[string]*ast.FunctionDecl) Value {
 	return newRecordValueInternal(recordType, methods, nil)
 }

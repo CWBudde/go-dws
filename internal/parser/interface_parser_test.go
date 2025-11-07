@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Task 7.88: Test simple interface declaration
+// Test simple interface declaration
 // ============================================================================
 
 func TestSimpleInterfaceDeclaration(t *testing.T) {
@@ -54,7 +54,7 @@ end;
 }
 
 // ============================================================================
-// Task 7.89: Test interface with multiple methods
+// Test interface with multiple methods
 // ============================================================================
 
 func TestInterfaceMultipleMethods(t *testing.T) {
@@ -120,7 +120,7 @@ end;
 }
 
 // ============================================================================
-// Task 7.90: Test interface inheritance
+// Test interface inheritance
 // ============================================================================
 
 func TestInterfaceInheritance(t *testing.T) {
@@ -166,7 +166,7 @@ end;
 }
 
 // ============================================================================
-// Task 7.92: Test external interfaces
+// Test external interfaces
 // ============================================================================
 
 func TestExternalInterface(t *testing.T) {
@@ -226,7 +226,7 @@ end;
 }
 
 // ============================================================================
-// Task 7.91: Test class implementing interfaces
+// Test class implementing interfaces
 // ============================================================================
 
 func TestClassImplementsInterface(t *testing.T) {
@@ -333,7 +333,7 @@ end;
 }
 
 // ============================================================================
-// Task 7.93: Test forward interface declarations
+// Test forward interface declarations
 // ============================================================================
 
 func TestForwardInterfaceDeclaration(t *testing.T) {
@@ -365,7 +365,7 @@ type IForward = interface;
 }
 
 // ============================================================================
-// Task 7.94: Test parsing errors
+// Test parsing errors
 // ============================================================================
 
 func TestInterfaceParsingErrors(t *testing.T) {

@@ -216,6 +216,7 @@ type externalFunctionWrapper struct {
 	name      string
 	goFunc    reflect.Value
 	signature *FunctionSignature
+	interp    *interp.Interpreter // Task 9.4: Interpreter for callback support
 }
 
 // Call implements ExternalFunction.Call
@@ -271,14 +272,14 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 				}
 
 				// Marshal to Go pointer
-				goArg, err := interp.MarshalToGo(actualVal, paramType)
+				goArg, err := interp.MarshalToGo(actualVal, paramType, w.interp)
 				if err != nil {
 					return nil, fmt.Errorf("argument %d: %w", i, err)
 				}
 				goArgs[i] = reflect.ValueOf(goArg)
 			} else {
 				// Regular parameter
-				goArg, err := interp.MarshalToGo(args[i], paramType)
+				goArg, err := interp.MarshalToGo(args[i], paramType, w.interp)
 				if err != nil {
 					return nil, fmt.Errorf("argument %d: %w", i, err)
 				}
@@ -293,7 +294,7 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 
 		for i := 0; i < numVariadicArgs; i++ {
 			argIdx := numRequiredParams + i
-			goArg, err := interp.MarshalToGo(args[argIdx], variadicType)
+			goArg, err := interp.MarshalToGo(args[argIdx], variadicType, w.interp)
 			if err != nil {
 				return nil, fmt.Errorf("variadic argument %d: %w", i, err)
 			}
@@ -324,14 +325,14 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 				}
 
 				// Marshal to Go pointer
-				goArg, err := interp.MarshalToGo(actualVal, paramType)
+				goArg, err := interp.MarshalToGo(actualVal, paramType, w.interp)
 				if err != nil {
 					return nil, fmt.Errorf("argument %d: %w", i, err)
 				}
 				goArgs[i] = reflect.ValueOf(goArg)
 			} else {
 				// Regular parameter
-				goArg, err := interp.MarshalToGo(args[i], paramType)
+				goArg, err := interp.MarshalToGo(args[i], paramType, w.interp)
 				if err != nil {
 					return nil, fmt.Errorf("argument %d: %w", i, err)
 				}
@@ -377,6 +378,12 @@ func (w *externalFunctionWrapper) Signature() *FunctionSignature {
 // Task 9.2d: Returns which parameters are by-reference (pointers in Go).
 func (w *externalFunctionWrapper) GetVarParams() []bool {
 	return w.signature.VarParams
+}
+
+// SetInterpreter implements ExternalFunctionWrapper.SetInterpreter
+// Task 9.4: Stores interpreter reference for callback support.
+func (w *externalFunctionWrapper) SetInterpreter(interp *interp.Interpreter) {
+	w.interp = interp
 }
 
 // detectSignature analyzes a Go function's type and creates a FunctionSignature.
@@ -476,6 +483,11 @@ func goTypeToDWS(goType reflect.Type) (string, error) {
 			return "", fmt.Errorf("pointer element: %w", err)
 		}
 		return elemType, nil // Return the pointed-to type
+	case reflect.Func:
+		// Task 9.4a: func(...) -> "function" (callback support)
+		// For callbacks, we just return "function" as the type descriptor
+		// The actual marshaling will handle signature matching at runtime
+		return "function", nil
 	default:
 		return "", fmt.Errorf("unsupported Go type: %s", goType)
 	}

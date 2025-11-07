@@ -13,7 +13,7 @@ import (
 // Exception Class Registration Tests
 // ============================================================================
 
-// Task 8.203: Test that Exception base class is registered as a built-in type
+// Test that Exception base class is registered as a built-in type
 func TestExceptionClassRegistered(t *testing.T) {
 	analyzer := NewAnalyzer()
 
@@ -39,7 +39,7 @@ func TestExceptionClassRegistered(t *testing.T) {
 	}
 }
 
-// Task 8.204: Test that standard exception types are registered
+// Test that standard exception types are registered
 func TestStandardExceptionTypesRegistered(t *testing.T) {
 	analyzer := NewAnalyzer()
 
@@ -75,7 +75,7 @@ func TestStandardExceptionTypesRegistered(t *testing.T) {
 // Raise Statement Semantic Analysis Tests
 // ============================================================================
 
-// Task 8.208: Test raising an exception with constructor call
+// Test raising an exception with constructor call
 func TestRaiseExceptionWithConstructor(t *testing.T) {
 	input := `
 		raise Exception.Create('error message');
@@ -90,7 +90,7 @@ func TestRaiseExceptionWithConstructor(t *testing.T) {
 	}
 }
 
-// Task 8.208: Test raising an exception variable
+// Test raising an exception variable
 func TestRaiseExceptionVariable(t *testing.T) {
 	input := `
 		var exc: Exception;
@@ -107,9 +107,7 @@ func TestRaiseExceptionVariable(t *testing.T) {
 	}
 }
 
-// Task 8.208: Test bare raise validation (moved to semantic analysis)
-// Note: Originally this was a runtime check, but Task 8.208 requires semantic validation
-// This test has been superseded by TestBareRaiseOutsideHandlerSemanticError
+// Test bare raise validation (moved to semantic analysis)
 func TestBareRaiseOutsideHandler(t *testing.T) {
 	input := `
 		raise;
@@ -119,7 +117,7 @@ func TestBareRaiseOutsideHandler(t *testing.T) {
 	analyzer := NewAnalyzer()
 	err := analyzer.Analyze(program)
 
-	// Task 8.208: Bare raise now validated at semantic analysis time
+	// Bare raise now validated at semantic analysis time
 	if err == nil {
 		t.Fatal("Expected semantic error for bare raise outside handler")
 	}
@@ -130,7 +128,7 @@ func TestBareRaiseOutsideHandler(t *testing.T) {
 	}
 }
 
-// Task 8.208: Test raising non-exception type (should error)
+// Test raising non-exception type (should error)
 func TestRaiseNonExceptionType(t *testing.T) {
 	input := `
 		var x: Integer;
@@ -156,7 +154,7 @@ func TestRaiseNonExceptionType(t *testing.T) {
 // Try/Except Semantic Analysis Tests
 // ============================================================================
 
-// Task 8.205: Test basic try/except structure
+// Test basic try/except structure
 func TestTryExceptBasic(t *testing.T) {
 	input := `
 		try
@@ -177,7 +175,7 @@ func TestTryExceptBasic(t *testing.T) {
 	}
 }
 
-// Task 8.207: Test exception variable scoping in handler
+// Test exception variable scoping in handler
 func TestExceptionVariableScoping(t *testing.T) {
 	input := `
 		try
@@ -197,7 +195,7 @@ func TestExceptionVariableScoping(t *testing.T) {
 	}
 }
 
-// Task 8.206: Test invalid exception type in handler (should error)
+// Test invalid exception type in handler (should error)
 func TestInvalidExceptionTypeInHandler(t *testing.T) {
 	input := `
 		try
@@ -222,7 +220,7 @@ func TestInvalidExceptionTypeInHandler(t *testing.T) {
 	}
 }
 
-// Task 8.205: Test try without except or finally (should error)
+// Test try without except or finally (should error)
 func TestTryWithoutExceptOrFinally(t *testing.T) {
 	// This should be caught by the parser, but let's verify
 	// the semantic analyzer handles it gracefully
@@ -246,7 +244,7 @@ func TestTryWithoutExceptOrFinally(t *testing.T) {
 	_ = program
 }
 
-// Task 8.206: Test duplicate exception handlers (should error)
+// Test duplicate exception handlers (should error)
 func TestDuplicateExceptionHandlers(t *testing.T) {
 	input := `
 		try
@@ -273,7 +271,7 @@ func TestDuplicateExceptionHandlers(t *testing.T) {
 	}
 }
 
-// Task 8.207: Test exception variable is read-only (cannot reassign)
+// Test exception variable is read-only (cannot reassign)
 func TestExceptionVariableReadOnly(t *testing.T) {
 	input := `
 		try
@@ -299,7 +297,7 @@ func TestExceptionVariableReadOnly(t *testing.T) {
 	}
 }
 
-// Task 8.208: Test bare raise outside handler now produces semantic error
+// Test bare raise outside handler now produces semantic error
 func TestBareRaiseOutsideHandlerSemanticError(t *testing.T) {
 	input := `
 		raise;
@@ -319,43 +317,7 @@ func TestBareRaiseOutsideHandlerSemanticError(t *testing.T) {
 	}
 }
 
-// Task 8.209: Test return statement in finally block (should error)
-// NOTE: This test is currently skipped because return statements are not yet
-// implemented in the parser. The validation code is in place (analyze_functions.go:93-96)
-// and will work once return statement parsing is added.
-func TestReturnInFinallyBlock(t *testing.T) {
-	t.Skip("Return statements not yet implemented in parser - validation code is ready")
-
-	// TODO: Enable this test once return statements are parsed
-	// The validation is implemented in analyzeReturn() which checks a.inFinallyBlock
-	/*
-		input := `
-			function TestFunc(): Integer;
-			begin
-				try
-					Result := 42;
-				finally
-					return;  // Should fail - return not allowed in finally
-				end;
-			end;
-		`
-
-		program := parseProgram(t, input)
-		analyzer := NewAnalyzer()
-		err := analyzer.Analyze(program)
-
-		if err == nil {
-			t.Fatal("Expected semantic error for return statement in finally block")
-		}
-
-		errMsg := err.Error()
-		if !strings.Contains(errMsg, "return") || !strings.Contains(errMsg, "finally") {
-			t.Errorf("Expected error about return in finally block, got: %s", errMsg)
-		}
-	*/
-}
-
-// Task 8.209: Test raise is allowed in finally block (exception to the rule)
+// Test raise is allowed in finally block (exception to the rule)
 func TestRaiseInFinallyBlockAllowed(t *testing.T) {
 	input := `
 		try

@@ -597,7 +597,10 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 	// Collect parse errors
 	var parseErrors []string
 	if len(p.Errors()) > 0 {
-		parseErrors = p.Errors()
+		parseErrors = make([]string, len(p.Errors()))
+		for i, err := range p.Errors() {
+			parseErrors[i] = err.Error()
+		}
 	}
 
 	// If we expect errors and got parse errors, this might be a successful failure test

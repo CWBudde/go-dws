@@ -68,8 +68,8 @@ func runParse(_ *cobra.Command, args []string) error {
 	// Check for errors
 	if len(p.Errors()) > 0 {
 		fmt.Fprintf(os.Stderr, "Parser errors:\n")
-		for _, msg := range p.Errors() {
-			fmt.Fprintf(os.Stderr, "  %s\n", msg)
+		for _, err := range p.Errors() {
+			fmt.Fprintf(os.Stderr, "  %s\n", err.Error())
 		}
 		return fmt.Errorf("parsing failed with %d error(s)", len(p.Errors()))
 	}

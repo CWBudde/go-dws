@@ -11,7 +11,7 @@ import (
 // Raise Statement Parser Tests
 // ============================================================================
 
-// Task 8.201: Test parsing raise statement with exception expression
+// Test parsing raise statement with exception expression
 func TestParseRaiseStatement(t *testing.T) {
 	t.Run("Raise with constructor call", func(t *testing.T) {
 		input := `raise Exception.Create('error message');`
@@ -120,7 +120,7 @@ func TestParseRaiseStatement(t *testing.T) {
 	})
 }
 
-// Task 8.201: Test parsing bare raise statement
+// Test parsing bare raise statement
 func TestParseBareRaiseStatement(t *testing.T) {
 	t.Run("Bare raise", func(t *testing.T) {
 		input := `raise;`
@@ -182,7 +182,7 @@ func TestParseBareRaiseStatement(t *testing.T) {
 // Try Statement Parser Tests
 // ============================================================================
 
-// Task 8.197: Test parsing basic try...except...end statement
+// Test parsing basic try...except...end statement
 func TestParseTryExceptStatement(t *testing.T) {
 	t.Run("Try with bare except", func(t *testing.T) {
 		input := `try
@@ -308,7 +308,7 @@ func TestParseTryExceptStatement(t *testing.T) {
 	})
 }
 
-// Task 8.197: Test parsing try...finally...end statement
+// Test parsing try...finally...end statement
 func TestParseTryFinallyStatement(t *testing.T) {
 	t.Run("Try with finally", func(t *testing.T) {
 		input := `try
@@ -354,7 +354,7 @@ func TestParseTryFinallyStatement(t *testing.T) {
 	})
 }
 
-// Task 8.197: Test parsing try...except...finally...end statement
+// Test parsing try...except...finally...end statement
 func TestParseTryExceptFinallyStatement(t *testing.T) {
 	t.Run("Try with except and finally", func(t *testing.T) {
 		input := `try
@@ -407,7 +407,7 @@ func TestParseTryExceptFinallyStatement(t *testing.T) {
 	})
 }
 
-// Task 8.197: Test error cases
+// Test error cases
 func TestParseTryStatementErrors(t *testing.T) {
 	t.Run("Try without except or finally", func(t *testing.T) {
 		input := `try
@@ -440,7 +440,19 @@ func TestParseTryStatementErrors(t *testing.T) {
 }
 
 // Helper function to check if a string contains a substring
-func containsString(s, substr string) bool {
+func containsString(v interface{}, substr string) bool {
+	var s string
+	switch val := v.(type) {
+	case *ParserError:
+		if val == nil {
+			return false
+		}
+		s = val.Message
+	case string:
+		s = val
+	default:
+		return false
+	}
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {
 			return true

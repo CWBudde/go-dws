@@ -48,7 +48,7 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lex
 
 	// Expect the target type name
 	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected type name after 'for' in helper declaration")
+		p.addError("expected type name after 'for' in helper declaration", ErrExpectedType)
 		return nil
 	}
 
@@ -148,13 +148,13 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lex
 		}
 
 		// Unknown token - skip it
-		p.addError("unexpected token in helper body: " + p.curToken.Literal)
+		p.addError("unexpected token in helper body: "+p.curToken.Literal, ErrUnexpectedToken)
 		p.nextToken()
 	}
 
 	// Expect 'end' keyword
 	if !p.curTokenIs(lexer.END) {
-		p.addError("expected 'end' to close helper declaration")
+		p.addError("expected 'end' to close helper declaration", ErrMissingEnd)
 		return nil
 	}
 

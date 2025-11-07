@@ -75,8 +75,10 @@ type ExternalFunctionWrapper interface {
 	Call(args []Value) (Value, error)
 
 	// GetVarParams returns a slice indicating which parameters are by-reference (var parameters).
-	// Task 9.2d: Needed to create ReferenceValues for var parameters before calling.
 	GetVarParams() []bool
+
+	// SetInterpreter sets the interpreter reference for callback support.
+	SetInterpreter(interp *Interpreter)
 }
 
 // ExternalFunctionValue represents an external Go function as a DWScript value.

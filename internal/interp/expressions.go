@@ -53,7 +53,6 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 		// We're in an instance method context - check for instance fields first
 		if obj, ok := AsObject(selfVal); ok {
 			// Check if it's an instance field
-			// Task 9.32c: Always allow field access, even inside property getters
 			if fieldValue := obj.GetField(node.Value); fieldValue != nil {
 				return fieldValue
 			}
@@ -63,14 +62,14 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 				return classVarValue
 			}
 
-			// Task 9.32c: If we're inside a property getter/setter, skip property checks
+			// If we're inside a property getter/setter, skip property checks
 			// to prevent infinite recursion (e.g., property Line read GetLine, where GetLine
 			// references other properties). But we still allow field access above.
 			if i.propContext != nil && (i.propContext.inPropertyGetter || i.propContext.inPropertySetter) {
 				// Don't check properties - this prevents recursion
 				// Fall through to error below
 			} else {
-				// Task 9.32b: Check if it's a property (properties can be accessed without Self.)
+				// Check if it's a property (properties can be accessed without Self.)
 				if propInfo := obj.Class.lookupProperty(node.Value); propInfo != nil {
 					// For field-backed properties, read the field directly to avoid recursion
 					if propInfo.ReadKind == types.PropAccessField {
@@ -87,7 +86,7 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 				}
 			} // End else block for property check
 
-			// Task 9.173: Check if it's a method of the current class
+			// Check if it's a method of the current class
 			// This allows methods to reference other methods as method pointers
 			if method, exists := obj.Class.Methods[node.Value]; exists {
 				// Create a method pointer bound to the current object (self)
@@ -129,7 +128,7 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			return i.callUserFunction(fn, []Value{})
 		}
 
-		// Task 9.228: If function has parameters, it's being used as a value (function pointer)
+		// If function has parameters, it's being used as a value (function pointer)
 		// Create a function pointer value so it can be passed to higher-order functions
 		paramTypes := make([]types.Type, len(fn.Parameters))
 		for idx, param := range fn.Parameters {
@@ -146,7 +145,7 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 		return NewFunctionPointerValue(fn, i.env, nil, pointerType)
 	}
 
-	// Task 9.132: Check if this is a parameterless built-in function
+	// Check if this is a parameterless built-in function
 	// Built-in functions like PrintLn can be called without parentheses
 	if i.isBuiltinFunction(node.Value) {
 		// Call the built-in function with no arguments
@@ -198,7 +197,7 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 	case left.Type() == "BOOLEAN" && right.Type() == "BOOLEAN":
 		return i.evalBooleanBinaryOp(expr.Operator, left, right)
 
-	// Task 9.229 & 9.230: Handle Variant operations
+	// Handle Variant operations
 	case left.Type() == "VARIANT" || right.Type() == "VARIANT":
 		return i.evalVariantBinaryOp(expr.Operator, left, right, expr)
 
@@ -298,7 +297,7 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 		return &IntegerValue{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
-			// Task 9.111: Enhanced error with operand values
+			// Enhanced error with operand values
 			return i.NewRuntimeError(
 				i.currentNode,
 				"division_by_zero",
@@ -314,7 +313,7 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 		return &FloatValue{Value: float64(leftVal) / float64(rightVal)}
 	case "div":
 		if rightVal == 0 {
-			// Task 9.111: Enhanced error with operand values
+			// Enhanced error with operand values
 			return i.NewRuntimeError(
 				i.currentNode,
 				"division_by_zero",
@@ -328,7 +327,7 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 		return &IntegerValue{Value: leftVal / rightVal}
 	case "mod":
 		if rightVal == 0 {
-			// Task 9.111: Enhanced error with operand values
+			// Enhanced error with operand values
 			return i.NewRuntimeError(
 				i.currentNode,
 				"modulo_by_zero",
@@ -412,7 +411,7 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 		return &FloatValue{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
-			// Task 9.111: Enhanced error with operand values
+			// Enhanced error with operand values
 			return i.NewRuntimeError(
 				i.currentNode,
 				"division_by_zero",
@@ -508,8 +507,6 @@ func (i *Interpreter) evalBooleanBinaryOp(op string, left, right Value) Value {
 }
 
 // evalVariantBinaryOp evaluates binary operations on Variant values.
-// Task 9.229: Implement Variant arithmetic operators (+, -, *, /, div, mod)
-// Task 9.230: Implement Variant comparison operators (=, <>, <, >, <=, >=)
 //
 // Variant operations follow these rules:
 //   - Unwrap operands to get actual runtime values
@@ -664,7 +661,6 @@ func (i *Interpreter) evalPlusUnaryOp(right Value) Value {
 }
 
 // evalNotUnaryOp evaluates the not operator.
-// Task 9.219: Handle Variant values by unwrapping them first.
 func (i *Interpreter) evalNotUnaryOp(right Value) Value {
 	// Unwrap Variant values to get the actual runtime value
 	actualValue := unwrapVariant(right)
@@ -866,7 +862,7 @@ func (i *Interpreter) getFunctionPointerTypeFromAnnotation(typeAnnotation *ast.T
 // Syntax: value in container
 // Returns: Boolean indicating whether value is found in the container
 func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node) Value {
-	// Task 9.214/9.226: Handle set membership (now supports all ordinal types)
+	// Handle set membership (now supports all ordinal types)
 	if setVal, ok := container.(*SetValue); ok {
 		// Value must be an ordinal type to be in a set
 		ordinal, err := GetOrdinalValue(value)

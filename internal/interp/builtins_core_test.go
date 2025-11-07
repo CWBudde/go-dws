@@ -42,7 +42,7 @@ func TestHighWithTypeMetaValues(t *testing.T) {
 			program := p.ParseProgram()
 
 			if len(p.Errors()) > 0 {
-				t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+				t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 			}
 
 			var buf bytes.Buffer
@@ -94,7 +94,7 @@ func TestLowWithTypeMetaValues(t *testing.T) {
 			program := p.ParseProgram()
 
 			if len(p.Errors()) > 0 {
-				t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+				t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 			}
 
 			var buf bytes.Buffer
@@ -154,7 +154,7 @@ func TestHighLowWithFloatType(t *testing.T) {
 			program := p.ParseProgram()
 
 			if len(p.Errors()) > 0 {
-				t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+				t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 			}
 
 			var buf bytes.Buffer
@@ -240,7 +240,7 @@ func TestHighLowDirectValues(t *testing.T) {
 			program := p.ParseProgram()
 
 			if len(p.Errors()) > 0 {
-				t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+				t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 			}
 
 			var buf bytes.Buffer
@@ -294,7 +294,7 @@ func TestTypeMetaValueInEnvironment(t *testing.T) {
 			program := p.ParseProgram()
 
 			if len(p.Errors()) > 0 {
-				t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+				t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 			}
 
 			var buf bytes.Buffer
@@ -398,7 +398,7 @@ PrintLn(Ord(High(TColor)));
 			program := p.ParseProgram()
 
 			if len(p.Errors()) > 0 {
-				t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+				t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 			}
 
 			var buf bytes.Buffer

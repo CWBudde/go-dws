@@ -108,7 +108,7 @@ func TestMarshalToGo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := MarshalToGo(tt.dwsValue, tt.targetType)
+			result, err := MarshalToGo(tt.dwsValue, tt.targetType, nil)
 
 			if tt.expectError {
 				if err == nil {
@@ -372,7 +372,7 @@ func TestMarshalRoundTrip(t *testing.T) {
 			}
 
 			// Marshal to Go
-			goValue, err := MarshalToGo(tc.original, tc.targetType)
+			goValue, err := MarshalToGo(tc.original, tc.targetType, nil)
 			if err != nil {
 				t.Fatalf("MarshalToGo failed: %v", err)
 			}

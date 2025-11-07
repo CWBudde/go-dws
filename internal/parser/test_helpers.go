@@ -154,7 +154,19 @@ func testStringLiteralExpression(t *testing.T, exp ast.Expression, value string)
 	return true
 }
 
-// Helper function for substring checking
-func contains(s, substr string) bool {
+// Helper function for substring checking (works with both *ParserError and string)
+func contains(v interface{}, substr string) bool {
+	var s string
+	switch val := v.(type) {
+	case *ParserError:
+		if val == nil {
+			return false
+		}
+		s = val.Message
+	case string:
+		s = val
+	default:
+		return false
+	}
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || contains(s[1:], substr)))
 }

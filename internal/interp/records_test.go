@@ -213,7 +213,7 @@ p.Add(1);
 			if len(p.Errors()) != 0 {
 				// Check if parser error matches expected error
 				for _, err := range p.Errors() {
-					if contains(err, tt.expectedErr) {
+					if contains(err.Error(), tt.expectedErr) {
 						return // Test passed
 					}
 				}
@@ -412,7 +412,7 @@ TPoint.DoesNotExist();
 			if len(p.Errors()) != 0 {
 				// Check if parser error matches expected error
 				for _, err := range p.Errors() {
-					if contains(err, tt.expectedErr) {
+					if contains(err.Error(), tt.expectedErr) {
 						return // Test passed
 					}
 				}

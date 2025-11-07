@@ -9,7 +9,6 @@ import (
 // builtinAbs implements the Abs() built-in function.
 // It returns the absolute value of a number.
 // Abs(x) - returns absolute value (Integer → Integer, Float → Float)
-// Task 8.185: Abs() function for math operations
 func (i *Interpreter) builtinAbs(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Abs() expects exactly 1 argument, got %d", len(args))
@@ -33,7 +32,6 @@ func (i *Interpreter) builtinAbs(args []Value) Value {
 // builtinMin implements the Min() built-in function.
 // It returns the minimum of two numbers.
 // Min(a, b) - supports Integer and Float (mixed allowed)
-// Task 8.185: Min() function for math operations
 func (i *Interpreter) builtinMin(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "Min() expects exactly 2 arguments, got %d", len(args))
@@ -83,7 +81,6 @@ func (i *Interpreter) builtinMin(args []Value) Value {
 // builtinMax implements the Max() built-in function.
 // It returns the maximum of two numbers.
 // Max(a, b) - supports Integer and Float (mixed allowed)
-// Task 8.185: Max() function for math operations
 func (i *Interpreter) builtinMax(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "Max() expects exactly 2 arguments, got %d", len(args))
@@ -133,7 +130,6 @@ func (i *Interpreter) builtinMax(args []Value) Value {
 // builtinSqr implements the Sqr() built-in function.
 // It returns the square of a number.
 // Sqr(x) - returns x * x (Integer → Integer, Float → Float)
-// Task 8.185: Sqr() function for math operations
 func (i *Interpreter) builtinSqr(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Sqr() expects exactly 1 argument, got %d", len(args))
@@ -154,7 +150,6 @@ func (i *Interpreter) builtinSqr(args []Value) Value {
 // builtinPower implements the Power() built-in function.
 // It raises a number to a power.
 // Power(base, exponent) - returns base^exponent as Float
-// Task 8.185: Power() function for math operations
 func (i *Interpreter) builtinPower(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "Power() expects exactly 2 arguments, got %d", len(args))
@@ -191,7 +186,6 @@ func (i *Interpreter) builtinPower(args []Value) Value {
 // builtinSqrt implements the Sqrt() built-in function.
 // It returns the square root of a number.
 // Sqrt(x) - returns sqrt(x) as Float (always returns Float, even for Integer input)
-// Task 8.185: Sqrt() function for math operations
 func (i *Interpreter) builtinSqrt(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Sqrt() expects exactly 1 argument, got %d", len(args))
@@ -222,7 +216,6 @@ func (i *Interpreter) builtinSqrt(args []Value) Value {
 // builtinSin implements the Sin() built-in function.
 // It returns the sine of a number (in radians).
 // Sin(x) - returns sine as Float (always returns Float, even for Integer input)
-// Task 8.185: Sin() function for trigonometric operations
 func (i *Interpreter) builtinSin(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Sin() expects exactly 1 argument, got %d", len(args))
@@ -247,7 +240,6 @@ func (i *Interpreter) builtinSin(args []Value) Value {
 // builtinCos implements the Cos() built-in function.
 // It returns the cosine of a number (in radians).
 // Cos(x) - returns cosine as Float (always returns Float, even for Integer input)
-// Task 8.185: Cos() function for trigonometric operations
 func (i *Interpreter) builtinCos(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Cos() expects exactly 1 argument, got %d", len(args))
@@ -272,7 +264,6 @@ func (i *Interpreter) builtinCos(args []Value) Value {
 // builtinTan implements the Tan() built-in function.
 // It returns the tangent of a number (in radians).
 // Tan(x) - returns tangent as Float (always returns Float, even for Integer input)
-// Task 8.185: Tan() function for trigonometric operations
 func (i *Interpreter) builtinTan(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Tan() expects exactly 1 argument, got %d", len(args))
@@ -297,7 +288,6 @@ func (i *Interpreter) builtinTan(args []Value) Value {
 // builtinRandom implements the Random() built-in function.
 // It returns a random Float between 0.0 (inclusive) and 1.0 (exclusive).
 // Random() - returns random Float in [0, 1)
-// Task 8.185: Random() function for random number generation
 func (i *Interpreter) builtinRandom(args []Value) Value {
 	if len(args) != 0 {
 		return i.newErrorWithLocation(i.currentNode, "Random() expects no arguments, got %d", len(args))
@@ -309,7 +299,6 @@ func (i *Interpreter) builtinRandom(args []Value) Value {
 // builtinRandomize implements the Randomize() built-in procedure.
 // It seeds the random number generator with the current time.
 // Randomize() - seeds RNG with current time (no return value)
-// Task 8.185: Randomize() procedure for random number generation
 func (i *Interpreter) builtinRandomize(args []Value) Value {
 	if len(args) != 0 {
 		return i.newErrorWithLocation(i.currentNode, "Randomize() expects no arguments, got %d", len(args))
@@ -323,7 +312,6 @@ func (i *Interpreter) builtinRandomize(args []Value) Value {
 // builtinExp implements the Exp() built-in function.
 // It returns e raised to the power of x.
 // Exp(x) - returns e^x as Float (always returns Float, even for Integer input)
-// Task 8.185: Exp() function for exponential operations
 func (i *Interpreter) builtinExp(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Exp() expects exactly 1 argument, got %d", len(args))
@@ -348,7 +336,6 @@ func (i *Interpreter) builtinExp(args []Value) Value {
 // builtinLn implements the Ln() built-in function.
 // It returns the natural logarithm (base e) of x.
 // Ln(x) - returns natural logarithm as Float (always returns Float, even for Integer input)
-// Task 8.185: Ln() function for logarithmic operations
 func (i *Interpreter) builtinLn(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Ln() expects exactly 1 argument, got %d", len(args))
@@ -378,7 +365,6 @@ func (i *Interpreter) builtinLn(args []Value) Value {
 // builtinLog2 implements the Log2() built-in function.
 // It returns the base-2 logarithm of x.
 // Log2(x) - returns base-2 logarithm as Float (always returns Float, even for Integer input)
-// Task 9.38: Log2() function for logarithmic operations
 func (i *Interpreter) builtinLog2(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Log2() expects exactly 1 argument, got %d", len(args))
@@ -408,7 +394,6 @@ func (i *Interpreter) builtinLog2(args []Value) Value {
 // builtinRound implements the Round() built-in function.
 // It rounds a number to the nearest integer.
 // Round(x) - returns rounded value as Integer (always returns Integer)
-// Task 8.185: Round() function for rounding operations
 func (i *Interpreter) builtinRound(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Round() expects exactly 1 argument, got %d", len(args))
@@ -435,7 +420,6 @@ func (i *Interpreter) builtinRound(args []Value) Value {
 // builtinTrunc implements the Trunc() built-in function.
 // It truncates a number towards zero (removes the decimal part).
 // Trunc(x) - returns truncated value as Integer (always returns Integer)
-// Task 8.185: Trunc() function for truncation operations
 func (i *Interpreter) builtinTrunc(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Trunc() expects exactly 1 argument, got %d", len(args))
@@ -462,7 +446,6 @@ func (i *Interpreter) builtinTrunc(args []Value) Value {
 // builtinCeil implements the Ceil() built-in function.
 // It returns the smallest integer greater than or equal to x.
 // Ceil(x) - returns ceiling value as Integer (always returns Integer)
-// Task 8.185: Ceil() function for rounding operations
 func (i *Interpreter) builtinCeil(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Ceil() expects exactly 1 argument, got %d", len(args))
@@ -489,7 +472,6 @@ func (i *Interpreter) builtinCeil(args []Value) Value {
 // builtinFloor implements the Floor() built-in function.
 // It returns the largest integer less than or equal to x.
 // Floor(x) - returns floor value as Integer (always returns Integer)
-// Task 8.185: Floor() function for rounding operations
 func (i *Interpreter) builtinFloor(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Floor() expects exactly 1 argument, got %d", len(args))
@@ -516,7 +498,6 @@ func (i *Interpreter) builtinFloor(args []Value) Value {
 // builtinRandomInt implements the RandomInt() built-in function.
 // It returns a random integer between 0 (inclusive) and max (exclusive).
 // RandomInt(max) - max must be positive
-// Task 8.185: RandomInt() function for random number generation
 func (i *Interpreter) builtinRandomInt(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "RandomInt() expects exactly 1 argument, got %d", len(args))
@@ -545,7 +526,6 @@ func (i *Interpreter) builtinRandomInt(args []Value) Value {
 // builtinUnsigned32 implements the Unsigned32() built-in function.
 // It converts an Integer to its unsigned 32-bit representation.
 // Unsigned32(x) - converts Integer to unsigned 32-bit value (wraps around)
-// Task 9.219: Unsigned32() function for bitwise operations
 func (i *Interpreter) builtinUnsigned32(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Unsigned32() expects exactly 1 argument, got %d", len(args))
@@ -569,7 +549,6 @@ func (i *Interpreter) builtinUnsigned32(args []Value) Value {
 // It returns the maximum integer constant or the maximum of two integers.
 // MaxInt() - returns math.MaxInt64 (9223372036854775807)
 // MaxInt(a, b) - returns maximum of two Integer values
-// Task 9.220: MaxInt() function for integer comparisons
 func (i *Interpreter) builtinMaxInt(args []Value) Value {
 	// No arguments - return maximum integer constant
 	if len(args) == 0 {
@@ -599,7 +578,6 @@ func (i *Interpreter) builtinMaxInt(args []Value) Value {
 // It returns the minimum integer constant or the minimum of two integers.
 // MinInt() - returns math.MinInt64 (-9223372036854775808)
 // MinInt(a, b) - returns minimum of two Integer values
-// Task 9.220: MinInt() function for integer comparisons
 func (i *Interpreter) builtinMinInt(args []Value) Value {
 	// No arguments - return minimum integer constant
 	if len(args) == 0 {
@@ -628,7 +606,6 @@ func (i *Interpreter) builtinMinInt(args []Value) Value {
 // builtinDegToRad implements the DegToRad() built-in function.
 // It converts degrees to radians.
 // DegToRad(degrees) - returns radians as Float
-// Task 9.232: DegToRad() function for angle conversion
 func (i *Interpreter) builtinDegToRad(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "DegToRad() expects exactly 1 argument, got %d", len(args))
@@ -654,7 +631,6 @@ func (i *Interpreter) builtinDegToRad(args []Value) Value {
 // builtinRadToDeg implements the RadToDeg() built-in function.
 // It converts radians to degrees.
 // RadToDeg(radians) - returns degrees as Float
-// Task 9.232: RadToDeg() function for angle conversion
 func (i *Interpreter) builtinRadToDeg(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "RadToDeg() expects exactly 1 argument, got %d", len(args))
@@ -680,7 +656,6 @@ func (i *Interpreter) builtinRadToDeg(args []Value) Value {
 // builtinArcSin implements the ArcSin() built-in function.
 // It returns the arcsine (inverse sine) of a number.
 // ArcSin(x) - returns arcsine in radians as Float (x must be in [-1, 1])
-// Task 9.232: ArcSin() function for inverse trigonometric operations
 func (i *Interpreter) builtinArcSin(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "ArcSin() expects exactly 1 argument, got %d", len(args))
@@ -710,7 +685,6 @@ func (i *Interpreter) builtinArcSin(args []Value) Value {
 // builtinArcCos implements the ArcCos() built-in function.
 // It returns the arccosine (inverse cosine) of a number.
 // ArcCos(x) - returns arccosine in radians as Float (x must be in [-1, 1])
-// Task 9.232: ArcCos() function for inverse trigonometric operations
 func (i *Interpreter) builtinArcCos(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "ArcCos() expects exactly 1 argument, got %d", len(args))
@@ -740,7 +714,6 @@ func (i *Interpreter) builtinArcCos(args []Value) Value {
 // builtinArcTan implements the ArcTan() built-in function.
 // It returns the arctangent (inverse tangent) of a number.
 // ArcTan(x) - returns arctangent in radians as Float
-// Task 9.232: ArcTan() function for inverse trigonometric operations
 func (i *Interpreter) builtinArcTan(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "ArcTan() expects exactly 1 argument, got %d", len(args))
@@ -765,7 +738,6 @@ func (i *Interpreter) builtinArcTan(args []Value) Value {
 // builtinArcTan2 implements the ArcTan2() built-in function.
 // It returns the arctangent of y/x, using the signs of both to determine the quadrant.
 // ArcTan2(y, x) - returns arctangent in radians as Float
-// Task 9.232: ArcTan2() function for inverse trigonometric operations
 func (i *Interpreter) builtinArcTan2(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "ArcTan2() expects exactly 2 arguments, got %d", len(args))
@@ -800,7 +772,6 @@ func (i *Interpreter) builtinArcTan2(args []Value) Value {
 // builtinCoTan implements the CoTan() built-in function.
 // It returns the cotangent of a number (in radians).
 // CoTan(x) - returns cotangent as Float (1 / Tan(x))
-// Task 9.232: CoTan() function for trigonometric operations
 func (i *Interpreter) builtinCoTan(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "CoTan() expects exactly 1 argument, got %d", len(args))
@@ -831,7 +802,6 @@ func (i *Interpreter) builtinCoTan(args []Value) Value {
 // builtinHypot implements the Hypot() built-in function.
 // It returns the hypotenuse: sqrt(x² + y²)
 // Hypot(x, y) - returns hypotenuse as Float
-// Task 9.232: Hypot() function for trigonometric operations
 func (i *Interpreter) builtinHypot(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "Hypot() expects exactly 2 arguments, got %d", len(args))
@@ -866,7 +836,6 @@ func (i *Interpreter) builtinHypot(args []Value) Value {
 // builtinSinh implements the Sinh() built-in function.
 // It returns the hyperbolic sine of a number.
 // Sinh(x) - returns hyperbolic sine as Float
-// Task 9.232: Sinh() function for hyperbolic operations
 func (i *Interpreter) builtinSinh(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Sinh() expects exactly 1 argument, got %d", len(args))
@@ -891,7 +860,6 @@ func (i *Interpreter) builtinSinh(args []Value) Value {
 // builtinCosh implements the Cosh() built-in function.
 // It returns the hyperbolic cosine of a number.
 // Cosh(x) - returns hyperbolic cosine as Float
-// Task 9.232: Cosh() function for hyperbolic operations
 func (i *Interpreter) builtinCosh(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Cosh() expects exactly 1 argument, got %d", len(args))
@@ -916,7 +884,6 @@ func (i *Interpreter) builtinCosh(args []Value) Value {
 // builtinTanh implements the Tanh() built-in function.
 // It returns the hyperbolic tangent of a number.
 // Tanh(x) - returns hyperbolic tangent as Float
-// Task 9.232: Tanh() function for hyperbolic operations
 func (i *Interpreter) builtinTanh(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "Tanh() expects exactly 1 argument, got %d", len(args))
@@ -941,7 +908,6 @@ func (i *Interpreter) builtinTanh(args []Value) Value {
 // builtinArcSinh implements the ArcSinh() built-in function.
 // It returns the inverse hyperbolic sine of a number.
 // ArcSinh(x) - returns inverse hyperbolic sine as Float
-// Task 9.232: ArcSinh() function for inverse hyperbolic operations
 func (i *Interpreter) builtinArcSinh(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "ArcSinh() expects exactly 1 argument, got %d", len(args))
@@ -966,7 +932,6 @@ func (i *Interpreter) builtinArcSinh(args []Value) Value {
 // builtinArcCosh implements the ArcCosh() built-in function.
 // It returns the inverse hyperbolic cosine of a number.
 // ArcCosh(x) - returns inverse hyperbolic cosine as Float (x must be >= 1)
-// Task 9.232: ArcCosh() function for inverse hyperbolic operations
 func (i *Interpreter) builtinArcCosh(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "ArcCosh() expects exactly 1 argument, got %d", len(args))
@@ -996,7 +961,6 @@ func (i *Interpreter) builtinArcCosh(args []Value) Value {
 // builtinArcTanh implements the ArcTanh() built-in function.
 // It returns the inverse hyperbolic tangent of a number.
 // ArcTanh(x) - returns inverse hyperbolic tangent as Float (x must be in (-1, 1))
-// Task 9.232: ArcTanh() function for inverse hyperbolic operations
 func (i *Interpreter) builtinArcTanh(args []Value) Value {
 	if len(args) != 1 {
 		return i.newErrorWithLocation(i.currentNode, "ArcTanh() expects exactly 1 argument, got %d", len(args))
@@ -1026,7 +990,6 @@ func (i *Interpreter) builtinArcTanh(args []Value) Value {
 // builtinClampInt implements the ClampInt() built-in function.
 // It clamps an integer value to a range [min, max].
 // ClampInt(value, min, max: Integer): Integer
-// Task 9.25: ClampInt() function for death_star.pas
 func (i *Interpreter) builtinClampInt(args []Value) Value {
 	if len(args) != 3 {
 		return i.newErrorWithLocation(i.currentNode, "ClampInt() expects exactly 3 arguments, got %d", len(args))
@@ -1071,7 +1034,6 @@ func (i *Interpreter) builtinClampInt(args []Value) Value {
 // It clamps a float value to a range [min, max].
 // Clamp(value, min, max: Float): Float
 // Accepts mixed Integer/Float arguments (converts to Float)
-// Task 9.25: Clamp() function for death_star.pas
 func (i *Interpreter) builtinClamp(args []Value) Value {
 	if len(args) != 3 {
 		return i.newErrorWithLocation(i.currentNode, "Clamp() expects exactly 3 arguments, got %d", len(args))

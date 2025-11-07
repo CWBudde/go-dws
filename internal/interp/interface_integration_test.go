@@ -10,7 +10,6 @@ import (
 )
 
 // TestIntegration_InterfaceDeclarationAndUsage tests complete interface workflow
-// Task 7.146.1: Interface declaration and usage
 func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
 	source := `
 		type
@@ -75,7 +74,6 @@ func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
 }
 
 // TestIntegration_InterfaceInheritanceHierarchy tests 3-level deep interface inheritance
-// Task 7.146.2: Interface inheritance hierarchies
 func TestIntegration_InterfaceInheritanceHierarchy(t *testing.T) {
 	source := `
 		type
@@ -189,7 +187,6 @@ func TestIntegration_InterfaceInheritanceHierarchy(t *testing.T) {
 }
 
 // TestIntegration_ClassImplementingMultipleInterfaces tests single class with 3+ interfaces
-// Task 7.146.3: Class implementing multiple interfaces
 func TestIntegration_ClassImplementingMultipleInterfaces(t *testing.T) {
 	source := `
 		type
@@ -291,7 +288,6 @@ func TestIntegration_ClassImplementingMultipleInterfaces(t *testing.T) {
 }
 
 // TestIntegration_InterfaceCastingAllCombinations tests all casting combinations
-// Task 7.146.4: Interface casting (all combinations)
 func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 	t.Run("ObjectToInterface", func(t *testing.T) {
 		// Create interface
@@ -412,7 +408,6 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 }
 
 // TestIntegration_InterfaceLifetimeManagement tests interface lifetime and scope
-// Task 7.146.5: Interface lifetime management
 func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 	t.Run("VariableLifetime", func(t *testing.T) {
 		interp := New(nil)

@@ -242,7 +242,6 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 }
 
 // analyzeSetLiteralWithContext analyzes a set literal expression with optional type context
-// Task 8.101: Type-check set literals (elements match set's element type)
 func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedType types.Type) types.Type {
 	if lit == nil {
 		return nil

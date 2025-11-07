@@ -292,7 +292,7 @@ func testParse(t *testing.T, input string) *ast.Program {
 }
 
 // Helper function to test parsing with errors
-func testParseWithErrors(t *testing.T, input string) (*ast.Program, []string) {
+func testParseWithErrors(t *testing.T, input string) (*ast.Program, []*ParserError) {
 	t.Helper()
 	l := lexer.New(input)
 	p := New(l)

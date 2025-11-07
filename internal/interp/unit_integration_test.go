@@ -327,7 +327,7 @@ func TestCrossUnitFunctionCall_Qualified(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("Parse errors: %s", strings.Join(p.Errors(), "; "))
+		t.Fatalf("Parse errors: %s", joinParserErrors(p.Errors()))
 	}
 
 	result := interp.Eval(program)
@@ -377,7 +377,7 @@ func TestCrossUnitFunctionCall_Unqualified(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("Parse errors: %s", strings.Join(p.Errors(), "; "))
+		t.Fatalf("Parse errors: %s", joinParserErrors(p.Errors()))
 	}
 
 	result := interp.Eval(program)

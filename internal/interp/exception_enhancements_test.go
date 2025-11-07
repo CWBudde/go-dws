@@ -94,7 +94,7 @@ Recurse(3);
 			program := p.ParseProgram()
 
 			if len(p.Errors()) > 0 {
-				t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+				t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 			}
 
 			result := interp.Eval(program)
@@ -209,7 +209,7 @@ A();
 			program := p.ParseProgram()
 
 			if len(p.Errors()) > 0 {
-				t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+				t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 			}
 
 			result := interp.Eval(program)
@@ -256,7 +256,7 @@ PrintLn(GetStackTrace(123));
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	result := interp.Eval(program)
@@ -286,7 +286,7 @@ TestFunc();
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	result := interp.Eval(program)
@@ -403,7 +403,7 @@ TestFunc();
 			program := p.ParseProgram()
 
 			if len(p.Errors()) > 0 {
-				t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+				t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 			}
 
 			result := interp.Eval(program)
@@ -434,7 +434,7 @@ PrintLn(GetCallStack(123));
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	result := interp.Eval(program)
@@ -470,7 +470,7 @@ TestFunc();
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	result := interp.Eval(program)

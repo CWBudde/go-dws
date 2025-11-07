@@ -8,7 +8,7 @@ import (
 )
 
 // TestEdge_EmptyInterface tests empty interface (no methods)
-// Task 7.147.1: Empty interface (no methods) - declaration, implementation, casting
+// Empty interface (no methods) - declaration, implementation, casting
 func TestEdge_EmptyInterface(t *testing.T) {
 	t.Run("Declaration", func(t *testing.T) {
 		// Create an empty interface
@@ -68,7 +68,7 @@ func TestEdge_EmptyInterface(t *testing.T) {
 }
 
 // TestEdge_InterfaceWithManyMethods tests interface with 10+ methods
-// Task 7.147.2: Interface with many methods - verify all accessible
+// Interface with many methods - verify all accessible
 func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 	// Create interface with 15 methods
 	iface := NewInterfaceInfo("ILargeInterface")
@@ -141,7 +141,6 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 }
 
 // TestEdge_DeepInterfaceInheritanceChains tests 5+ level deep inheritance
-// Task 7.147.3: Deep interface inheritance chains - verify method resolution
 func TestEdge_DeepInterfaceInheritanceChains(t *testing.T) {
 	// Create 7-level deep inheritance chain
 	level0 := NewInterfaceInfo("ILevel0")
@@ -224,7 +223,6 @@ func TestEdge_DeepInterfaceInheritanceChains(t *testing.T) {
 }
 
 // TestEdge_ConflictingInterfaces tests class implementing interfaces with same method names
-// Task 7.147.4: Class implementing conflicting interfaces
 func TestEdge_ConflictingInterfaces(t *testing.T) {
 	// Create two interfaces with same method name
 	iface1 := NewInterfaceInfo("IInterface1")
@@ -282,7 +280,6 @@ func TestEdge_ConflictingInterfaces(t *testing.T) {
 }
 
 // TestEdge_InterfaceVariablesHoldingNil tests interface variables with nil values
-// Task 7.147.5: Interface variables holding nil
 func TestEdge_InterfaceVariablesHoldingNil(t *testing.T) {
 	t.Run("NilAssignment", func(t *testing.T) {
 		iface := NewInterfaceInfo("ITest")

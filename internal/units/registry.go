@@ -133,7 +133,11 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 
 	// Check for parsing errors
 	if len(p.Errors()) > 0 {
-		return nil, fmt.Errorf("parse errors in unit '%s': %s", name, strings.Join(p.Errors(), "; "))
+		errorMessages := make([]string, len(p.Errors()))
+		for i, err := range p.Errors() {
+			errorMessages[i] = err.Error()
+		}
+		return nil, fmt.Errorf("parse errors in unit '%s': %s", name, strings.Join(errorMessages, "; "))
 	}
 
 	// Extract the unit declaration from the program

@@ -89,8 +89,16 @@ func runScript(_ *cobra.Command, args []string) error {
 
 	// Check for parser errors
 	if len(p.Errors()) > 0 {
-		// Convert string errors to CompilerError format with pretty output
-		compilerErrors := errors.FromStringErrors(p.Errors(), input, filename)
+		// Convert ParserError to CompilerError format with pretty output
+		compilerErrors := make([]*errors.CompilerError, 0, len(p.Errors()))
+		for _, perr := range p.Errors() {
+			compilerErrors = append(compilerErrors, errors.NewCompilerError(
+				perr.Pos,
+				perr.Message,
+				input,
+				filename,
+			))
+		}
 		fmt.Fprint(os.Stderr, errors.FormatErrors(compilerErrors, true))
 		fmt.Fprintln(os.Stderr) // Add newline
 		return fmt.Errorf("parsing failed with %d error(s)", len(p.Errors()))

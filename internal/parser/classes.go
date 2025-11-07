@@ -66,7 +66,7 @@ func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 			p.nextToken() // move to ')'
 			break
 		} else {
-			p.addError("expected ',' or ')' in class inheritance list")
+			p.addError("expected ',' or ')' in class inheritance list", ErrUnexpectedToken)
 			return
 		}
 	}
@@ -224,7 +224,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 					classDecl.Methods = append(classDecl.Methods, method)
 				}
 			} else {
-				p.addError("expected 'var', 'function', or 'procedure' after 'class' keyword")
+				p.addError("expected 'var', 'function', or 'procedure' after 'class' keyword", ErrUnexpectedToken)
 				p.nextToken()
 				continue
 			}
@@ -269,7 +269,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 			}
 		} else if p.curToken.Type == lexer.IDENT {
 			// Unexpected identifier in class body - likely a field missing its type declaration
-			p.addError("expected ':' after field name or method/property declaration keyword")
+			p.addError("expected ':' after field name or method/property declaration keyword", ErrMissingColon)
 			p.nextToken()
 			continue
 		} else {
@@ -283,7 +283,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 
 	// Expect 'end'
 	if !p.curTokenIs(lexer.END) {
-		p.addError("expected 'end' to close class declaration")
+		p.addError("expected 'end' to close class declaration", ErrMissingEnd)
 		return nil
 	}
 
@@ -313,7 +313,7 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 		p.nextToken() // move to next field name
 
 		if p.curToken.Type != lexer.IDENT {
-			p.addError("expected identifier after comma in field declaration")
+			p.addError("expected identifier after comma in field declaration", ErrExpectedIdent)
 			return nil
 		}
 
@@ -368,7 +368,7 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		p.curToken.Type == lexer.LPAREN || p.curToken.Type == lexer.RPAREN ||
 		p.curToken.Type == lexer.LBRACK || p.curToken.Type == lexer.RBRACK ||
 		p.curToken.Type == lexer.COMMA || p.curToken.Type == lexer.EOF {
-		p.addError("expected identifier after '.'")
+		p.addError("expected identifier after '.'", ErrExpectedIdent)
 		return nil
 	}
 

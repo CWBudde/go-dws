@@ -379,7 +379,7 @@ end;
 	// Check that error message mentions postconditions
 	foundRelevantError := false
 	for _, err := range errors {
-		if strings.Contains(err, "postcondition") || strings.Contains(err, "old") {
+		if strings.Contains(err.Message, "postcondition") || strings.Contains(err.Message, "old") {
 			foundRelevantError = true
 			break
 		}

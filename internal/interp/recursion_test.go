@@ -16,7 +16,7 @@ func runScript(t *testing.T, interp *Interpreter, script string) Value {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	return interp.Eval(program)

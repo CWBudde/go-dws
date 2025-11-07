@@ -68,7 +68,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 				p.nextToken()
 				continue
 			} else {
-				p.addError("expected 'function' or 'procedure' after 'class' keyword in record")
+				p.addError("expected 'function' or 'procedure' after 'class' keyword in record", ErrUnexpectedToken)
 				p.nextToken()
 				continue
 			}
@@ -105,7 +105,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 
 	// Expect 'end' keyword
 	if !p.curTokenIs(lexer.END) {
-		p.addError("expected 'end' to close record declaration")
+		p.addError("expected 'end' to close record declaration", ErrMissingEnd)
 		return nil
 	}
 
@@ -130,8 +130,6 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 //     public
 //     property X: Integer read FX write FX;
 //     end;
-//
-// Task 8.61: Parse record declarations
 func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.RecordDecl {
 	recordDecl := &ast.RecordDecl{
 		Token:      typeToken, // The 'type' token
@@ -184,7 +182,7 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 				p.nextToken()
 				continue
 			} else {
-				p.addError("expected 'function' or 'procedure' after 'class' keyword in record")
+				p.addError("expected 'function' or 'procedure' after 'class' keyword in record", ErrUnexpectedToken)
 				p.nextToken()
 				continue
 			}
@@ -223,7 +221,7 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 
 	// Expect 'end' keyword
 	if !p.curTokenIs(lexer.END) {
-		p.addError("expected 'end' to close record declaration")
+		p.addError("expected 'end' to close record declaration", ErrMissingEnd)
 		return nil
 	}
 
@@ -240,7 +238,7 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 // Returns a slice of FieldDecl, one for each field name.
 func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
 	if !p.curTokenIs(lexer.IDENT) {
-		p.addError("expected field name")
+		p.addError("expected field name", ErrExpectedIdent)
 		return nil
 	}
 
@@ -264,7 +262,7 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 
 	// Expect type
 	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected type name after ':'")
+		p.addError("expected type name after ':", ErrExpectedType)
 		return nil
 	}
 
@@ -330,7 +328,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 			// Parse value expression
 			value := p.parseExpression(LOWEST)
 			if value == nil {
-				p.addError("expected expression after ':' in record literal field")
+				p.addError("expected expression after ':' in record literal field", ErrInvalidExpression)
 				return nil
 			}
 
@@ -343,7 +341,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 			recordLit.Fields = append(recordLit.Fields, fieldInit)
 		} else {
 			// Positional field - not yet implemented
-			p.addError("positional record field initialization not yet supported")
+			p.addError("positional record field initialization not yet supported", ErrInvalidSyntax)
 			return nil
 		}
 
@@ -356,7 +354,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 			}
 			p.nextToken() // move to next field
 		} else if !p.peekTokenIs(lexer.RPAREN) {
-			p.addError("expected ',' or ';' or ')' in record literal")
+			p.addError("expected ',' or ';' or ')' in record literal", ErrUnexpectedToken)
 			return nil
 		}
 	}
@@ -371,7 +369,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 
 // parseRecordPropertyDeclaration parses a record property declaration.
 // Pattern: property Name: Type read FieldName write FieldName;
-// Task 8.61d: Parse record properties
+//
 // Note: This is different from class properties (parsePropertyDeclaration)
 func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	propToken := p.curToken // 'property' token

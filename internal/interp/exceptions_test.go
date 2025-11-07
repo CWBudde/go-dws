@@ -36,7 +36,7 @@ func TestBasicTryExcept(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -72,7 +72,7 @@ func TestRaiseWithMessage(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -108,7 +108,7 @@ func TestSpecificExceptionType(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -138,7 +138,7 @@ func TestEHostCreateSetsFields(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -182,7 +182,7 @@ func TestMultipleHandlers(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -221,7 +221,7 @@ func TestBareExcept(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -257,7 +257,7 @@ func TestUncaughtException(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -301,7 +301,7 @@ func TestTryFinallyNoException(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -339,7 +339,7 @@ func TestTryFinallyWithException(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -397,7 +397,7 @@ func TestTryExceptFinallyCombined(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -452,7 +452,7 @@ func TestExceptionPropagatesAcrossFunctions(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -503,7 +503,7 @@ func TestNestedTryBlocks(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -549,7 +549,7 @@ func TestNestedTryOuterCatches(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -602,7 +602,7 @@ func TestBareRaiseReThrows(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -662,7 +662,7 @@ func TestExceptionCatchesAllTypes(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -698,7 +698,7 @@ func TestSpecificTypeDoesNotCatchOthers(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -740,7 +740,7 @@ func TestHandlerOrderMatters(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -761,7 +761,6 @@ func TestHandlerOrderMatters(t *testing.T) {
 // ============================================================================
 
 // TestTryFinallyWithReturn tests that finally executes even when returning from try block
-// Task 8.220: Test finally executes even on return from try block
 // Note: Using implicit return (Result assignment) since 'exit' keyword is not yet implemented
 func TestTryFinallyWithReturn(t *testing.T) {
 	input := `
@@ -790,7 +789,7 @@ func TestTryFinallyWithReturn(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -816,7 +815,6 @@ func TestTryFinallyWithReturn(t *testing.T) {
 }
 
 // TestRaiseCustomException tests raising a custom exception class
-// Task 8.222: Test raising custom exception with message
 // Note: This test verifies that custom exception classes properly inherit from Exception
 func TestRaiseCustomException(t *testing.T) {
 	input := `
@@ -849,7 +847,7 @@ func TestRaiseCustomException(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -870,7 +868,6 @@ func TestRaiseCustomException(t *testing.T) {
 }
 
 // TestBareRaiseOutsideHandler tests that bare raise outside a handler causes runtime error
-// Task 8.222: Test bare raise outside handler (runtime error)
 func TestBareRaiseOutsideHandler(t *testing.T) {
 	input := `
 		raise;  // Bare raise with no active exception
@@ -881,7 +878,7 @@ func TestBareRaiseOutsideHandler(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -920,7 +917,7 @@ func TestPortedBasicExceptions(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -959,7 +956,7 @@ func TestPortedReRaise(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -995,7 +992,7 @@ func TestPortedTryExceptFinally(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -1031,7 +1028,7 @@ func TestPortedExceptObject(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -1071,7 +1068,7 @@ func TestPortedNestedCalls(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -1134,7 +1131,7 @@ func TestExceptionPropagationFromFunction(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -1175,7 +1172,7 @@ func TestBareExceptBlock(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -1216,7 +1213,7 @@ func TestElseClauseWhenNoHandlerMatches(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
@@ -1244,7 +1241,7 @@ func TestPortedBreakInExcept(t *testing.T) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %s", strings.Join(p.Errors(), "\n"))
+		t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer

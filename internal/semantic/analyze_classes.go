@@ -383,7 +383,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
 	defer func() { a.symbols = oldSymbols }()
 
-	// Task 7.61: Check if this is a class method (static method)
+	// Check if this is a class method (static method)
 	if method.IsClassMethod {
 		// Class methods (static methods) do NOT have access to Self or instance fields
 		// They can only access class variables (static fields)
@@ -442,7 +442,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	a.inClassMethod = method.IsClassMethod
 	defer func() { a.inClassMethod = previousInClassMethod }()
 
-	// Task 7.64e-h: Validate virtual/override usage
+	// Validate virtual/override usage
 	a.validateVirtualOverride(method, classType, funcType)
 
 	// Analyze method body
@@ -451,11 +451,11 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	}
 }
 
-// validateVirtualOverride validates virtual/override method declarations (Task 7.64e-h)
+// validateVirtualOverride validates virtual/override method declarations
 func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *types.ClassType, methodType *types.FunctionType) {
 	methodName := method.Name.Value
 
-	// Task 7.64f: If method is marked override, validate parent has virtual method
+	// If method is marked override, validate parent has virtual method
 	if method.IsOverride {
 		if classType.Parent == nil {
 			a.addError("method '%s' marked as override, but class has no parent", methodName)
@@ -469,20 +469,20 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 			return
 		}
 
-		// Task 7.64g: Check that parent method is virtual or override
+		// Check that parent method is virtual or override
 		if !a.isMethodVirtualOrOverride(methodName, classType.Parent) {
 			a.addError("method '%s' marked as override, but parent method is not virtual", methodName)
 			return
 		}
 
-		// Task 7.64f: Ensure signatures match
+		// Ensure signatures match
 		if !a.methodSignaturesMatch(methodType, parentMethod) {
 			a.addError("method '%s' override signature does not match parent method signature", methodName)
 			return
 		}
 	}
 
-	// Task 7.64h: Warn if redefining virtual method without override keyword
+	// Warn if redefining virtual method without override keyword
 	if !method.IsOverride && !method.IsVirtual && classType.Parent != nil {
 		parentMethod := a.findMethodInParent(methodName, classType.Parent)
 		if parentMethod != nil && a.isMethodVirtualOrOverride(methodName, classType.Parent) {
@@ -691,7 +691,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 				return nil
 			}
 		}
-		// Task 9.173: When accessing a method as a value (not calling it),
+		// When accessing a method as a value (not calling it),
 		// return a method pointer type instead of just the function type
 		return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
 	}
@@ -726,7 +726,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 	methodName := expr.Method.Value
 
-	// Task 9.128: Check if object is an interface type
+	// Check if object is an interface type
 	if interfaceType, ok := objectType.(*types.InterfaceType); ok {
 		// Look up method in interface (including inherited methods from parent interfaces)
 		methodType, found := interfaceType.GetMethod(methodName)
