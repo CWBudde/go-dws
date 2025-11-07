@@ -1,5 +1,4 @@
 // Test Dec() with integers
-// Task 9.25: Dec() built-in function
 
 var x: Integer := 10;
 PrintLn('Initial value: ', x);

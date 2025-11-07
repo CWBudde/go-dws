@@ -181,7 +181,7 @@ func (cd *ClassDecl) String() string {
 //	property PropertyName: Type read FFieldName write FFieldName;
 type FieldDecl struct {
 	Name       *Identifier
-	Type       TypeExpression // Task 9.170.1: Changed from *TypeAnnotation to support array types
+	Type       TypeExpression
 	Token      lexer.Token
 	Visibility Visibility
 	IsClassVar bool
@@ -331,8 +331,6 @@ func (mc *MethodCallExpression) String() string {
 //	inherited MethodName(args)
 //	inherited MethodName
 //	inherited
-//
-// Task 9.164: Implement inherited keyword
 type InheritedExpression struct {
 	Token     lexer.Token     // The 'inherited' token
 	Method    *Identifier     // Optional method name (nil for bare 'inherited')

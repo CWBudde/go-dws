@@ -409,17 +409,183 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		return nil
 	}
 
+	// Check for default value (optional parameter)
+	// Syntax: param: Type = defaultValue
+	var defaultValue ast.Expression
+	if p.peekTokenIs(lexer.EQ) {
+		// Validate that optional parameters don't have modifiers (lazy, var, const)
+		if isLazy || byRef || isConst {
+			p.addError("optional parameters cannot have lazy, var, or const modifiers")
+			return nil
+		}
+
+		p.nextToken() // move to '='
+		p.nextToken() // move past '=' to expression
+
+		// Parse default value expression
+		defaultValue = p.parseExpression(LOWEST)
+		if defaultValue == nil {
+			p.addError("expected default value expression after '='")
+			return nil
+		}
+	}
+
 	// Create a parameter for each name with the same type
 	for _, name := range names {
 		param := &ast.Parameter{
-			Token:   name.Token,
-			Name:    name,
+			Token:        name.Token,
+			Name:         name,
+			Type:         typeAnnotation,
+			DefaultValue: defaultValue,
+			IsLazy:       isLazy,
+			ByRef:        byRef,
+			IsConst:      isConst,
+		}
+		params = append(params, param)
+	}
+
+	return params
+}
+
+// parseParameterListAtToken parses a full parameter list with names when already
+// positioned at the first parameter token (not at LPAREN).
+// This is a wrapper used by function pointer type parsing.
+// Syntax: name: Type; name2: Type; ...
+func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
+	params := []*ast.Parameter{}
+
+	// Parse first parameter group (we're already at first token)
+	groupParams := p.parseParameterGroup()
+	if groupParams == nil {
+		return nil
+	}
+	params = append(params, groupParams...)
+
+	// Parse remaining parameter groups separated by semicolons
+	for p.peekTokenIs(lexer.SEMICOLON) {
+		p.nextToken() // move to ';'
+		p.nextToken() // move past ';'
+
+		groupParams = p.parseParameterGroup()
+		if groupParams == nil {
+			return nil
+		}
+		params = append(params, groupParams...)
+	}
+
+	// Expect closing parenthesis
+	if !p.expectPeek(lexer.RPAREN) {
+		return nil
+	}
+
+	return params
+}
+
+// parseTypeOnlyParameterListAtToken parses a parameter list with only types (no names).
+// Used for shorthand function pointer syntax: function(Integer, String): Boolean
+//
+// Syntax:
+//   - function(Integer): Boolean                  - single param
+//   - function(Integer, String): Boolean          - comma-separated
+//   - function(Integer; String; Boolean): Float   - semicolon-separated
+//
+// The parser is positioned at the first type token when this is called.
+// Parameters will have nil Name fields.
+//
+// This format is used in type declarations but not in actual function definitions.
+// Example: type TFunc = function(Integer, String): Boolean;
+func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
+	params := []*ast.Parameter{}
+
+	// Current token is first type
+	for {
+		// Check for modifiers (const, var, lazy)
+		isConst := false
+		isLazy := false
+		byRef := false
+
+		if p.curTokenIs(lexer.CONST) {
+			isConst = true
+			p.nextToken()
+		}
+		if p.curTokenIs(lexer.LAZY) {
+			isLazy = true
+			p.nextToken()
+		}
+		if p.curTokenIs(lexer.VAR) {
+			byRef = true
+			p.nextToken()
+		}
+
+		// Parse type expression (could be complex like "array of Integer" or "function(Integer): Integer")
+		typeExpr := p.parseTypeExpression()
+		if typeExpr == nil {
+			p.addError("expected type in function pointer parameter list")
+			return nil
+		}
+
+		// Convert TypeExpression to TypeAnnotation
+		var typeAnnotation *ast.TypeAnnotation
+		switch te := typeExpr.(type) {
+		case *ast.TypeAnnotation:
+			typeAnnotation = te
+		case *ast.FunctionPointerTypeNode:
+			// For nested function pointers, use the string representation as type name
+			typeAnnotation = &ast.TypeAnnotation{
+				Token: te.Token,
+				Name:  te.String(),
+			}
+		case *ast.ArrayTypeNode:
+			// For array types, use string representation
+			token := te.Token
+			if token.Type == 0 || token.Literal == "" {
+				token = lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{}}
+			}
+			typeAnnotation = &ast.TypeAnnotation{
+				Token: token,
+				Name:  te.String(),
+			}
+		case *ast.SetTypeNode:
+			// For set types, use string representation
+			typeAnnotation = &ast.TypeAnnotation{
+				Token: te.Token,
+				Name:  te.String(),
+			}
+		default:
+			p.addError("unsupported type expression in function pointer parameter")
+			return nil
+		}
+
+		// Create parameter with nil name (shorthand syntax)
+		param := &ast.Parameter{
+			Token:   typeAnnotation.Token,
+			Name:    nil, // Shorthand syntax has no parameter names
 			Type:    typeAnnotation,
 			IsLazy:  isLazy,
 			ByRef:   byRef,
 			IsConst: isConst,
 		}
 		params = append(params, param)
+
+		// Check what comes next
+		if p.peekTokenIs(lexer.COMMA) {
+			// More parameters in same group
+			p.nextToken() // move to comma
+			p.nextToken() // move past comma to next type
+			continue
+		} else if p.peekTokenIs(lexer.SEMICOLON) {
+			// Next parameter group
+			p.nextToken() // move to semicolon
+			p.nextToken() // move past semicolon to next type
+			continue
+		} else if p.peekTokenIs(lexer.RPAREN) {
+			// End of parameter list
+			p.nextToken() // move to RPAREN
+			break
+		} else {
+			p.addError("expected ',', ';', or ')' in function pointer parameter list")
+			return nil
+		}
 	}
 
 	return params

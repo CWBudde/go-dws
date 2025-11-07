@@ -2,6 +2,7 @@ package bytecode
 
 import (
 	"fmt"
+	"strings"
 )
 
 // Value represents a runtime value in the bytecode VM.
@@ -9,6 +10,31 @@ import (
 type Value struct {
 	Type ValueType
 	Data interface{} // Integer (int64), Float (float64), String (string), Boolean (bool), etc.
+}
+
+// FunctionObject represents a compiled function in bytecode form.
+type FunctionObject struct {
+	Name        string
+	Chunk       *Chunk
+	Arity       int
+	UpvalueDefs []UpvalueDef
+}
+
+// NewFunctionObject creates a new function object.
+func NewFunctionObject(name string, chunk *Chunk, arity int) *FunctionObject {
+	return &FunctionObject{
+		Name:  name,
+		Chunk: chunk,
+		Arity: arity,
+	}
+}
+
+// UpvalueCount returns the number of upvalues this function expects.
+func (fn *FunctionObject) UpvalueCount() int {
+	if fn == nil {
+		return 0
+	}
+	return len(fn.UpvalueDefs)
 }
 
 // ValueType represents the type tag for a Value.
@@ -68,6 +94,40 @@ func StringValue(s string) Value {
 	return Value{Type: ValueString, Data: s}
 }
 
+// ObjectValue constructs a Value representing an object instance.
+func ObjectValue(obj *ObjectInstance) Value {
+	return Value{Type: ValueObject, Data: obj}
+}
+
+// UpvalueDef describes how a function captures an upvalue when a closure is created.
+type UpvalueDef struct {
+	IsLocal bool // true if capturing a local variable from the creating frame
+	Index   int  // index of the local or upvalue to capture
+}
+
+// Closure represents a function together with its captured upvalues.
+type Closure struct {
+	Function *FunctionObject
+	Upvalues []*Upvalue
+}
+
+// Upvalue represents a captured variable that may reference a stack slot (open)
+// or hold a closed-over value.
+type Upvalue struct {
+	location *Value
+	closed   Value
+}
+
+// FunctionValue constructs a Value representing a function.
+func FunctionValue(fn *FunctionObject) Value {
+	return Value{Type: ValueFunction, Data: fn}
+}
+
+// ClosureValue constructs a Value representing a closure.
+func ClosureValue(cl *Closure) Value {
+	return Value{Type: ValueClosure, Data: cl}
+}
+
 // Type checking methods
 func (v Value) IsNil() bool    { return v.Type == ValueNil }
 func (v Value) IsBool() bool   { return v.Type == ValueBool }
@@ -75,6 +135,15 @@ func (v Value) IsInt() bool    { return v.Type == ValueInt }
 func (v Value) IsFloat() bool  { return v.Type == ValueFloat }
 func (v Value) IsString() bool { return v.Type == ValueString }
 func (v Value) IsNumber() bool { return v.Type == ValueInt || v.Type == ValueFloat }
+func (v Value) IsFunction() bool {
+	return v.Type == ValueFunction
+}
+func (v Value) IsClosure() bool {
+	return v.Type == ValueClosure
+}
+func (v Value) IsObject() bool {
+	return v.Type == ValueObject
+}
 
 // Type conversion methods
 func (v Value) AsBool() bool {
@@ -108,6 +177,36 @@ func (v Value) AsString() string {
 	return ""
 }
 
+// AsFunction returns the underlying function object if the value represents a function.
+func (v Value) AsFunction() *FunctionObject {
+	if v.Type == ValueFunction {
+		if fn, ok := v.Data.(*FunctionObject); ok {
+			return fn
+		}
+	}
+	return nil
+}
+
+// AsClosure returns the underlying closure if the value is a closure.
+func (v Value) AsClosure() *Closure {
+	if v.Type == ValueClosure {
+		if cl, ok := v.Data.(*Closure); ok {
+			return cl
+		}
+	}
+	return nil
+}
+
+// AsObject returns the underlying object instance if the value is an object.
+func (v Value) AsObject() *ObjectInstance {
+	if v.Type == ValueObject {
+		if obj, ok := v.Data.(*ObjectInstance); ok {
+			return obj
+		}
+	}
+	return nil
+}
+
 // String returns a human-readable representation of the value.
 func (v Value) String() string {
 	switch v.Type {
@@ -124,9 +223,136 @@ func (v Value) String() string {
 		return fmt.Sprintf("%g", v.Data.(float64))
 	case ValueString:
 		return fmt.Sprintf("%q", v.Data.(string))
+	case ValueFunction:
+		if fn := v.AsFunction(); fn != nil {
+			if fn.Name != "" {
+				return fmt.Sprintf("<function %s>", fn.Name)
+			}
+			return "<function>"
+		}
+		return "<function>"
+	case ValueClosure:
+		if cl := v.AsClosure(); cl != nil && cl.Function != nil {
+			if cl.Function.Name != "" {
+				return fmt.Sprintf("<closure %s>", cl.Function.Name)
+			}
+			return "<closure>"
+		}
+		return "<closure>"
+	case ValueObject:
+		if obj := v.AsObject(); obj != nil {
+			if obj.ClassName != "" {
+				return fmt.Sprintf("<object %s>", obj.ClassName)
+			}
+			return "<object>"
+		}
+		return "<object>"
 	default:
 		return fmt.Sprintf("<%s>", v.Type)
 	}
+}
+
+// newOpenUpvalue creates an upvalue referencing the given stack slot.
+func newOpenUpvalue(slot *Value) *Upvalue {
+	return &Upvalue{location: slot}
+}
+
+// get returns the current value stored in the upvalue.
+func (uv *Upvalue) get() Value {
+	if uv == nil {
+		return NilValue()
+	}
+	if uv.location != nil {
+		return *uv.location
+	}
+	return uv.closed
+}
+
+// set writes a value to the upvalue.
+func (uv *Upvalue) set(val Value) {
+	if uv == nil {
+		return
+	}
+	if uv.location != nil {
+		*uv.location = val
+	} else {
+		uv.closed = val
+	}
+}
+
+// close seals the upvalue, copying the referenced stack value if necessary.
+func (uv *Upvalue) close() {
+	if uv == nil {
+		return
+	}
+	if uv.location != nil {
+		uv.closed = *uv.location
+		uv.location = nil
+	}
+}
+
+// ObjectInstance represents a simple object with mutable fields and properties.
+// This lightweight structure is sufficient for current VM needs and can be
+// extended with richer metadata in later milestones.
+type ObjectInstance struct {
+	ClassName string
+	fields    map[string]Value
+	props     map[string]Value
+}
+
+// NewObjectInstance creates a new object instance with optional class name.
+func NewObjectInstance(className string) *ObjectInstance {
+	return &ObjectInstance{
+		ClassName: className,
+		fields:    make(map[string]Value),
+		props:     make(map[string]Value),
+	}
+}
+
+// GetField retrieves a field value by name (case-insensitive).
+func (o *ObjectInstance) GetField(name string) (Value, bool) {
+	if o == nil {
+		return NilValue(), false
+	}
+	val, ok := o.fields[strings.ToLower(name)]
+	if !ok {
+		return NilValue(), false
+	}
+	return val, true
+}
+
+// SetField stores a field value by name (case-insensitive).
+func (o *ObjectInstance) SetField(name string, value Value) {
+	if o == nil {
+		return
+	}
+	if o.fields == nil {
+		o.fields = make(map[string]Value)
+	}
+	o.fields[strings.ToLower(name)] = value
+}
+
+// GetProperty retrieves a property value by name (case-insensitive).
+func (o *ObjectInstance) GetProperty(name string) (Value, bool) {
+	if o == nil {
+		return NilValue(), false
+	}
+	val, ok := o.props[strings.ToLower(name)]
+	if !ok {
+		return NilValue(), false
+	}
+	return val, true
+}
+
+// SetProperty stores a property value by name (case-insensitive).
+func (o *ObjectInstance) SetProperty(name string, value Value) {
+	if o == nil {
+		return
+	}
+	if o.props == nil {
+		o.props = make(map[string]Value)
+	}
+	o.props[strings.ToLower(name)] = value
 }
 
 // LineInfo stores line number information for error reporting.
@@ -153,6 +379,9 @@ type Chunk struct {
 	// InstructionOffset to the next entry's offset (or end of code)
 	Lines []LineInfo
 
+	// LocalCount is the number of local variable slots required to execute this chunk.
+	LocalCount int
+
 	// Name is a human-readable name for this chunk (function name, script name, etc.)
 	Name string
 }
@@ -160,10 +389,11 @@ type Chunk struct {
 // NewChunk creates a new empty bytecode chunk.
 func NewChunk(name string) *Chunk {
 	return &Chunk{
-		Code:      make([]Instruction, 0, 64), // Start with reasonable capacity
-		Constants: make([]Value, 0, 16),
-		Lines:     make([]LineInfo, 0, 16),
-		Name:      name,
+		Code:       make([]Instruction, 0, 64), // Start with reasonable capacity
+		Constants:  make([]Value, 0, 16),
+		Lines:      make([]LineInfo, 0, 16),
+		LocalCount: 0,
+		Name:       name,
 	}
 }
 
@@ -349,6 +579,7 @@ type ChunkStats struct {
 	ConstantCount    int
 	CodeBytes        int // Approximate memory usage
 	UniqueLines      int
+	LocalCount       int
 }
 
 // GetStats returns statistics about the chunk.
@@ -359,14 +590,15 @@ func (c *Chunk) GetStats() ChunkStats {
 		ConstantCount:    len(c.Constants),
 		CodeBytes:        len(c.Code) * 4, // 4 bytes per instruction
 		UniqueLines:      len(c.Lines),
+		LocalCount:       c.LocalCount,
 	}
 }
 
 // String returns a human-readable representation of the chunk.
 func (c *Chunk) String() string {
 	stats := c.GetStats()
-	return fmt.Sprintf("Chunk '%s': %d instructions, %d constants, %d lines",
-		stats.Name, stats.InstructionCount, stats.ConstantCount, stats.UniqueLines)
+	return fmt.Sprintf("Chunk '%s': %d instructions, %d constants, %d locals, %d lines",
+		stats.Name, stats.InstructionCount, stats.ConstantCount, stats.LocalCount, stats.UniqueLines)
 }
 
 // Validate checks the chunk for basic correctness.

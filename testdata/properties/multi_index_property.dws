@@ -1,5 +1,4 @@
 // Multi-Index Property Test
-// Task 9.2d: Support multi-dimensional indexed properties
 
 type TMatrix = class
   FData: array of array of Integer;

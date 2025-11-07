@@ -50,8 +50,9 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 		if classType, exists := a.classes[strings.ToLower(ident.Value)]; exists {
 			return classType
 		}
-		if a.currentClass != nil {
+		if a.currentClass != nil && !a.inClassMethod {
 			// Task 9.32b/9.32c: Check if identifier is a field of the current class (implicit Self)
+			// NOTE: This only applies to instance methods, NOT class methods (static methods)
 			if fieldType, exists := a.currentClass.Fields[ident.Value]; exists {
 				return fieldType
 			}

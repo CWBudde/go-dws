@@ -227,6 +227,76 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	return i.callBuiltin(funcName.Value, args)
 }
 
+// normalizeBuiltinName normalizes a builtin function name to its canonical form
+// for case-insensitive matching (DWScript is case-insensitive).
+func normalizeBuiltinName(name string) string {
+	// Create a lowercase version for comparison
+	lower := strings.ToLower(name)
+
+	// Map of lowercase names to canonical names
+	// This allows case-insensitive function calls
+	canonicalNames := map[string]string{
+		"println": "PrintLn", "print": "Print", "ord": "Ord", "integer": "Integer",
+		"length": "Length", "copy": "Copy", "concat": "Concat", "indexof": "IndexOf",
+		"contains": "Contains", "reverse": "Reverse", "sort": "Sort", "pos": "Pos",
+		"uppercase": "UpperCase", "lowercase": "LowerCase", "trim": "Trim",
+		"trimleft": "TrimLeft", "trimright": "TrimRight", "stringreplace": "StringReplace",
+		"stringofchar": "StringOfChar", "format": "Format", "abs": "Abs", "min": "Min", "max": "Max",
+		"maxint": "MaxInt", "minint": "MinInt", "sqr": "Sqr", "power": "Power",
+		"sqrt": "Sqrt", "sin": "Sin", "cos": "Cos", "tan": "Tan",
+		"degtorad": "DegToRad", "radtodeg": "RadToDeg", "arcsin": "ArcSin",
+		"arccos": "ArcCos", "arctan": "ArcTan", "arctan2": "ArcTan2",
+		"cotan": "CoTan", "hypot": "Hypot", "sinh": "Sinh", "cosh": "Cosh",
+		"tanh": "Tanh", "arcsinh": "ArcSinh", "arccosh": "ArcCosh", "arctanh": "ArcTanh",
+		"random": "Random", "randomint": "RandomInt", "randomize": "Randomize",
+		"unsigned32": "Unsigned32", "exp": "Exp", "ln": "Ln", "log2": "Log2",
+		"round": "Round", "trunc": "Trunc", "ceil": "Ceil", "floor": "Floor",
+		"low": "Low", "high": "High", "setlength": "SetLength", "add": "Add",
+		"delete": "Delete", "inttostr": "IntToStr", "inttobin": "IntToBin",
+		"strtoint": "StrToInt", "floattostr": "FloatToStr", "booltostr": "BoolToStr",
+		"strtofloat": "StrToFloat", "inc": "Inc", "dec": "Dec", "succ": "Succ",
+		"pred": "Pred", "assert": "Assert", "insert": "Insert",
+		"map": "Map", "filter": "Filter", "reduce": "Reduce", "foreach": "ForEach",
+		"now": "Now", "date": "Date", "time": "Time", "utcdatetime": "UTCDateTime",
+		"unixtime": "UnixTime", "unixtimemsec": "UnixTimeMSec",
+		"encodedate": "EncodeDate", "encodetime": "EncodeTime", "encodedatetime": "EncodeDateTime",
+		"decodedate": "DecodeDate", "decodetime": "DecodeTime",
+		"yearof": "YearOf", "monthof": "MonthOf", "dayof": "DayOf",
+		"hourof": "HourOf", "minuteof": "MinuteOf", "secondof": "SecondOf",
+		"dayofweek": "DayOfWeek", "dayoftheweek": "DayOfTheWeek",
+		"dayofyear": "DayOfYear", "weeknumber": "WeekNumber", "yearofweek": "YearOfWeek",
+		"formatdatetime": "FormatDateTime", "datetimetostr": "DateTimeToStr",
+		"datetostr": "DateToStr", "timetostr": "TimeToStr",
+		"datetoiso8601": "DateToISO8601", "datetimetoiso8601": "DateTimeToISO8601",
+		"datetimetorfc822": "DateTimeToRFC822",
+		"strtodate":        "StrToDate", "strtodatetime": "StrToDateTime", "strtotime": "StrToTime",
+		"iso8601todatetime": "ISO8601ToDateTime", "rfc822todatetime": "RFC822ToDateTime",
+		"incyear": "IncYear", "incmonth": "IncMonth", "incday": "IncDay",
+		"inchour": "IncHour", "incminute": "IncMinute", "incsecond": "IncSecond",
+		"daysbetween": "DaysBetween", "hoursbetween": "HoursBetween",
+		"minutesbetween": "MinutesBetween", "secondsbetween": "SecondsBetween",
+		"isleapyear":     "IsLeapYear",
+		"firstdayofyear": "FirstDayOfYear", "firstdayofnextyear": "FirstDayOfNextYear",
+		"firstdayofmonth": "FirstDayOfMonth", "firstdayofnextmonth": "FirstDayOfNextMonth",
+		"firstdayofweek":     "FirstDayOfWeek",
+		"unixtimetodatetime": "UnixTimeToDateTime", "datetimetounixtime": "DateTimeToUnixTime",
+		"unixtimemsectodatetime": "UnixTimeMSecToDateTime", "datetimetounixtimemsec": "DateTimeToUnixTimeMSec",
+		"vartype": "VarType", "varisnull": "VarIsNull", "varisempty": "VarIsEmpty",
+		"varisnumeric": "VarIsNumeric", "vartostr": "VarToStr", "vartoint": "VarToInt",
+		"vartofloat": "VarToFloat", "varastype": "VarAsType", "varclear": "VarClear",
+		"parsejson": "ParseJSON", "tojson": "ToJSON", "tojsonformatted": "ToJSONFormatted",
+		"jsonhasfield": "JSONHasField", "jsonkeys": "JSONKeys", "jsonvalues": "JSONValues",
+		"jsonlength":    "JSONLength",
+		"getstacktrace": "GetStackTrace", "getcallstack": "GetCallStack",
+	}
+
+	// Return canonical name if found, otherwise return original name
+	if canonical, ok := canonicalNames[lower]; ok {
+		return canonical
+	}
+	return name
+}
+
 // callBuiltin calls a built-in function by name.
 func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	// Task 9.32: Check for external Go functions first
@@ -237,19 +307,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	}
 
 	// Normalize function name for case-insensitive matching (DWScript is case-insensitive)
-	// Only normalize known functions to avoid breaking camelCase/PascalCase names
-	lowerName := strings.ToLower(name)
-	switch lowerName {
-	case "println":
-		name = "PrintLn"
-	case "print":
-		name = "Print"
-	case "inc":
-		name = "Inc"
-	case "dec":
-		name = "Dec"
-		// Add more as needed, but default is to leave name as-is to preserve camelCase
-	}
+	name = normalizeBuiltinName(name)
 
 	switch name {
 	case "PrintLn":
@@ -288,6 +346,8 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinTrimRight(args)
 	case "StringReplace":
 		return i.builtinStringReplace(args)
+	case "StringOfChar":
+		return i.builtinStringOfChar(args)
 	case "Format":
 		return i.builtinFormat(args)
 	case "Abs":
@@ -296,6 +356,10 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinMin(args)
 	case "Max":
 		return i.builtinMax(args)
+	case "ClampInt":
+		return i.builtinClampInt(args)
+	case "Clamp":
+		return i.builtinClamp(args)
 	case "Sqr":
 		return i.builtinSqr(args)
 	case "Power":
@@ -575,7 +639,7 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 	switch name {
 	case "PrintLn", "Print", "Ord", "Integer", "Length", "Copy", "Concat",
 		"IndexOf", "Contains", "Reverse", "Sort", "Pos", "UpperCase",
-		"LowerCase", "Trim", "TrimLeft", "TrimRight", "StringReplace",
+		"LowerCase", "Trim", "TrimLeft", "TrimRight", "StringReplace", "StringOfChar",
 		"Format", "Abs", "Min", "Max", "Sqr", "Power", "Sqrt", "Sin",
 		"Cos", "Tan", "Random", "Randomize", "Exp", "Ln", "Round",
 		"Trunc", "Frac", "Chr", "SetLength", "High", "Low", "Assigned",
@@ -652,10 +716,42 @@ func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression
 // It creates a new environment, binds parameters to arguments, executes the body,
 // and extracts the return value from the Result variable or function name variable.
 func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value {
-	// Check argument count matches parameter count
-	if len(args) != len(fn.Parameters) {
-		return newError("wrong number of arguments: expected %d, got %d",
+	// Task 9.1c: Calculate required parameter count (parameters without defaults)
+	requiredParams := 0
+	for _, param := range fn.Parameters {
+		if param.DefaultValue == nil {
+			requiredParams++
+		}
+	}
+
+	// Check argument count is within valid range
+	if len(args) < requiredParams {
+		return newError("wrong number of arguments: expected at least %d, got %d",
+			requiredParams, len(args))
+	}
+	if len(args) > len(fn.Parameters) {
+		return newError("wrong number of arguments: expected at most %d, got %d",
 			len(fn.Parameters), len(args))
+	}
+
+	// Task 9.1c: Fill in missing optional arguments with default values
+	// Evaluate default expressions in the CALLER'S environment
+	if len(args) < len(fn.Parameters) {
+		savedEnv := i.env // Save caller's environment
+		for idx := len(args); idx < len(fn.Parameters); idx++ {
+			param := fn.Parameters[idx]
+			if param.DefaultValue == nil {
+				// This should never happen due to requiredParams check above
+				return newError("internal error: missing required parameter at index %d", idx)
+			}
+			// Evaluate default value in caller's environment
+			defaultVal := i.Eval(param.DefaultValue)
+			if isError(defaultVal) {
+				return defaultVal
+			}
+			args = append(args, defaultVal)
+		}
+		i.env = savedEnv // Restore environment (should be unchanged, but be safe)
 	}
 
 	// Create a new environment for the function scope
@@ -704,7 +800,8 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := fn.ReturnType.Name
-		recordTypeKey := "__record_type_" + returnTypeName
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Task 9.7e1: Use createRecordValue for proper nested record initialization
@@ -715,7 +812,8 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		// Task 9.218: Check if return type is an array (overrides default)
 		// Array return types should be initialized to empty arrays, not NIL
 		// This allows methods like .Add() and .High to work on the Result variable
-		arrayTypeKey := "__array_type_" + returnTypeName
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		arrayTypeKey := "__array_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(arrayTypeKey); ok {
 			if atv, ok := typeVal.(*ArrayTypeValue); ok {
 				resultValue = NewArrayValue(atv.ArrayType)
@@ -737,8 +835,11 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		}
 
 		i.env.Define("Result", resultValue)
-		// Also define the function name as an alias for Result (DWScript style)
-		i.env.Define(fn.Name.Value, resultValue)
+		// Also define the function name as an alias for Result
+		// In DWScript, assigning to either Result or the function name sets the return value
+		// We implement this by making the function name a reference to Result
+		// This ensures that assigning to either one updates the same underlying value
+		i.env.Define(fn.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 	}
 
 	// Task 9.147: Check preconditions before executing function body
@@ -780,24 +881,15 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	// Extract return value
 	var returnValue Value
 	if fn.ReturnType != nil {
-		// Check both Result and function name variable
-		// Prioritize whichever one was actually set (not nil)
+		// In DWScript, you can assign to either Result or the function name to set the return value
+		// We implement the function name as a ReferenceValue pointing to Result
+		// So we just need to get Result's value
 		resultVal, resultOk := i.env.Get("Result")
-		fnNameVal, fnNameOk := i.env.Get(fn.Name.Value)
 
-		// Use whichever variable is not nil, preferring Result if both are set
-		if resultOk && resultVal.Type() != "NIL" {
+		if resultOk {
 			returnValue = resultVal
-		} else if fnNameOk && fnNameVal.Type() != "NIL" {
-			returnValue = fnNameVal
-		} else if resultOk {
-			// Result exists but is nil - use it
-			returnValue = resultVal
-		} else if fnNameOk {
-			// Function name exists but is nil - use it
-			returnValue = fnNameVal
 		} else {
-			// Neither exists (shouldn't happen)
+			// Result not found (shouldn't happen)
 			returnValue = &NilValue{}
 		}
 
@@ -936,7 +1028,8 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := lambda.ReturnType.Name
-		recordTypeKey := "__record_type_" + returnTypeName
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Task 9.7e1: Use createRecordValue for proper nested record initialization
@@ -1137,7 +1230,8 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := method.ReturnType.Name
-		recordTypeKey := "__record_type_" + returnTypeName
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// Task 9.7e1: Use createRecordValue for proper nested record initialization
@@ -1146,8 +1240,9 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		}
 
 		i.env.Define("Result", resultValue)
-		// Also define the method name as an alias for Result (DWScript style)
-		i.env.Define(method.Name.Value, resultValue)
+		// Also define the method name as an alias for Result
+		// In DWScript, assigning to either Result or the method name sets the return value
+		i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 	}
 
 	// Execute method body
@@ -1314,7 +1409,8 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 		// Check if return type is a record (overrides default)
 		// Task 9.7f: For static record methods returning records, initialize Result properly
 		returnTypeName := method.ReturnType.Name
-		recordTypeKey := "__record_type_" + returnTypeName
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		recordTypeKey := "__record_type_" + strings.ToLower(returnTypeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if recordTV, ok := typeVal.(*RecordTypeValue); ok {
 				// Return type is a record - create an instance
@@ -1323,8 +1419,9 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 		}
 
 		i.env.Define("Result", resultValue)
-		// Also define the method name as an alias for Result (DWScript style)
-		i.env.Define(methodName, resultValue)
+		// Also define the method name as an alias for Result
+		// In DWScript, assigning to either Result or the method name sets the return value
+		i.env.Define(methodName, &ReferenceValue{Env: i.env, VarName: "Result"})
 	}
 
 	// Execute method body
@@ -1457,7 +1554,8 @@ func (i *Interpreter) parseInlineSetType(signature string) *types.SetType {
 
 	// Look up the enum type in the environment
 	// Enum types are stored with "__enum_type_" prefix
-	typeKey := "__enum_type_" + enumTypeName
+	// Task 9.225: Normalize to lowercase for case-insensitive lookups
+	typeKey := "__enum_type_" + strings.ToLower(enumTypeName)
 	typeVal, ok := i.env.Get(typeKey)
 	if !ok {
 		return nil

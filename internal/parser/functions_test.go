@@ -463,6 +463,100 @@ func TestParameters(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:  "variadic parameter: array of const",
+			input: "procedure Test(const a: array of const); begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 1 {
+					t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+				}
+				param := fn.Parameters[0]
+				if param.Name.Value != "a" {
+					t.Errorf("param name = %q, want 'a'", param.Name.Value)
+				}
+				if !param.IsConst {
+					t.Error("param should be const")
+				}
+				// Type should be "array of const" (parsed as array type with const element)
+				if param.Type == nil {
+					t.Fatal("param type is nil")
+				}
+				// The type name should contain "array" since it's a synthetic TypeAnnotation
+				// from ArrayTypeNode.String()
+				if param.Type.Name != "array of const" {
+					t.Errorf("param type = %q, want 'array of const'", param.Type.Name)
+				}
+			},
+		},
+		{
+			name:  "variadic parameter: array of Integer",
+			input: "procedure ProcessValues(const values: array of Integer); begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 1 {
+					t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+				}
+				param := fn.Parameters[0]
+				if param.Name.Value != "values" {
+					t.Errorf("param name = %q, want 'values'", param.Name.Value)
+				}
+				if !param.IsConst {
+					t.Error("param should be const")
+				}
+				if param.Type == nil {
+					t.Fatal("param type is nil")
+				}
+				if param.Type.Name != "array of Integer" {
+					t.Errorf("param type = %q, want 'array of Integer'", param.Type.Name)
+				}
+			},
+		},
+		{
+			name:  "mixed fixed and variadic parameters",
+			input: "function Format(fmt: String; const args: array of const): String; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 2 {
+					t.Fatalf("expected 2 parameters, got %d", len(fn.Parameters))
+				}
+
+				// First parameter: fixed
+				if fn.Parameters[0].Name.Value != "fmt" {
+					t.Errorf("param[0] name = %q, want 'fmt'", fn.Parameters[0].Name.Value)
+				}
+				if fn.Parameters[0].Type == nil || fn.Parameters[0].Type.Name != "String" {
+					t.Errorf("param[0] type = %q, want 'String'", fn.Parameters[0].Type)
+				}
+				if fn.Parameters[0].IsConst {
+					t.Error("param[0] should not be const")
+				}
+
+				// Second parameter: variadic
+				if fn.Parameters[1].Name.Value != "args" {
+					t.Errorf("param[1] name = %q, want 'args'", fn.Parameters[1].Name.Value)
+				}
+				if !fn.Parameters[1].IsConst {
+					t.Error("param[1] should be const")
+				}
+				if fn.Parameters[1].Type == nil || fn.Parameters[1].Type.Name != "array of const" {
+					t.Errorf("param[1] type = %q, want 'array of const'", fn.Parameters[1].Type)
+				}
+			},
+		},
+		{
+			name:  "variadic parameter: array of String",
+			input: "procedure PrintAll(const items: array of String); begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 1 {
+					t.Fatalf("expected 1 parameter, got %d", len(fn.Parameters))
+				}
+				param := fn.Parameters[0]
+				if param.Name.Value != "items" {
+					t.Errorf("param name = %q, want 'items'", param.Name.Value)
+				}
+				if param.Type == nil || param.Type.Name != "array of String" {
+					t.Errorf("param type = %q, want 'array of String'", param.Type.Name)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -996,6 +1090,216 @@ func TestOverloadDirective(t *testing.T) {
 			}
 
 			tt.expected(t, fn)
+		})
+	}
+}
+
+func TestOptionalParameters(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected func(*testing.T, *ast.FunctionDecl)
+	}{
+		{
+			name:  "function with single optional parameter",
+			input: "function Greet(name: String = 'World'): String; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if fn.Name.Value != "Greet" {
+					t.Errorf("function name = %q, want 'Greet'", fn.Name.Value)
+				}
+				if len(fn.Parameters) != 1 {
+					t.Fatalf("parameters count = %d, want 1", len(fn.Parameters))
+				}
+				param := fn.Parameters[0]
+				if param.Name.Value != "name" {
+					t.Errorf("parameter name = %q, want 'name'", param.Name.Value)
+				}
+				if param.Type.Name != "String" {
+					t.Errorf("parameter type = %q, want 'String'", param.Type.Name)
+				}
+				if param.DefaultValue == nil {
+					t.Fatal("expected default value, got nil")
+				}
+				// Check default value is a string literal
+				strLit, ok := param.DefaultValue.(*ast.StringLiteral)
+				if !ok {
+					t.Fatalf("default value is not *ast.StringLiteral, got %T", param.DefaultValue)
+				}
+				if strLit.Value != "World" {
+					t.Errorf("default value = %q, want 'World'", strLit.Value)
+				}
+			},
+		},
+		{
+			name:  "function with required and optional parameters",
+			input: "function Add(a: Integer; b: Integer = 0): Integer; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 2 {
+					t.Fatalf("parameters count = %d, want 2", len(fn.Parameters))
+				}
+				// First parameter should be required
+				if fn.Parameters[0].DefaultValue != nil {
+					t.Error("first parameter should be required (no default value)")
+				}
+				// Second parameter should be optional
+				if fn.Parameters[1].DefaultValue == nil {
+					t.Fatal("second parameter should have default value")
+				}
+				intLit, ok := fn.Parameters[1].DefaultValue.(*ast.IntegerLiteral)
+				if !ok {
+					t.Fatalf("default value is not *ast.IntegerLiteral, got %T", fn.Parameters[1].DefaultValue)
+				}
+				if intLit.Value != 0 {
+					t.Errorf("default value = %d, want 0", intLit.Value)
+				}
+			},
+		},
+		{
+			name:  "function with multiple optional parameters",
+			input: "function Format(text: String; prefix: String = '['; suffix: String = ']'): String; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 3 {
+					t.Fatalf("parameters count = %d, want 3", len(fn.Parameters))
+				}
+				// First parameter is required
+				if fn.Parameters[0].DefaultValue != nil {
+					t.Error("first parameter should be required")
+				}
+				// Second and third are optional
+				if fn.Parameters[1].DefaultValue == nil {
+					t.Error("second parameter should have default value")
+				}
+				if fn.Parameters[2].DefaultValue == nil {
+					t.Error("third parameter should have default value")
+				}
+			},
+		},
+		{
+			name:  "function with numeric default value",
+			input: "function Power(base: Float; exponent: Float = 2.0): Float; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 2 {
+					t.Fatalf("parameters count = %d, want 2", len(fn.Parameters))
+				}
+				param := fn.Parameters[1]
+				if param.DefaultValue == nil {
+					t.Fatal("expected default value")
+				}
+				floatLit, ok := param.DefaultValue.(*ast.FloatLiteral)
+				if !ok {
+					t.Fatalf("default value is not *ast.FloatLiteral, got %T", param.DefaultValue)
+				}
+				if floatLit.Value != 2.0 {
+					t.Errorf("default value = %f, want 2.0", floatLit.Value)
+				}
+			},
+		},
+		{
+			name:  "function with expression as default value",
+			input: "function Calculate(x: Integer; multiplier: Integer = 2 * 3): Integer; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 2 {
+					t.Fatalf("parameters count = %d, want 2", len(fn.Parameters))
+				}
+				param := fn.Parameters[1]
+				if param.DefaultValue == nil {
+					t.Fatal("expected default value")
+				}
+				// Default value should be a binary expression (2 * 3)
+				binExpr, ok := param.DefaultValue.(*ast.BinaryExpression)
+				if !ok {
+					t.Fatalf("default value is not *ast.BinaryExpression, got %T", param.DefaultValue)
+				}
+				if binExpr.Operator != "*" {
+					t.Errorf("operator = %q, want '*'", binExpr.Operator)
+				}
+			},
+		},
+		{
+			name:  "comma-separated parameters with default value",
+			input: "function Test(a, b: Integer = 5): Integer; begin end;",
+			expected: func(t *testing.T, fn *ast.FunctionDecl) {
+				if len(fn.Parameters) != 2 {
+					t.Fatalf("parameters count = %d, want 2", len(fn.Parameters))
+				}
+				// Both parameters should have the same default value
+				if fn.Parameters[0].DefaultValue == nil {
+					t.Error("first parameter should have default value")
+				}
+				if fn.Parameters[1].DefaultValue == nil {
+					t.Error("second parameter should have default value")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program has %d statements, want 1", len(program.Statements))
+			}
+
+			fn, ok := program.Statements[0].(*ast.FunctionDecl)
+			if !ok {
+				t.Fatalf("statement is not *ast.FunctionDecl, got %T", program.Statements[0])
+			}
+
+			tt.expected(t, fn)
+		})
+	}
+}
+
+func TestOptionalParametersErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name:          "var parameter with default value",
+			input:         "function Test(var x: Integer = 5): Integer; begin end;",
+			expectedError: "optional parameters cannot have lazy, var, or const modifiers",
+		},
+		{
+			name:          "lazy parameter with default value",
+			input:         "function Test(lazy x: Integer = 5): Integer; begin end;",
+			expectedError: "optional parameters cannot have lazy, var, or const modifiers",
+		},
+		{
+			name:          "const parameter with default value",
+			input:         "function Test(const x: Integer = 5): Integer; begin end;",
+			expectedError: "optional parameters cannot have lazy, var, or const modifiers",
+		},
+		{
+			name:          "empty default value",
+			input:         "function Test(x: Integer = ): Integer; begin end;",
+			expectedError: "expected default value expression after '='",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			p.ParseProgram()
+
+			if len(p.errors) == 0 {
+				t.Fatal("expected parser error, got none")
+			}
+
+			found := false
+			for _, err := range p.errors {
+				if strings.Contains(err, tt.expectedError) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("expected error containing %q, got errors: %v", tt.expectedError, p.errors)
+			}
 		})
 	}
 }

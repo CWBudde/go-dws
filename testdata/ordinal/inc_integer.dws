@@ -1,5 +1,4 @@
 // Test Inc() with integers
-// Task 9.24: Inc() built-in function
 
 var x: Integer := 5;
 PrintLn('Initial value: ', x);

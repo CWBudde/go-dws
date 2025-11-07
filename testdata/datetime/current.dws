@@ -1,5 +1,4 @@
 // Test current date/time functions
-// Task 9.95-9.97
 
 var n, d, t: Float;
 

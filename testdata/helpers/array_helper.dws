@@ -1,5 +1,4 @@
 // Array helper properties example - demonstrates built-in .Length, .High, .Low properties
-// Task 9.171: Array Helper Properties
 
 var dynArr: array of Integer;
 var staticArr: array[1..5] of String;

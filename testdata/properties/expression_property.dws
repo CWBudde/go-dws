@@ -1,5 +1,4 @@
 // Test expression-based property getters
-// Task 9.3c: Properties can use inline expressions as getters
 
 type TRectangle = class
 	FWidth: Integer;

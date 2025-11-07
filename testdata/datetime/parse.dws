@@ -1,5 +1,4 @@
 // Test DateTime parsing functions
-// Task 9.110-9.111
 
 var dt: Float;
 

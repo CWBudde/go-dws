@@ -32,8 +32,14 @@ func (a *Analyzer) analyzeFunctionPointerTypeDeclaration(decl *ast.TypeDeclarati
 	fpType := decl.FunctionPointerType
 
 	// Task 9.159: Check for duplicate parameter names
+	// Skip this check for shorthand syntax (parameters without names)
 	paramNames := make(map[string]bool)
 	for _, param := range fpType.Parameters {
+		// Shorthand syntax: parameters have nil names
+		if param.Name == nil {
+			continue
+		}
+
 		if paramNames[param.Name.Value] {
 			a.addError("duplicate parameter name '%s' in function pointer type at %s",
 				param.Name.Value, param.Name.Token.Pos.String())

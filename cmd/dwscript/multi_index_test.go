@@ -7,7 +7,6 @@ import (
 )
 
 // TestMultiIndexCommaSyntax tests the CLI with multi-dimensional array comma syntax
-// Task 9.172: CLI integration test for multi-index comma syntax (arr[i, j])
 func TestMultiIndexCommaSyntax(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

@@ -1,6 +1,8 @@
 package interp
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -234,7 +236,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Check if this identifier refers to an enum type (for scoped access: TColor.Red)
 		// Look for enum type metadata stored in environment
-		enumTypeKey := "__enum_type_" + ident.Value
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		enumTypeKey := "__enum_type_" + strings.ToLower(ident.Value)
 		if enumTypeVal, ok := i.env.Get(enumTypeKey); ok {
 			if _, isEnumType := enumTypeVal.(*EnumTypeValue); isEnumType {
 				// This is scoped enum access: TColor.Red
@@ -435,7 +438,8 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
 			i.env.Define("Result", defaultVal)
-			i.env.Define(method.Name.Value, defaultVal)
+			// In DWScript, the method name can be used as an alias for Result
+			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 		}
 
 		// Task 9.32c: Set flag to indicate we're inside a property getter
@@ -495,7 +499,8 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
 			i.env.Define("Result", defaultVal)
-			i.env.Define(method.Name.Value, defaultVal)
+			// In DWScript, the method name can be used as an alias for Result
+			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 		}
 
 		// Task 9.32c: Set flag to indicate we're inside a property getter
@@ -619,7 +624,8 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
 			i.env.Define("Result", defaultVal)
-			i.env.Define(method.Name.Value, defaultVal)
+			// In DWScript, the method name can be used as an alias for Result
+			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 		}
 
 		// Execute method body
@@ -938,8 +944,8 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					returnType := i.resolveTypeFromAnnotation(classMethod.ReturnType)
 					defaultVal := i.getDefaultValue(returnType)
 					i.env.Define("Result", defaultVal)
-					// Also define the method name as an alias for Result (DWScript style)
-					i.env.Define(classMethod.Name.Value, defaultVal)
+					// In DWScript, the method name can be used as an alias for Result
+					i.env.Define(classMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 				}
 
 				// Execute method body
@@ -1060,8 +1066,8 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 						defaultVal = i.getDefaultValue(returnType)
 					}
 					i.env.Define("Result", defaultVal)
-					// Also define the method name as an alias for Result (DWScript style)
-					i.env.Define(instanceMethod.Name.Value, defaultVal)
+					// In DWScript, the method name can be used as an alias for Result
+					i.env.Define(instanceMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 				}
 
 				// Execute method body
@@ -1120,7 +1126,8 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		}
 
 		// Task 9.7f: Check if this identifier refers to a record type
-		recordTypeKey := "__record_type_" + ident.Value
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		recordTypeKey := "__record_type_" + strings.ToLower(ident.Value)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				// This is TRecord.Method() - check for static method
@@ -1138,6 +1145,39 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	objVal := i.Eval(mc.Object)
 	if isError(objVal) {
 		return objVal
+	}
+
+	// Check if it's a set value with built-in methods (Include, Exclude)
+	if setVal, ok := objVal.(*SetValue); ok {
+		methodName := mc.Method.Value
+
+		// Evaluate method arguments
+		args := make([]Value, len(mc.Arguments))
+		for idx, arg := range mc.Arguments {
+			val := i.Eval(arg)
+			if isError(val) {
+				return val
+			}
+			args[idx] = val
+		}
+
+		// Dispatch to appropriate set method
+		switch methodName {
+		case "Include":
+			if len(args) != 1 {
+				return i.newErrorWithLocation(mc, "Include expects 1 argument, got %d", len(args))
+			}
+			return i.evalSetInclude(setVal, args[0])
+
+		case "Exclude":
+			if len(args) != 1 {
+				return i.newErrorWithLocation(mc, "Exclude expects 1 argument, got %d", len(args))
+			}
+			return i.evalSetExclude(setVal, args[0])
+
+		default:
+			return i.newErrorWithLocation(mc, "method '%s' not found for set type", methodName)
+		}
 	}
 
 	// Task 9.7: Check if it's a record value with methods
@@ -1260,8 +1300,8 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
 		i.env.Define("Result", defaultVal)
-		// Also define the method name as an alias for Result (DWScript style)
-		i.env.Define(method.Name.Value, defaultVal)
+		// In DWScript, the method name can be used as an alias for Result
+		i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 	}
 
 	// Execute method body
@@ -1407,8 +1447,8 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 		returnType := i.resolveTypeFromAnnotation(parentMethod.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
 		i.env.Define("Result", defaultVal)
-		// Also define the method name as an alias for Result (DWScript style)
-		i.env.Define(parentMethod.Name.Value, defaultVal)
+		// In DWScript, the method name can be used as an alias for Result
+		i.env.Define(parentMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
 	}
 
 	// Execute parent method body

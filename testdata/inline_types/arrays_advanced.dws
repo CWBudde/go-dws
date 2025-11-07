@@ -1,5 +1,5 @@
 // Test file for advanced inline array type scenarios
-// Task 9.59: Comprehensive array type integration tests
+// Comprehensive array type integration tests
 // Tests arrays in return types, nested arrays, and combined scenarios
 
 // ===== Test 1: Functions Returning Dynamic Arrays =====

@@ -1,5 +1,4 @@
 // Test array creation with various element types
-// Task 9.167: Various element types (Integer, String, Float, Boolean)
 
 PrintLn('Integer Arrays:');
 PrintLn('===============');

@@ -1,5 +1,4 @@
 // Test Dec() with enum values
-// Task 9.25: Dec() built-in function for enums
 
 type TColor = (Red, Green, Blue, Yellow);
 

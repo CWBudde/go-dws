@@ -372,7 +372,7 @@ func TestSetMembershipErrors(t *testing.T) {
 				var x: Integer := 42;
 				var result: Boolean := x in colors;
 			`,
-			expectedError: "requires enum value as left operand",
+			expectedError: "type mismatch in 'in' operator",
 		},
 	}
 

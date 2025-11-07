@@ -1,5 +1,4 @@
 // Test EncodeDate, DecodeDate, EncodeTime, DecodeTime, EncodeDateTime
-// Task 9.99-9.104
 
 var dt: Float;
 var y, m, d: Integer;

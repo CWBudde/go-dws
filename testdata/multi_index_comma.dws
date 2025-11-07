@@ -1,5 +1,4 @@
 // Multi-Index Comma Syntax Test
-// Task 9.172: Test both comma and bracket syntax for multi-dimensional arrays
 
 var matrix: array of array of Integer;
 var cube: array of array of array of String;

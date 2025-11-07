@@ -1,5 +1,4 @@
 // Basic type alias declarations
-// Task 9.22: Test simple type aliases
 
 type TUserID = Integer;
 type TFileName = String;

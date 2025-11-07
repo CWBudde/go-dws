@@ -1,5 +1,4 @@
 // Nested type aliases (alias to alias)
-// Task 9.22: Test chained type aliases
 
 type TInt = Integer;
 type TUserID = TInt;

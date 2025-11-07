@@ -1,6 +1,8 @@
 package interp
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -62,7 +64,8 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 
 	// Store array type in environment with a special prefix
 	// This allows var declarations to look up the type
-	typeKey := "__array_type_" + arrayName
+	// Task 9.225: Normalize to lowercase for case-insensitive lookups
+	typeKey := "__array_type_" + strings.ToLower(arrayName)
 	arrayTypeValue := &ArrayTypeValue{
 		Name:      arrayName,
 		ArrayType: arrayType,
@@ -518,7 +521,8 @@ func (i *Interpreter) typeFromValue(val Value) types.Type {
 	case *ArrayValue:
 		return v.ArrayType
 	case *EnumValue:
-		if typeVal, ok := i.env.Get("__enum_type_" + v.TypeName); ok {
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		if typeVal, ok := i.env.Get("__enum_type_" + strings.ToLower(v.TypeName)); ok {
 			if enumTypeVal, ok := typeVal.(*EnumTypeValue); ok {
 				return enumTypeVal.EnumType
 			}

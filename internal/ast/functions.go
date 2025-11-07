@@ -16,6 +16,7 @@ import (
 //	const data: array of Integer
 //	lazy expr: Integer
 //	a, b: Float
+//	prefix: String = 'Hello'  // optional parameter with default value
 //
 // Lazy parameters capture expressions, not values. The expression is re-evaluated
 // each time the parameter is accessed within the function body, enabling patterns
@@ -23,13 +24,18 @@ import (
 //
 // Const parameters are passed by const-reference, preventing modification while
 // avoiding copy overhead for large types like arrays and records.
+//
+// Optional parameters have default values. When a function is called without
+// providing a value for an optional parameter, the default expression is evaluated
+// in the caller's context. Optional parameters must come after all required parameters.
 type Parameter struct {
-	Name    *Identifier
-	Type    *TypeAnnotation
-	Token   lexer.Token
-	IsLazy  bool // lazy parameter modifier - captures expression, not value
-	ByRef   bool // var parameter modifier - pass by reference
-	IsConst bool // const parameter modifier - pass by const-reference
+	Name         *Identifier
+	Type         *TypeAnnotation
+	Token        lexer.Token
+	DefaultValue Expression // optional default value expression (nil if required)
+	IsLazy       bool       // lazy parameter modifier - captures expression, not value
+	ByRef        bool       // var parameter modifier - pass by reference
+	IsConst      bool       // const parameter modifier - pass by const-reference
 }
 
 func (p *Parameter) String() string {
@@ -43,7 +49,19 @@ func (p *Parameter) String() string {
 	if p.ByRef {
 		result += "var "
 	}
-	result += p.Name.String() + ": " + p.Type.String()
+
+	// Handle shorthand syntax (no parameter name)
+	if p.Name == nil {
+		result += p.Type.String()
+	} else {
+		result += p.Name.String() + ": " + p.Type.String()
+	}
+
+	// Add default value if present
+	if p.DefaultValue != nil {
+		result += " = " + p.DefaultValue.String()
+	}
+
 	return result
 }
 

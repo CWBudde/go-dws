@@ -1,5 +1,4 @@
 // Test Inc() in loop context
-// Task 9.24: Inc() built-in function
 
 var sum: Integer := 0;
 var i: Integer := 0;

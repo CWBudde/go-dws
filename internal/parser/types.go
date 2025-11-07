@@ -29,6 +29,15 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 			Name:  p.curToken.Literal,
 		}
 
+	case lexer.CONST:
+		// Special case: "const" can be used as a type in "array of const"
+		// This represents a variant/heterogeneous array type
+		// Task 9.21.4: Support variadic parameters with array of const
+		return &ast.TypeAnnotation{
+			Token: p.curToken,
+			Name:  "const", // This will be interpreted as Variant type by semantic analyzer
+		}
+
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		// Inline function or procedure pointer type
 		return p.parseFunctionPointerType()
@@ -45,6 +54,56 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 	default:
 		p.addError("expected type expression, got " + p.curToken.Literal)
 		return nil
+	}
+}
+
+// detectFunctionPointerFullSyntax determines if we have full syntax (with parameter names)
+// or shorthand syntax (types only) WITHOUT advancing the parser state.
+//
+// This method is called when curToken is LPAREN and peekToken is the first token inside.
+//
+// Returns:
+//   - true for full syntax: "x: Type" or "x, y: Type"
+//   - false for shorthand: "Type" or "Type1, Type2"
+//
+// Strategy: Create a temporary lexer from the current position and peek ahead.
+// Task 9.301: Simplified detection without state save/restore
+func (p *Parser) detectFunctionPointerFullSyntax() bool {
+	// We need to look at peekToken and tokens after it WITHOUT calling nextToken().
+	// Since we can't advance the parser, we'll create a temporary lexer starting
+	// from the current parser position and manually scan tokens.
+
+	// Get the lexer's current input starting from peekToken's position
+	// peekToken.Pos.Offset gives us where peekToken starts in the input
+	input := p.l.Input()
+	if p.peekToken.Pos.Offset < 0 || p.peekToken.Pos.Offset >= len(input) {
+		// Edge case: can't determine, assume shorthand
+		return false
+	}
+
+	// Create a temporary lexer starting from peekToken's position
+	tempLexer := lexer.New(input[p.peekToken.Pos.Offset:])
+
+	// Scan through tokens looking for COLON, SEMICOLON, or RPAREN
+	// If we find COLON before SEMICOLON/RPAREN, it's full syntax
+	for {
+		tok := tempLexer.NextToken()
+
+		switch tok.Type {
+		case lexer.COLON:
+			// Found colon - this is full syntax
+			return true
+		case lexer.SEMICOLON, lexer.RPAREN, lexer.EOF:
+			// Reached end without finding colon - this is shorthand
+			return false
+		case lexer.IDENT, lexer.COMMA:
+			// Keep scanning
+			continue
+		default:
+			// If we hit a type keyword or other token, likely shorthand
+			// But keep scanning to be safe
+			continue
+		}
 	}
 }
 
@@ -79,8 +138,27 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 
 	// Check if there are parameters (not just empty parens)
 	if !p.peekTokenIs(lexer.RPAREN) {
-		// Parse parameter list using existing function
-		funcPtrType.Parameters = p.parseParameterList()
+		// Detect syntax type: full (with names) vs shorthand (types only)
+		// We need to determine if we have:
+		//   Full syntax: "name: Type" or "name1, name2: Type"
+		//   Shorthand: "Type" or "Type1, Type2"
+		//
+		// Strategy: Use simple lookahead WITHOUT advancing parser state.
+		// After we detect, advance once and parse accordingly.
+
+		isFullSyntax := p.detectFunctionPointerFullSyntax()
+
+		// Now advance to first parameter/type token
+		p.nextToken()
+
+		if isFullSyntax {
+			// Full syntax with parameter names
+			funcPtrType.Parameters = p.parseParameterListAtToken()
+		} else {
+			// Shorthand syntax with only types
+			funcPtrType.Parameters = p.parseTypeOnlyParameterListAtToken()
+		}
+
 		if funcPtrType.Parameters == nil {
 			return nil
 		}

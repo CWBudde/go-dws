@@ -8,8 +8,6 @@ import (
 
 // UnitCache caches parsed and analyzed units to speed up repeated runs.
 // The cache is invalidated when the source file is modified.
-//
-// Task 9.140: Unit compilation cache
 type UnitCache struct {
 	// entries maps unit names (normalized) to cache entries
 	entries map[string]*CacheEntry

@@ -1,0 +1,192 @@
+// Real-world usage patterns demonstrating contextual type inference
+
+// ============================================================================
+// Scenario 1: Array operations with lambdas
+// ============================================================================
+
+type TIntArray = array of Integer;
+type TMapper = function(x: Integer): Integer;
+type TFilter = function(x: Integer): Boolean;
+
+function Map(arr: TIntArray; f: TMapper): TIntArray;
+var
+  i: Integer;
+begin
+  SetLength(Result, Length(arr));
+  for i := 0 to High(arr) do
+    Result[i] := f(arr[i]);
+end;
+
+function Filter(arr: TIntArray; pred: TFilter): TIntArray;
+var
+  i, count: Integer;
+begin
+  count := 0;
+  SetLength(Result, Length(arr));
+  for i := 0 to High(arr) do
+    if pred(arr[i]) then begin
+      Result[count] := arr[i];
+      count := count + 1;
+    end;
+  SetLength(Result, count);
+end;
+
+var
+  data: TIntArray;
+  evens: TIntArray;
+  doubled: TIntArray;
+begin
+  data := [1, 2, 3, 4, 5];
+
+  // Lambda parameter types inferred from TFilter signature
+  evens := Filter(data, lambda(x) => x mod 2 = 0);
+
+  // Lambda parameter types inferred from TMapper signature
+  doubled := Map(evens, lambda(x) => x * 2);
+
+  PrintLn('Evens: ' + IntToStr(Length(evens)));
+  PrintLn('Doubled: ' + IntToStr(Length(doubled)));
+end;
+
+// ============================================================================
+// Scenario 2: Function composition
+// ============================================================================
+
+function Compose(f, g: TMapper): TMapper;
+begin
+  // Lambda parameter type inferred from TMapper return type
+  Result := lambda(x) => f(g(x));
+end;
+
+var addThenDouble: TMapper;
+begin
+  // Both lambda parameter types inferred from TMapper
+  addThenDouble := Compose(
+    lambda(x) => x * 2,
+    lambda(x) => x + 1
+  );
+
+  PrintLn('Composed: ' + IntToStr(addThenDouble(5)));  // Should be 12: (5+1)*2
+end;
+
+// ============================================================================
+// Scenario 3: Comparators for sorting
+// ============================================================================
+
+type TComparator = function(a, b: Integer): Integer;
+
+procedure BubbleSort(var arr: TIntArray; cmp: TComparator);
+var
+  i, j, temp: Integer;
+begin
+  for i := 0 to High(arr) - 1 do
+    for j := i + 1 to High(arr) do
+      if cmp(arr[i], arr[j]) > 0 then begin
+        temp := arr[i];
+        arr[i] := arr[j];
+        arr[j] := temp;
+      end;
+end;
+
+var nums: TIntArray;
+begin
+  nums := [5, 2, 8, 1, 9, 3];
+
+  // Lambda parameters a, b inferred as Integer from TComparator
+  BubbleSort(nums, lambda(a, b) => a - b);
+
+  PrintLn('Sorted ascending: ' + IntToStr(nums[0]));
+
+  // Reverse sort
+  BubbleSort(nums, lambda(a, b) => b - a);
+
+  PrintLn('Sorted descending: ' + IntToStr(nums[0]));
+end;
+
+// ============================================================================
+// Scenario 4: Partial type annotations (mixed explicit/inferred)
+// ============================================================================
+
+type TBinaryOp = function(a, b: Integer): Integer;
+
+var mixedAnnotation: TBinaryOp;
+begin
+  // 'a' is explicit, 'b' is inferred from TBinaryOp
+  mixedAnnotation := lambda(a: Integer; b) => a * b + 10;
+
+  PrintLn('Mixed: ' + IntToStr(mixedAnnotation(3, 4)));  // Should be 22
+end;
+
+// ============================================================================
+// Scenario 5: Higher-order functions (simplified)
+// ============================================================================
+
+function MakeAdderSimple(n: Integer): TMapper;
+begin
+  // Lambda parameter 'x' inferred from TMapper return type
+  Result := lambda(x) => x + n;
+end;
+
+var add10: TMapper;
+begin
+  add10 := MakeAdderSimple(10);
+  PrintLn('Higher-order: ' + IntToStr(add10(5)));  // Should be 15: 5 + 10
+end;
+
+// ============================================================================
+// Scenario 6: Procedure context (no return value)
+// ============================================================================
+
+type TAction = procedure(x: Integer);
+
+procedure ForEach(arr: TIntArray; action: TAction);
+var i: Integer;
+begin
+  for i := 0 to High(arr) do
+    action(arr[i]);
+end;
+
+var items: TIntArray;
+begin
+  items := [10, 20, 30];
+
+  // Lambda parameter 'n' inferred as Integer from TAction
+  ForEach(items, lambda(n) begin PrintLn('Item: ' + IntToStr(n)); end);
+end;
+
+// ============================================================================
+// Scenario 7: Function returning function
+// ============================================================================
+
+function MakeMultiplier(factor: Integer): TMapper;
+begin
+  // Lambda parameter inferred from TMapper return type
+  Result := lambda(x) => x * factor;
+end;
+
+var triple: TMapper;
+begin
+  triple := MakeMultiplier(3);
+  PrintLn('Triple 7: ' + IntToStr(triple(7)));  // Should be 21
+end;
+
+// ============================================================================
+// Scenario 8: Chained operations
+// ============================================================================
+
+var
+  numbers: TIntArray;
+  result: TIntArray;
+begin
+  numbers := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+  // Chain Filter and Map with inferred lambda parameters
+  result := Map(
+    Filter(numbers, lambda(x) => x > 5),
+    lambda(x) => x * x
+  );
+
+  PrintLn('Chained result count: ' + IntToStr(Length(result)));
+end;
+
+PrintLn('All comprehensive inference tests completed successfully!');

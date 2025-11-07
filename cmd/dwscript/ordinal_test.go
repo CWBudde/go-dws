@@ -8,7 +8,6 @@ import (
 )
 
 // TestOrdinalFunctions tests the CLI with ordinal function scripts
-// Task 9.35: CLI integration tests for ordinal functions (Inc, Dec, Succ, Pred, Low, High)
 func TestOrdinalFunctions(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

@@ -123,6 +123,10 @@ func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, d
 			if !a.methodSignaturesMatch(classMethod, ifaceMethod) {
 				a.addError("method '%s' in class '%s' does not match interface signature from '%s' at %s",
 					methodName, classType.Name, ifaceName, decl.Token.Pos.String())
+			} else {
+				// Clear the forward flag since this method implements the interface
+				// Methods implementing interfaces are complete implementations, not forward declarations
+				delete(classType.ForwardedMethods, methodName)
 			}
 		}
 	}

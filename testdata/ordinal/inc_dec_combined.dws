@@ -1,5 +1,4 @@
 // Test Inc() and Dec() used together
-// Task 9.24 and 9.25: Combined ordinal functions
 
 var x: Integer := 10;
 PrintLn('Start: ', x);

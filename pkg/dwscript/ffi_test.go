@@ -1610,3 +1610,374 @@ func TestFinallyBlocksWithPanics(t *testing.T) {
 		}
 	})
 }
+
+// TestRegisterVariadicFunction tests registering and calling Go variadic functions.
+func TestRegisterVariadicFunction(t *testing.T) {
+	t.Run("VariadicIntSum", func(t *testing.T) {
+		engine, err := New(WithTypeCheck(false))
+		if err != nil {
+			t.Fatalf("failed to create engine: %v", err)
+		}
+
+		// Register a variadic function that sums integers
+		err = engine.RegisterFunction("Sum", func(nums ...int64) int64 {
+			var sum int64
+			for _, n := range nums {
+				sum += n
+			}
+			return sum
+		})
+		if err != nil {
+			t.Fatalf("failed to register function: %v", err)
+		}
+
+		// Test with multiple arguments
+		var buf bytes.Buffer
+		engine.SetOutput(&buf)
+		_, err = engine.Eval(`
+			var total := Sum(1, 2, 3, 4, 5);
+			PrintLn(IntToStr(total));
+		`)
+		if err != nil {
+			t.Fatalf("execution failed: %v", err)
+		}
+
+		output := strings.TrimSpace(buf.String())
+		if output != "15" {
+			t.Errorf("expected output '15', got '%s'", output)
+		}
+	})
+
+	t.Run("VariadicWithZeroArgs", func(t *testing.T) {
+		engine, err := New(WithTypeCheck(false))
+		if err != nil {
+			t.Fatalf("failed to create engine: %v", err)
+		}
+
+		// Register a variadic function
+		err = engine.RegisterFunction("Count", func(items ...string) int64 {
+			return int64(len(items))
+		})
+		if err != nil {
+			t.Fatalf("failed to register function: %v", err)
+		}
+
+		// Call with zero variadic arguments
+		var buf bytes.Buffer
+		engine.SetOutput(&buf)
+		_, err = engine.Eval(`
+			var count := Count();
+			PrintLn(IntToStr(count));
+		`)
+		if err != nil {
+			t.Fatalf("execution failed: %v", err)
+		}
+
+		output := strings.TrimSpace(buf.String())
+		if output != "0" {
+			t.Errorf("expected output '0', got '%s'", output)
+		}
+	})
+
+	t.Run("VariadicWithOneArg", func(t *testing.T) {
+		engine, err := New(WithTypeCheck(false))
+		if err != nil {
+			t.Fatalf("failed to create engine: %v", err)
+		}
+
+		// Register a variadic function
+		err = engine.RegisterFunction("Join", func(strs ...string) string {
+			return strings.Join(strs, ",")
+		})
+		if err != nil {
+			t.Fatalf("failed to register function: %v", err)
+		}
+
+		// Call with one variadic argument
+		var buf bytes.Buffer
+		engine.SetOutput(&buf)
+		_, err = engine.Eval(`
+			var result := Join('hello');
+			PrintLn(result);
+		`)
+		if err != nil {
+			t.Fatalf("execution failed: %v", err)
+		}
+
+		output := strings.TrimSpace(buf.String())
+		if output != "hello" {
+			t.Errorf("expected output 'hello', got '%s'", output)
+		}
+	})
+
+	t.Run("VariadicWithRequiredParams", func(t *testing.T) {
+		engine, err := New(WithTypeCheck(false))
+		if err != nil {
+			t.Fatalf("failed to create engine: %v", err)
+		}
+
+		// Register a variadic function with required parameters
+		err = engine.RegisterFunction("Format", func(prefix string, nums ...int64) string {
+			parts := []string{prefix}
+			for _, n := range nums {
+				parts = append(parts, fmt.Sprintf("%d", n))
+			}
+			return strings.Join(parts, ":")
+		})
+		if err != nil {
+			t.Fatalf("failed to register function: %v", err)
+		}
+
+		// Call with required param and multiple variadic args
+		var buf bytes.Buffer
+		engine.SetOutput(&buf)
+		_, err = engine.Eval(`
+			var result := Format('Numbers', 10, 20, 30);
+			PrintLn(result);
+		`)
+		if err != nil {
+			t.Fatalf("execution failed: %v", err)
+		}
+
+		output := strings.TrimSpace(buf.String())
+		if output != "Numbers:10:20:30" {
+			t.Errorf("expected output 'Numbers:10:20:30', got '%s'", output)
+		}
+	})
+
+	t.Run("VariadicWithRequiredParamsOnly", func(t *testing.T) {
+		engine, err := New(WithTypeCheck(false))
+		if err != nil {
+			t.Fatalf("failed to create engine: %v", err)
+		}
+
+		// Register a variadic function with required parameters
+		err = engine.RegisterFunction("Greet", func(name string, adjectives ...string) string {
+			if len(adjectives) == 0 {
+				return "Hello, " + name + "!"
+			}
+			return "Hello, " + strings.Join(adjectives, " ") + " " + name + "!"
+		})
+		if err != nil {
+			t.Fatalf("failed to register function: %v", err)
+		}
+
+		// Call with only required param (no variadic args)
+		var buf bytes.Buffer
+		engine.SetOutput(&buf)
+		_, err = engine.Eval(`
+			var result := Greet('Alice');
+			PrintLn(result);
+		`)
+		if err != nil {
+			t.Fatalf("execution failed: %v", err)
+		}
+
+		output := strings.TrimSpace(buf.String())
+		if output != "Hello, Alice!" {
+			t.Errorf("expected output 'Hello, Alice!', got '%s'", output)
+		}
+	})
+
+	t.Run("VariadicFloats", func(t *testing.T) {
+		engine, err := New(WithTypeCheck(false))
+		if err != nil {
+			t.Fatalf("failed to create engine: %v", err)
+		}
+
+		// Register a variadic function with floats
+		err = engine.RegisterFunction("Average", func(nums ...float64) float64 {
+			if len(nums) == 0 {
+				return 0.0
+			}
+			var sum float64
+			for _, n := range nums {
+				sum += n
+			}
+			return sum / float64(len(nums))
+		})
+		if err != nil {
+			t.Fatalf("failed to register function: %v", err)
+		}
+
+		var buf bytes.Buffer
+		engine.SetOutput(&buf)
+		_, err = engine.Eval(`
+			var avg := Average(1.0, 2.0, 3.0, 4.0);
+			PrintLn(FloatToStr(avg));
+		`)
+		if err != nil {
+			t.Fatalf("execution failed: %v", err)
+		}
+
+		output := strings.TrimSpace(buf.String())
+		if output != "2.5" {
+			t.Errorf("expected output '2.5', got '%s'", output)
+		}
+	})
+
+	t.Run("VariadicWithError", func(t *testing.T) {
+		engine, err := New(WithTypeCheck(false))
+		if err != nil {
+			t.Fatalf("failed to create engine: %v", err)
+		}
+
+		// Register a variadic function that can return errors
+		err = engine.RegisterFunction("DivideAll", func(divisor int64, nums ...int64) (int64, error) {
+			if divisor == 0 {
+				return 0, errors.New("divisor cannot be zero")
+			}
+			var sum int64
+			for _, n := range nums {
+				sum += n / divisor
+			}
+			return sum, nil
+		})
+		if err != nil {
+			t.Fatalf("failed to register function: %v", err)
+		}
+
+		// Test successful call
+		var buf bytes.Buffer
+		engine.SetOutput(&buf)
+		_, err = engine.Eval(`
+			var result := DivideAll(2, 10, 20, 30);
+			PrintLn(IntToStr(result));
+		`)
+		if err != nil {
+			t.Fatalf("execution failed: %v", err)
+		}
+
+		output := strings.TrimSpace(buf.String())
+		if output != "30" {
+			t.Errorf("expected output '30', got '%s'", output)
+		}
+
+		// Test error case
+		buf.Reset()
+		_, err = engine.Eval(`
+			try
+				var result := DivideAll(0, 10, 20);
+				PrintLn('Should not reach here');
+			except
+				on E: EHost do
+					PrintLn('Error: ' + E.Message);
+			end;
+		`)
+		if err != nil {
+			t.Fatalf("execution failed: %v", err)
+		}
+
+		output = strings.TrimSpace(buf.String())
+		if !strings.Contains(output, "divisor cannot be zero") {
+			t.Errorf("expected error message about divisor, got '%s'", output)
+		}
+	})
+
+	t.Run("VariadicTypeMismatch", func(t *testing.T) {
+		engine, err := New(WithTypeCheck(false))
+		if err != nil {
+			t.Fatalf("failed to create engine: %v", err)
+		}
+
+		// Register a variadic function
+		err = engine.RegisterFunction("SumInts", func(nums ...int64) int64 {
+			var sum int64
+			for _, n := range nums {
+				sum += n
+			}
+			return sum
+		})
+		if err != nil {
+			t.Fatalf("failed to register function: %v", err)
+		}
+
+		// Try to call with wrong type (strings instead of ints)
+		_, err = engine.Eval(`
+			var result := SumInts('hello', 'world');
+		`)
+		if err == nil {
+			t.Error("expected type mismatch error")
+		}
+	})
+
+	t.Run("VariadicTooFewArgs", func(t *testing.T) {
+		engine, err := New(WithTypeCheck(false))
+		if err != nil {
+			t.Fatalf("failed to create engine: %v", err)
+		}
+
+		// Register a variadic function with required parameters
+		err = engine.RegisterFunction("Multiply", func(factor int64, nums ...int64) int64 {
+			var sum int64
+			for _, n := range nums {
+				sum += n * factor
+			}
+			return sum
+		})
+		if err != nil {
+			t.Fatalf("failed to register function: %v", err)
+		}
+
+		// Try to call without required parameter
+		_, err = engine.Eval(`
+			var result := Multiply();
+		`)
+		if err == nil {
+			t.Error("expected argument count error")
+		}
+		if !strings.Contains(err.Error(), "expects at least 1 arguments") {
+			t.Errorf("expected error about argument count, got: %v", err)
+		}
+	})
+}
+
+// TestVariadicFunctionSignature tests that variadic function signatures are properly detected.
+func TestVariadicFunctionSignature(t *testing.T) {
+	engine, err := New(WithTypeCheck(false))
+	if err != nil {
+		t.Fatalf("failed to create engine: %v", err)
+	}
+
+	// Register a variadic function
+	err = engine.RegisterFunction("TestVariadic", func(a string, nums ...int64) string {
+		return a
+	})
+	if err != nil {
+		t.Fatalf("failed to register function: %v", err)
+	}
+
+	// Get the signature (internal API, but useful for verification)
+	fn, ok := engine.externalFunctions.Get("TestVariadic")
+	if !ok {
+		t.Fatal("function not found in registry")
+	}
+	// Cast the wrapper to access the signature
+	wrapper, ok := fn.Wrapper.(*externalFunctionWrapper)
+	if !ok {
+		t.Fatal("wrapper is not the expected type")
+	}
+	sig := wrapper.Signature()
+	if !sig.IsVariadic {
+		t.Error("expected function to be marked as variadic")
+	}
+
+	if len(sig.ParamTypes) != 2 {
+		t.Errorf("expected 2 parameters, got %d", len(sig.ParamTypes))
+	}
+
+	if sig.ParamTypes[0] != "String" {
+		t.Errorf("expected first param to be String, got %s", sig.ParamTypes[0])
+	}
+
+	if sig.ParamTypes[1] != "array of Integer" {
+		t.Errorf("expected second param to be 'array of Integer', got %s", sig.ParamTypes[1])
+	}
+
+	// Check string representation includes variadic notation
+	sigStr := sig.String()
+	t.Logf("Signature string: %s", sigStr)
+	if !strings.Contains(sigStr, "...") {
+		t.Errorf("expected signature string to contain '...' for variadic param, got: %s", sigStr)
+	}
+}

@@ -271,6 +271,196 @@ func TestParseTypeExpression_ArrayType(t *testing.T) {
 	}
 }
 
+// TestFunctionPointerSyntaxDetection tests the parser's ability to distinguish
+// between full syntax (with parameter names) and shorthand syntax (types only).
+// This test validates Task 9.301: Simplified function pointer syntax detection.
+func TestFunctionPointerSyntaxDetection(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+		wantErr  bool
+	}{
+		// Full syntax variations
+		{
+			name:     "full syntax single parameter",
+			input:    "function(x: Integer): String",
+			expected: "function(x: Integer): String",
+			wantErr:  false,
+		},
+		{
+			name:     "full syntax two parameters",
+			input:    "function(a, b: Integer): Boolean",
+			expected: "function(a: Integer; b: Integer): Boolean",
+			wantErr:  false,
+		},
+		{
+			name:     "full syntax three parameters same type",
+			input:    "function(a, b, c: Integer): Float",
+			expected: "function(a: Integer; b: Integer; c: Integer): Float",
+			wantErr:  false,
+		},
+		{
+			name:     "full syntax multiple parameters different types",
+			input:    "function(x: Integer; y: String): Boolean",
+			expected: "function(x: Integer; y: String): Boolean",
+			wantErr:  false,
+		},
+		{
+			name:     "full syntax complex multi-param",
+			input:    "function(a, b, c: Integer; d: String): Boolean",
+			expected: "function(a: Integer; b: Integer; c: Integer; d: String): Boolean",
+			wantErr:  false,
+		},
+		{
+			name:     "procedure full syntax",
+			input:    "procedure(x, y: Integer)",
+			expected: "procedure(x: Integer; y: Integer)",
+			wantErr:  false,
+		},
+
+		// Shorthand syntax variations
+		{
+			name:     "shorthand single type",
+			input:    "function(Integer): String",
+			expected: "function(Integer): String",
+			wantErr:  false,
+		},
+		{
+			name:     "shorthand two types",
+			input:    "function(Integer, String): Boolean",
+			expected: "function(Integer; String): Boolean",
+			wantErr:  false,
+		},
+		{
+			name:     "shorthand three types",
+			input:    "function(Integer, String, Boolean): Float",
+			expected: "function(Integer; String; Boolean): Float",
+			wantErr:  false,
+		},
+		{
+			name:     "shorthand with semicolons",
+			input:    "function(Integer; String): Float",
+			expected: "function(Integer; String): Float",
+			wantErr:  false,
+		},
+		{
+			name:     "procedure shorthand",
+			input:    "procedure(Integer, String)",
+			expected: "procedure(Integer; String)",
+			wantErr:  false,
+		},
+
+		// Nested function pointers
+		{
+			name:     "nested function pointer in parameter",
+			input:    "function(function(Integer): String): Boolean",
+			expected: "function(function(Integer): String): Boolean",
+			wantErr:  false,
+		},
+		{
+			name:     "nested function pointer with full syntax",
+			input:    "function(f: function(x: Integer): String): Boolean",
+			expected: "function(f: function(x: Integer): String): Boolean",
+			wantErr:  false,
+		},
+		{
+			name:     "multiple nested function pointers",
+			input:    "function(Integer, function(String): Boolean): Float",
+			expected: "function(Integer; function(String): Boolean): Float",
+			wantErr:  false,
+		},
+
+		// With modifiers
+		{
+			name:     "const parameter shorthand",
+			input:    "function(const Integer): String",
+			expected: "function(const Integer): String",
+			wantErr:  false,
+		},
+		{
+			name:     "const parameter full syntax",
+			input:    "function(const x: Integer): String",
+			expected: "function(const x: Integer): String",
+			wantErr:  false,
+		},
+		{
+			name:     "var parameter full syntax",
+			input:    "function(var x: Integer): Boolean",
+			expected: "function(var x: Integer): Boolean",
+			wantErr:  false,
+		},
+		{
+			name:     "var parameter shorthand",
+			input:    "function(var Integer): Boolean",
+			expected: "function(var Integer): Boolean",
+			wantErr:  false,
+		},
+		{
+			name:     "mixed modifiers",
+			input:    "function(const x: Integer; var y: String): Boolean",
+			expected: "function(const x: Integer; var y: String): Boolean",
+			wantErr:  false,
+		},
+
+		// Of object variants
+		{
+			name:     "full syntax of object",
+			input:    "function(x: Integer): String of object",
+			expected: "function(x: Integer): String of object",
+			wantErr:  false,
+		},
+		{
+			name:     "shorthand of object",
+			input:    "function(Integer): String of object",
+			expected: "function(Integer): String of object",
+			wantErr:  false,
+		},
+		{
+			name:     "procedure full syntax of object",
+			input:    "procedure(x, y: Integer) of object",
+			expected: "procedure(x: Integer; y: Integer) of object",
+			wantErr:  false,
+		},
+		{
+			name:     "procedure shorthand of object",
+			input:    "procedure(Integer, String) of object",
+			expected: "procedure(Integer; String) of object",
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			// Note: New() already calls nextToken() twice, so curToken is ready
+
+			typeExpr := p.parseTypeExpression()
+
+			if tt.wantErr {
+				if len(p.Errors()) == 0 {
+					t.Errorf("expected error but got none")
+				}
+				return
+			}
+
+			if len(p.Errors()) > 0 {
+				t.Errorf("unexpected errors: %v", p.Errors())
+				return
+			}
+
+			if typeExpr == nil {
+				t.Fatal("parseTypeExpression returned nil")
+			}
+
+			if typeExpr.String() != tt.expected {
+				t.Errorf("expected type %q, got %q", tt.expected, typeExpr.String())
+			}
+		})
+	}
+}
+
 // TestParseTypeExpression_ErrorCases tests various error conditions
 func TestParseTypeExpression_ErrorCases(t *testing.T) {
 	tests := []struct {

@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -78,7 +79,8 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 				// Special handling for enum types
 				if enumVal, isEnum := startVal.(*EnumValue); isEnum {
 					// Get enum type from environment
-					typeVal, ok := i.env.Get("__enum_type_" + enumVal.TypeName)
+					// Task 9.225: Normalize to lowercase for case-insensitive lookups
+					typeVal, ok := i.env.Get("__enum_type_" + strings.ToLower(enumVal.TypeName))
 					if !ok {
 						return &ErrorValue{
 							Message: fmt.Sprintf("unknown enum type '%s'", enumVal.TypeName),
@@ -146,7 +148,8 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 				// Special handling for enum types
 				if enumVal, isEnum := elemVal.(*EnumValue); isEnum {
 					// Get enum type from environment
-					typeVal, ok := i.env.Get("__enum_type_" + enumVal.TypeName)
+					// Task 9.225: Normalize to lowercase for case-insensitive lookups
+					typeVal, ok := i.env.Get("__enum_type_" + strings.ToLower(enumVal.TypeName))
 					if !ok {
 						return &ErrorValue{
 							Message: fmt.Sprintf("unknown enum type '%s'", enumVal.TypeName),

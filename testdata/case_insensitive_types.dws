@@ -1,0 +1,68 @@
+// Test case-insensitive type references (Task 9.225)
+
+// Test 1: Array types with different casing
+type TMyArray = array[1..10] of Integer;
+var arr1: TMyArray;      // Original case
+var arr2: tmyarray;      // Lowercase
+var arr3: TMYARRAY;      // Uppercase
+var arr4: tMyArRay;      // Mixed case
+
+// Test 2: Record types with different casing
+type TMyRecord = record
+  X: Integer;
+  Y: Integer;
+end;
+var rec1: TMyRecord;     // Original case
+var rec2: tmyrecord;     // Lowercase
+var rec3: TMYRECORD;     // Uppercase
+
+// Test 3: Enum types with different casing
+type TColor = (Red, Green, Blue);
+var color1: TColor;      // Original case
+var color2: tcolor;      // Lowercase
+var color3: TCOLOR;      // Uppercase
+
+// Test 4: Subrange types with different casing
+type TDigit = 0..9;
+var digit1: TDigit;      // Original case
+var digit2: tdigit;      // Lowercase
+var digit3: TDIGIT;      // Uppercase
+
+// Test 5: Type aliases with different casing
+type TMyInt = Integer;
+var int1: TMyInt;        // Original case
+var int2: tmyint;        // Lowercase
+var int3: TMYINT;        // Uppercase
+
+begin
+  // Initialize and use variables to verify they work
+  arr1[1] := 42;
+  arr2[2] := 43;
+  arr3[3] := 44;
+  arr4[4] := 45;
+
+  rec1.X := 10;
+  rec2.Y := 20;
+  rec3.X := 30;
+
+  color1 := Red;
+  color2 := Green;
+  color3 := Blue;
+
+  digit1 := 5;
+  digit2 := 6;
+  digit3 := 7;
+
+  int1 := 100;
+  int2 := 200;
+  int3 := 300;
+
+  PrintLn('All case-insensitive type tests passed!');
+  PrintLn('arr1[1] = ' + IntToStr(arr1[1]));
+  PrintLn('arr2[2] = ' + IntToStr(arr2[2]));
+  PrintLn('rec1.X = ' + IntToStr(rec1.X));
+  PrintLn('rec2.Y = ' + IntToStr(rec2.Y));
+  PrintLn('color1 = ' + IntToStr(Ord(color1)));
+  PrintLn('digit1 = ' + IntToStr(digit1));
+  PrintLn('int1 = ' + IntToStr(int1));
+end.

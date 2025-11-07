@@ -1,5 +1,4 @@
 // Test multi-dimensional array creation and access with new keyword
-// Task 9.167: Multi-dimensional array instantiation test
 
 PrintLn('2D Array Test:');
 PrintLn('==============');

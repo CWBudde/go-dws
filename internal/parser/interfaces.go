@@ -162,8 +162,30 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 
 	// Check if there are parameters (not just empty parens)
 	if !p.peekTokenIs(lexer.RPAREN) {
-		// Parse parameter list using existing function
-		funcPtrType.Parameters = p.parseParameterList()
+		// Detect syntax type: full (with names) vs shorthand (types only)
+		// We need to determine if we have:
+		//   Full syntax: "name: Type" or "name1, name2: Type"
+		//   Shorthand: "Type" or "Type1, Type2"
+		//
+		// Strategy: Use simple lookahead WITHOUT advancing parser state.
+		// After we detect, advance once and parse accordingly.
+
+		isFullSyntax := p.detectFunctionPointerFullSyntax()
+
+		// Now advance to first parameter/type token
+		p.nextToken()
+
+		if isFullSyntax {
+			// Full syntax with parameter names
+			funcPtrType.Parameters = p.parseParameterListAtToken()
+		} else {
+			// Shorthand syntax with only types
+			funcPtrType.Parameters = p.parseTypeOnlyParameterListAtToken()
+		}
+
+		if funcPtrType.Parameters == nil {
+			return nil
+		}
 	} else {
 		// Empty parameter list
 		p.nextToken() // move to RPAREN

@@ -1,5 +1,4 @@
 // Test Min() and Max() functions
-// Task 9.65: Min/Max test fixture
 // Min(a, b) returns the smaller value
 // Max(a, b) returns the larger value
 

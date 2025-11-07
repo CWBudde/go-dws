@@ -28,9 +28,6 @@ import (
 //   - Class variables (class var)
 //   - Class constants (class const)
 //   - Visibility sections (private/public)
-//
-// Task 9.76-9.77: Helper AST node creation
-// Task 9.78: Helper keyword support
 func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, isRecordHelper bool) *ast.HelperDecl {
 	helperDecl := &ast.HelperDecl{
 		Token:          p.curToken, // The HELPER token

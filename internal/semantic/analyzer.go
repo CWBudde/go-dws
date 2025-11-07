@@ -65,6 +65,7 @@ type Analyzer struct {
 	inFinallyBlock     bool
 	inLoop             bool
 	inLambda           bool // Task 9.216: Track if we're analyzing a lambda body
+	inClassMethod      bool // Track if we're analyzing a class method (static method)
 }
 
 // NewAnalyzer creates a new semantic analyzer

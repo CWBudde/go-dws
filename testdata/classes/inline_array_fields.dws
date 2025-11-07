@@ -1,5 +1,4 @@
 // Test: Inline Array Types in Class Fields
-// Task 9.170.4: Demonstrates various inline array field declarations
 
 type TBoard = class
   // Multi-dimensional dynamic array

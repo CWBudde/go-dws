@@ -229,6 +229,50 @@ func (i *Interpreter) builtinStringReplace(args []Value) Value {
 	return &StringValue{Value: result}
 }
 
+// builtinStringOfChar implements the StringOfChar() built-in function.
+// It creates a string by repeating a character N times.
+// StringOfChar(ch, count) - returns a string with ch repeated count times
+// Task 9.226: StringOfChar() function for strings
+func (i *Interpreter) builtinStringOfChar(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "StringOfChar() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: character (string)
+	charVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StringOfChar() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: count (integer)
+	countVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StringOfChar() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	count := int(countVal.Value)
+
+	// Handle edge cases
+	// If count <= 0, return empty string
+	if count <= 0 {
+		return &StringValue{Value: ""}
+	}
+
+	// Extract the first character from the string
+	// If the string is empty, return empty string
+	if len(charVal.Value) == 0 {
+		return &StringValue{Value: ""}
+	}
+
+	// Get the first character
+	ch := charVal.Value[0:1]
+
+	// Use strings.Repeat to create the repeated string
+	result := strings.Repeat(ch, count)
+
+	return &StringValue{Value: result}
+}
+
 // builtinFormat implements the Format() built-in function.
 // Task 9.48-9.49: Format() function for string formatting
 // Supports: %s (string), %d (integer), %f (float), %% (literal %)

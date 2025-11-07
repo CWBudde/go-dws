@@ -36,7 +36,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/SimpleScripts",
 			expectErrors: false,
 			description:  "Basic language features and scripts",
-			skip:         true, // TODO: Re-enable after implementing missing features
+			skip:         false, // TODO: Re-enable after implementing missing features
 		},
 		{
 			name:         "Algorithms",

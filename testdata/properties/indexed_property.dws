@@ -1,5 +1,4 @@
 // Test indexed property functionality
-// Task 9.1c: Support indexed property reads end-to-end
 
 type TStringArray = class
 	FData: array of String;

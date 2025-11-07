@@ -390,7 +390,7 @@ func TestExternalVarParsing(t *testing.T) {
 }
 
 // TestMultiIdentifierVarDeclarations tests parsing of multi-identifier variable declarations.
-// Task 9.63: DWScript allows comma-separated variable names like `var a, b, c: Integer;`.
+// DWScript allows comma-separated variable names like `var a, b, c: Integer;`.
 func TestMultiIdentifierVarDeclarations(t *testing.T) {
 	tests := []struct {
 		name          string

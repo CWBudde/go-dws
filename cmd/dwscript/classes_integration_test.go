@@ -58,7 +58,7 @@ func TestClassesIntegration(t *testing.T) {
 				"First name: Alice",
 				"Grid[5]: 25",
 			},
-			wantPasses: 0, // Task 9.170.5: Verify inline array field declarations work end-to-end
+			wantPasses: 0, // Verify inline array field declarations work end-to-end
 		},
 	}
 

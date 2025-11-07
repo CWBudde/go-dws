@@ -7,7 +7,7 @@ import (
 )
 
 // ============================================================================
-// Task 9.170: AST Tests for Record Literals with Named Fields
+// AST Tests for Record Literals with Named Fields
 // ============================================================================
 
 func TestRecordLiteralExpression_Simple(t *testing.T) {

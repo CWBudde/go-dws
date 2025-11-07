@@ -8,7 +8,6 @@ import (
 )
 
 // TestMathFunctions tests the CLI with math function scripts
-// Task 9.66: CLI integration tests for math functions (Min, Max, Sqr, Power, Ceil, Floor, RandomInt)
 func TestMathFunctions(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
@@ -93,7 +92,6 @@ func TestMathFunctions(t *testing.T) {
 }
 
 // TestRandomIntFunction tests RandomInt separately since it produces random output
-// Task 9.66: CLI integration test for RandomInt (special case - random values)
 func TestRandomIntFunction(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

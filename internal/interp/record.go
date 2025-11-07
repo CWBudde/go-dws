@@ -57,7 +57,8 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 
 	// Store record type metadata in environment with special key
 	// This allows variable declarations to resolve the type
-	recordTypeKey := "__record_type_" + recordName
+	// Task 9.225: Normalize to lowercase for case-insensitive lookups
+	recordTypeKey := "__record_type_" + strings.ToLower(recordName)
 	i.env.Define(recordTypeKey, &RecordTypeValue{
 		RecordType:    recordType,
 		Methods:       methods,
@@ -92,7 +93,8 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods ma
 	// Create a method lookup callback that can resolve methods for nested records
 	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
 		// Look up the record type in the environment
-		key := "__record_type_" + rt.Name
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		key := "__record_type_" + strings.ToLower(rt.Name)
 		if typeVal, ok := i.env.Get(key); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				return rtv.Methods
@@ -124,7 +126,8 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 	// If the literal has an explicit type name, use it
 	if literal.TypeName != nil {
 		typeName := literal.TypeName.Value
-		recordTypeKey := "__record_type_" + typeName
+		// Task 9.225: Normalize to lowercase for case-insensitive lookups
+		recordTypeKey := "__record_type_" + strings.ToLower(typeName)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
 				recordType = rtv.RecordType
@@ -215,33 +218,34 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 		return types.VARIANT, nil
 	default:
 		// Check for custom types (enums, records, arrays, subranges)
+		// Task 9.225: Use lowerTypeName for case-insensitive lookups
 		// Try enum type
-		if enumTypeVal, ok := i.env.Get("__enum_type_" + typeName); ok {
+		if enumTypeVal, ok := i.env.Get("__enum_type_" + lowerTypeName); ok {
 			if etv, ok := enumTypeVal.(*EnumTypeValue); ok {
 				return etv.EnumType, nil
 			}
 		}
 		// Try record type
-		if recordTypeVal, ok := i.env.Get("__record_type_" + typeName); ok {
+		if recordTypeVal, ok := i.env.Get("__record_type_" + lowerTypeName); ok {
 			if rtv, ok := recordTypeVal.(*RecordTypeValue); ok {
 				return rtv.RecordType, nil
 			}
 		}
 		// Try array type
-		if arrayTypeVal, ok := i.env.Get("__array_type_" + typeName); ok {
+		if arrayTypeVal, ok := i.env.Get("__array_type_" + lowerTypeName); ok {
 			if atv, ok := arrayTypeVal.(*ArrayTypeValue); ok {
 				return atv.ArrayType, nil
 			}
 		}
 		// Try type alias
-		if typeAliasVal, ok := i.env.Get("__type_alias_" + typeName); ok {
+		if typeAliasVal, ok := i.env.Get("__type_alias_" + lowerTypeName); ok {
 			if tav, ok := typeAliasVal.(*TypeAliasValue); ok {
 				// Return the underlying type (type aliases are transparent at runtime)
 				return tav.AliasedType, nil
 			}
 		}
 		// Try subrange type
-		if subrangeTypeVal, ok := i.env.Get("__subrange_type_" + typeName); ok {
+		if subrangeTypeVal, ok := i.env.Get("__subrange_type_" + lowerTypeName); ok {
 			if stv, ok := subrangeTypeVal.(*SubrangeTypeValue); ok {
 				return stv.SubrangeType, nil
 			}

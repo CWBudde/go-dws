@@ -585,7 +585,8 @@ func helperSetupInterpWithColorEnum(t *testing.T) (*Interpreter, *types.EnumType
 	})
 
 	// Store enum type metadata
-	interp.env.Define("__enum_type_TColor", &EnumTypeValue{EnumType: enumType})
+	// Task 9.225: Use lowercase key for case-insensitive lookups
+	interp.env.Define("__enum_type_tcolor", &EnumTypeValue{EnumType: enumType})
 
 	return interp, enumType
 }
@@ -617,7 +618,8 @@ func helperSetupInterpWithLargerEnum(t *testing.T) (*Interpreter, *types.EnumTyp
 	}
 
 	// Store enum type metadata
-	interp.env.Define("__enum_type_TNumber", &EnumTypeValue{EnumType: enumType})
+	// Task 9.225: Use lowercase key for case-insensitive lookups
+	interp.env.Define("__enum_type_tnumber", &EnumTypeValue{EnumType: enumType})
 
 	return interp, enumType
 }

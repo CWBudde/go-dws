@@ -1,5 +1,4 @@
 // Test DateTime formatting functions
-// Task 9.107-9.109
 
 var dt: Float;
 

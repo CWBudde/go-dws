@@ -1,5 +1,4 @@
 // Test Ceil() and Floor() functions
-// Task 9.65: Ceil/Floor test fixture
 // Ceil(x) rounds up to the nearest integer
 // Floor(x) rounds down to the nearest integer
 
