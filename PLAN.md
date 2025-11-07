@@ -812,11 +812,12 @@ type TIntProc = procedure(value: Integer);
   - **Status**: ✅ Complete - using symbol table infrastructure
   - **Note**: Environment uses symbol table for runtime lookup
 
-- [ ] 9.67 Implement overload dispatch for method calls:
-  - [ ] Handle instance method overloads
-  - [ ] Handle class method overloads
-  - [ ] Consider inheritance (can call base class overload)
-  - [ ] Test with testdata/fixtures/OverloadsPass/meth_overload_*.pas
+- [x] 9.67 Implement overload dispatch for method calls:
+  - [x] Handle instance method overloads
+  - [x] Handle class method overloads
+  - [x] Consider inheritance (can call base class overload)
+  - [x] Test with testdata/fixtures/OverloadsPass/meth_overload_*.pas
+  - **Status**: ✅ Complete - runtime overload resolution working for methods
 
 - [ ] 9.68 Implement overload dispatch for constructor calls:
   - [ ] Handle `Create` constructor with multiple signatures
