@@ -13,9 +13,13 @@ import (
 type Compiler struct {
 	chunk      *Chunk
 	locals     []local
+	globals    map[string]globalVar
+	upvalues   []upvalue
+	enclosing  *Compiler
 	scopeDepth int
 	nextSlot   uint16
 	maxSlot    uint16
+	nextGlobal uint16
 	lastLine   int
 }
 
@@ -26,11 +30,36 @@ type local struct {
 	typ   types.Type
 }
 
+type globalVar struct {
+	name  string
+	index uint16
+	typ   types.Type
+}
+
+type upvalue struct {
+	index   uint16
+	isLocal bool
+}
+
 // NewCompiler creates a compiler for the given chunk name.
 func NewCompiler(chunkName string) *Compiler {
-	return &Compiler{
-		chunk: NewChunk(chunkName),
+	return newCompiler(chunkName, nil)
+}
+
+func newCompiler(chunkName string, enclosing *Compiler) *Compiler {
+	globals := make(map[string]globalVar)
+	if enclosing != nil {
+		globals = enclosing.globals
 	}
+	return &Compiler{
+		chunk:     NewChunk(chunkName),
+		globals:   globals,
+		enclosing: enclosing,
+	}
+}
+
+func (c *Compiler) newChildCompiler(name string) *Compiler {
+	return newCompiler(name, c)
 }
 
 // Compile compiles the provided program into bytecode.
@@ -44,9 +73,13 @@ func (c *Compiler) Compile(program *ast.Program) (*Chunk, error) {
 
 	// Reset compiler state for reuse
 	c.locals = c.locals[:0]
+	c.upvalues = c.upvalues[:0]
+	c.globals = make(map[string]globalVar)
 	c.scopeDepth = 0
 	c.nextSlot = 0
 	c.maxSlot = 0
+	c.nextGlobal = 0
+	c.enclosing = nil
 
 	if err := c.compileProgram(program); err != nil {
 		return nil, err
@@ -125,17 +158,25 @@ func (c *Compiler) compileVarDecl(stmt *ast.VarDeclStatement) error {
 		if localType == nil && stmt.Value != nil {
 			localType = c.inferExpressionType(stmt.Value)
 		}
+		if c.isGlobalScope() {
+			index, err := c.declareGlobal(name, localType)
+			if err != nil {
+				return err
+			}
+			if err := c.emitInitializer(stmt.Value, stmt); err != nil {
+				return err
+			}
+			c.chunk.Write(OpStoreGlobal, 0, index, lineOf(name))
+			continue
+		}
+
 		slot, err := c.declareLocal(name, localType)
 		if err != nil {
 			return err
 		}
 
-		if stmt.Value != nil {
-			if err := c.compileExpression(stmt.Value); err != nil {
-				return err
-			}
-		} else {
-			c.chunk.WriteSimple(OpLoadNil, lineOf(stmt))
+		if err := c.emitInitializer(stmt.Value, stmt); err != nil {
+			return err
 		}
 
 		c.chunk.Write(OpStoreLocal, 0, slot, lineOf(name))
@@ -144,27 +185,27 @@ func (c *Compiler) compileVarDecl(stmt *ast.VarDeclStatement) error {
 	return nil
 }
 
+func (c *Compiler) emitInitializer(value ast.Expression, stmt ast.Statement) error {
+	if value != nil {
+		return c.compileExpression(value)
+	}
+	c.chunk.WriteSimple(OpLoadNil, lineOf(stmt))
+	return nil
+}
+
 func (c *Compiler) compileAssignment(stmt *ast.AssignmentStatement) error {
-	targetIdent, ok := stmt.Target.(*ast.Identifier)
-	if !ok {
-		return c.errorf(stmt.Target, "unsupported assignment target %T", stmt.Target)
-	}
-
-	localInfo, ok := c.resolveLocal(targetIdent.Value)
-	if !ok {
-		return c.errorf(stmt.Target, "unknown variable %q", targetIdent.Value)
-	}
-
 	if stmt.Operator != lexer.ASSIGN {
 		return c.errorf(stmt, "unsupported assignment operator %s", stmt.Operator)
 	}
 
-	if err := c.compileExpression(stmt.Value); err != nil {
-		return err
+	switch target := stmt.Target.(type) {
+	case *ast.Identifier:
+		return c.compileIdentifierAssignment(target, stmt.Value)
+	case *ast.MemberAccessExpression:
+		return c.compileMemberAssignment(target, stmt.Value)
+	default:
+		return c.errorf(stmt.Target, "unsupported assignment target %T", stmt.Target)
 	}
-
-	c.chunk.Write(OpStoreLocal, 0, localInfo.slot, lineOf(stmt))
-	return nil
 }
 
 func (c *Compiler) compileExpressionStatement(stmt *ast.ExpressionStatement) error {
@@ -284,6 +325,10 @@ func (c *Compiler) compileExpression(expr ast.Expression) error {
 		return nil
 	case *ast.Identifier:
 		return c.compileIdentifier(node)
+	case *ast.MemberAccessExpression:
+		return c.compileMemberAccess(node)
+	case *ast.LambdaExpression:
+		return c.compileLambdaExpression(node)
 	case *ast.CallExpression:
 		return c.compileCallExpression(node)
 	case *ast.BinaryExpression:
@@ -298,10 +343,134 @@ func (c *Compiler) compileExpression(expr ast.Expression) error {
 func (c *Compiler) compileIdentifier(ident *ast.Identifier) error {
 	localInfo, ok := c.resolveLocal(ident.Value)
 	if !ok {
+		if uvIndex, ok, err := c.resolveUpvalue(ident.Value); err != nil {
+			return err
+		} else if ok {
+			c.chunk.Write(OpLoadUpvalue, 0, uvIndex, lineOf(ident))
+			return nil
+		}
+		if globalInfo, found := c.resolveGlobal(ident.Value); found {
+			c.chunk.Write(OpLoadGlobal, 0, globalInfo.index, lineOf(ident))
+			return nil
+		}
 		return c.errorf(ident, "unknown identifier %q", ident.Value)
 	}
 
 	c.chunk.Write(OpLoadLocal, 0, localInfo.slot, lineOf(ident))
+	return nil
+}
+
+func (c *Compiler) compileIdentifierAssignment(ident *ast.Identifier, value ast.Expression) error {
+	if err := c.compileExpression(value); err != nil {
+		return err
+	}
+
+	if localInfo, ok := c.resolveLocal(ident.Value); ok {
+		c.chunk.Write(OpStoreLocal, 0, localInfo.slot, lineOf(ident))
+		return nil
+	}
+
+	if uvIndex, ok, err := c.resolveUpvalue(ident.Value); err != nil {
+		return err
+	} else if ok {
+		c.chunk.Write(OpStoreUpvalue, 0, uvIndex, lineOf(ident))
+		return nil
+	}
+
+	if globalInfo, ok := c.resolveGlobal(ident.Value); ok {
+		c.chunk.Write(OpStoreGlobal, 0, globalInfo.index, lineOf(ident))
+		return nil
+	}
+
+	return c.errorf(ident, "unknown variable %q", ident.Value)
+}
+
+func (c *Compiler) compileMemberAccess(expr *ast.MemberAccessExpression) error {
+	if expr == nil || expr.Member == nil {
+		return c.errorf(expr, "invalid member access expression")
+	}
+
+	if err := c.compileExpression(expr.Object); err != nil {
+		return err
+	}
+
+	nameIndex, err := c.propertyNameIndex(expr.Member.Value, expr)
+	if err != nil {
+		return err
+	}
+
+	c.chunk.Write(OpGetProperty, 0, nameIndex, lineOf(expr))
+	return nil
+}
+
+func (c *Compiler) compileMemberAssignment(target *ast.MemberAccessExpression, value ast.Expression) error {
+	if target == nil || target.Member == nil {
+		return c.errorf(target, "invalid member assignment target")
+	}
+
+	if err := c.compileExpression(target.Object); err != nil {
+		return err
+	}
+
+	if err := c.compileExpression(value); err != nil {
+		return err
+	}
+
+	nameIndex, err := c.propertyNameIndex(target.Member.Value, target)
+	if err != nil {
+		return err
+	}
+
+	c.chunk.Write(OpSetProperty, 0, nameIndex, lineOf(target))
+	return nil
+}
+
+func (c *Compiler) compileLambdaExpression(expr *ast.LambdaExpression) error {
+	if expr == nil {
+		return c.errorf(nil, "nil lambda expression")
+	}
+
+	name := fmt.Sprintf("lambda@%d", lineOf(expr))
+	child := c.newChildCompiler(name)
+	child.beginScope()
+
+	for _, param := range expr.Parameters {
+		if param == nil || param.Name == nil {
+			return c.errorf(expr, "lambda parameter missing identifier")
+		}
+		paramType := typeFromAnnotation(param.Type)
+		if _, err := child.declareLocal(param.Name, paramType); err != nil {
+			return err
+		}
+	}
+
+	if expr.Body != nil {
+		if err := child.compileBlock(expr.Body); err != nil {
+			return err
+		}
+	} else {
+		child.chunk.WriteSimple(OpLoadNil, lineOf(expr))
+		child.chunk.Write(OpReturn, 1, 0, lineOf(expr))
+	}
+
+	child.endScope()
+	child.chunk.LocalCount = int(child.maxSlot)
+	child.ensureFunctionReturn(lineOf(expr))
+
+	fn := NewFunctionObject(name, child.chunk, len(expr.Parameters))
+	fn.UpvalueDefs = child.buildUpvalueDefs()
+
+	fnIndex := c.chunk.AddConstant(FunctionValue(fn))
+	if fnIndex > 0xFFFF {
+		return c.errorf(expr, "constant pool overflow")
+	}
+
+	upvalueCount := len(fn.UpvalueDefs)
+	if upvalueCount > 0xFF {
+		return c.errorf(expr, "too many upvalues in lambda (max 255)")
+	}
+
+	c.chunk.Write(OpClosure, byte(upvalueCount), uint16(fnIndex), lineOf(expr))
 	return nil
 }
 
@@ -518,6 +687,28 @@ func (c *Compiler) declareLocal(ident *ast.Identifier, typ types.Type) (uint16, 
 	return slot, nil
 }
 
+func (c *Compiler) declareGlobal(ident *ast.Identifier, typ types.Type) (uint16, error) {
+	if c.globals == nil {
+		c.globals = make(map[string]globalVar)
+	}
+
+	key := strings.ToLower(ident.Value)
+	if _, exists := c.globals[key]; exists {
+		return 0, c.errorf(ident, "duplicate global variable %q", ident.Value)
+	}
+
+	index := c.nextGlobal
+	c.nextGlobal++
+
+	c.globals[key] = globalVar{
+		name:  ident.Value,
+		index: index,
+		typ:   typ,
+	}
+
+	return index, nil
+}
+
 func (c *Compiler) resolveLocal(name string) (local, bool) {
 	for i := len(c.locals) - 1; i >= 0; i-- {
 		if strings.EqualFold(c.locals[i].name, name) {
@@ -540,6 +731,82 @@ func (c *Compiler) resolveLocalInCurrentScope(name string) (local, bool) {
 	return local{}, false
 }
 
+func (c *Compiler) resolveGlobal(name string) (globalVar, bool) {
+	if c.globals == nil {
+		return globalVar{}, false
+	}
+	g, ok := c.globals[strings.ToLower(name)]
+	return g, ok
+}
+
+func (c *Compiler) resolveUpvalue(name string) (uint16, bool, error) {
+	if c.enclosing == nil {
+		return 0, false, nil
+	}
+
+	if localInfo, ok := c.enclosing.resolveLocal(name); ok {
+		return c.addUpvalue(localInfo.slot, true)
+	}
+
+	upvalueIndex, ok, err := c.enclosing.resolveUpvalue(name)
+	if err != nil || !ok {
+		return 0, ok, err
+	}
+	return c.addUpvalue(upvalueIndex, false)
+}
+
+func (c *Compiler) addUpvalue(index uint16, isLocal bool) (uint16, bool, error) {
+	for i, uv := range c.upvalues {
+		if uv.index == index && uv.isLocal == isLocal {
+			return uint16(i), true, nil
+		}
+	}
+
+	if len(c.upvalues) >= 0xFF {
+		return 0, false, c.errorf(nil, "too many upvalues (max 255)")
+	}
+
+	c.upvalues = append(c.upvalues, upvalue{
+		index:   index,
+		isLocal: isLocal,
+	})
+
+	return uint16(len(c.upvalues) - 1), true, nil
+}
+
+func (c *Compiler) propertyNameIndex(name string, node ast.Node) (uint16, error) {
+	index := c.chunk.AddConstant(StringValue(name))
+	if index > 0xFFFF {
+		return 0, c.errorf(node, "constant pool overflow")
+	}
+	return uint16(index), nil
+}
+
+func (c *Compiler) buildUpvalueDefs() []UpvalueDef {
+	if len(c.upvalues) == 0 {
+		return nil
+	}
+	defs := make([]UpvalueDef, len(c.upvalues))
+	for i, uv := range c.upvalues {
+		defs[i] = UpvalueDef{
+			IsLocal: uv.isLocal,
+			Index:   int(uv.index),
+		}
+	}
+	return defs
+}
+
+func (c *Compiler) ensureFunctionReturn(line int) {
+	if len(c.chunk.Code) == 0 {
+		c.chunk.Write(OpReturn, 0, 0, line)
+		return
+	}
+	last := c.chunk.Code[len(c.chunk.Code)-1]
+	if last.OpCode() != OpReturn {
+		c.chunk.Write(OpReturn, 0, 0, line)
+	}
+}
+
 func (c *Compiler) beginScope() {
 	c.scopeDepth++
 }
@@ -553,6 +820,10 @@ func (c *Compiler) endScope() {
 		c.locals = c.locals[:len(c.locals)-1]
 	}
 	c.scopeDepth--
+}
+
+func (c *Compiler) isGlobalScope() bool {
+	return c.enclosing == nil && c.scopeDepth == 0
 }
 
 func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
@@ -576,6 +847,9 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 	case *ast.Identifier:
 		if localInfo, ok := c.resolveLocal(node.Value); ok {
 			return localInfo.typ
+		}
+		if globalInfo, ok := c.resolveGlobal(node.Value); ok {
+			return globalInfo.typ
 		}
 		return typeFromAnnotation(node.GetType())
 	default:
