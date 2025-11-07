@@ -398,28 +398,43 @@ type PropertyInfo struct {
 	IsDefault bool
 }
 
+// MethodInfo stores metadata about a single method or overload (Task 9.61)
+// This allows tracking virtual/override/abstract/overload per method signature
+type MethodInfo struct {
+	Signature            *FunctionType
+	IsVirtual            bool
+	IsOverride           bool
+	IsAbstract           bool
+	IsForwarded          bool
+	IsClassMethod        bool
+	HasOverloadDirective bool
+	Visibility           int
+}
+
 // ClassType represents a class type in DWScript.
 // Classes support inheritance, fields, methods, and class variables (static fields).
 type ClassType struct {
-	OverrideMethods  map[string]bool
-	AbstractMethods  map[string]bool
-	ForwardedMethods map[string]bool
-	Fields           map[string]Type
-	ClassVars        map[string]Type
-	Methods          map[string]*FunctionType
-	FieldVisibility  map[string]int
-	MethodVisibility map[string]int
-	VirtualMethods   map[string]bool
-	Parent           *ClassType
-	Properties       map[string]*PropertyInfo
-	ClassMethodFlags map[string]bool
-	Constructors     map[string]*FunctionType
-	Operators        *OperatorRegistry
-	ExternalName     string
-	Name             string
-	Interfaces       []*InterfaceType
-	IsAbstract       bool
-	IsExternal       bool
+	OverrideMethods   map[string]bool
+	AbstractMethods   map[string]bool
+	ForwardedMethods  map[string]bool
+	Fields            map[string]Type
+	ClassVars         map[string]Type
+	Methods           map[string]*FunctionType // Primary method signature (first or only overload)
+	MethodOverloads   map[string][]*MethodInfo // All overload variants (Task 9.61)
+	FieldVisibility   map[string]int
+	MethodVisibility  map[string]int
+	VirtualMethods    map[string]bool
+	Parent            *ClassType
+	Properties        map[string]*PropertyInfo
+	ClassMethodFlags  map[string]bool
+	Constructors      map[string]*FunctionType      // Primary constructor signature
+	ConstructorOverloads map[string][]*MethodInfo  // All constructor overload variants (Task 9.61)
+	Operators         *OperatorRegistry
+	ExternalName      string
+	Name              string
+	Interfaces        []*InterfaceType
+	IsAbstract        bool
+	IsExternal        bool
 }
 
 // String returns the string representation of the class type
@@ -488,6 +503,38 @@ func (ct *ClassType) GetMethod(name string) (*FunctionType, bool) {
 		return ct.Parent.GetMethod(name)
 	}
 	return nil, false
+}
+
+// GetMethodOverloads retrieves all overload variants of a method by name (Task 9.61)
+// Returns overloads from this class only (does not search parent)
+func (ct *ClassType) GetMethodOverloads(name string) []*MethodInfo {
+	return ct.MethodOverloads[name]
+}
+
+// GetConstructorOverloads retrieves all overload variants of a constructor by name (Task 9.61)
+func (ct *ClassType) GetConstructorOverloads(name string) []*MethodInfo {
+	return ct.ConstructorOverloads[name]
+}
+
+// AddMethodOverload adds a method overload to the class (Task 9.61)
+func (ct *ClassType) AddMethodOverload(name string, info *MethodInfo) {
+	ct.MethodOverloads[name] = append(ct.MethodOverloads[name], info)
+
+	// Update the primary Methods map to point to the first overload
+	// This maintains backward compatibility with code that uses Methods map directly
+	if len(ct.MethodOverloads[name]) == 1 {
+		ct.Methods[name] = info.Signature
+	}
+}
+
+// AddConstructorOverload adds a constructor overload to the class (Task 9.61)
+func (ct *ClassType) AddConstructorOverload(name string, info *MethodInfo) {
+	ct.ConstructorOverloads[name] = append(ct.ConstructorOverloads[name], info)
+
+	// Update the primary Constructors map
+	if len(ct.ConstructorOverloads[name]) == 1 {
+		ct.Constructors[name] = info.Signature
+	}
 }
 
 // RegisterOperator adds a class operator overload to the class type.
@@ -587,21 +634,23 @@ func (ct *ClassType) ImplementsInterface(iface *InterfaceType) bool {
 // Fields, ClassVars, Methods, and visibility maps are initialized as empty.
 func NewClassType(name string, parent *ClassType) *ClassType {
 	return &ClassType{
-		Name:             name,
-		Parent:           parent,
-		Fields:           make(map[string]Type),
-		ClassVars:        make(map[string]Type),
-		Methods:          make(map[string]*FunctionType),
-		FieldVisibility:  make(map[string]int),
-		MethodVisibility: make(map[string]int),
-		VirtualMethods:   make(map[string]bool),
-		OverrideMethods:  make(map[string]bool),
-		AbstractMethods:  make(map[string]bool),
-		ForwardedMethods: make(map[string]bool),
-		Operators:        NewOperatorRegistry(),
-		Constructors:     make(map[string]*FunctionType),
-		ClassMethodFlags: make(map[string]bool),
-		Properties:       make(map[string]*PropertyInfo),
+		Name:                 name,
+		Parent:               parent,
+		Fields:               make(map[string]Type),
+		ClassVars:            make(map[string]Type),
+		Methods:              make(map[string]*FunctionType),
+		MethodOverloads:      make(map[string][]*MethodInfo),      // Task 9.61
+		FieldVisibility:      make(map[string]int),
+		MethodVisibility:     make(map[string]int),
+		VirtualMethods:       make(map[string]bool),
+		OverrideMethods:      make(map[string]bool),
+		AbstractMethods:      make(map[string]bool),
+		ForwardedMethods:     make(map[string]bool),
+		Operators:            NewOperatorRegistry(),
+		Constructors:         make(map[string]*FunctionType),
+		ConstructorOverloads: make(map[string][]*MethodInfo),  // Task 9.61
+		ClassMethodFlags:     make(map[string]bool),
+		Properties:           make(map[string]*PropertyInfo),
 	}
 }
 

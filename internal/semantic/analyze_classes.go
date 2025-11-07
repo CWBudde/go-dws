@@ -354,20 +354,27 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 			paramTypes, paramNames, defaultValues, lazyParams, varParams, constParams, returnType,
 		)
 	}
-	classType.Methods[method.Name.Value] = funcType
+
+	// Task 9.61: Add method to overload set instead of overwriting
+	methodInfo := &types.MethodInfo{
+		Signature:            funcType,
+		IsVirtual:            method.IsVirtual,
+		IsOverride:           method.IsOverride,
+		IsAbstract:           method.IsAbstract,
+		IsForwarded:          method.Body == nil,
+		IsClassMethod:        method.IsClassMethod,
+		HasOverloadDirective: method.IsOverload,
+		Visibility:           int(method.Visibility),
+	}
+
 	if method.IsConstructor {
-		classType.Constructors[method.Name.Value] = funcType
+		classType.AddConstructorOverload(method.Name.Value, methodInfo)
+	} else {
+		classType.AddMethodOverload(method.Name.Value, methodInfo)
 	}
+
+	// Store method metadata in legacy maps for backward compatibility
 	classType.ClassMethodFlags[method.Name.Value] = method.IsClassMethod
-
-	// Store method visibility (Task 7.63f)
-	// Only set visibility if this is the first time we're seeing this method (declaration in class body)
-	// Method implementations outside the class shouldn't overwrite the visibility
-	if _, exists := classType.MethodVisibility[method.Name.Value]; !exists {
-		classType.MethodVisibility[method.Name.Value] = int(method.Visibility)
-	}
-
-	// Store virtual/override/abstract flags (Task 7.64, 7.65)
 	classType.VirtualMethods[method.Name.Value] = method.IsVirtual
 	classType.OverrideMethods[method.Name.Value] = method.IsOverride
 	classType.AbstractMethods[method.Name.Value] = method.IsAbstract
@@ -376,6 +383,13 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	// Methods declared in class body without implementation are implicitly forward
 	if method.Body == nil {
 		classType.ForwardedMethods[method.Name.Value] = true
+	}
+
+	// Store method visibility (Task 7.63f)
+	// Only set visibility if this is the first time we're seeing this method (declaration in class body)
+	// Method implementations outside the class shouldn't overwrite the visibility
+	if _, exists := classType.MethodVisibility[method.Name.Value]; !exists {
+		classType.MethodVisibility[method.Name.Value] = int(method.Visibility)
 	}
 
 	// Analyze method body in new scope
@@ -451,41 +465,51 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	}
 }
 
-// validateVirtualOverride validates virtual/override method declarations
+// validateVirtualOverride validates virtual/override method declarations (Task 9.61: Updated for overloading)
 func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *types.ClassType, methodType *types.FunctionType) {
 	methodName := method.Name.Value
 
-	// If method is marked override, validate parent has virtual method
+	// If method is marked override, validate parent has virtual method with matching signature
 	if method.IsOverride {
 		if classType.Parent == nil {
 			a.addError("method '%s' marked as override, but class has no parent", methodName)
 			return
 		}
 
-		// Find method in parent class hierarchy
-		parentMethod := a.findMethodInParent(methodName, classType.Parent)
-		if parentMethod == nil {
-			a.addError("method '%s' marked as override, but no such method exists in parent class", methodName)
+		// Task 9.61: Find matching overload in parent class hierarchy
+		parentOverload := a.findMatchingOverloadInParent(methodName, methodType, classType.Parent)
+		if parentOverload == nil {
+			// Check if method with this name exists at all
+			if a.hasMethodWithName(methodName, classType.Parent) {
+				// Method name exists but signature doesn't match any parent overload
+				a.addError("method '%s' marked as override, but no matching signature exists in parent class", methodName)
+			} else {
+				// Method name doesn't exist at all in parent
+				a.addError("method '%s' marked as override, but no such method exists in parent class", methodName)
+			}
 			return
 		}
 
-		// Check that parent method is virtual or override
-		if !a.isMethodVirtualOrOverride(methodName, classType.Parent) {
+		// Check that parent method is virtual or override (Task 9.61)
+		if !parentOverload.IsVirtual && !parentOverload.IsOverride {
 			a.addError("method '%s' marked as override, but parent method is not virtual", methodName)
 			return
 		}
 
-		// Ensure signatures match
-		if !a.methodSignaturesMatch(methodType, parentMethod) {
-			a.addError("method '%s' override signature does not match parent method signature", methodName)
-			return
+		// Task 9.61.4: Add hint if override is part of an overload set but doesn't have overload directive
+		// Check if there are other overloads of this method in the current class
+		currentOverloads := classType.GetMethodOverloads(methodName)
+		if len(currentOverloads) > 1 && !method.IsOverload {
+			a.addHint("Overloaded method \"%s\" should be marked with the \"overload\" directive at %s",
+				methodName, method.Token.Pos.String())
 		}
 	}
 
 	// Warn if redefining virtual method without override keyword
 	if !method.IsOverride && !method.IsVirtual && classType.Parent != nil {
-		parentMethod := a.findMethodInParent(methodName, classType.Parent)
-		if parentMethod != nil && a.isMethodVirtualOrOverride(methodName, classType.Parent) {
+		// Task 9.61: Check if any parent overload with matching signature is virtual
+		parentOverload := a.findMatchingOverloadInParent(methodName, methodType, classType.Parent)
+		if parentOverload != nil && (parentOverload.IsVirtual || parentOverload.IsOverride) {
 			a.addError("method '%s' hides virtual parent method; use 'override' keyword", methodName)
 		}
 	}

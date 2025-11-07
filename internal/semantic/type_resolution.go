@@ -478,6 +478,78 @@ func (a *Analyzer) findMethodInParent(methodName string, parent *types.ClassType
 	return a.findMethodInParent(methodName, parent.Parent)
 }
 
+// findMatchingOverloadInParent finds a method overload in the parent class hierarchy
+// that matches the given signature (Task 9.61)
+func (a *Analyzer) findMatchingOverloadInParent(methodName string, signature *types.FunctionType, parent *types.ClassType) *types.MethodInfo {
+	if parent == nil {
+		return nil
+	}
+
+	// Check overloads in parent
+	overloads := parent.GetMethodOverloads(methodName)
+	for _, overload := range overloads {
+		if a.methodSignaturesMatch(signature, overload.Signature) {
+			return overload
+		}
+	}
+
+	// Recursively search in grandparent
+	return a.findMatchingOverloadInParent(methodName, signature, parent.Parent)
+}
+
+// hasMethodWithName checks if a method with the given name exists in parent hierarchy (Task 9.61)
+// Returns true if ANY overload exists, regardless of signature
+func (a *Analyzer) hasMethodWithName(methodName string, parent *types.ClassType) bool {
+	if parent == nil {
+		return false
+	}
+
+	// Check if any overloads exist
+	if len(parent.GetMethodOverloads(methodName)) > 0 {
+		return true
+	}
+
+	// Recursively check grandparent
+	return a.hasMethodWithName(methodName, parent.Parent)
+}
+
+// getMethodOverloadsInHierarchy collects all method overloads from the class hierarchy (Task 9.61)
+// Returns all overload variants for the given method name, searching up the inheritance chain
+func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *types.ClassType) []*types.MethodInfo {
+	if classType == nil {
+		return nil
+	}
+
+	var result []*types.MethodInfo
+
+	// Collect overloads from current class
+	overloads := classType.GetMethodOverloads(methodName)
+	result = append(result, overloads...)
+
+	// Recursively collect from parent (only if not overridden in current class)
+	// If the current class has override methods, we don't want to include the parent's virtual methods
+	// because they're replaced by the overrides
+	if classType.Parent != nil {
+		parentOverloads := a.getMethodOverloadsInHierarchy(methodName, classType.Parent)
+		for _, parentOverload := range parentOverloads {
+			// Check if this parent overload is overridden in the current class
+			overridden := false
+			for _, currentOverload := range overloads {
+				if currentOverload.IsOverride && a.methodSignaturesMatch(currentOverload.Signature, parentOverload.Signature) {
+					overridden = true
+					break
+				}
+			}
+			// Only add parent overload if it's not overridden
+			if !overridden {
+				result = append(result, parentOverload)
+			}
+		}
+	}
+
+	return result
+}
+
 // isMethodVirtualOrOverride checks if a method is marked virtual or override in class hierarchy
 func (a *Analyzer) isMethodVirtualOrOverride(methodName string, classType *types.ClassType) bool {
 	if classType == nil {
