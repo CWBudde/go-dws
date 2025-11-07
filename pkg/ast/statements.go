@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // VarDeclStatement represents a variable declaration statement.
@@ -22,13 +22,13 @@ type VarDeclStatement struct {
 	Names        []*Identifier // Changed from Name to support multi-identifier declarations
 	Type         *TypeAnnotation
 	ExternalName string
-	Token        lexer.Token
+	Token        token.Token
 	IsExternal   bool
 	Inferred     bool // true when the type is inferred from the initializer
-	EndPos       lexer.Position
+	EndPos       token.Position
 }
 
-func (v *VarDeclStatement) End() lexer.Position {
+func (v *VarDeclStatement) End() token.Position {
 	if v.EndPos.Line != 0 {
 		return v.EndPos
 	}
@@ -37,7 +37,7 @@ func (v *VarDeclStatement) End() lexer.Position {
 
 func (vds *VarDeclStatement) statementNode()       {}
 func (vds *VarDeclStatement) TokenLiteral() string { return vds.Token.Literal }
-func (vds *VarDeclStatement) Pos() lexer.Position  { return vds.Token.Pos }
+func (vds *VarDeclStatement) Pos() token.Position  { return vds.Token.Pos }
 func (vds *VarDeclStatement) String() string {
 	var out bytes.Buffer
 
@@ -79,12 +79,12 @@ func (vds *VarDeclStatement) String() string {
 type AssignmentStatement struct {
 	Target   Expression
 	Value    Expression
-	Token    lexer.Token
-	Operator lexer.TokenType // ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN, TIMES_ASSIGN, DIVIDE_ASSIGN
-	EndPos   lexer.Position
+	Token    token.Token
+	Operator token.TokenType // ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN, TIMES_ASSIGN, DIVIDE_ASSIGN
+	EndPos   token.Position
 }
 
-func (a *AssignmentStatement) End() lexer.Position {
+func (a *AssignmentStatement) End() token.Position {
 	if a.EndPos.Line != 0 {
 		return a.EndPos
 	}
@@ -93,7 +93,7 @@ func (a *AssignmentStatement) End() lexer.Position {
 
 func (as *AssignmentStatement) statementNode()       {}
 func (as *AssignmentStatement) TokenLiteral() string { return as.Token.Literal }
-func (as *AssignmentStatement) Pos() lexer.Position  { return as.Token.Pos }
+func (as *AssignmentStatement) Pos() token.Position  { return as.Token.Pos }
 func (as *AssignmentStatement) String() string {
 	var out bytes.Buffer
 
@@ -104,13 +104,13 @@ func (as *AssignmentStatement) String() string {
 
 	// Use compound operator if set, otherwise use :=
 	switch as.Operator {
-	case lexer.PLUS_ASSIGN:
+	case token.PLUS_ASSIGN:
 		out.WriteString(" += ")
-	case lexer.MINUS_ASSIGN:
+	case token.MINUS_ASSIGN:
 		out.WriteString(" -= ")
-	case lexer.TIMES_ASSIGN:
+	case token.TIMES_ASSIGN:
 		out.WriteString(" *= ")
-	case lexer.DIVIDE_ASSIGN:
+	case token.DIVIDE_ASSIGN:
 		out.WriteString(" /= ")
 	default:
 		out.WriteString(" := ")
@@ -133,11 +133,11 @@ type CallExpression struct {
 	Function  Expression
 	Type      *TypeAnnotation
 	Arguments []Expression
-	Token     lexer.Token
-	EndPos    lexer.Position
+	Token     token.Token
+	EndPos    token.Position
 }
 
-func (c *CallExpression) End() lexer.Position {
+func (c *CallExpression) End() token.Position {
 	if c.EndPos.Line != 0 {
 		return c.EndPos
 	}
@@ -146,7 +146,7 @@ func (c *CallExpression) End() lexer.Position {
 
 func (ce *CallExpression) expressionNode()      {}
 func (ce *CallExpression) TokenLiteral() string { return ce.Token.Literal }
-func (ce *CallExpression) Pos() lexer.Position  { return ce.Function.Pos() }
+func (ce *CallExpression) Pos() token.Position  { return ce.Function.Pos() }
 func (ce *CallExpression) String() string {
 	var out bytes.Buffer
 
@@ -176,14 +176,14 @@ func (ce *CallExpression) SetType(typ *TypeAnnotation) { ce.Type = typ }
 type Condition struct {
 	Test    Expression // Must evaluate to boolean
 	Message Expression // Optional string message (if nil, use source code as message)
-	Token   lexer.Token
-	EndPos  lexer.Position
+	Token   token.Token
+	EndPos  token.Position
 }
 
 func (c *Condition) statementNode()       {}
 func (c *Condition) TokenLiteral() string { return c.Token.Literal }
-func (c *Condition) Pos() lexer.Position  { return c.Token.Pos }
-func (c *Condition) End() lexer.Position {
+func (c *Condition) Pos() token.Position  { return c.Token.Pos }
+func (c *Condition) End() token.Position {
 	if c.EndPos.Line != 0 {
 		return c.EndPos
 	}
@@ -213,11 +213,11 @@ func (c *Condition) String() string {
 //	   y <> 0 : 'y cannot be zero';
 type PreConditions struct {
 	Conditions []*Condition
-	Token      lexer.Token // The REQUIRE token
-	EndPos     lexer.Position
+	Token      token.Token // The REQUIRE token
+	EndPos     token.Position
 }
 
-func (p *PreConditions) End() lexer.Position {
+func (p *PreConditions) End() token.Position {
 	if p.EndPos.Line != 0 {
 		return p.EndPos
 	}
@@ -226,7 +226,7 @@ func (p *PreConditions) End() lexer.Position {
 
 func (pc *PreConditions) statementNode()       {}
 func (pc *PreConditions) TokenLiteral() string { return pc.Token.Literal }
-func (pc *PreConditions) Pos() lexer.Position  { return pc.Token.Pos }
+func (pc *PreConditions) Pos() token.Position  { return pc.Token.Pos }
 func (pc *PreConditions) String() string {
 	var out bytes.Buffer
 
@@ -253,11 +253,11 @@ func (pc *PreConditions) String() string {
 //	   Result = old x + 1 : 'result must be one more than original x';
 type PostConditions struct {
 	Conditions []*Condition
-	Token      lexer.Token // The ENSURE token
-	EndPos     lexer.Position
+	Token      token.Token // The ENSURE token
+	EndPos     token.Position
 }
 
-func (p *PostConditions) End() lexer.Position {
+func (p *PostConditions) End() token.Position {
 	if p.EndPos.Line != 0 {
 		return p.EndPos
 	}
@@ -266,7 +266,7 @@ func (p *PostConditions) End() lexer.Position {
 
 func (pc *PostConditions) statementNode()       {}
 func (pc *PostConditions) TokenLiteral() string { return pc.Token.Literal }
-func (pc *PostConditions) Pos() lexer.Position  { return pc.Token.Pos }
+func (pc *PostConditions) Pos() token.Position  { return pc.Token.Pos }
 func (pc *PostConditions) String() string {
 	var out bytes.Buffer
 
@@ -294,11 +294,11 @@ func (pc *PostConditions) String() string {
 type OldExpression struct {
 	Identifier *Identifier
 	Type       *TypeAnnotation
-	Token      lexer.Token // The OLD token
-	EndPos     lexer.Position
+	Token      token.Token // The OLD token
+	EndPos     token.Position
 }
 
-func (o *OldExpression) End() lexer.Position {
+func (o *OldExpression) End() token.Position {
 	if o.EndPos.Line != 0 {
 		return o.EndPos
 	}
@@ -307,7 +307,7 @@ func (o *OldExpression) End() lexer.Position {
 
 func (oe *OldExpression) expressionNode()      {}
 func (oe *OldExpression) TokenLiteral() string { return oe.Token.Literal }
-func (oe *OldExpression) Pos() lexer.Position  { return oe.Token.Pos }
+func (oe *OldExpression) Pos() token.Position  { return oe.Token.Pos }
 func (oe *OldExpression) String() string {
 	return "old " + oe.Identifier.String()
 }

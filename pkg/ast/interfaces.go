@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -25,11 +25,11 @@ type InterfaceMethodDecl struct {
 	Name       *Identifier
 	ReturnType *TypeAnnotation
 	Parameters []*Parameter
-	Token      lexer.Token
-	EndPos     lexer.Position
+	Token      token.Token
+	EndPos     token.Position
 }
 
-func (i *InterfaceMethodDecl) End() lexer.Position {
+func (i *InterfaceMethodDecl) End() token.Position {
 	if i.EndPos.Line != 0 {
 		return i.EndPos
 	}
@@ -89,12 +89,12 @@ type InterfaceDecl struct {
 	Parent       *Identifier
 	ExternalName string
 	Methods      []*InterfaceMethodDecl
-	Token        lexer.Token
+	Token        token.Token
 	IsExternal   bool
-	EndPos       lexer.Position
+	EndPos       token.Position
 }
 
-func (i *InterfaceDecl) End() lexer.Position {
+func (i *InterfaceDecl) End() token.Position {
 	if i.EndPos.Line != 0 {
 		return i.EndPos
 	}
@@ -103,7 +103,7 @@ func (i *InterfaceDecl) End() lexer.Position {
 
 func (id *InterfaceDecl) statementNode()       {}
 func (id *InterfaceDecl) TokenLiteral() string { return id.Token.Literal }
-func (id *InterfaceDecl) Pos() lexer.Position  { return id.Token.Pos }
+func (id *InterfaceDecl) Pos() token.Position  { return id.Token.Pos }
 func (id *InterfaceDecl) String() string {
 	var out bytes.Buffer
 

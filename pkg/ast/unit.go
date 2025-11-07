@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // UnitDeclaration represents a DWScript unit (module) declaration.
@@ -48,11 +48,11 @@ type UnitDeclaration struct {
 	FinalSection *BlockStatement
 
 	// Token is the 'unit' keyword token
-	Token  lexer.Token
-	EndPos lexer.Position
+	Token  token.Token
+	EndPos token.Position
 }
 
-func (u *UnitDeclaration) End() lexer.Position {
+func (u *UnitDeclaration) End() token.Position {
 	if u.EndPos.Line != 0 {
 		return u.EndPos
 	}
@@ -61,7 +61,7 @@ func (u *UnitDeclaration) End() lexer.Position {
 
 func (ud *UnitDeclaration) statementNode()       {}
 func (ud *UnitDeclaration) TokenLiteral() string { return ud.Token.Literal }
-func (ud *UnitDeclaration) Pos() lexer.Position  { return ud.Token.Pos }
+func (ud *UnitDeclaration) Pos() token.Position  { return ud.Token.Pos }
 func (ud *UnitDeclaration) String() string {
 	var out bytes.Buffer
 
@@ -130,11 +130,11 @@ type UsesClause struct {
 	Units []*Identifier
 
 	// Token is the 'uses' keyword token
-	Token  lexer.Token
-	EndPos lexer.Position
+	Token  token.Token
+	EndPos token.Position
 }
 
-func (u *UsesClause) End() lexer.Position {
+func (u *UsesClause) End() token.Position {
 	if u.EndPos.Line != 0 {
 		return u.EndPos
 	}
@@ -143,7 +143,7 @@ func (u *UsesClause) End() lexer.Position {
 
 func (uc *UsesClause) statementNode()       {}
 func (uc *UsesClause) TokenLiteral() string { return uc.Token.Literal }
-func (uc *UsesClause) Pos() lexer.Position  { return uc.Token.Pos }
+func (uc *UsesClause) Pos() token.Position  { return uc.Token.Pos }
 func (uc *UsesClause) String() string {
 	var out bytes.Buffer
 

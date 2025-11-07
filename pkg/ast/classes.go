@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -67,13 +67,13 @@ type ClassDecl struct {
 	Properties   []*PropertyDecl
 	Methods      []*FunctionDecl
 	Fields       []*FieldDecl
-	Token        lexer.Token
+	Token        token.Token
 	IsAbstract   bool
 	IsExternal   bool
-	EndPos       lexer.Position
+	EndPos       token.Position
 }
 
-func (c *ClassDecl) End() lexer.Position {
+func (c *ClassDecl) End() token.Position {
 	if c.EndPos.Line != 0 {
 		return c.EndPos
 	}
@@ -82,7 +82,7 @@ func (c *ClassDecl) End() lexer.Position {
 
 func (cd *ClassDecl) statementNode()       {}
 func (cd *ClassDecl) TokenLiteral() string { return cd.Token.Literal }
-func (cd *ClassDecl) Pos() lexer.Position  { return cd.Token.Pos }
+func (cd *ClassDecl) Pos() token.Position  { return cd.Token.Pos }
 func (cd *ClassDecl) String() string {
 	var out bytes.Buffer
 
@@ -190,13 +190,13 @@ func (cd *ClassDecl) String() string {
 type FieldDecl struct {
 	Name       *Identifier
 	Type       TypeExpression
-	Token      lexer.Token
+	Token      token.Token
 	Visibility Visibility
 	IsClassVar bool
-	EndPos     lexer.Position
+	EndPos     token.Position
 }
 
-func (f *FieldDecl) End() lexer.Position {
+func (f *FieldDecl) End() token.Position {
 	if f.EndPos.Line != 0 {
 		return f.EndPos
 	}
@@ -205,7 +205,7 @@ func (f *FieldDecl) End() lexer.Position {
 
 func (fd *FieldDecl) statementNode()       {}
 func (fd *FieldDecl) TokenLiteral() string { return fd.Name.TokenLiteral() }
-func (fd *FieldDecl) Pos() lexer.Position  { return fd.Name.Pos() }
+func (fd *FieldDecl) Pos() token.Position  { return fd.Name.Pos() }
 func (fd *FieldDecl) String() string {
 	var out bytes.Buffer
 
@@ -241,11 +241,11 @@ type NewExpression struct {
 	ClassName *Identifier     // The class name (e.g., TAnimal, TPerson)
 	Type      *TypeAnnotation // Inferred class type (for semantic analysis)
 	Arguments []Expression    // Constructor arguments
-	Token     lexer.Token     // The 'new' token or class name token
-	EndPos    lexer.Position
+	Token     token.Token     // The 'new' token or class name token
+	EndPos    token.Position
 }
 
-func (n *NewExpression) End() lexer.Position {
+func (n *NewExpression) End() token.Position {
 	if n.EndPos.Line != 0 {
 		return n.EndPos
 	}
@@ -254,7 +254,7 @@ func (n *NewExpression) End() lexer.Position {
 
 func (ne *NewExpression) expressionNode()             {}
 func (ne *NewExpression) TokenLiteral() string        { return ne.ClassName.TokenLiteral() }
-func (ne *NewExpression) Pos() lexer.Position         { return ne.ClassName.Pos() }
+func (ne *NewExpression) Pos() token.Position         { return ne.ClassName.Pos() }
 func (ne *NewExpression) GetType() *TypeAnnotation    { return ne.Type }
 func (ne *NewExpression) SetType(typ *TypeAnnotation) { ne.Type = typ }
 func (ne *NewExpression) String() string {
@@ -288,11 +288,11 @@ type MemberAccessExpression struct {
 	Object Expression
 	Member *Identifier
 	Type   *TypeAnnotation
-	Token  lexer.Token
-	EndPos lexer.Position
+	Token  token.Token
+	EndPos token.Position
 }
 
-func (m *MemberAccessExpression) End() lexer.Position {
+func (m *MemberAccessExpression) End() token.Position {
 	if m.EndPos.Line != 0 {
 		return m.EndPos
 	}
@@ -301,7 +301,7 @@ func (m *MemberAccessExpression) End() lexer.Position {
 
 func (ma *MemberAccessExpression) expressionNode()             {}
 func (ma *MemberAccessExpression) TokenLiteral() string        { return ma.Token.Literal }
-func (ma *MemberAccessExpression) Pos() lexer.Position         { return ma.Object.Pos() }
+func (ma *MemberAccessExpression) Pos() token.Position         { return ma.Object.Pos() }
 func (ma *MemberAccessExpression) GetType() *TypeAnnotation    { return ma.Type }
 func (ma *MemberAccessExpression) SetType(typ *TypeAnnotation) { ma.Type = typ }
 func (ma *MemberAccessExpression) String() string {
@@ -328,11 +328,11 @@ type MethodCallExpression struct {
 	Method    *Identifier
 	Type      *TypeAnnotation
 	Arguments []Expression
-	Token     lexer.Token
-	EndPos    lexer.Position
+	Token     token.Token
+	EndPos    token.Position
 }
 
-func (m *MethodCallExpression) End() lexer.Position {
+func (m *MethodCallExpression) End() token.Position {
 	if m.EndPos.Line != 0 {
 		return m.EndPos
 	}
@@ -341,7 +341,7 @@ func (m *MethodCallExpression) End() lexer.Position {
 
 func (mc *MethodCallExpression) expressionNode()             {}
 func (mc *MethodCallExpression) TokenLiteral() string        { return mc.Token.Literal }
-func (mc *MethodCallExpression) Pos() lexer.Position         { return mc.Object.Pos() }
+func (mc *MethodCallExpression) Pos() token.Position         { return mc.Object.Pos() }
 func (mc *MethodCallExpression) GetType() *TypeAnnotation    { return mc.Type }
 func (mc *MethodCallExpression) SetType(typ *TypeAnnotation) { mc.Type = typ }
 func (mc *MethodCallExpression) String() string {
@@ -372,16 +372,16 @@ func (mc *MethodCallExpression) String() string {
 //	inherited MethodName
 //	inherited
 type InheritedExpression struct {
-	Token     lexer.Token     // The 'inherited' token
+	Token     token.Token     // The 'inherited' token
 	Method    *Identifier     // Optional method name (nil for bare 'inherited')
 	Arguments []Expression    // Optional arguments for method call
 	Type      *TypeAnnotation // Result type
 	IsCall    bool            // True if this is a method call (has arguments or parentheses)
 	IsMember  bool            // True if this accesses a member (has method name but no call)
-	EndPos    lexer.Position
+	EndPos    token.Position
 }
 
-func (i *InheritedExpression) End() lexer.Position {
+func (i *InheritedExpression) End() token.Position {
 	if i.EndPos.Line != 0 {
 		return i.EndPos
 	}
@@ -390,7 +390,7 @@ func (i *InheritedExpression) End() lexer.Position {
 
 func (ie *InheritedExpression) expressionNode()             {}
 func (ie *InheritedExpression) TokenLiteral() string        { return ie.Token.Literal }
-func (ie *InheritedExpression) Pos() lexer.Position         { return ie.Token.Pos }
+func (ie *InheritedExpression) Pos() token.Position         { return ie.Token.Pos }
 func (ie *InheritedExpression) GetType() *TypeAnnotation    { return ie.Type }
 func (ie *InheritedExpression) SetType(typ *TypeAnnotation) { ie.Type = typ }
 func (ie *InheritedExpression) String() string {

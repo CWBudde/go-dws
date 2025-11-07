@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/cwbudde/go-dws/internal/lexer"
+import "github.com/cwbudde/go-dws/pkg/token"
 
 // TypeExpression represents any type expression in DWScript.
 // This interface unifies simple types (TypeAnnotation), function pointer types
@@ -33,11 +33,11 @@ var (
 //   - array[1..5] of array[1..10] of Integer (nested static arrays)
 //   - array of function(x: Integer): Boolean (array of function pointers)
 type ArrayTypeNode struct {
-	Token       lexer.Token    // The 'array' token
+	Token       token.Token    // The 'array' token
 	ElementType TypeExpression // The element type (can be any type expression)
 	LowBound    Expression     // Low bound for static arrays (nil for dynamic)
 	HighBound   Expression     // High bound for static arrays (nil for dynamic)
-	EndPos      lexer.Position
+	EndPos      token.Position
 }
 
 // String returns a string representation of the array type.
@@ -74,12 +74,12 @@ func (at *ArrayTypeNode) TokenLiteral() string {
 }
 
 // Pos returns the position of the node in the source code.
-func (at *ArrayTypeNode) Pos() lexer.Position {
+func (at *ArrayTypeNode) Pos() token.Position {
 	return at.Token.Pos
 }
 
 // End returns the end position of the node in the source code.
-func (at *ArrayTypeNode) End() lexer.Position {
+func (at *ArrayTypeNode) End() token.Position {
 	if at.EndPos.Line != 0 {
 		return at.EndPos
 	}
@@ -99,9 +99,9 @@ func (at *ArrayTypeNode) typeExpressionNode() {}
 //   - set of (A, B, C) (set of inline anonymous enum)
 //   - set of 2..1000 (set of inline subrange - if supported)
 type SetTypeNode struct {
-	Token       lexer.Token    // The 'set' token
+	Token       token.Token    // The 'set' token
 	ElementType TypeExpression // The element type (enum or subrange)
-	EndPos      lexer.Position
+	EndPos      token.Position
 }
 
 // String returns a string representation of the set type.
@@ -118,12 +118,12 @@ func (st *SetTypeNode) TokenLiteral() string {
 }
 
 // Pos returns the position of the node in the source code.
-func (st *SetTypeNode) Pos() lexer.Position {
+func (st *SetTypeNode) Pos() token.Position {
 	return st.Token.Pos
 }
 
 // End returns the end position of the node in the source code.
-func (st *SetTypeNode) End() lexer.Position {
+func (st *SetTypeNode) End() token.Position {
 	if st.EndPos.Line != 0 {
 		return st.EndPos
 	}

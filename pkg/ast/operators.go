@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // OperatorKind identifies the category of an operator declaration.
@@ -48,15 +48,15 @@ type OperatorDecl struct {
 	Binding        *Identifier
 	OperatorSymbol string
 	OperandTypes   []*TypeAnnotation
-	Token          lexer.Token
-	OperatorToken  lexer.Token
+	Token          token.Token
+	OperatorToken  token.Token
 	Kind           OperatorKind
 	Arity          int
 	Visibility     Visibility
-	EndPos         lexer.Position
+	EndPos         token.Position
 }
 
-func (o *OperatorDecl) End() lexer.Position {
+func (o *OperatorDecl) End() token.Position {
 	if o.EndPos.Line != 0 {
 		return o.EndPos
 	}
@@ -65,7 +65,7 @@ func (o *OperatorDecl) End() lexer.Position {
 
 func (od *OperatorDecl) statementNode()       {}
 func (od *OperatorDecl) TokenLiteral() string { return od.Token.Literal }
-func (od *OperatorDecl) Pos() lexer.Position  { return od.Token.Pos }
+func (od *OperatorDecl) Pos() token.Position  { return od.Token.Pos }
 
 // String renders the operator declaration in DWScript syntax (without trailing semicolon).
 func (od *OperatorDecl) String() string {

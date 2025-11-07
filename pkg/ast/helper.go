@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -48,12 +48,12 @@ type HelperDecl struct {
 	ClassConsts    []*ConstDecl    // Class constants
 	PrivateMembers []Statement     // Members in private section
 	PublicMembers  []Statement     // Members in public section
-	Token          lexer.Token     // The 'helper' token
+	Token          token.Token     // The 'helper' token
 	IsRecordHelper bool            // true if "record helper", false if just "helper"
-	EndPos         lexer.Position
+	EndPos         token.Position
 }
 
-func (h *HelperDecl) End() lexer.Position {
+func (h *HelperDecl) End() token.Position {
 	if h.EndPos.Line != 0 {
 		return h.EndPos
 	}
@@ -62,7 +62,7 @@ func (h *HelperDecl) End() lexer.Position {
 
 func (hd *HelperDecl) statementNode()       {}
 func (hd *HelperDecl) TokenLiteral() string { return hd.Token.Literal }
-func (hd *HelperDecl) Pos() lexer.Position  { return hd.Token.Pos }
+func (hd *HelperDecl) Pos() token.Position  { return hd.Token.Pos }
 func (hd *HelperDecl) String() string {
 	var out bytes.Buffer
 

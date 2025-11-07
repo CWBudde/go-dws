@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -28,12 +28,12 @@ type PropertyDecl struct {
 	Name        *Identifier
 	Type        *TypeAnnotation
 	IndexParams []*Parameter
-	Token       lexer.Token
+	Token       token.Token
 	IsDefault   bool
-	EndPos      lexer.Position
+	EndPos      token.Position
 }
 
-func (p *PropertyDecl) End() lexer.Position {
+func (p *PropertyDecl) End() token.Position {
 	if p.EndPos.Line != 0 {
 		return p.EndPos
 	}
@@ -42,7 +42,7 @@ func (p *PropertyDecl) End() lexer.Position {
 
 func (pd *PropertyDecl) statementNode()       {}
 func (pd *PropertyDecl) TokenLiteral() string { return pd.Token.Literal }
-func (pd *PropertyDecl) Pos() lexer.Position  { return pd.Token.Pos }
+func (pd *PropertyDecl) Pos() token.Position  { return pd.Token.Pos }
 
 // String returns the string representation of the property declaration.
 func (pd *PropertyDecl) String() string {

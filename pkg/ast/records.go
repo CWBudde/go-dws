@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -27,11 +27,11 @@ type RecordDecl struct {
 	Fields     []*FieldDecl
 	Methods    []*FunctionDecl
 	Properties []RecordPropertyDecl
-	Token      lexer.Token
-	EndPos     lexer.Position
+	Token      token.Token
+	EndPos     token.Position
 }
 
-func (r *RecordDecl) End() lexer.Position {
+func (r *RecordDecl) End() token.Position {
 	if r.EndPos.Line != 0 {
 		return r.EndPos
 	}
@@ -40,7 +40,7 @@ func (r *RecordDecl) End() lexer.Position {
 
 func (rd *RecordDecl) statementNode()       {}
 func (rd *RecordDecl) TokenLiteral() string { return rd.Token.Literal }
-func (rd *RecordDecl) Pos() lexer.Position  { return rd.Token.Pos }
+func (rd *RecordDecl) Pos() token.Position  { return rd.Token.Pos }
 func (rd *RecordDecl) String() string {
 	var out bytes.Buffer
 
@@ -84,11 +84,11 @@ type RecordPropertyDecl struct {
 	Type       *TypeAnnotation
 	ReadField  string
 	WriteField string
-	Token      lexer.Token
-	EndPos     lexer.Position
+	Token      token.Token
+	EndPos     token.Position
 }
 
-func (r *RecordPropertyDecl) End() lexer.Position {
+func (r *RecordPropertyDecl) End() token.Position {
 	if r.EndPos.Line != 0 {
 		return r.EndPos
 	}
@@ -126,11 +126,11 @@ func (pd RecordPropertyDecl) String() string {
 type FieldInitializer struct {
 	Name   *Identifier // Field name (nil for positional initialization)
 	Value  Expression  // Field value expression
-	Token  lexer.Token // The field name token or first token of value
-	EndPos lexer.Position
+	Token  token.Token // The field name token or first token of value
+	EndPos token.Position
 }
 
-func (f *FieldInitializer) End() lexer.Position {
+func (f *FieldInitializer) End() token.Position {
 	if f.EndPos.Line != 0 {
 		return f.EndPos
 	}
@@ -165,11 +165,11 @@ func (fi *FieldInitializer) String() string {
 type RecordLiteralExpression struct {
 	TypeName *Identifier         // Optional type name (nil for anonymous records)
 	Fields   []*FieldInitializer // Field initializers
-	Token    lexer.Token         // The '(' token or type name token
-	EndPos   lexer.Position
+	Token    token.Token         // The '(' token or type name token
+	EndPos   token.Position
 }
 
-func (r *RecordLiteralExpression) End() lexer.Position {
+func (r *RecordLiteralExpression) End() token.Position {
 	if r.EndPos.Line != 0 {
 		return r.EndPos
 	}
@@ -178,7 +178,7 @@ func (r *RecordLiteralExpression) End() lexer.Position {
 
 func (rle *RecordLiteralExpression) expressionNode()      {}
 func (rle *RecordLiteralExpression) TokenLiteral() string { return rle.Token.Literal }
-func (rle *RecordLiteralExpression) Pos() lexer.Position  { return rle.Token.Pos }
+func (rle *RecordLiteralExpression) Pos() token.Position  { return rle.Token.Pos }
 func (rle *RecordLiteralExpression) String() string {
 	var out bytes.Buffer
 

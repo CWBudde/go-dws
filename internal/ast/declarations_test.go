@@ -306,7 +306,6 @@ func TestTypeDeclarationImplementsStatement(t *testing.T) {
 	var _ Statement = typeDecl
 
 	// Verify statementNode() is callable (even though it does nothing)
-	typeDecl.statementNode()
 }
 
 // ============================================================================

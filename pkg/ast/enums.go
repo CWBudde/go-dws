@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -26,11 +26,11 @@ type EnumValue struct {
 type EnumDecl struct {
 	Name   *Identifier
 	Values []EnumValue
-	Token  lexer.Token
-	EndPos lexer.Position
+	Token  token.Token
+	EndPos token.Position
 }
 
-func (e *EnumDecl) End() lexer.Position {
+func (e *EnumDecl) End() token.Position {
 	if e.EndPos.Line != 0 {
 		return e.EndPos
 	}
@@ -69,7 +69,7 @@ func (ed *EnumDecl) String() string {
 }
 
 // Pos returns the position of the enum declaration in the source code
-func (ed *EnumDecl) Pos() lexer.Position {
+func (ed *EnumDecl) Pos() token.Position {
 	return ed.Token.Pos
 }
 
@@ -84,11 +84,11 @@ func (ed *EnumDecl) Pos() lexer.Position {
 type EnumLiteral struct {
 	EnumName  string
 	ValueName string
-	Token     lexer.Token
-	EndPos    lexer.Position
+	Token     token.Token
+	EndPos    token.Position
 }
 
-func (e *EnumLiteral) End() lexer.Position {
+func (e *EnumLiteral) End() token.Position {
 	if e.EndPos.Line != 0 {
 		return e.EndPos
 	}
@@ -112,6 +112,6 @@ func (el *EnumLiteral) String() string {
 }
 
 // Pos returns the position of the enum literal in the source code
-func (el *EnumLiteral) Pos() lexer.Position {
+func (el *EnumLiteral) Pos() token.Position {
 	return el.Token.Pos
 }

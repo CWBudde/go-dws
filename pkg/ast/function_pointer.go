@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // FunctionPointerTypeNode represents a function or procedure pointer type annotation in DWScript.
@@ -22,9 +22,9 @@ import (
 type FunctionPointerTypeNode struct {
 	Parameters []*Parameter    // Parameter list
 	ReturnType *TypeAnnotation // Return type (nil for procedures)
-	Token      lexer.Token     // The 'function' or 'procedure' token
+	Token      token.Token     // The 'function' or 'procedure' token
 	OfObject   bool            // True for method pointers (procedure/function of object)
-	EndPos     lexer.Position
+	EndPos     token.Position
 }
 
 // String returns a string representation of the function pointer type.
@@ -72,12 +72,12 @@ func (fpt *FunctionPointerTypeNode) TokenLiteral() string {
 }
 
 // Pos returns the position of the node in the source code.
-func (fpt *FunctionPointerTypeNode) Pos() lexer.Position {
+func (fpt *FunctionPointerTypeNode) Pos() token.Position {
 	return fpt.Token.Pos
 }
 
 // End returns the end position of the node in the source code.
-func (fpt *FunctionPointerTypeNode) End() lexer.Position {
+func (fpt *FunctionPointerTypeNode) End() token.Position {
 	if fpt.EndPos.Line != 0 {
 		return fpt.EndPos
 	}
@@ -104,14 +104,14 @@ func (fpt *FunctionPointerTypeNode) typeExpressionNode() {}
 type AddressOfExpression struct {
 	Operator Expression      // The target function/procedure (usually an Identifier or member access)
 	Type     *TypeAnnotation // Type of the resulting function pointer
-	Token    lexer.Token     // The @ token
-	EndPos   lexer.Position
+	Token    token.Token     // The @ token
+	EndPos   token.Position
 }
 
 func (ao *AddressOfExpression) expressionNode()      {}
 func (ao *AddressOfExpression) TokenLiteral() string { return ao.Token.Literal }
-func (ao *AddressOfExpression) Pos() lexer.Position  { return ao.Token.Pos }
-func (ao *AddressOfExpression) End() lexer.Position {
+func (ao *AddressOfExpression) Pos() token.Position  { return ao.Token.Pos }
+func (ao *AddressOfExpression) End() token.Position {
 	if ao.EndPos.Line != 0 {
 		return ao.EndPos
 	}

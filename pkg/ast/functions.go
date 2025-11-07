@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // Parameter represents a function parameter.
@@ -31,12 +31,12 @@ import (
 type Parameter struct {
 	Name         *Identifier
 	Type         *TypeAnnotation
-	Token        lexer.Token
+	Token        token.Token
 	DefaultValue Expression // optional default value expression (nil if required)
 	IsLazy       bool       // lazy parameter modifier - captures expression, not value
 	ByRef        bool       // var parameter modifier - pass by reference
 	IsConst      bool       // const parameter modifier - pass by const-reference
-	EndPos       lexer.Position
+	EndPos       token.Position
 }
 
 func (p *Parameter) String() string {
@@ -93,7 +93,7 @@ type FunctionDecl struct {
 	Body           *BlockStatement
 	ExternalName   string
 	Parameters     []*Parameter
-	Token          lexer.Token
+	Token          token.Token
 	PreConditions  *PreConditions  // Preconditions (require)
 	PostConditions *PostConditions // Postconditions (ensure)
 	Visibility     Visibility
@@ -105,10 +105,10 @@ type FunctionDecl struct {
 	IsExternal     bool
 	IsClassMethod  bool
 	IsOverload     bool // Function/method can be overloaded
-	EndPos         lexer.Position
+	EndPos         token.Position
 }
 
-func (f *FunctionDecl) End() lexer.Position {
+func (f *FunctionDecl) End() token.Position {
 	if f.EndPos.Line != 0 {
 		return f.EndPos
 	}
@@ -117,7 +117,7 @@ func (f *FunctionDecl) End() lexer.Position {
 
 func (fd *FunctionDecl) statementNode()       {}
 func (fd *FunctionDecl) TokenLiteral() string { return fd.Token.Literal }
-func (fd *FunctionDecl) Pos() lexer.Position  { return fd.Token.Pos }
+func (fd *FunctionDecl) Pos() token.Position  { return fd.Token.Pos }
 func (fd *FunctionDecl) String() string {
 	var out bytes.Buffer
 
@@ -196,14 +196,14 @@ func (fd *FunctionDecl) String() string {
 //	exit
 type ReturnStatement struct {
 	ReturnValue Expression
-	Token       lexer.Token
-	EndPos      lexer.Position
+	Token       token.Token
+	EndPos      token.Position
 }
 
 func (rs *ReturnStatement) statementNode()       {}
 func (rs *ReturnStatement) TokenLiteral() string { return rs.Token.Literal }
-func (rs *ReturnStatement) Pos() lexer.Position  { return rs.Token.Pos }
-func (rs *ReturnStatement) End() lexer.Position {
+func (rs *ReturnStatement) Pos() token.Position  { return rs.Token.Pos }
+func (rs *ReturnStatement) End() token.Position {
 	if rs.EndPos.Line != 0 {
 		return rs.EndPos
 	}

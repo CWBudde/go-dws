@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // Node is the base interface for all AST nodes.
@@ -19,11 +19,11 @@ type Node interface {
 	String() string
 
 	// Pos returns the start position of the node in the source code for error reporting.
-	Pos() lexer.Position
+	Pos() token.Position
 
 	// End returns the end position of the node in the source code for error reporting.
 	// This enables precise error underlining and source range tracking.
-	End() lexer.Position
+	End() token.Position
 }
 
 // Expression represents any node that produces a value.
@@ -44,7 +44,7 @@ type Statement interface {
 // It contains a slice of statements that make up the entire program.
 type Program struct {
 	Statements []Statement
-	EndPos     lexer.Position
+	EndPos     token.Position
 }
 
 func (p *Program) TokenLiteral() string {
@@ -64,36 +64,36 @@ func (p *Program) String() string {
 	return out.String()
 }
 
-func (p *Program) Pos() lexer.Position {
+func (p *Program) Pos() token.Position {
 	if len(p.Statements) > 0 {
 		return p.Statements[0].Pos()
 	}
-	return lexer.Position{Line: 1, Column: 1, Offset: 0}
+	return token.Position{Line: 1, Column: 1, Offset: 0}
 }
 
-func (p *Program) End() lexer.Position {
+func (p *Program) End() token.Position {
 	if p.EndPos.Line != 0 {
 		return p.EndPos
 	}
 	if len(p.Statements) > 0 {
 		return p.Statements[len(p.Statements)-1].End()
 	}
-	return lexer.Position{Line: 1, Column: 1, Offset: 0}
+	return token.Position{Line: 1, Column: 1, Offset: 0}
 }
 
 // Identifier represents an identifier (variable name, function name, etc.)
 type Identifier struct {
 	Type   *TypeAnnotation
 	Value  string
-	Token  lexer.Token
-	EndPos lexer.Position
+	Token  token.Token
+	EndPos token.Position
 }
 
 func (i *Identifier) expressionNode()      {}
 func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
 func (i *Identifier) String() string       { return i.Value }
-func (i *Identifier) Pos() lexer.Position  { return i.Token.Pos }
-func (i *Identifier) End() lexer.Position {
+func (i *Identifier) Pos() token.Position  { return i.Token.Pos }
+func (i *Identifier) End() token.Position {
 	if i.EndPos.Line != 0 {
 		return i.EndPos
 	}
@@ -109,16 +109,16 @@ func (i *Identifier) SetType(typ *TypeAnnotation) { i.Type = typ }
 // IntegerLiteral represents an integer literal value.
 type IntegerLiteral struct {
 	Type   *TypeAnnotation
-	Token  lexer.Token
+	Token  token.Token
 	Value  int64
-	EndPos lexer.Position
+	EndPos token.Position
 }
 
 func (il *IntegerLiteral) expressionNode()      {}
 func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
 func (il *IntegerLiteral) String() string       { return il.Token.Literal }
-func (il *IntegerLiteral) Pos() lexer.Position  { return il.Token.Pos }
-func (il *IntegerLiteral) End() lexer.Position {
+func (il *IntegerLiteral) Pos() token.Position  { return il.Token.Pos }
+func (il *IntegerLiteral) End() token.Position {
 	if il.EndPos.Line != 0 {
 		return il.EndPos
 	}
@@ -133,16 +133,16 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
 // FloatLiteral represents a floating-point literal value.
 type FloatLiteral struct {
 	Type   *TypeAnnotation
-	Token  lexer.Token
+	Token  token.Token
 	Value  float64
-	EndPos lexer.Position
+	EndPos token.Position
 }
 
 func (fl *FloatLiteral) expressionNode()      {}
 func (fl *FloatLiteral) TokenLiteral() string { return fl.Token.Literal }
 func (fl *FloatLiteral) String() string       { return fl.Token.Literal }
-func (fl *FloatLiteral) Pos() lexer.Position  { return fl.Token.Pos }
-func (fl *FloatLiteral) End() lexer.Position {
+func (fl *FloatLiteral) Pos() token.Position  { return fl.Token.Pos }
+func (fl *FloatLiteral) End() token.Position {
 	if fl.EndPos.Line != 0 {
 		return fl.EndPos
 	}
@@ -158,15 +158,15 @@ func (fl *FloatLiteral) SetType(typ *TypeAnnotation) { fl.Type = typ }
 type StringLiteral struct {
 	Type   *TypeAnnotation
 	Value  string
-	Token  lexer.Token
-	EndPos lexer.Position
+	Token  token.Token
+	EndPos token.Position
 }
 
 func (sl *StringLiteral) expressionNode()      {}
 func (sl *StringLiteral) TokenLiteral() string { return sl.Token.Literal }
 func (sl *StringLiteral) String() string       { return "\"" + sl.Value + "\"" }
-func (sl *StringLiteral) Pos() lexer.Position  { return sl.Token.Pos }
-func (sl *StringLiteral) End() lexer.Position {
+func (sl *StringLiteral) Pos() token.Position  { return sl.Token.Pos }
+func (sl *StringLiteral) End() token.Position {
 	if sl.EndPos.Line != 0 {
 		return sl.EndPos
 	}
@@ -181,16 +181,16 @@ func (sl *StringLiteral) SetType(typ *TypeAnnotation) { sl.Type = typ }
 // BooleanLiteral represents a boolean literal value (true or false).
 type BooleanLiteral struct {
 	Type   *TypeAnnotation
-	Token  lexer.Token
+	Token  token.Token
 	Value  bool
-	EndPos lexer.Position
+	EndPos token.Position
 }
 
 func (bl *BooleanLiteral) expressionNode()      {}
 func (bl *BooleanLiteral) TokenLiteral() string { return bl.Token.Literal }
 func (bl *BooleanLiteral) String() string       { return bl.Token.Literal }
-func (bl *BooleanLiteral) Pos() lexer.Position  { return bl.Token.Pos }
-func (bl *BooleanLiteral) End() lexer.Position {
+func (bl *BooleanLiteral) Pos() token.Position  { return bl.Token.Pos }
+func (bl *BooleanLiteral) End() token.Position {
 	if bl.EndPos.Line != 0 {
 		return bl.EndPos
 	}
@@ -206,16 +206,16 @@ func (bl *BooleanLiteral) SetType(typ *TypeAnnotation) { bl.Type = typ }
 // Supports three forms: 'H' (single char string), #13 (decimal), #$41 (hex).
 type CharLiteral struct {
 	Type   *TypeAnnotation
-	Token  lexer.Token
+	Token  token.Token
 	Value  rune
-	EndPos lexer.Position
+	EndPos token.Position
 }
 
 func (cl *CharLiteral) expressionNode()      {}
 func (cl *CharLiteral) TokenLiteral() string { return cl.Token.Literal }
 func (cl *CharLiteral) String() string       { return cl.Token.Literal }
-func (cl *CharLiteral) Pos() lexer.Position  { return cl.Token.Pos }
-func (cl *CharLiteral) End() lexer.Position {
+func (cl *CharLiteral) Pos() token.Position  { return cl.Token.Pos }
+func (cl *CharLiteral) End() token.Position {
 	if cl.EndPos.Line != 0 {
 		return cl.EndPos
 	}
@@ -233,14 +233,14 @@ type BinaryExpression struct {
 	Right    Expression
 	Type     *TypeAnnotation
 	Operator string
-	Token    lexer.Token
-	EndPos   lexer.Position
+	Token    token.Token
+	EndPos   token.Position
 }
 
 func (be *BinaryExpression) expressionNode()      {}
 func (be *BinaryExpression) TokenLiteral() string { return be.Token.Literal }
-func (be *BinaryExpression) Pos() lexer.Position  { return be.Token.Pos }
-func (be *BinaryExpression) End() lexer.Position {
+func (be *BinaryExpression) Pos() token.Position  { return be.Token.Pos }
+func (be *BinaryExpression) End() token.Position {
 	if be.EndPos.Line != 0 {
 		return be.EndPos
 	}
@@ -268,14 +268,14 @@ type UnaryExpression struct {
 	Right    Expression
 	Type     *TypeAnnotation
 	Operator string
-	Token    lexer.Token
-	EndPos   lexer.Position
+	Token    token.Token
+	EndPos   token.Position
 }
 
 func (ue *UnaryExpression) expressionNode()      {}
 func (ue *UnaryExpression) TokenLiteral() string { return ue.Token.Literal }
-func (ue *UnaryExpression) Pos() lexer.Position  { return ue.Token.Pos }
-func (ue *UnaryExpression) End() lexer.Position {
+func (ue *UnaryExpression) Pos() token.Position  { return ue.Token.Pos }
+func (ue *UnaryExpression) End() token.Position {
 	if ue.EndPos.Line != 0 {
 		return ue.EndPos
 	}
@@ -307,14 +307,14 @@ func (ue *UnaryExpression) SetType(typ *TypeAnnotation) { ue.Type = typ }
 type GroupedExpression struct {
 	Expression Expression
 	Type       *TypeAnnotation
-	Token      lexer.Token
-	EndPos     lexer.Position
+	Token      token.Token
+	EndPos     token.Position
 }
 
 func (ge *GroupedExpression) expressionNode()      {}
 func (ge *GroupedExpression) TokenLiteral() string { return ge.Token.Literal }
-func (ge *GroupedExpression) Pos() lexer.Position  { return ge.Token.Pos }
-func (ge *GroupedExpression) End() lexer.Position {
+func (ge *GroupedExpression) Pos() token.Position  { return ge.Token.Pos }
+func (ge *GroupedExpression) End() token.Position {
 	if ge.EndPos.Line != 0 {
 		return ge.EndPos
 	}
@@ -346,14 +346,14 @@ type RangeExpression struct {
 	Start    Expression
 	RangeEnd Expression // Renamed from 'End' to avoid conflict with End() method
 	Type     *TypeAnnotation
-	Token    lexer.Token
-	EndPos   lexer.Position
+	Token    token.Token
+	EndPos   token.Position
 }
 
 func (re *RangeExpression) expressionNode()      {}
 func (re *RangeExpression) TokenLiteral() string { return re.Token.Literal }
-func (re *RangeExpression) Pos() lexer.Position  { return re.Token.Pos }
-func (re *RangeExpression) End() lexer.Position {
+func (re *RangeExpression) Pos() token.Position  { return re.Token.Pos }
+func (re *RangeExpression) End() token.Position {
 	if re.EndPos.Line != 0 {
 		return re.EndPos
 	}
@@ -378,14 +378,14 @@ func (re *RangeExpression) SetType(typ *TypeAnnotation) { re.Type = typ }
 // This is used when an expression appears in a statement context.
 type ExpressionStatement struct {
 	Expression Expression
-	Token      lexer.Token
-	EndPos     lexer.Position
+	Token      token.Token
+	EndPos     token.Position
 }
 
 func (es *ExpressionStatement) statementNode()       {}
 func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
-func (es *ExpressionStatement) Pos() lexer.Position  { return es.Token.Pos }
-func (es *ExpressionStatement) End() lexer.Position {
+func (es *ExpressionStatement) Pos() token.Position  { return es.Token.Pos }
+func (es *ExpressionStatement) End() token.Position {
 	if es.EndPos.Line != 0 {
 		return es.EndPos
 	}
@@ -404,15 +404,15 @@ func (es *ExpressionStatement) String() string {
 // NilLiteral represents a nil literal value.
 type NilLiteral struct {
 	Type   *TypeAnnotation
-	Token  lexer.Token
-	EndPos lexer.Position
+	Token  token.Token
+	EndPos token.Position
 }
 
 func (nl *NilLiteral) expressionNode()      {}
 func (nl *NilLiteral) TokenLiteral() string { return nl.Token.Literal }
 func (nl *NilLiteral) String() string       { return "nil" }
-func (nl *NilLiteral) Pos() lexer.Position  { return nl.Token.Pos }
-func (nl *NilLiteral) End() lexer.Position {
+func (nl *NilLiteral) Pos() token.Position  { return nl.Token.Pos }
+func (nl *NilLiteral) End() token.Position {
 	if nl.EndPos.Line != 0 {
 		return nl.EndPos
 	}
@@ -427,14 +427,14 @@ func (nl *NilLiteral) SetType(typ *TypeAnnotation) { nl.Type = typ }
 // BlockStatement represents a block of statements (begin...end).
 type BlockStatement struct {
 	Statements []Statement
-	Token      lexer.Token
-	EndPos     lexer.Position
+	Token      token.Token
+	EndPos     token.Position
 }
 
 func (bs *BlockStatement) statementNode()       {}
 func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
-func (bs *BlockStatement) Pos() lexer.Position  { return bs.Token.Pos }
-func (bs *BlockStatement) End() lexer.Position {
+func (bs *BlockStatement) Pos() token.Position  { return bs.Token.Pos }
+func (bs *BlockStatement) End() token.Position {
 	if bs.EndPos.Line != 0 {
 		return bs.EndPos
 	}

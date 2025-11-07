@@ -1,15 +1,15 @@
 package ast
 
-import "github.com/cwbudde/go-dws/internal/lexer"
+import "github.com/cwbudde/go-dws/pkg/token"
 
 // TypeAnnotation represents a type annotation in the AST.
 // This is used for variable declarations, parameters, and return types.
 // Example: `: Integer` in `var x: Integer := 5;`
 type TypeAnnotation struct {
 	Name       string
-	Token      lexer.Token
+	Token      token.Token
 	InlineType TypeExpression // For complex inline types (arrays, function pointers) that need AST evaluation
-	EndPos     lexer.Position
+	EndPos     token.Position
 }
 
 // String returns the string representation of the type annotation
@@ -26,12 +26,12 @@ func (ta *TypeAnnotation) TokenLiteral() string {
 }
 
 // Pos returns the position of the type annotation
-func (ta *TypeAnnotation) Pos() lexer.Position {
+func (ta *TypeAnnotation) Pos() token.Position {
 	return ta.Token.Pos
 }
 
 // End returns the end position of the type annotation
-func (ta *TypeAnnotation) End() lexer.Position {
+func (ta *TypeAnnotation) End() token.Position {
 	if ta.EndPos.Line != 0 {
 		return ta.EndPos
 	}
@@ -82,14 +82,14 @@ type TypeDeclaration struct {
 	LowBound            Expression               // For subrange types
 	HighBound           Expression               // For subrange types
 	FunctionPointerType *FunctionPointerTypeNode // For function/procedure pointer types
-	Token               lexer.Token
+	Token               token.Token
 	IsAlias             bool
 	IsSubrange          bool // For subrange types
 	IsFunctionPointer   bool // For function/procedure pointer types
-	EndPos              lexer.Position
+	EndPos              token.Position
 }
 
-func (t *TypeDeclaration) End() lexer.Position {
+func (t *TypeDeclaration) End() token.Position {
 	if t.EndPos.Line != 0 {
 		return t.EndPos
 	}
@@ -98,7 +98,7 @@ func (t *TypeDeclaration) End() lexer.Position {
 
 func (td *TypeDeclaration) statementNode()       {}
 func (td *TypeDeclaration) TokenLiteral() string { return td.Token.Literal }
-func (td *TypeDeclaration) Pos() lexer.Position  { return td.Token.Pos }
+func (td *TypeDeclaration) Pos() token.Position  { return td.Token.Pos }
 
 // String returns the string representation of the type declaration.
 // For type aliases, this returns: "type Name = Type;"
