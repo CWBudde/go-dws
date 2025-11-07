@@ -188,73 +188,86 @@ type TIntProc = procedure(value: Integer);
     - **File**: `internal/interp/functions_test.go` - call with/without optional args
     - **File**: `pkg/dwscript/ffi_test.go` - FFI with optional params
 
-- [ ] 9.2 Support by-reference parameters (var keyword):
+- [x] 9.2 Support by-reference parameters (var keyword): ✅ COMPLETE
 
-  - [x] 9.2a Parser: Support `var` parameter keyword ✅ PARTIAL
-    - Already implemented (PLAN.md line 47: "parsing implemented")
-    - **File**: `internal/parser/declarations.go`
+  - [x] 9.2a Parser: Support `var` parameter keyword ✅ COMPLETE
+    - **File**: `internal/parser/functions.go:315-320`
     - Parses `var param: Type` syntax
-    - Stores in AST
+    - Stores in `ast.Parameter.ByRef` field
 
-  - [ ] 9.2b Semantic analysis: Track var parameters:
-    - **File**: `internal/semantic/analyze_declarations.go`
-    - Mark parameter as by-reference in type system
-    - Validate: var param must be assignable lvalue (can't pass constant)
-    - **Type**: Add `IsByRef bool` to `FunctionType.Params`
+  - [x] 9.2b Semantic analysis: Track var parameters: ✅ COMPLETE
+    - **File**: `internal/semantic/analyze_functions.go:29, 39-40, 104`
+    - Tracks var parameters in `types.FunctionType.VarParams` array
+    - **File**: `internal/semantic/analyze_builtins.go:2211-2223, 43-48`
+    - Validates var param must be lvalue (variable, array element, or field)
+    - Error: "var parameter requires a variable, cannot pass constant/literal"
 
-  - [ ] 9.2c Interpreter: Pass by reference for var params:
-    - **File**: `internal/interp/expressions.go` (function calls)
-    - For `var` parameters:
-      - Pass reference/pointer to variable (not copy of value)
-      - After function returns, variable is updated
-    - **Implementation**: Use pointer or special Reference type?
-    - **Challenge**: Go's pass-by-value semantics
-    - **Solution**: Wrap in mutable cell/reference object
+  - [x] 9.2c Interpreter: Pass by reference for var params: ✅ COMPLETE
+    - **Files**:
+      - `internal/interp/value.go:246-297` - `ReferenceValue` type
+      - `internal/interp/functions.go:35-49, 99-114, 227-241` - Creates references for var params
+      - `internal/interp/expressions.go:37-39` - Dereferences when reading
+      - `internal/interp/statements.go:606-610` - Writes through reference
+    - **Tests**: `internal/interp/var_param_test.go` (6 tests, all passing)
 
-  - [ ] 9.2d FFI: Sync changes back to DWScript:
-    - **File**: `internal/interp/ffi.go`
-    - For `var` parameters mapped to Go pointers:
-      1. Before call: Marshal DWScript value, take address
-      2. Call Go function with pointer
-      3. After call: Unmarshal modified value back to DWScript variable
-    - **Reflection**: Use `reflect.Value.Elem()` to deref pointer
-    - **Marshaling**: Extend marshal layer to handle `*int`, `*string`, etc.
+  - [x] 9.2d FFI: Sync changes back to DWScript: ✅ COMPLETE
+    - **Files**:
+      - `pkg/dwscript/ffi.go:235, 243-244, 310-318` - Detects pointer types, tracks VarParams
+      - `pkg/dwscript/ffi.go:216-253` - Creates ReferenceValues for var params before calling
+      - `internal/interp/marshal.go:140-162` - Marshals to Go pointer
+      - `internal/interp/marshal.go:269-290` - Unmarshals from Go pointer back to DWScript
+      - `pkg/dwscript/ffi.go:181-288` - Updates DWScript variables after call
+      - `internal/interp/external_functions.go:77-79` - `GetVarParams()` interface method
+    - **Type mapping**: `*int64 → var Integer`, `*float64 → var Float`, `*string → var String`, `*bool → var Boolean`
 
-  - [ ] 9.2e Add tests:
-    - **File**: `internal/interp/functions_test.go`
-    - Test DWScript function with var param modifies caller's variable
-    - Test nested var param calls
-    - **File**: `pkg/dwscript/ffi_test.go`
-    - Test Go function with pointer param modifies DWScript variable
-    - Example: `Swap(var a, b: Integer)` swaps values
+  - [x] 9.2e Add tests: ✅ COMPLETE
+    - **File**: `internal/interp/var_param_test.go` (6 DWScript tests)
+      - TestVarParam_BasicInteger, TestVarParam_MultipleModifications
+      - TestVarParam_MultipleVarParams, TestVarParam_WithLazy
+      - TestVarParam_ErrorNonVariable, TestVarParam_NestedCalls
+    - **File**: `pkg/dwscript/ffi_test.go:1989-2218` (6 FFI tests)
+      - TestFFI_VarParamBasic, TestFFI_VarParamSwap, TestFFI_VarParamString
+      - TestFFI_VarParamMixed, TestFFI_VarParamFloat, TestFFI_VarParamBool
+    - **All 12 tests passing** ✅
+    - **Documentation**: `docs/ffi.md:371-508` - Comprehensive var parameter guide
 
-- [ ] 9.3 Support registering Go methods:
+- [x] 9.3 Support registering Go methods: ✅ COMPLETE
 
-  - [ ] 9.3a Detect method vs function in reflection:
+  - [x] 9.3a Detect method vs function in reflection: ✅ COMPLETE
     - **File**: `pkg/dwscript/ffi.go` (function `RegisterFunction`)
-    - Use `reflect.Type.NumIn()` and check if first param is receiver
-    - **Challenge**: Go reflection doesn't distinguish methods from functions
-    - **Workaround**: Accept method value (`obj.Method`) which has receiver bound
+    - **Key insight**: Go reflection doesn't distinguish methods from functions
+    - **Solution**: Method values (`obj.Method`) automatically bind receivers via closures
+    - **Result**: Existing `RegisterFunction` already handles methods transparently
 
-  - [ ] 9.3b Add `RegisterMethod` API:
-    - **File**: `pkg/dwscript/ffi.go`
-    - New function: `RegisterMethod(name string, receiver any, method any) error`
-    - Extract receiver type and method
-    - Store receiver in closure so it's available when called
-    - **Alternative**: Just use method values with existing `RegisterFunction`
+  - [x] 9.3b Add `RegisterMethod` API: ✅ COMPLETE
+    - **File**: `pkg/dwscript/ffi.go:186-212`
+    - New function: `RegisterMethod(name string, receiver any, methodName string) error`
+    - Looks up method by name using `reflect.MethodByName`
+    - Gets method value with `recvValue.Method(methodIndex)`
+    - Delegates to existing `RegisterFunction` with bound method
+    - **Both approaches supported**:
+      - Method values: `engine.RegisterFunction("Add", calc.Add)` (simpler)
+      - RegisterMethod: `engine.RegisterMethod("Add", calc, "Add")` (explicit)
 
-  - [ ] 9.3c Bind receiver automatically:
-    - When DWScript calls registered method:
-      - Receiver already bound in Go (closure or method value)
-      - Just marshal arguments and call
-      - No special handling needed if using method values
+  - [x] 9.3c Bind receiver automatically: ✅ COMPLETE
+    - Go's method value mechanism handles this automatically
+    - When you call `obj.Method`, Go creates a closure that captures `obj`
+    - No special handling needed in FFI wrapper
+    - Receiver state persists across calls
 
-  - [ ] 9.3d Add tests:
-    - **File**: `pkg/dwscript/ffi_test.go`
-    - Register method from Go struct
-    - Call from DWScript
-    - Verify receiver state is accessible
-    - Test with both value and pointer receivers
+  - [x] 9.3d Add tests: ✅ COMPLETE
+    - **File**: `pkg/dwscript/ffi_test.go:2220-2647` (428 lines)
+    - **Test structs**: Counter (simple), Calculator (complex)
+    - **7 comprehensive tests**:
+      - `TestRegisterMethodValue` - method values approach
+      - `TestRegisterMethod` - RegisterMethod API
+      - `TestRegisterMethodPointerReceiver` - pointer receivers modify state
+      - `TestRegisterMethodWithReturnValue` - methods that return values
+      - `TestRegisterMethodMultipleInstances` - separate instances maintain separate state
+      - `TestRegisterMethodErrors` - validation (nil receiver, missing method, etc.)
+      - `TestRegisterMethodWithComplexOperations` - complex calculator scenario
+    - **All tests passing** ✅
+    - **Documentation**: `docs/ffi.md:521-817` - Comprehensive guide (296 lines)
 
 - [ ] 9.4 Support callback functions (DWScript → Go → DWScript):
 

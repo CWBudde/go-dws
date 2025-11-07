@@ -105,14 +105,14 @@ func runScript(_ *cobra.Command, args []string) error {
 	// aren't available until runtime
 	if typeCheck && !hasUnits {
 		analyzer := semantic.NewAnalyzer()
-		// Task 9.110: Set source code for rich error messages
+		// Set source code for rich error messages
 		analyzer.SetSource(input, filename)
 
 		if err := analyzer.Analyze(program); err != nil {
 			// Set errors on parser for compatibility
 			p.SetSemanticErrors(analyzer.Errors())
 
-			// Task 9.110: Use structured errors if available, fall back to string errors
+			// Use structured errors if available, fall back to string errors
 			var compilerErrors []*errors.CompilerError
 			if len(analyzer.StructuredErrors()) > 0 {
 				// Convert structured errors directly to CompilerError
@@ -148,11 +148,10 @@ func runScript(_ *cobra.Command, args []string) error {
 	}
 	interpreter := interp.NewWithOptions(os.Stdout, opts)
 
-	// Task 9.111: Set source code for enhanced runtime error messages
+	// Set source code for enhanced runtime error messages
 	interpreter.SetSource(input, filename)
 
 	// Set up unit registry if search paths are provided or if we're running from a file
-	// Task 9.139: Add unit search path support
 	searchPaths := unitSearchPaths
 	if len(searchPaths) == 0 && filename != "<eval>" {
 		// Add the directory of the script file as a default search path
@@ -244,7 +243,7 @@ func runScript(_ *cobra.Command, args []string) error {
 
 	// Check for runtime errors
 	if result != nil && result.Type() == "ERROR" {
-		// Task 9.111: Check if it's a structured RuntimeError with rich formatting
+		// Check if it's a structured RuntimeError with rich formatting
 		if runtimeErr, ok := result.(*interp.RuntimeError); ok {
 			if compilerErr := runtimeErr.ToCompilerError(); compilerErr != nil {
 				// Use rich error formatting with source snippet

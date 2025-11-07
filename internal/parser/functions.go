@@ -47,7 +47,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		p.nextToken() // move to ':'
 		p.nextToken() // move past ':' to type expression start token
 
-		// Task 9.59: Support inline array types in return types
+		// Support inline array types in return types
 		// Parse type expression (can be simple type, function pointer, or array type)
 		typeExpr := p.parseTypeExpression()
 		if typeExpr == nil {
@@ -68,7 +68,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			}
 		case *ast.SetTypeNode:
 			// For set types, we create a synthetic TypeAnnotation
-			// Task 9.213: Handle inline set type expressions in return types
+			// Handle inline set type expressions in return types
 			fn.ReturnType = &ast.TypeAnnotation{
 				Token: te.Token,
 				Name:  te.String(), // Use the full set type signature as the type name
@@ -124,7 +124,6 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			}
 		} else if p.peekTokenIs(lexer.ABSTRACT) {
 			// Abstract method: function GetArea(): Float; abstract;
-			// Task 7.65d - Parse abstract method declarations (no body)
 			p.nextToken() // move to 'abstract'
 			fn.IsAbstract = true
 			if !p.expectPeek(lexer.SEMICOLON) {
@@ -134,7 +133,6 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			return fn
 		} else if p.peekTokenIs(lexer.EXTERNAL) {
 			// External method: procedure Hello; external 'world';
-			// Task 7.140 - Parse external method declarations (no body)
 			p.nextToken() // move to 'external'
 			fn.IsExternal = true
 
@@ -151,7 +149,6 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			return fn
 		} else if p.peekTokenIs(lexer.OVERLOAD) {
 			// Overload directive: function Test(x: Integer): Float; overload;
-			// Task 9.244 - Parse overload keyword in function declarations
 			p.nextToken() // move to 'overload'
 			fn.IsOverload = true
 			if !p.expectPeek(lexer.SEMICOLON) {
@@ -357,9 +354,6 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	}
 
 	// Parse type expression (can be simple type, function pointer, or array type)
-	// Task 9.44: Changed from simple IDENT to parseTypeExpression() to support inline types
-	// expectPeek() has already advanced us to the COLON token
-	// Now advance past it to get to the type expression
 	p.nextToken() // move past COLON to type expression start token
 	typeExpr := p.parseTypeExpression()
 	if typeExpr == nil {
@@ -399,7 +393,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		}
 	case *ast.SetTypeNode:
 		// For set types, we create a synthetic TypeAnnotation
-		// Task 9.213: Handle inline set type expressions in parameters
+		// Handle inline set type expressions in parameters
 		typeAnnotation = &ast.TypeAnnotation{
 			Token: te.Token,
 			Name:  te.String(), // Use the full set type signature as the type name

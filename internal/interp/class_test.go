@@ -363,7 +363,7 @@ func TestObjectValue(t *testing.T) {
 }
 
 // ============================================================================
-// Task 7.141: External Class Runtime Tests
+// External Class Runtime Tests
 // ============================================================================
 
 func TestExternalClassRuntime(t *testing.T) {

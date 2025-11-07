@@ -37,7 +37,7 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 			a.addError("cannot infer type for empty array literal at %s", lit.Token.Pos.String())
 			return nil
 		}
-		// Task 9.156 & 9.225: Allow empty arrays for array of const / array of Variant (Format function)
+		// Allow empty arrays for array of const / array of Variant (Format function)
 		lit.SetType(&ast.TypeAnnotation{
 			Token: lit.Token,
 			Name:  originalExpectedType.String(),
@@ -61,7 +61,6 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 		}
 
 		if expectedArrayType != nil {
-			// Task 9.225 & 9.235: Allow any type when expected element type is Variant (array of const)
 			// This enables heterogeneous arrays like ['string', 123, 3.14] for Format()
 			// Migrated from CONST to VARIANT for proper dynamic typing
 			elemTypeUnderlying := types.GetUnderlyingType(expectedArrayType.ElementType)
@@ -140,6 +139,7 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 	return arrayType
 }
 
+// analyzeRecordLiteral analyzes a record literal expression.
 func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expectedType types.Type) types.Type {
 	if lit == nil {
 		return nil
@@ -147,7 +147,7 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 
 	var recordType *types.RecordType
 
-	// Task 9.176: Check if this is a typed record literal (has TypeName)
+	// Check if this is a typed record literal (has TypeName)
 	if lit.TypeName != nil {
 		// Typed record literal: TPoint(x: 10; y: 20)
 		// Look up the type by name
@@ -176,7 +176,7 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 			}
 		}
 	} else {
-		// Task 9.175: Anonymous record literal: (x: 10; y: 20)
+		// Anonymous record literal: (x: 10; y: 20)
 		// Requires expectedType from context
 		if expectedType == nil {
 			a.addError("anonymous record literal requires type context (use explicit type annotation or typed literal)")
@@ -241,8 +241,8 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 	return recordType
 }
 
-// analyzeRecordFieldAccess analyzes access to a record field.
-
+// analyzeSetLiteralWithContext analyzes a set literal expression with optional type context
+// Task 8.101: Type-check set literals (elements match set's element type)
 func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedType types.Type) types.Type {
 	if lit == nil {
 		return nil
@@ -271,7 +271,7 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 	}
 
 	// Analyze all elements and check they are of the same ordinal type
-	// Task 9.226: Support all ordinal types (Integer, String/Char, Enum, Subrange)
+	// Support all ordinal types (Integer, String/Char, Enum, Subrange)
 	var elementType types.Type
 	for i, elem := range lit.Elements {
 		var elemType types.Type

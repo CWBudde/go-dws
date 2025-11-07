@@ -7,7 +7,6 @@ import (
 // captureOldValues traverses postconditions to find all OldExpression nodes
 // and captures their current values from the environment.
 // This must be called BEFORE the function body executes.
-// Task 9.146: Old value capture for contract postconditions
 func (i *Interpreter) captureOldValues(funcDecl *ast.FunctionDecl, env *Environment) map[string]Value {
 	oldValues := make(map[string]Value)
 
@@ -99,7 +98,6 @@ func (i *Interpreter) findOldExpressions(expr ast.Expression, env *Environment, 
 
 // checkPreconditions evaluates all preconditions of a function.
 // If any condition fails, it returns a ContractFailureError.
-// Task 9.147: Evaluate preconditions before function body
 func (i *Interpreter) checkPreconditions(funcName string, preConditions *ast.PreConditions, env *Environment) Value {
 	if preConditions == nil {
 		return nil
@@ -145,7 +143,6 @@ func (i *Interpreter) checkPreconditions(funcName string, preConditions *ast.Pre
 // checkPostconditions evaluates all postconditions of a function.
 // If any condition fails, it returns a ContractFailureError.
 // This must be called AFTER the function body executes, with oldValues available.
-// Task 9.149: Evaluate postconditions after function body
 func (i *Interpreter) checkPostconditions(funcName string, postConditions *ast.PostConditions, env *Environment) Value {
 	if postConditions == nil {
 		return nil
@@ -202,7 +199,6 @@ func (i *Interpreter) popOldValues() {
 
 // getOldValue retrieves a captured old value by identifier name.
 // Returns the value and true if found, or nil and false if not found.
-// Task 9.150: Implement OldExpression evaluation
 func (i *Interpreter) getOldValue(identName string) (Value, bool) {
 	// Check the top of the stack (most recent function call)
 	if len(i.oldValuesStack) > 0 {

@@ -1,5 +1,4 @@
 // Virtual/Override Method Demonstration
-// Task 7.64: Demonstrates polymorphic method dispatch
 
 type TAnimal = class
   function MakeSound(): String; virtual;

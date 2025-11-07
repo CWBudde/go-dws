@@ -373,7 +373,6 @@ func TypeFromString(name string) (Type, error) {
 // ============================================================================
 
 // PropAccessKind represents how a property is accessed (read or write).
-// Task 8.26b: ReadKind/WriteKind enum
 type PropAccessKind int
 
 const (
@@ -385,7 +384,7 @@ const (
 )
 
 // PropertyInfo represents property metadata for a class.
-// Task 8.26a: Fields: Name, Type, ReadSpec, WriteSpec, IsIndexed, IsDefault
+// Fields: Name, Type, ReadSpec, WriteSpec, IsIndexed, IsDefault
 // Properties provide syntactic sugar for getter/setter access.
 type PropertyInfo struct {
 	Type      Type
@@ -530,7 +529,6 @@ func (ct *ClassType) HasConstructor(name string) bool {
 }
 
 // HasProperty checks if the class or any of its ancestors has a property with the given name.
-// Task 8.28
 func (ct *ClassType) HasProperty(name string) bool {
 	if ct == nil {
 		return false
@@ -546,7 +544,6 @@ func (ct *ClassType) HasProperty(name string) bool {
 
 // GetProperty returns the property info for a given property name, searching up the inheritance chain.
 // Returns (propertyInfo, true) if found, or (nil, false) if not found.
-// Task 8.28
 func (ct *ClassType) GetProperty(name string) (*PropertyInfo, bool) {
 	if ct == nil {
 		return nil, false

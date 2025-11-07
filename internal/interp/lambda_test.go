@@ -9,9 +9,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/semantic"
 )
 
-// Task 9.225: Interpreter tests for lambda expressions and closures
-// Task 9.226: Complex closure tests including nested lambdas
-
 // Helper function to run lambda test code
 func runLambdaTest(t *testing.T, input string) (Value, *Interpreter) {
 	t.Helper()
@@ -235,7 +232,7 @@ func TestClosureCaptureMultipleVariables(t *testing.T) {
 }
 
 func TestClosureMutatesCapturedVariable(t *testing.T) {
-	// Task 9.224: Test reference semantics - mutations should be visible
+	// Test reference semantics - mutations should be visible
 	input := `
 		var counter: Integer := 0;
 		var increment := lambda() begin counter := counter + 1; end;

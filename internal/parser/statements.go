@@ -153,8 +153,6 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 //	var x: Integer; external;
 //	var y: String; external 'externalName';
 //
-// Task 9.63: Now supports multi-identifier declarations:
-//
 //	var x, y, z: Integer;
 func (p *Parser) parseVarDeclaration() ast.Statement {
 	blockToken := p.curToken // Save the initial VAR token for the block
@@ -211,7 +209,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		stmt.Token = p.curToken
 	}
 
-	// Task 9.63: Collect comma-separated identifiers
+	// Collect comma-separated identifiers
 	// Parse pattern: IDENT (, IDENT)* : TYPE [:= VALUE]
 	stmt.Names = []*ast.Identifier{}
 	for {
@@ -244,7 +242,6 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		p.nextToken() // move to ':'
 
 		// Parse type expression (can be simple type, function pointer, or array type)
-		// Task 9.45: Changed from simple IDENT to parseTypeExpression() to support inline types
 		p.nextToken() // move to type expression
 		typeExpr := p.parseTypeExpression()
 		if typeExpr == nil {
@@ -283,7 +280,6 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 			}
 		case *ast.SetTypeNode:
 			// For set types, we create a synthetic TypeAnnotation
-			// Task 9.213: Handle inline set type expressions
 			stmt.Type = &ast.TypeAnnotation{
 				Token:      te.Token,
 				Name:       te.String(), // Use the full set type signature as the type name
@@ -297,7 +293,6 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 
 	if hasExplicitType {
 		if p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ) {
-			// Task 9.63: Reject initializers with multiple names (DWScript rule)
 			if len(stmt.Names) > 1 {
 				p.addError("cannot use initializer with multiple variable names")
 				return stmt

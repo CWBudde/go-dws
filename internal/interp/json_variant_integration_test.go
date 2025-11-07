@@ -8,7 +8,6 @@ import (
 
 // ============================================================================
 // Integration tests for JSON values with Variant system
-// Task 9.90: Tests for JSON type representation
 // ============================================================================
 
 // TestJSONValue_String verifies that JSONValue.String() produces correct output

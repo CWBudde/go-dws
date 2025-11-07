@@ -1,5 +1,4 @@
 // Const Expression Tests
-// Task 8.259: Test using consts in expressions and calculations
 
 begin
   PrintLn('=== Const Expression Tests ===');

@@ -116,7 +116,6 @@ func isError(val Value) bool {
 }
 
 // RuntimeError represents a structured runtime error with rich context
-// Task 9.111: Enhanced runtime error messages
 type RuntimeError struct {
 	Message    string
 	Pos        *lexer.Position
@@ -160,7 +159,6 @@ func (r *RuntimeError) ToCompilerError() *errors.CompilerError {
 }
 
 // NewRuntimeError creates a new structured runtime error
-// Task 9.111: Create rich runtime errors
 func (i *Interpreter) NewRuntimeError(node ast.Node, errorType, message string, values map[string]string) *RuntimeError {
 	var pos *lexer.Position
 	var expr string

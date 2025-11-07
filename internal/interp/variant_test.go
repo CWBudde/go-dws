@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Task 9.231: Runtime tests for Variant operations
+// Runtime tests for Variant operations
 // ============================================================================
 
 // ============================================================================
@@ -1345,7 +1345,7 @@ func testRunProgram(t *testing.T, source string) {
 }
 
 // ============================================================================
-// Task 9.219: NOT operator with Variant and uninitialized values
+// NOT operator with Variant and uninitialized values
 // ============================================================================
 
 // TestNotOperatorWithVariant tests that the NOT operator works with Variant values.

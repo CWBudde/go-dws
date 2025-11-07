@@ -9,7 +9,7 @@ import (
 )
 
 // ============================================================================
-// Task 9.96: Tests for JSON Serialization Functions (ToJSON, ToJSONFormatted)
+// Tests for JSON Serialization Functions (ToJSON, ToJSONFormatted)
 // ============================================================================
 
 func TestToJSON_Primitives(t *testing.T) {

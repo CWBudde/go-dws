@@ -83,7 +83,7 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 		i.env.Define(param.Name.Value, arg)
 	}
 
-	// Task 9.221: Use appropriate default value based on return type
+	// Use appropriate default value based on return type
 	if method.ReturnType != nil {
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
@@ -136,7 +136,7 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 		i.env.Define(param.Name.Value, arg)
 	}
 
-	// Task 9.221: Use appropriate default value based on return type
+	// Use appropriate default value based on return type
 	if method.ReturnType != nil {
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 		defaultVal := i.getDefaultValue(returnType)
@@ -233,7 +233,6 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 	const maxConversionChainDepth = 3
 	path := i.conversions.findConversionPath(normalizedSource, normalizedTarget, maxConversionChainDepth)
 	if len(path) < 2 {
-		// Task 9.26: Built-in implicit coercions (horizontal_sundial.pas fix)
 		// Integer → Float is always allowed in Pascal/Delphi (automatic widening)
 		if normalizedSource == "INTEGER" && normalizedTarget == "FLOAT" {
 			if intVal, ok := value.(*IntegerValue); ok {

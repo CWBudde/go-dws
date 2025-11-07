@@ -10,7 +10,6 @@ import (
 )
 
 // TestCLI_InterfaceScripts tests running interface test scripts via CLI
-// Task 7.148: CLI integration tests for interfaces
 func TestCLI_InterfaceScripts(t *testing.T) {
 	// Build the CLI if needed
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
@@ -260,7 +259,6 @@ func normalizeOutput(s string) string {
 }
 
 // TestInterfacesIntegration tests the CLI with interface scripts
-// Task 7.151: Verify CLI correctly executes interface programs
 func TestInterfacesIntegration(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

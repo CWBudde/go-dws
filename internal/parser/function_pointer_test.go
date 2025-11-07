@@ -8,7 +8,6 @@ import (
 )
 
 // TestParseFunctionPointerTypeDeclarations tests parsing of function pointer type declarations.
-// Task 9.157: Add parser tests for function pointer types
 func TestParseFunctionPointerTypeDeclarations(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -228,7 +227,6 @@ func TestParseFunctionPointerTypeDeclarationString(t *testing.T) {
 }
 
 // TestParseAddressOfExpression tests parsing of address-of (@) expressions.
-// Task 9.158: Add parser tests for address-of expressions
 func TestParseAddressOfExpression(t *testing.T) {
 	tests := []struct {
 		name           string

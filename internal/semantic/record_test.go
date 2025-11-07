@@ -126,7 +126,7 @@ func TestRecordErrors(t *testing.T) {
 	}
 }
 
-// Task 8.70: Type-check record literals
+// Type-check record literals
 func TestRecordLiterals(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -215,7 +215,7 @@ func TestRecordLiteralErrors(t *testing.T) {
 	}
 }
 
-// Task 8.71: Type-check record field access
+// Type-check record field access
 func TestRecordFieldAccess(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -276,7 +276,6 @@ func TestRecordFieldAccessErrors(t *testing.T) {
 				var x: Integer := 42;
 				var y: Integer := x.SomeField;
 			`,
-			// Task 9.83: With helper support, the error message changed
 			expectedError: "requires a helper",
 		},
 		// Note: Field assignment tests removed - require parser support

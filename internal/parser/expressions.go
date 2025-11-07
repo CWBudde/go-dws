@@ -211,7 +211,7 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 }
 
 // parseCallExpression parses a function call expression.
-// Task 9.173: Also handles typed record literals: TypeName(field: value)
+// Also handles typed record literals: TypeName(field: value)
 func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	// Check if this might be a typed record literal
 	// Pattern: Identifier(Identifier:Expression, ...)
@@ -431,7 +431,6 @@ func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 
 // parseGroupedExpression parses a grouped expression (parentheses).
 // Also handles record literals: (X: 10, Y: 20)
-// Task 9.171: Detect record literals and delegate to parseRecordLiteral()
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	// Check if this is a record literal
 	// Pattern: (IDENT : ...) indicates a named record literal
@@ -477,7 +476,6 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 
 // parseRecordLiteralInline parses a record literal when we're already positioned
 // at the first field name (after detecting the pattern "(IDENT:").
-// Task 9.171: Helper for parseGroupedExpression
 func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
 	// We're currently at the IDENT after '(', and peek is COLON
 	recordLit := &ast.RecordLiteralExpression{
@@ -653,8 +651,6 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 //   - inherited                  // Bare inherited (calls same method in parent)
 //   - inherited MethodName       // Call parent method (no args)
 //   - inherited MethodName(args) // Call parent method with args
-//
-// Task 9.164: Implement inherited keyword
 func (p *Parser) parseInheritedExpression() ast.Expression {
 	inheritedExpr := &ast.InheritedExpression{
 		Token: p.curToken, // The 'inherited' keyword

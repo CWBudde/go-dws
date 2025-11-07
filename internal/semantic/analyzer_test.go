@@ -39,7 +39,7 @@ func expectError(t *testing.T, input string, expectedError string) {
 
 	if perrs := p.Errors(); len(perrs) > 0 {
 		for _, msg := range perrs {
-			// Task 9.110: Use case-insensitive comparison for enhanced error messages
+			// Use case-insensitive comparison for enhanced error messages
 			if strings.Contains(strings.ToLower(msg), strings.ToLower(expectedError)) {
 				return
 			}
@@ -53,7 +53,7 @@ func expectError(t *testing.T, input string, expectedError string) {
 		t.Errorf("expected error containing '%s', got no error", expectedError)
 		return
 	}
-	// Task 9.110: Use case-insensitive comparison for enhanced error messages
+	// Use case-insensitive comparison for enhanced error messages
 	if !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(expectedError)) {
 		t.Errorf("expected error containing '%s', got: %v", expectedError, err)
 	}

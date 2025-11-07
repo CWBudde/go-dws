@@ -291,7 +291,6 @@ var s: String := 'hello';
 }
 
 // TestExternalVarParsing tests parsing of external variable declarations.
-// Task 7.143: External variables are declared with the 'external' keyword:
 //
 //	var x: Integer; external;
 //	var y: String; external 'externalName';

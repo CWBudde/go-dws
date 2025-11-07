@@ -1,5 +1,4 @@
 // Package semantic_test contains semantic analysis tests for type system.
-// Task 9.10b: Tests for large set type analysis and inference.
 package semantic
 
 import (
@@ -8,7 +7,7 @@ import (
 )
 
 // ============================================================================
-// Large Set Type Declaration Tests (Task 9.10b)
+// Large Set Type Declaration Tests
 // ============================================================================
 
 // TestLargeSetTypeDeclaration tests that large enum set types are properly analyzed.

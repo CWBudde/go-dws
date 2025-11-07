@@ -1,5 +1,4 @@
 // Package interp_test contains benchmarks for set operations.
-// Task 9.10g: Performance benchmarks for large-set storage and operations.
 package interp
 
 import (

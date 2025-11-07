@@ -9,7 +9,6 @@ import (
 )
 
 // TestRecordMethodCall tests calling methods on records
-// Task 9.7d: Unit tests for record method invocation
 func TestRecordMethodCall(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -169,7 +168,6 @@ PrintLn(outer.GetInnerDouble());
 }
 
 // TestRecordMethodErrors tests error cases for record method calls
-// Task 9.7d: Test error handling for record methods
 func TestRecordMethodErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -241,7 +239,6 @@ p.Add(1);
 }
 
 // TestRecordMethodSelfBinding tests that Self is properly bound in record methods
-// Task 9.7d: Test Self binding in record methods
 func TestRecordMethodSelfBinding(t *testing.T) {
 	input := `
 type TTest = record
@@ -277,7 +274,6 @@ PrintLn(t.AccessSelf());
 }
 
 // TestStaticRecordMethods tests static record methods (class function/procedure)
-// Task 9.7f: Test static record methods that are called on the type, not instances
 func TestStaticRecordMethods(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -388,7 +384,6 @@ PrintLn(TMath.Add(5, 7));
 }
 
 // TestStaticRecordMethodErrors tests error cases for static record methods
-// Task 9.7f: Test error handling for static method calls
 func TestStaticRecordMethodErrors(t *testing.T) {
 	tests := []struct {
 		name        string

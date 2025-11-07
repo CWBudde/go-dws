@@ -71,7 +71,8 @@ func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 		}
 	}
 
-	// Task 7.83: Distinguish parent class from interfaces
+	// Distinguish parent class from interfaces
+	//
 	// Convention: First identifier is parent class if:
 	//   1. It's a built-in class (Exception, EConvertError, etc.), OR
 	//   2. It starts with 'T' (TObject, TMyClass, etc.)
@@ -123,7 +124,8 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		Name:  nameIdent,
 	}
 
-	// Task 7.83: Check for optional parent class and/or interfaces
+	// Check for optional parent class and/or interfaces
+	//
 	// Syntax: class(TParent, IInterface1, IInterface2)
 	// Syntax: class abstract(TParent) - parent after abstract
 	// First identifier is parent class (if it starts with T)
@@ -258,7 +260,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 				classDecl.Methods = append(classDecl.Methods, method)
 			}
 		} else if p.curToken.Type == lexer.PROPERTY {
-			// Task 8.42: This is a property declaration
+			// This is a property declaration
 			property := p.parsePropertyDeclaration()
 			if property != nil {
 				// Note: We could track visibility here if needed
@@ -324,8 +326,6 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 	}
 
 	// Parse type expression (supports simple types, array types, function pointer types)
-	// Task 9.170.1: Changed from expecting IDENT to using parseTypeExpression()
-	// This allows inline array types like: Pix : array of array of Integer;
 	p.nextToken()
 	fieldType := p.parseTypeExpression()
 	if fieldType == nil {

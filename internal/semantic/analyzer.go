@@ -89,23 +89,22 @@ func NewAnalyzer() *Analyzer {
 		conversionRegistry: types.NewConversionRegistry(),
 	}
 
-	// Task 8.203: Register built-in Exception base class
+	// Register built-in Exception base class
 	a.registerBuiltinExceptionTypes()
 
-	// Task 9.171: Register built-in array helpers
+	// Register built-in array helpers
 	a.initArrayHelpers()
 
-	// Task 9.205: Register built-in helpers for primitive types
+	// Register built-in helpers for primitive types
 	a.initIntrinsicHelpers()
 
-	// Task 9.31: Register built-in enum helpers
+	// Register built-in enum helpers
 	a.initEnumHelpers()
 
 	return a
 }
 
 // registerBuiltinExceptionTypes registers Exception and standard exception types
-// Task 8.203-8.204
 func (a *Analyzer) registerBuiltinExceptionTypes() {
 	// Register TObject as the root base class for all classes
 	// Required for DWScript compatibility
@@ -140,7 +139,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	// Task 9.285: Use lowercase for case-insensitive lookup
 	a.classes["tobject"] = objectClass
 
-	// Task 8.203: Define Exception base class
+	// Define Exception base class
 	exceptionClass := &types.ClassType{
 		Name:             "Exception",
 		Parent:           objectClass, // Exception inherits from TObject
@@ -169,7 +168,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	// Task 9.285: Use lowercase for case-insensitive lookup
 	a.classes["exception"] = exceptionClass
 
-	// Task 8.204: Define standard exception types
+	// Define standard exception types
 	standardExceptions := []string{
 		"EConvertError",    // Type conversion failures
 		"ERangeError",      // Array bounds, invalid ranges

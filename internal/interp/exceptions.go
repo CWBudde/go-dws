@@ -70,7 +70,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		"EDivByZero",
 		"EAssertionFailed",
 		"EInvalidOp",
-		"EScriptStackOverflow", // Task 9.3: Stack overflow exception for recursion depth limit
+		"EScriptStackOverflow",
 	}
 
 	for _, excName := range standardExceptions {
@@ -86,7 +86,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		i.classes[excName] = excClass
 	}
 
-	// Task 9.51a: Register EHost exception wrapper for host runtime errors.
+	// Register EHost exception wrapper for host runtime errors.
 	eHostClass := NewClassInfo("EHost")
 	eHostClass.Parent = exceptionClass
 	eHostClass.Fields["Message"] = types.STRING
@@ -101,7 +101,6 @@ func (i *Interpreter) registerBuiltinExceptions() {
 // raiseMaxRecursionExceeded raises an EScriptStackOverflow exception when the
 // maximum recursion depth is exceeded. This prevents infinite recursion and
 // stack overflow errors.
-// Task 9.4: Implement raiseMaxRecursionExceeded() helper
 func (i *Interpreter) raiseMaxRecursionExceeded() Value {
 	message := fmt.Sprintf("Maximal recursion exceeded (%d)", i.maxRecursionDepth)
 

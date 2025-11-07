@@ -8,7 +8,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/parser"
 )
 
-// Task 9.32c: Test implicit Self property access in methods
+// Test implicit Self property access in methods
 func TestImplicitSelfPropertyAccessWithContext(t *testing.T) {
 	input := `
 type

@@ -15,8 +15,6 @@ import (
 //   - type TColor = (Red, Green, Blue);
 //   - type TEnum = (One = 1, Two = 5);
 //   - type TEnum = enum (One, Two);
-//
-// Task 8.37: Parse enum declarations
 func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.EnumDecl {
 	enumDecl := &ast.EnumDecl{
 		Token:  typeToken, // The 'type' token

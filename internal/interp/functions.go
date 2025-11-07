@@ -213,6 +213,46 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		return i.callBuiltinWithVarParam(funcName.Value, expr.Arguments)
 	}
 
+	// Task 9.2d: Check if this is an external function with var parameters
+	// We need to check BEFORE evaluating args to create ReferenceValues
+	if i.externalFunctions != nil {
+		if extFunc, ok := i.externalFunctions.Get(funcName.Value); ok {
+			varParams := extFunc.Wrapper.GetVarParams()
+
+			// Prepare arguments - create ReferenceValues for var parameters
+			args := make([]Value, len(expr.Arguments))
+			for idx, arg := range expr.Arguments {
+				isVarParam := idx < len(varParams) && varParams[idx]
+
+				if isVarParam {
+					// Task 9.2d: For var parameters, create a reference
+					if argIdent, ok := arg.(*ast.Identifier); ok {
+						if val, exists := i.env.Get(argIdent.Value); exists {
+							if refVal, isRef := val.(*ReferenceValue); isRef {
+								args[idx] = refVal // Pass through existing reference
+							} else {
+								args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+							}
+						} else {
+							args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+						}
+					} else {
+						return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+					}
+				} else {
+					// For regular parameters, evaluate immediately
+					val := i.Eval(arg)
+					if isError(val) {
+						return val
+					}
+					args[idx] = val
+				}
+			}
+
+			return i.callExternalFunction(extFunc, args)
+		}
+	}
+
 	// Otherwise, try built-in functions
 	// Evaluate all arguments
 	args := make([]Value, len(expr.Arguments))

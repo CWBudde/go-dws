@@ -495,7 +495,7 @@ func TestDivisionByZero(t *testing.T) {
 			continue
 		}
 
-		// Task 9.111: Handle both RuntimeError and ErrorValue
+		// Handle both RuntimeError and ErrorValue
 		var errMsg string
 		switch err := val.(type) {
 		case *RuntimeError:
@@ -1844,7 +1844,7 @@ func TestMemberAssignment(t *testing.T) {
 }
 
 // TestExternalVarRuntime tests runtime behavior of external variables.
-// Task 7.144: External variables should raise errors when accessed until
+// External variables should raise errors when accessed until
 // getter/setter functions are provided.
 func TestExternalVarRuntime(t *testing.T) {
 	tests := []struct {

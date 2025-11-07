@@ -206,7 +206,6 @@ end
 // ============================================================================
 
 // TestArrayIndexOf_BasicFound tests IndexOf finding the first occurrence.
-// Task 9.71: Test IndexOf([1,2,3,2], 2) returns 1 (first occurrence at index 1)
 func TestArrayIndexOf_BasicFound(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -234,7 +233,6 @@ end
 }
 
 // TestArrayIndexOf_NotFound tests IndexOf returning -1 when value not found.
-// Task 9.71: Test IndexOf([1,2,3], 5) returns -1 (not found)
 func TestArrayIndexOf_NotFound(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -261,7 +259,6 @@ end
 }
 
 // TestArrayIndexOf_WithStartIndex tests IndexOf with optional startIndex parameter.
-// Task 9.71: Test IndexOf([1,2,3,2], 2, 2) returns 3 (searches from index 2 onwards)
 func TestArrayIndexOf_WithStartIndex(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -289,7 +286,6 @@ end
 }
 
 // TestArrayIndexOf_StringArray tests IndexOf with string arrays.
-// Task 9.71: Test with strings
 func TestArrayIndexOf_StringArray(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -343,7 +339,6 @@ end
 }
 
 // TestArrayIndexOf_EmptyArray tests IndexOf with an empty array.
-// Task 9.71: Test with empty array
 func TestArrayIndexOf_EmptyArray(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -366,7 +361,6 @@ end
 }
 
 // TestArrayIndexOf_EdgeCases tests IndexOf boundary conditions.
-// Task 9.71: Test edge cases with startIndex
 func TestArrayIndexOf_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -436,7 +430,6 @@ end
 }
 
 // TestArrayIndexOf_ErrorCases tests IndexOf error handling.
-// Task 9.71: Test error cases
 func TestArrayIndexOf_ErrorCases(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -498,7 +491,6 @@ end
 // ============================================================================
 
 // TestArrayContains_Found tests Contains returning true when value exists.
-// Task 9.73: Test Contains([1,2,3], 2) returns true
 func TestArrayContains_Found(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -525,7 +517,6 @@ end
 }
 
 // TestArrayContains_NotFound tests Contains returning false when value doesn't exist.
-// Task 9.73: Test Contains([1,2,3], 5) returns false
 func TestArrayContains_NotFound(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -552,7 +543,6 @@ end
 }
 
 // TestArrayContains_DifferentTypes tests Contains with different value types.
-// Task 9.73: Test with different types
 func TestArrayContains_DifferentTypes(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -635,7 +625,6 @@ end
 }
 
 // TestArrayContains_EmptyArray tests Contains with empty array.
-// Task 9.73: Test with empty array returns false
 func TestArrayContains_EmptyArray(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -707,7 +696,6 @@ end
 // ============================================================================
 
 // TestArrayReverse_OddLength tests reversing an odd-length array.
-// Task 9.75: Test var a := [1,2,3]; Reverse(a); → a = [3,2,1]
 func TestArrayReverse_OddLength(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -744,7 +732,6 @@ end
 }
 
 // TestArrayReverse_EvenLength tests reversing an even-length array.
-// Task 9.75: Test with even length array
 func TestArrayReverse_EvenLength(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -784,7 +771,6 @@ end
 }
 
 // TestArrayReverse_SingleElement tests reversing a single-element array (no-op).
-// Task 9.75: Test with single element (no-op)
 func TestArrayReverse_SingleElement(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -811,7 +797,6 @@ end
 }
 
 // TestArrayReverse_EmptyArray tests reversing an empty array (no-op).
-// Task 9.75: Test with empty array (no-op)
 func TestArrayReverse_EmptyArray(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -884,7 +869,6 @@ end
 // ============================================================================
 
 // TestArraySort_Integers tests sorting an integer array.
-// Task 9.78: Test var a := [3,1,2]; Sort(a); → a = [1,2,3]
 func TestArraySort_Integers(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -927,7 +911,6 @@ end
 }
 
 // TestArraySort_Strings tests sorting a string array.
-// Task 9.78: Test with strings: ['c','a','b'] → ['a','b','c']
 func TestArraySort_Strings(t *testing.T) {
 	input := `
 type TStringArray = array of String;
@@ -964,7 +947,6 @@ end
 }
 
 // TestArraySort_AlreadySorted tests sorting an already sorted array (no-op).
-// Task 9.78: Test with already sorted array
 func TestArraySort_AlreadySorted(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -1000,7 +982,6 @@ end
 }
 
 // TestArraySort_SingleElement tests sorting a single-element array (no-op).
-// Task 9.78: Test with single element
 func TestArraySort_SingleElement(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -1027,7 +1008,6 @@ end
 }
 
 // TestArraySort_Duplicates tests sorting an array with duplicate values.
-// Task 9.78: Test with duplicates
 func TestArraySort_Duplicates(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -1144,7 +1124,6 @@ end
 }
 
 // TestArraySort_WithLambdaComparator_Ascending tests Sort() with a lambda comparator for ascending order.
-// Task 9.33: Sort(arr, lambda (a, b) => a - b)
 func TestArraySort_WithLambdaComparator_Ascending(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -1182,7 +1161,6 @@ end
 }
 
 // TestArraySort_WithLambdaComparator_Descending tests Sort() with a lambda comparator for descending order.
-// Task 9.33: Sort(arr, lambda (a, b) => b - a)
 func TestArraySort_WithLambdaComparator_Descending(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -1220,7 +1198,6 @@ end
 }
 
 // TestArraySort_WithLambdaComparator_CustomLogic tests Sort() with custom sorting logic.
-// Task 9.33: Sort strings by length instead of lexicographically
 func TestArraySort_WithLambdaComparator_CustomLogic(t *testing.T) {
 	input := `
 type TStringArray = array of String;
@@ -1257,7 +1234,6 @@ end
 }
 
 // TestArraySort_WithNamedFunctionComparator tests Sort() with a named function pointer.
-// Task 9.33: Sort(arr, @MyComparatorFunc)
 func TestArraySort_WithNamedFunctionComparator(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -1302,7 +1278,6 @@ end
 }
 
 // TestArraySort_WithComparator_ErrorCases tests error handling for Sort() with comparators.
-// Task 9.33: Error cases
 func TestArraySort_WithComparator_ErrorCases(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -1393,7 +1368,6 @@ end
 }
 
 // TestArraySort_WithComparator_EmptyArray tests Sort() with comparator on empty array.
-// Task 9.33: Edge case - empty array
 func TestArraySort_WithComparator_EmptyArray(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;
@@ -1417,7 +1391,6 @@ end
 }
 
 // TestArraySort_WithComparator_SingleElement tests Sort() with comparator on single element array.
-// Task 9.33: Edge case - single element
 func TestArraySort_WithComparator_SingleElement(t *testing.T) {
 	input := `
 type TIntArray = array of Integer;

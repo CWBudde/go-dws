@@ -90,7 +90,7 @@ func (l *Lexer) currentPos() Position {
 
 // Input returns the source code being tokenized.
 // This allows parser to create temporary lexers for lookahead.
-// Task 9.301: Added for function pointer syntax detection
+// Added for function pointer syntax detection
 func (l *Lexer) Input() string {
 	return l.input
 }

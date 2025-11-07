@@ -7,7 +7,6 @@ import (
 
 // ============================================================================
 // JSON Value Conversions
-// Task 9.89: Bidirectional conversions between jsonvalue.Value and DWScript runtime values
 // ============================================================================
 
 // jsonValueToValue converts a jsonvalue.Value to a DWScript runtime Value.
@@ -113,7 +112,6 @@ func valueToJSONValue(val Value) *jsonvalue.Value {
 }
 
 // jsonValueToVariant wraps a jsonvalue.Value in a VariantValue.
-// Task 9.89: Enable JSON values to be stored in Variants.
 //
 // This creates a JSONValue wrapper and boxes it in a Variant.
 // The Variant's ActualType is set to nil since JSON is a dynamic type.
@@ -151,7 +149,6 @@ func variantToJSONValue(variant *VariantValue) *jsonvalue.Value {
 }
 
 // jsonKindToVarType maps a jsonvalue.Kind to a VarType code.
-// Task 9.90: Support VarType introspection for JSON values.
 //
 // This allows VarType(jsonVar) to return meaningful type codes.
 // We use custom codes in the high range to avoid conflicts with standard VarType codes.

@@ -1,7 +1,6 @@
 package interp
 
 // builtinMap implements the Map() built-in function.
-// Task 9.227: Transform array elements using a lambda.
 //
 // Signature: Map(array, lambda) -> array
 // - array: The source array to transform
@@ -58,7 +57,6 @@ func (i *Interpreter) builtinMap(args []Value) Value {
 }
 
 // builtinFilter implements the Filter() built-in function.
-// Task 9.227: Filter array elements using a predicate lambda.
 //
 // Signature: Filter(array, predicate) -> array
 // - array: The source array to filter
@@ -128,7 +126,6 @@ func (i *Interpreter) builtinFilter(args []Value) Value {
 }
 
 // builtinReduce implements the Reduce() built-in function.
-// Task 9.227: Reduce array to single value using an accumulator lambda.
 //
 // Signature: Reduce(array, lambda, initial) -> value
 // - array: The source array to reduce
@@ -183,7 +180,6 @@ func (i *Interpreter) builtinReduce(args []Value) Value {
 }
 
 // builtinForEach implements the ForEach() built-in function.
-// Task 9.227: Execute a lambda for each array element (for side effects).
 //
 // Signature: ForEach(array, lambda)
 // - array: The source array to iterate

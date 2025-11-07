@@ -14,6 +14,7 @@ type FunctionSignature struct {
 	ParamTypes []string // Parameter type names (e.g., "Integer", "String", "Boolean")
 	ReturnType string   // Return type name (e.g., "Integer", "Void")
 	IsVariadic bool     // True if the function accepts a variable number of arguments
+	VarParams  []bool   // Task 9.2d: True if parameter is by-reference (pointer in Go)
 }
 
 // String returns a human-readable representation of the signature.
@@ -133,6 +134,83 @@ func (e *Engine) RegisterFunction(name string, fn any) error {
 	return e.externalFunctions.Register(name, wrapper)
 }
 
+// RegisterMethod registers a Go method from a struct to be callable from DWScript.
+// This is a convenience wrapper that makes method registration more explicit than
+// using method values directly with RegisterFunction.
+//
+// The method is looked up by name on the receiver's type, validated, and then
+// registered using the existing RegisterFunction infrastructure. The receiver
+// is automatically bound to the method (captured in a closure), so when DWScript
+// calls the function, it operates on the original receiver instance.
+//
+// Parameters:
+//   - name: The name to register the function under in DWScript
+//   - receiver: The instance (struct or pointer to struct) that has the method
+//   - methodName: The name of the method to register (must be exported)
+//
+// Example:
+//
+//	type Calculator struct {
+//	    result int64
+//	}
+//
+//	func (c *Calculator) Add(x int64) {
+//	    c.result += x
+//	}
+//
+//	func (c *Calculator) GetResult() int64 {
+//	    return c.result
+//	}
+//
+//	calc := &Calculator{}
+//	engine.RegisterMethod("Add", calc, "Add")
+//	engine.RegisterMethod("GetResult", calc, "GetResult")
+//
+// DWScript code can then call:
+//
+//	Add(42);
+//	var result := GetResult();  // Returns 42
+//
+// Receiver Types:
+//   - Pointer receivers (*T): Can modify the receiver's state (most common)
+//   - Value receivers (T): Operate on a copy; modifications are not visible
+//
+// Alternative Approach:
+// You can also use method values directly with RegisterFunction:
+//
+//	calc := &Calculator{}
+//	engine.RegisterFunction("Add", calc.Add)           // Method value
+//	engine.RegisterFunction("GetResult", calc.GetResult)
+//
+// Both approaches work identically; use whichever is clearer for your use case.
+func (e *Engine) RegisterMethod(name string, receiver any, methodName string) error {
+	if receiver == nil {
+		return fmt.Errorf("cannot register method on nil receiver")
+	}
+	if methodName == "" {
+		return fmt.Errorf("method name cannot be empty")
+	}
+
+	// Get receiver value and type
+	recvValue := reflect.ValueOf(receiver)
+	recvType := recvValue.Type()
+
+	// Look up method by name
+	method, ok := recvType.MethodByName(methodName)
+	if !ok {
+		return fmt.Errorf("method %s not found on type %s", methodName, recvType)
+	}
+
+	// Get the method as a function value (with receiver bound)
+	// This creates a closure that captures the receiver
+	methodValue := recvValue.Method(method.Index)
+
+	// Use existing RegisterFunction with the bound method
+	// The method value appears as a regular function in reflection,
+	// but the receiver is captured in the closure
+	return e.RegisterFunction(name, methodValue.Interface())
+}
+
 // externalFunctionWrapper wraps a Go function with marshaling logic.
 type externalFunctionWrapper struct {
 	name      string
@@ -163,7 +241,9 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 	}
 
 	// Marshal DWScript values to Go values
+	// Task 9.2d: Track var parameters (pointers) and their references for updating after the call
 	var goArgs []reflect.Value
+	varParamRefs := make([]*interp.ReferenceValue, numParams) // Track ReferenceValues for var params
 
 	if w.signature.IsVariadic {
 		// Handle variadic function: pack extra arguments into a slice
@@ -172,11 +252,38 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 
 		// Marshal required (non-variadic) parameters
 		for i := 0; i < numRequiredParams; i++ {
-			goArg, err := interp.MarshalToGo(args[i], fnType.In(i))
-			if err != nil {
-				return nil, fmt.Errorf("argument %d: %w", i, err)
+			paramType := fnType.In(i)
+			isVarParam := i < len(w.signature.VarParams) && w.signature.VarParams[i]
+
+			if isVarParam {
+				// Task 9.2d: Handle var parameter (pointer)
+				// Extract the ReferenceValue and dereference it
+				refVal, ok := args[i].(*interp.ReferenceValue)
+				if !ok {
+					return nil, fmt.Errorf("var parameter %d must be a reference, got %T", i, args[i])
+				}
+				varParamRefs[i] = refVal
+
+				// Get the actual value from the reference
+				actualVal, err := refVal.Dereference()
+				if err != nil {
+					return nil, fmt.Errorf("var parameter %d: %w", i, err)
+				}
+
+				// Marshal to Go pointer
+				goArg, err := interp.MarshalToGo(actualVal, paramType)
+				if err != nil {
+					return nil, fmt.Errorf("argument %d: %w", i, err)
+				}
+				goArgs[i] = reflect.ValueOf(goArg)
+			} else {
+				// Regular parameter
+				goArg, err := interp.MarshalToGo(args[i], paramType)
+				if err != nil {
+					return nil, fmt.Errorf("argument %d: %w", i, err)
+				}
+				goArgs[i] = reflect.ValueOf(goArg)
 			}
-			goArgs[i] = reflect.ValueOf(goArg)
 		}
 
 		// Pack variadic arguments into a slice
@@ -198,11 +305,38 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 		// Non-variadic function: marshal arguments normally
 		goArgs = make([]reflect.Value, numParams)
 		for i := 0; i < numParams; i++ {
-			goArg, err := interp.MarshalToGo(args[i], fnType.In(i))
-			if err != nil {
-				return nil, fmt.Errorf("argument %d: %w", i, err)
+			paramType := fnType.In(i)
+			isVarParam := i < len(w.signature.VarParams) && w.signature.VarParams[i]
+
+			if isVarParam {
+				// Task 9.2d: Handle var parameter (pointer)
+				// Extract the ReferenceValue and dereference it
+				refVal, ok := args[i].(*interp.ReferenceValue)
+				if !ok {
+					return nil, fmt.Errorf("var parameter %d must be a reference, got %T", i, args[i])
+				}
+				varParamRefs[i] = refVal
+
+				// Get the actual value from the reference
+				actualVal, err := refVal.Dereference()
+				if err != nil {
+					return nil, fmt.Errorf("var parameter %d: %w", i, err)
+				}
+
+				// Marshal to Go pointer
+				goArg, err := interp.MarshalToGo(actualVal, paramType)
+				if err != nil {
+					return nil, fmt.Errorf("argument %d: %w", i, err)
+				}
+				goArgs[i] = reflect.ValueOf(goArg)
+			} else {
+				// Regular parameter
+				goArg, err := interp.MarshalToGo(args[i], paramType)
+				if err != nil {
+					return nil, fmt.Errorf("argument %d: %w", i, err)
+				}
+				goArgs[i] = reflect.ValueOf(goArg)
 			}
-			goArgs[i] = reflect.ValueOf(goArg)
 		}
 	}
 
@@ -215,6 +349,21 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 		results = w.goFunc.Call(goArgs)
 	}
 
+	// Task 9.2d: Update var parameters with modified values
+	for i := 0; i < numParams; i++ {
+		if varParamRefs[i] != nil {
+			// This was a var parameter - read the modified value and update the reference
+			modifiedVal, err := interp.UnmarshalFromGoPtr(goArgs[i])
+			if err != nil {
+				return nil, fmt.Errorf("unmarshaling var parameter %d: %w", i, err)
+			}
+			// Update the DWScript variable through the reference
+			if err := varParamRefs[i].Assign(modifiedVal); err != nil {
+				return nil, fmt.Errorf("updating var parameter %d: %w", i, err)
+			}
+		}
+	}
+
 	// Handle return values
 	return handleReturnValues(results)
 }
@@ -224,6 +373,12 @@ func (w *externalFunctionWrapper) Signature() *FunctionSignature {
 	return w.signature
 }
 
+// GetVarParams implements ExternalFunctionWrapper.GetVarParams
+// Task 9.2d: Returns which parameters are by-reference (pointers in Go).
+func (w *externalFunctionWrapper) GetVarParams() []bool {
+	return w.signature.VarParams
+}
+
 // detectSignature analyzes a Go function's type and creates a FunctionSignature.
 func detectSignature(name string, fnType reflect.Type) (*FunctionSignature, error) {
 	sig := &FunctionSignature{
@@ -231,11 +386,17 @@ func detectSignature(name string, fnType reflect.Type) (*FunctionSignature, erro
 		ParamTypes: make([]string, 0, fnType.NumIn()),
 		ReturnType: "Void",
 		IsVariadic: fnType.IsVariadic(),
+		VarParams:  make([]bool, 0, fnType.NumIn()), // Task 9.2d: Track var parameters
 	}
 
 	// Analyze parameters
 	for i := 0; i < fnType.NumIn(); i++ {
 		paramType := fnType.In(i)
+
+		// Task 9.2d: Check if this parameter is a pointer (var parameter)
+		isVarParam := paramType.Kind() == reflect.Ptr
+		sig.VarParams = append(sig.VarParams, isVarParam)
+
 		dwsType, err := goTypeToDWS(paramType)
 		if err != nil {
 			return nil, fmt.Errorf("parameter %d: %w", i, err)
@@ -307,6 +468,14 @@ func goTypeToDWS(goType reflect.Type) (string, error) {
 		}
 		// Could include value type info, but "record" is generic enough
 		return "record", nil
+	case reflect.Ptr:
+		// Task 9.2d: *T -> var T (by-reference parameter)
+		// Pointers indicate var parameters that can be modified by the Go function
+		elemType, err := goTypeToDWS(goType.Elem())
+		if err != nil {
+			return "", fmt.Errorf("pointer element: %w", err)
+		}
+		return elemType, nil // Return the pointed-to type
 	default:
 		return "", fmt.Errorf("unsupported Go type: %s", goType)
 	}

@@ -12,7 +12,6 @@ import (
 // ============================================================================
 
 // analyzeSetDecl analyzes a set type declaration
-// Task 8.99: Register set types in symbol table
 func (a *Analyzer) analyzeSetDecl(decl *ast.SetDecl) {
 	if decl == nil {
 		return
@@ -28,7 +27,7 @@ func (a *Analyzer) analyzeSetDecl(decl *ast.SetDecl) {
 	}
 
 	// Resolve the element type (must be an enum type)
-	// Task 8.100: Validate set element types (must be enum or small integer range)
+	// Validate set element types (must be enum or small integer range)
 	elementTypeName := decl.ElementType.Name
 
 	// First check if it's an enum type
@@ -42,10 +41,7 @@ func (a *Analyzer) analyzeSetDecl(decl *ast.SetDecl) {
 	// Create the set type
 	setType := types.NewSetType(enumType)
 
-	// Task 8.99: Register the set type
+	// Register the set type
 	// Use lowercase key for case-insensitive lookup
 	a.sets[strings.ToLower(setName)] = setType
 }
-
-// analyzeSetLiteralWithContext analyzes a set literal expression with optional type context
-// Task 8.101: Type-check set literals (elements match set's element type)

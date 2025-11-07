@@ -253,7 +253,6 @@ func NewRecordType(name string, fields map[string]Type) *RecordType {
 // ============================================================================
 
 // SetStorageKind determines the internal storage strategy for set values.
-// Task 9.8: Support for large enums (>64 values) using hybrid storage.
 type SetStorageKind int
 
 const (
@@ -287,10 +286,6 @@ func (sk SetStorageKind) String() string {
 //   - var flags: set of TOption;      // enum-based set
 //   - var digits: set of [0..9];      // integer subrange set
 //   - var letters: set of ['a'..'z']; // character range set
-//
-// Task 9.8: SetType now tracks the storage strategy (bitmask vs map) based on
-// the element type size, determined at type creation time.
-// Task 9.226: Extended to support all ordinal types (Integer, Enum, String, Subrange).
 type SetType struct {
 	ElementType Type           // Type of elements in the set (any ordinal type)
 	StorageKind SetStorageKind // Storage strategy: bitmask (≤64 values) or map (>64 values)
@@ -319,10 +314,6 @@ func (st *SetType) Equals(other Type) bool {
 }
 
 // NewSetType creates a new set type with the given element type.
-// Task 8.82: Factory function for creating set types.
-// Task 8.83: Validates that element type is an ordinal type.
-// Task 9.8: Automatically determines storage strategy based on element type size.
-// Task 9.226: Generalized to accept any ordinal type (Integer, Enum, String, Subrange).
 //
 // Storage selection:
 //   - If element type has ≤64 possible values: uses bitmask (fast, memory-efficient)

@@ -258,7 +258,7 @@ end;
 	}
 }
 
-// Task 9.170.2: Test class with inline array type fields
+// Test class with inline array type fields
 func TestClassWithInlineArrayFields(t *testing.T) {
 	input := `
 type TBoard = class
@@ -330,7 +330,6 @@ end;
 	if !ok {
 		t.Fatalf("field3.Type is not *ast.ArrayTypeNode. got=%T", field3.Type)
 	}
-	// Task 9.205: Bounds are now expressions, check if they're integer literals
 	if arrayType3.LowBound == nil {
 		t.Error("field3 LowBound should not be nil")
 	}
@@ -418,7 +417,7 @@ func TestNewExpressionNoArguments(t *testing.T) {
 }
 
 func TestNewExpressionOptionalParentheses(t *testing.T) {
-	// Task 9.131: Test that parentheses are optional for parameterless constructors
+	// Test that parentheses are optional for parameterless constructors
 	input := `new TTest`
 
 	l := lexer.New(input)
@@ -1036,7 +1035,7 @@ end;
 }
 
 // ============================================================================
-// Task 7.138: External Class Parsing Tests
+// External Class Parsing Tests
 // ============================================================================
 
 func TestExternalClassParsing(t *testing.T) {
@@ -1192,7 +1191,7 @@ end;
 }
 
 // ============================================================================
-// Task 7.140: External Method Parsing Tests
+// External Method Parsing Tests
 // ============================================================================
 
 func TestExternalMethodParsing(t *testing.T) {

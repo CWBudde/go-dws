@@ -1002,7 +1002,6 @@ func TestMethodDeclarations(t *testing.T) {
 }
 
 // TestOverloadDirective tests parsing of the overload directive on functions
-// Task 9.244 - Parse overload keyword in function declarations
 func TestOverloadDirective(t *testing.T) {
 	tests := []struct {
 		name     string

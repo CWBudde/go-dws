@@ -40,7 +40,6 @@ func TestArrayTypeRegistration(t *testing.T) {
 				type TFloatArray = array[0..4] of Float;
 			`,
 		},
-		// Task 9.211: Test nested array type declarations
 		{
 			name: "nested dynamic array - 2D",
 			input: `

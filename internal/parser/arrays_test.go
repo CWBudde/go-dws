@@ -56,7 +56,7 @@ func TestParseArrayTypeDeclaration(t *testing.T) {
 		}
 	})
 
-	// Task 9.211: Test nested array type declarations (array of array)
+	// Test nested array type declarations (array of array)
 	t.Run("Nested dynamic arrays - 2D", func(t *testing.T) {
 		input := `type Matrix = array of array of Float;`
 
@@ -1345,7 +1345,7 @@ func TestParseMultiIndexCommaSyntax(t *testing.T) {
 }
 
 // ============================================================================
-// Task 9.212: Multidimensional Array Parser Tests (Comma-Separated Syntax)
+// Multidimensional Array Parser Tests (Comma-Separated Syntax)
 // ============================================================================
 
 func TestParseMultiDimensionalArrayTypes(t *testing.T) {
