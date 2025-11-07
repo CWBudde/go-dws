@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -169,6 +170,16 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 	if i.isBuiltinFunction(node.Value) {
 		// Call the built-in function with no arguments
 		return i.callBuiltinFunction(node.Value, []Value{})
+	}
+
+	// Task 9.68: Check if this is a class name identifier
+	// Class names can be used in expressions like TObj.Create or new TObj
+	// DWScript is case-insensitive, so we need to search all classes
+	for className, classInfo := range i.classes {
+		if strings.EqualFold(className, node.Value) {
+			// Return a ClassInfoValue to indicate this is a class type identifier
+			return &ClassInfoValue{ClassInfo: classInfo}
+		}
 	}
 
 	// Still not found - return error

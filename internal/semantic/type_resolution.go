@@ -515,6 +515,7 @@ func (a *Analyzer) hasMethodWithName(methodName string, parent *types.ClassType)
 
 // getMethodOverloadsInHierarchy collects all method overloads from the class hierarchy (Task 9.61)
 // Returns all overload variants for the given method name, searching up the inheritance chain
+// Task 9.68: Also includes constructor overloads when the method name is a constructor
 func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *types.ClassType) []*types.MethodInfo {
 	if classType == nil {
 		return nil
@@ -522,7 +523,34 @@ func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *t
 
 	var result []*types.MethodInfo
 
-	// Collect overloads from current class
+	// Task 9.68: Check if this is a constructor call (class static method call)
+	// Constructors are stored separately in ConstructorOverloads
+	constructorOverloads := classType.GetConstructorOverloads(methodName)
+	if len(constructorOverloads) > 0 {
+		// This is a constructor - include constructor overloads
+		result = append(result, constructorOverloads...)
+
+		// Task 9.68: Add implicit parameterless constructor if not already present
+		// DWScript allows calling constructors with no arguments even if only
+		// parameterized constructors are declared
+		hasParameterlessConstructor := false
+		for _, ctor := range constructorOverloads {
+			if len(ctor.Signature.Parameters) == 0 {
+				hasParameterlessConstructor = true
+				break
+			}
+		}
+		if !hasParameterlessConstructor {
+			// Add implicit parameterless constructor that returns the class type
+			implicitConstructor := &types.MethodInfo{
+				Signature: types.NewFunctionType([]types.Type{}, classType),
+			}
+			result = append(result, implicitConstructor)
+		}
+		return result
+	}
+
+	// Collect overloads from current class (regular methods)
 	overloads := classType.GetMethodOverloads(methodName)
 	result = append(result, overloads...)
 
