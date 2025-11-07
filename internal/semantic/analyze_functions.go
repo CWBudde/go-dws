@@ -150,8 +150,9 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	// Task 9.58-9.62: Use DefineOverload to handle overload validation
 	// Task 9.60: Pass IsForward to handle forward declarations
 	// DefineOverload handles both single functions and overload sets
+	// Task 9.63: Include position information in error messages
 	if err := a.symbols.DefineOverload(decl.Name.Value, funcType, decl.IsOverload, decl.IsForward); err != nil {
-		a.addError("%s", err.Error())
+		a.addError("Syntax Error: %s [line: %d, column: %d]", err.Error(), decl.Token.Pos.Line, decl.Token.Pos.Column)
 		return
 	}
 

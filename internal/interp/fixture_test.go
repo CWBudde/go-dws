@@ -150,7 +150,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/OverloadsFail",
 			expectErrors: true,
 			description:  "Overloading error cases",
-			skip:         true, // TODO: Re-enable after implementing missing features
+			skip:         false, // Task 9.64: Enabled to validate error messages
 		},
 		{
 			name:         "OperatorOverloadFail",
@@ -620,8 +620,34 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 		return testResultPassed
 	}
 
-	// If we expect errors but got no parse errors, try to execute and see if runtime errors occur
+	// If we expect errors but got no parse errors, run semantic analysis and try execution
+	// Task 9.64: Handle semantic errors for OverloadsFail tests
 	if expectErrors && len(parseErrors) == 0 {
+		// Run semantic analysis to catch semantic errors (overload violations, type errors, etc.)
+		analyzer := semantic.NewAnalyzer()
+		analyzer.SetSource(source, pasFile)
+
+		var semanticErrors []string
+		if err := analyzer.Analyze(program); err != nil {
+			semanticErrors = analyzer.Errors()
+		}
+
+		// If we got semantic errors, check them against expected
+		if len(semanticErrors) > 0 {
+			if hasExpectedFile {
+				actualErrors := strings.Join(semanticErrors, "\n")
+				if normalizeOutput(actualErrors) == normalizeOutput(expectedContent) {
+					return testResultPassed
+				} else {
+					t.Errorf("Runtime error mismatch for %s:\nExpected:\n%s\nActual:\n%s",
+						filepath.Base(pasFile), expectedContent, actualErrors)
+					return testResultFailed
+				}
+			}
+			return testResultPassed
+		}
+
+		// No semantic errors, try execution for runtime errors
 		var buf bytes.Buffer
 		interp := New(&buf)
 		result := interp.Eval(program)
