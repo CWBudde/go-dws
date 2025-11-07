@@ -560,15 +560,15 @@ type TIntProc = procedure(value: Integer);
 
 ---
 
-### Function/Method Overloading Support (Tasks 9.243-9.277 + 9.44-forward) - 38% COMPLETE (14/36 tasks)
+### Function/Method Overloading Support (Tasks 9.243-9.277 + 9.44-forward) - 42% COMPLETE (15/36 tasks)
 
 **Goal**: Implement complete function and method overloading support
-**Status**: 14/36 tasks complete (Phases 1-3 complete, Phase 1 has 1 pending: forward keyword)
+**Status**: 15/36 tasks complete (Stages 1-3 complete, Stage 4 in progress)
 **Priority**: MEDIUM - Required for 76+ fixture tests in OverloadsPass/
 **Reference**: DWScript dwsCompiler.pas (ReadFuncOverloaded, ResolveOverload)
 **Test Files**: testdata/fixtures/OverloadsPass/ (36 tests), testdata/fixtures/OverloadsFail/ (11 tests)
 
-#### Stage 1: Parser Support (Tasks 9.243-9.249 + 9.44-forward) - 85% COMPLETE (7/8 tasks done)
+#### Stage 1: Parser Support (Tasks 9.243-9.249 + 9.44-forward) - 100% COMPLETE ✅ (8/8 tasks done)
 
 - [x] 9.38 Add IsOverload field to FunctionDecl AST node:
   - [x] Add `IsOverload bool` field to `FunctionDecl` struct in `internal/ast/functions.go`
@@ -610,19 +610,20 @@ type TIntProc = procedure(value: Integer);
   - [x] Test forward declarations with overload
   - [x] Fixed parser bug: abstract/external directives now allow additional directives like overload
 
-- [ ] 9.44-forward **Parse forward keyword in function/procedure declarations**:
-  - [ ] Add support for `forward` directive in `parseFunctionDeclaration()`
-  - [ ] Parse `FORWARD` token after function signature (similar to overload)
-  - [ ] Create forward declaration AST node or flag in FunctionDecl
-  - [ ] Syntax: `function Foo(x: Integer): String; forward;`
-  - [ ] Syntax: `procedure Bar; forward;`
-  - [ ] Required for: testdata/fixtures/OverloadsPass/forwards.pas (and 9+ other tests)
-  - [ ] Required for: testdata/fixtures/OverloadsPass/overload_func_ptr_param.pas
-  - [ ] File: internal/parser/functions.go
-  - [ ] Add FORWARD token to lexer if not present: internal/lexer/token_type.go
-  - [ ] Semantic validation to match forward declaration with implementation (task 9.60)
-  - **Status**: Parser crashes prevented (nil checks added), but FORWARD keyword not recognized
-  - **Priority**: HIGH - Blocks 10+ OverloadsPass tests
+- [x] 9.44-forward **Parse forward keyword in function/procedure declarations**:
+  - [x] Add support for `forward` directive in `parseFunctionDeclaration()`
+  - [x] Parse `FORWARD` token after function signature (similar to overload)
+  - [x] Add IsForward flag to FunctionDecl AST node
+  - [x] Syntax: `function Foo(x: Integer): String; forward;`
+  - [x] Syntax: `procedure Bar; forward;`
+  - [x] Required for: testdata/fixtures/OverloadsPass/forwards.pas (and 9+ other tests)
+  - [x] Required for: testdata/fixtures/OverloadsPass/overload_func_ptr_param.pas
+  - [x] File: internal/parser/functions.go (lines 157-165)
+  - [x] FORWARD token already exists in lexer (pkg/token/token.go:192)
+  - [x] Added parameterless function pointer support (no panic)
+  - [x] Semantic validation implemented (task 9.60)
+  - **Status**: ✅ COMPLETE - Parser and semantic analysis working
+  - **Remaining**: Interpreter needs to skip forward declarations (separate task)
 
 #### Stage 2: Symbol Table Extensions (Tasks 9.250-9.255) - 100% COMPLETE ✅
 
@@ -719,7 +720,7 @@ type TIntProc = procedure(value: Integer);
   - [x] Parameter modifiers tested (TestOverloadResolutionWithModifiers)
   - [x] NOTE: Class inheritance and Variant compatibility to be enhanced when type system expands
 
-#### Stage 4: Semantic Validation (Tasks 9.263-9.269) - 0% COMPLETE
+#### Stage 4: Semantic Validation (Tasks 9.263-9.269) - 14% COMPLETE (1/7 tasks done)
 
 - [ ] 9.58 Validate overload directive consistency:
   - [ ] Implement: If one overload has `overload`, all must have it
@@ -733,11 +734,14 @@ type TIntProc = procedure(value: Integer);
   - [ ] Error message: "Duplicate overload for function X with signature Y"
   - [ ] Test with testdata/fixtures/OverloadsFail/overload_simple.pas
 
-- [ ] 9.60 Validate overload + forward declaration consistency:
-  - [ ] Forward declaration and implementation must both have/omit `overload`
-  - [ ] Check signature match between forward and implementation
-  - [ ] Test with testdata/fixtures/OverloadsPass/forwards.pas
-  - [ ] Test failure cases with OverloadsFail/forwards.pas
+- [x] 9.60 Validate overload + forward declaration consistency:
+  - [x] Forward can have 'overload' and implementation can omit it (DWScript compatible)
+  - [x] Check signature match between forward and implementation
+  - [x] Replace forward declaration with implementation in symbol table
+  - [x] Handle forward declarations in overload sets
+  - [x] Test with testdata/fixtures/OverloadsPass/forwards.pas (semantic analysis passes)
+  - **Status**: ✅ Semantic validation COMPLETE
+  - **Remaining**: Interpreter must skip forward AST nodes (execute implementations only)
 
 - [ ] 9.61 Check overload + virtual/override/abstract interactions:
   - [ ] Virtual methods can be overloaded
