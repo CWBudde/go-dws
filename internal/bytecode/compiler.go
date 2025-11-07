@@ -15,6 +15,7 @@ type Compiler struct {
 	locals     []local
 	globals    map[string]globalVar
 	upvalues   []upvalue
+	loopStack  []*loopContext
 	enclosing  *Compiler
 	scopeDepth int
 	nextSlot   uint16
@@ -39,6 +40,20 @@ type globalVar struct {
 type upvalue struct {
 	index   uint16
 	isLocal bool
+}
+
+type loopKind int
+
+const (
+	loopKindWhile loopKind = iota
+	loopKindRepeat
+)
+
+type loopContext struct {
+	kind          loopKind
+	loopStart     int
+	breakJumps    []int
+	continueJumps []int
 }
 
 // NewCompiler creates a compiler for the given chunk name.
@@ -75,6 +90,7 @@ func (c *Compiler) Compile(program *ast.Program) (*Chunk, error) {
 	c.locals = c.locals[:0]
 	c.upvalues = c.upvalues[:0]
 	c.globals = make(map[string]globalVar)
+	c.loopStack = c.loopStack[:0]
 	c.scopeDepth = 0
 	c.nextSlot = 0
 	c.maxSlot = 0
@@ -132,6 +148,10 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 		return c.compileRepeat(node)
 	case *ast.ReturnStatement:
 		return c.compileReturn(node)
+	case *ast.BreakStatement:
+		return c.compileBreak(node)
+	case *ast.ContinueStatement:
+		return c.compileContinue(node)
 	default:
 		return c.errorf(stmt, "unsupported statement type %T", stmt)
 	}
@@ -250,6 +270,8 @@ func (c *Compiler) compileIf(stmt *ast.IfStatement) error {
 
 func (c *Compiler) compileWhile(stmt *ast.WhileStatement) error {
 	loopStart := len(c.chunk.Code)
+	ctx := c.pushLoop(loopKindWhile, loopStart)
+	defer c.popLoop()
 
 	if err := c.compileExpression(stmt.Condition); err != nil {
 		return err
@@ -265,13 +287,24 @@ func (c *Compiler) compileWhile(stmt *ast.WhileStatement) error {
 		return err
 	}
 
-	return c.chunk.PatchJump(exitJump)
+	if err := c.chunk.PatchJump(exitJump); err != nil {
+		return err
+	}
+
+	return c.patchLoopBreaks(ctx)
 }
 
 func (c *Compiler) compileRepeat(stmt *ast.RepeatStatement) error {
 	loopStart := len(c.chunk.Code)
+	ctx := c.pushLoop(loopKindRepeat, loopStart)
+	defer c.popLoop()
 
 	if err := c.compileStatement(stmt.Body); err != nil {
+		return err
+	}
+
+	conditionStart := len(c.chunk.Code)
+	if err := c.patchLoopContinues(ctx, conditionStart); err != nil {
 		return err
 	}
 
@@ -285,7 +318,11 @@ func (c *Compiler) compileRepeat(stmt *ast.RepeatStatement) error {
 		return err
 	}
 
-	return c.chunk.PatchJump(exitJump)
+	if err := c.chunk.PatchJump(exitJump); err != nil {
+		return err
+	}
+
+	return c.patchLoopBreaks(ctx)
 }
 
 func (c *Compiler) compileReturn(stmt *ast.ReturnStatement) error {
@@ -298,6 +335,37 @@ func (c *Compiler) compileReturn(stmt *ast.ReturnStatement) error {
 	}
 
 	c.chunk.Write(OpReturn, 0, 0, lineOf(stmt))
+	return nil
+}
+
+func (c *Compiler) compileBreak(stmt *ast.BreakStatement) error {
+	loop := c.currentLoop()
+	if loop == nil {
+		return c.errorf(stmt, "break outside of loop")
+	}
+	jumpIdx := c.chunk.EmitJump(OpJump, lineOf(stmt))
+	loop.breakJumps = append(loop.breakJumps, jumpIdx)
+	return nil
+}
+
+func (c *Compiler) compileContinue(stmt *ast.ContinueStatement) error {
+	loop := c.currentLoop()
+	if loop == nil {
+		return c.errorf(stmt, "continue outside of loop")
+	}
+
+	switch loop.kind {
+	case loopKindWhile:
+		if err := c.chunk.EmitLoop(loop.loopStart, lineOf(stmt)); err != nil {
+			return err
+		}
+	case loopKindRepeat:
+		jumpIdx := c.chunk.EmitJump(OpJump, lineOf(stmt))
+		loop.continueJumps = append(loop.continueJumps, jumpIdx)
+	default:
+		return c.errorf(stmt, "unsupported loop kind for continue")
+	}
+
 	return nil
 }
 
@@ -780,6 +848,67 @@ func (c *Compiler) propertyNameIndex(name string, node ast.Node) (uint16, error)
 		return 0, c.errorf(node, "constant pool overflow")
 	}
 	return uint16(index), nil
+}
+
+func (c *Compiler) pushLoop(kind loopKind, loopStart int) *loopContext {
+	ctx := &loopContext{
+		kind:      kind,
+		loopStart: loopStart,
+	}
+	c.loopStack = append(c.loopStack, ctx)
+	return ctx
+}
+
+func (c *Compiler) popLoop() {
+	if len(c.loopStack) == 0 {
+		return
+	}
+	c.loopStack = c.loopStack[:len(c.loopStack)-1]
+}
+
+func (c *Compiler) currentLoop() *loopContext {
+	if len(c.loopStack) == 0 {
+		return nil
+	}
+	return c.loopStack[len(c.loopStack)-1]
+}
+
+func (c *Compiler) patchLoopBreaks(ctx *loopContext) error {
+	if ctx == nil || len(ctx.breakJumps) == 0 {
+		return nil
+	}
+	target := len(c.chunk.Code)
+	for _, idx := range ctx.breakJumps {
+		if err := c.patchJumpToTarget(idx, target); err != nil {
+			return err
+		}
+	}
+	ctx.breakJumps = ctx.breakJumps[:0]
+	return nil
+}
+
+func (c *Compiler) patchLoopContinues(ctx *loopContext, target int) error {
+	if ctx == nil || len(ctx.continueJumps) == 0 {
+		return nil
+	}
+	for _, idx := range ctx.continueJumps {
+		if err := c.patchJumpToTarget(idx, target); err != nil {
+			return err
+		}
+	}
+	ctx.continueJumps = ctx.continueJumps[:0]
+	return nil
+}
+
+func (c *Compiler) patchJumpToTarget(jumpIndex, target int) error {
+	offset := target - jumpIndex - 1
+	if offset > 32767 || offset < -32768 {
+		return c.errorf(nil, "jump offset too large: %d", offset)
+	}
+
+	inst := c.chunk.Code[jumpIndex]
+	c.chunk.Code[jumpIndex] = MakeInstruction(inst.OpCode(), inst.A(), uint16(offset))
+	return nil
 }
 
 func (c *Compiler) buildUpvalueDefs() []UpvalueDef {
