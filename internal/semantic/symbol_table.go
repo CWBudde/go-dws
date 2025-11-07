@@ -230,3 +230,23 @@ func (st *SymbolTable) PopScope() {
 	// The Analyzer will manage this by using the outer reference
 	// This is a helper method for clarity
 }
+
+// AllSymbols returns all symbols in the current scope and all outer scopes.
+// Used for symbol extraction for LSP features (Task 10.15).
+func (st *SymbolTable) AllSymbols() map[string]*Symbol {
+	result := make(map[string]*Symbol)
+
+	// Collect symbols from outer scopes first (so current scope can override)
+	if st.outer != nil {
+		for name, sym := range st.outer.AllSymbols() {
+			result[name] = sym
+		}
+	}
+
+	// Add symbols from current scope (overrides outer symbols with same name)
+	for name, sym := range st.symbols {
+		result[name] = sym
+	}
+
+	return result
+}

@@ -1130,23 +1130,30 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
   - [x] All tests pass ✅
   - [x] Follows standard Go `go/ast` package patterns
 
-- [ ] **10.15 Add symbol table access for semantic information**
-  - [ ] Create `pkg/dwscript/symbols.go`
-  - [ ] Define `Symbol` struct:
-    - [ ] `Name string`
-    - [ ] `Kind string` - "variable", "function", "class", "parameter", etc.
-    - [ ] `Type string` - Type name
-    - [ ] `Position Position` - Definition location
-    - [ ] `Scope string` - "local", "global", "class"
-  - [ ] Add method: `func (p *Program) Symbols() []Symbol`
-  - [ ] Extract symbols from semantic analyzer's symbol table
-  - [ ] Include all declarations with their positions
+- [x] **10.15 Add symbol table access for semantic information** ✅ DONE
+  - [x] Create `pkg/dwscript/symbols.go`
+  - [x] Define `Symbol` struct:
+    - [x] `Name string`
+    - [x] `Kind string` - "variable", "function", "class", "parameter", etc.
+    - [x] `Type string` - Type name
+    - [x] `Position Position` - Definition location
+    - [x] `Scope string` - "local", "global", "class"
+    - [x] `IsReadOnly bool` - Whether symbol is read-only
+    - [x] `IsConst bool` - Whether symbol is a compile-time constant
+  - [x] Add method: `func (p *Program) Symbols() []Symbol`
+  - [x] Extract symbols from semantic analyzer's symbol table
+  - [x] Include all declarations (variables, functions, types)
+  - [x] Added getter methods to Analyzer to expose symbol table
+  - [x] Implemented comprehensive tests
 
-- [ ] **10.16 Add type information access**
-  - [ ] Add method: `func (p *Program) TypeAt(pos Position) (string, bool)`
-  - [ ] Return type of expression at given position
-  - [ ] Use semantic analyzer's type information
-  - [ ] Return ("", false) if position doesn't map to typed expression
+- [x] **10.16 Add type information access** ✅ DONE
+  - [x] Add method: `func (p *Program) TypeAt(pos Position) (string, bool)`
+  - [x] Return type of expression at given position
+  - [x] Use semantic analyzer's type information
+  - [x] Return ("", false) if position doesn't map to typed expression
+  - [x] Implemented AST traversal to find node at position
+  - [x] Added type resolution for literals, identifiers, and constants
+  - [x] Comprehensive tests for TypeAt() method
   - [ ] Add method: `func (p *Program) DefinitionAt(pos Position) (*Position, bool)`
   - [ ] Return definition location for identifier at position
 

@@ -87,8 +87,9 @@ func (e *Engine) Compile(source string) (*Program, error) {
 	}
 
 	// Type check (if enabled)
+	var analyzer *semantic.Analyzer
 	if e.options.TypeCheck {
-		analyzer := semantic.NewAnalyzer()
+		analyzer = semantic.NewAnalyzer()
 		if err := analyzer.Analyze(program); err != nil {
 			// Convert semantic errors
 			errors := convertSemanticError(err)
@@ -100,8 +101,9 @@ func (e *Engine) Compile(source string) (*Program, error) {
 	}
 
 	return &Program{
-		ast:     program,
-		options: e.options,
+		ast:      program,
+		analyzer: analyzer,
+		options:  e.options,
 	}, nil
 }
 
@@ -304,8 +306,9 @@ func (e *Engine) Eval(source string) (*Result, error) {
 // Program represents a compiled DWScript program.
 // It can be executed multiple times without re-compilation.
 type Program struct {
-	ast     *ast.Program
-	options Options
+	ast      *ast.Program
+	analyzer *semantic.Analyzer
+	options  Options
 }
 
 // AST returns the Abstract Syntax Tree of the compiled program.
