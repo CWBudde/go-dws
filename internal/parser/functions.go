@@ -154,6 +154,15 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			if !p.expectPeek(lexer.SEMICOLON) {
 				return nil
 			}
+		} else if p.peekTokenIs(lexer.FORWARD) {
+			// Forward directive: function Test(x: Integer): Float; forward;
+			p.nextToken() // move to 'forward'
+			fn.IsForward = true
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
+			// Forward declarations have no body, so we can return early
+			// But continue to allow combined directives like "overload; forward;"
 		} else {
 			break // No more directives
 		}
@@ -166,10 +175,12 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	}
 
 	// Check if this is a forward declaration (no body)
-	// Forward declarations end with a semicolon instead of begin...end or local declarations
-	if !p.peekTokenIs(lexer.BEGIN) && !p.peekTokenIs(lexer.VAR) && !p.peekTokenIs(lexer.CONST) && !p.peekTokenIs(lexer.REQUIRE) {
-		// This is a forward declaration (method declaration in class body)
-		// Body will be provided later in method implementation outside class
+	// Forward declarations either:
+	//   1. Have explicit forward directive (fn.IsForward = true)
+	//   2. Or implicitly end with semicolon (no begin/var/const/require)
+	if fn.IsForward || (!p.peekTokenIs(lexer.BEGIN) && !p.peekTokenIs(lexer.VAR) && !p.peekTokenIs(lexer.CONST) && !p.peekTokenIs(lexer.REQUIRE)) {
+		// This is a forward declaration (or method declaration in class body)
+		// Body will be provided later in implementation
 		// End position is at the last semicolon we consumed
 		fn.EndPos = p.endPosFromToken(p.curToken)
 		return fn
@@ -382,6 +393,11 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	case *ast.FunctionPointerTypeNode:
 		// For function pointer types, we create a synthetic TypeAnnotation
 		// The semantic analyzer will recognize function pointer parameters by checking the type string
+		// Check if te is nil to prevent panics (defensive programming)
+		if te == nil {
+			p.addError("function pointer type expression is nil in parameter type", ErrInvalidType)
+			return nil
+		}
 		typeAnnotation = &ast.TypeAnnotation{
 			Token: te.Token,
 			Name:  te.String(), // Use the full function pointer signature as the type name

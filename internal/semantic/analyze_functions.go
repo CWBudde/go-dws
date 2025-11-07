@@ -148,9 +148,15 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	}
 
 	// Task 9.58-9.62: Use DefineOverload to handle overload validation
+	// Task 9.60: Pass IsForward to handle forward declarations
 	// DefineOverload handles both single functions and overload sets
-	if err := a.symbols.DefineOverload(decl.Name.Value, funcType, decl.IsOverload); err != nil {
+	if err := a.symbols.DefineOverload(decl.Name.Value, funcType, decl.IsOverload, decl.IsForward); err != nil {
 		a.addError("%s", err.Error())
+		return
+	}
+
+	// Task 9.60: Skip body analysis for forward declarations (they have no body)
+	if decl.IsForward {
 		return
 	}
 
