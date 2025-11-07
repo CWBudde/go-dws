@@ -373,9 +373,28 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		existingOverloads = classType.GetConstructorOverloads(method.Name.Value)
 	}
 
+	// Check if this is an implementation for a forward declaration
+	isForward := method.Body == nil
+
 	for _, existing := range existingOverloads {
 		// Task 9.63: Check if signatures are identical (duplicate) - use DWScript error format
 		if a.methodSignaturesMatch(funcType, existing.Signature) {
+			// Task 9.60: Check if this is a forward + implementation pair (like in symbol_table.go:211-222)
+			if existing.IsForwarded && !isForward {
+				// Implementation following forward declaration
+				// Update the existing forward declaration instead of adding a new overload
+				existing.IsForwarded = false
+				existing.Signature = funcType
+
+				// Update method metadata for the implementation
+				classType.ClassMethodFlags[method.Name.Value] = method.IsClassMethod
+				classType.VirtualMethods[method.Name.Value] = method.IsVirtual
+				classType.OverrideMethods[method.Name.Value] = method.IsOverride
+				classType.AbstractMethods[method.Name.Value] = method.IsAbstract
+				return
+			}
+
+			// True duplicate (both forward or both implementation)
 			a.addError("Syntax Error: There is already a method with name \"%s\" [line: %d, column: %d]",
 				method.Name.Value, method.Token.Pos.Line, method.Token.Pos.Column)
 			return
