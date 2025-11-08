@@ -617,13 +617,14 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Critical Built-ins (High impact, 3-4 days)
 
-- [ ] 9.82 Implement Assigned() built-in
+- [x] 9.82 Implement Assigned() built-in
   - **Task**: Check if pointer/object/variant is nil
   - **Implementation**: Add Assigned(value) → returns false if nil, true otherwise
   - **Test**: Nil checking works for objects, arrays, variants
-  - **Files**: `internal/interp/builtins.go`
+  - **Files**: `internal/interp/builtins_core.go`, `internal/interp/functions.go`, `internal/semantic/analyze_builtin_functions.go`, `internal/semantic/analyze_builtin_math.go`
   - **Estimated time**: 1 day
   - **Impact**: Fixes 16 tests
+  - **Completed**: Added Assigned() function with support for nil checking on all types
 
 - [ ] 9.83 Implement Chr() built-in
   - **Task**: Convert integer to character

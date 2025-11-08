@@ -866,3 +866,21 @@ func (a *Analyzer) analyzePred(args []ast.Expression, callExpr *ast.CallExpressi
 	}
 	return types.INTEGER
 }
+
+// analyzeAssigned analyzes the Assigned built-in function.
+// Assigned takes 1 argument and checks if a pointer/object/variant is nil.
+// Returns Boolean.
+func (a *Analyzer) analyzeAssigned(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'Assigned' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+
+	// Analyze the argument - Assigned can take any type
+	// Objects, arrays, variants, etc. can all be checked
+	a.analyzeExpression(args[0])
+
+	// Always returns Boolean
+	return types.BOOLEAN
+}

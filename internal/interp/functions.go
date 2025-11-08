@@ -526,6 +526,8 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinPred(args)
 	case "Assert":
 		return i.builtinAssert(args)
+	case "Assigned":
+		return i.builtinAssigned(args)
 	// Higher-order functions for working with arrays and lambdas
 	case "Map":
 		return i.builtinMap(args)

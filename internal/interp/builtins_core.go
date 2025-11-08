@@ -892,3 +892,49 @@ func (i *Interpreter) builtinGetCallStack(args []Value) Value {
 		Elements: frames,
 	}
 }
+
+// builtinAssigned implements the Assigned() built-in function.
+// It checks if a pointer/object/variant is nil.
+// Returns false if nil, true otherwise.
+// Assigned(value): Boolean
+func (i *Interpreter) builtinAssigned(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Assigned() expects exactly 1 argument, got %d", len(args))
+	}
+
+	val := args[0]
+
+	// Check if the value is nil or represents a nil value
+	switch v := val.(type) {
+	case *NilValue:
+		return &BooleanValue{Value: false}
+	case *ObjectInstance:
+		// Check if object is nil (nil object reference)
+		if v == nil {
+			return &BooleanValue{Value: false}
+		}
+		return &BooleanValue{Value: true}
+	case *VariantValue:
+		// Variant is assigned if it's not nil
+		if v.Value == nil {
+			return &BooleanValue{Value: false}
+		}
+		// Check if the variant contains a nil value
+		if _, isNil := v.Value.(*NilValue); isNil {
+			return &BooleanValue{Value: false}
+		}
+		return &BooleanValue{Value: true}
+	case *ArrayValue:
+		// Arrays are assigned unless they're nil
+		if v == nil {
+			return &BooleanValue{Value: false}
+		}
+		return &BooleanValue{Value: true}
+	default:
+		// All other types are considered assigned if they're not nil
+		if val == nil {
+			return &BooleanValue{Value: false}
+		}
+		return &BooleanValue{Value: true}
+	}
+}

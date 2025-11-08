@@ -185,6 +185,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeSucc(args, callExpr), true
 	case "pred":
 		return a.analyzePred(args, callExpr), true
+	case "assigned":
+		return a.analyzeAssigned(args, callExpr), true
 
 	// Date/Time Functions - Current time
 	case "now":
