@@ -56,7 +56,19 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 	// Store regular function in the registry
 	// Task 9.66: Support overloading by storing multiple functions per name
 	funcName := fn.Name.Value
-	i.functions[funcName] = append(i.functions[funcName], fn)
+
+	// Task 9.80: If this function has a body, it may be an implementation that should
+	// replace a previous interface declaration (which has no body).
+	// This happens when units have separate interface and implementation sections.
+	if fn.Body != nil {
+		// Replace any existing declaration without a body
+		existingOverloads := i.functions[funcName]
+		i.functions[funcName] = i.replaceMethodInOverloadList(existingOverloads, fn)
+	} else {
+		// Interface declaration - append it
+		i.functions[funcName] = append(i.functions[funcName], fn)
+	}
+
 	return &NilValue{}
 }
 
