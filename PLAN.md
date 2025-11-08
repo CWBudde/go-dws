@@ -757,15 +757,80 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Files**: `internal/interp/statements.go`
   - **Priority**: MEDIUM - improves error reporting
 
+- [ ] 9.73.8 **HIGH**: Fix virtual constructor dispatch for child classes ⚠️ NEW
+  - **Task**: Debug and fix constructor lookup when metaclass holds child class reference
+  - **Problem**: `meta := TChild; obj := meta.Create;` fails with "no overloaded version" error
+  - **Root Cause Investigation**:
+    - Location: `internal/interp/objects.go:1615-1689` (evalMethodCall for ClassValue)
+    - Current code uses `getMethodOverloadsInHierarchy(runtimeClass, methodName, false)`
+    - Test shows: TBase.Create works, but TChild.Create fails
+    - Error: "There is no overloaded version of 'TChild.Create' that can be called with these arguments"
+  - **Possible Issues**:
+    - Constructor overload lookup may not be finding overridden constructors correctly
+    - The `getMethodOverloadsInHierarchy` might not handle constructor override/virtual properly
+    - Constructor registration during class definition might be incomplete for child classes
+    - Parameter matching in overload resolution might be too strict for no-arg constructors
+  - **Subtasks**:
+    - [ ] 9.73.8.1 Add debug logging to constructor lookup in evalMethodCall
+    - [ ] 9.73.8.2 Verify TChild.Create is registered in ClassInfo.Constructors
+    - [ ] 9.73.8.3 Check getMethodOverloadsInHierarchy logic for constructors
+    - [ ] 9.73.8.4 Review constructor overload resolution with empty arguments
+    - [ ] 9.73.8.5 Test with both virtual/override and non-virtual constructors
+    - [ ] 9.73.8.6 Add regression tests for child class constructors via metaclass
+  - **Test Case**:
+    ```dws
+    type TBase = class
+      constructor Create; virtual;
+    end;
+    type TChild = class(TBase)
+      constructor Create; override;
+    end;
+    type TBaseClass = class of TBase;
+    var meta: TBaseClass;
+    meta := TBase;
+    var obj1 := meta.Create;  // ✅ Works
+    meta := TChild;
+    var obj2 := meta.Create;  // ❌ Fails - "no overloaded version"
+    ```
+  - **Files**: `internal/interp/objects.go`, `internal/interp/class.go`
+  - **Priority**: HIGH - blocks virtual constructor dispatch, critical for polymorphism
+
+- [ ] 9.73.9 **MEDIUM**: Implement metaclass comparison operators ⚠️ NEW
+  - **Task**: Support equality and inequality comparisons for metaclass values
+  - **Problem**: `if meta = TBase then` and `if meta <> TChild then` fail with "requires comparable types"
+  - **Root Cause**:
+    - Semantic analyzer doesn't recognize ClassOfType as comparable
+    - Need to add comparison operator support for ClassOfType in type checker
+    - Runtime comparison needs to compare underlying ClassInfo references
+  - **Subtasks**:
+    - [ ] 9.73.9.1 Add ClassOfType comparison in semantic analyzer (analyze_expr_operators.go)
+    - [ ] 9.73.9.2 Implement runtime comparison for ClassValue (operators_eval.go)
+    - [ ] 9.73.9.3 Support comparing ClassValue with ClassValue
+    - [ ] 9.73.9.4 Support comparing metaclass variable with class name (meta = TBase)
+    - [ ] 9.73.9.5 Test equality (=) and inequality (<>) operators
+    - [ ] 9.73.9.6 Add tests for metaclass comparison
+  - **Test Case**:
+    ```dws
+    var meta: class of TBase;
+    meta := TChild;
+    if meta = TBase then PrintLn('Bug Equal TBase');      // Should not print
+    if meta <> TChild then PrintLn('Bug Not Equal TChild'); // Should not print
+    if meta = TChild then PrintLn('Correct');              // Should print
+    ```
+  - **Files**: `internal/semantic/analyze_expr_operators.go`, `internal/interp/operators_eval.go`
+  - **Priority**: MEDIUM - needed for fixture tests
+
 - [ ] 9.73.7 **FINAL**: Integration testing and fixture validation ⚠️ NEW
   - **Task**: Verify all metaclass functionality works end-to-end
+  - **Dependencies**: Requires 9.73.8 (constructor dispatch) and 9.73.9 (comparisons) to be complete
   - **Subtasks**:
     - [ ] 9.73.7.1 Test metaclass variable declaration and assignment
-    - [ ] 9.73.7.2 Test metaclass constructor dispatch
+    - [ ] 9.73.7.2 Test metaclass constructor dispatch (depends on 9.73.8)
     - [ ] 9.73.7.3 Test metaclass with constructor parameters
-    - [ ] 9.73.7.4 Run fixture tests (class_of*.pas)
-    - [ ] 9.73.7.5 Run overload tests
-    - [ ] 9.73.7.6 Verify expected output
+    - [ ] 9.73.7.4 Test metaclass comparison operators (depends on 9.73.9)
+    - [ ] 9.73.7.5 Run fixture tests (class_of*.pas)
+    - [ ] 9.73.7.6 Run overload tests
+    - [ ] 9.73.7.7 Verify expected output matches reference implementation
   - **Test**: All metaclass fixture tests pass
   - **Priority**: FINAL - validates all previous work
 
