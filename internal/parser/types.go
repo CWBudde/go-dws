@@ -428,11 +428,13 @@ func (p *Parser) parseArrayBound() ast.Expression {
 // parseClassOfType parses a metaclass type expression.
 //
 // Syntax:
-//   class of ClassName
+//
+//	class of ClassName
 //
 // Examples:
-//   class of TMyClass
-//   class of TObject
+//
+//	class of TMyClass
+//	class of TObject
 //
 // Current token should be CLASS.
 //

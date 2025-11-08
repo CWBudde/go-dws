@@ -517,7 +517,7 @@ func TestMultipleLevelInheritance(t *testing.T) {
 }
 
 // ============================================================================
-// Class Variables (Static Fields) Tests - Task 7.62
+// Class Variables (Static Fields) Tests
 // ============================================================================
 
 func TestClassVariable(t *testing.T) {
@@ -559,7 +559,7 @@ func TestClassVariableAndInstanceField(t *testing.T) {
 }
 
 // ============================================================================
-// Class Methods (Static Methods) Tests - Task 7.61
+// Class Methods (Static Methods) Tests
 // ============================================================================
 
 func TestClassMethod(t *testing.T) {

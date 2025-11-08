@@ -11,6 +11,7 @@ go-dws is a Go port of DWScript (Delphi Web Script), a full-featured Object Pasc
 ## Common Commands
 
 ### Building
+
 ```bash
 # Build the CLI tool
 go build ./cmd/dwscript
@@ -20,6 +21,7 @@ go install ./cmd/dwscript
 ```
 
 ### Testing
+
 ```bash
 # Run all tests
 go test ./...
@@ -43,6 +45,7 @@ go test -run TestIntegerLiteral ./parser
 ```
 
 ### Linting
+
 ```bash
 # Run golangci-lint (project uses .golangci.yml config)
 golangci-lint run
@@ -53,6 +56,7 @@ go fmt ./...
 ```
 
 ### CLI Usage
+
 ```bash
 # Tokenize a file
 ./bin/dwscript lex testdata/simple.dws
@@ -81,7 +85,8 @@ go fmt ./...
 ## Architecture Overview
 
 ### Pipeline
-```
+
+```plain
                                     ┌→ AST Interpreter → Output
                                     │
 Source Code → Lexer → Parser → AST → Semantic Analyzer
@@ -95,6 +100,7 @@ Source Code → Lexer → Parser → AST → Semantic Analyzer
 The project follows standard Go project layout with `cmd/`, `internal/`, and `pkg/` directories:
 
 **cmd/** - Command-line applications
+
 - `cmd/dwscript/` - CLI tool for running DWScript programs
   - `lex` command: Tokenize and display tokens
   - `parse` command: Parse and display AST
@@ -102,6 +108,7 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - `version` command: Show version info
 
 **internal/** - Private implementation (not importable by external projects)
+
 - `internal/lexer/` - Tokenization
   - `lexer.go`: Main lexer implementation with `NextToken()` method
   - `token.go`: Token types and Position tracking
@@ -144,6 +151,7 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - Error formatting and reporting
 
 **pkg/** - Public APIs (importable by external projects)
+
 - `pkg/dwscript/` - High-level embedding API
   - `dwscript.go`: Engine, Program, Result types
   - `options.go`: Configuration options
@@ -173,6 +181,7 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
 **Case Insensitivity**: DWScript keywords are case-insensitive. The lexer normalizes all keywords to lowercase via `LookupIdent()`.
 
 **Operators**:
+
 - Assignment: `:=` (not `=`)
 - Equality: `=` (not `==`)
 - Inequality: `<>`
@@ -182,62 +191,22 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
 - Compound: `+=`, `-=`, `*=`, `/=`
 
 **Comments**:
+
 - Block: `{ ... }` or `(* ... *)`
 - Line: `// ...`
 
 **String Literals**:
+
 - Single or double quotes
 - Escape quotes by doubling: `'it''s'` → `it's`
 - Multi-line strings supported
 
 **Number Literals**:
+
 - Integers: `42`, `-5`
 - Hex: `$FF` or `0xFF`
 - Binary: `%1010`
 - Floats: `3.14`, `1.0e10`
-
-**Enumerated Types** (Stage 8):
-- Basic declaration: `type TColor = (Red, Green, Blue);`
-- Explicit values: `type TStatus = (Ok = 0, Error = 1);`
-- Mixed values: `type TPriority = (Low, Medium = 5, High);`  // High = 6
-- Scoped access: `var color := TColor.Red;`
-- Unscoped access: `var color := Red;`
-- Built-ins: `Ord(enumValue)`, `Integer(enumValue)`
-- See `docs/enums.md` for complete documentation
-
-**Recursion Limits** (Task 9.1-9.12):
-- Default maximum recursion depth: 1024 (matches DWScript's `cDefaultMaxRecursionDepth`)
-- Configurable via API: `dwscript.WithMaxRecursionDepth(2048)`
-- Configurable via CLI: `--max-recursion 2048`
-- Raises `EScriptStackOverflow` exception when limit exceeded
-- Protected call sites: user functions, lambdas, record methods (instance & static), class methods (instance & static)
-- Call stack tracking for accurate stack traces in exceptions
-- See `internal/interp/recursion_test.go` for comprehensive test cases
-
-**Function/Method Overloading** (Tasks 9.40-9.72):
-- Functions, procedures, methods, and constructors can be overloaded
-- All overloaded declarations must use the `overload` directive
-- Overloads distinguished by: parameter count, types, and modifiers (var/const/lazy)
-- Return types alone cannot distinguish overloads (ambiguous)
-- Forward declarations and implementations must have matching signatures (including default parameters)
-- Resolution at compile-time based on argument types
-- Example:
-  ```pascal
-  function Max(a, b: Integer): Integer; overload;
-  begin
-    if a > b then Result := a else Result := b;
-  end;
-
-  function Max(a, b: Float): Float; overload;
-  begin
-    if a > b then Result := a else Result := b;
-  end;
-
-  PrintLn(Max(1, 2));      // Calls Integer version
-  PrintLn(Max(1.5, 2.3));  // Calls Float version
-  ```
-- See `testdata/fixtures/OverloadsPass/` for comprehensive examples
-- See `internal/semantic/overload_resolution.go` for resolution algorithm
 
 ### Testing Philosophy
 
@@ -251,6 +220,7 @@ The project maintains high test coverage (>90% for lexer, >80% for parser) and i
 6. Update `testdata/fixtures/TEST_STATUS.md` as tests pass
 
 **Running Fixture Tests**:
+
 ```bash
 # Run all fixture tests
 go test -v ./internal/interp -run TestDWScriptFixtures
@@ -278,21 +248,6 @@ go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts
 
 ## Implementation Roadmap (PLAN.md)
 
-The project follows a 10-stage incremental plan (~511 tasks):
-
-1. **Stage 1**: Lexer ✅ COMPLETE
-2. **Stage 2**: Parser (expressions) ✅ COMPLETE
-3. **Stage 3**: Statements and execution (65 tasks) ✅ COMPLETE
-4. **Stage 4**: Control flow (46 tasks) ✅ COMPLETE
-5. **Stage 5**: Functions and scope (46 tasks) ✅ COMPLETE
-6. **Stage 6**: Type checking (50 tasks) ✅ COMPLETE
-7. **Stage 7**: Classes and OOP (77 tasks)
-8. **Stage 8**: Advanced features (62 tasks)
-9. **Stage 9**: Deferred Stage 8 Tasks
-10. **Stage 10**: Performance and polish (68 tasks)
-11. **Stage 11**: Long-term evolution (54 tasks)
-12. **Stage 12**: Codegen
-
 When implementing new stages:
 
 - Create AST nodes first
@@ -313,7 +268,7 @@ When implementing new stages:
 ## Reference Material
 
 - Original DWScript source: `reference/dwscript-original/` (for reference only)
-- DWScript language reference: https://www.delphitools.info/dwscript/
+- DWScript language reference: <https://www.delphitools.info/dwscript/>
 - Test scripts: `testdata/*.dws` (custom test scripts)
 - Comprehensive test suite: `testdata/fixtures/` (~2,100 tests from original DWScript)
   - See `testdata/fixtures/README.md` for test structure and usage

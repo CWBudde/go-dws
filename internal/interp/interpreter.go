@@ -131,23 +131,23 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 		interp.externalFunctions = NewExternalFunctionRegistry()
 	}
 
-	// Register built-in exception classes (Task 8.203-8.204)
+	// Register built-in exception classes
 	interp.registerBuiltinExceptions()
 
-	// Register built-in array helpers (Task 9.171)
+	// Register built-in array helpers
 	interp.initArrayHelpers()
 
-	// Register built-in helpers for primitive types (Task 9.205)
+	// Register built-in helpers for primitive types
 	interp.initIntrinsicHelpers()
 
-	// Register built-in enum helpers (Task 9.31)
+	// Register built-in enum helpers
 	interp.initEnumHelpers()
 
 	// Initialize ExceptObject to nil
 	// ExceptObject is a built-in global variable that holds the current exception
 	env.Define("ExceptObject", &NilValue{})
 
-	// Register built-in type meta-values (Task 9.133)
+	// Register built-in type meta-values
 	// These allow type names to be used as runtime values, e.g., High(Integer)
 	env.Define("Integer", NewTypeMetaValue(types.INTEGER, "Integer"))
 	env.Define("Float", NewTypeMetaValue(types.FLOAT, "Float"))

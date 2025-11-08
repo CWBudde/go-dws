@@ -9,7 +9,7 @@ import (
 )
 
 // ============================================================================
-// Break Statement Tests (Task 8.235q)
+// Break Statement Tests
 // ============================================================================
 
 // TestBreakExitsForLoop tests that break exits a for loop correctly
@@ -131,7 +131,7 @@ func TestBreakExitsRepeatLoop(t *testing.T) {
 }
 
 // ============================================================================
-// Continue Statement Tests (Task 8.235q)
+// Continue Statement Tests
 // ============================================================================
 
 // TestContinueSkipsForLoopIteration tests that continue skips to next iteration in for loop
@@ -256,7 +256,7 @@ func TestContinueSkipsRepeatLoopIteration(t *testing.T) {
 }
 
 // ============================================================================
-// Exit Statement Tests (Task 8.235r)
+// Exit Statement Tests
 // ============================================================================
 
 // TestExitTerminatesFunctionImmediately tests that exit exits function immediately
@@ -410,7 +410,7 @@ func TestExitInProcedure(t *testing.T) {
 }
 
 // ============================================================================
-// Nested Scenarios Tests (Task 8.235s)
+// Nested Scenarios Tests
 // ============================================================================
 
 // TestBreakInNestedLoopsOnlyExitsInnermost tests that break only exits innermost loop

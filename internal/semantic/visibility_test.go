@@ -5,11 +5,11 @@ import (
 )
 
 // ============================================================================
-// Visibility Tests (Task 7.63m-n)
+// Visibility Tests
 // ============================================================================
 
 // TestPrivateFieldAccessFromSameClass tests that private fields can be accessed
-// from within the same class (Task 7.63g, 7.63l)
+// from within the same class
 func TestPrivateFieldAccessFromSameClass(t *testing.T) {
 	input := `
 type TExample = class
@@ -28,7 +28,7 @@ end;
 }
 
 // TestPrivateFieldAccessFromOutsideClass tests that private fields cannot be
-// accessed from outside the class (Task 7.63g)
+// accessed from outside the class
 func TestPrivateFieldAccessFromOutsideClass(t *testing.T) {
 	input := `
 type TExample = class
@@ -53,7 +53,7 @@ end;
 }
 
 // TestProtectedFieldAccessFromChild tests that protected fields can be accessed
-// from derived classes (Task 7.63h)
+// from derived classes
 func TestProtectedFieldAccessFromChild(t *testing.T) {
 	input := `
 type TBase = class
@@ -75,7 +75,7 @@ end;
 }
 
 // TestProtectedFieldAccessFromOutside tests that protected fields cannot be
-// accessed from unrelated code (Task 7.63h)
+// accessed from unrelated code
 func TestProtectedFieldAccessFromOutside(t *testing.T) {
 	input := `
 type TExample = class
@@ -100,7 +100,7 @@ end;
 }
 
 // TestPublicFieldAccessFromAnywhere tests that public fields can be accessed
-// from anywhere (Task 7.63i)
+// from anywhere
 func TestPublicFieldAccessFromAnywhere(t *testing.T) {
 	input := `
 type TExample = class
@@ -124,7 +124,7 @@ end;
 }
 
 // TestPrivateMethodAccessFromSameClass tests that private methods can be called
-// from within the same class (Task 7.63k, 7.63l)
+// from within the same class
 func TestPrivateMethodAccessFromSameClass(t *testing.T) {
 	input := `
 type TExample = class
@@ -148,7 +148,7 @@ end;
 }
 
 // TestPrivateMethodAccessFromOutside tests that private methods cannot be called
-// from outside the class (Task 7.63k)
+// from outside the class
 func TestPrivateMethodAccessFromOutside(t *testing.T) {
 	input := `
 type TExample = class
@@ -177,7 +177,7 @@ end;
 }
 
 // TestProtectedMethodAccessFromChild tests that protected methods can be called
-// from derived classes (Task 7.63k)
+// from derived classes
 func TestProtectedMethodAccessFromChild(t *testing.T) {
 	input := `
 type TBase = class
@@ -204,7 +204,7 @@ end;
 }
 
 // TestProtectedMethodAccessFromOutside tests that protected methods cannot be
-// called from unrelated code (Task 7.63k)
+// called from unrelated code
 func TestProtectedMethodAccessFromOutside(t *testing.T) {
 	input := `
 type TExample = class
@@ -233,7 +233,7 @@ end;
 }
 
 // TestPublicMethodAccessFromAnywhere tests that public methods can be called
-// from anywhere (Task 7.63k)
+// from anywhere
 func TestPublicMethodAccessFromAnywhere(t *testing.T) {
 	input := `
 type TExample = class
@@ -260,7 +260,7 @@ end;
 	expectNoErrors(t, input)
 }
 
-// TestMixedVisibility tests a class with mixed visibility levels (Task 7.63n)
+// TestMixedVisibility tests a class with mixed visibility levels
 func TestMixedVisibility(t *testing.T) {
 	input := `
 type TExample = class
@@ -289,7 +289,7 @@ end;
 	expectNoErrors(t, input)
 }
 
-// TestInheritedVisibility tests visibility across inheritance hierarchy (Task 7.63n)
+// TestInheritedVisibility tests visibility across inheritance hierarchy
 func TestInheritedVisibility(t *testing.T) {
 	input := `
 type TBase = class
@@ -317,7 +317,7 @@ end;
 }
 
 // TestPrivateFieldNotInheritedAccess tests that child cannot access parent's
-// private fields (Task 7.63n)
+// private fields
 func TestPrivateFieldNotInheritedAccess(t *testing.T) {
 	input := `
 type TBase = class
@@ -339,7 +339,7 @@ end;
 }
 
 // TestDefaultVisibilityIsPublic tests that members without explicit visibility
-// are public by default (Task 7.63e)
+// are public by default
 func TestDefaultVisibilityIsPublic(t *testing.T) {
 	input := `
 type TExample = class

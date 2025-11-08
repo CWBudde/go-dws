@@ -185,7 +185,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 	}
 
-	// Check method visibility (Task 7.63k)
+	// Check method visibility
 	if methodOwner != nil && len(overloads) > 0 {
 		visibility, hasVisibility := methodOwner.MethodVisibility[methodName]
 		if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {

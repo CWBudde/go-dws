@@ -191,8 +191,25 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			}
 			// If not replacing a forward, must have overload directive
 			if !matchesForward && !hasOverloadDirective {
+				// Use the function kind from the FIRST overload in the set
+				firstFuncType := existing.Overloads[0].Type.(*types.FunctionType)
 				return fmt.Errorf("Overloaded %s \"%s\" must be marked with the \"overload\" directive",
-					getFunctionKind(funcType), name)
+					getFunctionKind(firstFuncType), name)
+			}
+		} else {
+			// Not an overload set yet - check if first has directive but second doesn't
+			if existing.HasOverloadDirective && !hasOverloadDirective {
+				// Task 9.63: Match DWScript error message format exactly
+				// Use the function kind from the EXISTING (first) function
+				existingFuncType := existing.Type.(*types.FunctionType)
+				return fmt.Errorf("Overloaded %s \"%s\" must be marked with the \"overload\" directive",
+					getFunctionKind(existingFuncType), name)
+			}
+			if !existing.HasOverloadDirective && hasOverloadDirective {
+				// First one didn't have it, but second does
+				// DWScript allows this in some cases, so we'll be lenient here
+				// and just update the first one to mark it as part of an overload set
+				existing.HasOverloadDirective = true
 			}
 		}
 	} else if existing.IsOverloadSet {
@@ -200,16 +217,20 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 		for _, overload := range existing.Overloads {
 			if overload.HasOverloadDirective && !hasOverloadDirective {
 				// Task 9.63: Match DWScript error message format exactly
+				// Use the function kind from the FIRST overload in the set
+				firstFuncType := existing.Overloads[0].Type.(*types.FunctionType)
 				return fmt.Errorf("Overloaded %s \"%s\" must be marked with the \"overload\" directive",
-					getFunctionKind(funcType), name)
+					getFunctionKind(firstFuncType), name)
 			}
 		}
 	} else {
 		// Second overload (both forwards) - both first and second must have directive (or neither, for now)
 		if existing.HasOverloadDirective && !hasOverloadDirective {
 			// Task 9.63: Match DWScript error message format exactly
+			// Use the function kind from the EXISTING (first) function
+			existingFuncType := existing.Type.(*types.FunctionType)
 			return fmt.Errorf("Overloaded %s \"%s\" must be marked with the \"overload\" directive",
-				getFunctionKind(funcType), name)
+				getFunctionKind(existingFuncType), name)
 		}
 		if !existing.HasOverloadDirective && hasOverloadDirective {
 			// First one didn't have it, but second does - this is also an error
@@ -229,7 +250,11 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			if SignaturesEqual(existingFunc, funcType) {
 				// Signatures match - check if return types also match
 				if existingFunc.ReturnType.Equals(funcType.ReturnType) {
-					// True duplicate - same signature AND same return type
+					// Signatures and return types match - check default parameters
+					// Rule: If existing has defaults but new doesn't, it's a duplicate (new is redundant)
+					//       If existing doesn't have defaults but new does, it's ambiguous (new expands but creates ambiguity)
+					hasDefaults1 := hasDefaultParameters(existingFunc)
+					hasDefaults2 := hasDefaultParameters(funcType)
 
 					// Task 9.60: Check if this is a forward + implementation pair
 					if overload.IsForward && !isForward {
@@ -256,9 +281,25 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 						return fmt.Errorf("duplicate forward declaration for '%s'", name)
 					}
 
-					// Task 9.63: True duplicate - use DWScript error message format
-					// Not a forward+impl pair - this is a true duplicate
-					return fmt.Errorf("There is already a method with name \"%s\"", name)
+					// If existing has defaults but new doesn't, it's a duplicate (new is completely redundant)
+					// If new has defaults but existing doesn't, skip duplicate check - ambiguity check will catch it
+					if hasDefaults1 && !hasDefaults2 {
+						// Task 9.63: True duplicate - use DWScript error message format
+						return fmt.Errorf("There is already a method with name \"%s\"", name)
+					} else if !hasDefaults1 && hasDefaults2 {
+						// New adds default parameters - this will be caught by ambiguity check
+						// Continue to next overload
+						continue
+					} else {
+						// Both have defaults or neither has defaults - check if they match exactly
+						if defaultParametersMatch(existingFunc, funcType) {
+							// Exact match - true duplicate
+							return fmt.Errorf("There is already a method with name \"%s\"", name)
+						} else {
+							// Different default values - will be caught by ambiguity check
+							continue
+						}
+					}
 				}
 				// Signatures match but return types differ - this is a valid overload
 				// (procedures vs functions, or functions with different return types)
@@ -271,8 +312,26 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 		if SignaturesEqual(existingFunc, funcType) {
 			// Signatures match - check if return types also match
 			if existingFunc.ReturnType.Equals(funcType.ReturnType) {
-				// Task 9.63: True duplicate - same signature AND same return type
-				return fmt.Errorf("There is already a method with name \"%s\"", name)
+				// Signatures and return types match - check default parameters
+				// Rule: If existing has defaults but new doesn't, it's a duplicate (new is redundant)
+				//       If existing doesn't have defaults but new does, it's ambiguous (new expands but creates ambiguity)
+				hasDefaults1 := hasDefaultParameters(existingFunc)
+				hasDefaults2 := hasDefaultParameters(funcType)
+
+				if hasDefaults1 && !hasDefaults2 {
+					// Task 9.63: True duplicate - use DWScript error message format
+					return fmt.Errorf("There is already a method with name \"%s\"", name)
+				} else if !hasDefaults1 && hasDefaults2 {
+					// New adds default parameters - this will be caught by ambiguity check
+					// Don't return duplicate error
+				} else {
+					// Both have defaults or neither has defaults - check if they match exactly
+					if defaultParametersMatch(existingFunc, funcType) {
+						// Exact match - true duplicate
+						return fmt.Errorf("There is already a method with name \"%s\"", name)
+					}
+					// Different default values - will be caught by ambiguity check
+				}
 			}
 			// Signatures match but return types differ - this is a valid overload
 			// (procedures vs functions, or functions with different return types)
@@ -353,7 +412,7 @@ func (st *SymbolTable) checkAmbiguousOverload(name string, newSig *types.Functio
 	// due to default parameters
 	for _, existingSig := range existingSigs {
 		if isAmbiguous(newSig, existingSig) {
-			return fmt.Errorf("overload of \"%s\" will be ambiguous with a previously declared version", name)
+			return fmt.Errorf("Overload of \"%s\" will be ambiguous with a previously declared version", name)
 		}
 	}
 
@@ -539,6 +598,19 @@ func (st *SymbolTable) AllSymbols() map[string]*Symbol {
 	}
 
 	return result
+}
+
+// hasDefaultParameters checks if a function signature has any default parameters
+func hasDefaultParameters(sig *types.FunctionType) bool {
+	if sig.DefaultValues == nil {
+		return false
+	}
+	for _, defaultVal := range sig.DefaultValues {
+		if defaultVal != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // defaultParametersMatch checks if two function signatures have matching default parameters.

@@ -705,23 +705,24 @@ These are test failures in the unit test suites (not fixture tests):
   - **Estimated time**: 1 day
   - **Impact**: Fixes 1 algorithm test
 
-- [ ] 9.47 Fix constructor overload handling (unit tests)
+- [x] 9.47 Fix constructor overload handling (unit tests)
   - **Tests**: TestConstructorOverload, TestConstructorWithoutParentheses, etc.
   - **Already covered**: This is part of Task 9.3 (Constructor overloading)
 
-- [ ] 9.48 Implement interface method dispatch
+- [x] 9.48 Implement interface method dispatch
   - **Issue**: Interface methods not resolved
   - **Implementation**: Interface type checking and method lookup
   - **Files**: `internal/semantic/analyze_interfaces.go`, `internal/interp/interfaces.go`
   - **Estimated time**: 2 days
 
-- [ ] 9.49 Fix implicit self property access
+- [x] 9.49 Fix implicit self property access
   - **Issue**: Properties without explicit self not found
-  - **Implementation**: Add self fallback in identifier resolution
-  - **Files**: `internal/semantic/analyze_expressions.go`
-  - **Estimated time**: 1 day
+  - **Implementation**: Add self fallback in identifier resolution, validate property expressions
+  - **Files**: `internal/semantic/analyze_properties.go`, `internal/semantic/analyze_expr_operators.go`, `internal/semantic/analyzer.go`
+  - **Completed**: Property expressions now validated at compile-time with implicit self support and circular reference detection
+  - **Tests**: Added comprehensive unit tests in `internal/semantic/property_test.go`
 
-- [ ] 9.50 Fix overload directive validation
+- [x] 9.50 Fix overload directive validation
   - **Issue**: Incorrect error messages for overload declarations
   - **Implementation**: Fix validation logic and error messages
   - **Files**: `internal/semantic/analyze_functions.go`

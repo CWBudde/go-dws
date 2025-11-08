@@ -63,6 +63,12 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 			for class := a.currentClass; class != nil; class = class.Parent {
 				for propName, propInfo := range class.Properties {
 					if strings.EqualFold(propName, ident.Value) {
+						// Task 9.49: Check for circular reference in property expressions
+						if a.inPropertyExpr && strings.EqualFold(propName, a.currentProperty) {
+							a.addError("property '%s' cannot be read-accessed at %s", ident.Value, ident.Token.Pos.String())
+							return nil
+						}
+
 						// For write-only properties, check if read access is defined
 						if propInfo.ReadKind == types.PropAccessNone {
 							a.addError("property '%s' is write-only at %s", ident.Value, ident.Token.Pos.String())

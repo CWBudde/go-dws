@@ -17,8 +17,8 @@ type ClassInfo struct {
 	ConstructorOverloads map[string][]*ast.FunctionDecl // Task 9.67: Overloaded constructors
 	Fields               map[string]types.Type
 	ClassVars            map[string]Value
-	Constants            map[string]*ast.ConstDecl      // Task 9.20-9.22: Class constants
-	ConstantValues       map[string]Value               // Task 9.22: Evaluated constant values
+	Constants            map[string]*ast.ConstDecl // Task 9.20-9.22: Class constants
+	ConstantValues       map[string]Value          // Task 9.22: Evaluated constant values
 	Methods              map[string]*ast.FunctionDecl
 	MethodOverloads      map[string][]*ast.FunctionDecl // Task 9.67: Overloaded instance methods
 	ClassMethods         map[string]*ast.FunctionDecl
@@ -285,9 +285,10 @@ func AsObject(v Value) (*ObjectInstance, bool) {
 // a reference to the class type itself, not an instance.
 //
 // Example usage:
-//   var cls: class of TAnimal;
-//   cls := TDog;              // Assign class reference
-//   obj := cls.Create;        // Call constructor through metaclass
+//
+//	var cls: class of TAnimal;
+//	cls := TDog;              // Assign class reference
+//	obj := cls.Create;        // Call constructor through metaclass
 //
 // Task 9.72: Metaclass runtime values
 type ClassValue struct {

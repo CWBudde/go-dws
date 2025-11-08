@@ -1,4 +1,4 @@
-// Abstract + Virtual Methods Combination Test - Task 7.66b
+// Abstract + Virtual Methods Combination Test
 // Tests abstract classes with virtual methods and proper override semantics
 
 // Abstract base with both abstract and virtual methods
