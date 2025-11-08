@@ -26,7 +26,7 @@ func TestExitStatementWithValues(t *testing.T) {
 
 				PrintLn(Test());
 			`,
-			want: "false\n",
+			want: "False\n",
 		},
 		{
 			name: "ConditionalExitBranches",

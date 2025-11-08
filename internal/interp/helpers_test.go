@@ -70,7 +70,7 @@ func TestHelperMethodWithParameters(t *testing.T) {
 		t.Fatalf("interpreter error: %s", result.String())
 	}
 
-	expected := "true\n"
+	expected := "True\n"
 	if out.String() != expected {
 		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
 	}
@@ -101,7 +101,7 @@ func TestHelperMethodOnInteger(t *testing.T) {
 		t.Fatalf("interpreter error: %s", result.String())
 	}
 
-	expected := "true\n"
+	expected := "True\n"
 	if out.String() != expected {
 		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
 	}
@@ -480,7 +480,7 @@ func TestHelperWithRecordKeyword(t *testing.T) {
 		t.Fatalf("interpreter error: %s", result.String())
 	}
 
-	expected := "true\n"
+	expected := "True\n"
 	if out.String() != expected {
 		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
 	}

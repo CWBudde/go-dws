@@ -145,7 +145,7 @@ func TestMultipleClassVariables(t *testing.T) {
 		t.Fatalf("interpreter error: %s", result.String())
 	}
 
-	expected := "localhost\n8080\ntrue\n"
+	expected := "localhost\n8080\nTrue\n"
 	if output != expected {
 		t.Errorf("wrong output. expected=%q, got=%q", expected, output)
 	}

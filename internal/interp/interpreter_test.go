@@ -370,7 +370,7 @@ func TestBuiltinPrintLn(t *testing.T) {
 		{`PrintLn("hello", "world")`, "helloworld\n"},
 		{`PrintLn(5)`, "5\n"},
 		{`PrintLn(5, 10)`, "510\n"},
-		{`PrintLn(true)`, "true\n"},
+		{`PrintLn(true)`, "True\n"},
 	}
 
 	for _, tt := range tests {

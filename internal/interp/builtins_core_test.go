@@ -26,7 +26,7 @@ func TestHighWithTypeMetaValues(t *testing.T) {
 		{
 			name:     "High(Boolean)",
 			input:    "PrintLn(High(Boolean));",
-			expected: "true\n",
+			expected: "True\n",
 		},
 		{
 			name:     "High(Integer) in expression",
@@ -78,7 +78,7 @@ func TestLowWithTypeMetaValues(t *testing.T) {
 		{
 			name:     "Low(Boolean)",
 			input:    "PrintLn(Low(Boolean));",
-			expected: "false\n",
+			expected: "False\n",
 		},
 		{
 			name:     "Low(Integer) in expression",

@@ -238,12 +238,12 @@ func TestNewBooleanValue(t *testing.T) {
 		t.Errorf("NewBooleanValue(true).Type() = %v, want BOOLEAN", trueVal.Type())
 	}
 
-	if trueVal.String() != "true" {
-		t.Errorf("NewBooleanValue(true).String() = %v, want true", trueVal.String())
+	if trueVal.String() != "True" {
+		t.Errorf("NewBooleanValue(true).String() = %v, want True", trueVal.String())
 	}
 
-	if falseVal.String() != "false" {
-		t.Errorf("NewBooleanValue(false).String() = %v, want false", falseVal.String())
+	if falseVal.String() != "False" {
+		t.Errorf("NewBooleanValue(false).String() = %v, want False", falseVal.String())
 	}
 
 	// Check that it returns a BooleanValue
@@ -506,8 +506,8 @@ func TestVariantValueBoolean(t *testing.T) {
 	}
 
 	// Test String() delegates to wrapped value
-	if got := variant.String(); got != "true" {
-		t.Errorf("VariantValue.String() = %v, want true", got)
+	if got := variant.String(); got != "True" {
+		t.Errorf("VariantValue.String() = %v, want True", got)
 	}
 }
 
@@ -564,12 +564,12 @@ func TestVariantValueWrapping(t *testing.T) {
 		{
 			name:        "wrapping boolean true",
 			wrappedVal:  &BooleanValue{Value: true},
-			expectedStr: "true",
+			expectedStr: "True",
 		},
 		{
 			name:        "wrapping boolean false",
 			wrappedVal:  &BooleanValue{Value: false},
-			expectedStr: "false",
+			expectedStr: "False",
 		},
 	}
 

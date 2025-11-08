@@ -512,7 +512,7 @@ func TestEnumValueProperty(t *testing.T) {
 				var c := Green;
 				PrintLn(c.Value = Ord(c));
 			`,
-			expect: "true\n",
+			expect: "True\n",
 		},
 		{
 			name: "all values from enum with mixed ordinals",
@@ -542,7 +542,7 @@ func TestEnumValueProperty(t *testing.T) {
 				var p2 := High;
 				PrintLn(p1.Value < p2.Value);
 			`,
-			expect: "true\n",
+			expect: "True\n",
 		},
 		{
 			name: "enum value property with for-in loop",

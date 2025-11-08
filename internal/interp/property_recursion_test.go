@@ -65,7 +65,7 @@ PrintLn(t.Line);
 		t.Fatalf("Unexpected error: %v", result)
 	}
 
-	expected := "true\nInitial\nfalse\nUpdated\n"
+	expected := "True\nInitial\nFalse\nUpdated\n"
 	actual := buf.String()
 	if actual != expected {
 		t.Errorf("Expected output:\n%s\nGot:\n%s", expected, actual)
