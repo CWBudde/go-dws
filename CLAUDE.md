@@ -62,8 +62,14 @@ go fmt ./...
 ./bin/dwscript parse testdata/simple.dws
 ./bin/dwscript parse -e "3 + 5 * 2"
 
-# Run a script
+# Run a script (AST interpreter - default)
 ./bin/dwscript run script.dws
+
+# Run with bytecode VM (5-6x faster)
+./bin/dwscript run --bytecode script.dws
+
+# Show disassembled bytecode
+./bin/dwscript run --bytecode --trace script.dws
 
 # Run with custom recursion limit (default: 1024)
 ./bin/dwscript run --max-recursion 2048 script.dws
@@ -76,9 +82,12 @@ go fmt ./...
 
 ### Pipeline
 ```
-Source Code → Lexer → Parser → AST → Semantic Analyzer → Interpreter
-                                                            ↓
-                                                         Output
+                                    ┌→ AST Interpreter → Output
+                                    │
+Source Code → Lexer → Parser → AST → Semantic Analyzer
+                                    │
+                                    └→ Bytecode Compiler → Bytecode VM → Output
+                                                              (5-6x faster)
 ```
 
 ### Package Structure
@@ -118,10 +127,18 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - Integer, Float, String, Boolean, Array, Record, Enum, Class types
   - Type checking and conversion
 
-- `internal/interp/` - Interpreter/runtime
-  - Executes the AST
+- `internal/interp/` - AST Interpreter/runtime
+  - Executes the AST via tree-walking
   - Environment/symbol table management
   - Built-in function implementations
+
+- `internal/bytecode/` - Bytecode VM (5-6x faster than AST interpreter)
+  - `compiler.go`: AST-to-bytecode compiler with optimizations
+  - `vm.go`: Stack-based virtual machine with built-in function support
+  - `bytecode.go`: Bytecode format, constant pools, value types
+  - `disasm.go`: Bytecode disassembler for debugging
+  - `instruction.go`: 116 opcodes for DWScript operations
+  - See [docs/bytecode-vm.md](docs/bytecode-vm.md) for details
 
 - `internal/errors/` - Error handling utilities
   - Error formatting and reporting

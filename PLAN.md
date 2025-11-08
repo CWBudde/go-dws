@@ -1523,13 +1523,13 @@ Add JIT compilation (if feasible in Go) - **MEDIUM-LOW PRIORITY**
   - [x] 13.12.4 Update interpreter/VM benchmarks to compare AST vs bytecode modes
     - [x] 13.12.5 Bring unit loading/parsing parity to bytecode mode (compiler emits unit metadata, VM handles registry hooks)
     - [x] 13.12.6 Add tracing, `--show-units`, and diagnostic output parity when `--bytecode` is enabled
-    - [ ] 13.12.7 Wire bytecode VM to interpreter externals (FFI, built-ins, stdout capture) so CLI behavior matches AST mode
+    - [x] 13.12.7 Wire bytecode VM to interpreter externals (FFI, built-ins, stdout capture) so CLI behavior matches AST mode ✅
 
-- [ ] 13.13 Create bytecode test suite (1 week, MODERATE)
-  - [ ] Port existing interpreter tests to bytecode
-  - [ ] Test bytecode disassembler output
-  - [ ] Verify identical behavior to AST interpreter
-  - [ ] Add performance benchmarks
+- [x] 13.13 Create bytecode test suite (1 week, MODERATE) ✅
+  - [x] Port existing interpreter tests to bytecode
+  - [x] Test bytecode disassembler output
+  - [x] Verify identical behavior to AST interpreter
+  - [x] Add performance benchmarks (VM is ~5.6x faster than AST interpreter)
 
 - [ ] 13.14 Add bytecode serialization (optional) (3-5 days, SIMPLE)
   - [ ] Implement bytecode file format (.dwc)
@@ -1537,11 +1537,11 @@ Add JIT compilation (if feasible in Go) - **MEDIUM-LOW PRIORITY**
   - [ ] Version bytecode format for compatibility
   - [ ] Add `dwscript compile` command for bytecode
 
-- [ ] 13.15 Document bytecode VM (3 days, SIMPLE)
-  - [ ] Write `docs/bytecode-vm.md` explaining architecture
-  - [ ] Document instruction set and opcodes
-  - [ ] Provide examples of bytecode output
-  - [ ] Update CLAUDE.md with bytecode information
+- [x] 13.15 Document bytecode VM (3 days, SIMPLE) ✅
+  - [x] Write `docs/bytecode-vm.md` explaining architecture
+  - [x] Document instruction set and opcodes
+  - [x] Provide examples of bytecode output
+  - [x] Update CLAUDE.md with bytecode information
 
 **Phase 1 Expected Results**: 2-3x faster than tree-walking interpreter, reasonable complexity
 
