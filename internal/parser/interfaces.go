@@ -90,6 +90,36 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 		return p.parseInterfaceDeclarationBody(nameIdent)
 	} else if p.peekTokenIs(lexer.CLASS) {
 		p.nextToken() // move to CLASS
+		// Check if this is a metaclass type alias: type TBaseClass = class of TBase;
+		// or a class declaration: type TMyClass = class ... end;
+		if p.peekTokenIs(lexer.OF) {
+			// Metaclass type alias: type TBaseClass = class of TBase;
+			// Parse as type expression (class of ...)
+			classOfType := p.parseClassOfType()
+			if classOfType == nil {
+				return nil
+			}
+
+			// Expect semicolon
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
+
+			// Create a type declaration with the metaclass type as an inline type
+			typeDecl := &ast.TypeDeclaration{
+				Token:   typeToken,
+				Name:    nameIdent,
+				IsAlias: true,
+				AliasedType: &ast.TypeAnnotation{
+					InlineType: classOfType,
+					Token:      classOfType.Token,
+					Name:       classOfType.String(),
+				},
+			}
+			typeDecl.EndPos = p.endPosFromToken(p.curToken)
+			return typeDecl
+		}
+		// Regular class declaration: type TMyClass = class ... end;
 		return p.parseClassDeclarationBody(nameIdent)
 	} else if p.peekTokenIs(lexer.RECORD) {
 		// Could be either:

@@ -165,7 +165,16 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 
 	// Handle type aliases
 	if decl.IsAlias {
-		// Resolve the aliased type
+		// Task 9.73.4: Check for inline type expressions (e.g., class of TBase)
+		// For inline types like "class of TBase", we don't need to resolve them at runtime
+		// since the semantic analyzer already validated the types
+		if decl.AliasedType.InlineType != nil {
+			// Inline types (array of X, class of X, etc.) don't need runtime resolution
+			// The semantic analyzer handles type checking, so we just return nil
+			return &NilValue{}
+		}
+
+		// Resolve the aliased type by name
 		aliasedType, err := i.resolveType(decl.AliasedType.Name)
 		if err != nil {
 			return &ErrorValue{Message: fmt.Sprintf("unknown type '%s' in type alias", decl.AliasedType.Name)}

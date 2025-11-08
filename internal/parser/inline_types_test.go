@@ -475,3 +475,175 @@ func TestComplexReturnTypes(t *testing.T) {
 		})
 	}
 }
+
+// TestMetaclassTypeDeclaration tests parsing metaclass type declarations.
+// Task 9.73.4: Parser support for metaclass type aliases
+func TestMetaclassTypeDeclaration(t *testing.T) {
+	tests := []struct {
+		name             string
+		input            string
+		expectedTypeName string
+		expectedBaseType string
+		wantErr          bool
+	}{
+		{
+			name:             "simple metaclass type",
+			input:            "type TBaseClass = class of TBase;",
+			expectedTypeName: "TBaseClass",
+			expectedBaseType: "TBase",
+			wantErr:          false,
+		},
+		{
+			name:             "metaclass of TObject",
+			input:            "type TObjectClass = class of TObject;",
+			expectedTypeName: "TObjectClass",
+			expectedBaseType: "TObject",
+			wantErr:          false,
+		},
+		{
+			name:             "metaclass with longer name",
+			input:            "type TMyControlClass = class of TMyControl;",
+			expectedTypeName: "TMyControlClass",
+			expectedBaseType: "TMyControl",
+			wantErr:          false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+
+			if tt.wantErr {
+				if len(p.Errors()) == 0 {
+					t.Errorf("expected error but got none")
+				}
+				return
+			}
+
+			if len(p.Errors()) > 0 {
+				t.Errorf("unexpected errors: %v", p.Errors())
+				return
+			}
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+			}
+
+			typeDecl, ok := program.Statements[0].(*ast.TypeDeclaration)
+			if !ok {
+				t.Fatalf("expected TypeDeclaration, got %T", program.Statements[0])
+			}
+
+			if typeDecl.Name.Value != tt.expectedTypeName {
+				t.Errorf("expected type name %q, got %q", tt.expectedTypeName, typeDecl.Name.Value)
+			}
+
+			if !typeDecl.IsAlias {
+				t.Error("expected IsAlias to be true")
+			}
+
+			if typeDecl.AliasedType == nil {
+				t.Fatal("expected AliasedType to be set")
+			}
+
+			if typeDecl.AliasedType.InlineType == nil {
+				t.Fatal("expected InlineType to be set")
+			}
+
+			classOfNode, ok := typeDecl.AliasedType.InlineType.(*ast.ClassOfTypeNode)
+			if !ok {
+				t.Fatalf("expected ClassOfTypeNode, got %T", typeDecl.AliasedType.InlineType)
+			}
+
+			// Check the base class type
+			classType, ok := classOfNode.ClassType.(*ast.TypeAnnotation)
+			if !ok {
+				t.Fatalf("expected TypeAnnotation for class type, got %T", classOfNode.ClassType)
+			}
+
+			if classType.Name != tt.expectedBaseType {
+				t.Errorf("expected base type %q, got %q", tt.expectedBaseType, classType.Name)
+			}
+		})
+	}
+}
+
+// TestMetaclassVariableDeclaration tests parsing variable declarations with metaclass types.
+// Task 9.73.4: Parser support for metaclass variables
+func TestMetaclassVariableDeclaration(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		expectedName string
+		expectedType string
+		wantErr      bool
+	}{
+		{
+			name:         "metaclass variable",
+			input:        "var meta: class of TBase;",
+			expectedName: "meta",
+			expectedType: "class of TBase",
+			wantErr:      false,
+		},
+		{
+			name:         "metaclass variable with longer name",
+			input:        "var myClass: class of TMyControl;",
+			expectedName: "myClass",
+			expectedType: "class of TMyControl",
+			wantErr:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+
+			if tt.wantErr {
+				if len(p.Errors()) == 0 {
+					t.Errorf("expected error but got none")
+				}
+				return
+			}
+
+			if len(p.Errors()) > 0 {
+				t.Errorf("unexpected errors: %v", p.Errors())
+				return
+			}
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+			}
+
+			varDecl, ok := program.Statements[0].(*ast.VarDeclStatement)
+			if !ok {
+				t.Fatalf("expected VarDeclaration, got %T", program.Statements[0])
+			}
+
+			if len(varDecl.Names) != 1 {
+				t.Fatalf("expected 1 variable name, got %d", len(varDecl.Names))
+			}
+
+			if varDecl.Names[0].Value != tt.expectedName {
+				t.Errorf("expected variable name %q, got %q", tt.expectedName, varDecl.Names[0].Value)
+			}
+
+			if varDecl.Type.Name != tt.expectedType {
+				t.Errorf("expected type %q, got %q", tt.expectedType, varDecl.Type.Name)
+			}
+
+			// Verify InlineType is ClassOfTypeNode
+			if varDecl.Type.InlineType == nil {
+				t.Fatal("expected InlineType to be set")
+			}
+
+			_, ok = varDecl.Type.InlineType.(*ast.ClassOfTypeNode)
+			if !ok {
+				t.Fatalf("expected ClassOfTypeNode, got %T", varDecl.Type.InlineType)
+			}
+		})
+	}
+}

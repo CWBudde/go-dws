@@ -180,3 +180,59 @@ end;
 `
 	expectError(t, input, "cannot access private")
 }
+
+// TestConstructorCaseInsensitive tests that constructor names are case-insensitive
+func TestConstructorCaseInsensitive(t *testing.T) {
+	input := `
+type TExample = class
+	constructor CREATE;
+	constructor CREATEWITH(x: Integer);
+end;
+
+constructor TExample.CREATE;
+begin
+end;
+
+constructor TExample.CREATEWITH(x: Integer);
+begin
+end;
+
+var obj1, obj2: TExample;
+begin
+	obj1 := TExample.Create();
+	obj2 := TExample.CreateWith(42);
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// TestConstructorCaseInsensitiveOverloads tests case-insensitive lookup with overloaded constructors
+func TestConstructorCaseInsensitiveOverloads(t *testing.T) {
+	input := `
+type TExample = class
+	constructor create;
+	constructor create(x: Integer);
+	constructor create(x: Integer; y: String);
+end;
+
+constructor TExample.create;
+begin
+end;
+
+constructor TExample.create(x: Integer);
+begin
+end;
+
+constructor TExample.create(x: Integer; y: String);
+begin
+end;
+
+var obj1, obj2, obj3: TExample;
+begin
+	obj1 := TExample.CREATE();
+	obj2 := TExample.Create(42);
+	obj3 := TExample.CREATE(42, 'test');
+end;
+`
+	expectNoErrors(t, input)
+}
