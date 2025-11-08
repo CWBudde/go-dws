@@ -515,8 +515,9 @@ func (ct *ClassType) GetMethodOverloads(name string) []*MethodInfo {
 }
 
 // GetConstructorOverloads retrieves all overload variants of a constructor by name (Task 9.61)
+// Constructor names are case-insensitive, so we normalize to lowercase
 func (ct *ClassType) GetConstructorOverloads(name string) []*MethodInfo {
-	return ct.ConstructorOverloads[name]
+	return ct.ConstructorOverloads[strings.ToLower(name)]
 }
 
 // AddMethodOverload adds a method overload to the class (Task 9.61)
@@ -531,12 +532,14 @@ func (ct *ClassType) AddMethodOverload(name string, info *MethodInfo) {
 }
 
 // AddConstructorOverload adds a constructor overload to the class (Task 9.61)
+// Constructor names are case-insensitive, so we normalize to lowercase
 func (ct *ClassType) AddConstructorOverload(name string, info *MethodInfo) {
-	ct.ConstructorOverloads[name] = append(ct.ConstructorOverloads[name], info)
+	lowerName := strings.ToLower(name)
+	ct.ConstructorOverloads[lowerName] = append(ct.ConstructorOverloads[lowerName], info)
 
 	// Update the primary Constructors map
-	if len(ct.ConstructorOverloads[name]) == 1 {
-		ct.Constructors[name] = info.Signature
+	if len(ct.ConstructorOverloads[lowerName]) == 1 {
+		ct.Constructors[lowerName] = info.Signature
 	}
 }
 

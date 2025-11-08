@@ -127,7 +127,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	}
 
 	// Add basic Create constructor
-	objectClass.Constructors["Create"] = &types.FunctionType{
+	// Use lowercase for case-insensitive lookup
+	objectClass.Constructors["create"] = &types.FunctionType{
 		Parameters: []types.Type{}, // no parameters
 		ReturnType: objectClass,
 	}
@@ -162,7 +163,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	exceptionClass.Fields["Message"] = types.STRING
 
 	// Add Create constructor
-	exceptionClass.Constructors["Create"] = &types.FunctionType{
+	// Use lowercase for case-insensitive lookup
+	exceptionClass.Constructors["create"] = &types.FunctionType{
 		Parameters: []types.Type{types.STRING}, // message parameter
 		ReturnType: exceptionClass,
 	}
@@ -200,7 +202,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		excClass.Fields["Message"] = types.STRING
 
 		// Inherit Create constructor
-		excClass.Constructors["Create"] = &types.FunctionType{
+		// Use lowercase for case-insensitive lookup
+		excClass.Constructors["create"] = &types.FunctionType{
 			Parameters: []types.Type{types.STRING},
 			ReturnType: excClass,
 		}
@@ -419,6 +422,24 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 	if from.TypeKind() == "CLASSOF" && to.TypeKind() == "NIL" {
 		return true
 	}
+	// Task 9.73.5: Handle ClassOfType to ClassOfType assignment
+	// This handles: var meta: TBaseClass; meta := TBase;
+	// where TBaseClass = class of TBase
+	// Resolve type aliases to get the underlying types
+	fromResolved := types.GetUnderlyingType(from)
+	toResolved := types.GetUnderlyingType(to)
+
+	if fromMetaclass, ok := fromResolved.(*types.ClassOfType); ok {
+		if toMetaclass, ok := toResolved.(*types.ClassOfType); ok {
+			// Check if the underlying class types are compatible
+			fromClass := fromMetaclass.ClassType
+			toClass := toMetaclass.ClassType
+			if fromClass.Equals(toClass) || a.isDescendantOf(fromClass, toClass) {
+				return true
+			}
+		}
+	}
+
 	if fromClass, ok := from.(*types.ClassType); ok {
 		// Task 9.73.1: Allow assigning a class reference to a metaclass variable
 		// When a class name is used as a value (e.g., TClassB), it's represented as a ClassType

@@ -277,6 +277,43 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Files**: `internal/semantic/analyze_expressions.go`
   - **Completed**: Already implemented in `analyzeNewExpression`; all visibility tests pass
 
+- [ ] 9.7 Support constructors with custom names (not just "Create") ⚠️ CRITICAL BUG
+  - **Task**: Enable constructors with any name to be called via member access syntax
+  - **Root Cause**: Constructor lookup only works for "Create"; custom names like "CreateWith", "CreateDefault", etc. fail with "requires a helper" error
+  - **Impact**: Blocks any class using non-standard constructor names, common pattern in DWScript
+  - **Implementation**:
+    - **Current Issue**: When analyzing `TExample.CreateWith(42)`:
+      1. Member access on `ClassOfType(TExample)` converts to `ClassType`
+      2. `GetConstructorOverloads("CreateWith")` is called (now with case-insensitive lookup)
+      3. Constructor IS stored with lowercase key "createwith"
+      4. But lookup returns empty - suggests constructor not being registered at all
+    - **Investigation needed**:
+      - Why are constructors with names other than "Create" not being registered?
+      - Check if `analyzeMethodDecl()` is called for all constructors in class declaration
+      - Verify `AddConstructorOverload()` is called for custom-named constructors
+      - Check if there's special-case handling for "Create" that needs generalization
+    - **Fix approach**:
+      - Debug `analyzeMethodDecl()` to ensure all constructors are processed
+      - Verify constructor registration happens regardless of name
+      - Remove any "Create"-specific hardcoding in constructor lookup
+      - Ensure member access properly returns method pointer for all constructors
+    - **Files to check**:
+      - `internal/semantic/analyze_classes.go` (analyzeMethodDecl, analyzeClassDecl)
+      - `internal/types/types.go` (AddConstructorOverload, GetConstructorOverloads)
+      - `internal/semantic/analyze_expressions.go` (analyzeMemberAccessExpression)
+  - **Test**:
+    - `TExample.CreateWith(42)` works
+    - `TExample.CreateDefault()` works
+    - Multiple constructors with different names all work
+    - Case-insensitive: `TExample.CREATEWITH(42)` works
+  - **Test files**:
+    - `internal/semantic/constructor_destructor_test.go::TestConstructorCaseInsensitive`
+    - `internal/semantic/constructor_destructor_test.go::TestConstructorCaseInsensitiveOverloads`
+    - New test: `internal/semantic/constructor_destructor_test.go::TestConstructorCustomNames`
+  - **Status**: Bug discovered during PR review fixes (2025-01-09)
+  - **Priority**: CRITICAL - Likely affects many fixture tests
+  - **Estimated time**: 2-3 days (investigation + fix + testing)
+
 **Milestone**: After completing constructor system, fixture test pass rate should reach ~45-50% (248-276 tests passing)
 
 ---
@@ -722,26 +759,26 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
   **Subtasks to Fix Blockers** (see Tasks 9.73.4-9.73.7 below)
 
-- [ ] 9.73.4 **CRITICAL**: Fix parser to handle metaclass type aliases ⚠️ NEW
+- [x] 9.73.4 **CRITICAL**: Fix parser to handle metaclass type aliases ✅ DONE (2025-01-08)
   - **Task**: Parse `type Name = class of BaseClass;` syntax
   - **Subtasks**:
-    - [ ] 9.73.4.1 Add AST support for metaclass type references
-    - [ ] 9.73.4.2 Update lexer if needed
-    - [ ] 9.73.4.3 Implement parser support for metaclass type aliases
-    - [ ] 9.73.4.4 Update semantic analysis for metaclass type aliases
-    - [ ] 9.73.4.5 Write parser tests
-    - [ ] 9.73.4.6 Verify fixture tests can parse
+    - [x] 9.73.4.1 Add AST support for metaclass type references (already existed in pkg/ast/type_expression.go)
+    - [x] 9.73.4.2 Update lexer if needed (OF token already existed)
+    - [x] 9.73.4.3 Implement parser support for metaclass type aliases (internal/parser/interfaces.go:91-123)
+    - [x] 9.73.4.4 Update semantic analysis for metaclass type aliases (internal/semantic/analyze_types.go:546-561)
+    - [x] 9.73.4.5 Write parser tests (internal/parser/inline_types_test.go:480-636)
+    - [x] 9.73.4.6 Verify fixture tests can parse (class_of.pas, class_of2.pas, class_of3.pas all parse)
   - **Test**: `type TBaseClass = class of TBase;` parses without error
   - **Files**: `pkg/ast/types.go`, `internal/parser/interfaces.go`, `internal/semantic/analyze_types.go`
   - **Priority**: CRITICAL - blocks all metaclass functionality
 
-- [ ] 9.73.5 **HIGH**: Fix class name identifier evaluation ⚠️ NEW
+- [x] 9.73.5 **HIGH**: Fix class name identifier evaluation ✅ DONE (2025-01-08)
   - **Task**: Return ClassValue instead of ClassInfoValue for class name identifiers
   - **Subtasks**:
-    - [ ] 9.73.5.1 Update identifier evaluation (expressions.go:178-183)
-    - [ ] 9.73.5.2 Update any code expecting ClassInfoValue
-    - [ ] 9.73.5.3 Test class name as value
-    - [ ] 9.73.5.4 Test metaclass variable assignment
+    - [x] 9.73.5.1 Update identifier evaluation (internal/interp/expressions.go:178-183)
+    - [x] 9.73.5.2 Update any code expecting ClassInfoValue (internal/interp/objects.go:369-439)
+    - [x] 9.73.5.3 Update semantic analyzer to return ClassOfType (internal/semantic/analyze_expr_operators.go:47-56)
+    - [x] 9.73.5.4 Add ClassOfType assignment checking (internal/semantic/analyzer.go:422-438)
   - **Test**: Class name identifiers return ClassValue type
   - **Files**: `internal/interp/expressions.go`
   - **Priority**: HIGH - required for metaclass functionality
@@ -757,15 +794,79 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Files**: `internal/interp/statements.go`
   - **Priority**: MEDIUM - improves error reporting
 
+- [x] 9.73.8 **HIGH**: Fix virtual constructor dispatch for child classes ✅ DONE (2025-01-08)
+  - **Task**: Debug and fix constructor lookup when metaclass holds child class reference
+  - **Problem**: `meta := TChild; obj := meta.Create;` fails with "no overloaded version" error
+  - **Root Cause Found**: Child constructors were being APPENDED to parent constructors in ConstructorOverloads,
+    causing duplicate constructors with same signature and breaking overload resolution
+  - **Solution**: Modified constructor registration to REPLACE parent constructor when child has matching signature
+    - In DWScript, child constructor with same name/signature HIDES parent's (like Delphi)
+    - Works regardless of virtual/override keywords
+  - **Files Modified**: `internal/interp/declarations.go:183-204, 211-232`
+  - **Subtasks**:
+    - [x] 9.73.8.1 Add debug logging to constructor lookup in evalMethodCall
+    - [x] 9.73.8.2 Verify TChild.Create is registered in ClassInfo.Constructors
+    - [x] 9.73.8.3 Check getMethodOverloadsInHierarchy logic for constructors
+    - [x] 9.73.8.4 Review constructor overload resolution with empty arguments
+    - [x] 9.73.8.5 Test with both virtual/override and non-virtual constructors
+    - [x] 9.73.8.6 Debug logging removed after fix verified
+  - **Test Case**:
+    ```dws
+    type TBase = class
+      constructor Create; virtual;
+    end;
+    type TChild = class(TBase)
+      constructor Create; override;
+    end;
+    type TBaseClass = class of TBase;
+    var meta: TBaseClass;
+    meta := TBase;
+    var obj1 := meta.Create;  // ✅ Works
+    meta := TChild;
+    var obj2 := meta.Create;  // ❌ Fails - "no overloaded version"
+    ```
+  - **Files**: `internal/interp/objects.go`, `internal/interp/class.go`
+  - **Priority**: HIGH - blocks virtual constructor dispatch, critical for polymorphism
+
+- [x] 9.73.9 **MEDIUM**: Implement metaclass comparison operators ✅ DONE (2025-01-08)
+  - **Task**: Support equality and inequality comparisons for metaclass values
+  - **Problem**: `if meta = TBase then` and `if meta <> TChild then` fail with "requires comparable types"
+  - **Solution**:
+    - Added "CLASSOF" to IsComparableType() in types/compatibility.go
+    - Implemented ClassValue comparison in evalBinaryExpression
+    - Compares by ClassInfo identity (pointer equality)
+  - **Files Modified**:
+    - `internal/types/compatibility.go:152` - Added CLASSOF to comparable types
+    - `internal/interp/expressions.go:243-266` - Runtime comparison for ClassValue
+  - **Subtasks**:
+    - [x] 9.73.9.1 Add ClassOfType comparison in semantic analyzer
+    - [x] 9.73.9.2 Implement runtime comparison for ClassValue
+    - [x] 9.73.9.3 Support comparing ClassValue with ClassValue
+    - [x] 9.73.9.4 Support comparing metaclass variable with class name (meta = TBase)
+    - [x] 9.73.9.5 Test equality (=) and inequality (<>) operators
+    - [x] 9.73.9.6 Verified with comprehensive test cases
+  - **Test Case**:
+    ```dws
+    var meta: class of TBase;
+    meta := TChild;
+    if meta = TBase then PrintLn('Bug Equal TBase');      // Should not print
+    if meta <> TChild then PrintLn('Bug Not Equal TChild'); // Should not print
+    if meta = TChild then PrintLn('Correct');              // Should print
+    ```
+  - **Files**: `internal/semantic/analyze_expr_operators.go`, `internal/interp/operators_eval.go`
+  - **Priority**: MEDIUM - needed for fixture tests
+
 - [ ] 9.73.7 **FINAL**: Integration testing and fixture validation ⚠️ NEW
   - **Task**: Verify all metaclass functionality works end-to-end
+  - **Dependencies**: Requires 9.73.8 (constructor dispatch) and 9.73.9 (comparisons) to be complete
   - **Subtasks**:
     - [ ] 9.73.7.1 Test metaclass variable declaration and assignment
-    - [ ] 9.73.7.2 Test metaclass constructor dispatch
+    - [ ] 9.73.7.2 Test metaclass constructor dispatch (depends on 9.73.8)
     - [ ] 9.73.7.3 Test metaclass with constructor parameters
-    - [ ] 9.73.7.4 Run fixture tests (class_of*.pas)
-    - [ ] 9.73.7.5 Run overload tests
-    - [ ] 9.73.7.6 Verify expected output
+    - [ ] 9.73.7.4 Test metaclass comparison operators (depends on 9.73.9)
+    - [ ] 9.73.7.5 Run fixture tests (class_of*.pas)
+    - [ ] 9.73.7.6 Run overload tests
+    - [ ] 9.73.7.7 Verify expected output matches reference implementation
   - **Test**: All metaclass fixture tests pass
   - **Priority**: FINAL - validates all previous work
 

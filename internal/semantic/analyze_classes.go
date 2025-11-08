@@ -434,8 +434,10 @@ func (a *Analyzer) inheritParentConstructors(childClass *types.ClassType, parent
 			}
 
 			// Add inherited constructor to child class
-			if _, exists := childClass.Constructors[ctorName]; !exists {
-				childClass.Constructors[ctorName] = childCtorType
+			// Use lowercase for case-insensitive lookup
+			lowerCtorName := strings.ToLower(ctorName)
+			if _, exists := childClass.Constructors[lowerCtorName]; !exists {
+				childClass.Constructors[lowerCtorName] = childCtorType
 			}
 			childClass.AddConstructorOverload(ctorName, childCtorInfo)
 		}
@@ -477,7 +479,8 @@ func (a *Analyzer) synthesizeDefaultConstructor(classType *types.ClassType) {
 	}
 
 	// Add to class constructor maps
-	classType.Constructors[constructorName] = funcType
+	// Use lowercase for case-insensitive lookup
+	classType.Constructors[strings.ToLower(constructorName)] = funcType
 	classType.AddConstructorOverload(constructorName, methodInfo)
 }
 
@@ -1026,32 +1029,28 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Check if object is a class or record type
 	memberName := expr.Member.Value
 
+	// Task 9.73.5: Resolve type aliases to get the underlying type
+	// This allows member access on type alias variables like TBaseClass
+	objectTypeResolved := types.GetUnderlyingType(objectType)
+
 	// Handle record type field access
-	if _, ok := objectType.(*types.RecordType); ok {
+	if _, ok := objectTypeResolved.(*types.RecordType); ok {
 		return a.analyzeRecordFieldAccess(expr.Object, memberName)
 	}
 
 	// Task 9.73.2: Handle metaclass type (class of T) - allows calling constructors through metaclass
-	if metaclassType, ok := objectType.(*types.ClassOfType); ok {
-		// For metaclass types, we can access constructors of the base class
-		// Example: var cls: class of TBase; obj := cls.Create;
+	// Convert ClassOfType to the underlying ClassType so we can check for constructors and class members
+	if metaclassType, ok := objectTypeResolved.(*types.ClassOfType); ok {
 		baseClass := metaclassType.ClassType
 		if baseClass != nil {
-			// Check if member is a constructor of the base class
-			constructorOverloads := baseClass.GetConstructorOverloads(memberName)
-			if len(constructorOverloads) > 0 {
-				// Return the base class type (since constructor creates instance of base class)
-				// The actual runtime type will be determined by the metaclass value
-				// Note: This is a simplified type - at runtime, the actual constructor signature
-				// will be resolved based on the arguments
-				return baseClass
-			}
+			// Continue with the base class type to check for constructors, class methods, and class variables
+			// This allows expressions like TBase.Create, TBase.SomeClassMethod, or TBase.ClassVar to work
+			objectTypeResolved = baseClass
 		}
-		// If not a constructor, fall through to helper check
 	}
 
 	// Handle class type
-	classType, ok := objectType.(*types.ClassType)
+	classType, ok := objectTypeResolved.(*types.ClassType)
 	if !ok {
 		// Task 9.83: For non-class/record types (like String, Integer), check helpers
 		// Prefer helper properties before methods so that property-style access

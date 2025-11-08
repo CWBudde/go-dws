@@ -175,10 +175,12 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 	// Task 9.68: Check if this is a class name identifier
 	// Class names can be used in expressions like TObj.Create or new TObj
 	// DWScript is case-insensitive, so we need to search all classes
+	// Task 9.73.5: Return ClassValue (metaclass reference) instead of ClassInfoValue
 	for className, classInfo := range i.classes {
 		if strings.EqualFold(className, node.Value) {
-			// Return a ClassInfoValue to indicate this is a class type identifier
-			return &ClassInfoValue{ClassInfo: classInfo}
+			// Return a ClassValue to represent a metaclass reference
+			// This allows assignments like: var meta: class of TBase; meta := TBase;
+			return &ClassValue{ClassInfo: classInfo}
 		}
 	}
 
@@ -238,6 +240,30 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 		_, rightIsNil := right.(*NilValue)
 		_, leftIsObj := left.(*ObjectInstance)
 		_, rightIsObj := right.(*ObjectInstance)
+		leftClass, leftIsClass := left.(*ClassValue)
+		rightClass, rightIsClass := right.(*ClassValue)
+
+		// Task 9.73.9: Handle ClassValue (metaclass) comparisons
+		// meta = TBase, meta <> TChild, etc.
+		if leftIsClass || rightIsClass {
+			// Both are ClassValue - compare by ClassInfo identity
+			if leftIsClass && rightIsClass {
+				result := leftClass.ClassInfo == rightClass.ClassInfo
+				if expr.Operator == "=" {
+					return &BooleanValue{Value: result}
+				} else {
+					return &BooleanValue{Value: !result}
+				}
+			}
+			// One is ClassValue, one is nil
+			if leftIsNil || rightIsNil {
+				if expr.Operator == "=" {
+					return &BooleanValue{Value: false}
+				} else {
+					return &BooleanValue{Value: true}
+				}
+			}
+		}
 
 		// If either is nil or an object, do object identity comparison
 		if leftIsNil || rightIsNil || leftIsObj || rightIsObj {
