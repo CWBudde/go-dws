@@ -240,6 +240,30 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 		_, rightIsNil := right.(*NilValue)
 		_, leftIsObj := left.(*ObjectInstance)
 		_, rightIsObj := right.(*ObjectInstance)
+		leftClass, leftIsClass := left.(*ClassValue)
+		rightClass, rightIsClass := right.(*ClassValue)
+
+		// Task 9.73.9: Handle ClassValue (metaclass) comparisons
+		// meta = TBase, meta <> TChild, etc.
+		if leftIsClass || rightIsClass {
+			// Both are ClassValue - compare by ClassInfo identity
+			if leftIsClass && rightIsClass {
+				result := leftClass.ClassInfo == rightClass.ClassInfo
+				if expr.Operator == "=" {
+					return &BooleanValue{Value: result}
+				} else {
+					return &BooleanValue{Value: !result}
+				}
+			}
+			// One is ClassValue, one is nil
+			if leftIsNil || rightIsNil {
+				if expr.Operator == "=" {
+					return &BooleanValue{Value: false}
+				} else {
+					return &BooleanValue{Value: true}
+				}
+			}
+		}
 
 		// If either is nil or an object, do object identity comparison
 		if leftIsNil || rightIsNil || leftIsObj || rightIsObj {

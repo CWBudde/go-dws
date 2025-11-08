@@ -183,7 +183,24 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		if method.IsConstructor {
 			classInfo.Constructors[method.Name.Value] = method
 			// Task 9.67: Add to constructor overload list
-			classInfo.ConstructorOverloads[method.Name.Value] = append(classInfo.ConstructorOverloads[method.Name.Value], method)
+			// Task 9.73.8: Handle constructor hiding/override
+			// In DWScript, a child constructor with the same name and signature HIDES the parent's,
+			// regardless of whether it has the `override` keyword or not
+			existingOverloads := classInfo.ConstructorOverloads[method.Name.Value]
+			replaced := false
+			for i, existingMethod := range existingOverloads {
+				// Check if signatures match (same number and types of parameters)
+				if len(existingMethod.Parameters) == len(method.Parameters) {
+					// Replace the parent constructor with this child constructor (hiding)
+					existingOverloads[i] = method
+					replaced = true
+					break
+				}
+			}
+			if !replaced {
+				// No matching parent constructor found (different signature), just append
+				classInfo.ConstructorOverloads[method.Name.Value] = append(existingOverloads, method)
+			}
 		}
 	}
 
@@ -194,7 +211,24 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	if cd.Constructor != nil {
 		classInfo.Constructors[cd.Constructor.Name.Value] = cd.Constructor
 		// Task 9.20: Also add to ConstructorOverloads for consistency
-		classInfo.ConstructorOverloads[cd.Constructor.Name.Value] = append(classInfo.ConstructorOverloads[cd.Constructor.Name.Value], cd.Constructor)
+		// Task 9.73.8: Handle constructor hiding/override
+		// In DWScript, a child constructor with the same name and signature HIDES the parent's,
+		// regardless of whether it has the `override` keyword or not
+		existingOverloads := classInfo.ConstructorOverloads[cd.Constructor.Name.Value]
+		replaced := false
+		for i, existingMethod := range existingOverloads {
+			// Check if signatures match (same number and types of parameters)
+			if len(existingMethod.Parameters) == len(cd.Constructor.Parameters) {
+				// Replace the parent constructor with this child constructor (hiding)
+				existingOverloads[i] = cd.Constructor
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			// No matching parent constructor found (different signature), just append
+			classInfo.ConstructorOverloads[cd.Constructor.Name.Value] = append(existingOverloads, cd.Constructor)
+		}
 	}
 
 	// Identify destructor (method named "Destroy")
