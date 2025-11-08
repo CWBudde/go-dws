@@ -235,11 +235,7 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
   - **Files**: `internal/semantic/analyze_expressions.go`, `internal/semantic/constructor_test.go`
   - **Estimated time**: 2 hours
 
-- [ ] 9.19: Reserved for future use
-
-- [ ] 9.20: Reserved for future use
-
-- [ ] 9.21: Constructor validation comprehensive test suite
+- [ ] 9.19: Constructor validation comprehensive test suite
   - Test all constructor overload scenarios
   - Test all visibility combinations (private/protected/public)
   - Test error cases (wrong types, wrong count, wrong visibility)
@@ -247,14 +243,6 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
   - Test implicit parameterless constructor behavior
   - **Files**: `internal/semantic/constructor_validation_test.go`
   - **Estimated time**: 3-4 hours
-
-**Total estimated time for constructor validation**: 16-21 hours
-
-**Files modified**: (same as Task 9.19)
-- `internal/semantic/analyze_builtins.go` (3 call sites updated)
-- `internal/semantic/lambda_analyzer_test.go` (includes function call tests)
-
-**Result**: 0 hours - already complete. Function call context inference works as specified.
 
 **Files to modify**:
 - `internal/semantic/analyze_expressions.go` (analyzeCallExpression)
