@@ -169,6 +169,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	classDecl.Methods = []*ast.FunctionDecl{}
 	classDecl.Operators = []*ast.OperatorDecl{}
 	classDecl.Properties = []*ast.PropertyDecl{}
+	classDecl.Constants = []*ast.ConstDecl{}
 
 	// Default visibility is public
 	currentVisibility := ast.VisibilityPublic
@@ -195,7 +196,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 			continue
 		}
 
-		// Check for 'class var', 'class property', or 'class function' / 'class procedure'
+		// Check for 'class var', 'class const', 'class property', or 'class function' / 'class procedure'
 		if p.curTokenIs(lexer.CLASS) {
 			classToken := p.curToken
 			p.nextToken() // move past 'class'
@@ -209,6 +210,13 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 						field.IsClassVar = true // Mark as class variable
 						classDecl.Fields = append(classDecl.Fields, field)
 					}
+				}
+			} else if p.curTokenIs(lexer.CONST) {
+				// Class constant: class const Name = Value;
+				p.nextToken() // move past 'const'
+				constant := p.parseClassConstantDeclaration(currentVisibility, true)
+				if constant != nil {
+					classDecl.Constants = append(classDecl.Constants, constant)
 				}
 			} else if p.curTokenIs(lexer.PROPERTY) {
 				// Class property: class property Name: Type read GetName write SetName;
@@ -231,9 +239,16 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 					classDecl.Methods = append(classDecl.Methods, method)
 				}
 			} else {
-				p.addError("expected 'var', 'property', 'function', or 'procedure' after 'class' keyword", ErrUnexpectedToken)
+				p.addError("expected 'var', 'const', 'property', 'function', or 'procedure' after 'class' keyword", ErrUnexpectedToken)
 				p.nextToken()
 				continue
+			}
+		} else if p.curTokenIs(lexer.CONST) {
+			// Regular class constant: const Name = Value;
+			p.nextToken() // move past 'const'
+			constant := p.parseClassConstantDeclaration(currentVisibility, false)
+			if constant != nil {
+				classDecl.Constants = append(classDecl.Constants, constant)
 			}
 		} else if p.curToken.Type == lexer.IDENT && (p.peekTokenIs(lexer.COLON) || p.peekTokenIs(lexer.COMMA)) {
 			// This is a regular instance field declaration (may be comma-separated)
@@ -429,4 +444,65 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 	memberAccess.EndPos = memberName.End() // End position is after the member name
 
 	return memberAccess
+}
+
+// parseClassConstantDeclaration parses a constant declaration within a class.
+// Syntax: const Name = Value; or const Name: Type = Value;
+// Also: class const Name = Value;
+// The visibility parameter specifies the access level for this constant.
+// The isClassConst parameter indicates if it was declared with 'class const'.
+func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClassConst bool) *ast.ConstDecl {
+	// Current token should be the constant name identifier
+	if !p.curTokenIs(lexer.IDENT) {
+		p.addError("expected identifier for constant name", ErrExpectedIdent)
+		return nil
+	}
+
+	constToken := p.curToken
+	nameIdent := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	// Check for optional type annotation: const Name: Type = Value;
+	var typeAnnotation *ast.TypeAnnotation
+	if p.peekTokenIs(lexer.COLON) {
+		p.nextToken() // move to ':'
+		p.nextToken() // move to type
+
+		typeExpr := p.parseTypeExpression()
+		if typeExpr != nil {
+			typeAnnotation = &ast.TypeAnnotation{
+				Token:      p.curToken,
+				InlineType: typeExpr,
+			}
+		}
+	}
+
+	// Expect '=' for the constant value
+	if !p.expectPeek(lexer.EQ) {
+		return nil
+	}
+
+	// Parse the constant value expression
+	p.nextToken()
+	value := p.parseExpression(LOWEST)
+	if value == nil {
+		p.addError("expected constant value expression", ErrInvalidExpression)
+		return nil
+	}
+
+	// Expect semicolon
+	if !p.expectPeek(lexer.SEMICOLON) {
+		return nil
+	}
+
+	constant := &ast.ConstDecl{
+		Token:        constToken,
+		Name:         nameIdent,
+		Type:         typeAnnotation,
+		Value:        value,
+		Visibility:   visibility,
+		IsClassConst: isClassConst,
+		EndPos:       p.endPosFromToken(p.curToken),
+	}
+
+	return constant
 }

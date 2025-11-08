@@ -311,7 +311,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Root Cause**: Parser expects field declarations in class body, fails when seeing `const` keyword.
 
-- [ ] 9.20 Parse class constant declarations
+- [x] 9.20 Parse class constant declarations ✅
   - **Task**: Recognize and parse const/class const in class body
   - **Implementation**:
     - Modify `parseClassBody` to handle `const` keyword
@@ -320,10 +320,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Apply current visibility to constant
     - Add constants to ClassDeclaration.Constants slice
   - **Test**: Class constants parse without errors
-  - **Files**: `internal/parser/class.go`, `internal/ast/class.go`
-  - **Estimated time**: 1-2 days
+  - **Files**: `pkg/ast/declarations.go`, `pkg/ast/classes.go`, `internal/parser/classes.go`
+  - **Completed**: Added Constants field to ClassDecl, implemented parseClassConstantDeclaration
 
-- [ ] 9.21 Validate class constants in semantic analysis
+- [x] 9.21 Validate class constants in semantic analysis ✅
   - **Task**: Type-check constant values and prevent redeclaration
   - **Implementation**:
     - Validate constant value is compile-time constant
@@ -331,10 +331,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Enforce visibility rules
     - Store constants in class metadata
   - **Test**: Invalid class constants fail semantic analysis
-  - **Files**: `internal/semantic/analyze_classes.go`
-  - **Estimated time**: 1 day
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/types/types.go`
+  - **Completed**: Added Constants/ConstantVisibility to ClassType, validates duplicate names
 
-- [ ] 9.22 Implement class constant evaluation
+- [x] 9.22 Implement class constant evaluation ✅
   - **Task**: Access class constants via type name or instance
   - **Implementation**:
     - Handle `TClass.ConstName` access
@@ -342,8 +342,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Return constant value from class metadata
     - Enforce visibility (private constants not accessible outside class)
   - **Test**: `PrintLn(TBase.cPublic)` outputs constant value
-  - **Files**: `internal/interp/objects.go`, `internal/interp/expressions.go`
-  - **Estimated time**: 1-2 days
+  - **Files**: `internal/interp/objects.go`, `internal/interp/class.go`, `internal/interp/declarations.go`
+  - **Completed**: Implemented getClassConstant, added constant lookup in evalMemberAccess
+  - **Note**: Simple constants work. Constant dependencies (c2 = c1+1) need additional debugging.
 
 **Milestone**: Class constants complete, ~38 additional tests should pass
 

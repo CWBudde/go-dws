@@ -226,6 +226,52 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 	}
 
+	// Register class constants (Task 9.20-9.22)
+	// Evaluate constants eagerly in order so they can reference earlier constants
+	for _, constDecl := range cd.Constants {
+		if constDecl == nil {
+			continue
+		}
+		// Store the constant declaration
+		classInfo.Constants[constDecl.Name.Value] = constDecl
+
+		// Evaluate the constant value immediately
+		// Create temporary environment with previously evaluated constants
+		savedEnv := i.env
+		tempEnv := NewEnclosedEnvironment(i.env)
+		for cName, cValue := range classInfo.ConstantValues {
+			tempEnv.Set(cName, cValue)
+		}
+		i.env = tempEnv
+
+		constValue := i.Eval(constDecl.Value)
+		i.env = savedEnv
+
+		if isError(constValue) {
+			return constValue
+		}
+
+		// Cache the evaluated value
+		classInfo.ConstantValues[constDecl.Name.Value] = constValue
+	}
+
+	// Copy parent constants (child inherits all parent constants)
+	if classInfo.Parent != nil {
+		for constName, constDecl := range classInfo.Parent.Constants {
+			// Only copy if not already defined in child class
+			if _, exists := classInfo.Constants[constName]; !exists {
+				classInfo.Constants[constName] = constDecl
+			}
+		}
+		// Also copy parent constant values
+		for constName, constValue := range classInfo.Parent.ConstantValues {
+			// Only copy if not already defined in child class
+			if _, exists := classInfo.ConstantValues[constName]; !exists {
+				classInfo.ConstantValues[constName] = constValue
+			}
+		}
+	}
+
 	// Register class operators (Stage 8)
 	for _, opDecl := range cd.Operators {
 		if opDecl == nil {
