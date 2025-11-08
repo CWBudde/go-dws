@@ -597,3 +597,35 @@ func (i *Interpreter) builtinChr(args []Value) Value {
 	// Convert to rune and then to string
 	return &StringValue{Value: string(rune(intVal.Value))}
 }
+
+// builtinIntToHex implements the IntToHex() built-in function.
+// It converts an integer to a hexadecimal string with specified minimum number of digits.
+// IntToHex(value: Integer, digits: Integer): String
+func (i *Interpreter) builtinIntToHex(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "IntToHex() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument must be Integer (the value to convert)
+	intVal, ok := args[0].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "IntToHex() first argument must be Integer, got %s", args[0].Type())
+	}
+
+	// Second argument must be Integer (minimum number of digits)
+	digitsVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "IntToHex() second argument must be Integer, got %s", args[1].Type())
+	}
+
+	// Convert to hexadecimal string with uppercase letters
+	hexStr := fmt.Sprintf("%X", uint64(intVal.Value))
+
+	// Pad with zeros if necessary to reach minimum digit count
+	if digitsVal.Value > 0 && int64(len(hexStr)) < digitsVal.Value {
+		// Pad with leading zeros
+		hexStr = strings.Repeat("0", int(digitsVal.Value)-len(hexStr)) + hexStr
+	}
+
+	return &StringValue{Value: hexStr}
+}

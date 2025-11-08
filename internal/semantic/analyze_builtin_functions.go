@@ -31,6 +31,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeIntToStr(args, callExpr), true
 	case "inttobin":
 		return a.analyzeIntToBin(args, callExpr), true
+	case "inttohex":
+		return a.analyzeIntToHex(args, callExpr), true
 	case "strtoint":
 		return a.analyzeStrToInt(args, callExpr), true
 	case "booltostr":

@@ -635,13 +635,14 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Impact**: Fixes 4 tests
   - **Completed**: Added Chr() function with Unicode support (0-1114111)
 
-- [ ] 9.84 Implement IntToHex() built-in
+- [x] 9.84 Implement IntToHex() built-in
   - **Task**: Convert integer to hexadecimal string
   - **Implementation**: Add IntToHex(value: Integer, digits: Integer) → String
   - **Test**: IntToHex(255, 2) returns 'FF'
-  - **Files**: `internal/interp/builtins_string.go`
+  - **Files**: `internal/interp/builtins_strings.go`, `internal/interp/functions.go`, `internal/semantic/analyze_builtin_functions.go`, `internal/semantic/analyze_builtin_convert.go`
   - **Estimated time**: 0.5 day
   - **Impact**: Fixes 8 tests
+  - **Completed**: Added IntToHex() with padding support
 
 - [ ] 9.85 Implement Swap() built-in
   - **Task**: Swap two variables

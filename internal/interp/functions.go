@@ -512,6 +512,8 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinIntToStr(args)
 	case "IntToBin":
 		return i.builtinIntToBin(args)
+	case "IntToHex":
+		return i.builtinIntToHex(args)
 	case "StrToInt":
 		return i.builtinStrToInt(args)
 	case "FloatToStr":
