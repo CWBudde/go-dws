@@ -25,6 +25,12 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (types.Typ
 		return a.resolveArrayTypeNode(arrayNode)
 	}
 
+	// Handle ClassOfTypeNode directly
+	// Task 9.71: Support metaclass type resolution
+	if classOfNode, ok := typeExpr.(*ast.ClassOfTypeNode); ok {
+		return a.resolveClassOfTypeNode(classOfNode)
+	}
+
 	// For other type expressions, fall back to string-based resolution
 	typeName := getTypeExpressionName(typeExpr)
 	return a.resolveType(typeName)
@@ -784,4 +790,34 @@ func (a *Analyzer) getMethodOwner(class *types.ClassType, methodName string) *ty
 
 	// Check parent classes
 	return a.getMethodOwner(class.Parent, methodName)
+}
+
+// resolveClassOfTypeNode resolves a ClassOfTypeNode to a ClassOfType.
+//
+// A metaclass type "class of TMyClass" is a type that holds a reference to
+// a class type itself, not an instance.
+//
+// Task 9.71: Metaclass type resolution
+func (a *Analyzer) resolveClassOfTypeNode(classOfNode *ast.ClassOfTypeNode) (types.Type, error) {
+	if classOfNode == nil {
+		return nil, fmt.Errorf("nil class of type node")
+	}
+
+	// Resolve the underlying class type
+	classTypeName := getTypeExpressionName(classOfNode.ClassType)
+	classType, err := a.resolveType(classTypeName)
+	if err != nil {
+		return nil, fmt.Errorf("unknown class type '%s' in metaclass declaration: %w", classTypeName, err)
+	}
+
+	// Verify that it's actually a class type
+	concreteClassType, ok := classType.(*types.ClassType)
+	if !ok {
+		return nil, fmt.Errorf("'%s' is not a class type, cannot create metaclass 'class of %s'", classTypeName, classTypeName)
+	}
+
+	// Create and return the metaclass type
+	return &types.ClassOfType{
+		ClassType: concreteClassType,
+	}, nil
 }

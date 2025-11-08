@@ -122,6 +122,7 @@ type (
 	ArrayTypeAnnotation     = pkgast.ArrayTypeAnnotation
 	ArrayTypeNode           = pkgast.ArrayTypeNode
 	SetTypeNode             = pkgast.SetTypeNode
+	ClassOfTypeNode         = pkgast.ClassOfTypeNode
 	FunctionPointerTypeNode = pkgast.FunctionPointerTypeNode
 	TypeDeclaration         = pkgast.TypeDeclaration
 )

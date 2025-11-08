@@ -288,6 +288,14 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 				Name:       te.String(), // Use the full set type signature as the type name
 				InlineType: te,          // Store the AST node for semantic analyzer
 			}
+		case *ast.ClassOfTypeNode:
+			// For metaclass types, we create a synthetic TypeAnnotation
+			// Task 9.70: Support metaclass type in var declarations
+			stmt.Type = &ast.TypeAnnotation{
+				Token:      te.Token,
+				Name:       te.String(), // Use the full metaclass type signature as the type name
+				InlineType: te,          // Store the AST node for semantic analyzer
+			}
 		default:
 			p.addError("unsupported type expression in var declaration", ErrInvalidType)
 			return stmt

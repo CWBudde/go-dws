@@ -19,6 +19,7 @@ var (
 	_ TypeExpression = (*FunctionPointerTypeNode)(nil)
 	_ TypeExpression = (*ArrayTypeNode)(nil)
 	_ TypeExpression = (*SetTypeNode)(nil)
+	_ TypeExpression = (*ClassOfTypeNode)(nil)
 )
 
 // ArrayTypeNode represents an array type in inline type expressions.
@@ -135,3 +136,55 @@ func (st *SetTypeNode) End() token.Position {
 
 // typeExpressionNode marks this as a type expression
 func (st *SetTypeNode) typeExpressionNode() {}
+
+// ClassOfTypeNode represents a metaclass type in inline type expressions.
+// A metaclass type is a reference to a class type itself, not an instance.
+//
+// Examples:
+//   - class of TMyClass (metaclass/class reference type)
+//   - class of TObject (metaclass of base class)
+//
+// Usage:
+//   var cls: class of TMyClass;  // cls holds a reference to a class type
+//   cls := TMyClass;              // assign class reference
+//   cls := TDerivedClass;         // can assign derived class
+//   obj := cls.Create;            // call constructor through metaclass
+//
+// Task 9.70: Added to support metaclass type syntax
+type ClassOfTypeNode struct {
+	Token     token.Token    // The 'class' token
+	ClassType TypeExpression // The class type (typically a TypeAnnotation)
+	EndPos    token.Position
+}
+
+// String returns a string representation of the metaclass type.
+func (ct *ClassOfTypeNode) String() string {
+	if ct == nil || ct.ClassType == nil {
+		return "class of <invalid>"
+	}
+	return "class of " + ct.ClassType.String()
+}
+
+// TokenLiteral returns the literal value of the token.
+func (ct *ClassOfTypeNode) TokenLiteral() string {
+	return ct.Token.Literal
+}
+
+// Pos returns the position of the node in the source code.
+func (ct *ClassOfTypeNode) Pos() token.Position {
+	return ct.Token.Pos
+}
+
+// End returns the end position of the node in the source code.
+func (ct *ClassOfTypeNode) End() token.Position {
+	if ct.EndPos.Line != 0 {
+		return ct.EndPos
+	}
+	if ct.ClassType != nil {
+		return ct.ClassType.End()
+	}
+	return ct.Token.Pos
+}
+
+// typeExpressionNode marks this as a type expression
+func (ct *ClassOfTypeNode) typeExpressionNode() {}

@@ -57,6 +57,11 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 		// Task 9.213: Parse inline set type expressions
 		return p.parseSetType()
 
+	case lexer.CLASS:
+		// Metaclass type: class of ClassName
+		// Task 9.70: Parse metaclass type syntax
+		return p.parseClassOfType()
+
 	default:
 		p.addError("expected type expression, got "+p.curToken.Literal, ErrExpectedType)
 		return nil
@@ -418,4 +423,45 @@ func (p *Parser) parseArrayBound() ast.Expression {
 	// - Identifiers: size
 	// - Binary expressions: size - 1
 	return p.parseExpression(LOWEST)
+}
+
+// parseClassOfType parses a metaclass type expression.
+//
+// Syntax:
+//   class of ClassName
+//
+// Examples:
+//   class of TMyClass
+//   class of TObject
+//
+// Current token should be CLASS.
+//
+// Task 9.70: Parse metaclass type syntax
+func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
+	classToken := p.curToken // The 'class' token
+
+	// Expect 'of' keyword
+	if !p.expectPeek(lexer.OF) {
+		p.addError("expected 'of' after 'class' in metaclass type", ErrMissingOf)
+		return nil
+	}
+
+	// Parse class type (typically a simple identifier like TMyClass)
+	p.nextToken() // move to class type
+
+	classType := p.parseTypeExpression()
+	if classType == nil {
+		p.addError("expected class type after 'class of'", ErrExpectedType)
+		return nil
+	}
+
+	classOfNode := &ast.ClassOfTypeNode{
+		Token:     classToken,
+		ClassType: classType,
+	}
+
+	// EndPos is after the class type
+	classOfNode.EndPos = classType.End()
+
+	return classOfNode
 }
