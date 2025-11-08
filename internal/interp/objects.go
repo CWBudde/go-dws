@@ -1717,6 +1717,90 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			mc.Method.Value, len(method.Parameters), len(args))
 	}
 
+	// Task 9.4.3 & 9.73.3: Special handling for virtual constructors called on instances
+	// When calling a constructor on an instance (o.Create), create a NEW instance
+	// of the object's runtime type using virtual dispatch
+	if method.IsConstructor {
+		// For virtual constructor dispatch, find the constructor in the object's runtime class
+		// Start from the runtime class and work up the hierarchy to find the most derived constructor
+		actualConstructor := method  // fallback to the already-resolved method
+		actualClass := obj.Class
+
+		// Try to find a constructor with the same name in the runtime class hierarchy
+		// This implements virtual dispatch - we start from the most derived class
+		constructorName := mc.Method.Value
+		for class := obj.Class; class != nil; class = class.Parent {
+			// Check if this class has the constructor (case-sensitive match first)
+			if ctor, exists := class.Constructors[constructorName]; exists {
+				actualConstructor = ctor
+				actualClass = class
+				break
+			}
+			// Case-insensitive fallback
+			for name, ctor := range class.Constructors {
+				if strings.EqualFold(name, constructorName) {
+					actualConstructor = ctor
+					actualClass = class
+					break
+				}
+			}
+			if actualConstructor != method {
+				break  // Found a constructor
+			}
+		}
+
+		// Create a NEW instance of the runtime class (not the existing object)
+		newObj := NewObjectInstance(actualClass)
+
+		// Initialize all fields with default values
+		for fieldName, fieldType := range actualClass.Fields {
+			var defaultValue Value
+			switch fieldType {
+			case types.INTEGER:
+				defaultValue = &IntegerValue{Value: 0}
+			case types.FLOAT:
+				defaultValue = &FloatValue{Value: 0.0}
+			case types.STRING:
+				defaultValue = &StringValue{Value: ""}
+			case types.BOOLEAN:
+				defaultValue = &BooleanValue{Value: false}
+			default:
+				defaultValue = &NilValue{}
+			}
+			newObj.SetField(fieldName, defaultValue)
+		}
+
+		// Create method environment with Self bound to NEW object
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+		i.env.Define("Self", newObj)
+
+		// Bind method parameters to arguments
+		for idx, param := range actualConstructor.Parameters {
+			arg := args[idx]
+			if param.Type != nil {
+				paramTypeName := param.Type.Name
+				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+					arg = converted
+				}
+			}
+			i.env.Define(param.Name.Value, arg)
+		}
+
+		// Execute constructor body
+		result := i.Eval(actualConstructor.Body)
+		if isError(result) {
+			i.env = savedEnv
+			return result
+		}
+
+		// Restore environment and return the NEW object
+		i.env = savedEnv
+		return newObj
+	}
+
+	// Normal method call (not a constructor)
 	// Create method environment with Self bound to object
 	methodEnv := NewEnclosedEnvironment(i.env)
 	savedEnv := i.env

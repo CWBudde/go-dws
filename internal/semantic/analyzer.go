@@ -410,7 +410,23 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 	if from.TypeKind() == "INTERFACE" && to.TypeKind() == "NIL" {
 		return true
 	}
+	// Task 9.73.1: Allow assigning nil to metaclass types
+	if from.TypeKind() == "NIL" && to.TypeKind() == "CLASS_OF" {
+		return true
+	}
+	if from.TypeKind() == "CLASS_OF" && to.TypeKind() == "NIL" {
+		return true
+	}
 	if fromClass, ok := from.(*types.ClassType); ok {
+		// Task 9.73.1: Allow assigning a class reference to a metaclass variable
+		// When a class name is used as a value (e.g., TClassB), it's represented as a ClassType
+		// and can be assigned to a variable of type "class of TBase" if it's compatible
+		if toMetaclass, ok := to.(*types.ClassOfType); ok {
+			// Check if fromClass is the same as or a descendant of the base class
+			if fromClass.Equals(toMetaclass.ClassType) || a.isDescendantOf(fromClass, toMetaclass.ClassType) {
+				return true
+			}
+		}
 		if toClass, ok := to.(*types.ClassType); ok {
 			if fromClass.Equals(toClass) || a.isDescendantOf(fromClass, toClass) {
 				return true
