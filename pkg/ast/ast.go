@@ -424,6 +424,80 @@ func (nl *NilLiteral) End() token.Position {
 func (nl *NilLiteral) GetType() *TypeAnnotation    { return nl.Type }
 func (nl *NilLiteral) SetType(typ *TypeAnnotation) { nl.Type = typ }
 
+// AsExpression represents a type cast operation using the 'as' operator.
+// Example: obj as IMyInterface
+// This operator casts an object to an interface type, creating an InterfaceInstance
+// wrapper at runtime. The semantic analyzer validates that the object's class
+// implements the target interface.
+type AsExpression struct {
+	Left       Expression     // The object being cast
+	TargetType TypeExpression // The target interface type
+	Type       *TypeAnnotation // Resolved type (will be the interface type)
+	Token      token.Token    // The 'as' token
+	EndPos     token.Position
+}
+
+func (ae *AsExpression) expressionNode()      {}
+func (ae *AsExpression) TokenLiteral() string { return ae.Token.Literal }
+func (ae *AsExpression) Pos() token.Position  { return ae.Left.Pos() }
+func (ae *AsExpression) End() token.Position {
+	if ae.EndPos.Line != 0 {
+		return ae.EndPos
+	}
+	if ae.TargetType != nil {
+		return ae.TargetType.End()
+	}
+	return ae.Token.Pos
+}
+func (ae *AsExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("(")
+	out.WriteString(ae.Left.String())
+	out.WriteString(" as ")
+	out.WriteString(ae.TargetType.String())
+	out.WriteString(")")
+	return out.String()
+}
+func (ae *AsExpression) GetType() *TypeAnnotation    { return ae.Type }
+func (ae *AsExpression) SetType(typ *TypeAnnotation) { ae.Type = typ }
+
+// ImplementsExpression represents the 'implements' operator.
+// Example: obj implements IMyInterface  -> Boolean
+// This operator checks whether an object's class implements a given interface.
+// Can be used at compile-time (TClass implements IInterface) or runtime
+// (objInstance implements IInterface).
+type ImplementsExpression struct {
+	Left       Expression     // The object or class being checked
+	TargetType TypeExpression // The interface type to check against
+	Type       *TypeAnnotation // Always resolves to Boolean
+	Token      token.Token    // The 'implements' token
+	EndPos     token.Position
+}
+
+func (ie *ImplementsExpression) expressionNode()      {}
+func (ie *ImplementsExpression) TokenLiteral() string { return ie.Token.Literal }
+func (ie *ImplementsExpression) Pos() token.Position  { return ie.Left.Pos() }
+func (ie *ImplementsExpression) End() token.Position {
+	if ie.EndPos.Line != 0 {
+		return ie.EndPos
+	}
+	if ie.TargetType != nil {
+		return ie.TargetType.End()
+	}
+	return ie.Token.Pos
+}
+func (ie *ImplementsExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("(")
+	out.WriteString(ie.Left.String())
+	out.WriteString(" implements ")
+	out.WriteString(ie.TargetType.String())
+	out.WriteString(")")
+	return out.String()
+}
+func (ie *ImplementsExpression) GetType() *TypeAnnotation    { return ie.Type }
+func (ie *ImplementsExpression) SetType(typ *TypeAnnotation) { ie.Type = typ }
+
 // BlockStatement represents a block of statements (begin...end).
 type BlockStatement struct {
 	Statements []Statement

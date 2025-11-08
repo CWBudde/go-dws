@@ -58,6 +58,8 @@ type (
 	LambdaExpression        = pkgast.LambdaExpression
 	AddressOfExpression     = pkgast.AddressOfExpression
 	OldExpression           = pkgast.OldExpression
+	AsExpression            = pkgast.AsExpression
+	ImplementsExpression    = pkgast.ImplementsExpression
 )
 
 // Statements

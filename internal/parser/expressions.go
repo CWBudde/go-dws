@@ -1118,3 +1118,61 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 
 	return postConditions
 }
+
+// parseAsExpression parses the 'as' type casting operator.
+// Example: obj as IMyInterface
+// This creates an AsExpression AST node that will be evaluated at runtime
+// to wrap an object instance in an InterfaceInstance.
+func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
+	expression := &ast.AsExpression{
+		Token: p.curToken, // The 'as' token
+		Left:  left,
+	}
+
+	precedence := p.curPrecedence()
+	p.nextToken()
+
+	// Parse the target type (should be an interface type)
+	expression.TargetType = p.parseTypeExpression()
+	if expression.TargetType == nil {
+		p.addError("expected type after 'as' operator", ErrExpectedType)
+		return expression
+	}
+
+	// Set end position based on the target type
+	expression.EndPos = expression.TargetType.End()
+
+	// Avoid unused variable warning
+	_ = precedence
+
+	return expression
+}
+
+// parseImplementsExpression parses the 'implements' operator.
+// Example: obj implements IMyInterface  -> Boolean
+// This creates an ImplementsExpression AST node that will be evaluated
+// to check whether the object's class implements the interface.
+func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
+	expression := &ast.ImplementsExpression{
+		Token: p.curToken, // The 'implements' token
+		Left:  left,
+	}
+
+	precedence := p.curPrecedence()
+	p.nextToken()
+
+	// Parse the target type (should be an interface type)
+	expression.TargetType = p.parseTypeExpression()
+	if expression.TargetType == nil {
+		p.addError("expected type after 'implements' operator", ErrExpectedType)
+		return expression
+	}
+
+	// Set end position based on the target type
+	expression.EndPos = expression.TargetType.End()
+
+	// Avoid unused variable warning
+	_ = precedence
+
+	return expression
+}

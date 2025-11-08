@@ -362,6 +362,14 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		// Evaluate lambda expression to create closure
 		return i.evalLambdaExpression(node)
 
+	case *ast.AsExpression:
+		// Task 9.48: Evaluate 'as' type casting operator
+		return i.evalAsExpression(node)
+
+	case *ast.ImplementsExpression:
+		// Task 9.48: Evaluate 'implements' interface checking operator
+		return i.evalImplementsExpression(node)
+
 	case *ast.OldExpression:
 		// Evaluate 'old' expressions in postconditions
 		identName := node.Identifier.Value
