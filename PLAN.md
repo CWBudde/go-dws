@@ -606,13 +606,14 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Impact**: Fixes 11 tests
   - **Completed**: Changed BooleanValue.String() to return "True"/"False"
 
-- [ ] 9.81 Implement SAR operator
+- [x] 9.81 Implement SAR operator
   - **Task**: Arithmetic shift right (sign-preserving)
   - **Implementation**: Add SAR token and operator evaluation
   - **Test**: `x sar 2` performs arithmetic right shift
-  - **Files**: `internal/parser/expression.go`, `internal/interp/expressions.go`
+  - **Files**: `internal/parser/parser.go`, `internal/interp/expressions.go`, `internal/semantic/analyze_expr_operators.go`
   - **Estimated time**: 0.5 day
   - **Impact**: Fixes 1 test
+  - **Completed**: Added SAR operator with precedence, parsing, and evaluation support
 
 #### Critical Built-ins (High impact, 3-4 days)
 
