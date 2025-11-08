@@ -135,6 +135,33 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		}
 	}
 
+	// Analyze and add constants (Task 9.21)
+	constantNames := make(map[string]bool)
+	for _, constant := range decl.Constants {
+		constantName := constant.Name.Value
+
+		// Check for duplicate constant names
+		if constantNames[constantName] {
+			a.addError("duplicate constant '%s' in class '%s' at %s",
+				constantName, className, constant.Token.Pos.String())
+			continue
+		}
+		constantNames[constantName] = true
+
+		// Validate constant value is a compile-time constant expression
+		// For now, we accept any expression and will evaluate it later
+		// In a full implementation, we'd check if the expression is constant
+		// (literals, other constants, or constant expressions)
+
+		// Store constant visibility
+		classType.ConstantVisibility[constantName] = int(constant.Visibility)
+
+		// Note: We don't evaluate the constant value here during semantic analysis.
+		// The constant values will be evaluated at runtime when accessed.
+		// We just mark that this constant exists.
+		classType.Constants[constantName] = nil // Placeholder; actual value evaluated at runtime
+	}
+
 	// Register class before analyzing methods (so methods can reference the class)
 	// Task 9.285: Use lowercase for case-insensitive lookup
 	a.classes[strings.ToLower(className)] = classType
@@ -1076,6 +1103,15 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	_, helperProp := a.hasHelperProperty(objectType, memberName)
 	if helperProp != nil {
 		return helperProp.Type
+	}
+
+	// Task 9.22: Check for class constants
+	if _, found := classType.Constants[memberName]; found {
+		// The constant exists, we accept it
+		// We don't know its exact type at compile time since it's evaluated at runtime
+		// For now, return VARIANT to indicate it's valid but type is determined at runtime
+		// In a full implementation, we'd analyze the constant expression to determine type
+		return types.VARIANT // Accept any type for constants
 	}
 
 	// Member not found

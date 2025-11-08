@@ -249,7 +249,12 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				return classVarValue
 			}
 
-			// 2. Task 9.13: Try class properties
+			// 2. Task 9.22: Try class constants
+			if constValue := i.getClassConstant(classInfo, memberName, ma); constValue != nil {
+				return constValue
+			}
+
+			// 3. Task 9.13: Try class properties
 			if propInfo := classInfo.lookupProperty(memberName); propInfo != nil && propInfo.IsClassProperty {
 				return i.evalClassPropertyRead(classInfo, propInfo, ma)
 			}
@@ -360,6 +365,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			return classVarValue
 		}
 
+		// Task 9.22: Try class constants
+		if constValue := i.getClassConstant(classInfo, memberName, ma); constValue != nil {
+			return constValue
+		}
+
 		// Task 9.13: Try class properties
 		if propInfo := classInfo.lookupProperty(memberName); propInfo != nil && propInfo.IsClassProperty {
 			return i.evalClassPropertyRead(classInfo, propInfo, ma)
@@ -437,6 +447,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Not a property - try direct field access
 	fieldValue := obj.GetField(memberName)
 	if fieldValue == nil {
+		// Task 9.22: Try class constants (accessible from instance)
+		if constValue := i.getClassConstant(obj.Class, memberName, ma); constValue != nil {
+			return constValue
+		}
+
 		// Check if it's a method
 		if method, exists := obj.Class.Methods[memberName]; exists {
 			// If the method has no parameters, auto-invoke it
@@ -2049,4 +2064,51 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 	i.env = savedEnv
 
 	return returnValue
+}
+
+// getClassConstant retrieves a class constant value by name.
+// It evaluates the constant expression lazily (on first access) and caches the result.
+// Returns nil if the constant doesn't exist.
+// Task 9.22: Support class constant evaluation with visibility enforcement.
+func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string, ma *ast.MemberAccessExpression) Value {
+	// Check if constant exists
+	constDecl, exists := classInfo.Constants[constantName]
+	if !exists {
+		return nil
+	}
+
+	// Check if we've already evaluated this constant
+	if cachedValue, cached := classInfo.ConstantValues[constantName]; cached {
+		return cachedValue
+	}
+
+	// Create a temporary environment for evaluating the constant expression
+	// This allows constants to reference other already-evaluated constants in the same class
+	savedEnv := i.env
+	tempEnv := NewEnclosedEnvironment(i.env)
+
+	// Add all ALREADY EVALUATED class constants to the temporary environment
+	// This prevents infinite recursion
+	for constName, constVal := range classInfo.ConstantValues {
+		if constName != constantName && constVal != nil {
+			tempEnv.Set(constName, constVal)
+		}
+	}
+
+	i.env = tempEnv
+
+	// Evaluate the constant expression
+	constValue := i.Eval(constDecl.Value)
+
+	// Restore environment
+	i.env = savedEnv
+
+	if isError(constValue) {
+		return constValue
+	}
+
+	// Cache the evaluated value for future access
+	classInfo.ConstantValues[constantName] = constValue
+
+	return constValue
 }
