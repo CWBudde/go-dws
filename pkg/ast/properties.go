@@ -22,15 +22,17 @@ import (
 //	property Items[index: Integer]: String read GetItem write SetItem; // Indexed
 //	property Data[x, y: Integer]: Float read GetData;                  // Multi-index, read-only
 //	property Items[i: Integer]: String read GetItem; default;          // Default property
+//	class property Version: String read GetVersion;                    // Class property (static)
 type PropertyDecl struct {
-	ReadSpec    Expression
-	WriteSpec   Expression
-	Name        *Identifier
-	Type        *TypeAnnotation
-	IndexParams []*Parameter
-	Token       token.Token
-	IsDefault   bool
-	EndPos      token.Position
+	ReadSpec        Expression
+	WriteSpec       Expression
+	Name            *Identifier
+	Type            *TypeAnnotation
+	IndexParams     []*Parameter
+	Token           token.Token
+	IsDefault       bool
+	IsClassProperty bool
+	EndPos          token.Position
 }
 
 func (p *PropertyDecl) End() token.Position {
@@ -48,7 +50,11 @@ func (pd *PropertyDecl) Pos() token.Position  { return pd.Token.Pos }
 func (pd *PropertyDecl) String() string {
 	var out bytes.Buffer
 
-	out.WriteString("property ")
+	if pd.IsClassProperty {
+		out.WriteString("class property ")
+	} else {
+		out.WriteString("property ")
+	}
 	out.WriteString(pd.Name.String())
 
 	// Indexed property: property Items[index: Integer]
