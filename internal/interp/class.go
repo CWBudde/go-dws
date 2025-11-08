@@ -253,3 +253,74 @@ func AsObject(v Value) (*ObjectInstance, bool) {
 	obj, ok := v.(*ObjectInstance)
 	return obj, ok
 }
+
+// ============================================================================
+// ClassValue - Metaclass Runtime Value
+// ============================================================================
+
+// ClassValue represents a class reference (metaclass value) at runtime.
+// In DWScript, when you write "TMyClass" in an expression, it represents
+// a reference to the class type itself, not an instance.
+//
+// Example usage:
+//   var cls: class of TAnimal;
+//   cls := TDog;              // Assign class reference
+//   obj := cls.Create;        // Call constructor through metaclass
+//
+// Task 9.72: Metaclass runtime values
+type ClassValue struct {
+	// ClassInfo points to the class metadata
+	ClassInfo *ClassInfo
+}
+
+// Type returns "CLASS" to indicate this is a class reference.
+func (c *ClassValue) Type() string {
+	return "CLASS"
+}
+
+// String returns a string representation of the class reference.
+// Format: "class TClassName"
+func (c *ClassValue) String() string {
+	if c.ClassInfo != nil {
+		return fmt.Sprintf("class %s", c.ClassInfo.Name)
+	}
+	return "class <nil>"
+}
+
+// IsAssignableTo checks if this class reference can be assigned to a variable
+// of the given metaclass type. This implements the assignment compatibility
+// rules for metaclasses.
+//
+// For example:
+// - TDog (ClassValue) can be assigned to "class of TAnimal" if TDog inherits from TAnimal
+// - TDog cannot be assigned to "class of TCat"
+//
+// Returns true if assignment is allowed, false otherwise.
+func (c *ClassValue) IsAssignableTo(targetClass *ClassInfo) bool {
+	if c.ClassInfo == nil || targetClass == nil {
+		return false
+	}
+
+	// Check if c.ClassInfo is targetClass or derives from it
+	current := c.ClassInfo
+	for current != nil {
+		if current.Name == targetClass.Name {
+			return true
+		}
+		current = current.Parent
+	}
+	return false
+}
+
+// Helper function to check if a value is a ClassValue
+func isClassValue(v Value) bool {
+	_, ok := v.(*ClassValue)
+	return ok
+}
+
+// AsClassValue attempts to cast a Value to a ClassValue.
+// Returns the ClassValue and true if successful, or nil and false if not.
+func AsClassValue(v Value) (*ClassValue, bool) {
+	cls, ok := v.(*ClassValue)
+	return cls, ok
+}

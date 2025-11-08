@@ -659,6 +659,90 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 	}
 }
 
+// ClassOfType represents a metaclass type in DWScript.
+// A metaclass type is a type that holds a reference to a class type itself,
+// not an instance of the class.
+//
+// In DWScript/Delphi, metaclass types are declared as "class of ClassName".
+// They allow:
+// - Storing class references in variables
+// - Passing class types as parameters
+// - Calling constructors polymorphically through the metaclass
+// - Virtual constructor dispatch
+//
+// Example:
+//
+//	type
+//	  TAnimalClass = class of TAnimal;
+//
+//	var
+//	  AnimalType: TAnimalClass;
+//
+//	AnimalType := TDog;      // Assign a class type
+//	obj := AnimalType.Create; // Call constructor through metaclass
+//
+// Task 9.71: Metaclass type system
+type ClassOfType struct {
+	// ClassType is the class type that this metaclass references
+	// For "class of TAnimal", this would be the TAnimal ClassType
+	ClassType *ClassType
+}
+
+// String returns the string representation of the metaclass type
+func (ct *ClassOfType) String() string {
+	if ct.ClassType != nil {
+		return fmt.Sprintf("class of %s", ct.ClassType.Name)
+	}
+	return "class of <unknown>"
+}
+
+// TypeKind returns "CLASSOF" for metaclass types
+func (ct *ClassOfType) TypeKind() string {
+	return "CLASSOF"
+}
+
+// Equals checks if two metaclass types are equal.
+// Metaclass types are equal if their underlying class types are equal.
+//
+// Assignment compatibility rules:
+// - "class of TDog" can be assigned a TDog reference
+// - "class of TAnimal" can be assigned TDog if TDog inherits from TAnimal
+// - The metaclass type determines what class types can be stored
+func (ct *ClassOfType) Equals(other Type) bool {
+	otherClassOf, ok := other.(*ClassOfType)
+	if !ok {
+		return false
+	}
+	if ct.ClassType == nil || otherClassOf.ClassType == nil {
+		return ct.ClassType == otherClassOf.ClassType
+	}
+	return ct.ClassType.Equals(otherClassOf.ClassType)
+}
+
+// IsAssignableFrom checks if a class reference can be assigned to this metaclass variable.
+// For example:
+// - "class of TAnimal" can hold TAnimal or any derived class (TDog, TCat)
+// - "class of TDog" can only hold TDog or classes derived from TDog
+//
+// This is used for type checking metaclass assignments like:
+//   var cls: class of TAnimal;
+//   cls := TDog;  // Valid if TDog derives from TAnimal
+func (ct *ClassOfType) IsAssignableFrom(classType *ClassType) bool {
+	if ct.ClassType == nil || classType == nil {
+		return false
+	}
+
+	// Check if classType is the exact type or a descendant
+	current := classType
+	for current != nil {
+		if current.Name == ct.ClassType.Name {
+			return true
+		}
+		current = current.Parent
+	}
+	return false
+}
+
 // InterfaceType represents an interface type in DWScript.
 // Interfaces define a contract of methods that implementing classes must provide.
 type InterfaceType struct {
