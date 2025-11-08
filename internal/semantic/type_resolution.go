@@ -519,6 +519,44 @@ func (a *Analyzer) hasMethodWithName(methodName string, parent *types.ClassType)
 	return a.hasMethodWithName(methodName, parent.Parent)
 }
 
+// findMatchingConstructorInParent finds a constructor overload in the parent class hierarchy
+// that matches the given signature (Task 9.4.1)
+// Note: For constructors, we only compare parameters, not return types, because derived class
+// constructors return the derived class type while parent constructors return the parent type
+func (a *Analyzer) findMatchingConstructorInParent(constructorName string, signature *types.FunctionType, parent *types.ClassType) *types.MethodInfo {
+	if parent == nil {
+		return nil
+	}
+
+	// Check constructor overloads in parent
+	overloads := parent.GetConstructorOverloads(constructorName)
+	for _, overload := range overloads {
+		// For constructors, only compare parameters (not return type)
+		if a.parametersMatch(signature, overload.Signature) {
+			return overload
+		}
+	}
+
+	// Recursively search in grandparent
+	return a.findMatchingConstructorInParent(constructorName, signature, parent.Parent)
+}
+
+// hasConstructorWithName checks if a constructor with the given name exists in parent hierarchy (Task 9.4.1)
+// Returns true if ANY overload exists, regardless of signature
+func (a *Analyzer) hasConstructorWithName(constructorName string, parent *types.ClassType) bool {
+	if parent == nil {
+		return false
+	}
+
+	// Check if any constructor overloads exist
+	if len(parent.GetConstructorOverloads(constructorName)) > 0 {
+		return true
+	}
+
+	// Recursively check grandparent
+	return a.hasConstructorWithName(constructorName, parent.Parent)
+}
+
 // getMethodOverloadsInHierarchy collects all method overloads from the class hierarchy (Task 9.61)
 // Returns all overload variants for the given method name, searching up the inheritance chain
 // Task 9.68: Also includes constructor overloads when the method name is a constructor

@@ -707,8 +707,10 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 }
 
 // validateVirtualOverride validates virtual/override method declarations (Task 9.61: Updated for overloading)
+// Task 9.4.1: Updated to support virtual/override on constructors
 func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *types.ClassType, methodType *types.FunctionType) {
 	methodName := method.Name.Value
+	isConstructor := method.IsConstructor
 
 	// If method is marked override, validate parent has virtual method with matching signature
 	if method.IsOverride {
@@ -717,21 +719,34 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 			return
 		}
 
-		// Task 9.61: Find matching overload in parent class hierarchy
-		parentOverload := a.findMatchingOverloadInParent(methodName, methodType, classType.Parent)
+		// Task 9.4.1: Find matching overload in parent class hierarchy (check both methods and constructors)
+		var parentOverload *types.MethodInfo
+		if isConstructor {
+			parentOverload = a.findMatchingConstructorInParent(methodName, methodType, classType.Parent)
+		} else {
+			parentOverload = a.findMatchingOverloadInParent(methodName, methodType, classType.Parent)
+		}
+
 		if parentOverload == nil {
-			// Check if method with this name exists at all
-			if a.hasMethodWithName(methodName, classType.Parent) {
-				// Method name exists but signature doesn't match any parent overload
+			// Check if method/constructor with this name exists at all
+			var hasParentMember bool
+			if isConstructor {
+				hasParentMember = a.hasConstructorWithName(methodName, classType.Parent)
+			} else {
+				hasParentMember = a.hasMethodWithName(methodName, classType.Parent)
+			}
+
+			if hasParentMember {
+				// Method/constructor name exists but signature doesn't match any parent overload
 				a.addError("method '%s' marked as override, but no matching signature exists in parent class", methodName)
 			} else {
-				// Method name doesn't exist at all in parent
+				// Method/constructor name doesn't exist at all in parent
 				a.addError("method '%s' marked as override, but no such method exists in parent class", methodName)
 			}
 			return
 		}
 
-		// Check that parent method is virtual, override, or abstract (Task 9.81)
+		// Check that parent method/constructor is virtual, override, or abstract (Task 9.81)
 		// Abstract methods are implicitly virtual and can be overridden
 		if !parentOverload.IsVirtual && !parentOverload.IsOverride && !parentOverload.IsAbstract {
 			a.addError("method '%s' marked as override, but parent method is not virtual", methodName)
@@ -739,8 +754,13 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 		}
 
 		// Task 9.61.4: Add hint if override is part of an overload set but doesn't have overload directive
-		// Check if there are other overloads of this method in the current class
-		currentOverloads := classType.GetMethodOverloads(methodName)
+		// Check if there are other overloads of this method/constructor in the current class
+		var currentOverloads []*types.MethodInfo
+		if isConstructor {
+			currentOverloads = classType.GetConstructorOverloads(methodName)
+		} else {
+			currentOverloads = classType.GetMethodOverloads(methodName)
+		}
 		if len(currentOverloads) > 1 && !method.IsOverload {
 			a.addHint("Overloaded method \"%s\" should be marked with the \"overload\" directive at %s",
 				methodName, method.Token.Pos.String())
@@ -748,9 +768,16 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 	}
 
 	// Warn if redefining virtual method without override keyword
+	// Note: Constructors can be marked as virtual, so this check applies to both methods and constructors
 	if !method.IsOverride && !method.IsVirtual && classType.Parent != nil {
-		// Task 9.61: Check if any parent overload with matching signature is virtual
-		parentOverload := a.findMatchingOverloadInParent(methodName, methodType, classType.Parent)
+		// Task 9.4.1: Check if any parent overload with matching signature is virtual
+		var parentOverload *types.MethodInfo
+		if isConstructor {
+			parentOverload = a.findMatchingConstructorInParent(methodName, methodType, classType.Parent)
+		} else {
+			parentOverload = a.findMatchingOverloadInParent(methodName, methodType, classType.Parent)
+		}
+
 		if parentOverload != nil && (parentOverload.IsVirtual || parentOverload.IsOverride) {
 			a.addError("method '%s' hides virtual parent method; use 'override' keyword", methodName)
 		}
@@ -992,6 +1019,25 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Handle record type field access
 	if _, ok := objectType.(*types.RecordType); ok {
 		return a.analyzeRecordFieldAccess(expr.Object, memberName)
+	}
+
+	// Task 9.73.2: Handle metaclass type (class of T) - allows calling constructors through metaclass
+	if metaclassType, ok := objectType.(*types.ClassOfType); ok {
+		// For metaclass types, we can access constructors of the base class
+		// Example: var cls: class of TBase; obj := cls.Create;
+		baseClass := metaclassType.ClassType
+		if baseClass != nil {
+			// Check if member is a constructor of the base class
+			constructorOverloads := baseClass.GetConstructorOverloads(memberName)
+			if len(constructorOverloads) > 0 {
+				// Return the base class type (since constructor creates instance of base class)
+				// The actual runtime type will be determined by the metaclass value
+				// Note: This is a simplified type - at runtime, the actual constructor signature
+				// will be resolved based on the arguments
+				return baseClass
+			}
+		}
+		// If not a constructor, fall through to helper check
 	}
 
 	// Handle class type

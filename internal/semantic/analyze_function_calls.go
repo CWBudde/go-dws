@@ -39,6 +39,14 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return a.analyzeConstructorCall(expr, classType, memberAccess.Member.Value)
 		}
 
+		// Task 9.73.2: Check if the object is a ClassOfType (metaclass variable)
+		if metaclassType, isMetaclassType := objectType.(*types.ClassOfType); isMetaclassType {
+			// This is a constructor call through a metaclass variable like cls.Create(args)
+			// where cls is of type "class of TBase"
+			// The constructor creates an instance of the base class (or its descendants at runtime)
+			return a.analyzeConstructorCall(expr, metaclassType.ClassType, memberAccess.Member.Value)
+		}
+
 		// Not a constructor call - analyze as normal method call
 		// Analyze the member access to get the method type
 		methodType := a.analyzeMemberAccessExpression(memberAccess)
