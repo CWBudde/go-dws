@@ -1026,13 +1026,17 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Check if object is a class or record type
 	memberName := expr.Member.Value
 
+	// Task 9.73.5: Resolve type aliases to get the underlying type
+	// This allows member access on type alias variables like TBaseClass
+	objectTypeResolved := types.GetUnderlyingType(objectType)
+
 	// Handle record type field access
-	if _, ok := objectType.(*types.RecordType); ok {
+	if _, ok := objectTypeResolved.(*types.RecordType); ok {
 		return a.analyzeRecordFieldAccess(expr.Object, memberName)
 	}
 
 	// Task 9.73.2: Handle metaclass type (class of T) - allows calling constructors through metaclass
-	if metaclassType, ok := objectType.(*types.ClassOfType); ok {
+	if metaclassType, ok := objectTypeResolved.(*types.ClassOfType); ok {
 		// For metaclass types, we can access constructors of the base class
 		// Example: var cls: class of TBase; obj := cls.Create;
 		baseClass := metaclassType.ClassType
@@ -1051,7 +1055,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	}
 
 	// Handle class type
-	classType, ok := objectType.(*types.ClassType)
+	classType, ok := objectTypeResolved.(*types.ClassType)
 	if !ok {
 		// Task 9.83: For non-class/record types (like String, Integer), check helpers
 		// Prefer helper properties before methods so that property-style access

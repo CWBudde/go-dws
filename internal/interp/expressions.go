@@ -175,10 +175,12 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 	// Task 9.68: Check if this is a class name identifier
 	// Class names can be used in expressions like TObj.Create or new TObj
 	// DWScript is case-insensitive, so we need to search all classes
+	// Task 9.73.5: Return ClassValue (metaclass reference) instead of ClassInfoValue
 	for className, classInfo := range i.classes {
 		if strings.EqualFold(className, node.Value) {
-			// Return a ClassInfoValue to indicate this is a class type identifier
-			return &ClassInfoValue{ClassInfo: classInfo}
+			// Return a ClassValue to represent a metaclass reference
+			// This allows assignments like: var meta: class of TBase; meta := TBase;
+			return &ClassValue{ClassInfo: classInfo}
 		}
 	}
 

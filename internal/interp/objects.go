@@ -368,8 +368,15 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 	// Task 9.68: Check if it's a ClassInfoValue (class type identifier)
 	// This handles cases like TObj.Create where TObj was evaluated to a ClassInfoValue
+	// Task 9.73.5: Also check for ClassValue (metaclass reference)
+	var classInfo *ClassInfo
 	if classInfoVal, ok := objVal.(*ClassInfoValue); ok {
-		classInfo := classInfoVal.ClassInfo
+		classInfo = classInfoVal.ClassInfo
+	} else if classVal, ok := objVal.(*ClassValue); ok {
+		classInfo = classVal.ClassInfo
+	}
+
+	if classInfo != nil {
 		memberName := ma.Member.Value
 
 		// Try class variables first

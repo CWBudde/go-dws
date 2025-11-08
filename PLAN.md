@@ -722,26 +722,26 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
   **Subtasks to Fix Blockers** (see Tasks 9.73.4-9.73.7 below)
 
-- [ ] 9.73.4 **CRITICAL**: Fix parser to handle metaclass type aliases ⚠️ NEW
+- [x] 9.73.4 **CRITICAL**: Fix parser to handle metaclass type aliases ✅ DONE (2025-01-08)
   - **Task**: Parse `type Name = class of BaseClass;` syntax
   - **Subtasks**:
-    - [ ] 9.73.4.1 Add AST support for metaclass type references
-    - [ ] 9.73.4.2 Update lexer if needed
-    - [ ] 9.73.4.3 Implement parser support for metaclass type aliases
-    - [ ] 9.73.4.4 Update semantic analysis for metaclass type aliases
-    - [ ] 9.73.4.5 Write parser tests
-    - [ ] 9.73.4.6 Verify fixture tests can parse
+    - [x] 9.73.4.1 Add AST support for metaclass type references (already existed in pkg/ast/type_expression.go)
+    - [x] 9.73.4.2 Update lexer if needed (OF token already existed)
+    - [x] 9.73.4.3 Implement parser support for metaclass type aliases (internal/parser/interfaces.go:91-123)
+    - [x] 9.73.4.4 Update semantic analysis for metaclass type aliases (internal/semantic/analyze_types.go:546-561)
+    - [x] 9.73.4.5 Write parser tests (internal/parser/inline_types_test.go:480-636)
+    - [x] 9.73.4.6 Verify fixture tests can parse (class_of.pas, class_of2.pas, class_of3.pas all parse)
   - **Test**: `type TBaseClass = class of TBase;` parses without error
   - **Files**: `pkg/ast/types.go`, `internal/parser/interfaces.go`, `internal/semantic/analyze_types.go`
   - **Priority**: CRITICAL - blocks all metaclass functionality
 
-- [ ] 9.73.5 **HIGH**: Fix class name identifier evaluation ⚠️ NEW
+- [x] 9.73.5 **HIGH**: Fix class name identifier evaluation ✅ DONE (2025-01-08)
   - **Task**: Return ClassValue instead of ClassInfoValue for class name identifiers
   - **Subtasks**:
-    - [ ] 9.73.5.1 Update identifier evaluation (expressions.go:178-183)
-    - [ ] 9.73.5.2 Update any code expecting ClassInfoValue
-    - [ ] 9.73.5.3 Test class name as value
-    - [ ] 9.73.5.4 Test metaclass variable assignment
+    - [x] 9.73.5.1 Update identifier evaluation (internal/interp/expressions.go:178-183)
+    - [x] 9.73.5.2 Update any code expecting ClassInfoValue (internal/interp/objects.go:369-439)
+    - [x] 9.73.5.3 Update semantic analyzer to return ClassOfType (internal/semantic/analyze_expr_operators.go:47-56)
+    - [x] 9.73.5.4 Add ClassOfType assignment checking (internal/semantic/analyzer.go:422-438)
   - **Test**: Class name identifiers return ClassValue type
   - **Files**: `internal/interp/expressions.go`
   - **Priority**: HIGH - required for metaclass functionality

@@ -47,8 +47,12 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 	sym, ok := a.symbols.Resolve(ident.Value)
 	if !ok {
 		// Task 9.285: Use lowercase for case-insensitive lookup
+		// Task 9.73.5: When a class name is used as an identifier in expressions,
+		// it should be treated as a metaclass reference (class of ClassName)
 		if classType, exists := a.classes[strings.ToLower(ident.Value)]; exists {
-			return classType
+			// Return ClassOfType (metaclass) instead of ClassType
+			// This allows: var meta: class of TBase; meta := TBase;
+			return &types.ClassOfType{ClassType: classType}
 		}
 		if a.currentClass != nil && !a.inClassMethod {
 			// Task 9.32b/9.32c: Check if identifier is a field of the current class (implicit Self)
