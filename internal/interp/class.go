@@ -14,15 +14,15 @@ import (
 type ClassInfo struct {
 	Constructor          *ast.FunctionDecl
 	Constructors         map[string]*ast.FunctionDecl
-	ConstructorOverloads map[string][]*ast.FunctionDecl // Task 9.67: Overloaded constructors
+	ConstructorOverloads map[string][]*ast.FunctionDecl // Overloaded constructors
 	Fields               map[string]types.Type
 	ClassVars            map[string]Value
-	Constants            map[string]*ast.ConstDecl // Task 9.20-9.22: Class constants
-	ConstantValues       map[string]Value          // Task 9.22: Evaluated constant values
+	Constants            map[string]*ast.ConstDecl // Class constants
+	ConstantValues       map[string]Value          // Evaluated constant values
 	Methods              map[string]*ast.FunctionDecl
-	MethodOverloads      map[string][]*ast.FunctionDecl // Task 9.67: Overloaded instance methods
+	MethodOverloads      map[string][]*ast.FunctionDecl // Overloaded instance methods
 	ClassMethods         map[string]*ast.FunctionDecl
-	ClassMethodOverloads map[string][]*ast.FunctionDecl // Task 9.67: Overloaded class methods
+	ClassMethodOverloads map[string][]*ast.FunctionDecl // Overloaded class methods
 	Properties           map[string]*types.PropertyInfo
 	Destructor           *ast.FunctionDecl
 	Parent               *ClassInfo
@@ -163,7 +163,6 @@ func (c *ClassInfo) lookupConstant(name string) (*ast.ConstDecl, *ClassInfo) {
 
 // getDefaultProperty searches for the default property in the class hierarchy.
 // Returns the default property if found, or nil if no default property exists.
-// Task 9.16: Support obj[index] routing to obj.DefaultProperty[index]
 func (c *ClassInfo) getDefaultProperty() *types.PropertyInfo {
 	// Check current class
 	for _, prop := range c.Properties {
@@ -198,8 +197,6 @@ func (c *ClassInfo) lookupOperator(operator string, operandTypes []string) (*run
 }
 
 // HasConstructor checks whether the class or its ancestors declare a constructor with the given name.
-// Task 9.82: Check both single constructors and overloaded constructors
-// Task 9.82: Case-insensitive lookup (DWScript is case-insensitive)
 func (c *ClassInfo) HasConstructor(name string) bool {
 	if c == nil {
 		return false
@@ -210,7 +207,7 @@ func (c *ClassInfo) HasConstructor(name string) bool {
 			return true
 		}
 	}
-	// Task 9.82: Also check constructor overloads (case-insensitive)
+	// Also check constructor overloads (case-insensitive)
 	for ctorName, overloads := range c.ConstructorOverloads {
 		if strings.EqualFold(ctorName, name) && len(overloads) > 0 {
 			return true
@@ -289,8 +286,6 @@ func AsObject(v Value) (*ObjectInstance, bool) {
 //	var cls: class of TAnimal;
 //	cls := TDog;              // Assign class reference
 //	obj := cls.Create;        // Call constructor through metaclass
-//
-// Task 9.72: Metaclass runtime values
 type ClassValue struct {
 	// ClassInfo points to the class metadata
 	ClassInfo *ClassInfo

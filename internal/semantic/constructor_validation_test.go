@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// Task 9.19: Constructor Validation Comprehensive Test Suite
+// Constructor Validation Comprehensive Test Suite
 // ============================================================================
 
 // TestConstructorOverloadResolution tests constructor overload selection
@@ -420,7 +420,7 @@ end;
 }
 
 // ============================================================================
-// Task 9.1: Implicit Default Constructor Tests
+// Implicit Default Constructor Tests
 // ============================================================================
 
 // TestImplicitConstructorSimpleClass tests that a class without explicit constructor gets an implicit Create
@@ -519,7 +519,7 @@ end;
 }
 
 // ============================================================================
-// Task 9.2: Constructor Inheritance Tests
+// Constructor Inheritance Tests
 // ============================================================================
 
 // TestConstructorInheritanceBasic tests that child class inherits parent constructor

@@ -1,4 +1,3 @@
-// Test GetCallStack() built-in function (Task 9.116)
 // This tests structured call stack inspection accessible from DWScript
 
 procedure Level3();

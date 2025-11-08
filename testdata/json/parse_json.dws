@@ -1,4 +1,3 @@
-// Test Task 9.105: Comprehensive JSON parsing test
 // Tests parsing of various JSON types including primitives, arrays, objects, and nested structures
 
 PrintLn('=== JSON Parsing Tests ===');

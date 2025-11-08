@@ -281,7 +281,7 @@ func (a *Analyzer) analyzeFormat(args []ast.Expression, callExpr *ast.CallExpres
 			fmtType.String(), callExpr.Token.Pos.String())
 	}
 	// Second argument: array of values (must be Array type)
-	// Task 9.156 & 9.236: Pass ARRAY_OF_CONST (array of Variant) as expected type
+	// Pass ARRAY_OF_CONST (array of Variant) as expected type
 	// This allows heterogeneous arrays like ['string', 123, 3.14]
 	arrType := a.analyzeExpressionWithExpectedType(args[1], types.ARRAY_OF_CONST)
 	if arrType != nil {

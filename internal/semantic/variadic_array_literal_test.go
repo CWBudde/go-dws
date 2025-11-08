@@ -8,12 +8,11 @@ import (
 )
 
 // TestVariadicArrayLiterals verifies array literal support for variadic function calls
-// Task 9.4.5: Array Literal Support for Variadic Calls
 //
 // This test documents what works and what doesn't:
 // ✓ Lambdas in array literals for variadic parameters
 // ✓ Mixed types in array literal for 'array of const'
-// ✗ Inline function expressions (parser limitation)
+// ✗ Inline function expressions (parser limitation TODO)
 func TestVariadicArrayLiterals(t *testing.T) {
 	t.Run("lambdas in array literal for variadic parameter", func(t *testing.T) {
 		// This should work - lambdas are supported

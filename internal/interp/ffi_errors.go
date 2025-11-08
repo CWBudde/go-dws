@@ -17,7 +17,7 @@ func (i *Interpreter) raiseGoErrorAsException(err error) {
 	message := err.Error()
 	goType := fmt.Sprintf("%T", err)
 
-	// Capture current DWScript call stack for diagnostics. (Task 9.108)
+	// Capture current DWScript call stack for diagnostics.
 	callStack := make(errors.StackTrace, len(i.callStack))
 	copy(callStack, i.callStack)
 
@@ -97,7 +97,7 @@ func (i *Interpreter) raiseGoPanicAsException(panicValue interface{}) {
 		message = message + "\n" + string(stackBuf[:n])
 	}
 
-	// Capture current DWScript call stack. (Task 9.108)
+	// Capture current DWScript call stack.
 	callStack := make(errors.StackTrace, len(i.callStack))
 	copy(callStack, i.callStack)
 

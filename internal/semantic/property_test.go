@@ -508,7 +508,7 @@ end;
 }
 
 // ============================================================================
-// Class Property Tests (Task 9.12)
+// Class Property Tests
 // ============================================================================
 
 // TestClassPropertyDeclaration tests valid class property declarations
@@ -747,7 +747,7 @@ end;
 }
 
 // ============================================================================
-// Property Expression Validation Tests (Task 9.49)
+// Property Expression Validation Tests
 // ============================================================================
 
 // TestPropertyExpressionValidation tests property expressions with implicit self access

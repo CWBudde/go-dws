@@ -106,7 +106,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/PropertyExpressionsPass",
 			expectErrors: false,
 			description:  "Property expressions",
-			skip:         true, // Task 9.49: Most tests require unimplemented features (const expr, helpers, etc)
+			skip:         true, // Most tests require unimplemented features (const expr, helpers, etc)
 		},
 		{
 			name:         "InterfacesPass",
@@ -150,7 +150,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/OverloadsFail",
 			expectErrors: true,
 			description:  "Overloading error cases",
-			skip:         false, // Task 9.64: Enabled to validate error messages
+			skip:         false, //  Enabled to validate error messages
 		},
 		{
 			name:         "OperatorOverloadFail",
@@ -185,7 +185,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/PropertyExpressionsFail",
 			expectErrors: true,
 			description:  "Property expression error cases",
-			skip:         true, // Task 9.49: Most tests require unimplemented features (readonly, write expr, etc)
+			skip:         true, // Most tests require unimplemented features (readonly, write expr, etc)
 		},
 		{
 			name:         "InterfacesFail",
@@ -621,7 +621,6 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 	}
 
 	// If we expect errors but got no parse errors, run semantic analysis and try execution
-	// Task 9.64: Handle semantic errors for OverloadsFail tests
 	if expectErrors && len(parseErrors) == 0 {
 		// Run semantic analysis to catch semantic errors (overload violations, type errors, etc.)
 		analyzer := semantic.NewAnalyzer()
@@ -678,7 +677,7 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 		return testResultFailed
 	}
 
-	// Run semantic analysis before execution (Task 9.230)
+	// Run semantic analysis before execution
 	// This enables proper type checking and disambiguation of array vs set literals
 	analyzer := semantic.NewAnalyzer()
 	analyzer.SetSource(source, pasFile)

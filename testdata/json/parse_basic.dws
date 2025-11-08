@@ -1,4 +1,3 @@
-// Test Task 9.91: Basic JSON parsing
 // Parse simple JSON values and verify they work correctly
 
 var v: Variant;

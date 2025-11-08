@@ -1,4 +1,4 @@
-// Demonstration of exception stack traces (Task 9.113)
+// Demonstration of exception stack traces
 // This script raises an unhandled exception to show the stack trace
 
 procedure DeepFunction();

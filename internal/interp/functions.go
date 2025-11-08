@@ -129,7 +129,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 			}
 		}
 
-		// Task 9.82: Check if this is a class constructor call (TClass.Create(...))
+		// Check if this is a class constructor call (TClass.Create(...))
 		// When calling TObj.Create(args), the parser creates CallExpression with MemberAccessExpression
 		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
 			// Check if this identifier refers to a class (case-insensitive)
@@ -164,7 +164,6 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	}
 
 	// Check if it's a user-defined function first
-	// Task 9.65: Handle function overloading
 	if overloads, exists := i.functions[funcName.Value]; exists && len(overloads) > 0 {
 		// Resolve overload based on argument types
 		fn, err := i.resolveOverload(funcName.Value, overloads, expr.Arguments)
@@ -844,7 +843,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		return i.raiseMaxRecursionExceeded()
 	}
 
-	// Push function name onto call stack for stack traces (Task 9.108)
+	// Push function name onto call stack for stack traces
 	i.pushCallStack(fn.Name.Value)
 	// Ensure it's popped when function exits (even if exception occurs)
 	defer i.popCallStack()
@@ -1075,7 +1074,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 		return i.raiseMaxRecursionExceeded()
 	}
 
-	// Push lambda marker onto call stack for stack traces (Task 9.108)
+	// Push lambda marker onto call stack for stack traces
 	i.pushCallStack("<lambda>")
 	defer i.popCallStack()
 
@@ -1271,7 +1270,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 		return i.raiseMaxRecursionExceeded()
 	}
 
-	// Push method name onto call stack for stack traces (Task 9.108)
+	// Push method name onto call stack for stack traces
 	fullMethodName := recVal.RecordType.Name + "." + methodName
 	i.pushCallStack(fullMethodName)
 	defer i.popCallStack()
@@ -1454,7 +1453,7 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 		return i.raiseMaxRecursionExceeded()
 	}
 
-	// Push method name onto call stack for stack traces (Task 9.108)
+	// Push method name onto call stack for stack traces
 	fullMethodName := rtv.RecordType.Name + "." + methodName
 	i.pushCallStack(fullMethodName)
 	defer i.popCallStack()
@@ -1703,7 +1702,6 @@ func (i *Interpreter) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) *types.
 }
 
 // resolveOverload selects the best matching function overload based on argument types.
-// Task 9.65: Runtime overload resolution
 func (i *Interpreter) resolveOverload(funcName string, overloads []*ast.FunctionDecl, argExprs []ast.Expression) (*ast.FunctionDecl, error) {
 	// If only one overload, use it (fast path)
 	if len(overloads) == 1 {
@@ -1741,7 +1739,7 @@ func (i *Interpreter) resolveOverload(funcName string, overloads []*ast.Function
 	// Use semantic analyzer's overload resolution
 	selected, err := semantic.ResolveOverload(candidates, argTypes)
 	if err != nil {
-		// Task 9.63: Use DWScript-compatible error message
+		// Use DWScript-compatible error message
 		return nil, fmt.Errorf("There is no overloaded version of \"%s\" that can be called with these arguments", funcName)
 	}
 
@@ -1760,7 +1758,7 @@ func (i *Interpreter) resolveOverload(funcName string, overloads []*ast.Function
 }
 
 // extractFunctionType extracts a types.FunctionType from an ast.FunctionDecl
-// Task 9.65: Helper for overload resolution
+// Helper for overload resolution
 func (i *Interpreter) extractFunctionType(fn *ast.FunctionDecl) *types.FunctionType {
 	paramTypes := make([]types.Type, len(fn.Parameters))
 	paramNames := make([]string, len(fn.Parameters))
@@ -1806,7 +1804,7 @@ func (i *Interpreter) extractFunctionType(fn *ast.FunctionDecl) *types.FunctionT
 }
 
 // getValueType returns the types.Type for a runtime Value
-// Task 9.65: Helper for overload resolution
+// Helper for overload resolution
 func (i *Interpreter) getValueType(val Value) types.Type {
 	switch v := val.(type) {
 	case *IntegerValue:

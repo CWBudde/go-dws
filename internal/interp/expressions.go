@@ -122,7 +122,6 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 
 	// Before returning error, check if this is a parameterless function/procedure call
 	// In DWScript, you can call parameterless procedures without parentheses: "Test;" instead of "Test();"
-	// Task 9.66: Handle overloaded functions
 	if overloads, exists := i.functions[node.Value]; exists && len(overloads) > 0 {
 		// For parameterless call or function pointer, resolve to the no-arg overload
 		var fn *ast.FunctionDecl
@@ -172,10 +171,9 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 		return i.callBuiltinFunction(node.Value, []Value{})
 	}
 
-	// Task 9.68: Check if this is a class name identifier
+	// Check if this is a class name identifier
 	// Class names can be used in expressions like TObj.Create or new TObj
 	// DWScript is case-insensitive, so we need to search all classes
-	// Task 9.73.5: Return ClassValue (metaclass reference) instead of ClassInfoValue
 	for className, classInfo := range i.classes {
 		if strings.EqualFold(className, node.Value) {
 			// Return a ClassValue to represent a metaclass reference
@@ -243,7 +241,7 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 		leftClass, leftIsClass := left.(*ClassValue)
 		rightClass, rightIsClass := right.(*ClassValue)
 
-		// Task 9.73.9: Handle ClassValue (metaclass) comparisons
+		// Handle ClassValue (metaclass) comparisons
 		// meta = TBase, meta <> TChild, etc.
 		if leftIsClass || rightIsClass {
 			// Both are ClassValue - compare by ClassInfo identity
@@ -774,7 +772,6 @@ func (i *Interpreter) evalAddressOfExpression(expr *ast.AddressOfExpression) Val
 
 // evalFunctionPointer creates a function pointer value for the named function.
 // If selfObject is non-nil, creates a method pointer.
-// Task 9.66: Handle overloaded functions - use first overload for function pointers
 func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.Node) Value {
 	// Look up the function in the function registry
 	overloads, exists := i.functions[name]
@@ -959,7 +956,7 @@ func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node
 	return &BooleanValue{Value: false}
 }
 
-// evalAsExpression evaluates the 'as' type casting operator (Task 9.48).
+// evalAsExpression evaluates the 'as' type casting operator
 // Example: obj as IMyInterface
 // Creates an InterfaceInstance wrapper around the object.
 func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
@@ -1004,7 +1001,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 	return NewInterfaceInstance(iface, obj)
 }
 
-// evalImplementsExpression evaluates the 'implements' operator (Task 9.48).
+// evalImplementsExpression evaluates the 'implements' operator.
 // Example: obj implements IMyInterface -> Boolean
 // Returns true if the object's class implements the interface.
 func (i *Interpreter) evalImplementsExpression(expr *ast.ImplementsExpression) Value {

@@ -260,7 +260,7 @@ func runScript(_ *cobra.Command, args []string) error {
 			fmt.Fprintf(os.Stderr, "Runtime Error: %s: %s\n", exc.ClassInfo.Name, exc.Message)
 		}
 
-		// Print stack trace if available (Task 9.108)
+		// Print stack trace if available
 		// The StackTrace.String() method formats each frame with position info
 		if len(exc.CallStack) > 0 {
 			fmt.Fprint(os.Stderr, exc.CallStack.String())

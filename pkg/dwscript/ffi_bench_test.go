@@ -5,7 +5,7 @@ import (
 )
 
 // =============================================================================
-// Task 9.5c: Performance Benchmarks
+// Performance Benchmarks
 // =============================================================================
 
 // BenchCounter is a helper type for benchmarking method calls.

@@ -51,7 +51,6 @@ func (i *Interpreter) builtinParseJSON(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "JSON parse error: %s", err.Error())
 	}
 
-	// Wrap in Variant using the conversion function from Task 9.89
 	variant := jsonValueToVariant(jsonVal)
 	return variant
 }

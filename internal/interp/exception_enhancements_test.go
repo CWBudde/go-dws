@@ -10,7 +10,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/parser"
 )
 
-// TestGetStackTrace tests the GetStackTrace() built-in function (Task 9.114)
+// TestGetStackTrace tests the GetStackTrace() built-in function
 func TestGetStackTrace(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -113,7 +113,7 @@ Recurse(3);
 	}
 }
 
-// TestExceptionStackTrace tests that exceptions capture stack traces (Task 9.113)
+// TestExceptionStackTrace tests that exceptions capture stack traces
 func TestExceptionStackTrace(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -308,7 +308,7 @@ TestFunc();
 	}
 }
 
-// TestGetCallStack tests the GetCallStack() built-in function (Task 9.116)
+// TestGetCallStack tests the GetCallStack() built-in function
 func TestGetCallStack(t *testing.T) {
 	tests := []struct {
 		checkOutput   func(string) error

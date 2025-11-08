@@ -590,7 +590,7 @@ end
 			expected: "1.1, 2.2",
 		},
 		{
-			name: "Integer to Float coercion (Task 9.163)",
+			name: "Integer to Float coercion",
 			input: `
 var i: Integer := 42;
 begin
@@ -600,7 +600,7 @@ end
 			expected: "42",
 		},
 		{
-			name: "Integer expression to Float coercion (Task 9.163)",
+			name: "Integer expression to Float coercion",
 			input: `
 var i: Integer := 1;
 begin
@@ -658,7 +658,7 @@ begin
 end
 			`,
 		},
-		// Note: Integer arguments are now valid (implicit Integer→Float coercion, Task 9.163)
+		// Note: Integer arguments are now valid (implicit Integer→Float coercion)
 	}
 
 	for _, tt := range tests {

@@ -11,7 +11,7 @@ import (
 // ============================================================================
 
 // isLValue checks if an expression is an lvalue (can be assigned to).
-// Task 9.2b: Used to validate arguments to var parameters.
+//
 // An lvalue is:
 //   - An identifier (variable)
 //   - An index expression (array[i], string[i])
@@ -30,8 +30,6 @@ func (a *Analyzer) isLValue(expr ast.Expression) bool {
 }
 
 // isBuiltinFunction checks if a name refers to a built-in function.
-// Task 9.132: Helper for semantic analysis of parameterless built-in function calls.
-// DWScript is case-insensitive like all Pascal languages, so we normalize to lowercase.
 func (a *Analyzer) isBuiltinFunction(name string) bool {
 	// Normalize to lowercase for case-insensitive matching
 	lowerName := strings.ToLower(name)

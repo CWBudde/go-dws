@@ -6,7 +6,6 @@ import (
 )
 
 // callDWScriptFunction invokes a DWScript function from Go context.
-// This is the core of callback support (Task 9.4b).
 //
 // The function:
 //  1. Marshals Go arguments to DWScript values

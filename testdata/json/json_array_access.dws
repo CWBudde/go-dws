@@ -1,4 +1,3 @@
-// Test Task 9.105: JSON array access test
 // Tests array indexing, JSONLength, and iteration over JSON arrays
 
 PrintLn('=== JSON Array Access Tests ===');

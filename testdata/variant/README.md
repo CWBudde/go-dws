@@ -1,6 +1,6 @@
 # Variant Type Test Suite
 
-Test files for the Variant Type System (Task 9.238).
+Test files for the Variant Type System
 
 ## Test Files
 

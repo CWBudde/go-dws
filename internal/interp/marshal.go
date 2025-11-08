@@ -18,7 +18,7 @@ import (
 //   - BOOLEAN → bool
 //   - ARRAY → []T (Go slices)
 //   - RECORD → map[string]T (Go maps with string keys)
-//   - FUNCTION POINTER → func(...) (Task 9.4a - callback support)
+//   - FUNCTION POINTER → func(...)
 //
 // The interp parameter is optional and only required for function pointer marshaling.
 // Pass nil if callbacks are not needed.

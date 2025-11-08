@@ -69,7 +69,7 @@ func TestConstWithVariableReference(t *testing.T) {
 }
 
 // ============================================================================
-// Const with Built-in Function Calls (Task 9.38)
+// Const with Built-in Function Calls
 // ============================================================================
 
 func TestConstWithHighFunction(t *testing.T) {

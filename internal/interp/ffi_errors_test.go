@@ -61,7 +61,6 @@ func TestCallExternalFunctionSafePropagatesError(t *testing.T) {
 }
 
 // TestGoErrorToExceptionConversion tests that Go errors are properly converted to DWScript exceptions.
-// This implements task 9.53a.
 func TestGoErrorToExceptionConversion(t *testing.T) {
 	t.Run("BasicErrorConversion", func(t *testing.T) {
 		interp := newTestInterpreter()
@@ -108,7 +107,7 @@ func TestGoErrorToExceptionConversion(t *testing.T) {
 	t.Run("CallStackCaptured", func(t *testing.T) {
 		interp := newTestInterpreter()
 
-		// Push some call frames (Task 9.108)
+		// Push some call frames
 		interp.pushCallStack("function1")
 		interp.pushCallStack("function2")
 
@@ -141,12 +140,12 @@ func TestGoErrorToExceptionConversion(t *testing.T) {
 }
 
 // TestErrorPropagationNestedCalls tests that errors from Go functions propagate correctly
-// through nested DWScript call stacks. This implements task 9.53b.
+// through nested DWScript call stacks.
 func TestErrorPropagationNestedCalls(t *testing.T) {
 	t.Run("ErrorInNestedGoFunction", func(t *testing.T) {
 		interp := newTestInterpreter()
 
-		// Simulate nested call stack: DWScript → Go func A → DWScript → Go func B (errors) (Task 9.108)
+		// Simulate nested call stack: DWScript → Go func A → DWScript → Go func B (errors)
 		// Set up call stack to simulate this
 		interp.pushCallStack("outerDWScriptFunction")
 		interp.pushCallStack("goFunctionA")
@@ -170,7 +169,7 @@ func TestErrorPropagationNestedCalls(t *testing.T) {
 			t.Errorf("expected call stack length 3, got %d", len(interp.exception.CallStack))
 		}
 
-		// Verify call stack frames are correct (Task 9.108)
+		// Verify call stack frames are correct
 		expectedFrames := []string{"outerDWScriptFunction", "goFunctionA", "innerDWScriptFunction"}
 		for i, expected := range expectedFrames {
 			if i >= len(interp.exception.CallStack) {
@@ -185,7 +184,7 @@ func TestErrorPropagationNestedCalls(t *testing.T) {
 	t.Run("MultipleNestedErrors", func(t *testing.T) {
 		interp := newTestInterpreter()
 
-		// First error in nested call (Task 9.108)
+		// First error in nested call
 		interp.pushCallStack("level1")
 		interp.pushCallStack("level2")
 
@@ -245,7 +244,6 @@ func TestErrorPropagationNestedCalls(t *testing.T) {
 }
 
 // TestEHostExceptionSpecificFeatures tests the specific features of EHost exceptions.
-// This implements task 9.53c.
 func TestEHostExceptionSpecificFeatures(t *testing.T) {
 	t.Run("EHostInheritsFromException", func(t *testing.T) {
 		interp := newTestInterpreter()

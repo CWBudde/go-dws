@@ -1,4 +1,4 @@
-// Test file for error message improvements (Task 9.110)
+// Test file for error message improvements
 
 // Type mismatch error in variable declaration
 var x: Integer := "hello";  // Cannot assign String to Integer variable 'x'

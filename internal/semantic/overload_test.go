@@ -325,7 +325,7 @@ func TestDefineOverload_DuplicateSignatureError(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for duplicate signature, got nil")
 	}
-	// Task 9.59: Error message matches DWScript format (Task 9.50: Fixed capitalization)
+	// Error message matches DWScript format
 	expectedMsg := "There is already a method with name \"Process\""
 	if err.Error() != expectedMsg {
 		t.Fatalf("Wrong error message: got %q, expected %q", err.Error(), expectedMsg)
@@ -466,7 +466,7 @@ func TestDefineOverload_DifferentParameterModifiers(t *testing.T) {
 	st.DefineOverload("Swap", func1, true, false)
 	err := st.DefineOverload("Swap", func2, true, false)
 
-	// Task 9.59: SignaturesEqual now checks parameter modifiers (var/const/lazy),
+	// SignaturesEqual now checks parameter modifiers (var/const/lazy),
 	// so these two functions with different modifiers should be recognized as
 	// having distinct signatures and both should be accepted as valid overloads.
 	if err != nil {

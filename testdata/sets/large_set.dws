@@ -2,7 +2,7 @@
 //
 // NOTE: This file currently cannot run due to parser limitations:
 // - Set type declarations ("set of") are not yet supported in type section parsing
-// - This is a known limitation tracked separately from Task 9.10
+// - This is a known limitation for now
 // - The .out file contains manually verified expected output based on unit tests
 // - Once parser support is added, this file should run and match the .out file
 //
