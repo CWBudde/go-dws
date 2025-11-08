@@ -17,6 +17,8 @@ type ClassInfo struct {
 	ConstructorOverloads map[string][]*ast.FunctionDecl // Task 9.67: Overloaded constructors
 	Fields               map[string]types.Type
 	ClassVars            map[string]Value
+	Constants            map[string]*ast.ConstDecl      // Task 9.20-9.22: Class constants
+	ConstantValues       map[string]Value               // Task 9.22: Evaluated constant values
 	Methods              map[string]*ast.FunctionDecl
 	MethodOverloads      map[string][]*ast.FunctionDecl // Task 9.67: Overloaded instance methods
 	ClassMethods         map[string]*ast.FunctionDecl
@@ -39,6 +41,8 @@ func NewClassInfo(name string) *ClassInfo {
 		Parent:               nil,
 		Fields:               make(map[string]types.Type),
 		ClassVars:            make(map[string]Value),
+		Constants:            make(map[string]*ast.ConstDecl),
+		ConstantValues:       make(map[string]Value),
 		Methods:              make(map[string]*ast.FunctionDecl),
 		MethodOverloads:      make(map[string][]*ast.FunctionDecl),
 		ClassMethods:         make(map[string]*ast.FunctionDecl),

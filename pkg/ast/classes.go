@@ -67,6 +67,7 @@ type ClassDecl struct {
 	Properties   []*PropertyDecl
 	Methods      []*FunctionDecl
 	Fields       []*FieldDecl
+	Constants    []*ConstDecl // Class constants
 	Token        token.Token
 	IsAbstract   bool
 	IsExternal   bool
@@ -126,6 +127,13 @@ func (cd *ClassDecl) String() string {
 	for _, field := range cd.Fields {
 		out.WriteString("  ")
 		out.WriteString(field.String())
+		out.WriteString(";\n")
+	}
+
+	// Add constants
+	for _, constant := range cd.Constants {
+		out.WriteString("  ")
+		out.WriteString(constant.String())
 		out.WriteString(";\n")
 	}
 

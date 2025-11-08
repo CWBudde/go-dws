@@ -13,12 +13,19 @@ import (
 //	const PI = 3.14;
 //	const MAX_USERS: Integer = 1000;
 //	const APP_NAME = 'MyApp';
+//
+// In classes:
+//
+//	const cPrivate = 1;
+//	class const cPublic = 3;
 type ConstDecl struct {
-	Value  Expression
-	Name   *Identifier
-	Type   *TypeAnnotation
-	Token  token.Token
-	EndPos token.Position
+	Value        Expression
+	Name         *Identifier
+	Type         *TypeAnnotation
+	Token        token.Token
+	Visibility   Visibility // For class constants (default: public for global, private for class)
+	IsClassConst bool       // True if declared with 'class const' keyword
+	EndPos       token.Position
 }
 
 func (c *ConstDecl) End() token.Position {
@@ -34,6 +41,9 @@ func (cd *ConstDecl) Pos() token.Position  { return cd.Token.Pos }
 func (cd *ConstDecl) String() string {
 	var out bytes.Buffer
 
+	if cd.IsClassConst {
+		out.WriteString("class ")
+	}
 	out.WriteString("const ")
 	out.WriteString(cd.Name.String())
 
