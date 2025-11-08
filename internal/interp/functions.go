@@ -128,6 +128,30 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 				}
 			}
 		}
+
+		// Task 9.82: Check if this is a class constructor call (TClass.Create(...))
+		// When calling TObj.Create(args), the parser creates CallExpression with MemberAccessExpression
+		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
+			// Check if this identifier refers to a class (case-insensitive)
+			var classInfo *ClassInfo
+			for className, class := range i.classes {
+				if strings.EqualFold(className, ident.Value) {
+					classInfo = class
+					break
+				}
+			}
+			if classInfo != nil {
+				// This is a class constructor/method call - convert to MethodCallExpression
+				mc := &ast.MethodCallExpression{
+					Token:     expr.Token,
+					Object:    ident,
+					Method:    memberAccess.Member,
+					Arguments: expr.Arguments,
+				}
+				return i.evalMethodCall(mc)
+			}
+		}
+
 		// Not a unit-qualified call - could be a method call, let it fall through
 		// to be handled as a method call on an object
 		return i.newErrorWithLocation(expr, "cannot call member expression that is not a method or unit-qualified function")
