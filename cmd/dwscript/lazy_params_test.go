@@ -316,8 +316,8 @@ func TestLazyParameterSyntax(t *testing.T) {
 	testCases := []struct {
 		name        string
 		source      string
-		shouldParse bool
 		description string
+		shouldParse bool
 	}{
 		{
 			name: "basic lazy parameter",

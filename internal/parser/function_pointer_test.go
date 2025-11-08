@@ -13,13 +13,13 @@ func TestParseFunctionPointerTypeDeclarations(t *testing.T) {
 		name            string
 		input           string
 		expectedName    string
-		isFunction      bool
-		paramCount      int
-		hasReturnType   bool
 		returnTypeName  string
-		ofObject        bool
 		firstParamName  string
 		firstParamType  string
+		paramCount      int
+		isFunction      bool
+		hasReturnType   bool
+		ofObject        bool
 		firstParamByRef bool
 	}{
 		{

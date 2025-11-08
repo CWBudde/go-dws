@@ -738,12 +738,12 @@ func TestCallExpression(t *testing.T) {
 // TestForInStatement tests the ForInStatement node.
 func TestForInStatement(t *testing.T) {
 	tests := []struct {
-		name       string
-		variable   string
 		collection Expression
 		body       Statement
-		inlineVar  bool
+		name       string
+		variable   string
 		want       string
+		inlineVar  bool
 	}{
 		{
 			name:     "basic for-in",

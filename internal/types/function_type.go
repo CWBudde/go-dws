@@ -20,14 +20,14 @@ import (
 // the interpreter evaluates the default expressions to fill in missing arguments.
 type FunctionType struct {
 	ReturnType    Type
+	VariadicType  Type
 	Parameters    []Type
-	ParamNames    []string      // Parameter names for better error messages
-	DefaultValues []interface{} // Default value expressions (AST nodes), nil if required
-	LazyParams    []bool        // true if parameter is lazy (expression capture)
-	VarParams     []bool        // true if parameter is var/byref (pass by reference)
-	ConstParams   []bool        // true if parameter is const (read-only, pass by const-reference)
-	IsVariadic    bool          // true if last parameter is variadic (array of T)
-	VariadicType  Type          // element type of variadic parameter (nil if not variadic)
+	ParamNames    []string
+	DefaultValues []interface{}
+	LazyParams    []bool
+	VarParams     []bool
+	ConstParams   []bool
+	IsVariadic    bool
 }
 
 // String returns a string representation of the function type.

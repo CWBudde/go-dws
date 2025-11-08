@@ -146,8 +146,8 @@ func TestArrayLiteralExpression_String(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		elements []Expression
 		want     string
+		elements []Expression
 	}{
 		{
 			name: "SimpleIntegers",

@@ -31,11 +31,11 @@ func (m CompileMode) String() string {
 // Options configures the behavior of the DWScript engine.
 type Options struct {
 	Output            io.Writer
+	ExternalFunctions *interp.ExternalFunctionRegistry
+	MaxRecursionDepth int
+	CompileMode       CompileMode
 	TypeCheck         bool
 	Trace             bool
-	ExternalFunctions *interp.ExternalFunctionRegistry
-	MaxRecursionDepth int // Maximum recursion depth (default: 1024)
-	CompileMode       CompileMode
 }
 
 // Option is a function that configures an Engine's Options.

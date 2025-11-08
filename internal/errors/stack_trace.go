@@ -10,9 +10,9 @@ import (
 // StackFrame represents a single frame in a call stack.
 // It captures the function being executed and its location in the source code.
 type StackFrame struct {
-	FunctionName string          // Name of the function/procedure/method
-	FileName     string          // Source file name (empty if not available)
-	Position     *lexer.Position // Position in source code (nil if not available)
+	Position     *lexer.Position
+	FunctionName string
+	FileName     string
 }
 
 // String returns a formatted string representation of the stack frame.

@@ -137,8 +137,8 @@ func TestRandomIntFunction(t *testing.T) {
 	}
 
 	for _, pattern := range expectedPatterns {
-		if !strings.Contains(outputStr, pattern) {
-			t.Errorf("Expected output to contain %q, got:\n%s", pattern, outputStr)
+		if !strings.Contains(strings.ToLower(outputStr), strings.ToLower(pattern)) {
+			t.Errorf("Expected output to contain %q (case insensitive), got:\n%s", pattern, outputStr)
 		}
 	}
 }

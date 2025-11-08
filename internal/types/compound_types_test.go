@@ -302,12 +302,12 @@ func TestSetType_LargeEnumString(t *testing.T) {
 	tests := []struct {
 		name     string
 		enumName string
-		enumSize int
 		expected string
+		enumSize int
 	}{
-		{"100 elements", "TLarge100", 100, "set of TLarge100"},
-		{"200 elements", "TLarge200", 200, "set of TLarge200"},
-		{"500 elements", "TLarge500", 500, "set of TLarge500"},
+		{name: "100 elements", enumName: "TLarge100", enumSize: 100, expected: "set of TLarge100"},
+		{name: "200 elements", enumName: "TLarge200", enumSize: 200, expected: "set of TLarge200"},
+		{name: "500 elements", enumName: "TLarge500", enumSize: 500, expected: "set of TLarge500"},
 	}
 
 	for _, tt := range tests {

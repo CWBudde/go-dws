@@ -203,9 +203,7 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	}
 
 	// Analyze the value expression
-	var valueType types.Type
-
-	valueType = a.analyzeExpressionWithExpectedType(stmt.Value, constType)
+	var valueType = a.analyzeExpressionWithExpectedType(stmt.Value, constType)
 	if valueType == nil {
 		// Error already reported
 		return

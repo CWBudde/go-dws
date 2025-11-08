@@ -9,9 +9,9 @@ import (
 // TestSignaturesEqual tests signature comparison for overload detection
 func TestSignaturesEqual(t *testing.T) {
 	tests := []struct {
-		name     string
 		sig1     *types.FunctionType
 		sig2     *types.FunctionType
+		name     string
 		expected bool
 	}{
 		{
@@ -164,10 +164,10 @@ func TestSignaturesEqual(t *testing.T) {
 // TestSignatureDistance tests distance calculation for overload resolution
 func TestSignatureDistance(t *testing.T) {
 	tests := []struct {
+		signature *types.FunctionType
 		name      string
 		argTypes  []types.Type
-		signature *types.FunctionType
-		expected  int // -1 means incompatible
+		expected  int
 	}{
 		{
 			name:     "exact match - single parameter",
@@ -445,9 +445,9 @@ func TestResolveOverload(t *testing.T) {
 // TestTypeDistance tests individual type distance calculations
 func TestTypeDistance(t *testing.T) {
 	tests := []struct {
-		name     string
 		from     types.Type
 		to       types.Type
+		name     string
 		expected int
 	}{
 		{

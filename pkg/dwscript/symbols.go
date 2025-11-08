@@ -13,30 +13,13 @@ import (
 // Symbols are extracted from the semantic analyzer's symbol table after compilation
 // and are useful for IDE features like code completion, go-to-definition, and hover information.
 type Symbol struct {
-	// Name is the identifier name of the symbol.
-	Name string
-
-	// Kind describes what kind of symbol this is.
-	// Common values: "variable", "constant", "function", "class", "parameter",
-	// "interface", "enum", "record", "type", "property", "method".
-	Kind string
-
-	// Type is the type name of the symbol (e.g., "Integer", "String", "TMyClass").
-	// For functions, this is the function signature.
-	Type string
-
-	// Position is the source code location where the symbol is defined.
-	Position token.Position
-
-	// Scope describes the scope level of the symbol.
-	// Common values: "global", "local", "class", "unit".
-	Scope string
-
-	// IsReadOnly indicates whether the symbol is read-only (const or read-only variable).
+	Name       string
+	Kind       string
+	Type       string
+	Scope      string
+	Position   token.Position
 	IsReadOnly bool
-
-	// IsConst indicates whether the symbol is a compile-time constant.
-	IsConst bool
+	IsConst    bool
 }
 
 // Symbols returns all symbols declared in the program.

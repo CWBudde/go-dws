@@ -12,9 +12,9 @@ import (
 // TestPositionSimpleStatements tests position tracking on simple statements (Task 10.19)
 func TestPositionSimpleStatements(t *testing.T) {
 	tests := []struct {
+		checkPos func(t *testing.T, program *ast.Program)
 		name     string
 		source   string
-		checkPos func(t *testing.T, program *ast.Program)
 	}{
 		{
 			name:   "variable declaration",

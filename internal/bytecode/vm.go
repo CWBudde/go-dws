@@ -20,41 +20,41 @@ type BuiltinFunction func(vm *VM, args []Value) (Value, error)
 
 // VM executes bytecode chunks produced by the compiler.
 type VM struct {
+	exceptObject      Value
+	output            io.Writer
+	builtins          map[string]BuiltinFunction
 	stack             []Value
 	frames            []callFrame
 	globals           []Value
 	openUpvalues      []*Upvalue
 	exceptionHandlers []exceptionHandler
 	finallyStack      []finallyContext
-	exceptObject      Value
-	output            io.Writer                  // Output writer for PrintLn, Print, etc.
-	builtins          map[string]BuiltinFunction // Built-in functions registry
 }
 
 type callFrame struct {
-	chunk   *Chunk
-	ip      int
-	locals  []Value
-	closure *Closure
 	self    Value
+	chunk   *Chunk
+	closure *Closure
+	locals  []Value
+	ip      int
 }
 
 type exceptionHandler struct {
+	exceptionValue   Value
+	prevExceptObject Value
 	info             TryInfo
 	frameIndex       int
 	stackDepth       int
-	exceptionValue   Value
 	exceptionActive  bool
 	exceptionHandled bool
 	catchCompleted   bool
-	prevExceptObject Value
 }
 
 type finallyContext struct {
 	exceptionValue   Value
+	prevExceptObject Value
 	exceptionActive  bool
 	exceptionHandled bool
-	prevExceptObject Value
 }
 
 // NewVM creates a new VM with default configuration.
@@ -777,7 +777,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 		case OpLoop:
 			frame.ip += int(inst.SignedB())
 		case OpReturn:
-			var ret Value = NilValue()
+			var ret = NilValue()
 			if inst.A() != 0 {
 				val, err := vm.pop()
 				if err != nil {

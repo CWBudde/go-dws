@@ -947,7 +947,7 @@ end.`
 	if cIdx == -1 || bIdx == -1 || aIdx == -1 {
 		t.Error("Expected all units to be loaded")
 	}
-	if !(cIdx < bIdx && bIdx < aIdx) {
+	if cIdx >= bIdx || bIdx >= aIdx {
 		t.Error("Units should initialize in dependency order: C, B, A")
 	}
 
@@ -959,7 +959,7 @@ end.`
 	if aFinIdx == -1 || bFinIdx == -1 || cFinIdx == -1 {
 		t.Error("Expected all units to be finalized")
 	}
-	if !(aFinIdx < bFinIdx && bFinIdx < cFinIdx) {
+	if aFinIdx >= bFinIdx || bFinIdx >= cFinIdx {
 		t.Error("Units should finalize in reverse dependency order: A, B, C")
 	}
 }

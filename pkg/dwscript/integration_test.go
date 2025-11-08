@@ -185,13 +185,13 @@ end;`
 
 	// Test position accuracy for each statement
 	tests := []struct {
+		desc      string
 		stmtIndex int
 		wantLine  int
-		desc      string
 	}{
-		{0, 1, "first variable declaration"},
-		{1, 2, "second variable declaration"},
-		{2, 4, "function declaration"},
+		{stmtIndex: 0, wantLine: 1, desc: "first variable declaration"},
+		{stmtIndex: 1, wantLine: 2, desc: "second variable declaration"},
+		{stmtIndex: 2, wantLine: 4, desc: "function declaration"},
 	}
 
 	for _, tt := range tests {

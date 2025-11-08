@@ -14,86 +14,86 @@ func TestRosettaStringLiterals(t *testing.T) {
 		name     string
 		input    string
 		expected []struct {
-			tokenType TokenType
 			literal   string
+			tokenType TokenType
 		}
 	}{
 		{
 			name:  "single-quoted string with embedded double quotes",
 			input: `'quoted "word" in string'`,
 			expected: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{STRING, `quoted "word" in string`},
-				{EOF, ""},
+				{literal: `quoted "word" in string`, tokenType: STRING},
+				{literal: "", tokenType: EOF},
 			},
 		},
 		{
 			name:  "double-quoted string with escaped double quotes",
 			input: `"quoted ""word"" in string"`,
 			expected: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{STRING, `quoted "word" in string`},
-				{EOF, ""},
+				{literal: `quoted "word" in string`, tokenType: STRING},
+				{literal: "", tokenType: EOF},
 			},
 		},
 		{
 			name:  "string concatenation with char literals (CR+LF)",
 			input: `'first line'#13#10'second line'`,
 			expected: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{STRING, "first line\r\nsecond line"},
-				{EOF, ""},
+				{literal: "first line\r\nsecond line", tokenType: STRING},
+				{literal: "", tokenType: EOF},
 			},
 		},
 		{
 			name:  "complete first example from rosetta",
 			input: `const s1 := 'quoted "word" in string';`,
 			expected: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{CONST, "const"},
-				{IDENT, "s1"},
-				{ASSIGN, ":="},
-				{STRING, `quoted "word" in string`},
-				{SEMICOLON, ";"},
-				{EOF, ""},
+				{literal: "const", tokenType: CONST},
+				{literal: "s1", tokenType: IDENT},
+				{literal: ":=", tokenType: ASSIGN},
+				{literal: `quoted "word" in string`, tokenType: STRING},
+				{literal: ";", tokenType: SEMICOLON},
+				{literal: "", tokenType: EOF},
 			},
 		},
 		{
 			name:  "complete second example from rosetta with comment",
 			input: `const s2 := "quoted ""word"" in string"; // sames as s1, shows the doubling of the delimiter`,
 			expected: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{CONST, "const"},
-				{IDENT, "s2"},
-				{ASSIGN, ":="},
-				{STRING, `quoted "word" in string`},
-				{SEMICOLON, ";"},
-				{EOF, ""},
+				{literal: "const", tokenType: CONST},
+				{literal: "s2", tokenType: IDENT},
+				{literal: ":=", tokenType: ASSIGN},
+				{literal: `quoted "word" in string`, tokenType: STRING},
+				{literal: ";", tokenType: SEMICOLON},
+				{literal: "", tokenType: EOF},
 			},
 		},
 		{
 			name:  "complete third example with string+char concatenation",
 			input: `const s2 := 'first line'#13#10'second line';`,
 			expected: []struct {
-				tokenType TokenType
 				literal   string
+				tokenType TokenType
 			}{
-				{CONST, "const"},
-				{IDENT, "s2"},
-				{ASSIGN, ":="},
-				{STRING, "first line\r\nsecond line"},
-				{SEMICOLON, ";"},
-				{EOF, ""},
+				{literal: "const", tokenType: CONST},
+				{literal: "s2", tokenType: IDENT},
+				{literal: ":=", tokenType: ASSIGN},
+				{literal: "first line\r\nsecond line", tokenType: STRING},
+				{literal: ";", tokenType: SEMICOLON},
+				{literal: "", tokenType: EOF},
 			},
 		},
 	}
@@ -172,8 +172,8 @@ func TestCharLiteralsCRLF(t *testing.T) {
 	tests := []struct {
 		name            string
 		input           string
-		expectedType    TokenType
 		expectedLiteral string
+		expectedType    TokenType
 	}{
 		{
 			name:            "carriage return #13 (standalone)",

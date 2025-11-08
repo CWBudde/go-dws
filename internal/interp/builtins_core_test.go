@@ -117,9 +117,9 @@ func TestLowWithTypeMetaValues(t *testing.T) {
 // TestHighLowWithFloatType tests High/Low with Float type meta-value.
 func TestHighLowWithFloatType(t *testing.T) {
 	tests := []struct {
+		checkFn func(t *testing.T, output string)
 		name    string
 		input   string
-		checkFn func(t *testing.T, output string)
 	}{
 		{
 			name:  "High(Float)",
@@ -175,9 +175,9 @@ func TestHighLowWithFloatType(t *testing.T) {
 // TestHighLowDirectValues tests High/Low return the correct runtime values.
 func TestHighLowDirectValues(t *testing.T) {
 	tests := []struct {
+		checkFn func(t *testing.T, val Value)
 		name    string
 		input   string
-		checkFn func(t *testing.T, val Value)
 	}{
 		{
 			name:  "High(Integer) returns IntegerValue",

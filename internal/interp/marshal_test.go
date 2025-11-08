@@ -9,10 +9,10 @@ import (
 
 func TestMarshalToGo(t *testing.T) {
 	tests := []struct {
-		name        string
 		dwsValue    Value
 		targetType  reflect.Type
 		expected    any
+		name        string
 		expectError bool
 	}{
 		{
@@ -131,9 +131,9 @@ func TestMarshalToGo(t *testing.T) {
 
 func TestMarshalToDWS(t *testing.T) {
 	tests := []struct {
-		name        string
 		goValue     any
 		expected    Value
+		name        string
 		expectError bool
 	}{
 		{
@@ -301,9 +301,9 @@ func TestMarshalToDWS(t *testing.T) {
 // TestMarshalRoundTrip tests that marshaling from DWS to Go and back preserves values
 func TestMarshalRoundTrip(t *testing.T) {
 	testCases := []struct {
-		name       string
 		original   Value
 		targetType reflect.Type
+		name       string
 	}{
 		{
 			name:       "INTEGER",

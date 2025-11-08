@@ -8,10 +8,10 @@ import (
 
 // ParserError represents a structured parsing error with position information.
 type ParserError struct {
-	Message string         // Human-readable error message
-	Pos     lexer.Position // Position where the error occurred
-	Length  int            // Length of the error span (for multi-character tokens)
-	Code    string         // Error code for programmatic handling
+	Message string
+	Code    string
+	Pos     lexer.Position
+	Length  int
 }
 
 // Error implements the error interface.

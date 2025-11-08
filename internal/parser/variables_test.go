@@ -11,13 +11,13 @@ func TestVarDeclarationTypeInference(t *testing.T) {
 	t.Helper()
 
 	tests := []struct {
+		assertValue    func(t *testing.T, expr ast.Expression)
 		name           string
 		input          string
 		expectedName   string
-		expectInferred bool
 		expectType     string
 		expectError    string
-		assertValue    func(t *testing.T, expr ast.Expression)
+		expectInferred bool
 	}{
 		{
 			name:           "integer inference with equals",
@@ -394,10 +394,10 @@ func TestMultiIdentifierVarDeclarations(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expectedNames []string
 		expectedType  string
-		expectError   bool
 		errorContains string
+		expectedNames []string
+		expectError   bool
 	}{
 		{
 			name:          "two variables",

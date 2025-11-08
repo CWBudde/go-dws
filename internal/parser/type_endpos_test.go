@@ -10,9 +10,9 @@ import (
 // TestTypeExpressionEndPos tests that EndPos is correctly set for various type expressions.
 func TestTypeExpressionEndPos(t *testing.T) {
 	tests := []struct {
+		checkPos func(*testing.T, ast.Statement)
 		name     string
 		input    string
-		checkPos func(*testing.T, ast.Statement)
 	}{
 		{
 			name:  "TypeAnnotation simple",

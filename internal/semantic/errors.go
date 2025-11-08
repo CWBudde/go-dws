@@ -97,17 +97,17 @@ const (
 
 // SemanticError represents a structured semantic/compile-time error or warning
 type SemanticError struct {
-	Type         SemanticErrorType
-	Message      string
-	Pos          lexer.Position
-	Severity     ErrorSeverity // Error, Warning, Info, Hint
 	Expected     types.Type
 	Got          types.Type
+	Context      map[string]interface{}
+	Type         SemanticErrorType
+	Message      string
 	VariableName string
 	FunctionName string
 	TypeName     string
 	ClassName    string
-	Context      map[string]interface{}
+	Pos          lexer.Position
+	Severity     ErrorSeverity
 }
 
 // IsWarning returns true if this is a warning (non-critical issue)

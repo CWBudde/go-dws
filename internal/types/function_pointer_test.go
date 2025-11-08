@@ -257,8 +257,8 @@ func TestMethodPointerString(t *testing.T) {
 // TestFunctionPointerIsProcedure tests the IsProcedure method.
 func TestFunctionPointerIsProcedure(t *testing.T) {
 	tests := []struct {
-		name     string
 		funcPtr  *FunctionPointerType
+		name     string
 		expected bool
 	}{
 		{
@@ -299,8 +299,8 @@ func TestFunctionPointerIsProcedure(t *testing.T) {
 // TestFunctionPointerIsFunction tests the IsFunction method.
 func TestFunctionPointerIsFunction(t *testing.T) {
 	tests := []struct {
-		name     string
 		funcPtr  *FunctionPointerType
+		name     string
 		expected bool
 	}{
 		{
@@ -333,9 +333,9 @@ func TestFunctionPointerIsFunction(t *testing.T) {
 // TestFunctionPointerEquals tests the Equals method for function pointers.
 func TestFunctionPointerEquals(t *testing.T) {
 	tests := []struct {
-		name     string
 		a        Type
 		b        Type
+		name     string
 		expected bool
 	}{
 		{
@@ -472,9 +472,9 @@ func TestFunctionPointerEquals(t *testing.T) {
 // TestMethodPointerEquals tests the Equals method for method pointers.
 func TestMethodPointerEquals(t *testing.T) {
 	tests := []struct {
-		name     string
 		a        Type
 		b        Type
+		name     string
 		expected bool
 	}{
 		{
@@ -549,9 +549,9 @@ func TestMethodPointerEquals(t *testing.T) {
 // TestFunctionPointerCompatibility tests the IsCompatibleWith method.
 func TestFunctionPointerCompatibility(t *testing.T) {
 	tests := []struct {
-		name     string
 		source   Type
 		target   Type
+		name     string
 		expected bool
 	}{
 		{
@@ -669,9 +669,9 @@ func TestFunctionPointerCompatibility(t *testing.T) {
 // TestMethodPointerCompatibility tests method pointer specific compatibility rules.
 func TestMethodPointerCompatibility(t *testing.T) {
 	tests := []struct {
-		name     string
-		source   *MethodPointerType
 		target   Type
+		source   *MethodPointerType
+		name     string
 		expected bool
 	}{
 		{

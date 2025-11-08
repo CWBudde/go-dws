@@ -8,8 +8,8 @@ import (
 // ExternalFunctionRegistry stores external Go functions registered for DWScript.
 // It provides thread-safe registration and lookup of external functions.
 type ExternalFunctionRegistry struct {
-	mu        sync.RWMutex
 	functions map[string]*ExternalFunctionValue
+	mu        sync.RWMutex
 }
 
 // NewExternalFunctionRegistry creates a new empty registry.
@@ -84,8 +84,8 @@ type ExternalFunctionWrapper interface {
 // ExternalFunctionValue represents an external Go function as a DWScript value.
 // It implements the Value interface so it can be stored in the environment.
 type ExternalFunctionValue struct {
-	Name    string
 	Wrapper ExternalFunctionWrapper
+	Name    string
 }
 
 // Type implements Value.Type

@@ -40,34 +40,34 @@ func getTypeExpressionName(typeExpr ast.TypeExpression) string {
 // It validates types, checks for undefined variables, and ensures
 // type compatibility in expressions and statements.
 type Analyzer struct {
-	arrays             map[string]*types.ArrayType
-	typeAliases        map[string]*types.TypeAlias
+	unitSymbols        map[string]*SymbolTable
+	interfaces         map[string]*types.InterfaceType
 	subranges          map[string]*types.SubrangeType
-	functionPointers   map[string]*types.FunctionPointerType // Task 9.159: Function pointer types
-	helpers            map[string][]*types.HelperType        // Task 9.82: Helper types (type name -> list of helpers)
+	functionPointers   map[string]*types.FunctionPointerType
+	arrays             map[string]*types.ArrayType
 	currentFunction    *ast.FunctionDecl
 	classes            map[string]*types.ClassType
-	interfaces         map[string]*types.InterfaceType
+	currentClass       *types.ClassType
 	enums              map[string]*types.EnumType
 	records            map[string]*types.RecordType
 	sets               map[string]*types.SetType
 	conversionRegistry *types.ConversionRegistry
-	currentClass       *types.ClassType
+	typeAliases        map[string]*types.TypeAlias
 	symbols            *SymbolTable
-	unitSymbols        map[string]*SymbolTable // Unit name -> symbol table for qualified access
+	helpers            map[string][]*types.HelperType
 	globalOperators    *types.OperatorRegistry
+	sourceFile         string
+	sourceCode         string
+	currentProperty    string
+	structuredErrors   []*SemanticError
 	errors             []string
-	structuredErrors   []*SemanticError // Task 9.110: Structured errors with rich context
-	sourceCode         string           // Task 9.110: Source code for error display
-	sourceFile         string           // Task 9.110: Source filename for error display
 	loopDepth          int
 	inExceptionHandler bool
 	inFinallyBlock     bool
 	inLoop             bool
-	inLambda           bool   // Task 9.216: Track if we're analyzing a lambda body
-	inClassMethod      bool   // Track if we're analyzing a class method (static method)
-	inPropertyExpr     bool   // Task 9.49: Track if we're analyzing a property expression
-	currentProperty    string // Task 9.49: Track current property name for circular reference detection
+	inLambda           bool
+	inClassMethod      bool
+	inPropertyExpr     bool
 }
 
 // NewAnalyzer creates a new semantic analyzer

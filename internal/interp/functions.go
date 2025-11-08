@@ -875,7 +875,7 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	if fn.ReturnType != nil {
 		// Initialize Result based on return type with appropriate defaults
 		returnType := i.resolveTypeFromAnnotation(fn.ReturnType)
-		var resultValue Value = i.getDefaultValue(returnType)
+		var resultValue = i.getDefaultValue(returnType)
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := fn.ReturnType.Name
@@ -1100,7 +1100,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 	if lambda.ReturnType != nil {
 		// Initialize Result based on return type with appropriate defaults
 		returnType := i.resolveTypeFromAnnotation(lambda.ReturnType)
-		var resultValue Value = i.getDefaultValue(returnType)
+		var resultValue = i.getDefaultValue(returnType)
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := lambda.ReturnType.Name
@@ -1301,7 +1301,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	if method.ReturnType != nil {
 		// Initialize Result based on return type with appropriate defaults
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
-		var resultValue Value = i.getDefaultValue(returnType)
+		var resultValue = i.getDefaultValue(returnType)
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := method.ReturnType.Name
@@ -1478,7 +1478,7 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 	if method.ReturnType != nil {
 		// Initialize Result based on return type with appropriate defaults
 		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
-		var resultValue Value = i.getDefaultValue(returnType)
+		var resultValue = i.getDefaultValue(returnType)
 
 		// Check if return type is a record (overrides default)
 		returnTypeName := method.ReturnType.Name

@@ -1137,129 +1137,129 @@ func TestUnicodeIdentifiers(t *testing.T) {
 		name  string
 		input string
 		want  []struct {
-			typ     TokenType
 			literal string
+			typ     TokenType
 		}
 	}{
 		{
 			name:  "Greek letter Delta",
 			input: "var Δ : Integer;",
 			want: []struct {
-				typ     TokenType
 				literal string
+				typ     TokenType
 			}{
-				{VAR, "var"},
-				{IDENT, "Δ"},
-				{COLON, ":"},
-				{IDENT, "Integer"},
-				{SEMICOLON, ";"},
-				{EOF, ""},
+				{"var", VAR},
+				{"Δ", IDENT},
+				{":", COLON},
+				{"Integer", IDENT},
+				{";", SEMICOLON},
+				{"", EOF},
 			},
 		},
 		{
 			name:  "Greek letters alpha and beta",
 			input: "α := β + 1;",
 			want: []struct {
-				typ     TokenType
 				literal string
+				typ     TokenType
 			}{
-				{IDENT, "α"},
-				{ASSIGN, ":="},
-				{IDENT, "β"},
-				{PLUS, "+"},
-				{INT, "1"},
-				{SEMICOLON, ";"},
-				{EOF, ""},
+				{"α", IDENT},
+				{":=", ASSIGN},
+				{"β", IDENT},
+				{"+", PLUS},
+				{"1", INT},
+				{";", SEMICOLON},
+				{"", EOF},
 			},
 		},
 		{
 			name:  "Cyrillic variable names",
 			input: "var переменная : Integer;",
 			want: []struct {
-				typ     TokenType
 				literal string
+				typ     TokenType
 			}{
-				{VAR, "var"},
-				{IDENT, "переменная"},
-				{COLON, ":"},
-				{IDENT, "Integer"},
-				{SEMICOLON, ";"},
-				{EOF, ""},
+				{literal: "var", typ: VAR},
+				{literal: "переменная", typ: IDENT},
+				{literal: ":", typ: COLON},
+				{literal: "Integer", typ: IDENT},
+				{literal: ";", typ: SEMICOLON},
+				{literal: "", typ: EOF},
 			},
 		},
 		{
 			name:  "Chinese characters",
 			input: "var 变量 := 42;",
 			want: []struct {
-				typ     TokenType
 				literal string
+				typ     TokenType
 			}{
-				{VAR, "var"},
-				{IDENT, "变量"},
-				{ASSIGN, ":="},
-				{INT, "42"},
-				{SEMICOLON, ";"},
-				{EOF, ""},
+				{literal: "var", typ: VAR},
+				{literal: "变量", typ: IDENT},
+				{literal: ":=", typ: ASSIGN},
+				{literal: "42", typ: INT},
+				{literal: ";", typ: SEMICOLON},
+				{literal: "", typ: EOF},
 			},
 		},
 		{
 			name:  "Japanese hiragana and katakana",
 			input: "var へんすう := カタカナ;",
 			want: []struct {
-				typ     TokenType
 				literal string
+				typ     TokenType
 			}{
-				{VAR, "var"},
-				{IDENT, "へんすう"},
-				{ASSIGN, ":="},
-				{IDENT, "カタカナ"},
-				{SEMICOLON, ";"},
-				{EOF, ""},
+				{literal: "var", typ: VAR},
+				{literal: "へんすう", typ: IDENT},
+				{literal: ":=", typ: ASSIGN},
+				{literal: "カタカナ", typ: IDENT},
+				{literal: ";", typ: SEMICOLON},
+				{literal: "", typ: EOF},
 			},
 		},
 		{
 			name:  "Mixed ASCII and Unicode",
 			input: "var myΔValue := 100;",
 			want: []struct {
-				typ     TokenType
 				literal string
+				typ     TokenType
 			}{
-				{VAR, "var"},
-				{IDENT, "myΔValue"},
-				{ASSIGN, ":="},
-				{INT, "100"},
-				{SEMICOLON, ";"},
-				{EOF, ""},
+				{literal: "var", typ: VAR},
+				{literal: "myΔValue", typ: IDENT},
+				{literal: ":=", typ: ASSIGN},
+				{literal: "100", typ: INT},
+				{literal: ";", typ: SEMICOLON},
+				{literal: "", typ: EOF},
 			},
 		},
 		{
 			name:  "Underscore with Unicode",
 			input: "var test_Δ := 42;",
 			want: []struct {
-				typ     TokenType
 				literal string
+				typ     TokenType
 			}{
-				{VAR, "var"},
-				{IDENT, "test_Δ"},
-				{ASSIGN, ":="},
-				{INT, "42"},
-				{SEMICOLON, ";"},
-				{EOF, ""},
+				{literal: "var", typ: VAR},
+				{literal: "test_Δ", typ: IDENT},
+				{literal: ":=", typ: ASSIGN},
+				{literal: "42", typ: INT},
+				{literal: ";", typ: SEMICOLON},
+				{literal: "", typ: EOF},
 			},
 		},
 		{
 			name:  "Unicode in function call",
 			input: "PrintLn(Δ);",
 			want: []struct {
-				typ     TokenType
 				literal string
+				typ     TokenType
 			}{
-				{IDENT, "PrintLn"},
-				{LPAREN, "("},
-				{IDENT, "Δ"},
-				{RPAREN, ")"},
-				{SEMICOLON, ";"},
-				{EOF, ""},
+				{literal: "PrintLn", typ: IDENT},
+				{literal: "(", typ: LPAREN},
+				{literal: "Δ", typ: IDENT},
+				{literal: ")", typ: RPAREN},
+				{literal: ";", typ: SEMICOLON},
+				{literal: "", typ: EOF},
 			},
 		},
 	}
@@ -1338,29 +1338,29 @@ Inc(Δ);
 PrintLn(Δ);`
 
 	expectedTokens := []struct {
-		typ     TokenType
 		literal string
+		typ     TokenType
 	}{
-		{VAR, "var"},
-		{IDENT, "Δ"},
-		{COLON, ":"},
-		{IDENT, "Integer"},
-		{SEMICOLON, ";"},
-		{IDENT, "Δ"},
-		{ASSIGN, ":="},
-		{INT, "1"},
-		{SEMICOLON, ";"},
-		{IDENT, "Inc"},
-		{LPAREN, "("},
-		{IDENT, "Δ"},
-		{RPAREN, ")"},
-		{SEMICOLON, ";"},
-		{IDENT, "PrintLn"},
-		{LPAREN, "("},
-		{IDENT, "Δ"},
-		{RPAREN, ")"},
-		{SEMICOLON, ";"},
-		{EOF, ""},
+		{literal: "var", typ: VAR},
+		{literal: "Δ", typ: IDENT},
+		{literal: ":", typ: COLON},
+		{literal: "Integer", typ: IDENT},
+		{literal: ";", typ: SEMICOLON},
+		{literal: "Δ", typ: IDENT},
+		{literal: ":=", typ: ASSIGN},
+		{literal: "1", typ: INT},
+		{literal: ";", typ: SEMICOLON},
+		{literal: "Inc", typ: IDENT},
+		{literal: "(", typ: LPAREN},
+		{literal: "Δ", typ: IDENT},
+		{literal: ")", typ: RPAREN},
+		{literal: ";", typ: SEMICOLON},
+		{literal: "PrintLn", typ: IDENT},
+		{literal: "(", typ: LPAREN},
+		{literal: "Δ", typ: IDENT},
+		{literal: ")", typ: RPAREN},
+		{literal: ";", typ: SEMICOLON},
+		{literal: "", typ: EOF},
 	}
 
 	l := New(input)
@@ -1420,8 +1420,8 @@ func TestBOMHandling(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectFirst TokenType
 		expectLit   string
+		expectFirst TokenType
 	}{
 		{
 			name:        "UTF-8 BOM followed by var",

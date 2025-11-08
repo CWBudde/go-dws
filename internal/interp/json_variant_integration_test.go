@@ -201,17 +201,17 @@ func TestJSONValue_VariantBoxing(t *testing.T) {
 // TestJSONValue_VarTypeIntegration verifies VarType works with JSON values
 func TestJSONValue_VarTypeIntegration(t *testing.T) {
 	tests := []struct {
-		name        string
 		setup       func() *jsonvalue.Value
+		name        string
 		wantVarType int64
 	}{
-		{"null", jsonvalue.NewNull, varNull},
-		{"boolean", func() *jsonvalue.Value { return jsonvalue.NewBoolean(true) }, varBoolean},
-		{"int64", func() *jsonvalue.Value { return jsonvalue.NewInt64(42) }, varInt64},
-		{"number", func() *jsonvalue.Value { return jsonvalue.NewNumber(3.14) }, varDouble},
-		{"string", func() *jsonvalue.Value { return jsonvalue.NewString("test") }, varString},
-		{"array", jsonvalue.NewArray, varArray},
-		{"object", jsonvalue.NewObject, varJSON},
+		{setup: jsonvalue.NewNull, name: "null", wantVarType: varNull},
+		{setup: func() *jsonvalue.Value { return jsonvalue.NewBoolean(true) }, name: "boolean", wantVarType: varBoolean},
+		{setup: func() *jsonvalue.Value { return jsonvalue.NewInt64(42) }, name: "int64", wantVarType: varInt64},
+		{setup: func() *jsonvalue.Value { return jsonvalue.NewNumber(3.14) }, name: "number", wantVarType: varDouble},
+		{setup: func() *jsonvalue.Value { return jsonvalue.NewString("test") }, name: "string", wantVarType: varString},
+		{setup: jsonvalue.NewArray, name: "array", wantVarType: varArray},
+		{setup: jsonvalue.NewObject, name: "object", wantVarType: varJSON},
 	}
 
 	for _, tt := range tests {

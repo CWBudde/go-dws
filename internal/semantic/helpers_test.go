@@ -13,8 +13,8 @@ func TestHelperDeclaration(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "simple helper for String",
@@ -105,8 +105,8 @@ func TestHelperMethodResolution(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "call helper method on String",
@@ -241,8 +241,8 @@ func TestHelperMethodParameters(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "correct parameters",

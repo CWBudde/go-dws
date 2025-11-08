@@ -131,9 +131,9 @@ end;
 // TestASTStructureForVariousPrograms tests AST structure for different code (Task 10.20)
 func TestASTStructureForVariousPrograms(t *testing.T) {
 	tests := []struct {
+		checkStructure func(t *testing.T, tree *ast.Program)
 		name           string
 		source         string
-		checkStructure func(t *testing.T, tree *ast.Program)
 	}{
 		{
 			name:   "variable declaration structure",

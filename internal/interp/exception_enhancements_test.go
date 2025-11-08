@@ -118,8 +118,8 @@ func TestExceptionStackTrace(t *testing.T) {
 	tests := []struct {
 		name            string
 		script          string
+		expectedInStack []string
 		expectException bool
-		expectedInStack []string // Expected function names in the stack trace
 	}{
 		{
 			name: "Exception captures stack trace",
@@ -311,10 +311,10 @@ TestFunc();
 // TestGetCallStack tests the GetCallStack() built-in function (Task 9.116)
 func TestGetCallStack(t *testing.T) {
 	tests := []struct {
+		checkOutput   func(string) error
 		name          string
 		script        string
-		expectedDepth int // Expected number of frames in the call stack
-		checkOutput   func(string) error
+		expectedDepth int
 	}{
 		{
 			name: "GetCallStack in nested function calls",

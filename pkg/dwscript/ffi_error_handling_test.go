@@ -100,8 +100,8 @@ func TestPanicConversionToException(t *testing.T) {
 		engine, _ := New(WithTypeCheck(false))
 
 		type CustomError struct {
-			Code    int
 			Message string
+			Code    int
 		}
 
 		engine.RegisterFunction("PanicWithCustom", func() string {

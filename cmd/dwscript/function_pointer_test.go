@@ -86,8 +86,8 @@ func TestFunctionPointerFeatures(t *testing.T) {
 	testCases := []struct {
 		name        string
 		source      string
-		shouldParse bool
 		description string
+		shouldParse bool
 	}{
 		{
 			name: "basic function pointer type",
@@ -236,8 +236,8 @@ func TestFunctionPointerInvalidCases(t *testing.T) {
 	testCases := []struct {
 		name        string
 		source      string
-		expectError bool
 		errorType   string
+		expectError bool
 	}{
 		{
 			name: "duplicate parameter names",

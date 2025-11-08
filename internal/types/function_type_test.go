@@ -57,9 +57,9 @@ func TestFunctionTypeString(t *testing.T) {
 
 func TestFunctionTypeEquals(t *testing.T) {
 	tests := []struct {
-		name     string
-		ft1      *FunctionType
 		ft2      Type
+		ft1      *FunctionType
+		name     string
 		expected bool
 	}{
 		{
@@ -140,8 +140,8 @@ func TestFunctionTypeEquals(t *testing.T) {
 
 func TestFunctionTypeIsProcedure(t *testing.T) {
 	tests := []struct {
-		name     string
 		funcType *FunctionType
+		name     string
 		expected bool
 	}{
 		{
@@ -173,8 +173,8 @@ func TestFunctionTypeIsProcedure(t *testing.T) {
 
 func TestFunctionTypeIsFunction(t *testing.T) {
 	tests := []struct {
-		name     string
 		funcType *FunctionType
+		name     string
 		expected bool
 	}{
 		{

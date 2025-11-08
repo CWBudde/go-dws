@@ -1004,9 +1004,9 @@ func TestMethodDeclarations(t *testing.T) {
 // TestOverloadDirective tests parsing of the overload directive on functions
 func TestOverloadDirective(t *testing.T) {
 	tests := []struct {
+		expected func(*testing.T, *ast.FunctionDecl)
 		name     string
 		input    string
-		expected func(*testing.T, *ast.FunctionDecl)
 	}{
 		{
 			name:  "function with overload directive",
@@ -1096,9 +1096,9 @@ func TestOverloadDirective(t *testing.T) {
 // TestOverloadDirectiveComprehensive tests parsing of the overload directive on all declaration types
 func TestOverloadDirectiveComprehensive(t *testing.T) {
 	tests := []struct {
+		expected func(*testing.T, ast.Node)
 		name     string
 		input    string
-		expected func(*testing.T, ast.Node)
 	}{
 		{
 			name: "class method with overload directive",
@@ -1342,9 +1342,9 @@ function Helper(x: Float): String; overload;`,
 
 func TestOptionalParameters(t *testing.T) {
 	tests := []struct {
+		expected func(*testing.T, *ast.FunctionDecl)
 		name     string
 		input    string
-		expected func(*testing.T, *ast.FunctionDecl)
 	}{
 		{
 			name:  "function with single optional parameter",

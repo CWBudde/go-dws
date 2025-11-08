@@ -573,9 +573,9 @@ func GoBool(v Value) (bool, error) {
 //
 // The storage strategy is determined by SetType.StorageKind.
 type SetValue struct {
-	SetType  *types.SetType // The set type metadata (includes storage strategy)
-	Elements uint64         // Bitset for small enums (used when StorageKind == Bitmask)
-	MapStore map[int]bool   // Map for large enums (used when StorageKind == Map)
+	SetType  *types.SetType
+	MapStore map[int]bool
+	Elements uint64
 }
 
 // Type returns "SET".

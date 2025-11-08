@@ -180,10 +180,10 @@ func TestParseArrayTypeDeclaration(t *testing.T) {
 
 func TestParseArrayLiteral(t *testing.T) {
 	tests := []struct {
+		assert       func(t *testing.T, lit *ast.ArrayLiteralExpression)
 		name         string
 		input        string
 		wantElements int
-		assert       func(t *testing.T, lit *ast.ArrayLiteralExpression)
 	}{
 		{
 			name:         "SimpleIntegers",

@@ -34,10 +34,10 @@ var (
 //   - array[1..5] of array[1..10] of Integer (nested static arrays)
 //   - array of function(x: Integer): Boolean (array of function pointers)
 type ArrayTypeNode struct {
-	Token       token.Token    // The 'array' token
-	ElementType TypeExpression // The element type (can be any type expression)
-	LowBound    Expression     // Low bound for static arrays (nil for dynamic)
-	HighBound   Expression     // High bound for static arrays (nil for dynamic)
+	ElementType TypeExpression
+	LowBound    Expression
+	HighBound   Expression
+	Token       token.Token
 	EndPos      token.Position
 }
 
@@ -100,8 +100,8 @@ func (at *ArrayTypeNode) typeExpressionNode() {}
 //   - set of (A, B, C) (set of inline anonymous enum)
 //   - set of 2..1000 (set of inline subrange - if supported)
 type SetTypeNode struct {
-	Token       token.Token    // The 'set' token
-	ElementType TypeExpression // The element type (enum or subrange)
+	ElementType TypeExpression
+	Token       token.Token
 	EndPos      token.Position
 }
 
@@ -153,8 +153,8 @@ func (st *SetTypeNode) typeExpressionNode() {}
 //
 // Task 9.70: Added to support metaclass type syntax
 type ClassOfTypeNode struct {
-	Token     token.Token    // The 'class' token
-	ClassType TypeExpression // The class type (typically a TypeAnnotation)
+	ClassType TypeExpression
+	Token     token.Token
 	EndPos    token.Position
 }
 

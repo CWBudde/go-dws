@@ -21,51 +21,38 @@ const DefaultMaxRecursionDepth = 1024
 
 // PropertyEvalContext tracks the state during property getter/setter evaluation.
 type PropertyEvalContext struct {
-	inPropertyGetter bool     // True when inside a property getter method
-	inPropertySetter bool     // True when inside a property setter method
-	propertyChain    []string // Track chain of properties being evaluated (e.g., ["Line", "GetLine"])
+	propertyChain    []string
+	inPropertyGetter bool
+	inPropertySetter bool
 }
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 type Interpreter struct {
-	currentNode       ast.Node                       // Current AST node being evaluated (for error reporting)
-	output            io.Writer                      // Where to write output (e.g., from PrintLn)
-	rand              *rand.Rand                     // Random number generator for Random() and Randomize()
-	exception         *ExceptionValue                // Current active exception (nil if none)
-	interfaces        map[string]*InterfaceInfo      // Registry of interface definitions
-	functions         map[string][]*ast.FunctionDecl // Registry of user-defined functions (Task 9.66: supports overloading)
-	globalOperators   *runtimeOperatorRegistry       // Global operator overloads
-	conversions       *runtimeConversionRegistry     // Global conversions
-	env               *Environment                   // The current execution environment
-	classes           map[string]*ClassInfo          // Registry of class definitions
-	handlerException  *ExceptionValue                // Exception being handled (for bare raise)
-	callStack         errors.StackTrace              // Stack of currently executing functions with position info (for stack traces)
-	maxRecursionDepth int                            // Maximum allowed recursion depth (prevents stack overflow)
-	initializedUnits  map[string]bool                // Track which units have been initialized
-	unitRegistry      *units.UnitRegistry            // Registry for managing loaded units
-	loadedUnits       []string                       // Units loaded in order (for initialization/finalization)
-	externalFunctions *ExternalFunctionRegistry      // Registry of external Go functions (Task 9.32)
-
-	// These flags signal control flow changes (break, continue, exit) and are checked
-	// after each statement. They propagate up the call stack until handled by the
-	// appropriate control structure (loop for break/continue, function for exit).
-	exitSignal     bool // Set by break statement, cleared by loop
-	continueSignal bool // Set by continue statement, cleared by loop
-	breakSignal    bool // Set by exit statement, cleared by function return
-
-	helpers map[string][]*HelperInfo
-
-	// Property evaluation context for recursion prevention
-	propContext *PropertyEvalContext // Tracks property getter/setter evaluation state
-
-	// oldValuesStack stores captured values for 'old' expressions in postconditions.
-	// Each function call pushes a map of captured values, which is popped after
-	// postcondition evaluation. Supports nested function calls properly.
-	oldValuesStack []map[string]Value // Old value capture for contract postconditions
-
-	// Source code context for rich error messages
-	sourceCode string // Full source code for error display
-	sourceFile string // Source filename for error display
+	currentNode       ast.Node
+	output            io.Writer
+	handlerException  *ExceptionValue
+	classes           map[string]*ClassInfo
+	interfaces        map[string]*InterfaceInfo
+	functions         map[string][]*ast.FunctionDecl
+	globalOperators   *runtimeOperatorRegistry
+	conversions       *runtimeConversionRegistry
+	env               *Environment
+	externalFunctions *ExternalFunctionRegistry
+	propContext       *PropertyEvalContext
+	exception         *ExceptionValue
+	rand              *rand.Rand
+	initializedUnits  map[string]bool
+	unitRegistry      *units.UnitRegistry
+	helpers           map[string][]*HelperInfo
+	sourceCode        string
+	sourceFile        string
+	callStack         errors.StackTrace
+	oldValuesStack    []map[string]Value
+	loadedUnits       []string
+	maxRecursionDepth int
+	breakSignal       bool
+	continueSignal    bool
+	exitSignal        bool
 }
 
 // New creates a new Interpreter with a fresh global environment.
