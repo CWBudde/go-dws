@@ -1539,3 +1539,261 @@ PrintLn(TState.Message);
 		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
 	}
 }
+
+// ============================================================================
+// Default Property Tests (Task 9.16)
+// ============================================================================
+
+// TestDefaultPropertyRead tests reading from default property using obj[index] syntax
+func TestDefaultPropertyRead(t *testing.T) {
+	input := `
+type TStringList = class
+	FData: array of String;
+	function GetItem(i: Integer): String; begin Result := FData[i]; end;
+	procedure SetItem(i: Integer; v: String); begin FData[i] := v; end;
+	property Items[i: Integer]: String read GetItem write SetItem; default;
+	constructor Create; begin FData := ['first', 'second', 'third']; end;
+end;
+
+var list := TStringList.Create();
+PrintLn(list[0]);  // Using default property syntax
+PrintLn(list[1]);
+PrintLn(list[2]);
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("eval error: %v", result)
+	}
+
+	expectedOutput := "first\nsecond\nthird\n"
+	if buf.String() != expectedOutput {
+		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
+	}
+}
+
+// TestDefaultPropertyWrite tests writing to default property using obj[index] := value syntax
+func TestDefaultPropertyWrite(t *testing.T) {
+	input := `
+type TStringList = class
+	FData: array of String;
+	function GetItem(i: Integer): String; begin Result := FData[i]; end;
+	procedure SetItem(i: Integer; v: String); begin FData[i] := v; end;
+	property Items[i: Integer]: String read GetItem write SetItem; default;
+	constructor Create; begin FData := ['', '', '']; end;
+end;
+
+var list := TStringList.Create();
+list[0] := 'alpha';  // Using default property write syntax
+list[1] := 'beta';
+list[2] := 'gamma';
+PrintLn(list[0]);
+PrintLn(list[1]);
+PrintLn(list[2]);
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("eval error: %v", result)
+	}
+
+	expectedOutput := "alpha\nbeta\ngamma\n"
+	if buf.String() != expectedOutput {
+		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
+	}
+}
+
+// TestDefaultPropertyEquivalence tests that obj[i] is equivalent to obj.Items[i]
+func TestDefaultPropertyEquivalence(t *testing.T) {
+	input := `
+type TArray = class
+	FData: array of Integer;
+	function GetValue(i: Integer): Integer; begin Result := FData[i]; end;
+	procedure SetValue(i: Integer; v: Integer); begin FData[i] := v; end;
+	property Values[i: Integer]: Integer read GetValue write SetValue; default;
+	constructor Create; begin FData := [10, 20, 30]; end;
+end;
+
+var arr := TArray.Create();
+PrintLn(IntToStr(arr[1]));  // Default property syntax
+PrintLn(IntToStr(arr.Values[1]));  // Explicit property syntax
+arr[1] := 99;  // Default property write
+PrintLn(IntToStr(arr.Values[1]));  // Read via explicit syntax
+arr.Values[2] := 88;  // Explicit property write
+PrintLn(IntToStr(arr[2]));  // Read via default syntax
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("eval error: %v", result)
+	}
+
+	expectedOutput := "20\n20\n99\n88\n"
+	if buf.String() != expectedOutput {
+		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
+	}
+}
+
+// TestDefaultPropertyInheritance tests default property inherited from parent class
+func TestDefaultPropertyInheritance(t *testing.T) {
+	input := `
+type TBase = class
+	FData: array of String;
+	function GetItem(i: Integer): String; begin Result := FData[i]; end;
+	procedure SetItem(i: Integer; v: String); begin FData[i] := v; end;
+	property Items[i: Integer]: String read GetItem write SetItem; default;
+	constructor Create; begin FData := ['a', 'b', 'c']; end;
+end;
+
+type TDerived = class(TBase)
+	// Inherits default property from TBase
+end;
+
+var obj := TDerived.Create();
+PrintLn(obj[0]);  // Should work via inherited default property
+obj[1] := 'modified';
+PrintLn(obj[1]);
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("eval error: %v", result)
+	}
+
+	expectedOutput := "a\nmodified\n"
+	if buf.String() != expectedOutput {
+		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
+	}
+}
+
+// TestDefaultPropertyWithVariableIndex tests default property with variable index
+func TestDefaultPropertyWithVariableIndex(t *testing.T) {
+	input := `
+type TCollection = class
+	FData: array of Integer;
+	function GetValue(i: Integer): Integer; begin Result := FData[i]; end;
+	procedure SetValue(i: Integer; v: Integer); begin FData[i] := v; end;
+	property Values[i: Integer]: Integer read GetValue write SetValue; default;
+	constructor Create; begin FData := [100, 200, 300, 400, 500]; end;
+end;
+
+var coll := TCollection.Create();
+var idx: Integer;
+idx := 0;
+PrintLn(IntToStr(coll[idx]));
+idx := 2;
+coll[idx] := 999;
+PrintLn(IntToStr(coll[2]));
+idx := 4;
+PrintLn(IntToStr(coll[idx]));
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("eval error: %v", result)
+	}
+
+	expectedOutput := "100\n999\n500\n"
+	if buf.String() != expectedOutput {
+		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
+	}
+}
+
+// TestDefaultPropertyInLoop tests default property used in loop
+func TestDefaultPropertyInLoop(t *testing.T) {
+	input := `
+type TNumbers = class
+	FData: array of Integer;
+	function GetValue(i: Integer): Integer; begin Result := FData[i]; end;
+	procedure SetValue(i: Integer; v: Integer); begin FData[i] := v; end;
+	property Values[i: Integer]: Integer read GetValue write SetValue; default;
+	constructor Create; begin FData := [1, 2, 3, 4, 5]; end;
+end;
+
+var nums := TNumbers.Create();
+var i: Integer;
+for i := 0 to 4 do
+begin
+	nums[i] := nums[i] * 10;  // Using default property for both read and write
+end;
+
+for i := 0 to 4 do
+	PrintLn(IntToStr(nums[i]));
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("eval error: %v", result)
+	}
+
+	expectedOutput := "10\n20\n30\n40\n50\n"
+	if buf.String() != expectedOutput {
+		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
+	}
+}

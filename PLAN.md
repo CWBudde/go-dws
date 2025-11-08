@@ -255,7 +255,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Status**: DONE - Already implemented with comprehensive tests (10+ passing)
   - **Estimated time**: 2-3 days
 
-- [ ] 9.16 Implement default properties
+- [x] 9.16 Implement default properties
   - **Task**: Support default property directive for index access without property name
   - **Implementation**:
     - Parse `default` directive on properties
@@ -264,6 +264,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Validate only one default property per class
   - **Test**: `obj[0]` equivalent to `obj.Items[0]` when Items is default
   - **Files**: `internal/parser/class.go`, `internal/semantic/property.go`, `internal/interp/property.go`
+  - **Status**: DONE - Runtime evaluation complete with 6 comprehensive tests (read, write, equivalence, inheritance, etc.)
   - **Estimated time**: 2 days
 
 - [x] 9.17 Implement class properties (static)

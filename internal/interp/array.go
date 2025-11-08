@@ -166,6 +166,18 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 		return indexVal
 	}
 
+	// Task 9.16: Check if left side is an object with a default property
+	// This allows obj[index] to be equivalent to obj.DefaultProperty[index]
+	if obj, ok := AsObject(leftVal); ok {
+		defaultProp := obj.Class.getDefaultProperty()
+		if defaultProp != nil {
+			// Route to the default indexed property
+			// For now, we only support single-index default properties
+			// Multi-index would need to collect all indices from nested IndexExpressions
+			return i.evalIndexedPropertyRead(obj, defaultProp, []Value{indexVal}, expr)
+		}
+	}
+
 	// Check if left side is a JSON value (wrapped in Variant)
 	// JSON objects support string indexing: obj['propertyName']
 	// JSON arrays support integer indexing: arr[0]
