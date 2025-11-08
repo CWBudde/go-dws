@@ -131,37 +131,129 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Files**: `internal/semantic/overload_resolution.go`, `internal/interp/objects.go`
   - **Completed**: Constructor overloading already working via existing overload resolution mechanism; tests pass
 
-- [ ] 9.4 Implement virtual constructors ⚠️ IN PROGRESS
+- [ ] 9.4 Implement virtual constructors ⚠️ BLOCKED - ~70% complete
   - **Task**: Support virtual/override on constructors for polymorphic instantiation
   - **Implementation**: PARTIALLY COMPLETE
-    - ✅ AST already supports `IsVirtual` and `IsOverride` on `FunctionDecl`
-    - ❌ Need to fix: `validateVirtualOverride` to check Constructors map (not just Methods map)
-    - ❌ Need to fix: Constructor inheritance to copy virtual metadata from parent constructors
-    - ❌ Need to implement: Virtual constructor dispatch in `NewExpression` evaluation
-    - ❌ Need to implement: Virtual dispatch when calling constructor through metaclass (`cls.Create`)
+    - ✅ 9.4.1 Semantic validation - validateVirtualOverride now handles constructors (analyze_classes.go:709-785)
+    - ✅ 9.4.2 Constructor inheritance with virtual metadata (analyze_classes.go:389-438)
+    - ✅ 9.4.3 Instance constructor virtual dispatch - o.Create (objects.go:1787-1873)
+    - ✅ 9.4.4 Metaclass constructor virtual dispatch - cls.Create (objects.go:1596-1689)
+    - ❌ 9.4.5 **BLOCKER**: Child class constructor calls fail (TClassB.Create)
   - **Test**: Metaclass variable calls correct overridden constructor
-  - **Files**: `internal/semantic/analyze_classes.go`, `internal/interp/objects.go`, `internal/interp/expressions.go`
-  - **Status**: ~20% complete
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/interp/objects.go`, `internal/interp/declarations.go`
+  - **Status**: ~70% complete, blocked by pre-existing bug
   - **Related**: Task 9.73 (Metaclass dispatch)
+  - **Blocker**: Task 9.4.5 must be completed before testing can proceed
 
-  **NOTES FOR RESUMING WORK**:
-  1. Fix `validateVirtualOverride()` in `internal/semantic/analyze_classes.go` (line 683)
-     - Currently only checks `Methods` map via `findMatchingOverloadInParent()`
-     - Need to also check `Constructors` and `ConstructorOverloads` maps
-     - Allow `virtual` on constructors, allow `override` on child constructors
+  **COMPLETED WORK (2025-01-08)**:
+  1. ✅ Semantic Analysis Layer (100% complete)
+     - Updated `validateVirtualOverride()` to handle constructors using `findMatchingConstructorInParent()`
+     - Helper functions added: `findMatchingConstructorInParent()`, `hasConstructorWithName()`
+     - Virtual/override metadata properly validated for constructors
+     - Warnings for hiding virtual constructors without override keyword
 
-  2. Update `inheritParentConstructors()` in `internal/semantic/analyze_classes.go`
-     - Copy virtual/override flags when inheriting constructors
-     - Store in classType.VirtualMethods map using constructor name
+  2. ✅ Constructor Inheritance (100% complete)
+     - `inheritParentConstructors()` copies IsVirtual flag (line 417)
+     - Inherited constructors marked with IsOverride=false (correct behavior)
 
-  3. Implement virtual dispatch in interpreter
-     - Location: `internal/interp/objects.go` - constructor call evaluation
-     - When calling constructor, check if it's virtual
-     - If virtual and called through metaclass/on polymorphic type, dispatch to actual runtime type's constructor
+  3. ✅ Runtime Virtual Dispatch - Instance Calls (100% complete)
+     - Instance constructor calls (o.Create) properly dispatch to runtime class
+     - Creates new instance of runtime type, not static type
+     - Located in objects.go:1787-1873
+
+  4. ✅ Runtime Virtual Dispatch - Metaclass Calls (100% complete)
+     - Metaclass constructor calls (cls.Create where cls is ClassValue) implemented
+     - Looks up constructor in runtime class, not declared type
+     - Located in objects.go:1596-1689
+     - Handles argument evaluation, constructor resolution, instance creation
+
+  **CRITICAL BUG DISCOVERED (BLOCKING COMPLETION)**:
+
+  **Bug**: Child class constructor calls fail with "There is no overloaded version" error
+  - `TClassA.Create` works ✓
+  - `TClassB.Create` fails ✗ (where TClassB inherits from TClassA)
+  - Error: "There is no overloaded version of \"TClassB.Create\" that can be called with these arguments"
+  - Affects both parameterless and parameterized constructors
+  - This is a PRE-EXISTING bug, not caused by Task 9.4 changes
+
+  **Bug Analysis**:
+  - Child class constructors ARE declared in class body (`constructor Create; override;`)
+  - Constructor implementations ARE provided (`constructor TClassB.Create; begin ... end;`)
+  - Parent ConstructorOverloads ARE copied to child (declarations.go:123-125)
+  - Child constructor implementation IS added via `replaceMethodInOverloadList()` (declarations.go:41-42)
+  - Problem occurs during overload resolution in `resolveMethodOverload()`
+  - Likely issue: `extractFunctionType()` or `semantic.ResolveOverload()` failing for override constructors
+
+  **Files Involved in Bug**:
+  - `internal/interp/declarations.go` - evalFunctionDeclaration (lines 13-73)
+  - `internal/interp/declarations.go` - replaceMethodInOverloadList (lines 517-542)
+  - `internal/interp/objects.go` - getMethodOverloadsInHierarchy (lines 2035-2107)
+  - `internal/interp/objects.go` - resolveMethodOverload (lines 1981-2030)
+  - `internal/interp/objects.go` - evalMethodCall for class constructor calls (lines 1270-1450)
+
+  **Subtasks to Fix Bug** (see Task 9.4.5 below):
+
+- [ ] 9.4.5 **CRITICAL**: Fix child class constructor call resolution ⚠️ NEW
+  - **Task**: Fix bug where TClassB.Create fails when TClassB inherits from TClassA
+  - **Subtasks**:
+    - [ ] 9.4.5.1 Debug constructor overload resolution
+      - Add logging to `getMethodOverloadsInHierarchy()` for constructors
+      - Check what overloads are returned for TClassB.Create
+      - Verify ConstructorOverloads map contents after evalFunctionDeclaration
+      - Log arguments passed to `resolveMethodOverload()`
+
+    - [ ] 9.4.5.2 Investigate extractFunctionType for override constructors
+      - Check if `extractFunctionType()` correctly extracts type from override constructors
+      - Verify parameter types are properly resolved
+      - Ensure return type handling is correct for constructors
+      - File: `internal/interp/types.go` or similar
+
+    - [ ] 9.4.5.3 Test semantic.ResolveOverload with constructor candidates
+      - Check if `semantic.ResolveOverload()` can handle constructor overloads
+      - Verify candidate list format is correct
+      - Test with 0-param and multi-param constructors
+      - File: `internal/semantic/overload.go`
+
+    - [ ] 9.4.5.4 Fix replaceMethodInOverloadList for override constructors
+      - Verify signature matching works for override constructors
+      - Check if IsOverride/IsVirtual flags affect matching
+      - Ensure implementation properly replaces declaration
+      - File: `internal/interp/declarations.go:517-542`
+
+    - [ ] 9.4.5.5 Consider alternative: Don't copy parent ConstructorOverloads
+      - Like MethodOverloads, don't copy from parent (Task 9.21.6 pattern)
+      - Update `getMethodOverloadsInHierarchy()` to walk hierarchy for constructors
+      - Would need to filter out overridden constructors by signature
+      - May be cleaner solution but requires more changes
+
+    - [ ] 9.4.5.6 Write minimal test case
+      - Create simplest possible test: TClassA + TClassB + override constructor
+      - Test both TClassA.Create and TClassB.Create
+      - Add to test suite once fixed
+      - File: `internal/interp/constructor_test.go` (new file)
+
+    - [ ] 9.4.5.7 Fix the actual bug
+      - Based on findings from 9.4.5.1-9.4.5.3, implement fix
+      - Most likely in `resolveMethodOverload()` or `extractFunctionType()`
+      - Ensure fix doesn't break existing constructor tests
+
+    - [ ] 9.4.5.8 Verify fixture tests pass
+      - Test: `testdata/fixtures/SimpleScripts/virtual_constructor.pas`
+      - Test: `testdata/fixtures/SimpleScripts/virtual_constructor2.pas`
+      - Both should pass once bug is fixed
+
+  - **Test**: `TClassB.Create` works when TClassB inherits from TClassA with override constructor
+  - **Files**: `internal/interp/objects.go`, `internal/interp/declarations.go`, `internal/semantic/overload.go`
+  - **Status**: Not started, blocking Task 9.4 completion
+  - **Priority**: CRITICAL - blocks Task 9.4, Task 9.72, Task 9.73
 
   **Test files**:
   - `testdata/fixtures/SimpleScripts/virtual_constructor.pas` - Tests virtual constructors with metaclass
   - `testdata/fixtures/SimpleScripts/virtual_constructor2.pas` - Tests virtual constructor without metaclass
+
+  **Expected Output (once fixed)**:
+  - virtual_constructor.pas: "B\nTestA\nTestB"
+  - virtual_constructor2.pas: "A\nA\nB\nB"
 
 - [x] 9.5 Fix constructor parameter validation ✅
   - **Task**: Validate argument count and types at constructor call sites
@@ -560,30 +652,129 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Completed**: 2025-01-08
   - **Note**: Class name identifiers already resolve to `ClassInfoValue` (see `evalIdentifier` in `expressions.go` line 175-183)
 
-- [ ] 9.73 Implement virtual constructor dispatch via metaclass ⚠️ IN PROGRESS
+- [ ] 9.73 Implement virtual constructor dispatch via metaclass ⚠️ BLOCKED - ~40% complete
   - **Task**: Call constructors through metaclass variables
   - **Implementation**: PARTIALLY COMPLETE
-    - ✅ Class names resolve to ClassInfoValue when used as identifiers
-    - ❌ Need to fix: Assignment type checking for metaclass variables (`cls := TClassB`)
-    - ❌ Need to fix: Member access on metaclass types (`cls.Create`)
-    - ❌ Need to implement: Virtual constructor dispatch logic
+    - ✅ 9.73.1 Semantic analysis for metaclass assignments (analyzer.go:415-430)
+    - ✅ 9.73.2 Semantic analysis for metaclass member access (analyze_classes.go:1024-1041)
+    - ✅ 9.73.3 Virtual constructor dispatch mechanism (objects.go:1596-1689, from Task 9.4.4)
+    - ❌ 9.73.4 **BLOCKER**: Parser cannot handle metaclass type aliases
+    - ❌ 9.73.5 **WRONG**: Class names resolve to ClassInfoValue instead of ClassValue
+    - ❌ 9.73.6 Missing runtime assignment validation
   - **Test**: `var obj := meta.Create;` creates instance of runtime type
-  - **Files**: `internal/interp/objects.go`, `internal/semantic/analyze_expressions.go`
-  - **Status**: ~40% complete
-  - **Related**: Task 9.4 (Virtual constructors - see notes below)
+  - **Files**: `internal/parser/interfaces.go`, `internal/interp/expressions.go`, `internal/interp/objects.go`
+  - **Status**: ~40% complete, blocked by parser issue
+  - **Related**: Task 9.4 (Virtual constructors), Task 9.72 (Metaclasses)
+  - **Blocker**: Task 9.73.4 must be completed before testing can proceed
 
-  **NOTES FOR RESUMING WORK**:
-  1. Fix metaclass assignment in semantic analyzer - Error: "cannot assign TClassB(TClassA) to class of TClassA"
-     - Location: `internal/semantic/analyze_expressions.go` - assignment type checking
-     - Need to: Check if RHS is ClassInfoValue and LHS is ClassOfType, then use `ClassOfType.IsAssignableFrom()`
+  **COMPLETED WORK (2025-01-08)**:
+  1. ✅ Semantic Analysis - Metaclass Assignments (100% complete)
+     - Location: `internal/semantic/analyzer.go:415-430`
+     - Allows assigning nil to metaclass variables
+     - Allows assigning class references to metaclass variables
+     - Validates inheritance compatibility (descendant classes assignable to base metaclass)
 
-  2. Support member access on metaclass types - Error: "member access on type class of TClassA requires a helper"
-     - Location: `internal/semantic/analyze_expressions.go` - member access analysis
-     - Need to: Allow constructor calls through metaclass types (special case for constructors)
+  2. ✅ Semantic Analysis - Metaclass Member Access (100% complete)
+     - Location: `internal/semantic/analyze_classes.go:1024-1041`
+     - Handles member access on metaclass types
+     - Allows constructor calls through metaclass types
+     - Location: `internal/semantic/analyze_function_calls.go:42-48`
 
-  3. Implement runtime dispatch in interpreter
-     - Location: `internal/interp/expressions.go` - evalMemberAccessExpression
-     - Need to: When object is ClassInfoValue and member is constructor, call constructor and return instance
+  3. ✅ Runtime Virtual Dispatch (100% complete - from Task 9.4.4)
+     - Location: `internal/interp/objects.go:1596-1689`
+     - Checks if method receiver is ClassValue (metaclass)
+     - Looks up constructor in runtime class
+     - Creates instance of actual runtime type, not declared type
+     - Handles argument evaluation, constructor resolution, instance creation
+
+  **CRITICAL BLOCKERS DISCOVERED**:
+
+  **Blocker 1: Parser Cannot Handle Metaclass Type Aliases** (CRITICAL)
+  - Syntax: `type TBaseClass = class of TBase;`
+  - Error: "expected ':' after field name or method/property declaration keyword"
+  - Location: `internal/parser/interfaces.go:91-93`
+  - Problem: No case for "class of" in type alias declarations
+  - Current code expects inline class body after "class" keyword
+  - Impact: ALL metaclass fixture tests fail at parse time
+
+  **Test Failures**:
+  - `testdata/fixtures/SimpleScripts/class_of.pas` - Parse error at line 22
+  - `testdata/fixtures/SimpleScripts/class_of2.pas` - Parse error at line 21
+  - `testdata/fixtures/SimpleScripts/class_of3.pas` - Parse error at line 4
+  - `testdata/fixtures/SimpleScripts/class_of_cast.pas` - Parse error at line 10
+
+  **Blocker 2: Wrong Type Returned for Class Name Identifiers**
+  - Location: `internal/interp/expressions.go:178-183`
+  - Current: Returns `ClassInfoValue` (internal context tracking type)
+  - Should: Return `ClassValue` (runtime metaclass reference type)
+  - Impact: Metaclass variables receive wrong type, dispatch fails
+
+  **Type Confusion**:
+  - `ClassInfoValue` - Used for `__CurrentClass__` context tracking, Type()="CLASSINFO"
+  - `ClassValue` - Represents metaclass references, Type()="CLASS", has IsAssignableTo() method
+  - These are TWO DIFFERENT types with different purposes
+
+  **Issue 3: Missing Runtime Assignment Validation**
+  - Location: `internal/interp/statements.go:605-678` (evalSimpleAssignment)
+  - No validation for metaclass variable assignments at runtime
+  - ClassValue.IsAssignableTo() method exists but is never called
+  - Could allow invalid assignments to slip through
+
+  **Subtasks to Fix Blockers** (see Tasks 9.73.4-9.73.7 below)
+
+- [ ] 9.73.4 **CRITICAL**: Fix parser to handle metaclass type aliases ⚠️ NEW
+  - **Task**: Parse `type Name = class of BaseClass;` syntax
+  - **Subtasks**:
+    - [ ] 9.73.4.1 Add AST support for metaclass type references
+    - [ ] 9.73.4.2 Update lexer if needed
+    - [ ] 9.73.4.3 Implement parser support for metaclass type aliases
+    - [ ] 9.73.4.4 Update semantic analysis for metaclass type aliases
+    - [ ] 9.73.4.5 Write parser tests
+    - [ ] 9.73.4.6 Verify fixture tests can parse
+  - **Test**: `type TBaseClass = class of TBase;` parses without error
+  - **Files**: `pkg/ast/types.go`, `internal/parser/interfaces.go`, `internal/semantic/analyze_types.go`
+  - **Priority**: CRITICAL - blocks all metaclass functionality
+
+- [ ] 9.73.5 **HIGH**: Fix class name identifier evaluation ⚠️ NEW
+  - **Task**: Return ClassValue instead of ClassInfoValue for class name identifiers
+  - **Subtasks**:
+    - [ ] 9.73.5.1 Update identifier evaluation (expressions.go:178-183)
+    - [ ] 9.73.5.2 Update any code expecting ClassInfoValue
+    - [ ] 9.73.5.3 Test class name as value
+    - [ ] 9.73.5.4 Test metaclass variable assignment
+  - **Test**: Class name identifiers return ClassValue type
+  - **Files**: `internal/interp/expressions.go`
+  - **Priority**: HIGH - required for metaclass functionality
+
+- [ ] 9.73.6 **MEDIUM**: Add runtime metaclass assignment validation ⚠️ NEW
+  - **Task**: Validate metaclass variable assignments at runtime
+  - **Subtasks**:
+    - [ ] 9.73.6.1 Add metaclass validation in evalSimpleAssignment
+    - [ ] 9.73.6.2 Implement validation logic
+    - [ ] 9.73.6.3 Test invalid assignments at runtime
+    - [ ] 9.73.6.4 Verify error messages are clear
+  - **Test**: Invalid metaclass assignments fail with clear error messages
+  - **Files**: `internal/interp/statements.go`
+  - **Priority**: MEDIUM - improves error reporting
+
+- [ ] 9.73.7 **FINAL**: Integration testing and fixture validation ⚠️ NEW
+  - **Task**: Verify all metaclass functionality works end-to-end
+  - **Subtasks**:
+    - [ ] 9.73.7.1 Test metaclass variable declaration and assignment
+    - [ ] 9.73.7.2 Test metaclass constructor dispatch
+    - [ ] 9.73.7.3 Test metaclass with constructor parameters
+    - [ ] 9.73.7.4 Run fixture tests (class_of*.pas)
+    - [ ] 9.73.7.5 Run overload tests
+    - [ ] 9.73.7.6 Verify expected output
+  - **Test**: All metaclass fixture tests pass
+  - **Priority**: FINAL - validates all previous work
+
+  **Test files**:
+  - `testdata/fixtures/SimpleScripts/class_of.pas` - Basic metaclass usage
+  - `testdata/fixtures/SimpleScripts/class_of2.pas` - Metaclass with inheritance
+  - `testdata/fixtures/SimpleScripts/class_of3.pas` - Metaclass type casting
+  - `testdata/fixtures/SimpleScripts/class_of_cast.pas` - Metaclass casting operations
+  - `testdata/fixtures/OverloadsPass/overload_on_metaclass.pas` - Metaclass overload resolution
 
 **Milestone**: Metaclasses complete, ~15 additional tests should pass
 
