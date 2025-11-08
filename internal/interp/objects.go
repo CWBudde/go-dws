@@ -113,9 +113,16 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	var constructor *ast.FunctionDecl
 	constructorName := "Create" // Default constructor name for NewExpression
 
-	// Get all constructor overloads
-	constructorOverloads := classInfo.ConstructorOverloads[constructorName]
-	if len(constructorOverloads) == 0 && classInfo.Constructor != nil && classInfo.Constructor.Name.Value == constructorName {
+	// Get all constructor overloads (case-insensitive lookup)
+	// Task 9.20: DWScript is case-insensitive, so we need to search for the constructor name
+	var constructorOverloads []*ast.FunctionDecl
+	for ctorName, overloads := range classInfo.ConstructorOverloads {
+		if strings.EqualFold(ctorName, constructorName) {
+			constructorOverloads = append(constructorOverloads, overloads...)
+		}
+	}
+
+	if len(constructorOverloads) == 0 && classInfo.Constructor != nil && strings.EqualFold(classInfo.Constructor.Name.Value, constructorName) {
 		// Fallback to single constructor if no overloads
 		constructorOverloads = []*ast.FunctionDecl{classInfo.Constructor}
 	}

@@ -193,6 +193,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 	if cd.Constructor != nil {
 		classInfo.Constructors[cd.Constructor.Name.Value] = cd.Constructor
+		// Task 9.20: Also add to ConstructorOverloads for consistency
+		classInfo.ConstructorOverloads[cd.Constructor.Name.Value] = append(classInfo.ConstructorOverloads[cd.Constructor.Name.Value], cd.Constructor)
 	}
 
 	// Identify destructor (method named "Destroy")
