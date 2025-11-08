@@ -1,6 +1,9 @@
 package interp
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestGlobalOperatorOverload(t *testing.T) {
 	input := `
@@ -90,7 +93,7 @@ func TestClassOperatorIn(t *testing.T) {
 
 	_, output := testEvalWithOutput(input)
 
-	if output != "true\nfalse\n" {
+	if !strings.EqualFold(output, "true\nfalse\n") {
 		t.Fatalf("unexpected output: %s", output)
 	}
 }

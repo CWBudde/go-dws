@@ -93,8 +93,8 @@ end.
 	}
 
 	// Check that exception was raised
-	if lines[0] != "true" {
-		t.Errorf("Expected exception to be raised (true), got %q", lines[0])
+	if lines[0] != "True" {
+		t.Errorf("Expected exception to be raised (True), got %q", lines[0])
 	}
 
 	// Check that counter reached the limit (1024)
@@ -171,8 +171,8 @@ end.
 	}
 
 	got := strings.TrimSpace(output.String())
-	if got != "true" {
-		t.Errorf("Expected exception to be caught (true), got %q", got)
+	if got != "True" {
+		t.Errorf("Expected exception to be caught (True), got %q", got)
 	}
 }
 
@@ -217,11 +217,11 @@ end.
 	}
 
 	// Both inner and outer should catch the exception
-	if lines[0] != "true" {
-		t.Errorf("Expected inner exception to be caught (true), got %q", lines[0])
+	if lines[0] != "True" {
+		t.Errorf("Expected inner exception to be caught (True), got %q", lines[0])
 	}
-	if lines[1] != "true" {
-		t.Errorf("Expected outer exception to be caught (true), got %q", lines[1])
+	if lines[1] != "True" {
+		t.Errorf("Expected outer exception to be caught (True), got %q", lines[1])
 	}
 }
 
@@ -264,8 +264,8 @@ end.
 	}
 
 	// Check that exception was raised
-	if lines[0] != "true" {
-		t.Errorf("Expected exception to be raised (true), got %q", lines[0])
+	if lines[0] != "True" {
+		t.Errorf("Expected exception to be raised (True), got %q", lines[0])
 	}
 
 	// Check that counter reached the limit (1024)

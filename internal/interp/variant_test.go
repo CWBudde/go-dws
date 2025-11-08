@@ -801,8 +801,8 @@ func TestVarToStrBoolean(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *StringValue, got %T", val)
 	}
-	if stringVal.Value != "true" {
-		t.Errorf("VarToStr(True) wrong. expected=%q, got=%q", "true", stringVal.Value)
+	if stringVal.Value != "True" {
+		t.Errorf("VarToStr(True) wrong. expected=%q, got=%q", "True", stringVal.Value)
 	}
 }
 
@@ -1358,17 +1358,17 @@ func TestNotOperatorWithVariant(t *testing.T) {
 		{
 			name:     "NOT with uninitialized Boolean in array",
 			input:    "var arr: array [1..2] of Boolean; arr[1] := not arr[1]; PrintLn(arr[1]);",
-			expected: "true\n",
+			expected: "True\n",
 		},
 		{
 			name:     "NOT with initialized Boolean (true)",
 			input:    "var arr: array [1..2] of Boolean; arr[1] := true; arr[1] := not arr[1]; PrintLn(arr[1]);",
-			expected: "false\n",
+			expected: "False\n",
 		},
 		{
 			name:     "NOT with initialized Boolean (false)",
 			input:    "var arr: array [1..2] of Boolean; arr[1] := false; arr[1] := not arr[1]; PrintLn(arr[1]);",
-			expected: "true\n",
+			expected: "True\n",
 		},
 		{
 			name:     "Bitwise NOT with uninitialized Integer in array",

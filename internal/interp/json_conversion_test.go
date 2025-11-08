@@ -34,13 +34,13 @@ func TestJSONValueToValue_Primitives(t *testing.T) {
 			name:     "boolean true",
 			input:    jsonvalue.NewBoolean(true),
 			wantType: "BOOLEAN",
-			wantStr:  "true",
+			wantStr:  "True",
 		},
 		{
 			name:     "boolean false",
 			input:    jsonvalue.NewBoolean(false),
 			wantType: "BOOLEAN",
-			wantStr:  "false",
+			wantStr:  "False",
 		},
 		{
 			name:     "int64",

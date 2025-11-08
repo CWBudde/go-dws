@@ -44,7 +44,7 @@ func TestBasicTryExcept(t *testing.T) {
 	interp.Eval(program)
 
 	output := buf.String()
-	expected := "true\n"
+	expected := "True\n"
 
 	if output != expected {
 		t.Errorf("expected output %q, got %q", expected, output)
@@ -229,7 +229,7 @@ func TestBareExcept(t *testing.T) {
 	interp.Eval(program)
 
 	output := buf.String()
-	expected := "true\n"
+	expected := "True\n"
 
 	if output != expected {
 		t.Errorf("expected output %q, got %q", expected, output)
@@ -309,7 +309,7 @@ func TestTryFinallyNoException(t *testing.T) {
 	interp.Eval(program)
 
 	output := buf.String()
-	expected := "try block\nfinally block\ntrue\n"
+	expected := "try block\nfinally block\nTrue\n"
 
 	if output != expected {
 		t.Errorf("expected output %q, got %q", expected, output)
@@ -405,7 +405,7 @@ func TestTryExceptFinallyCombined(t *testing.T) {
 	interp.Eval(program)
 
 	output := buf.String()
-	expected := "exception caught\nfinally executed\ntrue\ntrue\n"
+	expected := "exception caught\nfinally executed\nTrue\nTrue\n"
 
 	if output != expected {
 		t.Errorf("expected output %q, got %q", expected, output)
@@ -511,7 +511,7 @@ func TestNestedTryBlocks(t *testing.T) {
 	interp.Eval(program)
 
 	output := buf.String()
-	expected := "outer try\ninner try\ninner caught\nafter inner\ntrue\nfalse\n"
+	expected := "outer try\ninner try\ninner caught\nafter inner\nTrue\nFalse\n"
 
 	if output != expected {
 		t.Errorf("expected output %q, got %q", expected, output)
@@ -557,7 +557,7 @@ func TestNestedTryOuterCatches(t *testing.T) {
 	interp.Eval(program)
 
 	output := buf.String()
-	expected := "outer caught\nfalse\ntrue\n"
+	expected := "outer caught\nFalse\nTrue\n"
 
 	if output != expected {
 		t.Errorf("expected output %q, got %q", expected, output)
@@ -610,7 +610,7 @@ func TestBareRaiseReThrows(t *testing.T) {
 	interp.Eval(program)
 
 	output := buf.String()
-	expected := "inner caught\nouter caught\ntrue\ntrue\n"
+	expected := "inner caught\nouter caught\nTrue\nTrue\n"
 
 	if output != expected {
 		t.Errorf("expected output %q, got %q", expected, output)
@@ -670,7 +670,7 @@ func TestExceptionCatchesAllTypes(t *testing.T) {
 	interp.Eval(program)
 
 	output := buf.String()
-	expected := "true\ntrue\ntrue\n"
+	expected := "True\nTrue\nTrue\n"
 
 	if output != expected {
 		t.Errorf("expected output %q, got %q", expected, output)
@@ -804,7 +804,7 @@ func TestTryFinallyWithReturn(t *testing.T) {
 	}
 
 	// Should have set finallyExecuted to true
-	if !strings.Contains(output, "true") {
+	if !strings.Contains(output, "True") {
 		t.Error("finallyExecuted should be true")
 	}
 
@@ -857,7 +857,7 @@ func TestRaiseCustomException(t *testing.T) {
 	output := buf.String()
 
 	// Should have caught the exception
-	if !strings.Contains(output, "true") {
+	if !strings.Contains(output, "True") {
 		t.Error("custom exception should have been caught")
 	}
 
