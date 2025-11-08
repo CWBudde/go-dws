@@ -380,13 +380,13 @@ func (mc *MethodCallExpression) String() string {
 //	inherited MethodName
 //	inherited
 type InheritedExpression struct {
-	Token     token.Token     // The 'inherited' token
-	Method    *Identifier     // Optional method name (nil for bare 'inherited')
-	Arguments []Expression    // Optional arguments for method call
-	Type      *TypeAnnotation // Result type
-	IsCall    bool            // True if this is a method call (has arguments or parentheses)
-	IsMember  bool            // True if this accesses a member (has method name but no call)
+	Method    *Identifier
+	Type      *TypeAnnotation
+	Arguments []Expression
+	Token     token.Token
 	EndPos    token.Position
+	IsCall    bool
+	IsMember  bool
 }
 
 func (i *InheritedExpression) End() token.Position {

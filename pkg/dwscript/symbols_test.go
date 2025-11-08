@@ -308,8 +308,8 @@ func TestProgram_TypeAt_Literals(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		pos      token.Position
 		wantType string
+		pos      token.Position
 		wantOk   bool
 	}{
 		{
@@ -450,8 +450,8 @@ func TestProgram_TypeAt_Constants(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		pos      token.Position
 		wantType string
+		pos      token.Position
 	}{
 		{
 			name:     "PI constant",

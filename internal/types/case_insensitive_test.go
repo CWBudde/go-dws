@@ -9,57 +9,57 @@ import (
 // DWScript is case-insensitive, so all variations should work.
 func TestTypeFromString_CaseInsensitive(t *testing.T) {
 	tests := []struct {
+		expected Type
 		name     string
 		input    string
-		expected Type
 		wantErr  bool
 	}{
 		// PascalCase (original/traditional format)
-		{"Integer PascalCase", "Integer", INTEGER, false},
-		{"Float PascalCase", "Float", FLOAT, false},
-		{"String PascalCase", "String", STRING, false},
-		{"Boolean PascalCase", "Boolean", BOOLEAN, false},
-		{"TDateTime PascalCase", "TDateTime", DATETIME, false},
-		{"Void PascalCase", "Void", VOID, false},
-		{"Variant PascalCase", "Variant", VARIANT, false},
+		{expected: INTEGER, name: "Integer PascalCase", input: "Integer", wantErr: false},
+		{expected: FLOAT, name: "Float PascalCase", input: "Float", wantErr: false},
+		{expected: STRING, name: "String PascalCase", input: "String", wantErr: false},
+		{expected: BOOLEAN, name: "Boolean PascalCase", input: "Boolean", wantErr: false},
+		{expected: DATETIME, name: "TDateTime PascalCase", input: "TDateTime", wantErr: false},
+		{expected: VOID, name: "Void PascalCase", input: "Void", wantErr: false},
+		{expected: VARIANT, name: "Variant PascalCase", input: "Variant", wantErr: false},
 
 		// lowercase (common in some Pascal code)
-		{"Integer lowercase", "integer", INTEGER, false},
-		{"Float lowercase", "float", FLOAT, false},
-		{"String lowercase", "string", STRING, false},
-		{"Boolean lowercase", "boolean", BOOLEAN, false},
-		{"TDateTime lowercase", "tdatetime", DATETIME, false},
-		{"Void lowercase", "void", VOID, false},
-		{"Variant lowercase", "variant", VARIANT, false},
+		{expected: INTEGER, name: "Integer lowercase", input: "integer", wantErr: false},
+		{expected: FLOAT, name: "Float lowercase", input: "float", wantErr: false},
+		{expected: STRING, name: "String lowercase", input: "string", wantErr: false},
+		{expected: BOOLEAN, name: "Boolean lowercase", input: "boolean", wantErr: false},
+		{expected: DATETIME, name: "TDateTime lowercase", input: "tdatetime", wantErr: false},
+		{expected: VOID, name: "Void lowercase", input: "void", wantErr: false},
+		{expected: VARIANT, name: "Variant lowercase", input: "variant", wantErr: false},
 
 		// UPPERCASE (sometimes used for emphasis)
-		{"Integer UPPERCASE", "INTEGER", INTEGER, false},
-		{"Float UPPERCASE", "FLOAT", FLOAT, false},
-		{"String UPPERCASE", "STRING", STRING, false},
-		{"Boolean UPPERCASE", "BOOLEAN", BOOLEAN, false},
-		{"TDateTime UPPERCASE", "TDATETIME", DATETIME, false},
-		{"Void UPPERCASE", "VOID", VOID, false},
-		{"Variant UPPERCASE", "VARIANT", VARIANT, false},
+		{expected: INTEGER, name: "Integer UPPERCASE", input: "INTEGER", wantErr: false},
+		{expected: FLOAT, name: "Float UPPERCASE", input: "FLOAT", wantErr: false},
+		{expected: STRING, name: "String UPPERCASE", input: "STRING", wantErr: false},
+		{expected: BOOLEAN, name: "Boolean UPPERCASE", input: "BOOLEAN", wantErr: false},
+		{expected: DATETIME, name: "TDateTime UPPERCASE", input: "TDATETIME", wantErr: false},
+		{expected: VOID, name: "Void UPPERCASE", input: "VOID", wantErr: false},
+		{expected: VARIANT, name: "Variant UPPERCASE", input: "VARIANT", wantErr: false},
 
 		// MiXeD CaSe (edge cases)
-		{"Integer mixed 1", "InTeGeR", INTEGER, false},
-		{"Integer mixed 2", "iNtEgEr", INTEGER, false},
-		{"Float mixed 1", "FlOaT", FLOAT, false},
-		{"Float mixed 2", "fLoAt", FLOAT, false},
-		{"String mixed 1", "StRiNg", STRING, false},
-		{"String mixed 2", "sTrInG", STRING, false},
-		{"Boolean mixed 1", "BoOlEaN", BOOLEAN, false},
-		{"Boolean mixed 2", "bOoLeAn", BOOLEAN, false},
-		{"TDateTime mixed 1", "TdAtEtImE", DATETIME, false},
-		{"TDateTime mixed 2", "tDaTeTiMe", DATETIME, false},
-		{"Void mixed", "VoId", VOID, false},
-		{"Variant mixed", "VaRiAnT", VARIANT, false},
+		{expected: INTEGER, name: "Integer mixed 1", input: "InTeGeR", wantErr: false},
+		{expected: INTEGER, name: "Integer mixed 2", input: "iNtEgEr", wantErr: false},
+		{expected: FLOAT, name: "Float mixed 1", input: "FlOaT", wantErr: false},
+		{expected: FLOAT, name: "Float mixed 2", input: "fLoAt", wantErr: false},
+		{expected: STRING, name: "String mixed 1", input: "StRiNg", wantErr: false},
+		{expected: STRING, name: "String mixed 2", input: "sTrInG", wantErr: false},
+		{expected: BOOLEAN, name: "Boolean mixed 1", input: "BoOlEaN", wantErr: false},
+		{expected: BOOLEAN, name: "Boolean mixed 2", input: "bOoLeAn", wantErr: false},
+		{expected: DATETIME, name: "TDateTime mixed 1", input: "TdAtEtImE", wantErr: false},
+		{expected: DATETIME, name: "TDateTime mixed 2", input: "tDaTeTiMe", wantErr: false},
+		{expected: VOID, name: "Void mixed", input: "VoId", wantErr: false},
+		{expected: VARIANT, name: "Variant mixed", input: "VaRiAnT", wantErr: false},
 
 		// Unknown type (should still error regardless of case)
-		{"Unknown lowercase", "unknown", nil, true},
-		{"Unknown UPPERCASE", "UNKNOWN", nil, true},
-		{"Unknown mixed", "UnKnOwN", nil, true},
-		{"Unknown PascalCase", "UnknownType", nil, true},
+		{expected: nil, name: "Unknown lowercase", input: "unknown", wantErr: true},
+		{expected: nil, name: "Unknown UPPERCASE", input: "UNKNOWN", wantErr: true},
+		{expected: nil, name: "Unknown mixed", input: "UnKnOwN", wantErr: true},
+		{expected: nil, name: "Unknown PascalCase", input: "UnknownType", wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -85,16 +85,16 @@ func TestTypeFromString_CaseInsensitive(t *testing.T) {
 // which is the most common case-insensitivity issue.
 func TestTypeFromString_AllBuiltinTypes(t *testing.T) {
 	builtins := []struct {
-		lowercase string
 		expected  Type
+		lowercase string
 	}{
-		{"integer", INTEGER},
-		{"float", FLOAT},
-		{"string", STRING},
-		{"boolean", BOOLEAN},
-		{"tdatetime", DATETIME},
-		{"void", VOID},
-		{"variant", VARIANT},
+		{expected: INTEGER, lowercase: "integer"},
+		{expected: FLOAT, lowercase: "float"},
+		{expected: STRING, lowercase: "string"},
+		{expected: BOOLEAN, lowercase: "boolean"},
+		{expected: DATETIME, lowercase: "tdatetime"},
+		{expected: VOID, lowercase: "void"},
+		{expected: VARIANT, lowercase: "variant"},
 	}
 
 	for _, b := range builtins {
@@ -117,9 +117,9 @@ func TestTypeFromString_PreserveErrorMessage(t *testing.T) {
 		input       string
 		wantContain string
 	}{
-		{"UnknownType", "UnknownType"},
-		{"unknowntype", "unknowntype"},
-		{"UNKNOWNTYPE", "UNKNOWNTYPE"},
+		{input: "UnknownType", wantContain: "UnknownType"},
+		{input: "unknowntype", wantContain: "unknowntype"},
+		{input: "UNKNOWNTYPE", wantContain: "UNKNOWNTYPE"},
 	}
 
 	for _, tt := range tests {

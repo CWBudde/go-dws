@@ -10,11 +10,11 @@ import (
 // FunctionSignature describes the type signature of an external function.
 // It specifies the parameter types and return type for validation and marshaling.
 type FunctionSignature struct {
-	Name       string   // Function name as it appears in DWScript
-	ParamTypes []string // Parameter type names (e.g., "Integer", "String", "Boolean")
-	ReturnType string   // Return type name (e.g., "Integer", "Void")
-	IsVariadic bool     // True if the function accepts a variable number of arguments
-	VarParams  []bool   // Task 9.2d: True if parameter is by-reference (pointer in Go)
+	Name       string
+	ReturnType string
+	ParamTypes []string
+	VarParams  []bool
+	IsVariadic bool
 }
 
 // String returns a human-readable representation of the signature.
@@ -213,10 +213,10 @@ func (e *Engine) RegisterMethod(name string, receiver any, methodName string) er
 
 // externalFunctionWrapper wraps a Go function with marshaling logic.
 type externalFunctionWrapper struct {
-	name      string
-	goFunc    reflect.Value
 	signature *FunctionSignature
-	interp    *interp.Interpreter // Task 9.4: Interpreter for callback support
+	interp    *interp.Interpreter
+	goFunc    reflect.Value
+	name      string
 }
 
 // Call implements ExternalFunction.Call
@@ -422,7 +422,8 @@ func detectSignature(name string, fnType reflect.Type) (*FunctionSignature, erro
 		lastType := fnType.Out(numOut - 1)
 		isError := lastType.Implements(reflect.TypeOf((*error)(nil)).Elem())
 
-		if numOut == 1 {
+		switch numOut {
+		case 1:
 			if isError {
 				// func() error -> Void (error raised as exception)
 				sig.ReturnType = "Void"
@@ -434,7 +435,7 @@ func detectSignature(name string, fnType reflect.Type) (*FunctionSignature, erro
 				}
 				sig.ReturnType = dwsType
 			}
-		} else if numOut == 2 {
+		case 2:
 			if !isError {
 				return nil, fmt.Errorf("second return value must be error type")
 			}

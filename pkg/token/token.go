@@ -28,9 +28,9 @@ func (p Position) IsValid() bool {
 // Token represents a lexical token with its type, literal value, and position.
 // Every piece of DWScript source code is represented as a sequence of tokens.
 type Token struct {
-	Type    TokenType // The token type
-	Literal string    // The literal text of the token
-	Pos     Position  // The position in source code
+	Literal string
+	Pos     Position
+	Type    TokenType
 }
 
 // String returns a string representation of the token for debugging.

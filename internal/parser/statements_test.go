@@ -9,10 +9,10 @@ import (
 
 func TestExitStatementVariants(t *testing.T) {
 	tests := []struct {
+		assert      func(t *testing.T, expr ast.Expression)
 		name        string
 		input       string
 		expectValue bool
-		assert      func(t *testing.T, expr ast.Expression)
 	}{
 		{
 			name:        "ExitWithoutValue",

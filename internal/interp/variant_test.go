@@ -141,9 +141,9 @@ func TestVariantUnboxingNonVariant(t *testing.T) {
 
 func TestVariantUnwrapping(t *testing.T) {
 	tests := []struct {
-		name     string
 		input    Value
 		expected Value
+		name     string
 	}{
 		{
 			name:     "unwrap integer variant",

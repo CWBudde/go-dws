@@ -15,14 +15,14 @@ import (
 
 // HelperInfo stores runtime information about a helper type
 type HelperInfo struct {
-	Name           string                         // Helper type name
-	TargetType     types.Type                     // The type being extended
-	Methods        map[string]*ast.FunctionDecl   // Helper methods
-	Properties     map[string]*types.PropertyInfo // Helper properties
-	ClassVars      map[string]Value               // Class variable values
-	ClassConsts    map[string]Value               // Class constant values
-	IsRecordHelper bool                           // true if "record helper"
-	BuiltinMethods map[string]string              // Built-in method implementations (name -> spec)
+	TargetType     types.Type
+	Methods        map[string]*ast.FunctionDecl
+	Properties     map[string]*types.PropertyInfo
+	ClassVars      map[string]Value
+	ClassConsts    map[string]Value
+	BuiltinMethods map[string]string
+	Name           string
+	IsRecordHelper bool
 }
 
 // NewHelperInfo creates a new HelperInfo

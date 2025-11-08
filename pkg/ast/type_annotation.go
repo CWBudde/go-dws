@@ -6,9 +6,9 @@ import "github.com/cwbudde/go-dws/pkg/token"
 // This is used for variable declarations, parameters, and return types.
 // Example: `: Integer` in `var x: Integer := 5;`
 type TypeAnnotation struct {
+	InlineType TypeExpression
 	Name       string
 	Token      token.Token
-	InlineType TypeExpression // For complex inline types (arrays, function pointers) that need AST evaluation
 	EndPos     token.Position
 }
 

@@ -29,32 +29,14 @@ import (
 //	var squared := Map(numbers, lambda(x: Integer) => x * x);
 //	var printer := lambda() begin PrintLn('Hello'); end;
 type LambdaExpression struct {
-	// Token is the 'lambda' keyword token
-	Token token.Token
-
-	// Parameters is the parameter list (may have optional types)
-	Parameters []*Parameter
-
-	// ReturnType is the optional return type annotation
-	// If nil, type will be inferred during semantic analysis
-	ReturnType *TypeAnnotation
-
-	// Body is the lambda function body (always normalized to BlockStatement)
-	// Shorthand syntax (=>) is desugared to a block with a single return statement
-	Body *BlockStatement
-
-	// Type is the inferred/assigned function pointer type
-	// Set during semantic analysis
-	Type *TypeAnnotation
-
-	// IsShorthand indicates if this lambda was originally written with => syntax
-	// Used for String() method to preserve original syntax in output
-	IsShorthand bool
-
-	// CapturedVars is the list of variable names captured from outer scopes
-	// Set during semantic analysis
+	ReturnType   *TypeAnnotation
+	Body         *BlockStatement
+	Type         *TypeAnnotation
+	Parameters   []*Parameter
 	CapturedVars []string
+	Token        token.Token
 	EndPos       token.Position
+	IsShorthand  bool
 }
 
 func (l *LambdaExpression) End() token.Position {

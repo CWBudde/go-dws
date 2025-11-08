@@ -171,8 +171,8 @@ func TestJSONValueToValue_Nil(t *testing.T) {
 
 func TestValueToJSONValue_Primitives(t *testing.T) {
 	tests := []struct {
-		name     string
 		input    Value
+		name     string
 		wantKind jsonvalue.Kind
 	}{
 		{
@@ -486,14 +486,14 @@ func TestJSONKindToVarType(t *testing.T) {
 
 func TestRoundTrip_PrimitivesToJSON(t *testing.T) {
 	tests := []struct {
-		name  string
 		value Value
+		name  string
 	}{
-		{"nil", &NilValue{}},
-		{"boolean", &BooleanValue{Value: true}},
-		{"integer", &IntegerValue{Value: 42}},
-		{"float", &FloatValue{Value: 3.14}},
-		{"string", &StringValue{Value: "test"}},
+		{value: &NilValue{}, name: "nil"},
+		{value: &BooleanValue{Value: true}, name: "boolean"},
+		{value: &IntegerValue{Value: 42}, name: "integer"},
+		{value: &FloatValue{Value: 3.14}, name: "float"},
+		{value: &StringValue{Value: "test"}, name: "string"},
 	}
 
 	for _, tt := range tests {

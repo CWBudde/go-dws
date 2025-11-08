@@ -13,12 +13,12 @@ func TestParseLambdaExpressions(t *testing.T) {
 	tests := []struct {
 		name            string
 		input           string
-		paramCount      int
-		hasReturnType   bool
 		returnTypeName  string
-		isShorthand     bool
 		firstParamName  string
 		firstParamType  string
+		paramCount      int
+		hasReturnType   bool
+		isShorthand     bool
 		firstParamByRef bool
 	}{
 		{

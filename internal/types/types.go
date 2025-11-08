@@ -388,12 +388,12 @@ const (
 // Properties provide syntactic sugar for getter/setter access.
 type PropertyInfo struct {
 	Type            Type
+	ReadExpr        any
 	Name            string
 	ReadSpec        string
 	WriteSpec       string
 	ReadKind        PropAccessKind
 	WriteKind       PropAccessKind
-	ReadExpr        any
 	IsIndexed       bool
 	IsDefault       bool
 	IsClassProperty bool

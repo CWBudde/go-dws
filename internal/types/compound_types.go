@@ -445,14 +445,14 @@ func NewEnumType(name string, values map[string]int, orderedNames []string) *Enu
 //	  function Distance: Float;
 //	end;
 type HelperType struct {
-	Name           string                   // Helper type name (e.g., "TStringHelper")
-	TargetType     Type                     // Type being extended (e.g., String, TPoint)
-	Methods        map[string]*FunctionType // Helper methods
-	Properties     map[string]*PropertyInfo // Helper properties
-	ClassVars      map[string]Type          // Class variables
-	ClassConsts    map[string]interface{}   // Class constants with their values
-	IsRecordHelper bool                     // true for "record helper", false for plain "helper"
-	BuiltinMethods map[string]string        // Built-in helper method implementations (name -> spec)
+	TargetType     Type
+	Methods        map[string]*FunctionType
+	Properties     map[string]*PropertyInfo
+	ClassVars      map[string]Type
+	ClassConsts    map[string]interface{}
+	BuiltinMethods map[string]string
+	Name           string
+	IsRecordHelper bool
 }
 
 // String returns the string representation of the helper type

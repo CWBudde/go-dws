@@ -246,10 +246,10 @@ func TestEmitLoop(t *testing.T) {
 
 func TestValueConstructors(t *testing.T) {
 	tests := []struct {
-		name     string
 		value    Value
-		wantType ValueType
 		check    func(Value) bool
+		name     string
+		wantType ValueType
 	}{
 		{
 			name:     "NilValue",

@@ -8,16 +8,16 @@ import (
 // Value represents a runtime value in the bytecode VM.
 // This is a simple tagged union implementation for DWScript types.
 type Value struct {
+	Data interface{}
 	Type ValueType
-	Data interface{} // Integer (int64), Float (float64), String (string), Boolean (bool), etc.
 }
 
 // FunctionObject represents a compiled function in bytecode form.
 type FunctionObject struct {
-	Name        string
 	Chunk       *Chunk
-	Arity       int
+	Name        string
 	UpvalueDefs []UpvalueDef
+	Arity       int
 }
 
 // NewFunctionObject creates a new function object.
@@ -137,8 +137,8 @@ func ClosureValue(cl *Closure) Value {
 
 // BuiltinInfo holds information about a built-in function.
 type BuiltinInfo struct {
+	Func interface{}
 	Name string
-	Func interface{} // BuiltinFunction from vm.go (to avoid circular dependency)
 }
 
 // BuiltinValue constructs a Value representing a built-in function.
@@ -451,9 +451,9 @@ func (a *ArrayInstance) String() string {
 // This lightweight structure is sufficient for current VM needs and can be
 // extended with richer metadata in later milestones.
 type ObjectInstance struct {
-	ClassName string
 	fields    map[string]Value
 	props     map[string]Value
+	ClassName string
 }
 
 // NewObjectInstance creates a new object instance with optional class name.
@@ -524,25 +524,12 @@ type LineInfo struct {
 // Chunk represents a compiled bytecode chunk with instructions and constants.
 // A chunk is the basic unit of compilation - typically one function or script.
 type Chunk struct {
-	// Code contains the bytecode instructions
-	Code []Instruction
-
-	// Constants is the constant pool containing literal values
-	Constants []Value
-
-	// Lines maps instruction indices to source line numbers for error reporting
-	// Uses run-length encoding: each LineInfo entry covers instructions from
-	// InstructionOffset to the next entry's offset (or end of code)
-	Lines []LineInfo
-
-	// LocalCount is the number of local variable slots required to execute this chunk.
+	tryInfos   map[int]TryInfo
+	Name       string
+	Code       []Instruction
+	Constants  []Value
+	Lines      []LineInfo
 	LocalCount int
-
-	// Name is a human-readable name for this chunk (function name, script name, etc.)
-	Name string
-
-	// tryInfos stores metadata for try instructions keyed by instruction index.
-	tryInfos map[int]TryInfo
 }
 
 // TryInfo describes the catch/finally targets for a try instruction.

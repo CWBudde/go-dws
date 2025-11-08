@@ -1104,7 +1104,6 @@ func TestForInSet_SingleElement(t *testing.T) {
 // ============================================================================
 
 // TestVeryLargeSet_500Elements tests set operations with 500-element enum.
-// Task 9.10c: Stress test for very large sets (map storage).
 func TestVeryLargeSet_500Elements(t *testing.T) {
 	// Create enum with 500 elements
 	values := make(map[string]int)

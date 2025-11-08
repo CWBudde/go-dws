@@ -113,28 +113,12 @@ func (s ErrorSeverity) String() string {
 // The Length field indicates the span of the error in characters, allowing
 // tools to highlight the exact portion of code that caused the error.
 type Error struct {
-	// Message is the human-readable error description.
-	Message string
-
-	// Line is the 1-based line number where the error occurred.
-	// Line 1 is the first line of the file.
-	Line int
-
-	// Column is the 1-based column number where the error occurred.
-	// Column 1 is the first character on the line.
-	Column int
-
-	// Length is the length of the error span in characters.
-	// This allows tools to highlight the exact problematic code.
-	// A length of 0 indicates a point error (no specific span).
-	Length int
-
-	// Severity indicates whether this is an error, warning, info, or hint.
+	Message  string
+	Code     string
+	Line     int
+	Column   int
+	Length   int
 	Severity ErrorSeverity
-
-	// Code is an optional error code for programmatic error handling.
-	// Examples: "E_UNDEFINED_VAR", "W_UNUSED_VAR", "E_TYPE_MISMATCH"
-	Code string
 }
 
 // Error implements the error interface.

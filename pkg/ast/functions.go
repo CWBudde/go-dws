@@ -29,14 +29,14 @@ import (
 // providing a value for an optional parameter, the default expression is evaluated
 // in the caller's context. Optional parameters must come after all required parameters.
 type Parameter struct {
+	DefaultValue Expression
 	Name         *Identifier
 	Type         *TypeAnnotation
 	Token        token.Token
-	DefaultValue Expression // optional default value expression (nil if required)
-	IsLazy       bool       // lazy parameter modifier - captures expression, not value
-	ByRef        bool       // var parameter modifier - pass by reference
-	IsConst      bool       // const parameter modifier - pass by const-reference
 	EndPos       token.Position
+	IsLazy       bool
+	ByRef        bool
+	IsConst      bool
 }
 
 func (p *Parameter) String() string {
@@ -87,26 +87,26 @@ func (p *Parameter) String() string {
 //	ensure
 //	   Result >= 0;
 type FunctionDecl struct {
-	Name           *Identifier
 	ClassName      *Identifier
 	ReturnType     *TypeAnnotation
 	Body           *BlockStatement
+	PreConditions  *PreConditions
+	PostConditions *PostConditions
+	Name           *Identifier
 	ExternalName   string
 	Parameters     []*Parameter
 	Token          token.Token
-	PreConditions  *PreConditions  // Preconditions (require)
-	PostConditions *PostConditions // Postconditions (ensure)
+	EndPos         token.Position
 	Visibility     Visibility
 	IsDestructor   bool
-	IsConstructor  bool
 	IsVirtual      bool
 	IsOverride     bool
 	IsAbstract     bool
 	IsExternal     bool
 	IsClassMethod  bool
-	IsOverload     bool // Function/method can be overloaded
-	IsForward      bool // Forward declaration (signature only, no body)
-	EndPos         token.Position
+	IsOverload     bool
+	IsForward      bool
+	IsConstructor  bool
 }
 
 func (f *FunctionDecl) End() token.Position {

@@ -170,17 +170,17 @@ func TestSignedBOperand(t *testing.T) {
 
 func TestOpCodeNames(t *testing.T) {
 	tests := []struct {
-		op   OpCode
 		name string
+		op   OpCode
 	}{
-		{OpLoadConst, "LOAD_CONST"},
-		{OpAddInt, "ADD_INT"},
-		{OpAddFloat, "ADD_FLOAT"},
-		{OpJump, "JUMP"},
-		{OpCall, "CALL"},
-		{OpReturn, "RETURN"},
-		{OpHalt, "HALT"},
-		{OpPrint, "PRINT"},
+		{"LOAD_CONST", OpLoadConst},
+		{"ADD_INT", OpAddInt},
+		{"ADD_FLOAT", OpAddFloat},
+		{"JUMP", OpJump},
+		{"CALL", OpCall},
+		{"RETURN", OpReturn},
+		{"HALT", OpHalt},
+		{"PRINT", OpPrint},
 	}
 
 	for _, tt := range tests {
@@ -194,13 +194,13 @@ func TestOpCodeNames(t *testing.T) {
 
 func TestInstructionString(t *testing.T) {
 	tests := []struct {
-		inst Instruction
 		want string
+		inst Instruction
 	}{
-		{MakeSimpleInstruction(OpHalt), "HALT"},
-		{MakeInstruction(OpLoadConst, 0, 42), "LOAD_CONST"},
-		{MakeInstruction(OpAddInt, 0, 0), "ADD_INT"},
-		{MakeInstruction(OpJump, 0, 100), "JUMP"},
+		{"HALT", MakeSimpleInstruction(OpHalt)},
+		{"LOAD_CONST", MakeInstruction(OpLoadConst, 0, 42)},
+		{"ADD_INT", MakeInstruction(OpAddInt, 0, 0)},
+		{"JUMP", MakeInstruction(OpJump, 0, 100)},
 	}
 
 	for _, tt := range tests {

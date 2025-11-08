@@ -269,10 +269,10 @@ func (ie *IndexExpression) SetType(typ *TypeAnnotation) {
 //   - ArrayLiteralExpression: for literal array values ([1, 2, 3])
 //   - ArrayTypeAnnotation: for array type declarations
 type NewArrayExpression struct {
-	Token           token.Token     // The 'new' token
-	ElementTypeName *Identifier     // The array element type name (e.g., Integer, String)
-	Dimensions      []Expression    // Size expression(s) for each dimension (1+ expressions)
-	Type            *TypeAnnotation // Inferred array type (for semantic analysis)
+	ElementTypeName *Identifier
+	Type            *TypeAnnotation
+	Dimensions      []Expression
+	Token           token.Token
 	EndPos          token.Position
 }
 

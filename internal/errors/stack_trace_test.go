@@ -64,8 +64,8 @@ func TestStackFrame_String(t *testing.T) {
 func TestStackTrace_String(t *testing.T) {
 	tests := []struct {
 		name     string
-		trace    StackTrace
 		expected string
+		trace    StackTrace
 	}{
 		{
 			name:     "Empty stack trace",
@@ -136,9 +136,9 @@ func TestStackTrace_Reverse(t *testing.T) {
 
 func TestStackTrace_Top(t *testing.T) {
 	tests := []struct {
+		expected *string
 		name     string
 		trace    StackTrace
-		expected *string // nil if expecting nil, otherwise pointer to expected name
 	}{
 		{
 			name:     "Empty stack",
@@ -183,9 +183,9 @@ func TestStackTrace_Top(t *testing.T) {
 
 func TestStackTrace_Bottom(t *testing.T) {
 	tests := []struct {
+		expected *string
 		name     string
 		trace    StackTrace
-		expected *string
 	}{
 		{
 			name:     "Empty stack",

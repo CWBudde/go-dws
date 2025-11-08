@@ -35,8 +35,8 @@ func TestLargeSetTypeDeclaration(t *testing.T) {
 func TestLargeSetTypeInference(t *testing.T) {
 	tests := []struct {
 		name     string
-		enumSize int
 		elements string
+		enumSize int
 	}{
 		{
 			name:     "65-element enum set literal",
@@ -73,13 +73,13 @@ func TestLargeSetTypeInference(t *testing.T) {
 func TestLargeSetOperationTypeChecking(t *testing.T) {
 	tests := []struct {
 		name      string
-		enumSize  int
 		operation string
+		enumSize  int
 	}{
-		{"union", 100, "s3 := s1 + s2;"},
-		{"difference", 100, "s3 := s1 - s2;"},
-		{"intersection", 100, "s3 := s1 * s2;"},
-		{"membership", 100, "if E50 in s1 then PrintLn('ok');"},
+		{"union", "s3 := s1 + s2;", 100},
+		{"difference", "s3 := s1 - s2;", 100},
+		{"intersection", "s3 := s1 * s2;", 100},
+		{"membership", "if E50 in s1 then PrintLn('ok');", 100},
 	}
 
 	for _, tt := range tests {

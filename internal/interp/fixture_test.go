@@ -24,11 +24,11 @@ func TestDWScriptFixtures(t *testing.T) {
 	testCategories := []struct {
 		name            string
 		path            string
-		expectErrors    bool
 		description     string
-		requiresLibs    bool // Requires external libraries/dependencies
-		requiresCodegen bool // Requires JavaScript codegen (Stage 12)
-		skip            bool // Temporarily skip this category
+		expectErrors    bool
+		requiresLibs    bool
+		requiresCodegen bool
+		skip            bool
 	}{
 		// Core Language Tests - Pass Cases
 		{

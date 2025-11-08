@@ -4,18 +4,18 @@ import "testing"
 
 func TestKindString(t *testing.T) {
 	tests := []struct {
-		kind     Kind
 		expected string
+		kind     Kind
 	}{
-		{KindUndefined, "Undefined"},
-		{KindNull, "Null"},
-		{KindObject, "Object"},
-		{KindArray, "Array"},
-		{KindString, "String"},
-		{KindNumber, "Number"},
-		{KindInt64, "Int64"},
-		{KindBoolean, "Boolean"},
-		{Kind(99), "Unknown"},
+		{"Undefined", KindUndefined},
+		{"Null", KindNull},
+		{"Object", KindObject},
+		{"Array", KindArray},
+		{"String", KindString},
+		{"Number", KindNumber},
+		{"Int64", KindInt64},
+		{"Boolean", KindBoolean},
+		{"Unknown", Kind(99)},
 	}
 
 	for _, tt := range tests {

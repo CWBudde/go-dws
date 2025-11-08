@@ -11,8 +11,8 @@ import (
 //   - type TComparator = function(a, b: Integer): Integer;
 //   - type TCallback = procedure(msg: String);
 type FunctionPointerType struct {
-	Parameters []Type // Parameter types
-	ReturnType Type   // Return type (nil for procedures)
+	ReturnType Type
+	Parameters []Type
 }
 
 // NewFunctionPointerType creates a new function pointer type with the given parameters and return type.

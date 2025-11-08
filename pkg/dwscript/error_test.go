@@ -9,14 +9,14 @@ import (
 
 func TestErrorSeverity_String(t *testing.T) {
 	tests := []struct {
-		severity ErrorSeverity
 		want     string
+		severity ErrorSeverity
 	}{
-		{SeverityError, "error"},
-		{SeverityWarning, "warning"},
-		{SeverityInfo, "info"},
-		{SeverityHint, "hint"},
-		{ErrorSeverity(999), "unknown"},
+		{"error", SeverityError},
+		{"warning", SeverityWarning},
+		{"info", SeverityInfo},
+		{"hint", SeverityHint},
+		{"unknown", ErrorSeverity(999)},
 	}
 
 	for _, tt := range tests {

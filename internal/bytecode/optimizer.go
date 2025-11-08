@@ -52,22 +52,22 @@ func WithOptimizationPass(pass OptimizationPass, enabled bool) OptimizeOption {
 }
 
 type optimizerPass struct {
-	id  OptimizationPass
 	run func(*chunkOptimizer) bool
+	id  OptimizationPass
 }
 
 type chunkOptimizer struct {
 	chunk             *Chunk
+	jumpTargets       map[int]int
+	tryInfos          map[int]TryInfo
+	config            optimizeConfig
 	currentCode       []Instruction
 	currentLines      []int
 	currentToOriginal []int
+	passes            []optimizerPass
 	originalCount     int
-	jumpTargets       map[int]int
-	tryInfos          map[int]TryInfo
 	hasLineInfo       bool
 	changed           bool
-	passes            []optimizerPass
-	config            optimizeConfig
 }
 
 func newChunkOptimizer(chunk *Chunk, cfg optimizeConfig) *chunkOptimizer {
@@ -376,9 +376,9 @@ func (o *chunkOptimizer) inlineSequenceForCall(callInst Instruction, line, origi
 }
 
 type valueState struct {
-	known    bool
 	value    Value
 	producer int
+	known    bool
 }
 
 func (o *chunkOptimizer) propagateConstants() bool {

@@ -35,8 +35,8 @@ import (
 // Engine is the main entry point for the DWScript interpreter.
 // It provides a high-level API for compiling and executing DWScript programs.
 type Engine struct {
-	options           Options
 	externalFunctions *interp.ExternalFunctionRegistry
+	options           Options
 }
 
 // New creates a new DWScript engine with the given options.
@@ -378,8 +378,8 @@ func (e *Engine) Eval(source string) (*Result, error) {
 type Program struct {
 	ast           *ast.Program
 	analyzer      *semantic.Analyzer
-	options       Options
 	bytecodeChunk *bytecode.Chunk
+	options       Options
 }
 
 // AST returns the Abstract Syntax Tree of the compiled program.

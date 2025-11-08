@@ -858,9 +858,9 @@ func TestLambdaInferenceComplexErrors(t *testing.T) {
 // Task 9.21.4: Support variadic parameters in lambda type inference
 func TestVariadicLambdaInference(t *testing.T) {
 	tests := []struct {
+		checkFn  func(*testing.T, *Analyzer)
 		name     string
 		input    string
-		checkFn  func(*testing.T, *Analyzer)
 		expectOk bool
 	}{
 		{
@@ -1028,8 +1028,8 @@ func TestOverloadDetectionWithLambdas(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		expectOk bool
 		errorMsg string
+		expectOk bool
 	}{
 		{
 			name: "overloaded function with lambda - should detect and error",

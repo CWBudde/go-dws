@@ -239,7 +239,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 
 	// Define all names with the same value/type
 	// For multi-identifier declarations without initializers, each gets its own zero value
-	var lastValue Value = value
+	var lastValue = value
 	for _, name := range stmt.Names {
 		// If there's an initializer, all names share the same value (but parser prevents this for multi-names)
 		// If no initializer, need to create separate zero values for each variable

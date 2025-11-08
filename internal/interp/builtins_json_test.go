@@ -416,8 +416,8 @@ func TestToJSON_JSONValues(t *testing.T) {
 func TestToJSON_ErrorCases(t *testing.T) {
 	tests := []struct {
 		name          string
-		args          []Value
 		wantErrSubstr string
+		args          []Value
 	}{
 		{
 			name:          "no arguments",
@@ -453,10 +453,10 @@ func TestToJSON_ErrorCases(t *testing.T) {
 
 func TestToJSONFormatted_Basic(t *testing.T) {
 	tests := []struct {
-		name       string
 		value      Value
+		name       string
+		wantSubstr []string
 		indent     int64
-		wantSubstr []string // Substrings to check for
 	}{
 		{
 			name:       "integer with indent 2",
@@ -541,8 +541,8 @@ func TestToJSONFormatted_Basic(t *testing.T) {
 func TestToJSONFormatted_ErrorCases(t *testing.T) {
 	tests := []struct {
 		name          string
-		args          []Value
 		wantErrSubstr string
+		args          []Value
 	}{
 		{
 			name:          "no arguments",

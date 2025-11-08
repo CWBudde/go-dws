@@ -14,9 +14,9 @@ func TestVariadicFunctionDeclaration(t *testing.T) {
 		name                 string
 		input                string
 		funcName             string
-		expectVariadic       bool
 		expectedVariadicType string
 		expectedParamCount   int
+		expectVariadic       bool
 	}{
 		{
 			name:                 "array of const parameter",

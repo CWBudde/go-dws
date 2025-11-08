@@ -143,14 +143,14 @@ func (fd ForDirection) String() string {
 //	for i := 1 to 10 step 2 do PrintLn(i);
 type ForStatement struct {
 	Start     Expression
-	EndValue  Expression // Renamed from 'End' to avoid conflict with End() method
+	EndValue  Expression
 	Body      Statement
+	Step      Expression
 	Variable  *Identifier
 	Token     token.Token
-	Direction ForDirection
-	Step      Expression // Optional step value (nil if not specified, defaults to 1)
-	InlineVar bool
 	EndPos    token.Position
+	Direction ForDirection
+	InlineVar bool
 }
 
 func (fs *ForStatement) statementNode()       {}

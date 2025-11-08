@@ -44,20 +44,14 @@ func (k Kind) String() string {
 // Value represents a JSON value in memory. It intentionally avoids using interface{}
 // to make downstream use in the interpreter simpler and more type-safe.
 type Value struct {
-	kind Kind
-
-	// Object fields
 	objEntries map[string]*Value
-	objKeys    []string // preserves insertion order
-
-	// Array elements
-	arrElems []*Value
-
-	// Primitive payloads
-	str  string
-	num  float64
-	i64  int64
-	bool bool
+	str        string
+	objKeys    []string
+	arrElems   []*Value
+	num        float64
+	i64        int64
+	kind       Kind
+	bool       bool
 }
 
 // Kind returns the kind of the value.

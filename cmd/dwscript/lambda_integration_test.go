@@ -84,8 +84,8 @@ func TestLambdaFeatures(t *testing.T) {
 	testCases := []struct {
 		name        string
 		source      string
-		shouldParse bool
 		description string
+		shouldParse bool
 	}{
 		{
 			name: "shorthand lambda syntax",

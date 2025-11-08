@@ -217,9 +217,9 @@ func TestVM_IncDecInt(t *testing.T) {
 
 func TestVM_IntegerBitwiseInstructions(t *testing.T) {
 	tests := []struct {
-		name  string
-		build func(chunk *Chunk)
 		want  Value
+		build func(chunk *Chunk)
+		name  string
 	}{
 		{
 			name: "BitAnd",
@@ -352,9 +352,9 @@ func TestVM_TypeConversions(t *testing.T) {
 
 func TestVM_CompareInstructions(t *testing.T) {
 	tests := []struct {
-		name  string
-		build func(chunk *Chunk)
 		want  Value
+		build func(chunk *Chunk)
+		name  string
 	}{
 		{
 			name: "CompareIntLess",

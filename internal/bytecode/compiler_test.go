@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	userGlobal0 = builtinExceptObjectIndex + 1
-	userGlobal1 = builtinExceptObjectIndex + 2
+	numBuiltinGlobals = 11
+	userGlobal0       = numBuiltinGlobals
+	userGlobal1       = numBuiltinGlobals + 1
 )
 
 var testCompileOptimizeOptions = []OptimizeOption{
@@ -85,14 +86,14 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 	}
 
 	expectInstructions(t, chunk, []expectedInstruction{
-		{OpLoadConst0, 0, 0},
-		{OpStoreGlobal, 0, userGlobal0},
-		{OpLoadGlobal, 0, userGlobal0},
-		{OpLoadConst1, 0, 0},
-		{OpAddInt, 0, 0},
-		{OpStoreGlobal, 0, userGlobal0},
-		{OpLoadGlobal, 0, userGlobal0},
-		{OpReturn, 1, 0},
+		{Op: OpLoadConst0, A: 0, B: 0},
+		{Op: OpStoreGlobal, A: 0, B: 11},
+		{Op: OpLoadGlobal, A: 0, B: 11},
+		{Op: OpLoadConst1, A: 0, B: 0},
+		{Op: OpAddInt, A: 0, B: 0},
+		{Op: OpStoreGlobal, A: 0, B: 11},
+		{Op: OpLoadGlobal, A: 0, B: 11},
+		{Op: OpReturn, A: 1, B: 0},
 	})
 
 	if chunk.ConstantCount() != 2 {
@@ -190,19 +191,19 @@ func TestCompiler_IfElse(t *testing.T) {
 	}
 
 	expectInstructions(t, chunk, []expectedInstruction{
-		{OpLoadTrue, 0, 0},
-		{OpStoreGlobal, 0, userGlobal0},
-		{OpLoadConst0, 0, 0},
-		{OpStoreGlobal, 0, userGlobal1},
-		{OpLoadGlobal, 0, userGlobal0},
-		{OpJumpIfFalse, 0, 3},
-		{OpLoadConst1, 0, 0},
-		{OpStoreGlobal, 0, userGlobal1},
-		{OpJump, 0, 2},
-		{OpLoadConst, 0, 2},
-		{OpStoreGlobal, 0, userGlobal1},
-		{OpLoadGlobal, 0, userGlobal1},
-		{OpReturn, 1, 0},
+		{Op: OpLoadTrue, A: 0, B: 0},
+		{Op: OpStoreGlobal, A: 0, B: userGlobal0},
+		{Op: OpLoadConst0, A: 0, B: 0},
+		{Op: OpStoreGlobal, A: 0, B: userGlobal1},
+		{Op: OpLoadGlobal, A: 0, B: userGlobal0},
+		{Op: OpJumpIfFalse, A: 0, B: 3},
+		{Op: OpLoadConst1, A: 0, B: 0},
+		{Op: OpStoreGlobal, A: 0, B: userGlobal1},
+		{Op: OpJump, A: 0, B: 2},
+		{Op: OpLoadConst, A: 0, B: 2},
+		{Op: OpStoreGlobal, A: 0, B: userGlobal1},
+		{Op: OpLoadGlobal, A: 0, B: userGlobal1},
+		{Op: OpReturn, A: 1, B: 0},
 	})
 
 	if chunk.ConstantCount() != 3 {
@@ -275,19 +276,19 @@ func TestCompiler_ArrayLiteralAndIndex(t *testing.T) {
 	}
 
 	expectInstructions(t, chunk, []expectedInstruction{
-		{OpLoadConst0, 0, 0},
-		{OpLoadConst1, 0, 0},
-		{OpNewArray, 0, 2},
-		{OpStoreGlobal, 0, userGlobal0},
-		{OpLoadConst, 0, 2},
-		{OpLoadGlobal, 0, userGlobal0},
-		{OpLoadConst0, 0, 0},
-		{OpRotate3, 0, 0},
-		{OpArraySet, 0, 0},
-		{OpLoadGlobal, 0, userGlobal0},
-		{OpLoadConst, 0, 3},
-		{OpArrayGet, 0, 0},
-		{OpReturn, 1, 0},
+		{Op: OpLoadConst0, A: 0, B: 0},
+		{Op: OpLoadConst1, A: 0, B: 0},
+		{Op: OpNewArray, A: 0, B: 2},
+		{Op: OpStoreGlobal, A: 0, B: userGlobal0},
+		{Op: OpLoadConst, A: 0, B: 2},
+		{Op: OpLoadGlobal, A: 0, B: userGlobal0},
+		{Op: OpLoadConst0, A: 0, B: 0},
+		{Op: OpRotate3, A: 0, B: 0},
+		{Op: OpArraySet, A: 0, B: 0},
+		{Op: OpLoadGlobal, A: 0, B: userGlobal0},
+		{Op: OpLoadConst, A: 0, B: 3},
+		{Op: OpArrayGet, A: 0, B: 0},
+		{Op: OpReturn, A: 1, B: 0},
 	})
 
 	if chunk.ConstantCount() != 4 {
@@ -330,8 +331,8 @@ func TestCompiler_NewExpression(t *testing.T) {
 	}
 
 	expectInstructions(t, chunk, []expectedInstruction{
-		{OpNewObject, 0, 0},
-		{OpReturn, 1, 0},
+		{Op: OpNewObject, A: 0, B: 0},
+		{Op: OpReturn, A: 1, B: 0},
 	})
 
 	if chunk.ConstantCount() != 1 {
@@ -454,9 +455,9 @@ func TestCompiler_RaiseStatementExpression(t *testing.T) {
 	}
 
 	expectInstructions(t, chunk, []expectedInstruction{
-		{OpLoadConst0, 0, 0},
-		{OpThrow, 0, 0},
-		{OpHalt, 0, 0},
+		{Op: OpLoadConst0, A: 0, B: 0},
+		{Op: OpThrow, A: 0, B: 0},
+		{Op: OpHalt, A: 0, B: 0},
 	})
 }
 
@@ -476,9 +477,9 @@ func TestCompiler_RaiseStatementBare(t *testing.T) {
 	}
 
 	expectInstructions(t, chunk, []expectedInstruction{
-		{OpLoadGlobal, 0, builtinExceptObjectIndex},
-		{OpThrow, 0, 0},
-		{OpHalt, 0, 0},
+		{Op: OpLoadGlobal, A: 0, B: builtinExceptObjectIndex},
+		{Op: OpThrow, A: 0, B: 0},
+		{Op: OpHalt, A: 0, B: 0},
 	})
 }
 
@@ -597,8 +598,8 @@ func TestCompiler_ConstantFolding(t *testing.T) {
 	}
 
 	expectInstructions(t, chunk, []expectedInstruction{
-		{OpLoadConst0, 0, 0},
-		{OpReturn, 1, 0},
+		{Op: OpLoadConst0, A: 0, B: 0},
+		{Op: OpReturn, A: 1, B: 0},
 	})
 
 	if chunk.ConstantCount() != 1 {
@@ -642,13 +643,13 @@ func TestCompiler_CallExpression(t *testing.T) {
 	}
 
 	expectInstructions(t, chunk, []expectedInstruction{
-		{OpLoadNil, 0, 0},
-		{OpStoreGlobal, 0, userGlobal0},
-		{OpLoadGlobal, 0, userGlobal0},
-		{OpLoadConst0, 0, 0},
-		{OpLoadConst1, 0, 0},
-		{OpCallIndirect, 2, 0},
-		{OpReturn, 1, 0},
+		{Op: OpLoadNil, A: 0, B: 0},
+		{Op: OpStoreGlobal, A: 0, B: userGlobal0},
+		{Op: OpLoadGlobal, A: 0, B: userGlobal0},
+		{Op: OpLoadConst0, A: 0, B: 0},
+		{Op: OpLoadConst1, A: 0, B: 0},
+		{Op: OpCallIndirect, A: 2, B: 0},
+		{Op: OpReturn, A: 1, B: 0},
 	})
 
 	if chunk.ConstantCount() != 2 {
@@ -926,14 +927,14 @@ func TestCompiler_MemberAccess(t *testing.T) {
 	}
 
 	expectInstructions(t, chunk, []expectedInstruction{
-		{OpLoadNil, 0, 0},
-		{OpStoreGlobal, 0, userGlobal0},
-		{OpLoadGlobal, 0, userGlobal0},
-		{OpLoadConst0, 0, 0},
-		{OpSetProperty, 0, 1},
-		{OpLoadGlobal, 0, userGlobal0},
-		{OpGetProperty, 0, 1},
-		{OpReturn, 1, 0},
+		{Op: OpLoadNil, A: 0, B: 0},
+		{Op: OpStoreGlobal, A: 0, B: userGlobal0},
+		{Op: OpLoadGlobal, A: 0, B: userGlobal0},
+		{Op: OpLoadConst0, A: 0, B: 0},
+		{Op: OpSetProperty, A: 0, B: 1},
+		{Op: OpLoadGlobal, A: 0, B: userGlobal0},
+		{Op: OpGetProperty, A: 0, B: 1},
+		{Op: OpReturn, A: 1, B: 0},
 	})
 
 	if chunk.ConstantCount() != 2 {
@@ -1301,9 +1302,9 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 }
 
 type expectedInstruction struct {
-	op OpCode
-	a  byte
-	b  uint16
+	Op OpCode
+	A  byte
+	B  uint16
 }
 
 func firstFunctionValue(constants []Value) *FunctionObject {
@@ -1324,14 +1325,14 @@ func expectInstructions(t *testing.T, chunk *Chunk, expected []expectedInstructi
 
 	for i, exp := range expected {
 		inst := chunk.Code[i]
-		if inst.OpCode() != exp.op {
-			t.Fatalf("instruction %d opcode = %v, want %v", i, inst.OpCode(), exp.op)
+		if inst.OpCode() != exp.Op {
+			t.Fatalf("instruction %d opcode = %v, want %v", i, inst.OpCode(), exp.Op)
 		}
-		if inst.A() != exp.a {
-			t.Fatalf("instruction %d operand A = %d, want %d", i, inst.A(), exp.a)
+		if inst.A() != exp.A {
+			t.Fatalf("instruction %d operand A = %d, want %d", i, inst.A(), exp.A)
 		}
-		if inst.B() != exp.b {
-			t.Fatalf("instruction %d operand B = %d, want %d", i, inst.B(), exp.b)
+		if inst.B() != exp.B {
+			t.Fatalf("instruction %d operand B = %d, want %d", i, inst.B(), exp.B)
 		}
 	}
 }

@@ -1246,9 +1246,9 @@ end
 // TestImplicitIntegerToFloatCoercion tests implicit Integer→Float conversion in function calls.
 func TestImplicitIntegerToFloatCoercion(t *testing.T) {
 	tests := []struct {
+		expected interface{}
 		name     string
 		input    string
-		expected interface{}
 	}{
 		{
 			name: "Integer literal to Float parameter",
@@ -1384,9 +1384,9 @@ end
 // TestImplicitIntegerToFloatCoercion_BuiltinFunctions tests Integer→Float coercion with built-in functions.
 func TestImplicitIntegerToFloatCoercion_BuiltinFunctions(t *testing.T) {
 	tests := []struct {
+		expected interface{}
 		name     string
 		input    string
-		expected interface{}
 	}{
 		{
 			name: "Sin with Integer argument",

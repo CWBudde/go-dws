@@ -11,32 +11,32 @@ import (
 
 // Compiler converts AST nodes into bytecode chunks.
 type Compiler struct {
-	chunk           *Chunk
-	locals          []local
-	globals         map[string]globalVar
-	upvalues        []upvalue
-	loopStack       []*loopContext
 	functions       map[string]functionInfo
 	enclosing       *Compiler
+	globals         map[string]globalVar
+	chunk           *Chunk
+	upvalues        []upvalue
+	loopStack       []*loopContext
+	locals          []local
+	optimizeOptions []OptimizeOption
 	scopeDepth      int
+	lastLine        int
 	nextSlot        uint16
 	maxSlot         uint16
 	nextGlobal      uint16
-	lastLine        int
-	optimizeOptions []OptimizeOption
 }
 
 type local struct {
+	typ   types.Type
 	name  string
 	depth int
 	slot  uint16
-	typ   types.Type
 }
 
 type globalVar struct {
+	typ   types.Type
 	name  string
 	index uint16
-	typ   types.Type
 }
 
 type upvalue struct {
@@ -45,9 +45,9 @@ type upvalue struct {
 }
 
 type functionInfo struct {
+	fn         *FunctionObject
 	constIndex uint16
 	globalSlot uint16
-	fn         *FunctionObject
 }
 
 type loopKind int
@@ -58,10 +58,10 @@ const (
 )
 
 type loopContext struct {
-	kind          loopKind
-	loopStart     int
 	breakJumps    []int
 	continueJumps []int
+	kind          loopKind
+	loopStart     int
 }
 
 // CompilerOption configures a new compiler instance.
