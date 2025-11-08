@@ -1407,6 +1407,17 @@ func (c *Compiler) isGlobalScope() bool {
 
 func (c *Compiler) initBuiltins() {
 	c.addBuiltinGlobal(builtinExceptObjectName)
+	// Register built-in functions as globals
+	c.addBuiltinGlobal("PrintLn")
+	c.addBuiltinGlobal("Print")
+	c.addBuiltinGlobal("IntToStr")
+	c.addBuiltinGlobal("FloatToStr")
+	c.addBuiltinGlobal("StrToInt")
+	c.addBuiltinGlobal("StrToFloat")
+	c.addBuiltinGlobal("Length")
+	c.addBuiltinGlobal("Copy")
+	c.addBuiltinGlobal("Ord")
+	c.addBuiltinGlobal("Chr")
 }
 
 func (c *Compiler) addBuiltinGlobal(name string) {
