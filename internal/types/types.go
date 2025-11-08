@@ -611,6 +611,35 @@ func (ct *ClassType) GetProperty(name string) (*PropertyInfo, bool) {
 	return nil, false
 }
 
+// HasConstant checks if the class or any of its ancestors has a constant with the given name.
+func (ct *ClassType) HasConstant(name string) bool {
+	if ct == nil {
+		return false
+	}
+	if _, ok := ct.Constants[name]; ok {
+		return true
+	}
+	if ct.Parent != nil {
+		return ct.Parent.HasConstant(name)
+	}
+	return false
+}
+
+// GetConstant retrieves a constant expression by name, searching up the inheritance chain.
+// Returns (constantExpr, true) if found, or (nil, false) if not found.
+func (ct *ClassType) GetConstant(name string) (interface{}, bool) {
+	if ct == nil {
+		return nil, false
+	}
+	if constant, ok := ct.Constants[name]; ok {
+		return constant, true
+	}
+	if ct.Parent != nil {
+		return ct.Parent.GetConstant(name)
+	}
+	return nil, false
+}
+
 // ImplementsInterface checks if this class implements the given interface.
 // It checks both the class itself and its parent classes.
 func (ct *ClassType) ImplementsInterface(iface *InterfaceType) bool {

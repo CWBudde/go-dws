@@ -792,6 +792,21 @@ func (a *Analyzer) getMethodOwner(class *types.ClassType, methodName string) *ty
 	return a.getMethodOwner(class.Parent, methodName)
 }
 
+// getConstantOwner returns the class that declares a constant, walking up the inheritance chain
+func (a *Analyzer) getConstantOwner(class *types.ClassType, constantName string) *types.ClassType {
+	if class == nil {
+		return nil
+	}
+
+	// Check if this class declares the constant
+	if _, found := class.Constants[constantName]; found {
+		return class
+	}
+
+	// Check parent classes
+	return a.getConstantOwner(class.Parent, constantName)
+}
+
 // resolveClassOfTypeNode resolves a ClassOfTypeNode to a ClassOfType.
 //
 // A metaclass type "class of TMyClass" is a type that holds a reference to
