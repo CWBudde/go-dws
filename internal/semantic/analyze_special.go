@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -105,7 +107,14 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 	}
 
 	// Member not found in parent class
-	a.addError("method, property, or field '%s' not found in parent class '%s' at %s",
-		memberName, parentClass.Name, ie.Token.Pos.String())
+	// Task 9.51: If parent is TObject and member not found, treat as "no meaningful parent"
+	isTObjectParent := strings.EqualFold(parentClass.Name, "TObject")
+	if isTObjectParent {
+		a.addError("'inherited' cannot be used in class '%s' which has no parent class at %s",
+			a.currentClass.Name, ie.Token.Pos.String())
+	} else {
+		a.addError("method, property, or field '%s' not found in parent class '%s' at %s",
+			memberName, parentClass.Name, ie.Token.Pos.String())
+	}
 	return nil
 }

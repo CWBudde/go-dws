@@ -248,7 +248,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 	}
 
 	// Handle bitwise shift operators
-	if operator == "shl" || operator == "shr" {
+	if operator == "shl" || operator == "shr" || operator == "sar" {
 		if !leftType.Equals(types.INTEGER) || !rightType.Equals(types.INTEGER) {
 			a.addError("operator %s requires integer operands, got %s and %s at %s",
 				operator, leftType.String(), rightType.String(), expr.Token.Pos.String())

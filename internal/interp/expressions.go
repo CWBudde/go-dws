@@ -381,6 +381,13 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 		}
 		// Shift right - divide by 2^rightVal (logical shift)
 		return &IntegerValue{Value: leftVal >> uint(rightVal)}
+	case "sar":
+		if rightVal < 0 {
+			return i.newErrorWithLocation(i.currentNode, "negative shift amount")
+		}
+		// Arithmetic shift right - sign-preserving shift
+		// In Go, >> on signed integers is already arithmetic (sign-preserving)
+		return &IntegerValue{Value: leftVal >> uint(rightVal)}
 	case "and":
 		// Bitwise AND for integers
 		return &IntegerValue{Value: leftVal & rightVal}

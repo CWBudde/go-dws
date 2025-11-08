@@ -73,6 +73,45 @@ func (a *Analyzer) analyzeIntToBin(args []ast.Expression, callExpr *ast.CallExpr
 	return types.STRING
 }
 
+// analyzeIntToHex analyzes the IntToHex built-in function.
+// IntToHex takes two integer arguments (value, digits) and returns a string.
+func (a *Analyzer) analyzeIntToHex(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'IntToHex' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	// Analyze first argument (value) - must be Integer or subrange of Integer
+	argType1 := a.analyzeExpression(args[0])
+	if argType1 != nil && argType1 != types.INTEGER {
+		// Check if it's a subrange type with Integer base
+		if subrange, ok := argType1.(*types.SubrangeType); ok {
+			if subrange.BaseType != types.INTEGER {
+				a.addError("function 'IntToHex' expects Integer as first argument, got %s at %s",
+					argType1.String(), callExpr.Token.Pos.String())
+			}
+		} else {
+			a.addError("function 'IntToHex' expects Integer as first argument, got %s at %s",
+				argType1.String(), callExpr.Token.Pos.String())
+		}
+	}
+	// Analyze second argument (digits) - must be Integer
+	argType2 := a.analyzeExpression(args[1])
+	if argType2 != nil && argType2 != types.INTEGER {
+		// Check if it's a subrange type with Integer base
+		if subrange, ok := argType2.(*types.SubrangeType); ok {
+			if subrange.BaseType != types.INTEGER {
+				a.addError("function 'IntToHex' expects Integer as second argument, got %s at %s",
+					argType2.String(), callExpr.Token.Pos.String())
+			}
+		} else {
+			a.addError("function 'IntToHex' expects Integer as second argument, got %s at %s",
+				argType2.String(), callExpr.Token.Pos.String())
+		}
+	}
+	return types.STRING
+}
+
 // analyzeStrToInt analyzes the StrToInt built-in function.
 // StrToInt takes one string argument and returns an integer.
 func (a *Analyzer) analyzeStrToInt(args []ast.Expression, callExpr *ast.CallExpression) types.Type {

@@ -77,12 +77,12 @@ func (b *BooleanValue) Type() string {
 	return "BOOLEAN"
 }
 
-// String returns "true" or "false".
+// String returns "True" or "False".
 func (b *BooleanValue) String() string {
 	if b.Value {
-		return "true"
+		return "True"
 	}
-	return "false"
+	return "False"
 }
 
 // NilValue represents a nil/null value in DWScript.

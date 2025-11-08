@@ -333,15 +333,37 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	if recordVal, ok := objVal.(*RecordValue); ok {
 		// Access record field
 		fieldValue, exists := recordVal.Fields[ma.Member.Value]
-		if !exists {
-			// Check if helpers provide this member
-			helper, helperProp := i.findHelperProperty(recordVal, ma.Member.Value)
-			if helperProp != nil {
-				return i.evalHelperPropertyRead(helper, helperProp, recordVal, ma)
-			}
-			return i.newErrorWithLocation(ma, "field '%s' not found in record '%s'", ma.Member.Value, recordVal.RecordType.Name)
+		if exists {
+			return fieldValue
 		}
-		return fieldValue
+
+		// Task 9.37: Check if it's a record method
+		if recordVal.Methods != nil {
+			if methodDecl, methodExists := recordVal.Methods[ma.Member.Value]; methodExists {
+				// Only auto-invoke parameterless methods when accessed without parentheses
+				if len(methodDecl.Parameters) == 0 {
+					// Convert to a method call expression and evaluate it
+					methodCall := &ast.MethodCallExpression{
+						Token:     ma.Token,
+						Object:    ma.Object,
+						Method:    ma.Member,
+						Arguments: []ast.Expression{},
+					}
+					return i.evalMethodCall(methodCall)
+				}
+				// Method has parameters - cannot auto-invoke without parentheses
+				return i.newErrorWithLocation(ma, "method '%s' of record '%s' requires %d parameter(s); use parentheses to call",
+					ma.Member.Value, recordVal.RecordType.Name, len(methodDecl.Parameters))
+			}
+		}
+
+		// Check if helpers provide this member
+		helper, helperProp := i.findHelperProperty(recordVal, ma.Member.Value)
+		if helperProp != nil {
+			return i.evalHelperPropertyRead(helper, helperProp, recordVal, ma)
+		}
+
+		return i.newErrorWithLocation(ma, "field '%s' not found in record '%s'", ma.Member.Value, recordVal.RecordType.Name)
 	}
 
 	// Task 9.68: Check if it's a ClassInfoValue (class type identifier)

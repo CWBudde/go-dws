@@ -788,47 +788,52 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Quick Fixes (Trivial, ~0.5 day total)
 
-- [ ] 9.80 Fix boolean capitalization
+- [x] 9.80 Fix boolean capitalization
   - **Task**: Output `True`/`False` instead of `true`/`false`
   - **Implementation**: Change string formatting in boolean conversion
   - **Test**: Boolean output matches DWScript
-  - **Files**: `internal/interp/builtins.go`
+  - **Files**: `internal/interp/value.go`
   - **Estimated time**: 0.1 day
   - **Impact**: Fixes 11 tests
+  - **Completed**: Changed BooleanValue.String() to return "True"/"False"
 
-- [ ] 9.81 Implement SAR operator
+- [x] 9.81 Implement SAR operator
   - **Task**: Arithmetic shift right (sign-preserving)
   - **Implementation**: Add SAR token and operator evaluation
   - **Test**: `x sar 2` performs arithmetic right shift
-  - **Files**: `internal/parser/expression.go`, `internal/interp/expressions.go`
+  - **Files**: `internal/parser/parser.go`, `internal/interp/expressions.go`, `internal/semantic/analyze_expr_operators.go`
   - **Estimated time**: 0.5 day
   - **Impact**: Fixes 1 test
+  - **Completed**: Added SAR operator with precedence, parsing, and evaluation support
 
 #### Critical Built-ins (High impact, 3-4 days)
 
-- [ ] 9.82 Implement Assigned() built-in
+- [x] 9.82 Implement Assigned() built-in
   - **Task**: Check if pointer/object/variant is nil
   - **Implementation**: Add Assigned(value) → returns false if nil, true otherwise
   - **Test**: Nil checking works for objects, arrays, variants
-  - **Files**: `internal/interp/builtins.go`
+  - **Files**: `internal/interp/builtins_core.go`, `internal/interp/functions.go`, `internal/semantic/analyze_builtin_functions.go`, `internal/semantic/analyze_builtin_math.go`
   - **Estimated time**: 1 day
   - **Impact**: Fixes 16 tests
+  - **Completed**: Added Assigned() function with support for nil checking on all types
 
-- [ ] 9.83 Implement Chr() built-in
+- [x] 9.83 Implement Chr() built-in
   - **Task**: Convert integer to character
   - **Implementation**: Add Chr(code: Integer) → String (single character)
   - **Test**: Chr(65) returns 'A'
-  - **Files**: `internal/interp/builtins_string.go`
+  - **Files**: `internal/interp/builtins_strings.go`, `internal/interp/functions.go`
   - **Estimated time**: 0.5 day
   - **Impact**: Fixes 4 tests
+  - **Completed**: Added Chr() function with Unicode support (0-1114111)
 
-- [ ] 9.84 Implement IntToHex() built-in
+- [x] 9.84 Implement IntToHex() built-in
   - **Task**: Convert integer to hexadecimal string
   - **Implementation**: Add IntToHex(value: Integer, digits: Integer) → String
   - **Test**: IntToHex(255, 2) returns 'FF'
-  - **Files**: `internal/interp/builtins_string.go`
+  - **Files**: `internal/interp/builtins_strings.go`, `internal/interp/functions.go`, `internal/semantic/analyze_builtin_functions.go`, `internal/semantic/analyze_builtin_convert.go`
   - **Estimated time**: 0.5 day
   - **Impact**: Fixes 8 tests
+  - **Completed**: Added IntToHex() with padding support
 
 - [ ] 9.85 Implement Swap() built-in
   - **Task**: Swap two variables
@@ -889,12 +894,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 These are test failures in the unit test suites (not fixture tests):
 
-- [ ] 9.37 Fix record method access (lerp.pas)
+- [x] 9.37 Fix record method access (lerp.pas)
   - **Issue**: Record methods not accessible in member access
-  - **Implementation**: Modify evalMemberAccess to check record methods
-  - **Files**: `internal/interp/objects.go`
+  - **Implementation**: Modified evalMemberAccess and analyzeRecordFieldAccess to check record methods
+  - **Files**: `internal/interp/objects.go`, `internal/semantic/analyze_records.go`
   - **Estimated time**: 1 day
-  - **Impact**: Fixes 1 algorithm test
+  - **Impact**: Fixes 1 algorithm test (partially - test now progresses past method access)
+  - **Completed**: Record methods are now accessible via member access and auto-invoked when parameterless
 
 - [x] 9.47 Fix constructor overload handling (unit tests)
   - **Tests**: TestConstructorOverload, TestConstructorWithoutParentheses, etc.
@@ -919,11 +925,12 @@ These are test failures in the unit test suites (not fixture tests):
   - **Files**: `internal/semantic/analyze_functions.go`
   - **Estimated time**: 1 day
 
-- [ ] 9.51 Implement inherited expression validation
+- [x] 9.51 Implement inherited expression validation
   - **Issue**: Inherited expression errors not caught
-  - **Implementation**: Add validation in semantic analyzer
-  - **Files**: `internal/semantic/analyze_expressions.go`
+  - **Implementation**: Made TObject implicit parent for all classes, improved inherited expression validation
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/analyze_special.go`
   - **Estimated time**: 1 day
+  - **Completed**: Classes without explicit parent now inherit from TObject; inherited expressions validate member existence
 
 - [ ] 9.52 Enforce private field access control
   - **Issue**: Derived classes can access private parent fields
