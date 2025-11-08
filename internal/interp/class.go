@@ -139,6 +139,26 @@ func (c *ClassInfo) lookupProperty(name string) *types.PropertyInfo {
 	return nil
 }
 
+// getDefaultProperty searches for the default property in the class hierarchy.
+// Returns the default property if found, or nil if no default property exists.
+// Task 9.16: Support obj[index] routing to obj.DefaultProperty[index]
+func (c *ClassInfo) getDefaultProperty() *types.PropertyInfo {
+	// Check current class
+	for _, prop := range c.Properties {
+		if prop.IsDefault {
+			return prop
+		}
+	}
+
+	// Check parent class (recursive)
+	if c.Parent != nil {
+		return c.Parent.getDefaultProperty()
+	}
+
+	// Not found
+	return nil
+}
+
 // lookupOperator searches for a class operator in the hierarchy.
 func (c *ClassInfo) lookupOperator(operator string, operandTypes []string) (*runtimeOperatorEntry, bool) {
 	if c == nil {
