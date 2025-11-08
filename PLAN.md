@@ -177,14 +177,15 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Root Cause**: Parser doesn't recognize `property` keyword in class declarations. Properties are fundamental to DWScript OOP.
 
-- [ ] 9.10 Implement property AST nodes
+- [x] 9.10 Implement property AST nodes
   - **Task**: Create AST representation for property declarations
   - **Implementation**:
     - Add `PropertyDeclaration` node in `internal/ast/class.go`
     - Fields: Name, Type, ReadAccessor, WriteAccessor, IsDefault, IsClassProperty, IndexParams
     - Implement String() and TokenLiteral() methods
     - Add to ClassDeclaration.Properties slice
-  - **Files**: `internal/ast/class.go`
+  - **Files**: `pkg/ast/properties.go`, `internal/ast/properties_test.go`
+  - **Status**: DONE - Added IsClassProperty field, updated String() method, added comprehensive tests
   - **Estimated time**: 1 day
 
 - [ ] 9.11 Parse property declarations
