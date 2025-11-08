@@ -56,10 +56,11 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 
 	// Create PropertyInfo to store in class metadata
 	propInfo := &types.PropertyInfo{
-		Name:      propName,
-		Type:      propType,
-		IsIndexed: isIndexed,
-		IsDefault: prop.IsDefault,
+		Name:            propName,
+		Type:            propType,
+		IsIndexed:       isIndexed,
+		IsDefault:       prop.IsDefault,
+		IsClassProperty: prop.IsClassProperty,
 	}
 
 	// Validate read specifier
@@ -108,14 +109,32 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	if ident, ok := prop.ReadSpec.(*ast.Identifier); ok {
 		readSpecName := ident.Value
 
-		// If field, verify field exists and has matching type
-		if fieldType, found := classType.GetField(readSpecName); found {
-			if !propType.Equals(fieldType) {
+		// Check if it's a field (instance or class field)
+		// For class properties, look in ClassVars; for instance properties, look in Fields
+		var fieldType types.Type
+		var found bool
+
+		if propInfo.IsClassProperty {
+			// Class property must use class variable
+			fieldType, found = classType.ClassVars[readSpecName]
+			if found && !propType.Equals(fieldType) {
+				a.addError("class property '%s' read field '%s' has type %s, expected %s at %s",
+					propName, readSpecName, fieldType.String(), propType.String(),
+					prop.Token.Pos.String())
+				return
+			}
+		} else {
+			// Instance property must use instance field
+			fieldType, found = classType.GetField(readSpecName)
+			if found && !propType.Equals(fieldType) {
 				a.addError("property '%s' read field '%s' has type %s, expected %s at %s",
 					propName, readSpecName, fieldType.String(), propType.String(),
 					prop.Token.Pos.String())
 				return
 			}
+		}
+
+		if found {
 			propInfo.ReadKind = types.PropAccessField
 			propInfo.ReadSpec = readSpecName
 			return
@@ -123,6 +142,24 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 
 		// If method, verify method exists with correct signature
 		if methodType, found := classType.GetMethod(readSpecName); found {
+			// For class properties, verify the method is a class method
+			if propInfo.IsClassProperty {
+				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[readSpecName]
+				if !isClassMethod {
+					a.addError("class property '%s' read method '%s' must be a class method at %s",
+						propName, readSpecName, prop.Token.Pos.String())
+					return
+				}
+			} else {
+				// For instance properties, verify the method is NOT a class method
+				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[readSpecName]
+				if isClassMethod {
+					a.addError("instance property '%s' read method '%s' cannot be a class method at %s",
+						propName, readSpecName, prop.Token.Pos.String())
+					return
+				}
+			}
+
 			// Getter signature: for indexed properties, method must accept index parameters
 			// and return property type. For non-indexed, method must take no parameters
 			// and return property type.
@@ -192,14 +229,32 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 
 	writeSpecName := ident.Value
 
-	// If field, verify field exists and has matching type
-	if fieldType, found := classType.GetField(writeSpecName); found {
-		if !propType.Equals(fieldType) {
+	// Check if it's a field (instance or class field)
+	// For class properties, look in ClassVars; for instance properties, look in Fields
+	var fieldType types.Type
+	var found bool
+
+	if propInfo.IsClassProperty {
+		// Class property must use class variable
+		fieldType, found = classType.ClassVars[writeSpecName]
+		if found && !propType.Equals(fieldType) {
+			a.addError("class property '%s' write field '%s' has type %s, expected %s at %s",
+				propName, writeSpecName, fieldType.String(), propType.String(),
+				prop.Token.Pos.String())
+			return
+		}
+	} else {
+		// Instance property must use instance field
+		fieldType, found = classType.GetField(writeSpecName)
+		if found && !propType.Equals(fieldType) {
 			a.addError("property '%s' write field '%s' has type %s, expected %s at %s",
 				propName, writeSpecName, fieldType.String(), propType.String(),
 				prop.Token.Pos.String())
 			return
 		}
+	}
+
+	if found {
 		propInfo.WriteKind = types.PropAccessField
 		propInfo.WriteSpec = writeSpecName
 		return
@@ -207,6 +262,24 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 
 	// If method, verify method exists with correct signature
 	if methodType, found := classType.GetMethod(writeSpecName); found {
+		// For class properties, verify the method is a class method
+		if propInfo.IsClassProperty {
+			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[writeSpecName]
+			if !isClassMethod {
+				a.addError("class property '%s' write method '%s' must be a class method at %s",
+					propName, writeSpecName, prop.Token.Pos.String())
+				return
+			}
+		} else {
+			// For instance properties, verify the method is NOT a class method
+			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[writeSpecName]
+			if isClassMethod {
+				a.addError("instance property '%s' write method '%s' cannot be a class method at %s",
+					propName, writeSpecName, prop.Token.Pos.String())
+				return
+			}
+		}
+
 		// Setter signature: for indexed properties, method must accept index parameters
 		// plus the property value. For non-indexed, method must take only the value parameter.
 		// Setter must return void.

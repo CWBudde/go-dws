@@ -728,17 +728,23 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 
 // evalMemberAssignment handles member assignment: obj.field := value or TClass.Variable := value
 func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, value Value, stmt *ast.AssignmentStatement) Value {
-	// Check if the left side is a class identifier (for static assignment: TClass.Variable := value)
+	// Check if the left side is a class identifier (for static assignment: TClass.Variable := value or TClass.Property := value)
 	if ident, ok := target.Object.(*ast.Identifier); ok {
 		// Check if this identifier refers to a class
 		if classInfo, exists := i.classes[ident.Value]; exists {
-			// This is a class variable assignment
-			fieldName := target.Member.Value
-			if _, exists := classInfo.ClassVars[fieldName]; !exists {
-				return i.newErrorWithLocation(stmt, "class variable '%s' not found in class '%s'", fieldName, ident.Value)
+			memberName := target.Member.Value
+
+			// Check if this is a class property assignment (properties take precedence)
+			if propInfo := classInfo.lookupProperty(memberName); propInfo != nil && propInfo.IsClassProperty {
+				return i.evalClassPropertyWrite(classInfo, propInfo, value, stmt)
+			}
+
+			// Otherwise, try class variable assignment
+			if _, exists := classInfo.ClassVars[memberName]; !exists {
+				return i.newErrorWithLocation(stmt, "class variable '%s' not found in class '%s'", memberName, ident.Value)
 			}
 			// Assign to the class variable
-			classInfo.ClassVars[fieldName] = value
+			classInfo.ClassVars[memberName] = value
 			return value
 		}
 	}
@@ -888,6 +894,16 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 	indexVal := i.Eval(target.Index)
 	if isError(indexVal) {
 		return indexVal
+	}
+
+	// Task 9.16: Check if left side is an object with a default property
+	// This allows obj[index] := value to be equivalent to obj.DefaultProperty[index] := value
+	if obj, ok := AsObject(arrayVal); ok {
+		defaultProp := obj.Class.getDefaultProperty()
+		if defaultProp != nil {
+			// Route to the default indexed property write
+			return i.evalIndexedPropertyWrite(obj, defaultProp, []Value{indexVal}, value, stmt)
+		}
 	}
 
 	// Index must be an integer

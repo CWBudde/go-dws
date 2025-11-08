@@ -451,3 +451,104 @@ func TestPropertyDeclTokenLiteral(t *testing.T) {
 		t.Errorf("Expected TokenLiteral='property', got '%s'", prop.TokenLiteral())
 	}
 }
+
+// ============================================================================
+// Class Property Tests (Task 9.10)
+// ============================================================================
+
+func TestClassProperty(t *testing.T) {
+	t.Run("basic class property", func(t *testing.T) {
+		// class property Count: Integer read GetCount write SetCount;
+		prop := &PropertyDecl{
+			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			Name: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Count"},
+				Value: "Count",
+			},
+			Type: &TypeAnnotation{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
+				Name:  "Integer",
+			},
+			ReadSpec: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "GetCount"},
+				Value: "GetCount",
+			},
+			WriteSpec: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "SetCount"},
+				Value: "SetCount",
+			},
+			IsClassProperty: true,
+		}
+
+		if !prop.IsClassProperty {
+			t.Error("Expected IsClassProperty=true")
+		}
+
+		expected := "class property Count: Integer read GetCount write SetCount;"
+		result := prop.String()
+		if result != expected {
+			t.Errorf("Expected:\n%s\nGot:\n%s", expected, result)
+		}
+	})
+
+	t.Run("class property read-only", func(t *testing.T) {
+		// class property Version: String read GetVersion;
+		prop := &PropertyDecl{
+			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			Name: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Version"},
+				Value: "Version",
+			},
+			Type: &TypeAnnotation{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
+				Name:  "String",
+			},
+			ReadSpec: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "GetVersion"},
+				Value: "GetVersion",
+			},
+			WriteSpec:       nil,
+			IsClassProperty: true,
+		}
+
+		expected := "class property Version: String read GetVersion;"
+		result := prop.String()
+		if result != expected {
+			t.Errorf("Expected:\n%s\nGot:\n%s", expected, result)
+		}
+	})
+
+	t.Run("instance property (IsClassProperty=false)", func(t *testing.T) {
+		// Regular instance property for comparison
+		prop := &PropertyDecl{
+			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			Name: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"},
+				Value: "Name",
+			},
+			Type: &TypeAnnotation{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
+				Name:  "String",
+			},
+			ReadSpec: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"},
+				Value: "FName",
+			},
+			WriteSpec: &Identifier{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"},
+				Value: "FName",
+			},
+			IsClassProperty: false,
+		}
+
+		if prop.IsClassProperty {
+			t.Error("Expected IsClassProperty=false for instance property")
+		}
+
+		expected := "property Name: String read FName write FName;"
+		result := prop.String()
+		if result != expected {
+			t.Errorf("Expected:\n%s\nGot:\n%s", expected, result)
+		}
+	})
+}

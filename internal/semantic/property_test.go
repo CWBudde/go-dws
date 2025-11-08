@@ -506,3 +506,242 @@ end;
 		t.Error("Data property should be default")
 	}
 }
+
+// ============================================================================
+// Class Property Tests (Task 9.12)
+// ============================================================================
+
+// TestClassPropertyDeclaration tests valid class property declarations
+func TestClassPropertyDeclaration(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "class property with class var",
+			input: `
+type TTest = class
+	class var FCount: Integer;
+	class function GetCount: Integer; begin Result := FCount; end;
+	class procedure SetCount(value: Integer); begin FCount := value; end;
+	class property Count: Integer read FCount write FCount;
+end;`,
+		},
+		{
+			name: "class property with class methods",
+			input: `
+type TTest = class
+	class function GetVersion: String; begin Result := '1.0'; end;
+	class procedure SetVersion(value: String); begin end;
+	class property Version: String read GetVersion write SetVersion;
+end;`,
+		},
+		{
+			name: "read-only class property",
+			input: `
+type TTest = class
+	class var FCount: Integer;
+	class property Count: Integer read FCount;
+end;`,
+		},
+		{
+			name: "mixed instance and class properties",
+			input: `
+type TTest = class
+	FName: String;
+	class var FCount: Integer;
+	property Name: String read FName write FName;
+	class property Count: Integer read FCount write FCount;
+end;`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+
+			if len(p.Errors()) != 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			analyzer := NewAnalyzer()
+			err := analyzer.Analyze(program)
+
+			if err != nil {
+				t.Errorf("unexpected semantic error: %v", err)
+			}
+
+			// Verify class has properties registered
+			class := analyzer.classes["ttest"]
+			if class == nil {
+				t.Fatal("TTest class not found")
+			}
+
+			// Verify at least one property exists
+			if len(class.Properties) == 0 {
+				t.Error("TTest should have at least one property")
+			}
+		})
+	}
+}
+
+// TestClassPropertyErrors tests various error cases for class properties
+func TestClassPropertyErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name: "class property with instance field",
+			input: `
+type TTest = class
+	FCount: Integer;
+	class property Count: Integer read FCount;
+end;`,
+			expectedError: "read specifier 'FCount' not found",
+		},
+		{
+			name: "class property with instance method",
+			input: `
+type TTest = class
+	function GetCount: Integer; begin Result := 0; end;
+	class property Count: Integer read GetCount;
+end;`,
+			expectedError: "class property 'Count' read method 'GetCount' must be a class method",
+		},
+		{
+			name: "instance property with class field",
+			input: `
+type TTest = class
+	class var FCount: Integer;
+	property Count: Integer read FCount;
+end;`,
+			expectedError: "read specifier 'FCount' not found",
+		},
+		{
+			name: "instance property with class method",
+			input: `
+type TTest = class
+	class function GetCount: Integer; begin Result := 0; end;
+	property Count: Integer read GetCount;
+end;`,
+			expectedError: "instance property 'Count' read method 'GetCount' cannot be a class method",
+		},
+		{
+			name: "class property write with instance method",
+			input: `
+type TTest = class
+	class var FCount: Integer;
+	procedure SetCount(value: Integer); begin end;
+	class property Count: Integer read FCount write SetCount;
+end;`,
+			expectedError: "class property 'Count' write method 'SetCount' must be a class method",
+		},
+		{
+			name: "instance property write with class method",
+			input: `
+type TTest = class
+	FCount: Integer;
+	class procedure SetCount(value: Integer); begin end;
+	property Count: Integer read FCount write SetCount;
+end;`,
+			expectedError: "instance property 'Count' write method 'SetCount' cannot be a class method",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+
+			if len(p.Errors()) != 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			analyzer := NewAnalyzer()
+			err := analyzer.Analyze(program)
+
+			if err == nil {
+				t.Errorf("expected error containing '%s', got no error", tt.expectedError)
+				return
+			}
+
+			errMsg := err.Error()
+			if !strings.Contains(errMsg, tt.expectedError) {
+				t.Errorf("expected error containing '%s', got '%s'", tt.expectedError, errMsg)
+			}
+		})
+	}
+}
+
+// TestClassPropertyMetadata verifies that IsClassProperty is correctly set
+func TestClassPropertyMetadata(t *testing.T) {
+	input := `
+type TTest = class
+	FName: String;
+	class var FCount: Integer;
+	class function GetVersion: String; begin Result := '1.0'; end;
+
+	property Name: String read FName write FName;
+	class property Count: Integer read FCount write FCount;
+	class property Version: String read GetVersion;
+end;
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	analyzer := NewAnalyzer()
+	err := analyzer.Analyze(program)
+
+	if err != nil {
+		t.Errorf("unexpected semantic error: %v", err)
+	}
+
+	class := analyzer.classes["ttest"]
+	if class == nil {
+		t.Fatal("TTest class not found")
+	}
+
+	// Check Name property (instance property)
+	nameProp, found := class.Properties["Name"]
+	if !found {
+		t.Fatal("Name property not found")
+	}
+	if nameProp.IsClassProperty {
+		t.Error("Name property should be an instance property (IsClassProperty=false)")
+	}
+
+	// Check Count property (class property)
+	countProp, found := class.Properties["Count"]
+	if !found {
+		t.Fatal("Count property not found")
+	}
+	if !countProp.IsClassProperty {
+		t.Error("Count property should be a class property (IsClassProperty=true)")
+	}
+
+	// Check Version property (class property, read-only)
+	versionProp, found := class.Properties["Version"]
+	if !found {
+		t.Fatal("Version property not found")
+	}
+	if !versionProp.IsClassProperty {
+		t.Error("Version property should be a class property (IsClassProperty=true)")
+	}
+	if versionProp.ReadKind != types.PropAccessMethod {
+		t.Errorf("Version property ReadKind should be PropAccessMethod, got %v", versionProp.ReadKind)
+	}
+	if versionProp.WriteKind != types.PropAccessNone {
+		t.Errorf("Version property should be read-only (WriteKind=PropAccessNone), got %v", versionProp.WriteKind)
+	}
+}

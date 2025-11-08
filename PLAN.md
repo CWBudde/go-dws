@@ -177,17 +177,18 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Root Cause**: Parser doesn't recognize `property` keyword in class declarations. Properties are fundamental to DWScript OOP.
 
-- [ ] 9.10 Implement property AST nodes
+- [x] 9.10 Implement property AST nodes
   - **Task**: Create AST representation for property declarations
   - **Implementation**:
     - Add `PropertyDeclaration` node in `internal/ast/class.go`
     - Fields: Name, Type, ReadAccessor, WriteAccessor, IsDefault, IsClassProperty, IndexParams
     - Implement String() and TokenLiteral() methods
     - Add to ClassDeclaration.Properties slice
-  - **Files**: `internal/ast/class.go`
+  - **Files**: `pkg/ast/properties.go`, `internal/ast/properties_test.go`
+  - **Status**: DONE - Added IsClassProperty field, updated String() method, added comprehensive tests
   - **Estimated time**: 1 day
 
-- [ ] 9.11 Parse property declarations
+- [x] 9.11 Parse property declarations
   - **Task**: Add parser support for property syntax
   - **Implementation**:
     - Modify `parseClassBody` in `internal/parser/class.go`
@@ -198,10 +199,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Parse default property directive
     - Parse class property directive
   - **Test**: All property syntax variants parse correctly
-  - **Files**: `internal/parser/class.go`, tests in `internal/parser/class_test.go`
+  - **Files**: `internal/parser/classes.go`, `internal/parser/properties_test.go`
+  - **Status**: DONE - Added class property parsing support, added comprehensive tests
   - **Estimated time**: 2-3 days
 
-- [ ] 9.12 Validate property accessors in semantic analysis
+- [x] 9.12 Validate property accessors in semantic analysis
   - **Task**: Verify read/write accessors exist and have correct signatures
   - **Implementation**:
     - Create `internal/semantic/property.go`
@@ -211,10 +213,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Ensure accessor visibility is compatible
     - Report errors for missing or incompatible accessors
   - **Test**: Invalid property declarations fail with clear error messages
-  - **Files**: `internal/semantic/property.go`, `internal/semantic/analyze_classes.go`
+  - **Files**: `internal/types/types.go`, `internal/semantic/analyze_properties.go`, `internal/semantic/property_test.go`
+  - **Status**: DONE - Added IsClassProperty validation, class properties must use class fields/methods
   - **Estimated time**: 2-3 days
 
-- [ ] 9.13 Implement property read evaluation
+- [x] 9.13 Implement property read evaluation
   - **Task**: Property access invokes read accessor
   - **Implementation**:
     - Create `internal/interp/property.go`
@@ -223,10 +226,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - If accessor is field: return field value
     - Handle index parameters for indexed properties
   - **Test**: `obj.Name` calls GetName() method or reads FName field
-  - **Files**: `internal/interp/property.go`, `internal/interp/objects.go`
+  - **Files**: `internal/interp/objects.go`, `internal/interp/declarations.go`, `internal/interp/property_test.go`
+  - **Status**: DONE - Implemented class property read evaluation with field and method support
   - **Estimated time**: 2-3 days
 
-- [ ] 9.14 Implement property write evaluation
+- [x] 9.14 Implement property write evaluation
   - **Task**: Property assignment invokes write accessor
   - **Implementation**:
     - Modify assignment statement evaluation
@@ -236,9 +240,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Handle index parameters for indexed properties
   - **Test**: `obj.Name := 'test'` calls SetName('test') or writes to FName
   - **Files**: `internal/interp/property.go`, `internal/interp/statements.go`
+  - **Status**: DONE - Implemented class property write evaluation with field/method support, updated tests
   - **Estimated time**: 2-3 days
 
-- [ ] 9.15 Implement array properties
+- [x] 9.15 Implement array properties
   - **Task**: Properties with index parameters (e.g., Items[Index])
   - **Implementation**:
     - Parse array property syntax with index parameters
@@ -247,9 +252,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Support multiple index parameters
   - **Test**: `obj.Items[0] := 'value'` calls SetItem(0, 'value')
   - **Files**: `internal/parser/class.go`, `internal/interp/property.go`
+  - **Status**: DONE - Already implemented with comprehensive tests (10+ passing)
   - **Estimated time**: 2-3 days
 
-- [ ] 9.16 Implement default properties
+- [x] 9.16 Implement default properties
   - **Task**: Support default property directive for index access without property name
   - **Implementation**:
     - Parse `default` directive on properties
@@ -258,9 +264,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Validate only one default property per class
   - **Test**: `obj[0]` equivalent to `obj.Items[0]` when Items is default
   - **Files**: `internal/parser/class.go`, `internal/semantic/property.go`, `internal/interp/property.go`
+  - **Status**: DONE - Runtime evaluation complete with 6 comprehensive tests (read, write, equivalence, inheritance, etc.)
   - **Estimated time**: 2 days
 
-- [ ] 9.17 Implement class properties (static)
+- [x] 9.17 Implement class properties (static)
   - **Task**: Support `class property` for properties on class type rather than instance
   - **Implementation**:
     - Parse `class property` keyword combination
@@ -269,6 +276,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Allow access via instance: `obj.Count`
   - **Test**: Class properties accessible without instance
   - **Files**: `internal/parser/class.go`, `internal/interp/property.go`
+  - **Status**: DONE - Completed in tasks 9.10-9.14 with full read/write support and 9+ tests
   - **Estimated time**: 2 days
 
 **Milestone**: After completing properties, fixture test pass rate should reach ~60% (330+ tests passing)

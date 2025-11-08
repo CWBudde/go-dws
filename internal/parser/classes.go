@@ -195,7 +195,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 			continue
 		}
 
-		// Check for 'class var' or 'class function' / 'class procedure'
+		// Check for 'class var', 'class property', or 'class function' / 'class procedure'
 		if p.curTokenIs(lexer.CLASS) {
 			classToken := p.curToken
 			p.nextToken() // move past 'class'
@@ -209,6 +209,13 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 						field.IsClassVar = true // Mark as class variable
 						classDecl.Fields = append(classDecl.Fields, field)
 					}
+				}
+			} else if p.curTokenIs(lexer.PROPERTY) {
+				// Class property: class property Name: Type read GetName write SetName;
+				property := p.parsePropertyDeclaration()
+				if property != nil {
+					property.IsClassProperty = true // Mark as class property
+					classDecl.Properties = append(classDecl.Properties, property)
 				}
 			} else if p.curTokenIs(lexer.OPERATOR) {
 				operator := p.parseClassOperatorDeclaration(classToken, currentVisibility)
@@ -224,7 +231,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 					classDecl.Methods = append(classDecl.Methods, method)
 				}
 			} else {
-				p.addError("expected 'var', 'function', or 'procedure' after 'class' keyword", ErrUnexpectedToken)
+				p.addError("expected 'var', 'property', 'function', or 'procedure' after 'class' keyword", ErrUnexpectedToken)
 				p.nextToken()
 				continue
 			}
