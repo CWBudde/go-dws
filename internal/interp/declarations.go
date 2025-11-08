@@ -265,10 +265,11 @@ func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Pro
 	}
 
 	propInfo := &types.PropertyInfo{
-		Name:      propDecl.Name.Value,
-		Type:      propType,
-		IsIndexed: len(propDecl.IndexParams) > 0,
-		IsDefault: propDecl.IsDefault,
+		Name:            propDecl.Name.Value,
+		Type:            propType,
+		IsIndexed:       len(propDecl.IndexParams) > 0,
+		IsDefault:       propDecl.IsDefault,
+		IsClassProperty: propDecl.IsClassProperty,
 	}
 
 	// Determine read access kind and spec

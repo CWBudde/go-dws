@@ -1060,3 +1060,226 @@ PrintLn(IntToStr(obj.Half));
 		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
 	}
 }
+
+// ============================================================================
+// Class Property Tests (Task 9.13)
+// ============================================================================
+
+// TestClassPropertyFieldBacked tests class property backed by class variable
+func TestClassPropertyFieldBacked(t *testing.T) {
+	input := `
+type TCounter = class
+	class var FCount: Integer;
+	class property Count: Integer read FCount write FCount;
+end;
+
+TCounter.FCount := 10;  // Direct class var assignment (write property is task 9.14)
+PrintLn(IntToStr(TCounter.Count));  // Read via property
+TCounter.FCount := 15;
+PrintLn(IntToStr(TCounter.Count));  // Read via property
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("eval error: %v", result)
+	}
+
+	// Check output - property reads should return class var values
+	expectedOutput := "10\n15\n"
+	if buf.String() != expectedOutput {
+		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
+	}
+}
+
+// TestClassPropertyMethodBacked tests class property backed by class methods
+func TestClassPropertyMethodBacked(t *testing.T) {
+	input := `
+type TConfig = class
+	class var FVersion: String;
+
+	class function GetVersion: String;
+	begin
+		if FVersion = '' then
+			Result := '1.0.0'
+		else
+			Result := FVersion;
+	end;
+
+	class procedure SetVersion(value: String);
+	begin
+		FVersion := value;
+	end;
+
+	class property Version: String read GetVersion write SetVersion;
+end;
+
+PrintLn(TConfig.Version);  // Should print '1.0.0' (default via getter)
+TConfig.FVersion := '2.0.0';  // Direct class var assignment
+PrintLn(TConfig.Version);  // Should print '2.0.0' (via getter)
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("eval error: %v", result)
+	}
+
+	// Check output
+	expectedOutput := "1.0.0\n2.0.0\n"
+	if buf.String() != expectedOutput {
+		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
+	}
+}
+
+// TestClassPropertyReadOnly tests read-only class property
+func TestClassPropertyReadOnly(t *testing.T) {
+	input := `
+type TApp = class
+	class var FName: String;
+	class property AppName: String read FName;
+end;
+
+TApp.FName := 'MyApp';
+PrintLn(TApp.AppName);
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("eval error: %v", result)
+	}
+
+	// Check output
+	expectedOutput := "MyApp\n"
+	if buf.String() != expectedOutput {
+		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
+	}
+}
+
+// TestClassPropertyWithInstances tests class property is shared across instances
+func TestClassPropertyWithInstances(t *testing.T) {
+	input := `
+type TCounter = class
+	class var FCount: Integer;
+	class property Count: Integer read FCount write FCount;
+	FName: String;
+
+	constructor Create(name: String);
+	begin
+		FName := name;
+		FCount := FCount + 1;
+	end;
+end;
+
+var obj1 := TCounter.Create('First');
+PrintLn(IntToStr(TCounter.Count));  // Should be 1
+
+var obj2 := TCounter.Create('Second');
+PrintLn(IntToStr(TCounter.Count));  // Should be 2
+
+var obj3 := TCounter.Create('Third');
+PrintLn(IntToStr(TCounter.Count));  // Should be 3
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("eval error: %v", result)
+	}
+
+	// Check output - instance counter should increment
+	expectedOutput := "1\n2\n3\n"
+	if buf.String() != expectedOutput {
+		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
+	}
+}
+
+// TestMixedClassAndInstanceProperties tests mixing class and instance properties
+func TestMixedClassAndInstanceProperties(t *testing.T) {
+	input := `
+type TMixed = class
+	class var FCounter: Integer;
+	FName: String;
+
+	class property Counter: Integer read FCounter write FCounter;
+	property Name: String read FName write FName;
+
+	constructor Create(name: String);
+	begin
+		FName := name;
+		FCounter := FCounter + 1;  // Increment class var directly
+	end;
+end;
+
+var obj1 := TMixed.Create('Object1');
+PrintLn(obj1.Name);  // Read via instance property
+PrintLn(IntToStr(TMixed.Counter));  // Read via class property
+
+var obj2 := TMixed.Create('Object2');
+PrintLn(obj2.Name);  // Read via instance property
+PrintLn(IntToStr(TMixed.Counter));  // Read via class property
+`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	result := interp.Eval(program)
+
+	if isError(result) {
+		t.Fatalf("eval error: %v", result)
+	}
+
+	// Check output
+	expectedOutput := "Object1\n1\nObject2\n2\n"
+	if buf.String() != expectedOutput {
+		t.Errorf("expected output '%s', got '%s'", expectedOutput, buf.String())
+	}
+}

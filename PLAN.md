@@ -217,7 +217,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Status**: DONE - Added IsClassProperty validation, class properties must use class fields/methods
   - **Estimated time**: 2-3 days
 
-- [ ] 9.13 Implement property read evaluation
+- [x] 9.13 Implement property read evaluation
   - **Task**: Property access invokes read accessor
   - **Implementation**:
     - Create `internal/interp/property.go`
@@ -226,7 +226,8 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - If accessor is field: return field value
     - Handle index parameters for indexed properties
   - **Test**: `obj.Name` calls GetName() method or reads FName field
-  - **Files**: `internal/interp/property.go`, `internal/interp/objects.go`
+  - **Files**: `internal/interp/objects.go`, `internal/interp/declarations.go`, `internal/interp/property_test.go`
+  - **Status**: DONE - Implemented class property read evaluation with field and method support
   - **Estimated time**: 2-3 days
 
 - [ ] 9.14 Implement property write evaluation
