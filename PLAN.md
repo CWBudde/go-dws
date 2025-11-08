@@ -734,11 +734,12 @@ These are test failures in the unit test suites (not fixture tests):
   - **Files**: `internal/semantic/analyze_functions.go`
   - **Estimated time**: 1 day
 
-- [ ] 9.51 Implement inherited expression validation
+- [x] 9.51 Implement inherited expression validation
   - **Issue**: Inherited expression errors not caught
-  - **Implementation**: Add validation in semantic analyzer
-  - **Files**: `internal/semantic/analyze_expressions.go`
+  - **Implementation**: Made TObject implicit parent for all classes, improved inherited expression validation
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/analyze_special.go`
   - **Estimated time**: 1 day
+  - **Completed**: Classes without explicit parent now inherit from TObject; inherited expressions validate member existence
 
 - [ ] 9.52 Enforce private field access control
   - **Issue**: Derived classes can access private parent fields

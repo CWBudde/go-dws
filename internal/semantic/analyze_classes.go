@@ -34,6 +34,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 			return
 		}
+	} else {
+		// Task 9.51: If no explicit parent, implicitly inherit from TObject (unless this IS TObject)
+		if !strings.EqualFold(className, "TObject") {
+			parentClass = a.classes["tobject"]
+		}
 	}
 
 	// Create new class type
