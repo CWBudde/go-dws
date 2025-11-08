@@ -896,6 +896,16 @@ func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Val
 		return indexVal
 	}
 
+	// Task 9.16: Check if left side is an object with a default property
+	// This allows obj[index] := value to be equivalent to obj.DefaultProperty[index] := value
+	if obj, ok := AsObject(arrayVal); ok {
+		defaultProp := obj.Class.getDefaultProperty()
+		if defaultProp != nil {
+			// Route to the default indexed property write
+			return i.evalIndexedPropertyWrite(obj, defaultProp, []Value{indexVal}, value, stmt)
+		}
+	}
+
 	// Index must be an integer
 	indexInt, ok := indexVal.(*IntegerValue)
 	if !ok {
