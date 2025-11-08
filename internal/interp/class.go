@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -155,12 +156,23 @@ func (c *ClassInfo) lookupOperator(operator string, operandTypes []string) (*run
 }
 
 // HasConstructor checks whether the class or its ancestors declare a constructor with the given name.
+// Task 9.82: Check both single constructors and overloaded constructors
+// Task 9.82: Case-insensitive lookup (DWScript is case-insensitive)
 func (c *ClassInfo) HasConstructor(name string) bool {
 	if c == nil {
 		return false
 	}
-	if _, ok := c.Constructors[name]; ok {
-		return true
+	// Case-insensitive search through constructors
+	for ctorName := range c.Constructors {
+		if strings.EqualFold(ctorName, name) {
+			return true
+		}
+	}
+	// Task 9.82: Also check constructor overloads (case-insensitive)
+	for ctorName, overloads := range c.ConstructorOverloads {
+		if strings.EqualFold(ctorName, name) && len(overloads) > 0 {
+			return true
+		}
 	}
 	if c.Parent != nil {
 		return c.Parent.HasConstructor(name)
