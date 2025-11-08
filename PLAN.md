@@ -809,18 +809,13 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
 
 #### Category B: Inheritance & Virtual Methods (HIGH - blocks 15 tests)
 
-- [ ] 9.81 Fix inheritance and virtual method dispatch
+- [x] 9.81 Fix inheritance and virtual method dispatch
   - **Failing Tests**: TestInheritanceIntegration, TestInheritance, TestPolymorphism, TestVirtualMethodPolymorphism, TestVirtualMethodThreeLevels, TestNonVirtualMethodDynamicDispatch, TestBasicInheritance, TestAbstractWithVirtualMethods, TestComplexOOPHierarchy, TestAbstractVirtualProtectedCombination, TestProtectedMethodsInDerivedClass, TestMethodOverridingWithVisibility, TestMultiLevelVirtualOverride, TestCompleteClassHierarchy, TestValidAbstractImplementation
-  - **Symptom**: "no overloaded version" for inherited/overridden methods, or wrong method called
-  - **Root Cause**: Virtual method dispatch table not properly constructed
-  - **Tasks**:
-    - Fix `getMethodOverloadsInHierarchy` to include parent virtual methods
-    - Implement proper method resolution order (MRO) for inheritance
-    - Add virtual method dispatch table to ClassType
-    - Fix runtime method lookup to check dispatch table first
-    - Handle abstract method validation (must be overridden in concrete classes)
-  - **Files**: `internal/interp/objects.go`, `internal/semantic/type_resolution.go`, `internal/types/class_type.go`
-  - **Estimated time**: 12-15 hours
+  - **Symptom**: "method marked as override, but parent method is not virtual" for abstract methods
+  - **Root Cause**: Override validation didn't recognize that abstract methods are implicitly virtual
+  - **Solution**: Modified override validation in `internal/semantic/analyze_classes.go` to accept abstract parent methods (which are implicitly virtual and can be overridden)
+  - **Files**: `internal/semantic/analyze_classes.go`
+  - **All 15 tests now pass**
 
 #### Category C: Constructor Handling (MEDIUM - blocks 5 tests)
 
