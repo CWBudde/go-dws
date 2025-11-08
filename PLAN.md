@@ -626,13 +626,14 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Impact**: Fixes 16 tests
   - **Completed**: Added Assigned() function with support for nil checking on all types
 
-- [ ] 9.83 Implement Chr() built-in
+- [x] 9.83 Implement Chr() built-in
   - **Task**: Convert integer to character
   - **Implementation**: Add Chr(code: Integer) → String (single character)
   - **Test**: Chr(65) returns 'A'
-  - **Files**: `internal/interp/builtins_string.go`
+  - **Files**: `internal/interp/builtins_strings.go`, `internal/interp/functions.go`
   - **Estimated time**: 0.5 day
   - **Impact**: Fixes 4 tests
+  - **Completed**: Added Chr() function with Unicode support (0-1114111)
 
 - [ ] 9.84 Implement IntToHex() built-in
   - **Task**: Convert integer to hexadecimal string

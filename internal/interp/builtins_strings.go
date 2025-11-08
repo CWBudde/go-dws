@@ -574,3 +574,26 @@ func (i *Interpreter) builtinDeleteString(args []ast.Expression) Value {
 
 	return &NilValue{}
 }
+
+// builtinChr implements the Chr() built-in function.
+// It converts an integer character code to a single-character string.
+// Chr(code: Integer): String
+func (i *Interpreter) builtinChr(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Chr() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Argument must be Integer
+	intVal, ok := args[0].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Chr() expects Integer argument, got %s", args[0].Type())
+	}
+
+	// Check if the code is in valid range (0-1114111 for Unicode)
+	if intVal.Value < 0 || intVal.Value > 0x10FFFF {
+		return i.newErrorWithLocation(i.currentNode, "Chr() code %d out of valid Unicode range (0-1114111)", intVal.Value)
+	}
+
+	// Convert to rune and then to string
+	return &StringValue{Value: string(rune(intVal.Value))}
+}

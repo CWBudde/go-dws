@@ -520,6 +520,8 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinStrToFloat(args)
 	case "BoolToStr":
 		return i.builtinBoolToStr(args)
+	case "Chr":
+		return i.builtinChr(args)
 	case "Succ":
 		return i.builtinSucc(args)
 	case "Pred":
