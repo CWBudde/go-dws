@@ -387,15 +387,16 @@ const (
 // Fields: Name, Type, ReadSpec, WriteSpec, IsIndexed, IsDefault
 // Properties provide syntactic sugar for getter/setter access.
 type PropertyInfo struct {
-	Type      Type
-	Name      string
-	ReadSpec  string
-	WriteSpec string
-	ReadKind  PropAccessKind
-	WriteKind PropAccessKind
-	ReadExpr  any
-	IsIndexed bool
-	IsDefault bool
+	Type            Type
+	Name            string
+	ReadSpec        string
+	WriteSpec       string
+	ReadKind        PropAccessKind
+	WriteKind       PropAccessKind
+	ReadExpr        any
+	IsIndexed       bool
+	IsDefault       bool
+	IsClassProperty bool
 }
 
 // MethodInfo stores metadata about a single method or overload (Task 9.61)

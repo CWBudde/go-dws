@@ -203,7 +203,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Status**: DONE - Added class property parsing support, added comprehensive tests
   - **Estimated time**: 2-3 days
 
-- [ ] 9.12 Validate property accessors in semantic analysis
+- [x] 9.12 Validate property accessors in semantic analysis
   - **Task**: Verify read/write accessors exist and have correct signatures
   - **Implementation**:
     - Create `internal/semantic/property.go`
@@ -213,7 +213,8 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Ensure accessor visibility is compatible
     - Report errors for missing or incompatible accessors
   - **Test**: Invalid property declarations fail with clear error messages
-  - **Files**: `internal/semantic/property.go`, `internal/semantic/analyze_classes.go`
+  - **Files**: `internal/types/types.go`, `internal/semantic/analyze_properties.go`, `internal/semantic/property_test.go`
+  - **Status**: DONE - Added IsClassProperty validation, class properties must use class fields/methods
   - **Estimated time**: 2-3 days
 
 - [ ] 9.13 Implement property read evaluation
