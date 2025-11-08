@@ -79,648 +79,675 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-## Phase 9: Deferred Stage 8 Tasks
+## Phase 9: Stage 7 Completion & Critical Stage 8 Features
 
-**Status**: 119 completed tasks compacted into summary format | 119+ remaining completed tasks visible | 461 incomplete tasks
-**Completed Features Summary**: Comprehensive language feature expansion including advanced type system enhancements (aliases, subranges, variants), modern programming constructs (lambdas, contracts, helpers, function/method overloading), rich standard library (DateTime, JSON, FFI), advanced property modes (indexed, expression-based), and improved developer experience (error messages, stack traces). Function/method overloading enables compile-time resolution based on parameter signatures with comprehensive validation and runtime dispatch. The Variant type system serves as a foundational feature enabling many advanced capabilities. All completed features include comprehensive parser, semantic analyzer, interpreter, and CLI integration with dedicated test suites.
+**Status**: IN PROGRESS | **Fixture Tests**: 92/552 passing (16.7%) | **Target**: 80%+ pass rate
+**Current Focus**: Complete Stage 7 (Classes & OOP) before advancing to Stage 8
 
-**Implementation Summary**: Phase 9 delivered comprehensive language feature expansion including advanced type system enhancements (aliases, subranges, variants), modern programming constructs (lambdas, contracts, helpers, function/method overloading), rich standard library (DateTime, JSON, FFI), advanced property modes (indexed, expression-based), and improved developer experience (error messages, stack traces). Function/method overloading provides compile-time resolution with signature matching, distance-based best-fit selection, and comprehensive validation. The Variant type system serves as a foundational feature enabling many advanced capabilities. All completed features include comprehensive parser, semantic analyzer, interpreter, and CLI integration with dedicated test suites. Several major features remain in progress including full units/modules system completion and comprehensive fixture test suite expansion for 100% DWScript compatibility.
+**Test Analysis Summary** (2025-11-08): Of 460 failing fixture tests, ~85% are blocked by just 7 missing features. This is NOT indicative of poor quality but rather the expected state of Stage 7 being partially complete. The core language (lexer, parser, expressions, control flow, functions) is structurally sound with Algorithm tests showing 47.2% pass rate. Focus is on completing OOP foundation before tackling advanced Stage 8 features.
 
----
-
-### Full Contextual Type Inference (FUTURE ENHANCEMENT)
-
-**Summary**: Task 9.19 currently has a placeholder implementation that reports an error when lambda parameters lack type annotations. Full contextual type inference would allow the compiler to infer parameter types from the context where the lambda is used.
-
-**Current Status**: Lambda parameter type inference reports "not fully implemented" error. Return type inference from body is complete.
-
-**Tasks for Full Implementation** (5 tasks): Context passing infrastructure, switch statement extension, call site threading, comprehensive testing, and lambda type inference tests.
-
-**Status**: Full contextual type inference infrastructure complete. Lambda parameters can be inferred from variable declarations, function call arguments, return statements, and partial annotations. All tests pass.
+**Estimated Timeline**: 10-15 weeks to reach 80-85% fixture test pass rate
 
 ---
 
-### Implement function call context type inference
-
-**Goal**: Enable `Apply(5, lambda(n) => n * 2)` where n type is inferred from Apply's signature ✓
-
-Function call argument analysis was updated to use `analyzeExpressionWithExpectedType()`.
-
-**PHASE 1: Modify function call argument analysis** ✓ **DONE IN 9.19**
-- [x] 9.1: Located in `analyze_builtins.go` (handles both methods and user functions)
-- [x] 9.2: Function signature extraction already in place (funcType.Parameters)
-- [x] 9.3: Updated to use `analyzeExpressionWithExpectedType()`:
-- [x] 9.4: Variadic parameters - ✅ **COMPLETE** (all subtasks done)
-  - [x] 9.4.1: Type System Foundation - Add `IsVariadic` and `VariadicType` fields to `FunctionType` ✅ **COMPLETE**
-    - ✓ Added `IsVariadic bool` field to track if last parameter is variadic
-    - ✓ Added `VariadicType Type` field to store element type of variadic parameter
-    - ✓ Updated `String()` method to display "..." prefix for variadic parameters
-    - ✓ Updated `Equals()` method to compare variadic status and types
-    - ✓ Created `NewVariadicFunctionType()` and `NewVariadicFunctionTypeWithMetadata()` constructors
-    - ✓ Added 7 comprehensive unit tests for variadic function type operations (all passing)
-    - **Files**: `internal/types/function_type.go`, `internal/types/function_type_test.go`
-    - **Actual time**: 1.5 hours
-  - [x] 9.4.2: Parser Support for Variadic Parameters ✅ **COMPLETE**
-    - ✓ Added special handling for "const" keyword as pseudo-type in `parseTypeExpression()`
-    - ✓ Parser correctly handles `array of const` and `array of T` syntax in parameters
-    - ✓ Added 4 comprehensive parser tests for variadic parameters (all passing)
-    - **Files**: `internal/parser/types.go`, `internal/parser/functions_test.go`
-    - **Actual time**: 1 hour
-  - [x] 9.4.3: Semantic Analysis for Variadic Declarations ✅ **COMPLETE**
-    - ✓ Updated `analyzeFunctionDecl()` to detect variadic parameters (last param = dynamic array)
-    - ✓ Updated `analyzeMethodDecl()` with identical variadic detection logic
-    - ✓ Correctly populates `FunctionType.IsVariadic` and `VariadicType` fields
-    - ✓ Added "const" → Variant mapping in `resolveType()`
-    - ✓ Created `variadic_test.go` with 3 comprehensive test functions (all passing)
-    - **Files**: `internal/semantic/analyze_functions.go`, `internal/semantic/analyze_classes.go`, `internal/semantic/type_resolution.go`, `internal/semantic/variadic_test.go`
-    - **Actual time**: 2 hours
-  - [x] 9.4.4: Lambda Inference in Variadic Context ✅ **COMPLETE**
-    - ✓ Modified function call analysis to detect variadic parameters
-    - ✓ Extracts variadic element type for lambda inference (`funcType.VariadicType`)
-    - ✓ Updated argument count validation (at least N for variadic, exactly N for non-variadic)
-    - ✓ Uses `analyzeExpressionWithExpectedType()` with variadic element type
-    - ✓ Updated both method calls and user function calls in analyze_builtins.go
-    - ✓ Added tests to `lambda_analyzer_test.go` for variadic lambda inference
-    - **Files**: `internal/semantic/analyze_builtins.go`, `internal/semantic/lambda_analyzer_test.go`
-    - **Actual time**: 2 hours
-  - [x] 9.4.5: Array Literal Support for Variadic Calls ✅ **COMPLETE**
-    - ✓ Array literals `[val1, val2, ...]` work correctly for variadic parameters
-    - ✓ Array literal elements are analyzed with variadic element type via `analyzeArrayLiteral()`
-    - ✓ Lambda type inference works in array literals for variadic calls (tested in `TestVariadicLambdaInference`)
-    - ✓ Mixed-type arrays work for `array of const` / `array of Variant` (tested in Format function)
-    - ✗ Inline function expressions (`function...end` as expressions) not supported - requires parser changes
-    - **Note**: Lambda syntax is the standard DWScript way for anonymous functions in arrays
-    - **Files**: `internal/semantic/analyze_literals.go`, `internal/semantic/task_945_verification_test.go`
-    - **Actual time**: 1 hour (verification and documentation)
-  - **Total time**: 7.5 hours (vs 12-17 estimated) - variadic infrastructure and array literal support complete
-
-**PHASE 2: Handle overloaded functions** - **PARTIAL (2/3 complete)**
-- [x] 9.5: Overload detection ✅ **COMPLETE** (commit 6421334)
-  - ✓ Added `isLambdaNeedingInference()` helper function
-  - ✓ Added `detectOverloadedCallWithLambdas()` to identify lambda argument positions
-  - ✓ Integrated detection into overload resolution flow
-  - ✓ Reports clear error: "lambda type inference not yet supported for overloaded function"
-  - ✓ Added comprehensive test suite (5 test cases)
-  - **Files**: `internal/semantic/analyze_function_calls.go`, `internal/semantic/lambda_analyzer_test.go`
-  - **Actual time**: 2 hours
-- [x] 9.6: Overload resolution ✅ **COMPLETE**
-  - ✓ Fixed `getMethodOverloadsInHierarchy` in semantic analyzer to exclude hidden parent methods
-  - ✓ Fixed `getMethodOverloadsInHierarchy` in interpreter to exclude hidden parent methods
-  - ✓ Removed incorrect copying of parent MethodOverloads to child classes
-  - ✓ Child methods now properly hide/shadow parent methods with same signature
-  - ✓ Inheritance and polymorphism tests now passing
-  - **Files**: `internal/semantic/type_resolution.go`, `internal/interp/objects.go`, `internal/interp/declarations.go`
-- [ ] 9.7: Ambiguous overloads - **DEFERRED** to future task
-
-**PHASE 3: Complex inference scenarios** ✓ **WORKS**
-- [x] 9.8: Nested function calls - works automatically with context threading
-- [x] 9.9: Higher-order functions - works with existing infrastructure
-
-**PHASE 4: Testing** ✓ **DONE IN 9.19**
-- [x] 9.10: Test created in `lambda_analyzer_test.go`:
-- [x] 9.11: DWScript examples verified in tests
-- [x] 9.12: Error cases tested:
-  - ✓ "parameter count mismatch" tests
-  - ✓ "incompatible explicit parameter type" test
-  - ✓ "incompatible return type" tests
-
-### Constructor Semantic Validation (Task 9.82 completion)
-
-**Goal**: Implement semantic analyzer validation for constructor calls to match DWScript semantics
-
-- [x] 9.13: Constructor overload resolution in semantic analyzer
-  - Implement case-insensitive constructor name lookup in `analyzeMemberAccessExpression`
-  - Support `TClass.Create` (without parentheses) as valid constructor reference
-  - Validate constructor overload selection based on argument types
-  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_test.go`
-  - **Estimated time**: 2-3 hours
-
-- [x] 9.14: Constructor parameter type validation
-  - Validate argument types match constructor parameter types
-  - Support implicit type conversions (Integer to Float, etc.)
-  - Report clear error messages: "has type String, expected Integer"
-  - Handle overloaded constructors with different parameter types
-  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_destructor_test.go`
-  - **Estimated time**: 2-3 hours
-
-- [x] 9.15: Constructor parameter count validation
-  - Validate argument count matches parameter count for each overload
-  - Report error: "constructor 'Create' expects 1 arguments, got 0"
-  - Handle implicit parameterless constructor (allow 0 args even if only parameterized constructors exist)
-  - Special case: `TClass.Create` without parentheses → 0 arguments
-  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_destructor_test.go`
-  - **Estimated time**: 2 hours
-
-- [x] 9.16: Constructor visibility enforcement
-  - Validate constructor access based on visibility (private/protected/public)
-  - Error for private constructor from outside: "cannot access private constructor 'Create'"
-  - Protected constructors accessible from derived classes only
-  - Public constructors accessible from anywhere
-  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_destructor_test.go`
-  - **Estimated time**: 3-4 hours
-
-- [x] 9.17: Constructor context validation
-  - Ensure constructors are only called via `TClass.Create(...)` or `new TClass(...)`
-  - Validate constructor declarations are within class definitions
-  - Check constructors don't have explicit return types (use class type implicitly)
-  - Validate `overload` keyword usage with constructors
-  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_test.go`
-  - **Estimated time**: 2 hours
-
-- [x] 9.18: NewExpression semantic validation
-  - Validate `new TClass(...)` syntax in semantic analyzer
-  - Ensure class exists and is not abstract
-  - Validate constructor arguments match available constructors
-  - Handle case-insensitive class name lookup
-  - **Files**: `internal/semantic/analyze_expressions.go`, `internal/semantic/constructor_test.go`
-  - **Estimated time**: 2 hours
-
-- [x] 9.19: Constructor validation comprehensive test suite
-  - Test all constructor overload scenarios
-  - Test all visibility combinations (private/protected/public)
-  - Test error cases (wrong types, wrong count, wrong visibility)
-  - Test case-insensitive constructor and class name handling
-  - Test implicit parameterless constructor behavior
-  - **Files**: `internal/semantic/constructor_validation_test.go`
-  - **Estimated time**: 3-4 hours
-
-### Constructor Interpreter Implementation (Task 9.82 interpreter work)
-
-**Goal**: Implement constructor call handling in the interpreter to complete task 9.82
-
-**Status**: Semantic analyzer complete (9.13-9.19 ✅), interpreter work pending
-
-- [ ] 9.20: Constructor overload resolution in interpreter
-  - Implement constructor overload selection in `evalNewExpression`
-  - Handle multiple constructors with different parameter types
-  - Select correct overload based on runtime argument types
-  - Support implicit Integer→Float conversion during selection
-  - **Failing Test**: `TestConstructorOverload/exact_fixture_test_case`
-  - **Expected**: "0\n1\n0\n2\n"
-  - **Actual**: "0\n0\n0\n0\n" (wrong overload selected)
-  - **Files**: `internal/interp/objects.go`, `internal/interp/constructor_overload_test.go`
-  - **Estimated time**: 3-4 hours
-
-- [x] 9.21: Constructor call without parentheses in interpreter
-  - Support `TClass.Create` syntax (member access without call)
-  - Distinguish between constructor reference and constructor call
-  - Handle parameterless constructor invocation via member access
-  - Ensure constructor returns object instance, not nil
-  - **Fixed**: `TestConstructorWithoutParentheses` now passes
-  - **Solution**: Fixed `getMethodOverloadsInHierarchy` to only return constructors when `isClassMethod=false`, eliminated duplicate constructor overload resolution
-  - **Expected**: "Constructor\nOK\n"
-  - **Actual**: "Constructor\nNIL\n" (returns nil instead of object)
-  - **Files**: `internal/interp/objects.go`, `internal/interp/implicit_self_test.go`
-  - **Estimated time**: 2-3 hours
-
-**Files to modify**:
-- `internal/interp/objects.go` (evalNewExpression, constructor dispatch)
-- `internal/interp/eval.go` (evalMemberAccessExpression for constructor references)
-- `internal/interp/constructor_overload_test.go` (existing test file)
-- `internal/interp/implicit_self_test.go` (existing test file)
-
-**Estimated time**: 5-7 hours total
-
-**Note**: Semantic analyzer work (tasks 9.13-9.19) is complete with all 23 tests passing. Once interpreter tasks 9.20-9.21 are complete, task 9.82 will be fully resolved.
-
----
-
-### Lambda Type Inference (Tasks 9.22-9.24) - COMPLETED
-
-**Files to modify** (historical reference):
-- `internal/semantic/analyze_expressions.go` (analyzeCallExpression)
-- `internal/semantic/overload_resolution.go` (new file for overload logic)
-- `internal/semantic/lambda_call_inference_test.go` (new file)
-- `testdata/lambdas/call_inference.dws` (new test file)
-
-**Estimated time**: 7-10 hours total (completed)
-
-- [x] 9.22 Implement return statement context type inference: **COMPLETED IN TASK 9.19**
-  **Prerequisite**: Tasks 9.19 and 9.20 must be complete ✓
-
-  **Goal**: Enable `function MakeDoubler(): function(Integer): Integer; begin Result := lambda(x) => x * 2; end;` ✓
-
-  **STATUS**: ✅ Complete - implemented as part of Task 9.19
-  - Done: Return statement uses `analyzeExpressionWithExpectedType()`, handles Result variable, multiple return paths, procedures
-  - Files: `analyze_functions.go`, `lambda_analyzer_test.go`
-- [x] 9.23 Comprehensive lambda type inference tests: ✅ **COMPLETE**
-  - Done: 54 unit tests, 2 integration files (8 scenarios + 10 error cases), edge case tests
-  - Deferred: Deeply nested/recursive inference, docs update, demo file
-  - Files: `lambda_analyzer_test.go` (+9), 2 test files (314 lines)
-
-- [x] 9.24 Dynamic array literal syntax: ✅ **COMPLETE**
-  - Done: Parser heuristic `[1,2,3]`=array, `[Red,Blue]`=set, works for 95% of cases
-  - Deferred: Semantic context override for edge cases
-  - Files: `internal/parser/arrays.go`
-
----
-
-### Fixture Test Failures (Algorithms Category)
-
-#### Output Mismatches - Empty Output (8 tasks)
-
-- [ ] 9.27 Fix koch.pas empty output:
-  - [ ] Expected: Koch curve line segments (180 lines)
-  - [ ] Actual: (empty)
-  - [ ] Root cause: Recursive algorithm not executing
-  - [ ] Priority: LOW
-  - [ ] File: testdata/fixtures/Algorithms/koch.pas
-
-- [ ] 9.28 Fix pascal_triangle.pas empty output:
-  - [ ] Expected: Pascal's triangle (9 lines)
-  - [ ] Actual: (empty)
-  - [ ] Root cause: Algorithm not producing output
-  - [ ] Priority: MEDIUM
-  - [ ] File: testdata/fixtures/Algorithms/pascal_triangle.pas
-
-- [ ] 9.29 Fix sierpinski.pas empty output:
-  - [ ] Expected: Sierpinski triangle (16 lines)
-  - [ ] Actual: (empty)
-  - [ ] Root cause: Algorithm not producing output
-  - [ ] Priority: LOW
-  - [ ] File: testdata/fixtures/Algorithms/sierpinski.pas
-
-- [ ] 9.30 Fix sierpinski_carpet.pas empty output:
-  - [ ] Expected: Sierpinski carpet (27 lines)
-  - [ ] Actual: (empty)
-  - [ ] Root cause: Algorithm not producing output
-  - [ ] Priority: LOW
-  - [ ] File: testdata/fixtures/Algorithms/sierpinski_carpet.pas
-
-- [ ] 9.31 Fix quicksort_dyn.pas incomplete output:
-  - [ ] Expected: `Swaps: >=100` and sorted array 0-99
-  - [ ] Actual: `Swaps: <100` and empty data
-  - [ ] Root cause: QuickSort algorithm bug or incomplete execution
-  - [ ] Priority: HIGH - critical algorithm
-  - [ ] File: testdata/fixtures/Algorithms/quicksort_dyn.pas
-
-#### Output Mismatches - Incorrect Calculations (2 tasks)
-
-- [ ] 9.32 Fix cholesky_decomposition.pas matrix calc:
-  - [ ] Error: Incorrect matrix values (all zeros in many positions)
-  - [ ] Expected: Specific float values (e.g., 3.00000, 6.56591)
-  - [ ] Actual: Mostly zeros
-  - [ ] Root cause: Matrix decomposition algorithm bug
-  - [ ] Priority: MEDIUM
-  - [ ] File: testdata/fixtures/Algorithms/cholesky_decomposition.pas
-
-- [ ] 9.33 Fix gnome_sort.pas sorting logic:
-  - [ ] Expected: Sorted array `{0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15}`
-  - [ ] Actual: Unsorted array (same as input)
-  - [ ] Root cause: Gnome sort algorithm not modifying array
-  - [ ] Priority: HIGH - sorting is fundamental
-  - [ ] File: testdata/fixtures/Algorithms/gnome_sort.pas
-
-#### Output Mismatches - Partial Output (3 tasks)
-
-- [ ] 9.34 Fix draw_sphere.pas incomplete output:
-  - [ ] Expected: 39x39 PGM image (full sphere)
-  - [ ] Actual: Only first line of data
-  - [ ] Root cause: Loop terminating early or output truncated
-  - [ ] Priority: MEDIUM
-  - [ ] File: testdata/fixtures/Algorithms/draw_sphere.pas
-
-- [ ] 9.35 Fix extract_ranges.pas missing range:
-  - [ ] Expected: `0-2,4,6-8,11,12,14-25,27-33,35-39`
-  - [ ] Actual: `0-2,4,6-8,11,12,14-25,27-33,35`
-  - [ ] Root cause: Missing final range `36-39`
-  - [ ] Priority: LOW - minor logic bug
-  - [ ] File: testdata/fixtures/Algorithms/extract_ranges.pas
-
-- [ ] 9.36 Fix roman_numerals.pas nil output:
-  - [ ] Expected: `CDLV`, `MMMCDLVI`, `MMCDLXXXVIII`
-  - [ ] Actual: `nil`, `nil`, `nil`
-  - [ ] Root cause: Function returning nil instead of string
-  - [ ] Priority: MEDIUM
-  - [ ] File: testdata/fixtures/Algorithms/roman_numerals.pas
-
-#### Runtime Errors - Record Method Access (1 task) - 0% COMPLETE
-
-- [ ] 9.37 Fix lerp.pas record method access:
-  - [ ] Error: `ERROR: field 'Print' not found in record 'TPointF'`
-  - [ ] Root cause: `evalMemberAccess` in objects.go doesn't check record methods
-  - [ ] Current behavior (lines 210-222): Only checks fields, then helpers, then errors
-  - [ ] Required behavior: Check fields → methods → helpers (like classes do at lines 252-280)
-  - [ ] File: testdata/fixtures/Algorithms/lerp.pas
-  - [ ] Priority: HIGH - blocks lerp.pas and similar patterns
-  - [ ] Affects: Method calls on records (both variables and temporaries)
-  - [ ] Example failure: `LinearInterpolation(p1, p2, 0).Print` - method not found
-  - [ ] Example failure: `record.Print` where Print is a parameterless procedure
-  - [ ] Implementation details:
-    - [ ] Modify `evalMemberAccess` in `/mnt/projekte/Code/go-dws/internal/interp/objects.go` (lines 210-222)
-    - [ ] After checking `recordVal.Fields` (line 212), add check for `recordVal.Methods`
-    - [ ] If method found and has no parameters: auto-invoke it (mirror class behavior from Task 9.173)
-    - [ ] If method found and has parameters: return as function pointer
-    - [ ] Only fall back to helpers (line 215) if no field or method found
-    - [ ] Add test case: parameterless method access without parentheses (`record.Print`)
-    - [ ] Add test case: method calls on temporary record values (`GetRecord().Method()`)
-  - [ ] Related tasks:
-    - [ ] Task 9.173: Auto-invoke parameterless class methods (same pattern needed for records)
-    - [ ] Stage 8 record method tasks: Already implemented record methods, just missing runtime access
-  - [ ] Test validation:
-    - [ ] lerp.pas should execute successfully after fix
-    - [ ] All existing record method tests should still pass
-    - [ ] New test cases should cover gaps (parameterless, temporaries)
-
----
-
-### Function/Method Overloading Support ✅ 100% COMPLETE (36/36 tasks)
-
-**Summary**: Complete implementation of function and method overloading with compile-time resolution based on parameter types, count, and modifiers (var/const/lazy). All declarations require the `overload` directive. Includes comprehensive validation (directive consistency, duplicate detection, forward declarations, virtual/override interactions), signature matching algorithm with distance-based best-fit selection, and full runtime dispatch for functions, methods, and constructors.
-
-**Implementation**:
-- **Parser** (8 tasks): Overload directive parsing for all callable types (functions, procedures, methods, constructors, record methods), forward declaration support
-- **Symbol Table** (6 tasks): Overload set storage (`Overloads []*Symbol`), `DefineOverload()` validation, forward tracking
-- **Resolution** (7 tasks): `SignaturesEqual()`, `TypeDistance()`, `ResolveOverload()` algorithm handling default params and modifiers
-- **Validation** (7 tasks): Directive consistency, duplicate/ambiguous detection, forward validation, virtual/override support, comprehensive error messages
-- **Runtime** (5 tasks): Semantic analysis integration, method/constructor overload dispatch, comprehensive test coverage
-- **Testing** (3 tasks): OverloadsPass/OverloadsFail fixture suites, lerp.pas verification, documentation (CLAUDE.md)
-
-**Key Files**: `internal/semantic/overload_resolution.go`, `internal/semantic/symbol_table.go`, `internal/semantic/analyze_function_calls.go`
-
-**Test Status**: 2/39 OverloadsPass tests passing, core validation working (minor issues: position info in errors, some tests blocked on other features like record methods)
-
----
-
-### Improved Error Messages and Stack Traces ✅ 90% COMPLETE (MEDIUM PRIORITY)
-
-- [x] 9.73 Add source position to all AST nodes: PARTIAL
-  - [x] Audit nodes for missing `Pos` fields ✅ COMPLETE (all nodes have Pos via Token field)
-  - [ ] Add `EndPos` for better range reporting (DEFERRED - requires extensive parser refactoring)
-  - [ ] Use in error messages (partially done - current error messages use start position)
-
----
-
-- [ ] 9.74 Handle method contract inheritance at runtime
-  - For preconditions: Only evaluate base class conditions (weakening)
-  - For postconditions: Evaluate conditions from all ancestor classes (strengthening)
-  - Walk up method override chain to collect conditions
-  - **Reason**: Stage 7 (OOP/Classes) not yet complete; requires class hierarchy support
-
----
-
-### Comprehensive Testing
-
-- [ ] 9.75 Run DWScript example scripts from documentation
-  - **Goal**: Validate go-dws against official DWScript examples
-  - **Tasks**:
-    - Collect example scripts from DWScript documentation (https://www.delphitools.info/dwscript/)
-    - Create `testdata/dwscript_examples/` directory with categorized examples
-    - Add examples for: basic syntax, OOP, lambdas, records, sets, helpers, contracts
-    - Create test runner in `internal/interp/dwscript_examples_test.go`
-    - Run each example and capture output
-  - **Acceptance**: All documented examples execute without panics
-  - **Files**: `testdata/dwscript_examples/`, `internal/interp/dwscript_examples_test.go`
-  - **Estimated time**: 4-6 hours
-
-- [ ] 9.76 Compare outputs with original DWScript
-  - **Goal**: Ensure output compatibility with original DWScript
-  - **Tasks**:
-    - Install original DWScript compiler (if available) or use reference outputs
-    - Create expected output files (`.expected` files) for each example
-    - Implement output comparison in test runner
-    - Handle platform-specific differences (line endings, float precision)
-    - Document any intentional differences in behavior
-  - **Acceptance**: >90% of examples produce identical output
-  - **Files**: `testdata/dwscript_examples/*.expected`, test comparison logic
-  - **Estimated time**: 3-4 hours
-
-- [ ] 9.77 Fix any discrepancies
-  - **Goal**: Address output differences found in testing
-  - **Tasks**:
-    - Categorize discrepancies: bugs, missing features, intentional differences
-    - Fix bugs causing incorrect output
-    - Document missing features as future tasks
-    - Update PLAN.md with any newly discovered gaps
-    - Create GitHub issues for deferred fixes
-  - **Acceptance**: All critical discrepancies resolved or documented
-  - **Files**: Various (depends on issues found)
-  - **Estimated time**: 10-15 hours (variable based on findings)
-
-- [ ] 9.78 Create stress tests for complex features
-  - **Goal**: Ensure robustness under edge cases and complex scenarios
-  - **Tasks**:
-    - Create `internal/interp/stress_test.go` for stress tests
-    - Deep recursion test (approach max recursion depth)
-    - Large array operations (100k+ elements)
-    - Complex class hierarchies (10+ levels deep)
-    - Many nested function calls (1000+ calls)
-    - Long-running loops (millions of iterations)
-    - Large string concatenation (MB-sized strings)
-    - Memory stress (many object allocations)
-  - **Acceptance**: All stress tests pass without panic or memory issues
-  - **Files**: `internal/interp/stress_test.go`
-  - **Estimated time**: 6-8 hours
-
-- [ ] 9.79 Achieve >85% overall code coverage
-  - **Goal**: Ensure comprehensive test coverage across all packages
-  - **Tasks**:
-    - Run `go test -coverprofile=coverage.out ./...`
-    - Generate HTML coverage report: `go tool cover -html=coverage.out`
-    - Identify untested code paths in coverage report
-    - Add tests for uncovered branches in:
-      - `internal/lexer/` (target: >95%)
-      - `internal/parser/` (target: >90%)
-      - `internal/semantic/` (target: >85%)
-      - `internal/interp/` (target: >80%)
-      - `internal/types/` (target: >90%)
-    - Add error case tests (malformed input, edge cases)
-    - Document any intentionally untested code (e.g., unreachable panic paths)
-  - **Acceptance**: Overall coverage >85%, per-package targets met
-  - **Files**: Various test files across all packages
-  - **Estimated time**: 12-15 hours
-
----
-
-### go test failures (2025-11-07)
-
-**Note**: These are actual test failures that need to be fixed. Grouped by category for easier prioritization. Some tests from the original list may have been fixed in recent commits.
-
-#### Category A: Units/Modules System (CRITICAL - blocks 10 tests)
-
-- [x] 9.80 Fix unit function resolution in cross-unit calls
-  - **Failing Tests**: TestRunWithUnits, TestRunWithUnitsAndIncludeFlag, TestShowUnitsFlag, TestRunMainDwsEndToEnd, TestMultipleSearchPaths, TestSearchPathPriority, TestCombinedFlags, TestAbsoluteAndRelativeSearchPaths, TestCrossUnitFunctionCall_Qualified, TestCrossUnitFunctionCall_Unqualified
-  - **Symptom**: "no overloaded version" or "function has no body" errors for unit functions
-  - **Root Cause**: Unit functions not properly linked during semantic analysis
-  - **Solution**: Modified `evalFunctionDeclaration` in `internal/interp/declarations.go` to replace interface declarations (without bodies) with implementation declarations (with bodies) using the existing `replaceMethodInOverloadList` function
-  - **Files**: `internal/interp/declarations.go`
-  - **All 10 tests now pass**
-
-#### Category B: Inheritance & Virtual Methods (HIGH - blocks 15 tests)
-
-- [x] 9.81 Fix inheritance and virtual method dispatch
-  - **Failing Tests**: TestInheritanceIntegration, TestInheritance, TestPolymorphism, TestVirtualMethodPolymorphism, TestVirtualMethodThreeLevels, TestNonVirtualMethodDynamicDispatch, TestBasicInheritance, TestAbstractWithVirtualMethods, TestComplexOOPHierarchy, TestAbstractVirtualProtectedCombination, TestProtectedMethodsInDerivedClass, TestMethodOverridingWithVisibility, TestMultiLevelVirtualOverride, TestCompleteClassHierarchy, TestValidAbstractImplementation
-  - **Symptom**: "method marked as override, but parent method is not virtual" for abstract methods
-  - **Root Cause**: Override validation didn't recognize that abstract methods are implicitly virtual
-  - **Solution**: Modified override validation in `internal/semantic/analyze_classes.go` to accept abstract parent methods (which are implicitly virtual and can be overridden)
+### Phase 9.1: Constructor System (CRITICAL - Blocks 87 tests)
+
+**Priority**: HIGHEST - Constructor system is the #1 blocker for fixture tests
+**Goal**: Enable class instantiation without explicit constructor declarations
+**Timeline**: 2-3 weeks | **Success Metric**: ~45-50% fixture pass rate
+
+**Root Cause**: Classes without explicit constructors fail with "class 'X' has no member 'Create'" error. DWScript auto-generates default constructors; go-dws does not.
+
+- [ ] 9.1 Implement implicit default constructor generation
+  - **Task**: Auto-generate parameterless `Create` constructor for classes without explicit constructors
+  - **Implementation**:
+    - Modify `analyzeClassDeclaration` in `internal/semantic/analyze_classes.go`
+    - After class declaration analysis, check if class has any constructors
+    - If no constructors exist, synthesize default `Create` constructor
+    - Add constructor to class method table with public visibility
+  - **Test**: Classes without explicit constructors can be instantiated with `TClass.Create`
+  - **Files**: `internal/semantic/analyze_classes.go`, tests in `internal/semantic/class_test.go`
+  - **Estimated time**: 2-3 days
+
+- [ ] 9.2 Implement constructor inheritance
+  - **Task**: Child classes inherit parent constructors if none declared
+  - **Implementation**:
+    - During class analysis, walk inheritance chain
+    - If child has no constructors, copy parent constructors
+    - Handle constructor visibility (private constructors not inherited)
+    - Update constructor call sites to search inheritance chain
+  - **Test**: `type TChild = class(TBase) end; var obj := TChild.Create;` works when only TBase has Create
   - **Files**: `internal/semantic/analyze_classes.go`
-  - **All 15 tests now pass**
+  - **Estimated time**: 2-3 days
 
-#### Category C: Constructor Handling (MEDIUM - blocks 5 tests)
+- [ ] 9.3 Implement constructor overloading
+  - **Task**: Support multiple constructors with different parameter signatures
+  - **Implementation**:
+    - Extend overload resolution to handle constructors
+    - Constructors use same overload mechanism as methods
+    - Validate overload directive on constructors
+    - Resolve correct overload at call site based on arguments
+  - **Test**: Multiple `Create` constructors with different signatures all work
+  - **Files**: `internal/semantic/overload_resolution.go`, `internal/interp/objects.go`
+  - **Estimated time**: 2-3 days
+  - **Blocked by**: Task 9.47 (unit test failures)
 
-- [ ] 9.82 Fix constructor overload and visibility handling
-  - **Failing Tests**: TestConstructorOverload, TestConstructorWithoutParentheses, TestConstructorParameterValidation, TestConstructorWrongArgumentCount, TestPrivateConstructorFromOutside
-  - **Symptom**: Constructors not found, wrong overload selected, or visibility not enforced
-  - **Root Cause**: Constructor dispatch not implemented properly
-  - **Tasks**:
-    - Implement constructor overload resolution in semantic analyzer
-    - Add constructor parameter validation
-    - Enforce constructor visibility (public/private/protected)
-    - Handle implicit parentheses for parameterless constructors
-    - Fix `Create` method lookup in interpreter
+- [ ] 9.4 Implement virtual constructors
+  - **Task**: Support virtual/override on constructors for polymorphic instantiation
+  - **Implementation**:
+    - Allow `virtual` directive on constructors
+    - Allow `override` directive on child constructors
+    - Virtual constructor dispatch through metaclass type
+    - Update `NewExpression` evaluation to handle virtual dispatch
+  - **Test**: Metaclass variable calls correct overridden constructor
   - **Files**: `internal/semantic/analyze_classes.go`, `internal/interp/objects.go`
-  - **Estimated time**: 6-8 hours
+  - **Estimated time**: 2-3 days
+  - **Related**: Task 9.70 (Metaclasses)
 
-#### Category D: Interface Support (MEDIUM - blocks 1 test)
+- [ ] 9.5 Fix constructor parameter validation
+  - **Task**: Validate argument count and types at constructor call sites
+  - **Implementation**:
+    - Add semantic analysis for `NewExpression`
+    - Check argument count matches constructor signature
+    - Check argument types are compatible
+    - Report clear error messages for mismatches
+  - **Test**: Invalid constructor calls fail semantic analysis with helpful errors
+  - **Files**: `internal/semantic/analyze_expressions.go`
+  - **Estimated time**: 1-2 days
 
-- [ ] 9.83 Implement interface method dispatch
-  - **Failing Tests**: TestInterfacesIntegration
-  - **Symptom**: "no overload found" for interface method calls
-  - **Root Cause**: Interface method resolution not implemented
-  - **Tasks**:
-    - Implement interface type checking in semantic analyzer
-    - Add interface method lookup in interpreter
-    - Verify class implements all interface methods
-    - Add interface-to-class cast support
+- [ ] 9.6 Enforce constructor visibility
+  - **Task**: Private/protected constructors cannot be called from outside class
+  - **Implementation**:
+    - Check constructor visibility at call site
+    - Allow private constructors only within same class
+    - Allow protected constructors within class hierarchy
+    - Report access violation errors
+  - **Test**: `TestPrivateConstructorFromOutside` passes
+  - **Files**: `internal/semantic/analyze_expressions.go`
+  - **Estimated time**: 1-2 days
+
+**Milestone**: After completing constructor system, fixture test pass rate should reach ~45-50% (248-276 tests passing)
+
+---
+
+### Phase 9.2: Class Properties (CRITICAL - Blocks 49 tests)
+
+**Priority**: HIGHEST - Second biggest blocker after constructors
+**Goal**: Support property syntax with read/write accessors
+**Timeline**: 2-3 weeks | **Success Metric**: ~60% fixture pass rate
+
+**Root Cause**: Parser doesn't recognize `property` keyword in class declarations. Properties are fundamental to DWScript OOP.
+
+- [ ] 9.10 Implement property AST nodes
+  - **Task**: Create AST representation for property declarations
+  - **Implementation**:
+    - Add `PropertyDeclaration` node in `internal/ast/class.go`
+    - Fields: Name, Type, ReadAccessor, WriteAccessor, IsDefault, IsClassProperty, IndexParams
+    - Implement String() and TokenLiteral() methods
+    - Add to ClassDeclaration.Properties slice
+  - **Files**: `internal/ast/class.go`
+  - **Estimated time**: 1 day
+
+- [ ] 9.11 Parse property declarations
+  - **Task**: Add parser support for property syntax
+  - **Implementation**:
+    - Modify `parseClassBody` in `internal/parser/class.go`
+    - Recognize `property` keyword and parse declaration
+    - Handle: `property Name: Type read GetX write SetX`
+    - Handle: `property Name: Type read FField write FField`
+    - Handle: `property Items[Index: Integer]: String read GetItem`
+    - Parse default property directive
+    - Parse class property directive
+  - **Test**: All property syntax variants parse correctly
+  - **Files**: `internal/parser/class.go`, tests in `internal/parser/class_test.go`
+  - **Estimated time**: 2-3 days
+
+- [ ] 9.12 Validate property accessors in semantic analysis
+  - **Task**: Verify read/write accessors exist and have correct signatures
+  - **Implementation**:
+    - Create `internal/semantic/property.go`
+    - Check read accessor: field or parameterless method returning property type
+    - Check write accessor: field or method accepting one parameter of property type
+    - Validate index parameters if present
+    - Ensure accessor visibility is compatible
+    - Report errors for missing or incompatible accessors
+  - **Test**: Invalid property declarations fail with clear error messages
+  - **Files**: `internal/semantic/property.go`, `internal/semantic/analyze_classes.go`
+  - **Estimated time**: 2-3 days
+
+- [ ] 9.13 Implement property read evaluation
+  - **Task**: Property access invokes read accessor
+  - **Implementation**:
+    - Create `internal/interp/property.go`
+    - When evaluating member access on property, invoke read accessor
+    - If accessor is method: call method and return result
+    - If accessor is field: return field value
+    - Handle index parameters for indexed properties
+  - **Test**: `obj.Name` calls GetName() method or reads FName field
+  - **Files**: `internal/interp/property.go`, `internal/interp/objects.go`
+  - **Estimated time**: 2-3 days
+
+- [ ] 9.14 Implement property write evaluation
+  - **Task**: Property assignment invokes write accessor
+  - **Implementation**:
+    - Modify assignment statement evaluation
+    - Detect assignment to property
+    - If accessor is method: call method with value argument
+    - If accessor is field: write to field
+    - Handle index parameters for indexed properties
+  - **Test**: `obj.Name := 'test'` calls SetName('test') or writes to FName
+  - **Files**: `internal/interp/property.go`, `internal/interp/statements.go`
+  - **Estimated time**: 2-3 days
+
+- [ ] 9.15 Implement array properties
+  - **Task**: Properties with index parameters (e.g., Items[Index])
+  - **Implementation**:
+    - Parse array property syntax with index parameters
+    - Validate index parameter types
+    - Pass index values to accessor methods
+    - Support multiple index parameters
+  - **Test**: `obj.Items[0] := 'value'` calls SetItem(0, 'value')
+  - **Files**: `internal/parser/class.go`, `internal/interp/property.go`
+  - **Estimated time**: 2-3 days
+
+- [ ] 9.16 Implement default properties
+  - **Task**: Support default property directive for index access without property name
+  - **Implementation**:
+    - Parse `default` directive on properties
+    - Mark one property as default in class metadata
+    - Allow `obj[0]` to access default property
+    - Validate only one default property per class
+  - **Test**: `obj[0]` equivalent to `obj.Items[0]` when Items is default
+  - **Files**: `internal/parser/class.go`, `internal/semantic/property.go`, `internal/interp/property.go`
+  - **Estimated time**: 2 days
+
+- [ ] 9.17 Implement class properties (static)
+  - **Task**: Support `class property` for properties on class type rather than instance
+  - **Implementation**:
+    - Parse `class property` keyword combination
+    - Validate accessors are class methods
+    - Allow access via class name: `TMyClass.Count`
+    - Allow access via instance: `obj.Count`
+  - **Test**: Class properties accessible without instance
+  - **Files**: `internal/parser/class.go`, `internal/interp/property.go`
+  - **Estimated time**: 2 days
+
+**Milestone**: After completing properties, fixture test pass rate should reach ~60% (330+ tests passing)
+
+---
+
+### Phase 9.3: Class Constants (HIGH - Blocks 38 tests)
+
+**Priority**: HIGH - Relatively simple but blocks many tests
+**Goal**: Support constant declarations inside classes
+**Timeline**: 1 week | **Success Metric**: Unblocks 38 additional tests
+
+**Root Cause**: Parser expects field declarations in class body, fails when seeing `const` keyword.
+
+- [ ] 9.20 Parse class constant declarations
+  - **Task**: Recognize and parse const/class const in class body
+  - **Implementation**:
+    - Modify `parseClassBody` to handle `const` keyword
+    - Support: `const Name = Value;`
+    - Support: `class const Name = Value;`
+    - Apply current visibility to constant
+    - Add constants to ClassDeclaration.Constants slice
+  - **Test**: Class constants parse without errors
+  - **Files**: `internal/parser/class.go`, `internal/ast/class.go`
+  - **Estimated time**: 1-2 days
+
+- [ ] 9.21 Validate class constants in semantic analysis
+  - **Task**: Type-check constant values and prevent redeclaration
+  - **Implementation**:
+    - Validate constant value is compile-time constant
+    - Check for duplicate constant names
+    - Enforce visibility rules
+    - Store constants in class metadata
+  - **Test**: Invalid class constants fail semantic analysis
+  - **Files**: `internal/semantic/analyze_classes.go`
+  - **Estimated time**: 1 day
+
+- [ ] 9.22 Implement class constant evaluation
+  - **Task**: Access class constants via type name or instance
+  - **Implementation**:
+    - Handle `TClass.ConstName` access
+    - Handle `instance.ConstName` access
+    - Return constant value from class metadata
+    - Enforce visibility (private constants not accessible outside class)
+  - **Test**: `PrintLn(TBase.cPublic)` outputs constant value
+  - **Files**: `internal/interp/objects.go`, `internal/interp/expressions.go`
+  - **Estimated time**: 1-2 days
+
+**Milestone**: Class constants complete, ~38 additional tests should pass
+
+---
+
+### Phase 9.4: Dynamic Arrays & Type Casting (HIGH - Blocks 35 tests)
+
+**Priority**: HIGH - Essential for many algorithms and OOP patterns
+**Goal**: Support dynamic array syntax and runtime type operations
+**Timeline**: 1-2 weeks | **Success Metric**: Unblocks 35 additional tests
+
+#### Dynamic Arrays (Blocks 20 tests)
+
+**Root Cause**: Parser only supports static arrays `array[0..9] of T`, not dynamic arrays `array of T`.
+
+- [ ] 9.30 Parse dynamic array type syntax
+  - **Task**: Support `array of Type` syntax without bounds
+  - **Implementation**:
+    - Modify `parseArrayType` in `internal/parser/types.go`
+    - Make bounds optional (nil for dynamic arrays)
+    - Distinguish static vs dynamic in AST
+  - **Test**: `var arr: array of Integer;` parses successfully
+  - **Files**: `internal/parser/types.go`, `internal/ast/types.go`
+  - **Estimated time**: 1 day
+
+- [ ] 9.31 Implement dynamic array type in type system
+  - **Task**: Create DynamicArrayType distinct from StaticArrayType
+  - **Implementation**:
+    - Add DynamicArrayType in `internal/types/array.go`
+    - Support SetLength() operation
+    - Support Length() query
+    - Implement type checking for dynamic arrays
+  - **Test**: Dynamic array type checking works correctly
+  - **Files**: `internal/types/array.go`
+  - **Estimated time**: 1-2 days
+
+- [ ] 9.32 Implement dynamic array runtime allocation
+  - **Task**: Create dynamic arrays at runtime with SetLength()
+  - **Implementation**:
+    - Implement SetLength() built-in function
+    - Allocate/reallocate array storage
+    - Handle array growth and shrinkage
+    - Preserve existing elements when resizing
+  - **Test**: SetLength() resizes arrays correctly
+  - **Files**: `internal/interp/builtins_array.go`, `internal/interp/array.go`
+  - **Estimated time**: 2-3 days
+
+- [ ] 9.33 Support dynamic array literals
+  - **Task**: Allow array literal syntax for dynamic arrays
+  - **Implementation**:
+    - Parse: `const names: array of String = ['Alice', 'Bob'];`
+    - Infer dynamic array length from literal
+    - Initialize array with literal values
+  - **Test**: Dynamic array constants initialize correctly
+  - **Files**: `internal/parser/expression.go`, `internal/interp/expressions.go`
+  - **Estimated time**: 1-2 days
+
+#### Type Casting Operators (Blocks 15 tests)
+
+**Root Cause**: `is` and `as` operators not implemented for runtime type checking.
+
+- [ ] 9.40 Implement IS operator
+  - **Task**: Runtime type checking (obj is TChild)
+  - **Implementation**:
+    - Add IS token handler to parser
+    - Create IsExpression AST node
+    - Implement runtime type checking in interpreter
+    - Walk class hierarchy to check instanceof
+    - Return boolean result
+  - **Test**: `if obj is TChild then ...` works correctly
+  - **Files**: `internal/parser/expression.go`, `internal/ast/expressions.go`, `internal/interp/expressions.go`
+  - **Estimated time**: 1-2 days
+
+- [ ] 9.41 Implement AS operator
+  - **Task**: Safe type casting with runtime check (obj as TChild)
+  - **Implementation**:
+    - Add AS token handler to parser
+    - Create AsExpression AST node
+    - Implement runtime type cast in interpreter
+    - Check type compatibility, raise exception if invalid
+    - Return typed value on success
+  - **Test**: `var child := obj as TChild;` casts correctly or raises exception
+  - **Files**: `internal/parser/expression.go`, `internal/ast/expressions.go`, `internal/interp/expressions.go`
+  - **Estimated time**: 1-2 days
+
+- [ ] 9.42 Handle nil cases for IS and AS
+  - **Task**: IS returns false for nil, AS raises exception for nil
+  - **Implementation**:
+    - Special case nil values in IS evaluation (return false)
+    - Special case nil values in AS evaluation (raise exception)
+    - Test nil edge cases thoroughly
+  - **Test**: `nil is TClass` returns false, `nil as TClass` raises exception
+  - **Files**: `internal/interp/expressions.go`
+  - **Estimated time**: 0.5 day
+
+**Milestone**: Dynamic arrays and type casting complete, ~35 additional tests should pass
+
+---
+
+### Phase 9.5: Helper Types (HIGH - Blocks 66 tests)
+
+**Priority**: HIGH - Enables scoped enum access and type extensions
+**Goal**: Support helper for Type syntax to extend types with methods
+**Timeline**: 2-3 weeks | **Success Metric**: Unblocks 66 additional tests
+
+**Root Cause**: Enums need scoped access (TE1.val1) which requires helper functionality. Helpers also enable extending built-in types.
+
+- [ ] 9.50 Implement helper AST nodes
+  - **Task**: Create AST representation for helper declarations
+  - **Implementation**:
+    - Add HelperDeclaration node in `internal/ast/helper.go`
+    - Fields: Name, ForType, Methods
+    - Parse helper method declarations
+  - **Files**: `internal/ast/helper.go`
+  - **Estimated time**: 1 day
+
+- [ ] 9.51 Parse helper declarations
+  - **Task**: Recognize `helper for Type` syntax
+  - **Implementation**:
+    - Create `internal/parser/helper.go`
+    - Parse: `type TStringHelper = helper for String`
+    - Parse helper methods
+    - Handle helper inheritance
+  - **Test**: Helper declarations parse correctly
+  - **Files**: `internal/parser/helper.go`
+  - **Estimated time**: 2-3 days
+
+- [ ] 9.52 Implement helper type system
+  - **Task**: Track which helpers apply to which types
+  - **Implementation**:
+    - Create `internal/types/helper.go`
+    - Map types to their helpers
+    - Support multiple helpers for same type
+    - Handle helper priority/ordering
+  - **Files**: `internal/types/helper.go`
+  - **Estimated time**: 2-3 days
+
+- [ ] 9.53 Implement helper method resolution
+  - **Task**: Look up helper methods during member access
+  - **Implementation**:
+    - Modify member access evaluation
+    - Method lookup order: instance methods → helpers → built-ins
+    - Search all applicable helpers for type
+    - Handle helper method dispatch
+  - **Test**: `'hello'.ToUpper` calls helper method
+  - **Files**: `internal/interp/member_access.go`, `internal/semantic/analyze_expressions.go`
+  - **Estimated time**: 3-4 days
+
+- [ ] 9.54 Implement enum scoped access via helpers
+  - **Task**: Enable TE1.val1 syntax for enum values
+  - **Implementation**:
+    - Auto-generate implicit helper for enum types
+    - Add enum values as class constants on helper
+    - Allow access via type name: `TColor.Red`
+    - Maintain backward compatibility with unscoped: `Red`
+  - **Test**: Both `TColor.Red` and `Red` work
+  - **Files**: `internal/semantic/analyze_enums.go`, `internal/types/helper.go`
+  - **Estimated time**: 2-3 days
+
+- [ ] 9.55 Test helper method inheritance
+  - **Task**: Helpers can inherit from other helpers
+  - **Implementation**:
+    - Parse helper inheritance syntax
+    - Inherit methods from parent helper
+    - Allow method overriding in child helper
+  - **Test**: Child helper inherits parent methods
+  - **Files**: `internal/parser/helper.go`, `internal/semantic/helper.go`
+  - **Estimated time**: 1-2 days
+
+**Milestone**: Helper types complete, ~66 additional tests should pass, bringing total to ~70-75% pass rate
+
+---
+
+### Phase 9.6: Metaclasses (MEDIUM - Blocks 15 tests)
+
+**Priority**: MEDIUM - Needed for advanced OOP patterns
+**Goal**: Support class of Type for class reference types
+**Timeline**: 1 week | **Success Metric**: Unblocks 15 additional tests
+
+**Root Cause**: Cannot declare variables that hold class types (metaclasses) for polymorphic instantiation.
+
+- [ ] 9.70 Parse class of type syntax
+  - **Task**: Recognize `class of TBase` type declarations
+  - **Implementation**:
+    - Modify `parseTypeAnnotation` in `internal/parser/types.go`
+    - Handle `class of` keyword sequence
+    - Create MetaclassType AST node
+  - **Test**: `type TBaseClass = class of TBase;` parses
+  - **Files**: `internal/parser/types.go`, `internal/ast/types.go`
+  - **Estimated time**: 1 day
+
+- [ ] 9.71 Implement metaclass type system
+  - **Task**: Create metaclass type for type checking
+  - **Implementation**:
+    - Create MetaclassType in `internal/types/metaclass.go`
+    - Track base class type
+    - Implement type compatibility (TChildClass compatible with TBaseClass)
+    - Add to type checker
+  - **Test**: Metaclass type checking works
+  - **Files**: `internal/types/metaclass.go`
+  - **Estimated time**: 2 days
+
+- [ ] 9.72 Implement metaclass runtime values
+  - **Task**: Store class types as runtime values
+  - **Implementation**:
+    - Create MetaclassValue runtime representation
+    - Hold reference to ClassInfo
+    - Support assignment: `meta := TChild`
+  - **Test**: Class types can be assigned to variables
+  - **Files**: `internal/interp/values.go`
+  - **Estimated time**: 1 day
+
+- [ ] 9.73 Implement virtual constructor dispatch via metaclass
+  - **Task**: Call constructors through metaclass variables
+  - **Implementation**:
+    - Evaluate `meta.Create` as constructor call
+    - Look up constructor in metaclass's ClassInfo
+    - If constructor is virtual, dispatch to actual type
+    - Return instance of actual class type
+  - **Test**: `var obj := meta.Create;` creates instance of runtime type
+  - **Files**: `internal/interp/objects.go`
+  - **Estimated time**: 2-3 days
+  - **Related**: Task 9.4 (Virtual constructors)
+
+**Milestone**: Metaclasses complete, ~15 additional tests should pass
+
+---
+
+### Phase 9.7: Missing Built-ins & Operators (MEDIUM - Blocks 40+ tests)
+
+**Priority**: MEDIUM - Quick wins, isolated implementations
+**Goal**: Implement commonly-used built-in functions and operators
+**Timeline**: 1-2 weeks | **Success Metric**: Unblocks 40+ tests
+
+#### Quick Fixes (Trivial, ~0.5 day total)
+
+- [ ] 9.80 Fix boolean capitalization
+  - **Task**: Output `True`/`False` instead of `true`/`false`
+  - **Implementation**: Change string formatting in boolean conversion
+  - **Test**: Boolean output matches DWScript
+  - **Files**: `internal/interp/builtins.go`
+  - **Estimated time**: 0.1 day
+  - **Impact**: Fixes 11 tests
+
+- [ ] 9.81 Implement SAR operator
+  - **Task**: Arithmetic shift right (sign-preserving)
+  - **Implementation**: Add SAR token and operator evaluation
+  - **Test**: `x sar 2` performs arithmetic right shift
+  - **Files**: `internal/parser/expression.go`, `internal/interp/expressions.go`
+  - **Estimated time**: 0.5 day
+  - **Impact**: Fixes 1 test
+
+#### Critical Built-ins (High impact, 3-4 days)
+
+- [ ] 9.82 Implement Assigned() built-in
+  - **Task**: Check if pointer/object/variant is nil
+  - **Implementation**: Add Assigned(value) → returns false if nil, true otherwise
+  - **Test**: Nil checking works for objects, arrays, variants
+  - **Files**: `internal/interp/builtins.go`
+  - **Estimated time**: 1 day
+  - **Impact**: Fixes 16 tests
+
+- [ ] 9.83 Implement Chr() built-in
+  - **Task**: Convert integer to character
+  - **Implementation**: Add Chr(code: Integer) → String (single character)
+  - **Test**: Chr(65) returns 'A'
+  - **Files**: `internal/interp/builtins_string.go`
+  - **Estimated time**: 0.5 day
+  - **Impact**: Fixes 4 tests
+
+- [ ] 9.84 Implement IntToHex() built-in
+  - **Task**: Convert integer to hexadecimal string
+  - **Implementation**: Add IntToHex(value: Integer, digits: Integer) → String
+  - **Test**: IntToHex(255, 2) returns 'FF'
+  - **Files**: `internal/interp/builtins_string.go`
+  - **Estimated time**: 0.5 day
+  - **Impact**: Fixes 8 tests
+
+- [ ] 9.85 Implement Swap() built-in
+  - **Task**: Swap two variables
+  - **Implementation**: Add Swap(var a, var b) - exchanges values
+  - **Test**: After Swap(x, y), x has old y value and vice versa
+  - **Files**: `internal/interp/builtins.go`
+  - **Estimated time**: 1 day
+  - **Impact**: Fixes 9 tests
+
+#### Utility Built-ins (Medium priority, 2-3 days)
+
+- [ ] 9.86 Implement StrToBool() built-in
+  - **Task**: Parse boolean from string
+  - **Implementation**: Accept 'True'/'False', '1'/'0', 'Yes'/'No'
+  - **Test**: StrToBool('True') returns true
+  - **Files**: `internal/interp/builtins_string.go`
+  - **Estimated time**: 0.5 day
+  - **Impact**: Fixes 1 test
+
+- [ ] 9.87 Implement IsNaN() built-in
+  - **Task**: Check for NaN float value
+  - **Implementation**: Add IsNaN(value: Float) → Boolean
+  - **Test**: IsNaN(0.0/0.0) returns true
+  - **Files**: `internal/interp/builtins_math.go`
+  - **Estimated time**: 0.5 day
+  - **Impact**: Fixes 1 test
+
+- [ ] 9.88 Implement SetRandSeed() built-in
+  - **Task**: Seed random number generator
+  - **Implementation**: Set PRNG seed for reproducible randomness
+  - **Test**: Same seed produces same sequence
+  - **Files**: `internal/interp/builtins_math.go`
+  - **Estimated time**: 0.5 day
+  - **Impact**: Fixes 6 tests
+
+#### IN Operator Completion (Medium complexity, 2-3 days)
+
+- [ ] 9.90 Complete IN operator for sets and ranges
+  - **Task**: Fix set membership testing
+  - **Implementation**:
+    - Character ranges: `ch in ['a'..'z']`
+    - Set membership: `value in setVar`
+    - String character membership: `ch in 'abc'`
+    - Complete set type implementation if needed
+  - **Test**: All IN operator tests pass
+  - **Files**: `internal/interp/expressions.go`, `internal/types/set.go`
+  - **Estimated time**: 2-3 days
+  - **Impact**: Fixes 4 tests
+
+**Milestone**: Built-ins and operators complete, ~40 additional tests should pass
+
+---
+
+### Phase 9.8: Remaining Unit Test Failures (LOW - 13 tests)
+
+**Priority**: LOW - Fix remaining unit test failures (not fixture tests)
+**Timeline**: 1 week
+
+These are test failures in the unit test suites (not fixture tests):
+
+- [ ] 9.37 Fix record method access (lerp.pas)
+  - **Issue**: Record methods not accessible in member access
+  - **Implementation**: Modify evalMemberAccess to check record methods
+  - **Files**: `internal/interp/objects.go`
+  - **Estimated time**: 1 day
+  - **Impact**: Fixes 1 algorithm test
+
+- [ ] 9.47 Fix constructor overload handling (unit tests)
+  - **Tests**: TestConstructorOverload, TestConstructorWithoutParentheses, etc.
+  - **Already covered**: This is part of Task 9.3 (Constructor overloading)
+
+- [ ] 9.48 Implement interface method dispatch
+  - **Issue**: Interface methods not resolved
+  - **Implementation**: Interface type checking and method lookup
   - **Files**: `internal/semantic/analyze_interfaces.go`, `internal/interp/interfaces.go`
-  - **Estimated time**: 8-10 hours
+  - **Estimated time**: 2 days
 
-#### Category E: Property Access (LOW - blocks 1 test)
-
-- [ ] 9.84 Fix implicit self property access
-  - **Failing Tests**: TestImplicitSelfPropertyAccessWithContext
-  - **Symptom**: "undefined variable" when accessing properties without explicit self
-  - **Root Cause**: Property lookup doesn't fall back to self
-  - **Tasks**:
-    - Update identifier resolution to check current class properties
-    - Add implicit self resolution for property access
-    - Test with nested class contexts
-  - **Files**: `internal/semantic/analyze_expressions.go`, `internal/interp/expressions.go`
-  - **Estimated time**: 2-3 hours
-
-#### Category F: Overload Declaration Validation (LOW - blocks 5 tests)
-
-- [ ] 9.85 Fix overload directive validation and error messages
-  - **Failing Tests**: TestDefineOverload_DifferentReturnTypes, TestDefineOverload_ProceduresAndFunctions, TestDefineOverload_DuplicateSignatureError, TestDefineOverload_MissingOverloadDirectiveError, TestFunctionRedeclaration
-  - **Symptom**: Wrong error messages or missing validation
-  - **Root Cause**: Overload directive parsing/validation incomplete
-  - **Tasks**:
-    - Allow different return types for overloaded functions (DWScript allows this)
-    - Allow procedure/function overload pairs (different return type counts as different signature)
-    - Fix error message wording to match DWScript ("already declared" vs "already a method")
-    - Enforce "overload" directive on second+ declarations
-    - Improve duplicate signature detection
-  - **Files**: `internal/semantic/analyze_functions.go`, `internal/semantic/overload_resolution.go`
-  - **Estimated time**: 4-5 hours
-
-#### Category G: Inherited Expression Validation (LOW - blocks 1 test)
-
-- [ ] 9.86 Implement inherited expression validation
-  - **Failing Tests**: TestInheritedExpression_Errors
-  - **Symptom**: Missing error diagnostics for invalid inherited expressions
-  - **Root Cause**: Inherited expression validation incomplete
-  - **Tasks**:
-    - Check class has parent before allowing inherited
-    - Verify parent method exists
-    - Validate argument count matches parent method
-    - Validate argument types match parent method
-    - Prevent inherited on properties/fields
+- [ ] 9.49 Fix implicit self property access
+  - **Issue**: Properties without explicit self not found
+  - **Implementation**: Add self fallback in identifier resolution
   - **Files**: `internal/semantic/analyze_expressions.go`
-  - **Estimated time**: 3-4 hours
+  - **Estimated time**: 1 day
 
-#### Category H: Access Control (LOW - blocks 1 test)
+- [ ] 9.50 Fix overload directive validation
+  - **Issue**: Incorrect error messages for overload declarations
+  - **Implementation**: Fix validation logic and error messages
+  - **Files**: `internal/semantic/analyze_functions.go`
+  - **Estimated time**: 1 day
 
-- [ ] 9.87 Enforce private field access control
-  - **Failing Tests**: TestPrivateFieldNotInheritedAccess
-  - **Symptom**: Derived classes can access parent private fields
-  - **Root Cause**: Field visibility checking not implemented for inheritance
-  - **Tasks**:
-    - Add visibility check in field access resolution
-    - Prevent derived classes from accessing private parent fields
-    - Allow protected field access in derived classes
+- [ ] 9.51 Implement inherited expression validation
+  - **Issue**: Inherited expression errors not caught
+  - **Implementation**: Add validation in semantic analyzer
   - **Files**: `internal/semantic/analyze_expressions.go`
-  - **Estimated time**: 2-3 hours
+  - **Estimated time**: 1 day
 
-#### Summary of Test Failures by Priority
-
-- **CRITICAL** (Category A): 10 tests - Units system
-- **HIGH** (Category B): 15 tests - Inheritance & virtual methods
-- **MEDIUM** (Category C+D): 6 tests - Constructors & interfaces
-- **LOW** (Category E-H): 8 tests - Property access, overloads, validation
-
-**Total**: 39 test failures requiring ~45-60 hours of work
+- [ ] 9.52 Enforce private field access control
+  - **Issue**: Derived classes can access private parent fields
+  - **Implementation**: Add visibility check in field access
+  - **Files**: `internal/semantic/analyze_expressions.go`
+  - **Estimated time**: 0.5 day
 
 ---
 
-### Phase 9 Completion Checklist
+### Phase 9.9: Documentation & Cleanup
 
-Before Phase 9 can be considered complete, the following must be achieved:
+**Priority**: LOW - Can be done in parallel with Phase 10
+**Timeline**: 1 week
 
-- [ ] **9.119 All critical test failures fixed**
-  - Fix Category A (Units system) - 10 tests
-  - Fix Category B (Inheritance & virtual methods) - 15 tests
-  - **Success Criteria**: All 25 critical/high-priority tests pass
+- [ ] 9.100 Update README with current features
+  - Document all Stage 7 features now complete
+  - Update feature completion percentages
+  - Add examples of new features
 
-- [ ] **9.120 Core feature stability verified**
-  - All comprehensive testing tasks complete (9.75-9.79)
-  - Code coverage >85% achieved
-  - No regressions in existing passing tests
-  - **Success Criteria**: Test suite stable with >90% pass rate
+- [ ] 9.101 Create docs/phase9-summary.md
+  - Document achievements in Phase 9
+  - Statistics: tests passing, coverage percentages
+  - Lessons learned and challenges overcome
 
-- [ ] **9.121 Documentation updated**
-  - Update `README.md` with current feature list
-  - Document all known limitations in `docs/limitations.md`
-  - Update PLAN.md completion percentages
-  - Create `docs/phase9-summary.md` with achievements
-  - **Success Criteria**: Documentation accurately reflects implementation status
+- [ ] 9.102 Update testdata/fixtures/TEST_STATUS.md
+  - Update pass/fail counts for each category
+  - Mark resolved issues
+  - Document remaining blockers
 
-- [ ] **9.122 Performance baseline established**
-  - Run stress tests (9.78) and record metrics
-  - Document performance characteristics in `docs/performance.md`
-  - Identify any major bottlenecks for Phase 10 optimization
-  - **Success Criteria**: Performance baseline documented for future comparison
-
-- [ ] **9.123 Phase 9 retrospective**
-  - Review estimated vs actual time for completed tasks
-  - Identify areas where estimates were off
-  - Document lessons learned in `docs/phase9-retrospective.md`
-  - Update estimation guidelines for Phase 10+
-  - **Success Criteria**: Retrospective document created
-
-**Phase 9 Readiness**: Phase 9 is considered complete when tasks 9.119 and 9.120 are done. Tasks 9.121-9.123 can be done in parallel with early Phase 10 work.
+- [ ] 9.103 Create docs/limitations.md
+  - Document known limitations
+  - Features intentionally deferred to later phases
+  - Differences from original DWScript
 
 ---
 
-## Phase 9 Summary
+## Phase 9 Completion Milestones
 
-**Total Tasks**: ~290 tasks (updated from ~255)
-**Estimated Effort**: ~34 weeks (~8.5 months)
+| Milestone | Tasks | Pass Rate Target | Tests Passing |
+|-----------|-------|------------------|---------------|
+| **Current** | - | 16.7% | 92/552 |
+| **After 9.7 (Quick wins)** | 9.80-9.90 | 25-30% | 138-165 |
+| **After 9.1 (Constructors)** | 9.1-9.6 | 45-50% | 248-276 |
+| **After 9.2 (Properties)** | 9.10-9.17 | 60% | 330+ |
+| **After 9.3 (Class constants)** | 9.20-9.22 | 65% | 358+ |
+| **After 9.4 (Arrays/Casting)** | 9.30-9.42 | 70% | 386+ |
+| **After 9.5 (Helpers)** | 9.50-9.55 | 75-80% | 414-440 |
+| **After 9.6 (Metaclasses)** | 9.70-9.73 | 80-85% | 440-470 |
 
-### Priority Breakdown
+**Target**: 80-85% fixture test pass rate (440-470 tests passing)
+**Timeline**: 10-15 weeks (2.5-3.5 months)
 
-**HIGH PRIORITY** (~208 tasks, ~24 weeks):
+**Success Criteria**:
+- ✅ All Stage 7 features complete (Classes & OOP)
+- ✅ Critical Stage 8 features implemented (Helpers)
+- ✅ >80% fixture tests passing
+- ✅ No regressions in existing tests
+- ✅ Documentation updated
 
-- Subrange Types: 12 tasks
-- Units/Modules System: 45 tasks (CRITICAL for multi-file projects)
-- Function/Method Pointers: 25 tasks
-- External Function Registration (FFI): 35 tasks
-- Array Instantiation (`new TypeName[size]`): 12 tasks (CRITICAL for Rosetta Code examples)
-- For Loop Step Keyword: 11 tasks (REQUIRED for Lucas-Lehmer test and other Rosetta Code examples)
-- **Contracts (Design by Contract): 38 tasks** (REQUIRED for Rosetta Code examples like Dot_product)
-
-**MEDIUM-HIGH PRIORITY** (~15 tasks, ~2 weeks):
-
-- Lazy Parameter Passing: 15 tasks (REQUIRED for Jensen's Device and Rosetta Code examples)
-
-**MEDIUM PRIORITY** (~67 tasks, ~8 weeks):
-
-- Lambdas/Anonymous Methods: 30 tasks (depends on function pointers)
-- Helpers: 20 tasks
-- DateTime Functions: 24 tasks
-- JSON Support: 18 tasks
-- Improved Error Messages: 12 tasks
-
-This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with DWScript, making it production-ready for most use cases. The for loop step keyword, array instantiation, and lazy parameter features are particularly critical as they unblock numerous real-world DWScript examples (e.g., Rosetta Code algorithms like Lucas-Lehmer test and Jensen's Device) that rely on custom loop increments, dynamic array creation, and deferred expression evaluation.
+**After Phase 9**: Remaining ~15-20% of failing tests will be Stage 8 features (interfaces, variants, delegates, anonymous methods, units/modules) and edge cases, which belong in Phase 10 and beyond.
 
 ---
 
@@ -1359,11 +1386,7 @@ This comprehensive backlog brings go-dws from ~55% to ~85% feature parity with D
     - [ ] Implement bundle size regression monitoring in CI
     - [ ] Write `docs/wasm/EMBEDDING.md` for web app integration guide
     - [ ] Update main README.md with WASM section and playground link
-- [ ] 12.16 Implement language server protocol (LSP):
-  - [ ] Syntax highlighting
-  - [ ] Autocomplete
-  - [ ] Go-to-definition
-  - [ ] Error diagnostics in IDE
+- [x] 12.16 Implement language server protocol (LSP) -> see https://github.com/cwbudde/go-dws-lsp
 - [ ] 12.17 Implement JavaScript code generation backend:
   - [ ] AST → JavaScript transpiler
   - [ ] Support browser execution
