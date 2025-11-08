@@ -188,7 +188,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Status**: DONE - Added IsClassProperty field, updated String() method, added comprehensive tests
   - **Estimated time**: 1 day
 
-- [ ] 9.11 Parse property declarations
+- [x] 9.11 Parse property declarations
   - **Task**: Add parser support for property syntax
   - **Implementation**:
     - Modify `parseClassBody` in `internal/parser/class.go`
@@ -199,7 +199,8 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Parse default property directive
     - Parse class property directive
   - **Test**: All property syntax variants parse correctly
-  - **Files**: `internal/parser/class.go`, tests in `internal/parser/class_test.go`
+  - **Files**: `internal/parser/classes.go`, `internal/parser/properties_test.go`
+  - **Status**: DONE - Added class property parsing support, added comprehensive tests
   - **Estimated time**: 2-3 days
 
 - [ ] 9.12 Validate property accessors in semantic analysis
