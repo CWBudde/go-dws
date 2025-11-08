@@ -343,15 +343,32 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	if recordVal, ok := objVal.(*RecordValue); ok {
 		// Access record field
 		fieldValue, exists := recordVal.Fields[ma.Member.Value]
-		if !exists {
-			// Check if helpers provide this member
-			helper, helperProp := i.findHelperProperty(recordVal, ma.Member.Value)
-			if helperProp != nil {
-				return i.evalHelperPropertyRead(helper, helperProp, recordVal, ma)
-			}
-			return i.newErrorWithLocation(ma, "field '%s' not found in record '%s'", ma.Member.Value, recordVal.RecordType.Name)
+		if exists {
+			return fieldValue
 		}
-		return fieldValue
+
+		// Task 9.37: Check if it's a record method
+		if recordVal.Methods != nil {
+			if _, methodExists := recordVal.Methods[ma.Member.Value]; methodExists {
+				// For parameterless methods accessed without parentheses, auto-invoke them
+				// Convert to a method call expression and evaluate it
+				methodCall := &ast.MethodCallExpression{
+					Token:     ma.Token,
+					Object:    ma.Object,
+					Method:    ma.Member,
+					Arguments: []ast.Expression{},
+				}
+				return i.evalMethodCall(methodCall)
+			}
+		}
+
+		// Check if helpers provide this member
+		helper, helperProp := i.findHelperProperty(recordVal, ma.Member.Value)
+		if helperProp != nil {
+			return i.evalHelperPropertyRead(helper, helperProp, recordVal, ma)
+		}
+
+		return i.newErrorWithLocation(ma, "field '%s' not found in record '%s'", ma.Member.Value, recordVal.RecordType.Name)
 	}
 
 	// Task 9.68: Check if it's a ClassInfoValue (class type identifier)

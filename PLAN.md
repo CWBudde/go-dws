@@ -703,12 +703,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 These are test failures in the unit test suites (not fixture tests):
 
-- [ ] 9.37 Fix record method access (lerp.pas)
+- [x] 9.37 Fix record method access (lerp.pas)
   - **Issue**: Record methods not accessible in member access
-  - **Implementation**: Modify evalMemberAccess to check record methods
-  - **Files**: `internal/interp/objects.go`
+  - **Implementation**: Modified evalMemberAccess and analyzeRecordFieldAccess to check record methods
+  - **Files**: `internal/interp/objects.go`, `internal/semantic/analyze_records.go`
   - **Estimated time**: 1 day
-  - **Impact**: Fixes 1 algorithm test
+  - **Impact**: Fixes 1 algorithm test (partially - test now progresses past method access)
+  - **Completed**: Record methods are now accessible via member access and auto-invoked when parameterless
 
 - [x] 9.47 Fix constructor overload handling (unit tests)
   - **Tests**: TestConstructorOverload, TestConstructorWithoutParentheses, etc.
