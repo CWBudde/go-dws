@@ -244,13 +244,55 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
   - **Files**: `internal/semantic/constructor_validation_test.go`
   - **Estimated time**: 3-4 hours
 
+### Constructor Interpreter Implementation (Task 9.82 interpreter work)
+
+**Goal**: Implement constructor call handling in the interpreter to complete task 9.82
+
+**Status**: Semantic analyzer complete (9.13-9.19 ✅), interpreter work pending
+
+- [ ] 9.20: Constructor overload resolution in interpreter
+  - Implement constructor overload selection in `evalNewExpression`
+  - Handle multiple constructors with different parameter types
+  - Select correct overload based on runtime argument types
+  - Support implicit Integer→Float conversion during selection
+  - **Failing Test**: `TestConstructorOverload/exact_fixture_test_case`
+  - **Expected**: "0\n1\n0\n2\n"
+  - **Actual**: "0\n0\n0\n0\n" (wrong overload selected)
+  - **Files**: `internal/interp/objects.go`, `internal/interp/constructor_overload_test.go`
+  - **Estimated time**: 3-4 hours
+
+- [ ] 9.21: Constructor call without parentheses in interpreter
+  - Support `TClass.Create` syntax (member access without call)
+  - Distinguish between constructor reference and constructor call
+  - Handle parameterless constructor invocation via member access
+  - Ensure constructor returns object instance, not nil
+  - **Failing Test**: `TestConstructorWithoutParentheses`
+  - **Expected**: "Constructor\nOK\n"
+  - **Actual**: "Constructor\nNIL\n" (returns nil instead of object)
+  - **Files**: `internal/interp/objects.go`, `internal/interp/implicit_self_test.go`
+  - **Estimated time**: 2-3 hours
+
 **Files to modify**:
+- `internal/interp/objects.go` (evalNewExpression, constructor dispatch)
+- `internal/interp/eval.go` (evalMemberAccessExpression for constructor references)
+- `internal/interp/constructor_overload_test.go` (existing test file)
+- `internal/interp/implicit_self_test.go` (existing test file)
+
+**Estimated time**: 5-7 hours total
+
+**Note**: Semantic analyzer work (tasks 9.13-9.19) is complete with all 23 tests passing. Once interpreter tasks 9.20-9.21 are complete, task 9.82 will be fully resolved.
+
+---
+
+### Lambda Type Inference (Tasks 9.22-9.24) - COMPLETED
+
+**Files to modify** (historical reference):
 - `internal/semantic/analyze_expressions.go` (analyzeCallExpression)
 - `internal/semantic/overload_resolution.go` (new file for overload logic)
 - `internal/semantic/lambda_call_inference_test.go` (new file)
 - `testdata/lambdas/call_inference.dws` (new test file)
 
-**Estimated time**: 7-10 hours total
+**Estimated time**: 7-10 hours total (completed)
 
 - [x] 9.22 Implement return statement context type inference: **COMPLETED IN TASK 9.19**
   **Prerequisite**: Tasks 9.19 and 9.20 must be complete ✓
