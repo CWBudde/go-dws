@@ -921,9 +921,23 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Task 9.68: Check for constructors first (constructors are stored separately)
 	constructorOverloads := classType.GetConstructorOverloads(memberName)
 	if len(constructorOverloads) > 0 {
-		// This is a constructor - return the class type (constructors return instances)
-		// For overloaded constructors, return the primary one or synthesize a type
-		// that represents all overloads
+		// Task 9.21: Check if this is a parameterless constructor
+		// Parameterless constructors can be called without parentheses (auto-invoked)
+		hasParameterless := false
+		for _, ctor := range constructorOverloads {
+			if len(ctor.Signature.Parameters) == 0 {
+				hasParameterless = true
+				break
+			}
+		}
+
+		// If there's a parameterless constructor, treat member access as auto-invocation
+		// and return the class type directly (not a method pointer)
+		if hasParameterless {
+			return classType
+		}
+
+		// Constructor has parameters - return method pointer type for deferred invocation
 		if len(constructorOverloads) == 1 {
 			return types.NewMethodPointerType(constructorOverloads[0].Signature.Parameters, classType)
 		}

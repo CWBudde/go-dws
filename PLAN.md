@@ -261,12 +261,13 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
   - **Files**: `internal/interp/objects.go`, `internal/interp/constructor_overload_test.go`
   - **Estimated time**: 3-4 hours
 
-- [ ] 9.21: Constructor call without parentheses in interpreter
+- [x] 9.21: Constructor call without parentheses in interpreter
   - Support `TClass.Create` syntax (member access without call)
   - Distinguish between constructor reference and constructor call
   - Handle parameterless constructor invocation via member access
   - Ensure constructor returns object instance, not nil
-  - **Failing Test**: `TestConstructorWithoutParentheses`
+  - **Fixed**: `TestConstructorWithoutParentheses` now passes
+  - **Solution**: Fixed `getMethodOverloadsInHierarchy` to only return constructors when `isClassMethod=false`, eliminated duplicate constructor overload resolution
   - **Expected**: "Constructor\nOK\n"
   - **Actual**: "Constructor\nNIL\n" (returns nil instead of object)
   - **Files**: `internal/interp/objects.go`, `internal/interp/implicit_self_test.go`
