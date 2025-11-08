@@ -1639,12 +1639,25 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 
 	// Walk up the class hierarchy for regular methods
 	// Task 9.21.6: Fix overload resolution - child methods hide parent methods with same signature
+	// Task 9.82: Case-insensitive method lookup
 	for classInfo != nil {
 		var overloads []*ast.FunctionDecl
 		if isClassMethod {
-			overloads = classInfo.ClassMethodOverloads[methodName]
+			// Case-insensitive lookup in ClassMethodOverloads
+			for name, methods := range classInfo.ClassMethodOverloads {
+				if strings.EqualFold(name, methodName) {
+					overloads = methods
+					break
+				}
+			}
 		} else {
-			overloads = classInfo.MethodOverloads[methodName]
+			// Case-insensitive lookup in MethodOverloads
+			for name, methods := range classInfo.MethodOverloads {
+				if strings.EqualFold(name, methodName) {
+					overloads = methods
+					break
+				}
+			}
 		}
 
 		// Add overloads from this class level
