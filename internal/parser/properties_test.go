@@ -547,3 +547,133 @@ func TestPropertyAssignment(t *testing.T) {
 
 	// Property translation happens in semantic analysis/interpreter, not parser
 }
+
+// ============================================================================
+// Class Property Tests (Task 9.11)
+// ============================================================================
+
+func TestClassProperty(t *testing.T) {
+	input := `
+type TCounter = class
+	private
+		class var FCount: Integer;
+	public
+		class property Count: Integer read GetCount write SetCount;
+		class property Version: String read GetVersion;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	classDecl, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	// Verify class has 2 properties
+	if len(classDecl.Properties) != 2 {
+		t.Fatalf("Expected 2 properties, got %d", len(classDecl.Properties))
+	}
+
+	// Verify first property: class property Count
+	prop1 := classDecl.Properties[0]
+	if prop1.Name.Value != "Count" {
+		t.Errorf("Property 1 name: expected='Count', got=%q", prop1.Name.Value)
+	}
+	if !prop1.IsClassProperty {
+		t.Error("Property 1 should be marked as class property")
+	}
+	if prop1.Type.Name != "Integer" {
+		t.Errorf("Property 1 type: expected='Integer', got=%q", prop1.Type.Name)
+	}
+
+	// Verify it has both read and write
+	if prop1.ReadSpec == nil {
+		t.Error("Property 1 should have ReadSpec")
+	}
+	if prop1.WriteSpec == nil {
+		t.Error("Property 1 should have WriteSpec")
+	}
+
+	// Verify second property: class property Version (read-only)
+	prop2 := classDecl.Properties[1]
+	if prop2.Name.Value != "Version" {
+		t.Errorf("Property 2 name: expected='Version', got=%q", prop2.Name.Value)
+	}
+	if !prop2.IsClassProperty {
+		t.Error("Property 2 should be marked as class property")
+	}
+	if prop2.ReadSpec == nil {
+		t.Error("Property 2 should have ReadSpec")
+	}
+	if prop2.WriteSpec != nil {
+		t.Error("Property 2 should be read-only (no WriteSpec)")
+	}
+}
+
+func TestClassPropertyString(t *testing.T) {
+	input := `
+type TTest = class
+	class property Count: Integer read GetCount write SetCount;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	classDecl := program.Statements[0].(*ast.ClassDecl)
+	prop := classDecl.Properties[0]
+
+	// Verify String() output includes "class property"
+	propStr := prop.String()
+	expected := "class property Count: Integer read GetCount write SetCount;"
+	if propStr != expected {
+		t.Errorf("Property String():\nExpected: %q\nGot:      %q", expected, propStr)
+	}
+}
+
+func TestMixedInstanceAndClassProperties(t *testing.T) {
+	input := `
+type TMixed = class
+	private
+		FName: String;
+	public
+		property Name: String read FName write FName;
+		class property Count: Integer read GetCount;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	classDecl := program.Statements[0].(*ast.ClassDecl)
+
+	if len(classDecl.Properties) != 2 {
+		t.Fatalf("Expected 2 properties, got %d", len(classDecl.Properties))
+	}
+
+	// First property should be instance property
+	prop1 := classDecl.Properties[0]
+	if prop1.IsClassProperty {
+		t.Error("Property 'Name' should be an instance property (IsClassProperty=false)")
+	}
+
+	// Second property should be class property
+	prop2 := classDecl.Properties[1]
+	if !prop2.IsClassProperty {
+		t.Error("Property 'Count' should be a class property (IsClassProperty=true)")
+	}
+}
