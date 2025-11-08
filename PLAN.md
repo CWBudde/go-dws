@@ -799,17 +799,13 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
 
 #### Category A: Units/Modules System (CRITICAL - blocks 10 tests)
 
-- [ ] 9.80 Fix unit function resolution in cross-unit calls
+- [x] 9.80 Fix unit function resolution in cross-unit calls
   - **Failing Tests**: TestRunWithUnits, TestRunWithUnitsAndIncludeFlag, TestShowUnitsFlag, TestRunMainDwsEndToEnd, TestMultipleSearchPaths, TestSearchPathPriority, TestCombinedFlags, TestAbsoluteAndRelativeSearchPaths, TestCrossUnitFunctionCall_Qualified, TestCrossUnitFunctionCall_Unqualified
   - **Symptom**: "no overloaded version" or "function has no body" errors for unit functions
   - **Root Cause**: Unit functions not properly linked during semantic analysis
-  - **Tasks**:
-    - Debug unit symbol table resolution in `internal/semantic/units.go`
-    - Ensure unit interface functions are registered in caller's scope
-    - Verify unit implementation functions are linked to declarations
-    - Add cross-unit call tests to ensure proper resolution
-  - **Files**: `internal/semantic/units.go`, `internal/semantic/analyze_units.go`
-  - **Estimated time**: 8-10 hours
+  - **Solution**: Modified `evalFunctionDeclaration` in `internal/interp/declarations.go` to replace interface declarations (without bodies) with implementation declarations (with bodies) using the existing `replaceMethodInOverloadList` function
+  - **Files**: `internal/interp/declarations.go`
+  - **All 10 tests now pass**
 
 #### Category B: Inheritance & Virtual Methods (HIGH - blocks 15 tests)
 
