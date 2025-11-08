@@ -2068,17 +2068,18 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 
 // getClassConstant retrieves a class constant value by name.
 // It evaluates the constant expression lazily (on first access) and caches the result.
+// Supports inheritance by searching up the class hierarchy.
 // Returns nil if the constant doesn't exist.
-// Task 9.22: Support class constant evaluation with visibility enforcement.
+// Task 9.22: Support class constant evaluation with visibility enforcement and inheritance.
 func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string, ma *ast.MemberAccessExpression) Value {
-	// Check if constant exists
-	constDecl, exists := classInfo.Constants[constantName]
-	if !exists {
+	// Look up constant in hierarchy (supports inheritance)
+	constDecl, ownerClass := classInfo.lookupConstant(constantName)
+	if constDecl == nil {
 		return nil
 	}
 
-	// Check if we've already evaluated this constant
-	if cachedValue, cached := classInfo.ConstantValues[constantName]; cached {
+	// Check if we've already evaluated this constant (check in the owner class)
+	if cachedValue, cached := ownerClass.ConstantValues[constantName]; cached {
 		return cachedValue
 	}
 
@@ -2089,7 +2090,7 @@ func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string
 
 	// Add all ALREADY EVALUATED class constants to the temporary environment
 	// This prevents infinite recursion
-	for constName, constVal := range classInfo.ConstantValues {
+	for constName, constVal := range ownerClass.ConstantValues {
 		if constName != constantName && constVal != nil {
 			tempEnv.Set(constName, constVal)
 		}
@@ -2107,8 +2108,8 @@ func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string
 		return constValue
 	}
 
-	// Cache the evaluated value for future access
-	classInfo.ConstantValues[constantName] = constValue
+	// Cache the evaluated value for future access (in the owner class)
+	ownerClass.ConstantValues[constantName] = constValue
 
 	return constValue
 }

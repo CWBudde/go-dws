@@ -143,6 +143,24 @@ func (c *ClassInfo) lookupProperty(name string) *types.PropertyInfo {
 	return nil
 }
 
+// lookupConstant searches for a constant in the class hierarchy.
+// It starts with the current class and walks up the parent chain.
+// Returns the ConstDecl and the ClassInfo that owns it, or (nil, nil) if not found.
+func (c *ClassInfo) lookupConstant(name string) (*ast.ConstDecl, *ClassInfo) {
+	// Check current class
+	if constDecl, exists := c.Constants[name]; exists {
+		return constDecl, c
+	}
+
+	// Check parent class (recursive)
+	if c.Parent != nil {
+		return c.Parent.lookupConstant(name)
+	}
+
+	// Not found
+	return nil, nil
+}
+
 // getDefaultProperty searches for the default property in the class hierarchy.
 // Returns the default property if found, or nil if no default property exists.
 // Task 9.16: Support obj[index] routing to obj.DefaultProperty[index]
