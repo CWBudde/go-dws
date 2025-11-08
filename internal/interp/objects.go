@@ -12,10 +12,17 @@ import (
 // evalNewExpression evaluates object instantiation (TClassName.Create(...)).
 // It looks up the class, creates an object instance, initializes fields, and calls the constructor.
 func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
-	// Look up class in registry
+	// Look up class in registry (case-insensitive)
+	// Task 9.82: Case-insensitive class lookup (DWScript is case-insensitive)
 	className := ne.ClassName.Value
-	classInfo, exists := i.classes[className]
-	if !exists {
+	var classInfo *ClassInfo
+	for name, class := range i.classes {
+		if strings.EqualFold(name, className) {
+			classInfo = class
+			break
+		}
+	}
+	if classInfo == nil {
 		return i.newErrorWithLocation(ne, "class '%s' not found", className)
 	}
 
@@ -237,25 +244,14 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 			// 2. Task 9.32: Try constructors (with inheritance support)
 			// Task 9.68: Also handle implicit parameterless constructor
+			// Task 9.82: Handle constructor overloads properly
 			if classInfo.HasConstructor(memberName) {
-				// Find the constructor in the hierarchy
-				constructor := i.lookupConstructorInHierarchy(classInfo, memberName)
-				if constructor != nil {
-					// Check if parameterless
-					if len(constructor.Parameters) == 0 {
-						// Auto-invoke: create object and run constructor
-						// Create synthetic MethodCallExpression to reuse existing logic
-						methodCall := &ast.MethodCallExpression{
-							Token:     ma.Token,
-							Object:    ma.Object, // TClassName identifier
-							Method:    ma.Member, // Constructor name
-							Arguments: []ast.Expression{},
-						}
-						return i.evalMethodCall(methodCall)
-					}
-					// Task 9.68: Constructor has parameters - but allow implicit parameterless call
-					// Create synthetic MethodCallExpression with 0 arguments
-					// The evalMethodCall will handle the implicit parameterless constructor
+				// Find all constructor overloads in the hierarchy
+				constructorOverloads := i.lookupConstructorOverloadsInHierarchy(classInfo, memberName)
+				if len(constructorOverloads) > 0 {
+					// Task 9.68: When accessing constructor without parentheses (TClass.Create),
+					// invoke with 0 arguments. If no parameterless constructor exists,
+					// the implicit parameterless constructor will be used.
 					methodCall := &ast.MethodCallExpression{
 						Token:     ma.Token,
 						Object:    ma.Object, // TClassName identifier
@@ -348,9 +344,10 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		memberName := ma.Member.Value
 
 		// Try constructors (same logic as above for identifier check)
+		// Task 9.82: Handle constructor overloads properly
 		if classInfo.HasConstructor(memberName) {
-			constructor := i.lookupConstructorInHierarchy(classInfo, memberName)
-			if constructor != nil {
+			constructorOverloads := i.lookupConstructorOverloadsInHierarchy(classInfo, memberName)
+			if len(constructorOverloads) > 0 {
 				// Auto-invoke constructor (with or without parameters)
 				methodCall := &ast.MethodCallExpression{
 					Token:     ma.Token,
@@ -462,11 +459,32 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 // lookupConstructorInHierarchy searches for a constructor by name in the class hierarchy.
 // It walks the parent chain starting from the given class.
 // Returns the constructor declaration, or nil if not found.
-func (i *Interpreter) lookupConstructorInHierarchy(classInfo *ClassInfo, name string) *ast.FunctionDecl {
+// Task 9.82: Updated to return all constructor overloads instead of just one
+// Task 9.82: Case-insensitive lookup (DWScript is case-insensitive)
+func (i *Interpreter) lookupConstructorOverloadsInHierarchy(classInfo *ClassInfo, name string) []*ast.FunctionDecl {
 	for current := classInfo; current != nil; current = current.Parent {
-		if constructor, exists := current.Constructors[name]; exists {
-			return constructor
+		// Check overload set first (case-insensitive)
+		for ctorName, overloads := range current.ConstructorOverloads {
+			if strings.EqualFold(ctorName, name) && len(overloads) > 0 {
+				return overloads
+			}
 		}
+		// Fallback to single constructor (case-insensitive)
+		for ctorName, constructor := range current.Constructors {
+			if strings.EqualFold(ctorName, name) {
+				return []*ast.FunctionDecl{constructor}
+			}
+		}
+	}
+	return nil
+}
+
+// Deprecated: Use lookupConstructorOverloadsInHierarchy instead
+// Kept for backwards compatibility with existing code
+func (i *Interpreter) lookupConstructorInHierarchy(classInfo *ClassInfo, name string) *ast.FunctionDecl {
+	overloads := i.lookupConstructorOverloadsInHierarchy(classInfo, name)
+	if len(overloads) > 0 {
+		return overloads[0]
 	}
 	return nil
 }
@@ -982,8 +1000,16 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			}
 		}
 
-		// Check if this identifier refers to a class
-		if classInfo, exists := i.classes[ident.Value]; exists {
+		// Check if this identifier refers to a class (case-insensitive)
+		// Task 9.82: Case-insensitive class lookup (DWScript is case-insensitive)
+		var classInfo *ClassInfo
+		for className, class := range i.classes {
+			if strings.EqualFold(className, ident.Value) {
+				classInfo = class
+				break
+			}
+		}
+		if classInfo != nil {
 			// Task 9.67: Check for method overloads and resolve based on argument types
 			classMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, mc.Method.Value, true)
 			instanceMethodOverloads := i.getMethodOverloadsInHierarchy(classInfo, mc.Method.Value, false)
@@ -1587,18 +1613,20 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 	var result []*ast.FunctionDecl
 
 	// Task 9.68: Check if this is a constructor call
+	// Task 9.82: Case-insensitive lookup (DWScript is case-insensitive)
 	// Constructors are stored separately in ConstructorOverloads
-	constructorOverloads := classInfo.ConstructorOverloads[methodName]
-	if len(constructorOverloads) > 0 {
-		// This is a constructor - include constructor overloads
-		result = append(result, constructorOverloads...)
+	for ctorName, constructorOverloads := range classInfo.ConstructorOverloads {
+		if strings.EqualFold(ctorName, methodName) && len(constructorOverloads) > 0 {
+			// This is a constructor - include constructor overloads
+			result = append(result, constructorOverloads...)
 
-		// Task 9.68: Check if we need to handle parameterless constructor calls
-		// DWScript allows calling constructors with no arguments even if only
-		// parameterized constructors are declared (implicit parameterless constructor)
-		// Note: The actual "no-op" constructor behavior is handled in evalMethodCall
-		// by creating an object and calling the selected constructor
-		return result
+			// Task 9.68: Check if we need to handle parameterless constructor calls
+			// DWScript allows calling constructors with no arguments even if only
+			// parameterized constructors are declared (implicit parameterless constructor)
+			// Note: The actual "no-op" constructor behavior is handled in evalMethodCall
+			// by creating an object and calling the selected constructor
+			return result
+		}
 	}
 
 	// Walk up the class hierarchy for regular methods
