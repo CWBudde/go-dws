@@ -230,7 +230,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Status**: DONE - Implemented class property read evaluation with field and method support
   - **Estimated time**: 2-3 days
 
-- [ ] 9.14 Implement property write evaluation
+- [x] 9.14 Implement property write evaluation
   - **Task**: Property assignment invokes write accessor
   - **Implementation**:
     - Modify assignment statement evaluation
@@ -240,6 +240,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Handle index parameters for indexed properties
   - **Test**: `obj.Name := 'test'` calls SetName('test') or writes to FName
   - **Files**: `internal/interp/property.go`, `internal/interp/statements.go`
+  - **Status**: DONE - Implemented class property write evaluation with field/method support, updated tests
   - **Estimated time**: 2-3 days
 
 - [ ] 9.15 Implement array properties

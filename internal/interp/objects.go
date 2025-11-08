@@ -844,6 +844,106 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 	}
 }
 
+// evalClassPropertyWrite evaluates a class property write operation: TClass.PropertyName := value
+// Task 9.14: Handles writing to class (static) properties.
+func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *types.PropertyInfo, value Value, node ast.Node) Value {
+	// Indexed properties must be written with index syntax
+	if propInfo.IsIndexed {
+		return i.newErrorWithLocation(node, "indexed class property '%s' requires index arguments", propInfo.Name)
+	}
+
+	// Check if property has write access
+	if propInfo.WriteKind == types.PropAccessNone {
+		return i.newErrorWithLocation(node, "class property '%s' is read-only", propInfo.Name)
+	}
+
+	switch propInfo.WriteKind {
+	case types.PropAccessField:
+		// Field or method access - check at runtime which it is
+		// First try as a class variable
+		if _, exists := classInfo.ClassVars[propInfo.WriteSpec]; exists {
+			classInfo.ClassVars[propInfo.WriteSpec] = value
+			return value
+		}
+
+		// Not a class variable - try as a class method
+		method := i.lookupClassMethodInHierarchy(classInfo, propInfo.WriteSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "class property '%s' write specifier '%s' not found as class variable or class method", propInfo.Name, propInfo.WriteSpec)
+		}
+
+		// Call the class method setter
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind all class variables to environment so they can be accessed directly
+		for classVarName, classVarValue := range classInfo.ClassVars {
+			i.env.Define(classVarName, classVarValue)
+		}
+
+		// Bind the value parameter
+		if len(method.Parameters) > 0 {
+			i.env.Define(method.Parameters[0].Name.Value, value)
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Update class variables from environment (in case they were modified)
+		for classVarName := range classInfo.ClassVars {
+			if val, ok := i.env.Get(classVarName); ok {
+				classInfo.ClassVars[classVarName] = val
+			}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return value
+
+	case types.PropAccessMethod:
+		// Call the class method setter
+		method := i.lookupClassMethodInHierarchy(classInfo, propInfo.WriteSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "class property '%s' setter method '%s' not found", propInfo.Name, propInfo.WriteSpec)
+		}
+
+		// Create method environment (no Self binding for class methods)
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind all class variables to environment so they can be accessed directly
+		for classVarName, classVarValue := range classInfo.ClassVars {
+			i.env.Define(classVarName, classVarValue)
+		}
+
+		// Bind the value parameter
+		if len(method.Parameters) > 0 {
+			i.env.Define(method.Parameters[0].Name.Value, value)
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Update class variables from environment (in case they were modified)
+		for classVarName := range classInfo.ClassVars {
+			if val, ok := i.env.Get(classVarName); ok {
+				classInfo.ClassVars[classVarName] = val
+			}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return value
+
+	default:
+		return i.newErrorWithLocation(node, "class property '%s' has no write access", propInfo.Name)
+	}
+}
+
 // evalIndexedPropertyRead evaluates an indexed property read operation: obj.Property[index]
 // Support indexed property reads end-to-end.
 // Calls the property getter method with index parameter(s).
