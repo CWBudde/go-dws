@@ -29,7 +29,7 @@ func (a *Analyzer) analyzeLow(args []ast.Expression, callExpr *ast.CallExpressio
 			// For enums, return the same enum type
 			return enumType
 		}
-		// Task 9.134: Handle type meta-values (Integer, Float, Boolean, String)
+		// Handle type meta-values (Integer, Float, Boolean, String)
 		switch argType {
 		case types.INTEGER:
 			return types.INTEGER
@@ -68,7 +68,7 @@ func (a *Analyzer) analyzeHigh(args []ast.Expression, callExpr *ast.CallExpressi
 			// For enums, return the same enum type
 			return enumType
 		}
-		// Task 9.134: Handle type meta-values (Integer, Float, Boolean, String)
+		// Handle type meta-values (Integer, Float, Boolean, String)
 		switch argType {
 		case types.INTEGER:
 			return types.INTEGER

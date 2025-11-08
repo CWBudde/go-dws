@@ -1,4 +1,4 @@
-// Test JSONLength - Task 9.102
+// Test JSONLength
 // Tests the JSONLength built-in function for JSON arrays
 
 // Test with various array sizes

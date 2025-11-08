@@ -1,4 +1,3 @@
-// Test Task 9.105: JSON serialization test
 // Tests ToJSON and ToJSONFormatted functions with various DWScript types
 
 PrintLn('=== JSON Serialization Tests ===');

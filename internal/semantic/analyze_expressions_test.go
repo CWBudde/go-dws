@@ -247,7 +247,7 @@ func TestFormatWrongArgumentTypes(t *testing.T) {
 }
 
 // ============================================================================
-// Context-Aware Expression Analysis Tests (Task 9.19.2, 9.19.5)
+// Context-Aware Expression Analysis Tests
 // ============================================================================
 
 func TestNilLiteralContextInference(t *testing.T) {

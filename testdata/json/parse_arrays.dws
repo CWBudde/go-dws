@@ -1,5 +1,3 @@
-// Test Task 9.91: Parse JSON arrays
-
 var v: Variant;
 
 // Empty array

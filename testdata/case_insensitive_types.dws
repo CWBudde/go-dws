@@ -1,5 +1,3 @@
-// Test case-insensitive type references (Task 9.225)
-
 // Test 1: Array types with different casing
 type TMyArray = array[1..10] of Integer;
 var arr1: TMyArray;      // Original case

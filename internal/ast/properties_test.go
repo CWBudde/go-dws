@@ -453,7 +453,7 @@ func TestPropertyDeclTokenLiteral(t *testing.T) {
 }
 
 // ============================================================================
-// Class Property Tests (Task 9.10)
+// Class Property Tests
 // ============================================================================
 
 func TestClassProperty(t *testing.T) {

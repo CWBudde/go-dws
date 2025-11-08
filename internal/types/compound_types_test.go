@@ -150,7 +150,7 @@ func TestSetType(t *testing.T) {
 }
 
 // ============================================================================
-// SetType Storage Kind Tests (Task 9.10a)
+// SetType Storage Kind Tests
 // ============================================================================
 
 // TestSetStorageKind_SmallEnums tests that small enums use bitmask storage.

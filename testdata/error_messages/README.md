@@ -88,13 +88,13 @@ Expected output: Successful execution with handled errors.
 
 ## Error Message Features
 
-### Type Errors (Task 9.110)
+### Type Errors
 - Include variable names and types
 - Show expected vs actual types
 - Display line and column information
 - Provide clear, actionable messages
 
-### Runtime Errors (Task 9.111)
+### Runtime Errors
 - Show runtime values of operands
 - Include source code snippets
 - Highlight error position with `^`

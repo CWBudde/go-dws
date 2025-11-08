@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// TestConstructorOverload tests Task 9.68 - constructor overload dispatch
+// TestConstructorOverload tests - constructor overload dispatch
 func TestConstructorOverload(t *testing.T) {
 	tests := []struct {
 		name     string

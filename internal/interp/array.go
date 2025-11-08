@@ -74,7 +74,7 @@ func (i *Interpreter) evalArrayDeclaration(decl *ast.ArrayDecl) Value {
 }
 
 // ============================================================================
-// Multi-Index Support (Task 9.2d)
+// Multi-Index Support
 // ============================================================================
 
 // collectIndices flattens nested IndexExpression nodes for multi-index properties.
@@ -166,7 +166,7 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 		return indexVal
 	}
 
-	// Task 9.16: Check if left side is an object with a default property
+	// Check if left side is an object with a default property
 	// This allows obj[index] to be equivalent to obj.DefaultProperty[index]
 	if obj, ok := AsObject(leftVal); ok {
 		defaultProp := obj.Class.getDefaultProperty()

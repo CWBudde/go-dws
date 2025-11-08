@@ -33,9 +33,6 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 		return
 	}
 
-	// Task 9.205: Bounds validation is now done after evaluating const expressions
-	// (see below where evaluateConstantInt is called)
-
 	// Resolve the element type using resolveType helper
 	elementTypeName := arrayType.ElementType.Name
 	elementType, err := a.resolveType(elementTypeName)
@@ -49,7 +46,7 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 	if arrayType.IsDynamic() {
 		arrType = types.NewDynamicArrayType(elementType)
 	} else {
-		// Task 9.205: Evaluate bound expressions at semantic analysis time
+		// Evaluate bound expressions at semantic analysis time
 		lowBound, err := a.evaluateConstantInt(arrayType.LowBound)
 		if err != nil {
 			a.addError("array lower bound must be a compile-time constant integer at %s: %v",
@@ -107,7 +104,7 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			return types.STRING
 		}
 
-		// Task 9.97: Allow indexing of Variant types (can contain JSON objects/arrays)
+		// Allow indexing of Variant types (can contain JSON objects/arrays)
 		// At runtime, the interpreter will handle JSON object property access and array indexing
 		if leftType.Equals(types.VARIANT) {
 			// Analyze the index expression (can be string or integer)
@@ -185,6 +182,3 @@ func (a *Analyzer) analyzeNewArrayExpression(expr *ast.NewArrayExpression) types
 
 	return resultType
 }
-
-// analyzeArrayLiteral analyzes an array literal expression.
-// Task 9.186: Type inference, element validation, numeric promotion.

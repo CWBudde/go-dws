@@ -1,4 +1,4 @@
-// Test Task 9.91: Parse JSON objects
+// Test Parse JSON objects
 
 var v: Variant;
 

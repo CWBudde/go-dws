@@ -20,7 +20,7 @@ type ExceptionValue struct {
 	Instance  *ObjectInstance
 	Message   string
 	Position  *lexer.Position   // Position where the exception was raised (for error reporting)
-	CallStack errors.StackTrace // Stack trace at the point the exception was raised (Task 9.108)
+	CallStack errors.StackTrace // Stack trace at the point the exception was raised
 }
 
 // Type returns the type of this exception value.
@@ -104,7 +104,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 func (i *Interpreter) raiseMaxRecursionExceeded() Value {
 	message := fmt.Sprintf("Maximal recursion exceeded (%d)", i.maxRecursionDepth)
 
-	// Capture current call stack (Task 9.108)
+	// Capture current call stack
 	callStack := make(errors.StackTrace, len(i.callStack))
 	copy(callStack, i.callStack)
 
@@ -319,7 +319,7 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 		}
 	}
 
-	// Capture current call stack (make a copy to avoid slice aliasing) (Task 9.108)
+	// Capture current call stack (make a copy to avoid slice aliasing)
 	callStack := make(errors.StackTrace, len(i.callStack))
 	copy(callStack, i.callStack)
 

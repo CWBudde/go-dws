@@ -7,7 +7,7 @@ import (
 )
 
 // ============================================================================
-// Task 9.1: Function Registration Tests
+// Function Registration Tests
 // ============================================================================
 
 // TestRegisterInvalidFunction tests registration of invalid functions

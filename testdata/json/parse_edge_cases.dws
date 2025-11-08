@@ -1,4 +1,4 @@
-// Test Task 9.93: Edge cases in JSON parsing
+// Edge cases in JSON parsing
 
 var v: Variant;
 

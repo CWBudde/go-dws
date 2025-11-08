@@ -255,7 +255,7 @@ func TestEnumTypeMetaValues(t *testing.T) {
 }
 
 // ============================================================================
-// Enum .Value Helper Property Tests (Task 9.31)
+// Enum .Value Helper Property Tests
 // ============================================================================
 
 func TestEnumValueHelperProperty(t *testing.T) {

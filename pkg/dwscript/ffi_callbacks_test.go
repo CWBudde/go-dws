@@ -294,7 +294,6 @@ func TestCallbackMultipleParameters(t *testing.T) {
 }
 
 // TestCallbackWithSideEffects tests callbacks with side effects.
-// Task 9.6: Parameterless callbacks in FFI - ENABLED
 func TestCallbackWithSideEffects(t *testing.T) {
 	engine, err := New(WithTypeCheck(false))
 	if err != nil {

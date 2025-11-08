@@ -189,7 +189,7 @@ func TestParseTypeExpression_ArrayType(t *testing.T) {
 			wantErr:  false,
 		},
 
-		// Static arrays (with bounds) - Task 9.54
+		// Static arrays (with bounds)
 		{
 			name:     "static array basic",
 			input:    "array[1..10] of Integer",
@@ -273,7 +273,6 @@ func TestParseTypeExpression_ArrayType(t *testing.T) {
 
 // TestFunctionPointerSyntaxDetection tests the parser's ability to distinguish
 // between full syntax (with parameter names) and shorthand syntax (types only).
-// This test validates Task 9.301: Simplified function pointer syntax detection.
 func TestFunctionPointerSyntaxDetection(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -483,7 +482,7 @@ func TestParseTypeExpression_ErrorCases(t *testing.T) {
 			name:  "array without element type",
 			input: "array of",
 		},
-		// Static array error cases - Task 9.54
+		// Static array error cases
 		{
 			name:  "array with missing low bound",
 			input: "array[..10] of Integer",

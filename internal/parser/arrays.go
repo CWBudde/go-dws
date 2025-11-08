@@ -18,7 +18,6 @@ import (
 //    - All indices within a single pair of brackets, separated by commas
 //    - Desugared at parse time to nested IndexExpression nodes
 //    - More concise, common in mathematical notation
-//    - Implemented in Task 9.172
 //
 // Both syntaxes produce identical AST structures and runtime behavior:
 //   arr[i, j]   → desugared to → ((arr[i])[j])

@@ -1,5 +1,3 @@
-// Test Task 9.92: JSON parsing error handling
-
 // Test invalid JSON - will throw exception
 try
   var v := ParseJSON('invalid json');

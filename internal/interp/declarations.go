@@ -20,7 +20,7 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 		}
 
 		// Update the method in the class (replacing the declaration with the implementation)
-		// Task 9.67: Support method overloading by storing multiple methods per name
+		// Support method overloading by storing multiple methods per name
 		// We need to replace the declaration with the implementation in the overload list
 		if fn.IsClassMethod {
 			classInfo.ClassMethods[fn.Name.Value] = fn
@@ -37,7 +37,7 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 		// Also store constructors
 		if fn.IsConstructor {
 			classInfo.Constructors[fn.Name.Value] = fn
-			// Task 9.67: Replace declaration with implementation in constructor overload list
+			// Replace declaration with implementation in constructor overload list
 			overloads := classInfo.ConstructorOverloads[fn.Name.Value]
 			classInfo.ConstructorOverloads[fn.Name.Value] = i.replaceMethodInOverloadList(overloads, fn)
 			// Always update Constructor to use the implementation (which has the body)
@@ -54,10 +54,10 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 	}
 
 	// Store regular function in the registry
-	// Task 9.66: Support overloading by storing multiple functions per name
+	// Support overloading by storing multiple functions per name
 	funcName := fn.Name.Value
 
-	// Task 9.80: If this function has a body, it may be an implementation that should
+	// If this function has a body, it may be an implementation that should
 	// replace a previous interface declaration (which has no body).
 	// This happens when units have separate interface and implementation sections.
 	if fn.Body != nil {
@@ -111,7 +111,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			classInfo.ClassMethods[methodName] = methodDecl
 		}
 
-		// Task 9.21.6: DON'T copy MethodOverloads/ClassMethodOverloads from parent
+		// DON'T copy MethodOverloads/ClassMethodOverloads from parent
 		// Each class should only store its OWN method overloads, not inherited ones.
 		// getMethodOverloadsInHierarchy will walk the hierarchy to collect them at call time.
 		// This prevents duplication when a child class overrides a parent method.
@@ -165,7 +165,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 
 	// Add own methods to ClassInfo (these override parent methods if same name)
-	// Task 9.67: Support method overloading by storing multiple methods per name
+	// Support method overloading by storing multiple methods per name
 	for _, method := range cd.Methods {
 		// Check if this is a class method (static method) or instance method
 		if method.IsClassMethod {
@@ -182,8 +182,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 		if method.IsConstructor {
 			classInfo.Constructors[method.Name.Value] = method
-			// Task 9.67: Add to constructor overload list
-			// Task 9.73.8: Handle constructor hiding/override
 			// In DWScript, a child constructor with the same name and signature HIDES the parent's,
 			// regardless of whether it has the `override` keyword or not
 			existingOverloads := classInfo.ConstructorOverloads[method.Name.Value]
@@ -212,8 +210,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 	if cd.Constructor != nil {
 		classInfo.Constructors[cd.Constructor.Name.Value] = cd.Constructor
-		// Task 9.20: Also add to ConstructorOverloads for consistency
-		// Task 9.73.8: Handle constructor hiding/override
+
 		// In DWScript, a child constructor with the same name and signature HIDES the parent's,
 		// regardless of whether it has the `override` keyword or not
 		existingOverloads := classInfo.ConstructorOverloads[cd.Constructor.Name.Value]
@@ -264,7 +261,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 	}
 
-	// Register class constants (Task 9.20-9.22)
+	// Register class constants
 	// Evaluate constants eagerly in order so they can reference earlier constants
 	for _, constDecl := range cd.Constants {
 		if constDecl == nil {
@@ -364,7 +361,7 @@ func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Pro
 			// Mark as field for now - evalPropertyRead will check both fields and methods
 			propInfo.ReadKind = types.PropAccessField
 		} else {
-			// It's an expression (Task 9.3c)
+			// It's an expression
 			propInfo.ReadKind = types.PropAccessExpression
 			propInfo.ReadSpec = propDecl.ReadSpec.String()
 			propInfo.ReadExpr = propDecl.ReadSpec // Store AST node for evaluation
@@ -550,7 +547,7 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 }
 
 // replaceMethodInOverloadList replaces a method declaration with its implementation in the overload list.
-// Task 9.67: Helper for managing method overloads
+//
 // This function finds a method with matching signature and replaces it, or appends if not found.
 // parametersMatch checks if two parameter lists have matching signatures
 // (same count and same parameter types)

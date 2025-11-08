@@ -113,7 +113,6 @@ func TestArrayDeclaration_Basic(t *testing.T) {
 
 // TestArrayReturnType_High tests that functions returning arrays
 // properly initialize the Result variable so .High works.
-// This is Task 9.218 - fixing primes.pas High helper error.
 func TestArrayReturnType_High(t *testing.T) {
 	tests := []struct {
 		name     string

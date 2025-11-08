@@ -13,6 +13,8 @@ import (
 // - Record literals
 // - Set literals
 
+// analyzeArrayLiteral analyzes an array literal expression.
+// Type inference, element validation, numeric promotion.
 func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expectedType types.Type) types.Type {
 	if lit == nil {
 		return nil

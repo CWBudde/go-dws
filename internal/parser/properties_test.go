@@ -549,7 +549,7 @@ func TestPropertyAssignment(t *testing.T) {
 }
 
 // ============================================================================
-// Class Property Tests (Task 9.11)
+// Class Property Tests
 // ============================================================================
 
 func TestClassProperty(t *testing.T) {

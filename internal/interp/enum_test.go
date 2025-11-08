@@ -237,7 +237,7 @@ func TestIntegerCast(t *testing.T) {
 }
 
 // ============================================================================
-// For-In Enum Type Iteration Tests (Task 9.213)
+// For-In Enum Type Iteration Tests
 // ============================================================================
 
 func TestForInEnumType_Basic(t *testing.T) {
@@ -453,7 +453,7 @@ func TestForInEnumType_ErrorCase(t *testing.T) {
 }
 
 // ============================================================================
-// Enum .Value Helper Property Tests (Task 9.31)
+// Enum .Value Helper Property Tests
 // ============================================================================
 
 func TestEnumValueProperty(t *testing.T) {
