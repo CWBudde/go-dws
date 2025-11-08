@@ -531,8 +531,9 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 			return
 		}
 
-		// Check that parent method is virtual or override (Task 9.61)
-		if !parentOverload.IsVirtual && !parentOverload.IsOverride {
+		// Check that parent method is virtual, override, or abstract (Task 9.81)
+		// Abstract methods are implicitly virtual and can be overridden
+		if !parentOverload.IsVirtual && !parentOverload.IsOverride && !parentOverload.IsAbstract {
 			a.addError("method '%s' marked as override, but parent method is not virtual", methodName)
 			return
 		}
