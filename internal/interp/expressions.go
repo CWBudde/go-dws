@@ -925,3 +925,88 @@ func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node
 	// Value not found
 	return &BooleanValue{Value: false}
 }
+
+// evalAsExpression evaluates the 'as' type casting operator (Task 9.48).
+// Example: obj as IMyInterface
+// Creates an InterfaceInstance wrapper around the object.
+func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
+	// Evaluate the left expression (the object to cast)
+	left := i.Eval(expr.Left)
+	if isError(left) {
+		return left
+	}
+
+	// Handle nil specially - nil can be cast to any interface
+	if _, isNil := left.(*NilValue); isNil {
+		return &NilValue{}
+	}
+
+	// Ensure we have an object instance
+	obj, ok := AsObject(left)
+	if !ok {
+		return i.newErrorWithLocation(expr, "'as' operator requires object instance, got %s", left.Type())
+	}
+
+	// Get the target interface name from the type expression
+	targetInterfaceName := ""
+	if typeAnnotation, ok := expr.TargetType.(*ast.TypeAnnotation); ok {
+		targetInterfaceName = typeAnnotation.Name
+	} else {
+		return i.newErrorWithLocation(expr, "cannot determine target interface type")
+	}
+
+	// Look up the interface in the registry
+	iface, exists := i.interfaces[strings.ToLower(targetInterfaceName)]
+	if !exists {
+		return i.newErrorWithLocation(expr, "interface '%s' not found", targetInterfaceName)
+	}
+
+	// Validate that the object's class implements the interface
+	if !classImplementsInterface(obj.Class, iface) {
+		return i.newErrorWithLocation(expr, "class '%s' does not implement interface '%s'",
+			obj.Class.Name, iface.Name)
+	}
+
+	// Create and return the interface instance
+	return NewInterfaceInstance(iface, obj)
+}
+
+// evalImplementsExpression evaluates the 'implements' operator (Task 9.48).
+// Example: obj implements IMyInterface -> Boolean
+// Returns true if the object's class implements the interface.
+func (i *Interpreter) evalImplementsExpression(expr *ast.ImplementsExpression) Value {
+	// Evaluate the left expression (the object or class to check)
+	left := i.Eval(expr.Left)
+	if isError(left) {
+		return left
+	}
+
+	// Handle nil - nil implements no interfaces
+	if _, isNil := left.(*NilValue); isNil {
+		return &BooleanValue{Value: false}
+	}
+
+	// Ensure we have an object instance
+	obj, ok := AsObject(left)
+	if !ok {
+		return i.newErrorWithLocation(expr, "'implements' operator requires object instance, got %s", left.Type())
+	}
+
+	// Get the target interface name from the type expression
+	targetInterfaceName := ""
+	if typeAnnotation, ok := expr.TargetType.(*ast.TypeAnnotation); ok {
+		targetInterfaceName = typeAnnotation.Name
+	} else {
+		return i.newErrorWithLocation(expr, "cannot determine target interface type")
+	}
+
+	// Look up the interface in the registry
+	iface, exists := i.interfaces[strings.ToLower(targetInterfaceName)]
+	if !exists {
+		return i.newErrorWithLocation(expr, "interface '%s' not found", targetInterfaceName)
+	}
+
+	// Check if the class implements the interface
+	result := classImplementsInterface(obj.Class, iface)
+	return &BooleanValue{Value: result}
+}

@@ -76,6 +76,12 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 	case *ast.InheritedExpression:
 		// Task 9.161: Handle 'inherited' expressions
 		return a.analyzeInheritedExpression(e)
+	case *ast.AsExpression:
+		// Task 9.48: Handle 'as' type casting operator
+		return a.analyzeAsExpression(e)
+	case *ast.ImplementsExpression:
+		// Task 9.48: Handle 'implements' interface checking operator
+		return a.analyzeImplementsExpression(e)
 	default:
 		a.addError("unknown expression type: %T", expr)
 		return nil
@@ -223,6 +229,107 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 	default:
 		return a.analyzeExpression(expr)
 	}
+}
+
+// analyzeAsExpression analyzes the 'as' type casting operator (Task 9.48).
+// Example: obj as IMyInterface
+// Validates that the object's class implements the target interface.
+// Returns the target interface type.
+func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
+	// Analyze the left expression (the object being cast)
+	leftType := a.analyzeExpression(expr.Left)
+	if leftType == nil {
+		return nil
+	}
+
+	// Resolve the target type (should be an interface type)
+	targetType, err := a.resolveTypeExpression(expr.TargetType)
+	if err != nil || targetType == nil {
+		a.addError("cannot resolve target type in 'as' expression at %s: %v", expr.Token.Pos.String(), err)
+		return nil
+	}
+
+	// Validate that target type is an interface
+	interfaceType, ok := types.GetUnderlyingType(targetType).(*types.InterfaceType)
+	if !ok {
+		a.addError("'as' operator requires interface type, got %s at %s",
+			targetType.String(), expr.Token.Pos.String())
+		return nil
+	}
+
+	// Validate that left type is a class or object
+	leftUnderlying := types.GetUnderlyingType(leftType)
+	classType, isClass := leftUnderlying.(*types.ClassType)
+
+	// Also allow NIL to be cast to any interface
+	if leftType == types.NIL {
+		// Set the expression type and return
+		expr.SetType(&ast.TypeAnnotation{
+			Token: expr.Token,
+			Name:  interfaceType.Name,
+		})
+		return interfaceType
+	}
+
+	if !isClass {
+		a.addError("'as' operator requires class instance, got %s at %s",
+			leftType.String(), expr.Token.Pos.String())
+		return nil
+	}
+
+	// Validate that the class implements the interface
+	if !types.ImplementsInterface(classType, interfaceType) {
+		a.addError("class '%s' does not implement interface '%s' at %s",
+			classType.Name, interfaceType.Name, expr.Token.Pos.String())
+		return nil
+	}
+
+	// Set the expression type annotation
+	expr.SetType(&ast.TypeAnnotation{
+		Token: expr.Token,
+		Name:  interfaceType.Name,
+	})
+
+	return interfaceType
+}
+
+// analyzeImplementsExpression analyzes the 'implements' operator (Task 9.48).
+// Example: obj implements IMyInterface -> Boolean
+// Checks whether the object's class implements the target interface.
+// Always returns Boolean type.
+func (a *Analyzer) analyzeImplementsExpression(expr *ast.ImplementsExpression) types.Type {
+	// Analyze the left expression (the object or class being checked)
+	leftType := a.analyzeExpression(expr.Left)
+	if leftType == nil {
+		return nil
+	}
+
+	// Resolve the target type (should be an interface type)
+	targetType, err := a.resolveTypeExpression(expr.TargetType)
+	if err != nil || targetType == nil {
+		a.addError("cannot resolve target type in 'implements' expression at %s: %v", expr.Token.Pos.String(), err)
+		return nil
+	}
+
+	// Validate that target type is an interface
+	_, ok := types.GetUnderlyingType(targetType).(*types.InterfaceType)
+	if !ok {
+		a.addError("'implements' operator requires interface type, got %s at %s",
+			targetType.String(), expr.Token.Pos.String())
+		return nil
+	}
+
+	// Left type can be either a class instance or a class type reference
+	// We don't validate compatibility here - that's checked at runtime
+	// This operator is primarily for runtime type checking
+
+	// Set the expression type annotation to Boolean
+	expr.SetType(&ast.TypeAnnotation{
+		Token: expr.Token,
+		Name:  "Boolean",
+	})
+
+	return types.BOOLEAN
 }
 
 // analyzeIdentifier analyzes an identifier and returns its type

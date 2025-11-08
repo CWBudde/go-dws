@@ -64,6 +64,24 @@ func Walk(v Visitor, node Node) {
 		}
 
 	// Expressions
+	case *AsExpression:
+		Walk(v, n.Left)
+		if n.TargetType != nil {
+			Walk(v, n.TargetType)
+		}
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+
+	case *ImplementsExpression:
+		Walk(v, n.Left)
+		if n.TargetType != nil {
+			Walk(v, n.TargetType)
+		}
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+
 	case *BinaryExpression:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
