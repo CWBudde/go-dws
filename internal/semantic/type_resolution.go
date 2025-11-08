@@ -525,7 +525,13 @@ func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *t
 
 	// Task 9.68: Check if this is a constructor call (class static method call)
 	// Constructors are stored separately in ConstructorOverloads
-	constructorOverloads := classType.GetConstructorOverloads(methodName)
+	// Task 9.19: Perform case-insensitive constructor lookup
+	var constructorOverloads []*types.MethodInfo
+	for ctorName, overloads := range classType.ConstructorOverloads {
+		if strings.EqualFold(ctorName, methodName) {
+			constructorOverloads = append(constructorOverloads, overloads...)
+		}
+	}
 	if len(constructorOverloads) > 0 {
 		// This is a constructor - include constructor overloads
 		result = append(result, constructorOverloads...)

@@ -190,12 +190,26 @@ func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
 	}
 
 	// Task 9.281: Look up the method in the class to ensure it was declared
+	// Task 9.19: Handle overloaded methods and constructors
 	methodName := decl.Name.Value
-	declaredMethod, methodExists := classType.Methods[methodName]
-	if !methodExists {
-		// Check constructor map too
-		if decl.IsConstructor {
-			declaredMethod, methodExists = classType.Constructors[methodName]
+	var declaredMethod *types.FunctionType
+	var methodExists bool
+
+	if decl.IsConstructor {
+		// For constructors, check all overloads to find matching signature
+		overloads := classType.GetConstructorOverloads(methodName)
+		if len(overloads) > 0 {
+			// Find the overload that matches this implementation's signature
+			declaredMethod, methodExists = a.findMatchingOverloadForImplementation(decl, overloads, className)
+		}
+	} else {
+		// For regular methods, check all overloads
+		overloads := classType.GetMethodOverloads(methodName)
+		if len(overloads) > 0 {
+			declaredMethod, methodExists = a.findMatchingOverloadForImplementation(decl, overloads, className)
+		} else {
+			// Fallback to simple lookup for non-overloaded methods
+			declaredMethod, methodExists = classType.Methods[methodName]
 		}
 	}
 
@@ -205,10 +219,13 @@ func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
 		return
 	}
 
-	// Task 9.282: Validate signature matches the declaration
-	if err := a.validateMethodSignature(decl, declaredMethod, className); err != nil {
-		a.addError("%s at %s", err.Error(), decl.Token.Pos.String())
-		return
+	// Task 9.282: Validate signature matches the declaration (already done in findMatchingOverloadForImplementation for overloads)
+	// For non-overloaded methods, still validate
+	if len(classType.GetMethodOverloads(methodName)) <= 1 && len(classType.GetConstructorOverloads(methodName)) <= 1 {
+		if err := a.validateMethodSignature(decl, declaredMethod, className); err != nil {
+			a.addError("%s at %s", err.Error(), decl.Token.Pos.String())
+			return
+		}
 	}
 
 	// Task 9.283: Clear the forward flag since we now have an implementation
@@ -222,6 +239,52 @@ func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
 	// Use analyzeMethodDecl to analyze the method body with proper scope
 	// This will set up Self, fields, and all method scope correctly
 	a.analyzeMethodDecl(decl, classType)
+}
+
+// findMatchingOverloadForImplementation finds the declared overload that matches the implementation signature
+// Task 9.19: Support for overloaded constructor implementations
+func (a *Analyzer) findMatchingOverloadForImplementation(implDecl *ast.FunctionDecl, overloads []*types.MethodInfo, className string) (*types.FunctionType, bool) {
+	// Resolve implementation parameter count
+	implParamCount := len(implDecl.Parameters)
+
+	// Find overloads with matching parameter count
+	matchingCount := make([]*types.MethodInfo, 0)
+	for _, overload := range overloads {
+		if len(overload.Signature.Parameters) == implParamCount {
+			matchingCount = append(matchingCount, overload)
+		}
+	}
+
+	if len(matchingCount) == 0 {
+		return nil, false
+	}
+
+	if len(matchingCount) == 1 {
+		// Only one overload with matching count - use it
+		return matchingCount[0].Signature, true
+	}
+
+	// Multiple overloads with same count - match by parameter types
+	for _, overload := range matchingCount {
+		matches := true
+		for i, param := range implDecl.Parameters {
+			if param.Type == nil {
+				continue // Allow omitting types in implementation
+			}
+			paramType, err := a.resolveType(param.Type.Name)
+			if err != nil || !paramType.Equals(overload.Signature.Parameters[i]) {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			return overload.Signature, true
+		}
+	}
+
+	// No exact match found - return the first one with matching count
+	// The validateMethodSignature will report the error
+	return matchingCount[0].Signature, true
 }
 
 // validateMethodSignature validates that an out-of-line method implementation
@@ -314,6 +377,13 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		constParams = append(constParams, param.IsConst)
 	}
 
+	// Task 9.17: Validate constructors don't have explicit return types
+	if method.IsConstructor && method.ReturnType != nil {
+		a.addError("constructor '%s' cannot have an explicit return type at %s",
+			method.Name.Value, method.Token.Pos.String())
+		return
+	}
+
 	// Determine return type
 	var returnType types.Type
 	if method.ReturnType != nil {
@@ -324,6 +394,9 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 				method.ReturnType.Name, method.Name.Value, err)
 			return
 		}
+	} else if method.IsConstructor {
+		// Task 9.17: Constructors implicitly return the class type
+		returnType = classType
 	} else {
 		returnType = types.VOID
 	}
@@ -619,7 +692,12 @@ func (a *Analyzer) checkVisibility(memberClass *types.ClassType, visibility int,
 	return false
 }
 
-// analyzeNewExpression analyzes object creation (Task 7.57, 7.65f)
+// analyzeNewExpression analyzes object creation (Task 7.57, 7.65f, Task 9.18)
+// Handles both:
+//   - new TClass(args)
+//   - TClass.Create(args)
+//
+// Task 9.18: NewExpression semantic validation with constructor overload resolution
 func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	className := expr.ClassName.Value
 
@@ -631,46 +709,143 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		return nil
 	}
 
-	// Check if trying to instantiate an abstract class (Task 7.65f)
+	// Task 9.18: Check if trying to instantiate an abstract class
 	if classType.IsAbstract {
 		a.addError("cannot instantiate abstract class '%s' at %s", className, expr.Token.Pos.String())
 		return nil
 	}
 
-	// Check if class has a constructor
-	constructorType, hasConstructor := classType.GetMethod("Create")
-	if hasConstructor {
-		if owner := a.getMethodOwner(classType, "Create"); owner != nil {
-			if visibility, ok := owner.MethodVisibility["Create"]; ok {
-				if !a.checkVisibility(owner, visibility, "Create", "method") {
-					visibilityStr := ast.Visibility(visibility).String()
-					a.addError("cannot access %s constructor 'Create' of class '%s' at %s",
-						visibilityStr, owner.Name, expr.Token.Pos.String())
-					return classType
-				}
+	// Task 9.13-9.16: Get all constructor overloads (assuming "Create" as default constructor name)
+	// In DWScript, constructors are typically named "Create" but can have other names
+	// For NewExpression, we assume "Create" unless the AST specifies otherwise
+	constructorName := "Create"
+	constructorOverloads := a.getMethodOverloadsInHierarchy(constructorName, classType)
+
+	if len(constructorOverloads) == 0 {
+		// No explicit constructor - use implicit default constructor
+		// Task 9.17: Validate that no arguments are provided for default constructor
+		if len(expr.Arguments) > 0 {
+			a.addError("class '%s' has no constructor, cannot pass arguments at %s",
+				className, expr.Token.Pos.String())
+		}
+		return classType
+	}
+
+	// Task 9.15: Filter out implicit parameterless constructor
+	// The implicit constructor has Visibility=0 and len(Parameters)=0 and is only added by getMethodOverloadsInHierarchy
+	// We should ignore it if there are explicit constructors with parameters
+	validConstructors := make([]*types.MethodInfo, 0, len(constructorOverloads))
+	hasExplicitConstructor := false
+	for _, ctor := range constructorOverloads {
+		// Check if this is an explicit constructor (has visibility set OR has parameters)
+		if ctor.Visibility != 0 || len(ctor.Signature.Parameters) > 0 {
+			validConstructors = append(validConstructors, ctor)
+			hasExplicitConstructor = true
+		}
+	}
+
+	// If we only found implicit constructors but need explicit ones, use empty list
+	if !hasExplicitConstructor {
+		validConstructors = constructorOverloads
+	}
+
+	// Task 9.13: Select constructor based on argument count first
+	var selectedConstructor *types.MethodInfo
+	var selectedSignature *types.FunctionType
+
+	// Find constructors with matching argument count
+	matchingCountConstructors := make([]*types.MethodInfo, 0)
+	for _, ctor := range validConstructors {
+		if len(ctor.Signature.Parameters) == len(expr.Arguments) {
+			matchingCountConstructors = append(matchingCountConstructors, ctor)
+		}
+	}
+
+	if len(matchingCountConstructors) == 0 {
+		// Task 9.15: No constructor with matching argument count
+		if len(validConstructors) > 0 {
+			// Report the expected count from the first constructor
+			a.addError("constructor '%s' expects %d arguments, got %d at %s",
+				constructorName, len(validConstructors[0].Signature.Parameters), len(expr.Arguments),
+				expr.Token.Pos.String())
+		} else {
+			a.addError("class '%s' has no constructor that accepts %d arguments at %s",
+				className, len(expr.Arguments), expr.Token.Pos.String())
+		}
+		return classType
+	}
+
+	// Now select the best match based on argument types
+	if len(matchingCountConstructors) == 1 {
+		selectedConstructor = matchingCountConstructors[0]
+		selectedSignature = selectedConstructor.Signature
+	} else {
+		// Multiple constructors with same count - resolve by type
+		argTypes := make([]types.Type, len(expr.Arguments))
+		for i, arg := range expr.Arguments {
+			argType := a.analyzeExpression(arg)
+			if argType == nil {
+				return classType
+			}
+			argTypes[i] = argType
+		}
+
+		candidates := make([]*Symbol, len(matchingCountConstructors))
+		for i, overload := range matchingCountConstructors {
+			candidates[i] = &Symbol{
+				Type: overload.Signature,
 			}
 		}
 
-		// Validate constructor arguments
-		if len(expr.Arguments) != len(constructorType.Parameters) {
-			a.addError("constructor for class '%s' expects %d arguments, got %d at %s",
-				className, len(constructorType.Parameters), len(expr.Arguments),
-				expr.Token.Pos.String())
+		selected, err := ResolveOverload(candidates, argTypes)
+		if err != nil {
+			a.addError("there is no constructor for class '%s' that matches these argument types at %s",
+				className, expr.Token.Pos.String())
 			return classType
 		}
 
-		// Check argument types
-		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
-			expectedType := constructorType.Parameters[i]
-			if argType != nil && !a.canAssign(argType, expectedType) {
-				a.addError("argument %d to constructor of '%s' has type %s, expected %s at %s",
-					i+1, className, argType.String(), expectedType.String(),
-					expr.Token.Pos.String())
+		selectedSignature = selected.Type.(*types.FunctionType)
+		for _, overload := range matchingCountConstructors {
+			if overload.Signature == selectedSignature {
+				selectedConstructor = overload
+				break
 			}
 		}
 	}
-	// If no constructor but arguments provided, that's OK - default constructor
+
+	// Task 9.16: Check constructor visibility
+	var ownerClass *types.ClassType
+	for class := classType; class != nil; class = class.Parent {
+		if class.HasConstructor(constructorName) {
+			ownerClass = class
+			break
+		}
+	}
+	if ownerClass != nil && selectedConstructor != nil {
+		visibility := selectedConstructor.Visibility
+		// Note: Visibility 0 is private, so we must check all values including 0
+		if !a.checkVisibility(ownerClass, visibility, constructorName, "constructor") {
+			visibilityStr := ast.Visibility(visibility).String()
+			a.addError("cannot access %s constructor '%s' of class '%s' at %s",
+				visibilityStr, constructorName, ownerClass.Name, expr.Token.Pos.String())
+			return classType
+		}
+	}
+
+	// Task 9.14: Validate argument types (more detailed error messages)
+	for i, arg := range expr.Arguments {
+		if i >= len(selectedSignature.Parameters) {
+			break
+		}
+
+		paramType := selectedSignature.Parameters[i]
+		argType := a.analyzeExpressionWithExpectedType(arg, paramType)
+		if argType != nil && !a.canAssign(argType, paramType) {
+			a.addError("argument %d to constructor of '%s' has type %s, expected %s at %s",
+				i+1, className, argType.String(), paramType.String(),
+				expr.Token.Pos.String())
+		}
+	}
 
 	return classType
 }
@@ -746,9 +921,23 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Task 9.68: Check for constructors first (constructors are stored separately)
 	constructorOverloads := classType.GetConstructorOverloads(memberName)
 	if len(constructorOverloads) > 0 {
-		// This is a constructor - return the class type (constructors return instances)
-		// For overloaded constructors, return the primary one or synthesize a type
-		// that represents all overloads
+		// Task 9.21: Check if this is a parameterless constructor
+		// Parameterless constructors can be called without parentheses (auto-invoked)
+		hasParameterless := false
+		for _, ctor := range constructorOverloads {
+			if len(ctor.Signature.Parameters) == 0 {
+				hasParameterless = true
+				break
+			}
+		}
+
+		// If there's a parameterless constructor, treat member access as auto-invocation
+		// and return the class type directly (not a method pointer)
+		if hasParameterless {
+			return classType
+		}
+
+		// Constructor has parameters - return method pointer type for deferred invocation
 		if len(constructorOverloads) == 1 {
 			return types.NewMethodPointerType(constructorOverloads[0].Signature.Parameters, classType)
 		}

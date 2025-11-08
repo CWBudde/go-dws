@@ -562,12 +562,16 @@ func (ct *ClassType) LookupOperator(operator string, operandTypes []Type) (*Oper
 }
 
 // HasConstructor checks if the class or any ancestor declares a constructor with the given name.
+// Task 9.19: Case-insensitive constructor name lookup
 func (ct *ClassType) HasConstructor(name string) bool {
 	if ct == nil {
 		return false
 	}
-	if _, ok := ct.Constructors[name]; ok {
-		return true
+	// Case-insensitive lookup
+	for ctorName := range ct.Constructors {
+		if strings.EqualFold(ctorName, name) {
+			return true
+		}
 	}
 	if ct.Parent != nil {
 		return ct.Parent.HasConstructor(name)
