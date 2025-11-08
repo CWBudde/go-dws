@@ -188,14 +188,14 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
 
 **Goal**: Implement semantic analyzer validation for constructor calls to match DWScript semantics
 
-- [ ] 9.13: Constructor overload resolution in semantic analyzer
+- [x] 9.13: Constructor overload resolution in semantic analyzer
   - Implement case-insensitive constructor name lookup in `analyzeMemberAccessExpression`
   - Support `TClass.Create` (without parentheses) as valid constructor reference
   - Validate constructor overload selection based on argument types
   - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_test.go`
   - **Estimated time**: 2-3 hours
 
-- [ ] 9.14: Constructor parameter type validation
+- [x] 9.14: Constructor parameter type validation
   - Validate argument types match constructor parameter types
   - Support implicit type conversions (Integer to Float, etc.)
   - Report clear error messages: "has type String, expected Integer"
@@ -203,7 +203,7 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
   - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_destructor_test.go`
   - **Estimated time**: 2-3 hours
 
-- [ ] 9.15: Constructor parameter count validation
+- [x] 9.15: Constructor parameter count validation
   - Validate argument count matches parameter count for each overload
   - Report error: "constructor 'Create' expects 1 arguments, got 0"
   - Handle implicit parameterless constructor (allow 0 args even if only parameterized constructors exist)
@@ -211,7 +211,7 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
   - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_destructor_test.go`
   - **Estimated time**: 2 hours
 
-- [ ] 9.16: Constructor visibility enforcement
+- [x] 9.16: Constructor visibility enforcement
   - Validate constructor access based on visibility (private/protected/public)
   - Error for private constructor from outside: "cannot access private constructor 'Create'"
   - Protected constructors accessible from derived classes only
@@ -219,7 +219,7 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
   - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_destructor_test.go`
   - **Estimated time**: 3-4 hours
 
-- [ ] 9.17: Constructor context validation
+- [x] 9.17: Constructor context validation
   - Ensure constructors are only called via `TClass.Create(...)` or `new TClass(...)`
   - Validate constructor declarations are within class definitions
   - Check constructors don't have explicit return types (use class type implicitly)
@@ -227,7 +227,7 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
   - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_test.go`
   - **Estimated time**: 2 hours
 
-- [ ] 9.18: NewExpression semantic validation
+- [x] 9.18: NewExpression semantic validation
   - Validate `new TClass(...)` syntax in semantic analyzer
   - Ensure class exists and is not abstract
   - Validate constructor arguments match available constructors
@@ -235,7 +235,7 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
   - **Files**: `internal/semantic/analyze_expressions.go`, `internal/semantic/constructor_test.go`
   - **Estimated time**: 2 hours
 
-- [ ] 9.19: Constructor validation comprehensive test suite
+- [x] 9.19: Constructor validation comprehensive test suite
   - Test all constructor overload scenarios
   - Test all visibility combinations (private/protected/public)
   - Test error cases (wrong types, wrong count, wrong visibility)
