@@ -153,6 +153,21 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		a.analyzeMethodDecl(decl.Constructor, classType)
 	}
 
+	// Task 9.1 & 9.2: Constructor inheritance and implicit default constructor
+	// If child class has no constructors:
+	// 1. Check if parent has constructors (Task 9.2)
+	// 2. If yes, inherit accessible parent constructors
+	// 3. If no, generate implicit default constructor (Task 9.1)
+	if len(classType.Constructors) == 0 && len(classType.ConstructorOverloads) == 0 {
+		if parentClass != nil && len(parentClass.Constructors) > 0 {
+			// Task 9.2: Inherit parent constructors
+			a.inheritParentConstructors(classType, parentClass)
+		} else {
+			// Task 9.1: Generate implicit default constructor
+			a.synthesizeDefaultConstructor(classType)
+		}
+	}
+
 	// Analyze properties (Task 8.46-8.51)
 	// Properties are analyzed after methods so they can reference both fields and methods
 	for _, property := range decl.Properties {
@@ -342,6 +357,91 @@ func (a *Analyzer) validateMethodSignature(implDecl *ast.FunctionDecl, declaredT
 	}
 
 	return nil
+}
+
+// inheritParentConstructors copies accessible parent constructors to a child class (Task 9.2).
+// In DWScript, child classes inherit parent constructors if the child doesn't declare any.
+// Only public and protected constructors are inherited (private constructors are not).
+func (a *Analyzer) inheritParentConstructors(childClass *types.ClassType, parentClass *types.ClassType) {
+	// Iterate through all parent constructor overloads
+	for ctorName, overloads := range parentClass.ConstructorOverloads {
+		for _, parentCtor := range overloads {
+			// Task 9.2: Private constructors are not inherited
+			visibility := ast.Visibility(parentCtor.Visibility)
+			if visibility == ast.VisibilityPrivate {
+				continue
+			}
+
+			// Copy the constructor signature, updating return type to child class
+			// Create new function type with same parameters but child class return type
+			childCtorType := types.NewFunctionTypeWithMetadata(
+				parentCtor.Signature.Parameters,
+				parentCtor.Signature.ParamNames,
+				parentCtor.Signature.DefaultValues,
+				parentCtor.Signature.LazyParams,
+				parentCtor.Signature.VarParams,
+				parentCtor.Signature.ConstParams,
+				childClass, // Returns instance of the child class, not parent
+			)
+
+			// Create method info for the inherited constructor
+			childCtorInfo := &types.MethodInfo{
+				Signature:            childCtorType,
+				IsVirtual:            parentCtor.IsVirtual,
+				IsOverride:           false, // Inherited constructors are not marked as override
+				IsAbstract:           parentCtor.IsAbstract,
+				IsForwarded:          false,
+				IsClassMethod:        parentCtor.IsClassMethod,
+				HasOverloadDirective: parentCtor.HasOverloadDirective,
+				Visibility:           parentCtor.Visibility,
+			}
+
+			// Add inherited constructor to child class
+			if _, exists := childClass.Constructors[ctorName]; !exists {
+				childClass.Constructors[ctorName] = childCtorType
+			}
+			childClass.AddConstructorOverload(ctorName, childCtorInfo)
+		}
+	}
+
+	// If no constructors were inherited (all were private), generate implicit default
+	if len(childClass.Constructors) == 0 && len(childClass.ConstructorOverloads) == 0 {
+		a.synthesizeDefaultConstructor(childClass)
+	}
+}
+
+// synthesizeDefaultConstructor generates an implicit default constructor for a class (Task 9.1).
+// DWScript automatically provides a parameterless `Create` constructor for classes
+// that don't declare any explicit constructors.
+func (a *Analyzer) synthesizeDefaultConstructor(classType *types.ClassType) {
+	constructorName := "Create"
+
+	// Create function type: no parameters, returns the class type
+	funcType := types.NewFunctionTypeWithMetadata(
+		[]types.Type{},      // No parameters
+		[]string{},          // No parameter names
+		[]interface{}{},     // No default values
+		[]bool{},            // No lazy params
+		[]bool{},            // No var params
+		[]bool{},            // No const params
+		classType,           // Returns instance of the class
+	)
+
+	// Create method info for the implicit constructor
+	methodInfo := &types.MethodInfo{
+		Signature:            funcType,
+		IsVirtual:            false,
+		IsOverride:           false,
+		IsAbstract:           false,
+		IsForwarded:          false,
+		IsClassMethod:        false,
+		HasOverloadDirective: false,
+		Visibility:           int(ast.VisibilityPublic), // Public access
+	}
+
+	// Add to class constructor maps
+	classType.Constructors[constructorName] = funcType
+	classType.AddConstructorOverload(constructorName, methodInfo)
 }
 
 // analyzeMethodDecl analyzes a method declaration within a class (Task 7.56, 7.61)

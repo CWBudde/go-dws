@@ -418,3 +418,305 @@ end;
 `
 	expectError(t, input, "expects 1 arguments, got 0")
 }
+
+// ============================================================================
+// Task 9.1: Implicit Default Constructor Tests
+// ============================================================================
+
+// TestImplicitConstructorSimpleClass tests that a class without explicit constructor gets an implicit Create
+func TestImplicitConstructorSimpleClass(t *testing.T) {
+	input := `
+type TSimple = class
+	FValue: Integer;
+end;
+
+var obj: TSimple;
+begin
+	obj := TSimple.Create;
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// TestImplicitConstructorWithFields tests implicit constructor with multiple fields
+func TestImplicitConstructorWithFields(t *testing.T) {
+	input := `
+type TPerson = class
+	FName: String;
+	FAge: Integer;
+end;
+
+var person: TPerson;
+begin
+	person := TPerson.Create;
+	person.FName := 'John';
+	person.FAge := 30;
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// TestImplicitConstructorNotGeneratedWhenExplicitExists tests that implicit constructor is NOT generated if explicit exists
+func TestImplicitConstructorNotGeneratedWhenExplicitExists(t *testing.T) {
+	input := `
+type TExample = class
+	constructor Create(AValue: Integer);
+end;
+
+constructor TExample.Create(AValue: Integer);
+begin
+end;
+
+var obj: TExample;
+begin
+	obj := TExample.Create(42);
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// TestImplicitConstructorCallWithParens tests implicit constructor can be called with parentheses
+func TestImplicitConstructorCallWithParens(t *testing.T) {
+	input := `
+type TEmpty = class
+end;
+
+var obj: TEmpty;
+begin
+	obj := TEmpty.Create();
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// TestImplicitConstructorNewSyntax tests implicit constructor with 'new' keyword
+func TestImplicitConstructorNewSyntax(t *testing.T) {
+	input := `
+type TEmpty = class
+end;
+
+var obj: TEmpty;
+begin
+	obj := new TEmpty;
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// TestImplicitConstructorWithArgumentsFails tests that implicit constructor cannot be called with arguments
+func TestImplicitConstructorWithArgumentsFails(t *testing.T) {
+	input := `
+type TEmpty = class
+end;
+
+var obj: TEmpty;
+begin
+	obj := TEmpty.Create(42);
+end;
+`
+	// Implicit constructor exists with 0 parameters, so error is about argument count mismatch
+	expectError(t, input, "expects 0 arguments, got 1")
+}
+
+// ============================================================================
+// Task 9.2: Constructor Inheritance Tests
+// ============================================================================
+
+// TestConstructorInheritanceBasic tests that child class inherits parent constructor
+func TestConstructorInheritanceBasic(t *testing.T) {
+	input := `
+type TBase = class
+public
+	constructor Create(AValue: Integer);
+end;
+
+type TChild = class(TBase)
+end;
+
+constructor TBase.Create(AValue: Integer);
+begin
+end;
+
+var child: TChild;
+begin
+	child := TChild.Create(42);
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// TestConstructorInheritanceMultipleConstructors tests inheritance of multiple parent constructors
+func TestConstructorInheritanceMultipleConstructors(t *testing.T) {
+	input := `
+type TBase = class
+public
+	constructor Create;
+	constructor Create(AValue: Integer);
+	constructor Create(AName: String);
+end;
+
+type TChild = class(TBase)
+end;
+
+constructor TBase.Create;
+begin
+end;
+
+constructor TBase.Create(AValue: Integer);
+begin
+end;
+
+constructor TBase.Create(AName: String);
+begin
+end;
+
+var child1, child2, child3: TChild;
+begin
+	child1 := TChild.Create();
+	child2 := TChild.Create(42);
+	child3 := TChild.Create('test');
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// TestConstructorInheritancePrivateNotInherited tests that private parent constructors are not inherited
+func TestConstructorInheritancePrivateNotInherited(t *testing.T) {
+	input := `
+type TBase = class
+private
+	constructor Create;
+end;
+
+type TChild = class(TBase)
+end;
+
+constructor TBase.Create;
+begin
+end;
+
+var child: TChild;
+begin
+	child := TChild.Create();
+end;
+`
+	// Private constructor not inherited, so child should get implicit default constructor
+	// which is public and accessible
+	expectNoErrors(t, input)
+}
+
+// TestConstructorInheritanceProtected tests that protected constructors are inherited
+func TestConstructorInheritanceProtected(t *testing.T) {
+	input := `
+type TBase = class
+protected
+	constructor Create(AValue: Integer);
+end;
+
+type TChild = class(TBase)
+public
+	class function MakeChild(AValue: Integer): TChild;
+end;
+
+constructor TBase.Create(AValue: Integer);
+begin
+end;
+
+class function TChild.MakeChild(AValue: Integer): TChild;
+begin
+	Result := TChild.Create(AValue);
+end;
+
+var child: TChild;
+begin
+	child := TChild.MakeChild(42);
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// TestConstructorInheritanceChildOverrides tests that child's explicit constructor overrides inheritance
+func TestConstructorInheritanceChildOverrides(t *testing.T) {
+	input := `
+type TBase = class
+public
+	constructor Create(AValue: Integer);
+end;
+
+type TChild = class(TBase)
+public
+	constructor Create(AName: String);
+end;
+
+constructor TBase.Create(AValue: Integer);
+begin
+end;
+
+constructor TChild.Create(AName: String);
+begin
+end;
+
+var child: TChild;
+begin
+	child := TChild.Create('test');
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// TestConstructorInheritanceChildCannotUseParentWhenOverridden tests that child cannot use parent constructor when it declares its own
+func TestConstructorInheritanceChildCannotUseParentWhenOverridden(t *testing.T) {
+	input := `
+type TBase = class
+public
+	constructor Create(AValue: Integer);
+end;
+
+type TChild = class(TBase)
+public
+	constructor Create(AName: String);
+end;
+
+constructor TBase.Create(AValue: Integer);
+begin
+end;
+
+constructor TChild.Create(AName: String);
+begin
+end;
+
+var child: TChild;
+begin
+	child := TChild.Create(42);
+end;
+`
+	// Child has its own constructor, so parent constructor is not inherited
+	// The error reports type mismatch with the child's constructor
+	expectError(t, input, "has type Integer, expected String")
+}
+
+// TestConstructorInheritanceGrandparent tests inheritance through multiple levels
+func TestConstructorInheritanceGrandparent(t *testing.T) {
+	input := `
+type TBase = class
+public
+	constructor Create(AValue: Integer);
+end;
+
+type TMiddle = class(TBase)
+end;
+
+type TChild = class(TMiddle)
+end;
+
+constructor TBase.Create(AValue: Integer);
+begin
+end;
+
+var child: TChild;
+begin
+	child := TChild.Create(42);
+end;
+`
+	expectNoErrors(t, input)
+}
