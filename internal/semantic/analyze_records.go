@@ -150,6 +150,15 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 	// Check if it's a method of the record
 	methodType, methodExists := recordType.Methods[fieldName]
 	if methodExists {
+		// Task 9.37: If method is parameterless, it will be auto-invoked by the interpreter
+		// Return the method's return type, not the method type itself
+		if len(methodType.Parameters) == 0 {
+			if methodType.ReturnType != nil {
+				return methodType.ReturnType
+			}
+			return types.VOID
+		}
+		// Method has parameters - return function type for deferred invocation
 		return methodType
 	}
 

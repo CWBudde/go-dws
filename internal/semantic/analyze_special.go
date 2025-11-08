@@ -28,9 +28,6 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 
 	parentClass := a.currentClass.Parent
 
-	// Task 9.51: Check if parent is TObject and whether we should allow inherited
-	isTObjectParent := strings.EqualFold(parentClass.Name, "TObject")
-
 	// Determine which method/property to look up
 	var memberName string
 	if ie.Method != nil {
@@ -111,6 +108,7 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 
 	// Member not found in parent class
 	// Task 9.51: If parent is TObject and member not found, treat as "no meaningful parent"
+	isTObjectParent := strings.EqualFold(parentClass.Name, "TObject")
 	if isTObjectParent {
 		a.addError("'inherited' cannot be used in class '%s' which has no parent class at %s",
 			a.currentClass.Name, ie.Token.Pos.String())
