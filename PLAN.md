@@ -243,7 +243,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Status**: DONE - Implemented class property write evaluation with field/method support, updated tests
   - **Estimated time**: 2-3 days
 
-- [ ] 9.15 Implement array properties
+- [x] 9.15 Implement array properties
   - **Task**: Properties with index parameters (e.g., Items[Index])
   - **Implementation**:
     - Parse array property syntax with index parameters
@@ -252,6 +252,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Support multiple index parameters
   - **Test**: `obj.Items[0] := 'value'` calls SetItem(0, 'value')
   - **Files**: `internal/parser/class.go`, `internal/interp/property.go`
+  - **Status**: DONE - Already implemented with comprehensive tests (10+ passing)
   - **Estimated time**: 2-3 days
 
 - [ ] 9.16 Implement default properties
@@ -265,7 +266,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Files**: `internal/parser/class.go`, `internal/semantic/property.go`, `internal/interp/property.go`
   - **Estimated time**: 2 days
 
-- [ ] 9.17 Implement class properties (static)
+- [x] 9.17 Implement class properties (static)
   - **Task**: Support `class property` for properties on class type rather than instance
   - **Implementation**:
     - Parse `class property` keyword combination
@@ -274,6 +275,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Allow access via instance: `obj.Count`
   - **Test**: Class properties accessible without instance
   - **Files**: `internal/parser/class.go`, `internal/interp/property.go`
+  - **Status**: DONE - Completed in tasks 9.10-9.14 with full read/write support and 9+ tests
   - **Estimated time**: 2 days
 
 **Milestone**: After completing properties, fixture test pass rate should reach ~60% (330+ tests passing)
