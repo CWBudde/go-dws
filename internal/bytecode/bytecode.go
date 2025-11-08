@@ -50,6 +50,7 @@ const (
 	ValueObject
 	ValueFunction
 	ValueClosure
+	ValueBuiltin
 )
 
 // ValueTypeNames maps value types to their string names for debugging.
@@ -63,6 +64,7 @@ var ValueTypeNames = [...]string{
 	ValueObject:   "object",
 	ValueFunction: "function",
 	ValueClosure:  "closure",
+	ValueBuiltin:  "builtin",
 }
 
 // String returns a string representation of the value type.
@@ -133,6 +135,17 @@ func ClosureValue(cl *Closure) Value {
 	return Value{Type: ValueClosure, Data: cl}
 }
 
+// BuiltinInfo holds information about a built-in function.
+type BuiltinInfo struct {
+	Name string
+	Func interface{} // BuiltinFunction from vm.go (to avoid circular dependency)
+}
+
+// BuiltinValue constructs a Value representing a built-in function.
+func BuiltinValue(name string) Value {
+	return Value{Type: ValueBuiltin, Data: name}
+}
+
 // Type checking methods
 func (v Value) IsNil() bool    { return v.Type == ValueNil }
 func (v Value) IsBool() bool   { return v.Type == ValueBool }
@@ -149,6 +162,9 @@ func (v Value) IsClosure() bool {
 }
 func (v Value) IsObject() bool {
 	return v.Type == ValueObject
+}
+func (v Value) IsBuiltin() bool {
+	return v.Type == ValueBuiltin
 }
 
 // Type conversion methods
@@ -223,6 +239,16 @@ func (v Value) AsObject() *ObjectInstance {
 	return nil
 }
 
+// AsBuiltin returns the built-in function name if the value is a built-in.
+func (v Value) AsBuiltin() string {
+	if v.Type == ValueBuiltin {
+		if name, ok := v.Data.(string); ok {
+			return name
+		}
+	}
+	return ""
+}
+
 // String returns a human-readable representation of the value.
 func (v Value) String() string {
 	switch v.Type {
@@ -268,6 +294,12 @@ func (v Value) String() string {
 			return "<object>"
 		}
 		return "<object>"
+	case ValueBuiltin:
+		name := v.AsBuiltin()
+		if name != "" {
+			return fmt.Sprintf("<builtin %s>", name)
+		}
+		return "<builtin>"
 	default:
 		return fmt.Sprintf("<%s>", v.Type)
 	}

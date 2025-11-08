@@ -316,7 +316,7 @@ func (e *Engine) runBytecode(program *Program, output io.Writer) (*Result, error
 		return nil, err
 	}
 
-	vm := bytecode.NewVM()
+	vm := bytecode.NewVMWithOutput(output)
 	if _, err := vm.Run(chunk); err != nil {
 		if runtimeErr, ok := err.(*bytecode.RuntimeError); ok {
 			return &Result{

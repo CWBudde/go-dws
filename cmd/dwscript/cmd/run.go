@@ -314,7 +314,7 @@ func executeBytecodeProgram(program *ast.Program, opts bytecodeExecOptions) erro
 		bytecode.NewDisassembler(chunk, os.Stderr).Disassemble()
 	}
 
-	vm := bytecode.NewVM()
+	vm := bytecode.NewVMWithOutput(os.Stdout)
 	result, err := vm.Run(chunk)
 	if err != nil {
 		if runtimeErr, ok := err.(*bytecode.RuntimeError); ok {

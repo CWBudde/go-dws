@@ -2,6 +2,7 @@ package bytecode
 
 import (
 	"fmt"
+	"io"
 	"math"
 
 	"github.com/cwbudde/go-dws/internal/errors"
@@ -14,6 +15,9 @@ const (
 	defaultFrameCapacity = 16
 )
 
+// BuiltinFunction represents a built-in function callable from bytecode.
+type BuiltinFunction func(vm *VM, args []Value) (Value, error)
+
 // VM executes bytecode chunks produced by the compiler.
 type VM struct {
 	stack             []Value
@@ -23,6 +27,8 @@ type VM struct {
 	exceptionHandlers []exceptionHandler
 	finallyStack      []finallyContext
 	exceptObject      Value
+	output            io.Writer                // Output writer for PrintLn, Print, etc.
+	builtins          map[string]BuiltinFunction // Built-in functions registry
 }
 
 type callFrame struct {
@@ -53,7 +59,13 @@ type finallyContext struct {
 
 // NewVM creates a new VM with default configuration.
 func NewVM() *VM {
-	return &VM{
+	return NewVMWithOutput(nil)
+}
+
+// NewVMWithOutput creates a new VM with the specified output writer.
+// If output is nil, output operations will be no-ops.
+func NewVMWithOutput(output io.Writer) *VM {
+	vm := &VM{
 		stack:             make([]Value, 0, defaultStackCapacity),
 		frames:            make([]callFrame, 0, defaultFrameCapacity),
 		globals:           make([]Value, 0),
@@ -61,7 +73,11 @@ func NewVM() *VM {
 		exceptionHandlers: make([]exceptionHandler, 0),
 		finallyStack:      make([]finallyContext, 0),
 		exceptObject:      NilValue(),
+		output:            output,
+		builtins:          make(map[string]BuiltinFunction),
 	}
+	vm.registerBuiltins()
+	return vm
 }
 
 // Run executes the provided chunk and returns the resulting value.
@@ -907,6 +923,19 @@ func (vm *VM) reset() {
 	vm.finallyStack = vm.finallyStack[:0]
 	vm.exceptObject = NilValue()
 	vm.setGlobal(builtinExceptObjectIndex, vm.exceptObject)
+
+	// Initialize built-in functions as globals
+	// The order must match the order in compiler's initBuiltins()
+	vm.setGlobal(1, BuiltinValue("PrintLn"))
+	vm.setGlobal(2, BuiltinValue("Print"))
+	vm.setGlobal(3, BuiltinValue("IntToStr"))
+	vm.setGlobal(4, BuiltinValue("FloatToStr"))
+	vm.setGlobal(5, BuiltinValue("StrToInt"))
+	vm.setGlobal(6, BuiltinValue("StrToFloat"))
+	vm.setGlobal(7, BuiltinValue("Length"))
+	vm.setGlobal(8, BuiltinValue("Copy"))
+	vm.setGlobal(9, BuiltinValue("Ord"))
+	vm.setGlobal(10, BuiltinValue("Chr"))
 }
 
 func (vm *VM) getGlobal(index int) Value {
@@ -1215,6 +1244,21 @@ func (vm *VM) callValueWithSelf(callee Value, args []Value, self Value) error {
 			return vm.runtimeError("invalid closure value")
 		}
 		return vm.callClosure(cl, args, self)
+	case ValueBuiltin:
+		name := callee.AsBuiltin()
+		if name == "" {
+			return vm.runtimeError("invalid built-in function")
+		}
+		builtinFunc, ok := vm.builtins[name]
+		if !ok {
+			return vm.runtimeError("built-in function %q not found", name)
+		}
+		result, err := builtinFunc(vm, args)
+		if err != nil {
+			return err
+		}
+		vm.push(result)
+		return nil
 	default:
 		return vm.runtimeError("attempt to call non-callable value of type %s", callee.Type.String())
 	}
@@ -1436,4 +1480,187 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// registerBuiltins registers built-in functions available to bytecode programs.
+func (vm *VM) registerBuiltins() {
+	vm.builtins["PrintLn"] = builtinPrintLn
+	vm.builtins["Print"] = builtinPrint
+	vm.builtins["IntToStr"] = builtinIntToStr
+	vm.builtins["FloatToStr"] = builtinFloatToStr
+	vm.builtins["StrToInt"] = builtinStrToInt
+	vm.builtins["StrToFloat"] = builtinStrToFloat
+	vm.builtins["Length"] = builtinLength
+	vm.builtins["Copy"] = builtinCopy
+	vm.builtins["Ord"] = builtinOrd
+	vm.builtins["Chr"] = builtinChr
+}
+
+// Built-in function implementations
+
+func builtinPrintLn(vm *VM, args []Value) (Value, error) {
+	if vm.output != nil {
+		for i, arg := range args {
+			if i > 0 {
+				fmt.Fprint(vm.output, " ")
+			}
+			// Unquote strings for output
+			if arg.IsString() {
+				fmt.Fprint(vm.output, arg.AsString())
+			} else {
+				fmt.Fprint(vm.output, arg.String())
+			}
+		}
+		fmt.Fprintln(vm.output)
+	}
+	return NilValue(), nil
+}
+
+func builtinPrint(vm *VM, args []Value) (Value, error) {
+	if vm.output != nil {
+		for i, arg := range args {
+			if i > 0 {
+				fmt.Fprint(vm.output, " ")
+			}
+			// Unquote strings for output
+			if arg.IsString() {
+				fmt.Fprint(vm.output, arg.AsString())
+			} else {
+				fmt.Fprint(vm.output, arg.String())
+			}
+		}
+	}
+	return NilValue(), nil
+}
+
+func builtinIntToStr(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("IntToStr expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsInt() {
+		return NilValue(), vm.runtimeError("IntToStr expects an integer argument")
+	}
+	return StringValue(fmt.Sprintf("%d", args[0].AsInt())), nil
+}
+
+func builtinFloatToStr(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("FloatToStr expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsFloat() {
+		return NilValue(), vm.runtimeError("FloatToStr expects a float argument")
+	}
+	return StringValue(fmt.Sprintf("%g", args[0].AsFloat())), nil
+}
+
+func builtinStrToInt(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("StrToInt expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrToInt expects a string argument")
+	}
+	var val int64
+	_, err := fmt.Sscanf(args[0].AsString(), "%d", &val)
+	if err != nil {
+		return NilValue(), vm.runtimeError("StrToInt: invalid integer string")
+	}
+	return IntValue(val), nil
+}
+
+func builtinStrToFloat(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("StrToFloat expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrToFloat expects a string argument")
+	}
+	var val float64
+	_, err := fmt.Sscanf(args[0].AsString(), "%f", &val)
+	if err != nil {
+		return NilValue(), vm.runtimeError("StrToFloat: invalid float string")
+	}
+	return FloatValue(val), nil
+}
+
+func builtinLength(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Length expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+	if arg.IsString() {
+		return IntValue(int64(len(arg.AsString()))), nil
+	}
+	if arg.IsArray() {
+		arr := arg.AsArray()
+		if arr != nil {
+			return IntValue(int64(len(arr.elements))), nil
+		}
+	}
+	return NilValue(), vm.runtimeError("Length expects a string or array argument")
+}
+
+func builtinCopy(vm *VM, args []Value) (Value, error) {
+	if len(args) < 2 || len(args) > 3 {
+		return NilValue(), vm.runtimeError("Copy expects 2 or 3 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("Copy expects a string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("Copy expects an integer as second argument")
+	}
+	
+	str := args[0].AsString()
+	start := int(args[1].AsInt()) - 1 // DWScript uses 1-based indexing
+	
+	if start < 0 {
+		start = 0
+	}
+	if start >= len(str) {
+		return StringValue(""), nil
+	}
+	
+	length := len(str) - start
+	if len(args) == 3 {
+		if !args[2].IsInt() {
+			return NilValue(), vm.runtimeError("Copy expects an integer as third argument")
+		}
+		length = int(args[2].AsInt())
+	}
+	
+	if start+length > len(str) {
+		length = len(str) - start
+	}
+	
+	return StringValue(str[start : start+length]), nil
+}
+
+func builtinOrd(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Ord expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+	if arg.IsString() {
+		s := arg.AsString()
+		if len(s) == 0 {
+			return IntValue(0), nil
+		}
+		return IntValue(int64(s[0])), nil
+	}
+	if arg.IsInt() {
+		// For enums and other types
+		return arg, nil
+	}
+	return NilValue(), vm.runtimeError("Ord expects a string or integer argument")
+}
+
+func builtinChr(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Chr expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsInt() {
+		return NilValue(), vm.runtimeError("Chr expects an integer argument")
+	}
+	return StringValue(string(rune(args[0].AsInt()))), nil
 }
