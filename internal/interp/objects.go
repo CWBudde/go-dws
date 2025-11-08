@@ -1231,6 +1231,11 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				// Bind Self to the object
 				i.env.Define("Self", obj)
 
+				// NOTE: We do NOT add fields to the environment here.
+				// The evalSimpleAssignment and Eval(Identifier) functions already handle
+				// field access by checking if Self is bound and looking up fields on the object.
+				// Adding fields to the environment would break this mechanism.
+
 				// Bind method parameters to arguments with implicit conversion
 				for idx, param := range instanceMethod.Parameters {
 					arg := args[idx]
@@ -1269,6 +1274,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 					i.env = savedEnv
 					return result
 				}
+
+				// NOTE: We do NOT need to copy field values back from the environment.
+				// Field assignments go directly to the object via evalSimpleAssignment.
 
 				// Extract return value (same logic as regular functions)
 				var returnValue Value
