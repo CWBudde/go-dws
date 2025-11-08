@@ -99,8 +99,8 @@ func TestBooleanValue(t *testing.T) {
 		wantStr  string
 		value    bool
 	}{
-		{name: "true value", wantType: "BOOLEAN", wantStr: "true", value: true},
-		{name: "false value", wantType: "BOOLEAN", wantStr: "false", value: false},
+		{name: "true value", wantType: "BOOLEAN", wantStr: "True", value: true},
+		{name: "false value", wantType: "BOOLEAN", wantStr: "False", value: false},
 	}
 
 	for _, tt := range tests {

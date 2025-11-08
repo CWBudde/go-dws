@@ -512,6 +512,8 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinIntToStr(args)
 	case "IntToBin":
 		return i.builtinIntToBin(args)
+	case "IntToHex":
+		return i.builtinIntToHex(args)
 	case "StrToInt":
 		return i.builtinStrToInt(args)
 	case "FloatToStr":
@@ -520,12 +522,16 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinStrToFloat(args)
 	case "BoolToStr":
 		return i.builtinBoolToStr(args)
+	case "Chr":
+		return i.builtinChr(args)
 	case "Succ":
 		return i.builtinSucc(args)
 	case "Pred":
 		return i.builtinPred(args)
 	case "Assert":
 		return i.builtinAssert(args)
+	case "Assigned":
+		return i.builtinAssigned(args)
 	// Higher-order functions for working with arrays and lambdas
 	case "Map":
 		return i.builtinMap(args)

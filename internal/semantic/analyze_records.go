@@ -141,24 +141,46 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 
 	// Check if the field exists
 	fieldType, exists := recordType.Fields[fieldName]
-	if !exists {
-		// Check if a helper provides this member
-		_, helperMethod := a.hasHelperMethod(objType, fieldName)
-		if helperMethod != nil {
-			return helperMethod
-		}
-
-		_, helperProp := a.hasHelperProperty(objType, fieldName)
-		if helperProp != nil {
-			return helperProp.Type
-		}
-
-		a.addError("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)
-		return nil
+	if exists {
+		// TODO: Check visibility rules if needed
+		// For now, we allow all field access
+		return fieldType
 	}
 
-	// TODO: Check visibility rules if needed
-	// For now, we allow all field access
+	// Check if it's a method of the record
+	methodType, methodExists := recordType.Methods[fieldName]
+	if methodExists {
+		// Task 9.37: If method is parameterless, it will be auto-invoked by the interpreter
+		// Return the method's return type, not the method type itself
+		if len(methodType.Parameters) == 0 {
+			if methodType.ReturnType != nil {
+				return methodType.ReturnType
+			}
+			return types.VOID
+		}
+		// Method has parameters - return function type for deferred invocation
+		return methodType
+	}
 
-	return fieldType
+	// Check if it's a property of the record
+	if recordType.Properties != nil {
+		propInfo, propExists := recordType.Properties[fieldName]
+		if propExists {
+			return propInfo.Type
+		}
+	}
+
+	// Check if a helper provides this member
+	_, helperMethod := a.hasHelperMethod(objType, fieldName)
+	if helperMethod != nil {
+		return helperMethod
+	}
+
+	_, helperProp := a.hasHelperProperty(objType, fieldName)
+	if helperProp != nil {
+		return helperProp.Type
+	}
+
+	a.addError("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)
+	return nil
 }
