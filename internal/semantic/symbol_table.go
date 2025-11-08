@@ -134,12 +134,15 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 		// This is an implementation following a forward declaration
 		existingFunc := existing.Type.(*types.FunctionType)
 
-		// Validate that signatures match
+		// Validate that signatures match (including default parameters)
 		if !SignaturesEqual(existingFunc, funcType) {
 			return fmt.Errorf("implementation signature for '%s' does not match forward declaration", name)
 		}
 		if !existingFunc.ReturnType.Equals(funcType.ReturnType) {
 			return fmt.Errorf("implementation return type for '%s' does not match forward declaration", name)
+		}
+		if !defaultParametersMatch(existingFunc, funcType) {
+			return fmt.Errorf("implementation signature for '%s' does not match forward declaration", name)
 		}
 
 		// Validate overload directive consistency
@@ -170,8 +173,28 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 	// If an existing function has the overload directive, or we're adding one with it,
 	// then all must have it (with exception: implementations can omit it if forwards have it)
 	if !isForward {
-		// Current is an implementation - defer overload directive check until after forward+impl check
-		// This will be validated in the duplicate signature check below
+		// Current is an implementation - check if it's being added to an overload set
+		// If adding to an overload set (not replacing a forward), it must have overload directive
+		if existing.IsOverloadSet {
+			// Check if this implementation matches any forward in the set
+			matchesForward := false
+			for _, overload := range existing.Overloads {
+				if overload.IsForward {
+					existingFunc := overload.Type.(*types.FunctionType)
+					// For forward matching, we need EXACT match including default parameters
+					if SignaturesEqual(existingFunc, funcType) && existingFunc.ReturnType.Equals(funcType.ReturnType) &&
+						defaultParametersMatch(existingFunc, funcType) {
+						matchesForward = true
+						break
+					}
+				}
+			}
+			// If not replacing a forward, must have overload directive
+			if !matchesForward && !hasOverloadDirective {
+				return fmt.Errorf("Overloaded %s \"%s\" must be marked with the \"overload\" directive",
+					getFunctionKind(funcType), name)
+			}
+		}
 	} else if existing.IsOverloadSet {
 		// Current is a forward - check all existing overloads for directive consistency
 		for _, overload := range existing.Overloads {
@@ -211,6 +234,12 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 					// Task 9.60: Check if this is a forward + implementation pair
 					if overload.IsForward && !isForward {
 						// Implementation following forward declaration in overload set
+						// Check if default parameters match (they must for forward replacement)
+						if !defaultParametersMatch(existingFunc, funcType) {
+							// Signatures match but default params don't - treat as different overload
+							// Continue to next overload instead of replacing
+							continue
+						}
 						// Validate overload directive consistency
 						// Forward can have 'overload' and implementation can omit it (DWScript allows this)
 						if !overload.HasOverloadDirective && hasOverloadDirective {
@@ -510,4 +539,27 @@ func (st *SymbolTable) AllSymbols() map[string]*Symbol {
 	}
 
 	return result
+}
+
+// defaultParametersMatch checks if two function signatures have matching default parameters.
+// This is used for forward declaration matching - forwards and implementations must match exactly.
+// Task 9.64: Default parameters affect forward declaration matching
+func defaultParametersMatch(sig1, sig2 *types.FunctionType) bool {
+	// Both must have same number of parameters (already checked by SignaturesEqual)
+	if len(sig1.Parameters) != len(sig2.Parameters) {
+		return false
+	}
+
+	// Check each parameter's default value presence
+	for i := 0; i < len(sig1.Parameters); i++ {
+		has1 := i < len(sig1.DefaultValues) && sig1.DefaultValues[i] != nil
+		has2 := i < len(sig2.DefaultValues) && sig2.DefaultValues[i] != nil
+
+		// Both must have or not have a default value
+		if has1 != has2 {
+			return false
+		}
+	}
+
+	return true
 }
