@@ -214,9 +214,9 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	savedCurrentProperty := a.currentProperty
 
 	a.currentClass = classType
-	a.inClassMethod = false         // Property expressions are in instance context
-	a.inPropertyExpr = true          // Flag to enable special property expression handling
-	a.currentProperty = propName     // Track current property for circular reference detection
+	a.inClassMethod = false      // Property expressions are in instance context
+	a.inPropertyExpr = true      // Flag to enable special property expression handling
+	a.currentProperty = propName // Track current property for circular reference detection
 
 	defer func() {
 		a.currentClass = savedClass

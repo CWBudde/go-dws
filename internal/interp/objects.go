@@ -113,19 +113,9 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	var constructor *ast.FunctionDecl
 	constructorName := "Create" // Default constructor name for NewExpression
 
-	// Get all constructor overloads (case-insensitive lookup)
-	// Task 9.20: DWScript is case-insensitive, so we need to search for the constructor name
-	var constructorOverloads []*ast.FunctionDecl
-	for ctorName, overloads := range classInfo.ConstructorOverloads {
-		if strings.EqualFold(ctorName, constructorName) {
-			constructorOverloads = append(constructorOverloads, overloads...)
-		}
-	}
-
-	if len(constructorOverloads) == 0 && classInfo.Constructor != nil && strings.EqualFold(classInfo.Constructor.Name.Value, constructorName) {
-		// Fallback to single constructor if no overloads
-		constructorOverloads = []*ast.FunctionDecl{classInfo.Constructor}
-	}
+	// Task 9.4: Get all constructor overloads from class hierarchy (case-insensitive lookup)
+	// This ensures inherited virtual constructors are properly found
+	constructorOverloads := i.getMethodOverloadsInHierarchy(classInfo, constructorName, false)
 
 	// Task 9.68: Special handling for implicit parameterless constructor
 	// If calling with 0 arguments and no parameterless constructor exists,
@@ -1593,6 +1583,101 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		return objVal
 	}
 
+	// Task 9.4.4: Check if it's a metaclass (ClassValue) calling a constructor
+	// This handles: var cls: class of TParent; cls := TChild; obj := cls.Create;
+	if classVal, ok := objVal.(*ClassValue); ok {
+		// Only constructors can be called on metaclass values
+		methodName := mc.Method.Value
+
+		// Look up constructor in the runtime class (virtual dispatch)
+		runtimeClass := classVal.ClassInfo
+		if runtimeClass == nil {
+			return i.newErrorWithLocation(mc, "invalid class reference")
+		}
+
+		// Get all constructor overloads with this name from class hierarchy
+		// Use getMethodOverloadsInHierarchy with isClassMethod=false to get constructors
+		constructorOverloads := i.getMethodOverloadsInHierarchy(runtimeClass, methodName, false)
+
+		if len(constructorOverloads) == 0 {
+			return i.newErrorWithLocation(mc, "constructor '%s' not found in class '%s'", methodName, runtimeClass.Name)
+		}
+
+		// Task 9.67: Resolve constructor overload based on argument types
+		constructor, err := i.resolveMethodOverload(runtimeClass.Name, methodName, constructorOverloads, mc.Arguments)
+		if err != nil {
+			return i.newErrorWithLocation(mc, "%s", err.Error())
+		}
+
+		// Evaluate constructor arguments
+		args := make([]Value, len(mc.Arguments))
+		for idx, arg := range mc.Arguments {
+			val := i.Eval(arg)
+			if isError(val) {
+				return val
+			}
+			args[idx] = val
+		}
+
+		// Check argument count
+		if len(args) != len(constructor.Parameters) {
+			return i.newErrorWithLocation(mc, "wrong number of arguments for constructor '%s': expected %d, got %d",
+				methodName, len(constructor.Parameters), len(args))
+		}
+
+		// Create new instance of the runtime class (the class stored in ClassValue)
+		newInstance := NewObjectInstance(runtimeClass)
+
+		// Initialize all fields with default values
+		for fieldName, fieldType := range runtimeClass.Fields {
+			var defaultValue Value
+			switch fieldType {
+			case types.INTEGER:
+				defaultValue = &IntegerValue{Value: 0}
+			case types.FLOAT:
+				defaultValue = &FloatValue{Value: 0.0}
+			case types.STRING:
+				defaultValue = &StringValue{Value: ""}
+			case types.BOOLEAN:
+				defaultValue = &BooleanValue{Value: false}
+			default:
+				defaultValue = &NilValue{}
+			}
+			newInstance.SetField(fieldName, defaultValue)
+		}
+
+		// Create method environment with Self bound to new instance
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+		i.env.Define("Self", newInstance)
+
+		// Bind constructor parameters to arguments
+		for idx, param := range constructor.Parameters {
+			arg := args[idx]
+			if param.Type != nil {
+				paramTypeName := param.Type.Name
+				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+					arg = converted
+				}
+			}
+			i.env.Define(param.Name.Value, arg)
+		}
+
+		// Execute constructor body
+		result := i.Eval(constructor.Body)
+		if isError(result) {
+			i.env = savedEnv
+			return result
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		// Return the newly created instance
+		return newInstance
+	}
+
 	// Check if it's a set value with built-in methods (Include, Exclude)
 	if setVal, ok := objVal.(*SetValue); ok {
 		methodName := mc.Method.Value
@@ -1954,17 +2039,14 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 	// Task 9.82: Case-insensitive lookup (DWScript is case-insensitive)
 	// Constructors are stored separately in ConstructorOverloads
 	// Task 9.21: Only return constructors when isClassMethod = false (constructors are instance methods)
+	// Task 9.4: Constructors are copied from parent to child (unlike regular methods),
+	// so we only need to check the current class's ConstructorOverloads
 	if !isClassMethod {
 		for ctorName, constructorOverloads := range classInfo.ConstructorOverloads {
 			if strings.EqualFold(ctorName, methodName) && len(constructorOverloads) > 0 {
-				// This is a constructor - include constructor overloads
+				// This is a constructor - return constructor overloads from this class
+				// (which includes inherited constructors due to copying in evalClassDeclaration)
 				result = append(result, constructorOverloads...)
-
-				// Task 9.68: Check if we need to handle parameterless constructor calls
-				// DWScript allows calling constructors with no arguments even if only
-				// parameterized constructors are declared (implicit parameterless constructor)
-				// Note: The actual "no-op" constructor behavior is handled in evalMethodCall
-				// by creating an object and calling the selected constructor
 				return result
 			}
 		}
