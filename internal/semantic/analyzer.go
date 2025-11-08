@@ -411,10 +411,10 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 		return true
 	}
 	// Task 9.73.1: Allow assigning nil to metaclass types
-	if from.TypeKind() == "NIL" && to.TypeKind() == "CLASS_OF" {
+	if from.TypeKind() == "NIL" && to.TypeKind() == "CLASSOF" {
 		return true
 	}
-	if from.TypeKind() == "CLASS_OF" && to.TypeKind() == "NIL" {
+	if from.TypeKind() == "CLASSOF" && to.TypeKind() == "NIL" {
 		return true
 	}
 	if fromClass, ok := from.(*types.ClassType); ok {
