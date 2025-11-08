@@ -127,7 +127,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	}
 
 	// Add basic Create constructor
-	objectClass.Constructors["Create"] = &types.FunctionType{
+	// Use lowercase for case-insensitive lookup
+	objectClass.Constructors["create"] = &types.FunctionType{
 		Parameters: []types.Type{}, // no parameters
 		ReturnType: objectClass,
 	}
@@ -162,7 +163,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	exceptionClass.Fields["Message"] = types.STRING
 
 	// Add Create constructor
-	exceptionClass.Constructors["Create"] = &types.FunctionType{
+	// Use lowercase for case-insensitive lookup
+	exceptionClass.Constructors["create"] = &types.FunctionType{
 		Parameters: []types.Type{types.STRING}, // message parameter
 		ReturnType: exceptionClass,
 	}
@@ -200,7 +202,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		excClass.Fields["Message"] = types.STRING
 
 		// Inherit Create constructor
-		excClass.Constructors["Create"] = &types.FunctionType{
+		// Use lowercase for case-insensitive lookup
+		excClass.Constructors["create"] = &types.FunctionType{
 			Parameters: []types.Type{types.STRING},
 			ReturnType: excClass,
 		}

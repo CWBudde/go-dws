@@ -190,7 +190,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			replaced := false
 			for i, existingMethod := range existingOverloads {
 				// Check if signatures match (same number and types of parameters)
-				if len(existingMethod.Parameters) == len(method.Parameters) {
+				if parametersMatch(existingMethod.Parameters, method.Parameters) {
 					// Replace the parent constructor with this child constructor (hiding)
 					existingOverloads[i] = method
 					replaced = true
@@ -199,8 +199,10 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			}
 			if !replaced {
 				// No matching parent constructor found (different signature), just append
-				classInfo.ConstructorOverloads[method.Name.Value] = append(existingOverloads, method)
+				existingOverloads = append(existingOverloads, method)
 			}
+			// Write the modified slice back to the map
+			classInfo.ConstructorOverloads[method.Name.Value] = existingOverloads
 		}
 	}
 
@@ -218,7 +220,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		replaced := false
 		for i, existingMethod := range existingOverloads {
 			// Check if signatures match (same number and types of parameters)
-			if len(existingMethod.Parameters) == len(cd.Constructor.Parameters) {
+			if parametersMatch(existingMethod.Parameters, cd.Constructor.Parameters) {
 				// Replace the parent constructor with this child constructor (hiding)
 				existingOverloads[i] = cd.Constructor
 				replaced = true
@@ -227,8 +229,10 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 		if !replaced {
 			// No matching parent constructor found (different signature), just append
-			classInfo.ConstructorOverloads[cd.Constructor.Name.Value] = append(existingOverloads, cd.Constructor)
+			existingOverloads = append(existingOverloads, cd.Constructor)
 		}
+		// Write the modified slice back to the map
+		classInfo.ConstructorOverloads[cd.Constructor.Name.Value] = existingOverloads
 	}
 
 	// Identify destructor (method named "Destroy")
@@ -548,27 +552,34 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 // replaceMethodInOverloadList replaces a method declaration with its implementation in the overload list.
 // Task 9.67: Helper for managing method overloads
 // This function finds a method with matching signature and replaces it, or appends if not found.
+// parametersMatch checks if two parameter lists have matching signatures
+// (same count and same parameter types)
+func parametersMatch(params1, params2 []*ast.Parameter) bool {
+	if len(params1) != len(params2) {
+		return false
+	}
+	for i := range params1 {
+		// Compare parameter types
+		if params1[i].Type != nil && params2[i].Type != nil {
+			if params1[i].Type.Name != params2[i].Type.Name {
+				return false
+			}
+		} else if params1[i].Type != params2[i].Type {
+			// One has type, other doesn't
+			return false
+		}
+	}
+	return true
+}
+
 func (i *Interpreter) replaceMethodInOverloadList(list []*ast.FunctionDecl, impl *ast.FunctionDecl) []*ast.FunctionDecl {
 	// Check if we already have a declaration for this overload signature
 	for idx, decl := range list {
 		// Match by parameter count and types
-		if len(decl.Parameters) == len(impl.Parameters) {
-			// Check if parameter types match
-			match := true
-			for pi := range decl.Parameters {
-				// Compare parameter types (simplified - just comparing names)
-				if decl.Parameters[pi].Type != nil && impl.Parameters[pi].Type != nil {
-					if decl.Parameters[pi].Type.Name != impl.Parameters[pi].Type.Name {
-						match = false
-						break
-					}
-				}
-			}
-			if match {
-				// Replace the declaration with the implementation
-				list[idx] = impl
-				return list
-			}
+		if parametersMatch(decl.Parameters, impl.Parameters) {
+			// Replace the declaration with the implementation
+			list[idx] = impl
+			return list
 		}
 	}
 	// No matching declaration found - append the implementation

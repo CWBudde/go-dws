@@ -277,6 +277,43 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Files**: `internal/semantic/analyze_expressions.go`
   - **Completed**: Already implemented in `analyzeNewExpression`; all visibility tests pass
 
+- [ ] 9.7 Support constructors with custom names (not just "Create") ⚠️ CRITICAL BUG
+  - **Task**: Enable constructors with any name to be called via member access syntax
+  - **Root Cause**: Constructor lookup only works for "Create"; custom names like "CreateWith", "CreateDefault", etc. fail with "requires a helper" error
+  - **Impact**: Blocks any class using non-standard constructor names, common pattern in DWScript
+  - **Implementation**:
+    - **Current Issue**: When analyzing `TExample.CreateWith(42)`:
+      1. Member access on `ClassOfType(TExample)` converts to `ClassType`
+      2. `GetConstructorOverloads("CreateWith")` is called (now with case-insensitive lookup)
+      3. Constructor IS stored with lowercase key "createwith"
+      4. But lookup returns empty - suggests constructor not being registered at all
+    - **Investigation needed**:
+      - Why are constructors with names other than "Create" not being registered?
+      - Check if `analyzeMethodDecl()` is called for all constructors in class declaration
+      - Verify `AddConstructorOverload()` is called for custom-named constructors
+      - Check if there's special-case handling for "Create" that needs generalization
+    - **Fix approach**:
+      - Debug `analyzeMethodDecl()` to ensure all constructors are processed
+      - Verify constructor registration happens regardless of name
+      - Remove any "Create"-specific hardcoding in constructor lookup
+      - Ensure member access properly returns method pointer for all constructors
+    - **Files to check**:
+      - `internal/semantic/analyze_classes.go` (analyzeMethodDecl, analyzeClassDecl)
+      - `internal/types/types.go` (AddConstructorOverload, GetConstructorOverloads)
+      - `internal/semantic/analyze_expressions.go` (analyzeMemberAccessExpression)
+  - **Test**:
+    - `TExample.CreateWith(42)` works
+    - `TExample.CreateDefault()` works
+    - Multiple constructors with different names all work
+    - Case-insensitive: `TExample.CREATEWITH(42)` works
+  - **Test files**:
+    - `internal/semantic/constructor_destructor_test.go::TestConstructorCaseInsensitive`
+    - `internal/semantic/constructor_destructor_test.go::TestConstructorCaseInsensitiveOverloads`
+    - New test: `internal/semantic/constructor_destructor_test.go::TestConstructorCustomNames`
+  - **Status**: Bug discovered during PR review fixes (2025-01-09)
+  - **Priority**: CRITICAL - Likely affects many fixture tests
+  - **Estimated time**: 2-3 days (investigation + fix + testing)
+
 **Milestone**: After completing constructor system, fixture test pass rate should reach ~45-50% (248-276 tests passing)
 
 ---
