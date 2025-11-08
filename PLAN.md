@@ -597,13 +597,14 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Quick Fixes (Trivial, ~0.5 day total)
 
-- [ ] 9.80 Fix boolean capitalization
+- [x] 9.80 Fix boolean capitalization
   - **Task**: Output `True`/`False` instead of `true`/`false`
   - **Implementation**: Change string formatting in boolean conversion
   - **Test**: Boolean output matches DWScript
-  - **Files**: `internal/interp/builtins.go`
+  - **Files**: `internal/interp/value.go`
   - **Estimated time**: 0.1 day
   - **Impact**: Fixes 11 tests
+  - **Completed**: Changed BooleanValue.String() to return "True"/"False"
 
 - [ ] 9.81 Implement SAR operator
   - **Task**: Arithmetic shift right (sign-preserving)

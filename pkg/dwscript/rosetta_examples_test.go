@@ -89,7 +89,7 @@ func TestExitStatementExamples(t *testing.T) {
 		{
 			name:           "ExitStatementFixture",
 			path:           filepath.Join("..", "..", "testdata", "exit_statement", "exit_with_value.dws"),
-			expectedOutput: "false\ntrue\n",
+			expectedOutput: "False\nTrue\n",
 		},
 		{
 			name:               "DeathStarExample",
