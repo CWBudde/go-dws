@@ -98,7 +98,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Root Cause**: Classes without explicit constructors fail with "class 'X' has no member 'Create'" error. DWScript auto-generates default constructors; go-dws does not.
 
-- [ ] 9.1 Implement implicit default constructor generation
+- [x] 9.1 Implement implicit default constructor generation ✅
   - **Task**: Auto-generate parameterless `Create` constructor for classes without explicit constructors
   - **Implementation**:
     - Modify `analyzeClassDeclaration` in `internal/semantic/analyze_classes.go`
@@ -106,10 +106,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - If no constructors exist, synthesize default `Create` constructor
     - Add constructor to class method table with public visibility
   - **Test**: Classes without explicit constructors can be instantiated with `TClass.Create`
-  - **Files**: `internal/semantic/analyze_classes.go`, tests in `internal/semantic/class_test.go`
-  - **Estimated time**: 2-3 days
+  - **Files**: `internal/semantic/analyze_classes.go`, tests in `internal/semantic/constructor_validation_test.go`
+  - **Completed**: Added `synthesizeDefaultConstructor()` function that generates implicit `Create` constructor with public visibility
 
-- [ ] 9.2 Implement constructor inheritance
+- [x] 9.2 Implement constructor inheritance ✅
   - **Task**: Child classes inherit parent constructors if none declared
   - **Implementation**:
     - During class analysis, walk inheritance chain
@@ -118,9 +118,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Update constructor call sites to search inheritance chain
   - **Test**: `type TChild = class(TBase) end; var obj := TChild.Create;` works when only TBase has Create
   - **Files**: `internal/semantic/analyze_classes.go`
-  - **Estimated time**: 2-3 days
+  - **Completed**: Added `inheritParentConstructors()` function that copies accessible constructors from parent to child, excluding private constructors
 
-- [ ] 9.3 Implement constructor overloading
+- [x] 9.3 Implement constructor overloading ✅
   - **Task**: Support multiple constructors with different parameter signatures
   - **Implementation**:
     - Extend overload resolution to handle constructors
@@ -129,8 +129,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Resolve correct overload at call site based on arguments
   - **Test**: Multiple `Create` constructors with different signatures all work
   - **Files**: `internal/semantic/overload_resolution.go`, `internal/interp/objects.go`
-  - **Estimated time**: 2-3 days
-  - **Blocked by**: Task 9.47 (unit test failures)
+  - **Completed**: Constructor overloading already working via existing overload resolution mechanism; tests pass
 
 - [ ] 9.4 Implement virtual constructors
   - **Task**: Support virtual/override on constructors for polymorphic instantiation
@@ -144,7 +143,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Estimated time**: 2-3 days
   - **Related**: Task 9.70 (Metaclasses)
 
-- [ ] 9.5 Fix constructor parameter validation
+- [x] 9.5 Fix constructor parameter validation ✅
   - **Task**: Validate argument count and types at constructor call sites
   - **Implementation**:
     - Add semantic analysis for `NewExpression`
@@ -153,9 +152,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Report clear error messages for mismatches
   - **Test**: Invalid constructor calls fail semantic analysis with helpful errors
   - **Files**: `internal/semantic/analyze_expressions.go`
-  - **Estimated time**: 1-2 days
+  - **Completed**: Already implemented in `analyzeNewExpression`; all validation tests pass
 
-- [ ] 9.6 Enforce constructor visibility
+- [x] 9.6 Enforce constructor visibility ✅
   - **Task**: Private/protected constructors cannot be called from outside class
   - **Implementation**:
     - Check constructor visibility at call site
@@ -164,7 +163,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Report access violation errors
   - **Test**: `TestPrivateConstructorFromOutside` passes
   - **Files**: `internal/semantic/analyze_expressions.go`
-  - **Estimated time**: 1-2 days
+  - **Completed**: Already implemented in `analyzeNewExpression`; all visibility tests pass
 
 **Milestone**: After completing constructor system, fixture test pass rate should reach ~45-50% (248-276 tests passing)
 
