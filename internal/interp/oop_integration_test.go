@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// OOP Integration Tests - Task 7.66
+// OOP Integration Tests
 // Tests combining abstract classes, virtual methods, and visibility modifiers
 // ============================================================================
 

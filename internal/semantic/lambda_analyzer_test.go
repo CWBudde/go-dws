@@ -1026,10 +1026,10 @@ func TestVariadicLambdaInference(t *testing.T) {
 
 func TestOverloadDetectionWithLambdas(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     string
-		expectOk  bool
-		errorMsg  string
+		name     string
+		input    string
+		expectOk bool
+		errorMsg string
 	}{
 		{
 			name: "overloaded function with lambda - should detect and error",

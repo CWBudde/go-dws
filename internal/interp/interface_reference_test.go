@@ -12,7 +12,6 @@ import (
 )
 
 // TestInterfaceReferenceTests runs all ported DWScript interface tests from testdata/interfaces/
-// This implements Task 7.145: Port DWScript interface tests from reference
 func TestInterfaceReferenceTests(t *testing.T) {
 	interfaceDir := filepath.Join("..", "testdata", "interfaces")
 

@@ -25,7 +25,7 @@ func testEvalClassStatic(input string) (Value, string) {
 }
 
 // ============================================================================
-// Class Variables (Static Fields) Tests - Task 7.62
+// Class Variables (Static Fields) Tests
 // ============================================================================
 
 func TestClassVariable(t *testing.T) {
@@ -152,7 +152,7 @@ func TestMultipleClassVariables(t *testing.T) {
 }
 
 // ============================================================================
-// Class Methods (Static Methods) Tests - Task 7.61
+// Class Methods (Static Methods) Tests
 // ============================================================================
 
 func TestClassMethod(t *testing.T) {

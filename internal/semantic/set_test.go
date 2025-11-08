@@ -37,8 +37,6 @@ func TestSetTypeRegistration(t *testing.T) {
 				type TColors = set of TColor;
 			`,
 		},
-		// Note: Set literal type checking is Task 8.101, not Task 8.99
-		// Removed set literal test for now
 	}
 
 	for _, tt := range tests {

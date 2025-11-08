@@ -113,7 +113,7 @@ func NewStaticArrayType(elementType Type, lowBound, highBound int) *ArrayType {
 // RecordType
 // ============================================================================
 
-// RecordPropertyInfo represents a property in a record type (Task 8.53c).
+// RecordPropertyInfo represents a property in a record type
 // Properties provide controlled access to fields.
 // Note: Renamed from PropertyInfo to avoid conflict with class PropertyInfo
 type RecordPropertyInfo struct {
@@ -216,24 +216,24 @@ func (rt *RecordType) GetFieldType(name string) Type {
 	return rt.Fields[name]
 }
 
-// HasMethod checks if the record has a method with the given name (Task 8.53b)
+// HasMethod checks if the record has a method with the given name
 func (rt *RecordType) HasMethod(name string) bool {
 	_, exists := rt.Methods[name]
 	return exists
 }
 
-// GetMethod returns the type of a method, or nil if not found (Task 8.53b)
+// GetMethod returns the type of a method, or nil if not found
 func (rt *RecordType) GetMethod(name string) *FunctionType {
 	return rt.Methods[name]
 }
 
-// HasProperty checks if the record has a property with the given name (Task 8.53c)
+// HasProperty checks if the record has a property with the given name
 func (rt *RecordType) HasProperty(name string) bool {
 	_, exists := rt.Properties[name]
 	return exists
 }
 
-// GetProperty returns the property info, or nil if not found (Task 8.53c)
+// GetProperty returns the property info, or nil if not found
 func (rt *RecordType) GetProperty(name string) *RecordPropertyInfo {
 	return rt.Properties[name]
 }
@@ -249,7 +249,7 @@ func NewRecordType(name string, fields map[string]Type) *RecordType {
 }
 
 // ============================================================================
-// SetType (Task 8.81-8.84, Task 9.8)
+// SetType
 // ============================================================================
 
 // SetStorageKind determines the internal storage strategy for set values.

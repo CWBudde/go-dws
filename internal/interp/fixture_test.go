@@ -106,7 +106,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/PropertyExpressionsPass",
 			expectErrors: false,
 			description:  "Property expressions",
-			skip:         true, // TODO: Re-enable after implementing missing features
+			skip:         true, // Task 9.49: Most tests require unimplemented features (const expr, helpers, etc)
 		},
 		{
 			name:         "InterfacesPass",
@@ -185,7 +185,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/PropertyExpressionsFail",
 			expectErrors: true,
 			description:  "Property expression error cases",
-			skip:         true, // TODO: Re-enable after implementing missing features
+			skip:         true, // Task 9.49: Most tests require unimplemented features (readonly, write expr, etc)
 		},
 		{
 			name:         "InterfacesFail",

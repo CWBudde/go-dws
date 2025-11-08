@@ -63,6 +63,10 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		IsClassProperty: prop.IsClassProperty,
 	}
 
+	// Task 9.49: Register property stub before validating specs
+	// This allows circular reference detection in property expressions
+	classType.Properties[propName] = propInfo
+
 	// Validate read specifier
 	if prop.ReadSpec != nil {
 		a.validateReadSpec(prop, classType, propInfo, indexParamTypes)
@@ -92,8 +96,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		}
 	}
 
-	// Register property in class metadata
-	classType.Properties[propName] = propInfo
+	// Property already registered at the beginning (line 68) for circular reference detection
 }
 
 // validateReadSpec validates the read specifier of a property.
@@ -204,11 +207,43 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	}
 
 	// If expression, validate expression type matches property type
-	// Note: For now, we store the expression as a string. Full expression validation
-	// would require analyzing the expression in the context of the class.
-	// This is a simplified implementation that just marks it as expression-based.
+	// Set up class context for expression analysis to enable implicit self access
+	savedClass := a.currentClass
+	savedInClassMethod := a.inClassMethod
+	savedInPropertyExpr := a.inPropertyExpr
+	savedCurrentProperty := a.currentProperty
+
+	a.currentClass = classType
+	a.inClassMethod = false         // Property expressions are in instance context
+	a.inPropertyExpr = true          // Flag to enable special property expression handling
+	a.currentProperty = propName     // Track current property for circular reference detection
+
+	defer func() {
+		a.currentClass = savedClass
+		a.inClassMethod = savedInClassMethod
+		a.inPropertyExpr = savedInPropertyExpr
+		a.currentProperty = savedCurrentProperty
+	}()
+
+	// Analyze the expression with implicit self context
+	exprType := a.analyzeExpression(prop.ReadSpec)
+	if exprType == nil {
+		// Error already reported by analyzeExpression
+		return
+	}
+
+	// Validate expression type matches property type
+	if !exprType.Equals(propType) {
+		a.addError("property '%s' read expression has type %s, expected %s at %s",
+			propName, exprType.String(), propType.String(),
+			prop.Token.Pos.String())
+		return
+	}
+
+	// Store the expression for runtime evaluation
 	propInfo.ReadKind = types.PropAccessExpression
 	propInfo.ReadSpec = prop.ReadSpec.String()
+	propInfo.ReadExpr = prop.ReadSpec // Store AST node for interpreter
 }
 
 // validateWriteSpec validates the write specifier of a property.

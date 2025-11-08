@@ -325,8 +325,8 @@ func TestDefineOverload_DuplicateSignatureError(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for duplicate signature, got nil")
 	}
-	// Task 9.59: Error message matches DWScript format
-	expectedMsg := "there is already a method with name \"Process\""
+	// Task 9.59: Error message matches DWScript format (Task 9.50: Fixed capitalization)
+	expectedMsg := "There is already a method with name \"Process\""
 	if err.Error() != expectedMsg {
 		t.Fatalf("Wrong error message: got %q, expected %q", err.Error(), expectedMsg)
 	}

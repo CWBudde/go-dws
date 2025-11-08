@@ -27,7 +27,7 @@ type VM struct {
 	exceptionHandlers []exceptionHandler
 	finallyStack      []finallyContext
 	exceptObject      Value
-	output            io.Writer                // Output writer for PrintLn, Print, etc.
+	output            io.Writer                  // Output writer for PrintLn, Print, etc.
 	builtins          map[string]BuiltinFunction // Built-in functions registry
 }
 
@@ -1610,17 +1610,17 @@ func builtinCopy(vm *VM, args []Value) (Value, error) {
 	if !args[1].IsInt() {
 		return NilValue(), vm.runtimeError("Copy expects an integer as second argument")
 	}
-	
+
 	str := args[0].AsString()
 	start := int(args[1].AsInt()) - 1 // DWScript uses 1-based indexing
-	
+
 	if start < 0 {
 		start = 0
 	}
 	if start >= len(str) {
 		return StringValue(""), nil
 	}
-	
+
 	length := len(str) - start
 	if len(args) == 3 {
 		if !args[2].IsInt() {
@@ -1628,11 +1628,11 @@ func builtinCopy(vm *VM, args []Value) (Value, error) {
 		}
 		length = int(args[2].AsInt())
 	}
-	
+
 	if start+length > len(str) {
 		length = len(str) - start
 	}
-	
+
 	return StringValue(str[start : start+length]), nil
 }
 

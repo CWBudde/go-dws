@@ -145,10 +145,11 @@ func (st *SetTypeNode) typeExpressionNode() {}
 //   - class of TObject (metaclass of base class)
 //
 // Usage:
-//   var cls: class of TMyClass;  // cls holds a reference to a class type
-//   cls := TMyClass;              // assign class reference
-//   cls := TDerivedClass;         // can assign derived class
-//   obj := cls.Create;            // call constructor through metaclass
+//
+//	var cls: class of TMyClass;  // cls holds a reference to a class type
+//	cls := TMyClass;              // assign class reference
+//	cls := TDerivedClass;         // can assign derived class
+//	obj := cls.Create;            // call constructor through metaclass
 //
 // Task 9.70: Added to support metaclass type syntax
 type ClassOfTypeNode struct {

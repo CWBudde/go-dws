@@ -293,7 +293,7 @@ func TestNilLiteralContextInference(t *testing.T) {
 			valid: true,
 		},
 		{
-			name: "nil inference without type annotation should fail",
+			name:  "nil inference without type annotation should fail",
 			input: `var obj := nil;`,
 			valid: false,
 		},

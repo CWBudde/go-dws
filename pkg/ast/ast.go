@@ -430,10 +430,10 @@ func (nl *NilLiteral) SetType(typ *TypeAnnotation) { nl.Type = typ }
 // wrapper at runtime. The semantic analyzer validates that the object's class
 // implements the target interface.
 type AsExpression struct {
-	Left       Expression     // The object being cast
-	TargetType TypeExpression // The target interface type
+	Left       Expression      // The object being cast
+	TargetType TypeExpression  // The target interface type
 	Type       *TypeAnnotation // Resolved type (will be the interface type)
-	Token      token.Token    // The 'as' token
+	Token      token.Token     // The 'as' token
 	EndPos     token.Position
 }
 
@@ -467,10 +467,10 @@ func (ae *AsExpression) SetType(typ *TypeAnnotation) { ae.Type = typ }
 // Can be used at compile-time (TClass implements IInterface) or runtime
 // (objInstance implements IInterface).
 type ImplementsExpression struct {
-	Left       Expression     // The object or class being checked
-	TargetType TypeExpression // The interface type to check against
+	Left       Expression      // The object or class being checked
+	TargetType TypeExpression  // The interface type to check against
 	Type       *TypeAnnotation // Always resolves to Boolean
-	Token      token.Token    // The 'implements' token
+	Token      token.Token     // The 'implements' token
 	EndPos     token.Position
 }
 

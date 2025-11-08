@@ -39,7 +39,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	// Create new class type
 	classType := types.NewClassType(className, parentClass)
 
-	// Set abstract flag (Task 7.65e)
+	// Set abstract flag
 	classType.IsAbstract = decl.IsAbstract
 
 	// Set external flags
@@ -69,13 +69,13 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		return
 	}
 
-	// Analyze and add fields (Task 7.55, 7.62)
+	// Analyze and add fields
 	fieldNames := make(map[string]bool)
 	classVarNames := make(map[string]bool)
 	for _, field := range decl.Fields {
 		fieldName := field.Name.Value
 
-		// Check if this is a class variable (static field) - Task 7.62
+		// Check if this is a class variable (static field)
 		if field.IsClassVar {
 			// Check for duplicate class variable names
 			if classVarNames[fieldName] {
@@ -100,7 +100,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 				continue
 			}
 
-			// Store class variable type in ClassType - Task 7.62
+			// Store class variable type in ClassType
 			classType.ClassVars[fieldName] = fieldType
 		} else {
 			// Instance field
@@ -130,12 +130,12 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			// Add instance field to class
 			classType.Fields[fieldName] = fieldType
 
-			// Store field visibility (Task 7.63f)
+			// Store field visibility
 			classType.FieldVisibility[fieldName] = int(field.Visibility)
 		}
 	}
 
-	// Analyze and add constants (Task 9.21)
+	// Analyze and add constants
 	constantNames := make(map[string]bool)
 	for _, constant := range decl.Constants {
 		constantName := constant.Name.Value
@@ -195,7 +195,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		}
 	}
 
-	// Analyze properties (Task 8.46-8.51)
+	// Analyze properties
 	// Properties are analyzed after methods so they can reference both fields and methods
 	for _, property := range decl.Properties {
 		a.analyzePropertyDecl(property, classType)
@@ -218,7 +218,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	a.validateAbstractClass(classType, decl)
 }
 
-// analyzeMethodImplementation analyzes a method implementation outside a class (Task 7.63v-z)
+// analyzeMethodImplementation analyzes a method implementation outside a class
 // This handles code like: function TExample.GetValue: Integer; begin ... end;
 func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
 	className := decl.ClassName.Value
@@ -445,13 +445,13 @@ func (a *Analyzer) synthesizeDefaultConstructor(classType *types.ClassType) {
 
 	// Create function type: no parameters, returns the class type
 	funcType := types.NewFunctionTypeWithMetadata(
-		[]types.Type{},      // No parameters
-		[]string{},          // No parameter names
-		[]interface{}{},     // No default values
-		[]bool{},            // No lazy params
-		[]bool{},            // No var params
-		[]bool{},            // No const params
-		classType,           // Returns instance of the class
+		[]types.Type{},  // No parameters
+		[]string{},      // No parameter names
+		[]interface{}{}, // No default values
+		[]bool{},        // No lazy params
+		[]bool{},        // No var params
+		[]bool{},        // No const params
+		classType,       // Returns instance of the class
 	)
 
 	// Create method info for the implicit constructor
@@ -471,7 +471,7 @@ func (a *Analyzer) synthesizeDefaultConstructor(classType *types.ClassType) {
 	classType.AddConstructorOverload(constructorName, methodInfo)
 }
 
-// analyzeMethodDecl analyzes a method declaration within a class (Task 7.56, 7.61)
+// analyzeMethodDecl analyzes a method declaration within a class
 func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.ClassType) {
 	// Convert parameter types and extract metadata
 	// Task 9.21.4.3: Extract parameter metadata including variadic detection
@@ -626,7 +626,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		classType.ForwardedMethods[method.Name.Value] = true
 	}
 
-	// Store method visibility (Task 7.63f)
+	// Store method visibility
 	// Only set visibility if this is the first time we're seeing this method (declaration in class body)
 	// Method implementations outside the class shouldn't overwrite the visibility
 	if _, exists := classType.MethodVisibility[method.Name.Value]; !exists {
@@ -802,7 +802,7 @@ func (a *Analyzer) checkMethodOverriding(class, parent *types.ClassType) {
 	}
 }
 
-// checkVisibility checks if a member (field or method) is accessible from the current context (Task 7.63g-l).
+// checkVisibility checks if a member (field or method) is accessible from the current context
 // Returns true if accessible, false otherwise.
 //
 // Visibility rules:
@@ -816,7 +816,7 @@ func (a *Analyzer) checkMethodOverriding(class, parent *types.ClassType) {
 //   - memberName: the name of the member (for error messages)
 //   - memberType: "field" or "method" (for error messages)
 func (a *Analyzer) checkVisibility(memberClass *types.ClassType, visibility int, _, _ string) bool {
-	// Public is always accessible (Task 7.63i)
+	// Public is always accessible
 	if visibility == int(ast.VisibilityPublic) {
 		return true
 	}
@@ -826,12 +826,12 @@ func (a *Analyzer) checkVisibility(memberClass *types.ClassType, visibility int,
 		return false
 	}
 
-	// Private members are only accessible from the same class (Task 7.63g, 7.63l)
+	// Private members are only accessible from the same class
 	if visibility == int(ast.VisibilityPrivate) {
 		return a.currentClass.Name == memberClass.Name
 	}
 
-	// Protected members are accessible from the same class and descendants (Task 7.63h)
+	// Protected members are accessible from the same class and descendants
 	if visibility == int(ast.VisibilityProtected) {
 		// Same class?
 		if a.currentClass.Name == memberClass.Name {
@@ -846,7 +846,7 @@ func (a *Analyzer) checkVisibility(memberClass *types.ClassType, visibility int,
 	return false
 }
 
-// analyzeNewExpression analyzes object creation (Task 7.57, 7.65f, Task 9.18)
+// analyzeNewExpression analyzes object creation
 // Handles both:
 //   - new TClass(args)
 //   - TClass.Create(args)
@@ -1070,7 +1070,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up field in class (including inherited fields)
 	fieldType, found := classType.GetField(memberName)
 	if found {
-		// Check field visibility (Task 7.63j)
+		// Check field visibility
 		fieldOwner := a.getFieldOwner(classType, memberName)
 		if fieldOwner != nil {
 			visibility, hasVisibility := fieldOwner.FieldVisibility[memberName]
@@ -1122,7 +1122,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up method in class (for method references)
 	methodType, found := classType.GetMethod(memberName)
 	if found {
-		// Check method visibility (Task 7.63k)
+		// Check method visibility
 		methodOwner := a.getMethodOwner(classType, memberName)
 		if methodOwner != nil {
 			visibility, hasVisibility := methodOwner.MethodVisibility[memberName]
@@ -1182,8 +1182,8 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 // ============================================================================
 
 // validateAbstractClass validates abstract class rules:
-// 1. Abstract methods can only exist in abstract classes (Task 7.65i)
-// 2. Concrete classes must implement all inherited abstract methods (Task 7.65g)
+// 1. Abstract methods can only exist in abstract classes
+// 2. Concrete classes must implement all inherited abstract methods
 // 3. Abstract methods are implicitly virtual
 func (a *Analyzer) validateAbstractClass(classType *types.ClassType, decl *ast.ClassDecl) {
 	// Rule 1: Abstract methods can only exist in abstract classes

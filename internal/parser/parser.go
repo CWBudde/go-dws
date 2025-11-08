@@ -63,9 +63,9 @@ var precedences = map[lexer.TokenType]int{
 	lexer.AND:        AND,
 	lexer.EQ:         EQUALS,
 	lexer.NOT_EQ:     EQUALS,
-	lexer.IN:         EQUALS,         // Set membership test
-	lexer.AS:         EQUALS,         // Type casting: obj as IInterface
-	lexer.IMPLEMENTS: EQUALS,         // Interface check: obj implements IInterface
+	lexer.IN:         EQUALS, // Set membership test
+	lexer.AS:         EQUALS, // Type casting: obj as IInterface
+	lexer.IMPLEMENTS: EQUALS, // Interface check: obj implements IInterface
 	lexer.LESS:       LESSGREATER,
 	lexer.GREATER:    LESSGREATER,
 	lexer.LESS_EQ:    LESSGREATER,
@@ -161,8 +161,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(lexer.AND, p.parseInfixExpression)
 	p.registerInfix(lexer.OR, p.parseInfixExpression)
 	p.registerInfix(lexer.XOR, p.parseInfixExpression)
-	p.registerInfix(lexer.IN, p.parseInfixExpression)         // Set membership test
-	p.registerInfix(lexer.AS, p.parseAsExpression)            // Type casting: obj as IInterface
+	p.registerInfix(lexer.IN, p.parseInfixExpression)              // Set membership test
+	p.registerInfix(lexer.AS, p.parseAsExpression)                 // Type casting: obj as IInterface
 	p.registerInfix(lexer.IMPLEMENTS, p.parseImplementsExpression) // Interface check: obj implements IInterface
 	p.registerInfix(lexer.DOT, p.parseMemberAccess)
 

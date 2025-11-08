@@ -1723,7 +1723,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	if method.IsConstructor {
 		// For virtual constructor dispatch, find the constructor in the object's runtime class
 		// Start from the runtime class and work up the hierarchy to find the most derived constructor
-		actualConstructor := method  // fallback to the already-resolved method
+		actualConstructor := method // fallback to the already-resolved method
 
 		// Try to find a constructor with the same name in the runtime class hierarchy
 		// This implements virtual dispatch - we start from the most derived class
@@ -1745,7 +1745,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				}
 			}
 			if found {
-				break  // Found a constructor
+				break // Found a constructor
 			}
 		}
 

@@ -420,8 +420,8 @@ type ClassType struct {
 	ForwardedMethods     map[string]bool
 	Fields               map[string]Type
 	ClassVars            map[string]Type
-	Constants            map[string]interface{} // Class constants (Task 9.20-9.22)
-	ConstantVisibility   map[string]int          // Visibility for class constants
+	Constants            map[string]interface{}   // Class constants (Task 9.20-9.22)
+	ConstantVisibility   map[string]int           // Visibility for class constants
 	Methods              map[string]*FunctionType // Primary method signature (first or only overload)
 	MethodOverloads      map[string][]*MethodInfo // All overload variants (Task 9.61)
 	FieldVisibility      map[string]int
@@ -758,8 +758,9 @@ func (ct *ClassOfType) Equals(other Type) bool {
 // - "class of TDog" can only hold TDog or classes derived from TDog
 //
 // This is used for type checking metaclass assignments like:
-//   var cls: class of TAnimal;
-//   cls := TDog;  // Valid if TDog derives from TAnimal
+//
+//	var cls: class of TAnimal;
+//	cls := TDog;  // Valid if TDog derives from TAnimal
 func (ct *ClassOfType) IsAssignableFrom(classType *ClassType) bool {
 	if ct.ClassType == nil || classType == nil {
 		return false
@@ -905,7 +906,7 @@ func GetAllInterfaceMethods(iface *InterfaceType) map[string]*FunctionType {
 // - Numeric coercion (Integer -> Float)
 // - Subclass to superclass (covariance)
 // - Class to interface (if class implements the interface)
-// - Interface to interface (if source is subinterface of target) - Task 7.79
+// - Interface to interface (if source is subinterface of target)
 func IsAssignableFrom(target, source Type) bool {
 	// Exact match
 	if target.Equals(source) {

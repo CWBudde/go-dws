@@ -745,3 +745,160 @@ end;
 		t.Errorf("Version property should be read-only (WriteKind=PropAccessNone), got %v", versionProp.WriteKind)
 	}
 }
+
+// ============================================================================
+// Property Expression Validation Tests (Task 9.49)
+// ============================================================================
+
+// TestPropertyExpressionValidation tests property expressions with implicit self access
+func TestPropertyExpressionValidation(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "property expression with field reference",
+			input: `
+type TTest = class
+	Field: Integer;
+	property Double: Integer read (Field * 2);
+end;`,
+		},
+		{
+			name: "property expression with multiple fields",
+			input: `
+type TRect = class
+	FWidth: Integer;
+	FHeight: Integer;
+	property Area: Integer read (FWidth * FHeight);
+end;`,
+		},
+		{
+			name: "property expression with arithmetic",
+			input: `
+type TTest = class
+	FValue: Integer;
+	property PlusOne: Integer read (FValue + 1);
+	property MinusOne: Integer read (FValue - 1);
+	property TimesTwo: Integer read (FValue * 2);
+	property DivTwo: Integer read (FValue div 2);
+end;`,
+		},
+		{
+			name: "property expression with property reference",
+			input: `
+type TTest = class
+	FValue: Integer;
+	property Value: Integer read FValue;
+	property DoubleValue: Integer read (Value * 2);
+end;`,
+		},
+		{
+			name: "property expression with nested property references",
+			input: `
+type TTest = class
+	FValue: Integer;
+	property Value: Integer read FValue;
+	property DoubleValue: Integer read (Value * 2);
+	property QuadValue: Integer read (DoubleValue * 2);
+end;`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+
+			if len(p.Errors()) != 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			analyzer := NewAnalyzer()
+			err := analyzer.Analyze(program)
+
+			if err != nil {
+				t.Errorf("unexpected semantic error: %v", err)
+			}
+		})
+	}
+}
+
+// TestPropertyExpressionErrors tests various error cases in property expressions
+func TestPropertyExpressionErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name: "property expression with undefined identifier",
+			input: `
+type TTest = class
+	property Value: Integer read (UndefinedField * 2);
+end;`,
+			expectedError: "undefined variable 'UndefinedField'",
+		},
+		{
+			name: "property expression with type mismatch",
+			input: `
+type TTest = class
+	FName: String;
+	property BadValue: Integer read (FName * 2);
+end;`,
+			expectedError: "arithmetic operator * requires numeric operands",
+		},
+		{
+			name: "property expression circular reference",
+			input: `
+type TTest = class
+	property Value: Integer read (Value * 2);
+end;`,
+			expectedError: "cannot be read-accessed",
+		},
+		{
+			name: "property expression indirect circular reference",
+			input: `
+type TTest = class
+	property A: Integer read (B + 1);
+	property B: Integer read (A + 1);
+end;`,
+			expectedError: "undefined variable",
+		},
+		{
+			name: "property expression with wrong return type",
+			input: `
+type TTest = class
+	FValue: Integer;
+	property StringValue: String read (FValue * 2);
+end;`,
+			expectedError: "read expression has type Integer, expected String",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+
+			if len(p.Errors()) != 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			analyzer := NewAnalyzer()
+			err := analyzer.Analyze(program)
+
+			if err == nil {
+				t.Errorf("expected error containing '%s', got no error", tt.expectedError)
+				return
+			}
+
+			errMsg := err.Error()
+			if !strings.Contains(errMsg, tt.expectedError) {
+				t.Errorf("expected error containing '%s', got '%s'", tt.expectedError, errMsg)
+			}
+		})
+	}
+}

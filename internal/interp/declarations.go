@@ -143,7 +143,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 		// Check if this is a class variable (static field) or instance field
 		if field.IsClassVar {
-			// Initialize class variable with default value based on type - Task 7.62
+			// Initialize class variable with default value based on type
 			var defaultValue Value
 			switch fieldType {
 			case types.INTEGER:
@@ -169,7 +169,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	for _, method := range cd.Methods {
 		// Check if this is a class method (static method) or instance method
 		if method.IsClassMethod {
-			// Store in ClassMethods map - Task 7.61
+			// Store in ClassMethods map
 			classInfo.ClassMethods[method.Name.Value] = method
 			// Add to overload list
 			classInfo.ClassMethodOverloads[method.Name.Value] = append(classInfo.ClassMethodOverloads[method.Name.Value], method)
