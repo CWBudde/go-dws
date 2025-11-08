@@ -184,6 +184,72 @@ Function call argument analysis was updated to use `analyzeExpressionWithExpecte
   - ✓ "incompatible explicit parameter type" test
   - ✓ "incompatible return type" tests
 
+### Constructor Semantic Validation (Task 9.82 completion)
+
+**Goal**: Implement semantic analyzer validation for constructor calls to match DWScript semantics
+
+- [ ] 9.13: Constructor overload resolution in semantic analyzer
+  - Implement case-insensitive constructor name lookup in `analyzeMemberAccessExpression`
+  - Support `TClass.Create` (without parentheses) as valid constructor reference
+  - Validate constructor overload selection based on argument types
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_test.go`
+  - **Estimated time**: 2-3 hours
+
+- [ ] 9.14: Constructor parameter type validation
+  - Validate argument types match constructor parameter types
+  - Support implicit type conversions (Integer to Float, etc.)
+  - Report clear error messages: "has type String, expected Integer"
+  - Handle overloaded constructors with different parameter types
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_destructor_test.go`
+  - **Estimated time**: 2-3 hours
+
+- [ ] 9.15: Constructor parameter count validation
+  - Validate argument count matches parameter count for each overload
+  - Report error: "constructor 'Create' expects 1 arguments, got 0"
+  - Handle implicit parameterless constructor (allow 0 args even if only parameterized constructors exist)
+  - Special case: `TClass.Create` without parentheses → 0 arguments
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_destructor_test.go`
+  - **Estimated time**: 2 hours
+
+- [ ] 9.16: Constructor visibility enforcement
+  - Validate constructor access based on visibility (private/protected/public)
+  - Error for private constructor from outside: "cannot access private constructor 'Create'"
+  - Protected constructors accessible from derived classes only
+  - Public constructors accessible from anywhere
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_destructor_test.go`
+  - **Estimated time**: 3-4 hours
+
+- [ ] 9.17: Constructor context validation
+  - Ensure constructors are only called via `TClass.Create(...)` or `new TClass(...)`
+  - Validate constructor declarations are within class definitions
+  - Check constructors don't have explicit return types (use class type implicitly)
+  - Validate `overload` keyword usage with constructors
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/constructor_test.go`
+  - **Estimated time**: 2 hours
+
+- [ ] 9.18: NewExpression semantic validation
+  - Validate `new TClass(...)` syntax in semantic analyzer
+  - Ensure class exists and is not abstract
+  - Validate constructor arguments match available constructors
+  - Handle case-insensitive class name lookup
+  - **Files**: `internal/semantic/analyze_expressions.go`, `internal/semantic/constructor_test.go`
+  - **Estimated time**: 2 hours
+
+- [ ] 9.19: Reserved for future use
+
+- [ ] 9.20: Reserved for future use
+
+- [ ] 9.21: Constructor validation comprehensive test suite
+  - Test all constructor overload scenarios
+  - Test all visibility combinations (private/protected/public)
+  - Test error cases (wrong types, wrong count, wrong visibility)
+  - Test case-insensitive constructor and class name handling
+  - Test implicit parameterless constructor behavior
+  - **Files**: `internal/semantic/constructor_validation_test.go`
+  - **Estimated time**: 3-4 hours
+
+**Total estimated time for constructor validation**: 16-21 hours
+
 **Files modified**: (same as Task 9.19)
 - `internal/semantic/analyze_builtins.go` (3 call sites updated)
 - `internal/semantic/lambda_analyzer_test.go` (includes function call tests)
