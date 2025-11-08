@@ -197,6 +197,31 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
 - Call stack tracking for accurate stack traces in exceptions
 - See `internal/interp/recursion_test.go` for comprehensive test cases
 
+**Function/Method Overloading** (Tasks 9.40-9.72):
+- Functions, procedures, methods, and constructors can be overloaded
+- All overloaded declarations must use the `overload` directive
+- Overloads distinguished by: parameter count, types, and modifiers (var/const/lazy)
+- Return types alone cannot distinguish overloads (ambiguous)
+- Forward declarations and implementations must have matching signatures (including default parameters)
+- Resolution at compile-time based on argument types
+- Example:
+  ```pascal
+  function Max(a, b: Integer): Integer; overload;
+  begin
+    if a > b then Result := a else Result := b;
+  end;
+
+  function Max(a, b: Float): Float; overload;
+  begin
+    if a > b then Result := a else Result := b;
+  end;
+
+  PrintLn(Max(1, 2));      // Calls Integer version
+  PrintLn(Max(1.5, 2.3));  // Calls Float version
+  ```
+- See `testdata/fixtures/OverloadsPass/` for comprehensive examples
+- See `internal/semantic/overload_resolution.go` for resolution algorithm
+
 ### Testing Philosophy
 
 The project maintains high test coverage (>90% for lexer, >80% for parser) and includes the complete DWScript test suite (~2,100 tests in `testdata/fixtures/`). When adding features:
