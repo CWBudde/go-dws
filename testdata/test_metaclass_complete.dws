@@ -1,0 +1,121 @@
+// Comprehensive metaclass integration test
+// Tests: 9.73.7.1-9.73.7.4
+
+type
+  TBase = class
+    FValue: Integer;
+    constructor Create; virtual;
+    constructor CreateWithValue(AValue: Integer); virtual;
+    function GetValue: Integer;
+  end;
+
+type
+  TChild = class(TBase)
+    constructor Create; override;
+    constructor CreateWithValue(AValue: Integer); override;
+  end;
+
+type TBaseClass = class of TBase;
+
+constructor TBase.Create;
+begin
+  FValue := 100;
+  PrintLn('TBase.Create called');
+end;
+
+constructor TBase.CreateWithValue(AValue: Integer);
+begin
+  FValue := AValue;
+  PrintLn('TBase.CreateWithValue(' + IntToStr(AValue) + ') called');
+end;
+
+function TBase.GetValue: Integer;
+begin
+  Result := FValue;
+end;
+
+constructor TChild.Create;
+begin
+  inherited;
+  FValue := 200;
+  PrintLn('TChild.Create called');
+end;
+
+constructor TChild.CreateWithValue(AValue: Integer);
+begin
+  inherited CreateWithValue(AValue);
+  PrintLn('TChild.CreateWithValue(' + IntToStr(AValue) + ') called');
+end;
+
+var
+  meta: TBaseClass;
+  obj: TBase;
+
+// Test 9.73.7.1: Metaclass variable declaration and assignment
+PrintLn('=== Test 1: Variable Declaration and Assignment ===');
+meta := TBase;
+PrintLn('meta := TBase - OK');
+
+meta := TChild;
+PrintLn('meta := TChild - OK');
+
+meta := nil;
+PrintLn('meta := nil - OK');
+
+// Test 9.73.7.2: Metaclass constructor dispatch
+PrintLn('');
+PrintLn('=== Test 2: Constructor Dispatch ===');
+
+meta := TBase;
+obj := meta.Create;
+PrintLn('obj.GetValue() = ' + IntToStr(obj.GetValue()));
+
+meta := TChild;
+obj := meta.Create;
+PrintLn('obj.GetValue() = ' + IntToStr(obj.GetValue()));
+
+// Test 9.73.7.3: Metaclass with constructor parameters
+PrintLn('');
+PrintLn('=== Test 3: Constructor with Parameters ===');
+
+meta := TBase;
+obj := meta.CreateWithValue(42);
+PrintLn('obj.GetValue() = ' + IntToStr(obj.GetValue()));
+
+meta := TChild;
+obj := meta.CreateWithValue(99);
+PrintLn('obj.GetValue() = ' + IntToStr(obj.GetValue()));
+
+// Test 9.73.7.4: Metaclass comparison operators
+PrintLn('');
+PrintLn('=== Test 4: Comparison Operators ===');
+
+meta := TBase;
+if meta = TBase then
+  PrintLn('meta = TBase: True')
+else
+  PrintLn('meta = TBase: False');
+
+if meta = TChild then
+  PrintLn('meta = TChild: True')
+else
+  PrintLn('meta = TChild: False');
+
+if meta <> TChild then
+  PrintLn('meta <> TChild: True')
+else
+  PrintLn('meta <> TChild: False');
+
+meta := TChild;
+if meta = TChild then
+  PrintLn('meta = TChild: True')
+else
+  PrintLn('meta = TChild: False');
+
+if meta <> TBase then
+  PrintLn('meta <> TBase: True')
+else
+  PrintLn('meta <> TBase: False');
+
+PrintLn('');
+PrintLn('=== All Tests Complete ===');
