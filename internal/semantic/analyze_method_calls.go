@@ -16,6 +16,15 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 	methodName := expr.Method.Value
 
+	// Task 9.7: Handle metaclass type (class of T) for constructor calls
+	// When we have TExample.CreateWith(...), TExample has type ClassOfType(TExample)
+	// We need to unwrap to ClassType(TExample) to look up constructors
+	if metaclassType, ok := objectType.(*types.ClassOfType); ok {
+		if metaclassType.ClassType != nil {
+			objectType = metaclassType.ClassType
+		}
+	}
+
 	// Check if object is an interface type
 	if interfaceType, ok := objectType.(*types.InterfaceType); ok {
 		// Look up method in interface (including inherited methods from parent interfaces)
