@@ -162,6 +162,22 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		p.parseClassParentAndInterfaces(classDecl)
 	}
 
+	// Check for short-form class declaration: type TChild = class(TParent);
+	// If we have a semicolon right after the parent specification, this is a
+	// short-form declaration (no body). This is equivalent to inheriting from
+	// the parent without adding any new members.
+	if p.peekTokenIs(lexer.SEMICOLON) {
+		p.nextToken() // move to semicolon
+		classDecl.EndPos = p.endPosFromToken(p.curToken)
+		// Initialize empty collections for consistency
+		classDecl.Fields = []*ast.FieldDecl{}
+		classDecl.Methods = []*ast.FunctionDecl{}
+		classDecl.Operators = []*ast.OperatorDecl{}
+		classDecl.Properties = []*ast.PropertyDecl{}
+		classDecl.Constants = []*ast.ConstDecl{}
+		return classDecl
+	}
+
 	// Parse class body (fields and methods) until 'end'
 	p.nextToken() // move past 'class' or ')' or 'abstract' or 'external' or external name
 
