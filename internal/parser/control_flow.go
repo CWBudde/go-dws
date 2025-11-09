@@ -2,10 +2,23 @@ package parser
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
+
+// isNilStatement checks if a statement is nil, including typed nils.
+// In Go, an interface can contain a nil pointer but not be nil itself,
+// which causes issues when calling methods on the interface.
+func isNilStatement(stmt ast.Statement) bool {
+	if stmt == nil {
+		return true
+	}
+	// Use reflection to check if the underlying value is nil
+	v := reflect.ValueOf(stmt)
+	return v.Kind() == reflect.Ptr && v.IsNil()
+}
 
 // parseBreakStatement parses a break statement.
 // Syntax: break;
@@ -146,7 +159,7 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 	p.nextToken()
 	stmt.Body = p.parseStatement()
 
-	if stmt.Body == nil {
+	if isNilStatement(stmt.Body) {
 		p.addError("expected statement after 'do'", ErrInvalidSyntax)
 		return nil
 	}
@@ -314,7 +327,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 	p.nextToken()
 	stmt.Body = p.parseStatement()
 
-	if stmt.Body == nil {
+	if isNilStatement(stmt.Body) {
 		p.addError("expected statement after 'do'", ErrInvalidSyntax)
 		return nil
 	}
@@ -357,7 +370,7 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 	p.nextToken()
 	stmt.Body = p.parseStatement()
 
-	if stmt.Body == nil {
+	if isNilStatement(stmt.Body) {
 		p.addError("expected statement after 'do'", ErrInvalidSyntax)
 		return nil
 	}
