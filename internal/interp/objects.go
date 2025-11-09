@@ -187,6 +187,9 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 			i.env.Define(constructor.Name.Value, obj)
 		}
 
+		// Task 9.73: Bind __CurrentClass__ so ClassName can be accessed in constructor
+		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
+
 		// Execute constructor body
 		result := i.Eval(constructor.Body)
 		if isError(result) {
@@ -378,6 +381,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 	if classInfo != nil {
 		memberName := ma.Member.Value
+
+		// Task 9.73: Check for ClassName property in class/metaclass context (case-insensitive)
+		if strings.EqualFold(memberName, "ClassName") {
+			return &StringValue{Value: classInfo.Name}
+		}
 
 		// Try class variables first
 		if classVarValue, exists := classInfo.ClassVars[memberName]; exists {
@@ -1692,6 +1700,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			}
 			i.env.Define(param.Name.Value, arg)
 		}
+
+		// Task 9.73: Bind __CurrentClass__ so ClassName can be accessed in constructor
+		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
 
 		// Execute constructor body
 		result := i.Eval(constructor.Body)
