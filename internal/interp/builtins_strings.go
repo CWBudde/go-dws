@@ -251,12 +251,13 @@ func (i *Interpreter) builtinStringOfChar(args []Value) Value {
 
 	// Extract the first character from the string
 	// If the string is empty, return empty string
-	if len(charVal.Value) == 0 {
+	if runeLength(charVal.Value) == 0 {
 		return &StringValue{Value: ""}
 	}
 
-	// Get the first character
-	ch := charVal.Value[0:1]
+	// Get the first character (rune-based to handle UTF-8)
+	firstRune, _ := runeAt(charVal.Value, 1)
+	ch := string(firstRune)
 
 	// Use strings.Repeat to create the repeated string
 	result := strings.Repeat(ch, count)
@@ -452,28 +453,8 @@ func (i *Interpreter) builtinInsert(args []ast.Expression) Value {
 	target := targetStr.Value
 	source := sourceStr.Value
 
-	// Handle edge cases for position
-	// If pos < 1, insert at beginning
-	// If pos > length, insert at end
-	if pos < 1 {
-		pos = 1
-	}
-	if pos > len(target)+1 {
-		pos = len(target) + 1
-	}
-
-	// Build new string by inserting source at position (1-based)
-	// Convert to 0-based for Go string slicing
-	insertPos := pos - 1
-
-	var newStr string
-	if insertPos <= 0 {
-		newStr = source + target
-	} else if insertPos >= len(target) {
-		newStr = target + source
-	} else {
-		newStr = target[:insertPos] + source + target[insertPos:]
-	}
+	// Use rune-based insertion to handle UTF-8 correctly
+	newStr := runeInsert(source, target, pos)
 
 	// Update the target variable with the new string
 	newValue := &StringValue{Value: newStr}
@@ -536,35 +517,8 @@ func (i *Interpreter) builtinDeleteString(args []ast.Expression) Value {
 	count := int(countInt.Value)
 	str := strVal.Value
 
-	// Handle edge cases
-	// If pos < 1 or pos > length, do nothing (no-op)
-	// If count <= 0, do nothing (no-op)
-	if pos < 1 || pos > len(str) || count <= 0 {
-		// No modification needed
-		return &NilValue{}
-	}
-
-	// Convert to 0-based index
-	startPos := pos - 1
-
-	// Calculate end position, clamping to string length
-	endPos := startPos + count
-	if endPos > len(str) {
-		endPos = len(str)
-	}
-
-	// Build new string by removing the substring
-	var newStr string
-	if startPos == 0 {
-		// Delete from beginning
-		newStr = str[endPos:]
-	} else if endPos >= len(str) {
-		// Delete to end
-		newStr = str[:startPos]
-	} else {
-		// Delete middle section
-		newStr = str[:startPos] + str[endPos:]
-	}
+	// Use rune-based deletion to handle UTF-8 correctly
+	newStr := runeDelete(str, pos, count)
 
 	// Update the string variable with the new value
 	newValue := &StringValue{Value: newStr}

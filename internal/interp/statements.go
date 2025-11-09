@@ -1375,9 +1375,11 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 	case *StringValue:
 		// Iterate over string characters
 		// Each character becomes a single-character string
-		for idx := 0; idx < len(col.Value); idx++ {
+		// Use runes to handle UTF-8 correctly
+		runes := []rune(col.Value)
+		for idx := 0; idx < len(runes); idx++ {
 			// Create a single-character string for this iteration
-			charVal := &StringValue{Value: string(col.Value[idx])}
+			charVal := &StringValue{Value: string(runes[idx])}
 
 			// Assign the character to the loop variable
 			i.env.Define(loopVarName, charVal)
@@ -1665,11 +1667,12 @@ func (i *Interpreter) isInRange(value, start, end Value) bool {
 		// For strings, compare character by character
 		startStr, startOk := start.(*StringValue)
 		endStr, endOk := end.(*StringValue)
-		if startOk && endOk && len(v.Value) == 1 && len(startStr.Value) == 1 && len(endStr.Value) == 1 {
+		// Use rune-based comparison to handle UTF-8 correctly
+		if startOk && endOk && runeLength(v.Value) == 1 && runeLength(startStr.Value) == 1 && runeLength(endStr.Value) == 1 {
 			// Single character comparison (for 'A'..'Z' style ranges)
-			charVal := v.Value[0]
-			charStart := startStr.Value[0]
-			charEnd := endStr.Value[0]
+			charVal, _ := runeAt(v.Value, 1)
+			charStart, _ := runeAt(startStr.Value, 1)
+			charEnd, _ := runeAt(endStr.Value, 1)
 			return charVal >= charStart && charVal <= charEnd
 		}
 		// Fall back to string comparison for multi-char strings

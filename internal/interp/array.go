@@ -252,13 +252,18 @@ func (i *Interpreter) indexArray(arr *ArrayValue, index int, expr *ast.IndexExpr
 // indexString performs string indexing (returns a single-character string).
 func (i *Interpreter) indexString(str *StringValue, index int, expr *ast.IndexExpression) Value {
 	// DWScript strings are 1-indexed
-	if index < 1 || index > len(str.Value) {
-		return i.newErrorWithLocation(expr, "string index out of bounds: %d (string length is %d)", index, len(str.Value))
+	// Use rune-based indexing to handle UTF-8 correctly
+	strLen := runeLength(str.Value)
+	if index < 1 || index > strLen {
+		return i.newErrorWithLocation(expr, "string index out of bounds: %d (string length is %d)", index, strLen)
 	}
 
-	// Convert to 0-based index
-	char := string(str.Value[index-1])
-	return &StringValue{Value: char}
+	// Get the character at the given position
+	char, ok := runeAt(str.Value, index)
+	if !ok {
+		return i.newErrorWithLocation(expr, "string index out of bounds: %d", index)
+	}
+	return &StringValue{Value: string(char)}
 }
 
 // indexJSON performs JSON value indexing.

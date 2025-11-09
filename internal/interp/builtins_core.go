@@ -144,8 +144,8 @@ func (i *Interpreter) builtinLength(args []Value) Value {
 
 	// Handle string values
 	if strVal, ok := arg.(*StringValue); ok {
-		// Return the number of characters in the string
-		return &IntegerValue{Value: int64(len(strVal.Value))}
+		// Return the number of characters in the string (not byte length)
+		return &IntegerValue{Value: int64(runeLength(strVal.Value))}
 	}
 
 	return i.newErrorWithLocation(i.currentNode, "Length() expects array or string, got %s", arg.Type())
@@ -191,36 +191,8 @@ func (i *Interpreter) builtinCopy(args []Value) Value {
 	index := indexVal.Value // 1-based
 	count := countVal.Value
 
-	// Handle edge cases
-	// If index is <= 0, return empty string (1-based indexing, so 0 and negative are invalid)
-	if index <= 0 {
-		return &StringValue{Value: ""}
-	}
-
-	// If count is <= 0, return empty string
-	if count <= 0 {
-		return &StringValue{Value: ""}
-	}
-
-	// Convert to 0-based index for Go
-	startIdx := int(index - 1)
-
-	// If start index is beyond string length, return empty string
-	if startIdx >= len(str) {
-		return &StringValue{Value: ""}
-	}
-
-	// Calculate end index
-	endIdx := startIdx + int(count)
-
-	// If end index goes beyond string length, adjust it
-	if endIdx > len(str) {
-		endIdx = len(str)
-	}
-
-	// Extract substring
-	result := str[startIdx:endIdx]
-
+	// Use rune-based slicing to handle UTF-8 correctly
+	result := runeSliceFrom(str, int(index), int(count))
 	return &StringValue{Value: result}
 }
 
