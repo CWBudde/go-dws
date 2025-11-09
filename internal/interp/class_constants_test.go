@@ -15,7 +15,7 @@ func testEvalClassConst(input string) (Value, string) {
 	program := p.ParseProgram()
 
 	if len(p.Errors()) > 0 {
-		panic("Parser errors: " + joinParserErrorsNewline(p.Errors()))
+		panic("parser errors: " + joinParserErrorsNewline(p.Errors()))
 	}
 
 	var buf bytes.Buffer
