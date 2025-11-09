@@ -290,6 +290,9 @@ type
 		t.Fatalf("program.Statements[1] is not *ast.TypeDeclaration. got=%T",
 			program.Statements[1])
 	}
+	if alias1.AliasedType == nil {
+		t.Fatal("alias1.AliasedType is nil")
+	}
 	if alias1.Name.Value != "TAlias1" || alias1.AliasedType.Name != "TBase" {
 		t.Errorf("TAlias1 incorrect")
 	}
@@ -300,6 +303,9 @@ type
 		t.Fatalf("program.Statements[2] is not *ast.TypeDeclaration. got=%T",
 			program.Statements[2])
 	}
+	if alias2.AliasedType == nil {
+		t.Fatal("alias2.AliasedType is nil")
+	}
 	if alias2.Name.Value != "TAlias2" || alias2.AliasedType.Name != "TAlias1" {
 		t.Errorf("TAlias2 incorrect")
 	}
@@ -309,6 +315,9 @@ type
 	if !ok {
 		t.Fatalf("program.Statements[3] is not *ast.TypeDeclaration. got=%T",
 			program.Statements[3])
+	}
+	if alias3.AliasedType == nil {
+		t.Fatal("alias3.AliasedType is nil")
 	}
 	if alias3.Name.Value != "TAlias3" || alias3.AliasedType.Name != "TBase" {
 		t.Errorf("TAlias3 incorrect")
