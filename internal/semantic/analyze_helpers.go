@@ -323,6 +323,28 @@ func (a *Analyzer) hasHelperProperty(typ types.Type, propName string) (*types.He
 	return nil, nil
 }
 
+// hasHelperClassConst checks if any helper for the given type defines the specified class constant.
+// Returns the helper type and constant value if found.
+// Task 9.54: Support scoped enum access via helper class constants
+func (a *Analyzer) hasHelperClassConst(typ types.Type, constName string) (*types.HelperType, interface{}) {
+	helpers := a.getHelpersForType(typ)
+	if helpers == nil {
+		return nil, nil
+	}
+
+	// Check each helper in reverse order (most recent first)
+	// Task 9.217: Use case-insensitive lookup for DWScript compatibility
+	constNameLower := strings.ToLower(constName)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		if constVal, ok := helper.ClassConsts[constNameLower]; ok {
+			return helper, constVal
+		}
+	}
+
+	return nil, nil
+}
+
 // ============================================================================
 // Built-in Array Helpers
 // ============================================================================
