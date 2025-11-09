@@ -159,10 +159,14 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - See [README.md](README.md) for usage examples
 
 - `pkg/ast/` - Public AST types and utilities
-  - Re-exports internal/ast types for external use
-  - AST manipulation helpers
+  - Full AST node definitions (expressions, statements, declarations)
+  - Visitor pattern implementation for tree traversal
+  - Position tracking and type information support
+
 - `pkg/token/` - Public token types
-  - Re-exports internal/token types for external use
+  - Token types, Position, and TokenType definitions
+  - 150+ DWScript token constants
+  - Case-insensitive keyword lookup utilities
 
 - `pkg/platform/` - Platform abstraction layer (planned for Stage 10.15)
   - Abstracts filesystem, console, and platform-specific functionality
