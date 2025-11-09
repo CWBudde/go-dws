@@ -579,7 +579,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Estimated time**: 2-3 days
   - **Completed**: 2025-01-09
 
-- [ ] 9.55 Test helper method inheritance
+- [ ] 9.55 Test helper method inheritance ⏸️ DEFERRED
   - **Task**: Helpers can inherit from other helpers
   - **Implementation**:
     - Parse helper inheritance syntax
@@ -588,8 +588,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Test**: Child helper inherits parent methods
   - **Files**: `internal/parser/helper.go`, `internal/semantic/helper.go`
   - **Estimated time**: 1-2 days
+  - **Status**: Deferred - marked as future enhancement in docs/helpers.md
+  - **Note**: Basic helper functionality (9.50-9.54) is complete and working
 
-**Milestone**: Helper types complete, ~66 additional tests should pass, bringing total to ~70-75% pass rate
+**Milestone**: Helper types core functionality complete (tasks 9.50-9.54), ~66 additional tests should pass, bringing total to ~70-75% pass rate
 
 ---
 
