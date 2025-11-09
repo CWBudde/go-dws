@@ -109,9 +109,9 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 // TestCompiler_UnaryConstantFolding tests constant folding for unary expressions
 func TestCompiler_UnaryConstantFolding(t *testing.T) {
 	tests := []struct {
-		name     string
-		program  *ast.Program
-		wantVal  Value
+		name    string
+		program *ast.Program
+		wantVal Value
 	}{
 		{
 			name: "fold -42",
@@ -370,9 +370,9 @@ func TestVM_FloatOperations(t *testing.T) {
 // TestValueEquality tests the valuesEqual and valuesEqualForFold functions
 func TestValueEquality(t *testing.T) {
 	tests := []struct {
-		name     string
-		left     Value
-		right    Value
+		name      string
+		left      Value
+		right     Value
 		wantEqual bool
 	}{
 		{"nil values", NilValue(), NilValue(), true},
@@ -738,12 +738,12 @@ func TestCompiler_EmitValue(t *testing.T) {
 // TestVM_Compare tests the compare function with the correct signature
 func TestVM_Compare(t *testing.T) {
 	tests := []struct {
-		name     string
-		left     Value
-		right    Value
-		op       OpCode
-		wantRes  bool
-		wantErr  bool
+		name    string
+		left    Value
+		right   Value
+		op      OpCode
+		wantRes bool
+		wantErr bool
 	}{
 		{"int less", IntValue(1), IntValue(2), OpLess, true, false},
 		{"int greater", IntValue(2), IntValue(1), OpGreater, true, false},

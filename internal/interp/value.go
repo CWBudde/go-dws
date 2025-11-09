@@ -572,10 +572,20 @@ func GoBool(v Value) (bool, error) {
 //   - Large enums (>64 values): map[int]bool (unlimited size)
 //
 // The storage strategy is determined by SetType.StorageKind.
+// IntRange represents a lazy integer range in a set (e.g., 1..100000000)
+// Stored without expanding to individual values for memory efficiency.
+type IntRange struct {
+	Start int
+	End   int
+}
+
 type SetValue struct {
 	SetType  *types.SetType
 	MapStore map[int]bool
 	Elements uint64
+	// Ranges stores lazy ranges for large integer ranges
+	// Checked separately from MapStore/Elements for membership testing
+	Ranges []IntRange
 }
 
 // Type returns "SET".
@@ -644,9 +654,25 @@ func (s *SetValue) String() string {
 
 // HasElement checks if an element with the given ordinal value is in the set.
 // Task 9.8: Supports both bitmask and map storage.
+// Also checks lazy ranges for large integer ranges.
 func (s *SetValue) HasElement(ordinal int) bool {
 	if ordinal < 0 {
 		return false // Negative ordinals are invalid
+	}
+
+	// First check lazy ranges (most common for large sets)
+	for _, r := range s.Ranges {
+		if r.Start <= r.End {
+			// Forward range
+			if ordinal >= r.Start && ordinal <= r.End {
+				return true
+			}
+		} else {
+			// Reverse range
+			if ordinal >= r.End && ordinal <= r.Start {
+				return true
+			}
+		}
 	}
 
 	// Choose storage backend based on set type

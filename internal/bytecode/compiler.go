@@ -1418,6 +1418,11 @@ func (c *Compiler) initBuiltins() {
 	c.addBuiltinGlobal("Copy")
 	c.addBuiltinGlobal("Ord")
 	c.addBuiltinGlobal("Chr")
+	// Type cast functions
+	c.addBuiltinGlobal("Integer")
+	c.addBuiltinGlobal("Float")
+	c.addBuiltinGlobal("String")
+	c.addBuiltinGlobal("Boolean")
 }
 
 func (c *Compiler) addBuiltinGlobal(name string) {
