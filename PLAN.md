@@ -282,40 +282,46 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - Case-insensitive type names
 - Comprehensive test suite (internal/interp/typecast_test.go)
 
-#### 9.9 Inline Method Implementation - LOW PRIORITY
+#### 9.9 Inline Method Implementation - LOW PRIORITY ✅
 
 **Blocks**: overload_on_metaclass.pas, class_inline_declared.pas (2+ tests)
 
-- [ ] 9.9.1 Parse inline method bodies
+- [x] 9.9.1 Parse inline method bodies
   - **Task**: Allow method implementation inside class declaration
   - **Syntax**: Method declaration followed by begin...end inside class body
-  - **Files**: `internal/parser/interfaces.go`
+  - **Files**: `internal/parser/functions.go`
   - **Tests**: Parse inline method implementations
+  - **Status**: Already implemented - parseFunctionDeclaration handles inline methods automatically
 
-- [ ] 9.9.2 Handle inline method semantics
+- [x] 9.9.2 Handle inline method semantics
   - **Task**: Process inline methods same as separate implementations
   - **Files**: `internal/semantic/analyze_functions.go`
   - **Tests**: Inline methods work identically to separate implementations
+  - **Status**: Already working - semantic analyzer handles inline methods correctly
 
 **Estimated Time**: 2-3 days
 **Dependency**: Nice-to-have for cleaner syntax
+**Completion**: Feature was already implemented. Added comprehensive tests in `internal/parser/inline_methods_test.go`.
 
-#### 9.10 Short-Form Class Declarations - LOW PRIORITY
+#### 9.10 Short-Form Class Declarations - LOW PRIORITY ✅
 
 **Blocks**: class_of3.pas, class_of_cast.pas, classname.pas (5+ tests)
 
-- [ ] 9.10.1 Parse short-form class inheritance
+- [x] 9.10.1 Parse short-form class inheritance
   - **Task**: Allow `TChild = class(TParent);` without body
-  - **Files**: `internal/parser/interfaces.go`
+  - **Files**: `internal/parser/classes.go`
   - **Tests**: Parse short-form class declarations
+  - **Status**: Implemented - parser now checks for semicolon after parent specification
 
-- [ ] 9.10.2 Parse type alias to class
+- [x] 9.10.2 Parse type alias to class
   - **Task**: Allow `TAlias = TClassName;` where TClassName is a class
   - **Files**: `internal/parser/interfaces.go`
   - **Tests**: Parse type aliases to existing classes
+  - **Status**: Already implemented - type aliases were already supported
 
 **Estimated Time**: 1 day
 **Dependency**: Convenience feature
+**Completion**: Both features implemented. Added comprehensive tests in `internal/parser/shortform_class_test.go`.
 
 #### 9.11 Class Forward Declarations - LOW PRIORITY
 
