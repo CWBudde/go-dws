@@ -79,159 +79,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-## Phase 9: Stage 7 Completion & Critical Stage 8 Features
+## Phase 9: Completion and DWScript Feature Parity
 
-**Status**: IN PROGRESS | **Fixture Tests**: 92/552 passing (16.7%) | **Target**: 80%+ pass rate
-**Current Focus**: Complete Stage 7 (Classes & OOP) before advancing to Stage 8
-
-**Test Analysis Summary** (2025-11-08): Of 460 failing fixture tests, ~85% are blocked by just 7 missing features. This is NOT indicative of poor quality but rather the expected state of Stage 7 being partially complete. The core language (lexer, parser, expressions, control flow, functions) is structurally sound with Algorithm tests showing 47.2% pass rate. Focus is on completing OOP foundation before tackling advanced Stage 8 features.
-
-**Estimated Timeline**: 10-15 weeks to reach 80-85% fixture test pass rate
-
----
-
-### Phase 9.1: Constructor System (CRITICAL - Blocks 87 tests)
-
-**Priority**: HIGHEST - Constructor system is the #1 blocker for fixture tests
-**Goal**: Enable class instantiation without explicit constructor declarations
-
-**Root Cause**: Classes without explicit constructors fail with "class 'X' has no member 'Create'" error. DWScript auto-generates default constructors; go-dws does not.
-
-**Key Achievements**:
-
-- Constructor overloading with multiple signatures
-- Virtual constructor dispatch for polymorphic instantiation
-- Metaclass support for class reference types
-- All 33 constructor tests passing
-- Unblocked 49 additional fixture tests
-
-**Milestone**: After completing constructor system, fixture test pass rate should reach ~45-50% (248-276 tests passing)
-
----
-
-### Phase 9.2: Class Properties (CRITICAL - Blocks 49 tests)
-
-**Priority**: HIGHEST - Second biggest blocker after constructors
-**Goal**: Support property syntax with read/write accessors
-
-**Root Cause**: Parser doesn't recognize `property` keyword in class declarations. Properties are fundamental to DWScript OOP.
-
-**Key Achievements**:
-
-- Full property syntax support with getter/setter accessors
-- Method-backed and field-backed properties
-- Indexed properties with parameter support
-- Default properties for array-like access
-- Class properties (static) for type-level access
-- Comprehensive property validation and error reporting
-
-**Milestone**: After completing properties, fixture test pass rate should reach ~60% (330+ tests passing)
-
----
-
-### Phase 9.3: Class Constants (HIGH - Blocks 38 tests)
-
-**Priority**: HIGH - Relatively simple but blocks many tests
-**Goal**: Support constant declarations inside classes
-
-**Root Cause**: Parser expects field declarations in class body, fails when seeing `const` keyword.
-
-**Key Achievements**:
-
-- Support for `const` and `class const` declarations in class bodies
-- Type checking and validation of constant values
-- Visibility enforcement for constant access
-- Runtime evaluation of class constants via type name or instance
-
-**Milestone**: Class constants complete, ~38 additional tests should pass
-
----
-
-### Phase 9.4: Dynamic Arrays & Type Casting (HIGH - Blocks 35 tests)
-
-**Priority**: HIGH - Essential for many algorithms and OOP patterns
-**Goal**: Support dynamic array syntax and runtime type operations
-
-**Root Cause**: Parser only supports static arrays `array[0..9] of T`, not dynamic arrays `array of T`. `is` and `as` operators not implemented for runtime type checking.
-
-**Key Achievements**:
-
-- Support for dynamic arrays `array of T` with SetLength() and Length() operations
-- Runtime type checking with `is` operator (instanceof semantics)
-- Safe type casting with `as` operator (raises exceptions on invalid casts)
-- Proper nil handling for both operators
-- Type compatibility checking for inheritance hierarchies
-
-**Milestone**: Dynamic arrays and type casting complete, ~35 additional tests should pass
-
----
-
-### Phase 9.5: Helper Types (HIGH - Blocks 66 tests)
-
-**Priority**: HIGH - Enables scoped enum access and type extensions
-**Goal**: Support helper for Type syntax to extend types with methods
-**Timeline**: 2-3 weeks | **Success Metric**: Unblocks 66 additional tests
-
-**Root Cause**: Enums need scoped access (TE1.val1) which requires helper functionality. Helpers also enable extending built-in types.
-
-- [x] 9.50 Implement helper AST nodes ✅
-  - **Task**: Create AST representation for helper declarations
-  - **Implementation**:
-    - Add HelperDeclaration node in `internal/ast/helper.go`
-    - Fields: Name, ForType, Methods
-    - Parse helper method declarations
-  - **Files**: `internal/ast/helper.go`
-  - **Estimated time**: 1 day
-  - **Completed**: 2025-01-09
-
-- [x] 9.51 Parse helper declarations ✅
-  - **Task**: Recognize `helper for Type` syntax
-  - **Implementation**:
-    - Create `internal/parser/helper.go`
-    - Parse: `type TStringHelper = helper for String`
-    - Parse helper methods
-    - Handle helper inheritance
-  - **Test**: Helper declarations parse correctly
-  - **Files**: `internal/parser/helper.go`
-  - **Estimated time**: 2-3 days
-  - **Completed**: 2025-01-09
-
-- [x] 9.52 Implement helper type system ✅
-  - **Task**: Track which helpers apply to which types
-  - **Implementation**:
-    - Create `internal/types/helper.go`
-    - Map types to their helpers
-    - Support multiple helpers for same type
-    - Handle helper priority/ordering
-  - **Files**: `internal/types/helper.go`
-  - **Estimated time**: 2-3 days
-  - **Completed**: 2025-01-09
-
-- [x] 9.53 Implement helper method resolution ✅
-  - **Task**: Look up helper methods during member access
-  - **Implementation**:
-    - Modify member access evaluation
-    - Method lookup order: instance methods → helpers → built-ins
-    - Search all applicable helpers for type
-    - Handle helper method dispatch
-  - **Test**: `'hello'.ToUpper` calls helper method
-  - **Files**: `internal/interp/member_access.go`, `internal/semantic/analyze_expressions.go`
-  - **Estimated time**: 3-4 days
-  - **Completed**: 2025-01-09
-
-- [x] 9.54 Implement enum scoped access via helpers ✅
-  - **Task**: Enable TE1.val1 syntax for enum values
-  - **Implementation**:
-    - Auto-generate implicit helper for enum types
-    - Add enum values as class constants on helper
-    - Allow access via type name: `TColor.Red`
-    - Maintain backward compatibility with unscoped: `Red`
-  - **Test**: Both `TColor.Red` and `Red` work
-  - **Files**: `internal/semantic/analyze_enums.go`, `internal/types/helper.go`
-  - **Estimated time**: 2-3 days
-  - **Completed**: 2025-01-09
-
-- [ ] 9.55 Test helper method inheritance
+- [ ] 9.1 Test helper method inheritance
   - **Task**: Helpers can inherit from other helpers
   - **Implementation**:
     - Parse helper inheritance syntax
@@ -241,370 +91,53 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Files**: `internal/parser/helper.go`, `internal/semantic/helper.go`
   - **Estimated time**: 1-2 days
 
-**Milestone**: Helper types core functionality complete (tasks 9.50-9.54), ~66 additional tests should pass, bringing total to ~70-75% pass rate
-
----
-
-### Phase 9.6: Metaclasses (MEDIUM - Blocks 15 tests)
-
-**Priority**: MEDIUM - Needed for advanced OOP patterns
-**Goal**: Support class of Type for class reference types
-**Timeline**: 1 week | **Success Metric**: Unblocks 15 additional tests
-
-**Root Cause**: Cannot declare variables that hold class types (metaclasses) for polymorphic instantiation.
-
-- [x] 9.70 Parse class of type syntax ✅
-  - **Task**: Recognize `class of TBase` type declarations
-  - **Implementation**:
-    - Added `ClassOfTypeNode` to `pkg/ast/type_expression.go`
-    - Modified `parseTypeExpression` in `internal/parser/types.go` to handle CLASS token
-    - Implemented `parseClassOfType()` function
-    - Updated `internal/parser/statements.go` to handle ClassOfTypeNode in var declarations
-  - **Test**: `type TBaseClass = class of TBase;` parses successfully
-  - **Files**: `pkg/ast/type_expression.go`, `internal/ast/ast_alias.go`, `internal/parser/types.go`, `internal/parser/statements.go`
-  - **Completed**: 2025-01-08
-
-- [x] 9.71 Implement metaclass type system ✅
-  - **Task**: Create metaclass type for type checking
-  - **Implementation**:
-    - Created `ClassOfType` in `internal/types/types.go`
-    - Implemented type compatibility checking via `IsAssignableFrom` method
-    - Added `resolveClassOfTypeNode()` in `internal/semantic/type_resolution.go`
-    - Updated `resolveTypeExpression()` to handle ClassOfTypeNode
-  - **Test**: Metaclass type checking works (semantic analysis recognizes metaclass types)
-  - **Files**: `internal/types/types.go`, `internal/semantic/type_resolution.go`
-  - **Completed**: 2025-01-08
-
-- [x] 9.72 Implement metaclass runtime values ✅
-  - **Task**: Store class types as runtime values
-  - **Implementation**:
-    - Created `ClassValue` struct in `internal/interp/class.go`
-    - Added `Type()`, `String()`, and `IsAssignableTo()` methods
-    - Added helper functions `isClassValue()` and `AsClassValue()`
-    - Note: `ClassInfoValue` already exists and serves similar purpose - may need unification
-  - **Test**: Class types can be represented at runtime
-  - **Files**: `internal/interp/class.go`
-  - **Completed**: 2025-01-08
-  - **Note**: Class name identifiers already resolve to `ClassInfoValue` (see `evalIdentifier` in `expressions.go` line 175-183)
-
-- [x] 9.73 Implement virtual constructor dispatch via metaclass ✅ DONE (2025-01-09)
-  - **Task**: Call constructors through metaclass variables
-  - **Implementation**: MOSTLY COMPLETE
-    - ✅ 9.73.1 Semantic analysis for metaclass assignments (analyzer.go:415-430)
-    - ✅ 9.73.2 Semantic analysis for metaclass member access (analyze_classes.go:1024-1041)
-    - ✅ 9.73.3 Virtual constructor dispatch mechanism (objects.go:1596-1689, from Task 9.4.4)
-    - ✅ 9.73.4 Parser support for metaclass type aliases (2025-01-08)
-    - ✅ 9.73.5 Class names resolve to ClassValue (2025-01-08)
-    - ✅ 9.73.8 Virtual constructor dispatch for child classes (2025-01-08)
-    - ✅ 9.73.9 Metaclass comparison operators (2025-01-08)
-    - ⚠️ 9.73.6 Runtime assignment validation (optional enhancement)
-  - **Test**: `var obj := meta.Create;` creates instance of runtime type
-  - **Files**: `internal/parser/interfaces.go`, `internal/interp/expressions.go`, `internal/interp/objects.go`
-  - **Status**: ~70% complete - core functionality working, minor enhancements remaining
-  - **Related**: Task 9.4 (Virtual constructors), Task 9.72 (Metaclasses)
-  - **Remaining Work**: ClassName support in class/metaclass contexts, optional runtime validation
-
-  **COMPLETED WORK (2025-01-08)**:
-  1. ✅ Semantic Analysis - Metaclass Assignments (100% complete)
-     - Location: `internal/semantic/analyzer.go:415-430`
-     - Allows assigning nil to metaclass variables
-     - Allows assigning class references to metaclass variables
-     - Validates inheritance compatibility (descendant classes assignable to base metaclass)
-
-  2. ✅ Semantic Analysis - Metaclass Member Access (100% complete)
-     - Location: `internal/semantic/analyze_classes.go:1024-1041`
-     - Handles member access on metaclass types
-     - Allows constructor calls through metaclass types
-     - Location: `internal/semantic/analyze_function_calls.go:42-48`
-
-  3. ✅ Runtime Virtual Dispatch (100% complete - from Task 9.4.4)
-     - Location: `internal/interp/objects.go:1596-1689`
-     - Checks if method receiver is ClassValue (metaclass)
-     - Looks up constructor in runtime class
-     - Creates instance of actual runtime type, not declared type
-     - Handles argument evaluation, constructor resolution, instance creation
-
-  **CRITICAL BLOCKERS DISCOVERED**:
-
-  **Blocker 1: Parser Cannot Handle Metaclass Type Aliases** (CRITICAL)
-  - Syntax: `type TBaseClass = class of TBase;`
-  - Error: "expected ':' after field name or method/property declaration keyword"
-  - Location: `internal/parser/interfaces.go:91-93`
-  - Problem: No case for "class of" in type alias declarations
-  - Current code expects inline class body after "class" keyword
-  - Impact: ALL metaclass fixture tests fail at parse time
-
-  **Test Failures**:
-  - `testdata/fixtures/SimpleScripts/class_of.pas` - Parse error at line 22
-  - `testdata/fixtures/SimpleScripts/class_of2.pas` - Parse error at line 21
-  - `testdata/fixtures/SimpleScripts/class_of3.pas` - Parse error at line 4
-  - `testdata/fixtures/SimpleScripts/class_of_cast.pas` - Parse error at line 10
-
-  **Blocker 2: Wrong Type Returned for Class Name Identifiers**
-  - Location: `internal/interp/expressions.go:178-183`
-  - Current: Returns `ClassInfoValue` (internal context tracking type)
-  - Should: Return `ClassValue` (runtime metaclass reference type)
-  - Impact: Metaclass variables receive wrong type, dispatch fails
-
-  **Type Confusion**:
-  - `ClassInfoValue` - Used for `__CurrentClass__` context tracking, Type()="CLASSINFO"
-  - `ClassValue` - Represents metaclass references, Type()="CLASS", has IsAssignableTo() method
-  - These are TWO DIFFERENT types with different purposes
-
-  **Issue 3: Missing Runtime Assignment Validation**
-  - Location: `internal/interp/statements.go:605-678` (evalSimpleAssignment)
-  - No validation for metaclass variable assignments at runtime
-  - ClassValue.IsAssignableTo() method exists but is never called
-  - Could allow invalid assignments to slip through
-
-  **Subtasks to Fix Blockers** (see Tasks 9.73.4-9.73.7 below)
-
-- [x] 9.73.4 **CRITICAL**: Fix parser to handle metaclass type aliases ✅ DONE (2025-01-08)
-  - **Task**: Parse `type Name = class of BaseClass;` syntax
-  - **Subtasks**:
-    - [x] 9.73.4.1 Add AST support for metaclass type references (already existed in pkg/ast/type_expression.go)
-    - [x] 9.73.4.2 Update lexer if needed (OF token already existed)
-    - [x] 9.73.4.3 Implement parser support for metaclass type aliases (internal/parser/interfaces.go:91-123)
-    - [x] 9.73.4.4 Update semantic analysis for metaclass type aliases (internal/semantic/analyze_types.go:546-561)
-    - [x] 9.73.4.5 Write parser tests (internal/parser/inline_types_test.go:480-636)
-    - [x] 9.73.4.6 Verify fixture tests can parse (class_of.pas, class_of2.pas, class_of3.pas all parse)
-  - **Test**: `type TBaseClass = class of TBase;` parses without error
-  - **Files**: `pkg/ast/types.go`, `internal/parser/interfaces.go`, `internal/semantic/analyze_types.go`
-  - **Priority**: CRITICAL - blocks all metaclass functionality
-
-- [x] 9.73.5 **HIGH**: Fix class name identifier evaluation ✅ DONE (2025-01-08)
-  - **Task**: Return ClassValue instead of ClassInfoValue for class name identifiers
-  - **Subtasks**:
-    - [x] 9.73.5.1 Update identifier evaluation (internal/interp/expressions.go:178-183)
-    - [x] 9.73.5.2 Update any code expecting ClassInfoValue (internal/interp/objects.go:369-439)
-    - [x] 9.73.5.3 Update semantic analyzer to return ClassOfType (internal/semantic/analyze_expr_operators.go:47-56)
-    - [x] 9.73.5.4 Add ClassOfType assignment checking (internal/semantic/analyzer.go:422-438)
-  - **Test**: Class name identifiers return ClassValue type
-  - **Files**: `internal/interp/expressions.go`
-  - **Priority**: HIGH - required for metaclass functionality
-
-- [x] 9.73.6 **MEDIUM**: Add runtime metaclass assignment validation ✅ SKIPPED (Optional Enhancement)
-  - **Task**: Validate metaclass variable assignments at runtime
-  - **Status**: SKIPPED - semantic analysis already handles type checking at compile time
-  - **Rationale**: Runtime validation is redundant since semantic analyzer validates metaclass assignments
-  - **Subtasks**:
-    - [x] 9.73.6.1 Verified semantic analysis handles metaclass validation
-    - [x] 9.73.6.2 Confirmed compile-time checking is sufficient
-  - **Priority**: LOW - optional enhancement, not required for correctness
-
-- [x] 9.73.8 **HIGH**: Fix virtual constructor dispatch for child classes ✅ DONE (2025-01-08)
-  - **Task**: Debug and fix constructor lookup when metaclass holds child class reference
-  - **Problem**: `meta := TChild; obj := meta.Create;` fails with "no overloaded version" error
-  - **Root Cause Found**: Child constructors were being APPENDED to parent constructors in ConstructorOverloads,
-    causing duplicate constructors with same signature and breaking overload resolution
-  - **Solution**: Modified constructor registration to REPLACE parent constructor when child has matching signature
-    - In DWScript, child constructor with same name/signature HIDES parent's (like Delphi)
-    - Works regardless of virtual/override keywords
-  - **Files Modified**: `internal/interp/declarations.go:183-204, 211-232`
-  - **Subtasks**:
-    - [x] 9.73.8.1 Add debug logging to constructor lookup in evalMethodCall
-    - [x] 9.73.8.2 Verify TChild.Create is registered in ClassInfo.Constructors
-    - [x] 9.73.8.3 Check getMethodOverloadsInHierarchy logic for constructors
-    - [x] 9.73.8.4 Review constructor overload resolution with empty arguments
-    - [x] 9.73.8.5 Test with both virtual/override and non-virtual constructors
-    - [x] 9.73.8.6 Debug logging removed after fix verified
-  - **Test Case**:
-    ```dws
-    type TBase = class
-      constructor Create; virtual;
-    end;
-    type TChild = class(TBase)
-      constructor Create; override;
-    end;
-    type TBaseClass = class of TBase;
-    var meta: TBaseClass;
-    meta := TBase;
-    var obj1 := meta.Create;  // ✅ Works
-    meta := TChild;
-    var obj2 := meta.Create;  // ❌ Fails - "no overloaded version"
-    ```
-  - **Files**: `internal/interp/objects.go`, `internal/interp/class.go`
-  - **Priority**: HIGH - blocks virtual constructor dispatch, critical for polymorphism
-
-- [x] 9.73.9 **MEDIUM**: Implement metaclass comparison operators ✅ DONE (2025-01-08)
-  - **Task**: Support equality and inequality comparisons for metaclass values
-  - **Problem**: `if meta = TBase then` and `if meta <> TChild then` fail with "requires comparable types"
-  - **Solution**:
-    - Added "CLASSOF" to IsComparableType() in types/compatibility.go
-    - Implemented ClassValue comparison in evalBinaryExpression
-    - Compares by ClassInfo identity (pointer equality)
-  - **Files Modified**:
-    - `internal/types/compatibility.go:152` - Added CLASSOF to comparable types
-    - `internal/interp/expressions.go:243-266` - Runtime comparison for ClassValue
-  - **Subtasks**:
-    - [x] 9.73.9.1 Add ClassOfType comparison in semantic analyzer
-    - [x] 9.73.9.2 Implement runtime comparison for ClassValue
-    - [x] 9.73.9.3 Support comparing ClassValue with ClassValue
-    - [x] 9.73.9.4 Support comparing metaclass variable with class name (meta = TBase)
-    - [x] 9.73.9.5 Test equality (=) and inequality (<>) operators
-    - [x] 9.73.9.6 Verified with comprehensive test cases
-  - **Test Case**:
-    ```dws
-    var meta: class of TBase;
-    meta := TChild;
-    if meta = TBase then PrintLn('Bug Equal TBase');      // Should not print
-    if meta <> TChild then PrintLn('Bug Not Equal TChild'); // Should not print
-    if meta = TChild then PrintLn('Correct');              // Should print
-    ```
-  - **Files**: `internal/semantic/analyze_expr_operators.go`, `internal/interp/operators_eval.go`
-  - **Priority**: MEDIUM - needed for fixture tests
-
-- [x] 9.73.7 **FINAL**: Integration testing and fixture validation ✅ DONE (2025-01-09)
-  - **Task**: Verify all metaclass functionality works end-to-end
-  - **Status**: COMPLETE - Core metaclass functionality verified and working
-  - **Subtasks**:
-    - [x] 9.73.7.1 Test metaclass variable declaration and assignment ✅
-    - [x] 9.73.7.2 Test metaclass constructor dispatch ✅
-    - [x] 9.73.7.3 Test metaclass with constructor parameters ✅
-    - [x] 9.73.7.4 Test metaclass comparison operators ✅
-    - [x] 9.73.7.5 Run fixture tests (class_of*.pas) ✅
-    - [x] 9.73.7.6 Run overload tests (blocked by inline methods - see Phase 9.10)
-    - [x] 9.73.7.7 Verify expected output matches reference implementation ✅
-  - **Results**:
-    - ✅ `class_of.pas` - PASS (output matches expected)
-    - ✅ `class_of2.pas` - PASS (output matches expected)
-    - ⚠️ `class_of3.pas` - BLOCKED (requires type aliases to classes, short-form class declarations)
-    - ⚠️ `class_of_cast.pas` - BLOCKED (requires class methods, ClassName property, ClassType, type casting)
-    - ⚠️ `overload_on_metaclass.pas` - BLOCKED (requires inline method implementations)
-  - **Created**: `testdata/test_metaclass_simple.dws` - comprehensive integration test (PASS)
-  - **Priority**: FINAL - validates all previous work
-
-**Milestone**: Metaclasses complete, ~15 additional tests should pass
-
----
-
-### Phase 9.7: Missing Built-ins & Operators (MEDIUM - Blocks 40+ tests)
-
-**Priority**: MEDIUM - Quick wins, isolated implementations
-**Goal**: Implement commonly-used built-in functions and operators
-
-#### Key Achievements
-
-- **Boolean Output**: Fixed capitalization to match DWScript (`True`/`False`)
-- **Bit Operations**: Added SAR (arithmetic shift right) operator support
-- **Nil Checking**: Implemented `Assigned()` function for comprehensive nil detection
-- **Type Conversions**: Added `Chr()`, `IntToHex()`, `StrToBool()` built-in functions
-- **Utility Functions**: Implemented `Swap()`, `IsNaN()`, `SetRandSeed()` for common operations
-- **Collection Operations**: Enhanced IN operator for strings, arrays, and sets
-- **Test Coverage**: Unblocked 40+ additional tests, bringing total pass rate to 25-30%
-
-**Milestone**: Built-ins and operators complete, ~40 additional tests should pass
-
----
-
-### Phase 9.8: Remaining Unit Test Failures (LOW - 13 tests)
-
-**Priority**: LOW - Fix remaining unit test failures (not fixture tests)
-**Timeline**: 1 week
-
-These are test failures in the unit test suites (not fixture tests):
-
-- [x] 9.37 Fix record method access (lerp.pas)
-  - **Issue**: Record methods not accessible in member access
-  - **Implementation**: Modified evalMemberAccess and analyzeRecordFieldAccess to check record methods
-  - **Files**: `internal/interp/objects.go`, `internal/semantic/analyze_records.go`
-  - **Estimated time**: 1 day
-  - **Impact**: Fixes 1 algorithm test (partially - test now progresses past method access)
-  - **Completed**: Record methods are now accessible via member access and auto-invoked when parameterless
-
-- [x] 9.47 Fix constructor overload handling (unit tests)
-  - **Tests**: TestConstructorOverload, TestConstructorWithoutParentheses, etc.
-  - **Already covered**: This is part of Task 9.3 (Constructor overloading)
-
-- [x] 9.48 Implement interface method dispatch
-  - **Issue**: Interface methods not resolved
-  - **Implementation**: Interface type checking and method lookup
-  - **Files**: `internal/semantic/analyze_interfaces.go`, `internal/interp/interfaces.go`
-  - **Estimated time**: 2 days
-
-- [x] 9.49 Fix implicit self property access
-  - **Issue**: Properties without explicit self not found
-  - **Implementation**: Add self fallback in identifier resolution, validate property expressions
-  - **Files**: `internal/semantic/analyze_properties.go`, `internal/semantic/analyze_expr_operators.go`, `internal/semantic/analyzer.go`
-  - **Completed**: Property expressions now validated at compile-time with implicit self support and circular reference detection
-  - **Tests**: Added comprehensive unit tests in `internal/semantic/property_test.go`
-
-- [x] 9.50 Fix overload directive validation
-  - **Issue**: Incorrect error messages for overload declarations
-  - **Implementation**: Fix validation logic and error messages
-  - **Files**: `internal/semantic/analyze_functions.go`
-  - **Estimated time**: 1 day
-
-- [x] 9.51 Implement inherited expression validation
-  - **Issue**: Inherited expression errors not caught
-  - **Implementation**: Made TObject implicit parent for all classes, improved inherited expression validation
-  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/analyze_special.go`
-  - **Estimated time**: 1 day
-  - **Completed**: Classes without explicit parent now inherit from TObject; inherited expressions validate member existence
-
-- [ ] 9.52 Enforce private field access control
+- [ ] 9.2 Enforce private field access control
   - **Issue**: Derived classes can access private parent fields
   - **Implementation**: Add visibility check in field access
   - **Files**: `internal/semantic/analyze_expressions.go`
   - **Estimated time**: 0.5 day
 
----
-
-### Phase 9.10: Remaining Class Features (MEDIUM - Blocks 50+ tests)
-
-**Priority**: MEDIUM - Essential class features for full OOP support
-**Goal**: Implement remaining class-related features identified in Phase 9.6 testing
-**Timeline**: 2-3 weeks | **Success Metric**: Unblocks 50+ additional class tests
-
-**Root Cause**: Several core class features are not yet implemented, blocking many fixture tests.
-
-#### 9.10.1 Class Methods (Static Methods) - HIGH PRIORITY
-**Blocks**: class_method*.pas, class_const*.pas, class_var*.pas, classname*.pas, classtype*.pas (15+ tests)
-
-- [ ] 9.10.1.1 Parse `class procedure` and `class function` declarations
+- [ ] 9.3.1 Parse `class procedure` and `class function` declarations
   - **Task**: Extend parser to recognize class method syntax
   - **Syntax**: `class procedure Name;` and `class function Name: ReturnType;`
   - **Files**: `internal/parser/functions.go`, `internal/ast/declarations.go`
   - **Tests**: Parse class method declarations without errors
 
-- [ ] 9.10.1.2 Implement class method semantic analysis
+- [ ] 9.3.2 Implement class method semantic analysis
   - **Task**: Validate class methods (no access to Self/instance fields)
   - **Files**: `internal/semantic/analyze_functions.go`
   - **Tests**: Class methods cannot access instance members
 
-- [ ] 9.10.1.3 Implement class method runtime execution
+- [ ] 9.3.3 Implement class method runtime execution
   - **Task**: Execute class methods without instance context
   - **Files**: `internal/interp/functions.go`
   - **Tests**: Class methods execute and access class variables/constants
 
-- [ ] 9.10.1.4 Support virtual/override on class methods
+- [ ] 9.3.4 Support virtual/override on class methods
   - **Task**: Allow polymorphism for class methods
   - **Files**: `internal/semantic/analyze_functions.go`, `internal/interp/objects.go`
   - **Tests**: Virtual class methods dispatch correctly through inheritance
 
-**Estimated Time**: 3-4 days
-**Dependency**: Required for class_method*.pas tests
-
-#### 9.10.2 Class Constants - MEDIUM PRIORITY
+#### 9.4 Class Constants - MEDIUM PRIORITY
 **Blocks**: class_const*.pas (5+ tests)
 
-- [ ] 9.10.2.1 Parse class constant declarations
+- [ ] 9.4.1 Parse class constant declarations
   - **Task**: Recognize `const` inside class declarations
   - **Syntax**: `const cName = Value;` or `class const cName = Value;`
   - **Files**: `internal/parser/interfaces.go`
   - **Tests**: Parse class constants in class body
 
-- [ ] 9.10.2.2 Store class constants in ClassType
+- [ ] 9.4.2 Store class constants in ClassType
   - **Task**: Add Constants map to ClassType
   - **Files**: `internal/types/types.go`
   - **Tests**: Class constants accessible in type system
 
-- [ ] 9.10.2.3 Semantic analysis for class constants
+- [ ] 9.4.3 Semantic analysis for class constants
   - **Task**: Validate class constant access (ClassName.ConstName)
   - **Files**: `internal/semantic/analyze_classes.go`
   - **Tests**: Class constants resolve correctly
 
-- [ ] 9.10.2.4 Runtime class constant evaluation
+- [ ] 9.4.4 Runtime class constant evaluation
   - **Task**: Access class constants at runtime
   - **Files**: `internal/interp/objects.go`
   - **Tests**: Class constants return correct values
@@ -612,26 +145,26 @@ These are test failures in the unit test suites (not fixture tests):
 **Estimated Time**: 2 days
 **Dependency**: Useful for class_const*.pas tests
 
-#### 9.10.3 Class Variables (Static Fields) - MEDIUM PRIORITY
+#### 9.5 Class Variables (Static Fields) - MEDIUM PRIORITY
 **Blocks**: class_var*.pas (5+ tests)
 
-- [ ] 9.10.3.1 Parse class variable declarations
+- [ ] 9.5.1 Parse class variable declarations
   - **Task**: Recognize `class var` inside class declarations
   - **Syntax**: `class var VarName: Type;`
   - **Files**: `internal/parser/interfaces.go`
   - **Tests**: Parse class variables in class body
 
-- [ ] 9.10.3.2 Store class variables in ClassType
+- [ ] 9.5.2 Store class variables in ClassType
   - **Task**: Add ClassVars map to ClassType
   - **Files**: `internal/types/types.go`
   - **Tests**: Class variables accessible in type system
 
-- [ ] 9.10.3.3 Semantic analysis for class variables
+- [ ] 9.5.3 Semantic analysis for class variables
   - **Task**: Validate class variable access
   - **Files**: `internal/semantic/analyze_classes.go`
   - **Tests**: Class variables resolve correctly
 
-- [ ] 9.10.3.4 Runtime class variable storage and access
+- [ ] 9.5.4 Runtime class variable storage and access
   - **Task**: Store class variables separately from instance fields
   - **Files**: `internal/interp/class.go`, `internal/interp/objects.go`
   - **Tests**: Class variables shared across all instances
@@ -639,21 +172,21 @@ These are test failures in the unit test suites (not fixture tests):
 **Estimated Time**: 2-3 days
 **Dependency**: Required for class_var*.pas tests
 
-#### 9.10.4 ClassName Property - HIGH PRIORITY
+#### 9.6 ClassName Property - HIGH PRIORITY
 **Blocks**: classname*.pas, class_of_cast.pas, overload_on_metaclass.pas (10+ tests)
 
-- [ ] 9.10.4.1 Add ClassName to TObject
+- [ ] 9.6.1 Add ClassName to TObject
   - **Task**: Make ClassName available on all classes
   - **Implementation**: Add ClassName as built-in property/method on TObject
   - **Files**: `internal/types/types.go`, `internal/semantic/analyze_classes.go`
   - **Tests**: All classes have ClassName property
 
-- [ ] 9.10.4.2 Runtime ClassName implementation
+- [ ] 9.6.2 Runtime ClassName implementation
   - **Task**: Return class name at runtime
   - **Files**: `internal/interp/objects.go`, `internal/interp/builtins.go`
   - **Tests**: obj.ClassName returns correct class name
 
-- [ ] 9.10.4.3 Support ClassName on metaclass types
+- [ ] 9.6.3 Support ClassName on metaclass types
   - **Task**: TClass.ClassName returns class name
   - **Files**: `internal/interp/class.go`
   - **Tests**: metaclass.ClassName works correctly
@@ -661,16 +194,17 @@ These are test failures in the unit test suites (not fixture tests):
 **Estimated Time**: 1-2 days
 **Dependency**: Required for classname*.pas and many other tests
 
-#### 9.10.5 ClassType Property - MEDIUM PRIORITY
+#### 9.7 ClassType Property - MEDIUM PRIORITY
+
 **Blocks**: classtype*.pas, class_of_cast.pas (5+ tests)
 
-- [ ] 9.10.5.1 Add ClassType to TObject
+- [ ] 9.7.1 Add ClassType to TObject
   - **Task**: Make ClassType available on all classes
   - **Implementation**: Returns metaclass (class of T) for the object's runtime type
   - **Files**: `internal/types/types.go`, `internal/semantic/analyze_classes.go`
   - **Tests**: All classes have ClassType property
 
-- [ ] 9.10.5.2 Runtime ClassType implementation
+- [ ] 9.7.2 Runtime ClassType implementation
   - **Task**: Return metaclass reference at runtime
   - **Files**: `internal/interp/objects.go`
   - **Tests**: obj.ClassType returns ClassValue
@@ -678,31 +212,32 @@ These are test failures in the unit test suites (not fixture tests):
 **Estimated Time**: 1 day
 **Dependency**: Useful for classtype*.pas tests
 
-#### 9.10.6 Type Casting - HIGH PRIORITY
+#### 9.8 Type Casting - HIGH PRIORITY
+
 **Blocks**: class_cast*.pas, casts_*.pas, classname.pas (10+ tests)
 
-- [ ] 9.10.6.1 Parse function-style type casts
+- [ ] 9.8.1 Parse function-style type casts
   - **Task**: Recognize `TypeName(expression)` as type cast
   - **Challenge**: Distinguish from function calls
   - **Files**: `internal/parser/expressions.go`
   - **Tests**: Parse `TMyClass(obj)` as type cast
 
-- [ ] 9.10.6.2 Semantic analysis for type casts
+- [ ] 9.8.2 Semantic analysis for type casts
   - **Task**: Validate type compatibility for casts
   - **Files**: `internal/semantic/analyze_expressions.go`
   - **Tests**: Valid casts accepted, invalid casts rejected
 
-- [ ] 9.10.6.3 Runtime type cast execution
+- [ ] 9.8.3 Runtime type cast execution
   - **Task**: Perform runtime type checking for casts
   - **Files**: `internal/interp/expressions.go`
   - **Tests**: Type casts validate at runtime, raise errors for invalid casts
 
-- [ ] 9.10.6.4 Parse `as` operator for safe casting
+- [ ] 9.8.4 Parse `as` operator for safe casting
   - **Task**: Recognize `expression as TypeName`
   - **Files**: `internal/parser/expressions.go`, `internal/lexer/token_type.go`
   - **Tests**: Parse `obj as TMyClass`
 
-- [ ] 9.10.6.5 Runtime `as` operator execution
+- [ ] 9.8.5 Runtime `as` operator execution
   - **Task**: Perform safe type cast with exception on failure
   - **Files**: `internal/interp/expressions.go`
   - **Tests**: `as` operator validates types and raises exception on mismatch
@@ -710,16 +245,16 @@ These are test failures in the unit test suites (not fixture tests):
 **Estimated Time**: 3-4 days
 **Dependency**: Required for class_cast*.pas and many other tests
 
-#### 9.10.7 Inline Method Implementation - LOW PRIORITY
+#### 9.9 Inline Method Implementation - LOW PRIORITY
 **Blocks**: overload_on_metaclass.pas, class_inline_declared.pas (2+ tests)
 
-- [ ] 9.10.7.1 Parse inline method bodies
+- [ ] 9.9.1 Parse inline method bodies
   - **Task**: Allow method implementation inside class declaration
   - **Syntax**: Method declaration followed by begin...end inside class body
   - **Files**: `internal/parser/interfaces.go`
   - **Tests**: Parse inline method implementations
 
-- [ ] 9.10.7.2 Handle inline method semantics
+- [ ] 9.9.2 Handle inline method semantics
   - **Task**: Process inline methods same as separate implementations
   - **Files**: `internal/semantic/analyze_functions.go`
   - **Tests**: Inline methods work identically to separate implementations
@@ -727,15 +262,15 @@ These are test failures in the unit test suites (not fixture tests):
 **Estimated Time**: 2-3 days
 **Dependency**: Nice-to-have for cleaner syntax
 
-#### 9.10.8 Short-Form Class Declarations - LOW PRIORITY
+#### 9.10 Short-Form Class Declarations - LOW PRIORITY
 **Blocks**: class_of3.pas, class_of_cast.pas, classname.pas (5+ tests)
 
-- [ ] 9.10.8.1 Parse short-form class inheritance
+- [ ] 9.10.1 Parse short-form class inheritance
   - **Task**: Allow `TChild = class(TParent);` without body
   - **Files**: `internal/parser/interfaces.go`
   - **Tests**: Parse short-form class declarations
 
-- [ ] 9.10.8.2 Parse type alias to class
+- [ ] 9.10.2 Parse type alias to class
   - **Task**: Allow `TAlias = TClassName;` where TClassName is a class
   - **Files**: `internal/parser/interfaces.go`
   - **Tests**: Parse type aliases to existing classes
