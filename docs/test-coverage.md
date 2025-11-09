@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-The go-dws project maintains **good overall test coverage** across most critical components, with an average coverage of approximately **74.8%** across all packages. The lexer and parser, which form the foundation of the language implementation, have strong coverage at 94.5% and 78.1% respectively.
+The go-dws project maintains **good overall test coverage** across most critical components, with an average coverage of approximately **76.7%** across all packages. The lexer and parser, which form the foundation of the language implementation, have strong coverage at 94.5% and 78.1% respectively.
 
 ### Overall Coverage by Package
 
@@ -17,17 +17,17 @@ The go-dws project maintains **good overall test coverage** across most critical
 | `internal/ast` | N/A | ℹ️ No statements | N/A |
 | `pkg/dwscript` | **82.9%** | ✅ Good | Low |
 | `internal/errors` | **81.8%** | ✅ Good | Low |
-| `internal/types` | **71.3%** | ⚠️ Fair | Medium |
+| `internal/types` | **71.2%** | ⚠️ Fair | Medium |
+| `internal/semantic` | **69.9%** | ⚠️ Fair | Medium |
 | `internal/interp` | **66.7%** | ⚠️ Fair | High |
 | `internal/bytecode` | **63.6%** | ⚠️ Fair | High |
-| `internal/semantic` | **54.0%** | ⚠️ Needs Work | **Critical** |
 
 ### Test Status
 
 - **Passing Tests:** Lexer, Parser, AST, Bytecode, Types, Errors, pkg/dwscript
-- **Failing Tests:** Semantic (7 failures), Interp (421 of 548 fixture tests failing)
+- **Failing Tests:** Semantic (57 failures), Interp (423 of 548 fixture tests failing)
 - **Total Test Suites:** 9 packages
-- **Fixture Tests:** 548 total (127 passing, 421 failing)
+- **Fixture Tests:** 548 total (125 passing, 423 failing)
 
 ---
 
@@ -103,16 +103,20 @@ The parser has solid coverage but several specialized features lack comprehensiv
 
 The AST package consists entirely of interface definitions, type declarations, and struct definitions. There are no executable statements to test. All AST node types are validated through parser and interpreter tests.
 
-### 4. Semantic Analysis (`internal/semantic`) - 54.0% Coverage ⚠️
+### 4. Semantic Analysis (`internal/semantic`) - 69.9% Coverage ⚠️
 
-**Status:** ⚠️ Needs Work (7 failing tests)
-**Test Files:** `analyzer_test.go`, `inherited_test.go`
+**Status:** ⚠️ Fair (57 failing tests)
+**Test Files:** `analyzer_test.go`, `inherited_test.go`, `analyze_builtin_*_test.go`
 
-**Failing Tests:**
-- `TestInheritedExpression_Errors` (6 sub-tests)
-- `TestPrivateFieldNotInheritedAccess`
+**Recent Improvements:** Coverage increased from 54.0% to 69.9% with expanded built-in function tests.
 
-The semantic analyzer has the **lowest coverage** and represents the **highest priority** area for improvement.
+**Failing Tests:** 57 tests still failing, primarily related to:
+- Built-in function argument validation
+- Type operator edge cases (`as`, `is`)
+- Inherited expression validation
+- Various built-in function implementations needing refinement
+
+The semantic analyzer has shown significant improvement but still requires work on edge cases and error validation.
 
 #### Critical Gaps (0% coverage)
 
