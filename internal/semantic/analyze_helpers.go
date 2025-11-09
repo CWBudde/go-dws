@@ -137,8 +137,9 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 		funcType = types.NewProcedureType(paramTypes)
 	}
 
-	// Add method to helper
-	helperType.Methods[methodName] = funcType
+	// Add method to helper (normalize to lowercase for case-insensitive lookup)
+	methodNameLower := strings.ToLower(methodName)
+	helperType.Methods[methodNameLower] = funcType
 
 	// Note: In helper methods, 'Self' implicitly refers to an instance of the target type.
 	// This is validated when analyzing the method body (not implemented in this stage).
@@ -175,7 +176,9 @@ func (a *Analyzer) analyzeHelperProperty(prop *ast.PropertyDecl, helperType *typ
 		// For now, we just track the basic property info
 	}
 
-	helperType.Properties[propName] = propInfo
+	// Normalize to lowercase for case-insensitive lookup
+	propNameLower := strings.ToLower(propName)
+	helperType.Properties[propNameLower] = propInfo
 }
 
 // analyzeHelperClassVar analyzes a class variable in a helper.
@@ -202,7 +205,9 @@ func (a *Analyzer) analyzeHelperClassVar(classVar *ast.FieldDecl, helperType *ty
 		return
 	}
 
-	helperType.ClassVars[varName] = varType
+	// Normalize to lowercase for case-insensitive lookup
+	varNameLower := strings.ToLower(varName)
+	helperType.ClassVars[varNameLower] = varType
 }
 
 // analyzeHelperClassConst analyzes a class constant in a helper.
@@ -246,7 +251,9 @@ func (a *Analyzer) analyzeHelperClassConst(classConst *ast.ConstDecl, helperType
 
 	// Store the constant (value would be evaluated by interpreter)
 	// For now, we just track that it exists with its type
-	helperType.ClassConsts[constName] = constType
+	// Normalize to lowercase for case-insensitive lookup
+	constNameLower := strings.ToLower(constName)
+	helperType.ClassConsts[constNameLower] = constType
 }
 
 // getHelpersForType returns all helpers that extend the given type.
@@ -323,6 +330,28 @@ func (a *Analyzer) hasHelperProperty(typ types.Type, propName string) (*types.He
 	return nil, nil
 }
 
+// hasHelperClassConst checks if any helper for the given type defines the specified class constant.
+// Returns the helper type and constant value if found.
+// Task 9.54: Support scoped enum access via helper class constants
+func (a *Analyzer) hasHelperClassConst(typ types.Type, constName string) (*types.HelperType, interface{}) {
+	helpers := a.getHelpersForType(typ)
+	if helpers == nil {
+		return nil, nil
+	}
+
+	// Check each helper in reverse order (most recent first)
+	// Task 9.217: Use case-insensitive lookup for DWScript compatibility
+	constNameLower := strings.ToLower(constName)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		if constVal, ok := helper.ClassConsts[constNameLower]; ok {
+			return helper, constVal
+		}
+	}
+
+	return nil, nil
+}
+
 // ============================================================================
 // Built-in Array Helpers
 // ============================================================================
@@ -335,8 +364,8 @@ func (a *Analyzer) initArrayHelpers() {
 	// and modify getHelpersForType to check for array types
 	arrayHelper := types.NewHelperType("TArrayHelper", nil, false)
 
-	// Task 9.171.4: Register .Length property
-	arrayHelper.Properties["Length"] = &types.PropertyInfo{
+	// Task 9.171.4: Register .Length property (lowercase key for case-insensitive lookup)
+	arrayHelper.Properties["length"] = &types.PropertyInfo{
 		Name:      "Length",
 		Type:      types.INTEGER,
 		ReadKind:  types.PropAccessBuiltin,
@@ -344,8 +373,8 @@ func (a *Analyzer) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Task 9.171.2: Register .High property
-	arrayHelper.Properties["High"] = &types.PropertyInfo{
+	// Task 9.171.2: Register .High property (lowercase key for case-insensitive lookup)
+	arrayHelper.Properties["high"] = &types.PropertyInfo{
 		Name:      "High",
 		Type:      types.INTEGER,
 		ReadKind:  types.PropAccessBuiltin,
@@ -353,8 +382,8 @@ func (a *Analyzer) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Task 9.171.3: Register .Low property
-	arrayHelper.Properties["Low"] = &types.PropertyInfo{
+	// Task 9.171.3: Register .Low property (lowercase key for case-insensitive lookup)
+	arrayHelper.Properties["low"] = &types.PropertyInfo{
 		Name:      "Low",
 		Type:      types.INTEGER,
 		ReadKind:  types.PropAccessBuiltin,
@@ -362,13 +391,13 @@ func (a *Analyzer) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Register .Add() method for dynamic arrays
-	arrayHelper.Methods["Add"] = types.NewProcedureType([]types.Type{nil}) // Takes one parameter (element to add)
-	arrayHelper.BuiltinMethods["Add"] = "__array_add"
+	// Register .Add() method for dynamic arrays (lowercase key for case-insensitive lookup)
+	arrayHelper.Methods["add"] = types.NewProcedureType([]types.Type{nil}) // Takes one parameter (element to add)
+	arrayHelper.BuiltinMethods["add"] = "__array_add"
 
-	// Task 9.216: Register .SetLength() method for dynamic arrays
-	arrayHelper.Methods["SetLength"] = types.NewProcedureType([]types.Type{types.INTEGER})
-	arrayHelper.BuiltinMethods["SetLength"] = "__array_setlength"
+	// Task 9.216: Register .SetLength() method for dynamic arrays (lowercase key for case-insensitive lookup)
+	arrayHelper.Methods["setlength"] = types.NewProcedureType([]types.Type{types.INTEGER})
+	arrayHelper.BuiltinMethods["setlength"] = "__array_setlength"
 
 	// Register helper for ARRAY type (generic catch-all)
 	a.helpers["ARRAY"] = append(a.helpers["ARRAY"], arrayHelper)
@@ -385,50 +414,50 @@ func (a *Analyzer) initIntrinsicHelpers() {
 		a.helpers[typeName] = append(a.helpers[typeName], helper)
 	}
 
-	// Integer helper: provides ToString method/property
+	// Integer helper: provides ToString method/property (lowercase keys for case-insensitive lookup)
 	intHelper := types.NewHelperType("__TIntegerIntrinsicHelper", types.INTEGER, false)
-	intHelper.Properties["ToString"] = &types.PropertyInfo{
+	intHelper.Properties["tostring"] = &types.PropertyInfo{
 		Name:      "ToString",
 		Type:      types.STRING,
 		ReadKind:  types.PropAccessBuiltin,
 		ReadSpec:  "__integer_tostring",
 		WriteKind: types.PropAccessNone,
 	}
-	intHelper.Methods["ToString"] = types.NewFunctionType([]types.Type{}, types.STRING)
-	intHelper.BuiltinMethods["ToString"] = "__integer_tostring"
+	intHelper.Methods["tostring"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	intHelper.BuiltinMethods["tostring"] = "__integer_tostring"
 	register(types.INTEGER.String(), intHelper)
 
-	// Float helper: default ToString property and precision-aware method
+	// Float helper: default ToString property and precision-aware method (lowercase keys for case-insensitive lookup)
 	floatHelper := types.NewHelperType("__TFloatIntrinsicHelper", types.FLOAT, false)
-	floatHelper.Properties["ToString"] = &types.PropertyInfo{
+	floatHelper.Properties["tostring"] = &types.PropertyInfo{
 		Name:      "ToString",
 		Type:      types.STRING,
 		ReadKind:  types.PropAccessBuiltin,
 		ReadSpec:  "__float_tostring_default",
 		WriteKind: types.PropAccessNone,
 	}
-	floatHelper.Methods["ToString"] = types.NewFunctionType([]types.Type{types.INTEGER}, types.STRING)
-	floatHelper.BuiltinMethods["ToString"] = "__float_tostring_prec"
+	floatHelper.Methods["tostring"] = types.NewFunctionType([]types.Type{types.INTEGER}, types.STRING)
+	floatHelper.BuiltinMethods["tostring"] = "__float_tostring_prec"
 	register(types.FLOAT.String(), floatHelper)
 
-	// Boolean helper: ToString method/property returning 'True'/'False'
+	// Boolean helper: ToString method/property returning 'True'/'False' (lowercase keys for case-insensitive lookup)
 	boolHelper := types.NewHelperType("__TBooleanIntrinsicHelper", types.BOOLEAN, false)
-	boolHelper.Properties["ToString"] = &types.PropertyInfo{
+	boolHelper.Properties["tostring"] = &types.PropertyInfo{
 		Name:      "ToString",
 		Type:      types.STRING,
 		ReadKind:  types.PropAccessBuiltin,
 		ReadSpec:  "__boolean_tostring",
 		WriteKind: types.PropAccessNone,
 	}
-	boolHelper.Methods["ToString"] = types.NewFunctionType([]types.Type{}, types.STRING)
-	boolHelper.BuiltinMethods["ToString"] = "__boolean_tostring"
+	boolHelper.Methods["tostring"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	boolHelper.BuiltinMethods["tostring"] = "__boolean_tostring"
 	register(types.BOOLEAN.String(), boolHelper)
 
-	// String dynamic array helper: Join method
+	// String dynamic array helper: Join method (lowercase keys for case-insensitive lookup)
 	stringArrayHelper := types.NewHelperType("__TStringDynArrayIntrinsicHelper", nil, true)
 	stringArrayHelper.TargetType = types.NewDynamicArrayType(types.STRING)
-	stringArrayHelper.Methods["Join"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
-	stringArrayHelper.BuiltinMethods["Join"] = "__string_array_join"
+	stringArrayHelper.Methods["join"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
+	stringArrayHelper.BuiltinMethods["join"] = "__string_array_join"
 	register(stringArrayHelper.TargetType.String(), stringArrayHelper)
 }
 
@@ -440,8 +469,8 @@ func (a *Analyzer) initEnumHelpers() {
 	// Since we need to support all enum types, we'll register this for "ENUM"
 	enumHelper := types.NewHelperType("__TEnumIntrinsicHelper", nil, false)
 
-	// Task 9.31: Register .Value property (returns ordinal value)
-	enumHelper.Properties["Value"] = &types.PropertyInfo{
+	// Task 9.31: Register .Value property (returns ordinal value) - lowercase key for case-insensitive lookup
+	enumHelper.Properties["value"] = &types.PropertyInfo{
 		Name:      "Value",
 		Type:      types.INTEGER,
 		ReadKind:  types.PropAccessBuiltin,
@@ -449,8 +478,8 @@ func (a *Analyzer) initEnumHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Register .Name property (returns enum value name as string)
-	enumHelper.Properties["Name"] = &types.PropertyInfo{
+	// Register .Name property (returns enum value name as string) - lowercase key for case-insensitive lookup
+	enumHelper.Properties["name"] = &types.PropertyInfo{
 		Name:      "Name",
 		Type:      types.STRING,
 		ReadKind:  types.PropAccessBuiltin,
@@ -458,8 +487,8 @@ func (a *Analyzer) initEnumHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Register .QualifiedName property (returns TypeName.ValueName)
-	enumHelper.Properties["QualifiedName"] = &types.PropertyInfo{
+	// Register .QualifiedName property (returns TypeName.ValueName) - lowercase key for case-insensitive lookup
+	enumHelper.Properties["qualifiedname"] = &types.PropertyInfo{
 		Name:      "QualifiedName",
 		Type:      types.STRING,
 		ReadKind:  types.PropAccessBuiltin,
