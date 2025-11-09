@@ -229,38 +229,49 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Dependency**: Useful for classtype*.pas tests
 **Completion**: Added ClassType property to all classes, returns ClassOfType from semantic analyzer and ClassValue at runtime. Supports member access, identifier access in methods/constructors, and case-insensitive lookup.
 
-#### 9.8 Type Casting - HIGH PRIORITY
+#### 9.8 Type Casting - HIGH PRIORITY ✅ **COMPLETED**
 
 **Blocks**: class_cast*.pas, casts_*.pas, classname.pas (10+ tests)
 
-- [ ] 9.8.1 Parse function-style type casts
+- [x] 9.8.1 Parse function-style type casts
   - **Task**: Recognize `TypeName(expression)` as type cast
   - **Challenge**: Distinguish from function calls
-  - **Files**: `internal/parser/expressions.go`
-  - **Tests**: Parse `TMyClass(obj)` as type cast
+  - **Files**: `internal/semantic/analyze_function_calls.go`
+  - **Tests**: Parse `Integer(x)`, `Float(y)`, `TMyClass(obj)`
+  - **Status**: ✅ Detection during semantic analysis (not in parser)
 
-- [ ] 9.8.2 Semantic analysis for type casts
+- [x] 9.8.2 Semantic analysis for type casts
   - **Task**: Validate type compatibility for casts
-  - **Files**: `internal/semantic/analyze_expressions.go`
+  - **Files**: `internal/semantic/analyze_function_calls.go`
   - **Tests**: Valid casts accepted, invalid casts rejected
+  - **Status**: ✅ Implemented with `analyzeTypeCast()` and `isValidCast()`
 
-- [ ] 9.8.3 Runtime type cast execution
+- [x] 9.8.3 Runtime type cast execution
   - **Task**: Perform runtime type checking for casts
-  - **Files**: `internal/interp/expressions.go`
+  - **Files**: `internal/interp/functions.go`
   - **Tests**: Type casts validate at runtime, raise errors for invalid casts
+  - **Status**: ✅ Implemented with cast functions for all basic types and classes
 
-- [ ] 9.8.4 Parse `as` operator for safe casting
+- [x] 9.8.4 Parse `as` operator for safe casting
   - **Task**: Recognize `expression as TypeName`
-  - **Files**: `internal/parser/expressions.go`, `internal/lexer/token_type.go`
+  - **Files**: Already implemented
   - **Tests**: Parse `obj as TMyClass`
+  - **Status**: ✅ Already implemented (parseAsExpression exists)
 
-- [ ] 9.8.5 Runtime `as` operator execution
+- [x] 9.8.5 Runtime `as` operator execution
   - **Task**: Perform safe type cast with exception on failure
-  - **Files**: `internal/interp/expressions.go`
+  - **Files**: Already implemented
   - **Tests**: `as` operator validates types and raises exception on mismatch
+  - **Status**: ✅ Already implemented (evalAsExpression exists)
 
 **Estimated Time**: 3-4 days
 **Dependency**: Required for class_cast*.pas and many other tests
+**Completion**: Full function-style type casting with:
+- Basic type conversions: Integer, Float, String, Boolean
+- Class type casting with runtime validation
+- Variant support
+- Case-insensitive type names
+- Comprehensive test suite (internal/interp/typecast_test.go)
 
 #### 9.9 Inline Method Implementation - LOW PRIORITY
 
