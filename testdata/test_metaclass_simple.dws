@@ -1,0 +1,81 @@
+// Simplified metaclass test without constructor parameters
+
+type
+  TBase = class
+    FValue: Integer;
+    constructor Create; virtual;
+    function GetValue: Integer;
+  end;
+
+type
+  TChild = class(TBase)
+    constructor Create; override;
+  end;
+
+type TBaseClass = class of TBase;
+
+constructor TBase.Create;
+begin
+  FValue := 100;
+  PrintLn('TBase.Create');
+end;
+
+function TBase.GetValue: Integer;
+begin
+  Result := FValue;
+end;
+
+constructor TChild.Create;
+begin
+  inherited Create;
+  FValue := 200;
+  PrintLn('TChild.Create');
+end;
+
+var
+  meta: TBaseClass;
+  obj: TBase;
+
+// Test 1: Variable declaration and assignment
+PrintLn('=== Test 1: Variable Assignment ===');
+meta := TBase;
+PrintLn('Assigned TBase to meta');
+
+meta := TChild;
+PrintLn('Assigned TChild to meta');
+
+// Test 2: Constructor dispatch
+PrintLn('');
+PrintLn('=== Test 2: Constructor Dispatch ===');
+
+meta := TBase;
+obj := meta.Create;
+PrintLn('Value from TBase: ' + IntToStr(obj.GetValue()));
+
+meta := TChild;
+obj := meta.Create;
+PrintLn('Value from TChild: ' + IntToStr(obj.GetValue()));
+
+// Test 3: Comparison operators
+PrintLn('');
+PrintLn('=== Test 3: Comparisons ===');
+
+meta := TBase;
+if meta = TBase then
+  PrintLn('meta = TBase: True')
+else
+  PrintLn('meta = TBase: False');
+
+if meta <> TChild then
+  PrintLn('meta <> TChild: True')
+else
+  PrintLn('meta <> TChild: False');
+
+meta := TChild;
+if meta = TChild then
+  PrintLn('meta = TChild: True')
+else
+  PrintLn('meta = TChild: False');
+
+PrintLn('');
+PrintLn('=== All Tests Passed ===');
