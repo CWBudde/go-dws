@@ -1252,6 +1252,14 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 	}
 }
 
+// bindClassConstantsToEnv adds all class constants from the given ClassInfo to the current environment.
+// This allows methods to access class constants directly by name without qualification.
+func (i *Interpreter) bindClassConstantsToEnv(classInfo *ClassInfo) {
+	for constName, constValue := range classInfo.ConstantValues {
+		i.env.Define(constName, constValue)
+	}
+}
+
 // evalMethodCall evaluates a method call (obj.Method(...)) or class method call (TClass.Method(...)).
 // It looks up the method in the object's class hierarchy and executes it with Self bound to the object.
 // For class methods, Self is not bound as they are static methods.
@@ -1388,6 +1396,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 				// Bind __CurrentClass__ so class variables can be accessed
 				i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
+				// Add class constants to method scope so they can be accessed directly
+				i.bindClassConstantsToEnv(classInfo)
+
 				// Bind method parameters to arguments with implicit conversion
 				for idx, param := range classMethod.Parameters {
 					arg := args[idx]
@@ -1502,6 +1513,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 				// Bind Self to the object
 				i.env.Define("Self", obj)
+
+				// Add class constants to method scope so they can be accessed directly
+				i.bindClassConstantsToEnv(classInfo)
 
 				// NOTE: We do NOT add fields to the environment here.
 				// The evalSimpleAssignment and Eval(Identifier) functions already handle
@@ -1688,6 +1702,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		savedEnv := i.env
 		i.env = methodEnv
 		i.env.Define("Self", newInstance)
+
+		// Add class constants to method scope so they can be accessed directly
+		i.bindClassConstantsToEnv(runtimeClass)
 
 		// Bind constructor parameters to arguments
 		for idx, param := range constructor.Parameters {
@@ -1902,6 +1919,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		i.env = methodEnv
 		i.env.Define("Self", newObj)
 
+		// Add class constants to method scope so they can be accessed directly
+		i.bindClassConstantsToEnv(obj.Class)
+
 		// Bind method parameters to arguments
 		for idx, param := range actualConstructor.Parameters {
 			arg := args[idx]
@@ -1945,6 +1965,9 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 	// Bind Self to the object
 	i.env.Define("Self", obj)
+
+	// Add class constants to method scope so they can be accessed directly
+	i.bindClassConstantsToEnv(obj.Class)
 
 	// Bind method parameters to arguments with implicit conversion
 	for idx, param := range method.Parameters {
@@ -2216,6 +2239,9 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 
 	// Bind __CurrentClass__ to parent class
 	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: parentClass})
+
+	// Add class constants to method scope so they can be accessed directly
+	i.bindClassConstantsToEnv(parentClass)
 
 	// Bind __CurrentMethod__ for nested inherited calls
 	i.env.Define("__CurrentMethod__", &StringValue{Value: methodName})
