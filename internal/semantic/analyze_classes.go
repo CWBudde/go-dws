@@ -612,6 +612,9 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	// Check if this is an implementation for a forward declaration
 	isForward := method.Body == nil
 
+	// Track if this is an implementation for an existing forward declaration
+	isImplementationOfForward := false
+
 	for _, existing := range existingOverloads {
 		// Task 9.63: Check if signatures are identical (duplicate) - use DWScript error format
 		if a.methodSignaturesMatch(funcType, existing.Signature) {
@@ -627,7 +630,10 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 				classType.VirtualMethods[method.Name.Value] = method.IsVirtual
 				classType.OverrideMethods[method.Name.Value] = method.IsOverride
 				classType.AbstractMethods[method.Name.Value] = method.IsAbstract
-				return
+
+				// Mark that we found the forward declaration and updated it
+				isImplementationOfForward = true
+				break // Exit overload loop - method body will be analyzed below
 			}
 
 			// True duplicate (both forward or both implementation)
@@ -644,10 +650,13 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		}
 	}
 
-	if method.IsConstructor {
-		classType.AddConstructorOverload(method.Name.Value, methodInfo)
-	} else {
-		classType.AddMethodOverload(method.Name.Value, methodInfo)
+	// Only add a new overload if this isn't an implementation of an existing forward declaration
+	if !isImplementationOfForward {
+		if method.IsConstructor {
+			classType.AddConstructorOverload(method.Name.Value, methodInfo)
+		} else {
+			classType.AddMethodOverload(method.Name.Value, methodInfo)
+		}
 	}
 
 	// Store method metadata in legacy maps for backward compatibility
