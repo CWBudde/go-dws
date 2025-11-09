@@ -111,20 +111,20 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	// Register TObject as the root base class for all classes
 	// Required for DWScript compatibility
 	objectClass := &types.ClassType{
-		Name:                "TObject",
-		Parent:              nil, // Root of the class hierarchy
-		Fields:              make(map[string]types.Type),
-		Methods:             make(map[string]*types.FunctionType),
-		FieldVisibility:     make(map[string]int),
-		MethodVisibility:    make(map[string]int),
-		VirtualMethods:      make(map[string]bool),
-		OverrideMethods:     make(map[string]bool),
-		AbstractMethods:     make(map[string]bool),
-		Constructors:        make(map[string]*types.FunctionType),
+		Name:                 "TObject",
+		Parent:               nil, // Root of the class hierarchy
+		Fields:               make(map[string]types.Type),
+		Methods:              make(map[string]*types.FunctionType),
+		FieldVisibility:      make(map[string]int),
+		MethodVisibility:     make(map[string]int),
+		VirtualMethods:       make(map[string]bool),
+		OverrideMethods:      make(map[string]bool),
+		AbstractMethods:      make(map[string]bool),
+		Constructors:         make(map[string]*types.FunctionType),
 		ConstructorOverloads: make(map[string][]*types.MethodInfo),
-		Interfaces:          make([]*types.InterfaceType, 0),
-		Properties:          make(map[string]*types.PropertyInfo),
-		ClassMethodFlags:    make(map[string]bool),
+		Interfaces:           make([]*types.InterfaceType, 0),
+		Properties:           make(map[string]*types.PropertyInfo),
+		ClassMethodFlags:     make(map[string]bool),
 	}
 
 	// Add basic Create constructor
@@ -147,20 +147,20 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 
 	// Define Exception base class
 	exceptionClass := &types.ClassType{
-		Name:                "Exception",
-		Parent:              objectClass, // Exception inherits from TObject
-		Fields:              make(map[string]types.Type),
-		Methods:             make(map[string]*types.FunctionType),
-		FieldVisibility:     make(map[string]int),
-		MethodVisibility:    make(map[string]int),
-		VirtualMethods:      make(map[string]bool),
-		OverrideMethods:     make(map[string]bool),
-		AbstractMethods:     make(map[string]bool),
-		Constructors:        make(map[string]*types.FunctionType),
+		Name:                 "Exception",
+		Parent:               objectClass, // Exception inherits from TObject
+		Fields:               make(map[string]types.Type),
+		Methods:              make(map[string]*types.FunctionType),
+		FieldVisibility:      make(map[string]int),
+		MethodVisibility:     make(map[string]int),
+		VirtualMethods:       make(map[string]bool),
+		OverrideMethods:      make(map[string]bool),
+		AbstractMethods:      make(map[string]bool),
+		Constructors:         make(map[string]*types.FunctionType),
 		ConstructorOverloads: make(map[string][]*types.MethodInfo),
-		Interfaces:          make([]*types.InterfaceType, 0),
-		Properties:          make(map[string]*types.PropertyInfo),
-		ClassMethodFlags:    make(map[string]bool),
+		Interfaces:           make([]*types.InterfaceType, 0),
+		Properties:           make(map[string]*types.PropertyInfo),
+		ClassMethodFlags:     make(map[string]bool),
 	}
 
 	// Add Message field to Exception
@@ -189,20 +189,20 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 
 	for _, excName := range standardExceptions {
 		excClass := &types.ClassType{
-			Name:                excName,
-			Parent:              exceptionClass, // All inherit from Exception
-			Fields:              make(map[string]types.Type),
-			Methods:             make(map[string]*types.FunctionType),
-			FieldVisibility:     make(map[string]int),
-			MethodVisibility:    make(map[string]int),
-			VirtualMethods:      make(map[string]bool),
-			OverrideMethods:     make(map[string]bool),
-			AbstractMethods:     make(map[string]bool),
-			Constructors:        make(map[string]*types.FunctionType),
+			Name:                 excName,
+			Parent:               exceptionClass, // All inherit from Exception
+			Fields:               make(map[string]types.Type),
+			Methods:              make(map[string]*types.FunctionType),
+			FieldVisibility:      make(map[string]int),
+			MethodVisibility:     make(map[string]int),
+			VirtualMethods:       make(map[string]bool),
+			OverrideMethods:      make(map[string]bool),
+			AbstractMethods:      make(map[string]bool),
+			Constructors:         make(map[string]*types.FunctionType),
 			ConstructorOverloads: make(map[string][]*types.MethodInfo),
-			Interfaces:          make([]*types.InterfaceType, 0),
-			Properties:          make(map[string]*types.PropertyInfo),
-			ClassMethodFlags:    make(map[string]bool),
+			Interfaces:           make([]*types.InterfaceType, 0),
+			Properties:           make(map[string]*types.PropertyInfo),
+			ClassMethodFlags:     make(map[string]bool),
 		}
 
 		// Inherit Message field from Exception

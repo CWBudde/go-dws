@@ -212,9 +212,9 @@ func TestNewEnumType(t *testing.T) {
 
 	t.Run("Create enum with explicit values", func(t *testing.T) {
 		values := map[string]int{
-			"One":   1,
-			"Five":  5,
-			"Ten":   10,
+			"One":  1,
+			"Five": 5,
+			"Ten":  10,
 		}
 		orderedNames := []string{"One", "Five", "Ten"}
 
@@ -271,12 +271,12 @@ func TestHelperType(t *testing.T) {
 
 	t.Run("TypeKind", func(t *testing.T) {
 		helper := &HelperType{
-			Name:       "THelper",
-			TargetType: INTEGER,
-			Methods:    make(map[string]*FunctionType),
-			Properties: make(map[string]*PropertyInfo),
-			ClassVars:  make(map[string]Type),
-			ClassConsts: make(map[string]interface{}),
+			Name:           "THelper",
+			TargetType:     INTEGER,
+			Methods:        make(map[string]*FunctionType),
+			Properties:     make(map[string]*PropertyInfo),
+			ClassVars:      make(map[string]Type),
+			ClassConsts:    make(map[string]interface{}),
 			BuiltinMethods: make(map[string]string),
 		}
 
@@ -287,21 +287,21 @@ func TestHelperType(t *testing.T) {
 
 	t.Run("Equals same helper", func(t *testing.T) {
 		helper1 := &HelperType{
-			Name:       "THelper",
-			TargetType: STRING,
-			Methods:    make(map[string]*FunctionType),
-			Properties: make(map[string]*PropertyInfo),
-			ClassVars:  make(map[string]Type),
-			ClassConsts: make(map[string]interface{}),
+			Name:           "THelper",
+			TargetType:     STRING,
+			Methods:        make(map[string]*FunctionType),
+			Properties:     make(map[string]*PropertyInfo),
+			ClassVars:      make(map[string]Type),
+			ClassConsts:    make(map[string]interface{}),
 			BuiltinMethods: make(map[string]string),
 		}
 		helper2 := &HelperType{
-			Name:       "THelper",
-			TargetType: STRING,
-			Methods:    make(map[string]*FunctionType),
-			Properties: make(map[string]*PropertyInfo),
-			ClassVars:  make(map[string]Type),
-			ClassConsts: make(map[string]interface{}),
+			Name:           "THelper",
+			TargetType:     STRING,
+			Methods:        make(map[string]*FunctionType),
+			Properties:     make(map[string]*PropertyInfo),
+			ClassVars:      make(map[string]Type),
+			ClassConsts:    make(map[string]interface{}),
 			BuiltinMethods: make(map[string]string),
 		}
 
@@ -312,21 +312,21 @@ func TestHelperType(t *testing.T) {
 
 	t.Run("Not equals different name", func(t *testing.T) {
 		helper1 := &HelperType{
-			Name:       "THelper1",
-			TargetType: STRING,
-			Methods:    make(map[string]*FunctionType),
-			Properties: make(map[string]*PropertyInfo),
-			ClassVars:  make(map[string]Type),
-			ClassConsts: make(map[string]interface{}),
+			Name:           "THelper1",
+			TargetType:     STRING,
+			Methods:        make(map[string]*FunctionType),
+			Properties:     make(map[string]*PropertyInfo),
+			ClassVars:      make(map[string]Type),
+			ClassConsts:    make(map[string]interface{}),
 			BuiltinMethods: make(map[string]string),
 		}
 		helper2 := &HelperType{
-			Name:       "THelper2",
-			TargetType: STRING,
-			Methods:    make(map[string]*FunctionType),
-			Properties: make(map[string]*PropertyInfo),
-			ClassVars:  make(map[string]Type),
-			ClassConsts: make(map[string]interface{}),
+			Name:           "THelper2",
+			TargetType:     STRING,
+			Methods:        make(map[string]*FunctionType),
+			Properties:     make(map[string]*PropertyInfo),
+			ClassVars:      make(map[string]Type),
+			ClassConsts:    make(map[string]interface{}),
 			BuiltinMethods: make(map[string]string),
 		}
 
@@ -337,21 +337,21 @@ func TestHelperType(t *testing.T) {
 
 	t.Run("Not equals different target type", func(t *testing.T) {
 		helper1 := &HelperType{
-			Name:       "THelper",
-			TargetType: STRING,
-			Methods:    make(map[string]*FunctionType),
-			Properties: make(map[string]*PropertyInfo),
-			ClassVars:  make(map[string]Type),
-			ClassConsts: make(map[string]interface{}),
+			Name:           "THelper",
+			TargetType:     STRING,
+			Methods:        make(map[string]*FunctionType),
+			Properties:     make(map[string]*PropertyInfo),
+			ClassVars:      make(map[string]Type),
+			ClassConsts:    make(map[string]interface{}),
 			BuiltinMethods: make(map[string]string),
 		}
 		helper2 := &HelperType{
-			Name:       "THelper",
-			TargetType: INTEGER,
-			Methods:    make(map[string]*FunctionType),
-			Properties: make(map[string]*PropertyInfo),
-			ClassVars:  make(map[string]Type),
-			ClassConsts: make(map[string]interface{}),
+			Name:           "THelper",
+			TargetType:     INTEGER,
+			Methods:        make(map[string]*FunctionType),
+			Properties:     make(map[string]*PropertyInfo),
+			ClassVars:      make(map[string]Type),
+			ClassConsts:    make(map[string]interface{}),
 			BuiltinMethods: make(map[string]string),
 		}
 
@@ -362,12 +362,12 @@ func TestHelperType(t *testing.T) {
 
 	t.Run("Not equals non-helper type", func(t *testing.T) {
 		helper := &HelperType{
-			Name:       "THelper",
-			TargetType: STRING,
-			Methods:    make(map[string]*FunctionType),
-			Properties: make(map[string]*PropertyInfo),
-			ClassVars:  make(map[string]Type),
-			ClassConsts: make(map[string]interface{}),
+			Name:           "THelper",
+			TargetType:     STRING,
+			Methods:        make(map[string]*FunctionType),
+			Properties:     make(map[string]*PropertyInfo),
+			ClassVars:      make(map[string]Type),
+			ClassConsts:    make(map[string]interface{}),
 			BuiltinMethods: make(map[string]string),
 		}
 

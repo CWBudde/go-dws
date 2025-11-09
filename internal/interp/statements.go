@@ -506,12 +506,19 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 			if r, ok := right.(*IntegerValue); ok {
 				return &IntegerValue{Value: l.Value + r.Value}
 			}
+			// Allow implicit Float to Integer conversion would lose precision, not allowed
 			return i.newErrorWithLocation(stmt, "type mismatch: cannot add %s to Integer", right.Type())
 		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
+			// Support Float + Float and Float + Integer (with implicit conversion)
+			switch r := right.(type) {
+			case *FloatValue:
 				return &FloatValue{Value: l.Value + r.Value}
+			case *IntegerValue:
+				// Implicit Integer to Float conversion
+				return &FloatValue{Value: l.Value + float64(r.Value)}
+			default:
+				return i.newErrorWithLocation(stmt, "type mismatch: cannot add %s to Float", right.Type())
 			}
-			return i.newErrorWithLocation(stmt, "type mismatch: cannot add %s to Float", right.Type())
 		case *StringValue:
 			if r, ok := right.(*StringValue); ok {
 				return &StringValue{Value: l.Value + r.Value}
@@ -530,10 +537,16 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 			}
 			return i.newErrorWithLocation(stmt, "type mismatch: cannot subtract %s from Integer", right.Type())
 		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
+			// Support Float - Float and Float - Integer (with implicit conversion)
+			switch r := right.(type) {
+			case *FloatValue:
 				return &FloatValue{Value: l.Value - r.Value}
+			case *IntegerValue:
+				// Implicit Integer to Float conversion
+				return &FloatValue{Value: l.Value - float64(r.Value)}
+			default:
+				return i.newErrorWithLocation(stmt, "type mismatch: cannot subtract %s from Float", right.Type())
 			}
-			return i.newErrorWithLocation(stmt, "type mismatch: cannot subtract %s from Float", right.Type())
 		default:
 			return i.newErrorWithLocation(stmt, "operator -= not supported for type %s", left.Type())
 		}
@@ -547,10 +560,16 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 			}
 			return i.newErrorWithLocation(stmt, "type mismatch: cannot multiply Integer by %s", right.Type())
 		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
+			// Support Float * Float and Float * Integer (with implicit conversion)
+			switch r := right.(type) {
+			case *FloatValue:
 				return &FloatValue{Value: l.Value * r.Value}
+			case *IntegerValue:
+				// Implicit Integer to Float conversion
+				return &FloatValue{Value: l.Value * float64(r.Value)}
+			default:
+				return i.newErrorWithLocation(stmt, "type mismatch: cannot multiply Float by %s", right.Type())
 			}
-			return i.newErrorWithLocation(stmt, "type mismatch: cannot multiply Float by %s", right.Type())
 		default:
 			return i.newErrorWithLocation(stmt, "operator *= not supported for type %s", left.Type())
 		}
@@ -576,7 +595,9 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 			}
 			return i.newErrorWithLocation(stmt, "type mismatch: cannot divide Integer by %s", right.Type())
 		case *FloatValue:
-			if r, ok := right.(*FloatValue); ok {
+			// Support Float / Float and Float / Integer (with implicit conversion)
+			switch r := right.(type) {
+			case *FloatValue:
 				if r.Value == 0.0 {
 					// Task 9.111: Enhanced error with operand values
 					return i.NewRuntimeError(
@@ -590,8 +611,24 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 					)
 				}
 				return &FloatValue{Value: l.Value / r.Value}
+			case *IntegerValue:
+				// Implicit Integer to Float conversion
+				if r.Value == 0 {
+					// Task 9.111: Enhanced error with operand values
+					return i.NewRuntimeError(
+						stmt,
+						"division_by_zero",
+						fmt.Sprintf("Division by zero: %v /= %d", l.Value, r.Value),
+						map[string]string{
+							"left":  fmt.Sprintf("%v", l.Value),
+							"right": fmt.Sprintf("%d", r.Value),
+						},
+					)
+				}
+				return &FloatValue{Value: l.Value / float64(r.Value)}
+			default:
+				return i.newErrorWithLocation(stmt, "type mismatch: cannot divide Float by %s", right.Type())
 			}
-			return i.newErrorWithLocation(stmt, "type mismatch: cannot divide Float by %s", right.Type())
 		default:
 			return i.newErrorWithLocation(stmt, "operator /= not supported for type %s", left.Type())
 		}
