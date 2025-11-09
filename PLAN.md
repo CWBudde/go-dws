@@ -282,23 +282,26 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - Case-insensitive type names
 - Comprehensive test suite (internal/interp/typecast_test.go)
 
-#### 9.9 Inline Method Implementation - LOW PRIORITY
+#### 9.9 Inline Method Implementation - LOW PRIORITY ✅
 
 **Blocks**: overload_on_metaclass.pas, class_inline_declared.pas (2+ tests)
 
-- [ ] 9.9.1 Parse inline method bodies
+- [x] 9.9.1 Parse inline method bodies
   - **Task**: Allow method implementation inside class declaration
   - **Syntax**: Method declaration followed by begin...end inside class body
-  - **Files**: `internal/parser/interfaces.go`
+  - **Files**: `internal/parser/functions.go`
   - **Tests**: Parse inline method implementations
+  - **Status**: Already implemented - parseFunctionDeclaration handles inline methods automatically
 
-- [ ] 9.9.2 Handle inline method semantics
+- [x] 9.9.2 Handle inline method semantics
   - **Task**: Process inline methods same as separate implementations
   - **Files**: `internal/semantic/analyze_functions.go`
   - **Tests**: Inline methods work identically to separate implementations
+  - **Status**: Already working - semantic analyzer handles inline methods correctly
 
 **Estimated Time**: 2-3 days
 **Dependency**: Nice-to-have for cleaner syntax
+**Completion**: Feature was already implemented. Added comprehensive tests in `internal/parser/inline_methods_test.go`.
 
 #### 9.10 Short-Form Class Declarations - LOW PRIORITY
 
