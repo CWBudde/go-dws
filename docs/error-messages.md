@@ -80,7 +80,7 @@ Cannot assign Float to Integer variable 'count'
   Actual: Float
 ```
 
-**Features** (Task 9.110):
+**Features**
 - Variable names included in error messages
 - Expected and actual types clearly shown
 - Context-aware messages (assignment, parameter, return value, etc.)
@@ -107,7 +107,7 @@ Runtime Error: <error type>: <message> [line: N, column: M]
   <value context>
 ```
 
-**Example** (Task 9.111):
+**Example**
 ```
 Runtime Error: Division by zero [line: 15, column: 12]
   15 | result := a div b;
@@ -181,7 +181,7 @@ Cannot assign Float to Integer variable 'count'  (in red)
 
 ## Error Message Improvements
 
-### Task 9.110: Type Error Messages
+### Type Error Messages
 
 **Before**:
 ```
@@ -204,7 +204,7 @@ Cannot assign Float to Integer variable 'count'
 - Exact location
 - Source code context
 
-### Task 9.111: Runtime Error Messages
+### Runtime Error Messages
 
 **Before**:
 ```
@@ -227,7 +227,7 @@ Division by zero: 10 / 0
 - Position highlighting
 - Visual error marker
 
-### Task 9.112: Source Code Snippets
+### Source Code Snippets
 
 All errors include source code context:
 - The line containing the error
@@ -258,7 +258,7 @@ Two built-in functions provide stack trace access:
 
 #### GetStackTrace()
 
-Returns formatted string (Task 9.114):
+Returns formatted string:
 
 ```pascal
 var trace: String;
@@ -274,7 +274,7 @@ CallerFunction [line: 20, column: 3]
 
 #### GetCallStack()
 
-Returns structured array (Task 9.116):
+Returns structured array:
 
 ```pascal
 var stack: array of Variant;

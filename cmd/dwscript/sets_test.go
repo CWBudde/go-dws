@@ -12,7 +12,7 @@ import (
 // "set of" type declarations in the type section. Once parser support is added,
 // remove the t.Skip() calls and the tests should pass.
 func TestLargeSet(t *testing.T) {
-	t.Skip("Skipping: Parser does not yet support 'set of' type declarations (Task 9.10d limitation)")
+	t.Skip("Skipping: Parser does not yet support 'set of' type declarations. -> TODO")
 
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
@@ -60,7 +60,7 @@ func TestLargeSet(t *testing.T) {
 // "set of" type declarations in the type section. Once parser support is added,
 // remove the t.Skip() call and the test should pass.
 func TestForInSet(t *testing.T) {
-	t.Skip("Skipping: Parser does not yet support 'set of' type declarations (Task 9.10e limitation)")
+	t.Skip("Skipping: Parser does not yet support 'set of' type declarations. -> TODO")
 
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
