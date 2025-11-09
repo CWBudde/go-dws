@@ -1,28 +1,8 @@
 package interp
 
 import (
-	"bytes"
 	"testing"
-
-	"github.com/cwbudde/go-dws/internal/lexer"
-	"github.com/cwbudde/go-dws/internal/parser"
 )
-
-// Helper function to evaluate class constant tests with output capture
-func testEvalClassConst(input string) (Value, string) {
-	l := lexer.New(input)
-	p := parser.New(l)
-	program := p.ParseProgram()
-
-	if len(p.Errors()) > 0 {
-		panic("parser errors: " + joinParserErrorsNewline(p.Errors()))
-	}
-
-	var buf bytes.Buffer
-	interp := New(&buf)
-	result := interp.Eval(program)
-	return result, buf.String()
-}
 
 // TestClassConstantInClassMethod tests that class constants can be accessed
 // within class methods (static methods).
@@ -62,7 +42,7 @@ func TestClassConstantInClassMethod(t *testing.T) {
 		end.
 	`
 
-	result, output := testEvalClassConst(source)
+	result, output := testEvalWithOutput(source)
 	if isError(result) {
 		t.Fatalf("interpreter error: %s", result.String())
 	}
@@ -114,7 +94,7 @@ func TestClassConstantInInstanceMethod(t *testing.T) {
 		end.
 	`
 
-	result, output := testEvalClassConst(source)
+	result, output := testEvalWithOutput(source)
 	if isError(result) {
 		t.Fatalf("interpreter error: %s", result.String())
 	}
@@ -156,12 +136,81 @@ func TestClassConstantInheritance(t *testing.T) {
 		end.
 	`
 
-	result, output := testEvalClassConst(source)
+	result, output := testEvalWithOutput(source)
 	if isError(result) {
 		t.Fatalf("interpreter error: %s", result.String())
 	}
 
 	expected := "42\n42\n142\n"
+	if output != expected {
+		t.Errorf("Expected output:\n%s\nGot:\n%s", expected, output)
+	}
+}
+
+// TestClassConstantInInheritedMethod tests that class constants can be accessed
+// within inherited method calls.
+func TestClassConstantInInheritedMethod(t *testing.T) {
+	source := `
+		type TBase = class
+			class const BASE_LIMIT = 100;
+			FValue: Integer;
+
+			constructor Create;
+			function Validate: Boolean;
+		end;
+
+		type TDerived = class(TBase)
+			class const DERIVED_LIMIT = 200;
+
+			function Validate: Boolean; override;
+		end;
+
+		constructor TBase.Create;
+		begin
+			FValue := 0;
+		end;
+
+		function TBase.Validate: Boolean;
+		begin
+			// Base method should access BASE_LIMIT
+			Result := FValue < BASE_LIMIT;
+		end;
+
+		function TDerived.Validate: Boolean;
+		begin
+			// First check derived limit
+			if FValue >= DERIVED_LIMIT then
+			begin
+				Result := False;
+			end
+			else
+			begin
+				// Call parent's validation which uses BASE_LIMIT
+				Result := inherited Validate;
+			end;
+		end;
+
+		var
+			d: TDerived;
+		begin
+			d := TDerived.Create;
+			d.FValue := 50;
+			PrintLn(d.Validate);    // Should print: True (50 < 100)
+
+			d.FValue := 150;
+			PrintLn(d.Validate);    // Should print: False (150 >= 100)
+
+			d.FValue := 250;
+			PrintLn(d.Validate);    // Should print: False (250 >= 200)
+		end.
+	`
+
+	result, output := testEvalWithOutput(source)
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "True\nFalse\nFalse\n"
 	if output != expected {
 		t.Errorf("Expected output:\n%s\nGot:\n%s", expected, output)
 	}
