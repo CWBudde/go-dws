@@ -839,18 +839,44 @@ func TestConcreteClassMustImplementAbstractMethods(t *testing.T) {
 		type TCircle = class(TShape)
 			FRadius: Float;
 		end;
+
+		var c := TCircle.Create();
 	`
-	// Should error: TCircle doesn't implement GetArea
+	// Should error when trying to instantiate TCircle (doesn't implement GetArea)
 	expectError(t, input, "abstract")
 }
 
-func TestAbstractMethodInConcreteClass(t *testing.T) {
+func TestCannotInstantiateConcreteClassWithUnimplementedMethods(t *testing.T) {
+	input := `
+		type TShape = class abstract
+			function GetArea(): Float; virtual; abstract;
+			function GetName(): String; virtual; abstract;
+		end;
+
+		type TCircle = class(TShape)
+			FRadius: Float;
+
+			function GetArea(): Float; override;
+			begin
+				Result := 3.14 * FRadius * FRadius;
+			end;
+		end;
+
+		var c := TCircle.Create();
+	`
+	// Should error: TCircle doesn't implement GetName
+	expectError(t, input, "abstract")
+}
+
+func TestAbstractMethodMakesClassImplicitlyAbstract(t *testing.T) {
 	input := `
 		type TShape = class
-			function GetArea(): Float; abstract;
+			function GetArea(): Float; virtual; abstract;
 		end;
+
+		var s := TShape.Create();
 	`
-	// Should error: only abstract classes can have abstract methods
+	// Should error: cannot instantiate class with abstract methods (implicitly abstract)
 	expectError(t, input, "abstract")
 }
 

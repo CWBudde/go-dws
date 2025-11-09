@@ -965,6 +965,16 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		return nil
 	}
 
+	// Task 9.12.3: Check if class has unimplemented abstract methods
+	// Even if the class itself is not marked abstract, it cannot be instantiated
+	// if it inherits abstract methods that haven't been implemented
+	unimplementedMethods := a.getUnimplementedAbstractMethods(classType)
+	if len(unimplementedMethods) > 0 {
+		a.addError("Trying to create an instance of an abstract class at [line: %d, column: %d]",
+			expr.Token.Pos.Line, expr.Token.Pos.Column)
+		return nil
+	}
+
 	// Task 9.13-9.16: Get all constructor overloads (assuming "Create" as default constructor name)
 	// In DWScript, constructors are typically named "Create" but can have other names
 	// For NewExpression, we assume "Create" unless the AST specifies otherwise
@@ -1294,27 +1304,30 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 // 2. Concrete classes must implement all inherited abstract methods
 // 3. Abstract methods are implicitly virtual
 func (a *Analyzer) validateAbstractClass(classType *types.ClassType, decl *ast.ClassDecl) {
-	// Rule 1: Abstract methods can only exist in abstract classes
-	for methodName, isAbstract := range classType.AbstractMethods {
-		if isAbstract && !classType.IsAbstract {
-			a.addError("abstract method '%s' can only be declared in an abstract class at %s",
-				methodName, decl.Token.Pos.String())
+	// Rule 1: Classes with abstract methods are implicitly abstract
+	// If a class has abstract methods, mark it as abstract automatically
+	hasAbstractMethods := false
+	for _, isAbstract := range classType.AbstractMethods {
+		if isAbstract {
+			hasAbstractMethods = true
+			break
 		}
+	}
+	if hasAbstractMethods {
+		classType.IsAbstract = true
+	}
 
-		// Abstract methods are implicitly virtual
+	// Abstract methods are implicitly virtual
+	for methodName, isAbstract := range classType.AbstractMethods {
 		if isAbstract {
 			classType.VirtualMethods[methodName] = true
 		}
 	}
 
 	// Rule 2: Concrete classes must implement all inherited abstract methods
-	if !classType.IsAbstract {
-		unimplementedMethods := a.getUnimplementedAbstractMethods(classType)
-		if len(unimplementedMethods) > 0 {
-			for _, methodName := range unimplementedMethods {
-				a.addError("concrete class '%s' must implement abstract method '%s' at %s",
-					classType.Name, methodName, decl.Token.Pos.String())
-			}
-		}
-	}
+	// NOTE: We don't report this error during class declaration anymore (Task 9.12).
+	// Instead, we report it during instantiation (see analyzeNewExpression).
+	// This matches DWScript behavior where the error is reported when trying to
+	// create an instance, not when declaring the class.
+	// The check is still performed in analyzeNewExpression via getUnimplementedAbstractMethods.
 }
