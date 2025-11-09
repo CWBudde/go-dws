@@ -16,43 +16,139 @@ import (
 func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	className := decl.Name.Value
 
+	// Task 9.11: Detect if this is a forward declaration
+	// A forward declaration has no body - the slices are nil (not initialized)
+	// An empty class has initialized but empty slices
+	isForwardDecl := (decl.Fields == nil &&
+		decl.Methods == nil &&
+		decl.Properties == nil &&
+		decl.Operators == nil &&
+		decl.Constants == nil)
+
 	// Check if class is already declared
 	// Task 9.285: Use lowercase for case-insensitive lookup
-	if _, exists := a.classes[strings.ToLower(className)]; exists {
-		a.addError("class '%s' already declared at %s", className, decl.Token.Pos.String())
+	existingClass, exists := a.classes[strings.ToLower(className)]
+	resolvingForwardDecl := false
+	if exists {
+		// Task 9.11: Handle forward declaration resolution
+		if existingClass.IsForward && !isForwardDecl {
+			// This is the full implementation of a forward-declared class
+			// Validate that parent class matches between forward declaration and full implementation
+			var fullImplParent *types.ClassType
+			if decl.Parent != nil {
+				parentName := decl.Parent.Value
+				var found bool
+				fullImplParent, found = a.classes[strings.ToLower(parentName)]
+				if !found {
+					a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+					return
+				}
+			}
+
+			// Compare parent classes
+			if existingClass.Parent != fullImplParent {
+				if existingClass.Parent == nil && fullImplParent != nil {
+					a.addError("class '%s' forward declared without parent, but implementation specifies parent '%s' at %s",
+						className, fullImplParent.Name, decl.Token.Pos.String())
+					return
+				} else if existingClass.Parent != nil && fullImplParent == nil {
+					a.addError("class '%s' forward declared with parent '%s', but implementation has no parent at %s",
+						className, existingClass.Parent.Name, decl.Token.Pos.String())
+					return
+				} else if existingClass.Parent != nil && fullImplParent != nil {
+					a.addError("class '%s' forward declared with parent '%s', but implementation specifies different parent '%s' at %s",
+						className, existingClass.Parent.Name, fullImplParent.Name, decl.Token.Pos.String())
+					return
+				}
+			}
+			// Parent classes match - mark that we're resolving a forward declaration
+			resolvingForwardDecl = true
+		} else if existingClass.IsForward && isForwardDecl {
+			// Duplicate forward declaration
+			a.addError("class '%s' already forward declared at %s", className, decl.Token.Pos.String())
+			return
+		} else {
+			// Class already fully declared
+			a.addError("class '%s' already declared at %s", className, decl.Token.Pos.String())
+			return
+		}
+	}
+
+	// Task 9.11: If this is a forward declaration, create a minimal class type
+	if isForwardDecl {
+		// For forward declarations, we still need to resolve the parent if specified
+		// so that later uses of the class can access parent members
+		var parentClass *types.ClassType
+		if decl.Parent != nil {
+			parentName := decl.Parent.Value
+			var found bool
+			parentClass, found = a.classes[strings.ToLower(parentName)]
+			if !found {
+				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+				return
+			}
+		}
+
+		// Create minimal class type for forward declaration
+		classType := types.NewClassType(className, parentClass)
+		classType.IsForward = true
+		classType.IsAbstract = decl.IsAbstract
+		classType.IsExternal = decl.IsExternal
+		classType.ExternalName = decl.ExternalName
+
+		// Register the forward declaration
+		a.classes[strings.ToLower(className)] = classType
 		return
 	}
 
-	// Resolve parent class if specified
+	// Resolve parent class if specified (or reuse from forward declaration)
 	var parentClass *types.ClassType
-	if decl.Parent != nil {
-		parentName := decl.Parent.Value
-		var found bool
-		// Task 9.285: Use lowercase for case-insensitive lookup
-		parentClass, found = a.classes[strings.ToLower(parentName)]
-		if !found {
-			a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
-			return
-		}
-	} else {
-		// Task 9.51: If no explicit parent, implicitly inherit from TObject (unless this IS TObject or external)
-		// External classes can have nil parent (inherit from Object)
-		if !strings.EqualFold(className, "TObject") && !decl.IsExternal {
+	var classType *types.ClassType
+
+	if resolvingForwardDecl {
+		// Reuse the existing forward declaration instance
+		classType = existingClass
+		parentClass = classType.Parent
+
+		// Handle implicit TObject parent if needed
+		if parentClass == nil && !strings.EqualFold(className, "TObject") && !decl.IsExternal {
 			parentClass = a.classes["tobject"]
 			if parentClass == nil {
 				a.addError("implicit parent class 'TObject' not found at %s", decl.Token.Pos.String())
 				return
 			}
+			classType.Parent = parentClass
 		}
+	} else {
+		// Not resolving a forward declaration - resolve parent and create new class
+		if decl.Parent != nil {
+			parentName := decl.Parent.Value
+			var found bool
+			// Task 9.285: Use lowercase for case-insensitive lookup
+			parentClass, found = a.classes[strings.ToLower(parentName)]
+			if !found {
+				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+				return
+			}
+		} else {
+			// Task 9.51: If no explicit parent, implicitly inherit from TObject (unless this IS TObject or external)
+			// External classes can have nil parent (inherit from Object)
+			if !strings.EqualFold(className, "TObject") && !decl.IsExternal {
+				parentClass = a.classes["tobject"]
+				if parentClass == nil {
+					a.addError("implicit parent class 'TObject' not found at %s", decl.Token.Pos.String())
+					return
+				}
+			}
+		}
+
+		// Create new class type
+		classType = types.NewClassType(className, parentClass)
 	}
 
-	// Create new class type
-	classType := types.NewClassType(className, parentClass)
-
-	// Set abstract flag
+	// Update class flags
+	classType.IsForward = false // No longer a forward declaration
 	classType.IsAbstract = decl.IsAbstract
-
-	// Set external flags
 	classType.IsExternal = decl.IsExternal
 	classType.ExternalName = decl.ExternalName
 
@@ -917,6 +1013,16 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		return nil
 	}
 
+	// Task 9.12.3: Check if class has unimplemented abstract methods
+	// Even if the class itself is not marked abstract, it cannot be instantiated
+	// if it inherits abstract methods that haven't been implemented
+	unimplementedMethods := a.getUnimplementedAbstractMethods(classType)
+	if len(unimplementedMethods) > 0 {
+		a.addError("Trying to create an instance of an abstract class at [line: %d, column: %d]",
+			expr.Token.Pos.Line, expr.Token.Pos.Column)
+		return nil
+	}
+
 	// Task 9.13-9.16: Get all constructor overloads (assuming "Create" as default constructor name)
 	// In DWScript, constructors are typically named "Create" but can have other names
 	// For NewExpression, we assume "Create" unless the AST specifies otherwise
@@ -1246,27 +1352,30 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 // 2. Concrete classes must implement all inherited abstract methods
 // 3. Abstract methods are implicitly virtual
 func (a *Analyzer) validateAbstractClass(classType *types.ClassType, decl *ast.ClassDecl) {
-	// Rule 1: Abstract methods can only exist in abstract classes
-	for methodName, isAbstract := range classType.AbstractMethods {
-		if isAbstract && !classType.IsAbstract {
-			a.addError("abstract method '%s' can only be declared in an abstract class at %s",
-				methodName, decl.Token.Pos.String())
+	// Rule 1: Classes with abstract methods are implicitly abstract
+	// If a class has abstract methods, mark it as abstract automatically
+	hasAbstractMethods := false
+	for _, isAbstract := range classType.AbstractMethods {
+		if isAbstract {
+			hasAbstractMethods = true
+			break
 		}
+	}
+	if hasAbstractMethods {
+		classType.IsAbstract = true
+	}
 
-		// Abstract methods are implicitly virtual
+	// Abstract methods are implicitly virtual
+	for methodName, isAbstract := range classType.AbstractMethods {
 		if isAbstract {
 			classType.VirtualMethods[methodName] = true
 		}
 	}
 
 	// Rule 2: Concrete classes must implement all inherited abstract methods
-	if !classType.IsAbstract {
-		unimplementedMethods := a.getUnimplementedAbstractMethods(classType)
-		if len(unimplementedMethods) > 0 {
-			for _, methodName := range unimplementedMethods {
-				a.addError("concrete class '%s' must implement abstract method '%s' at %s",
-					classType.Name, methodName, decl.Token.Pos.String())
-			}
-		}
-	}
+	// NOTE: We don't report this error during class declaration anymore (Task 9.12).
+	// Instead, we report it during instantiation (see analyzeNewExpression).
+	// This matches DWScript behavior where the error is reported when trying to
+	// create an instance, not when declaring the class.
+	// The check is still performed in analyzeNewExpression via getUnimplementedAbstractMethods.
 }
