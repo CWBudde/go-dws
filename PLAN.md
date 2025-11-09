@@ -97,26 +97,30 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Files**: `internal/semantic/analyze_expressions.go`
   - **Estimated time**: 0.5 day
 
-- [ ] 9.3.1 Parse `class procedure` and `class function` declarations
+- [x] 9.3.1 Parse `class procedure` and `class function` declarations
   - **Task**: Extend parser to recognize class method syntax
   - **Syntax**: `class procedure Name;` and `class function Name: ReturnType;`
   - **Files**: `internal/parser/functions.go`, `internal/ast/declarations.go`
   - **Tests**: Parse class method declarations without errors
+  - **Status**: ✅ Already implemented and tested
 
-- [ ] 9.3.2 Implement class method semantic analysis
+- [x] 9.3.2 Implement class method semantic analysis
   - **Task**: Validate class methods (no access to Self/instance fields)
   - **Files**: `internal/semantic/analyze_functions.go`
   - **Tests**: Class methods cannot access instance members
+  - **Status**: ✅ Already implemented and tested
 
-- [ ] 9.3.3 Implement class method runtime execution
+- [x] 9.3.3 Implement class method runtime execution
   - **Task**: Execute class methods without instance context
   - **Files**: `internal/interp/functions.go`
   - **Tests**: Class methods execute and access class variables/constants
+  - **Status**: ✅ Already implemented and tested
 
-- [ ] 9.3.4 Support virtual/override on class methods
+- [x] 9.3.4 Support virtual/override on class methods
   - **Task**: Allow polymorphism for class methods
   - **Files**: `internal/semantic/analyze_functions.go`, `internal/interp/objects.go`
   - **Tests**: Virtual class methods dispatch correctly through inheritance
+  - **Status**: ✅ Already implemented and tested
 
 #### 9.4 Class Constants - MEDIUM PRIORITY
 **Blocks**: class_const*.pas (5+ tests)
