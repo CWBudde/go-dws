@@ -17,12 +17,13 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	className := decl.Name.Value
 
 	// Task 9.11: Detect if this is a forward declaration
-	// A forward declaration has no body (no fields, methods, properties, operators, constants)
-	isForwardDecl := (len(decl.Fields) == 0 &&
-		len(decl.Methods) == 0 &&
-		len(decl.Properties) == 0 &&
-		len(decl.Operators) == 0 &&
-		len(decl.Constants) == 0)
+	// A forward declaration has no body - the slices are nil (not initialized)
+	// An empty class has initialized but empty slices
+	isForwardDecl := (decl.Fields == nil &&
+		decl.Methods == nil &&
+		decl.Properties == nil &&
+		decl.Operators == nil &&
+		decl.Constants == nil)
 
 	// Check if class is already declared
 	// Task 9.285: Use lowercase for case-insensitive lookup
