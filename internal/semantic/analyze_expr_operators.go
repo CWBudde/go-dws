@@ -55,9 +55,20 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 			return &types.ClassOfType{ClassType: classType}
 		}
 		if a.currentClass != nil && !a.inClassMethod {
-			// Task 9.32b/9.32c: Check if identifier is a field of the current class (implicit Self)
+			// Task 9.32b/9.32c: Check if identifier is a field of the current class (implicit Self, includes inherited)
 			// NOTE: This only applies to instance methods, NOT class methods (static methods)
-			if fieldType, exists := a.currentClass.Fields[ident.Value]; exists {
+			if fieldType, exists := a.currentClass.GetField(ident.Value); exists {
+				// Check field visibility
+				fieldOwner := a.getFieldOwner(a.currentClass, ident.Value)
+				if fieldOwner != nil {
+					visibility, hasVisibility := fieldOwner.FieldVisibility[ident.Value]
+					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, ident.Value, "field") {
+						visibilityStr := ast.Visibility(visibility).String()
+						a.addError("cannot access %s field '%s' at %s",
+							visibilityStr, ident.Value, ident.Token.Pos.String())
+						return nil
+					}
+				}
 				return fieldType
 			}
 
@@ -80,14 +91,6 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 						}
 						return propInfo.Type
 					}
-				}
-			}
-
-			if owner := a.getFieldOwner(a.currentClass.Parent, ident.Value); owner != nil {
-				if visibility, ok := owner.FieldVisibility[ident.Value]; ok && visibility == int(ast.VisibilityPrivate) {
-					a.addError("cannot access private field '%s' of class '%s' at %s",
-						ident.Value, owner.Name, ident.Token.Pos.String())
-					return nil
 				}
 			}
 
