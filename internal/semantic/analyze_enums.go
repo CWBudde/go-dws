@@ -87,4 +87,33 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 	// This allows the type name to be used as a runtime value in expressions
 	// like High(TColor) or Low(TColor)
 	a.symbols.Define(enumName, enumType)
+
+	// Task 9.54: Create implicit helper for scoped enum access (TColor.Red)
+	// This enables accessing enum values via the type name while maintaining
+	// backward compatibility with unscoped access (Red)
+	a.createEnumScopedAccessHelper(enumName, enumType)
+}
+
+// createEnumScopedAccessHelper creates an implicit helper for an enum type
+// that allows scoped access to enum values (e.g., TColor.Red).
+// Task 9.54: Enable TE1.val1 syntax for enum values
+func (a *Analyzer) createEnumScopedAccessHelper(enumName string, enumType *types.EnumType) {
+	// Create a helper type for this specific enum
+	helperName := "__" + enumName + "_ScopedAccessHelper"
+	helper := types.NewHelperType(helperName, enumType, false)
+
+	// Add each enum value as a class constant on the helper
+	// This allows TColor.Red to resolve to the Red constant
+	for valueName, ordinalValue := range enumType.Values {
+		// Store the ordinal value as the constant value
+		// Normalize to lowercase for case-insensitive lookup
+		helper.ClassConsts[strings.ToLower(valueName)] = ordinalValue
+	}
+
+	// Register the helper for this enum type
+	targetTypeName := enumType.String()
+	if a.helpers[targetTypeName] == nil {
+		a.helpers[targetTypeName] = make([]*types.HelperType, 0)
+	}
+	a.helpers[targetTypeName] = append(a.helpers[targetTypeName], helper)
 }

@@ -529,7 +529,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Root Cause**: Enums need scoped access (TE1.val1) which requires helper functionality. Helpers also enable extending built-in types.
 
-- [ ] 9.50 Implement helper AST nodes
+- [x] 9.50 Implement helper AST nodes ✅
   - **Task**: Create AST representation for helper declarations
   - **Implementation**:
     - Add HelperDeclaration node in `internal/ast/helper.go`
@@ -537,8 +537,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Parse helper method declarations
   - **Files**: `internal/ast/helper.go`
   - **Estimated time**: 1 day
+  - **Completed**: 2025-01-09
 
-- [ ] 9.51 Parse helper declarations
+- [x] 9.51 Parse helper declarations ✅
   - **Task**: Recognize `helper for Type` syntax
   - **Implementation**:
     - Create `internal/parser/helper.go`
@@ -548,8 +549,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Test**: Helper declarations parse correctly
   - **Files**: `internal/parser/helper.go`
   - **Estimated time**: 2-3 days
+  - **Completed**: 2025-01-09
 
-- [ ] 9.52 Implement helper type system
+- [x] 9.52 Implement helper type system ✅
   - **Task**: Track which helpers apply to which types
   - **Implementation**:
     - Create `internal/types/helper.go`
@@ -558,8 +560,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Handle helper priority/ordering
   - **Files**: `internal/types/helper.go`
   - **Estimated time**: 2-3 days
+  - **Completed**: 2025-01-09
 
-- [ ] 9.53 Implement helper method resolution
+- [x] 9.53 Implement helper method resolution ✅
   - **Task**: Look up helper methods during member access
   - **Implementation**:
     - Modify member access evaluation
@@ -569,8 +572,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Test**: `'hello'.ToUpper` calls helper method
   - **Files**: `internal/interp/member_access.go`, `internal/semantic/analyze_expressions.go`
   - **Estimated time**: 3-4 days
+  - **Completed**: 2025-01-09
 
-- [ ] 9.54 Implement enum scoped access via helpers
+- [x] 9.54 Implement enum scoped access via helpers ✅
   - **Task**: Enable TE1.val1 syntax for enum values
   - **Implementation**:
     - Auto-generate implicit helper for enum types
@@ -580,6 +584,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Test**: Both `TColor.Red` and `Red` work
   - **Files**: `internal/semantic/analyze_enums.go`, `internal/types/helper.go`
   - **Estimated time**: 2-3 days
+  - **Completed**: 2025-01-09
 
 - [ ] 9.55 Test helper method inheritance
   - **Task**: Helpers can inherit from other helpers
@@ -591,7 +596,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Files**: `internal/parser/helper.go`, `internal/semantic/helper.go`
   - **Estimated time**: 1-2 days
 
-**Milestone**: Helper types complete, ~66 additional tests should pass, bringing total to ~70-75% pass rate
+**Milestone**: Helper types core functionality complete (tasks 9.50-9.54), ~66 additional tests should pass, bringing total to ~70-75% pass rate
 
 ---
 

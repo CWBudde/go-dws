@@ -1065,6 +1065,18 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			return helperMethod
 		}
 
+		// Task 9.54: Check for helper class constants (for scoped enum access like TColor.Red)
+		_, helperConst := a.hasHelperClassConst(objectType, memberName)
+		if helperConst != nil {
+			// For enum types, the constant is the enum value, so return the enum type itself
+			if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
+				return objectType
+			}
+			// For other types, we'd need to determine the constant's type
+			// For now, return the object type (conservative approach)
+			return objectType
+		}
+
 		a.addError("member access on type %s requires a helper, got no helper with member '%s' at %s",
 			objectType.String(), memberName, expr.Token.Pos.String())
 		return nil
