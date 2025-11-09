@@ -28,11 +28,41 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	// Check if class is already declared
 	// Task 9.285: Use lowercase for case-insensitive lookup
 	existingClass, exists := a.classes[strings.ToLower(className)]
+	resolvingForwardDecl := false
 	if exists {
 		// Task 9.11: Handle forward declaration resolution
 		if existingClass.IsForward && !isForwardDecl {
 			// This is the full implementation of a forward-declared class
-			// We'll replace the forward declaration with the full one below
+			// Validate that parent class matches between forward declaration and full implementation
+			var fullImplParent *types.ClassType
+			if decl.Parent != nil {
+				parentName := decl.Parent.Value
+				var found bool
+				fullImplParent, found = a.classes[strings.ToLower(parentName)]
+				if !found {
+					a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+					return
+				}
+			}
+
+			// Compare parent classes
+			if existingClass.Parent != fullImplParent {
+				if existingClass.Parent == nil && fullImplParent != nil {
+					a.addError("class '%s' forward declared without parent, but implementation specifies parent '%s' at %s",
+						className, fullImplParent.Name, decl.Token.Pos.String())
+					return
+				} else if existingClass.Parent != nil && fullImplParent == nil {
+					a.addError("class '%s' forward declared with parent '%s', but implementation has no parent at %s",
+						className, existingClass.Parent.Name, decl.Token.Pos.String())
+					return
+				} else if existingClass.Parent != nil && fullImplParent != nil {
+					a.addError("class '%s' forward declared with parent '%s', but implementation specifies different parent '%s' at %s",
+						className, existingClass.Parent.Name, fullImplParent.Name, decl.Token.Pos.String())
+					return
+				}
+			}
+			// Parent classes match - mark that we're resolving a forward declaration
+			resolvingForwardDecl = true
 		} else if existingClass.IsForward && isForwardDecl {
 			// Duplicate forward declaration
 			a.addError("class '%s' already forward declared at %s", className, decl.Token.Pos.String())
@@ -71,36 +101,54 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		return
 	}
 
-	// Resolve parent class if specified
+	// Resolve parent class if specified (or reuse from forward declaration)
 	var parentClass *types.ClassType
-	if decl.Parent != nil {
-		parentName := decl.Parent.Value
-		var found bool
-		// Task 9.285: Use lowercase for case-insensitive lookup
-		parentClass, found = a.classes[strings.ToLower(parentName)]
-		if !found {
-			a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
-			return
-		}
-	} else {
-		// Task 9.51: If no explicit parent, implicitly inherit from TObject (unless this IS TObject or external)
-		// External classes can have nil parent (inherit from Object)
-		if !strings.EqualFold(className, "TObject") && !decl.IsExternal {
+	var classType *types.ClassType
+
+	if resolvingForwardDecl {
+		// Reuse the existing forward declaration instance
+		classType = existingClass
+		parentClass = classType.Parent
+
+		// Handle implicit TObject parent if needed
+		if parentClass == nil && !strings.EqualFold(className, "TObject") && !decl.IsExternal {
 			parentClass = a.classes["tobject"]
 			if parentClass == nil {
 				a.addError("implicit parent class 'TObject' not found at %s", decl.Token.Pos.String())
 				return
 			}
+			classType.Parent = parentClass
 		}
+	} else {
+		// Not resolving a forward declaration - resolve parent and create new class
+		if decl.Parent != nil {
+			parentName := decl.Parent.Value
+			var found bool
+			// Task 9.285: Use lowercase for case-insensitive lookup
+			parentClass, found = a.classes[strings.ToLower(parentName)]
+			if !found {
+				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+				return
+			}
+		} else {
+			// Task 9.51: If no explicit parent, implicitly inherit from TObject (unless this IS TObject or external)
+			// External classes can have nil parent (inherit from Object)
+			if !strings.EqualFold(className, "TObject") && !decl.IsExternal {
+				parentClass = a.classes["tobject"]
+				if parentClass == nil {
+					a.addError("implicit parent class 'TObject' not found at %s", decl.Token.Pos.String())
+					return
+				}
+			}
+		}
+
+		// Create new class type
+		classType = types.NewClassType(className, parentClass)
 	}
 
-	// Create new class type
-	classType := types.NewClassType(className, parentClass)
-
-	// Set abstract flag
+	// Update class flags
+	classType.IsForward = false // No longer a forward declaration
 	classType.IsAbstract = decl.IsAbstract
-
-	// Set external flags
 	classType.IsExternal = decl.IsExternal
 	classType.ExternalName = decl.ExternalName
 
