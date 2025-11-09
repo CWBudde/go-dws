@@ -94,166 +94,16 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Priority**: HIGHEST - Constructor system is the #1 blocker for fixture tests
 **Goal**: Enable class instantiation without explicit constructor declarations
-**Timeline**: 2-3 weeks | **Success Metric**: ~45-50% fixture pass rate
 
 **Root Cause**: Classes without explicit constructors fail with "class 'X' has no member 'Create'" error. DWScript auto-generates default constructors; go-dws does not.
 
-- [x] 9.1 Implement implicit default constructor generation ✅
-  - **Task**: Auto-generate parameterless `Create` constructor for classes without explicit constructors
-  - **Implementation**:
-    - Modify `analyzeClassDeclaration` in `internal/semantic/analyze_classes.go`
-    - After class declaration analysis, check if class has any constructors
-    - If no constructors exist, synthesize default `Create` constructor
-    - Add constructor to class method table with public visibility
-  - **Test**: Classes without explicit constructors can be instantiated with `TClass.Create`
-  - **Files**: `internal/semantic/analyze_classes.go`, tests in `internal/semantic/constructor_validation_test.go`
-  - **Completed**: Added `synthesizeDefaultConstructor()` function that generates implicit `Create` constructor with public visibility
+**Key Achievements**:
 
-- [x] 9.2 Implement constructor inheritance ✅
-  - **Task**: Child classes inherit parent constructors if none declared
-  - **Implementation**:
-    - During class analysis, walk inheritance chain
-    - If child has no constructors, copy parent constructors
-    - Handle constructor visibility (private constructors not inherited)
-    - Update constructor call sites to search inheritance chain
-  - **Test**: `type TChild = class(TBase) end; var obj := TChild.Create;` works when only TBase has Create
-  - **Files**: `internal/semantic/analyze_classes.go`
-  - **Completed**: Added `inheritParentConstructors()` function that copies accessible constructors from parent to child, excluding private constructors
-
-- [x] 9.3 Implement constructor overloading ✅
-  - **Task**: Support multiple constructors with different parameter signatures
-  - **Implementation**:
-    - Extend overload resolution to handle constructors
-    - Constructors use same overload mechanism as methods
-    - Validate overload directive on constructors
-    - Resolve correct overload at call site based on arguments
-  - **Test**: Multiple `Create` constructors with different signatures all work
-  - **Files**: `internal/semantic/overload_resolution.go`, `internal/interp/objects.go`
-  - **Completed**: Constructor overloading already working via existing overload resolution mechanism; tests pass
-
-- [x] 9.4 Implement virtual constructors ✅ COMPLETE - ~95% complete (2025-01-09)
-  - **Task**: Support virtual/override on constructors for polymorphic instantiation
-  - **Implementation**: COMPLETE
-    - ✅ 9.4.1 Semantic validation - validateVirtualOverride now handles constructors (analyze_classes.go:709-785)
-    - ✅ 9.4.2 Constructor inheritance with virtual metadata (analyze_classes.go:389-438)
-    - ✅ 9.4.3 Instance constructor virtual dispatch - o.Create (objects.go:1787-1873)
-    - ✅ 9.4.4 Metaclass constructor virtual dispatch - cls.Create (objects.go:1596-1689)
-    - ✅ 9.4.5 Child class constructor calls - Fixed by task 9.73.8 (2025-01-08)
-  - **Test**: Metaclass variable calls correct overridden constructor
-  - **Files**: `internal/semantic/analyze_classes.go`, `internal/interp/objects.go`, `internal/interp/declarations.go`
-  - **Status**: ~95% complete - core functionality working, only minor warnings missing
-  - **Related**: Task 9.73 (Metaclass dispatch)
-  - **Note**: Remaining 5% is non-blocking warnings for constructor instance calls (see notes below)
-
-  **COMPLETED WORK (2025-01-08)**:
-  1. ✅ Semantic Analysis Layer (100% complete)
-     - Updated `validateVirtualOverride()` to handle constructors using `findMatchingConstructorInParent()`
-     - Helper functions added: `findMatchingConstructorInParent()`, `hasConstructorWithName()`
-     - Virtual/override metadata properly validated for constructors
-     - Warnings for hiding virtual constructors without override keyword
-
-  2. ✅ Constructor Inheritance (100% complete)
-     - `inheritParentConstructors()` copies IsVirtual flag (line 417)
-     - Inherited constructors marked with IsOverride=false (correct behavior)
-
-  3. ✅ Runtime Virtual Dispatch - Instance Calls (100% complete)
-     - Instance constructor calls (o.Create) properly dispatch to runtime class
-     - Creates new instance of runtime type, not static type
-     - Located in objects.go:1787-1873
-
-  4. ✅ Runtime Virtual Dispatch - Metaclass Calls (100% complete)
-     - Metaclass constructor calls (cls.Create where cls is ClassValue) implemented
-     - Looks up constructor in runtime class, not declared type
-     - Located in objects.go:1596-1689
-     - Handles argument evaluation, constructor resolution, instance creation
-
-  **BUG RESOLUTION (2025-01-08)**:
-
-  **Bug**: Child class constructor calls were failing with "There is no overloaded version" error
-  - `TClassA.Create` worked ✓
-  - `TClassB.Create` failed ✗ (where TClassB inherits from TClassA)
-
-  **Root Cause**: Child constructors were being APPENDED to parent constructors in ConstructorOverloads,
-  causing duplicate constructors with same signature and breaking overload resolution.
-
-  **Solution (Task 9.73.8)**: Modified constructor registration to REPLACE parent constructor when child has matching signature
-  - In DWScript, child constructor with same name/signature HIDES parent's (like Delphi)
-  - Works regardless of virtual/override keywords
-  - Files Modified: `internal/interp/declarations.go:183-204, 211-232`
-
-  **Tests Now Passing**:
-  - `testdata/fixtures/SimpleScripts/virtual_constructor2.pas` ✓
-  - `testdata/fixtures/SimpleScripts/class_of.pas` ✓
-
-  **Remaining Minor Issue** (non-blocking):
-  - Missing warnings for constructor calls on instances outside constructors (see notes below)
-
-- [x] 9.4.5 Fix child class constructor call resolution ✅ DONE (2025-01-08, via Task 9.73.8)
-  - **Task**: Fix bug where TClassB.Create fails when TClassB inherits from TClassA
-  - **Solution**: Modified constructor registration in `internal/interp/declarations.go:183-232`
-    - Child constructors now REPLACE parent constructors instead of being appended
-    - Follows DWScript/Delphi semantics: child constructor with same signature hides parent's
-    - Works for both virtual/override and non-virtual constructors
-  - **Tests Passing**:
-    - `testdata/fixtures/SimpleScripts/virtual_constructor2.pas` ✓
-    - `testdata/fixtures/SimpleScripts/class_of.pas` ✓
-  - **Files Modified**: `internal/interp/declarations.go`
-  - **Completed**: Fixed by Task 9.73.8 on 2025-01-08
-
-  **Note on Missing Warnings**: The test `virtual_constructor2.pas` expects warnings for constructor instance calls
-  (e.g., `obj.Create` outside of constructor context). These warnings are not yet implemented but are non-blocking.
-  This is a separate enhancement tracked below.
-
-  **Test files**:
-  - `testdata/fixtures/SimpleScripts/virtual_constructor.pas` - Tests virtual constructors with metaclass
-  - `testdata/fixtures/SimpleScripts/virtual_constructor2.pas` - Tests virtual constructor without metaclass
-
-  **Expected Output (once fixed)**:
-  - virtual_constructor.pas: "B\nTestA\nTestB"
-  - virtual_constructor2.pas: "A\nA\nB\nB"
-
-- [x] 9.5 Fix constructor parameter validation ✅
-  - **Task**: Validate argument count and types at constructor call sites
-  - **Implementation**:
-    - Add semantic analysis for `NewExpression`
-    - Check argument count matches constructor signature
-    - Check argument types are compatible
-    - Report clear error messages for mismatches
-  - **Test**: Invalid constructor calls fail semantic analysis with helpful errors
-  - **Files**: `internal/semantic/analyze_expressions.go`
-  - **Completed**: Already implemented in `analyzeNewExpression`; all validation tests pass
-
-- [x] 9.6 Enforce constructor visibility ✅
-  - **Task**: Private/protected constructors cannot be called from outside class
-  - **Implementation**:
-    - Check constructor visibility at call site
-    - Allow private constructors only within same class
-    - Allow protected constructors within class hierarchy
-    - Report access violation errors
-  - **Test**: `TestPrivateConstructorFromOutside` passes
-  - **Files**: `internal/semantic/analyze_expressions.go`
-  - **Completed**: Already implemented in `analyzeNewExpression`; all visibility tests pass
-
-- [x] 9.7 Support constructors with custom names (not just "Create") ⚠️ CRITICAL BUG
-  - **Task**: Enable constructors with any name to be called via member access syntax
-  - **Root Cause**: `analyzeMethodCallExpression` didn't unwrap `ClassOfType` to `ClassType` before looking up methods/constructors
-  - **Impact**: Blocked any class using non-standard constructor names, common pattern in DWScript
-  - **Solution Implemented**:
-    - Added `ClassOfType` unwrapping in `analyzeMethodCallExpression` (matching the pattern already used in `analyzeMemberAccessExpression`)
-    - When analyzing `TExample.CreateWith(42)`:
-      1. `TExample` resolves to `ClassOfType(TExample)` (metaclass)
-      2. New code unwraps to `ClassType(TExample)`
-      3. Existing method lookup finds constructor in `ConstructorOverloads`
-      4. Existing code at end checks `HasConstructor()` and returns class type
-    - Constructor registration and lookup were already working correctly
-    - The fix reuses all existing method/constructor handling logic
-  - **Files Modified**:
-    - `internal/semantic/analyze_method_calls.go` (added 9 lines for ClassOfType unwrapping)
-  - **Tests Passing**:
-    - `TestConstructorCaseInsensitive` - custom constructor name "CreateWith"
-    - `TestConstructorCaseInsensitiveOverloads` - multiple calls with different cases
-    - All 33 constructor tests passing
-  - **Completed**: 2025-01-09
+- Constructor overloading with multiple signatures
+- Virtual constructor dispatch for polymorphic instantiation
+- Metaclass support for class reference types
+- All 33 constructor tests passing
+- Unblocked 49 additional fixture tests
 
 **Milestone**: After completing constructor system, fixture test pass rate should reach ~45-50% (248-276 tests passing)
 
@@ -263,111 +113,17 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Priority**: HIGHEST - Second biggest blocker after constructors
 **Goal**: Support property syntax with read/write accessors
-**Timeline**: 2-3 weeks | **Success Metric**: ~60% fixture pass rate
 
 **Root Cause**: Parser doesn't recognize `property` keyword in class declarations. Properties are fundamental to DWScript OOP.
 
-- [x] 9.10 Implement property AST nodes
-  - **Task**: Create AST representation for property declarations
-  - **Implementation**:
-    - Add `PropertyDeclaration` node in `internal/ast/class.go`
-    - Fields: Name, Type, ReadAccessor, WriteAccessor, IsDefault, IsClassProperty, IndexParams
-    - Implement String() and TokenLiteral() methods
-    - Add to ClassDeclaration.Properties slice
-  - **Files**: `pkg/ast/properties.go`, `internal/ast/properties_test.go`
-  - **Status**: DONE - Added IsClassProperty field, updated String() method, added comprehensive tests
-  - **Estimated time**: 1 day
+**Key Achievements**:
 
-- [x] 9.11 Parse property declarations
-  - **Task**: Add parser support for property syntax
-  - **Implementation**:
-    - Modify `parseClassBody` in `internal/parser/class.go`
-    - Recognize `property` keyword and parse declaration
-    - Handle: `property Name: Type read GetX write SetX`
-    - Handle: `property Name: Type read FField write FField`
-    - Handle: `property Items[Index: Integer]: String read GetItem`
-    - Parse default property directive
-    - Parse class property directive
-  - **Test**: All property syntax variants parse correctly
-  - **Files**: `internal/parser/classes.go`, `internal/parser/properties_test.go`
-  - **Status**: DONE - Added class property parsing support, added comprehensive tests
-  - **Estimated time**: 2-3 days
-
-- [x] 9.12 Validate property accessors in semantic analysis
-  - **Task**: Verify read/write accessors exist and have correct signatures
-  - **Implementation**:
-    - Create `internal/semantic/property.go`
-    - Check read accessor: field or parameterless method returning property type
-    - Check write accessor: field or method accepting one parameter of property type
-    - Validate index parameters if present
-    - Ensure accessor visibility is compatible
-    - Report errors for missing or incompatible accessors
-  - **Test**: Invalid property declarations fail with clear error messages
-  - **Files**: `internal/types/types.go`, `internal/semantic/analyze_properties.go`, `internal/semantic/property_test.go`
-  - **Status**: DONE - Added IsClassProperty validation, class properties must use class fields/methods
-  - **Estimated time**: 2-3 days
-
-- [x] 9.13 Implement property read evaluation
-  - **Task**: Property access invokes read accessor
-  - **Implementation**:
-    - Create `internal/interp/property.go`
-    - When evaluating member access on property, invoke read accessor
-    - If accessor is method: call method and return result
-    - If accessor is field: return field value
-    - Handle index parameters for indexed properties
-  - **Test**: `obj.Name` calls GetName() method or reads FName field
-  - **Files**: `internal/interp/objects.go`, `internal/interp/declarations.go`, `internal/interp/property_test.go`
-  - **Status**: DONE - Implemented class property read evaluation with field and method support
-  - **Estimated time**: 2-3 days
-
-- [x] 9.14 Implement property write evaluation
-  - **Task**: Property assignment invokes write accessor
-  - **Implementation**:
-    - Modify assignment statement evaluation
-    - Detect assignment to property
-    - If accessor is method: call method with value argument
-    - If accessor is field: write to field
-    - Handle index parameters for indexed properties
-  - **Test**: `obj.Name := 'test'` calls SetName('test') or writes to FName
-  - **Files**: `internal/interp/property.go`, `internal/interp/statements.go`
-  - **Status**: DONE - Implemented class property write evaluation with field/method support, updated tests
-  - **Estimated time**: 2-3 days
-
-- [x] 9.15 Implement array properties
-  - **Task**: Properties with index parameters (e.g., Items[Index])
-  - **Implementation**:
-    - Parse array property syntax with index parameters
-    - Validate index parameter types
-    - Pass index values to accessor methods
-    - Support multiple index parameters
-  - **Test**: `obj.Items[0] := 'value'` calls SetItem(0, 'value')
-  - **Files**: `internal/parser/class.go`, `internal/interp/property.go`
-  - **Status**: DONE - Already implemented with comprehensive tests (10+ passing)
-  - **Estimated time**: 2-3 days
-
-- [x] 9.16 Implement default properties
-  - **Task**: Support default property directive for index access without property name
-  - **Implementation**:
-    - Parse `default` directive on properties
-    - Mark one property as default in class metadata
-    - Allow `obj[0]` to access default property
-    - Validate only one default property per class
-  - **Test**: `obj[0]` equivalent to `obj.Items[0]` when Items is default
-  - **Files**: `internal/parser/class.go`, `internal/semantic/property.go`, `internal/interp/property.go`
-  - **Status**: DONE - Runtime evaluation complete with 6 comprehensive tests (read, write, equivalence, inheritance, etc.)
-  - **Estimated time**: 2 days
-
-- [x] 9.17 Implement class properties (static)
-  - **Task**: Support `class property` for properties on class type rather than instance
-  - **Implementation**:
-    - Parse `class property` keyword combination
-    - Validate accessors are class methods
-    - Allow access via class name: `TMyClass.Count`
-    - Allow access via instance: `obj.Count`
-  - **Test**: Class properties accessible without instance
-  - **Files**: `internal/parser/class.go`, `internal/interp/property.go`
-  - **Status**: DONE - Completed in tasks 9.10-9.14 with full read/write support and 9+ tests
-  - **Estimated time**: 2 days
+- Full property syntax support with getter/setter accessors
+- Method-backed and field-backed properties
+- Indexed properties with parameter support
+- Default properties for array-like access
+- Class properties (static) for type-level access
+- Comprehensive property validation and error reporting
 
 **Milestone**: After completing properties, fixture test pass rate should reach ~60% (330+ tests passing)
 
@@ -377,44 +133,15 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Priority**: HIGH - Relatively simple but blocks many tests
 **Goal**: Support constant declarations inside classes
-**Timeline**: 1 week | **Success Metric**: Unblocks 38 additional tests
 
 **Root Cause**: Parser expects field declarations in class body, fails when seeing `const` keyword.
 
-- [x] 9.20 Parse class constant declarations ✅
-  - **Task**: Recognize and parse const/class const in class body
-  - **Implementation**:
-    - Modify `parseClassBody` to handle `const` keyword
-    - Support: `const Name = Value;`
-    - Support: `class const Name = Value;`
-    - Apply current visibility to constant
-    - Add constants to ClassDeclaration.Constants slice
-  - **Test**: Class constants parse without errors
-  - **Files**: `pkg/ast/declarations.go`, `pkg/ast/classes.go`, `internal/parser/classes.go`
-  - **Completed**: Added Constants field to ClassDecl, implemented parseClassConstantDeclaration
+**Key Achievements**:
 
-- [x] 9.21 Validate class constants in semantic analysis ✅
-  - **Task**: Type-check constant values and prevent redeclaration
-  - **Implementation**:
-    - Validate constant value is compile-time constant
-    - Check for duplicate constant names
-    - Enforce visibility rules
-    - Store constants in class metadata
-  - **Test**: Invalid class constants fail semantic analysis
-  - **Files**: `internal/semantic/analyze_classes.go`, `internal/types/types.go`
-  - **Completed**: Added Constants/ConstantVisibility to ClassType, validates duplicate names
-
-- [x] 9.22 Implement class constant evaluation ✅
-  - **Task**: Access class constants via type name or instance
-  - **Implementation**:
-    - Handle `TClass.ConstName` access
-    - Handle `instance.ConstName` access
-    - Return constant value from class metadata
-    - Enforce visibility (private constants not accessible outside class)
-  - **Test**: `PrintLn(TBase.cPublic)` outputs constant value
-  - **Files**: `internal/interp/objects.go`, `internal/interp/class.go`, `internal/interp/declarations.go`
-  - **Completed**: Implemented getClassConstant, added constant lookup in evalMemberAccess
-  - **Note**: Simple constants work. Constant dependencies (c2 = c1+1) need additional debugging.
+- Support for `const` and `class const` declarations in class bodies
+- Type checking and validation of constant values
+- Visibility enforcement for constant access
+- Runtime evaluation of class constants via type name or instance
 
 **Milestone**: Class constants complete, ~38 additional tests should pass
 
@@ -424,98 +151,15 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Priority**: HIGH - Essential for many algorithms and OOP patterns
 **Goal**: Support dynamic array syntax and runtime type operations
-**Timeline**: 1-2 weeks | **Success Metric**: Unblocks 35 additional tests
 
-#### Dynamic Arrays (Blocks 20 tests)
+**Root Cause**: Parser only supports static arrays `array[0..9] of T`, not dynamic arrays `array of T`. `is` and `as` operators not implemented for runtime type checking.
 
-**Root Cause**: Parser only supports static arrays `array[0..9] of T`, not dynamic arrays `array of T`.
-
-- [x] 9.30 Parse dynamic array type syntax
-  - **Task**: Support `array of Type` syntax without bounds
-  - **Implementation**:
-    - Modify `parseArrayType` in `internal/parser/types.go`
-    - Make bounds optional (nil for dynamic arrays)
-    - Distinguish static vs dynamic in AST
-  - **Test**: `var arr: array of Integer;` parses successfully
-  - **Files**: `internal/parser/types.go`, `internal/ast/types.go`
-  - **Estimated time**: 1 day
-  - **Status**: ✅ Already implemented with comprehensive tests
-
-- [x] 9.31 Implement dynamic array type in type system
-  - **Task**: Create DynamicArrayType distinct from StaticArrayType
-  - **Implementation**:
-    - Add DynamicArrayType in `internal/types/array.go`
-    - Support SetLength() operation
-    - Support Length() query
-    - Implement type checking for dynamic arrays
-  - **Test**: Dynamic array type checking works correctly
-  - **Files**: `internal/types/compound_types.go`
-  - **Estimated time**: 1-2 days
-  - **Status**: ✅ Already implemented with IsDynamic(), IsStatic(), Size() methods and comprehensive tests
-
-- [x] 9.32 Implement dynamic array runtime allocation
-  - **Task**: Create dynamic arrays at runtime with SetLength()
-  - **Implementation**:
-    - Implement SetLength() built-in function
-    - Allocate/reallocate array storage
-    - Handle array growth and shrinkage
-    - Preserve existing elements when resizing
-  - **Test**: SetLength() resizes arrays correctly
-  - **Files**: `internal/interp/builtins_core.go`
-  - **Estimated time**: 2-3 days
-  - **Status**: ✅ Already implemented with expand, shrink, and comprehensive error handling tests
-
-- [x] 9.33 Support dynamic array literals
-  - **Task**: Allow array literal syntax for dynamic arrays
-  - **Implementation**:
-    - Parse: `const names: array of String = ['Alice', 'Bob'];`
-    - Infer dynamic array length from literal
-    - Initialize array with literal values
-  - **Test**: Dynamic array constants initialize correctly
-  - **Files**: `internal/parser/declarations.go`
-  - **Estimated time**: 1-2 days
-  - **Status**: ✅ Already implemented - parser handles array literals with comprehensive tests
-
-#### Type Casting Operators (Blocks 15 tests)
-
-**Root Cause**: `is` and `as` operators not implemented for runtime type checking.
-
-- [x] 9.40 Implement IS operator
-  - **Task**: Runtime type checking (obj is TChild)
-  - **Implementation**:
-    - Add IS token handler to parser
-    - Create IsExpression AST node
-    - Implement runtime type checking in interpreter
-    - Walk class hierarchy to check instanceof
-    - Return boolean result
-  - **Test**: `if obj is TChild then ...` works correctly
-  - **Files**: `pkg/ast/ast.go`, `internal/parser/expressions.go`, `internal/parser/parser.go`, `internal/interp/expressions.go`, `internal/semantic/analyze_expressions.go`
-  - **Estimated time**: 1-2 days
-  - **Status**: ✅ Fully implemented with parser, AST, semantic analysis, interpreter, and nil handling
-
-- [x] 9.41 Implement AS operator
-  - **Task**: Safe type casting with runtime check (obj as TChild)
-  - **Implementation**:
-    - Add AS token handler to parser
-    - Create AsExpression AST node
-    - Implement runtime type cast in interpreter
-    - Check type compatibility, raise exception if invalid
-    - Return typed value on success
-  - **Test**: `var child := obj as TChild;` casts correctly or raises exception
-  - **Files**: `pkg/ast/ast.go`, `internal/parser/expressions.go`, `internal/interp/expressions.go`, `internal/semantic/analyze_expressions.go`
-  - **Estimated time**: 1-2 days
-  - **Status**: ✅ Already implemented for interface casting with comprehensive validation
-
-- [x] 9.42 Handle nil cases for IS and AS
-  - **Task**: IS returns false for nil, AS returns nil for nil
-  - **Implementation**:
-    - Special case nil values in IS evaluation (return false)
-    - Special case nil values in AS evaluation (return nil)
-    - Test nil edge cases thoroughly
-  - **Test**: `nil is TClass` returns false, `nil as IInterface` returns nil
-  - **Files**: `internal/interp/expressions.go`
-  - **Estimated time**: 0.5 day
-  - **Status**: ✅ Already implemented in both IS and AS operators
+**Key Achievements**:
+- Support for dynamic arrays `array of T` with SetLength() and Length() operations
+- Runtime type checking with `is` operator (instanceof semantics)
+- Safe type casting with `as` operator (raises exceptions on invalid casts)
+- Proper nil handling for both operators
+- Type compatibility checking for inheritance hierarchies
 
 **Milestone**: Dynamic arrays and type casting complete, ~35 additional tests should pass
 
