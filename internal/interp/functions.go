@@ -240,7 +240,8 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	// These functions need the AST node for the first argument to modify it in place
 	if funcName.Value == "Inc" || funcName.Value == "Dec" || funcName.Value == "Insert" ||
 		(funcName.Value == "Delete" && len(expr.Arguments) == 3) ||
-		funcName.Value == "DecodeDate" || funcName.Value == "DecodeTime" {
+		funcName.Value == "DecodeDate" || funcName.Value == "DecodeTime" ||
+		funcName.Value == "Swap" {
 		return i.callBuiltinWithVarParam(funcName.Value, expr.Arguments)
 	}
 
@@ -320,12 +321,13 @@ func normalizeBuiltinName(name string) string {
 		"cotan": "CoTan", "hypot": "Hypot", "sinh": "Sinh", "cosh": "Cosh",
 		"tanh": "Tanh", "arcsinh": "ArcSinh", "arccosh": "ArcCosh", "arctanh": "ArcTanh",
 		"random": "Random", "randomint": "RandomInt", "randomize": "Randomize",
+		"setrandseed": "SetRandSeed", "isnan": "IsNaN",
 		"unsigned32": "Unsigned32", "exp": "Exp", "ln": "Ln", "log2": "Log2",
 		"round": "Round", "trunc": "Trunc", "ceil": "Ceil", "floor": "Floor",
 		"low": "Low", "high": "High", "setlength": "SetLength", "add": "Add",
 		"delete": "Delete", "inttostr": "IntToStr", "inttobin": "IntToBin",
 		"strtoint": "StrToInt", "floattostr": "FloatToStr", "booltostr": "BoolToStr",
-		"strtofloat": "StrToFloat", "inc": "Inc", "dec": "Dec", "succ": "Succ",
+		"strtofloat": "StrToFloat", "strtobool": "StrToBool", "inc": "Inc", "dec": "Dec", "succ": "Succ",
 		"pred": "Pred", "assert": "Assert", "insert": "Insert",
 		"map": "Map", "filter": "Filter", "reduce": "Reduce", "foreach": "ForEach",
 		"now": "Now", "date": "Date", "time": "Time", "utcdatetime": "UTCDateTime",
@@ -346,7 +348,7 @@ func normalizeBuiltinName(name string) string {
 		"inchour": "IncHour", "incminute": "IncMinute", "incsecond": "IncSecond",
 		"daysbetween": "DaysBetween", "hoursbetween": "HoursBetween",
 		"minutesbetween": "MinutesBetween", "secondsbetween": "SecondsBetween",
-		"isleapyear":     "IsLeapYear",
+		"isleapyear": "IsLeapYear", "swap": "Swap",
 		"firstdayofyear": "FirstDayOfYear", "firstdayofnextyear": "FirstDayOfNextYear",
 		"firstdayofmonth": "FirstDayOfMonth", "firstdayofnextmonth": "FirstDayOfNextMonth",
 		"firstdayofweek":     "FirstDayOfWeek",
@@ -447,6 +449,10 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinRandom(args)
 	case "Randomize":
 		return i.builtinRandomize(args)
+	case "SetRandSeed":
+		return i.builtinSetRandSeed(args)
+	case "IsNaN":
+		return i.builtinIsNaN(args)
 	case "Exp":
 		return i.builtinExp(args)
 	case "Ln":
@@ -519,6 +525,8 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinFloatToStr(args)
 	case "StrToFloat":
 		return i.builtinStrToFloat(args)
+	case "StrToBool":
+		return i.builtinStrToBool(args)
 	case "BoolToStr":
 		return i.builtinBoolToStr(args)
 	case "Chr":
@@ -785,6 +793,8 @@ func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression
 		return i.builtinDecodeDate(args)
 	case "DecodeTime":
 		return i.builtinDecodeTime(args)
+	case "Swap":
+		return i.builtinSwap(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined var-param function: %s", name)
 	}

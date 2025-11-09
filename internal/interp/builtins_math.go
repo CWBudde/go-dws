@@ -1082,3 +1082,42 @@ func (i *Interpreter) builtinClamp(args []Value) Value {
 
 	return &FloatValue{Value: result}
 }
+
+// builtinIsNaN implements the IsNaN() built-in function.
+// It checks if a float value is NaN (Not a Number).
+// IsNaN(value: Float): Boolean
+func (i *Interpreter) builtinIsNaN(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "IsNaN() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Argument must be Float
+	floatVal, ok := args[0].(*FloatValue)
+	if !ok {
+		// If not a float, it's not NaN
+		return &BooleanValue{Value: false}
+	}
+
+	// Check if the value is NaN
+	return &BooleanValue{Value: math.IsNaN(floatVal.Value)}
+}
+
+// builtinSetRandSeed implements the SetRandSeed() built-in function.
+// It sets the seed for the random number generator.
+// SetRandSeed(seed: Integer)
+func (i *Interpreter) builtinSetRandSeed(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "SetRandSeed() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Argument must be Integer
+	seedVal, ok := args[0].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "SetRandSeed() expects Integer, got %s", args[0].Type())
+	}
+
+	// Set the seed for the random number generator
+	i.rand.Seed(seedVal.Value)
+
+	return &NilValue{}
+}

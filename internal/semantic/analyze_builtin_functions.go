@@ -159,6 +159,10 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeUnsigned32(args, callExpr), true
 	case "randomize":
 		return a.analyzeRandomize(args, callExpr), true
+	case "setrandseed":
+		return a.analyzeSetRandSeed(args, callExpr), true
+	case "isnan":
+		return a.analyzeIsNaN(args, callExpr), true
 
 	// Math Functions - Exponential/Logarithmic
 	case "exp":
@@ -189,6 +193,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzePred(args, callExpr), true
 	case "assigned":
 		return a.analyzeAssigned(args, callExpr), true
+	case "swap":
+		return a.analyzeSwap(args, callExpr), true
 
 	// Date/Time Functions - Current time
 	case "now":

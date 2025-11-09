@@ -629,3 +629,32 @@ func (i *Interpreter) builtinIntToHex(args []Value) Value {
 
 	return &StringValue{Value: hexStr}
 }
+
+// builtinStrToBool implements the StrToBool() built-in function.
+// It converts a string to a boolean value.
+// Accepts: 'True', 'False', '1', '0', 'Yes', 'No' (case-insensitive)
+// StrToBool(s: String): Boolean
+func (i *Interpreter) builtinStrToBool(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "StrToBool() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// First argument must be String
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrToBool() expects String, got %s", args[0].Type())
+	}
+
+	// Normalize to lowercase for case-insensitive matching
+	s := strings.ToLower(strings.TrimSpace(strVal.Value))
+
+	// Check for true values
+	switch s {
+	case "true", "1", "yes", "t", "y":
+		return &BooleanValue{Value: true}
+	case "false", "0", "no", "f", "n":
+		return &BooleanValue{Value: false}
+	default:
+		return i.newErrorWithLocation(i.currentNode, "StrToBool() invalid boolean string: '%s'", strVal.Value)
+	}
+}
