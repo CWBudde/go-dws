@@ -97,275 +97,16 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Files**: `internal/semantic/analyze_expressions.go`
   - **Estimated time**: 0.5 day
 
-- [x] 9.3.1 Parse `class procedure` and `class function` declarations
-  - **Task**: Extend parser to recognize class method syntax
-  - **Syntax**: `class procedure Name;` and `class function Name: ReturnType;`
-  - **Files**: `internal/parser/functions.go`, `internal/ast/declarations.go`
-  - **Tests**: Parse class method declarations without errors
-  - **Status**: ✅ Already implemented and tested
-
-- [x] 9.3.2 Implement class method semantic analysis
-  - **Task**: Validate class methods (no access to Self/instance fields)
-  - **Files**: `internal/semantic/analyze_functions.go`
-  - **Tests**: Class methods cannot access instance members
-  - **Status**: ✅ Already implemented and tested
-
-- [x] 9.3.3 Implement class method runtime execution
-  - **Task**: Execute class methods without instance context
-  - **Files**: `internal/interp/functions.go`
-  - **Tests**: Class methods execute and access class variables/constants
-  - **Status**: ✅ Already implemented and tested
-
-- [x] 9.3.4 Support virtual/override on class methods
-  - **Task**: Allow polymorphism for class methods
-  - **Files**: `internal/semantic/analyze_functions.go`, `internal/interp/objects.go`
-  - **Tests**: Virtual class methods dispatch correctly through inheritance
-  - **Status**: ✅ Already implemented and tested
-
-#### 9.4 Class Constants - MEDIUM PRIORITY
-
-**Blocks**: class_const*.pas (5+ tests)
-
-- [x] 9.4.1 Parse class constant declarations
-  - **Task**: Recognize `const` inside class declarations
-  - **Syntax**: `const cName = Value;` or `class const cName = Value;`
-  - **Files**: `internal/parser/interfaces.go`
-  - **Tests**: Parse class constants in class body
-  - **Status**: ✅ Already implemented and tested
-
-- [x] 9.4.2 Store class constants in ClassType
-  - **Task**: Add Constants map to ClassType
-  - **Files**: `internal/types/types.go`
-  - **Tests**: Class constants accessible in type system
-  - **Status**: ✅ Already implemented and tested
-
-- [x] 9.4.3 Semantic analysis for class constants
-  - **Task**: Validate class constant access (ClassName.ConstName)
-  - **Files**: `internal/semantic/analyze_classes.go`
-  - **Tests**: Class constants resolve correctly
-  - **Status**: ✅ Already implemented and tested
-
-- [x] 9.4.4 Runtime class constant evaluation
-  - **Task**: Access class constants at runtime
-  - **Files**: `internal/interp/objects.go`
-  - **Tests**: Class constants return correct values
-  - **Status**: ✅ Fixed to make constants accessible in method scopes
-
-**Estimated Time**: 2 days
-**Dependency**: Useful for class_const*.pas tests
-
-#### 9.5 Class Variables (Static Fields) - MEDIUM PRIORITY
-
-**Blocks**: class_var*.pas (5+ tests)
-
-- [x] 9.5.1 Parse class variable declarations
-  - **Task**: Recognize `class var` inside class declarations
-  - **Syntax**: `class var VarName: Type;`
-  - **Files**: `internal/parser/interfaces.go`
-  - **Tests**: Parse class variables in class body
-  - **Status**: ✅ Already implemented and tested
-
-- [x] 9.5.2 Store class variables in ClassType
-  - **Task**: Add ClassVars map to ClassType
-  - **Files**: `internal/types/types.go`
-  - **Tests**: Class variables accessible in type system
-  - **Status**: ✅ Already implemented and tested
-
-- [x] 9.5.3 Semantic analysis for class variables
-  - **Task**: Validate class variable access
-  - **Files**: `internal/semantic/analyze_classes.go`
-  - **Tests**: Class variables resolve correctly
-  - **Status**: ✅ Already implemented and tested
-
-- [x] 9.5.4 Runtime class variable storage and access
-  - **Task**: Store class variables separately from instance fields
-  - **Files**: `internal/interp/class.go`, `internal/interp/objects.go`
-  - **Tests**: Class variables shared across all instances
-  - **Status**: ✅ Already implemented and tested
-
-**Estimated Time**: 2-3 days
-**Dependency**: Required for class_var*.pas tests
-
-#### 9.6 ClassName Property - HIGH PRIORITY ✅ **COMPLETED**
-**Blocks**: classname*.pas, class_of_cast.pas, overload_on_metaclass.pas (10+ tests)
-
-- [x] 9.6.1 Add ClassName to TObject
-  - **Task**: Make ClassName available on all classes
-  - **Implementation**: Add ClassName as built-in property/method on TObject
-  - **Files**: `internal/types/types.go`, `internal/semantic/analyze_classes.go`
-  - **Tests**: All classes have ClassName property
-  - **Status**: ✅ Implemented in semantic analyzer (analyze_classes.go:1118-1121, analyzer.go:139-143)
-
-- [x] 9.6.2 Runtime ClassName implementation
-  - **Task**: Return class name at runtime
-  - **Files**: `internal/interp/objects.go`, `internal/interp/builtins.go`
-  - **Tests**: obj.ClassName returns correct class name
-  - **Status**: ✅ Implemented for objects (objects.go:469-472), metaclasses (objects.go:386-388), and identifiers (expressions.go:112-114, 127-129, analyze_expr_operators.go:50-52)
-
-- [x] 9.6.3 Support ClassName on metaclass types
-  - **Task**: TClass.ClassName returns class name
-  - **Files**: `internal/interp/class.go`
-  - **Tests**: metaclass.ClassName works correctly
-  - **Status**: ✅ Implemented with case-insensitive support and full metaclass handling
-
-- [x] 9.6.4 Add TClass type alias
-  - **Task**: Register TClass as built-in type alias for "class of TObject"
-  - **Files**: `internal/semantic/analyzer.go`
-  - **Status**: ✅ Added at analyzer.go:148-154
-
-**Estimated Time**: 1-2 days
-**Dependency**: Required for classname*.pas and many other tests
-**Completion Date**: 2025-11-09
-
-#### 9.7 ClassType Property - MEDIUM PRIORITY ✅ **COMPLETED**
-
-**Blocks**: classtype*.pas, class_of_cast.pas (5+ tests)
-
-- [x] 9.7.1 Add ClassType to TObject
-  - **Task**: Make ClassType available on all classes
-  - **Implementation**: Returns metaclass (class of T) for the object's runtime type
-  - **Files**: `internal/types/types.go`, `internal/semantic/analyze_classes.go`
-  - **Tests**: All classes have ClassType property
-  - **Status**: ✅ Implemented and tested
-
-- [x] 9.7.2 Runtime ClassType implementation
-  - **Task**: Return metaclass reference at runtime
-  - **Files**: `internal/interp/objects.go`, `internal/interp/expressions.go`
-  - **Tests**: obj.ClassType returns ClassValue
-  - **Status**: ✅ Implemented with case-insensitive support and comprehensive tests
-
-**Estimated Time**: 1 day
-**Dependency**: Useful for classtype*.pas tests
-**Completion**: Added ClassType property to all classes, returns ClassOfType from semantic analyzer and ClassValue at runtime. Supports member access, identifier access in methods/constructors, and case-insensitive lookup.
-
-#### 9.8 Type Casting - HIGH PRIORITY ✅ **COMPLETED**
-
-**Blocks**: class_cast*.pas, casts_*.pas, classname.pas (10+ tests)
-
-- [x] 9.8.1 Parse function-style type casts
-  - **Task**: Recognize `TypeName(expression)` as type cast
-  - **Challenge**: Distinguish from function calls
-  - **Files**: `internal/semantic/analyze_function_calls.go`
-  - **Tests**: Parse `Integer(x)`, `Float(y)`, `TMyClass(obj)`
-  - **Status**: ✅ Detection during semantic analysis (not in parser)
-
-- [x] 9.8.2 Semantic analysis for type casts
-  - **Task**: Validate type compatibility for casts
-  - **Files**: `internal/semantic/analyze_function_calls.go`
-  - **Tests**: Valid casts accepted, invalid casts rejected
-  - **Status**: ✅ Implemented with `analyzeTypeCast()` and `isValidCast()`
-
-- [x] 9.8.3 Runtime type cast execution
-  - **Task**: Perform runtime type checking for casts
-  - **Files**: `internal/interp/functions.go`
-  - **Tests**: Type casts validate at runtime, raise errors for invalid casts
-  - **Status**: ✅ Implemented with cast functions for all basic types and classes
-
-- [x] 9.8.4 Parse `as` operator for safe casting
-  - **Task**: Recognize `expression as TypeName`
-  - **Files**: Already implemented
-  - **Tests**: Parse `obj as TMyClass`
-  - **Status**: ✅ Already implemented (parseAsExpression exists)
-
-- [x] 9.8.5 Runtime `as` operator execution
-  - **Task**: Perform safe type cast with exception on failure
-  - **Files**: Already implemented
-  - **Tests**: `as` operator validates types and raises exception on mismatch
-  - **Status**: ✅ Already implemented (evalAsExpression exists)
-
-**Estimated Time**: 3-4 days
-**Dependency**: Required for class_cast*.pas and many other tests
-**Completion**: Full function-style type casting with:
-- Basic type conversions: Integer, Float, String, Boolean
-- Class type casting with runtime validation
-- Variant support
-- Case-insensitive type names
-- Comprehensive test suite (internal/interp/typecast_test.go)
-
-#### 9.9 Inline Method Implementation - LOW PRIORITY ✅
-
-**Blocks**: overload_on_metaclass.pas, class_inline_declared.pas (2+ tests)
-
-- [x] 9.9.1 Parse inline method bodies
-  - **Task**: Allow method implementation inside class declaration
-  - **Syntax**: Method declaration followed by begin...end inside class body
-  - **Files**: `internal/parser/functions.go`
-  - **Tests**: Parse inline method implementations
-  - **Status**: Already implemented - parseFunctionDeclaration handles inline methods automatically
-
-- [x] 9.9.2 Handle inline method semantics
-  - **Task**: Process inline methods same as separate implementations
-  - **Files**: `internal/semantic/analyze_functions.go`
-  - **Tests**: Inline methods work identically to separate implementations
-  - **Status**: Already working - semantic analyzer handles inline methods correctly
-
-**Estimated Time**: 2-3 days
-**Dependency**: Nice-to-have for cleaner syntax
-**Completion**: Feature was already implemented. Added comprehensive tests in `internal/parser/inline_methods_test.go`.
-
-#### 9.10 Short-Form Class Declarations - LOW PRIORITY ✅
-
-**Blocks**: class_of3.pas, class_of_cast.pas, classname.pas (5+ tests)
-
-- [x] 9.10.1 Parse short-form class inheritance
-  - **Task**: Allow `TChild = class(TParent);` without body
-  - **Files**: `internal/parser/classes.go`
-  - **Tests**: Parse short-form class declarations
-  - **Status**: Implemented - parser now checks for semicolon after parent specification
-
-- [x] 9.10.2 Parse type alias to class
-  - **Task**: Allow `TAlias = TClassName;` where TClassName is a class
-  - **Files**: `internal/parser/interfaces.go`
-  - **Tests**: Parse type aliases to existing classes
-  - **Status**: Already implemented - type aliases were already supported
-
-**Estimated Time**: 1 day
-**Dependency**: Convenience feature
-**Completion**: Both features implemented. Added comprehensive tests in `internal/parser/shortform_class_test.go`.
-
-#### 9.11 Class Forward Declarations - LOW PRIORITY
-
-**Blocks**: class_forward.pas (1 test)
-
-- [x] 9.11.1 Parse forward class declarations
-  - **Task**: Allow `TClassName = class;` without body
-  - **Files**: `internal/parser/classes.go`
-  - **Tests**: Parse forward class declarations
-  - **Status**: ✅ DONE - Added parser support and comprehensive tests
-
-- [x] 9.11.2 Handle forward class resolution
-  - **Task**: Link forward declarations to actual definitions
-  - **Files**: `internal/semantic/analyze_classes.go`, `internal/types/types.go`
-  - **Tests**: Forward declarations resolve correctly
-  - **Status**: ✅ DONE - Added semantic analyzer support with validation
-
-**Estimated Time**: 1-2 days
-**Dependency**: Required for mutually-referencing classes
-
-#### 9.12 Abstract Methods - MEDIUM PRIORITY
-
-**Blocks**: class_abstract_method.pas (1 test)
-
-- [x] 9.12.1 Parse abstract method directive
-  - **Task**: Recognize `abstract` directive on methods
-  - **Files**: `internal/parser/functions.go`
-  - **Tests**: Parse abstract methods
-  - **Status**: ✅ DONE - Already implemented, tests passing
-
-- [x] 9.12.2 Semantic analysis for abstract methods
-  - **Task**: Validate abstract methods (no body, must be virtual)
-  - **Files**: `internal/semantic/analyze_classes.go`
-  - **Tests**: Abstract methods validated correctly
-  - **Status**: ✅ DONE - Classes with abstract methods are implicitly abstract, abstract methods are implicitly virtual
-
-- [x] 9.12.3 Prevent instantiation of abstract classes
-  - **Task**: Raise error when creating instance of class with unimplemented abstract methods
-  - **Files**: `internal/semantic/analyze_classes.go`
-  - **Tests**: Cannot instantiate abstract classes
-  - **Status**: ✅ DONE - Added check in analyzeNewExpression for unimplemented abstract methods
-
-**Estimated Time**: 1-2 days
-**Dependency**: Important for proper OOP design
+- [x] 9.3 Class Methods (class procedures/functions) - Parser, semantic analysis, runtime execution, and virtual/override polymorphism support
+- [x] 9.4 Class Constants - Parsing, ClassType storage, semantic validation, and runtime evaluation with method scope accessibility
+- [x] 9.5 Class Variables (Static Fields) - class var declarations with parsing, type system integration, and shared instance-independent storage
+- [x] 9.6 ClassName Property - Built-in property on TObject returning class name for objects, metaclasses, and identifiers; includes TClass type alias
+- [x] 9.7 ClassType Property - Returns metaclass (class of T) with case-insensitive lookup for member and identifier access
+- [x] 9.8 Type Casting - Function-style casts (Integer/Float/String/Boolean/Class) with semantic validation, runtime checks, and `as` operator
+- [x] 9.9 Inline Method Implementation - Method bodies inside class declarations (feature verified as already working)
+- [x] 9.10 Short-Form Class Declarations - `TChild = class(TParent);` syntax and type alias support
+- [x] 9.11 Class Forward Declarations - `TClassName = class;` forward declarations with semantic resolution and validation
+- [x] 9.12 Abstract Methods - abstract directive parsing, semantic validation (implicitly virtual), and instantiation prevention
 
 #### 9.13 Partial Classes - LOW PRIORITY
 
@@ -401,7 +142,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Estimated Time**: 2-3 days
 **Dependency**: Important for operator overloading on objects
 
-#### 9.14.5 "not in" Operator Support - HIGH PRIORITY
+#### 9.15 "not in" Operator Support - HIGH PRIORITY
 
 **Blocks**: aes_encryption.pas, appinfo.pas, bounds_static0.pas, and other tests using set membership negation
 
@@ -423,14 +164,14 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Implementation Plan**:
 
-- [x] 9.14.5.1 Verify lexer tokens ✅ **COMPLETED**
+- [x] 9.15.1 Verify lexer tokens ✅ **COMPLETED**
   - **Task**: Ensure `NOT` and `IN` tokens are properly defined
   - **Files**: `pkg/token/token.go`, `internal/lexer/lexer_test.go`
   - **Tests**: Tokenize "not in" as two separate tokens: NOT, IN
   - **Status**: Both tokens correctly defined as keywords, comprehensive tests added
   - **Result**: Lexer correctly tokenizes "not in" as separate NOT and IN tokens
 
-- [x] 9.14.5.2 Fix "not in/is/as" operator parsing ✅ **COMPLETED**
+- [x] 9.15.2 Fix "not in/is/as" operator parsing ✅ **COMPLETED**
   - **Task**: Support both `not (x in set)` and `x not in set` syntax
   - **Files**: `internal/parser/expressions.go`, `internal/parser/expressions_test.go`
   - **Implementation**:
@@ -445,7 +186,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - `TestNotAsOperator`: 2 test cases for type casting
   - **Result**: All tests pass, both syntaxes produce identical AST
 
-- [ ] 9.14.5.3 Verify IN operator precedence
+- [ ] 9.15.3 Verify IN operator precedence
   - **Task**: Ensure `IN` operator has correct precedence relative to `NOT`
   - **Files**: `internal/parser/parser.go` (precedence constants)
   - **Research**: In original DWScript, `IN` is a comparison operator (same level as `=`, `<`, `>`)
@@ -458,7 +199,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Note**: DWScript handles this by parsing NOT as a prefix operator in ReadTerm, before binary operators are considered
   - **Estimated time**: 0.5 day
 
-- [ ] 9.14.5.4 Add semantic analysis for "not in" expressions
+- [ ] 9.15.4 Add semantic analysis for "not in" expressions
   - **Task**: Validate type compatibility for NOT and IN operators
   - **Files**: `internal/semantic/analyze_expressions.go`
   - **Tests**:
@@ -471,7 +212,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Result type of `InExpression` is boolean
   - **Estimated time**: 0.5 day
 
-- [ ] 9.14.5.5 Implement runtime execution for "not in"
+- [ ] 9.15.5 Implement runtime execution for "not in"
   - **Task**: Execute NOT and IN operators at runtime
   - **Files**: `internal/interp/expressions.go`, `internal/interp/operators.go`
   - **Tests**:
@@ -486,7 +227,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Reference**: `reference/dwscript-original/Source/dwsSetOfExprs.pas` (TSetOfInExpr class)
   - **Estimated time**: 1 day
 
-- [ ] 9.14.5.6 Add comprehensive test coverage
+- [ ] 9.15.6 Add comprehensive test coverage
   - **Task**: Create tests for all "not in" use cases
   - **Files**: `internal/parser/expressions_test.go`, `internal/interp/operators_test.go`
   - **Tests**:
@@ -513,27 +254,27 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-### Phase 9.15: Documentation & Cleanup
+### Phase 9.16: Documentation & Cleanup
 
 **Priority**: LOW - Can be done in parallel with Phase 10
 **Timeline**: 1 week
 
-- [ ] 9.15.1 Update README with current features
+- [ ] 9.16.1 Update README with current features
   - Document all Stage 7 features now complete
   - Update feature completion percentages
   - Add examples of new features
 
-- [ ] 9.15.2 Create docs/phase9-summary.md
+- [ ] 9.16.2 Create docs/phase9-summary.md
   - Document achievements in Phase 9
   - Statistics: tests passing, coverage percentages
   - Lessons learned and challenges overcome
 
-- [ ] 9.15.3 Update testdata/fixtures/TEST_STATUS.md
+- [ ] 9.16.3 Update testdata/fixtures/TEST_STATUS.md
   - Update pass/fail counts for each category
   - Mark resolved issues
   - Document remaining blockers
 
-- [ ] 9.15.4 Create docs/limitations.md
+- [ ] 9.16.4 Create docs/limitations.md
   - Document known limitations
   - Features intentionally deferred to later phases
   - Differences from original DWScript
