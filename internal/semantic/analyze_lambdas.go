@@ -174,8 +174,10 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 
 	// Task 9.19.3: Validate parameter count compatibility
 	if len(expr.Parameters) != len(expectedFuncType.Parameters) {
-		a.addError("lambda has %d parameters but expected function type has %d at %s",
-			len(expr.Parameters), len(expectedFuncType.Parameters), expr.Token.Pos.String())
+		a.addError("lambda has %d %s but expected function type has %d %s at %s",
+			len(expr.Parameters), pluralizeParam(len(expr.Parameters)),
+			len(expectedFuncType.Parameters), pluralizeParam(len(expectedFuncType.Parameters)),
+			expr.Token.Pos.String())
 		return nil
 	}
 

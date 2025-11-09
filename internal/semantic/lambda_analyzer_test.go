@@ -614,7 +614,7 @@ func TestLambdaParameterTypeInferenceErrors(t *testing.T) {
 				type TBinaryFunc = function(a, b: Integer): Integer;
 				var f: TBinaryFunc := lambda(x) => x * 2;
 			`,
-			expectedErr: "lambda has 1 parameters but expected function type has 2",
+			expectedErr: "lambda has 1 parameter but expected function type has 2 parameters",
 		},
 		{
 			name: "parameter count mismatch - too many",
@@ -622,7 +622,7 @@ func TestLambdaParameterTypeInferenceErrors(t *testing.T) {
 				type TUnaryFunc = function(x: Integer): Integer;
 				var f: TUnaryFunc := lambda(a, b) => a + b;
 			`,
-			expectedErr: "lambda has 2 parameters but expected function type has 1",
+			expectedErr: "lambda has 2 parameters but expected function type has 1 parameter",
 		},
 		{
 			name: "incompatible explicit parameter type",
@@ -824,7 +824,7 @@ func TestLambdaInferenceComplexErrors(t *testing.T) {
 				end;
 				var result := Process(lambda(x) => x * 2);  // Only 1 param, needs 2
 			`,
-			expectedErr: "lambda has 1 parameters but expected function type has 2",
+			expectedErr: "lambda has 1 parameter but expected function type has 2 parameters",
 		},
 	}
 

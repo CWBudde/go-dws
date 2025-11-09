@@ -360,8 +360,9 @@ func (a *Analyzer) validateMethodSignature(implDecl *ast.FunctionDecl, declaredT
 
 	// If implementation specifies parameter types, validate count matches
 	if len(implParamTypes) > 0 && len(implParamTypes) != len(declaredType.Parameters) {
-		return fmt.Errorf("method '%s.%s' implementation has %d parameters, but declaration has %d",
-			className, implDecl.Name.Value, len(implParamTypes), len(declaredType.Parameters))
+		return fmt.Errorf("method '%s.%s' implementation has %d %s, but declaration has %d %s",
+			className, implDecl.Name.Value, len(implParamTypes), pluralizeParam(len(implParamTypes)),
+			len(declaredType.Parameters), pluralizeParam(len(declaredType.Parameters)))
 	}
 
 	// Validate parameter types match (if implementation specifies them)
@@ -517,6 +518,9 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		constParams = append(constParams, param.IsConst)
 	}
 
+	// Track if this was originally marked as constructor by parser (before auto-detection)
+	wasExplicitConstructor := method.IsConstructor
+
 	// Auto-detect constructors: methods named "Create" that return the class type
 	// This handles inline constructor declarations like: function Create(...): TClass;
 	if !method.IsConstructor && strings.EqualFold(method.Name.Value, "Create") && method.ReturnType != nil {
@@ -528,8 +532,13 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 
 	// Task 9.17: Validate constructors don't have explicit return types
 	if method.IsConstructor && method.ReturnType != nil {
-		// Exception: inline constructors can have explicit return type matching the class
-		// This is valid in DWScript: function Create(...): TClass;
+		if wasExplicitConstructor {
+			// Explicit constructors (using 'constructor' keyword) cannot have return types
+			a.addError("constructor '%s' cannot have an explicit return type at %s",
+				method.Name.Value, method.Token.Pos.String())
+			return
+		}
+		// Auto-detected constructors (function Create: TClass) must have matching return type
 		returnTypeName := method.ReturnType.Name
 		if !strings.EqualFold(returnTypeName, classType.Name) {
 			a.addError("constructor '%s' must return '%s', not '%s' at %s",

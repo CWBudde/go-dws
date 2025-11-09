@@ -40,7 +40,7 @@ func TestFunctionRedeclaration(t *testing.T) {
 			Result := x + y;
 		end;
 	`
-	expectError(t, input, "already declared")
+	expectError(t, input, "already a method")
 }
 
 func TestFunctionWithUnknownParameterType(t *testing.T) {
