@@ -625,11 +625,9 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 				existing.IsForwarded = false
 				existing.Signature = funcType
 
-				// Update method metadata for the implementation
-				classType.ClassMethodFlags[method.Name.Value] = method.IsClassMethod
-				classType.VirtualMethods[method.Name.Value] = method.IsVirtual
-				classType.OverrideMethods[method.Name.Value] = method.IsOverride
-				classType.AbstractMethods[method.Name.Value] = method.IsAbstract
+				// Task 9.6: Do NOT update virtual/override/abstract flags when matching implementation to declaration
+				// The implementation doesn't have these keywords - they're only in the declaration
+				// So preserve the declaration's flags instead of overwriting with implementation's false values
 
 				// Mark that we found the forward declaration and updated it
 				isImplementationOfForward = true
@@ -657,13 +655,15 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		} else {
 			classType.AddMethodOverload(method.Name.Value, methodInfo)
 		}
-	}
 
-	// Store method metadata in legacy maps for backward compatibility
-	classType.ClassMethodFlags[method.Name.Value] = method.IsClassMethod
-	classType.VirtualMethods[method.Name.Value] = method.IsVirtual
-	classType.OverrideMethods[method.Name.Value] = method.IsOverride
-	classType.AbstractMethods[method.Name.Value] = method.IsAbstract
+		// Store method metadata in legacy maps for backward compatibility
+		// Only update metadata for new declarations, not implementations
+		// (implementations don't have override/virtual keywords, those are only in declarations)
+		classType.ClassMethodFlags[method.Name.Value] = method.IsClassMethod
+		classType.VirtualMethods[method.Name.Value] = method.IsVirtual
+		classType.OverrideMethods[method.Name.Value] = method.IsOverride
+		classType.AbstractMethods[method.Name.Value] = method.IsAbstract
+	}
 
 	// Task 9.280: Mark method as forward if it has no body (declaration without implementation)
 	// Methods declared in class body without implementation are implicitly forward
@@ -814,7 +814,10 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 
 	// Warn if redefining virtual method without override keyword
 	// Note: Constructors can be marked as virtual, so this check applies to both methods and constructors
-	if !method.IsOverride && !method.IsVirtual && classType.Parent != nil {
+	// Task 9.6: Check class metadata instead of AST node, since implementations don't have override keyword
+	isOverrideInClass := classType.OverrideMethods[methodName]
+	isVirtualInClass := classType.VirtualMethods[methodName]
+	if !isOverrideInClass && !isVirtualInClass && classType.Parent != nil {
 		// Task 9.4.1: Check if any parent overload with matching signature is virtual
 		var parentOverload *types.MethodInfo
 		if isConstructor {
