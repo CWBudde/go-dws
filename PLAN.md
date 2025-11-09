@@ -327,15 +327,17 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Blocks**: class_forward.pas (1 test)
 
-- [ ] 9.11.1 Parse forward class declarations
+- [x] 9.11.1 Parse forward class declarations
   - **Task**: Allow `TClassName = class;` without body
-  - **Files**: `internal/parser/interfaces.go`
+  - **Files**: `internal/parser/classes.go`
   - **Tests**: Parse forward class declarations
+  - **Status**: ✅ DONE - Added parser support and comprehensive tests
 
-- [ ] 9.11.2 Handle forward class resolution
+- [x] 9.11.2 Handle forward class resolution
   - **Task**: Link forward declarations to actual definitions
-  - **Files**: `internal/semantic/analyzer.go`
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/types/types.go`
   - **Tests**: Forward declarations resolve correctly
+  - **Status**: ✅ DONE - Added semantic analyzer support with validation
 
 **Estimated Time**: 1-2 days
 **Dependency**: Required for mutually-referencing classes
@@ -344,20 +346,23 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Blocks**: class_abstract_method.pas (1 test)
 
-- [ ] 9.12.1 Parse abstract method directive
+- [x] 9.12.1 Parse abstract method directive
   - **Task**: Recognize `abstract` directive on methods
   - **Files**: `internal/parser/functions.go`
   - **Tests**: Parse abstract methods
+  - **Status**: ✅ DONE - Already implemented, tests passing
 
-- [ ] 9.12.2 Semantic analysis for abstract methods
+- [x] 9.12.2 Semantic analysis for abstract methods
   - **Task**: Validate abstract methods (no body, must be virtual)
-  - **Files**: `internal/semantic/analyze_functions.go`
+  - **Files**: `internal/semantic/analyze_classes.go`
   - **Tests**: Abstract methods validated correctly
+  - **Status**: ✅ DONE - Classes with abstract methods are implicitly abstract, abstract methods are implicitly virtual
 
-- [ ] 9.12.3 Prevent instantiation of abstract classes
+- [x] 9.12.3 Prevent instantiation of abstract classes
   - **Task**: Raise error when creating instance of class with unimplemented abstract methods
   - **Files**: `internal/semantic/analyze_classes.go`
   - **Tests**: Cannot instantiate abstract classes
+  - **Status**: ✅ DONE - Added check in analyzeNewExpression for unimplemented abstract methods
 
 **Estimated Time**: 1-2 days
 **Dependency**: Important for proper OOP design

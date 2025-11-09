@@ -158,6 +158,12 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - Public API for embedding DWScript in Go applications
   - See [README.md](README.md) for usage examples
 
+- `pkg/ast/` - Public AST types and utilities
+  - Re-exports internal/ast types for external use
+  - AST manipulation helpers
+- `pkg/token/` - Public token types
+  - Re-exports internal/token types for external use
+
 - `pkg/platform/` - Platform abstraction layer (planned for Stage 10.15)
   - Abstracts filesystem, console, and platform-specific functionality
   - Enables native and WebAssembly builds with consistent behavior

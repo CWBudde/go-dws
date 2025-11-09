@@ -1296,3 +1296,202 @@ end;
 		}
 	})
 }
+
+// ============================================================================
+// Forward Class Declaration Tests
+// ============================================================================
+
+func TestForwardClassDeclaration(t *testing.T) {
+	input := `type TChild = class;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if stmt.Name.Value != "TChild" {
+		t.Errorf("stmt.Name.Value not 'TChild'. got=%s", stmt.Name.Value)
+	}
+
+	// Forward declarations have no body, so all slices should be nil or empty
+	if stmt.Fields != nil && len(stmt.Fields) != 0 {
+		t.Errorf("Forward declaration should have no fields. got=%d", len(stmt.Fields))
+	}
+
+	if stmt.Methods != nil && len(stmt.Methods) != 0 {
+		t.Errorf("Forward declaration should have no methods. got=%d", len(stmt.Methods))
+	}
+
+	if stmt.Properties != nil && len(stmt.Properties) != 0 {
+		t.Errorf("Forward declaration should have no properties. got=%d", len(stmt.Properties))
+	}
+}
+
+func TestForwardClassDeclarationWithParent(t *testing.T) {
+	input := `type TChild = class(TBase);`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if stmt.Name.Value != "TChild" {
+		t.Errorf("stmt.Name.Value not 'TChild'. got=%s", stmt.Name.Value)
+	}
+
+	if stmt.Parent == nil {
+		t.Fatal("stmt.Parent should not be nil")
+	}
+
+	if stmt.Parent.Value != "TBase" {
+		t.Errorf("stmt.Parent.Value not 'TBase'. got=%s", stmt.Parent.Value)
+	}
+
+	// Forward declarations have no body
+	if stmt.Fields != nil && len(stmt.Fields) != 0 {
+		t.Errorf("Forward declaration should have no fields. got=%d", len(stmt.Fields))
+	}
+
+	if stmt.Methods != nil && len(stmt.Methods) != 0 {
+		t.Errorf("Forward declaration should have no methods. got=%d", len(stmt.Methods))
+	}
+}
+
+func TestMultipleForwardClassDeclarations(t *testing.T) {
+	input := `
+type TChild = class;
+type TBase = class;
+type TDerived = class(TBase);
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 3 {
+		t.Fatalf("program.Statements does not contain 3 statements. got=%d",
+			len(program.Statements))
+	}
+
+	// Check first forward declaration
+	stmt1, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+	if stmt1.Name.Value != "TChild" {
+		t.Errorf("stmt1.Name.Value not 'TChild'. got=%s", stmt1.Name.Value)
+	}
+
+	// Check second forward declaration
+	stmt2, ok := program.Statements[1].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[1] is not *ast.ClassDecl. got=%T",
+			program.Statements[1])
+	}
+	if stmt2.Name.Value != "TBase" {
+		t.Errorf("stmt2.Name.Value not 'TBase'. got=%s", stmt2.Name.Value)
+	}
+
+	// Check third forward declaration with parent
+	stmt3, ok := program.Statements[2].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[2] is not *ast.ClassDecl. got=%T",
+			program.Statements[2])
+	}
+	if stmt3.Name.Value != "TDerived" {
+		t.Errorf("stmt3.Name.Value not 'TDerived'. got=%s", stmt3.Name.Value)
+	}
+	if stmt3.Parent == nil || stmt3.Parent.Value != "TBase" {
+		t.Errorf("stmt3.Parent should be 'TBase'. got=%v", stmt3.Parent)
+	}
+}
+
+func TestForwardDeclarationFollowedByImplementation(t *testing.T) {
+	input := `
+type TChild = class;
+
+type TBase = class
+   function Stuff : TChild; virtual; abstract;
+end;
+
+type TChild = class (TBase)
+   function Stuff : TChild; override;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 3 {
+		t.Fatalf("program.Statements does not contain 3 statements. got=%d",
+			len(program.Statements))
+	}
+
+	// Check forward declaration
+	forward, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+	if forward.Name.Value != "TChild" {
+		t.Errorf("forward.Name.Value not 'TChild'. got=%s", forward.Name.Value)
+	}
+	if forward.Methods != nil && len(forward.Methods) != 0 {
+		t.Errorf("Forward declaration should have no methods. got=%d", len(forward.Methods))
+	}
+
+	// Check TBase class
+	base, ok := program.Statements[1].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[1] is not *ast.ClassDecl. got=%T",
+			program.Statements[1])
+	}
+	if base.Name.Value != "TBase" {
+		t.Errorf("base.Name.Value not 'TBase'. got=%s", base.Name.Value)
+	}
+	if len(base.Methods) != 1 {
+		t.Fatalf("TBase should have 1 method. got=%d", len(base.Methods))
+	}
+
+	// Check TChild full implementation
+	impl, ok := program.Statements[2].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[2] is not *ast.ClassDecl. got=%T",
+			program.Statements[2])
+	}
+	if impl.Name.Value != "TChild" {
+		t.Errorf("impl.Name.Value not 'TChild'. got=%s", impl.Name.Value)
+	}
+	if impl.Parent == nil || impl.Parent.Value != "TBase" {
+		t.Errorf("impl.Parent should be 'TBase'. got=%v", impl.Parent)
+	}
+	if len(impl.Methods) != 1 {
+		t.Fatalf("TChild implementation should have 1 method. got=%d", len(impl.Methods))
+	}
+}

@@ -839,18 +839,44 @@ func TestConcreteClassMustImplementAbstractMethods(t *testing.T) {
 		type TCircle = class(TShape)
 			FRadius: Float;
 		end;
+
+		var c := TCircle.Create();
 	`
-	// Should error: TCircle doesn't implement GetArea
+	// Should error when trying to instantiate TCircle (doesn't implement GetArea)
 	expectError(t, input, "abstract")
 }
 
-func TestAbstractMethodInConcreteClass(t *testing.T) {
+func TestCannotInstantiateConcreteClassWithUnimplementedMethods(t *testing.T) {
+	input := `
+		type TShape = class abstract
+			function GetArea(): Float; virtual; abstract;
+			function GetName(): String; virtual; abstract;
+		end;
+
+		type TCircle = class(TShape)
+			FRadius: Float;
+
+			function GetArea(): Float; override;
+			begin
+				Result := 3.14 * FRadius * FRadius;
+			end;
+		end;
+
+		var c := TCircle.Create();
+	`
+	// Should error: TCircle doesn't implement GetName
+	expectError(t, input, "abstract")
+}
+
+func TestAbstractMethodMakesClassImplicitlyAbstract(t *testing.T) {
 	input := `
 		type TShape = class
-			function GetArea(): Float; abstract;
+			function GetArea(): Float; virtual; abstract;
 		end;
+
+		var s := TShape.Create();
 	`
-	// Should error: only abstract classes can have abstract methods
+	// Should error: cannot instantiate class with abstract methods (implicitly abstract)
 	expectError(t, input, "abstract")
 }
 
@@ -875,6 +901,126 @@ func TestValidAbstractImplementation(t *testing.T) {
 		end;
 
 		var c := TCircle.Create();
+	`
+	expectNoErrors(t, input)
+}
+
+// ============================================================================
+// Forward Class Declaration Tests (Task 9.11)
+// ============================================================================
+
+func TestForwardClassDeclaration(t *testing.T) {
+	input := `
+		type TChild = class;
+
+		type TBase = class abstract
+			function Stuff: TChild; virtual; abstract;
+		end;
+
+		type TChild = class(TBase)
+			function Stuff: TChild; override;
+			begin
+				Result := Self;
+			end;
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestForwardClassDeclarationWithoutImplementation(t *testing.T) {
+	input := `
+		type TChild = class;
+
+		type TBase = class
+			function Stuff: TChild;
+			begin
+			end;
+		end;
+	`
+	expectError(t, input, "class 'TChild' was forward declared but not implemented")
+}
+
+func TestDuplicateForwardClassDeclaration(t *testing.T) {
+	input := `
+		type TChild = class;
+		type TChild = class;
+	`
+	expectError(t, input, "class 'TChild' already forward declared")
+}
+
+func TestForwardDeclarationThenFullImplementation(t *testing.T) {
+	input := `
+		type TChild = class;
+
+		type TBase = class
+			Child: TChild;
+		end;
+
+		type TChild = class(TBase)
+			X: Integer;
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestMultipleForwardDeclarationsWithImplementations(t *testing.T) {
+	input := `
+		type TClassA = class;
+		type TClassB = class;
+
+		type TClassA = class
+			B: TClassB;
+		end;
+
+		type TClassB = class
+			A: TClassA;
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestForwardClassDeclarationInMethodReturnType(t *testing.T) {
+	input := `
+		type TNode = class;
+
+		type TList = class
+			function GetNode: TNode;
+			begin
+				Result := nil;
+			end;
+		end;
+
+		type TNode = class
+			Value: Integer;
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestCannotRedeclareFullyDeclaredClass(t *testing.T) {
+	input := `
+		type TPoint = class
+			X: Integer;
+		end;
+
+		type TPoint = class
+			Y: Integer;
+		end;
+	`
+	expectError(t, input, "class 'TPoint' already declared")
+}
+
+func TestForwardClassDeclarationWithParent(t *testing.T) {
+	input := `
+		type TBase = class
+			X: Integer;
+		end;
+
+		type TChild = class(TBase);
+
+		type TChild = class(TBase)
+			Y: Integer;
+		end;
 	`
 	expectNoErrors(t, input)
 }
