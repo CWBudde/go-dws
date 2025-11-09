@@ -399,6 +399,37 @@ func TestFindClassConst(t *testing.T) {
 	}
 }
 
+func TestRegisterHelperNilTargetType(t *testing.T) {
+	registry := NewHelperRegistry()
+
+	// Create a generic helper with nil target type (like array/enum helpers)
+	genericHelper := NewHelperType("TGenericHelper", nil, false)
+	genericHelper.Methods["test"] = &FunctionType{
+		ReturnType: STRING,
+		Parameters: []Type{},
+	}
+
+	// This should not panic
+	err := registry.RegisterHelper(genericHelper)
+	if err != nil {
+		t.Fatalf("RegisterHelper() with nil TargetType failed: %v", err)
+	}
+
+	// Verify it was registered
+	if registry.HelperCount() != 1 {
+		t.Errorf("Expected 1 helper, got %d", registry.HelperCount())
+	}
+
+	// Verify we can retrieve it by name
+	retrieved, ok := registry.GetHelperByName("TGenericHelper")
+	if !ok {
+		t.Fatal("Could not retrieve helper by name")
+	}
+	if retrieved.Name != "TGenericHelper" {
+		t.Errorf("Expected helper name 'TGenericHelper', got '%s'", retrieved.Name)
+	}
+}
+
 func TestClear(t *testing.T) {
 	registry := NewHelperRegistry()
 

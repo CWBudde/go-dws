@@ -56,8 +56,15 @@ func (hr *HelperRegistry) RegisterHelper(helper *HelperType) error {
 	}
 
 	// Get the target type name
-	targetTypeName := helper.TargetType.String()
-	targetTypeNameLower := strings.ToLower(targetTypeName)
+	// Generic helpers (e.g., array/enum helpers) may have nil TargetType
+	var targetTypeNameLower string
+	if helper.TargetType != nil {
+		targetTypeName := helper.TargetType.String()
+		targetTypeNameLower = strings.ToLower(targetTypeName)
+	} else {
+		// Use special key for generic helpers that apply to multiple types
+		targetTypeNameLower = "<generic>"
+	}
 
 	// Add helper to name map
 	hr.helpersByName[helperNameLower] = helper
