@@ -61,7 +61,6 @@ type (
 	IsExpression            = pkgast.IsExpression
 	AsExpression            = pkgast.AsExpression
 	ImplementsExpression    = pkgast.ImplementsExpression
-	TypeCastExpression      = pkgast.TypeCastExpression
 )
 
 // Statements

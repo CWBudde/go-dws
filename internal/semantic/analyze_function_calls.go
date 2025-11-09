@@ -670,8 +670,8 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 
 	// Boolean conversions
 	if targetType == types.BOOLEAN {
-		if sourceType == types.INTEGER || sourceType == types.FLOAT {
-			return true // Integer/Float -> Boolean (0 = false, non-zero = true)
+		if sourceType == types.INTEGER || sourceType == types.FLOAT || sourceType == types.STRING {
+			return true // Integer/Float/String -> Boolean
 		}
 	}
 
@@ -708,11 +708,6 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 	if sourceIsInterface || targetIsInterface {
 		// Interface casts are allowed (checked at runtime)
 		return true
-	}
-
-	// Class to interface or interface to class
-	if (sourceIsClass && targetIsInterface) || (sourceIsInterface && targetIsClass) {
-		return true // Allowed, checked at runtime
 	}
 
 	// Enum casts to/from Integer

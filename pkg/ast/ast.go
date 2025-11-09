@@ -535,50 +535,6 @@ func (ie *ImplementsExpression) String() string {
 func (ie *ImplementsExpression) GetType() *TypeAnnotation    { return ie.Type }
 func (ie *ImplementsExpression) SetType(typ *TypeAnnotation) { ie.Type = typ }
 
-// TypeCastExpression represents a function-style type cast.
-// Examples:
-//   - Integer(floatVar)      // Convert float to integer
-//   - Float(intVar)          // Convert integer to float
-//   - Boolean(intVar)        // Convert integer to boolean
-//   - TMyClass(objVar)       // Cast object to TMyClass (with runtime check)
-//   - String(intVar)         // Convert integer to string
-//
-// This is distinguished from function calls during semantic analysis by checking
-// if the "function" name is actually a type name.
-type TypeCastExpression struct {
-	TargetType TypeExpression  // The target type to cast to
-	Expression Expression      // The expression being cast
-	Type       *TypeAnnotation // Resolved type (will be the target type)
-	Token      token.Token     // The type name token
-	EndPos     token.Position
-}
-
-func (te *TypeCastExpression) expressionNode()      {}
-func (te *TypeCastExpression) TokenLiteral() string { return te.Token.Literal }
-func (te *TypeCastExpression) Pos() token.Position  { return te.Token.Pos }
-func (te *TypeCastExpression) End() token.Position {
-	if te.EndPos.Line != 0 {
-		return te.EndPos
-	}
-	return te.Token.Pos
-}
-func (te *TypeCastExpression) String() string {
-	var out bytes.Buffer
-	if te.TargetType != nil {
-		out.WriteString(te.TargetType.String())
-	} else {
-		out.WriteString(te.Token.Literal)
-	}
-	out.WriteString("(")
-	if te.Expression != nil {
-		out.WriteString(te.Expression.String())
-	}
-	out.WriteString(")")
-	return out.String()
-}
-func (te *TypeCastExpression) GetType() *TypeAnnotation    { return te.Type }
-func (te *TypeCastExpression) SetType(typ *TypeAnnotation) { te.Type = typ }
-
 // BlockStatement represents a block of statements (begin...end).
 type BlockStatement struct {
 	Statements []Statement

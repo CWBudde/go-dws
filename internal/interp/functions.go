@@ -1985,8 +1985,26 @@ func (i *Interpreter) castToBoolean(val Value) Value {
 	case *FloatValue:
 		return &BooleanValue{Value: v.Value != 0.0}
 	case *StringValue:
-		// Non-empty string is true
-		return &BooleanValue{Value: v.Value != ""}
+		// Parse string to boolean (DWScript semantics)
+		// Recognized as true: "1", "T", "t", "Y", "y", "yes", "true" (case-insensitive)
+		// Everything else is false
+		s := strings.TrimSpace(v.Value)
+		if s == "" {
+			return &BooleanValue{Value: false}
+		}
+		// Check single character shortcuts
+		if len(s) == 1 {
+			switch s[0] {
+			case '1', 'T', 't', 'Y', 'y':
+				return &BooleanValue{Value: true}
+			}
+			return &BooleanValue{Value: false}
+		}
+		// Check multi-character strings (case-insensitive)
+		if strings.EqualFold(s, "yes") || strings.EqualFold(s, "true") {
+			return &BooleanValue{Value: true}
+		}
+		return &BooleanValue{Value: false}
 	case *VariantValue:
 		// Recursively cast the variant's value
 		return i.castToBoolean(v.Value)
@@ -1997,6 +2015,11 @@ func (i *Interpreter) castToBoolean(val Value) Value {
 
 // castToClass performs runtime type checking and casts to a class type
 func (i *Interpreter) castToClass(val Value, targetClass *ClassInfo, node ast.Node) Value {
+	// Unwrap variant if needed
+	if variantVal, ok := val.(*VariantValue); ok {
+		val = variantVal.Value
+	}
+
 	// Handle nil
 	if _, isNil := val.(*NilValue); isNil {
 		return val // nil can be cast to any class
