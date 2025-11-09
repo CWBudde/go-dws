@@ -1119,6 +1119,31 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 	return postConditions
 }
 
+// parseIsExpression parses the 'is' type checking operator.
+// Example: obj is TMyClass
+// This creates an IsExpression AST node that will be evaluated at runtime
+// to check if an object is an instance of a specific type.
+func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
+	expression := &ast.IsExpression{
+		Token: p.curToken, // The 'is' token
+		Left:  left,
+	}
+
+	p.nextToken()
+
+	// Parse the target type
+	expression.TargetType = p.parseTypeExpression()
+	if expression.TargetType == nil {
+		p.addError("expected type after 'is' operator", ErrExpectedType)
+		return expression
+	}
+
+	// Set end position based on the target type
+	expression.EndPos = expression.TargetType.End()
+
+	return expression
+}
+
 // parseAsExpression parses the 'as' type casting operator.
 // Example: obj as IMyInterface
 // This creates an AsExpression AST node that will be evaluated at runtime
@@ -1129,7 +1154,6 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 		Left:  left,
 	}
 
-	precedence := p.curPrecedence()
 	p.nextToken()
 
 	// Parse the target type (should be an interface type)
@@ -1141,9 +1165,6 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 
 	// Set end position based on the target type
 	expression.EndPos = expression.TargetType.End()
-
-	// Avoid unused variable warning
-	_ = precedence
 
 	return expression
 }
@@ -1158,7 +1179,6 @@ func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 		Left:  left,
 	}
 
-	precedence := p.curPrecedence()
 	p.nextToken()
 
 	// Parse the target type (should be an interface type)
@@ -1170,9 +1190,6 @@ func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 
 	// Set end position based on the target type
 	expression.EndPos = expression.TargetType.End()
-
-	// Avoid unused variable warning
-	_ = precedence
 
 	return expression
 }

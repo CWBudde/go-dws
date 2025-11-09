@@ -76,6 +76,9 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 	case *ast.InheritedExpression:
 		// Task 9.161: Handle 'inherited' expressions
 		return a.analyzeInheritedExpression(e)
+	case *ast.IsExpression:
+		// Task 9.40: Handle 'is' type checking operator
+		return a.analyzeIsExpression(e)
 	case *ast.AsExpression:
 		// Task 9.48: Handle 'as' type casting operator
 		return a.analyzeAsExpression(e)
@@ -229,6 +232,31 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 	default:
 		return a.analyzeExpression(expr)
 	}
+}
+
+// analyzeIsExpression analyzes the 'is' type checking operator (Task 9.40).
+// Example: obj is TMyClass -> Boolean
+// Returns Boolean type.
+func (a *Analyzer) analyzeIsExpression(expr *ast.IsExpression) types.Type {
+	// Analyze the left expression (the object being checked)
+	leftType := a.analyzeExpression(expr.Left)
+	if leftType == nil {
+		return nil
+	}
+
+	// Resolve the target type (should be a class type)
+	targetType, err := a.resolveTypeExpression(expr.TargetType)
+	if err != nil || targetType == nil {
+		a.addError("cannot resolve target type in 'is' expression at %s: %v", expr.Token.Pos.String(), err)
+		return nil
+	}
+
+	// The 'is' operator always returns Boolean
+	expr.SetType(&ast.TypeAnnotation{
+		Token: expr.Token,
+		Name:  "Boolean",
+	})
+	return types.BOOLEAN
 }
 
 // analyzeAsExpression analyzes the 'as' type casting operator (Task 9.48).
