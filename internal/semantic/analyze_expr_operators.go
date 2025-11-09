@@ -58,21 +58,15 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 			// Task 9.32b/9.32c: Check if identifier is a field of the current class (implicit Self, includes inherited)
 			// NOTE: This only applies to instance methods, NOT class methods (static methods)
 			if fieldType, exists := a.currentClass.GetField(ident.Value); exists {
-				// Check field visibility - private fields are only accessible in the class where they're declared
+				// Check field visibility
 				fieldOwner := a.getFieldOwner(a.currentClass, ident.Value)
 				if fieldOwner != nil {
 					visibility, hasVisibility := fieldOwner.FieldVisibility[ident.Value]
-					if hasVisibility && visibility == int(ast.VisibilityPrivate) {
-						// Private fields are only accessible in the exact class where they're declared
-						if a.currentClass.Name != fieldOwner.Name {
-							a.addError("cannot access private field '%s' at %s",
-								ident.Value, ident.Token.Pos.String())
-							return nil
-						}
-					} else if hasVisibility && visibility == int(ast.VisibilityProtected) {
-						// Protected fields are accessible in the class and its descendants
-						// This is already allowed since we're in currentClass or a descendant
-						// No additional check needed
+					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, ident.Value, "field") {
+						visibilityStr := ast.Visibility(visibility).String()
+						a.addError("cannot access %s field '%s' at %s",
+							visibilityStr, ident.Value, ident.Token.Pos.String())
+						return nil
 					}
 				}
 				return fieldType

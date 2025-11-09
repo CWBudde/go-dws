@@ -633,7 +633,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 
 				// Mark that we found the forward declaration and updated it
 				isImplementationOfForward = true
-				break // Continue to analyze the method body
+				break // Exit overload loop - method body will be analyzed below
 			}
 
 			// True duplicate (both forward or both implementation)
