@@ -55,9 +55,26 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 			return &types.ClassOfType{ClassType: classType}
 		}
 		if a.currentClass != nil && !a.inClassMethod {
-			// Task 9.32b/9.32c: Check if identifier is a field of the current class (implicit Self)
+			// Task 9.32b/9.32c: Check if identifier is a field of the current class (implicit Self, includes inherited)
 			// NOTE: This only applies to instance methods, NOT class methods (static methods)
-			if fieldType, exists := a.currentClass.Fields[ident.Value]; exists {
+			if fieldType, exists := a.currentClass.GetField(ident.Value); exists {
+				// Check field visibility - private fields are only accessible in the class where they're declared
+				fieldOwner := a.getFieldOwner(a.currentClass, ident.Value)
+				if fieldOwner != nil {
+					visibility, hasVisibility := fieldOwner.FieldVisibility[ident.Value]
+					if hasVisibility && visibility == int(ast.VisibilityPrivate) {
+						// Private fields are only accessible in the exact class where they're declared
+						if a.currentClass.Name != fieldOwner.Name {
+							a.addError("cannot access private field '%s' at %s",
+								ident.Value, ident.Token.Pos.String())
+							return nil
+						}
+					} else if hasVisibility && visibility == int(ast.VisibilityProtected) {
+						// Protected fields are accessible in the class and its descendants
+						// This is already allowed since we're in currentClass or a descendant
+						// No additional check needed
+					}
+				}
 				return fieldType
 			}
 
@@ -80,14 +97,6 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 						}
 						return propInfo.Type
 					}
-				}
-			}
-
-			if owner := a.getFieldOwner(a.currentClass.Parent, ident.Value); owner != nil {
-				if visibility, ok := owner.FieldVisibility[ident.Value]; ok && visibility == int(ast.VisibilityPrivate) {
-					a.addError("cannot access private field '%s' of class '%s' at %s",
-						ident.Value, owner.Name, ident.Token.Pos.String())
-					return nil
 				}
 			}
 
