@@ -44,6 +44,19 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 		return nil
 	}
 
+	// Task 9.6: Handle ClassName identifier in method contexts
+	// ClassName is a built-in property available on all objects (inherited from TObject)
+	// When used as an identifier, it returns the class name as a String
+	if strings.EqualFold(ident.Value, "ClassName") && a.currentClass != nil {
+		return types.STRING
+	}
+
+	// Task 9.7: Handle ClassType identifier in method contexts
+	// ClassType is a built-in property that returns the metaclass reference
+	if strings.EqualFold(ident.Value, "ClassType") && a.currentClass != nil {
+		return types.NewClassOfType(a.currentClass)
+	}
+
 	sym, ok := a.symbols.Resolve(ident.Value)
 	if !ok {
 		// Task 9.285: Use lowercase for case-insensitive lookup
