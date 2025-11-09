@@ -962,14 +962,7 @@ func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node
 		// e.g., 'a' in 'abc' returns true
 		if len(strValue.Value) > 0 {
 			// Check if the container string contains the value string
-			// strings package should already be imported at top of file
-			contains := false
-			for i := 0; i <= len(strContainer.Value)-len(strValue.Value); i++ {
-				if strContainer.Value[i:i+len(strValue.Value)] == strValue.Value {
-					contains = true
-					break
-				}
-			}
+			contains := strings.Contains(strContainer.Value, strValue.Value)
 			return &BooleanValue{Value: contains}
 		}
 		// Empty string is not in any string

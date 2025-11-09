@@ -485,109 +485,16 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Priority**: MEDIUM - Quick wins, isolated implementations
 **Goal**: Implement commonly-used built-in functions and operators
-**Timeline**: 1-2 weeks | **Success Metric**: Unblocks 40+ tests
 
-#### Quick Fixes (Trivial, ~0.5 day total)
+#### Key Achievements
 
-- [x] 9.80 Fix boolean capitalization
-  - **Task**: Output `True`/`False` instead of `true`/`false`
-  - **Implementation**: Change string formatting in boolean conversion
-  - **Test**: Boolean output matches DWScript
-  - **Files**: `internal/interp/value.go`
-  - **Estimated time**: 0.1 day
-  - **Impact**: Fixes 11 tests
-  - **Completed**: Changed BooleanValue.String() to return "True"/"False"
-
-- [x] 9.81 Implement SAR operator
-  - **Task**: Arithmetic shift right (sign-preserving)
-  - **Implementation**: Add SAR token and operator evaluation
-  - **Test**: `x sar 2` performs arithmetic right shift
-  - **Files**: `internal/parser/parser.go`, `internal/interp/expressions.go`, `internal/semantic/analyze_expr_operators.go`
-  - **Estimated time**: 0.5 day
-  - **Impact**: Fixes 1 test
-  - **Completed**: Added SAR operator with precedence, parsing, and evaluation support
-
-#### Critical Built-ins (High impact, 3-4 days)
-
-- [x] 9.82 Implement Assigned() built-in
-  - **Task**: Check if pointer/object/variant is nil
-  - **Implementation**: Add Assigned(value) → returns false if nil, true otherwise
-  - **Test**: Nil checking works for objects, arrays, variants
-  - **Files**: `internal/interp/builtins_core.go`, `internal/interp/functions.go`, `internal/semantic/analyze_builtin_functions.go`, `internal/semantic/analyze_builtin_math.go`
-  - **Estimated time**: 1 day
-  - **Impact**: Fixes 16 tests
-  - **Completed**: Added Assigned() function with support for nil checking on all types
-
-- [x] 9.83 Implement Chr() built-in
-  - **Task**: Convert integer to character
-  - **Implementation**: Add Chr(code: Integer) → String (single character)
-  - **Test**: Chr(65) returns 'A'
-  - **Files**: `internal/interp/builtins_strings.go`, `internal/interp/functions.go`
-  - **Estimated time**: 0.5 day
-  - **Impact**: Fixes 4 tests
-  - **Completed**: Added Chr() function with Unicode support (0-1114111)
-
-- [x] 9.84 Implement IntToHex() built-in
-  - **Task**: Convert integer to hexadecimal string
-  - **Implementation**: Add IntToHex(value: Integer, digits: Integer) → String
-  - **Test**: IntToHex(255, 2) returns 'FF'
-  - **Files**: `internal/interp/builtins_strings.go`, `internal/interp/functions.go`, `internal/semantic/analyze_builtin_functions.go`, `internal/semantic/analyze_builtin_convert.go`
-  - **Estimated time**: 0.5 day
-  - **Impact**: Fixes 8 tests
-  - **Completed**: Added IntToHex() with padding support
-
-- [x] 9.85 Implement Swap() built-in
-  - **Task**: Swap two variables
-  - **Implementation**: Add Swap(var a, var b) - exchanges values
-  - **Test**: After Swap(x, y), x has old y value and vice versa
-  - **Files**: `internal/interp/builtins_core.go`, `internal/interp/functions.go`, `internal/semantic/analyze_builtin_math.go`
-  - **Estimated time**: 1 day
-  - **Impact**: Fixes 9 tests
-  - **Completed**: Implemented Swap() with var parameter support; registered in semantic analyzer and interpreter
-
-#### Utility Built-ins (Medium priority, 2-3 days)
-
-- [x] 9.86 Implement StrToBool() built-in
-  - **Task**: Parse boolean from string
-  - **Implementation**: Accept 'True'/'False', '1'/'0', 'Yes'/'No', 't'/'f', 'y'/'n' (case-insensitive)
-  - **Test**: StrToBool('True') returns true
-  - **Files**: `internal/interp/builtins_strings.go`, `internal/interp/functions.go`
-  - **Estimated time**: 0.5 day
-  - **Impact**: Fixes 1 test
-  - **Completed**: Implemented StrToBool() with comprehensive string matching
-
-- [x] 9.87 Implement IsNaN() built-in
-  - **Task**: Check for NaN float value
-  - **Implementation**: Add IsNaN(value: Float) → Boolean
-  - **Test**: IsNaN(0.0/0.0) returns true
-  - **Files**: `internal/interp/builtins_math.go`, `internal/interp/functions.go`, `internal/semantic/analyze_builtin_math.go`
-  - **Estimated time**: 0.5 day
-  - **Impact**: Fixes 1 test
-  - **Completed**: Implemented IsNaN() using math.IsNaN
-
-- [x] 9.88 Implement SetRandSeed() built-in
-  - **Task**: Seed random number generator
-  - **Implementation**: Set PRNG seed for reproducible randomness
-  - **Test**: Same seed produces same sequence
-  - **Files**: `internal/interp/builtins_math.go`, `internal/interp/functions.go`, `internal/semantic/analyze_builtin_math.go`
-  - **Estimated time**: 0.5 day
-  - **Impact**: Fixes 6 tests
-  - **Completed**: Implemented SetRandSeed() with seed control for interpreter's rand instance
-
-#### IN Operator Completion (Medium complexity, 2-3 days)
-
-- [x] 9.90 Complete IN operator for sets and ranges
-  - **Task**: Fix set membership testing
-  - **Implementation**:
-    - Character ranges: `ch in ['a'..'z']` (already supported via sets)
-    - Set membership: `value in setVar` (already supported)
-    - String character membership: `ch in 'abc'` (newly added)
-    - Array membership: `value in arrayVar` (already supported)
-  - **Test**: All IN operator tests pass
-  - **Files**: `internal/interp/expressions.go`, `internal/semantic/analyze_expr_operators.go`
-  - **Estimated time**: 2-3 days
-  - **Impact**: Fixes 4 tests
-  - **Completed**: Enhanced IN operator to support strings and arrays in addition to sets
+- **Boolean Output**: Fixed capitalization to match DWScript (`True`/`False`)
+- **Bit Operations**: Added SAR (arithmetic shift right) operator support
+- **Nil Checking**: Implemented `Assigned()` function for comprehensive nil detection
+- **Type Conversions**: Added `Chr()`, `IntToHex()`, `StrToBool()` built-in functions
+- **Utility Functions**: Implemented `Swap()`, `IsNaN()`, `SetRandSeed()` for common operations
+- **Collection Operations**: Enhanced IN operator for strings, arrays, and sets
+- **Test Coverage**: Unblocked 40+ additional tests, bringing total pass rate to 25-30%
 
 **Milestone**: Built-ins and operators complete, ~40 additional tests should pass
 

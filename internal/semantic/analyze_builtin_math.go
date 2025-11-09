@@ -903,9 +903,17 @@ func (a *Analyzer) analyzeSwap(args []ast.Expression, callExpr *ast.CallExpressi
 		}
 	}
 
-	// Analyze both arguments to validate they exist
-	a.analyzeExpression(args[0])
-	a.analyzeExpression(args[1])
+	// Analyze both arguments to validate they exist and get their types
+	type1 := a.analyzeExpression(args[0])
+	type2 := a.analyzeExpression(args[1])
+
+	// Both arguments must have compatible types
+	if type1 != nil && type2 != nil {
+		if !type1.Equals(type2) {
+			a.addError("function 'Swap' arguments must have compatible types, got %s and %s at %s",
+				type1.String(), type2.String(), callExpr.Token.Pos.String())
+		}
+	}
 
 	// Swap doesn't return a value (procedure)
 	return nil
