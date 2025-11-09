@@ -9,6 +9,14 @@ import (
 // Property Semantic Analysis
 // ============================================================================
 
+// pluralizeParam returns "parameter" or "parameters" based on count.
+func pluralizeParam(count int) string {
+	if count == 1 {
+		return "parameter"
+	}
+	return "parameters"
+}
+
 // analyzePropertyDecl validates a property declaration and registers it in the class metadata.
 func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.ClassType) {
 	propName := prop.Name.Value
@@ -88,7 +96,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 
 		// Only one default property per class
 		for existingPropName, existingProp := range classType.Properties {
-			if existingProp.IsDefault {
+			if existingProp.IsDefault && existingPropName != propName {
 				a.addError("class '%s' already has default property '%s'; cannot declare another default property '%s' at %s",
 					classType.Name, existingPropName, propName, prop.Token.Pos.String())
 				return
@@ -169,8 +177,9 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 
 			expectedParamCount := len(indexParamTypes)
 			if len(methodType.Parameters) != expectedParamCount {
-				a.addError("property '%s' getter method '%s' has %d parameters, expected %d at %s",
-					propName, readSpecName, len(methodType.Parameters), expectedParamCount,
+				a.addError("property '%s' getter method '%s' has %d %s, expected %d %s at %s",
+					propName, readSpecName, len(methodType.Parameters), pluralizeParam(len(methodType.Parameters)),
+					expectedParamCount, pluralizeParam(expectedParamCount),
 					prop.Token.Pos.String())
 				return
 			}
@@ -321,8 +330,9 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 
 		expectedParamCount := len(indexParamTypes) + 1 // index params + value param
 		if len(methodType.Parameters) != expectedParamCount {
-			a.addError("property '%s' setter method '%s' has %d parameters, expected %d at %s",
-				propName, writeSpecName, len(methodType.Parameters), expectedParamCount,
+			a.addError("property '%s' setter method '%s' has %d %s, expected %d %s at %s",
+				propName, writeSpecName, len(methodType.Parameters), pluralizeParam(len(methodType.Parameters)),
+				expectedParamCount, pluralizeParam(expectedParamCount),
 				prop.Token.Pos.String())
 			return
 		}

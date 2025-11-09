@@ -210,7 +210,7 @@ type TTest = class
 	function GetValue(x: Integer): Integer; begin Result := 0; end;
 	property Value: Integer read GetValue;
 end;`,
-			expectedError: "getter method 'GetValue' has 1 parameters, expected 0",
+			expectedError: "getter method 'GetValue' has 1 parameter, expected 0",
 		},
 		{
 			name: "setter missing value parameter for non-indexed property",
@@ -219,7 +219,7 @@ type TTest = class
 	procedure SetValue; begin end;
 	property Value: Integer write SetValue;
 end;`,
-			expectedError: "setter method 'SetValue' has 0 parameters, expected 1",
+			expectedError: "setter method 'SetValue' has 0 parameters, expected 1 parameter",
 		},
 		{
 			name: "default property not indexed",
@@ -248,7 +248,7 @@ type TTest = class
 	function GetItem: String; begin Result := ''; end;
 	property Items[index: Integer]: String read GetItem;
 end;`,
-			expectedError: "getter method 'GetItem' has 0 parameters, expected 1",
+			expectedError: "getter method 'GetItem' has 0 parameters, expected 1 parameter",
 		},
 		{
 			name: "indexed property setter missing index parameter",
@@ -257,7 +257,7 @@ type TTest = class
 	procedure SetItem(value: String); begin end;
 	property Items[index: Integer]: String write SetItem;
 end;`,
-			expectedError: "setter method 'SetItem' has 1 parameters, expected 2",
+			expectedError: "setter method 'SetItem' has 1 parameter, expected 2 parameters",
 		},
 		{
 			name: "indexed property getter wrong index type",
