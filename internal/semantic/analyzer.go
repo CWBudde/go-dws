@@ -145,6 +145,14 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	// Task 9.285: Use lowercase for case-insensitive lookup
 	a.classes["tobject"] = objectClass
 
+	// Register TClass as a type alias for "class of TObject"
+	// TClass is a built-in metaclass type in DWScript
+	tclassAlias := &types.TypeAlias{
+		Name:        "TClass",
+		AliasedType: types.NewClassOfType(objectClass),
+	}
+	a.typeAliases["tclass"] = tclassAlias
+
 	// Define Exception base class
 	exceptionClass := &types.ClassType{
 		Name:                 "Exception",

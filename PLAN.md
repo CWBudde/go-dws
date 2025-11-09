@@ -186,27 +186,36 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Estimated Time**: 2-3 days
 **Dependency**: Required for class_var*.pas tests
 
-#### 9.6 ClassName Property - HIGH PRIORITY
+#### 9.6 ClassName Property - HIGH PRIORITY ✅ **COMPLETED**
 **Blocks**: classname*.pas, class_of_cast.pas, overload_on_metaclass.pas (10+ tests)
 
-- [ ] 9.6.1 Add ClassName to TObject
+- [x] 9.6.1 Add ClassName to TObject
   - **Task**: Make ClassName available on all classes
   - **Implementation**: Add ClassName as built-in property/method on TObject
   - **Files**: `internal/types/types.go`, `internal/semantic/analyze_classes.go`
   - **Tests**: All classes have ClassName property
+  - **Status**: ✅ Implemented in semantic analyzer (analyze_classes.go:1118-1121, analyzer.go:139-143)
 
-- [ ] 9.6.2 Runtime ClassName implementation
+- [x] 9.6.2 Runtime ClassName implementation
   - **Task**: Return class name at runtime
   - **Files**: `internal/interp/objects.go`, `internal/interp/builtins.go`
   - **Tests**: obj.ClassName returns correct class name
+  - **Status**: ✅ Implemented for objects (objects.go:469-472), metaclasses (objects.go:386-388), and identifiers (expressions.go:112-114, 127-129, analyze_expr_operators.go:50-52)
 
-- [ ] 9.6.3 Support ClassName on metaclass types
+- [x] 9.6.3 Support ClassName on metaclass types
   - **Task**: TClass.ClassName returns class name
   - **Files**: `internal/interp/class.go`
   - **Tests**: metaclass.ClassName works correctly
+  - **Status**: ✅ Implemented with case-insensitive support and full metaclass handling
+
+- [x] 9.6.4 Add TClass type alias
+  - **Task**: Register TClass as built-in type alias for "class of TObject"
+  - **Files**: `internal/semantic/analyzer.go`
+  - **Status**: ✅ Added at analyzer.go:148-154
 
 **Estimated Time**: 1-2 days
 **Dependency**: Required for classname*.pas and many other tests
+**Completion Date**: 2025-11-09
 
 #### 9.7 ClassType Property - MEDIUM PRIORITY ✅ **COMPLETED**
 
