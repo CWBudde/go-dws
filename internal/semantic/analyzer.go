@@ -248,6 +248,9 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	// Task 9.64: Validate that all forward-declared functions have implementations
 	a.validateFunctionImplementations()
 
+	// Task 9.11: Validate that all forward-declared classes have implementations
+	a.validateClassForwardDeclarations()
+
 	// If we accumulated errors (not hints), return them
 	// Task 9.61.4: Hints don't prevent analysis from succeeding
 	hasActualErrors := false
@@ -369,6 +372,19 @@ func (a *Analyzer) validateFunctionImplementationsInScope(scope *SymbolTable) {
 	// Recursively check nested scopes (parent scope)
 	if scope.outer != nil {
 		a.validateFunctionImplementationsInScope(scope.outer)
+	}
+}
+
+// validateClassForwardDeclarations checks that all forward-declared classes have implementations
+// Task 9.11: Post-analysis validation for missing class implementations
+func (a *Analyzer) validateClassForwardDeclarations() {
+	// Iterate through all classes
+	for _, classType := range a.classes {
+		// Check if this class is still marked as forward (not implemented)
+		if classType.IsForward {
+			// This class was forward declared but never implemented
+			a.addError("class '%s' was forward declared but not implemented", classType.Name)
+		}
 	}
 }
 
