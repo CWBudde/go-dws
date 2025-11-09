@@ -308,35 +308,59 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		return nil
 	}
 
-	// Handle 'in' operator for set membership
+	// Handle 'in' operator for set/string/array membership
 	if operator == "in" {
-		// Right operand must be a set type
-		rightSetType, isSet := rightType.(*types.SetType)
-		if !isSet {
-			a.addError("'in' operator requires set as right operand, got %s at %s",
-				rightType.String(), expr.Token.Pos.String())
-			return nil
+		// Right operand can be:
+		// 1. Set type - for set membership
+		// 2. String type - for character/substring membership
+		// 3. Array type - for array element membership
+
+		// Check for set type
+		if rightSetType, isSet := rightType.(*types.SetType); isSet {
+			// Left operand must be an ordinal type matching the set's element type
+			if !types.IsOrdinalType(leftType) {
+				a.addError("'in' operator requires ordinal value as left operand, got %s at %s",
+					leftType.String(), expr.Token.Pos.String())
+				return nil
+			}
+
+			// Element types must match (resolve underlying types for comparison)
+			leftResolved := types.GetUnderlyingType(leftType)
+			rightResolved := types.GetUnderlyingType(rightSetType.ElementType)
+
+			if !leftResolved.Equals(rightResolved) {
+				a.addError("type mismatch in 'in' operator: %s is not compatible with set of %s at %s",
+					leftType.String(), rightSetType.ElementType.String(), expr.Token.Pos.String())
+				return nil
+			}
+
+			// 'in' operator returns Boolean
+			return types.BOOLEAN
 		}
 
-		// Left operand must be an ordinal type matching the set's element type
-		if !types.IsOrdinalType(leftType) {
-			a.addError("'in' operator requires ordinal value as left operand, got %s at %s",
-				leftType.String(), expr.Token.Pos.String())
-			return nil
+		// Check for string type - allows character/substring membership
+		if rightType == types.STRING {
+			// Left operand should be String (character or substring)
+			if leftType != types.STRING {
+				a.addError("'in' operator with String requires String as left operand, got %s at %s",
+					leftType.String(), expr.Token.Pos.String())
+				return nil
+			}
+			// 'in' operator returns Boolean
+			return types.BOOLEAN
 		}
 
-		// Element types must match (resolve underlying types for comparison)
-		leftResolved := types.GetUnderlyingType(leftType)
-		rightResolved := types.GetUnderlyingType(rightSetType.ElementType)
-
-		if !leftResolved.Equals(rightResolved) {
-			a.addError("type mismatch in 'in' operator: %s is not compatible with set of %s at %s",
-				leftType.String(), rightSetType.ElementType.String(), expr.Token.Pos.String())
-			return nil
+		// Check for array type - allows element membership
+		if _, isArray := rightType.(*types.ArrayType); isArray {
+			// Left operand can be any type - will be checked at runtime
+			// 'in' operator returns Boolean
+			return types.BOOLEAN
 		}
 
-		// 'in' operator returns Boolean
-		return types.BOOLEAN
+		// If none of the above, error
+		a.addError("'in' operator requires set, string, or array as right operand, got %s at %s",
+			rightType.String(), expr.Token.Pos.String())
+		return nil
 	}
 
 	a.addError("unknown binary operator: %s at %s", operator, expr.Token.Pos.String())

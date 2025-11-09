@@ -884,3 +884,74 @@ func (a *Analyzer) analyzeAssigned(args []ast.Expression, callExpr *ast.CallExpr
 	// Always returns Boolean
 	return types.BOOLEAN
 }
+
+// analyzeSwap analyzes the Swap built-in function.
+// Swap takes 2 var arguments and swaps their values.
+// Swap(var a, var b)
+func (a *Analyzer) analyzeSwap(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'Swap' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return nil
+	}
+
+	// Both arguments must be identifiers (variables)
+	for i, arg := range args {
+		if _, ok := arg.(*ast.Identifier); !ok {
+			a.addError("function 'Swap' argument %d must be a variable at %s",
+				i+1, callExpr.Token.Pos.String())
+		}
+	}
+
+	// Analyze both arguments to validate they exist
+	a.analyzeExpression(args[0])
+	a.analyzeExpression(args[1])
+
+	// Swap doesn't return a value (procedure)
+	return nil
+}
+
+// analyzeIsNaN analyzes the IsNaN built-in function.
+// IsNaN takes 1 Float argument and returns Boolean.
+// IsNaN(value: Float): Boolean
+func (a *Analyzer) analyzeIsNaN(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'IsNaN' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+
+	// Analyze the argument
+	argType := a.analyzeExpression(args[0])
+
+	// Argument should be Float (but we're lenient - will return false for non-floats at runtime)
+	if argType != nil && argType != types.FLOAT {
+		// Don't error - just check at runtime
+		// This allows IsNaN to be called on any type
+	}
+
+	return types.BOOLEAN
+}
+
+// analyzeSetRandSeed analyzes the SetRandSeed built-in function.
+// SetRandSeed takes 1 Integer argument and sets the random seed.
+// SetRandSeed(seed: Integer)
+func (a *Analyzer) analyzeSetRandSeed(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'SetRandSeed' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return nil
+	}
+
+	// Analyze the argument
+	argType := a.analyzeExpression(args[0])
+
+	// Argument must be Integer
+	if argType != nil && argType != types.INTEGER {
+		a.addError("function 'SetRandSeed' expects Integer, got %s at %s",
+			argType.String(), callExpr.Token.Pos.String())
+	}
+
+	// SetRandSeed doesn't return a value (procedure)
+	return nil
+}

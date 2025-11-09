@@ -934,7 +934,7 @@ func (i *Interpreter) getFunctionPointerTypeFromAnnotation(typeAnnotation *ast.T
 	return nil
 }
 
-// evalInOperator evaluates the 'in' operator for checking membership in sets or arrays
+// evalInOperator evaluates the 'in' operator for checking membership in sets, arrays, or strings
 // Syntax: value in container
 // Returns: Boolean indicating whether value is found in the container
 func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node) Value {
@@ -947,6 +947,33 @@ func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node
 		}
 		// Use existing evalSetMembership function from set.go
 		return i.evalSetMembership(value, ordinal, setVal)
+	}
+
+	// Handle string character membership: 'x' in 'abc'
+	// This checks if a character/string is contained in another string
+	if strContainer, ok := container.(*StringValue); ok {
+		// Value must be a string (character)
+		strValue, ok := value.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "type mismatch: %s in STRING", value.Type())
+		}
+		// Check if the string contains the character/substring
+		// In DWScript, this is typically used for single characters
+		// e.g., 'a' in 'abc' returns true
+		if len(strValue.Value) > 0 {
+			// Check if the container string contains the value string
+			// strings package should already be imported at top of file
+			contains := false
+			for i := 0; i <= len(strContainer.Value)-len(strValue.Value); i++ {
+				if strContainer.Value[i:i+len(strValue.Value)] == strValue.Value {
+					contains = true
+					break
+				}
+			}
+			return &BooleanValue{Value: contains}
+		}
+		// Empty string is not in any string
+		return &BooleanValue{Value: false}
 	}
 
 	// Handle array membership (existing code)

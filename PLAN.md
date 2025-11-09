@@ -536,53 +536,58 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Impact**: Fixes 8 tests
   - **Completed**: Added IntToHex() with padding support
 
-- [ ] 9.85 Implement Swap() built-in
+- [x] 9.85 Implement Swap() built-in
   - **Task**: Swap two variables
   - **Implementation**: Add Swap(var a, var b) - exchanges values
   - **Test**: After Swap(x, y), x has old y value and vice versa
-  - **Files**: `internal/interp/builtins.go`
+  - **Files**: `internal/interp/builtins_core.go`, `internal/interp/functions.go`, `internal/semantic/analyze_builtin_math.go`
   - **Estimated time**: 1 day
   - **Impact**: Fixes 9 tests
+  - **Completed**: Implemented Swap() with var parameter support; registered in semantic analyzer and interpreter
 
 #### Utility Built-ins (Medium priority, 2-3 days)
 
-- [ ] 9.86 Implement StrToBool() built-in
+- [x] 9.86 Implement StrToBool() built-in
   - **Task**: Parse boolean from string
-  - **Implementation**: Accept 'True'/'False', '1'/'0', 'Yes'/'No'
+  - **Implementation**: Accept 'True'/'False', '1'/'0', 'Yes'/'No', 't'/'f', 'y'/'n' (case-insensitive)
   - **Test**: StrToBool('True') returns true
-  - **Files**: `internal/interp/builtins_string.go`
+  - **Files**: `internal/interp/builtins_strings.go`, `internal/interp/functions.go`
   - **Estimated time**: 0.5 day
   - **Impact**: Fixes 1 test
+  - **Completed**: Implemented StrToBool() with comprehensive string matching
 
-- [ ] 9.87 Implement IsNaN() built-in
+- [x] 9.87 Implement IsNaN() built-in
   - **Task**: Check for NaN float value
   - **Implementation**: Add IsNaN(value: Float) → Boolean
   - **Test**: IsNaN(0.0/0.0) returns true
-  - **Files**: `internal/interp/builtins_math.go`
+  - **Files**: `internal/interp/builtins_math.go`, `internal/interp/functions.go`, `internal/semantic/analyze_builtin_math.go`
   - **Estimated time**: 0.5 day
   - **Impact**: Fixes 1 test
+  - **Completed**: Implemented IsNaN() using math.IsNaN
 
-- [ ] 9.88 Implement SetRandSeed() built-in
+- [x] 9.88 Implement SetRandSeed() built-in
   - **Task**: Seed random number generator
   - **Implementation**: Set PRNG seed for reproducible randomness
   - **Test**: Same seed produces same sequence
-  - **Files**: `internal/interp/builtins_math.go`
+  - **Files**: `internal/interp/builtins_math.go`, `internal/interp/functions.go`, `internal/semantic/analyze_builtin_math.go`
   - **Estimated time**: 0.5 day
   - **Impact**: Fixes 6 tests
+  - **Completed**: Implemented SetRandSeed() with seed control for interpreter's rand instance
 
 #### IN Operator Completion (Medium complexity, 2-3 days)
 
-- [ ] 9.90 Complete IN operator for sets and ranges
+- [x] 9.90 Complete IN operator for sets and ranges
   - **Task**: Fix set membership testing
   - **Implementation**:
-    - Character ranges: `ch in ['a'..'z']`
-    - Set membership: `value in setVar`
-    - String character membership: `ch in 'abc'`
-    - Complete set type implementation if needed
+    - Character ranges: `ch in ['a'..'z']` (already supported via sets)
+    - Set membership: `value in setVar` (already supported)
+    - String character membership: `ch in 'abc'` (newly added)
+    - Array membership: `value in arrayVar` (already supported)
   - **Test**: All IN operator tests pass
-  - **Files**: `internal/interp/expressions.go`, `internal/types/set.go`
+  - **Files**: `internal/interp/expressions.go`, `internal/semantic/analyze_expr_operators.go`
   - **Estimated time**: 2-3 days
   - **Impact**: Fixes 4 tests
+  - **Completed**: Enhanced IN operator to support strings and arrays in addition to sets
 
 **Milestone**: Built-ins and operators complete, ~40 additional tests should pass
 
