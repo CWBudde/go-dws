@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -273,6 +274,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			// Each record has: FunctionName: String, FileName: String, Line: Integer, Column: Integer
 			// For simplicity in semantic analysis, we return a generic dynamic array type
 			return types.NewDynamicArrayType(types.VARIANT)
+		}
+
+		// Task 9.8.1-9.8.2: Check if this is a type cast (TypeName(expression))
+		// Type casts look like function calls but the "function" name is actually a type name
+		if castType := a.analyzeTypeCast(funcIdent.Value, expr.Arguments, expr); castType != nil {
+			return castType
 		}
 
 		a.addError("undefined function '%s' at %s", funcIdent.Value, expr.Token.Pos.String())
@@ -585,4 +592,141 @@ func detectOverloadedCallWithLambdas(args []ast.Expression) (bool, []int) {
 	}
 
 	return len(lambdaIndices) > 0, lambdaIndices
+}
+
+// analyzeTypeCast analyzes a type cast expression like Integer(x), Float(y), or TMyClass(obj).
+// Returns the target type if this is a valid type cast, or nil if not a type cast.
+// Task 9.8.2: Semantic analysis for type casts
+func (a *Analyzer) analyzeTypeCast(typeName string, args []ast.Expression, expr *ast.CallExpression) types.Type {
+	// Type casts must have exactly one argument
+	if len(args) != 1 {
+		return nil // Not a type cast
+	}
+
+	// Check if typeName is a built-in type
+	var targetType types.Type
+
+	// Check for built-in types (case-insensitive)
+	switch strings.ToLower(typeName) {
+	case "integer":
+		targetType = types.INTEGER
+	case "float":
+		targetType = types.FLOAT
+	case "string":
+		targetType = types.STRING
+	case "boolean":
+		targetType = types.BOOLEAN
+	case "variant":
+		targetType = types.VARIANT
+	default:
+		// Check if it's a class type (case-insensitive)
+		for name, class := range a.classes {
+			if strings.EqualFold(name, typeName) {
+				targetType = class
+				break
+			}
+		}
+		// If not a class, check in symbol table
+		if targetType == nil {
+			sym, ok := a.symbols.Resolve(typeName)
+			if ok {
+				targetType = sym.Type
+			} else {
+				return nil // Not a type name
+			}
+		}
+	}
+
+	// Analyze the argument expression
+	argType := a.analyzeExpression(args[0])
+	if argType == nil {
+		return nil // Error already reported
+	}
+
+	// Validate the cast is legal
+	if !a.isValidCast(argType, targetType, expr.Token.Pos) {
+		return nil
+	}
+
+	return targetType
+}
+
+// isValidCast checks if casting from sourceType to targetType is valid.
+// Task 9.8.2: Type cast validation
+func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Position) bool {
+	// Resolve type aliases
+	sourceType = types.GetUnderlyingType(sourceType)
+	targetType = types.GetUnderlyingType(targetType)
+
+	// Same type is always valid
+	if sourceType.Equals(targetType) {
+		return true
+	}
+
+	// Numeric conversions
+	if a.isNumericType(sourceType) && a.isNumericType(targetType) {
+		return true // Integer <-> Float allowed
+	}
+
+	// Boolean conversions
+	if targetType == types.BOOLEAN {
+		if sourceType == types.INTEGER || sourceType == types.FLOAT || sourceType == types.STRING {
+			return true // Integer/Float/String -> Boolean
+		}
+	}
+
+	// String conversions
+	if targetType == types.STRING {
+		// Most types can be converted to string
+		return true
+	}
+
+	// Variant conversions (Variant can be cast to/from anything)
+	if sourceType == types.VARIANT || targetType == types.VARIANT {
+		return true
+	}
+
+	// Class/Interface casts
+	sourceClass, sourceIsClass := sourceType.(*types.ClassType)
+	targetClass, targetIsClass := targetType.(*types.ClassType)
+
+	if sourceIsClass && targetIsClass {
+		// Class to class cast: check if types are related by inheritance
+		if types.IsSubclassOf(sourceClass, targetClass) ||
+			types.IsSubclassOf(targetClass, sourceClass) {
+			return true // Upcast or downcast allowed
+		}
+		a.addError("cannot cast %s to %s: types are not related by inheritance at %s",
+			sourceType.String(), targetType.String(), pos.String())
+		return false
+	}
+
+	// Interface casts
+	_, sourceIsInterface := sourceType.(*types.InterfaceType)
+	_, targetIsInterface := targetType.(*types.InterfaceType)
+
+	if sourceIsInterface || targetIsInterface {
+		// Interface casts are allowed (checked at runtime)
+		return true
+	}
+
+	// Enum casts to/from Integer
+	_, sourceIsEnum := sourceType.(*types.EnumType)
+	_, targetIsEnum := targetType.(*types.EnumType)
+
+	if (sourceIsEnum && targetType == types.INTEGER) ||
+		(sourceType == types.INTEGER && targetIsEnum) {
+		return true
+	}
+
+	// Otherwise, report error
+	a.addError("cannot cast %s to %s at %s",
+		sourceType.String(), targetType.String(), pos.String())
+	return false
+}
+
+// isNumericType checks if a type is Integer or Float
+func (a *Analyzer) isNumericType(t types.Type) bool {
+	t = types.GetUnderlyingType(t)
+	return t == types.INTEGER || t == types.FLOAT
 }

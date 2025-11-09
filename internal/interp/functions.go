@@ -285,6 +285,14 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		}
 	}
 
+	// Task 9.8.3: Check if this is a type cast (TypeName(expression))
+	// Type casts look like function calls but the "function" name is actually a type name
+	if len(expr.Arguments) == 1 {
+		if castValue := i.evalTypeCast(funcName.Value, expr.Arguments[0]); castValue != nil {
+			return castValue
+		}
+	}
+
 	// Otherwise, try built-in functions
 	// Evaluate all arguments
 	args := make([]Value, len(expr.Arguments))
@@ -1843,4 +1851,192 @@ func (i *Interpreter) getValueType(val Value) types.Type {
 		// For arrays and other types
 		return types.NIL
 	}
+}
+
+// evalTypeCast evaluates a type cast expression like Integer(x), Float(y), or TMyClass(obj).
+// Returns the cast value if this is a valid type cast, or nil if not a type cast.
+// Task 9.8.3: Runtime type cast execution
+func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
+	// Evaluate the argument
+	val := i.Eval(arg)
+	if isError(val) {
+		return val
+	}
+
+	// Check for built-in type casts (case-insensitive)
+	switch strings.ToLower(typeName) {
+	case "integer":
+		return i.castToInteger(val)
+	case "float":
+		return i.castToFloat(val)
+	case "string":
+		return i.castToString(val)
+	case "boolean":
+		return i.castToBoolean(val)
+	case "variant":
+		// Variant can accept any value
+		return &VariantValue{Value: val}
+	default:
+		// Check if it's a class/interface type
+		if classInfo := i.lookupClassInfo(typeName); classInfo != nil {
+			return i.castToClass(val, classInfo, arg)
+		}
+		// Not a type cast
+		return nil
+	}
+}
+
+// lookupClassInfo looks up a class by name (case-insensitive)
+func (i *Interpreter) lookupClassInfo(name string) *ClassInfo {
+	for className, classInfo := range i.classes {
+		if strings.EqualFold(className, name) {
+			return classInfo
+		}
+	}
+	return nil
+}
+
+// castToInteger converts a value to Integer
+func (i *Interpreter) castToInteger(val Value) Value {
+	switch v := val.(type) {
+	case *IntegerValue:
+		return v
+	case *FloatValue:
+		return &IntegerValue{Value: int64(v.Value)}
+	case *BooleanValue:
+		if v.Value {
+			return &IntegerValue{Value: 1}
+		}
+		return &IntegerValue{Value: 0}
+	case *StringValue:
+		// Try to parse string as integer
+		var result int64
+		_, err := fmt.Sscanf(v.Value, "%d", &result)
+		if err != nil {
+			return newError("cannot convert string '%s' to Integer", v.Value)
+		}
+		return &IntegerValue{Value: result}
+	case *VariantValue:
+		// Recursively cast the variant's value
+		return i.castToInteger(v.Value)
+	default:
+		return newError("cannot cast %s to Integer", val.Type())
+	}
+}
+
+// castToFloat converts a value to Float
+func (i *Interpreter) castToFloat(val Value) Value {
+	switch v := val.(type) {
+	case *FloatValue:
+		return v
+	case *IntegerValue:
+		return &FloatValue{Value: float64(v.Value)}
+	case *BooleanValue:
+		if v.Value {
+			return &FloatValue{Value: 1.0}
+		}
+		return &FloatValue{Value: 0.0}
+	case *StringValue:
+		// Try to parse string as float
+		var result float64
+		_, err := fmt.Sscanf(v.Value, "%f", &result)
+		if err != nil {
+			return newError("cannot convert string '%s' to Float", v.Value)
+		}
+		return &FloatValue{Value: result}
+	case *VariantValue:
+		// Recursively cast the variant's value
+		return i.castToFloat(v.Value)
+	default:
+		return newError("cannot cast %s to Float", val.Type())
+	}
+}
+
+// castToString converts a value to String
+func (i *Interpreter) castToString(val Value) Value {
+	switch v := val.(type) {
+	case *StringValue:
+		return v
+	case *IntegerValue:
+		return &StringValue{Value: fmt.Sprintf("%d", v.Value)}
+	case *FloatValue:
+		return &StringValue{Value: fmt.Sprintf("%g", v.Value)}
+	case *BooleanValue:
+		if v.Value {
+			return &StringValue{Value: "True"}
+		}
+		return &StringValue{Value: "False"}
+	case *VariantValue:
+		// Recursively cast the variant's value
+		return i.castToString(v.Value)
+	default:
+		// For other types, use their String() representation
+		return &StringValue{Value: val.String()}
+	}
+}
+
+// castToBoolean converts a value to Boolean
+func (i *Interpreter) castToBoolean(val Value) Value {
+	switch v := val.(type) {
+	case *BooleanValue:
+		return v
+	case *IntegerValue:
+		return &BooleanValue{Value: v.Value != 0}
+	case *FloatValue:
+		return &BooleanValue{Value: v.Value != 0.0}
+	case *StringValue:
+		// Parse string to boolean (DWScript semantics)
+		// Recognized as true: "1", "T", "t", "Y", "y", "yes", "true" (case-insensitive)
+		// Everything else is false
+		s := strings.TrimSpace(v.Value)
+		if s == "" {
+			return &BooleanValue{Value: false}
+		}
+		// Check single character shortcuts
+		if len(s) == 1 {
+			switch s[0] {
+			case '1', 'T', 't', 'Y', 'y':
+				return &BooleanValue{Value: true}
+			}
+			return &BooleanValue{Value: false}
+		}
+		// Check multi-character strings (case-insensitive)
+		if strings.EqualFold(s, "yes") || strings.EqualFold(s, "true") {
+			return &BooleanValue{Value: true}
+		}
+		return &BooleanValue{Value: false}
+	case *VariantValue:
+		// Recursively cast the variant's value
+		return i.castToBoolean(v.Value)
+	default:
+		return newError("cannot cast %s to Boolean", val.Type())
+	}
+}
+
+// castToClass performs runtime type checking and casts to a class type
+func (i *Interpreter) castToClass(val Value, targetClass *ClassInfo, node ast.Node) Value {
+	// Unwrap variant if needed
+	if variantVal, ok := val.(*VariantValue); ok {
+		val = variantVal.Value
+	}
+
+	// Handle nil
+	if _, isNil := val.(*NilValue); isNil {
+		return val // nil can be cast to any class
+	}
+
+	// Get the object
+	obj, ok := AsObject(val)
+	if !ok {
+		return i.newErrorWithLocation(node, "cannot cast %s to %s: not an object", val.Type(), targetClass.Name)
+	}
+
+	// Check if the object's class is compatible with the target class
+	// The object must be an instance of the target class or a derived class
+	if !obj.IsInstanceOf(targetClass) {
+		return i.newErrorWithLocation(node, "cannot cast %s to %s: incompatible types", obj.Class.Name, targetClass.Name)
+	}
+
+	// Cast is valid - return the same object
+	return val
 }

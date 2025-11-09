@@ -387,6 +387,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			return &StringValue{Value: classInfo.Name}
 		}
 
+		// Task 9.7.2: Check for ClassType property (returns metaclass reference)
+		if strings.EqualFold(memberName, "ClassType") {
+			return &ClassValue{ClassInfo: classInfo}
+		}
+
 		// Try class variables first
 		if classVarValue, exists := classInfo.ClassVars[memberName]; exists {
 			return classVarValue
@@ -461,9 +466,13 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	memberName := ma.Member.Value
 
 	// Handle built-in properties/methods available on all objects (inherited from TObject)
-	if memberName == "ClassName" {
+	if strings.EqualFold(memberName, "ClassName") {
 		// ClassName returns the runtime type name of the object
 		return &StringValue{Value: obj.Class.Name}
+	}
+	// Task 9.7.2: ClassType returns metaclass reference for the object's runtime type
+	if strings.EqualFold(memberName, "ClassType") {
+		return &ClassValue{ClassInfo: obj.Class}
 	}
 
 	// Check if this is a property access (properties take precedence over fields)
