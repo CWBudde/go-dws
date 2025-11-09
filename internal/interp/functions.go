@@ -1916,6 +1916,9 @@ func (i *Interpreter) castToInteger(val Value) Value {
 			return newError("cannot convert string '%s' to Integer", v.Value)
 		}
 		return &IntegerValue{Value: result}
+	case *EnumValue:
+		// Cast enum to its ordinal value
+		return &IntegerValue{Value: int64(v.OrdinalValue)}
 	case *VariantValue:
 		// Recursively cast the variant's value
 		return i.castToInteger(v.Value)
@@ -1944,6 +1947,9 @@ func (i *Interpreter) castToFloat(val Value) Value {
 			return newError("cannot convert string '%s' to Float", v.Value)
 		}
 		return &FloatValue{Value: result}
+	case *EnumValue:
+		// Cast enum to its ordinal value as float
+		return &FloatValue{Value: float64(v.OrdinalValue)}
 	case *VariantValue:
 		// Recursively cast the variant's value
 		return i.castToFloat(v.Value)

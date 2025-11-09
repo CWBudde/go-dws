@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -936,6 +937,11 @@ func (vm *VM) reset() {
 	vm.setGlobal(8, BuiltinValue("Copy"))
 	vm.setGlobal(9, BuiltinValue("Ord"))
 	vm.setGlobal(10, BuiltinValue("Chr"))
+	// Type cast functions
+	vm.setGlobal(11, BuiltinValue("Integer"))
+	vm.setGlobal(12, BuiltinValue("Float"))
+	vm.setGlobal(13, BuiltinValue("String"))
+	vm.setGlobal(14, BuiltinValue("Boolean"))
 }
 
 func (vm *VM) getGlobal(index int) Value {
@@ -1494,6 +1500,11 @@ func (vm *VM) registerBuiltins() {
 	vm.builtins["Copy"] = builtinCopy
 	vm.builtins["Ord"] = builtinOrd
 	vm.builtins["Chr"] = builtinChr
+	// Type cast functions
+	vm.builtins["Integer"] = builtinInteger
+	vm.builtins["Float"] = builtinFloat
+	vm.builtins["String"] = builtinString
+	vm.builtins["Boolean"] = builtinBoolean
 }
 
 // Built-in function implementations
@@ -1663,4 +1674,112 @@ func builtinChr(vm *VM, args []Value) (Value, error) {
 		return NilValue(), vm.runtimeError("Chr expects an integer argument")
 	}
 	return StringValue(string(rune(args[0].AsInt()))), nil
+}
+
+// Type cast built-in functions
+
+func builtinInteger(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Integer expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	switch arg.Type {
+	case ValueInt:
+		return arg, nil
+	case ValueFloat:
+		return IntValue(int64(arg.AsFloat())), nil
+	case ValueBool:
+		if arg.AsBool() {
+			return IntValue(1), nil
+		}
+		return IntValue(0), nil
+	case ValueString:
+		var val int64
+		_, err := fmt.Sscanf(arg.AsString(), "%d", &val)
+		if err != nil {
+			return NilValue(), vm.runtimeError("cannot convert string '%s' to Integer", arg.AsString())
+		}
+		return IntValue(val), nil
+	default:
+		return NilValue(), vm.runtimeError("cannot cast %s to Integer", arg.Type.String())
+	}
+}
+
+func builtinFloat(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Float expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	switch arg.Type {
+	case ValueFloat:
+		return arg, nil
+	case ValueInt:
+		return FloatValue(float64(arg.AsInt())), nil
+	case ValueBool:
+		if arg.AsBool() {
+			return FloatValue(1.0), nil
+		}
+		return FloatValue(0.0), nil
+	case ValueString:
+		var val float64
+		_, err := fmt.Sscanf(arg.AsString(), "%f", &val)
+		if err != nil {
+			return NilValue(), vm.runtimeError("cannot convert string '%s' to Float", arg.AsString())
+		}
+		return FloatValue(val), nil
+	default:
+		return NilValue(), vm.runtimeError("cannot cast %s to Float", arg.Type.String())
+	}
+}
+
+func builtinString(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("String expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	switch arg.Type {
+	case ValueString:
+		return arg, nil
+	case ValueInt:
+		return StringValue(fmt.Sprintf("%d", arg.AsInt())), nil
+	case ValueFloat:
+		return StringValue(fmt.Sprintf("%g", arg.AsFloat())), nil
+	case ValueBool:
+		if arg.AsBool() {
+			return StringValue("True"), nil
+		}
+		return StringValue("False"), nil
+	default:
+		return NilValue(), vm.runtimeError("cannot cast %s to String", arg.Type.String())
+	}
+}
+
+func builtinBoolean(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Boolean expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	switch arg.Type {
+	case ValueBool:
+		return arg, nil
+	case ValueInt:
+		return BoolValue(arg.AsInt() != 0), nil
+	case ValueFloat:
+		return BoolValue(arg.AsFloat() != 0.0), nil
+	case ValueString:
+		s := strings.ToLower(strings.TrimSpace(arg.AsString()))
+		if s == "true" || s == "1" {
+			return BoolValue(true), nil
+		}
+		if s == "false" || s == "0" || s == "" {
+			return BoolValue(false), nil
+		}
+		return NilValue(), vm.runtimeError("cannot convert string '%s' to Boolean", arg.AsString())
+	default:
+		return NilValue(), vm.runtimeError("cannot cast %s to Boolean", arg.Type.String())
+	}
 }

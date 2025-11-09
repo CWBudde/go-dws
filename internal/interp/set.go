@@ -42,6 +42,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 	var elementType types.Type
 	var enumType *types.EnumType   // For enum-specific handling
 	ordinals := make(map[int]bool) // Temporary collection of ordinals
+	var lazyRanges []IntRange      // Integer ranges stored without expansion
 
 	for _, elem := range literal.Elements {
 		// Check if this is a range expression (e.g., 1..10, 'a'..'z', one..five)
@@ -115,15 +116,21 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 				}
 			}
 
-			// Add all values in the range [start..end] inclusive
-			// Handle both forward and reverse ranges
-			if startOrd <= endOrd {
-				for ord := startOrd; ord <= endOrd; ord++ {
-					ordinals[ord] = true
-				}
+			// Integer ranges are stored lazily (not expanded)
+			// Enum ranges must be expanded for proper set operations
+			if enumType == nil {
+				// Store as lazy range (integer types only)
+				lazyRanges = append(lazyRanges, IntRange{Start: startOrd, End: endOrd})
 			} else {
-				for ord := startOrd; ord >= endOrd; ord-- {
-					ordinals[ord] = true
+				// Expand enum ranges into ordinals map
+				if startOrd <= endOrd {
+					for ord := startOrd; ord <= endOrd; ord++ {
+						ordinals[ord] = true
+					}
+				} else {
+					for ord := startOrd; ord >= endOrd; ord-- {
+						ordinals[ord] = true
+					}
 				}
 			}
 		} else {
@@ -227,6 +234,9 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		// Use map - directly assign the ordinals map
 		setValue.MapStore = ordinals
 	}
+
+	// Add lazy ranges (for large integer ranges)
+	setValue.Ranges = lazyRanges
 
 	return setValue
 }
