@@ -780,6 +780,15 @@ func (ct *ClassOfType) IsAssignableFrom(classType *ClassType) bool {
 	return false
 }
 
+// NewClassOfType creates a new metaclass type referencing the given class type.
+// This is used for "class of T" type declarations in DWScript.
+// Task 9.7.1: ClassType property returns ClassOfType
+func NewClassOfType(classType *ClassType) *ClassOfType {
+	return &ClassOfType{
+		ClassType: classType,
+	}
+}
+
 // InterfaceType represents an interface type in DWScript.
 // Interfaces define a contract of methods that implementing classes must provide.
 type InterfaceType struct {
