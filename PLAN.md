@@ -125,26 +125,30 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 #### 9.4 Class Constants - MEDIUM PRIORITY
 **Blocks**: class_const*.pas (5+ tests)
 
-- [ ] 9.4.1 Parse class constant declarations
+- [x] 9.4.1 Parse class constant declarations
   - **Task**: Recognize `const` inside class declarations
   - **Syntax**: `const cName = Value;` or `class const cName = Value;`
   - **Files**: `internal/parser/interfaces.go`
   - **Tests**: Parse class constants in class body
+  - **Status**: ✅ Already implemented and tested
 
-- [ ] 9.4.2 Store class constants in ClassType
+- [x] 9.4.2 Store class constants in ClassType
   - **Task**: Add Constants map to ClassType
   - **Files**: `internal/types/types.go`
   - **Tests**: Class constants accessible in type system
+  - **Status**: ✅ Already implemented and tested
 
-- [ ] 9.4.3 Semantic analysis for class constants
+- [x] 9.4.3 Semantic analysis for class constants
   - **Task**: Validate class constant access (ClassName.ConstName)
   - **Files**: `internal/semantic/analyze_classes.go`
   - **Tests**: Class constants resolve correctly
+  - **Status**: ✅ Already implemented and tested
 
-- [ ] 9.4.4 Runtime class constant evaluation
+- [x] 9.4.4 Runtime class constant evaluation
   - **Task**: Access class constants at runtime
   - **Files**: `internal/interp/objects.go`
   - **Tests**: Class constants return correct values
+  - **Status**: ✅ Fixed to make constants accessible in method scopes
 
 **Estimated Time**: 2 days
 **Dependency**: Useful for class_const*.pas tests
@@ -152,26 +156,30 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 #### 9.5 Class Variables (Static Fields) - MEDIUM PRIORITY
 **Blocks**: class_var*.pas (5+ tests)
 
-- [ ] 9.5.1 Parse class variable declarations
+- [x] 9.5.1 Parse class variable declarations
   - **Task**: Recognize `class var` inside class declarations
   - **Syntax**: `class var VarName: Type;`
   - **Files**: `internal/parser/interfaces.go`
   - **Tests**: Parse class variables in class body
+  - **Status**: ✅ Already implemented and tested
 
-- [ ] 9.5.2 Store class variables in ClassType
+- [x] 9.5.2 Store class variables in ClassType
   - **Task**: Add ClassVars map to ClassType
   - **Files**: `internal/types/types.go`
   - **Tests**: Class variables accessible in type system
+  - **Status**: ✅ Already implemented and tested
 
-- [ ] 9.5.3 Semantic analysis for class variables
+- [x] 9.5.3 Semantic analysis for class variables
   - **Task**: Validate class variable access
   - **Files**: `internal/semantic/analyze_classes.go`
   - **Tests**: Class variables resolve correctly
+  - **Status**: ✅ Already implemented and tested
 
-- [ ] 9.5.4 Runtime class variable storage and access
+- [x] 9.5.4 Runtime class variable storage and access
   - **Task**: Store class variables separately from instance fields
   - **Files**: `internal/interp/class.go`, `internal/interp/objects.go`
   - **Tests**: Class variables shared across all instances
+  - **Status**: ✅ Already implemented and tested
 
 **Estimated Time**: 2-3 days
 **Dependency**: Required for class_var*.pas tests
