@@ -327,15 +327,17 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Blocks**: class_forward.pas (1 test)
 
-- [ ] 9.11.1 Parse forward class declarations
+- [x] 9.11.1 Parse forward class declarations
   - **Task**: Allow `TClassName = class;` without body
-  - **Files**: `internal/parser/interfaces.go`
+  - **Files**: `internal/parser/classes.go`
   - **Tests**: Parse forward class declarations
+  - **Status**: ✅ DONE - Added parser support and comprehensive tests
 
-- [ ] 9.11.2 Handle forward class resolution
+- [x] 9.11.2 Handle forward class resolution
   - **Task**: Link forward declarations to actual definitions
-  - **Files**: `internal/semantic/analyzer.go`
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/types/types.go`
   - **Tests**: Forward declarations resolve correctly
+  - **Status**: ✅ DONE - Added semantic analyzer support with validation
 
 **Estimated Time**: 1-2 days
 **Dependency**: Required for mutually-referencing classes

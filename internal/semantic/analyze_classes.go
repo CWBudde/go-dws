@@ -16,10 +16,57 @@ import (
 func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	className := decl.Name.Value
 
+	// Task 9.11: Detect if this is a forward declaration
+	// A forward declaration has no body (no fields, methods, properties, operators, constants)
+	isForwardDecl := (len(decl.Fields) == 0 &&
+		len(decl.Methods) == 0 &&
+		len(decl.Properties) == 0 &&
+		len(decl.Operators) == 0 &&
+		len(decl.Constants) == 0)
+
 	// Check if class is already declared
 	// Task 9.285: Use lowercase for case-insensitive lookup
-	if _, exists := a.classes[strings.ToLower(className)]; exists {
-		a.addError("class '%s' already declared at %s", className, decl.Token.Pos.String())
+	existingClass, exists := a.classes[strings.ToLower(className)]
+	if exists {
+		// Task 9.11: Handle forward declaration resolution
+		if existingClass.IsForward && !isForwardDecl {
+			// This is the full implementation of a forward-declared class
+			// We'll replace the forward declaration with the full one below
+		} else if existingClass.IsForward && isForwardDecl {
+			// Duplicate forward declaration
+			a.addError("class '%s' already forward declared at %s", className, decl.Token.Pos.String())
+			return
+		} else {
+			// Class already fully declared
+			a.addError("class '%s' already declared at %s", className, decl.Token.Pos.String())
+			return
+		}
+	}
+
+	// Task 9.11: If this is a forward declaration, create a minimal class type
+	if isForwardDecl {
+		// For forward declarations, we still need to resolve the parent if specified
+		// so that later uses of the class can access parent members
+		var parentClass *types.ClassType
+		if decl.Parent != nil {
+			parentName := decl.Parent.Value
+			var found bool
+			parentClass, found = a.classes[strings.ToLower(parentName)]
+			if !found {
+				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+				return
+			}
+		}
+
+		// Create minimal class type for forward declaration
+		classType := types.NewClassType(className, parentClass)
+		classType.IsForward = true
+		classType.IsAbstract = decl.IsAbstract
+		classType.IsExternal = decl.IsExternal
+		classType.ExternalName = decl.ExternalName
+
+		// Register the forward declaration
+		a.classes[strings.ToLower(className)] = classType
 		return
 	}
 
