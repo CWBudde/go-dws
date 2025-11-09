@@ -967,6 +967,58 @@ func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node
 	return &BooleanValue{Value: false}
 }
 
+// evalIsExpression evaluates the 'is' type checking operator
+// Example: obj is TMyClass -> Boolean
+// Returns true if the object is an instance of the specified class or a derived class,
+// or if the object's class implements the specified interface.
+func (i *Interpreter) evalIsExpression(expr *ast.IsExpression) Value {
+	// Evaluate the left expression (the object to check)
+	left := i.Eval(expr.Left)
+	if isError(left) {
+		return left
+	}
+
+	// Handle nil - nil is not an instance of any type
+	if _, isNil := left.(*NilValue); isNil {
+		return &BooleanValue{Value: false}
+	}
+
+	// Ensure we have an object instance
+	obj, ok := AsObject(left)
+	if !ok {
+		// Not an object - return false
+		return &BooleanValue{Value: false}
+	}
+
+	// Get the target type name from the type expression
+	targetTypeName := ""
+	if typeAnnotation, ok := expr.TargetType.(*ast.TypeAnnotation); ok {
+		targetTypeName = typeAnnotation.Name
+	} else {
+		return i.newErrorWithLocation(expr, "cannot determine target type")
+	}
+
+	// First, check if the object's class matches or is derived from the target class
+	// Walk up the class hierarchy
+	currentClass := obj.Class
+	for currentClass != nil {
+		if strings.EqualFold(currentClass.Name, targetTypeName) {
+			return &BooleanValue{Value: true}
+		}
+		// Move to parent class
+		currentClass = currentClass.Parent
+	}
+
+	// If not a class match, check if the target is an interface
+	// and if the object's class implements it
+	if iface, exists := i.interfaces[strings.ToLower(targetTypeName)]; exists {
+		result := classImplementsInterface(obj.Class, iface)
+		return &BooleanValue{Value: result}
+	}
+
+	return &BooleanValue{Value: false}
+}
+
 // evalAsExpression evaluates the 'as' type casting operator
 // Example: obj as IMyInterface
 // Creates an InterfaceInstance wrapper around the object.
