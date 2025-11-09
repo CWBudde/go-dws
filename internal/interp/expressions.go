@@ -106,6 +106,12 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 
 				return NewFunctionPointerValue(method, i.env, obj, pointerType)
 			}
+
+			// Task 9.73: Check for ClassName in instance method/constructor context
+			// This handles `PrintLn(ClassName)` inside constructors
+			if strings.EqualFold(node.Value, "ClassName") {
+				return &StringValue{Value: obj.Class.Name}
+			}
 		}
 	}
 
