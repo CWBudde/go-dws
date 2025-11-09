@@ -303,22 +303,25 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Dependency**: Nice-to-have for cleaner syntax
 **Completion**: Feature was already implemented. Added comprehensive tests in `internal/parser/inline_methods_test.go`.
 
-#### 9.10 Short-Form Class Declarations - LOW PRIORITY
+#### 9.10 Short-Form Class Declarations - LOW PRIORITY ✅
 
 **Blocks**: class_of3.pas, class_of_cast.pas, classname.pas (5+ tests)
 
-- [ ] 9.10.1 Parse short-form class inheritance
+- [x] 9.10.1 Parse short-form class inheritance
   - **Task**: Allow `TChild = class(TParent);` without body
-  - **Files**: `internal/parser/interfaces.go`
+  - **Files**: `internal/parser/classes.go`
   - **Tests**: Parse short-form class declarations
+  - **Status**: Implemented - parser now checks for semicolon after parent specification
 
-- [ ] 9.10.2 Parse type alias to class
+- [x] 9.10.2 Parse type alias to class
   - **Task**: Allow `TAlias = TClassName;` where TClassName is a class
   - **Files**: `internal/parser/interfaces.go`
   - **Tests**: Parse type aliases to existing classes
+  - **Status**: Already implemented - type aliases were already supported
 
 **Estimated Time**: 1 day
 **Dependency**: Convenience feature
+**Completion**: Both features implemented. Added comprehensive tests in `internal/parser/shortform_class_test.go`.
 
 #### 9.11 Class Forward Declarations - LOW PRIORITY
 
