@@ -155,6 +155,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Root Cause**: Parser only supports static arrays `array[0..9] of T`, not dynamic arrays `array of T`. `is` and `as` operators not implemented for runtime type checking.
 
 **Key Achievements**:
+
 - Support for dynamic arrays `array of T` with SetLength() and Length() operations
 - Runtime type checking with `is` operator (instanceof semantics)
 - Safe type casting with `as` operator (raises exceptions on invalid casts)
