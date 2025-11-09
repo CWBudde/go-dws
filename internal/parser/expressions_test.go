@@ -205,3 +205,116 @@ func TestGroupedExpressions(t *testing.T) {
 		})
 	}
 }
+
+// TestNotInOperator tests parsing of "not in" operator combinations.
+// DWScript supports both "not (x in set)" and "x not in set" syntax,
+// and they should parse to the same AST structure.
+func TestNotInOperator(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "not with parentheses",
+			input:    "not (x in mySet);",
+			expected: "(not (x in mySet))",
+		},
+		{
+			name:     "x not in mySet",
+			input:    "x not in mySet;",
+			expected: "(not (x in mySet))",
+		},
+		{
+			name:     "x not in set literal",
+			input:    "x not in [1, 2, 3];",
+			expected: "(not (x in [1, 2, 3]))",
+		},
+		{
+			name:     "not in with complex left expression",
+			input:    "x + 1 not in mySet;",
+			expected: "(not ((x + 1) in mySet))",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			actual := program.String()
+			if actual != tt.expected {
+				t.Errorf("expected=%q, got=%q", tt.expected, actual)
+			}
+		})
+	}
+}
+
+// TestNotIsOperator tests parsing of "not is" operator combinations.
+// Similar to "not in", DWScript supports both "not (obj is TClass)" and "obj not is TClass".
+func TestNotIsOperator(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "not with parentheses",
+			input:    "not (obj is TMyClass);",
+			expected: "(not (obj is TMyClass))",
+		},
+		{
+			name:     "obj not is TClass",
+			input:    "obj not is TMyClass;",
+			expected: "(not (obj is TMyClass))",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			actual := program.String()
+			if actual != tt.expected {
+				t.Errorf("expected=%q, got=%q", tt.expected, actual)
+			}
+		})
+	}
+}
+
+// TestNotAsOperator tests parsing of "not as" operator combinations.
+// Similar to "not in/is", DWScript supports both "not (obj as IInterface)" and "obj not as IInterface".
+func TestNotAsOperator(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "not with parentheses",
+			input:    "not (obj as IMyInterface);",
+			expected: "(not (obj as IMyInterface))",
+		},
+		{
+			name:     "obj not as IInterface",
+			input:    "obj not as IMyInterface;",
+			expected: "(not (obj as IMyInterface))",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			actual := program.String()
+			if actual != tt.expected {
+				t.Errorf("expected=%q, got=%q", tt.expected, actual)
+			}
+		})
+	}
+}
