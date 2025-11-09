@@ -424,6 +424,43 @@ func (nl *NilLiteral) End() token.Position {
 func (nl *NilLiteral) GetType() *TypeAnnotation    { return nl.Type }
 func (nl *NilLiteral) SetType(typ *TypeAnnotation) { nl.Type = typ }
 
+// IsExpression represents a type check operation using the 'is' operator.
+// Example: obj is TMyClass -> Boolean
+// This operator performs runtime type checking to determine if an object
+// is an instance of a specific class or implements a specific interface.
+// Returns true if the object is of the specified type, false otherwise.
+type IsExpression struct {
+	Left       Expression      // The object being checked
+	TargetType TypeExpression  // The target type to check against
+	Type       *TypeAnnotation // Always resolves to Boolean
+	Token      token.Token     // The 'is' token
+	EndPos     token.Position
+}
+
+func (ie *IsExpression) expressionNode()      {}
+func (ie *IsExpression) TokenLiteral() string { return ie.Token.Literal }
+func (ie *IsExpression) Pos() token.Position  { return ie.Left.Pos() }
+func (ie *IsExpression) End() token.Position {
+	if ie.EndPos.Line != 0 {
+		return ie.EndPos
+	}
+	if ie.TargetType != nil {
+		return ie.TargetType.End()
+	}
+	return ie.Token.Pos
+}
+func (ie *IsExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("(")
+	out.WriteString(ie.Left.String())
+	out.WriteString(" is ")
+	out.WriteString(ie.TargetType.String())
+	out.WriteString(")")
+	return out.String()
+}
+func (ie *IsExpression) GetType() *TypeAnnotation    { return ie.Type }
+func (ie *IsExpression) SetType(typ *TypeAnnotation) { ie.Type = typ }
+
 // AsExpression represents a type cast operation using the 'as' operator.
 // Example: obj as IMyInterface
 // This operator casts an object to an interface type, creating an InterfaceInstance
