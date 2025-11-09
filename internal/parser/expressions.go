@@ -1129,7 +1129,6 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 		Left:  left,
 	}
 
-	precedence := p.curPrecedence()
 	p.nextToken()
 
 	// Parse the target type
@@ -1141,9 +1140,6 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 
 	// Set end position based on the target type
 	expression.EndPos = expression.TargetType.End()
-
-	// Avoid unused variable warning
-	_ = precedence
 
 	return expression
 }
@@ -1158,7 +1154,6 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 		Left:  left,
 	}
 
-	precedence := p.curPrecedence()
 	p.nextToken()
 
 	// Parse the target type (should be an interface type)
@@ -1170,9 +1165,6 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 
 	// Set end position based on the target type
 	expression.EndPos = expression.TargetType.End()
-
-	// Avoid unused variable warning
-	_ = precedence
 
 	return expression
 }
@@ -1187,7 +1179,6 @@ func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 		Left:  left,
 	}
 
-	precedence := p.curPrecedence()
 	p.nextToken()
 
 	// Parse the target type (should be an interface type)
@@ -1199,9 +1190,6 @@ func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 
 	// Set end position based on the target type
 	expression.EndPos = expression.TargetType.End()
-
-	// Avoid unused variable warning
-	_ = precedence
 
 	return expression
 }

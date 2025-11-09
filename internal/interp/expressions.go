@@ -958,7 +958,8 @@ func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node
 
 // evalIsExpression evaluates the 'is' type checking operator
 // Example: obj is TMyClass -> Boolean
-// Returns true if the object is an instance of the specified class or a derived class.
+// Returns true if the object is an instance of the specified class or a derived class,
+// or if the object's class implements the specified interface.
 func (i *Interpreter) evalIsExpression(expr *ast.IsExpression) Value {
 	// Evaluate the left expression (the object to check)
 	left := i.Eval(expr.Left)
@@ -978,23 +979,30 @@ func (i *Interpreter) evalIsExpression(expr *ast.IsExpression) Value {
 		return &BooleanValue{Value: false}
 	}
 
-	// Get the target class name from the type expression
-	targetClassName := ""
+	// Get the target type name from the type expression
+	targetTypeName := ""
 	if typeAnnotation, ok := expr.TargetType.(*ast.TypeAnnotation); ok {
-		targetClassName = typeAnnotation.Name
+		targetTypeName = typeAnnotation.Name
 	} else {
 		return i.newErrorWithLocation(expr, "cannot determine target type")
 	}
 
-	// Check if the object's class matches or is derived from the target class
+	// First, check if the object's class matches or is derived from the target class
 	// Walk up the class hierarchy
 	currentClass := obj.Class
 	for currentClass != nil {
-		if strings.EqualFold(currentClass.Name, targetClassName) {
+		if strings.EqualFold(currentClass.Name, targetTypeName) {
 			return &BooleanValue{Value: true}
 		}
 		// Move to parent class
 		currentClass = currentClass.Parent
+	}
+
+	// If not a class match, check if the target is an interface
+	// and if the object's class implements it
+	if iface, exists := i.interfaces[strings.ToLower(targetTypeName)]; exists {
+		result := classImplementsInterface(obj.Class, iface)
+		return &BooleanValue{Value: result}
 	}
 
 	return &BooleanValue{Value: false}
