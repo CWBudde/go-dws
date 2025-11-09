@@ -1101,6 +1101,10 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		// ClassName returns String
 		return types.STRING
 	}
+	if memberName == "ClassType" {
+		// ClassType returns the metaclass (class of T) for the object's runtime type
+		return types.NewClassOfType(classType)
+	}
 
 	// Look up field in class (including inherited fields)
 	fieldType, found := classType.GetField(memberName)

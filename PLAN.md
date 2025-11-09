@@ -208,23 +208,26 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Estimated Time**: 1-2 days
 **Dependency**: Required for classname*.pas and many other tests
 
-#### 9.7 ClassType Property - MEDIUM PRIORITY
+#### 9.7 ClassType Property - MEDIUM PRIORITY ✅ **COMPLETED**
 
 **Blocks**: classtype*.pas, class_of_cast.pas (5+ tests)
 
-- [ ] 9.7.1 Add ClassType to TObject
+- [x] 9.7.1 Add ClassType to TObject
   - **Task**: Make ClassType available on all classes
   - **Implementation**: Returns metaclass (class of T) for the object's runtime type
   - **Files**: `internal/types/types.go`, `internal/semantic/analyze_classes.go`
   - **Tests**: All classes have ClassType property
+  - **Status**: ✅ Implemented and tested
 
-- [ ] 9.7.2 Runtime ClassType implementation
+- [x] 9.7.2 Runtime ClassType implementation
   - **Task**: Return metaclass reference at runtime
-  - **Files**: `internal/interp/objects.go`
+  - **Files**: `internal/interp/objects.go`, `internal/interp/expressions.go`
   - **Tests**: obj.ClassType returns ClassValue
+  - **Status**: ✅ Implemented with case-insensitive support and comprehensive tests
 
 **Estimated Time**: 1 day
 **Dependency**: Useful for classtype*.pas tests
+**Completion**: Added ClassType property to all classes, returns ClassOfType from semantic analyzer and ClassValue at runtime. Supports member access, identifier access in methods/constructors, and case-insensitive lookup.
 
 #### 9.8 Type Casting - HIGH PRIORITY
 

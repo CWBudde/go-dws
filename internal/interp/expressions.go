@@ -112,6 +112,10 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			if strings.EqualFold(node.Value, "ClassName") {
 				return &StringValue{Value: obj.Class.Name}
 			}
+			// Task 9.7.2: Check for ClassType in instance method/constructor context
+			if strings.EqualFold(node.Value, "ClassType") {
+				return &ClassValue{ClassInfo: obj.Class}
+			}
 		}
 	}
 
@@ -122,6 +126,10 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			// Task 9.73: Check for ClassName identifier in class method context (case-insensitive)
 			if strings.EqualFold(node.Value, "ClassName") {
 				return &StringValue{Value: classInfo.ClassInfo.Name}
+			}
+			// Task 9.7.2: Check for ClassType identifier in class method context (case-insensitive)
+			if strings.EqualFold(node.Value, "ClassType") {
+				return &ClassValue{ClassInfo: classInfo.ClassInfo}
 			}
 
 			// Check if it's a class variable
