@@ -403,22 +403,27 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Implementation Plan**:
 
-- [ ] 9.14.5.1 Verify lexer tokens (likely already correct)
-  - **Task**: Ensure `ttNOT` and `ttIN` tokens are properly defined
-  - **Files**: `internal/lexer/token_type.go`
+- [x] 9.14.5.1 Verify lexer tokens ✅ **COMPLETED**
+  - **Task**: Ensure `NOT` and `IN` tokens are properly defined
+  - **Files**: `pkg/token/token.go`, `internal/lexer/lexer_test.go`
   - **Tests**: Tokenize "not in" as two separate tokens: NOT, IN
-  - **Expected**: Lexer likely already handles this correctly
+  - **Status**: Both tokens correctly defined as keywords, comprehensive tests added
+  - **Result**: Lexer correctly tokenizes "not in" as separate NOT and IN tokens
 
-- [ ] 9.14.5.2 Fix prefix NOT operator parsing
-  - **Task**: Ensure NOT can be used as prefix operator in expressions
-  - **Research**: Check `reference/dwscript-original/Source/dwsCompiler.pas` lines 11450-11470 for `ReadNotTerm` implementation
-  - **Files**: `internal/parser/expressions.go` or add `parseNotExpression()` function
-  - **Tests**: Parse `not x`, `not (x = 5)`, `not x in set` without errors
+- [x] 9.14.5.2 Fix "not in/is/as" operator parsing ✅ **COMPLETED**
+  - **Task**: Support both `not (x in set)` and `x not in set` syntax
+  - **Files**: `internal/parser/expressions.go`, `internal/parser/expressions_test.go`
   - **Implementation**:
-    - Add prefix parse function for `ttNOT` token
-    - Parse operand recursively (allowing any expression, including those with `in` operator)
-    - Create `NotExpression` AST node (may already exist)
-  - **Estimated time**: 0.5 day
+    - NOT prefix operator was already registered at line 132 of parser.go
+    - Added special handling in `parseExpression()` loop to detect "not in/is/as" patterns
+    - When peek token is NOT and current precedence < EQUALS, check if next token is IN/IS/AS
+    - If yes, parse as infix comparison and wrap result in NOT unary expression
+    - Handles precedence correctly: `x + 1 not in set` → `(not ((x + 1) in set))`
+  - **Tests**: Added comprehensive tests in `expressions_test.go`:
+    - `TestNotInOperator`: 4 test cases including complex precedence
+    - `TestNotIsOperator`: 2 test cases for type checking
+    - `TestNotAsOperator`: 2 test cases for type casting
+  - **Result**: All tests pass, both syntaxes produce identical AST
 
 - [ ] 9.14.5.3 Verify IN operator precedence
   - **Task**: Ensure `IN` operator has correct precedence relative to `NOT`

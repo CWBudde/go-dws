@@ -17,7 +17,44 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	}
 	leftExp := prefix()
 
-	for !p.peekTokenIs(lexer.SEMICOLON) && precedence < p.peekPrecedence() {
+	for !p.peekTokenIs(lexer.SEMICOLON) && (precedence < p.peekPrecedence() || (p.peekTokenIs(lexer.NOT) && precedence < EQUALS)) {
+		// Special handling for "not in", "not is", "not as" operators
+		// DWScript allows syntax like "x not in set" which means "not (x in set)"
+		// We only handle this if our current precedence allows EQUALS-level operators
+		if p.peekTokenIs(lexer.NOT) && precedence < EQUALS {
+			// Check if this is "not in/is/as" by looking two tokens ahead
+			savedCurToken := p.curToken
+			savedPeekToken := p.peekToken
+
+			p.nextToken() // move to NOT
+			notToken := p.curToken
+
+			// Check if the next token is IN, IS, or AS
+			if p.peekTokenIs(lexer.IN) || p.peekTokenIs(lexer.IS) || p.peekTokenIs(lexer.AS) {
+				// This is "not in", "not is", or "not as"
+				// Parse the comparison expression first
+				p.nextToken() // move to IN/IS/AS
+				infix := p.infixParseFns[p.curToken.Type]
+				if infix != nil {
+					comparisonExp := infix(leftExp)
+
+					// Wrap in NOT expression
+					leftExp = &ast.UnaryExpression{
+						Token:    notToken,
+						Operator: notToken.Literal,
+						Right:    comparisonExp,
+						EndPos:   comparisonExp.End(),
+					}
+					continue
+				}
+			}
+
+			// Not a "not in/is/as" pattern, restore state and exit
+			p.curToken = savedCurToken
+			p.peekToken = savedPeekToken
+			return leftExp
+		}
+
 		infix := p.infixParseFns[p.peekToken.Type]
 		if infix == nil {
 			return leftExp
