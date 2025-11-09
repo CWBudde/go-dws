@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -159,18 +160,24 @@ func (p *Parser) parseStringLiteral() ast.Expression {
 
 // unescapeString handles DWScript string escape sequences.
 func unescapeString(s string) string {
-	result := ""
+	// Use strings.Builder for efficient string concatenation
+	var result strings.Builder
+	result.Grow(len(s)) // Pre-allocate approximate size
+
+	// Convert to runes to handle UTF-8 correctly
+	runes := []rune(s)
 	i := 0
-	for i < len(s) {
-		if i < len(s)-1 && s[i] == '\'' && s[i+1] == '\'' {
-			result += "'"
+	for i < len(runes) {
+		// Check for escaped single quote ('')
+		if i < len(runes)-1 && runes[i] == '\'' && runes[i+1] == '\'' {
+			result.WriteRune('\'')
 			i += 2
 		} else {
-			result += string(s[i])
+			result.WriteRune(runes[i])
 			i++
 		}
 	}
-	return result
+	return result.String()
 }
 
 // parseBooleanLiteral parses a boolean literal.
