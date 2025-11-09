@@ -517,11 +517,25 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		constParams = append(constParams, param.IsConst)
 	}
 
+	// Auto-detect constructors: methods named "Create" that return the class type
+	// This handles inline constructor declarations like: function Create(...): TClass;
+	if !method.IsConstructor && strings.EqualFold(method.Name.Value, "Create") && method.ReturnType != nil {
+		returnTypeName := method.ReturnType.Name
+		if strings.EqualFold(returnTypeName, classType.Name) {
+			method.IsConstructor = true
+		}
+	}
+
 	// Task 9.17: Validate constructors don't have explicit return types
 	if method.IsConstructor && method.ReturnType != nil {
-		a.addError("constructor '%s' cannot have an explicit return type at %s",
-			method.Name.Value, method.Token.Pos.String())
-		return
+		// Exception: inline constructors can have explicit return type matching the class
+		// This is valid in DWScript: function Create(...): TClass;
+		returnTypeName := method.ReturnType.Name
+		if !strings.EqualFold(returnTypeName, classType.Name) {
+			a.addError("constructor '%s' must return '%s', not '%s' at %s",
+				method.Name.Value, classType.Name, returnTypeName, method.Token.Pos.String())
+			return
+		}
 	}
 
 	// Determine return type

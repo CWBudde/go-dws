@@ -111,27 +111,30 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	// Register TObject as the root base class for all classes
 	// Required for DWScript compatibility
 	objectClass := &types.ClassType{
-		Name:             "TObject",
-		Parent:           nil, // Root of the class hierarchy
-		Fields:           make(map[string]types.Type),
-		Methods:          make(map[string]*types.FunctionType),
-		FieldVisibility:  make(map[string]int),
-		MethodVisibility: make(map[string]int),
-		VirtualMethods:   make(map[string]bool),
-		OverrideMethods:  make(map[string]bool),
-		AbstractMethods:  make(map[string]bool),
-		Constructors:     make(map[string]*types.FunctionType),
-		Interfaces:       make([]*types.InterfaceType, 0),
-		Properties:       make(map[string]*types.PropertyInfo),
-		ClassMethodFlags: make(map[string]bool),
+		Name:                "TObject",
+		Parent:              nil, // Root of the class hierarchy
+		Fields:              make(map[string]types.Type),
+		Methods:             make(map[string]*types.FunctionType),
+		FieldVisibility:     make(map[string]int),
+		MethodVisibility:    make(map[string]int),
+		VirtualMethods:      make(map[string]bool),
+		OverrideMethods:     make(map[string]bool),
+		AbstractMethods:     make(map[string]bool),
+		Constructors:        make(map[string]*types.FunctionType),
+		ConstructorOverloads: make(map[string][]*types.MethodInfo),
+		Interfaces:          make([]*types.InterfaceType, 0),
+		Properties:          make(map[string]*types.PropertyInfo),
+		ClassMethodFlags:    make(map[string]bool),
 	}
 
 	// Add basic Create constructor
-	// Use lowercase for case-insensitive lookup
-	objectClass.Constructors["create"] = &types.FunctionType{
-		Parameters: []types.Type{}, // no parameters
-		ReturnType: objectClass,
-	}
+	objectClass.AddConstructorOverload("Create", &types.MethodInfo{
+		Signature: &types.FunctionType{
+			Parameters: []types.Type{}, // no parameters
+			ReturnType: objectClass,
+		},
+		Visibility: int(ast.VisibilityPublic),
+	})
 
 	// Add ClassName method (returns the runtime type name)
 	objectClass.Methods["ClassName"] = &types.FunctionType{
@@ -144,30 +147,33 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 
 	// Define Exception base class
 	exceptionClass := &types.ClassType{
-		Name:             "Exception",
-		Parent:           objectClass, // Exception inherits from TObject
-		Fields:           make(map[string]types.Type),
-		Methods:          make(map[string]*types.FunctionType),
-		FieldVisibility:  make(map[string]int),
-		MethodVisibility: make(map[string]int),
-		VirtualMethods:   make(map[string]bool),
-		OverrideMethods:  make(map[string]bool),
-		AbstractMethods:  make(map[string]bool),
-		Constructors:     make(map[string]*types.FunctionType),
-		Interfaces:       make([]*types.InterfaceType, 0),
-		Properties:       make(map[string]*types.PropertyInfo),
-		ClassMethodFlags: make(map[string]bool),
+		Name:                "Exception",
+		Parent:              objectClass, // Exception inherits from TObject
+		Fields:              make(map[string]types.Type),
+		Methods:             make(map[string]*types.FunctionType),
+		FieldVisibility:     make(map[string]int),
+		MethodVisibility:    make(map[string]int),
+		VirtualMethods:      make(map[string]bool),
+		OverrideMethods:     make(map[string]bool),
+		AbstractMethods:     make(map[string]bool),
+		Constructors:        make(map[string]*types.FunctionType),
+		ConstructorOverloads: make(map[string][]*types.MethodInfo),
+		Interfaces:          make([]*types.InterfaceType, 0),
+		Properties:          make(map[string]*types.PropertyInfo),
+		ClassMethodFlags:    make(map[string]bool),
 	}
 
 	// Add Message field to Exception
 	exceptionClass.Fields["Message"] = types.STRING
 
 	// Add Create constructor
-	// Use lowercase for case-insensitive lookup
-	exceptionClass.Constructors["create"] = &types.FunctionType{
-		Parameters: []types.Type{types.STRING}, // message parameter
-		ReturnType: exceptionClass,
-	}
+	exceptionClass.AddConstructorOverload("Create", &types.MethodInfo{
+		Signature: &types.FunctionType{
+			Parameters: []types.Type{types.STRING}, // message parameter
+			ReturnType: exceptionClass,
+		},
+		Visibility: int(ast.VisibilityPublic),
+	})
 
 	// Task 9.285: Use lowercase for case-insensitive lookup
 	a.classes["exception"] = exceptionClass
@@ -183,30 +189,33 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 
 	for _, excName := range standardExceptions {
 		excClass := &types.ClassType{
-			Name:             excName,
-			Parent:           exceptionClass, // All inherit from Exception
-			Fields:           make(map[string]types.Type),
-			Methods:          make(map[string]*types.FunctionType),
-			FieldVisibility:  make(map[string]int),
-			MethodVisibility: make(map[string]int),
-			VirtualMethods:   make(map[string]bool),
-			OverrideMethods:  make(map[string]bool),
-			AbstractMethods:  make(map[string]bool),
-			Constructors:     make(map[string]*types.FunctionType),
-			Interfaces:       make([]*types.InterfaceType, 0),
-			Properties:       make(map[string]*types.PropertyInfo),
-			ClassMethodFlags: make(map[string]bool),
+			Name:                excName,
+			Parent:              exceptionClass, // All inherit from Exception
+			Fields:              make(map[string]types.Type),
+			Methods:             make(map[string]*types.FunctionType),
+			FieldVisibility:     make(map[string]int),
+			MethodVisibility:    make(map[string]int),
+			VirtualMethods:      make(map[string]bool),
+			OverrideMethods:     make(map[string]bool),
+			AbstractMethods:     make(map[string]bool),
+			Constructors:        make(map[string]*types.FunctionType),
+			ConstructorOverloads: make(map[string][]*types.MethodInfo),
+			Interfaces:          make([]*types.InterfaceType, 0),
+			Properties:          make(map[string]*types.PropertyInfo),
+			ClassMethodFlags:    make(map[string]bool),
 		}
 
 		// Inherit Message field from Exception
 		excClass.Fields["Message"] = types.STRING
 
 		// Inherit Create constructor
-		// Use lowercase for case-insensitive lookup
-		excClass.Constructors["create"] = &types.FunctionType{
-			Parameters: []types.Type{types.STRING},
-			ReturnType: excClass,
-		}
+		excClass.AddConstructorOverload("Create", &types.MethodInfo{
+			Signature: &types.FunctionType{
+				Parameters: []types.Type{types.STRING},
+				ReturnType: excClass,
+			},
+			Visibility: int(ast.VisibilityPublic),
+		})
 
 		// Task 9.285: Use lowercase for case-insensitive lookup
 		a.classes[strings.ToLower(excName)] = excClass
