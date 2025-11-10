@@ -212,22 +212,31 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 							value = &NilValue{}
 						}
 					} else {
-						// Initialize basic types with their zero values
-						// Proper initialization allows implicit conversions to work with target type
-						switch strings.ToLower(typeName) {
-						case "integer":
-							value = &IntegerValue{Value: 0}
-						case "float":
-							value = &FloatValue{Value: 0.0}
-						case "string":
-							value = &StringValue{Value: ""}
-						case "boolean":
-							value = &BooleanValue{Value: false}
-						case "variant":
-							// Task 9.227: Initialize Variant with nil/unassigned value
-							value = &VariantValue{Value: nil, ActualType: nil}
-						default:
-							value = &NilValue{}
+						// Task 9.16.2: Check if this is an interface type
+						if ifaceInfo, exists := i.interfaces[strings.ToLower(typeName)]; exists {
+							// Initialize with nil interface instance
+							value = &InterfaceInstance{
+								Interface: ifaceInfo,
+								Object:    nil, // nil until assigned
+							}
+						} else {
+							// Initialize basic types with their zero values
+							// Proper initialization allows implicit conversions to work with target type
+							switch strings.ToLower(typeName) {
+							case "integer":
+								value = &IntegerValue{Value: 0}
+							case "float":
+								value = &FloatValue{Value: 0.0}
+							case "string":
+								value = &StringValue{Value: ""}
+							case "boolean":
+								value = &BooleanValue{Value: false}
+							case "variant":
+								// Task 9.227: Initialize Variant with nil/unassigned value
+								value = &VariantValue{Value: nil, ActualType: nil}
+							default:
+								value = &NilValue{}
+							}
 						}
 					}
 				}
@@ -718,6 +727,28 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 		// Task 9.227: Box value if target is a Variant
 		if targetType == "VARIANT" && sourceType != "VARIANT" {
 			value = boxVariant(value)
+		}
+
+		// Task 9.16.2: Wrap object instances in InterfaceInstance when assigning to interface variables
+		if ifaceInst, isIface := existingVal.(*InterfaceInstance); isIface {
+			// Target is an interface variable - wrap the value if it's an object
+			if objInst, ok := value.(*ObjectInstance); ok {
+				// Assigning an object to an interface variable - wrap it
+				value = NewInterfaceInstance(ifaceInst.Interface, objInst)
+			} else if _, isNil := value.(*NilValue); isNil {
+				// Assigning nil to interface - create interface instance with nil object
+				value = &InterfaceInstance{
+					Interface: ifaceInst.Interface,
+					Object:    nil,
+				}
+			} else if srcIface, isSrcIface := value.(*InterfaceInstance); isSrcIface {
+				// Assigning interface to interface
+				// Use the underlying object but with the target interface type
+				value = &InterfaceInstance{
+					Interface: ifaceInst.Interface,
+					Object:    srcIface.Object,
+				}
+			}
 		}
 	}
 
