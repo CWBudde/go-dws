@@ -1720,7 +1720,7 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 		// Find the operator entry that matches
 		// Convert arg values to type strings for lookup
 		argTypes := make([]string, len(args)+1) // +1 for the class instance itself
-		argTypes[0] = objInst.Class.Name         // First operand is the class instance
+		argTypes[0] = objInst.Class.Name        // First operand is the class instance
 		for idx, arg := range args {
 			argTypes[idx+1] = arg.Type()
 		}
