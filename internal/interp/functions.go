@@ -91,6 +91,9 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 				if exists {
 					// Temporarily set to underlying object
 					i.env.Set(objIdent.Value, ifaceInst.Object)
+					// Use defer to ensure restoration even if method call panics or returns early
+					defer i.env.Set(objIdent.Value, savedVal)
+
 					// Create a method call expression
 					mc := &ast.MethodCallExpression{
 						Token:     expr.Token,
@@ -98,10 +101,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 						Method:    memberAccess.Member,
 						Arguments: expr.Arguments,
 					}
-					result := i.evalMethodCall(mc)
-					// Restore the interface value
-					i.env.Set(objIdent.Value, savedVal)
-					return result
+					return i.evalMethodCall(mc)
 				}
 			}
 			return i.newErrorWithLocation(expr, "interface method call requires identifier")

@@ -111,6 +111,9 @@ func (ii *InterfaceInstance) Type() string {
 // String returns the string representation of the interface instance.
 // Implements the Value interface.
 func (ii *InterfaceInstance) String() string {
+	if ii.Object == nil {
+		return fmt.Sprintf("%s instance (nil)", ii.Interface.Name)
+	}
 	return fmt.Sprintf("%s instance (wrapping %s)", ii.Interface.Name, ii.Object.Class.Name)
 }
 
@@ -123,6 +126,9 @@ func (ii *InterfaceInstance) GetUnderlyingObject() *ObjectInstance {
 // ImplementsInterface checks if the underlying object's class implements all methods
 // of the given interface. This is used for runtime type checking.
 func (ii *InterfaceInstance) ImplementsInterface(iface *InterfaceInfo) bool {
+	if ii.Object == nil {
+		return false // nil doesn't implement any interface
+	}
 	return classImplementsInterface(ii.Object.Class, iface)
 }
 

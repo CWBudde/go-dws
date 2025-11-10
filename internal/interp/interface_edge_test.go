@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -80,7 +81,8 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 	}
 
 	for _, name := range methodNames {
-		iface.Methods[name] = &ast.FunctionDecl{
+		// Store methods with lowercase keys for case-insensitive lookup
+		iface.Methods[strings.ToLower(name)] = &ast.FunctionDecl{
 			Name: &ast.Identifier{Value: name},
 		}
 	}

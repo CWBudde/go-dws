@@ -420,7 +420,7 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 	// Handle inheritance if parent interface is specified
 	if id.Parent != nil {
 		parentName := id.Parent.Value
-		parentInterface, exists := i.interfaces[parentName]
+		parentInterface, exists := i.interfaces[strings.ToLower(parentName)]
 		if !exists {
 			return i.newErrorWithLocation(id, "parent interface '%s' not found", parentName)
 		}
@@ -449,8 +449,8 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 		interfaceInfo.Methods[strings.ToLower(methodDecl.Name.Value)] = funcDecl
 	}
 
-	// Register interface in registry
-	i.interfaces[interfaceInfo.Name] = interfaceInfo
+	// Register interface in registry (use lowercase for case-insensitive lookups)
+	i.interfaces[strings.ToLower(interfaceInfo.Name)] = interfaceInfo
 
 	return &NilValue{}
 }

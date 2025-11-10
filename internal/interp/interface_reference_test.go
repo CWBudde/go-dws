@@ -213,17 +213,17 @@ func TestInterfaceInheritanceBasics(t *testing.T) {
 		t.Fatalf("Runtime error: %v", result.String())
 	}
 
-	// Verify both interfaces were registered
-	if _, exists := interp.interfaces["IBase"]; !exists {
+	// Verify both interfaces were registered (use lowercase keys for lookups)
+	if _, exists := interp.interfaces["ibase"]; !exists {
 		t.Error("IBase interface should be registered")
 	}
 
-	if _, exists := interp.interfaces["IDerived"]; !exists {
+	if _, exists := interp.interfaces["iderived"]; !exists {
 		t.Error("IDerived interface should be registered")
 	}
 
 	// Verify inheritance relationship
-	derived := interp.interfaces["IDerived"]
+	derived := interp.interfaces["iderived"]
 	if derived.Parent == nil {
 		t.Fatal("IDerived should have parent interface")
 	}
@@ -273,7 +273,7 @@ func TestInterfaceImplementation(t *testing.T) {
 	}
 
 	// Verify interface was registered
-	iface, exists := interp.interfaces["IMyInterface"]
+	iface, exists := interp.interfaces["imyinterface"]
 	if !exists {
 		t.Fatal("IMyInterface should be registered")
 	}
@@ -327,12 +327,12 @@ func TestInterfaceMultipleImplementation(t *testing.T) {
 	}
 
 	// Verify all interfaces were registered
-	ifaceA, existsA := interp.interfaces["IIntfA"]
+	ifaceA, existsA := interp.interfaces["iintfa"]
 	if !existsA {
 		t.Fatal("IIntfA should be registered")
 	}
 
-	ifaceB, existsB := interp.interfaces["IIntfB"]
+	ifaceB, existsB := interp.interfaces["iintfb"]
 	if !existsB {
 		t.Fatal("IIntfB should be registered")
 	}

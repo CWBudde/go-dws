@@ -213,7 +213,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 						}
 					} else {
 						// Task 9.16.2: Check if this is an interface type
-						if ifaceInfo, exists := i.interfaces[typeName]; exists {
+						if ifaceInfo, exists := i.interfaces[strings.ToLower(typeName)]; exists {
 							// Initialize with nil interface instance
 							value = &InterfaceInstance{
 								Interface: ifaceInfo,
