@@ -99,6 +99,7 @@ func (a *Analyzer) analyzeCopy(args []ast.Expression, callExpr *ast.CallExpressi
 // SubStr takes 2 or 3 arguments:
 //   - SubStr(str, start) - returns substring from start to end (1-based)
 //   - SubStr(str, start, length) - returns length characters starting at start (1-based)
+//
 // Note: Different from Copy which has an array overload, SubStr only works with strings.
 func (a *Analyzer) analyzeSubStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) < 2 || len(args) > 3 {

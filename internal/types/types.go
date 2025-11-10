@@ -987,6 +987,26 @@ func IsSubclassOf(child, parent *ClassType) bool {
 	return false
 }
 
+// IsClassRelated checks if two classes are in the same inheritance hierarchy.
+// Returns true if one class is a subclass of the other (in either direction).
+func IsClassRelated(class1, class2 *ClassType) bool {
+	if class1 == nil || class2 == nil {
+		return false
+	}
+
+	// Check if class1 is derived from class2
+	if IsSubclassOf(class1, class2) {
+		return true
+	}
+
+	// Check if class2 is derived from class1
+	if IsSubclassOf(class2, class1) {
+		return true
+	}
+
+	return false
+}
+
 // ImplementsInterface checks if a class implements all methods required by an interface.
 // This uses structural typing - the class must have all methods with compatible signatures.
 func ImplementsInterface(class *ClassType, iface *InterfaceType) bool {

@@ -53,3 +53,8 @@ interface_inheritance_declare.pas_output
 interface_inheritance_declare_ex.pas_output
 
 ---
+
+[TestDWScriptFixtures/SimpleScripts/assigned_funcresult - 1]
+assigned_funcresult.pas_output
+
+---

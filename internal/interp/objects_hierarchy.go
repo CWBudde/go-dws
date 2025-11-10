@@ -1,0 +1,619 @@
+package interp
+
+import (
+	"strings"
+
+	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
+)
+
+// evalMemberAccess evaluates field access (obj.field) or class variable access (TClass.Variable).
+// It evaluates the object expression and retrieves the field value.
+// For class variable access, it checks if the left side is a class name.
+func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
+	// Check if the left side is a class identifier (for static access: TClass.Variable)
+	if ident, ok := ma.Object.(*ast.Identifier); ok {
+		// First, check if this identifier refers to a unit (for qualified access: UnitName.Symbol)
+		if i.unitRegistry != nil {
+			if _, exists := i.unitRegistry.GetUnit(ident.Value); exists {
+				// This is unit-qualified access: UnitName.Symbol
+				// Try to resolve as a variable/constant first
+				if val, err := i.ResolveQualifiedVariable(ident.Value, ma.Member.Value); err == nil {
+					return val
+				}
+				// If not a variable, it might be a function being passed as a reference
+				// For now, we'll return an error since function references aren't fully supported yet
+				// The actual function call will be handled in evalCallExpression
+				return i.newErrorWithLocation(ma, "qualified name '%s.%s' cannot be used as a value (functions must be called)", ident.Value, ma.Member.Value)
+			}
+		}
+
+		// Task 9.68: Check if this identifier refers to a class (case-insensitive)
+		var classInfo *ClassInfo
+		for className, class := range i.classes {
+			if strings.EqualFold(className, ident.Value) {
+				classInfo = class
+				break
+			}
+		}
+		if classInfo != nil {
+			// This is static access: TClass.Variable
+			memberName := ma.Member.Value
+
+			// Check for built-in ClassType and ClassName properties (case-insensitive)
+			if strings.EqualFold(memberName, "ClassType") {
+				return &ClassValue{ClassInfo: classInfo}
+			}
+			if strings.EqualFold(memberName, "ClassName") {
+				return &StringValue{Value: classInfo.Name}
+			}
+
+			// 1. Try class variables first
+			if classVarValue, exists := classInfo.ClassVars[memberName]; exists {
+				return classVarValue
+			}
+
+			// 2. Task 9.22: Try class constants
+			if constValue := i.getClassConstant(classInfo, memberName, ma); constValue != nil {
+				return constValue
+			}
+
+			// 3. Task 9.13: Try class properties
+			if propInfo := classInfo.lookupProperty(memberName); propInfo != nil && propInfo.IsClassProperty {
+				return i.evalClassPropertyRead(classInfo, propInfo, ma)
+			}
+
+			// 3. Task 9.32: Try constructors (with inheritance support)
+			// Task 9.68: Also handle implicit parameterless constructor
+			// Task 9.82: Handle constructor overloads properly
+			if classInfo.HasConstructor(memberName) {
+				// Find all constructor overloads in the hierarchy
+				constructorOverloads := i.lookupConstructorOverloadsInHierarchy(classInfo, memberName)
+				if len(constructorOverloads) > 0 {
+					// Task 9.21: When accessing constructor without parentheses (TClass.Create),
+					// invoke with 0 arguments. If no parameterless constructor exists,
+					// the implicit parameterless constructor will be used.
+					methodCall := &ast.MethodCallExpression{
+						Token:     ma.Token,
+						Object:    ma.Object, // TClassName identifier
+						Method:    ma.Member, // Constructor name
+						Arguments: []ast.Expression{},
+					}
+					return i.evalMethodCall(methodCall)
+				}
+			}
+
+			// 3. Task 9.32: Try class methods (static methods)
+			if classMethod := i.lookupClassMethodInHierarchy(classInfo, memberName); classMethod != nil {
+				// Check if parameterless
+				if len(classMethod.Parameters) == 0 {
+					// Auto-invoke the class method
+					methodCall := &ast.MethodCallExpression{
+						Token:     ma.Token,
+						Object:    ma.Object,
+						Method:    ma.Member,
+						Arguments: []ast.Expression{},
+					}
+					return i.evalMethodCall(methodCall)
+				}
+				// Class method has parameters - return as function pointer
+				paramTypes := make([]types.Type, len(classMethod.Parameters))
+				for idx, param := range classMethod.Parameters {
+					if param.Type != nil {
+						paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+					}
+				}
+				var returnType types.Type
+				if classMethod.ReturnType != nil {
+					returnType = i.getTypeFromAnnotation(classMethod.ReturnType)
+				}
+				pointerType := types.NewFunctionPointerType(paramTypes, returnType)
+				return NewFunctionPointerValue(classMethod, i.env, nil, pointerType)
+			}
+
+			// 4. Not found anywhere - error
+			return i.newErrorWithLocation(ma, "member '%s' not found in class '%s'", memberName, classInfo.Name)
+		}
+
+		// Check if this identifier refers to an enum type (for scoped access: TColor.Red)
+		// Look for enum type metadata stored in environment
+		enumTypeKey := "__enum_type_" + strings.ToLower(ident.Value)
+		if enumTypeVal, ok := i.env.Get(enumTypeKey); ok {
+			if _, isEnumType := enumTypeVal.(*EnumTypeValue); isEnumType {
+				// This is scoped enum access: TColor.Red
+				// Look up the enum value
+				valueName := ma.Member.Value
+				if val, exists := i.env.Get(valueName); exists {
+					if enumVal, isEnum := val.(*EnumValue); isEnum {
+						// Verify the value belongs to this enum type
+						if enumVal.TypeName == ident.Value {
+							return enumVal
+						}
+					}
+				}
+				// Enum value not found
+				return i.newErrorWithLocation(ma, "enum value '%s' not found in enum '%s'", ma.Member.Value, ident.Value)
+			}
+		}
+	}
+
+	// Not static access - evaluate the object expression for instance access
+	objVal := i.Eval(ma.Object)
+	if isError(objVal) {
+		return objVal
+	}
+
+	// Check if it's a record value
+	if recordVal, ok := objVal.(*RecordValue); ok {
+		// Access record field
+		fieldValue, exists := recordVal.Fields[ma.Member.Value]
+		if exists {
+			return fieldValue
+		}
+
+		// Task 9.37: Check if it's a record method
+		if recordVal.Methods != nil {
+			if methodDecl, methodExists := recordVal.Methods[ma.Member.Value]; methodExists {
+				// Only auto-invoke parameterless methods when accessed without parentheses
+				if len(methodDecl.Parameters) == 0 {
+					// Convert to a method call expression and evaluate it
+					methodCall := &ast.MethodCallExpression{
+						Token:     ma.Token,
+						Object:    ma.Object,
+						Method:    ma.Member,
+						Arguments: []ast.Expression{},
+					}
+					return i.evalMethodCall(methodCall)
+				}
+				// Method has parameters - cannot auto-invoke without parentheses
+				return i.newErrorWithLocation(ma, "method '%s' of record '%s' requires %d parameter(s); use parentheses to call",
+					ma.Member.Value, recordVal.RecordType.Name, len(methodDecl.Parameters))
+			}
+		}
+
+		// Check if helpers provide this member
+		helper, helperProp := i.findHelperProperty(recordVal, ma.Member.Value)
+		if helperProp != nil {
+			return i.evalHelperPropertyRead(helper, helperProp, recordVal, ma)
+		}
+
+		return i.newErrorWithLocation(ma, "field '%s' not found in record '%s'", ma.Member.Value, recordVal.RecordType.Name)
+	}
+
+	// Task 9.68: Check if it's a ClassInfoValue (class type identifier)
+	// This handles cases like TObj.Create where TObj was evaluated to a ClassInfoValue
+	// Task 9.73.5: Also check for ClassValue (metaclass reference)
+	var classInfo *ClassInfo
+	if classInfoVal, ok := objVal.(*ClassInfoValue); ok {
+		classInfo = classInfoVal.ClassInfo
+	} else if classVal, ok := objVal.(*ClassValue); ok {
+		classInfo = classVal.ClassInfo
+	}
+
+	if classInfo != nil {
+		memberName := ma.Member.Value
+
+		// Task 9.73: Check for ClassName property in class/metaclass context (case-insensitive)
+		if strings.EqualFold(memberName, "ClassName") {
+			return &StringValue{Value: classInfo.Name}
+		}
+
+		// Task 9.7.2: Check for ClassType property (returns metaclass reference)
+		if strings.EqualFold(memberName, "ClassType") {
+			return &ClassValue{ClassInfo: classInfo}
+		}
+
+		// Try class variables first
+		if classVarValue, exists := classInfo.ClassVars[memberName]; exists {
+			return classVarValue
+		}
+
+		// Task 9.22: Try class constants
+		if constValue := i.getClassConstant(classInfo, memberName, ma); constValue != nil {
+			return constValue
+		}
+
+		// Task 9.13: Try class properties
+		if propInfo := classInfo.lookupProperty(memberName); propInfo != nil && propInfo.IsClassProperty {
+			return i.evalClassPropertyRead(classInfo, propInfo, ma)
+		}
+
+		// Try constructors (same logic as above for identifier check)
+		// Task 9.82: Handle constructor overloads properly
+		if classInfo.HasConstructor(memberName) {
+			constructorOverloads := i.lookupConstructorOverloadsInHierarchy(classInfo, memberName)
+			if len(constructorOverloads) > 0 {
+				// Auto-invoke constructor (with or without parameters)
+				methodCall := &ast.MethodCallExpression{
+					Token:     ma.Token,
+					Object:    ma.Object,
+					Method:    ma.Member,
+					Arguments: []ast.Expression{},
+				}
+				return i.evalMethodCall(methodCall)
+			}
+		}
+
+		// Try class methods
+		if classMethod := i.lookupClassMethodInHierarchy(classInfo, memberName); classMethod != nil {
+			if len(classMethod.Parameters) == 0 {
+				methodCall := &ast.MethodCallExpression{
+					Token:     ma.Token,
+					Object:    ma.Object,
+					Method:    ma.Member,
+					Arguments: []ast.Expression{},
+				}
+				return i.evalMethodCall(methodCall)
+			}
+			paramTypes := make([]types.Type, len(classMethod.Parameters))
+			for idx, param := range classMethod.Parameters {
+				if param.Type != nil {
+					paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+				}
+			}
+			var returnType types.Type
+			if classMethod.ReturnType != nil {
+				returnType = i.getTypeFromAnnotation(classMethod.ReturnType)
+			}
+			pointerType := types.NewFunctionPointerType(paramTypes, returnType)
+			return NewFunctionPointerValue(classMethod, i.env, nil, pointerType)
+		}
+
+		return i.newErrorWithLocation(ma, "member '%s' not found in class '%s'", memberName, classInfo.Name)
+	}
+
+	// Check if it's an object instance
+	obj, ok := AsObject(objVal)
+	if !ok {
+		// Not an object - check if helpers provide this member
+		helper, helperProp := i.findHelperProperty(objVal, ma.Member.Value)
+		if helperProp != nil {
+			return i.evalHelperPropertyRead(helper, helperProp, objVal, ma)
+		}
+		return i.newErrorWithLocation(ma, "cannot access member '%s' of type '%s' (no helper found)",
+			ma.Member.Value, objVal.Type())
+	}
+
+	memberName := ma.Member.Value
+
+	// Handle built-in properties/methods available on all objects (inherited from TObject)
+	if strings.EqualFold(memberName, "ClassName") {
+		// ClassName returns the runtime type name of the object
+		return &StringValue{Value: obj.Class.Name}
+	}
+	// Task 9.7.2: ClassType returns metaclass reference for the object's runtime type
+	if strings.EqualFold(memberName, "ClassType") {
+		return &ClassValue{ClassInfo: obj.Class}
+	}
+
+	// Check if this is a property access (properties take precedence over fields)
+	if propInfo := obj.Class.lookupProperty(memberName); propInfo != nil {
+		return i.evalPropertyRead(obj, propInfo, ma)
+	}
+
+	// Not a property - try direct field access
+	fieldValue := obj.GetField(memberName)
+	if fieldValue == nil {
+		// Task 9.22: Try class constants (accessible from instance)
+		if constValue := i.getClassConstant(obj.Class, memberName, ma); constValue != nil {
+			return constValue
+		}
+
+		// Check if it's a method
+		if method, exists := obj.Class.Methods[memberName]; exists {
+			// If the method has no parameters, auto-invoke it
+			// This allows DWScript syntax: obj.Method instead of obj.Method()
+			if len(method.Parameters) == 0 {
+				// Create a synthetic method call expression to use existing infrastructure
+				methodCall := &ast.MethodCallExpression{
+					Token:     ma.Token,
+					Object:    ma.Object,
+					Method:    ma.Member,
+					Arguments: []ast.Expression{},
+				}
+				return i.evalMethodCall(methodCall)
+			}
+
+			// Method has parameters - return as method pointer for passing as callback
+			paramTypes := make([]types.Type, len(method.Parameters))
+			for idx, param := range method.Parameters {
+				if param.Type != nil {
+					paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+				}
+			}
+			var returnType types.Type
+			if method.ReturnType != nil {
+				returnType = i.getTypeFromAnnotation(method.ReturnType)
+			}
+			pointerType := types.NewFunctionPointerType(paramTypes, returnType)
+			return NewFunctionPointerValue(method, i.env, obj, pointerType)
+		}
+
+		// Check if helpers provide this member
+		helper, helperProp := i.findHelperProperty(obj, memberName)
+		if helperProp != nil {
+			return i.evalHelperPropertyRead(helper, helperProp, obj, ma)
+		}
+		return i.newErrorWithLocation(ma, "field '%s' not found in class '%s'", memberName, obj.Class.Name)
+	}
+
+	return fieldValue
+}
+
+// lookupConstructorInHierarchy searches for a constructor by name in the class hierarchy.
+// It walks the parent chain starting from the given class.
+// Returns the constructor declaration, or nil if not found.
+// Task 9.82: Updated to return all constructor overloads instead of just one
+// Task 9.82: Case-insensitive lookup (DWScript is case-insensitive)
+func (i *Interpreter) lookupConstructorOverloadsInHierarchy(classInfo *ClassInfo, name string) []*ast.FunctionDecl {
+	for current := classInfo; current != nil; current = current.Parent {
+		// Check overload set first (case-insensitive)
+		for ctorName, overloads := range current.ConstructorOverloads {
+			if strings.EqualFold(ctorName, name) && len(overloads) > 0 {
+				return overloads
+			}
+		}
+		// Fallback to single constructor (case-insensitive)
+		for ctorName, constructor := range current.Constructors {
+			if strings.EqualFold(ctorName, name) {
+				return []*ast.FunctionDecl{constructor}
+			}
+		}
+	}
+	return nil
+}
+
+// Deprecated: Use lookupConstructorOverloadsInHierarchy instead
+// Kept for backwards compatibility with existing code
+func (i *Interpreter) lookupConstructorInHierarchy(classInfo *ClassInfo, name string) *ast.FunctionDecl {
+	overloads := i.lookupConstructorOverloadsInHierarchy(classInfo, name)
+	if len(overloads) > 0 {
+		return overloads[0]
+	}
+	return nil
+}
+
+// lookupClassMethodInHierarchy searches for a class method by name in the class hierarchy.
+// It walks the parent chain starting from the given class.
+// Returns the method declaration, or nil if not found.
+func (i *Interpreter) lookupClassMethodInHierarchy(classInfo *ClassInfo, name string) *ast.FunctionDecl {
+	for current := classInfo; current != nil; current = current.Parent {
+		if method, exists := current.ClassMethods[name]; exists {
+			return method
+		}
+	}
+	return nil
+}
+
+// bindClassConstantsToEnv adds all class constants from the given ClassInfo to the current environment.
+// This allows methods to access class constants directly by name without qualification.
+func (i *Interpreter) bindClassConstantsToEnv(classInfo *ClassInfo) {
+	for constName, constValue := range classInfo.ConstantValues {
+		i.env.Define(constName, constValue)
+	}
+}
+
+// evalInheritedExpression evaluates an inherited method call.
+// Syntax: inherited MethodName(args) or inherited (bare, calls same method in parent)
+// Task 9.164: Implement inherited keyword
+func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value {
+	// Get current Self (must be in a method context)
+	selfVal, exists := i.env.Get("Self")
+	if !exists {
+		return i.newErrorWithLocation(ie, "inherited can only be used inside a method")
+	}
+
+	obj, ok := selfVal.(*ObjectInstance)
+	if !ok {
+		return i.newErrorWithLocation(ie, "inherited requires Self to be an object instance")
+	}
+
+	// Get the parent class
+	classInfo := obj.Class
+	if classInfo.Parent == nil {
+		return i.newErrorWithLocation(ie, "class '%s' has no parent class", classInfo.Name)
+	}
+
+	parentClass := classInfo.Parent
+
+	// Determine which method to call
+	var methodName string
+	if ie.Method != nil {
+		// Explicit method name provided: inherited MethodName(args)
+		methodName = ie.Method.Value
+	} else {
+		// Bare inherited: need to get the current method name from environment
+		currentMethodVal, exists := i.env.Get("__CurrentMethod__")
+		if !exists {
+			return i.newErrorWithLocation(ie, "bare 'inherited' requires method context")
+		}
+		currentMethodName, ok := currentMethodVal.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(ie, "invalid method context")
+		}
+		methodName = currentMethodName.Value
+	}
+
+	// Task 9.16.4.2: Look up member in parent class (method, property, or field)
+	// Try method first (case-insensitive)
+	var parentMethod *ast.FunctionDecl
+	for name, method := range parentClass.Methods {
+		if strings.EqualFold(name, methodName) {
+			parentMethod = method
+			break
+		}
+	}
+
+	if parentMethod != nil {
+		// Found a method - evaluate it
+		// Evaluate arguments
+		args := make([]Value, len(ie.Arguments))
+		for idx, arg := range ie.Arguments {
+			val := i.Eval(arg)
+			if isError(val) {
+				return val
+			}
+			args[idx] = val
+		}
+
+		// Check argument count matches parameter count
+		if len(args) != len(parentMethod.Parameters) {
+			return i.newErrorWithLocation(ie, "wrong number of arguments for method '%s': expected %d, got %d",
+				methodName, len(parentMethod.Parameters), len(args))
+		}
+
+		// Create method environment (with Self binding)
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the current object
+		i.env.Define("Self", obj)
+
+		// Bind __CurrentClass__ to parent class
+		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: parentClass})
+
+		// Add class constants to method scope so they can be accessed directly
+		i.bindClassConstantsToEnv(parentClass)
+
+		// Bind __CurrentMethod__ for nested inherited calls
+		i.env.Define("__CurrentMethod__", &StringValue{Value: methodName})
+
+		// Bind method parameters to arguments with implicit conversion
+		for idx, param := range parentMethod.Parameters {
+			arg := args[idx]
+
+			// Apply implicit conversion if parameter has a type and types don't match
+			if param.Type != nil {
+				paramTypeName := param.Type.Name
+				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+					arg = converted
+				}
+			}
+
+			i.env.Define(param.Name.Value, arg)
+		}
+
+		// For functions (not procedures), initialize the Result variable
+		// Task 9.221: Use appropriate default value based on return type
+		if parentMethod.ReturnType != nil {
+			returnType := i.resolveTypeFromAnnotation(parentMethod.ReturnType)
+			defaultVal := i.getDefaultValue(returnType)
+			i.env.Define("Result", defaultVal)
+			// In DWScript, the method name can be used as an alias for Result
+			i.env.Define(parentMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		}
+
+		// Execute parent method body
+		_ = i.Eval(parentMethod.Body)
+
+		// Handle function return value
+		var returnValue Value
+		if parentMethod.ReturnType != nil {
+			// For functions, check if Result was set
+			if resultVal, ok := i.env.Get("Result"); ok {
+				returnValue = resultVal
+			} else {
+				// Check if the method name was used as return value (DWScript style)
+				if methodVal, ok := i.env.Get(parentMethod.Name.Value); ok {
+					returnValue = methodVal
+				} else {
+					returnValue = &NilValue{}
+				}
+			}
+		} else {
+			// Procedure - no return value
+			returnValue = &NilValue{}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return returnValue
+	}
+
+	// Task 9.16.4.2: Try properties (case-insensitive)
+	var propInfo *types.PropertyInfo
+	for name, prop := range parentClass.Properties {
+		if strings.EqualFold(name, methodName) {
+			propInfo = prop
+			break
+		}
+	}
+
+	if propInfo != nil {
+		// Found a property - read it
+		if len(ie.Arguments) > 0 || ie.IsCall {
+			return i.newErrorWithLocation(ie, "cannot call property '%s' as a method", methodName)
+		}
+		// Evaluate property read expression
+		// The property's read expression is evaluated in the context of the parent class
+		return i.evalPropertyRead(obj, propInfo, ie)
+	}
+
+	// Task 9.16.4.2: Try fields (case-insensitive)
+	for name := range parentClass.Fields {
+		if strings.EqualFold(name, methodName) {
+			if len(ie.Arguments) > 0 || ie.IsCall {
+				return i.newErrorWithLocation(ie, "cannot call field '%s' as a method", methodName)
+			}
+			// Return field value
+			fieldValue := obj.GetField(name)
+			if fieldValue == nil {
+				return &NilValue{}
+			}
+			return fieldValue
+		}
+	}
+
+	// Member not found in parent class
+	return i.newErrorWithLocation(ie, "method, property, or field '%s' not found in parent class '%s'", methodName, parentClass.Name)
+}
+
+// getClassConstant retrieves a class constant value by name.
+// It evaluates the constant expression lazily (on first access) and caches the result.
+// Supports inheritance by searching up the class hierarchy.
+// Returns nil if the constant doesn't exist.
+// Task 9.22: Support class constant evaluation with visibility enforcement and inheritance.
+func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string, ma *ast.MemberAccessExpression) Value {
+	// Look up constant in hierarchy (supports inheritance)
+	constDecl, ownerClass := classInfo.lookupConstant(constantName)
+	if constDecl == nil {
+		return nil
+	}
+
+	// Check if we've already evaluated this constant (check in the owner class)
+	if cachedValue, cached := ownerClass.ConstantValues[constantName]; cached {
+		return cachedValue
+	}
+
+	// Create a temporary environment for evaluating the constant expression
+	// This allows constants to reference other already-evaluated constants in the same class
+	savedEnv := i.env
+	tempEnv := NewEnclosedEnvironment(i.env)
+
+	// Add all ALREADY EVALUATED class constants to the temporary environment
+	// This prevents infinite recursion
+	for constName, constVal := range ownerClass.ConstantValues {
+		if constName != constantName && constVal != nil {
+			tempEnv.Set(constName, constVal)
+		}
+	}
+
+	i.env = tempEnv
+
+	// Evaluate the constant expression
+	constValue := i.Eval(constDecl.Value)
+
+	// Restore environment
+	i.env = savedEnv
+
+	if isError(constValue) {
+		return constValue
+	}
+
+	// Cache the evaluated value for future access (in the owner class)
+	ownerClass.ConstantValues[constantName] = constValue
+
+	return constValue
+}
