@@ -251,6 +251,24 @@ func (a *Analyzer) analyzeIsExpression(expr *ast.IsExpression) types.Type {
 		return nil
 	}
 
+	// Validate that left operand is a class (or nil)
+	if leftType != types.NIL {
+		leftUnderlying := types.GetUnderlyingType(leftType)
+		if _, isClass := leftUnderlying.(*types.ClassType); !isClass {
+			a.addError("'is' operator requires class instance, got %s at %s",
+				leftType.String(), expr.Token.Pos.String())
+			return nil
+		}
+	}
+
+	// Validate that target type is a class type
+	targetUnderlying := types.GetUnderlyingType(targetType)
+	if _, isClass := targetUnderlying.(*types.ClassType); !isClass {
+		a.addError("'is' operator requires class type, got %s at %s",
+			targetType.String(), expr.Token.Pos.String())
+		return nil
+	}
+
 	// The 'is' operator always returns Boolean
 	expr.SetType(&ast.TypeAnnotation{
 		Token: expr.Token,
@@ -260,9 +278,9 @@ func (a *Analyzer) analyzeIsExpression(expr *ast.IsExpression) types.Type {
 }
 
 // analyzeAsExpression analyzes the 'as' type casting operator (Task 9.48).
-// Example: obj as IMyInterface
-// Validates that the object's class implements the target interface.
-// Returns the target interface type.
+// Example: obj as IMyInterface or child as TParent
+// Supports both interface casting and class-to-class casting (up/down casting).
+// Returns the target type.
 func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 	// Analyze the left expression (the object being cast)
 	leftType := a.analyzeExpression(expr.Left)
@@ -270,17 +288,20 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 		return nil
 	}
 
-	// Resolve the target type (should be an interface type)
+	// Resolve the target type (should be an interface or class type)
 	targetType, err := a.resolveTypeExpression(expr.TargetType)
 	if err != nil || targetType == nil {
 		a.addError("cannot resolve target type in 'as' expression at %s: %v", expr.Token.Pos.String(), err)
 		return nil
 	}
 
-	// Validate that target type is an interface
-	interfaceType, ok := types.GetUnderlyingType(targetType).(*types.InterfaceType)
-	if !ok {
-		a.addError("'as' operator requires interface type, got %s at %s",
+	// Target type can be either interface OR class
+	targetUnderlying := types.GetUnderlyingType(targetType)
+	interfaceType, isInterface := targetUnderlying.(*types.InterfaceType)
+	classTargetType, isClassTarget := targetUnderlying.(*types.ClassType)
+
+	if !isInterface && !isClassTarget {
+		a.addError("'as' operator requires interface or class type, got %s at %s",
 			targetType.String(), expr.Token.Pos.String())
 		return nil
 	}
@@ -289,14 +310,14 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 	leftUnderlying := types.GetUnderlyingType(leftType)
 	classType, isClass := leftUnderlying.(*types.ClassType)
 
-	// Also allow NIL to be cast to any interface
+	// Also allow NIL to be cast to any interface or class
 	if leftType == types.NIL {
 		// Set the expression type and return
 		expr.SetType(&ast.TypeAnnotation{
 			Token: expr.Token,
-			Name:  interfaceType.Name,
+			Name:  targetType.String(), // Use the actual target type name
 		})
-		return interfaceType
+		return targetType
 	}
 
 	if !isClass {
@@ -305,6 +326,25 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 		return nil
 	}
 
+	// Handle class-to-class casting
+	if isClassTarget {
+		// For class-to-class casting, we check inheritance relationship
+		// Both upcast (child to parent) and downcast (parent to child) are allowed
+		// Downcast safety is checked at runtime
+		if !types.IsClassRelated(classType, classTargetType) {
+			a.addError("cannot cast '%s' to unrelated class '%s' at %s",
+				classType.Name, classTargetType.Name, expr.Token.Pos.String())
+			return nil
+		}
+
+		expr.SetType(&ast.TypeAnnotation{
+			Token: expr.Token,
+			Name:  classTargetType.Name,
+		})
+		return classTargetType
+	}
+
+	// Handle class-to-interface casting
 	// Validate that the class implements the interface
 	if !types.ImplementsInterface(classType, interfaceType) {
 		a.addError("class '%s' does not implement interface '%s' at %s",
@@ -347,9 +387,15 @@ func (a *Analyzer) analyzeImplementsExpression(expr *ast.ImplementsExpression) t
 		return nil
 	}
 
-	// Left type can be either a class instance or a class type reference
-	// We don't validate compatibility here - that's checked at runtime
-	// This operator is primarily for runtime type checking
+	// Validate that left operand is a class (or nil)
+	if leftType != types.NIL {
+		leftUnderlying := types.GetUnderlyingType(leftType)
+		if _, isClass := leftUnderlying.(*types.ClassType); !isClass {
+			a.addError("'implements' operator requires class instance, got %s at %s",
+				leftType.String(), expr.Token.Pos.String())
+			return nil
+		}
+	}
 
 	// Set the expression type annotation to Boolean
 	expr.SetType(&ast.TypeAnnotation{
