@@ -1498,6 +1498,7 @@ func (vm *VM) registerBuiltins() {
 	vm.builtins["StrToFloat"] = builtinStrToFloat
 	vm.builtins["Length"] = builtinLength
 	vm.builtins["Copy"] = builtinCopy
+	vm.builtins["SubStr"] = builtinSubStr
 	vm.builtins["Ord"] = builtinOrd
 	vm.builtins["Chr"] = builtinChr
 	// Type cast functions
@@ -1636,6 +1637,43 @@ func builtinCopy(vm *VM, args []Value) (Value, error) {
 	if len(args) == 3 {
 		if !args[2].IsInt() {
 			return NilValue(), vm.runtimeError("Copy expects an integer as third argument")
+		}
+		length = int(args[2].AsInt())
+	}
+
+	if start+length > len(str) {
+		length = len(str) - start
+	}
+
+	return StringValue(str[start : start+length]), nil
+}
+
+func builtinSubStr(vm *VM, args []Value) (Value, error) {
+	if len(args) < 2 || len(args) > 3 {
+		return NilValue(), vm.runtimeError("SubStr expects 2 or 3 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("SubStr expects a string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("SubStr expects an integer as second argument")
+	}
+
+	str := args[0].AsString()
+	start := int(args[1].AsInt()) - 1 // DWScript uses 1-based indexing
+
+	if start < 0 {
+		start = 0
+	}
+	if start >= len(str) {
+		return StringValue(""), nil
+	}
+
+	// Default length is to end of string (MaxInt in DWScript)
+	length := len(str) - start
+	if len(args) == 3 {
+		if !args[2].IsInt() {
+			return NilValue(), vm.runtimeError("SubStr expects an integer as third argument")
 		}
 		length = int(args[2].AsInt())
 	}

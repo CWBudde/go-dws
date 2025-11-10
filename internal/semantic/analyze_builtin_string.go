@@ -95,6 +95,44 @@ func (a *Analyzer) analyzeCopy(args []ast.Expression, callExpr *ast.CallExpressi
 	return types.STRING
 }
 
+// analyzeSubStr analyzes the SubStr built-in function.
+// SubStr takes 2 or 3 arguments:
+//   - SubStr(str, start) - returns substring from start to end (1-based)
+//   - SubStr(str, start, length) - returns length characters starting at start (1-based)
+// Note: Different from Copy which has an array overload, SubStr only works with strings.
+func (a *Analyzer) analyzeSubStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) < 2 || len(args) > 3 {
+		a.addError("function 'SubStr' expects 2 or 3 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+
+	// Analyze the first argument (string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'SubStr' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+
+	// Analyze the second argument (start position - integer)
+	startType := a.analyzeExpression(args[1])
+	if startType != nil && startType != types.INTEGER {
+		a.addError("function 'SubStr' expects integer as second argument, got %s at %s",
+			startType.String(), callExpr.Token.Pos.String())
+	}
+
+	// Analyze the third argument (length - integer) if present
+	if len(args) == 3 {
+		lengthType := a.analyzeExpression(args[2])
+		if lengthType != nil && lengthType != types.INTEGER {
+			a.addError("function 'SubStr' expects integer as third argument, got %s at %s",
+				lengthType.String(), callExpr.Token.Pos.String())
+		}
+	}
+
+	return types.STRING
+}
+
 // analyzeConcat analyzes the Concat built-in function.
 // Concat takes at least one argument (all strings) and returns a string.
 func (a *Analyzer) analyzeConcat(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
