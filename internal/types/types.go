@@ -468,7 +468,9 @@ func (ct *ClassType) Equals(other Type) bool {
 
 // HasField checks if the class or any of its ancestors has a field with the given name
 func (ct *ClassType) HasField(name string) bool {
-	if _, ok := ct.Fields[name]; ok {
+	// Case-insensitive field lookup
+	lowerName := strings.ToLower(name)
+	if _, ok := ct.Fields[lowerName]; ok {
 		return true
 	}
 	if ct.Parent != nil {
@@ -479,7 +481,9 @@ func (ct *ClassType) HasField(name string) bool {
 
 // GetField retrieves the type of a field by name, searching up the inheritance chain
 func (ct *ClassType) GetField(name string) (Type, bool) {
-	if fieldType, ok := ct.Fields[name]; ok {
+	// Case-insensitive field lookup
+	lowerName := strings.ToLower(name)
+	if fieldType, ok := ct.Fields[lowerName]; ok {
 		return fieldType, true
 	}
 	if ct.Parent != nil {

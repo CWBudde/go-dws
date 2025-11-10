@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -127,7 +129,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 
 		if propInfo.IsClassProperty {
 			// Class property must use class variable
-			fieldType, found = classType.ClassVars[readSpecName]
+			// Task 9.285: Use lowercase for case-insensitive lookup
+			fieldType, found = classType.ClassVars[strings.ToLower(readSpecName)]
 			if found && !propType.Equals(fieldType) {
 				a.addError("class property '%s' read field '%s' has type %s, expected %s at %s",
 					propName, readSpecName, fieldType.String(), propType.String(),
@@ -136,7 +139,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 			}
 		} else {
 			// Instance property must use instance field
-			fieldType, found = classType.GetField(readSpecName)
+			// Task 9.285: Use lowercase for case-insensitive lookup
+			fieldType, found = classType.GetField(strings.ToLower(readSpecName))
 			if found && !propType.Equals(fieldType) {
 				a.addError("property '%s' read field '%s' has type %s, expected %s at %s",
 					propName, readSpecName, fieldType.String(), propType.String(),
@@ -152,7 +156,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		}
 
 		// If method, verify method exists with correct signature
-		if methodType, found := classType.GetMethod(readSpecName); found {
+		// Task 9.285: Use lowercase for case-insensitive lookup
+		if methodType, found := classType.GetMethod(strings.ToLower(readSpecName)); found {
 			// For class properties, verify the method is a class method
 			if propInfo.IsClassProperty {
 				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[readSpecName]
@@ -280,7 +285,8 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 
 	if propInfo.IsClassProperty {
 		// Class property must use class variable
-		fieldType, found = classType.ClassVars[writeSpecName]
+		// Task 9.285: Use lowercase for case-insensitive lookup
+		fieldType, found = classType.ClassVars[strings.ToLower(writeSpecName)]
 		if found && !propType.Equals(fieldType) {
 			a.addError("class property '%s' write field '%s' has type %s, expected %s at %s",
 				propName, writeSpecName, fieldType.String(), propType.String(),
@@ -289,7 +295,8 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		}
 	} else {
 		// Instance property must use instance field
-		fieldType, found = classType.GetField(writeSpecName)
+		// Task 9.285: Use lowercase for case-insensitive lookup
+		fieldType, found = classType.GetField(strings.ToLower(writeSpecName))
 		if found && !propType.Equals(fieldType) {
 			a.addError("property '%s' write field '%s' has type %s, expected %s at %s",
 				propName, writeSpecName, fieldType.String(), propType.String(),
@@ -305,7 +312,8 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	}
 
 	// If method, verify method exists with correct signature
-	if methodType, found := classType.GetMethod(writeSpecName); found {
+	// Task 9.285: Use lowercase for case-insensitive lookup
+	if methodType, found := classType.GetMethod(strings.ToLower(writeSpecName)); found {
 		// For class properties, verify the method is a class method
 		if propInfo.IsClassProperty {
 			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[writeSpecName]

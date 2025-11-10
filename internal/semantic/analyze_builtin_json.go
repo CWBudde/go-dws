@@ -42,20 +42,23 @@ func (a *Analyzer) analyzeToJSON(args []ast.Expression, callExpr *ast.CallExpres
 }
 
 // analyzeToJSONFormatted analyzes the ToJSONFormatted built-in function.
-// ToJSONFormatted takes two arguments (value, indent) and returns a string.
+// ToJSONFormatted takes one or two arguments (value, [indent]) and returns a string.
+// The indent parameter is optional and defaults to a standard indentation.
 func (a *Analyzer) analyzeToJSONFormatted(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 2 {
-		a.addError("function 'ToJSONFormatted' expects 2 arguments, got %d at %s",
+	if len(args) < 1 || len(args) > 2 {
+		a.addError("function 'ToJSONFormatted' expects 1 or 2 arguments, got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.STRING
 	}
 	// Analyze first argument (can be any type)
 	a.analyzeExpression(args[0])
-	// Analyze second argument (should be Integer)
-	indentType := a.analyzeExpression(args[1])
-	if indentType != nil && !indentType.Equals(types.INTEGER) {
-		a.addError("ToJSONFormatted expects Integer as second argument, got %s at %s",
-			indentType.String(), callExpr.Token.Pos.String())
+	// Analyze optional second argument (should be Integer)
+	if len(args) >= 2 {
+		indentType := a.analyzeExpression(args[1])
+		if indentType != nil && !indentType.Equals(types.INTEGER) {
+			a.addError("ToJSONFormatted expects Integer as second argument, got %s at %s",
+				indentType.String(), callExpr.Token.Pos.String())
+		}
 	}
 	// Returns String
 	return types.STRING

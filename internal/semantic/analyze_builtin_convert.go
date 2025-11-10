@@ -35,10 +35,11 @@ func (a *Analyzer) analyzeIntToStr(args []ast.Expression, callExpr *ast.CallExpr
 }
 
 // analyzeIntToBin analyzes the IntToBin built-in function.
-// IntToBin takes two integer arguments (value, digits) and returns a string.
+// IntToBin takes one or two integer arguments (value, [digits]) and returns a string.
+// The digits parameter is optional and defaults to the minimum required digits.
 func (a *Analyzer) analyzeIntToBin(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 2 {
-		a.addError("function 'IntToBin' expects 2 arguments, got %d at %s",
+	if len(args) < 1 || len(args) > 2 {
+		a.addError("function 'IntToBin' expects 1 or 2 arguments, got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.STRING
 	}
@@ -56,28 +57,31 @@ func (a *Analyzer) analyzeIntToBin(args []ast.Expression, callExpr *ast.CallExpr
 				argType1.String(), callExpr.Token.Pos.String())
 		}
 	}
-	// Analyze second argument (digits) - must be Integer
-	argType2 := a.analyzeExpression(args[1])
-	if argType2 != nil && argType2 != types.INTEGER {
-		// Check if it's a subrange type with Integer base
-		if subrange, ok := argType2.(*types.SubrangeType); ok {
-			if subrange.BaseType != types.INTEGER {
+	// Analyze optional second argument (digits) - must be Integer
+	if len(args) >= 2 {
+		argType2 := a.analyzeExpression(args[1])
+		if argType2 != nil && argType2 != types.INTEGER {
+			// Check if it's a subrange type with Integer base
+			if subrange, ok := argType2.(*types.SubrangeType); ok {
+				if subrange.BaseType != types.INTEGER {
+					a.addError("function 'IntToBin' expects Integer as second argument, got %s at %s",
+						argType2.String(), callExpr.Token.Pos.String())
+				}
+			} else {
 				a.addError("function 'IntToBin' expects Integer as second argument, got %s at %s",
 					argType2.String(), callExpr.Token.Pos.String())
 			}
-		} else {
-			a.addError("function 'IntToBin' expects Integer as second argument, got %s at %s",
-				argType2.String(), callExpr.Token.Pos.String())
 		}
 	}
 	return types.STRING
 }
 
 // analyzeIntToHex analyzes the IntToHex built-in function.
-// IntToHex takes two integer arguments (value, digits) and returns a string.
+// IntToHex takes one or two integer arguments (value, [digits]) and returns a string.
+// The digits parameter is optional and defaults to the minimum required digits.
 func (a *Analyzer) analyzeIntToHex(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 2 {
-		a.addError("function 'IntToHex' expects 2 arguments, got %d at %s",
+	if len(args) < 1 || len(args) > 2 {
+		a.addError("function 'IntToHex' expects 1 or 2 arguments, got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.STRING
 	}
@@ -95,18 +99,20 @@ func (a *Analyzer) analyzeIntToHex(args []ast.Expression, callExpr *ast.CallExpr
 				argType1.String(), callExpr.Token.Pos.String())
 		}
 	}
-	// Analyze second argument (digits) - must be Integer
-	argType2 := a.analyzeExpression(args[1])
-	if argType2 != nil && argType2 != types.INTEGER {
-		// Check if it's a subrange type with Integer base
-		if subrange, ok := argType2.(*types.SubrangeType); ok {
-			if subrange.BaseType != types.INTEGER {
+	// Analyze optional second argument (digits) - must be Integer
+	if len(args) >= 2 {
+		argType2 := a.analyzeExpression(args[1])
+		if argType2 != nil && argType2 != types.INTEGER {
+			// Check if it's a subrange type with Integer base
+			if subrange, ok := argType2.(*types.SubrangeType); ok {
+				if subrange.BaseType != types.INTEGER {
+					a.addError("function 'IntToHex' expects Integer as second argument, got %s at %s",
+						argType2.String(), callExpr.Token.Pos.String())
+				}
+			} else {
 				a.addError("function 'IntToHex' expects Integer as second argument, got %s at %s",
 					argType2.String(), callExpr.Token.Pos.String())
 			}
-		} else {
-			a.addError("function 'IntToHex' expects Integer as second argument, got %s at %s",
-				argType2.String(), callExpr.Token.Pos.String())
 		}
 	}
 	return types.STRING
@@ -194,10 +200,11 @@ func (a *Analyzer) analyzeFloatToStr(args []ast.Expression, callExpr *ast.CallEx
 }
 
 // analyzeFloatToStrF analyzes the FloatToStrF built-in function.
-// FloatToStrF takes three arguments (value, format, precision, digits) and returns a string.
+// FloatToStrF takes 2 or 4 arguments (value, format, [precision, digits]) and returns a string.
+// The precision and digits parameters are optional.
 func (a *Analyzer) analyzeFloatToStrF(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 4 {
-		a.addError("function 'FloatToStrF' expects 4 arguments (value, format, precision, digits), got %d at %s",
+	if len(args) != 2 && len(args) != 4 {
+		a.addError("function 'FloatToStrF' expects 2 or 4 arguments (value, format, [precision, digits]), got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.STRING
 	}
@@ -217,7 +224,7 @@ func (a *Analyzer) analyzeFloatToStrF(args []ast.Expression, callExpr *ast.CallE
 				argType.String(), callExpr.Token.Pos.String())
 		}
 	}
-	// Third argument: precision (Integer)
+	// Third argument: precision (Integer) - optional
 	if len(args) > 2 {
 		argType := a.analyzeExpression(args[2])
 		if argType != nil && argType != types.INTEGER {
@@ -225,7 +232,7 @@ func (a *Analyzer) analyzeFloatToStrF(args []ast.Expression, callExpr *ast.CallE
 				argType.String(), callExpr.Token.Pos.String())
 		}
 	}
-	// Fourth argument: digits (Integer)
+	// Fourth argument: digits (Integer) - optional
 	if len(args) > 3 {
 		argType := a.analyzeExpression(args[3])
 		if argType != nil && argType != types.INTEGER {

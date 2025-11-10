@@ -68,22 +68,22 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			}
 
 			// Compare parent classes
-			if existingClass.Parent != fullImplParent {
-				if existingClass.Parent == nil && fullImplParent != nil {
-					a.addError("class '%s' forward declared without parent, but implementation specifies parent '%s' at %s",
-						className, fullImplParent.Name, decl.Token.Pos.String())
-					return
-				} else if existingClass.Parent != nil && fullImplParent == nil {
+			// Rule: If forward declaration specified a parent, implementation must match it
+			// If forward declaration had no parent, implementation can specify any parent (or none)
+			if existingClass.Parent != nil {
+				// Forward declaration specified a parent - implementation must match
+				if fullImplParent == nil {
 					a.addError("class '%s' forward declared with parent '%s', but implementation has no parent at %s",
 						className, existingClass.Parent.Name, decl.Token.Pos.String())
 					return
-				} else if existingClass.Parent != nil && fullImplParent != nil {
+				} else if existingClass.Parent.Name != fullImplParent.Name {
 					a.addError("class '%s' forward declared with parent '%s', but implementation specifies different parent '%s' at %s",
 						className, existingClass.Parent.Name, fullImplParent.Name, decl.Token.Pos.String())
 					return
 				}
 			}
-			// Parent classes match - mark that we're resolving a forward declaration
+			// If forward declaration had no parent, implementation can specify any parent - no validation needed
+			// Parent classes are compatible - mark that we're resolving a forward declaration
 			resolvingForwardDecl = true
 		} else if existingClass.IsForward && isForwardDecl {
 			// Duplicate forward declaration
@@ -1237,7 +1237,8 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	}
 
 	// Check if object is a class or record type
-	memberName := expr.Member.Value
+	// Task 9.285: Normalize to lowercase for case-insensitive lookup
+	memberName := strings.ToLower(expr.Member.Value)
 
 	// Task 9.73.5: Resolve type aliases to get the underlying type
 	// This allows member access on type alias variables like TBaseClass
