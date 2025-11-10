@@ -1,0 +1,423 @@
+package interp
+
+import (
+	"strings"
+
+	"github.com/cwbudde/go-dws/internal/ast"
+)
+
+// evalCallExpression evaluates a DWScript function call expression.
+//
+// This method handles:
+//   - Direct function calls (user-defined and built-in)
+//   - Function pointer calls, including proper handling of lazy and var parameters
+//   - Member access calls (unit-qualified functions, record/class methods)
+//   - Overload resolution for user-defined functions
+//   - Error handling for invalid calls, argument mismatches, and unsupported cases
+//
+// For function pointers, it checks parameter flags to support lazy evaluation and by-reference passing.
+// For member access, it distinguishes between unit-qualified calls and record/class method invocations.
+// Returns a Value representing the result of the function call, or an ErrorValue on failure.
+func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
+	// Check if this is a function pointer call
+	// If the function expression is an identifier that resolves to a FunctionPointerValue,
+	// we need to call through the pointer
+	if funcIdent, ok := expr.Function.(*ast.Identifier); ok {
+		// Try to resolve as a variable (might be a function pointer variable)
+		if val, exists := i.env.Get(funcIdent.Value); exists {
+			// Check if it's a function pointer
+			if funcPtr, isFuncPtr := val.(*FunctionPointerValue); isFuncPtr {
+				// Prepare arguments - check for lazy and var parameters in the function pointer's declaration
+				args := make([]Value, len(expr.Arguments))
+				for idx, arg := range expr.Arguments {
+					// Check parameter flags (only for regular function pointers, not lambdas)
+					isLazy := false
+					isByRef := false
+					if funcPtr.Function != nil && idx < len(funcPtr.Function.Parameters) {
+						isLazy = funcPtr.Function.Parameters[idx].IsLazy
+						isByRef = funcPtr.Function.Parameters[idx].ByRef
+					}
+
+					if isLazy {
+						// For lazy parameters, create a LazyThunk
+						args[idx] = NewLazyThunk(arg, i.env, i)
+					} else if isByRef {
+						// For var parameters, create a reference or pass through existing reference
+						if argIdent, ok := arg.(*ast.Identifier); ok {
+							if val, exists := i.env.Get(argIdent.Value); exists {
+								if refVal, isRef := val.(*ReferenceValue); isRef {
+									args[idx] = refVal // Pass through existing reference
+								} else {
+									args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+								}
+							} else {
+								args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+							}
+						} else {
+							return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+						}
+					} else {
+						// For regular parameters, evaluate immediately
+						argVal := i.Eval(arg)
+						if isError(argVal) {
+							return argVal
+						}
+						args[idx] = argVal
+					}
+				}
+				// Call through the function pointer
+				return i.callFunctionPointer(funcPtr, args, expr)
+			}
+		}
+	}
+
+	// Check if this is a unit-qualified function call (UnitName.FunctionName) or record method call
+	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
+		// First, evaluate the object part to see what we're dealing with
+		objVal := i.Eval(memberAccess.Object)
+		if isError(objVal) {
+			return objVal
+		}
+
+		// Check if this is a record method call (record.Method(...))
+		// Implementation Strategy: Integrate with class method system (Option 2)
+		// Records are value types, but methods work similarly to class methods.
+		// Key difference: For mutating methods (procedures), we need copy-back semantics.
+		if recVal, ok := objVal.(*RecordValue); ok {
+			return i.evalRecordMethodCall(recVal, memberAccess, expr.Arguments, memberAccess.Object)
+		}
+
+		// Task 9.16.2: Check if this is an interface method call (interface.Method(...))
+		if ifaceInst, ok := objVal.(*InterfaceInstance); ok {
+			// Dispatch to the underlying object
+			if ifaceInst.Object == nil {
+				return i.newErrorWithLocation(expr, "cannot call method on nil interface")
+			}
+			// Call the method on the underlying object by temporarily swapping the variable
+			if objIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
+				savedVal, exists := i.env.Get(objIdent.Value)
+				if exists {
+					// Temporarily set to underlying object
+					_ = i.env.Set(objIdent.Value, ifaceInst.Object)
+					// Use defer to ensure restoration even if method call panics or returns early
+					defer func() { _ = i.env.Set(objIdent.Value, savedVal) }()
+
+					// Create a method call expression
+					mc := &ast.MethodCallExpression{
+						Token:     expr.Token,
+						Object:    memberAccess.Object,
+						Method:    memberAccess.Member,
+						Arguments: expr.Arguments,
+					}
+					return i.evalMethodCall(mc)
+				}
+			}
+			return i.newErrorWithLocation(expr, "interface method call requires identifier")
+		}
+
+		// Check if the left side is a unit identifier (for qualified access: UnitName.FunctionName)
+		if unitIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
+			// This could be a unit-qualified call: UnitName.FunctionName()
+			if i.unitRegistry != nil {
+				if _, exists := i.unitRegistry.GetUnit(unitIdent.Value); exists {
+					// Resolve the qualified function
+					fn, err := i.ResolveQualifiedFunction(unitIdent.Value, memberAccess.Member.Value)
+					if err == nil {
+						// Prepare arguments - lazy parameters get LazyThunks, var parameters get References, regular parameters get evaluated
+						args := make([]Value, len(expr.Arguments))
+						for idx, arg := range expr.Arguments {
+							// Check parameter flags
+							isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+							isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
+
+							if isLazy {
+								// For lazy parameters, create a LazyThunk
+								args[idx] = NewLazyThunk(arg, i.env, i)
+							} else if isByRef {
+								// For var parameters, create a reference or pass through existing reference
+								if argIdent, ok := arg.(*ast.Identifier); ok {
+									if val, exists := i.env.Get(argIdent.Value); exists {
+										if refVal, isRef := val.(*ReferenceValue); isRef {
+											args[idx] = refVal // Pass through existing reference
+										} else {
+											args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+										}
+									} else {
+										args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+									}
+								} else {
+									return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+								}
+							} else {
+								// For regular parameters, evaluate immediately
+								val := i.Eval(arg)
+								if isError(val) {
+									return val
+								}
+								args[idx] = val
+							}
+						}
+						return i.callUserFunction(fn, args)
+					}
+					// Function not found in unit
+					return i.newErrorWithLocation(expr, "function '%s' not found in unit '%s'", memberAccess.Member.Value, unitIdent.Value)
+				}
+			}
+		}
+
+		// Check if this is a class constructor call (TClass.Create(...))
+		// When calling TObj.Create(args), the parser creates CallExpression with MemberAccessExpression
+		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
+			// Check if this identifier refers to a class (case-insensitive)
+			var classInfo *ClassInfo
+			for className, class := range i.classes {
+				if strings.EqualFold(className, ident.Value) {
+					classInfo = class
+					break
+				}
+			}
+			if classInfo != nil {
+				// This is a class constructor/method call - convert to MethodCallExpression
+				mc := &ast.MethodCallExpression{
+					Token:     expr.Token,
+					Object:    ident,
+					Method:    memberAccess.Member,
+					Arguments: expr.Arguments,
+				}
+				return i.evalMethodCall(mc)
+			}
+		}
+
+		// Not a unit-qualified call - could be a method call, let it fall through
+		// to be handled as a method call on an object
+		return i.newErrorWithLocation(expr, "cannot call member expression that is not a method or unit-qualified function")
+	}
+
+	// Get the function name
+	funcName, ok := expr.Function.(*ast.Identifier)
+	if !ok {
+		return newError("function call requires identifier or qualified name, got %T", expr.Function)
+	}
+
+	// Check if it's a user-defined function first
+	if overloads, exists := i.functions[funcName.Value]; exists && len(overloads) > 0 {
+		// Resolve overload based on argument types
+		fn, err := i.resolveOverload(funcName.Value, overloads, expr.Arguments)
+		if err != nil {
+			return i.newErrorWithLocation(expr, "%s", err.Error())
+		}
+
+		// Prepare arguments - lazy parameters get LazyThunks, var parameters get References, regular parameters get evaluated
+		args := make([]Value, len(expr.Arguments))
+		for idx, arg := range expr.Arguments {
+			// Check parameter flags
+			isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+			isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
+
+			if isLazy {
+				// For lazy parameters, create a LazyThunk with the unevaluated expression
+				// and the current environment (captured from call site)
+				args[idx] = NewLazyThunk(arg, i.env, i)
+			} else if isByRef {
+				// For var parameters, create a reference to the variable
+				// instead of copying its value
+				if argIdent, ok := arg.(*ast.Identifier); ok {
+					// Check if the variable is already a reference (var parameter passed through)
+					if val, exists := i.env.Get(argIdent.Value); exists {
+						if refVal, isRef := val.(*ReferenceValue); isRef {
+							// Already a reference - pass it through
+							args[idx] = refVal
+						} else {
+							// Regular variable - create a reference
+							args[idx] = &ReferenceValue{
+								Env:     i.env,
+								VarName: argIdent.Value,
+							}
+						}
+					} else {
+						// Variable doesn't exist - create reference anyway (will error on access)
+						args[idx] = &ReferenceValue{
+							Env:     i.env,
+							VarName: argIdent.Value,
+						}
+					}
+				} else {
+					// Var parameter must be a variable reference
+					return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+				}
+			} else {
+				// For regular parameters, evaluate the expression immediately
+				val := i.Eval(arg)
+				if isError(val) {
+					return val
+				}
+				args[idx] = val
+			}
+		}
+		return i.callUserFunction(fn, args)
+	}
+
+	// Check if this is an instance method call within the current context (implicit Self)
+	if selfVal, ok := i.env.Get("Self"); ok {
+		if obj, isObj := AsObject(selfVal); isObj {
+			if obj.GetMethod(funcName.Value) != nil {
+				mc := &ast.MethodCallExpression{
+					Token:     expr.Token,
+					Object:    &ast.Identifier{Token: funcName.Token, Value: "Self"},
+					Method:    funcName,
+					Arguments: expr.Arguments,
+				}
+				return i.evalMethodCall(mc)
+			}
+		}
+	}
+
+	// Check if this is a built-in function with var parameters
+	// These functions need the AST node for the first argument to modify it in place
+	if funcName.Value == "Inc" || funcName.Value == "Dec" || funcName.Value == "Insert" ||
+		(funcName.Value == "Delete" && len(expr.Arguments) == 3) ||
+		funcName.Value == "DecodeDate" || funcName.Value == "DecodeTime" ||
+		funcName.Value == "Swap" {
+		return i.callBuiltinWithVarParam(funcName.Value, expr.Arguments)
+	}
+
+	// Check if this is an external function with var parameters
+	// We need to check BEFORE evaluating args to create ReferenceValues
+	if i.externalFunctions != nil {
+		if extFunc, ok := i.externalFunctions.Get(funcName.Value); ok {
+			varParams := extFunc.Wrapper.GetVarParams()
+
+			// Prepare arguments - create ReferenceValues for var parameters
+			args := make([]Value, len(expr.Arguments))
+			for idx, arg := range expr.Arguments {
+				isVarParam := idx < len(varParams) && varParams[idx]
+
+				if isVarParam {
+					// For var parameters, create a reference
+					if argIdent, ok := arg.(*ast.Identifier); ok {
+						if val, exists := i.env.Get(argIdent.Value); exists {
+							if refVal, isRef := val.(*ReferenceValue); isRef {
+								args[idx] = refVal // Pass through existing reference
+							} else {
+								args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+							}
+						} else {
+							args[idx] = &ReferenceValue{Env: i.env, VarName: argIdent.Value}
+						}
+					} else {
+						return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+					}
+				} else {
+					// For regular parameters, evaluate immediately
+					val := i.Eval(arg)
+					if isError(val) {
+						return val
+					}
+					args[idx] = val
+				}
+			}
+
+			return i.callExternalFunction(extFunc, args)
+		}
+	}
+
+	// Task 9.8.3: Check if this is a type cast (TypeName(expression))
+	// Type casts look like function calls but the "function" name is actually a type name
+	if len(expr.Arguments) == 1 {
+		if castValue := i.evalTypeCast(funcName.Value, expr.Arguments[0]); castValue != nil {
+			return castValue
+		}
+	}
+
+	// Otherwise, try built-in functions
+	// Evaluate all arguments
+	args := make([]Value, len(expr.Arguments))
+	for idx, arg := range expr.Arguments {
+		val := i.Eval(arg)
+		if isError(val) {
+			return val
+		}
+		args[idx] = val
+	}
+
+	return i.callBuiltin(funcName.Value, args)
+}
+
+// normalizeBuiltinName normalizes a builtin function name to its canonical form
+// for case-insensitive matching (DWScript is case-insensitive).
+func normalizeBuiltinName(name string) string {
+	// Create a lowercase version for comparison
+	lower := strings.ToLower(name)
+
+	// Map of lowercase names to canonical names
+	// This allows case-insensitive function calls
+	canonicalNames := map[string]string{
+		"println": "PrintLn", "print": "Print", "ord": "Ord", "integer": "Integer",
+		"length": "Length", "copy": "Copy", "concat": "Concat", "indexof": "IndexOf",
+		"contains": "Contains", "reverse": "Reverse", "sort": "Sort", "pos": "Pos",
+		"uppercase": "UpperCase", "lowercase": "LowerCase", "trim": "Trim",
+		"trimleft": "TrimLeft", "trimright": "TrimRight", "stringreplace": "StringReplace",
+		"stringofchar": "StringOfChar", "substr": "SubStr", "substring": "SubString",
+		"leftstr": "LeftStr", "rightstr": "RightStr", "midstr": "MidStr",
+		"strbeginswith": "StrBeginsWith", "strendswith": "StrEndsWith", "strcontains": "StrContains",
+		"posex": "PosEx", "revpos": "RevPos", "strfind": "StrFind",
+		"format": "Format", "abs": "Abs", "min": "Min", "max": "Max",
+		"maxint": "MaxInt", "minint": "MinInt", "sqr": "Sqr", "power": "Power",
+		"sqrt": "Sqrt", "sin": "Sin", "cos": "Cos", "tan": "Tan",
+		"degtorad": "DegToRad", "radtodeg": "RadToDeg", "arcsin": "ArcSin",
+		"arccos": "ArcCos", "arctan": "ArcTan", "arctan2": "ArcTan2",
+		"cotan": "CoTan", "hypot": "Hypot", "sinh": "Sinh", "cosh": "Cosh",
+		"tanh": "Tanh", "arcsinh": "ArcSinh", "arccosh": "ArcCosh", "arctanh": "ArcTanh",
+		"random": "Random", "randomint": "RandomInt", "randomize": "Randomize",
+		"setrandseed": "SetRandSeed", "isnan": "IsNaN",
+		"unsigned32": "Unsigned32", "exp": "Exp", "ln": "Ln", "log2": "Log2",
+		"round": "Round", "trunc": "Trunc", "ceil": "Ceil", "floor": "Floor",
+		"low": "Low", "high": "High", "setlength": "SetLength", "add": "Add",
+		"delete": "Delete", "inttostr": "IntToStr", "inttobin": "IntToBin",
+		"strtoint": "StrToInt", "floattostr": "FloatToStr", "booltostr": "BoolToStr",
+		"strtofloat": "StrToFloat", "strtobool": "StrToBool",
+		"strtointdef": "StrToIntDef", "strtofloatdef": "StrToFloatDef",
+		"inc": "Inc", "dec": "Dec", "succ": "Succ",
+		"pred": "Pred", "assert": "Assert", "insert": "Insert",
+		"map": "Map", "filter": "Filter", "reduce": "Reduce", "foreach": "ForEach",
+		"now": "Now", "date": "Date", "time": "Time", "utcdatetime": "UTCDateTime",
+		"unixtime": "UnixTime", "unixtimemsec": "UnixTimeMSec",
+		"encodedate": "EncodeDate", "encodetime": "EncodeTime", "encodedatetime": "EncodeDateTime",
+		"decodedate": "DecodeDate", "decodetime": "DecodeTime",
+		"yearof": "YearOf", "monthof": "MonthOf", "dayof": "DayOf",
+		"hourof": "HourOf", "minuteof": "MinuteOf", "secondof": "SecondOf",
+		"dayofweek": "DayOfWeek", "dayoftheweek": "DayOfTheWeek",
+		"dayofyear": "DayOfYear", "weeknumber": "WeekNumber", "yearofweek": "YearOfWeek",
+		"formatdatetime": "FormatDateTime", "datetimetostr": "DateTimeToStr",
+		"datetostr": "DateToStr", "timetostr": "TimeToStr",
+		"datetoiso8601": "DateToISO8601", "datetimetoiso8601": "DateTimeToISO8601",
+		"datetimetorfc822": "DateTimeToRFC822",
+		"strtodate":        "StrToDate", "strtodatetime": "StrToDateTime", "strtotime": "StrToTime",
+		"iso8601todatetime": "ISO8601ToDateTime", "rfc822todatetime": "RFC822ToDateTime",
+		"incyear": "IncYear", "incmonth": "IncMonth", "incday": "IncDay",
+		"inchour": "IncHour", "incminute": "IncMinute", "incsecond": "IncSecond",
+		"daysbetween": "DaysBetween", "hoursbetween": "HoursBetween",
+		"minutesbetween": "MinutesBetween", "secondsbetween": "SecondsBetween",
+		"isleapyear": "IsLeapYear", "swap": "Swap",
+		"firstdayofyear": "FirstDayOfYear", "firstdayofnextyear": "FirstDayOfNextYear",
+		"firstdayofmonth": "FirstDayOfMonth", "firstdayofnextmonth": "FirstDayOfNextMonth",
+		"firstdayofweek":     "FirstDayOfWeek",
+		"unixtimetodatetime": "UnixTimeToDateTime", "datetimetounixtime": "DateTimeToUnixTime",
+		"unixtimemsectodatetime": "UnixTimeMSecToDateTime", "datetimetounixtimemsec": "DateTimeToUnixTimeMSec",
+		"vartype": "VarType", "varisnull": "VarIsNull", "varisempty": "VarIsEmpty",
+		"varisnumeric": "VarIsNumeric", "vartostr": "VarToStr", "vartoint": "VarToInt",
+		"vartofloat": "VarToFloat", "varastype": "VarAsType", "varclear": "VarClear",
+		"parsejson": "ParseJSON", "tojson": "ToJSON", "tojsonformatted": "ToJSONFormatted",
+		"jsonhasfield": "JSONHasField", "jsonkeys": "JSONKeys", "jsonvalues": "JSONValues",
+		"jsonlength":    "JSONLength",
+		"getstacktrace": "GetStackTrace", "getcallstack": "GetCallStack",
+	}
+
+	// Return canonical name if found, otherwise return original name
+	if canonical, ok := canonicalNames[lower]; ok {
+		return canonical
+	}
+	return name
+}
+
+// callBuiltin calls a built-in function by name.

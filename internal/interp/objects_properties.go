@@ -1,0 +1,693 @@
+package interp
+
+import (
+	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
+)
+
+// evalPropertyRead evaluates a property read access.
+// Handles field-backed, method-backed, and expression-backed properties.
+func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.PropertyInfo, node ast.Node) Value {
+	// Initialize property evaluation context if needed
+	if i.propContext == nil {
+		i.propContext = &PropertyEvalContext{
+			propertyChain: make([]string, 0),
+		}
+	}
+
+	// Check for circular property references
+	for _, prop := range i.propContext.propertyChain {
+		if prop == propInfo.Name {
+			return i.newErrorWithLocation(node, "circular property reference detected: %s", propInfo.Name)
+		}
+	}
+
+	// Push property onto chain
+	i.propContext.propertyChain = append(i.propContext.propertyChain, propInfo.Name)
+	defer func() {
+		// Pop property from chain when done
+		if len(i.propContext.propertyChain) > 0 {
+			i.propContext.propertyChain = i.propContext.propertyChain[:len(i.propContext.propertyChain)-1]
+		}
+		// Clear context if chain is empty
+		if len(i.propContext.propertyChain) == 0 {
+			i.propContext = nil
+		}
+	}()
+
+	switch propInfo.ReadKind {
+	case types.PropAccessField:
+		// Field or method access - check at runtime which it is
+		// First try as a field
+		if _, exists := obj.Class.Fields[propInfo.ReadSpec]; exists {
+			fieldValue := obj.GetField(propInfo.ReadSpec)
+			if fieldValue == nil {
+				return i.newErrorWithLocation(node, "property '%s' read field '%s' not found", propInfo.Name, propInfo.ReadSpec)
+			}
+			return fieldValue
+		}
+
+		// Not a field - try as a method (getter)
+		method := obj.Class.lookupMethod(propInfo.ReadSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "property '%s' read specifier '%s' not found as field or method", propInfo.Name, propInfo.ReadSpec)
+		}
+
+		// Indexed properties must be accessed with index syntax
+		if propInfo.IsIndexed {
+			return i.newErrorWithLocation(node, "indexed property '%s' requires index arguments (e.g., obj.%s[index])", propInfo.Name, propInfo.Name)
+		}
+
+		// Call the getter method
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// For functions, initialize the Result variable
+		// Use appropriate default value based on return type
+		if method.ReturnType != nil {
+			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+			defaultVal := i.getDefaultValue(returnType)
+			i.env.Define("Result", defaultVal)
+			// In DWScript, the method name can be used as an alias for Result
+			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		}
+
+		// Set flag to indicate we're inside a property getter
+		savedInGetter := i.propContext.inPropertyGetter
+		i.propContext.inPropertyGetter = true
+		defer func() {
+			i.propContext.inPropertyGetter = savedInGetter
+		}()
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Get return value
+		var returnValue Value
+		if method.ReturnType != nil {
+			if resultVal, ok := i.env.Get("Result"); ok {
+				returnValue = resultVal
+			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				returnValue = methodNameVal
+			} else {
+				returnValue = &NilValue{}
+			}
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return returnValue
+
+	case types.PropAccessMethod:
+		// Indexed properties must be accessed with index syntax
+		if propInfo.IsIndexed {
+			return i.newErrorWithLocation(node, "indexed property '%s' requires index arguments (e.g., obj.%s[index])", propInfo.Name, propInfo.Name)
+		}
+
+		// Check if method exists
+		method := obj.Class.lookupMethod(propInfo.ReadSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "property '%s' getter method '%s' not found", propInfo.Name, propInfo.ReadSpec)
+		}
+
+		// Call the getter method with no arguments
+		// Create method environment with Self bound to object
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// For functions, initialize the Result variable
+		// Task 9.221: Use appropriate default value based on return type
+		if method.ReturnType != nil {
+			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+			defaultVal := i.getDefaultValue(returnType)
+			i.env.Define("Result", defaultVal)
+			// In DWScript, the method name can be used as an alias for Result
+			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		}
+
+		// Task 9.32c: Set flag to indicate we're inside a property getter
+		savedInGetter := i.propContext.inPropertyGetter
+		i.propContext.inPropertyGetter = true
+		defer func() {
+			i.propContext.inPropertyGetter = savedInGetter
+		}()
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Get return value
+		var returnValue Value
+		if method.ReturnType != nil {
+			if resultVal, ok := i.env.Get("Result"); ok {
+				returnValue = resultVal
+			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				returnValue = methodNameVal
+			} else {
+				returnValue = &NilValue{}
+			}
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return returnValue
+
+	case types.PropAccessExpression:
+		// Task 9.3c: Expression access - evaluate expression in context of object
+		// Retrieve the AST expression from PropertyInfo
+		if propInfo.ReadExpr == nil {
+			return i.newErrorWithLocation(node, "property '%s' has expression-based getter but no expression stored", propInfo.Name)
+		}
+
+		// Type-assert to ast.Expression
+		exprNode, ok := propInfo.ReadExpr.(ast.Expression)
+		if !ok {
+			return i.newErrorWithLocation(node, "property '%s' has invalid expression type", propInfo.Name)
+		}
+
+		// Unwrap GroupedExpression if present (parser wraps expressions in parentheses)
+		if groupedExpr, ok := exprNode.(*ast.GroupedExpression); ok {
+			exprNode = groupedExpr.Expression
+		}
+
+		// Create new environment with Self bound to object
+		exprEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = exprEnv
+
+		// Bind Self to the object instance
+		i.env.Define("Self", obj)
+
+		// Bind all object fields to environment so they can be accessed directly
+		// This allows expressions like (FWidth * FHeight) to work
+		for fieldName, fieldValue := range obj.Fields {
+			i.env.Define(fieldName, fieldValue)
+		}
+
+		// Evaluate the expression AST node
+		result := i.Eval(exprNode)
+
+		// Restore environment
+		i.env = savedEnv
+
+		return result
+
+	default:
+		return i.newErrorWithLocation(node, "property '%s' has no read access", propInfo.Name)
+	}
+}
+
+// evalClassPropertyRead evaluates a class property read operation: TClass.PropertyName
+// Task 9.13: Handles reading class (static) properties.
+func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *types.PropertyInfo, node ast.Node) Value {
+	// Indexed properties must be accessed with index syntax
+	if propInfo.IsIndexed {
+		return i.newErrorWithLocation(node, "indexed class property '%s' requires index arguments", propInfo.Name)
+	}
+
+	switch propInfo.ReadKind {
+	case types.PropAccessField:
+		// Field or method access - check at runtime which it is
+		// First try as a class variable
+		if classVarValue, exists := classInfo.ClassVars[propInfo.ReadSpec]; exists {
+			return classVarValue
+		}
+
+		// Not a class variable - try as a class method
+		method := i.lookupClassMethodInHierarchy(classInfo, propInfo.ReadSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "class property '%s' read specifier '%s' not found as class variable or class method", propInfo.Name, propInfo.ReadSpec)
+		}
+
+		// Call the class method getter
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind all class variables to environment so they can be accessed directly
+		for classVarName, classVarValue := range classInfo.ClassVars {
+			i.env.Define(classVarName, classVarValue)
+		}
+
+		// For functions, initialize the Result variable
+		if method.ReturnType != nil {
+			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+			defaultVal := i.getDefaultValue(returnType)
+			i.env.Define("Result", defaultVal)
+			// In DWScript, the method name can be used as an alias for Result
+			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Get return value
+		var returnValue Value
+		if method.ReturnType != nil {
+			if resultVal, ok := i.env.Get("Result"); ok {
+				returnValue = resultVal
+			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				returnValue = methodNameVal
+			} else {
+				returnValue = &NilValue{}
+			}
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return returnValue
+
+	case types.PropAccessMethod:
+		// Call the class method getter
+		method := i.lookupClassMethodInHierarchy(classInfo, propInfo.ReadSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "class property '%s' getter method '%s' not found", propInfo.Name, propInfo.ReadSpec)
+		}
+
+		// Create method environment (no Self binding for class methods)
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind all class variables to environment so they can be accessed directly
+		for classVarName, classVarValue := range classInfo.ClassVars {
+			i.env.Define(classVarName, classVarValue)
+		}
+
+		// For functions, initialize the Result variable
+		if method.ReturnType != nil {
+			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+			defaultVal := i.getDefaultValue(returnType)
+			i.env.Define("Result", defaultVal)
+			// In DWScript, the method name can be used as an alias for Result
+			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Get return value
+		var returnValue Value
+		if method.ReturnType != nil {
+			if resultVal, ok := i.env.Get("Result"); ok {
+				returnValue = resultVal
+			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				returnValue = methodNameVal
+			} else {
+				returnValue = &NilValue{}
+			}
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return returnValue
+
+	default:
+		return i.newErrorWithLocation(node, "class property '%s' has no read access", propInfo.Name)
+	}
+}
+
+// evalClassPropertyWrite evaluates a class property write operation: TClass.PropertyName := value
+// Task 9.14: Handles writing to class (static) properties.
+func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *types.PropertyInfo, value Value, node ast.Node) Value {
+	// Indexed properties must be written with index syntax
+	if propInfo.IsIndexed {
+		return i.newErrorWithLocation(node, "indexed class property '%s' requires index arguments", propInfo.Name)
+	}
+
+	// Check if property has write access
+	if propInfo.WriteKind == types.PropAccessNone {
+		return i.newErrorWithLocation(node, "class property '%s' is read-only", propInfo.Name)
+	}
+
+	switch propInfo.WriteKind {
+	case types.PropAccessField:
+		// Field or method access - check at runtime which it is
+		// First try as a class variable
+		if _, exists := classInfo.ClassVars[propInfo.WriteSpec]; exists {
+			classInfo.ClassVars[propInfo.WriteSpec] = value
+			return value
+		}
+
+		// Not a class variable - try as a class method
+		method := i.lookupClassMethodInHierarchy(classInfo, propInfo.WriteSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "class property '%s' write specifier '%s' not found as class variable or class method", propInfo.Name, propInfo.WriteSpec)
+		}
+
+		// Call the class method setter
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind all class variables to environment so they can be accessed directly
+		for classVarName, classVarValue := range classInfo.ClassVars {
+			i.env.Define(classVarName, classVarValue)
+		}
+
+		// Bind the value parameter
+		if len(method.Parameters) > 0 {
+			i.env.Define(method.Parameters[0].Name.Value, value)
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Update class variables from environment (in case they were modified)
+		for classVarName := range classInfo.ClassVars {
+			if val, ok := i.env.Get(classVarName); ok {
+				classInfo.ClassVars[classVarName] = val
+			}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return value
+
+	case types.PropAccessMethod:
+		// Call the class method setter
+		method := i.lookupClassMethodInHierarchy(classInfo, propInfo.WriteSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "class property '%s' setter method '%s' not found", propInfo.Name, propInfo.WriteSpec)
+		}
+
+		// Create method environment (no Self binding for class methods)
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind all class variables to environment so they can be accessed directly
+		for classVarName, classVarValue := range classInfo.ClassVars {
+			i.env.Define(classVarName, classVarValue)
+		}
+
+		// Bind the value parameter
+		if len(method.Parameters) > 0 {
+			i.env.Define(method.Parameters[0].Name.Value, value)
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Update class variables from environment (in case they were modified)
+		for classVarName := range classInfo.ClassVars {
+			if val, ok := i.env.Get(classVarName); ok {
+				classInfo.ClassVars[classVarName] = val
+			}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return value
+
+	default:
+		return i.newErrorWithLocation(node, "class property '%s' has no write access", propInfo.Name)
+	}
+}
+
+// evalIndexedPropertyRead evaluates an indexed property read operation: obj.Property[index]
+// Support indexed property reads end-to-end.
+// Calls the property getter method with index parameter(s).
+func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *types.PropertyInfo, indices []Value, node ast.Node) Value {
+	// Note: PropAccessKind is set to PropAccessField at registration time for both fields and methods
+	// We need to check at runtime whether it's actually a field or method
+	switch propInfo.ReadKind {
+	case types.PropAccessField, types.PropAccessMethod:
+		// Check if it's actually a field (not allowed for indexed properties)
+		if _, exists := obj.Class.Fields[propInfo.ReadSpec]; exists {
+			return i.newErrorWithLocation(node, "indexed property '%s' requires a getter method, not a field", propInfo.Name)
+		}
+
+		// Look up the getter method
+		method := obj.Class.lookupMethod(propInfo.ReadSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "indexed property '%s' getter method '%s' not found", propInfo.Name, propInfo.ReadSpec)
+		}
+
+		// Verify method has correct number of parameters (index params, no value param)
+		expectedParamCount := len(indices)
+		if len(method.Parameters) != expectedParamCount {
+			return i.newErrorWithLocation(node, "indexed property '%s' getter method '%s' expects %d parameter(s), got %d index argument(s)",
+				propInfo.Name, propInfo.ReadSpec, len(method.Parameters), len(indices))
+		}
+
+		// Create method environment
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// Bind index parameters
+		for idx, param := range method.Parameters {
+			if idx < len(indices) {
+				i.env.Define(param.Name.Value, indices[idx])
+			}
+		}
+
+		// For functions, initialize the Result variable
+		// Task 9.221: Use appropriate default value based on return type
+		if method.ReturnType != nil {
+			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+			defaultVal := i.getDefaultValue(returnType)
+			i.env.Define("Result", defaultVal)
+			// In DWScript, the method name can be used as an alias for Result
+			i.env.Define(method.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Get return value
+		var returnValue Value
+		if method.ReturnType != nil {
+			if resultVal, ok := i.env.Get("Result"); ok {
+				returnValue = resultVal
+			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				returnValue = methodNameVal
+			} else {
+				returnValue = &NilValue{}
+			}
+		} else {
+			returnValue = &NilValue{}
+		}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return returnValue
+
+	case types.PropAccessExpression:
+		// Expression-based indexed properties not supported yet
+		return i.newErrorWithLocation(node, "expression-based indexed property getters not yet supported")
+
+	default:
+		return i.newErrorWithLocation(node, "indexed property '%s' has no read access", propInfo.Name)
+	}
+}
+
+// evalIndexedPropertyWrite evaluates an indexed property write operation: obj.Property[index] := value
+// Task 9.2b: Support indexed property writes.
+// Calls the property setter method with index parameter(s) followed by the value.
+func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *types.PropertyInfo, indices []Value, value Value, node ast.Node) Value {
+	// Note: PropAccessKind is set to PropAccessField at registration time for both fields and methods
+	// We need to check at runtime whether it's actually a field or method
+	switch propInfo.WriteKind {
+	case types.PropAccessField, types.PropAccessMethod:
+		// Check if it's actually a field (not allowed for indexed properties)
+		if _, exists := obj.Class.Fields[propInfo.WriteSpec]; exists {
+			return i.newErrorWithLocation(node, "indexed property '%s' requires a setter method, not a field", propInfo.Name)
+		}
+
+		// Look up the setter method
+		method := obj.Class.lookupMethod(propInfo.WriteSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "indexed property '%s' setter method '%s' not found", propInfo.Name, propInfo.WriteSpec)
+		}
+
+		// Verify method has correct number of parameters (index params + value param)
+		expectedParamCount := len(indices) + 1 // indices + value
+		if len(method.Parameters) != expectedParamCount {
+			return i.newErrorWithLocation(node, "indexed property '%s' setter method '%s' expects %d parameter(s) (indices + value), got %d",
+				propInfo.Name, propInfo.WriteSpec, expectedParamCount, len(method.Parameters))
+		}
+
+		// Create method environment
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// Bind index parameters (all but the last parameter)
+		for idx := 0; idx < len(indices); idx++ {
+			if idx < len(method.Parameters) {
+				i.env.Define(method.Parameters[idx].Name.Value, indices[idx])
+			}
+		}
+
+		// Bind value parameter (last parameter)
+		if len(method.Parameters) > 0 {
+			lastParamIdx := len(method.Parameters) - 1
+			i.env.Define(method.Parameters[lastParamIdx].Name.Value, value)
+		}
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Restore environment
+		i.env = savedEnv
+
+		// DWScript assignment is an expression that returns the assigned value
+		return value
+
+	case types.PropAccessNone:
+		// Read-only property
+		return i.newErrorWithLocation(node, "indexed property '%s' is read-only", propInfo.Name)
+
+	default:
+		return i.newErrorWithLocation(node, "indexed property '%s' has no write access", propInfo.Name)
+	}
+}
+
+// evalPropertyWrite evaluates a property write access.
+// Handles field-backed and method-backed property setters.
+func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.PropertyInfo, value Value, node ast.Node) Value {
+	// Task 9.32c: Initialize property evaluation context if needed
+	if i.propContext == nil {
+		i.propContext = &PropertyEvalContext{
+			propertyChain: make([]string, 0),
+		}
+	}
+
+	// Task 9.32c: Check for circular property references
+	for _, prop := range i.propContext.propertyChain {
+		if prop == propInfo.Name {
+			return i.newErrorWithLocation(node, "circular property reference detected: %s", propInfo.Name)
+		}
+	}
+
+	// Task 9.32c: Push property onto chain
+	i.propContext.propertyChain = append(i.propContext.propertyChain, propInfo.Name)
+	defer func() {
+		// Pop property from chain when done
+		if len(i.propContext.propertyChain) > 0 {
+			i.propContext.propertyChain = i.propContext.propertyChain[:len(i.propContext.propertyChain)-1]
+		}
+		// Clear context if chain is empty
+		if len(i.propContext.propertyChain) == 0 {
+			i.propContext = nil
+		}
+	}()
+
+	switch propInfo.WriteKind {
+	case types.PropAccessField:
+		// Field or method access - check at runtime which it is
+		// First try as a field
+		if _, exists := obj.Class.Fields[propInfo.WriteSpec]; exists {
+			obj.SetField(propInfo.WriteSpec, value)
+			return value
+		}
+
+		// Not a field - try as a method (setter)
+		method := obj.Class.lookupMethod(propInfo.WriteSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "property '%s' write specifier '%s' not found as field or method", propInfo.Name, propInfo.WriteSpec)
+		}
+
+		// Call the setter method with the value as argument
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// Bind the value parameter (setter should have exactly one parameter)
+		if len(method.Parameters) >= 1 {
+			paramName := method.Parameters[0].Name.Value
+			i.env.Define(paramName, value)
+		}
+
+		// Task 9.32c: Set flag to indicate we're inside a property setter
+		savedInSetter := i.propContext.inPropertySetter
+		i.propContext.inPropertySetter = true
+		defer func() {
+			i.propContext.inPropertySetter = savedInSetter
+		}()
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Restore environment
+		i.env = savedEnv
+
+		return value
+
+	case types.PropAccessMethod:
+		// Check if method exists
+		method := obj.Class.lookupMethod(propInfo.WriteSpec)
+		if method == nil {
+			return i.newErrorWithLocation(node, "property '%s' setter method '%s' not found", propInfo.Name, propInfo.WriteSpec)
+		}
+
+		// Call the setter method with the value as argument
+		// Create method environment with Self bound to object
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
+
+		// Bind Self to the object
+		i.env.Define("Self", obj)
+
+		// Bind the value parameter (setter should have exactly one parameter)
+		if len(method.Parameters) >= 1 {
+			i.env.Define(method.Parameters[0].Name.Value, value)
+		}
+
+		// Task 9.32c: Set flag to indicate we're inside a property setter
+		savedInSetter := i.propContext.inPropertySetter
+		i.propContext.inPropertySetter = true
+		defer func() {
+			i.propContext.inPropertySetter = savedInSetter
+		}()
+
+		// Execute method body
+		i.Eval(method.Body)
+
+		// Restore environment
+		i.env = savedEnv
+
+		return value
+
+	case types.PropAccessNone:
+		// Read-only property
+		return i.newErrorWithLocation(node, "property '%s' is read-only", propInfo.Name)
+
+	default:
+		return i.newErrorWithLocation(node, "property '%s' has no write access", propInfo.Name)
+	}
+}

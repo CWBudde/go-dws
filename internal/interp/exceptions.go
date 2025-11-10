@@ -54,9 +54,9 @@ func (i *Interpreter) registerBuiltinExceptions() {
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Create"},
 			Value: "Create",
 		},
-		Parameters:   []*ast.Parameter{}, // No parameters
-		ReturnType:   nil,                 // Constructors don't have explicit return types
-		Body:         &ast.BlockStatement{Statements: []ast.Statement{}}, // Empty body
+		Parameters:    []*ast.Parameter{},                                 // No parameters
+		ReturnType:    nil,                                                // Constructors don't have explicit return types
+		Body:          &ast.BlockStatement{Statements: []ast.Statement{}}, // Empty body
 		IsConstructor: true,
 	}
 	objectClass.Constructors["Create"] = createConstructor
