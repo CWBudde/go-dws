@@ -237,6 +237,14 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			// This is static access: TClass.Variable
 			memberName := ma.Member.Value
 
+			// Check for built-in ClassType and ClassName properties (case-insensitive)
+			if strings.EqualFold(memberName, "ClassType") {
+				return &ClassValue{ClassInfo: classInfo}
+			}
+			if strings.EqualFold(memberName, "ClassName") {
+				return &StringValue{Value: classInfo.Name}
+			}
+
 			// 1. Try class variables first
 			if classVarValue, exists := classInfo.ClassVars[memberName]; exists {
 				return classVarValue
