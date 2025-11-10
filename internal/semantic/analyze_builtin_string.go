@@ -311,6 +311,17 @@ func (a *Analyzer) analyzeStringOfChar(args []ast.Expression, callExpr *ast.Call
 		a.addError("function 'StringOfChar' expects string as first argument, got %s at %s",
 			arg1Type.String(), callExpr.Token.Pos.String())
 	}
+
+	// Validate that the first argument is a single character if it's a string literal
+	if stringLit, ok := args[0].(*ast.StringLiteral); ok {
+		// Count runes to handle UTF-8 correctly
+		runeCount := len([]rune(stringLit.Value))
+		if runeCount != 1 {
+			a.addError("function 'StringOfChar' expects a single char as first argument, got string of length %d at %s",
+				runeCount, callExpr.Token.Pos.String())
+		}
+	}
+
 	// Second argument: count (integer)
 	arg2Type := a.analyzeExpression(args[1])
 	if arg2Type != nil && arg2Type != types.INTEGER {
