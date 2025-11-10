@@ -166,22 +166,42 @@ func (i *Interpreter) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) *types.
 }
 
 // resolveOverload selects the best matching function overload based on argument types.
-func (i *Interpreter) resolveOverload(funcName string, overloads []*ast.FunctionDecl, argExprs []ast.Expression) (*ast.FunctionDecl, error) {
-	// If only one overload, use it (fast path)
+func (i *Interpreter) resolveOverload(funcName string, overloads []*ast.FunctionDecl, argExprs []ast.Expression) (*ast.FunctionDecl, []Value, error) {
+	// Fast path: if only one overload, check for lazy parameters and skip evaluation
 	if len(overloads) == 1 {
-		return overloads[0], nil
+		fn := overloads[0]
+		argValues := make([]Value, len(argExprs))
+		for idx, argExpr := range argExprs {
+			// Check if this parameter is lazy
+			isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
+			if isLazy {
+				// Don't evaluate lazy parameters - mark as nil
+				argValues[idx] = nil
+			} else {
+				// Evaluate non-lazy parameters
+				val := i.Eval(argExpr)
+				if isError(val) {
+					return nil, nil, fmt.Errorf("error evaluating argument %d: %v", idx+1, val)
+				}
+				argValues[idx] = val
+			}
+		}
+		return fn, argValues, nil
 	}
 
-	// Evaluate arguments to get their types (for non-lazy, non-var params)
-	// We need to evaluate them to determine types for overload resolution
+	// Multiple overloads: evaluate all arguments for type checking
+	// Note: For overloaded functions, lazy parameters will be evaluated twice
+	// (once here for overload resolution, once when accessed). This is a known limitation.
 	argTypes := make([]types.Type, len(argExprs))
+	argValues := make([]Value, len(argExprs))
 	for idx, argExpr := range argExprs {
 		// Evaluate the argument to get its value and type
 		val := i.Eval(argExpr)
 		if isError(val) {
-			return nil, fmt.Errorf("error evaluating argument %d: %v", idx+1, val)
+			return nil, nil, fmt.Errorf("error evaluating argument %d: %v", idx+1, val)
 		}
 		argTypes[idx] = i.getValueType(val)
+		argValues[idx] = val
 	}
 
 	// Convert function declarations to semantic symbols for resolution
@@ -190,7 +210,7 @@ func (i *Interpreter) resolveOverload(funcName string, overloads []*ast.Function
 	for idx, fn := range overloads {
 		funcType := i.extractFunctionType(fn)
 		if funcType == nil {
-			return nil, fmt.Errorf("unable to extract function type for overload %d of '%s'", idx+1, funcName)
+			return nil, nil, fmt.Errorf("unable to extract function type for overload %d of '%s'", idx+1, funcName)
 		}
 
 		candidates[idx] = &semantic.Symbol{
@@ -204,7 +224,7 @@ func (i *Interpreter) resolveOverload(funcName string, overloads []*ast.Function
 	selected, err := semantic.ResolveOverload(candidates, argTypes)
 	if err != nil {
 		// Use DWScript-compatible error message
-		return nil, fmt.Errorf("There is no overloaded version of \"%s\" that can be called with these arguments", funcName)
+		return nil, nil, fmt.Errorf("There is no overloaded version of \"%s\" that can be called with these arguments", funcName)
 	}
 
 	// Find which function declaration corresponds to the selected symbol
@@ -214,11 +234,11 @@ func (i *Interpreter) resolveOverload(funcName string, overloads []*ast.Function
 		fnType := i.extractFunctionType(fn)
 		if fnType != nil && semantic.SignaturesEqual(fnType, selectedType) &&
 			fnType.ReturnType.Equals(selectedType.ReturnType) {
-			return fn, nil
+			return fn, argValues, nil
 		}
 	}
 
-	return nil, fmt.Errorf("internal error: resolved overload not found in candidate list")
+	return nil, nil, fmt.Errorf("internal error: resolved overload not found in candidate list")
 }
 
 // extractFunctionType extracts a types.FunctionType from an ast.FunctionDecl
@@ -303,14 +323,35 @@ func (i *Interpreter) getValueType(val Value) types.Type {
 // Returns the cast value if this is a valid type cast, or nil if not a type cast.
 // Task 9.8.3: Runtime type cast execution
 func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
-	// Evaluate the argument
+	// First check if this is actually a type cast before evaluating the argument
+	// This prevents double evaluation when it's not a type cast
+	isTypeCast := false
+	lowerName := strings.ToLower(typeName)
+
+	// Check if it's a built-in type
+	switch lowerName {
+	case "integer", "float", "string", "boolean", "variant":
+		isTypeCast = true
+	default:
+		// Check if it's a class/interface type
+		if i.lookupClassInfo(typeName) != nil {
+			isTypeCast = true
+		}
+	}
+
+	// If it's not a type cast, return nil without evaluating
+	if !isTypeCast {
+		return nil
+	}
+
+	// Now evaluate the argument since we know it's a type cast
 	val := i.Eval(arg)
 	if isError(val) {
 		return val
 	}
 
-	// Check for built-in type casts (case-insensitive)
-	switch strings.ToLower(typeName) {
+	// Perform the type cast
+	switch lowerName {
 	case "integer":
 		return i.castToInteger(val)
 	case "float":
@@ -323,12 +364,9 @@ func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
 		// Variant can accept any value
 		return &VariantValue{Value: val}
 	default:
-		// Check if it's a class/interface type
-		if classInfo := i.lookupClassInfo(typeName); classInfo != nil {
-			return i.castToClass(val, classInfo, arg)
-		}
-		// Not a type cast
-		return nil
+		// Must be a class/interface type (we already checked above)
+		classInfo := i.lookupClassInfo(typeName)
+		return i.castToClass(val, classInfo, arg)
 	}
 }
 

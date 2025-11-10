@@ -283,6 +283,80 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return types.VOID
 		}
 
+		if strings.EqualFold(funcIdent.Value, "Every") {
+			// Every(array, predicate) -> Boolean
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'Every' expects 2 arguments (array, predicate), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			a.analyzeExpression(expr.Arguments[0])
+			a.analyzeExpression(expr.Arguments[1])
+
+			return types.BOOLEAN
+		}
+
+		if strings.EqualFold(funcIdent.Value, "Some") {
+			// Some(array, predicate) -> Boolean
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'Some' expects 2 arguments (array, predicate), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			a.analyzeExpression(expr.Arguments[0])
+			a.analyzeExpression(expr.Arguments[1])
+
+			return types.BOOLEAN
+		}
+
+		if strings.EqualFold(funcIdent.Value, "Find") {
+			// Find(array, predicate) -> Variant
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'Find' expects 2 arguments (array, predicate), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			arrayType := a.analyzeExpression(expr.Arguments[0])
+			a.analyzeExpression(expr.Arguments[1])
+
+			// Return element type if array, else Variant
+			if arrType, ok := arrayType.(*types.ArrayType); ok {
+				return arrType.ElementType
+			}
+			return types.VARIANT
+		}
+
+		if strings.EqualFold(funcIdent.Value, "FindIndex") {
+			// FindIndex(array, predicate) -> Integer
+			if len(expr.Arguments) != 2 {
+				a.addError("function 'FindIndex' expects 2 arguments (array, predicate), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			a.analyzeExpression(expr.Arguments[0])
+			a.analyzeExpression(expr.Arguments[1])
+
+			return types.INTEGER
+		}
+
+		if strings.EqualFold(funcIdent.Value, "Slice") {
+			// Slice(array, start, end) -> array
+			if len(expr.Arguments) != 3 {
+				a.addError("function 'Slice' expects 3 arguments (array, start, end), got %d at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+				return types.VOID
+			}
+			arrayType := a.analyzeExpression(expr.Arguments[0])
+			a.analyzeExpression(expr.Arguments[1])
+			a.analyzeExpression(expr.Arguments[2])
+
+			// Verify first argument is an array
+			if arrType, ok := arrayType.(*types.ArrayType); ok {
+				return arrType // Return same array type
+			}
+			return types.VOID
+		}
+
 		// Task 9.95-9.97: Current date/time functions
 
 		// Allow calling methods within the current class without explicit Self

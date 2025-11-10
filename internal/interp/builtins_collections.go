@@ -1,5 +1,9 @@
 package interp
 
+import (
+	"github.com/cwbudde/go-dws/internal/types"
+)
+
 // builtinMap implements the Map() built-in function.
 //
 // Signature: Map(array, lambda) -> array
@@ -229,4 +233,401 @@ func (i *Interpreter) builtinForEach(args []Value) Value {
 
 	// ForEach returns nil (used for side effects)
 	return &NilValue{}
+}
+
+// builtinEvery implements the Every() built-in function.
+//
+// Signature: Every(array, predicate) -> Boolean
+// - array: The source array to check
+// - predicate: A function that takes one element and returns Boolean
+//
+// Returns: true if all elements match predicate, false otherwise (short-circuits on first false)
+//
+// Example:
+//
+//	var numbers := [2, 4, 6, 8];
+//	var allEven := Every(numbers, lambda(x: Integer): Boolean => (x mod 2) = 0);
+//	// Result: true
+func (i *Interpreter) builtinEvery(args []Value) Value {
+	// Validate argument count
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Every() expects 2 arguments (array, predicate), got %d", len(args))
+	}
+
+	// First argument must be an array
+	arrayVal, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Every() first argument must be an array, got %s", args[0].Type())
+	}
+
+	// Second argument must be a function pointer (lambda)
+	predicateVal, ok := args[1].(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Every() second argument must be a lambda/function, got %s", args[1].Type())
+	}
+
+	// Apply predicate to each element, short-circuit on first false
+	for _, element := range arrayVal.Elements {
+		// Call the predicate with the current element
+		callArgs := []Value{element}
+		result := i.callFunctionPointer(predicateVal, callArgs, i.currentNode)
+
+		// Check for errors
+		if isError(result) {
+			return result
+		}
+
+		// Check if exception was raised
+		if i.exception != nil {
+			return &BooleanValue{Value: false}
+		}
+
+		// Check for nil result
+		if result == nil {
+			return i.newErrorWithLocation(i.currentNode, "Every() predicate returned nil")
+		}
+
+		// Predicate must return boolean
+		boolResult, ok := result.(*BooleanValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "Every() predicate must return Boolean, got %s", result.Type())
+		}
+
+		// If predicate is false, return false immediately (short-circuit)
+		if !boolResult.Value {
+			return &BooleanValue{Value: false}
+		}
+	}
+
+	// All elements passed the predicate
+	return &BooleanValue{Value: true}
+}
+
+// builtinSome implements the Some() built-in function.
+//
+// Signature: Some(array, predicate) -> Boolean
+// - array: The source array to check
+// - predicate: A function that takes one element and returns Boolean
+//
+// Returns: true if any element matches predicate, false otherwise (short-circuits on first true)
+//
+// Example:
+//
+//	var numbers := [1, 3, 5, 6, 7];
+//	var hasEven := Some(numbers, lambda(x: Integer): Boolean => (x mod 2) = 0);
+//	// Result: true
+func (i *Interpreter) builtinSome(args []Value) Value {
+	// Validate argument count
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Some() expects 2 arguments (array, predicate), got %d", len(args))
+	}
+
+	// First argument must be an array
+	arrayVal, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Some() first argument must be an array, got %s", args[0].Type())
+	}
+
+	// Second argument must be a function pointer (lambda)
+	predicateVal, ok := args[1].(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Some() second argument must be a lambda/function, got %s", args[1].Type())
+	}
+
+	// Apply predicate to each element, short-circuit on first true
+	for _, element := range arrayVal.Elements {
+		// Call the predicate with the current element
+		callArgs := []Value{element}
+		result := i.callFunctionPointer(predicateVal, callArgs, i.currentNode)
+
+		// Check for errors
+		if isError(result) {
+			return result
+		}
+
+		// Check if exception was raised
+		if i.exception != nil {
+			return &BooleanValue{Value: false}
+		}
+
+		// Check for nil result
+		if result == nil {
+			return i.newErrorWithLocation(i.currentNode, "Some() predicate returned nil")
+		}
+
+		// Predicate must return boolean
+		boolResult, ok := result.(*BooleanValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "Some() predicate must return Boolean, got %s", result.Type())
+		}
+
+		// If predicate is true, return true immediately (short-circuit)
+		if boolResult.Value {
+			return &BooleanValue{Value: true}
+		}
+	}
+
+	// No elements passed the predicate
+	return &BooleanValue{Value: false}
+}
+
+// builtinFind implements the Find() built-in function.
+//
+// Signature: Find(array, predicate) -> Variant
+// - array: The source array to search
+// - predicate: A function that takes one element and returns Boolean
+//
+// Returns: First element matching predicate, or nil if not found
+//
+// Example:
+//
+//	var numbers := [1, 2, 3, 4, 5];
+//	var found := Find(numbers, lambda(x: Integer): Boolean => x > 3);
+//	// Result: 4
+func (i *Interpreter) builtinFind(args []Value) Value {
+	// Validate argument count
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "Find() expects 2 arguments (array, predicate), got %d", len(args))
+	}
+
+	// First argument must be an array
+	arrayVal, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Find() first argument must be an array, got %s", args[0].Type())
+	}
+
+	// Second argument must be a function pointer (lambda)
+	predicateVal, ok := args[1].(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Find() second argument must be a lambda/function, got %s", args[1].Type())
+	}
+
+	// Apply predicate to each element
+	for _, element := range arrayVal.Elements {
+		// Call the predicate with the current element
+		callArgs := []Value{element}
+		result := i.callFunctionPointer(predicateVal, callArgs, i.currentNode)
+
+		// Check for errors
+		if isError(result) {
+			return result
+		}
+
+		// Check if exception was raised
+		if i.exception != nil {
+			return &NilValue{}
+		}
+
+		// Check for nil result
+		if result == nil {
+			return i.newErrorWithLocation(i.currentNode, "Find() predicate returned nil")
+		}
+
+		// Predicate must return boolean
+		boolResult, ok := result.(*BooleanValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "Find() predicate must return Boolean, got %s", result.Type())
+		}
+
+		// If predicate is true, return this element
+		if boolResult.Value {
+			return element
+		}
+	}
+
+	// No element found
+	return &NilValue{}
+}
+
+// builtinFindIndex implements the FindIndex() built-in function.
+//
+// Signature: FindIndex(array, predicate) -> Integer
+// - array: The source array to search
+// - predicate: A function that takes one element and returns Boolean
+//
+// Returns: Index of first element matching predicate, or -1 if not found
+//
+// Example:
+//
+//	var numbers := [1, 2, 3, 4, 5];
+//	var index := FindIndex(numbers, lambda(x: Integer): Boolean => x > 3);
+//	// Result: 3 (zero-based index of value 4)
+func (i *Interpreter) builtinFindIndex(args []Value) Value {
+	// Validate argument count
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "FindIndex() expects 2 arguments (array, predicate), got %d", len(args))
+	}
+
+	// First argument must be an array
+	arrayVal, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "FindIndex() first argument must be an array, got %s", args[0].Type())
+	}
+
+	// Second argument must be a function pointer (lambda)
+	predicateVal, ok := args[1].(*FunctionPointerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "FindIndex() second argument must be a lambda/function, got %s", args[1].Type())
+	}
+
+	// Apply predicate to each element
+	for idx, element := range arrayVal.Elements {
+		// Call the predicate with the current element
+		callArgs := []Value{element}
+		result := i.callFunctionPointer(predicateVal, callArgs, i.currentNode)
+
+		// Check for errors
+		if isError(result) {
+			return result
+		}
+
+		// Check if exception was raised
+		if i.exception != nil {
+			return &IntegerValue{Value: -1}
+		}
+
+		// Check for nil result
+		if result == nil {
+			return i.newErrorWithLocation(i.currentNode, "FindIndex() predicate returned nil")
+		}
+
+		// Predicate must return boolean
+		boolResult, ok := result.(*BooleanValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "FindIndex() predicate must return Boolean, got %s", result.Type())
+		}
+
+		// If predicate is true, return this index (adjusted for array's low bound)
+		if boolResult.Value {
+			// Calculate the actual index based on the array's low bound
+			lowBound := int64(0)
+			if arrayVal.ArrayType != nil && arrayVal.ArrayType.LowBound != nil {
+				lowBound = int64(*arrayVal.ArrayType.LowBound)
+			}
+			actualIndex := lowBound + int64(idx)
+			return &IntegerValue{Value: actualIndex}
+		}
+	}
+
+	// No element found
+	return &IntegerValue{Value: -1}
+}
+
+// builtinConcatArrays implements array concatenation for the Concat() built-in function.
+//
+// Signature: Concat(arr1, arr2, ...) -> array
+// - arr1, arr2, ...: Arrays to concatenate
+//
+// Returns: New array containing all elements from input arrays
+//
+// Example:
+//
+//	var a := [1, 2];
+//	var b := [3, 4];
+//	var c := Concat(a, b);
+//	// Result: [1, 2, 3, 4]
+func (i *Interpreter) builtinConcatArrays(args []Value) Value {
+	// Validate argument count
+	if len(args) < 1 {
+		return i.newErrorWithLocation(i.currentNode, "Concat() expects at least 1 argument, got %d", len(args))
+	}
+
+	// Collect all elements from all arrays
+	var resultElements []Value
+	var firstArrayType *types.ArrayType
+
+	for argIdx, arg := range args {
+		// Each argument must be an array
+		arrayVal, ok := arg.(*ArrayValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "Concat() argument %d must be an array, got %s", argIdx+1, arg.Type())
+		}
+
+		// Store the type of the first array to use for the result
+		if firstArrayType == nil && arrayVal.ArrayType != nil {
+			firstArrayType = arrayVal.ArrayType
+		}
+
+		// Append all elements from this array
+		resultElements = append(resultElements, arrayVal.Elements...)
+	}
+
+	// Create and return new array with concatenated elements
+	return &ArrayValue{
+		Elements:  resultElements,
+		ArrayType: firstArrayType,
+	}
+}
+
+// builtinSlice implements the Slice() built-in function.
+//
+// Signature: Slice(array, start, end) -> array
+// - array: The source array to slice
+// - start: Starting index (inclusive)
+// - end: Ending index (exclusive)
+//
+// Returns: New array containing elements from start to end-1
+//
+// Example:
+//
+//	var numbers := [1, 2, 3, 4, 5];
+//	var slice := Slice(numbers, 1, 4);
+//	// Result: [2, 3, 4]
+func (i *Interpreter) builtinSlice(args []Value) Value {
+	// Validate argument count
+	if len(args) != 3 {
+		return i.newErrorWithLocation(i.currentNode, "Slice() expects 3 arguments (array, start, end), got %d", len(args))
+	}
+
+	// First argument must be an array
+	arrayVal, ok := args[0].(*ArrayValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Slice() first argument must be an array, got %s", args[0].Type())
+	}
+
+	// Second argument must be an integer (start index)
+	startVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Slice() second argument (start) must be an Integer, got %s", args[1].Type())
+	}
+
+	// Third argument must be an integer (end index)
+	endVal, ok := args[2].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Slice() third argument (end) must be an Integer, got %s", args[2].Type())
+	}
+
+	// Get the low bound of the array
+	lowBound := int64(0)
+	if arrayVal.ArrayType != nil && arrayVal.ArrayType.LowBound != nil {
+		lowBound = int64(*arrayVal.ArrayType.LowBound)
+	}
+
+	// Adjust indices to be relative to the array's low bound
+	start := int(startVal.Value - lowBound)
+	end := int(endVal.Value - lowBound)
+
+	// Validate indices
+	if start < 0 {
+		start = 0
+	}
+	if end < 0 {
+		end = 0
+	}
+	if end > len(arrayVal.Elements) {
+		end = len(arrayVal.Elements)
+	}
+	if start > end {
+		start = end
+	}
+
+	// Extract the slice
+	resultElements := make([]Value, end-start)
+	copy(resultElements, arrayVal.Elements[start:end])
+
+	// Create and return new array with sliced elements
+	return &ArrayValue{
+		Elements:  resultElements,
+		ArrayType: arrayVal.ArrayType,
+	}
 }

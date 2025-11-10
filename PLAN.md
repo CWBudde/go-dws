@@ -269,26 +269,26 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Strategy**: Analyze each test individually and implement targeted fixes
   - **Examples**: Generic types, delegates, advanced inheritance scenarios, complex type checking
 
-- [ ] 9.16.10 Fix Function Argument Double Evaluation Bug
-  - **Estimate**: 2-4 hours
+- [x] 9.16.10 Fix Function Argument Double Evaluation Bug ✓
+  - **Estimate**: 2-4 hours (Actual: ~3 hours)
   - **Priority**: High (affects fixture test accuracy)
   - **Description**: Functions called as arguments to built-in functions (like PrintLn) are evaluated twice
   - **Impact**: Causes side effects to happen twice, making tests fail with extra output
   - **Examples**: `PrintLn(0 ?? Test(258))` calls `Test` twice instead of once
-  - **Root Cause**: Unknown - needs investigation in `evalCallExpression` or argument preparation
+  - **Root Cause**: TWO issues found:
+    1. `resolveOverload()` evaluated arguments for type checking, then `evalCallExpression()` re-evaluated them
+    2. `evalTypeCast()` evaluated arguments before checking if it's a valid type cast
   - **Discovery Context**: Found while implementing coalesce operator (Task 9.14)
-  - **Test Cases**:
-    - `PrintLn(Test(5))` outputs "Called\nCalled\n5" (Test called twice)
-    - `var x := Test(5); PrintLn(x)` outputs "Called\n5" (correct - Test called once)
-  - **Strategy**:
-    1. Add debug logging to trace argument evaluation in `evalCallExpression`
-    2. Check if semantic analyzer is somehow evaluating expressions
-    3. Look for duplicate evaluation in argument preparation loops
-    4. Verify fix doesn't break lazy or var parameter handling
-  - **Key Files**:
-    - `internal/interp/functions.go` - `evalCallExpression()` (lines 13-308)
-    - `internal/interp/builtins_core.go` - Built-in function implementations
-    - `internal/semantic/analyze_function_calls.go` - May be involved if analyzer evaluates
+  - **Solution Implemented**:
+    1. Modified `resolveOverload()` to cache and return evaluated argument values
+    2. Updated user-defined function call path to use cached values instead of re-evaluating
+    3. Fixed `evalTypeCast()` to check if it's a type cast BEFORE evaluating the argument
+    4. Special handling for lazy parameters to avoid evaluation during overload resolution
+  - **Files Modified**:
+    - `internal/interp/functions_typecast.go` - `resolveOverload()` now returns cached values
+    - `internal/interp/functions_calls.go` - Uses cached values from overload resolution
+    - `internal/interp/interpreter_test.go` - Added `TestFunctionArgumentSingleEvaluation` (5 test cases)
+  - **Test Results**: All new tests pass, no regressions introduced
 
 #### Implementation Guidelines
 
@@ -380,27 +380,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 #### High Priority String Functions (Phase 9.17.1)
 
 Functions commonly used in test fixtures and real-world DWScript code:
-
-- [x] 9.17.1.1 SubStr(str, start, length) - Substring with length parameter ✅ COMPLETE
-  - Implemented in builtins_strings.go, functions.go, vm.go, analyze_builtin_string.go
-  - 27 comprehensive tests added
-  - Fixes factorize.pas test
-
-- [ ] 9.17.1.2 SubString(str, start, end) - Substring with end position
-  - Different from SubStr: takes end position instead of length
-  - Used in multiple test fixtures
-
-- [ ] 9.17.1.3 LeftStr(str, count) - First N characters
-- [ ] 9.17.1.4 RightStr(str, count) - Last N characters
-- [ ] 9.17.1.5 MidStr(str, start, count) - Alias for Copy/SubStr
-
-- [ ] 9.17.1.6 StrBeginsWith(str, prefix) - Starts with test
-- [ ] 9.17.1.7 StrEndsWith(str, suffix) - Ends with test
-- [ ] 9.17.1.8 StrContains(str, substring) - Contains test
-
-- [ ] 9.17.1.9 PosEx(needle, haystack, offset) - Pos with offset parameter
-- [ ] 9.17.1.10 RevPos(needle, haystack) - Reverse position search
-- [ ] 9.17.1.11 StrFind(str, substr, fromIndex) - Find with starting index
 
 #### Delimiter-based Functions (Phase 9.17.2)
 
@@ -562,63 +541,6 @@ Functions commonly used in test fixtures and real-world DWScript code:
 
 ---
 
-#### Array High-Order Functions (Phase 9.17.10)
-
-**Current Status**: 8/18 implemented (44%) - Missing functional programming features
-
-**HIGH PRIORITY**:
-
-- [ ] 9.17.10.1 Map(arr: array; func: function): array
-  - Transform each element using callback function
-  - Returns new array with transformed elements
-  - Used in 15+ fixtures
-
-- [ ] 9.17.10.2 Filter(arr: array; predicate: function): array
-  - Filter elements matching predicate
-  - Returns new array with matching elements
-  - Used in 15+ fixtures
-
-- [ ] 9.17.10.3 Reduce(arr: array; func: function; initial: Variant): Variant
-  - Reduce array to single value
-  - Apply function cumulatively
-  - Used in 10+ fixtures
-
-- [ ] 9.17.10.4 ForEach(arr: array; callback: function)
-  - Iterate over array with callback
-  - No return value, side effects only
-  - Used in 10+ fixtures
-
-**MEDIUM PRIORITY**:
-
-- [ ] 9.17.10.5 Every(arr: array; predicate: function): Boolean
-  - Check if all elements match predicate
-  - Short-circuits on first false
-
-- [ ] 9.17.10.6 Some(arr: array; predicate: function): Boolean
-  - Check if any element matches predicate
-  - Short-circuits on first true
-
-- [ ] 9.17.10.7 Find(arr: array; predicate: function): Variant
-  - Find first element matching predicate
-  - Returns element or null if not found
-
-- [ ] 9.17.10.8 FindIndex(arr: array; predicate: function): Integer
-  - Find index of first element matching predicate
-  - Returns -1 if not found
-
-- [ ] 9.17.10.9 Concat(arr1, arr2, ...): array
-  - Concatenate multiple arrays
-  - Returns new array
-
-- [ ] 9.17.10.10 Slice(arr: array; start, end: Integer): array
-  - Extract portion of array
-  - Returns new array
-
-**Implementation Time**: 3-4 days
-**Impact**: Unblocks 30+ array test fixtures, enables functional programming patterns
-
----
-
 #### Variant Functions (Phase 9.17.11)
 
 **Current Status**: 0/10 implemented (0%) - **COMPLETE GAP**
@@ -687,29 +609,27 @@ each element is wrapped in a variant-like container that preserves type informat
 
 **Implementation Tasks**:
 
-- [ ] 9.17.11b.1 Add array of const type support
-  - Lexer/Parser: Already supports syntax (array of const)
-  - Semantic analyzer: Type checking for array of const parameters
-  - Type system: Create ArrayOfConstType or use special variant of ArrayType
-  - **Estimate**: 4-6 hours
+- [x] 9.17.11b.1 Add array of const type support
+  - ✅ Lexer/Parser: Already supports syntax (array of const)
+  - ✅ Semantic analyzer: Type checking for array of const parameters
+  - ✅ Type system: Uses array of Variant (ARRAY_OF_CONST constant)
+  - ✅ Operator registry: Extended to support array type compatibility
 
 - [ ] 9.17.11b.2 Implement array of const conversion at call sites
-  - Convert mixed-type argument lists to array of const at call time
-  - Each element wrapped in TVarRec-like structure with type tag
-  - Interpreter: evalCallExpression needs to handle array of const
-  - **Estimate**: 6-8 hours
+  - ✅ Array literals with mixed types work with array of const parameters
+  - ✅ Empty array literals handled in compound assignments
+  - ✅ Array of T -> array of Variant compatibility in operators
+  - ⚠️ Interpreter runtime for class operator overloads with array of const parameters is not yet implemented; semantic analysis and type system are complete. Task will be marked complete once interpreter support is added.
 
-- [ ] 9.17.11b.3 Add TVarRec support (optional)
-  - TVarRec is Delphi's record type for array of const elements
-  - Contains VType (type tag) and value union
-  - May be needed for compatibility with certain functions
-  - **Estimate**: 4-6 hours
+- [x] 9.17.11b.3 Add TVarRec support (optional)
+  - Not needed: Using Variant type directly for array elements
+  - Runtime conversion handled by interpreter's Variant implementation
 
-- [ ] 9.17.11b.4 Test array of const in various contexts
-  - Function parameters
-  - Class operator overloads (fixes class_operator3.pas)
-  - Format/printf-style functions
-  - **Estimate**: 2-3 hours
+- [x] 9.17.11b.4 Test array of const in various contexts
+  - ✅ Function parameters (comprehensive tests added)
+  - ✅ Class operator overloads (semantic analysis complete)
+  - ✅ Variant to typed variable conversion (String concatenation works)
+  - ✅ Empty, homogeneous, and heterogeneous array literals
 
 **Implementation Time**: 2-3 days
 **Impact**: Unblocks class_operator3.pas and other variable-argument fixtures
@@ -718,42 +638,6 @@ each element is wrapped in a variant-like container that preserves type informat
 - Delphi documentation: array of const and TVarRec
 - testdata/fixtures/SimpleScripts/class_operator3.pas (blocked test)
 - Related to Variant support (Phase 9.17.11)
-
----
-
-#### Ordinal Functions (Phase 9.17.12)
-
-**Current Status**: 2/6 implemented (33%)
-
-**Implemented**:
-
-- ✅ Ord(value): Integer - Get ordinal value
-- ✅ Chr(code: Integer): String - Character from code
-
-**HIGH PRIORITY**:
-
-- [ ] 9.17.12.1 Succ(value: ordinal): ordinal
-  - Successor function for ordinal types
-  - Works with Integer, Enum, Char
-  - Used in 15+ fixtures
-
-- [ ] 9.17.12.2 Pred(value: ordinal): ordinal
-  - Predecessor function for ordinal types
-  - Works with Integer, Enum, Char
-  - Used in 15+ fixtures
-
-**MEDIUM PRIORITY**:
-
-- [ ] 9.17.12.3 Inc(var x: ordinal; increment=1: Integer)
-  - Increment variable in-place (if not already implemented as statement)
-  - Var parameter
-
-- [ ] 9.17.12.4 Dec(var x: ordinal; decrement=1: Integer)
-  - Decrement variable in-place (if not already implemented as statement)
-  - Var parameter
-
-**Implementation Time**: 1 day
-**Impact**: Unblocks 20+ ordinal manipulation fixtures
 
 ---
 

@@ -1912,3 +1912,150 @@ func TestExternalVarRuntime(t *testing.T) {
 		})
 	}
 }
+
+// TestFunctionArgumentSingleEvaluation verifies that function arguments are evaluated only once
+// This test addresses the bug where functions called as arguments were evaluated twice:
+// once during overload resolution and once during argument preparation.
+// See task 9.16.10 in PLAN.md
+func TestFunctionArgumentSingleEvaluation(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectedOutput string
+	}{
+		{
+			name: "regular parameter - single evaluation",
+			input: `
+var callCount: Integer := 0;
+
+function Test(x: Integer): Integer;
+begin
+    callCount := callCount + 1;
+    PrintLn('Called');
+    Result := x;
+end;
+
+begin
+    PrintLn(Test(5));
+    PrintLn('Call count: ' + IntToStr(callCount));
+end;
+`,
+			expectedOutput: "Called\n5\nCall count: 1\n",
+		},
+		{
+			name: "nested function calls - single evaluation each",
+			input: `
+var callCount: Integer := 0;
+
+function TestA(x: Integer): Integer;
+begin
+    callCount := callCount + 1;
+    PrintLn('TestA called');
+    Result := x + 10;
+end;
+
+function TestB(x: Integer): Integer;
+begin
+    callCount := callCount + 100;
+    PrintLn('TestB called');
+    Result := x + 20;
+end;
+
+begin
+    PrintLn(TestA(TestB(5)));
+    PrintLn('Call count: ' + IntToStr(callCount));
+end;
+`,
+			expectedOutput: "TestB called\nTestA called\n35\nCall count: 101\n",
+		},
+		{
+			name: "lazy parameter - deferred evaluation",
+			input: `
+var callCount: Integer := 0;
+
+function Test(x: Integer): Integer;
+begin
+    callCount := callCount + 1;
+    PrintLn('Test called');
+    Result := x;
+end;
+
+function LazyFunc(lazy arg: Integer): Integer;
+begin
+    PrintLn('LazyFunc entered');
+    Result := arg;  // Evaluates the lazy argument here
+end;
+
+begin
+    PrintLn(LazyFunc(Test(5)));
+    PrintLn('Call count: ' + IntToStr(callCount));
+end;
+`,
+			expectedOutput: "LazyFunc entered\nTest called\n5\nCall count: 1\n",
+		},
+		{
+			name: "var parameter - reference creation",
+			input: `
+var callCount: Integer := 0;
+var value: Integer := 10;
+
+function Test(): Integer;
+begin
+    callCount := callCount + 1;
+    PrintLn('Test called');
+    Result := 42;
+end;
+
+procedure Increment(var x: Integer);
+begin
+    x := x + 1;
+end;
+
+begin
+    // This should not call Test() - var parameters require identifiers
+    // So we use a direct variable reference
+    Increment(value);
+    PrintLn(value);
+    PrintLn('Call count: ' + IntToStr(callCount));
+end;
+`,
+			expectedOutput: "11\nCall count: 0\n",
+		},
+		{
+			name: "overloaded function with side effects",
+			input: `
+var callCount: Integer := 0;
+
+function Test(x: Integer): Integer;
+begin
+    callCount := callCount + 1;
+    PrintLn('Test(Integer) called');
+    Result := x;
+end;
+
+function Test(x: String): String; overload;
+begin
+    callCount := callCount + 10;
+    PrintLn('Test(String) called');
+    Result := x;
+end;
+
+begin
+    PrintLn(Test(42));
+    PrintLn(Test('hello'));
+    PrintLn('Call count: ' + IntToStr(callCount));
+end;
+`,
+			expectedOutput: "Test(Integer) called\n42\nTest(String) called\nhello\nCall count: 11\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expectedOutput {
+				t.Errorf("output mismatch\nexpected:\n%q\ngot:\n%q", tt.expectedOutput, output)
+			}
+		})
+	}
+}

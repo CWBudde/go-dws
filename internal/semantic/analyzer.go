@@ -539,6 +539,15 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 		return true
 	}
 
+	// Task 9.17.11b: Allow Variant to be assigned to any typed variable
+	// This enables str[i] (Variant from array of const) to be assigned to String
+	// The interpreter will perform runtime type checking and conversion
+	if fromUnderlying.TypeKind() == "VARIANT" {
+		// Allow Variant to be assigned to basic types, arrays, records, classes, etc.
+		// Runtime will validate and convert
+		return true
+	}
+
 	if toUnderlying.TypeKind() == "FUNCTION_POINTER" || toUnderlying.TypeKind() == "METHOD_POINTER" {
 		// Use dedicated function pointer validation which provides detailed errors
 		// Note: We don't call validateFunctionPointerAssignment here because it reports errors
