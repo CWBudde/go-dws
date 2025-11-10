@@ -1495,3 +1495,237 @@ end;
 		t.Fatalf("TChild implementation should have 1 method. got=%d", len(impl.Methods))
 	}
 }
+
+// ============================================================================
+// Partial Class Tests
+// ============================================================================
+
+func TestPartialClassDeclaration(t *testing.T) {
+	input := `
+type TTest = partial class
+  Field : Integer;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if stmt.Name.Value != "TTest" {
+		t.Errorf("stmt.Name.Value not 'TTest'. got=%s", stmt.Name.Value)
+	}
+
+	if !stmt.IsPartial {
+		t.Errorf("stmt.IsPartial should be true. got=%v", stmt.IsPartial)
+	}
+
+	if len(stmt.Fields) != 1 {
+		t.Fatalf("stmt.Fields should contain 1 field. got=%d", len(stmt.Fields))
+	}
+
+	if stmt.Fields[0].Name.Value != "Field" {
+		t.Errorf("field name should be 'Field'. got=%s", stmt.Fields[0].Name.Value)
+	}
+}
+
+func TestPartialClassAfterClass(t *testing.T) {
+	input := `
+type TTest = class partial
+  Field : Integer;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if stmt.Name.Value != "TTest" {
+		t.Errorf("stmt.Name.Value not 'TTest'. got=%s", stmt.Name.Value)
+	}
+
+	if !stmt.IsPartial {
+		t.Errorf("stmt.IsPartial should be true. got=%v", stmt.IsPartial)
+	}
+}
+
+func TestMultiplePartialClassDeclarations(t *testing.T) {
+	input := `
+type TTest = partial class
+  Field : Integer;
+  procedure PrintMe; begin PrintLn(Field); end;
+end;
+
+type TTest = partial class
+  procedure Inc; begin Field+=1; end;
+end;
+
+type TTest = class partial
+  procedure Dec; begin Field-=1; end;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 3 {
+		t.Fatalf("program.Statements does not contain 3 statements. got=%d",
+			len(program.Statements))
+	}
+
+	// Check all three are partial classes with the same name
+	for i, stmt := range program.Statements {
+		classDecl, ok := stmt.(*ast.ClassDecl)
+		if !ok {
+			t.Fatalf("program.Statements[%d] is not *ast.ClassDecl. got=%T",
+				i, stmt)
+		}
+
+		if classDecl.Name.Value != "TTest" {
+			t.Errorf("statement %d: class name not 'TTest'. got=%s", i, classDecl.Name.Value)
+		}
+
+		if !classDecl.IsPartial {
+			t.Errorf("statement %d: IsPartial should be true. got=%v", i, classDecl.IsPartial)
+		}
+	}
+
+	// Check first partial class has field and method
+	first := program.Statements[0].(*ast.ClassDecl)
+	if len(first.Fields) != 1 {
+		t.Errorf("first partial class should have 1 field. got=%d", len(first.Fields))
+	}
+	if len(first.Methods) != 1 {
+		t.Errorf("first partial class should have 1 method. got=%d", len(first.Methods))
+	}
+
+	// Check second partial class has method
+	second := program.Statements[1].(*ast.ClassDecl)
+	if len(second.Methods) != 1 {
+		t.Errorf("second partial class should have 1 method. got=%d", len(second.Methods))
+	}
+
+	// Check third partial class has method
+	third := program.Statements[2].(*ast.ClassDecl)
+	if len(third.Methods) != 1 {
+		t.Errorf("third partial class should have 1 method. got=%d", len(third.Methods))
+	}
+}
+
+func TestPartialClassWithParent(t *testing.T) {
+	input := `
+type TChild = partial class(TParent)
+  Field : Integer;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if !stmt.IsPartial {
+		t.Errorf("stmt.IsPartial should be true. got=%v", stmt.IsPartial)
+	}
+
+	if stmt.Parent == nil {
+		t.Fatal("stmt.Parent should not be nil")
+	}
+
+	if stmt.Parent.Value != "TParent" {
+		t.Errorf("stmt.Parent.Value not 'TParent'. got=%s", stmt.Parent.Value)
+	}
+}
+
+func TestPartialClassString(t *testing.T) {
+	input := `type TTest = partial class end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	// Check that String() includes "partial"
+	str := stmt.String()
+	if !contains(str, "partial") {
+		t.Errorf("stmt.String() should contain 'partial'. got=%s", str)
+	}
+}
+
+func TestPartialClassWithAbstract(t *testing.T) {
+	input := `
+type TTest = partial class abstract
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if !stmt.IsPartial {
+		t.Errorf("stmt.IsPartial should be true. got=%v", stmt.IsPartial)
+	}
+
+	if !stmt.IsAbstract {
+		t.Errorf("stmt.IsAbstract should be true. got=%v", stmt.IsAbstract)
+	}
+}
