@@ -655,3 +655,338 @@ func (i *Interpreter) builtinStrToBool(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "StrToBool() invalid boolean string: '%s'", strVal.Value)
 	}
 }
+
+// builtinSubString implements the SubString() built-in function.
+// It extracts a substring from a string using start and end positions.
+// SubString(str, start, end) - returns substring from start to end (1-based, inclusive)
+// Note: Different from SubStr which takes a length parameter instead of end position.
+func (i *Interpreter) builtinSubString(args []Value) Value {
+	if len(args) != 3 {
+		return i.newErrorWithLocation(i.currentNode, "SubString() expects exactly 3 arguments, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "SubString() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: start position (1-based)
+	startVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "SubString() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	// Third argument: end position (1-based, inclusive)
+	endVal, ok := args[2].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "SubString() expects integer as third argument, got %s", args[2].Type())
+	}
+
+	str := strVal.Value
+	start := int(startVal.Value) // 1-based
+	end := int(endVal.Value)     // 1-based, inclusive
+
+	// Calculate length from start and end positions
+	// SubString(str, 3, 7) should return 5 characters (positions 3, 4, 5, 6, 7)
+	length := end - start + 1
+
+	// Handle edge cases
+	if length <= 0 {
+		return &StringValue{Value: ""}
+	}
+
+	// Use rune-based slicing to handle UTF-8 correctly
+	result := runeSliceFrom(str, start, length)
+	return &StringValue{Value: result}
+}
+
+// builtinLeftStr implements the LeftStr() built-in function.
+// It returns the leftmost N characters of a string.
+// LeftStr(str, count) - returns first count characters
+func (i *Interpreter) builtinLeftStr(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "LeftStr() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "LeftStr() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: count
+	countVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "LeftStr() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	str := strVal.Value
+	count := int(countVal.Value)
+
+	// Handle edge cases
+	if count <= 0 {
+		return &StringValue{Value: ""}
+	}
+
+	// Use rune-based slicing to handle UTF-8 correctly
+	// LeftStr is equivalent to SubStr(str, 1, count)
+	result := runeSliceFrom(str, 1, count)
+	return &StringValue{Value: result}
+}
+
+// builtinRightStr implements the RightStr() built-in function.
+// It returns the rightmost N characters of a string.
+// RightStr(str, count) - returns last count characters
+func (i *Interpreter) builtinRightStr(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "RightStr() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "RightStr() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: count
+	countVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "RightStr() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	str := strVal.Value
+	count := int(countVal.Value)
+
+	// Handle edge cases
+	if count <= 0 {
+		return &StringValue{Value: ""}
+	}
+
+	// Get the length of the string in runes (not bytes)
+	strLen := runeLength(str)
+
+	// If count >= length, return the whole string
+	if count >= strLen {
+		return &StringValue{Value: str}
+	}
+
+	// Calculate start position (1-based)
+	// For a string of length 10, RightStr(str, 3) should return positions 8, 9, 10
+	start := strLen - count + 1
+
+	// Use rune-based slicing to handle UTF-8 correctly
+	result := runeSliceFrom(str, start, count)
+	return &StringValue{Value: result}
+}
+
+// builtinMidStr implements the MidStr() built-in function.
+// It is an alias for SubStr - extracts a substring with a length parameter.
+// MidStr(str, start, count) - returns count characters starting at start (1-based)
+func (i *Interpreter) builtinMidStr(args []Value) Value {
+	// MidStr is just an alias for SubStr
+	return i.builtinSubStr(args)
+}
+
+// builtinStrBeginsWith implements the StrBeginsWith() built-in function.
+// It checks if a string starts with a given prefix.
+// StrBeginsWith(str, prefix) - returns true if str starts with prefix
+func (i *Interpreter) builtinStrBeginsWith(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "StrBeginsWith() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string to check
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrBeginsWith() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: prefix
+	prefixVal, ok := args[1].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrBeginsWith() expects string as second argument, got %s", args[1].Type())
+	}
+
+	result := strings.HasPrefix(strVal.Value, prefixVal.Value)
+	return &BooleanValue{Value: result}
+}
+
+// builtinStrEndsWith implements the StrEndsWith() built-in function.
+// It checks if a string ends with a given suffix.
+// StrEndsWith(str, suffix) - returns true if str ends with suffix
+func (i *Interpreter) builtinStrEndsWith(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "StrEndsWith() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string to check
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrEndsWith() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: suffix
+	suffixVal, ok := args[1].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrEndsWith() expects string as second argument, got %s", args[1].Type())
+	}
+
+	result := strings.HasSuffix(strVal.Value, suffixVal.Value)
+	return &BooleanValue{Value: result}
+}
+
+// builtinStrContains implements the StrContains() built-in function.
+// It checks if a string contains a given substring.
+// StrContains(str, substring) - returns true if str contains substring
+func (i *Interpreter) builtinStrContains(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "StrContains() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string to check
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrContains() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: substring
+	substrVal, ok := args[1].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrContains() expects string as second argument, got %s", args[1].Type())
+	}
+
+	result := strings.Contains(strVal.Value, substrVal.Value)
+	return &BooleanValue{Value: result}
+}
+
+// builtinPosEx implements the PosEx() built-in function.
+// It finds the position of a substring within a string, starting from an offset.
+// PosEx(needle, haystack, offset) - returns 1-based position (0 if not found)
+func (i *Interpreter) builtinPosEx(args []Value) Value {
+	if len(args) != 3 {
+		return i.newErrorWithLocation(i.currentNode, "PosEx() expects exactly 3 arguments, got %d", len(args))
+	}
+
+	// First argument: substring to find (needle)
+	needleVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "PosEx() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: string to search in (haystack)
+	haystackVal, ok := args[1].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "PosEx() expects string as second argument, got %s", args[1].Type())
+	}
+
+	// Third argument: offset (1-based starting position)
+	offsetVal, ok := args[2].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "PosEx() expects integer as third argument, got %s", args[2].Type())
+	}
+
+	needle := needleVal.Value
+	haystack := haystackVal.Value
+	offset := int(offsetVal.Value) // 1-based
+
+	// Handle empty needle - returns offset (found at start)
+	if len(needle) == 0 {
+		return &IntegerValue{Value: int64(offset)}
+	}
+
+	// Handle invalid offset
+	if offset < 1 {
+		return &IntegerValue{Value: 0}
+	}
+
+	// Convert to rune-based indexing for UTF-8 support
+	haystackRunes := []rune(haystack)
+	needleRunes := []rune(needle)
+
+	// Adjust offset to 0-based
+	startIdx := offset - 1
+
+	// If offset is beyond the string length, not found
+	if startIdx >= len(haystackRunes) {
+		return &IntegerValue{Value: 0}
+	}
+
+	// Search for the needle starting from offset
+	for i := startIdx; i <= len(haystackRunes)-len(needleRunes); i++ {
+		match := true
+		for j := 0; j < len(needleRunes); j++ {
+			if haystackRunes[i+j] != needleRunes[j] {
+				match = false
+				break
+			}
+		}
+		if match {
+			// Return 1-based position
+			return &IntegerValue{Value: int64(i + 1)}
+		}
+	}
+
+	// Not found
+	return &IntegerValue{Value: 0}
+}
+
+// builtinRevPos implements the RevPos() built-in function.
+// It finds the last position of a substring within a string.
+// RevPos(needle, haystack) - returns 1-based position of last occurrence (0 if not found)
+func (i *Interpreter) builtinRevPos(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "RevPos() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: substring to find (needle)
+	needleVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "RevPos() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: string to search in (haystack)
+	haystackVal, ok := args[1].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "RevPos() expects string as second argument, got %s", args[1].Type())
+	}
+
+	needle := needleVal.Value
+	haystack := haystackVal.Value
+
+	// Handle empty needle - returns length + 1 (not found behavior for DWScript)
+	if len(needle) == 0 {
+		return &IntegerValue{Value: int64(runeLength(haystack) + 1)}
+	}
+
+	// Find the last occurrence using strings.LastIndex
+	index := strings.LastIndex(haystack, needle)
+
+	// Convert to 1-based index (or 0 if not found)
+	if index == -1 {
+		return &IntegerValue{Value: 0}
+	}
+
+	// Convert byte index to rune index (for UTF-8 support)
+	runeIndex := len([]rune(haystack[:index])) + 1
+	return &IntegerValue{Value: int64(runeIndex)}
+}
+
+// builtinStrFind implements the StrFind() built-in function.
+// It is an alias for PosEx - finds substring with starting index.
+// StrFind(str, substr, fromIndex) - returns 1-based position (0 if not found)
+func (i *Interpreter) builtinStrFind(args []Value) Value {
+	if len(args) != 3 {
+		return i.newErrorWithLocation(i.currentNode, "StrFind() expects exactly 3 arguments, got %d", len(args))
+	}
+
+	// StrFind(str, substr, fromIndex) maps to PosEx(substr, str, fromIndex)
+	// Need to reorder arguments
+	reorderedArgs := []Value{
+		args[1], // substr becomes first arg (needle)
+		args[0], // str becomes second arg (haystack)
+		args[2], // fromIndex stays as third arg (offset)
+	}
+
+	return i.builtinPosEx(reorderedArgs)
+}

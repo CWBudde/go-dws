@@ -47,6 +47,10 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeFloatToStrF(args, callExpr), true
 	case "strtobool":
 		return a.analyzeStrToBool(args, callExpr), true
+	case "strtointdef":
+		return a.analyzeStrToIntDef(args, callExpr), true
+	case "strtofloatdef":
+		return a.analyzeStrToFloatDef(args, callExpr), true
 	case "chr":
 		return a.analyzeChr(args, callExpr), true
 
@@ -91,6 +95,26 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeFormat(args, callExpr), true
 	case "insert":
 		return a.analyzeInsert(args, callExpr), true
+	case "substring":
+		return a.analyzeSubString(args, callExpr), true
+	case "leftstr":
+		return a.analyzeLeftStr(args, callExpr), true
+	case "rightstr":
+		return a.analyzeRightStr(args, callExpr), true
+	case "midstr":
+		return a.analyzeMidStr(args, callExpr), true
+	case "strbeginswith":
+		return a.analyzeStrBeginsWith(args, callExpr), true
+	case "strendswith":
+		return a.analyzeStrEndsWith(args, callExpr), true
+	case "strcontains":
+		return a.analyzeStrContains(args, callExpr), true
+	case "posex":
+		return a.analyzePosEx(args, callExpr), true
+	case "revpos":
+		return a.analyzeRevPos(args, callExpr), true
+	case "strfind":
+		return a.analyzeStrFind(args, callExpr), true
 
 	// Math Functions - Basic
 	case "abs":
