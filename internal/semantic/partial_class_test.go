@@ -58,16 +58,16 @@ end;
 		t.Errorf("Expected 1 field, got %d", len(ttest.Fields))
 	}
 
-	if _, ok := ttest.Fields["Field"]; !ok {
-		t.Error("Field 'Field' not found in merged class")
+	if _, ok := ttest.Fields["field"]; !ok {
+		t.Error("Field 'field' not found in merged class")
 	}
 
 	if len(ttest.Methods) != 1 {
 		t.Errorf("Expected 1 method, got %d", len(ttest.Methods))
 	}
 
-	if _, ok := ttest.Methods["PrintMe"]; !ok {
-		t.Error("Method 'PrintMe' not found in merged class")
+	if _, ok := ttest.Methods["printme"]; !ok {
+		t.Error("Method 'printme' not found in merged class")
 	}
 
 	// Verify IsPartial is still true

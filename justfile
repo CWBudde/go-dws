@@ -15,6 +15,11 @@ fmt:
     go fmt ./...
     goimports -w .
 
+# Check if code is formatted (for CI)
+check-fmt:
+    #!/usr/bin/env sh
+    test -z "$(gofmt -l .)" || (echo "Files need formatting:" && gofmt -l . && exit 1)
+
 # Run linter (golangci-lint)
 lint:
     golangci-lint run
@@ -36,6 +41,10 @@ test-coverage:
 test-verbose:
     go test -v ./...
 
+# Run unit tests with race detection (for CI)
+test-unit:
+    go test -v -race ./...
+
 # Clean build artifacts
 clean:
     rm -rf bin/
@@ -45,10 +54,20 @@ clean:
 tidy:
     go mod tidy
 
+# Check if go.mod and go.sum are tidy (for CI)
+check-tidy:
+    @echo "Checking if go.mod is tidy..."
+    @go mod tidy
+    @git diff --exit-code go.mod go.sum || (echo "go.mod or go.sum needs tidying. Run 'go mod tidy' and commit the changes." && exit 1)
+    @echo "go.mod and go.sum are tidy!"
+
 # Install development tools
 install-tools:
     go install golang.org/x/tools/cmd/goimports@latest
     curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+
+# Install development dependencies (formatters and linters) - alias for install-tools
+setup-deps: install-tools
 
 # Run the CLI with help
 help:

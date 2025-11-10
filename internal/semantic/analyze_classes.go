@@ -233,7 +233,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			// Check for duplicate class variable names
 			// When merging partial classes, check if already exists in ClassType
 			_, existsInClass := classType.ClassVars[fieldName]
-			if existsInClass && !mergingPartialClass {
+			if existsInClass {
 				a.addError("duplicate class variable '%s' in class '%s' at %s",
 					fieldName, className, field.Token.Pos.String())
 				continue
@@ -267,7 +267,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			// Check for duplicate field names
 			// When merging partial classes, check if already exists in ClassType
 			_, existsInClass := classType.Fields[fieldName]
-			if existsInClass && !mergingPartialClass {
+			if existsInClass {
 				a.addError("duplicate field '%s' in class '%s' at %s",
 					fieldName, className, field.Token.Pos.String())
 				continue
@@ -310,7 +310,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		// Check for duplicate constant names
 		// When merging partial classes, check if already exists in ClassType
 		_, existsInClass := classType.Constants[constantName]
-		if existsInClass && !mergingPartialClass {
+		if existsInClass {
 			a.addError("duplicate constant '%s' in class '%s' at %s",
 				constantName, className, constant.Token.Pos.String())
 			continue
