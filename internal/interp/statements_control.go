@@ -1,0 +1,303 @@
+package interp
+
+import (
+	"github.com/cwbudde/go-dws/internal/ast"
+)
+
+// This file contains control flow statement evaluation (if, case, block).
+
+// evalBlockStatement evaluates a block of statements.
+func (i *Interpreter) evalBlockStatement(block *ast.BlockStatement) Value {
+	if block == nil {
+		return &NilValue{}
+	}
+
+	var result Value
+
+	for _, stmt := range block.Statements {
+		result = i.Eval(stmt)
+
+		if isError(result) {
+			return result
+		}
+
+		// Check if exception is active - if so, unwind the stack
+		if i.exception != nil {
+			return nil
+		}
+
+		// Check for control flow signals and propagate them upward
+		// These signals should propagate up to the appropriate control structure
+		if i.breakSignal || i.continueSignal || i.exitSignal {
+			return nil // Propagate signal upward by returning early
+		}
+	}
+
+	return result
+}
+
+func (i *Interpreter) evalIfStatement(stmt *ast.IfStatement) Value {
+	// Evaluate the condition
+	condition := i.Eval(stmt.Condition)
+	if isError(condition) {
+		return condition
+	}
+
+	// Convert condition to boolean
+	if isTruthy(condition) {
+		return i.Eval(stmt.Consequence)
+	} else if stmt.Alternative != nil {
+		return i.Eval(stmt.Alternative)
+	}
+
+	// No alternative and condition was false - return nil
+	return &NilValue{}
+}
+
+// isTruthy determines if a value is considered "true" for conditional logic.
+// In DWScript, only boolean true is truthy. Everything else requires explicit conversion.
+func isTruthy(val Value) bool {
+	switch v := val.(type) {
+	case *BooleanValue:
+		return v.Value
+	default:
+		// In DWScript, only booleans can be used in conditions
+		// Non-boolean values in conditionals would be a type error
+		// For now, treat non-booleans as false
+		return false
+	}
+}
+
+// evalCaseStatement evaluates a case statement.
+// It evaluates the case expression, then checks each branch in order.
+// The first branch with a matching value has its statement executed.
+// If no branch matches and there's an else clause, it's executed.
+func (i *Interpreter) evalCaseStatement(stmt *ast.CaseStatement) Value {
+	// Evaluate the case expression
+	caseValue := i.Eval(stmt.Expression)
+	if isError(caseValue) {
+		return caseValue
+	}
+
+	// Check each case branch in order
+	for _, branch := range stmt.Cases {
+		// Check each value in this branch
+		for _, branchVal := range branch.Values {
+			// Check if this is a range expression
+			if rangeExpr, isRange := branchVal.(*ast.RangeExpression); isRange {
+				// Evaluate start and end of range
+				startValue := i.Eval(rangeExpr.Start)
+				if isError(startValue) {
+					return startValue
+				}
+
+				endValue := i.Eval(rangeExpr.RangeEnd)
+				if isError(endValue) {
+					return endValue
+				}
+
+				// Check if caseValue is within range [start, end]
+				if i.isInRange(caseValue, startValue, endValue) {
+					// Execute this branch's statement
+					return i.Eval(branch.Statement)
+				}
+			} else {
+				// Regular value comparison
+				branchValue := i.Eval(branchVal)
+				if isError(branchValue) {
+					return branchValue
+				}
+
+				// Check if values match
+				if i.valuesEqual(caseValue, branchValue) {
+					// Execute this branch's statement
+					return i.Eval(branch.Statement)
+				}
+			}
+		}
+	}
+
+	// No branch matched - execute else clause if present
+	if stmt.Else != nil {
+		return i.Eval(stmt.Else)
+	}
+
+	// No match and no else clause - return nil
+	return &NilValue{}
+}
+
+// valuesEqual compares two values for equality.
+// This is used by case statements to match values.
+func (i *Interpreter) valuesEqual(left, right Value) bool {
+	// Handle same type comparisons
+	if left.Type() != right.Type() {
+		return false
+	}
+
+	switch l := left.(type) {
+	case *IntegerValue:
+		r, ok := right.(*IntegerValue)
+		if !ok {
+			return false
+		}
+		return l.Value == r.Value
+	case *FloatValue:
+		r, ok := right.(*FloatValue)
+		if !ok {
+			return false
+		}
+		return l.Value == r.Value
+	case *StringValue:
+		r, ok := right.(*StringValue)
+		if !ok {
+			return false
+		}
+		return l.Value == r.Value
+	case *BooleanValue:
+		r, ok := right.(*BooleanValue)
+		if !ok {
+			return false
+		}
+		return l.Value == r.Value
+	case *NilValue:
+		return true // nil == nil
+	case *RecordValue:
+		r, ok := right.(*RecordValue)
+		if !ok {
+			return false
+		}
+		return i.recordsEqual(l, r)
+	default:
+		// For other types, use string comparison as fallback
+		return left.String() == right.String()
+	}
+}
+
+// isInRange checks if value is within the range [start, end] inclusive.
+// Supports Integer, Float, String (character), and Enum values.
+func (i *Interpreter) isInRange(value, start, end Value) bool {
+	// Handle different value types
+	switch v := value.(type) {
+	case *IntegerValue:
+		startInt, startOk := start.(*IntegerValue)
+		endInt, endOk := end.(*IntegerValue)
+		if startOk && endOk {
+			return v.Value >= startInt.Value && v.Value <= endInt.Value
+		}
+
+	case *FloatValue:
+		startFloat, startOk := start.(*FloatValue)
+		endFloat, endOk := end.(*FloatValue)
+		if startOk && endOk {
+			return v.Value >= startFloat.Value && v.Value <= endFloat.Value
+		}
+
+	case *StringValue:
+		// For strings, compare character by character
+		startStr, startOk := start.(*StringValue)
+		endStr, endOk := end.(*StringValue)
+		// Use rune-based comparison to handle UTF-8 correctly
+		if startOk && endOk && runeLength(v.Value) == 1 && runeLength(startStr.Value) == 1 && runeLength(endStr.Value) == 1 {
+			// Single character comparison (for 'A'..'Z' style ranges)
+			charVal, _ := runeAt(v.Value, 1)
+			charStart, _ := runeAt(startStr.Value, 1)
+			charEnd, _ := runeAt(endStr.Value, 1)
+			return charVal >= charStart && charVal <= charEnd
+		}
+		// Fall back to string comparison for multi-char strings
+		if startOk && endOk {
+			return v.Value >= startStr.Value && v.Value <= endStr.Value
+		}
+
+	case *EnumValue:
+		startEnum, startOk := start.(*EnumValue)
+		endEnum, endOk := end.(*EnumValue)
+		if startOk && endOk && v.TypeName == startEnum.TypeName && v.TypeName == endEnum.TypeName {
+			return v.OrdinalValue >= startEnum.OrdinalValue && v.OrdinalValue <= endEnum.OrdinalValue
+		}
+	}
+
+	return false
+}
+
+// tryCallClassOperator tries to call a class operator method for the given operator symbol.
+// Returns nil if no operator is defined, otherwise returns the result of the method call (or error).
+func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol string, args []Value, stmt *ast.AssignmentStatement) Value {
+	// Look up the operator in the class (check current class and parents)
+	classInfo := objInst.Class
+	if classInfo == nil {
+		return nil // No class info
+	}
+
+	// Search for the operator in this class and parent classes
+	for class := classInfo; class != nil; class = class.Parent {
+		if class.Operators == nil {
+			continue
+		}
+
+		// Find the operator entry that matches
+		// Convert arg values to type strings for lookup using valueTypeKey
+		// to match the format used during operator registration
+		// Task 9.14: When searching parent classes, use the parent class name for matching
+		argTypes := make([]string, len(args)+1) // +1 for the class instance itself
+		argTypes[0] = "CLASS:" + class.Name     // Use the current class being searched, not objInst.Class
+		for idx, arg := range args {
+			argTypes[idx+1] = valueTypeKey(arg) // Use valueTypeKey for consistent type keys
+		}
+
+		opEntry, found := class.Operators.lookup(opSymbol, argTypes)
+		if !found {
+			continue
+		}
+
+		// Found the operator - call the bound method
+		var method *ast.FunctionDecl
+		var exists bool
+
+		if opEntry.IsClassMethod {
+			method, exists = class.ClassMethods[opEntry.BindingName]
+		} else {
+			method, exists = class.Methods[opEntry.BindingName]
+		}
+
+		if !exists {
+			return i.newErrorWithLocation(stmt, "operator method '%s' not found in class '%s'",
+				opEntry.BindingName, class.Name)
+		}
+
+		// Call the method with Self bound
+		// Save current environment and create method scope
+		prev := i.env
+		methodEnv := NewEnclosedEnvironment(i.env)
+		i.env = methodEnv
+		defer func() { i.env = prev }()
+
+		// Bind Self to the object instance
+		i.env.Define("Self", objInst)
+
+		// Bind parameters
+		for idx, param := range method.Parameters {
+			if idx < len(args) {
+				i.env.Define(param.Name.Value, args[idx])
+			}
+		}
+
+		i.Eval(method.Body)
+
+		// Check for errors after method execution
+		if i.exception != nil {
+			return &NilValue{} // Exception is active, return value doesn't matter
+		}
+
+		// Extract return value - operator methods may have a return type
+		// Check if Result variable was set in the method environment
+		if resultVal, exists := i.env.Get("Result"); exists {
+			return resultVal // Return the operator result
+		}
+
+		// No explicit return value - return the modified object instance
+		return objInst
+	}
+
+	return nil // No matching operator found
+}
