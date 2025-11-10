@@ -63,7 +63,7 @@ func TestHelperDeclaration(t *testing.T) {
 			name: "helper with class const",
 			input: `
 				type TMathHelper = helper for Float
-					class const PI = 3.14159;
+					class const MYPI = 3.14159;
 					function Round: Integer;
 				end;
 			`,

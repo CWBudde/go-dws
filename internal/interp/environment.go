@@ -1,6 +1,9 @@
 package interp
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Environment represents a symbol table for variable storage and scope management.
 // It supports nested scopes through the outer environment reference, enabling
@@ -36,12 +39,16 @@ func NewEnclosedEnvironment(outer *Environment) *Environment {
 
 // Get retrieves a variable value by name. It searches the current environment
 // first, then recursively searches outer (parent) environments if not found.
+// DWScript is case-insensitive, so names are normalized to lowercase.
 //
 // Returns the value and true if found, or nil and false if the variable is
 // undefined in this scope chain.
 func (e *Environment) Get(name string) (Value, bool) {
+	// Normalize to lowercase for case-insensitive lookup (DWScript is case-insensitive)
+	key := strings.ToLower(name)
+
 	// Check current environment
-	val, ok := e.store[name]
+	val, ok := e.store[key]
 	if ok {
 		return val, true
 	}
@@ -57,14 +64,17 @@ func (e *Environment) Get(name string) (Value, bool) {
 
 // Set updates an existing variable's value. It searches the current environment
 // first, then recursively searches outer environments to find where the variable
-// is defined.
+// is defined. DWScript is case-insensitive, so names are normalized to lowercase.
 //
 // Returns an error if the variable is not defined in any scope in the chain.
 // Use Define() to create a new variable in the current scope.
 func (e *Environment) Set(name string, val Value) error {
+	// Normalize to lowercase for case-insensitive lookup (DWScript is case-insensitive)
+	key := strings.ToLower(name)
+
 	// Check if variable exists in current environment
-	if _, ok := e.store[name]; ok {
-		e.store[name] = val
+	if _, ok := e.store[key]; ok {
+		e.store[key] = val
 		return nil
 	}
 
@@ -79,13 +89,16 @@ func (e *Environment) Set(name string, val Value) error {
 
 // Define creates a new variable in the current environment's scope.
 // If a variable with the same name already exists in this scope, it is
-// overwritten (no error is returned).
+// overwritten (no error is returned). DWScript is case-insensitive, so names
+// are normalized to lowercase.
 //
 // This differs from Set() which only updates existing variables and errors
 // if the variable is not found. Define() is used for variable declarations,
 // while Set() is used for assignments.
 func (e *Environment) Define(name string, val Value) {
-	e.store[name] = val
+	// Normalize to lowercase for case-insensitive storage (DWScript is case-insensitive)
+	key := strings.ToLower(name)
+	e.store[key] = val
 }
 
 // Has checks if a variable is defined in the current environment or any outer scope.
@@ -96,9 +109,12 @@ func (e *Environment) Has(name string) bool {
 
 // GetLocal retrieves a variable value only from the current environment,
 // without searching outer scopes. This is useful for checking if a variable
-// is shadowing an outer variable.
+// is shadowing an outer variable. DWScript is case-insensitive, so names are
+// normalized to lowercase.
 func (e *Environment) GetLocal(name string) (Value, bool) {
-	val, ok := e.store[name]
+	// Normalize to lowercase for case-insensitive lookup (DWScript is case-insensitive)
+	key := strings.ToLower(name)
+	val, ok := e.store[key]
 	return val, ok
 }
 

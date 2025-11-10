@@ -20,7 +20,7 @@ func TestIntegration_ParseASTSymbols(t *testing.T) {
 	source := `
 		var x: Integer := 42;
 		var message: String := 'Hello';
-		const PI = 3.14;
+		const MYCONST = 3.14;
 
 		function Add(a, b: Integer): Integer;
 		begin
@@ -62,7 +62,7 @@ func TestIntegration_ParseASTSymbols(t *testing.T) {
 		symbolNames[sym.Name] = true
 	}
 
-	expectedSymbols := []string{"x", "message", "PI", "Add", "Greet"}
+	expectedSymbols := []string{"x", "message", "MYCONST", "Add", "Greet"}
 	for _, expected := range expectedSymbols {
 		if !symbolNames[expected] {
 			t.Errorf("Expected symbol %q not found", expected)
@@ -380,7 +380,7 @@ func TestIntegration_NoRegressions(t *testing.T) {
 		{"while loops", "var i := 0; while i < 5 do i := i + 1;"},
 		{"for loops", "var i: Integer; for i := 0 to 10 do PrintLn(IntToStr(i));"},
 		{"arrays", "var arr: array of Integer; arr := [1, 2, 3];"},
-		{"constants", "const PI = 3.14; var r := 2.0; var area := PI * r * r;"},
+		{"constants", "const MYPI = 3.14; var r := 2.0; var area := MYPI * r * r;"},
 	}
 
 	for _, tt := range tests {
