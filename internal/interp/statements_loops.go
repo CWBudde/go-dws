@@ -54,7 +54,7 @@ func (i *Interpreter) evalWhileStatement(stmt *ast.WhileStatement) Value {
 // This differs from while loops: the body always executes at least once,
 // and the loop continues UNTIL the condition is true (not WHILE it's true).
 func (i *Interpreter) evalRepeatStatement(stmt *ast.RepeatStatement) Value {
-	var result Value = &NilValue{}
+	var result Value
 
 	for {
 		// Execute the body first (repeat-until always executes at least once)
