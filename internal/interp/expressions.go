@@ -1141,8 +1141,8 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 	targetClass, isClass := i.classes[targetTypeName]
 	if isClass {
 		// This is a class-to-class cast
-		// Check if the object's actual runtime type matches or is derived from the target
-		// Walk up the class hierarchy
+		// Validate that the object's actual runtime type is compatible with the target
+		// Walk up the object's class hierarchy to check if it matches or derives from target
 		currentClass := obj.Class
 		isCompatible := false
 		for currentClass != nil {
@@ -1153,27 +1153,14 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 			currentClass = currentClass.Parent
 		}
 
-		// If not an upcast, check if it's a downcast (target is derived from source)
+		// If the object's runtime type doesn't match or derive from target, the cast is invalid
 		if !isCompatible {
-			currentClass = targetClass
-			for currentClass != nil {
-				if strings.EqualFold(currentClass.Name, obj.Class.Name) {
-					// This is a downcast - validate at runtime
-					// For now, we'll allow it but could add runtime type checking
-					isCompatible = true
-					break
-				}
-				currentClass = currentClass.Parent
-			}
-		}
-
-		if !isCompatible {
-			return i.newErrorWithLocation(expr, "cannot cast object of class '%s' to '%s': types are not related",
+			return i.newErrorWithLocation(expr, "invalid cast: object of type '%s' cannot be cast to '%s'",
 				obj.Class.Name, targetClass.Name)
 		}
 
-		// For class-to-class casts, just return the same object
-		// (the type has been validated by the semantic analyzer)
+		// Cast is valid - return the same object
+		// The object's runtime type is guaranteed to be compatible with the target
 		return obj
 	}
 
