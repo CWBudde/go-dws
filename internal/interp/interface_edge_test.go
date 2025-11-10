@@ -409,7 +409,7 @@ func TestEdge_InterfaceCompatibilityEdgeCases(t *testing.T) {
 	t.Run("SelfCompatibility", func(t *testing.T) {
 		// Interface should be compatible with itself
 		iface := NewInterfaceInfo("ITest")
-		iface.Methods["Method1"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method1"}}
+		iface.Methods[strings.ToLower("Method1")] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method1"}}
 
 		if !interfaceIsCompatible(iface, iface) {
 			t.Error("Interface should be compatible with itself")

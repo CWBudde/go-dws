@@ -90,9 +90,9 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 				savedVal, exists := i.env.Get(objIdent.Value)
 				if exists {
 					// Temporarily set to underlying object
-					i.env.Set(objIdent.Value, ifaceInst.Object)
+					_ = i.env.Set(objIdent.Value, ifaceInst.Object)
 					// Use defer to ensure restoration even if method call panics or returns early
-					defer i.env.Set(objIdent.Value, savedVal)
+					defer func() { _ = i.env.Set(objIdent.Value, savedVal) }()
 
 					// Create a method call expression
 					mc := &ast.MethodCallExpression{

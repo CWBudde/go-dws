@@ -2,6 +2,7 @@ package interp
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -292,7 +293,7 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 	t.Run("ObjectToInterface", func(t *testing.T) {
 		// Create interface
 		iface := NewInterfaceInfo("ITest")
-		iface.Methods["DoIt"] = &ast.FunctionDecl{
+		iface.Methods[strings.ToLower("DoIt")] = &ast.FunctionDecl{
 			Name: &ast.Identifier{Value: "DoIt"},
 		}
 
@@ -414,7 +415,7 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 
 		// Create interface and class
 		iface := NewInterfaceInfo("IResource")
-		iface.Methods["Release"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Release"}}
+		iface.Methods[strings.ToLower("Release")] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Release"}}
 
 		class := NewClassInfo("TResource")
 		class.Methods["Release"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Release"}}
