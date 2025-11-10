@@ -182,9 +182,10 @@ func TestVariadicMethodDeclaration(t *testing.T) {
 	}
 
 	// Test Log method (1 variadic param)
-	logMethod, exists := classType.Methods["Log"]
+	// Methods are stored in lowercase for case-insensitive lookup
+	logMethod, exists := classType.Methods["log"]
 	if !exists {
-		t.Fatal("method 'Log' not found in class")
+		t.Fatal("method 'log' not found in class")
 	}
 
 	if !logMethod.IsVariadic {
@@ -200,9 +201,10 @@ func TestVariadicMethodDeclaration(t *testing.T) {
 	}
 
 	// Test Format method (2 params: String and variadic array of const)
-	formatMethod, exists := classType.Methods["Format"]
+	// Methods are stored in lowercase for case-insensitive lookup
+	formatMethod, exists := classType.Methods["format"]
 	if !exists {
-		t.Fatal("method 'Format' not found in class")
+		t.Fatal("method 'format' not found in class")
 	}
 
 	if !formatMethod.IsVariadic {
