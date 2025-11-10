@@ -2,6 +2,7 @@ package interp
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -50,7 +51,7 @@ func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
 	}
 
 	// Verify interface was registered
-	if _, exists := interp.interfaces["IPrintable"]; !exists {
+	if _, exists := interp.interfaces["iprintable"]; !exists {
 		t.Error("IPrintable interface should be registered")
 	}
 
@@ -61,7 +62,7 @@ func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
 	}
 
 	// Verify class implements interface
-	iface := interp.interfaces["IPrintable"]
+	iface := interp.interfaces["iprintable"]
 	if !classImplementsInterface(class, iface) {
 		t.Error("TDocument should implement IPrintable")
 	}
@@ -122,17 +123,17 @@ func TestIntegration_InterfaceInheritanceHierarchy(t *testing.T) {
 	}
 
 	// Verify 3-level interface hierarchy
-	base, existsBase := interp.interfaces["IBase"]
+	base, existsBase := interp.interfaces["ibase"]
 	if !existsBase {
 		t.Fatal("IBase should be registered")
 	}
 
-	middle, existsMiddle := interp.interfaces["IMiddle"]
+	middle, existsMiddle := interp.interfaces["imiddle"]
 	if !existsMiddle {
 		t.Fatal("IMiddle should be registered")
 	}
 
-	derived, existsDerived := interp.interfaces["IDerived"]
+	derived, existsDerived := interp.interfaces["iderived"]
 	if !existsDerived {
 		t.Fatal("IDerived should be registered")
 	}
@@ -251,17 +252,17 @@ func TestIntegration_ClassImplementingMultipleInterfaces(t *testing.T) {
 	}
 
 	// Verify all three interfaces registered
-	readable, existsR := interp.interfaces["IReadable"]
+	readable, existsR := interp.interfaces["ireadable"]
 	if !existsR {
 		t.Fatal("IReadable should be registered")
 	}
 
-	writable, existsW := interp.interfaces["IWritable"]
+	writable, existsW := interp.interfaces["iwritable"]
 	if !existsW {
 		t.Fatal("IWritable should be registered")
 	}
 
-	closeable, existsC := interp.interfaces["ICloseable"]
+	closeable, existsC := interp.interfaces["icloseable"]
 	if !existsC {
 		t.Fatal("ICloseable should be registered")
 	}
@@ -292,7 +293,7 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 	t.Run("ObjectToInterface", func(t *testing.T) {
 		// Create interface
 		iface := NewInterfaceInfo("ITest")
-		iface.Methods["DoIt"] = &ast.FunctionDecl{
+		iface.Methods[strings.ToLower("DoIt")] = &ast.FunctionDecl{
 			Name: &ast.Identifier{Value: "DoIt"},
 		}
 
@@ -414,12 +415,12 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 
 		// Create interface and class
 		iface := NewInterfaceInfo("IResource")
-		iface.Methods["Release"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Release"}}
+		iface.Methods[strings.ToLower("Release")] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Release"}}
 
 		class := NewClassInfo("TResource")
 		class.Methods["Release"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Release"}}
 
-		interp.interfaces["IResource"] = iface
+		interp.interfaces["iresource"] = iface
 		interp.classes["TResource"] = class
 
 		// Create object and interface instance

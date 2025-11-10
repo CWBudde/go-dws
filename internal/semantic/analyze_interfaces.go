@@ -87,7 +87,8 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 	funcType := types.NewFunctionType(paramTypes, returnType)
 
 	// Add method to interface
-	iface.Methods[methodName] = funcType
+	// Task 9.16.2: Use lowercase for case-insensitive method lookups
+	iface.Methods[strings.ToLower(methodName)] = funcType
 }
 
 // validateInterfaceImplementation validates that a class implements all required interface methods

@@ -1251,6 +1251,18 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return a.analyzeRecordFieldAccess(expr.Object, memberName)
 	}
 
+	// Task 9.16.2: Handle interface type method access
+	if ifaceType, ok := objectTypeResolved.(*types.InterfaceType); ok {
+		// Check if the interface has this method
+		allMethods := types.GetAllInterfaceMethods(ifaceType)
+		if methodType, hasMethod := allMethods[memberName]; hasMethod {
+			return methodType
+		}
+		a.addError("interface '%s' has no method '%s' at %s",
+			ifaceType.Name, expr.Member.Value, expr.Token.Pos.String())
+		return nil
+	}
+
 	// Task 9.73.2: Handle metaclass type (class of T) - allows calling constructors through metaclass
 	// Convert ClassOfType to the underlying ClassType so we can check for constructors and class members
 	if metaclassType, ok := objectTypeResolved.(*types.ClassOfType); ok {

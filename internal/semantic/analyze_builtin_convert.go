@@ -276,3 +276,49 @@ func (a *Analyzer) analyzeChr(args []ast.Expression, callExpr *ast.CallExpressio
 	}
 	return types.STRING
 }
+
+// analyzeStrToIntDef analyzes the StrToIntDef built-in function.
+// StrToIntDef takes a string and a default integer value, returning an integer.
+func (a *Analyzer) analyzeStrToIntDef(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrToIntDef' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+	// Analyze first argument (string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrToIntDef' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (default integer value)
+	defaultType := a.analyzeExpression(args[1])
+	if defaultType != nil && defaultType != types.INTEGER {
+		a.addError("function 'StrToIntDef' expects integer as second argument, got %s at %s",
+			defaultType.String(), callExpr.Token.Pos.String())
+	}
+	return types.INTEGER
+}
+
+// analyzeStrToFloatDef analyzes the StrToFloatDef built-in function.
+// StrToFloatDef takes a string and a default float value, returning a float.
+func (a *Analyzer) analyzeStrToFloatDef(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrToFloatDef' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.FLOAT
+	}
+	// Analyze first argument (string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrToFloatDef' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (default float value)
+	defaultType := a.analyzeExpression(args[1])
+	if defaultType != nil && defaultType != types.FLOAT {
+		a.addError("function 'StrToFloatDef' expects float as second argument, got %s at %s",
+			defaultType.String(), callExpr.Token.Pos.String())
+	}
+	return types.FLOAT
+}

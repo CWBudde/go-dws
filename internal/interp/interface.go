@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 )
@@ -33,9 +34,13 @@ func NewInterfaceInfo(name string) *InterfaceInfo {
 // It searches the interface hierarchy, starting with this interface
 // and walking up through parent interfaces until the method is found.
 // Returns nil if the method is not found in the interface hierarchy.
+// Task 9.16.2: Uses case-insensitive lookup
 func (ii *InterfaceInfo) GetMethod(name string) *ast.FunctionDecl {
+	// Task 9.16.2: Normalize to lowercase for case-insensitive lookup
+	normalizedName := strings.ToLower(name)
+
 	// Check this interface's methods first
-	if method, exists := ii.Methods[name]; exists {
+	if method, exists := ii.Methods[normalizedName]; exists {
 		return method
 	}
 
@@ -106,6 +111,9 @@ func (ii *InterfaceInstance) Type() string {
 // String returns the string representation of the interface instance.
 // Implements the Value interface.
 func (ii *InterfaceInstance) String() string {
+	if ii.Object == nil {
+		return fmt.Sprintf("%s instance (nil)", ii.Interface.Name)
+	}
 	return fmt.Sprintf("%s instance (wrapping %s)", ii.Interface.Name, ii.Object.Class.Name)
 }
 
@@ -118,6 +126,9 @@ func (ii *InterfaceInstance) GetUnderlyingObject() *ObjectInstance {
 // ImplementsInterface checks if the underlying object's class implements all methods
 // of the given interface. This is used for runtime type checking.
 func (ii *InterfaceInstance) ImplementsInterface(iface *InterfaceInfo) bool {
+	if ii.Object == nil {
+		return false // nil doesn't implement any interface
+	}
 	return classImplementsInterface(ii.Object.Class, iface)
 }
 

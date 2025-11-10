@@ -139,13 +139,32 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Tests**: TestPrivateMethodAccessFromSameClass, TestPrivateMethodAccessFromOutside, TestProtectedMethodAccessFromChild, TestProtectedMethodAccessFromOutside, TestPrivateFieldNotInheritedAccess, TestPublicMethodAccessFromOutside
   - **Details**: Add visibility validation in analyzeCallExpression when calling methods on class instances
 
-- [ ] 9.16.2 Interface Implementation Validation (9 tests)
-  - **Estimate**: 3-4 hours
-  - **Files**: analyze_interfaces.go
-  - **Description**: Fix interface method signature matching bugs
-  - **Root Cause**: Likely case-sensitivity or parameter matching issues in interface validation
-  - **Tests**: TestClassImplementsInterface, TestMultipleInterfaces, TestInterfaceVariableAssignment, TestInterfaceInheritance, TestInterfaceMethodCall, TestInvalidInterfaceImplementation, TestInterfaceCircularReference, TestInterfaceForwardDeclaration, TestInterfaceAsParameter
-  - **Strategy**: Debug why interface method matching fails; check case-insensitive method name lookups
+- [x] 9.16.2 Interface Implementation Validation - PARTIAL (Core functionality complete, one edge case remains)
+  - **Estimate**: 3-4 hours (actual: 4 hours)
+  - **Files**: analyze_interfaces.go, analyze_classes.go, interp/interface.go, interp/functions.go, interp/statements.go, interp/declarations.go
+  - **Description**: Implemented core interface runtime support with case-insensitive method lookups
+  - **Completed**:
+    - ✅ Interface methods stored with lowercase keys for case-insensitive lookup
+    - ✅ Interface variable declarations create InterfaceInstance with nil object
+    - ✅ Assignment from class to interface wraps object in InterfaceInstance
+    - ✅ Interface method calls work (member access without parentheses)
+    - ✅ Semantic analyzer handles interface member access
+    - ✅ Interface-to-interface assignment supported
+  - **Remaining Issue** (for follow-up task 9.16.2.9):
+    - ❌ Interface method calls with parentheses (CallExpression path) not finding methods
+    - **Issue**: When `x.Method()` is called (with parentheses), it's a CallExpression that analyzes the object separately before calling analyzeMemberAccessExpression
+    - **Impact**: Functions/procedures with parameters fail semantic validation
+    - **Workaround**: Method calls without parentheses work correctly
+  - **Subtasks**:
+    - [x] 9.16.2.1 Fix interface method name case-insensitivity in analyzeInterfaceMethodDecl
+    - [x] 9.16.2.2 Fix class method lookup case-insensitivity in validateInterfaceImplementation
+    - [x] 9.16.2.3 Add interface variable type support in semantic analyzer
+    - [x] 9.16.2.4 Implement interface-to-class assignment validation
+    - [x] 9.16.2.5 Add runtime interface variable support in interpreter
+    - [x] 9.16.2.6 Implement interface method call dispatch in interpreter
+    - [ ] 9.16.2.7 Add interface type casting (as operator) for interfaces - DEFERRED
+    - [ ] 9.16.2.8 Verify all 9 test cases pass - PARTIAL (core tests pass, CallExpression issue remains)
+    - [ ] 9.16.2.9 Fix CallExpression path for interface method calls with parentheses - NEW SUBTASK
 
 - [ ] 9.16.3 Property Expression Validation (5 tests)
   - **Estimate**: 2-3 hours
@@ -192,6 +211,27 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Description**: Various complex semantic validation issues
   - **Strategy**: Analyze each test individually and implement targeted fixes
   - **Examples**: Generic types, delegates, advanced inheritance scenarios, complex type checking
+
+- [ ] 9.16.10 Fix Function Argument Double Evaluation Bug
+  - **Estimate**: 2-4 hours
+  - **Priority**: High (affects fixture test accuracy)
+  - **Description**: Functions called as arguments to built-in functions (like PrintLn) are evaluated twice
+  - **Impact**: Causes side effects to happen twice, making tests fail with extra output
+  - **Examples**: `PrintLn(0 ?? Test(258))` calls `Test` twice instead of once
+  - **Root Cause**: Unknown - needs investigation in `evalCallExpression` or argument preparation
+  - **Discovery Context**: Found while implementing coalesce operator (Task 9.14)
+  - **Test Cases**:
+    - `PrintLn(Test(5))` outputs "Called\nCalled\n5" (Test called twice)
+    - `var x := Test(5); PrintLn(x)` outputs "Called\n5" (correct - Test called once)
+  - **Strategy**:
+    1. Add debug logging to trace argument evaluation in `evalCallExpression`
+    2. Check if semantic analyzer is somehow evaluating expressions
+    3. Look for duplicate evaluation in argument preparation loops
+    4. Verify fix doesn't break lazy or var parameter handling
+  - **Key Files**:
+    - `internal/interp/functions.go` - `evalCallExpression()` (lines 13-308)
+    - `internal/interp/builtins_core.go` - Built-in function implementations
+    - `internal/semantic/analyze_function_calls.go` - May be involved if analyzer evaluates
 
 #### Implementation Guidelines
 

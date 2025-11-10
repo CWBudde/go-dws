@@ -1003,6 +1003,11 @@ func (c *Compiler) compileBinaryExpression(expr *ast.BinaryExpression) error {
 		return err
 	}
 
+	// Special handling for coalesce operator (??) - requires short-circuit evaluation
+	if strings.ToLower(expr.Operator) == "??" {
+		return c.compileCoalesceExpression(expr)
+	}
+
 	if err := c.compileExpression(expr.Left); err != nil {
 		return err
 	}
@@ -1053,6 +1058,43 @@ func (c *Compiler) compileBinaryExpression(expr *ast.BinaryExpression) error {
 	}
 
 	return nil
+}
+
+// compileCoalesceExpression compiles the coalesce operator (??) with short-circuit evaluation.
+// The bytecode:
+//  1. Compile left operand (leaves value on stack)
+//  2. Duplicate the value (so we can check it without losing it)
+//  3. Check if it's falsey using OpIsFalsey
+//  4. If not falsey (i.e., truthy), jump to end (keep left on stack)
+//  5. If falsey, pop the left value, compile right operand
+//  6. End: result (either left or right) is on top of stack
+func (c *Compiler) compileCoalesceExpression(expr *ast.BinaryExpression) error {
+	line := lineOf(expr)
+
+	// Compile left operand
+	if err := c.compileExpression(expr.Left); err != nil {
+		return err
+	}
+
+	// Duplicate the left value so we can check it without consuming it
+	c.chunk.WriteSimple(OpDup, line)
+
+	// Check if the duplicated value is falsey
+	c.chunk.WriteSimple(OpIsFalsey, line)
+
+	// If falsey (true), we need to evaluate right operand
+	// So jump if NOT falsey (jump if the result is false)
+	// This leaves the left value on stack if it's truthy
+	jumpIfTruthy := c.chunk.EmitJump(OpJumpIfFalse, line)
+
+	// The value is falsey, so pop it and evaluate right operand
+	c.chunk.WriteSimple(OpPop, line)
+	if err := c.compileExpression(expr.Right); err != nil {
+		return err
+	}
+
+	// Patch the jump to skip right evaluation when left is truthy
+	return c.chunk.PatchJump(jumpIfTruthy)
 }
 
 func (c *Compiler) compileUnaryExpression(expr *ast.UnaryExpression) error {
