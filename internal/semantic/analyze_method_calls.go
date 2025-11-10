@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -194,9 +196,10 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 	}
 
-	// Check method visibility
+	// Check method visibility - Task 9.16.1
 	if methodOwner != nil && len(overloads) > 0 {
-		visibility, hasVisibility := methodOwner.MethodVisibility[methodName]
+		// Use lowercase key for case-insensitive lookup
+		visibility, hasVisibility := methodOwner.MethodVisibility[strings.ToLower(methodName)]
 		if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {
 			visibilityStr := ast.Visibility(visibility).String()
 			if methodOwner.HasConstructor(methodName) {

@@ -839,8 +839,10 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	// Store method visibility
 	// Only set visibility if this is the first time we're seeing this method (declaration in class body)
 	// Method implementations outside the class shouldn't overwrite the visibility
-	if _, exists := classType.MethodVisibility[method.Name.Value]; !exists {
-		classType.MethodVisibility[method.Name.Value] = int(method.Visibility)
+	// Task 9.16.1: Use lowercase key for case-insensitive lookups
+	methodKey := strings.ToLower(method.Name.Value)
+	if _, exists := classType.MethodVisibility[methodKey]; !exists {
+		classType.MethodVisibility[methodKey] = int(method.Visibility)
 	}
 
 	// Analyze method body in new scope
@@ -1358,14 +1360,15 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up method in class (for method references)
 	methodType, found := classType.GetMethod(memberName)
 	if found {
-		// Check method visibility
+		// Check method visibility - Task 9.16.1
 		methodOwner := a.getMethodOwner(classType, memberName)
 		if methodOwner != nil {
-			visibility, hasVisibility := methodOwner.MethodVisibility[memberName]
+			// Use lowercase key for case-insensitive lookup
+			visibility, hasVisibility := methodOwner.MethodVisibility[strings.ToLower(memberName)]
 			if hasVisibility && !a.checkVisibility(methodOwner, visibility, memberName, "method") {
 				visibilityStr := ast.Visibility(visibility).String()
-				a.addError("cannot access %s method '%s' of class '%s' at %s",
-					visibilityStr, memberName, methodOwner.Name, expr.Token.Pos.String())
+				a.addError("cannot call %s method '%s' at %s",
+					visibilityStr, memberName, expr.Token.Pos.String())
 				return nil
 			}
 		}
