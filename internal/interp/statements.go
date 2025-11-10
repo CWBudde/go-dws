@@ -500,6 +500,17 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Value, stmt *ast.AssignmentStatement) Value {
 	switch op {
 	case lexer.PLUS_ASSIGN:
+		// Task 9.14: Check for class operator overrides first
+		if objInst, ok := left.(*ObjectInstance); ok {
+			// Check if the class has an operator override for +=
+			result := i.tryCallClassOperator(objInst, "+=", []Value{right}, stmt)
+			if result != nil {
+				// Operator was found and called (either successfully or with error)
+				return result
+			}
+			// No operator override - fall through to default error
+		}
+
 		// += works with Integer, Float, String
 		switch l := left.(type) {
 		case *IntegerValue:
@@ -1689,4 +1700,85 @@ func (i *Interpreter) isInRange(value, start, end Value) bool {
 	}
 
 	return false
+}
+
+// tryCallClassOperator tries to call a class operator method for the given operator symbol.
+// Returns nil if no operator is defined, otherwise returns the result of the method call (or error).
+func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol string, args []Value, stmt *ast.AssignmentStatement) Value {
+	// Look up the operator in the class (check current class and parents)
+	classInfo := objInst.Class
+	if classInfo == nil {
+		return nil // No class info
+	}
+
+	// Search for the operator in this class and parent classes
+	for class := classInfo; class != nil; class = class.Parent {
+		if class.Operators == nil {
+			continue
+		}
+
+		// Find the operator entry that matches
+		// Convert arg values to type strings for lookup using valueTypeKey
+		// to match the format used during operator registration
+		argTypes := make([]string, len(args)+1) // +1 for the class instance itself
+		argTypes[0] = valueTypeKey(objInst)     // First operand is the class instance
+		for idx, arg := range args {
+			argTypes[idx+1] = valueTypeKey(arg) // Use valueTypeKey for consistent type keys
+		}
+
+		opEntry, found := class.Operators.lookup(opSymbol, argTypes)
+		if !found {
+			continue
+		}
+
+		// Found the operator - call the bound method
+		var method *ast.FunctionDecl
+		var exists bool
+
+		if opEntry.IsClassMethod {
+			method, exists = class.ClassMethods[opEntry.BindingName]
+		} else {
+			method, exists = class.Methods[opEntry.BindingName]
+		}
+
+		if !exists {
+			return i.newErrorWithLocation(stmt, "operator method '%s' not found in class '%s'",
+				opEntry.BindingName, class.Name)
+		}
+
+		// Call the method with Self bound
+		// Save current environment and create method scope
+		prev := i.env
+		methodEnv := NewEnclosedEnvironment(i.env)
+		i.env = methodEnv
+		defer func() { i.env = prev }()
+
+		// Bind Self to the object instance
+		i.env.Define("Self", objInst)
+
+		// Bind parameters
+		for idx, param := range method.Parameters {
+			if idx < len(args) {
+				i.env.Define(param.Name.Value, args[idx])
+			}
+		}
+
+		i.Eval(method.Body)
+
+		// Check for errors after method execution
+		if i.exception != nil {
+			return &NilValue{} // Exception is active, return value doesn't matter
+		}
+
+		// Extract return value - operator methods may have a return type
+		// Check if Result variable was set in the method environment
+		if resultVal, exists := i.env.Get("Result"); exists {
+			return resultVal // Return the operator result
+		}
+
+		// No explicit return value - return the modified object instance
+		return objInst
+	}
+
+	return nil // No matching operator found
 }

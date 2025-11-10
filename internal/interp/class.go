@@ -31,6 +31,7 @@ type ClassInfo struct {
 	Name                 string
 	IsExternal           bool
 	IsAbstract           bool
+	IsPartial            bool // Task 9.13: Support for partial class declarations
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.

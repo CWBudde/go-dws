@@ -1,101 +1,27 @@
-name: Test
+name: test
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+    branches:
+      - main
+      - claude/*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: ['1.24.x', '1.25.x']
+  test-can-build:
+    uses: ./.github/workflows/test-can-build.yaml
 
-    steps:
-    - name: Check out code
-      uses: actions/checkout@v4
+  test-format:
+    uses: ./.github/workflows/test-format.yaml
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: ${{ matrix.go-version }}
+  test-lint:
+    uses: ./.github/workflows/test-lint.yaml
 
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-${{ matrix.go-version }}-
-          ${{ runner.os }}-go-
-
-    - name: Download dependencies
-      run: go mod download
-
-    - name: Verify dependencies
-      run: go mod verify
-
-    - name: Run go vet
-      run: go vet ./...
-
-    - name: Run go fmt check
-      run: |
-        if [ -n "$(gofmt -s -l .)" ]; then
-          echo "Go code is not formatted:"
-          gofmt -s -d .
-          exit 1
-        fi
-
-    - name: Run tests
-      run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.txt
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Check out code
-      uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: 1.24.x
-
-    - name: Build CLI
-      run: go build -v ./cmd/dwscript
-
-    - name: Test CLI runs
-      run: ./dwscript --version
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Check out code
-      uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: 1.24.x
-
-    - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v8
-      with:
-        version: latest
-        args: --timeout=5m
+  test-unit:
+    uses: ./.github/workflows/test-unit.yaml
