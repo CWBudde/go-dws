@@ -110,6 +110,59 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return resultType
 		}
 
+		// Task 9.16.1: Check if we're calling a class method without explicit "Self."
+		// This handles calls like Helper() from within a class method
+		if a.currentClass != nil {
+			// Look up method in current class (including inherited methods)
+			// Note: GetMethod() normalizes to lowercase internally, so we pass the original name
+			methodNameLower := strings.ToLower(funcIdent.Value)
+			methodType, found := a.currentClass.GetMethod(funcIdent.Value)
+			if found {
+				// Found a method - check visibility
+				// Use lowercase for visibility map lookup (keys are stored in lowercase)
+				methodOwner := a.getMethodOwner(a.currentClass, methodNameLower)
+				if methodOwner != nil {
+					visibility, hasVisibility := methodOwner.MethodVisibility[methodNameLower]
+					if hasVisibility && !a.checkVisibility(methodOwner, visibility, funcIdent.Value, "method") {
+						visibilityStr := ast.Visibility(visibility).String()
+						a.addError("cannot call %s method '%s' of class '%s' at %s",
+							visibilityStr, funcIdent.Value, methodOwner.Name, expr.Token.Pos.String())
+						return nil
+					}
+				}
+
+				// Validate argument count
+				if len(expr.Arguments) != len(methodType.Parameters) {
+					a.addError("method '%s' expects %d argument(s), got %d at %s",
+						funcIdent.Value, len(methodType.Parameters), len(expr.Arguments), expr.Token.Pos.String())
+				}
+
+				// Validate argument types
+				for i, arg := range expr.Arguments {
+					if i >= len(methodType.Parameters) {
+						break // Already reported count mismatch
+					}
+
+					// Task 9.2b: Validate var parameter receives an lvalue
+					isVar := len(methodType.VarParams) > i && methodType.VarParams[i]
+					if isVar && !a.isLValue(arg) {
+						a.addError("var parameter %d requires a variable (identifier, array element, or field), got %s at %s",
+							i+1, arg.String(), arg.Pos().String())
+					}
+
+					paramType := methodType.Parameters[i]
+					argType := a.analyzeExpressionWithExpectedType(arg, paramType)
+					if argType != nil && !a.canAssign(argType, paramType) {
+						a.addError("argument %d has type %s, expected %s at %s",
+							i+1, argType.String(), paramType.String(),
+							expr.Token.Pos.String())
+					}
+				}
+
+				return methodType.ReturnType
+			}
+		}
+
 		// Low built-in function
 
 		// Assert built-in procedure

@@ -52,13 +52,15 @@ func (r *OperatorRegistry) Register(signature *OperatorSignature) error {
 	return nil
 }
 
-// Lookup finds an operator signature that exactly matches the given operand types.
+// Lookup finds an operator signature that matches the given operand types.
+// Task 9.14: Support inheritance - operands are compatible if they're assignable to declared types.
 func (r *OperatorRegistry) Lookup(operator string, operandTypes []Type) (*OperatorSignature, bool) {
 	entries, ok := r.entries[operator]
 	if !ok {
 		return nil, false
 	}
 
+	// First, try exact match for performance
 	key := operatorEntryKey(operator, operandTypes)
 	for _, entry := range entries {
 		if operatorEntryKey(entry.Operator, entry.OperandTypes) == key {
@@ -66,7 +68,51 @@ func (r *OperatorRegistry) Lookup(operator string, operandTypes []Type) (*Operat
 		}
 	}
 
+	// Task 9.14: If no exact match, try assignment-compatible match (for inheritance)
+	// This allows subclasses to use operators defined on parent classes
+	for _, entry := range entries {
+		if len(entry.OperandTypes) != len(operandTypes) {
+			continue
+		}
+
+		allCompatible := true
+		for i := range operandTypes {
+			if !areTypesCompatibleForOperator(operandTypes[i], entry.OperandTypes[i]) {
+				allCompatible = false
+				break
+			}
+		}
+
+		if allCompatible {
+			return entry, true
+		}
+	}
+
 	return nil, false
+}
+
+// areTypesCompatibleForOperator checks if actualType can be used where declaredType is expected.
+// This supports inheritance: a subclass instance can be used where parent class is expected.
+func areTypesCompatibleForOperator(actualType, declaredType Type) bool {
+	// Exact match
+	if actualType.Equals(declaredType) {
+		return true
+	}
+
+	// Check class inheritance: actualType is a subclass of declaredType
+	actualClass, actualIsClass := actualType.(*ClassType)
+	declaredClass, declaredIsClass := declaredType.(*ClassType)
+
+	if actualIsClass && declaredIsClass {
+		// Walk up the inheritance chain to see if actualClass is a subclass of declaredClass
+		for class := actualClass; class != nil; class = class.Parent {
+			if class.Name == declaredClass.Name {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // operatorEntryKey creates a stable string key for an operator + operand signature.

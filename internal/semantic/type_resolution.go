@@ -821,8 +821,9 @@ func (a *Analyzer) getMethodOwner(class *types.ClassType, methodName string) *ty
 		return nil
 	}
 
-	// Check if this class declares the method
-	if _, found := class.Methods[methodName]; found {
+	// Task 9.16.1: Use overload system instead of deprecated Methods map
+	methodKey := strings.ToLower(methodName)
+	if _, found := class.MethodOverloads[methodKey]; found {
 		return class
 	}
 
