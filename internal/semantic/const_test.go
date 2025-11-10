@@ -10,7 +10,7 @@ import (
 
 func TestConstDeclarationWithType(t *testing.T) {
 	input := `
-		const PI: Float = 3.14;
+		const MYPI: Float = 3.14;
 		const MAX: Integer = 100;
 		const NAME: String = 'test';
 		const FLAG: Boolean = true;
@@ -20,7 +20,7 @@ func TestConstDeclarationWithType(t *testing.T) {
 
 func TestConstDeclarationWithTypeInference(t *testing.T) {
 	input := `
-		const PI = 3.14;
+		const MYPI = 3.14;
 		const MAX = 100;
 		const NAME = 'test';
 		const FLAG = true;
@@ -35,15 +35,15 @@ func TestConstDeclarationTypeMismatch(t *testing.T) {
 
 func TestConstRedeclaration(t *testing.T) {
 	input := `
-		const PI = 3.14;
-		const PI = 2.71;
+		const MYPI = 3.14;
+		const MYPI = 2.71;
 	`
 	expectError(t, input, "already declared")
 }
 
 func TestConstUsageInExpression(t *testing.T) {
 	input := `
-		const PI = 3.14;
+		const MYPI = 3.14;
 		const RADIUS = 5.0;
 		var area: Float := PI * RADIUS * RADIUS;
 	`

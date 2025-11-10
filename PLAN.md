@@ -91,12 +91,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Files**: `internal/parser/helper.go`, `internal/semantic/helper.go`
   - **Estimated time**: 1-2 days
 
-- [x] 9.2 Enforce private field access control - **COMPLETED**
-  - Private/protected/public field visibility enforced in semantic analyzer
-  - Derived classes correctly blocked from accessing private parent fields
-  - **Files**: `internal/semantic/analyze_expr_operators.go`, `internal/semantic/analyze_classes.go`
-  - **Completed**: 2025-11-09 (commit eb6009a)
-
+- [x] 9.2 Enforce private field access control - Private/protected/public field visibility enforced in semantic analyzer; derived classes blocked from private parent fields;
 - [x] 9.3 Class Methods (class procedures/functions) - Parser, semantic analysis, runtime execution, and virtual/override polymorphism support
 - [x] 9.4 Class Constants - Parsing, ClassType storage, semantic validation, and runtime evaluation with method scope accessibility
 - [x] 9.5 Class Variables (Static Fields) - class var declarations with parsing, type system integration, and shared instance-independent storage
@@ -112,18 +107,21 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Blocks**: partial_class*.pas (5+ tests)
 
-- [ ] 9.13.1 Parse partial class syntax
+- [x] 9.13.1 Parse partial class syntax
   - **Task**: Recognize `partial` keyword on class declarations
-  - **Files**: `internal/parser/interfaces.go`
-  - **Tests**: Parse partial class declarations
+  - **Files**: `internal/parser/interfaces.go`, `pkg/ast/classes.go`
+  - **Tests**: Parse partial class declarations ✓
+  - **Status**: DONE - Parser recognizes both `partial class` and `class partial` syntax
 
-- [ ] 9.13.2 Merge partial class definitions
+- [x] 9.13.2 Merge partial class definitions
   - **Task**: Combine multiple partial declarations into single class
-  - **Files**: `internal/semantic/analyze_types.go`
-  - **Tests**: Partial classes merge correctly
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/types/types.go`
+  - **Tests**: Partial classes merge correctly ✓
+  - **Status**: DONE - Semantic analyzer merges partial class members (fields, methods, constants)
 
 **Estimated Time**: 2-3 days
 **Dependency**: Advanced feature, low priority
+**Status**: COMPLETE ✓
 
 #### 9.14 Operator Overloading for Classes - MEDIUM PRIORITY
 

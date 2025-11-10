@@ -230,7 +230,7 @@ end;`,
 func TestASTNodeTypes(t *testing.T) {
 	source := `
 var x: Integer;
-const PI = 3.14;
+const MYCONST = 3.14;
 function Test(): Boolean;
 begin
   Result := true;

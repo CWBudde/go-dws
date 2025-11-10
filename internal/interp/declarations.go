@@ -76,15 +76,36 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 // It builds a ClassInfo from the AST and registers it in the class registry.
 // Handles inheritance by copying parent fields and methods to the child class.
 func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
-	// Create new ClassInfo
-	classInfo := NewClassInfo(cd.Name.Value)
+	// Task 9.13: Check if this is a partial class declaration
+	var classInfo *ClassInfo
+	existingClass, exists := i.classes[cd.Name.Value]
 
-	// Set abstract flag
-	classInfo.IsAbstract = cd.IsAbstract
+	if exists && existingClass.IsPartial && cd.IsPartial {
+		// Merging partial classes - reuse existing ClassInfo
+		classInfo = existingClass
+	} else if exists {
+		// Non-partial class already exists - error (semantic analyzer should catch this)
+		return i.newErrorWithLocation(cd, "class '%s' already declared", cd.Name.Value)
+	} else {
+		// New class declaration
+		classInfo = NewClassInfo(cd.Name.Value)
+	}
 
-	// Set external flags
-	classInfo.IsExternal = cd.IsExternal
-	classInfo.ExternalName = cd.ExternalName
+	// Mark as partial if this declaration is partial
+	if cd.IsPartial {
+		classInfo.IsPartial = true
+	}
+
+	// Set abstract flag (only if not already set)
+	if cd.IsAbstract {
+		classInfo.IsAbstract = true
+	}
+
+	// Set external flags (only if not already set)
+	if cd.IsExternal {
+		classInfo.IsExternal = true
+		classInfo.ExternalName = cd.ExternalName
+	}
 
 	// Handle inheritance if parent class is specified
 	if cd.Parent != nil {
@@ -94,38 +115,40 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			return i.newErrorWithLocation(cd, "parent class '%s' not found", parentName)
 		}
 
-		// Set parent reference
-		classInfo.Parent = parentClass
+		// Set parent reference (only if not already set for partial classes)
+		if classInfo.Parent == nil {
+			classInfo.Parent = parentClass
 
-		// Copy parent fields (child inherits all parent fields)
-		for fieldName, fieldType := range parentClass.Fields {
-			classInfo.Fields[fieldName] = fieldType
-		}
+			// Copy parent fields (child inherits all parent fields)
+			for fieldName, fieldType := range parentClass.Fields {
+				classInfo.Fields[fieldName] = fieldType
+			}
 
-		// Copy parent methods (child inherits all parent methods)
-		// Keep Methods and ClassMethods for backward compatibility (direct lookups)
-		for methodName, methodDecl := range parentClass.Methods {
-			classInfo.Methods[methodName] = methodDecl
-		}
-		for methodName, methodDecl := range parentClass.ClassMethods {
-			classInfo.ClassMethods[methodName] = methodDecl
-		}
+			// Copy parent methods (child inherits all parent methods)
+			// Keep Methods and ClassMethods for backward compatibility (direct lookups)
+			for methodName, methodDecl := range parentClass.Methods {
+				classInfo.Methods[methodName] = methodDecl
+			}
+			for methodName, methodDecl := range parentClass.ClassMethods {
+				classInfo.ClassMethods[methodName] = methodDecl
+			}
 
-		// DON'T copy MethodOverloads/ClassMethodOverloads from parent
-		// Each class should only store its OWN method overloads, not inherited ones.
-		// getMethodOverloadsInHierarchy will walk the hierarchy to collect them at call time.
-		// This prevents duplication when a child class overrides a parent method.
+			// DON'T copy MethodOverloads/ClassMethodOverloads from parent
+			// Each class should only store its OWN method overloads, not inherited ones.
+			// getMethodOverloadsInHierarchy will walk the hierarchy to collect them at call time.
+			// This prevents duplication when a child class overrides a parent method.
 
-		// Copy constructors
-		for name, constructor := range parentClass.Constructors {
-			classInfo.Constructors[name] = constructor
-		}
-		for name, overloads := range parentClass.ConstructorOverloads {
-			classInfo.ConstructorOverloads[name] = append([]*ast.FunctionDecl(nil), overloads...)
-		}
+			// Copy constructors
+			for name, constructor := range parentClass.Constructors {
+				classInfo.Constructors[name] = constructor
+			}
+			for name, overloads := range parentClass.ConstructorOverloads {
+				classInfo.ConstructorOverloads[name] = append([]*ast.FunctionDecl(nil), overloads...)
+			}
 
-		// Copy operator overloads
-		classInfo.Operators = parentClass.Operators.clone()
+			// Copy operator overloads
+			classInfo.Operators = parentClass.Operators.clone()
+		}
 	}
 
 	// Add own fields to ClassInfo

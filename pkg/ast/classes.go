@@ -56,6 +56,9 @@ func (v Visibility) String() string {
 //	type TAbstract = class abstract
 //	  // abstract class (cannot be instantiated)
 //	end;
+//	type TPartial = partial class
+//	  // partial class (can be declared multiple times)
+//	end;
 type ClassDecl struct {
 	Constructor  *FunctionDecl
 	Name         *Identifier
@@ -71,6 +74,7 @@ type ClassDecl struct {
 	Token        token.Token
 	IsAbstract   bool
 	IsExternal   bool
+	IsPartial    bool // True if declared with 'partial' keyword
 	EndPos       token.Position
 }
 
@@ -89,7 +93,14 @@ func (cd *ClassDecl) String() string {
 
 	out.WriteString("type ")
 	out.WriteString(cd.Name.String())
-	out.WriteString(" = class")
+	out.WriteString(" = ")
+
+	// Add partial keyword if this is a partial class
+	if cd.IsPartial {
+		out.WriteString("partial ")
+	}
+
+	out.WriteString("class")
 
 	// Add parent class and/or interfaces if present
 	// Syntax: class(TParent, IInterface1, IInterface2) or class(IInterface) with no parent

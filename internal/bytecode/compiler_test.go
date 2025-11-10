@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	numBuiltinGlobals = 11
+	numBuiltinGlobals = 16 // ExceptObject + 10 builtins + 4 type casts + Pi
 	userGlobal0       = numBuiltinGlobals
 	userGlobal1       = numBuiltinGlobals + 1
 )
@@ -87,12 +87,12 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 
 	expectInstructions(t, chunk, []expectedInstruction{
 		{Op: OpLoadConst0, A: 0, B: 0},
-		{Op: OpStoreGlobal, A: 0, B: 11},
-		{Op: OpLoadGlobal, A: 0, B: 11},
+		{Op: OpStoreGlobal, A: 0, B: userGlobal0},
+		{Op: OpLoadGlobal, A: 0, B: userGlobal0},
 		{Op: OpLoadConst1, A: 0, B: 0},
 		{Op: OpAddInt, A: 0, B: 0},
-		{Op: OpStoreGlobal, A: 0, B: 11},
-		{Op: OpLoadGlobal, A: 0, B: 11},
+		{Op: OpStoreGlobal, A: 0, B: userGlobal0},
+		{Op: OpLoadGlobal, A: 0, B: userGlobal0},
 		{Op: OpReturn, A: 1, B: 0},
 	})
 

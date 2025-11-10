@@ -88,6 +88,19 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 	} else if p.peekTokenIs(lexer.INTERFACE) {
 		p.nextToken() // move to INTERFACE
 		return p.parseInterfaceDeclarationBody(nameIdent)
+	} else if p.peekTokenIs(lexer.PARTIAL) {
+		// Partial class: type TMyClass = partial class ... end;
+		p.nextToken() // move to PARTIAL
+		if !p.expectPeek(lexer.CLASS) {
+			p.addError("expected 'class' after 'partial' keyword", ErrUnexpectedToken)
+			return nil
+		}
+		// Parse class body and mark as partial
+		classDecl := p.parseClassDeclarationBody(nameIdent)
+		if classDecl != nil {
+			classDecl.IsPartial = true
+		}
+		return classDecl
 	} else if p.peekTokenIs(lexer.CLASS) {
 		p.nextToken() // move to CLASS
 		// Check if this is a metaclass type alias: type TBaseClass = class of TBase;
@@ -118,6 +131,15 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 			}
 			typeDecl.EndPos = p.endPosFromToken(p.curToken)
 			return typeDecl
+		}
+		// Check if followed by 'partial': type TMyClass = class partial ... end;
+		if p.peekTokenIs(lexer.PARTIAL) {
+			p.nextToken() // move to PARTIAL
+			classDecl := p.parseClassDeclarationBody(nameIdent)
+			if classDecl != nil {
+				classDecl.IsPartial = true
+			}
+			return classDecl
 		}
 		// Regular class declaration: type TMyClass = class ... end;
 		return p.parseClassDeclarationBody(nameIdent)
