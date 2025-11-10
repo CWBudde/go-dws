@@ -291,7 +291,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					return
 				}
 				if isCompound {
-					if !a.isCompoundOperatorValid(stmt.Operator, fieldType, valueType, stmt.Token.Pos) {
+					valid, _ := a.isCompoundOperatorValid(stmt.Operator, fieldType, valueType, stmt.Token.Pos)
+					if !valid {
 						return
 					}
 				}
@@ -318,7 +319,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 							return
 						}
 						if isCompound {
-							if !a.isCompoundOperatorValid(stmt.Operator, propInfo.Type, valueType, stmt.Token.Pos) {
+							valid, _ := a.isCompoundOperatorValid(stmt.Operator, propInfo.Type, valueType, stmt.Token.Pos)
+							if !valid {
 								return
 							}
 						}
@@ -356,27 +358,11 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		usesClassOperator := false
 		if isCompound {
-			opResult := a.isCompoundOperatorValid(stmt.Operator, sym.Type, valueType, stmt.Token.Pos)
-			if !opResult {
+			valid, classOp := a.isCompoundOperatorValid(stmt.Operator, sym.Type, valueType, stmt.Token.Pos)
+			if !valid {
 				return
 			}
-			// Check if this uses a class operator (not just built-in type)
-			var opSymbol string
-			switch stmt.Operator {
-			case lexer.PLUS_ASSIGN:
-				opSymbol = "+="
-			case lexer.MINUS_ASSIGN:
-				opSymbol = "-="
-			case lexer.TIMES_ASSIGN:
-				opSymbol = "*="
-			case lexer.DIVIDE_ASSIGN:
-				opSymbol = "/="
-			}
-			if opSymbol != "" {
-				if _, ok := a.resolveBinaryOperator(opSymbol, sym.Type, valueType); ok {
-					usesClassOperator = true
-				}
-			}
+			usesClassOperator = classOp
 		}
 
 		// Check type compatibility (skip for class operators - they're method calls)
@@ -405,17 +391,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 				return
 			}
 			// Check if this uses a class operator (not just built-in type)
-			var opSymbol string
-			switch stmt.Operator {
-			case lexer.PLUS_ASSIGN:
-				opSymbol = "+="
-			case lexer.MINUS_ASSIGN:
-				opSymbol = "-="
-			case lexer.TIMES_ASSIGN:
-				opSymbol = "*="
-			case lexer.DIVIDE_ASSIGN:
-				opSymbol = "/="
-			}
+			opSymbol := compoundOperatorToSymbol(stmt.Operator)
 			if opSymbol != "" {
 				if _, ok := a.resolveBinaryOperator(opSymbol, targetType, valueType); ok {
 					usesClassOperator = true
@@ -449,17 +425,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 				return
 			}
 			// Check if this uses a class operator (not just built-in type)
-			var opSymbol string
-			switch stmt.Operator {
-			case lexer.PLUS_ASSIGN:
-				opSymbol = "+="
-			case lexer.MINUS_ASSIGN:
-				opSymbol = "-="
-			case lexer.TIMES_ASSIGN:
-				opSymbol = "*="
-			case lexer.DIVIDE_ASSIGN:
-				opSymbol = "/="
-			}
+			opSymbol := compoundOperatorToSymbol(stmt.Operator)
 			if opSymbol != "" {
 				if _, ok := a.resolveBinaryOperator(opSymbol, targetType, valueType); ok {
 					usesClassOperator = true
@@ -479,27 +445,19 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 }
 
 // isCompoundOperatorValid checks if a compound operator is valid for the given types.
-func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, valueType types.Type, pos lexer.Position) bool {
+// Returns (valid, usesClassOperator) where usesClassOperator is true if a class operator was found.
+func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, valueType types.Type, pos lexer.Position) (bool, bool) {
 	// Task 9.14: Check if there's a class operator override for this compound assignment
 	// Convert lexer.TokenType to operator symbol string
-	var opSymbol string
-	switch op {
-	case lexer.PLUS_ASSIGN:
-		opSymbol = "+="
-	case lexer.MINUS_ASSIGN:
-		opSymbol = "-="
-	case lexer.TIMES_ASSIGN:
-		opSymbol = "*="
-	case lexer.DIVIDE_ASSIGN:
-		opSymbol = "/="
-	default:
+	opSymbol := compoundOperatorToSymbol(op)
+	if opSymbol == "" {
 		a.addError("unsupported compound operator %v at %s", op, pos.String())
-		return false
+		return false, false
 	}
 
 	// Check for class operator overrides first
 	if _, ok := a.resolveBinaryOperator(opSymbol, targetType, valueType); ok {
-		return true
+		return true, true // Valid and uses class operator
 	}
 
 	// Fall back to built-in type checking
@@ -507,15 +465,15 @@ func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, value
 	case lexer.PLUS_ASSIGN:
 		// += works with Integer, Float, String (concatenation)
 		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) || targetType.Equals(types.STRING) {
-			return true
+			return true, false // Valid but doesn't use class operator
 		}
 		a.addError("operator += not supported for type %s at %s", targetType.String(), pos.String())
-		return false
+		return false, false
 
 	case lexer.MINUS_ASSIGN, lexer.TIMES_ASSIGN, lexer.DIVIDE_ASSIGN:
 		// -=, *=, /= work with Integer, Float only
 		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) {
-			return true
+			return true, false // Valid but doesn't use class operator
 		}
 		opStr := "operator"
 		switch op {
@@ -527,10 +485,10 @@ func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, value
 			opStr = "operator /="
 		}
 		a.addError("%s not supported for type %s at %s", opStr, targetType.String(), pos.String())
-		return false
+		return false, false
 
 	default:
-		return true
+		return true, false // Valid but doesn't use class operator
 	}
 }
 
@@ -898,4 +856,24 @@ func (a *Analyzer) analyzeExitStatement(stmt *ast.ExitStatement) {
 	}
 	// Exit without an explicit return value is allowed. Functions rely on the current
 	// Result variable (or their default) in that case, matching DWScript semantics.
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+// compoundOperatorToSymbol converts a compound assignment operator token to its string symbol
+func compoundOperatorToSymbol(op lexer.TokenType) string {
+	switch op {
+	case lexer.PLUS_ASSIGN:
+		return "+="
+	case lexer.MINUS_ASSIGN:
+		return "-="
+	case lexer.TIMES_ASSIGN:
+		return "*="
+	case lexer.DIVIDE_ASSIGN:
+		return "/="
+	default:
+		return ""
+	}
 }
