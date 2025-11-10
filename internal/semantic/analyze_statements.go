@@ -387,16 +387,11 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		// For compound assignments, validate operator compatibility
 		usesClassOperator := false
 		if isCompound {
-			if !a.isCompoundOperatorValid(stmt.Operator, targetType, valueType, stmt.Token.Pos) {
+			valid, classOp := a.isCompoundOperatorValid(stmt.Operator, targetType, valueType, stmt.Token.Pos)
+			if !valid {
 				return
 			}
-			// Check if this uses a class operator (not just built-in type)
-			opSymbol := compoundOperatorToSymbol(stmt.Operator)
-			if opSymbol != "" {
-				if _, ok := a.resolveBinaryOperator(opSymbol, targetType, valueType); ok {
-					usesClassOperator = true
-				}
-			}
+			usesClassOperator = classOp
 		}
 
 		// Check type compatibility (skip for class operators - they're method calls)
@@ -421,16 +416,11 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		// For compound assignments, validate operator compatibility
 		usesClassOperator := false
 		if isCompound {
-			if !a.isCompoundOperatorValid(stmt.Operator, targetType, valueType, stmt.Token.Pos) {
+			valid, classOp := a.isCompoundOperatorValid(stmt.Operator, targetType, valueType, stmt.Token.Pos)
+			if !valid {
 				return
 			}
-			// Check if this uses a class operator (not just built-in type)
-			opSymbol := compoundOperatorToSymbol(stmt.Operator)
-			if opSymbol != "" {
-				if _, ok := a.resolveBinaryOperator(opSymbol, targetType, valueType); ok {
-					usesClassOperator = true
-				}
-			}
+			usesClassOperator = classOp
 		}
 
 		// Check type compatibility (skip for class operators - they're method calls)

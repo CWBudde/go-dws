@@ -1718,11 +1718,12 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 		}
 
 		// Find the operator entry that matches
-		// Convert arg values to type strings for lookup
+		// Convert arg values to type strings for lookup using valueTypeKey
+		// to match the format used during operator registration
 		argTypes := make([]string, len(args)+1) // +1 for the class instance itself
-		argTypes[0] = objInst.Class.Name        // First operand is the class instance
+		argTypes[0] = valueTypeKey(objInst)     // First operand is the class instance
 		for idx, arg := range args {
-			argTypes[idx+1] = arg.Type()
+			argTypes[idx+1] = valueTypeKey(arg) // Use valueTypeKey for consistent type keys
 		}
 
 		opEntry, found := class.Operators.lookup(opSymbol, argTypes)
@@ -1762,16 +1763,21 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 			}
 		}
 
-		result := i.Eval(method.Body)
+		i.Eval(method.Body)
 
-		// For compound assignment operators, we don't use the return value
-		// (the method modifies the object in-place)
-		if isError(result) {
-			return result
+		// Check for errors after method execution
+		if i.exception != nil {
+			return &NilValue{} // Exception is active, return value doesn't matter
 		}
 
-		// Return NilValue to indicate success (the assignment shouldn't store a value)
-		return &NilValue{}
+		// Extract return value - operator methods may have a return type
+		// Check if Result variable was set in the method environment
+		if resultVal, exists := i.env.Get("Result"); exists {
+			return resultVal // Return the operator result
+		}
+
+		// No explicit return value - return the modified object instance
+		return objInst
 	}
 
 	return nil // No matching operator found
