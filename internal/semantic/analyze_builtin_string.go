@@ -135,14 +135,30 @@ func (a *Analyzer) analyzeSubStr(args []ast.Expression, callExpr *ast.CallExpres
 }
 
 // analyzeConcat analyzes the Concat built-in function.
-// Concat takes at least one argument (all strings) and returns a string.
+// Concat takes at least one argument (all strings or all arrays) and returns a string or array.
 func (a *Analyzer) analyzeConcat(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) == 0 {
 		a.addError("function 'Concat' expects at least 1 argument, got 0 at %s",
 			callExpr.Token.Pos.String())
 		return types.STRING
 	}
-	// Analyze all arguments and verify they're strings
+
+	// Check the type of the first argument to determine if we're concatenating strings or arrays
+	firstArgType := a.analyzeExpression(args[0])
+
+	// If first argument is an array, all arguments must be arrays
+	if arrType, ok := firstArgType.(*types.ArrayType); ok {
+		for i := 1; i < len(args); i++ {
+			argType := a.analyzeExpression(args[i])
+			if _, ok := argType.(*types.ArrayType); !ok {
+				a.addError("function 'Concat' expects array as argument %d, got %s at %s",
+					i+1, argType.String(), callExpr.Token.Pos.String())
+			}
+		}
+		return arrType
+	}
+
+	// Otherwise, all arguments must be strings
 	for i, arg := range args {
 		argType := a.analyzeExpression(arg)
 		if argType != nil && argType != types.STRING {

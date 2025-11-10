@@ -8,11 +8,17 @@ import (
 )
 
 // builtinConcat implements the Concat() built-in function.
-// It concatenates multiple strings together.
+// It concatenates multiple strings or arrays together.
 // Concat(str1, str2, ...) - variable number of string arguments
+// Concat(arr1, arr2, ...) - variable number of array arguments
 func (i *Interpreter) builtinConcat(args []Value) Value {
 	if len(args) == 0 {
 		return i.newErrorWithLocation(i.currentNode, "Concat() expects at least 1 argument, got 0")
+	}
+
+	// Check if first argument is an array - if so, dispatch to array concatenation
+	if _, ok := args[0].(*ArrayValue); ok {
+		return i.builtinConcatArrays(args)
 	}
 
 	// Build the concatenated string

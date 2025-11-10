@@ -568,49 +568,49 @@ Functions commonly used in test fixtures and real-world DWScript code:
 
 **HIGH PRIORITY**:
 
-- [ ] 9.17.10.1 Map(arr: array; func: function): array
+- [x] 9.17.10.1 Map(arr: array; func: function): array
   - Transform each element using callback function
   - Returns new array with transformed elements
   - Used in 15+ fixtures
 
-- [ ] 9.17.10.2 Filter(arr: array; predicate: function): array
+- [x] 9.17.10.2 Filter(arr: array; predicate: function): array
   - Filter elements matching predicate
   - Returns new array with matching elements
   - Used in 15+ fixtures
 
-- [ ] 9.17.10.3 Reduce(arr: array; func: function; initial: Variant): Variant
+- [x] 9.17.10.3 Reduce(arr: array; func: function; initial: Variant): Variant
   - Reduce array to single value
   - Apply function cumulatively
   - Used in 10+ fixtures
 
-- [ ] 9.17.10.4 ForEach(arr: array; callback: function)
+- [x] 9.17.10.4 ForEach(arr: array; callback: function)
   - Iterate over array with callback
   - No return value, side effects only
   - Used in 10+ fixtures
 
 **MEDIUM PRIORITY**:
 
-- [ ] 9.17.10.5 Every(arr: array; predicate: function): Boolean
+- [x] 9.17.10.5 Every(arr: array; predicate: function): Boolean
   - Check if all elements match predicate
   - Short-circuits on first false
 
-- [ ] 9.17.10.6 Some(arr: array; predicate: function): Boolean
+- [x] 9.17.10.6 Some(arr: array; predicate: function): Boolean
   - Check if any element matches predicate
   - Short-circuits on first true
 
-- [ ] 9.17.10.7 Find(arr: array; predicate: function): Variant
+- [x] 9.17.10.7 Find(arr: array; predicate: function): Variant
   - Find first element matching predicate
   - Returns element or null if not found
 
-- [ ] 9.17.10.8 FindIndex(arr: array; predicate: function): Integer
+- [x] 9.17.10.8 FindIndex(arr: array; predicate: function): Integer
   - Find index of first element matching predicate
   - Returns -1 if not found
 
-- [ ] 9.17.10.9 Concat(arr1, arr2, ...): array
+- [x] 9.17.10.9 Concat(arr1, arr2, ...): array
   - Concatenate multiple arrays
   - Returns new array
 
-- [ ] 9.17.10.10 Slice(arr: array; start, end: Integer): array
+- [x] 9.17.10.10 Slice(arr: array; start, end: Integer): array
   - Extract portion of array
   - Returns new array
 
