@@ -108,47 +108,61 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 
 	// Handle inheritance if parent class is specified
+	var parentClass *ClassInfo
 	if cd.Parent != nil {
+		// Explicit parent specified
 		parentName := cd.Parent.Value
-		parentClass, exists := i.classes[parentName]
+		var exists bool
+		parentClass, exists = i.classes[parentName]
 		if !exists {
 			return i.newErrorWithLocation(cd, "parent class '%s' not found", parentName)
 		}
-
-		// Set parent reference (only if not already set for partial classes)
-		if classInfo.Parent == nil {
-			classInfo.Parent = parentClass
-
-			// Copy parent fields (child inherits all parent fields)
-			for fieldName, fieldType := range parentClass.Fields {
-				classInfo.Fields[fieldName] = fieldType
+	} else {
+		// Task 9.16.4.1: If no explicit parent, implicitly inherit from TObject
+		// (unless this IS TObject or it's an external class)
+		className := cd.Name.Value
+		if !strings.EqualFold(className, "TObject") && !cd.IsExternal {
+			var exists bool
+			parentClass, exists = i.classes["TObject"]
+			if !exists {
+				return i.newErrorWithLocation(cd, "implicit parent class 'TObject' not found")
 			}
-
-			// Copy parent methods (child inherits all parent methods)
-			// Keep Methods and ClassMethods for backward compatibility (direct lookups)
-			for methodName, methodDecl := range parentClass.Methods {
-				classInfo.Methods[methodName] = methodDecl
-			}
-			for methodName, methodDecl := range parentClass.ClassMethods {
-				classInfo.ClassMethods[methodName] = methodDecl
-			}
-
-			// DON'T copy MethodOverloads/ClassMethodOverloads from parent
-			// Each class should only store its OWN method overloads, not inherited ones.
-			// getMethodOverloadsInHierarchy will walk the hierarchy to collect them at call time.
-			// This prevents duplication when a child class overrides a parent method.
-
-			// Copy constructors
-			for name, constructor := range parentClass.Constructors {
-				classInfo.Constructors[name] = constructor
-			}
-			for name, overloads := range parentClass.ConstructorOverloads {
-				classInfo.ConstructorOverloads[name] = append([]*ast.FunctionDecl(nil), overloads...)
-			}
-
-			// Copy operator overloads
-			classInfo.Operators = parentClass.Operators.clone()
 		}
+	}
+
+	// Set parent reference and inherit members (only if not already set for partial classes)
+	if parentClass != nil && classInfo.Parent == nil {
+		classInfo.Parent = parentClass
+
+		// Copy parent fields (child inherits all parent fields)
+		for fieldName, fieldType := range parentClass.Fields {
+			classInfo.Fields[fieldName] = fieldType
+		}
+
+		// Copy parent methods (child inherits all parent methods)
+		// Keep Methods and ClassMethods for backward compatibility (direct lookups)
+		for methodName, methodDecl := range parentClass.Methods {
+			classInfo.Methods[methodName] = methodDecl
+		}
+		for methodName, methodDecl := range parentClass.ClassMethods {
+			classInfo.ClassMethods[methodName] = methodDecl
+		}
+
+		// DON'T copy MethodOverloads/ClassMethodOverloads from parent
+		// Each class should only store its OWN method overloads, not inherited ones.
+		// getMethodOverloadsInHierarchy will walk the hierarchy to collect them at call time.
+		// This prevents duplication when a child class overrides a parent method.
+
+		// Copy constructors
+		for name, constructor := range parentClass.Constructors {
+			classInfo.Constructors[name] = constructor
+		}
+		for name, overloads := range parentClass.ConstructorOverloads {
+			classInfo.ConstructorOverloads[name] = append([]*ast.FunctionDecl(nil), overloads...)
+		}
+
+		// Copy operator overloads
+		classInfo.Operators = parentClass.Operators.clone()
 	}
 
 	// Add own fields to ClassInfo

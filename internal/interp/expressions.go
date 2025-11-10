@@ -1117,7 +1117,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 		return left
 	}
 
-	// Handle nil specially - nil can be cast to any interface
+	// Handle nil specially - nil can be cast to any class or interface
 	if _, isNil := left.(*NilValue); isNil {
 		return &NilValue{}
 	}
@@ -1128,18 +1128,47 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 		return i.newErrorWithLocation(expr, "'as' operator requires object instance, got %s", left.Type())
 	}
 
-	// Get the target interface name from the type expression
-	targetInterfaceName := ""
+	// Get the target type name from the type expression
+	targetTypeName := ""
 	if typeAnnotation, ok := expr.TargetType.(*ast.TypeAnnotation); ok {
-		targetInterfaceName = typeAnnotation.Name
+		targetTypeName = typeAnnotation.Name
 	} else {
-		return i.newErrorWithLocation(expr, "cannot determine target interface type")
+		return i.newErrorWithLocation(expr, "cannot determine target type")
 	}
 
+	// Task 9.16.5.4: Try class-to-class casting first
+	// Look up the target as a class
+	targetClass, isClass := i.classes[targetTypeName]
+	if isClass {
+		// This is a class-to-class cast
+		// Validate that the object's actual runtime type is compatible with the target
+		// Walk up the object's class hierarchy to check if it matches or derives from target
+		currentClass := obj.Class
+		isCompatible := false
+		for currentClass != nil {
+			if strings.EqualFold(currentClass.Name, targetClass.Name) {
+				isCompatible = true
+				break
+			}
+			currentClass = currentClass.Parent
+		}
+
+		// If the object's runtime type doesn't match or derive from target, the cast is invalid
+		if !isCompatible {
+			return i.newErrorWithLocation(expr, "invalid cast: object of type '%s' cannot be cast to '%s'",
+				obj.Class.Name, targetClass.Name)
+		}
+
+		// Cast is valid - return the same object
+		// The object's runtime type is guaranteed to be compatible with the target
+		return obj
+	}
+
+	// Try interface casting
 	// Look up the interface in the registry
-	iface, exists := i.interfaces[strings.ToLower(targetInterfaceName)]
+	iface, exists := i.interfaces[strings.ToLower(targetTypeName)]
 	if !exists {
-		return i.newErrorWithLocation(expr, "interface '%s' not found", targetInterfaceName)
+		return i.newErrorWithLocation(expr, "type '%s' not found (neither class nor interface)", targetTypeName)
 	}
 
 	// Validate that the object's class implements the interface
