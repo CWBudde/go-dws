@@ -6,8 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 go-dws is a Go port of DWScript (Delphi Web Script), a full-featured Object Pascal-based scripting language. The project aims for 100% language compatibility with the original DWScript while using idiomatic Go patterns.
 
-**Current Status**: Stage 2 complete (100%). Lexer and minimal parser with expression support are fully implemented and tested. AST coverage: 92.7%, Parser coverage: 81.9%.
-
 ## Common Commands
 
 ### Building
@@ -258,10 +256,12 @@ go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts
 
 ## Implementation Roadmap (PLAN.md)
 
-When implementing new stages:
+When implementing new stages/tasks:
 
 - Create AST nodes first
 - Extend parser with new syntax
+- Consider semantic analysis needs
+- Implement runtime support (interpreter & bytecode VM)
 - Add comprehensive tests
 - Update CLI if applicable
 - Document in stage summary files under `docs/`
