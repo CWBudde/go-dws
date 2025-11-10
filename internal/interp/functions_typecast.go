@@ -9,7 +9,8 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
-// evalCallExpression evaluates a function call expression.
+// parseInlineArrayType parses a DWScript inline array type signature (static or dynamic)
+// from a string, extracting bounds and element type information.
 func (i *Interpreter) parseInlineArrayType(signature string) *types.ArrayType {
 	var lowBound, highBound *int
 

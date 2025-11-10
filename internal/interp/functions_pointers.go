@@ -6,7 +6,8 @@ import (
 	"github.com/cwbudde/go-dws/internal/ast"
 )
 
-// evalCallExpression evaluates a function call expression.
+// callFunctionPointer executes a function pointer call, handling lambdas, method pointers, and regular function pointers.
+// It sets up closure environments for lambdas and binds Self for method pointers as needed.
 func (i *Interpreter) callFunctionPointer(funcPtr *FunctionPointerValue, args []Value, node ast.Node) Value {
 	// Enhanced to handle lambda closures
 

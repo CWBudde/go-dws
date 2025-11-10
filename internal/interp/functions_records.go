@@ -6,7 +6,8 @@ import (
 	"github.com/cwbudde/go-dws/internal/ast"
 )
 
-// evalCallExpression evaluates a function call expression.
+// evalRecordMethodCall evaluates a method call on a record value,
+// including method resolution, argument evaluation, and helper method dispatch.
 func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *ast.MemberAccessExpression, argExprs []ast.Expression, objExpr ast.Expression) Value {
 	methodName := memberAccess.Member.Value
 
@@ -103,13 +104,8 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 			}
 		}
 
-		if param.ByRef {
-			// By-reference parameter (TODO: implement proper by-ref support)
-			i.env.Define(param.Name.Value, arg)
-		} else {
-			// By-value parameter
-			i.env.Define(param.Name.Value, arg)
-		}
+		// TODO: implement proper by-ref support for parameters
+		i.env.Define(param.Name.Value, arg)
 	}
 
 	// For functions (not procedures), initialize the Result variable
@@ -356,10 +352,3 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 
 	return returnValue
 }
-
-// parseInlineArrayType parses an inline array type signature and creates an ArrayType.
-//
-// Examples:
-//   - "array of Integer" -> DynamicArrayType
-//   - "array[1..10] of String" -> StaticArrayType with bounds
-//   - "array of array of Integer" -> Nested dynamic arrays

@@ -4,7 +4,9 @@ import (
 	"github.com/cwbudde/go-dws/internal/ast"
 )
 
-// evalCallExpression evaluates a function call expression.
+// callBuiltin dispatches built-in and external functions by name.
+// It normalizes the function name for DWScript's case-insensitive matching,
+// and routes to the appropriate built-in implementation or external Go function.
 func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	// Check for external Go functions first
 	if i.externalFunctions != nil {

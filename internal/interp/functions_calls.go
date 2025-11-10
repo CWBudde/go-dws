@@ -6,7 +6,18 @@ import (
 	"github.com/cwbudde/go-dws/internal/ast"
 )
 
-// evalCallExpression evaluates a function call expression.
+// evalCallExpression evaluates a DWScript function call expression.
+//
+// This method handles:
+//   - Direct function calls (user-defined and built-in)
+//   - Function pointer calls, including proper handling of lazy and var parameters
+//   - Member access calls (unit-qualified functions, record/class methods)
+//   - Overload resolution for user-defined functions
+//   - Error handling for invalid calls, argument mismatches, and unsupported cases
+//
+// For function pointers, it checks parameter flags to support lazy evaluation and by-reference passing.
+// For member access, it distinguishes between unit-qualified calls and record/class method invocations.
+// Returns a Value representing the result of the function call, or an ErrorValue on failure.
 func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	// Check if this is a function pointer call
 	// If the function expression is an identifier that resolves to a FunctionPointerValue,
