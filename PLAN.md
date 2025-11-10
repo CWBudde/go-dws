@@ -693,11 +693,11 @@ each element is wrapped in a variant-like container that preserves type informat
   - ✅ Type system: Uses array of Variant (ARRAY_OF_CONST constant)
   - ✅ Operator registry: Extended to support array type compatibility
 
-- [x] 9.17.11b.2 Implement array of const conversion at call sites
+- [ ] 9.17.11b.2 Implement array of const conversion at call sites
   - ✅ Array literals with mixed types work with array of const parameters
   - ✅ Empty array literals handled in compound assignments
   - ✅ Array of T -> array of Variant compatibility in operators
-  - Note: Interpreter support for class operators pending
+  - ⚠️ Interpreter runtime for class operator overloads with array of const parameters is not yet implemented; semantic analysis and type system are complete. Task will be marked complete once interpreter support is added.
 
 - [x] 9.17.11b.3 Add TVarRec support (optional)
   - Not needed: Using Variant type directly for array elements
