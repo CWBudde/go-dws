@@ -430,6 +430,50 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		}
 		return &StringValue{Value: "False"}
 
+	case "__integer_tohexstring":
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "Integer.ToHexString expects exactly 1 argument")
+		}
+		intVal, ok := selfValue.(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Integer.ToHexString requires integer receiver")
+		}
+		digitsVal, ok := args[0].(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Integer.ToHexString digits must be Integer, got %s", args[0].Type())
+		}
+		digits := int(digitsVal.Value)
+		if digits < 0 {
+			digits = 0
+		}
+		// Format as uppercase hex with specified width
+		hexStr := fmt.Sprintf("%X", intVal.Value)
+		// Pad with zeros if needed
+		if len(hexStr) < digits {
+			hexStr = strings.Repeat("0", digits-len(hexStr)) + hexStr
+		}
+		return &StringValue{Value: hexStr}
+
+	case "__string_toupper":
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "String.ToUpper does not take arguments")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.ToUpper requires string receiver")
+		}
+		return &StringValue{Value: strings.ToUpper(strVal.Value)}
+
+	case "__string_tolower":
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "String.ToLower does not take arguments")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.ToLower requires string receiver")
+		}
+		return &StringValue{Value: strings.ToLower(strVal.Value)}
+
 	case "__string_array_join":
 		if len(args) != 1 {
 			return i.newErrorWithLocation(node, "String array Join expects exactly 1 argument")
@@ -780,6 +824,14 @@ func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value
 		}
 		return &StringValue{Value: enumVal.TypeName + "." + valueName}
 
+	case "__string_length":
+		// Implement String.Length property
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.Length property requires string receiver")
+		}
+		return &IntegerValue{Value: int64(len(strVal.Value))}
+
 	default:
 		return i.newErrorWithLocation(node, "unknown built-in property '%s'", propSpec)
 	}
@@ -864,6 +916,8 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	}
 	intHelper.Methods["ToString"] = nil
 	intHelper.BuiltinMethods["ToString"] = "__integer_tostring"
+	intHelper.Methods["ToHexString"] = nil
+	intHelper.BuiltinMethods["ToHexString"] = "__integer_tohexstring"
 	register("Integer", intHelper)
 
 	// Float helper
@@ -891,6 +945,21 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	boolHelper.Methods["ToString"] = nil
 	boolHelper.BuiltinMethods["ToString"] = "__boolean_tostring"
 	register("Boolean", boolHelper)
+
+	// String helper
+	stringHelper := NewHelperInfo("__TStringIntrinsicHelper", types.STRING, false)
+	stringHelper.Properties["Length"] = &types.PropertyInfo{
+		Name:      "Length",
+		Type:      types.INTEGER,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__string_length",
+		WriteKind: types.PropAccessNone,
+	}
+	stringHelper.Methods["ToUpper"] = nil
+	stringHelper.BuiltinMethods["ToUpper"] = "__string_toupper"
+	stringHelper.Methods["ToLower"] = nil
+	stringHelper.BuiltinMethods["ToLower"] = "__string_tolower"
+	register("String", stringHelper)
 
 	// String dynamic array helper
 	stringArrayType := types.NewDynamicArrayType(types.STRING)

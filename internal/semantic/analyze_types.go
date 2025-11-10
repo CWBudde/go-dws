@@ -145,6 +145,19 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 		}
 		return constFields, nil
 
+	case *ast.ArrayLiteralExpression:
+		// Support array literals in const declarations
+		// Evaluate all elements recursively to ensure they're constants
+		constElements := make([]interface{}, len(e.Elements))
+		for i, elem := range e.Elements {
+			elemVal, err := a.evaluateConstant(elem)
+			if err != nil {
+				return nil, fmt.Errorf("array element %d is not constant: %v", i, err)
+			}
+			constElements[i] = elemVal
+		}
+		return constElements, nil
+
 	default:
 		return nil, fmt.Errorf("expression is not a compile-time constant")
 	}
