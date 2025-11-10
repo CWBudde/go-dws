@@ -223,7 +223,132 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-### Phase 9.17: Documentation & Cleanup
+### Phase 9.17: Implement missing built-in functions
+
+**Priority**: MEDIUM - Required for full DWScript compatibility
+**Timeline**: 3-4 weeks
+**Current Status**: 15 of 85+ string functions implemented
+
+#### High Priority String Functions (Phase 9.17.1)
+
+Functions commonly used in test fixtures and real-world DWScript code:
+
+- [x] 9.17.1.1 SubStr(str, start, length) - Substring with length parameter ✅ COMPLETE
+  - Implemented in builtins_strings.go, functions.go, vm.go, analyze_builtin_string.go
+  - 27 comprehensive tests added
+  - Fixes factorize.pas test
+
+- [ ] 9.17.1.2 SubString(str, start, end) - Substring with end position
+  - Different from SubStr: takes end position instead of length
+  - Used in multiple test fixtures
+
+- [ ] 9.17.1.3 LeftStr(str, count) - First N characters
+- [ ] 9.17.1.4 RightStr(str, count) - Last N characters
+- [ ] 9.17.1.5 MidStr(str, start, count) - Alias for Copy/SubStr
+
+- [ ] 9.17.1.6 StrBeginsWith(str, prefix) - Starts with test
+- [ ] 9.17.1.7 StrEndsWith(str, suffix) - Ends with test
+- [ ] 9.17.1.8 StrContains(str, substring) - Contains test
+
+- [ ] 9.17.1.9 PosEx(needle, haystack, offset) - Pos with offset parameter
+- [ ] 9.17.1.10 RevPos(needle, haystack) - Reverse position search
+- [ ] 9.17.1.11 StrFind(str, substr, fromIndex) - Find with starting index
+
+#### Delimiter-based Functions (Phase 9.17.2)
+
+- [ ] 9.17.2.1 StrSplit(str, delimiter) - Split string into array
+- [ ] 9.17.2.2 StrJoin(array, delimiter) - Join array into string
+- [ ] 9.17.2.3 StrArrayPack(array) - Remove empty strings from array
+
+- [ ] 9.17.2.4 StrBefore(str, delimiter) - Get substring before first delimiter
+- [ ] 9.17.2.5 StrBeforeLast(str, delimiter) - Get substring before last delimiter
+- [ ] 9.17.2.6 StrAfter(str, delimiter) - Get substring after first delimiter
+- [ ] 9.17.2.7 StrAfterLast(str, delimiter) - Get substring after last delimiter
+- [ ] 9.17.2.8 StrBetween(str, start, stop) - Get substring between delimiters
+
+- [ ] 9.17.2.9 IsDelimiter(delims, str, index) - Check if char at index is delimiter
+- [ ] 9.17.2.10 LastDelimiter(delims, str) - Find last delimiter position
+- [ ] 9.17.2.11 FindDelimiter(delims, str, startIndex) - Find first delimiter
+
+#### String Transformation (Phase 9.17.3)
+
+- [ ] 9.17.3.1 PadLeft(str, count, char) - Pad left to width
+- [ ] 9.17.3.2 PadRight(str, count, char) - Pad right to width
+- [ ] 9.17.3.3 StrDeleteLeft(str, count) - Delete N leftmost characters
+- [ ] 9.17.3.4 StrDeleteRight(str, count) - Delete N rightmost characters
+
+- [ ] 9.17.3.5 ReverseString(str) - Reverse character order
+- [ ] 9.17.3.6 QuotedStr(str, quoteChar) - Add quotes around string
+- [ ] 9.17.3.7 StringOfString(str, count) / DupeString - Repeat string
+
+- [ ] 9.17.3.8 NormalizeString(str, form) - Unicode normalization
+- [ ] 9.17.3.9 StripAccents(str) - Remove diacritical marks
+
+#### Comparison Functions (Phase 9.17.4)
+
+- [ ] 9.17.4.1 SameText(str1, str2) - Case-insensitive equality
+- [ ] 9.17.4.2 CompareText(str1, str2) - Case-insensitive compare
+- [ ] 9.17.4.3 CompareStr(str1, str2) - Case-sensitive compare
+- [ ] 9.17.4.4 AnsiCompareText(str1, str2) - ANSI case-insensitive compare
+- [ ] 9.17.4.5 AnsiCompareStr(str1, str2) - ANSI case-sensitive compare
+- [ ] 9.17.4.6 CompareLocaleStr(str1, str2, locale, caseSensitive) - Locale-aware compare
+- [ ] 9.17.4.7 StrMatches(str, mask) - Wildcard pattern matching
+- [ ] 9.17.4.8 StrIsASCII(str) - Is pure ASCII?
+
+#### Advanced Conversion Functions (Phase 9.17.5)
+
+- [ ] 9.17.5.1 IntToStr(i, base) - Integer to string with base parameter
+- [ ] 9.17.5.2 StrToInt(str, base) - String to integer with base
+- [ ] 9.17.5.3 StrToIntDef(str, def, base) - With base and default
+- [ ] 9.17.5.4 TryStrToInt(str, base, @value) - Safe conversion with base
+
+- [ ] 9.17.5.5 HexToInt(hexa) - Hex string to integer
+- [ ] 9.17.5.6 IntToBin(v, digits) - Integer to binary (already implemented?)
+- [ ] 9.17.5.7 BinToInt(binary) - Binary string to integer
+
+- [ ] 9.17.5.8 TryStrToFloat(str, @value) - Safe float conversion
+- [ ] 9.17.5.9 StrToFloatDef(str, def) - String to float with default
+
+- [ ] 9.17.5.10 VarToIntDef(val, def) - Variant to int with default
+- [ ] 9.17.5.11 VarToFloatDef(val, def) - Variant to float with default
+
+#### Encoding/Escaping Functions (Phase 9.17.6)
+
+- [ ] 9.17.6.1 StrToHtml(str) - HTML encode
+- [ ] 9.17.6.2 StrToHtmlAttribute(str) - HTML attribute encode
+- [ ] 9.17.6.3 StrToJSON(str) - JSON encode/escape
+- [ ] 9.17.6.4 StrToCSSText(str) - CSS text encode
+- [ ] 9.17.6.5 StrToXML(str, mode) - XML encode
+
+#### Case Conversion Variants (Phase 9.17.7)
+
+- [ ] 9.17.7.1 ASCIILowerCase(str) - ASCII-only lowercase
+- [ ] 9.17.7.2 ASCIIUpperCase(str) - ASCII-only uppercase
+- [ ] 9.17.7.3 AnsiLowerCase(str) - ANSI lowercase (alias for LowerCase)
+- [ ] 9.17.7.4 AnsiUpperCase(str) - ANSI uppercase (alias for UpperCase)
+
+#### Utility Functions (Phase 9.17.8)
+
+- [ ] 9.17.8.1 ByteSizeToStr(size) - Format byte size (KB, MB, GB)
+- [ ] 9.17.8.2 GetText(str) / _(str) - Localization/translation function
+- [ ] 9.17.8.3 CharAt(s, x) - Get character at position (deprecated, use SubStr)
+
+**Implementation Notes**:
+
+- Each function needs: AST interpreter, bytecode VM, semantic analyzer, tests
+- Follow patterns from SubStr implementation (see commits from this session)
+- Prioritize functions based on test fixture usage
+- Reference original DWScript at: `reference/dwscript-original/Source/dwsStringFunctions.pas`
+
+**Testing Strategy**:
+
+- Minimum 4 test categories per function: BasicUsage, EdgeCases, InExpressions, ErrorCases
+- Include UTF-8/Unicode test cases where applicable
+- Verify against DWScript test fixtures in testdata/fixtures/
+
+---
+
+### Phase 9.18: Documentation & Cleanup
 
 **Priority**: LOW - Can be done in parallel with Phase 10
 **Timeline**: 1 week
