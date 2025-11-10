@@ -29,9 +29,31 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	// Task 9.285: Use lowercase for case-insensitive lookup
 	existingClass, exists := a.classes[strings.ToLower(className)]
 	resolvingForwardDecl := false
+	mergingPartialClass := false
 	if exists {
-		// Task 9.11: Handle forward declaration resolution
-		if existingClass.IsForward && !isForwardDecl {
+		// Task 9.13: Handle partial class merging
+		if existingClass.IsPartial && decl.IsPartial {
+			// Both are partial - merge them
+			mergingPartialClass = true
+
+			// Validate that parent class matches if specified in both declarations
+			if decl.Parent != nil && existingClass.Parent != nil {
+				if !strings.EqualFold(decl.Parent.Value, existingClass.Parent.Name) {
+					a.addError("partial class '%s' has conflicting parent classes at %s",
+						className, decl.Token.Pos.String())
+					return
+				}
+			}
+		} else if existingClass.IsPartial && !decl.IsPartial && !isForwardDecl {
+			// Previous was partial, this is non-partial - issue a hint and finalize
+			a.addHint("Previous declaration of class was \"partial\" at %s", decl.Token.Pos.String())
+			mergingPartialClass = true
+		} else if !existingClass.IsPartial && decl.IsPartial {
+			// Previous was non-partial, this is partial - error
+			a.addError("class '%s' already declared as non-partial at %s", className, decl.Token.Pos.String())
+			return
+		} else if existingClass.IsForward && !isForwardDecl {
+			// Task 9.11: Handle forward declaration resolution
 			// This is the full implementation of a forward-declared class
 			// Validate that parent class matches between forward declaration and full implementation
 			var fullImplParent *types.ClassType
@@ -101,14 +123,26 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		return
 	}
 
-	// Resolve parent class if specified (or reuse from forward declaration)
+	// Resolve parent class if specified (or reuse from forward declaration or partial)
 	var parentClass *types.ClassType
 	var classType *types.ClassType
 
-	if resolvingForwardDecl {
-		// Reuse the existing forward declaration instance
+	if resolvingForwardDecl || mergingPartialClass {
+		// Reuse the existing class instance
 		classType = existingClass
 		parentClass = classType.Parent
+
+		// Update parent if specified in this partial declaration and wasn't set before
+		if decl.Parent != nil && parentClass == nil {
+			parentName := decl.Parent.Value
+			var found bool
+			parentClass, found = a.classes[strings.ToLower(parentName)]
+			if !found {
+				a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+				return
+			}
+			classType.Parent = parentClass
+		}
 
 		// Handle implicit TObject parent if needed
 		if parentClass == nil && !strings.EqualFold(className, "TObject") && !decl.IsExternal {
@@ -120,7 +154,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			classType.Parent = parentClass
 		}
 	} else {
-		// Not resolving a forward declaration - resolve parent and create new class
+		// Not resolving a forward declaration or partial - resolve parent and create new class
 		if decl.Parent != nil {
 			parentName := decl.Parent.Value
 			var found bool
@@ -148,9 +182,22 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 	// Update class flags
 	classType.IsForward = false // No longer a forward declaration
-	classType.IsAbstract = decl.IsAbstract
-	classType.IsExternal = decl.IsExternal
-	classType.ExternalName = decl.ExternalName
+
+	// Task 9.13: Update IsPartial flag
+	// If this declaration is partial, keep IsPartial=true
+	// If this declaration is non-partial, set IsPartial=false (finalize the class)
+	if decl.IsPartial {
+		classType.IsPartial = true
+	} else if !isForwardDecl {
+		// Non-partial, non-forward declaration finalizes any partial class
+		classType.IsPartial = false
+	}
+
+	classType.IsAbstract = decl.IsAbstract || classType.IsAbstract // Preserve abstract if already set
+	classType.IsExternal = decl.IsExternal || classType.IsExternal // Preserve external if already set
+	if decl.ExternalName != "" {
+		classType.ExternalName = decl.ExternalName
+	}
 
 	// Validate external class inheritance
 	if decl.IsExternal {
@@ -184,6 +231,13 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		// Check if this is a class variable (static field)
 		if field.IsClassVar {
 			// Check for duplicate class variable names
+			// When merging partial classes, check if already exists in ClassType
+			_, existsInClass := classType.ClassVars[fieldName]
+			if existsInClass && !mergingPartialClass {
+				a.addError("duplicate class variable '%s' in class '%s' at %s",
+					fieldName, className, field.Token.Pos.String())
+				continue
+			}
 			if classVarNames[fieldName] {
 				a.addError("duplicate class variable '%s' in class '%s' at %s",
 					fieldName, className, field.Token.Pos.String())
@@ -211,6 +265,13 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		} else {
 			// Instance field
 			// Check for duplicate field names
+			// When merging partial classes, check if already exists in ClassType
+			_, existsInClass := classType.Fields[fieldName]
+			if existsInClass && !mergingPartialClass {
+				a.addError("duplicate field '%s' in class '%s' at %s",
+					fieldName, className, field.Token.Pos.String())
+				continue
+			}
 			if fieldNames[fieldName] {
 				a.addError("duplicate field '%s' in class '%s' at %s",
 					fieldName, className, field.Token.Pos.String())
@@ -247,6 +308,13 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		constantName := constant.Name.Value
 
 		// Check for duplicate constant names
+		// When merging partial classes, check if already exists in ClassType
+		_, existsInClass := classType.Constants[constantName]
+		if existsInClass && !mergingPartialClass {
+			a.addError("duplicate constant '%s' in class '%s' at %s",
+				constantName, className, constant.Token.Pos.String())
+			continue
+		}
 		if constantNames[constantName] {
 			a.addError("duplicate constant '%s' in class '%s' at %s",
 				constantName, className, constant.Token.Pos.String())

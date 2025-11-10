@@ -438,7 +438,8 @@ type ClassType struct {
 	Interfaces           []*InterfaceType
 	IsAbstract           bool
 	IsExternal           bool
-	IsForward            bool // True if this is a forward declaration only
+	IsForward            bool   // True if this is a forward declaration only
+	IsPartial            bool   // True if this is a partial class (Task 9.13)
 }
 
 // String returns the string representation of the class type

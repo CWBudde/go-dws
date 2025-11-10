@@ -112,18 +112,21 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Blocks**: partial_class*.pas (5+ tests)
 
-- [ ] 9.13.1 Parse partial class syntax
+- [x] 9.13.1 Parse partial class syntax
   - **Task**: Recognize `partial` keyword on class declarations
-  - **Files**: `internal/parser/interfaces.go`
-  - **Tests**: Parse partial class declarations
+  - **Files**: `internal/parser/interfaces.go`, `pkg/ast/classes.go`
+  - **Tests**: Parse partial class declarations ✓
+  - **Status**: DONE - Parser recognizes both `partial class` and `class partial` syntax
 
-- [ ] 9.13.2 Merge partial class definitions
+- [x] 9.13.2 Merge partial class definitions
   - **Task**: Combine multiple partial declarations into single class
-  - **Files**: `internal/semantic/analyze_types.go`
-  - **Tests**: Partial classes merge correctly
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/types/types.go`
+  - **Tests**: Partial classes merge correctly ✓
+  - **Status**: DONE - Semantic analyzer merges partial class members (fields, methods, constants)
 
 **Estimated Time**: 2-3 days
 **Dependency**: Advanced feature, low priority
+**Status**: COMPLETE ✓
 
 #### 9.14 Operator Overloading for Classes - MEDIUM PRIORITY
 
