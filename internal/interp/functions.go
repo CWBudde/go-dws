@@ -321,7 +321,11 @@ func normalizeBuiltinName(name string) string {
 		"contains": "Contains", "reverse": "Reverse", "sort": "Sort", "pos": "Pos",
 		"uppercase": "UpperCase", "lowercase": "LowerCase", "trim": "Trim",
 		"trimleft": "TrimLeft", "trimright": "TrimRight", "stringreplace": "StringReplace",
-		"stringofchar": "StringOfChar", "substr": "SubStr", "format": "Format", "abs": "Abs", "min": "Min", "max": "Max",
+		"stringofchar": "StringOfChar", "substr": "SubStr", "substring": "SubString",
+		"leftstr": "LeftStr", "rightstr": "RightStr", "midstr": "MidStr",
+		"strbeginswith": "StrBeginsWith", "strendswith": "StrEndsWith", "strcontains": "StrContains",
+		"posex": "PosEx", "revpos": "RevPos", "strfind": "StrFind",
+		"format": "Format", "abs": "Abs", "min": "Min", "max": "Max",
 		"maxint": "MaxInt", "minint": "MinInt", "sqr": "Sqr", "power": "Power",
 		"sqrt": "Sqrt", "sin": "Sin", "cos": "Cos", "tan": "Tan",
 		"degtorad": "DegToRad", "radtodeg": "RadToDeg", "arcsin": "ArcSin",
@@ -335,7 +339,9 @@ func normalizeBuiltinName(name string) string {
 		"low": "Low", "high": "High", "setlength": "SetLength", "add": "Add",
 		"delete": "Delete", "inttostr": "IntToStr", "inttobin": "IntToBin",
 		"strtoint": "StrToInt", "floattostr": "FloatToStr", "booltostr": "BoolToStr",
-		"strtofloat": "StrToFloat", "strtobool": "StrToBool", "inc": "Inc", "dec": "Dec", "succ": "Succ",
+		"strtofloat": "StrToFloat", "strtobool": "StrToBool",
+		"strtointdef": "StrToIntDef", "strtofloatdef": "StrToFloatDef",
+		"inc": "Inc", "dec": "Dec", "succ": "Succ",
 		"pred": "Pred", "assert": "Assert", "insert": "Insert",
 		"map": "Map", "filter": "Filter", "reduce": "Reduce", "foreach": "ForEach",
 		"now": "Now", "date": "Date", "time": "Time", "utcdatetime": "UTCDateTime",
@@ -431,6 +437,26 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinStringOfChar(args)
 	case "SubStr":
 		return i.builtinSubStr(args)
+	case "SubString":
+		return i.builtinSubString(args)
+	case "LeftStr":
+		return i.builtinLeftStr(args)
+	case "RightStr":
+		return i.builtinRightStr(args)
+	case "MidStr":
+		return i.builtinMidStr(args)
+	case "StrBeginsWith":
+		return i.builtinStrBeginsWith(args)
+	case "StrEndsWith":
+		return i.builtinStrEndsWith(args)
+	case "StrContains":
+		return i.builtinStrContains(args)
+	case "PosEx":
+		return i.builtinPosEx(args)
+	case "RevPos":
+		return i.builtinRevPos(args)
+	case "StrFind":
+		return i.builtinStrFind(args)
 	case "Format":
 		return i.builtinFormat(args)
 	case "Abs":
@@ -535,6 +561,10 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinFloatToStr(args)
 	case "StrToFloat":
 		return i.builtinStrToFloat(args)
+	case "StrToIntDef":
+		return i.builtinStrToIntDef(args)
+	case "StrToFloatDef":
+		return i.builtinStrToFloatDef(args)
 	case "StrToBool":
 		return i.builtinStrToBool(args)
 	case "BoolToStr":

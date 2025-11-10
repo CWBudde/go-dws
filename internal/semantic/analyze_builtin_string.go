@@ -311,6 +311,17 @@ func (a *Analyzer) analyzeStringOfChar(args []ast.Expression, callExpr *ast.Call
 		a.addError("function 'StringOfChar' expects string as first argument, got %s at %s",
 			arg1Type.String(), callExpr.Token.Pos.String())
 	}
+
+	// Validate that the first argument is a single character if it's a string literal
+	if stringLit, ok := args[0].(*ast.StringLiteral); ok {
+		// Count runes to handle UTF-8 correctly
+		runeCount := len([]rune(stringLit.Value))
+		if runeCount != 1 {
+			a.addError("function 'StringOfChar' expects a single char as first argument, got string of length %d at %s",
+				runeCount, callExpr.Token.Pos.String())
+		}
+	}
+
 	// Second argument: count (integer)
 	arg2Type := a.analyzeExpression(args[1])
 	if arg2Type != nil && arg2Type != types.INTEGER {
@@ -376,4 +387,236 @@ func (a *Analyzer) analyzeInsert(args []ast.Expression, callExpr *ast.CallExpres
 			posType.String(), callExpr.Token.Pos.String())
 	}
 	return types.VOID
+}
+
+// analyzeSubString analyzes the SubString built-in function.
+// SubString(str, start, end) - returns substring from start to end (1-based, inclusive)
+func (a *Analyzer) analyzeSubString(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 3 {
+		a.addError("function 'SubString' expects 3 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	// Analyze first argument (string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'SubString' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (start - integer)
+	startType := a.analyzeExpression(args[1])
+	if startType != nil && startType != types.INTEGER {
+		a.addError("function 'SubString' expects integer as second argument, got %s at %s",
+			startType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze third argument (end - integer)
+	endType := a.analyzeExpression(args[2])
+	if endType != nil && endType != types.INTEGER {
+		a.addError("function 'SubString' expects integer as third argument, got %s at %s",
+			endType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeLeftStr analyzes the LeftStr built-in function.
+// LeftStr(str, count) - returns leftmost count characters
+func (a *Analyzer) analyzeLeftStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'LeftStr' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	// Analyze first argument (string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'LeftStr' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (count - integer)
+	countType := a.analyzeExpression(args[1])
+	if countType != nil && countType != types.INTEGER {
+		a.addError("function 'LeftStr' expects integer as second argument, got %s at %s",
+			countType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeRightStr analyzes the RightStr built-in function.
+// RightStr(str, count) - returns rightmost count characters
+func (a *Analyzer) analyzeRightStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'RightStr' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	// Analyze first argument (string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'RightStr' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (count - integer)
+	countType := a.analyzeExpression(args[1])
+	if countType != nil && countType != types.INTEGER {
+		a.addError("function 'RightStr' expects integer as second argument, got %s at %s",
+			countType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeMidStr analyzes the MidStr built-in function.
+// MidStr(str, start, count) - alias for SubStr
+func (a *Analyzer) analyzeMidStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	// MidStr is an alias for SubStr, so use the same analysis
+	return a.analyzeSubStr(args, callExpr)
+}
+
+// analyzeStrBeginsWith analyzes the StrBeginsWith built-in function.
+// StrBeginsWith(str, prefix) - returns boolean
+func (a *Analyzer) analyzeStrBeginsWith(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrBeginsWith' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+	// Analyze first argument (string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrBeginsWith' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (prefix - string)
+	prefixType := a.analyzeExpression(args[1])
+	if prefixType != nil && prefixType != types.STRING {
+		a.addError("function 'StrBeginsWith' expects string as second argument, got %s at %s",
+			prefixType.String(), callExpr.Token.Pos.String())
+	}
+	return types.BOOLEAN
+}
+
+// analyzeStrEndsWith analyzes the StrEndsWith built-in function.
+// StrEndsWith(str, suffix) - returns boolean
+func (a *Analyzer) analyzeStrEndsWith(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrEndsWith' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+	// Analyze first argument (string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrEndsWith' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (suffix - string)
+	suffixType := a.analyzeExpression(args[1])
+	if suffixType != nil && suffixType != types.STRING {
+		a.addError("function 'StrEndsWith' expects string as second argument, got %s at %s",
+			suffixType.String(), callExpr.Token.Pos.String())
+	}
+	return types.BOOLEAN
+}
+
+// analyzeStrContains analyzes the StrContains built-in function.
+// StrContains(str, substring) - returns boolean
+func (a *Analyzer) analyzeStrContains(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrContains' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+	// Analyze first argument (string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrContains' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (substring - string)
+	substrType := a.analyzeExpression(args[1])
+	if substrType != nil && substrType != types.STRING {
+		a.addError("function 'StrContains' expects string as second argument, got %s at %s",
+			substrType.String(), callExpr.Token.Pos.String())
+	}
+	return types.BOOLEAN
+}
+
+// analyzePosEx analyzes the PosEx built-in function.
+// PosEx(needle, haystack, offset) - returns integer (1-based position, 0 if not found)
+func (a *Analyzer) analyzePosEx(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 3 {
+		a.addError("function 'PosEx' expects 3 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+	// Analyze first argument (needle - string)
+	needleType := a.analyzeExpression(args[0])
+	if needleType != nil && needleType != types.STRING {
+		a.addError("function 'PosEx' expects string as first argument, got %s at %s",
+			needleType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (haystack - string)
+	haystackType := a.analyzeExpression(args[1])
+	if haystackType != nil && haystackType != types.STRING {
+		a.addError("function 'PosEx' expects string as second argument, got %s at %s",
+			haystackType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze third argument (offset - integer)
+	offsetType := a.analyzeExpression(args[2])
+	if offsetType != nil && offsetType != types.INTEGER {
+		a.addError("function 'PosEx' expects integer as third argument, got %s at %s",
+			offsetType.String(), callExpr.Token.Pos.String())
+	}
+	return types.INTEGER
+}
+
+// analyzeRevPos analyzes the RevPos built-in function.
+// RevPos(needle, haystack) - returns integer (1-based position of last occurrence, 0 if not found)
+func (a *Analyzer) analyzeRevPos(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'RevPos' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+	// Analyze first argument (needle - string)
+	needleType := a.analyzeExpression(args[0])
+	if needleType != nil && needleType != types.STRING {
+		a.addError("function 'RevPos' expects string as first argument, got %s at %s",
+			needleType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (haystack - string)
+	haystackType := a.analyzeExpression(args[1])
+	if haystackType != nil && haystackType != types.STRING {
+		a.addError("function 'RevPos' expects string as second argument, got %s at %s",
+			haystackType.String(), callExpr.Token.Pos.String())
+	}
+	return types.INTEGER
+}
+
+// analyzeStrFind analyzes the StrFind built-in function.
+// StrFind(str, substr, fromIndex) - returns integer (1-based position, 0 if not found)
+func (a *Analyzer) analyzeStrFind(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 3 {
+		a.addError("function 'StrFind' expects 3 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+	// Analyze first argument (str - string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrFind' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (substr - string)
+	substrType := a.analyzeExpression(args[1])
+	if substrType != nil && substrType != types.STRING {
+		a.addError("function 'StrFind' expects string as second argument, got %s at %s",
+			substrType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze third argument (fromIndex - integer)
+	fromIndexType := a.analyzeExpression(args[2])
+	if fromIndexType != nil && fromIndexType != types.INTEGER {
+		a.addError("function 'StrFind' expects integer as third argument, got %s at %s",
+			fromIndexType.String(), callExpr.Token.Pos.String())
+	}
+	return types.INTEGER
 }

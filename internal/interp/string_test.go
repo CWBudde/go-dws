@@ -3594,3 +3594,179 @@ end
 		})
 	}
 }
+
+// ============================================================================
+// Tests for PosEx() string function - edge cases for offset validation
+// ============================================================================
+
+// TestBuiltinPosEx_OffsetValidation tests PosEx() offset validation.
+// This test verifies the fix for PR #40 comment - ensuring invalid offsets
+// never return negative positions.
+func TestBuiltinPosEx_OffsetValidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "Empty needle with negative offset returns 0 (not negative)",
+			input: `
+begin
+	PosEx("", "hello", -3);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "Empty needle with zero offset returns 0",
+			input: `
+begin
+	PosEx("", "hello", 0);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "Empty needle with valid offset returns 0 (matches DWScript behavior)",
+			input: `
+begin
+	PosEx("", "hello", 1);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "Non-empty needle with negative offset returns 0",
+			input: `
+begin
+	PosEx("test", "hello test", -1);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "Non-empty needle with zero offset returns 0",
+			input: `
+begin
+	PosEx("test", "hello test", 0);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "Valid search with offset 1 (normal case)",
+			input: `
+begin
+	PosEx("ll", "hello", 1);
+end
+			`,
+			expected: 3,
+		},
+		{
+			name: "Valid search with offset > 1",
+			input: `
+begin
+	PosEx("o", "hello world", 6);
+end
+			`,
+			expected: 8,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			intVal, ok := result.(*IntegerValue)
+			if !ok {
+				t.Fatalf("result is not *IntegerValue. got=%T (%+v)", result, result)
+			}
+
+			if intVal.Value != tt.expected {
+				t.Errorf("PosEx() = %d, want %d", intVal.Value, tt.expected)
+			}
+
+			// Additional check: result should never be negative
+			if intVal.Value < 0 {
+				t.Errorf("PosEx() returned negative position %d, should return 0 or positive", intVal.Value)
+			}
+		})
+	}
+}
+
+// TestBuiltinStrFind_OffsetValidation tests StrFind() offset validation.
+// StrFind is an alias for PosEx with reordered arguments, so it should also
+// never return negative positions.
+func TestBuiltinStrFind_OffsetValidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int64
+	}{
+		{
+			name: "Empty substring with negative offset returns 0",
+			input: `
+begin
+	StrFind("hello", "", -3);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "Empty substring with zero offset returns 0",
+			input: `
+begin
+	StrFind("hello", "", 0);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "Non-empty substring with negative offset returns 0",
+			input: `
+begin
+	StrFind("hello test", "test", -1);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "Non-empty substring with zero offset returns 0",
+			input: `
+begin
+	StrFind("hello test", "test", 0);
+end
+			`,
+			expected: 0,
+		},
+		{
+			name: "Valid search with offset 1",
+			input: `
+begin
+	StrFind("hello", "ll", 1);
+end
+			`,
+			expected: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			intVal, ok := result.(*IntegerValue)
+			if !ok {
+				t.Fatalf("result is not *IntegerValue. got=%T (%+v)", result, result)
+			}
+
+			if intVal.Value != tt.expected {
+				t.Errorf("StrFind() = %d, want %d", intVal.Value, tt.expected)
+			}
+
+			// Additional check: result should never be negative
+			if intVal.Value < 0 {
+				t.Errorf("StrFind() returned negative position %d, should return 0 or positive", intVal.Value)
+			}
+		})
+	}
+}
