@@ -225,9 +225,60 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ### Phase 9.17: Implement missing built-in functions
 
-**Priority**: MEDIUM - Required for full DWScript compatibility
-**Timeline**: 3-4 weeks
-**Current Status**: 15 of 85+ string functions implemented
+**Priority**: CRITICAL to MEDIUM - Required for full DWScript compatibility
+**Timeline**: 4-6 weeks
+**Overall Status**: ~70 of 250+ built-in functions implemented (28%)
+
+**Category Breakdown**:
+
+- String Functions: 17/85 implemented (20%)
+- Math Functions: 40/64 implemented (62%)
+- DateTime Functions: 54/60 implemented (90%)
+- Array Functions: 8/18 implemented (44%)
+- Conversion Functions: 3/15 implemented (20%)
+- Variant Functions: 0/10 implemented (0%)
+- RTTI/Type Functions: 0/20+ implemented (0%)
+
+**Test Fixture Impact**: Implementing all functions would unblock 400+ failing test fixtures
+
+---
+
+#### CRITICAL: Core Conversion Functions (Phase 9.17.0) 🔥
+
+**MUST IMPLEMENT FIRST** - These are used in 200+ test fixtures and block most other tests.
+
+- [ ] 9.17.0.1 IntToStr(i: Integer): String
+  - **CRITICAL** - Convert integer to string (base 10)
+  - Used in 100+ fixtures
+  - Implementation: Use Go's strconv.FormatInt
+
+- [ ] 9.17.0.2 FloatToStr(f: Float): String
+  - **CRITICAL** - Convert float to string
+  - Used in 80+ fixtures
+  - Implementation: Use Go's strconv.FormatFloat with 'g' format
+
+- [ ] 9.17.0.3 StrToInt(str: String): Integer
+  - **CRITICAL** - String to integer with error on failure
+  - Used in 60+ fixtures
+  - Implementation: Use Go's strconv.ParseInt, raise exception on error
+
+- [ ] 9.17.0.4 StrToFloat(str: String): Float
+  - **CRITICAL** - String to float with error on failure
+  - Used in 50+ fixtures
+  - Implementation: Use Go's strconv.ParseFloat, raise exception on error
+
+- [ ] 9.17.0.5 StrToIntDef(str: String, default: Integer): Integer
+  - String to integer with default value on error
+  - Safer version of StrToInt
+
+- [ ] 9.17.0.6 StrToFloatDef(str: String, default: Float): Float
+  - String to float with default value on error
+  - Safer version of StrToFloat
+
+**Implementation Time**: 1-2 days
+**Impact**: Unblocks 200+ fixtures immediately
+
+---
 
 #### High Priority String Functions (Phase 9.17.1)
 
@@ -333,18 +384,308 @@ Functions commonly used in test fixtures and real-world DWScript code:
 - [ ] 9.17.8.2 GetText(str) / _(str) - Localization/translation function
 - [ ] 9.17.8.3 CharAt(s, x) - Get character at position (deprecated, use SubStr)
 
+---
+
+#### Math Functions - Constants & Core (Phase 9.17.9)
+
+**Current Status**: 40/64 implemented (62%) - Missing 24 critical math functions
+
+**HIGH PRIORITY**:
+
+- [ ] 9.17.9.1 Pi: Float - Mathematical constant π (3.141592...)
+  - **HIGH** - Used in 30+ fixtures
+  - Implementation: Return math.Pi constant
+
+- [ ] 9.17.9.2 Sign(x: Float): Integer - Returns -1, 0, or 1
+  - **HIGH** - Used in 25+ fixtures
+  - Implementation: Simple comparison with 0
+
+- [ ] 9.17.9.3 Odd(x: Integer): Boolean - Check if integer is odd
+  - **HIGH** - Used in 20+ fixtures
+  - Implementation: x mod 2 != 0
+
+- [ ] 9.17.9.4 Frac(x: Float): Float - Fractional part of number
+  - **HIGH** - Used in 20+ fixtures
+  - Implementation: x - math.Floor(x)
+
+- [ ] 9.17.9.5 Int(x: Float): Float - Integer part (returns Float)
+  - **HIGH** - Used in 15+ fixtures
+  - Different from Trunc - returns Float type
+
+- [ ] 9.17.9.6 Log10(x: Float): Float - Base-10 logarithm
+  - **HIGH** - Used in 15+ fixtures
+  - Implementation: math.Log10
+
+- [ ] 9.17.9.7 LogN(x, base: Float): Float - Logarithm with custom base
+  - **MEDIUM** - Used in 10+ fixtures
+  - Implementation: math.Log(x) / math.Log(base)
+
+**MEDIUM PRIORITY**:
+
+- [ ] 9.17.9.8 Infinity: Float - Infinity constant
+  - Implementation: math.Inf(1)
+
+- [ ] 9.17.9.9 NaN: Float - Not-a-Number constant (already partially implemented?)
+  - Implementation: math.NaN()
+
+- [ ] 9.17.9.10 IsFinite(x: Float): Boolean - Check if number is finite
+  - Implementation: !math.IsInf(x, 0) && !math.IsNaN(x)
+
+- [ ] 9.17.9.11 IsInfinite(x: Float): Boolean - Check if number is infinite
+  - Implementation: math.IsInf(x, 0)
+
+- [ ] 9.17.9.12 IntPower(base: Float, exponent: Integer): Float
+  - Faster integer exponentiation
+  - Implementation: Loop-based power
+
+- [ ] 9.17.9.13 DivMod(dividend, divisor: Integer; var quotient, remainder: Integer)
+  - Integer division with remainder (var parameters)
+  - Implementation: quotient = dividend / divisor, remainder = dividend % divisor
+
+- [ ] 9.17.9.14 RandSeed: Integer - Get current random seed
+  - Return current PRNG seed value
+
+- [ ] 9.17.9.15 RandG: Float - Gaussian random number
+  - Box-Muller transform for normal distribution
+
+**LOW PRIORITY** (Advanced Math):
+
+- [ ] 9.17.9.16 Factorial(n: Integer): Integer - Factorial function
+- [ ] 9.17.9.17 Gcd(a, b: Integer): Integer - Greatest common divisor
+- [ ] 9.17.9.18 Lcm(a, b: Integer): Integer - Least common multiple
+- [ ] 9.17.9.19 IsPrime(n: Integer): Boolean - Primality test
+- [ ] 9.17.9.20 LeastFactor(n: Integer): Integer - Smallest prime factor
+- [ ] 9.17.9.21 PopCount(n: Integer): Integer - Count set bits
+- [ ] 9.17.9.22 TestBit(value: Integer, bit: Integer): Boolean - Test if bit is set
+- [ ] 9.17.9.23 Haversine(lat1, lon1, lat2, lon2: Float): Float - Haversine distance
+- [ ] 9.17.9.24 CompareNum(a, b: Float): Integer - Numerical comparison
+
+**Implementation Time**: 2-3 days for HIGH priority
+**Impact**: Unblocks 80+ math test fixtures
+
+---
+
+#### Array High-Order Functions (Phase 9.17.10)
+
+**Current Status**: 8/18 implemented (44%) - Missing functional programming features
+
+**HIGH PRIORITY**:
+
+- [ ] 9.17.10.1 Map(arr: array; func: function): array
+  - Transform each element using callback function
+  - Returns new array with transformed elements
+  - Used in 15+ fixtures
+
+- [ ] 9.17.10.2 Filter(arr: array; predicate: function): array
+  - Filter elements matching predicate
+  - Returns new array with matching elements
+  - Used in 15+ fixtures
+
+- [ ] 9.17.10.3 Reduce(arr: array; func: function; initial: Variant): Variant
+  - Reduce array to single value
+  - Apply function cumulatively
+  - Used in 10+ fixtures
+
+- [ ] 9.17.10.4 ForEach(arr: array; callback: function)
+  - Iterate over array with callback
+  - No return value, side effects only
+  - Used in 10+ fixtures
+
+**MEDIUM PRIORITY**:
+
+- [ ] 9.17.10.5 Every(arr: array; predicate: function): Boolean
+  - Check if all elements match predicate
+  - Short-circuits on first false
+
+- [ ] 9.17.10.6 Some(arr: array; predicate: function): Boolean
+  - Check if any element matches predicate
+  - Short-circuits on first true
+
+- [ ] 9.17.10.7 Find(arr: array; predicate: function): Variant
+  - Find first element matching predicate
+  - Returns element or null if not found
+
+- [ ] 9.17.10.8 FindIndex(arr: array; predicate: function): Integer
+  - Find index of first element matching predicate
+  - Returns -1 if not found
+
+- [ ] 9.17.10.9 Concat(arr1, arr2, ...): array
+  - Concatenate multiple arrays
+  - Returns new array
+
+- [ ] 9.17.10.10 Slice(arr: array; start, end: Integer): array
+  - Extract portion of array
+  - Returns new array
+
+**Implementation Time**: 3-4 days
+**Impact**: Unblocks 30+ array test fixtures, enables functional programming patterns
+
+---
+
+#### Variant Functions (Phase 9.17.11)
+
+**Current Status**: 0/10 implemented (0%) - **COMPLETE GAP**
+
+**ALL HIGH PRIORITY** - Required for dynamic typing and Variant support:
+
+- [ ] 9.17.11.1 VarType(v: Variant): Integer
+  - Get variant type code (vtInteger, vtString, etc.)
+  - Returns type enum value
+
+- [ ] 9.17.11.2 VarIsNull(v: Variant): Boolean
+  - Check if variant is null
+  - Used for null checks
+
+- [ ] 9.17.11.3 VarIsEmpty(v: Variant): Boolean
+  - Check if variant is empty (uninitialized)
+  - Different from null
+
+- [ ] 9.17.11.4 VarIsClear(v: Variant): Boolean
+  - Check if variant is cleared
+  - Alias for VarIsEmpty in some contexts
+
+- [ ] 9.17.11.5 VarIsArray(v: Variant): Boolean
+  - Check if variant contains array
+  - Type checking helper
+
+- [ ] 9.17.11.6 VarIsStr(v: Variant): Boolean
+  - Check if variant contains string
+  - Type checking helper
+
+- [ ] 9.17.11.7 VarIsNumeric(v: Variant): Boolean
+  - Check if variant contains numeric value
+  - Includes Integer and Float
+
+- [ ] 9.17.11.8 VarToStr(v: Variant): String
+  - Convert variant to string representation
+  - Handles all variant types
+
+- [ ] 9.17.11.9 VarAsType(v: Variant, varType: Integer): Variant
+  - Convert variant to specified type
+  - Type coercion with conversion
+
+- [ ] 9.17.11.10 VarClear(var v: Variant)
+  - Clear variant value (set to empty)
+  - Var parameter modification
+
+**Implementation Time**: 2-3 days
+**Impact**: Unblocks 30+ variant test fixtures, enables full Variant support
+
+---
+
+#### Ordinal Functions (Phase 9.17.12)
+
+**Current Status**: 2/6 implemented (33%)
+
+**Implemented**:
+
+- ✅ Ord(value): Integer - Get ordinal value
+- ✅ Chr(code: Integer): String - Character from code
+
+**HIGH PRIORITY**:
+
+- [ ] 9.17.12.1 Succ(value: ordinal): ordinal
+  - Successor function for ordinal types
+  - Works with Integer, Enum, Char
+  - Used in 15+ fixtures
+
+- [ ] 9.17.12.2 Pred(value: ordinal): ordinal
+  - Predecessor function for ordinal types
+  - Works with Integer, Enum, Char
+  - Used in 15+ fixtures
+
+**MEDIUM PRIORITY**:
+
+- [ ] 9.17.12.3 Inc(var x: ordinal; increment=1: Integer)
+  - Increment variable in-place (if not already implemented as statement)
+  - Var parameter
+
+- [ ] 9.17.12.4 Dec(var x: ordinal; decrement=1: Integer)
+  - Decrement variable in-place (if not already implemented as statement)
+  - Var parameter
+
+**Implementation Time**: 1 day
+**Impact**: Unblocks 20+ ordinal manipulation fixtures
+
+---
+
+#### RTTI / Type Introspection (Phase 9.17.13)
+
+**Current Status**: 0/20+ implemented (0%) - **COMPLETE GAP**
+
+**MEDIUM PRIORITY** (Advanced OOP features):
+
+- [ ] 9.17.13.1 TypeOf(value): TTypeInfo
+  - Get runtime type information
+  - Returns type metadata object
+
+- [ ] 9.17.13.2 TypeOfClass(classRef: TClass): TTypeInfo
+  - Get type info for class reference
+  - Class-level type introspection
+
+- [ ] 9.17.13.3 ClassName(obj: TObject): String
+  - Get class name as string
+  - May already be implemented
+
+- [ ] 9.17.13.4 ClassType(obj: TObject): TClass
+  - Get class type reference
+  - Runtime class info
+
+**Note**: Full RTTI implementation is complex and may be deferred to later phase.
+**Implementation Time**: 5-7 days (complex)
+**Impact**: Unblocks 10-15 advanced OOP fixtures
+
+---
+
 **Implementation Notes**:
 
 - Each function needs: AST interpreter, bytecode VM, semantic analyzer, tests
 - Follow patterns from SubStr implementation (see commits from this session)
 - Prioritize functions based on test fixture usage
-- Reference original DWScript at: `reference/dwscript-original/Source/dwsStringFunctions.pas`
+- Reference original DWScript sources:
+  - `reference/dwscript-original/Source/dwsStringFunctions.pas`
+  - `reference/dwscript-original/Source/dwsMathFunctions.pas`
+  - `reference/dwscript-original/Source/dwsArrayFunctions.pas`
+  - `reference/dwscript-original/Source/dwsVariantFunctions.pas`
 
 **Testing Strategy**:
 
 - Minimum 4 test categories per function: BasicUsage, EdgeCases, InExpressions, ErrorCases
 - Include UTF-8/Unicode test cases where applicable
 - Verify against DWScript test fixtures in testdata/fixtures/
+- For mathematical functions: test edge cases (0, negative, infinity, NaN)
+- For array functions: test empty arrays, single elements, large arrays
+- For variant functions: test all variant type combinations
+
+**Implementation Priority Summary**:
+
+**Week 1 - CRITICAL (200+ fixtures)**:
+1. Phase 9.17.0: Core Conversions (IntToStr, FloatToStr, StrToInt, StrToFloat) - 6 functions
+2. Phase 9.17.9: Math Constants (Pi, Sign, Odd, Frac, Int, Log10) - 7 functions
+3. Phase 9.17.1: Essential String (LeftStr, RightStr, MidStr, StrContains) - 8 functions
+**Total**: ~21 functions, **Impact**: 200+ fixtures
+
+**Week 2 - HIGH (150+ fixtures)**:
+1. Phase 9.17.11: All Variant Functions - 10 functions
+2. Phase 9.17.1: More String Functions (PosEx, StrBeginsWith, StrEndsWith) - 6 functions
+3. Phase 9.17.10: Core Array Functions (Map, Filter, Reduce) - 4 functions
+4. Phase 9.17.12: Ordinal Functions (Succ, Pred) - 2 functions
+**Total**: ~22 functions, **Impact**: 150+ fixtures
+
+**Week 3 - MEDIUM (100+ fixtures)**:
+1. Phase 9.17.2: Delimiter Functions (StrSplit, StrJoin, StrBefore, StrAfter) - 11 functions
+2. Phase 9.17.9: Advanced Math (Infinity, IsFinite, IntPower, DivMod) - 8 functions
+3. Phase 9.17.10: More Array Functions (Every, Some, Find, Concat, Slice) - 6 functions
+**Total**: ~25 functions, **Impact**: 100+ fixtures
+
+**Week 4+ - LOW (50+ fixtures)**:
+1. Phase 9.17.3-9.17.8: Specialized String Functions
+2. Phase 9.17.9: Advanced Math (Factorial, Gcd, IsPrime, etc.)
+3. Phase 9.17.13: RTTI Functions (TypeOf, etc.)
+**Total**: ~50+ functions, **Impact**: 50+ fixtures
+
+**Grand Total**: ~180 functions to implement across all phases
+**Total Impact**: 500+ test fixtures would pass with complete implementation
 
 ---
 
