@@ -519,7 +519,7 @@ func TestBuiltinMath_Overflow(t *testing.T) {
 
 func TestBuiltinMath_Constants(t *testing.T) {
 	input := `
-		var pi := 3.14159265359;
+		var mypi := 3.14159265359;
 		var e := 2.71828182846;
 		var circle := 2.0 * pi * 5.0;
 		var euler := Exp(1.0);
