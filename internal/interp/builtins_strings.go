@@ -265,6 +265,49 @@ func (i *Interpreter) builtinStringOfChar(args []Value) Value {
 	return &StringValue{Value: result}
 }
 
+// builtinSubStr implements the SubStr() built-in function.
+// It extracts a substring from a string with a length parameter.
+// SubStr(str, start) - returns substring from start to end (1-based)
+// SubStr(str, start, length) - returns length characters starting at start (1-based)
+// Note: Different from SubString which takes an end position instead of length.
+func (i *Interpreter) builtinSubStr(args []Value) Value {
+	// Accept 2 or 3 arguments
+	if len(args) < 2 || len(args) > 3 {
+		return i.newErrorWithLocation(i.currentNode, "SubStr() expects 2 or 3 arguments, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "SubStr() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: start position (1-based)
+	startVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "SubStr() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	str := strVal.Value
+	start := startVal.Value // 1-based
+
+	// Third argument (optional): length
+	// Default is MaxInt (meaning "to end of string")
+	length := int64(1<<31 - 1) // MaxInt for 32-bit (matches DWScript behavior)
+	if len(args) == 3 {
+		lengthVal, ok := args[2].(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "SubStr() expects integer as third argument, got %s", args[2].Type())
+		}
+		length = lengthVal.Value
+	}
+
+	// Use rune-based slicing to handle UTF-8 correctly
+	// This is the same logic as Copy()
+	result := runeSliceFrom(str, int(start), int(length))
+	return &StringValue{Value: result}
+}
+
 // builtinFormat implements the Format() built-in function.
 //
 // Format() function for string formatting

@@ -3248,3 +3248,349 @@ end
 		})
 	}
 }
+
+// ============================================================================
+// Tests for SubStr() string function
+// ============================================================================
+
+// TestBuiltinSubStr_BasicUsage tests SubStr() with basic substring extraction.
+// SubStr(str, start) - returns substring from start to end (1-based)
+// SubStr(str, start, length) - returns length characters starting at start (1-based)
+// Note: Different from Copy and SubString - SubStr takes length, SubString takes end position
+func TestBuiltinSubStr_BasicUsage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "SubStr from beginning with length",
+			input: `
+begin
+	SubStr("hello", 1, 2);
+end
+			`,
+			expected: "he",
+		},
+		{
+			name: "SubStr from middle with length",
+			input: `
+begin
+	SubStr("hello", 2, 3);
+end
+			`,
+			expected: "ell",
+		},
+		{
+			name: "SubStr from position to end (no length)",
+			input: `
+begin
+	SubStr("hello world", 7);
+end
+			`,
+			expected: "world",
+		},
+		{
+			name: "SubStr from beginning to end",
+			input: `
+begin
+	SubStr("DWScript", 1);
+end
+			`,
+			expected: "DWScript",
+		},
+		{
+			name: "SubStr with string literal",
+			input: `
+begin
+	SubStr("programming", 1, 7);
+end
+			`,
+			expected: "program",
+		},
+		{
+			name: "SubStr single character",
+			input: `
+begin
+	SubStr("hello", 3, 1);
+end
+			`,
+			expected: "l",
+		},
+		{
+			name: "SubStr from factorize.pas use case",
+			input: `
+var s: String := " * 2 * 3";
+begin
+	SubStr(s, 4);
+end
+			`,
+			expected: "2 * 3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("SubStr() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinSubStr_EdgeCases tests SubStr() with edge cases and boundary conditions.
+func TestBuiltinSubStr_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Empty string returns empty",
+			input: `
+begin
+	SubStr("", 1, 5);
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Length beyond string length",
+			input: `
+begin
+	SubStr("hello", 1, 100);
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Start beyond string length returns empty",
+			input: `
+begin
+	SubStr("hello", 10, 5);
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Length is zero returns empty",
+			input: `
+begin
+	SubStr("hello", 1, 0);
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Length is negative returns empty",
+			input: `
+begin
+	SubStr("hello", 1, -5);
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Start at last character",
+			input: `
+begin
+	SubStr("hello", 5, 1);
+end
+			`,
+			expected: "o",
+		},
+		{
+			name: "Start at last character with large length",
+			input: `
+begin
+	SubStr("hello", 5, 100);
+end
+			`,
+			expected: "o",
+		},
+		{
+			name: "Start is zero returns empty",
+			input: `
+begin
+	SubStr("hello", 0, 3);
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Start is negative returns empty",
+			input: `
+begin
+	SubStr("hello", -1, 3);
+end
+			`,
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("SubStr() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinSubStr_InExpressions tests using SubStr() in various expressions.
+func TestBuiltinSubStr_InExpressions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "SubStr result in string concatenation",
+			input: `
+begin
+	SubStr("hello world", 1, 5) + "!";
+end
+			`,
+			expected: "hello!",
+		},
+		{
+			name: "SubStr with variable start and length",
+			input: `
+var s: String := "DWScript";
+var start: Integer := 3;
+var len: Integer := 6;
+begin
+	SubStr(s, start, len);
+end
+			`,
+			expected: "Script",
+		},
+		{
+			name: "SubStr with expression as start",
+			input: `
+var s: String := "testing";
+var i: Integer := 2;
+begin
+	SubStr(s, i + 1, 4);
+end
+			`,
+			expected: "stin",
+		},
+		{
+			name: "Nested SubStr calls",
+			input: `
+begin
+	SubStr(SubStr("hello world", 1, 5), 2, 3);
+end
+			`,
+			expected: "ell",
+		},
+		{
+			name: "SubStr with UpperCase",
+			input: `
+begin
+	UpperCase(SubStr("hello world", 7));
+end
+			`,
+			expected: "WORLD",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("SubStr() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinSubStr_ErrorCases tests error handling for SubStr().
+func TestBuiltinSubStr_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "No arguments",
+			input: `
+begin
+	SubStr();
+end
+			`,
+		},
+		{
+			name: "One argument only",
+			input: `
+begin
+	SubStr("hello");
+end
+			`,
+		},
+		{
+			name: "Too many arguments",
+			input: `
+begin
+	SubStr("hello", 1, 2, 3);
+end
+			`,
+		},
+		{
+			name: "First argument not a string",
+			input: `
+var x: Integer := 42;
+begin
+	SubStr(x, 1, 2);
+end
+			`,
+		},
+		{
+			name: "Second argument not an integer",
+			input: `
+begin
+	SubStr("hello", "1", 2);
+end
+			`,
+		},
+		{
+			name: "Third argument not an integer",
+			input: `
+begin
+	SubStr("hello", 1, "2");
+end
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			// Should return an error
+			if !isError(result) {
+				t.Errorf("expected error for invalid SubStr() call, got %T: %+v", result, result)
+			}
+		})
+	}
+}
