@@ -1296,11 +1296,11 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	}
 
 	// Handle built-in properties/methods available on all objects (inherited from TObject)
-	if memberName == "ClassName" {
+	if memberName == "classname" {
 		// ClassName returns String
 		return types.STRING
 	}
-	if memberName == "ClassType" {
+	if memberName == "classtype" {
 		// ClassType returns the metaclass (class of T) for the object's runtime type
 		return types.NewClassOfType(classType)
 	}
