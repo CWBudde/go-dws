@@ -1,0 +1,21 @@
+// Simple test for array of const support
+procedure TestArrayOfConst(const items: array of const);
+var
+    i: Integer;
+begin
+    PrintLn('Testing array of const:');
+    for i := 0 to High(items) do begin
+        PrintLn('  Item ' + IntToStr(i) + ': ' + VarToStr(items[i]));
+    end;
+end;
+
+begin
+    // Test with mixed types
+    TestArrayOfConst([1, 'hello', 3.14, True]);
+
+    // Test with empty array
+    TestArrayOfConst([]);
+
+    // Test with single item
+    TestArrayOfConst([42]);
+end.

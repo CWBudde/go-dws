@@ -350,8 +350,27 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			return
 		}
 
-		// For compound assignments, validate operator compatibility
-		valueType := a.analyzeExpressionWithExpectedType(stmt.Value, sym.Type)
+		// For compound assignments with class operators, we need to analyze the value
+		// without type context first, because the operator signature (not the target type)
+		// defines what types are acceptable. For example: TTest += array of const
+		// Task 9.17.11b: Fix array of const in class operators
+		var valueType types.Type
+		if isCompound {
+			// Special case: empty array literals need context
+			// Check BEFORE analyzing to avoid error messages
+			if arrayLit, ok := stmt.Value.(*ast.ArrayLiteralExpression); ok && len(arrayLit.Elements) == 0 {
+				// Empty array literal - default to array of Variant (array of const)
+				// This will work with any operator that expects an array type
+				valueType = a.analyzeExpressionWithExpectedType(stmt.Value, types.ARRAY_OF_CONST)
+			} else {
+				// Try to analyze value without expected type for compound assignments
+				// This allows array literals to infer their type naturally
+				valueType = a.analyzeExpression(stmt.Value)
+			}
+		} else {
+			// For regular assignments, use target type for type inference
+			valueType = a.analyzeExpressionWithExpectedType(stmt.Value, sym.Type)
+		}
 		if valueType == nil {
 			return
 		}
