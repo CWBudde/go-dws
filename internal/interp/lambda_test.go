@@ -1039,3 +1039,550 @@ func TestHigherOrderFunctionWithStringArray(t *testing.T) {
 		t.Errorf("Expected totalLength 14, got %d", intVal.Value)
 	}
 }
+
+// ==============================================================================
+// Every() Tests
+// ==============================================================================
+
+func TestEveryAllMatch(t *testing.T) {
+	input := `
+		type TIntArray = array[0..3] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 2;
+		numbers[1] := 4;
+		numbers[2] := 6;
+		numbers[3] := 8;
+
+		var allEven := Every(numbers, lambda(x: Integer): Boolean => (x mod 2) = 0);
+	`
+
+	_, interp := runLambdaTest(t, input)
+
+	allEvenVal, _ := interp.env.Get("allEven")
+	boolVal := allEvenVal.(*BooleanValue)
+
+	if !boolVal.Value {
+		t.Error("Expected Every() to return true for all even numbers")
+	}
+}
+
+func TestEveryNotAllMatch(t *testing.T) {
+	input := `
+		type TIntArray = array[0..3] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 2;
+		numbers[1] := 3;
+		numbers[2] := 6;
+		numbers[3] := 8;
+
+		var allEven := Every(numbers, lambda(x: Integer): Boolean => (x mod 2) = 0);
+	`
+
+	_, interp := runLambdaTest(t, input)
+
+	allEvenVal, _ := interp.env.Get("allEven")
+	boolVal := allEvenVal.(*BooleanValue)
+
+	if boolVal.Value {
+		t.Error("Expected Every() to return false when not all elements match")
+	}
+}
+
+func TestEveryShortCircuit(t *testing.T) {
+	// Test that Every short-circuits on first false
+	input := `
+		type TIntArray = array[0..4] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 1;
+		numbers[1] := 2;
+		numbers[2] := 3;
+		numbers[3] := 4;
+		numbers[4] := 5;
+
+		var counter: Integer := 0;
+		var result := Every(numbers, lambda(x: Integer): Boolean begin
+			counter := counter + 1;
+			Result := x < 3;
+		end);
+	`
+
+	_, interp := runLambdaTest(t, input)
+
+	counterVal, _ := interp.env.Get("counter")
+	counterInt := counterVal.(*IntegerValue)
+
+	// Should stop at element 3 (third call), not process all 5 elements
+	if counterInt.Value != 3 {
+		t.Errorf("Expected Every() to short-circuit at 3 calls, got %d", counterInt.Value)
+	}
+}
+
+// ==============================================================================
+// Some() Tests
+// ==============================================================================
+
+func TestSomeAtLeastOneMatches(t *testing.T) {
+	input := `
+		type TIntArray = array[0..4] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 1;
+		numbers[1] := 3;
+		numbers[2] := 5;
+		numbers[3] := 6;
+		numbers[4] := 7;
+
+		var hasEven := Some(numbers, lambda(x: Integer): Boolean => (x mod 2) = 0);
+	`
+
+	_, interp := runLambdaTest(t, input)
+
+	hasEvenVal, _ := interp.env.Get("hasEven")
+	boolVal := hasEvenVal.(*BooleanValue)
+
+	if !boolVal.Value {
+		t.Error("Expected Some() to return true when at least one element matches")
+	}
+}
+
+func TestSomeNoneMatch(t *testing.T) {
+	input := `
+		type TIntArray = array[0..3] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 1;
+		numbers[1] := 3;
+		numbers[2] := 5;
+		numbers[3] := 7;
+
+		var hasEven := Some(numbers, lambda(x: Integer): Boolean => (x mod 2) = 0);
+	`
+
+	_, interp := runLambdaTest(t, input)
+
+	hasEvenVal, _ := interp.env.Get("hasEven")
+	boolVal := hasEvenVal.(*BooleanValue)
+
+	if boolVal.Value {
+		t.Error("Expected Some() to return false when no elements match")
+	}
+}
+
+func TestSomeShortCircuit(t *testing.T) {
+	// Test that Some short-circuits on first true
+	input := `
+		type TIntArray = array[0..4] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 1;
+		numbers[1] := 3;
+		numbers[2] := 4;
+		numbers[3] := 5;
+		numbers[4] := 7;
+
+		var counter: Integer := 0;
+		var result := Some(numbers, lambda(x: Integer): Boolean begin
+			counter := counter + 1;
+			Result := (x mod 2) = 0;
+		end);
+	`
+
+	_, interp := runLambdaTest(t, input)
+
+	counterVal, _ := interp.env.Get("counter")
+	counterInt := counterVal.(*IntegerValue)
+
+	// Should stop at element 4 (third call), not process all 5 elements
+	if counterInt.Value != 3 {
+		t.Errorf("Expected Some() to short-circuit at 3 calls, got %d", counterInt.Value)
+	}
+}
+
+// ==============================================================================
+// Find() Tests
+// ==============================================================================
+
+func TestFindElementExists(t *testing.T) {
+	input := `
+		type TIntArray = array[0..4] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 1;
+		numbers[1] := 2;
+		numbers[2] := 3;
+		numbers[3] := 4;
+		numbers[4] := 5;
+
+		var found := Find(numbers, lambda(x: Integer): Boolean => x > 3);
+	`
+
+	result, interp := runLambdaTest(t, input)
+
+	if isError(result) {
+		t.Fatalf("Execution failed: %v", result)
+	}
+
+	foundVal, ok := interp.env.Get("found")
+	if !ok {
+		t.Fatal("Variable 'found' not found")
+	}
+
+	intVal, ok := foundVal.(*IntegerValue)
+	if !ok {
+		t.Fatalf("Expected IntegerValue, got %T", foundVal)
+	}
+
+	// First element > 3 is 4
+	if intVal.Value != 4 {
+		t.Errorf("Expected Find() to return 4, got %d", intVal.Value)
+	}
+}
+
+func TestFindElementNotFound(t *testing.T) {
+	input := `
+		type TIntArray = array[0..3] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 1;
+		numbers[1] := 2;
+		numbers[2] := 3;
+		numbers[3] := 4;
+
+		var found := Find(numbers, lambda(x: Integer): Boolean => x > 10);
+	`
+
+	result, interp := runLambdaTest(t, input)
+
+	if isError(result) {
+		t.Fatalf("Execution failed: %v", result)
+	}
+
+	foundVal, ok := interp.env.Get("found")
+	if !ok {
+		t.Fatal("Variable 'found' not found")
+	}
+
+	_, ok = foundVal.(*NilValue)
+	if !ok {
+		t.Fatalf("Expected NilValue when element not found, got %T", foundVal)
+	}
+}
+
+// ==============================================================================
+// FindIndex() Tests
+// ==============================================================================
+
+func TestFindIndexElementExists(t *testing.T) {
+	input := `
+		type TIntArray = array[0..4] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 1;
+		numbers[1] := 2;
+		numbers[2] := 3;
+		numbers[3] := 4;
+		numbers[4] := 5;
+
+		var idx := FindIndex(numbers, lambda(x: Integer): Boolean => x > 3);
+	`
+
+	result, interp := runLambdaTest(t, input)
+
+	if isError(result) {
+		t.Fatalf("Execution failed: %v", result)
+	}
+
+	idxVal, ok := interp.env.Get("idx")
+	if !ok {
+		t.Fatal("Variable 'idx' not found")
+	}
+
+	intVal, ok := idxVal.(*IntegerValue)
+	if !ok {
+		t.Fatalf("Expected IntegerValue, got %T", idxVal)
+	}
+
+	// First element > 3 is at index 3 (zero-based)
+	if intVal.Value != 3 {
+		t.Errorf("Expected FindIndex() to return 3, got %d", intVal.Value)
+	}
+}
+
+func TestFindIndexElementNotFound(t *testing.T) {
+	input := `
+		type TIntArray = array[0..3] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 1;
+		numbers[1] := 2;
+		numbers[2] := 3;
+		numbers[3] := 4;
+
+		var idx := FindIndex(numbers, lambda(x: Integer): Boolean => x > 10);
+	`
+
+	result, interp := runLambdaTest(t, input)
+
+	if isError(result) {
+		t.Fatalf("Execution failed: %v", result)
+	}
+
+	idxVal, ok := interp.env.Get("idx")
+	if !ok {
+		t.Fatal("Variable 'idx' not found")
+	}
+
+	intVal, ok := idxVal.(*IntegerValue)
+	if !ok {
+		t.Fatalf("Expected IntegerValue, got %T", idxVal)
+	}
+
+	// Should return -1 when element not found
+	if intVal.Value != -1 {
+		t.Errorf("Expected FindIndex() to return -1 when not found, got %d", intVal.Value)
+	}
+}
+
+func TestFindIndexWithNonZeroBasedArray(t *testing.T) {
+	input := `
+		type TIntArray = array[1..5] of Integer;
+		var numbers: TIntArray;
+		numbers[1] := 1;
+		numbers[2] := 2;
+		numbers[3] := 3;
+		numbers[4] := 4;
+		numbers[5] := 5;
+
+		var idx := FindIndex(numbers, lambda(x: Integer): Boolean => x = 4);
+	`
+
+	result, interp := runLambdaTest(t, input)
+
+	if isError(result) {
+		t.Fatalf("Execution failed: %v", result)
+	}
+
+	idxVal, ok := interp.env.Get("idx")
+	if !ok {
+		t.Fatal("Variable 'idx' not found")
+	}
+
+	intVal, ok := idxVal.(*IntegerValue)
+	if !ok {
+		t.Fatalf("Expected IntegerValue, got %T", idxVal)
+	}
+
+	// Array is 1-based, element 4 is at index 4
+	if intVal.Value != 4 {
+		t.Errorf("Expected FindIndex() to return 4, got %d", intVal.Value)
+	}
+}
+
+// ==============================================================================
+// Concat() Tests
+// ==============================================================================
+
+func TestConcatTwoArrays(t *testing.T) {
+	input := `
+		type TIntArray = array[0..1] of Integer;
+		var a: TIntArray;
+		a[0] := 1;
+		a[1] := 2;
+
+		var b: TIntArray;
+		b[0] := 3;
+		b[1] := 4;
+
+		var c := Concat(a, b);
+		var len := Length(c);
+	`
+
+	result, interp := runLambdaTest(t, input)
+
+	if isError(result) {
+		t.Fatalf("Execution failed: %v", result)
+	}
+
+	lenVal, ok := interp.env.Get("len")
+	if !ok {
+		t.Fatal("Variable 'len' not found")
+	}
+
+	intVal, ok := lenVal.(*IntegerValue)
+	if !ok {
+		t.Fatalf("Expected IntegerValue, got %T", lenVal)
+	}
+
+	// Concatenated array should have 4 elements
+	if intVal.Value != 4 {
+		t.Errorf("Expected length 4, got %d", intVal.Value)
+	}
+
+	// Verify elements
+	cVal, _ := interp.env.Get("c")
+	cArray := cVal.(*ArrayValue)
+
+	expectedValues := []int64{1, 2, 3, 4}
+	for i, expected := range expectedValues {
+		elem := cArray.Elements[i].(*IntegerValue)
+		if elem.Value != expected {
+			t.Errorf("Expected c[%d] = %d, got %d", i, expected, elem.Value)
+		}
+	}
+}
+
+func TestConcatMultipleArrays(t *testing.T) {
+	input := `
+		type TIntArray = array[0..1] of Integer;
+		var a: TIntArray;
+		a[0] := 1;
+		a[1] := 2;
+
+		var b: TIntArray;
+		b[0] := 3;
+		b[1] := 4;
+
+		var c: TIntArray;
+		c[0] := 5;
+		c[1] := 6;
+
+		var result := Concat(a, b, c);
+		var len := Length(result);
+	`
+
+	execResult, interp := runLambdaTest(t, input)
+
+	if isError(execResult) {
+		t.Fatalf("Execution failed: %v", execResult)
+	}
+
+	lenVal, ok := interp.env.Get("len")
+	if !ok {
+		t.Fatal("Variable 'len' not found")
+	}
+
+	intVal, ok := lenVal.(*IntegerValue)
+	if !ok {
+		t.Fatalf("Expected IntegerValue, got %T", lenVal)
+	}
+
+	// Concatenated array should have 6 elements
+	if intVal.Value != 6 {
+		t.Errorf("Expected length 6, got %d", intVal.Value)
+	}
+}
+
+// ==============================================================================
+// Slice() Tests
+// ==============================================================================
+
+func TestSliceBasic(t *testing.T) {
+	input := `
+		type TIntArray = array[0..4] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 1;
+		numbers[1] := 2;
+		numbers[2] := 3;
+		numbers[3] := 4;
+		numbers[4] := 5;
+
+		var sliced := Slice(numbers, 1, 4);
+		var len := Length(sliced);
+	`
+
+	result, interp := runLambdaTest(t, input)
+
+	if isError(result) {
+		t.Fatalf("Execution failed: %v", result)
+	}
+
+	lenVal, ok := interp.env.Get("len")
+	if !ok {
+		t.Fatal("Variable 'len' not found")
+	}
+
+	intVal, ok := lenVal.(*IntegerValue)
+	if !ok {
+		t.Fatalf("Expected IntegerValue, got %T", lenVal)
+	}
+
+	// Slice from 1 to 4 (exclusive) should have 3 elements
+	if intVal.Value != 3 {
+		t.Errorf("Expected length 3, got %d", intVal.Value)
+	}
+
+	// Verify elements are [2, 3, 4]
+	slicedVal, _ := interp.env.Get("sliced")
+	slicedArray := slicedVal.(*ArrayValue)
+
+	expectedValues := []int64{2, 3, 4}
+	for i, expected := range expectedValues {
+		elem := slicedArray.Elements[i].(*IntegerValue)
+		if elem.Value != expected {
+			t.Errorf("Expected sliced[%d] = %d, got %d", i, expected, elem.Value)
+		}
+	}
+}
+
+func TestSliceEntireArray(t *testing.T) {
+	input := `
+		type TIntArray = array[0..2] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 1;
+		numbers[1] := 2;
+		numbers[2] := 3;
+
+		var sliced := Slice(numbers, 0, 3);
+		var len := Length(sliced);
+	`
+
+	result, interp := runLambdaTest(t, input)
+
+	if isError(result) {
+		t.Fatalf("Execution failed: %v", result)
+	}
+
+	lenVal, ok := interp.env.Get("len")
+	if !ok {
+		t.Fatal("Variable 'len' not found")
+	}
+
+	intVal, ok := lenVal.(*IntegerValue)
+	if !ok {
+		t.Fatalf("Expected IntegerValue, got %T", lenVal)
+	}
+
+	// Should have all 3 elements
+	if intVal.Value != 3 {
+		t.Errorf("Expected length 3, got %d", intVal.Value)
+	}
+}
+
+func TestSliceEmptyRange(t *testing.T) {
+	input := `
+		type TIntArray = array[0..4] of Integer;
+		var numbers: TIntArray;
+		numbers[0] := 1;
+		numbers[1] := 2;
+		numbers[2] := 3;
+		numbers[3] := 4;
+		numbers[4] := 5;
+
+		var sliced := Slice(numbers, 2, 2);
+		var len := Length(sliced);
+	`
+
+	result, interp := runLambdaTest(t, input)
+
+	if isError(result) {
+		t.Fatalf("Execution failed: %v", result)
+	}
+
+	lenVal, ok := interp.env.Get("len")
+	if !ok {
+		t.Fatal("Variable 'len' not found")
+	}
+
+	intVal, ok := lenVal.(*IntegerValue)
+	if !ok {
+		t.Fatalf("Expected IntegerValue, got %T", lenVal)
+	}
+
+	// Empty slice should have 0 elements
+	if intVal.Value != 0 {
+		t.Errorf("Expected length 0, got %d", intVal.Value)
+	}
+}

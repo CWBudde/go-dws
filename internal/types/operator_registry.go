@@ -93,6 +93,7 @@ func (r *OperatorRegistry) Lookup(operator string, operandTypes []Type) (*Operat
 
 // areTypesCompatibleForOperator checks if actualType can be used where declaredType is expected.
 // This supports inheritance: a subclass instance can be used where parent class is expected.
+// Task 9.17.11b: Also supports array of const compatibility (array of T -> array of Variant).
 func areTypesCompatibleForOperator(actualType, declaredType Type) bool {
 	// Exact match
 	if actualType.Equals(declaredType) {
@@ -110,6 +111,28 @@ func areTypesCompatibleForOperator(actualType, declaredType Type) bool {
 				return true
 			}
 		}
+	}
+
+	// Task 9.17.11b: Check array compatibility for array of const
+	// An array of any type can be passed where array of Variant is expected
+	actualArray, actualIsArray := actualType.(*ArrayType)
+	declaredArray, declaredIsArray := declaredType.(*ArrayType)
+
+	if actualIsArray && declaredIsArray {
+		// Both must be dynamic arrays (array of const is dynamic)
+		if !actualArray.IsDynamic() || !declaredArray.IsDynamic() {
+			return false
+		}
+
+		// If declared element type is Variant, accept any actual element type
+		// This enables: array of Integer -> array of Variant (array of const)
+		declaredElem := GetUnderlyingType(declaredArray.ElementType)
+		if declaredElem.TypeKind() == "VARIANT" {
+			return true
+		}
+
+		// Check if element types are compatible (recursive for nested arrays)
+		return areTypesCompatibleForOperator(actualArray.ElementType, declaredArray.ElementType)
 	}
 
 	return false

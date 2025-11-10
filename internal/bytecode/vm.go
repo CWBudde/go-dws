@@ -964,13 +964,24 @@ func (vm *VM) reset() {
 	vm.setGlobal(6, BuiltinValue("StrToFloat"))
 	vm.setGlobal(7, BuiltinValue("Length"))
 	vm.setGlobal(8, BuiltinValue("Copy"))
-	vm.setGlobal(9, BuiltinValue("Ord"))
-	vm.setGlobal(10, BuiltinValue("Chr"))
+	vm.setGlobal(9, BuiltinValue("SubStr"))
+	vm.setGlobal(10, BuiltinValue("SubString"))
+	vm.setGlobal(11, BuiltinValue("LeftStr"))
+	vm.setGlobal(12, BuiltinValue("RightStr"))
+	vm.setGlobal(13, BuiltinValue("MidStr"))
+	vm.setGlobal(14, BuiltinValue("StrBeginsWith"))
+	vm.setGlobal(15, BuiltinValue("StrEndsWith"))
+	vm.setGlobal(16, BuiltinValue("StrContains"))
+	vm.setGlobal(17, BuiltinValue("PosEx"))
+	vm.setGlobal(18, BuiltinValue("RevPos"))
+	vm.setGlobal(19, BuiltinValue("StrFind"))
+	vm.setGlobal(20, BuiltinValue("Ord"))
+	vm.setGlobal(21, BuiltinValue("Chr"))
 	// Type cast functions
-	vm.setGlobal(11, BuiltinValue("Integer"))
-	vm.setGlobal(12, BuiltinValue("Float"))
-	vm.setGlobal(13, BuiltinValue("String"))
-	vm.setGlobal(14, BuiltinValue("Boolean"))
+	vm.setGlobal(22, BuiltinValue("Integer"))
+	vm.setGlobal(23, BuiltinValue("Float"))
+	vm.setGlobal(24, BuiltinValue("String"))
+	vm.setGlobal(25, BuiltinValue("Boolean"))
 }
 
 func (vm *VM) getGlobal(index int) Value {
@@ -1528,6 +1539,16 @@ func (vm *VM) registerBuiltins() {
 	vm.builtins["Length"] = builtinLength
 	vm.builtins["Copy"] = builtinCopy
 	vm.builtins["SubStr"] = builtinSubStr
+	vm.builtins["SubString"] = builtinSubString
+	vm.builtins["LeftStr"] = builtinLeftStr
+	vm.builtins["RightStr"] = builtinRightStr
+	vm.builtins["MidStr"] = builtinMidStr
+	vm.builtins["StrBeginsWith"] = builtinStrBeginsWith
+	vm.builtins["StrEndsWith"] = builtinStrEndsWith
+	vm.builtins["StrContains"] = builtinStrContains
+	vm.builtins["PosEx"] = builtinPosEx
+	vm.builtins["RevPos"] = builtinRevPos
+	vm.builtins["StrFind"] = builtinStrFind
 	vm.builtins["Ord"] = builtinOrd
 	vm.builtins["Chr"] = builtinChr
 	// Type cast functions
@@ -1712,6 +1733,305 @@ func builtinSubStr(vm *VM, args []Value) (Value, error) {
 	}
 
 	return StringValue(str[start : start+length]), nil
+}
+
+func builtinSubString(vm *VM, args []Value) (Value, error) {
+	if len(args) != 3 {
+		return NilValue(), vm.runtimeError("SubString expects 3 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("SubString expects a string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("SubString expects an integer as second argument")
+	}
+	if !args[2].IsInt() {
+		return NilValue(), vm.runtimeError("SubString expects an integer as third argument")
+	}
+
+	str := args[0].AsString()
+	start := int(args[1].AsInt()) // 1-based
+	end := int(args[2].AsInt())   // 1-based, inclusive
+
+	// Calculate length from start and end positions
+	length := end - start + 1
+
+	// Handle edge cases
+	if length <= 0 {
+		return StringValue(""), nil
+	}
+
+	// Convert to runes for UTF-8 support
+	runes := []rune(str)
+	startIdx := start - 1
+
+	if startIdx < 0 {
+		startIdx = 0
+	}
+	if startIdx >= len(runes) {
+		return StringValue(""), nil
+	}
+
+	endIdx := startIdx + length
+	if endIdx > len(runes) {
+		endIdx = len(runes)
+	}
+
+	return StringValue(string(runes[startIdx:endIdx])), nil
+}
+
+func builtinLeftStr(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("LeftStr expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("LeftStr expects a string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("LeftStr expects an integer as second argument")
+	}
+
+	str := args[0].AsString()
+	count := int(args[1].AsInt())
+
+	if count <= 0 {
+		return StringValue(""), nil
+	}
+
+	// Convert to runes for UTF-8 support
+	runes := []rune(str)
+	if count > len(runes) {
+		count = len(runes)
+	}
+
+	return StringValue(string(runes[:count])), nil
+}
+
+func builtinRightStr(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("RightStr expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("RightStr expects a string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("RightStr expects an integer as second argument")
+	}
+
+	str := args[0].AsString()
+	count := int(args[1].AsInt())
+
+	if count <= 0 {
+		return StringValue(""), nil
+	}
+
+	// Convert to runes for UTF-8 support
+	runes := []rune(str)
+	strLen := len(runes)
+
+	if count >= strLen {
+		return StringValue(str), nil
+	}
+
+	start := strLen - count
+	return StringValue(string(runes[start:])), nil
+}
+
+func builtinMidStr(vm *VM, args []Value) (Value, error) {
+	// MidStr is an alias for SubStr
+	return builtinSubStr(vm, args)
+}
+
+func builtinStrBeginsWith(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrBeginsWith expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrBeginsWith expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("StrBeginsWith expects a string as second argument")
+	}
+
+	str := args[0].AsString()
+	prefix := args[1].AsString()
+
+	result := len(prefix) == 0 || (len(str) >= len(prefix) && str[:len(prefix)] == prefix)
+	return BoolValue(result), nil
+}
+
+func builtinStrEndsWith(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrEndsWith expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrEndsWith expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("StrEndsWith expects a string as second argument")
+	}
+
+	str := args[0].AsString()
+	suffix := args[1].AsString()
+
+	result := len(suffix) == 0 || (len(str) >= len(suffix) && str[len(str)-len(suffix):] == suffix)
+	return BoolValue(result), nil
+}
+
+func builtinStrContains(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrContains expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrContains expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("StrContains expects a string as second argument")
+	}
+
+	str := args[0].AsString()
+	substr := args[1].AsString()
+
+	// Empty substring is always contained
+	if len(substr) == 0 {
+		return BoolValue(true), nil
+	}
+
+	// Check if substring exists
+	for i := 0; i <= len(str)-len(substr); i++ {
+		if str[i:i+len(substr)] == substr {
+			return BoolValue(true), nil
+		}
+	}
+
+	return BoolValue(false), nil
+}
+
+func builtinPosEx(vm *VM, args []Value) (Value, error) {
+	if len(args) != 3 {
+		return NilValue(), vm.runtimeError("PosEx expects 3 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("PosEx expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("PosEx expects a string as second argument")
+	}
+	if !args[2].IsInt() {
+		return NilValue(), vm.runtimeError("PosEx expects an integer as third argument")
+	}
+
+	needle := args[0].AsString()
+	haystack := args[1].AsString()
+	offset := int(args[2].AsInt()) // 1-based
+
+	// Handle invalid offset first
+	if offset < 1 {
+		return IntValue(0), nil
+	}
+
+	// Handle empty needle - returns 0 (not found)
+	if len(needle) == 0 {
+		return IntValue(0), nil
+	}
+
+	// Convert to runes for UTF-8 support
+	haystackRunes := []rune(haystack)
+	needleRunes := []rune(needle)
+
+	// Adjust offset to 0-based
+	startIdx := offset - 1
+
+	// If offset is beyond the string length, not found
+	if startIdx >= len(haystackRunes) {
+		return IntValue(0), nil
+	}
+
+	// Search for the needle starting from offset
+	for i := startIdx; i <= len(haystackRunes)-len(needleRunes); i++ {
+		match := true
+		for j := 0; j < len(needleRunes); j++ {
+			if haystackRunes[i+j] != needleRunes[j] {
+				match = false
+				break
+			}
+		}
+		if match {
+			// Return 1-based position
+			return IntValue(int64(i + 1)), nil
+		}
+	}
+
+	// Not found
+	return IntValue(0), nil
+}
+
+func builtinRevPos(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("RevPos expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("RevPos expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("RevPos expects a string as second argument")
+	}
+
+	needle := args[0].AsString()
+	haystack := args[1].AsString()
+
+	// Handle empty needle - returns length + 1
+	if len(needle) == 0 {
+		runes := []rune(haystack)
+		return IntValue(int64(len(runes) + 1)), nil
+	}
+
+	// Convert to runes for UTF-8 support
+	haystackRunes := []rune(haystack)
+	needleRunes := []rune(needle)
+
+	// Search backwards for the last occurrence
+	for i := len(haystackRunes) - len(needleRunes); i >= 0; i-- {
+		match := true
+		for j := 0; j < len(needleRunes); j++ {
+			if haystackRunes[i+j] != needleRunes[j] {
+				match = false
+				break
+			}
+		}
+		if match {
+			// Return 1-based position
+			return IntValue(int64(i + 1)), nil
+		}
+	}
+
+	// Not found
+	return IntValue(0), nil
+}
+
+func builtinStrFind(vm *VM, args []Value) (Value, error) {
+	if len(args) != 3 {
+		return NilValue(), vm.runtimeError("StrFind expects 3 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrFind expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("StrFind expects a string as second argument")
+	}
+	if !args[2].IsInt() {
+		return NilValue(), vm.runtimeError("StrFind expects an integer as third argument")
+	}
+
+	// StrFind(str, substr, fromIndex) maps to PosEx(substr, str, fromIndex)
+	// Reorder arguments
+	reorderedArgs := []Value{
+		args[1], // substr becomes first arg (needle)
+		args[0], // str becomes second arg (haystack)
+		args[2], // fromIndex stays as third arg (offset)
+	}
+
+	return builtinPosEx(vm, reorderedArgs)
 }
 
 func builtinOrd(vm *VM, args []Value) (Value, error) {

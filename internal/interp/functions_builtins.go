@@ -210,6 +210,16 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinReduce(args)
 	case "ForEach":
 		return i.builtinForEach(args)
+	case "Every":
+		return i.builtinEvery(args)
+	case "Some":
+		return i.builtinSome(args)
+	case "Find":
+		return i.builtinFind(args)
+	case "FindIndex":
+		return i.builtinFindIndex(args)
+	case "Slice":
+		return i.builtinSlice(args)
 	// Current date/time functions
 	case "Now":
 		return i.builtinNow(args)

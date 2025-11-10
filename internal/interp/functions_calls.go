@@ -201,13 +201,13 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 
 	// Check if it's a user-defined function first
 	if overloads, exists := i.functions[funcName.Value]; exists && len(overloads) > 0 {
-		// Resolve overload based on argument types
-		fn, err := i.resolveOverload(funcName.Value, overloads, expr.Arguments)
+		// Resolve overload based on argument types and get cached evaluated arguments
+		fn, cachedArgs, err := i.resolveOverload(funcName.Value, overloads, expr.Arguments)
 		if err != nil {
 			return i.newErrorWithLocation(expr, "%s", err.Error())
 		}
 
-		// Prepare arguments - lazy parameters get LazyThunks, var parameters get References, regular parameters get evaluated
+		// Prepare arguments - lazy parameters get LazyThunks, var parameters get References, regular parameters use cached values
 		args := make([]Value, len(expr.Arguments))
 		for idx, arg := range expr.Arguments {
 			// Check parameter flags
@@ -246,12 +246,9 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 					return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
 				}
 			} else {
-				// For regular parameters, evaluate the expression immediately
-				val := i.Eval(arg)
-				if isError(val) {
-					return val
-				}
-				args[idx] = val
+				// For regular parameters, use the cached value from overload resolution
+				// This prevents double evaluation of function arguments
+				args[idx] = cachedArgs[idx]
 			}
 		}
 		return i.callUserFunction(fn, args)
