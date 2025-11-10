@@ -354,14 +354,33 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			return
 		}
 
+		usesClassOperator := false
 		if isCompound {
-			if !a.isCompoundOperatorValid(stmt.Operator, sym.Type, valueType, stmt.Token.Pos) {
+			opResult := a.isCompoundOperatorValid(stmt.Operator, sym.Type, valueType, stmt.Token.Pos)
+			if !opResult {
 				return
+			}
+			// Check if this uses a class operator (not just built-in type)
+			var opSymbol string
+			switch stmt.Operator {
+			case lexer.PLUS_ASSIGN:
+				opSymbol = "+="
+			case lexer.MINUS_ASSIGN:
+				opSymbol = "-="
+			case lexer.TIMES_ASSIGN:
+				opSymbol = "*="
+			case lexer.DIVIDE_ASSIGN:
+				opSymbol = "/="
+			}
+			if opSymbol != "" {
+				if _, ok := a.resolveBinaryOperator(opSymbol, sym.Type, valueType); ok {
+					usesClassOperator = true
+				}
 			}
 		}
 
-		// Check type compatibility
-		if !a.canAssign(valueType, sym.Type) {
+		// Check type compatibility (skip for class operators - they're method calls)
+		if !usesClassOperator && !a.canAssign(valueType, sym.Type) {
 			a.addError("cannot assign %s to %s at %s",
 				valueType.String(), sym.Type.String(), stmt.Token.Pos.String())
 		}
@@ -380,14 +399,32 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		}
 
 		// For compound assignments, validate operator compatibility
+		usesClassOperator := false
 		if isCompound {
 			if !a.isCompoundOperatorValid(stmt.Operator, targetType, valueType, stmt.Token.Pos) {
 				return
 			}
+			// Check if this uses a class operator (not just built-in type)
+			var opSymbol string
+			switch stmt.Operator {
+			case lexer.PLUS_ASSIGN:
+				opSymbol = "+="
+			case lexer.MINUS_ASSIGN:
+				opSymbol = "-="
+			case lexer.TIMES_ASSIGN:
+				opSymbol = "*="
+			case lexer.DIVIDE_ASSIGN:
+				opSymbol = "/="
+			}
+			if opSymbol != "" {
+				if _, ok := a.resolveBinaryOperator(opSymbol, targetType, valueType); ok {
+					usesClassOperator = true
+				}
+			}
 		}
 
-		// Check type compatibility
-		if !a.canAssign(valueType, targetType) {
+		// Check type compatibility (skip for class operators - they're method calls)
+		if !usesClassOperator && !a.canAssign(valueType, targetType) {
 			a.addError("cannot assign %s to %s at %s",
 				valueType.String(), targetType.String(), stmt.Token.Pos.String())
 		}
@@ -406,14 +443,32 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		}
 
 		// For compound assignments, validate operator compatibility
+		usesClassOperator := false
 		if isCompound {
 			if !a.isCompoundOperatorValid(stmt.Operator, targetType, valueType, stmt.Token.Pos) {
 				return
 			}
+			// Check if this uses a class operator (not just built-in type)
+			var opSymbol string
+			switch stmt.Operator {
+			case lexer.PLUS_ASSIGN:
+				opSymbol = "+="
+			case lexer.MINUS_ASSIGN:
+				opSymbol = "-="
+			case lexer.TIMES_ASSIGN:
+				opSymbol = "*="
+			case lexer.DIVIDE_ASSIGN:
+				opSymbol = "/="
+			}
+			if opSymbol != "" {
+				if _, ok := a.resolveBinaryOperator(opSymbol, targetType, valueType); ok {
+					usesClassOperator = true
+				}
+			}
 		}
 
-		// Check type compatibility
-		if !a.canAssign(valueType, targetType) {
+		// Check type compatibility (skip for class operators - they're method calls)
+		if !usesClassOperator && !a.canAssign(valueType, targetType) {
 			a.addError("cannot assign %s to %s at %s",
 				valueType.String(), targetType.String(), stmt.Token.Pos.String())
 		}
@@ -425,6 +480,29 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 // isCompoundOperatorValid checks if a compound operator is valid for the given types.
 func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, valueType types.Type, pos lexer.Position) bool {
+	// Task 9.14: Check if there's a class operator override for this compound assignment
+	// Convert lexer.TokenType to operator symbol string
+	var opSymbol string
+	switch op {
+	case lexer.PLUS_ASSIGN:
+		opSymbol = "+="
+	case lexer.MINUS_ASSIGN:
+		opSymbol = "-="
+	case lexer.TIMES_ASSIGN:
+		opSymbol = "*="
+	case lexer.DIVIDE_ASSIGN:
+		opSymbol = "/="
+	default:
+		a.addError("unsupported compound operator %v at %s", op, pos.String())
+		return false
+	}
+
+	// Check for class operator overrides first
+	if _, ok := a.resolveBinaryOperator(opSymbol, targetType, valueType); ok {
+		return true
+	}
+
+	// Fall back to built-in type checking
 	switch op {
 	case lexer.PLUS_ASSIGN:
 		// += works with Integer, Float, String (concatenation)
