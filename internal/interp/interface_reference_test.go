@@ -13,7 +13,7 @@ import (
 
 // TestInterfaceReferenceTests runs all ported DWScript interface tests from testdata/interfaces/
 func TestInterfaceReferenceTests(t *testing.T) {
-	interfaceDir := filepath.Join("..", "testdata", "interfaces")
+	interfaceDir := filepath.Join("../../testdata", "interfaces")
 
 	// Get all .pas files in the interfaces directory
 	pasFiles, err := filepath.Glob(filepath.Join(interfaceDir, "*.pas"))

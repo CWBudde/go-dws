@@ -139,13 +139,32 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Tests**: TestPrivateMethodAccessFromSameClass, TestPrivateMethodAccessFromOutside, TestProtectedMethodAccessFromChild, TestProtectedMethodAccessFromOutside, TestPrivateFieldNotInheritedAccess, TestPublicMethodAccessFromOutside
   - **Details**: Add visibility validation in analyzeCallExpression when calling methods on class instances
 
-- [ ] 9.16.2 Interface Implementation Validation (9 tests)
-  - **Estimate**: 3-4 hours
-  - **Files**: analyze_interfaces.go
-  - **Description**: Fix interface method signature matching bugs
-  - **Root Cause**: Likely case-sensitivity or parameter matching issues in interface validation
-  - **Tests**: TestClassImplementsInterface, TestMultipleInterfaces, TestInterfaceVariableAssignment, TestInterfaceInheritance, TestInterfaceMethodCall, TestInvalidInterfaceImplementation, TestInterfaceCircularReference, TestInterfaceForwardDeclaration, TestInterfaceAsParameter
-  - **Strategy**: Debug why interface method matching fails; check case-insensitive method name lookups
+- [x] 9.16.2 Interface Implementation Validation - PARTIAL (Core functionality complete, one edge case remains)
+  - **Estimate**: 3-4 hours (actual: 4 hours)
+  - **Files**: analyze_interfaces.go, analyze_classes.go, interp/interface.go, interp/functions.go, interp/statements.go, interp/declarations.go
+  - **Description**: Implemented core interface runtime support with case-insensitive method lookups
+  - **Completed**:
+    - ✅ Interface methods stored with lowercase keys for case-insensitive lookup
+    - ✅ Interface variable declarations create InterfaceInstance with nil object
+    - ✅ Assignment from class to interface wraps object in InterfaceInstance
+    - ✅ Interface method calls work (member access without parentheses)
+    - ✅ Semantic analyzer handles interface member access
+    - ✅ Interface-to-interface assignment supported
+  - **Remaining Issue** (for follow-up task 9.16.2.9):
+    - ❌ Interface method calls with parentheses (CallExpression path) not finding methods
+    - **Issue**: When `x.Method()` is called (with parentheses), it's a CallExpression that analyzes the object separately before calling analyzeMemberAccessExpression
+    - **Impact**: Functions/procedures with parameters fail semantic validation
+    - **Workaround**: Method calls without parentheses work correctly
+  - **Subtasks**:
+    - [x] 9.16.2.1 Fix interface method name case-insensitivity in analyzeInterfaceMethodDecl
+    - [x] 9.16.2.2 Fix class method lookup case-insensitivity in validateInterfaceImplementation
+    - [x] 9.16.2.3 Add interface variable type support in semantic analyzer
+    - [x] 9.16.2.4 Implement interface-to-class assignment validation
+    - [x] 9.16.2.5 Add runtime interface variable support in interpreter
+    - [x] 9.16.2.6 Implement interface method call dispatch in interpreter
+    - [ ] 9.16.2.7 Add interface type casting (as operator) for interfaces - DEFERRED
+    - [ ] 9.16.2.8 Verify all 9 test cases pass - PARTIAL (core tests pass, CallExpression issue remains)
+    - [ ] 9.16.2.9 Fix CallExpression path for interface method calls with parentheses - NEW SUBTASK
 
 - [ ] 9.16.3 Property Expression Validation (5 tests)
   - **Estimate**: 2-3 hours

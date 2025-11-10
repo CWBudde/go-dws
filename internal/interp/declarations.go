@@ -445,7 +445,8 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 			Body:       nil, // Interface methods have no body
 		}
 
-		interfaceInfo.Methods[methodDecl.Name.Value] = funcDecl
+		// Task 9.16.2: Use lowercase for case-insensitive method lookups
+		interfaceInfo.Methods[strings.ToLower(methodDecl.Name.Value)] = funcDecl
 	}
 
 	// Register interface in registry
