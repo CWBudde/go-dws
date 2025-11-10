@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
 )
@@ -205,16 +207,18 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 		}
 
 		fieldName := field.Name.Value
+		// Normalize field name to lowercase for case-insensitive comparison
+		lowerFieldName := strings.ToLower(fieldName)
 
 		// Check for duplicate field initialization
-		if initializedFields[fieldName] {
+		if initializedFields[lowerFieldName] {
 			a.addError("duplicate field '%s' in record literal", fieldName)
 			continue
 		}
-		initializedFields[fieldName] = true
+		initializedFields[lowerFieldName] = true
 
 		// Check if field exists in record type
-		expectedFieldType, exists := recordType.Fields[fieldName]
+		expectedFieldType, exists := recordType.Fields[lowerFieldName]
 		if !exists {
 			a.addError("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)
 			continue
