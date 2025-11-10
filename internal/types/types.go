@@ -513,7 +513,8 @@ func (ct *ClassType) GetMethod(name string) (*FunctionType, bool) {
 // GetMethodOverloads retrieves all overload variants of a method by name (Task 9.61)
 // Returns overloads from this class only (does not search parent)
 func (ct *ClassType) GetMethodOverloads(name string) []*MethodInfo {
-	return ct.MethodOverloads[name]
+	// Task 9.285: Normalize method names to lowercase for case-insensitive lookup
+	return ct.MethodOverloads[strings.ToLower(name)]
 }
 
 // GetConstructorOverloads retrieves all overload variants of a constructor by name (Task 9.61)
@@ -524,12 +525,14 @@ func (ct *ClassType) GetConstructorOverloads(name string) []*MethodInfo {
 
 // AddMethodOverload adds a method overload to the class (Task 9.61)
 func (ct *ClassType) AddMethodOverload(name string, info *MethodInfo) {
-	ct.MethodOverloads[name] = append(ct.MethodOverloads[name], info)
+	// Task 9.285: Normalize method names to lowercase for case-insensitive lookup
+	lowerName := strings.ToLower(name)
+	ct.MethodOverloads[lowerName] = append(ct.MethodOverloads[lowerName], info)
 
 	// Update the primary Methods map to point to the first overload
 	// This maintains backward compatibility with code that uses Methods map directly
-	if len(ct.MethodOverloads[name]) == 1 {
-		ct.Methods[name] = info.Signature
+	if len(ct.MethodOverloads[lowerName]) == 1 {
+		ct.Methods[lowerName] = info.Signature
 	}
 }
 

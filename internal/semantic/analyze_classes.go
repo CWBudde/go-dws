@@ -226,7 +226,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	fieldNames := make(map[string]bool)
 	classVarNames := make(map[string]bool)
 	for _, field := range decl.Fields {
-		fieldName := field.Name.Value
+		// Task 9.285: Normalize field names to lowercase for case-insensitive lookup
+		fieldName := strings.ToLower(field.Name.Value)
 
 		// Check if this is a class variable (static field)
 		if field.IsClassVar {
