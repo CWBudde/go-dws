@@ -2224,96 +2224,140 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 		methodName = currentMethodName.Value
 	}
 
-	// Look up the method in the parent class
-	parentMethod, exists := parentClass.Methods[methodName]
-	if !exists {
-		return i.newErrorWithLocation(ie, "method '%s' not found in parent class '%s'", methodName, parentClass.Name)
-	}
-
-	// Evaluate arguments
-	args := make([]Value, len(ie.Arguments))
-	for idx, arg := range ie.Arguments {
-		val := i.Eval(arg)
-		if isError(val) {
-			return val
+	// Task 9.16.4.2: Look up member in parent class (method, property, or field)
+	// Try method first (case-insensitive)
+	var parentMethod *ast.FunctionDecl
+	for name, method := range parentClass.Methods {
+		if strings.EqualFold(name, methodName) {
+			parentMethod = method
+			break
 		}
-		args[idx] = val
 	}
 
-	// Check argument count matches parameter count
-	if len(args) != len(parentMethod.Parameters) {
-		return i.newErrorWithLocation(ie, "wrong number of arguments for method '%s': expected %d, got %d",
-			methodName, len(parentMethod.Parameters), len(args))
-	}
-
-	// Create method environment (with Self binding)
-	methodEnv := NewEnclosedEnvironment(i.env)
-	savedEnv := i.env
-	i.env = methodEnv
-
-	// Bind Self to the current object
-	i.env.Define("Self", obj)
-
-	// Bind __CurrentClass__ to parent class
-	i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: parentClass})
-
-	// Add class constants to method scope so they can be accessed directly
-	i.bindClassConstantsToEnv(parentClass)
-
-	// Bind __CurrentMethod__ for nested inherited calls
-	i.env.Define("__CurrentMethod__", &StringValue{Value: methodName})
-
-	// Bind method parameters to arguments with implicit conversion
-	for idx, param := range parentMethod.Parameters {
-		arg := args[idx]
-
-		// Apply implicit conversion if parameter has a type and types don't match
-		if param.Type != nil {
-			paramTypeName := param.Type.Name
-			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
-				arg = converted
+	if parentMethod != nil {
+		// Found a method - evaluate it
+		// Evaluate arguments
+		args := make([]Value, len(ie.Arguments))
+		for idx, arg := range ie.Arguments {
+			val := i.Eval(arg)
+			if isError(val) {
+				return val
 			}
+			args[idx] = val
 		}
 
-		i.env.Define(param.Name.Value, arg)
-	}
+		// Check argument count matches parameter count
+		if len(args) != len(parentMethod.Parameters) {
+			return i.newErrorWithLocation(ie, "wrong number of arguments for method '%s': expected %d, got %d",
+				methodName, len(parentMethod.Parameters), len(args))
+		}
 
-	// For functions (not procedures), initialize the Result variable
-	// Task 9.221: Use appropriate default value based on return type
-	if parentMethod.ReturnType != nil {
-		returnType := i.resolveTypeFromAnnotation(parentMethod.ReturnType)
-		defaultVal := i.getDefaultValue(returnType)
-		i.env.Define("Result", defaultVal)
-		// In DWScript, the method name can be used as an alias for Result
-		i.env.Define(parentMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
-	}
+		// Create method environment (with Self binding)
+		methodEnv := NewEnclosedEnvironment(i.env)
+		savedEnv := i.env
+		i.env = methodEnv
 
-	// Execute parent method body
-	_ = i.Eval(parentMethod.Body)
+		// Bind Self to the current object
+		i.env.Define("Self", obj)
 
-	// Handle function return value
-	var returnValue Value
-	if parentMethod.ReturnType != nil {
-		// For functions, check if Result was set
-		if resultVal, ok := i.env.Get("Result"); ok {
-			returnValue = resultVal
-		} else {
-			// Check if the method name was used as return value (DWScript style)
-			if methodVal, ok := i.env.Get(parentMethod.Name.Value); ok {
-				returnValue = methodVal
+		// Bind __CurrentClass__ to parent class
+		i.env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: parentClass})
+
+		// Add class constants to method scope so they can be accessed directly
+		i.bindClassConstantsToEnv(parentClass)
+
+		// Bind __CurrentMethod__ for nested inherited calls
+		i.env.Define("__CurrentMethod__", &StringValue{Value: methodName})
+
+		// Bind method parameters to arguments with implicit conversion
+		for idx, param := range parentMethod.Parameters {
+			arg := args[idx]
+
+			// Apply implicit conversion if parameter has a type and types don't match
+			if param.Type != nil {
+				paramTypeName := param.Type.Name
+				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+					arg = converted
+				}
+			}
+
+			i.env.Define(param.Name.Value, arg)
+		}
+
+		// For functions (not procedures), initialize the Result variable
+		// Task 9.221: Use appropriate default value based on return type
+		if parentMethod.ReturnType != nil {
+			returnType := i.resolveTypeFromAnnotation(parentMethod.ReturnType)
+			defaultVal := i.getDefaultValue(returnType)
+			i.env.Define("Result", defaultVal)
+			// In DWScript, the method name can be used as an alias for Result
+			i.env.Define(parentMethod.Name.Value, &ReferenceValue{Env: i.env, VarName: "Result"})
+		}
+
+		// Execute parent method body
+		_ = i.Eval(parentMethod.Body)
+
+		// Handle function return value
+		var returnValue Value
+		if parentMethod.ReturnType != nil {
+			// For functions, check if Result was set
+			if resultVal, ok := i.env.Get("Result"); ok {
+				returnValue = resultVal
 			} else {
-				returnValue = &NilValue{}
+				// Check if the method name was used as return value (DWScript style)
+				if methodVal, ok := i.env.Get(parentMethod.Name.Value); ok {
+					returnValue = methodVal
+				} else {
+					returnValue = &NilValue{}
+				}
 			}
+		} else {
+			// Procedure - no return value
+			returnValue = &NilValue{}
 		}
-	} else {
-		// Procedure - no return value
-		returnValue = &NilValue{}
+
+		// Restore environment
+		i.env = savedEnv
+
+		return returnValue
 	}
 
-	// Restore environment
-	i.env = savedEnv
+	// Task 9.16.4.2: Try properties (case-insensitive)
+	var propInfo *types.PropertyInfo
+	for name, prop := range parentClass.Properties {
+		if strings.EqualFold(name, methodName) {
+			propInfo = prop
+			break
+		}
+	}
 
-	return returnValue
+	if propInfo != nil {
+		// Found a property - read it
+		if len(ie.Arguments) > 0 || ie.IsCall {
+			return i.newErrorWithLocation(ie, "cannot call property '%s' as a method", methodName)
+		}
+		// Evaluate property read expression
+		// The property's read expression is evaluated in the context of the parent class
+		return i.evalPropertyRead(obj, propInfo, ie)
+	}
+
+	// Task 9.16.4.2: Try fields (case-insensitive)
+	for name := range parentClass.Fields {
+		if strings.EqualFold(name, methodName) {
+			if len(ie.Arguments) > 0 || ie.IsCall {
+				return i.newErrorWithLocation(ie, "cannot call field '%s' as a method", methodName)
+			}
+			// Return field value
+			fieldValue := obj.GetField(name)
+			if fieldValue == nil {
+				return &NilValue{}
+			}
+			return fieldValue
+		}
+	}
+
+	// Member not found in parent class
+	return i.newErrorWithLocation(ie, "method, property, or field '%s' not found in parent class '%s'", methodName, parentClass.Name)
 }
 
 // getClassConstant retrieves a class constant value by name.

@@ -189,7 +189,7 @@ func TestTypeOperator_As_InvalidRightOperand(t *testing.T) {
 		var obj := TBase.Create();
 		var result := obj as Integer;
 	`
-	expectError(t, input, "class type")
+	expectError(t, input, "class or interface")
 }
 
 func TestTypeOperator_As_NilValue(t *testing.T) {

@@ -234,7 +234,7 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 	}
 }
 
-// analyzeIsExpression analyzes the 'is' type checking operator (Task 9.40).
+// analyzeIsExpression analyzes the 'is' type checking operator (Task 9.40, 9.16.5.2).
 // Example: obj is TMyClass -> Boolean
 // Returns Boolean type.
 func (a *Analyzer) analyzeIsExpression(expr *ast.IsExpression) types.Type {

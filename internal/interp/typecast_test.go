@@ -350,3 +350,124 @@ end.`
 		t.Errorf("Expected output:\n%s\n\nGot:\n%s", expected, output)
 	}
 }
+
+// TestAsOperatorClassCasts tests the 'as' operator for class-to-class casts
+func TestAsOperatorClassCasts(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Upcast - derived to base (always valid)",
+			input: `
+type TBase = class
+	constructor Create;
+end;
+
+type TDerived = class(TBase)
+end;
+
+constructor TBase.Create;
+begin
+end;
+
+var obj: TDerived;
+var base: TBase;
+begin
+	obj := TDerived.Create;
+	base := obj as TBase;
+	PrintLn(base.ClassName);
+end.`,
+			expected: "TDerived\n",
+		},
+		{
+			name: "Valid downcast - derived instance in base variable",
+			input: `
+type TBase = class
+	constructor Create;
+end;
+
+type TDerived = class(TBase)
+end;
+
+constructor TBase.Create;
+begin
+end;
+
+var base: TBase;
+var derived: TDerived;
+begin
+	base := TDerived.Create;
+	derived := base as TDerived;
+	PrintLn(derived.ClassName);
+end.`,
+			expected: "TDerived\n",
+		},
+		{
+			name: "Same type cast",
+			input: `
+type TBase = class
+	constructor Create;
+end;
+
+constructor TBase.Create;
+begin
+end;
+
+var obj: TBase;
+begin
+	obj := TBase.Create;
+	PrintLn((obj as TBase).ClassName);
+end.`,
+			expected: "TBase\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, output := testEvalWithOutput(tt.input)
+			if isError(result) {
+				t.Fatalf("interpreter error: %s", result.String())
+			}
+			if output != tt.expected {
+				t.Errorf("Expected output:\n%s\n\nGot:\n%s", tt.expected, output)
+			}
+		})
+	}
+}
+
+// TestAsOperatorInvalidDowncast tests that invalid downcasts are properly rejected
+func TestAsOperatorInvalidDowncast(t *testing.T) {
+	input := `
+type TBase = class
+	constructor Create;
+end;
+
+type TDerived = class(TBase)
+end;
+
+constructor TBase.Create;
+begin
+end;
+
+var base: TBase;
+var derived: TDerived;
+begin
+	base := TBase.Create;
+	derived := base as TDerived;
+	PrintLn(derived.ClassName);
+end.`
+
+	result, _ := testEvalWithOutput(input)
+	// Should return an error because TBase instance cannot be cast to TDerived
+	if !isError(result) {
+		t.Fatalf("Expected error for invalid downcast, but got success")
+	}
+
+	// Check that the error message mentions the invalid cast
+	errMsg := result.String()
+	if !strings.Contains(errMsg, "invalid cast") && !strings.Contains(errMsg, "cannot be cast") {
+		t.Errorf("Expected error about invalid cast, got: %s", errMsg)
+	}
+}
