@@ -275,6 +275,13 @@ func valueTypeKey(val Value) string {
 			return "CLASS:" + v.RecordType.Name
 		}
 		return "RECORD"
+	case *ArrayValue:
+		// Task 9.16.6: Include array element type for operator overload matching
+		if v.ArrayType != nil && v.ArrayType.ElementType != nil {
+			elemTypeStr := v.ArrayType.ElementType.String()
+			return "ARRAY OF " + strings.ToUpper(elemTypeStr)
+		}
+		return "ARRAY"
 	default:
 		return val.Type()
 	}

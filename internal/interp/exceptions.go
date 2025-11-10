@@ -47,7 +47,20 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	objectClass.IsExternal = false
 
 	// Add basic TObject constructor
-	objectClass.Constructors["Create"] = nil // Placeholder, handled specially
+	// Task 9.16.4.1: Create a minimal Create constructor AST node
+	// The nil body means it just initializes fields with defaults
+	createConstructor := &ast.FunctionDecl{
+		Name: &ast.Identifier{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "Create"},
+			Value: "Create",
+		},
+		Parameters:   []*ast.Parameter{}, // No parameters
+		ReturnType:   nil,                 // Constructors don't have explicit return types
+		Body:         &ast.BlockStatement{Statements: []ast.Statement{}}, // Empty body
+		IsConstructor: true,
+	}
+	objectClass.Constructors["Create"] = createConstructor
+	objectClass.ConstructorOverloads["Create"] = []*ast.FunctionDecl{createConstructor}
 
 	i.classes["TObject"] = objectClass
 
