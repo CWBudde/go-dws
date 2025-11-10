@@ -252,7 +252,122 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-### Phase 9.16: Documentation & Cleanup
+### Phase 9.16: Semantic Analysis Fixes
+
+**Status**: IN PROGRESS - 23 of 89 failing tests fixed (26% complete)
+**Timeline**: 4-6 weeks total
+**Objective**: Fix all remaining semantic analysis test failures through systematic category-based approach
+
+#### Progress Summary
+
+**Completed (23 tests fixed)**:
+- ✅ Exception field access (2 tests) - Made field lookups case-insensitive
+- ✅ Optional built-in function parameters (8 tests) - IntToBin, IntToHex, ToJSONFormatted, Copy
+- ✅ Delete array support (4 tests) - Extended Delete to support array deletion
+- ✅ Variadic method registration (1 test) - Added variadic method support
+- ✅ MaxInt/MinInt variadic parameters (2 tests) - Made functions accept any number of arguments
+- ✅ Record field access (2 tests) - Normalized field names to lowercase
+- ✅ Forward class declarations (2 tests) - Fixed parent class validation rules
+
+**Files Modified**: analyze_classes.go, analyze_builtin_convert.go, analyze_builtin_json.go, analyze_builtin_string.go, analyze_builtin_array.go, analyze_builtin_math.go, analyze_records.go, types.go
+
+#### Remaining Tasks
+
+**Medium Complexity (20 tests remaining)** - Priority: HIGH
+
+- [ ] 9.16.1 Method Visibility Enforcement (6 tests) - **NEXT RECOMMENDED**
+  - **Estimate**: 1-2 hours
+  - **Files**: analyze_classes.go
+  - **Description**: Implement visibility checking (private/protected/public) in method call analysis
+  - **Strategy**: Similar to field visibility which already works - can use as reference
+  - **Tests**: TestPrivateMethodAccessFromSameClass, TestPrivateMethodAccessFromOutside, TestProtectedMethodAccessFromChild, TestProtectedMethodAccessFromOutside, TestPrivateFieldNotInheritedAccess, TestPublicMethodAccessFromOutside
+  - **Details**: Add visibility validation in analyzeCallExpression when calling methods on class instances
+
+- [ ] 9.16.2 Interface Implementation Validation (9 tests)
+  - **Estimate**: 3-4 hours
+  - **Files**: analyze_interfaces.go
+  - **Description**: Fix interface method signature matching bugs
+  - **Root Cause**: Likely case-sensitivity or parameter matching issues in interface validation
+  - **Tests**: TestClassImplementsInterface, TestMultipleInterfaces, TestInterfaceVariableAssignment, TestInterfaceInheritance, TestInterfaceMethodCall, TestInvalidInterfaceImplementation, TestInterfaceCircularReference, TestInterfaceForwardDeclaration, TestInterfaceAsParameter
+  - **Strategy**: Debug why interface method matching fails; check case-insensitive method name lookups
+
+- [ ] 9.16.3 Property Expression Validation (5 tests)
+  - **Estimate**: 2-3 hours
+  - **Files**: analyze_properties.go
+  - **Description**: Property expressions with field references not analyzed correctly
+  - **Root Cause**: Need to handle field access expressions in property analyzer
+  - **Tests**: TestPropertyExpressionValidation (multiple variants)
+  - **Strategy**: Enhance property analyzer to validate field references in read/write expressions
+
+**High Complexity (48 tests remaining)** - Priority: MEDIUM
+
+- [ ] 9.16.4 Inherited Expression Support (10 tests)
+  - **Estimate**: 6-8 hours
+  - **Description**: Implement 'inherited' keyword for calling parent class methods
+  - **Strategy**: Add InheritedExpression AST node, parser support, and semantic validation
+  - **Complexity**: Requires changes across parser, AST, and semantic analyzer
+
+- [ ] 9.16.5 Type Operators (is/as/implements) (15 tests)
+  - **Estimate**: 8-10 hours
+  - **Description**: Implement type checking and casting operators
+  - **Strategy**: Add type operator support in parser and semantic analyzer
+  - **Complexity**: Requires runtime type information and safe casting mechanisms
+
+- [ ] 9.16.6 Operator Overloading (2 tests)
+  - **Estimate**: 4-6 hours
+  - **Description**: Support custom operator implementations in classes
+  - **Strategy**: Add operator method registration and lookup in binary/unary expression analysis
+  - **Complexity**: Requires operator resolution mechanism and precedence handling
+
+- [ ] 9.16.7 Helper Methods (2 tests)
+  - **Estimate**: 3-4 hours
+  - **Description**: Support DWScript helper methods (extension methods)
+  - **Strategy**: Research DWScript helper semantics and implement registration mechanism
+  - **Complexity**: New feature requiring research and design
+
+- [ ] 9.16.8 Abstract Class Implementation (1 test)
+  - **Estimate**: 2-3 hours
+  - **Description**: Validate that abstract classes cannot be instantiated
+  - **Strategy**: Add abstract class tracking and validation in class instantiation
+  - **Complexity**: Requires inheritance chain validation
+
+- [ ] 9.16.9 Miscellaneous High Complexity Fixes (18 tests)
+  - **Estimate**: 10-15 hours
+  - **Description**: Various complex semantic validation issues
+  - **Strategy**: Analyze each test individually and implement targeted fixes
+  - **Examples**: Generic types, delegates, advanced inheritance scenarios, complex type checking
+
+#### Implementation Guidelines
+
+**Testing Approach**:
+1. Run specific failing test to understand exact error
+2. Add debug logging to trace analyzer behavior
+3. Implement minimal fix targeting root cause
+4. Verify test passes without breaking existing tests
+5. Run full semantic test suite before marking complete
+
+**Code Patterns**:
+- Use `strings.ToLower()` for all case-insensitive identifier lookups
+- Store all symbols (fields, methods, properties) with lowercase keys
+- Add comprehensive error messages with position information
+- Follow existing analyzer patterns in analyze_*.go files
+
+**Key Files**:
+- `internal/semantic/analyzer.go` - Main analyzer and symbol table
+- `internal/semantic/analyze_classes.go` - Class analysis including methods and fields
+- `internal/semantic/analyze_interfaces.go` - Interface validation
+- `internal/semantic/analyze_properties.go` - Property analysis
+- `internal/types/types.go` - Type system definitions
+
+**Next Steps**:
+1. Start with Task 9.16.1 (Method Visibility Enforcement) - shortest path to 6 more passing tests
+2. Then tackle Task 9.16.2 (Interface Implementation) - high impact with 9 tests
+3. Complete remaining medium complexity tasks before moving to high complexity
+4. Document patterns discovered during fixes for future reference
+
+---
+
+### Phase 9.17: Documentation & Cleanup
 
 **Priority**: LOW - Can be done in parallel with Phase 10
 **Timeline**: 1 week

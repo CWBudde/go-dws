@@ -35,13 +35,15 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 	for _, field := range decl.Fields {
 		fieldName := field.Name.Value
+		// Normalize to lowercase for case-insensitive field access
+		lowerFieldName := strings.ToLower(fieldName)
 
-		// Check for duplicate field names
-		if fieldNames[fieldName] {
+		// Check for duplicate field names (case-insensitive)
+		if fieldNames[lowerFieldName] {
 			a.addError("duplicate field '%s' in record '%s' at %s", fieldName, recordName, field.Token.Pos.String())
 			continue
 		}
-		fieldNames[fieldName] = true
+		fieldNames[lowerFieldName] = true
 
 		// Resolve field type
 		typeName := getTypeExpressionName(field.Type)
@@ -52,8 +54,8 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			continue
 		}
 
-		// Add field to record type
-		recordType.Fields[fieldName] = fieldType
+		// Add field to record type (using lowercase key for case-insensitive lookup)
+		recordType.Fields[lowerFieldName] = fieldType
 	}
 
 	// Process methods if any

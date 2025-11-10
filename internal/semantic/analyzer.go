@@ -176,7 +176,8 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	}
 
 	// Add Message field to Exception
-	exceptionClass.Fields["Message"] = types.STRING
+	// Task 9.285: Use lowercase for case-insensitive lookup
+	exceptionClass.Fields["message"] = types.STRING
 
 	// Add Create constructor
 	exceptionClass.AddConstructorOverload("Create", &types.MethodInfo{
