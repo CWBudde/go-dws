@@ -353,6 +353,167 @@ operator - (TCustom) : TCustom uses Negate;
 	}
 }
 
+// Test parsing class operator without parentheses (DWScript syntax)
+func TestParseOperatorDeclaration_ClassOperatorNoParen(t *testing.T) {
+	input := `
+type TTest = class
+  Field: String;
+  procedure AppendString(str: String);
+  class operator += String uses AppendString;
+end;
+`
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	classDecl, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("statement is not *ast.ClassDecl, got %T", program.Statements[0])
+	}
+
+	// Check that we have an operator declaration
+	if len(classDecl.Operators) != 1 {
+		t.Fatalf("expected 1 operator declaration, got %d", len(classDecl.Operators))
+	}
+
+	operatorDecl := classDecl.Operators[0]
+
+	if operatorDecl.Kind != ast.OperatorKindClass {
+		t.Fatalf("expected OperatorKindClass, got %s", operatorDecl.Kind)
+	}
+
+	if operatorDecl.OperatorSymbol != "+=" {
+		t.Fatalf("expected operator '+=', got %q", operatorDecl.OperatorSymbol)
+	}
+
+	if operatorDecl.Arity != 1 {
+		t.Fatalf("expected arity 1, got %d", operatorDecl.Arity)
+	}
+
+	if len(operatorDecl.OperandTypes) != 1 {
+		t.Fatalf("expected 1 operand type, got %d", len(operatorDecl.OperandTypes))
+	}
+
+	if operatorDecl.OperandTypes[0].String() != "String" {
+		t.Fatalf("unexpected operand type: %q", operatorDecl.OperandTypes[0].String())
+	}
+
+	if operatorDecl.Binding == nil || operatorDecl.Binding.Value != "AppendString" {
+		t.Fatalf("expected binding AppendString, got %v", operatorDecl.Binding)
+	}
+}
+
+// Test parsing class operator IN
+func TestParseOperatorDeclaration_ClassOperatorIN(t *testing.T) {
+	input := `
+type TMyRange = class
+  function Contains(i: Integer): Boolean;
+  class operator IN Integer uses Contains;
+end;
+`
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	classDecl, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("statement is not *ast.ClassDecl, got %T", program.Statements[0])
+	}
+
+	if len(classDecl.Operators) != 1 {
+		t.Fatalf("expected 1 operator declaration, got %d", len(classDecl.Operators))
+	}
+
+	operatorDecl := classDecl.Operators[0]
+
+	if operatorDecl.Kind != ast.OperatorKindClass {
+		t.Fatalf("expected OperatorKindClass, got %s", operatorDecl.Kind)
+	}
+
+	if operatorDecl.OperatorSymbol != "in" {
+		t.Fatalf("expected operator 'in', got %q", operatorDecl.OperatorSymbol)
+	}
+
+	if operatorDecl.Arity != 1 {
+		t.Fatalf("expected arity 1, got %d", operatorDecl.Arity)
+	}
+
+	if len(operatorDecl.OperandTypes) != 1 {
+		t.Fatalf("expected 1 operand type, got %d", len(operatorDecl.OperandTypes))
+	}
+
+	if operatorDecl.OperandTypes[0].String() != "Integer" {
+		t.Fatalf("unexpected operand type: %q", operatorDecl.OperandTypes[0].String())
+	}
+
+	if operatorDecl.Binding == nil || operatorDecl.Binding.Value != "Contains" {
+		t.Fatalf("expected binding Contains, got %v", operatorDecl.Binding)
+	}
+}
+
+// Test parsing class operator with array type
+func TestParseOperatorDeclaration_ClassOperatorArrayType(t *testing.T) {
+	input := `
+type TTest = class
+  procedure AppendStrings(const str: array of const);
+  class operator += array of const uses AppendStrings;
+end;
+`
+
+	p := testParser(input)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
+	}
+
+	classDecl, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("statement is not *ast.ClassDecl, got %T", program.Statements[0])
+	}
+
+	if len(classDecl.Operators) != 1 {
+		t.Fatalf("expected 1 operator declaration, got %d", len(classDecl.Operators))
+	}
+
+	operatorDecl := classDecl.Operators[0]
+
+	if operatorDecl.Kind != ast.OperatorKindClass {
+		t.Fatalf("expected OperatorKindClass, got %s", operatorDecl.Kind)
+	}
+
+	if operatorDecl.OperatorSymbol != "+=" {
+		t.Fatalf("expected operator '+=', got %q", operatorDecl.OperatorSymbol)
+	}
+
+	if operatorDecl.Arity != 1 {
+		t.Fatalf("expected arity 1, got %d", operatorDecl.Arity)
+	}
+
+	if len(operatorDecl.OperandTypes) != 1 {
+		t.Fatalf("expected 1 operand type, got %d", len(operatorDecl.OperandTypes))
+	}
+
+	if operatorDecl.OperandTypes[0].String() != "array of const" {
+		t.Fatalf("unexpected operand type: %q", operatorDecl.OperandTypes[0].String())
+	}
+
+	if operatorDecl.Binding == nil || operatorDecl.Binding.Value != "AppendStrings" {
+		t.Fatalf("expected binding AppendStrings, got %v", operatorDecl.Binding)
+	}
+}
+
 // Test parsing operator declarations with errors
 func TestParseOperatorDeclaration_Errors(t *testing.T) {
 	tests := []struct {

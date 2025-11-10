@@ -158,14 +158,20 @@ func (a *Analyzer) registerClassOperators(classType *types.ClassType, decl *ast.
 			continue
 		}
 
-		methodType, ok := classType.Methods[opDecl.Binding.Value]
-		if !ok {
+		// Look up method using overload system (Task 9.14)
+		methodOverloads := classType.GetMethodOverloads(opDecl.Binding.Value)
+		if len(methodOverloads) == 0 {
 			a.addError("binding '%s' for class operator '%s' not found in class '%s' at %s",
 				opDecl.Binding.Value, opDecl.OperatorSymbol, classType.Name, opDecl.Token.Pos.String())
 			continue
 		}
 
-		isClassMethod := classType.ClassMethodFlags[opDecl.Binding.Value]
+		// For class operators, use the first matching overload
+		// (In the future, we could support overloaded operators with different parameter types)
+		methodInfo := methodOverloads[0]
+		methodType := methodInfo.Signature
+
+		isClassMethod := methodInfo.IsClassMethod
 
 		operandTypes := make([]types.Type, 0, len(opDecl.OperandTypes)+1)
 		includesClass := false

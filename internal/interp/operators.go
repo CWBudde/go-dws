@@ -56,12 +56,65 @@ func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string)
 		return nil, false
 	}
 	key := strings.ToLower(operator)
+
+	// First try exact match for performance
 	for _, entry := range r.entries[key] {
 		if operatorSignatureKey(entry.OperandTypes) == operatorSignatureKey(operandTypes) {
 			return entry, true
 		}
 	}
+
+	// Task 9.14: If no exact match, try assignment-compatible match (for inheritance)
+	// This allows subclasses to use operators defined on parent classes
+	for _, entry := range r.entries[key] {
+		if len(entry.OperandTypes) != len(operandTypes) {
+			continue
+		}
+
+		allCompatible := true
+		for i := range operandTypes {
+			if !areRuntimeTypesCompatibleForOperator(operandTypes[i], entry.OperandTypes[i], entry.Class) {
+				allCompatible = false
+				break
+			}
+		}
+
+		if allCompatible {
+			return entry, true
+		}
+	}
+
 	return nil, false
+}
+
+// areRuntimeTypesCompatibleForOperator checks if actualType can be used where declaredType is expected.
+// This supports inheritance: a subclass instance can be used where parent class is expected.
+func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, declaredClass *ClassInfo) bool {
+	// Exact match
+	if actualType == declaredType {
+		return true
+	}
+
+	// Check class inheritance: actualType is a subclass of declaredType
+	// Both types are in format "CLASS:ClassName"
+	if !strings.HasPrefix(actualType, "CLASS:") || !strings.HasPrefix(declaredType, "CLASS:") {
+		return false
+	}
+
+	actualClassName := strings.TrimPrefix(actualType, "CLASS:")
+	declaredClassName := strings.TrimPrefix(declaredType, "CLASS:")
+
+	// TODO (Task 9.14): Full inheritance checking is not yet implemented here
+	// The function currently only does simple name comparison because we don't have
+	// easy access to the actual class hierarchy from the runtime type strings.
+	// The full inheritance check is handled in tryCallClassOperator which walks up
+	// the parent class chain. The declaredClass parameter is kept for future enhancement
+	// when we refactor to pass full ClassInfo objects instead of type strings.
+	if declaredClass != nil {
+		return actualClassName == declaredClassName
+	}
+
+	return false
 }
 
 type runtimeConversionEntry struct {
