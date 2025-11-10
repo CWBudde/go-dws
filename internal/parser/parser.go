@@ -42,6 +42,7 @@ const (
 	_ int = iota
 	LOWEST
 	ASSIGN      // :=
+	COALESCE    // ?? (higher than ASSIGN so it works in assignment RHS)
 	OR          // or
 	AND         // and
 	EQUALS      // = <>
@@ -57,32 +58,33 @@ const (
 
 // precedences maps token types to their precedence levels.
 var precedences = map[lexer.TokenType]int{
-	lexer.ASSIGN:     ASSIGN,
-	lexer.OR:         OR,
-	lexer.XOR:        OR,
-	lexer.AND:        AND,
-	lexer.EQ:         EQUALS,
-	lexer.NOT_EQ:     EQUALS,
-	lexer.IN:         EQUALS, // Set membership test
-	lexer.IS:         EQUALS, // Type checking: obj is TClass
-	lexer.AS:         EQUALS, // Type casting: obj as IInterface
-	lexer.IMPLEMENTS: EQUALS, // Interface check: obj implements IInterface
-	lexer.LESS:       LESSGREATER,
-	lexer.GREATER:    LESSGREATER,
-	lexer.LESS_EQ:    LESSGREATER,
-	lexer.GREATER_EQ: LESSGREATER,
-	lexer.PLUS:       SUM,
-	lexer.MINUS:      SUM,
-	lexer.SHL:        SHIFT,
-	lexer.SHR:        SHIFT,
-	lexer.SAR:        SHIFT,
-	lexer.ASTERISK:   PRODUCT,
-	lexer.SLASH:      PRODUCT,
-	lexer.DIV:        PRODUCT,
-	lexer.MOD:        PRODUCT,
-	lexer.LPAREN:     CALL,
-	lexer.LBRACK:     INDEX,
-	lexer.DOT:        MEMBER,
+	lexer.QUESTION_QUESTION: COALESCE,
+	lexer.ASSIGN:            ASSIGN,
+	lexer.OR:                OR,
+	lexer.XOR:               OR,
+	lexer.AND:               AND,
+	lexer.EQ:                EQUALS,
+	lexer.NOT_EQ:            EQUALS,
+	lexer.IN:                EQUALS, // Set membership test
+	lexer.IS:                EQUALS, // Type checking: obj is TClass
+	lexer.AS:                EQUALS, // Type casting: obj as IInterface
+	lexer.IMPLEMENTS:        EQUALS, // Interface check: obj implements IInterface
+	lexer.LESS:              LESSGREATER,
+	lexer.GREATER:           LESSGREATER,
+	lexer.LESS_EQ:           LESSGREATER,
+	lexer.GREATER_EQ:        LESSGREATER,
+	lexer.PLUS:              SUM,
+	lexer.MINUS:             SUM,
+	lexer.SHL:               SHIFT,
+	lexer.SHR:               SHIFT,
+	lexer.SAR:               SHIFT,
+	lexer.ASTERISK:          PRODUCT,
+	lexer.SLASH:             PRODUCT,
+	lexer.DIV:               PRODUCT,
+	lexer.MOD:               PRODUCT,
+	lexer.LPAREN:            CALL,
+	lexer.LBRACK:            INDEX,
+	lexer.DOT:               MEMBER,
 	// Note: Compound assignment operators (+=, -=, *=, /=) are NOT in this table
 	// because they are statement-level operators, not expression operators.
 	// They are handled in parseAssignmentOrExpression() in statements.go
@@ -144,6 +146,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.STEP, p.parseIdentifier) // 'step' is contextual - keyword in for loops, identifier elsewhere
 
 	// Register infix parse functions
+	p.registerInfix(lexer.QUESTION_QUESTION, p.parseInfixExpression) // Coalesce: a ?? b
 	p.registerInfix(lexer.LPAREN, p.parseCallExpression)
 	p.registerInfix(lexer.LBRACK, p.parseIndexExpression) // Array/string indexing: arr[i]
 	p.registerInfix(lexer.PLUS, p.parseInfixExpression)

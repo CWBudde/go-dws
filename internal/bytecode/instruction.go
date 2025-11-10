@@ -286,6 +286,12 @@ const (
 	// Stack: [a, b] -> [a xor b]
 	OpXor
 
+	// OpIsFalsey pops a value, checks if it's falsey (0, 0.0, "", false, nil, empty array), pushes boolean result.
+	// Format: [OpIsFalsey][unused][unused]
+	// Stack: [value] -> [boolean]
+	// Used for coalesce operator (??) to check if left operand is falsey
+	OpIsFalsey
+
 	// ========================================
 	// Bit Shift Operations (4 opcodes)
 	// ========================================
@@ -709,6 +715,7 @@ var OpCodeNames = [...]string{
 	OpAnd:              "AND",
 	OpOr:               "OR",
 	OpXor:              "XOR",
+	OpIsFalsey:         "IS_FALSEY",
 	OpShl:              "SHL",
 	OpShr:              "SHR",
 	OpSar:              "SAR",

@@ -788,6 +788,72 @@ func (i *Interpreter) builtinStrToFloat(args []Value) Value {
 	return &FloatValue{Value: floatValue}
 }
 
+// builtinStrToIntDef implements the StrToIntDef() built-in function.
+// It converts a string to an integer, returning a default value if the string is invalid.
+// StrToIntDef(s: String, default: Integer): Integer
+func (i *Interpreter) builtinStrToIntDef(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "StrToIntDef() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument must be a string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrToIntDef() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument must be an integer (the default value)
+	defaultVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrToIntDef() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	// Try to parse the string as an integer
+	s := strings.TrimSpace(strVal.Value)
+
+	// Use strconv.ParseInt for strict parsing (doesn't accept partial matches)
+	intValue, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		// Return the default value on error
+		return &IntegerValue{Value: defaultVal.Value}
+	}
+
+	return &IntegerValue{Value: intValue}
+}
+
+// builtinStrToFloatDef implements the StrToFloatDef() built-in function.
+// It converts a string to a float, returning a default value if the string is invalid.
+// StrToFloatDef(s: String, default: Float): Float
+func (i *Interpreter) builtinStrToFloatDef(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "StrToFloatDef() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument must be a string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrToFloatDef() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument must be a float (the default value)
+	defaultVal, ok := args[1].(*FloatValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrToFloatDef() expects float as second argument, got %s", args[1].Type())
+	}
+
+	// Try to parse the string as a float
+	s := strings.TrimSpace(strVal.Value)
+
+	// Use strconv.ParseFloat for strict parsing (doesn't accept partial matches)
+	floatValue, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		// Return the default value on error
+		return &FloatValue{Value: defaultVal.Value}
+	}
+
+	return &FloatValue{Value: floatValue}
+}
+
 // builtinBoolToStr implements the BoolToStr() built-in function.
 // It converts a boolean to its string representation ("True" or "False").
 // BoolToStr(b: Boolean): String
