@@ -1423,6 +1423,8 @@ func (c *Compiler) initBuiltins() {
 	c.addBuiltinGlobal("Float")
 	c.addBuiltinGlobal("String")
 	c.addBuiltinGlobal("Boolean")
+	// Mathematical constants
+	c.addBuiltinGlobal("Pi")
 }
 
 func (c *Compiler) addBuiltinGlobal(name string) {

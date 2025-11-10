@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -102,6 +103,9 @@ func NewAnalyzer() *Analyzer {
 
 	// Register built-in enum helpers
 	a.initEnumHelpers()
+
+	// Register mathematical constants (for DWScript compatibility)
+	a.symbols.DefineConst("Pi", types.FLOAT, math.Pi)
 
 	return a
 }

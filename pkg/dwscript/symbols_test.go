@@ -19,13 +19,13 @@ func TestProgram_Symbols(t *testing.T) {
 			source: `
 				var x: Integer := 42;
 				var name: String := 'Hello';
-				const PI = 3.14;
+				const MYCONST = 3.14;
 			`,
-			wantSymbols: []string{"x", "name", "PI"},
+			wantSymbols: []string{"x", "name", "MYCONST"},
 			wantKinds: map[string]string{
-				"x":    "variable",
-				"name": "variable",
-				"PI":   "constant",
+				"x":       "variable",
+				"name":    "variable",
+				"MYCONST": "constant",
 			},
 		},
 		{
@@ -195,7 +195,7 @@ func TestProgram_Symbols(t *testing.T) {
 func TestProgram_Symbols_Properties(t *testing.T) {
 	source := `
 		var x: Integer := 42;
-		const PI = 3.14;
+		const MYCONST = 3.14;
 	`
 
 	engine, err := New(WithTypeCheck(true))
@@ -211,21 +211,21 @@ func TestProgram_Symbols_Properties(t *testing.T) {
 	symbols := program.Symbols()
 
 	// Find symbols
-	var xSym, piSym *Symbol
+	var xSym, constSym *Symbol
 	for i := range symbols {
 		if symbols[i].Name == "x" {
 			xSym = &symbols[i]
 		}
-		if symbols[i].Name == "PI" {
-			piSym = &symbols[i]
+		if symbols[i].Name == "MYCONST" {
+			constSym = &symbols[i]
 		}
 	}
 
 	if xSym == nil {
 		t.Fatal("Symbol 'x' not found")
 	}
-	if piSym == nil {
-		t.Fatal("Symbol 'PI' not found")
+	if constSym == nil {
+		t.Fatal("Symbol 'MYCONST' not found")
 	}
 
 	// Check properties of 'x' (variable)
@@ -242,15 +242,15 @@ func TestProgram_Symbols_Properties(t *testing.T) {
 		t.Errorf("Expected type 'Integer', got %q", xSym.Type)
 	}
 
-	// Check properties of 'PI' (constant)
-	if !piSym.IsConst {
-		t.Errorf("Constant 'PI' should be marked as const")
+	// Check properties of 'MYCONST' (constant)
+	if !constSym.IsConst {
+		t.Errorf("Constant 'MYCONST' should be marked as const")
 	}
-	if !piSym.IsReadOnly {
-		t.Errorf("Constant 'PI' should be marked as read-only")
+	if !constSym.IsReadOnly {
+		t.Errorf("Constant 'MYCONST' should be marked as read-only")
 	}
-	if piSym.Kind != "constant" {
-		t.Errorf("Expected kind 'constant', got %q", piSym.Kind)
+	if constSym.Kind != "constant" {
+		t.Errorf("Expected kind 'constant', got %q", constSym.Kind)
 	}
 }
 
@@ -433,7 +433,7 @@ func TestProgram_TypeAt_EmptyProgram(t *testing.T) {
 
 func TestProgram_TypeAt_Constants(t *testing.T) {
 	source := `
-		const PI = 3.14;
+		const MYPI = 3.14;
 		const MAX_SIZE = 100;
 		const GREETING = 'Hello';
 	`

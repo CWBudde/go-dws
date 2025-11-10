@@ -364,7 +364,7 @@ func TestCompoundAssignmentStringMultiplyError(t *testing.T) {
 
 func TestCompoundAssignmentConstError(t *testing.T) {
 	input := `
-		const PI = 3.14;
+		const MYPI = 3.14;
 		PI += 1.0;
 	`
 	expectError(t, input, "Cannot assign to constant")
