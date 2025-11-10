@@ -193,6 +193,27 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Strategy**: Analyze each test individually and implement targeted fixes
   - **Examples**: Generic types, delegates, advanced inheritance scenarios, complex type checking
 
+- [ ] 9.16.10 Fix Function Argument Double Evaluation Bug
+  - **Estimate**: 2-4 hours
+  - **Priority**: High (affects fixture test accuracy)
+  - **Description**: Functions called as arguments to built-in functions (like PrintLn) are evaluated twice
+  - **Impact**: Causes side effects to happen twice, making tests fail with extra output
+  - **Examples**: `PrintLn(0 ?? Test(258))` calls `Test` twice instead of once
+  - **Root Cause**: Unknown - needs investigation in `evalCallExpression` or argument preparation
+  - **Discovery Context**: Found while implementing coalesce operator (Task 9.14)
+  - **Test Cases**:
+    - `PrintLn(Test(5))` outputs "Called\nCalled\n5" (Test called twice)
+    - `var x := Test(5); PrintLn(x)` outputs "Called\n5" (correct - Test called once)
+  - **Strategy**:
+    1. Add debug logging to trace argument evaluation in `evalCallExpression`
+    2. Check if semantic analyzer is somehow evaluating expressions
+    3. Look for duplicate evaluation in argument preparation loops
+    4. Verify fix doesn't break lazy or var parameter handling
+  - **Key Files**:
+    - `internal/interp/functions.go` - `evalCallExpression()` (lines 13-308)
+    - `internal/interp/builtins_core.go` - Built-in function implementations
+    - `internal/semantic/analyze_function_calls.go` - May be involved if analyzer evaluates
+
 #### Implementation Guidelines
 
 **Testing Approach**:

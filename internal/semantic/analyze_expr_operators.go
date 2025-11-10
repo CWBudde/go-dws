@@ -162,6 +162,41 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Type {
 	operator := expr.Operator
 
+	// Special handling for coalesce operator (??)
+	// Both operands must have compatible types; result type is the common type
+	if operator == "??" {
+		leftType := a.analyzeExpression(expr.Left)
+		rightType := a.analyzeExpression(expr.Right)
+
+		if leftType == nil || rightType == nil {
+			return nil
+		}
+
+		// Check if types are compatible (either equal or one can be assigned to the other)
+		if leftType.Equals(rightType) {
+			return leftType
+		}
+
+		// Check if right can be assigned to left
+		if a.canAssign(leftType, rightType) {
+			return leftType
+		}
+
+		// Check if left can be assigned to right
+		if a.canAssign(rightType, leftType) {
+			return rightType
+		}
+
+		// Handle numeric type promotion (Integer ?? Float -> Float)
+		if types.IsNumericType(leftType) && types.IsNumericType(rightType) {
+			return types.PromoteTypes(leftType, rightType)
+		}
+
+		a.addError("incompatible types in coalesce operator: %s and %s at %s",
+			leftType.String(), rightType.String(), expr.Token.Pos.String())
+		return nil
+	}
+
 	// Task 9.226: Special handling for IN operator
 	// For the IN operator, analyze the right operand with expected set type context
 	// so that array literals like [1, 2, 3] can be converted to set literals

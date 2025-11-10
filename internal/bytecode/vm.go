@@ -729,6 +729,35 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), vm.typeError("XOR", "Boolean", fmt.Sprintf("%s, %s", left.Type.String(), right.Type.String()))
 			}
 			vm.push(BoolValue(left.AsBool() != right.AsBool()))
+		case OpIsFalsey:
+			val, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			// Check if value is falsey (0, 0.0, "", false, nil, empty array)
+			isFalsey := false
+			switch val.Type {
+			case ValueInt:
+				isFalsey = val.AsInt() == 0
+			case ValueFloat:
+				isFalsey = val.AsFloat() == 0.0
+			case ValueString:
+				isFalsey = val.AsString() == ""
+			case ValueBool:
+				isFalsey = !val.AsBool()
+			case ValueNil:
+				isFalsey = true
+			case ValueArray:
+				if arr := val.AsArray(); arr != nil {
+					isFalsey = len(arr.elements) == 0
+				} else {
+					isFalsey = true
+				}
+			default:
+				// Other types (objects, functions, etc.) are truthy if non-nil
+				isFalsey = false
+			}
+			vm.push(BoolValue(isFalsey))
 		case OpJump:
 			frame.ip += int(inst.SignedB())
 		case OpJumpIfFalse:
