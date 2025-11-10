@@ -67,6 +67,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeLength(args, callExpr), true
 	case "copy":
 		return a.analyzeCopy(args, callExpr), true
+	case "substr":
+		return a.analyzeSubStr(args, callExpr), true
 	case "concat":
 		return a.analyzeConcat(args, callExpr), true
 	case "pos":

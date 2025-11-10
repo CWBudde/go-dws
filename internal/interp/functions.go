@@ -321,7 +321,7 @@ func normalizeBuiltinName(name string) string {
 		"contains": "Contains", "reverse": "Reverse", "sort": "Sort", "pos": "Pos",
 		"uppercase": "UpperCase", "lowercase": "LowerCase", "trim": "Trim",
 		"trimleft": "TrimLeft", "trimright": "TrimRight", "stringreplace": "StringReplace",
-		"stringofchar": "StringOfChar", "format": "Format", "abs": "Abs", "min": "Min", "max": "Max",
+		"stringofchar": "StringOfChar", "substr": "SubStr", "format": "Format", "abs": "Abs", "min": "Min", "max": "Max",
 		"maxint": "MaxInt", "minint": "MinInt", "sqr": "Sqr", "power": "Power",
 		"sqrt": "Sqrt", "sin": "Sin", "cos": "Cos", "tan": "Tan",
 		"degtorad": "DegToRad", "radtodeg": "RadToDeg", "arcsin": "ArcSin",
@@ -429,6 +429,8 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinStringReplace(args)
 	case "StringOfChar":
 		return i.builtinStringOfChar(args)
+	case "SubStr":
+		return i.builtinSubStr(args)
 	case "Format":
 		return i.builtinFormat(args)
 	case "Abs":
