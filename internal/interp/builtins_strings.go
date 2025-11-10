@@ -890,13 +890,15 @@ func (i *Interpreter) builtinPosEx(args []Value) Value {
 	haystack := haystackVal.Value
 	offset := int(offsetVal.Value) // 1-based
 
-	// Handle empty needle - returns offset (found at start)
-	if len(needle) == 0 {
-		return &IntegerValue{Value: int64(offset)}
+	// Handle invalid offset first (before empty needle check)
+	// This prevents returning negative positions
+	if offset < 1 {
+		return &IntegerValue{Value: 0}
 	}
 
-	// Handle invalid offset
-	if offset < 1 {
+	// Handle empty needle - returns 0 (not found)
+	// This matches the original DWScript behavior
+	if len(needle) == 0 {
 		return &IntegerValue{Value: 0}
 	}
 
