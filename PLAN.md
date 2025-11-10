@@ -231,11 +231,25 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - internal/semantic/type_operators_test.go (updated error message expectation)
     - internal/interp/expressions.go (evalAsExpression now handles classes)
 
-- [ ] 9.16.6 Operator Overloading (2 tests)
+- [x] 9.16.6 Operator Overloading - COMPLETED
   - **Estimate**: 4-6 hours
   - **Description**: Support custom operator implementations in classes
   - **Strategy**: Add operator method registration and lookup in binary/unary expression analysis
   - **Complexity**: Requires operator resolution mechanism and precedence handling
+  - **Status**: COMPLETED. Parser, semantic analyzer, and most interpreter support was already present.
+  - **Fix Applied**: Fixed array type matching in operator overloading
+  - **Test Results**: 5/6 tests passing (83% pass rate)
+    - ✅ class_operator1: PASS (class operator += with String)
+    - ✅ class_operator2: PASS (class operator += with multiple types)
+    - ❌ class_operator3: FAIL (requires array of const/variant support - different issue)
+    - ✅ in_class_operator: PASS (IN operator with array of Integer) - **FIXED**
+    - ✅ in_integer_operator1: PASS (IN operator with integers)
+    - ✅ in_integer_operator2: PASS (IN operator variations)
+  - **Key Change**:
+    - Updated `valueTypeKey` function in internal/interp/operators.go
+    - Now includes array element type when matching operator overloads
+    - Format: "ARRAY OF INTEGER" instead of just "ARRAY"
+    - Allows proper matching of operators declared with `array of T` types
 
 - [ ] 9.16.7 Helper Methods (2 tests)
   - **Estimate**: 3-4 hours
