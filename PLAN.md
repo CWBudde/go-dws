@@ -127,18 +127,26 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Blocks**: class_operator*.pas, in_class_operator.pas (5+ tests)
 
-- [ ] 9.14.1 Parse class operator declarations
+- [x] 9.14.1 Parse class operator declarations ✓
   - **Task**: Allow operator overloading for class types
   - **Files**: `internal/parser/operators.go`
   - **Tests**: Parse class operator declarations
+  - **Status**: DONE - Parser already supported class operators, added comprehensive tests
 
-- [ ] 9.14.2 Implement class operator dispatch
-  - **Task**: Call overloaded operators for class instances
-  - **Files**: `internal/interp/operators_eval.go`
-  - **Tests**: Class operators execute correctly
+- [x] 9.14.2 Implement class operator dispatch ✓
+  - **Task**: Call overloaded operators for class instances with inheritance support
+  - **Files**: `internal/semantic/analyze_operators.go`, `internal/interp/statements.go`, `internal/types/operator_registry.go`
+  - **Tests**: Class operators execute correctly with inheritance
+  - **Status**: DONE - Fixed semantic analyzer to use overload system, added inheritance support to operator lookup in both semantic analyzer and interpreter
+  - **Implementation**:
+    - Updated `registerClassOperators` to use `GetMethodOverloads()` instead of deprecated `Methods` map
+    - Enhanced `OperatorRegistry.Lookup()` to support assignment-compatible types (inheritance)
+    - Enhanced runtime operator lookup to use parent class name when searching inheritance chain
+    - Added `areTypesCompatibleForOperator()` and `areRuntimeTypesCompatibleForOperator()` for inheritance checking
 
 **Estimated Time**: 2-3 days
 **Dependency**: Important for operator overloading on objects
+**Status**: COMPLETE ✓ (Bytecode VM support blocked on full class implementation)
 
 #### 9.15 "not in" Operator Support - HIGH PRIORITY
 
