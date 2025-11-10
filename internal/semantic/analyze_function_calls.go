@@ -114,17 +114,19 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		// This handles calls like Helper() from within a class method
 		if a.currentClass != nil {
 			// Look up method in current class (including inherited methods)
-			methodName := strings.ToLower(funcIdent.Value)
-			methodType, found := a.currentClass.GetMethod(methodName)
+			// Note: GetMethod() normalizes to lowercase internally, so we pass the original name
+			methodNameLower := strings.ToLower(funcIdent.Value)
+			methodType, found := a.currentClass.GetMethod(funcIdent.Value)
 			if found {
 				// Found a method - check visibility
-				methodOwner := a.getMethodOwner(a.currentClass, methodName)
+				// Use lowercase for visibility map lookup (keys are stored in lowercase)
+				methodOwner := a.getMethodOwner(a.currentClass, methodNameLower)
 				if methodOwner != nil {
-					visibility, hasVisibility := methodOwner.MethodVisibility[methodName]
-					if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {
+					visibility, hasVisibility := methodOwner.MethodVisibility[methodNameLower]
+					if hasVisibility && !a.checkVisibility(methodOwner, visibility, funcIdent.Value, "method") {
 						visibilityStr := ast.Visibility(visibility).String()
 						a.addError("cannot call %s method '%s' of class '%s' at %s",
-							visibilityStr, methodName, methodOwner.Name, expr.Token.Pos.String())
+							visibilityStr, funcIdent.Value, methodOwner.Name, expr.Token.Pos.String())
 						return nil
 					}
 				}

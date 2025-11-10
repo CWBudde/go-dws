@@ -514,7 +514,7 @@ func (ct *ClassType) GetMethod(name string) (*FunctionType, bool) {
 		return overloads[0].Signature, true
 	}
 	if ct.Parent != nil {
-		return ct.Parent.GetMethod(name)
+		return ct.Parent.GetMethod(methodName)
 	}
 	return nil, false
 }

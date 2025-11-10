@@ -1367,8 +1367,8 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			visibility, hasVisibility := methodOwner.MethodVisibility[strings.ToLower(memberName)]
 			if hasVisibility && !a.checkVisibility(methodOwner, visibility, memberName, "method") {
 				visibilityStr := ast.Visibility(visibility).String()
-				a.addError("cannot call %s method '%s' at %s",
-					visibilityStr, memberName, expr.Token.Pos.String())
+				a.addError("cannot call %s method '%s' of class '%s' at %s",
+					visibilityStr, memberName, methodOwner.Name, expr.Token.Pos.String())
 				return nil
 			}
 		}
