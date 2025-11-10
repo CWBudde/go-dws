@@ -79,6 +79,34 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 			return i.evalRecordMethodCall(recVal, memberAccess, expr.Arguments, memberAccess.Object)
 		}
 
+		// Task 9.16.2: Check if this is an interface method call (interface.Method(...))
+		if ifaceInst, ok := objVal.(*InterfaceInstance); ok {
+			// Dispatch to the underlying object
+			if ifaceInst.Object == nil {
+				return i.newErrorWithLocation(expr, "cannot call method on nil interface")
+			}
+			// Call the method on the underlying object by temporarily swapping the variable
+			if objIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
+				savedVal, exists := i.env.Get(objIdent.Value)
+				if exists {
+					// Temporarily set to underlying object
+					_ = i.env.Set(objIdent.Value, ifaceInst.Object)
+					// Use defer to ensure restoration even if method call panics or returns early
+					defer func() { _ = i.env.Set(objIdent.Value, savedVal) }()
+
+					// Create a method call expression
+					mc := &ast.MethodCallExpression{
+						Token:     expr.Token,
+						Object:    memberAccess.Object,
+						Method:    memberAccess.Member,
+						Arguments: expr.Arguments,
+					}
+					return i.evalMethodCall(mc)
+				}
+			}
+			return i.newErrorWithLocation(expr, "interface method call requires identifier")
+		}
+
 		// Check if the left side is a unit identifier (for qualified access: UnitName.FunctionName)
 		if unitIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
 			// This could be a unit-qualified call: UnitName.FunctionName()

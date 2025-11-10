@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -80,7 +81,8 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 	}
 
 	for _, name := range methodNames {
-		iface.Methods[name] = &ast.FunctionDecl{
+		// Store methods with lowercase keys for case-insensitive lookup
+		iface.Methods[strings.ToLower(name)] = &ast.FunctionDecl{
 			Name: &ast.Identifier{Value: name},
 		}
 	}
@@ -407,7 +409,7 @@ func TestEdge_InterfaceCompatibilityEdgeCases(t *testing.T) {
 	t.Run("SelfCompatibility", func(t *testing.T) {
 		// Interface should be compatible with itself
 		iface := NewInterfaceInfo("ITest")
-		iface.Methods["Method1"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method1"}}
+		iface.Methods[strings.ToLower("Method1")] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method1"}}
 
 		if !interfaceIsCompatible(iface, iface) {
 			t.Error("Interface should be compatible with itself")
