@@ -425,6 +425,9 @@ func (a *Analyzer) initIntrinsicHelpers() {
 	}
 	intHelper.Methods["tostring"] = types.NewFunctionType([]types.Type{}, types.STRING)
 	intHelper.BuiltinMethods["tostring"] = "__integer_tostring"
+	// ToHexString method: converts integer to hex string with specified number of digits
+	intHelper.Methods["tohexstring"] = types.NewFunctionType([]types.Type{types.INTEGER}, types.STRING)
+	intHelper.BuiltinMethods["tohexstring"] = "__integer_tohexstring"
 	register(types.INTEGER.String(), intHelper)
 
 	// Float helper: default ToString property and precision-aware method (lowercase keys for case-insensitive lookup)
@@ -452,6 +455,21 @@ func (a *Analyzer) initIntrinsicHelpers() {
 	boolHelper.Methods["tostring"] = types.NewFunctionType([]types.Type{}, types.STRING)
 	boolHelper.BuiltinMethods["tostring"] = "__boolean_tostring"
 	register(types.BOOLEAN.String(), boolHelper)
+
+	// String helper: provides Length property, ToUpper, and ToLower methods
+	stringHelper := types.NewHelperType("__TStringIntrinsicHelper", types.STRING, false)
+	stringHelper.Properties["length"] = &types.PropertyInfo{
+		Name:      "Length",
+		Type:      types.INTEGER,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__string_length",
+		WriteKind: types.PropAccessNone,
+	}
+	stringHelper.Methods["toupper"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["toupper"] = "__string_toupper"
+	stringHelper.Methods["tolower"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["tolower"] = "__string_tolower"
+	register(types.STRING.String(), stringHelper)
 
 	// String dynamic array helper: Join method (lowercase keys for case-insensitive lookup)
 	stringArrayHelper := types.NewHelperType("__TStringDynArrayIntrinsicHelper", nil, true)

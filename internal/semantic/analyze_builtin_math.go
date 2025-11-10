@@ -780,11 +780,14 @@ func (a *Analyzer) analyzeInc(args []ast.Expression, callExpr *ast.CallExpressio
 				deltaType.String(), callExpr.Token.Pos.String())
 		}
 	}
-	return types.VOID
+	// In DWScript, Inc returns the incremented value (like prefix ++ in C)
+	// This allows Inc to be used in expressions: arr[Inc(k)]
+	return types.INTEGER
 }
 
-// analyzeDec analyzes the Dec built-in procedure.
+// analyzeDec analyzes the Dec built-in function.
 // Dec takes 1-2 arguments: variable and optional delta.
+// Returns the decremented value (like prefix -- in C).
 func (a *Analyzer) analyzeDec(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) < 1 || len(args) > 2 {
 		a.addError("function 'Dec' expects 1-2 arguments, got %d at %s",
@@ -816,7 +819,9 @@ func (a *Analyzer) analyzeDec(args []ast.Expression, callExpr *ast.CallExpressio
 				deltaType.String(), callExpr.Token.Pos.String())
 		}
 	}
-	return types.VOID
+	// In DWScript, Dec returns the decremented value (like prefix -- in C)
+	// This allows Dec to be used in expressions: arr[Dec(k)]
+	return types.INTEGER
 }
 
 // analyzeSucc analyzes the Succ built-in function.

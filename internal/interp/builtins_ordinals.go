@@ -70,7 +70,8 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
 			}
 		}
-		return &NilValue{}
+		// Return the new value (allows Inc to be used in expressions)
+		return newValue
 
 	case *EnumValue:
 		// For enums, delta must be 1 (get successor)
@@ -132,7 +133,8 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
 			}
 		}
-		return &NilValue{}
+		// Return the new value (allows Inc to be used in expressions)
+		return newValue
 
 	default:
 		return i.newErrorWithLocation(i.currentNode, "Inc() expects Integer or Enum, got %s", val.Type())
@@ -203,7 +205,8 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
 			}
 		}
-		return &NilValue{}
+		// Return the new value (allows Dec to be used in expressions)
+		return newValue
 
 	case *EnumValue:
 		// For enums, delta must be 1 (get predecessor)
@@ -265,7 +268,8 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
 			}
 		}
-		return &NilValue{}
+		// Return the new value (allows Dec to be used in expressions)
+		return newValue
 
 	default:
 		return i.newErrorWithLocation(i.currentNode, "Dec() expects Integer or Enum, got %s", val.Type())
