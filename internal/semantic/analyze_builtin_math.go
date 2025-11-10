@@ -139,53 +139,39 @@ func (a *Analyzer) analyzeClamp(args []ast.Expression, callExpr *ast.CallExpress
 
 // analyzeMaxInt analyzes the MaxInt built-in function.
 // MaxInt() with 0 args returns max integer constant.
-// MaxInt(a, b) with 2 args returns maximum of two integers.
+// MaxInt(a, b, ...) with 2+ args returns maximum of all integers (variadic).
 func (a *Analyzer) analyzeMaxInt(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) == 0 {
 		return types.INTEGER
 	}
-	if len(args) == 2 {
-		// Analyze both arguments and verify they're Integer
-		arg1Type := a.analyzeExpression(args[0])
-		arg2Type := a.analyzeExpression(args[1])
-
-		if arg1Type != nil && arg2Type != nil {
-			// Verify both are Integer (not Float)
-			if arg1Type != types.INTEGER || arg2Type != types.INTEGER {
-				a.addError("function 'MaxInt' expects Integer arguments, got %s and %s at %s",
-					arg1Type.String(), arg2Type.String(), callExpr.Token.Pos.String())
-			}
+	// Variadic: accepts any number of arguments >= 2
+	// Analyze all arguments and verify they're all Integer
+	for i, arg := range args {
+		argType := a.analyzeExpression(arg)
+		if argType != nil && argType != types.INTEGER {
+			a.addError("function 'MaxInt' expects Integer arguments, got %s at argument %d at %s",
+				argType.String(), i+1, callExpr.Token.Pos.String())
 		}
-		return types.INTEGER
 	}
-	a.addError("function 'MaxInt' expects 0 or 2 arguments, got %d at %s",
-		len(args), callExpr.Token.Pos.String())
 	return types.INTEGER
 }
 
 // analyzeMinInt analyzes the MinInt built-in function.
 // MinInt() with 0 args returns min integer constant.
-// MinInt(a, b) with 2 args returns minimum of two integers.
+// MinInt(a, b, ...) with 2+ args returns minimum of all integers (variadic).
 func (a *Analyzer) analyzeMinInt(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) == 0 {
 		return types.INTEGER
 	}
-	if len(args) == 2 {
-		// Analyze both arguments and verify they're Integer
-		arg1Type := a.analyzeExpression(args[0])
-		arg2Type := a.analyzeExpression(args[1])
-
-		if arg1Type != nil && arg2Type != nil {
-			// Verify both are Integer (not Float)
-			if arg1Type != types.INTEGER || arg2Type != types.INTEGER {
-				a.addError("function 'MinInt' expects Integer arguments, got %s and %s at %s",
-					arg1Type.String(), arg2Type.String(), callExpr.Token.Pos.String())
-			}
+	// Variadic: accepts any number of arguments >= 2
+	// Analyze all arguments and verify they're all Integer
+	for i, arg := range args {
+		argType := a.analyzeExpression(arg)
+		if argType != nil && argType != types.INTEGER {
+			a.addError("function 'MinInt' expects Integer arguments, got %s at argument %d at %s",
+				argType.String(), i+1, callExpr.Token.Pos.String())
 		}
-		return types.INTEGER
 	}
-	a.addError("function 'MinInt' expects 0 or 2 arguments, got %d at %s",
-		len(args), callExpr.Token.Pos.String())
 	return types.INTEGER
 }
 

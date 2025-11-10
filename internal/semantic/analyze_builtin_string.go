@@ -32,9 +32,10 @@ func (a *Analyzer) analyzeLength(args []ast.Expression, callExpr *ast.CallExpres
 }
 
 // analyzeCopy analyzes the Copy built-in function.
-// Copy has two overloads:
+// Copy has multiple overloads:
 //   - Copy(arr) - returns copy of array
-//   - Copy(str, index, count) - returns substring
+//   - Copy(str, index) - returns substring from index to end
+//   - Copy(str, index, count) - returns substring of length count starting at index
 func (a *Analyzer) analyzeCopy(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) == 1 {
 		// Copy(arr) - array copy overload
@@ -51,8 +52,23 @@ func (a *Analyzer) analyzeCopy(args []ast.Expression, callExpr *ast.CallExpressi
 		return types.NewDynamicArrayType(types.INTEGER)
 	}
 
+	if len(args) == 2 {
+		// Copy(str, index) - string copy from index to end
+		strType := a.analyzeExpression(args[0])
+		if strType != nil && strType != types.STRING {
+			a.addError("function 'Copy' expects string as first argument, got %s at %s",
+				strType.String(), callExpr.Token.Pos.String())
+		}
+		indexType := a.analyzeExpression(args[1])
+		if indexType != nil && indexType != types.INTEGER {
+			a.addError("function 'Copy' expects integer as second argument, got %s at %s",
+				indexType.String(), callExpr.Token.Pos.String())
+		}
+		return types.STRING
+	}
+
 	if len(args) != 3 {
-		a.addError("function 'Copy' expects either 1 argument (array) or 3 arguments (string), got %d at %s",
+		a.addError("function 'Copy' expects 1, 2, or 3 arguments, got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.STRING
 	}

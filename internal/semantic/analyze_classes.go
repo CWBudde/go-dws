@@ -68,22 +68,22 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			}
 
 			// Compare parent classes
-			if existingClass.Parent != fullImplParent {
-				if existingClass.Parent == nil && fullImplParent != nil {
-					a.addError("class '%s' forward declared without parent, but implementation specifies parent '%s' at %s",
-						className, fullImplParent.Name, decl.Token.Pos.String())
-					return
-				} else if existingClass.Parent != nil && fullImplParent == nil {
+			// Rule: If forward declaration specified a parent, implementation must match it
+			// If forward declaration had no parent, implementation can specify any parent (or none)
+			if existingClass.Parent != nil {
+				// Forward declaration specified a parent - implementation must match
+				if fullImplParent == nil {
 					a.addError("class '%s' forward declared with parent '%s', but implementation has no parent at %s",
 						className, existingClass.Parent.Name, decl.Token.Pos.String())
 					return
-				} else if existingClass.Parent != nil && fullImplParent != nil {
+				} else if existingClass.Parent.Name != fullImplParent.Name {
 					a.addError("class '%s' forward declared with parent '%s', but implementation specifies different parent '%s' at %s",
 						className, existingClass.Parent.Name, fullImplParent.Name, decl.Token.Pos.String())
 					return
 				}
 			}
-			// Parent classes match - mark that we're resolving a forward declaration
+			// If forward declaration had no parent, implementation can specify any parent - no validation needed
+			// Parent classes are compatible - mark that we're resolving a forward declaration
 			resolvingForwardDecl = true
 		} else if existingClass.IsForward && isForwardDecl {
 			// Duplicate forward declaration
@@ -839,8 +839,10 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	// Store method visibility
 	// Only set visibility if this is the first time we're seeing this method (declaration in class body)
 	// Method implementations outside the class shouldn't overwrite the visibility
-	if _, exists := classType.MethodVisibility[method.Name.Value]; !exists {
-		classType.MethodVisibility[method.Name.Value] = int(method.Visibility)
+	// Task 9.16.1: Use lowercase key for case-insensitive lookups
+	methodKey := strings.ToLower(method.Name.Value)
+	if _, exists := classType.MethodVisibility[methodKey]; !exists {
+		classType.MethodVisibility[methodKey] = int(method.Visibility)
 	}
 
 	// Analyze method body in new scope
@@ -1237,7 +1239,8 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	}
 
 	// Check if object is a class or record type
-	memberName := expr.Member.Value
+	// Task 9.285: Normalize to lowercase for case-insensitive lookup
+	memberName := strings.ToLower(expr.Member.Value)
 
 	// Task 9.73.5: Resolve type aliases to get the underlying type
 	// This allows member access on type alias variables like TBaseClass
@@ -1357,13 +1360,14 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up method in class (for method references)
 	methodType, found := classType.GetMethod(memberName)
 	if found {
-		// Check method visibility
+		// Check method visibility - Task 9.16.1
 		methodOwner := a.getMethodOwner(classType, memberName)
 		if methodOwner != nil {
-			visibility, hasVisibility := methodOwner.MethodVisibility[memberName]
+			// Use lowercase key for case-insensitive lookup
+			visibility, hasVisibility := methodOwner.MethodVisibility[strings.ToLower(memberName)]
 			if hasVisibility && !a.checkVisibility(methodOwner, visibility, memberName, "method") {
 				visibilityStr := ast.Visibility(visibility).String()
-				a.addError("cannot access %s method '%s' of class '%s' at %s",
+				a.addError("cannot call %s method '%s' of class '%s' at %s",
 					visibilityStr, memberName, methodOwner.Name, expr.Token.Pos.String())
 				return nil
 			}

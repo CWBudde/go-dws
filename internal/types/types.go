@@ -468,7 +468,9 @@ func (ct *ClassType) Equals(other Type) bool {
 
 // HasField checks if the class or any of its ancestors has a field with the given name
 func (ct *ClassType) HasField(name string) bool {
-	if _, ok := ct.Fields[name]; ok {
+	// Case-insensitive field lookup
+	lowerName := strings.ToLower(name)
+	if _, ok := ct.Fields[lowerName]; ok {
 		return true
 	}
 	if ct.Parent != nil {
@@ -479,7 +481,9 @@ func (ct *ClassType) HasField(name string) bool {
 
 // GetField retrieves the type of a field by name, searching up the inheritance chain
 func (ct *ClassType) GetField(name string) (Type, bool) {
-	if fieldType, ok := ct.Fields[name]; ok {
+	// Case-insensitive field lookup
+	lowerName := strings.ToLower(name)
+	if fieldType, ok := ct.Fields[lowerName]; ok {
 		return fieldType, true
 	}
 	if ct.Parent != nil {
@@ -501,11 +505,16 @@ func (ct *ClassType) HasMethod(name string) bool {
 
 // GetMethod retrieves the signature of a method by name, searching up the inheritance chain
 func (ct *ClassType) GetMethod(name string) (*FunctionType, bool) {
-	if methodType, ok := ct.Methods[name]; ok {
-		return methodType, true
+	// Task 9.16.1: Use overload system instead of deprecated Methods map
+	// Normalize to lowercase for case-insensitive lookup
+	methodName := strings.ToLower(name)
+	if overloads := ct.MethodOverloads[methodName]; len(overloads) > 0 {
+		// Return the signature of the first overload
+		// (For non-overloaded methods, there's only one)
+		return overloads[0].Signature, true
 	}
 	if ct.Parent != nil {
-		return ct.Parent.GetMethod(name)
+		return ct.Parent.GetMethod(methodName)
 	}
 	return nil, false
 }

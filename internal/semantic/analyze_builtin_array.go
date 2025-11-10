@@ -134,9 +134,10 @@ func (a *Analyzer) analyzeAdd(args []ast.Expression, callExpr *ast.CallExpressio
 }
 
 // analyzeDelete analyzes the Delete built-in procedure.
-// Delete has two overloads:
-//   - Delete(array, index) - for arrays (2 args)
-//   - Delete(string, pos, count) - for strings (3 args)
+// Delete has multiple overloads:
+//   - Delete(array, index) - deletes single element (2 args)
+//   - Delete(array, index, count) - deletes count elements (3 args)
+//   - Delete(string, pos, count) - deletes count characters (3 args)
 func (a *Analyzer) analyzeDelete(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) == 2 {
 		// Array delete: Delete(array, index)
@@ -154,15 +155,25 @@ func (a *Analyzer) analyzeDelete(args []ast.Expression, callExpr *ast.CallExpres
 		}
 		return types.VOID
 	} else if len(args) == 3 {
-		// String delete: Delete(string, pos, count)
+		// 3-argument form: Delete(array, index, count) or Delete(string, pos, count)
 		if _, ok := args[0].(*ast.Identifier); !ok {
 			a.addError("function 'Delete' first argument must be a variable at %s",
 				callExpr.Token.Pos.String())
 		} else {
-			strType := a.analyzeExpression(args[0])
-			if strType != nil && strType != types.STRING {
-				a.addError("function 'Delete' first argument must be String for 3-argument form, got %s at %s",
-					strType.String(), callExpr.Token.Pos.String())
+			firstArgType := a.analyzeExpression(args[0])
+			if firstArgType != nil {
+				isArray := false
+				isString := false
+				if _, ok := firstArgType.(*types.ArrayType); ok {
+					isArray = true
+				} else if firstArgType == types.STRING {
+					isString = true
+				}
+
+				if !isArray && !isString {
+					a.addError("function 'Delete' first argument must be String or array for 3-argument form, got %s at %s",
+						firstArgType.String(), callExpr.Token.Pos.String())
+				}
 			}
 		}
 		posType := a.analyzeExpression(args[1])
