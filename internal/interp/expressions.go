@@ -207,6 +207,11 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 
 // evalBinaryExpression evaluates a binary expression.
 func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
+	// Special handling for coalesce operator (??) - requires short-circuit evaluation
+	if expr.Operator == "??" {
+		return i.evalCoalesceExpression(expr)
+	}
+
 	left := i.Eval(expr.Left)
 	if isError(left) {
 		return left
@@ -344,6 +349,61 @@ func (i *Interpreter) tryBinaryOperator(operator string, left, right Value, node
 		return i.invokeRuntimeOperator(entry, operands, node), true
 	}
 	return nil, false
+}
+
+// evalCoalesceExpression evaluates the coalesce operator (??) with short-circuit evaluation.
+// Returns the left operand if it's "truthy", otherwise evaluates and returns the right operand.
+func (i *Interpreter) evalCoalesceExpression(expr *ast.BinaryExpression) Value {
+	// Evaluate left operand
+	left := i.Eval(expr.Left)
+	if isError(left) {
+		return left
+	}
+	if left == nil {
+		return i.newErrorWithLocation(expr.Left, "left operand evaluated to nil")
+	}
+
+	// Check if left is "falsey" (default/zero value for its type)
+	if !isFalsey(left) {
+		// Left is truthy, return it (don't evaluate right)
+		return left
+	}
+
+	// Left is falsey, evaluate and return right operand
+	right := i.Eval(expr.Right)
+	if isError(right) {
+		return right
+	}
+	if right == nil {
+		return i.newErrorWithLocation(expr.Right, "right operand evaluated to nil")
+	}
+
+	return right
+}
+
+// isFalsey checks if a value is considered "falsey" (default/zero value for its type).
+// Falsey values: 0 (integer), 0.0 (float), "" (empty string), false (boolean), nil, empty arrays.
+func isFalsey(val Value) bool {
+	switch v := val.(type) {
+	case *IntegerValue:
+		return v.Value == 0
+	case *FloatValue:
+		return v.Value == 0.0
+	case *StringValue:
+		return v.Value == ""
+	case *BooleanValue:
+		return !v.Value
+	case *NilValue:
+		return true
+	case *ArrayValue:
+		return len(v.Elements) == 0
+	case *VariantValue:
+		// Unwrap variant and check inner value
+		return isFalsey(v.Value)
+	default:
+		// Other types (objects, classes, etc.) are truthy if non-nil
+		return false
+	}
 }
 
 // evalIntegerBinaryOp evaluates binary operations on integers.
