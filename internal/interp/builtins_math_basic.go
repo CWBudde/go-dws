@@ -345,7 +345,7 @@ func (i *Interpreter) builtinRandomInt(args []Value) Value {
 	}
 
 	// Generate random integer in range [0, max)
-	randomValue := rand.Intn(int(max))
+	randomValue := i.rand.Intn(int(max))
 	return &IntegerValue{Value: int64(randomValue)}
 }
 
