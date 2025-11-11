@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	numBuiltinGlobals = 16 // ExceptObject + 10 builtins + 4 type casts + Pi
+	numBuiltinGlobals = 27 // ExceptObject + 21 builtins + 4 type casts + Pi
 	userGlobal0       = numBuiltinGlobals
 	userGlobal1       = numBuiltinGlobals + 1
 )
