@@ -79,6 +79,28 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinRevPos(args)
 	case "StrFind":
 		return i.builtinStrFind(args)
+	case "StrSplit":
+		return i.builtinStrSplit(args)
+	case "StrJoin":
+		return i.builtinStrJoin(args)
+	case "StrArrayPack":
+		return i.builtinStrArrayPack(args)
+	case "StrBefore":
+		return i.builtinStrBefore(args)
+	case "StrBeforeLast":
+		return i.builtinStrBeforeLast(args)
+	case "StrAfter":
+		return i.builtinStrAfter(args)
+	case "StrAfterLast":
+		return i.builtinStrAfterLast(args)
+	case "StrBetween":
+		return i.builtinStrBetween(args)
+	case "IsDelimiter":
+		return i.builtinIsDelimiter(args)
+	case "LastDelimiter":
+		return i.builtinLastDelimiter(args)
+	case "FindDelimiter":
+		return i.builtinFindDelimiter(args)
 	case "Format":
 		return i.builtinFormat(args)
 	case "Abs":
