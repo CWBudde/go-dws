@@ -42,6 +42,10 @@ build/wasm/dist/wasm_exec.js
 coverage.txt
 coverage.html
 
+# Test output files
+test_results.txt
+test_output.txt
+
 # Cache
 .cache
 .gocache

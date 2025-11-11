@@ -771,6 +771,454 @@ each element is wrapped in a variant-like container that preserves type informat
 
 ---
 
+### Phase 9.19: Constructor Overloading
+
+**Priority**: HIGH - Required for ~50+ failing tests
+**Timeline**: 3-5 days
+**Impact**: Unblocks major class tests and fixture tests
+
+**Current Status**: Constructor overloading is not implemented. All classes only support a single constructor signature. When a class defines multiple constructors with different parameters, only the last one is registered, causing "wrong number of arguments for constructor" errors.
+
+**Root Cause**: The interpreter stores constructors in a simple map with "Create" as key, not supporting multiple signatures per constructor name.
+
+- [ ] 9.19.1 Implement constructor overload storage in ClassType
+  - **Task**: Modify ClassType to store multiple constructor signatures per name
+  - **Implementation**: Change `Constructors map[string]*ast.FunctionLiteral` to support overload lists
+  - **Files**: `internal/types/types.go`, `internal/semantic/analyze_classes.go`
+  - **Tests**: Add unit tests for constructor overload registration
+  - **Estimated time**: 1 day
+
+- [ ] 9.19.2 Implement constructor overload resolution in semantic analyzer
+  - **Task**: Resolve constructor calls to correct overload based on argument types
+  - **Implementation**: Add overload resolution algorithm matching argument types to parameter types
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/semantic/analyze_expressions.go`
+  - **Tests**: Test various overload scenarios (exact match, type coercion, ambiguous cases)
+  - **Estimated time**: 1-2 days
+
+- [ ] 9.19.3 Implement constructor overload dispatch in interpreter
+  - **Task**: Call correct constructor overload at runtime
+  - **Implementation**:
+    - Modify `evalNewExpression` to support overload lookup
+    - Handle both `New` and `.Create()` syntax
+    - Support inheritance (child constructors calling parent overloads)
+  - **Files**: `internal/interp/objects.go`, `internal/interp/declarations.go`
+  - **Tests**: Integration tests with various constructor patterns
+  - **Estimated time**: 1-2 days
+
+- [ ] 9.19.4 Add comprehensive constructor overload tests
+  - **Task**: Ensure all constructor overloading scenarios work
+  - **Tests**:
+    - Simple overloads (0 params, 1 param, 2+ params)
+    - Type coercion in overload resolution
+    - Inheritance with overloaded constructors
+    - Error cases (ambiguous calls, no matching overload)
+  - **Files**: `internal/interp/constructor_overload_test.go` (enhance existing)
+  - **Estimated time**: 0.5 day
+
+**Blocked Tests**:
+- internal/interp: TestFieldAccess, TestMethodCalls, TestInheritance, TestPolymorphism, TestConstructors, TestSelfReference, TestNewKeywordWithConstructor, TestNewKeywordWithException, TestNewKeywordEquivalentToCreate, TestClassVariableSharedAcrossInstances, TestMixedClassAndInstanceMembers, TestConstructorOverload
+- Fixtures: constructor_overload.pas and 40+ tests in OverloadsPass category
+
+---
+
+### Phase 9.20: Method Overloading
+
+**Priority**: HIGH - Required for ~40+ failing tests
+**Timeline**: 3-5 days
+**Impact**: Full method overloading support for fixture test compatibility
+
+**Current Status**: Method overloading parsing and semantic analysis is partially implemented, but runtime dispatch may need enhancement.
+
+- [ ] 9.20.1 Audit current method overload implementation
+  - **Task**: Review existing overload support in parser, semantic analyzer, and interpreter
+  - **Implementation**:
+    - Check if methods are stored with overload support
+    - Verify semantic analyzer overload resolution
+    - Test interpreter dispatch with multiple overloads
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/interp/functions.go`
+  - **Tests**: Run existing overload tests and document gaps
+  - **Estimated time**: 0.5 day
+
+- [ ] 9.20.2 Fix method overload resolution bugs
+  - **Task**: Address any gaps found in audit
+  - **Implementation**:
+    - Ensure method table stores all overloads per name
+    - Fix overload resolution to consider all signatures
+    - Handle virtual/override with overloads correctly
+  - **Files**: `internal/semantic/analyze_classes.go`, `internal/types/types.go`
+  - **Tests**: Add failing test cases, then fix until passing
+  - **Estimated time**: 1-2 days
+
+- [ ] 9.20.3 Enhance method overload dispatch in interpreter
+  - **Task**: Ensure runtime correctly dispatches to overloaded methods
+  - **Implementation**:
+    - Update `evalCallExpression` for method calls with overload resolution
+    - Handle polymorphic dispatch with overloads (virtual + override)
+    - Support class method overloading
+  - **Files**: `internal/interp/functions.go`, `internal/interp/objects.go`
+  - **Tests**: Test method overload dispatch in various scenarios
+  - **Estimated time**: 1-2 days
+
+- [ ] 9.20.4 Add comprehensive method overload tests
+  - **Task**: Verify all method overloading patterns work
+  - **Tests**:
+    - Simple method overloads
+    - Overloads with inheritance
+    - Virtual/override with overloads
+    - Class methods with overloads
+    - Error cases (ambiguous, hidden overloads)
+  - **Files**: `internal/interp/method_overload_test.go` (new)
+  - **Estimated time**: 0.5-1 day
+
+**Blocked Tests**:
+- Fixtures: 40+ tests in OverloadsPass category (meth_overload_simple, meth_overload_hide, overload_constructor, overload_virtual, etc.)
+
+---
+
+### Phase 9.21: Parser Syntax Extensions
+
+**Priority**: HIGH - Required for ~100+ failing fixture tests
+**Timeline**: 5-7 days
+**Impact**: Support for missing DWScript syntax constructs
+
+**Current Status**: Parser rejects several DWScript syntax patterns causing many fixture tests to fail with parse errors.
+
+#### Subtask Category: Array Type Syntax
+
+- [ ] 9.21.1 Fix "array of <type>" shorthand parsing
+  - **Task**: Support DWScript's `array of Integer` syntax (dynamic array)
+  - **Current Error**: "expected DOTDOT, got RBRACK" when parsing `array[0..N]` or `array of Type`
+  - **Implementation**:
+    - Extend `parseArrayType()` to handle `array of <type>` without bounds
+    - Distinguish between static arrays `array[0..N] of T` and dynamic arrays `array of T`
+    - Create appropriate AST nodes for both forms
+  - **Files**: `internal/parser/parser_types.go`
+  - **Tests**: Test dynamic array parsing, static array parsing, nested arrays
+  - **Estimated time**: 1 day
+  - **Blocked Tests**: boolean_array_of.pas, const_array3.pas, const_array4.pas, const_array6.pas, const_array7.pas, const_array8.pas, and 20+ more
+
+#### Subtask Category: Class Features
+
+- [ ] 9.21.2 Implement "class var" initialization syntax
+  - **Task**: Support initializing class variables inline: `class var X: Integer := 42;`
+  - **Current Error**: "expected next token to be SEMICOLON, got ASSIGN"
+  - **Implementation**:
+    - Extend `parseClassVarDeclaration()` to allow optional `:= <expression>`
+    - Store initialization expression in AST node
+    - Semantic analyzer validates initialization expression
+    - Interpreter evaluates during class initialization
+  - **Files**: `internal/parser/parser_class.go`, `internal/semantic/analyze_classes.go`, `internal/interp/declarations.go`
+  - **Tests**: Test inline class var initialization, complex expressions
+  - **Estimated time**: 1-2 days
+  - **Blocked Tests**: class_var.pas, class_var_dyn1.pas, class_var_dyn2.pas, and 10+ more
+
+- [ ] 9.21.3 Fix "class method/operator" inline syntax parsing
+  - **Task**: Support inline class method/operator declarations without separate declaration/implementation
+  - **Current Error**: "expected 'var', 'const', 'property', 'function', or 'procedure' after 'class' keyword"
+  - **Implementation**:
+    - Allow `class operator` and `class procedure/function` with inline implementation
+    - Parse class method bodies directly in class declaration
+  - **Files**: `internal/parser/parser_class.go`
+  - **Tests**: Test inline class method/operator declarations
+  - **Estimated time**: 1 day
+  - **Blocked Tests**: class_method3.pas, call_conventions.pas, and 5+ more
+
+#### Subtask Category: Attributes and Metadata
+
+- [ ] 9.21.4 Implement "deprecated" attribute parsing
+  - **Task**: Support `[deprecated]` or `deprecated` attribute on declarations
+  - **Current Error**: "no prefix parse function for DEPRECATED"
+  - **Implementation**:
+    - Add DEPRECATED token to lexer (may already exist)
+    - Parse deprecated attribute before declarations (variables, functions, classes)
+    - Store in AST metadata (can emit warnings in semantic analyzer)
+  - **Files**: `internal/parser/parser.go`, `internal/ast/ast.go`
+  - **Tests**: Test deprecated on various declaration types
+  - **Estimated time**: 0.5-1 day
+  - **Blocked Tests**: const_deprecated.pas, enum_element_deprecated.pas
+
+- [ ] 9.21.5 Implement contract syntax (require/ensure/old/invariant)
+  - **Task**: Parse Design by Contract syntax for preconditions/postconditions
+  - **Current Error**: "no prefix parse function for REQUIRE/ENSURE"
+  - **Implementation**:
+    - Add REQUIRE, ENSURE, OLD, INVARIANT tokens to lexer
+    - Parse contract blocks before/after function bodies
+    - Support `old(expr)` syntax in postconditions
+    - Store in AST (execution can be deferred or implemented as assertions)
+  - **Files**: `internal/lexer/lexer.go`, `internal/parser/parser_function.go`, `internal/ast/statements.go`
+  - **Tests**: Test contract parsing for functions, methods
+  - **Estimated time**: 1-2 days
+  - **Blocked Tests**: contracts_code.pas, contracts_old.pas, contracts_subproc.pas
+
+#### Subtask Category: Miscellaneous Syntax
+
+- [ ] 9.21.6 Fix "is" operator with non-type expressions
+  - **Task**: Allow `is` operator with boolean expressions like `is True`, `is False`
+  - **Current Error**: "expected type expression, got True/False"
+  - **Implementation**:
+    - Extend `parseIsExpression()` to handle value expressions (not just types)
+    - Semantic analyzer validates operand types
+  - **Files**: `internal/parser/parser_expressions.go`
+  - **Tests**: Test `is` with various operand types
+  - **Estimated time**: 0.5 day
+  - **Blocked Tests**: boolean_is.pas
+
+- [ ] 9.21.7 Fix inline conditional expression parsing
+  - **Task**: Support ternary-like conditionals: `if condition then expr1 else expr2`
+  - **Current Error**: "no prefix parse function for IF"
+  - **Implementation**:
+    - Parse conditional expressions (not just conditional statements)
+    - Create IfExpression AST node
+  - **Files**: `internal/parser/parser_expressions.go`, `internal/ast/expressions.go`
+  - **Tests**: Test inline conditionals in expressions
+  - **Estimated time**: 1 day
+  - **Blocked Tests**: boolean_optimize.pas, coalesce_bool.pas
+
+- [ ] 9.21.8 Fix "class" forward declaration in units
+  - **Task**: Support class forward declarations in unit interface section
+  - **Current Error**: "no prefix parse function for CLASS" or "expected DOT after 'end' in unit"
+  - **Implementation**:
+    - Enhance unit parser to handle class forward declarations
+    - Resolve forward references correctly
+  - **Files**: `internal/parser/parser_unit.go`
+  - **Tests**: Test unit with class forwards
+  - **Estimated time**: 0.5-1 day
+  - **Blocked Tests**: class_scoping1.pas
+
+- [ ] 9.21.9 Support field initializers in type declarations
+  - **Task**: Allow field initialization in record/class declarations: `field: Type := value;`
+  - **Current Error**: "expected SEMICOLON, got EQ"
+  - **Implementation**:
+    - Extend field parsing to accept optional initialization
+    - Store initializer in AST
+    - Semantic analyzer + interpreter execute during instantiation
+  - **Files**: `internal/parser/parser_types.go`, `internal/parser/parser_class.go`
+  - **Tests**: Test field initializers in records and classes
+  - **Estimated time**: 1 day
+  - **Blocked Tests**: clear_ref_in_destructor.pas, clear_ref_in_static_method.pas, clear_ref_in_virtual_method.pas
+
+- [ ] 9.21.10 Fix other parser errors identified in fixture test runs
+  - **Task**: Address remaining parser errors discovered during test runs
+  - **Implementation**: Investigate and fix on case-by-case basis
+  - **Files**: Various parser files
+  - **Tests**: Re-run fixture tests and verify parsing succeeds
+  - **Estimated time**: 1-2 days
+
+**Impact**: Fixes 100+ parser-related fixture test failures
+
+---
+
+### Phase 9.22: Lazy Parameters
+
+**Priority**: LOW - Required for 5 failing tests
+**Timeline**: 2-3 days
+**Impact**: Support DWScript's lazy parameter evaluation
+
+**Current Status**: Lazy parameter test files are missing, and lazy parameter semantics may not be fully implemented.
+
+- [ ] 9.22.1 Create missing lazy parameter test files
+  - **Task**: Create the missing `.dws` and `.out` files for lazy parameter tests
+  - **Files**: `testdata/lazy_params/jensens_device.dws`, `conditional_eval.dws`, `lazy_logging.dws`, `multiple_access.dws`, `lazy_with_loops.dws`
+  - **Implementation**: Write test scripts demonstrating lazy evaluation
+  - **Reference**: DWScript documentation on `lazy` parameter modifier
+  - **Estimated time**: 0.5 day
+
+- [ ] 9.22.2 Verify lazy parameter semantic analysis
+  - **Task**: Ensure semantic analyzer handles `lazy` parameters correctly
+  - **Implementation**:
+    - Check if `lazy` keyword is recognized
+    - Verify lazy parameters are marked in AST
+    - Ensure type checking works for lazy parameters
+  - **Files**: `internal/semantic/analyze_functions.go`
+  - **Tests**: Add semantic analysis tests for lazy parameters
+  - **Estimated time**: 0.5-1 day
+
+- [ ] 9.22.3 Implement/verify lazy parameter evaluation in interpreter
+  - **Task**: Ensure parameters marked `lazy` are evaluated in callee scope, not caller scope
+  - **Implementation**:
+    - Store unevaluated expression for lazy parameters
+    - Evaluate expression when parameter is accessed in function body
+    - Handle multiple accesses (cache vs. re-evaluate)
+  - **Files**: `internal/interp/functions.go`
+  - **Tests**: Test lazy evaluation semantics (Jensen's device, conditional evaluation, etc.)
+  - **Estimated time**: 1-2 days
+
+**Blocked Tests**:
+- cmd/dwscript: TestLazyParamsScriptsExist (all 5 subtests)
+- Possible fixture tests depending on lazy parameter usage
+
+---
+
+### Phase 9.23: Bytecode Compiler Fixes
+
+**Priority**: MEDIUM - Required for 5 failing bytecode tests
+**Timeline**: 3-4 days
+**Impact**: Fix basic bytecode compilation issues
+
+**Current Status**: Several basic bytecode compiler tests are failing, suggesting issues in the bytecode compilation pipeline.
+
+- [ ] 9.23.1 Investigate and fix TestCompiler_VarAssignReturn
+  - **Task**: Debug why variable assignment and return compilation fails
+  - **Implementation**:
+    - Run test with verbose output
+    - Check if variables are registered in compiler scope
+    - Verify STORE_LOCAL and RETURN opcodes are generated
+    - Fix any identified issues
+  - **Files**: `internal/bytecode/compiler.go`, `internal/bytecode/compiler_test.go`
+  - **Estimated time**: 0.5 day
+
+- [ ] 9.23.2 Investigate and fix TestCompiler_IfElse
+  - **Task**: Debug why if-else statement compilation fails
+  - **Implementation**:
+    - Verify JUMP_IF_FALSE and JUMP opcodes are generated
+    - Check jump offset calculations
+    - Ensure branches compile correctly
+  - **Files**: `internal/bytecode/compiler.go`
+  - **Estimated time**: 0.5 day
+
+- [ ] 9.23.3 Investigate and fix TestCompiler_ArrayLiteralAndIndex
+  - **Task**: Debug why array literal and indexing compilation fails
+  - **Implementation**:
+    - Check NEW_ARRAY opcode generation
+    - Verify array element push instructions
+    - Test GET_INDEX and SET_INDEX opcodes
+  - **Files**: `internal/bytecode/compiler.go`
+  - **Estimated time**: 0.5-1 day
+
+- [ ] 9.23.4 Investigate and fix TestCompiler_CallExpression
+  - **Task**: Debug why function call compilation fails
+  - **Implementation**:
+    - Verify argument compilation
+    - Check CALL opcode generation with correct arity
+    - Test both built-in and user-defined functions
+  - **Files**: `internal/bytecode/compiler.go`
+  - **Estimated time**: 0.5-1 day
+
+- [ ] 9.23.5 Investigate and fix TestCompiler_MemberAccess
+  - **Task**: Debug why member access (object.field) compilation fails
+  - **Implementation**:
+    - Check GET_PROPERTY opcode generation
+    - Verify object reference compilation
+    - Test field name encoding in bytecode
+  - **Files**: `internal/bytecode/compiler.go`
+  - **Estimated time**: 0.5-1 day
+
+- [ ] 9.23.6 Add regression tests for fixed issues
+  - **Task**: Ensure bytecode compiler tests remain passing
+  - **Tests**: Enhance existing test suite based on fixes
+  - **Files**: `internal/bytecode/compiler_test.go`
+  - **Estimated time**: 0.5 day
+
+**Blocked Tests**:
+- internal/bytecode: TestCompiler_VarAssignReturn, TestCompiler_IfElse, TestCompiler_ArrayLiteralAndIndex, TestCompiler_CallExpression, TestCompiler_MemberAccess
+
+**Note**: Phase 11 (Bytecode VM) is marked mostly complete, but these basic compilation tests suggest the compiler needs attention before moving to advanced optimizations.
+
+---
+
+### Phase 9.24: Systematic Fixture Test Analysis and Fixes
+
+**Priority**: MEDIUM-HIGH - Required for 300+ failing fixture tests
+**Timeline**: 2-4 weeks
+**Impact**: Systematic approach to fixing all remaining fixture test failures
+
+**Current Status**: ~300+ fixture tests are failing in SimpleScripts, Algorithms, and Overloads categories. Many failures are due to missing built-in functions (Phase 9.17), but many are also due to semantic issues, runtime bugs, and missing features.
+
+#### Strategy: Divide and Conquer
+
+Instead of fixing tests one-by-one, group them by root cause and fix categories systematically.
+
+- [ ] 9.24.1 Categorize all failing fixture tests by root cause
+  - **Task**: Run fixture tests and categorize each failure
+  - **Categories**:
+    - Missing built-in functions (Phase 9.17)
+    - Parser syntax errors (Phase 9.21)
+    - Constructor/method overloading (Phase 9.19, 9.20)
+    - Abstract class issues (Phase 9.16.8)
+    - Interface issues (Phase 9.16.2)
+    - Property issues (Phase 9.16.3)
+    - Semantic analysis bugs (Phase 9.16)
+    - Runtime interpreter bugs
+    - Other/unknown
+  - **Output**: Create `docs/fixture-test-analysis.md` with categorized list
+  - **Files**: Run `go test ./internal/interp -run TestDWScriptFixtures -v` and analyze
+  - **Estimated time**: 2-3 days
+
+- [ ] 9.24.2 Fix "Missing Built-in Functions" category
+  - **Task**: Implement all missing built-in functions identified
+  - **Dependency**: Links to Phase 9.17 tasks
+  - **Implementation**: Prioritize functions based on usage count in fixtures
+  - **Estimated time**: Covered by Phase 9.17 (2-6 weeks)
+
+- [ ] 9.24.3 Fix "Parser Syntax Errors" category
+  - **Task**: Fix all parser issues identified
+  - **Dependency**: Links to Phase 9.21 tasks
+  - **Estimated time**: Covered by Phase 9.21 (5-7 days)
+
+- [ ] 9.24.4 Fix "Constructor/Method Overloading" category
+  - **Task**: Fix all overloading issues
+  - **Dependency**: Links to Phase 9.19 and 9.20 tasks
+  - **Estimated time**: Covered by Phase 9.19-9.20 (6-10 days)
+
+- [ ] 9.24.5 Fix "Semantic Analysis Bugs" category
+  - **Task**: Address semantic analyzer issues not covered by Phase 9.16
+  - **Implementation**: Fix case-sensitivity, scope resolution, type checking bugs
+  - **Files**: `internal/semantic/*.go`
+  - **Estimated time**: 1-2 weeks
+
+- [ ] 9.24.6 Fix "Runtime Interpreter Bugs" category
+  - **Task**: Fix interpreter execution bugs
+  - **Examples**:
+    - Undefined variable access from parent classes
+    - Incorrect method dispatch
+    - Field access issues
+    - Exception handling bugs
+  - **Files**: `internal/interp/*.go`
+  - **Estimated time**: 1-2 weeks
+
+- [ ] 9.24.7 Fix "Abstract Class Issues" category
+  - **Task**: Review tests expecting abstract class instantiation
+  - **Implementation**: Either fix semantic analyzer or update test expectations
+  - **Dependency**: Phase 9.16.8
+  - **Estimated time**: 1-2 days
+
+- [ ] 9.24.8 Fix "Interface Issues" category
+  - **Task**: Complete interface implementation
+  - **Dependency**: Phase 9.16.2
+  - **Estimated time**: Covered by Phase 9.16.2
+
+- [ ] 9.24.9 Fix "Property Issues" category
+  - **Task**: Implement indexed and expression properties
+  - **Dependency**: Phase 9.16.3
+  - **Estimated time**: Covered by Phase 9.16.3
+
+- [ ] 9.24.10 Fix "Other/Unknown" category
+  - **Task**: Investigate and fix remaining issues on case-by-case basis
+  - **Implementation**: Debug each test individually
+  - **Estimated time**: 1-2 weeks
+
+- [ ] 9.24.11 Update TEST_STATUS.md with progress
+  - **Task**: Document progress after each category is fixed
+  - **Files**: `testdata/fixtures/TEST_STATUS.md`
+  - **Implementation**: Update pass/fail counts, document resolved issues
+  - **Estimated time**: Ongoing (0.5 day total)
+
+- [ ] 9.24.12 Verify 90%+ fixture test pass rate
+  - **Task**: Ensure at least 90% of fixture tests pass
+  - **Target**: ~1900+ of 2100+ tests passing
+  - **Milestone**: Mark Phase 9 as complete when achieved
+  - **Estimated time**: Verification after all categories fixed
+
+**Total Estimated Time**: 2-4 weeks (depends on complexity of issues discovered)
+
+**Success Criteria**:
+- All fixture tests categorized by root cause
+- 90%+ of fixture tests passing
+- Documented analysis and fixes in TEST_STATUS.md
+- Remaining failures have documented blockers/reasons
+
+---
+
 ## Phase 10: go-dws API Enhancements for LSP Integration ✅ COMPLETE
 
 **Goal**: Enhanced go-dws library with structured errors, AST access, position metadata, symbol tables, and type information for LSP features.
