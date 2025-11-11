@@ -359,9 +359,19 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			// Special case: empty array literals need context
 			// Check BEFORE analyzing to avoid error messages
 			if arrayLit, ok := stmt.Value.(*ast.ArrayLiteralExpression); ok && len(arrayLit.Elements) == 0 {
-				// Empty array literal - default to array of Variant (array of const)
-				// This will work with any operator that expects an array type
-				valueType = a.analyzeExpressionWithExpectedType(stmt.Value, types.ARRAY_OF_CONST)
+				// Empty array literal - infer expected type from operator signature if possible
+				var expectedType types.Type = types.ARRAY_OF_CONST
+				opSymbol := compoundOperatorToSymbol(stmt.Operator)
+				if opSymbol != "" {
+					// Try to look up the class operator to get the expected parameter type
+					if opSig, found := a.resolveBinaryOperator(opSymbol, sym.Type, types.ARRAY_OF_CONST); found {
+						// Use the type of the right-hand parameter (second operand)
+						if len(opSig.OperandTypes) > 1 {
+							expectedType = opSig.OperandTypes[1]
+						}
+					}
+				}
+				valueType = a.analyzeExpressionWithExpectedType(stmt.Value, expectedType)
 			} else {
 				// Try to analyze value without expected type for compound assignments
 				// This allows array literals to infer their type naturally

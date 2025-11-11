@@ -57,6 +57,10 @@ func (i *Interpreter) evalIfStatement(stmt *ast.IfStatement) Value {
 // isTruthy determines if a value is considered "true" for conditional logic.
 // In DWScript, only boolean true is truthy. Everything else requires explicit conversion.
 func isTruthy(val Value) bool {
+	// Task 9.17.11b: Unwrap Variant values first
+	// This enables: var b: Boolean; var items: array of const; items[0] := True; if b then ...
+	val = unwrapVariant(val)
+
 	switch v := val.(type) {
 	case *BooleanValue:
 		return v.Value

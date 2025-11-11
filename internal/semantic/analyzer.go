@@ -539,13 +539,21 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 		return true
 	}
 
-	// Task 9.17.11b: Allow Variant to be assigned to any typed variable
+	// Task 9.17.11b: Allow Variant to be assigned to basic types only
 	// This enables str[i] (Variant from array of const) to be assigned to String
 	// The interpreter will perform runtime type checking and conversion
+	// Restricting to basic types preserves compile-time type safety
 	if fromUnderlying.TypeKind() == "VARIANT" {
-		// Allow Variant to be assigned to basic types, arrays, records, classes, etc.
-		// Runtime will validate and convert
-		return true
+		// Allow Variant to be assigned only to basic types (String, Integer, Float, Boolean)
+		// Assignment to complex types (arrays, records, classes) is not permitted at semantic time
+		switch toUnderlying.TypeKind() {
+		case "STRING", "INTEGER", "FLOAT", "BOOLEAN", "VARIANT":
+			return true
+		default:
+			// For other types, fall through to normal type checking
+			// This catches potential type errors at compile time
+			return false
+		}
 	}
 
 	if toUnderlying.TypeKind() == "FUNCTION_POINTER" || toUnderlying.TypeKind() == "METHOD_POINTER" {
