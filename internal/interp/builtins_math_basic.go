@@ -2,7 +2,6 @@ package interp
 
 import (
 	"math"
-	"math/rand"
 	"time"
 )
 
