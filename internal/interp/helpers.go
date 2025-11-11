@@ -571,7 +571,14 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		return &NilValue{}
 
 	default:
-		return i.newErrorWithLocation(node, "unknown built-in helper method '%s'", spec)
+		// Try calling as a builtin function with self as first argument
+		allArgs := append([]Value{selfValue}, args...)
+		result := i.callBuiltin(spec, allArgs)
+		if isError(result) {
+			// If it's an unknown function error, report it as unknown helper method
+			return i.newErrorWithLocation(node, "unknown built-in helper method '%s'", spec)
+		}
+		return result
 	}
 }
 
@@ -832,6 +839,14 @@ func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value
 		}
 		return &IntegerValue{Value: int64(len(strVal.Value))}
 
+	case "StripAccents":
+		// Implement String.StripAccents property (no-argument method accessed as property)
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.StripAccents property requires string receiver")
+		}
+		return &StringValue{Value: stripAccents(strVal.Value)}
+
 	default:
 		return i.newErrorWithLocation(node, "unknown built-in property '%s'", propSpec)
 	}
@@ -959,6 +974,30 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	stringHelper.BuiltinMethods["ToUpper"] = "__string_toupper"
 	stringHelper.Methods["ToLower"] = nil
 	stringHelper.BuiltinMethods["ToLower"] = "__string_tolower"
+
+	// String transformation methods (task 9.17.3)
+	stringHelper.Methods["PadLeft"] = nil
+	stringHelper.BuiltinMethods["PadLeft"] = "PadLeft"
+	stringHelper.Methods["PadRight"] = nil
+	stringHelper.BuiltinMethods["PadRight"] = "PadRight"
+	stringHelper.Methods["DeleteLeft"] = nil
+	stringHelper.BuiltinMethods["DeleteLeft"] = "StrDeleteLeft"
+	stringHelper.Methods["DeleteRight"] = nil
+	stringHelper.BuiltinMethods["DeleteRight"] = "StrDeleteRight"
+	stringHelper.Methods["Normalize"] = nil
+	stringHelper.BuiltinMethods["Normalize"] = "NormalizeString"
+	stringHelper.Methods["StripAccents"] = nil
+	stringHelper.BuiltinMethods["StripAccents"] = "StripAccents"
+
+	// Register StripAccents as a property (no-argument methods can be accessed without parentheses)
+	stringHelper.Properties["StripAccents"] = &types.PropertyInfo{
+		Name:      "StripAccents",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "StripAccents",
+		WriteKind: types.PropAccessNone,
+	}
+
 	register("String", stringHelper)
 
 	// String dynamic array helper

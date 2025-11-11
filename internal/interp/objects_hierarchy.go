@@ -270,6 +270,20 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		if helperProp != nil {
 			return i.evalHelperPropertyRead(helper, helperProp, objVal, ma)
 		}
+
+		// Check if it's a no-argument helper method that can be auto-invoked
+		helper, methodDecl, _ := i.findHelperMethod(objVal, ma.Member.Value)
+		if helper != nil && methodDecl != nil && len(methodDecl.Parameters) == 0 {
+			// Auto-invoke the no-argument method
+			methodCall := &ast.MethodCallExpression{
+				Token:     ma.Token,
+				Object:    ma.Object,
+				Method:    ma.Member,
+				Arguments: []ast.Expression{},
+			}
+			return i.evalMethodCall(methodCall)
+		}
+
 		return i.newErrorWithLocation(ma, "cannot access member '%s' of type '%s' (no helper found)",
 			ma.Member.Value, objVal.Type())
 	}

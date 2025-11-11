@@ -8,6 +8,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // Default VM configuration constants.
@@ -1017,6 +1020,19 @@ func (vm *VM) registerBuiltins() {
 	vm.builtins["IsDelimiter"] = builtinIsDelimiter
 	vm.builtins["LastDelimiter"] = builtinLastDelimiter
 	vm.builtins["FindDelimiter"] = builtinFindDelimiter
+	vm.builtins["PadLeft"] = builtinPadLeft
+	vm.builtins["PadRight"] = builtinPadRight
+	vm.builtins["StrDeleteLeft"] = builtinStrDeleteLeft
+	vm.builtins["DeleteLeft"] = builtinStrDeleteLeft
+	vm.builtins["StrDeleteRight"] = builtinStrDeleteRight
+	vm.builtins["DeleteRight"] = builtinStrDeleteRight
+	vm.builtins["ReverseString"] = builtinReverseString
+	vm.builtins["QuotedStr"] = builtinQuotedStr
+	vm.builtins["StringOfString"] = builtinStringOfString
+	vm.builtins["DupeString"] = builtinDupeString
+	vm.builtins["NormalizeString"] = builtinNormalizeString
+	vm.builtins["Normalize"] = builtinNormalizeString
+	vm.builtins["StripAccents"] = builtinStripAccents
 	vm.builtins["Ord"] = builtinOrd
 	vm.builtins["Chr"] = builtinChr
 	// Type cast functions
@@ -1932,6 +1948,232 @@ func builtinFindDelimiter(vm *VM, args []Value) (Value, error) {
 	return IntValue(0), nil
 }
 
+func builtinPadLeft(vm *VM, args []Value) (Value, error) {
+	if len(args) < 2 || len(args) > 3 {
+		return NilValue(), vm.runtimeError("PadLeft expects 2 or 3 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("PadLeft expects a string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("PadLeft expects an integer as second argument")
+	}
+
+	str := args[0].AsString()
+	count := int(args[1].AsInt())
+	padChar := " "
+
+	if len(args) == 3 {
+		if !args[2].IsString() {
+			return NilValue(), vm.runtimeError("PadLeft expects a string as third argument")
+		}
+		padCharStr := args[2].AsString()
+		if len(padCharStr) > 0 {
+			runes := []rune(padCharStr)
+			padChar = string(runes[0])
+		}
+	}
+
+	strRunes := []rune(str)
+	strLen := len(strRunes)
+	if strLen >= count {
+		return StringValue(str), nil
+	}
+
+	padding := strings.Repeat(padChar, count-strLen)
+	return StringValue(padding + str), nil
+}
+
+func builtinPadRight(vm *VM, args []Value) (Value, error) {
+	if len(args) < 2 || len(args) > 3 {
+		return NilValue(), vm.runtimeError("PadRight expects 2 or 3 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("PadRight expects a string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("PadRight expects an integer as second argument")
+	}
+
+	str := args[0].AsString()
+	count := int(args[1].AsInt())
+	padChar := " "
+
+	if len(args) == 3 {
+		if !args[2].IsString() {
+			return NilValue(), vm.runtimeError("PadRight expects a string as third argument")
+		}
+		padCharStr := args[2].AsString()
+		if len(padCharStr) > 0 {
+			runes := []rune(padCharStr)
+			padChar = string(runes[0])
+		}
+	}
+
+	strRunes := []rune(str)
+	strLen := len(strRunes)
+	if strLen >= count {
+		return StringValue(str), nil
+	}
+
+	padding := strings.Repeat(padChar, count-strLen)
+	return StringValue(str + padding), nil
+}
+
+func builtinStrDeleteLeft(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrDeleteLeft expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrDeleteLeft expects a string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("StrDeleteLeft expects an integer as second argument")
+	}
+
+	str := args[0].AsString()
+	count := int(args[1].AsInt())
+	if count <= 0 {
+		return StringValue(str), nil
+	}
+
+	strRunes := []rune(str)
+	strLen := len(strRunes)
+	if count >= strLen {
+		return StringValue(""), nil
+	}
+
+	return StringValue(string(strRunes[count:])), nil
+}
+
+func builtinStrDeleteRight(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrDeleteRight expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrDeleteRight expects a string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("StrDeleteRight expects an integer as second argument")
+	}
+
+	str := args[0].AsString()
+	count := int(args[1].AsInt())
+	if count <= 0 {
+		return StringValue(str), nil
+	}
+
+	strRunes := []rune(str)
+	strLen := len(strRunes)
+	if count >= strLen {
+		return StringValue(""), nil
+	}
+
+	return StringValue(string(strRunes[:strLen-count])), nil
+}
+
+func builtinReverseString(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("ReverseString expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("ReverseString expects a string as argument")
+	}
+
+	str := args[0].AsString()
+	strRunes := []rune(str)
+	for i, j := 0, len(strRunes)-1; i < j; i, j = i+1, j-1 {
+		strRunes[i], strRunes[j] = strRunes[j], strRunes[i]
+	}
+
+	return StringValue(string(strRunes)), nil
+}
+
+func builtinQuotedStr(vm *VM, args []Value) (Value, error) {
+	if len(args) < 1 || len(args) > 2 {
+		return NilValue(), vm.runtimeError("QuotedStr expects 1 or 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("QuotedStr expects a string as first argument")
+	}
+
+	str := args[0].AsString()
+	quoteChar := "'"
+
+	if len(args) == 2 {
+		if !args[1].IsString() {
+			return NilValue(), vm.runtimeError("QuotedStr expects a string as second argument")
+		}
+		quoteCharStr := args[1].AsString()
+		if len(quoteCharStr) > 0 {
+			runes := []rune(quoteCharStr)
+			quoteChar = string(runes[0])
+		}
+	}
+
+	escaped := strings.ReplaceAll(str, quoteChar, quoteChar+quoteChar)
+	return StringValue(quoteChar + escaped + quoteChar), nil
+}
+
+func builtinStringOfString(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StringOfString expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StringOfString expects a string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("StringOfString expects an integer as second argument")
+	}
+
+	str := args[0].AsString()
+	count := int(args[1].AsInt())
+	if count <= 0 {
+		return StringValue(""), nil
+	}
+
+	return StringValue(strings.Repeat(str, count)), nil
+}
+
+func builtinDupeString(vm *VM, args []Value) (Value, error) {
+	return builtinStringOfString(vm, args)
+}
+
+func builtinNormalizeString(vm *VM, args []Value) (Value, error) {
+	if len(args) < 1 || len(args) > 2 {
+		return NilValue(), vm.runtimeError("NormalizeString expects 1 or 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("NormalizeString expects a string as first argument")
+	}
+
+	str := args[0].AsString()
+	form := "NFC"
+
+	if len(args) == 2 {
+		if !args[1].IsString() {
+			return NilValue(), vm.runtimeError("NormalizeString expects a string as second argument")
+		}
+		form = strings.ToUpper(args[1].AsString())
+	}
+
+	result := normalizeStringUnicode(str, form)
+	return StringValue(result), nil
+}
+
+func builtinStripAccents(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("StripAccents expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StripAccents expects a string as argument")
+	}
+
+	str := args[0].AsString()
+	result := stripStringAccents(str)
+	return StringValue(result), nil
+}
+
 func builtinOrd(vm *VM, args []Value) (Value, error) {
 	if len(args) != 1 {
 		return NilValue(), vm.runtimeError("Ord expects 1 argument, got %d", len(args))
@@ -2356,4 +2598,40 @@ func builtinRandomize(vm *VM, args []Value) (Value, error) {
 	vm.rand = rand.New(rand.NewSource(seed))
 
 	return NilValue(), nil
+}
+
+// normalizeStringUnicode normalizes a string to the specified Unicode normalization form.
+// Supported forms: NFC, NFD, NFKC, NFKD
+func normalizeStringUnicode(s string, form string) string {
+	switch form {
+	case "NFC":
+		return norm.NFC.String(s)
+	case "NFD":
+		return norm.NFD.String(s)
+	case "NFKC":
+		return norm.NFKC.String(s)
+	case "NFKD":
+		return norm.NFKD.String(s)
+	default:
+		// Default to NFC if form is unknown
+		return norm.NFC.String(s)
+	}
+}
+
+// stripStringAccents removes diacritical marks from a string.
+// It works by normalizing the string to NFD (decomposed form) and then
+// removing all combining marks (which include accents).
+func stripStringAccents(s string) string {
+	// Normalize to NFD (decomposed form)
+	normalized := norm.NFD.String(s)
+
+	// Filter out combining marks
+	var result []rune
+	for _, r := range normalized {
+		if !unicode.Is(unicode.Mn, r) {
+			result = append(result, r)
+		}
+	}
+
+	return string(result)
 }

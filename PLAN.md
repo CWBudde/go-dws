@@ -371,17 +371,17 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### String Transformation (Phase 9.17.3)
 
-- [ ] 9.17.3.1 PadLeft(str, count, char) - Pad left to width
-- [ ] 9.17.3.2 PadRight(str, count, char) - Pad right to width
-- [ ] 9.17.3.3 StrDeleteLeft(str, count) - Delete N leftmost characters
-- [ ] 9.17.3.4 StrDeleteRight(str, count) - Delete N rightmost characters
+- [x] 9.17.3.1 PadLeft(str, count, char) - Pad left to width
+- [x] 9.17.3.2 PadRight(str, count, char) - Pad right to width
+- [x] 9.17.3.3 StrDeleteLeft(str, count) - Delete N leftmost characters
+- [x] 9.17.3.4 StrDeleteRight(str, count) - Delete N rightmost characters
 
-- [ ] 9.17.3.5 ReverseString(str) - Reverse character order
-- [ ] 9.17.3.6 QuotedStr(str, quoteChar) - Add quotes around string
-- [ ] 9.17.3.7 StringOfString(str, count) / DupeString - Repeat string
+- [x] 9.17.3.5 ReverseString(str) - Reverse character order
+- [x] 9.17.3.6 QuotedStr(str, quoteChar) - Add quotes around string
+- [x] 9.17.3.7 StringOfString(str, count) / DupeString - Repeat string
 
-- [ ] 9.17.3.8 NormalizeString(str, form) - Unicode normalization
-- [ ] 9.17.3.9 StripAccents(str) - Remove diacritical marks
+- [x] 9.17.3.8 NormalizeString(str, form) - Unicode normalization
+- [x] 9.17.3.9 StripAccents(str) - Remove diacritical marks
 
 #### Comparison Functions (Phase 9.17.4)
 
