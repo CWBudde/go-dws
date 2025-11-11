@@ -33,10 +33,12 @@ var (
 //   - array of array of Integer (nested dynamic arrays)
 //   - array[1..5] of array[1..10] of Integer (nested static arrays)
 //   - array of function(x: Integer): Boolean (array of function pointers)
+//   - array[TEnum] of String (enum-indexed array)
 type ArrayTypeNode struct {
 	ElementType TypeExpression
 	LowBound    Expression
 	HighBound   Expression
+	IndexType   TypeExpression // For enum-indexed arrays: array[TEnum] of Type
 	Token       token.Token
 	EndPos      token.Position
 }
@@ -45,6 +47,11 @@ type ArrayTypeNode struct {
 func (at *ArrayTypeNode) String() string {
 	if at == nil || at.ElementType == nil {
 		return "array of <invalid>"
+	}
+
+	// Enum-indexed array: array[TEnum] of Integer
+	if at.IndexType != nil {
+		return "array[" + at.IndexType.String() + "] of " + at.ElementType.String()
 	}
 
 	// Static array with bounds: array[1..10] of Integer
@@ -61,12 +68,17 @@ func (at *ArrayTypeNode) String() string {
 
 // IsDynamic returns true if this is a dynamic array (no bounds specified).
 func (at *ArrayTypeNode) IsDynamic() bool {
-	return at.LowBound == nil || at.HighBound == nil
+	return at.IndexType == nil && (at.LowBound == nil || at.HighBound == nil)
 }
 
 // IsStatic returns true if this is a static array (bounds specified).
 func (at *ArrayTypeNode) IsStatic() bool {
 	return !at.IsDynamic()
+}
+
+// IsEnumIndexed returns true if this is an enum-indexed array.
+func (at *ArrayTypeNode) IsEnumIndexed() bool {
+	return at.IndexType != nil
 }
 
 // TokenLiteral returns the literal value of the token.

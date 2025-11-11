@@ -286,66 +286,144 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	}
 	var dimensions []dimensionPair
 
+	var indexType ast.TypeExpression
+
 	if p.peekTokenIs(lexer.LBRACK) {
 		p.nextToken() // move to '['
 
-		// Parse first dimension
-		p.nextToken() // move to low bound
-		lowBound := p.parseArrayBound()
-		if lowBound == nil {
-			p.addError("invalid array lower bound expression", ErrInvalidExpression)
-			return nil
-		}
+		// Check for enum-indexed array: array[TEnum] of Type
+		// This is when we have an identifier followed directly by ']' (no '..')
+		// Task 9.21.1: Support enum-indexed arrays
+		if p.peekTokenIs(lexer.IDENT) {
+			p.nextToken() // move to identifier
 
-		// Expect '..'
-		if !p.expectPeek(lexer.DOTDOT) {
-			p.addError("expected .... in array bounds", ErrUnexpectedToken)
-			return nil
-		}
+			// Check if next token is ']' (enum-indexed) or something else
+			if p.peekTokenIs(lexer.RBRACK) {
+				// This is an enum-indexed array: array[TEnum] of Type
+				indexType = &ast.TypeAnnotation{
+					Token:  p.curToken,
+					Name:   p.curToken.Literal,
+					EndPos: p.endPosFromToken(p.curToken),
+				}
 
-		// Parse high bound expression
-		p.nextToken() // move to high bound
-		highBound := p.parseArrayBound()
-		if highBound == nil {
-			p.addError("invalid array upper bound expression", ErrInvalidExpression)
-			return nil
-		}
+				// Move to ']'
+				p.nextToken()
+			} else {
+				// Not enum-indexed, restore and parse as normal bounds
+				// We've already moved to the identifier, so this will be the low bound
+				lowBound := p.parseArrayBound()
+				if lowBound == nil {
+					p.addError("invalid array lower bound expression", ErrInvalidExpression)
+					return nil
+				}
 
-		dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+				// Expect '..'
+				if !p.expectPeek(lexer.DOTDOT) {
+					p.addError("expected .... in array bounds", ErrUnexpectedToken)
+					return nil
+				}
 
-		// Parse additional dimensions (comma-separated)
-		// Task 9.212: Support multidimensional arrays like array[0..1, 0..2]
-		for p.peekTokenIs(lexer.COMMA) {
-			p.nextToken() // consume comma
-			p.nextToken() // move to next low bound
+				// Parse high bound expression
+				p.nextToken() // move to high bound
+				highBound := p.parseArrayBound()
+				if highBound == nil {
+					p.addError("invalid array upper bound expression", ErrInvalidExpression)
+					return nil
+				}
+
+				dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+
+				// Parse additional dimensions (comma-separated)
+				// Task 9.212: Support multidimensional arrays like array[0..1, 0..2]
+				for p.peekTokenIs(lexer.COMMA) {
+					p.nextToken() // consume comma
+					p.nextToken() // move to next low bound
+					lowBound := p.parseArrayBound()
+					if lowBound == nil {
+						p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
+						return nil
+					}
+
+					if !p.expectPeek(lexer.DOTDOT) {
+						p.addError("expected .... in array bounds", ErrUnexpectedToken)
+						return nil
+					}
+
+					p.nextToken() // move to high bound
+					highBound := p.parseArrayBound()
+					if highBound == nil {
+						p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
+						return nil
+					}
+
+					dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+				}
+
+				// Now expect ']'
+				if !p.expectPeek(lexer.RBRACK) {
+					p.addError("expected ']' after array bounds", ErrMissingRBracket)
+					return nil
+				}
+			}
+		} else {
+			// Not starting with identifier, parse normally
+			p.nextToken() // move to low bound
 			lowBound := p.parseArrayBound()
 			if lowBound == nil {
-				p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
+				p.addError("invalid array lower bound expression", ErrInvalidExpression)
 				return nil
 			}
 
+			// Expect '..'
 			if !p.expectPeek(lexer.DOTDOT) {
 				p.addError("expected .... in array bounds", ErrUnexpectedToken)
 				return nil
 			}
 
+			// Parse high bound expression
 			p.nextToken() // move to high bound
 			highBound := p.parseArrayBound()
 			if highBound == nil {
-				p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
+				p.addError("invalid array upper bound expression", ErrInvalidExpression)
 				return nil
 			}
 
 			dimensions = append(dimensions, dimensionPair{lowBound, highBound})
-		}
 
-		// Note: Bounds validation is now deferred to semantic analysis phase
-		// since bounds may be constant expressions that need evaluation
+			// Parse additional dimensions (comma-separated)
+			// Task 9.212: Support multidimensional arrays like array[0..1, 0..2]
+			for p.peekTokenIs(lexer.COMMA) {
+				p.nextToken() // consume comma
+				p.nextToken() // move to next low bound
+				lowBound := p.parseArrayBound()
+				if lowBound == nil {
+					p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
+					return nil
+				}
 
-		// Now expect ']'
-		if !p.expectPeek(lexer.RBRACK) {
-			p.addError("expected ']' after array bounds", ErrMissingRBracket)
-			return nil
+				if !p.expectPeek(lexer.DOTDOT) {
+					p.addError("expected .... in array bounds", ErrUnexpectedToken)
+					return nil
+				}
+
+				p.nextToken() // move to high bound
+				highBound := p.parseArrayBound()
+				if highBound == nil {
+					p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
+					return nil
+				}
+
+				dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+			}
+
+			// Note: Bounds validation is now deferred to semantic analysis phase
+			// since bounds may be constant expressions that need evaluation
+
+			// Now expect ']'
+			if !p.expectPeek(lexer.RBRACK) {
+				p.addError("expected ']' after array bounds", ErrMissingRBracket)
+				return nil
+			}
 		}
 	}
 
@@ -361,6 +439,20 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	if elementType == nil {
 		p.addError("expected type expression after .array of.", ErrExpectedType)
 		return nil
+	}
+
+	// If enum-indexed array, return with IndexType
+	if indexType != nil {
+		arrayNode := &ast.ArrayTypeNode{
+			Token:       arrayToken,
+			ElementType: elementType,
+			IndexType:   indexType,
+			LowBound:    nil,
+			HighBound:   nil,
+		}
+		// EndPos is after element type
+		arrayNode.EndPos = elementType.End()
+		return arrayNode
 	}
 
 	// If no dimensions, return simple dynamic array

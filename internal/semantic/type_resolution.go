@@ -384,6 +384,29 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 		return types.NewDynamicArrayType(elementType), nil
 	}
 
+	// Check if enum-indexed array
+	// Task 9.21.1: Handle enum-indexed arrays
+	if arrayNode.IsEnumIndexed() {
+		// Resolve the enum type
+		enumTypeName := getTypeExpressionName(arrayNode.IndexType)
+		enumType, err := a.resolveType(enumTypeName)
+		if err != nil {
+			return nil, fmt.Errorf("unknown enum type '%s' for array index: %w", enumTypeName, err)
+		}
+
+		// Ensure it's actually an enum type
+		et, ok := enumType.(*types.EnumType)
+		if !ok {
+			return nil, fmt.Errorf("array index type '%s' must be an enum type, got %s", enumTypeName, enumType.TypeKind())
+		}
+
+		// Get enum bounds (0-based to element count - 1)
+		lowBound := 0
+		highBound := len(et.OrderedNames) - 1
+
+		return types.NewStaticArrayType(elementType, lowBound, highBound), nil
+	}
+
 	// Static array - evaluate bounds using evaluateConstantInt
 	lowBound, err := a.evaluateConstantInt(arrayNode.LowBound)
 	if err != nil {

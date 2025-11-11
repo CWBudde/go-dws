@@ -81,8 +81,9 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 			stmt.Type = te
 		case *ast.FunctionPointerTypeNode:
 			stmt.Type = &ast.TypeAnnotation{
-				Token: te.Token,
-				Name:  te.String(),
+				Token:      te.Token,
+				Name:       te.String(),
+				InlineType: te, // Task 9.21.1: Store the AST node for semantic analysis
 			}
 		case *ast.ArrayTypeNode:
 			// Check if Token is nil to prevent panics (defensive programming)
@@ -97,8 +98,9 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 				token = lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{}}
 			}
 			stmt.Type = &ast.TypeAnnotation{
-				Token: token,
-				Name:  te.String(),
+				Token:      token,
+				Name:       te.String(),
+				InlineType: te, // Task 9.21.1: Store the AST node for semantic analysis
 			}
 		default:
 			p.addError("unsupported type expression in const declaration", ErrInvalidType)

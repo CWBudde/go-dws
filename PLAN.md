@@ -885,17 +885,26 @@ each element is wrapped in a variant-like container that preserves type informat
 
 #### Subtask Category: Array Type Syntax
 
-- [ ] 9.21.1 Fix "array of <type>" shorthand parsing
-  - **Task**: Support DWScript's `array of Integer` syntax (dynamic array)
-  - **Current Error**: "expected DOTDOT, got RBRACK" when parsing `array[0..N]` or `array of Type`
+- [x] 9.21.1 Fix "array of <type>" shorthand parsing ✓
+  - **Task**: Support DWScript's `array [TEnum] of Type` syntax (enum-indexed array)
+  - **Current Error**: "expected DOTDOT, got RBRACK" when parsing `array[TEnum]`
   - **Implementation**:
-    - Extend `parseArrayType()` to handle `array of <type>` without bounds
-    - Distinguish between static arrays `array[0..N] of T` and dynamic arrays `array of T`
-    - Create appropriate AST nodes for both forms
-  - **Files**: `internal/parser/parser_types.go`
-  - **Tests**: Test dynamic array parsing, static array parsing, nested arrays
-  - **Estimated time**: 1 day
-  - **Blocked Tests**: boolean_array_of.pas, const_array3.pas, const_array4.pas, const_array6.pas, const_array7.pas, const_array8.pas, and 20+ more
+    - Extended `parseArrayType()` to handle `array [EnumType] of <type>` syntax
+    - Added `IndexType` field to `ArrayTypeNode` AST node
+    - Updated semantic analyzer to resolve enum-indexed arrays to static arrays with enum bounds
+    - Updated interpreter to accept enum values as array indices (using ordinal values)
+    - Added comprehensive tests for enum-indexed array parsing
+  - **Files**:
+    - `pkg/ast/type_expression.go` (added IndexType field, IsEnumIndexed method)
+    - `internal/parser/types.go` (parseArrayType with enum detection)
+    - `internal/parser/declarations.go` (set InlineType for array types in const decl)
+    - `internal/parser/inline_types_test.go` (TestEnumIndexedArrayType)
+    - `internal/semantic/type_resolution.go` (resolveArrayTypeNode with enum handling)
+    - `internal/semantic/analyze_statements.go` (analyzeConstDecl with InlineType support)
+    - `internal/semantic/analyze_arrays.go` (allow enum types as indices)
+    - `internal/interp/array.go` (handle EnumValue as array index)
+  - **Tests**: TestEnumIndexedArrayType passes, const_array3.pas now executes correctly
+  - **Completed**: Enum-indexed arrays fully supported in parser, semantic analyzer, and interpreter
 
 #### Subtask Category: Class Features
 

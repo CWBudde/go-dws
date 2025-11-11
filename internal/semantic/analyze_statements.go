@@ -195,7 +195,12 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 
 	if stmt.Type != nil {
 		// Explicit type annotation
-		constType, err = a.resolveType(stmt.Type.Name)
+		// Task 9.21.1: Support inline type expressions (e.g., array[TEnum] of String)
+		if stmt.Type.InlineType != nil {
+			constType, err = a.resolveTypeExpression(stmt.Type.InlineType)
+		} else {
+			constType, err = a.resolveType(stmt.Type.Name)
+		}
 		if err != nil {
 			a.addError("unknown type '%s' at %s", stmt.Type.Name, stmt.Token.Pos.String())
 			return
