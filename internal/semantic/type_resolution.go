@@ -763,7 +763,8 @@ func (a *Analyzer) addParentFieldsToScope(parent *types.ClassType) {
 	for fieldName, fieldType := range parent.Fields {
 		// Don't override if already defined (shadowing)
 		if !a.symbols.IsDeclaredInCurrentScope(fieldName) {
-			if visibility, ok := parent.FieldVisibility[fieldName]; ok && visibility == int(ast.VisibilityPrivate) {
+			visibility, ok := parent.FieldVisibility[fieldName]
+			if ok && visibility == int(ast.VisibilityPrivate) {
 				continue
 			}
 			a.symbols.Define(fieldName, fieldType)
@@ -806,8 +807,9 @@ func (a *Analyzer) getFieldOwner(class *types.ClassType, fieldName string) *type
 		return nil
 	}
 
-	// Check if this class declares the field
-	if _, found := class.Fields[fieldName]; found {
+	// Check if this class declares the field (case-insensitive)
+	lowerFieldName := strings.ToLower(fieldName)
+	if _, found := class.Fields[lowerFieldName]; found {
 		return class
 	}
 

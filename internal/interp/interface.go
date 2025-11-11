@@ -34,9 +34,8 @@ func NewInterfaceInfo(name string) *InterfaceInfo {
 // It searches the interface hierarchy, starting with this interface
 // and walking up through parent interfaces until the method is found.
 // Returns nil if the method is not found in the interface hierarchy.
-// Task 9.16.2: Uses case-insensitive lookup
 func (ii *InterfaceInfo) GetMethod(name string) *ast.FunctionDecl {
-	// Task 9.16.2: Normalize to lowercase for case-insensitive lookup
+	// Normalize to lowercase for case-insensitive lookup
 	normalizedName := strings.ToLower(name)
 
 	// Check this interface's methods first
