@@ -416,6 +416,40 @@ func (et *EnumType) GetEnumName(value int) string {
 	return ""
 }
 
+// MinOrdinal returns the minimum ordinal value in the enum.
+// For example, for type TDay = (Mon=1, Tue, Wed), returns 1.
+// Returns 0 if the enum has no values.
+func (et *EnumType) MinOrdinal() int {
+	if len(et.Values) == 0 {
+		return 0
+	}
+
+	minVal := int(^uint(0) >> 1) // Max int value
+	for _, ordinal := range et.Values {
+		if ordinal < minVal {
+			minVal = ordinal
+		}
+	}
+	return minVal
+}
+
+// MaxOrdinal returns the maximum ordinal value in the enum.
+// For example, for type TDay = (Mon=1, Tue, Wed), returns 3.
+// Returns 0 if the enum has no values.
+func (et *EnumType) MaxOrdinal() int {
+	if len(et.Values) == 0 {
+		return 0
+	}
+
+	maxVal := -int(^uint(0)>>1) - 1 // Min int value
+	for _, ordinal := range et.Values {
+		if ordinal > maxVal {
+			maxVal = ordinal
+		}
+	}
+	return maxVal
+}
+
 // NewEnumType creates a new enum type with the given name and values.
 // Values should be a map of value names to their ordinal values.
 // OrderedNames should list the value names in declaration order.

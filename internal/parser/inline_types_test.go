@@ -647,3 +647,121 @@ func TestMetaclassVariableDeclaration(t *testing.T) {
 		})
 	}
 }
+
+// TestEnumIndexedArrayType tests parsing enum-indexed arrays.
+// Task 9.21.1: Support enum-indexed arrays
+func TestEnumIndexedArrayType(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		expectedType string
+		expectedEnum string
+		expectedElem string
+		wantErr      bool
+	}{
+		{
+			name:         "enum-indexed array in var",
+			input:        "type TDay = (Mon, Tue, Wed); var schedule: array[TDay] of Integer;",
+			expectedType: "array[TDay] of Integer",
+			expectedEnum: "TDay",
+			expectedElem: "Integer",
+			wantErr:      false,
+		},
+		{
+			name:         "enum-indexed array with different enum",
+			input:        "type TColor = (Red, Green, Blue); var colors: array[TColor] of String;",
+			expectedType: "array[TColor] of String",
+			expectedEnum: "TColor",
+			expectedElem: "String",
+			wantErr:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+
+			if tt.wantErr {
+				if len(p.Errors()) == 0 {
+					t.Errorf("expected error but got none")
+				}
+				return
+			}
+
+			if len(p.Errors()) > 0 {
+				t.Errorf("unexpected errors: %v", p.Errors())
+				return
+			}
+
+			// Should have at least 2 statements (type decl + var)
+			if len(program.Statements) < 2 {
+				t.Fatalf("expected at least 2 statements, got %d", len(program.Statements))
+			}
+
+			// Get the second statement (var declaration)
+			varDecl, ok := program.Statements[1].(*ast.VarDeclStatement)
+			if !ok {
+				t.Fatalf("expected VarDeclStatement, got %T", program.Statements[1])
+			}
+
+			if varDecl.Type == nil || varDecl.Type.InlineType == nil {
+				t.Fatal("expected type annotation with inline type")
+			}
+
+			arrayType, ok := varDecl.Type.InlineType.(*ast.ArrayTypeNode)
+			if !ok {
+				t.Fatalf("expected ArrayTypeNode, got %T", varDecl.Type.InlineType)
+			}
+
+			// Verify the array type
+			if arrayType == nil {
+				t.Fatal("arrayType is nil")
+			}
+
+			// Check that it's recognized as enum-indexed
+			if !arrayType.IsEnumIndexed() {
+				t.Error("expected IsEnumIndexed() to return true")
+			}
+
+			// Check that it's recognized as static (enum-indexed arrays are static)
+			if !arrayType.IsStatic() {
+				t.Error("expected IsStatic() to return true")
+			}
+
+			// Verify IndexType is set
+			if arrayType.IndexType == nil {
+				t.Fatal("expected IndexType to be set")
+			}
+
+			indexTypeAnnot, ok := arrayType.IndexType.(*ast.TypeAnnotation)
+			if !ok {
+				t.Fatalf("expected TypeAnnotation for IndexType, got %T", arrayType.IndexType)
+			}
+
+			if indexTypeAnnot.Name != tt.expectedEnum {
+				t.Errorf("expected enum type %q, got %q", tt.expectedEnum, indexTypeAnnot.Name)
+			}
+
+			// Verify ElementType
+			if arrayType.ElementType == nil {
+				t.Fatal("expected ElementType to be set")
+			}
+
+			elemTypeAnnot, ok := arrayType.ElementType.(*ast.TypeAnnotation)
+			if !ok {
+				t.Fatalf("expected TypeAnnotation for ElementType, got %T", arrayType.ElementType)
+			}
+
+			if elemTypeAnnot.Name != tt.expectedElem {
+				t.Errorf("expected element type %q, got %q", tt.expectedElem, elemTypeAnnot.Name)
+			}
+
+			// Verify String() representation
+			if arrayType.String() != tt.expectedType {
+				t.Errorf("expected String() %q, got %q", tt.expectedType, arrayType.String())
+			}
+		})
+	}
+}

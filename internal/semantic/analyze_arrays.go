@@ -125,9 +125,10 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		return nil
 	}
 
-	// Index must be integer
-	if !indexType.Equals(types.INTEGER) {
-		a.addError("array index must be integer, got %s at %s",
+	// Index must be integer or enum (enums are ordinal types in DWScript)
+	// Task 9.21.1: Allow enum types as array indices
+	if !indexType.Equals(types.INTEGER) && indexType.TypeKind() != "ENUM" {
+		a.addError("array index must be integer or enum, got %s at %s",
 			indexType.String(), expr.Index.Pos().String())
 		return nil
 	}

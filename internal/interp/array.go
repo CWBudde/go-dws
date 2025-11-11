@@ -186,12 +186,17 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 		return i.indexJSON(jsonVal, indexVal, expr)
 	}
 
-	// Index must be an integer for arrays and strings
-	indexInt, ok := indexVal.(*IntegerValue)
-	if !ok {
-		return i.newErrorWithLocation(expr, "index must be an integer, got %s", indexVal.Type())
+	// Index must be an integer or enum for arrays and strings
+	// Task 9.21.1: Allow enum values as array indices (use ordinal value)
+	var index int
+	switch iv := indexVal.(type) {
+	case *IntegerValue:
+		index = int(iv.Value)
+	case *EnumValue:
+		index = iv.OrdinalValue
+	default:
+		return i.newErrorWithLocation(expr, "index must be an integer or enum, got %s", indexVal.Type())
 	}
-	index := int(indexInt.Value)
 
 	// Check if left side is an array
 	if arrayVal, ok := leftVal.(*ArrayValue); ok {
