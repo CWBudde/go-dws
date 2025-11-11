@@ -626,7 +626,7 @@ func createObjectInstance(node *ast.NewExpression, interp *Interpreter) Value {
 
 ⚠️ **High file count** - 116 files in internal/interp/ root directory
 ⚠️ **Test file clutter** - Test files mixed with implementation
-⚠️ **Other large files** - vm.go (2,172 lines), compiler.go (1,799 lines), analyze_classes.go (1,466 lines) remain unsplit
+⚠️ **Other large files** - vm.go (2,172 lines, 47KB), compiler.go (1,799 lines, 42KB), analyze_classes.go (1,466 lines, 38KB) remain unsplit
 
 ---
 
