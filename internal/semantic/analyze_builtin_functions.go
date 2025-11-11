@@ -197,6 +197,20 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeLn(args, callExpr), true
 	case "log2":
 		return a.analyzeLog2(args, callExpr), true
+	case "log10":
+		return a.analyzeLog10(args, callExpr), true
+	case "logn":
+		return a.analyzeLogN(args, callExpr), true
+	case "pi":
+		return a.analyzePi(args, callExpr), true
+	case "sign":
+		return a.analyzeSign(args, callExpr), true
+	case "odd":
+		return a.analyzeOdd(args, callExpr), true
+	case "frac":
+		return a.analyzeFrac(args, callExpr), true
+	case "int":
+		return a.analyzeInt(args, callExpr), true
 
 	// Math Functions - Rounding
 	case "round":

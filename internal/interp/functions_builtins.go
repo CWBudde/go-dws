@@ -109,6 +109,20 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinRandomize(args)
 	case "SetRandSeed":
 		return i.builtinSetRandSeed(args)
+	case "Pi":
+		return i.builtinPi(args)
+	case "Sign":
+		return i.builtinSign(args)
+	case "Odd":
+		return i.builtinOdd(args)
+	case "Frac":
+		return i.builtinFrac(args)
+	case "Int":
+		return i.builtinInt(args)
+	case "Log10":
+		return i.builtinLog10(args)
+	case "LogN":
+		return i.builtinLogN(args)
 	case "IsNaN":
 		return i.builtinIsNaN(args)
 	case "Exp":

@@ -344,34 +344,41 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **MUST IMPLEMENT FIRST** - These are used in 200+ test fixtures and block most other tests.
 
-- [ ] 9.17.0.1 IntToStr(i: Integer): String
+- [x] 9.17.0.1 IntToStr(i: Integer): String
   - **CRITICAL** - Convert integer to string (base 10)
   - Used in 100+ fixtures
   - Implementation: Use Go's strconv.FormatInt
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
-- [ ] 9.17.0.2 FloatToStr(f: Float): String
+- [x] 9.17.0.2 FloatToStr(f: Float): String
   - **CRITICAL** - Convert float to string
   - Used in 80+ fixtures
   - Implementation: Use Go's strconv.FormatFloat with 'g' format
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
-- [ ] 9.17.0.3 StrToInt(str: String): Integer
+- [x] 9.17.0.3 StrToInt(str: String): Integer
   - **CRITICAL** - String to integer with error on failure
   - Used in 60+ fixtures
   - Implementation: Use Go's strconv.ParseInt, raise exception on error
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
-- [ ] 9.17.0.4 StrToFloat(str: String): Float
+- [x] 9.17.0.4 StrToFloat(str: String): Float
   - **CRITICAL** - String to float with error on failure
   - Used in 50+ fixtures
   - Implementation: Use Go's strconv.ParseFloat, raise exception on error
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
-- [ ] 9.17.0.5 StrToIntDef(str: String, default: Integer): Integer
+- [x] 9.17.0.5 StrToIntDef(str: String, default: Integer): Integer
   - String to integer with default value on error
   - Safer version of StrToInt
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
-- [ ] 9.17.0.6 StrToFloatDef(str: String, default: Float): Float
+- [x] 9.17.0.6 StrToFloatDef(str: String, default: Float): Float
   - String to float with default value on error
   - Safer version of StrToFloat
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
+**Status**: ✅ COMPLETED
 **Implementation Time**: 1-2 days
 **Impact**: Unblocks 200+ fixtures immediately
 

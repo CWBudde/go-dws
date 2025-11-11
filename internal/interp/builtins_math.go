@@ -1121,3 +1121,163 @@ func (i *Interpreter) builtinSetRandSeed(args []Value) Value {
 
 	return &NilValue{}
 }
+
+// builtinPi returns the mathematical constant π (Pi).
+// Pi: Float
+func (i *Interpreter) builtinPi(args []Value) Value {
+	if len(args) != 0 {
+		return i.newErrorWithLocation(i.currentNode, "Pi expects no arguments, got %d", len(args))
+	}
+	return &FloatValue{Value: math.Pi}
+}
+
+// builtinSign implements the Sign() built-in function.
+// It returns -1, 0, or 1 based on the sign of the number.
+// Sign(x: Float): Integer
+func (i *Interpreter) builtinSign(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Sign() expects exactly 1 argument, got %d", len(args))
+	}
+
+	var floatVal float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		floatVal = v.Value
+	case *IntegerValue:
+		floatVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "Sign() expects Float or Integer, got %s", args[0].Type())
+	}
+
+	if floatVal > 0 {
+		return &IntegerValue{Value: 1}
+	} else if floatVal < 0 {
+		return &IntegerValue{Value: -1}
+	}
+	return &IntegerValue{Value: 0}
+}
+
+// builtinOdd implements the Odd() built-in function.
+// It checks if an integer is odd.
+// Odd(x: Integer): Boolean
+func (i *Interpreter) builtinOdd(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Odd() expects exactly 1 argument, got %d", len(args))
+	}
+
+	intVal, ok := args[0].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Odd() expects Integer, got %s", args[0].Type())
+	}
+
+	return &BooleanValue{Value: intVal.Value%2 != 0}
+}
+
+// builtinFrac implements the Frac() built-in function.
+// It returns the fractional part of a number.
+// Frac(x: Float): Float
+func (i *Interpreter) builtinFrac(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Frac() expects exactly 1 argument, got %d", len(args))
+	}
+
+	var floatVal float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		floatVal = v.Value
+	case *IntegerValue:
+		floatVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "Frac() expects Float or Integer, got %s", args[0].Type())
+	}
+
+	// Fractional part = x - floor(x)
+	// For negative numbers: Frac(-2.3) = -2.3 - (-3) = 0.7
+	_, frac := math.Modf(floatVal)
+	return &FloatValue{Value: frac}
+}
+
+// builtinInt implements the Int() built-in function.
+// It returns the integer part of a number as a Float (different from Trunc).
+// Int(x: Float): Float
+func (i *Interpreter) builtinInt(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Int() expects exactly 1 argument, got %d", len(args))
+	}
+
+	var floatVal float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		floatVal = v.Value
+	case *IntegerValue:
+		floatVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "Int() expects Float or Integer, got %s", args[0].Type())
+	}
+
+	// Int() returns the integer part (truncated towards zero) as a Float
+	return &FloatValue{Value: math.Trunc(floatVal)}
+}
+
+// builtinLog10 implements the Log10() built-in function.
+// It returns the base-10 logarithm.
+// Log10(x: Float): Float
+func (i *Interpreter) builtinLog10(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Log10() expects exactly 1 argument, got %d", len(args))
+	}
+
+	var floatVal float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		floatVal = v.Value
+	case *IntegerValue:
+		floatVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "Log10() expects Float or Integer, got %s", args[0].Type())
+	}
+
+	if floatVal <= 0 {
+		return i.newErrorWithLocation(i.currentNode, "Log10() argument must be positive, got %f", floatVal)
+	}
+
+	return &FloatValue{Value: math.Log10(floatVal)}
+}
+
+// builtinLogN implements the LogN() built-in function.
+// It returns the logarithm with a custom base.
+// LogN(x, base: Float): Float
+func (i *Interpreter) builtinLogN(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "LogN() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	var xVal, baseVal float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		xVal = v.Value
+	case *IntegerValue:
+		xVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "LogN() expects Float or Integer as first argument, got %s", args[0].Type())
+	}
+
+	switch v := args[1].(type) {
+	case *FloatValue:
+		baseVal = v.Value
+	case *IntegerValue:
+		baseVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "LogN() expects Float or Integer as second argument, got %s", args[1].Type())
+	}
+
+	if xVal <= 0 {
+		return i.newErrorWithLocation(i.currentNode, "LogN() first argument must be positive, got %f", xVal)
+	}
+	if baseVal <= 0 || baseVal == 1 {
+		return i.newErrorWithLocation(i.currentNode, "LogN() base must be positive and not equal to 1, got %f", baseVal)
+	}
+
+	// LogN(x, base) = Log(x) / Log(base)
+	return &FloatValue{Value: math.Log(xVal) / math.Log(baseVal)}
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
@@ -962,26 +963,28 @@ func (vm *VM) reset() {
 	vm.setGlobal(4, BuiltinValue("FloatToStr"))
 	vm.setGlobal(5, BuiltinValue("StrToInt"))
 	vm.setGlobal(6, BuiltinValue("StrToFloat"))
-	vm.setGlobal(7, BuiltinValue("Length"))
-	vm.setGlobal(8, BuiltinValue("Copy"))
-	vm.setGlobal(9, BuiltinValue("SubStr"))
-	vm.setGlobal(10, BuiltinValue("SubString"))
-	vm.setGlobal(11, BuiltinValue("LeftStr"))
-	vm.setGlobal(12, BuiltinValue("RightStr"))
-	vm.setGlobal(13, BuiltinValue("MidStr"))
-	vm.setGlobal(14, BuiltinValue("StrBeginsWith"))
-	vm.setGlobal(15, BuiltinValue("StrEndsWith"))
-	vm.setGlobal(16, BuiltinValue("StrContains"))
-	vm.setGlobal(17, BuiltinValue("PosEx"))
-	vm.setGlobal(18, BuiltinValue("RevPos"))
-	vm.setGlobal(19, BuiltinValue("StrFind"))
-	vm.setGlobal(20, BuiltinValue("Ord"))
-	vm.setGlobal(21, BuiltinValue("Chr"))
+	vm.setGlobal(7, BuiltinValue("StrToIntDef"))
+	vm.setGlobal(8, BuiltinValue("StrToFloatDef"))
+	vm.setGlobal(9, BuiltinValue("Length"))
+	vm.setGlobal(10, BuiltinValue("Copy"))
+	vm.setGlobal(11, BuiltinValue("SubStr"))
+	vm.setGlobal(12, BuiltinValue("SubString"))
+	vm.setGlobal(13, BuiltinValue("LeftStr"))
+	vm.setGlobal(14, BuiltinValue("RightStr"))
+	vm.setGlobal(15, BuiltinValue("MidStr"))
+	vm.setGlobal(16, BuiltinValue("StrBeginsWith"))
+	vm.setGlobal(17, BuiltinValue("StrEndsWith"))
+	vm.setGlobal(18, BuiltinValue("StrContains"))
+	vm.setGlobal(19, BuiltinValue("PosEx"))
+	vm.setGlobal(20, BuiltinValue("RevPos"))
+	vm.setGlobal(21, BuiltinValue("StrFind"))
+	vm.setGlobal(22, BuiltinValue("Ord"))
+	vm.setGlobal(23, BuiltinValue("Chr"))
 	// Type cast functions
-	vm.setGlobal(22, BuiltinValue("Integer"))
-	vm.setGlobal(23, BuiltinValue("Float"))
-	vm.setGlobal(24, BuiltinValue("String"))
-	vm.setGlobal(25, BuiltinValue("Boolean"))
+	vm.setGlobal(24, BuiltinValue("Integer"))
+	vm.setGlobal(25, BuiltinValue("Float"))
+	vm.setGlobal(26, BuiltinValue("String"))
+	vm.setGlobal(27, BuiltinValue("Boolean"))
 }
 
 func (vm *VM) getGlobal(index int) Value {
@@ -1536,6 +1539,8 @@ func (vm *VM) registerBuiltins() {
 	vm.builtins["FloatToStr"] = builtinFloatToStr
 	vm.builtins["StrToInt"] = builtinStrToInt
 	vm.builtins["StrToFloat"] = builtinStrToFloat
+	vm.builtins["StrToIntDef"] = builtinStrToIntDef
+	vm.builtins["StrToFloatDef"] = builtinStrToFloatDef
 	vm.builtins["Length"] = builtinLength
 	vm.builtins["Copy"] = builtinCopy
 	vm.builtins["SubStr"] = builtinSubStr
@@ -1641,6 +1646,49 @@ func builtinStrToFloat(vm *VM, args []Value) (Value, error) {
 	_, err := fmt.Sscanf(args[0].AsString(), "%f", &val)
 	if err != nil {
 		return NilValue(), vm.runtimeError("StrToFloat: invalid float string")
+	}
+	return FloatValue(val), nil
+}
+
+func builtinStrToIntDef(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrToIntDef expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrToIntDef expects a string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("StrToIntDef expects an integer as second argument")
+	}
+	// Try to parse the string as an integer
+	s := strings.TrimSpace(args[0].AsString())
+	val, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		// Return default value on error
+		return args[1], nil
+	}
+	return IntValue(val), nil
+}
+
+func builtinStrToFloatDef(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrToFloatDef expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrToFloatDef expects a string as first argument")
+	}
+	if !args[1].IsFloat() && !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("StrToFloatDef expects a float as second argument")
+	}
+	// Try to parse the string as a float
+	s := strings.TrimSpace(args[0].AsString())
+	val, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		// Return default value on error (coerce int to float if needed)
+		if args[1].IsInt() {
+			return FloatValue(float64(args[1].AsInt())), nil
+		}
+		return args[1], nil
 	}
 	return FloatValue(val), nil
 }

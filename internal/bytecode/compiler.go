@@ -1456,6 +1456,8 @@ func (c *Compiler) initBuiltins() {
 	c.addBuiltinGlobal("FloatToStr")
 	c.addBuiltinGlobal("StrToInt")
 	c.addBuiltinGlobal("StrToFloat")
+	c.addBuiltinGlobal("StrToIntDef")
+	c.addBuiltinGlobal("StrToFloatDef")
 	c.addBuiltinGlobal("Length")
 	c.addBuiltinGlobal("Copy")
 	c.addBuiltinGlobal("SubStr")
