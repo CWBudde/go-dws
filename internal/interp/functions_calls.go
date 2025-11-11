@@ -87,7 +87,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 			return i.evalRecordMethodCall(recVal, memberAccess, expr.Arguments, memberAccess.Object)
 		}
 
-		// Task 9.16.2: Check if this is an interface method call (interface.Method(...))
+		// Check if this is an interface method call (interface.Method(...))
 		if ifaceInst, ok := objVal.(*InterfaceInstance); ok {
 			// Dispatch to the underlying object
 			if ifaceInst.Object == nil {
@@ -318,7 +318,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		}
 	}
 
-	// Task 9.8.3: Check if this is a type cast (TypeName(expression))
+	// Check if this is a type cast (TypeName(expression))
 	// Type casts look like function calls but the "function" name is actually a type name
 	if len(expr.Arguments) == 1 {
 		if castValue := i.evalTypeCast(funcName.Value, expr.Arguments[0]); castValue != nil {

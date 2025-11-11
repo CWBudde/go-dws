@@ -26,7 +26,7 @@ func (a *Analyzer) analyzeCallExpressionWithContext(expr *ast.CallExpression, ex
 func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	// Handle member access expressions (method calls like obj.Method())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
-		// Task 9.13-9.19: Check if this is a constructor call (TClass.Create(...))
+		// Check if this is a constructor call (TClass.Create(...))
 		// First, analyze the object to see if it's a class type
 		objectType := a.analyzeExpression(memberAccess.Object)
 		if objectType == nil {
@@ -36,7 +36,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		// Check if the object is a ClassType (not an instance, but the type itself)
 		if classType, isClassType := objectType.(*types.ClassType); isClassType {
 			// This is a constructor call like TClass.Create(args)
-			// fmt.Printf("DEBUG: Detected constructor call on class %s.%s\n", classType.Name, memberAccess.Member.Value)
 			return a.analyzeConstructorCall(expr, classType, memberAccess.Member.Value)
 		}
 

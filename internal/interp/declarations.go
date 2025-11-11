@@ -76,7 +76,7 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 // It builds a ClassInfo from the AST and registers it in the class registry.
 // Handles inheritance by copying parent fields and methods to the child class.
 func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
-	// Task 9.13: Check if this is a partial class declaration
+	// Check if this is a partial class declaration
 	var classInfo *ClassInfo
 	existingClass, exists := i.classes[cd.Name.Value]
 
@@ -118,7 +118,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			return i.newErrorWithLocation(cd, "parent class '%s' not found", parentName)
 		}
 	} else {
-		// Task 9.16.4.1: If no explicit parent, implicitly inherit from TObject
+		// If no explicit parent, implicitly inherit from TObject
 		// (unless this IS TObject or it's an external class)
 		className := cd.Name.Value
 		if !strings.EqualFold(className, "TObject") && !cd.IsExternal {
@@ -459,7 +459,7 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 			Body:       nil, // Interface methods have no body
 		}
 
-		// Task 9.16.2: Use lowercase for case-insensitive method lookups
+		// Use lowercase for case-insensitive method lookups
 		interfaceInfo.Methods[strings.ToLower(methodDecl.Name.Value)] = funcDecl
 	}
 

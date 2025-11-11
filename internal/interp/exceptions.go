@@ -47,7 +47,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	objectClass.IsExternal = false
 
 	// Add basic TObject constructor
-	// Task 9.16.4.1: Create a minimal Create constructor AST node
+	// Create a minimal Create constructor AST node
 	// The nil body means it just initializes fields with defaults
 	createConstructor := &ast.FunctionDecl{
 		Name: &ast.Identifier{

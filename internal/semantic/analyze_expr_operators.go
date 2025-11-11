@@ -74,7 +74,9 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 				// Check field visibility
 				fieldOwner := a.getFieldOwner(a.currentClass, ident.Value)
 				if fieldOwner != nil {
-					visibility, hasVisibility := fieldOwner.FieldVisibility[ident.Value]
+					// Use lowercase for case-insensitive lookup
+					lowerFieldName := strings.ToLower(ident.Value)
+					visibility, hasVisibility := fieldOwner.FieldVisibility[lowerFieldName]
 					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, ident.Value, "field") {
 						visibilityStr := ast.Visibility(visibility).String()
 						a.addError("cannot access %s field '%s' at %s",

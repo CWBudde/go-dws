@@ -321,7 +321,6 @@ func (i *Interpreter) getValueType(val Value) types.Type {
 
 // evalTypeCast evaluates a type cast expression like Integer(x), Float(y), or TMyClass(obj).
 // Returns the cast value if this is a valid type cast, or nil if not a type cast.
-// Task 9.8.3: Runtime type cast execution
 func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
 	// First check if this is actually a type cast before evaluating the argument
 	// This prevents double evaluation when it's not a type cast
