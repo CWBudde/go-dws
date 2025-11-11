@@ -126,42 +126,190 @@ The following large files should be considered for splitting if they become prob
 
 ---
 
-## Future Consideration: Subdirectory Organization (Phase 2 - Not Implemented)
+## Phase 2: Subdirectory Organization (Next Step - RECOMMENDED)
 
 ### Overview
 
-The original plan included reorganizing files into subdirectories. However, Phase 1 has shown that file splitting with clear naming prefixes may be sufficient.
+The current flat structure with 116 files in `internal/interp/` should be organized into logical subdirectories. This is standard Go practice and will significantly improve code organization.
 
-**Current Approach (Working Well):**
-- Flat directory structure
+**Current State (Flat Structure):**
+- 116 files in `internal/interp/` root
 - Prefixed naming: `objects_*.go`, `functions_*.go`, `statements_*.go`, `builtins_*.go`
-- Easy to find related files
-- No import path changes needed
+- Tests mixed throughout
 
-**Alternative Approach (Original Plan - Not Started):**
-
-If subdirectory organization is pursued in the future, consider:
+**Target Structure (Subdirectory Packages):**
 
 ```
 internal/interp/
-├── builtins/      # Move builtins_*.go files here
-├── objects/       # Move objects_*.go files here
-├── functions/     # Move functions_*.go files here
-├── statements/    # Move statements_*.go files here
-├── tests/         # Move all *_test.go files here
-└── ...            # Core files remain in root
+├── builtins/               # Package builtins
+│   ├── core.go             # Core builtins
+│   ├── core_test.go
+│   ├── math_basic.go       # Math functions (basic)
+│   ├── math_trig.go        # Math functions (trig)
+│   ├── math_convert.go     # Math functions (convert)
+│   ├── math_test.go
+│   ├── datetime_format.go
+│   ├── datetime_calc.go
+│   ├── datetime_info.go
+│   ├── datetime_test.go
+│   ├── strings.go
+│   ├── strings_test.go
+│   ├── arrays.go
+│   ├── json.go
+│   ├── variant.go
+│   ├── ordinals.go
+│   └── collections.go
+├── objects/                # Package objects
+│   ├── instantiation.go
+│   ├── instantiation_test.go
+│   ├── properties.go
+│   ├── properties_test.go
+│   ├── methods.go
+│   ├── methods_test.go
+│   ├── hierarchy.go
+│   └── hierarchy_test.go
+├── functions/              # Package functions
+│   ├── calls.go
+│   ├── calls_test.go
+│   ├── builtins.go
+│   ├── user.go
+│   ├── pointers.go
+│   ├── records.go
+│   └── typecast.go
+├── statements/             # Package statements
+│   ├── declarations.go
+│   ├── assignments.go
+│   ├── control.go
+│   └── loops.go
+├── interpreter.go          # Main interpreter
+├── expressions.go
+├── environment.go
+├── exceptions.go
+├── value.go
+├── class.go
+└── ...
 ```
 
-**Trade-offs to consider:**
-- ✅ **Pro:** Further reduces root directory file count
-- ✅ **Pro:** Clearer logical grouping
-- ✅ **Pro:** Test files separated from implementation
-- ❌ **Con:** Requires import path changes across codebase
-- ❌ **Con:** May introduce package boundary issues
-- ❌ **Con:** More complex navigation (deeper nesting)
-- ❌ **Con:** Current prefix naming already provides good organization
+**Key Principles:**
+1. **Tests side-by-side** - `math.go` and `math_test.go` in same directory (Go convention)
+2. **Separate packages** - Each subdirectory is its own package
+3. **Clear APIs** - Forces thinking about what should be public vs internal
+4. **Logical grouping** - Related code together
 
-**Recommendation:** The current flat structure with prefixed naming is working well. Only proceed with subdirectory organization if the file count becomes truly unmanageable (>200 files) or if there's a compelling need for package boundaries.
+### Benefits
+
+✅ **Standard Go structure** - Follows idiomatic Go package organization
+✅ **Clear boundaries** - Package boundaries enforce good design
+✅ **Better encapsulation** - Private vs public functions are explicit
+✅ **Easier navigation** - 10-20 files per directory vs 116 in root
+✅ **Tests with code** - Standard Go convention, easier to maintain
+✅ **Better documentation** - Each package can have its own doc.go
+✅ **Reduced cognitive load** - Work within one package at a time
+✅ **Clearer dependencies** - Import statements show relationships
+
+### Costs (One-Time)
+
+⚠️ **Import path changes** - Need to update imports across codebase
+⚠️ **Function exports** - Need to capitalize public functions
+⚠️ **Potential circular deps** - Need to design package boundaries carefully
+⚠️ **Testing adjustments** - Some tests may need restructuring
+
+### Avoiding Circular Dependencies
+
+When creating subpackages, carefully consider dependencies:
+
+**Safe dependency flow (no circular imports):**
+```
+builtins → (nothing)          # Self-contained builtin functions
+objects → interp              # Objects may need Interpreter reference
+functions → interp, builtins  # Functions call builtins, need Interpreter
+statements → interp           # Statements need Interpreter
+interp → all subpackages      # Main package orchestrates
+```
+
+**Key strategies:**
+1. **Pass Interpreter as parameter** - Subpackages receive `*interp.Interpreter` as argument
+2. **Interface abstraction** - Define interfaces in `interp`, implement in subpackages
+3. **Keep builtins independent** - Builtin functions should only depend on Value types
+4. **Avoid cross-dependencies** - `objects` shouldn't import `functions`, etc.
+
+**Example pattern:**
+```go
+// internal/interp/objects/methods.go
+package objects
+
+import "github.com/MeKo-Tech/go-dws/internal/interp"
+
+// EvalMethodCall needs access to interpreter state
+func EvalMethodCall(i *interp.Interpreter, obj Value, method string, args []Value) (Value, error) {
+    // Can call back to interpreter methods
+    return i.EvalExpression(methodBody)
+}
+```
+
+### Migration Strategy
+
+**Phase 2.1: Create builtins/ package**
+1. Create `internal/interp/builtins/` directory
+2. Move `builtins_*.go` files → `builtins/*.go` (remove prefix)
+3. Change package from `interp` to `builtins`
+4. Capitalize exported functions
+5. Move test files alongside implementation
+6. Update imports in main `interp` package
+7. Test thoroughly
+
+**Phase 2.2: Create objects/ package**
+1. Create `internal/interp/objects/` directory
+2. Move `objects_*.go` files → `objects/*.go` (remove prefix)
+3. Change package to `objects`
+4. Export necessary functions
+5. Move tests
+6. Update imports
+7. Test
+
+**Phase 2.3: Create functions/ package**
+1. Similar process for `functions_*.go` files
+
+**Phase 2.4: Create statements/ package**
+1. Similar process for `statements_*.go` files
+
+**Example: Before and After**
+
+**Before (current):**
+```go
+// internal/interp/builtins_math.go
+package interp
+
+func builtinAbs(args []Value) (Value, error) { ... }
+```
+
+**After (organized):**
+```go
+// internal/interp/builtins/math_basic.go
+package builtins
+
+// Abs returns the absolute value of a number
+func Abs(args []Value) (Value, error) { ... }
+```
+
+```go
+// internal/interp/interpreter.go
+package interp
+
+import "github.com/MeKo-Tech/go-dws/internal/interp/builtins"
+
+func (i *Interpreter) evalBuiltinCall(name string, args []Value) (Value, error) {
+    switch name {
+    case "Abs":
+        return builtins.Abs(args)
+    // ...
+    }
+}
+```
+
+### Recommendation
+
+**YES, proceed with subdirectory organization.** The benefits far outweigh the one-time migration cost. This is standard Go practice and will make the codebase much more maintainable long-term.
 
 ---
 
@@ -184,38 +332,39 @@ internal/interp/
 
 ---
 
-### 🔄 Phase 2: Subdirectory Organization - NOT STARTED
+### 🔄 Phase 2: Subdirectory Organization - READY TO START
 
 **Current State:**
 - All files remain in flat directory structure
-- No `builtins/`, `objects/`, `functions/`, `statements/`, `tests/` subdirectories created
-- File count: `internal/interp/` still has 116 Go files in root directory
+- File count: `internal/interp/` has 116 Go files in root directory
+- Prefixed naming provides some organization
 
-**Original Plan:**
+**Target Structure:**
 ```
 internal/interp/
-├── builtins/          # Not created
-├── objects/           # Not created
-├── functions/         # Not created
-├── statements/        # Not created
-├── values/            # Not created
-└── tests/             # Not created
+├── builtins/          # Package builtins - all builtin functions
+├── objects/           # Package objects - OOP features
+├── functions/         # Package functions - function call handling
+├── statements/        # Package statements - statement evaluation
+└── ...                # Core interpreter files remain in root
 ```
 
-**Decision Point:** Should subdirectory organization proceed, or is the flat structure with prefixed filenames (e.g., `objects_*.go`, `functions_*.go`) acceptable?
+**Decision: PROCEED with subdirectory organization**
 
-**Benefits of current approach:**
-- ✅ File splitting achieved without import path changes
-- ✅ No package boundary complications
-- ✅ Easier to navigate with prefixed names
-- ✅ Simpler refactoring process
+This is standard Go practice and will provide significant benefits:
 
-**Drawbacks:**
-- ❌ Still 116 files in single directory
-- ❌ Tests mixed with implementation
-- ❌ Less clear logical grouping
+✅ **Idiomatic Go** - Follows Go conventions
+✅ **Clear package boundaries** - Better encapsulation
+✅ **Tests with code** - Side-by-side as Go convention
+✅ **Reduces root directory** - From 116 to ~15 files
+✅ **Better maintainability** - Easier to work with smaller packages
 
-**Recommendation:** Complete Phase 1 (math split), then evaluate if subdirectory organization is worth the additional complexity.
+**The one-time migration cost is worth it for long-term maintainability.**
+
+**Next Steps:**
+1. Complete Phase 1.5 (split builtins_math.go)
+2. Start Phase 2.1 (create builtins/ package and move files)
+3. Continue with objects/, functions/, statements/ packages
 
 ---
 
@@ -520,24 +669,34 @@ pkg/
 
 ## Conclusion
 
-Phase 1 of the refactoring has been largely successful. The most critical large files have been split into smaller, manageable components with clear naming conventions:
+Phase 1 of the refactoring has been successful, and Phase 2 is ready to proceed.
 
-**Achievements:**
+**Phase 1 Achievements:**
 - ✅ Eliminated all files over 50KB
 - ✅ Split 4 major files into 17 smaller files
-- ✅ Maintained flat directory structure (avoided complex package reorganization)
-- ✅ Used clear prefixing (objects_*, functions_*, statements_*) for easy navigation
+- ✅ Clear naming conventions (objects_*, functions_*, statements_*, builtins_*)
+- ⏳ One remaining split: `builtins_math.go` → 3 files
 
-**Next Steps:**
-1. **Complete Phase 1:** Split `builtins_math.go` into 3 files
-2. **Evaluate Phase 2:** Decide if subdirectory organization is necessary or if the current flat structure with prefixed names is sufficient
-3. **Consider other packages:** Evaluate if `semantic/`, `bytecode/`, and `parser/` packages need similar treatment
+**Phase 2 Plan:**
+After reviewing the flat structure approach, **subdirectory organization is recommended** as the next step. This is idiomatic Go and provides significant long-term benefits:
 
-**Key Principle:**
-The current approach (file splitting with prefix naming in flat structure) has achieved the primary goal of reducing file sizes without the complexity of package reorganization. This may be the optimal balance for this project.
+1. **Complete Phase 1.5:** Split `builtins_math.go`
+2. **Start Phase 2:** Create subdirectory packages
+   - Phase 2.1: `internal/interp/builtins/` package
+   - Phase 2.2: `internal/interp/objects/` package
+   - Phase 2.3: `internal/interp/functions/` package
+   - Phase 2.4: `internal/interp/statements/` package
+3. **Maintain Go conventions:** Tests side-by-side with implementation
+4. **Consider other packages:** Apply similar treatment to `semantic/`, `bytecode/` if beneficial
+
+**Key Principles:**
+- Follow idiomatic Go package structure
+- Tests with implementation (not in separate directory)
+- Clear package boundaries for better encapsulation
+- One-time migration cost is worth long-term maintainability
 
 ---
 
-**Document Version:** 2.0
+**Document Version:** 2.1
 **Last Updated:** 2025-11-11
-**Status:** Phase 1 mostly complete; Phase 2+ under review
+**Status:** Phase 1 nearly complete; Phase 2 recommended and ready to start
