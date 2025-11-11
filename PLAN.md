@@ -511,31 +511,41 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **MEDIUM PRIORITY**:
 
-- [ ] 9.17.9.8 Infinity: Float - Infinity constant
+- [x] 9.17.9.8 Infinity: Float - Infinity constant
   - Implementation: math.Inf(1)
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
-- [ ] 9.17.9.9 NaN: Float - Not-a-Number constant (already partially implemented?)
+- [x] 9.17.9.9 NaN: Float - Not-a-Number constant
   - Implementation: math.NaN()
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
-- [ ] 9.17.9.10 IsFinite(x: Float): Boolean - Check if number is finite
+- [x] 9.17.9.10 IsFinite(x: Float): Boolean - Check if number is finite
   - Implementation: !math.IsInf(x, 0) && !math.IsNaN(x)
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
-- [ ] 9.17.9.11 IsInfinite(x: Float): Boolean - Check if number is infinite
+- [x] 9.17.9.11 IsInfinite(x: Float): Boolean - Check if number is infinite
   - Implementation: math.IsInf(x, 0)
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
-- [ ] 9.17.9.12 IntPower(base: Float, exponent: Integer): Float
-  - Faster integer exponentiation
-  - Implementation: Loop-based power
+- [x] 9.17.9.12 IntPower(base: Float, exponent: Integer): Float
+  - Faster integer exponentiation (exponentiation by squaring)
+  - Implementation: Loop-based power with bit operations
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
-- [ ] 9.17.9.13 DivMod(dividend, divisor: Integer; var quotient, remainder: Integer)
+- [x] 9.17.9.13 DivMod(dividend, divisor: Integer; var quotient, remainder: Integer)
   - Integer division with remainder (var parameters)
   - Implementation: quotient = dividend / divisor, remainder = dividend % divisor
+  - ✅ Implemented in AST interpreter only (bytecode VM pending var parameter support)
 
-- [ ] 9.17.9.14 RandSeed: Integer - Get current random seed
+- [x] 9.17.9.14 RandSeed: Integer - Get current random seed
   - Return current PRNG seed value
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
-- [ ] 9.17.9.15 RandG: Float - Gaussian random number
+- [x] 9.17.9.15 RandG: Float - Gaussian random number
   - Box-Muller transform for normal distribution
+  - ✅ Implemented in both AST interpreter and bytecode VM
+
+**Status**: MEDIUM priority items ✅ COMPLETED (7/8 in bytecode VM, 8/8 in AST interpreter)
 
 **LOW PRIORITY** (Advanced Math):
 

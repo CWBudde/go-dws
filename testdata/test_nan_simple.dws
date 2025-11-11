@@ -1,0 +1,3 @@
+// Simple test for NaN
+var x := NaN();
+PrintLn('NaN: ' + FloatToStr(x));

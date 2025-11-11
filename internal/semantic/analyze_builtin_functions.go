@@ -211,6 +211,22 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeFrac(args, callExpr), true
 	case "int":
 		return a.analyzeInt(args, callExpr), true
+	case "infinity":
+		return a.analyzeInfinity(args, callExpr), true
+	case "nan":
+		return a.analyzeNaN(args, callExpr), true
+	case "isfinite":
+		return a.analyzeIsFinite(args, callExpr), true
+	case "isinfinite":
+		return a.analyzeIsInfinite(args, callExpr), true
+	case "intpower":
+		return a.analyzeIntPower(args, callExpr), true
+	case "randseed":
+		return a.analyzeRandSeed(args, callExpr), true
+	case "randg":
+		return a.analyzeRandG(args, callExpr), true
+	case "divmod":
+		return a.analyzeDivMod(args, callExpr), true
 
 	// Math Functions - Rounding
 	case "round":

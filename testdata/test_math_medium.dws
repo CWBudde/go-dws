@@ -1,0 +1,51 @@
+// Test MEDIUM priority math functions
+
+// Test Infinity
+var inf := Infinity();
+PrintLn('Infinity: ' + FloatToStr(inf));
+
+// Test NaN
+var nanValue := NaN();
+PrintLn('NaN: ' + FloatToStr(nanValue));
+
+// Test IsFinite
+PrintLn('IsFinite(3.14): ' + BoolToStr(IsFinite(3.14)));
+PrintLn('IsFinite(Infinity()): ' + BoolToStr(IsFinite(Infinity())));
+PrintLn('IsFinite(NaN()): ' + BoolToStr(IsFinite(NaN())));
+
+// Test IsInfinite
+PrintLn('IsInfinite(3.14): ' + BoolToStr(IsInfinite(3.14)));
+PrintLn('IsInfinite(Infinity()): ' + BoolToStr(IsInfinite(Infinity())));
+PrintLn('IsInfinite(NaN()): ' + BoolToStr(IsInfinite(NaN())));
+
+// Test IntPower
+PrintLn('IntPower(2, 0): ' + FloatToStr(IntPower(2, 0)));
+PrintLn('IntPower(2, 3): ' + FloatToStr(IntPower(2, 3)));
+PrintLn('IntPower(3, 4): ' + FloatToStr(IntPower(3, 4)));
+PrintLn('IntPower(10, 5): ' + FloatToStr(IntPower(10, 5)));
+PrintLn('IntPower(2, -2): ' + FloatToStr(IntPower(2, -2)));
+PrintLn('IntPower(-2, 3): ' + FloatToStr(IntPower(-2, 3)));
+
+// Test DivMod
+var q1, r1: Integer;
+DivMod(17, 5, q1, r1);
+PrintLn('DivMod(17, 5): quotient=' + IntToStr(q1) + ', remainder=' + IntToStr(r1));
+
+var q2, r2: Integer;
+DivMod(100, 7, q2, r2);
+PrintLn('DivMod(100, 7): quotient=' + IntToStr(q2) + ', remainder=' + IntToStr(r2));
+
+var q3, r3: Integer;
+DivMod(-17, 5, q3, r3);
+PrintLn('DivMod(-17, 5): quotient=' + IntToStr(q3) + ', remainder=' + IntToStr(r3));
+
+// Test RandSeed getter
+SetRandSeed(42);
+var seed := RandSeed();
+PrintLn('RandSeed after SetRandSeed(42): ' + IntToStr(seed));
+
+// Test RandG (Gaussian random)
+SetRandSeed(12345);
+PrintLn('RandG() sample 1: ' + FloatToStr(RandG()));
+PrintLn('RandG() sample 2: ' + FloatToStr(RandG()));
+PrintLn('RandG() sample 3: ' + FloatToStr(RandG()));

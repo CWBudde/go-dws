@@ -1485,6 +1485,17 @@ func (c *Compiler) initBuiltins() {
 	c.addBuiltinGlobal("Int")
 	c.addBuiltinGlobal("Log10")
 	c.addBuiltinGlobal("LogN")
+
+	// MEDIUM PRIORITY Math Functions
+	c.addBuiltinGlobal("Infinity")
+	c.addBuiltinGlobal("NaN")
+	c.addBuiltinGlobal("IsFinite")
+	c.addBuiltinGlobal("IsInfinite")
+	c.addBuiltinGlobal("IntPower")
+	c.addBuiltinGlobal("RandSeed")
+	c.addBuiltinGlobal("RandG")
+	c.addBuiltinGlobal("SetRandSeed")
+	c.addBuiltinGlobal("Randomize")
 }
 
 func (c *Compiler) addBuiltinGlobal(name string) {

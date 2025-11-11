@@ -1,0 +1,60 @@
+// Test MEDIUM priority math functions (bytecode VM compatible - no DivMod)
+
+// Test Infinity
+var inf := Infinity();
+PrintLn('Infinity: ' + FloatToStr(inf));
+
+// Test NaN
+var nanValue := NaN();
+PrintLn('NaN: ' + FloatToStr(nanValue));
+
+// Test IsFinite
+if IsFinite(3.14) then
+    PrintLn('IsFinite(3.14): True')
+else
+    PrintLn('IsFinite(3.14): False');
+
+if IsFinite(Infinity()) then
+    PrintLn('IsFinite(Infinity()): True')
+else
+    PrintLn('IsFinite(Infinity()): False');
+
+if IsFinite(NaN()) then
+    PrintLn('IsFinite(NaN()): True')
+else
+    PrintLn('IsFinite(NaN()): False');
+
+// Test IsInfinite
+if IsInfinite(3.14) then
+    PrintLn('IsInfinite(3.14): True')
+else
+    PrintLn('IsInfinite(3.14): False');
+
+if IsInfinite(Infinity()) then
+    PrintLn('IsInfinite(Infinity()): True')
+else
+    PrintLn('IsInfinite(Infinity()): False');
+
+if IsInfinite(NaN()) then
+    PrintLn('IsInfinite(NaN()): True')
+else
+    PrintLn('IsInfinite(NaN()): False');
+
+// Test IntPower
+PrintLn('IntPower(2, 0): ' + FloatToStr(IntPower(2, 0)));
+PrintLn('IntPower(2, 3): ' + FloatToStr(IntPower(2, 3)));
+PrintLn('IntPower(3, 4): ' + FloatToStr(IntPower(3, 4)));
+PrintLn('IntPower(10, 5): ' + FloatToStr(IntPower(10, 5)));
+PrintLn('IntPower(2, -2): ' + FloatToStr(IntPower(2, -2)));
+PrintLn('IntPower(-2, 3): ' + FloatToStr(IntPower(-2, 3)));
+
+// Test RandSeed getter
+SetRandSeed(42);
+var seed := RandSeed();
+PrintLn('RandSeed after SetRandSeed(42): ' + IntToStr(seed));
+
+// Test RandG (Gaussian random)
+SetRandSeed(12345);
+PrintLn('RandG() sample 1: ' + FloatToStr(RandG()));
+PrintLn('RandG() sample 2: ' + FloatToStr(RandG()));
+PrintLn('RandG() sample 3: ' + FloatToStr(RandG()));

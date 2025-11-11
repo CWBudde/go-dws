@@ -123,6 +123,20 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinLog10(args)
 	case "LogN":
 		return i.builtinLogN(args)
+	case "Infinity":
+		return i.builtinInfinity(args)
+	case "NaN":
+		return i.builtinNaN(args)
+	case "IsFinite":
+		return i.builtinIsFinite(args)
+	case "IsInfinite":
+		return i.builtinIsInfinite(args)
+	case "IntPower":
+		return i.builtinIntPower(args)
+	case "RandSeed":
+		return i.builtinRandSeed(args)
+	case "RandG":
+		return i.builtinRandG(args)
 	case "IsNaN":
 		return i.builtinIsNaN(args)
 	case "Exp":
@@ -481,6 +495,8 @@ func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression
 		return i.builtinDecodeTime(args)
 	case "Swap":
 		return i.builtinSwap(args)
+	case "DivMod":
+		return i.builtinDivMod(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined var-param function: %s", name)
 	}
