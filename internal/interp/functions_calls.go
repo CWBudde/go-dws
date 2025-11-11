@@ -371,7 +371,7 @@ func normalizeBuiltinName(name string) string {
 		"frac": "Frac", "int": "Int", "log10": "Log10", "logn": "LogN",
 		"infinity": "Infinity", "nan": "NaN", "isfinite": "IsFinite",
 		"isinfinite": "IsInfinite", "intpower": "IntPower", "divmod": "DivMod",
-		"isnan": "IsNaN",
+		"isnan":      "IsNaN",
 		"unsigned32": "Unsigned32", "exp": "Exp", "ln": "Ln", "log2": "Log2",
 		"round": "Round", "trunc": "Trunc", "ceil": "Ceil", "floor": "Floor",
 		"low": "Low", "high": "High", "setlength": "SetLength", "add": "Add",

@@ -2513,6 +2513,11 @@ func builtinRandG(vm *VM, args []Value) (Value, error) {
 	u1 := vm.rand.Float64()
 	u2 := vm.rand.Float64()
 
+	// Ensure u1 is not zero or near-zero to avoid log(0)
+	if u1 < 1e-10 {
+		u1 = 1e-10
+	}
+
 	// Box-Muller transform
 	z0 := math.Sqrt(-2.0*math.Log(u1)) * math.Cos(2.0*math.Pi*u2)
 

@@ -1422,8 +1422,8 @@ func (i *Interpreter) builtinRandG(args []Value) Value {
 	u1 := i.rand.Float64()
 	u2 := i.rand.Float64()
 
-	// Ensure u1 is not zero to avoid log(0)
-	if u1 == 0 {
+	// Ensure u1 is not zero or near-zero to avoid log(0)
+	if u1 < 1e-10 {
 		u1 = 1e-10
 	}
 
