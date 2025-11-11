@@ -1,0 +1,63 @@
+// Test delimiter-based string functions
+
+// Test StrSplit
+var parts := StrSplit('one,two,three', ',');
+PrintLn(Length(parts));  // 3
+PrintLn(parts[0]);       // one
+PrintLn(parts[1]);       // two
+PrintLn(parts[2]);       // three
+
+// Test StrSplit with multi-char delimiter
+var parts2 := StrSplit('one::two::three', '::');
+PrintLn(Length(parts2)); // 3
+PrintLn(parts2[0]);      // one
+
+// Test StrJoin
+var joined := StrJoin(parts, '-');
+PrintLn(joined);         // one-two-three
+
+// Test StrArrayPack
+var arr := StrSplit('a,,b,,c', ',');
+PrintLn(Length(arr));    // 5
+var packed := StrArrayPack(arr);
+PrintLn(Length(packed)); // 3
+PrintLn(packed[0]);      // a
+PrintLn(packed[1]);      // b
+PrintLn(packed[2]);      // c
+
+// Test StrBefore
+PrintLn(StrBefore('hello/world', '/'));      // hello
+PrintLn(StrBefore('no-delimiter', '/'));     // (empty)
+PrintLn(StrBefore('a/b/c', '/'));            // a
+
+// Test StrBeforeLast
+PrintLn(StrBeforeLast('a/b/c', '/'));        // a/b
+PrintLn(StrBeforeLast('no-delimiter', '/'));  // (empty)
+
+// Test StrAfter
+PrintLn(StrAfter('hello/world', '/'));       // world
+PrintLn(StrAfter('no-delimiter', '/'));      // (empty)
+PrintLn(StrAfter('a/b/c', '/'));             // b/c
+
+// Test StrAfterLast
+PrintLn(StrAfterLast('a/b/c', '/'));         // c
+PrintLn(StrAfterLast('no-delimiter', '/'));   // (empty)
+
+// Test StrBetween
+PrintLn(StrBetween('<tag>content</tag>', '<tag>', '</tag>'));  // content
+PrintLn(StrBetween('no match', '<', '>'));                     // (empty)
+
+// Test IsDelimiter
+var str := 'hello world';
+PrintLn(IsDelimiter(' ', str, 6));  // True
+PrintLn(IsDelimiter(' ', str, 1));  // False
+PrintLn(IsDelimiter('aeiou', 'hello', 2));  // True (e is a vowel)
+
+// Test LastDelimiter
+PrintLn(IntToStr(LastDelimiter('/', 'a/b/c')));     // 4
+PrintLn(IntToStr(LastDelimiter('/', 'no-delim')));  // 0
+
+// Test FindDelimiter
+PrintLn(IntToStr(FindDelimiter('/', 'a/b/c', 1)));  // 2
+PrintLn(IntToStr(FindDelimiter('/', 'a/b/c', 3)));  // 4
+PrintLn(IntToStr(FindDelimiter('/', 'a/b/c', 6)));  // 0
