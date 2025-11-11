@@ -474,39 +474,40 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - [x] 9.17.9.1 Pi: Float - Mathematical constant π (3.141592...)
   - **HIGH** - Used in 30+ fixtures
   - Implementation: Return math.Pi constant
-  - ✅ Implemented in AST interpreter with semantic analysis
+  - ✅ Implemented as constant in semantic analyzer (DefineConst)
+  - ⚠️ Bytecode compiler support for constants pending
 
 - [x] 9.17.9.2 Sign(x: Float): Integer - Returns -1, 0, or 1
   - **HIGH** - Used in 25+ fixtures
   - Implementation: Simple comparison with 0
-  - ✅ Implemented in AST interpreter with semantic analysis
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
 - [x] 9.17.9.3 Odd(x: Integer): Boolean - Check if integer is odd
   - **HIGH** - Used in 20+ fixtures
   - Implementation: x mod 2 != 0
-  - ✅ Implemented in AST interpreter with semantic analysis
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
 - [x] 9.17.9.4 Frac(x: Float): Float - Fractional part of number
   - **HIGH** - Used in 20+ fixtures
   - Implementation: x - math.Floor(x)
-  - ✅ Implemented in AST interpreter with semantic analysis
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
 - [x] 9.17.9.5 Int(x: Float): Float - Integer part (returns Float)
   - **HIGH** - Used in 15+ fixtures
   - Different from Trunc - returns Float type
-  - ✅ Implemented in AST interpreter with semantic analysis
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
 - [x] 9.17.9.6 Log10(x: Float): Float - Base-10 logarithm
   - **HIGH** - Used in 15+ fixtures
   - Implementation: math.Log10
-  - ✅ Implemented in AST interpreter with semantic analysis
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
 - [x] 9.17.9.7 LogN(x, base: Float): Float - Logarithm with custom base
   - **MEDIUM** - Used in 10+ fixtures
   - Implementation: math.Log(x) / math.Log(base)
-  - ✅ Implemented in AST interpreter with semantic analysis
+  - ✅ Implemented in both AST interpreter and bytecode VM
 
-**NOTE**: Bytecode VM implementation for math functions pending (Phase 9.17.9.8+)
+**Status**: HIGH priority items ✅ COMPLETED for both AST interpreter and bytecode VM
 
 **MEDIUM PRIORITY**:
 
