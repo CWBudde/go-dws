@@ -119,8 +119,9 @@ func areTypesCompatibleForOperator(actualType, declaredType Type) bool {
 	declaredArray, declaredIsArray := declaredType.(*ArrayType)
 
 	if actualIsArray && declaredIsArray {
-		// Both must be dynamic arrays (array of const is dynamic)
-		if !actualArray.IsDynamic() || !declaredArray.IsDynamic() {
+		// Declared array must be dynamic (array of const is dynamic)
+		// Actual array can be static or dynamic (static arrays can be passed to dynamic array parameters)
+		if !declaredArray.IsDynamic() {
 			return false
 		}
 

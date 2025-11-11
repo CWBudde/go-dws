@@ -287,6 +287,17 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 				}
 			}
 
+			// Task 9.17.11b: Unwrap Variant when assigning to typed variables
+			if sourceType == "VARIANT" && targetType != "VARIANT" {
+				value = unwrapVariant(value)
+				// After unwrapping, try conversion again if needed
+				if value.Type() != targetType {
+					if converted, ok := i.tryImplicitConversion(value, targetType); ok {
+						value = converted
+					}
+				}
+			}
+
 			// Box value if target is a Variant
 			if targetType == "VARIANT" && sourceType != "VARIANT" {
 				value = boxVariant(value)
@@ -329,6 +340,18 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 		if targetType != sourceType {
 			if converted, ok := i.tryImplicitConversion(value, targetType); ok {
 				value = converted
+			}
+		}
+
+		// Task 9.17.11b: Unwrap Variant when assigning to typed variables
+		// This enables: var str: String; var items: array of const; str := items[0]
+		if sourceType == "VARIANT" && targetType != "VARIANT" {
+			value = unwrapVariant(value)
+			// After unwrapping, try conversion again if needed
+			if value.Type() != targetType {
+				if converted, ok := i.tryImplicitConversion(value, targetType); ok {
+					value = converted
+				}
 			}
 		}
 
