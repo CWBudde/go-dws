@@ -150,12 +150,11 @@ func (a *Analyzer) synthesizeImplicitParameterlessConstructor(classType *types.C
 				IsAbstract:           false,
 				IsForwarded:          false,
 				IsClassMethod:        false,
-				HasOverloadDirective: true, // Mark as part of overload set
+				HasOverloadDirective: true,                      // Mark as part of overload set
 				Visibility:           int(ast.VisibilityPublic), // Public access
 			}
 
 			// Add to class constructor maps
-			// Use the same case as the existing constructor name to avoid duplicates
 			lowerName := strings.ToLower(ctorName)
 			if _, exists := classType.Constructors[lowerName]; !exists {
 				classType.Constructors[lowerName] = funcType

@@ -115,13 +115,6 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	// This ensures inherited virtual constructors are properly found
 	constructorOverloads := i.getMethodOverloadsInHierarchy(classInfo, constructorName, false)
 
-	// Debug: Check how many overloads we found
-	// fmt.Printf("Found %d constructor overloads for %s.%s\n", len(constructorOverloads), className, constructorName)
-	// for idx, ctor := range constructorOverloads {
-	// 	fmt.Printf("  [%d] %d params\n", idx, len(ctor.Parameters))
-	// }
-	_ = constructorOverloads // Prevent unused variable error if debug is removed
-
 	// Task 9.68: Special handling for implicit parameterless constructor
 	// If calling with 0 arguments and no parameterless constructor exists,
 	// allow it (just initialize fields with default values)

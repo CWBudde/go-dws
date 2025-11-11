@@ -284,15 +284,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Task 9.19: Synthesize implicit parameterless constructor if any constructor has 'overload'
 	i.synthesizeImplicitParameterlessConstructor(classInfo)
 
-	// Debug: Print constructor overloads after synthesis
-	// fmt.Printf("DEBUG: Class %s has %d constructors\n", classInfo.Name, len(classInfo.ConstructorOverloads))
-	// for name, overloads := range classInfo.ConstructorOverloads {
-	// 	fmt.Printf("  Constructor %s: %d overloads\n", name, len(overloads))
-	// 	for i, ctor := range overloads {
-	// 		fmt.Printf("    [%d] %d params, IsOverload=%v\n", i, len(ctor.Parameters), ctor.IsOverload)
-	// 	}
-	// }
-
 	// Register properties
 	// Properties are registered after fields and methods so they can reference them
 	for _, propDecl := range cd.Properties {
@@ -519,39 +510,27 @@ func (i *Interpreter) synthesizeImplicitParameterlessConstructor(classInfo *Clas
 
 		// If this constructor set has 'overload' but no parameterless version, synthesize one
 		if hasOverloadDirective && !hasParameterlessOverload {
-			// Double-check that we haven't already added an implicit constructor
-			// (this function should only be called once per class, but let's be safe)
-			alreadyHasImplicit := false
-			for _, ctor := range overloads {
-				if len(ctor.Parameters) == 0 && ctor.Body == nil {
-					alreadyHasImplicit = true
-					break
-				}
+			// Create a minimal constructor AST node (just for runtime - no actual body needed)
+			// The interpreter will initialize fields with default values when no constructor body exists
+			implicitConstructor := &ast.FunctionDecl{
+				Name:          &ast.Identifier{Value: ctorName},
+				Parameters:    []*ast.Parameter{}, // No parameters
+				ReturnType:    nil,                // Constructors don't have explicit return types
+				Body:          nil,                // No body - just field initialization
+				IsConstructor: true,
+				IsOverload:    true,
 			}
 
-			if !alreadyHasImplicit {
-				// Create a minimal constructor AST node (just for runtime - no actual body needed)
-				// The interpreter will initialize fields with default values when no constructor body exists
-				implicitConstructor := &ast.FunctionDecl{
-					Name:          &ast.Identifier{Value: ctorName},
-					Parameters:    []*ast.Parameter{}, // No parameters
-					ReturnType:    nil,                // Constructors don't have explicit return types
-					Body:          nil,                // No body - just field initialization
-					IsConstructor: true,
-					IsOverload:    true,
-				}
-
-				// Add to class constructor maps
-				// Task 9.19: Use normalized (lowercase) key for case-insensitive matching
-				normalizedName := strings.ToLower(ctorName)
-				if _, exists := classInfo.Constructors[normalizedName]; !exists {
-					classInfo.Constructors[normalizedName] = implicitConstructor
-				}
-				classInfo.ConstructorOverloads[normalizedName] = append(
-					classInfo.ConstructorOverloads[normalizedName],
-					implicitConstructor,
-				)
+			// Add to class constructor maps
+			// Task 9.19: Use normalized (lowercase) key for case-insensitive matching
+			normalizedName := strings.ToLower(ctorName)
+			if _, exists := classInfo.Constructors[normalizedName]; !exists {
+				classInfo.Constructors[normalizedName] = implicitConstructor
 			}
+			classInfo.ConstructorOverloads[normalizedName] = append(
+				classInfo.ConstructorOverloads[normalizedName],
+				implicitConstructor,
+			)
 		}
 	}
 }
