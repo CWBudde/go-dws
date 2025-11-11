@@ -99,6 +99,72 @@ func (a *Analyzer) synthesizeDefaultConstructor(classType *types.ClassType) {
 	classType.AddConstructorOverload(constructorName, methodInfo)
 }
 
+// synthesizeImplicitParameterlessConstructor generates an implicit parameterless constructor
+// when at least one constructor has the 'overload' directive (Task 9.19).
+//
+// In DWScript, when a constructor is marked with 'overload', the compiler implicitly provides
+// a parameterless constructor if one doesn't already exist. This allows code like:
+//
+//	type TObj = class
+//	  constructor Create(x: Integer); overload;
+//	end;
+//	var o := TObj.Create;  // Calls implicit parameterless constructor
+//	var p := TObj.Create(5);  // Calls explicit overload with parameter
+func (a *Analyzer) synthesizeImplicitParameterlessConstructor(classType *types.ClassType) {
+	// For each constructor name, check if it has the 'overload' directive
+	// If so, ensure there's a parameterless overload
+	for ctorName, overloads := range classType.ConstructorOverloads {
+		hasOverloadDirective := false
+		hasParameterlessOverload := false
+
+		// Check if any overload has the 'overload' directive
+		// and if a parameterless overload already exists
+		for _, methodInfo := range overloads {
+			if methodInfo.HasOverloadDirective {
+				hasOverloadDirective = true
+			}
+			if len(methodInfo.Signature.Parameters) == 0 {
+				hasParameterlessOverload = true
+			}
+		}
+
+		// If this constructor set has 'overload' but no parameterless version, synthesize one
+		if hasOverloadDirective && !hasParameterlessOverload {
+			// Create function type: no parameters, returns the class type
+			funcType := types.NewFunctionTypeWithMetadata(
+				[]types.Type{},  // No parameters
+				[]string{},      // No parameter names
+				[]interface{}{}, // No default values
+				[]bool{},        // No lazy params
+				[]bool{},        // No var params
+				[]bool{},        // No const params
+				classType,       // Returns instance of the class
+			)
+
+			// Create method info for the implicit constructor
+			// Mark it as having overload directive to be consistent with other constructors
+			methodInfo := &types.MethodInfo{
+				Signature:            funcType,
+				IsVirtual:            false,
+				IsOverride:           false,
+				IsAbstract:           false,
+				IsForwarded:          false,
+				IsClassMethod:        false,
+				HasOverloadDirective: true, // Mark as part of overload set
+				Visibility:           int(ast.VisibilityPublic), // Public access
+			}
+
+			// Add to class constructor maps
+			// Use the same case as the existing constructor name to avoid duplicates
+			lowerName := strings.ToLower(ctorName)
+			if _, exists := classType.Constructors[lowerName]; !exists {
+				classType.Constructors[lowerName] = funcType
+			}
+			classType.AddConstructorOverload(ctorName, methodInfo)
+		}
+	}
+}
+
 // checkMethodOverriding checks if overridden methods have compatible signatures
 func (a *Analyzer) checkMethodOverriding(class, parent *types.ClassType) {
 	for methodName, childMethodType := range class.Methods {

@@ -154,11 +154,14 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		// This prevents duplication when a child class overrides a parent method.
 
 		// Copy constructors
+		// Task 9.19: Normalize constructor names to lowercase for case-insensitive matching
 		for name, constructor := range parentClass.Constructors {
-			classInfo.Constructors[name] = constructor
+			normalizedName := strings.ToLower(name)
+			classInfo.Constructors[normalizedName] = constructor
 		}
 		for name, overloads := range parentClass.ConstructorOverloads {
-			classInfo.ConstructorOverloads[name] = append([]*ast.FunctionDecl(nil), overloads...)
+			normalizedName := strings.ToLower(name)
+			classInfo.ConstructorOverloads[normalizedName] = append([]*ast.FunctionDecl(nil), overloads...)
 		}
 
 		// Copy operator overloads
@@ -218,10 +221,12 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 
 		if method.IsConstructor {
-			classInfo.Constructors[method.Name.Value] = method
+			// Task 9.19: Normalize constructor names to lowercase for case-insensitive matching
+			normalizedName := strings.ToLower(method.Name.Value)
+			classInfo.Constructors[normalizedName] = method
 			// In DWScript, a child constructor with the same name and signature HIDES the parent's,
 			// regardless of whether it has the `override` keyword or not
-			existingOverloads := classInfo.ConstructorOverloads[method.Name.Value]
+			existingOverloads := classInfo.ConstructorOverloads[normalizedName]
 			replaced := false
 			for i, existingMethod := range existingOverloads {
 				// Check if signatures match (same number and types of parameters)
@@ -237,7 +242,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 				existingOverloads = append(existingOverloads, method)
 			}
 			// Write the modified slice back to the map
-			classInfo.ConstructorOverloads[method.Name.Value] = existingOverloads
+			classInfo.ConstructorOverloads[normalizedName] = existingOverloads
 		}
 	}
 
@@ -246,11 +251,13 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		classInfo.Constructor = constructor
 	}
 	if cd.Constructor != nil {
-		classInfo.Constructors[cd.Constructor.Name.Value] = cd.Constructor
+		// Task 9.19: Normalize constructor names to lowercase for case-insensitive matching
+		normalizedName := strings.ToLower(cd.Constructor.Name.Value)
+		classInfo.Constructors[normalizedName] = cd.Constructor
 
 		// In DWScript, a child constructor with the same name and signature HIDES the parent's,
 		// regardless of whether it has the `override` keyword or not
-		existingOverloads := classInfo.ConstructorOverloads[cd.Constructor.Name.Value]
+		existingOverloads := classInfo.ConstructorOverloads[normalizedName]
 		replaced := false
 		for i, existingMethod := range existingOverloads {
 			// Check if signatures match (same number and types of parameters)
@@ -266,13 +273,25 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			existingOverloads = append(existingOverloads, cd.Constructor)
 		}
 		// Write the modified slice back to the map
-		classInfo.ConstructorOverloads[cd.Constructor.Name.Value] = existingOverloads
+		classInfo.ConstructorOverloads[normalizedName] = existingOverloads
 	}
 
 	// Identify destructor (method named "Destroy")
 	if destructor, exists := classInfo.Methods["Destroy"]; exists {
 		classInfo.Destructor = destructor
 	}
+
+	// Task 9.19: Synthesize implicit parameterless constructor if any constructor has 'overload'
+	i.synthesizeImplicitParameterlessConstructor(classInfo)
+
+	// Debug: Print constructor overloads after synthesis
+	// fmt.Printf("DEBUG: Class %s has %d constructors\n", classInfo.Name, len(classInfo.ConstructorOverloads))
+	// for name, overloads := range classInfo.ConstructorOverloads {
+	// 	fmt.Printf("  Constructor %s: %d overloads\n", name, len(overloads))
+	// 	for i, ctor := range overloads {
+	// 		fmt.Printf("    [%d] %d params, IsOverload=%v\n", i, len(ctor.Parameters), ctor.IsOverload)
+	// 	}
+	// }
 
 	// Register properties
 	// Properties are registered after fields and methods so they can reference them
@@ -467,6 +486,74 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 	i.interfaces[strings.ToLower(interfaceInfo.Name)] = interfaceInfo
 
 	return &NilValue{}
+}
+
+// synthesizeImplicitParameterlessConstructor generates an implicit parameterless constructor
+// when at least one constructor has the 'overload' directive (Task 9.19).
+//
+// In DWScript, when a constructor is marked with 'overload', the runtime implicitly provides
+// a parameterless constructor if one doesn't already exist. This allows code like:
+//
+//	type TObj = class
+//	  constructor Create(x: Integer); overload;
+//	end;
+//	var o := TObj.Create;  // Calls implicit parameterless constructor
+//	var p := TObj.Create(5);  // Calls explicit overload with parameter
+func (i *Interpreter) synthesizeImplicitParameterlessConstructor(classInfo *ClassInfo) {
+	// For each constructor name, check if it has the 'overload' directive
+	// If so, ensure there's a parameterless overload
+	for ctorName, overloads := range classInfo.ConstructorOverloads {
+		hasOverloadDirective := false
+		hasParameterlessOverload := false
+
+		// Check if any overload has the 'overload' directive
+		// and if a parameterless overload already exists
+		for _, ctor := range overloads {
+			if ctor.IsOverload {
+				hasOverloadDirective = true
+			}
+			if len(ctor.Parameters) == 0 {
+				hasParameterlessOverload = true
+			}
+		}
+
+		// If this constructor set has 'overload' but no parameterless version, synthesize one
+		if hasOverloadDirective && !hasParameterlessOverload {
+			// Double-check that we haven't already added an implicit constructor
+			// (this function should only be called once per class, but let's be safe)
+			alreadyHasImplicit := false
+			for _, ctor := range overloads {
+				if len(ctor.Parameters) == 0 && ctor.Body == nil {
+					alreadyHasImplicit = true
+					break
+				}
+			}
+
+			if !alreadyHasImplicit {
+				// Create a minimal constructor AST node (just for runtime - no actual body needed)
+				// The interpreter will initialize fields with default values when no constructor body exists
+				implicitConstructor := &ast.FunctionDecl{
+					Name:          &ast.Identifier{Value: ctorName},
+					Parameters:    []*ast.Parameter{}, // No parameters
+					ReturnType:    nil,                // Constructors don't have explicit return types
+					Body:          nil,                // No body - just field initialization
+					IsConstructor: true,
+					IsOverload:    true,
+				}
+
+				// Add to class constructor maps
+				// Task 9.19: Use normalized (lowercase) key for case-insensitive matching
+				normalizedName := strings.ToLower(ctorName)
+				if _, exists := classInfo.Constructors[normalizedName]; !exists {
+					classInfo.Constructors[normalizedName] = implicitConstructor
+				}
+				classInfo.ConstructorOverloads[normalizedName] = append(
+					classInfo.ConstructorOverloads[normalizedName],
+					implicitConstructor,
+				)
+			}
+		}
+	}
 }
 
 func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {

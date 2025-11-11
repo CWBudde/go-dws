@@ -59,8 +59,9 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		Body:          &ast.BlockStatement{Statements: []ast.Statement{}}, // Empty body
 		IsConstructor: true,
 	}
-	objectClass.Constructors["Create"] = createConstructor
-	objectClass.ConstructorOverloads["Create"] = []*ast.FunctionDecl{createConstructor}
+	// Task 9.19: Use lowercase key for case-insensitive constructor matching
+	objectClass.Constructors["create"] = createConstructor
+	objectClass.ConstructorOverloads["create"] = []*ast.FunctionDecl{createConstructor}
 
 	i.classes["TObject"] = objectClass
 
