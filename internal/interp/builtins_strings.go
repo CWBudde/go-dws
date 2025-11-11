@@ -1480,3 +1480,354 @@ func (i *Interpreter) builtinFindDelimiter(args []Value) Value {
 	// No delimiter found
 	return &IntegerValue{Value: 0}
 }
+
+// builtinPadLeft implements the PadLeft() built-in function.
+// It pads a string on the left to reach a minimum width.
+// PadLeft(str, count) - pads with spaces
+// PadLeft(str, count, char) - pads with specified character
+func (i *Interpreter) builtinPadLeft(args []Value) Value {
+	if len(args) < 2 || len(args) > 3 {
+		return i.newErrorWithLocation(i.currentNode, "PadLeft() expects 2 or 3 arguments, got %d", len(args))
+	}
+
+	// First argument: string to pad
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "PadLeft() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: count (minimum width)
+	countVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "PadLeft() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	str := strVal.Value
+	count := int(countVal.Value)
+
+	// Default padding character is space
+	padChar := " "
+
+	// Optional third argument: padding character
+	if len(args) == 3 {
+		charVal, ok := args[2].(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "PadLeft() expects string as third argument, got %s", args[2].Type())
+		}
+		// Get the first character (rune-based to handle UTF-8)
+		if runeLength(charVal.Value) > 0 {
+			firstRune, _ := runeAt(charVal.Value, 1)
+			padChar = string(firstRune)
+		}
+	}
+
+	// Get the current length in runes
+	strLen := runeLength(str)
+
+	// If string is already at or beyond the desired length, return as-is
+	if strLen >= count {
+		return &StringValue{Value: str}
+	}
+
+	// Pad on the left
+	padding := strings.Repeat(padChar, count-strLen)
+	return &StringValue{Value: padding + str}
+}
+
+// builtinPadRight implements the PadRight() built-in function.
+// It pads a string on the right to reach a minimum width.
+// PadRight(str, count) - pads with spaces
+// PadRight(str, count, char) - pads with specified character
+func (i *Interpreter) builtinPadRight(args []Value) Value {
+	if len(args) < 2 || len(args) > 3 {
+		return i.newErrorWithLocation(i.currentNode, "PadRight() expects 2 or 3 arguments, got %d", len(args))
+	}
+
+	// First argument: string to pad
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "PadRight() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: count (minimum width)
+	countVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "PadRight() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	str := strVal.Value
+	count := int(countVal.Value)
+
+	// Default padding character is space
+	padChar := " "
+
+	// Optional third argument: padding character
+	if len(args) == 3 {
+		charVal, ok := args[2].(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "PadRight() expects string as third argument, got %s", args[2].Type())
+		}
+		// Get the first character (rune-based to handle UTF-8)
+		if runeLength(charVal.Value) > 0 {
+			firstRune, _ := runeAt(charVal.Value, 1)
+			padChar = string(firstRune)
+		}
+	}
+
+	// Get the current length in runes
+	strLen := runeLength(str)
+
+	// If string is already at or beyond the desired length, return as-is
+	if strLen >= count {
+		return &StringValue{Value: str}
+	}
+
+	// Pad on the right
+	padding := strings.Repeat(padChar, count-strLen)
+	return &StringValue{Value: str + padding}
+}
+
+// builtinStrDeleteLeft implements the StrDeleteLeft() built-in function.
+// It deletes N leftmost characters from a string.
+// StrDeleteLeft(str, count) - removes first count characters
+func (i *Interpreter) builtinStrDeleteLeft(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "StrDeleteLeft() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrDeleteLeft() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: count
+	countVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrDeleteLeft() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	str := strVal.Value
+	count := int(countVal.Value)
+
+	// Handle edge cases
+	if count <= 0 {
+		return &StringValue{Value: str}
+	}
+
+	// Convert to rune-based for UTF-8 support
+	strRunes := []rune(str)
+	strLen := len(strRunes)
+
+	// If count >= length, return empty string
+	if count >= strLen {
+		return &StringValue{Value: ""}
+	}
+
+	// Return substring from count to end
+	return &StringValue{Value: string(strRunes[count:])}
+}
+
+// builtinStrDeleteRight implements the StrDeleteRight() built-in function.
+// It deletes N rightmost characters from a string.
+// StrDeleteRight(str, count) - removes last count characters
+func (i *Interpreter) builtinStrDeleteRight(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "StrDeleteRight() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrDeleteRight() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: count
+	countVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StrDeleteRight() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	str := strVal.Value
+	count := int(countVal.Value)
+
+	// Handle edge cases
+	if count <= 0 {
+		return &StringValue{Value: str}
+	}
+
+	// Convert to rune-based for UTF-8 support
+	strRunes := []rune(str)
+	strLen := len(strRunes)
+
+	// If count >= length, return empty string
+	if count >= strLen {
+		return &StringValue{Value: ""}
+	}
+
+	// Return substring from start to (length - count)
+	return &StringValue{Value: string(strRunes[:strLen-count])}
+}
+
+// builtinReverseString implements the ReverseString() built-in function.
+// It reverses the character order of a string.
+// ReverseString(str) - returns reversed string
+func (i *Interpreter) builtinReverseString(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "ReverseString() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ReverseString() expects string as argument, got %s", args[0].Type())
+	}
+
+	str := strVal.Value
+
+	// Convert to rune-based for UTF-8 support
+	strRunes := []rune(str)
+
+	// Reverse the runes
+	for i, j := 0, len(strRunes)-1; i < j; i, j = i+1, j-1 {
+		strRunes[i], strRunes[j] = strRunes[j], strRunes[i]
+	}
+
+	return &StringValue{Value: string(strRunes)}
+}
+
+// builtinQuotedStr implements the QuotedStr() built-in function.
+// It adds quotes around a string, escaping internal quotes by doubling them.
+// QuotedStr(str) - uses single quotes (default)
+// QuotedStr(str, quoteChar) - uses specified quote character
+func (i *Interpreter) builtinQuotedStr(args []Value) Value {
+	if len(args) < 1 || len(args) > 2 {
+		return i.newErrorWithLocation(i.currentNode, "QuotedStr() expects 1 or 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string to quote
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "QuotedStr() expects string as first argument, got %s", args[0].Type())
+	}
+
+	str := strVal.Value
+
+	// Default quote character is single quote
+	quoteChar := "'"
+
+	// Optional second argument: quote character
+	if len(args) == 2 {
+		quoteCharVal, ok := args[1].(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "QuotedStr() expects string as second argument, got %s", args[1].Type())
+		}
+		// Get the first character (rune-based to handle UTF-8)
+		if runeLength(quoteCharVal.Value) > 0 {
+			firstRune, _ := runeAt(quoteCharVal.Value, 1)
+			quoteChar = string(firstRune)
+		}
+	}
+
+	// Escape internal quotes by doubling them
+	escaped := strings.ReplaceAll(str, quoteChar, quoteChar+quoteChar)
+
+	// Wrap with quotes
+	return &StringValue{Value: quoteChar + escaped + quoteChar}
+}
+
+// builtinStringOfString implements the StringOfString() built-in function.
+// It repeats a string N times.
+// StringOfString(str, count) - returns string repeated count times
+func (i *Interpreter) builtinStringOfString(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "StringOfString() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string to repeat
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StringOfString() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: count (number of repetitions)
+	countVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StringOfString() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	str := strVal.Value
+	count := int(countVal.Value)
+
+	// Handle edge cases
+	if count <= 0 {
+		return &StringValue{Value: ""}
+	}
+
+	// Repeat the string
+	result := strings.Repeat(str, count)
+	return &StringValue{Value: result}
+}
+
+// builtinDupeString implements the DupeString() built-in function.
+// It is an alias for StringOfString - repeats a string N times.
+// DupeString(str, count) - returns string repeated count times
+func (i *Interpreter) builtinDupeString(args []Value) Value {
+	// DupeString is just an alias for StringOfString
+	return i.builtinStringOfString(args)
+}
+
+// builtinNormalizeString implements the NormalizeString() built-in function.
+// It normalizes a string to Unicode Normal Form.
+// NormalizeString(str) - normalizes to NFC (default)
+// NormalizeString(str, form) - normalizes to specified form (NFC, NFD, NFKC, NFKD)
+func (i *Interpreter) builtinNormalizeString(args []Value) Value {
+	if len(args) < 1 || len(args) > 2 {
+		return i.newErrorWithLocation(i.currentNode, "NormalizeString() expects 1 or 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string to normalize
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "NormalizeString() expects string as first argument, got %s", args[0].Type())
+	}
+
+	str := strVal.Value
+
+	// Default normalization form is NFC
+	form := "NFC"
+
+	// Optional second argument: normalization form
+	if len(args) == 2 {
+		formVal, ok := args[1].(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(i.currentNode, "NormalizeString() expects string as second argument, got %s", args[1].Type())
+		}
+		form = strings.ToUpper(formVal.Value)
+	}
+
+	// Apply normalization
+	result := normalizeUnicode(str, form)
+	return &StringValue{Value: result}
+}
+
+// builtinStripAccents implements the StripAccents() built-in function.
+// It removes diacritical marks from a string.
+// StripAccents(str) - returns string with accents removed
+func (i *Interpreter) builtinStripAccents(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "StripAccents() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "StripAccents() expects string as argument, got %s", args[0].Type())
+	}
+
+	str := strVal.Value
+
+	// Strip accents using NFD normalization and then removing combining marks
+	result := stripAccents(str)
+	return &StringValue{Value: result}
+}

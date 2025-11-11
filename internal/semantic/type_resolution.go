@@ -430,7 +430,7 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 
 // resolveOperatorType resolves type annotations used in operator declarations.
 func (a *Analyzer) resolveOperatorType(typeName string) (types.Type, error) {
-	name := strings.TrimSpace(typeName)
+	name := normalizeOperatorOperandTypeName(typeName)
 	if name == "" {
 		return types.VOID, nil
 	}
@@ -450,6 +450,48 @@ func (a *Analyzer) resolveOperatorType(typeName string) (types.Type, error) {
 	}
 
 	return nil, fmt.Errorf("unknown type: %s", name)
+}
+
+// normalizeOperatorOperandTypeName sanitizes operator operand type strings so they can be
+// resolved by the regular type resolver. Class operator declarations often include parameter
+// names and modifiers (e.g. "const items: array of const"), so we strip those decorations and
+// collapse whitespace before attempting to resolve the type name.
+func normalizeOperatorOperandTypeName(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+
+	if idx := strings.Index(trimmed, ":"); idx != -1 {
+		trimmed = trimmed[idx+1:]
+	}
+
+	trimmed = strings.TrimSpace(trimmed)
+	if trimmed == "" {
+		return ""
+	}
+
+	// Collapse repeated whitespace to simplify further checks.
+	trimmed = strings.Join(strings.Fields(trimmed), " ")
+
+	lower := strings.ToLower(trimmed)
+	modifiers := []string{
+		"constref ",
+		"const ",
+		"var ",
+		"out ",
+		"reference ",
+		"lazy ",
+	}
+
+	for _, mod := range modifiers {
+		if strings.HasPrefix(lower, mod) && len(trimmed) > len(mod) {
+			trimmed = strings.TrimSpace(trimmed[len(mod):])
+			lower = strings.ToLower(trimmed)
+		}
+	}
+
+	return trimmed
 }
 
 // ============================================================================

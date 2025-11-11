@@ -137,6 +137,24 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeLastDelimiter(args, callExpr), true
 	case "finddelimiter":
 		return a.analyzeFindDelimiter(args, callExpr), true
+	case "padleft":
+		return a.analyzePadLeft(args, callExpr), true
+	case "padright":
+		return a.analyzePadRight(args, callExpr), true
+	case "strdeleteleft", "deleteleft":
+		return a.analyzeStrDeleteLeft(args, callExpr), true
+	case "strdeleteright", "deleteright":
+		return a.analyzeStrDeleteRight(args, callExpr), true
+	case "reversestring":
+		return a.analyzeReverseString(args, callExpr), true
+	case "quotedstr":
+		return a.analyzeQuotedStr(args, callExpr), true
+	case "stringofstring", "dupestring":
+		return a.analyzeStringOfString(args, callExpr), true
+	case "normalizestring", "normalize":
+		return a.analyzeNormalizeString(args, callExpr), true
+	case "stripaccents":
+		return a.analyzeStripAccents(args, callExpr), true
 
 	// Math Functions - Basic
 	case "abs":

@@ -469,6 +469,53 @@ func (a *Analyzer) initIntrinsicHelpers() {
 	stringHelper.BuiltinMethods["toupper"] = "__string_toupper"
 	stringHelper.Methods["tolower"] = types.NewFunctionType([]types.Type{}, types.STRING)
 	stringHelper.BuiltinMethods["tolower"] = "__string_tolower"
+	// PadLeft, PadRight: (count: Integer, [char: String]) - char is optional with default ' '
+	stringHelper.Methods["padleft"] = types.NewFunctionTypeWithMetadata(
+		[]types.Type{types.INTEGER, types.STRING},
+		[]string{"count", "char"},
+		[]interface{}{nil, " "},
+		[]bool{false, false},
+		[]bool{false, false},
+		[]bool{false, false},
+		types.STRING,
+	)
+	stringHelper.BuiltinMethods["padleft"] = "PadLeft"
+	stringHelper.Methods["padright"] = types.NewFunctionTypeWithMetadata(
+		[]types.Type{types.INTEGER, types.STRING},
+		[]string{"count", "char"},
+		[]interface{}{nil, " "},
+		[]bool{false, false},
+		[]bool{false, false},
+		[]bool{false, false},
+		types.STRING,
+	)
+	stringHelper.BuiltinMethods["padright"] = "PadRight"
+	// DeleteLeft, DeleteRight: (count: Integer)
+	stringHelper.Methods["deleteleft"] = types.NewFunctionType([]types.Type{types.INTEGER}, types.STRING)
+	stringHelper.BuiltinMethods["deleteleft"] = "StrDeleteLeft"
+	stringHelper.Methods["deleteright"] = types.NewFunctionType([]types.Type{types.INTEGER}, types.STRING)
+	stringHelper.BuiltinMethods["deleteright"] = "StrDeleteRight"
+	// Normalize: ([form: String]) - form is optional with default "NFC"
+	stringHelper.Methods["normalize"] = types.NewFunctionTypeWithMetadata(
+		[]types.Type{types.STRING},
+		[]string{"form"},
+		[]interface{}{"NFC"},
+		[]bool{false},
+		[]bool{false},
+		[]bool{false},
+		types.STRING,
+	)
+	stringHelper.BuiltinMethods["normalize"] = "NormalizeString"
+	// StripAccents: () - also register as property for no-argument access
+	stringHelper.Methods["stripaccents"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["stripaccents"] = "StripAccents"
+	stringHelper.Properties["stripaccents"] = &types.PropertyInfo{
+		Name:      "StripAccents",
+		Type:      types.STRING,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "StripAccents",
+		WriteKind: types.PropAccessNone,
+	}
 	register(types.STRING.String(), stringHelper)
 
 	// String dynamic array helper: Join method (lowercase keys for case-insensitive lookup)

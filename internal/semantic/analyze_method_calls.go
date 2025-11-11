@@ -115,11 +115,31 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return nil
 		}
 
-		// Validate helper method arguments
-		if len(expr.Arguments) != len(helperMethod.Parameters) {
-			a.addError("helper method '%s' expects %d arguments, got %d at %s",
-				methodName, len(helperMethod.Parameters), len(expr.Arguments),
-				expr.Token.Pos.String())
+		// Validate helper method arguments (support optional parameters)
+		// Count required parameters (those without defaults)
+		requiredParams := len(helperMethod.Parameters)
+		if helperMethod.DefaultValues != nil {
+			requiredParams = 0
+			for _, defaultVal := range helperMethod.DefaultValues {
+				if defaultVal == nil {
+					requiredParams++
+				}
+			}
+		}
+
+		// Check argument count is within valid range
+		if len(expr.Arguments) < requiredParams || len(expr.Arguments) > len(helperMethod.Parameters) {
+			if requiredParams == len(helperMethod.Parameters) {
+				// All parameters are required
+				a.addError("helper method '%s' expects %d arguments, got %d at %s",
+					methodName, len(helperMethod.Parameters), len(expr.Arguments),
+					expr.Token.Pos.String())
+			} else {
+				// Method has optional parameters
+				a.addError("helper method '%s' expects %d-%d arguments, got %d at %s",
+					methodName, requiredParams, len(helperMethod.Parameters), len(expr.Arguments),
+					expr.Token.Pos.String())
+			}
 			return helperMethod.ReturnType
 		}
 

@@ -1,6 +1,8 @@
 module github.com/cwbudde/go-dws
 
-go 1.24
+go 1.24.0
+
+toolchain go1.24.7
 
 require (
 	github.com/gkampitakis/go-snaps v0.5.15
@@ -21,4 +23,5 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
+	golang.org/x/text v0.31.0 // indirect
 )
