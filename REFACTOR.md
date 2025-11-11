@@ -609,7 +609,7 @@ func createObjectInstance(node *ast.NewExpression, interp *Interpreter) Value {
 
 **Current state (Phase 1 mostly complete):**
 - **Largest remaining unsplit file:** 35KB (builtins_math.go)
-- **Files over 50KB:** 0 files ✅
+- **Files over 50KB in internal/interp (after Phase 1 splits):** 0 files ✅
 - **Files over 30KB in interp:** ~6 files (mostly builtins and expressions.go)
 - **Total files in internal/interp:** 116 files (increased from splits)
 - **Directory structure:** Flat (no subdirectories created)
