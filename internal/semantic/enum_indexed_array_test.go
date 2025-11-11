@@ -92,44 +92,44 @@ func TestEnumIndexedArrayErrors(t *testing.T) {
 
 func TestEnumOrdinalHelperMethods(t *testing.T) {
 	tests := []struct {
-		name        string
-		enumName    string
-		enumValues  map[string]int
+		name         string
+		enumName     string
+		enumValues   map[string]int
 		orderedNames []string
-		expectedMin int
-		expectedMax int
+		expectedMin  int
+		expectedMax  int
 	}{
 		{
-			name:        "enum starting at 1",
-			enumName:    "TDay",
-			enumValues:  map[string]int{"Mon": 1, "Tue": 2, "Wed": 3},
+			name:         "enum starting at 1",
+			enumName:     "TDay",
+			enumValues:   map[string]int{"Mon": 1, "Tue": 2, "Wed": 3},
 			orderedNames: []string{"Mon", "Tue", "Wed"},
-			expectedMin: 1,
-			expectedMax: 3,
+			expectedMin:  1,
+			expectedMax:  3,
 		},
 		{
-			name:        "enum starting at 0",
-			enumName:    "TColor",
-			enumValues:  map[string]int{"Red": 0, "Green": 1, "Blue": 2},
+			name:         "enum starting at 0",
+			enumName:     "TColor",
+			enumValues:   map[string]int{"Red": 0, "Green": 1, "Blue": 2},
 			orderedNames: []string{"Red", "Green", "Blue"},
-			expectedMin: 0,
-			expectedMax: 2,
+			expectedMin:  0,
+			expectedMax:  2,
 		},
 		{
-			name:        "enum with negative ordinals",
-			enumName:    "TTemp",
-			enumValues:  map[string]int{"Cold": -10, "Warm": 0, "Hot": 10},
+			name:         "enum with negative ordinals",
+			enumName:     "TTemp",
+			enumValues:   map[string]int{"Cold": -10, "Warm": 0, "Hot": 10},
 			orderedNames: []string{"Cold", "Warm", "Hot"},
-			expectedMin: -10,
-			expectedMax: 10,
+			expectedMin:  -10,
+			expectedMax:  10,
 		},
 		{
-			name:        "enum with gaps",
-			enumName:    "TStatus",
-			enumValues:  map[string]int{"Ok": 200, "BadRequest": 400, "ServerError": 500},
+			name:         "enum with gaps",
+			enumName:     "TStatus",
+			enumValues:   map[string]int{"Ok": 200, "BadRequest": 400, "ServerError": 500},
 			orderedNames: []string{"Ok", "BadRequest", "ServerError"},
-			expectedMin: 200,
-			expectedMax: 500,
+			expectedMin:  200,
+			expectedMax:  500,
 		},
 	}
 
