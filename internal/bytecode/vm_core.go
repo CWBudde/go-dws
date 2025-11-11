@@ -1006,6 +1006,17 @@ func (vm *VM) registerBuiltins() {
 	vm.builtins["PosEx"] = builtinPosEx
 	vm.builtins["RevPos"] = builtinRevPos
 	vm.builtins["StrFind"] = builtinStrFind
+	vm.builtins["StrSplit"] = builtinStrSplit
+	vm.builtins["StrJoin"] = builtinStrJoin
+	vm.builtins["StrArrayPack"] = builtinStrArrayPack
+	vm.builtins["StrBefore"] = builtinStrBefore
+	vm.builtins["StrBeforeLast"] = builtinStrBeforeLast
+	vm.builtins["StrAfter"] = builtinStrAfter
+	vm.builtins["StrAfterLast"] = builtinStrAfterLast
+	vm.builtins["StrBetween"] = builtinStrBetween
+	vm.builtins["IsDelimiter"] = builtinIsDelimiter
+	vm.builtins["LastDelimiter"] = builtinLastDelimiter
+	vm.builtins["FindDelimiter"] = builtinFindDelimiter
 	vm.builtins["Ord"] = builtinOrd
 	vm.builtins["Chr"] = builtinChr
 	// Type cast functions
@@ -1551,6 +1562,374 @@ func builtinStrFind(vm *VM, args []Value) (Value, error) {
 	}
 
 	return builtinPosEx(vm, reorderedArgs)
+}
+
+func builtinStrSplit(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrSplit expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrSplit expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("StrSplit expects a string as second argument")
+	}
+
+	str := args[0].AsString()
+	delim := args[1].AsString()
+
+	// Handle empty delimiter - return array with single element (the original string)
+	if len(delim) == 0 {
+		elements := []Value{StringValue(str)}
+		return ArrayValue(NewArrayInstance(elements)), nil
+	}
+
+	// Split the string
+	parts := strings.Split(str, delim)
+
+	// Convert to array of Value
+	elements := make([]Value, len(parts))
+	for idx, part := range parts {
+		elements[idx] = StringValue(part)
+	}
+
+	return ArrayValue(NewArrayInstance(elements)), nil
+}
+
+func builtinStrJoin(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrJoin expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsArray() {
+		return NilValue(), vm.runtimeError("StrJoin expects an array as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("StrJoin expects a string as second argument")
+	}
+
+	arr := args[0].AsArray()
+	delim := args[1].AsString()
+
+	// Convert array elements to strings
+	parts := make([]string, len(arr.elements))
+	for idx, elem := range arr.elements {
+		if !elem.IsString() {
+			return NilValue(), vm.runtimeError("StrJoin expects array of strings, got %s at index %d", elem.Type.String(), idx)
+		}
+		parts[idx] = elem.AsString()
+	}
+
+	// Join the strings
+	result := strings.Join(parts, delim)
+	return StringValue(result), nil
+}
+
+func builtinStrArrayPack(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("StrArrayPack expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsArray() {
+		return NilValue(), vm.runtimeError("StrArrayPack expects an array as argument")
+	}
+
+	arr := args[0].AsArray()
+
+	// Filter out empty strings
+	var packed []Value
+	for _, elem := range arr.elements {
+		if !elem.IsString() {
+			return NilValue(), vm.runtimeError("StrArrayPack expects array of strings, got %s", elem.Type.String())
+		}
+		if elem.AsString() != "" {
+			packed = append(packed, elem)
+		}
+	}
+
+	return ArrayValue(NewArrayInstance(packed)), nil
+}
+
+func builtinStrBefore(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrBefore expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrBefore expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("StrBefore expects a string as second argument")
+	}
+
+	str := args[0].AsString()
+	delim := args[1].AsString()
+
+	// Handle empty delimiter - return empty string
+	if len(delim) == 0 {
+		return StringValue(""), nil
+	}
+
+	// Find the first occurrence of delimiter
+	index := strings.Index(str, delim)
+	if index == -1 {
+		// Delimiter not found - return empty string
+		return StringValue(""), nil
+	}
+
+	// Return substring before delimiter
+	return StringValue(str[:index]), nil
+}
+
+func builtinStrBeforeLast(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrBeforeLast expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrBeforeLast expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("StrBeforeLast expects a string as second argument")
+	}
+
+	str := args[0].AsString()
+	delim := args[1].AsString()
+
+	// Handle empty delimiter - return empty string
+	if len(delim) == 0 {
+		return StringValue(""), nil
+	}
+
+	// Find the last occurrence of delimiter
+	index := strings.LastIndex(str, delim)
+	if index == -1 {
+		// Delimiter not found - return empty string
+		return StringValue(""), nil
+	}
+
+	// Return substring before last delimiter
+	return StringValue(str[:index]), nil
+}
+
+func builtinStrAfter(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrAfter expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrAfter expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("StrAfter expects a string as second argument")
+	}
+
+	str := args[0].AsString()
+	delim := args[1].AsString()
+
+	// Handle empty delimiter - return empty string
+	if len(delim) == 0 {
+		return StringValue(""), nil
+	}
+
+	// Find the first occurrence of delimiter
+	index := strings.Index(str, delim)
+	if index == -1 {
+		// Delimiter not found - return empty string
+		return StringValue(""), nil
+	}
+
+	// Return substring after delimiter
+	return StringValue(str[index+len(delim):]), nil
+}
+
+func builtinStrAfterLast(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrAfterLast expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrAfterLast expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("StrAfterLast expects a string as second argument")
+	}
+
+	str := args[0].AsString()
+	delim := args[1].AsString()
+
+	// Handle empty delimiter - return empty string
+	if len(delim) == 0 {
+		return StringValue(""), nil
+	}
+
+	// Find the last occurrence of delimiter
+	index := strings.LastIndex(str, delim)
+	if index == -1 {
+		// Delimiter not found - return empty string
+		return StringValue(""), nil
+	}
+
+	// Return substring after last delimiter
+	return StringValue(str[index+len(delim):]), nil
+}
+
+func builtinStrBetween(vm *VM, args []Value) (Value, error) {
+	if len(args) != 3 {
+		return NilValue(), vm.runtimeError("StrBetween expects 3 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrBetween expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("StrBetween expects a string as second argument")
+	}
+	if !args[2].IsString() {
+		return NilValue(), vm.runtimeError("StrBetween expects a string as third argument")
+	}
+
+	str := args[0].AsString()
+	start := args[1].AsString()
+	stop := args[2].AsString()
+
+	// Handle empty delimiters - return empty string
+	if len(start) == 0 || len(stop) == 0 {
+		return StringValue(""), nil
+	}
+
+	// Find the first occurrence of start delimiter
+	startIdx := strings.Index(str, start)
+	if startIdx == -1 {
+		// Start delimiter not found - return empty string
+		return StringValue(""), nil
+	}
+
+	// Search for stop delimiter after the start delimiter
+	searchFrom := startIdx + len(start)
+	if searchFrom >= len(str) {
+		// No room for stop delimiter - return empty string
+		return StringValue(""), nil
+	}
+
+	stopIdx := strings.Index(str[searchFrom:], stop)
+	if stopIdx == -1 {
+		// Stop delimiter not found - return empty string
+		return StringValue(""), nil
+	}
+
+	// Adjust stopIdx to be relative to the original string
+	stopIdx += searchFrom
+
+	// Return substring between start and stop delimiters
+	return StringValue(str[searchFrom:stopIdx]), nil
+}
+
+func builtinIsDelimiter(vm *VM, args []Value) (Value, error) {
+	if len(args) != 3 {
+		return NilValue(), vm.runtimeError("IsDelimiter expects 3 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("IsDelimiter expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("IsDelimiter expects a string as second argument")
+	}
+	if !args[2].IsInt() {
+		return NilValue(), vm.runtimeError("IsDelimiter expects an integer as third argument")
+	}
+
+	delims := args[0].AsString()
+	str := args[1].AsString()
+	index := args[2].AsInt() // 1-based
+
+	// Handle invalid index
+	if index < 1 {
+		return BoolValue(false), nil
+	}
+
+	// Convert to rune-based indexing for UTF-8 support
+	strRunes := []rune(str)
+
+	// Check if index is within bounds (1-based)
+	if int(index) > len(strRunes) {
+		return BoolValue(false), nil
+	}
+
+	// Get the character at the specified position (convert to 0-based)
+	ch := strRunes[index-1]
+
+	// Check if the character is in the delimiter string
+	result := strings.ContainsRune(delims, ch)
+	return BoolValue(result), nil
+}
+
+func builtinLastDelimiter(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("LastDelimiter expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("LastDelimiter expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("LastDelimiter expects a string as second argument")
+	}
+
+	delims := args[0].AsString()
+	str := args[1].AsString()
+
+	// Convert to rune-based for UTF-8 support
+	strRunes := []rune(str)
+
+	// Search from the end for any delimiter character
+	for i := len(strRunes) - 1; i >= 0; i-- {
+		if strings.ContainsRune(delims, strRunes[i]) {
+			// Return 1-based position
+			return IntValue(int64(i + 1)), nil
+		}
+	}
+
+	// No delimiter found
+	return IntValue(0), nil
+}
+
+func builtinFindDelimiter(vm *VM, args []Value) (Value, error) {
+	if len(args) != 3 {
+		return NilValue(), vm.runtimeError("FindDelimiter expects 3 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("FindDelimiter expects a string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("FindDelimiter expects a string as second argument")
+	}
+	if !args[2].IsInt() {
+		return NilValue(), vm.runtimeError("FindDelimiter expects an integer as third argument")
+	}
+
+	delims := args[0].AsString()
+	str := args[1].AsString()
+	startIndex := args[2].AsInt() // 1-based
+
+	// Handle invalid start index
+	if startIndex < 1 {
+		return IntValue(0), nil
+	}
+
+	// Convert to rune-based for UTF-8 support
+	strRunes := []rune(str)
+
+	// Adjust to 0-based index
+	startIdx := int(startIndex) - 1
+
+	// Check if start index is within bounds
+	if startIdx >= len(strRunes) {
+		return IntValue(0), nil
+	}
+
+	// Search from startIdx for any delimiter character
+	for i := startIdx; i < len(strRunes); i++ {
+		if strings.ContainsRune(delims, strRunes[i]) {
+			// Return 1-based position
+			return IntValue(int64(i + 1)), nil
+		}
+	}
+
+	// No delimiter found
+	return IntValue(0), nil
 }
 
 func builtinOrd(vm *VM, args []Value) (Value, error) {

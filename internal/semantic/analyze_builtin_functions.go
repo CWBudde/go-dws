@@ -115,6 +115,28 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeRevPos(args, callExpr), true
 	case "strfind":
 		return a.analyzeStrFind(args, callExpr), true
+	case "strsplit":
+		return a.analyzeStrSplit(args, callExpr), true
+	case "strjoin":
+		return a.analyzeStrJoin(args, callExpr), true
+	case "strarraypack":
+		return a.analyzeStrArrayPack(args, callExpr), true
+	case "strbefore":
+		return a.analyzeStrBefore(args, callExpr), true
+	case "strbeforelast":
+		return a.analyzeStrBeforeLast(args, callExpr), true
+	case "strafter":
+		return a.analyzeStrAfter(args, callExpr), true
+	case "strafterlast":
+		return a.analyzeStrAfterLast(args, callExpr), true
+	case "strbetween":
+		return a.analyzeStrBetween(args, callExpr), true
+	case "isdelimiter":
+		return a.analyzeIsDelimiter(args, callExpr), true
+	case "lastdelimiter":
+		return a.analyzeLastDelimiter(args, callExpr), true
+	case "finddelimiter":
+		return a.analyzeFindDelimiter(args, callExpr), true
 
 	// Math Functions - Basic
 	case "abs":

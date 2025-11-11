@@ -386,19 +386,19 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Delimiter-based Functions (Phase 9.17.2)
 
-- [ ] 9.17.2.1 StrSplit(str, delimiter) - Split string into array
-- [ ] 9.17.2.2 StrJoin(array, delimiter) - Join array into string
-- [ ] 9.17.2.3 StrArrayPack(array) - Remove empty strings from array
+- [x] 9.17.2.1 StrSplit(str, delimiter) - Split string into array
+- [x] 9.17.2.2 StrJoin(array, delimiter) - Join array into string
+- [x] 9.17.2.3 StrArrayPack(array) - Remove empty strings from array
 
-- [ ] 9.17.2.4 StrBefore(str, delimiter) - Get substring before first delimiter
-- [ ] 9.17.2.5 StrBeforeLast(str, delimiter) - Get substring before last delimiter
-- [ ] 9.17.2.6 StrAfter(str, delimiter) - Get substring after first delimiter
-- [ ] 9.17.2.7 StrAfterLast(str, delimiter) - Get substring after last delimiter
-- [ ] 9.17.2.8 StrBetween(str, start, stop) - Get substring between delimiters
+- [x] 9.17.2.4 StrBefore(str, delimiter) - Get substring before first delimiter
+- [x] 9.17.2.5 StrBeforeLast(str, delimiter) - Get substring before last delimiter
+- [x] 9.17.2.6 StrAfter(str, delimiter) - Get substring after first delimiter
+- [x] 9.17.2.7 StrAfterLast(str, delimiter) - Get substring after last delimiter
+- [x] 9.17.2.8 StrBetween(str, start, stop) - Get substring between delimiters
 
-- [ ] 9.17.2.9 IsDelimiter(delims, str, index) - Check if char at index is delimiter
-- [ ] 9.17.2.10 LastDelimiter(delims, str) - Find last delimiter position
-- [ ] 9.17.2.11 FindDelimiter(delims, str, startIndex) - Find first delimiter
+- [x] 9.17.2.9 IsDelimiter(delims, str, index) - Check if char at index is delimiter
+- [x] 9.17.2.10 LastDelimiter(delims, str) - Find last delimiter position
+- [x] 9.17.2.11 FindDelimiter(delims, str, startIndex) - Find first delimiter
 
 #### String Transformation (Phase 9.17.3)
 

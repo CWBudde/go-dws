@@ -637,3 +637,280 @@ func (a *Analyzer) analyzeStrFind(args []ast.Expression, callExpr *ast.CallExpre
 	}
 	return types.INTEGER
 }
+
+// analyzeStrSplit analyzes the StrSplit built-in function.
+// StrSplit(str, delimiter) - returns array of string
+func (a *Analyzer) analyzeStrSplit(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrSplit' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.NewDynamicArrayType(types.STRING)
+	}
+	// Analyze first argument (str - string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrSplit' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (delimiter - string)
+	delimType := a.analyzeExpression(args[1])
+	if delimType != nil && delimType != types.STRING {
+		a.addError("function 'StrSplit' expects string as second argument, got %s at %s",
+			delimType.String(), callExpr.Token.Pos.String())
+	}
+	return types.NewDynamicArrayType(types.STRING)
+}
+
+// analyzeStrJoin analyzes the StrJoin built-in function.
+// StrJoin(array, delimiter) - returns string
+func (a *Analyzer) analyzeStrJoin(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrJoin' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	// Analyze first argument (array of strings)
+	arrType := a.analyzeExpression(args[0])
+	if arrType != nil {
+		arrayType, ok := arrType.(*types.ArrayType)
+		if !ok {
+			a.addError("function 'StrJoin' expects array as first argument, got %s at %s",
+				arrType.String(), callExpr.Token.Pos.String())
+		} else if arrayType.ElementType != types.STRING {
+			a.addError("function 'StrJoin' expects array of string, got array of %s at %s",
+				arrayType.ElementType.String(), callExpr.Token.Pos.String())
+		}
+	}
+	// Analyze second argument (delimiter - string)
+	delimType := a.analyzeExpression(args[1])
+	if delimType != nil && delimType != types.STRING {
+		a.addError("function 'StrJoin' expects string as second argument, got %s at %s",
+			delimType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeStrArrayPack analyzes the StrArrayPack built-in function.
+// StrArrayPack(array) - returns array of string
+func (a *Analyzer) analyzeStrArrayPack(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'StrArrayPack' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.NewDynamicArrayType(types.STRING)
+	}
+	// Analyze first argument (array of strings)
+	arrType := a.analyzeExpression(args[0])
+	if arrType != nil {
+		arrayType, ok := arrType.(*types.ArrayType)
+		if !ok {
+			a.addError("function 'StrArrayPack' expects array as argument, got %s at %s",
+				arrType.String(), callExpr.Token.Pos.String())
+		} else if arrayType.ElementType != types.STRING {
+			a.addError("function 'StrArrayPack' expects array of string, got array of %s at %s",
+				arrayType.ElementType.String(), callExpr.Token.Pos.String())
+		}
+	}
+	return types.NewDynamicArrayType(types.STRING)
+}
+
+// analyzeStrBefore analyzes the StrBefore built-in function.
+// StrBefore(str, delimiter) - returns string
+func (a *Analyzer) analyzeStrBefore(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrBefore' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	// Analyze first argument (str - string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrBefore' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (delimiter - string)
+	delimType := a.analyzeExpression(args[1])
+	if delimType != nil && delimType != types.STRING {
+		a.addError("function 'StrBefore' expects string as second argument, got %s at %s",
+			delimType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeStrBeforeLast analyzes the StrBeforeLast built-in function.
+// StrBeforeLast(str, delimiter) - returns string
+func (a *Analyzer) analyzeStrBeforeLast(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrBeforeLast' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	// Analyze first argument (str - string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrBeforeLast' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (delimiter - string)
+	delimType := a.analyzeExpression(args[1])
+	if delimType != nil && delimType != types.STRING {
+		a.addError("function 'StrBeforeLast' expects string as second argument, got %s at %s",
+			delimType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeStrAfter analyzes the StrAfter built-in function.
+// StrAfter(str, delimiter) - returns string
+func (a *Analyzer) analyzeStrAfter(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrAfter' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	// Analyze first argument (str - string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrAfter' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (delimiter - string)
+	delimType := a.analyzeExpression(args[1])
+	if delimType != nil && delimType != types.STRING {
+		a.addError("function 'StrAfter' expects string as second argument, got %s at %s",
+			delimType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeStrAfterLast analyzes the StrAfterLast built-in function.
+// StrAfterLast(str, delimiter) - returns string
+func (a *Analyzer) analyzeStrAfterLast(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrAfterLast' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	// Analyze first argument (str - string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrAfterLast' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (delimiter - string)
+	delimType := a.analyzeExpression(args[1])
+	if delimType != nil && delimType != types.STRING {
+		a.addError("function 'StrAfterLast' expects string as second argument, got %s at %s",
+			delimType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeStrBetween analyzes the StrBetween built-in function.
+// StrBetween(str, start, stop) - returns string
+func (a *Analyzer) analyzeStrBetween(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 3 {
+		a.addError("function 'StrBetween' expects 3 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	// Analyze first argument (str - string)
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrBetween' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (start - string)
+	startType := a.analyzeExpression(args[1])
+	if startType != nil && startType != types.STRING {
+		a.addError("function 'StrBetween' expects string as second argument, got %s at %s",
+			startType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze third argument (stop - string)
+	stopType := a.analyzeExpression(args[2])
+	if stopType != nil && stopType != types.STRING {
+		a.addError("function 'StrBetween' expects string as third argument, got %s at %s",
+			stopType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeIsDelimiter analyzes the IsDelimiter built-in function.
+// IsDelimiter(delims, str, index) - returns boolean
+func (a *Analyzer) analyzeIsDelimiter(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 3 {
+		a.addError("function 'IsDelimiter' expects 3 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+	// Analyze first argument (delims - string)
+	delimsType := a.analyzeExpression(args[0])
+	if delimsType != nil && delimsType != types.STRING {
+		a.addError("function 'IsDelimiter' expects string as first argument, got %s at %s",
+			delimsType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (str - string)
+	strType := a.analyzeExpression(args[1])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'IsDelimiter' expects string as second argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze third argument (index - integer)
+	indexType := a.analyzeExpression(args[2])
+	if indexType != nil && indexType != types.INTEGER {
+		a.addError("function 'IsDelimiter' expects integer as third argument, got %s at %s",
+			indexType.String(), callExpr.Token.Pos.String())
+	}
+	return types.BOOLEAN
+}
+
+// analyzeLastDelimiter analyzes the LastDelimiter built-in function.
+// LastDelimiter(delims, str) - returns integer
+func (a *Analyzer) analyzeLastDelimiter(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'LastDelimiter' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+	// Analyze first argument (delims - string)
+	delimsType := a.analyzeExpression(args[0])
+	if delimsType != nil && delimsType != types.STRING {
+		a.addError("function 'LastDelimiter' expects string as first argument, got %s at %s",
+			delimsType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (str - string)
+	strType := a.analyzeExpression(args[1])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'LastDelimiter' expects string as second argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	return types.INTEGER
+}
+
+// analyzeFindDelimiter analyzes the FindDelimiter built-in function.
+// FindDelimiter(delims, str, startIndex) - returns integer
+func (a *Analyzer) analyzeFindDelimiter(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 3 {
+		a.addError("function 'FindDelimiter' expects 3 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+	// Analyze first argument (delims - string)
+	delimsType := a.analyzeExpression(args[0])
+	if delimsType != nil && delimsType != types.STRING {
+		a.addError("function 'FindDelimiter' expects string as first argument, got %s at %s",
+			delimsType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze second argument (str - string)
+	strType := a.analyzeExpression(args[1])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'FindDelimiter' expects string as second argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	// Analyze third argument (startIndex - integer)
+	startIndexType := a.analyzeExpression(args[2])
+	if startIndexType != nil && startIndexType != types.INTEGER {
+		a.addError("function 'FindDelimiter' expects integer as third argument, got %s at %s",
+			startIndexType.String(), callExpr.Token.Pos.String())
+	}
+	return types.INTEGER
+}
