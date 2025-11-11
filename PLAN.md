@@ -377,10 +377,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-#### High Priority String Functions (Phase 9.17.1)
-
-Functions commonly used in test fixtures and real-world DWScript code:
-
 #### Delimiter-based Functions (Phase 9.17.2)
 
 - [ ] 9.17.2.1 StrSplit(str, delimiter) - Split string into array
