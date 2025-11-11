@@ -4,6 +4,8 @@ import (
 	"math"
 	"math/rand"
 	"time"
+
+	"github.com/cwbudde/go-dws/internal/ast"
 )
 
 // builtinAbs implements the Abs() built-in function.
@@ -304,8 +306,10 @@ func (i *Interpreter) builtinRandomize(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "Randomize() expects no arguments, got %d", len(args))
 	}
 
-	// Re-seed the random number generator with current time
-	i.rand.Seed(time.Now().UnixNano())
+	// Re-seed the random number generator with current time and store the seed
+	seed := time.Now().UnixNano()
+	i.rand.Seed(seed)
+	i.randSeed = seed
 	return &NilValue{}
 }
 
@@ -1116,8 +1120,404 @@ func (i *Interpreter) builtinSetRandSeed(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "SetRandSeed() expects Integer, got %s", args[0].Type())
 	}
 
-	// Set the seed for the random number generator
+	// Set the seed for the random number generator and store it
 	i.rand.Seed(seedVal.Value)
+	i.randSeed = seedVal.Value
+
+	return &NilValue{}
+}
+
+// builtinRandSeed implements the RandSeed() built-in function.
+// It returns the current random seed value.
+// RandSeed: Integer
+func (i *Interpreter) builtinRandSeed(args []Value) Value {
+	if len(args) != 0 {
+		return i.newErrorWithLocation(i.currentNode, "RandSeed expects no arguments, got %d", len(args))
+	}
+	return &IntegerValue{Value: i.randSeed}
+}
+
+// builtinPi returns the mathematical constant π (Pi).
+// Pi: Float
+func (i *Interpreter) builtinPi(args []Value) Value {
+	if len(args) != 0 {
+		return i.newErrorWithLocation(i.currentNode, "Pi expects no arguments, got %d", len(args))
+	}
+	return &FloatValue{Value: math.Pi}
+}
+
+// builtinSign implements the Sign() built-in function.
+// It returns -1, 0, or 1 based on the sign of the number.
+// Sign(x: Float): Integer
+func (i *Interpreter) builtinSign(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Sign() expects exactly 1 argument, got %d", len(args))
+	}
+
+	var floatVal float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		floatVal = v.Value
+	case *IntegerValue:
+		floatVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "Sign() expects Float or Integer, got %s", args[0].Type())
+	}
+
+	if floatVal > 0 {
+		return &IntegerValue{Value: 1}
+	} else if floatVal < 0 {
+		return &IntegerValue{Value: -1}
+	}
+	return &IntegerValue{Value: 0}
+}
+
+// builtinOdd implements the Odd() built-in function.
+// It checks if an integer is odd.
+// Odd(x: Integer): Boolean
+func (i *Interpreter) builtinOdd(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Odd() expects exactly 1 argument, got %d", len(args))
+	}
+
+	intVal, ok := args[0].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "Odd() expects Integer, got %s", args[0].Type())
+	}
+
+	return &BooleanValue{Value: intVal.Value%2 != 0}
+}
+
+// builtinFrac implements the Frac() built-in function.
+// It returns the fractional part of a number.
+// Frac(x: Float): Float
+func (i *Interpreter) builtinFrac(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Frac() expects exactly 1 argument, got %d", len(args))
+	}
+
+	var floatVal float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		floatVal = v.Value
+	case *IntegerValue:
+		floatVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "Frac() expects Float or Integer, got %s", args[0].Type())
+	}
+
+	// Fractional part = x - floor(x)
+	// For negative numbers: Frac(-2.3) = -2.3 - (-3) = 0.7
+	_, frac := math.Modf(floatVal)
+	return &FloatValue{Value: frac}
+}
+
+// builtinInt implements the Int() built-in function.
+// It returns the integer part of a number as a Float (different from Trunc).
+// Int(x: Float): Float
+func (i *Interpreter) builtinInt(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Int() expects exactly 1 argument, got %d", len(args))
+	}
+
+	var floatVal float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		floatVal = v.Value
+	case *IntegerValue:
+		floatVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "Int() expects Float or Integer, got %s", args[0].Type())
+	}
+
+	// Int() returns the integer part (truncated towards zero) as a Float
+	return &FloatValue{Value: math.Trunc(floatVal)}
+}
+
+// builtinLog10 implements the Log10() built-in function.
+// It returns the base-10 logarithm.
+// Log10(x: Float): Float
+func (i *Interpreter) builtinLog10(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "Log10() expects exactly 1 argument, got %d", len(args))
+	}
+
+	var floatVal float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		floatVal = v.Value
+	case *IntegerValue:
+		floatVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "Log10() expects Float or Integer, got %s", args[0].Type())
+	}
+
+	if floatVal <= 0 {
+		return i.newErrorWithLocation(i.currentNode, "Log10() argument must be positive, got %f", floatVal)
+	}
+
+	return &FloatValue{Value: math.Log10(floatVal)}
+}
+
+// builtinLogN implements the LogN() built-in function.
+// It returns the logarithm with a custom base.
+// LogN(x, base: Float): Float
+func (i *Interpreter) builtinLogN(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "LogN() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	var xVal, baseVal float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		xVal = v.Value
+	case *IntegerValue:
+		xVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "LogN() expects Float or Integer as first argument, got %s", args[0].Type())
+	}
+
+	switch v := args[1].(type) {
+	case *FloatValue:
+		baseVal = v.Value
+	case *IntegerValue:
+		baseVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "LogN() expects Float or Integer as second argument, got %s", args[1].Type())
+	}
+
+	if xVal <= 0 {
+		return i.newErrorWithLocation(i.currentNode, "LogN() first argument must be positive, got %f", xVal)
+	}
+	if baseVal <= 0 || baseVal == 1 {
+		return i.newErrorWithLocation(i.currentNode, "LogN() base must be positive and not equal to 1, got %f", baseVal)
+	}
+
+	// LogN(x, base) = Log(x) / Log(base)
+	return &FloatValue{Value: math.Log(xVal) / math.Log(baseVal)}
+}
+
+// builtinInfinity returns the Infinity constant.
+// Infinity: Float
+func (i *Interpreter) builtinInfinity(args []Value) Value {
+	if len(args) != 0 {
+		return i.newErrorWithLocation(i.currentNode, "Infinity expects no arguments, got %d", len(args))
+	}
+	return &FloatValue{Value: math.Inf(1)}
+}
+
+// builtinNaN returns the NaN (Not-a-Number) constant.
+// NaN: Float
+func (i *Interpreter) builtinNaN(args []Value) Value {
+	if len(args) != 0 {
+		return i.newErrorWithLocation(i.currentNode, "NaN expects no arguments, got %d", len(args))
+	}
+	return &FloatValue{Value: math.NaN()}
+}
+
+// builtinIsFinite implements the IsFinite() built-in function.
+// It checks if a number is finite (not infinite and not NaN).
+// IsFinite(x: Float): Boolean
+func (i *Interpreter) builtinIsFinite(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "IsFinite() expects exactly 1 argument, got %d", len(args))
+	}
+
+	var floatVal float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		floatVal = v.Value
+	case *IntegerValue:
+		floatVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "IsFinite() expects Float or Integer, got %s", args[0].Type())
+	}
+
+	// A number is finite if it's not infinite and not NaN
+	isFinite := !math.IsInf(floatVal, 0) && !math.IsNaN(floatVal)
+	return &BooleanValue{Value: isFinite}
+}
+
+// builtinIsInfinite implements the IsInfinite() built-in function.
+// It checks if a number is infinite.
+// IsInfinite(x: Float): Boolean
+func (i *Interpreter) builtinIsInfinite(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "IsInfinite() expects exactly 1 argument, got %d", len(args))
+	}
+
+	var floatVal float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		floatVal = v.Value
+	case *IntegerValue:
+		floatVal = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "IsInfinite() expects Float or Integer, got %s", args[0].Type())
+	}
+
+	return &BooleanValue{Value: math.IsInf(floatVal, 0)}
+}
+
+// builtinIntPower implements the IntPower() built-in function.
+// It computes base^exponent using integer exponentiation (faster than Power for integer exponents).
+// IntPower(base: Float, exponent: Integer): Float
+func (i *Interpreter) builtinIntPower(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "IntPower() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: base (Float or Integer)
+	var base float64
+	switch v := args[0].(type) {
+	case *FloatValue:
+		base = v.Value
+	case *IntegerValue:
+		base = float64(v.Value)
+	default:
+		return i.newErrorWithLocation(i.currentNode, "IntPower() expects Float or Integer as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: exponent (Integer)
+	exponentVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "IntPower() expects Integer as second argument, got %s", args[1].Type())
+	}
+	exponent := exponentVal.Value
+
+	// Handle special cases
+	if exponent == 0 {
+		return &FloatValue{Value: 1.0}
+	}
+	if exponent < 0 {
+		// For negative exponents, compute 1 / base^(-exponent)
+		base = 1.0 / base
+		exponent = -exponent
+	}
+
+	// Fast integer exponentiation using exponentiation by squaring
+	result := 1.0
+	for exponent > 0 {
+		if exponent%2 == 1 {
+			result *= base
+		}
+		base *= base
+		exponent /= 2
+	}
+
+	return &FloatValue{Value: result}
+}
+
+// builtinRandG implements the RandG() built-in function.
+// It returns a Gaussian (normal) distributed random number with mean=0 and stddev=1.
+// Uses the Box-Muller transform.
+// RandG(): Float
+func (i *Interpreter) builtinRandG(args []Value) Value {
+	if len(args) != 0 {
+		return i.newErrorWithLocation(i.currentNode, "RandG() expects no arguments, got %d", len(args))
+	}
+
+	// Box-Muller transform to generate Gaussian distributed random numbers
+	// Generate two uniform random numbers in (0, 1]
+	u1 := i.rand.Float64()
+	u2 := i.rand.Float64()
+
+	// Ensure u1 is not zero or near-zero to avoid log(0)
+	if u1 < 1e-10 {
+		u1 = 1e-10
+	}
+
+	// Box-Muller transform
+	z0 := math.Sqrt(-2.0*math.Log(u1)) * math.Cos(2.0*math.Pi*u2)
+
+	return &FloatValue{Value: z0}
+}
+
+// builtinDivMod implements the DivMod() built-in procedure.
+// It computes both the quotient and remainder of integer division.
+// DivMod(dividend, divisor: Integer; var quotient, remainder: Integer)
+// Note: This function is called from functions_builtins.go with special handling for var parameters
+func (i *Interpreter) builtinDivMod(args []ast.Expression) Value {
+	// Validate argument count (exactly 4 arguments)
+	if len(args) != 4 {
+		return i.newErrorWithLocation(i.currentNode, "DivMod() expects exactly 4 arguments, got %d", len(args))
+	}
+
+	// Evaluate first two arguments (dividend and divisor)
+	dividendVal := i.Eval(args[0])
+	if isError(dividendVal) {
+		return dividendVal
+	}
+	dividendInt, ok1 := dividendVal.(*IntegerValue)
+	if !ok1 {
+		return i.newErrorWithLocation(i.currentNode, "DivMod() expects integer as first argument, got %s", dividendVal.Type())
+	}
+
+	divisorVal := i.Eval(args[1])
+	if isError(divisorVal) {
+		return divisorVal
+	}
+	divisorInt, ok2 := divisorVal.(*IntegerValue)
+	if !ok2 {
+		return i.newErrorWithLocation(i.currentNode, "DivMod() expects integer as second argument, got %s", divisorVal.Type())
+	}
+
+	// Check for division by zero
+	if divisorInt.Value == 0 {
+		return i.newErrorWithLocation(i.currentNode, "DivMod() division by zero")
+	}
+
+	// Calculate quotient and remainder
+	quotient := dividendInt.Value / divisorInt.Value
+	remainder := dividendInt.Value % divisorInt.Value
+
+	// Last two arguments must be identifiers (variable names for var parameters)
+	quotientIdent, ok3 := args[2].(*ast.Identifier)
+	if !ok3 {
+		return i.newErrorWithLocation(i.currentNode, "DivMod() third argument must be a variable, got %T", args[2])
+	}
+	remainderIdent, ok4 := args[3].(*ast.Identifier)
+	if !ok4 {
+		return i.newErrorWithLocation(i.currentNode, "DivMod() fourth argument must be a variable, got %T", args[3])
+	}
+
+	// Get variable names
+	quotientVarName := quotientIdent.Value
+	remainderVarName := remainderIdent.Value
+
+	// Check if variables exist and handle ReferenceValue (var parameters)
+	quotientVar, exists1 := i.env.Get(quotientVarName)
+	if !exists1 {
+		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", quotientVarName)
+	}
+	remainderVar, exists2 := i.env.Get(remainderVarName)
+	if !exists2 {
+		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", remainderVarName)
+	}
+
+	// Handle var parameters (ReferenceValue)
+	quotientResult := &IntegerValue{Value: quotient}
+	remainderResult := &IntegerValue{Value: remainder}
+
+	if refQuot, isRef := quotientVar.(*ReferenceValue); isRef {
+		if err := refQuot.Assign(quotientResult); err != nil {
+			return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", quotientVarName, err)
+		}
+	} else {
+		if err := i.env.Set(quotientVarName, quotientResult); err != nil {
+			return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", quotientVarName, err)
+		}
+	}
+
+	if refRem, isRef := remainderVar.(*ReferenceValue); isRef {
+		if err := refRem.Assign(remainderResult); err != nil {
+			return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", remainderVarName, err)
+		}
+	} else {
+		if err := i.env.Set(remainderVarName, remainderResult); err != nil {
+			return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", remainderVarName, err)
+		}
+	}
 
 	return &NilValue{}
 }

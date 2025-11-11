@@ -1,0 +1,39 @@
+// Test MEDIUM priority math functions (bytecode VM compatible - no string concat)
+
+// Test Infinity
+PrintLn(FloatToStr(Infinity()));
+
+// Test NaN
+PrintLn(FloatToStr(NaN()));
+
+// Test IsFinite
+if IsFinite(3.14) then
+    PrintLn('IsFinite(3.14): True')
+else
+    PrintLn('IsFinite(3.14): False');
+
+if IsFinite(Infinity()) then
+    PrintLn('IsFinite(Infinity()): True')
+else
+    PrintLn('IsFinite(Infinity()): False');
+
+// Test IsInfinite
+if IsInfinite(Infinity()) then
+    PrintLn('IsInfinite(Infinity()): True')
+else
+    PrintLn('IsInfinite(Infinity()): False');
+
+// Test IntPower
+PrintLn(FloatToStr(IntPower(2, 3)));
+PrintLn(FloatToStr(IntPower(3, 4)));
+PrintLn(FloatToStr(IntPower(2, -2)));
+
+// Test RandSeed
+SetRandSeed(42);
+PrintLn(IntToStr(RandSeed()));
+
+// Test RandG
+SetRandSeed(12345);
+PrintLn(FloatToStr(RandG()));
+PrintLn(FloatToStr(RandG()));
+PrintLn(FloatToStr(RandG()));

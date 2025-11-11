@@ -1,0 +1,2 @@
+// Test nested NaN call
+PrintLn('IsFinite(NaN()): ' + BoolToStr(IsFinite(NaN())));

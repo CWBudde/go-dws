@@ -41,6 +41,7 @@ type Interpreter struct {
 	propContext       *PropertyEvalContext
 	exception         *ExceptionValue
 	rand              *rand.Rand
+	randSeed          int64
 	initializedUnits  map[string]bool
 	unitRegistry      *units.UnitRegistry
 	helpers           map[string][]*HelperInfo
@@ -68,7 +69,8 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 	env := NewEnvironment()
 	// Initialize random number generator with a default seed
 	// Randomize() can be called to re-seed with current time
-	source := rand.NewSource(1)
+	const defaultSeed = int64(1)
+	source := rand.NewSource(defaultSeed)
 	interp := &Interpreter{
 		env:               env,
 		output:            output,
@@ -78,6 +80,7 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 		globalOperators:   newRuntimeOperatorRegistry(),
 		conversions:       newRuntimeConversionRegistry(),
 		rand:              rand.New(source),
+		randSeed:          defaultSeed,
 		loadedUnits:       make([]string, 0),
 		initializedUnits:  make(map[string]bool),
 		maxRecursionDepth: DefaultMaxRecursionDepth,

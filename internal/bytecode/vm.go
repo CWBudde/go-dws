@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -30,6 +33,8 @@ type VM struct {
 	openUpvalues      []*Upvalue
 	exceptionHandlers []exceptionHandler
 	finallyStack      []finallyContext
+	rand              *rand.Rand
+	randSeed          int64
 }
 
 type callFrame struct {
@@ -66,6 +71,7 @@ func NewVM() *VM {
 // NewVMWithOutput creates a new VM with the specified output writer.
 // If output is nil, output operations will be no-ops.
 func NewVMWithOutput(output io.Writer) *VM {
+	defaultSeed := int64(1)
 	vm := &VM{
 		stack:             make([]Value, 0, defaultStackCapacity),
 		frames:            make([]callFrame, 0, defaultFrameCapacity),
@@ -76,6 +82,8 @@ func NewVMWithOutput(output io.Writer) *VM {
 		exceptObject:      NilValue(),
 		output:            output,
 		builtins:          make(map[string]BuiltinFunction),
+		rand:              rand.New(rand.NewSource(defaultSeed)),
+		randSeed:          defaultSeed,
 	}
 	vm.registerBuiltins()
 	return vm
@@ -962,26 +970,46 @@ func (vm *VM) reset() {
 	vm.setGlobal(4, BuiltinValue("FloatToStr"))
 	vm.setGlobal(5, BuiltinValue("StrToInt"))
 	vm.setGlobal(6, BuiltinValue("StrToFloat"))
-	vm.setGlobal(7, BuiltinValue("Length"))
-	vm.setGlobal(8, BuiltinValue("Copy"))
-	vm.setGlobal(9, BuiltinValue("SubStr"))
-	vm.setGlobal(10, BuiltinValue("SubString"))
-	vm.setGlobal(11, BuiltinValue("LeftStr"))
-	vm.setGlobal(12, BuiltinValue("RightStr"))
-	vm.setGlobal(13, BuiltinValue("MidStr"))
-	vm.setGlobal(14, BuiltinValue("StrBeginsWith"))
-	vm.setGlobal(15, BuiltinValue("StrEndsWith"))
-	vm.setGlobal(16, BuiltinValue("StrContains"))
-	vm.setGlobal(17, BuiltinValue("PosEx"))
-	vm.setGlobal(18, BuiltinValue("RevPos"))
-	vm.setGlobal(19, BuiltinValue("StrFind"))
-	vm.setGlobal(20, BuiltinValue("Ord"))
-	vm.setGlobal(21, BuiltinValue("Chr"))
+	vm.setGlobal(7, BuiltinValue("StrToIntDef"))
+	vm.setGlobal(8, BuiltinValue("StrToFloatDef"))
+	vm.setGlobal(9, BuiltinValue("Length"))
+	vm.setGlobal(10, BuiltinValue("Copy"))
+	vm.setGlobal(11, BuiltinValue("SubStr"))
+	vm.setGlobal(12, BuiltinValue("SubString"))
+	vm.setGlobal(13, BuiltinValue("LeftStr"))
+	vm.setGlobal(14, BuiltinValue("RightStr"))
+	vm.setGlobal(15, BuiltinValue("MidStr"))
+	vm.setGlobal(16, BuiltinValue("StrBeginsWith"))
+	vm.setGlobal(17, BuiltinValue("StrEndsWith"))
+	vm.setGlobal(18, BuiltinValue("StrContains"))
+	vm.setGlobal(19, BuiltinValue("PosEx"))
+	vm.setGlobal(20, BuiltinValue("RevPos"))
+	vm.setGlobal(21, BuiltinValue("StrFind"))
+	vm.setGlobal(22, BuiltinValue("Ord"))
+	vm.setGlobal(23, BuiltinValue("Chr"))
 	// Type cast functions
-	vm.setGlobal(22, BuiltinValue("Integer"))
-	vm.setGlobal(23, BuiltinValue("Float"))
-	vm.setGlobal(24, BuiltinValue("String"))
-	vm.setGlobal(25, BuiltinValue("Boolean"))
+	vm.setGlobal(24, BuiltinValue("Integer"))
+	vm.setGlobal(25, BuiltinValue("Float"))
+	vm.setGlobal(26, BuiltinValue("String"))
+	vm.setGlobal(27, BuiltinValue("Boolean"))
+	// Math functions (Pi is a constant, handled separately)
+	vm.setGlobal(28, BuiltinValue("Sign"))
+	vm.setGlobal(29, BuiltinValue("Odd"))
+	vm.setGlobal(30, BuiltinValue("Frac"))
+	vm.setGlobal(31, BuiltinValue("Int"))
+	vm.setGlobal(32, BuiltinValue("Log10"))
+	vm.setGlobal(33, BuiltinValue("LogN"))
+
+	// MEDIUM PRIORITY Math Functions
+	vm.setGlobal(34, BuiltinValue("Infinity"))
+	vm.setGlobal(35, BuiltinValue("NaN"))
+	vm.setGlobal(36, BuiltinValue("IsFinite"))
+	vm.setGlobal(37, BuiltinValue("IsInfinite"))
+	vm.setGlobal(38, BuiltinValue("IntPower"))
+	vm.setGlobal(39, BuiltinValue("RandSeed"))
+	vm.setGlobal(40, BuiltinValue("RandG"))
+	vm.setGlobal(41, BuiltinValue("SetRandSeed"))
+	vm.setGlobal(42, BuiltinValue("Randomize"))
 }
 
 func (vm *VM) getGlobal(index int) Value {
@@ -1536,6 +1564,8 @@ func (vm *VM) registerBuiltins() {
 	vm.builtins["FloatToStr"] = builtinFloatToStr
 	vm.builtins["StrToInt"] = builtinStrToInt
 	vm.builtins["StrToFloat"] = builtinStrToFloat
+	vm.builtins["StrToIntDef"] = builtinStrToIntDef
+	vm.builtins["StrToFloatDef"] = builtinStrToFloatDef
 	vm.builtins["Length"] = builtinLength
 	vm.builtins["Copy"] = builtinCopy
 	vm.builtins["SubStr"] = builtinSubStr
@@ -1556,6 +1586,25 @@ func (vm *VM) registerBuiltins() {
 	vm.builtins["Float"] = builtinFloat
 	vm.builtins["String"] = builtinString
 	vm.builtins["Boolean"] = builtinBoolean
+	// Math functions
+	// Note: Pi is a constant, not a function, handled by semantic analyzer
+	vm.builtins["Sign"] = builtinSign
+	vm.builtins["Odd"] = builtinOdd
+	vm.builtins["Frac"] = builtinFrac
+	vm.builtins["Int"] = builtinInt
+	vm.builtins["Log10"] = builtinLog10
+	vm.builtins["LogN"] = builtinLogN
+
+	// MEDIUM PRIORITY Math Functions
+	vm.builtins["Infinity"] = builtinInfinity
+	vm.builtins["NaN"] = builtinNaN
+	vm.builtins["IsFinite"] = builtinIsFinite
+	vm.builtins["IsInfinite"] = builtinIsInfinite
+	vm.builtins["IntPower"] = builtinIntPower
+	vm.builtins["RandSeed"] = builtinRandSeed
+	vm.builtins["RandG"] = builtinRandG
+	vm.builtins["SetRandSeed"] = builtinSetRandSeed
+	vm.builtins["Randomize"] = builtinRandomize
 }
 
 // Built-in function implementations
@@ -1641,6 +1690,49 @@ func builtinStrToFloat(vm *VM, args []Value) (Value, error) {
 	_, err := fmt.Sscanf(args[0].AsString(), "%f", &val)
 	if err != nil {
 		return NilValue(), vm.runtimeError("StrToFloat: invalid float string")
+	}
+	return FloatValue(val), nil
+}
+
+func builtinStrToIntDef(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrToIntDef expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrToIntDef expects a string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("StrToIntDef expects an integer as second argument")
+	}
+	// Try to parse the string as an integer
+	s := strings.TrimSpace(args[0].AsString())
+	val, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		// Return default value on error
+		return args[1], nil
+	}
+	return IntValue(val), nil
+}
+
+func builtinStrToFloatDef(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrToFloatDef expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrToFloatDef expects a string as first argument")
+	}
+	if !args[1].IsFloat() && !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("StrToFloatDef expects a float as second argument")
+	}
+	// Try to parse the string as a float
+	s := strings.TrimSpace(args[0].AsString())
+	val, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		// Return default value on error (coerce int to float if needed)
+		if args[1].IsInt() {
+			return FloatValue(float64(args[1].AsInt())), nil
+		}
+		return args[1], nil
 	}
 	return FloatValue(val), nil
 }
@@ -2169,4 +2261,293 @@ func builtinBoolean(vm *VM, args []Value) (Value, error) {
 	default:
 		return NilValue(), vm.runtimeError("cannot cast %s to Boolean", arg.Type.String())
 	}
+}
+
+// Math Functions
+
+func builtinPi(vm *VM, args []Value) (Value, error) {
+	if len(args) != 0 {
+		return NilValue(), vm.runtimeError("Pi expects no arguments, got %d", len(args))
+	}
+	return FloatValue(math.Pi), nil
+}
+
+func builtinSign(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Sign expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	var floatVal float64
+	if arg.IsFloat() {
+		floatVal = arg.AsFloat()
+	} else if arg.IsInt() {
+		floatVal = float64(arg.AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("Sign expects Float or Integer, got %s", arg.Type.String())
+	}
+
+	if floatVal > 0 {
+		return IntValue(1), nil
+	} else if floatVal < 0 {
+		return IntValue(-1), nil
+	}
+	return IntValue(0), nil
+}
+
+func builtinOdd(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Odd expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	if !arg.IsInt() {
+		return NilValue(), vm.runtimeError("Odd expects Integer, got %s", arg.Type.String())
+	}
+
+	return BoolValue(arg.AsInt()%2 != 0), nil
+}
+
+func builtinFrac(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Frac expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	var floatVal float64
+	if arg.IsFloat() {
+		floatVal = arg.AsFloat()
+	} else if arg.IsInt() {
+		floatVal = float64(arg.AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("Frac expects Float or Integer, got %s", arg.Type.String())
+	}
+
+	// Fractional part = x - floor(x)
+	_, frac := math.Modf(floatVal)
+	return FloatValue(frac), nil
+}
+
+func builtinInt(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Int expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	var floatVal float64
+	if arg.IsFloat() {
+		floatVal = arg.AsFloat()
+	} else if arg.IsInt() {
+		floatVal = float64(arg.AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("Int expects Float or Integer, got %s", arg.Type.String())
+	}
+
+	// Int() returns the integer part (truncated towards zero) as a Float
+	return FloatValue(math.Trunc(floatVal)), nil
+}
+
+func builtinLog10(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Log10 expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	var floatVal float64
+	if arg.IsFloat() {
+		floatVal = arg.AsFloat()
+	} else if arg.IsInt() {
+		floatVal = float64(arg.AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("Log10 expects Float or Integer, got %s", arg.Type.String())
+	}
+
+	if floatVal <= 0 {
+		return NilValue(), vm.runtimeError("Log10 argument must be positive, got %f", floatVal)
+	}
+
+	return FloatValue(math.Log10(floatVal)), nil
+}
+
+func builtinLogN(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("LogN expects 2 arguments, got %d", len(args))
+	}
+
+	// First argument (x)
+	var xVal float64
+	if args[0].IsFloat() {
+		xVal = args[0].AsFloat()
+	} else if args[0].IsInt() {
+		xVal = float64(args[0].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("LogN expects Float or Integer as first argument, got %s", args[0].Type.String())
+	}
+
+	// Second argument (base)
+	var baseVal float64
+	if args[1].IsFloat() {
+		baseVal = args[1].AsFloat()
+	} else if args[1].IsInt() {
+		baseVal = float64(args[1].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("LogN expects Float or Integer as second argument, got %s", args[1].Type.String())
+	}
+
+	if xVal <= 0 {
+		return NilValue(), vm.runtimeError("LogN first argument must be positive, got %f", xVal)
+	}
+	if baseVal <= 0 || baseVal == 1 {
+		return NilValue(), vm.runtimeError("LogN base must be positive and not equal to 1, got %f", baseVal)
+	}
+
+	// LogN(x, base) = Log(x) / Log(base)
+	return FloatValue(math.Log(xVal) / math.Log(baseVal)), nil
+}
+
+// MEDIUM PRIORITY Math Functions
+
+func builtinInfinity(vm *VM, args []Value) (Value, error) {
+	if len(args) != 0 {
+		return NilValue(), vm.runtimeError("Infinity expects no arguments, got %d", len(args))
+	}
+	return FloatValue(math.Inf(1)), nil
+}
+
+func builtinNaN(vm *VM, args []Value) (Value, error) {
+	if len(args) != 0 {
+		return NilValue(), vm.runtimeError("NaN expects no arguments, got %d", len(args))
+	}
+	return FloatValue(math.NaN()), nil
+}
+
+func builtinIsFinite(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("IsFinite expects 1 argument, got %d", len(args))
+	}
+
+	var floatVal float64
+	if args[0].IsFloat() {
+		floatVal = args[0].AsFloat()
+	} else if args[0].IsInt() {
+		floatVal = float64(args[0].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("IsFinite expects Float or Integer, got %s", args[0].Type.String())
+	}
+
+	return BoolValue(!math.IsInf(floatVal, 0) && !math.IsNaN(floatVal)), nil
+}
+
+func builtinIsInfinite(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("IsInfinite expects 1 argument, got %d", len(args))
+	}
+
+	var floatVal float64
+	if args[0].IsFloat() {
+		floatVal = args[0].AsFloat()
+	} else if args[0].IsInt() {
+		floatVal = float64(args[0].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("IsInfinite expects Float or Integer, got %s", args[0].Type.String())
+	}
+
+	return BoolValue(math.IsInf(floatVal, 0)), nil
+}
+
+func builtinIntPower(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("IntPower expects 2 arguments, got %d", len(args))
+	}
+
+	// First argument (base) - Float or Integer
+	var baseVal float64
+	if args[0].IsFloat() {
+		baseVal = args[0].AsFloat()
+	} else if args[0].IsInt() {
+		baseVal = float64(args[0].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("IntPower expects Float or Integer as first argument, got %s", args[0].Type.String())
+	}
+
+	// Second argument (exponent) - Integer only
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("IntPower expects Integer as second argument, got %s", args[1].Type.String())
+	}
+	expVal := args[1].AsInt()
+
+	// Calculate power using exponentiation by squaring for integer exponents
+	result := 1.0
+	base := baseVal
+	exp := expVal
+
+	if exp < 0 {
+		base = 1.0 / base
+		exp = -exp
+	}
+
+	for exp > 0 {
+		if exp%2 == 1 {
+			result *= base
+		}
+		base *= base
+		exp /= 2
+	}
+
+	return FloatValue(result), nil
+}
+
+func builtinRandSeed(vm *VM, args []Value) (Value, error) {
+	if len(args) != 0 {
+		return NilValue(), vm.runtimeError("RandSeed expects no arguments, got %d", len(args))
+	}
+	return IntValue(vm.randSeed), nil
+}
+
+func builtinRandG(vm *VM, args []Value) (Value, error) {
+	if len(args) != 0 {
+		return NilValue(), vm.runtimeError("RandG expects no arguments, got %d", len(args))
+	}
+
+	// Generate Gaussian random number using Box-Muller transform
+	u1 := vm.rand.Float64()
+	u2 := vm.rand.Float64()
+
+	// Ensure u1 is not zero or near-zero to avoid log(0)
+	if u1 < 1e-10 {
+		u1 = 1e-10
+	}
+
+	// Box-Muller transform
+	z0 := math.Sqrt(-2.0*math.Log(u1)) * math.Cos(2.0*math.Pi*u2)
+
+	return FloatValue(z0), nil
+}
+
+func builtinSetRandSeed(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("SetRandSeed expects 1 argument, got %d", len(args))
+	}
+
+	if !args[0].IsInt() {
+		return NilValue(), vm.runtimeError("SetRandSeed expects Integer, got %s", args[0].Type.String())
+	}
+
+	seed := args[0].AsInt()
+	vm.randSeed = seed
+	vm.rand = rand.New(rand.NewSource(seed))
+
+	return NilValue(), nil
+}
+
+func builtinRandomize(vm *VM, args []Value) (Value, error) {
+	if len(args) != 0 {
+		return NilValue(), vm.runtimeError("Randomize expects no arguments, got %d", len(args))
+	}
+
+	seed := time.Now().UnixNano()
+	vm.randSeed = seed
+	vm.rand = rand.New(rand.NewSource(seed))
+
+	return NilValue(), nil
 }
