@@ -54,7 +54,7 @@ PrintLn(IsDelimiter(' ', str, 1));  // False
 PrintLn(IsDelimiter('aeiou', 'hello', 2));  // True (e is a vowel)
 
 // Test LastDelimiter
-PrintLn(IntToStr(LastDelimiter('/', 'a/b/c')));     // 5
+PrintLn(IntToStr(LastDelimiter('/', 'a/b/c')));     // 4
 PrintLn(IntToStr(LastDelimiter('/', 'no-delim')));  // 0
 
 // Test FindDelimiter
