@@ -274,7 +274,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	if funcName.Value == "Inc" || funcName.Value == "Dec" || funcName.Value == "Insert" ||
 		(funcName.Value == "Delete" && len(expr.Arguments) == 3) ||
 		funcName.Value == "DecodeDate" || funcName.Value == "DecodeTime" ||
-		funcName.Value == "Swap" {
+		funcName.Value == "Swap" || funcName.Value == "DivMod" {
 		return i.callBuiltinWithVarParam(funcName.Value, expr.Arguments)
 	}
 
@@ -366,7 +366,12 @@ func normalizeBuiltinName(name string) string {
 		"cotan": "CoTan", "hypot": "Hypot", "sinh": "Sinh", "cosh": "Cosh",
 		"tanh": "Tanh", "arcsinh": "ArcSinh", "arccosh": "ArcCosh", "arctanh": "ArcTanh",
 		"random": "Random", "randomint": "RandomInt", "randomize": "Randomize",
-		"setrandseed": "SetRandSeed", "isnan": "IsNaN",
+		"setrandseed": "SetRandSeed", "randseed": "RandSeed", "randg": "RandG",
+		"pi": "Pi", "sign": "Sign", "odd": "Odd",
+		"frac": "Frac", "int": "Int", "log10": "Log10", "logn": "LogN",
+		"infinity": "Infinity", "nan": "NaN", "isfinite": "IsFinite",
+		"isinfinite": "IsInfinite", "intpower": "IntPower", "divmod": "DivMod",
+		"isnan":      "IsNaN",
 		"unsigned32": "Unsigned32", "exp": "Exp", "ln": "Ln", "log2": "Log2",
 		"round": "Round", "trunc": "Trunc", "ceil": "Ceil", "floor": "Floor",
 		"low": "Low", "high": "High", "setlength": "SetLength", "add": "Add",

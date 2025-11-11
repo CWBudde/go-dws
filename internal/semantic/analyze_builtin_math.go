@@ -954,3 +954,311 @@ func (a *Analyzer) analyzeSetRandSeed(args []ast.Expression, callExpr *ast.CallE
 	// SetRandSeed doesn't return a value (procedure)
 	return nil
 }
+
+// analyzePi analyzes the Pi built-in constant.
+// Pi: Float
+func (a *Analyzer) analyzePi(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 0 {
+		a.addError("function 'Pi' expects no arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.FLOAT
+	}
+
+	return types.FLOAT
+}
+
+// analyzeSign analyzes the Sign built-in function.
+// Sign takes a Float or Integer and returns an Integer (-1, 0, or 1).
+// Sign(x: Float): Integer
+func (a *Analyzer) analyzeSign(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'Sign' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+
+	// Analyze the argument
+	argType := a.analyzeExpression(args[0])
+
+	// Argument must be Float or Integer
+	if argType != nil && argType != types.FLOAT && argType != types.INTEGER {
+		a.addError("function 'Sign' expects Float or Integer, got %s at %s",
+			argType.String(), callExpr.Token.Pos.String())
+	}
+
+	return types.INTEGER
+}
+
+// analyzeOdd analyzes the Odd built-in function.
+// Odd takes an Integer and returns a Boolean.
+// Odd(x: Integer): Boolean
+func (a *Analyzer) analyzeOdd(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'Odd' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+
+	// Analyze the argument
+	argType := a.analyzeExpression(args[0])
+
+	// Argument must be Integer
+	if argType != nil && argType != types.INTEGER {
+		a.addError("function 'Odd' expects Integer, got %s at %s",
+			argType.String(), callExpr.Token.Pos.String())
+	}
+
+	return types.BOOLEAN
+}
+
+// analyzeFrac analyzes the Frac built-in function.
+// Frac takes a Float or Integer and returns the fractional part as Float.
+// Frac(x: Float): Float
+func (a *Analyzer) analyzeFrac(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'Frac' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.FLOAT
+	}
+
+	// Analyze the argument
+	argType := a.analyzeExpression(args[0])
+
+	// Argument must be Float or Integer
+	if argType != nil && argType != types.FLOAT && argType != types.INTEGER {
+		a.addError("function 'Frac' expects Float or Integer, got %s at %s",
+			argType.String(), callExpr.Token.Pos.String())
+	}
+
+	return types.FLOAT
+}
+
+// analyzeInt analyzes the Int built-in function.
+// Int takes a Float or Integer and returns the integer part as Float.
+// Int(x: Float): Float
+func (a *Analyzer) analyzeInt(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'Int' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.FLOAT
+	}
+
+	// Analyze the argument
+	argType := a.analyzeExpression(args[0])
+
+	// Argument must be Float or Integer
+	if argType != nil && argType != types.FLOAT && argType != types.INTEGER {
+		a.addError("function 'Int' expects Float or Integer, got %s at %s",
+			argType.String(), callExpr.Token.Pos.String())
+	}
+
+	return types.FLOAT
+}
+
+// analyzeLog10 analyzes the Log10 built-in function.
+// Log10 takes a Float or Integer and returns the base-10 logarithm as Float.
+// Log10(x: Float): Float
+func (a *Analyzer) analyzeLog10(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'Log10' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.FLOAT
+	}
+
+	// Analyze the argument
+	argType := a.analyzeExpression(args[0])
+
+	// Argument must be Float or Integer
+	if argType != nil && argType != types.FLOAT && argType != types.INTEGER {
+		a.addError("function 'Log10' expects Float or Integer, got %s at %s",
+			argType.String(), callExpr.Token.Pos.String())
+	}
+
+	return types.FLOAT
+}
+
+// analyzeLogN analyzes the LogN built-in function.
+// LogN takes two Float or Integer arguments and returns the logarithm with custom base as Float.
+// LogN(x, base: Float): Float
+func (a *Analyzer) analyzeLogN(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'LogN' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.FLOAT
+	}
+
+	// Analyze the first argument (x)
+	argType1 := a.analyzeExpression(args[0])
+	if argType1 != nil && argType1 != types.FLOAT && argType1 != types.INTEGER {
+		a.addError("function 'LogN' expects Float or Integer as first argument, got %s at %s",
+			argType1.String(), callExpr.Token.Pos.String())
+	}
+
+	// Analyze the second argument (base)
+	argType2 := a.analyzeExpression(args[1])
+	if argType2 != nil && argType2 != types.FLOAT && argType2 != types.INTEGER {
+		a.addError("function 'LogN' expects Float or Integer as second argument, got %s at %s",
+			argType2.String(), callExpr.Token.Pos.String())
+	}
+
+	return types.FLOAT
+}
+
+// analyzeInfinity analyzes the Infinity built-in constant.
+// Infinity: Float
+func (a *Analyzer) analyzeInfinity(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 0 {
+		a.addError("function 'Infinity' expects no arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.FLOAT
+	}
+
+	return types.FLOAT
+}
+
+// analyzeNaN analyzes the NaN built-in constant.
+// NaN: Float
+func (a *Analyzer) analyzeNaN(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 0 {
+		a.addError("function 'NaN' expects no arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.FLOAT
+	}
+
+	return types.FLOAT
+}
+
+// analyzeIsFinite analyzes the IsFinite built-in function.
+// IsFinite takes a Float or Integer and returns a Boolean.
+// IsFinite(x: Float): Boolean
+func (a *Analyzer) analyzeIsFinite(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'IsFinite' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+
+	// Analyze the argument
+	argType := a.analyzeExpression(args[0])
+
+	// Argument must be Float or Integer
+	if argType != nil && argType != types.FLOAT && argType != types.INTEGER {
+		a.addError("function 'IsFinite' expects Float or Integer, got %s at %s",
+			argType.String(), callExpr.Token.Pos.String())
+	}
+
+	return types.BOOLEAN
+}
+
+// analyzeIsInfinite analyzes the IsInfinite built-in function.
+// IsInfinite takes a Float or Integer and returns a Boolean.
+// IsInfinite(x: Float): Boolean
+func (a *Analyzer) analyzeIsInfinite(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'IsInfinite' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+
+	// Analyze the argument
+	argType := a.analyzeExpression(args[0])
+
+	// Argument must be Float or Integer
+	if argType != nil && argType != types.FLOAT && argType != types.INTEGER {
+		a.addError("function 'IsInfinite' expects Float or Integer, got %s at %s",
+			argType.String(), callExpr.Token.Pos.String())
+	}
+
+	return types.BOOLEAN
+}
+
+// analyzeIntPower analyzes the IntPower built-in function.
+// IntPower takes base (Float or Integer) and exponent (Integer) and returns Float.
+// IntPower(base: Float, exponent: Integer): Float
+func (a *Analyzer) analyzeIntPower(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'IntPower' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.FLOAT
+	}
+
+	// Analyze first argument (base)
+	argType1 := a.analyzeExpression(args[0])
+	if argType1 != nil && argType1 != types.FLOAT && argType1 != types.INTEGER {
+		a.addError("function 'IntPower' expects Float or Integer as first argument, got %s at %s",
+			argType1.String(), callExpr.Token.Pos.String())
+	}
+
+	// Analyze second argument (exponent)
+	argType2 := a.analyzeExpression(args[1])
+	if argType2 != nil && argType2 != types.INTEGER {
+		a.addError("function 'IntPower' expects Integer as second argument, got %s at %s",
+			argType2.String(), callExpr.Token.Pos.String())
+	}
+
+	return types.FLOAT
+}
+
+// analyzeRandSeed analyzes the RandSeed built-in function.
+// RandSeed: Integer
+func (a *Analyzer) analyzeRandSeed(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 0 {
+		a.addError("function 'RandSeed' expects no arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+
+	return types.INTEGER
+}
+
+// analyzeRandG analyzes the RandG built-in function.
+// RandG: Float
+func (a *Analyzer) analyzeRandG(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 0 {
+		a.addError("function 'RandG' expects no arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.FLOAT
+	}
+
+	return types.FLOAT
+}
+
+// analyzeDivMod analyzes the DivMod built-in procedure.
+// DivMod(dividend, divisor: Integer; var quotient, remainder: Integer)
+func (a *Analyzer) analyzeDivMod(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 4 {
+		a.addError("function 'DivMod' expects 4 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return nil
+	}
+
+	// First two arguments: dividend and divisor (Integer)
+	dividendType := a.analyzeExpression(args[0])
+	if dividendType != nil && dividendType != types.INTEGER {
+		a.addError("function 'DivMod' expects Integer as first argument, got %s at %s",
+			dividendType.String(), callExpr.Token.Pos.String())
+	}
+
+	divisorType := a.analyzeExpression(args[1])
+	if divisorType != nil && divisorType != types.INTEGER {
+		a.addError("function 'DivMod' expects Integer as second argument, got %s at %s",
+			divisorType.String(), callExpr.Token.Pos.String())
+	}
+
+	// Last two arguments: quotient and remainder (var Integer parameters)
+	// These should be identifiers (variables)
+	quotientType := a.analyzeExpression(args[2])
+	if quotientType != nil && quotientType != types.INTEGER {
+		a.addError("function 'DivMod' expects Integer as third argument, got %s at %s",
+			quotientType.String(), callExpr.Token.Pos.String())
+	}
+
+	remainderType := a.analyzeExpression(args[3])
+	if remainderType != nil && remainderType != types.INTEGER {
+		a.addError("function 'DivMod' expects Integer as fourth argument, got %s at %s",
+			remainderType.String(), callExpr.Token.Pos.String())
+	}
+
+	// DivMod is a procedure (no return value)
+	return nil
+}
