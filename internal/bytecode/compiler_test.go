@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	numBuiltinGlobals = 27 // ExceptObject + 21 builtins + 4 type casts + Pi
+	numBuiltinGlobals = 43 // ExceptObject + 21 string/IO builtins + 4 type casts + 2 char ops + 6 math + 9 extended math (Pi is a constant, not a global)
 	userGlobal0       = numBuiltinGlobals
 	userGlobal1       = numBuiltinGlobals + 1
 )
