@@ -277,6 +277,11 @@ func (i *Interpreter) builtinEvery(args []Value) Value {
 			return result
 		}
 
+		// Check if exception was raised
+		if i.exception != nil {
+			return &BooleanValue{Value: false}
+		}
+
 		// Check for nil result
 		if result == nil {
 			return i.newErrorWithLocation(i.currentNode, "Every() predicate returned nil")
@@ -338,6 +343,11 @@ func (i *Interpreter) builtinSome(args []Value) Value {
 		// Check for errors
 		if isError(result) {
 			return result
+		}
+
+		// Check if exception was raised
+		if i.exception != nil {
+			return &BooleanValue{Value: false}
 		}
 
 		// Check for nil result
@@ -403,6 +413,11 @@ func (i *Interpreter) builtinFind(args []Value) Value {
 			return result
 		}
 
+		// Check if exception was raised
+		if i.exception != nil {
+			return &NilValue{}
+		}
+
 		// Check for nil result
 		if result == nil {
 			return i.newErrorWithLocation(i.currentNode, "Find() predicate returned nil")
@@ -464,6 +479,11 @@ func (i *Interpreter) builtinFindIndex(args []Value) Value {
 		// Check for errors
 		if isError(result) {
 			return result
+		}
+
+		// Check if exception was raised
+		if i.exception != nil {
+			return &IntegerValue{Value: -1}
 		}
 
 		// Check for nil result
@@ -590,6 +610,9 @@ func (i *Interpreter) builtinSlice(args []Value) Value {
 	// Validate indices
 	if start < 0 {
 		start = 0
+	}
+	if end < 0 {
+		end = 0
 	}
 	if end > len(arrayVal.Elements) {
 		end = len(arrayVal.Elements)
