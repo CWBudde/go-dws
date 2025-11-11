@@ -294,14 +294,17 @@ func (i *Interpreter) evalBuiltinCall(name string, args []Value) (Value, error) 
 
 ---
 
-### 🔄 Phase 2: Subdirectory Organization - READY TO START
+### ❌ Phase 2: Subdirectory Organization - NOT FEASIBLE
+
+**Date Attempted:** 2025-11-11
+**Status:** BLOCKED by Go's circular import restrictions
 
 **Current State:**
 - All files remain in flat directory structure
 - File count: `internal/interp/` has 116 Go files in root directory
 - Prefixed naming provides some organization
 
-**Target Structure:**
+**Target Structure (Originally Planned):**
 ```
 internal/interp/
 ├── builtins/          # Package builtins - all builtin functions
@@ -311,22 +314,63 @@ internal/interp/
 └── ...                # Core interpreter files remain in root
 ```
 
-**Decision: PROCEED with subdirectory organization**
+**Why Phase 2 Was Blocked:**
 
-This is standard Go practice and will provide significant benefits:
+Attempting to create subdirectory packages (builtins/, objects/, functions/, statements/) hits Go's **circular import prohibition**:
 
-✅ **Idiomatic Go** - Follows Go conventions
-✅ **Clear package boundaries** - Better encapsulation
-✅ **Tests with code** - Side-by-side as Go convention
-✅ **Reduces root directory** - From 116 to ~15 files
-✅ **Better maintainability** - Easier to work with smaller packages
+```
+internal/interp → imports → internal/interp/builtins
+internal/interp/builtins → imports → internal/interp (for Value, Interpreter types)
+```
 
-**The one-time migration cost is worth it for long-term maintainability.**
+**The fundamental issue**: All interpreter subsystems (builtins, objects, functions, statements) are **tightly coupled** to core interpreter types:
+- They all need access to `*Interpreter`, `Value` interface, and related types from `interp` package
+- The `interp` package needs to call functions in these subsystems
+- Many functions call back into interpreter methods (e.g., builtin `Map` calls `CallFunctionPointer`)
 
-**Next Steps:**
-1. ✅ Phase 1 Complete - All priority file splits done!
-2. Start Phase 2.1 (create builtins/ package and move files)
-3. Continue with objects/, functions/, statements/ packages
+Go does **not allow circular imports**, even between parent/child packages. This is a hard constraint of the language.
+
+**What Would Be Required to Succeed:**
+
+To successfully separate into subdirectory packages would require a **much larger refactoring**:
+
+1. **Extract shared types to common package** (e.g., `internal/runtime/` or `internal/values/`):
+   - Move `Value` interface and all value types (IntegerValue, StringValue, etc.)
+   - Move `Interpreter` to an interface or extract core methods
+   - Move error handling infrastructure
+   - Move Environment types
+
+2. **Dependency flow** (no circular imports):
+   ```
+   internal/runtime/       # Shared types: Value, Interpreter interface
+   ├── imported by →  internal/interp/builtins/
+   ├── imported by →  internal/interp/objects/
+   ├── imported by →  internal/interp/functions/
+   ├── imported by →  internal/interp/statements/
+   └── imported by →  internal/interp/          # Orchestrator
+   ```
+
+3. **Interface-based design**:
+   - Define interfaces for what subsystems need from Interpreter
+   - Reduce coupling through abstraction
+   - Potentially thousands of lines of code affected
+
+This is a **massive architectural refactoring** affecting the entire codebase, not just moving files.
+
+**Decision: DEFER Phase 2**
+
+The current flat structure with prefixed naming (`builtins_core.go`, `objects_methods.go`, etc.) is:
+- ✅ **Working well** - Phase 1 splits reduced file sizes significantly
+- ✅ **Maintainable** - Clear prefixes make organization visible
+- ✅ **No circular deps** - Everything in same package
+- ✅ **Easy to navigate** - Prefixes group related files together
+
+The subdirectory organization would be **nice-to-have** but is **not critical** for maintainability given:
+- Phase 1 successfully eliminated all files over 50KB
+- Prefixed naming provides logical grouping
+- Cost of the required refactoring is very high
+
+**Recommendation:** Accept current structure and defer subdirectory organization until there's a compelling need and resources for the larger architectural refactoring
 
 ---
 
@@ -631,7 +675,7 @@ pkg/
 
 ## Conclusion
 
-Phase 1 of the refactoring has been successfully completed! Phase 2 is ready to proceed.
+Phase 1 of the refactoring has been successfully completed. Phase 2 has been evaluated and deferred.
 
 **Phase 1 Achievements:**
 - ✅ Eliminated all files over 50KB in `internal/interp/`
@@ -639,26 +683,35 @@ Phase 1 of the refactoring has been successfully completed! Phase 2 is ready to 
 - ✅ Clear naming conventions (objects_*, functions_*, statements_*, builtins_*)
 - ✅ All functionality preserved and tests passing
 
-**Phase 2 Plan:**
-After reviewing the flat structure approach, **subdirectory organization is recommended** as the next step. This is idiomatic Go and provides significant long-term benefits:
+**Phase 2 Status:**
+After attempting implementation, **subdirectory organization has been deferred** due to Go's circular import restrictions:
 
-1. ✅ **Phase 1 Complete:** All priority file splits done!
-2. **Start Phase 2:** Create subdirectory packages
-   - Phase 2.1: `internal/interp/builtins/` package
-   - Phase 2.2: `internal/interp/objects/` package
-   - Phase 2.3: `internal/interp/functions/` package
-   - Phase 2.4: `internal/interp/statements/` package
-3. **Maintain Go conventions:** Tests side-by-side with implementation
-4. **Consider other packages:** Apply similar treatment to `semantic/`, `bytecode/` if beneficial
+1. ❌ **Phase 2 Attempted:** Created subdirectory packages but hit circular dependency
+2. ❌ **Blocked by Go constraints:** Parent/child packages cannot have circular imports
+3. ✅ **Code reverted:** All changes reverted, tests still passing
+4. ✅ **Alternative accepted:** Current flat structure with prefixed naming is sufficient
 
-**Key Principles:**
-- Follow idiomatic Go package structure
-- Tests with implementation (not in separate directory)
-- Clear package boundaries for better encapsulation
-- One-time migration cost is worth long-term maintainability
+**Why Phase 2 Was Deferred:**
+- Requires massive architectural refactoring (extract shared types to common package)
+- Would affect thousands of lines across entire codebase
+- Current structure works well after Phase 1 improvements
+- Cost/benefit analysis doesn't justify the effort
+
+**Current Status:**
+- **Flat directory structure** with 116 files in `internal/interp/`
+- **Prefixed naming** provides logical organization (builtins_*, objects_*, functions_*, statements_*)
+- **No files over 50KB** thanks to Phase 1 splits
+- **Easy to navigate** - prefixes make it clear which files are related
+- **No circular dependencies** - everything in one package
+
+**Key Principles Moving Forward:**
+- Accept flat structure as the pragmatic solution
+- Continue using prefixed naming for new files
+- Split files before they exceed 50KB
+- Defer subdirectory organization until there's a compelling need
 
 ---
 
-**Document Version:** 2.2
+**Document Version:** 2.3
 **Last Updated:** 2025-11-11
-**Status:** Phase 1 complete; Phase 2 recommended and ready to start
+**Status:** Phase 1 complete and successful; Phase 2 attempted but deferred due to Go circular import constraints
