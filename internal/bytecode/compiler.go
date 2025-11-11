@@ -1478,8 +1478,13 @@ func (c *Compiler) initBuiltins() {
 	c.addBuiltinGlobal("Float")
 	c.addBuiltinGlobal("String")
 	c.addBuiltinGlobal("Boolean")
-	// Mathematical constants
-	c.addBuiltinGlobal("Pi")
+	// Math functions (Pi is a constant, handled by semantic analyzer)
+	c.addBuiltinGlobal("Sign")
+	c.addBuiltinGlobal("Odd")
+	c.addBuiltinGlobal("Frac")
+	c.addBuiltinGlobal("Int")
+	c.addBuiltinGlobal("Log10")
+	c.addBuiltinGlobal("LogN")
 }
 
 func (c *Compiler) addBuiltinGlobal(name string) {

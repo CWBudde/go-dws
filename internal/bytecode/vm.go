@@ -985,6 +985,13 @@ func (vm *VM) reset() {
 	vm.setGlobal(25, BuiltinValue("Float"))
 	vm.setGlobal(26, BuiltinValue("String"))
 	vm.setGlobal(27, BuiltinValue("Boolean"))
+	// Math functions (Pi is a constant, handled separately)
+	vm.setGlobal(28, BuiltinValue("Sign"))
+	vm.setGlobal(29, BuiltinValue("Odd"))
+	vm.setGlobal(30, BuiltinValue("Frac"))
+	vm.setGlobal(31, BuiltinValue("Int"))
+	vm.setGlobal(32, BuiltinValue("Log10"))
+	vm.setGlobal(33, BuiltinValue("LogN"))
 }
 
 func (vm *VM) getGlobal(index int) Value {
@@ -1561,6 +1568,14 @@ func (vm *VM) registerBuiltins() {
 	vm.builtins["Float"] = builtinFloat
 	vm.builtins["String"] = builtinString
 	vm.builtins["Boolean"] = builtinBoolean
+	// Math functions
+	// Note: Pi is a constant, not a function, handled by semantic analyzer
+	vm.builtins["Sign"] = builtinSign
+	vm.builtins["Odd"] = builtinOdd
+	vm.builtins["Frac"] = builtinFrac
+	vm.builtins["Int"] = builtinInt
+	vm.builtins["Log10"] = builtinLog10
+	vm.builtins["LogN"] = builtinLogN
 }
 
 // Built-in function implementations
@@ -2217,4 +2232,146 @@ func builtinBoolean(vm *VM, args []Value) (Value, error) {
 	default:
 		return NilValue(), vm.runtimeError("cannot cast %s to Boolean", arg.Type.String())
 	}
+}
+
+// Math Functions
+
+func builtinPi(vm *VM, args []Value) (Value, error) {
+	if len(args) != 0 {
+		return NilValue(), vm.runtimeError("Pi expects no arguments, got %d", len(args))
+	}
+	return FloatValue(math.Pi), nil
+}
+
+func builtinSign(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Sign expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	var floatVal float64
+	if arg.IsFloat() {
+		floatVal = arg.AsFloat()
+	} else if arg.IsInt() {
+		floatVal = float64(arg.AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("Sign expects Float or Integer, got %s", arg.Type.String())
+	}
+
+	if floatVal > 0 {
+		return IntValue(1), nil
+	} else if floatVal < 0 {
+		return IntValue(-1), nil
+	}
+	return IntValue(0), nil
+}
+
+func builtinOdd(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Odd expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	if !arg.IsInt() {
+		return NilValue(), vm.runtimeError("Odd expects Integer, got %s", arg.Type.String())
+	}
+
+	return BoolValue(arg.AsInt()%2 != 0), nil
+}
+
+func builtinFrac(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Frac expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	var floatVal float64
+	if arg.IsFloat() {
+		floatVal = arg.AsFloat()
+	} else if arg.IsInt() {
+		floatVal = float64(arg.AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("Frac expects Float or Integer, got %s", arg.Type.String())
+	}
+
+	// Fractional part = x - floor(x)
+	_, frac := math.Modf(floatVal)
+	return FloatValue(frac), nil
+}
+
+func builtinInt(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Int expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	var floatVal float64
+	if arg.IsFloat() {
+		floatVal = arg.AsFloat()
+	} else if arg.IsInt() {
+		floatVal = float64(arg.AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("Int expects Float or Integer, got %s", arg.Type.String())
+	}
+
+	// Int() returns the integer part (truncated towards zero) as a Float
+	return FloatValue(math.Trunc(floatVal)), nil
+}
+
+func builtinLog10(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Log10 expects 1 argument, got %d", len(args))
+	}
+	arg := args[0]
+
+	var floatVal float64
+	if arg.IsFloat() {
+		floatVal = arg.AsFloat()
+	} else if arg.IsInt() {
+		floatVal = float64(arg.AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("Log10 expects Float or Integer, got %s", arg.Type.String())
+	}
+
+	if floatVal <= 0 {
+		return NilValue(), vm.runtimeError("Log10 argument must be positive, got %f", floatVal)
+	}
+
+	return FloatValue(math.Log10(floatVal)), nil
+}
+
+func builtinLogN(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("LogN expects 2 arguments, got %d", len(args))
+	}
+
+	// First argument (x)
+	var xVal float64
+	if args[0].IsFloat() {
+		xVal = args[0].AsFloat()
+	} else if args[0].IsInt() {
+		xVal = float64(args[0].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("LogN expects Float or Integer as first argument, got %s", args[0].Type.String())
+	}
+
+	// Second argument (base)
+	var baseVal float64
+	if args[1].IsFloat() {
+		baseVal = args[1].AsFloat()
+	} else if args[1].IsInt() {
+		baseVal = float64(args[1].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("LogN expects Float or Integer as second argument, got %s", args[1].Type.String())
+	}
+
+	if xVal <= 0 {
+		return NilValue(), vm.runtimeError("LogN first argument must be positive, got %f", xVal)
+	}
+	if baseVal <= 0 || baseVal == 1 {
+		return NilValue(), vm.runtimeError("LogN base must be positive and not equal to 1, got %f", baseVal)
+	}
+
+	// LogN(x, base) = Log(x) / Log(base)
+	return FloatValue(math.Log(xVal) / math.Log(baseVal)), nil
 }
