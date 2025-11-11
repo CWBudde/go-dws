@@ -118,7 +118,7 @@ The following large files should be considered for splitting if they become prob
 - `internal/bytecode/vm.go` (47KB, 2,172 lines)
 - `internal/bytecode/compiler.go` (42KB, 1,799 lines)
 - `internal/parser/expressions.go` (40KB, 1,222 lines)
-- `internal/interp/expressions.go` (38KB, 1,222 lines)
+- `internal/interp/expressions.go` (38KB, 1,087 lines)
 - `internal/interp/builtins_strings.go` (33KB)
 - `internal/interp/builtins_core.go` (34KB)
 
