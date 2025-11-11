@@ -802,10 +802,10 @@ each element is wrapped in a variant-like container that preserves type informat
 #### Subtask Category: Array Type Syntax
 
 - [x] 9.21.1 Fix "array of <type>" shorthand parsing ✓
-  - **Task**: Support DWScript's `array [TEnum] of Type` syntax (enum-indexed array)
+  - **Task**: Support DWScript's `array[TEnum] of Type` syntax (enum-indexed array)
   - **Current Error**: "expected DOTDOT, got RBRACK" when parsing `array[TEnum]`
   - **Implementation**:
-    - Extended `parseArrayType()` to handle `array [EnumType] of <type>` syntax
+    - Extended `parseArrayType()` to handle `array[EnumType] of <type>` syntax
     - Added `IndexType` field to `ArrayTypeNode` AST node
     - Updated semantic analyzer to resolve enum-indexed arrays to static arrays with enum bounds
     - Updated interpreter to accept enum values as array indices (using ordinal values)

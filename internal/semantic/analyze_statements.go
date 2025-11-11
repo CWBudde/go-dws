@@ -202,7 +202,14 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 			constType, err = a.resolveType(stmt.Type.Name)
 		}
 		if err != nil {
-			a.addError("unknown type '%s' at %s", stmt.Type.Name, stmt.Token.Pos.String())
+			// Use the appropriate type description based on whether it's an inline type or named type
+			var typeDesc string
+			if stmt.Type.InlineType != nil {
+				typeDesc = getTypeExpressionName(stmt.Type.InlineType)
+			} else {
+				typeDesc = stmt.Type.Name
+			}
+			a.addError("unknown type '%s' at %s", typeDesc, stmt.Token.Pos.String())
 			return
 		}
 	}

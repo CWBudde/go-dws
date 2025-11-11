@@ -400,9 +400,11 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 			return nil, fmt.Errorf("array index type '%s' must be an enum type, got %s", enumTypeName, enumType.TypeKind())
 		}
 
-		// Get enum bounds (0-based to element count - 1)
-		lowBound := 0
-		highBound := len(et.OrderedNames) - 1
+		// Get actual enum ordinal bounds
+		// For example, type TDay = (Mon=1, Tue, Wed) has ordinals 1, 2, 3
+		// So the array should have bounds 1..3, not 0..2
+		lowBound := et.MinOrdinal()
+		highBound := et.MaxOrdinal()
 
 		return types.NewStaticArrayType(elementType, lowBound, highBound), nil
 	}

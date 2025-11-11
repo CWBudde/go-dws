@@ -252,6 +252,11 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 	return funcPtrType
 }
 
+// dimensionPair represents a single dimension of an array with low and high bounds.
+type dimensionPair struct {
+	low, high ast.Expression
+}
+
 // parseArrayType parses an array type expression.
 // Supports both dynamic and static arrays:
 //   - Dynamic: array of ElementType
@@ -281,9 +286,6 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	arrayToken := p.curToken
 
 	// Collect all dimensions (comma-separated)
-	type dimensionPair struct {
-		low, high ast.Expression
-	}
 	var dimensions []dimensionPair
 
 	var indexType ast.TypeExpression
@@ -311,52 +313,9 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 			} else {
 				// Not enum-indexed, restore and parse as normal bounds
 				// We've already moved to the identifier, so this will be the low bound
-				lowBound := p.parseArrayBound()
-				if lowBound == nil {
-					p.addError("invalid array lower bound expression", ErrInvalidExpression)
+				dimensions = p.parseArrayBoundsFromCurrent()
+				if dimensions == nil {
 					return nil
-				}
-
-				// Expect '..'
-				if !p.expectPeek(lexer.DOTDOT) {
-					p.addError("expected .... in array bounds", ErrUnexpectedToken)
-					return nil
-				}
-
-				// Parse high bound expression
-				p.nextToken() // move to high bound
-				highBound := p.parseArrayBound()
-				if highBound == nil {
-					p.addError("invalid array upper bound expression", ErrInvalidExpression)
-					return nil
-				}
-
-				dimensions = append(dimensions, dimensionPair{lowBound, highBound})
-
-				// Parse additional dimensions (comma-separated)
-				// Task 9.212: Support multidimensional arrays like array[0..1, 0..2]
-				for p.peekTokenIs(lexer.COMMA) {
-					p.nextToken() // consume comma
-					p.nextToken() // move to next low bound
-					lowBound := p.parseArrayBound()
-					if lowBound == nil {
-						p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
-						return nil
-					}
-
-					if !p.expectPeek(lexer.DOTDOT) {
-						p.addError("expected .... in array bounds", ErrUnexpectedToken)
-						return nil
-					}
-
-					p.nextToken() // move to high bound
-					highBound := p.parseArrayBound()
-					if highBound == nil {
-						p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
-						return nil
-					}
-
-					dimensions = append(dimensions, dimensionPair{lowBound, highBound})
 				}
 
 				// Now expect ']'
@@ -368,52 +327,9 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 		} else {
 			// Not starting with identifier, parse normally
 			p.nextToken() // move to low bound
-			lowBound := p.parseArrayBound()
-			if lowBound == nil {
-				p.addError("invalid array lower bound expression", ErrInvalidExpression)
+			dimensions = p.parseArrayBoundsFromCurrent()
+			if dimensions == nil {
 				return nil
-			}
-
-			// Expect '..'
-			if !p.expectPeek(lexer.DOTDOT) {
-				p.addError("expected .... in array bounds", ErrUnexpectedToken)
-				return nil
-			}
-
-			// Parse high bound expression
-			p.nextToken() // move to high bound
-			highBound := p.parseArrayBound()
-			if highBound == nil {
-				p.addError("invalid array upper bound expression", ErrInvalidExpression)
-				return nil
-			}
-
-			dimensions = append(dimensions, dimensionPair{lowBound, highBound})
-
-			// Parse additional dimensions (comma-separated)
-			// Task 9.212: Support multidimensional arrays like array[0..1, 0..2]
-			for p.peekTokenIs(lexer.COMMA) {
-				p.nextToken() // consume comma
-				p.nextToken() // move to next low bound
-				lowBound := p.parseArrayBound()
-				if lowBound == nil {
-					p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
-					return nil
-				}
-
-				if !p.expectPeek(lexer.DOTDOT) {
-					p.addError("expected .... in array bounds", ErrUnexpectedToken)
-					return nil
-				}
-
-				p.nextToken() // move to high bound
-				highBound := p.parseArrayBound()
-				if highBound == nil {
-					p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
-					return nil
-				}
-
-				dimensions = append(dimensions, dimensionPair{lowBound, highBound})
 			}
 
 			// Note: Bounds validation is now deferred to semantic analysis phase
@@ -515,6 +431,66 @@ func (p *Parser) parseArrayBound() ast.Expression {
 	// - Identifiers: size
 	// - Binary expressions: size - 1
 	return p.parseExpression(LOWEST)
+}
+
+// parseArrayBoundsFromCurrent parses array dimensions starting from the current token.
+// It expects to be positioned at the low bound of the first dimension.
+// Returns a slice of dimension pairs (low, high) or nil on error.
+//
+// This helper function extracts the common array bound parsing logic to avoid duplication.
+func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
+	var dimensions []dimensionPair
+
+	// Parse first dimension
+	lowBound := p.parseArrayBound()
+	if lowBound == nil {
+		p.addError("invalid array lower bound expression", ErrInvalidExpression)
+		return nil
+	}
+
+	// Expect '..'
+	if !p.expectPeek(lexer.DOTDOT) {
+		p.addError("expected .... in array bounds", ErrUnexpectedToken)
+		return nil
+	}
+
+	// Parse high bound expression
+	p.nextToken() // move to high bound
+	highBound := p.parseArrayBound()
+	if highBound == nil {
+		p.addError("invalid array upper bound expression", ErrInvalidExpression)
+		return nil
+	}
+
+	dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+
+	// Parse additional dimensions (comma-separated)
+	// Task 9.212: Support multidimensional arrays like array[0..1, 0..2]
+	for p.peekTokenIs(lexer.COMMA) {
+		p.nextToken() // consume comma
+		p.nextToken() // move to next low bound
+		lowBound := p.parseArrayBound()
+		if lowBound == nil {
+			p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
+			return nil
+		}
+
+		if !p.expectPeek(lexer.DOTDOT) {
+			p.addError("expected .... in array bounds", ErrUnexpectedToken)
+			return nil
+		}
+
+		p.nextToken() // move to high bound
+		highBound := p.parseArrayBound()
+		if highBound == nil {
+			p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
+			return nil
+		}
+
+		dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+	}
+
+	return dimensions
 }
 
 // parseClassOfType parses a metaclass type expression.
