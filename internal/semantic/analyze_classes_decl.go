@@ -370,6 +370,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		}
 	}
 
+	// Task 9.19: If any constructor has the 'overload' directive, synthesize implicit parameterless constructor
+	// In DWScript, when a constructor is marked with 'overload', the compiler implicitly provides
+	// a parameterless constructor if one doesn't already exist
+	a.synthesizeImplicitParameterlessConstructor(classType)
+
 	// Analyze properties
 	// Properties are analyzed after methods so they can reference both fields and methods
 	for _, property := range decl.Properties {
