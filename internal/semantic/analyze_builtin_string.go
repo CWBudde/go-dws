@@ -914,3 +914,200 @@ func (a *Analyzer) analyzeFindDelimiter(args []ast.Expression, callExpr *ast.Cal
 	}
 	return types.INTEGER
 }
+
+// analyzePadLeft analyzes the PadLeft built-in function.
+// PadLeft takes 2 or 3 arguments: PadLeft(str, count) or PadLeft(str, count, char)
+func (a *Analyzer) analyzePadLeft(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) < 2 || len(args) > 3 {
+		a.addError("function 'PadLeft' expects 2 or 3 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'PadLeft' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	countType := a.analyzeExpression(args[1])
+	if countType != nil && countType != types.INTEGER {
+		a.addError("function 'PadLeft' expects integer as second argument, got %s at %s",
+			countType.String(), callExpr.Token.Pos.String())
+	}
+	if len(args) == 3 {
+		charType := a.analyzeExpression(args[2])
+		if charType != nil && charType != types.STRING {
+			a.addError("function 'PadLeft' expects string as third argument, got %s at %s",
+				charType.String(), callExpr.Token.Pos.String())
+		}
+	}
+	return types.STRING
+}
+
+// analyzePadRight analyzes the PadRight built-in function.
+// PadRight takes 2 or 3 arguments: PadRight(str, count) or PadRight(str, count, char)
+func (a *Analyzer) analyzePadRight(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) < 2 || len(args) > 3 {
+		a.addError("function 'PadRight' expects 2 or 3 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'PadRight' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	countType := a.analyzeExpression(args[1])
+	if countType != nil && countType != types.INTEGER {
+		a.addError("function 'PadRight' expects integer as second argument, got %s at %s",
+			countType.String(), callExpr.Token.Pos.String())
+	}
+	if len(args) == 3 {
+		charType := a.analyzeExpression(args[2])
+		if charType != nil && charType != types.STRING {
+			a.addError("function 'PadRight' expects string as third argument, got %s at %s",
+				charType.String(), callExpr.Token.Pos.String())
+		}
+	}
+	return types.STRING
+}
+
+// analyzeStrDeleteLeft analyzes the StrDeleteLeft/DeleteLeft built-in function.
+// StrDeleteLeft takes 2 arguments: StrDeleteLeft(str, count)
+func (a *Analyzer) analyzeStrDeleteLeft(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrDeleteLeft' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrDeleteLeft' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	countType := a.analyzeExpression(args[1])
+	if countType != nil && countType != types.INTEGER {
+		a.addError("function 'StrDeleteLeft' expects integer as second argument, got %s at %s",
+			countType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeStrDeleteRight analyzes the StrDeleteRight/DeleteRight built-in function.
+// StrDeleteRight takes 2 arguments: StrDeleteRight(str, count)
+func (a *Analyzer) analyzeStrDeleteRight(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrDeleteRight' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrDeleteRight' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	countType := a.analyzeExpression(args[1])
+	if countType != nil && countType != types.INTEGER {
+		a.addError("function 'StrDeleteRight' expects integer as second argument, got %s at %s",
+			countType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeReverseString analyzes the ReverseString built-in function.
+// ReverseString takes 1 argument: ReverseString(str)
+func (a *Analyzer) analyzeReverseString(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'ReverseString' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'ReverseString' expects string as argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeQuotedStr analyzes the QuotedStr built-in function.
+// QuotedStr takes 1 or 2 arguments: QuotedStr(str) or QuotedStr(str, quoteChar)
+func (a *Analyzer) analyzeQuotedStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) < 1 || len(args) > 2 {
+		a.addError("function 'QuotedStr' expects 1 or 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'QuotedStr' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	if len(args) == 2 {
+		quoteType := a.analyzeExpression(args[1])
+		if quoteType != nil && quoteType != types.STRING {
+			a.addError("function 'QuotedStr' expects string as second argument, got %s at %s",
+				quoteType.String(), callExpr.Token.Pos.String())
+		}
+	}
+	return types.STRING
+}
+
+// analyzeStringOfString analyzes the StringOfString/DupeString built-in function.
+// StringOfString takes 2 arguments: StringOfString(str, count)
+func (a *Analyzer) analyzeStringOfString(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StringOfString' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StringOfString' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	countType := a.analyzeExpression(args[1])
+	if countType != nil && countType != types.INTEGER {
+		a.addError("function 'StringOfString' expects integer as second argument, got %s at %s",
+			countType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeNormalizeString analyzes the NormalizeString/Normalize built-in function.
+// NormalizeString takes 1 or 2 arguments: NormalizeString(str) or NormalizeString(str, form)
+func (a *Analyzer) analyzeNormalizeString(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) < 1 || len(args) > 2 {
+		a.addError("function 'NormalizeString' expects 1 or 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'NormalizeString' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	if len(args) == 2 {
+		formType := a.analyzeExpression(args[1])
+		if formType != nil && formType != types.STRING {
+			a.addError("function 'NormalizeString' expects string as second argument, got %s at %s",
+				formType.String(), callExpr.Token.Pos.String())
+		}
+	}
+	return types.STRING
+}
+
+// analyzeStripAccents analyzes the StripAccents built-in function.
+// StripAccents takes 1 argument: StripAccents(str)
+func (a *Analyzer) analyzeStripAccents(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'StripAccents' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StripAccents' expects string as argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}

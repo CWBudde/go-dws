@@ -101,6 +101,32 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinLastDelimiter(args)
 	case "FindDelimiter":
 		return i.builtinFindDelimiter(args)
+	case "PadLeft":
+		return i.builtinPadLeft(args)
+	case "PadRight":
+		return i.builtinPadRight(args)
+	case "StrDeleteLeft":
+		return i.builtinStrDeleteLeft(args)
+	case "DeleteLeft":
+		return i.builtinStrDeleteLeft(args)
+	case "StrDeleteRight":
+		return i.builtinStrDeleteRight(args)
+	case "DeleteRight":
+		return i.builtinStrDeleteRight(args)
+	case "ReverseString":
+		return i.builtinReverseString(args)
+	case "QuotedStr":
+		return i.builtinQuotedStr(args)
+	case "StringOfString":
+		return i.builtinStringOfString(args)
+	case "DupeString":
+		return i.builtinDupeString(args)
+	case "NormalizeString":
+		return i.builtinNormalizeString(args)
+	case "Normalize":
+		return i.builtinNormalizeString(args)
+	case "StripAccents":
+		return i.builtinStripAccents(args)
 	case "Format":
 		return i.builtinFormat(args)
 	case "Abs":
@@ -447,6 +473,14 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 	case "PrintLn", "Print", "Ord", "Integer", "Length", "Copy", "Concat",
 		"IndexOf", "Contains", "Reverse", "Sort", "Pos", "UpperCase",
 		"LowerCase", "Trim", "TrimLeft", "TrimRight", "StringReplace", "StringOfChar",
+		"SubStr", "SubString", "LeftStr", "RightStr", "MidStr",
+		"StrBeginsWith", "StrEndsWith", "StrContains", "PosEx", "RevPos", "StrFind",
+		"StrSplit", "StrJoin", "StrArrayPack",
+		"StrBefore", "StrBeforeLast", "StrAfter", "StrAfterLast", "StrBetween",
+		"IsDelimiter", "LastDelimiter", "FindDelimiter",
+		"PadLeft", "PadRight", "StrDeleteLeft", "DeleteLeft", "StrDeleteRight", "DeleteRight",
+		"ReverseString", "QuotedStr", "StringOfString", "DupeString",
+		"NormalizeString", "Normalize", "StripAccents",
 		"Format", "Abs", "Min", "Max", "Sqr", "Power", "Sqrt", "Sin",
 		"Cos", "Tan", "Random", "Randomize", "Exp", "Ln", "Round",
 		"Trunc", "Frac", "Chr", "SetLength", "High", "Low", "Assigned",

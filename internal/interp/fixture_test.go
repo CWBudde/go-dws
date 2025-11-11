@@ -236,7 +236,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/FunctionsString",
 			expectErrors: false,
 			description:  "String manipulation functions",
-			skip:         true, // TODO: Re-enable after implementing missing features
+			skip:         false, // Enabled for task 9.17.3
 		},
 		{
 			name:         "FunctionsTime",
