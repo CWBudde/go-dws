@@ -17,8 +17,7 @@ func (a *Analyzer) analyzeVarType(args []ast.Expression, callExpr *ast.CallExpre
 			len(args), callExpr.Token.Pos.String())
 		return types.INTEGER
 	}
-	// Analyze the argument (can be Variant or any type)
-	a.analyzeExpression(args[0])
+	a.ensureVariantArgument(args[0], "VarType", callExpr, true)
 	return types.INTEGER
 }
 
@@ -30,8 +29,7 @@ func (a *Analyzer) analyzeVarIsNull(args []ast.Expression, callExpr *ast.CallExp
 			len(args), callExpr.Token.Pos.String())
 		return types.BOOLEAN
 	}
-	// Analyze the argument (can be Variant or any type)
-	a.analyzeExpression(args[0])
+	a.ensureVariantArgument(args[0], "VarIsNull", callExpr, false)
 	return types.BOOLEAN
 }
 
@@ -43,8 +41,7 @@ func (a *Analyzer) analyzeVarIsEmpty(args []ast.Expression, callExpr *ast.CallEx
 			len(args), callExpr.Token.Pos.String())
 		return types.BOOLEAN
 	}
-	// Analyze the argument (can be Variant or any type)
-	a.analyzeExpression(args[0])
+	a.ensureVariantArgument(args[0], "VarIsEmpty", callExpr, false)
 	return types.BOOLEAN
 }
 
@@ -56,8 +53,7 @@ func (a *Analyzer) analyzeVarIsNumeric(args []ast.Expression, callExpr *ast.Call
 			len(args), callExpr.Token.Pos.String())
 		return types.BOOLEAN
 	}
-	// Analyze the argument (can be Variant or any type)
-	a.analyzeExpression(args[0])
+	a.ensureVariantArgument(args[0], "VarIsNumeric", callExpr, false)
 	return types.BOOLEAN
 }
 
@@ -69,7 +65,7 @@ func (a *Analyzer) analyzeVarToInt(args []ast.Expression, callExpr *ast.CallExpr
 			len(args), callExpr.Token.Pos.String())
 		return types.INTEGER
 	}
-	a.analyzeExpression(args[0])
+	a.ensureVariantArgument(args[0], "VarToInt", callExpr, false)
 	return types.INTEGER
 }
 
@@ -81,7 +77,7 @@ func (a *Analyzer) analyzeVarToFloat(args []ast.Expression, callExpr *ast.CallEx
 			len(args), callExpr.Token.Pos.String())
 		return types.FLOAT
 	}
-	a.analyzeExpression(args[0])
+	a.ensureVariantArgument(args[0], "VarToFloat", callExpr, false)
 	return types.FLOAT
 }
 
@@ -93,12 +89,30 @@ func (a *Analyzer) analyzeVarAsType(args []ast.Expression, callExpr *ast.CallExp
 			len(args), callExpr.Token.Pos.String())
 		return types.VARIANT
 	}
-	a.analyzeExpression(args[0])
+	a.ensureVariantArgument(args[0], "VarAsType", callExpr, false)
 	argType := a.analyzeExpression(args[1])
-	// Second argument should be Integer (type code)
-	if argType != nil && !argType.Equals(types.INTEGER) {
-		a.addError("VarAsType type code must be Integer, got %s at %s",
+	// Second argument should be Integer (type code) or String (type name)
+	if argType != nil && argType != types.INTEGER && argType != types.STRING {
+		a.addError("VarAsType type code must be Integer or String, got %s at %s",
 			argType.String(), callExpr.Token.Pos.String())
 	}
 	return types.VARIANT
+}
+
+// ensureVariantArgument verifies that the provided expression is of Variant type.
+// Some built-ins (like VarType) permit string literals for comparison purposes.
+func (a *Analyzer) ensureVariantArgument(expr ast.Expression, funcName string, callExpr *ast.CallExpression, allowStringLiteral bool) types.Type {
+	if allowStringLiteral {
+		if _, ok := expr.(*ast.StringLiteral); ok {
+			// Allow string literals (e.g., VarType('string')) for type comparisons
+			return types.STRING
+		}
+	}
+
+	argType := a.analyzeExpression(expr)
+	if argType != nil && argType != types.VARIANT {
+		a.addError("function '%s' expects Variant argument, got %s at %s",
+			funcName, argType.String(), callExpr.Token.Pos.String())
+	}
+	return argType
 }

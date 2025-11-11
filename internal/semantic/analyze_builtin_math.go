@@ -21,7 +21,7 @@ func (a *Analyzer) analyzeAbs(args []ast.Expression, callExpr *ast.CallExpressio
 	argType := a.analyzeExpression(args[0])
 	if argType != nil {
 		if argType != types.INTEGER && argType != types.FLOAT {
-			a.addError("function 'Abs' expects Integer or Float as argument, got %s at %s",
+			a.addError("function 'Abs' expects numeric (Integer or Float) argument, got %s at %s",
 				argType.String(), callExpr.Token.Pos.String())
 			return types.INTEGER
 		}
