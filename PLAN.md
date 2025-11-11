@@ -200,6 +200,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - Semantic analyzer: parent class resolution with case-insensitive names
     - Semantic analyzer: inherited constructor validation
     - These should be addressed in separate semantic analyzer tasks
+  - **Follow-up Tasks**:
+    - [ ] 9.16.4.4 Allow inherited constructor calls in semantic analyzer
+      - Resolve parent constructors when `inherited Create` (or other constructors) is used
+      - Fixes `TestInheritedExpression_ComplexCases/inherited_in_constructor`
 
 - [x] 9.16.5 Type Operators (is/as/implements) - COMPLETED
   - **Estimate**: 8-10 hours
@@ -226,6 +230,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
       - Runtime now supports both class-to-class and class-to-interface casts
       - Validates runtime compatibility for downcasts
     - [x] 9.16.5.5 Verify all type operator tests pass - ALL PASSING
+    - [ ] 9.16.5.6 Avoid cascading errors when 'as' target type is invalid
+      - Short-circuit analysis after reporting "'as' operator requires interface or class type"
+      - Prevents secondary `cannot infer type` diagnostics (TestTypeOperator_As_InvalidRightOperand)
   - **Files Modified**:
     - internal/semantic/analyze_expressions.go (added strings import, updated all 3 operators)
     - internal/semantic/type_operators_test.go (updated error message expectation)
@@ -256,12 +263,20 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Description**: Support DWScript helper methods (extension methods)
   - **Strategy**: Research DWScript helper semantics and implement registration mechanism
   - **Complexity**: New feature requiring research and design
+  - **Subtasks**:
+    - [ ] 9.16.7.1 Emit diagnostics when no helper provides the requested method
+      - Analyzer should report `no helper with method` for unresolved helper calls
+      - Covers `TestHelperMethodResolution/call_non-existent_helper_method`
 
 - [ ] 9.16.8 Abstract Class Implementation (1 test)
   - **Estimate**: 2-3 hours
   - **Description**: Validate that abstract classes cannot be instantiated
   - **Strategy**: Add abstract class tracking and validation in class instantiation
   - **Complexity**: Requires inheritance chain validation
+  - **Subtasks**:
+    - [ ] 9.16.8.1 Clear abstract flags when overrides are implemented
+      - Ensure overriding inherited abstract methods removes the abstract marker
+      - Fixes `TestValidAbstractImplementation`
 
 - [ ] 9.16.9 Miscellaneous High Complexity Fixes (18 tests)
   - **Estimate**: 10-15 hours
@@ -569,6 +584,10 @@ each element is wrapped in a variant-like container that preserves type informat
   - ✅ Class operator overloads (semantic analysis complete)
   - ✅ Variant to typed variable conversion (String concatenation works)
   - ✅ Empty, homogeneous, and heterogeneous array literals
+- [ ] 9.17.11b.5 Support procedure bindings for class operators that return Self
+  - Allow `class operator +(const items: array of const): TClass uses AppendStrings;` patterns
+  - Analyzer or runtime should treat procedure bindings that mutate and return `Self` as valid
+  - Fixes `TestClassOperatorWithArrayOfConst` / `TestClassOperatorCompoundAssignmentWithEmptyArray`
 
 **Implementation Time**: 2-3 days
 **Impact**: Unblocks class_operator3.pas and other variable-argument fixtures
