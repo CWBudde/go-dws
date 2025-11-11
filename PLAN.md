@@ -345,42 +345,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **MUST IMPLEMENT FIRST** - These are used in 200+ test fixtures and block most other tests.
 
 - [x] 9.17.0.1 IntToStr(i: Integer): String
-  - **CRITICAL** - Convert integer to string (base 10)
-  - Used in 100+ fixtures
-  - Implementation: Use Go's strconv.FormatInt
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.0.2 FloatToStr(f: Float): String
-  - **CRITICAL** - Convert float to string
-  - Used in 80+ fixtures
-  - Implementation: Use Go's strconv.FormatFloat with 'g' format
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.0.3 StrToInt(str: String): Integer
-  - **CRITICAL** - String to integer with error on failure
-  - Used in 60+ fixtures
-  - Implementation: Use Go's strconv.ParseInt, raise exception on error
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.0.4 StrToFloat(str: String): Float
-  - **CRITICAL** - String to float with error on failure
-  - Used in 50+ fixtures
-  - Implementation: Use Go's strconv.ParseFloat, raise exception on error
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.0.5 StrToIntDef(str: String, default: Integer): Integer
-  - String to integer with default value on error
-  - Safer version of StrToInt
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.0.6 StrToFloatDef(str: String, default: Float): Float
-  - String to float with default value on error
-  - Safer version of StrToFloat
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
-**Status**: ✅ COMPLETED
-**Implementation Time**: 1-2 days
-**Impact**: Unblocks 200+ fixtures immediately
 
 ---
 
@@ -472,78 +441,25 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **HIGH PRIORITY**:
 
 - [x] 9.17.9.1 Pi: Float - Mathematical constant π (3.141592...)
-  - **HIGH** - Used in 30+ fixtures
-  - Implementation: Return math.Pi constant
-  - ✅ Implemented as constant in semantic analyzer (DefineConst)
-  - ⚠️ Bytecode compiler support for constants pending
-
 - [x] 9.17.9.2 Sign(x: Float): Integer - Returns -1, 0, or 1
-  - **HIGH** - Used in 25+ fixtures
-  - Implementation: Simple comparison with 0
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.9.3 Odd(x: Integer): Boolean - Check if integer is odd
-  - **HIGH** - Used in 20+ fixtures
-  - Implementation: x mod 2 != 0
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.9.4 Frac(x: Float): Float - Fractional part of number
-  - **HIGH** - Used in 20+ fixtures
-  - Implementation: x - math.Floor(x)
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.9.5 Int(x: Float): Float - Integer part (returns Float)
-  - **HIGH** - Used in 15+ fixtures
-  - Different from Trunc - returns Float type
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.9.6 Log10(x: Float): Float - Base-10 logarithm
-  - **HIGH** - Used in 15+ fixtures
-  - Implementation: math.Log10
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.9.7 LogN(x, base: Float): Float - Logarithm with custom base
-  - **MEDIUM** - Used in 10+ fixtures
-  - Implementation: math.Log(x) / math.Log(base)
-  - ✅ Implemented in both AST interpreter and bytecode VM
 
 **Status**: HIGH priority items ✅ COMPLETED for both AST interpreter and bytecode VM
 
 **MEDIUM PRIORITY**:
 
 - [x] 9.17.9.8 Infinity: Float - Infinity constant
-  - Implementation: math.Inf(1)
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.9.9 NaN: Float - Not-a-Number constant
-  - Implementation: math.NaN()
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.9.10 IsFinite(x: Float): Boolean - Check if number is finite
-  - Implementation: !math.IsInf(x, 0) && !math.IsNaN(x)
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.9.11 IsInfinite(x: Float): Boolean - Check if number is infinite
-  - Implementation: math.IsInf(x, 0)
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.9.12 IntPower(base: Float, exponent: Integer): Float
-  - Faster integer exponentiation (exponentiation by squaring)
-  - Implementation: Loop-based power with bit operations
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.9.13 DivMod(dividend, divisor: Integer; var quotient, remainder: Integer)
-  - Integer division with remainder (var parameters)
-  - Implementation: quotient = dividend / divisor, remainder = dividend % divisor
-  - ✅ Implemented in AST interpreter only (bytecode VM pending var parameter support)
-
 - [x] 9.17.9.14 RandSeed: Integer - Get current random seed
-  - Return current PRNG seed value
-  - ✅ Implemented in both AST interpreter and bytecode VM
-
 - [x] 9.17.9.15 RandG: Float - Gaussian random number
-  - Box-Muller transform for normal distribution
-  - ✅ Implemented in both AST interpreter and bytecode VM
 
 **Status**: MEDIUM priority items ✅ COMPLETED (7/8 in bytecode VM, 8/8 in AST interpreter)
 
