@@ -976,21 +976,21 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	stringHelper.BuiltinMethods["ToLower"] = "__string_tolower"
 
 	// String transformation methods (task 9.17.3)
-	stringHelper.Methods["PadLeft"] = nil
-	stringHelper.BuiltinMethods["PadLeft"] = "PadLeft"
-	stringHelper.Methods["PadRight"] = nil
-	stringHelper.BuiltinMethods["PadRight"] = "PadRight"
-	stringHelper.Methods["DeleteLeft"] = nil
-	stringHelper.BuiltinMethods["DeleteLeft"] = "StrDeleteLeft"
-	stringHelper.Methods["DeleteRight"] = nil
-	stringHelper.BuiltinMethods["DeleteRight"] = "StrDeleteRight"
-	stringHelper.Methods["Normalize"] = nil
-	stringHelper.BuiltinMethods["Normalize"] = "NormalizeString"
-	stringHelper.Methods["StripAccents"] = nil
-	stringHelper.BuiltinMethods["StripAccents"] = "StripAccents"
+	stringHelper.Methods["padleft"] = nil
+	stringHelper.BuiltinMethods["padleft"] = "PadLeft"
+	stringHelper.Methods["padright"] = nil
+	stringHelper.BuiltinMethods["padright"] = "PadRight"
+	stringHelper.Methods["deleteleft"] = nil
+	stringHelper.BuiltinMethods["deleteleft"] = "StrDeleteLeft"
+	stringHelper.Methods["deleteright"] = nil
+	stringHelper.BuiltinMethods["deleteright"] = "StrDeleteRight"
+	stringHelper.Methods["normalize"] = nil
+	stringHelper.BuiltinMethods["normalize"] = "NormalizeString"
+	stringHelper.Methods["stripaccents"] = nil
+	stringHelper.BuiltinMethods["stripaccents"] = "StripAccents"
 
 	// Register StripAccents as a property (no-argument methods can be accessed without parentheses)
-	stringHelper.Properties["StripAccents"] = &types.PropertyInfo{
+	stringHelper.Properties["stripaccents"] = &types.PropertyInfo{
 		Name:      "StripAccents",
 		Type:      types.STRING,
 		ReadKind:  types.PropAccessBuiltin,

@@ -577,8 +577,8 @@ func TestBuiltinDateTime_InFunction(t *testing.T) {
 func TestBuiltinDateTime_DaysBetweenDates(t *testing.T) {
 	input := `
 		var start := EncodeDate(2024, 1, 1);
-		var end := EncodeDate(2024, 12, 31);
-		var days := DaysBetween(start, end);
+		var finishDate := EncodeDate(2024, 12, 31);
+		var days := DaysBetween(start, finishDate);
 	`
 	expectNoErrors(t, input)
 }
