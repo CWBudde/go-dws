@@ -105,7 +105,7 @@ builtins_math.go (REMOVE) →
 - Type conversion helpers
 
 **Migration Notes:**
-- Keep files in `internal/interp/` directory (subdirectory organization is separate task)
+- For Phase 1, keep split files in the flat `internal/interp/` directory. Subdirectory organization will be introduced in Phase 2 as described below.
 - Update tests as needed
 
 ---
