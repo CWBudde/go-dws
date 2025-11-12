@@ -246,19 +246,45 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			}
 			classVarNames[fieldName] = true
 
-			// Verify class variable type exists
-			if field.Type == nil {
+			var fieldType types.Type
+
+			// Handle type annotation or type inference
+			if field.Type != nil {
+				// Explicit type annotation
+				typeName := getTypeExpressionName(field.Type)
+				resolvedType, err := a.resolveType(typeName)
+				if err != nil {
+					a.addError("unknown type '%s' for class variable '%s' in class '%s' at %s",
+						typeName, fieldName, className, field.Token.Pos.String())
+					continue
+				}
+				fieldType = resolvedType
+			} else if field.InitValue != nil {
+				// Type inference from initialization value
+				initType := a.analyzeExpression(field.InitValue)
+				if initType == nil {
+					a.addError("cannot infer type for class variable '%s' in class '%s' at %s",
+						fieldName, className, field.Token.Pos.String())
+					continue
+				}
+				fieldType = initType
+			} else {
+				// No type and no initialization
 				a.addError("class variable '%s' missing type annotation in class '%s'",
 					fieldName, className)
 				continue
 			}
 
-			typeName := getTypeExpressionName(field.Type)
-			fieldType, err := a.resolveType(typeName)
-			if err != nil {
-				a.addError("unknown type '%s' for class variable '%s' in class '%s' at %s",
-					typeName, fieldName, className, field.Token.Pos.String())
-				continue
+			// If initialization value is present and we have an explicit type, validate compatibility
+			if field.InitValue != nil && field.Type != nil {
+				initType := a.analyzeExpression(field.InitValue)
+				if initType != nil && fieldType != nil {
+					// Check type compatibility
+					if !types.IsAssignableFrom(fieldType, initType) {
+						a.addError("cannot initialize class variable '%s' of type '%s' with value of type '%s' at %s",
+							fieldName, fieldType.String(), initType.String(), field.Token.Pos.String())
+					}
+				}
 			}
 
 			// Store class variable type in ClassType

@@ -168,36 +168,140 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		classInfo.Operators = parentClass.Operators.clone()
 	}
 
-	// Add own fields to ClassInfo
-	for _, field := range cd.Fields {
-		// Get the field type from the type annotation
-		if field.Type == nil {
-			return i.newErrorWithLocation(field, "field '%s' has no type annotation", field.Name.Value)
+	// Register class constants BEFORE processing fields
+	// This allows class vars to reference constants in their initialization expressions
+	// Evaluate constants eagerly in order so they can reference earlier constants
+	for _, constDecl := range cd.Constants {
+		if constDecl == nil {
+			continue
+		}
+		// Store the constant declaration
+		classInfo.Constants[constDecl.Name.Value] = constDecl
+
+		// Evaluate the constant value immediately
+		// Create temporary environment with previously evaluated constants
+		savedEnv := i.env
+		tempEnv := NewEnclosedEnvironment(i.env)
+		for cName, cValue := range classInfo.ConstantValues {
+			tempEnv.Set(cName, cValue)
+		}
+		i.env = tempEnv
+
+		constValue := i.Eval(constDecl.Value)
+		i.env = savedEnv
+
+		if isError(constValue) {
+			return constValue
 		}
 
-		// Resolve field type using type expression
-		fieldType := i.resolveTypeFromExpression(field.Type)
-		if fieldType == nil {
-			return i.newErrorWithLocation(field, "unknown or invalid type for field '%s'", field.Name.Value)
+		// Cache the evaluated value
+		classInfo.ConstantValues[constDecl.Name.Value] = constValue
+	}
+
+	// Copy parent constants (child inherits all parent constants)
+	if classInfo.Parent != nil {
+		for constName, constDecl := range classInfo.Parent.Constants {
+			// Only copy if not already defined in child class
+			if _, exists := classInfo.Constants[constName]; !exists {
+				classInfo.Constants[constName] = constDecl
+			}
+		}
+		// Also copy parent constant values
+		for constName, constValue := range classInfo.Parent.ConstantValues {
+			// Only copy if not already defined in child class
+			if _, exists := classInfo.ConstantValues[constName]; !exists {
+				classInfo.ConstantValues[constName] = constValue
+			}
+		}
+	}
+
+	// Add own fields to ClassInfo
+	for _, field := range cd.Fields {
+		var fieldType types.Type
+		var cachedInitValue Value // Cache evaluated init value to avoid double evaluation
+
+		// Get the field type from the type annotation or infer from initialization
+		if field.Type != nil {
+			// Explicit type annotation
+			fieldType = i.resolveTypeFromExpression(field.Type)
+			if fieldType == nil {
+				return i.newErrorWithLocation(field, "unknown or invalid type for field '%s'", field.Name.Value)
+			}
+		} else if field.InitValue != nil {
+			// Type inference from initialization value
+			// Create temporary environment with class constants available
+			savedEnv := i.env
+			tempEnv := NewEnclosedEnvironment(i.env)
+			for cName, cValue := range classInfo.ConstantValues {
+				tempEnv.Set(cName, cValue)
+			}
+			i.env = tempEnv
+
+			// Evaluate the init value to infer the type
+			initVal := i.Eval(field.InitValue)
+			i.env = savedEnv
+
+			if isError(initVal) {
+				return initVal
+			}
+			// Cache the evaluated value to reuse for class var initialization
+			cachedInitValue = initVal
+
+			// Infer type from the value
+			fieldType = i.inferTypeFromValue(initVal)
+			if fieldType == nil {
+				return i.newErrorWithLocation(field, "cannot infer type for field '%s'", field.Name.Value)
+			}
+		} else {
+			// No type and no initialization
+			return i.newErrorWithLocation(field, "field '%s' has no type annotation", field.Name.Value)
 		}
 
 		// Check if this is a class variable (static field) or instance field
 		if field.IsClassVar {
-			// Initialize class variable with default value based on type
-			var defaultValue Value
-			switch fieldType {
-			case types.INTEGER:
-				defaultValue = &IntegerValue{Value: 0}
-			case types.FLOAT:
-				defaultValue = &FloatValue{Value: 0.0}
-			case types.STRING:
-				defaultValue = &StringValue{Value: ""}
-			case types.BOOLEAN:
-				defaultValue = &BooleanValue{Value: false}
-			default:
-				defaultValue = &NilValue{}
+			var classVarValue Value
+
+			// Check if there's an initialization expression
+			if field.InitValue != nil {
+				// Reuse cached value if available (from type inference)
+				// This avoids double evaluation which would run side effects twice
+				if cachedInitValue != nil {
+					classVarValue = cachedInitValue
+				} else {
+					// Need to evaluate (explicit type annotation case)
+					// Create temporary environment with class constants available
+					savedEnv := i.env
+					tempEnv := NewEnclosedEnvironment(i.env)
+					for cName, cValue := range classInfo.ConstantValues {
+						tempEnv.Set(cName, cValue)
+					}
+					i.env = tempEnv
+
+					// Evaluate the initialization expression
+					val := i.Eval(field.InitValue)
+					i.env = savedEnv
+
+					if isError(val) {
+						return val
+					}
+					classVarValue = val
+				}
+			} else {
+				// Initialize class variable with default value based on type
+				switch fieldType {
+				case types.INTEGER:
+					classVarValue = &IntegerValue{Value: 0}
+				case types.FLOAT:
+					classVarValue = &FloatValue{Value: 0.0}
+				case types.STRING:
+					classVarValue = &StringValue{Value: ""}
+				case types.BOOLEAN:
+					classVarValue = &BooleanValue{Value: false}
+				default:
+					classVarValue = &NilValue{}
+				}
 			}
-			classInfo.ClassVars[field.Name.Value] = defaultValue
+			classInfo.ClassVars[field.Name.Value] = classVarValue
 		} else {
 			// Store instance field type in ClassInfo
 			classInfo.Fields[field.Name.Value] = fieldType
@@ -304,52 +408,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			// Only copy if not already defined in child class
 			if _, exists := classInfo.Properties[propName]; !exists {
 				classInfo.Properties[propName] = propInfo
-			}
-		}
-	}
-
-	// Register class constants
-	// Evaluate constants eagerly in order so they can reference earlier constants
-	for _, constDecl := range cd.Constants {
-		if constDecl == nil {
-			continue
-		}
-		// Store the constant declaration
-		classInfo.Constants[constDecl.Name.Value] = constDecl
-
-		// Evaluate the constant value immediately
-		// Create temporary environment with previously evaluated constants
-		savedEnv := i.env
-		tempEnv := NewEnclosedEnvironment(i.env)
-		for cName, cValue := range classInfo.ConstantValues {
-			tempEnv.Set(cName, cValue)
-		}
-		i.env = tempEnv
-
-		constValue := i.Eval(constDecl.Value)
-		i.env = savedEnv
-
-		if isError(constValue) {
-			return constValue
-		}
-
-		// Cache the evaluated value
-		classInfo.ConstantValues[constDecl.Name.Value] = constValue
-	}
-
-	// Copy parent constants (child inherits all parent constants)
-	if classInfo.Parent != nil {
-		for constName, constDecl := range classInfo.Parent.Constants {
-			// Only copy if not already defined in child class
-			if _, exists := classInfo.Constants[constName]; !exists {
-				classInfo.Constants[constName] = constDecl
-			}
-		}
-		// Also copy parent constant values
-		for constName, constValue := range classInfo.Parent.ConstantValues {
-			// Only copy if not already defined in child class
-			if _, exists := classInfo.ConstantValues[constName]; !exists {
-				classInfo.ConstantValues[constName] = constValue
 			}
 		}
 	}
@@ -685,4 +743,44 @@ func (i *Interpreter) replaceMethodInOverloadList(list []*ast.FunctionDecl, impl
 	}
 	// No matching declaration found - append the implementation
 	return append(list, impl)
+}
+
+// inferTypeFromValue infers the type from a runtime value.
+// This is used for type inference when a variable or field is declared without an explicit type.
+func (i *Interpreter) inferTypeFromValue(val Value) types.Type {
+	switch val.(type) {
+	case *IntegerValue:
+		return types.INTEGER
+	case *FloatValue:
+		return types.FLOAT
+	case *StringValue:
+		return types.STRING
+	case *BooleanValue:
+		return types.BOOLEAN
+	case *ArrayValue:
+		// For arrays, we could try to infer the element type
+		arrVal := val.(*ArrayValue)
+		if len(arrVal.Elements) > 0 {
+			elemType := i.inferTypeFromValue(arrVal.Elements[0])
+			if elemType != nil {
+				lowBound := 0
+				highBound := len(arrVal.Elements) - 1
+				return &types.ArrayType{
+					ElementType: elemType,
+					LowBound:    &lowBound,
+					HighBound:   &highBound,
+				}
+			}
+		}
+		return nil
+	case *ObjectInstance:
+		// For object instances, type inference is complex
+		// Return nil for now (type inference for objects may not be common for class vars)
+		return nil
+	case *NilValue:
+		// Nil doesn't have a specific type
+		return nil
+	default:
+		return nil
+	}
 }
