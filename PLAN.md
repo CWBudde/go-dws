@@ -786,25 +786,42 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Tests**: Analyzed all 39 OverloadsPass fixture tests
   - **Actual time**: 0.5 day
 
-- [ ] 9.20.2 Fix method overload resolution bugs
+- [x] 9.20.2 Fix method overload resolution bugs ✓
   - **Task**: Address any gaps found in audit
   - **Implementation**:
     - Ensure method table stores all overloads per name
     - Fix overload resolution to consider all signatures
     - Handle virtual/override with overloads correctly
-  - **Files**: `internal/semantic/analyze_classes.go`, `internal/types/types.go`
-  - **Tests**: Add failing test cases, then fix until passing
-  - **Estimated time**: 1-2 days
+  - **Completed**:
+    - Fixed `checkMethodOverriding` to skip signature checks for methods with overload directive
+    - Methods with 'overload' now correctly add to overload set instead of replacing parent methods
+    - Changed to check `MethodOverloads` (with directive info) instead of `Methods` map
+    - Semantic analysis now correctly handles overloaded methods in class hierarchies
+    - Core overload resolution algorithm verified working correctly
+  - **Known Limitations** (out of scope - feature gaps, not bugs):
+    - Parameterless method calls without parentheses (`obj.Method` vs `obj.Method()`) not yet supported
+    - Record method overloading needs record feature implementation first
+    - Type cast scenarios need parser/semantic enhancements
+  - **Files**: `internal/semantic/analyze_classes_inheritance.go`
+  - **Tests**: Manual testing with custom test cases, fixture tests
+  - **Actual time**: 0.5 day
 
-- [ ] 9.20.3 Enhance method overload dispatch in interpreter
+- [x] 9.20.3 Enhance method overload dispatch in interpreter ✓
   - **Task**: Ensure runtime correctly dispatches to overloaded methods
-  - **Implementation**:
-    - Update `evalCallExpression` for method calls with overload resolution
-    - Handle polymorphic dispatch with overloads (virtual + override)
-    - Support class method overloading
-  - **Files**: `internal/interp/functions.go`, `internal/interp/objects.go`
-  - **Tests**: Test method overload dispatch in various scenarios
-  - **Estimated time**: 1-2 days
+  - **Status**: Already implemented in previous work
+  - **Verified**:
+    - `evalMethodCall` has `resolveMethodOverload()` for runtime overload resolution
+    - `getMethodOverloadsInHierarchy()` collects overloads from class hierarchy
+    - Polymorphic dispatch with overloads works (virtual constructors, virtual methods)
+    - Class method overloading fully supported (static, virtual, regular)
+    - Function overloading works via `resolveOverload()` in `evalCallExpression`
+  - **Evidence**:
+    - `class_method_static_virtual.pas` passes (3 overloads per class with static/virtual/regular)
+    - `overload_simple.pas` passes (function overloading with 3 overloads)
+    - `forwards.pas` passes (forward declarations with overloading)
+    - Manual tests confirm correct dispatch in 2-level and 3-level hierarchies
+  - **Files**: `internal/interp/objects_methods.go`, `internal/interp/functions_calls.go`
+  - **Actual time**: 0 day (already complete)
 
 - [ ] 9.20.4 Add comprehensive method overload tests
   - **Task**: Verify all method overloading patterns work
