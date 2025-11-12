@@ -882,18 +882,18 @@ each element is wrapped in a variant-like container that preserves type informat
 
 #### Subtask Category: Class Features
 
-- [ ] 9.21.2 Implement "class var" initialization syntax
+- [x] 9.21.2 Implement "class var" initialization syntax
   - **Task**: Support initializing class variables inline: `class var X: Integer := 42;`
-  - **Current Error**: "expected next token to be SEMICOLON, got ASSIGN"
   - **Implementation**:
-    - Extend `parseClassVarDeclaration()` to allow optional `:= <expression>`
-    - Store initialization expression in AST node
-    - Semantic analyzer validates initialization expression
-    - Interpreter evaluates during class initialization
-  - **Files**: `internal/parser/parser_class.go`, `internal/semantic/analyze_classes.go`, `internal/interp/declarations.go`
-  - **Tests**: Test inline class var initialization, complex expressions
-  - **Estimated time**: 1-2 days
-  - **Blocked Tests**: class_var.pas, class_var_dyn1.pas, class_var_dyn2.pas, and 10+ more
+    - Extended `parseFieldDeclarations()` to allow optional `:= <expression>` after type
+    - Added `InitValue` field to `FieldDecl` AST node to store initialization expression
+    - Updated semantic analyzer to validate initialization and support type inference
+    - Interpreter evaluates initialization expressions during class declaration
+    - Supports both explicit types and type inference: `class var X := 42;`
+  - **Files**: `pkg/ast/classes.go`, `internal/parser/classes.go`, `internal/semantic/analyze_classes_decl.go`, `internal/interp/declarations.go`
+  - **Tests**: Added comprehensive parser and interpreter tests (10+ test cases passing)
+  - **Status**: Complete. Basic functionality working. Edge cases (expressions with class constants, inheritance) can be addressed as follow-up
+  - **Unblocked Tests**: class_var.pas, class_var_dyn1.pas (partial), and others
 
 - [ ] 9.21.3 Fix "class method/operator" inline syntax parsing
   - **Task**: Support inline class method/operator declarations without separate declaration/implementation

@@ -358,16 +358,39 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 		fieldNames = append(fieldNames, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
 	}
 
-	// Expect ':'
-	if !p.expectPeek(lexer.COLON) {
-		return nil
+	// Parse optional type and/or initialization
+	var fieldType ast.TypeExpression
+	var initValue ast.Expression
+
+	// Check for type annotation (: Type) or initialization (:= Value)
+	if p.peekTokenIs(lexer.COLON) {
+		p.nextToken() // move to ':'
+		p.nextToken() // move to type
+
+		// Parse type expression (supports simple types, array types, function pointer types)
+		fieldType = p.parseTypeExpression()
+		if fieldType == nil {
+			return nil
+		}
 	}
 
-	// Parse type expression (supports simple types, array types, function pointer types)
-	p.nextToken()
-	fieldType := p.parseTypeExpression()
-	if fieldType == nil {
-		return nil
+	// Check for initialization (:= Value)
+	if p.peekTokenIs(lexer.ASSIGN) {
+		// Initialization is only allowed for single field declarations
+		if len(fieldNames) > 1 {
+			p.addError("initialization not allowed for comma-separated field declarations", ErrInvalidExpression)
+			return nil
+		}
+
+		p.nextToken() // move to ':='
+		p.nextToken() // move to value expression
+
+		// Parse initialization expression
+		initValue = p.parseExpression(LOWEST)
+		if initValue == nil {
+			p.addError("expected initialization expression after :=", ErrInvalidExpression)
+			return nil
+		}
 	}
 
 	// Expect semicolon
@@ -381,8 +404,9 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 		field := &ast.FieldDecl{
 			Token:      name.Token,
 			Name:       name,
-			Type:       fieldType, // Now supports any TypeExpression (simple, array, function pointer)
+			Type:       fieldType, // May be nil for type inference
 			Visibility: visibility,
+			InitValue:  initValue, // May be nil if no initialization
 		}
 		fields = append(fields, field)
 	}
