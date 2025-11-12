@@ -153,7 +153,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Task 9.37: Check if it's a record method
 		if recordVal.Methods != nil {
-			if methodDecl, methodExists := recordVal.Methods[ma.Member.Value]; methodExists {
+			// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
+			if methodDecl, methodExists := recordVal.Methods[strings.ToLower(ma.Member.Value)]; methodExists {
 				// Only auto-invoke parameterless methods when accessed without parentheses
 				if len(methodDecl.Parameters) == 0 {
 					// Convert to a method call expression and evaluate it
@@ -314,7 +315,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Check if it's a method
-		if method, exists := obj.Class.Methods[memberName]; exists {
+		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
+		if method, exists := obj.Class.Methods[strings.ToLower(memberName)]; exists {
 			// If the method has no parameters, auto-invoke it
 			// This allows DWScript syntax: obj.Method instead of obj.Method()
 			if len(method.Parameters) == 0 {
@@ -390,9 +392,11 @@ func (i *Interpreter) lookupConstructorInHierarchy(classInfo *ClassInfo, name st
 // lookupClassMethodInHierarchy searches for a class method by name in the class hierarchy.
 // It walks the parent chain starting from the given class.
 // Returns the method declaration, or nil if not found.
+// Task 9.16.2: Method names are case-insensitive, so we normalize to lowercase
 func (i *Interpreter) lookupClassMethodInHierarchy(classInfo *ClassInfo, name string) *ast.FunctionDecl {
+	normalizedName := strings.ToLower(name)
 	for current := classInfo; current != nil; current = current.Parent {
-		if method, exists := current.ClassMethods[name]; exists {
+		if method, exists := current.ClassMethods[normalizedName]; exists {
 			return method
 		}
 	}

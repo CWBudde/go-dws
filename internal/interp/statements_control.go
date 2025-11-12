@@ -1,6 +1,8 @@
 package interp
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 )
 
@@ -254,10 +256,13 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 		var method *ast.FunctionDecl
 		var exists bool
 
+		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
+		normalizedBindingName := strings.ToLower(opEntry.BindingName)
+
 		if opEntry.IsClassMethod {
-			method, exists = class.ClassMethods[opEntry.BindingName]
+			method, exists = class.ClassMethods[normalizedBindingName]
 		} else {
-			method, exists = class.Methods[opEntry.BindingName]
+			method, exists = class.Methods[normalizedBindingName]
 		}
 
 		if !exists {
