@@ -47,6 +47,14 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinUpperCase(args)
 	case "LowerCase":
 		return i.builtinLowerCase(args)
+	case "ASCIIUpperCase":
+		return i.builtinASCIIUpperCase(args)
+	case "ASCIILowerCase":
+		return i.builtinASCIILowerCase(args)
+	case "AnsiUpperCase":
+		return i.builtinAnsiUpperCase(args)
+	case "AnsiLowerCase":
+		return i.builtinAnsiLowerCase(args)
 	case "Trim":
 		return i.builtinTrim(args)
 	case "TrimLeft":
@@ -293,6 +301,14 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinVarToFloatDef(args)
 	case "Chr":
 		return i.builtinChr(args)
+	case "CharAt":
+		return i.builtinCharAt(args)
+	case "ByteSizeToStr":
+		return i.builtinByteSizeToStr(args)
+	case "GetText":
+		return i.builtinGetText(args)
+	case "_":
+		return i.builtin_(args)
 	case "Succ":
 		return i.builtinSucc(args)
 	case "Pred":
@@ -513,7 +529,8 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 	switch name {
 	case "PrintLn", "Print", "Ord", "Integer", "Length", "Copy", "Concat",
 		"IndexOf", "Contains", "Reverse", "Sort", "Pos", "UpperCase",
-		"LowerCase", "Trim", "TrimLeft", "TrimRight", "StringReplace", "StringOfChar",
+		"LowerCase", "ASCIIUpperCase", "ASCIILowerCase", "AnsiUpperCase", "AnsiLowerCase",
+		"Trim", "TrimLeft", "TrimRight", "StringReplace", "StringOfChar",
 		"SubStr", "SubString", "LeftStr", "RightStr", "MidStr",
 		"StrBeginsWith", "StrEndsWith", "StrContains", "PosEx", "RevPos", "StrFind",
 		"StrSplit", "StrJoin", "StrArrayPack",
@@ -524,7 +541,7 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 		"NormalizeString", "Normalize", "StripAccents",
 		"Format", "Abs", "Min", "Max", "Sqr", "Power", "Sqrt", "Sin",
 		"Cos", "Tan", "Random", "Randomize", "Exp", "Ln", "Round",
-		"Trunc", "Frac", "Chr", "SetLength", "High", "Low", "Assigned",
+		"Trunc", "Frac", "Chr", "CharAt", "ByteSizeToStr", "GetText", "_", "SetLength", "High", "Low", "Assigned",
 		"DegToRad", "RadToDeg", "ArcSin", "ArcCos", "ArcTan", "ArcTan2",
 		"CoTan", "Hypot", "Sinh", "Cosh", "Tanh", "ArcSinh", "ArcCosh", "ArcTanh",
 		"TypeOf", "SizeOf", "TypeName", "Delete", "StrToInt", "StrToFloat",

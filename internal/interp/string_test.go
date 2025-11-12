@@ -3770,3 +3770,482 @@ end
 		})
 	}
 }
+
+// TestBuiltinASCIIUpperCase tests the ASCIIUpperCase() built-in function.
+func TestBuiltinASCIIUpperCase(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Basic ASCII lowercase to uppercase",
+			input: `
+begin
+	ASCIIUpperCase("hello");
+end
+			`,
+			expected: "HELLO",
+		},
+		{
+			name: "Mixed case ASCII",
+			input: `
+begin
+	ASCIIUpperCase("HeLLo");
+end
+			`,
+			expected: "HELLO",
+		},
+		{
+			name: "Already uppercase",
+			input: `
+begin
+	ASCIIUpperCase("HELLO");
+end
+			`,
+			expected: "HELLO",
+		},
+		{
+			name: "With numbers and symbols",
+			input: `
+begin
+	ASCIIUpperCase("hello123!@#");
+end
+			`,
+			expected: "HELLO123!@#",
+		},
+		{
+			name: "Empty string",
+			input: `
+begin
+	ASCIIUpperCase("");
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Non-ASCII characters unchanged",
+			input: `
+begin
+	ASCIIUpperCase("café");
+end
+			`,
+			expected: "CAFé", // Only ASCII 'c', 'a', 'f' converted, é unchanged
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("ASCIIUpperCase() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinASCIILowerCase tests the ASCIILowerCase() built-in function.
+func TestBuiltinASCIILowerCase(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Basic ASCII uppercase to lowercase",
+			input: `
+begin
+	ASCIILowerCase("HELLO");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Mixed case ASCII",
+			input: `
+begin
+	ASCIILowerCase("HeLLo");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "Already lowercase",
+			input: `
+begin
+	ASCIILowerCase("hello");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "With numbers and symbols",
+			input: `
+begin
+	ASCIILowerCase("HELLO123!@#");
+end
+			`,
+			expected: "hello123!@#",
+		},
+		{
+			name: "Empty string",
+			input: `
+begin
+	ASCIILowerCase("");
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Non-ASCII characters unchanged",
+			input: `
+begin
+	ASCIILowerCase("CAFÉ");
+end
+			`,
+			expected: "cafÉ", // Only ASCII 'C', 'A', 'F' converted, É unchanged
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("ASCIILowerCase() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinAnsiUpperCase tests the AnsiUpperCase() built-in function.
+func TestBuiltinAnsiUpperCase(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Basic usage",
+			input: `
+begin
+	AnsiUpperCase("hello");
+end
+			`,
+			expected: "HELLO",
+		},
+		{
+			name: "With Unicode",
+			input: `
+begin
+	AnsiUpperCase("café");
+end
+			`,
+			expected: "CAFÉ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("AnsiUpperCase() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinAnsiLowerCase tests the AnsiLowerCase() built-in function.
+func TestBuiltinAnsiLowerCase(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Basic usage",
+			input: `
+begin
+	AnsiLowerCase("HELLO");
+end
+			`,
+			expected: "hello",
+		},
+		{
+			name: "With Unicode",
+			input: `
+begin
+	AnsiLowerCase("CAFÉ");
+end
+			`,
+			expected: "café",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("AnsiLowerCase() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinByteSizeToStr tests the ByteSizeToStr() built-in function.
+func TestBuiltinByteSizeToStr(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Small bytes",
+			input: `
+begin
+	ByteSizeToStr(512);
+end
+			`,
+			expected: "512 bytes",
+		},
+		{
+			name: "Kilobytes",
+			input: `
+begin
+	ByteSizeToStr(1536);
+end
+			`,
+			expected: "1.50 KB",
+		},
+		{
+			name: "Megabytes",
+			input: `
+begin
+	ByteSizeToStr(1572864);
+end
+			`,
+			expected: "1.50 MB",
+		},
+		{
+			name: "Gigabytes",
+			input: `
+begin
+	ByteSizeToStr(1610612736);
+end
+			`,
+			expected: "1.50 GB",
+		},
+		{
+			name: "Zero bytes",
+			input: `
+begin
+	ByteSizeToStr(0);
+end
+			`,
+			expected: "0 bytes",
+		},
+		{
+			name: "One kilobyte exactly",
+			input: `
+begin
+	ByteSizeToStr(1024);
+end
+			`,
+			expected: "1.00 KB",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("ByteSizeToStr() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinGetText tests the GetText() built-in function.
+func TestBuiltinGetText(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Basic usage",
+			input: `
+begin
+	GetText("Hello, World!");
+end
+			`,
+			expected: "Hello, World!",
+		},
+		{
+			name: "Empty string",
+			input: `
+begin
+	GetText("");
+end
+			`,
+			expected: "",
+		},
+		{
+			name: "Unicode string",
+			input: `
+begin
+	GetText("你好世界");
+end
+			`,
+			expected: "你好世界",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("GetText() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltin_ tests the _() built-in function (alias for GetText).
+func TestBuiltin_(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Basic usage",
+			input: `
+begin
+	_("Hello, World!");
+end
+			`,
+			expected: "Hello, World!",
+		},
+		{
+			name: "Empty string",
+			input: `
+begin
+	_("");
+end
+			`,
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("_() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestBuiltinCharAt tests the CharAt() built-in function.
+func TestBuiltinCharAt(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Get first character",
+			input: `
+begin
+	CharAt("hello", 1);
+end
+			`,
+			expected: "h",
+		},
+		{
+			name: "Get middle character",
+			input: `
+begin
+	CharAt("hello", 3);
+end
+			`,
+			expected: "l",
+		},
+		{
+			name: "Get last character",
+			input: `
+begin
+	CharAt("hello", 5);
+end
+			`,
+			expected: "o",
+		},
+		{
+			name: "With Unicode",
+			input: `
+begin
+	CharAt("你好", 2);
+end
+			`,
+			expected: "好",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expected {
+				t.Errorf("CharAt() = %q, want %q", strVal.Value, tt.expected)
+			}
+		})
+	}
+}
