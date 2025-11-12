@@ -677,224 +677,32 @@ each element is wrapped in a variant-like container that preserves type informat
 
 ---
 
-### Phase 9.19: Constructor Overloading
+### Phase 9.19: Constructor Overloading ✅ COMPLETE
 
-**Priority**: HIGH - Required for ~50+ failing tests
-**Timeline**: 3-5 days
-**Impact**: Unblocks major class tests and fixture tests
-
-**Current Status**: Constructor overloading is not implemented. All classes only support a single constructor signature. When a class defines multiple constructors with different parameters, only the last one is registered, causing "wrong number of arguments for constructor" errors.
-
-**Root Cause**: The interpreter stores constructors in a simple map with "Create" as key, not supporting multiple signatures per constructor name.
-
-- [x] 9.19.1 Implement constructor overload storage in ClassType ✅
-  - **Task**: Modify ClassType to store multiple constructor signatures per name
-  - **Implementation**: Storage was already implemented with `ConstructorOverloads map[string][]*MethodInfo`
-  - **Files**: `internal/types/types.go`
-  - **Status**: Already implemented in previous task
-  - **Actual time**: < 1 hour (verification only)
-
-- [x] 9.19.2 Implement implicit parameterless constructor synthesis ✅
-  - **Task**: Synthesize implicit parameterless constructor when constructor has `overload` directive
-  - **Implementation**:
-    - Added `synthesizeImplicitParameterlessConstructor()` in semantic analyzer
-    - Added corresponding function in interpreter
-    - Normalized constructor names to lowercase for case-insensitive matching
-  - **Files**: `internal/semantic/analyze_classes_inheritance.go`, `internal/interp/declarations.go`, `internal/interp/exceptions.go`
-  - **Tests**: All constructor overload tests passing
-  - **Actual time**: 2 hours
-
-- [x] 9.19.3 Fix constructor name case-sensitivity issues ✅
-  - **Task**: Ensure case-insensitive constructor matching works correctly
-  - **Implementation**:
-    - Normalized all constructor names to lowercase when storing in maps
-    - Fixed inheritance to use normalized names
-    - Updated TObject constructor registration
-  - **Files**: `internal/interp/declarations.go`, `internal/interp/exceptions.go`
-  - **Tests**: All constructor overload tests passing (5/5)
-  - **Actual time**: 1 hour
-
-- [x] 9.19.4 Constructor overload tests verified ✅
-  - **Task**: Verify all constructor overloading scenarios work
-  - **Tests**: All tests passing:
-    - Exact fixture test case ✓
-    - Constructor with parameter ✓
-    - Implicit parameterless constructor ✓
-    - New with implicit parameterless constructor ✓
-    - New with parameter ✓
-  - **Files**: `internal/interp/constructor_overload_test.go`
-  - **Actual time**: Included in implementation
-
-**Blocked Tests**:
-- internal/interp: TestFieldAccess, TestMethodCalls, TestInheritance, TestPolymorphism, TestConstructors, TestSelfReference, TestNewKeywordWithConstructor, TestNewKeywordWithException, TestNewKeywordEquivalentToCreate, TestClassVariableSharedAcrossInstances, TestMixedClassAndInstanceMembers, TestConstructorOverload
-- Fixtures: constructor_overload.pas and 40+ tests in OverloadsPass category
+- [x] 9.19.1 Implement constructor overload storage in ClassType ✓
+- [x] 9.19.2 Implement implicit parameterless constructor synthesis ✓
+- [x] 9.19.3 Fix constructor name case-sensitivity issues ✓
+- [x] 9.19.4 Constructor overload tests verified (5/5 tests passing) ✓
 
 ---
 
-### Phase 9.20: Method Overloading
+### Phase 9.20: Method Overloading ✅ COMPLETE
 
-**Priority**: HIGH - Required for ~40+ failing tests
-**Timeline**: 3-5 days
-**Impact**: Full method overloading support for fixture test compatibility
-
-**Current Status**: Method overloading parsing and semantic analysis is partially implemented, but runtime dispatch may need enhancement.
-
-- [x] 9.20.1 Audit current method overload implementation ✓
-  - **Task**: Review existing overload support in parser, semantic analyzer, and interpreter
-  - **Implementation**:
-    - Check if methods are stored with overload support
-    - Verify semantic analyzer overload resolution
-    - Test interpreter dispatch with multiple overloads
-  - **Completed**:
-    - Comprehensive audit documented in `docs/method_overload_audit.md`
-    - Function overloading works (overload_simple.pas passes)
-    - Class method overloading works with static/virtual (class_method_static_virtual.pas passes)
-    - Constructor overloading works (partial - overload_constructor.pas)
-    - Identified critical issue: record method overloading broken
-    - 3/39 OverloadsPass tests passing, 36 failing
-    - Key gaps: record methods (P0), array type matching (P2), type cast scenarios (P2)
-  - **Files**: `docs/method_overload_audit.md`, `internal/semantic/analyze_classes.go`, `internal/types/types.go`, `internal/interp/objects_methods.go`
-  - **Tests**: Analyzed all 39 OverloadsPass fixture tests
-  - **Actual time**: 0.5 day
-
-- [x] 9.20.2 Fix method overload resolution bugs ✓
-  - **Task**: Address any gaps found in audit
-  - **Implementation**:
-    - Ensure method table stores all overloads per name
-    - Fix overload resolution to consider all signatures
-    - Handle virtual/override with overloads correctly
-  - **Completed**:
-    - Fixed `checkMethodOverriding` to skip signature checks for methods with overload directive
-    - Methods with 'overload' now correctly add to overload set instead of replacing parent methods
-    - Changed to check `MethodOverloads` (with directive info) instead of `Methods` map
-    - Semantic analysis now correctly handles overloaded methods in class hierarchies
-    - Core overload resolution algorithm verified working correctly
-  - **Known Limitations** (out of scope - feature gaps, not bugs):
-    - Parameterless method calls without parentheses (`obj.Method` vs `obj.Method()`) not yet supported
-    - Record method overloading needs record feature implementation first
-    - Type cast scenarios need parser/semantic enhancements
-  - **Files**: `internal/semantic/analyze_classes_inheritance.go`
-  - **Tests**: Manual testing with custom test cases, fixture tests
-  - **Actual time**: 0.5 day
-
-- [x] 9.20.3 Enhance method overload dispatch in interpreter ✓
-  - **Task**: Ensure runtime correctly dispatches to overloaded methods
-  - **Status**: Already implemented in previous work
-  - **Verified**:
-    - `evalMethodCall` has `resolveMethodOverload()` for runtime overload resolution
-    - `getMethodOverloadsInHierarchy()` collects overloads from class hierarchy
-    - Polymorphic dispatch with overloads works (virtual constructors, virtual methods)
-    - Class method overloading fully supported (static, virtual, regular)
-    - Function overloading works via `resolveOverload()` in `evalCallExpression`
-  - **Evidence**:
-    - `class_method_static_virtual.pas` passes (3 overloads per class with static/virtual/regular)
-    - `overload_simple.pas` passes (function overloading with 3 overloads)
-    - `forwards.pas` passes (forward declarations with overloading)
-    - Manual tests confirm correct dispatch in 2-level and 3-level hierarchies
-  - **Files**: `internal/interp/objects_methods.go`, `internal/interp/functions_calls.go`
-  - **Actual time**: 0 day (already complete)
-
-- [x] 9.20.4 Add comprehensive method overload tests ✓
-  - **Task**: Verify all method overloading patterns work
-  - **Completed**:
-    - Created `internal/interp/method_overload_test.go` with 13 comprehensive tests
-    - 11 tests pass, 2 skipped (documented limitations)
-    - Test coverage includes:
-      * Simple overloads (different parameter counts)
-      * Different parameter types (Integer, Float, String)
-      * Inheritance hierarchies (2-level and 3-level)
-      * Class methods (static, virtual, regular modifiers)
-      * Mixed instance and class method overloads
-      * Virtual methods with override
-      * Forward declarations with overloading
-      * Procedures and functions mixed
-      * Implicit type conversion in overload resolution
-    - Skipped tests document known limitations:
-      * Constructor overloading needs enhancement (task 9.19)
-      * Return type-only overloading not yet supported (future enhancement)
-  - **Files**: `internal/interp/method_overload_test.go` (433 lines)
-  - **Actual time**: 0.5 day
-
-**Blocked Tests**:
-- Fixtures: 40+ tests in OverloadsPass category (meth_overload_simple, meth_overload_hide, overload_constructor, overload_virtual, etc.)
+- [x] 9.20.1 Audit current method overload implementation (documented in docs/method_overload_audit.md) ✓
+- [x] 9.20.2 Fix method overload resolution bugs (semantic analysis fixes for class hierarchies) ✓
+- [x] 9.20.3 Enhance method overload dispatch in interpreter (already complete, verified working) ✓
+- [x] 9.20.4 Add comprehensive method overload tests (13 tests: 11 passing, 2 skipped with documented limitations) ✓
 
 ---
 
 ### Phase 9.21: Parser Syntax Extensions
 
 **Priority**: HIGH - Required for ~100+ failing fixture tests
-**Timeline**: 5-7 days
-**Impact**: Support for missing DWScript syntax constructs
 
-**Current Status**: Parser rejects several DWScript syntax patterns causing many fixture tests to fail with parse errors.
-
-#### Subtask Category: Array Type Syntax
-
-- [x] 9.21.1 Fix "array of <type>" shorthand parsing ✓
-  - **Task**: Support DWScript's `array[TEnum] of Type` syntax (enum-indexed array)
-  - **Current Error**: "expected DOTDOT, got RBRACK" when parsing `array[TEnum]`
-  - **Implementation**:
-    - Extended `parseArrayType()` to handle `array[EnumType] of <type>` syntax
-    - Added `IndexType` field to `ArrayTypeNode` AST node
-    - Updated semantic analyzer to resolve enum-indexed arrays to static arrays with enum bounds
-    - Updated interpreter to accept enum values as array indices (using ordinal values)
-    - Added comprehensive tests for enum-indexed array parsing
-  - **Files**:
-    - `pkg/ast/type_expression.go` (added IndexType field, IsEnumIndexed method)
-    - `internal/parser/types.go` (parseArrayType with enum detection)
-    - `internal/parser/declarations.go` (set InlineType for array types in const decl)
-    - `internal/parser/inline_types_test.go` (TestEnumIndexedArrayType)
-    - `internal/semantic/type_resolution.go` (resolveArrayTypeNode with enum handling)
-    - `internal/semantic/analyze_statements.go` (analyzeConstDecl with InlineType support)
-    - `internal/semantic/analyze_arrays.go` (allow enum types as indices)
-    - `internal/interp/array.go` (handle EnumValue as array index)
-  - **Tests**: TestEnumIndexedArrayType passes, const_array3.pas now executes correctly
-  - **Completed**: Enum-indexed arrays fully supported in parser, semantic analyzer, and interpreter
-
-#### Subtask Category: Class Features
-
-- [x] 9.21.2 Implement "class var" initialization syntax
-  - **Task**: Support initializing class variables inline: `class var X: Integer := 42;`
-  - **Implementation**:
-    - Extended `parseFieldDeclarations()` to allow optional `:= <expression>` after type
-    - Added `InitValue` field to `FieldDecl` AST node to store initialization expression
-    - Updated semantic analyzer to validate initialization and support type inference
-    - Interpreter evaluates initialization expressions during class declaration
-    - Supports both explicit types and type inference: `class var X := 42;`
-  - **Files**: `pkg/ast/classes.go`, `internal/parser/classes.go`, `internal/semantic/analyze_classes_decl.go`, `internal/interp/declarations.go`
-  - **Tests**: Added comprehensive parser and interpreter tests (10+ test cases passing)
-  - **Status**: Complete. Basic functionality working. Edge cases (expressions with class constants, inheritance) can be addressed as follow-up
-  - **Unblocked Tests**: class_var.pas, class_var_dyn1.pas (partial), and others
-
-- [x] 9.21.3 Fix "class method/operator" inline syntax parsing
-  - **Task**: Support inline class method/operator declarations without separate declaration/implementation
-  - **Implementation**:
-    - Added support for `class method` keyword in addition to `class function` and `class procedure`
-    - Added calling convention keywords (safecall, stdcall, cdecl, pascal, register) to lexer keyword map
-    - Added `CallingConvention` field to FunctionDecl AST node
-    - Parser now recognizes calling conventions as directives in function declarations
-    - Supports inline method implementations with calling conventions
-    - Supports both inline implementations (inside class) and separate implementations (outside class)
-  - **Files**: `pkg/token/token.go`, `pkg/ast/functions.go`, `internal/parser/functions.go`, `internal/parser/classes.go`, `internal/parser/statements.go`
-  - **Tests**: Added 7 comprehensive unit tests covering inline methods with calling conventions, class methods, and multiple directives
-  - **Status**: Complete. All parser tests pass. Fixture tests (class_method3.pas, call_conventions.pas) now parse successfully
-  - **Unblocked Tests**: class_method3.pas, call_conventions.pas
-
-#### Subtask Category: Attributes and Metadata
-
-- [x] 9.21.4 Implement "deprecated" attribute parsing
-  - **Task**: Support `deprecated` attribute on declarations with optional message
-  - **Implementation**:
-    - DEPRECATED token already existed in lexer as a keyword
-    - Added `IsDeprecated` and `DeprecatedMessage` fields to ConstDecl, FunctionDecl, and EnumValue AST nodes
-    - Parse deprecated keyword after declarations: `const c = 1 deprecated;`
-    - Parse optional message string: `const c = 1 deprecated 'use d instead';`
-    - Supports deprecated on: constants, functions, procedures, methods, and enum elements
-    - For enum elements, deprecated must appear before the value assignment: `zzero deprecated` or `deux deprecated 'msg' = 2`
-  - **Files**: `pkg/ast/declarations.go`, `pkg/ast/functions.go`, `pkg/ast/enums.go`, `internal/parser/declarations.go`, `internal/parser/functions.go`, `internal/parser/enums.go`
-  - **Tests**: Added 8 comprehensive unit tests covering all deprecated scenarios
-  - **Status**: Complete. All parser tests pass. Fixture tests (enum_element_deprecated.pas, deprecated.pas) now parse successfully
-  - **Unblocked Tests**: enum_element_deprecated.pas, deprecated.pas (partial - const_deprecated.pas has record type parsing issues unrelated to deprecated)
+- [x] 9.21.1 Fix "array of <type>" shorthand parsing (enum-indexed arrays fully supported) ✓
+- [x] 9.21.2 Implement "class var" initialization syntax (inline initialization with type inference) ✓
+- [x] 9.21.3 Fix "class method/operator" inline syntax parsing (calling conventions and inline implementations) ✓
+- [x] 9.21.4 Implement "deprecated" attribute parsing (constants, functions, enum elements) ✓
 
 - [ ] 9.21.5 Implement contract syntax (require/ensure/old/invariant)
   - **Task**: Parse Design by Contract syntax for preconditions/postconditions
