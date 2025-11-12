@@ -625,8 +625,10 @@ func (ct *ClassType) HasProperty(name string) bool {
 	if ct == nil {
 		return false
 	}
-	if _, ok := ct.Properties[name]; ok {
-		return true
+	for propName := range ct.Properties {
+		if strings.EqualFold(propName, name) {
+			return true
+		}
 	}
 	if ct.Parent != nil {
 		return ct.Parent.HasProperty(name)
@@ -640,8 +642,10 @@ func (ct *ClassType) GetProperty(name string) (*PropertyInfo, bool) {
 	if ct == nil {
 		return nil, false
 	}
-	if prop, ok := ct.Properties[name]; ok {
-		return prop, true
+	for propName, prop := range ct.Properties {
+		if strings.EqualFold(propName, name) {
+			return prop, true
+		}
 	}
 	if ct.Parent != nil {
 		return ct.Parent.GetProperty(name)

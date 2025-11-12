@@ -364,6 +364,23 @@ func TestMemberAccessUndefinedMember(t *testing.T) {
 	expectError(t, input, "class 'TPoint' has no member 'Z'")
 }
 
+func TestMemberAccessPropertyCaseInsensitive(t *testing.T) {
+	input := `
+		type TStringArray = class
+			function GetItem(i: Integer): String;
+			begin
+				Result := 'value';
+			end;
+
+			property Items[i: Integer]: String read GetItem;
+		end;
+
+		var arr := TStringArray.Create();
+		var first := arr.items[0];
+	`
+	expectNoErrors(t, input)
+}
+
 func TestMemberAccessTypeMismatch(t *testing.T) {
 	input := `
 		type TPoint = class
