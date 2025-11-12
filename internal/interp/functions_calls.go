@@ -274,7 +274,8 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	if funcName.Value == "Inc" || funcName.Value == "Dec" || funcName.Value == "Insert" ||
 		(funcName.Value == "Delete" && len(expr.Arguments) == 3) ||
 		funcName.Value == "DecodeDate" || funcName.Value == "DecodeTime" ||
-		funcName.Value == "Swap" || funcName.Value == "DivMod" {
+		funcName.Value == "Swap" || funcName.Value == "DivMod" ||
+		funcName.Value == "TryStrToInt" || funcName.Value == "TryStrToFloat" {
 		return i.callBuiltinWithVarParam(funcName.Value, expr.Arguments)
 	}
 

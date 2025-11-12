@@ -283,6 +283,14 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinStrToBool(args)
 	case "BoolToStr":
 		return i.builtinBoolToStr(args)
+	case "HexToInt":
+		return i.builtinHexToInt(args)
+	case "BinToInt":
+		return i.builtinBinToInt(args)
+	case "VarToIntDef":
+		return i.builtinVarToIntDef(args)
+	case "VarToFloatDef":
+		return i.builtinVarToFloatDef(args)
 	case "Chr":
 		return i.builtinChr(args)
 	case "Succ":
@@ -509,8 +517,10 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 		"DegToRad", "RadToDeg", "ArcSin", "ArcCos", "ArcTan", "ArcTan2",
 		"CoTan", "Hypot", "Sinh", "Cosh", "Tanh", "ArcSinh", "ArcCosh", "ArcTanh",
 		"TypeOf", "SizeOf", "TypeName", "Delete", "StrToInt", "StrToFloat",
-		"IntToStr", "FloatToStr", "FloatToStrF", "BoolToStr", "StrToBool",
-		"VarToStr", "VarToInt", "VarToFloat", "VarAsType", "VarIsNull", "VarIsEmpty", "VarIsNumeric", "VarType", "VarClear",
+		"IntToStr", "IntToBin", "IntToHex", "FloatToStr", "FloatToStrF", "BoolToStr", "StrToBool",
+		"HexToInt", "BinToInt", "StrToIntDef", "StrToFloatDef", "TryStrToInt", "TryStrToFloat",
+		"VarToStr", "VarToInt", "VarToFloat", "VarToIntDef", "VarToFloatDef",
+		"VarAsType", "VarIsNull", "VarIsEmpty", "VarIsNumeric", "VarType", "VarClear",
 		"Include", "Exclude", "Map", "Filter", "Reduce", "ForEach",
 		"MaxInt", "MinInt",
 		"Now", "Date", "Time", "UTCDateTime", "EncodeDate", "EncodeTime",
@@ -575,6 +585,10 @@ func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression
 		return i.builtinSwap(args)
 	case "DivMod":
 		return i.builtinDivMod(args)
+	case "TryStrToInt":
+		return i.builtinTryStrToInt(args)
+	case "TryStrToFloat":
+		return i.builtinTryStrToFloat(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined var-param function: %s", name)
 	}

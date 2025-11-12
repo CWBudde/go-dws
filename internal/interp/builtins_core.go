@@ -611,12 +611,13 @@ func (i *Interpreter) builtinDelete(args []Value) Value {
 // builtinIntToStr implements the IntToStr() built-in function.
 // It converts an integer to its string representation.
 // IntToStr(i: Integer): String
+// IntToStr(i: Integer, base: Integer): String (base 2-36)
 func (i *Interpreter) builtinIntToStr(args []Value) Value {
-	if len(args) != 1 {
-		return i.newErrorWithLocation(i.currentNode, "IntToStr() expects exactly 1 argument, got %d", len(args))
+	if len(args) < 1 || len(args) > 2 {
+		return i.newErrorWithLocation(i.currentNode, "IntToStr() expects 1 or 2 arguments, got %d", len(args))
 	}
 
-	// Argument must be an integer or subrange value
+	// First argument must be an integer or subrange value
 	var intValue int64
 	switch v := args[0].(type) {
 	case *IntegerValue:
@@ -628,8 +629,28 @@ func (i *Interpreter) builtinIntToStr(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "IntToStr() expects integer argument, got %s", args[0].Type())
 	}
 
-	// Convert integer to string using Go's strconv
-	result := fmt.Sprintf("%d", intValue)
+	// Default base is 10
+	base := 10
+
+	// If second argument is provided, it specifies the base
+	if len(args) == 2 {
+		switch v := args[1].(type) {
+		case *IntegerValue:
+			base = int(v.Value)
+		case *SubrangeValue:
+			base = int(v.Value)
+		default:
+			return i.newErrorWithLocation(i.currentNode, "IntToStr() expects integer as second argument (base), got %s", args[1].Type())
+		}
+
+		// Validate base range (2-36)
+		if base < 2 || base > 36 {
+			return i.newErrorWithLocation(i.currentNode, "IntToStr() base must be between 2 and 36, got %d", base)
+		}
+	}
+
+	// Convert integer to string using Go's strconv with specified base
+	result := strconv.FormatInt(intValue, base)
 	return &StringValue{Value: result}
 }
 
@@ -712,23 +733,49 @@ func (i *Interpreter) builtinIntToBin(args []Value) Value {
 // builtinStrToInt implements the StrToInt() built-in function.
 // It converts a string to an integer, raising an error if the string is invalid.
 // StrToInt(s: String): Integer
+// StrToInt(s: String, base: Integer): Integer (base 2-36)
 func (i *Interpreter) builtinStrToInt(args []Value) Value {
-	if len(args) != 1 {
-		return i.newErrorWithLocation(i.currentNode, "StrToInt() expects exactly 1 argument, got %d", len(args))
+	if len(args) < 1 || len(args) > 2 {
+		return i.newErrorWithLocation(i.currentNode, "StrToInt() expects 1 or 2 arguments, got %d", len(args))
 	}
 
-	// Argument must be a string
+	// First argument must be a string
 	strVal, ok := args[0].(*StringValue)
 	if !ok {
 		return i.newErrorWithLocation(i.currentNode, "StrToInt() expects string argument, got %s", args[0].Type())
+	}
+
+	// Default base is 10
+	base := 10
+
+	// If second argument is provided, it specifies the base
+	if len(args) == 2 {
+		switch v := args[1].(type) {
+		case *IntegerValue:
+			base = int(v.Value)
+		case *SubrangeValue:
+			base = int(v.Value)
+		default:
+			return i.newErrorWithLocation(i.currentNode, "StrToInt() expects integer as second argument (base), got %s", args[1].Type())
+		}
+
+		// Validate base range (2-36)
+		if base < 2 || base > 36 {
+			return i.newErrorWithLocation(i.currentNode, "StrToInt() base must be between 2 and 36, got %d", base)
+		}
 	}
 
 	// Try to parse the string as an integer
 	// Use strings.TrimSpace to handle leading/trailing whitespace
 	s := strings.TrimSpace(strVal.Value)
 
+	// Empty string is an error
+	if s == "" {
+		return i.newErrorWithLocation(i.currentNode, "'%s' is not a valid integer", strVal.Value)
+	}
+
 	// Use strconv.ParseInt for strict parsing (doesn't accept partial matches)
-	intValue, err := strconv.ParseInt(s, 10, 64)
+	intValue, err := strconv.ParseInt(s, base, 64)
 	if err != nil {
 		return i.newErrorWithLocation(i.currentNode, "'%s' is not a valid integer", strVal.Value)
 	}
@@ -791,9 +838,10 @@ func (i *Interpreter) builtinStrToFloat(args []Value) Value {
 // builtinStrToIntDef implements the StrToIntDef() built-in function.
 // It converts a string to an integer, returning a default value if the string is invalid.
 // StrToIntDef(s: String, default: Integer): Integer
+// StrToIntDef(s: String, default: Integer, base: Integer): Integer (base 2-36)
 func (i *Interpreter) builtinStrToIntDef(args []Value) Value {
-	if len(args) != 2 {
-		return i.newErrorWithLocation(i.currentNode, "StrToIntDef() expects exactly 2 arguments, got %d", len(args))
+	if len(args) < 2 || len(args) > 3 {
+		return i.newErrorWithLocation(i.currentNode, "StrToIntDef() expects 2 or 3 arguments, got %d", len(args))
 	}
 
 	// First argument must be a string
@@ -808,11 +856,31 @@ func (i *Interpreter) builtinStrToIntDef(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "StrToIntDef() expects integer as second argument, got %s", args[1].Type())
 	}
 
+	// Default base is 10
+	base := 10
+
+	// If third argument is provided, it specifies the base
+	if len(args) == 3 {
+		switch v := args[2].(type) {
+		case *IntegerValue:
+			base = int(v.Value)
+		case *SubrangeValue:
+			base = int(v.Value)
+		default:
+			return i.newErrorWithLocation(i.currentNode, "StrToIntDef() expects integer as third argument (base), got %s", args[2].Type())
+		}
+
+		// Validate base range (2-36)
+		if base < 2 || base > 36 {
+			return &IntegerValue{Value: defaultVal.Value}
+		}
+	}
+
 	// Try to parse the string as an integer
 	s := strings.TrimSpace(strVal.Value)
 
 	// Use strconv.ParseInt for strict parsing (doesn't accept partial matches)
-	intValue, err := strconv.ParseInt(s, 10, 64)
+	intValue, err := strconv.ParseInt(s, base, 64)
 	if err != nil {
 		// Return the default value on error
 		return &IntegerValue{Value: defaultVal.Value}
