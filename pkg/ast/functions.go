@@ -169,6 +169,22 @@ func (fd *FunctionDecl) String() string {
 		out.WriteString("; forward")
 	}
 
+	// Write calling convention directive
+	if fd.CallingConvention != "" {
+		out.WriteString("; ")
+		out.WriteString(fd.CallingConvention)
+	}
+
+	// Write deprecated directive
+	if fd.IsDeprecated {
+		out.WriteString("; deprecated")
+		if fd.DeprecatedMessage != "" {
+			out.WriteString(" '")
+			out.WriteString(fd.DeprecatedMessage)
+			out.WriteString("'")
+		}
+	}
+
 	// Write preconditions if present
 	if fd.PreConditions != nil {
 		out.WriteString("\n")

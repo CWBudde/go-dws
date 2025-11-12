@@ -890,7 +890,7 @@ each element is wrapped in a variant-like container that preserves type informat
     - Parse deprecated keyword after declarations: `const c = 1 deprecated;`
     - Parse optional message string: `const c = 1 deprecated 'use d instead';`
     - Supports deprecated on: constants, functions, procedures, methods, and enum elements
-    - For enum elements, deprecated can appear before or after value: `zzero deprecated` or `deux deprecated 'msg' = 2`
+    - For enum elements, deprecated must appear before the value assignment: `zzero deprecated` or `deux deprecated 'msg' = 2`
   - **Files**: `pkg/ast/declarations.go`, `pkg/ast/functions.go`, `pkg/ast/enums.go`, `internal/parser/declarations.go`, `internal/parser/functions.go`, `internal/parser/enums.go`
   - **Tests**: Added 8 comprehensive unit tests covering all deprecated scenarios
   - **Status**: Complete. All parser tests pass. Fixture tests (enum_element_deprecated.pas, deprecated.pas) now parse successfully

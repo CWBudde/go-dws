@@ -60,6 +60,14 @@ func (ed *EnumDecl) String() string {
 			out.WriteString(", ")
 		}
 		out.WriteString(val.Name)
+		if val.IsDeprecated {
+			out.WriteString(" deprecated")
+			if val.DeprecatedMessage != "" {
+				out.WriteString(" '")
+				out.WriteString(val.DeprecatedMessage)
+				out.WriteString("'")
+			}
+		}
 		if val.Value != nil {
 			out.WriteString(fmt.Sprintf(" = %d", *val.Value))
 		}

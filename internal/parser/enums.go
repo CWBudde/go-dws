@@ -56,7 +56,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 			Value: nil, // Default to implicit value
 		}
 
-		// Check for optional 'deprecated' keyword (can come before or after value)
+		// Check for optional 'deprecated' keyword (must come before the value assignment, if any)
 		if p.peekTokenIs(lexer.DEPRECATED) {
 			p.nextToken() // move to 'deprecated'
 			enumValue.IsDeprecated = true
