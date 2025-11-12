@@ -165,11 +165,17 @@ func TestClassTypeFields(t *testing.T) {
 
 func TestClassTypeMethods(t *testing.T) {
 	parent := NewClassType("TObject", nil)
-	parent.Methods["ToString"] = NewFunctionType([]Type{}, STRING)
+	parent.AddMethodOverload("ToString", &MethodInfo{
+		Signature: NewFunctionType([]Type{}, STRING),
+	})
 
 	child := NewClassType("TPerson", parent)
-	child.Methods["GetAge"] = NewFunctionType([]Type{}, INTEGER)
-	child.Methods["SetName"] = NewProcedureType([]Type{STRING})
+	child.AddMethodOverload("GetAge", &MethodInfo{
+		Signature: NewFunctionType([]Type{}, INTEGER),
+	})
+	child.AddMethodOverload("SetName", &MethodInfo{
+		Signature: NewProcedureType([]Type{STRING}),
+	})
 
 	tests := []struct {
 		name       string
@@ -429,7 +435,9 @@ func TestIsAssignableFrom(t *testing.T) {
 	iComparable.Methods["CompareTo"] = NewFunctionType([]Type{}, INTEGER)
 
 	// Make TPerson implement IComparable
-	tPerson.Methods["CompareTo"] = NewFunctionType([]Type{}, INTEGER)
+	tPerson.AddMethodOverload("CompareTo", &MethodInfo{
+		Signature: NewFunctionType([]Type{}, INTEGER),
+	})
 
 	tests := []struct {
 		target   Type
@@ -519,24 +527,38 @@ func TestImplementsInterface(t *testing.T) {
 
 	// Create class that implements IComparable fully
 	tFullImpl := NewClassType("TFullImpl", nil)
-	tFullImpl.Methods["CompareTo"] = NewFunctionType([]Type{INTEGER}, INTEGER)
-	tFullImpl.Methods["Equals"] = NewFunctionType([]Type{INTEGER}, BOOLEAN)
+	tFullImpl.AddMethodOverload("CompareTo", &MethodInfo{
+		Signature: NewFunctionType([]Type{INTEGER}, INTEGER),
+	})
+	tFullImpl.AddMethodOverload("Equals", &MethodInfo{
+		Signature: NewFunctionType([]Type{INTEGER}, BOOLEAN),
+	})
 
 	// Create class that partially implements IComparable
 	tPartialImpl := NewClassType("TPartialImpl", nil)
-	tPartialImpl.Methods["CompareTo"] = NewFunctionType([]Type{INTEGER}, INTEGER)
+	tPartialImpl.AddMethodOverload("CompareTo", &MethodInfo{
+		Signature: NewFunctionType([]Type{INTEGER}, INTEGER),
+	})
 	// Missing Equals method
 
 	// Create class with wrong signature
 	tWrongSig := NewClassType("TWrongSig", nil)
-	tWrongSig.Methods["CompareTo"] = NewFunctionType([]Type{STRING}, INTEGER) // Wrong param type
-	tWrongSig.Methods["Equals"] = NewFunctionType([]Type{INTEGER}, BOOLEAN)
+	tWrongSig.AddMethodOverload("CompareTo", &MethodInfo{
+		Signature: NewFunctionType([]Type{STRING}, INTEGER), // Wrong param type
+	})
+	tWrongSig.AddMethodOverload("Equals", &MethodInfo{
+		Signature: NewFunctionType([]Type{INTEGER}, BOOLEAN),
+	})
 
 	// Create class that implements via inheritance
 	tParent := NewClassType("TParent", nil)
-	tParent.Methods["CompareTo"] = NewFunctionType([]Type{INTEGER}, INTEGER)
+	tParent.AddMethodOverload("CompareTo", &MethodInfo{
+		Signature: NewFunctionType([]Type{INTEGER}, INTEGER),
+	})
 	tChild := NewClassType("TChild", tParent)
-	tChild.Methods["Equals"] = NewFunctionType([]Type{INTEGER}, BOOLEAN)
+	tChild.AddMethodOverload("Equals", &MethodInfo{
+		Signature: NewFunctionType([]Type{INTEGER}, BOOLEAN),
+	})
 
 	tests := []struct {
 		class    *ClassType
@@ -1035,8 +1057,12 @@ func TestClassWithMultipleInterfaces(t *testing.T) {
 
 	// Create class implementing both
 	tFile := NewClassType("TFile", nil)
-	tFile.Methods["Read"] = NewFunctionType([]Type{}, STRING)
-	tFile.Methods["Write"] = NewProcedureType([]Type{STRING})
+	tFile.AddMethodOverload("Read", &MethodInfo{
+		Signature: NewFunctionType([]Type{}, STRING),
+	})
+	tFile.AddMethodOverload("Write", &MethodInfo{
+		Signature: NewProcedureType([]Type{STRING}),
+	})
 	tFile.Interfaces = []*InterfaceType{iReadable, iWritable}
 
 	t.Run("class tracks implemented interfaces", func(t *testing.T) {
@@ -1060,7 +1086,9 @@ func TestClassTypeInterfacesField(t *testing.T) {
 	iComparable.Methods["CompareTo"] = NewFunctionType([]Type{INTEGER}, INTEGER)
 
 	tPerson := NewClassType("TPerson", nil)
-	tPerson.Methods["CompareTo"] = NewFunctionType([]Type{INTEGER}, INTEGER)
+	tPerson.AddMethodOverload("CompareTo", &MethodInfo{
+		Signature: NewFunctionType([]Type{INTEGER}, INTEGER),
+	})
 	tPerson.Interfaces = []*InterfaceType{iComparable}
 
 	t.Run("class has interfaces field", func(t *testing.T) {
@@ -1090,11 +1118,15 @@ func TestComplexClassHierarchy(t *testing.T) {
 	//        └─ TComponent
 
 	tObject := NewClassType("TObject", nil)
-	tObject.Methods["ToString"] = NewFunctionType([]Type{}, STRING)
+	tObject.AddMethodOverload("ToString", &MethodInfo{
+		Signature: NewFunctionType([]Type{}, STRING),
+	})
 
 	tStream := NewClassType("TStream", tObject)
 	tStream.Fields["size"] = INTEGER
-	tStream.Methods["Read"] = NewFunctionType([]Type{INTEGER}, INTEGER)
+	tStream.AddMethodOverload("Read", &MethodInfo{
+		Signature: NewFunctionType([]Type{INTEGER}, INTEGER),
+	})
 
 	tFileStream := NewClassType("TFileStream", tStream)
 	tFileStream.Fields["filename"] = STRING
@@ -1103,7 +1135,9 @@ func TestComplexClassHierarchy(t *testing.T) {
 	tMemoryStream.Fields["memory"] = INTEGER
 
 	tPersistent := NewClassType("TPersistent", tObject)
-	tPersistent.Methods["Assign"] = NewProcedureType([]Type{})
+	tPersistent.AddMethodOverload("Assign", &MethodInfo{
+		Signature: NewProcedureType([]Type{}),
+	})
 
 	tComponent := NewClassType("TComponent", tPersistent)
 	tComponent.Fields["name"] = STRING
@@ -1158,9 +1192,15 @@ func TestMultipleInterfaceImplementation(t *testing.T) {
 
 	// Create class that implements all three
 	tFile := NewClassType("TFile", nil)
-	tFile.Methods["Read"] = NewFunctionType([]Type{}, STRING)
-	tFile.Methods["Write"] = NewProcedureType([]Type{STRING})
-	tFile.Methods["Close"] = NewProcedureType([]Type{})
+	tFile.AddMethodOverload("Read", &MethodInfo{
+		Signature: NewFunctionType([]Type{}, STRING),
+	})
+	tFile.AddMethodOverload("Write", &MethodInfo{
+		Signature: NewProcedureType([]Type{STRING}),
+	})
+	tFile.AddMethodOverload("Close", &MethodInfo{
+		Signature: NewProcedureType([]Type{}),
+	})
 
 	// Test each interface
 	tests := []struct {

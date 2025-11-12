@@ -502,44 +502,15 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **ALL HIGH PRIORITY** - Required for dynamic typing and Variant support:
 
 - [x] 9.17.11.1 VarType(v: Variant): Integer
-  - Get variant type code (vtInteger, vtString, etc.)
-  - Returns type enum value
-
 - [x] 9.17.11.2 VarIsNull(v: Variant): Boolean
-  - Check if variant is null
-  - Used for null checks
-
 - [x] 9.17.11.3 VarIsEmpty(v: Variant): Boolean
-  - Check if variant is empty (uninitialized)
-  - Different from null
-
 - [x] 9.17.11.4 VarIsClear(v: Variant): Boolean
-  - Check if variant is cleared
-  - Alias for VarIsEmpty in some contexts
-
 - [x] 9.17.11.5 VarIsArray(v: Variant): Boolean
-  - Check if variant contains array
-  - Type checking helper
-
 - [x] 9.17.11.6 VarIsStr(v: Variant): Boolean
-  - Check if variant contains string
-  - Type checking helper
-
 - [x] 9.17.11.7 VarIsNumeric(v: Variant): Boolean
-  - Check if variant contains numeric value
-  - Includes Integer and Float
-
 - [x] 9.17.11.8 VarToStr(v: Variant): String
-  - Convert variant to string representation
-  - Handles all variant types
-
 - [x] 9.17.11.9 VarAsType(v: Variant, varType: Integer): Variant
-  - Convert variant to specified type
-  - Type coercion with conversion
-
 - [x] 9.17.11.10 VarClear(var v: Variant)
-  - Clear variant value (set to empty)
-  - Var parameter modification
 
 **Implementation Time**: 2-3 days
 **Impact**: Unblocks 30+ variant test fixtures, enables full Variant support
