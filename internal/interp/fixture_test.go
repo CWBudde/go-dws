@@ -707,8 +707,32 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 		return testResultFailed
 	}
 
-	// Capture output
+	// Capture output and prepend any hints from semantic analysis
 	actualOutput := buf.String()
+
+	// Check if there are hints (but not actual errors) from semantic analysis
+	analyzerErrors := analyzer.Errors()
+	hasHints := false
+	var hints []string
+	for _, err := range analyzerErrors {
+		if strings.HasPrefix(err, "Hint:") {
+			hasHints = true
+			hints = append(hints, err)
+		}
+	}
+
+	// If there are hints, format output as "Errors >>>>\n<hints>\nResult >>>>\n<output>"
+	if hasHints {
+		var formattedOutput strings.Builder
+		formattedOutput.WriteString("Errors >>>>\n")
+		for _, hint := range hints {
+			formattedOutput.WriteString(hint)
+			formattedOutput.WriteString("\n")
+		}
+		formattedOutput.WriteString("Result >>>>\n")
+		formattedOutput.WriteString(actualOutput)
+		actualOutput = formattedOutput.String()
+	}
 
 	// Use go-snaps for snapshot testing
 	testName := filepath.Base(pasFile)

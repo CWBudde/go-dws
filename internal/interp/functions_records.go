@@ -270,6 +270,9 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 	i.pushCallStack(fullMethodName)
 	defer i.popCallStack()
 
+	// Bind __CurrentRecord__ so record static methods can be called without qualification
+	i.env.Define("__CurrentRecord__", rtv)
+
 	// Bind method parameters to arguments with implicit conversion
 	for idx, param := range method.Parameters {
 		arg := args[idx]

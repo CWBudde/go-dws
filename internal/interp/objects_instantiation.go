@@ -8,7 +8,7 @@ import (
 )
 
 // evalNewExpression evaluates object instantiation (TClassName.Create(...)).
-// It looks up the class, creates an object instance, initializes fields, and calls the constructor.
+// It looks up the class or record, creates an instance, initializes fields, and calls the constructor.
 func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	// Look up class in registry (case-insensitive)
 	// Task 9.82: Case-insensitive class lookup (DWScript is case-insensitive)
@@ -20,7 +20,26 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 			break
 		}
 	}
+
+	// Task 9.38: Also check if this is a record type with static methods
+	// The parser creates NewExpression for TType.Create(...) syntax
 	if classInfo == nil {
+		// Check if this is a record type
+		recordTypeKey := "__record_type_" + strings.ToLower(className)
+		if typeVal, ok := i.env.Get(recordTypeKey); ok {
+			if _, ok := typeVal.(*RecordTypeValue); ok {
+				// This is a record static method call (TRecord.Create(...))
+				// Convert to MethodCallExpression and delegate to evalMethodCall
+				methodCall := &ast.MethodCallExpression{
+					Token:     ne.Token,
+					Object:    ne.ClassName,
+					Method:    &ast.Identifier{Token: ne.Token, Value: "Create"},
+					Arguments: ne.Arguments,
+				}
+				return i.evalMethodCall(methodCall)
+			}
+		}
+
 		return i.newErrorWithLocation(ne, "class '%s' not found", className)
 	}
 

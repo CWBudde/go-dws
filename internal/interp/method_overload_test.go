@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Task 9.20.4: Comprehensive Method Overload Tests
+// Comprehensive Method Overload Tests
 // ============================================================================
 
 // TestMethodOverload_SimpleCount tests method overloading with different parameter counts

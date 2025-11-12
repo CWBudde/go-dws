@@ -49,6 +49,8 @@ func (c *Compiler) compileExpression(expr ast.Expression) error {
 		return c.compileBinaryExpression(node)
 	case *ast.UnaryExpression:
 		return c.compileUnaryExpression(node)
+	case *ast.IfExpression:
+		return c.compileIfExpression(node)
 	default:
 		return c.errorf(expr, "unsupported expression type %T", expr)
 	}
@@ -425,4 +427,91 @@ func (c *Compiler) emitNumericBinaryOp(resultType types.Type, line int, intOp, f
 		c.chunk.WriteSimple(intOp, line)
 	}
 	return nil
+}
+
+// compileIfExpression compiles an inline if-then-else conditional expression.
+// Pattern:
+//
+//	COMPILE condition
+//	JumpIfFalse elseLabel
+//	COMPILE consequence
+//	Jump endLabel
+//	elseLabel:
+//	COMPILE alternative (or emit default value)
+//	endLabel:
+//
+// Both branches must leave exactly one value on the stack.
+func (c *Compiler) compileIfExpression(expr *ast.IfExpression) error {
+	// Compile the condition
+	if err := c.compileExpression(expr.Condition); err != nil {
+		return err
+	}
+
+	// Emit conditional jump - if false, jump to else branch
+	jumpIfFalse := c.chunk.EmitJump(OpJumpIfFalse, lineOf(expr.Condition))
+
+	// Compile the consequence (then branch)
+	if err := c.compileExpression(expr.Consequence); err != nil {
+		return err
+	}
+
+	// If there's an else clause or we need to emit a default value
+	if expr.Alternative != nil {
+		// Jump over the else branch when consequence is executed
+		jumpToEnd := c.chunk.EmitJump(OpJump, lineOf(expr))
+
+		// Patch the conditional jump to point here (else branch)
+		if err := c.chunk.PatchJump(jumpIfFalse); err != nil {
+			return err
+		}
+
+		// Compile the alternative (else branch)
+		if err := c.compileExpression(expr.Alternative); err != nil {
+			return err
+		}
+
+		// Patch the jump to end
+		return c.chunk.PatchJump(jumpToEnd)
+	}
+
+	// No else clause - need to emit default value
+	jumpToEnd := c.chunk.EmitJump(OpJump, lineOf(expr))
+
+	// Patch the conditional jump to point here (default value emission)
+	if err := c.chunk.PatchJump(jumpIfFalse); err != nil {
+		return err
+	}
+
+	// Emit default value based on type
+	if err := c.emitDefaultValue(expr, lineOf(expr)); err != nil {
+		return err
+	}
+
+	// Patch the jump to end
+	return c.chunk.PatchJump(jumpToEnd)
+}
+
+// emitDefaultValue emits bytecode to push a default value for the given expression type onto the stack.
+func (c *Compiler) emitDefaultValue(expr *ast.IfExpression, line int) error {
+	if expr.Type == nil {
+		return c.errorf(expr, "if expression missing type annotation for default value")
+	}
+
+	// Get type name and emit appropriate default value
+	typeName := strings.ToLower(expr.Type.Name)
+	switch typeName {
+	case "integer", "int64":
+		return c.emitLoadConstant(IntValue(0), line)
+	case "float", "float64", "double", "real":
+		return c.emitLoadConstant(FloatValue(0.0), line)
+	case "string":
+		return c.emitLoadConstant(StringValue(""), line)
+	case "boolean", "bool":
+		c.chunk.WriteSimple(OpLoadFalse, line)
+		return nil
+	default:
+		// For class types and other reference types, emit nil
+		c.chunk.WriteSimple(OpLoadNil, line)
+		return nil
+	}
 }

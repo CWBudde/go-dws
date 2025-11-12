@@ -9,52 +9,29 @@ import (
 
 // evalFunctionDeclaration evaluates a function declaration.
 // It registers the function in the function registry without executing its body.
-// For method implementations (fn.ClassName != nil), it updates the class's Methods map.
+// For method implementations (fn.ClassName != nil), it updates the class's or record's Methods map.
 func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
-	// Check if this is a method implementation (has a class name like TExample.Method)
+	// Check if this is a method implementation (has a class/record name like TExample.Method)
 	if fn.ClassName != nil {
-		className := fn.ClassName.Value
-		classInfo, exists := i.classes[className]
-		if !exists {
-			return i.newErrorWithLocation(fn, "class '%s' not found for method '%s'", className, fn.Name.Value)
+		typeName := fn.ClassName.Value
+
+		// Try to find as a class first
+		classInfo, isClass := i.classes[typeName]
+		if isClass {
+			// Handle class method implementation
+			i.evalClassMethodImplementation(fn, classInfo)
+			return &NilValue{}
 		}
 
-		// Update the method in the class (replacing the declaration with the implementation)
-		// Support method overloading by storing multiple methods per name
-		// We need to replace the declaration with the implementation in the overload list
-		// Task 9.16.2: Normalize method names to lowercase for case-insensitive lookup
-		normalizedMethodName := strings.ToLower(fn.Name.Value)
-
-		if fn.IsClassMethod {
-			classInfo.ClassMethods[normalizedMethodName] = fn
-			// Replace declaration with implementation in overload list
-			overloads := classInfo.ClassMethodOverloads[normalizedMethodName]
-			classInfo.ClassMethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
-		} else {
-			classInfo.Methods[normalizedMethodName] = fn
-			// Replace declaration with implementation in overload list
-			overloads := classInfo.MethodOverloads[normalizedMethodName]
-			classInfo.MethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
+		// Try to find as a record
+		recordInfo, isRecord := i.records[typeName]
+		if isRecord {
+			// Handle record method implementation
+			i.evalRecordMethodImplementation(fn, recordInfo)
+			return &NilValue{}
 		}
 
-		// Also store constructors
-		if fn.IsConstructor {
-			normalizedCtorName := strings.ToLower(fn.Name.Value)
-			classInfo.Constructors[normalizedCtorName] = fn
-			// Replace declaration with implementation in constructor overload list
-			overloads := classInfo.ConstructorOverloads[normalizedCtorName]
-			classInfo.ConstructorOverloads[normalizedCtorName] = i.replaceMethodInOverloadList(overloads, fn)
-			// Always update Constructor to use the implementation (which has the body)
-			// This replaces the declaration that was set during class parsing
-			classInfo.Constructor = fn
-		}
-
-		// Store destructor
-		if fn.IsDestructor {
-			classInfo.Destructor = fn
-		}
-
-		return &NilValue{}
+		return i.newErrorWithLocation(fn, "type '%s' not found for method '%s'", typeName, fn.Name.Value)
 	}
 
 	// Store regular function in the registry
@@ -74,6 +51,65 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 	}
 
 	return &NilValue{}
+}
+
+// evalClassMethodImplementation handles class method implementation registration
+func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classInfo *ClassInfo) {
+	// Update the method in the class (replacing the declaration with the implementation)
+	// Support method overloading by storing multiple methods per name
+	// We need to replace the declaration with the implementation in the overload list
+	// Task 9.16.2: Normalize method names to lowercase for case-insensitive lookup
+	normalizedMethodName := strings.ToLower(fn.Name.Value)
+
+	if fn.IsClassMethod {
+		classInfo.ClassMethods[normalizedMethodName] = fn
+		// Replace declaration with implementation in overload list
+		overloads := classInfo.ClassMethodOverloads[normalizedMethodName]
+		classInfo.ClassMethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
+	} else {
+		classInfo.Methods[normalizedMethodName] = fn
+		// Replace declaration with implementation in overload list
+		overloads := classInfo.MethodOverloads[normalizedMethodName]
+		classInfo.MethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
+	}
+
+	// Also store constructors
+	if fn.IsConstructor {
+		normalizedCtorName := strings.ToLower(fn.Name.Value)
+		classInfo.Constructors[normalizedCtorName] = fn
+		// Replace declaration with implementation in constructor overload list
+		overloads := classInfo.ConstructorOverloads[normalizedCtorName]
+		classInfo.ConstructorOverloads[normalizedCtorName] = i.replaceMethodInOverloadList(overloads, fn)
+		// Always update Constructor to use the implementation (which has the body)
+		// This replaces the declaration that was set during class parsing
+		classInfo.Constructor = fn
+	}
+
+	// Store destructor
+	if fn.IsDestructor {
+		classInfo.Destructor = fn
+	}
+}
+
+// evalRecordMethodImplementation handles record method implementation registration
+func (i *Interpreter) evalRecordMethodImplementation(fn *ast.FunctionDecl, recordInfo *RecordTypeValue) {
+	// Update the method in the record (replacing the declaration with the implementation)
+	// Support method overloading by storing multiple methods per name
+	normalizedMethodName := strings.ToLower(fn.Name.Value)
+
+	if fn.IsClassMethod {
+		// Static method
+		recordInfo.ClassMethods[normalizedMethodName] = fn
+		// Replace declaration with implementation in overload list
+		overloads := recordInfo.ClassMethodOverloads[normalizedMethodName]
+		recordInfo.ClassMethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
+	} else {
+		// Instance method
+		recordInfo.Methods[normalizedMethodName] = fn
+		// Replace declaration with implementation in overload list
+		overloads := recordInfo.MethodOverloads[normalizedMethodName]
+		recordInfo.MethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
+	}
 }
 
 // evalClassDeclaration evaluates a class declaration.
@@ -319,6 +355,16 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		// Normalize method name to lowercase for case-insensitive lookup
 		// This matches the semantic analyzer behavior (types.go AddMethodOverload)
 		normalizedMethodName := strings.ToLower(method.Name.Value)
+
+		// Auto-detect constructors: methods named "Create" that return the class type
+		// This handles inline constructor declarations like: function Create(...): TClass;
+		// Matches semantic analyzer behavior (analyze_classes_decl.go:576-580)
+		if !method.IsConstructor && strings.EqualFold(method.Name.Value, "Create") && method.ReturnType != nil {
+			returnTypeName := method.ReturnType.Name
+			if strings.EqualFold(returnTypeName, cd.Name.Value) {
+				method.IsConstructor = true
+			}
+		}
 
 		// Check if this is a class method (static method) or instance method
 		if method.IsClassMethod {

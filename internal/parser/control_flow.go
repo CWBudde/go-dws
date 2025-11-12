@@ -560,3 +560,53 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 
 	return stmt
 }
+
+// parseIfExpression parses an inline if-then-else conditional expression.
+// Syntax: if <condition> then <expression> [else <expression>]
+// This is similar to a ternary operator: condition ? value1 : value2
+func (p *Parser) parseIfExpression() ast.Expression {
+	expr := &ast.IfExpression{Token: p.curToken}
+
+	// Move past 'if' and parse the condition
+	p.nextToken()
+	expr.Condition = p.parseExpression(LOWEST)
+
+	if expr.Condition == nil {
+		p.addError("expected condition after 'if'", ErrInvalidExpression)
+		return nil
+	}
+
+	// Expect 'then' keyword
+	if !p.expectPeek(lexer.THEN) {
+		return nil
+	}
+
+	// Parse the consequence (then branch) as an expression
+	p.nextToken()
+	expr.Consequence = p.parseExpression(LOWEST)
+
+	if expr.Consequence == nil {
+		p.addError("expected expression after 'then'", ErrInvalidSyntax)
+		return nil
+	}
+
+	// Check for optional 'else' branch
+	if p.peekTokenIs(lexer.ELSE) {
+		p.nextToken() // move to 'else'
+		p.nextToken() // move to expression after 'else'
+		expr.Alternative = p.parseExpression(LOWEST)
+
+		if expr.Alternative == nil {
+			p.addError("expected expression after 'else'", ErrInvalidSyntax)
+			return nil
+		}
+		// End position is after the alternative expression
+		expr.EndPos = expr.Alternative.End()
+	} else {
+		// No else branch - end position is after the consequence
+		// The else clause is optional; if omitted, default value is returned
+		expr.EndPos = expr.Consequence.End()
+	}
+
+	return expr
+}

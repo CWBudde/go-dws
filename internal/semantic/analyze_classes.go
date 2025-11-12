@@ -24,6 +24,12 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	// Task 9.285: Use lowercase for case-insensitive lookup
 	classType, found := a.classes[strings.ToLower(className)]
 	if !found {
+		// Check if it's a record type (records don't use 'new', but might use TRecord.Create() syntax)
+		if recordType, recordFound := a.records[strings.ToLower(className)]; recordFound {
+			// This is actually a record static method call (e.g., TTest.Create(...))
+			// Treat it as a static method call
+			return a.analyzeRecordStaticMethodCallFromNew(expr, recordType)
+		}
 		a.addError("undefined class '%s' at %s", className, expr.Token.Pos.String())
 		return nil
 	}
@@ -196,8 +202,18 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// This allows member access on type alias variables like TBaseClass
 	objectTypeResolved := types.GetUnderlyingType(objectType)
 
-	// Handle record type field access
-	if _, ok := objectTypeResolved.(*types.RecordType); ok {
+	// Handle record type - check for both type-level (static) and instance-level access
+	if recordType, ok := objectTypeResolved.(*types.RecordType); ok {
+		// Check if this is a class method (static method) access on the record TYPE itself
+		// (e.g., TTest.Create or TTest.Sum)
+		if recordType.HasClassMethod(memberName) {
+			classMethod := recordType.GetClassMethod(memberName)
+			if classMethod != nil {
+				return classMethod
+			}
+		}
+
+		// Otherwise, treat as instance field/method access
 		return a.analyzeRecordFieldAccess(expr.Object, memberName)
 	}
 
@@ -376,4 +392,64 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	a.addError("class '%s' has no member '%s' at %s",
 		classType.Name, memberName, expr.Token.Pos.String())
 	return nil
+}
+
+// analyzeRecordStaticMethodCallFromNew handles NewExpression when it's actually a record static method call
+// This happens when the parser generates a NewExpression for TRecord.Create(...) syntax
+func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression, recordType *types.RecordType) types.Type {
+	// Assume "Create" as the method name (standard DWScript pattern)
+	methodName := "Create"
+	lowerMethodName := strings.ToLower(methodName)
+
+	// Look up class method overloads
+	overloads := recordType.GetClassMethodOverloads(lowerMethodName)
+	if len(overloads) == 0 {
+		a.addError("record type '%s' has no class method '%s' at %s",
+			recordType.Name, methodName, expr.Token.Pos.String())
+		return nil
+	}
+
+	// Resolve overload based on arguments
+	argTypes := make([]types.Type, len(expr.Arguments))
+	for i, arg := range expr.Arguments {
+		argType := a.analyzeExpression(arg)
+		if argType == nil {
+			return nil
+		}
+		argTypes[i] = argType
+	}
+
+	// Find matching overload
+	candidates := make([]*Symbol, len(overloads))
+	for i, overload := range overloads {
+		candidates[i] = &Symbol{
+			Type: overload.Signature,
+		}
+	}
+
+	selected, err := ResolveOverload(candidates, argTypes)
+	if err != nil {
+		a.addError("no matching overload for '%s.%s' with %d arguments at %s",
+			recordType.Name, methodName, len(argTypes), expr.Token.Pos.String())
+		return nil
+	}
+
+	funcType := selected.Type.(*types.FunctionType)
+
+	// Validate argument types
+	for i, arg := range expr.Arguments {
+		if i >= len(funcType.Parameters) {
+			break
+		}
+
+		paramType := funcType.Parameters[i]
+		argType := a.analyzeExpressionWithExpectedType(arg, paramType)
+		if argType != nil && !a.canAssign(argType, paramType) {
+			a.addError("argument %d to '%s.%s' has type %s, expected %s at %s",
+				i+1, recordType.Name, methodName, argType.String(), paramType.String(),
+				expr.Token.Pos.String())
+		}
+	}
+
+	return funcType.ReturnType
 }

@@ -424,18 +424,35 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	a.validateAbstractClass(classType, decl)
 }
 
-// analyzeMethodImplementation analyzes a method implementation outside a class
+// analyzeMethodImplementation analyzes a method implementation outside a class or record
 // This handles code like: function TExample.GetValue: Integer; begin ... end;
+// or: class function TTest.Sum(a, b: Integer): Integer; begin ... end;
 func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
-	className := decl.ClassName.Value
+	typeName := decl.ClassName.Value
 
-	// Look up the class
+	// Look up the class first
 	// Task 9.285: Use lowercase for case-insensitive lookup
-	classType, exists := a.classes[strings.ToLower(className)]
-	if !exists {
-		a.addError("unknown type '%s' at %s", className, decl.Token.Pos.String())
+	classType, classExists := a.classes[strings.ToLower(typeName)]
+	if classExists {
+		// Handle class method implementation (existing logic)
+		a.analyzeClassMethodImplementation(decl, classType, typeName)
 		return
 	}
+
+	// Look up as a record type
+	recordType, recordExists := a.records[strings.ToLower(typeName)]
+	if recordExists {
+		// Handle record method implementation
+		a.analyzeRecordMethodImplementation(decl, recordType, typeName)
+		return
+	}
+
+	// Not found as either class or record
+	a.addError("unknown type '%s' at %s", typeName, decl.Token.Pos.String())
+}
+
+// analyzeClassMethodImplementation handles class method implementations
+func (a *Analyzer) analyzeClassMethodImplementation(decl *ast.FunctionDecl, classType *types.ClassType, className string) {
 
 	// Task 9.281: Look up the method in the class to ensure it was declared
 	// Task 9.19: Handle overloaded methods and constructors
@@ -477,7 +494,8 @@ func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
 	}
 
 	// Task 9.283: Clear the forward flag since we now have an implementation
-	delete(classType.ForwardedMethods, methodName)
+	// Task 9.16.1: Use lowercase key since ForwardedMethods now uses lowercase keys
+	delete(classType.ForwardedMethods, strings.ToLower(methodName))
 
 	// Set the current class context
 	previousClass := a.currentClass
@@ -487,6 +505,104 @@ func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
 	// Use analyzeMethodDecl to analyze the method body with proper scope
 	// This will set up Self, fields, and all method scope correctly
 	a.analyzeMethodDecl(decl, classType)
+}
+
+// analyzeRecordMethodImplementation handles record method implementations
+func (a *Analyzer) analyzeRecordMethodImplementation(decl *ast.FunctionDecl, recordType *types.RecordType, recordName string) {
+	methodName := decl.Name.Value
+	lowerMethodName := strings.ToLower(methodName)
+
+	// Look up the method in the record to ensure it was declared
+	var declaredMethod *types.FunctionType
+	var methodExists bool
+
+	// Check if it's a class method (static) or instance method and handle overloads
+	if decl.IsClassMethod {
+		overloads := recordType.GetClassMethodOverloads(lowerMethodName)
+		if len(overloads) > 0 {
+			declaredMethod, methodExists = a.findMatchingOverloadForImplementation(decl, overloads, recordName)
+		} else {
+			// Fallback to simple lookup for non-overloaded methods
+			declaredMethod, methodExists = recordType.ClassMethods[lowerMethodName]
+		}
+	} else {
+		overloads := recordType.GetMethodOverloads(lowerMethodName)
+		if len(overloads) > 0 {
+			declaredMethod, methodExists = a.findMatchingOverloadForImplementation(decl, overloads, recordName)
+		} else {
+			// Fallback to simple lookup for non-overloaded methods
+			declaredMethod, methodExists = recordType.Methods[lowerMethodName]
+		}
+	}
+
+	if !methodExists {
+		methodType := "method"
+		if decl.IsClassMethod {
+			methodType = "class method"
+		}
+		a.addError("%s '%s' not declared in record '%s' at %s",
+			methodType, methodName, recordName, decl.Token.Pos.String())
+		return
+	}
+
+	// Validate signature matches the declaration (already done in findMatchingOverloadForImplementation for overloads)
+	// For non-overloaded methods, still validate
+	if decl.IsClassMethod {
+		if len(recordType.GetClassMethodOverloads(lowerMethodName)) <= 1 {
+			if err := a.validateMethodSignature(decl, declaredMethod, recordName); err != nil {
+				a.addError("%s at %s", err.Error(), decl.Token.Pos.String())
+				return
+			}
+		}
+	} else {
+		if len(recordType.GetMethodOverloads(lowerMethodName)) <= 1 {
+			if err := a.validateMethodSignature(decl, declaredMethod, recordName); err != nil {
+				a.addError("%s at %s", err.Error(), decl.Token.Pos.String())
+				return
+			}
+		}
+	}
+
+	// Analyze the method body with proper scope
+	// For record methods, we need to set up the Result variable and parameters
+	a.analyzeRecordMethodBody(decl, recordType)
+}
+
+// analyzeRecordMethodBody analyzes the body of a record method
+func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *types.RecordType) {
+	// Set the current record context
+	previousRecord := a.currentRecord
+	a.currentRecord = recordType
+	defer func() { a.currentRecord = previousRecord }()
+
+	// Create a new scope for the method
+	a.symbols.PushScope()
+	defer a.symbols.PopScope()
+
+	// Add parameters to scope
+	for _, param := range decl.Parameters {
+		paramType, err := a.resolveType(param.Type.Name)
+		if err != nil {
+			a.addError("unknown type '%s' for parameter '%s' at %s",
+				param.Type.Name, param.Name.Value, param.Token.Pos.String())
+			continue
+		}
+		a.symbols.Define(param.Name.Value, paramType)
+	}
+
+	// Add Result variable if function has return type
+	if decl.ReturnType != nil {
+		returnType, err := a.resolveType(decl.ReturnType.Name)
+		if err != nil {
+			a.addError("unknown return type '%s' at %s",
+				decl.ReturnType.Name, decl.Token.Pos.String())
+		} else {
+			a.symbols.Define("Result", returnType)
+		}
+	}
+
+	// Analyze the method body
+	a.analyzeBlock(decl.Body)
 }
 
 // findMatchingOverloadForImplementation finds the declared overload that matches the implementation signature
@@ -709,16 +825,19 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		// Store method metadata in legacy maps for backward compatibility
 		// Only update metadata for new declarations, not implementations
 		// (implementations don't have override/virtual keywords, those are only in declarations)
-		classType.ClassMethodFlags[method.Name.Value] = method.IsClassMethod
-		classType.VirtualMethods[method.Name.Value] = method.IsVirtual
-		classType.OverrideMethods[method.Name.Value] = method.IsOverride
-		classType.AbstractMethods[method.Name.Value] = method.IsAbstract
+		// Task 9.16.1: Use lowercase keys for case-insensitive lookups
+		methodKey := strings.ToLower(method.Name.Value)
+		classType.ClassMethodFlags[methodKey] = method.IsClassMethod
+		classType.VirtualMethods[methodKey] = method.IsVirtual
+		classType.OverrideMethods[methodKey] = method.IsOverride
+		classType.AbstractMethods[methodKey] = method.IsAbstract
 	}
 
 	// Task 9.280: Mark method as forward if it has no body (declaration without implementation)
 	// Methods declared in class body without implementation are implicitly forward
+	// Task 9.16.1: Use lowercase key for case-insensitive lookups
 	if method.Body == nil {
-		classType.ForwardedMethods[method.Name.Value] = true
+		classType.ForwardedMethods[strings.ToLower(method.Name.Value)] = true
 	}
 
 	// Store method visibility

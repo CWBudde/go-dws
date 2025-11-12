@@ -74,8 +74,56 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	if !ok {
 		// Task 9.7: Check if object is a record type with methods
 		if recordType, isRecord := objectType.(*types.RecordType); isRecord {
-			// Records can have methods - check if this method exists in the record itself
-			method := recordType.GetMethod(methodName)
+			// First check for class methods (static methods) with overload support
+			classOverloads := recordType.GetClassMethodOverloads(methodNameLower)
+			if len(classOverloads) > 0 {
+				// This is a static method call - resolve overload based on arguments
+				argTypes := make([]types.Type, len(expr.Arguments))
+				for i, arg := range expr.Arguments {
+					argType := a.analyzeExpression(arg)
+					if argType == nil {
+						return nil
+					}
+					argTypes[i] = argType
+				}
+
+				// Convert MethodInfo to Symbol for ResolveOverload
+				candidates := make([]*Symbol, len(classOverloads))
+				for i, overload := range classOverloads {
+					candidates[i] = &Symbol{
+						Type: overload.Signature,
+					}
+				}
+
+				// Resolve overload
+				selected, err := ResolveOverload(candidates, argTypes)
+				if err != nil {
+					a.addError("no matching overload for class method '%s.%s' with these arguments at %s",
+						recordType.Name, methodName, expr.Token.Pos.String())
+					return nil
+				}
+
+				methodType := selected.Type.(*types.FunctionType)
+
+				// Validate argument types (for better error messages)
+				for i, arg := range expr.Arguments {
+					if i >= len(methodType.Parameters) {
+						break
+					}
+					paramType := methodType.Parameters[i]
+					argType := a.analyzeExpressionWithExpectedType(arg, paramType)
+					if argType != nil && !a.canAssign(argType, paramType) {
+						a.addError("argument %d to class method '%s.%s' has type %s, expected %s at %s",
+							i+1, recordType.Name, methodName, argType.String(), paramType.String(),
+							expr.Token.Pos.String())
+					}
+				}
+
+				return methodType.ReturnType
+			}
+
+			// Check for instance methods
+			method := recordType.GetMethod(methodNameLower)
 			if method == nil {
 				// Method not found in record, check if a helper provides it
 				_, helperMethod := a.hasHelperMethod(objectType, methodName)

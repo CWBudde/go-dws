@@ -374,6 +374,232 @@ func TestParseArrayLiteralErrors(t *testing.T) {
 }
 
 // ============================================================================
+// Parenthesized Array Literal Tests
+// ============================================================================
+
+func TestParseParenthesizedArrayLiteral(t *testing.T) {
+	tests := []struct {
+		assert       func(t *testing.T, lit *ast.ArrayLiteralExpression)
+		name         string
+		input        string
+		wantElements int
+	}{
+		{
+			name:         "SimpleIntegers",
+			input:        `var arr := (1, 2, 3);`,
+			wantElements: 3,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				for i, expected := range []int64{1, 2, 3} {
+					intLit, ok := lit.Elements[i].(*ast.IntegerLiteral)
+					if !ok {
+						t.Fatalf("element %d is not *ast.IntegerLiteral, got %T", i, lit.Elements[i])
+					}
+					if intLit.Value != expected {
+						t.Fatalf("element %d value = %d, want %d", i, intLit.Value, expected)
+					}
+				}
+			},
+		},
+		{
+			name:         "WithIdentifiers",
+			input:        `var arr := (teOne, teTwo, teThree);`,
+			wantElements: 3,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				expectedNames := []string{"teOne", "teTwo", "teThree"}
+				for i, expected := range expectedNames {
+					ident, ok := lit.Elements[i].(*ast.Identifier)
+					if !ok {
+						t.Fatalf("element %d is not *ast.Identifier, got %T", i, lit.Elements[i])
+					}
+					if ident.Value != expected {
+						t.Fatalf("element %d value = %s, want %s", i, ident.Value, expected)
+					}
+				}
+			},
+		},
+		{
+			name:         "WithExpressions",
+			input:        `var arr := (x + 1, Length(s), 42);`,
+			wantElements: 3,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				if _, ok := lit.Elements[0].(*ast.BinaryExpression); !ok {
+					t.Fatalf("element 0 is not *ast.BinaryExpression, got %T", lit.Elements[0])
+				}
+
+				callExpr, ok := lit.Elements[1].(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("element 1 is not *ast.CallExpression, got %T", lit.Elements[1])
+				}
+				funcIdent, ok := callExpr.Function.(*ast.Identifier)
+				if !ok || funcIdent.Value != "Length" {
+					t.Fatalf("call expression function = %T (%v), want Identifier 'Length'", callExpr.Function, funcIdent)
+				}
+
+				intLit, ok := lit.Elements[2].(*ast.IntegerLiteral)
+				if !ok || intLit.Value != 42 {
+					t.Fatalf("element 2 = %T (value=%v), want IntegerLiteral 42", lit.Elements[2], intLit)
+				}
+			},
+		},
+		{
+			name:         "NestedArrays",
+			input:        `var matrix := ((1, 2), (3, 4));`,
+			wantElements: 2,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				for i, expectedValues := range [][]int64{{1, 2}, {3, 4}} {
+					nested, ok := lit.Elements[i].(*ast.ArrayLiteralExpression)
+					if !ok {
+						t.Fatalf("nested element %d is not *ast.ArrayLiteralExpression, got %T", i, lit.Elements[i])
+					}
+					if len(nested.Elements) != 2 {
+						t.Fatalf("nested element %d length = %d, want 2", i, len(nested.Elements))
+					}
+					for j, expected := range expectedValues {
+						intLit, ok := nested.Elements[j].(*ast.IntegerLiteral)
+						if !ok || intLit.Value != expected {
+							t.Fatalf("nested element %d[%d] = %T (value=%v), want IntegerLiteral %d", i, j, nested.Elements[j], nested.Elements[j], expected)
+						}
+					}
+				}
+			},
+		},
+		{
+			name:         "Empty",
+			input:        `var arrEmpty := ();`,
+			wantElements: 0,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				if len(lit.Elements) != 0 {
+					t.Fatalf("len(Elements) = %d, want 0", len(lit.Elements))
+				}
+			},
+		},
+		{
+			name:         "TrailingComma",
+			input:        `var arr := (1, 2, 3, );`,
+			wantElements: 3,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				if len(lit.Elements) != 3 {
+					t.Fatalf("len(Elements) = %d, want 3", len(lit.Elements))
+				}
+			},
+		},
+		{
+			name:         "InConstDeclaration",
+			input:        `const arr: array [0..3] of Integer = (10, 20, 30, 40);`,
+			wantElements: 4,
+			assert: func(t *testing.T, lit *ast.ArrayLiteralExpression) {
+				for i, expected := range []int64{10, 20, 30, 40} {
+					intLit, ok := lit.Elements[i].(*ast.IntegerLiteral)
+					if !ok {
+						t.Fatalf("element %d is not *ast.IntegerLiteral, got %T", i, lit.Elements[i])
+					}
+					if intLit.Value != expected {
+						t.Fatalf("element %d value = %d, want %d", i, intLit.Value, expected)
+					}
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			if len(program.Statements) != 1 {
+				t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+			}
+
+			var arrayLit *ast.ArrayLiteralExpression
+			switch stmt := program.Statements[0].(type) {
+			case *ast.VarDeclStatement:
+				var ok bool
+				arrayLit, ok = stmt.Value.(*ast.ArrayLiteralExpression)
+				if !ok {
+					t.Fatalf("VarDecl Value is not *ast.ArrayLiteralExpression, got %T", stmt.Value)
+				}
+			case *ast.ConstDecl:
+				var ok bool
+				arrayLit, ok = stmt.Value.(*ast.ArrayLiteralExpression)
+				if !ok {
+					t.Fatalf("ConstDecl Value is not *ast.ArrayLiteralExpression, got %T", stmt.Value)
+				}
+			default:
+				t.Fatalf("statement is not VarDeclStatement or ConstDecl, got %T", program.Statements[0])
+			}
+
+			if len(arrayLit.Elements) != tt.wantElements {
+				t.Fatalf("len(Elements) = %d, want %d", len(arrayLit.Elements), tt.wantElements)
+			}
+
+			if tt.assert != nil {
+				tt.assert(t, arrayLit)
+			}
+		})
+	}
+}
+
+func TestParenthesizedArrayLiteralEdgeCases(t *testing.T) {
+	t.Run("SingleElementIsGroupedExpression", func(t *testing.T) {
+		// A single element in parentheses should be treated as a grouped expression,
+		// not an array literal with one element
+		input := `var x := (42);`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		varDecl, ok := program.Statements[0].(*ast.VarDeclStatement)
+		if !ok {
+			t.Fatalf("statement is not *ast.VarDeclStatement, got %T", program.Statements[0])
+		}
+
+		// Should be IntegerLiteral (unwrapped), not ArrayLiteralExpression
+		intLit, ok := varDecl.Value.(*ast.IntegerLiteral)
+		if !ok {
+			t.Fatalf("Value should be *ast.IntegerLiteral (grouped expression unwrapped), got %T", varDecl.Value)
+		}
+		if intLit.Value != 42 {
+			t.Fatalf("value = %d, want 42", intLit.Value)
+		}
+	})
+
+	t.Run("RecordLiteralStillWorks", func(t *testing.T) {
+		// Record literals should still be parsed correctly
+		input := `var p := (X: 10, Y: 20);`
+
+		l := lexer.New(input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+		}
+
+		varDecl, ok := program.Statements[0].(*ast.VarDeclStatement)
+		if !ok {
+			t.Fatalf("statement is not *ast.VarDeclStatement, got %T", program.Statements[0])
+		}
+
+		recordLit, ok := varDecl.Value.(*ast.RecordLiteralExpression)
+		if !ok {
+			t.Fatalf("Value should be *ast.RecordLiteralExpression, got %T", varDecl.Value)
+		}
+		if len(recordLit.Fields) != 2 {
+			t.Fatalf("len(Fields) = %d, want 2", len(recordLit.Fields))
+		}
+	})
+}
+
+// ============================================================================
 // Array Indexing Parser Tests
 // ============================================================================
 

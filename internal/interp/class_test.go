@@ -88,7 +88,7 @@ func TestClassInfoAddMethod(t *testing.T) {
 		},
 	}
 
-	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	// Methods are stored with lowercase keys for case-insensitive lookup
 	classInfo.Methods["getvalue"] = method
 
 	if len(classInfo.Methods) != 1 {

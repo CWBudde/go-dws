@@ -132,10 +132,13 @@ type RecordPropertyInfo struct {
 //	  Y: Integer;
 //	end;
 type RecordType struct {
-	Fields     map[string]Type
-	Methods    map[string]*FunctionType
-	Properties map[string]*RecordPropertyInfo
-	Name       string
+	Fields               map[string]Type
+	Methods              map[string]*FunctionType // Instance methods (primary signature)
+	MethodOverloads      map[string][]*MethodInfo // Instance method overloads
+	ClassMethods         map[string]*FunctionType // Static (class) methods (primary signature)
+	ClassMethodOverloads map[string][]*MethodInfo // Static method overloads
+	Properties           map[string]*RecordPropertyInfo
+	Name                 string
 }
 
 // String returns a string representation of the record type
@@ -227,6 +230,17 @@ func (rt *RecordType) GetMethod(name string) *FunctionType {
 	return rt.Methods[name]
 }
 
+// HasClassMethod checks if the record has a class method with the given name
+func (rt *RecordType) HasClassMethod(name string) bool {
+	_, exists := rt.ClassMethods[name]
+	return exists
+}
+
+// GetClassMethod returns the type of a class method, or nil if not found
+func (rt *RecordType) GetClassMethod(name string) *FunctionType {
+	return rt.ClassMethods[name]
+}
+
 // HasProperty checks if the record has a property with the given name
 func (rt *RecordType) HasProperty(name string) bool {
 	_, exists := rt.Properties[name]
@@ -238,13 +252,26 @@ func (rt *RecordType) GetProperty(name string) *RecordPropertyInfo {
 	return rt.Properties[name]
 }
 
+// GetMethodOverloads returns all overload variants for a given method name
+func (rt *RecordType) GetMethodOverloads(methodName string) []*MethodInfo {
+	return rt.MethodOverloads[methodName]
+}
+
+// GetClassMethodOverloads returns all overload variants for a given class method name
+func (rt *RecordType) GetClassMethodOverloads(methodName string) []*MethodInfo {
+	return rt.ClassMethodOverloads[methodName]
+}
+
 // NewRecordType creates a new record type with the given name and fields
 func NewRecordType(name string, fields map[string]Type) *RecordType {
 	return &RecordType{
-		Name:       name,
-		Fields:     fields,
-		Methods:    make(map[string]*FunctionType),
-		Properties: make(map[string]*RecordPropertyInfo),
+		Name:                 name,
+		Fields:               fields,
+		Methods:              make(map[string]*FunctionType),
+		MethodOverloads:      make(map[string][]*MethodInfo),
+		ClassMethods:         make(map[string]*FunctionType),
+		ClassMethodOverloads: make(map[string][]*MethodInfo),
+		Properties:           make(map[string]*RecordPropertyInfo),
 	}
 }
 

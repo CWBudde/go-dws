@@ -316,11 +316,21 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Check if it's a method
 		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
-		if method, exists := obj.Class.Methods[strings.ToLower(memberName)]; exists {
-			// If the method has no parameters, auto-invoke it
+		// Task 9.67: Check MethodOverloads for overloaded methods, not just Methods map
+		methodOverloads := i.getMethodOverloadsInHierarchy(obj.Class, memberName, false)
+		if len(methodOverloads) > 0 {
+			// Check if any overload has 0 parameters and can be auto-invoked
+			hasParameterlessOverload := false
+			for _, overload := range methodOverloads {
+				if len(overload.Parameters) == 0 {
+					hasParameterlessOverload = true
+					break
+				}
+			}
+
+			// If there's a parameterless overload, auto-invoke it
 			// This allows DWScript syntax: obj.Method instead of obj.Method()
-			if len(method.Parameters) == 0 {
-				// Create a synthetic method call expression to use existing infrastructure
+			if hasParameterlessOverload {
 				methodCall := &ast.MethodCallExpression{
 					Token:     ma.Token,
 					Object:    ma.Object,
@@ -330,7 +340,9 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				return i.evalMethodCall(methodCall)
 			}
 
-			// Method has parameters - return as method pointer for passing as callback
+			// No parameterless overload - return the first overload as method pointer
+			// (In practice, DWScript requires explicit calls for methods with parameters)
+			method := methodOverloads[0]
 			paramTypes := make([]types.Type, len(method.Parameters))
 			for idx, param := range method.Parameters {
 				if param.Type != nil {

@@ -168,6 +168,16 @@ func Walk(v Visitor, node Node) {
 			Walk(v, n.Alternative)
 		}
 
+	case *IfExpression:
+		Walk(v, n.Condition)
+		Walk(v, n.Consequence)
+		if n.Alternative != nil {
+			Walk(v, n.Alternative)
+		}
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+
 	case *WhileStatement:
 		Walk(v, n.Condition)
 		Walk(v, n.Body)
