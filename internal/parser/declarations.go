@@ -119,6 +119,18 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 	p.nextToken()
 	stmt.Value = p.parseExpression(ASSIGN)
 
+	// Check for optional 'deprecated' keyword
+	if p.peekTokenIs(lexer.DEPRECATED) {
+		p.nextToken() // move to 'deprecated'
+		stmt.IsDeprecated = true
+
+		// Check for optional deprecation message string
+		if p.peekTokenIs(lexer.STRING) {
+			p.nextToken() // move to string
+			stmt.DeprecatedMessage = p.curToken.Literal
+		}
+	}
+
 	// Expect semicolon
 	if p.peekTokenIs(lexer.SEMICOLON) {
 		p.nextToken()

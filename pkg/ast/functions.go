@@ -87,26 +87,29 @@ func (p *Parameter) String() string {
 //	ensure
 //	   Result >= 0;
 type FunctionDecl struct {
-	ClassName      *Identifier
-	ReturnType     *TypeAnnotation
-	Body           *BlockStatement
-	PreConditions  *PreConditions
-	PostConditions *PostConditions
-	Name           *Identifier
-	ExternalName   string
-	Parameters     []*Parameter
-	Token          token.Token
-	EndPos         token.Position
-	Visibility     Visibility
-	IsDestructor   bool
-	IsVirtual      bool
-	IsOverride     bool
-	IsAbstract     bool
-	IsExternal     bool
-	IsClassMethod  bool
-	IsOverload     bool
-	IsForward      bool
-	IsConstructor  bool
+	ClassName         *Identifier
+	ReturnType        *TypeAnnotation
+	Body              *BlockStatement
+	PreConditions     *PreConditions
+	PostConditions    *PostConditions
+	Name              *Identifier
+	ExternalName      string
+	CallingConvention string // e.g., "register", "pascal", "cdecl", "safecall", "stdcall"
+	DeprecatedMessage string // Optional message if deprecated
+	Parameters        []*Parameter
+	Token             token.Token
+	EndPos            token.Position
+	Visibility        Visibility
+	IsDestructor      bool
+	IsVirtual         bool
+	IsOverride        bool
+	IsAbstract        bool
+	IsExternal        bool
+	IsClassMethod     bool
+	IsOverload        bool
+	IsForward         bool
+	IsConstructor     bool
+	IsDeprecated      bool // True if marked as deprecated
 }
 
 func (f *FunctionDecl) End() token.Position {
@@ -164,6 +167,22 @@ func (fd *FunctionDecl) String() string {
 	}
 	if fd.IsForward {
 		out.WriteString("; forward")
+	}
+
+	// Write calling convention directive
+	if fd.CallingConvention != "" {
+		out.WriteString("; ")
+		out.WriteString(fd.CallingConvention)
+	}
+
+	// Write deprecated directive
+	if fd.IsDeprecated {
+		out.WriteString("; deprecated")
+		if fd.DeprecatedMessage != "" {
+			out.WriteString(" '")
+			out.WriteString(fd.DeprecatedMessage)
+			out.WriteString("'")
+		}
 	}
 
 	// Write preconditions if present

@@ -19,13 +19,15 @@ import (
 //	const cPrivate = 1;
 //	class const cPublic = 3;
 type ConstDecl struct {
-	Value        Expression
-	Name         *Identifier
-	Type         *TypeAnnotation
-	Token        token.Token
-	Visibility   Visibility // For class constants (default: public for global, private for class)
-	IsClassConst bool       // True if declared with 'class const' keyword
-	EndPos       token.Position
+	Value             Expression
+	Name              *Identifier
+	Type              *TypeAnnotation
+	Token             token.Token
+	Visibility        Visibility // For class constants (default: public for global, private for class)
+	DeprecatedMessage string     // Optional message if deprecated
+	IsClassConst      bool       // True if declared with 'class const' keyword
+	IsDeprecated      bool       // True if marked as deprecated
+	EndPos            token.Position
 }
 
 func (c *ConstDecl) End() token.Position {

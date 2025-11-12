@@ -244,8 +244,8 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 				if operator != nil {
 					classDecl.Operators = append(classDecl.Operators, operator)
 				}
-			} else if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) {
-				// Class method: class function/procedure ...
+			} else if p.curTokenIs(lexer.FUNCTION) || p.curTokenIs(lexer.PROCEDURE) || p.curTokenIs(lexer.METHOD) {
+				// Class method: class function/procedure/method ...
 				method := p.parseFunctionDeclaration()
 				if method != nil {
 					method.IsClassMethod = true // Mark as class method
@@ -253,7 +253,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 					classDecl.Methods = append(classDecl.Methods, method)
 				}
 			} else {
-				p.addError("expected 'var', 'const', 'property', 'function', or 'procedure' after 'class' keyword", ErrUnexpectedToken)
+				p.addError("expected 'var', 'const', 'property', 'function', 'procedure', or 'method' after 'class' keyword", ErrUnexpectedToken)
 				p.nextToken()
 				continue
 			}

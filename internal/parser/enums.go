@@ -56,7 +56,19 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 			Value: nil, // Default to implicit value
 		}
 
-		// Check for explicit value: Name = Value
+		// Check for optional 'deprecated' keyword (must come before the value assignment, if any)
+		if p.peekTokenIs(lexer.DEPRECATED) {
+			p.nextToken() // move to 'deprecated'
+			enumValue.IsDeprecated = true
+
+			// Check for optional deprecation message string
+			if p.peekTokenIs(lexer.STRING) {
+				p.nextToken() // move to string
+				enumValue.DeprecatedMessage = p.curToken.Literal
+			}
+		}
+
+		// Check for explicit value: Name [deprecated] = Value
 		if p.peekTokenIs(lexer.EQ) {
 			p.nextToken() // move to '='
 			p.nextToken() // move to value
