@@ -217,4 +217,3 @@ PrintLn(IntToStr(TBase.Result));
 		})
 	}
 }
-

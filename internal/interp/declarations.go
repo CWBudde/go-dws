@@ -275,7 +275,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 					return val
 				}
 				classVarValue = val
-			} else{
+			} else {
 				// Initialize class variable with default value based on type
 				switch fieldType {
 				case types.INTEGER:
