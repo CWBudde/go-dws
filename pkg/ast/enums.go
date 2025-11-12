@@ -14,8 +14,10 @@ import (
 // EnumValue represents a single value in an enum declaration.
 // Example: Red, Green = 5, Blue
 type EnumValue struct {
-	Value *int
-	Name  string
+	Value             *int
+	Name              string
+	DeprecatedMessage string // Optional message if deprecated
+	IsDeprecated      bool   // True if marked as deprecated
 }
 
 // EnumDecl represents an enum type declaration.

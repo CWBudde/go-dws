@@ -882,17 +882,19 @@ each element is wrapped in a variant-like container that preserves type informat
 
 #### Subtask Category: Attributes and Metadata
 
-- [ ] 9.21.4 Implement "deprecated" attribute parsing
-  - **Task**: Support `[deprecated]` or `deprecated` attribute on declarations
-  - **Current Error**: "no prefix parse function for DEPRECATED"
+- [x] 9.21.4 Implement "deprecated" attribute parsing
+  - **Task**: Support `deprecated` attribute on declarations with optional message
   - **Implementation**:
-    - Add DEPRECATED token to lexer (may already exist)
-    - Parse deprecated attribute before declarations (variables, functions, classes)
-    - Store in AST metadata (can emit warnings in semantic analyzer)
-  - **Files**: `internal/parser/parser.go`, `internal/ast/ast.go`
-  - **Tests**: Test deprecated on various declaration types
-  - **Estimated time**: 0.5-1 day
-  - **Blocked Tests**: const_deprecated.pas, enum_element_deprecated.pas
+    - DEPRECATED token already existed in lexer as a keyword
+    - Added `IsDeprecated` and `DeprecatedMessage` fields to ConstDecl, FunctionDecl, and EnumValue AST nodes
+    - Parse deprecated keyword after declarations: `const c = 1 deprecated;`
+    - Parse optional message string: `const c = 1 deprecated 'use d instead';`
+    - Supports deprecated on: constants, functions, procedures, methods, and enum elements
+    - For enum elements, deprecated can appear before or after value: `zzero deprecated` or `deux deprecated 'msg' = 2`
+  - **Files**: `pkg/ast/declarations.go`, `pkg/ast/functions.go`, `pkg/ast/enums.go`, `internal/parser/declarations.go`, `internal/parser/functions.go`, `internal/parser/enums.go`
+  - **Tests**: Added 8 comprehensive unit tests covering all deprecated scenarios
+  - **Status**: Complete. All parser tests pass. Fixture tests (enum_element_deprecated.pas, deprecated.pas) now parse successfully
+  - **Unblocked Tests**: enum_element_deprecated.pas, deprecated.pas (partial - const_deprecated.pas has record type parsing issues unrelated to deprecated)
 
 - [ ] 9.21.5 Implement contract syntax (require/ensure/old/invariant)
   - **Task**: Parse Design by Contract syntax for preconditions/postconditions

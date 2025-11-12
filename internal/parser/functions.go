@@ -173,6 +173,21 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			if !p.expectPeek(lexer.SEMICOLON) {
 				return nil
 			}
+		} else if p.peekTokenIs(lexer.DEPRECATED) {
+			// Deprecated directive: function Test(): Integer; deprecated;
+			// Syntax: procedure Test; deprecated 'message';
+			p.nextToken() // move to 'deprecated'
+			fn.IsDeprecated = true
+
+			// Check for optional deprecation message string
+			if p.peekTokenIs(lexer.STRING) {
+				p.nextToken() // move to string
+				fn.DeprecatedMessage = p.curToken.Literal
+			}
+
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
 		} else {
 			break // No more directives
 		}

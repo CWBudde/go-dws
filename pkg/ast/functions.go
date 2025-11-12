@@ -87,27 +87,29 @@ func (p *Parameter) String() string {
 //	ensure
 //	   Result >= 0;
 type FunctionDecl struct {
-	ClassName        *Identifier
-	ReturnType       *TypeAnnotation
-	Body             *BlockStatement
-	PreConditions    *PreConditions
-	PostConditions   *PostConditions
-	Name             *Identifier
-	ExternalName     string
+	ClassName         *Identifier
+	ReturnType        *TypeAnnotation
+	Body              *BlockStatement
+	PreConditions     *PreConditions
+	PostConditions    *PostConditions
+	Name              *Identifier
+	ExternalName      string
 	CallingConvention string // e.g., "register", "pascal", "cdecl", "safecall", "stdcall"
-	Parameters       []*Parameter
-	Token            token.Token
-	EndPos           token.Position
-	Visibility       Visibility
-	IsDestructor     bool
-	IsVirtual        bool
-	IsOverride       bool
-	IsAbstract       bool
-	IsExternal       bool
-	IsClassMethod    bool
-	IsOverload       bool
-	IsForward        bool
-	IsConstructor    bool
+	DeprecatedMessage string // Optional message if deprecated
+	Parameters        []*Parameter
+	Token             token.Token
+	EndPos            token.Position
+	Visibility        Visibility
+	IsDestructor      bool
+	IsVirtual         bool
+	IsOverride        bool
+	IsAbstract        bool
+	IsExternal        bool
+	IsClassMethod     bool
+	IsOverload        bool
+	IsForward         bool
+	IsConstructor     bool
+	IsDeprecated      bool // True if marked as deprecated
 }
 
 func (f *FunctionDecl) End() token.Position {
