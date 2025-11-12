@@ -164,9 +164,12 @@ func (a *Analyzer) synthesizeImplicitParameterlessConstructor(classType *types.C
 	}
 }
 
-// checkMethodOverriding checks if overridden methods have compatible signatures
+// checkMethodOverriding checks if overridden methods have compatible signatures.
+// Task 9.20.2: Methods with the 'overload' directive add to the overload set rather than
+// replacing the parent method, so they don't need signature compatibility checks.
 func (a *Analyzer) checkMethodOverriding(class, parent *types.ClassType) {
-	for methodName, childMethodType := range class.Methods {
+	// Check MethodOverloads instead of Methods to access overload directive information
+	for methodName, childOverloads := range class.MethodOverloads {
 		// Check if method exists in parent
 		parentMethodType, found := parent.GetMethod(methodName)
 		if !found {
@@ -174,10 +177,22 @@ func (a *Analyzer) checkMethodOverriding(class, parent *types.ClassType) {
 			continue
 		}
 
-		// Method exists in parent - check signature compatibility
-		if !childMethodType.Equals(parentMethodType) {
-			a.addError("method '%s' signature mismatch in class '%s': expected %s, got %s",
-				methodName, class.Name, parentMethodType.String(), childMethodType.String())
+		// Check each overload in the child class
+		for _, childMethod := range childOverloads {
+			// Task 9.20.2: If the child method has the 'overload' directive,
+			// it's adding to the overload set, not replacing/overriding the parent.
+			// So skip signature compatibility check.
+			if childMethod.HasOverloadDirective {
+				continue
+			}
+
+			// No 'overload' directive - this is a method override/hide.
+			// Check signature compatibility with parent.
+			childMethodType := childMethod.Signature
+			if !childMethodType.Equals(parentMethodType) {
+				a.addError("method '%s' signature mismatch in class '%s': expected %s, got %s",
+					methodName, class.Name, parentMethodType.String(), childMethodType.String())
+			}
 		}
 	}
 }
