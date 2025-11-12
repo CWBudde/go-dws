@@ -7,12 +7,37 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/internal/semantic"
 )
 
 // ============================================================================
 // OOP Integration Tests
 // Tests combining abstract classes, virtual methods, and visibility modifiers
 // ============================================================================
+
+// testEvalWithSemanticAnalysis runs the input through semantic analysis before evaluation.
+// This is necessary for tests that rely on proper class metadata and type information.
+func testEvalWithSemanticAnalysis(input string) (Value, string) {
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		panic("parser errors: " + joinParserErrorsNewline(p.Errors()))
+	}
+
+	// Run semantic analysis
+	analyzer := semantic.NewAnalyzer()
+	analyzer.SetSource(input, "test")
+	if err := analyzer.Analyze(program); err != nil {
+		panic("semantic errors: " + strings.Join(analyzer.Errors(), "\n"))
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	val := interp.Eval(program)
+	return val, buf.String()
+}
 
 // TestAbstractWithVirtualMethods tests abstract classes combined with virtual method dispatch
 func TestAbstractWithVirtualMethods(t *testing.T) {
@@ -105,7 +130,7 @@ func TestVisibilityWithInheritance(t *testing.T) {
 		end
 	`
 
-	_, output := testEvalWithOutput(input)
+	_, output := testEvalWithSemanticAnalysis(input)
 
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	if len(lines) < 3 {

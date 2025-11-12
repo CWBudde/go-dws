@@ -17,6 +17,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	}
 
 	methodName := expr.Method.Value
+	// Task 9.16.2.9: Normalize method name to lowercase for case-insensitive lookup
+	methodNameLower := strings.ToLower(methodName)
 
 	// Task 9.7: Handle metaclass type (class of T) for constructor calls
 	// When we have TExample.CreateWith(...), TExample has type ClassOfType(TExample)
@@ -30,12 +32,13 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// Check if object is an interface type
 	if interfaceType, ok := objectType.(*types.InterfaceType); ok {
 		// Look up method in interface (including inherited methods from parent interfaces)
-		methodType, found := interfaceType.GetMethod(methodName)
+		// Use lowercase for case-insensitive lookup
+		methodType, found := interfaceType.GetMethod(methodNameLower)
 
 		// Check parent interfaces
 		if !found && interfaceType.Parent != nil {
 			allMethods := types.GetAllInterfaceMethods(interfaceType)
-			methodType, found = allMethods[methodName]
+			methodType, found = allMethods[methodNameLower]
 		}
 
 		if !found {
