@@ -131,41 +131,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Medium Complexity (20 tests remaining)** - Priority: HIGH
 
-- [x] 9.16.1 Method Visibility Enforcement (6 tests) - COMPLETE
-  - **Estimate**: 1-2 hours (actual: 1 hour)
-  - **Files**: analyze_classes.go, analyze_function_calls.go, oop_integration_test.go
-  - **Description**: Implement visibility checking (private/protected/public) in method call analysis
-  - **Strategy**: Similar to field visibility which already works - can use as reference
-  - **Tests**: TestPrivateMethodAccessFromSameClass, TestPrivateMethodAccessFromOutside, TestProtectedMethodAccessFromChild, TestProtectedMethodAccessFromOutside, TestPrivateFieldNotInheritedAccess, TestPublicMethodAccessFromOutside
-  - **Details**: Visibility checking was already implemented in analyzeMemberAccessExpression and analyzeCallExpression. Fixed interpreter test to run semantic analysis before execution.
+- [x] 9.16 Method Visibility Enforcement
 
-- [x] 9.16.2 Interface Implementation Validation - COMPLETE
-  - **Estimate**: 3-4 hours (actual: 6 hours total)
-  - **Files**: interp/interface.go, interp/class.go, interp/declarations.go, interp/expressions_basic.go, interp/objects_hierarchy.go, interp/statements_control.go, interp/helpers.go, plus test files
-  - **Description**: Fixed interface implementation validation by normalizing all method names to lowercase for case-insensitive lookups
-  - **Root Cause**: Interpreter was storing class methods with original case keys while semantic analyzer used lowercase keys, causing interface validation to fail
-  - **Completed**:
-    - ✅ Normalized all class method storage to use lowercase keys (matches semantic analyzer behavior)
-    - ✅ Fixed classHasMethod to normalize method names when checking
-    - ✅ Fixed classImplementsInterface to correctly validate interface implementation
-    - ✅ Fixed all method lookups across interpreter to use lowercase keys
-    - ✅ Fixed helper method storage and lookups to use lowercase keys
-    - ✅ Updated interface edge/integration tests to use lowercase keys
-    - ✅ All semantic interface tests pass (26/26)
-    - ✅ Most interpreter interface tests pass (38/54 passing, 16 failing due to unrelated features)
-  - **Subtasks**:
-    - [x] 9.16.2.1 Fix interface method name case-insensitivity in analyzeInterfaceMethodDecl
-    - [x] 9.16.2.2 Fix class method lookup case-insensitivity in validateInterfaceImplementation
-    - [x] 9.16.2.3 Add interface variable type support in semantic analyzer
-    - [x] 9.16.2.4 Implement interface-to-class assignment validation
-    - [x] 9.16.2.5 Add runtime interface variable support in interpreter
-    - [x] 9.16.2.6 Implement interface method call dispatch in interpreter
-    - [x] 9.16.2.7 Add interface type casting (as operator) for interfaces - DEFERRED (not required for current tests)
-    - [x] 9.16.2.8 Verify all test cases pass - COMPLETE (38/54 interface interpreter tests passing)
-    - [x] 9.16.2.9 Fix CallExpression path for interface method calls with parentheses - COMPLETE
-    - [x] 9.16.2.10 Normalize method name storage in interpreter to match semantic analyzer - COMPLETE
-
-- [ ] 9.16.3 Property Expression Validation (5 tests)
+- [ ] 9.17 Property Expression Validation
   - **Estimate**: 2-3 hours
   - **Files**: analyze_properties.go
   - **Description**: Property expressions with field references not analyzed correctly
@@ -175,8 +143,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **High Complexity (48 tests remaining)** - Priority: MEDIUM
 
-- [x] 9.16.4 Inherited Expression Support
-- [x] 9.16.5 Type Operators (is/as/implements) - COMPLETED
+- [x] 9.18 Inherited Expression Support
+
+- [x] 9.19 Type Operators (is/as/implements) - COMPLETED
   - **Estimate**: 8-10 hours
   - **Description**: Implement type checking and casting operators
   - **Strategy**: Add type operator support in parser and semantic analyzer
@@ -184,24 +153,24 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Status**: COMPLETED. All tests passing (24/24 = 100%)
   - **Test Results**: 30/30 tests passing (100% pass rate)
   - **Completed Subtasks**:
-    - [x] 9.16.5.1 Fix 'as' operator to support class-to-class casting
+    - [x] 9.19.1 Fix 'as' operator to support class-to-class casting
       - Semantic analyzer now supports both class and interface target types
       - File: internal/semantic/analyze_expressions.go (analyzeAsExpression)
       - Validates upcast/downcast relationships in class hierarchy
-    - [x] 9.16.5.2 Add validation for 'is' operator operands
+    - [x] 9.19.2 Add validation for 'is' operator operands
       - Left operand validated as class instance or nil
       - Right operand validated as class type
       - File: internal/semantic/analyze_expressions.go (analyzeIsExpression)
-    - [x] 9.16.5.3 Add validation for 'implements' operator operands
+    - [x] 9.19.3 Add validation for 'implements' operator operands
       - Left operand validated as class instance or nil
       - Right operand validated as interface type
       - File: internal/semantic/analyze_expressions.go (analyzeImplementsExpression)
-    - [x] 9.16.5.4 Update interpreter 'as' operator for class casting
+    - [x] 9.19.4 Update interpreter 'as' operator for class casting
       - File: internal/interp/expressions.go (evalAsExpression)
       - Runtime now supports both class-to-class and class-to-interface casts
       - Validates runtime compatibility for downcasts
-    - [x] 9.16.5.5 Verify all type operator tests pass - ALL PASSING
-    - [ ] 9.16.5.6 Avoid cascading errors when 'as' target type is invalid
+    - [x] 9.19.5 Verify all type operator tests pass - ALL PASSING
+    - [ ] 9.19.6 Avoid cascading errors when 'as' target type is invalid
       - Short-circuit analysis after reporting "'as' operator requires interface or class type"
       - Prevents secondary `cannot infer type` diagnostics (TestTypeOperator_As_InvalidRightOperand)
   - **Files Modified**:
@@ -209,27 +178,27 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - internal/semantic/type_operators_test.go (updated error message expectation)
     - internal/interp/expressions.go (evalAsExpression now handles classes)
 
-- [ ] 9.16.7 Helper Methods (2 tests)
+- [ ] 9.20 Helper Methods (2 tests)
   - **Estimate**: 3-4 hours
   - **Description**: Support DWScript helper methods (extension methods)
   - **Strategy**: Research DWScript helper semantics and implement registration mechanism
   - **Complexity**: New feature requiring research and design
   - **Subtasks**:
-    - [ ] 9.16.7.1 Emit diagnostics when no helper provides the requested method
+    - [ ] 9.20.1 Emit diagnostics when no helper provides the requested method
       - Analyzer should report `no helper with method` for unresolved helper calls
       - Covers `TestHelperMethodResolution/call_non-existent_helper_method`
 
-- [ ] 9.16.8 Abstract Class Implementation (1 test)
+- [ ] 9.21 Abstract Class Implementation (1 test)
   - **Estimate**: 2-3 hours
   - **Description**: Validate that abstract classes cannot be instantiated
   - **Strategy**: Add abstract class tracking and validation in class instantiation
   - **Complexity**: Requires inheritance chain validation
   - **Subtasks**:
-    - [ ] 9.16.8.1 Clear abstract flags when overrides are implemented
+    - [ ] 9.21.1 Clear abstract flags when overrides are implemented
       - Ensure overriding inherited abstract methods removes the abstract marker
       - Fixes `TestValidAbstractImplementation`
 
-- [ ] 9.16.9 Miscellaneous High Complexity Fixes (18 tests)
+- [ ] 9.22 Miscellaneous High Complexity Fixes (18 tests)
   - **Estimate**: 10-15 hours
   - **Description**: Various complex semantic validation issues
   - **Strategy**: Analyze each test individually and implement targeted fixes
@@ -237,167 +206,26 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-### Phase 9.17: Implement missing built-in functions
+### Phase 9.23: Implement missing built-in functions
 
-**Priority**: CRITICAL to MEDIUM - Required for full DWScript compatibility
-**Timeline**: 4-6 weeks
-**Overall Status**: ~70 of 250+ built-in functions implemented (28%)
+Advanced Math:
 
-**Category Breakdown**:
-
-- String Functions: 17/85 implemented (20%)
-- Math Functions: 40/64 implemented (62%)
-- DateTime Functions: 54/60 implemented (90%)
-- Array Functions: 8/18 implemented (44%)
-- Conversion Functions: 3/15 implemented (20%)
-- Variant Functions: 0/10 implemented (0%)
-- RTTI/Type Functions: 0/20+ implemented (0%)
-
-**Test Fixture Impact**: Implementing all functions would unblock 400+ failing test fixtures
-
----
-
-#### CRITICAL: Core Conversion Functions (Phase 9.17.0) 🔥
-
-**MUST IMPLEMENT FIRST** - These are used in 200+ test fixtures and block most other tests.
-
-- [x] 9.17.0.1 IntToStr(i: Integer): String
-- [x] 9.17.0.2 FloatToStr(f: Float): String
-- [x] 9.17.0.3 StrToInt(str: String): Integer
-- [x] 9.17.0.4 StrToFloat(str: String): Float
-- [x] 9.17.0.5 StrToIntDef(str: String, default: Integer): Integer
-- [x] 9.17.0.6 StrToFloatDef(str: String, default: Float): Float
-
----
-
-#### Delimiter-based Functions (Phase 9.17.2)
-
-- [x] 9.17.2.1 StrSplit(str, delimiter) - Split string into array
-- [x] 9.17.2.2 StrJoin(array, delimiter) - Join array into string
-- [x] 9.17.2.3 StrArrayPack(array) - Remove empty strings from array
-
-- [x] 9.17.2.4 StrBefore(str, delimiter) - Get substring before first delimiter
-- [x] 9.17.2.5 StrBeforeLast(str, delimiter) - Get substring before last delimiter
-- [x] 9.17.2.6 StrAfter(str, delimiter) - Get substring after first delimiter
-- [x] 9.17.2.7 StrAfterLast(str, delimiter) - Get substring after last delimiter
-- [x] 9.17.2.8 StrBetween(str, start, stop) - Get substring between delimiters
-
-- [x] 9.17.2.9 IsDelimiter(delims, str, index) - Check if char at index is delimiter
-- [x] 9.17.2.10 LastDelimiter(delims, str) - Find last delimiter position
-- [x] 9.17.2.11 FindDelimiter(delims, str, startIndex) - Find first delimiter
-
-#### String Transformation (Phase 9.17.3)
-
-- [x] 9.17.3.1 PadLeft(str, count, char) - Pad left to width
-- [x] 9.17.3.2 PadRight(str, count, char) - Pad right to width
-- [x] 9.17.3.3 StrDeleteLeft(str, count) - Delete N leftmost characters
-- [x] 9.17.3.4 StrDeleteRight(str, count) - Delete N rightmost characters
-
-- [x] 9.17.3.5 ReverseString(str) - Reverse character order
-- [x] 9.17.3.6 QuotedStr(str, quoteChar) - Add quotes around string
-- [x] 9.17.3.7 StringOfString(str, count) / DupeString - Repeat string
-
-- [x] 9.17.3.8 NormalizeString(str, form) - Unicode normalization
-- [x] 9.17.3.9 StripAccents(str) - Remove diacritical marks
-
-#### Comparison Functions (Phase 9.17.4)
-
-- [x] 9.17.4.1 SameText(str1, str2) - Case-insensitive equality
-- [x] 9.17.4.2 CompareText(str1, str2) - Case-insensitive compare
-- [x] 9.17.4.3 CompareStr(str1, str2) - Case-sensitive compare
-- [x] 9.17.4.4 AnsiCompareText(str1, str2) - ANSI case-insensitive compare
-- [x] 9.17.4.5 AnsiCompareStr(str1, str2) - ANSI case-sensitive compare
-- [x] 9.17.4.6 CompareLocaleStr(str1, str2, locale, caseSensitive) - Locale-aware compare
-- [x] 9.17.4.7 StrMatches(str, mask) - Wildcard pattern matching
-- [x] 9.17.4.8 StrIsASCII(str) - Is pure ASCII?
-
-#### Advanced Conversion Functions (Phase 9.17.5)
-
-- [x] 9.17.5.1 IntToStr(i, base) - Integer to string with base parameter
-- [x] 9.17.5.2 StrToInt(str, base) - String to integer with base
-- [x] 9.17.5.3 StrToIntDef(str, def, base) - With base and default
-- [x] 9.17.5.4 TryStrToInt(str, base, @value) - Safe conversion with base
-
-- [x] 9.17.5.5 HexToInt(hexa) - Hex string to integer
-- [x] 9.17.5.6 IntToBin(v, digits) - Integer to binary (already implemented)
-- [x] 9.17.5.7 BinToInt(binary) - Binary string to integer
-
-- [x] 9.17.5.8 TryStrToFloat(str, @value) - Safe float conversion
-- [x] 9.17.5.9 StrToFloatDef(str, def) - String to float with default (already implemented)
-
-- [x] 9.17.5.10 VarToIntDef(val, def) - Variant to int with default
-- [x] 9.17.5.11 VarToFloatDef(val, def) - Variant to float with default
-
-#### Encoding/Escaping Functions (Phase 9.17.6)
-
-- [x] 9.17.6.1 StrToHtml(str) - HTML encode
-- [x] 9.17.6.2 StrToHtmlAttribute(str) - HTML attribute encode
-- [x] 9.17.6.3 StrToJSON(str) - JSON encode/escape
-- [x] 9.17.6.4 StrToCSSText(str) - CSS text encode
-- [x] 9.17.6.5 StrToXML(str, mode) - XML encode
-
-#### Case Conversion Variants (Phase 9.17.7)
-
-- [x] 9.17.7.1 ASCIILowerCase(str) - ASCII-only lowercase
-- [x] 9.17.7.2 ASCIIUpperCase(str) - ASCII-only uppercase
-- [x] 9.17.7.3 AnsiLowerCase(str) - ANSI lowercase (alias for LowerCase)
-- [x] 9.17.7.4 AnsiUpperCase(str) - ANSI uppercase (alias for UpperCase)
-
-#### Utility Functions (Phase 9.17.8)
-
-- [x] 9.17.8.1 ByteSizeToStr(size) - Format byte size (KB, MB, GB)
-- [x] 9.17.8.2 GetText(str) / _(str) - Localization/translation function
-- [x] 9.17.8.3 CharAt(s, x) - Get character at position (deprecated, use SubStr)
-
----
-
-#### Math Functions - Constants & Core (Phase 9.17.9)
-
-**Current Status**: 40/64 implemented (62%) - Missing 24 critical math functions
-
-**HIGH PRIORITY**:
-
-- [x] 9.17.9.1 Pi: Float - Mathematical constant π (3.141592...)
-- [x] 9.17.9.2 Sign(x: Float): Integer - Returns -1, 0, or 1
-- [x] 9.17.9.3 Odd(x: Integer): Boolean - Check if integer is odd
-- [x] 9.17.9.4 Frac(x: Float): Float - Fractional part of number
-- [x] 9.17.9.5 Int(x: Float): Float - Integer part (returns Float)
-- [x] 9.17.9.6 Log10(x: Float): Float - Base-10 logarithm
-- [x] 9.17.9.7 LogN(x, base: Float): Float - Logarithm with custom base
-
-**Status**: HIGH priority items ✅ COMPLETED for both AST interpreter and bytecode VM
-
-**MEDIUM PRIORITY**:
-
-- [x] 9.17.9.8 Infinity: Float - Infinity constant
-- [x] 9.17.9.9 NaN: Float - Not-a-Number constant
-- [x] 9.17.9.10 IsFinite(x: Float): Boolean - Check if number is finite
-- [x] 9.17.9.11 IsInfinite(x: Float): Boolean - Check if number is infinite
-- [x] 9.17.9.12 IntPower(base: Float, exponent: Integer): Float
-- [x] 9.17.9.13 DivMod(dividend, divisor: Integer; var quotient, remainder: Integer)
-- [x] 9.17.9.14 RandSeed: Integer - Get current random seed
-- [x] 9.17.9.15 RandG: Float - Gaussian random number
-
-**Status**: MEDIUM priority items ✅ COMPLETED (7/8 in bytecode VM, 8/8 in AST interpreter)
-
-**LOW PRIORITY** (Advanced Math):
-
-- [ ] 9.17.9.16 Factorial(n: Integer): Integer - Factorial function
-- [ ] 9.17.9.17 Gcd(a, b: Integer): Integer - Greatest common divisor
-- [ ] 9.17.9.18 Lcm(a, b: Integer): Integer - Least common multiple
-- [ ] 9.17.9.19 IsPrime(n: Integer): Boolean - Primality test
-- [ ] 9.17.9.20 LeastFactor(n: Integer): Integer - Smallest prime factor
-- [ ] 9.17.9.21 PopCount(n: Integer): Integer - Count set bits
-- [ ] 9.17.9.22 TestBit(value: Integer, bit: Integer): Boolean - Test if bit is set
-- [ ] 9.17.9.23 Haversine(lat1, lon1, lat2, lon2: Float): Float - Haversine distance
-- [ ] 9.17.9.24 CompareNum(a, b: Float): Integer - Numerical comparison
+- [ ] 9.23.1 Factorial(n: Integer): Integer - Factorial function
+- [ ] 9.23.2 Gcd(a, b: Integer): Integer - Greatest common divisor
+- [ ] 9.23.3 Lcm(a, b: Integer): Integer - Least common multiple
+- [ ] 9.23.4 IsPrime(n: Integer): Boolean - Primality test
+- [ ] 9.23.5 LeastFactor(n: Integer): Integer - Smallest prime factor
+- [ ] 9.23.6 PopCount(n: Integer): Integer - Count set bits
+- [ ] 9.23.7 TestBit(value: Integer, bit: Integer): Boolean - Test if bit is set
+- [ ] 9.23.8 Haversine(lat1, lon1, lat2, lon2: Float): Float - Haversine distance
+- [ ] 9.23.9 CompareNum(a, b: Float): Integer - Numerical comparison
 
 **Implementation Time**: 2-3 days for HIGH priority
 **Impact**: Unblocks 80+ math test fixtures
 
 ---
 
-#### Array of Const Support (Phase 9.17.11)
+#### Array of Const Support (Phase 9.24)
 
 **Current Status**: Not implemented - **COMPLETE GAP**
 
@@ -414,28 +242,28 @@ each element is wrapped in a variant-like container that preserves type informat
 
 **Implementation Tasks**:
 
-- [x] 9.17.11.1 Add array of const type support
+- [x] 9.24.1 Add array of const type support
   - ✅ Lexer/Parser: Already supports syntax (array of const)
   - ✅ Semantic analyzer: Type checking for array of const parameters
   - ✅ Type system: Uses array of Variant (ARRAY_OF_CONST constant)
   - ✅ Operator registry: Extended to support array type compatibility
 
-- [ ] 9.17.11.2 Implement array of const conversion at call sites
+- [ ] 9.24.2 Implement array of const conversion at call sites
   - ✅ Array literals with mixed types work with array of const parameters
   - ✅ Empty array literals handled in compound assignments
   - ✅ Array of T -> array of Variant compatibility in operators
   - ⚠️ Interpreter runtime for class operator overloads with array of const parameters is not yet implemented; semantic analysis and type system are complete. Task will be marked complete once interpreter support is added.
 
-- [x] 9.17.11.3 Add TVarRec support (optional)
+- [x] 9.24.3 Add TVarRec support (optional)
   - Not needed: Using Variant type directly for array elements
   - Runtime conversion handled by interpreter's Variant implementation
 
-- [x] 9.17.11.4 Test array of const in various contexts
+- [x] 9.24.4 Test array of const in various contexts
   - ✅ Function parameters (comprehensive tests added)
   - ✅ Class operator overloads (semantic analysis complete)
   - ✅ Variant to typed variable conversion (String concatenation works)
   - ✅ Empty, homogeneous, and heterogeneous array literals
-- [ ] 9.17.11.5 Support procedure bindings for class operators that return Self
+- [ ] 9.24.5 Support procedure bindings for class operators that return Self
   - Allow `class operator +(const items: array of const): TClass uses AppendStrings;` patterns
   - Analyzer or runtime should treat procedure bindings that mutate and return `Self` as valid
   - Fixes `TestClassOperatorWithArrayOfConst` / `TestClassOperatorCompoundAssignmentWithEmptyArray`
@@ -446,29 +274,28 @@ each element is wrapped in a variant-like container that preserves type informat
 **References**:
 - Delphi documentation: array of const and TVarRec
 - testdata/fixtures/SimpleScripts/class_operator3.pas (blocked test)
-- Related to Variant support (Phase 9.17.11)
 
 ---
 
-#### RTTI / Type Introspection (Phase 9.17.13)
+#### RTTI / Type Introspection (Phase 9.25)
 
 **Current Status**: 0/20+ implemented (0%) - **COMPLETE GAP**
 
 **MEDIUM PRIORITY** (Advanced OOP features):
 
-- [ ] 9.17.13.1 TypeOf(value): TTypeInfo
+- [ ] 9.25.1 TypeOf(value): TTypeInfo
   - Get runtime type information
   - Returns type metadata object
 
-- [ ] 9.17.13.2 TypeOfClass(classRef: TClass): TTypeInfo
+- [ ] 9.25.2 TypeOfClass(classRef: TClass): TTypeInfo
   - Get type info for class reference
   - Class-level type introspection
 
-- [ ] 9.17.13.3 ClassName(obj: TObject): String
+- [ ] 9.25.3 ClassName(obj: TObject): String
   - Get class name as string
   - May already be implemented
 
-- [ ] 9.17.13.4 ClassType(obj: TObject): TClass
+- [ ] 9.25.4 ClassType(obj: TObject): TClass
   - Get class type reference
   - Runtime class info
 
@@ -478,113 +305,56 @@ each element is wrapped in a variant-like container that preserves type informat
 
 ---
 
-**Implementation Notes**:
-
-- Each function needs: AST interpreter, bytecode VM, semantic analyzer, tests
-- Follow patterns from SubStr implementation (see commits from this session)
-- Prioritize functions based on test fixture usage
-- Reference original DWScript sources:
-  - `reference/dwscript-original/Source/dwsStringFunctions.pas`
-  - `reference/dwscript-original/Source/dwsMathFunctions.pas`
-  - `reference/dwscript-original/Source/dwsArrayFunctions.pas`
-  - `reference/dwscript-original/Source/dwsVariantFunctions.pas`
-
-**Testing Strategy**:
-
-- Minimum 4 test categories per function: BasicUsage, EdgeCases, InExpressions, ErrorCases
-- Include UTF-8/Unicode test cases where applicable
-- Verify against DWScript test fixtures in testdata/fixtures/
-- For mathematical functions: test edge cases (0, negative, infinity, NaN)
-- For array functions: test empty arrays, single elements, large arrays
-- For variant functions: test all variant type combinations
-
-**Implementation Priority Summary**:
-
-**Week 1 - CRITICAL (200+ fixtures)**:
-1. Phase 9.17.0: Core Conversions (IntToStr, FloatToStr, StrToInt, StrToFloat) - 6 functions
-2. Phase 9.17.9: Math Constants (Pi, Sign, Odd, Frac, Int, Log10) - 7 functions
-3. Phase 9.17.1: Essential String (LeftStr, RightStr, MidStr, StrContains) - 8 functions
-**Total**: ~21 functions, **Impact**: 200+ fixtures
-
-**Week 2 - HIGH (150+ fixtures)**:
-1. Phase 9.17.11: All Variant Functions - 10 functions
-2. Phase 9.17.1: More String Functions (PosEx, StrBeginsWith, StrEndsWith) - 6 functions
-3. Phase 9.17.10: Core Array Functions (Map, Filter, Reduce) - 4 functions
-4. Phase 9.17.12: Ordinal Functions (Succ, Pred) - 2 functions
-**Total**: ~22 functions, **Impact**: 150+ fixtures
-
-**Week 3 - MEDIUM (100+ fixtures)**:
-1. Phase 9.17.2: Delimiter Functions (StrSplit, StrJoin, StrBefore, StrAfter) - 11 functions
-2. Phase 9.17.9: Advanced Math (Infinity, IsFinite, IntPower, DivMod) - 8 functions
-3. Phase 9.17.10: More Array Functions (Every, Some, Find, Concat, Slice) - 6 functions
-**Total**: ~25 functions, **Impact**: 100+ fixtures
-
-**Week 4+ - LOW (50+ fixtures)**:
-1. Phase 9.17.3-9.17.8: Specialized String Functions
-2. Phase 9.17.9: Advanced Math (Factorial, Gcd, IsPrime, etc.)
-3. Phase 9.17.13: RTTI Functions (TypeOf, etc.)
-**Total**: ~50+ functions, **Impact**: 50+ fixtures
-
-**Grand Total**: ~180 functions to implement across all phases
-**Total Impact**: 500+ test fixtures would pass with complete implementation
-
----
-
-### Phase 9.18: Documentation & Cleanup
+### Phase 9.26: Documentation & Cleanup
 
 **Priority**: LOW - Can be done in parallel with Phase 10
 **Timeline**: 1 week
 
-- [ ] 9.18.1 Update README with current features
+- [ ] 9.26.1 Update README with current features
   - Document all Stage 7 features now complete
   - Update feature completion percentages
   - Add examples of new features
 
-- [ ] 9.18.2 Create docs/phase9-summary.md
+- [ ] 9.26.2 Create docs/phase9-summary.md
   - Document achievements in Phase 9
   - Statistics: tests passing, coverage percentages
   - Lessons learned and challenges overcome
 
-- [ ] 9.18.3 Update testdata/fixtures/TEST_STATUS.md
+- [ ] 9.26.3 Update testdata/fixtures/TEST_STATUS.md
   - Update pass/fail counts for each category
   - Mark resolved issues
   - Document remaining blockers
 
-- [ ] 9.18.4 Create docs/limitations.md
+- [ ] 9.26.4 Create docs/limitations.md
   - Document known limitations
   - Features intentionally deferred to later phases
   - Differences from original DWScript
 
 ---
 
-### Phase 9.19: Constructor Overloading ✅ COMPLETE
-
-- [x] 9.19.1 Implement constructor overload storage in ClassType ✓
-- [x] 9.19.2 Implement implicit parameterless constructor synthesis ✓
-- [x] 9.19.3 Fix constructor name case-sensitivity issues ✓
-- [x] 9.19.4 Constructor overload tests verified (5/5 tests passing) ✓
-
----
-
-### Phase 9.20: Method Overloading ✅ COMPLETE
-
-- [x] 9.20.1 Audit current method overload implementation (documented in docs/method_overload_audit.md) ✓
-- [x] 9.20.2 Fix method overload resolution bugs (semantic analysis fixes for class hierarchies) ✓
-- [x] 9.20.3 Enhance method overload dispatch in interpreter (already complete, verified working) ✓
-- [x] 9.20.4 Add comprehensive method overload tests (13 tests: 11 passing, 2 skipped with documented limitations) ✓
-
----
-
-### Phase 9.21: Parser Syntax Extensions
+### Phase 9.27: Parser Syntax Extensions
 
 **Priority**: HIGH - Required for ~100+ failing fixture tests
 
-- [x] 9.21.1 Fix "array of <type>" shorthand parsing (enum-indexed arrays fully supported) ✓
-- [x] 9.21.2 Implement "class var" initialization syntax (inline initialization with type inference) ✓
-- [x] 9.21.3 Fix "class method/operator" inline syntax parsing (calling conventions and inline implementations) ✓
-- [x] 9.21.4 Implement "deprecated" attribute parsing (constants, functions, enum elements) ✓
+- [x] 9.27.1 Fix "array of <type>" shorthand parsing (enum-indexed arrays fully supported) ✓
+- [x] 9.27.2 Implement "class var" initialization syntax (inline initialization with type inference) ✓
+- [x] 9.27.3 Fix "class method/operator" inline syntax parsing (calling conventions and inline implementations) ✓
+- [x] 9.27.4 Implement "deprecated" attribute parsing (constants, functions, enum elements) ✓
+- [x] 9.27.5 Fix inline conditional expression parsing
+  - **Task**: Support ternary-like conditionals: `if condition then expr1 else expr2`
+  - **Status**: ✅ COMPLETE - Implemented IfExpression with full parser, semantic analysis, interpreter, and bytecode support
+  - **Implementation**:
+    - Created IfExpression AST node with Condition, Consequence, Alternative
+    - Registered IF as prefix parse function, implemented parseIfExpression()
+    - Added semantic analysis with type inference (handles class hierarchies, metaclasses, numeric widening)
+    - Implemented evalIfExpression() with default value support
+    - Added bytecode compilation with conditional jumps
+    - Updated AST visitor for traversal
+  - **Files**: `pkg/ast/control_flow.go`, `internal/parser/control_flow.go`, `internal/semantic/analyze_expressions.go`, `internal/interp/expressions_complex.go`, `internal/bytecode/compiler_expressions.go`, `pkg/ast/visitor.go`
+  - **Tests**: 5/7 ifthenelse_expression*.pas tests passing (2 blocked by other features)
+  - **Blocked Tests**: ifthenelse_expression6.pas (needs array helpers), ifthenelse_expression_variant.pas (needs Variant coercion)
 
-- [ ] 9.21.5 Implement contract syntax (require/ensure/old/invariant)
+- [ ] 9.27.6 Implement contract syntax (require/ensure/old/invariant)
   - **Task**: Parse Design by Contract syntax for preconditions/postconditions
   - **Current Error**: "no prefix parse function for REQUIRE/ENSURE"
   - **Implementation**:
@@ -599,7 +369,7 @@ each element is wrapped in a variant-like container that preserves type informat
 
 #### Subtask Category: Miscellaneous Syntax
 
-- [ ] 9.21.6 Fix "is" operator with non-type expressions
+- [ ] 9.28 Fix "is" operator with non-type expressions
   - **Task**: Allow `is` operator with boolean expressions like `is True`, `is False`
   - **Current Error**: "expected type expression, got True/False"
   - **Implementation**:
@@ -610,21 +380,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Estimated time**: 0.5 day
   - **Blocked Tests**: boolean_is.pas
 
-- [x] 9.21.7 Fix inline conditional expression parsing
-  - **Task**: Support ternary-like conditionals: `if condition then expr1 else expr2`
-  - **Status**: ✅ COMPLETE - Implemented IfExpression with full parser, semantic analysis, interpreter, and bytecode support
-  - **Implementation**:
-    - Created IfExpression AST node with Condition, Consequence, Alternative
-    - Registered IF as prefix parse function, implemented parseIfExpression()
-    - Added semantic analysis with type inference (handles class hierarchies, metaclasses, numeric widening)
-    - Implemented evalIfExpression() with default value support
-    - Added bytecode compilation with conditional jumps
-    - Updated AST visitor for traversal
-  - **Files**: `pkg/ast/control_flow.go`, `internal/parser/control_flow.go`, `internal/semantic/analyze_expressions.go`, `internal/interp/expressions_complex.go`, `internal/bytecode/compiler_expressions.go`, `pkg/ast/visitor.go`
-  - **Tests**: 5/7 ifthenelse_expression*.pas tests passing (2 blocked by other features)
-  - **Blocked Tests**: ifthenelse_expression6.pas (needs array helpers), ifthenelse_expression_variant.pas (needs Variant coercion)
-
-- [ ] 9.21.7a Implement array helper methods
+- [ ] 9.29 Implement array helper methods
   - **Task**: Add built-in helper methods for dynamic arrays (`.count`, `.length`, etc.)
   - **Current Error**: "member access on type array of String requires a helper, got no helper with member 'count'"
   - **Implementation**:
@@ -636,7 +392,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Estimated time**: 1-2 days
   - **Blocked Tests**: ifthenelse_expression6.pas, other array helper tests
 
-- [ ] 9.21.7b Implement Variant to Boolean implicit coercion
+- [ ] 9.30 Implement Variant to Boolean implicit coercion
   - **Task**: Support implicit conversion from Variant to Boolean in conditional contexts
   - **Current Error**: "if expression condition must be boolean, got Variant"
   - **Implementation**:
@@ -648,7 +404,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Estimated time**: 0.5-1 day
   - **Blocked Tests**: ifthenelse_expression_variant.pas, other Variant boolean tests
 
-- [ ] 9.21.8 Fix "class" forward declaration in units
+- [ ] 9.31 Fix "class" forward declaration in units
   - **Task**: Support class forward declarations in unit interface section
   - **Current Error**: "no prefix parse function for CLASS" or "expected DOT after 'end' in unit"
   - **Implementation**:
@@ -659,7 +415,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Estimated time**: 0.5-1 day
   - **Blocked Tests**: class_scoping1.pas
 
-- [ ] 9.21.9 Support field initializers in type declarations
+- [ ] 9.32 Support field initializers in type declarations
   - **Task**: Allow field initialization in record/class declarations: `field: Type := value;`
   - **Current Error**: "expected SEMICOLON, got EQ"
   - **Implementation**:
@@ -671,7 +427,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Estimated time**: 1 day
   - **Blocked Tests**: clear_ref_in_destructor.pas, clear_ref_in_static_method.pas, clear_ref_in_virtual_method.pas
 
-- [ ] 9.21.10 Fix other parser errors identified in fixture test runs
+- [ ] 9.33 Fix other parser errors identified in fixture test runs
   - **Task**: Address remaining parser errors discovered during test runs
   - **Implementation**: Investigate and fix on case-by-case basis
   - **Files**: Various parser files
@@ -682,7 +438,7 @@ each element is wrapped in a variant-like container that preserves type informat
 
 ---
 
-### Phase 9.22: Lazy Parameters
+### Phase 9.34: Lazy Parameters
 
 **Priority**: LOW - Required for 5 failing tests
 **Timeline**: 2-3 days
@@ -690,14 +446,14 @@ each element is wrapped in a variant-like container that preserves type informat
 
 **Current Status**: Lazy parameter test files are missing, and lazy parameter semantics may not be fully implemented.
 
-- [ ] 9.22.1 Create missing lazy parameter test files
+- [ ] 9.34.1 Create missing lazy parameter test files
   - **Task**: Create the missing `.dws` and `.out` files for lazy parameter tests
   - **Files**: `testdata/lazy_params/jensens_device.dws`, `conditional_eval.dws`, `lazy_logging.dws`, `multiple_access.dws`, `lazy_with_loops.dws`
   - **Implementation**: Write test scripts demonstrating lazy evaluation
   - **Reference**: DWScript documentation on `lazy` parameter modifier
   - **Estimated time**: 0.5 day
 
-- [ ] 9.22.2 Verify lazy parameter semantic analysis
+- [ ] 9.34.2 Verify lazy parameter semantic analysis
   - **Task**: Ensure semantic analyzer handles `lazy` parameters correctly
   - **Implementation**:
     - Check if `lazy` keyword is recognized
@@ -707,7 +463,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Tests**: Add semantic analysis tests for lazy parameters
   - **Estimated time**: 0.5-1 day
 
-- [ ] 9.22.3 Implement/verify lazy parameter evaluation in interpreter
+- [ ] 9.34.3 Implement/verify lazy parameter evaluation in interpreter
   - **Task**: Ensure parameters marked `lazy` are evaluated in callee scope, not caller scope
   - **Implementation**:
     - Store unevaluated expression for lazy parameters
@@ -723,7 +479,7 @@ each element is wrapped in a variant-like container that preserves type informat
 
 ---
 
-### Phase 9.23: Bytecode Compiler Fixes
+### Phase 9.35: Bytecode Compiler Fixes
 
 **Priority**: MEDIUM - Required for 5 failing bytecode tests
 **Timeline**: 3-4 days
@@ -731,7 +487,7 @@ each element is wrapped in a variant-like container that preserves type informat
 
 **Current Status**: Several basic bytecode compiler tests are failing, suggesting issues in the bytecode compilation pipeline.
 
-- [ ] 9.23.1 Investigate and fix TestCompiler_VarAssignReturn
+- [ ] 9.35.1 Investigate and fix TestCompiler_VarAssignReturn
   - **Task**: Debug why variable assignment and return compilation fails
   - **Implementation**:
     - Run test with verbose output
@@ -741,7 +497,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`, `internal/bytecode/compiler_test.go`
   - **Estimated time**: 0.5 day
 
-- [ ] 9.23.2 Investigate and fix TestCompiler_IfElse
+- [ ] 9.35.2 Investigate and fix TestCompiler_IfElse
   - **Task**: Debug why if-else statement compilation fails
   - **Implementation**:
     - Verify JUMP_IF_FALSE and JUMP opcodes are generated
@@ -750,7 +506,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`
   - **Estimated time**: 0.5 day
 
-- [ ] 9.23.3 Investigate and fix TestCompiler_ArrayLiteralAndIndex
+- [ ] 9.35.3 Investigate and fix TestCompiler_ArrayLiteralAndIndex
   - **Task**: Debug why array literal and indexing compilation fails
   - **Implementation**:
     - Check NEW_ARRAY opcode generation
@@ -759,7 +515,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`
   - **Estimated time**: 0.5-1 day
 
-- [ ] 9.23.4 Investigate and fix TestCompiler_CallExpression
+- [ ] 9.35.4 Investigate and fix TestCompiler_CallExpression
   - **Task**: Debug why function call compilation fails
   - **Implementation**:
     - Verify argument compilation
@@ -768,7 +524,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`
   - **Estimated time**: 0.5-1 day
 
-- [ ] 9.23.5 Investigate and fix TestCompiler_MemberAccess
+- [ ] 9.35.5 Investigate and fix TestCompiler_MemberAccess
   - **Task**: Debug why member access (object.field) compilation fails
   - **Implementation**:
     - Check GET_PROPERTY opcode generation
@@ -777,7 +533,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`
   - **Estimated time**: 0.5-1 day
 
-- [ ] 9.23.6 Add regression tests for fixed issues
+- [ ] 9.35.6 Add regression tests for fixed issues
   - **Task**: Ensure bytecode compiler tests remain passing
   - **Tests**: Enhance existing test suite based on fixes
   - **Files**: `internal/bytecode/compiler_test.go`
@@ -790,7 +546,7 @@ each element is wrapped in a variant-like container that preserves type informat
 
 ---
 
-### Phase 9.24: Systematic Fixture Test Analysis and Fixes
+### Phase 9.36: Systematic Fixture Test Analysis and Fixes
 
 **Priority**: MEDIUM-HIGH - Required for 300+ failing fixture tests
 **Timeline**: 2-4 weeks
@@ -798,102 +554,9 @@ each element is wrapped in a variant-like container that preserves type informat
 
 **Current Status**: ~300+ fixture tests are failing in SimpleScripts, Algorithms, and Overloads categories. Many failures are due to missing built-in functions (Phase 9.17), but many are also due to semantic issues, runtime bugs, and missing features.
 
-#### Strategy: Divide and Conquer
-
-Instead of fixing tests one-by-one, group them by root cause and fix categories systematically.
-
-- [ ] 9.24.1 Categorize all failing fixture tests by root cause
-  - **Task**: Run fixture tests and categorize each failure
-  - **Categories**:
-    - Missing built-in functions (Phase 9.17)
-    - Parser syntax errors (Phase 9.21)
-    - Constructor/method overloading (Phase 9.19, 9.20)
-    - Abstract class issues (Phase 9.18.8)
-    - Interface issues (Phase 9.18.2)
-    - Property issues (Phase 9.18.3)
-    - Semantic analysis bugs (Phase 9.18)
-    - Runtime interpreter bugs
-    - Other/unknown
-  - **Output**: Create `docs/fixture-test-analysis.md` with categorized list
-  - **Files**: Run `go test ./internal/interp -run TestDWScriptFixtures -v` and analyze
-  - **Estimated time**: 2-3 days
-
-- [ ] 9.24.2 Fix "Missing Built-in Functions" category
-  - **Task**: Implement all missing built-in functions identified
-  - **Dependency**: Links to Phase 9.17 tasks
-  - **Implementation**: Prioritize functions based on usage count in fixtures
-  - **Estimated time**: Covered by Phase 9.17 (2-6 weeks)
-
-- [ ] 9.24.3 Fix "Parser Syntax Errors" category
-  - **Task**: Fix all parser issues identified
-  - **Dependency**: Links to Phase 9.21 tasks
-  - **Estimated time**: Covered by Phase 9.21 (5-7 days)
-
-- [ ] 9.24.4 Fix "Constructor/Method Overloading" category
-  - **Task**: Fix all overloading issues
-  - **Dependency**: Links to Phase 9.19 and 9.20 tasks
-  - **Estimated time**: Covered by Phase 9.19-9.20 (6-10 days)
-
-- [ ] 9.24.5 Fix "Semantic Analysis Bugs" category
-  - **Task**: Address semantic analyzer issues not covered by Phase 9.16
-  - **Implementation**: Fix case-sensitivity, scope resolution, type checking bugs
-  - **Files**: `internal/semantic/*.go`
-  - **Estimated time**: 1-2 weeks
-
-- [ ] 9.24.6 Fix "Runtime Interpreter Bugs" category
-  - **Task**: Fix interpreter execution bugs
-  - **Examples**:
-    - Undefined variable access from parent classes
-    - Incorrect method dispatch
-    - Field access issues
-    - Exception handling bugs
-  - **Files**: `internal/interp/*.go`
-  - **Estimated time**: 1-2 weeks
-
-- [ ] 9.24.7 Fix "Abstract Class Issues" category
-  - **Task**: Review tests expecting abstract class instantiation
-  - **Implementation**: Either fix semantic analyzer or update test expectations
-  - **Dependency**: Phase 9.16.8
-  - **Estimated time**: 1-2 days
-
-- [ ] 9.24.8 Fix "Interface Issues" category
-  - **Task**: Complete interface implementation
-  - **Dependency**: Phase 9.16.2
-  - **Estimated time**: Covered by Phase 9.16.2
-
-- [ ] 9.24.9 Fix "Property Issues" category
-  - **Task**: Implement indexed and expression properties
-  - **Dependency**: Phase 9.16.3
-  - **Estimated time**: Covered by Phase 9.16.3
-
-- [ ] 9.24.10 Fix "Other/Unknown" category
-  - **Task**: Investigate and fix remaining issues on case-by-case basis
-  - **Implementation**: Debug each test individually
-  - **Estimated time**: 1-2 weeks
-
-- [ ] 9.24.11 Update TEST_STATUS.md with progress
-  - **Task**: Document progress after each category is fixed
-  - **Files**: `testdata/fixtures/TEST_STATUS.md`
-  - **Implementation**: Update pass/fail counts, document resolved issues
-  - **Estimated time**: Ongoing (0.5 day total)
-
-- [ ] 9.24.12 Verify 90%+ fixture test pass rate
-  - **Task**: Ensure at least 90% of fixture tests pass
-  - **Target**: ~1900+ of 2100+ tests passing
-  - **Milestone**: Mark Phase 9 as complete when achieved
-  - **Estimated time**: Verification after all categories fixed
-
-**Total Estimated Time**: 2-4 weeks (depends on complexity of issues discovered)
-
-**Success Criteria**:
-- All fixture tests categorized by root cause
-- 90%+ of fixture tests passing
-- Documented analysis and fixes in TEST_STATUS.md
-- Remaining failures have documented blockers/reasons
-
 ---
 
-## Task 9.38: Complete Static Record Methods (Class Functions) Implementation ⚠️ IN PROGRESS
+## Task 9.37: Complete Static Record Methods (Class Functions) Implementation ⚠️ IN PROGRESS
 
 **Goal**: Finish implementing static methods (class functions) on record types for full DWScript compatibility.
 
