@@ -58,6 +58,14 @@ func (vm *VM) registerBuiltins() {
 	vm.builtins["NormalizeString"] = builtinNormalizeString
 	vm.builtins["Normalize"] = builtinNormalizeString
 	vm.builtins["StripAccents"] = builtinStripAccents
+	vm.builtins["SameText"] = builtinSameText
+	vm.builtins["CompareText"] = builtinCompareText
+	vm.builtins["CompareStr"] = builtinCompareStr
+	vm.builtins["AnsiCompareText"] = builtinAnsiCompareText
+	vm.builtins["AnsiCompareStr"] = builtinAnsiCompareStr
+	vm.builtins["CompareLocaleStr"] = builtinCompareLocaleStr
+	vm.builtins["StrMatches"] = builtinStrMatches
+	vm.builtins["StrIsASCII"] = builtinStrIsASCII
 	vm.builtins["Ord"] = builtinOrd
 	vm.builtins["Chr"] = builtinChr
 	// Type cast functions
@@ -1199,6 +1207,167 @@ func builtinStripAccents(vm *VM, args []Value) (Value, error) {
 	return StringValue(result), nil
 }
 
+func builtinSameText(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("SameText expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("SameText expects string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("SameText expects string as second argument")
+	}
+
+	str1 := args[0].AsString()
+	str2 := args[1].AsString()
+	result := strings.EqualFold(str1, str2)
+	return BoolValue(result), nil
+}
+
+func builtinCompareText(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("CompareText expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("CompareText expects string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("CompareText expects string as second argument")
+	}
+
+	str1 := strings.ToLower(args[0].AsString())
+	str2 := strings.ToLower(args[1].AsString())
+
+	if str1 < str2 {
+		return IntValue(-1), nil
+	} else if str1 > str2 {
+		return IntValue(1), nil
+	}
+	return IntValue(0), nil
+}
+
+func builtinCompareStr(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("CompareStr expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("CompareStr expects string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("CompareStr expects string as second argument")
+	}
+
+	str1 := args[0].AsString()
+	str2 := args[1].AsString()
+
+	if str1 < str2 {
+		return IntValue(-1), nil
+	} else if str1 > str2 {
+		return IntValue(1), nil
+	}
+	return IntValue(0), nil
+}
+
+func builtinAnsiCompareText(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("AnsiCompareText expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("AnsiCompareText expects string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("AnsiCompareText expects string as second argument")
+	}
+
+	str1 := strings.ToLower(args[0].AsString())
+	str2 := strings.ToLower(args[1].AsString())
+
+	if str1 < str2 {
+		return IntValue(-1), nil
+	} else if str1 > str2 {
+		return IntValue(1), nil
+	}
+	return IntValue(0), nil
+}
+
+func builtinAnsiCompareStr(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("AnsiCompareStr expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("AnsiCompareStr expects string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("AnsiCompareStr expects string as second argument")
+	}
+
+	str1 := args[0].AsString()
+	str2 := args[1].AsString()
+
+	if str1 < str2 {
+		return IntValue(-1), nil
+	} else if str1 > str2 {
+		return IntValue(1), nil
+	}
+	return IntValue(0), nil
+}
+
+func builtinCompareLocaleStr(vm *VM, args []Value) (Value, error) {
+	if len(args) < 2 || len(args) > 4 {
+		return NilValue(), vm.runtimeError("CompareLocaleStr expects 2 to 4 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("CompareLocaleStr expects string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("CompareLocaleStr expects string as second argument")
+	}
+
+	str1 := args[0].AsString()
+	str2 := args[1].AsString()
+
+	// For bytecode VM, we'll use a simplified implementation
+	// just using case-insensitive comparison (locale support is complex)
+	// This matches the interpreter's behavior
+	result := compareLocaleStrSimple(str1, str2)
+	return IntValue(int64(result)), nil
+}
+
+func builtinStrMatches(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("StrMatches expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrMatches expects string as first argument")
+	}
+	if !args[1].IsString() {
+		return NilValue(), vm.runtimeError("StrMatches expects string as second argument")
+	}
+
+	str := args[0].AsString()
+	mask := args[1].AsString()
+
+	matched := wildcardMatch(str, mask)
+	return BoolValue(matched), nil
+}
+
+func builtinStrIsASCII(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("StrIsASCII expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("StrIsASCII expects string as argument")
+	}
+
+	str := args[0].AsString()
+	for _, r := range str {
+		if r > unicode.MaxASCII {
+			return BoolValue(false), nil
+		}
+	}
+	return BoolValue(true), nil
+}
+
 func builtinOrd(vm *VM, args []Value) (Value, error) {
 	if len(args) != 1 {
 		return NilValue(), vm.runtimeError("Ord expects 1 argument, got %d", len(args))
@@ -1659,4 +1828,69 @@ func stripStringAccents(s string) string {
 	}
 
 	return string(result)
+}
+
+// compareLocaleStrSimple performs a simplified locale-aware string comparison.
+// For the bytecode VM, we use a simple case-insensitive comparison.
+func compareLocaleStrSimple(str1, str2 string) int {
+	s1 := strings.ToLower(str1)
+	s2 := strings.ToLower(str2)
+	if s1 < s2 {
+		return -1
+	} else if s1 > s2 {
+		return 1
+	}
+	return 0
+}
+
+// wildcardMatch performs wildcard pattern matching.
+// Supports * (zero or more characters) and ? (single character).
+func wildcardMatch(str, pattern string) bool {
+	return wildcardMatchImpl([]rune(str), []rune(pattern), 0, 0)
+}
+
+// wildcardMatchImpl is the recursive implementation of wildcard matching.
+func wildcardMatchImpl(str, pattern []rune, si, pi int) bool {
+	// Both string and pattern exhausted - match
+	if si == len(str) && pi == len(pattern) {
+		return true
+	}
+
+	// Pattern exhausted but string not - no match
+	if pi == len(pattern) {
+		return false
+	}
+
+	// Handle * wildcard
+	if pattern[pi] == '*' {
+		// Skip consecutive *
+		for pi < len(pattern) && pattern[pi] == '*' {
+			pi++
+		}
+		// * at end matches everything
+		if pi == len(pattern) {
+			return true
+		}
+		// Try matching zero or more characters
+		for si <= len(str) {
+			if wildcardMatchImpl(str, pattern, si, pi) {
+				return true
+			}
+			si++
+		}
+		return false
+	}
+
+	// String exhausted but pattern has non-* characters - no match
+	if si == len(str) {
+		return false
+	}
+
+	// Handle ? wildcard or exact character match
+	if pattern[pi] == '?' || pattern[pi] == str[si] {
+		return wildcardMatchImpl(str, pattern, si+1, pi+1)
+	}
+
+	// No match
+	return false
 }
