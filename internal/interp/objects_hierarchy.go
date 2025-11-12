@@ -392,9 +392,11 @@ func (i *Interpreter) lookupConstructorInHierarchy(classInfo *ClassInfo, name st
 // lookupClassMethodInHierarchy searches for a class method by name in the class hierarchy.
 // It walks the parent chain starting from the given class.
 // Returns the method declaration, or nil if not found.
+// Task 9.16.2: Method names are case-insensitive, so we normalize to lowercase
 func (i *Interpreter) lookupClassMethodInHierarchy(classInfo *ClassInfo, name string) *ast.FunctionDecl {
+	normalizedName := strings.ToLower(name)
 	for current := classInfo; current != nil; current = current.Parent {
-		if method, exists := current.ClassMethods[name]; exists {
+		if method, exists := current.ClassMethods[normalizedName]; exists {
 			return method
 		}
 	}

@@ -88,17 +88,18 @@ func TestClassInfoAddMethod(t *testing.T) {
 		},
 	}
 
-	classInfo.Methods["GetValue"] = method
+	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	classInfo.Methods["getvalue"] = method
 
 	if len(classInfo.Methods) != 1 {
 		t.Errorf("len(classInfo.Methods) = %d, want 1", len(classInfo.Methods))
 	}
 
-	if classInfo.Methods["GetValue"] == nil {
+	if classInfo.Methods["getvalue"] == nil {
 		t.Error("Method 'GetValue' should be registered")
 	}
 
-	if classInfo.Methods["GetValue"].Name.Value != "GetValue" {
+	if classInfo.Methods["getvalue"].Name.Value != "GetValue" {
 		t.Error("Method name should be 'GetValue'")
 	}
 }
@@ -246,7 +247,8 @@ func TestMethodLookupBasic(t *testing.T) {
 	method := &ast.FunctionDecl{
 		Name: &ast.Identifier{Value: "GetValue"},
 	}
-	classInfo.Methods["GetValue"] = method
+	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	classInfo.Methods["getvalue"] = method
 
 	// Create object
 	obj := NewObjectInstance(classInfo)
@@ -269,7 +271,8 @@ func TestMethodLookupWithInheritance(t *testing.T) {
 	parentMethod := &ast.FunctionDecl{
 		Name: &ast.Identifier{Value: "ToString"},
 	}
-	parent.Methods["ToString"] = parentMethod
+	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	parent.Methods["tostring"] = parentMethod
 
 	// Create child class
 	child := NewClassInfo("TPerson")
@@ -297,7 +300,8 @@ func TestMethodOverriding(t *testing.T) {
 		Name: &ast.Identifier{Value: "ToString"},
 		Body: &ast.BlockStatement{}, // Different body
 	}
-	parent.Methods["ToString"] = parentMethod
+	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	parent.Methods["tostring"] = parentMethod
 
 	// Create child class that overrides the method
 	child := NewClassInfo("TPerson")
@@ -311,7 +315,8 @@ func TestMethodOverriding(t *testing.T) {
 			},
 		},
 	}
-	child.Methods["ToString"] = childMethod
+	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	child.Methods["tostring"] = childMethod
 
 	// Create object of child class
 	obj := NewObjectInstance(child)

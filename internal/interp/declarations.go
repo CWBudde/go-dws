@@ -704,7 +704,7 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 	entry := &runtimeOperatorEntry{
 		Operator:      opDecl.OperatorSymbol,
 		OperandTypes:  operandTypes,
-		BindingName:   bindingName,
+		BindingName:   normalizedBindingName,
 		Class:         classInfo,
 		IsClassMethod: isClassMethod,
 		SelfIndex:     selfIndex,
@@ -715,7 +715,8 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 	}
 
 	if method.IsConstructor {
-		classInfo.Constructors[method.Name.Value] = method
+		// Task 9.19: Normalize constructor names to lowercase for case-insensitive matching
+		classInfo.Constructors[normalizedBindingName] = method
 	}
 
 	return &NilValue{}
