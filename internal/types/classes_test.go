@@ -106,11 +106,11 @@ func TestClassTypeEquals(t *testing.T) {
 
 func TestClassTypeFields(t *testing.T) {
 	parent := NewClassType("TObject", nil)
-	parent.Fields["ID"] = INTEGER
+	parent.Fields["id"] = INTEGER
 
 	child := NewClassType("TPerson", parent)
-	child.Fields["Name"] = STRING
-	child.Fields["Age"] = INTEGER
+	child.Fields["name"] = STRING
+	child.Fields["age"] = INTEGER
 
 	tests := []struct {
 		fieldType Type
@@ -1093,20 +1093,20 @@ func TestComplexClassHierarchy(t *testing.T) {
 	tObject.Methods["ToString"] = NewFunctionType([]Type{}, STRING)
 
 	tStream := NewClassType("TStream", tObject)
-	tStream.Fields["Size"] = INTEGER
+	tStream.Fields["size"] = INTEGER
 	tStream.Methods["Read"] = NewFunctionType([]Type{INTEGER}, INTEGER)
 
 	tFileStream := NewClassType("TFileStream", tStream)
-	tFileStream.Fields["FileName"] = STRING
+	tFileStream.Fields["filename"] = STRING
 
 	tMemoryStream := NewClassType("TMemoryStream", tStream)
-	tMemoryStream.Fields["Memory"] = INTEGER
+	tMemoryStream.Fields["memory"] = INTEGER
 
 	tPersistent := NewClassType("TPersistent", tObject)
 	tPersistent.Methods["Assign"] = NewProcedureType([]Type{})
 
 	tComponent := NewClassType("TComponent", tPersistent)
-	tComponent.Fields["Name"] = STRING
+	tComponent.Fields["name"] = STRING
 
 	// Test field inheritance through multiple levels
 	t.Run("field inheritance", func(t *testing.T) {
