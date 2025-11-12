@@ -659,13 +659,11 @@ var keywords = map[string]TokenType{
 	"readonly":   READONLY,
 	"export":     EXPORT,
 
-	// Calling conventions
-	"register":  REGISTER,
-	"pascal":    PASCAL,
-	"cdecl":     CDECL,
-	"safecall":  SAFECALL,
-	"stdcall":   STDCALL,
-	"reference": REFERENCE,
+	// Note: Calling convention keywords (register, pascal, cdecl, safecall, stdcall,
+	// fastcall, reference) are NOT reserved keywords in DWScript. They are contextual
+	// tokens only recognized by the parser in function/procedure declarations.
+	// Therefore, they are NOT included in this keywords map and are treated as
+	// regular identifiers by the lexer.
 
 	// Access modifiers
 	"private":   PRIVATE,
