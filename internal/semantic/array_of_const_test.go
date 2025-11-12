@@ -143,7 +143,7 @@ func TestClassOperatorWithArrayOfConst(t *testing.T) {
 		type TTest = class
 			Field: String;
 			procedure AppendStrings(const str: array of const);
-			class operator + (const items: array of const): TTest uses AppendStrings;
+			class operator += (const items: array of const) uses AppendStrings;
 		end;
 
 		procedure TTest.AppendStrings(const str: array of const);

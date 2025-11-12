@@ -86,9 +86,29 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 	// Create function type for this interface method
 	funcType := types.NewFunctionType(paramTypes, returnType)
 
-	// Add method to interface
+	// Check for duplicate method (case-insensitive)
 	// Task 9.16.2: Use lowercase for case-insensitive method lookups
-	iface.Methods[strings.ToLower(methodName)] = funcType
+	methodKey := strings.ToLower(methodName)
+
+	// Check if method already exists in this interface
+	if _, exists := iface.Methods[methodKey]; exists {
+		a.addError("interface method '%s' already declared in interface '%s' at %s",
+			methodName, iface.Name, method.Token.Pos.String())
+		return
+	}
+
+	// Check if method exists in parent interface (inherited methods cannot be redeclared)
+	if iface.Parent != nil {
+		parentMethods := types.GetAllInterfaceMethods(iface.Parent)
+		if _, exists := parentMethods[methodKey]; exists {
+			a.addError("interface method '%s' already declared in interface '%s' at %s",
+				methodName, iface.Name, method.Token.Pos.String())
+			return
+		}
+	}
+
+	// Add method to interface
+	iface.Methods[methodKey] = funcType
 }
 
 // validateInterfaceImplementation validates that a class implements all required interface methods

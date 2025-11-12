@@ -34,6 +34,43 @@ func TestInterfaceRedeclaration(t *testing.T) {
 }
 
 // ============================================================================
+// Interface Duplicate Method Tests
+// ============================================================================
+
+// TestInterfaceDuplicateMethodSameCase tests that duplicate methods with same case are rejected
+func TestInterfaceDuplicateMethodSameCase(t *testing.T) {
+	input := `
+		type IFoo = interface
+			function GetValue(): Integer;
+			function GetValue(): String;
+		end;
+	`
+	expectError(t, input, "interface method 'GetValue' already declared")
+}
+
+// TestInterfaceDuplicateMethodDifferentCase tests that duplicate methods with different case are rejected
+func TestInterfaceDuplicateMethodDifferentCase(t *testing.T) {
+	input := `
+		type IFoo = interface
+			function GetValue(): Integer;
+			function getvalue(): String;
+		end;
+	`
+	expectError(t, input, "interface method 'getvalue' already declared")
+}
+
+// TestInterfaceDuplicateMethodMixedCase tests various case combinations are all rejected
+func TestInterfaceDuplicateMethodMixedCase(t *testing.T) {
+	input := `
+		type IFoo = interface
+			function DoSomething(): Integer;
+			procedure DoSomething;
+		end;
+	`
+	expectError(t, input, "interface method 'DoSomething' already declared")
+}
+
+// ============================================================================
 // Interface Inheritance Tests
 // ============================================================================
 
@@ -59,6 +96,34 @@ func TestInterfaceUndefinedParent(t *testing.T) {
 		end;
 	`
 	expectError(t, input, "parent interface 'IUndefined' not found")
+}
+
+// TestInterfaceInheritedMethodConflict tests that methods from parent interface cannot be redeclared
+func TestInterfaceInheritedMethodConflict(t *testing.T) {
+	input := `
+		type IBase = interface
+			function GetValue(): Integer;
+		end;
+
+		type IDerived = interface(IBase)
+			function GetValue(): String;  // Conflict with parent method
+		end;
+	`
+	expectError(t, input, "interface method 'GetValue' already declared")
+}
+
+// TestInterfaceInheritedMethodConflictDifferentCase tests case-insensitive conflict detection
+func TestInterfaceInheritedMethodConflictDifferentCase(t *testing.T) {
+	input := `
+		type IBase = interface
+			function GetValue(): Integer;
+		end;
+
+		type IDerived = interface(IBase)
+			function getvalue(): String;  // Case-insensitive conflict
+		end;
+	`
+	expectError(t, input, "interface method 'getvalue' already declared")
 }
 
 // ============================================================================
