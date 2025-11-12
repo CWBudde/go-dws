@@ -131,7 +131,7 @@ func (i *Interpreter) builtinStrToJSON(args []Value) Value {
 }
 
 // jsonEncode encodes a string for safe use in JSON.
-// Escapes: \ " / and control characters
+// Escapes: \ " and control characters
 func jsonEncode(s string) string {
 	var b strings.Builder
 	b.Grow(len(s) + 10) // Extra space for escape sequences
@@ -142,8 +142,6 @@ func jsonEncode(s string) string {
 			b.WriteString("\\\\")
 		case '"':
 			b.WriteString("\\\"")
-		case '/':
-			b.WriteString("\\/")
 		case '\b':
 			b.WriteString("\\b")
 		case '\f':

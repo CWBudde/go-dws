@@ -771,7 +771,7 @@ func (i *Interpreter) builtinStrToInt(args []Value) Value {
 
 	// Empty string is an error
 	if s == "" {
-		return i.newErrorWithLocation(i.currentNode, "'%s' is not a valid integer", strVal.Value)
+		return i.newErrorWithLocation(i.currentNode, "empty string is not a valid integer")
 	}
 
 	// Use strconv.ParseInt for strict parsing (doesn't accept partial matches)
@@ -872,7 +872,7 @@ func (i *Interpreter) builtinStrToIntDef(args []Value) Value {
 
 		// Validate base range (2-36)
 		if base < 2 || base > 36 {
-			return &IntegerValue{Value: defaultVal.Value}
+			return i.newErrorWithLocation(i.currentNode, "StrToIntDef() base must be between 2 and 36, got %d", base)
 		}
 	}
 

@@ -68,6 +68,11 @@ func (i *Interpreter) builtinTryStrToInt(args []ast.Expression) Value {
 
 	// Try to parse the string
 	s := strings.TrimSpace(strVal.Value)
+	if s == "" {
+		// Empty string - return false without modifying variable
+		return &BooleanValue{Value: false}
+	}
+
 	intValue, err := strconv.ParseInt(s, base, 64)
 
 	// Get variable name
@@ -194,6 +199,11 @@ func (i *Interpreter) builtinTryStrToFloat(args []ast.Expression) Value {
 
 	// Try to parse the string as a float
 	s := strings.TrimSpace(strVal.Value)
+	if s == "" {
+		// Empty string - return false without modifying variable
+		return &BooleanValue{Value: false}
+	}
+
 	floatValue, err := strconv.ParseFloat(s, 64)
 
 	if err != nil {
