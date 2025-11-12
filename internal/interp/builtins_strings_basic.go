@@ -108,6 +108,78 @@ func (i *Interpreter) builtinLowerCase(args []Value) Value {
 	return &StringValue{Value: strings.ToLower(strVal.Value)}
 }
 
+// builtinASCIIUpperCase implements the ASCIIUpperCase() built-in function.
+// It converts a string to uppercase using ASCII-only conversion.
+// ASCIIUpperCase(str) - returns uppercase version using ASCII rules
+func (i *Interpreter) builtinASCIIUpperCase(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "ASCIIUpperCase() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ASCIIUpperCase() expects string as argument, got %s", args[0].Type())
+	}
+
+	// ASCII-only uppercase conversion
+	// Only converts ASCII letters (a-z) to uppercase (A-Z)
+	result := make([]byte, len(strVal.Value))
+	for idx, b := range []byte(strVal.Value) {
+		if b >= 'a' && b <= 'z' {
+			result[idx] = b - 32 // Convert to uppercase
+		} else {
+			result[idx] = b
+		}
+	}
+
+	return &StringValue{Value: string(result)}
+}
+
+// builtinASCIILowerCase implements the ASCIILowerCase() built-in function.
+// It converts a string to lowercase using ASCII-only conversion.
+// ASCIILowerCase(str) - returns lowercase version using ASCII rules
+func (i *Interpreter) builtinASCIILowerCase(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "ASCIILowerCase() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ASCIILowerCase() expects string as argument, got %s", args[0].Type())
+	}
+
+	// ASCII-only lowercase conversion
+	// Only converts ASCII letters (A-Z) to lowercase (a-z)
+	result := make([]byte, len(strVal.Value))
+	for idx, b := range []byte(strVal.Value) {
+		if b >= 'A' && b <= 'Z' {
+			result[idx] = b + 32 // Convert to lowercase
+		} else {
+			result[idx] = b
+		}
+	}
+
+	return &StringValue{Value: string(result)}
+}
+
+// builtinAnsiUpperCase implements the AnsiUpperCase() built-in function.
+// It is an alias for UpperCase() - converts a string to uppercase.
+// AnsiUpperCase(str) - returns uppercase version of the string
+func (i *Interpreter) builtinAnsiUpperCase(args []Value) Value {
+	// AnsiUpperCase is just an alias for UpperCase
+	return i.builtinUpperCase(args)
+}
+
+// builtinAnsiLowerCase implements the AnsiLowerCase() built-in function.
+// It is an alias for LowerCase() - converts a string to lowercase.
+// AnsiLowerCase(str) - returns lowercase version of the string
+func (i *Interpreter) builtinAnsiLowerCase(args []Value) Value {
+	// AnsiLowerCase is just an alias for LowerCase
+	return i.builtinLowerCase(args)
+}
+
 // builtinTrim implements the Trim() built-in function.
 // It removes leading and trailing whitespace from a string.
 // Trim(str) - returns string with whitespace removed from both ends
@@ -997,6 +1069,112 @@ func (i *Interpreter) builtinStrFind(args []Value) Value {
 	}
 
 	return i.builtinPosEx(reorderedArgs)
+}
+
+// builtinByteSizeToStr implements the ByteSizeToStr() built-in function.
+// It formats a byte size into a human-readable string (KB, MB, GB, TB).
+// ByteSizeToStr(size: Integer): String
+func (i *Interpreter) builtinByteSizeToStr(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "ByteSizeToStr() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// First argument: byte size (integer)
+	sizeVal, ok := args[0].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "ByteSizeToStr() expects integer as argument, got %s", args[0].Type())
+	}
+
+	size := float64(sizeVal.Value)
+
+	// Define size units
+	const (
+		KB = 1024
+		MB = 1024 * KB
+		GB = 1024 * MB
+		TB = 1024 * GB
+	)
+
+	// Format based on size
+	var result string
+	absSize := size
+	if absSize < 0 {
+		absSize = -absSize
+	}
+
+	if absSize < KB {
+		result = fmt.Sprintf("%d bytes", int64(size))
+	} else if absSize < MB {
+		result = fmt.Sprintf("%.2f KB", size/KB)
+	} else if absSize < GB {
+		result = fmt.Sprintf("%.2f MB", size/MB)
+	} else if absSize < TB {
+		result = fmt.Sprintf("%.2f GB", size/GB)
+	} else {
+		result = fmt.Sprintf("%.2f TB", size/TB)
+	}
+
+	return &StringValue{Value: result}
+}
+
+// builtinGetText implements the GetText() built-in function.
+// It is a localization/translation function that returns the input string unchanged.
+// In a full implementation, this would look up translations.
+// GetText(str: String): String
+func (i *Interpreter) builtinGetText(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "GetText() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// First argument: string to translate
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "GetText() expects string as argument, got %s", args[0].Type())
+	}
+
+	// For now, just return the input string unchanged
+	// In a full implementation, this would look up translations from a resource file
+	return &StringValue{Value: strVal.Value}
+}
+
+// builtin_ implements the _() built-in function.
+// It is an alias for GetText() - a localization/translation function.
+// _(str: String): String
+func (i *Interpreter) builtin_(args []Value) Value {
+	// _() is just an alias for GetText()
+	return i.builtinGetText(args)
+}
+
+// builtinCharAt implements the CharAt() built-in function.
+// It returns the character at the specified position in a string (1-based).
+// This function is deprecated in favor of SubStr().
+// CharAt(s: String, x: Integer): String
+func (i *Interpreter) builtinCharAt(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "CharAt() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "CharAt() expects string as first argument, got %s", args[0].Type())
+	}
+
+	// Second argument: position (1-based)
+	posVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "CharAt() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	// Use SubStr to get a single character
+	// SubStr expects (str, start, length)
+	subStrArgs := []Value{
+		strVal,
+		posVal,
+		&IntegerValue{Value: 1}, // length = 1
+	}
+
+	return i.builtinSubStr(subStrArgs)
 }
 
 // builtinStrSplit implements the StrSplit() built-in function.

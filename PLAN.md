@@ -173,35 +173,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **High Complexity (48 tests remaining)** - Priority: MEDIUM
 
-- [x] 9.16.4 Inherited Expression Support (partial - interpreter fixes)
-  - **Estimate**: 6-8 hours
-  - **Description**: Implement 'inherited' keyword for calling parent class methods
-  - **Strategy**: Add InheritedExpression AST node, parser support, and semantic validation
-  - **Complexity**: Requires changes across parser, AST, and semantic analyzer
-  - **Status**: COMPLETED for interpreter. Semantic analyzer issues remain (separate task).
-  - **Completed Changes**:
-    - [x] 9.16.4.1 Fix implicit TObject parent in interpreter (declarations.go)
-      - Classes without explicit parent now inherit from TObject automatically
-      - Matches semantic analyzer pattern
-    - [x] 9.16.4.2 Fix inherited property and field access in interpreter
-      - evalInheritedExpression now supports methods, properties, and fields
-      - Tested with inherited1.pas (inherited Prop) - PASSING
-    - [x] 9.16.4.3 Fix TObject Create constructor
-      - TObject.Constructors["Create"] now has proper AST node instead of nil
-      - Enables inherited constructors to work correctly
-  - **Files Modified**:
-    - internal/interp/declarations.go (implicit TObject parent)
-    - internal/interp/exceptions.go (TObject Create constructor)
-    - internal/interp/objects.go (evalInheritedExpression property/field support)
-  - **Remaining Issues (out of scope for this task)**:
-    - Semantic analyzer: parent class resolution with case-insensitive names
-    - Semantic analyzer: inherited constructor validation
-    - These should be addressed in separate semantic analyzer tasks
-  - **Follow-up Tasks**:
-    - [ ] 9.16.4.4 Allow inherited constructor calls in semantic analyzer
-      - Resolve parent constructors when `inherited Create` (or other constructors) is used
-      - Fixes `TestInheritedExpression_ComplexCases/inherited_in_constructor`
-
+- [x] 9.16.4 Inherited Expression Support
 - [x] 9.16.5 Type Operators (is/as/implements) - COMPLETED
   - **Estimate**: 8-10 hours
   - **Description**: Implement type checking and casting operators
@@ -235,26 +207,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - internal/semantic/type_operators_test.go (updated error message expectation)
     - internal/interp/expressions.go (evalAsExpression now handles classes)
 
-- [x] 9.16.6 Operator Overloading - COMPLETED
-  - **Estimate**: 4-6 hours
-  - **Description**: Support custom operator implementations in classes
-  - **Strategy**: Add operator method registration and lookup in binary/unary expression analysis
-  - **Complexity**: Requires operator resolution mechanism and precedence handling
-  - **Status**: COMPLETED. Parser, semantic analyzer, and most interpreter support was already present.
-  - **Fix Applied**: Fixed array type matching in operator overloading
-  - **Test Results**: 5/6 tests passing (83% pass rate)
-    - ✅ class_operator1: PASS (class operator += with String)
-    - ✅ class_operator2: PASS (class operator += with multiple types)
-    - ❌ class_operator3: FAIL (requires array of const/variant support - different issue)
-    - ✅ in_class_operator: PASS (IN operator with array of Integer) - **FIXED**
-    - ✅ in_integer_operator1: PASS (IN operator with integers)
-    - ✅ in_integer_operator2: PASS (IN operator variations)
-  - **Key Change**:
-    - Updated `valueTypeKey` function in internal/interp/operators.go
-    - Now includes array element type when matching operator overloads
-    - Format: "ARRAY OF INTEGER" instead of just "ARRAY"
-    - Allows proper matching of operators declared with `array of T` types
-
 - [ ] 9.16.7 Helper Methods (2 tests)
   - **Estimate**: 3-4 hours
   - **Description**: Support DWScript helper methods (extension methods)
@@ -280,55 +232,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Description**: Various complex semantic validation issues
   - **Strategy**: Analyze each test individually and implement targeted fixes
   - **Examples**: Generic types, delegates, advanced inheritance scenarios, complex type checking
-
-- [x] 9.16.10 Fix Function Argument Double Evaluation Bug ✓
-  - **Estimate**: 2-4 hours (Actual: ~3 hours)
-  - **Priority**: High (affects fixture test accuracy)
-  - **Description**: Functions called as arguments to built-in functions (like PrintLn) are evaluated twice
-  - **Impact**: Causes side effects to happen twice, making tests fail with extra output
-  - **Examples**: `PrintLn(0 ?? Test(258))` calls `Test` twice instead of once
-  - **Root Cause**: TWO issues found:
-    1. `resolveOverload()` evaluated arguments for type checking, then `evalCallExpression()` re-evaluated them
-    2. `evalTypeCast()` evaluated arguments before checking if it's a valid type cast
-  - **Discovery Context**: Found while implementing coalesce operator (Task 9.14)
-  - **Solution Implemented**:
-    1. Modified `resolveOverload()` to cache and return evaluated argument values
-    2. Updated user-defined function call path to use cached values instead of re-evaluating
-    3. Fixed `evalTypeCast()` to check if it's a type cast BEFORE evaluating the argument
-    4. Special handling for lazy parameters to avoid evaluation during overload resolution
-  - **Files Modified**:
-    - `internal/interp/functions_typecast.go` - `resolveOverload()` now returns cached values
-    - `internal/interp/functions_calls.go` - Uses cached values from overload resolution
-    - `internal/interp/interpreter_test.go` - Added `TestFunctionArgumentSingleEvaluation` (5 test cases)
-  - **Test Results**: All new tests pass, no regressions introduced
-
-#### Implementation Guidelines
-
-**Testing Approach**:
-1. Run specific failing test to understand exact error
-2. Add debug logging to trace analyzer behavior
-3. Implement minimal fix targeting root cause
-4. Verify test passes without breaking existing tests
-5. Run full semantic test suite before marking complete
-
-**Code Patterns**:
-- Use `strings.ToLower()` for all case-insensitive identifier lookups
-- Store all symbols (fields, methods, properties) with lowercase keys
-- Add comprehensive error messages with position information
-- Follow existing analyzer patterns in analyze_*.go files
-
-**Key Files**:
-- `internal/semantic/analyzer.go` - Main analyzer and symbol table
-- `internal/semantic/analyze_classes.go` - Class analysis including methods and fields
-- `internal/semantic/analyze_interfaces.go` - Interface validation
-- `internal/semantic/analyze_properties.go` - Property analysis
-- `internal/types/types.go` - Type system definitions
-
-**Next Steps**:
-1. Start with Task 9.16.1 (Method Visibility Enforcement) - shortest path to 6 more passing tests
-2. Then tackle Task 9.16.2 (Interface Implementation) - high impact with 9 tests
-3. Complete remaining medium complexity tasks before moving to high complexity
-4. Document patterns discovered during fixes for future reference
 
 ---
 
@@ -433,16 +336,16 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Case Conversion Variants (Phase 9.17.7)
 
-- [ ] 9.17.7.1 ASCIILowerCase(str) - ASCII-only lowercase
-- [ ] 9.17.7.2 ASCIIUpperCase(str) - ASCII-only uppercase
-- [ ] 9.17.7.3 AnsiLowerCase(str) - ANSI lowercase (alias for LowerCase)
-- [ ] 9.17.7.4 AnsiUpperCase(str) - ANSI uppercase (alias for UpperCase)
+- [x] 9.17.7.1 ASCIILowerCase(str) - ASCII-only lowercase
+- [x] 9.17.7.2 ASCIIUpperCase(str) - ASCII-only uppercase
+- [x] 9.17.7.3 AnsiLowerCase(str) - ANSI lowercase (alias for LowerCase)
+- [x] 9.17.7.4 AnsiUpperCase(str) - ANSI uppercase (alias for UpperCase)
 
 #### Utility Functions (Phase 9.17.8)
 
-- [ ] 9.17.8.1 ByteSizeToStr(size) - Format byte size (KB, MB, GB)
-- [ ] 9.17.8.2 GetText(str) / _(str) - Localization/translation function
-- [ ] 9.17.8.3 CharAt(s, x) - Get character at position (deprecated, use SubStr)
+- [x] 9.17.8.1 ByteSizeToStr(size) - Format byte size (KB, MB, GB)
+- [x] 9.17.8.2 GetText(str) / _(str) - Localization/translation function
+- [x] 9.17.8.3 CharAt(s, x) - Get character at position (deprecated, use SubStr)
 
 ---
 
@@ -492,29 +395,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-#### Variant Functions (Phase 9.17.11)
-
-**Current Status**: 10/10 implemented (100%) - ✅ **COMPLETE**
-
-**ALL HIGH PRIORITY** - Required for dynamic typing and Variant support:
-
-- [x] 9.17.11.1 VarType(v: Variant): Integer
-- [x] 9.17.11.2 VarIsNull(v: Variant): Boolean
-- [x] 9.17.11.3 VarIsEmpty(v: Variant): Boolean
-- [x] 9.17.11.4 VarIsClear(v: Variant): Boolean
-- [x] 9.17.11.5 VarIsArray(v: Variant): Boolean
-- [x] 9.17.11.6 VarIsStr(v: Variant): Boolean
-- [x] 9.17.11.7 VarIsNumeric(v: Variant): Boolean
-- [x] 9.17.11.8 VarToStr(v: Variant): String
-- [x] 9.17.11.9 VarAsType(v: Variant, varType: Integer): Variant
-- [x] 9.17.11.10 VarClear(var v: Variant)
-
-**Implementation Time**: 2-3 days
-**Impact**: Unblocks 30+ variant test fixtures, enables full Variant support
-
----
-
-#### Array of Const Support (Phase 9.17.11b)
+#### Array of Const Support (Phase 9.17.11)
 
 **Current Status**: Not implemented - **COMPLETE GAP**
 
@@ -531,28 +412,28 @@ each element is wrapped in a variant-like container that preserves type informat
 
 **Implementation Tasks**:
 
-- [x] 9.17.11b.1 Add array of const type support
+- [x] 9.17.11.1 Add array of const type support
   - ✅ Lexer/Parser: Already supports syntax (array of const)
   - ✅ Semantic analyzer: Type checking for array of const parameters
   - ✅ Type system: Uses array of Variant (ARRAY_OF_CONST constant)
   - ✅ Operator registry: Extended to support array type compatibility
 
-- [ ] 9.17.11b.2 Implement array of const conversion at call sites
+- [ ] 9.17.11.2 Implement array of const conversion at call sites
   - ✅ Array literals with mixed types work with array of const parameters
   - ✅ Empty array literals handled in compound assignments
   - ✅ Array of T -> array of Variant compatibility in operators
   - ⚠️ Interpreter runtime for class operator overloads with array of const parameters is not yet implemented; semantic analysis and type system are complete. Task will be marked complete once interpreter support is added.
 
-- [x] 9.17.11b.3 Add TVarRec support (optional)
+- [x] 9.17.11.3 Add TVarRec support (optional)
   - Not needed: Using Variant type directly for array elements
   - Runtime conversion handled by interpreter's Variant implementation
 
-- [x] 9.17.11b.4 Test array of const in various contexts
+- [x] 9.17.11.4 Test array of const in various contexts
   - ✅ Function parameters (comprehensive tests added)
   - ✅ Class operator overloads (semantic analysis complete)
   - ✅ Variant to typed variable conversion (String concatenation works)
   - ✅ Empty, homogeneous, and heterogeneous array literals
-- [ ] 9.17.11b.5 Support procedure bindings for class operators that return Self
+- [ ] 9.17.11.5 Support procedure bindings for class operators that return Self
   - Allow `class operator +(const items: array of const): TClass uses AppendStrings;` patterns
   - Analyzer or runtime should treat procedure bindings that mutate and return `Self` as valid
   - Fixes `TestClassOperatorWithArrayOfConst` / `TestClassOperatorCompoundAssignmentWithEmptyArray`

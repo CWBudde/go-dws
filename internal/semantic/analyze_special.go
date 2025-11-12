@@ -42,6 +42,44 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 		memberName = a.currentFunction.Name.Value
 	}
 
+	// Task 9.16.4.4: Check if we're calling a constructor from within a constructor
+	// If we're in a constructor and the member is a constructor in the parent, handle it specially
+	if a.currentFunction != nil && a.currentFunction.IsConstructor {
+		ctorType, ctorFound := parentClass.GetConstructor(memberName)
+		if ctorFound {
+			// This is an inherited constructor call
+			if ie.IsCall || len(ie.Arguments) >= 0 {
+				// Check argument count
+				expectedParams := len(ctorType.Parameters)
+				actualArgs := len(ie.Arguments)
+				if actualArgs != expectedParams {
+					a.addError("wrong number of arguments for inherited constructor '%s': expected %d, got %d at %s",
+						memberName, expectedParams, actualArgs, ie.Token.Pos.String())
+					return nil
+				}
+
+				// Type check each argument
+				for idx, arg := range ie.Arguments {
+					argType := a.analyzeExpression(arg)
+					if argType == nil {
+						// Error already reported
+						continue
+					}
+
+					paramType := ctorType.Parameters[idx]
+					// Check type compatibility
+					if !a.canAssign(argType, paramType) {
+						a.addError("argument %d to inherited constructor '%s' has type %s, expected %s at %s",
+							idx+1, memberName, argType.String(), paramType.String(), ie.Token.Pos.String())
+					}
+				}
+
+				// Constructors don't have explicit return types in expressions
+				return types.VOID
+			}
+		}
+	}
+
 	// Try to find as a method first
 	methodType, methodFound := parentClass.GetMethod(memberName)
 	if methodFound {

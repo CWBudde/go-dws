@@ -1288,3 +1288,56 @@ func (a *Analyzer) analyzeStrIsASCII(args []ast.Expression, callExpr *ast.CallEx
 	}
 	return types.BOOLEAN
 }
+
+// analyzeCharAt analyzes the CharAt built-in function.
+// CharAt takes 2 arguments: CharAt(str, position)
+func (a *Analyzer) analyzeCharAt(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'CharAt' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'CharAt' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	posType := a.analyzeExpression(args[1])
+	if posType != nil && posType != types.INTEGER {
+		a.addError("function 'CharAt' expects integer as second argument, got %s at %s",
+			posType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeByteSizeToStr analyzes the ByteSizeToStr built-in function.
+// ByteSizeToStr takes 1 argument: ByteSizeToStr(size)
+func (a *Analyzer) analyzeByteSizeToStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'ByteSizeToStr' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	sizeType := a.analyzeExpression(args[0])
+	if sizeType != nil && sizeType != types.INTEGER {
+		a.addError("function 'ByteSizeToStr' expects integer as argument, got %s at %s",
+			sizeType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}
+
+// analyzeGetText analyzes the GetText/_() built-in function.
+// GetText takes 1 argument: GetText(str)
+func (a *Analyzer) analyzeGetText(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'GetText' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.STRING
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'GetText' expects string as argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	return types.STRING
+}

@@ -602,6 +602,24 @@ func (ct *ClassType) HasConstructor(name string) bool {
 	return false
 }
 
+// GetConstructor retrieves the signature of a constructor by name, searching up the inheritance chain.
+// Returns (functionType, true) if found, or (nil, false) if not found.
+// Task 9.16.4.4: Support inherited constructor calls in semantic analyzer
+func (ct *ClassType) GetConstructor(name string) (*FunctionType, bool) {
+	if ct == nil {
+		return nil, false
+	}
+	// Constructors are stored with lowercase keys for case-insensitive lookup
+	lowerName := strings.ToLower(name)
+	if ctorType, ok := ct.Constructors[lowerName]; ok {
+		return ctorType, true
+	}
+	if ct.Parent != nil {
+		return ct.Parent.GetConstructor(name)
+	}
+	return nil, false
+}
+
 // HasProperty checks if the class or any of its ancestors has a property with the given name.
 func (ct *ClassType) HasProperty(name string) bool {
 	if ct == nil {

@@ -65,6 +65,12 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeVarToFloatDef(args, callExpr), true
 	case "chr":
 		return a.analyzeChr(args, callExpr), true
+	case "charat":
+		return a.analyzeCharAt(args, callExpr), true
+	case "bytesizetostr":
+		return a.analyzeByteSizeToStr(args, callExpr), true
+	case "gettext", "_":
+		return a.analyzeGetText(args, callExpr), true
 
 	// Array Functions
 	case "low":
@@ -89,9 +95,9 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeConcat(args, callExpr), true
 	case "pos":
 		return a.analyzePos(args, callExpr), true
-	case "uppercase":
+	case "uppercase", "asciiuppercase", "ansiuppercase":
 		return a.analyzeUpperCase(args, callExpr), true
-	case "lowercase":
+	case "lowercase", "asciilowercase", "ansilowercase":
 		return a.analyzeLowerCase(args, callExpr), true
 	case "trim":
 		return a.analyzeTrim(args, callExpr), true

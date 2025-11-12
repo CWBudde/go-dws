@@ -353,7 +353,10 @@ func normalizeBuiltinName(name string) string {
 		"println": "PrintLn", "print": "Print", "ord": "Ord", "integer": "Integer",
 		"length": "Length", "copy": "Copy", "concat": "Concat", "indexof": "IndexOf",
 		"contains": "Contains", "reverse": "Reverse", "sort": "Sort", "pos": "Pos",
-		"uppercase": "UpperCase", "lowercase": "LowerCase", "trim": "Trim",
+		"uppercase": "UpperCase", "lowercase": "LowerCase",
+		"asciiuppercase": "ASCIIUpperCase", "asciilowercase": "ASCIILowerCase",
+		"ansiuppercase": "AnsiUpperCase", "ansilowercase": "AnsiLowerCase",
+		"trim":     "Trim",
 		"trimleft": "TrimLeft", "trimright": "TrimRight", "stringreplace": "StringReplace",
 		"stringofchar": "StringOfChar", "substr": "SubStr", "substring": "SubString",
 		"leftstr": "LeftStr", "rightstr": "RightStr", "midstr": "MidStr",
@@ -380,6 +383,8 @@ func normalizeBuiltinName(name string) string {
 		"strtoint": "StrToInt", "floattostr": "FloatToStr", "booltostr": "BoolToStr",
 		"strtofloat": "StrToFloat", "strtobool": "StrToBool",
 		"strtointdef": "StrToIntDef", "strtofloatdef": "StrToFloatDef",
+		"chr": "Chr", "charat": "CharAt", "bytesizetostr": "ByteSizeToStr",
+		"gettext": "GetText", "_": "_",
 		"inc": "Inc", "dec": "Dec", "succ": "Succ",
 		"pred": "Pred", "assert": "Assert", "insert": "Insert",
 		"map": "Map", "filter": "Filter", "reduce": "Reduce", "foreach": "ForEach",
@@ -418,6 +423,8 @@ func normalizeBuiltinName(name string) string {
 		"ansicomparetext": "AnsiCompareText", "ansicomparestr": "AnsiCompareStr",
 		"comparelocalestr": "CompareLocaleStr", "strmatches": "StrMatches",
 		"strisascii": "StrIsASCII",
+		"strtohtml":  "StrToHtml", "strtohtmlattribute": "StrToHtmlAttribute",
+		"strtojson": "StrToJSON", "strtocsstext": "StrToCSSText", "strtoxml": "StrToXML",
 	}
 
 	// Return canonical name if found, otherwise return original name
