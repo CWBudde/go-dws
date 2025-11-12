@@ -416,6 +416,12 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinVarIsNull(args)
 	case "VarIsEmpty":
 		return i.builtinVarIsEmpty(args)
+	case "VarIsClear":
+		return i.builtinVarIsClear(args)
+	case "VarIsArray":
+		return i.builtinVarIsArray(args)
+	case "VarIsStr":
+		return i.builtinVarIsStr(args)
 	case "VarIsNumeric":
 		return i.builtinVarIsNumeric(args)
 	// Variant conversion functions

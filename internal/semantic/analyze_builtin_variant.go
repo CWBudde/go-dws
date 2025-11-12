@@ -45,6 +45,42 @@ func (a *Analyzer) analyzeVarIsEmpty(args []ast.Expression, callExpr *ast.CallEx
 	return types.BOOLEAN
 }
 
+// analyzeVarIsClear analyzes the VarIsClear built-in function.
+// VarIsClear takes one Variant argument and returns a boolean.
+func (a *Analyzer) analyzeVarIsClear(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'VarIsClear' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+	a.ensureVariantArgument(args[0], "VarIsClear", callExpr, false)
+	return types.BOOLEAN
+}
+
+// analyzeVarIsArray analyzes the VarIsArray built-in function.
+// VarIsArray takes one Variant argument and returns a boolean.
+func (a *Analyzer) analyzeVarIsArray(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'VarIsArray' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+	a.ensureVariantArgument(args[0], "VarIsArray", callExpr, false)
+	return types.BOOLEAN
+}
+
+// analyzeVarIsStr analyzes the VarIsStr built-in function.
+// VarIsStr takes one Variant argument and returns a boolean.
+func (a *Analyzer) analyzeVarIsStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'VarIsStr' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+	a.ensureVariantArgument(args[0], "VarIsStr", callExpr, false)
+	return types.BOOLEAN
+}
+
 // analyzeVarIsNumeric analyzes the VarIsNumeric built-in function.
 // VarIsNumeric takes one Variant argument and returns a boolean.
 func (a *Analyzer) analyzeVarIsNumeric(args []ast.Expression, callExpr *ast.CallExpression) types.Type {

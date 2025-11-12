@@ -371,3 +371,116 @@ func TestBuiltinVariant_AsParameters(t *testing.T) {
 	`
 	expectNoErrors(t, input)
 }
+
+// VarIsClear function tests
+func TestBuiltinVarIsClear_Clear(t *testing.T) {
+	input := `
+		var v: Variant;
+		var isClear := VarIsClear(v);
+	`
+	expectNoErrors(t, input)
+}
+
+func TestBuiltinVarIsClear_NotClear(t *testing.T) {
+	input := `
+		var v: Variant := 42;
+		var isClear := VarIsClear(v);
+	`
+	expectNoErrors(t, input)
+}
+
+func TestBuiltinVarIsClear_InvalidType(t *testing.T) {
+	input := `
+		var isClear := VarIsClear(123);
+	`
+	expectError(t, input, "variant")
+}
+
+// VarIsArray function tests
+func TestBuiltinVarIsArray_Array(t *testing.T) {
+	input := `
+		var arr := [1, 2, 3];
+		var v: Variant := arr;
+		var isArray := VarIsArray(v);
+	`
+	expectNoErrors(t, input)
+}
+
+func TestBuiltinVarIsArray_NotArray(t *testing.T) {
+	input := `
+		var v: Variant := 'hello';
+		var isArray := VarIsArray(v);
+	`
+	expectNoErrors(t, input)
+}
+
+func TestBuiltinVarIsArray_Integer(t *testing.T) {
+	input := `
+		var v: Variant := 42;
+		var isArray := VarIsArray(v);
+	`
+	expectNoErrors(t, input)
+}
+
+func TestBuiltinVarIsArray_InvalidType(t *testing.T) {
+	input := `
+		var isArray := VarIsArray('test');
+	`
+	expectError(t, input, "variant")
+}
+
+// VarIsStr function tests
+func TestBuiltinVarIsStr_String(t *testing.T) {
+	input := `
+		var v: Variant := 'hello';
+		var isStr := VarIsStr(v);
+	`
+	expectNoErrors(t, input)
+}
+
+func TestBuiltinVarIsStr_NotString(t *testing.T) {
+	input := `
+		var v: Variant := 42;
+		var isStr := VarIsStr(v);
+	`
+	expectNoErrors(t, input)
+}
+
+func TestBuiltinVarIsStr_Array(t *testing.T) {
+	input := `
+		var arr := [1, 2, 3];
+		var v: Variant := arr;
+		var isStr := VarIsStr(v);
+	`
+	expectNoErrors(t, input)
+}
+
+func TestBuiltinVarIsStr_InvalidType(t *testing.T) {
+	input := `
+		var isStr := VarIsStr(42);
+	`
+	expectError(t, input, "variant")
+}
+
+// Combined tests for all three new functions
+func TestBuiltinVariant_AllTypeChecks(t *testing.T) {
+	input := `
+		var vInt: Variant := 42;
+		var vStr: Variant := 'hello';
+		var arr := [1, 2, 3];
+		var vArr: Variant := arr;
+		var vEmpty: Variant;
+
+		var isIntStr := VarIsStr(vInt);
+		var isStrStr := VarIsStr(vStr);
+		var isArrStr := VarIsStr(vArr);
+
+		var isIntArr := VarIsArray(vInt);
+		var isStrArr := VarIsArray(vStr);
+		var isArrArr := VarIsArray(vArr);
+
+		var isIntClear := VarIsClear(vInt);
+		var isEmptyClear := VarIsClear(vEmpty);
+	`
+	expectNoErrors(t, input)
+}
