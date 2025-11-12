@@ -437,6 +437,36 @@ func TestMethodOverridingParameterMismatch(t *testing.T) {
 	expectError(t, input, "method 'SetValue' signature mismatch")
 }
 
+func TestMethodOverrideWithOverloadDirectiveRequiresMatch(t *testing.T) {
+	// PR #59 regression test: Methods with both 'overload' and 'override'
+	// must still match a parent signature. The fix checks IsOverride BEFORE
+	// HasOverloadDirective to ensure override validation is not skipped.
+	input := `
+		type TBase = class
+			procedure Test(i: Integer); overload; virtual;
+			begin
+				PrintLn(i);
+			end;
+
+			procedure Test(s: String); overload; virtual;
+			begin
+				PrintLn(s);
+			end;
+		end;
+
+		type TChild = class(TBase)
+			// This is INVALID - tries to override with a Float parameter
+			// but no parent method has Float parameter
+			procedure Test(f: Float); overload; override;
+			begin
+				PrintLn(f);
+			end;
+		end;
+	`
+	// Should error because Test(Float) doesn't match any parent signature
+	expectError(t, input, "no matching signature")
+}
+
 func TestNewMethodInDerivedClass(t *testing.T) {
 	// Adding a new method (not in parent) should be OK
 	input := `
