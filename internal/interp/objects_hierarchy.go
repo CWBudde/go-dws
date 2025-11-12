@@ -153,7 +153,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Task 9.37: Check if it's a record method
 		if recordVal.Methods != nil {
-			if methodDecl, methodExists := recordVal.Methods[ma.Member.Value]; methodExists {
+			// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
+			if methodDecl, methodExists := recordVal.Methods[strings.ToLower(ma.Member.Value)]; methodExists {
 				// Only auto-invoke parameterless methods when accessed without parentheses
 				if len(methodDecl.Parameters) == 0 {
 					// Convert to a method call expression and evaluate it
@@ -314,7 +315,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Check if it's a method
-		if method, exists := obj.Class.Methods[memberName]; exists {
+		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
+		if method, exists := obj.Class.Methods[strings.ToLower(memberName)]; exists {
 			// If the method has no parameters, auto-invoke it
 			// This allows DWScript syntax: obj.Method instead of obj.Method()
 			if len(method.Parameters) == 0 {

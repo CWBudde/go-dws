@@ -22,24 +22,28 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 		// Update the method in the class (replacing the declaration with the implementation)
 		// Support method overloading by storing multiple methods per name
 		// We need to replace the declaration with the implementation in the overload list
+		// Task 9.16.2: Normalize method names to lowercase for case-insensitive lookup
+		normalizedMethodName := strings.ToLower(fn.Name.Value)
+
 		if fn.IsClassMethod {
-			classInfo.ClassMethods[fn.Name.Value] = fn
+			classInfo.ClassMethods[normalizedMethodName] = fn
 			// Replace declaration with implementation in overload list
-			overloads := classInfo.ClassMethodOverloads[fn.Name.Value]
-			classInfo.ClassMethodOverloads[fn.Name.Value] = i.replaceMethodInOverloadList(overloads, fn)
+			overloads := classInfo.ClassMethodOverloads[normalizedMethodName]
+			classInfo.ClassMethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
 		} else {
-			classInfo.Methods[fn.Name.Value] = fn
+			classInfo.Methods[normalizedMethodName] = fn
 			// Replace declaration with implementation in overload list
-			overloads := classInfo.MethodOverloads[fn.Name.Value]
-			classInfo.MethodOverloads[fn.Name.Value] = i.replaceMethodInOverloadList(overloads, fn)
+			overloads := classInfo.MethodOverloads[normalizedMethodName]
+			classInfo.MethodOverloads[normalizedMethodName] = i.replaceMethodInOverloadList(overloads, fn)
 		}
 
 		// Also store constructors
 		if fn.IsConstructor {
-			classInfo.Constructors[fn.Name.Value] = fn
+			normalizedCtorName := strings.ToLower(fn.Name.Value)
+			classInfo.Constructors[normalizedCtorName] = fn
 			// Replace declaration with implementation in constructor overload list
-			overloads := classInfo.ConstructorOverloads[fn.Name.Value]
-			classInfo.ConstructorOverloads[fn.Name.Value] = i.replaceMethodInOverloadList(overloads, fn)
+			overloads := classInfo.ConstructorOverloads[normalizedCtorName]
+			classInfo.ConstructorOverloads[normalizedCtorName] = i.replaceMethodInOverloadList(overloads, fn)
 			// Always update Constructor to use the implementation (which has the body)
 			// This replaces the declaration that was set during class parsing
 			classInfo.Constructor = fn
@@ -310,18 +314,23 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 	// Add own methods to ClassInfo (these override parent methods if same name)
 	// Support method overloading by storing multiple methods per name
+	// Task 9.16.2: Normalize method names to lowercase for case-insensitive lookup
 	for _, method := range cd.Methods {
+		// Normalize method name to lowercase for case-insensitive lookup
+		// This matches the semantic analyzer behavior (types.go AddMethodOverload)
+		normalizedMethodName := strings.ToLower(method.Name.Value)
+
 		// Check if this is a class method (static method) or instance method
 		if method.IsClassMethod {
 			// Store in ClassMethods map
-			classInfo.ClassMethods[method.Name.Value] = method
+			classInfo.ClassMethods[normalizedMethodName] = method
 			// Add to overload list
-			classInfo.ClassMethodOverloads[method.Name.Value] = append(classInfo.ClassMethodOverloads[method.Name.Value], method)
+			classInfo.ClassMethodOverloads[normalizedMethodName] = append(classInfo.ClassMethodOverloads[normalizedMethodName], method)
 		} else {
 			// Store in instance Methods map
-			classInfo.Methods[method.Name.Value] = method
+			classInfo.Methods[normalizedMethodName] = method
 			// Add to overload list
-			classInfo.MethodOverloads[method.Name.Value] = append(classInfo.MethodOverloads[method.Name.Value], method)
+			classInfo.MethodOverloads[normalizedMethodName] = append(classInfo.MethodOverloads[normalizedMethodName], method)
 		}
 
 		if method.IsConstructor {
@@ -351,7 +360,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 
 	// Identify constructor (method named "Create")
-	if constructor, exists := classInfo.Methods["Create"]; exists {
+	// Task 9.16.2: Use lowercase for case-insensitive lookup
+	if constructor, exists := classInfo.Methods["create"]; exists {
 		classInfo.Constructor = constructor
 	}
 	if cd.Constructor != nil {
@@ -381,7 +391,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 
 	// Identify destructor (method named "Destroy")
-	if destructor, exists := classInfo.Methods["Destroy"]; exists {
+	// Task 9.16.2: Use lowercase for case-insensitive lookup
+	if destructor, exists := classInfo.Methods["destroy"]; exists {
 		classInfo.Destructor = destructor
 	}
 
@@ -648,10 +659,12 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 	}
 
 	bindingName := opDecl.Binding.Value
-	method, isClassMethod := classInfo.ClassMethods[bindingName]
+	// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
+	normalizedBindingName := strings.ToLower(bindingName)
+	method, isClassMethod := classInfo.ClassMethods[normalizedBindingName]
 	if !isClassMethod {
 		var ok bool
-		method, ok = classInfo.Methods[bindingName]
+		method, ok = classInfo.Methods[normalizedBindingName]
 		if !ok {
 			return i.newErrorWithLocation(opDecl, "binding '%s' for class operator '%s' not found in class '%s'", bindingName, opDecl.OperatorSymbol, classInfo.Name)
 		}
