@@ -1,0 +1,56 @@
+// Test script for string comparison functions
+
+// Test SameText - case-insensitive equality
+PrintLn('Testing SameText:');
+PrintLn(SameText('hello', 'HELLO'));  // true
+PrintLn(SameText('hello', 'world'));  // false
+PrintLn(SameText('Test', 'test'));    // true
+PrintLn(SameText('abc', 'def'));      // false
+
+// Test CompareText - case-insensitive comparison
+PrintLn('Testing CompareText:');
+PrintLn(CompareText('apple', 'BANANA'));  // -1 (apple < banana)
+PrintLn(CompareText('BANANA', 'apple'));  // 1 (banana > apple)
+PrintLn(CompareText('hello', 'HELLO'));   // 0 (equal)
+PrintLn(CompareText('zebra', 'APPLE'));   // 1 (zebra > apple)
+
+// Test CompareStr - case-sensitive comparison
+PrintLn('Testing CompareStr:');
+PrintLn(CompareStr('apple', 'banana'));  // -1 (apple < banana)
+PrintLn(CompareStr('banana', 'apple'));  // 1 (banana > apple)
+PrintLn(CompareStr('hello', 'hello'));   // 0 (equal)
+PrintLn(CompareStr('Hello', 'hello'));   // -1 (H < h in ASCII)
+
+// Test AnsiCompareText - ANSI case-insensitive
+PrintLn('Testing AnsiCompareText:');
+PrintLn(AnsiCompareText('apple', 'BANANA'));  // -1
+PrintLn(AnsiCompareText('ZEBRA', 'apple'));   // 1
+PrintLn(AnsiCompareText('test', 'TEST'));     // 0
+
+// Test AnsiCompareStr - ANSI case-sensitive
+PrintLn('Testing AnsiCompareStr:');
+PrintLn(AnsiCompareStr('apple', 'banana'));  // -1
+PrintLn(AnsiCompareStr('banana', 'apple'));  // 1
+PrintLn(AnsiCompareStr('test', 'test'));     // 0
+
+// Test StrMatches - wildcard pattern matching
+PrintLn('Testing StrMatches:');
+PrintLn(StrMatches('hello.txt', '*.txt'));      // true
+PrintLn(StrMatches('test.doc', '*.txt'));       // false
+PrintLn(StrMatches('file.txt', 'file.*'));      // true
+PrintLn(StrMatches('hello', 'hel?o'));          // true
+PrintLn(StrMatches('hello', 'hel?x'));          // false
+PrintLn(StrMatches('test123', 'test*'));        // true
+PrintLn(StrMatches('test', 'test*'));           // true
+PrintLn(StrMatches('something', '*thing'));     // true
+
+// Test StrIsASCII - check if string is pure ASCII
+PrintLn('Testing StrIsASCII:');
+PrintLn(StrIsASCII('hello'));          // true
+PrintLn(StrIsASCII('Hello World!'));   // true
+PrintLn(StrIsASCII('123abc'));         // true
+PrintLn(StrIsASCII('café'));           // false (é is not ASCII)
+PrintLn(StrIsASCII('你好'));           // false (Chinese characters)
+PrintLn(StrIsASCII(''));               // true (empty string is ASCII)
+
+PrintLn('All string comparison tests completed!');

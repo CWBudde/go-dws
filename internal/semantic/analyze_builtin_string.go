@@ -1111,3 +1111,180 @@ func (a *Analyzer) analyzeStripAccents(args []ast.Expression, callExpr *ast.Call
 	}
 	return types.STRING
 }
+
+// analyzeSameText analyzes the SameText built-in function.
+// SameText takes 2 arguments: SameText(str1, str2)
+func (a *Analyzer) analyzeSameText(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'SameText' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+	str1Type := a.analyzeExpression(args[0])
+	if str1Type != nil && str1Type != types.STRING {
+		a.addError("function 'SameText' expects string as first argument, got %s at %s",
+			str1Type.String(), callExpr.Token.Pos.String())
+	}
+	str2Type := a.analyzeExpression(args[1])
+	if str2Type != nil && str2Type != types.STRING {
+		a.addError("function 'SameText' expects string as second argument, got %s at %s",
+			str2Type.String(), callExpr.Token.Pos.String())
+	}
+	return types.BOOLEAN
+}
+
+// analyzeCompareText analyzes the CompareText built-in function.
+// CompareText takes 2 arguments: CompareText(str1, str2)
+func (a *Analyzer) analyzeCompareText(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'CompareText' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+	str1Type := a.analyzeExpression(args[0])
+	if str1Type != nil && str1Type != types.STRING {
+		a.addError("function 'CompareText' expects string as first argument, got %s at %s",
+			str1Type.String(), callExpr.Token.Pos.String())
+	}
+	str2Type := a.analyzeExpression(args[1])
+	if str2Type != nil && str2Type != types.STRING {
+		a.addError("function 'CompareText' expects string as second argument, got %s at %s",
+			str2Type.String(), callExpr.Token.Pos.String())
+	}
+	return types.INTEGER
+}
+
+// analyzeCompareStr analyzes the CompareStr built-in function.
+// CompareStr takes 2 arguments: CompareStr(str1, str2)
+func (a *Analyzer) analyzeCompareStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'CompareStr' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+	str1Type := a.analyzeExpression(args[0])
+	if str1Type != nil && str1Type != types.STRING {
+		a.addError("function 'CompareStr' expects string as first argument, got %s at %s",
+			str1Type.String(), callExpr.Token.Pos.String())
+	}
+	str2Type := a.analyzeExpression(args[1])
+	if str2Type != nil && str2Type != types.STRING {
+		a.addError("function 'CompareStr' expects string as second argument, got %s at %s",
+			str2Type.String(), callExpr.Token.Pos.String())
+	}
+	return types.INTEGER
+}
+
+// analyzeAnsiCompareText analyzes the AnsiCompareText built-in function.
+// AnsiCompareText takes 2 arguments: AnsiCompareText(str1, str2)
+func (a *Analyzer) analyzeAnsiCompareText(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'AnsiCompareText' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+	str1Type := a.analyzeExpression(args[0])
+	if str1Type != nil && str1Type != types.STRING {
+		a.addError("function 'AnsiCompareText' expects string as first argument, got %s at %s",
+			str1Type.String(), callExpr.Token.Pos.String())
+	}
+	str2Type := a.analyzeExpression(args[1])
+	if str2Type != nil && str2Type != types.STRING {
+		a.addError("function 'AnsiCompareText' expects string as second argument, got %s at %s",
+			str2Type.String(), callExpr.Token.Pos.String())
+	}
+	return types.INTEGER
+}
+
+// analyzeAnsiCompareStr analyzes the AnsiCompareStr built-in function.
+// AnsiCompareStr takes 2 arguments: AnsiCompareStr(str1, str2)
+func (a *Analyzer) analyzeAnsiCompareStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'AnsiCompareStr' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+	str1Type := a.analyzeExpression(args[0])
+	if str1Type != nil && str1Type != types.STRING {
+		a.addError("function 'AnsiCompareStr' expects string as first argument, got %s at %s",
+			str1Type.String(), callExpr.Token.Pos.String())
+	}
+	str2Type := a.analyzeExpression(args[1])
+	if str2Type != nil && str2Type != types.STRING {
+		a.addError("function 'AnsiCompareStr' expects string as second argument, got %s at %s",
+			str2Type.String(), callExpr.Token.Pos.String())
+	}
+	return types.INTEGER
+}
+
+// analyzeCompareLocaleStr analyzes the CompareLocaleStr built-in function.
+// CompareLocaleStr takes 2 to 4 arguments: CompareLocaleStr(str1, str2 [, locale [, caseSensitive]])
+func (a *Analyzer) analyzeCompareLocaleStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) < 2 || len(args) > 4 {
+		a.addError("function 'CompareLocaleStr' expects 2 to 4 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.INTEGER
+	}
+	str1Type := a.analyzeExpression(args[0])
+	if str1Type != nil && str1Type != types.STRING {
+		a.addError("function 'CompareLocaleStr' expects string as first argument, got %s at %s",
+			str1Type.String(), callExpr.Token.Pos.String())
+	}
+	str2Type := a.analyzeExpression(args[1])
+	if str2Type != nil && str2Type != types.STRING {
+		a.addError("function 'CompareLocaleStr' expects string as second argument, got %s at %s",
+			str2Type.String(), callExpr.Token.Pos.String())
+	}
+	if len(args) >= 3 {
+		localeType := a.analyzeExpression(args[2])
+		if localeType != nil && localeType != types.STRING {
+			a.addError("function 'CompareLocaleStr' expects string as third argument, got %s at %s",
+				localeType.String(), callExpr.Token.Pos.String())
+		}
+	}
+	if len(args) == 4 {
+		csType := a.analyzeExpression(args[3])
+		if csType != nil && csType != types.BOOLEAN {
+			a.addError("function 'CompareLocaleStr' expects boolean as fourth argument, got %s at %s",
+				csType.String(), callExpr.Token.Pos.String())
+		}
+	}
+	return types.INTEGER
+}
+
+// analyzeStrMatches analyzes the StrMatches built-in function.
+// StrMatches takes 2 arguments: StrMatches(str, mask)
+func (a *Analyzer) analyzeStrMatches(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 2 {
+		a.addError("function 'StrMatches' expects 2 arguments, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrMatches' expects string as first argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	maskType := a.analyzeExpression(args[1])
+	if maskType != nil && maskType != types.STRING {
+		a.addError("function 'StrMatches' expects string as second argument, got %s at %s",
+			maskType.String(), callExpr.Token.Pos.String())
+	}
+	return types.BOOLEAN
+}
+
+// analyzeStrIsASCII analyzes the StrIsASCII built-in function.
+// StrIsASCII takes 1 argument: StrIsASCII(str)
+func (a *Analyzer) analyzeStrIsASCII(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		a.addError("function 'StrIsASCII' expects 1 argument, got %d at %s",
+			len(args), callExpr.Token.Pos.String())
+		return types.BOOLEAN
+	}
+	strType := a.analyzeExpression(args[0])
+	if strType != nil && strType != types.STRING {
+		a.addError("function 'StrIsASCII' expects string as argument, got %s at %s",
+			strType.String(), callExpr.Token.Pos.String())
+	}
+	return types.BOOLEAN
+}

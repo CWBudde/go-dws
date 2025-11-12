@@ -413,6 +413,10 @@ func normalizeBuiltinName(name string) string {
 		"jsonhasfield": "JSONHasField", "jsonkeys": "JSONKeys", "jsonvalues": "JSONValues",
 		"jsonlength":    "JSONLength",
 		"getstacktrace": "GetStackTrace", "getcallstack": "GetCallStack",
+		"sametext": "SameText", "comparetext": "CompareText", "comparestr": "CompareStr",
+		"ansicomparetext": "AnsiCompareText", "ansicomparestr": "AnsiCompareStr",
+		"comparelocalestr": "CompareLocaleStr", "strmatches": "StrMatches",
+		"strisascii": "StrIsASCII",
 	}
 
 	// Return canonical name if found, otherwise return original name

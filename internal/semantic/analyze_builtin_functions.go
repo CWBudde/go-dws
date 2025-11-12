@@ -155,6 +155,22 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeNormalizeString(args, callExpr), true
 	case "stripaccents":
 		return a.analyzeStripAccents(args, callExpr), true
+	case "sametext":
+		return a.analyzeSameText(args, callExpr), true
+	case "comparetext":
+		return a.analyzeCompareText(args, callExpr), true
+	case "comparestr":
+		return a.analyzeCompareStr(args, callExpr), true
+	case "ansicomparetext":
+		return a.analyzeAnsiCompareText(args, callExpr), true
+	case "ansicomparestr":
+		return a.analyzeAnsiCompareStr(args, callExpr), true
+	case "comparelocalestr":
+		return a.analyzeCompareLocaleStr(args, callExpr), true
+	case "strmatches":
+		return a.analyzeStrMatches(args, callExpr), true
+	case "strisascii":
+		return a.analyzeStrIsASCII(args, callExpr), true
 
 	// Math Functions - Basic
 	case "abs":
