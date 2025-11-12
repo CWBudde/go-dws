@@ -37,8 +37,8 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 
 	switch propInfo.ReadKind {
 	case types.PropAccessField:
-		// Field or method access - check at runtime which it is
-		// First try as a field
+		// Field, constant, class var, or method access - check at runtime which it is
+		// First try as an instance field
 		if _, exists := obj.Class.Fields[propInfo.ReadSpec]; exists {
 			fieldValue := obj.GetField(propInfo.ReadSpec)
 			if fieldValue == nil {
@@ -47,10 +47,31 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			return fieldValue
 		}
 
-		// Not a field - try as a method (getter)
+		// Task 9.17: Try as a class variable
+		if classVarValue, exists := obj.Class.ClassVars[propInfo.ReadSpec]; exists {
+			return classVarValue
+		}
+
+		// Task 9.17: Try as a constant
+		if constValue, exists := obj.Class.ConstantValues[propInfo.ReadSpec]; exists {
+			return constValue
+		}
+		// If constant exists but not evaluated yet, try to evaluate it
+		if constDecl, exists := obj.Class.Constants[propInfo.ReadSpec]; exists {
+			// Evaluate the constant expression
+			if constDecl.Value != nil {
+				constValue := i.Eval(constDecl.Value)
+				// Cache the evaluated value for future use
+				obj.Class.ConstantValues[propInfo.ReadSpec] = constValue
+				return constValue
+			}
+			return i.newErrorWithLocation(node, "constant '%s' has no value", propInfo.ReadSpec)
+		}
+
+		// Not a field, class var, or constant - try as a method (getter)
 		method := obj.Class.lookupMethod(propInfo.ReadSpec)
 		if method == nil {
-			return i.newErrorWithLocation(node, "property '%s' read specifier '%s' not found as field or method", propInfo.Name, propInfo.ReadSpec)
+			return i.newErrorWithLocation(node, "property '%s' read specifier '%s' not found as field, constant, class var, or method", propInfo.Name, propInfo.ReadSpec)
 		}
 
 		// Indexed properties must be accessed with index syntax

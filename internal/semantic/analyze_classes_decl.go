@@ -349,10 +349,30 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		}
 		constantNames[constantName] = true
 
-		// Validate constant value is a compile-time constant expression
-		// For now, we accept any expression and will evaluate it later
-		// In a full implementation, we'd check if the expression is constant
-		// (literals, other constants, or constant expressions)
+		// Task 9.17: Determine and store the constant's type
+		var constType types.Type
+		if constant.Type != nil {
+			// Explicit type annotation
+			var err error
+			constType, err = a.resolveType(constant.Type.Name)
+			if err != nil {
+				a.addError("unknown type '%s' for constant '%s' in class '%s' at %s",
+					constant.Type.Name, constantName, className, constant.Token.Pos.String())
+				continue
+			}
+		} else if constant.Value != nil {
+			// Infer type from value expression
+			constType = a.analyzeExpression(constant.Value)
+			if constType == nil {
+				a.addError("unable to determine type for constant '%s' in class '%s' at %s",
+					constantName, className, constant.Token.Pos.String())
+				continue
+			}
+		} else {
+			a.addError("constant '%s' must have a value or type annotation in class '%s' at %s",
+				constantName, className, constant.Token.Pos.String())
+			continue
+		}
 
 		// Store constant visibility
 		classType.ConstantVisibility[constantName] = int(constant.Visibility)
@@ -361,6 +381,9 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		// The constant values will be evaluated at runtime when accessed.
 		// We just mark that this constant exists.
 		classType.Constants[constantName] = nil // Placeholder; actual value evaluated at runtime
+
+		// Task 9.17: Store constant type for property validation
+		classType.ConstantTypes[constantName] = constType
 	}
 
 	// Register class before analyzing methods (so methods can reference the class)

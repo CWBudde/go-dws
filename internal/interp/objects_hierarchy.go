@@ -59,8 +59,25 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			}
 
 			// 3. Task 9.13: Try class properties
-			if propInfo := classInfo.lookupProperty(memberName); propInfo != nil && propInfo.IsClassProperty {
-				return i.evalClassPropertyRead(classInfo, propInfo, ma)
+			// Task 9.17: Also allow instance properties that use class constants or class variables
+			if propInfo := classInfo.lookupProperty(memberName); propInfo != nil {
+				if propInfo.IsClassProperty {
+					return i.evalClassPropertyRead(classInfo, propInfo, ma)
+				}
+				// Task 9.17: Allow instance properties accessed on class if they use class-level read specs
+				if propInfo.ReadKind == types.PropAccessField {
+					// Check if read spec is a class variable or constant
+					if _, isClassVar := classInfo.ClassVars[propInfo.ReadSpec]; isClassVar {
+						// Create a temporary object instance to evaluate the property
+						tempObj := &ObjectInstance{Class: classInfo, Fields: make(map[string]Value)}
+						return i.evalPropertyRead(tempObj, propInfo, ma)
+					}
+					if _, isConstant := classInfo.Constants[propInfo.ReadSpec]; isConstant {
+						// Create a temporary object instance to evaluate the property
+						tempObj := &ObjectInstance{Class: classInfo, Fields: make(map[string]Value)}
+						return i.evalPropertyRead(tempObj, propInfo, ma)
+					}
+				}
 			}
 
 			// 3. Task 9.32: Try constructors (with inheritance support)
@@ -215,8 +232,25 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Task 9.13: Try class properties
-		if propInfo := classInfo.lookupProperty(memberName); propInfo != nil && propInfo.IsClassProperty {
-			return i.evalClassPropertyRead(classInfo, propInfo, ma)
+		// Task 9.17: Also allow instance properties that use class constants or class variables
+		if propInfo := classInfo.lookupProperty(memberName); propInfo != nil {
+			if propInfo.IsClassProperty {
+				return i.evalClassPropertyRead(classInfo, propInfo, ma)
+			}
+			// Task 9.17: Allow instance properties accessed on class if they use class-level read specs
+			if propInfo.ReadKind == types.PropAccessField {
+				// Check if read spec is a class variable or constant
+				if _, isClassVar := classInfo.ClassVars[propInfo.ReadSpec]; isClassVar {
+					// Create a temporary object instance to evaluate the property
+					tempObj := &ObjectInstance{Class: classInfo, Fields: make(map[string]Value)}
+					return i.evalPropertyRead(tempObj, propInfo, ma)
+				}
+				if _, isConstant := classInfo.Constants[propInfo.ReadSpec]; isConstant {
+					// Create a temporary object instance to evaluate the property
+					tempObj := &ObjectInstance{Class: classInfo, Fields: make(map[string]Value)}
+					return i.evalPropertyRead(tempObj, propInfo, ma)
+				}
+			}
 		}
 
 		// Try constructors (same logic as above for identifier check)

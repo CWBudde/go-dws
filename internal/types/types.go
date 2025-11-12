@@ -421,6 +421,7 @@ type ClassType struct {
 	Fields               map[string]Type
 	ClassVars            map[string]Type
 	Constants            map[string]interface{}   // Class constants (Task 9.20-9.22)
+	ConstantTypes        map[string]Type          // Types for class constants (Task 9.17)
 	ConstantVisibility   map[string]int           // Visibility for class constants
 	Methods              map[string]*FunctionType // Primary method signature (first or only overload)
 	MethodOverloads      map[string][]*MethodInfo // All overload variants (Task 9.61)
@@ -717,6 +718,7 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		Fields:               make(map[string]Type),
 		ClassVars:            make(map[string]Type),
 		Constants:            make(map[string]interface{}),
+		ConstantTypes:        make(map[string]Type), // Task 9.17
 		ConstantVisibility:   make(map[string]int),
 		Methods:              make(map[string]*FunctionType),
 		MethodOverloads:      make(map[string][]*MethodInfo), // Task 9.61

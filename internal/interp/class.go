@@ -132,10 +132,13 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 // lookupProperty searches for a property in the class hierarchy.
 // It starts with the current class and walks up the parent chain.
 // Returns the first property found, or nil if not found.
+// Task 9.17: Use case-insensitive lookup
 func (c *ClassInfo) lookupProperty(name string) *types.PropertyInfo {
-	// Check current class
-	if prop, exists := c.Properties[name]; exists {
-		return prop
+	// Check current class with case-insensitive match
+	for propName, prop := range c.Properties {
+		if strings.EqualFold(propName, name) {
+			return prop
+		}
 	}
 
 	// Check parent class (recursive)
