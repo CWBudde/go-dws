@@ -411,28 +411,28 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Advanced Conversion Functions (Phase 9.17.5)
 
-- [ ] 9.17.5.1 IntToStr(i, base) - Integer to string with base parameter
-- [ ] 9.17.5.2 StrToInt(str, base) - String to integer with base
-- [ ] 9.17.5.3 StrToIntDef(str, def, base) - With base and default
-- [ ] 9.17.5.4 TryStrToInt(str, base, @value) - Safe conversion with base
+- [x] 9.17.5.1 IntToStr(i, base) - Integer to string with base parameter
+- [x] 9.17.5.2 StrToInt(str, base) - String to integer with base
+- [x] 9.17.5.3 StrToIntDef(str, def, base) - With base and default
+- [x] 9.17.5.4 TryStrToInt(str, base, @value) - Safe conversion with base
 
-- [ ] 9.17.5.5 HexToInt(hexa) - Hex string to integer
-- [ ] 9.17.5.6 IntToBin(v, digits) - Integer to binary (already implemented?)
-- [ ] 9.17.5.7 BinToInt(binary) - Binary string to integer
+- [x] 9.17.5.5 HexToInt(hexa) - Hex string to integer
+- [x] 9.17.5.6 IntToBin(v, digits) - Integer to binary (already implemented)
+- [x] 9.17.5.7 BinToInt(binary) - Binary string to integer
 
-- [ ] 9.17.5.8 TryStrToFloat(str, @value) - Safe float conversion
-- [ ] 9.17.5.9 StrToFloatDef(str, def) - String to float with default
+- [x] 9.17.5.8 TryStrToFloat(str, @value) - Safe float conversion
+- [x] 9.17.5.9 StrToFloatDef(str, def) - String to float with default (already implemented)
 
-- [ ] 9.17.5.10 VarToIntDef(val, def) - Variant to int with default
-- [ ] 9.17.5.11 VarToFloatDef(val, def) - Variant to float with default
+- [x] 9.17.5.10 VarToIntDef(val, def) - Variant to int with default
+- [x] 9.17.5.11 VarToFloatDef(val, def) - Variant to float with default
 
 #### Encoding/Escaping Functions (Phase 9.17.6)
 
-- [ ] 9.17.6.1 StrToHtml(str) - HTML encode
-- [ ] 9.17.6.2 StrToHtmlAttribute(str) - HTML attribute encode
-- [ ] 9.17.6.3 StrToJSON(str) - JSON encode/escape
-- [ ] 9.17.6.4 StrToCSSText(str) - CSS text encode
-- [ ] 9.17.6.5 StrToXML(str, mode) - XML encode
+- [x] 9.17.6.1 StrToHtml(str) - HTML encode
+- [x] 9.17.6.2 StrToHtmlAttribute(str) - HTML attribute encode
+- [x] 9.17.6.3 StrToJSON(str) - JSON encode/escape
+- [x] 9.17.6.4 StrToCSSText(str) - CSS text encode
+- [x] 9.17.6.5 StrToXML(str, mode) - XML encode
 
 #### Case Conversion Variants (Phase 9.17.7)
 
