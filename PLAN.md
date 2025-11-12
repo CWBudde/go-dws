@@ -131,13 +131,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Medium Complexity (20 tests remaining)** - Priority: HIGH
 
-- [ ] 9.16.1 Method Visibility Enforcement (6 tests) - **NEXT RECOMMENDED**
-  - **Estimate**: 1-2 hours
-  - **Files**: analyze_classes.go
+- [x] 9.16.1 Method Visibility Enforcement (6 tests) - COMPLETE
+  - **Estimate**: 1-2 hours (actual: 1 hour)
+  - **Files**: analyze_classes.go, analyze_function_calls.go, oop_integration_test.go
   - **Description**: Implement visibility checking (private/protected/public) in method call analysis
   - **Strategy**: Similar to field visibility which already works - can use as reference
   - **Tests**: TestPrivateMethodAccessFromSameClass, TestPrivateMethodAccessFromOutside, TestProtectedMethodAccessFromChild, TestProtectedMethodAccessFromOutside, TestPrivateFieldNotInheritedAccess, TestPublicMethodAccessFromOutside
-  - **Details**: Add visibility validation in analyzeCallExpression when calling methods on class instances
+  - **Details**: Visibility checking was already implemented in analyzeMemberAccessExpression and analyzeCallExpression. Fixed interpreter test to run semantic analysis before execution.
 
 - [x] 9.16.2 Interface Implementation Validation - PARTIAL (Core functionality complete, one edge case remains)
   - **Estimate**: 3-4 hours (actual: 4 hours)
