@@ -167,27 +167,35 @@ func (a *Analyzer) synthesizeImplicitParameterlessConstructor(classType *types.C
 // checkMethodOverriding checks if overridden methods have compatible signatures.
 // Task 9.20.2: Methods with the 'overload' directive add to the overload set rather than
 // replacing the parent method, so they don't need signature compatibility checks.
+// PR #59 fix: Check IsOverride BEFORE HasOverloadDirective to properly validate
+// methods that have both 'overload' and 'override' directives.
 func (a *Analyzer) checkMethodOverriding(class, parent *types.ClassType) {
 	// Check MethodOverloads instead of Methods to access overload directive information
 	for methodName, childOverloads := range class.MethodOverloads {
-		// Check if method exists in parent
-		parentMethodType, found := parent.GetMethod(methodName)
-		if !found {
-			// New method in child class - OK
-			continue
-		}
-
 		// Check each overload in the child class
 		for _, childMethod := range childOverloads {
-			// Task 9.20.2: If the child method has the 'overload' directive,
-			// it's adding to the overload set, not replacing/overriding the parent.
-			// So skip signature compatibility check.
+			// Case 1: Method marked as 'override' - signature validation is handled
+			// by validateVirtualOverride() which searches ALL parent overloads using
+			// findMatchingOverloadInParent(). Skip here to avoid redundant checking.
+			if childMethod.IsOverride {
+				continue
+			}
+
+			// Case 2: Method has 'overload' directive (without 'override') - it's adding
+			// to the overload set, not replacing/overriding the parent.
+			// No signature compatibility check needed.
 			if childMethod.HasOverloadDirective {
 				continue
 			}
 
-			// No 'overload' directive - this is a method override/hide.
-			// Check signature compatibility with parent.
+			// Case 3: Method without 'overload' or 'override' - must match parent signature
+			// exactly if parent method exists. This prevents accidental hiding of parent methods.
+			parentMethodType, found := parent.GetMethod(methodName)
+			if !found {
+				// New method in child class - OK
+				continue
+			}
+
 			childMethodType := childMethod.Signature
 			if !childMethodType.Equals(parentMethodType) {
 				a.addError("method '%s' signature mismatch in class '%s': expected %s, got %s",
