@@ -117,8 +117,9 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 	helperInfo := NewHelperInfo(decl.Name.Value, targetType, decl.IsRecordHelper)
 
 	// Register methods
+	// Task 9.16.2: Normalize method names to lowercase for case-insensitive lookup
 	for _, method := range decl.Methods {
-		helperInfo.Methods[method.Name.Value] = method
+		helperInfo.Methods[strings.ToLower(method.Name.Value)] = method
 	}
 
 	// Register properties
@@ -596,8 +597,10 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 		}
 
 		// Otherwise, try as a method (getter)
-		if method, exists := helper.Methods[propInfo.ReadSpec]; exists {
-			builtinSpec := helper.BuiltinMethods[propInfo.ReadSpec]
+		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
+		normalizedReadSpec := strings.ToLower(propInfo.ReadSpec)
+		if method, exists := helper.Methods[normalizedReadSpec]; exists {
+			builtinSpec := helper.BuiltinMethods[normalizedReadSpec]
 			// Call the getter method with no arguments
 			return i.callHelperMethod(helper, method, builtinSpec, selfValue, []Value{}, node)
 		}
@@ -607,8 +610,10 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 
 	case types.PropAccessMethod:
 		// Call getter method
-		if method, exists := helper.Methods[propInfo.ReadSpec]; exists {
-			builtinSpec := helper.BuiltinMethods[propInfo.ReadSpec]
+		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
+		normalizedReadSpec := strings.ToLower(propInfo.ReadSpec)
+		if method, exists := helper.Methods[normalizedReadSpec]; exists {
+			builtinSpec := helper.BuiltinMethods[normalizedReadSpec]
 			return i.callHelperMethod(helper, method, builtinSpec, selfValue, []Value{}, node)
 		}
 
@@ -929,10 +934,11 @@ func (i *Interpreter) initIntrinsicHelpers() {
 		ReadSpec:  "__integer_tostring",
 		WriteKind: types.PropAccessNone,
 	}
-	intHelper.Methods["ToString"] = nil
-	intHelper.BuiltinMethods["ToString"] = "__integer_tostring"
-	intHelper.Methods["ToHexString"] = nil
-	intHelper.BuiltinMethods["ToHexString"] = "__integer_tohexstring"
+	// Task 9.16.2: Method names are case-insensitive, use lowercase keys
+	intHelper.Methods["tostring"] = nil
+	intHelper.BuiltinMethods["tostring"] = "__integer_tostring"
+	intHelper.Methods["tohexstring"] = nil
+	intHelper.BuiltinMethods["tohexstring"] = "__integer_tohexstring"
 	register("Integer", intHelper)
 
 	// Float helper
@@ -944,8 +950,9 @@ func (i *Interpreter) initIntrinsicHelpers() {
 		ReadSpec:  "__float_tostring_default",
 		WriteKind: types.PropAccessNone,
 	}
-	floatHelper.Methods["ToString"] = nil
-	floatHelper.BuiltinMethods["ToString"] = "__float_tostring_prec"
+	// Task 9.16.2: Method names are case-insensitive, use lowercase keys
+	floatHelper.Methods["tostring"] = nil
+	floatHelper.BuiltinMethods["tostring"] = "__float_tostring_prec"
 	register("Float", floatHelper)
 
 	// Boolean helper
@@ -957,8 +964,9 @@ func (i *Interpreter) initIntrinsicHelpers() {
 		ReadSpec:  "__boolean_tostring",
 		WriteKind: types.PropAccessNone,
 	}
-	boolHelper.Methods["ToString"] = nil
-	boolHelper.BuiltinMethods["ToString"] = "__boolean_tostring"
+	// Task 9.16.2: Method names are case-insensitive, use lowercase keys
+	boolHelper.Methods["tostring"] = nil
+	boolHelper.BuiltinMethods["tostring"] = "__boolean_tostring"
 	register("Boolean", boolHelper)
 
 	// String helper
@@ -970,10 +978,11 @@ func (i *Interpreter) initIntrinsicHelpers() {
 		ReadSpec:  "__string_length",
 		WriteKind: types.PropAccessNone,
 	}
-	stringHelper.Methods["ToUpper"] = nil
-	stringHelper.BuiltinMethods["ToUpper"] = "__string_toupper"
-	stringHelper.Methods["ToLower"] = nil
-	stringHelper.BuiltinMethods["ToLower"] = "__string_tolower"
+	// Task 9.16.2: Method names are case-insensitive, use lowercase keys
+	stringHelper.Methods["toupper"] = nil
+	stringHelper.BuiltinMethods["toupper"] = "__string_toupper"
+	stringHelper.Methods["tolower"] = nil
+	stringHelper.BuiltinMethods["tolower"] = "__string_tolower"
 
 	// String transformation methods (task 9.17.3)
 	stringHelper.Methods["padleft"] = nil
@@ -1003,8 +1012,9 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	// String dynamic array helper
 	stringArrayType := types.NewDynamicArrayType(types.STRING)
 	stringArrayHelper := NewHelperInfo("__TStringDynArrayIntrinsicHelper", stringArrayType, true)
-	stringArrayHelper.Methods["Join"] = nil
-	stringArrayHelper.BuiltinMethods["Join"] = "__string_array_join"
+	// Task 9.16.2: Method names are case-insensitive, use lowercase keys
+	stringArrayHelper.Methods["join"] = nil
+	stringArrayHelper.BuiltinMethods["join"] = "__string_array_join"
 	register(stringArrayType.String(), stringArrayHelper)
 }
 

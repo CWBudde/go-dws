@@ -299,7 +299,7 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 
 		// Create class that implements interface
 		class := NewClassInfo("TTest")
-		class.Methods["DoIt"] = &ast.FunctionDecl{
+		class.Methods["doit"] = &ast.FunctionDecl{
 			Name: &ast.Identifier{Value: "DoIt"},
 		}
 
@@ -325,7 +325,7 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 		// Create interface and class
 		iface := NewInterfaceInfo("ITest")
 		class := NewClassInfo("TTest")
-		class.Methods["DoIt"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "DoIt"}}
+		class.Methods["doit"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "DoIt"}}
 
 		// Create object and interface instance
 		obj := NewObjectInstance(class)
@@ -358,12 +358,12 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 	t.Run("InterfaceToInterface_Upcast", func(t *testing.T) {
 		// Create base interface
 		base := NewInterfaceInfo("IBase")
-		base.Methods["BaseMethod"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "BaseMethod"}}
+		base.Methods["basemethod"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "BaseMethod"}}
 
 		// Create derived interface
 		derived := NewInterfaceInfo("IDerived")
 		derived.Parent = base
-		derived.Methods["DerivedMethod"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "DerivedMethod"}}
+		derived.Methods["derivedmethod"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "DerivedMethod"}}
 
 		// Test: IDerived → IBase (upcast)
 		if !interfaceIsCompatible(derived, base) {
@@ -374,12 +374,12 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 	t.Run("InterfaceToInterface_Downcast", func(t *testing.T) {
 		// Create base interface
 		base := NewInterfaceInfo("IBase")
-		base.Methods["BaseMethod"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "BaseMethod"}}
+		base.Methods["basemethod"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "BaseMethod"}}
 
 		// Create derived interface
 		derived := NewInterfaceInfo("IDerived")
 		derived.Parent = base
-		derived.Methods["DerivedMethod"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "DerivedMethod"}}
+		derived.Methods["derivedmethod"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "DerivedMethod"}}
 
 		// Test: IBase → IDerived (downcast - should fail)
 		if interfaceIsCompatible(base, derived) {
@@ -418,7 +418,7 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 		iface.Methods[strings.ToLower("Release")] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Release"}}
 
 		class := NewClassInfo("TResource")
-		class.Methods["Release"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Release"}}
+		class.Methods["release"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Release"}}
 
 		interp.interfaces["iresource"] = iface
 		interp.classes["TResource"] = class

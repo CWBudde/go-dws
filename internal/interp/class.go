@@ -111,9 +111,13 @@ func (o *ObjectInstance) GetMethod(name string) *ast.FunctionDecl {
 // lookupMethod searches for a method in the class hierarchy.
 // It starts with the current class and walks up the parent chain.
 // Returns the first method found, or nil if not found.
+// Task 9.16.2: Method names are case-insensitive, so we normalize to lowercase
 func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
+	// Normalize to lowercase for case-insensitive lookup
+	normalizedName := strings.ToLower(name)
+
 	// Check current class
-	if method, exists := c.Methods[name]; exists {
+	if method, exists := c.Methods[normalizedName]; exists {
 		return method
 	}
 
