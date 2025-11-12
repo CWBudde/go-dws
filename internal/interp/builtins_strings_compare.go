@@ -1,7 +1,6 @@
 package interp
 
 import (
-	"path/filepath"
 	"strings"
 	"unicode"
 
@@ -220,9 +219,11 @@ func (i *Interpreter) builtinCompareLocaleStr(args []Value) Value {
 	}
 
 	// Create collator with appropriate options
-	col := collate.New(tag)
+	var col *collate.Collator
 	if !caseSensitive {
 		col = collate.New(tag, collate.IgnoreCase)
+	} else {
+		col = collate.New(tag)
 	}
 
 	// Compare strings
@@ -258,13 +259,9 @@ func (i *Interpreter) builtinStrMatches(args []Value) Value {
 	str := strVal.Value
 	mask := maskVal.Value
 
-	// Use filepath.Match for wildcard pattern matching
-	// Note: filepath.Match uses * for zero or more characters and ? for single character
-	matched, err := filepath.Match(mask, str)
-	if err != nil {
-		// Invalid pattern
-		return i.newErrorWithLocation(i.currentNode, "StrMatches() invalid pattern: %s", err.Error())
-	}
+	// Use cross-platform wildcard pattern matching
+	// Supports * (zero or more characters) and ? (single character)
+	matched := wildcardMatch(str, mask)
 
 	return &BooleanValue{Value: matched}
 }
@@ -293,4 +290,58 @@ func (i *Interpreter) builtinStrIsASCII(args []Value) Value {
 	}
 
 	return &BooleanValue{Value: true}
+}
+
+// wildcardMatch performs wildcard pattern matching.
+// Supports * (zero or more characters) and ? (single character).
+// This is a cross-platform implementation that doesn't have the
+// path separator issues of filepath.Match.
+func wildcardMatch(str, pattern string) bool {
+	return wildcardMatchImpl([]rune(str), []rune(pattern), 0, 0)
+}
+
+// wildcardMatchImpl is the recursive implementation of wildcard matching.
+func wildcardMatchImpl(str, pattern []rune, si, pi int) bool {
+	// Both string and pattern exhausted - match
+	if si == len(str) && pi == len(pattern) {
+		return true
+	}
+
+	// Pattern exhausted but string not - no match
+	if pi == len(pattern) {
+		return false
+	}
+
+	// Handle * wildcard
+	if pattern[pi] == '*' {
+		// Skip consecutive *
+		for pi < len(pattern) && pattern[pi] == '*' {
+			pi++
+		}
+		// * at end matches everything
+		if pi == len(pattern) {
+			return true
+		}
+		// Try matching zero or more characters
+		for si <= len(str) {
+			if wildcardMatchImpl(str, pattern, si, pi) {
+				return true
+			}
+			si++
+		}
+		return false
+	}
+
+	// String exhausted but pattern has non-* characters - no match
+	if si == len(str) {
+		return false
+	}
+
+	// Handle ? wildcard or exact character match
+	if pattern[pi] == '?' || pattern[pi] == str[si] {
+		return wildcardMatchImpl(str, pattern, si+1, pi+1)
+	}
+
+	// No match
+	return false
 }

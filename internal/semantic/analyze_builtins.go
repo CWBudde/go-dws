@@ -48,6 +48,8 @@ func (a *Analyzer) isBuiltinFunction(name string) bool {
 		"padleft", "padright", "strdeleteleft", "deleteleft", "strdeleteright", "deleteright",
 		"reversestring", "quotedstr", "stringofstring", "dupestring",
 		"normalizestring", "normalize", "stripaccents",
+		"sametext", "comparetext", "comparestr", "ansicomparetext", "ansicomparestr",
+		"comparelocalestr", "strmatches", "strisascii",
 		"format", "abs", "min", "max", "sqr", "power", "sqrt", "sin",
 		"cos", "tan", "random", "randomize", "exp", "ln", "log2", "round",
 		"trunc", "frac", "chr", "setlength", "high", "low", "assigned",

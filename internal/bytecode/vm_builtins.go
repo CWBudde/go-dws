@@ -9,6 +9,8 @@ import (
 	"time"
 	"unicode"
 
+	"golang.org/x/text/collate"
+	"golang.org/x/text/language"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -1326,11 +1328,49 @@ func builtinCompareLocaleStr(vm *VM, args []Value) (Value, error) {
 	str1 := args[0].AsString()
 	str2 := args[1].AsString()
 
-	// For bytecode VM, we'll use a simplified implementation
-	// just using case-insensitive comparison (locale support is complex)
-	// This matches the interpreter's behavior
-	result := compareLocaleStrSimple(str1, str2)
-	return IntValue(int64(result)), nil
+	// Default locale is English
+	locale := "en"
+	caseSensitive := false
+
+	// Optional third argument: locale
+	if len(args) >= 3 {
+		if !args[2].IsString() {
+			return NilValue(), vm.runtimeError("CompareLocaleStr expects string as third argument")
+		}
+		locale = args[2].AsString()
+	}
+
+	// Optional fourth argument: case sensitivity
+	if len(args) == 4 {
+		if !args[3].IsBool() {
+			return NilValue(), vm.runtimeError("CompareLocaleStr expects boolean as fourth argument")
+		}
+		caseSensitive = args[3].AsBool()
+	}
+
+	// Parse the locale tag
+	tag, err := language.Parse(locale)
+	if err != nil {
+		// Fall back to English if locale is invalid
+		tag = language.English
+	}
+
+	// Create collator with appropriate options
+	var col *collate.Collator
+	if !caseSensitive {
+		col = collate.New(tag, collate.IgnoreCase)
+	} else {
+		col = collate.New(tag)
+	}
+
+	// Compare strings
+	result := col.CompareString(str1, str2)
+	if result < 0 {
+		return IntValue(-1), nil
+	} else if result > 0 {
+		return IntValue(1), nil
+	}
+	return IntValue(0), nil
 }
 
 func builtinStrMatches(vm *VM, args []Value) (Value, error) {
