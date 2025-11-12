@@ -772,12 +772,17 @@ func (a *Analyzer) getUnimplementedAbstractMethods(classType *types.ClassType) [
 	// Check which ones are not implemented in this class
 	for methodName := range abstractMethods {
 		// Check if this class implements the method (non-abstract)
-		if classType.AbstractMethods[methodName] {
-			// Still abstract in this class - not implemented
-			unimplemented = append(unimplemented, methodName)
-		} else if _, hasMethod := classType.Methods[methodName]; !hasMethod {
+		// Use case-insensitive lookup since DWScript is case-insensitive
+		if _, hasMethod := classType.GetMethod(methodName); !hasMethod {
 			// Method not defined in this class at all - not implemented
 			unimplemented = append(unimplemented, methodName)
+		} else {
+			// Method exists - check if it's still abstract in this class
+			lowerMethodName := strings.ToLower(methodName)
+			if isAbstract, exists := classType.AbstractMethods[lowerMethodName]; exists && isAbstract {
+				// Still abstract in this class - not implemented
+				unimplemented = append(unimplemented, methodName)
+			}
 		}
 		// Otherwise, method is implemented (exists and is not abstract)
 	}
@@ -804,13 +809,19 @@ func (a *Analyzer) collectAbstractMethods(parent *types.ClassType) map[string]bo
 	grandparentAbstract := a.collectAbstractMethods(parent.Parent)
 	for methodName := range grandparentAbstract {
 		// Only add if not already implemented (non-abstract) in parent
-		if !parent.AbstractMethods[methodName] {
-			if _, hasMethod := parent.Methods[methodName]; hasMethod {
-				// Parent implemented it, don't add to abstract list
-				continue
+		// Use case-insensitive lookup since DWScript is case-insensitive
+		if _, hasMethod := parent.GetMethod(methodName); hasMethod {
+			// Check if parent still marks it as abstract
+			lowerMethodName := strings.ToLower(methodName)
+			if isAbstract, exists := parent.AbstractMethods[lowerMethodName]; exists && isAbstract {
+				// Still abstract in parent
+				abstractMethods[methodName] = true
 			}
+			// Otherwise parent implemented it, don't add to abstract list
+		} else {
+			// Parent doesn't have this method at all, still abstract
+			abstractMethods[methodName] = true
 		}
-		abstractMethods[methodName] = true
 	}
 
 	return abstractMethods
