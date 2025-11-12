@@ -443,6 +443,12 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeVarIsNull(args, callExpr), true
 	case "varisempty":
 		return a.analyzeVarIsEmpty(args, callExpr), true
+	case "varisclear":
+		return a.analyzeVarIsClear(args, callExpr), true
+	case "varisarray":
+		return a.analyzeVarIsArray(args, callExpr), true
+	case "varisstr":
+		return a.analyzeVarIsStr(args, callExpr), true
 	case "varisnumeric":
 		return a.analyzeVarIsNumeric(args, callExpr), true
 	case "vartoint":

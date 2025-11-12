@@ -162,6 +162,84 @@ func (i *Interpreter) builtinVarIsEmpty(args []Value) Value {
 	return i.builtinVarIsNull(args)
 }
 
+// builtinVarIsClear implements the VarIsClear() built-in function.
+//
+// Syntax: VarIsClear(v: Variant): Boolean
+//
+// Returns True if the Variant is cleared (unassigned), False otherwise.
+// In DWScript, VarIsClear is an alias for VarIsEmpty - both check for unassigned Variants.
+//
+// Example:
+//
+//	var v: Variant;
+//	PrintLn(VarIsClear(v));  // Outputs: true
+//	v := 123;
+//	PrintLn(VarIsClear(v));  // Outputs: false
+func (i *Interpreter) builtinVarIsClear(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "VarIsClear() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// VarIsClear is the same as VarIsNull in DWScript
+	return i.builtinVarIsNull(args)
+}
+
+// builtinVarIsArray implements the VarIsArray() built-in function.
+//
+// Syntax: VarIsArray(v: Variant): Boolean
+//
+// Returns True if the Variant holds an array value, False otherwise.
+// Unassigned Variants return False.
+//
+// Example:
+//
+//	var v: Variant := [1, 2, 3];
+//	PrintLn(VarIsArray(v));  // Outputs: true
+//	v := "hello";
+//	PrintLn(VarIsArray(v));  // Outputs: false
+func (i *Interpreter) builtinVarIsArray(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "VarIsArray() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+
+	// Unwrap if it's a Variant
+	val := unwrapVariant(arg)
+
+	// Check if the unwrapped value is an array
+	_, isArray := val.(*ArrayValue)
+	return &BooleanValue{Value: isArray}
+}
+
+// builtinVarIsStr implements the VarIsStr() built-in function.
+//
+// Syntax: VarIsStr(v: Variant): Boolean
+//
+// Returns True if the Variant holds a string value, False otherwise.
+// Unassigned Variants return False.
+//
+// Example:
+//
+//	var v: Variant := "hello";
+//	PrintLn(VarIsStr(v));  // Outputs: true
+//	v := 42;
+//	PrintLn(VarIsStr(v));  // Outputs: false
+func (i *Interpreter) builtinVarIsStr(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "VarIsStr() expects exactly 1 argument, got %d", len(args))
+	}
+
+	arg := args[0]
+
+	// Unwrap if it's a Variant
+	val := unwrapVariant(arg)
+
+	// Check if the unwrapped value is a string
+	_, isString := val.(*StringValue)
+	return &BooleanValue{Value: isString}
+}
+
 // builtinVarIsNumeric implements the VarIsNumeric() built-in function.
 //
 // Syntax: VarIsNumeric(v: Variant): Boolean
