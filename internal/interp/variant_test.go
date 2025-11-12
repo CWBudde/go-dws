@@ -1432,3 +1432,207 @@ func TestNotOperatorWith100Doors(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// VarIsClear, VarIsArray, VarIsStr Runtime Tests
+// ============================================================================
+
+func TestVarIsClear_Runtime(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "VarIsClear with uninitialized Variant",
+			input:    "var v: Variant; PrintLn(VarIsClear(v));",
+			expected: "True\n",
+		},
+		{
+			name:     "VarIsClear with initialized Variant (integer)",
+			input:    "var v: Variant := 42; PrintLn(VarIsClear(v));",
+			expected: "False\n",
+		},
+		{
+			name:     "VarIsClear with initialized Variant (string)",
+			input:    "var v: Variant := 'hello'; PrintLn(VarIsClear(v));",
+			expected: "False\n",
+		},
+		{
+			name:     "VarIsClear with zero value",
+			input:    "var v: Variant := 0; PrintLn(VarIsClear(v));",
+			expected: "False\n",
+		},
+		{
+			name:     "VarIsClear with empty string",
+			input:    "var v: Variant := ''; PrintLn(VarIsClear(v));",
+			expected: "False\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, output := testEvalWithOutput(tt.input)
+			if isError(result) {
+				t.Fatalf("unexpected error: %v", result)
+			}
+			if output != tt.expected {
+				t.Errorf("expected output %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestVarIsArray_Runtime(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "VarIsArray with array",
+			input:    "var arr := [1, 2, 3]; var v: Variant := arr; PrintLn(VarIsArray(v));",
+			expected: "True\n",
+		},
+		{
+			name:     "VarIsArray with string",
+			input:    "var v: Variant := 'hello'; PrintLn(VarIsArray(v));",
+			expected: "False\n",
+		},
+		{
+			name:     "VarIsArray with integer",
+			input:    "var v: Variant := 42; PrintLn(VarIsArray(v));",
+			expected: "False\n",
+		},
+		{
+			name:     "VarIsArray with empty array",
+			input:    "var arr: array of Integer := []; var v: Variant := arr; PrintLn(VarIsArray(v));",
+			expected: "True\n",
+		},
+		{
+			name:     "VarIsArray with uninitialized Variant",
+			input:    "var v: Variant; PrintLn(VarIsArray(v));",
+			expected: "False\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, output := testEvalWithOutput(tt.input)
+			if isError(result) {
+				t.Fatalf("unexpected error: %v", result)
+			}
+			if output != tt.expected {
+				t.Errorf("expected output %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestVarIsStr_Runtime(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "VarIsStr with string",
+			input:    "var v: Variant := 'hello'; PrintLn(VarIsStr(v));",
+			expected: "True\n",
+		},
+		{
+			name:     "VarIsStr with empty string",
+			input:    "var v: Variant := ''; PrintLn(VarIsStr(v));",
+			expected: "True\n",
+		},
+		{
+			name:     "VarIsStr with integer",
+			input:    "var v: Variant := 42; PrintLn(VarIsStr(v));",
+			expected: "False\n",
+		},
+		{
+			name:     "VarIsStr with array",
+			input:    "var arr := [1, 2, 3]; var v: Variant := arr; PrintLn(VarIsStr(v));",
+			expected: "False\n",
+		},
+		{
+			name:     "VarIsStr with float",
+			input:    "var v: Variant := 3.14; PrintLn(VarIsStr(v));",
+			expected: "False\n",
+		},
+		{
+			name:     "VarIsStr with uninitialized Variant",
+			input:    "var v: Variant; PrintLn(VarIsStr(v));",
+			expected: "False\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, output := testEvalWithOutput(tt.input)
+			if isError(result) {
+				t.Fatalf("unexpected error: %v", result)
+			}
+			if output != tt.expected {
+				t.Errorf("expected output %q, got %q", tt.expected, output)
+			}
+		})
+	}
+}
+
+func TestVariantTypeChecks_Combined(t *testing.T) {
+	input := `
+		var vInt: Variant := 42;
+		var vStr: Variant := 'test';
+		var arr := [1, 2, 3];
+		var vArr: Variant := arr;
+		var vEmpty: Variant;
+
+		PrintLn('Integer checks:');
+		PrintLn('  VarIsStr: ' + BoolToStr(VarIsStr(vInt)));
+		PrintLn('  VarIsArray: ' + BoolToStr(VarIsArray(vInt)));
+		PrintLn('  VarIsClear: ' + BoolToStr(VarIsClear(vInt)));
+
+		PrintLn('String checks:');
+		PrintLn('  VarIsStr: ' + BoolToStr(VarIsStr(vStr)));
+		PrintLn('  VarIsArray: ' + BoolToStr(VarIsArray(vStr)));
+		PrintLn('  VarIsClear: ' + BoolToStr(VarIsClear(vStr)));
+
+		PrintLn('Array checks:');
+		PrintLn('  VarIsStr: ' + BoolToStr(VarIsStr(vArr)));
+		PrintLn('  VarIsArray: ' + BoolToStr(VarIsArray(vArr)));
+		PrintLn('  VarIsClear: ' + BoolToStr(VarIsClear(vArr)));
+
+		PrintLn('Empty checks:');
+		PrintLn('  VarIsStr: ' + BoolToStr(VarIsStr(vEmpty)));
+		PrintLn('  VarIsArray: ' + BoolToStr(VarIsArray(vEmpty)));
+		PrintLn('  VarIsClear: ' + BoolToStr(VarIsClear(vEmpty)));
+	`
+
+	expected := `Integer checks:
+  VarIsStr: False
+  VarIsArray: False
+  VarIsClear: False
+String checks:
+  VarIsStr: True
+  VarIsArray: False
+  VarIsClear: False
+Array checks:
+  VarIsStr: False
+  VarIsArray: True
+  VarIsClear: False
+Empty checks:
+  VarIsStr: False
+  VarIsArray: False
+  VarIsClear: True
+`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %v", result)
+	}
+
+	if output != expected {
+		t.Errorf("expected output:\n%s\ngot:\n%s", expected, output)
+	}
+}
