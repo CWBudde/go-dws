@@ -153,11 +153,11 @@ func (i *Interpreter) builtinASCIILowerCase(args []Value) Value {
 	// ASCII-only lowercase conversion
 	// Only converts ASCII letters (A-Z) to lowercase (a-z)
 	result := make([]byte, len(strVal.Value))
-	for i, b := range []byte(strVal.Value) {
+	for idx, b := range []byte(strVal.Value) {
 		if b >= 'A' && b <= 'Z' {
-			result[i] = b + 32 // Convert to lowercase
+			result[idx] = b + 32 // Convert to lowercase
 		} else {
-			result[i] = b
+			result[idx] = b
 		}
 	}
 
