@@ -76,11 +76,10 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 
 	// Register each enum value as a constant in the symbol table
 	for valueName, ordinalValue := range enumType.Values {
-		// Store enum values as constants with the enum type
-		// For now, we'll store them as the enum type itself
+		// Store enum values as constants with the enum type and ordinal value
 		// This allows type checking: var color: TColor := Red;
-		_ = ordinalValue // We don't need the ordinal value for type checking
-		a.symbols.Define(valueName, enumType)
+		// and const array initialization: const arr = (Red, Green, Blue);
+		a.symbols.DefineConst(valueName, enumType, ordinalValue)
 	}
 
 	// Register enum type name as an identifier

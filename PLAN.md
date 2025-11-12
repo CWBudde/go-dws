@@ -610,16 +610,43 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Estimated time**: 0.5 day
   - **Blocked Tests**: boolean_is.pas
 
-- [ ] 9.21.7 Fix inline conditional expression parsing
+- [x] 9.21.7 Fix inline conditional expression parsing
   - **Task**: Support ternary-like conditionals: `if condition then expr1 else expr2`
-  - **Current Error**: "no prefix parse function for IF"
+  - **Status**: ✅ COMPLETE - Implemented IfExpression with full parser, semantic analysis, interpreter, and bytecode support
   - **Implementation**:
-    - Parse conditional expressions (not just conditional statements)
-    - Create IfExpression AST node
-  - **Files**: `internal/parser/parser_expressions.go`, `internal/ast/expressions.go`
-  - **Tests**: Test inline conditionals in expressions
-  - **Estimated time**: 1 day
-  - **Blocked Tests**: boolean_optimize.pas, coalesce_bool.pas
+    - Created IfExpression AST node with Condition, Consequence, Alternative
+    - Registered IF as prefix parse function, implemented parseIfExpression()
+    - Added semantic analysis with type inference (handles class hierarchies, metaclasses, numeric widening)
+    - Implemented evalIfExpression() with default value support
+    - Added bytecode compilation with conditional jumps
+    - Updated AST visitor for traversal
+  - **Files**: `pkg/ast/control_flow.go`, `internal/parser/control_flow.go`, `internal/semantic/analyze_expressions.go`, `internal/interp/expressions_complex.go`, `internal/bytecode/compiler_expressions.go`, `pkg/ast/visitor.go`
+  - **Tests**: 5/7 ifthenelse_expression*.pas tests passing (2 blocked by other features)
+  - **Blocked Tests**: ifthenelse_expression6.pas (needs array helpers), ifthenelse_expression_variant.pas (needs Variant coercion)
+
+- [ ] 9.21.7a Implement array helper methods
+  - **Task**: Add built-in helper methods for dynamic arrays (`.count`, `.length`, etc.)
+  - **Current Error**: "member access on type array of String requires a helper, got no helper with member 'count'"
+  - **Implementation**:
+    - Add array helper type with built-in methods (.count, .length, .add, .delete, etc.)
+    - Register array helper in semantic analyzer
+    - Implement array helper method dispatch in interpreter and bytecode VM
+  - **Files**: `internal/semantic/analyze_helpers.go`, `internal/interp/builtins_array.go`, `internal/bytecode/compiler_expressions.go`
+  - **Tests**: Test array helper methods in expressions
+  - **Estimated time**: 1-2 days
+  - **Blocked Tests**: ifthenelse_expression6.pas, other array helper tests
+
+- [ ] 9.21.7b Implement Variant to Boolean implicit coercion
+  - **Task**: Support implicit conversion from Variant to Boolean in conditional contexts
+  - **Current Error**: "if expression condition must be boolean, got Variant"
+  - **Implementation**:
+    - Add implicit Variant→Boolean conversion in semantic analyzer for conditional contexts
+    - Handle Variant boolean coercion in interpreter and bytecode VM
+    - Follow DWScript semantics: empty/nil/zero → false, otherwise → true
+  - **Files**: `internal/semantic/analyze_expressions.go`, `internal/interp/builtins_variant.go`, `internal/bytecode/compiler_expressions.go`
+  - **Tests**: Test Variant in if conditions, while conditions, boolean operators
+  - **Estimated time**: 0.5-1 day
+  - **Blocked Tests**: ifthenelse_expression_variant.pas, other Variant boolean tests
 
 - [ ] 9.21.8 Fix "class" forward declaration in units
   - **Task**: Support class forward declarations in unit interface section
@@ -863,6 +890,51 @@ Instead of fixing tests one-by-one, group them by root cause and fix categories 
 - 90%+ of fixture tests passing
 - Documented analysis and fixes in TEST_STATUS.md
 - Remaining failures have documented blockers/reasons
+
+---
+
+## Task 9.38: Complete Static Record Methods (Class Functions) Implementation ⚠️ IN PROGRESS
+
+**Goal**: Finish implementing static methods (class functions) on record types for full DWScript compatibility.
+
+**Current Status**: Semantic analysis ✅ COMPLETE | Runtime execution ⚠️ INCOMPLETE
+
+**What's Done**:
+1. ✅ Updated `RecordType` struct with `ClassMethods` and `ClassMethodOverloads` maps
+2. ✅ Fixed record type registration order (register before analyzing methods)
+3. ✅ Semantic analyzer tracks static vs instance methods separately
+4. ✅ Type-level member access implemented (e.g., `TTest.Sum` resolves to class method)
+5. ✅ Record method implementation support in semantic analyzer
+6. ✅ Added `currentRecord` context to Analyzer for method resolution
+7. ✅ Bare function calls inside record methods resolve to class methods
+8. ✅ All semantic analysis passes for `record_method_static.pas` test
+
+**What's Remaining**:
+1. ❌ **Interpreter Runtime Execution**: Update method call evaluation in interpreter
+   - Location: `internal/interp/expressions.go` or similar
+   - Issue: `evalMethodCallExpression` and `evalNewExpression` only check `i.classes`
+   - Fix: Also check `i.records` map for record types
+   - Enable: `TTest.Sum(...)` and `TTest.Create(...)` calls to execute properly
+
+2. ❌ **Bytecode VM Support**: Update bytecode compiler and VM
+   - Ensure bytecode compiler handles static record method calls
+   - VM needs to dispatch to record class methods correctly
+
+**Test Case**: `testdata/fixtures/SimpleScripts/record_method_static.pas`
+- Defines `TTest` record with overloaded static `Sum` methods and `Create` factory
+- Expected output: `12`
+- Current error: `ERROR: class 'TTest' not found` (runtime, not semantic)
+
+**Files to Update**:
+- `internal/interp/expressions.go` - Method call and new expression evaluation
+- `internal/bytecode/compiler.go` - Bytecode generation for static record methods
+- `internal/bytecode/vm.go` - VM execution of record class method calls
+
+**Acceptance Criteria**:
+- `record_method_static.pas` test passes completely
+- Static method calls on records work in both AST interpreter and bytecode VM
+- Overloaded static methods resolve correctly at runtime
+- Record factory methods (`TTest.Create`) execute properly
 
 ---
 

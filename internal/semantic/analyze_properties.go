@@ -159,8 +159,9 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		// Task 9.285: Use lowercase for case-insensitive lookup
 		if methodType, found := classType.GetMethod(strings.ToLower(readSpecName)); found {
 			// For class properties, verify the method is a class method
+			// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
 			if propInfo.IsClassProperty {
-				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[readSpecName]
+				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[strings.ToLower(readSpecName)]
 				if !isClassMethod {
 					a.addError("class property '%s' read method '%s' must be a class method at %s",
 						propName, readSpecName, prop.Token.Pos.String())
@@ -168,7 +169,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 				}
 			} else {
 				// For instance properties, verify the method is NOT a class method
-				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[readSpecName]
+				// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
+				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[strings.ToLower(readSpecName)]
 				if isClassMethod {
 					a.addError("instance property '%s' read method '%s' cannot be a class method at %s",
 						propName, readSpecName, prop.Token.Pos.String())
@@ -315,8 +317,9 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	// Task 9.285: Use lowercase for case-insensitive lookup
 	if methodType, found := classType.GetMethod(strings.ToLower(writeSpecName)); found {
 		// For class properties, verify the method is a class method
+		// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
 		if propInfo.IsClassProperty {
-			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[writeSpecName]
+			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[strings.ToLower(writeSpecName)]
 			if !isClassMethod {
 				a.addError("class property '%s' write method '%s' must be a class method at %s",
 					propName, writeSpecName, prop.Token.Pos.String())
@@ -324,7 +327,8 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 			}
 		} else {
 			// For instance properties, verify the method is NOT a class method
-			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[writeSpecName]
+			// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
+			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[strings.ToLower(writeSpecName)]
 			if isClassMethod {
 				a.addError("instance property '%s' write method '%s' cannot be a class method at %s",
 					propName, writeSpecName, prop.Token.Pos.String())

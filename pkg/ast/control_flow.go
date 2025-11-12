@@ -48,6 +48,59 @@ func (is *IfStatement) String() string {
 	return out.String()
 }
 
+// IfExpression represents an inline if-then-else conditional expression.
+// This is similar to a ternary operator in other languages.
+// Examples:
+//
+//	x := if b then 1 else 0;
+//	PrintLn(if condition then 'yes' else 'no');
+//	var o := if b then TObject.Create else nil;
+//	var i := if b then 1;  // else clause optional, returns default value (0)
+type IfExpression struct {
+	Condition   Expression
+	Consequence Expression
+	Alternative Expression // Optional, can be nil
+	Type        *TypeAnnotation
+	Token       token.Token
+	EndPos      token.Position
+}
+
+func (ie *IfExpression) expressionNode()      {}
+func (ie *IfExpression) TokenLiteral() string { return ie.Token.Literal }
+func (ie *IfExpression) Pos() token.Position  { return ie.Token.Pos }
+func (ie *IfExpression) End() token.Position {
+	if ie.EndPos.Line != 0 {
+		return ie.EndPos
+	}
+	// End position is at the end of Alternative (if present) or Consequence
+	if ie.Alternative != nil {
+		return ie.Alternative.End()
+	}
+	if ie.Consequence != nil {
+		return ie.Consequence.End()
+	}
+	return ie.Token.Pos
+}
+func (ie *IfExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("(if ")
+	out.WriteString(ie.Condition.String())
+	out.WriteString(" then ")
+	out.WriteString(ie.Consequence.String())
+
+	if ie.Alternative != nil {
+		out.WriteString(" else ")
+		out.WriteString(ie.Alternative.String())
+	}
+
+	out.WriteString(")")
+
+	return out.String()
+}
+func (ie *IfExpression) GetType() *TypeAnnotation    { return ie.Type }
+func (ie *IfExpression) SetType(typ *TypeAnnotation) { ie.Type = typ }
+
 // WhileStatement represents a while loop.
 // Examples:
 //

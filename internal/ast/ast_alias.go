@@ -76,6 +76,7 @@ type (
 // Control flow
 type (
 	IfStatement       = pkgast.IfStatement
+	IfExpression      = pkgast.IfExpression
 	WhileStatement    = pkgast.WhileStatement
 	RepeatStatement   = pkgast.RepeatStatement
 	ForStatement      = pkgast.ForStatement

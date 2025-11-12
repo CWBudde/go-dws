@@ -32,6 +32,7 @@ type Interpreter struct {
 	output            io.Writer
 	handlerException  *ExceptionValue
 	classes           map[string]*ClassInfo
+	records           map[string]*RecordTypeValue
 	interfaces        map[string]*InterfaceInfo
 	functions         map[string][]*ast.FunctionDecl
 	globalOperators   *runtimeOperatorRegistry
@@ -76,6 +77,7 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 		output:            output,
 		functions:         make(map[string][]*ast.FunctionDecl), // Task 9.66: Support overloading
 		classes:           make(map[string]*ClassInfo),
+		records:           make(map[string]*RecordTypeValue),
 		interfaces:        make(map[string]*InterfaceInfo),
 		globalOperators:   newRuntimeOperatorRegistry(),
 		conversions:       newRuntimeConversionRegistry(),
@@ -363,6 +365,10 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	case *ast.ImplementsExpression:
 		// Task 9.48: Evaluate 'implements' interface checking operator
 		return i.evalImplementsExpression(node)
+
+	case *ast.IfExpression:
+		// Task 9.217: Evaluate inline if-then-else expressions
+		return i.evalIfExpression(node)
 
 	case *ast.OldExpression:
 		// Evaluate 'old' expressions in postconditions

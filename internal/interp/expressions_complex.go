@@ -224,3 +224,61 @@ func (i *Interpreter) evalImplementsExpression(expr *ast.ImplementsExpression) V
 	result := classImplementsInterface(obj.Class, iface)
 	return &BooleanValue{Value: result}
 }
+
+// evalIfExpression evaluates an inline if-then-else conditional expression.
+// Syntax: if <condition> then <expression> [else <expression>]
+// Returns the value of the consequence if condition is true, otherwise the alternative (or default value).
+func (i *Interpreter) evalIfExpression(expr *ast.IfExpression) Value {
+	// Evaluate the condition
+	condition := i.Eval(expr.Condition)
+	if isError(condition) {
+		return condition
+	}
+
+	// Convert condition to boolean
+	condBool, ok := condition.(*BooleanValue)
+	if !ok {
+		return i.newErrorWithLocation(expr, "if expression condition must be boolean, got %s", condition.Type())
+	}
+
+	// If condition is true, evaluate and return consequence
+	if condBool.Value {
+		result := i.Eval(expr.Consequence)
+		if isError(result) {
+			return result
+		}
+		return result
+	}
+
+	// Condition is false
+	if expr.Alternative != nil {
+		// Evaluate and return alternative
+		result := i.Eval(expr.Alternative)
+		if isError(result) {
+			return result
+		}
+		return result
+	}
+
+	// No else clause - return default value for the consequence type
+	// The type should have been set during semantic analysis
+	if expr.Type == nil {
+		return i.newErrorWithLocation(expr, "if expression missing type annotation")
+	}
+
+	// Return default value based on type name
+	typeName := strings.ToLower(expr.Type.Name)
+	switch typeName {
+	case "integer", "int64":
+		return &IntegerValue{Value: 0}
+	case "float", "float64", "double", "real":
+		return &FloatValue{Value: 0.0}
+	case "string":
+		return &StringValue{Value: ""}
+	case "boolean", "bool":
+		return &BooleanValue{Value: false}
+	default:
+		// For class types and other reference types, return nil
+		return &NilValue{}
+	}
+}

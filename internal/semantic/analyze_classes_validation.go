@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -120,17 +121,20 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 		} else {
 			currentOverloads = classType.GetMethodOverloads(methodName)
 		}
+
 		if len(currentOverloads) > 1 && !method.IsOverload {
-			a.addHint("Overloaded method \"%s\" should be marked with the \"overload\" directive at %s",
-				methodName, method.Token.Pos.String())
+			a.addHint("Overloaded method \"%s\" should be marked with the \"overload\" directive [line: %d, column: %d]",
+				methodName, method.Token.Pos.Line, method.Token.Pos.Column)
 		}
 	}
 
 	// Warn if redefining virtual method without override keyword
 	// Note: Constructors can be marked as virtual, so this check applies to both methods and constructors
 	// Task 9.6: Check class metadata instead of AST node, since implementations don't have override keyword
-	isOverrideInClass := classType.OverrideMethods[methodName]
-	isVirtualInClass := classType.VirtualMethods[methodName]
+	// Task 9.16.1: Use lowercase key for case-insensitive lookups
+	methodNameLower := strings.ToLower(methodName)
+	isOverrideInClass := classType.OverrideMethods[methodNameLower]
+	isVirtualInClass := classType.VirtualMethods[methodNameLower]
 	if !isOverrideInClass && !isVirtualInClass && classType.Parent != nil {
 		// Task 9.4.1: Check if any parent overload with matching signature is virtual
 		var parentOverload *types.MethodInfo

@@ -39,6 +39,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return a.analyzeConstructorCall(expr, classType, memberAccess.Member.Value)
 		}
 
+		// Check if the object is a RecordType (for static method calls like TTest.Sum(args))
+		if recordType, isRecordType := objectType.(*types.RecordType); isRecordType {
+			// This is a static method call on a record type
+			return a.analyzeRecordStaticMethodCall(expr, recordType, memberAccess.Member.Value)
+		}
+
 		// Task 9.73.2: Check if the object is a ClassOfType (metaclass variable)
 		if metaclassType, isMetaclassType := objectType.(*types.ClassOfType); isMetaclassType {
 			// This is a constructor call through a metaclass variable like cls.Create(args)
@@ -154,6 +160,56 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					if argType != nil && !a.canAssign(argType, paramType) {
 						a.addError("argument %d has type %s, expected %s at %s",
 							i+1, argType.String(), paramType.String(),
+							expr.Token.Pos.String())
+					}
+				}
+
+				return methodType.ReturnType
+			}
+		}
+
+		// Check if we're calling a record class method from within a record method
+		if a.currentRecord != nil {
+			methodNameLower := strings.ToLower(funcIdent.Value)
+			overloads := a.currentRecord.GetClassMethodOverloads(methodNameLower)
+			if len(overloads) > 0 {
+				// Found class method overloads - resolve based on arguments
+				argTypes := make([]types.Type, len(expr.Arguments))
+				for i, arg := range expr.Arguments {
+					argType := a.analyzeExpression(arg)
+					if argType == nil {
+						return nil
+					}
+					argTypes[i] = argType
+				}
+
+				// Find matching overload
+				candidates := make([]*Symbol, len(overloads))
+				for i, overload := range overloads {
+					candidates[i] = &Symbol{
+						Type: overload.Signature,
+					}
+				}
+
+				selected, err := ResolveOverload(candidates, argTypes)
+				if err != nil {
+					a.addError("no matching overload for class method '%s' with these arguments at %s",
+						funcIdent.Value, expr.Token.Pos.String())
+					return nil
+				}
+
+				methodType := selected.Type.(*types.FunctionType)
+
+				// Validate argument types
+				for i, arg := range expr.Arguments {
+					if i >= len(methodType.Parameters) {
+						break
+					}
+					paramType := methodType.Parameters[i]
+					argType := a.analyzeExpressionWithExpectedType(arg, paramType)
+					if argType != nil && !a.canAssign(argType, paramType) {
+						a.addError("argument %d to class method '%s' has type %s, expected %s at %s",
+							i+1, funcIdent.Value, argType.String(), paramType.String(),
 							expr.Token.Pos.String())
 					}
 				}
@@ -855,4 +911,62 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 func (a *Analyzer) isNumericType(t types.Type) bool {
 	t = types.GetUnderlyingType(t)
 	return t == types.INTEGER || t == types.FLOAT
+}
+
+// analyzeRecordStaticMethodCall analyzes a static method call on a record type
+// Example: TTest.Sum(a, b) where Sum is a class method
+func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recordType *types.RecordType, methodName string) types.Type {
+	lowerMethodName := strings.ToLower(methodName)
+
+	// Look up class method overloads
+	overloads := recordType.GetClassMethodOverloads(lowerMethodName)
+	if len(overloads) == 0 {
+		a.addError("record type '%s' has no class method '%s' at %s",
+			recordType.Name, methodName, expr.Token.Pos.String())
+		return nil
+	}
+
+	// Resolve overload based on arguments
+	argTypes := make([]types.Type, len(expr.Arguments))
+	for i, arg := range expr.Arguments {
+		argType := a.analyzeExpression(arg)
+		if argType == nil {
+			return nil
+		}
+		argTypes[i] = argType
+	}
+
+	// Find matching overload
+	candidates := make([]*Symbol, len(overloads))
+	for i, overload := range overloads {
+		candidates[i] = &Symbol{
+			Type: overload.Signature,
+		}
+	}
+
+	selected, err := ResolveOverload(candidates, argTypes)
+	if err != nil {
+		a.addError("no matching overload for '%s.%s' with %d arguments at %s",
+			recordType.Name, methodName, len(argTypes), expr.Token.Pos.String())
+		return nil
+	}
+
+	funcType := selected.Type.(*types.FunctionType)
+
+	// Validate argument types
+	for i, arg := range expr.Arguments {
+		if i >= len(funcType.Parameters) {
+			break
+		}
+
+		paramType := funcType.Parameters[i]
+		argType := a.analyzeExpressionWithExpectedType(arg, paramType)
+		if argType != nil && !a.canAssign(argType, paramType) {
+			a.addError("argument %d to '%s.%s' has type %s, expected %s at %s",
+				i+1, recordType.Name, methodName, argType.String(), paramType.String(),
+				expr.Token.Pos.String())
+		}
+	}
+
+	return funcType.ReturnType
 }

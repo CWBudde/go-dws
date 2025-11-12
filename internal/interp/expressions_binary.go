@@ -52,6 +52,10 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 	case left.Type() == "BOOLEAN" && right.Type() == "BOOLEAN":
 		return i.evalBooleanBinaryOp(expr.Operator, left, right)
 
+	// Handle Enum comparisons (=, <>, <, >, <=, >=)
+	case left.Type() == "ENUM" && right.Type() == "ENUM":
+		return i.evalEnumBinaryOp(expr.Operator, left, right)
+
 	// Handle Variant operations
 	case left.Type() == "VARIANT" || right.Type() == "VARIANT":
 		return i.evalVariantBinaryOp(expr.Operator, left, right, expr)
@@ -442,6 +446,40 @@ func (i *Interpreter) evalBooleanBinaryOp(op string, left, right Value) Value {
 		return &BooleanValue{Value: leftVal == rightVal}
 	case "<>":
 		return &BooleanValue{Value: leftVal != rightVal}
+	default:
+		return newError("unknown operator: %s %s %s", left.Type(), op, right.Type())
+	}
+}
+
+// evalEnumBinaryOp evaluates binary operations on enum values.
+// Enums are compared by their ordinal values.
+func (i *Interpreter) evalEnumBinaryOp(op string, left, right Value) Value {
+	// Safe type assertions with error handling
+	leftEnum, ok := left.(*EnumValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "expected enum, got %s", left.Type())
+	}
+	rightEnum, ok := right.(*EnumValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "expected enum, got %s", right.Type())
+	}
+
+	leftVal := leftEnum.OrdinalValue
+	rightVal := rightEnum.OrdinalValue
+
+	switch op {
+	case "=":
+		return &BooleanValue{Value: leftVal == rightVal}
+	case "<>":
+		return &BooleanValue{Value: leftVal != rightVal}
+	case "<":
+		return &BooleanValue{Value: leftVal < rightVal}
+	case ">":
+		return &BooleanValue{Value: leftVal > rightVal}
+	case "<=":
+		return &BooleanValue{Value: leftVal <= rightVal}
+	case ">=":
+		return &BooleanValue{Value: leftVal >= rightVal}
 	default:
 		return newError("unknown operator: %s %s %s", left.Type(), op, right.Type())
 	}

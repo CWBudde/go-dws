@@ -88,7 +88,6 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 
 			// Check if it's a method of the current class
 			// This allows methods to reference other methods as method pointers
-			// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
 			if method, exists := obj.Class.Methods[strings.ToLower(node.Value)]; exists {
 				// Create a method pointer bound to the current object (self)
 				// Build the pointer type

@@ -187,7 +187,6 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 	}
 
 	// Index must be an integer or enum for arrays and strings
-	// Task 9.21.1: Allow enum values as array indices (use ordinal value)
 	var index int
 	switch iv := indexVal.(type) {
 	case *IntegerValue:

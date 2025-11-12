@@ -126,7 +126,6 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 	}
 
 	// Index must be integer or enum (enums are ordinal types in DWScript)
-	// Task 9.21.1: Allow enum types as array indices
 	if !indexType.Equals(types.INTEGER) && indexType.TypeKind() != "ENUM" {
 		a.addError("array index must be integer or enum, got %s at %s",
 			indexType.String(), expr.Index.Pos().String())
@@ -138,7 +137,7 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 }
 
 // analyzeNewArrayExpression analyzes array instantiation with 'new' keyword
-// Task 9.162: Validate dimensions are integers and construct array type
+//
 // Examples:
 //   - new Integer[16]           // 1D array
 //   - new String[10, 20]        // 2D array

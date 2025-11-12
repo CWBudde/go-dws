@@ -59,11 +59,32 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 	// This allows variable declarations to resolve the type
 	// Task 9.225: Normalize to lowercase for case-insensitive lookups
 	recordTypeKey := "__record_type_" + strings.ToLower(recordName)
-	i.env.Define(recordTypeKey, &RecordTypeValue{
-		RecordType:    recordType,
-		Methods:       methods,
-		StaticMethods: staticMethods,
-	})
+	recordTypeValue := &RecordTypeValue{
+		RecordType:           recordType,
+		Methods:              methods,
+		StaticMethods:        staticMethods,
+		ClassMethods:         make(map[string]*ast.FunctionDecl),
+		ClassMethodOverloads: make(map[string][]*ast.FunctionDecl),
+		MethodOverloads:      make(map[string][]*ast.FunctionDecl),
+	}
+	// Initialize ClassMethods with StaticMethods for compatibility
+	for k, v := range staticMethods {
+		recordTypeValue.ClassMethods[k] = v
+	}
+	i.env.Define(recordTypeKey, recordTypeValue)
+
+	// Also store in records map for easier access during method implementation
+	i.records[recordName] = recordTypeValue
+
+	// Initialize overload lists from method declarations
+	for methodName, methodDecl := range methods {
+		lowerName := strings.ToLower(methodName)
+		recordTypeValue.MethodOverloads[lowerName] = []*ast.FunctionDecl{methodDecl}
+	}
+	for methodName, methodDecl := range staticMethods {
+		lowerName := strings.ToLower(methodName)
+		recordTypeValue.ClassMethodOverloads[lowerName] = []*ast.FunctionDecl{methodDecl}
+	}
 
 	return &NilValue{}
 }
@@ -72,9 +93,12 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 // in the interpreter's environment.
 // Task 9.7: Extended to include method AST nodes for runtime execution.
 type RecordTypeValue struct {
-	RecordType    *types.RecordType
-	Methods       map[string]*ast.FunctionDecl // Instance methods: Method name -> AST declaration
-	StaticMethods map[string]*ast.FunctionDecl // Static methods: Method name -> AST declaration (class function/procedure)
+	RecordType           *types.RecordType
+	Methods              map[string]*ast.FunctionDecl   // Instance methods: Method name -> AST declaration
+	StaticMethods        map[string]*ast.FunctionDecl   // Static methods: Method name -> AST declaration (class function/procedure)
+	ClassMethods         map[string]*ast.FunctionDecl   // Alias for StaticMethods (for compatibility)
+	MethodOverloads      map[string][]*ast.FunctionDecl // Instance method overloads
+	ClassMethodOverloads map[string][]*ast.FunctionDecl // Static method overloads
 }
 
 // Type returns "RECORD_TYPE".

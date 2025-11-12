@@ -49,6 +49,7 @@ type Analyzer struct {
 	currentFunction    *ast.FunctionDecl
 	classes            map[string]*types.ClassType
 	currentClass       *types.ClassType
+	currentRecord      *types.RecordType
 	enums              map[string]*types.EnumType
 	records            map[string]*types.RecordType
 	sets               map[string]*types.SetType
@@ -279,40 +280,36 @@ func (a *Analyzer) validateMethodImplementations() {
 	// Iterate through all classes
 	// Note: className is the lowercase map key, use classType.Name for original case
 	for _, classType := range a.classes {
-		// Check each method in the class
-		for methodName := range classType.Methods {
-			// Check if method is still marked as forward (not implemented)
-			if classType.ForwardedMethods[methodName] {
-				// Skip abstract methods - they don't need implementations
-				if classType.AbstractMethods[methodName] {
-					continue
-				}
+		// Check each method and constructor in ForwardedMethods
+		// Task 9.16.1: ForwardedMethods now uses lowercase keys
+		for methodName, isForwarded := range classType.ForwardedMethods {
+			if !isForwarded {
+				continue
+			}
 
-				// Skip external methods - they are implemented externally
-				if classType.IsExternal {
-					continue
-				}
+			// Skip abstract methods - they don't need implementations
+			// Task 9.16.1: AbstractMethods also uses lowercase keys now
+			if classType.AbstractMethods[methodName] {
+				continue
+			}
 
-				// This method was declared but never implemented
-				// Use classType.Name to preserve original case in error messages
+			// Skip external methods - they are implemented externally
+			if classType.IsExternal {
+				continue
+			}
+
+			// Determine if this is a constructor or regular method
+			// Task 9.16.1: ConstructorOverloads uses lowercase keys
+			isConstructor := len(classType.ConstructorOverloads[methodName]) > 0
+
+			// This method/constructor was declared but never implemented
+			// Use classType.Name to preserve original case in error messages
+			if isConstructor {
+				a.addError("constructor '%s.%s' declared but not implemented",
+					classType.Name, methodName)
+			} else {
 				a.addError("method '%s.%s' declared but not implemented",
 					classType.Name, methodName)
-			}
-		}
-
-		// Also check constructors
-		for ctorName := range classType.Constructors {
-			// Check if constructor is still marked as forward (not implemented)
-			if classType.ForwardedMethods[ctorName] {
-				// Skip if class is external
-				if classType.IsExternal {
-					continue
-				}
-
-				// This constructor was declared but never implemented
-				// Use classType.Name to preserve original case in error messages
-				a.addError("constructor '%s.%s' declared but not implemented",
-					classType.Name, ctorName)
 			}
 		}
 	}

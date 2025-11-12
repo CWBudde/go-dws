@@ -502,7 +502,7 @@ func TestHelperMethodNotFound(t *testing.T) {
 		var s: String;
 		begin
 			s := 'hello';
-			s.ToLower();  // Method doesn't exist
+			s.ToMegaCase();  // Method doesn't exist
 		end.
 	`
 

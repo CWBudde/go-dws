@@ -363,13 +363,32 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		recordTypeKey := "__record_type_" + strings.ToLower(ident.Value)
 		if typeVal, ok := i.env.Get(recordTypeKey); ok {
 			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				// This is TRecord.Method() - check for static method
-				if staticMethod, exists := rtv.StaticMethods[mc.Method.Value]; exists {
-					// Execute static method WITHOUT Self binding
-					return i.callRecordStaticMethod(rtv, staticMethod, mc.Arguments, mc)
+				// This is TRecord.Method() - check for static method with overload support
+				methodNameLower := strings.ToLower(mc.Method.Value)
+				classMethodOverloads, hasOverloads := rtv.ClassMethodOverloads[methodNameLower]
+
+				if !hasOverloads || len(classMethodOverloads) == 0 {
+					// Static method not found
+					return i.newErrorWithLocation(mc, "static method '%s' not found in record type '%s'", mc.Method.Value, ident.Value)
 				}
-				// Static method not found
-				return i.newErrorWithLocation(mc, "static method '%s' not found in record type '%s'", mc.Method.Value, ident.Value)
+
+				// Resolve overload if multiple methods exist
+				var staticMethod *ast.FunctionDecl
+				var err error
+
+				if len(classMethodOverloads) > 1 {
+					// Multiple overloads - need to resolve based on arguments
+					staticMethod, err = i.resolveMethodOverload(rtv.RecordType.Name, mc.Method.Value, classMethodOverloads, mc.Arguments)
+					if err != nil {
+						return i.newErrorWithLocation(mc, "%s", err.Error())
+					}
+				} else {
+					// Single method - use it directly
+					staticMethod = classMethodOverloads[0]
+				}
+
+				// Execute static method WITHOUT Self binding
+				return i.callRecordStaticMethod(rtv, staticMethod, mc.Arguments, mc)
 			}
 		}
 	}

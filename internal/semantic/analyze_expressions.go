@@ -51,7 +51,7 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 	case *ast.ArrayLiteralExpression:
 		return a.analyzeArrayLiteral(e, nil)
 	case *ast.RecordLiteralExpression:
-		// Task 9.176: Typed record literals can be analyzed standalone
+		// Typed record literals can be analyzed standalone
 		if e.TypeName != nil {
 			return a.analyzeRecordLiteral(e, nil)
 		}
@@ -85,6 +85,9 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 	case *ast.ImplementsExpression:
 		// Task 9.48: Handle 'implements' interface checking operator
 		return a.analyzeImplementsExpression(e)
+	case *ast.IfExpression:
+		// Task 9.217: Handle inline if-then-else expressions
+		return a.analyzeIfExpression(e)
 	default:
 		a.addError("unknown expression type: %T", expr)
 		return nil
@@ -404,6 +407,144 @@ func (a *Analyzer) analyzeImplementsExpression(expr *ast.ImplementsExpression) t
 	})
 
 	return types.BOOLEAN
+}
+
+// analyzeIfExpression analyzes an inline if-then-else conditional expression.
+// Syntax: if <condition> then <expression> [else <expression>]
+// Returns the common type of the consequence and alternative branches.
+func (a *Analyzer) analyzeIfExpression(expr *ast.IfExpression) types.Type {
+	// Check that condition is boolean
+	condType := a.analyzeExpression(expr.Condition)
+	if condType != nil && !condType.Equals(types.BOOLEAN) {
+		a.addError("if expression condition must be boolean, got %s at %s",
+			condType.String(), expr.Token.Pos.String())
+	}
+
+	// Analyze consequence expression
+	consequenceType := a.analyzeExpression(expr.Consequence)
+	if consequenceType == nil {
+		a.addError("invalid consequence expression in if-then-else at %s", expr.Token.Pos.String())
+		return nil
+	}
+
+	var resultType types.Type
+
+	// Analyze alternative if present
+	if expr.Alternative != nil {
+		alternativeType := a.analyzeExpression(expr.Alternative)
+		if alternativeType == nil {
+			a.addError("invalid alternative expression in if-then-else at %s", expr.Token.Pos.String())
+			return nil
+		}
+
+		// Find common type between consequence and alternative
+		resultType = a.findCommonType(consequenceType, alternativeType)
+		if resultType == nil {
+			a.addError("incompatible types in if-then-else: %s and %s at %s",
+				consequenceType.String(), alternativeType.String(), expr.Token.Pos.String())
+			return nil
+		}
+	} else {
+		// No else clause - result type is the consequence type
+		// When condition is false, default value of the type is returned
+		resultType = consequenceType
+	}
+
+	// Set type annotation on the expression
+	if resultType != nil {
+		expr.SetType(&ast.TypeAnnotation{
+			Token: expr.Token,
+			Name:  resultType.String(),
+		})
+	}
+
+	return resultType
+}
+
+// findCommonType finds a common type between two types.
+// This handles type compatibility for if-then-else expressions:
+// - Same types return that type
+// - Integer and Float return Float (wider type)
+// - For class types, return common base class
+// - For nil and class, return the class type
+func (a *Analyzer) findCommonType(t1, t2 types.Type) types.Type {
+	if t1 == nil || t2 == nil {
+		return nil
+	}
+
+	// Same types
+	if t1.Equals(t2) {
+		return t1
+	}
+
+	// Integer + Float = Float (wider type)
+	if (t1.Equals(types.INTEGER) && t2.Equals(types.FLOAT)) ||
+		(t1.Equals(types.FLOAT) && t2.Equals(types.INTEGER)) {
+		return types.FLOAT
+	}
+
+	// Handle nil compatibility with class types
+	if t1.Equals(types.NIL) {
+		if _, ok := types.GetUnderlyingType(t2).(*types.ClassType); ok {
+			return t2
+		}
+	}
+	if t2.Equals(types.NIL) {
+		if _, ok := types.GetUnderlyingType(t1).(*types.ClassType); ok {
+			return t1
+		}
+	}
+
+	// For class types, find common base class
+	class1, ok1 := types.GetUnderlyingType(t1).(*types.ClassType)
+	class2, ok2 := types.GetUnderlyingType(t2).(*types.ClassType)
+	if ok1 && ok2 {
+		// Find common ancestor
+		return a.findCommonBaseClass(class1, class2)
+	}
+
+	// For "class of" types (metaclasses), find common base metaclass
+	classOf1, ok1 := types.GetUnderlyingType(t1).(*types.ClassOfType)
+	classOf2, ok2 := types.GetUnderlyingType(t2).(*types.ClassOfType)
+	if ok1 && ok2 {
+		// Get the underlying class types
+		if classOf1.ClassType != nil && classOf2.ClassType != nil {
+			// Find common base class
+			commonBase := a.findCommonBaseClass(classOf1.ClassType, classOf2.ClassType)
+			if commonBase != nil {
+				// Wrap the common base in a ClassOfType
+				if baseClass, ok := commonBase.(*types.ClassType); ok {
+					return types.NewClassOfType(baseClass)
+				}
+			}
+		}
+	}
+
+	// No common type found
+	return nil
+}
+
+// findCommonBaseClass finds the common base class between two class types.
+func (a *Analyzer) findCommonBaseClass(c1, c2 *types.ClassType) types.Type {
+	// Build ancestor chain for c1
+	ancestors1 := make(map[string]bool)
+	current := c1
+	for current != nil {
+		ancestors1[current.Name] = true
+		current = current.Parent
+	}
+
+	// Walk c2's ancestor chain and find first match
+	current = c2
+	for current != nil {
+		if ancestors1[current.Name] {
+			return current
+		}
+		current = current.Parent
+	}
+
+	// No common base found - should at least be TObject in a well-formed hierarchy
+	return nil
 }
 
 // analyzeIdentifier analyzes an identifier and returns its type

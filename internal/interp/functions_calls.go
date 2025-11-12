@@ -269,6 +269,24 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		}
 	}
 
+	// Check if this is a static method call within the current record context
+	if recordVal, ok := i.env.Get("__CurrentRecord__"); ok {
+		if rtv, isRecord := recordVal.(*RecordTypeValue); isRecord {
+			// Check if the function name matches a static method (case-insensitive)
+			methodNameLower := strings.ToLower(funcName.Value)
+			if overloads, exists := rtv.ClassMethodOverloads[methodNameLower]; exists && len(overloads) > 0 {
+				// Found a static method - convert to qualified call
+				mc := &ast.MethodCallExpression{
+					Token:     expr.Token,
+					Object:    &ast.Identifier{Token: funcName.Token, Value: rtv.RecordType.Name},
+					Method:    funcName,
+					Arguments: expr.Arguments,
+				}
+				return i.evalMethodCall(mc)
+			}
+		}
+	}
+
 	// Check if this is a built-in function with var parameters
 	// These functions need the AST node for the first argument to modify it in place
 	if funcName.Value == "Inc" || funcName.Value == "Dec" || funcName.Value == "Insert" ||

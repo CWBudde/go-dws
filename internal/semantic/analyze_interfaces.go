@@ -147,7 +147,8 @@ func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, d
 			} else {
 				// Clear the forward flag since this method implements the interface
 				// Methods implementing interfaces are complete implementations, not forward declarations
-				delete(classType.ForwardedMethods, methodName)
+				// Task 9.16.1: Use lowercase key since ForwardedMethods now uses lowercase keys
+				delete(classType.ForwardedMethods, strings.ToLower(methodName))
 			}
 		}
 	}

@@ -115,7 +115,6 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 	}
 
 	// Create class that implements all 15 methods
-	// Task 9.16.2: Methods must be stored with lowercase keys for case-insensitive lookup
 	class := NewClassInfo("TLargeClass")
 	for _, name := range methodNames {
 		class.Methods[strings.ToLower(name)] = &ast.FunctionDecl{
@@ -129,7 +128,6 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 	}
 
 	// Verify class missing one method doesn't implement interface
-	// Task 9.16.2: Methods must be stored with lowercase keys for case-insensitive lookup
 	incompleteClass := NewClassInfo("TIncompleteClass")
 	for i, name := range methodNames {
 		if i < 14 { // Only add 14 methods (missing one)

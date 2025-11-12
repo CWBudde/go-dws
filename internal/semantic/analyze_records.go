@@ -58,6 +58,12 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		recordType.Fields[lowerFieldName] = fieldType
 	}
 
+	// Register the record type early so it's visible in method signatures
+	// Use lowercase key for case-insensitive lookup
+	a.records[strings.ToLower(recordName)] = recordType
+	// Also register in symbol table as a type
+	a.symbols.Define(recordName, recordType)
+
 	// Process methods if any
 	for _, method := range decl.Methods {
 		methodName := method.Name.Value
@@ -92,7 +98,32 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			funcType = types.NewProcedureType(paramTypes)
 		}
 
-		recordType.Methods[methodName] = funcType
+		// Create MethodInfo for overload tracking
+		methodInfo := &types.MethodInfo{
+			Signature:            funcType,
+			IsClassMethod:        method.IsClassMethod,
+			HasOverloadDirective: method.IsOverload,
+			Visibility:           int(method.Visibility),
+		}
+
+		lowerMethodName := strings.ToLower(methodName)
+
+		// Store in appropriate maps based on whether it's a class method (static)
+		if method.IsClassMethod {
+			// Store primary signature and add to overloads
+			if recordType.ClassMethods[lowerMethodName] == nil {
+				recordType.ClassMethods[lowerMethodName] = funcType
+			}
+			recordType.ClassMethodOverloads[lowerMethodName] = append(
+				recordType.ClassMethodOverloads[lowerMethodName], methodInfo)
+		} else {
+			// Store primary signature and add to overloads
+			if recordType.Methods[lowerMethodName] == nil {
+				recordType.Methods[lowerMethodName] = funcType
+			}
+			recordType.MethodOverloads[lowerMethodName] = append(
+				recordType.MethodOverloads[lowerMethodName], methodInfo)
+		}
 	}
 
 	// Process properties if any
@@ -118,12 +149,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		recordType.Properties[propName] = propInfo
 	}
 
-	// Register the record type
-	// Use lowercase key for case-insensitive lookup
-	a.records[strings.ToLower(recordName)] = recordType
-
-	// Also register in symbol table as a type
-	a.symbols.Define(recordName, recordType)
+	// Record type already registered above (after fields, before methods)
 }
 
 // analyzeRecordFieldAccess analyzes access to a record field.
@@ -149,7 +175,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 		return fieldType
 	}
 
-	// Check if it's a method of the record
+	// Check if it's an instance method of the record
 	methodType, methodExists := recordType.Methods[fieldName]
 	if methodExists {
 		// Task 9.37: If method is parameterless, it will be auto-invoked by the interpreter
@@ -163,6 +189,9 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 		// Method has parameters - return function type for deferred invocation
 		return methodType
 	}
+
+	// Note: Class methods are not accessible via instance.method syntax
+	// They must be called via RecordType.method (handled in analyzeMemberAccessExpression)
 
 	// Check if it's a property of the record
 	if recordType.Properties != nil {

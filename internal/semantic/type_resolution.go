@@ -771,20 +771,23 @@ func (a *Analyzer) getUnimplementedAbstractMethods(classType *types.ClassType) [
 
 	// Check which ones are not implemented in this class
 	for methodName := range abstractMethods {
-		// Check if this class implements the method (non-abstract)
-		// Use case-insensitive lookup since DWScript is case-insensitive
-		if _, hasMethod := classType.GetMethod(methodName); !hasMethod {
-			// Method not defined in this class at all - not implemented
+		// Check if this class has its own implementation of the method
+		// We need to check the method is defined in THIS class specifically, not inherited
+		// Task 9.16.1: methodName is already lowercase from AbstractMethods map
+		lowerMethodName := strings.ToLower(methodName)
+		hasOwnMethod := len(classType.MethodOverloads[lowerMethodName]) > 0
+
+		if !hasOwnMethod {
+			// Method not defined in this class at all - inherited but not implemented
 			unimplemented = append(unimplemented, methodName)
 		} else {
-			// Method exists - check if it's still abstract in this class
-			lowerMethodName := strings.ToLower(methodName)
+			// Method is defined in this class - check if it's still abstract
 			if isAbstract, exists := classType.AbstractMethods[lowerMethodName]; exists && isAbstract {
 				// Still abstract in this class - not implemented
 				unimplemented = append(unimplemented, methodName)
 			}
+			// Otherwise, method is implemented (exists and is not abstract)
 		}
-		// Otherwise, method is implemented (exists and is not abstract)
 	}
 
 	return unimplemented

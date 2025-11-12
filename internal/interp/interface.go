@@ -156,7 +156,6 @@ func classImplementsInterface(class *ClassInfo, iface *InterfaceInfo) bool {
 }
 
 // classHasMethod checks if a class or its parents have a method with the given name.
-// Task 9.16.2: Method names are case-insensitive, so we normalize to lowercase
 func classHasMethod(class *ClassInfo, methodName string) bool {
 	// Normalize to lowercase for case-insensitive lookup
 	normalizedName := strings.ToLower(methodName)
