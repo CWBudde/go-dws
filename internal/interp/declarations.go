@@ -218,6 +218,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Add own fields to ClassInfo
 	for _, field := range cd.Fields {
 		var fieldType types.Type
+		var cachedInitValue Value // Cache evaluated init value to avoid double evaluation
 
 		// Get the field type from the type annotation or infer from initialization
 		if field.Type != nil {
@@ -243,6 +244,9 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			if isError(initVal) {
 				return initVal
 			}
+			// Cache the evaluated value to reuse for class var initialization
+			cachedInitValue = initVal
+
 			// Infer type from the value
 			fieldType = i.inferTypeFromValue(initVal)
 			if fieldType == nil {
@@ -259,22 +263,29 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 			// Check if there's an initialization expression
 			if field.InitValue != nil {
-				// Create temporary environment with class constants available
-				savedEnv := i.env
-				tempEnv := NewEnclosedEnvironment(i.env)
-				for cName, cValue := range classInfo.ConstantValues {
-					tempEnv.Set(cName, cValue)
-				}
-				i.env = tempEnv
+				// Reuse cached value if available (from type inference)
+				// This avoids double evaluation which would run side effects twice
+				if cachedInitValue != nil {
+					classVarValue = cachedInitValue
+				} else {
+					// Need to evaluate (explicit type annotation case)
+					// Create temporary environment with class constants available
+					savedEnv := i.env
+					tempEnv := NewEnclosedEnvironment(i.env)
+					for cName, cValue := range classInfo.ConstantValues {
+						tempEnv.Set(cName, cValue)
+					}
+					i.env = tempEnv
 
-				// Evaluate the initialization expression
-				val := i.Eval(field.InitValue)
-				i.env = savedEnv
+					// Evaluate the initialization expression
+					val := i.Eval(field.InitValue)
+					i.env = savedEnv
 
-				if isError(val) {
-					return val
+					if isError(val) {
+						return val
+					}
+					classVarValue = val
 				}
-				classVarValue = val
 			} else {
 				// Initialize class variable with default value based on type
 				switch fieldType {
