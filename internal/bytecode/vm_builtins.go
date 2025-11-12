@@ -70,6 +70,16 @@ func (vm *VM) registerBuiltins() {
 	vm.builtins["StrIsASCII"] = builtinStrIsASCII
 	vm.builtins["Ord"] = builtinOrd
 	vm.builtins["Chr"] = builtinChr
+	vm.builtins["UpperCase"] = builtinUpperCase
+	vm.builtins["LowerCase"] = builtinLowerCase
+	vm.builtins["ASCIIUpperCase"] = builtinASCIIUpperCase
+	vm.builtins["ASCIILowerCase"] = builtinASCIILowerCase
+	vm.builtins["AnsiUpperCase"] = builtinAnsiUpperCase
+	vm.builtins["AnsiLowerCase"] = builtinAnsiLowerCase
+	vm.builtins["CharAt"] = builtinCharAt
+	vm.builtins["ByteSizeToStr"] = builtinByteSizeToStr
+	vm.builtins["GetText"] = builtinGetText
+	vm.builtins["_"] = builtinGetText
 	// Type cast functions
 	vm.builtins["Integer"] = builtinInteger
 	vm.builtins["Float"] = builtinFloat
@@ -1933,4 +1943,160 @@ func wildcardMatchImpl(str, pattern []rune, si, pi int) bool {
 
 	// No match
 	return false
+}
+
+// builtinUpperCase implements the UpperCase() built-in function.
+// It converts a string to uppercase.
+func builtinUpperCase(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("UpperCase expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("UpperCase expects a string argument")
+	}
+	return StringValue(strings.ToUpper(args[0].AsString())), nil
+}
+
+// builtinLowerCase implements the LowerCase() built-in function.
+// It converts a string to lowercase.
+func builtinLowerCase(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("LowerCase expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("LowerCase expects a string argument")
+	}
+	return StringValue(strings.ToLower(args[0].AsString())), nil
+}
+
+// builtinASCIIUpperCase implements the ASCIIUpperCase() built-in function.
+// It converts a string to uppercase using ASCII-only conversion.
+func builtinASCIIUpperCase(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("ASCIIUpperCase expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("ASCIIUpperCase expects a string argument")
+	}
+
+	str := args[0].AsString()
+	result := make([]byte, len(str))
+	for i, b := range []byte(str) {
+		if b >= 'a' && b <= 'z' {
+			result[i] = b - 32 // Convert to uppercase
+		} else {
+			result[i] = b
+		}
+	}
+
+	return StringValue(string(result)), nil
+}
+
+// builtinASCIILowerCase implements the ASCIILowerCase() built-in function.
+// It converts a string to lowercase using ASCII-only conversion.
+func builtinASCIILowerCase(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("ASCIILowerCase expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("ASCIILowerCase expects a string argument")
+	}
+
+	str := args[0].AsString()
+	result := make([]byte, len(str))
+	for i, b := range []byte(str) {
+		if b >= 'A' && b <= 'Z' {
+			result[i] = b + 32 // Convert to lowercase
+		} else {
+			result[i] = b
+		}
+	}
+
+	return StringValue(string(result)), nil
+}
+
+// builtinAnsiUpperCase implements the AnsiUpperCase() built-in function.
+// It is an alias for UpperCase().
+func builtinAnsiUpperCase(vm *VM, args []Value) (Value, error) {
+	return builtinUpperCase(vm, args)
+}
+
+// builtinAnsiLowerCase implements the AnsiLowerCase() built-in function.
+// It is an alias for LowerCase().
+func builtinAnsiLowerCase(vm *VM, args []Value) (Value, error) {
+	return builtinLowerCase(vm, args)
+}
+
+// builtinCharAt implements the CharAt() built-in function.
+// It returns the character at the specified position in a string (1-based).
+func builtinCharAt(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("CharAt expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("CharAt expects string as first argument")
+	}
+	if !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("CharAt expects integer as second argument")
+	}
+
+	// Use SubStr to get a single character
+	return builtinSubStr(vm, []Value{args[0], args[1], IntValue(1)})
+}
+
+// builtinByteSizeToStr implements the ByteSizeToStr() built-in function.
+// It formats a byte size into a human-readable string (KB, MB, GB, TB).
+func builtinByteSizeToStr(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("ByteSizeToStr expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsInt() {
+		return NilValue(), vm.runtimeError("ByteSizeToStr expects an integer argument")
+	}
+
+	size := float64(args[0].AsInt())
+
+	// Define size units
+	const (
+		KB = 1024
+		MB = 1024 * KB
+		GB = 1024 * MB
+		TB = 1024 * GB
+	)
+
+	// Format based on size
+	var result string
+	absSize := size
+	if absSize < 0 {
+		absSize = -absSize
+	}
+
+	if absSize < KB {
+		result = fmt.Sprintf("%d bytes", int64(size))
+	} else if absSize < MB {
+		result = fmt.Sprintf("%.2f KB", size/KB)
+	} else if absSize < GB {
+		result = fmt.Sprintf("%.2f MB", size/MB)
+	} else if absSize < TB {
+		result = fmt.Sprintf("%.2f GB", size/GB)
+	} else {
+		result = fmt.Sprintf("%.2f TB", size/TB)
+	}
+
+	return StringValue(result), nil
+}
+
+// builtinGetText implements the GetText() and _() built-in functions.
+// It is a localization/translation function that returns the input string unchanged.
+func builtinGetText(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("GetText expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsString() {
+		return NilValue(), vm.runtimeError("GetText expects a string argument")
+	}
+
+	// For now, just return the input string unchanged
+	// In a full implementation, this would look up translations
+	return args[0], nil
 }

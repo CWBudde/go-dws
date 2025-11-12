@@ -436,16 +436,16 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Case Conversion Variants (Phase 9.17.7)
 
-- [ ] 9.17.7.1 ASCIILowerCase(str) - ASCII-only lowercase
-- [ ] 9.17.7.2 ASCIIUpperCase(str) - ASCII-only uppercase
-- [ ] 9.17.7.3 AnsiLowerCase(str) - ANSI lowercase (alias for LowerCase)
-- [ ] 9.17.7.4 AnsiUpperCase(str) - ANSI uppercase (alias for UpperCase)
+- [x] 9.17.7.1 ASCIILowerCase(str) - ASCII-only lowercase
+- [x] 9.17.7.2 ASCIIUpperCase(str) - ASCII-only uppercase
+- [x] 9.17.7.3 AnsiLowerCase(str) - ANSI lowercase (alias for LowerCase)
+- [x] 9.17.7.4 AnsiUpperCase(str) - ANSI uppercase (alias for UpperCase)
 
 #### Utility Functions (Phase 9.17.8)
 
-- [ ] 9.17.8.1 ByteSizeToStr(size) - Format byte size (KB, MB, GB)
-- [ ] 9.17.8.2 GetText(str) / _(str) - Localization/translation function
-- [ ] 9.17.8.3 CharAt(s, x) - Get character at position (deprecated, use SubStr)
+- [x] 9.17.8.1 ByteSizeToStr(size) - Format byte size (KB, MB, GB)
+- [x] 9.17.8.2 GetText(str) / _(str) - Localization/translation function
+- [x] 9.17.8.3 CharAt(s, x) - Get character at position (deprecated, use SubStr)
 
 ---
 
