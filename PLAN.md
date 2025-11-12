@@ -400,14 +400,14 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Comparison Functions (Phase 9.17.4)
 
-- [ ] 9.17.4.1 SameText(str1, str2) - Case-insensitive equality
-- [ ] 9.17.4.2 CompareText(str1, str2) - Case-insensitive compare
-- [ ] 9.17.4.3 CompareStr(str1, str2) - Case-sensitive compare
-- [ ] 9.17.4.4 AnsiCompareText(str1, str2) - ANSI case-insensitive compare
-- [ ] 9.17.4.5 AnsiCompareStr(str1, str2) - ANSI case-sensitive compare
-- [ ] 9.17.4.6 CompareLocaleStr(str1, str2, locale, caseSensitive) - Locale-aware compare
-- [ ] 9.17.4.7 StrMatches(str, mask) - Wildcard pattern matching
-- [ ] 9.17.4.8 StrIsASCII(str) - Is pure ASCII?
+- [x] 9.17.4.1 SameText(str1, str2) - Case-insensitive equality
+- [x] 9.17.4.2 CompareText(str1, str2) - Case-insensitive compare
+- [x] 9.17.4.3 CompareStr(str1, str2) - Case-sensitive compare
+- [x] 9.17.4.4 AnsiCompareText(str1, str2) - ANSI case-insensitive compare
+- [x] 9.17.4.5 AnsiCompareStr(str1, str2) - ANSI case-sensitive compare
+- [x] 9.17.4.6 CompareLocaleStr(str1, str2, locale, caseSensitive) - Locale-aware compare
+- [x] 9.17.4.7 StrMatches(str, mask) - Wildcard pattern matching
+- [x] 9.17.4.8 StrIsASCII(str) - Is pure ASCII?
 
 #### Advanced Conversion Functions (Phase 9.17.5)
 

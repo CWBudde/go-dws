@@ -127,6 +127,22 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinNormalizeString(args)
 	case "StripAccents":
 		return i.builtinStripAccents(args)
+	case "SameText":
+		return i.builtinSameText(args)
+	case "CompareText":
+		return i.builtinCompareText(args)
+	case "CompareStr":
+		return i.builtinCompareStr(args)
+	case "AnsiCompareText":
+		return i.builtinAnsiCompareText(args)
+	case "AnsiCompareStr":
+		return i.builtinAnsiCompareStr(args)
+	case "CompareLocaleStr":
+		return i.builtinCompareLocaleStr(args)
+	case "StrMatches":
+		return i.builtinStrMatches(args)
+	case "StrIsASCII":
+		return i.builtinStrIsASCII(args)
 	case "Format":
 		return i.builtinFormat(args)
 	case "Abs":
