@@ -301,7 +301,7 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 	classTargetType, isClassTarget := targetUnderlying.(*types.ClassType)
 
 	if !isInterface && !isClassTarget {
-		a.addError("'as' operator requires interface or class type, got %s at %s",
+		a.addError("'as' operator requires class or interface type, got %s at %s",
 			targetType.String(), expr.Token.Pos.String())
 		return nil
 	}

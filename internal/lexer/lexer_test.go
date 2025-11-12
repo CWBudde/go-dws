@@ -796,7 +796,8 @@ func TestAllKeywords(t *testing.T) {
 		"true", "false", "nil",
 		"is", "as", "in", "div", "mod", "shl", "shr", "sar", "impl",
 		"inline", "external", "forward", "overload", "deprecated",
-		"readonly", "export", "register", "reference",
+		"readonly", "export",
+		// Note: Calling conventions (register, pascal, cdecl, etc.) are NOT keywords
 		"private", "protected", "public", "published", "strict",
 		"read", "write", "default", "description",
 		"old", "require", "ensure", "invariants",

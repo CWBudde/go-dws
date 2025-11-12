@@ -148,7 +148,7 @@ func TestHelperMethodResolution(t *testing.T) {
 				var s: String;
 				begin
 					s := 'hello';
-					s.ToLower();
+					s.Reverse();
 				end.
 			`,
 			expectError: true,
