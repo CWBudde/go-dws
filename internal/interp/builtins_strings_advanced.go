@@ -6,6 +6,9 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
+// builtinStrSplit implements the StrSplit() built-in function.
+// It splits a string into an array of strings using a delimiter.
+// If the delimiter is empty, returns an array with the original string as the sole element.
 func (i *Interpreter) builtinStrSplit(args []Value) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "StrSplit() expects exactly 2 arguments, got %d", len(args))
