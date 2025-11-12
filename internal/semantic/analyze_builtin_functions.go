@@ -51,6 +51,18 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeStrToIntDef(args, callExpr), true
 	case "strtofloatdef":
 		return a.analyzeStrToFloatDef(args, callExpr), true
+	case "trystrtoint":
+		return a.analyzeTryStrToInt(args, callExpr), true
+	case "trystrtofloat":
+		return a.analyzeTryStrToFloat(args, callExpr), true
+	case "hextoint":
+		return a.analyzeHexToInt(args, callExpr), true
+	case "bintoint":
+		return a.analyzeBinToInt(args, callExpr), true
+	case "vartointdef":
+		return a.analyzeVarToIntDef(args, callExpr), true
+	case "vartofloatdef":
+		return a.analyzeVarToFloatDef(args, callExpr), true
 	case "chr":
 		return a.analyzeChr(args, callExpr), true
 
@@ -171,6 +183,18 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeStrMatches(args, callExpr), true
 	case "strisascii":
 		return a.analyzeStrIsASCII(args, callExpr), true
+
+	// Encoding/Escaping Functions (Phase 9.17.6)
+	case "strtohtml":
+		return a.analyzeStrToHtml(args, callExpr), true
+	case "strtohtmlattribute":
+		return a.analyzeStrToHtmlAttribute(args, callExpr), true
+	case "strtojson":
+		return a.analyzeStrToJSON(args, callExpr), true
+	case "strtocsstext":
+		return a.analyzeStrToCSSText(args, callExpr), true
+	case "strtoxml":
+		return a.analyzeStrToXML(args, callExpr), true
 
 	// Math Functions - Basic
 	case "abs":

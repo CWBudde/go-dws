@@ -1,0 +1,323 @@
+package interp
+
+import (
+	"strconv"
+	"strings"
+
+	"github.com/cwbudde/go-dws/internal/ast"
+)
+
+// builtinTryStrToInt implements the TryStrToInt() built-in function.
+// It attempts to convert a string to an integer, returning true on success.
+// TryStrToInt(s: String, var value: Integer): Boolean
+// TryStrToInt(s: String, base: Integer, var value: Integer): Boolean (base 2-36)
+func (i *Interpreter) builtinTryStrToInt(args []ast.Expression) Value {
+	if len(args) < 2 || len(args) > 3 {
+		return i.newErrorWithLocation(i.currentNode, "TryStrToInt() expects 2 or 3 arguments, got %d", len(args))
+	}
+
+	// First argument: string to convert
+	strArg := i.Eval(args[0])
+	if isError(strArg) {
+		return strArg
+	}
+	strVal, ok := strArg.(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "TryStrToInt() expects string as first argument, got %s", strArg.Type())
+	}
+
+	// Determine if we have 2 or 3 arguments
+	var base int
+	var valueIdent *ast.Identifier
+
+	if len(args) == 2 {
+		// TryStrToInt(str, var value) - base defaults to 10
+		base = 10
+		var ok2 bool
+		valueIdent, ok2 = args[1].(*ast.Identifier)
+		if !ok2 {
+			return i.newErrorWithLocation(i.currentNode, "TryStrToInt() second argument must be a variable, got %T", args[1])
+		}
+	} else {
+		// TryStrToInt(str, base, var value)
+		baseArg := i.Eval(args[1])
+		if isError(baseArg) {
+			return baseArg
+		}
+		switch v := baseArg.(type) {
+		case *IntegerValue:
+			base = int(v.Value)
+		case *SubrangeValue:
+			base = int(v.Value)
+		default:
+			return i.newErrorWithLocation(i.currentNode, "TryStrToInt() expects integer as second argument (base), got %s", baseArg.Type())
+		}
+
+		// Validate base range (2-36)
+		if base < 2 || base > 36 {
+			// Invalid base - return false without modifying variable
+			return &BooleanValue{Value: false}
+		}
+
+		var ok3 bool
+		valueIdent, ok3 = args[2].(*ast.Identifier)
+		if !ok3 {
+			return i.newErrorWithLocation(i.currentNode, "TryStrToInt() third argument must be a variable, got %T", args[2])
+		}
+	}
+
+	// Try to parse the string
+	s := strings.TrimSpace(strVal.Value)
+	if s == "" {
+		// Empty string - return false without modifying variable
+		return &BooleanValue{Value: false}
+	}
+
+	intValue, err := strconv.ParseInt(s, base, 64)
+
+	// Get variable name
+	varName := valueIdent.Value
+
+	// Check if variable exists
+	varVal, exists := i.env.Get(varName)
+	if !exists {
+		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", varName)
+	}
+
+	if err != nil {
+		// Parsing failed - return false without modifying variable
+		return &BooleanValue{Value: false}
+	}
+
+	// Parsing succeeded - update the variable and return true
+	result := &IntegerValue{Value: intValue}
+
+	// Handle var parameters (ReferenceValue)
+	if refVal, isRef := varVal.(*ReferenceValue); isRef {
+		if err := refVal.Assign(result); err != nil {
+			return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+		}
+	} else {
+		if err := i.env.Set(varName, result); err != nil {
+			return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+		}
+	}
+
+	return &BooleanValue{Value: true}
+}
+
+// builtinHexToInt implements the HexToInt() built-in function.
+// It converts a hexadecimal string to an integer.
+// HexToInt(hexa: String): Integer
+func (i *Interpreter) builtinHexToInt(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "HexToInt() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Argument must be a string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "HexToInt() expects string argument, got %s", args[0].Type())
+	}
+
+	// Clean the hex string - remove $ or 0x prefix if present
+	s := strings.TrimSpace(strVal.Value)
+	s = strings.TrimPrefix(s, "$")
+	s = strings.TrimPrefix(s, "0x")
+	s = strings.TrimPrefix(s, "0X")
+
+	// Parse as hexadecimal (base 16)
+	intValue, err := strconv.ParseInt(s, 16, 64)
+	if err != nil {
+		return i.newErrorWithLocation(i.currentNode, "'%s' is not a valid hexadecimal number", strVal.Value)
+	}
+
+	return &IntegerValue{Value: intValue}
+}
+
+// builtinBinToInt implements the BinToInt() built-in function.
+// It converts a binary string to an integer.
+// BinToInt(binary: String): Integer
+func (i *Interpreter) builtinBinToInt(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "BinToInt() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// Argument must be a string
+	strVal, ok := args[0].(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "BinToInt() expects string argument, got %s", args[0].Type())
+	}
+
+	// Clean the binary string - remove % or 0b prefix if present
+	s := strings.TrimSpace(strVal.Value)
+	s = strings.TrimPrefix(s, "%")
+	s = strings.TrimPrefix(s, "0b")
+	s = strings.TrimPrefix(s, "0B")
+
+	// Parse as binary (base 2)
+	intValue, err := strconv.ParseInt(s, 2, 64)
+	if err != nil {
+		return i.newErrorWithLocation(i.currentNode, "'%s' is not a valid binary number", strVal.Value)
+	}
+
+	return &IntegerValue{Value: intValue}
+}
+
+// builtinTryStrToFloat implements the TryStrToFloat() built-in function.
+// It attempts to convert a string to a float, returning true on success.
+// TryStrToFloat(s: String, var value: Float): Boolean
+func (i *Interpreter) builtinTryStrToFloat(args []ast.Expression) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "TryStrToFloat() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: string to convert
+	strArg := i.Eval(args[0])
+	if isError(strArg) {
+		return strArg
+	}
+	strVal, ok := strArg.(*StringValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "TryStrToFloat() expects string as first argument, got %s", strArg.Type())
+	}
+
+	// Second argument must be an identifier (variable name for var parameter)
+	valueIdent, ok2 := args[1].(*ast.Identifier)
+	if !ok2 {
+		return i.newErrorWithLocation(i.currentNode, "TryStrToFloat() second argument must be a variable, got %T", args[1])
+	}
+
+	// Get variable name
+	varName := valueIdent.Value
+
+	// Check if variable exists
+	varVal, exists := i.env.Get(varName)
+	if !exists {
+		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", varName)
+	}
+
+	// Try to parse the string as a float
+	s := strings.TrimSpace(strVal.Value)
+	if s == "" {
+		// Empty string - return false without modifying variable
+		return &BooleanValue{Value: false}
+	}
+
+	floatValue, err := strconv.ParseFloat(s, 64)
+
+	if err != nil {
+		// Parsing failed - return false without modifying variable
+		return &BooleanValue{Value: false}
+	}
+
+	// Parsing succeeded - update the variable and return true
+	result := &FloatValue{Value: floatValue}
+
+	// Handle var parameters (ReferenceValue)
+	if refVal, isRef := varVal.(*ReferenceValue); isRef {
+		if err := refVal.Assign(result); err != nil {
+			return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+		}
+	} else {
+		if err := i.env.Set(varName, result); err != nil {
+			return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+		}
+	}
+
+	return &BooleanValue{Value: true}
+}
+
+// builtinVarToIntDef implements the VarToIntDef() built-in function.
+// It converts a variant to an integer, returning a default value if conversion fails.
+// VarToIntDef(v: Variant, default: Integer): Integer
+func (i *Interpreter) builtinVarToIntDef(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "VarToIntDef() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: value to convert (can be any type)
+	varVal := args[0]
+
+	// Second argument must be an integer (the default value)
+	defaultVal, ok := args[1].(*IntegerValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "VarToIntDef() expects integer as second argument, got %s", args[1].Type())
+	}
+
+	// Try to convert the value to an integer
+	switch v := varVal.(type) {
+	case *IntegerValue:
+		return &IntegerValue{Value: v.Value}
+	case *SubrangeValue:
+		return &IntegerValue{Value: int64(v.Value)}
+	case *FloatValue:
+		return &IntegerValue{Value: int64(v.Value)}
+	case *BooleanValue:
+		if v.Value {
+			return &IntegerValue{Value: 1}
+		}
+		return &IntegerValue{Value: 0}
+	case *StringValue:
+		// Try to parse as integer
+		s := strings.TrimSpace(v.Value)
+		intValue, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return &IntegerValue{Value: defaultVal.Value}
+		}
+		return &IntegerValue{Value: intValue}
+	case *VariantValue:
+		// Recursively convert the underlying value
+		return i.builtinVarToIntDef([]Value{v.Value, defaultVal})
+	default:
+		// Cannot convert - return default
+		return &IntegerValue{Value: defaultVal.Value}
+	}
+}
+
+// builtinVarToFloatDef implements the VarToFloatDef() built-in function.
+// It converts a variant to a float, returning a default value if conversion fails.
+// VarToFloatDef(v: Variant, default: Float): Float
+func (i *Interpreter) builtinVarToFloatDef(args []Value) Value {
+	if len(args) != 2 {
+		return i.newErrorWithLocation(i.currentNode, "VarToFloatDef() expects exactly 2 arguments, got %d", len(args))
+	}
+
+	// First argument: value to convert (can be any type)
+	varVal := args[0]
+
+	// Second argument must be a float (the default value)
+	defaultVal, ok := args[1].(*FloatValue)
+	if !ok {
+		return i.newErrorWithLocation(i.currentNode, "VarToFloatDef() expects float as second argument, got %s", args[1].Type())
+	}
+
+	// Try to convert the value to a float
+	switch v := varVal.(type) {
+	case *FloatValue:
+		return &FloatValue{Value: v.Value}
+	case *IntegerValue:
+		return &FloatValue{Value: float64(v.Value)}
+	case *SubrangeValue:
+		return &FloatValue{Value: float64(v.Value)}
+	case *BooleanValue:
+		if v.Value {
+			return &FloatValue{Value: 1.0}
+		}
+		return &FloatValue{Value: 0.0}
+	case *StringValue:
+		// Try to parse as float
+		s := strings.TrimSpace(v.Value)
+		floatValue, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return &FloatValue{Value: defaultVal.Value}
+		}
+		return &FloatValue{Value: floatValue}
+	case *VariantValue:
+		// Recursively convert the underlying value
+		return i.builtinVarToFloatDef([]Value{v.Value, defaultVal})
+	default:
+		// Cannot convert - return default
+		return &FloatValue{Value: defaultVal.Value}
+	}
+}
