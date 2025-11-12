@@ -125,11 +125,11 @@ func (i *Interpreter) builtinASCIIUpperCase(args []Value) Value {
 	// ASCII-only uppercase conversion
 	// Only converts ASCII letters (a-z) to uppercase (A-Z)
 	result := make([]byte, len(strVal.Value))
-	for i, b := range []byte(strVal.Value) {
+	for idx, b := range []byte(strVal.Value) {
 		if b >= 'a' && b <= 'z' {
-			result[i] = b - 32 // Convert to uppercase
+			result[idx] = b - 32 // Convert to uppercase
 		} else {
-			result[i] = b
+			result[idx] = b
 		}
 	}
 
