@@ -494,11 +494,14 @@ func (ct *ClassType) GetField(name string) (Type, bool) {
 
 // HasMethod checks if the class or any of its ancestors has a method with the given name
 func (ct *ClassType) HasMethod(name string) bool {
-	if _, ok := ct.Methods[name]; ok {
+	// Task 9.16.1: Use overload system instead of deprecated Methods map
+	// Normalize to lowercase for case-insensitive lookup
+	methodName := strings.ToLower(name)
+	if len(ct.MethodOverloads[methodName]) > 0 {
 		return true
 	}
 	if ct.Parent != nil {
-		return ct.Parent.HasMethod(name)
+		return ct.Parent.HasMethod(methodName)
 	}
 	return false
 }
