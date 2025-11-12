@@ -101,7 +101,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		return nil
 	}
 
-	// Check for optional directives: static, virtual, override, abstract, external, overload
+	// Check for optional directives: static, virtual, override, abstract, external, overload, calling conventions
 	for {
 		if p.peekTokenIs(lexer.STATIC) {
 			p.nextToken() // move to 'static'
@@ -163,6 +163,16 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			}
 			// Forward declarations have no body, so we can return early
 			// But continue to allow combined directives like "overload; forward;"
+		} else if p.peekTokenIs(lexer.REGISTER) || p.peekTokenIs(lexer.PASCAL) ||
+			p.peekTokenIs(lexer.CDECL) || p.peekTokenIs(lexer.SAFECALL) ||
+			p.peekTokenIs(lexer.STDCALL) {
+			// Calling convention directives: register, pascal, cdecl, safecall, stdcall
+			// Syntax: procedure Test; register;
+			p.nextToken() // move to calling convention
+			fn.CallingConvention = p.curToken.Literal
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
 		} else {
 			break // No more directives
 		}

@@ -658,8 +658,14 @@ var keywords = map[string]TokenType{
 	"deprecated": DEPRECATED,
 	"readonly":   READONLY,
 	"export":     EXPORT,
-	"register":   REGISTER,
-	"reference":  REFERENCE,
+
+	// Calling conventions
+	"register":  REGISTER,
+	"pascal":    PASCAL,
+	"cdecl":     CDECL,
+	"safecall":  SAFECALL,
+	"stdcall":   STDCALL,
+	"reference": REFERENCE,
 
 	// Access modifiers
 	"private":   PRIVATE,

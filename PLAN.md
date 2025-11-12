@@ -866,16 +866,19 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Status**: Complete. Basic functionality working. Edge cases (expressions with class constants, inheritance) can be addressed as follow-up
   - **Unblocked Tests**: class_var.pas, class_var_dyn1.pas (partial), and others
 
-- [ ] 9.21.3 Fix "class method/operator" inline syntax parsing
+- [x] 9.21.3 Fix "class method/operator" inline syntax parsing
   - **Task**: Support inline class method/operator declarations without separate declaration/implementation
-  - **Current Error**: "expected 'var', 'const', 'property', 'function', or 'procedure' after 'class' keyword"
   - **Implementation**:
-    - Allow `class operator` and `class procedure/function` with inline implementation
-    - Parse class method bodies directly in class declaration
-  - **Files**: `internal/parser/parser_class.go`
-  - **Tests**: Test inline class method/operator declarations
-  - **Estimated time**: 1 day
-  - **Blocked Tests**: class_method3.pas, call_conventions.pas, and 5+ more
+    - Added support for `class method` keyword in addition to `class function` and `class procedure`
+    - Added calling convention keywords (safecall, stdcall, cdecl, pascal, register) to lexer keyword map
+    - Added `CallingConvention` field to FunctionDecl AST node
+    - Parser now recognizes calling conventions as directives in function declarations
+    - Supports inline method implementations with calling conventions
+    - Supports both inline implementations (inside class) and separate implementations (outside class)
+  - **Files**: `pkg/token/token.go`, `pkg/ast/functions.go`, `internal/parser/functions.go`, `internal/parser/classes.go`, `internal/parser/statements.go`
+  - **Tests**: Added 7 comprehensive unit tests covering inline methods with calling conventions, class methods, and multiple directives
+  - **Status**: Complete. All parser tests pass. Fixture tests (class_method3.pas, call_conventions.pas) now parse successfully
+  - **Unblocked Tests**: class_method3.pas, call_conventions.pas
 
 #### Subtask Category: Attributes and Metadata
 
