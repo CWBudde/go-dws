@@ -14,8 +14,10 @@ import (
 // EnumValue represents a single value in an enum declaration.
 // Example: Red, Green = 5, Blue
 type EnumValue struct {
-	Value *int
-	Name  string
+	Value             *int
+	Name              string
+	DeprecatedMessage string // Optional message if deprecated
+	IsDeprecated      bool   // True if marked as deprecated
 }
 
 // EnumDecl represents an enum type declaration.
@@ -58,6 +60,14 @@ func (ed *EnumDecl) String() string {
 			out.WriteString(", ")
 		}
 		out.WriteString(val.Name)
+		if val.IsDeprecated {
+			out.WriteString(" deprecated")
+			if val.DeprecatedMessage != "" {
+				out.WriteString(" '")
+				out.WriteString(val.DeprecatedMessage)
+				out.WriteString("'")
+			}
+		}
 		if val.Value != nil {
 			out.WriteString(fmt.Sprintf(" = %d", *val.Value))
 		}
