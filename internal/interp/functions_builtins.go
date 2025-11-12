@@ -483,6 +483,17 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	// Debugging Information - GetCallStack() built-in
 	case "GetCallStack":
 		return i.builtinGetCallStack(args)
+	// Encoding/Escaping functions (Phase 9.17.6)
+	case "StrToHtml":
+		return i.builtinStrToHtml(args)
+	case "StrToHtmlAttribute":
+		return i.builtinStrToHtmlAttribute(args)
+	case "StrToJSON":
+		return i.builtinStrToJSON(args)
+	case "StrToCSSText":
+		return i.builtinStrToCSSText(args)
+	case "StrToXML":
+		return i.builtinStrToXML(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
@@ -535,7 +546,8 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 		"IsYesterday", "IsTomorrow", "IsSameDay", "CompareDate", "CompareTime",
 		"CompareDateTime", "ParseJSON", "ToJSON", "ToJSONFormatted",
 		"JSONHasField", "JSONKeys", "JSONValues", "JSONLength",
-		"GetStackTrace", "GetCallStack":
+		"GetStackTrace", "GetCallStack",
+		"StrToHtml", "StrToHtmlAttribute", "StrToJSON", "StrToCSSText", "StrToXML":
 		return true
 	default:
 		return false

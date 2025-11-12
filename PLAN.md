@@ -428,11 +428,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Encoding/Escaping Functions (Phase 9.17.6)
 
-- [ ] 9.17.6.1 StrToHtml(str) - HTML encode
-- [ ] 9.17.6.2 StrToHtmlAttribute(str) - HTML attribute encode
-- [ ] 9.17.6.3 StrToJSON(str) - JSON encode/escape
-- [ ] 9.17.6.4 StrToCSSText(str) - CSS text encode
-- [ ] 9.17.6.5 StrToXML(str, mode) - XML encode
+- [x] 9.17.6.1 StrToHtml(str) - HTML encode
+- [x] 9.17.6.2 StrToHtmlAttribute(str) - HTML attribute encode
+- [x] 9.17.6.3 StrToJSON(str) - JSON encode/escape
+- [x] 9.17.6.4 StrToCSSText(str) - CSS text encode
+- [x] 9.17.6.5 StrToXML(str, mode) - XML encode
 
 #### Case Conversion Variants (Phase 9.17.7)
 

@@ -184,6 +184,18 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	case "strisascii":
 		return a.analyzeStrIsASCII(args, callExpr), true
 
+	// Encoding/Escaping Functions (Phase 9.17.6)
+	case "strtohtml":
+		return a.analyzeStrToHtml(args, callExpr), true
+	case "strtohtmlattribute":
+		return a.analyzeStrToHtmlAttribute(args, callExpr), true
+	case "strtojson":
+		return a.analyzeStrToJSON(args, callExpr), true
+	case "strtocsstext":
+		return a.analyzeStrToCSSText(args, callExpr), true
+	case "strtoxml":
+		return a.analyzeStrToXML(args, callExpr), true
+
 	// Math Functions - Basic
 	case "abs":
 		return a.analyzeAbs(args, callExpr), true
