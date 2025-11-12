@@ -768,15 +768,23 @@ each element is wrapped in a variant-like container that preserves type informat
 
 **Current Status**: Method overloading parsing and semantic analysis is partially implemented, but runtime dispatch may need enhancement.
 
-- [ ] 9.20.1 Audit current method overload implementation
+- [x] 9.20.1 Audit current method overload implementation ✓
   - **Task**: Review existing overload support in parser, semantic analyzer, and interpreter
   - **Implementation**:
     - Check if methods are stored with overload support
     - Verify semantic analyzer overload resolution
     - Test interpreter dispatch with multiple overloads
-  - **Files**: `internal/semantic/analyze_classes.go`, `internal/interp/functions.go`
-  - **Tests**: Run existing overload tests and document gaps
-  - **Estimated time**: 0.5 day
+  - **Completed**:
+    - Comprehensive audit documented in `docs/method_overload_audit.md`
+    - Function overloading works (overload_simple.pas passes)
+    - Class method overloading works with static/virtual (class_method_static_virtual.pas passes)
+    - Constructor overloading works (partial - overload_constructor.pas)
+    - Identified critical issue: record method overloading broken
+    - 3/39 OverloadsPass tests passing, 36 failing
+    - Key gaps: record methods (P0), array type matching (P2), type cast scenarios (P2)
+  - **Files**: `docs/method_overload_audit.md`, `internal/semantic/analyze_classes.go`, `internal/types/types.go`, `internal/interp/objects_methods.go`
+  - **Tests**: Analyzed all 39 OverloadsPass fixture tests
+  - **Actual time**: 0.5 day
 
 - [ ] 9.20.2 Fix method overload resolution bugs
   - **Task**: Address any gaps found in audit
