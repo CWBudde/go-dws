@@ -815,3 +815,173 @@ func TestArrayHelperCaseInsensitive(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Helper Inheritance Tests (Task 9.1)
+// ============================================================================
+
+func TestHelperInheritance_BasicMethodInheritance(t *testing.T) {
+	input := `
+		type TParentHelper = helper for String
+			function ToUpper: String;
+			begin
+				Result := 'UPPER';
+			end;
+		end;
+
+		type TChildHelper = helper(TParentHelper) for String
+			function ToLower: String;
+			begin
+				Result := 'lower';
+			end;
+		end;
+
+		var s: String;
+		begin
+			s := 'hello';
+			// Child helper should inherit parent's ToUpper method
+			PrintLn(s.ToUpper());
+			// Child helper has its own ToLower method
+			PrintLn(s.ToLower());
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "UPPER\nlower\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
+func TestHelperInheritance_MethodOverriding(t *testing.T) {
+	input := `
+		type TParentHelper = helper for String
+			function Transform: String;
+			begin
+				Result := 'parent';
+			end;
+		end;
+
+		type TChildHelper = helper(TParentHelper) for String
+			function Transform: String;
+			begin
+				Result := 'child';
+			end;
+		end;
+
+		var s: String;
+		begin
+			s := 'test';
+			// Child helper overrides parent's Transform method
+			PrintLn(s.Transform());
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "child\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
+func TestHelperInheritance_MultiLevel(t *testing.T) {
+	input := `
+		type TGrandparentHelper = helper for String
+			function Method1: String;
+			begin
+				Result := 'grandparent';
+			end;
+		end;
+
+		type TParentHelper = helper(TGrandparentHelper) for String
+			function Method2: String;
+			begin
+				Result := 'parent';
+			end;
+		end;
+
+		type TChildHelper = helper(TParentHelper) for String
+			function Method3: String;
+			begin
+				Result := 'child';
+			end;
+		end;
+
+		var s: String;
+		begin
+			s := 'test';
+			// Child should inherit from both parent and grandparent
+			PrintLn(s.Method1());
+			PrintLn(s.Method2());
+			PrintLn(s.Method3());
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "grandparent\nparent\nchild\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
+func TestHelperInheritance_RecordHelper(t *testing.T) {
+	input := `
+		type TParentHelper = record helper for Integer
+			function IsPositive: Boolean;
+			begin
+				Result := Self > 0;
+			end;
+		end;
+
+		type TChildHelper = record helper(TParentHelper) for Integer
+			function IsEven: Boolean;
+			begin
+				Result := (Self mod 2) = 0;
+			end;
+		end;
+
+		var x: Integer;
+		begin
+			x := 4;
+			// Child record helper should inherit parent's IsPositive method
+			if x.IsPositive() then
+				PrintLn('positive');
+			if x.IsEven() then
+				PrintLn('even');
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "positive\neven\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}

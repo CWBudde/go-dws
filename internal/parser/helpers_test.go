@@ -312,3 +312,153 @@ func containsSubstring(v interface{}, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
 		(len(s) > 0 && (s[0:len(substr)] == substr || containsSubstring(s[1:], substr))))
 }
+
+// TestParseHelperInheritance tests parsing of helper inheritance (Task 9.1)
+func TestParseHelperInheritance(t *testing.T) {
+	tests := []struct {
+		name               string
+		input              string
+		expectedName       string
+		expectedParent     string
+		expectedFor        string
+		isRecordHelper     bool
+		expectParentHelper bool
+	}{
+		{
+			name: "helper with parent",
+			input: `type TChildHelper = helper(TParentHelper) for String
+				function ToLower: String;
+			end;`,
+			expectedName:       "TChildHelper",
+			expectedParent:     "TParentHelper",
+			expectedFor:        "String",
+			isRecordHelper:     false,
+			expectParentHelper: true,
+		},
+		{
+			name: "record helper with parent",
+			input: `type TChildHelper = record helper(TParentHelper) for Integer
+				function Double: Integer;
+			end;`,
+			expectedName:       "TChildHelper",
+			expectedParent:     "TParentHelper",
+			expectedFor:        "Integer",
+			isRecordHelper:     true,
+			expectParentHelper: true,
+		},
+		{
+			name: "helper without parent",
+			input: `type TSimpleHelper = helper for String
+				function Test: Boolean;
+			end;`,
+			expectedName:       "TSimpleHelper",
+			expectedFor:        "String",
+			isRecordHelper:     false,
+			expectParentHelper: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+
+			// Check for parser errors
+			if len(p.Errors()) > 0 {
+				t.Fatalf("Parser errors: %v", p.Errors())
+			}
+
+			// Check that we got a program
+			if program == nil {
+				t.Fatal("ParseProgram() returned nil")
+			}
+
+			// Should have exactly one statement
+			if len(program.Statements) != 1 {
+				t.Fatalf("Expected 1 statement, got %d", len(program.Statements))
+			}
+
+			// Should be a helper declaration
+			helperDecl, ok := program.Statements[0].(*ast.HelperDecl)
+			if !ok {
+				t.Fatalf("Expected *ast.HelperDecl, got %T", program.Statements[0])
+			}
+
+			// Check helper name
+			if helperDecl.Name.Value != tt.expectedName {
+				t.Errorf("Expected helper name %q, got %q", tt.expectedName, helperDecl.Name.Value)
+			}
+
+			// Check parent helper
+			if tt.expectParentHelper {
+				if helperDecl.ParentHelper == nil {
+					t.Fatal("Expected parent helper, got nil")
+				}
+				if helperDecl.ParentHelper.Value != tt.expectedParent {
+					t.Errorf("Expected parent helper %q, got %q", tt.expectedParent, helperDecl.ParentHelper.Value)
+				}
+			} else {
+				if helperDecl.ParentHelper != nil {
+					t.Errorf("Expected no parent helper, got %q", helperDecl.ParentHelper.Value)
+				}
+			}
+
+			// Check target type
+			if helperDecl.ForType.Name != tt.expectedFor {
+				t.Errorf("Expected ForType %q, got %q", tt.expectedFor, helperDecl.ForType.Name)
+			}
+
+			// Check if it's a record helper
+			if helperDecl.IsRecordHelper != tt.isRecordHelper {
+				t.Errorf("Expected IsRecordHelper=%v, got %v", tt.isRecordHelper, helperDecl.IsRecordHelper)
+			}
+		})
+	}
+}
+
+// TestParseHelperInheritanceErrors tests error handling for helper inheritance
+func TestParseHelperInheritanceErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string // expected error substring
+	}{
+		{
+			name:     "missing parent helper name",
+			input:    `type THelper = helper() for String end;`,
+			expected: "expected parent helper name",
+		},
+		{
+			name:     "missing closing paren",
+			input:    `type THelper = helper(TParent for String end;`,
+			expected: "expected ')'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			_ = p.ParseProgram()
+
+			// Should have errors
+			if len(p.Errors()) == 0 {
+				t.Fatal("Expected parser errors, got none")
+			}
+
+			// Check if the expected error substring is present
+			found := false
+			for _, err := range p.Errors() {
+				if containsSubstring(err, tt.expected) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Errorf("Expected error containing %q, got errors: %v", tt.expected, p.Errors())
+			}
+		})
+	}
+}

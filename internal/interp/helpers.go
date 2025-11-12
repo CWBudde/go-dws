@@ -16,6 +16,7 @@ import (
 // HelperInfo stores runtime information about a helper type
 type HelperInfo struct {
 	TargetType     types.Type
+	ParentHelper   *HelperInfo                   // Parent helper for inheritance (Task 9.1)
 	Methods        map[string]*ast.FunctionDecl
 	Properties     map[string]*types.PropertyInfo
 	ClassVars      map[string]Value
@@ -37,6 +38,57 @@ func NewHelperInfo(name string, targetType types.Type, isRecordHelper bool) *Hel
 		BuiltinMethods: make(map[string]string),
 		IsRecordHelper: isRecordHelper,
 	}
+}
+
+// GetMethod looks up a method by name in this helper.
+// If not found in this helper, searches in parent helper (if any).
+// Task 9.1: Helper inheritance support
+func (h *HelperInfo) GetMethod(name string) (*ast.FunctionDecl, bool) {
+	// Look in this helper first (case-insensitive)
+	if method := findMethodCaseInsensitive(h.Methods, name); method != nil {
+		return method, true
+	}
+
+	// If not found and we have a parent, look there
+	if h.ParentHelper != nil {
+		return h.ParentHelper.GetMethod(name)
+	}
+
+	return nil, false
+}
+
+// GetBuiltinMethod looks up a builtin method spec by name in this helper.
+// If not found in this helper, searches in parent helper (if any).
+// Task 9.1: Helper inheritance support
+func (h *HelperInfo) GetBuiltinMethod(name string) (string, bool) {
+	// Look in this helper first (case-insensitive)
+	if spec, ok := findBuiltinMethodCaseInsensitive(h.BuiltinMethods, name); ok {
+		return spec, true
+	}
+
+	// If not found and we have a parent, look there
+	if h.ParentHelper != nil {
+		return h.ParentHelper.GetBuiltinMethod(name)
+	}
+
+	return "", false
+}
+
+// GetProperty looks up a property by name in this helper.
+// If not found in this helper, searches in parent helper (if any).
+// Task 9.1: Helper inheritance support
+func (h *HelperInfo) GetProperty(name string) (*types.PropertyInfo, bool) {
+	// Look in this helper first (case-insensitive)
+	if prop := findPropertyCaseInsensitive(h.Properties, name); prop != nil {
+		return prop, true
+	}
+
+	// If not found and we have a parent, look there
+	if h.ParentHelper != nil {
+		return h.ParentHelper.GetProperty(name)
+	}
+
+	return nil, false
 }
 
 // findPropertyCaseInsensitive searches for a property by name using case-insensitive comparison.
@@ -115,6 +167,42 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 
 	// Create helper info
 	helperInfo := NewHelperInfo(decl.Name.Value, targetType, decl.IsRecordHelper)
+
+	// Resolve parent helper if specified (Task 9.1: Helper inheritance)
+	if decl.ParentHelper != nil {
+		parentHelperName := decl.ParentHelper.Value
+
+		// Look up the parent helper by searching all registered helpers
+		var foundParent *HelperInfo
+		for _, helpers := range i.helpers {
+			for _, helper := range helpers {
+				if strings.EqualFold(helper.Name, parentHelperName) {
+					foundParent = helper
+					break
+				}
+			}
+			if foundParent != nil {
+				break
+			}
+		}
+
+		if foundParent == nil {
+			return i.newErrorWithLocation(decl.ParentHelper,
+				"unknown parent helper '%s' for helper '%s'",
+				parentHelperName, decl.Name.Value)
+		}
+
+		// Verify target type compatibility
+		if !foundParent.TargetType.Equals(targetType) {
+			return i.newErrorWithLocation(decl.ParentHelper,
+				"parent helper '%s' extends type '%s', but child helper '%s' extends type '%s'",
+				parentHelperName, foundParent.TargetType.String(),
+				decl.Name.Value, targetType.String())
+		}
+
+		// Set up inheritance chain
+		helperInfo.ParentHelper = foundParent
+	}
 
 	// Register methods
 	// Task 9.16.2: Normalize method names to lowercase for case-insensitive lookup
@@ -260,6 +348,7 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 
 // findHelperMethod searches all applicable helpers for a method with the given name
 // and returns the helper, method declaration (if any), and builtin specification identifier.
+// Task 9.1: Updated to support helper inheritance
 func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInfo, *ast.FunctionDecl, string) {
 	helpers := i.getHelpersForValue(val)
 	if helpers == nil {
@@ -267,10 +356,14 @@ func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInf
 	}
 
 	// Search helpers in reverse order so later (user-defined) helpers override earlier ones.
+	// For each helper, search the inheritance chain using GetMethod
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
-		if method := findMethodCaseInsensitive(helper.Methods, methodName); method != nil {
-			if spec, ok := findBuiltinMethodCaseInsensitive(helper.BuiltinMethods, methodName); ok {
+
+		// Use GetMethod which searches the inheritance chain
+		if method, ok := helper.GetMethod(methodName); ok {
+			// Check if there's a builtin spec as well
+			if spec, ok := helper.GetBuiltinMethod(methodName); ok {
 				return helper, method, spec
 			}
 			return helper, method, ""
@@ -280,7 +373,7 @@ func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInf
 	// If no declared method, check for builtin-only entries
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
-		if spec, ok := findBuiltinMethodCaseInsensitive(helper.BuiltinMethods, methodName); ok {
+		if spec, ok := helper.GetBuiltinMethod(methodName); ok {
 			return helper, nil, spec
 		}
 	}
@@ -289,6 +382,7 @@ func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInf
 }
 
 // findHelperProperty searches all applicable helpers for a property with the given name
+// Task 9.1: Updated to support helper inheritance
 func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInfo, *types.PropertyInfo) {
 	helpers := i.getHelpersForValue(val)
 	if helpers == nil {
@@ -296,9 +390,10 @@ func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInf
 	}
 
 	// Search helpers in reverse order so later helpers override earlier ones
+	// For each helper, search the inheritance chain using GetProperty
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
-		if prop := findPropertyCaseInsensitive(helper.Properties, propName); prop != nil {
+		if prop, ok := helper.GetProperty(propName); ok {
 			return helper, prop
 		}
 	}
