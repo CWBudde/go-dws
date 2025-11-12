@@ -24,6 +24,18 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 	propName := prop.Name.Value
 
 	//  Check for duplicate property names within class
+	for existingName := range classType.Properties {
+		if strings.EqualFold(existingName, propName) {
+			a.addError("duplicate property '%s' in class '%s' at %s",
+				propName, classType.Name, prop.Token.Pos.String())
+			return
+		}
+	}
+
+	// Register properties with their declared casing
+	if classType.Properties == nil {
+		classType.Properties = make(map[string]*types.PropertyInfo)
+	}
 	if _, exists := classType.Properties[propName]; exists {
 		a.addError("duplicate property '%s' in class '%s' at %s",
 			propName, classType.Name, prop.Token.Pos.String())
