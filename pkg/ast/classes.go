@@ -205,6 +205,7 @@ func (cd *ClassDecl) String() string {
 //
 //	FFieldName: Type;                // instance field
 //	class var Count: Integer;         // class variable (static field)
+//	class var Count: Integer := 42;   // class variable with initialization
 //	property PropertyName: Type read FFieldName write FFieldName;
 type FieldDecl struct {
 	Name       *Identifier
@@ -212,6 +213,7 @@ type FieldDecl struct {
 	Token      token.Token
 	Visibility Visibility
 	IsClassVar bool
+	InitValue  Expression // Optional initialization value for class variables
 	EndPos     token.Position
 }
 
@@ -232,8 +234,14 @@ func (fd *FieldDecl) String() string {
 		out.WriteString("class var ")
 	}
 	out.WriteString(fd.Name.String())
-	out.WriteString(": ")
-	out.WriteString(fd.Type.String())
+	if fd.Type != nil {
+		out.WriteString(": ")
+		out.WriteString(fd.Type.String())
+	}
+	if fd.InitValue != nil {
+		out.WriteString(" := ")
+		out.WriteString(fd.InitValue.String())
+	}
 
 	return out.String()
 }
