@@ -49,6 +49,16 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 	case left.Type() == "STRING" && right.Type() == "STRING":
 		return i.evalStringBinaryOp(expr.Operator, left, right)
 
+	// Task 9.25: Allow string concatenation with RTTI_TYPEINFO
+	case (left.Type() == "STRING" && right.Type() == "RTTI_TYPEINFO") || (left.Type() == "RTTI_TYPEINFO" && right.Type() == "STRING"):
+		if expr.Operator == "+" {
+			// Convert both to strings and concatenate
+			leftStr := left.String()
+			rightStr := right.String()
+			return &StringValue{Value: leftStr + rightStr}
+		}
+		return i.newErrorWithLocation(expr, "type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
+
 	case left.Type() == "BOOLEAN" && right.Type() == "BOOLEAN":
 		return i.evalBooleanBinaryOp(expr.Operator, left, right)
 
@@ -69,6 +79,19 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 		_, rightIsObj := right.(*ObjectInstance)
 		leftClass, leftIsClass := left.(*ClassValue)
 		rightClass, rightIsClass := right.(*ClassValue)
+
+		// Task 9.25: Handle RTTITypeInfoValue comparisons (for TypeOf results)
+		leftRTTI, leftIsRTTI := left.(*RTTITypeInfoValue)
+		rightRTTI, rightIsRTTI := right.(*RTTITypeInfoValue)
+		if leftIsRTTI && rightIsRTTI {
+			// Compare by TypeID (unique identifier for each type)
+			result := leftRTTI.TypeID == rightRTTI.TypeID
+			if expr.Operator == "=" {
+				return &BooleanValue{Value: result}
+			} else {
+				return &BooleanValue{Value: !result}
+			}
+		}
 
 		// Handle ClassValue (metaclass) comparisons
 		// meta = TBase, meta <> TChild, etc.

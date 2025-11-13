@@ -123,6 +123,31 @@ func (t *TypeMetaValue) String() string {
 	return t.TypeName
 }
 
+// RTTITypeInfoValue represents runtime type information in DWScript.
+// Task 9.25: TypeOf(value) returns this value type for RTTI operations.
+// This value serves as a unique identifier for a type that can be compared
+// and used to look up type metadata.
+//
+// Examples:
+//   - TypeOf(obj) returns RTTITypeInfoValue for obj's runtime type
+//   - TypeOf(TMyClass) returns RTTITypeInfoValue for the class type
+//   - TypeOf(classRef) returns RTTITypeInfoValue for the class reference's type
+type RTTITypeInfoValue struct {
+	TypeID   int        // Unique identifier for this type (for comparison)
+	TypeName string     // The type name for display (e.g., "TMyClass", "Integer")
+	TypeInfo types.Type // The actual type metadata (optional, for advanced RTTI)
+}
+
+// Type returns "RTTI_TYPEINFO".
+func (r *RTTITypeInfoValue) Type() string {
+	return "RTTI_TYPEINFO"
+}
+
+// String returns the type name.
+func (r *RTTITypeInfoValue) String() string {
+	return r.TypeName
+}
+
 // EnumValue represents an enum value in DWScript.
 // Store enum values with their ordinal value and type name.
 type EnumValue struct {
