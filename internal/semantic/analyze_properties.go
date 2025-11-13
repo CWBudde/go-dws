@@ -138,18 +138,22 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		// Task 9.17: Check class-level members first (class vars, then constants)
 		// This ensures class-level storage takes precedence over instance fields
 
-		// 1. Check if it's a class variable
+		// 1. Check if it's a class variable (only for class properties)
 		// Task 9.285: Use lowercase for case-insensitive lookup
 		if fieldType, found := classType.ClassVars[strings.ToLower(readSpecName)]; found {
-			if !propType.Equals(fieldType) {
-				a.addError("property '%s' read class variable '%s' has type %s, expected %s at %s",
-					propName, readSpecName, fieldType.String(), propType.String(),
-					prop.Token.Pos.String())
+			// Only class properties can read from class variables
+			if propInfo.IsClassProperty {
+				if !propType.Equals(fieldType) {
+					a.addError("property '%s' read class variable '%s' has type %s, expected %s at %s",
+						propName, readSpecName, fieldType.String(), propType.String(),
+						prop.Token.Pos.String())
+					return
+				}
+				propInfo.ReadKind = types.PropAccessField
+				propInfo.ReadSpec = readSpecName
 				return
 			}
-			propInfo.ReadKind = types.PropAccessField
-			propInfo.ReadSpec = readSpecName
-			return
+			// Instance property cannot read from class variable - skip this match
 		}
 
 		// 2. Check if it's a constant
@@ -323,13 +327,9 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 			return
 		}
 	} else {
-		// Instance property can use instance field or class variable
+		// Instance property can only use instance field
 		// Task 9.285: Use lowercase for case-insensitive lookup
 		fieldType, found = classType.GetField(strings.ToLower(writeSpecName))
-		if !found {
-			// Task 9.17: Also check class variables for instance properties
-			fieldType, found = classType.ClassVars[strings.ToLower(writeSpecName)]
-		}
 		if found && !propType.Equals(fieldType) {
 			a.addError("property '%s' write field '%s' has type %s, expected %s at %s",
 				propName, writeSpecName, fieldType.String(), propType.String(),

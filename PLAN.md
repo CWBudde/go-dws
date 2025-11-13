@@ -81,8 +81,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 9: Completion and DWScript Feature Parity
 
-- [x] 9.1 Test helper method inheritance - Helper inheritance implemented with syntax `helper(TParentHelper) for TargetType`; child helpers inherit methods, properties, class vars, and class consts from parent; method overriding supported; multi-level inheritance supported; comprehensive tests added to parser and interpreter test suites
-
+- [x] 9.1 Test helper method inheritance
 - [x] 9.2 Enforce private field access control - Private/protected/public field visibility enforced in semantic analyzer; derived classes blocked from private parent fields;
 - [x] 9.3 Class Methods (class procedures/functions) - Parser, semantic analysis, runtime execution, and virtual/override polymorphism support
 - [x] 9.4 Class Constants - Parsing, ClassType storage, semantic validation, and runtime evaluation with method scope accessibility
@@ -97,52 +96,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - [x] 9.13 Partial Classes - Parse and merge partial class declarations across multiple definitions with combined member lists
 - [x] 9.14 Operator Overloading for Classes - Class operator declarations, inheritance-aware dispatch, and runtime execution support
 - [x] 9.15 "not in" Operator Support - Parser handling for NOT/IN composition, semantic validation, and runtime execution for set membership negation
-
----
-
-### Phase 9.16: Semantic Analysis Fixes
-
-**Status**: IN PROGRESS - 23 of 89 failing tests fixed (26% complete)
-**Timeline**: 4-6 weeks total
-**Objective**: Fix all remaining semantic analysis test failures through systematic category-based approach
-
-#### Progress Summary
-
-**Completed (23 tests fixed)**:
-- ✅ Exception field access (2 tests) - Made field lookups case-insensitive
-- ✅ Optional built-in function parameters (8 tests) - IntToBin, IntToHex, ToJSONFormatted, Copy
-- ✅ Delete array support (4 tests) - Extended Delete to support array deletion
-- ✅ Variadic method registration (1 test) - Added variadic method support
-- ✅ MaxInt/MinInt variadic parameters (2 tests) - Made functions accept any number of arguments
-- ✅ Record field access (2 tests) - Normalized field names to lowercase
-- ✅ Forward class declarations (2 tests) - Fixed parent class validation rules
-
-**Files Modified**: analyze_classes.go, analyze_builtin_convert.go, analyze_builtin_json.go, analyze_builtin_string.go, analyze_builtin_array.go, analyze_builtin_math.go, analyze_records.go, types.go
-
-#### Remaining Tasks
+- [x] 9.16 Method Visibility Enforcement
+- [x] 9.17 Property Expression Validation
+- [x] 9.18 Inherited Expression Support
 
 **Medium Complexity (20 tests remaining)** - Priority: HIGH
-
-- [x] 9.16 Method Visibility Enforcement
-
-- [x] 9.17 Property Expression Validation
-  - **Estimate**: 2-3 hours
-  - **Files**: analyze_properties.go, types.go, analyze_classes_decl.go, objects_properties.go, objects_hierarchy.go, class.go
-  - **Description**: Property expressions with field references not analyzed correctly
-  - **Root Cause**: Need to handle field access expressions in property analyzer
-  - **Tests**: TestPropertyExpressionValidation (multiple variants)
-  - **Strategy**: Enhance property analyzer to validate field references in read/write expressions
-  - **Implementation**:
-    - Added ConstantTypes map to ClassType to store constant types
-    - Enhanced validateReadSpec to check for class constants and class variables
-    - Enhanced validateWriteSpec to support class variables for instance properties
-    - Updated interpreter to handle properties backed by constants and class vars
-    - Fixed case-insensitive property lookup in ClassInfo.lookupProperty
-    - Enabled instance properties with class-level read specs to be accessed via class name
-
-**High Complexity (48 tests remaining)** - Priority: MEDIUM
-
-- [x] 9.18 Inherited Expression Support
 
 - [x] 9.19 Type Operators (is/as/implements) - COMPLETED
   - **Estimate**: 8-10 hours
@@ -202,26 +160,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Description**: Various complex semantic validation issues
   - **Strategy**: Analyze each test individually and implement targeted fixes
   - **Examples**: Generic types, delegates, advanced inheritance scenarios, complex type checking
-
----
-
-### Phase 9.23: Implement missing built-in functions
-
-Advanced Math:
-
-- [x] 9.23.1 Factorial(n: Integer): Integer - Factorial function
-- [x] 9.23.2 Gcd(a, b: Integer): Integer - Greatest common divisor
-- [x] 9.23.3 Lcm(a, b: Integer): Integer - Least common multiple
-- [x] 9.23.4 IsPrime(n: Integer): Boolean - Primality test
-- [x] 9.23.5 LeastFactor(n: Integer): Integer - Smallest prime factor
-- [x] 9.23.6 PopCount(n: Integer): Integer - Count set bits
-- [x] 9.23.7 TestBit(value: Integer, bit: Integer): Boolean - Test if bit is set
-- [x] 9.23.8 Haversine(lat1, lon1, lat2, lon2: Float): Float - Haversine distance
-- [x] 9.23.9 CompareNum(a, b: Float): Integer - Numerical comparison
-
-**Implementation Time**: 2-3 days for HIGH priority
-**Impact**: Unblocks 80+ math test fixtures
-**Status**: ✅ COMPLETED - All functions implemented across interpreter, semantic analyzer, and bytecode VM with comprehensive tests
 
 ---
 
@@ -358,25 +296,13 @@ each element is wrapped in a variant-like container that preserves type informat
 
 **Priority**: HIGH - Required for ~100+ failing fixture tests
 
-- [x] 9.27.1 Fix "array of <type>" shorthand parsing (enum-indexed arrays fully supported) ✓
-- [x] 9.27.2 Implement "class var" initialization syntax (inline initialization with type inference) ✓
-- [x] 9.27.3 Fix "class method/operator" inline syntax parsing (calling conventions and inline implementations) ✓
-- [x] 9.27.4 Implement "deprecated" attribute parsing (constants, functions, enum elements) ✓
-- [x] 9.27.5 Fix inline conditional expression parsing
-  - **Task**: Support ternary-like conditionals: `if condition then expr1 else expr2`
-  - **Status**: ✅ COMPLETE - Implemented IfExpression with full parser, semantic analysis, interpreter, and bytecode support
-  - **Implementation**:
-    - Created IfExpression AST node with Condition, Consequence, Alternative
-    - Registered IF as prefix parse function, implemented parseIfExpression()
-    - Added semantic analysis with type inference (handles class hierarchies, metaclasses, numeric widening)
-    - Implemented evalIfExpression() with default value support
-    - Added bytecode compilation with conditional jumps
-    - Updated AST visitor for traversal
-  - **Files**: `pkg/ast/control_flow.go`, `internal/parser/control_flow.go`, `internal/semantic/analyze_expressions.go`, `internal/interp/expressions_complex.go`, `internal/bytecode/compiler_expressions.go`, `pkg/ast/visitor.go`
-  - **Tests**: 5/7 ifthenelse_expression*.pas tests passing (2 blocked by other features)
-  - **Blocked Tests**: ifthenelse_expression6.pas (needs array helpers), ifthenelse_expression_variant.pas (needs Variant coercion)
-
-- [ ] 9.27.6 Implement contract syntax (require/ensure/old/invariant)
+- [x] 9.27 Fix "array of <type>" shorthand parsing (enum-indexed arrays fully supported) ✓
+- [x] 9.28 Implement "class var" initialization syntax (inline initialization with type inference) ✓
+- [x] 9.29 Fix "class method/operator" inline syntax parsing (calling conventions and inline implementations) ✓
+- [x] 9.30 Implement "deprecated" attribute parsing (constants, functions, enum elements) ✓
+- [x] 9.31 Fix inline conditional expression parsing
+  
+- [ ] 9.32 Implement contract syntax (require/ensure/old/invariant)
   - **Task**: Parse Design by Contract syntax for preconditions/postconditions
   - **Current Error**: "no prefix parse function for REQUIRE/ENSURE"
   - **Implementation**:
@@ -391,7 +317,7 @@ each element is wrapped in a variant-like container that preserves type informat
 
 #### Subtask Category: Miscellaneous Syntax
 
-- [ ] 9.28 Fix "is" operator with non-type expressions
+- [ ] 9.33 Fix "is" operator with non-type expressions
   - **Task**: Allow `is` operator with boolean expressions like `is True`, `is False`
   - **Current Error**: "expected type expression, got True/False"
   - **Implementation**:
@@ -402,7 +328,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Estimated time**: 0.5 day
   - **Blocked Tests**: boolean_is.pas
 
-- [ ] 9.29 Implement array helper methods
+- [ ] 9.34 Implement array helper methods
   - **Task**: Add built-in helper methods for dynamic arrays (`.count`, `.length`, etc.)
   - **Current Error**: "member access on type array of String requires a helper, got no helper with member 'count'"
   - **Implementation**:
@@ -414,7 +340,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Estimated time**: 1-2 days
   - **Blocked Tests**: ifthenelse_expression6.pas, other array helper tests
 
-- [ ] 9.30 Implement Variant to Boolean implicit coercion
+- [ ] 9.35 Implement Variant to Boolean implicit coercion
   - **Task**: Support implicit conversion from Variant to Boolean in conditional contexts
   - **Current Error**: "if expression condition must be boolean, got Variant"
   - **Implementation**:
@@ -426,7 +352,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Estimated time**: 0.5-1 day
   - **Blocked Tests**: ifthenelse_expression_variant.pas, other Variant boolean tests
 
-- [ ] 9.31 Fix "class" forward declaration in units
+- [ ] 9.36 Fix "class" forward declaration in units
   - **Task**: Support class forward declarations in unit interface section
   - **Current Error**: "no prefix parse function for CLASS" or "expected DOT after 'end' in unit"
   - **Implementation**:
@@ -437,7 +363,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Estimated time**: 0.5-1 day
   - **Blocked Tests**: class_scoping1.pas
 
-- [ ] 9.32 Support field initializers in type declarations
+- [ ] 9.37 Support field initializers in type declarations
   - **Task**: Allow field initialization in record/class declarations: `field: Type := value;`
   - **Current Error**: "expected SEMICOLON, got EQ"
   - **Implementation**:
@@ -449,7 +375,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Estimated time**: 1 day
   - **Blocked Tests**: clear_ref_in_destructor.pas, clear_ref_in_static_method.pas, clear_ref_in_virtual_method.pas
 
-- [ ] 9.33 Fix other parser errors identified in fixture test runs
+- [ ] 9.38 Fix other parser errors identified in fixture test runs
   - **Task**: Address remaining parser errors discovered during test runs
   - **Implementation**: Investigate and fix on case-by-case basis
   - **Files**: Various parser files
@@ -468,14 +394,14 @@ each element is wrapped in a variant-like container that preserves type informat
 
 **Current Status**: Lazy parameter test files are missing, and lazy parameter semantics may not be fully implemented.
 
-- [ ] 9.34.1 Create missing lazy parameter test files
+- [ ] 9.39.1 Create missing lazy parameter test files
   - **Task**: Create the missing `.dws` and `.out` files for lazy parameter tests
   - **Files**: `testdata/lazy_params/jensens_device.dws`, `conditional_eval.dws`, `lazy_logging.dws`, `multiple_access.dws`, `lazy_with_loops.dws`
   - **Implementation**: Write test scripts demonstrating lazy evaluation
   - **Reference**: DWScript documentation on `lazy` parameter modifier
   - **Estimated time**: 0.5 day
 
-- [ ] 9.34.2 Verify lazy parameter semantic analysis
+- [ ] 9.39.2 Verify lazy parameter semantic analysis
   - **Task**: Ensure semantic analyzer handles `lazy` parameters correctly
   - **Implementation**:
     - Check if `lazy` keyword is recognized
@@ -485,7 +411,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Tests**: Add semantic analysis tests for lazy parameters
   - **Estimated time**: 0.5-1 day
 
-- [ ] 9.34.3 Implement/verify lazy parameter evaluation in interpreter
+- [ ] 9.39.3 Implement/verify lazy parameter evaluation in interpreter
   - **Task**: Ensure parameters marked `lazy` are evaluated in callee scope, not caller scope
   - **Implementation**:
     - Store unevaluated expression for lazy parameters
@@ -501,7 +427,7 @@ each element is wrapped in a variant-like container that preserves type informat
 
 ---
 
-### Phase 9.35: Bytecode Compiler Fixes
+### Phase 9.40: Bytecode Compiler Fixes
 
 **Priority**: MEDIUM - Required for 5 failing bytecode tests
 **Timeline**: 3-4 days
@@ -509,7 +435,7 @@ each element is wrapped in a variant-like container that preserves type informat
 
 **Current Status**: Several basic bytecode compiler tests are failing, suggesting issues in the bytecode compilation pipeline.
 
-- [ ] 9.35.1 Investigate and fix TestCompiler_VarAssignReturn
+- [ ] 9.40.1 Investigate and fix TestCompiler_VarAssignReturn
   - **Task**: Debug why variable assignment and return compilation fails
   - **Implementation**:
     - Run test with verbose output
@@ -519,7 +445,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`, `internal/bytecode/compiler_test.go`
   - **Estimated time**: 0.5 day
 
-- [ ] 9.35.2 Investigate and fix TestCompiler_IfElse
+- [ ] 9.40.2 Investigate and fix TestCompiler_IfElse
   - **Task**: Debug why if-else statement compilation fails
   - **Implementation**:
     - Verify JUMP_IF_FALSE and JUMP opcodes are generated
@@ -528,7 +454,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`
   - **Estimated time**: 0.5 day
 
-- [ ] 9.35.3 Investigate and fix TestCompiler_ArrayLiteralAndIndex
+- [ ] 9.40.3 Investigate and fix TestCompiler_ArrayLiteralAndIndex
   - **Task**: Debug why array literal and indexing compilation fails
   - **Implementation**:
     - Check NEW_ARRAY opcode generation
@@ -537,7 +463,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`
   - **Estimated time**: 0.5-1 day
 
-- [ ] 9.35.4 Investigate and fix TestCompiler_CallExpression
+- [ ] 9.40.4 Investigate and fix TestCompiler_CallExpression
   - **Task**: Debug why function call compilation fails
   - **Implementation**:
     - Verify argument compilation
@@ -546,7 +472,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`
   - **Estimated time**: 0.5-1 day
 
-- [ ] 9.35.5 Investigate and fix TestCompiler_MemberAccess
+- [ ] 9.40.5 Investigate and fix TestCompiler_MemberAccess
   - **Task**: Debug why member access (object.field) compilation fails
   - **Implementation**:
     - Check GET_PROPERTY opcode generation
@@ -555,7 +481,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`
   - **Estimated time**: 0.5-1 day
 
-- [ ] 9.35.6 Add regression tests for fixed issues
+- [ ] 9.40.6 Add regression tests for fixed issues
   - **Task**: Ensure bytecode compiler tests remain passing
   - **Tests**: Enhance existing test suite based on fixes
   - **Files**: `internal/bytecode/compiler_test.go`
@@ -568,7 +494,7 @@ each element is wrapped in a variant-like container that preserves type informat
 
 ---
 
-### Phase 9.36: Systematic Fixture Test Analysis and Fixes
+### Phase 9.41: Systematic Fixture Test Analysis and Fixes
 
 **Priority**: MEDIUM-HIGH - Required for 300+ failing fixture tests
 **Timeline**: 2-4 weeks
@@ -578,7 +504,7 @@ each element is wrapped in a variant-like container that preserves type informat
 
 ---
 
-## Task 9.37: Complete Static Record Methods (Class Functions) Implementation ⚠️ IN PROGRESS
+## Task 9.42: Complete Static Record Methods (Class Functions) Implementation ⚠️ IN PROGRESS
 
 **Goal**: Finish implementing static methods (class functions) on record types for full DWScript compatibility.
 

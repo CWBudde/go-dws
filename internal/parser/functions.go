@@ -1,9 +1,21 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
+
+// isCallingConvention checks if a string is a calling convention keyword.
+// Calling conventions are contextual identifiers, not reserved keywords,
+// so they're tokenized as IDENT by the lexer.
+func isCallingConvention(literal string) bool {
+	lower := strings.ToLower(literal)
+	return lower == "register" || lower == "pascal" || lower == "cdecl" ||
+		lower == "safecall" || lower == "stdcall" || lower == "fastcall" ||
+		lower == "reference"
+}
 
 // parseFunctionDeclaration parses a function or procedure declaration.
 // Syntax: function Name(params): Type; begin ... end;
@@ -163,13 +175,12 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			}
 			// Forward declarations have no body, so we can return early
 			// But continue to allow combined directives like "overload; forward;"
-		} else if p.peekTokenIs(lexer.REGISTER) || p.peekTokenIs(lexer.PASCAL) ||
-			p.peekTokenIs(lexer.CDECL) || p.peekTokenIs(lexer.SAFECALL) ||
-			p.peekTokenIs(lexer.STDCALL) {
-			// Calling convention directives: register, pascal, cdecl, safecall, stdcall
+		} else if p.peekToken.Type == lexer.IDENT && isCallingConvention(p.peekToken.Literal) {
+			// Calling convention directives: register, pascal, cdecl, safecall, stdcall, fastcall, reference
 			// Syntax: procedure Test; register;
+			// Note: These are contextual identifiers, not reserved keywords
 			p.nextToken() // move to calling convention
-			fn.CallingConvention = p.curToken.Literal
+			fn.CallingConvention = strings.ToLower(p.curToken.Literal)
 			if !p.expectPeek(lexer.SEMICOLON) {
 				return nil
 			}
