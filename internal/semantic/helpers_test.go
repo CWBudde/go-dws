@@ -170,6 +170,23 @@ func TestHelperMethodResolution(t *testing.T) {
 			`,
 			expectError: false,
 		},
+		{
+			name: "access non-existent helper property",
+			input: `
+				type TStringHelper = helper for String
+					property Length: Integer read GetLength;
+				end;
+
+				var s: String;
+				var count: Integer;
+				begin
+					s := 'hello';
+					count := s.Count;
+				end.
+			`,
+			expectError: true,
+			errorMsg:    "no helper with member",
+		},
 	}
 
 	for _, tt := range tests {

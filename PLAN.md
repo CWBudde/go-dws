@@ -135,15 +135,26 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
     - internal/semantic/type_operators_test.go (updated error message expectation)
     - internal/interp/expressions.go (evalAsExpression now handles classes)
 
-- [ ] 9.20 Helper Methods (2 tests)
+- [x] 9.20 Helper Methods (2 tests) - COMPLETED
   - **Estimate**: 3-4 hours
   - **Description**: Support DWScript helper methods (extension methods)
   - **Strategy**: Research DWScript helper semantics and implement registration mechanism
   - **Complexity**: New feature requiring research and design
-  - **Subtasks**:
-    - [ ] 9.20.1 Emit diagnostics when no helper provides the requested method
-      - Analyzer should report `no helper with method` for unresolved helper calls
-      - Covers `TestHelperMethodResolution/call_non-existent_helper_method`
+  - **Status**: All core tests passing. Helper method resolution and error diagnostics working correctly.
+  - **Test Results**: All semantic, interpreter, and integration tests passing (30+ tests)
+  - **Completed Subtasks**:
+    - [x] 9.20.1 Emit diagnostics when no helper provides the requested method
+      - Analyzer reports `no helper with method` for unresolved helper method calls
+      - Analyzer reports `no helper with member` for unresolved helper property access
+      - Tests: `TestHelperMethodResolution/call_non-existent_helper_method`, `TestHelperMethodResolution/access_non-existent_helper_property`
+    - [x] 9.20.2 Add bytecode compiler support for helper declarations
+      - Helper declarations now compile without errors (treated as compile-time constructs)
+      - File: internal/bytecode/compiler_statements.go
+  - **Files Modified**:
+    - internal/semantic/helpers_test.go (added test for non-existent helper property access)
+    - internal/bytecode/compiler_statements.go (added HelperDecl case)
+    - internal/interp/fixture_test.go (enabled HelpersPass and HelpersFail fixture tests)
+  - **Note**: Bytecode VM support for helper methods on primitive types requires additional work (future enhancement)
 
 - [ ] 9.21 Abstract Class Implementation (1 test)
   - **Estimate**: 2-3 hours
