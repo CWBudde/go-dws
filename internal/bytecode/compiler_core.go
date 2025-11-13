@@ -11,6 +11,7 @@ import (
 // Compiler converts AST nodes into bytecode chunks.
 type Compiler struct {
 	functions       map[string]functionInfo
+	helpers         map[string]*HelperInfo // Helper registry (keyed by helper name)
 	enclosing       *Compiler
 	globals         map[string]globalVar
 	chunk           *Chunk
@@ -49,6 +50,18 @@ type functionInfo struct {
 	globalSlot uint16
 }
 
+// HelperInfo stores compile-time information about a helper type.
+// This metadata is used during bytecode compilation and passed to the VM.
+type HelperInfo struct {
+	Name         string              // Helper type name (e.g., TStringHelper)
+	TargetType   string              // Type being extended (e.g., String, Integer)
+	ParentHelper string              // Parent helper name (for inheritance)
+	Methods      map[string]uint16   // Method name -> function global slot
+	Properties   []string            // Property names
+	ClassVars    []string            // Class variable names
+	ClassConsts  map[string]Value    // Class constant values
+}
+
 type loopKind int
 
 const (
@@ -74,14 +87,17 @@ func NewCompiler(chunkName string, opts ...CompilerOption) *Compiler {
 func newCompiler(chunkName string, enclosing *Compiler, opts ...CompilerOption) *Compiler {
 	globals := make(map[string]globalVar)
 	functions := make(map[string]functionInfo)
+	helpers := make(map[string]*HelperInfo)
 	if enclosing != nil {
 		globals = enclosing.globals
 		functions = enclosing.functions
+		helpers = enclosing.helpers
 	}
 	c := &Compiler{
 		chunk:     NewChunk(chunkName),
 		globals:   globals,
 		functions: functions,
+		helpers:   helpers,
 		enclosing: enclosing,
 	}
 	if enclosing != nil {
@@ -118,6 +134,7 @@ func (c *Compiler) Compile(program *ast.Program) (*Chunk, error) {
 	c.upvalues = c.upvalues[:0]
 	c.globals = make(map[string]globalVar)
 	c.functions = make(map[string]functionInfo)
+	c.helpers = make(map[string]*HelperInfo)
 	c.loopStack = c.loopStack[:0]
 	c.scopeDepth = 0
 	c.nextSlot = 0
@@ -132,6 +149,11 @@ func (c *Compiler) Compile(program *ast.Program) (*Chunk, error) {
 	}
 
 	c.chunk.LocalCount = int(c.maxSlot)
+
+	// Copy helper metadata to the chunk for runtime use
+	if len(c.helpers) > 0 {
+		c.chunk.Helpers = c.helpers
+	}
 
 	if c.needsHalt() {
 		c.chunk.WriteSimple(OpHalt, c.lastLine)

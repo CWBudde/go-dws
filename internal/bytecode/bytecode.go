@@ -529,6 +529,7 @@ type Chunk struct {
 	Code       []Instruction
 	Constants  []Value
 	Lines      []LineInfo
+	Helpers    map[string]*HelperInfo // Helper metadata for runtime method resolution
 	LocalCount int
 }
 
@@ -546,6 +547,7 @@ func NewChunk(name string) *Chunk {
 		Code:       make([]Instruction, 0, 64), // Start with reasonable capacity
 		Constants:  make([]Value, 0, 16),
 		Lines:      make([]LineInfo, 0, 16),
+		Helpers:    make(map[string]*HelperInfo),
 		LocalCount: 0,
 		Name:       name,
 		tryInfos:   make(map[int]TryInfo),

@@ -34,26 +34,112 @@ type finallyContext struct {
 	exceptionHandled bool
 }
 
-// invokeMethod invokes a method on an object receiver.
+// invokeMethod invokes a method on a receiver value.
+// For objects, looks up the method in the object's fields/properties.
+// For other types (Integer, String, Float, etc.), looks up helper methods.
 func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) error {
-	if !receiver.IsObject() {
-		return vm.typeError("CALL_METHOD", "Object", receiver.Type.String())
-	}
+	// Handle object method calls
+	if receiver.IsObject() {
+		obj := receiver.AsObject()
+		if obj == nil {
+			return vm.runtimeError("CALL_METHOD on nil object")
+		}
 
-	obj := receiver.AsObject()
-	if obj == nil {
-		return vm.runtimeError("CALL_METHOD on nil object")
-	}
-
-	methodValue, ok := obj.GetField(methodName)
-	if !ok {
-		methodValue, ok = obj.GetProperty(methodName)
+		methodValue, ok := obj.GetField(methodName)
 		if !ok {
-			return vm.runtimeError("method %q not found on object %s", methodName, obj.ClassName)
+			methodValue, ok = obj.GetProperty(methodName)
+			if !ok {
+				return vm.runtimeError("method %q not found on object %s", methodName, obj.ClassName)
+			}
+		}
+
+		return vm.callValueWithSelf(methodValue, args, receiver)
+	}
+
+	// Handle helper method calls for primitive types (Integer, String, Float, etc.)
+	helper := vm.findHelperForValue(receiver)
+	if helper == nil {
+		return vm.runtimeError("no helper found for type %s, method %q", receiver.Type.String(), methodName)
+	}
+
+	// Look up the method in the helper (case-insensitive)
+	methodSlot, ok := findHelperMethodCaseInsensitive(helper.Methods, methodName)
+	if !ok {
+		return vm.runtimeError("method %q not found in helper for type %s", methodName, receiver.Type.String())
+	}
+
+	// Load the method function from globals
+	if int(methodSlot) >= len(vm.globals) {
+		return vm.runtimeError("helper method %q references invalid global slot %d", methodName, methodSlot)
+	}
+
+	methodValue := vm.globals[methodSlot]
+	if methodValue.IsNil() {
+		return vm.runtimeError("helper method %q not initialized", methodName)
+	}
+
+	// Call the method with the receiver as Self
+	return vm.callValueWithSelf(methodValue, args, receiver)
+}
+
+// findHelperForValue finds the first helper that applies to the given value's type.
+func (vm *VM) findHelperForValue(value Value) *HelperInfo {
+	// Map Value types to type names that helpers might extend
+	var typeName string
+	switch value.Type {
+	case ValueInt:
+		typeName = "Integer"
+	case ValueFloat:
+		typeName = "Float"
+	case ValueString:
+		typeName = "String"
+	case ValueBool:
+		typeName = "Boolean"
+	case ValueArray:
+		typeName = "Array"
+	default:
+		return nil
+	}
+
+	// Look for helpers that extend this type (case-insensitive)
+	for _, helper := range vm.helpers {
+		if equalsCaseInsensitive(helper.TargetType, typeName) {
+			return helper
 		}
 	}
 
-	return vm.callValueWithSelf(methodValue, args, receiver)
+	return nil
+}
+
+// findHelperMethodCaseInsensitive searches for a method in the helper's Methods map.
+func findHelperMethodCaseInsensitive(methods map[string]uint16, methodName string) (uint16, bool) {
+	for key, slot := range methods {
+		if equalsCaseInsensitive(key, methodName) {
+			return slot, true
+		}
+	}
+	return 0, false
+}
+
+// equalsCaseInsensitive compares two strings case-insensitively.
+func equalsCaseInsensitive(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := 0; i < len(a); i++ {
+		ca, cb := a[i], b[i]
+		// Convert to lowercase
+		if ca >= 'A' && ca <= 'Z' {
+			ca += 32
+		}
+		if cb >= 'A' && cb <= 'Z' {
+			cb += 32
+		}
+		if ca != cb {
+			return false
+		}
+	}
+	return true
 }
 
 // popArgs pops the specified number of arguments from the stack and returns them as a slice.

@@ -17,6 +17,11 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 
 	vm.reset()
 
+	// Load helper metadata from the chunk
+	if chunk.Helpers != nil && len(chunk.Helpers) > 0 {
+		vm.helpers = chunk.Helpers
+	}
+
 	locals := make([]Value, chunk.LocalCount)
 	vm.frames = append(vm.frames, callFrame{
 		chunk:   chunk,
