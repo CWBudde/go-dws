@@ -92,7 +92,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/HelpersPass",
 			expectErrors: false,
 			description:  "Type helpers",
-			skip:         true, // TODO: Re-enable after implementing missing features
+			skip:         false,
 		},
 		{
 			name:         "LambdaPass",
@@ -171,7 +171,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/HelpersFail",
 			expectErrors: true,
 			description:  "Type helper error cases",
-			skip:         true, // TODO: Re-enable after implementing missing features
+			skip:         false,
 		},
 		{
 			name:         "LambdaFail",

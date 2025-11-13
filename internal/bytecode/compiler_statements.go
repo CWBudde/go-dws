@@ -50,6 +50,10 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 		return c.compileBreak(node)
 	case *ast.ContinueStatement:
 		return c.compileContinue(node)
+	case *ast.HelperDecl:
+		// Helper declarations are compile-time constructs processed during semantic analysis
+		// They don't generate runtime bytecode
+		return nil
 	default:
 		return c.errorf(stmt, "unsupported statement type %T", stmt)
 	}
