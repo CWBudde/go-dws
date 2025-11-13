@@ -209,18 +209,19 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 Advanced Math:
 
-- [ ] 9.23.1 Factorial(n: Integer): Integer - Factorial function
-- [ ] 9.23.2 Gcd(a, b: Integer): Integer - Greatest common divisor
-- [ ] 9.23.3 Lcm(a, b: Integer): Integer - Least common multiple
-- [ ] 9.23.4 IsPrime(n: Integer): Boolean - Primality test
-- [ ] 9.23.5 LeastFactor(n: Integer): Integer - Smallest prime factor
-- [ ] 9.23.6 PopCount(n: Integer): Integer - Count set bits
-- [ ] 9.23.7 TestBit(value: Integer, bit: Integer): Boolean - Test if bit is set
-- [ ] 9.23.8 Haversine(lat1, lon1, lat2, lon2: Float): Float - Haversine distance
-- [ ] 9.23.9 CompareNum(a, b: Float): Integer - Numerical comparison
+- [x] 9.23.1 Factorial(n: Integer): Integer - Factorial function
+- [x] 9.23.2 Gcd(a, b: Integer): Integer - Greatest common divisor
+- [x] 9.23.3 Lcm(a, b: Integer): Integer - Least common multiple
+- [x] 9.23.4 IsPrime(n: Integer): Boolean - Primality test
+- [x] 9.23.5 LeastFactor(n: Integer): Integer - Smallest prime factor
+- [x] 9.23.6 PopCount(n: Integer): Integer - Count set bits
+- [x] 9.23.7 TestBit(value: Integer, bit: Integer): Boolean - Test if bit is set
+- [x] 9.23.8 Haversine(lat1, lon1, lat2, lon2: Float): Float - Haversine distance
+- [x] 9.23.9 CompareNum(a, b: Float): Integer - Numerical comparison
 
 **Implementation Time**: 2-3 days for HIGH priority
 **Impact**: Unblocks 80+ math test fixtures
+**Status**: ✅ COMPLETED - All functions implemented across interpreter, semantic analyzer, and bytecode VM with comprehensive tests
 
 ---
 

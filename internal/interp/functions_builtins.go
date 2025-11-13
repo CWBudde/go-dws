@@ -510,6 +510,25 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinStrToCSSText(args)
 	case "StrToXML":
 		return i.builtinStrToXML(args)
+	// Advanced Math functions (Phase 9.23)
+	case "Factorial":
+		return i.builtinFactorial(args)
+	case "Gcd":
+		return i.builtinGcd(args)
+	case "Lcm":
+		return i.builtinLcm(args)
+	case "IsPrime":
+		return i.builtinIsPrime(args)
+	case "LeastFactor":
+		return i.builtinLeastFactor(args)
+	case "PopCount":
+		return i.builtinPopCount(args)
+	case "TestBit":
+		return i.builtinTestBit(args)
+	case "Haversine":
+		return i.builtinHaversine(args)
+	case "CompareNum":
+		return i.builtinCompareNum(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
 	}
@@ -564,7 +583,9 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 		"CompareDateTime", "ParseJSON", "ToJSON", "ToJSONFormatted",
 		"JSONHasField", "JSONKeys", "JSONValues", "JSONLength",
 		"GetStackTrace", "GetCallStack",
-		"StrToHtml", "StrToHtmlAttribute", "StrToJSON", "StrToCSSText", "StrToXML":
+		"StrToHtml", "StrToHtmlAttribute", "StrToJSON", "StrToCSSText", "StrToXML",
+		"Factorial", "Gcd", "Lcm", "IsPrime", "LeastFactor", "PopCount", "TestBit",
+		"Haversine", "CompareNum":
 		return true
 	default:
 		return false
