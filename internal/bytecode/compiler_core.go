@@ -803,6 +803,10 @@ func evaluateBinaryLogical(operator string, left, right Value) (Value, bool) {
 		if left.Type == ValueBool && right.Type == ValueBool {
 			return BoolValue(left.AsBool() || right.AsBool()), true
 		}
+	case "xor":
+		if left.Type == ValueBool && right.Type == ValueBool {
+			return BoolValue(left.AsBool() != right.AsBool()), true
+		}
 	}
 	return Value{}, false
 }
