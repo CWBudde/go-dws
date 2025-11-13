@@ -373,6 +373,15 @@ func (c *Compiler) initBuiltins() {
 	c.addBuiltinGlobal("RandG")
 	c.addBuiltinGlobal("SetRandSeed")
 	c.addBuiltinGlobal("Randomize")
+
+	// Advanced Math Functions (Phase 9.23)
+	c.addBuiltinGlobal("Factorial")
+	c.addBuiltinGlobal("Gcd")
+	c.addBuiltinGlobal("Lcm")
+	c.addBuiltinGlobal("IsPrime")
+	c.addBuiltinGlobal("LeastFactor")
+	c.addBuiltinGlobal("PopCount")
+	c.addBuiltinGlobal("TestBit")
 }
 
 func (c *Compiler) addBuiltinGlobal(name string) {

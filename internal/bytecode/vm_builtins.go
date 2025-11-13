@@ -3,6 +3,7 @@ package bytecode
 import (
 	"fmt"
 	"math"
+	"math/bits"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -2306,12 +2307,7 @@ func builtinPopCount(vm *VM, args []Value) (Value, error) {
 	}
 
 	// Use math/bits.OnesCount64 for counting set bits
-	count := int64(0)
-	n := uint64(args[0].AsInt())
-	for n != 0 {
-		count += int64(n & 1)
-		n >>= 1
-	}
+	count := int64(bits.OnesCount64(uint64(args[0].AsInt())))
 
 	return IntValue(count), nil
 }
