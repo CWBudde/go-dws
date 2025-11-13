@@ -28,6 +28,16 @@ import (
 //	  function IsEven: Boolean;
 //	end;
 //
+// Helpers can also inherit from other helpers:
+//
+//	type TParentHelper = helper for String
+//	  function ToUpper: String;
+//	end;
+//
+//	type TChildHelper = helper(TParentHelper) for String
+//	  function ToLower: String;
+//	end;
+//
 // Helpers can contain:
 //   - Methods (functions and procedures)
 //   - Properties
@@ -41,6 +51,7 @@ import (
 //	PrintLn(s.ToUpper());  // Calls TStringHelper.ToUpper with s as Self
 type HelperDecl struct {
 	Name           *Identifier     // Helper type name (e.g., TStringHelper)
+	ParentHelper   *Identifier     // Parent helper name (optional, for inheritance)
 	ForType        *TypeAnnotation // Type being extended (e.g., String, Integer, TPoint)
 	Methods        []*FunctionDecl // All methods (functions/procedures)
 	Properties     []*PropertyDecl // All properties
@@ -74,7 +85,16 @@ func (hd *HelperDecl) String() string {
 		out.WriteString("record ")
 	}
 
-	out.WriteString("helper for ")
+	out.WriteString("helper")
+
+	// Include parent helper if present
+	if hd.ParentHelper != nil {
+		out.WriteString("(")
+		out.WriteString(hd.ParentHelper.String())
+		out.WriteString(")")
+	}
+
+	out.WriteString(" for ")
 	out.WriteString(hd.ForType.String())
 	out.WriteString("\n")
 

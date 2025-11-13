@@ -9,6 +9,7 @@ import (
 // Helper syntax variants:
 //   - type THelper = record helper for TypeName ... end;
 //   - type THelper = helper for TypeName ... end;
+//   - type THelper = helper(TParentHelper) for TypeName ... end;
 //
 // Current token should be positioned at HELPER keyword on entry.
 // nameIdent is the helper's type name.
@@ -20,6 +21,10 @@ import (
 //	type TStringHelper = record helper for String
 //	  function ToUpper: String;
 //	  property Length: Integer read GetLength;
+//	end;
+//
+//	type TChildHelper = helper(TParentHelper) for String
+//	  function ToLower: String;
 //	end;
 //
 // Helpers can contain:
@@ -41,7 +46,29 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lex
 		PublicMembers:  []ast.Statement{},
 	}
 
-	// Expect 'for' keyword after 'helper'
+	// Check for optional parent helper: helper(TParentHelper)
+	if p.peekTokenIs(lexer.LPAREN) {
+		p.nextToken() // Move to LPAREN
+
+		// Expect parent helper name
+		if !p.expectPeek(lexer.IDENT) {
+			p.addError("expected parent helper name after '(' in helper declaration", ErrExpectedIdent)
+			return nil
+		}
+
+		helperDecl.ParentHelper = &ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		}
+
+		// Expect closing paren
+		if !p.expectPeek(lexer.RPAREN) {
+			p.addError("expected ')' after parent helper name", ErrMissingRParen)
+			return nil
+		}
+	}
+
+	// Expect 'for' keyword after 'helper' or after ')'
 	if !p.expectPeek(lexer.FOR) {
 		return nil
 	}

@@ -58,6 +58,35 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 	// Create the helper type
 	helperType := types.NewHelperType(helperName, targetType, decl.IsRecordHelper)
 
+	// Resolve parent helper if specified (Task 9.1: Helper inheritance)
+	if decl.ParentHelper != nil {
+		parentHelperName := decl.ParentHelper.Value
+
+		// Look up the parent helper in the symbol table
+		parentSymbol, exists := a.symbols.Resolve(parentHelperName)
+		if !exists {
+			a.addError("unknown parent helper '%s' for helper '%s' at %s",
+				parentHelperName, helperName, decl.ParentHelper.Token.Pos.String())
+		} else {
+			// Verify that the parent is actually a helper type
+			parentHelper, ok := parentSymbol.Type.(*types.HelperType)
+			if !ok {
+				a.addError("'%s' is not a helper type (used as parent for helper '%s') at %s",
+					parentHelperName, helperName, decl.ParentHelper.Token.Pos.String())
+			} else {
+				// Verify that the parent helper extends the same target type
+				if !parentHelper.TargetType.Equals(targetType) {
+					a.addError("parent helper '%s' extends type '%s', but child helper '%s' extends type '%s' at %s",
+						parentHelperName, parentHelper.TargetType.String(),
+						helperName, targetType.String(), decl.ParentHelper.Token.Pos.String())
+				} else {
+					// All validations passed - set up the inheritance chain
+					helperType.ParentHelper = parentHelper
+				}
+			}
+		}
+	}
+
 	// Process methods
 	for _, method := range decl.Methods {
 		a.analyzeHelperMethod(method, helperType, helperName)

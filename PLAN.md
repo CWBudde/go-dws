@@ -81,15 +81,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 9: Completion and DWScript Feature Parity
 
-- [ ] 9.1 Test helper method inheritance
-  - **Task**: Helpers can inherit from other helpers
-  - **Implementation**:
-    - Parse helper inheritance syntax
-    - Inherit methods from parent helper
-    - Allow method overriding in child helper
-  - **Test**: Child helper inherits parent methods
-  - **Files**: `internal/parser/helper.go`, `internal/semantic/helper.go`
-  - **Estimated time**: 1-2 days
+- [x] 9.1 Test helper method inheritance - Helper inheritance implemented with syntax `helper(TParentHelper) for TargetType`; child helpers inherit methods, properties, class vars, and class consts from parent; method overriding supported; multi-level inheritance supported; comprehensive tests added to parser and interpreter test suites
 
 - [x] 9.2 Enforce private field access control - Private/protected/public field visibility enforced in semantic analyzer; derived classes blocked from private parent fields;
 - [x] 9.3 Class Methods (class procedures/functions) - Parser, semantic analysis, runtime execution, and virtual/override polymorphism support

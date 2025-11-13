@@ -505,8 +505,19 @@ func NewEnumType(name string, values map[string]int, orderedNames []string) *Enu
 //	type TPointHelper = record helper for TPoint
 //	  function Distance: Float;
 //	end;
+//
+// Helpers can also inherit from other helpers:
+//
+//	type TParentHelper = helper for String
+//	  function ToUpper: String;
+//	end;
+//
+//	type TChildHelper = helper(TParentHelper) for String
+//	  function ToLower: String;
+//	end;
 type HelperType struct {
 	TargetType     Type
+	ParentHelper   *HelperType // Parent helper for inheritance (optional)
 	Methods        map[string]*FunctionType
 	Properties     map[string]*PropertyInfo
 	ClassVars      map[string]Type
@@ -551,31 +562,75 @@ func (ht *HelperType) Equals(other Type) bool {
 }
 
 // GetMethod looks up a method by name in this helper.
-// Returns the method type and true if found, nil and false otherwise.
-func (ht *HelperType) GetMethod(name string) (*FunctionType, bool) {
+// If not found in this helper, searches in parent helper (if any).
+// Returns the method type, the helper that owns it, and true if found.
+func (ht *HelperType) GetMethod(name string) (*FunctionType, *HelperType, bool) {
+	// Look in this helper first
 	method, ok := ht.Methods[name]
-	return method, ok
+	if ok {
+		return method, ht, true
+	}
+
+	// If not found and we have a parent, look there
+	if ht.ParentHelper != nil {
+		return ht.ParentHelper.GetMethod(name)
+	}
+
+	return nil, nil, false
 }
 
 // GetProperty looks up a property by name in this helper.
-// Returns the property info and true if found, nil and false otherwise.
-func (ht *HelperType) GetProperty(name string) (*PropertyInfo, bool) {
+// If not found in this helper, searches in parent helper (if any).
+// Returns the property info, the helper that owns it, and true if found.
+func (ht *HelperType) GetProperty(name string) (*PropertyInfo, *HelperType, bool) {
+	// Look in this helper first
 	prop, ok := ht.Properties[name]
-	return prop, ok
+	if ok {
+		return prop, ht, true
+	}
+
+	// If not found and we have a parent, look there
+	if ht.ParentHelper != nil {
+		return ht.ParentHelper.GetProperty(name)
+	}
+
+	return nil, nil, false
 }
 
 // GetClassVar looks up a class variable by name in this helper.
+// If not found in this helper, searches in parent helper (if any).
 // Returns the variable type and true if found, nil and false otherwise.
 func (ht *HelperType) GetClassVar(name string) (Type, bool) {
+	// Look in this helper first
 	varType, ok := ht.ClassVars[name]
-	return varType, ok
+	if ok {
+		return varType, true
+	}
+
+	// If not found and we have a parent, look there
+	if ht.ParentHelper != nil {
+		return ht.ParentHelper.GetClassVar(name)
+	}
+
+	return nil, false
 }
 
 // GetClassConst looks up a class constant by name in this helper.
+// If not found in this helper, searches in parent helper (if any).
 // Returns the constant value and true if found, nil and false otherwise.
 func (ht *HelperType) GetClassConst(name string) (interface{}, bool) {
+	// Look in this helper first
 	constVal, ok := ht.ClassConsts[name]
-	return constVal, ok
+	if ok {
+		return constVal, true
+	}
+
+	// If not found and we have a parent, look there
+	if ht.ParentHelper != nil {
+		return ht.ParentHelper.GetClassConst(name)
+	}
+
+	return nil, false
 }
 
 // NewHelperType creates a new helper type.
