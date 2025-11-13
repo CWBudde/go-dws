@@ -22,67 +22,19 @@ This document identifies technical debt and refactoring opportunities in the go-
 
 ## Priority 1: Critical Cyclomatic Complexity Issues
 
-These functions have exceptionally high complexity and should be refactored first:
-
-### 🔴 P1.1: pkg/ast/visitor.go - Walk function (complexity: 209)
-
-**Current:** Single monolithic function handling all AST node types
-**Target:** Extract type-specific walk functions
-
-```go
-// Current pattern:
-func Walk(node Node, visitor Visitor) error {
-    switch n := node.(type) {
-    case *ProgramNode: // ... 50 lines
-    case *ClassDecl: // ... 30 lines
-    case *FunctionDecl: // ... 40 lines
-    // ... 200+ more lines
-    }
-}
-
-// Target pattern:
-func Walk(node Node, visitor Visitor) error {
-    switch n := node.(type) {
-    case *ProgramNode:
-        return walkProgram(n, visitor)
-    case *ClassDecl:
-        return walkClassDecl(n, visitor)
-    // ... dispatch to specific functions
-    }
-}
-
-func walkProgram(n *ProgramNode, v Visitor) error { ... }
-func walkClassDecl(n *ClassDecl, v Visitor) error { ... }
-```
-
-**Impact:** Major - This is used throughout the codebase for AST traversal
-
-### 🔴 P1.2: internal/bytecode/compiler_core.go - evaluateBinary (complexity: 70)
-
-**Current:** 70 complexity, handles all binary operations during constant folding
-**Target:** Split by operation category (arithmetic, comparison, logical, bitwise)
-
-```go
-// Split into:
-- evaluateBinaryArithmetic()  // +, -, *, /, div, mod
-- evaluateBinaryComparison()  // =, <>, <, >, <=, >=
-- evaluateBinaryLogical()     // and, or, xor
-- evaluateBinaryBitwise()     // shl, shr, and, or, xor (bitwise)
-```
-
 **Impact:** High - Critical for bytecode compiler optimization
 
-### 🟠 P1.3: internal/bytecode/optimizer.go - foldBinaryOp (complexity: 47)
+### 🟠 P1.1: internal/bytecode/optimizer.go - foldBinaryOp (complexity: 47)
 
 **Current:** 47 complexity, handles constant folding for binary operations
 **Target:** Split by type (integer, float, string, boolean operations)
 
-### 🟠 P1.4: internal/bytecode/optimizer.go - propagateConstants (complexity: 37)
+### 🟠 P1.2: internal/bytecode/optimizer.go - propagateConstants (complexity: 37)
 
 **Current:** 37 complexity, propagates constants through bytecode
 **Target:** Extract helper functions for different propagation scenarios
 
-### 🟠 P1.5: internal/bytecode/disasm.go - DisassembleInstruction (complexity: 29)
+### 🟠 P1.3: internal/bytecode/disasm.go - DisassembleInstruction (complexity: 29)
 
 **Current:** 29 complexity, massive switch statement for 116 opcodes
 **Target:** Group related opcodes, extract formatting helpers
@@ -96,7 +48,7 @@ func walkClassDecl(n *ClassDecl, v Visitor) error { ... }
 **Current:** Single file with all VM builtin implementations
 **Target:** Split into logical categories
 
-```
+```plain
 vm_builtins.go → Split into:
 ├── vm_builtins_string.go      (~600 lines) - String manipulation functions
 ├── vm_builtins_math.go        (~500 lines) - Math functions
@@ -113,7 +65,7 @@ vm_builtins.go → Split into:
 **Current:** All string builtin analysis in one file
 **Target:** Split by operation category
 
-```
+```plain
 analyze_builtin_string.go → Split into:
 ├── analyze_builtin_string_search.go    (~400 lines) - Pos, LastPos, Find, Contains
 ├── analyze_builtin_string_transform.go (~450 lines) - Upper, Lower, Trim, Replace
@@ -132,7 +84,7 @@ analyze_builtin_string.go → Split into:
 **Current:** Core builtins (Print, Inc, Dec, Ord, Chr, TypeOf, etc.)
 **Target:** Split into focused files
 
-```
+```plain
 builtins_core.go → Split into:
 ├── builtins_io.go          (~300 lines) - Print, PrintLn, Write, WriteLn
 ├── builtins_conversion.go  (~400 lines) - Ord, Chr, Int, Float, Str conversions
@@ -153,7 +105,7 @@ builtins_core.go → Split into:
 **Current:** Mixed helper functions
 **Target:** Split by purpose
 
-```
+```plain
 helpers.go → Split into:
 ├── helpers_conversion.go  (~400 lines) - Type conversion helpers
 ├── helpers_comparison.go  (~350 lines) - Comparison helpers
@@ -165,7 +117,7 @@ helpers.go → Split into:
 **Current:** Value interface and all value type implementations
 **Target:** Split by value category
 
-```
+```plain
 value.go → Split into:
 ├── value.go              (~200 lines) - Value interface, basic types
 ├── value_collections.go  (~350 lines) - Array, Set, Map values
@@ -187,7 +139,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.1: internal/interp/string_test.go (72KB)
 
 **Target:** Split by operation category
-```
+
+```plain
 ├── string_search_test.go      (~24KB) - Pos, Find, Contains tests
 ├── string_transform_test.go   (~24KB) - Upper, Lower, Trim, Replace tests
 └── string_format_test.go      (~24KB) - Format, SubString tests
@@ -196,7 +149,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.2: internal/interp/math_test.go (64KB)
 
 **Target:** Split by math category
-```
+
+```plain
 ├── math_basic_test.go   (~21KB) - Abs, Sqrt, Power, Min, Max tests
 ├── math_trig_test.go    (~21KB) - Sin, Cos, Tan, Arc* tests
 └── math_convert_test.go (~21KB) - Round, Trunc, Floor, Ceil tests
@@ -205,7 +159,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.3: internal/parser/arrays_test.go (52KB)
 
 **Target:** Split by parsing feature
-```
+
+```plain
 ├── arrays_literal_test.go     (~26KB) - Array literal parsing
 └── arrays_operations_test.go  (~26KB) - Array indexing/operations parsing
 ```
@@ -213,7 +168,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.4: internal/parser/functions_test.go (48KB)
 
 **Target:** Split by function feature
-```
+
+```plain
 ├── functions_decl_test.go  (~24KB) - Function declaration parsing
 └── functions_call_test.go  (~24KB) - Function call parsing
 ```
@@ -221,7 +177,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.5: internal/interp/set_test.go (48KB)
 
 **Target:** Split by set operations
-```
+
+```plain
 ├── set_basic_test.go    (~24KB) - Creation, membership, basic ops
 └── set_advanced_test.go (~24KB) - Advanced operations, edge cases
 ```
@@ -229,7 +186,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.6: internal/bytecode/compiler_test.go (48KB)
 
 **Target:** Mirror compiler.go split
-```
+
+```plain
 ├── compiler_statements_test.go   (~16KB)
 ├── compiler_expressions_test.go  (~16KB)
 └── compiler_functions_test.go    (~16KB)
@@ -238,7 +196,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.7: internal/parser/classes_test.go (44KB)
 
 **Target:** Split by class feature
-```
+
+```plain
 ├── classes_decl_test.go    (~22KB) - Class declaration parsing
 └── classes_members_test.go (~22KB) - Method/property parsing
 ```
@@ -246,7 +205,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.8: internal/interp/property_test.go (44KB)
 
 **Target:** Split by property complexity
-```
+
+```plain
 ├── property_basic_test.go    (~22KB) - Basic get/set tests
 └── property_advanced_test.go (~22KB) - Visibility, inheritance tests
 ```
@@ -254,7 +214,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.9: internal/interp/interpreter_test.go (44KB)
 
 **Target:** Split by feature complexity
-```
+
+```plain
 ├── interpreter_basic_test.go    (~15KB) - Literals, variables, expressions
 ├── interpreter_control_test.go  (~15KB) - Control flow tests
 └── interpreter_advanced_test.go (~14KB) - Closures, recursion, edge cases
@@ -263,7 +224,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.10: internal/types/classes_test.go (40KB)
 
 **Target:** Split by class feature
-```
+
+```plain
 ├── classes_basic_test.go       (~20KB) - Basic class type tests
 └── classes_inheritance_test.go (~20KB) - Inheritance/polymorphism tests
 ```
@@ -271,7 +233,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.11: internal/interp/variant_test.go (40KB)
 
 **Target:** Split by variant operation
-```
+
+```plain
 ├── variant_basic_test.go    (~20KB) - Basic variant operations
 └── variant_advanced_test.go (~20KB) - Complex conversions, edge cases
 ```
@@ -279,7 +242,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.12: internal/interp/lambda_test.go (40KB)
 
 **Target:** Split by lambda complexity
-```
+
+```plain
 ├── lambda_basic_test.go    (~20KB) - Basic lambdas, simple captures
 └── lambda_advanced_test.go (~20KB) - Nested lambdas, complex captures
 ```
@@ -287,7 +251,8 @@ These test files are very large and would benefit from splitting:
 ### 🟢 P3.13: internal/semantic/analyze_builtin_datetime.go (945 lines, 40KB)
 
 **Target:** Split by datetime category
-```
+
+```plain
 ├── analyze_builtin_datetime_format.go (~315 lines)
 ├── analyze_builtin_datetime_calc.go   (~315 lines)
 └── analyze_builtin_datetime_info.go   (~315 lines)
@@ -382,7 +347,8 @@ When splitting large files:
 6. **Commit atomically** - One split per commit
 
 **Example naming pattern:**
-```
+
+```plain
 builtins_core.go →
 ├── builtins_io.go         (I/O functions)
 ├── builtins_conversion.go (Type conversions)

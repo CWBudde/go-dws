@@ -19,631 +19,886 @@ func Walk(v Visitor, node Node) {
 		return
 	}
 
-	// Walk children based on node type
+	// Walk children based on node type - dispatch to type-specific functions
 	switch n := node.(type) {
 	// Program
 	case *Program:
-		for _, stmt := range n.Statements {
-			Walk(v, stmt)
-		}
+		walkProgram(n, v)
 
 	// Literals
 	case *Identifier:
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkIdentifier(n, v)
 	case *IntegerLiteral:
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkIntegerLiteral(n, v)
 	case *FloatLiteral:
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkFloatLiteral(n, v)
 	case *StringLiteral:
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkStringLiteral(n, v)
 	case *BooleanLiteral:
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkBooleanLiteral(n, v)
 	case *CharLiteral:
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkCharLiteral(n, v)
 	case *NilLiteral:
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
+		walkNilLiteral(n, v)
 
 	// Expressions
 	case *AsExpression:
-		Walk(v, n.Left)
-		if n.TargetType != nil {
-			Walk(v, n.TargetType)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkAsExpression(n, v)
 	case *ImplementsExpression:
-		Walk(v, n.Left)
-		if n.TargetType != nil {
-			Walk(v, n.TargetType)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkImplementsExpression(n, v)
 	case *BinaryExpression:
-		Walk(v, n.Left)
-		Walk(v, n.Right)
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkBinaryExpression(n, v)
 	case *UnaryExpression:
-		Walk(v, n.Right)
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkUnaryExpression(n, v)
 	case *GroupedExpression:
-		Walk(v, n.Expression)
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkGroupedExpression(n, v)
 	case *RangeExpression:
-		Walk(v, n.Start)
-		Walk(v, n.RangeEnd)
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkRangeExpression(n, v)
 	case *CallExpression:
-		Walk(v, n.Function)
-		for _, arg := range n.Arguments {
-			Walk(v, arg)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkCallExpression(n, v)
 	case *OldExpression:
-		Walk(v, n.Identifier)
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
+		walkOldExpression(n, v)
 
 	// Statements
 	case *ExpressionStatement:
-		if n.Expression != nil {
-			Walk(v, n.Expression)
-		}
-
+		walkExpressionStatement(n, v)
 	case *BlockStatement:
-		for _, stmt := range n.Statements {
-			Walk(v, stmt)
-		}
-
+		walkBlockStatement(n, v)
 	case *VarDeclStatement:
-		for _, name := range n.Names {
-			Walk(v, name)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-		if n.Value != nil {
-			Walk(v, n.Value)
-		}
-
+		walkVarDeclStatement(n, v)
 	case *AssignmentStatement:
-		if n.Target != nil {
-			Walk(v, n.Target)
-		}
-		if n.Value != nil {
-			Walk(v, n.Value)
-		}
-
+		walkAssignmentStatement(n, v)
 	case *ConstDecl:
-		Walk(v, n.Name)
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-		Walk(v, n.Value)
+		walkConstDecl(n, v)
 
 	// Control Flow
 	case *IfStatement:
-		Walk(v, n.Condition)
-		Walk(v, n.Consequence)
-		if n.Alternative != nil {
-			Walk(v, n.Alternative)
-		}
-
+		walkIfStatement(n, v)
 	case *IfExpression:
-		Walk(v, n.Condition)
-		Walk(v, n.Consequence)
-		if n.Alternative != nil {
-			Walk(v, n.Alternative)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkIfExpression(n, v)
 	case *WhileStatement:
-		Walk(v, n.Condition)
-		Walk(v, n.Body)
-
+		walkWhileStatement(n, v)
 	case *RepeatStatement:
-		Walk(v, n.Body)
-		Walk(v, n.Condition)
-
+		walkRepeatStatement(n, v)
 	case *ForStatement:
-		Walk(v, n.Variable)
-		Walk(v, n.Start)
-		Walk(v, n.EndValue)
-		if n.Step != nil {
-			Walk(v, n.Step)
-		}
-		Walk(v, n.Body)
-
+		walkForStatement(n, v)
 	case *ForInStatement:
-		Walk(v, n.Variable)
-		Walk(v, n.Collection)
-		Walk(v, n.Body)
-
+		walkForInStatement(n, v)
 	case *CaseStatement:
-		Walk(v, n.Expression)
-		for _, branch := range n.Cases {
-			// Walk branch values and statement (CaseBranch is not a Node)
-			for _, value := range branch.Values {
-				Walk(v, value)
-			}
-			Walk(v, branch.Statement)
-		}
-		if n.Else != nil {
-			Walk(v, n.Else)
-		}
-
+		walkCaseStatement(n, v)
 	case *BreakStatement:
-		// No children
-
+		walkBreakStatement(n, v)
 	case *ContinueStatement:
-		// No children
-
+		walkContinueStatement(n, v)
 	case *ExitStatement:
-		if n.ReturnValue != nil {
-			Walk(v, n.ReturnValue)
-		}
+		walkExitStatement(n, v)
 
 	// Functions
 	case *FunctionDecl:
-		Walk(v, n.Name)
-		if n.ClassName != nil {
-			Walk(v, n.ClassName)
-		}
-		for _, param := range n.Parameters {
-			// Walk parameter children (Parameter is not a Node)
-			if param.Name != nil {
-				Walk(v, param.Name)
-			}
-			if param.Type != nil {
-				Walk(v, param.Type)
-			}
-			if param.DefaultValue != nil {
-				Walk(v, param.DefaultValue)
-			}
-		}
-		if n.ReturnType != nil {
-			Walk(v, n.ReturnType)
-		}
-		if n.PreConditions != nil {
-			Walk(v, n.PreConditions)
-		}
-		if n.Body != nil {
-			Walk(v, n.Body)
-		}
-		if n.PostConditions != nil {
-			Walk(v, n.PostConditions)
-		}
-
+		walkFunctionDecl(n, v)
 	case *ReturnStatement:
-		if n.ReturnValue != nil {
-			Walk(v, n.ReturnValue)
-		}
+		walkReturnStatement(n, v)
 
 	// Contracts
 	case *Condition:
-		if n.Test != nil {
-			Walk(v, n.Test)
-		}
-		if n.Message != nil {
-			Walk(v, n.Message)
-		}
-
+		walkCondition(n, v)
 	case *PreConditions:
-		for _, cond := range n.Conditions {
-			Walk(v, cond)
-		}
-
+		walkPreConditions(n, v)
 	case *PostConditions:
-		for _, cond := range n.Conditions {
-			Walk(v, cond)
-		}
+		walkPostConditions(n, v)
 
 	// Arrays
 	case *ArrayDecl:
-		Walk(v, n.Name)
-		if n.ArrayType != nil {
-			Walk(v, n.ArrayType)
-		}
-
+		walkArrayDecl(n, v)
 	case *ArrayTypeAnnotation:
-		if n.LowBound != nil {
-			Walk(v, n.LowBound)
-		}
-		if n.HighBound != nil {
-			Walk(v, n.HighBound)
-		}
-		if n.ElementType != nil {
-			Walk(v, n.ElementType)
-		}
-
+		walkArrayTypeAnnotation(n, v)
 	case *ArrayLiteralExpression:
-		for _, elem := range n.Elements {
-			Walk(v, elem)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkArrayLiteralExpression(n, v)
 	case *IndexExpression:
-		Walk(v, n.Left)
-		Walk(v, n.Index)
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkIndexExpression(n, v)
 	case *NewArrayExpression:
-		if n.ElementTypeName != nil {
-			Walk(v, n.ElementTypeName)
-		}
-		for _, dim := range n.Dimensions {
-			Walk(v, dim)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
+		walkNewArrayExpression(n, v)
 
 	// Classes
 	case *ClassDecl:
-		Walk(v, n.Name)
-		if n.Parent != nil {
-			Walk(v, n.Parent)
-		}
-		for _, iface := range n.Interfaces {
-			Walk(v, iface)
-		}
-		for _, field := range n.Fields {
-			Walk(v, field)
-		}
-		for _, method := range n.Methods {
-			Walk(v, method)
-		}
-		for _, operator := range n.Operators {
-			Walk(v, operator)
-		}
-		for _, prop := range n.Properties {
-			Walk(v, prop)
-		}
-		if n.Constructor != nil {
-			Walk(v, n.Constructor)
-		}
-		if n.Destructor != nil {
-			Walk(v, n.Destructor)
-		}
-
+		walkClassDecl(n, v)
 	case *FieldDecl:
-		Walk(v, n.Name)
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkFieldDecl(n, v)
 	case *NewExpression:
-		Walk(v, n.ClassName)
-		for _, arg := range n.Arguments {
-			Walk(v, arg)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkNewExpression(n, v)
 	case *MemberAccessExpression:
-		Walk(v, n.Object)
-		Walk(v, n.Member)
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkMemberAccessExpression(n, v)
 	case *MethodCallExpression:
-		Walk(v, n.Object)
-		Walk(v, n.Method)
-		for _, arg := range n.Arguments {
-			Walk(v, arg)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkMethodCallExpression(n, v)
 	case *InheritedExpression:
-		if n.Method != nil {
-			Walk(v, n.Method)
-		}
-		for _, arg := range n.Arguments {
-			Walk(v, arg)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
+		walkInheritedExpression(n, v)
 
 	// Enums
 	case *EnumDecl:
-		Walk(v, n.Name)
-
+		walkEnumDecl(n, v)
 	case *EnumLiteral:
-		// No children to walk
+		walkEnumLiteral(n, v)
 
 	// Records
 	case *RecordDecl:
-		Walk(v, n.Name)
-		for _, field := range n.Fields {
-			Walk(v, field)
-		}
-		for _, method := range n.Methods {
-			Walk(v, method)
-		}
-
+		walkRecordDecl(n, v)
 	case *RecordLiteralExpression:
-		if n.TypeName != nil {
-			Walk(v, n.TypeName)
-		}
-		for _, field := range n.Fields {
-			// Walk field initializer children (FieldInitializer is not a Node)
-			if field.Name != nil {
-				Walk(v, field.Name)
-			}
-			Walk(v, field.Value)
-		}
+		walkRecordLiteralExpression(n, v)
 
 	// Lambda
 	case *LambdaExpression:
-		for _, param := range n.Parameters {
-			// Walk parameter children (Parameter is not a Node)
-			if param.Name != nil {
-				Walk(v, param.Name)
-			}
-			if param.Type != nil {
-				Walk(v, param.Type)
-			}
-			if param.DefaultValue != nil {
-				Walk(v, param.DefaultValue)
-			}
-		}
-		if n.ReturnType != nil {
-			Walk(v, n.ReturnType)
-		}
-		if n.Body != nil {
-			Walk(v, n.Body)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
+		walkLambdaExpression(n, v)
 
 	// Sets
 	case *SetDecl:
-		if n.Name != nil {
-			Walk(v, n.Name)
-		}
-		if n.ElementType != nil {
-			Walk(v, n.ElementType)
-		}
-
+		walkSetDecl(n, v)
 	case *SetLiteral:
-		for _, elem := range n.Elements {
-			Walk(v, elem)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
+		walkSetLiteral(n, v)
 
 	// Properties
 	case *PropertyDecl:
-		Walk(v, n.Name)
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-		for _, param := range n.IndexParams {
-			// Walk parameter children (Parameter is not a Node)
-			if param.Name != nil {
-				Walk(v, param.Name)
-			}
-			if param.Type != nil {
-				Walk(v, param.Type)
-			}
-			if param.DefaultValue != nil {
-				Walk(v, param.DefaultValue)
-			}
-		}
-		if n.ReadSpec != nil {
-			Walk(v, n.ReadSpec)
-		}
-		if n.WriteSpec != nil {
-			Walk(v, n.WriteSpec)
-		}
+		walkPropertyDecl(n, v)
 
 	// Operators
 	case *OperatorDecl:
-		if n.Binding != nil {
-			Walk(v, n.Binding)
-		}
-		for _, operandType := range n.OperandTypes {
-			Walk(v, operandType)
-		}
-		if n.ReturnType != nil {
-			Walk(v, n.ReturnType)
-		}
+		walkOperatorDecl(n, v)
 
 	// Exceptions
 	case *TryStatement:
-		if n.TryBlock != nil {
-			Walk(v, n.TryBlock)
-		}
-		if n.ExceptClause != nil {
-			// Walk except clause children (ExceptClause is not a Node)
-			for _, handler := range n.ExceptClause.Handlers {
-				// Walk exception handler children (ExceptionHandler is not a Node)
-				if handler.Variable != nil {
-					Walk(v, handler.Variable)
-				}
-				if handler.ExceptionType != nil {
-					Walk(v, handler.ExceptionType)
-				}
-				if handler.Statement != nil {
-					Walk(v, handler.Statement)
-				}
-			}
-			if n.ExceptClause.ElseBlock != nil {
-				Walk(v, n.ExceptClause.ElseBlock)
-			}
-		}
-		if n.FinallyClause != nil {
-			// Walk finally clause children (FinallyClause is not a Node)
-			if n.FinallyClause.Block != nil {
-				Walk(v, n.FinallyClause.Block)
-			}
-		}
-
+		walkTryStatement(n, v)
 	case *RaiseStatement:
-		if n.Exception != nil {
-			Walk(v, n.Exception)
-		}
+		walkRaiseStatement(n, v)
 
 	// Interfaces
 	case *InterfaceDecl:
-		Walk(v, n.Name)
-		if n.Parent != nil {
-			Walk(v, n.Parent)
-		}
-		for _, method := range n.Methods {
-			// Walk interface method children (InterfaceMethodDecl is not a Node)
-			Walk(v, method.Name)
-			for _, param := range method.Parameters {
-				// Walk parameter children (Parameter is not a Node)
-				if param.Name != nil {
-					Walk(v, param.Name)
-				}
-				if param.Type != nil {
-					Walk(v, param.Type)
-				}
-				if param.DefaultValue != nil {
-					Walk(v, param.DefaultValue)
-				}
-			}
-			if method.ReturnType != nil {
-				Walk(v, method.ReturnType)
-			}
-		}
+		walkInterfaceDecl(n, v)
 
 	// Units
 	case *UnitDeclaration:
-		Walk(v, n.Name)
-		if n.InterfaceSection != nil {
-			Walk(v, n.InterfaceSection)
-		}
-		if n.ImplementationSection != nil {
-			Walk(v, n.ImplementationSection)
-		}
-		if n.InitSection != nil {
-			Walk(v, n.InitSection)
-		}
-		if n.FinalSection != nil {
-			Walk(v, n.FinalSection)
-		}
-
+		walkUnitDeclaration(n, v)
 	case *UsesClause:
-		for _, unit := range n.Units {
-			Walk(v, unit)
-		}
+		walkUsesClause(n, v)
 
 	// Type Annotations and Expressions
 	case *TypeAnnotation:
-		if n.InlineType != nil {
-			Walk(v, n.InlineType)
-		}
-
+		walkTypeAnnotation(n, v)
 	case *TypeDeclaration:
-		Walk(v, n.Name)
-		if n.AliasedType != nil {
-			Walk(v, n.AliasedType)
-		}
-		if n.LowBound != nil {
-			Walk(v, n.LowBound)
-		}
-		if n.HighBound != nil {
-			Walk(v, n.HighBound)
-		}
-		if n.FunctionPointerType != nil {
-			Walk(v, n.FunctionPointerType)
-		}
-
+		walkTypeDeclaration(n, v)
 	case *FunctionPointerTypeNode:
-		for _, param := range n.Parameters {
-			// Walk parameter children (Parameter is not a Node)
-			if param.Name != nil {
-				Walk(v, param.Name)
-			}
-			if param.Type != nil {
-				Walk(v, param.Type)
-			}
-			if param.DefaultValue != nil {
-				Walk(v, param.DefaultValue)
-			}
-		}
-		if n.ReturnType != nil {
-			Walk(v, n.ReturnType)
-		}
-
+		walkFunctionPointerTypeNode(n, v)
 	case *AddressOfExpression:
-		if n.Operator != nil {
-			Walk(v, n.Operator)
-		}
-		if n.Type != nil {
-			Walk(v, n.Type)
-		}
-
+		walkAddressOfExpression(n, v)
 	case *ArrayTypeNode:
-		if n.LowBound != nil {
-			Walk(v, n.LowBound)
-		}
-		if n.HighBound != nil {
-			Walk(v, n.HighBound)
-		}
-		if n.ElementType != nil {
-			Walk(v, n.ElementType)
-		}
-
+		walkArrayTypeNode(n, v)
 	case *SetTypeNode:
-		if n.ElementType != nil {
-			Walk(v, n.ElementType)
+		walkSetTypeNode(n, v)
+	}
+}
+
+// walkProgram walks a Program node
+func walkProgram(n *Program, v Visitor) {
+	for _, stmt := range n.Statements {
+		Walk(v, stmt)
+	}
+}
+
+// walkIdentifier walks an Identifier node
+func walkIdentifier(n *Identifier, v Visitor) {
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkIntegerLiteral walks an IntegerLiteral node
+func walkIntegerLiteral(n *IntegerLiteral, v Visitor) {
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkFloatLiteral walks a FloatLiteral node
+func walkFloatLiteral(n *FloatLiteral, v Visitor) {
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkStringLiteral walks a StringLiteral node
+func walkStringLiteral(n *StringLiteral, v Visitor) {
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkBooleanLiteral walks a BooleanLiteral node
+func walkBooleanLiteral(n *BooleanLiteral, v Visitor) {
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkCharLiteral walks a CharLiteral node
+func walkCharLiteral(n *CharLiteral, v Visitor) {
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkNilLiteral walks a NilLiteral node
+func walkNilLiteral(n *NilLiteral, v Visitor) {
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkAsExpression walks an AsExpression node
+func walkAsExpression(n *AsExpression, v Visitor) {
+	Walk(v, n.Left)
+	if n.TargetType != nil {
+		Walk(v, n.TargetType)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkImplementsExpression walks an ImplementsExpression node
+func walkImplementsExpression(n *ImplementsExpression, v Visitor) {
+	Walk(v, n.Left)
+	if n.TargetType != nil {
+		Walk(v, n.TargetType)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkBinaryExpression walks a BinaryExpression node
+func walkBinaryExpression(n *BinaryExpression, v Visitor) {
+	Walk(v, n.Left)
+	Walk(v, n.Right)
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkUnaryExpression walks a UnaryExpression node
+func walkUnaryExpression(n *UnaryExpression, v Visitor) {
+	Walk(v, n.Right)
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkGroupedExpression walks a GroupedExpression node
+func walkGroupedExpression(n *GroupedExpression, v Visitor) {
+	Walk(v, n.Expression)
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkRangeExpression walks a RangeExpression node
+func walkRangeExpression(n *RangeExpression, v Visitor) {
+	Walk(v, n.Start)
+	Walk(v, n.RangeEnd)
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkCallExpression walks a CallExpression node
+func walkCallExpression(n *CallExpression, v Visitor) {
+	Walk(v, n.Function)
+	for _, arg := range n.Arguments {
+		Walk(v, arg)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkOldExpression walks an OldExpression node
+func walkOldExpression(n *OldExpression, v Visitor) {
+	Walk(v, n.Identifier)
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkExpressionStatement walks an ExpressionStatement node
+func walkExpressionStatement(n *ExpressionStatement, v Visitor) {
+	if n.Expression != nil {
+		Walk(v, n.Expression)
+	}
+}
+
+// walkBlockStatement walks a BlockStatement node
+func walkBlockStatement(n *BlockStatement, v Visitor) {
+	for _, stmt := range n.Statements {
+		Walk(v, stmt)
+	}
+}
+
+// walkVarDeclStatement walks a VarDeclStatement node
+func walkVarDeclStatement(n *VarDeclStatement, v Visitor) {
+	for _, name := range n.Names {
+		Walk(v, name)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+	if n.Value != nil {
+		Walk(v, n.Value)
+	}
+}
+
+// walkAssignmentStatement walks an AssignmentStatement node
+func walkAssignmentStatement(n *AssignmentStatement, v Visitor) {
+	if n.Target != nil {
+		Walk(v, n.Target)
+	}
+	if n.Value != nil {
+		Walk(v, n.Value)
+	}
+}
+
+// walkConstDecl walks a ConstDecl node
+func walkConstDecl(n *ConstDecl, v Visitor) {
+	Walk(v, n.Name)
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+	Walk(v, n.Value)
+}
+
+// walkIfStatement walks an IfStatement node
+func walkIfStatement(n *IfStatement, v Visitor) {
+	Walk(v, n.Condition)
+	Walk(v, n.Consequence)
+	if n.Alternative != nil {
+		Walk(v, n.Alternative)
+	}
+}
+
+// walkIfExpression walks an IfExpression node
+func walkIfExpression(n *IfExpression, v Visitor) {
+	Walk(v, n.Condition)
+	Walk(v, n.Consequence)
+	if n.Alternative != nil {
+		Walk(v, n.Alternative)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkWhileStatement walks a WhileStatement node
+func walkWhileStatement(n *WhileStatement, v Visitor) {
+	Walk(v, n.Condition)
+	Walk(v, n.Body)
+}
+
+// walkRepeatStatement walks a RepeatStatement node
+func walkRepeatStatement(n *RepeatStatement, v Visitor) {
+	Walk(v, n.Body)
+	Walk(v, n.Condition)
+}
+
+// walkForStatement walks a ForStatement node
+func walkForStatement(n *ForStatement, v Visitor) {
+	Walk(v, n.Variable)
+	Walk(v, n.Start)
+	Walk(v, n.EndValue)
+	if n.Step != nil {
+		Walk(v, n.Step)
+	}
+	Walk(v, n.Body)
+}
+
+// walkForInStatement walks a ForInStatement node
+func walkForInStatement(n *ForInStatement, v Visitor) {
+	Walk(v, n.Variable)
+	Walk(v, n.Collection)
+	Walk(v, n.Body)
+}
+
+// walkCaseStatement walks a CaseStatement node
+func walkCaseStatement(n *CaseStatement, v Visitor) {
+	Walk(v, n.Expression)
+	for _, branch := range n.Cases {
+		// Walk branch values and statement (CaseBranch is not a Node)
+		for _, value := range branch.Values {
+			Walk(v, value)
 		}
+		Walk(v, branch.Statement)
+	}
+	if n.Else != nil {
+		Walk(v, n.Else)
+	}
+}
+
+// walkBreakStatement walks a BreakStatement node
+func walkBreakStatement(n *BreakStatement, v Visitor) {
+	// No children
+}
+
+// walkContinueStatement walks a ContinueStatement node
+func walkContinueStatement(n *ContinueStatement, v Visitor) {
+	// No children
+}
+
+// walkExitStatement walks an ExitStatement node
+func walkExitStatement(n *ExitStatement, v Visitor) {
+	if n.ReturnValue != nil {
+		Walk(v, n.ReturnValue)
+	}
+}
+
+// walkFunctionDecl walks a FunctionDecl node
+func walkFunctionDecl(n *FunctionDecl, v Visitor) {
+	Walk(v, n.Name)
+	if n.ClassName != nil {
+		Walk(v, n.ClassName)
+	}
+	for _, param := range n.Parameters {
+		walkParameter(param, v)
+	}
+	if n.ReturnType != nil {
+		Walk(v, n.ReturnType)
+	}
+	if n.PreConditions != nil {
+		Walk(v, n.PreConditions)
+	}
+	if n.Body != nil {
+		Walk(v, n.Body)
+	}
+	if n.PostConditions != nil {
+		Walk(v, n.PostConditions)
+	}
+}
+
+// walkParameter walks a Parameter (helper for walking parameter fields)
+func walkParameter(param *Parameter, v Visitor) {
+	if param.Name != nil {
+		Walk(v, param.Name)
+	}
+	if param.Type != nil {
+		Walk(v, param.Type)
+	}
+	if param.DefaultValue != nil {
+		Walk(v, param.DefaultValue)
+	}
+}
+
+// walkReturnStatement walks a ReturnStatement node
+func walkReturnStatement(n *ReturnStatement, v Visitor) {
+	if n.ReturnValue != nil {
+		Walk(v, n.ReturnValue)
+	}
+}
+
+// walkCondition walks a Condition node
+func walkCondition(n *Condition, v Visitor) {
+	if n.Test != nil {
+		Walk(v, n.Test)
+	}
+	if n.Message != nil {
+		Walk(v, n.Message)
+	}
+}
+
+// walkPreConditions walks a PreConditions node
+func walkPreConditions(n *PreConditions, v Visitor) {
+	for _, cond := range n.Conditions {
+		Walk(v, cond)
+	}
+}
+
+// walkPostConditions walks a PostConditions node
+func walkPostConditions(n *PostConditions, v Visitor) {
+	for _, cond := range n.Conditions {
+		Walk(v, cond)
+	}
+}
+
+// walkArrayDecl walks an ArrayDecl node
+func walkArrayDecl(n *ArrayDecl, v Visitor) {
+	Walk(v, n.Name)
+	if n.ArrayType != nil {
+		Walk(v, n.ArrayType)
+	}
+}
+
+// walkArrayTypeAnnotation walks an ArrayTypeAnnotation node
+func walkArrayTypeAnnotation(n *ArrayTypeAnnotation, v Visitor) {
+	if n.LowBound != nil {
+		Walk(v, n.LowBound)
+	}
+	if n.HighBound != nil {
+		Walk(v, n.HighBound)
+	}
+	if n.ElementType != nil {
+		Walk(v, n.ElementType)
+	}
+}
+
+// walkArrayLiteralExpression walks an ArrayLiteralExpression node
+func walkArrayLiteralExpression(n *ArrayLiteralExpression, v Visitor) {
+	for _, elem := range n.Elements {
+		Walk(v, elem)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkIndexExpression walks an IndexExpression node
+func walkIndexExpression(n *IndexExpression, v Visitor) {
+	Walk(v, n.Left)
+	Walk(v, n.Index)
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkNewArrayExpression walks a NewArrayExpression node
+func walkNewArrayExpression(n *NewArrayExpression, v Visitor) {
+	if n.ElementTypeName != nil {
+		Walk(v, n.ElementTypeName)
+	}
+	for _, dim := range n.Dimensions {
+		Walk(v, dim)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkClassDecl walks a ClassDecl node
+func walkClassDecl(n *ClassDecl, v Visitor) {
+	Walk(v, n.Name)
+	if n.Parent != nil {
+		Walk(v, n.Parent)
+	}
+	for _, iface := range n.Interfaces {
+		Walk(v, iface)
+	}
+	for _, field := range n.Fields {
+		Walk(v, field)
+	}
+	for _, method := range n.Methods {
+		Walk(v, method)
+	}
+	for _, operator := range n.Operators {
+		Walk(v, operator)
+	}
+	for _, prop := range n.Properties {
+		Walk(v, prop)
+	}
+	if n.Constructor != nil {
+		Walk(v, n.Constructor)
+	}
+	if n.Destructor != nil {
+		Walk(v, n.Destructor)
+	}
+}
+
+// walkFieldDecl walks a FieldDecl node
+func walkFieldDecl(n *FieldDecl, v Visitor) {
+	Walk(v, n.Name)
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkNewExpression walks a NewExpression node
+func walkNewExpression(n *NewExpression, v Visitor) {
+	Walk(v, n.ClassName)
+	for _, arg := range n.Arguments {
+		Walk(v, arg)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkMemberAccessExpression walks a MemberAccessExpression node
+func walkMemberAccessExpression(n *MemberAccessExpression, v Visitor) {
+	Walk(v, n.Object)
+	Walk(v, n.Member)
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkMethodCallExpression walks a MethodCallExpression node
+func walkMethodCallExpression(n *MethodCallExpression, v Visitor) {
+	Walk(v, n.Object)
+	Walk(v, n.Method)
+	for _, arg := range n.Arguments {
+		Walk(v, arg)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkInheritedExpression walks an InheritedExpression node
+func walkInheritedExpression(n *InheritedExpression, v Visitor) {
+	if n.Method != nil {
+		Walk(v, n.Method)
+	}
+	for _, arg := range n.Arguments {
+		Walk(v, arg)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkEnumDecl walks an EnumDecl node
+func walkEnumDecl(n *EnumDecl, v Visitor) {
+	Walk(v, n.Name)
+}
+
+// walkEnumLiteral walks an EnumLiteral node
+func walkEnumLiteral(n *EnumLiteral, v Visitor) {
+	// No children to walk
+}
+
+// walkRecordDecl walks a RecordDecl node
+func walkRecordDecl(n *RecordDecl, v Visitor) {
+	Walk(v, n.Name)
+	for _, field := range n.Fields {
+		Walk(v, field)
+	}
+	for _, method := range n.Methods {
+		Walk(v, method)
+	}
+}
+
+// walkRecordLiteralExpression walks a RecordLiteralExpression node
+func walkRecordLiteralExpression(n *RecordLiteralExpression, v Visitor) {
+	if n.TypeName != nil {
+		Walk(v, n.TypeName)
+	}
+	for _, field := range n.Fields {
+		// Walk field initializer children (FieldInitializer is not a Node)
+		if field.Name != nil {
+			Walk(v, field.Name)
+		}
+		Walk(v, field.Value)
+	}
+}
+
+// walkLambdaExpression walks a LambdaExpression node
+func walkLambdaExpression(n *LambdaExpression, v Visitor) {
+	for _, param := range n.Parameters {
+		walkParameter(param, v)
+	}
+	if n.ReturnType != nil {
+		Walk(v, n.ReturnType)
+	}
+	if n.Body != nil {
+		Walk(v, n.Body)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkSetDecl walks a SetDecl node
+func walkSetDecl(n *SetDecl, v Visitor) {
+	if n.Name != nil {
+		Walk(v, n.Name)
+	}
+	if n.ElementType != nil {
+		Walk(v, n.ElementType)
+	}
+}
+
+// walkSetLiteral walks a SetLiteral node
+func walkSetLiteral(n *SetLiteral, v Visitor) {
+	for _, elem := range n.Elements {
+		Walk(v, elem)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkPropertyDecl walks a PropertyDecl node
+func walkPropertyDecl(n *PropertyDecl, v Visitor) {
+	Walk(v, n.Name)
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+	for _, param := range n.IndexParams {
+		walkParameter(param, v)
+	}
+	if n.ReadSpec != nil {
+		Walk(v, n.ReadSpec)
+	}
+	if n.WriteSpec != nil {
+		Walk(v, n.WriteSpec)
+	}
+}
+
+// walkOperatorDecl walks an OperatorDecl node
+func walkOperatorDecl(n *OperatorDecl, v Visitor) {
+	if n.Binding != nil {
+		Walk(v, n.Binding)
+	}
+	for _, operandType := range n.OperandTypes {
+		Walk(v, operandType)
+	}
+	if n.ReturnType != nil {
+		Walk(v, n.ReturnType)
+	}
+}
+
+// walkTryStatement walks a TryStatement node
+func walkTryStatement(n *TryStatement, v Visitor) {
+	if n.TryBlock != nil {
+		Walk(v, n.TryBlock)
+	}
+	if n.ExceptClause != nil {
+		// Walk except clause children (ExceptClause is not a Node)
+		for _, handler := range n.ExceptClause.Handlers {
+			// Walk exception handler children (ExceptionHandler is not a Node)
+			if handler.Variable != nil {
+				Walk(v, handler.Variable)
+			}
+			if handler.ExceptionType != nil {
+				Walk(v, handler.ExceptionType)
+			}
+			if handler.Statement != nil {
+				Walk(v, handler.Statement)
+			}
+		}
+		if n.ExceptClause.ElseBlock != nil {
+			Walk(v, n.ExceptClause.ElseBlock)
+		}
+	}
+	if n.FinallyClause != nil {
+		// Walk finally clause children (FinallyClause is not a Node)
+		if n.FinallyClause.Block != nil {
+			Walk(v, n.FinallyClause.Block)
+		}
+	}
+}
+
+// walkRaiseStatement walks a RaiseStatement node
+func walkRaiseStatement(n *RaiseStatement, v Visitor) {
+	if n.Exception != nil {
+		Walk(v, n.Exception)
+	}
+}
+
+// walkInterfaceDecl walks an InterfaceDecl node
+func walkInterfaceDecl(n *InterfaceDecl, v Visitor) {
+	Walk(v, n.Name)
+	if n.Parent != nil {
+		Walk(v, n.Parent)
+	}
+	for _, method := range n.Methods {
+		// Walk interface method children (InterfaceMethodDecl is not a Node)
+		Walk(v, method.Name)
+		for _, param := range method.Parameters {
+			walkParameter(param, v)
+		}
+		if method.ReturnType != nil {
+			Walk(v, method.ReturnType)
+		}
+	}
+}
+
+// walkUnitDeclaration walks a UnitDeclaration node
+func walkUnitDeclaration(n *UnitDeclaration, v Visitor) {
+	Walk(v, n.Name)
+	if n.InterfaceSection != nil {
+		Walk(v, n.InterfaceSection)
+	}
+	if n.ImplementationSection != nil {
+		Walk(v, n.ImplementationSection)
+	}
+	if n.InitSection != nil {
+		Walk(v, n.InitSection)
+	}
+	if n.FinalSection != nil {
+		Walk(v, n.FinalSection)
+	}
+}
+
+// walkUsesClause walks a UsesClause node
+func walkUsesClause(n *UsesClause, v Visitor) {
+	for _, unit := range n.Units {
+		Walk(v, unit)
+	}
+}
+
+// walkTypeAnnotation walks a TypeAnnotation node
+func walkTypeAnnotation(n *TypeAnnotation, v Visitor) {
+	if n.InlineType != nil {
+		Walk(v, n.InlineType)
+	}
+}
+
+// walkTypeDeclaration walks a TypeDeclaration node
+func walkTypeDeclaration(n *TypeDeclaration, v Visitor) {
+	Walk(v, n.Name)
+	if n.AliasedType != nil {
+		Walk(v, n.AliasedType)
+	}
+	if n.LowBound != nil {
+		Walk(v, n.LowBound)
+	}
+	if n.HighBound != nil {
+		Walk(v, n.HighBound)
+	}
+	if n.FunctionPointerType != nil {
+		Walk(v, n.FunctionPointerType)
+	}
+}
+
+// walkFunctionPointerTypeNode walks a FunctionPointerTypeNode node
+func walkFunctionPointerTypeNode(n *FunctionPointerTypeNode, v Visitor) {
+	for _, param := range n.Parameters {
+		walkParameter(param, v)
+	}
+	if n.ReturnType != nil {
+		Walk(v, n.ReturnType)
+	}
+}
+
+// walkAddressOfExpression walks an AddressOfExpression node
+func walkAddressOfExpression(n *AddressOfExpression, v Visitor) {
+	if n.Operator != nil {
+		Walk(v, n.Operator)
+	}
+	if n.Type != nil {
+		Walk(v, n.Type)
+	}
+}
+
+// walkArrayTypeNode walks an ArrayTypeNode node
+func walkArrayTypeNode(n *ArrayTypeNode, v Visitor) {
+	if n.LowBound != nil {
+		Walk(v, n.LowBound)
+	}
+	if n.HighBound != nil {
+		Walk(v, n.HighBound)
+	}
+	if n.ElementType != nil {
+		Walk(v, n.ElementType)
+	}
+}
+
+// walkSetTypeNode walks a SetTypeNode node
+func walkSetTypeNode(n *SetTypeNode, v Visitor) {
+	if n.ElementType != nil {
+		Walk(v, n.ElementType)
 	}
 }
 
