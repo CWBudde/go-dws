@@ -53,13 +53,13 @@ type functionInfo struct {
 // HelperInfo stores compile-time information about a helper type.
 // This metadata is used during bytecode compilation and passed to the VM.
 type HelperInfo struct {
-	Name         string              // Helper type name (e.g., TStringHelper)
-	TargetType   string              // Type being extended (e.g., String, Integer)
-	ParentHelper string              // Parent helper name (for inheritance)
-	Methods      map[string]uint16   // Method name -> function global slot
-	Properties   []string            // Property names
-	ClassVars    []string            // Class variable names
-	ClassConsts  map[string]Value    // Class constant values
+	Name         string            // Helper type name (e.g., TStringHelper)
+	TargetType   string            // Type being extended (e.g., String, Integer)
+	ParentHelper string            // Parent helper name (for inheritance)
+	Methods      map[string]uint16 // Method name -> function global slot
+	Properties   []string          // Property names
+	ClassVars    []string          // Class variable names
+	ClassConsts  map[string]Value  // Class constant values
 }
 
 type loopKind int
