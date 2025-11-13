@@ -387,13 +387,13 @@ func (o *chunkOptimizer) propagateConstants() bool {
 	}
 
 	ctx := &constPropContext{
-		optimizer: o,
-		newCode:   make([]Instruction, 0, len(o.currentCode)),
-		newLines:  make([]int, 0, len(o.currentLines)),
+		optimizer:  o,
+		newCode:    make([]Instruction, 0, len(o.currentCode)),
+		newLines:   make([]int, 0, len(o.currentLines)),
 		newMapping: make([]int, 0, len(o.currentToOriginal)),
-		stack:     make([]valueState, 0, 16),
-		locals:    make(map[uint16]valueState),
-		changed:   false,
+		stack:      make([]valueState, 0, 16),
+		locals:     make(map[uint16]valueState),
+		changed:    false,
 	}
 
 	for i, inst := range o.currentCode {
