@@ -132,10 +132,13 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 // lookupProperty searches for a property in the class hierarchy.
 // It starts with the current class and walks up the parent chain.
 // Returns the first property found, or nil if not found.
+// Task 9.17: Use case-insensitive lookup
 func (c *ClassInfo) lookupProperty(name string) *types.PropertyInfo {
-	// Check current class
-	if prop, exists := c.Properties[name]; exists {
-		return prop
+	// Check current class with case-insensitive match
+	for propName, prop := range c.Properties {
+		if strings.EqualFold(propName, name) {
+			return prop
+		}
 	}
 
 	// Check parent class (recursive)
@@ -150,15 +153,39 @@ func (c *ClassInfo) lookupProperty(name string) *types.PropertyInfo {
 // lookupConstant searches for a constant in the class hierarchy.
 // It starts with the current class and walks up the parent chain.
 // Returns the ConstDecl and the ClassInfo that owns it, or (nil, nil) if not found.
+// Task 9.17: Use case-insensitive lookup
 func (c *ClassInfo) lookupConstant(name string) (*ast.ConstDecl, *ClassInfo) {
-	// Check current class
-	if constDecl, exists := c.Constants[name]; exists {
-		return constDecl, c
+	// Check current class with case-insensitive match
+	for constName, constDecl := range c.Constants {
+		if strings.EqualFold(constName, name) {
+			return constDecl, c
+		}
 	}
 
 	// Check parent class (recursive)
 	if c.Parent != nil {
 		return c.Parent.lookupConstant(name)
+	}
+
+	// Not found
+	return nil, nil
+}
+
+// lookupClassVar searches for a class variable in the class hierarchy.
+// It starts with the current class and walks up the parent chain.
+// Returns the class variable value and the ClassInfo that owns it, or (nil, nil) if not found.
+// Task 9.17: Use case-insensitive lookup
+func (c *ClassInfo) lookupClassVar(name string) (Value, *ClassInfo) {
+	// Check current class with case-insensitive match
+	for varName, value := range c.ClassVars {
+		if strings.EqualFold(varName, name) {
+			return value, c
+		}
+	}
+
+	// Check parent class (recursive)
+	if c.Parent != nil {
+		return c.Parent.lookupClassVar(name)
 	}
 
 	// Not found
