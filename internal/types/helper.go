@@ -135,8 +135,8 @@ func (hr *HelperRegistry) FindMethod(targetType Type, methodName string) (*Funct
 	// Search helpers in reverse order (most recent first)
 	for i := len(helpers) - 1; i >= 0; i-- {
 		helper := helpers[i]
-		if method, ok := helper.GetMethod(methodNameLower); ok {
-			return method, helper, true
+		if method, ownerHelper, ok := helper.GetMethod(methodNameLower); ok {
+			return method, ownerHelper, true
 		}
 	}
 
@@ -165,8 +165,8 @@ func (hr *HelperRegistry) FindProperty(targetType Type, propertyName string) (*P
 	// Search helpers in reverse order (most recent first)
 	for i := len(helpers) - 1; i >= 0; i-- {
 		helper := helpers[i]
-		if property, ok := helper.GetProperty(propertyNameLower); ok {
-			return property, helper, true
+		if property, ownerHelper, ok := helper.GetProperty(propertyNameLower); ok {
+			return property, ownerHelper, true
 		}
 	}
 

@@ -42,11 +42,12 @@ func NewHelperInfo(name string, targetType types.Type, isRecordHelper bool) *Hel
 
 // GetMethod looks up a method by name in this helper.
 // If not found in this helper, searches in parent helper (if any).
+// Returns the method, the helper that owns it, and whether it was found.
 // Task 9.1: Helper inheritance support
-func (h *HelperInfo) GetMethod(name string) (*ast.FunctionDecl, bool) {
+func (h *HelperInfo) GetMethod(name string) (*ast.FunctionDecl, *HelperInfo, bool) {
 	// Look in this helper first (case-insensitive)
 	if method := findMethodCaseInsensitive(h.Methods, name); method != nil {
-		return method, true
+		return method, h, true
 	}
 
 	// If not found and we have a parent, look there
@@ -54,16 +55,17 @@ func (h *HelperInfo) GetMethod(name string) (*ast.FunctionDecl, bool) {
 		return h.ParentHelper.GetMethod(name)
 	}
 
-	return nil, false
+	return nil, nil, false
 }
 
 // GetBuiltinMethod looks up a builtin method spec by name in this helper.
 // If not found in this helper, searches in parent helper (if any).
+// Returns the builtin spec, the helper that owns it, and whether it was found.
 // Task 9.1: Helper inheritance support
-func (h *HelperInfo) GetBuiltinMethod(name string) (string, bool) {
+func (h *HelperInfo) GetBuiltinMethod(name string) (string, *HelperInfo, bool) {
 	// Look in this helper first (case-insensitive)
 	if spec, ok := findBuiltinMethodCaseInsensitive(h.BuiltinMethods, name); ok {
-		return spec, true
+		return spec, h, true
 	}
 
 	// If not found and we have a parent, look there
@@ -71,16 +73,17 @@ func (h *HelperInfo) GetBuiltinMethod(name string) (string, bool) {
 		return h.ParentHelper.GetBuiltinMethod(name)
 	}
 
-	return "", false
+	return "", nil, false
 }
 
 // GetProperty looks up a property by name in this helper.
 // If not found in this helper, searches in parent helper (if any).
+// Returns the property, the helper that owns it, and whether it was found.
 // Task 9.1: Helper inheritance support
-func (h *HelperInfo) GetProperty(name string) (*types.PropertyInfo, bool) {
+func (h *HelperInfo) GetProperty(name string) (*types.PropertyInfo, *HelperInfo, bool) {
 	// Look in this helper first (case-insensitive)
 	if prop := findPropertyCaseInsensitive(h.Properties, name); prop != nil {
-		return prop, true
+		return prop, h, true
 	}
 
 	// If not found and we have a parent, look there
@@ -88,7 +91,7 @@ func (h *HelperInfo) GetProperty(name string) (*types.PropertyInfo, bool) {
 		return h.ParentHelper.GetProperty(name)
 	}
 
-	return nil, false
+	return nil, nil, false
 }
 
 // findPropertyCaseInsensitive searches for a property by name using case-insensitive comparison.
@@ -347,7 +350,7 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 }
 
 // findHelperMethod searches all applicable helpers for a method with the given name
-// and returns the helper, method declaration (if any), and builtin specification identifier.
+// and returns the helper that owns the method, method declaration (if any), and builtin specification identifier.
 // Task 9.1: Updated to support helper inheritance
 func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInfo, *ast.FunctionDecl, string) {
 	helpers := i.getHelpersForValue(val)
@@ -360,21 +363,21 @@ func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInf
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 
-		// Use GetMethod which searches the inheritance chain
-		if method, ok := helper.GetMethod(methodName); ok {
-			// Check if there's a builtin spec as well
-			if spec, ok := helper.GetBuiltinMethod(methodName); ok {
-				return helper, method, spec
+		// Use GetMethod which searches the inheritance chain and returns the owner helper
+		if method, ownerHelper, ok := helper.GetMethod(methodName); ok {
+			// Check if there's a builtin spec as well (search from the owner helper)
+			if spec, _, ok := ownerHelper.GetBuiltinMethod(methodName); ok {
+				return ownerHelper, method, spec
 			}
-			return helper, method, ""
+			return ownerHelper, method, ""
 		}
 	}
 
 	// If no declared method, check for builtin-only entries
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
-		if spec, ok := helper.GetBuiltinMethod(methodName); ok {
-			return helper, nil, spec
+		if spec, ownerHelper, ok := helper.GetBuiltinMethod(methodName); ok {
+			return ownerHelper, nil, spec
 		}
 	}
 
@@ -382,6 +385,7 @@ func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInf
 }
 
 // findHelperProperty searches all applicable helpers for a property with the given name
+// and returns the helper that owns the property and the property info.
 // Task 9.1: Updated to support helper inheritance
 func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInfo, *types.PropertyInfo) {
 	helpers := i.getHelpersForValue(val)
@@ -393,8 +397,8 @@ func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInf
 	// For each helper, search the inheritance chain using GetProperty
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
-		if prop, ok := helper.GetProperty(propName); ok {
-			return helper, prop
+		if prop, ownerHelper, ok := helper.GetProperty(propName); ok {
+			return ownerHelper, prop
 		}
 	}
 
@@ -427,12 +431,19 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	// Bind Self to the target value (the value being extended)
 	i.env.Define("Self", selfValue)
 
-	// Bind helper class vars and consts
-	for name, value := range helper.ClassVars {
-		i.env.Define(name, value)
+	// Bind helper class vars and consts from entire inheritance chain
+	// Walk from root parent to current helper so child helpers override parents
+	var helperChain []*HelperInfo
+	for h := helper; h != nil; h = h.ParentHelper {
+		helperChain = append([]*HelperInfo{h}, helperChain...)
 	}
-	for name, value := range helper.ClassConsts {
-		i.env.Define(name, value)
+	for _, h := range helperChain {
+		for name, value := range h.ClassVars {
+			i.env.Define(name, value)
+		}
+		for name, value := range h.ClassConsts {
+			i.env.Define(name, value)
+		}
 	}
 
 	// Bind method parameters
@@ -694,10 +705,16 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 		// Otherwise, try as a method (getter)
 		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
 		normalizedReadSpec := strings.ToLower(propInfo.ReadSpec)
-		if method, exists := helper.Methods[normalizedReadSpec]; exists {
-			builtinSpec := helper.BuiltinMethods[normalizedReadSpec]
+
+		// Search for the getter method in the owner helper's inheritance chain
+		if method, methodOwner, ok := helper.GetMethod(normalizedReadSpec); ok {
+			// Get builtin spec if any
+			var builtinSpec string
+			if spec, _, ok := methodOwner.GetBuiltinMethod(normalizedReadSpec); ok {
+				builtinSpec = spec
+			}
 			// Call the getter method with no arguments
-			return i.callHelperMethod(helper, method, builtinSpec, selfValue, []Value{}, node)
+			return i.callHelperMethod(methodOwner, method, builtinSpec, selfValue, []Value{}, node)
 		}
 
 		return i.newErrorWithLocation(node, "property '%s' read specifier '%s' not found",
@@ -707,9 +724,15 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 		// Call getter method
 		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
 		normalizedReadSpec := strings.ToLower(propInfo.ReadSpec)
-		if method, exists := helper.Methods[normalizedReadSpec]; exists {
-			builtinSpec := helper.BuiltinMethods[normalizedReadSpec]
-			return i.callHelperMethod(helper, method, builtinSpec, selfValue, []Value{}, node)
+
+		// Search for the getter method in the owner helper's inheritance chain
+		if method, methodOwner, ok := helper.GetMethod(normalizedReadSpec); ok {
+			// Get builtin spec if any
+			var builtinSpec string
+			if spec, _, ok := methodOwner.GetBuiltinMethod(normalizedReadSpec); ok {
+				builtinSpec = spec
+			}
+			return i.callHelperMethod(methodOwner, method, builtinSpec, selfValue, []Value{}, node)
 		}
 
 		return i.newErrorWithLocation(node, "property '%s' getter method '%s' not found",

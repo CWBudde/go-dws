@@ -563,12 +563,12 @@ func (ht *HelperType) Equals(other Type) bool {
 
 // GetMethod looks up a method by name in this helper.
 // If not found in this helper, searches in parent helper (if any).
-// Returns the method type and true if found, nil and false otherwise.
-func (ht *HelperType) GetMethod(name string) (*FunctionType, bool) {
+// Returns the method type, the helper that owns it, and true if found.
+func (ht *HelperType) GetMethod(name string) (*FunctionType, *HelperType, bool) {
 	// Look in this helper first
 	method, ok := ht.Methods[name]
 	if ok {
-		return method, true
+		return method, ht, true
 	}
 
 	// If not found and we have a parent, look there
@@ -576,17 +576,17 @@ func (ht *HelperType) GetMethod(name string) (*FunctionType, bool) {
 		return ht.ParentHelper.GetMethod(name)
 	}
 
-	return nil, false
+	return nil, nil, false
 }
 
 // GetProperty looks up a property by name in this helper.
 // If not found in this helper, searches in parent helper (if any).
-// Returns the property info and true if found, nil and false otherwise.
-func (ht *HelperType) GetProperty(name string) (*PropertyInfo, bool) {
+// Returns the property info, the helper that owns it, and true if found.
+func (ht *HelperType) GetProperty(name string) (*PropertyInfo, *HelperType, bool) {
 	// Look in this helper first
 	prop, ok := ht.Properties[name]
 	if ok {
-		return prop, true
+		return prop, ht, true
 	}
 
 	// If not found and we have a parent, look there
@@ -594,7 +594,7 @@ func (ht *HelperType) GetProperty(name string) (*PropertyInfo, bool) {
 		return ht.ParentHelper.GetProperty(name)
 	}
 
-	return nil, false
+	return nil, nil, false
 }
 
 // GetClassVar looks up a class variable by name in this helper.
