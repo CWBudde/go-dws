@@ -55,18 +55,55 @@ func (d *Disassembler) DisassembleInstruction(offset int) {
 	op := inst.OpCode()
 
 	// Print offset and line number
-	line := d.chunk.GetLine(offset)
-	if offset > 0 && line == d.chunk.GetLine(offset-1) {
-		// Same line as previous instruction, use pipe
-		fmt.Fprintf(d.writer, "%04d    | ", offset)
-	} else {
-		// New line
-		fmt.Fprintf(d.writer, "%04d %4d ", offset, line)
+	d.printInstructionHeader(offset)
+
+	// Dispatch to appropriate handler based on opcode category
+	if d.tryDisassembleSimpleOp(inst, op) {
+		return
+	}
+	if d.tryDisassembleConstantOp(inst, op, offset) {
+		return
+	}
+	if d.tryDisassembleVarOp(inst, op) {
+		return
+	}
+	if d.tryDisassembleJumpOp(inst, op, offset) {
+		return
+	}
+	if d.tryDisassembleCallOp(inst, op) {
+		return
+	}
+	if d.tryDisassembleArrayOp(inst, op) {
+		return
+	}
+	if d.tryDisassembleObjectOp(inst, op) {
+		return
+	}
+	if d.tryDisassembleStringOp(inst, op) {
+		return
+	}
+	if d.tryDisassembleExceptionOp(inst, op, offset) {
+		return
+	}
+	if d.tryDisassembleMiscOp(inst, op) {
+		return
 	}
 
-	// Disassemble based on opcode type
+	// Unknown opcode
+	fmt.Fprintf(d.writer, "UNKNOWN_OP %d\n", op)
+}
+
+func (d *Disassembler) printInstructionHeader(offset int) {
+	line := d.chunk.GetLine(offset)
+	if offset > 0 && line == d.chunk.GetLine(offset-1) {
+		fmt.Fprintf(d.writer, "%04d    | ", offset)
+	} else {
+		fmt.Fprintf(d.writer, "%04d %4d ", offset, line)
+	}
+}
+
+func (d *Disassembler) tryDisassembleSimpleOp(inst Instruction, op OpCode) bool {
 	switch op {
-	// Simple instructions (no operands)
 	case OpLoadNil, OpLoadTrue, OpLoadFalse,
 		OpAddInt, OpSubInt, OpMulInt, OpDivInt, OpModInt, OpNegateInt, OpIncInt, OpDecInt,
 		OpBitAnd, OpBitOr, OpBitXor, OpBitNot,
@@ -82,94 +119,125 @@ func (d *Disassembler) DisassembleInstruction(offset int) {
 		OpIntToFloat, OpFloatToInt, OpIntToString, OpFloatToString, OpBoolToString,
 		OpGetClass, OpGetSelf,
 		OpHalt, OpPrint, OpAssert, OpDebugger,
-		OpBreak, OpContinue:
+		OpBreak, OpContinue,
+		OpNewArraySized, OpArrayGet, OpArraySet, OpArraySetLength,
+		OpStringGet, OpStringSlice,
+		OpThrow:
 		d.simpleInstruction(inst)
+		return true
+	}
+	return false
+}
 
-	// Constant instructions
+func (d *Disassembler) tryDisassembleConstantOp(inst Instruction, op OpCode, offset int) bool {
+	switch op {
 	case OpLoadConst, OpLoadConst0, OpLoadConst1:
 		d.constantInstruction(inst, offset)
+		return true
+	}
+	return false
+}
 
-	// Local variable instructions
+func (d *Disassembler) tryDisassembleVarOp(inst Instruction, op OpCode) bool {
+	switch op {
 	case OpLoadLocal, OpStoreLocal:
 		d.byteInstruction(inst, "local")
-
-	// Global variable instructions
+		return true
 	case OpLoadGlobal, OpStoreGlobal:
 		d.byteInstruction(inst, "global")
-
-	// Upvalue instructions
+		return true
 	case OpLoadUpvalue, OpStoreUpvalue:
 		d.byteInstruction(inst, "upvalue")
+		return true
+	}
+	return false
+}
 
-	// Jump instructions
+func (d *Disassembler) tryDisassembleJumpOp(inst Instruction, op OpCode, offset int) bool {
+	switch op {
 	case OpJump, OpJumpIfTrue, OpJumpIfFalse, OpJumpIfTrueNoPop, OpJumpIfFalseNoPop:
 		d.jumpInstruction(inst, offset, 1)
-
-	// Loop instruction (backward jump)
+		return true
 	case OpLoop:
 		d.jumpInstruction(inst, offset, -1)
-
-	// For loop instructions
+		return true
 	case OpForPrep, OpForLoop:
 		d.forInstruction(inst, offset)
+		return true
+	}
+	return false
+}
 
-	// Function call instructions
+func (d *Disassembler) tryDisassembleCallOp(inst Instruction, op OpCode) bool {
+	switch op {
 	case OpCall, OpCallMethod, OpCallVirtual, OpCallBuiltin, OpCallIndirect, OpTailCall:
 		d.callInstruction(inst)
-
-	// Return instruction
+		return true
 	case OpReturn, OpExit:
 		d.returnInstruction(inst)
-
-	// Closure instruction
+		return true
 	case OpClosure:
 		d.closureInstruction(inst)
+		return true
+	}
+	return false
+}
 
-	// Array instructions
+func (d *Disassembler) tryDisassembleArrayOp(inst Instruction, op OpCode) bool {
+	switch op {
 	case OpNewArray:
 		d.byteInstruction(inst, "elements")
+		return true
+	}
+	return false
+}
 
-	case OpNewArraySized, OpArrayGet, OpArraySet, OpArraySetLength:
-		d.simpleInstruction(inst)
-
-	// Object instructions
+func (d *Disassembler) tryDisassembleObjectOp(inst Instruction, op OpCode) bool {
+	switch op {
 	case OpNewObject:
 		d.byteInstruction(inst, "class")
-
+		return true
 	case OpGetField, OpSetField:
 		d.byteInstruction(inst, "field")
-
+		return true
 	case OpGetProperty, OpSetProperty:
 		d.byteInstruction(inst, "property")
-
+		return true
 	case OpInstanceOf, OpCastObject:
 		d.byteInstruction(inst, "class")
-
+		return true
 	case OpInvoke:
 		d.invokeInstruction(inst)
+		return true
+	}
+	return false
+}
 
-	// String instructions
-	case OpStringGet, OpStringSlice:
-		d.simpleInstruction(inst)
-
-	// Type conversion
+func (d *Disassembler) tryDisassembleStringOp(inst Instruction, op OpCode) bool {
+	switch op {
 	case OpVariantToType:
 		d.byteInstruction(inst, "type")
+		return true
+	}
+	return false
+}
 
-	// Exception handling
+func (d *Disassembler) tryDisassembleExceptionOp(inst Instruction, op OpCode, offset int) bool {
+	switch op {
 	case OpTry, OpCatch, OpFinally:
 		d.jumpInstruction(inst, offset, 1)
+		return true
+	}
+	return false
+}
 
-	case OpThrow:
-		d.simpleInstruction(inst)
-
-	// Case instruction
+func (d *Disassembler) tryDisassembleMiscOp(inst Instruction, op OpCode) bool {
+	switch op {
 	case OpCase:
 		d.byteInstruction(inst, "jumpTable")
-
-	default:
-		fmt.Fprintf(d.writer, "UNKNOWN_OP %d\n", op)
+		return true
 	}
+	return false
 }
 
 // simpleInstruction prints an instruction with no operands.
