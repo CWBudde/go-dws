@@ -317,6 +317,11 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinAssert(args)
 	case "Assigned":
 		return i.builtinAssigned(args)
+	// Task 9.25: RTTI functions
+	case "TypeOf":
+		return i.builtinTypeOf(args)
+	case "TypeOfClass":
+		return i.builtinTypeOfClass(args)
 	// Higher-order functions for working with arrays and lambdas
 	case "Map":
 		return i.builtinMap(args)
@@ -563,7 +568,7 @@ func (i *Interpreter) isBuiltinFunction(name string) bool {
 		"Trunc", "Frac", "Chr", "CharAt", "ByteSizeToStr", "GetText", "_", "SetLength", "High", "Low", "Assigned",
 		"DegToRad", "RadToDeg", "ArcSin", "ArcCos", "ArcTan", "ArcTan2",
 		"CoTan", "Hypot", "Sinh", "Cosh", "Tanh", "ArcSinh", "ArcCosh", "ArcTanh",
-		"TypeOf", "SizeOf", "TypeName", "Delete", "StrToInt", "StrToFloat",
+		"TypeOf", "TypeOfClass", "SizeOf", "TypeName", "Delete", "StrToInt", "StrToFloat",
 		"IntToStr", "IntToBin", "IntToHex", "FloatToStr", "FloatToStrF", "BoolToStr", "StrToBool",
 		"HexToInt", "BinToInt", "StrToIntDef", "StrToFloatDef", "TryStrToInt", "TryStrToFloat",
 		"VarToStr", "VarToInt", "VarToFloat", "VarToIntDef", "VarToFloatDef",

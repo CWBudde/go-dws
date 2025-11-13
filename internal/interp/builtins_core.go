@@ -1128,3 +1128,169 @@ func (i *Interpreter) builtinSwap(args []ast.Expression) Value {
 
 	return &NilValue{}
 }
+
+// builtinTypeOf implements the TypeOf() built-in function.
+// Task 9.25.1: TypeOf(value): TTypeInfo
+// Returns runtime type information for the given value.
+// Can accept any value (object, class, primitive, etc.)
+func (i *Interpreter) builtinTypeOf(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "TypeOf() expects exactly 1 argument, got %d", len(args))
+	}
+
+	val := args[0]
+
+	// Get type ID and type name based on value type
+	typeID, typeName := i.getTypeIDAndName(val)
+
+	return &RTTITypeInfoValue{
+		TypeID:   typeID,
+		TypeName: typeName,
+		TypeInfo: i.getValueType(val),
+	}
+}
+
+// builtinTypeOfClass implements the TypeOfClass() built-in function.
+// Task 9.25.2: TypeOfClass(classRef: TClass): TTypeInfo
+// Returns type information for a class reference (metaclass).
+func (i *Interpreter) builtinTypeOfClass(args []Value) Value {
+	if len(args) != 1 {
+		return i.newErrorWithLocation(i.currentNode, "TypeOfClass() expects exactly 1 argument, got %d", len(args))
+	}
+
+	val := args[0]
+
+	// TypeOfClass expects a class reference (ClassValue or ClassInfoValue)
+	var classInfo *ClassInfo
+	switch v := val.(type) {
+	case *ClassValue:
+		classInfo = v.ClassInfo
+	case *ClassInfoValue:
+		classInfo = v.ClassInfo
+	default:
+		return i.newErrorWithLocation(i.currentNode, "TypeOfClass() expects a class reference, got %s", val.Type())
+	}
+
+	if classInfo == nil {
+		return i.newErrorWithLocation(i.currentNode, "TypeOfClass() received nil class reference")
+	}
+
+	// Generate type ID for the class
+	typeID := i.getClassTypeID(classInfo.Name)
+
+	return &RTTITypeInfoValue{
+		TypeID:   typeID,
+		TypeName: classInfo.Name,
+		TypeInfo: nil, // Could be enhanced with class type metadata
+	}
+}
+
+// getTypeIDAndName returns a unique type ID and human-readable type name for a value.
+// Task 9.25: Helper for TypeOf() implementation.
+func (i *Interpreter) getTypeIDAndName(val Value) (int, string) {
+	switch v := val.(type) {
+	case *IntegerValue:
+		return 1, "Integer"
+	case *FloatValue:
+		return 2, "Float"
+	case *StringValue:
+		return 3, "String"
+	case *BooleanValue:
+		return 4, "Boolean"
+	case *ObjectInstance:
+		if v.Class != nil {
+			return i.getClassTypeID(v.Class.Name), v.Class.Name
+		}
+		return 100, "TObject"
+	case *ClassValue:
+		if v.ClassInfo != nil {
+			return i.getClassTypeID(v.ClassInfo.Name), v.ClassInfo.Name
+		}
+		return 100, "TObject"
+	case *ClassInfoValue:
+		if v.ClassInfo != nil {
+			return i.getClassTypeID(v.ClassInfo.Name), v.ClassInfo.Name
+		}
+		return 100, "TObject"
+	case *ArrayValue:
+		return 10, "Array"
+	case *RecordValue:
+		if v.RecordType != nil {
+			return i.getRecordTypeID(v.RecordType.Name), v.RecordType.Name
+		}
+		return 20, "Record"
+	case *EnumValue:
+		return i.getEnumTypeID(v.TypeName), v.TypeName
+	case *SetValue:
+		return 30, "Set"
+	case *VariantValue:
+		// For Variant, return the type of the contained value
+		if v.Value != nil {
+			return i.getTypeIDAndName(v.Value)
+		}
+		return 40, "Variant"
+	case *NilValue:
+		return 0, "Nil"
+	case *TypeMetaValue:
+		return 50, v.TypeName
+	default:
+		return 999, "Unknown"
+	}
+}
+
+// getClassTypeID returns a unique type ID for a class name.
+// Type IDs start at 1000 for classes.
+// Uses a registry to ensure unique IDs and handles case-insensitivity.
+func (i *Interpreter) getClassTypeID(className string) int {
+	// Normalize to lowercase for case-insensitive comparison
+	normalizedName := strings.ToLower(className)
+
+	// Check if we already have an ID for this class
+	if id, exists := i.classTypeIDRegistry[normalizedName]; exists {
+		return id
+	}
+
+	// Assign new ID and store in registry
+	id := i.nextClassTypeID
+	i.classTypeIDRegistry[normalizedName] = id
+	i.nextClassTypeID++
+	return id
+}
+
+// getRecordTypeID returns a unique type ID for a record name.
+// Type IDs start at 200000 for records.
+// Uses a registry to ensure unique IDs and handles case-insensitivity.
+func (i *Interpreter) getRecordTypeID(recordName string) int {
+	// Normalize to lowercase for case-insensitive comparison
+	normalizedName := strings.ToLower(recordName)
+
+	// Check if we already have an ID for this record
+	if id, exists := i.recordTypeIDRegistry[normalizedName]; exists {
+		return id
+	}
+
+	// Assign new ID and store in registry
+	id := i.nextRecordTypeID
+	i.recordTypeIDRegistry[normalizedName] = id
+	i.nextRecordTypeID++
+	return id
+}
+
+// getEnumTypeID returns a unique type ID for an enum name.
+// Type IDs start at 300000 for enums.
+// Uses a registry to ensure unique IDs and handles case-insensitivity.
+func (i *Interpreter) getEnumTypeID(enumName string) int {
+	// Normalize to lowercase for case-insensitive comparison
+	normalizedName := strings.ToLower(enumName)
+
+	// Check if we already have an ID for this enum
+	if id, exists := i.enumTypeIDRegistry[normalizedName]; exists {
+		return id
+	}
+
+	// Assign new ID and store in registry
+	id := i.nextEnumTypeID
+	i.enumTypeIDRegistry[normalizedName] = id
+	i.nextEnumTypeID++
+	return id
+}

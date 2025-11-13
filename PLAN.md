@@ -279,29 +279,51 @@ each element is wrapped in a variant-like container that preserves type informat
 
 #### RTTI / Type Introspection (Phase 9.25)
 
-**Current Status**: 0/20+ implemented (0%) - **COMPLETE GAP**
+**Current Status**: 4/4 implemented (100%) - ✅ **COMPLETE**
 
 **MEDIUM PRIORITY** (Advanced OOP features):
 
-- [ ] 9.25.1 TypeOf(value): TTypeInfo
+- [x] 9.25.1 TypeOf(value): TTypeInfo ✓
   - Get runtime type information
-  - Returns type metadata object
+  - Returns RTTITypeInfoValue with unique type ID and name
+  - Supports primitives, classes, records, enums, and variants
+  - **Implementation**: `builtinTypeOf` in `builtins_core.go`
+  - **Files**: `internal/interp/value.go` (RTTITypeInfoValue), `internal/interp/builtins_core.go` (implementation)
+  - **Tests**: `internal/interp/rtti_test.go` (TestRTTITypeOf)
 
-- [ ] 9.25.2 TypeOfClass(classRef: TClass): TTypeInfo
+- [x] 9.25.2 TypeOfClass(classRef: TClass): TTypeInfo ✓
   - Get type info for class reference
   - Class-level type introspection
+  - Accepts ClassValue or ClassInfoValue
+  - **Implementation**: `builtinTypeOfClass` in `builtins_core.go`
+  - **Tests**: `internal/interp/rtti_test.go` (TestRTTITypeOfClass)
 
-- [ ] 9.25.3 ClassName(obj: TObject): String
+- [x] 9.25.3 ClassName(obj: TObject): String ✓
   - Get class name as string
-  - May already be implemented
+  - **Status**: Already implemented (property/method on all objects)
+  - Works on objects, classes, and in methods
+  - **Implementation**: `objects_hierarchy.go` (evalMemberAccess), `objects_methods.go` (evalMethodCall), `expressions_basic.go` (identifier evaluation)
+  - **Tests**: `internal/interp/rtti_test.go` (TestRTTIClassName), `testdata/fixtures/SimpleScripts/classname.pas`
 
-- [ ] 9.25.4 ClassType(obj: TObject): TClass
+- [x] 9.25.4 ClassType(obj: TObject): TClass ✓
   - Get class type reference
-  - Runtime class info
+  - Runtime class info (returns ClassValue)
+  - **Status**: Already implemented (property on all objects)
+  - Supports polymorphism and virtual dispatch
+  - **Implementation**: `objects_hierarchy.go` (evalMemberAccess), `expressions_basic.go` (identifier evaluation)
+  - **Tests**: `internal/interp/rtti_test.go` (TestRTTIClassType), `internal/interp/classtype_test.go`, `testdata/fixtures/SimpleScripts/classtype.pas`
 
-**Note**: Full RTTI implementation is complex and may be deferred to later phase.
-**Implementation Time**: 5-7 days (complex)
-**Impact**: Unblocks 10-15 advanced OOP fixtures
+**Implementation Summary**:
+- Added `RTTITypeInfoValue` type to represent runtime type information
+- Implemented `TypeOf()` and `TypeOfClass()` built-in functions
+- Added support for comparing RTTITypeInfoValue (= and <> operators)
+- Added support for string concatenation with RTTITypeInfoValue
+- Type IDs use hash-based unique identifiers (primitives: 1-50, classes: 1000+, records: 200000+, enums: 300000+)
+- ClassName and ClassType were already implemented for all objects
+
+**Note**: Basic RTTI is now complete. Advanced RTTI features (property/method/field enumeration, attributes, etc.) are deferred to later phase.
+**Implementation Time**: Completed in < 1 day
+**Impact**: Enables basic type introspection; SimpleScripts/classname.pas and classtype.pas now pass
 
 ---
 

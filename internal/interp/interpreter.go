@@ -28,33 +28,39 @@ type PropertyEvalContext struct {
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 type Interpreter struct {
-	currentNode       ast.Node
-	output            io.Writer
-	handlerException  *ExceptionValue
-	classes           map[string]*ClassInfo
-	records           map[string]*RecordTypeValue
-	interfaces        map[string]*InterfaceInfo
-	functions         map[string][]*ast.FunctionDecl
-	globalOperators   *runtimeOperatorRegistry
-	conversions       *runtimeConversionRegistry
-	env               *Environment
-	externalFunctions *ExternalFunctionRegistry
-	propContext       *PropertyEvalContext
-	exception         *ExceptionValue
-	rand              *rand.Rand
-	randSeed          int64
-	initializedUnits  map[string]bool
-	unitRegistry      *units.UnitRegistry
-	helpers           map[string][]*HelperInfo
-	sourceCode        string
-	sourceFile        string
-	callStack         errors.StackTrace
-	oldValuesStack    []map[string]Value
-	loadedUnits       []string
-	maxRecursionDepth int
-	breakSignal       bool
-	continueSignal    bool
-	exitSignal        bool
+	currentNode          ast.Node
+	output               io.Writer
+	handlerException     *ExceptionValue
+	classes              map[string]*ClassInfo
+	records              map[string]*RecordTypeValue
+	interfaces           map[string]*InterfaceInfo
+	functions            map[string][]*ast.FunctionDecl
+	globalOperators      *runtimeOperatorRegistry
+	conversions          *runtimeConversionRegistry
+	env                  *Environment
+	externalFunctions    *ExternalFunctionRegistry
+	propContext          *PropertyEvalContext
+	exception            *ExceptionValue
+	rand                 *rand.Rand
+	randSeed             int64
+	initializedUnits     map[string]bool
+	unitRegistry         *units.UnitRegistry
+	helpers              map[string][]*HelperInfo
+	sourceCode           string
+	sourceFile           string
+	callStack            errors.StackTrace
+	oldValuesStack       []map[string]Value
+	loadedUnits          []string
+	maxRecursionDepth    int
+	breakSignal          bool
+	continueSignal       bool
+	exitSignal           bool
+	classTypeIDRegistry  map[string]int // Type ID registry for classes
+	recordTypeIDRegistry map[string]int // Type ID registry for records
+	enumTypeIDRegistry   map[string]int // Type ID registry for enums
+	nextClassTypeID      int            // Next available class type ID
+	nextRecordTypeID     int            // Next available record type ID
+	nextEnumTypeID       int            // Next available enum type ID
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -73,20 +79,26 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 	const defaultSeed = int64(1)
 	source := rand.NewSource(defaultSeed)
 	interp := &Interpreter{
-		env:               env,
-		output:            output,
-		functions:         make(map[string][]*ast.FunctionDecl), // Task 9.66: Support overloading
-		classes:           make(map[string]*ClassInfo),
-		records:           make(map[string]*RecordTypeValue),
-		interfaces:        make(map[string]*InterfaceInfo),
-		globalOperators:   newRuntimeOperatorRegistry(),
-		conversions:       newRuntimeConversionRegistry(),
-		rand:              rand.New(source),
-		randSeed:          defaultSeed,
-		loadedUnits:       make([]string, 0),
-		initializedUnits:  make(map[string]bool),
-		maxRecursionDepth: DefaultMaxRecursionDepth,
-		callStack:         errors.NewStackTrace(), // Initialize stack trace
+		env:                  env,
+		output:               output,
+		functions:            make(map[string][]*ast.FunctionDecl), // Task 9.66: Support overloading
+		classes:              make(map[string]*ClassInfo),
+		records:              make(map[string]*RecordTypeValue),
+		interfaces:           make(map[string]*InterfaceInfo),
+		globalOperators:      newRuntimeOperatorRegistry(),
+		conversions:          newRuntimeConversionRegistry(),
+		rand:                 rand.New(source),
+		randSeed:             defaultSeed,
+		loadedUnits:          make([]string, 0),
+		initializedUnits:     make(map[string]bool),
+		maxRecursionDepth:    DefaultMaxRecursionDepth,
+		callStack:            errors.NewStackTrace(), // Initialize stack trace
+		classTypeIDRegistry:  make(map[string]int),   // Task 9.25: RTTI type ID registry
+		recordTypeIDRegistry: make(map[string]int),   // Task 9.25: RTTI type ID registry
+		enumTypeIDRegistry:   make(map[string]int),   // Task 9.25: RTTI type ID registry
+		nextClassTypeID:      1000,                   // Task 9.25: Start class IDs at 1000
+		nextRecordTypeID:     200000,                 // Task 9.25: Start record IDs at 200000
+		nextEnumTypeID:       300000,                 // Task 9.25: Start enum IDs at 300000
 	}
 
 	// Extract external functions and recursion depth from options if provided
