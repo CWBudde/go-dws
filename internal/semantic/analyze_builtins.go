@@ -55,7 +55,7 @@ func (a *Analyzer) isBuiltinFunction(name string) bool {
 		"trunc", "frac", "chr", "setlength", "high", "low", "assigned",
 		"degtorad", "radtodeg", "arcsin", "arccos", "arctan", "arctan2",
 		"cotan", "hypot", "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh",
-		"typeof", "sizeof", "typename", "delete", "strtoint", "strtofloat",
+		"typeof", "typeofclass", "sizeof", "typename", "delete", "strtoint", "strtofloat",
 		"inttostr", "inttobin", "floattostr", "floattostrf", "booltostr", "strtobool",
 		"vartostr", "varisnull", "varisempty", "varisclear", "varisarray", "varisstr", "varisnumeric", "vartype", "varclear",
 		"include", "exclude", "map", "filter", "reduce", "foreach",

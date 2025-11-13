@@ -1240,42 +1240,57 @@ func (i *Interpreter) getTypeIDAndName(val Value) (int, string) {
 
 // getClassTypeID returns a unique type ID for a class name.
 // Type IDs start at 1000 for classes.
+// Uses a registry to ensure unique IDs and handles case-insensitivity.
 func (i *Interpreter) getClassTypeID(className string) int {
-	// Use a simple hash of the class name for consistent IDs
-	// In a full implementation, this would use a registry
-	hash := 0
-	for _, ch := range className {
-		hash = hash*31 + int(ch)
+	// Normalize to lowercase for case-insensitive comparison
+	normalizedName := strings.ToLower(className)
+
+	// Check if we already have an ID for this class
+	if id, exists := i.classTypeIDRegistry[normalizedName]; exists {
+		return id
 	}
-	// Ensure it's positive and in the class range (1000+)
-	if hash < 0 {
-		hash = -hash
-	}
-	return 1000 + (hash % 100000)
+
+	// Assign new ID and store in registry
+	id := i.nextClassTypeID
+	i.classTypeIDRegistry[normalizedName] = id
+	i.nextClassTypeID++
+	return id
 }
 
 // getRecordTypeID returns a unique type ID for a record name.
 // Type IDs start at 200000 for records.
+// Uses a registry to ensure unique IDs and handles case-insensitivity.
 func (i *Interpreter) getRecordTypeID(recordName string) int {
-	hash := 0
-	for _, ch := range recordName {
-		hash = hash*31 + int(ch)
+	// Normalize to lowercase for case-insensitive comparison
+	normalizedName := strings.ToLower(recordName)
+
+	// Check if we already have an ID for this record
+	if id, exists := i.recordTypeIDRegistry[normalizedName]; exists {
+		return id
 	}
-	if hash < 0 {
-		hash = -hash
-	}
-	return 200000 + (hash % 100000)
+
+	// Assign new ID and store in registry
+	id := i.nextRecordTypeID
+	i.recordTypeIDRegistry[normalizedName] = id
+	i.nextRecordTypeID++
+	return id
 }
 
 // getEnumTypeID returns a unique type ID for an enum name.
 // Type IDs start at 300000 for enums.
+// Uses a registry to ensure unique IDs and handles case-insensitivity.
 func (i *Interpreter) getEnumTypeID(enumName string) int {
-	hash := 0
-	for _, ch := range enumName {
-		hash = hash*31 + int(ch)
+	// Normalize to lowercase for case-insensitive comparison
+	normalizedName := strings.ToLower(enumName)
+
+	// Check if we already have an ID for this enum
+	if id, exists := i.enumTypeIDRegistry[normalizedName]; exists {
+		return id
 	}
-	if hash < 0 {
-		hash = -hash
-	}
-	return 300000 + (hash % 100000)
+
+	// Assign new ID and store in registry
+	id := i.nextEnumTypeID
+	i.enumTypeIDRegistry[normalizedName] = id
+	i.nextEnumTypeID++
+	return id
 }

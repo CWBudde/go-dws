@@ -133,9 +133,9 @@ func (t *TypeMetaValue) String() string {
 //   - TypeOf(TMyClass) returns RTTITypeInfoValue for the class type
 //   - TypeOf(classRef) returns RTTITypeInfoValue for the class reference's type
 type RTTITypeInfoValue struct {
-	TypeID   int         // Unique identifier for this type (for comparison)
-	TypeName string      // The type name for display (e.g., "TMyClass", "Integer")
-	TypeInfo types.Type  // The actual type metadata (optional, for advanced RTTI)
+	TypeID   int        // Unique identifier for this type (for comparison)
+	TypeName string     // The type name for display (e.g., "TMyClass", "Integer")
+	TypeInfo types.Type // The actual type metadata (optional, for advanced RTTI)
 }
 
 // Type returns "RTTI_TYPEINFO".
