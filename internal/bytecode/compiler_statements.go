@@ -50,6 +50,8 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 		return c.compileBreak(node)
 	case *ast.ContinueStatement:
 		return c.compileContinue(node)
+	case *ast.HelperDecl:
+		return c.compileHelperDecl(node)
 	default:
 		return c.errorf(stmt, "unsupported statement type %T", stmt)
 	}
@@ -482,6 +484,17 @@ func (c *Compiler) compileFunctionDecl(fn *ast.FunctionDecl) error {
 	}
 	c.functions[strings.ToLower(fn.Name.Value)] = info
 
+	// Check if this is a helper method (ClassName is set and refers to a helper)
+	if fn.ClassName != nil {
+		helperKey := strings.ToLower(fn.ClassName.Value)
+		if helper, ok := c.helpers[helperKey]; ok {
+			// This is a helper method - associate it with the helper
+			methodKey := strings.ToLower(fn.Name.Value)
+			helper.Methods[methodKey] = globalSlot
+		}
+		// If ClassName is set but not a helper, it's a class method (handled elsewhere)
+	}
+
 	c.chunk.Write(OpClosure, byte(upvalueCount), uint16(fnConstIndex), lineOf(fn))
 	c.chunk.Write(OpStoreGlobal, 0, globalSlot, lineOf(fn))
 	return nil
@@ -515,5 +528,80 @@ func (c *Compiler) compileContinue(stmt *ast.ContinueStatement) error {
 		return c.errorf(stmt, "unsupported loop kind for continue")
 	}
 
+	return nil
+}
+
+func (c *Compiler) compileHelperDecl(decl *ast.HelperDecl) error {
+	if decl == nil || decl.Name == nil {
+		return c.errorf(decl, "invalid helper declaration")
+	}
+
+	if decl.ForType == nil {
+		return c.errorf(decl, "helper '%s' missing target type", decl.Name.Value)
+	}
+
+	// Initialize helpers map if needed
+	if c.helpers == nil {
+		c.helpers = make(map[string]*HelperInfo)
+	}
+
+	// Create helper metadata
+	helperInfo := &HelperInfo{
+		Name:        decl.Name.Value,
+		TargetType:  decl.ForType.Name,
+		Methods:     make(map[string]uint16),
+		Properties:  make([]string, 0),
+		ClassVars:   make([]string, 0),
+		ClassConsts: make(map[string]Value),
+	}
+
+	// Store parent helper name if present
+	if decl.ParentHelper != nil {
+		helperInfo.ParentHelper = decl.ParentHelper.Value
+	}
+
+	// Register property names
+	for _, prop := range decl.Properties {
+		if prop != nil && prop.Name != nil {
+			helperInfo.Properties = append(helperInfo.Properties, prop.Name.Value)
+		}
+	}
+
+	// Register class variable names
+	for _, classVar := range decl.ClassVars {
+		if classVar != nil && classVar.Name != nil {
+			helperInfo.ClassVars = append(helperInfo.ClassVars, classVar.Name.Value)
+		}
+	}
+
+	// Compile and register class constants
+	for _, classConst := range decl.ClassConsts {
+		if classConst == nil || classConst.Name == nil {
+			continue
+		}
+		// Try to evaluate the constant at compile time
+		if classConst.Value != nil {
+			if value, ok := literalValue(classConst.Value); ok {
+				helperInfo.ClassConsts[classConst.Name.Value] = value
+			}
+		}
+	}
+
+	// Note: Method implementations are separate FunctionDecl nodes with ClassName set.
+	// They will be compiled via compileFunctionDecl and associated with this helper there.
+	// We only store method declarations here for metadata.
+	for _, method := range decl.Methods {
+		if method != nil && method.Name != nil {
+			// Method will be compiled separately, we'll update the slot mapping later
+			helperInfo.Methods[strings.ToLower(method.Name.Value)] = 0 // Placeholder
+		}
+	}
+
+	// Register the helper (case-insensitive key)
+	key := strings.ToLower(decl.Name.Value)
+	c.helpers[key] = helperInfo
+
+	// Helper declaration itself doesn't generate runtime bytecode
+	// The actual method implementations (separate FunctionDecl nodes) will generate bytecode
 	return nil
 }

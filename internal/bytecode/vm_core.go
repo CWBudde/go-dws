@@ -19,6 +19,7 @@ type VM struct {
 	exceptObject      Value
 	output            io.Writer
 	builtins          map[string]BuiltinFunction
+	helpers           map[string]*HelperInfo // Helper registry for method resolution
 	stack             []Value
 	frames            []callFrame
 	globals           []Value
@@ -48,6 +49,7 @@ func NewVMWithOutput(output io.Writer) *VM {
 		exceptObject:      NilValue(),
 		output:            output,
 		builtins:          make(map[string]BuiltinFunction),
+		helpers:           make(map[string]*HelperInfo),
 		rand:              rand.New(rand.NewSource(defaultSeed)),
 		randSeed:          defaultSeed,
 	}
