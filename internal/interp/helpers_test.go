@@ -985,6 +985,7 @@ func TestHelperInheritance_RecordHelper(t *testing.T) {
 		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
 	}
 }
+
 // ============================================================================
 // Helper Inheritance Bug Fixes (PR #70)
 // ============================================================================

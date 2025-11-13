@@ -16,7 +16,7 @@ import (
 // HelperInfo stores runtime information about a helper type
 type HelperInfo struct {
 	TargetType     types.Type
-	ParentHelper   *HelperInfo                   // Parent helper for inheritance (Task 9.1)
+	ParentHelper   *HelperInfo // Parent helper for inheritance (Task 9.1)
 	Methods        map[string]*ast.FunctionDecl
 	Properties     map[string]*types.PropertyInfo
 	ClassVars      map[string]Value
