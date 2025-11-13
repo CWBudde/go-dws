@@ -20,27 +20,6 @@ This document identifies technical debt and refactoring opportunities in the go-
 
 ---
 
-## Priority 1: Critical Cyclomatic Complexity Issues
-
-**Impact:** High - Critical for bytecode compiler optimization
-
-### 🟠 P1.1: internal/bytecode/optimizer.go - foldBinaryOp (complexity: 47)
-
-**Current:** 47 complexity, handles constant folding for binary operations
-**Target:** Split by type (integer, float, string, boolean operations)
-
-### 🟠 P1.2: internal/bytecode/optimizer.go - propagateConstants (complexity: 37)
-
-**Current:** 37 complexity, propagates constants through bytecode
-**Target:** Extract helper functions for different propagation scenarios
-
-### 🟠 P1.3: internal/bytecode/disasm.go - DisassembleInstruction (complexity: 29)
-
-**Current:** 29 complexity, massive switch statement for 116 opcodes
-**Target:** Group related opcodes, extract formatting helpers
-
----
-
 ## Priority 2: Large Implementation Files (>1,200 lines)
 
 ### 🔵 P2.1: internal/bytecode/vm_builtins.go (2,452 lines, 68KB)

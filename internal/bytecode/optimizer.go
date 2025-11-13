@@ -386,78 +386,15 @@ func (o *chunkOptimizer) propagateConstants() bool {
 		return false
 	}
 
-	newCode := make([]Instruction, 0, len(o.currentCode))
-	newLines := make([]int, 0, len(o.currentLines))
-	newMapping := make([]int, 0, len(o.currentToOriginal))
-
-	stack := make([]valueState, 0, 16)
-	locals := make(map[uint16]valueState)
-
-	resetStack := func() {
-		stack = stack[:0]
+	ctx := &constPropContext{
+		optimizer:  o,
+		newCode:    make([]Instruction, 0, len(o.currentCode)),
+		newLines:   make([]int, 0, len(o.currentLines)),
+		newMapping: make([]int, 0, len(o.currentToOriginal)),
+		stack:      make([]valueState, 0, 16),
+		locals:     make(map[uint16]valueState),
+		changed:    false,
 	}
-
-	resetAll := func() {
-		resetStack()
-		locals = make(map[uint16]valueState)
-	}
-
-	emit := func(inst Instruction, line int, originalIdx int) int {
-		newCode = append(newCode, inst)
-		newLines = append(newLines, line)
-		newMapping = append(newMapping, originalIdx)
-		return len(newCode) - 1
-	}
-
-	emitValue := func(val Value, line int, originalIdx int) int {
-		idx := o.chunk.AddConstant(val)
-		switch idx {
-		case 0:
-			return emit(MakeSimpleInstruction(OpLoadConst0), line, originalIdx)
-		case 1:
-			return emit(MakeSimpleInstruction(OpLoadConst1), line, originalIdx)
-		default:
-			return emit(MakeInstruction(OpLoadConst, 0, uint16(idx)), line, originalIdx)
-		}
-	}
-
-	popStack := func() valueState {
-		if len(stack) == 0 {
-			return valueState{}
-		}
-		val := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		return val
-	}
-
-	pushState := func(state valueState) {
-		stack = append(stack, state)
-	}
-
-	isSuffixProducer := func(state valueState, offsetFromEnd int) bool {
-		if !state.known || state.producer < 0 {
-			return false
-		}
-		expected := len(newCode) - offsetFromEnd
-		if expected < 0 {
-			return false
-		}
-		return state.producer == expected
-	}
-
-	removeTail := func(count int) {
-		if count <= 0 {
-			return
-		}
-		if count > len(newCode) {
-			count = len(newCode)
-		}
-		newCode = newCode[:len(newCode)-count]
-		newLines = newLines[:len(newLines)-count]
-		newMapping = newMapping[:len(newMapping)-count]
-	}
-
-	var changed bool
 
 	for i, inst := range o.currentCode {
 		line := 0
@@ -469,106 +406,216 @@ func (o *chunkOptimizer) propagateConstants() bool {
 			orig = o.currentToOriginal[i]
 		}
 
-		op := inst.OpCode()
+		ctx.processInstruction(inst, line, orig)
+	}
 
-		switch op {
-		case OpLoadConst:
-			constIdx := int(inst.B())
-			val := o.chunk.Constants[constIdx]
-			prod := emit(inst, line, orig)
-			pushState(valueState{known: true, value: val, producer: prod})
-		case OpLoadConst0:
-			if len(o.chunk.Constants) > 0 {
-				val := o.chunk.Constants[0]
-				prod := emit(inst, line, orig)
-				pushState(valueState{known: true, value: val, producer: prod})
-			} else {
-				prod := emit(inst, line, orig)
-				pushState(valueState{producer: prod})
-			}
-		case OpLoadConst1:
-			if len(o.chunk.Constants) > 1 {
-				val := o.chunk.Constants[1]
-				prod := emit(inst, line, orig)
-				pushState(valueState{known: true, value: val, producer: prod})
-			} else {
-				prod := emit(inst, line, orig)
-				pushState(valueState{producer: prod})
-			}
-		case OpLoadTrue:
-			prod := emit(inst, line, orig)
-			pushState(valueState{known: true, value: BoolValue(true), producer: prod})
-		case OpLoadFalse:
-			prod := emit(inst, line, orig)
-			pushState(valueState{known: true, value: BoolValue(false), producer: prod})
-		case OpLoadNil:
-			prod := emit(inst, line, orig)
-			pushState(valueState{known: true, value: NilValue(), producer: prod})
-		case OpLoadLocal:
-			slot := uint16(inst.B())
-			if state, ok := locals[slot]; ok && state.known {
-				prod := emitValue(state.value, line, orig)
-				pushState(valueState{known: true, value: state.value, producer: prod})
-				changed = true
-			} else {
-				prod := emit(inst, line, orig)
-				pushState(valueState{producer: prod})
-			}
-		case OpStoreLocal:
-			val := popStack()
-			emit(inst, line, orig)
-			slot := uint16(inst.B())
-			if val.known {
-				locals[slot] = val
-			} else {
-				delete(locals, slot)
-			}
-		case OpLoadGlobal:
-			prod := emit(inst, line, orig)
-			pushState(valueState{producer: prod})
-		case OpStoreGlobal:
-			popStack()
-			emit(inst, line, orig)
-		case OpPop:
-			popStack()
-			emit(inst, line, orig)
-		case OpAddInt, OpSubInt, OpMulInt, OpDivInt, OpModInt,
-			OpAddFloat, OpSubFloat, OpMulFloat, OpDivFloat,
-			OpEqual, OpNotEqual, OpGreater, OpGreaterEqual, OpLess, OpLessEqual:
-			right := popStack()
-			left := popStack()
-			if result, ok := foldBinaryOp(op, left, right); ok {
-				if isSuffixProducer(right, 1) && isSuffixProducer(left, 2) {
-					removeTail(2)
-					prod := emitValue(result, line, orig)
-					pushState(valueState{known: true, value: result, producer: prod})
-					changed = true
-					continue
-				}
-				prod := emit(inst, line, orig)
-				pushState(valueState{known: true, value: result, producer: prod})
-			} else {
-				prod := emit(inst, line, orig)
-				pushState(valueState{producer: prod})
-			}
-		case OpJump, OpJumpIfTrue, OpJumpIfFalse, OpJumpIfTrueNoPop, OpJumpIfFalseNoPop,
-			OpLoop, OpTry, OpCatch, OpFinally, OpCall, OpCallMethod, OpCallIndirect,
-			OpReturn, OpThrow:
-			resetAll()
-			emit(inst, line, orig)
-		default:
-			resetStack()
-			emit(inst, line, orig)
+	if ctx.changed {
+		o.currentCode = ctx.newCode
+		o.currentLines = ctx.newLines
+		o.currentToOriginal = ctx.newMapping
+	}
+
+	return ctx.changed
+}
+
+// constPropContext holds state for constant propagation optimization.
+type constPropContext struct {
+	optimizer  *chunkOptimizer
+	newCode    []Instruction
+	newLines   []int
+	newMapping []int
+	stack      []valueState
+	locals     map[uint16]valueState
+	changed    bool
+}
+
+func (ctx *constPropContext) processInstruction(inst Instruction, line, orig int) {
+	op := inst.OpCode()
+
+	switch op {
+	case OpLoadConst, OpLoadConst0, OpLoadConst1, OpLoadTrue, OpLoadFalse, OpLoadNil:
+		ctx.handleConstantLoad(inst, op, line, orig)
+	case OpLoadLocal, OpStoreLocal:
+		ctx.handleLocalVar(inst, op, line, orig)
+	case OpLoadGlobal, OpStoreGlobal:
+		ctx.handleGlobalVar(inst, op, line, orig)
+	case OpPop:
+		ctx.popStack()
+		ctx.emit(inst, line, orig)
+	case OpAddInt, OpSubInt, OpMulInt, OpDivInt, OpModInt,
+		OpAddFloat, OpSubFloat, OpMulFloat, OpDivFloat,
+		OpEqual, OpNotEqual, OpGreater, OpGreaterEqual, OpLess, OpLessEqual:
+		ctx.handleBinaryOp(inst, op, line, orig)
+	case OpJump, OpJumpIfTrue, OpJumpIfFalse, OpJumpIfTrueNoPop, OpJumpIfFalseNoPop,
+		OpLoop, OpTry, OpCatch, OpFinally, OpCall, OpCallMethod, OpCallIndirect,
+		OpReturn, OpThrow:
+		ctx.resetAll()
+		ctx.emit(inst, line, orig)
+	default:
+		ctx.resetStack()
+		ctx.emit(inst, line, orig)
+	}
+}
+
+// handleConstantLoad processes constant loading instructions and tracks their values in the stack.
+func (ctx *constPropContext) handleConstantLoad(inst Instruction, op OpCode, line, orig int) {
+	var val Value
+	known := false
+
+	switch op {
+	case OpLoadConst:
+		constIdx := int(inst.B())
+		val = ctx.optimizer.chunk.Constants[constIdx]
+		known = true
+	case OpLoadConst0:
+		if len(ctx.optimizer.chunk.Constants) > 0 {
+			val = ctx.optimizer.chunk.Constants[0]
+			known = true
+		}
+	case OpLoadConst1:
+		if len(ctx.optimizer.chunk.Constants) > 1 {
+			val = ctx.optimizer.chunk.Constants[1]
+			known = true
+		}
+	case OpLoadTrue:
+		val = BoolValue(true)
+		known = true
+	case OpLoadFalse:
+		val = BoolValue(false)
+		known = true
+	case OpLoadNil:
+		val = NilValue()
+		known = true
+	}
+
+	prod := ctx.emit(inst, line, orig)
+	if known {
+		ctx.pushState(valueState{known: true, value: val, producer: prod})
+	} else {
+		ctx.pushState(valueState{producer: prod})
+	}
+}
+
+// handleLocalVar processes local variable load and store operations, tracking known constant values.
+func (ctx *constPropContext) handleLocalVar(inst Instruction, op OpCode, line, orig int) {
+	slot := uint16(inst.B())
+
+	if op == OpLoadLocal {
+		if state, ok := ctx.locals[slot]; ok && state.known {
+			prod := ctx.emitValue(state.value, line, orig)
+			ctx.pushState(valueState{known: true, value: state.value, producer: prod})
+			ctx.changed = true
+		} else {
+			prod := ctx.emit(inst, line, orig)
+			ctx.pushState(valueState{producer: prod})
+		}
+	} else { // OpStoreLocal
+		val := ctx.popStack()
+		ctx.emit(inst, line, orig)
+		if val.known {
+			ctx.locals[slot] = val
+		} else {
+			delete(ctx.locals, slot)
 		}
 	}
+}
 
-	if changed {
-		o.currentCode = newCode
-		o.currentLines = newLines
-		o.currentToOriginal = newMapping
+// handleGlobalVar processes global variable load and store operations.
+func (ctx *constPropContext) handleGlobalVar(inst Instruction, op OpCode, line, orig int) {
+	if op == OpLoadGlobal {
+		prod := ctx.emit(inst, line, orig)
+		ctx.pushState(valueState{producer: prod})
+	} else { // OpStoreGlobal
+		ctx.popStack()
+		ctx.emit(inst, line, orig)
 	}
+}
 
-	return changed
+// handleBinaryOp processes binary operations, performing constant folding when both operands are known.
+func (ctx *constPropContext) handleBinaryOp(inst Instruction, op OpCode, line, orig int) {
+	right := ctx.popStack()
+	left := ctx.popStack()
+
+	if result, ok := foldBinaryOp(op, left, right); ok {
+		if ctx.isSuffixProducer(right, 1) && ctx.isSuffixProducer(left, 2) {
+			ctx.removeTail(2)
+			prod := ctx.emitValue(result, line, orig)
+			ctx.pushState(valueState{known: true, value: result, producer: prod})
+			ctx.changed = true
+			return
+		}
+		prod := ctx.emit(inst, line, orig)
+		ctx.pushState(valueState{known: true, value: result, producer: prod})
+	} else {
+		prod := ctx.emit(inst, line, orig)
+		ctx.pushState(valueState{producer: prod})
+	}
+}
+
+func (ctx *constPropContext) emit(inst Instruction, line int, originalIdx int) int {
+	ctx.newCode = append(ctx.newCode, inst)
+	ctx.newLines = append(ctx.newLines, line)
+	ctx.newMapping = append(ctx.newMapping, originalIdx)
+	return len(ctx.newCode) - 1
+}
+
+func (ctx *constPropContext) emitValue(val Value, line int, originalIdx int) int {
+	idx := ctx.optimizer.chunk.AddConstant(val)
+	var inst Instruction
+	switch idx {
+	case 0:
+		inst = MakeSimpleInstruction(OpLoadConst0)
+	case 1:
+		inst = MakeSimpleInstruction(OpLoadConst1)
+	default:
+		inst = MakeInstruction(OpLoadConst, 0, uint16(idx))
+	}
+	return ctx.emit(inst, line, originalIdx)
+}
+
+func (ctx *constPropContext) popStack() valueState {
+	if len(ctx.stack) == 0 {
+		return valueState{}
+	}
+	val := ctx.stack[len(ctx.stack)-1]
+	ctx.stack = ctx.stack[:len(ctx.stack)-1]
+	return val
+}
+
+func (ctx *constPropContext) pushState(state valueState) {
+	ctx.stack = append(ctx.stack, state)
+}
+
+func (ctx *constPropContext) resetStack() {
+	ctx.stack = ctx.stack[:0]
+}
+
+func (ctx *constPropContext) resetAll() {
+	ctx.resetStack()
+	ctx.locals = make(map[uint16]valueState)
+}
+
+func (ctx *constPropContext) isSuffixProducer(state valueState, offsetFromEnd int) bool {
+	if !state.known || state.producer < 0 {
+		return false
+	}
+	expected := len(ctx.newCode) - offsetFromEnd
+	if expected < 0 {
+		return false
+	}
+	return state.producer == expected
+}
+
+func (ctx *constPropContext) removeTail(count int) {
+	if count <= 0 {
+		return
+	}
+	if count > len(ctx.newCode) {
+		count = len(ctx.newCode)
+	}
+	ctx.newCode = ctx.newCode[:len(ctx.newCode)-count]
+	ctx.newLines = ctx.newLines[:len(ctx.newLines)-count]
+	ctx.newMapping = ctx.newMapping[:len(ctx.newMapping)-count]
 }
 
 func (o *chunkOptimizer) eliminateDeadCode() bool {
@@ -874,74 +921,106 @@ func foldBinaryOp(op OpCode, left, right valueState) (Value, bool) {
 	}
 
 	switch op {
+	case OpAddInt, OpSubInt, OpMulInt, OpDivInt, OpModInt:
+		return foldIntegerOp(op, left.value, right.value)
+	case OpAddFloat, OpSubFloat, OpMulFloat, OpDivFloat:
+		return foldFloatOp(op, left.value, right.value)
+	case OpEqual, OpNotEqual:
+		return foldEqualityOp(op, left.value, right.value)
+	case OpGreater, OpGreaterEqual, OpLess, OpLessEqual:
+		return foldComparisonOp(op, left.value, right.value)
+	}
+
+	return Value{}, false
+}
+
+// foldIntegerOp performs constant folding for integer arithmetic operations.
+func foldIntegerOp(op OpCode, left, right Value) (Value, bool) {
+	if left.Type != ValueInt || right.Type != ValueInt {
+		return Value{}, false
+	}
+
+	leftInt := left.AsInt()
+	rightInt := right.AsInt()
+
+	switch op {
 	case OpAddInt:
-		if left.value.Type == ValueInt && right.value.Type == ValueInt {
-			return IntValue(left.value.AsInt() + right.value.AsInt()), true
-		}
+		return IntValue(leftInt + rightInt), true
 	case OpSubInt:
-		if left.value.Type == ValueInt && right.value.Type == ValueInt {
-			return IntValue(left.value.AsInt() - right.value.AsInt()), true
-		}
+		return IntValue(leftInt - rightInt), true
 	case OpMulInt:
-		if left.value.Type == ValueInt && right.value.Type == ValueInt {
-			return IntValue(left.value.AsInt() * right.value.AsInt()), true
-		}
+		return IntValue(leftInt * rightInt), true
 	case OpDivInt:
-		if left.value.Type == ValueInt && right.value.Type == ValueInt {
-			div := right.value.AsInt()
-			if div == 0 {
-				return Value{}, false
-			}
-			return IntValue(left.value.AsInt() / div), true
+		if rightInt == 0 {
+			return Value{}, false
 		}
+		return IntValue(leftInt / rightInt), true
 	case OpModInt:
-		if left.value.Type == ValueInt && right.value.Type == ValueInt {
-			div := right.value.AsInt()
-			if div == 0 {
-				return Value{}, false
-			}
-			return IntValue(left.value.AsInt() % div), true
+		if rightInt == 0 {
+			return Value{}, false
 		}
+		return IntValue(leftInt % rightInt), true
+	}
+
+	return Value{}, false
+}
+
+// foldFloatOp performs constant folding for floating-point arithmetic operations.
+func foldFloatOp(op OpCode, left, right Value) (Value, bool) {
+	if !left.IsNumber() || !right.IsNumber() {
+		return Value{}, false
+	}
+
+	leftFloat := left.AsFloat()
+	rightFloat := right.AsFloat()
+
+	switch op {
 	case OpAddFloat:
-		if left.value.IsNumber() && right.value.IsNumber() {
-			return FloatValue(left.value.AsFloat() + right.value.AsFloat()), true
-		}
+		return FloatValue(leftFloat + rightFloat), true
 	case OpSubFloat:
-		if left.value.IsNumber() && right.value.IsNumber() {
-			return FloatValue(left.value.AsFloat() - right.value.AsFloat()), true
-		}
+		return FloatValue(leftFloat - rightFloat), true
 	case OpMulFloat:
-		if left.value.IsNumber() && right.value.IsNumber() {
-			return FloatValue(left.value.AsFloat() * right.value.AsFloat()), true
-		}
+		return FloatValue(leftFloat * rightFloat), true
 	case OpDivFloat:
-		if left.value.IsNumber() && right.value.IsNumber() {
-			div := right.value.AsFloat()
-			if div == 0 {
-				return Value{}, false
-			}
-			return FloatValue(left.value.AsFloat() / div), true
+		if rightFloat == 0 {
+			return Value{}, false
 		}
+		return FloatValue(leftFloat / rightFloat), true
+	}
+
+	return Value{}, false
+}
+
+// foldEqualityOp performs constant folding for equality operations.
+func foldEqualityOp(op OpCode, left, right Value) (Value, bool) {
+	switch op {
 	case OpEqual:
-		return BoolValue(valuesEqual(left.value, right.value)), true
+		return BoolValue(valuesEqual(left, right)), true
 	case OpNotEqual:
-		return BoolValue(!valuesEqual(left.value, right.value)), true
+		return BoolValue(!valuesEqual(left, right)), true
+	}
+
+	return Value{}, false
+}
+
+// foldComparisonOp performs constant folding for comparison operations.
+func foldComparisonOp(op OpCode, left, right Value) (Value, bool) {
+	if !left.IsNumber() || !right.IsNumber() {
+		return Value{}, false
+	}
+
+	leftFloat := left.AsFloat()
+	rightFloat := right.AsFloat()
+
+	switch op {
 	case OpGreater:
-		if left.value.IsNumber() && right.value.IsNumber() {
-			return BoolValue(left.value.AsFloat() > right.value.AsFloat()), true
-		}
+		return BoolValue(leftFloat > rightFloat), true
 	case OpGreaterEqual:
-		if left.value.IsNumber() && right.value.IsNumber() {
-			return BoolValue(left.value.AsFloat() >= right.value.AsFloat()), true
-		}
+		return BoolValue(leftFloat >= rightFloat), true
 	case OpLess:
-		if left.value.IsNumber() && right.value.IsNumber() {
-			return BoolValue(left.value.AsFloat() < right.value.AsFloat()), true
-		}
+		return BoolValue(leftFloat < rightFloat), true
 	case OpLessEqual:
-		if left.value.IsNumber() && right.value.IsNumber() {
-			return BoolValue(left.value.AsFloat() <= right.value.AsFloat()), true
-		}
+		return BoolValue(leftFloat <= rightFloat), true
 	}
 
 	return Value{}, false
