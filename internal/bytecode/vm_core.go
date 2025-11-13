@@ -112,4 +112,13 @@ func (vm *VM) reset() {
 	vm.setGlobal(40, BuiltinValue("RandG"))
 	vm.setGlobal(41, BuiltinValue("SetRandSeed"))
 	vm.setGlobal(42, BuiltinValue("Randomize"))
+
+	// Advanced Math Functions (Phase 9.23)
+	vm.setGlobal(43, BuiltinValue("Factorial"))
+	vm.setGlobal(44, BuiltinValue("Gcd"))
+	vm.setGlobal(45, BuiltinValue("Lcm"))
+	vm.setGlobal(46, BuiltinValue("IsPrime"))
+	vm.setGlobal(47, BuiltinValue("LeastFactor"))
+	vm.setGlobal(48, BuiltinValue("PopCount"))
+	vm.setGlobal(49, BuiltinValue("TestBit"))
 }

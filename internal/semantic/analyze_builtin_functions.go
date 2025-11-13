@@ -314,6 +314,26 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	case "divmod":
 		return a.analyzeDivMod(args, callExpr), true
 
+	// Math Functions - Advanced (Phase 9.23)
+	case "factorial":
+		return a.analyzeFactorial(args, callExpr), true
+	case "gcd":
+		return a.analyzeGcd(args, callExpr), true
+	case "lcm":
+		return a.analyzeLcm(args, callExpr), true
+	case "isprime":
+		return a.analyzeIsPrime(args, callExpr), true
+	case "leastfactor":
+		return a.analyzeLeastFactor(args, callExpr), true
+	case "popcount":
+		return a.analyzePopCount(args, callExpr), true
+	case "testbit":
+		return a.analyzeTestBit(args, callExpr), true
+	case "haversine":
+		return a.analyzeHaversine(args, callExpr), true
+	case "comparenum":
+		return a.analyzeCompareNum(args, callExpr), true
+
 	// Math Functions - Rounding
 	case "round":
 		return a.analyzeRound(args, callExpr), true

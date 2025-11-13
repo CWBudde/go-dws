@@ -3,6 +3,7 @@ package bytecode
 import (
 	"fmt"
 	"math"
+	"math/bits"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -104,6 +105,16 @@ func (vm *VM) registerBuiltins() {
 	vm.builtins["RandG"] = builtinRandG
 	vm.builtins["SetRandSeed"] = builtinSetRandSeed
 	vm.builtins["Randomize"] = builtinRandomize
+	// Advanced Math Functions (Phase 9.23)
+	vm.builtins["Factorial"] = builtinFactorial
+	vm.builtins["Gcd"] = builtinGcd
+	vm.builtins["Lcm"] = builtinLcm
+	vm.builtins["IsPrime"] = builtinIsPrime
+	vm.builtins["LeastFactor"] = builtinLeastFactor
+	vm.builtins["PopCount"] = builtinPopCount
+	vm.builtins["TestBit"] = builtinTestBit
+	vm.builtins["Haversine"] = builtinHaversine
+	vm.builtins["CompareNum"] = builtinCompareNum
 }
 
 // Built-in function implementations
@@ -2099,4 +2110,343 @@ func builtinGetText(vm *VM, args []Value) (Value, error) {
 	// For now, just return the input string unchanged
 	// In a full implementation, this would look up translations
 	return args[0], nil
+}
+
+// ============================================================================
+// Advanced Math Functions (Phase 9.23)
+// ============================================================================
+
+// builtinFactorial implements the Factorial() built-in function.
+// Factorial(n: Integer): Integer
+func builtinFactorial(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("Factorial expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsInt() {
+		return NilValue(), vm.runtimeError("Factorial expects Integer argument")
+	}
+
+	n := args[0].AsInt()
+	if n < 0 {
+		return NilValue(), vm.runtimeError("Factorial expects non-negative integer, got %d", n)
+	}
+
+	// Handle overflow: 20! is the largest factorial that fits in int64
+	if n > 20 {
+		return NilValue(), vm.runtimeError("Factorial overflow: %d! is too large for Integer", n)
+	}
+
+	result := int64(1)
+	for i := int64(2); i <= n; i++ {
+		result *= i
+	}
+
+	return IntValue(result), nil
+}
+
+// builtinGcd implements the Gcd() built-in function.
+// Gcd(a, b: Integer): Integer
+func builtinGcd(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("Gcd expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsInt() || !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("Gcd expects Integer arguments")
+	}
+
+	a := args[0].AsInt()
+	b := args[1].AsInt()
+
+	// Take absolute values
+	if a < 0 {
+		a = -a
+	}
+	if b < 0 {
+		b = -b
+	}
+
+	// Euclidean algorithm
+	for b != 0 {
+		a, b = b, a%b
+	}
+
+	return IntValue(a), nil
+}
+
+// builtinLcm implements the Lcm() built-in function.
+// Lcm(a, b: Integer): Integer
+func builtinLcm(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("Lcm expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsInt() || !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("Lcm expects Integer arguments")
+	}
+
+	a := args[0].AsInt()
+	b := args[1].AsInt()
+
+	// Handle special case: if either is 0, result is 0
+	if a == 0 || b == 0 {
+		return IntValue(0), nil
+	}
+
+	// Take absolute values
+	if a < 0 {
+		a = -a
+	}
+	if b < 0 {
+		b = -b
+	}
+
+	// Compute GCD
+	gcdA, gcdB := a, b
+	for gcdB != 0 {
+		gcdA, gcdB = gcdB, gcdA%gcdB
+	}
+
+	// LCM = |a * b| / gcd(a, b)
+	result := (a / gcdA) * b
+
+	return IntValue(result), nil
+}
+
+// builtinIsPrime implements the IsPrime() built-in function.
+// IsPrime(n: Integer): Boolean
+func builtinIsPrime(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("IsPrime expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsInt() {
+		return NilValue(), vm.runtimeError("IsPrime expects Integer argument")
+	}
+
+	n := args[0].AsInt()
+
+	// Numbers less than 2 are not prime
+	if n < 2 {
+		return BoolValue(false), nil
+	}
+
+	// 2 and 3 are prime
+	if n == 2 || n == 3 {
+		return BoolValue(true), nil
+	}
+
+	// Even numbers (except 2) are not prime
+	if n%2 == 0 {
+		return BoolValue(false), nil
+	}
+
+	// Multiples of 3 (except 3) are not prime
+	if n%3 == 0 {
+		return BoolValue(false), nil
+	}
+
+	// Check divisibility by numbers of form 6k ± 1 up to √n
+	sqrtN := int64(math.Sqrt(float64(n)))
+	for i := int64(5); i <= sqrtN; i += 6 {
+		if n%i == 0 || n%(i+2) == 0 {
+			return BoolValue(false), nil
+		}
+	}
+
+	return BoolValue(true), nil
+}
+
+// builtinLeastFactor implements the LeastFactor() built-in function.
+// LeastFactor(n: Integer): Integer
+func builtinLeastFactor(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("LeastFactor expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsInt() {
+		return NilValue(), vm.runtimeError("LeastFactor expects Integer argument")
+	}
+
+	n := args[0].AsInt()
+
+	// Handle special cases
+	if n <= 1 {
+		return IntValue(1), nil
+	}
+
+	// Check for divisibility by 2
+	if n%2 == 0 {
+		return IntValue(2), nil
+	}
+
+	// Check for divisibility by 3
+	if n%3 == 0 {
+		return IntValue(3), nil
+	}
+
+	// Check divisibility by numbers of form 6k ± 1 up to √n
+	sqrtN := int64(math.Sqrt(float64(n)))
+	for i := int64(5); i <= sqrtN; i += 6 {
+		if n%i == 0 {
+			return IntValue(i), nil
+		}
+		if n%(i+2) == 0 {
+			return IntValue(i + 2), nil
+		}
+	}
+
+	// If no factor found, n is prime
+	return IntValue(n), nil
+}
+
+// builtinPopCount implements the PopCount() built-in function.
+// PopCount(n: Integer): Integer
+func builtinPopCount(vm *VM, args []Value) (Value, error) {
+	if len(args) != 1 {
+		return NilValue(), vm.runtimeError("PopCount expects 1 argument, got %d", len(args))
+	}
+	if !args[0].IsInt() {
+		return NilValue(), vm.runtimeError("PopCount expects Integer argument")
+	}
+
+	// Use math/bits.OnesCount64 for counting set bits
+	count := int64(bits.OnesCount64(uint64(args[0].AsInt())))
+
+	return IntValue(count), nil
+}
+
+// builtinTestBit implements the TestBit() built-in function.
+// TestBit(value: Integer, bit: Integer): Boolean
+func builtinTestBit(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("TestBit expects 2 arguments, got %d", len(args))
+	}
+	if !args[0].IsInt() || !args[1].IsInt() {
+		return NilValue(), vm.runtimeError("TestBit expects Integer arguments")
+	}
+
+	value := args[0].AsInt()
+	bit := args[1].AsInt()
+
+	// Validate bit position (0-63 for int64)
+	if bit < 0 || bit >= 64 {
+		return NilValue(), vm.runtimeError("TestBit bit position must be in range 0-63, got %d", bit)
+	}
+
+	// Test the bit: (value >> bit) & 1
+	isSet := (value >> uint(bit)) & 1
+	return BoolValue(isSet != 0), nil
+}
+
+// builtinHaversine implements the Haversine() built-in function.
+// Haversine(lat1, lon1, lat2, lon2: Float): Float
+func builtinHaversine(vm *VM, args []Value) (Value, error) {
+	if len(args) != 4 {
+		return NilValue(), vm.runtimeError("Haversine expects 4 arguments, got %d", len(args))
+	}
+
+	// Extract and convert all arguments to float64
+	var lat1, lon1, lat2, lon2 float64
+
+	if args[0].IsFloat() {
+		lat1 = args[0].AsFloat()
+	} else if args[0].IsInt() {
+		lat1 = float64(args[0].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("Haversine expects numeric arguments")
+	}
+
+	if args[1].IsFloat() {
+		lon1 = args[1].AsFloat()
+	} else if args[1].IsInt() {
+		lon1 = float64(args[1].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("Haversine expects numeric arguments")
+	}
+
+	if args[2].IsFloat() {
+		lat2 = args[2].AsFloat()
+	} else if args[2].IsInt() {
+		lat2 = float64(args[2].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("Haversine expects numeric arguments")
+	}
+
+	if args[3].IsFloat() {
+		lon2 = args[3].AsFloat()
+	} else if args[3].IsInt() {
+		lon2 = float64(args[3].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("Haversine expects numeric arguments")
+	}
+
+	// Convert degrees to radians
+	const degToRad = math.Pi / 180.0
+	lat1Rad := lat1 * degToRad
+	lon1Rad := lon1 * degToRad
+	lat2Rad := lat2 * degToRad
+	lon2Rad := lon2 * degToRad
+
+	// Haversine formula
+	dLat := lat2Rad - lat1Rad
+	dLon := lon2Rad - lon1Rad
+
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(lat1Rad)*math.Cos(lat2Rad)*
+			math.Sin(dLon/2)*math.Sin(dLon/2)
+
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+
+	// Earth radius in kilometers
+	const earthRadiusKm = 6371.0
+	distance := earthRadiusKm * c
+
+	return FloatValue(distance), nil
+}
+
+// builtinCompareNum implements the CompareNum() built-in function.
+// CompareNum(a, b: Float): Integer
+func builtinCompareNum(vm *VM, args []Value) (Value, error) {
+	if len(args) != 2 {
+		return NilValue(), vm.runtimeError("CompareNum expects 2 arguments, got %d", len(args))
+	}
+
+	// Extract first argument
+	var a float64
+	if args[0].IsFloat() {
+		a = args[0].AsFloat()
+	} else if args[0].IsInt() {
+		a = float64(args[0].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("CompareNum expects numeric arguments")
+	}
+
+	// Extract second argument
+	var b float64
+	if args[1].IsFloat() {
+		b = args[1].AsFloat()
+	} else if args[1].IsInt() {
+		b = float64(args[1].AsInt())
+	} else {
+		return NilValue(), vm.runtimeError("CompareNum expects numeric arguments")
+	}
+
+	// Handle NaN: NaN is considered equal to NaN, and less than all other values
+	aIsNaN := math.IsNaN(a)
+	bIsNaN := math.IsNaN(b)
+
+	if aIsNaN && bIsNaN {
+		return IntValue(0), nil // Both NaN, equal
+	}
+	if aIsNaN {
+		return IntValue(-1), nil // NaN is less than any number
+	}
+	if bIsNaN {
+		return IntValue(1), nil // Any number is greater than NaN
+	}
+
+	// Regular comparison
+	if a < b {
+		return IntValue(-1), nil
+	} else if a > b {
+		return IntValue(1), nil
+	}
+	return IntValue(0), nil
 }
