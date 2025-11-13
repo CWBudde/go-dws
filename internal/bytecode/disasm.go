@@ -93,6 +93,7 @@ func (d *Disassembler) DisassembleInstruction(offset int) {
 	fmt.Fprintf(d.writer, "UNKNOWN_OP %d\n", op)
 }
 
+// printInstructionHeader prints the offset and line number prefix for an instruction.
 func (d *Disassembler) printInstructionHeader(offset int) {
 	line := d.chunk.GetLine(offset)
 	if offset > 0 && line == d.chunk.GetLine(offset-1) {
@@ -102,6 +103,7 @@ func (d *Disassembler) printInstructionHeader(offset int) {
 	}
 }
 
+// tryDisassembleSimpleOp attempts to disassemble simple instructions that take no operands.
 func (d *Disassembler) tryDisassembleSimpleOp(inst Instruction, op OpCode) bool {
 	switch op {
 	case OpLoadNil, OpLoadTrue, OpLoadFalse,
@@ -119,16 +121,14 @@ func (d *Disassembler) tryDisassembleSimpleOp(inst Instruction, op OpCode) bool 
 		OpIntToFloat, OpFloatToInt, OpIntToString, OpFloatToString, OpBoolToString,
 		OpGetClass, OpGetSelf,
 		OpHalt, OpPrint, OpAssert, OpDebugger,
-		OpBreak, OpContinue,
-		OpNewArraySized, OpArrayGet, OpArraySet, OpArraySetLength,
-		OpStringGet, OpStringSlice,
-		OpThrow:
+		OpBreak, OpContinue:
 		d.simpleInstruction(inst)
 		return true
 	}
 	return false
 }
 
+// tryDisassembleConstantOp attempts to disassemble constant loading instructions.
 func (d *Disassembler) tryDisassembleConstantOp(inst Instruction, op OpCode, offset int) bool {
 	switch op {
 	case OpLoadConst, OpLoadConst0, OpLoadConst1:
@@ -138,6 +138,7 @@ func (d *Disassembler) tryDisassembleConstantOp(inst Instruction, op OpCode, off
 	return false
 }
 
+// tryDisassembleVarOp attempts to disassemble variable load and store instructions (local, global, upvalue).
 func (d *Disassembler) tryDisassembleVarOp(inst Instruction, op OpCode) bool {
 	switch op {
 	case OpLoadLocal, OpStoreLocal:
@@ -153,6 +154,7 @@ func (d *Disassembler) tryDisassembleVarOp(inst Instruction, op OpCode) bool {
 	return false
 }
 
+// tryDisassembleJumpOp attempts to disassemble jump and loop instructions.
 func (d *Disassembler) tryDisassembleJumpOp(inst Instruction, op OpCode, offset int) bool {
 	switch op {
 	case OpJump, OpJumpIfTrue, OpJumpIfFalse, OpJumpIfTrueNoPop, OpJumpIfFalseNoPop:
@@ -168,6 +170,7 @@ func (d *Disassembler) tryDisassembleJumpOp(inst Instruction, op OpCode, offset 
 	return false
 }
 
+// tryDisassembleCallOp attempts to disassemble function call and return instructions.
 func (d *Disassembler) tryDisassembleCallOp(inst Instruction, op OpCode) bool {
 	switch op {
 	case OpCall, OpCallMethod, OpCallVirtual, OpCallBuiltin, OpCallIndirect, OpTailCall:
@@ -183,15 +186,20 @@ func (d *Disassembler) tryDisassembleCallOp(inst Instruction, op OpCode) bool {
 	return false
 }
 
+// tryDisassembleArrayOp attempts to disassemble array-related instructions.
 func (d *Disassembler) tryDisassembleArrayOp(inst Instruction, op OpCode) bool {
 	switch op {
 	case OpNewArray:
 		d.byteInstruction(inst, "elements")
 		return true
+	case OpNewArraySized, OpArrayGet, OpArraySet, OpArraySetLength:
+		d.simpleInstruction(inst)
+		return true
 	}
 	return false
 }
 
+// tryDisassembleObjectOp attempts to disassemble object-related instructions (fields, properties, methods).
 func (d *Disassembler) tryDisassembleObjectOp(inst Instruction, op OpCode) bool {
 	switch op {
 	case OpNewObject:
@@ -213,28 +221,37 @@ func (d *Disassembler) tryDisassembleObjectOp(inst Instruction, op OpCode) bool 
 	return false
 }
 
+// tryDisassembleStringOp attempts to disassemble string operation instructions.
 func (d *Disassembler) tryDisassembleStringOp(inst Instruction, op OpCode) bool {
 	switch op {
-	case OpVariantToType:
-		d.byteInstruction(inst, "type")
+	case OpStringGet, OpStringSlice:
+		d.simpleInstruction(inst)
 		return true
 	}
 	return false
 }
 
+// tryDisassembleExceptionOp attempts to disassemble exception handling instructions.
 func (d *Disassembler) tryDisassembleExceptionOp(inst Instruction, op OpCode, offset int) bool {
 	switch op {
 	case OpTry, OpCatch, OpFinally:
 		d.jumpInstruction(inst, offset, 1)
 		return true
+	case OpThrow:
+		d.simpleInstruction(inst)
+		return true
 	}
 	return false
 }
 
+// tryDisassembleMiscOp attempts to disassemble miscellaneous instructions that don't fit other categories.
 func (d *Disassembler) tryDisassembleMiscOp(inst Instruction, op OpCode) bool {
 	switch op {
 	case OpCase:
 		d.byteInstruction(inst, "jumpTable")
+		return true
+	case OpVariantToType:
+		d.byteInstruction(inst, "type")
 		return true
 	}
 	return false

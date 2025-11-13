@@ -457,6 +457,7 @@ func (ctx *constPropContext) processInstruction(inst Instruction, line, orig int
 	}
 }
 
+// handleConstantLoad processes constant loading instructions and tracks their values in the stack.
 func (ctx *constPropContext) handleConstantLoad(inst Instruction, op OpCode, line, orig int) {
 	var val Value
 	known := false
@@ -495,6 +496,7 @@ func (ctx *constPropContext) handleConstantLoad(inst Instruction, op OpCode, lin
 	}
 }
 
+// handleLocalVar processes local variable load and store operations, tracking known constant values.
 func (ctx *constPropContext) handleLocalVar(inst Instruction, op OpCode, line, orig int) {
 	slot := uint16(inst.B())
 
@@ -518,6 +520,7 @@ func (ctx *constPropContext) handleLocalVar(inst Instruction, op OpCode, line, o
 	}
 }
 
+// handleGlobalVar processes global variable load and store operations.
 func (ctx *constPropContext) handleGlobalVar(inst Instruction, op OpCode, line, orig int) {
 	if op == OpLoadGlobal {
 		prod := ctx.emit(inst, line, orig)
@@ -528,6 +531,7 @@ func (ctx *constPropContext) handleGlobalVar(inst Instruction, op OpCode, line, 
 	}
 }
 
+// handleBinaryOp processes binary operations, performing constant folding when both operands are known.
 func (ctx *constPropContext) handleBinaryOp(inst Instruction, op OpCode, line, orig int) {
 	right := ctx.popStack()
 	left := ctx.popStack()
