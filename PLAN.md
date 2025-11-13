@@ -125,13 +125,20 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 - [x] 9.16 Method Visibility Enforcement
 
-- [ ] 9.17 Property Expression Validation
+- [x] 9.17 Property Expression Validation
   - **Estimate**: 2-3 hours
-  - **Files**: analyze_properties.go
+  - **Files**: analyze_properties.go, types.go, analyze_classes_decl.go, objects_properties.go, objects_hierarchy.go, class.go
   - **Description**: Property expressions with field references not analyzed correctly
   - **Root Cause**: Need to handle field access expressions in property analyzer
   - **Tests**: TestPropertyExpressionValidation (multiple variants)
   - **Strategy**: Enhance property analyzer to validate field references in read/write expressions
+  - **Implementation**:
+    - Added ConstantTypes map to ClassType to store constant types
+    - Enhanced validateReadSpec to check for class constants and class variables
+    - Enhanced validateWriteSpec to support class variables for instance properties
+    - Updated interpreter to handle properties backed by constants and class vars
+    - Fixed case-insensitive property lookup in ClassInfo.lookupProperty
+    - Enabled instance properties with class-level read specs to be accessed via class name
 
 **High Complexity (48 tests remaining)** - Priority: MEDIUM
 

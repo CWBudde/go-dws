@@ -124,47 +124,62 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 // validateReadSpec validates the read specifier of a property.
 // The read specifier can be:
 //   - Field: A field name (identifier) - the field must exist and have matching type
+//   - Constant: A constant name (identifier) - the constant must exist and have matching type
 //   - Method: A method name (identifier) - the method must exist with correct signature
 //   - Expression: An inline expression - the expression type must match property type
 func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.ClassType, propInfo *types.PropertyInfo, indexParamTypes []types.Type) {
 	propName := prop.Name.Value
 	propType := propInfo.Type
 
-	// Check if read spec is an identifier (field or method name)
+	// Check if read spec is an identifier (field, constant, or method name)
 	if ident, ok := prop.ReadSpec.(*ast.Identifier); ok {
 		readSpecName := ident.Value
 
-		// Check if it's a field (instance or class field)
-		// For class properties, look in ClassVars; for instance properties, look in Fields
-		var fieldType types.Type
-		var found bool
+		// Task 9.17: Check class-level members first (class vars, then constants)
+		// This ensures class-level storage takes precedence over instance fields
 
-		if propInfo.IsClassProperty {
-			// Class property must use class variable
-			// Task 9.285: Use lowercase for case-insensitive lookup
-			fieldType, found = classType.ClassVars[strings.ToLower(readSpecName)]
-			if found && !propType.Equals(fieldType) {
-				a.addError("class property '%s' read field '%s' has type %s, expected %s at %s",
+		// 1. Check if it's a class variable
+		// Task 9.285: Use lowercase for case-insensitive lookup
+		if fieldType, found := classType.ClassVars[strings.ToLower(readSpecName)]; found {
+			if !propType.Equals(fieldType) {
+				a.addError("property '%s' read class variable '%s' has type %s, expected %s at %s",
 					propName, readSpecName, fieldType.String(), propType.String(),
 					prop.Token.Pos.String())
 				return
 			}
-		} else {
-			// Instance property must use instance field
-			// Task 9.285: Use lowercase for case-insensitive lookup
-			fieldType, found = classType.GetField(strings.ToLower(readSpecName))
-			if found && !propType.Equals(fieldType) {
-				a.addError("property '%s' read field '%s' has type %s, expected %s at %s",
-					propName, readSpecName, fieldType.String(), propType.String(),
-					prop.Token.Pos.String())
-				return
-			}
-		}
-
-		if found {
 			propInfo.ReadKind = types.PropAccessField
 			propInfo.ReadSpec = readSpecName
 			return
+		}
+
+		// 2. Check if it's a constant
+		if constantType, constantFound := a.getConstantType(classType, readSpecName); constantFound {
+			if !propType.Equals(constantType) {
+				a.addError("property '%s' read constant '%s' has type %s, expected %s at %s",
+					propName, readSpecName, constantType.String(), propType.String(),
+					prop.Token.Pos.String())
+				return
+			}
+			propInfo.ReadKind = types.PropAccessField // Constants are treated like fields
+			propInfo.ReadSpec = readSpecName
+			return
+		}
+
+		// 3. Check if it's an instance field (only for instance properties)
+		if !propInfo.IsClassProperty {
+			// Instance property can use instance field
+			// Task 9.285: Use lowercase for case-insensitive lookup
+			if fieldType, found := classType.GetField(strings.ToLower(readSpecName)); found {
+				if !propType.Equals(fieldType) {
+					a.addError("property '%s' read field '%s' has type %s, expected %s at %s",
+						propName, readSpecName, fieldType.String(), propType.String(),
+						prop.Token.Pos.String())
+					return
+				}
+				propInfo.ReadKind = types.PropAccessField
+				propInfo.ReadSpec = readSpecName
+				return
+			}
 		}
 
 		// If method, verify method exists with correct signature
@@ -308,9 +323,13 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 			return
 		}
 	} else {
-		// Instance property must use instance field
+		// Instance property can use instance field or class variable
 		// Task 9.285: Use lowercase for case-insensitive lookup
 		fieldType, found = classType.GetField(strings.ToLower(writeSpecName))
+		if !found {
+			// Task 9.17: Also check class variables for instance properties
+			fieldType, found = classType.ClassVars[strings.ToLower(writeSpecName)]
+		}
 		if found && !propType.Equals(fieldType) {
 			a.addError("property '%s' write field '%s' has type %s, expected %s at %s",
 				propName, writeSpecName, fieldType.String(), propType.String(),
@@ -322,6 +341,13 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	if found {
 		propInfo.WriteKind = types.PropAccessField
 		propInfo.WriteSpec = writeSpecName
+		return
+	}
+
+	// Task 9.17: Check if it's a constant (constants are read-only, so error if used as write spec)
+	if _, constantFound := a.getConstantType(classType, writeSpecName); constantFound {
+		a.addError("property '%s' write specifier '%s' is a constant and cannot be written to at %s",
+			propName, writeSpecName, prop.Token.Pos.String())
 		return
 	}
 
@@ -398,4 +424,27 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	// Neither field nor method found
 	a.addError("property '%s' write specifier '%s' not found in class '%s' at %s",
 		propName, writeSpecName, classType.Name, prop.Token.Pos.String())
+}
+
+// getConstantType retrieves the type of a constant from a class.
+// It searches the class and its ancestors for the constant and returns its type.
+// Task 9.17: Helper for property expression validation
+func (a *Analyzer) getConstantType(classType *types.ClassType, constantName string) (types.Type, bool) {
+	if classType == nil {
+		return nil, false
+	}
+
+	// Search for the constant in this class and ancestors
+	current := classType
+	for current != nil {
+		// Case-insensitive constant lookup
+		for existingName, constType := range current.ConstantTypes {
+			if strings.EqualFold(existingName, constantName) {
+				return constType, true
+			}
+		}
+		current = current.Parent
+	}
+
+	return nil, false
 }

@@ -37,8 +37,22 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 
 	switch propInfo.ReadKind {
 	case types.PropAccessField:
-		// Field or method access - check at runtime which it is
-		// First try as a field
+		// Field, constant, class var, or method access - check at runtime which it is
+		// Task 9.17: Check in order: class vars → constants → instance fields
+		// This matches the semantic analyzer's lookup order
+
+		// 1. Try as a class variable (case-insensitive)
+		if classVarValue, ownerClass := obj.Class.lookupClassVar(propInfo.ReadSpec); ownerClass != nil {
+			return classVarValue
+		}
+
+		// 2. Try as a constant (case-insensitive, with lazy evaluation)
+		// Note: getClassConstant doesn't currently use the ma parameter for error reporting
+		if constValue := i.getClassConstant(obj.Class, propInfo.ReadSpec, nil); constValue != nil {
+			return constValue
+		}
+
+		// 3. Try as an instance field
 		if _, exists := obj.Class.Fields[propInfo.ReadSpec]; exists {
 			fieldValue := obj.GetField(propInfo.ReadSpec)
 			if fieldValue == nil {
@@ -47,10 +61,10 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			return fieldValue
 		}
 
-		// Not a field - try as a method (getter)
+		// Not a field, class var, or constant - try as a method (getter)
 		method := obj.Class.lookupMethod(propInfo.ReadSpec)
 		if method == nil {
-			return i.newErrorWithLocation(node, "property '%s' read specifier '%s' not found as field or method", propInfo.Name, propInfo.ReadSpec)
+			return i.newErrorWithLocation(node, "property '%s' read specifier '%s' not found as field, constant, class var, or method", propInfo.Name, propInfo.ReadSpec)
 		}
 
 		// Indexed properties must be accessed with index syntax
