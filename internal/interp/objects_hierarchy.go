@@ -48,8 +48,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				return &StringValue{Value: classInfo.Name}
 			}
 
-			// 1. Try class variables first
-			if classVarValue, exists := classInfo.ClassVars[memberName]; exists {
+			// 1. Try class variables first (case-insensitive)
+			if classVarValue, ownerClass := classInfo.lookupClassVar(memberName); ownerClass != nil {
 				return classVarValue
 			}
 
@@ -65,18 +65,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 					return i.evalClassPropertyRead(classInfo, propInfo, ma)
 				}
 				// Task 9.17: Allow instance properties accessed on class if they use class-level read specs
-				if propInfo.ReadKind == types.PropAccessField {
-					// Check if read spec is a class variable or constant
-					if _, isClassVar := classInfo.ClassVars[propInfo.ReadSpec]; isClassVar {
-						// Create a temporary object instance to evaluate the property
-						tempObj := &ObjectInstance{Class: classInfo, Fields: make(map[string]Value)}
-						return i.evalPropertyRead(tempObj, propInfo, ma)
-					}
-					if _, isConstant := classInfo.Constants[propInfo.ReadSpec]; isConstant {
-						// Create a temporary object instance to evaluate the property
-						tempObj := &ObjectInstance{Class: classInfo, Fields: make(map[string]Value)}
-						return i.evalPropertyRead(tempObj, propInfo, ma)
-					}
+				if result := i.canAccessInstancePropertyViaClass(classInfo, propInfo, ma); result != nil {
+					return result
 				}
 			}
 
@@ -221,8 +211,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			return &ClassValue{ClassInfo: classInfo}
 		}
 
-		// Try class variables first
-		if classVarValue, exists := classInfo.ClassVars[memberName]; exists {
+		// Try class variables first (case-insensitive)
+		if classVarValue, ownerClass := classInfo.lookupClassVar(memberName); ownerClass != nil {
 			return classVarValue
 		}
 
@@ -238,18 +228,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				return i.evalClassPropertyRead(classInfo, propInfo, ma)
 			}
 			// Task 9.17: Allow instance properties accessed on class if they use class-level read specs
-			if propInfo.ReadKind == types.PropAccessField {
-				// Check if read spec is a class variable or constant
-				if _, isClassVar := classInfo.ClassVars[propInfo.ReadSpec]; isClassVar {
-					// Create a temporary object instance to evaluate the property
-					tempObj := &ObjectInstance{Class: classInfo, Fields: make(map[string]Value)}
-					return i.evalPropertyRead(tempObj, propInfo, ma)
-				}
-				if _, isConstant := classInfo.Constants[propInfo.ReadSpec]; isConstant {
-					// Create a temporary object instance to evaluate the property
-					tempObj := &ObjectInstance{Class: classInfo, Fields: make(map[string]Value)}
-					return i.evalPropertyRead(tempObj, propInfo, ma)
-				}
+			if result := i.canAccessInstancePropertyViaClass(classInfo, propInfo, ma); result != nil {
+				return result
 			}
 		}
 
@@ -680,4 +660,32 @@ func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string
 	ownerClass.ConstantValues[constantName] = constValue
 
 	return constValue
+}
+
+// canAccessInstancePropertyViaClass checks if an instance property can be accessed
+// through the class itself (e.g., TClass.PropertyName) when the property's read spec
+// refers to a class variable or constant.
+// Task 9.17: Extracted helper to avoid code duplication and ensure case-insensitive lookups.
+func (i *Interpreter) canAccessInstancePropertyViaClass(classInfo *ClassInfo, propInfo *types.PropertyInfo, ma *ast.MemberAccessExpression) Value {
+	// Only field-based properties can potentially use class-level read specs
+	if propInfo.ReadKind != types.PropAccessField {
+		return nil
+	}
+
+	// Check if read spec is a class variable (case-insensitive)
+	if _, ownerClass := classInfo.lookupClassVar(propInfo.ReadSpec); ownerClass != nil {
+		// Create a temporary object instance to evaluate the property
+		tempObj := &ObjectInstance{Class: classInfo, Fields: make(map[string]Value)}
+		return i.evalPropertyRead(tempObj, propInfo, ma)
+	}
+
+	// Check if read spec is a constant (case-insensitive)
+	if _, ownerClass := classInfo.lookupConstant(propInfo.ReadSpec); ownerClass != nil {
+		// Create a temporary object instance to evaluate the property
+		tempObj := &ObjectInstance{Class: classInfo, Fields: make(map[string]Value)}
+		return i.evalPropertyRead(tempObj, propInfo, ma)
+	}
+
+	// Property read spec is not a class-level member
+	return nil
 }

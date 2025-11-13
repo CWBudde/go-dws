@@ -38,34 +38,27 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 	switch propInfo.ReadKind {
 	case types.PropAccessField:
 		// Field, constant, class var, or method access - check at runtime which it is
-		// First try as an instance field
+		// Task 9.17: Check in order: class vars → constants → instance fields
+		// This matches the semantic analyzer's lookup order
+
+		// 1. Try as a class variable (case-insensitive)
+		if classVarValue, ownerClass := obj.Class.lookupClassVar(propInfo.ReadSpec); ownerClass != nil {
+			return classVarValue
+		}
+
+		// 2. Try as a constant (case-insensitive, with lazy evaluation)
+		// Note: getClassConstant doesn't currently use the ma parameter for error reporting
+		if constValue := i.getClassConstant(obj.Class, propInfo.ReadSpec, nil); constValue != nil {
+			return constValue
+		}
+
+		// 3. Try as an instance field
 		if _, exists := obj.Class.Fields[propInfo.ReadSpec]; exists {
 			fieldValue := obj.GetField(propInfo.ReadSpec)
 			if fieldValue == nil {
 				return i.newErrorWithLocation(node, "property '%s' read field '%s' not found", propInfo.Name, propInfo.ReadSpec)
 			}
 			return fieldValue
-		}
-
-		// Task 9.17: Try as a class variable
-		if classVarValue, exists := obj.Class.ClassVars[propInfo.ReadSpec]; exists {
-			return classVarValue
-		}
-
-		// Task 9.17: Try as a constant
-		if constValue, exists := obj.Class.ConstantValues[propInfo.ReadSpec]; exists {
-			return constValue
-		}
-		// If constant exists but not evaluated yet, try to evaluate it
-		if constDecl, exists := obj.Class.Constants[propInfo.ReadSpec]; exists {
-			// Evaluate the constant expression
-			if constDecl.Value != nil {
-				constValue := i.Eval(constDecl.Value)
-				// Cache the evaluated value for future use
-				obj.Class.ConstantValues[propInfo.ReadSpec] = constValue
-				return constValue
-			}
-			return i.newErrorWithLocation(node, "constant '%s' has no value", propInfo.ReadSpec)
 		}
 
 		// Not a field, class var, or constant - try as a method (getter)

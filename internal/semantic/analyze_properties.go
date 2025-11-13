@@ -135,46 +135,25 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	if ident, ok := prop.ReadSpec.(*ast.Identifier); ok {
 		readSpecName := ident.Value
 
-		// Check if it's a field (instance or class field)
-		// For class properties, look in ClassVars; for instance properties, look in Fields
-		var fieldType types.Type
-		var found bool
+		// Task 9.17: Check class-level members first (class vars, then constants)
+		// This ensures class-level storage takes precedence over instance fields
 
-		if propInfo.IsClassProperty {
-			// Class property must use class variable
-			// Task 9.285: Use lowercase for case-insensitive lookup
-			fieldType, found = classType.ClassVars[strings.ToLower(readSpecName)]
-			if found && !propType.Equals(fieldType) {
-				a.addError("class property '%s' read field '%s' has type %s, expected %s at %s",
+		// 1. Check if it's a class variable
+		// Task 9.285: Use lowercase for case-insensitive lookup
+		if fieldType, found := classType.ClassVars[strings.ToLower(readSpecName)]; found {
+			if !propType.Equals(fieldType) {
+				a.addError("property '%s' read class variable '%s' has type %s, expected %s at %s",
 					propName, readSpecName, fieldType.String(), propType.String(),
 					prop.Token.Pos.String())
 				return
 			}
-		} else {
-			// Instance property can use instance field or class variable
-			// Task 9.285: Use lowercase for case-insensitive lookup
-			fieldType, found = classType.GetField(strings.ToLower(readSpecName))
-			if !found {
-				// Task 9.17: Also check class variables for instance properties
-				fieldType, found = classType.ClassVars[strings.ToLower(readSpecName)]
-			}
-			if found && !propType.Equals(fieldType) {
-				a.addError("property '%s' read field '%s' has type %s, expected %s at %s",
-					propName, readSpecName, fieldType.String(), propType.String(),
-					prop.Token.Pos.String())
-				return
-			}
-		}
-
-		if found {
 			propInfo.ReadKind = types.PropAccessField
 			propInfo.ReadSpec = readSpecName
 			return
 		}
 
-		// Task 9.17: Check if it's a constant
-		constantType, constantFound := a.getConstantType(classType, readSpecName)
-		if constantFound {
+		// 2. Check if it's a constant
+		if constantType, constantFound := a.getConstantType(classType, readSpecName); constantFound {
 			if !propType.Equals(constantType) {
 				a.addError("property '%s' read constant '%s' has type %s, expected %s at %s",
 					propName, readSpecName, constantType.String(), propType.String(),
@@ -184,6 +163,23 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 			propInfo.ReadKind = types.PropAccessField // Constants are treated like fields
 			propInfo.ReadSpec = readSpecName
 			return
+		}
+
+		// 3. Check if it's an instance field (only for instance properties)
+		if !propInfo.IsClassProperty {
+			// Instance property can use instance field
+			// Task 9.285: Use lowercase for case-insensitive lookup
+			if fieldType, found := classType.GetField(strings.ToLower(readSpecName)); found {
+				if !propType.Equals(fieldType) {
+					a.addError("property '%s' read field '%s' has type %s, expected %s at %s",
+						propName, readSpecName, fieldType.String(), propType.String(),
+						prop.Token.Pos.String())
+					return
+				}
+				propInfo.ReadKind = types.PropAccessField
+				propInfo.ReadSpec = readSpecName
+				return
+			}
 		}
 
 		// If method, verify method exists with correct signature
