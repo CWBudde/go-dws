@@ -985,3 +985,242 @@ func TestHelperInheritance_RecordHelper(t *testing.T) {
 		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
 	}
 }
+// ============================================================================
+// Helper Inheritance Bug Fixes (PR #70)
+// ============================================================================
+
+// TestHelperInheritance_PropertyWithGetterInParent tests that inherited properties
+// with getter methods defined in the parent helper work correctly.
+// This addresses the issue from PR #70 where inherited properties fail with
+// "getter method not found" because the child helper was used instead of the parent.
+func TestHelperInheritance_PropertyWithGetterInParent(t *testing.T) {
+	script := `
+		type TParentHelper = helper for Integer
+			class const ParentValue = 42;
+
+			function GetDoubled: Integer;
+			begin
+				Result := Self * 2;
+			end;
+
+			property Doubled: Integer read GetDoubled;
+		end;
+
+		type TChildHelper = helper (TParentHelper) for Integer
+			class const ChildValue = 100;
+
+			function GetTripled: Integer;
+			begin
+				Result := Self * 3;
+			end;
+
+			property Tripled: Integer read GetTripled;
+		end;
+
+		var x: Integer := 5;
+		PrintLn(x.Doubled);   // Should access parent's property and getter
+		PrintLn(x.Tripled);   // Should access child's property and getter
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, script)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "10\n15\n"
+	if out.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, out.String())
+	}
+}
+
+// TestHelperInheritance_MethodAccessingParentClassConsts tests that inherited methods
+// can access class constants defined in the parent helper.
+// This addresses the issue from PR #70 where inherited methods fail with
+// "undefined variable" errors because only the child helper's class members were bound.
+func TestHelperInheritance_MethodAccessingParentClassConsts(t *testing.T) {
+	script := `
+		type TParentHelper = helper for Integer
+			class const ParentConst = 10;
+
+			function GetParentConst: Integer;
+			begin
+				Result := ParentConst;
+			end;
+
+			function GetDoubleParentConst: Integer;
+			begin
+				Result := ParentConst * 2;
+			end;
+		end;
+
+		type TChildHelper = helper (TParentHelper) for Integer
+			class const ChildConst = 30;
+
+			function GetChildConst: Integer;
+			begin
+				Result := ChildConst;
+			end;
+
+			function GetAllConstSum: Integer;
+			begin
+				// This method needs access to both parent and child class constants
+				Result := ParentConst + ChildConst;
+			end;
+		end;
+
+		var x: Integer := 0;
+		PrintLn(x.GetParentConst());        // Should work: parent method accessing parent const
+		PrintLn(x.GetDoubleParentConst());  // Should work: parent method accessing parent const
+		PrintLn(x.GetChildConst());         // Should work: child method accessing child const
+		PrintLn(x.GetAllConstSum());        // Should work: child method accessing both consts
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, script)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "10\n20\n30\n40\n"
+	if out.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, out.String())
+	}
+}
+
+// TestHelperInheritance_MultiLevelPropertyWithGetter tests multi-level inheritance
+// where a grandchild helper accesses a property defined in the grandparent helper.
+func TestHelperInheritance_MultiLevelPropertyWithGetter(t *testing.T) {
+	script := `
+		type TGrandParentHelper = helper for Integer
+			class const BaseValue = 5;
+
+			function GetSquared: Integer;
+			begin
+				Result := Self * Self;
+			end;
+
+			property Squared: Integer read GetSquared;
+		end;
+
+		type TParentHelper = helper (TGrandParentHelper) for Integer
+			function GetCubed: Integer;
+			begin
+				Result := Self * Self * Self;
+			end;
+
+			property Cubed: Integer read GetCubed;
+		end;
+
+		type TChildHelper = helper (TParentHelper) for Integer
+			function GetQuadrupled: Integer;
+			begin
+				Result := Self * 4;
+			end;
+
+			property Quadrupled: Integer read GetQuadrupled;
+		end;
+
+		var x: Integer := 3;
+		PrintLn(x.Squared);      // From grandparent
+		PrintLn(x.Cubed);        // From parent
+		PrintLn(x.Quadrupled);   // From child
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, script)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "9\n27\n12\n"
+	if out.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, out.String())
+	}
+}
+
+// TestHelperInheritance_ParentMethodAccessingParentConst tests that a parent method
+// can access parent class consts even when called through a child helper instance.
+func TestHelperInheritance_ParentMethodAccessingParentConst(t *testing.T) {
+	script := `
+		type TParentHelper = helper for String
+			class const Multiplier = 5;
+
+			function GetMultiplied(value: Integer): Integer;
+			begin
+				Result := value * Multiplier;
+			end;
+		end;
+
+		type TChildHelper = helper (TParentHelper) for String
+			class const ChildMultiplier = 3;
+
+			function GetBothMultiplied(value: Integer): Integer;
+			begin
+				// Child method accessing both parent and child constants
+				Result := value * Multiplier * ChildMultiplier;
+			end;
+		end;
+
+		var s: String := "test";
+		PrintLn(s.GetMultiplied(2));      // Parent method accessing parent const: 2 * 5 = 10
+		PrintLn(s.GetMultiplied(3));      // Parent method accessing parent const: 3 * 5 = 15
+		PrintLn(s.GetBothMultiplied(2));  // Child method accessing both: 2 * 5 * 3 = 30
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, script)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "10\n15\n30\n"
+	if out.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, out.String())
+	}
+}
+
+// TestHelperInheritance_PropertyGetterAccessingClassConst tests that a property getter
+// in the parent helper can access class constants from the parent.
+func TestHelperInheritance_PropertyGetterAccessingClassConst(t *testing.T) {
+	script := `
+		type TParentHelper = helper for Integer
+			class const Multiplier = 7;
+
+			function GetMultiplied: Integer;
+			begin
+				Result := Self * Multiplier;
+			end;
+
+			property Multiplied: Integer read GetMultiplied;
+		end;
+
+		type TChildHelper = helper (TParentHelper) for Integer
+			class const ChildMultiplier = 3;
+		end;
+
+		var x: Integer := 4;
+		PrintLn(x.Multiplied);  // Should use parent's Multiplier constant: 4 * 7 = 28
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, script)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "28\n"
+	if out.String() != expected {
+		t.Errorf("Expected:\n%s\nGot:\n%s", expected, out.String())
+	}
+}
