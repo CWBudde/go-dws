@@ -662,7 +662,29 @@ func literalValue(expr ast.Expression) (Value, bool) {
 }
 
 func evaluateBinary(operator string, left, right Value) (Value, bool) {
-	switch strings.ToLower(operator) {
+	opLower := strings.ToLower(operator)
+
+	// Try arithmetic operations
+	if result, ok := evaluateBinaryArithmetic(opLower, left, right); ok {
+		return result, true
+	}
+
+	// Try comparison operations
+	if result, ok := evaluateBinaryComparison(opLower, left, right); ok {
+		return result, true
+	}
+
+	// Try logical operations
+	if result, ok := evaluateBinaryLogical(opLower, left, right); ok {
+		return result, true
+	}
+
+	return Value{}, false
+}
+
+// evaluateBinaryArithmetic evaluates arithmetic operations (+, -, *, /, div, mod)
+func evaluateBinaryArithmetic(operator string, left, right Value) (Value, bool) {
+	switch operator {
 	case "+":
 		if left.IsString() && right.IsString() {
 			return StringValue(left.AsString() + right.AsString()), true
@@ -711,6 +733,13 @@ func evaluateBinary(operator string, left, right Value) (Value, bool) {
 			}
 			return IntValue(left.AsInt() % divisor), true
 		}
+	}
+	return Value{}, false
+}
+
+// evaluateBinaryComparison evaluates comparison operations (=, <>, <, <=, >, >=)
+func evaluateBinaryComparison(operator string, left, right Value) (Value, bool) {
+	switch operator {
 	case "=":
 		if eq, ok := valuesEqualForFold(left, right); ok {
 			return BoolValue(eq), true
@@ -759,6 +788,13 @@ func evaluateBinary(operator string, left, right Value) (Value, bool) {
 		if left.IsString() && right.IsString() {
 			return BoolValue(left.AsString() >= right.AsString()), true
 		}
+	}
+	return Value{}, false
+}
+
+// evaluateBinaryLogical evaluates logical operations (and, or, xor)
+func evaluateBinaryLogical(operator string, left, right Value) (Value, bool) {
+	switch operator {
 	case "and":
 		if left.Type == ValueBool && right.Type == ValueBool {
 			return BoolValue(left.AsBool() && right.AsBool()), true
