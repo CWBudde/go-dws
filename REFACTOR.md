@@ -2,902 +2,495 @@
 
 ## Overview
 
-This document provides a comprehensive strategy for refactoring the go-dws codebase to improve maintainability, readability, and organization. The project has grown significantly, with 20+ files exceeding 30KB and several directories containing 60-90+ files.
-
-**Current Issues:**
-- Large files (up to 80KB) are difficult to navigate and maintain
-- Flat directory structures make it hard to find related code
-- Test files mixed with implementation files
-- No clear organizational pattern for builtin functions
-
-**Goals:**
-- Split large files into focused, logical components
-- Organize files into subdirectories by feature area
-- Maintain parallel structure between `internal/interp/` and `internal/semantic/`
-- Improve code discoverability and reduce cognitive load
-- Preserve all functionality and test coverage
-
----
-
-## File Splitting Strategy
-
-### ✅ Completed Splits
-
-The following large files have been successfully split into smaller, focused files:
-
-#### ✅ 1.1 objects.go → Split into 4 files
-- `objects_instantiation.go` (203 lines)
-- `objects_properties.go` (693 lines)
-- `objects_methods.go` (913 lines)
-- `objects_hierarchy.go` (619 lines)
-
-#### ✅ 1.2 functions.go → Split into 6 files
-- `functions_calls.go` (420 lines)
-- `functions_builtins.go` (477 lines)
-- `functions_user.go` (219 lines)
-- `functions_pointers.go` (199 lines)
-- `functions_records.go` (354 lines)
-- `functions_typecast.go` (532 lines)
-
-#### ✅ 1.3 statements.go → Split into 4 files
-- `statements_declarations.go` (403 lines)
-- `statements_assignments.go` (643 lines)
-- `statements_control.go` (303 lines)
-- `statements_loops.go` (493 lines)
-
-#### ✅ 1.4 builtins_datetime.go → Split into 3 files
-- `builtins_datetime_format.go` (320 lines)
-- `builtins_datetime_calc.go` (472 lines)
-- `builtins_datetime_info.go` (338 lines)
-
-#### ✅ 1.5 builtins_math.go → Split into 3 files
-- `builtins_math_basic.go` (657 lines)
-- `builtins_math_trig.go` (447 lines)
-- `builtins_math_convert.go` (429 lines)
-
----
-
-### 🔄 Remaining Work
-
-#### Priority 1: Critical Large Files (>1500 lines)
-
-The following very large files should be split to improve maintainability:
-
-##### 🔲 1.6 internal/bytecode/vm.go → Split into 4 files
-
-**Current:** 2,553 lines, 68KB, 84 functions
-**Target split:**
-- `vm_core.go` (~600 lines) - VM struct, NewVM, Run, reset, core lifecycle
-- `vm_stack.go` (~400 lines) - Stack operations (push, pop, peek, getGlobal, setGlobal)
-- `vm_ops.go` (~800 lines) - Arithmetic/comparison operations (binaryIntOp, binaryFloatOp, compare, etc.)
-- `vm_calls.go` (~700 lines) - Function calls, closures, upvalues (callValue, callClosure, invokeMethod, captureUpvalue, etc.)
-
-**Rationale:** The VM has four distinct responsibilities that can be separated cleanly. This is the largest single file in the project.
-
-##### 🔲 1.7 internal/bytecode/compiler.go → Split into 4 files
-
-**Current:** 1,817 lines, 48KB, 81 functions
-**Target split:**
-- `compiler_core.go` (~300 lines) - Compiler struct, NewCompiler, Compile, core infrastructure
-- `compiler_statements.go` (~600 lines) - Statement compilation (compileVarDecl, compileIf, compileWhile, compileFor, compileTry, etc.)
-- `compiler_expressions.go` (~500 lines) - Expression compilation (compileBinary, compileUnary, compileCall, compileIdentifier, etc.)
-- `compiler_functions.go` (~400 lines) - Function/lambda compilation (compileFunctionDecl, compileLambda, closure handling)
-
-**Rationale:** Clear separation between statements, expressions, and functions. Mirrors parser organization.
-
-##### 🔲 1.8 internal/semantic/analyze_classes.go → Split into 3 files
-
-**Current:** 1,466 lines, 56KB, 13 functions (but each function is very large)
-**Target split:**
-- `analyze_classes_decl.go` (~500 lines) - analyzeClassDecl, analyzeMethodDecl, field/property analysis
-- `analyze_classes_inheritance.go` (~500 lines) - inheritParentConstructors, checkMethodOverriding, validateVirtualOverride
-- `analyze_classes_validation.go` (~450 lines) - validateMethodSignature, validateAbstractClass, visibility checks
-
-**Rationale:** Separates class declaration analysis, inheritance logic, and validation rules.
-
-##### 🔲 1.9 internal/interp/expressions.go → Split into 3 files
-
-**Current:** 1,222 lines, 40KB, 27 functions
-**Target split:**
-- `expressions_basic.go` (~400 lines) - Literals, identifiers, unary operations
-- `expressions_binary.go` (~400 lines) - Binary operations (arithmetic, comparison, logical)
-- `expressions_complex.go` (~400 lines) - Member access, index expressions, type casts
-
-**Rationale:** Splits by expression complexity level - basic, binary, and complex composite expressions.
-
----
-
-#### Priority 2: Large Test Files (>1500 lines)
-
-Test files can be split by functional grouping to improve organization and test execution:
-
-##### 🔲 1.10 internal/interp/string_test.go → Split into 3-4 files
-
-**Current:** 3,772 lines, 64KB, 45 test functions
-**Target split:**
-- `string_manipulation_test.go` (~1200 lines) - Copy, Concat, Trim, TrimLeft, TrimRight tests
-- `string_search_test.go` (~1200 lines) - Pos, LastPos, Find, Replace tests
-- `string_transform_test.go` (~1300 lines) - UpperCase, LowerCase, Format, Substring tests
-
-**Rationale:** Groups tests by string operation category. Each file remains focused on related functionality.
-
-##### 🔲 1.11 internal/interp/math_test.go → Split into 3 files
-
-**Current:** 3,824 lines, 64KB, 58 test functions
-**Target split:**
-- `math_basic_test.go` (~1300 lines) - Abs, Sqrt, Power, Min, Max, Sign tests (matches builtins_math_basic.go)
-- `math_trig_test.go` (~1300 lines) - Sin, Cos, Tan, ArcSin, ArcCos, ArcTan tests (matches builtins_math_trig.go)
-- `math_convert_test.go` (~1200 lines) - Round, Trunc, Floor, Ceil, Int, Frac tests (matches builtins_math_convert.go)
-
-**Rationale:** Mirrors the split of builtins_math.go for consistency. Tests stay aligned with implementation.
-
-##### 🔲 1.12 internal/interp/set_test.go → Split into 2 files
-
-**Current:** 1,719 lines, 48KB
-**Target split:**
-- `set_operations_test.go` (~900 lines) - Set creation, membership, union, intersection tests
-- `set_advanced_test.go` (~800 lines) - Set difference, subset, iteration, edge cases
-
-**Rationale:** Separates basic set operations from advanced operations and edge cases.
-
-##### 🔲 1.13 internal/interp/property_test.go → Split into 2 files
-
-**Current:** 1,799 lines, 44KB
-**Target split:**
-- `property_basic_test.go` (~900 lines) - Basic property get/set tests
-- `property_advanced_test.go` (~900 lines) - Property visibility, inheritance, edge cases
-
-**Rationale:** Separates basic property functionality from advanced OOP features.
-
-##### 🔲 1.14 internal/interp/interpreter_test.go → Split into 3 files
-
-**Current:** 2,061 lines, 44KB
-**Target split:**
-- `interpreter_basic_test.go` (~700 lines) - Basic interpreter tests (literals, variables, simple expressions)
-- `interpreter_control_test.go` (~700 lines) - Control flow tests (if/else, loops, exceptions)
-- `interpreter_advanced_test.go` (~650 lines) - Advanced features (closures, recursion, edge cases)
-
-**Rationale:** Progressive complexity - basic features, control flow, advanced features.
-
-##### 🔲 1.15 internal/interp/lambda_test.go → Split into 2 files
-
-**Current:** 1,588 lines, 40KB
-**Target split:**
-- `lambda_basic_test.go` (~800 lines) - Lambda creation, basic calls, simple captures
-- `lambda_advanced_test.go` (~800 lines) - Complex captures, nested lambdas, edge cases
-
-**Rationale:** Separates basic lambda functionality from advanced closure scenarios.
-
----
-
-#### Priority 3: Other Large Test Files
-
-##### 🔲 1.16 internal/parser/functions_test.go → Split into 2 files
-
-**Current:** 1,551 lines, 48KB
-**Target split:**
-- `functions_decl_test.go` (~800 lines) - Function declaration parsing tests
-- `functions_calls_test.go` (~750 lines) - Function call parsing tests
-
-##### 🔲 1.17 internal/parser/classes_test.go → Split into 2 files
-
-**Current:** 1,731 lines, 44KB
-**Target split:**
-- `classes_decl_test.go` (~900 lines) - Class declaration parsing tests
-- `classes_members_test.go` (~800 lines) - Method and property parsing tests
-
-##### 🔲 1.18 internal/parser/arrays_test.go → Split into 2 files
-
-**Current:** 1,450 lines, 44KB
-**Target split:**
-- `arrays_literal_test.go` (~700 lines) - Array literal parsing tests
-- `arrays_operations_test.go` (~750 lines) - Array indexing and operations tests
-
-##### 🔲 1.19 internal/types/classes_test.go → Split into 2 files
-
-**Current:** 1,507 lines, 40KB
-**Target split:**
-- `classes_basic_test.go` (~750 lines) - Basic class type tests
-- `classes_inheritance_test.go` (~750 lines) - Inheritance and polymorphism tests
-
-##### 🔲 1.20 internal/bytecode/compiler_test.go → Split into 3 files
-
-**Current:** 1,590 lines, 48KB
-**Target split:**
-- `compiler_statements_test.go` (~550 lines) - Statement compilation tests
-- `compiler_expressions_test.go` (~550 lines) - Expression compilation tests
-- `compiler_functions_test.go` (~500 lines) - Function/lambda compilation tests
-
-**Rationale:** Mirrors the compiler.go split for consistency.
-
-##### 🔲 1.21 internal/semantic/analyze_builtin_math.go → Split into 3 files
-
-**Current:** 1,264 lines, 48KB
-**Target split:**
-- `analyze_builtin_math_basic.go` (~420 lines) - Basic math function analysis
-- `analyze_builtin_math_trig.go` (~420 lines) - Trigonometric function analysis
-- `analyze_builtin_math_convert.go` (~420 lines) - Conversion function analysis
-
-**Rationale:** Mirrors builtins_math.go organization for consistency across layers.
-
-##### 🔲 1.22 internal/semantic/analyze_builtin_datetime.go → Split into 3 files
-
-**Current:** 945 lines, 40KB
-**Target split:**
-- `analyze_builtin_datetime_format.go` (~315 lines) - DateTime formatting analysis
-- `analyze_builtin_datetime_calc.go` (~315 lines) - DateTime calculation analysis
-- `analyze_builtin_datetime_info.go` (~315 lines) - DateTime info function analysis
-
-**Rationale:** Mirrors builtins_datetime.go organization for consistency.
-
----
-
-#### Priority 4: Other Large Implementation Files (defer for now)
-
-The following files are large but currently manageable:
-
-- `internal/interp/builtins_strings.go` (33KB) - Could be split if string functions continue to grow
-- `internal/interp/builtins_core.go` (34KB) - Core builtins, fairly cohesive
-- `internal/parser/expressions.go` (40KB) - Parser expression handling, well-organized
-
-**Note:** These files don't require immediate splitting. Address if they grow beyond 50KB or 1500 lines.
-
----
-
-## Phase 2: Subdirectory Organization (Next Step - RECOMMENDED)
-
-### Overview
-
-The current flat structure with 116 files in `internal/interp/` should be organized into logical subdirectories. This is standard Go practice and will significantly improve code organization.
-
-**Current State (Flat Structure):**
-- 116 files in `internal/interp/` root
-- Prefixed naming: `objects_*.go`, `functions_*.go`, `statements_*.go`, `builtins_*.go`
-- Tests mixed throughout
-
-**Target Structure (Subdirectory Packages):**
-
-```
-internal/interp/
-├── builtins/               # Package builtins
-│   ├── core.go             # Core builtins
-│   ├── core_test.go
-│   ├── math_basic.go       # Math functions (basic)
-│   ├── math_trig.go        # Math functions (trig)
-│   ├── math_convert.go     # Math functions (convert)
-│   ├── math_test.go
-│   ├── datetime_format.go
-│   ├── datetime_calc.go
-│   ├── datetime_info.go
-│   ├── datetime_test.go
-│   ├── strings.go
-│   ├── strings_test.go
-│   ├── arrays.go
-│   ├── json.go
-│   ├── variant.go
-│   ├── ordinals.go
-│   └── collections.go
-├── objects/                # Package objects
-│   ├── instantiation.go
-│   ├── instantiation_test.go
-│   ├── properties.go
-│   ├── properties_test.go
-│   ├── methods.go
-│   ├── methods_test.go
-│   ├── hierarchy.go
-│   └── hierarchy_test.go
-├── functions/              # Package functions
-│   ├── calls.go
-│   ├── calls_test.go
-│   ├── builtins.go
-│   ├── user.go
-│   ├── pointers.go
-│   ├── records.go
-│   └── typecast.go
-├── statements/             # Package statements
-│   ├── declarations.go
-│   ├── assignments.go
-│   ├── control.go
-│   └── loops.go
-├── interpreter.go          # Main interpreter
-├── expressions.go
-├── environment.go
-├── exceptions.go
-├── value.go
-├── class.go
-└── ...
-```
-
-**Key Principles:**
-1. **Tests side-by-side** - `math.go` and `math_test.go` in same directory (Go convention)
-2. **Separate packages** - Each subdirectory is its own package
-3. **Clear APIs** - Forces thinking about what should be public vs internal
-4. **Logical grouping** - Related code together
-
-### Benefits
-
-✅ **Standard Go structure** - Follows idiomatic Go package organization
-✅ **Clear boundaries** - Package boundaries enforce good design
-✅ **Better encapsulation** - Private vs public functions are explicit
-✅ **Easier navigation** - 10-20 files per directory vs 116 in root
-✅ **Tests with code** - Standard Go convention, easier to maintain
-✅ **Better documentation** - Each package can have its own doc.go
-✅ **Reduced cognitive load** - Work within one package at a time
-✅ **Clearer dependencies** - Import statements show relationships
-
-### Costs (One-Time)
-
-⚠️ **Import path changes** - Need to update imports across codebase
-⚠️ **Function exports** - Need to capitalize public functions
-⚠️ **Potential circular deps** - Need to design package boundaries carefully
-⚠️ **Testing adjustments** - Some tests may need restructuring
-
-### Avoiding Circular Dependencies
-
-When creating subpackages, carefully consider dependencies:
-
-**Safe dependency flow (no circular imports):**
-```
-builtins → (nothing)          # Self-contained builtin functions
-objects → interp              # Objects may need Interpreter reference
-functions → interp, builtins  # Functions call builtins, need Interpreter
-statements → interp           # Statements need Interpreter
-interp → all subpackages      # Main package orchestrates
-```
-
-**Key strategies:**
-1. **Pass Interpreter as parameter** - Subpackages receive `*interp.Interpreter` as argument
-2. **Interface abstraction** - Define interfaces in `interp`, implement in subpackages
-3. **Keep builtins independent** - Builtin functions should only depend on Value types
-4. **Avoid cross-dependencies** - `objects` shouldn't import `functions`, etc.
-
-**Example pattern:**
-```go
-// internal/interp/objects/methods.go
-package objects
-
-import "github.com/MeKo-Tech/go-dws/internal/interp"
-
-// EvalMethodCall needs access to interpreter state
-func EvalMethodCall(i *interp.Interpreter, obj Value, method string, args []Value) (Value, error) {
-    // Can call back to interpreter methods
-    return i.EvalExpression(methodBody)
-}
-```
-
-### Migration Strategy
-
-**Phase 2.1: Create builtins/ package**
-1. Create `internal/interp/builtins/` directory
-2. Move `builtins_*.go` files → `builtins/*.go` (remove prefix)
-3. Change package from `interp` to `builtins`
-4. Capitalize exported functions
-5. Move test files alongside implementation
-6. Update imports in main `interp` package
-7. Test thoroughly
-
-**Phase 2.2: Create objects/ package**
-1. Create `internal/interp/objects/` directory
-2. Move `objects_*.go` files → `objects/*.go` (remove prefix)
-3. Change package to `objects`
-4. Export necessary functions
-5. Move tests
-6. Update imports
-7. Test
-
-**Phase 2.3: Create functions/ package**
-1. Similar process for `functions_*.go` files
-
-**Phase 2.4: Create statements/ package**
-1. Similar process for `statements_*.go` files
-
-**Example: Before and After**
-
-**Before (current):**
-```go
-// internal/interp/builtins_math.go
-package interp
-
-func builtinAbs(args []Value) (Value, error) { ... }
-```
-
-**After (organized):**
-```go
-// internal/interp/builtins/math_basic.go
-package builtins
-
-// Abs returns the absolute value of a number
-func Abs(args []Value) (Value, error) { ... }
-```
-
-```go
-// internal/interp/interpreter.go
-package interp
-
-import "github.com/MeKo-Tech/go-dws/internal/interp/builtins"
-
-func (i *Interpreter) evalBuiltinCall(name string, args []Value) (Value, error) {
-    switch name {
-    case "Abs":
-        return builtins.Abs(args)
-    // ...
-    }
-}
-```
-
-### Recommendation
-
-**YES, proceed with subdirectory organization.** The benefits far outweigh the one-time migration cost. This is standard Go practice and will make the codebase much more maintainable long-term.
-
----
-
-## Implementation Status
-
-### 🔄 Phase 1: Critical File Splits - IN PROGRESS
-
-**Goal:** Split the largest, most unwieldy files
-
-**Completed (Stages 1.1-1.5):**
-
-1. ✅ Split `internal/interp/objects.go` (79KB → 4 files)
-2. ✅ Split `internal/interp/functions.go` (67KB → 6 files)
-3. ✅ Split `internal/interp/statements.go` (52KB → 4 files)
-4. ✅ Split `builtins_datetime.go` (40KB → 3 files)
-5. ✅ Split `builtins_math.go` (35KB → 3 files)
-
-**Pending Critical Splits (Stages 1.6-1.9):**
-
-- 🔲 Stage 1.6: Split `internal/bytecode/vm.go` (2,553 lines → 4 files)
-- 🔲 Stage 1.7: Split `internal/bytecode/compiler.go` (1,817 lines → 4 files)
-- 🔲 Stage 1.8: Split `internal/semantic/analyze_classes.go` (1,466 lines → 3 files)
-- 🔲 Stage 1.9: Split `internal/interp/expressions.go` (1,222 lines → 3 files)
-
-**Pending Test Splits (Stages 1.10-1.22):**
-
-- 🔲 Stage 1.10: Split `internal/interp/string_test.go` (3,772 lines → 3 files)
-- 🔲 Stage 1.11: Split `internal/interp/math_test.go` (3,824 lines → 3 files)
-- 🔲 Stage 1.12-1.22: 11 additional test file splits
-
-**Status:** First 5 stages complete. 17 additional stages planned. All files remain in flat directory structure (subdirectory organization deferred to Phase 2).
-
----
-
-### ❌ Phase 2: Subdirectory Organization - NOT FEASIBLE
-
-**Date Attempted:** 2025-11-11
-**Status:** BLOCKED by Go's circular import restrictions
+This document identifies technical debt and refactoring opportunities in the go-dws codebase. As the project has grown, several files have become large and complex, with high cyclomatic complexity that impacts maintainability.
 
 **Current State:**
-- All files remain in flat directory structure
-- File count: `internal/interp/` has 116 Go files in root directory
-- Prefixed naming provides some organization
 
-**Target Structure (Originally Planned):**
-```
-internal/interp/
-├── builtins/          # Package builtins - all builtin functions
-├── objects/           # Package objects - OOP features
-├── functions/         # Package functions - function call handling
-├── statements/        # Package statements - statement evaluation
-└── ...                # Core interpreter files remain in root
-```
+- Several files exceed 1,000 lines (largest: 2,452 lines)
+- High cyclomatic complexity in critical functions (up to 209!)
+- Test files can be very large (up to 72KB)
+- Some functions exceed recommended complexity thresholds
 
-**Why Phase 2 Was Blocked:**
+**Goals:**
 
-Attempting to create subdirectory packages (builtins/, objects/, functions/, statements/) hits Go's **circular import prohibition**:
-
-```
-internal/interp → imports → internal/interp/builtins
-internal/interp/builtins → imports → internal/interp (for Value, Interpreter types)
-```
-
-**The fundamental issue**: All interpreter subsystems (builtins, objects, functions, statements) are **tightly coupled** to core interpreter types:
-- They all need access to `*Interpreter`, `Value` interface, and related types from `interp` package
-- The `interp` package needs to call functions in these subsystems
-- Many functions call back into interpreter methods (e.g., builtin `Map` calls `CallFunctionPointer`)
-
-Go does **not allow circular imports**, even between parent/child packages. This is a hard constraint of the language.
-
-**What Would Be Required to Succeed:**
-
-To successfully separate into subdirectory packages would require a **much larger refactoring**:
-
-1. **Extract shared types to common package** (e.g., `internal/runtime/` or `internal/values/`):
-   - Move `Value` interface and all value types (IntegerValue, StringValue, etc.)
-   - Move `Interpreter` to an interface or extract core methods
-   - Move error handling infrastructure
-   - Move Environment types
-
-2. **Dependency flow** (no circular imports):
-   ```
-   internal/runtime/       # Shared types: Value, Interpreter interface
-   ├── imported by →  internal/interp/builtins/
-   ├── imported by →  internal/interp/objects/
-   ├── imported by →  internal/interp/functions/
-   ├── imported by →  internal/interp/statements/
-   └── imported by →  internal/interp/          # Orchestrator
-   ```
-
-3. **Interface-based design**:
-   - Define interfaces for what subsystems need from Interpreter
-   - Reduce coupling through abstraction
-   - Potentially thousands of lines of code affected
-
-This is a **massive architectural refactoring** affecting the entire codebase, not just moving files.
-
-**Decision: DEFER Phase 2**
-
-The current flat structure with prefixed naming (`builtins_core.go`, `objects_methods.go`, etc.) is:
-- ✅ **Working well** - Phase 1 splits reduced file sizes significantly
-- ✅ **Maintainable** - Clear prefixes make organization visible
-- ✅ **No circular deps** - Everything in same package
-- ✅ **Easy to navigate** - Prefixes group related files together
-
-The subdirectory organization would be **nice-to-have** but is **not critical** for maintainability given:
-- Phase 1 successfully eliminated all files over 50KB
-- Prefixed naming provides logical grouping
-- Cost of the required refactoring is very high
-
-**Recommendation:** Accept current structure and defer subdirectory organization until there's a compelling need and resources for the larger architectural refactoring
+- Reduce file sizes to improve navigability (target: <1,500 lines)
+- Lower cyclomatic complexity (target: <15 per function)
+- Split large test files for better organization
+- Maintain all functionality and test coverage
 
 ---
 
-### 📋 Remaining Phases (Original Plan - Under Review)
+## Priority 1: Critical Cyclomatic Complexity Issues
 
-The following phases from the original plan have **not been started** and should be re-evaluated:
+These functions have exceptionally high complexity and should be refactored first:
 
-**Phase 3: Semantic Package Refactor**
-- Status: NOT STARTED
-- Files remain unsplit and in flat structure
+### 🔴 P1.1: pkg/ast/visitor.go - Walk function (complexity: 209)
 
-**Phase 4: Bytecode Package Refactor**
-- Status: NOT STARTED
-- `vm.go` (2,172 lines) and `compiler.go` (1,799 lines) remain unsplit
+**Current:** Single monolithic function handling all AST node types
+**Target:** Extract type-specific walk functions
 
-**Phase 5: Test Organization**
-- Status: NOT STARTED
-- Test files remain mixed with implementation
-
-**Phase 6: Value Types Organization**
-- Status: NOT STARTED
-- Value types remain in root
-
-**Phase 7: Documentation Updates**
-- Status: PARTIAL
-- REFACTOR.md exists but needs updating (this document)
-- CLAUDE.md may need updates to reflect file splits
-
----
-
-## Migration Guidelines
-
-### General Principles
-
-1. **One change at a time** - Split one file or move one group at a time
-2. **Test after every change** - Run full test suite after each modification
-3. **Maintain git history** - Use `git mv` when moving files
-4. **Update imports immediately** - Don't let broken imports accumulate
-5. **Document as you go** - Update comments and docs alongside code changes
-
-### File Splitting Process
-
-For each file to be split:
-
-1. **Create target directory** (if needed)
-   ```bash
-   mkdir -p internal/interp/objects
-   ```
-
-2. **Create new files** with appropriate headers
-   ```go
-   // Package objects contains object-oriented feature implementations.
-   package objects
-
-   import (
-       "github.com/MeKo-Tech/go-dws/internal/ast"
-       // ... other imports
-   )
-   ```
-
-3. **Copy functions to new files** based on logical grouping
-
-4. **Update package references**
-   - Change `package interp` to `package objects` (or appropriate name)
-   - Adjust visibility (exported vs unexported)
-
-5. **Update imports in other files**
-   ```go
-   import (
-       "github.com/MeKo-Tech/go-dws/internal/interp/objects"
-   )
-   ```
-
-6. **Update function calls**
-   ```go
-   // Old: evalNewExpression(...)
-   // New: objects.EvalNewExpression(...)
-   ```
-
-7. **Run tests**
-   ```bash
-   go test ./internal/interp/... -v
-   ```
-
-8. **Delete original file** only after all tests pass
-   ```bash
-   git rm internal/interp/objects.go
-   ```
-
-9. **Commit**
-   ```bash
-   git add .
-   git commit -m "refactor: split objects.go into objects/ subdirectory"
-   ```
-
-### Import Path Updates
-
-When creating subdirectories, import paths change:
-
-**Before:**
 ```go
-import "github.com/MeKo-Tech/go-dws/internal/interp"
-
-interp.NewInterpreter()
-```
-
-**After:**
-```go
-import (
-    "github.com/MeKo-Tech/go-dws/internal/interp"
-    "github.com/MeKo-Tech/go-dws/internal/interp/builtins"
-    "github.com/MeKo-Tech/go-dws/internal/interp/objects"
-)
-
-interp.NewInterpreter()
-builtins.RegisterAll()
-objects.Instantiate()
-```
-
-### Test File Organization
-
-When moving test files:
-
-1. **Preserve test package names**
-   ```go
-   // Can use either:
-   package interp_test  // Black-box testing
-   package interp       // White-box testing
-   ```
-
-2. **Update relative paths** in test data
-   ```go
-   // Old: testdata/simple.dws
-   // New: ../../testdata/simple.dws (if tests moved to tests/ subdirectory)
-   ```
-
-3. **Consider test helper consolidation**
-   - Create shared test helpers in `tests/helpers.go`
-   - Reduce duplication across test files
-
-### Visibility Considerations
-
-When splitting files, consider function visibility:
-
-**Keep unexported** (lowercase) if:
-- Function is only used within the package
-- Function is an implementation detail
-
-**Make exported** (uppercase) if:
-- Function needs to be called from other packages
-- Function is part of public API
-
-**Example:**
-```go
-// objects/instantiation.go
-
-// EvalNewExpression evaluates object instantiation (exported - called from interp)
-func EvalNewExpression(node *ast.NewExpression, interp *Interpreter) Value {
-    return createObjectInstance(node, interp)
+// Current pattern:
+func Walk(node Node, visitor Visitor) error {
+    switch n := node.(type) {
+    case *ProgramNode: // ... 50 lines
+    case *ClassDecl: // ... 30 lines
+    case *FunctionDecl: // ... 40 lines
+    // ... 200+ more lines
+    }
 }
 
-// createObjectInstance is an internal helper (unexported)
-func createObjectInstance(node *ast.NewExpression, interp *Interpreter) Value {
-    // ...
+// Target pattern:
+func Walk(node Node, visitor Visitor) error {
+    switch n := node.(type) {
+    case *ProgramNode:
+        return walkProgram(n, visitor)
+    case *ClassDecl:
+        return walkClassDecl(n, visitor)
+    // ... dispatch to specific functions
+    }
 }
+
+func walkProgram(n *ProgramNode, v Visitor) error { ... }
+func walkClassDecl(n *ClassDecl, v Visitor) error { ... }
 ```
 
-### Common Pitfalls to Avoid
+**Impact:** Major - This is used throughout the codebase for AST traversal
 
-❌ **Don't split arbitrarily** - Split based on logical boundaries
-❌ **Don't break circular dependencies** - Be mindful of package dependencies
-❌ **Don't skip tests** - Always run tests after changes
-❌ **Don't batch too many changes** - Commit frequently
-❌ **Don't forget documentation** - Update docs alongside code
+### 🔴 P1.2: internal/bytecode/compiler_core.go - evaluateBinary (complexity: 70)
 
-✅ **Do split by feature** - Group related functions
-✅ **Do maintain package cohesion** - Keep related code together
-✅ **Do test incrementally** - Run tests after each change
-✅ **Do commit frequently** - Small, focused commits
-✅ **Do update documentation** - Keep docs in sync
+**Current:** 70 complexity, handles all binary operations during constant folding
+**Target:** Split by operation category (arithmetic, comparison, logical, bitwise)
 
----
-
-## Testing Strategy
-
-### After Each File Split
-
-1. **Unit tests** - Run package tests
-   ```bash
-   go test ./internal/interp/objects -v
-   ```
-
-2. **Integration tests** - Run interpreter tests
-   ```bash
-   go test ./internal/interp -v -run TestDWScriptFixtures
-   ```
-
-3. **Full suite** - Run all tests
-   ```bash
-   go test ./... -v
-   ```
-
-4. **Coverage check** - Ensure coverage doesn't drop
-   ```bash
-   go test -cover ./internal/interp/...
-   ```
-
-### After Directory Reorganization
-
-1. **Import checks** - Verify no broken imports
-   ```bash
-   go build ./...
-   ```
-
-2. **Test discovery** - Ensure all tests still run
-   ```bash
-   go test ./... -v | grep -c "PASS"
-   ```
-
-3. **Fixture tests** - Run complete DWScript test suite
-   ```bash
-   go test ./internal/interp -run TestDWScriptFixtures -v
-   ```
-
-### Regression Prevention
-
-1. **Run tests before and after** - Compare results
-2. **Check test coverage** - Should remain stable or increase
-3. **Verify fixture test pass rate** - Should not decrease
-4. **Test CLI tool** - Ensure `dwscript` commands still work
-
----
-
-## Current Status and Metrics
-
-### Metrics After Phase 1 (File Splits)
-
-**Before refactoring:**
-- **Largest file:** 79KB (objects.go)
-- **Files over 50KB:** 6 files
-- **Files over 30KB:** 20 files
-
-**Current state (Phase 1 mostly complete):**
-- **Largest remaining unsplit file:** 35KB (builtins_math.go)
-- **Files over 50KB in internal/interp (after Phase 1 splits):** 0 files ✅
-- **Files over 30KB in interp:** ~6 files (mostly builtins and expressions.go)
-- **Total files in internal/interp:** 116 files (increased from splits)
-- **Directory structure:** Flat (no subdirectories created)
-
-### Improvements Achieved
-
-✅ **Large files eliminated** - No files over 50KB
-✅ **Improved navigation** - Prefixed filenames (objects_*, functions_*, statements_*) make related code easy to find
-✅ **Reduced cognitive load** - Smaller, focused files (200-900 lines each)
-✅ **Better maintainability** - Changes localized to specific files
-✅ **No import changes** - All refactoring done within same package
-
-### Remaining Concerns
-
-⚠️ **High file count** - 116 files in internal/interp/ root directory
-⚠️ **Test file clutter** - Test files mixed with implementation
-⚠️ **Other large files** - vm.go (2,172 lines, 47KB), compiler.go (1,799 lines, 42KB), analyze_classes.go (1,466 lines, 38KB) remain unsplit
-
----
-
-## Future Considerations
-
-### As the Project Grows
-
-1. **Monitor file sizes** - Split files before they exceed 50KB
-2. **Consistent patterns** - Apply same organization to new packages
-3. **Regular refactoring** - Don't let technical debt accumulate
-4. **Documentation** - Keep CLAUDE.md updated with structure changes
-
-### Potential Future Subdirectories
-
-If packages continue to grow, consider:
-
-- `internal/interp/vm/` - Alternative VM implementation
-- `internal/interp/optimizer/` - AST optimization passes
-- `internal/semantic/inference/` - Type inference
-- `internal/codegen/` - Code generation (if transpilation added)
-- `pkg/stdlib/` - Standard library modules
-
-### WebAssembly Considerations (Stage 10.15)
-
-The planned `pkg/platform/` and `pkg/wasm/` packages should follow these same organizational principles:
-
-```
-pkg/
-├── platform/
-│   ├── filesystem/
-│   ├── console/
-│   └── runtime/
-└── wasm/
-    ├── bindings/
-    ├── interop/
-    └── stdlib/
+```go
+// Split into:
+- evaluateBinaryArithmetic()  // +, -, *, /, div, mod
+- evaluateBinaryComparison()  // =, <>, <, >, <=, >=
+- evaluateBinaryLogical()     // and, or, xor
+- evaluateBinaryBitwise()     // shl, shr, and, or, xor (bitwise)
 ```
 
----
+**Impact:** High - Critical for bytecode compiler optimization
 
-## Conclusion
+### 🟠 P1.3: internal/bytecode/optimizer.go - foldBinaryOp (complexity: 47)
 
-Phase 1 of the refactoring is in progress with 5 of 22 planned stages complete.
+**Current:** 47 complexity, handles constant folding for binary operations
+**Target:** Split by type (integer, float, string, boolean operations)
 
-**Phase 1 Progress (Stages 1.1-1.22):**
+### 🟠 P1.4: internal/bytecode/optimizer.go - propagateConstants (complexity: 37)
 
-- ✅ **Stages 1.1-1.5 Complete:** Split 5 major files in `internal/interp/` (79KB → 20 smaller files)
-- 🔲 **Stages 1.6-1.9 Pending:** 4 critical large files to split (vm.go, compiler.go, analyze_classes.go, expressions.go)
-- 🔲 **Stages 1.10-1.22 Pending:** 13 large test files to split for better organization
+**Current:** 37 complexity, propagates constants through bytecode
+**Target:** Extract helper functions for different propagation scenarios
 
-**Achievements So Far:**
+### 🟠 P1.5: internal/bytecode/disasm.go - DisassembleInstruction (complexity: 29)
 
-- ✅ Eliminated all files over 50KB in `internal/interp/` directory
-- ✅ Split 5 major files into 20 smaller, focused files (200-900 lines each)
-- ✅ Clear naming conventions (objects_*, functions_*, statements_*, builtins_*)
-- ✅ All functionality preserved and tests passing
-
-**Remaining Work:**
-
-- 🔲 Split 4 critical implementation files (2,553-1,222 lines each)
-- 🔲 Split 13 large test files (3,824-945 lines each)
-- 🔲 Total: 17 stages remaining in Phase 1
-
-**Phase 2 Status:**
-
-After attempting implementation, **subdirectory organization has been deferred** due to Go's circular import restrictions:
-
-1. ❌ **Phase 2 Attempted:** Created subdirectory packages but hit circular dependency
-2. ❌ **Blocked by Go constraints:** Parent/child packages cannot have circular imports
-3. ✅ **Code reverted:** All changes reverted, tests still passing
-4. ✅ **Alternative accepted:** Current flat structure with prefixed naming is sufficient
-
-**Why Phase 2 Was Deferred:**
-
-- Requires massive architectural refactoring (extract shared types to common package)
-- Would affect thousands of lines across entire codebase
-- Current structure works well after Phase 1 improvements
-- Cost/benefit analysis doesn't justify the effort
-
-**Current Status:**
-
-- **Flat directory structure** with 116 files in `internal/interp/`
-- **Prefixed naming** provides logical organization (builtins_*, objects_*, functions_*, statements_*)
-- **5 stages complete, 17 stages pending** in Phase 1
-- **Easy to navigate** - prefixes make it clear which files are related
-- **No circular dependencies** - everything in one package
-
-**Key Principles Moving Forward:**
-
-- Accept flat structure as the pragmatic solution
-- Continue using prefixed naming for new files
-- Split files before they exceed 1,500 lines or 50KB
-- Complete remaining Phase 1 stages incrementally
-- Defer subdirectory organization until there's a compelling need
+**Current:** 29 complexity, massive switch statement for 116 opcodes
+**Target:** Group related opcodes, extract formatting helpers
 
 ---
 
-**Document Version:** 2.4
-**Last Updated:** 2025-01-11
-**Status:** Phase 1 in progress (5/22 stages complete); Phase 2 deferred due to Go circular import constraints
+## Priority 2: Large Implementation Files (>1,200 lines)
+
+### 🔵 P2.1: internal/bytecode/vm_builtins.go (2,452 lines, 68KB)
+
+**Current:** Single file with all VM builtin implementations
+**Target:** Split into logical categories
+
+```
+vm_builtins.go → Split into:
+├── vm_builtins_string.go      (~600 lines) - String manipulation functions
+├── vm_builtins_math.go        (~500 lines) - Math functions
+├── vm_builtins_datetime.go    (~400 lines) - Date/time functions
+├── vm_builtins_array.go       (~300 lines) - Array functions
+├── vm_builtins_conversion.go  (~350 lines) - Type conversion functions
+└── vm_builtins_misc.go        (~300 lines) - Misc functions (Print, Inc, Dec, etc.)
+```
+
+**Rationale:** Mirrors the organization already used in `internal/interp/builtins_*.go`
+
+### 🔵 P2.2: internal/semantic/analyze_builtin_string.go (1,343 lines, 56KB)
+
+**Current:** All string builtin analysis in one file
+**Target:** Split by operation category
+
+```
+analyze_builtin_string.go → Split into:
+├── analyze_builtin_string_search.go    (~400 lines) - Pos, LastPos, Find, Contains
+├── analyze_builtin_string_transform.go (~450 lines) - Upper, Lower, Trim, Replace
+└── analyze_builtin_string_format.go    (~500 lines) - Format, StrUtils functions
+```
+
+**Rationale:** Consistent with interp layer organization
+
+### 🔵 P2.3: internal/parser/expressions.go (1,303 lines)
+
+**Current:** All expression parsing in one file
+**Status:** Manageable but monitor - split if grows beyond 1,500 lines
+
+### 🔵 P2.4: internal/interp/builtins_core.go (1,296 lines, 44KB)
+
+**Current:** Core builtins (Print, Inc, Dec, Ord, Chr, TypeOf, etc.)
+**Target:** Split into focused files
+
+```
+builtins_core.go → Split into:
+├── builtins_io.go          (~300 lines) - Print, PrintLn, Write, WriteLn
+├── builtins_conversion.go  (~400 lines) - Ord, Chr, Int, Float, Str conversions
+├── builtins_type.go        (~300 lines) - TypeOf, SizeOf, High, Low
+└── builtins_misc.go        (~300 lines) - Inc, Dec, Swap, Copy, etc.
+```
+
+### 🔵 P2.5: internal/semantic/analyze_builtin_math.go (1,264 lines, 48KB)
+
+**Status:** Already well-organized into logical sections. Consider splitting only if grows beyond 1,500 lines.
+
+### 🔵 P2.6: internal/interp/builtins_strings_basic.go (1,182 lines)
+
+**Status:** Focused on basic string operations. Monitor but defer splitting.
+
+### 🔵 P2.7: internal/interp/helpers.go (1,177 lines, 40KB)
+
+**Current:** Mixed helper functions
+**Target:** Split by purpose
+
+```
+helpers.go → Split into:
+├── helpers_conversion.go  (~400 lines) - Type conversion helpers
+├── helpers_comparison.go  (~350 lines) - Comparison helpers
+└── helpers_validation.go  (~400 lines) - Input validation helpers
+```
+
+### 🔵 P2.8: internal/interp/value.go (1,164 lines)
+
+**Current:** Value interface and all value type implementations
+**Target:** Split by value category
+
+```
+value.go → Split into:
+├── value.go              (~200 lines) - Value interface, basic types
+├── value_collections.go  (~350 lines) - Array, Set, Map values
+├── value_objects.go      (~300 lines) - Object, Class values
+└── value_functions.go    (~300 lines) - Function, Lambda values
+```
+
+### 🔵 P2.9: internal/types/types.go (1,092 lines, 36KB)
+
+**Current:** All type definitions in one file
+**Status:** Well-organized. Monitor but defer splitting unless grows significantly.
+
+---
+
+## Priority 3: Large Test Files
+
+These test files are very large and would benefit from splitting:
+
+### 🟢 P3.1: internal/interp/string_test.go (72KB)
+
+**Target:** Split by operation category
+```
+├── string_search_test.go      (~24KB) - Pos, Find, Contains tests
+├── string_transform_test.go   (~24KB) - Upper, Lower, Trim, Replace tests
+└── string_format_test.go      (~24KB) - Format, SubString tests
+```
+
+### 🟢 P3.2: internal/interp/math_test.go (64KB)
+
+**Target:** Split by math category
+```
+├── math_basic_test.go   (~21KB) - Abs, Sqrt, Power, Min, Max tests
+├── math_trig_test.go    (~21KB) - Sin, Cos, Tan, Arc* tests
+└── math_convert_test.go (~21KB) - Round, Trunc, Floor, Ceil tests
+```
+
+### 🟢 P3.3: internal/parser/arrays_test.go (52KB)
+
+**Target:** Split by parsing feature
+```
+├── arrays_literal_test.go     (~26KB) - Array literal parsing
+└── arrays_operations_test.go  (~26KB) - Array indexing/operations parsing
+```
+
+### 🟢 P3.4: internal/parser/functions_test.go (48KB)
+
+**Target:** Split by function feature
+```
+├── functions_decl_test.go  (~24KB) - Function declaration parsing
+└── functions_call_test.go  (~24KB) - Function call parsing
+```
+
+### 🟢 P3.5: internal/interp/set_test.go (48KB)
+
+**Target:** Split by set operations
+```
+├── set_basic_test.go    (~24KB) - Creation, membership, basic ops
+└── set_advanced_test.go (~24KB) - Advanced operations, edge cases
+```
+
+### 🟢 P3.6: internal/bytecode/compiler_test.go (48KB)
+
+**Target:** Mirror compiler.go split
+```
+├── compiler_statements_test.go   (~16KB)
+├── compiler_expressions_test.go  (~16KB)
+└── compiler_functions_test.go    (~16KB)
+```
+
+### 🟢 P3.7: internal/parser/classes_test.go (44KB)
+
+**Target:** Split by class feature
+```
+├── classes_decl_test.go    (~22KB) - Class declaration parsing
+└── classes_members_test.go (~22KB) - Method/property parsing
+```
+
+### 🟢 P3.8: internal/interp/property_test.go (44KB)
+
+**Target:** Split by property complexity
+```
+├── property_basic_test.go    (~22KB) - Basic get/set tests
+└── property_advanced_test.go (~22KB) - Visibility, inheritance tests
+```
+
+### 🟢 P3.9: internal/interp/interpreter_test.go (44KB)
+
+**Target:** Split by feature complexity
+```
+├── interpreter_basic_test.go    (~15KB) - Literals, variables, expressions
+├── interpreter_control_test.go  (~15KB) - Control flow tests
+└── interpreter_advanced_test.go (~14KB) - Closures, recursion, edge cases
+```
+
+### 🟢 P3.10: internal/types/classes_test.go (40KB)
+
+**Target:** Split by class feature
+```
+├── classes_basic_test.go       (~20KB) - Basic class type tests
+└── classes_inheritance_test.go (~20KB) - Inheritance/polymorphism tests
+```
+
+### 🟢 P3.11: internal/interp/variant_test.go (40KB)
+
+**Target:** Split by variant operation
+```
+├── variant_basic_test.go    (~20KB) - Basic variant operations
+└── variant_advanced_test.go (~20KB) - Complex conversions, edge cases
+```
+
+### 🟢 P3.12: internal/interp/lambda_test.go (40KB)
+
+**Target:** Split by lambda complexity
+```
+├── lambda_basic_test.go    (~20KB) - Basic lambdas, simple captures
+└── lambda_advanced_test.go (~20KB) - Nested lambdas, complex captures
+```
+
+### 🟢 P3.13: internal/semantic/analyze_builtin_datetime.go (945 lines, 40KB)
+
+**Target:** Split by datetime category
+```
+├── analyze_builtin_datetime_format.go (~315 lines)
+├── analyze_builtin_datetime_calc.go   (~315 lines)
+└── analyze_builtin_datetime_info.go   (~315 lines)
+```
+
+---
+
+## Priority 4: Medium Complexity Issues (15-30)
+
+These functions have elevated complexity but are not critical:
+
+- `internal/bytecode/optimizer.go:inlineSequenceForCall` (26)
+- `internal/bytecode/compiler_expressions.go:compileBinaryExpression` (22)
+- `internal/bytecode/bytecode.go:String` (22)
+- `internal/bytecode/optimizer.go:collapseStackShuffles` (22)
+- `internal/bytecode/compiler_expressions.go:compileExpression` (20)
+- `pkg/ast/classes.go:String` (18)
+- `internal/bytecode/compiler_statements.go:compileExceptClause` (18)
+- `pkg/ast/functions.go:String` (17)
+- `internal/bytecode/compiler_statements.go:compileStatement` (16)
+
+**Strategy:** Extract helper functions and break up large switch statements
+
+---
+
+## Priority 5: Minor Linting Issues
+
+### Ineffectual Assignments
+
+- `internal/interp/objects_methods.go:643` - ineffectual assignment to `found`
+- `internal/lexer/lexer.go:416` - ineffectual assignment to `lastError`
+
+### Unreachable Case Clauses
+
+- `internal/bytecode/compiler_core.go:508-518` - TypedExpression case matches before specific literal types
+
+### Unchecked Errors (in test files)
+
+Multiple test files have unchecked error returns. While tests are lower priority, these should be addressed for completeness.
+
+**Strategy:** Add `_ =` prefix to intentionally ignored errors, or add proper error handling
+
+---
+
+## Implementation Strategy
+
+### Phase 1: Critical Complexity Reduction (Immediate)
+
+Focus on the highest complexity functions that impact maintainability:
+
+1. **Week 1:** Refactor [pkg/ast/visitor.go](pkg/ast/visitor.go#L17) Walk function (complexity 209 → <15)
+2. **Week 2:** Refactor [internal/bytecode/compiler_core.go](internal/bytecode/compiler_core.go#L642) evaluateBinary (complexity 70 → <15)
+3. **Week 3:** Refactor [internal/bytecode/optimizer.go](internal/bytecode/optimizer.go#L871) foldBinaryOp (complexity 47 → <15)
+
+### Phase 2: Large File Splitting (Progressive)
+
+Split files in order of size/impact:
+
+1. Split [internal/bytecode/vm_builtins.go](internal/bytecode/vm_builtins.go) (2,452 lines → 6 files)
+2. Split [internal/semantic/analyze_builtin_string.go](internal/semantic/analyze_builtin_string.go) (1,343 lines → 3 files)
+3. Split [internal/interp/builtins_core.go](internal/interp/builtins_core.go) (1,296 lines → 4 files)
+4. Split [internal/interp/helpers.go](internal/interp/helpers.go) (1,177 lines → 3 files)
+5. Split [internal/interp/value.go](internal/interp/value.go) (1,164 lines → 4 files)
+
+### Phase 3: Test File Organization (As Time Permits)
+
+Split large test files to improve test organization and execution:
+
+1. Split largest test files first (string_test, math_test, arrays_test)
+2. Then medium test files (functions_test, set_test, compiler_test)
+3. Finally smaller test files as needed
+
+### Phase 4: Medium Complexity Reduction (Ongoing)
+
+Address functions with complexity 15-30 as they're encountered during feature work.
+
+### Phase 5: Minor Cleanup (Ongoing)
+
+Fix linting issues (ineffectual assignments, unchecked errors) as time permits.
+
+---
+
+## File Splitting Guidelines
+
+When splitting large files:
+
+1. **Logical grouping** - Group related functions together
+2. **Consistent naming** - Use clear, descriptive prefixes
+3. **Preserve functionality** - All tests must pass after split
+4. **Update imports** - Ensure all imports remain correct
+5. **Test thoroughly** - Run full test suite after each split
+6. **Commit atomically** - One split per commit
+
+**Example naming pattern:**
+```
+builtins_core.go →
+├── builtins_io.go         (I/O functions)
+├── builtins_conversion.go (Type conversions)
+├── builtins_type.go       (Type introspection)
+└── builtins_misc.go       (Miscellaneous)
+```
+
+---
+
+## Complexity Reduction Techniques
+
+### For High Complexity Functions
+
+1. **Extract Methods** - Break large switch statements into separate functions
+2. **Strategy Pattern** - Use maps of functions instead of switch statements
+3. **Table-Driven Logic** - Replace complex conditionals with lookup tables
+4. **Early Returns** - Reduce nesting by returning early
+5. **Helper Functions** - Extract repeated logic into helpers
+
+**Example refactoring:**
+
+```go
+// Before (complexity: 30)
+func handleNode(n Node) error {
+    switch v := n.(type) {
+    case *TypeA:
+        // 20 lines of logic
+    case *TypeB:
+        // 25 lines of logic
+    case *TypeC:
+        // 30 lines of logic
+    // ... 20 more cases
+    }
+}
+
+// After (complexity: 5)
+func handleNode(n Node) error {
+    switch v := n.(type) {
+    case *TypeA:
+        return handleTypeA(v)
+    case *TypeB:
+        return handleTypeB(v)
+    case *TypeC:
+        return handleTypeC(v)
+    // ... dispatch to handlers
+    }
+}
+
+func handleTypeA(n *TypeA) error { /* focused logic */ }
+func handleTypeB(n *TypeB) error { /* focused logic */ }
+func handleTypeC(n *TypeC) error { /* focused logic */ }
+```
+
+---
+
+## Testing After Refactoring
+
+After each refactoring change:
+
+```bash
+# Run affected package tests
+go test ./internal/bytecode -v
+
+# Run full test suite
+go test ./... -v
+
+# Check coverage hasn't decreased
+go test -cover ./internal/bytecode
+
+# Run linters
+golangci-lint run
+
+# Run fixture tests (integration)
+go test ./internal/interp -run TestDWScriptFixtures -v
+```
+
+---
+
+## Success Metrics
+
+### Target Metrics
+
+- ✅ **No functions with complexity > 30** (currently: 4 functions)
+- ✅ **No files > 1,500 lines** (currently: 1 file at 2,452 lines)
+- ✅ **90%+ test coverage maintained**
+- ✅ **All fixture tests passing**
+- ✅ **Zero critical linting issues**
+
+### Progress Tracking
+
+Track progress by:
+
+1. Monitoring largest files with `find . -name "*.go" -not -name "*_test.go" -exec wc -l {} + | sort -rn | head -10`
+2. Running complexity checks with `golangci-lint run -E cyclop,funlen`
+3. Checking test coverage with `go test -cover ./...`
+4. Monitoring git commit history for refactoring work
+
+---
+
+## Notes
+
+- **Flat directory structure** - Current flat structure with prefixed naming works well; no subdirectory organization planned due to Go circular import constraints
+- **One change at a time** - Small, focused refactoring changes with tests after each
+- **Maintain compatibility** - All refactoring must preserve existing functionality
+- **Document changes** - Update this file as refactoring progresses
+
+---
+
+**Document Version:** 3.0
+**Last Updated:** 2025-11-13
+**Focus:** Active refactoring work needed - complexity reduction and file splitting
