@@ -104,11 +104,6 @@ value.go → Split into:
 └── value_functions.go    (~300 lines) - Function, Lambda values
 ```
 
-### 🔵 P2.9: internal/types/types.go (1,092 lines, 36KB)
-
-**Current:** All type definitions in one file
-**Status:** Well-organized. Monitor but defer splitting unless grows significantly.
-
 ---
 
 ## Priority 3: Large Test Files
