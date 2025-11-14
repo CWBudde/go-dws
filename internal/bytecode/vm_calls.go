@@ -50,6 +50,10 @@ func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) erro
 			// This is a limitation - for now, methods on nil arrays will fail
 			return vm.runtimeError("cannot call %s on nil array - array must be initialized first", methodName)
 		}
+		// PR #78: Guard against nil arrays for all helper methods to prevent panics
+		if arr == nil {
+			return vm.runtimeError("cannot call %s on nil array - array must be initialized first", methodName)
+		}
 		switch methodName {
 		case "Add", "add":
 			if len(args) != 1 {
@@ -121,7 +125,8 @@ func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) erro
 			}
 
 			arrayLen := arr.Length()
-			if startIndex < 0 || startIndex >= arrayLen {
+			// PR #78: Allow startIndex == arrayLen (searches 0 elements, returns -1)
+			if startIndex < 0 || startIndex > arrayLen {
 				vm.push(IntValue(-1))
 				return nil
 			}

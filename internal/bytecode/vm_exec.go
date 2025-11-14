@@ -535,7 +535,8 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 
 			// Validate startIndex
 			arrayLen := arr.Length()
-			if startIndex < 0 || startIndex >= arrayLen {
+			// Allow startIndex == arrayLen (searches 0 elements, returns -1)
+			if startIndex < 0 || startIndex > arrayLen {
 				vm.push(IntValue(-1))
 			} else {
 				// Search for value
