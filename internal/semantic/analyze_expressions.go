@@ -347,7 +347,9 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 	if !isInterface && !isClassTarget {
 		a.addError("'as' operator requires class or interface type, got %s at %s",
 			targetType.String(), expr.Token.Pos.String())
-		return nil
+		// Task 9.1.6: Return targetType to prevent cascading "cannot infer type" errors
+		// Even though the cast is invalid, we return a type so type inference can continue
+		return targetType
 	}
 
 	// Validate that left type is a class or object

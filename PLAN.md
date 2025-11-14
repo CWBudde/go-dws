@@ -106,13 +106,18 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
       - Runtime now supports both class-to-class and class-to-interface casts
       - Validates runtime compatibility for downcasts
     - [x] 9.1.5 Verify all type operator tests pass - ALL PASSING
-    - [ ] 9.1.6 Avoid cascading errors when 'as' target type is invalid
-      - Short-circuit analysis after reporting "'as' operator requires interface or class type"
-      - Prevents secondary `cannot infer type` diagnostics (TestTypeOperator_As_InvalidRightOperand)
+    - [x] 9.1.6 Avoid cascading errors when 'as' target type is invalid - COMPLETED
+      - Returns targetType instead of nil when 'as' operator has invalid target type
+      - Prevents secondary `cannot infer type` diagnostics
+      - File: internal/semantic/analyze_expressions.go (analyzeAsExpression line 352)
   - **Files Modified**:
-    - internal/semantic/analyze_expressions.go (added strings import, updated all 3 operators)
+    - internal/semantic/analyze_expressions.go (added strings import, updated all 3 operators, cascading error fix)
     - internal/semantic/type_operators_test.go (updated error message expectation)
     - internal/interp/expressions.go (evalAsExpression now handles classes)
+  - **Bytecode VM Support**:
+    - Boolean 'is' comparisons (is True/is False) fully supported
+    - Type checking operators (is/as/implements with classes/interfaces) not yet implemented in bytecode
+    - Falls back to interpreter for complex type operations
 
 - [x] 9.2 Abstract Class Implementation - COMPLETED
   - **Estimate**: 2-3 hours
