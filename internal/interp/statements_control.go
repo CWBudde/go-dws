@@ -324,8 +324,20 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 				argValue := args[idx]
 
 				// Task 9.24.2: Convert array arguments to array of Variant if parameter is array of const
+				// P1: Resolve type aliases before checking (e.g., "toa" -> "array of const")
 				if param.Type != nil {
-					paramTypeName := strings.ToLower(param.Type.Name)
+					typeName := param.Type.Name
+					// Resolve potential type aliases (same pattern as registerClassOperator)
+					resolvedType, err := i.resolveType(typeName)
+					var paramTypeName string
+					if err == nil {
+						// Successfully resolved - use the resolved type's string representation
+						paramTypeName = strings.ToLower(resolvedType.String())
+					} else {
+						// Failed to resolve - use the raw type name
+						paramTypeName = strings.ToLower(typeName)
+					}
+
 					if strings.HasPrefix(paramTypeName, "array of const") || strings.HasPrefix(paramTypeName, "array of variant") {
 						if arrVal, ok := argValue.(*ArrayValue); ok {
 							// Convert array elements to Variants
