@@ -10,7 +10,7 @@ import (
 )
 
 // ============================================================================
-// Type Conversion Helpers
+// Type Resolution, Conversion, and Default Value Helpers
 // ============================================================================
 
 // getDefaultValue returns the default/zero value for a given type.
