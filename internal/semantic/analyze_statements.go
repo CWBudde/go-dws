@@ -528,9 +528,9 @@ func (a *Analyzer) analyzeBlock(stmt *ast.BlockStatement) {
 
 // analyzeIf analyzes an if statement
 func (a *Analyzer) analyzeIf(stmt *ast.IfStatement) {
-	// Check condition type
+	// Check condition type (Task 9.35: Allow Variant→Boolean implicit conversion)
 	condType := a.analyzeExpression(stmt.Condition)
-	if condType != nil && !condType.Equals(types.BOOLEAN) {
+	if condType != nil && !isBooleanCompatible(condType) {
 		a.addError("if condition must be boolean, got %s at %s",
 			condType.String(), stmt.Token.Pos.String())
 	}
@@ -546,9 +546,9 @@ func (a *Analyzer) analyzeIf(stmt *ast.IfStatement) {
 
 // analyzeWhile analyzes a while statement
 func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
-	// Check condition type
+	// Check condition type (Task 9.35: Allow Variant→Boolean implicit conversion)
 	condType := a.analyzeExpression(stmt.Condition)
-	if condType != nil && !condType.Equals(types.BOOLEAN) {
+	if condType != nil && !isBooleanCompatible(condType) {
 		a.addError("while condition must be boolean, got %s at %s",
 			condType.String(), stmt.Token.Pos.String())
 	}
@@ -580,9 +580,9 @@ func (a *Analyzer) analyzeRepeat(stmt *ast.RepeatStatement) {
 	// Analyze body
 	a.analyzeStatement(stmt.Body)
 
-	// Check condition type
+	// Check condition type (Task 9.35: Allow Variant→Boolean implicit conversion)
 	condType := a.analyzeExpression(stmt.Condition)
-	if condType != nil && !condType.Equals(types.BOOLEAN) {
+	if condType != nil && !isBooleanCompatible(condType) {
 		a.addError("repeat-until condition must be boolean, got %s at %s",
 			condType.String(), stmt.Token.Pos.String())
 	}

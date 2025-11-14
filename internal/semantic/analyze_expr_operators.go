@@ -449,7 +449,7 @@ func (a *Analyzer) analyzeUnaryExpression(expr *ast.UnaryExpression) types.Type 
 	}
 
 	// Handle logical/bitwise not
-	// In DWScript, 'not' works on both Boolean (logical NOT) and Integer (bitwise NOT)
+	// In DWScript, 'not' works on Boolean (logical NOT), Integer (bitwise NOT), and Variant (Task 9.35)
 	if operator == "not" {
 		if operandType.Equals(types.BOOLEAN) {
 			return types.BOOLEAN
@@ -457,7 +457,11 @@ func (a *Analyzer) analyzeUnaryExpression(expr *ast.UnaryExpression) types.Type 
 		if operandType.Equals(types.INTEGER) {
 			return types.INTEGER
 		}
-		a.addError("unary not requires Boolean or Integer operand, got %s at %s",
+		// Task 9.35: Support Variant→Boolean implicit conversion in not operator
+		if operandType.Equals(types.VARIANT) {
+			return types.VARIANT
+		}
+		a.addError("unary not requires Boolean, Integer, or Variant operand, got %s at %s",
 			operandType.String(), expr.Token.Pos.String())
 		return nil
 	}

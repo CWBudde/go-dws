@@ -272,9 +272,9 @@ func (a *Analyzer) checkPreconditions(preconds *ast.PreConditions, funcName stri
 	}
 
 	for _, cond := range preconds.Conditions {
-		// Task 9.140: Validate test expression is boolean
+		// Task 9.140: Validate test expression is boolean (Task 9.35: Allow Variant)
 		testType := a.analyzeExpression(cond.Test)
-		if testType != nil && testType != types.BOOLEAN {
+		if testType != nil && !isBooleanCompatible(testType) {
 			a.addError("precondition must be boolean expression in function '%s', got %s at %s",
 				funcName, testType.String(), cond.Token.Pos.String())
 		}
@@ -299,9 +299,9 @@ func (a *Analyzer) checkPostconditions(postconds *ast.PostConditions, funcName s
 	}
 
 	for _, cond := range postconds.Conditions {
-		// Task 9.141: Validate test expression is boolean
+		// Task 9.141: Validate test expression is boolean (Task 9.35: Allow Variant)
 		testType := a.analyzeExpression(cond.Test)
-		if testType != nil && testType != types.BOOLEAN {
+		if testType != nil && !isBooleanCompatible(testType) {
 			a.addError("postcondition must be boolean expression in function '%s', got %s at %s",
 				funcName, testType.String(), cond.Token.Pos.String())
 		}

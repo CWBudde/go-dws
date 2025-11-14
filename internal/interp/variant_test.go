@@ -1636,3 +1636,209 @@ Empty checks:
 		t.Errorf("expected output:\n%s\ngot:\n%s", expected, output)
 	}
 }
+
+// ============================================================================
+// Task 9.35: Variant→Boolean Coercion Tests
+// ============================================================================
+
+func TestVariantBooleanCoercionInIfStatement(t *testing.T) {
+	input := `
+		var v: Variant;
+		v := True;
+		if v then
+			PrintLn('v is truthy');
+		v := False;
+		if v then
+			PrintLn('should not print')
+		else
+			PrintLn('v is falsy');
+	`
+	expected := `v is truthy
+v is falsy
+`
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %v", result)
+	}
+	if output != expected {
+		t.Errorf("expected output:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestVariantBooleanCoercionInIfExpression(t *testing.T) {
+	input := `
+		var v: Variant;
+		v := True;
+		PrintLn(if v then 'ok' else 'bug');
+		v := False;
+		PrintLn(if v then 'bug' else 'ok');
+	`
+	expected := `ok
+ok
+`
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %v", result)
+	}
+	if output != expected {
+		t.Errorf("expected output:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestVariantBooleanCoercionNotOperator(t *testing.T) {
+	input := `
+		var v: Variant;
+		v := True;
+		PrintLn(if not v then 'bug' else 'ok');
+		v := False;
+		PrintLn(if not v then 'ok' else 'bug');
+	`
+	expected := `ok
+ok
+`
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %v", result)
+	}
+	if output != expected {
+		t.Errorf("expected output:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestVariantBooleanCoercionWhileLoop(t *testing.T) {
+	input := `
+		var v: Variant;
+		var count: Integer;
+		count := 0;
+		v := True;
+		while v do begin
+			count := count + 1;
+			PrintLn('iteration ' + IntToStr(count));
+			if count >= 3 then
+				v := False;
+		end;
+		PrintLn('done');
+	`
+	expected := `iteration 1
+iteration 2
+iteration 3
+done
+`
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %v", result)
+	}
+	if output != expected {
+		t.Errorf("expected output:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestVariantBooleanCoercionRepeatUntil(t *testing.T) {
+	input := `
+		var v: Variant;
+		var count: Integer;
+		count := 0;
+		v := False;
+		repeat
+			count := count + 1;
+			PrintLn('iteration ' + IntToStr(count));
+			if count >= 3 then
+				v := True;
+		until v;
+		PrintLn('done');
+	`
+	expected := `iteration 1
+iteration 2
+iteration 3
+done
+`
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %v", result)
+	}
+	if output != expected {
+		t.Errorf("expected output:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestVariantBooleanCoercionIntegerZeroIsFalse(t *testing.T) {
+	input := `
+		var v: Variant;
+		v := 0;
+		PrintLn(if v then 'bug' else 'zero is false');
+		v := 1;
+		PrintLn(if v then 'one is true' else 'bug');
+		v := -5;
+		PrintLn(if v then 'negative is true' else 'bug');
+	`
+	expected := `zero is false
+one is true
+negative is true
+`
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %v", result)
+	}
+	if output != expected {
+		t.Errorf("expected output:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestVariantBooleanCoercionFloatZeroIsFalse(t *testing.T) {
+	input := `
+		var v: Variant;
+		v := 0.0;
+		PrintLn(if v then 'bug' else 'zero is false');
+		v := 1.5;
+		PrintLn(if v then 'positive is true' else 'bug');
+		v := -2.3;
+		PrintLn(if v then 'negative is true' else 'bug');
+	`
+	expected := `zero is false
+positive is true
+negative is true
+`
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %v", result)
+	}
+	if output != expected {
+		t.Errorf("expected output:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestVariantBooleanCoercionStringEmptyIsFalse(t *testing.T) {
+	input := `
+		var v: Variant;
+		v := '';
+		PrintLn(if v then 'bug' else 'empty is false');
+		v := 'hello';
+		PrintLn(if v then 'non-empty is true' else 'bug');
+	`
+	expected := `empty is false
+non-empty is true
+`
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %v", result)
+	}
+	if output != expected {
+		t.Errorf("expected output:\n%s\ngot:\n%s", expected, output)
+	}
+}
+
+func TestVariantBooleanCoercionUnassignedIsFalse(t *testing.T) {
+	input := `
+		var v: Variant;
+		PrintLn(if v then 'bug' else 'unassigned is false');
+	`
+	expected := `unassigned is false
+`
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %v", result)
+	}
+	if output != expected {
+		t.Errorf("expected output:\n%s\ngot:\n%s", expected, output)
+	}
+}
