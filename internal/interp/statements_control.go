@@ -57,16 +57,53 @@ func (i *Interpreter) evalIfStatement(stmt *ast.IfStatement) Value {
 }
 
 // isTruthy determines if a value is considered "true" for conditional logic.
-// In DWScript, only boolean true is truthy. Everything else requires explicit conversion.
+// Task 9.35: Support Variant→Boolean implicit conversion.
+// DWScript semantics for Variant→Boolean: empty/nil/zero → false, otherwise → true
 func isTruthy(val Value) bool {
 	switch v := val.(type) {
 	case *BooleanValue:
 		return v.Value
+	case *VariantValue:
+		// Task 9.35: Variant→Boolean coercion
+		// Unwrap the variant and check the underlying value
+		if v.Value == nil {
+			// Unassigned variant → false
+			return false
+		}
+		// Recursively check the wrapped value
+		return variantToBool(v.Value)
 	default:
-		// In DWScript, only booleans can be used in conditions
+		// In DWScript, only booleans and variants can be used in conditions
 		// Non-boolean values in conditionals would be a type error
 		// For now, treat non-booleans as false
 		return false
+	}
+}
+
+// variantToBool converts a variant's wrapped value to boolean following DWScript semantics.
+// Task 9.35: empty/nil/zero → false, otherwise → true
+func variantToBool(val Value) bool {
+	if val == nil {
+		return false
+	}
+
+	switch v := val.(type) {
+	case *BooleanValue:
+		return v.Value
+	case *IntegerValue:
+		return v.Value != 0
+	case *FloatValue:
+		return v.Value != 0.0
+	case *StringValue:
+		return v.Value != ""
+	case *NilValue:
+		return false
+	case *VariantValue:
+		// Nested variant - recursively unwrap
+		return variantToBool(v.Value)
+	default:
+		// For objects, arrays, records, etc: non-nil → true
+		return true
 	}
 }
 

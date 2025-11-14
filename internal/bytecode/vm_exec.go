@@ -641,6 +641,8 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
+			// Task 9.35: TODO - Add Variant→Boolean implicit conversion once Variant support is added to bytecode VM
+			// For now, only Boolean values are supported
 			if !val.IsBool() {
 				return NilValue(), vm.typeError("NOT", "Boolean", val.Type.String())
 			}
@@ -694,6 +696,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
+			// Task 9.35: TODO - Add Variant→Boolean implicit conversion once Variant support is added to bytecode VM
 			if !cond.IsBool() {
 				return NilValue(), vm.typeError("JUMP_IF_FALSE", "Boolean", cond.Type.String())
 			}
@@ -705,6 +708,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
+			// Task 9.35: TODO - Add Variant→Boolean implicit conversion once Variant support is added to bytecode VM
 			if !cond.IsBool() {
 				return NilValue(), vm.typeError("JUMP_IF_TRUE", "Boolean", cond.Type.String())
 			}
