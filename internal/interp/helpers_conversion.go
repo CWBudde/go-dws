@@ -158,7 +158,7 @@ func extractSimpleTypeName(typeName string) string {
 }
 
 // ============================================================================
-// Built-in Helper Method Implementations (Type Conversions)
+// Built-in Helper Method Implementations
 // ============================================================================
 
 // evalBuiltinHelperMethod executes a built-in helper method implementation identified by spec.
