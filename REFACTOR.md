@@ -41,16 +41,6 @@ value.go → Split into:
 
 These test files are very large and would benefit from splitting:
 
-### 🟢 P3.1: internal/interp/string_test.go (72KB)
-
-**Target:** Split by operation category
-
-```plain
-├── string_search_test.go      (~24KB) - Pos, Find, Contains tests
-├── string_transform_test.go   (~24KB) - Upper, Lower, Trim, Replace tests
-└── string_format_test.go      (~24KB) - Format, SubString tests
-```
-
 ### 🟢 P3.2: internal/interp/math_test.go (64KB)
 
 **Target:** Split by math category
