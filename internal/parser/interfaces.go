@@ -52,7 +52,9 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 			}
 
 			typeDecl := &ast.TypeDeclaration{
-				Token:      typeToken,
+				BaseNode: ast.BaseNode{
+					Token: typeToken,
+				},
 				Name:       nameIdent,
 				IsSubrange: true,
 				LowBound:   lowBound,
@@ -78,7 +80,9 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 		}
 
 		typeDecl := &ast.TypeDeclaration{
-			Token:       typeToken,
+			BaseNode: ast.BaseNode{
+				Token: typeToken,
+			},
 			Name:        nameIdent,
 			IsAlias:     true,
 			AliasedType: aliasedType,
@@ -120,7 +124,9 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 
 			// Create a type declaration with the metaclass type as an inline type
 			typeDecl := &ast.TypeDeclaration{
-				Token:   typeToken,
+				BaseNode: ast.BaseNode{
+					Token: typeToken,
+				},
 				Name:    nameIdent,
 				IsAlias: true,
 				AliasedType: &ast.TypeAnnotation{
@@ -292,7 +298,9 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 
 	// Return the complete type declaration with function pointer type
 	typeDecl := &ast.TypeDeclaration{
-		Token:               typeToken,
+		BaseNode: ast.BaseNode{
+			Token: typeToken,
+		},
 		Name:                nameIdent,
 		FunctionPointerType: funcPtrType,
 		IsFunctionPointer:   true,

@@ -22,7 +22,9 @@ func TestTypeAliasBasicUsage(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.TypeDeclaration{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					Value: "TUserID",
@@ -81,7 +83,9 @@ func TestTypeAliasResolveType(t *testing.T) {
 
 	// Create AST: type TUserID = Integer;
 	typeDecl := &ast.TypeDeclaration{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 			Value: "TUserID",

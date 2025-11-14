@@ -372,7 +372,9 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 		},
 		Fields: []*ast.FieldDecl{
 			{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "FValue"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "FValue"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "FValue"},
 					Value: "FValue",

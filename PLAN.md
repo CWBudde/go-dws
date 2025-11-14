@@ -895,7 +895,7 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
   - Embed BaseNode
   - Remove duplicate implementations
   - Files: `pkg/ast/declarations.go`, `pkg/ast/functions.go`, `pkg/ast/classes.go`, `pkg/ast/interfaces.go` (~500 lines affected)
-  - Started with `HelperDecl` and interface declarations to validate approach; remaining declaration kinds still pending
+  - HelperDecl, InterfaceDecl/InterfaceMethodDecl, ConstDecl, TypeDeclaration, FieldDecl, and PropertyDecl now embed the shared base; remaining declaration kinds still pending
 
 - [ ] 9.16.6 Refactor type-specific nodes (ArrayLiteralExpression, CallExpression, NewExpression, MemberAccessExpression, etc.)
   - Embed appropriate base struct

@@ -89,7 +89,9 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 	}
 
 	prop := &ast.PropertyDecl{
-		Token:       propToken,
+		BaseNode: ast.BaseNode{
+			Token: propToken,
+		},
 		Name:        propName,
 		Type:        propType,
 		IndexParams: indexParams,

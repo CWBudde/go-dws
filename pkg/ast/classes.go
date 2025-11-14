@@ -208,20 +208,12 @@ func (cd *ClassDecl) String() string {
 //	class var Count: Integer := 42;   // class variable with initialization
 //	property PropertyName: Type read FFieldName write FFieldName;
 type FieldDecl struct {
+	BaseNode
 	Name       *Identifier
 	Type       TypeExpression
-	Token      token.Token
 	Visibility Visibility
 	IsClassVar bool
 	InitValue  Expression // Optional initialization value for class variables
-	EndPos     token.Position
-}
-
-func (f *FieldDecl) End() token.Position {
-	if f.EndPos.Line != 0 {
-		return f.EndPos
-	}
-	return f.Token.Pos
 }
 
 func (fd *FieldDecl) statementNode()       {}
