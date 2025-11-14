@@ -35,7 +35,9 @@ import (
 //   - Visibility sections (private/public)
 func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, isRecordHelper bool) *ast.HelperDecl {
 	helperDecl := &ast.HelperDecl{
-		Token:          p.curToken, // The HELPER token
+		BaseNode: ast.BaseNode{
+			Token: p.curToken, // The HELPER token
+		},
 		Name:           nameIdent,
 		IsRecordHelper: isRecordHelper,
 		Methods:        []*ast.FunctionDecl{},

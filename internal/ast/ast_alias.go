@@ -133,9 +133,11 @@ type (
 
 // Supporting types
 type (
-	Condition      = pkgast.Condition
-	PreConditions  = pkgast.PreConditions
-	PostConditions = pkgast.PostConditions
+	Condition           = pkgast.Condition
+	PreConditions       = pkgast.PreConditions
+	PostConditions      = pkgast.PostConditions
+	BaseNode            = pkgast.BaseNode
+	TypedExpressionBase = pkgast.TypedExpressionBase
 )
 
 // Enums

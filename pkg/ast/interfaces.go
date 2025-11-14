@@ -22,11 +22,10 @@ import (
 //
 // Note: Interface methods only declare signatures, they have no body.
 type InterfaceMethodDecl struct {
+	BaseNode
 	Name       *Identifier
 	ReturnType *TypeAnnotation
 	Parameters []*Parameter
-	Token      token.Token
-	EndPos     token.Position
 }
 
 func (i *InterfaceMethodDecl) End() token.Position {
@@ -85,13 +84,12 @@ func (imd *InterfaceMethodDecl) String() string {
 //	  procedure AdditionalMethod;
 //	end;
 type InterfaceDecl struct {
+	BaseNode
 	Name         *Identifier
 	Parent       *Identifier
 	ExternalName string
 	Methods      []*InterfaceMethodDecl
-	Token        token.Token
 	IsExternal   bool
-	EndPos       token.Position
 }
 
 func (i *InterfaceDecl) End() token.Position {
@@ -101,9 +99,7 @@ func (i *InterfaceDecl) End() token.Position {
 	return i.Token.Pos
 }
 
-func (id *InterfaceDecl) statementNode()       {}
-func (id *InterfaceDecl) TokenLiteral() string { return id.Token.Literal }
-func (id *InterfaceDecl) Pos() token.Position  { return id.Token.Pos }
+func (id *InterfaceDecl) statementNode() {}
 func (id *InterfaceDecl) String() string {
 	var out bytes.Buffer
 
