@@ -302,17 +302,15 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Estimated time**: 0.5 day
   - **Blocked Tests**: boolean_is.pas ✓
 
-- [ ] 9.34 Implement array helper methods
+- [x] 9.34 Implement array helper methods **[DONE]**
   - **Task**: Add built-in helper methods for dynamic arrays (`.count`, `.length`, etc.)
-  - **Current Error**: "member access on type array of String requires a helper, got no helper with member 'count'"
-  - **Implementation**:
-    - Add array helper type with built-in methods (.count, .length, .add, .delete, etc.)
-    - Register array helper in semantic analyzer
-    - Implement array helper method dispatch in interpreter and bytecode VM
-  - **Files**: `internal/semantic/analyze_helpers.go`, `internal/interp/builtins_array.go`, `internal/bytecode/compiler_expressions.go`
-  - **Tests**: Test array helper methods in expressions
-  - **Estimated time**: 1-2 days
-  - **Blocked Tests**: ifthenelse_expression6.pas, other array helper tests
+  - **Implementation**: Implemented `.Count` property (alias for `.Length`), `.Delete(index)` and `.Delete(index, count)` methods, `.IndexOf(value)` and `.IndexOf(value, startIndex)` methods
+  - Registered in semantic analyzer with proper optional parameter support
+  - Implemented in interpreter (`internal/interp/helpers.go`)
+  - Implemented in bytecode VM (`internal/bytecode/vm_exec.go`, `internal/bytecode/vm_calls.go`)
+  - Added opcodes for array operations (`OpArrayCount`, `OpArrayDelete`, `OpArrayIndexOf`)
+  - Tested with custom test scripts - all working correctly
+  - **Files**: `internal/semantic/analyze_helpers.go`, `internal/interp/helpers.go`, `internal/bytecode/instruction.go`, `internal/bytecode/vm_exec.go`, `internal/bytecode/vm_calls.go`, `internal/bytecode/disasm.go`
 
 - [x] 9.35 Implement Variant to Boolean implicit coercion ✅
   - **Task**: Support implicit conversion from Variant to Boolean in conditional contexts

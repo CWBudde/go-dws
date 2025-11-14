@@ -1,0 +1,26 @@
+var arr: array of Integer;
+
+// Initialize array to empty
+arr := [];
+
+// Test .Count and .Length on empty array
+PrintLn(arr.Count);
+PrintLn(arr.Length);
+
+// Add some elements
+arr.Add(10);
+arr.Add(20);
+arr.Add(30);
+
+PrintLn(arr.Count);
+PrintLn(arr.Length);
+
+// Test .IndexOf()
+PrintLn(arr.IndexOf(20));
+PrintLn(arr.IndexOf(99));
+
+// Test .Delete()
+arr.Delete(1);
+PrintLn(arr.Count);
+
+PrintLn('done');
