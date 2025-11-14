@@ -214,7 +214,7 @@ func TestInstructionString(t *testing.T) {
 
 func TestOpcodeCount(t *testing.T) {
 	// Verify we have exactly 115 opcodes (under 128 for optimal switch performance)
-	const expectedOpcodeCount = 115
+	const expectedOpcodeCount = 118
 
 	// Count non-empty opcode names
 	count := 0
