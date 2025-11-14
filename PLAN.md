@@ -130,37 +130,224 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
   - **Strategy**: Analyze each test individually and implement targeted fixes
   - **Examples**: Generic types, delegates, advanced inheritance scenarios, complex type checking
 
-- [ ] 9.4 Fix "class" forward declaration in units
-  - **Task**: Support class forward declarations in unit interface section
-  - **Current Error**: "no prefix parse function for CLASS" or "expected DOT after 'end' in unit"
-  - **Implementation**:
-    - Enhance unit parser to handle class forward declarations
-    - Resolve forward references correctly
-  - **Files**: `internal/parser/parser_unit.go`
-  - **Tests**: Test unit with class forwards
-  - **Estimated time**: 0.5-1 day
-  - **Blocked Tests**: class_scoping1.pas
+- [ ] 9.4 Fix Class Forward Declarations in Units
 
-- [ ] 9.5 Support field initializers in type declarations
-  - **Task**: Allow field initialization in record/class declarations: `field: Type := value;`
-  - **Current Error**: "expected SEMICOLON, got EQ"
-  - **Implementation**:
-    - Extend field parsing to accept optional initialization
-    - Store initializer in AST
-    - Semantic analyzer + interpreter execute during instantiation
-  - **Files**: `internal/parser/parser_types.go`, `internal/parser/parser_class.go`
-  - **Tests**: Test field initializers in records and classes
-  - **Estimated time**: 1 day
-  - **Blocked Tests**: clear_ref_in_destructor.pas, clear_ref_in_static_method.pas, clear_ref_in_virtual_method.pas
+**Goal**: Support class forward declarations in unit interface sections for cross-referencing types.
 
-- [ ] 9.6 Fix other parser errors identified in fixture test runs
-  - **Task**: Address remaining parser errors discovered during test runs
-  - **Implementation**: Investigate and fix on case-by-case basis
-  - **Files**: Various parser files
-  - **Tests**: Re-run fixture tests and verify parsing succeeds
-  - **Estimated time**: 1-2 days
+**Estimate**: 4-8 hours (0.5-1 day)
 
-**Impact**: Fixes 100+ parser-related fixture test failures
+**Status**: NOT STARTED
+
+**Blocked Tests** (1+ tests):
+- `testdata/fixtures/SimpleScripts/class_scoping1.pas`
+- Potentially other unit-based tests with forward references
+
+**Current Errors**:
+- `no prefix parse function for CLASS` - Parser doesn't recognize class forward declaration syntax
+- `expected DOT after 'end' in unit` - Parser gets confused after seeing incomplete class declaration
+
+**DWScript Syntax**:
+```pascal
+unit MyUnit;
+
+interface
+
+type
+  TForward = class;  // Forward declaration
+
+  TActual = class
+    FNext: TForward;  // Can reference forward-declared class
+  end;
+
+  TForward = class    // Full definition later
+    FPrev: TActual;
+  end;
+```
+
+**Root Cause**: Unit parser doesn't handle the forward declaration syntax `TName = class;` (class keyword without implementation block). When it sees `class;`, it expects either class body or inheritance, not immediate semicolon.
+
+**Implementation**:
+- Files: `internal/parser/parser_unit.go`, `internal/parser/parser_types.go`
+- Parser needs to detect `class;` pattern (empty class declaration)
+- Create forward reference placeholder in symbol table
+- Resolve forward references when full definition appears
+- Semantic analyzer validates all forwards are resolved
+
+**Subtasks**:
+- [ ] 9.4.1 Extend class type parsing to detect forward declarations
+  - Recognize `TName = class;` syntax (no parent, no members, just semicolon)
+  - Distinguish from regular empty class `TName = class end;`
+- [ ] 9.4.2 Create forward reference tracking in parser/analyzer
+  - Store forward-declared class names
+  - Mark type as "forward" until full definition seen
+- [ ] 9.4.3 Update symbol table to support forward references
+  - Allow type to be registered twice (forward + full definition)
+  - Second registration replaces forward with full type
+- [ ] 9.4.4 Add semantic validation for unresolved forwards
+  - Error if forward-declared class never gets full definition
+  - Error if type used before forward declaration or definition
+- [ ] 9.4.5 Test with unit files containing cross-references
+  - Two classes referencing each other
+  - Multiple forward declarations
+
+**Acceptance Criteria**:
+- `class_scoping1.pas` test passes
+- Forward declarations work: `TName = class;`
+- Cross-referencing classes work (A references B, B references A)
+- Proper error for unresolved forward declarations
+- Works in both unit interface and implementation sections
+
+- [ ] 9.5 Support Field Initializers in Type Declarations
+
+**Goal**: Allow field initialization syntax in record and class type declarations.
+
+**Estimate**: 6-8 hours (1 day)
+
+**Status**: NOT STARTED
+
+**Blocked Tests** (3 tests):
+- `testdata/fixtures/SimpleScripts/clear_ref_in_destructor.pas`
+- `testdata/fixtures/SimpleScripts/clear_ref_in_static_method.pas`
+- `testdata/fixtures/SimpleScripts/clear_ref_in_virtual_method.pas`
+
+**Current Error**: `expected SEMICOLON, got EQ` when parser encounters `:=` after field declaration
+
+**DWScript Syntax**:
+```pascal
+type
+  TRecord = record
+    Count: Integer := 0;        // Field with default value
+    Name: String := 'Default';
+  end;
+
+  TClass = class
+    FValue: Integer := 42;      // Field initializer
+    FItems: array of String;    // No initializer (nil/empty)
+  end;
+```
+
+**Root Cause**: Parser expects field declaration format `fieldName: Type;` and doesn't handle the optional initializer `fieldName: Type := value;`. The `:=` token triggers a parse error because parser has already moved past the field type.
+
+**Current Support**:
+- ✅ Field declarations: `FValue: Integer;`
+- ✅ Variable initialization: `var x: Integer := 5;`
+- ❌ Field initialization: `FValue: Integer := 5;` in type declarations
+
+**Implementation**:
+- Extend parser to accept optional `:= expression` after field type
+- Store initializer expression in AST field node
+- Semantic analyzer validates initializer expression type matches field type
+- Interpreter executes initializers during record/class instantiation
+- Files: `internal/parser/parser_types.go`, `internal/parser/parser_class.go`, `internal/ast/ast.go`
+
+**Subtasks**:
+- [ ] 9.5.1 Update AST to store field initializers
+  - Add `Initializer` field to `FieldDeclaration` AST node
+  - Store expression for default value
+- [ ] 9.5.2 Extend field parsing to accept initializers
+  - After parsing field type, check for ASSIGN token (`:=`)
+  - If present, parse initializer expression
+  - Works for both record and class fields
+- [ ] 9.5.3 Add semantic validation for field initializers
+  - Type check: initializer expression must match field type
+  - Const check: initializer must be a compile-time constant or simple expression
+  - No forward references: can't reference fields declared later
+- [ ] 9.5.4 Implement runtime initialization in interpreter
+  - For records: initialize fields when record created
+  - For classes: initialize fields in constructor or during `new`
+  - Execute initializers in declaration order
+- [ ] 9.5.5 Add bytecode VM support
+  - Compile field initializers to bytecode
+  - Execute during object instantiation
+
+**Acceptance Criteria**:
+- All 3 blocked tests pass
+- Field initializers work: `FValue: Integer := 42;`
+- Works for both records and classes
+- Initializers executed during instantiation
+- Type checking validates initializer matches field type
+- Works in both AST interpreter and bytecode VM
+
+- [ ] 9.6 Fix Remaining Parser Errors (Fixture Tests)
+
+**Goal**: Address remaining parser errors discovered during fixture test runs to unblock semantic and runtime testing.
+
+**Estimate**: 8-16 hours (1-2 days)
+
+**Status**: NOT STARTED
+
+**Impact**: Fixes 100+ parser-related fixture test failures across multiple test categories
+
+**Common Parser Error Categories**:
+
+1. **Missing Statement/Expression Types**
+   - Errors: `no prefix parse function for TOKEN`
+   - Examples: Missing operator support, unknown keywords
+
+2. **Incomplete Syntax Support**
+   - Errors: `expected TOKEN, got OTHER_TOKEN`
+   - Examples: Partial implementation of language features
+
+3. **Unit/Module Parsing Issues**
+   - Errors: `unexpected token in unit interface/implementation`
+   - Examples: Missing unit-specific syntax handling
+
+4. **Type Declaration Gaps**
+   - Errors: `expected SEMICOLON/END in type declaration`
+   - Examples: Advanced type syntax not supported
+
+5. **Control Flow Parsing**
+   - Errors: `unexpected token in statement`
+   - Examples: Case statement variants, specialized loops
+
+**Approach**: Iterative investigation and fixing:
+- Run fixture test suite to collect all parser errors
+- Categorize errors by root cause
+- Fix highest-impact errors first (blocking most tests)
+- Re-run tests after each fix to verify progress
+- Document each fix for reference
+
+**Subtasks**:
+- [ ] 9.6.1 Audit all fixture test parser failures
+  - Run full fixture test suite: `go test -v ./internal/interp -run TestDWScriptFixtures`
+  - Collect all parser error messages
+  - Categorize by error type and affected feature
+  - Prioritize by number of blocked tests
+
+- [ ] 9.6.2 Fix high-priority parser errors (20+ tests each)
+  - Address errors blocking the most tests first
+  - Update parser to handle missing syntax
+  - Add AST nodes if needed
+
+- [ ] 9.6.3 Fix medium-priority parser errors (5-20 tests each)
+  - Work through medium-impact errors
+  - May require new token types or parse functions
+
+- [ ] 9.6.4 Fix low-priority parser errors (1-5 tests each)
+  - Handle edge cases and rare syntax forms
+  - Complete language coverage
+
+- [ ] 9.6.5 Document parser fixes and patterns
+  - Update PLAN.md with specific fixes made
+  - Note any DWScript quirks discovered
+  - Update test status tracking
+
+**Files Likely to Update**:
+- `internal/parser/parser.go` - Core parsing logic
+- `internal/parser/expressions.go` - Expression parsing
+- `internal/parser/statements.go` - Statement parsing
+- `internal/parser/parser_types.go` - Type declarations
+- `internal/parser/parser_class.go` - Class/OOP features
+- `internal/parser/parser_unit.go` - Unit/module support
+- `internal/lexer/token_type.go` - Token definitions (if new keywords needed)
+- `internal/ast/*.go` - AST nodes (if new node types needed)
+
+**Acceptance Criteria**:
+- All parser errors resolved (tests may still fail on semantic/runtime issues)
+- Parser successfully parses all valid DWScript fixture test files
+- No "unexpected token" or "no prefix parse function" errors remain
+- Parser coverage increases to support full DWScript syntax
+- Reduced fixture test failures from 100+ to primarily semantic/runtime issues
 
 ---
 
@@ -168,44 +355,436 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Goal**: Finish implementing static methods (class functions) on record types for full DWScript compatibility.
 
-**Current Status**: Semantic analysis ✅ COMPLETE | Runtime execution ⚠️ INCOMPLETE
+**Estimate**: 3-4 hours (semantic analysis done, runtime remaining)
 
-**What's Done**:
+**Status**: IN PROGRESS - Semantic analysis ✅ COMPLETE | Runtime execution ⚠️ INCOMPLETE
+
+**Blocked Tests** (2+ tests):
+- `testdata/fixtures/SimpleScripts/record_method_static.pas` - Primary test case
+- `testdata/fixtures/Algorithms/lerp.pas` - Record with instance method (related issue)
+
+**Current Error**: `ERROR: class 'TTest' not found` (runtime error, not semantic)
+
+**DWScript Syntax**:
+```pascal
+type
+  TTest = record
+    Value: Integer;
+
+    // Static method (class function) - called on type
+    class function Sum(A, B: Integer): Integer;
+
+    // Instance method - called on instance
+    procedure Print;
+  end;
+
+// Static method implementation
+class function TTest.Sum(A, B: Integer): Integer;
+begin
+  Result := A + B;
+end;
+
+// Usage
+var x := TTest.Sum(5, 7);  // Static call on type (not instance)
+```
+
+**Progress Summary**:
+
+**✅ Completed (Semantic Analysis)**:
 1. ✅ Updated `RecordType` struct with `ClassMethods` and `ClassMethodOverloads` maps
-2. ✅ Fixed record type registration order (register before analyzing methods)
+2. ✅ Fixed record type registration order (register type before analyzing methods)
 3. ✅ Semantic analyzer tracks static vs instance methods separately
-4. ✅ Type-level member access implemented (e.g., `TTest.Sum` resolves to class method)
+4. ✅ Type-level member access: `TTest.Sum` resolves to class method
 5. ✅ Record method implementation support in semantic analyzer
 6. ✅ Added `currentRecord` context to Analyzer for method resolution
 7. ✅ Bare function calls inside record methods resolve to class methods
-8. ✅ All semantic analysis passes for `record_method_static.pas` test
+8. ✅ All semantic analysis passes for `record_method_static.pas`
 
-**What's Remaining**:
-1. ❌ **Interpreter Runtime Execution**: Update method call evaluation in interpreter
-   - Location: `internal/interp/expressions.go` or similar
-   - Issue: `evalMethodCallExpression` and `evalNewExpression` only check `i.classes`
-   - Fix: Also check `i.records` map for record types
-   - Enable: `TTest.Sum(...)` and `TTest.Create(...)` calls to execute properly
+**❌ Remaining (Runtime Execution)**:
 
-2. ❌ **Bytecode VM Support**: Update bytecode compiler and VM
-   - Ensure bytecode compiler handles static record method calls
-   - VM needs to dispatch to record class methods correctly
+**Root Cause**: Interpreter runtime only looks for methods in `i.classes` map. When it sees `TTest.Sum(...)`, it searches for a class named "TTest" but doesn't check `i.records` map, causing "class not found" error even though semantic analysis succeeded.
 
-**Test Case**: `testdata/fixtures/SimpleScripts/record_method_static.pas`
-- Defines `TTest` record with overloaded static `Sum` methods and `Create` factory
-- Expected output: `12`
-- Current error: `ERROR: class 'TTest' not found` (runtime, not semantic)
+**Implementation**:
+- Files: `internal/interp/expressions.go`, `internal/bytecode/compiler.go`, `internal/bytecode/vm.go`
+- Fix method call evaluation to check both classes AND records
+- Fix new expression evaluation to check both classes AND records
+- Add bytecode support for static record method calls
+
+**Subtasks**:
+- [ ] 9.7.1 Fix AST interpreter method call evaluation
+  - Update `evalMethodCallExpression` in `expressions.go`
+  - When resolving type-level method calls (e.g., `TType.Method(...)`):
+    - First check `i.classes` map (existing behavior)
+    - If not found, check `i.records` map
+    - Look up class method in record's `ClassMethods` or `ClassMethodOverloads`
+  - Handle overload resolution for static record methods
+
+- [ ] 9.7.2 Fix AST interpreter new expression evaluation
+  - Update `evalNewExpression` in `expressions.go`
+  - Records can have static factory methods (e.g., `TTest.Create`)
+  - Check both `i.classes` and `i.records` when resolving type name
+
+- [ ] 9.7.3 Fix record instance method lookup (lerp.pas)
+  - Update method call evaluation for record instances
+  - When calling method on record value: `recordVar.Method()`
+  - Look up method in record type's instance methods
+  - This may be a separate bug from static methods
+
+- [ ] 9.7.4 Add bytecode compiler support
+  - Update `internal/bytecode/compiler.go`
+  - Compile static record method calls to bytecode
+  - Use same opcode as class method calls (CALL_METHOD or similar)
+  - Store record type info in bytecode for VM dispatch
+
+- [ ] 9.7.5 Add bytecode VM support
+  - Update `internal/bytecode/vm.go`
+  - VM dispatch for method calls checks both classes and records
+  - Execute static record methods correctly
+  - Handle overload resolution in VM
+
+- [ ] 9.7.6 Test with multiple scenarios
+  - Static method calls: `TRecord.StaticMethod(...)`
+  - Instance method calls: `recordVar.InstanceMethod()`
+  - Overloaded static methods
+  - Factory methods returning record instances
+  - Both AST interpreter and bytecode VM
 
 **Files to Update**:
-- `internal/interp/expressions.go` - Method call and new expression evaluation
+- `internal/interp/expressions.go` - Method call and new expression evaluation (primary fix)
+- `internal/interp/record.go` - Record value method lookup if needed
 - `internal/bytecode/compiler.go` - Bytecode generation for static record methods
 - `internal/bytecode/vm.go` - VM execution of record class method calls
 
 **Acceptance Criteria**:
-- `record_method_static.pas` test passes completely
-- Static method calls on records work in both AST interpreter and bytecode VM
+- `record_method_static.pas` test passes completely (output: `12`)
+- `lerp.pas` test passes (record instance method works)
+- Static method calls on records work: `TRecord.Method(...)`
+- Instance method calls on records work: `recordVar.Method()`
 - Overloaded static methods resolve correctly at runtime
-- Record factory methods (`TTest.Create`) execute properly
+- Record factory methods work: `TRecord.Create(...)`
+- Works in both AST interpreter and bytecode VM
+- No regression in existing class method functionality
+
+---
+
+## Task 9.8: Array Helper Methods (Algorithms Fixtures) 🎯 HIGH PRIORITY
+
+**Goal**: Implement missing array helper methods and properties to fix 4 failing Algorithms tests.
+
+**Estimate**: 3-4 hours
+
+**Status**: NOT STARTED
+
+**Blocked Tests** (4 tests):
+- `testdata/fixtures/Algorithms/gnome_sort.pas` - needs `Swap(i, j)`
+- `testdata/fixtures/Algorithms/maze_generation.pas` - needs `Push(value)` and `Pop()`
+- `testdata/fixtures/Algorithms/one_dim_automata.pas` - needs `.low` and `.high` properties
+- `testdata/fixtures/Algorithms/quicksort_dyn.pas` - needs `Swap(i, j)`
+
+**Missing Features**:
+1. `Swap(i, j)` method on arrays - swaps elements at indices i and j
+2. `Push(value)` method on dynamic arrays - appends element (alias for Add)
+3. `Pop()` method on dynamic arrays - removes and returns last element
+4. `.low` and `.high` properties on arrays - return Low(arr) and High(arr) values
+
+**Implementation**:
+- Add methods to array type helper registration
+- Files: `internal/interp/helpers_validation.go`, `internal/interp/helpers_conversion.go`
+- Infrastructure already exists, just need to add new methods
+
+**Subtasks**:
+- [ ] 9.8.1 Add `Swap(i, j)` method to array helper
+  - Validate indices are within bounds
+  - Swap elements at positions i and j
+- [ ] 9.8.2 Add `Push(value)` method to dynamic array helper
+  - Implement as alias for existing `Add` method
+- [ ] 9.8.3 Add `Pop()` method to dynamic array helper
+  - Remove last element and return it
+  - Error if array is empty
+- [ ] 9.8.4 Add `.low` and `.high` properties to array helper
+  - Return Low(arr) and High(arr) respectively
+  - Work for both static and dynamic arrays
+
+**Acceptance Criteria**:
+- All 4 blocked Algorithms tests pass
+- Methods work in both AST interpreter and bytecode VM
+- Proper error handling for out-of-bounds and empty arrays
+
+---
+
+## Task 9.9: Fix Inc/Dec on Array Elements (Algorithms Fixtures) 🎯 HIGH PRIORITY
+
+**Goal**: Allow Inc/Dec built-in functions to work on array element expressions.
+
+**Estimate**: 1-2 hours
+
+**Status**: NOT STARTED
+
+**Blocked Tests** (1 test):
+- `testdata/fixtures/Algorithms/evenly_divisible.pas` - uses `Inc(Result[i])` and `Inc(Result[n])`
+
+**Current Error**: `function 'Inc' first argument must be a variable`
+
+**Root Cause**: Semantic analyzer validation is too strict - it rejects indexed array access (`arr[i]`) as a valid lvalue for Inc/Dec, even though array indexing is a valid assignable expression.
+
+**Implementation**:
+- File: `internal/semantic/analyzer.go`
+- Relax validation in Inc/Dec analysis to accept IndexExpression as valid lvalue
+- Inc() and Dec() runtime functions already work correctly, this is purely a validation issue
+
+**Subtasks**:
+- [ ] 9.9.1 Update Inc/Dec semantic validation to accept IndexExpression
+  - Check that IndexExpression base is a variable (array)
+  - Allow Inc(arr[i]) where arr is a variable
+- [ ] 9.9.2 Verify test passes with relaxed validation
+
+**Acceptance Criteria**:
+- `evenly_divisible.pas` test passes
+- Inc/Dec work on array elements: `Inc(arr[i])`, `Dec(arr[x+1])`
+- Proper error messages for invalid cases (e.g., `Inc(5)`)
+
+---
+
+## Task 9.10: Const Expression Evaluator (Algorithms Fixtures)
+
+**Goal**: Implement compile-time evaluation of const expressions including string operations and character literals.
+
+**Estimate**: 6-8 hours
+
+**Status**: NOT STARTED
+
+**Blocked Tests** (3 tests):
+- `testdata/fixtures/Algorithms/bottles_of_beer.pas` - `const CRLF : String = '' + #13#10;`
+- `testdata/fixtures/Algorithms/sparse_matmult.pas` - const expressions with Ord() and Chr()
+- `testdata/fixtures/Algorithms/vigenere.pas` - function-local const declarations
+
+**Current Limitations**:
+1. Cannot use string concatenation in const expressions (`'' + #13#10`)
+2. Cannot use character literals (`#13`, `#10`) in const context
+3. Cannot declare const variables inside function bodies with expressions
+4. Cannot use Ord/Chr functions in const context
+
+**Implementation**:
+- Create new `internal/semantic/const_evaluator.go` for compile-time evaluation
+- Extend `internal/semantic/statements_declarations.go` const handling
+- Support:
+  - String concatenation: `'a' + 'b'` → `'ab'`
+  - Character literals: `#13` → `'\r'`, `#10` → `'\n'`
+  - Numeric character literals: `#65` → `'A'`
+  - Function-local const declarations
+  - Ord/Chr in const context
+
+**Subtasks**:
+- [ ] 9.10.1 Create const expression evaluator
+  - Add `const_evaluator.go` with evaluation logic
+  - Support literals, binary ops (+, -, *, /), unary ops
+- [ ] 9.10.2 Support string concatenation in const expressions
+  - Evaluate `'str1' + 'str2'` at compile time
+- [ ] 9.10.3 Support character literals in const expressions
+  - Parse and evaluate `#N` to character value
+  - Support both decimal and hex forms
+- [ ] 9.10.4 Support function-local const declarations
+  - Allow const declarations inside function/procedure bodies
+  - Evaluate expressions at semantic analysis time
+- [ ] 9.10.5 Support Ord/Chr in const context
+  - Evaluate Ord('A') → 65 at compile time
+  - Evaluate Chr(65) → 'A' at compile time
+
+**Acceptance Criteria**:
+- All 3 blocked tests pass
+- Const expressions evaluated at compile time (not runtime)
+- Proper error messages for non-const expressions in const context
+
+---
+
+## Task 9.11: Multi-dimensional Array Creation (Algorithms Fixtures)
+
+**Goal**: Support multi-dimensional array allocation with `new Type[dim1, dim2, ...]` syntax.
+
+**Estimate**: 4-6 hours
+
+**Status**: NOT STARTED
+
+**Blocked Tests** (1 test):
+- `testdata/fixtures/Algorithms/lu_factorization.pas` - uses `new Float[M, N]` for 2D arrays
+
+**Current Error**: `function 'new' expects 2 arguments, got 3`
+
+**Root Cause**: Parser and runtime only support single-dimension `new Type[size]`, not multi-dimensional `new Type[d1, d2, ...]`.
+
+**Current Support**:
+- ✅ Multi-dimensional array types: `array of array of Float`
+- ✅ Multi-dimensional indexing: `arr[i][j]` or `arr[i, j]`
+- ❌ Multi-dimensional allocation: `new Float[M, N]`
+
+**Implementation**:
+- Extend parser to accept multiple dimensions in NewExpression
+- Files: `internal/parser/expressions.go`, `internal/interp/array.go`
+- Create nested arrays: `new Float[M, N]` → array of M elements, each is array of N floats
+
+**Subtasks**:
+- [ ] 9.11.1 Extend parser to accept multiple dimensions
+  - Parse `new Type[expr1, expr2, ...]` syntax
+  - Store dimension expressions in AST
+- [ ] 9.11.2 Update semantic analyzer for multi-dim new
+  - Validate dimension count matches array type dimensions
+  - Type check dimension expressions (must be integers)
+- [ ] 9.11.3 Implement multi-dimensional allocation in interpreter
+  - Create nested arrays recursively
+  - `new T[d1, d2]` creates array of d1 elements, each is array of d2 elements
+- [ ] 9.11.4 Update bytecode compiler and VM
+  - Add bytecode support for multi-dim allocation
+
+**Acceptance Criteria**:
+- `lu_factorization.pas` test passes
+- `new Type[d1, d2]` creates properly nested arrays
+- Works in both AST interpreter and bytecode VM
+- Proper error for dimension count mismatch
+
+---
+
+## Task 9.12: SetLength on String Type (Algorithms Fixtures)
+
+**Goal**: Extend SetLength built-in function to support String type in addition to arrays.
+
+**Estimate**: 2-3 hours
+
+**Status**: NOT STARTED
+
+**Blocked Tests** (1 test):
+- `testdata/fixtures/Algorithms/sparse_matmult.pas` - uses `SetLength(s, n)` on string variables
+
+**Current Error**: `SetLength expects array as first argument, got String`
+
+**DWScript Compatibility**: In DWScript, SetLength works on both arrays and strings:
+- Arrays: `SetLength(arr, newSize)` - resizes dynamic array
+- Strings: `SetLength(str, newLen)` - truncates or extends string with spaces
+
+**Implementation**:
+- File: `internal/interp/builtins_misc.go`
+- Modify `builtinSetLength` to accept String type
+- For strings: truncate if shorter, pad with spaces if longer
+
+**Subtasks**:
+- [ ] 9.12.1 Update SetLength validation to accept String
+  - Check first argument is Array OR String
+- [ ] 9.12.2 Implement string resizing logic
+  - If new length < current: truncate string
+  - If new length > current: pad with spaces
+- [ ] 9.12.3 Add Float.ToString(precision) helper method
+  - Also needed by sparse_matmult.pas
+  - Format float with specified decimal places
+
+**Acceptance Criteria**:
+- `sparse_matmult.pas` test passes
+- SetLength works on strings: `SetLength(s, 10)` sets string length to 10
+- Strings truncated or space-padded as needed
+
+---
+
+## Task 9.13: Debug extract_ranges Logic (Algorithms Fixtures)
+
+**Goal**: Fix off-by-one error in extract_ranges.pas test causing incorrect output.
+
+**Estimate**: 2-3 hours
+
+**Status**: NOT STARTED
+
+**Blocked Tests** (1 test):
+- `testdata/fixtures/Algorithms/extract_ranges.pas`
+
+**Expected Output**: `0-2,4,6-8,11,12,14-25,27-33,35-39`
+**Actual Output**: `0-2,4,6-8,11,12,14-25,27-33,35`
+
+**Issue**: Last range `35-39` is being truncated to just `35`, suggesting elements 36-39 are not being processed.
+
+**Root Cause**: This is NOT a missing language feature - it's a runtime logic bug in how the interpreter handles array iteration or loop boundaries in this specific test case.
+
+**Investigation Steps**:
+- [ ] 9.13.1 Analyze extract_ranges.pas algorithm
+  - Understand the range extraction logic
+  - Identify loop boundaries and termination conditions
+- [ ] 9.13.2 Debug with trace output
+  - Add logging to understand where iteration stops
+  - Check array length, High(arr), loop conditions
+- [ ] 9.13.3 Identify and fix the bug
+  - Could be in for-loop handling, array bounds, or conditional logic
+  - Verify fix doesn't break other tests
+
+**Acceptance Criteria**:
+- `extract_ranges.pas` produces correct output including `35-39`
+- Root cause identified and documented
+- No regressions in other Algorithms tests
+
+---
+
+## Task 9.14: Investigate aes_encryption Exception (Algorithms Fixtures)
+
+**Goal**: Determine if aes_encryption.pas failure is a real bug or test framework issue.
+
+**Estimate**: 1-2 hours
+
+**Status**: NOT STARTED
+
+**Test**: `testdata/fixtures/Algorithms/aes_encryption.pas`
+
+**Current Behavior**: Test fails with "uncaught exception: Exception: Invalid AES key"
+
+**Possible Causes**:
+1. **Test is intentionally raising an exception** - The script has try/except blocks and may be testing exception handling. The fixture framework might not recognize exception output correctly.
+2. **Actual bug in exception handling** - Exception is raised but not being caught properly.
+3. **Missing AES-specific features** - Though unlikely, some AES operation might not be implemented.
+
+**Investigation Steps**:
+- [ ] 9.14.1 Read aes_encryption.pas source code
+  - Understand what the test is doing
+  - Check if exception is expected behavior
+- [ ] 9.14.2 Check expected output file
+  - Does expected output include exception text?
+  - Is this a normal vs exceptional path test?
+- [ ] 9.14.3 Test exception handling manually
+  - Run test with `./bin/dwscript run testdata/fixtures/Algorithms/aes_encryption.pas`
+  - Compare output to expected
+- [ ] 9.14.4 Fix if needed, or mark as test framework limitation
+
+**Acceptance Criteria**:
+- Root cause identified and documented
+- If interpreter bug: fixed and test passes
+- If test framework issue: document workaround or defer
+
+---
+
+## Task 9.15: Static vs Dynamic Array Compatibility (DEFERRED)
+
+**Goal**: Investigate type compatibility between static and dynamic arrays in var parameters.
+
+**Status**: DEFERRED - May be test issue, not implementation issue
+
+**Blocked Tests** (1 test):
+- `testdata/fixtures/Algorithms/quicksort.pas`
+
+**Current Error**: `cannot assign TData to TData` when passing static array to var parameter expecting dynamic array
+
+**Issue**:
+- Test defines: `type TData = array [0..size-1] of integer;` (static array)
+- Procedure expects: `procedure QuickSort(var A: TData; ...)`
+- DWScript type system treats static and dynamic arrays as incompatible in var parameters
+
+**Investigation Needed**:
+- Is this correct DWScript behavior?
+- Should static arrays be convertible to dynamic in var params?
+- Or is the test incorrectly written?
+
+**Deferred Because**:
+- May require significant type system changes
+- Only affects 1 test
+- Need to verify against original DWScript behavior
+- Low priority compared to other fixes
+
+**Future Action**:
+- Research DWScript documentation on static/dynamic array compatibility
+- Check original DWScript source for handling of this case
+- If needed, implement proper coercion rules
 
 ---
 
