@@ -295,13 +295,33 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		}
 	}
 
+	// Check if we stopped at ENSURE inside the begin...end block
+	if p.curTokenIs(lexer.ENSURE) {
+		fn.PostConditions = p.parsePostConditions()
+		// After parsing postconditions, skip any semicolons
+		for p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+		}
+		// Now check if we need to advance to END or if we're already there
+		if !p.curTokenIs(lexer.END) {
+			if !p.expectPeek(lexer.END) {
+				return nil
+			}
+		}
+	}
+
 	// Expect semicolon after end
 	if !p.expectPeek(lexer.SEMICOLON) {
 		return nil
 	}
 
-	// Parse postconditions (ensure block) if present
+	// Parse postconditions (ensure block) if present AFTER the end keyword
 	if p.peekTokenIs(lexer.ENSURE) {
+		// Check if postconditions were already defined inline
+		if fn.PostConditions != nil {
+			p.addError("postconditions already defined inline; cannot define them again after 'end'", ErrInvalidSyntax)
+			return nil
+		}
 		p.nextToken() // move to ENSURE
 		fn.PostConditions = p.parsePostConditions()
 		// End position is after the postconditions

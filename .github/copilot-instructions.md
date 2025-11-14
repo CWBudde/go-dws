@@ -32,7 +32,7 @@ go-dws is a Go port of DWScript (Delphi Web Script), implementing a Pascal-based
 
 ## Critical DWScript Language Specifics
 
-**Case Insensitivity**: Keywords normalized lowercase via `LookupIdent()`. Test both cases (`PrintLn`, `println`).
+**Case Insensitivity**: Keywords normalized lowercase via `LookupIdent()`. Test both cases (`PrintLn`, `println`). The entire language is case-insensitive.
 
 **Operators**:
 - Assignment: `:=` (not `=`)
