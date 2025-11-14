@@ -79,9 +79,9 @@ func (i *Interpreter) evalIsExpression(expr *ast.IsExpression) Value {
 			return right
 		}
 
-		// Convert both to boolean values using isTruthy
-		leftBool := isTruthy(left)
-		rightBool := isTruthy(right)
+		// Convert both to boolean values using variantToBool
+		leftBool := variantToBool(left)
+		rightBool := variantToBool(right)
 
 		return &BooleanValue{Value: leftBool == rightBool}
 	}
