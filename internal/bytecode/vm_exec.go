@@ -619,7 +619,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			// Task 9.35: Support Variant→Boolean implicit conversion
+			// Support Variant→Boolean implicit conversion
 			if (!left.IsBool() && !left.IsVariant()) || (!right.IsBool() && !right.IsVariant()) {
 				return NilValue(), vm.typeError("AND", "Boolean or Variant", fmt.Sprintf("%s, %s", left.Type.String(), right.Type.String()))
 			}
@@ -633,7 +633,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			// Task 9.35: Support Variant→Boolean implicit conversion
+			// Support Variant→Boolean implicit conversion
 			if (!left.IsBool() && !left.IsVariant()) || (!right.IsBool() && !right.IsVariant()) {
 				return NilValue(), vm.typeError("OR", "Boolean or Variant", fmt.Sprintf("%s, %s", left.Type.String(), right.Type.String()))
 			}
@@ -643,7 +643,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			// Task 9.35: Support Variant→Boolean implicit conversion
+			// Support Variant→Boolean implicit conversion
 			if !val.IsBool() && !val.IsVariant() {
 				return NilValue(), vm.typeError("NOT", "Boolean or Variant", val.Type.String())
 			}
@@ -658,7 +658,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			// Task 9.35: Support Variant→Boolean implicit conversion
+			// Support Variant→Boolean implicit conversion
 			if (!left.IsBool() && !left.IsVariant()) || (!right.IsBool() && !right.IsVariant()) {
 				return NilValue(), vm.typeError("XOR", "Boolean or Variant", fmt.Sprintf("%s, %s", left.Type.String(), right.Type.String()))
 			}
@@ -699,7 +699,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			// Task 9.35: Support Variant→Boolean implicit conversion
+			// Support Variant→Boolean implicit conversion
 			if !cond.IsBool() && !cond.IsVariant() {
 				return NilValue(), vm.typeError("JUMP_IF_FALSE", "Boolean or Variant", cond.Type.String())
 			}
@@ -711,7 +711,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			// Task 9.35: Support Variant→Boolean implicit conversion
+			// Support Variant→Boolean implicit conversion
 			if !cond.IsBool() && !cond.IsVariant() {
 				return NilValue(), vm.typeError("JUMP_IF_TRUE", "Boolean or Variant", cond.Type.String())
 			}
@@ -723,7 +723,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			// Task 9.35: Support Variant→Boolean implicit conversion
+			// Support Variant→Boolean implicit conversion
 			if !cond.IsBool() && !cond.IsVariant() {
 				return NilValue(), vm.typeError("JUMP_IF_FALSE_NO_POP", "Boolean or Variant", cond.Type.String())
 			}
@@ -735,7 +735,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			// Task 9.35: Support Variant→Boolean implicit conversion
+			// Support Variant→Boolean implicit conversion
 			if !cond.IsBool() && !cond.IsVariant() {
 				return NilValue(), vm.typeError("JUMP_IF_TRUE_NO_POP", "Boolean or Variant", cond.Type.String())
 			}

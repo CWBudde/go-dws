@@ -1239,14 +1239,19 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 
 	p.nextToken()
 
-	// Try to parse as type expression first
+	// Try to parse as type expression first (speculatively)
+	errorCountBefore := len(p.errors)
 	expression.TargetType = p.parseTypeExpression()
 	if expression.TargetType != nil {
 		expression.EndPos = expression.TargetType.End()
 		return expression
 	}
 
-	// If not a type, parse as value expression (boolean comparison)
+	// If type parsing failed, remove any errors added and try as boolean expression
+	// Trim errors back to original count (speculative parsing)
+	p.errors = p.errors[:errorCountBefore]
+
+	// Parse as value expression (boolean comparison)
 	// Use EQUALS precedence to prevent consuming following logical operators
 	expression.Right = p.parseExpression(EQUALS)
 	if expression.Right == nil {
