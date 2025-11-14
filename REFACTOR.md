@@ -22,54 +22,55 @@ This document identifies technical debt and refactoring opportunities in the go-
 
 ## Priority 2: Large Implementation Files (>1,200 lines)
 
-### 🔵 P2.1: internal/bytecode/vm_builtins.go (2,452 lines, 68KB)
+### ✅ P2.1: internal/bytecode/vm_builtins.go - COMPLETED
 
-**Current:** Single file with all VM builtin implementations
-**Target:** Split into logical categories
-
-```plain
-vm_builtins.go → Split into:
-├── vm_builtins_string.go      (~600 lines) - String manipulation functions
-├── vm_builtins_math.go        (~500 lines) - Math functions
-├── vm_builtins_datetime.go    (~400 lines) - Date/time functions
-├── vm_builtins_array.go       (~300 lines) - Array functions
-├── vm_builtins_conversion.go  (~350 lines) - Type conversion functions
-└── vm_builtins_misc.go        (~300 lines) - Misc functions (Print, Inc, Dec, etc.)
-```
-
-**Rationale:** Mirrors the organization already used in `internal/interp/builtins_*.go`
-
-### 🔵 P2.2: internal/semantic/analyze_builtin_string.go (1,343 lines, 56KB)
-
-**Current:** All string builtin analysis in one file
-**Target:** Split by operation category
+**Original:** Single file with all VM builtin implementations (2,452 lines, 68KB)
+**Completed:** Successfully split into 5 logical category files:
 
 ```plain
-analyze_builtin_string.go → Split into:
-├── analyze_builtin_string_search.go    (~400 lines) - Pos, LastPos, Find, Contains
-├── analyze_builtin_string_transform.go (~450 lines) - Upper, Lower, Trim, Replace
-└── analyze_builtin_string_format.go    (~500 lines) - Format, StrUtils functions
+vm_builtins.go (21 lines) - Registration coordinator
+├── vm_builtins_string.go (1,520 lines) - String manipulation functions
+├── vm_builtins_math.go (664 lines) - Math functions
+├── vm_builtins_conversion.go (224 lines) - Type conversion functions
+└── vm_builtins_misc.go (68 lines) - Misc functions (Print, PrintLn, Length)
 ```
 
-**Rationale:** Consistent with interp layer organization
+**Note:** No datetime functions existed in the original file, so that category was omitted.
 
-### 🔵 P2.3: internal/parser/expressions.go (1,303 lines)
+### ✅ P2.2: internal/semantic/analyze_builtin_string.go - COMPLETED
 
-**Current:** All expression parsing in one file
-**Status:** Manageable but monitor - split if grows beyond 1,500 lines
-
-### 🔵 P2.4: internal/interp/builtins_core.go (1,296 lines, 44KB)
-
-**Current:** Core builtins (Print, Inc, Dec, Ord, Chr, TypeOf, etc.)
-**Target:** Split into focused files
+**Original:** All string builtin analysis in one file (1,343 lines, 56KB)
+**Completed:** Successfully split into 3 operation-focused files:
 
 ```plain
-builtins_core.go → Split into:
-├── builtins_io.go          (~300 lines) - Print, PrintLn, Write, WriteLn
-├── builtins_conversion.go  (~400 lines) - Ord, Chr, Int, Float, Str conversions
-├── builtins_type.go        (~300 lines) - TypeOf, SizeOf, High, Low
-└── builtins_misc.go        (~300 lines) - Inc, Dec, Swap, Copy, etc.
+analyze_builtin_string.go (deleted) → Split into:
+├── analyze_builtin_string_search.go (426 lines) - Search, find, and comparison functions
+├── analyze_builtin_string_transform.go (644 lines) - Transform, extract, and modify functions
+└── analyze_builtin_string_format.go (296 lines) - Format, build, and construct functions
 ```
+
+**Result:** Improved organization, easier navigation by function category. All semantic tests pass.
+
+### ⏸️ P2.3: internal/parser/expressions.go (1,303 lines) - DEFERRED
+
+**Current:** All expression parsing in one file (1,303 lines)
+**Status:** Deferred - file is well-organized, under 1,500-line threshold, and has high cohesion
+**Decision:** Keep as single file unless it grows beyond 1,500 lines. Strong interdependencies between functions and clear organization make splitting counterproductive at current size.
+
+### ✅ P2.4: internal/interp/builtins_core.go - COMPLETED
+
+**Original:** Core builtins in one file (1,296 lines, 44KB)
+**Completed:** Successfully split into 4 focused files:
+
+```plain
+builtins_core.go (deleted) → Split into:
+├── builtins_io.go (47 lines) - Print, PrintLn (Write/WriteLn equivalents)
+├── builtins_conversion.go (425 lines) - Ord, Integer, IntToStr, StrToInt, FloatToStr, StrToFloat, BoolToStr
+├── builtins_type.go (353 lines) - TypeOf, TypeOfClass, High, Low, type helpers
+└── builtins_misc.go (502 lines) - Length, Copy, array operations, Swap, Assigned, stack trace
+```
+
+**Result:** Eliminated 1,296-line file, improved organization by function category. All builtin tests pass.
 
 ### 🔵 P2.5: internal/semantic/analyze_builtin_math.go (1,264 lines, 48KB)
 
