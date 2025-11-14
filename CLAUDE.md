@@ -11,24 +11,34 @@ go-dws is a Go port of DWScript (Delphi Web Script), a full-featured Object Pasc
 ### Building
 
 ```bash
-# Build the CLI tool
-go build ./cmd/dwscript
+# Using just (recommended)
+just build             # Build the CLI tool to bin/dwscript
+just tidy              # Tidy dependencies
+just clean             # Clean build artifacts
 
-# Build and install globally
-go install ./cmd/dwscript
+# Development workflows
+just dev               # Format, lint, test, and build
+just ci                # Run CI checks (lint + test with coverage)
+just setup             # Full setup (tidy + install tools)
+
+# Direct commands
+go build ./cmd/dwscript  # Build the CLI tool
+go install ./cmd/dwscript # Build and install globally
 ```
 
 ### Testing
 
 ```bash
-# Run all tests
-go test ./...
+# Using just (recommended)
+just test              # Run all tests
+just test-verbose      # Run tests with verbose output
+just test-coverage     # Run tests with coverage and generate HTML report
+just test-unit         # Run tests with race detection (CI)
 
-# Run tests with verbose output
-go test -v ./...
-
-# Run tests for a specific package
-go test ./lexer
+# Direct commands
+go test ./...          # Run all tests
+go test -v ./...       # Run tests with verbose output
+go test ./lexer        # Run tests for a specific package
 go test ./parser
 go test ./ast
 
@@ -45,18 +55,28 @@ go test -run TestIntegerLiteral ./parser
 ### Linting
 
 ```bash
-# Run golangci-lint (project uses .golangci.yml config)
-golangci-lint run
+# Using just (recommended)
+just lint              # Run golangci-lint
+just lint-fix          # Fix linting issues automatically
+just fmt               # Format code with go fmt and goimports
+just check-fmt         # Check if code is formatted (CI)
 
-# Run standard Go tools
-go vet ./...
-go fmt ./...
+# Direct commands
+golangci-lint run      # Run golangci-lint (project uses .golangci.yml config)
+golangci-lint run --fix # Fix issues automatically
+go vet ./...           # Run standard Go vet
+go fmt ./...           # Run standard Go formatter
 ```
 
 ### CLI Usage
 
 ```bash
-# Tokenize a file
+# Using just (convenient shortcuts)
+just lex testdata/hello.dws    # Tokenize a file
+just parse testdata/hello.dws  # Parse and display AST
+just run testdata/hello.dws    # Run a script
+
+# Direct CLI commands
 ./bin/dwscript lex testdata/simple.dws
 ./bin/dwscript lex -e "var x: Integer := 42;"
 
