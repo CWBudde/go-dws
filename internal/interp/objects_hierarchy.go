@@ -640,7 +640,7 @@ func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string
 	// This prevents infinite recursion
 	for constName, constVal := range ownerClass.ConstantValues {
 		if constName != constantName && constVal != nil {
-			tempEnv.Set(constName, constVal)
+			tempEnv.Define(constName, constVal)
 		}
 	}
 
