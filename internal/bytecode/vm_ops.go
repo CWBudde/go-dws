@@ -208,3 +208,50 @@ func (vm *VM) runtimeError(format string, args ...interface{}) error {
 func (vm *VM) typeError(context, expected, actual string) error {
 	return vm.runtimeError("%s expects %s but got %s", context, expected, actual)
 }
+
+// isTruthy converts a VM value to a boolean for use in conditionals.
+// Task 9.35: Support Variant→Boolean implicit conversion
+func isTruthy(val Value) bool {
+	switch val.Type {
+	case ValueBool:
+		return val.AsBool()
+	case ValueVariant:
+		// Unwrap the variant and check the underlying value
+		wrapped := val.AsVariant()
+		if wrapped.IsNil() {
+			// Unassigned variant → false
+			return false
+		}
+		// Recursively check the wrapped value
+		return variantToBool(wrapped)
+	default:
+		// In DWScript, only booleans and variants can be used in conditions
+		// Non-boolean values in conditionals would be a type error
+		// For now, treat non-booleans as false
+		return false
+	}
+}
+
+// variantToBool converts a variant's wrapped value to boolean following DWScript semantics.
+// Task 9.35: empty/nil/zero → false, otherwise → true
+func variantToBool(val Value) bool {
+	switch val.Type {
+	case ValueNil:
+		return false
+	case ValueBool:
+		return val.AsBool()
+	case ValueInt:
+		return val.AsInt() != 0
+	case ValueFloat:
+		return val.AsFloat() != 0.0
+	case ValueString:
+		return val.AsString() != ""
+	case ValueVariant:
+		// Nested variant - recursively unwrap
+		wrapped := val.AsVariant()
+		return variantToBool(wrapped)
+	default:
+		// For objects, arrays, functions, etc: non-nil → true
+		return true
+	}
+}

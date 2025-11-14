@@ -235,14 +235,9 @@ func (i *Interpreter) evalIfExpression(expr *ast.IfExpression) Value {
 		return condition
 	}
 
-	// Convert condition to boolean
-	condBool, ok := condition.(*BooleanValue)
-	if !ok {
-		return i.newErrorWithLocation(expr, "if expression condition must be boolean, got %s", condition.Type())
-	}
-
+	// Task 9.35: Use isTruthy to support Variant→Boolean implicit conversion
 	// If condition is true, evaluate and return consequence
-	if condBool.Value {
+	if isTruthy(condition) {
 		result := i.Eval(expr.Consequence)
 		if isError(result) {
 			return result

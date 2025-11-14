@@ -94,6 +94,24 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 	}
 }
 
+// isBooleanCompatible checks if a type can be implicitly converted to Boolean.
+// This includes Boolean itself and Variant (which supports implicit boolean conversion).
+// Task 9.35: Support implicit Variant→Boolean conversion in conditional contexts.
+func isBooleanCompatible(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+	// Boolean is directly compatible
+	if t.Equals(types.BOOLEAN) {
+		return true
+	}
+	// Variant can be implicitly converted to Boolean
+	if t.Equals(types.VARIANT) {
+		return true
+	}
+	return false
+}
+
 // analyzeExpressionWithExpectedType analyzes an expression with optional expected type context.
 // This enables context-sensitive type inference for expressions that benefit from knowing
 // the expected type (e.g., lambda parameters, set/array literals, record literals).
@@ -413,9 +431,9 @@ func (a *Analyzer) analyzeImplementsExpression(expr *ast.ImplementsExpression) t
 // Syntax: if <condition> then <expression> [else <expression>]
 // Returns the common type of the consequence and alternative branches.
 func (a *Analyzer) analyzeIfExpression(expr *ast.IfExpression) types.Type {
-	// Check that condition is boolean
+	// Check that condition is boolean or Variant (Task 9.35)
 	condType := a.analyzeExpression(expr.Condition)
-	if condType != nil && !condType.Equals(types.BOOLEAN) {
+	if condType != nil && !isBooleanCompatible(condType) {
 		a.addError("if expression condition must be boolean, got %s at %s",
 			condType.String(), expr.Token.Pos.String())
 	}

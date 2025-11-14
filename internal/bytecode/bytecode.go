@@ -51,6 +51,7 @@ const (
 	ValueFunction
 	ValueClosure
 	ValueBuiltin
+	ValueVariant
 )
 
 // ValueTypeNames maps value types to their string names for debugging.
@@ -65,6 +66,7 @@ var ValueTypeNames = [...]string{
 	ValueFunction: "function",
 	ValueClosure:  "closure",
 	ValueBuiltin:  "builtin",
+	ValueVariant:  "variant",
 }
 
 // String returns a string representation of the value type.
@@ -146,6 +148,11 @@ func BuiltinValue(name string) Value {
 	return Value{Type: ValueBuiltin, Data: name}
 }
 
+// VariantValue constructs a Value representing a Variant (wraps another value).
+func VariantValue(wrapped Value) Value {
+	return Value{Type: ValueVariant, Data: wrapped}
+}
+
 // Type checking methods
 func (v Value) IsNil() bool    { return v.Type == ValueNil }
 func (v Value) IsBool() bool   { return v.Type == ValueBool }
@@ -165,6 +172,9 @@ func (v Value) IsObject() bool {
 }
 func (v Value) IsBuiltin() bool {
 	return v.Type == ValueBuiltin
+}
+func (v Value) IsVariant() bool {
+	return v.Type == ValueVariant
 }
 
 // Type conversion methods
@@ -237,6 +247,16 @@ func (v Value) AsObject() *ObjectInstance {
 		}
 	}
 	return nil
+}
+
+// AsVariant returns the wrapped value if this is a Variant.
+func (v Value) AsVariant() Value {
+	if v.Type == ValueVariant {
+		if wrapped, ok := v.Data.(Value); ok {
+			return wrapped
+		}
+	}
+	return NilValue()
 }
 
 // AsBuiltin returns the built-in function name if the value is a built-in.
