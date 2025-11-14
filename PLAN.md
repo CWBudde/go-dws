@@ -557,11 +557,85 @@ This phase implements a bytecode virtual machine for DWScript, providing signifi
   - Verify identical behavior to AST interpreter
   - Performance benchmarks confirm 5-6x speedup
 
-- [ ] 11.14 Add bytecode serialization
-  - [ ] Implement bytecode file format (.dwc)
-  - [ ] Save/load compiled bytecode to disk
-  - [ ] Version bytecode format for compatibility
-  - [ ] Add `dwscript compile` command for bytecode
+- [x] 11.14 Add bytecode serialization
+  - [x] 11.14.1 Define bytecode file format (.dwc)
+    - **Task**: Design the binary format for bytecode files
+    - **Implementation**:
+      - Define magic number (e.g., "DWC\x00") for file identification
+      - Define version format (major.minor.patch)
+      - Define header structure (magic, version, metadata)
+      - Document format specification
+    - **Files**: `internal/bytecode/serializer.go`
+    - **Estimated time**: 0.5 day
+
+  - [x] 11.14.2 Implement Chunk serialization
+    - **Task**: Serialize bytecode chunks to binary format
+    - **Implementation**:
+      - Serialize instructions array
+      - Serialize line number information
+      - Serialize constants pool
+      - Write helper functions for writing primitives (int, float, string, bool)
+    - **Files**: `internal/bytecode/serializer.go`
+    - **Estimated time**: 1 day
+
+  - [x] 11.14.3 Implement Chunk deserialization
+    - **Task**: Deserialize bytecode chunks from binary format
+    - **Implementation**:
+      - Read and validate magic number and version
+      - Deserialize instructions array
+      - Deserialize line number information
+      - Deserialize constants pool
+      - Write helper functions for reading primitives
+      - Handle invalid/corrupt bytecode files
+    - **Files**: `internal/bytecode/serializer.go`
+    - **Estimated time**: 1 day
+
+  - [x] 11.14.4 Add version compatibility checks
+    - **Task**: Ensure bytecode version compatibility
+    - **Implementation**:
+      - Check version during deserialization
+      - Return descriptive errors for version mismatches
+      - Add tests for different version scenarios
+    - **Files**: `internal/bytecode/serializer.go`
+    - **Estimated time**: 0.5 day
+
+  - [x] 11.14.5 Add serialization tests
+    - **Task**: Test serialization/deserialization round-trip
+    - **Implementation**:
+      - Test simple programs serialize correctly
+      - Test complex programs with all value types
+      - Test error handling (corrupt files, version mismatches)
+      - Verify bytecode produces same output after round-trip
+    - **Files**: `internal/bytecode/serializer_test.go`
+    - **Estimated time**: 1 day
+
+  - [x] 11.14.6 Add `dwscript compile` command
+    - **Task**: CLI command to compile source to bytecode
+    - **Implementation**:
+      - Add compile subcommand to CLI
+      - Parse source file and compile to bytecode
+      - Write bytecode to .dwc file
+      - Add flags for output file, optimization level
+    - **Files**: `cmd/dwscript/main.go`, `cmd/dwscript/compile.go`
+    - **Estimated time**: 0.5 day
+
+  - [x] 11.14.7 Update `dwscript run` to load .dwc files
+    - **Task**: Allow running precompiled bytecode files
+    - **Implementation**:
+      - Detect .dwc file extension
+      - Load bytecode from file instead of compiling
+      - Add performance comparison in benchmarks
+    - **Files**: `cmd/dwscript/main.go`, `cmd/dwscript/run.go`
+    - **Estimated time**: 0.5 day
+
+  - [x] 11.14.8 Document bytecode serialization
+    - **Task**: Update documentation for bytecode files
+    - **Implementation**:
+      - Document .dwc file format in docs/bytecode-vm.md
+      - Add CLI examples for compile command
+      - Update README.md with serialization info
+    - **Files**: `docs/bytecode-vm.md`, `README.md`, `CLAUDE.md`
+    - **Estimated time**: 0.5 day
 
 - [x] 11.15 Document bytecode VM
   - Written `docs/bytecode-vm.md` explaining architecture

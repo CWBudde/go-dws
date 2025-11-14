@@ -73,6 +73,15 @@ go fmt ./...
 # Show disassembled bytecode
 ./bin/dwscript run --bytecode --trace script.dws
 
+# Compile to bytecode (.dwc file)
+./bin/dwscript compile script.dws
+
+# Compile with custom output file
+./bin/dwscript compile script.dws -o output.dwc
+
+# Run precompiled bytecode
+./bin/dwscript run script.dwc
+
 # Run with custom recursion limit (default: 1024)
 ./bin/dwscript run --max-recursion 2048 script.dws
 
@@ -102,7 +111,8 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
 - `cmd/dwscript/` - CLI tool for running DWScript programs
   - `lex` command: Tokenize and display tokens
   - `parse` command: Parse and display AST
-  - `run` command: Execute scripts
+  - `run` command: Execute scripts (source or compiled bytecode)
+  - `compile` command: Compile source to bytecode (.dwc files)
   - `version` command: Show version info
 
 **internal/** - Private implementation (not importable by external projects)
@@ -143,6 +153,7 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - `bytecode.go`: Bytecode format, constant pools, value types
   - `disasm.go`: Bytecode disassembler for debugging
   - `instruction.go`: 116 opcodes for DWScript operations
+  - `serializer.go`: Bytecode serialization/deserialization (.dwc file format)
   - See [docs/bytecode-vm.md](docs/bytecode-vm.md) for details
 
 - `internal/errors/` - Error handling utilities
