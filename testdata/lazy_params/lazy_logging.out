@@ -1,0 +1,20 @@
+=== Test 1: Log level = WARN (3) ===
+[BuildComplexMessage called, count: 1]
+[LOG] Complex message with warning details
+[BuildComplexMessage called, count: 2]
+[LOG] Complex message with error information
+Message evaluations: 2
+
+=== Test 2: Log level = DEBUG (1) ===
+[BuildComplexMessage called, count: 1]
+[LOG] Complex message with debug info
+[BuildComplexMessage called, count: 2]
+[LOG] Complex message with info data
+[BuildComplexMessage called, count: 3]
+[LOG] Complex message with warning details
+Message evaluations: 3
+
+=== Test 3: Log level = ERROR (4) ===
+[BuildComplexMessage called, count: 1]
+[LOG] Complex message with error information
+Message evaluations: 1
