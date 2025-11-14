@@ -1239,26 +1239,21 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 
 	p.nextToken()
 
-	// Check if this is a boolean value comparison or type check
-	// TRUE, FALSE, NOT, and parenthesized expressions are value comparisons
-	// Everything else is treated as a type expression
-	if p.curTokenIs(lexer.TRUE) || p.curTokenIs(lexer.FALSE) || p.curTokenIs(lexer.NOT) || p.curTokenIs(lexer.LPAREN) {
-		// Parse as value expression (boolean comparison)
-		expression.Right = p.parseExpression(LOWEST)
-		if expression.Right == nil {
-			p.addError("expected expression after 'is' operator", ErrInvalidExpression)
-			return expression
-		}
-		expression.EndPos = expression.Right.End()
-	} else {
-		// Parse as type expression (type check)
-		expression.TargetType = p.parseTypeExpression()
-		if expression.TargetType == nil {
-			p.addError("expected type after 'is' operator", ErrExpectedType)
-			return expression
-		}
+	// Try to parse as type expression first
+	expression.TargetType = p.parseTypeExpression()
+	if expression.TargetType != nil {
 		expression.EndPos = expression.TargetType.End()
+		return expression
 	}
+
+	// If not a type, parse as value expression (boolean comparison)
+	// Use EQUALS precedence to prevent consuming following logical operators
+	expression.Right = p.parseExpression(EQUALS)
+	if expression.Right == nil {
+		p.addError("expected expression after 'is' operator", ErrInvalidExpression)
+		return expression
+	}
+	expression.EndPos = expression.Right.End()
 
 	return expression
 }

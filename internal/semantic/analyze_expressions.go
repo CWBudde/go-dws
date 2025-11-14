@@ -255,7 +255,7 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 	}
 }
 
-// analyzeIsExpression analyzes the 'is' operator (Task 9.40, 9.16.5.2, 9.33).
+// analyzeIsExpression analyzes the 'is' operator.
 // Example: obj is TMyClass -> Boolean (type check)
 // Example: boolExpr is True -> Boolean (boolean comparison)
 // Returns Boolean type.
@@ -276,9 +276,8 @@ func (a *Analyzer) analyzeIsExpression(expr *ast.IsExpression) types.Type {
 			return nil
 		}
 
-		// Both sides should be boolean (or convertible to boolean)
-		// For now, we'll accept any type and let the interpreter handle conversion
-		// In strict mode, we could validate that both are boolean types
+		// Both sides are convertible to boolean via implicit coercion
+		// The interpreter and bytecode VM handle conversion using isTruthy/variantToBool
 
 		// The 'is' operator always returns Boolean
 		expr.SetType(&ast.TypeAnnotation{

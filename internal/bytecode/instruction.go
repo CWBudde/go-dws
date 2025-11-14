@@ -580,7 +580,7 @@ const (
 	OpStringSlice
 
 	// ========================================
-	// Type Operations (6 opcodes)
+	// Type Operations (7 opcodes)
 	// ========================================
 
 	// OpIntToFloat converts integer to float.
@@ -612,6 +612,12 @@ const (
 	// Format: [OpVariantToType][unused][typeIndex]
 	// Stack: [variant] -> [typedValue]
 	OpVariantToType
+
+	// OpToBool converts any value to boolean.
+	// Format: [OpToBool][unused][unused]
+	// Stack: [value] -> [boolean]
+	// Note: Uses same conversion rules as isTruthy() in interpreter
+	OpToBool
 
 	// ========================================
 	// Exception Handling (4 opcodes)
@@ -661,7 +667,7 @@ const (
 	// Stack: [] -> []
 	OpDebugger
 
-	// Total: 113 opcodes
+	// Total: 114 opcodes
 	// This keeps us well under 128 (7 binary search comparisons in Go switch)
 )
 
@@ -773,6 +779,7 @@ var OpCodeNames = [...]string{
 	OpFloatToString:    "FLOAT_TO_STRING",
 	OpBoolToString:     "BOOL_TO_STRING",
 	OpVariantToType:    "VARIANT_TO_TYPE",
+	OpToBool:           "TO_BOOL",
 	OpTry:              "TRY",
 	OpCatch:            "CATCH",
 	OpFinally:          "FINALLY",

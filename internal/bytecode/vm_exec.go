@@ -875,6 +875,12 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			}
 			f := val.AsFloat()
 			vm.push(IntValue(int64(math.Trunc(f))))
+		case OpToBool:
+			val, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			vm.push(BoolValue(variantToBool(val)))
 		default:
 			return NilValue(), vm.runtimeError("unsupported opcode %v", inst.OpCode())
 		}

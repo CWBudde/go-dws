@@ -524,13 +524,15 @@ func (c *Compiler) compileIsExpression(expr *ast.IsExpression) error {
 	// Check if this is a boolean value comparison or type check
 	if expr.Right != nil {
 		// Boolean value comparison: left is right
-		// Compile as: left == right
+		// Convert both operands to boolean before comparing to match interpreter behavior
 		if err := c.compileExpression(expr.Left); err != nil {
 			return err
 		}
+		c.chunk.WriteSimple(OpToBool, line)
 		if err := c.compileExpression(expr.Right); err != nil {
 			return err
 		}
+		c.chunk.WriteSimple(OpToBool, line)
 		c.chunk.WriteSimple(OpEqual, line)
 		return nil
 	}
