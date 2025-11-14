@@ -1,0 +1,23 @@
+=== Test 1: Lazy expression with global variable ===
+Expression: globalCounter * 2
+Iteration 1: expr = 2
+Iteration 2: expr = 4
+Iteration 3: expr = 6
+Iteration 4: expr = 8
+Iteration 5: expr = 10
+
+=== Test 2: Sum of lazy expressions ===
+Sum of globalCounter^2 for 1 to 5: 55
+Expected: 1 + 4 + 9 + 16 + 25 = 55
+
+=== Test 3: Conditional counting with lazy condition ===
+Count of even numbers 1-10: 5
+Count of numbers divisible by 3 (1-10): 3
+
+=== Test 4: Simple accumulation ===
+Sum of globalCounter for 1 to 4: 10
+Expected: 1 + 2 + 3 + 4 = 10
+
+=== Test 5: Nested loops with constant lazy expression ===
+Nested loop (3x4) with constant 5: 60
+Expected: 3 * 4 * 5 = 60

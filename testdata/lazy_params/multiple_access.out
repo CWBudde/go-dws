@@ -1,0 +1,28 @@
+=== Test 1: Multiple access with side effects ===
+First access to x:
+GetNext called, counter = 1
+Value: 1
+Second access to x:
+GetNext called, counter = 2
+Value after adding x: 3
+Third access to x:
+GetNext called, counter = 3
+Final value: 6
+Result: 6
+
+=== Test 2: Lazy parameter sees variable mutations ===
+Access 1 (globalValue = 5):
+Access 2 (globalValue = 15):
+Access 3 (globalValue = 25):
+Result: 90
+Expected: 10 + 30 + 50 = 90
+
+=== Test 3: Simple expression evaluated multiple times ===
+First access to x:
+Value: 107
+Second access to x:
+Value after adding x: 214
+Third access to x:
+Final value: 321
+Result: 321
+Expected: 107 + 107 + 107 = 321
