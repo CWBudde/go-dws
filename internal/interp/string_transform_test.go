@@ -890,12 +890,12 @@ end
 }
 
 // ============================================================================
-// Task 9.45: Tests for Insert() and Delete() string functions
+// Task 9.46: Tests for StringReplace() string function
 // ============================================================================
 
-// TestBuiltinInsert_BasicUsage tests Insert() with basic string insertions.
-// Insert(source, target, pos) - inserts source into target at 1-based position
-// Task 9.45: Insert() tests
+// TestBuiltinStringReplace_BasicUsage tests StringReplace() with basic string replacements.
+// StringReplace(source, oldPattern, newPattern) - replaces all occurrences of oldPattern with newPattern in source
+// Task 9.46: StringReplace() tests
 
 func TestBuiltinStringReplace_BasicUsage(t *testing.T) {
 	tests := []struct {
