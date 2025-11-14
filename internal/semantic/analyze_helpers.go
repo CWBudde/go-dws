@@ -420,9 +420,46 @@ func (a *Analyzer) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
+	// Task 9.34: Register .Count property (alias for .Length) (lowercase key for case-insensitive lookup)
+	arrayHelper.Properties["count"] = &types.PropertyInfo{
+		Name:      "Count",
+		Type:      types.INTEGER,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__array_count",
+		WriteKind: types.PropAccessNone,
+	}
+
 	// Register .Add() method for dynamic arrays (lowercase key for case-insensitive lookup)
 	arrayHelper.Methods["add"] = types.NewProcedureType([]types.Type{nil}) // Takes one parameter (element to add)
 	arrayHelper.BuiltinMethods["add"] = "__array_add"
+
+	// Task 9.34: Register .Delete() method for dynamic arrays (lowercase key for case-insensitive lookup)
+	// Delete can take 1 or 2 parameters: Delete(index) or Delete(index, count)
+	// Second parameter (count) is optional with default value 1
+	arrayHelper.Methods["delete"] = types.NewFunctionTypeWithMetadata(
+		[]types.Type{types.INTEGER, types.INTEGER},
+		[]string{"index", "count"},
+		[]interface{}{nil, int64(1)}, // Default count = 1
+		[]bool{false, false},
+		[]bool{false, false},
+		[]bool{false, false},
+		nil, // Procedure (no return value)
+	)
+	arrayHelper.BuiltinMethods["delete"] = "__array_delete"
+
+	// Task 9.34: Register .IndexOf() method for dynamic arrays (lowercase key for case-insensitive lookup)
+	// IndexOf(value) or IndexOf(value, startIndex)
+	// Second parameter (startIndex) is optional with default value 0
+	arrayHelper.Methods["indexof"] = types.NewFunctionTypeWithMetadata(
+		[]types.Type{nil, types.INTEGER},
+		[]string{"value", "startIndex"},
+		[]interface{}{nil, int64(0)}, // Default startIndex = 0
+		[]bool{false, false},
+		[]bool{false, false},
+		[]bool{false, false},
+		types.INTEGER,
+	)
+	arrayHelper.BuiltinMethods["indexof"] = "__array_indexof"
 
 	// Task 9.216: Register .SetLength() method for dynamic arrays (lowercase key for case-insensitive lookup)
 	arrayHelper.Methods["setlength"] = types.NewProcedureType([]types.Type{types.INTEGER})

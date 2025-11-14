@@ -165,10 +165,6 @@ func (a *Analyzer) synthesizeImplicitParameterlessConstructor(classType *types.C
 }
 
 // checkMethodOverriding checks if overridden methods have compatible signatures.
-// Task 9.20.2: Methods with the 'overload' directive add to the overload set rather than
-// replacing the parent method, so they don't need signature compatibility checks.
-// PR #59 fix: Check IsOverride BEFORE HasOverloadDirective to properly validate
-// methods that have both 'overload' and 'override' directives.
 func (a *Analyzer) checkMethodOverriding(class, parent *types.ClassType) {
 	// Check MethodOverloads instead of Methods to access overload directive information
 	for methodName, childOverloads := range class.MethodOverloads {

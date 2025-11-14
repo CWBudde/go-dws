@@ -455,7 +455,7 @@ func TestMethodOverridingParameterMismatch(t *testing.T) {
 }
 
 func TestMethodOverrideWithOverloadDirectiveRequiresMatch(t *testing.T) {
-	// PR #59 regression test: Methods with both 'overload' and 'override'
+	// regression test: Methods with both 'overload' and 'override'
 	// must still match a parent signature. The fix checks IsOverride BEFORE
 	// HasOverloadDirective to ensure override validation is not skipped.
 	input := `

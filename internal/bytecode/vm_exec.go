@@ -439,6 +439,120 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), err
 			}
 			vm.push(IntValue(0))
+		case OpArrayCount:
+			// Task 9.34: OpArrayCount is an alias for OpArrayLength
+			arrVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			arr, err := vm.requireArray(arrVal, "ARRAY_COUNT")
+			if err != nil {
+				return NilValue(), err
+			}
+			vm.push(IntValue(int64(arr.Length())))
+		case OpArrayDelete:
+			// Task 9.34: Delete elements from array
+			// Stack: [array, index, count] -> []
+			countVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			indexVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			arrVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			count, err := vm.requireInt(countVal, "ARRAY_DELETE count")
+			if err != nil {
+				return NilValue(), err
+			}
+			index, err := vm.requireInt(indexVal, "ARRAY_DELETE index")
+			if err != nil {
+				return NilValue(), err
+			}
+			arr, err := vm.requireArray(arrVal, "ARRAY_DELETE")
+			if err != nil {
+				return NilValue(), err
+			}
+
+			// Validate parameters
+			arrayLen := arr.Length()
+			if index < 0 || index >= arrayLen {
+				return NilValue(), vm.runtimeError("ARRAY_DELETE index %d out of bounds (0..%d)", index, arrayLen-1)
+			}
+			if count < 0 {
+				return NilValue(), vm.runtimeError("ARRAY_DELETE count must be non-negative, got %d", count)
+			}
+
+			// Calculate end index
+			endIndex := index + count
+			if endIndex > arrayLen {
+				endIndex = arrayLen
+			}
+
+			// Delete elements by creating a new slice
+			newElements := make([]Value, 0, arrayLen-(endIndex-index))
+			for i := 0; i < index; i++ {
+				val, _ := arr.Get(i)
+				newElements = append(newElements, val)
+			}
+			for i := endIndex; i < arrayLen; i++ {
+				val, _ := arr.Get(i)
+				newElements = append(newElements, val)
+			}
+
+			// Replace array contents
+			arr.Resize(len(newElements))
+			for i, val := range newElements {
+				arr.Set(i, val)
+			}
+		case OpArrayIndexOf:
+			// Task 9.34: Find element index in array
+			// Stack: [array, value, startIndex] -> [index]
+			startIndexVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			valueToFind, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			arrVal, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			startIndex, err := vm.requireInt(startIndexVal, "ARRAY_INDEX_OF startIndex")
+			if err != nil {
+				return NilValue(), err
+			}
+			arr, err := vm.requireArray(arrVal, "ARRAY_INDEX_OF")
+			if err != nil {
+				return NilValue(), err
+			}
+
+			// Validate startIndex
+			arrayLen := arr.Length()
+			// Allow startIndex == arrayLen (searches 0 elements, returns -1)
+			if startIndex < 0 || startIndex > arrayLen {
+				vm.push(IntValue(-1))
+			} else {
+				// Search for value
+				found := false
+				for i := startIndex; i < arrayLen; i++ {
+					elem, _ := arr.Get(i)
+					if vm.valuesEqual(elem, valueToFind) {
+						vm.push(IntValue(int64(i)))
+						found = true
+						break
+					}
+				}
+				if !found {
+					vm.push(IntValue(-1))
+				}
+			}
 		case OpNewObject:
 			classIdx := int(inst.B())
 			className, err := vm.constantAsString(frame.chunk, classIdx, "NEW_OBJECT")
@@ -494,15 +608,44 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			if !objVal.IsObject() {
-				return NilValue(), vm.typeError("GET_PROPERTY", "Object", objVal.Type.String())
+
+			// Task 9.34: Handle array helper properties
+			if objVal.IsArray() || objVal.IsNil() {
+				// Handle nil arrays (uninitialized dynamic arrays)
+				arr := objVal.AsArray()
+				var arrayLen int
+				if arr == nil {
+					arrayLen = 0
+				} else {
+					arrayLen = arr.Length()
+				}
+
+				switch name {
+				case "Length", "length":
+					vm.push(IntValue(int64(arrayLen)))
+				case "Count", "count":
+					vm.push(IntValue(int64(arrayLen)))
+				case "High", "high":
+					if arrayLen == 0 {
+						vm.push(IntValue(-1))
+					} else {
+						vm.push(IntValue(int64(arrayLen - 1)))
+					}
+				case "Low", "low":
+					vm.push(IntValue(0))
+				default:
+					return NilValue(), vm.runtimeError("unknown array property '%s'", name)
+				}
+			} else if !objVal.IsObject() {
+				return NilValue(), vm.typeError("GET_PROPERTY", "Object or Array", objVal.Type.String())
+			} else {
+				obj := objVal.AsObject()
+				val, ok := obj.GetProperty(name)
+				if !ok {
+					val = NilValue()
+				}
+				vm.push(val)
 			}
-			obj := objVal.AsObject()
-			val, ok := obj.GetProperty(name)
-			if !ok {
-				val = NilValue()
-			}
-			vm.push(val)
 		case OpSetProperty:
 			propIdx := int(inst.B())
 			name, err := vm.constantAsString(frame.chunk, propIdx, "SET_PROPERTY")
