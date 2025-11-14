@@ -293,17 +293,34 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			return i.evalHelperPropertyRead(helper, helperProp, objVal, ma)
 		}
 
-		// Check if it's a no-argument helper method that can be auto-invoked
-		helper, methodDecl, _ := i.findHelperMethod(objVal, ma.Member.Value)
-		if helper != nil && methodDecl != nil && len(methodDecl.Parameters) == 0 {
-			// Auto-invoke the no-argument method
-			methodCall := &ast.MethodCallExpression{
-				Token:     ma.Token,
-				Object:    ma.Object,
-				Method:    ma.Member,
-				Arguments: []ast.Expression{},
+		// Task 9.8.5: Check if it's a parameterless helper method that can be auto-invoked
+		// This allows arr.Pop to work the same as arr.Pop()
+		// Note: The semantic analyzer already validated that parameterless methods accessed
+		// without () are allowed. If we reach here with a helper method found, and the
+		// semantic analysis passed, then this must be a parameterless method access.
+		helper, methodDecl, builtinSpec := i.findHelperMethod(objVal, ma.Member.Value)
+		if helper != nil && (methodDecl != nil || builtinSpec != "") {
+			// Check if it's parameterless
+			isParameterless := false
+			if methodDecl != nil {
+				// AST-declared method - check parameter count
+				isParameterless = len(methodDecl.Parameters) == 0
+			} else if builtinSpec != "" {
+				// Builtin-only method - assume it's parameterless if semantic analysis passed
+				// The semantic analyzer's auto-invoke logic already validated this
+				isParameterless = true
 			}
-			return i.evalMethodCall(methodCall)
+
+			if isParameterless {
+				// Auto-invoke the parameterless method
+				methodCall := &ast.MethodCallExpression{
+					Token:     ma.Token,
+					Object:    ma.Object,
+					Method:    ma.Member,
+					Arguments: []ast.Expression{},
+				}
+				return i.evalMethodCall(methodCall)
+			}
 		}
 
 		return i.newErrorWithLocation(ma, "cannot access member '%s' of type '%s' (no helper found)",
