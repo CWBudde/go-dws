@@ -1,35 +1,357 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+This file provides guidance for AI agents and developers working with code in this repository.
 
-Core compiler code lives in focused packages: `lexer`, `parser`, `ast`, `types`, and `interp`, each mirroring DWScript components. The CLI entry point is in `cmd/dwscript`, currently a scaffold that will orchestrate the compiler pipeline. Shared fixtures and expected-output samples reside under `testdata`, while `reference` holds the upstream DWScript sources for parity checks—do not modify them. Architecture notes and stage plans are tracked in `docs/`, `PLAN.md`, and `goal.md`; consult them before proposing structural changes.
+## Project Overview
 
-## Build, Test, and Development Commands
+go-dws is a Go port of DWScript (Delphi Web Script), a full-featured Object Pascal-based scripting language. The project aims for 100% language compatibility with the original DWScript while using idiomatic Go patterns.
 
-- `go mod tidy` synchronizes `go.mod`/`go.sum` after dependency updates.
-- `go build ./cmd/dwscript` builds the CLI; use `go run ./cmd/dwscript --help` to validate flags.
-- `go test ./...` runs the full unit test suite; add `-run Name` to target specific cases.
-- `go test -coverprofile=coverage.out ./...` refreshes project-wide coverage data.
+## Common Commands
+
+### Building
+
+```bash
+# Using just (recommended)
+just build             # Build the CLI tool to bin/dwscript
+just tidy              # Tidy dependencies
+just clean             # Clean build artifacts
+
+# Development workflows
+just dev               # Format, lint, test, and build
+just ci                # Run CI checks (lint + test with coverage)
+just setup             # Full setup (tidy + install tools)
+
+# Direct commands
+go build ./cmd/dwscript  # Build the CLI tool
+go install ./cmd/dwscript # Build and install globally
+go mod tidy              # Tidy dependencies
+```
+
+### Testing
+
+```bash
+# Using just (recommended)
+just test              # Run all tests
+just test-verbose      # Run tests with verbose output
+just test-coverage     # Run tests with coverage and generate HTML report
+just test-unit         # Run tests with race detection (CI)
+
+# Direct commands
+go test ./...          # Run all tests
+go test -v ./...       # Run tests with verbose output
+go test ./lexer        # Run tests for a specific package
+go test ./parser
+go test ./ast
+
+# Run tests with coverage
+go test -cover ./...
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+
+# Run a single test
+go test -run TestLexer ./lexer
+go test -run TestIntegerLiteral ./parser
+```
+
+### Linting
+
+```bash
+# Using just (recommended)
+just lint              # Run golangci-lint
+just lint-fix          # Fix linting issues automatically
+just fmt               # Format code with go fmt and goimports
+just check-fmt         # Check if code is formatted (CI)
+
+# Direct commands
+golangci-lint run      # Run golangci-lint (project uses .golangci.yml config)
+golangci-lint run --fix # Fix issues automatically
+go vet ./...           # Run standard Go vet
+go fmt ./...           # Run standard Go formatter
+```
+
+### CLI Usage
+
+```bash
+# Using just (convenient shortcuts)
+just lex testdata/hello.dws    # Tokenize a file
+just parse testdata/hello.dws  # Parse and display AST
+just run testdata/hello.dws    # Run a script
+
+# Direct CLI commands
+./bin/dwscript lex testdata/simple.dws
+./bin/dwscript lex -e "var x: Integer := 42;"
+
+# Parse and display AST
+./bin/dwscript parse testdata/simple.dws
+./bin/dwscript parse -e "3 + 5 * 2"
+
+# Run a script (AST interpreter - default)
+./bin/dwscript run script.dws
+
+# Run with bytecode VM (5-6x faster)
+./bin/dwscript run --bytecode script.dws
+
+# Show disassembled bytecode
+./bin/dwscript run --bytecode --trace script.dws
+
+# Compile to bytecode (.dwc file)
+./bin/dwscript compile script.dws
+
+# Compile with custom output file
+./bin/dwscript compile script.dws -o output.dwc
+
+# Run precompiled bytecode
+./bin/dwscript run script.dwc
+
+# Run with custom recursion limit (default: 1024)
+./bin/dwscript run --max-recursion 2048 script.dws
+
+# Show version
+./bin/dwscript version
+```
+
+## Architecture Overview
+
+### Pipeline
+
+```plain
+                                    ┌→ AST Interpreter → Output
+                                    │
+Source Code → Lexer → Parser → AST → Semantic Analyzer
+                                    │
+                                    └→ Bytecode Compiler → Bytecode VM → Output
+                                                          (5-6x faster)
+```
+
+### Package Structure
+
+The project follows standard Go project layout with `cmd/`, `internal/`, and `pkg/` directories:
+
+**cmd/** - Command-line applications
+
+- `cmd/dwscript/` - CLI tool for running DWScript programs
+  - `lex` command: Tokenize and display tokens
+  - `parse` command: Parse and display AST
+  - `run` command: Execute scripts (source or compiled bytecode)
+  - `compile` command: Compile source to bytecode (.dwc files)
+  - `version` command: Show version info
+
+**internal/** - Private implementation (not importable by external projects)
+
+- `internal/lexer/` - Tokenization
+  - `lexer.go`: Main lexer implementation with `NextToken()` method
+  - `token.go`: Token types and Position tracking
+  - `token_type.go`: Complete enumeration of 150+ DWScript tokens
+  - Handles case-insensitive keywords, hex/binary numbers, escaped strings
+
+- `internal/parser/` - Parsing and AST construction
+  - `parser.go`: Pratt parser with precedence climbing
+  - Uses prefix/infix parse functions for extensibility
+  - Precedence levels: LOWEST, ASSIGN, OR, AND, EQUALS, LESSGREATER, SUM, PRODUCT, PREFIX, CALL, INDEX, MEMBER
+
+- `internal/ast/` - Abstract Syntax Tree node definitions
+  - `ast.go`: Base Node, Expression, and Statement interfaces
+  - `expressions.go`: Expression nodes (literals, binary/unary ops, identifiers)
+  - `statements.go`: Statement nodes
+  - All nodes implement `String()` for debugging and `TokenLiteral()` for error reporting
+
+- `internal/semantic/` - Semantic analysis and type checking
+  - `analyzer.go`: Type checker and semantic analyzer
+  - `symbol_table.go`: Symbol table for scope management
+
+- `internal/types/` - Type system implementation
+  - Integer, Float, String, Boolean, Array, Record, Enum, Class types
+  - Type checking and conversion
+
+- `internal/interp/` - AST Interpreter/runtime
+  - Executes the AST via tree-walking
+  - Environment/symbol table management
+  - Built-in function implementations
+
+- `internal/bytecode/` - Bytecode VM (5-6x faster than AST interpreter)
+  - `compiler.go`: AST-to-bytecode compiler with optimizations
+  - `vm.go`: Stack-based virtual machine with built-in function support
+  - `bytecode.go`: Bytecode format, constant pools, value types
+  - `disasm.go`: Bytecode disassembler for debugging
+  - `instruction.go`: 116 opcodes for DWScript operations
+  - `serializer.go`: Bytecode serialization/deserialization (.dwc file format)
+  - See [docs/bytecode-vm.md](docs/bytecode-vm.md) for details
+
+- `internal/errors/` - Error handling utilities
+  - Error formatting and reporting
+
+**pkg/** - Public APIs (importable by external projects)
+
+- `pkg/dwscript/` - High-level embedding API
+  - `dwscript.go`: Engine, Program, Result types
+  - `options.go`: Configuration options
+  - Public API for embedding DWScript in Go applications
+  - See [README.md](README.md) for usage examples
+
+- `pkg/ast/` - Public AST types and utilities
+  - Full AST node definitions (expressions, statements, declarations)
+  - Visitor pattern implementation for tree traversal
+  - Position tracking and type information support
+
+- `pkg/token/` - Public token types
+  - Token types, Position, and TokenType definitions
+  - 150+ DWScript token constants
+  - Case-insensitive keyword lookup utilities
+
+- `pkg/platform/` - Platform abstraction layer (planned for Stage 10.15)
+  - Abstracts filesystem, console, and platform-specific functionality
+  - Enables native and WebAssembly builds with consistent behavior
+
+- `pkg/wasm/` - WebAssembly support (planned for Stage 10.15)
+  - JavaScript/Go interop
+  - Browser API bindings
+
+### Key Design Patterns
+
+**Pratt Parser**: Used for expression parsing with operator precedence. Register prefix/infix parse functions for each token type that can start or continue an expression.
+
+**AST Visitor Pattern**: Ready for semantic analysis phase. Each node type implements standard interfaces for tree traversal.
+
+**Symbol Tables**: Will use nested scope chain for variable/function resolution (Stage 5).
+
+## Development Guidelines
+
+### DWScript Language Specifics
+
+**Case Insensitivity**: DWScript keywords are case-insensitive. The lexer normalizes all keywords to lowercase via `LookupIdent()`.
+
+**Operators**:
+
+- Assignment: `:=` (not `=`)
+- Equality: `=` (not `==`)
+- Inequality: `<>`
+- Integer division: `div` (keyword, not operator)
+- Modulo: `mod` (keyword)
+- Boolean: `and`, `or`, `xor`, `not` (keywords)
+- Compound: `+=`, `-=`, `*=`, `/=`
+
+**Comments**:
+
+- Block: `{ ... }` or `(* ... *)`
+- Line: `// ...`
+
+**String Literals**:
+
+- Single or double quotes
+- Escape quotes by doubling: `'it''s'` → `it's`
+- Multi-line strings supported
+
+**Number Literals**:
+
+- Integers: `42`, `-5`
+- Hex: `$FF` or `0xFF`
+- Binary: `%1010`
+- Floats: `3.14`, `1.0e10`
+
+### Testing Philosophy
+
+The project maintains high test coverage (>90% for lexer, >80% for parser) and includes the complete DWScript test suite (~2,100 tests in `testdata/fixtures/`). When adding features:
+
+1. Write tests FIRST (TDD approach as per PLAN.md)
+2. Test both success and error cases
+3. Include edge cases (empty input, malformed syntax, boundary values)
+4. Use table-driven tests for multiple similar cases
+5. Run fixture tests to verify compatibility with original DWScript
+6. Update `testdata/fixtures/TEST_STATUS.md` as tests pass
+
+**Running Fixture Tests**:
+
+```bash
+# Run all fixture tests
+go test -v ./internal/interp -run TestDWScriptFixtures
+
+# Run specific category
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts
+
+# See testdata/fixtures/README.md for more options
+```
+
+Use Go's `testing` package and favor table-driven tests to mirror DWScript scenarios. Place fixture scripts in `testdata/<feature>` and load them with `os.ReadFile` to keep tests data-driven. Name test files `*_test.go` and keep coverage above the current baseline when touching lexer or parser logic.
+
+### Error Handling
+
+- Parser accumulates errors (doesn't stop at first error)
+- All errors include line:column position information
+- Use `addError()` and `peekError()` methods in parser
+- Lexer marks illegal tokens with `ILLEGAL` type
+
+### Code Style
+
+Follow idiomatic Go style:
+
+- Tabs for indentation
+- `UpperCamelCase` for exported symbols
+- `lowerCamelCase` for internals
+- `TestName_Subject` for test functions
+- Run `gofmt` (or `go fmt ./...`) before committing
+- Import blocks grouped with `goimports` conventions
+- Comprehensive GoDoc comments on all exported types/functions
+- Keep functions focused and small
+- Prefer explicit error handling over panics
+
+Lexer and parser tokens use the `TokenKind` and `NewToken` patterns established in `lexer/token.go`—mirror existing naming when extending enums or node types. Keep package-specific helper files in the same directory to avoid circular imports.
+
+## Implementation Roadmap (PLAN.md)
+
+When implementing new stages/tasks:
+
+- Create AST nodes first
+- Extend parser with new syntax
+- Consider semantic analysis needs
+- Implement runtime support (interpreter & bytecode VM)
+- Add comprehensive tests
+- Update CLI if applicable
+- Document in stage summary files under `docs/`
+- Mark tasks as done in `PLAN.md`
+
+Before large refactors, update `PLAN.md` with the affected tasks and ensure the milestone status still reflects reality. Once a feature phase is complete, mark tasks as done in `PLAN.md`.
+
+## Important Files
+
+- `PLAN.md`: Complete task breakdown and progress tracking
+- `goal.md`: Detailed strategy and rationale for the port
+- `README.md`: User-facing documentation
+- `CONTRIBUTING.md`: Contribution guidelines
+- `docs/stage*.md`: Stage completion summaries with statistics
 
 ## Reference Material
 
-- Original DWScript source: `reference/dwscript-original/`
+- Original DWScript source: `reference/dwscript-original/` (for reference only)
 - DWScript language reference: https://www.delphitools.info/dwscript/
-- Test scripts: `testdata/*.dws`
-
-## Coding Style & Naming Conventions
-
-Follow idiomatic Go style: tabs for indentation, `UpperCamelCase` for exported symbols, `lowerCamelCase` for internals, and `TestName_Subject` for test functions. Run `gofmt` (or `go fmt ./...`) before committing; import blocks should be grouped with `goimports` conventions. Lexer and parser tokens use the `TokenKind` and `NewToken` patterns established in `lexer/token.go`—mirror existing naming when extending enums or node types. Keep package-specific helper files in the same directory to avoid circular imports.
-
-## Testing Guidelines
-
-Use Go’s `testing` package and favor table-driven tests to mirror DWScript scenarios. Place fixture scripts in `testdata/<feature>` and load them with `os.ReadFile` to keep tests data-driven. Name test files `*_test.go` and keep coverage above the current baseline when touching lexer or parser logic by updating `coverage.out`. When reproducing upstream behavior, add assertions that reference the original DWScript test case in comments.
+- Test scripts: `testdata/*.dws` (custom test scripts)
+- Comprehensive test suite: `testdata/fixtures/` (~2,100 tests from original DWScript)
+  - See `testdata/fixtures/README.md` for test structure and usage
+  - See `testdata/fixtures/TEST_STATUS.md` for current pass/fail status
 
 ## Commit & Pull Request Guidelines
 
-Commits follow a Conventional Commit style seen in history (`feat(parser): ...`, `fix: ...`, `docs: ...`). Keep them focused, include relevant stage or task identifiers from `PLAN.md` when applicable, and document behavioral changes in the message body. PRs should summarize the change set, list manual or automated tests (copy the `go test` command you ran), link any tracked issues or plan tasks, and attach CLI output or screenshots if the user-facing behavior changes.
+Commits follow a Conventional Commit style seen in history (`feat(parser): ...`, `fix: ...`, `docs: ...`). Keep them focused, include relevant stage or task identifiers from `PLAN.md` when applicable, and document behavioral changes in the message body.
+
+PRs should:
+
+- Summarize the change set
+- List manual or automated tests (copy the `go test` command you ran)
+- Link any tracked issues or plan tasks
+- Attach CLI output or screenshots if the user-facing behavior changes
 
 ## Documentation & Planning
 
-Before large refactors, update `PLAN.md` with the affected tasks and ensure the milestone status still reflects reality. Revise `docs/` or `README.md` when interfaces, flags, or directory layout shift. Small tooling tips belong in the `docs/` directory, while high-level strategy updates go to `goal.md`; keep each artifact synchronized.
-Once a feature phase is complete, mark tasks as done in `PLAN.md`.
+Revise `docs/` or `README.md` when interfaces, flags, or directory layout shift. Small tooling tips belong in the `docs/` directory, while high-level strategy updates go to `goal.md`; keep each artifact synchronized.
+
+## Notes for Future Development
+
+**Simulating Delphi Features in Go**: Since Go lacks classes, inheritance, and method overloading:
+
+- Use ClassInfo structs for class metadata
+- ObjectInstance structs with field maps for instances
+- Method tables for dynamic dispatch and overriding
+- Type checking at semantic analysis phase (Stage 6)
+
+**Memory Management**: Go's GC handles cleanup; no manual reference counting needed like Delphi.
+
+**Performance**: Current AST interpreter is simple. Bytecode VM provides 5-6x performance improvement.
