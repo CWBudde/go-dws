@@ -341,7 +341,7 @@ each element is wrapped in a variant-like container that preserves type informat
 
 **Current Status**: Several basic bytecode compiler tests are failing, suggesting issues in the bytecode compilation pipeline.
 
-- [ ] 9.40.1 Investigate and fix TestCompiler_VarAssignReturn
+- [x] 9.40.1 Investigate and fix TestCompiler_VarAssignReturn
   - **Task**: Debug why variable assignment and return compilation fails
   - **Implementation**:
     - Run test with verbose output
@@ -351,7 +351,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`, `internal/bytecode/compiler_test.go`
   - **Estimated time**: 0.5 day
 
-- [ ] 9.40.2 Investigate and fix TestCompiler_IfElse
+- [x] 9.40.2 Investigate and fix TestCompiler_IfElse
   - **Task**: Debug why if-else statement compilation fails
   - **Implementation**:
     - Verify JUMP_IF_FALSE and JUMP opcodes are generated
@@ -360,7 +360,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`
   - **Estimated time**: 0.5 day
 
-- [ ] 9.40.3 Investigate and fix TestCompiler_ArrayLiteralAndIndex
+- [x] 9.40.3 Investigate and fix TestCompiler_ArrayLiteralAndIndex
   - **Task**: Debug why array literal and indexing compilation fails
   - **Implementation**:
     - Check NEW_ARRAY opcode generation
@@ -369,7 +369,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`
   - **Estimated time**: 0.5-1 day
 
-- [ ] 9.40.4 Investigate and fix TestCompiler_CallExpression
+- [x] 9.40.4 Investigate and fix TestCompiler_CallExpression
   - **Task**: Debug why function call compilation fails
   - **Implementation**:
     - Verify argument compilation
@@ -378,7 +378,7 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`
   - **Estimated time**: 0.5-1 day
 
-- [ ] 9.40.5 Investigate and fix TestCompiler_MemberAccess
+- [x] 9.40.5 Investigate and fix TestCompiler_MemberAccess
   - **Task**: Debug why member access (object.field) compilation fails
   - **Implementation**:
     - Check GET_PROPERTY opcode generation
@@ -387,16 +387,16 @@ each element is wrapped in a variant-like container that preserves type informat
   - **Files**: `internal/bytecode/compiler.go`
   - **Estimated time**: 0.5-1 day
 
-- [ ] 9.40.6 Add regression tests for fixed issues
+- [x] 9.40.6 Add regression tests for fixed issues
   - **Task**: Ensure bytecode compiler tests remain passing
   - **Tests**: Enhance existing test suite based on fixes
   - **Files**: `internal/bytecode/compiler_test.go`
   - **Estimated time**: 0.5 day
 
 **Blocked Tests**:
-- internal/bytecode: TestCompiler_VarAssignReturn, TestCompiler_IfElse, TestCompiler_ArrayLiteralAndIndex, TestCompiler_CallExpression, TestCompiler_MemberAccess
+- ~~internal/bytecode: TestCompiler_VarAssignReturn, TestCompiler_IfElse, TestCompiler_ArrayLiteralAndIndex, TestCompiler_CallExpression, TestCompiler_MemberAccess~~ (All tests now passing)
 
-**Note**: Phase 11 (Bytecode VM) is marked mostly complete, but these basic compilation tests suggest the compiler needs attention before moving to advanced optimizations.
+**Note**: Phase 11 (Bytecode VM) is marked mostly complete. All basic compilation tests are now passing.
 
 ---
 
