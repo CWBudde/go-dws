@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // This file contains control flow statement evaluation (if, case, block).
@@ -320,7 +321,28 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 		// Bind parameters
 		for idx, param := range method.Parameters {
 			if idx < len(args) {
-				i.env.Define(param.Name.Value, args[idx])
+				argValue := args[idx]
+
+				// Task 9.24.2: Convert array arguments to array of Variant if parameter is array of const
+				if param.Type != nil {
+					paramTypeName := strings.ToLower(param.Type.Name)
+					if strings.HasPrefix(paramTypeName, "array of const") || strings.HasPrefix(paramTypeName, "array of variant") {
+						if arrVal, ok := argValue.(*ArrayValue); ok {
+							// Convert array elements to Variants
+							variantElements := make([]Value, len(arrVal.Elements))
+							for i, elem := range arrVal.Elements {
+								variantElements[i] = boxVariant(elem)
+							}
+							// Create new array with Variant elements
+							argValue = &ArrayValue{
+								Elements:  variantElements,
+								ArrayType: types.ARRAY_OF_CONST, // array of Variant
+							}
+						}
+					}
+				}
+
+				i.env.Define(param.Name.Value, argValue)
 			}
 		}
 

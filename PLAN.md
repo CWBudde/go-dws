@@ -176,7 +176,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 #### Array of Const Support (Phase 9.24)
 
-**Current Status**: Not implemented - **COMPLETE GAP**
+**Current Status**: 5/5 implemented (100%) - ✅ **COMPLETE**
 
 **Priority**: HIGH - Required for variable-length parameter lists with mixed types
 
@@ -197,11 +197,14 @@ each element is wrapped in a variant-like container that preserves type informat
   - ✅ Type system: Uses array of Variant (ARRAY_OF_CONST constant)
   - ✅ Operator registry: Extended to support array type compatibility
 
-- [ ] 9.24.2 Implement array of const conversion at call sites
+- [x] 9.24.2 Implement array of const conversion at call sites
   - ✅ Array literals with mixed types work with array of const parameters
   - ✅ Empty array literals handled in compound assignments
   - ✅ Array of T -> array of Variant compatibility in operators
-  - ⚠️ Interpreter runtime for class operator overloads with array of const parameters is not yet implemented; semantic analysis and type system are complete. Task will be marked complete once interpreter support is added.
+  - ✅ Interpreter runtime for class operator overloads with array of const parameters
+  - ✅ Type alias resolution in operator registration (resolves "toa" to "array of Variant")
+  - ✅ Array-to-Variant conversion in tryCallClassOperator for array of const parameters
+  - ✅ Variant-to-String conversion in compound assignments (Field += str[i])
 
 - [x] 9.24.3 Add TVarRec support (optional)
   - Not needed: Using Variant type directly for array elements
@@ -209,13 +212,15 @@ each element is wrapped in a variant-like container that preserves type informat
 
 - [x] 9.24.4 Test array of const in various contexts
   - ✅ Function parameters (comprehensive tests added)
-  - ✅ Class operator overloads (semantic analysis complete)
+  - ✅ Class operator overloads (semantic analysis and runtime complete)
   - ✅ Variant to typed variable conversion (String concatenation works)
   - ✅ Empty, homogeneous, and heterogeneous array literals
-- [ ] 9.24.5 Support procedure bindings for class operators that return Self
-  - Allow `class operator +(const items: array of const): TClass uses AppendStrings;` patterns
-  - Analyzer or runtime should treat procedure bindings that mutate and return `Self` as valid
-  - Fixes `TestClassOperatorWithArrayOfConst` / `TestClassOperatorCompoundAssignmentWithEmptyArray`
+  - ✅ class_operator3.pas fixture test passing
+- [x] 9.24.5 Support procedure bindings for class operators that return Self
+  - ✅ Allow `class operator +(const items: array of const): TClass uses AppendStrings;` patterns
+  - ✅ Runtime treats procedure bindings that mutate and return `Self` as valid
+  - ✅ TestClassOperatorWithArrayOfConst passing
+  - ✅ TestClassOperatorCompoundAssignmentWithEmptyArray passing
 
 **Implementation Time**: 2-3 days
 **Impact**: Unblocks class_operator3.pas and other variable-argument fixtures
