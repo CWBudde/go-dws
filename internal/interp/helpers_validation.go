@@ -8,7 +8,7 @@ import (
 )
 
 // ============================================================================
-// Helper Support Infrastructure
+// Helper Declaration, Validation, and Execution Infrastructure
 // ============================================================================
 
 // HelperInfo stores runtime information about a helper type
