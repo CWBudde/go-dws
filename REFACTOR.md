@@ -71,13 +71,14 @@ These test files are very large and would benefit from splitting:
 └── functions_call_test.go  (~24KB) - Function call parsing
 ```
 
-### 🟢 P3.5: internal/interp/set_test.go (48KB)
+### ✅ P3.5: internal/interp/set_test.go (48KB) - COMPLETED
 
-**Target:** Split by set operations
+**Status:** Split into 2 files (18KB + 29KB = 47KB total)
 
+**Result:**
 ```plain
-├── set_basic_test.go    (~24KB) - Creation, membership, basic ops
-└── set_advanced_test.go (~24KB) - Advanced operations, edge cases
+├── set_basic_test.go    (18KB) - Creation, literals, union, difference, intersection, membership (18 tests)
+└── set_advanced_test.go (29KB) - Large sets, performance, ForIn iteration, edge cases (20 tests)
 ```
 
 ### 🟢 P3.6: internal/bytecode/compiler_test.go (48KB)
