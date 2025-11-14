@@ -132,7 +132,7 @@ func TestUnaryOperationsError(t *testing.T) {
 		error string
 	}{
 		{"var x := -'hello';", "numeric operand"},
-		{"var x := not 'hello';", "Boolean or Integer operand"}, // String not supported for NOT
+		{"var x := not 'hello';", "Boolean, Integer, or Variant operand"}, // String not supported for NOT
 	}
 
 	for _, tt := range tests {
