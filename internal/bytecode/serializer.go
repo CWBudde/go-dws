@@ -36,18 +36,18 @@ const (
 
 	// Maximum bounds for deserialization to prevent memory exhaustion attacks
 	// These limits are generous but prevent malicious .dwc files from causing OOM/panics
-	maxStringLength     = 64 * 1024 * 1024  // 64 MB - generous for string constants
-	maxChunkSize        = 16 * 1024 * 1024  // 16 MB - reasonable for a single function's bytecode
-	maxInstructionCount = 1_000_000         // ~4 MB of instructions
-	maxConstantCount    = 100_000           // Each Value ~24 bytes = ~2.4 MB
-	maxLineInfoCount    = 1_000_000         // Match instruction count
-	maxUpvalueCount     = 1_024             // Typical closure captures
-	maxTryInfoCount     = 10_000            // Exception handlers
-	maxHelperCount      = 1_000             // Total helpers in a program
-	maxMethodCount      = 1_000             // Methods per helper
-	maxPropertyCount    = 1_000             // Properties per helper
-	maxClassVarCount    = 1_000             // Class variables per helper
-	maxClassConstCount  = 1_000             // Class constants per helper
+	maxStringLength     = 64 * 1024 * 1024 // 64 MB - generous for string constants
+	maxChunkSize        = 16 * 1024 * 1024 // 16 MB - reasonable for a single function's bytecode
+	maxInstructionCount = 1_000_000        // ~4 MB of instructions
+	maxConstantCount    = 100_000          // Each Value ~24 bytes = ~2.4 MB
+	maxLineInfoCount    = 1_000_000        // Match instruction count
+	maxUpvalueCount     = 1_024            // Typical closure captures
+	maxTryInfoCount     = 10_000           // Exception handlers
+	maxHelperCount      = 1_000            // Total helpers in a program
+	maxMethodCount      = 1_000            // Methods per helper
+	maxPropertyCount    = 1_000            // Properties per helper
+	maxClassVarCount    = 1_000            // Class variables per helper
+	maxClassConstCount  = 1_000            // Class constants per helper
 )
 
 // SerializerVersion represents a bytecode format version

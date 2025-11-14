@@ -720,7 +720,18 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 	operandTypes := make([]string, 0, len(opDecl.OperandTypes)+1)
 	includesClass := false
 	for _, operand := range opDecl.OperandTypes {
-		key := normalizeTypeAnnotation(operand.String())
+		// Task 9.24.2: Resolve type aliases before normalizing
+		// This ensures that "toa" (alias for "array of const") is resolved to "ARRAY OF CONST"
+		typeName := operand.String()
+		resolvedType, err := i.resolveType(typeName)
+		var key string
+		if err == nil {
+			// Successfully resolved - use the resolved type's string representation
+			key = normalizeTypeAnnotation(resolvedType.String())
+		} else {
+			// Failed to resolve - use the raw type name (might be a forward reference)
+			key = normalizeTypeAnnotation(typeName)
+		}
 		if key == classKey {
 			includesClass = true
 		}

@@ -598,9 +598,9 @@ func TestSerializer_BoundsChecking_NegativeChunkSize(t *testing.T) {
 	// Write one constant - a function with negative chunkSize
 	s.writeInt32(buf, 1) // constant count
 	buf.WriteByte(byte(ValueFunction))
-	s.writeString(buf, "badFunc")    // function name
-	s.writeInt32(buf, 0)              // arity
-	s.writeInt32(buf, -1000)          // NEGATIVE chunkSize - should be rejected
+	s.writeString(buf, "badFunc") // function name
+	s.writeInt32(buf, 0)          // arity
+	s.writeInt32(buf, -1000)      // NEGATIVE chunkSize - should be rejected
 
 	// Try to deserialize - should return error, not panic
 	_, err := s.DeserializeChunk(buf.Bytes())
@@ -634,9 +634,9 @@ func TestSerializer_BoundsChecking_ExcessiveChunkSize(t *testing.T) {
 	// Write one constant - a function with huge chunkSize (1GB)
 	s.writeInt32(buf, 1) // constant count
 	buf.WriteByte(byte(ValueFunction))
-	s.writeString(buf, "badFunc")         // function name
-	s.writeInt32(buf, 0)                   // arity
-	s.writeInt32(buf, 1024*1024*1024)      // 1GB chunkSize - should be rejected
+	s.writeString(buf, "badFunc")     // function name
+	s.writeInt32(buf, 0)              // arity
+	s.writeInt32(buf, 1024*1024*1024) // 1GB chunkSize - should be rejected
 
 	// Try to deserialize - should return error, not cause OOM
 	_, err := s.DeserializeChunk(buf.Bytes())
@@ -672,7 +672,7 @@ func TestSerializer_BoundsChecking_NegativeUpvalueCount(t *testing.T) {
 	s.writeInt32(buf, 1) // constant count
 	buf.WriteByte(byte(ValueFunction))
 	s.writeString(buf, "badFunc") // function name
-	s.writeInt32(buf, 0)           // arity
+	s.writeInt32(buf, 0)          // arity
 
 	// Write valid inner chunk
 	innerChunk := NewChunk("inner")
@@ -715,7 +715,7 @@ func TestSerializer_BoundsChecking_ExcessiveUpvalueCount(t *testing.T) {
 	s.writeInt32(buf, 1) // constant count
 	buf.WriteByte(byte(ValueFunction))
 	s.writeString(buf, "badFunc") // function name
-	s.writeInt32(buf, 0)           // arity
+	s.writeInt32(buf, 0)          // arity
 
 	// Write valid inner chunk
 	innerChunk := NewChunk("inner")

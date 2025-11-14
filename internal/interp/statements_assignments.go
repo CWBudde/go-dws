@@ -151,6 +151,16 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 			if r, ok := right.(*StringValue); ok {
 				return &StringValue{Value: l.Value + r.Value}
 			}
+			// Task 9.24.2: Handle Variant-to-String conversion for array of const elements
+			if variantVal, ok := right.(*VariantValue); ok {
+				// Unwrap the variant and convert to string
+				innerVal, ok := unboxVariant(variantVal)
+				if !ok {
+					return i.newErrorWithLocation(stmt, "failed to unbox variant")
+				}
+				strVal := i.convertToString(innerVal)
+				return &StringValue{Value: l.Value + strVal}
+			}
 			return i.newErrorWithLocation(stmt, "type mismatch: cannot add %s to String", right.Type())
 		default:
 			return i.newErrorWithLocation(stmt, "operator += not supported for type %s", left.Type())
