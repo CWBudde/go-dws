@@ -880,3 +880,87 @@ func setInstructionTarget(t *testing.T, chunk *Chunk, instIndex, target int) {
 	inst := chunk.Code[instIndex]
 	chunk.Code[instIndex] = MakeInstruction(inst.OpCode(), inst.A(), uint16(offset))
 }
+
+// TestVariantToBool tests the variantToBool helper function for Task 9.35
+func TestVariantToBool(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    Value
+		expected bool
+	}{
+		// Boolean values
+		{"bool true", BoolValue(true), true},
+		{"bool false", BoolValue(false), false},
+
+		// Integer values
+		{"int zero", IntValue(0), false},
+		{"int non-zero positive", IntValue(42), true},
+		{"int non-zero negative", IntValue(-5), true},
+
+		// Float values
+		{"float zero", FloatValue(0.0), false},
+		{"float non-zero positive", FloatValue(3.14), true},
+		{"float non-zero negative", FloatValue(-2.5), true},
+
+		// String values
+		{"string empty", StringValue(""), false},
+		{"string non-empty", StringValue("hello"), true},
+
+		// Nil value
+		{"nil", NilValue(), false},
+
+		// Nested Variant values
+		{"variant wrapping true", VariantValue(BoolValue(true)), true},
+		{"variant wrapping false", VariantValue(BoolValue(false)), false},
+		{"variant wrapping zero", VariantValue(IntValue(0)), false},
+		{"variant wrapping non-zero", VariantValue(IntValue(1)), true},
+		{"variant wrapping nil", VariantValue(NilValue()), false},
+		{"double-nested variant true", VariantValue(VariantValue(BoolValue(true))), true},
+		{"double-nested variant false", VariantValue(VariantValue(IntValue(0))), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := variantToBool(tt.value)
+			if result != tt.expected {
+				t.Errorf("variantToBool(%v) = %v, want %v", tt.value, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestIsTruthy tests the isTruthy helper function for Task 9.35
+func TestIsTruthy(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    Value
+		expected bool
+	}{
+		// Boolean values
+		{"bool true", BoolValue(true), true},
+		{"bool false", BoolValue(false), false},
+
+		// Variant values
+		{"variant wrapping true", VariantValue(BoolValue(true)), true},
+		{"variant wrapping false", VariantValue(BoolValue(false)), false},
+		{"variant wrapping zero", VariantValue(IntValue(0)), false},
+		{"variant wrapping non-zero", VariantValue(IntValue(42)), true},
+		{"variant wrapping empty string", VariantValue(StringValue("")), false},
+		{"variant wrapping non-empty string", VariantValue(StringValue("test")), true},
+		{"variant wrapping nil", VariantValue(NilValue()), false},
+
+		// Non-boolean, non-variant values (should return false)
+		{"int value", IntValue(42), false},
+		{"string value", StringValue("hello"), false},
+		{"nil value", NilValue(), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isTruthy(tt.value)
+			if result != tt.expected {
+				t.Errorf("isTruthy(%v) = %v, want %v", tt.value, result, tt.expected)
+			}
+		})
+	}
+}

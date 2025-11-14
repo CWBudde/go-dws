@@ -619,10 +619,11 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			if !left.IsBool() || !right.IsBool() {
-				return NilValue(), vm.typeError("AND", "Boolean", fmt.Sprintf("%s, %s", left.Type.String(), right.Type.String()))
+			// Task 9.35: Support Variant→Boolean implicit conversion
+			if (!left.IsBool() && !left.IsVariant()) || (!right.IsBool() && !right.IsVariant()) {
+				return NilValue(), vm.typeError("AND", "Boolean or Variant", fmt.Sprintf("%s, %s", left.Type.String(), right.Type.String()))
 			}
-			vm.push(BoolValue(left.AsBool() && right.AsBool()))
+			vm.push(BoolValue(isTruthy(left) && isTruthy(right)))
 		case OpOr:
 			right, err := vm.pop()
 			if err != nil {
@@ -632,21 +633,22 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			if !left.IsBool() || !right.IsBool() {
-				return NilValue(), vm.typeError("OR", "Boolean", fmt.Sprintf("%s, %s", left.Type.String(), right.Type.String()))
+			// Task 9.35: Support Variant→Boolean implicit conversion
+			if (!left.IsBool() && !left.IsVariant()) || (!right.IsBool() && !right.IsVariant()) {
+				return NilValue(), vm.typeError("OR", "Boolean or Variant", fmt.Sprintf("%s, %s", left.Type.String(), right.Type.String()))
 			}
-			vm.push(BoolValue(left.AsBool() || right.AsBool()))
+			vm.push(BoolValue(isTruthy(left) || isTruthy(right)))
 		case OpNot:
 			val, err := vm.pop()
 			if err != nil {
 				return NilValue(), err
 			}
-			// Task 9.35: TODO - Add Variant→Boolean implicit conversion once Variant support is added to bytecode VM
-			// For now, only Boolean values are supported
-			if !val.IsBool() {
-				return NilValue(), vm.typeError("NOT", "Boolean", val.Type.String())
+			// Task 9.35: Support Variant→Boolean implicit conversion
+			if !val.IsBool() && !val.IsVariant() {
+				return NilValue(), vm.typeError("NOT", "Boolean or Variant", val.Type.String())
 			}
-			vm.push(BoolValue(!val.AsBool()))
+			result := !isTruthy(val)
+			vm.push(BoolValue(result))
 		case OpXor:
 			right, err := vm.pop()
 			if err != nil {
@@ -656,10 +658,11 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			if !left.IsBool() || !right.IsBool() {
-				return NilValue(), vm.typeError("XOR", "Boolean", fmt.Sprintf("%s, %s", left.Type.String(), right.Type.String()))
+			// Task 9.35: Support Variant→Boolean implicit conversion
+			if (!left.IsBool() && !left.IsVariant()) || (!right.IsBool() && !right.IsVariant()) {
+				return NilValue(), vm.typeError("XOR", "Boolean or Variant", fmt.Sprintf("%s, %s", left.Type.String(), right.Type.String()))
 			}
-			vm.push(BoolValue(left.AsBool() != right.AsBool()))
+			vm.push(BoolValue(isTruthy(left) != isTruthy(right)))
 		case OpIsFalsey:
 			val, err := vm.pop()
 			if err != nil {
@@ -696,11 +699,11 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			// Task 9.35: TODO - Add Variant→Boolean implicit conversion once Variant support is added to bytecode VM
-			if !cond.IsBool() {
-				return NilValue(), vm.typeError("JUMP_IF_FALSE", "Boolean", cond.Type.String())
+			// Task 9.35: Support Variant→Boolean implicit conversion
+			if !cond.IsBool() && !cond.IsVariant() {
+				return NilValue(), vm.typeError("JUMP_IF_FALSE", "Boolean or Variant", cond.Type.String())
 			}
-			if !cond.AsBool() {
+			if !isTruthy(cond) {
 				frame.ip += int(inst.SignedB())
 			}
 		case OpJumpIfTrue:
@@ -708,11 +711,11 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			// Task 9.35: TODO - Add Variant→Boolean implicit conversion once Variant support is added to bytecode VM
-			if !cond.IsBool() {
-				return NilValue(), vm.typeError("JUMP_IF_TRUE", "Boolean", cond.Type.String())
+			// Task 9.35: Support Variant→Boolean implicit conversion
+			if !cond.IsBool() && !cond.IsVariant() {
+				return NilValue(), vm.typeError("JUMP_IF_TRUE", "Boolean or Variant", cond.Type.String())
 			}
-			if cond.AsBool() {
+			if isTruthy(cond) {
 				frame.ip += int(inst.SignedB())
 			}
 		case OpJumpIfFalseNoPop:
@@ -720,10 +723,11 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			if !cond.IsBool() {
-				return NilValue(), vm.typeError("JUMP_IF_FALSE_NO_POP", "Boolean", cond.Type.String())
+			// Task 9.35: Support Variant→Boolean implicit conversion
+			if !cond.IsBool() && !cond.IsVariant() {
+				return NilValue(), vm.typeError("JUMP_IF_FALSE_NO_POP", "Boolean or Variant", cond.Type.String())
 			}
-			if !cond.AsBool() {
+			if !isTruthy(cond) {
 				frame.ip += int(inst.SignedB())
 			}
 		case OpJumpIfTrueNoPop:
@@ -731,10 +735,11 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			if !cond.IsBool() {
-				return NilValue(), vm.typeError("JUMP_IF_TRUE_NO_POP", "Boolean", cond.Type.String())
+			// Task 9.35: Support Variant→Boolean implicit conversion
+			if !cond.IsBool() && !cond.IsVariant() {
+				return NilValue(), vm.typeError("JUMP_IF_TRUE_NO_POP", "Boolean or Variant", cond.Type.String())
 			}
-			if cond.AsBool() {
+			if isTruthy(cond) {
 				frame.ip += int(inst.SignedB())
 			}
 		case OpLoop:
