@@ -67,8 +67,8 @@ func TestDetectAndDecodeFile(t *testing.T) {
 			expected: "",
 		},
 		{
-			name: "UTF-8 with special characters",
-			data: []byte("Ĥéļļö, Wőřłđ! 你好世界"),
+			name:     "UTF-8 with special characters",
+			data:     []byte("Ĥéļļö, Wőřłđ! 你好世界"),
 			expected: "Ĥéļļö, Wőřłđ! 你好世界",
 		},
 		{
