@@ -815,6 +815,897 @@ var x := TTest.Sum(5, 7);  // Static call on type (not instance)
 - Check original DWScript source for handling of this case
 - If needed, implement proper coercion rules
 
+- [ ] 9.16 Introduce Base Structs for AST Nodes
+
+**Goal**: Eliminate code duplication by introducing base structs for common node fields and behavior.
+
+**Estimate**: 8-10 hours (1-1.5 days)
+
+**Status**: NOT STARTED
+
+**Impact**: Reduces AST codebase by ~30% (~500 lines), eliminates duplicate boilerplate across 50+ node types
+
+**Description**: Currently, every AST node type duplicates identical implementations for `Pos()`, `End()`, `TokenLiteral()`, `GetType()`, and `SetType()` methods. This creates ~500 lines of repetitive code that is error-prone to maintain. By introducing base structs with embedding, we can eliminate this duplication while maintaining the same interface.
+
+**Current Problem**:
+
+```go
+// Repeated ~50 times across different node types
+type IntegerLiteral struct {
+    Type   *TypeAnnotation
+    Token  token.Token
+    Value  int64
+    EndPos token.Position
+}
+
+func (il *IntegerLiteral) Pos() token.Position  { return il.Token.Pos }
+func (il *IntegerLiteral) End() token.Position {
+    if il.EndPos.Line != 0 {
+        return il.EndPos
+    }
+    pos := il.Token.Pos
+    pos.Column += len(il.Token.Literal)
+    pos.Offset += len(il.Token.Literal)
+    return pos
+}
+func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
+func (il *IntegerLiteral) GetType() *TypeAnnotation    { return il.Type }
+func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
+```
+
+**Strategy**: Create base structs using Go embedding to share common fields and method implementations:
+
+
+1. **BaseNode**: Common fields (Token, EndPos) and methods (Pos, End, TokenLiteral)
+2. **TypedExpressionBase**: Extends BaseNode with Type field and GetType/SetType methods
+3. Refactor all node types to embed appropriate base struct
+4. Remove duplicate method implementations
+
+**Complexity**: Medium - Requires systematic refactoring of all AST node types across 25 files (~5,500 lines)
+
+**Subtasks**:
+
+- [ ] 9.16.1 Design base struct hierarchy
+  - Create `BaseNode` struct with Token, EndPos fields
+  - Create `TypedExpressionBase` struct embedding BaseNode with Type field
+  - Implement common methods once on base structs
+  - Document design decisions and usage patterns
+  - File: `pkg/ast/base.go` (new file)
+
+- [ ] 9.16.2 Refactor literal expression nodes (Identifier, IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral, CharLiteral, NilLiteral)
+  - Replace duplicate fields with TypedExpressionBase embedding
+  - Remove duplicate method implementations
+  - Verify interfaces still satisfied
+  - Update all tests to ensure behavior unchanged
+  - Files: `pkg/ast/ast.go` (~300 lines affected)
+
+- [ ] 9.16.3 Refactor binary and unary expressions (BinaryExpression, UnaryExpression, GroupedExpression, RangeExpression)
+  - Embed TypedExpressionBase
+  - Remove duplicate implementations
+  - Verify operator precedence logic unchanged
+  - Files: `pkg/ast/ast.go` (~200 lines affected)
+
+- [ ] 9.16.4 Refactor statement nodes (ExpressionStatement, VarDeclStatement, AssignmentStatement, BlockStatement, IfStatement, WhileStatement, etc.)
+  - Embed BaseNode (statements don't have Type field)
+  - Remove duplicate Pos/End/TokenLiteral implementations
+  - Files: `pkg/ast/statements.go`, `pkg/ast/control_flow.go` (~400 lines affected)
+
+- [ ] 9.16.5 Refactor declaration nodes (ConstDecl, FunctionDecl, ClassDecl, InterfaceDecl, etc.)
+  - Embed BaseNode
+  - Remove duplicate implementations
+  - Files: `pkg/ast/declarations.go`, `pkg/ast/functions.go`, `pkg/ast/classes.go`, `pkg/ast/interfaces.go` (~500 lines affected)
+
+- [ ] 9.16.6 Refactor type-specific nodes (ArrayLiteralExpression, CallExpression, NewExpression, MemberAccessExpression, etc.)
+  - Embed appropriate base struct
+  - Remove duplicates
+  - Files: `pkg/ast/arrays.go`, `pkg/ast/classes.go`, `pkg/ast/functions.go` (~300 lines affected)
+
+- [ ] 9.16.7 Update parser to use base struct constructors
+  - Ensure parser initializes base structs correctly
+  - Add helper functions for common node creation patterns
+  - Files: `internal/parser/*.go` (~50 locations)
+
+- [ ] 9.16.8 Update semantic analyzer and interpreter
+  - Verify all code accessing node fields still works
+  - Update any type assertions or reflection code
+  - Files: `internal/semantic/*.go`, `internal/interp/*.go`
+
+- [ ] 9.16.9 Run comprehensive test suite
+  - All parser tests pass
+  - All semantic analyzer tests pass
+  - All interpreter tests pass
+  - All bytecode VM tests pass
+  - Fixture tests unchanged
+
+**Files Modified**:
+
+
+- `pkg/ast/base.go` (new file ~100 lines)
+- `pkg/ast/ast.go` (~300 lines reduced to ~150)
+- `pkg/ast/statements.go` (~316 lines reduced to ~200)
+- `pkg/ast/control_flow.go` (~200 lines reduced to ~120)
+- `pkg/ast/declarations.go` (~150 lines reduced to ~80)
+- `pkg/ast/functions.go` (~245 lines reduced to ~150)
+- `pkg/ast/classes.go` (~400 lines reduced to ~250)
+- `pkg/ast/interfaces.go` (~100 lines reduced to ~60)
+- `pkg/ast/arrays.go` (~200 lines reduced to ~120)
+- `pkg/ast/enums.go` (~100 lines reduced to ~60)
+- `pkg/ast/records.go` (~150 lines reduced to ~90)
+- `pkg/ast/sets.go` (~100 lines reduced to ~60)
+- `pkg/ast/properties.go` (~120 lines reduced to ~70)
+- `pkg/ast/operators.go` (~80 lines reduced to ~50)
+- `pkg/ast/exceptions.go` (~100 lines reduced to ~60)
+- `pkg/ast/lambda.go` (~80 lines reduced to ~50)
+- `pkg/ast/helper.go` (~168 lines reduced to ~100)
+- Plus updates to parser, semantic analyzer, and interpreter
+
+**Acceptance Criteria**:
+- All AST nodes embed either BaseNode or TypedExpressionBase
+- No duplicate Pos/End/TokenLiteral/GetType/SetType implementations
+- All existing tests pass (100% backward compatibility)
+- Codebase reduced by ~500 lines
+- AST package is more maintainable with centralized common behavior
+- Documentation explains base struct usage and when to embed each type
+
+**Benefits**:
+- 30% reduction in AST code (~500 lines eliminated)
+- Single source of truth for common behavior
+- Easier to add new node types (less boilerplate)
+- Reduced chance of copy-paste errors
+- Consistent behavior across all nodes
+
+---
+
+- [ ] 9.17 Refactor Visitor Pattern Implementation
+
+**Goal**: Reduce visitor pattern code from 900+ lines to ~50-100 lines and make it extensible without modifying core code.
+
+**Estimate**: 12-16 hours (1.5-2 days)
+
+**Status**: NOT STARTED
+
+**Impact**: Major maintainability improvement, reduces visitor.go from 900 to ~100 lines, eliminates need to update visitor for new node types
+
+**Description**: The current visitor implementation in `pkg/ast/visitor.go` is 900+ lines of boilerplate code. Every node type requires:
+- A case in the main `Walk()` switch statement
+- A dedicated `walkXXX()` function
+- Manual handling of child nodes
+
+This makes adding new node types tedious and error-prone. A reflection-based or code-generated approach can reduce this to ~50-100 lines while maintaining the same functionality.
+
+**Current Problem**:
+
+```go
+// 900+ lines of boilerplate in visitor.go
+func Walk(v Visitor, node Node) {
+    if v = v.Visit(node); v == nil {
+        return
+    }
+
+    // 195-line switch statement
+    switch n := node.(type) {
+    case *Program:
+        walkProgram(n, v)
+    case *Identifier:
+        walkIdentifier(n, v)
+    // ... 100+ more cases
+    }
+}
+
+// Plus 100+ separate walk functions
+func walkIdentifier(n *Identifier, v Visitor) { ... }
+func walkBinaryExpression(n *BinaryExpression, v Visitor) { ... }
+// ... 100+ more functions
+```
+
+**Strategy**: Implement reflection-based visitor with optional code generation:
+
+
+**Phase 1**: Reflection-based visitor (runtime traversal)
+- Use reflection to automatically traverse Node fields
+- Detect slices of Nodes and individual Node fields
+- Eliminate manual walk functions
+
+**Phase 2** (Optional): Code generation for performance
+- Generate walk functions from AST node definitions
+- Zero runtime reflection cost
+- `go generate` integration
+
+**Complexity**: High - Requires reflection/code generation expertise and thorough testing
+
+**Subtasks**:
+
+
+- [ ] 9.17.1 Research and prototype reflection-based visitor
+  - Study Go reflection API for struct field traversal
+  - Prototype automatic child node detection
+  - Benchmark performance vs current implementation
+  - Document tradeoffs (flexibility vs performance)
+  - File: `pkg/ast/visitor_reflect.go` (new file)
+
+- [ ] 9.17.2 Implement reflection-based Walk function
+  - Detect fields implementing Node interface
+  - Handle slices of Nodes ([]Statement, []Expression, etc.)
+  - Handle pointers to Nodes
+  - Handle nil checks
+  - File: `pkg/ast/visitor_reflect.go` (~100 lines)
+
+- [ ] 9.17.3 Add visitor tags for special cases
+  - Allow nodes to opt-out of automatic traversal with struct tags
+  - Support custom traversal order with tags
+  - Handle non-Node types that need walking (Parameter, CaseBranch, etc.)
+  - Example: `type Foo struct { Child Node \`ast:"skip"\` }`
+
+- [ ] 9.17.4 Preserve Inspect() convenience function
+  - Keep existing Inspect() API for simple use cases
+  - Ensure backward compatibility
+  - File: `pkg/ast/visitor_reflect.go`
+
+- [ ] 9.17.5 Test reflection visitor with existing code
+  - All semantic analyzer visitors work unchanged
+  - Symbol table construction works
+  - Type checking works
+  - LSP integration works
+  - Files: `internal/semantic/*.go`
+
+- [ ] 9.17.6 Performance testing and optimization
+  - Benchmark reflection visitor vs original
+  - Optimize hot paths if needed
+  - Consider caching reflection metadata
+  - Target: <10% performance degradation acceptable
+
+- [ ] 9.17.7 (Optional) Add code generation alternative
+  - Create `go generate` tool to generate walk functions
+  - Parse AST node definitions
+  - Generate type-safe walk functions
+  - Tool: `cmd/gen-visitor/main.go` (new tool)
+
+- [ ] 9.17.8 Update documentation
+  - Explain new visitor architecture
+  - Document struct tags for controlling traversal
+  - Provide migration guide
+  - File: `pkg/ast/doc.go`, `docs/ast-visitor.md` (new)
+
+- [ ] 9.17.9 Deprecate old visitor implementation
+  - Move old visitor.go to visitor_legacy.go
+  - Add deprecation notices
+  - Plan removal in future version
+
+**Files Modified**:
+
+
+- `pkg/ast/visitor.go` (replace 900 lines with ~100 lines of reflection code)
+- `pkg/ast/visitor_reflect.go` (new file ~150 lines)
+- `pkg/ast/visitor_test.go` (add reflection-specific tests)
+- `pkg/ast/doc.go` (document new visitor approach)
+- `docs/ast-visitor.md` (new architecture documentation)
+- `cmd/gen-visitor/main.go` (optional code generator ~200 lines)
+
+**Acceptance Criteria**:
+- Visitor code reduced from 900 to ~100-150 lines
+- Adding new node types doesn't require visitor updates
+- All existing visitors continue to work (100% backward compatible)
+- Performance degradation <10% (or use code generation for zero cost)
+- Struct tags allow fine-grained control when needed
+- Documentation explains new approach clearly
+
+**Benefits**:
+- 90% reduction in visitor boilerplate
+- New node types automatically traversable
+- More maintainable and less error-prone
+- Easier to understand and modify
+- Optional code generation for zero runtime cost
+
+---
+
+- [ ] 9.18 Separate Type Metadata from AST
+
+**Goal**: Move type information from AST nodes to a separate metadata table, making the AST immutable and reusable.
+
+**Estimate**: 6-8 hours (1 day)
+
+**Status**: NOT STARTED
+
+**Impact**: Cleaner separation of parsing vs semantic analysis, reduced memory usage, enables multiple concurrent analyses
+
+**Description**: Currently, every expression node carries a `Type *TypeAnnotation` field that is nil during parsing and populated during semantic analysis. This couples the AST to the semantic analyzer and wastes memory (~16 bytes per node). Moving type information to a separate side table improves separation of concerns and enables the AST to be analyzed multiple times with different contexts.
+
+**Current Problem**:
+
+```go
+type IntegerLiteral struct {
+    Type   *TypeAnnotation  // nil until semantic analysis
+    Token  token.Token
+    Value  int64
+    EndPos token.Position
+}
+```
+
+**Strategy**: Create a separate metadata table that maps AST nodes to their semantic information:
+
+
+1. Remove Type field from AST nodes
+2. Create SemanticInfo struct with type/symbol maps
+3. Semantic analyzer populates SemanticInfo instead of modifying AST
+4. Provide accessor methods for type information
+
+**Complexity**: Medium - Requires refactoring semantic analyzer and all code that accesses type information
+
+**Subtasks**:
+
+
+- [ ] 9.18.1 Design metadata architecture
+  - Create SemanticInfo struct with node → type mapping
+  - Design API for setting/getting type information
+  - Consider thread safety for concurrent analyses
+  - Document architecture decisions
+  - File: `pkg/ast/metadata.go` (new file ~100 lines)
+
+- [ ] 9.18.2 Implement SemanticInfo type
+  - Map[Expression]*TypeAnnotation for expression types
+  - Map[*Identifier]Symbol for symbol resolution
+  - Thread-safe accessors with sync.RWMutex
+  - File: `pkg/ast/metadata.go`
+
+- [ ] 9.18.3 Remove Type field from AST expression nodes
+  - Remove Type field from all expression node structs
+  - Remove GetType/SetType methods (will be on SemanticInfo)
+  - This affects ~30 node types
+  - Files: `pkg/ast/ast.go`, `pkg/ast/statements.go`, `pkg/ast/control_flow.go`, etc.
+
+- [ ] 9.18.4 Update semantic analyzer to use SemanticInfo
+  - Pass SemanticInfo through analyzer methods
+  - Replace node.SetType() with semanticInfo.SetType(node, typ)
+  - Replace node.GetType() with semanticInfo.GetType(node)
+  - Files: `internal/semantic/*.go` (~50 occurrences)
+
+- [ ] 9.18.5 Update interpreter to use SemanticInfo
+  - Pass SemanticInfo to interpreter
+  - Get type information from SemanticInfo instead of nodes
+  - Files: `internal/interp/*.go` (~30 occurrences)
+
+- [ ] 9.18.6 Update bytecode compiler to use SemanticInfo
+  - Pass SemanticInfo to compiler
+  - Get type information from metadata table
+  - Files: `internal/bytecode/compiler.go`
+
+- [ ] 9.18.7 Update public API to return SemanticInfo
+  - Engine.Analyze() returns SemanticInfo
+  - Add accessor methods to Result type
+  - Maintain backward compatibility where possible
+  - Files: `pkg/dwscript/*.go`
+
+- [ ] 9.18.8 Update LSP integration
+  - Pass SemanticInfo to LSP handlers
+  - Use metadata for hover, completion, etc.
+  - Files: External go-dws-lsp project (document changes needed)
+
+- [ ] 9.18.9 Run comprehensive test suite
+  - All semantic analyzer tests pass
+  - All interpreter tests pass
+  - All bytecode VM tests pass
+  - Memory usage reduced (verify with benchmarks)
+
+**Files Modified**:
+
+
+- `pkg/ast/metadata.go` (new file ~150 lines)
+- `pkg/ast/ast.go` (remove Type field from ~15 expression types)
+- `pkg/ast/statements.go` (remove Type from CallExpression, etc.)
+- `pkg/ast/control_flow.go` (remove Type from IfExpression)
+- `pkg/ast/type_annotation.go` (remove TypedExpression interface or make it use SemanticInfo)
+- `internal/semantic/analyzer.go` (add SemanticInfo field)
+- `internal/semantic/*.go` (replace node.GetType/SetType ~50 times)
+- `internal/interp/*.go` (use SemanticInfo for types ~30 times)
+- `internal/bytecode/compiler.go` (use SemanticInfo)
+- `pkg/dwscript/dwscript.go` (return SemanticInfo from API)
+
+**Acceptance Criteria**:
+- No Type field on any AST node
+- SemanticInfo table stores all type metadata
+- AST is immutable after parsing
+- All tests pass (100% backward compatibility in behavior)
+- Memory usage reduced (benchmark shows improvement)
+- Multiple semantic analyses possible on same AST
+- Documentation explains new architecture
+
+**Benefits**:
+- Clear separation of parsing vs semantic analysis
+- AST is immutable and cacheable
+- Reduced memory usage (~16 bytes per expression node)
+- Multiple analyses possible (different contexts, parallel)
+- Easier to implement alternative analyzers (strict mode, etc.)
+
+---
+
+- [ ] 9.19 Extract Pretty-Printing from AST Nodes
+
+**Goal**: Remove String() implementation logic from AST nodes and create a dedicated printer package.
+
+**Estimate**: 4-6 hours (0.5-1 day)
+
+**Status**: NOT STARTED
+
+**Impact**: Better separation of concerns, enables multiple output formats, smaller AST code
+
+**Description**: Currently, AST nodes contain extensive String() methods (some 50+ lines) that mix structural concerns with presentation logic. This makes the AST harder to maintain and limits output formats to a single hardcoded style. A dedicated printer package allows multiple output formats (compact, detailed, JSON, etc.) while keeping the AST focused on structure.
+
+**Current Problem**:
+
+```go
+// ClassDecl.String() is 100+ lines of formatting logic!
+func (cd *ClassDecl) String() string {
+    var out bytes.Buffer
+    out.WriteString("type ")
+    out.WriteString(cd.Name.String())
+    // ... 100 more lines of indentation, newlines, etc.
+    return out.String()
+}
+```
+
+**Strategy**:
+
+
+1. Keep minimal String() methods on AST nodes (just type name + key info)
+2. Create dedicated printer package with formatting logic
+3. Support multiple output styles via printer options
+
+**Complexity**: Low-Medium - Mostly moving code around, but need to ensure test compatibility
+
+**Subtasks**:
+
+
+- [ ] 9.19.1 Design printer package architecture
+  - Printer struct with configurable options
+  - Support for different styles (compact, detailed, multiline)
+  - Support for different output formats (DWScript syntax, JSON, tree)
+  - Document printer design
+  - File: `pkg/printer/doc.go` (new package)
+
+- [ ] 9.19.2 Create basic printer implementation
+  - Printer struct with indent level, buffer, options
+  - Methods for printing each node type
+  - Helper methods for common patterns (indent, newline, etc.)
+  - File: `pkg/printer/printer.go` (new file ~300 lines)
+
+- [ ] 9.19.3 Simplify AST String() methods
+  - Replace complex formatting with simple representation
+  - Example: `func (cd *ClassDecl) String() string { return fmt.Sprintf("ClassDecl(%s)", cd.Name) }`
+  - Keep String() for debugging, use printer for real output
+  - Files: All `pkg/ast/*.go` files (~500 lines removed)
+
+- [ ] 9.19.4 Add printer methods for all node types
+  - PrintProgram(), PrintClassDecl(), PrintFunctionDecl(), etc.
+  - Mirror existing String() behavior initially
+  - File: `pkg/printer/printer.go` (~400 lines)
+
+- [ ] 9.19.5 Add printer options and styles
+  - CompactPrinter (minimal whitespace)
+  - DetailedPrinter (full indentation, comments)
+  - TreePrinter (AST structure visualization)
+  - JSONPrinter (JSON representation)
+  - File: `pkg/printer/styles.go` (new file ~100 lines)
+
+- [ ] 9.19.6 Update tests to use printer
+  - Tests that rely on String() output need updating
+  - Use printer for expected output strings
+  - Files: `pkg/ast/*_test.go`, parser tests
+
+- [ ] 9.19.7 Update CLI to use printer
+  - `parse` command uses printer for output
+  - Add `--format` flag (dwscript, json, tree)
+  - Files: `cmd/dwscript/commands.go`
+
+- [ ] 9.19.8 Add printer tests
+  - Test all node types print correctly
+  - Test different styles produce valid output
+  - Test JSON output is valid JSON
+  - File: `pkg/printer/printer_test.go` (new file ~200 lines)
+
+**Files Modified**:
+
+
+- `pkg/printer/printer.go` (new file ~400 lines)
+- `pkg/printer/styles.go` (new file ~100 lines)
+- `pkg/printer/doc.go` (new file ~30 lines)
+- `pkg/printer/printer_test.go` (new file ~200 lines)
+- `pkg/ast/*.go` (simplify String() methods, ~500 lines reduced)
+- `pkg/ast/*_test.go` (update tests to use printer if needed)
+- `cmd/dwscript/commands.go` (use printer for parse command)
+
+**Acceptance Criteria**:
+- AST String() methods are simple (<5 lines each)
+- Printer package handles all formatting logic
+- Multiple output formats supported (at least: DWScript syntax, tree, JSON)
+- All tests pass with printer-generated output
+- CLI `parse` command can output different formats
+- Documentation explains printer usage
+
+**Benefits**:
+- AST nodes focused on structure, not presentation
+- Multiple output formats possible (JSON, tree view, etc.)
+- Easier to change formatting without touching AST
+- Smaller AST code (~500 lines reduced)
+- Better separation of concerns
+
+---
+
+- [ ] 9.20 Standardize Helper Types as Nodes
+
+**Goal**: Make Parameter, CaseBranch, ExceptionHandler, and other helper types implement the Node interface to fix visitor pattern fragility.
+
+**Estimate**: 3-4 hours (0.5 day)
+
+**Status**: NOT STARTED
+
+**Impact**: Improved type safety, cleaner visitor pattern, more consistent AST structure
+
+**Description**: Several types like `Parameter`, `CaseBranch`, `ExceptionHandler`, and `FieldInitializer` are not Nodes, which breaks the visitor pattern. They require manual handling in walk functions, making the code fragile. Making them implement Node provides type safety and consistent traversal.
+
+**Current Problem**:
+
+```go
+// Parameter is not a Node - requires manual walking
+type Parameter struct {
+    Name         *Identifier
+    Type         *TypeAnnotation
+    DefaultValue Expression
+    // Missing: Token, Pos(), End(), etc.
+}
+
+// In visitor.go - manual walking required
+func walkFunctionDecl(n *FunctionDecl, v Visitor) {
+    for _, param := range n.Parameters {
+        // Can't call Walk() - Parameter is not a Node!
+        if param.Name != nil {
+            Walk(v, param.Name)
+        }
+        // Manual field walking...
+    }
+}
+```
+
+**Strategy**:
+
+
+1. Identify all non-Node helper types
+2. Add Node interface methods (Pos, End, TokenLiteral)
+3. Add node marker methods (statementNode/expressionNode as appropriate)
+4. Update visitor to treat them as first-class nodes
+
+**Complexity**: Low - Straightforward interface implementation
+
+**Subtasks**:
+
+
+- [ ] 9.20.1 Audit AST for non-Node types used in traversal
+  - Parameter (in FunctionDecl)
+  - CaseBranch (in CaseStatement)
+  - ExceptionHandler (in TryStatement)
+  - ExceptClause (in TryStatement)
+  - FinallyClause (in TryStatement)
+  - FieldInitializer (in RecordLiteralExpression)
+  - InterfaceMethodDecl (in InterfaceDecl)
+  - Create list with current usage
+  - File: Create `docs/ast-helper-types.md` with audit results
+
+- [ ] 9.20.2 Make Parameter implement Node
+  - Add Token token.Token field
+  - Add EndPos token.Position field
+  - Implement Pos(), End(), TokenLiteral()
+  - Add statementNode() marker (parameters are like declarations)
+  - File: `pkg/ast/functions.go`
+
+- [ ] 9.20.3 Make CaseBranch implement Node
+  - Add Token token.Token field (first value token)
+  - Add EndPos token.Position field
+  - Implement Node interface methods
+  - Add statementNode() marker
+  - File: `pkg/ast/control_flow.go`
+
+- [ ] 9.20.4 Make ExceptionHandler, ExceptClause, FinallyClause implement Node
+  - Add required fields to each type
+  - Implement Node interface
+  - Add statementNode() marker
+  - File: `pkg/ast/exceptions.go`
+
+- [ ] 9.20.5 Make FieldInitializer implement Node
+  - Add Token, EndPos fields
+  - Implement Node interface
+  - Add statementNode() marker (like a mini assignment)
+  - File: `pkg/ast/records.go`
+
+- [ ] 9.20.6 Make InterfaceMethodDecl implement Node
+  - Add Token, EndPos fields
+  - Implement Node interface
+  - Add statementNode() marker
+  - File: `pkg/ast/interfaces.go`
+
+- [ ] 9.20.7 Update visitor to walk helper types as Nodes
+  - Remove manual field walking
+  - Add cases for new Node types in Walk()
+  - Simplify walkXXX functions
+  - File: `pkg/ast/visitor.go` (or visitor_reflect.go if 9.17 done first)
+
+- [ ] 9.20.8 Update parser to populate Token/EndPos for helper types
+  - Ensure parser sets position info when creating helpers
+  - Files: `internal/parser/*.go`
+
+- [ ] 9.20.9 Test visitor traversal includes helper types
+  - Create visitor that counts all nodes
+  - Verify helpers are visited
+  - File: `pkg/ast/visitor_test.go`
+
+**Files Modified**:
+
+
+- `pkg/ast/functions.go` (Parameter now implements Node)
+- `pkg/ast/control_flow.go` (CaseBranch now implements Node)
+- `pkg/ast/exceptions.go` (ExceptionHandler, ExceptClause, FinallyClause now implement Node)
+- `pkg/ast/records.go` (FieldInitializer now implements Node)
+- `pkg/ast/interfaces.go` (InterfaceMethodDecl now implements Node)
+- `pkg/ast/visitor.go` (cleaner walk functions, add cases for new nodes)
+- `internal/parser/*.go` (set Token/EndPos when creating helper types)
+- `docs/ast-helper-types.md` (new documentation)
+
+**Acceptance Criteria**:
+- All traversable types implement Node interface
+- No manual field walking in visitor.go
+- Helper types can be visited like any other node
+- All tests pass (especially visitor tests)
+- Position information available for all helper types
+- Documentation lists which types are Nodes
+
+**Benefits**:
+- Type safety (can't forget to walk a child)
+- Cleaner visitor implementation
+- Consistent AST structure
+- Position info available for all traversable types
+- Better error messages (can point to exact location)
+
+---
+
+- [ ] 9.21 Add Builder Pattern for Complex Nodes
+
+**Goal**: Create builder types for complex AST nodes to prevent invalid construction and improve code clarity.
+
+**Estimate**: 6-8 hours (1 day)
+
+**Status**: NOT STARTED
+
+**Impact**: Prevents invalid AST construction, improves parser readability, catches errors at construction time
+
+**Description**: Complex nodes like FunctionDecl and ClassDecl have many fields with interdependencies (e.g., can't be both virtual and abstract, must have body if not abstract, etc.). Currently, nothing prevents invalid combinations. Builders provide validation at construction time and make parser code more readable.
+
+**Current Problem**:
+
+```go
+// Parser can create invalid combinations
+fn := &FunctionDecl{
+    Name: name,
+    IsVirtual: true,
+    IsAbstract: true,  // INVALID: can't be both!
+    Body: nil,         // Missing body check
+}
+```
+
+**Strategy**:
+
+
+1. Create builder types for complex nodes
+2. Builders enforce invariants and provide fluent API
+3. Parser uses builders instead of direct struct construction
+4. Builders validate on Build() call
+
+**Complexity**: Medium - Need to identify all invariants and implement builders
+
+**Subtasks**:
+
+
+- [ ] 9.21.1 Identify nodes that need builders
+  - FunctionDecl (most complex: ~15 boolean flags)
+  - ClassDecl (inheritance, interfaces, abstract)
+  - InterfaceDecl (inheritance)
+  - PropertyDecl (read/write specs, indexed)
+  - OperatorDecl (operator type, operands)
+  - Create design doc with invariants for each
+  - File: `docs/ast-builders.md` (new)
+
+- [ ] 9.21.2 Create FunctionDeclBuilder
+  - Fluent API: NewFunction(name).WithParam(p).Virtual().Build()
+  - Validate: virtual XOR abstract, body required unless abstract/forward/external
+  - Validate: constructor can't have return type
+  - Validate: destructor must be named specific way
+  - File: `pkg/ast/builders/function.go` (new package ~150 lines)
+
+- [ ] 9.21.3 Create ClassDeclBuilder
+  - Fluent API: NewClass(name).Extends(parent).Implements(iface).Abstract().Build()
+  - Validate: parent is class, interfaces are interfaces
+  - Validate: abstract flag consistent with abstract methods
+  - Validate: partial + abstract combinations
+  - File: `pkg/ast/builders/class.go` (new file ~120 lines)
+
+- [ ] 9.21.4 Create InterfaceDeclBuilder
+  - Fluent API: NewInterface(name).Extends(parent).WithMethod(m).Build()
+  - Validate: parent is interface
+  - Validate: methods are interface methods (no body)
+  - File: `pkg/ast/builders/interface.go` (new file ~80 lines)
+
+- [ ] 9.21.5 Create PropertyDeclBuilder
+  - Fluent API: NewProperty(name, typ).Read(spec).Write(spec).Indexed(params).Build()
+  - Validate: at least one of read/write specified
+  - Validate: indexed params consistent
+  - File: `pkg/ast/builders/property.go` (new file ~100 lines)
+
+- [ ] 9.21.6 Create OperatorDeclBuilder
+  - Fluent API: NewOperator(op).Unary(typ).Binary(lhs, rhs).Returns(ret).Build()
+  - Validate: unary XOR binary
+  - Validate: valid operator type
+  - File: `pkg/ast/builders/operator.go` (new file ~80 lines)
+
+- [ ] 9.21.7 Update parser to use builders
+  - Replace direct struct construction with builders
+  - Use fluent API for readability
+  - Catch construction errors early
+  - Files: `internal/parser/parser_functions.go`, `internal/parser/parser_class.go`, etc.
+
+- [ ] 9.21.8 Add builder tests
+  - Test valid construction succeeds
+  - Test invalid construction fails with clear errors
+  - Test all invariants enforced
+  - File: `pkg/ast/builders/*_test.go` (new files ~300 lines total)
+
+- [ ] 9.21.9 Add builder documentation
+  - Examples of using each builder
+  - List of all invariants enforced
+  - Migration guide for parser
+  - File: `pkg/ast/builders/doc.go` (new file)
+
+**Files Modified**:
+
+
+- `pkg/ast/builders/function.go` (new file ~150 lines)
+- `pkg/ast/builders/class.go` (new file ~120 lines)
+- `pkg/ast/builders/interface.go` (new file ~80 lines)
+- `pkg/ast/builders/property.go` (new file ~100 lines)
+- `pkg/ast/builders/operator.go` (new file ~80 lines)
+- `pkg/ast/builders/doc.go` (new file ~50 lines)
+- `pkg/ast/builders/*_test.go` (new files ~300 lines total)
+- `internal/parser/parser_functions.go` (use FunctionDeclBuilder)
+- `internal/parser/parser_class.go` (use ClassDeclBuilder)
+- `internal/parser/parser_interfaces.go` (use InterfaceDeclBuilder)
+- `internal/parser/parser_properties.go` (use PropertyDeclBuilder)
+- `internal/parser/parser_operators.go` (use OperatorDeclBuilder)
+- `docs/ast-builders.md` (new documentation ~50 lines)
+
+**Acceptance Criteria**:
+- Builders exist for FunctionDecl, ClassDecl, InterfaceDecl, PropertyDecl, OperatorDecl
+- All invariants enforced (documented in ast-builders.md)
+- Parser uses builders, catching errors at construction time
+- Build() method validates and returns error for invalid combinations
+- All tests pass, including new builder tests
+- Parser code more readable with fluent API
+- Documentation explains builder usage and invariants
+
+**Benefits**:
+- Catches invalid AST construction at parse time
+- Self-documenting code (builder API shows what's valid)
+- More readable parser (fluent API vs struct literals)
+- Centralized validation logic
+- Easier to add new invariants (add to builder, not scattered in parser)
+
+---
+
+- [ ] 9.22 Document Type System Architecture
+
+**Goal**: Create comprehensive documentation explaining TypeAnnotation vs TypeExpression relationship and when to use each.
+
+**Estimate**: 2-3 hours (0.5 day)
+
+**Status**: NOT STARTED
+
+**Impact**: Improved developer understanding, easier onboarding, fewer type system bugs
+
+**Description**: The relationship between `TypeAnnotation` and `TypeExpression` is unclear from the code alone. TypeAnnotation has both a `Name` field and an `InlineType TypeExpression` field, but it's not obvious when each is used. This confuses developers working on the type system. Clear documentation with examples and diagrams will improve understanding.
+
+**Current Problem**:
+
+```go
+// What's the difference? When do I use Name vs InlineType?
+type TypeAnnotation struct {
+    InlineType TypeExpression  // ???
+    Name       string          // ???
+    Token      token.Token
+    EndPos     token.Position
+}
+```
+
+**Strategy**:
+
+
+1. Create architecture documentation with clear explanations
+2. Add examples of each use case
+3. Create diagrams showing type system structure
+4. Add code comments to type system code
+
+**Complexity**: Low - Documentation task, no code changes required
+
+**Subtasks**:
+
+
+- [ ] 9.22.1 Document TypeAnnotation vs TypeExpression distinction
+  - TypeAnnotation: Used when a type is referenced in syntax (`: Integer`)
+  - TypeExpression: Defines the structure of a type (interface for type nodes)
+  - Name: Simple type reference (`Integer`, `String`, `TMyClass`)
+  - InlineType: Complex type definition (`array[0..10] of Integer`, `function(x: Integer): Boolean`)
+  - File: `docs/type-system-architecture.md` (new file ~100 lines)
+
+- [ ] 9.22.2 Create type system class diagram
+  - Show hierarchy: Node → TypeExpression → specific types
+  - Show TypeAnnotation composition
+  - Show how semantic analyzer uses these
+  - File: `docs/diagrams/type-system.svg` (new diagram)
+
+- [ ] 9.22.3 Add examples for each type usage pattern
+  - Example: Simple type reference (`var x: Integer`)
+  - Example: Array type (`var arr: array[0..5] of Integer`)
+  - Example: Function pointer type (`var fn: function(x: Integer): Boolean`)
+  - Example: Anonymous record type
+  - File: `docs/type-system-architecture.md` (add examples section)
+
+- [ ] 9.22.4 Document type resolution process
+  - How parser creates TypeAnnotations
+  - How semantic analyzer resolves names to Type objects
+  - How inline types are processed
+  - Flow diagram: Source → TypeAnnotation → Type
+  - File: `docs/type-system-architecture.md`
+
+- [ ] 9.22.5 Add code comments to type system files
+  - pkg/ast/type_annotation.go (explain fields)
+  - pkg/ast/type_expression.go (explain interface)
+  - internal/types/types.go (explain Type hierarchy)
+  - Files: `pkg/ast/type_annotation.go`, `pkg/ast/type_expression.go`, `internal/types/types.go`
+
+- [ ] 9.22.6 Create developer guide
+  - "Adding a new type" guide
+  - "Understanding type checking" guide
+  - Common pitfalls and solutions
+  - File: `docs/developer-guides/type-system.md` (new file ~50 lines)
+
+- [ ] 9.22.7 Add package-level documentation
+  - Update pkg/ast/doc.go with type system overview
+  - Update internal/types/doc.go with Type hierarchy
+  - Cross-reference with architecture docs
+  - Files: `pkg/ast/doc.go`, `internal/types/doc.go`
+
+**Files Modified**:
+
+
+- `docs/type-system-architecture.md` (new file ~200 lines)
+- `docs/diagrams/type-system.svg` (new diagram)
+- `docs/developer-guides/type-system.md` (new file ~50 lines)
+- `pkg/ast/type_annotation.go` (add detailed comments ~20 lines)
+- `pkg/ast/type_expression.go` (add comments ~10 lines)
+- `pkg/ast/doc.go` (add type system section ~20 lines)
+- `internal/types/types.go` (add comments ~30 lines)
+- `internal/types/doc.go` (create or update ~40 lines)
+
+**Acceptance Criteria**:
+- Clear documentation of TypeAnnotation vs TypeExpression
+- Diagrams showing type system architecture
+- Examples for each usage pattern
+- Developer guide for working with types
+- Code comments explain key concepts
+- Documentation cross-referenced from code
+- All type system files have package docs
+
+**Benefits**:
+- Faster developer onboarding
+- Fewer type system bugs
+- Clearer mental model of type system
+- Easier to extend type system
+- Self-documenting code
+
 ---
 
 ## Phase 10: go-dws API Enhancements for LSP Integration ✅ COMPLETE
