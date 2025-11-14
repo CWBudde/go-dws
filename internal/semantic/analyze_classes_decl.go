@@ -854,6 +854,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		classType.ClassMethodFlags[methodKey] = method.IsClassMethod
 		classType.VirtualMethods[methodKey] = method.IsVirtual
 		classType.OverrideMethods[methodKey] = method.IsOverride
+		classType.ReintroduceMethods[methodKey] = method.IsReintroduce // Task 9.2
 		classType.AbstractMethods[methodKey] = method.IsAbstract
 	}
 

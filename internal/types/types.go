@@ -418,6 +418,7 @@ type ClassType struct {
 	OverrideMethods      map[string]bool
 	AbstractMethods      map[string]bool
 	ForwardedMethods     map[string]bool
+	ReintroduceMethods   map[string]bool // Task 9.2: Track methods marked with 'reintroduce'
 	Fields               map[string]Type
 	ClassVars            map[string]Type
 	Constants            map[string]interface{}   // Class constants (Task 9.20-9.22)
@@ -728,6 +729,7 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		OverrideMethods:      make(map[string]bool),
 		AbstractMethods:      make(map[string]bool),
 		ForwardedMethods:     make(map[string]bool),
+		ReintroduceMethods:   make(map[string]bool), // Task 9.2
 		Operators:            NewOperatorRegistry(),
 		Constructors:         make(map[string]*FunctionType),
 		ConstructorOverloads: make(map[string][]*MethodInfo), // Task 9.61

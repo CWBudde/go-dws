@@ -134,6 +134,12 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			if !p.expectPeek(lexer.SEMICOLON) {
 				return nil
 			}
+		} else if p.peekTokenIs(lexer.REINTRODUCE) {
+			p.nextToken() // move to 'reintroduce'
+			fn.IsReintroduce = true
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
 		} else if p.peekTokenIs(lexer.ABSTRACT) {
 			// Abstract method: function GetArea(): Float; abstract;
 			p.nextToken() // move to 'abstract'

@@ -103,6 +103,7 @@ type FunctionDecl struct {
 	IsDestructor      bool
 	IsVirtual         bool
 	IsOverride        bool
+	IsReintroduce     bool // True if marked as reintroduce (hides parent method)
 	IsAbstract        bool
 	IsExternal        bool
 	IsClassMethod     bool
