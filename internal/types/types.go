@@ -399,7 +399,7 @@ type PropertyInfo struct {
 	IsClassProperty bool
 }
 
-// MethodInfo stores metadata about a single method or overload (Task 9.61)
+// MethodInfo stores metadata about a single method or overload
 // This allows tracking virtual/override/abstract/overload per method signature
 type MethodInfo struct {
 	Signature            *FunctionType
@@ -418,14 +418,14 @@ type ClassType struct {
 	OverrideMethods      map[string]bool
 	AbstractMethods      map[string]bool
 	ForwardedMethods     map[string]bool
-	ReintroduceMethods   map[string]bool // Task 9.2: Track methods marked with 'reintroduce'
+	ReintroduceMethods   map[string]bool // Track methods marked with 'reintroduce'
 	Fields               map[string]Type
 	ClassVars            map[string]Type
-	Constants            map[string]interface{}   // Class constants (Task 9.20-9.22)
-	ConstantTypes        map[string]Type          // Types for class constants (Task 9.17)
+	Constants            map[string]interface{}   // Class constants
+	ConstantTypes        map[string]Type          // Types for class constants
 	ConstantVisibility   map[string]int           // Visibility for class constants
 	Methods              map[string]*FunctionType // Primary method signature (first or only overload)
-	MethodOverloads      map[string][]*MethodInfo // All overload variants (Task 9.61)
+	MethodOverloads      map[string][]*MethodInfo // All overload variants
 	FieldVisibility      map[string]int
 	MethodVisibility     map[string]int
 	VirtualMethods       map[string]bool
@@ -433,7 +433,7 @@ type ClassType struct {
 	Properties           map[string]*PropertyInfo
 	ClassMethodFlags     map[string]bool
 	Constructors         map[string]*FunctionType // Primary constructor signature
-	ConstructorOverloads map[string][]*MethodInfo // All constructor overload variants (Task 9.61)
+	ConstructorOverloads map[string][]*MethodInfo // All constructor overload variants
 	Operators            *OperatorRegistry
 	ExternalName         string
 	Name                 string
@@ -441,7 +441,7 @@ type ClassType struct {
 	IsAbstract           bool
 	IsExternal           bool
 	IsForward            bool // True if this is a forward declaration only
-	IsPartial            bool // True if this is a partial class (Task 9.13)
+	IsPartial            bool // True if this is a partial class
 }
 
 // String returns the string representation of the class type
