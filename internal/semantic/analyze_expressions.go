@@ -255,16 +255,40 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 	}
 }
 
-// analyzeIsExpression analyzes the 'is' type checking operator (Task 9.40, 9.16.5.2).
-// Example: obj is TMyClass -> Boolean
+// analyzeIsExpression analyzes the 'is' operator (Task 9.40, 9.16.5.2, 9.33).
+// Example: obj is TMyClass -> Boolean (type check)
+// Example: boolExpr is True -> Boolean (boolean comparison)
 // Returns Boolean type.
 func (a *Analyzer) analyzeIsExpression(expr *ast.IsExpression) types.Type {
-	// Analyze the left expression (the object being checked)
+	// Analyze the left expression
 	leftType := a.analyzeExpression(expr.Left)
 	if leftType == nil {
 		return nil
 	}
 
+	// Check if this is a boolean value comparison (expr.Right is set)
+	// or a type check (expr.TargetType is set)
+	if expr.Right != nil {
+		// Boolean value comparison: left is right
+		// Analyze the right expression
+		rightType := a.analyzeExpression(expr.Right)
+		if rightType == nil {
+			return nil
+		}
+
+		// Both sides should be boolean (or convertible to boolean)
+		// For now, we'll accept any type and let the interpreter handle conversion
+		// In strict mode, we could validate that both are boolean types
+
+		// The 'is' operator always returns Boolean
+		expr.SetType(&ast.TypeAnnotation{
+			Token: expr.Token,
+			Name:  "Boolean",
+		})
+		return types.BOOLEAN
+	}
+
+	// Type checking mode
 	// Resolve the target type (should be a class type)
 	targetType, err := a.resolveTypeExpression(expr.TargetType)
 	if err != nil || targetType == nil {

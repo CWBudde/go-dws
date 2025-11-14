@@ -1227,10 +1227,10 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 	return postConditions
 }
 
-// parseIsExpression parses the 'is' type checking operator.
-// Example: obj is TMyClass
-// This creates an IsExpression AST node that will be evaluated at runtime
-// to check if an object is an instance of a specific type.
+// parseIsExpression parses the 'is' operator which can be used for:
+// 1. Type checking: obj is TMyClass
+// 2. Boolean value comparison: boolExpr is True, boolExpr is False
+// This creates an IsExpression AST node that will be evaluated at runtime.
 func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 	expression := &ast.IsExpression{
 		Token: p.curToken, // The 'is' token
@@ -1239,15 +1239,26 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 
 	p.nextToken()
 
-	// Parse the target type
-	expression.TargetType = p.parseTypeExpression()
-	if expression.TargetType == nil {
-		p.addError("expected type after 'is' operator", ErrExpectedType)
-		return expression
+	// Check if this is a boolean value comparison or type check
+	// TRUE, FALSE, NOT, and parenthesized expressions are value comparisons
+	// Everything else is treated as a type expression
+	if p.curTokenIs(lexer.TRUE) || p.curTokenIs(lexer.FALSE) || p.curTokenIs(lexer.NOT) || p.curTokenIs(lexer.LPAREN) {
+		// Parse as value expression (boolean comparison)
+		expression.Right = p.parseExpression(LOWEST)
+		if expression.Right == nil {
+			p.addError("expected expression after 'is' operator", ErrInvalidExpression)
+			return expression
+		}
+		expression.EndPos = expression.Right.End()
+	} else {
+		// Parse as type expression (type check)
+		expression.TargetType = p.parseTypeExpression()
+		if expression.TargetType == nil {
+			p.addError("expected type after 'is' operator", ErrExpectedType)
+			return expression
+		}
+		expression.EndPos = expression.TargetType.End()
 	}
-
-	// Set end position based on the target type
-	expression.EndPos = expression.TargetType.End()
 
 	return expression
 }

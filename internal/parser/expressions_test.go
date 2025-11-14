@@ -318,3 +318,57 @@ func TestNotAsOperator(t *testing.T) {
 		})
 	}
 }
+
+// TestIsOperatorWithBooleans tests parsing of 'is' operator with boolean value expressions.
+// Task 9.33: Support 'is' operator with boolean expressions like 'is True', 'is False'
+func TestIsOperatorWithBooleans(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "is True",
+			input:    "(x = 0) is True;",
+			expected: "((x = 0) is True)",
+		},
+		{
+			name:     "is False",
+			input:    "(x = 1) is False;",
+			expected: "((x = 1) is False)",
+		},
+		{
+			name:     "True is True",
+			input:    "True is True;",
+			expected: "(True is True)",
+		},
+		{
+			name:     "True is False",
+			input:    "True is False;",
+			expected: "(True is False)",
+		},
+		{
+			name:     "is with parenthesized expression",
+			input:    "(x = 0) is (y = 1);",
+			expected: "((x = 0) is (y = 1))",
+		},
+		{
+			name:     "not with is True",
+			input:    "(x = 0) is not True;",
+			expected: "((x = 0) is (not True))",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			actual := program.String()
+			if actual != tt.expected {
+				t.Errorf("expected=%q, got=%q", tt.expected, actual)
+			}
+		})
+	}
+}
