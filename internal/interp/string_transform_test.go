@@ -2,6 +2,8 @@ package interp
 
 import "testing"
 
+// TestBuiltinUpperCase_BasicUsage tests UpperCase() with basic string operations.
+// UpperCase(str) - converts string to uppercase
 func TestBuiltinUpperCase_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1290,13 +1292,11 @@ end
 }
 
 // ============================================================================
-// Task 9.48-9.50: Tests for Format() string function
+// Task 9.48: Tests for ASCIIUpperCase() string function
 // ============================================================================
 
-// TestBuiltinFormat_BasicUsage tests Format() with basic string formatting.
-// Format(fmt, args) - formats a string with placeholders replaced by args
-// Task 9.50: Format() basic tests
-
+// TestBuiltinASCIIUpperCase tests the ASCIIUpperCase() built-in function.
+// ASCIIUpperCase(str) - converts ASCII characters to uppercase (non-ASCII unchanged)
 func TestBuiltinASCIIUpperCase(t *testing.T) {
 	tests := []struct {
 		name     string

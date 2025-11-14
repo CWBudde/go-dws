@@ -1,3 +1,5 @@
+// This file contains tests for string search and position functions including
+// Pos, PosEx, StrFind, CharAt, and the GetText alias (_).
 package interp
 
 import "testing"
@@ -283,9 +285,8 @@ end
 	}
 }
 
-// TestBuiltinUpperCase_BasicUsage tests UpperCase() with basic string operations.
-// UpperCase(str) - converts string to uppercase
-
+// TestBuiltinPosEx_OffsetValidation tests PosEx() with offset validation.
+// PosEx(needle, haystack, offset) - finds needle in haystack starting at offset position
 func TestBuiltinPosEx_OffsetValidation(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -455,7 +456,7 @@ end
 	}
 }
 
-// TestBuiltinASCIIUpperCase tests the ASCIIUpperCase() built-in function.
+// TestBuiltin_ tests the _() built-in function (GetText alias).
 
 func TestBuiltin_(t *testing.T) {
 	tests := []struct {
