@@ -74,6 +74,12 @@ func runScript(_ *cobra.Command, args []string) error {
 	} else if len(args) == 1 {
 		// File path provided
 		filename = args[0]
+
+		// Check if this is a precompiled bytecode file
+		if filepath.Ext(filename) == ".dwc" {
+			return runBytecodeFile(filename)
+		}
+
 		content, err := os.ReadFile(filename)
 		if err != nil {
 			return fmt.Errorf("failed to read file %s: %w", filename, err)
@@ -284,6 +290,61 @@ func runScript(_ *cobra.Command, args []string) error {
 		// Fall back to simple error display for non-structured errors
 		fmt.Fprintf(os.Stderr, "Runtime error: %s\n", result.String())
 		return fmt.Errorf("execution failed")
+	}
+
+	return nil
+}
+
+// runBytecodeFile loads and executes a precompiled bytecode file (.dwc)
+func runBytecodeFile(filename string) error {
+	if verbose {
+		fmt.Fprintf(os.Stderr, "Loading precompiled bytecode from %s...\n", filename)
+	}
+
+	// Read the bytecode file
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("failed to read bytecode file %s: %w", filename, err)
+	}
+
+	// Deserialize the bytecode
+	serializer := bytecode.NewSerializer()
+	chunk, err := serializer.DeserializeChunk(data)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize bytecode: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "Loaded bytecode:\n")
+		fmt.Fprintf(os.Stderr, "  Name: %s\n", chunk.Name)
+		fmt.Fprintf(os.Stderr, "  Instructions: %d\n", len(chunk.Code))
+		fmt.Fprintf(os.Stderr, "  Constants: %d\n", len(chunk.Constants))
+		fmt.Fprintf(os.Stderr, "  Locals: %d\n", chunk.LocalCount)
+	}
+
+	// Show disassembly if trace is enabled
+	if trace {
+		fmt.Fprintf(os.Stderr, "\n== Bytecode Trace (%s) ==\n", chunk.Name)
+		bytecode.NewDisassembler(chunk, os.Stderr).Disassemble()
+	}
+
+	// Execute the bytecode
+	vm := bytecode.NewVMWithOutput(os.Stdout)
+	result, err := vm.Run(chunk)
+	if err != nil {
+		if runtimeErr, ok := err.(*bytecode.RuntimeError); ok {
+			fmt.Fprintf(os.Stderr, "Bytecode runtime error: %s\n", runtimeErr.Message)
+			if len(runtimeErr.Trace) > 0 {
+				fmt.Fprint(os.Stderr, runtimeErr.Trace.String())
+				fmt.Fprintln(os.Stderr)
+			}
+			return fmt.Errorf("bytecode execution failed: %w", runtimeErr)
+		}
+		return fmt.Errorf("bytecode execution failed: %w", err)
+	}
+
+	if verbose && !result.IsNil() {
+		fmt.Fprintf(os.Stderr, "Bytecode result: %s\n", result.String())
 	}
 
 	return nil

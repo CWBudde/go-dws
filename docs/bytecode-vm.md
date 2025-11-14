@@ -274,6 +274,126 @@ Stack trace:
 test.dws [line: 5, column: 10]
 ```
 
+## Bytecode Serialization
+
+The bytecode VM supports serialization to `.dwc` (DWScript Compiled) files for faster loading and distribution.
+
+### File Format
+
+The `.dwc` file format is a binary format designed for:
+- **Fast loading**: No parsing required, direct execution
+- **Forward compatibility**: Version checking prevents incompatibility issues
+- **Completeness**: Captures all runtime state including constants, line info, helpers, and exception handlers
+
+#### Format Structure
+
+```
+Header (8 bytes):
+  - Magic number: "DWC\x00" (4 bytes)
+  - Version major: uint8 (1 byte)
+  - Version minor: uint8 (1 byte)
+  - Version patch: uint8 (1 byte)
+  - Reserved: uint8 (1 byte)
+
+Body (variable length):
+  - Chunk name: length-prefixed string
+  - Local count: int32
+  - Instructions: count + array of uint32
+  - Constants: count + array of serialized Values
+  - Line info: count + array of LineInfo structs
+  - Try info: count + map of exception handlers
+  - Helpers: count + map of helper metadata
+```
+
+### Compilation
+
+Compile DWScript source to bytecode:
+
+```bash
+# Basic compilation
+dwscript compile script.dws
+
+# Custom output file
+dwscript compile script.dws -o output.dwc
+
+# Show disassembled bytecode
+dwscript compile script.dws --disassemble
+
+# Verbose output
+dwscript compile script.dws -v
+```
+
+The compile command:
+1. Parses the source code
+2. Performs semantic type checking (unless `--skip-type-check`)
+3. Compiles to bytecode
+4. Serializes to `.dwc` format
+5. Writes the binary file
+
+### Execution
+
+Run precompiled bytecode:
+
+```bash
+# Run bytecode file
+dwscript run script.dwc
+
+# With verbose output
+dwscript run script.dwc -v
+
+# With execution trace
+dwscript run script.dwc --trace
+```
+
+The run command automatically detects `.dwc` files and:
+1. Loads and deserializes the bytecode
+2. Validates the version compatibility
+3. Executes directly without parsing
+
+### Version Compatibility
+
+The serializer enforces semantic versioning:
+
+- **Major version**: Breaking changes, must match exactly
+- **Minor version**: Backward compatible additions, older bytecode can run on newer VMs
+- **Patch version**: Bug fixes, fully compatible
+
+Example:
+- VM version 1.2.0 can run bytecode versions 1.0.x, 1.1.x, and 1.2.x
+- VM version 1.2.0 cannot run bytecode version 2.0.x (different major)
+- VM version 1.2.0 cannot run bytecode version 1.3.x (newer minor)
+
+### Supported Types
+
+The serializer supports the following value types in the constant pool:
+
+- **Primitives**: nil, bool, int64, float64, string
+- **Functions**: FunctionObject with nested chunks and upvalue definitions
+- **Builtins**: Builtin function references by name
+
+Runtime-only types (arrays, objects, closures) cannot be serialized as constants.
+
+### Implementation
+
+Serialization is implemented in `internal/bytecode/serializer.go`:
+
+```go
+// Serialize a chunk
+serializer := bytecode.NewSerializer()
+data, err := serializer.SerializeChunk(chunk)
+if err != nil {
+    return err
+}
+os.WriteFile("output.dwc", data, 0644)
+
+// Deserialize a chunk
+data, _ := os.ReadFile("input.dwc")
+chunk, err := serializer.DeserializeChunk(data)
+if err != nil {
+    return err
+}
+```
+
 ## Testing
 
 The bytecode VM includes comprehensive tests:
