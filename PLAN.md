@@ -329,58 +329,7 @@ each element is wrapped in a variant-like container that preserves type informat
 
 ---
 
-### Phase 9.34: Lazy Parameters ✅ DONE
-
-**Priority**: LOW - Required for 5 failing tests
-**Timeline**: 2-3 days
-**Impact**: Support DWScript's lazy parameter evaluation
-
-**Current Status**: COMPLETED - All lazy parameter functionality implemented and tested.
-
-- [x] 9.39.1 Create missing lazy parameter test files
-  - **Task**: Create the missing `.dws` and `.out` files for lazy parameter tests
-  - **Files**: `testdata/lazy_params/jensens_device.dws`, `conditional_eval.dws`, `lazy_logging.dws`, `multiple_access.dws`, `lazy_with_loops.dws`
-  - **Implementation**: Write test scripts demonstrating lazy evaluation
-  - **Reference**: DWScript documentation on `lazy` parameter modifier
-  - **Status**: ✅ DONE - All 5 test files created with expected output files
-  - **Estimated time**: 0.5 day
-
-- [x] 9.39.2 Verify lazy parameter semantic analysis
-  - **Task**: Ensure semantic analyzer handles `lazy` parameters correctly
-  - **Implementation**:
-    - Check if `lazy` keyword is recognized
-    - Verify lazy parameters are marked in AST
-    - Ensure type checking works for lazy parameters
-  - **Files**: `internal/semantic/analyze_functions.go`, `internal/semantic/lazy_params_test.go`
-  - **Tests**: Add semantic analysis tests for lazy parameters
-  - **Status**: ✅ DONE - All 10 semantic tests passing
-  - **Estimated time**: 0.5-1 day
-
-- [x] 9.39.3 Implement/verify lazy parameter evaluation in interpreter
-  - **Task**: Ensure parameters marked `lazy` are evaluated in callee scope, not caller scope
-  - **Implementation**:
-    - Store unevaluated expression for lazy parameters (LazyThunk)
-    - Evaluate expression when parameter is accessed in function body
-    - Handle multiple accesses (re-evaluate on each access, no caching)
-  - **Files**: `internal/interp/lazy_params.go`, `internal/interp/functions_calls.go`, `internal/interp/expressions_basic.go`
-  - **Tests**: Test lazy evaluation semantics (Jensen's device, conditional evaluation, etc.)
-  - **Status**: ✅ DONE - All 14 interpreter tests passing
-  - **Estimated time**: 1-2 days
-
-**Implementation Summary**:
-- **Lexer**: LAZY token already defined
-- **Parser**: Lazy parameter parsing implemented in `parseParameterGroup()`
-- **AST**: `Parameter.IsLazy` field already exists
-- **Semantic**: Type checking for lazy parameters with validation of mutually exclusive modifiers
-- **Interpreter**: LazyThunk implementation with proper environment capture and re-evaluation on each access
-- **Tests**: 29 tests passing (10 semantic + 14 interpreter + 5 CLI)
-
-**Unblocked Tests**:
-- ✅ cmd/dwscript: TestLazyParamsScriptsExist (all 5 subtests passing)
-- ✅ cmd/dwscript: TestLazyParamsExecution (all 5 subtests passing)
-- ✅ cmd/dwscript: TestLazyParamsParsing (all 5 subtests passing)
-
-**Note**: Some fixture tests (lazy.pas, lazy_recursive.pas, lazy_sqr.pas) still fail due to a separate issue with implicit function invocation (parameterless functions being treated as function pointers instead of implicit calls). This is outside the scope of lazy parameter support and should be addressed in a future phase.
+- [x] 9.39 Implement lazy parameters
 
 ---
 
