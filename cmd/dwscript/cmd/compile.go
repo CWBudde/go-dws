@@ -16,10 +16,10 @@ import (
 )
 
 var (
-	outputFile      string
-	skipTypeCheck   bool
-	disassemble     bool
-	compileVerbose  bool
+	outputFile     string
+	skipTypeCheck  bool
+	disassemble    bool
+	compileVerbose bool
 )
 
 var compileCmd = &cobra.Command{

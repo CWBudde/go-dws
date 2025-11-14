@@ -89,9 +89,16 @@ func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string)
 
 // areRuntimeTypesCompatibleForOperator checks if actualType can be used where declaredType is expected.
 // This supports inheritance: a subclass instance can be used where parent class is expected.
+// Task 9.24.2: Also supports array type compatibility (e.g., array of Integer -> array of Variant).
 func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, declaredClass *ClassInfo) bool {
 	// Exact match
 	if actualType == declaredType {
+		return true
+	}
+
+	// Task 9.24.2: Check array type compatibility
+	// array of T is compatible with array of Variant (array of const) for any type T
+	if strings.HasPrefix(actualType, "ARRAY OF ") && declaredType == "ARRAY OF VARIANT" {
 		return true
 	}
 
