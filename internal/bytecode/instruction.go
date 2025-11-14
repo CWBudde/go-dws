@@ -501,6 +501,24 @@ const (
 	// Stack: [array] -> [lowIndex]
 	OpArrayLow
 
+	// OpArrayCount returns array count (alias for length).
+	// Format: [OpArrayCount][unused][unused]
+	// Stack: [array] -> [count]
+	// Task 9.34: Array helper methods
+	OpArrayCount
+
+	// OpArrayDelete removes elements from array.
+	// Format: [OpArrayDelete][unused][unused]
+	// Stack: [array, index, count] -> []
+	// Task 9.34: Array helper methods
+	OpArrayDelete
+
+	// OpArrayIndexOf finds element index in array.
+	// Format: [OpArrayIndexOf][unused][unused]
+	// Stack: [array, value, startIndex] -> [index]
+	// Task 9.34: Array helper methods
+	OpArrayIndexOf
+
 	// ========================================
 	// Object Operations (10 opcodes)
 	// ========================================
@@ -759,6 +777,9 @@ var OpCodeNames = [...]string{
 	OpArraySetLength:   "ARRAY_SET_LENGTH",
 	OpArrayHigh:        "ARRAY_HIGH",
 	OpArrayLow:         "ARRAY_LOW",
+	OpArrayCount:       "ARRAY_COUNT",
+	OpArrayDelete:      "ARRAY_DELETE",
+	OpArrayIndexOf:     "ARRAY_INDEX_OF",
 	OpNewObject:        "NEW_OBJECT",
 	OpGetField:         "GET_FIELD",
 	OpSetField:         "SET_FIELD",

@@ -38,6 +38,125 @@ type finallyContext struct {
 // For objects, looks up the method in the object's fields/properties.
 // For other types (Integer, String, Float, etc.), looks up helper methods.
 func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) error {
+	// Task 9.34: Handle built-in array helper methods
+	// Handle both initialized arrays and nil arrays (uninitialized dynamic arrays)
+	if receiver.IsArray() || receiver.IsNil() {
+		arr := receiver.AsArray()
+		// For nil arrays, we need to initialize them for mutation methods
+		if arr == nil && (methodName == "Add" || methodName == "add" || methodName == "SetLength" || methodName == "setlength") {
+			// Initialize as empty array
+			arr = NewArrayInstance(nil)
+			// Need to update the receiver's value in the global or local variable
+			// This is a limitation - for now, methods on nil arrays will fail
+			return vm.runtimeError("cannot call %s on nil array - array must be initialized first", methodName)
+		}
+		switch methodName {
+		case "Add", "add":
+			if len(args) != 1 {
+				return vm.runtimeError("Array.Add expects 1 argument, got %d", len(args))
+			}
+			// Append by resizing and setting the last element
+			currentLen := arr.Length()
+			arr.Resize(currentLen + 1)
+			arr.Set(currentLen, args[0])
+			vm.push(NilValue())
+			return nil
+		case "Delete", "delete":
+			if len(args) < 1 || len(args) > 2 {
+				return vm.runtimeError("Array.Delete expects 1 or 2 arguments, got %d", len(args))
+			}
+			if !args[0].IsInt() {
+				return vm.runtimeError("Array.Delete index must be Integer")
+			}
+			index := int(args[0].AsInt())
+			count := 1
+			if len(args) == 2 {
+				if !args[1].IsInt() {
+					return vm.runtimeError("Array.Delete count must be Integer")
+				}
+				count = int(args[1].AsInt())
+			}
+
+			arrayLen := arr.Length()
+			if index < 0 || index >= arrayLen {
+				return vm.runtimeError("Array.Delete index %d out of bounds (0..%d)", index, arrayLen-1)
+			}
+			if count < 0 {
+				return vm.runtimeError("Array.Delete count must be non-negative, got %d", count)
+			}
+
+			endIndex := index + count
+			if endIndex > arrayLen {
+				endIndex = arrayLen
+			}
+
+			// Delete elements by creating new slice
+			newElements := make([]Value, 0, arrayLen-(endIndex-index))
+			for i := 0; i < index; i++ {
+				val, _ := arr.Get(i)
+				newElements = append(newElements, val)
+			}
+			for i := endIndex; i < arrayLen; i++ {
+				val, _ := arr.Get(i)
+				newElements = append(newElements, val)
+			}
+
+			arr.Resize(len(newElements))
+			for i, val := range newElements {
+				arr.Set(i, val)
+			}
+			vm.push(NilValue())
+			return nil
+		case "IndexOf", "indexof":
+			if len(args) < 1 || len(args) > 2 {
+				return vm.runtimeError("Array.IndexOf expects 1 or 2 arguments, got %d", len(args))
+			}
+			valueToFind := args[0]
+			startIndex := 0
+			if len(args) == 2 {
+				if !args[1].IsInt() {
+					return vm.runtimeError("Array.IndexOf startIndex must be Integer")
+				}
+				startIndex = int(args[1].AsInt())
+			}
+
+			arrayLen := arr.Length()
+			if startIndex < 0 || startIndex >= arrayLen {
+				vm.push(IntValue(-1))
+				return nil
+			}
+
+			found := false
+			for i := startIndex; i < arrayLen; i++ {
+				elem, _ := arr.Get(i)
+				if vm.valuesEqual(elem, valueToFind) {
+					vm.push(IntValue(int64(i)))
+					found = true
+					break
+				}
+			}
+			if !found {
+				vm.push(IntValue(-1))
+			}
+			return nil
+		case "SetLength", "setlength":
+			if len(args) != 1 {
+				return vm.runtimeError("Array.SetLength expects 1 argument, got %d", len(args))
+			}
+			if !args[0].IsInt() {
+				return vm.runtimeError("Array.SetLength length must be Integer")
+			}
+			newLength := int(args[0].AsInt())
+			if newLength < 0 {
+				return vm.runtimeError("Array.SetLength length must be non-negative, got %d", newLength)
+			}
+			arr.Resize(newLength)
+			vm.push(NilValue())
+			return nil
+		}
+		// Fall through to generic helper method handling if not a built-in
+	}
+
 	// Handle object method calls
 	if receiver.IsObject() {
 		obj := receiver.AsObject()

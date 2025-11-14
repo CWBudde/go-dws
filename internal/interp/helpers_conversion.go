@@ -367,6 +367,84 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		// Return nil (procedure, not a function)
 		return &NilValue{}
 
+	case "__array_delete":
+		// Implements arr.Delete(index) or arr.Delete(index, count) - removes elements from a dynamic array
+		if len(args) < 1 || len(args) > 2 {
+			return i.newErrorWithLocation(node, "Array.Delete expects 1 or 2 arguments, got %d", len(args))
+		}
+		arrVal, ok := selfValue.(*ArrayValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.Delete requires array receiver")
+		}
+
+		// Check if it's a dynamic array (static arrays cannot use Delete)
+		if !arrVal.ArrayType.IsDynamic() {
+			return i.newErrorWithLocation(node, "Delete() can only be used with dynamic arrays, not static arrays")
+		}
+
+		// Get the index
+		indexInt, ok := args[0].(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.Delete index must be Integer, got %s", args[0].Type())
+		}
+		index := int(indexInt.Value)
+
+		// Get the count (default to 1 if not specified)
+		count := 1
+		if len(args) == 2 {
+			countInt, ok := args[1].(*IntegerValue)
+			if !ok {
+				return i.newErrorWithLocation(node, "Array.Delete count must be Integer, got %s", args[1].Type())
+			}
+			count = int(countInt.Value)
+		}
+
+		// Validate index and count
+		arrayLen := len(arrVal.Elements)
+		if index < 0 || index >= arrayLen {
+			return i.newErrorWithLocation(node, "Array.Delete index %d out of bounds (0..%d)", index, arrayLen-1)
+		}
+		if count < 0 {
+			return i.newErrorWithLocation(node, "Array.Delete count must be non-negative, got %d", count)
+		}
+
+		// Calculate end index (don't go beyond array length)
+		endIndex := index + count
+		if endIndex > arrayLen {
+			endIndex = arrayLen
+		}
+
+		// Delete elements by slicing (removes elements from index to index+count)
+		arrVal.Elements = append(arrVal.Elements[:index], arrVal.Elements[endIndex:]...)
+
+		// Return nil (procedure, not a function)
+		return &NilValue{}
+
+	case "__array_indexof":
+		// Implements arr.IndexOf(value) or arr.IndexOf(value, startIndex) - finds first occurrence
+		if len(args) < 1 || len(args) > 2 {
+			return i.newErrorWithLocation(node, "Array.IndexOf expects 1 or 2 arguments, got %d", len(args))
+		}
+		arrVal, ok := selfValue.(*ArrayValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.IndexOf requires array receiver")
+		}
+
+		valueToFind := args[0]
+
+		// Get the start index (default to 0 if not specified)
+		startIndex := 0
+		if len(args) == 2 {
+			startIndexInt, ok := args[1].(*IntegerValue)
+			if !ok {
+				return i.newErrorWithLocation(node, "Array.IndexOf startIndex must be Integer, got %s", args[1].Type())
+			}
+			startIndex = int(startIndexInt.Value)
+		}
+
+		// Use the existing builtinArrayIndexOf function
+		return i.builtinArrayIndexOf(arrVal, valueToFind, startIndex)
+
 	default:
 		// Try calling as a builtin function with self as first argument
 		allArgs := append([]Value{selfValue}, args...)
@@ -384,17 +462,18 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 // ============================================================================
 
 // evalBuiltinHelperProperty evaluates a built-in helper property
-// Implements .Length, .High, .Low for arrays
+// Implements .Length, .High, .Low, .Count for arrays
 func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value {
 	switch propSpec {
-	case "__array_length", "__array_high", "__array_low":
+	case "__array_length", "__array_count", "__array_high", "__array_low":
 		arrVal, ok := selfValue.(*ArrayValue)
 		if !ok {
 			return i.newErrorWithLocation(node, "built-in property '%s' can only be used on arrays", propSpec)
 		}
 		var result Value
 		switch propSpec {
-		case "__array_length":
+		case "__array_length", "__array_count":
+			// Task 9.34: .Count is an alias for .Length
 			result = &IntegerValue{Value: int64(len(arrVal.Elements))}
 		case "__array_high":
 			if arrVal.ArrayType.IsStatic() {

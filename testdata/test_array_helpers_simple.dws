@@ -1,0 +1,24 @@
+var arr: array of Integer;
+
+// Test .Count property (alias for .Length)
+PrintLn('Empty array count: ' + IntToStr(arr.Count));
+PrintLn('Empty array length: ' + IntToStr(arr.Length));
+
+// Add some elements
+arr.Add(10);
+arr.Add(20);
+arr.Add(30);
+
+PrintLn('After adding 3 elements, count: ' + IntToStr(arr.Count));
+PrintLn('Elements: ' + IntToStr(arr[0]) + ', ' + IntToStr(arr[1]) + ', ' + IntToStr(arr[2]));
+
+// Test .IndexOf()
+PrintLn('IndexOf(20): ' + IntToStr(arr.IndexOf(20)));
+PrintLn('IndexOf(99): ' + IntToStr(arr.IndexOf(99))); // Not found, should return -1
+
+// Test .Delete()
+arr.Delete(1); // Delete element at index 1 (which is 20)
+PrintLn('After Delete(1), count: ' + IntToStr(arr.Count));
+PrintLn('Elements: ' + IntToStr(arr[0]) + ', ' + IntToStr(arr[1]));
+
+PrintLn('done');

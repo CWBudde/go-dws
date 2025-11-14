@@ -387,9 +387,24 @@ func (i *Interpreter) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
+	// Task 9.34: Register .Count property (alias for .Length)
+	arrayHelper.Properties["Count"] = &types.PropertyInfo{
+		Name:      "Count",
+		Type:      types.INTEGER,
+		ReadKind:  types.PropAccessBuiltin,
+		ReadSpec:  "__array_count",
+		WriteKind: types.PropAccessNone,
+	}
+
 	// Register .Add() method for dynamic arrays
 	// This allows: arr.Add(value) syntax
 	arrayHelper.BuiltinMethods["add"] = "__array_add"
+
+	// Task 9.34: Register .Delete() method for dynamic arrays
+	arrayHelper.BuiltinMethods["delete"] = "__array_delete"
+
+	// Task 9.34: Register .IndexOf() method for dynamic arrays
+	arrayHelper.BuiltinMethods["indexof"] = "__array_indexof"
 
 	// Register .SetLength() method for dynamic arrays
 	// This allows: arr.SetLength(newLength) syntax
