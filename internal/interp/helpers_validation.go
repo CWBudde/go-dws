@@ -389,11 +389,11 @@ func (i *Interpreter) initArrayHelpers() {
 
 	// Register .Add() method for dynamic arrays
 	// This allows: arr.Add(value) syntax
-	arrayHelper.BuiltinMethods["Add"] = "__array_add"
+	arrayHelper.BuiltinMethods["add"] = "__array_add"
 
 	// Register .SetLength() method for dynamic arrays
 	// This allows: arr.SetLength(newLength) syntax
-	arrayHelper.BuiltinMethods["SetLength"] = "__array_setlength"
+	arrayHelper.BuiltinMethods["setlength"] = "__array_setlength"
 
 	// Register helper for ARRAY type
 	i.helpers["ARRAY"] = append(i.helpers["ARRAY"], arrayHelper)
