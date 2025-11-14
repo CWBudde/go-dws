@@ -106,9 +106,41 @@ go build -o bin/dwscript ./cmd/dwscript
 # Tokenize source code
 ./bin/dwscript lex script.dws
 
+# Compile to bytecode (5-6x faster execution)
+./bin/dwscript compile script.dws
+
+# Run precompiled bytecode
+./bin/dwscript run script.dwc
+
 # Show version
 ./bin/dwscript version
 ```
+
+### Bytecode Compilation
+
+go-dws includes a bytecode compiler that provides 5-6x faster execution compared to the AST interpreter:
+
+```bash
+# Compile a script to bytecode
+./bin/dwscript compile script.dws
+
+# Compile with custom output file
+./bin/dwscript compile script.dws -o output.dwc
+
+# Run the compiled bytecode
+./bin/dwscript run script.dwc
+
+# Show disassembled bytecode
+./bin/dwscript compile script.dws --disassemble
+```
+
+The compiled `.dwc` files:
+- Load instantly without parsing
+- Execute 5-6x faster than AST interpretation
+- Include version checking for forward compatibility
+- Are portable across systems with the same architecture
+
+See [docs/bytecode-vm.md](docs/bytecode-vm.md) for detailed information on the bytecode VM and serialization format.
 
 ### Quick Examples
 
