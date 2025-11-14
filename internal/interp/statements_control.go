@@ -330,8 +330,8 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 						if arrVal, ok := argValue.(*ArrayValue); ok {
 							// Convert array elements to Variants
 							variantElements := make([]Value, len(arrVal.Elements))
-							for i, elem := range arrVal.Elements {
-								variantElements[i] = boxVariant(elem)
+							for idx, elem := range arrVal.Elements {
+								variantElements[idx] = boxVariant(elem)
 							}
 							// Create new array with Variant elements
 							argValue = &ArrayValue{
