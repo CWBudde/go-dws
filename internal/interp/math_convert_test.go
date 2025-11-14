@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// TestBuiltinAbs_Integers tests Abs() with integer values.
-// Abs(x) returns the absolute value of x
+// TestBuiltinRound_BasicUsage tests Round() with basic values.
+// Round(x) rounds to the nearest integer and returns Integer
 func TestBuiltinRound_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -284,8 +284,8 @@ end
 	}
 }
 
-// TestBuiltinRandom_BasicUsage tests Random() function.
-// Random() returns a random Float between 0 and 1 (exclusive)
+// TestBuiltinCeil_BasicUsage tests Ceil() function.
+// Ceil(x) returns the smallest integer greater than or equal to x
 func TestBuiltinCeil_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -621,6 +621,3 @@ end
 		})
 	}
 }
-
-// TestBuiltinRandomInt_BasicUsage tests RandomInt() returns values in range [0, max).
-// RandomInt(max) returns a random Integer in range [0, max)

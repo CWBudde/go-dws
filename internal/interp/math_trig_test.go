@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// TestBuiltinAbs_Integers tests Abs() with integer values.
-// Abs(x) returns the absolute value of x
+// TestBuiltinSin_BasicUsage tests Sin() with basic values.
+// Sin(x) returns the sine of x (in radians) as a Float
 func TestBuiltinSin_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -583,6 +583,3 @@ end
 		})
 	}
 }
-
-// TestBuiltinRound_BasicUsage tests Round() with basic values.
-// Round(x) rounds to the nearest integer and returns Integer
