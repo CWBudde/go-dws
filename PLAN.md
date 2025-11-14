@@ -865,7 +865,7 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
 
 **Subtasks**:
 
-- [ ] 9.16.1 Design base struct hierarchy
+- [x] 9.16.1 Design base struct hierarchy
   - Create `BaseNode` struct with Token, EndPos fields
   - Create `TypedExpressionBase` struct embedding BaseNode with Type field
   - Implement common methods once on base structs
@@ -878,6 +878,7 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
   - Verify interfaces still satisfied
   - Update all tests to ensure behavior unchanged
   - Files: `pkg/ast/ast.go` (~300 lines affected)
+  - Composite literal usage throughout parser/tests currently sets `Token` directly; embedding forces nested initialization, so plan includes a bulk rewrite or helper constructors before flipping these structs
 
 - [ ] 9.16.3 Refactor binary and unary expressions (BinaryExpression, UnaryExpression, GroupedExpression, RangeExpression)
   - Embed TypedExpressionBase
@@ -894,6 +895,7 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
   - Embed BaseNode
   - Remove duplicate implementations
   - Files: `pkg/ast/declarations.go`, `pkg/ast/functions.go`, `pkg/ast/classes.go`, `pkg/ast/interfaces.go` (~500 lines affected)
+  - Started with `HelperDecl` and interface declarations to validate approach; remaining declaration kinds still pending
 
 - [ ] 9.16.6 Refactor type-specific nodes (ArrayLiteralExpression, CallExpression, NewExpression, MemberAccessExpression, etc.)
   - Embed appropriate base struct

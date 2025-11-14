@@ -165,7 +165,9 @@ func TestInterfaceDeclString(t *testing.T) {
 		{
 			name: "simple interface without methods",
 			iface: &InterfaceDecl{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "IEmpty"},
 					Value: "IEmpty",
@@ -178,7 +180,9 @@ func TestInterfaceDeclString(t *testing.T) {
 		{
 			name: "interface with parent (inheritance)",
 			iface: &InterfaceDecl{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "IDescendent"},
 					Value: "IDescendent",
@@ -194,7 +198,9 @@ func TestInterfaceDeclString(t *testing.T) {
 		{
 			name: "interface with single method",
 			iface: &InterfaceDecl{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "IMy"},
 					Value: "IMy",
@@ -216,7 +222,9 @@ func TestInterfaceDeclString(t *testing.T) {
 		{
 			name: "interface with multiple methods",
 			iface: &InterfaceDecl{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "ICounter"},
 					Value: "ICounter",
@@ -249,7 +257,9 @@ func TestInterfaceDeclString(t *testing.T) {
 		{
 			name: "interface with parent and methods (IDescendent extends IBase)",
 			iface: &InterfaceDecl{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "IDescendent"},
 					Value: "IDescendent",

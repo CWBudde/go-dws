@@ -187,14 +187,18 @@ func TestEvalInterfaceDeclaration(t *testing.T) {
 
 	// Create a simple interface AST
 	interfaceDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "IMyInterface"},
 			Value: "IMyInterface",
 		},
 		Methods: []*ast.InterfaceMethodDecl{
 			{
-				Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "DoSomething"},
 					Value: "DoSomething",
@@ -240,14 +244,18 @@ func TestEvalInterfaceDeclarationWithInheritance(t *testing.T) {
 
 	// Create parent interface
 	parentDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "IBase"},
 			Value: "IBase",
 		},
 		Methods: []*ast.InterfaceMethodDecl{
 			{
-				Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "BaseMethod"},
 					Value: "BaseMethod",
@@ -259,7 +267,9 @@ func TestEvalInterfaceDeclarationWithInheritance(t *testing.T) {
 
 	// Create child interface
 	childDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "IDerived"},
 			Value: "IDerived",
@@ -270,7 +280,9 @@ func TestEvalInterfaceDeclarationWithInheritance(t *testing.T) {
 		},
 		Methods: []*ast.InterfaceMethodDecl{
 			{
-				Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "DerivedMethod"},
 					Value: "DerivedMethod",
@@ -326,14 +338,18 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 
 	// Step 1: Declare an interface
 	interfaceDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "ICounter"},
 			Value: "ICounter",
 		},
 		Methods: []*ast.InterfaceMethodDecl{
 			{
-				Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
 					Value: "GetValue",
@@ -432,8 +448,10 @@ func TestInterfaceVariable(t *testing.T) {
 
 	// Create interface
 	interfaceDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
-		Name:  &ast.Identifier{Value: "IPrintable"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
+		Name: &ast.Identifier{Value: "IPrintable"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{
 				Name: &ast.Identifier{Value: "Print"},
@@ -489,8 +507,10 @@ func TestObjectToInterface(t *testing.T) {
 
 	// Create interface with multiple methods
 	interfaceDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
-		Name:  &ast.Identifier{Value: "IDrawable"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
+		Name: &ast.Identifier{Value: "IDrawable"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{Name: &ast.Identifier{Value: "Draw"}},
 			{Name: &ast.Identifier{Value: "GetWidth"}},
@@ -547,8 +567,10 @@ func TestInterfaceMethodCall(t *testing.T) {
 
 	// Create interface
 	interfaceDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
-		Name:  &ast.Identifier{Value: "ICalculator"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
+		Name: &ast.Identifier{Value: "ICalculator"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{
 				Name: &ast.Identifier{Value: "Add"},
@@ -607,8 +629,10 @@ func TestInterfaceInheritance(t *testing.T) {
 
 	// Create base interface
 	baseDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
-		Name:  &ast.Identifier{Value: "IBase"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
+		Name: &ast.Identifier{Value: "IBase"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{Name: &ast.Identifier{Value: "BaseMethod"}},
 		},
@@ -617,7 +641,9 @@ func TestInterfaceInheritance(t *testing.T) {
 
 	// Create derived interface
 	derivedDecl := &ast.InterfaceDecl{
-		Token:  lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
 		Name:   &ast.Identifier{Value: "IDerived"},
 		Parent: &ast.Identifier{Value: "IBase"},
 		Methods: []*ast.InterfaceMethodDecl{
@@ -670,8 +696,10 @@ func TestMultipleInterfaces(t *testing.T) {
 
 	// Create first interface
 	interface1 := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
-		Name:  &ast.Identifier{Value: "IReadable"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
+		Name: &ast.Identifier{Value: "IReadable"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{Name: &ast.Identifier{Value: "Read"}},
 		},
@@ -680,8 +708,10 @@ func TestMultipleInterfaces(t *testing.T) {
 
 	// Create second interface
 	interface2 := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
-		Name:  &ast.Identifier{Value: "IWritable"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
+		Name: &ast.Identifier{Value: "IWritable"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{Name: &ast.Identifier{Value: "Write"}},
 		},
@@ -735,8 +765,10 @@ func TestInterfaceToInterface(t *testing.T) {
 
 	// Create base interface
 	baseDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
-		Name:  &ast.Identifier{Value: "IAnimal"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
+		Name: &ast.Identifier{Value: "IAnimal"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{Name: &ast.Identifier{Value: "Eat"}},
 		},
@@ -745,7 +777,9 @@ func TestInterfaceToInterface(t *testing.T) {
 
 	// Create derived interface
 	derivedDecl := &ast.InterfaceDecl{
-		Token:  lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
 		Name:   &ast.Identifier{Value: "IDog"},
 		Parent: &ast.Identifier{Value: "IAnimal"},
 		Methods: []*ast.InterfaceMethodDecl{
@@ -770,8 +804,10 @@ func TestInterfaceToInterface(t *testing.T) {
 
 	// Test unrelated interfaces
 	unrelatedDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
-		Name:  &ast.Identifier{Value: "ICar"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
+		Name: &ast.Identifier{Value: "ICar"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{Name: &ast.Identifier{Value: "Drive"}},
 		},
@@ -790,8 +826,10 @@ func TestInterfaceToObject(t *testing.T) {
 
 	// Create interface
 	interfaceDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
-		Name:  &ast.Identifier{Value: "IShape"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
+		Name: &ast.Identifier{Value: "IShape"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{Name: &ast.Identifier{Value: "GetArea"}},
 		},
@@ -850,8 +888,10 @@ func TestInterfaceLifetime(t *testing.T) {
 
 	// Create interface and class
 	interfaceDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
-		Name:  &ast.Identifier{Value: "IResource"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
+		Name: &ast.Identifier{Value: "IResource"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{Name: &ast.Identifier{Value: "Release"}},
 		},
@@ -919,8 +959,10 @@ func TestInterfacePolymorphism(t *testing.T) {
 
 	// Create base interface
 	baseDecl := &ast.InterfaceDecl{
-		Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
-		Name:  &ast.Identifier{Value: "IVehicle"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
+		Name: &ast.Identifier{Value: "IVehicle"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{Name: &ast.Identifier{Value: "Start"}},
 		},
@@ -929,7 +971,9 @@ func TestInterfacePolymorphism(t *testing.T) {
 
 	// Create derived interface
 	derivedDecl := &ast.InterfaceDecl{
-		Token:  lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+		},
 		Name:   &ast.Identifier{Value: "ICar"},
 		Parent: &ast.Identifier{Value: "IVehicle"},
 		Methods: []*ast.InterfaceMethodDecl{

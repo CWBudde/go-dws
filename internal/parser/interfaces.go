@@ -306,8 +306,10 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 // Current token should be 'interface'.
 func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.InterfaceDecl {
 	interfaceDecl := &ast.InterfaceDecl{
-		Token: p.curToken, // 'interface' token
-		Name:  nameIdent,
+		BaseNode: ast.BaseNode{
+			Token: p.curToken, // 'interface' token
+		},
+		Name: nameIdent,
 	}
 
 	// Check for optional parent interface (IDerived = interface(IBase))
@@ -390,7 +392,11 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 //
 //	function MethodName(params): ReturnType;
 func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
-	methodDecl := &ast.InterfaceMethodDecl{Token: p.curToken}
+	methodDecl := &ast.InterfaceMethodDecl{
+		BaseNode: ast.BaseNode{
+			Token: p.curToken,
+		},
+	}
 
 	// Determine if this is a procedure or function
 	isProcedure := p.curTokenIs(lexer.PROCEDURE)
