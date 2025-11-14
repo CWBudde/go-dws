@@ -636,4 +636,3 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 		t.Fatalf("loop offset should be negative, got %d", loopInst.SignedB())
 	}
 }
-

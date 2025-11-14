@@ -9,7 +9,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-
 func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 	intType := &ast.TypeAnnotation{Name: "Integer"}
 
