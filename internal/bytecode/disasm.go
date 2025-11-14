@@ -118,7 +118,7 @@ func (d *Disassembler) tryDisassembleSimpleOp(inst Instruction, op OpCode) bool 
 		OpPop, OpDup, OpDup2, OpSwap, OpRotate3,
 		OpArrayLength, OpArrayHigh, OpArrayLow,
 		OpStringConcat, OpStringLength,
-		OpIntToFloat, OpFloatToInt, OpIntToString, OpFloatToString, OpBoolToString,
+		OpIntToFloat, OpFloatToInt, OpIntToString, OpFloatToString, OpBoolToString, OpToBool,
 		OpGetClass, OpGetSelf,
 		OpHalt, OpPrint, OpAssert, OpDebugger,
 		OpBreak, OpContinue:
