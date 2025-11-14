@@ -22,18 +22,6 @@ This document identifies technical debt and refactoring opportunities in the go-
 
 ## Priority 2: Large Implementation Files (>1,200 lines)
 
-### 🔵 P2.7: internal/interp/helpers.go (1,177 lines, 40KB)
-
-**Current:** Mixed helper functions
-**Target:** Split by purpose
-
-```plain
-helpers.go → Split into:
-├── helpers_conversion.go  (~400 lines) - Type conversion helpers
-├── helpers_comparison.go  (~350 lines) - Comparison helpers
-└── helpers_validation.go  (~400 lines) - Input validation helpers
-```
-
 ### 🔵 P2.8: internal/interp/value.go (1,164 lines)
 
 **Current:** Value interface and all value type implementations
