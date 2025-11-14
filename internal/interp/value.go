@@ -244,11 +244,18 @@ func (r *RecordValue) Copy() *RecordValue {
 
 // GetMethod retrieves a method declaration by name.
 // Task 9.7: Helper for record method invocation.
+// Task 9.7.3: Case-insensitive method lookup.
 func (r *RecordValue) GetMethod(name string) *ast.FunctionDecl {
 	if r.Methods == nil {
 		return nil
 	}
-	return r.Methods[name]
+	// Case-insensitive lookup
+	for methodName, decl := range r.Methods {
+		if strings.EqualFold(methodName, name) {
+			return decl
+		}
+	}
+	return nil
 }
 
 // HasMethod checks if a method exists on the record.

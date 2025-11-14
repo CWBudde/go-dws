@@ -160,8 +160,15 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Task 9.37: Check if it's a record method
 		if recordVal.Methods != nil {
-			// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
-			if methodDecl, methodExists := recordVal.Methods[strings.ToLower(ma.Member.Value)]; methodExists {
+			// Task 9.16.2: Method names are case-insensitive, do case-insensitive lookup
+			var methodDecl *ast.FunctionDecl
+			for methodName, decl := range recordVal.Methods {
+				if strings.EqualFold(methodName, ma.Member.Value) {
+					methodDecl = decl
+					break
+				}
+			}
+			if methodDecl != nil {
 				// Only auto-invoke parameterless methods when accessed without parentheses
 				if len(methodDecl.Parameters) == 0 {
 					// Convert to a method call expression and evaluate it
