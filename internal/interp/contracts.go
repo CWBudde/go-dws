@@ -1,8 +1,45 @@
 package interp
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/lexer"
 )
+
+// raiseException raises an exception with the given class name and message.
+func (i *Interpreter) raiseException(className, message string, pos *lexer.Position) {
+	// Get the exception class
+	excClass, ok := i.classes[className]
+	if !ok {
+		// Fallback to base Exception if class not found
+		excClass, ok = i.classes["Exception"]
+		if !ok {
+			// This shouldn't happen, but handle it gracefully
+			i.exception = &ExceptionValue{
+				ClassInfo: NewClassInfo(className),
+				Instance:  nil,
+				Message:   message,
+				Position:  pos,
+				CallStack: i.callStack,
+			}
+			return
+		}
+	}
+
+	// Create an instance of the exception class
+	instance := NewObjectInstance(excClass)
+	instance.SetField("Message", &StringValue{Value: message})
+
+	// Set the exception
+	i.exception = &ExceptionValue{
+		ClassInfo: excClass,
+		Instance:  instance,
+		Message:   message,
+		Position:  pos,
+		CallStack: i.callStack,
+	}
+}
 
 // captureOldValues traverses postconditions to find all OldExpression nodes
 // and captures their current values from the environment.
@@ -97,7 +134,7 @@ func (i *Interpreter) findOldExpressions(expr ast.Expression, env *Environment, 
 }
 
 // checkPreconditions evaluates all preconditions of a function.
-// If any condition fails, it returns a ContractFailureError.
+// If any condition fails, it raises an exception.
 func (i *Interpreter) checkPreconditions(funcName string, preConditions *ast.PreConditions, env *Environment) Value {
 	if preConditions == nil {
 		return nil
@@ -118,9 +155,10 @@ func (i *Interpreter) checkPreconditions(funcName string, preConditions *ast.Pre
 			return newError("precondition test must evaluate to boolean, got %s", result.Type())
 		}
 
-		// If the condition failed, create a contract error
+		// If the condition failed, raise an exception
 		if !boolVal.Value {
-			err := newContractError(funcName, "Pre-condition", condition)
+			// Build error message
+			message := condition.Test.String()
 
 			// Evaluate custom message if provided
 			if condition.Message != nil {
@@ -129,11 +167,18 @@ func (i *Interpreter) checkPreconditions(funcName string, preConditions *ast.Pre
 					return msgVal
 				}
 				if strVal, ok := msgVal.(*StringValue); ok {
-					err.CustomMessage = strVal.Value
+					message = strVal.Value
 				}
 			}
 
-			return err
+			// Format the exception message in DWScript format:
+			// "Pre-condition failed in FuncName [line: X, column: Y], condition_expr"
+			fullMessage := fmt.Sprintf("Pre-condition failed in %s [line: %d, column: %d], %s",
+				funcName, condition.Token.Pos.Line, condition.Token.Pos.Column, message)
+
+			// Raise an Exception
+			i.raiseException("Exception", fullMessage, &condition.Token.Pos)
+			return nil
 		}
 	}
 
@@ -141,7 +186,7 @@ func (i *Interpreter) checkPreconditions(funcName string, preConditions *ast.Pre
 }
 
 // checkPostconditions evaluates all postconditions of a function.
-// If any condition fails, it returns a ContractFailureError.
+// If any condition fails, it raises an exception.
 // This must be called AFTER the function body executes, with oldValues available.
 func (i *Interpreter) checkPostconditions(funcName string, postConditions *ast.PostConditions, env *Environment) Value {
 	if postConditions == nil {
@@ -163,9 +208,10 @@ func (i *Interpreter) checkPostconditions(funcName string, postConditions *ast.P
 			return newError("postcondition test must evaluate to boolean, got %s", result.Type())
 		}
 
-		// If the condition failed, create a contract error
+		// If the condition failed, raise an exception
 		if !boolVal.Value {
-			err := newContractError(funcName, "Post-condition", condition)
+			// Build error message
+			message := condition.Test.String()
 
 			// Evaluate custom message if provided
 			if condition.Message != nil {
@@ -174,11 +220,18 @@ func (i *Interpreter) checkPostconditions(funcName string, postConditions *ast.P
 					return msgVal
 				}
 				if strVal, ok := msgVal.(*StringValue); ok {
-					err.CustomMessage = strVal.Value
+					message = strVal.Value
 				}
 			}
 
-			return err
+			// Format the exception message in DWScript format:
+			// "Post-condition failed in FuncName [line: X, column: Y], condition_expr"
+			fullMessage := fmt.Sprintf("Post-condition failed in %s [line: %d, column: %d], %s",
+				funcName, condition.Token.Pos.Line, condition.Token.Pos.Column, message)
+
+			// Raise an Exception
+			i.raiseException("Exception", fullMessage, &condition.Token.Pos)
+			return nil
 		}
 	}
 

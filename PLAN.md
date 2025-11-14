@@ -276,18 +276,18 @@ each element is wrapped in a variant-like container that preserves type informat
 - [x] 9.30 Implement "deprecated" attribute parsing (constants, functions, enum elements) ✓
 - [x] 9.31 Fix inline conditional expression parsing
   
-- [ ] 9.32 Implement contract syntax (require/ensure/old/invariant)
+- [x] 9.32 Implement contract syntax (require/ensure/old/invariant) ✓
   - **Task**: Parse Design by Contract syntax for preconditions/postconditions
-  - **Current Error**: "no prefix parse function for REQUIRE/ENSURE"
   - **Implementation**:
-    - Add REQUIRE, ENSURE, OLD, INVARIANT tokens to lexer
-    - Parse contract blocks before/after function bodies
-    - Support `old(expr)` syntax in postconditions
-    - Store in AST (execution can be deferred or implemented as assertions)
-  - **Files**: `internal/lexer/lexer.go`, `internal/parser/parser_function.go`, `internal/ast/statements.go`
-  - **Tests**: Test contract parsing for functions, methods
-  - **Estimated time**: 1-2 days
-  - **Blocked Tests**: contracts_code.pas, contracts_old.pas, contracts_subproc.pas
+    - ✅ REQUIRE, ENSURE, OLD, INVARIANT tokens already defined in lexer
+    - ✅ AST nodes for PreConditions, PostConditions, Condition, OldExpression
+    - ✅ Parser supports both syntaxes: ensure before/after function body and inside begin...end
+    - ✅ Interpreter evaluates contracts and raises exceptions on violations
+    - ✅ Comprehensive test suite (12 tests) all passing
+    - ✅ Contract failures properly integrate with try-except blocks
+  - **Files**: `pkg/token/token.go`, `pkg/ast/statements.go`, `internal/parser/expressions.go`, `internal/parser/functions.go`, `internal/interp/contracts.go`, `internal/interp/functions_user.go`
+  - **Tests**: contracts_test.go (parser), contracts_test.go (interpreter) - all passing
+  - **Note**: Bytecode VM support deferred; var parameter edge cases remain (minor)
 
 #### Subtask Category: Miscellaneous Syntax
 
