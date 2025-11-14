@@ -33,6 +33,21 @@ const (
 	VersionMajor = 1
 	VersionMinor = 0
 	VersionPatch = 0
+
+	// Maximum bounds for deserialization to prevent memory exhaustion attacks
+	// These limits are generous but prevent malicious .dwc files from causing OOM/panics
+	maxStringLength     = 64 * 1024 * 1024  // 64 MB - generous for string constants
+	maxChunkSize        = 16 * 1024 * 1024  // 16 MB - reasonable for a single function's bytecode
+	maxInstructionCount = 1_000_000         // ~4 MB of instructions
+	maxConstantCount    = 100_000           // Each Value ~24 bytes = ~2.4 MB
+	maxLineInfoCount    = 1_000_000         // Match instruction count
+	maxUpvalueCount     = 1_024             // Typical closure captures
+	maxTryInfoCount     = 10_000            // Exception handlers
+	maxHelperCount      = 1_000             // Total helpers in a program
+	maxMethodCount      = 1_000             // Methods per helper
+	maxPropertyCount    = 1_000             // Properties per helper
+	maxClassVarCount    = 1_000             // Class variables per helper
+	maxClassConstCount  = 1_000             // Class constants per helper
 )
 
 // SerializerVersion represents a bytecode format version
@@ -67,6 +82,27 @@ func CurrentVersion() SerializerVersion {
 		Minor: VersionMinor,
 		Patch: VersionPatch,
 	}
+}
+
+// validateInt32Length validates a signed int32 length field from bytecode
+// Returns an error if the value is negative or exceeds the maximum
+func validateInt32Length(value int32, maxValue int32, fieldName string) error {
+	if value < 0 {
+		return fmt.Errorf("invalid %s: negative value %d", fieldName, value)
+	}
+	if value > maxValue {
+		return fmt.Errorf("invalid %s: %d exceeds maximum %d", fieldName, value, maxValue)
+	}
+	return nil
+}
+
+// validateUint32Length validates an unsigned uint32 length field from bytecode
+// Returns an error if the value exceeds the maximum
+func validateUint32Length(value uint32, maxValue uint32, fieldName string) error {
+	if value > maxValue {
+		return fmt.Errorf("invalid %s: %d exceeds maximum %d", fieldName, value, maxValue)
+	}
+	return nil
 }
 
 // Serializer handles bytecode serialization/deserialization
@@ -288,6 +324,10 @@ func (s *Serializer) readString(r io.Reader) (string, error) {
 	if err := binary.Read(r, binary.LittleEndian, &length); err != nil {
 		return "", err
 	}
+	// Validate length to prevent memory exhaustion
+	if err := validateUint32Length(length, maxStringLength, "string length"); err != nil {
+		return "", err
+	}
 	// Read string data
 	if length > 0 {
 		data := make([]byte, length)
@@ -377,6 +417,10 @@ func (s *Serializer) readInstructions(r io.Reader) ([]Instruction, error) {
 	// Read count
 	var count uint32
 	if err := binary.Read(r, binary.LittleEndian, &count); err != nil {
+		return nil, err
+	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(count, maxInstructionCount, "instruction count"); err != nil {
 		return nil, err
 	}
 	// Read instructions
@@ -525,6 +569,10 @@ func (s *Serializer) readValue(r io.Reader) (Value, error) {
 		if err != nil {
 			return Value{}, err
 		}
+		// Validate chunk size to prevent memory exhaustion
+		if err := validateInt32Length(chunkSize, maxChunkSize, "chunk size"); err != nil {
+			return Value{}, err
+		}
 		chunkData := make([]byte, chunkSize)
 		if _, err := io.ReadFull(r, chunkData); err != nil {
 			return Value{}, err
@@ -536,6 +584,10 @@ func (s *Serializer) readValue(r io.Reader) (Value, error) {
 		// Read upvalue definitions
 		upvalCount, err := s.readInt32(r)
 		if err != nil {
+			return Value{}, err
+		}
+		// Validate upvalue count to prevent memory exhaustion
+		if err := validateInt32Length(upvalCount, maxUpvalueCount, "upvalue count"); err != nil {
 			return Value{}, err
 		}
 		upvalueDefs := make([]UpvalueDef, upvalCount)
@@ -589,6 +641,10 @@ func (s *Serializer) readConstants(r io.Reader) ([]Value, error) {
 	if err := binary.Read(r, binary.LittleEndian, &count); err != nil {
 		return nil, err
 	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(count, maxConstantCount, "constant count"); err != nil {
+		return nil, err
+	}
 	// Read each constant
 	constants := make([]Value, count)
 	for i := range constants {
@@ -626,6 +682,10 @@ func (s *Serializer) readLineInfos(r io.Reader) ([]LineInfo, error) {
 	// Read count
 	var count uint32
 	if err := binary.Read(r, binary.LittleEndian, &count); err != nil {
+		return nil, err
+	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(count, maxLineInfoCount, "line info count"); err != nil {
 		return nil, err
 	}
 	// Read each line info
@@ -681,6 +741,10 @@ func (s *Serializer) readTryInfos(r io.Reader) (map[int]TryInfo, error) {
 	// Read count
 	var count uint32
 	if err := binary.Read(r, binary.LittleEndian, &count); err != nil {
+		return nil, err
+	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(count, maxTryInfoCount, "try info count"); err != nil {
 		return nil, err
 	}
 	// Read each try info
@@ -741,6 +805,10 @@ func (s *Serializer) readHelpers(r io.Reader) (map[string]*HelperInfo, error) {
 	// Read count
 	var count uint32
 	if err := binary.Read(r, binary.LittleEndian, &count); err != nil {
+		return nil, err
+	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(count, maxHelperCount, "helper count"); err != nil {
 		return nil, err
 	}
 	// Read each helper
@@ -848,6 +916,10 @@ func (s *Serializer) readHelperInfo(r io.Reader) (*HelperInfo, error) {
 	if err := binary.Read(r, binary.LittleEndian, &methodCount); err != nil {
 		return nil, err
 	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(methodCount, maxMethodCount, "method count"); err != nil {
+		return nil, err
+	}
 	for i := uint32(0); i < methodCount; i++ {
 		name, err := s.readString(r)
 		if err != nil {
@@ -865,6 +937,10 @@ func (s *Serializer) readHelperInfo(r io.Reader) (*HelperInfo, error) {
 	if err := binary.Read(r, binary.LittleEndian, &propCount); err != nil {
 		return nil, err
 	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(propCount, maxPropertyCount, "property count"); err != nil {
+		return nil, err
+	}
 	helper.Properties = make([]string, propCount)
 	for i := uint32(0); i < propCount; i++ {
 		helper.Properties[i], err = s.readString(r)
@@ -878,6 +954,10 @@ func (s *Serializer) readHelperInfo(r io.Reader) (*HelperInfo, error) {
 	if err := binary.Read(r, binary.LittleEndian, &classVarCount); err != nil {
 		return nil, err
 	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(classVarCount, maxClassVarCount, "class variable count"); err != nil {
+		return nil, err
+	}
 	helper.ClassVars = make([]string, classVarCount)
 	for i := uint32(0); i < classVarCount; i++ {
 		helper.ClassVars[i], err = s.readString(r)
@@ -889,6 +969,10 @@ func (s *Serializer) readHelperInfo(r io.Reader) (*HelperInfo, error) {
 	// Read class consts
 	var classConstCount uint32
 	if err := binary.Read(r, binary.LittleEndian, &classConstCount); err != nil {
+		return nil, err
+	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(classConstCount, maxClassConstCount, "class constant count"); err != nil {
 		return nil, err
 	}
 	for i := uint32(0); i < classConstCount; i++ {

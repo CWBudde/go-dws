@@ -570,3 +570,315 @@ func TestSerializer_RoundTrip(t *testing.T) {
 		t.Errorf("Constants length mismatch after round trip: expected %d, got %d", len(chunk.Constants), len(deserialized2.Constants))
 	}
 }
+
+// ============================================================================
+// Bounds checking tests - prevent memory exhaustion attacks
+// ============================================================================
+
+func TestSerializer_BoundsChecking_NegativeChunkSize(t *testing.T) {
+	// Create a malicious bytecode with negative chunkSize in a function constant
+	// This tests the specific issue mentioned in the PR comment
+	buf := new(bytes.Buffer)
+	s := NewSerializer()
+
+	// Write header
+	buf.Write([]byte(MagicNumber))
+	buf.WriteByte(1) // major
+	buf.WriteByte(0) // minor
+	buf.WriteByte(0) // patch
+	buf.WriteByte(0) // reserved
+
+	// Write chunk name
+	s.writeString(buf, "malicious")
+	s.writeInt32(buf, 0) // local count
+
+	// Write empty instructions
+	s.writeInt32(buf, 0) // instruction count
+
+	// Write one constant - a function with negative chunkSize
+	s.writeInt32(buf, 1) // constant count
+	buf.WriteByte(byte(ValueFunction))
+	s.writeString(buf, "badFunc")    // function name
+	s.writeInt32(buf, 0)              // arity
+	s.writeInt32(buf, -1000)          // NEGATIVE chunkSize - should be rejected
+
+	// Try to deserialize - should return error, not panic
+	_, err := s.DeserializeChunk(buf.Bytes())
+	if err == nil {
+		t.Fatal("Expected error for negative chunk size, got nil")
+	}
+	if !bytes.Contains([]byte(err.Error()), []byte("negative")) {
+		t.Errorf("Expected error message to mention 'negative', got: %v", err)
+	}
+}
+
+func TestSerializer_BoundsChecking_ExcessiveChunkSize(t *testing.T) {
+	// Test extremely large chunkSize (would cause OOM if not validated)
+	buf := new(bytes.Buffer)
+	s := NewSerializer()
+
+	// Write header
+	buf.Write([]byte(MagicNumber))
+	buf.WriteByte(1) // major
+	buf.WriteByte(0) // minor
+	buf.WriteByte(0) // patch
+	buf.WriteByte(0) // reserved
+
+	// Write chunk name
+	s.writeString(buf, "malicious")
+	s.writeInt32(buf, 0) // local count
+
+	// Write empty instructions
+	s.writeInt32(buf, 0) // instruction count
+
+	// Write one constant - a function with huge chunkSize (1GB)
+	s.writeInt32(buf, 1) // constant count
+	buf.WriteByte(byte(ValueFunction))
+	s.writeString(buf, "badFunc")         // function name
+	s.writeInt32(buf, 0)                   // arity
+	s.writeInt32(buf, 1024*1024*1024)      // 1GB chunkSize - should be rejected
+
+	// Try to deserialize - should return error, not cause OOM
+	_, err := s.DeserializeChunk(buf.Bytes())
+	if err == nil {
+		t.Fatal("Expected error for excessive chunk size, got nil")
+	}
+	if !bytes.Contains([]byte(err.Error()), []byte("exceeds maximum")) {
+		t.Errorf("Expected error message to mention 'exceeds maximum', got: %v", err)
+	}
+}
+
+func TestSerializer_BoundsChecking_NegativeUpvalueCount(t *testing.T) {
+	// Test negative upvalCount in function constant
+	// This is the other issue specifically mentioned in the PR comment
+	buf := new(bytes.Buffer)
+	s := NewSerializer()
+
+	// Write header
+	buf.Write([]byte(MagicNumber))
+	buf.WriteByte(1) // major
+	buf.WriteByte(0) // minor
+	buf.WriteByte(0) // patch
+	buf.WriteByte(0) // reserved
+
+	// Write chunk name
+	s.writeString(buf, "malicious")
+	s.writeInt32(buf, 0) // local count
+
+	// Write empty instructions
+	s.writeInt32(buf, 0) // instruction count
+
+	// Write one constant - a function with negative upvalCount
+	s.writeInt32(buf, 1) // constant count
+	buf.WriteByte(byte(ValueFunction))
+	s.writeString(buf, "badFunc") // function name
+	s.writeInt32(buf, 0)           // arity
+
+	// Write valid inner chunk
+	innerChunk := NewChunk("inner")
+	innerData, _ := s.SerializeChunk(innerChunk)
+	s.writeInt32(buf, int32(len(innerData)))
+	buf.Write(innerData)
+
+	s.writeInt32(buf, -500) // NEGATIVE upvalCount - should be rejected
+
+	// Try to deserialize - should return error, not panic
+	_, err := s.DeserializeChunk(buf.Bytes())
+	if err == nil {
+		t.Fatal("Expected error for negative upvalue count, got nil")
+	}
+	if !bytes.Contains([]byte(err.Error()), []byte("negative")) {
+		t.Errorf("Expected error message to mention 'negative', got: %v", err)
+	}
+}
+
+func TestSerializer_BoundsChecking_ExcessiveUpvalueCount(t *testing.T) {
+	// Test extremely large upvalCount
+	buf := new(bytes.Buffer)
+	s := NewSerializer()
+
+	// Write header
+	buf.Write([]byte(MagicNumber))
+	buf.WriteByte(1) // major
+	buf.WriteByte(0) // minor
+	buf.WriteByte(0) // patch
+	buf.WriteByte(0) // reserved
+
+	// Write chunk name
+	s.writeString(buf, "malicious")
+	s.writeInt32(buf, 0) // local count
+
+	// Write empty instructions
+	s.writeInt32(buf, 0) // instruction count
+
+	// Write one constant - a function with huge upvalCount
+	s.writeInt32(buf, 1) // constant count
+	buf.WriteByte(byte(ValueFunction))
+	s.writeString(buf, "badFunc") // function name
+	s.writeInt32(buf, 0)           // arity
+
+	// Write valid inner chunk
+	innerChunk := NewChunk("inner")
+	innerData, _ := s.SerializeChunk(innerChunk)
+	s.writeInt32(buf, int32(len(innerData)))
+	buf.Write(innerData)
+
+	s.writeInt32(buf, 100000) // Huge upvalCount - should be rejected
+
+	// Try to deserialize - should return error
+	_, err := s.DeserializeChunk(buf.Bytes())
+	if err == nil {
+		t.Fatal("Expected error for excessive upvalue count, got nil")
+	}
+	if !bytes.Contains([]byte(err.Error()), []byte("exceeds maximum")) {
+		t.Errorf("Expected error message to mention 'exceeds maximum', got: %v", err)
+	}
+}
+
+func TestSerializer_BoundsChecking_ExcessiveStringLength(t *testing.T) {
+	// Test extremely large string length
+	buf := new(bytes.Buffer)
+	s := NewSerializer()
+
+	// Write header
+	buf.Write([]byte(MagicNumber))
+	buf.WriteByte(1) // major
+	buf.WriteByte(0) // minor
+	buf.WriteByte(0) // patch
+	buf.WriteByte(0) // reserved
+
+	// Write chunk name with excessive length (100MB)
+	buf.WriteByte(100)
+	buf.WriteByte(0)
+	buf.WriteByte(0)
+	buf.WriteByte(96) // 100MB in little-endian uint32
+
+	// Try to deserialize - should return error, not cause OOM
+	_, err := s.DeserializeChunk(buf.Bytes())
+	if err == nil {
+		t.Fatal("Expected error for excessive string length, got nil")
+	}
+	if !bytes.Contains([]byte(err.Error()), []byte("exceeds maximum")) {
+		t.Errorf("Expected error message to mention 'exceeds maximum', got: %v", err)
+	}
+}
+
+func TestSerializer_BoundsChecking_ExcessiveInstructionCount(t *testing.T) {
+	// Test extremely large instruction count
+	buf := new(bytes.Buffer)
+	s := NewSerializer()
+
+	// Write header
+	buf.Write([]byte(MagicNumber))
+	buf.WriteByte(1) // major
+	buf.WriteByte(0) // minor
+	buf.WriteByte(0) // patch
+	buf.WriteByte(0) // reserved
+
+	// Write chunk name
+	s.writeString(buf, "malicious")
+	s.writeInt32(buf, 0) // local count
+
+	// Write excessive instruction count (10 million)
+	s.writeInt32(buf, 10_000_000) // Should be rejected
+
+	// Try to deserialize - should return error
+	_, err := s.DeserializeChunk(buf.Bytes())
+	if err == nil {
+		t.Fatal("Expected error for excessive instruction count, got nil")
+	}
+	if !bytes.Contains([]byte(err.Error()), []byte("exceeds maximum")) {
+		t.Errorf("Expected error message to mention 'exceeds maximum', got: %v", err)
+	}
+}
+
+func TestSerializer_BoundsChecking_ExcessiveConstantCount(t *testing.T) {
+	// Test extremely large constant count
+	buf := new(bytes.Buffer)
+	s := NewSerializer()
+
+	// Write header
+	buf.Write([]byte(MagicNumber))
+	buf.WriteByte(1) // major
+	buf.WriteByte(0) // minor
+	buf.WriteByte(0) // patch
+	buf.WriteByte(0) // reserved
+
+	// Write chunk name
+	s.writeString(buf, "malicious")
+	s.writeInt32(buf, 0) // local count
+
+	// Write empty instructions
+	s.writeInt32(buf, 0) // instruction count
+
+	// Write excessive constant count (1 million)
+	s.writeInt32(buf, 1_000_000) // Should be rejected
+
+	// Try to deserialize - should return error
+	_, err := s.DeserializeChunk(buf.Bytes())
+	if err == nil {
+		t.Fatal("Expected error for excessive constant count, got nil")
+	}
+	if !bytes.Contains([]byte(err.Error()), []byte("exceeds maximum")) {
+		t.Errorf("Expected error message to mention 'exceeds maximum', got: %v", err)
+	}
+}
+
+func TestSerializer_BoundsChecking_ValidMaxValues(t *testing.T) {
+	// Test that values at the maximum allowed bounds still work
+	// This ensures we're not being too restrictive
+	tests := []struct {
+		name      string
+		createFn  func() ([]byte, error)
+		shouldErr bool
+	}{
+		{
+			name: "max_valid_constants",
+			createFn: func() ([]byte, error) {
+				chunk := NewChunk("test")
+				// Add exactly the max allowed constants (this should succeed)
+				// Use a smaller number for the test to keep it fast
+				for i := 0; i < 1000; i++ {
+					chunk.Constants = append(chunk.Constants, IntValue(int64(i)))
+				}
+				s := NewSerializer()
+				return s.SerializeChunk(chunk)
+			},
+			shouldErr: false,
+		},
+		{
+			name: "max_valid_instructions",
+			createFn: func() ([]byte, error) {
+				chunk := NewChunk("test")
+				// Add many instructions (but not exceeding max)
+				for i := 0; i < 10000; i++ {
+					chunk.WriteInstruction(MakeSimpleInstruction(OpLoadNil), i)
+				}
+				s := NewSerializer()
+				return s.SerializeChunk(chunk)
+			},
+			shouldErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := tt.createFn()
+			if err != nil {
+				if !tt.shouldErr {
+					t.Fatalf("Unexpected error creating chunk: %v", err)
+				}
+				return
+			}
+
+			s := NewSerializer()
+			_, err = s.DeserializeChunk(data)
+			if tt.shouldErr && err == nil {
+				t.Fatal("Expected error but got nil")
+			}
+			if !tt.shouldErr && err != nil {
+				t.Fatalf("Unexpected error deserializing: %v", err)
+			}
+		})
+	}
+}
