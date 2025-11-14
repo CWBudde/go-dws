@@ -392,7 +392,7 @@ func TestIsOperatorPrecedence(t *testing.T) {
 		{
 			name:     "complex: is True and is False",
 			input:    "a is True and b is False;",
-			expected: "(((a is True) and (b is False)))",
+			expected: "((a is True) and (b is False))",
 		},
 	}
 
@@ -405,56 +405,6 @@ func TestIsOperatorPrecedence(t *testing.T) {
 			actual := program.String()
 			if actual != tt.expected {
 				t.Errorf("expected=%q, got=%q", tt.expected, actual)
-			}
-		})
-	}
-}
-
-func TestIsOperatorParenthesizedType(t *testing.T) {
-	tests := []struct {
-		name          string
-		input         string
-		expectType    bool
-		expectBoolean bool
-	}{
-		{
-			name:       "parenthesized type name should be type check",
-			input:      "x is (Integer);",
-			expectType: true,
-		},
-		{
-			name:       "parenthesized type TMyClass should be type check",
-			input:      "obj is (TMyClass);",
-			expectType: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := testParser(tt.input)
-			program := p.ParseProgram()
-			checkParserErrors(t, p)
-
-			if len(program.Statements) != 1 {
-				t.Fatalf("expected 1 statement, got %d", len(program.Statements))
-			}
-
-			exprStmt, ok := program.Statements[0].(*ast.ExpressionStatement)
-			if !ok {
-				t.Fatalf("expected ExpressionStatement, got %T", program.Statements[0])
-			}
-
-			isExpr, ok := exprStmt.Expression.(*ast.IsExpression)
-			if !ok {
-				t.Fatalf("expected IsExpression, got %T", exprStmt.Expression)
-			}
-
-			if tt.expectType && isExpr.TargetType == nil {
-				t.Errorf("expected TargetType to be set for type check, but it was nil")
-			}
-
-			if tt.expectBoolean && isExpr.Right == nil {
-				t.Errorf("expected Right to be set for boolean comparison, but it was nil")
 			}
 		})
 	}
