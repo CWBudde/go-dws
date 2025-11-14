@@ -59,11 +59,34 @@ func (i *Interpreter) evalInOperator(value Value, container Value, node ast.Node
 	return &BooleanValue{Value: false}
 }
 
-// evalIsExpression evaluates the 'is' type checking operator
-// Example: obj is TMyClass -> Boolean
-// Returns true if the object is an instance of the specified class or a derived class,
-// or if the object's class implements the specified interface.
+// evalIsExpression evaluates the 'is' operator which can be used for:
+// 1. Type checking: obj is TMyClass -> Boolean
+// 2. Boolean value comparison: boolExpr is True -> Boolean
+// Returns true if the condition matches, false otherwise.
 func (i *Interpreter) evalIsExpression(expr *ast.IsExpression) Value {
+	// Check if this is a boolean value comparison (expr.Right is set)
+	// or a type check (expr.TargetType is set)
+	if expr.Right != nil {
+		// Boolean value comparison: left is right
+		// This is essentially checking if left == right for boolean values
+		left := i.Eval(expr.Left)
+		if isError(left) {
+			return left
+		}
+
+		right := i.Eval(expr.Right)
+		if isError(right) {
+			return right
+		}
+
+		// Convert both to boolean values using variantToBool
+		leftBool := variantToBool(left)
+		rightBool := variantToBool(right)
+
+		return &BooleanValue{Value: leftBool == rightBool}
+	}
+
+	// Type checking mode
 	// Evaluate the left expression (the object to check)
 	left := i.Eval(expr.Left)
 	if isError(left) {

@@ -51,6 +51,8 @@ func (c *Compiler) compileExpression(expr ast.Expression) error {
 		return c.compileUnaryExpression(node)
 	case *ast.IfExpression:
 		return c.compileIfExpression(node)
+	case *ast.IsExpression:
+		return c.compileIsExpression(node)
 	default:
 		return c.errorf(expr, "unsupported expression type %T", expr)
 	}
@@ -514,4 +516,28 @@ func (c *Compiler) emitDefaultValue(expr *ast.IfExpression, line int) error {
 		c.chunk.WriteSimple(OpLoadNil, line)
 		return nil
 	}
+}
+
+func (c *Compiler) compileIsExpression(expr *ast.IsExpression) error {
+	line := lineOf(expr)
+
+	// Check if this is a boolean value comparison or type check
+	if expr.Right != nil {
+		// Boolean value comparison: left is right
+		// Convert both operands to boolean before comparing to match interpreter behavior
+		if err := c.compileExpression(expr.Left); err != nil {
+			return err
+		}
+		c.chunk.WriteSimple(OpToBool, line)
+		if err := c.compileExpression(expr.Right); err != nil {
+			return err
+		}
+		c.chunk.WriteSimple(OpToBool, line)
+		c.chunk.WriteSimple(OpEqual, line)
+		return nil
+	}
+
+	// Type checking mode - not yet fully implemented in bytecode
+	// For now, we'll return an error and let the interpreter handle it
+	return c.errorf(expr, "type checking with 'is' operator not yet supported in bytecode mode")
 }

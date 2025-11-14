@@ -291,16 +291,16 @@ each element is wrapped in a variant-like container that preserves type informat
 
 #### Subtask Category: Miscellaneous Syntax
 
-- [ ] 9.33 Fix "is" operator with non-type expressions
+- [x] 9.33 Fix "is" operator with non-type expressions
   - **Task**: Allow `is` operator with boolean expressions like `is True`, `is False`
   - **Current Error**: "expected type expression, got True/False"
   - **Implementation**:
     - Extend `parseIsExpression()` to handle value expressions (not just types)
     - Semantic analyzer validates operand types
-  - **Files**: `internal/parser/parser_expressions.go`
+  - **Files**: `internal/parser/expressions.go`, `internal/interp/expressions_complex.go`, `internal/bytecode/compiler_expressions.go`, `internal/semantic/analyze_expressions.go`, `pkg/ast/ast.go`
   - **Tests**: Test `is` with various operand types
   - **Estimated time**: 0.5 day
-  - **Blocked Tests**: boolean_is.pas
+  - **Blocked Tests**: boolean_is.pas ✓
 
 - [ ] 9.34 Implement array helper methods
   - **Task**: Add built-in helper methods for dynamic arrays (`.count`, `.length`, etc.)

@@ -264,3 +264,78 @@ func BenchmarkVMVsInterpreter(b *testing.B) {
 		}
 	})
 }
+
+// TestVMParityIsExpressions tests that the bytecode VM produces the same output as the AST interpreter for 'is' expressions.
+func TestVMParityIsExpressions(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{
+			name: "is True basic",
+			source: `
+				var x: Boolean := True;
+				if x is True then
+					PrintLn('True')
+				else
+					PrintLn('False');
+			`,
+		},
+		{
+			name: "is False basic",
+			source: `
+				var x: Boolean := False;
+				if x is False then
+					PrintLn('False')
+				else
+					PrintLn('Not false');
+			`,
+		},
+		{
+			name: "is with integer to boolean conversion",
+			source: `
+				var x: Integer := 1;
+				if x is True then
+					PrintLn('Truthy')
+				else
+					PrintLn('Falsey');
+			`,
+		},
+		{
+			name: "is with zero to boolean conversion",
+			source: `
+				var x: Integer := 0;
+				if x is False then
+					PrintLn('Zero is falsey')
+				else
+					PrintLn('Zero is truthy');
+			`,
+		},
+		{
+			name: "is True with precedence",
+			source: `
+				var a: Boolean := True;
+				var b: Boolean := True;
+				if a is True and b is True then
+					PrintLn('Both true')
+				else
+					PrintLn('Not both true');
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Run with AST interpreter
+			astOutput := runWithInterpreter(t, tt.source)
+
+			// Run with bytecode VM
+			bcOutput := runWithBytecode(t, tt.source)
+
+			// Compare outputs
+			if astOutput != bcOutput {
+				t.Errorf("Output mismatch:\nAST output:\n%s\nBytecode output:\n%s", astOutput, bcOutput)
+			}
+		})
+	}
+}

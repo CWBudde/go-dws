@@ -431,7 +431,8 @@ func (nl *NilLiteral) SetType(typ *TypeAnnotation) { nl.Type = typ }
 // Returns true if the object is of the specified type, false otherwise.
 type IsExpression struct {
 	Left       Expression      // The object being checked
-	TargetType TypeExpression  // The target type to check against
+	TargetType TypeExpression  // The target type to check against (for type checks)
+	Right      Expression      // The value expression to compare against (for boolean comparisons)
 	Type       *TypeAnnotation // Always resolves to Boolean
 	Token      token.Token     // The 'is' token
 	EndPos     token.Position
@@ -447,6 +448,9 @@ func (ie *IsExpression) End() token.Position {
 	if ie.TargetType != nil {
 		return ie.TargetType.End()
 	}
+	if ie.Right != nil {
+		return ie.Right.End()
+	}
 	return ie.Token.Pos
 }
 func (ie *IsExpression) String() string {
@@ -454,7 +458,11 @@ func (ie *IsExpression) String() string {
 	out.WriteString("(")
 	out.WriteString(ie.Left.String())
 	out.WriteString(" is ")
-	out.WriteString(ie.TargetType.String())
+	if ie.TargetType != nil {
+		out.WriteString(ie.TargetType.String())
+	} else if ie.Right != nil {
+		out.WriteString(ie.Right.String())
+	}
 	out.WriteString(")")
 	return out.String()
 }
