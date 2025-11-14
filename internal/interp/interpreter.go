@@ -160,6 +160,8 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 
 	// Register mathematical constants (Task 9.232)
 	env.Define("PI", &FloatValue{Value: math.Pi})
+	env.Define("NaN", &FloatValue{Value: math.NaN()})
+	env.Define("Infinity", &FloatValue{Value: math.Inf(1)})
 
 	return interp
 }

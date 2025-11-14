@@ -223,7 +223,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		savedEnv := i.env
 		tempEnv := NewEnclosedEnvironment(i.env)
 		for cName, cValue := range classInfo.ConstantValues {
-			tempEnv.Set(cName, cValue)
+			tempEnv.Define(cName, cValue)
 		}
 		i.env = tempEnv
 
@@ -273,7 +273,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			savedEnv := i.env
 			tempEnv := NewEnclosedEnvironment(i.env)
 			for cName, cValue := range classInfo.ConstantValues {
-				tempEnv.Set(cName, cValue)
+				tempEnv.Define(cName, cValue)
 			}
 			i.env = tempEnv
 
@@ -313,7 +313,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 					savedEnv := i.env
 					tempEnv := NewEnclosedEnvironment(i.env)
 					for cName, cValue := range classInfo.ConstantValues {
-						tempEnv.Set(cName, cValue)
+						tempEnv.Define(cName, cValue)
 					}
 					i.env = tempEnv
 
