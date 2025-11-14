@@ -41,23 +41,25 @@ value.go → Split into:
 
 These test files are very large and would benefit from splitting:
 
-### 🟢 P3.2: internal/interp/math_test.go (64KB)
+### ✅ P3.2: internal/interp/math_test.go (64KB) - COMPLETED
 
-**Target:** Split by math category
+**Status:** Split into 3 files (45KB + 9.8KB + 9.6KB = 64.4KB total)
 
+**Result:**
 ```plain
-├── math_basic_test.go   (~21KB) - Abs, Sqrt, Power, Min, Max tests
-├── math_trig_test.go    (~21KB) - Sin, Cos, Tan, Arc* tests
-└── math_convert_test.go (~21KB) - Round, Trunc, Floor, Ceil tests
+├── math_basic_test.go   (45KB) - Abs, Sqrt, Power, Min, Max, Random, Clamp, Unsigned32 tests (43 tests)
+├── math_trig_test.go    (9.6KB) - Sin, Cos, Tan, Exp, Ln tests (8 tests)
+└── math_convert_test.go (9.8KB) - Round, Trunc, Floor, Ceil tests (7 tests)
 ```
 
-### 🟢 P3.3: internal/parser/arrays_test.go (52KB)
+### ✅ P3.3: internal/parser/arrays_test.go (52KB) - COMPLETED
 
-**Target:** Split by parsing feature
+**Status:** Split into 2 files (22KB + 29KB = 51KB total)
 
+**Result:**
 ```plain
-├── arrays_literal_test.go     (~26KB) - Array literal parsing
-└── arrays_operations_test.go  (~26KB) - Array indexing/operations parsing
+├── arrays_literal_test.go     (22KB) - Array literal parsing, type declarations
+└── arrays_operations_test.go  (29KB) - Array indexing/operations, assignments
 ```
 
 ### 🟢 P3.4: internal/parser/functions_test.go (48KB)
