@@ -358,7 +358,7 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 }
 
 // ============================================================================
-// Built-in Helper Property Implementations (Type Conversions)
+// Built-in Helper Property Implementations
 // ============================================================================
 
 // evalBuiltinHelperProperty evaluates a built-in helper property
