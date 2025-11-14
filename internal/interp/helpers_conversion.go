@@ -151,9 +151,31 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeAnnot *ast.TypeAnnotation) t
 }
 
 // extractSimpleTypeName extracts the simple type name from a full type string
-// e.g., "INTEGER" -> "Integer"
+// Examples:
+//   - "array of Integer" -> "Integer"
+//   - "array[0..10] of String" -> "String"
+//   - "MyClass(ParentClass)" -> "MyClass"
+//   - "class of MyClass" -> "MyClass"
+//   - "Integer" -> "Integer"
 func extractSimpleTypeName(typeName string) string {
-	// Just return the type name as-is for now
+	// Handle array types: "array of Integer" or "array[0..10] of String"
+	if strings.HasPrefix(typeName, "array") {
+		if idx := strings.Index(typeName, " of "); idx != -1 {
+			return typeName[idx+4:] // Extract everything after " of "
+		}
+	}
+
+	// Handle metaclass types: "class of MyClass"
+	if strings.HasPrefix(typeName, "class of ") {
+		return typeName[9:] // Extract everything after "class of "
+	}
+
+	// Handle class types with parent: "MyClass(ParentClass)"
+	if idx := strings.Index(typeName, "("); idx != -1 {
+		return typeName[:idx] // Extract everything before "("
+	}
+
+	// Already a simple type name
 	return typeName
 }
 
