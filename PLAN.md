@@ -292,38 +292,8 @@ each element is wrapped in a variant-like container that preserves type informat
 #### Subtask Category: Miscellaneous Syntax
 
 - [x] 9.33 Fix "is" operator with non-type expressions
-  - **Task**: Allow `is` operator with boolean expressions like `is True`, `is False`
-  - **Current Error**: "expected type expression, got True/False"
-  - **Implementation**:
-    - Extend `parseIsExpression()` to handle value expressions (not just types)
-    - Semantic analyzer validates operand types
-  - **Files**: `internal/parser/expressions.go`, `internal/interp/expressions_complex.go`, `internal/bytecode/compiler_expressions.go`, `internal/semantic/analyze_expressions.go`, `pkg/ast/ast.go`
-  - **Tests**: Test `is` with various operand types
-  - **Estimated time**: 0.5 day
-  - **Blocked Tests**: boolean_is.pas ✓
-
 - [x] 9.34 Implement array helper methods **[DONE]**
-  - **Task**: Add built-in helper methods for dynamic arrays (`.count`, `.length`, etc.)
-  - **Implementation**: Implemented `.Count` property (alias for `.Length`), `.Delete(index)` and `.Delete(index, count)` methods, `.IndexOf(value)` and `.IndexOf(value, startIndex)` methods
-  - Registered in semantic analyzer with proper optional parameter support
-  - Implemented in interpreter (`internal/interp/helpers.go`)
-  - Implemented in bytecode VM (`internal/bytecode/vm_exec.go`, `internal/bytecode/vm_calls.go`)
-  - Added opcodes for array operations (`OpArrayCount`, `OpArrayDelete`, `OpArrayIndexOf`)
-  - Tested with custom test scripts - all working correctly
-  - **Files**: `internal/semantic/analyze_helpers.go`, `internal/interp/helpers.go`, `internal/bytecode/instruction.go`, `internal/bytecode/vm_exec.go`, `internal/bytecode/vm_calls.go`, `internal/bytecode/disasm.go`
-
 - [x] 9.35 Implement Variant to Boolean implicit coercion ✅
-  - **Task**: Support implicit conversion from Variant to Boolean in conditional contexts
-  - **Current Error**: "if expression condition must be boolean, got Variant"
-  - **Implementation**:
-    - Add implicit Variant→Boolean conversion in semantic analyzer for conditional contexts
-    - Handle Variant boolean coercion in interpreter and bytecode VM
-    - Follow DWScript semantics: empty/nil/zero → false, otherwise → true
-  - **Files**: `internal/semantic/analyze_expressions.go`, `internal/semantic/analyze_statements.go`, `internal/semantic/analyze_functions.go`, `internal/semantic/analyze_expr_operators.go`, `internal/interp/statements_control.go`, `internal/interp/expressions_basic.go`, `internal/interp/expressions_complex.go`, `internal/bytecode/vm_exec.go`
-  - **Tests**: Test Variant in if conditions, while conditions, boolean operators - 9 comprehensive tests added in `internal/interp/variant_test.go`
-  - **Completed**: Semantic analyzer updated with `isBooleanCompatible()` helper, interpreter updated with `variantToBool()` helper, bytecode VM marked with TODO for future Variant support
-  - **Estimated time**: 0.5-1 day
-  - **Blocked Tests**: ifthenelse_expression_variant.pas ✅ (now passing)
 
 - [ ] 9.36 Fix "class" forward declaration in units
   - **Task**: Support class forward declarations in unit interface section
