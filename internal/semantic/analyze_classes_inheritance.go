@@ -42,6 +42,7 @@ func (a *Analyzer) inheritParentConstructors(childClass *types.ClassType, parent
 				IsVirtual:            parentCtor.IsVirtual,
 				IsOverride:           false, // Inherited constructors are not marked as override
 				IsAbstract:           parentCtor.IsAbstract,
+				IsReintroduce:        parentCtor.IsReintroduce,
 				IsForwarded:          false,
 				IsClassMethod:        parentCtor.IsClassMethod,
 				HasOverloadDirective: parentCtor.HasOverloadDirective,

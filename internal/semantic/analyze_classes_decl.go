@@ -787,6 +787,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		IsVirtual:            method.IsVirtual,
 		IsOverride:           method.IsOverride,
 		IsAbstract:           method.IsAbstract,
+		IsReintroduce:        method.IsReintroduce,
 		IsForwarded:          method.Body == nil,
 		IsClassMethod:        method.IsClassMethod,
 		HasOverloadDirective: method.IsOverload,
@@ -854,6 +855,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		classType.ClassMethodFlags[methodKey] = method.IsClassMethod
 		classType.VirtualMethods[methodKey] = method.IsVirtual
 		classType.OverrideMethods[methodKey] = method.IsOverride
+		classType.ReintroduceMethods[methodKey] = method.IsReintroduce // Task 9.2
 		classType.AbstractMethods[methodKey] = method.IsAbstract
 	}
 
