@@ -3,8 +3,6 @@ package ast
 import (
 	"bytes"
 	"strings"
-
-	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -24,27 +22,17 @@ import (
 //	property Items[i: Integer]: String read GetItem; default;          // Default property
 //	class property Version: String read GetVersion;                    // Class property (static)
 type PropertyDecl struct {
+	BaseNode
 	ReadSpec        Expression
 	WriteSpec       Expression
 	Name            *Identifier
 	Type            *TypeAnnotation
 	IndexParams     []*Parameter
-	Token           token.Token
 	IsDefault       bool
 	IsClassProperty bool
-	EndPos          token.Position
 }
 
-func (p *PropertyDecl) End() token.Position {
-	if p.EndPos.Line != 0 {
-		return p.EndPos
-	}
-	return p.Token.Pos
-}
-
-func (pd *PropertyDecl) statementNode()       {}
-func (pd *PropertyDecl) TokenLiteral() string { return pd.Token.Literal }
-func (pd *PropertyDecl) Pos() token.Position  { return pd.Token.Pos }
+func (pd *PropertyDecl) statementNode() {}
 
 // String returns the string representation of the property declaration.
 func (pd *PropertyDecl) String() string {

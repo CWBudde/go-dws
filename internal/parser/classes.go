@@ -402,7 +402,9 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 	fields := make([]*ast.FieldDecl, 0, len(fieldNames))
 	for _, name := range fieldNames {
 		field := &ast.FieldDecl{
-			Token:      name.Token,
+			BaseNode: ast.BaseNode{
+				Token: name.Token,
+			},
 			Name:       name,
 			Type:       fieldType, // May be nil for type inference
 			Visibility: visibility,
@@ -533,13 +535,15 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 	}
 
 	constant := &ast.ConstDecl{
-		Token:        constToken,
+		BaseNode: ast.BaseNode{
+			Token:  constToken,
+			EndPos: p.endPosFromToken(p.curToken),
+		},
 		Name:         nameIdent,
 		Type:         typeAnnotation,
 		Value:        value,
 		Visibility:   visibility,
 		IsClassConst: isClassConst,
-		EndPos:       p.endPosFromToken(p.curToken),
 	}
 
 	return constant

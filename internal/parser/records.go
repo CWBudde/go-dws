@@ -284,7 +284,9 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 	var fields []*ast.FieldDecl
 	for _, name := range fieldNames {
 		fields = append(fields, &ast.FieldDecl{
-			Token:      name.Token,
+			BaseNode: ast.BaseNode{
+				Token: name.Token,
+			},
 			Name:       name,
 			Type:       typeAnnotation,
 			Visibility: visibility,
