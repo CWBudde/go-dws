@@ -406,6 +406,7 @@ type MethodInfo struct {
 	IsVirtual            bool
 	IsOverride           bool
 	IsAbstract           bool
+	IsReintroduce        bool
 	IsForwarded          bool
 	IsClassMethod        bool
 	HasOverloadDirective bool

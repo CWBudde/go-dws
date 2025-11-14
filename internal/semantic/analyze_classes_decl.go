@@ -787,6 +787,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		IsVirtual:            method.IsVirtual,
 		IsOverride:           method.IsOverride,
 		IsAbstract:           method.IsAbstract,
+		IsReintroduce:        method.IsReintroduce,
 		IsForwarded:          method.Body == nil,
 		IsClassMethod:        method.IsClassMethod,
 		HasOverloadDirective: method.IsOverload,

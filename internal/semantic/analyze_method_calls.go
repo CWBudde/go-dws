@@ -309,8 +309,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	if classType.HasConstructor(methodName) {
 		// Task 9.2: Check if trying to instantiate an abstract class via constructor call
 		if classType.IsAbstract {
-			a.addError("cannot instantiate abstract class '%s' at [line: %d, column: %d]",
-				classType.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
+			a.addError("Trying to create an instance of an abstract class at [line: %d, column: %d]",
+				expr.Token.Pos.Line, expr.Token.Pos.Column)
 			return classType
 		}
 
