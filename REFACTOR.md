@@ -41,36 +41,6 @@ value.go → Split into:
 
 These test files are very large and would benefit from splitting:
 
-### ✅ P3.2: internal/interp/math_test.go (64KB) - COMPLETED
-
-**Status:** Split into 3 files (45KB + 9.8KB + 9.6KB = 64.4KB total)
-
-**Result:**
-```plain
-├── math_basic_test.go   (45KB) - Abs, Sqrt, Power, Min, Max, Random, Clamp, Unsigned32 tests (43 tests)
-├── math_trig_test.go    (9.6KB) - Sin, Cos, Tan, Exp, Ln tests (8 tests)
-└── math_convert_test.go (9.8KB) - Round, Trunc, Floor, Ceil tests (7 tests)
-```
-
-### ✅ P3.3: internal/parser/arrays_test.go (52KB) - COMPLETED
-
-**Status:** Split into 2 files (22KB + 29KB = 51KB total)
-
-**Result:**
-```plain
-├── arrays_literal_test.go     (22KB) - Array literal parsing, type declarations
-└── arrays_operations_test.go  (29KB) - Array indexing/operations, assignments
-```
-
-### 🟢 P3.4: internal/parser/functions_test.go (48KB)
-
-**Target:** Split by function feature
-
-```plain
-├── functions_decl_test.go  (~24KB) - Function declaration parsing
-└── functions_call_test.go  (~24KB) - Function call parsing
-```
-
 ### 🟢 P3.5: internal/interp/set_test.go (48KB)
 
 **Target:** Split by set operations
@@ -78,16 +48,6 @@ These test files are very large and would benefit from splitting:
 ```plain
 ├── set_basic_test.go    (~24KB) - Creation, membership, basic ops
 └── set_advanced_test.go (~24KB) - Advanced operations, edge cases
-```
-
-### 🟢 P3.6: internal/bytecode/compiler_test.go (48KB)
-
-**Target:** Mirror compiler.go split
-
-```plain
-├── compiler_statements_test.go   (~16KB)
-├── compiler_expressions_test.go  (~16KB)
-└── compiler_functions_test.go    (~16KB)
 ```
 
 ### 🟢 P3.7: internal/parser/classes_test.go (44KB)
@@ -342,6 +302,24 @@ Track progress by:
 2. Running complexity checks with `golangci-lint run -E cyclop,funlen`
 3. Checking test coverage with `go test -cover ./...`
 4. Monitoring git commit history for refactoring work
+
+---
+
+## Resolved Issues
+
+### ✅ Test Helper File in Production Build
+
+**Issue:** `internal/bytecode/compiler_test_helpers.go` was named without `_test.go` suffix, causing 313 lines of test-only code to be compiled into production builds.
+
+**Resolution:** Renamed to `compiler_test_helpers_test.go` to exclude from production builds while keeping helpers available to all test files in the package.
+
+**Verification:**
+
+- Production build excludes file: `go list -f '{{.GoFiles}}' ./internal/bytecode`
+- Tests still pass: `go test ./internal/bytecode`
+- Binary size reduced by excluding test-only code
+
+**Date:** 2025-11-14
 
 ---
 
