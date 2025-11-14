@@ -22,22 +22,20 @@ This document identifies technical debt and refactoring opportunities in the go-
 
 ## Priority 2: Large Implementation Files (>1,200 lines)
 
-### 🔵 P2.1: internal/bytecode/vm_builtins.go (2,452 lines, 68KB)
+### ✅ P2.1: internal/bytecode/vm_builtins.go - COMPLETED
 
-**Current:** Single file with all VM builtin implementations
-**Target:** Split into logical categories
+**Original:** Single file with all VM builtin implementations (2,452 lines, 68KB)
+**Completed:** Successfully split into 5 logical category files:
 
 ```plain
-vm_builtins.go → Split into:
-├── vm_builtins_string.go      (~600 lines) - String manipulation functions
-├── vm_builtins_math.go        (~500 lines) - Math functions
-├── vm_builtins_datetime.go    (~400 lines) - Date/time functions
-├── vm_builtins_array.go       (~300 lines) - Array functions
-├── vm_builtins_conversion.go  (~350 lines) - Type conversion functions
-└── vm_builtins_misc.go        (~300 lines) - Misc functions (Print, Inc, Dec, etc.)
+vm_builtins.go (21 lines) - Registration coordinator
+├── vm_builtins_string.go (1,520 lines) - String manipulation functions
+├── vm_builtins_math.go (664 lines) - Math functions
+├── vm_builtins_conversion.go (224 lines) - Type conversion functions
+└── vm_builtins_misc.go (68 lines) - Misc functions (Print, PrintLn, Length)
 ```
 
-**Rationale:** Mirrors the organization already used in `internal/interp/builtins_*.go`
+**Note:** No datetime functions existed in the original file, so that category was omitted.
 
 ### 🔵 P2.2: internal/semantic/analyze_builtin_string.go (1,343 lines, 56KB)
 
