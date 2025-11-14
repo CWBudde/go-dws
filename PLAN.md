@@ -106,23 +106,52 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
       - Runtime now supports both class-to-class and class-to-interface casts
       - Validates runtime compatibility for downcasts
     - [x] 9.1.5 Verify all type operator tests pass - ALL PASSING
-    - [ ] 9.1.6 Avoid cascading errors when 'as' target type is invalid
-      - Short-circuit analysis after reporting "'as' operator requires interface or class type"
-      - Prevents secondary `cannot infer type` diagnostics (TestTypeOperator_As_InvalidRightOperand)
+    - [x] 9.1.6 Avoid cascading errors when 'as' target type is invalid - COMPLETED
+      - Returns targetType instead of nil when 'as' operator has invalid target type
+      - Prevents secondary `cannot infer type` diagnostics
+      - File: internal/semantic/analyze_expressions.go (analyzeAsExpression line 352)
   - **Files Modified**:
-    - internal/semantic/analyze_expressions.go (added strings import, updated all 3 operators)
+    - internal/semantic/analyze_expressions.go (added strings import, updated all 3 operators, cascading error fix)
     - internal/semantic/type_operators_test.go (updated error message expectation)
     - internal/interp/expressions.go (evalAsExpression now handles classes)
+  - **Bytecode VM Support**:
+    - Boolean 'is' comparisons (is True/is False) fully supported
+    - Type checking operators (is/as/implements with classes/interfaces) not yet implemented in bytecode
+    - Falls back to interpreter for complex type operations
 
-- [ ] 9.2 Abstract Class Implementation (1 test)
+- [x] 9.2 Abstract Class Implementation - COMPLETED
   - **Estimate**: 2-3 hours
   - **Description**: Validate that abstract classes cannot be instantiated
   - **Strategy**: Add abstract class tracking and validation in class instantiation
   - **Complexity**: Requires inheritance chain validation
-  - **Subtasks**:
-    - [ ] 9.2.1 Clear abstract flags when overrides are implemented
-      - Ensure overriding inherited abstract methods removes the abstract marker
-      - Fixes `TestValidAbstractImplementation`
+  - **Status**: COMPLETED. All tests passing (6/6 = 100%)
+  - **Completed Subtasks**:
+    - [x] 9.2.1 Added `IsReintroduce` field to FunctionDecl AST
+      - File: pkg/ast/functions.go
+    - [x] 9.2.2 Updated parser to parse `reintroduce` keyword
+      - File: internal/parser/functions.go
+    - [x] 9.2.3 Added ReintroduceMethods map to ClassType
+      - File: internal/types/types.go
+      - Initialized in NewClassType and all manual ClassType constructions
+    - [x] 9.2.4 Updated semantic analyzer to allow reintroduce methods
+      - File: internal/semantic/analyze_classes_validation.go
+      - Check classType.ReintroduceMethods instead of AST node
+    - [x] 9.2.5 Implemented abstract method override tracking
+      - File: internal/semantic/type_resolution.go (getUnimplementedAbstractMethods)
+      - Methods marked with 'reintroduce' do NOT implement parent abstract methods
+    - [x] 9.2.6 Added abstract class instantiation checks
+      - File: internal/semantic/analyze_method_calls.go
+      - Check both explicit IsAbstract flag and unimplemented abstract methods
+      - Validates for both `new` keyword and `TClassName.Create()` syntax
+  - **Files Modified**:
+    - pkg/ast/functions.go (added IsReintroduce field)
+    - internal/parser/functions.go (parse reintroduce keyword)
+    - internal/types/types.go (ReintroduceMethods map)
+    - internal/semantic/analyzer.go (initialize ReintroduceMethods)
+    - internal/semantic/analyze_classes_decl.go (populate ReintroduceMethods)
+    - internal/semantic/analyze_classes_validation.go (check reintroduce in validation)
+    - internal/semantic/type_resolution.go (track abstract methods through inheritance)
+    - internal/semantic/analyze_method_calls.go (validate abstract instantiation)
 
 - [ ] 9.3 Miscellaneous High Complexity Fixes (18 tests)
   - **Estimate**: 10-15 hours

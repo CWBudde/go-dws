@@ -125,6 +125,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		VirtualMethods:       make(map[string]bool),
 		OverrideMethods:      make(map[string]bool),
 		AbstractMethods:      make(map[string]bool),
+		ReintroduceMethods:   make(map[string]bool), // Task 9.2
 		Constructors:         make(map[string]*types.FunctionType),
 		ConstructorOverloads: make(map[string][]*types.MethodInfo),
 		Interfaces:           make([]*types.InterfaceType, 0),
@@ -169,6 +170,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		VirtualMethods:       make(map[string]bool),
 		OverrideMethods:      make(map[string]bool),
 		AbstractMethods:      make(map[string]bool),
+		ReintroduceMethods:   make(map[string]bool), // Task 9.2
 		Constructors:         make(map[string]*types.FunctionType),
 		ConstructorOverloads: make(map[string][]*types.MethodInfo),
 		Interfaces:           make([]*types.InterfaceType, 0),
@@ -212,6 +214,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 			VirtualMethods:       make(map[string]bool),
 			OverrideMethods:      make(map[string]bool),
 			AbstractMethods:      make(map[string]bool),
+			ReintroduceMethods:   make(map[string]bool), // Task 9.2
 			Constructors:         make(map[string]*types.FunctionType),
 			ConstructorOverloads: make(map[string][]*types.MethodInfo),
 			Interfaces:           make([]*types.InterfaceType, 0),

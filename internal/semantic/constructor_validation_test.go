@@ -376,7 +376,7 @@ begin
 	obj := TAbstract.Create();
 end;
 `
-	expectError(t, input, "cannot instantiate abstract class")
+	expectError(t, input, "Trying to create an instance of an abstract class")
 }
 
 // TestConstructorOverloadWithImplicitConversion tests implicit Integer to Float conversion

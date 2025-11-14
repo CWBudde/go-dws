@@ -313,7 +313,7 @@ func containsSubstring(v interface{}, substr string) bool {
 		(len(s) > 0 && (s[0:len(substr)] == substr || containsSubstring(s[1:], substr))))
 }
 
-// TestParseHelperInheritance tests parsing of helper inheritance (Task 9.1)
+// TestParseHelperInheritance tests parsing of helper inheritance
 func TestParseHelperInheritance(t *testing.T) {
 	tests := []struct {
 		name               string

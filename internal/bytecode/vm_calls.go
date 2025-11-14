@@ -38,7 +38,6 @@ type finallyContext struct {
 // For objects, looks up the method in the object's fields/properties.
 // For other types (Integer, String, Float, etc.), looks up helper methods.
 func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) error {
-	// Task 9.34: Handle built-in array helper methods
 	// Handle both initialized arrays and nil arrays (uninitialized dynamic arrays)
 	if receiver.IsArray() || receiver.IsNil() {
 		arr := receiver.AsArray()

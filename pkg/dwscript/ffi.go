@@ -242,7 +242,7 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 	}
 
 	// Marshal DWScript values to Go values
-	// Task 9.2d: Track var parameters (pointers) and their references for updating after the call
+	// Track var parameters (pointers) and their references for updating after the call
 	var goArgs []reflect.Value
 	varParamRefs := make([]*interp.ReferenceValue, numParams) // Track ReferenceValues for var params
 
@@ -257,7 +257,7 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 			isVarParam := i < len(w.signature.VarParams) && w.signature.VarParams[i]
 
 			if isVarParam {
-				// Task 9.2d: Handle var parameter (pointer)
+				// Handle var parameter (pointer)
 				// Extract the ReferenceValue and dereference it
 				refVal, ok := args[i].(*interp.ReferenceValue)
 				if !ok {

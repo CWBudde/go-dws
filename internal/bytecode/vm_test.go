@@ -881,7 +881,7 @@ func setInstructionTarget(t *testing.T, chunk *Chunk, instIndex, target int) {
 	chunk.Code[instIndex] = MakeInstruction(inst.OpCode(), inst.A(), uint16(offset))
 }
 
-// TestVariantToBool tests the variantToBool helper function for Task 9.35
+// TestVariantToBool tests the variantToBool helper function
 func TestVariantToBool(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -929,7 +929,7 @@ func TestVariantToBool(t *testing.T) {
 	}
 }
 
-// TestIsTruthy tests the isTruthy helper function for Task 9.35
+// TestIsTruthy tests the isTruthy helper function
 func TestIsTruthy(t *testing.T) {
 	tests := []struct {
 		name     string

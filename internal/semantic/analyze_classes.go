@@ -36,7 +36,8 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 
 	// Task 9.18: Check if trying to instantiate an abstract class
 	if classType.IsAbstract {
-		a.addError("cannot instantiate abstract class '%s' at %s", className, expr.Token.Pos.String())
+		a.addError("Trying to create an instance of an abstract class at [line: %d, column: %d]",
+			expr.Token.Pos.Line, expr.Token.Pos.Column)
 		return nil
 	}
 

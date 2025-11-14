@@ -781,12 +781,16 @@ func (a *Analyzer) getUnimplementedAbstractMethods(classType *types.ClassType) [
 			// Method not defined in this class at all - inherited but not implemented
 			unimplemented = append(unimplemented, methodName)
 		} else {
-			// Method is defined in this class - check if it's still abstract
-			if isAbstract, exists := classType.AbstractMethods[lowerMethodName]; exists && isAbstract {
+			// Method is defined in this class
+			// Task 9.2: Check if it's marked with reintroduce - if so, it doesn't implement the parent abstract method
+			if isReintroduce, exists := classType.ReintroduceMethods[lowerMethodName]; exists && isReintroduce {
+				// Method reintroduces (hides) parent method without implementing it
+				unimplemented = append(unimplemented, methodName)
+			} else if isAbstract, exists := classType.AbstractMethods[lowerMethodName]; exists && isAbstract {
 				// Still abstract in this class - not implemented
 				unimplemented = append(unimplemented, methodName)
 			}
-			// Otherwise, method is implemented (exists and is not abstract)
+			// Otherwise, method is implemented (exists, is not abstract, and does not reintroduce)
 		}
 	}
 

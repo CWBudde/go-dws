@@ -210,7 +210,7 @@ func (vm *VM) typeError(context, expected, actual string) error {
 }
 
 // isTruthy converts a VM value to a boolean for use in conditionals.
-// Task 9.35: Support Variant→Boolean implicit conversion
+// Support Variant→Boolean implicit conversion
 func isTruthy(val Value) bool {
 	switch val.Type {
 	case ValueBool:
@@ -233,7 +233,7 @@ func isTruthy(val Value) bool {
 }
 
 // variantToBool converts a variant's wrapped value to boolean following DWScript semantics.
-// Task 9.35: empty/nil/zero → false, otherwise → true
+// empty/nil/zero → false, otherwise → true
 func variantToBool(val Value) bool {
 	switch val.Type {
 	case ValueNil:

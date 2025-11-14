@@ -128,14 +128,16 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 		}
 	}
 
-	// Warn if redefining virtual method without override keyword
+	// Warn if redefining virtual method without override or reintroduce keyword
 	// Note: Constructors can be marked as virtual, so this check applies to both methods and constructors
 	// Task 9.6: Check class metadata instead of AST node, since implementations don't have override keyword
 	// Task 9.16.1: Use lowercase key for case-insensitive lookups
+	// Task 9.2: Allow reintroduce keyword to explicitly hide virtual parent methods (check class metadata, not AST)
 	methodNameLower := strings.ToLower(methodName)
 	isOverrideInClass := classType.OverrideMethods[methodNameLower]
 	isVirtualInClass := classType.VirtualMethods[methodNameLower]
-	if !isOverrideInClass && !isVirtualInClass && classType.Parent != nil {
+	isReintroduceInClass := classType.ReintroduceMethods[methodNameLower]
+	if !isOverrideInClass && !isVirtualInClass && !isReintroduceInClass && classType.Parent != nil {
 		// Task 9.4.1: Check if any parent overload with matching signature is virtual
 		var parentOverload *types.MethodInfo
 		if isConstructor {
@@ -145,7 +147,7 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 		}
 
 		if parentOverload != nil && (parentOverload.IsVirtual || parentOverload.IsOverride) {
-			a.addError("method '%s' hides virtual parent method; use 'override' keyword", methodName)
+			a.addError("method '%s' hides virtual parent method; use 'override' or 'reintroduce' keyword", methodName)
 		}
 	}
 }
