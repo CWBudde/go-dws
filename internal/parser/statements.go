@@ -99,7 +99,7 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 
 	p.nextToken() // advance past 'begin'
 
-	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
+	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) && !p.curTokenIs(lexer.ENSURE) {
 		if p.curTokenIs(lexer.SEMICOLON) {
 			p.nextToken()
 			continue
@@ -118,9 +118,9 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 		}
 	}
 
-	if !p.curTokenIs(lexer.END) {
+	if !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.ENSURE) {
 		p.addError("expected 'end' to close block", ErrMissingEnd)
-		for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
+		for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) && !p.curTokenIs(lexer.ENSURE) {
 			p.nextToken()
 		}
 	}
