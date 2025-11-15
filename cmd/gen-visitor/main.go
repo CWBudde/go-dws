@@ -51,6 +51,15 @@ var knownNodeTypes = map[string]bool{
 	// Special types that don't embed BaseNode but implement Node
 	"Program": true,
 
+	// Expression types that need explicit recognition
+	"Identifier": true,
+
+	// Type expression nodes (don't embed BaseNode but implement TypeExpression)
+	"ArrayTypeNode":           true,
+	"SetTypeNode":             true,
+	"ClassOfTypeNode":         true,
+	"FunctionPointerTypeNode": true,
+
 	// Annotation types
 	"TypeAnnotation": true,
 
@@ -372,8 +381,8 @@ func shouldSkipField(name string) bool {
 		"CharValue":          true,
 		"Packed":             true,
 		"DefaultArrayLength": true,
-		"LowBound":           true,
-		"HighBound":          true,
+		// Note: LowBound and HighBound are Expression fields in ArrayTypeNode, not string values
+		// They should be walked, not skipped
 		"ReadField":          true,
 		"WriteField":         true,
 	}
@@ -390,11 +399,12 @@ func isNodeType(typeName string) bool {
 		return true
 	}
 
-	// Types ending with Expression or Statement are usually nodes
+	// Types ending with Expression, Statement, Decl, Literal, or Node are usually nodes
 	if strings.HasSuffix(typeName, "Expression") ||
 		strings.HasSuffix(typeName, "Statement") ||
 		strings.HasSuffix(typeName, "Decl") ||
-		strings.HasSuffix(typeName, "Literal") {
+		strings.HasSuffix(typeName, "Literal") ||
+		strings.HasSuffix(typeName, "Node") {
 		return true
 	}
 
