@@ -15,10 +15,14 @@ func TestLambdaExpression(t *testing.T) {
 				&AssignmentStatement{
 					Target: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"}}}, Value: "Result"},
 					Value: &BinaryExpression{
+						TypedExpressionBase: TypedExpressionBase{
+							BaseNode: BaseNode{
+								Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*"},
+							},
+						},
 						Left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
 						Operator: "*",
 						Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "2"}}}, Value: 2},
-						Token:    lexer.Token{Type: lexer.ASTERISK, Literal: "*"},
 					},
 					Token: lexer.Token{Type: lexer.ASSIGN, Literal: ":="},
 				},
@@ -60,10 +64,14 @@ func TestLambdaExpression(t *testing.T) {
 		// Internally stored as: begin Result := x + y; end
 		returnStmt := &ReturnStatement{
 			ReturnValue: &BinaryExpression{
+				TypedExpressionBase: TypedExpressionBase{
+					BaseNode: BaseNode{
+						Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					},
+				},
 				Left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
 				Operator: "+",
 				Right:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "y"}}}, Value: "y"},
-				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
 			},
 			Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
 		}
@@ -173,15 +181,23 @@ func TestLambdaExpression(t *testing.T) {
 			Statements: []Statement{
 				&ReturnStatement{
 					ReturnValue: &BinaryExpression{
+						TypedExpressionBase: TypedExpressionBase{
+							BaseNode: BaseNode{
+								Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+							},
+						},
 						Left: &BinaryExpression{
+							TypedExpressionBase: TypedExpressionBase{
+								BaseNode: BaseNode{
+									Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+								},
+							},
 							Left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "a"}}}, Value: "a"},
 							Operator: "+",
 							Right:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "b"}}}, Value: "b"},
-							Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
 						},
 						Operator: "+",
 						Right:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "c"}}}, Value: "c"},
-						Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
 					},
 					Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
 				},

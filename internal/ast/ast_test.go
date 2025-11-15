@@ -242,7 +242,11 @@ func TestBinaryExpression(t *testing.T) {
 		{
 			name: "nested expression",
 			left: &BinaryExpression{
-				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+				TypedExpressionBase: TypedExpressionBase{
+					BaseNode: BaseNode{
+						Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					},
+				},
 				Left:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "1"}}}, Value: 1},
 				Operator: "+",
 				Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "2"}}}, Value: 2},
@@ -256,7 +260,11 @@ func TestBinaryExpression(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &BinaryExpression{
-				Token:    lexer.Token{Type: lexer.PLUS, Literal: tt.operator},
+				TypedExpressionBase: TypedExpressionBase{
+					BaseNode: BaseNode{
+						Token: lexer.Token{Type: lexer.PLUS, Literal: tt.operator},
+					},
+				},
 				Left:     tt.left,
 				Operator: tt.operator,
 				Right:    tt.right,
@@ -300,7 +308,11 @@ func TestUnaryExpression(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &UnaryExpression{
-				Token:    lexer.Token{Type: lexer.MINUS, Literal: tt.operator},
+				TypedExpressionBase: TypedExpressionBase{
+					BaseNode: BaseNode{
+						Token: lexer.Token{Type: lexer.MINUS, Literal: tt.operator},
+					},
+				},
 				Operator: tt.operator,
 				Right:    tt.right,
 			}
@@ -327,7 +339,11 @@ func TestGroupedExpression(t *testing.T) {
 		{
 			name: "binary expression",
 			expr: &BinaryExpression{
-				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+				TypedExpressionBase: TypedExpressionBase{
+					BaseNode: BaseNode{
+						Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					},
+				},
 				Left:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "3"}}}, Value: 3},
 				Operator: "+",
 				Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "5"}}}, Value: 5},
@@ -339,7 +355,11 @@ func TestGroupedExpression(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &GroupedExpression{
-				Token:      lexer.Token{Type: lexer.LPAREN, Literal: "("},
+				TypedExpressionBase: TypedExpressionBase{
+					BaseNode: BaseNode{
+						Token: lexer.Token{Type: lexer.LPAREN, Literal: "("},
+					},
+				},
 				Expression: tt.expr,
 			}
 
@@ -526,7 +546,11 @@ func TestAssignmentStatement(t *testing.T) {
 			name:    "expression assignment",
 			varName: "y",
 			value: &BinaryExpression{
-				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+				TypedExpressionBase: TypedExpressionBase{
+					BaseNode: BaseNode{
+						Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					},
+				},
 				Left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
 				Operator: "+",
 				Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "1"}}}, Value: 1},
@@ -589,7 +613,11 @@ func TestCallExpression(t *testing.T) {
 			function: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"}}}, Value: "PrintLn"},
 			arguments: []Expression{
 				&BinaryExpression{
-					Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					TypedExpressionBase: TypedExpressionBase{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+						},
+					},
 					Left:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "2"}}}, Value: 2},
 					Operator: "+",
 					Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "3"}}}, Value: 3},
