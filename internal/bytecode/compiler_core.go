@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	pkgast "github.com/cwbudde/go-dws/pkg/ast" // Task 9.18
 )
 
 // Compiler converts AST nodes into bytecode chunks.
@@ -25,6 +26,7 @@ type Compiler struct {
 	nextSlot        uint16
 	maxSlot         uint16
 	nextGlobal      uint16
+	semanticInfo    *pkgast.SemanticInfo // Task 9.18: Type metadata from semantic analysis
 }
 
 type local struct {
@@ -114,7 +116,17 @@ func newCompiler(chunkName string, enclosing *Compiler, opts ...CompilerOption) 
 }
 
 func (c *Compiler) newChildCompiler(name string) *Compiler {
-	return newCompiler(name, c)
+	child := newCompiler(name, c)
+	// Propagate semanticInfo to child compilers
+	child.semanticInfo = c.semanticInfo
+	return child
+}
+
+// SetSemanticInfo sets the semantic metadata table for this compiler.
+// The semantic info contains type annotations and symbol resolutions from analysis.
+// Task 9.18: Separate type metadata from AST nodes.
+func (c *Compiler) SetSemanticInfo(info *pkgast.SemanticInfo) {
+	c.semanticInfo = info
 }
 
 // WithCompilerOptimizeOptions overrides the optimization passes used by this compiler.
@@ -548,7 +560,11 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 		if globalInfo, ok := c.resolveGlobal(node.Value); ok {
 			return globalInfo.typ
 		}
-		return typeFromAnnotation(node.GetType())
+		var typeAnnot *ast.TypeAnnotation
+		if c.semanticInfo != nil {
+			typeAnnot = c.semanticInfo.GetType(node)
+		}
+		return typeFromAnnotation(typeAnnot)
 	case *ast.IndexExpression:
 		// For array indexing, return the element type of the array
 		arrayType := c.inferExpressionType(node.Left)
@@ -560,7 +576,11 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 			return arrType.ElementType
 		}
 		// Otherwise, fall back to any type annotation on the node
-		return typeFromAnnotation(node.GetType())
+		var typeAnnot *ast.TypeAnnotation
+		if c.semanticInfo != nil {
+			typeAnnot = c.semanticInfo.GetType(node)
+		}
+		return typeFromAnnotation(typeAnnot)
 	case *ast.BinaryExpression:
 		// For binary expressions, infer result type based on operator and operands
 		op := strings.ToLower(node.Operator)
@@ -605,7 +625,11 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 		}
 		return rightType
 	case ast.TypedExpression:
-		return typeFromAnnotation(node.GetType())
+		var typeAnnot *ast.TypeAnnotation
+		if c.semanticInfo != nil {
+			typeAnnot = c.semanticInfo.GetType(node)
+		}
+		return typeFromAnnotation(typeAnnot)
 	default:
 		return nil
 	}

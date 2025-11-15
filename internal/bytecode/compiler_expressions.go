@@ -696,12 +696,16 @@ func (c *Compiler) compileIfExpression(expr *ast.IfExpression) error {
 
 // emitDefaultValue emits bytecode to push a default value for the given expression type onto the stack.
 func (c *Compiler) emitDefaultValue(expr *ast.IfExpression, line int) error {
-	if expr.Type == nil {
+	var typeAnnot *ast.TypeAnnotation
+	if c.semanticInfo != nil {
+		typeAnnot = c.semanticInfo.GetType(expr)
+	}
+	if typeAnnot == nil {
 		return c.errorf(expr, "if expression missing type annotation for default value")
 	}
 
 	// Get type name and emit appropriate default value
-	typeName := strings.ToLower(expr.Type.Name)
+	typeName := strings.ToLower(typeAnnot.Name)
 	switch typeName {
 	case "integer", "int64":
 		return c.emitLoadConstant(IntValue(0), line)

@@ -241,22 +241,9 @@ func extractFields(structType *ast.StructType) []*FieldInfo {
 	for _, field := range structType.Fields.List {
 		// Handle embedded fields by recursively extracting their fields
 		if len(field.Names) == 0 {
-			// This is an embedded field - check if it's a known base type
-			ident, ok := field.Type.(*ast.Ident)
-			if ok && (ident.Name == "TypedExpressionBase" || ident.Name == "TypedStatementBase") {
-				// Extract the Type field from the embedded base type
-				// TypedExpressionBase/TypedStatementBase both have a Type *TypeAnnotation field
-				fields = append(fields, &FieldInfo{
-					Name:            "Type",
-					Type:            "*TypeAnnotation",
-					IsSlice:         false,
-					IsNode:          true,
-					IsHelper:        false,
-					Skip:            false,
-					Order:           0,
-					IsSliceOfValues: false,
-				})
-			}
+			// This is an embedded field - skip it as we only want explicit fields
+			// Note: TypedExpressionBase/TypedStatementBase no longer have a Type field
+			// Type information is now stored in SemanticInfo (Task 9.18)
 			continue
 		}
 

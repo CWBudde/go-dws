@@ -31,11 +31,9 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 								Value: "x",
 							},
 						},
-						Type: &ast.TypeAnnotation{Name: "Integer"},
 						Value: &ast.IntegerLiteral{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{},
-								Type:     &ast.TypeAnnotation{Name: "Integer"},
 							},
 							Value: 42,
 						},
@@ -49,7 +47,6 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: pos(2, 1)},
 								},
-								Type: &ast.TypeAnnotation{Name: "Integer"},
 							},
 							Operator: "-",
 							Right: &ast.Identifier{
@@ -57,7 +54,6 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 									BaseNode: ast.BaseNode{
 										Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(2, 2)},
 									},
-									Type: &ast.TypeAnnotation{Name: "Integer"},
 								},
 								Value: "x",
 							},
@@ -84,11 +80,9 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 								Value: "x",
 							},
 						},
-						Type: &ast.TypeAnnotation{Name: "Float"},
 						Value: &ast.FloatLiteral{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{},
-								Type:     &ast.TypeAnnotation{Name: "Float"},
 							},
 							Value: 3.14,
 						},
@@ -102,7 +96,6 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: pos(2, 1)},
 								},
-								Type: &ast.TypeAnnotation{Name: "Float"},
 							},
 							Operator: "-",
 							Right: &ast.Identifier{
@@ -110,7 +103,6 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 									BaseNode: ast.BaseNode{
 										Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(2, 2)},
 									},
-									Type: &ast.TypeAnnotation{Name: "Float"},
 								},
 								Value: "x",
 							},
@@ -137,11 +129,9 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 								Value: "x",
 							},
 						},
-						Type: &ast.TypeAnnotation{Name: "Boolean"},
 						Value: &ast.BooleanLiteral{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{},
-								Type:     &ast.TypeAnnotation{Name: "Boolean"},
 							},
 							Value: true,
 						},
@@ -155,7 +145,6 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.NOT, Literal: "not", Pos: pos(2, 1)},
 								},
-								Type: &ast.TypeAnnotation{Name: "Boolean"},
 							},
 							Operator: "not",
 							Right: &ast.Identifier{
@@ -163,7 +152,6 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 									BaseNode: ast.BaseNode{
 										Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(2, 5)},
 									},
-									Type: &ast.TypeAnnotation{Name: "Boolean"},
 								},
 								Value: "x",
 							},
@@ -207,7 +195,6 @@ func TestCompiler_UnaryConstantFolding(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: pos(1, 8)},
 								},
-								Type: &ast.TypeAnnotation{Name: "Integer"},
 							},
 							Operator: "-",
 							Right: &ast.IntegerLiteral{
@@ -237,7 +224,6 @@ func TestCompiler_UnaryConstantFolding(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: pos(1, 8)},
 								},
-								Type: &ast.TypeAnnotation{Name: "Float"},
 							},
 							Operator: "-",
 							Right: &ast.FloatLiteral{
@@ -267,7 +253,6 @@ func TestCompiler_UnaryConstantFolding(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.NOT, Literal: "not", Pos: pos(1, 8)},
 								},
-								Type: &ast.TypeAnnotation{Name: "Boolean"},
 							},
 							Operator: "not",
 							Right: &ast.BooleanLiteral{
@@ -297,7 +282,6 @@ func TestCompiler_UnaryConstantFolding(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(1, 8)},
 								},
-								Type: &ast.TypeAnnotation{Name: "Integer"},
 							},
 							Operator: "+",
 							Right: &ast.IntegerLiteral{
@@ -357,7 +341,6 @@ func TestVM_FloatOperations(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(1, 12)},
 								},
-								Type: &ast.TypeAnnotation{Name: "Float"},
 							},
 							Operator: "+",
 							Left: &ast.FloatLiteral{
@@ -395,7 +378,6 @@ func TestVM_FloatOperations(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: pos(1, 12)},
 								},
-								Type: &ast.TypeAnnotation{Name: "Float"},
 							},
 							Operator: "-",
 							Left: &ast.FloatLiteral{
@@ -433,7 +415,6 @@ func TestVM_FloatOperations(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*", Pos: pos(1, 12)},
 								},
-								Type: &ast.TypeAnnotation{Name: "Float"},
 							},
 							Operator: "*",
 							Left: &ast.FloatLiteral{
@@ -471,7 +452,6 @@ func TestVM_FloatOperations(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.SLASH, Literal: "/", Pos: pos(1, 12)},
 								},
-								Type: &ast.TypeAnnotation{Name: "Float"},
 							},
 							Operator: "/",
 							Left: &ast.FloatLiteral{
@@ -509,7 +489,6 @@ func TestVM_FloatOperations(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: pos(1, 8)},
 								},
-								Type: &ast.TypeAnnotation{Name: "Float"},
 							},
 							Operator: "-",
 							Right: &ast.FloatLiteral{
@@ -720,7 +699,6 @@ func TestCompiler_ErrorCases(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "~", Pos: pos(1, 1)},
 							},
-							Type: &ast.TypeAnnotation{Name: "Integer"},
 						},
 						Operator: "~",
 						Right: &ast.IntegerLiteral{
@@ -775,7 +753,6 @@ func TestCompiler_InferExpressionType(t *testing.T) {
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.INT, Literal: "42", Pos: pos(1, 1)},
 					},
-					Type: &ast.TypeAnnotation{Name: "Integer"},
 				},
 				Value: 42,
 			},
@@ -787,7 +764,6 @@ func TestCompiler_InferExpressionType(t *testing.T) {
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.FLOAT, Literal: "3.14", Pos: pos(1, 1)},
 					},
-					Type: &ast.TypeAnnotation{Name: "Float"},
 				},
 				Value: 3.14,
 			},
@@ -799,7 +775,6 @@ func TestCompiler_InferExpressionType(t *testing.T) {
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.STRING, Literal: "hello", Pos: pos(1, 1)},
 					},
-					Type: &ast.TypeAnnotation{Name: "String"},
 				},
 				Value: "hello",
 			},
@@ -811,7 +786,6 @@ func TestCompiler_InferExpressionType(t *testing.T) {
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.TRUE, Literal: "true", Pos: pos(1, 1)},
 					},
-					Type: &ast.TypeAnnotation{Name: "Boolean"},
 				},
 				Value: true,
 			},
