@@ -245,12 +245,14 @@ func (fis *ForInStatement) String() string {
 }
 
 // CaseBranch represents a single branch in a case statement.
+// This is a helper struct that groups case values with their corresponding statement.
+// It does not implement Node as it's always contained within a CaseStatement.
+//
 // Examples:
 //
 //	1: PrintLn('one');
 //	2, 3, 4: PrintLn('two to four');
 type CaseBranch struct {
-	BaseNode
 	Statement Statement
 	Values    []Expression
 }

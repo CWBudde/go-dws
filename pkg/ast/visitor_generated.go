@@ -16,6 +16,8 @@ func Walk(v Visitor, node Node) {
 
 	// Walk children based on node type
 	switch n := node.(type) {
+	case *AddressOfExpression:
+		walkAddressOfExpression(n, v)
 	case *ArrayDecl:
 		walkArrayDecl(n, v)
 	case *ArrayLiteralExpression:
@@ -36,8 +38,6 @@ func Walk(v Visitor, node Node) {
 		walkBreakStatement(n, v)
 	case *CallExpression:
 		walkCallExpression(n, v)
-	case *CaseBranch:
-		walkCaseBranch(n, v)
 	case *CaseStatement:
 		walkCaseStatement(n, v)
 	case *CharLiteral:
@@ -54,10 +54,6 @@ func Walk(v Visitor, node Node) {
 		walkContinueStatement(n, v)
 	case *EnumDecl:
 		walkEnumDecl(n, v)
-	case *ExceptClause:
-		walkExceptClause(n, v)
-	case *ExceptionHandler:
-		walkExceptionHandler(n, v)
 	case *ExitStatement:
 		walkExitStatement(n, v)
 	case *ExpressionStatement:
@@ -102,6 +98,8 @@ func Walk(v Visitor, node Node) {
 		walkInterfaceMethodDecl(n, v)
 	case *IsExpression:
 		walkIsExpression(n, v)
+	case *LambdaExpression:
+		walkLambdaExpression(n, v)
 	case *MemberAccessExpression:
 		walkMemberAccessExpression(n, v)
 	case *MethodCallExpression:
@@ -140,6 +138,8 @@ func Walk(v Visitor, node Node) {
 		walkReturnStatement(n, v)
 	case *SetDecl:
 		walkSetDecl(n, v)
+	case *SetLiteral:
+		walkSetLiteral(n, v)
 	case *SetTypeNode:
 		walkSetTypeNode(n, v)
 	case *StringLiteral:
@@ -161,6 +161,11 @@ func Walk(v Visitor, node Node) {
 	case *WhileStatement:
 		walkWhileStatement(n, v)
 	}
+}
+
+// walkAddressOfExpression walks a AddressOfExpression node
+func walkAddressOfExpression(n *AddressOfExpression, v Visitor) {
+	// No children to walk
 }
 
 // walkArrayDecl walks a ArrayDecl node
@@ -256,18 +261,6 @@ func walkCallExpression(n *CallExpression, v Visitor) {
 	}
 }
 
-// walkCaseBranch walks a CaseBranch node
-func walkCaseBranch(n *CaseBranch, v Visitor) {
-	if n.Statement != nil {
-		Walk(v, n.Statement)
-	}
-	for _, item := range n.Values {
-		if item != nil {
-			Walk(v, item)
-		}
-	}
-}
-
 // walkCaseStatement walks a CaseStatement node
 func walkCaseStatement(n *CaseStatement, v Visitor) {
 	if n.Expression != nil {
@@ -278,7 +271,7 @@ func walkCaseStatement(n *CaseStatement, v Visitor) {
 	}
 	for _, item := range n.Cases {
 		if item != nil {
-			Walk(v, item)
+			walkCaseBranch(item, v)
 		}
 	}
 }
@@ -373,31 +366,6 @@ func walkContinueStatement(n *ContinueStatement, v Visitor) {
 func walkEnumDecl(n *EnumDecl, v Visitor) {
 	if n.Name != nil {
 		Walk(v, n.Name)
-	}
-}
-
-// walkExceptClause walks a ExceptClause node
-func walkExceptClause(n *ExceptClause, v Visitor) {
-	if n.ElseBlock != nil {
-		Walk(v, n.ElseBlock)
-	}
-	for _, item := range n.Handlers {
-		if item != nil {
-			Walk(v, item)
-		}
-	}
-}
-
-// walkExceptionHandler walks a ExceptionHandler node
-func walkExceptionHandler(n *ExceptionHandler, v Visitor) {
-	if n.Statement != nil {
-		Walk(v, n.Statement)
-	}
-	if n.Variable != nil {
-		Walk(v, n.Variable)
-	}
-	if n.ExceptionType != nil {
-		Walk(v, n.ExceptionType)
 	}
 }
 
@@ -682,6 +650,21 @@ func walkIsExpression(n *IsExpression, v Visitor) {
 	}
 }
 
+// walkLambdaExpression walks a LambdaExpression node
+func walkLambdaExpression(n *LambdaExpression, v Visitor) {
+	if n.ReturnType != nil {
+		Walk(v, n.ReturnType)
+	}
+	if n.Body != nil {
+		Walk(v, n.Body)
+	}
+	for _, item := range n.Parameters {
+		if item != nil {
+			walkParameter(item, v)
+		}
+	}
+}
+
 // walkMemberAccessExpression walks a MemberAccessExpression node
 func walkMemberAccessExpression(n *MemberAccessExpression, v Visitor) {
 	if n.Object != nil {
@@ -887,6 +870,15 @@ func walkSetDecl(n *SetDecl, v Visitor) {
 	}
 }
 
+// walkSetLiteral walks a SetLiteral node
+func walkSetLiteral(n *SetLiteral, v Visitor) {
+	for _, item := range n.Elements {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+}
+
 // walkSetTypeNode walks a SetTypeNode node
 func walkSetTypeNode(n *SetTypeNode, v Visitor) {
 	if n.ElementType != nil {
@@ -904,9 +896,7 @@ func walkTryStatement(n *TryStatement, v Visitor) {
 	if n.TryBlock != nil {
 		Walk(v, n.TryBlock)
 	}
-	if n.ExceptClause != nil {
-		Walk(v, n.ExceptClause)
-	}
+	walkExceptClause(n.ExceptClause, v)
 	if n.FinallyClause != nil {
 		Walk(v, n.FinallyClause)
 	}
@@ -1011,5 +1001,51 @@ func walkParameter(param *Parameter, v Visitor) {
 	}
 	if param.DefaultValue != nil {
 		Walk(v, param.DefaultValue)
+	}
+}
+
+// walkCaseBranch walks the Node fields of a CaseBranch
+func walkCaseBranch(branch *CaseBranch, v Visitor) {
+	if branch == nil {
+		return
+	}
+	if branch.Statement != nil {
+		Walk(v, branch.Statement)
+	}
+	for _, val := range branch.Values {
+		if val != nil {
+			Walk(v, val)
+		}
+	}
+}
+
+// walkExceptClause walks the Node fields of an ExceptClause
+func walkExceptClause(clause *ExceptClause, v Visitor) {
+	if clause == nil {
+		return
+	}
+	if clause.ElseBlock != nil {
+		Walk(v, clause.ElseBlock)
+	}
+	for _, handler := range clause.Handlers {
+		if handler != nil {
+			walkExceptionHandler(handler, v)
+		}
+	}
+}
+
+// walkExceptionHandler walks the Node fields of an ExceptionHandler
+func walkExceptionHandler(handler *ExceptionHandler, v Visitor) {
+	if handler == nil {
+		return
+	}
+	if handler.Statement != nil {
+		Walk(v, handler.Statement)
+	}
+	if handler.Variable != nil {
+		Walk(v, handler.Variable)
+	}
+	if handler.ExceptionType != nil {
+		Walk(v, handler.ExceptionType)
 	}
 }

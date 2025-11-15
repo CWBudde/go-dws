@@ -583,9 +583,9 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
 - Research phase (9.17.1): 8 hours - COMPLETED
 - Code generation implementation (9.17.2-9.17.6): 16 hours - COMPLETED
 - Documentation and migration (9.17.7-9.17.8): 6 hours - COMPLETED
-- AST design fixes (9.17.9): 2 hours - TODO
+- AST design fixes (9.17.9): 2 hours - COMPLETED
 
-**Status**: NEARLY COMPLETE (9.17.1-9.17.8 done, only 9.17.9 AST design inconsistencies remaining)
+**Status**: COMPLETE ✅ (All subtasks 9.17.1-9.17.9 finished)
 
 **Impact**: Major maintainability improvement, eliminates 83.6% of manually-written visitor code, zero runtime overhead, eliminates need to update visitor for new node types
 
@@ -706,12 +706,12 @@ func walkBinaryExpression(n *BinaryExpression, v Visitor) { ... }
   - Update all imports and references ✅
   - Verify all tests pass ✅
 
-- [ ] 9.17.9 Fix AST design inconsistencies (discovered in research)
-  - Remove Node interface from CaseBranch (it's a helper struct)
-  - Remove Node interface from ExceptClause (it's a helper struct)
-  - Remove Node interface from ExceptionHandler (it's a helper struct)
-  - Or document why they should implement Node
-  - Update generated visitor accordingly
+- [x] 9.17.9 Fix AST design inconsistencies (discovered in research) - DONE
+  - Remove Node interface from CaseBranch (it's a helper struct) ✅
+  - Remove Node interface from ExceptClause (it's a helper struct) ✅
+  - Remove Node interface from ExceptionHandler (it's a helper struct) ✅
+  - Update generated visitor accordingly ✅
+  - Update all code that creates these helper types ✅
 
 **Files Created/Modified**:
 
@@ -743,8 +743,11 @@ Documentation (9.17.7):
 Migration (9.17.8): DONE ✅
 - `pkg/ast/visitor_legacy.go` (original manual visitor preserved for comparison, excluded from build via `// +build legacy` tag)
 
-AST design fixes (9.17.9): TODO
-- CaseBranch, ExceptClause, ExceptionHandler Node interface decisions
+AST design fixes (9.17.9): DONE ✅
+- Removed Node interface from CaseBranch, ExceptClause, ExceptionHandler (they are helper structs, not standalone nodes)
+- Updated code generator to treat them as helper types (in knownHelperTypes)
+- Generated walk functions for all helper types (walkCaseBranch, walkExceptClause, walkExceptionHandler)
+- Updated all parser and test code that creates these types
 
 **Acceptance Criteria**:
 - Code generator successfully parses all AST node types ✅

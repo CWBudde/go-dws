@@ -63,19 +63,19 @@ var knownNodeTypes = map[string]bool{
 	// Annotation types
 	"TypeAnnotation": true,
 
-	// Helper types that embed BaseNode
-	"PreConditions":    true,
-	"PostConditions":   true,
-	"Condition":        true,
-	"CaseBranch":       true,
-	"ExceptClause":     true,
-	"ExceptionHandler": true,
-	"FinallyClause":    true,
+	// Helper types that embed BaseNode (still treated as nodes for visiting)
+	"PreConditions":  true,
+	"PostConditions": true,
+	"Condition":      true,
+	"FinallyClause":  true,
 }
 
 // knownHelperTypes are types that don't implement Node but contain Node fields
 var knownHelperTypes = map[string]bool{
-	"Parameter": true,
+	"Parameter":         true,
+	"CaseBranch":        true,
+	"ExceptClause":      true,
+	"ExceptionHandler":  true,
 }
 
 func main() {
@@ -487,7 +487,7 @@ func Walk(v Visitor, node Node) {
 		}
 	}
 
-	// Generate helper function for walking Parameter (which doesn't implement Node)
+	// Generate helper functions for walking helper types (which don't implement Node)
 	buf.WriteString(`
 // walkParameter walks the Node fields of a Parameter
 func walkParameter(param *Parameter, v Visitor) {
@@ -502,6 +502,52 @@ func walkParameter(param *Parameter, v Visitor) {
 	}
 	if param.DefaultValue != nil {
 		Walk(v, param.DefaultValue)
+	}
+}
+
+// walkCaseBranch walks the Node fields of a CaseBranch
+func walkCaseBranch(branch *CaseBranch, v Visitor) {
+	if branch == nil {
+		return
+	}
+	if branch.Statement != nil {
+		Walk(v, branch.Statement)
+	}
+	for _, val := range branch.Values {
+		if val != nil {
+			Walk(v, val)
+		}
+	}
+}
+
+// walkExceptClause walks the Node fields of an ExceptClause
+func walkExceptClause(clause *ExceptClause, v Visitor) {
+	if clause == nil {
+		return
+	}
+	if clause.ElseBlock != nil {
+		Walk(v, clause.ElseBlock)
+	}
+	for _, handler := range clause.Handlers {
+		if handler != nil {
+			walkExceptionHandler(handler, v)
+		}
+	}
+}
+
+// walkExceptionHandler walks the Node fields of an ExceptionHandler
+func walkExceptionHandler(handler *ExceptionHandler, v Visitor) {
+	if handler == nil {
+		return
+	}
+	if handler.Statement != nil {
+		Walk(v, handler.Statement)
+	}
+	if handler.Variable != nil {
+		Walk(v, handler.Variable)
+	}
+	if handler.ExceptionType != nil {
+		Walk(v, handler.ExceptionType)
 	}
 }
 `)
