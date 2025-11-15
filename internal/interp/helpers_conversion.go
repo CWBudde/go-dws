@@ -536,10 +536,6 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		// Return the popped element
 		return lastElement
 
-	// ========================================================================
-	// Task 9.23: String Helper Methods
-	// ========================================================================
-
 	case "__string_tointeger":
 		// String.ToInteger() -> StrToInt(self)
 		if len(args) != 0 {
