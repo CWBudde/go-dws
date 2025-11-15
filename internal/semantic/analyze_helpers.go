@@ -465,6 +465,22 @@ func (a *Analyzer) initArrayHelpers() {
 	arrayHelper.Methods["setlength"] = types.NewProcedureType([]types.Type{types.INTEGER})
 	arrayHelper.BuiltinMethods["setlength"] = "__array_setlength"
 
+	// Task 9.8: Register .Swap() method for arrays (lowercase key for case-insensitive lookup)
+	// Swap(i, j) - swaps elements at indices i and j
+	arrayHelper.Methods["swap"] = types.NewProcedureType([]types.Type{types.INTEGER, types.INTEGER})
+	arrayHelper.BuiltinMethods["swap"] = "__array_swap"
+
+	// Task 9.8: Register .Push() method for dynamic arrays (lowercase key for case-insensitive lookup)
+	// Push(value) - appends element (alias for Add)
+	arrayHelper.Methods["push"] = types.NewProcedureType([]types.Type{nil}) // Takes one parameter (element to push)
+	arrayHelper.BuiltinMethods["push"] = "__array_push"
+
+	// Task 9.8: Register .Pop() method for dynamic arrays (lowercase key for case-insensitive lookup)
+	// Pop() - removes and returns last element
+	// Use VARIANT as return type since actual type depends on array element type
+	arrayHelper.Methods["pop"] = types.NewFunctionType([]types.Type{}, types.VARIANT)
+	arrayHelper.BuiltinMethods["pop"] = "__array_pop"
+
 	// Register helper for ARRAY type (generic catch-all)
 	a.helpers["ARRAY"] = append(a.helpers["ARRAY"], arrayHelper)
 }

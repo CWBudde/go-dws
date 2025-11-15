@@ -445,6 +445,97 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		// Use the existing builtinArrayIndexOf function
 		return i.builtinArrayIndexOf(arrVal, valueToFind, startIndex)
 
+	case "__array_swap":
+		// Task 9.8: Implements arr.Swap(i, j) - swaps elements at indices i and j
+		if len(args) != 2 {
+			return i.newErrorWithLocation(node, "Array.Swap expects exactly 2 arguments, got %d", len(args))
+		}
+		arrVal, ok := selfValue.(*ArrayValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.Swap requires array receiver")
+		}
+
+		// Get index i
+		iInt, ok := args[0].(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.Swap first argument must be Integer, got %s", args[0].Type())
+		}
+		i_idx := int(iInt.Value)
+
+		// Get index j
+		jInt, ok := args[1].(*IntegerValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.Swap second argument must be Integer, got %s", args[1].Type())
+		}
+		j_idx := int(jInt.Value)
+
+		// Validate indices
+		arrayLen := len(arrVal.Elements)
+		if i_idx < 0 || i_idx >= arrayLen {
+			return i.newErrorWithLocation(node, "Array.Swap first index %d out of bounds (0..%d)", i_idx, arrayLen-1)
+		}
+		if j_idx < 0 || j_idx >= arrayLen {
+			return i.newErrorWithLocation(node, "Array.Swap second index %d out of bounds (0..%d)", j_idx, arrayLen-1)
+		}
+
+		// Swap elements
+		arrVal.Elements[i_idx], arrVal.Elements[j_idx] = arrVal.Elements[j_idx], arrVal.Elements[i_idx]
+
+		// Return nil (procedure, not a function)
+		return &NilValue{}
+
+	case "__array_push":
+		// Task 9.8: Implements arr.Push(value) - alias for Add, appends element to dynamic array
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "Array.Push expects exactly 1 argument")
+		}
+		arrVal, ok := selfValue.(*ArrayValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.Push requires array receiver")
+		}
+
+		// Check if it's a dynamic array (static arrays cannot use Push)
+		if !arrVal.ArrayType.IsDynamic() {
+			return i.newErrorWithLocation(node, "Push() can only be used with dynamic arrays, not static arrays")
+		}
+
+		// For dynamic arrays, just append the element
+		// Type checking should have been done at semantic analysis
+		valueToAdd := args[0]
+		arrVal.Elements = append(arrVal.Elements, valueToAdd)
+
+		// Return nil (procedure, not a function)
+		return &NilValue{}
+
+	case "__array_pop":
+		// Task 9.8: Implements arr.Pop() - removes and returns last element from dynamic array
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "Array.Pop expects no arguments, got %d", len(args))
+		}
+		arrVal, ok := selfValue.(*ArrayValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "Array.Pop requires array receiver")
+		}
+
+		// Check if it's a dynamic array (static arrays cannot use Pop)
+		if !arrVal.ArrayType.IsDynamic() {
+			return i.newErrorWithLocation(node, "Pop() can only be used with dynamic arrays, not static arrays")
+		}
+
+		// Check if array is empty
+		if len(arrVal.Elements) == 0 {
+			return i.newErrorWithLocation(node, "Pop() called on empty array")
+		}
+
+		// Get the last element
+		lastElement := arrVal.Elements[len(arrVal.Elements)-1]
+
+		// Remove the last element
+		arrVal.Elements = arrVal.Elements[:len(arrVal.Elements)-1]
+
+		// Return the popped element
+		return lastElement
+
 	default:
 		// Try calling as a builtin function with self as first argument
 		allArgs := append([]Value{selfValue}, args...)

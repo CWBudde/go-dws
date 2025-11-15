@@ -254,6 +254,13 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 		_, helperMethod := a.hasHelperMethod(objectType, memberName)
 		if helperMethod != nil {
+			// Task 9.8.5: Auto-invoke parameterless helper methods when accessed without ()
+			// This allows arr.Pop to work the same as arr.Pop()
+			if len(helperMethod.Parameters) == 0 {
+				// Parameterless method - auto-invoke and return the return type
+				return helperMethod.ReturnType
+			}
+			// Method has parameters - return the method type for deferred invocation
 			return helperMethod
 		}
 
@@ -360,6 +367,13 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// If not found in class, check if any helpers extend this type
 	_, helperMethod := a.hasHelperMethod(objectType, memberName)
 	if helperMethod != nil {
+		// Task 9.8.5: Auto-invoke parameterless helper methods when accessed without ()
+		// This allows arr.Pop to work the same as arr.Pop()
+		if len(helperMethod.Parameters) == 0 {
+			// Parameterless method - auto-invoke and return the return type
+			return helperMethod.ReturnType
+		}
+		// Method has parameters - return the method type for deferred invocation
 		return helperMethod
 	}
 

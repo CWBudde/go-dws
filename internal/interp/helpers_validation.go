@@ -410,6 +410,18 @@ func (i *Interpreter) initArrayHelpers() {
 	// This allows: arr.SetLength(newLength) syntax
 	arrayHelper.BuiltinMethods["setlength"] = "__array_setlength"
 
+	// Task 9.8: Register .Swap() method for arrays
+	// This allows: arr.Swap(i, j) syntax
+	arrayHelper.BuiltinMethods["swap"] = "__array_swap"
+
+	// Task 9.8: Register .Push() method for dynamic arrays (alias for Add)
+	// This allows: arr.Push(value) syntax
+	arrayHelper.BuiltinMethods["push"] = "__array_push"
+
+	// Task 9.8: Register .Pop() method for dynamic arrays
+	// This allows: arr.Pop() syntax - removes and returns last element
+	arrayHelper.BuiltinMethods["pop"] = "__array_pop"
+
 	// Register helper for ARRAY type
 	i.helpers["ARRAY"] = append(i.helpers["ARRAY"], arrayHelper)
 }

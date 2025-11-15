@@ -210,3 +210,34 @@ func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInf
 
 	return nil, nil
 }
+
+// isBuiltinMethodParameterless returns true if the builtin method spec requires no parameters.
+// This is used for auto-invoke logic in member access expressions.
+func (i *Interpreter) isBuiltinMethodParameterless(builtinSpec string) bool {
+	// Map of builtin method specs to their parameter counts
+	// This must be kept in sync with the actual builtin method implementations
+	parameterlessBuiltins := map[string]bool{
+		"__array_pop":           true,  // Pop() - no parameters
+		"__array_push":          false, // Push(value) - 1 parameter
+		"__array_swap":          false, // Swap(i, j) - 2 parameters
+		"__array_add":           false, // Add(value) - 1 parameter
+		"__array_delete":        false, // Delete(index) - 1 parameter
+		"__array_indexof":       false, // IndexOf(value) - 1 parameter
+		"__array_setlength":     false, // SetLength(n) - 1 parameter
+		"__integer_tostring":    true,  // ToString() - no parameters
+		"__integer_tohexstring": true,  // ToHexString() - no parameters
+		"__float_tostring_prec": false, // ToString(precision) - 1 parameter
+		"__boolean_tostring":    true,  // ToString() - no parameters
+		"__string_toupper":      true,  // ToUpper() - no parameters
+		"__string_tolower":      true,  // ToLower() - no parameters
+		"__string_array_join":   false, // Join(separator) - 1 parameter
+	}
+
+	if isParameterless, exists := parameterlessBuiltins[builtinSpec]; exists {
+		return isParameterless
+	}
+
+	// For any builtin method not in our map, assume it has parameters (safer default)
+	// This prevents incorrect auto-invocation
+	return false
+}
