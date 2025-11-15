@@ -908,3 +908,243 @@ end
 		})
 	}
 }
+
+// ============================================================================
+// SetLength() on String Tests
+// ============================================================================
+
+// TestBuiltinSetLength_String_Expand tests expanding a string with spaces.
+func TestBuiltinSetLength_String_Expand(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectedResult string
+	}{
+		{
+			name: "SetLength expands empty string with spaces",
+			input: `
+var s: String := '';
+begin
+	SetLength(s, 5);
+	s;
+end
+			`,
+			expectedResult: "     ", // 5 spaces
+		},
+		{
+			name: "SetLength expands short string with spaces",
+			input: `
+var s: String := 'Hi';
+begin
+	SetLength(s, 10);
+	s;
+end
+			`,
+			expectedResult: "Hi        ", // "Hi" + 8 spaces
+		},
+		{
+			name: "SetLength expands to exact length",
+			input: `
+var s: String := 'Test';
+begin
+	SetLength(s, 8);
+	s;
+end
+			`,
+			expectedResult: "Test    ", // "Test" + 4 spaces
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expectedResult {
+				t.Errorf("String after SetLength = %q (len=%d), want %q (len=%d)",
+					strVal.Value, len(strVal.Value), tt.expectedResult, len(tt.expectedResult))
+			}
+		})
+	}
+}
+
+// TestBuiltinSetLength_String_Truncate tests truncating a string.
+func TestBuiltinSetLength_String_Truncate(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectedResult string
+	}{
+		{
+			name: "SetLength truncates to zero",
+			input: `
+var s: String := 'Hello World';
+begin
+	SetLength(s, 0);
+	s;
+end
+			`,
+			expectedResult: "",
+		},
+		{
+			name: "SetLength truncates to shorter length",
+			input: `
+var s: String := 'Hello World';
+begin
+	SetLength(s, 5);
+	s;
+end
+			`,
+			expectedResult: "Hello",
+		},
+		{
+			name: "SetLength truncates multi-byte UTF-8",
+			input: `
+var s: String := 'Hello 世界';
+begin
+	SetLength(s, 6);
+	s;
+end
+			`,
+			expectedResult: "Hello ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expectedResult {
+				t.Errorf("String after SetLength = %q, want %q", strVal.Value, tt.expectedResult)
+			}
+		})
+	}
+}
+
+// TestBuiltinSetLength_String_SameLength tests SetLength with same length.
+func TestBuiltinSetLength_String_SameLength(t *testing.T) {
+	input := `
+var s: String := 'Hello';
+begin
+	SetLength(s, 5);
+	s;
+end
+	`
+
+	result := testEval(input)
+
+	strVal, ok := result.(*StringValue)
+	if !ok {
+		t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+	}
+
+	if strVal.Value != "Hello" {
+		t.Errorf("String after SetLength = %q, want 'Hello'", strVal.Value)
+	}
+}
+
+// TestBuiltinSetLength_String_UTF8 tests SetLength with UTF-8 strings.
+func TestBuiltinSetLength_String_UTF8(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectedResult string
+		expectedLen    int
+	}{
+		{
+			name: "UTF-8 emoji expansion",
+			input: `
+var s: String := '😀😁';
+begin
+	SetLength(s, 5);
+	s;
+end
+			`,
+			expectedResult: "😀😁   ", // 2 emojis + 3 spaces
+			expectedLen:    5,         // 5 runes
+		},
+		{
+			name: "UTF-8 Chinese characters",
+			input: `
+var s: String := '你好';
+begin
+	SetLength(s, 6);
+	s;
+end
+			`,
+			expectedResult: "你好    ", // 2 chars + 4 spaces
+			expectedLen:    6,
+		},
+		{
+			name: "UTF-8 truncation",
+			input: `
+var s: String := '世界你好';
+begin
+	SetLength(s, 2);
+	s;
+end
+			`,
+			expectedResult: "世界",
+			expectedLen:    2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := testEval(tt.input)
+
+			strVal, ok := result.(*StringValue)
+			if !ok {
+				t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+			}
+
+			if strVal.Value != tt.expectedResult {
+				t.Errorf("String after SetLength = %q, want %q", strVal.Value, tt.expectedResult)
+			}
+
+			// Verify the rune length matches expected
+			runeLen := len([]rune(strVal.Value))
+			if runeLen != tt.expectedLen {
+				t.Errorf("Rune length = %d, want %d", runeLen, tt.expectedLen)
+			}
+		})
+	}
+}
+
+// TestBuiltinSetLength_String_VarParam tests SetLength with var parameters.
+func TestBuiltinSetLength_String_VarParam(t *testing.T) {
+	input := `
+procedure ModifyString(var s: String);
+begin
+	SetLength(s, 10);
+end;
+
+var myStr: String := 'Test';
+begin
+	ModifyString(myStr);
+	myStr;
+end
+	`
+
+	result := testEval(input)
+
+	strVal, ok := result.(*StringValue)
+	if !ok {
+		t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
+	}
+
+	expectedResult := "Test      " // "Test" + 6 spaces
+	if strVal.Value != expectedResult {
+		t.Errorf("String after SetLength = %q (len=%d), want %q (len=%d)",
+			strVal.Value, len(strVal.Value), expectedResult, len(expectedResult))
+	}
+}

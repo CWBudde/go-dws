@@ -495,7 +495,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			arrVal, err := vm.pop()
+			targetVal, err := vm.pop()
 			if err != nil {
 				return NilValue(), err
 			}
@@ -506,11 +506,18 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if newLen < 0 {
 				return NilValue(), vm.runtimeError("ARRAY_SET_LENGTH negative size %d", newLen)
 			}
-			arr, err := vm.requireArray(arrVal, "ARRAY_SET_LENGTH")
-			if err != nil {
-				return NilValue(), err
+
+			// Support both arrays and strings
+			if targetVal.IsArray() {
+				arr := targetVal.AsArray()
+				arr.Resize(newLen)
+			} else if targetVal.IsString() {
+				// For strings, we need to handle this differently since strings are immutable
+				// The compiler should have already handled string SetLength as a method call
+				return NilValue(), vm.runtimeError("ARRAY_SET_LENGTH should not be used for strings - use String.SetLength method instead")
+			} else {
+				return NilValue(), vm.runtimeError("ARRAY_SET_LENGTH expects array or string, got %s", targetVal.TypeName())
 			}
-			arr.Resize(newLen)
 		case OpArrayHigh:
 			arrVal, err := vm.pop()
 			if err != nil {
