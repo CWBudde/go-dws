@@ -104,7 +104,11 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 
 					// Create a method call expression
 					mc := &ast.MethodCallExpression{
-						Token:     expr.Token,
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: expr.Token,
+							},
+						},
 						Object:    memberAccess.Object,
 						Method:    memberAccess.Member,
 						Arguments: expr.Arguments,
@@ -179,7 +183,11 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 			if classInfo != nil {
 				// This is a class constructor/method call - convert to MethodCallExpression
 				mc := &ast.MethodCallExpression{
-					Token:     expr.Token,
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: expr.Token,
+						},
+					},
 					Object:    ident,
 					Method:    memberAccess.Member,
 					Arguments: expr.Arguments,
@@ -259,7 +267,11 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		if obj, isObj := AsObject(selfVal); isObj {
 			if obj.GetMethod(funcName.Value) != nil {
 				mc := &ast.MethodCallExpression{
-					Token: expr.Token,
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: expr.Token,
+						},
+					},
 					Object: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{
@@ -284,7 +296,11 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 			if overloads, exists := rtv.ClassMethodOverloads[methodNameLower]; exists && len(overloads) > 0 {
 				// Found a static method - convert to qualified call
 				mc := &ast.MethodCallExpression{
-					Token: expr.Token,
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: expr.Token,
+						},
+					},
 					Object: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{

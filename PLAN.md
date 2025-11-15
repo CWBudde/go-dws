@@ -1178,15 +1178,21 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
   - Files: `pkg/ast/declarations.go`, `pkg/ast/functions.go`, `pkg/ast/classes.go`, `pkg/ast/interfaces.go`, `pkg/ast/records.go`, `pkg/ast/enums.go`, `pkg/ast/operators.go`, `pkg/ast/arrays.go`, `pkg/ast/sets.go`, `pkg/ast/unit.go` (~200 lines reduced)
   - All declaration nodes now embed BaseNode, eliminating duplicate boilerplate code
 
-- [ ] 9.16.6 Refactor type-specific nodes (ArrayLiteralExpression, CallExpression, NewExpression, MemberAccessExpression, etc.)
-  - Embed appropriate base struct
-  - Remove duplicates
-  - Files: `pkg/ast/arrays.go`, `pkg/ast/classes.go`, `pkg/ast/functions.go` (~300 lines affected)
+- [x] 9.16.6 Refactor type-specific nodes (ArrayLiteralExpression, CallExpression, NewExpression, MemberAccessExpression, etc.)
+  - [x] Refactored NewExpression to embed TypedExpressionBase
+  - [x] Refactored MemberAccessExpression to embed TypedExpressionBase
+  - [x] Refactored MethodCallExpression to embed TypedExpressionBase
+  - [x] Refactored InheritedExpression to embed TypedExpressionBase
+  - [x] Updated all parser files (internal/parser/classes.go, internal/parser/expressions.go)
+  - [x] Updated all test files (internal/bytecode/vm_test.go, internal/bytecode/compiler_expressions_test.go)
+  - [x] Updated interpreter files (internal/interp/objects_methods.go, internal/interp/objects_hierarchy.go, internal/interp/objects_instantiation.go, internal/interp/functions_calls.go)
+  - Files: `pkg/ast/arrays.go`, `pkg/ast/classes.go`, `pkg/ast/functions.go` (~80 lines of boilerplate removed)
 
-- [ ] 9.16.7 Update parser to use base struct constructors
+- [x] 9.16.7 Update parser to use base struct constructors
   - [x] Update parser sites already touched (helpers/interfaces/const/type/property/field)
-  - [ ] Sweep remaining parser files for struct literals using removed `Token` fields
-  - [ ] Add helper constructors/macros if it simplifies repetitive initialization
+  - [x] Sweep remaining parser files for struct literals using removed `Token` fields
+  - All parser files have been updated to use TypedExpressionBase/BaseNode pattern
+  - No helper constructors needed - the pattern is straightforward and consistent
 
 - [ ] 9.16.8 Update semantic analyzer and interpreter
   - [x] Updated const/type/property/helper-specific tests where embedding occurred

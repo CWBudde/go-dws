@@ -81,7 +81,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 					// invoke with 0 arguments. If no parameterless constructor exists,
 					// the implicit parameterless constructor will be used.
 					methodCall := &ast.MethodCallExpression{
-						Token:     ma.Token,
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: ma.Token,
+							},
+						},
 						Object:    ma.Object, // TClassName identifier
 						Method:    ma.Member, // Constructor name
 						Arguments: []ast.Expression{},
@@ -96,7 +100,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				if len(classMethod.Parameters) == 0 {
 					// Auto-invoke the class method
 					methodCall := &ast.MethodCallExpression{
-						Token:     ma.Token,
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: ma.Token,
+							},
+						},
 						Object:    ma.Object,
 						Method:    ma.Member,
 						Arguments: []ast.Expression{},
@@ -167,7 +175,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				if len(methodDecl.Parameters) == 0 {
 					// Convert to a method call expression and evaluate it
 					methodCall := &ast.MethodCallExpression{
-						Token:     ma.Token,
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: ma.Token,
+							},
+						},
 						Object:    ma.Object,
 						Method:    ma.Member,
 						Arguments: []ast.Expression{},
@@ -241,7 +253,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			if len(constructorOverloads) > 0 {
 				// Auto-invoke constructor (with or without parameters)
 				methodCall := &ast.MethodCallExpression{
-					Token:     ma.Token,
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: ma.Token,
+						},
+					},
 					Object:    ma.Object,
 					Method:    ma.Member,
 					Arguments: []ast.Expression{},
@@ -254,7 +270,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		if classMethod := i.lookupClassMethodInHierarchy(classInfo, memberName); classMethod != nil {
 			if len(classMethod.Parameters) == 0 {
 				methodCall := &ast.MethodCallExpression{
-					Token:     ma.Token,
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: ma.Token,
+						},
+					},
 					Object:    ma.Object,
 					Method:    ma.Member,
 					Arguments: []ast.Expression{},
@@ -307,7 +327,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			if isParameterless {
 				// Auto-invoke the parameterless method
 				methodCall := &ast.MethodCallExpression{
-					Token:     ma.Token,
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: ma.Token,
+						},
+					},
 					Object:    ma.Object,
 					Method:    ma.Member,
 					Arguments: []ast.Expression{},
@@ -363,7 +387,11 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			// This allows DWScript syntax: obj.Method instead of obj.Method()
 			if hasParameterlessOverload {
 				methodCall := &ast.MethodCallExpression{
-					Token:     ma.Token,
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: ma.Token,
+						},
+					},
 					Object:    ma.Object,
 					Method:    ma.Member,
 					Arguments: []ast.Expression{},

@@ -462,7 +462,11 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 			p.nextToken() // move to '('
 
 			newExpr := &ast.NewExpression{
-				Token:     ident.Token,
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: ident.Token,
+					},
+				},
 				ClassName: ident,
 				Arguments: []ast.Expression{},
 			}
@@ -478,7 +482,11 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		p.nextToken() // move to '('
 
 		methodCall := &ast.MethodCallExpression{
-			Token:     dotToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: dotToken,
+				},
+			},
 			Object:    left,
 			Method:    memberName,
 			Arguments: []ast.Expression{},
@@ -493,7 +501,11 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 
 	// Otherwise, this is simple member access: obj.field
 	memberAccess := &ast.MemberAccessExpression{
-		Token:  dotToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: dotToken,
+			},
+		},
 		Object: left,
 		Member: memberName,
 	}
