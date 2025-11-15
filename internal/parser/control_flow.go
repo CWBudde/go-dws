@@ -23,7 +23,9 @@ func isNilStatement(stmt ast.Statement) bool {
 // parseBreakStatement parses a break statement.
 // Syntax: break;
 func (p *Parser) parseBreakStatement() *ast.BreakStatement {
-	stmt := &ast.BreakStatement{Token: p.curToken}
+	stmt := &ast.BreakStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 
 	// Expect semicolon after break
 	if !p.expectPeek(lexer.SEMICOLON) {
@@ -37,7 +39,9 @@ func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 // parseContinueStatement parses a continue statement.
 // Syntax: continue;
 func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
-	stmt := &ast.ContinueStatement{Token: p.curToken}
+	stmt := &ast.ContinueStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 
 	// Expect semicolon after continue
 	if !p.expectPeek(lexer.SEMICOLON) {
@@ -51,7 +55,9 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 // parseExitStatement parses an exit statement.
 // Syntax: exit; exit value; or exit(value);
 func (p *Parser) parseExitStatement() *ast.ExitStatement {
-	stmt := &ast.ExitStatement{Token: p.curToken}
+	stmt := &ast.ExitStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 
 	// Check if there's a parenthesized return value: exit(value)
 	if p.peekTokenIs(lexer.LPAREN) {
@@ -91,7 +97,9 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 // parseIfStatement parses an if-then-else statement.
 // Syntax: if <condition> then <statement> [else <statement>]
 func (p *Parser) parseIfStatement() *ast.IfStatement {
-	stmt := &ast.IfStatement{Token: p.curToken}
+	stmt := &ast.IfStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 
 	// Move past 'if' and parse the condition
 	p.nextToken()
@@ -139,7 +147,9 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 // parseWhileStatement parses a while loop statement.
 // Syntax: while <condition> do <statement>
 func (p *Parser) parseWhileStatement() *ast.WhileStatement {
-	stmt := &ast.WhileStatement{Token: p.curToken}
+	stmt := &ast.WhileStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 
 	// Move past 'while' and parse the condition
 	p.nextToken()
@@ -174,13 +184,17 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 // Syntax: repeat <statements> until <condition>
 // Note: The body can contain multiple statements
 func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
-	stmt := &ast.RepeatStatement{Token: p.curToken}
+	stmt := &ast.RepeatStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 
 	// Move past 'repeat'
 	p.nextToken()
 
 	// Parse multiple statements until 'until' is encountered
-	block := &ast.BlockStatement{Token: p.curToken}
+	block := &ast.BlockStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 	block.Statements = []ast.Statement{}
 
 	for !p.curTokenIs(lexer.UNTIL) && !p.curTokenIs(lexer.EOF) {
@@ -270,7 +284,11 @@ func (p *Parser) parseForStatement() ast.Statement {
 	}
 
 	// Parse traditional for-to/downto loop
-	stmt := &ast.ForStatement{Token: forToken, Variable: variable, InlineVar: inlineVar}
+	stmt := &ast.ForStatement{
+		BaseNode:  ast.BaseNode{Token: forToken},
+		Variable:  variable,
+		InlineVar: inlineVar,
+	}
 
 	// Expect ':=' assignment operator
 	if !p.expectPeek(lexer.ASSIGN) {
@@ -349,7 +367,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 // Syntax: for [var] <variable> in <expression> do <statement>
 func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, inlineVar bool) *ast.ForInStatement {
 	stmt := &ast.ForInStatement{
-		Token:     forToken,
+		BaseNode:  ast.BaseNode{Token: forToken},
 		Variable:  variable,
 		InlineVar: inlineVar,
 	}
@@ -391,7 +409,9 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 // parseCaseStatement parses a case statement.
 // Syntax: case <expression> of <value>: <statement>; ... [else <statement>;] end;
 func (p *Parser) parseCaseStatement() *ast.CaseStatement {
-	stmt := &ast.CaseStatement{Token: p.curToken}
+	stmt := &ast.CaseStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 
 	// Move past 'case' and parse the case expression
 	p.nextToken()
@@ -421,7 +441,9 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 			continue
 		}
 
-		branch := &ast.CaseBranch{Token: p.curToken}
+		branch := &ast.CaseBranch{
+			BaseNode: ast.BaseNode{Token: p.curToken},
+		}
 
 		// Parse comma-separated value list (with range support)
 		branch.Values = []ast.Expression{}
@@ -530,7 +552,9 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 
 		// Parse multiple statements until 'end' is encountered (like repeat-until)
 		// DWScript allows multiple statements in else clause without begin-end
-		block := &ast.BlockStatement{Token: p.curToken}
+		block := &ast.BlockStatement{
+			BaseNode: ast.BaseNode{Token: p.curToken},
+		}
 		block.Statements = []ast.Statement{}
 
 		for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
@@ -580,7 +604,11 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 // Syntax: if <condition> then <expression> [else <expression>]
 // This is similar to a ternary operator: condition ? value1 : value2
 func (p *Parser) parseIfExpression() ast.Expression {
-	expr := &ast.IfExpression{Token: p.curToken}
+	expr := &ast.IfExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken},
+		},
+	}
 
 	// Move past 'if' and parse the condition
 	p.nextToken()

@@ -15,23 +15,14 @@ import (
 //	if x > 0 then PrintLn('positive') else PrintLn('non-positive');
 //	if condition then begin ... end;
 type IfStatement struct {
+	BaseNode
 	Condition   Expression
 	Consequence Statement
 	Alternative Statement
-	Token       token.Token
-	EndPos      token.Position
 }
 
-func (i *IfStatement) End() token.Position {
-	if i.EndPos.Line != 0 {
-		return i.EndPos
-	}
-	return i.Token.Pos
-}
+func (is *IfStatement) statementNode() {}
 
-func (is *IfStatement) statementNode()       {}
-func (is *IfStatement) TokenLiteral() string { return is.Token.Literal }
-func (is *IfStatement) Pos() token.Position  { return is.Token.Pos }
 func (is *IfStatement) String() string {
 	var out bytes.Buffer
 
@@ -57,17 +48,15 @@ func (is *IfStatement) String() string {
 //	var o := if b then TObject.Create else nil;
 //	var i := if b then 1;  // else clause optional, returns default value (0)
 type IfExpression struct {
+	TypedExpressionBase
 	Condition   Expression
 	Consequence Expression
 	Alternative Expression // Optional, can be nil
-	Type        *TypeAnnotation
-	Token       token.Token
-	EndPos      token.Position
 }
 
-func (ie *IfExpression) expressionNode()      {}
-func (ie *IfExpression) TokenLiteral() string { return ie.Token.Literal }
-func (ie *IfExpression) Pos() token.Position  { return ie.Token.Pos }
+func (ie *IfExpression) expressionNode() {}
+
+// End returns the end position, preferring Alternative or Consequence if EndPos not set.
 func (ie *IfExpression) End() token.Position {
 	if ie.EndPos.Line != 0 {
 		return ie.EndPos
@@ -81,6 +70,7 @@ func (ie *IfExpression) End() token.Position {
 	}
 	return ie.Token.Pos
 }
+
 func (ie *IfExpression) String() string {
 	var out bytes.Buffer
 
@@ -98,8 +88,6 @@ func (ie *IfExpression) String() string {
 
 	return out.String()
 }
-func (ie *IfExpression) GetType() *TypeAnnotation    { return ie.Type }
-func (ie *IfExpression) SetType(typ *TypeAnnotation) { ie.Type = typ }
 
 // WhileStatement represents a while loop.
 // Examples:
@@ -107,22 +95,13 @@ func (ie *IfExpression) SetType(typ *TypeAnnotation) { ie.Type = typ }
 //	while x < 10 do x := x + 1;
 //	while condition do begin ... end;
 type WhileStatement struct {
+	BaseNode
 	Condition Expression
 	Body      Statement
-	Token     token.Token
-	EndPos    token.Position
 }
 
-func (w *WhileStatement) End() token.Position {
-	if w.EndPos.Line != 0 {
-		return w.EndPos
-	}
-	return w.Token.Pos
-}
+func (ws *WhileStatement) statementNode() {}
 
-func (ws *WhileStatement) statementNode()       {}
-func (ws *WhileStatement) TokenLiteral() string { return ws.Token.Literal }
-func (ws *WhileStatement) Pos() token.Position  { return ws.Token.Pos }
 func (ws *WhileStatement) String() string {
 	var out bytes.Buffer
 
@@ -141,22 +120,13 @@ func (ws *WhileStatement) String() string {
 //	repeat x := x + 1; until x >= 10;
 //	repeat begin ... end; until condition;
 type RepeatStatement struct {
+	BaseNode
 	Body      Statement
 	Condition Expression
-	Token     token.Token
-	EndPos    token.Position
 }
 
-func (r *RepeatStatement) End() token.Position {
-	if r.EndPos.Line != 0 {
-		return r.EndPos
-	}
-	return r.Token.Pos
-}
+func (rs *RepeatStatement) statementNode() {}
 
-func (rs *RepeatStatement) statementNode()       {}
-func (rs *RepeatStatement) TokenLiteral() string { return rs.Token.Literal }
-func (rs *RepeatStatement) Pos() token.Position  { return rs.Token.Pos }
 func (rs *RepeatStatement) String() string {
 	var out bytes.Buffer
 
@@ -195,20 +165,19 @@ func (fd ForDirection) String() string {
 //	for i := start to end do begin ... end;
 //	for i := 1 to 10 step 2 do PrintLn(i);
 type ForStatement struct {
+	BaseNode
 	Start     Expression
 	EndValue  Expression
 	Body      Statement
 	Step      Expression
 	Variable  *Identifier
-	Token     token.Token
-	EndPos    token.Position
 	Direction ForDirection
 	InlineVar bool
 }
 
-func (fs *ForStatement) statementNode()       {}
-func (fs *ForStatement) TokenLiteral() string { return fs.Token.Literal }
-func (fs *ForStatement) Pos() token.Position  { return fs.Token.Pos }
+func (fs *ForStatement) statementNode() {}
+
+// End returns the end position, preferring Body's end if EndPos not set.
 func (fs *ForStatement) End() token.Position {
 	if fs.EndPos.Line != 0 {
 		return fs.EndPos
@@ -218,6 +187,7 @@ func (fs *ForStatement) End() token.Position {
 	}
 	return fs.Token.Pos
 }
+
 func (fs *ForStatement) String() string {
 	var out bytes.Buffer
 
@@ -249,24 +219,15 @@ func (fs *ForStatement) String() string {
 //	for var item in myArray do PrintLn(item);
 //	for ch in "hello" do Print(ch);
 type ForInStatement struct {
+	BaseNode
 	Variable   *Identifier // Loop variable
 	Collection Expression  // Expression to iterate over (set, array, string, range)
 	Body       Statement   // Loop body
-	Token      token.Token // The 'for' token
 	InlineVar  bool        // true if 'var' keyword used
-	EndPos     token.Position
 }
 
-func (f *ForInStatement) End() token.Position {
-	if f.EndPos.Line != 0 {
-		return f.EndPos
-	}
-	return f.Token.Pos
-}
+func (fis *ForInStatement) statementNode() {}
 
-func (fis *ForInStatement) statementNode()       {}
-func (fis *ForInStatement) TokenLiteral() string { return fis.Token.Literal }
-func (fis *ForInStatement) Pos() token.Position  { return fis.Token.Pos }
 func (fis *ForInStatement) String() string {
 	var out bytes.Buffer
 
@@ -289,17 +250,9 @@ func (fis *ForInStatement) String() string {
 //	1: PrintLn('one');
 //	2, 3, 4: PrintLn('two to four');
 type CaseBranch struct {
+	BaseNode
 	Statement Statement
 	Values    []Expression
-	Token     token.Token
-	EndPos    token.Position
-}
-
-func (c *CaseBranch) End() token.Position {
-	if c.EndPos.Line != 0 {
-		return c.EndPos
-	}
-	return c.Token.Pos
 }
 
 func (cb *CaseBranch) String() string {
@@ -326,23 +279,14 @@ func (cb *CaseBranch) String() string {
 //	  PrintLn('other');
 //	end;
 type CaseStatement struct {
+	BaseNode
 	Expression Expression
 	Else       Statement
 	Cases      []*CaseBranch
-	Token      token.Token
-	EndPos     token.Position
 }
 
-func (c *CaseStatement) End() token.Position {
-	if c.EndPos.Line != 0 {
-		return c.EndPos
-	}
-	return c.Token.Pos
-}
+func (cs *CaseStatement) statementNode() {}
 
-func (cs *CaseStatement) statementNode()       {}
-func (cs *CaseStatement) TokenLiteral() string { return cs.Token.Literal }
-func (cs *CaseStatement) Pos() token.Position  { return cs.Token.Pos }
 func (cs *CaseStatement) String() string {
 	var out bytes.Buffer
 
@@ -378,20 +322,11 @@ func (cs *CaseStatement) String() string {
 //	   if shouldExit then break;
 //	end;
 type BreakStatement struct {
-	Token  token.Token // The 'break' token
-	EndPos token.Position
+	BaseNode
 }
 
-func (b *BreakStatement) End() token.Position {
-	if b.EndPos.Line != 0 {
-		return b.EndPos
-	}
-	return b.Token.Pos
-}
+func (bs *BreakStatement) statementNode() {}
 
-func (bs *BreakStatement) statementNode()       {}
-func (bs *BreakStatement) TokenLiteral() string { return bs.Token.Literal }
-func (bs *BreakStatement) Pos() token.Position  { return bs.Token.Pos }
 func (bs *BreakStatement) String() string {
 	return "break;"
 }
@@ -411,20 +346,11 @@ func (bs *BreakStatement) String() string {
 //	   end;
 //	end;
 type ContinueStatement struct {
-	Token  token.Token // The 'continue' token
-	EndPos token.Position
+	BaseNode
 }
 
-func (c *ContinueStatement) End() token.Position {
-	if c.EndPos.Line != 0 {
-		return c.EndPos
-	}
-	return c.Token.Pos
-}
+func (cs *ContinueStatement) statementNode() {}
 
-func (cs *ContinueStatement) statementNode()       {}
-func (cs *ContinueStatement) TokenLiteral() string { return cs.Token.Literal }
-func (cs *ContinueStatement) Pos() token.Position  { return cs.Token.Pos }
 func (cs *ContinueStatement) String() string {
 	return "continue;"
 }
@@ -444,21 +370,12 @@ func (cs *ContinueStatement) String() string {
 //	   Result := i * 2;
 //	end;
 type ExitStatement struct {
+	BaseNode
 	ReturnValue Expression // Optional expression returned from Exit
-	Token       token.Token
-	EndPos      token.Position
 }
 
-func (e *ExitStatement) End() token.Position {
-	if e.EndPos.Line != 0 {
-		return e.EndPos
-	}
-	return e.Token.Pos
-}
+func (es *ExitStatement) statementNode() {}
 
-func (es *ExitStatement) statementNode()       {}
-func (es *ExitStatement) TokenLiteral() string { return es.Token.Literal }
-func (es *ExitStatement) Pos() token.Position  { return es.Token.Pos }
 func (es *ExitStatement) String() string {
 	var out bytes.Buffer
 	out.WriteString("Exit")

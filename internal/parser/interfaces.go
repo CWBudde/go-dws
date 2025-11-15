@@ -44,7 +44,7 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 
 	// Multiple declarations: wrap in a BlockStatement
 	return &ast.BlockStatement{
-		Token:      typeToken,
+		BaseNode:   ast.BaseNode{Token: typeToken},
 		Statements: statements,
 	}
 }
