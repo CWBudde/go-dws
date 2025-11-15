@@ -1008,7 +1008,11 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 			Token: lexer.Token{Type: lexer.RAISE, Literal: "raise", Pos: pos(2, 3)},
 		},
 		Exception: &ast.NewExpression{
-			Token: lexer.Token{Type: lexer.NEW, Literal: "new", Pos: pos(2, 9)},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.NEW, Literal: "new", Pos: pos(2, 9)},
+				},
+			},
 			ClassName: &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
