@@ -143,6 +143,32 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 			}
 		}
 
+		// Task 9.2: Check if identifier is a class constant (accessible from both instance and class methods)
+		// Class constants should be accessible from anywhere within the class, unlike fields which are
+		// only accessible from instance methods (not class methods)
+		if a.currentClass != nil {
+			// Check current class and all parent classes for constants
+			for class := a.currentClass; class != nil; class = class.Parent {
+				for constName, constType := range class.ConstantTypes {
+					if strings.EqualFold(constName, ident.Value) {
+						// Check visibility
+						constantOwner := a.getConstantOwner(a.currentClass, ident.Value)
+						if constantOwner != nil {
+							lowerConstName := strings.ToLower(ident.Value)
+							visibility, hasVisibility := constantOwner.ConstantVisibility[lowerConstName]
+							if hasVisibility && !a.checkVisibility(constantOwner, visibility, ident.Value, "constant") {
+								visibilityStr := ast.Visibility(visibility).String()
+								a.addError("cannot access %s constant '%s' at %s",
+									visibilityStr, ident.Value, ident.Token.Pos.String())
+								return nil
+							}
+						}
+						return constType
+					}
+				}
+			}
+		}
+
 		// Task 9.132: Check if this is a built-in function used without parentheses
 		// In DWScript, built-in functions like PrintLn can be called without parentheses
 		// The semantic analyzer should allow this and treat them as procedure calls

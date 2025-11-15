@@ -395,23 +395,27 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	}
 
 	// Task 9.22: Check for class constants (with inheritance support)
-	if _, found := classType.GetConstant(memberName); found {
-		// Check constant visibility
-		constantOwner := a.getConstantOwner(classType, memberName)
-		if constantOwner != nil {
-			visibility, hasVisibility := constantOwner.ConstantVisibility[memberName]
-			if hasVisibility && !a.checkVisibility(constantOwner, visibility, memberName, "constant") {
-				visibilityStr := ast.Visibility(visibility).String()
-				a.addError("cannot access %s constant '%s' of class '%s' at %s",
-					visibilityStr, memberName, constantOwner.Name, expr.Token.Pos.String())
-				return nil
+	// Task 9.2: Use case-insensitive comparison for constant lookup
+	// Check current class and all parent classes for constants
+	for class := classType; class != nil; class = class.Parent {
+		for constName, constType := range class.ConstantTypes {
+			if strings.EqualFold(constName, memberName) {
+				// Check constant visibility
+				constantOwner := a.getConstantOwner(classType, constName)
+				if constantOwner != nil {
+					lowerConstName := strings.ToLower(constName)
+					visibility, hasVisibility := constantOwner.ConstantVisibility[lowerConstName]
+					if hasVisibility && !a.checkVisibility(constantOwner, visibility, constName, "constant") {
+						visibilityStr := ast.Visibility(visibility).String()
+						a.addError("cannot access %s constant '%s' of class '%s' at %s",
+							visibilityStr, constName, constantOwner.Name, expr.Token.Pos.String())
+						return nil
+					}
+				}
+				// Return the constant's type
+				return constType
 			}
 		}
-		// The constant exists and visibility is allowed
-		// We don't know its exact type at compile time since it's evaluated at runtime
-		// For now, return VARIANT to indicate it's valid but type is determined at runtime
-		// In a full implementation, we'd analyze the constant expression to determine type
-		return types.VARIANT // Accept any type for constants
 	}
 
 	// Member not found
