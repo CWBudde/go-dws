@@ -1224,14 +1224,14 @@ type IntegerLiteral struct {
 
 **Subtasks**:
 
-- [ ] 9.18.1 Design metadata architecture
+- [x] 9.18.1 Design metadata architecture
   - Create SemanticInfo struct with node → type mapping
   - Design API for setting/getting type information
   - Consider thread safety for concurrent analyses
   - Document architecture decisions
   - File: `pkg/ast/metadata.go` (new file ~100 lines)
 
-- [ ] 9.18.2 Implement SemanticInfo type
+- [x] 9.18.2 Implement SemanticInfo type
   - Map[Expression]*TypeAnnotation for expression types
   - Map[*Identifier]Symbol for symbol resolution
   - Thread-safe accessors with sync.RWMutex
