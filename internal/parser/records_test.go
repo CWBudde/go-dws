@@ -477,3 +477,120 @@ func TestRecordParserErrorCases(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Record Field Initializer Tests
+// ============================================================================
+
+func TestRecordFieldInitializerWithEquals(t *testing.T) {
+	input := `
+type TPoint = record
+	X: Integer = 10;
+	Y: Integer = 20;
+	Label: String = 'origin';
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.RecordDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.RecordDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if len(stmt.Fields) != 3 {
+		t.Fatalf("stmt.Fields should contain 3 fields. got=%d", len(stmt.Fields))
+	}
+
+	// Test X: Integer = 10
+	if stmt.Fields[0].Name.Value != "X" {
+		t.Errorf("Field[0].Name.Value not 'X'. got=%s", stmt.Fields[0].Name.Value)
+	}
+	if stmt.Fields[0].InitValue == nil {
+		t.Errorf("Field[0].InitValue should not be nil")
+	} else {
+		intLit, ok := stmt.Fields[0].InitValue.(*ast.IntegerLiteral)
+		if !ok {
+			t.Errorf("Field[0].InitValue is not *ast.IntegerLiteral. got=%T", stmt.Fields[0].InitValue)
+		} else if intLit.Value != 10 {
+			t.Errorf("Field[0].InitValue not 10. got=%d", intLit.Value)
+		}
+	}
+
+	// Test Y: Integer = 20
+	if stmt.Fields[1].Name.Value != "Y" {
+		t.Errorf("Field[1].Name.Value not 'Y'. got=%s", stmt.Fields[1].Name.Value)
+	}
+	if stmt.Fields[1].InitValue == nil {
+		t.Errorf("Field[1].InitValue should not be nil")
+	} else {
+		intLit, ok := stmt.Fields[1].InitValue.(*ast.IntegerLiteral)
+		if !ok {
+			t.Errorf("Field[1].InitValue is not *ast.IntegerLiteral. got=%T", stmt.Fields[1].InitValue)
+		} else if intLit.Value != 20 {
+			t.Errorf("Field[1].InitValue not 20. got=%d", intLit.Value)
+		}
+	}
+
+	// Test Label: String = 'origin'
+	if stmt.Fields[2].Name.Value != "Label" {
+		t.Errorf("Field[2].Name.Value not 'Label'. got=%s", stmt.Fields[2].Name.Value)
+	}
+	if stmt.Fields[2].InitValue == nil {
+		t.Errorf("Field[2].InitValue should not be nil")
+	} else {
+		strLit, ok := stmt.Fields[2].InitValue.(*ast.StringLiteral)
+		if !ok {
+			t.Errorf("Field[2].InitValue is not *ast.StringLiteral. got=%T", stmt.Fields[2].InitValue)
+		} else if strLit.Value != "origin" {
+			t.Errorf("Field[2].InitValue not 'origin'. got=%s", strLit.Value)
+		}
+	}
+}
+
+func TestRecordFieldWithoutInitializer(t *testing.T) {
+	input := `
+type TPoint = record
+	X: Integer;
+	Y: Integer;
+end;
+`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.RecordDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.RecordDecl. got=%T",
+			program.Statements[0])
+	}
+
+	if len(stmt.Fields) != 2 {
+		t.Fatalf("stmt.Fields should contain 2 fields. got=%d", len(stmt.Fields))
+	}
+
+	// Both fields should have nil InitValue
+	if stmt.Fields[0].InitValue != nil {
+		t.Errorf("Field[0].InitValue should be nil. got=%v", stmt.Fields[0].InitValue)
+	}
+
+	if stmt.Fields[1].InitValue != nil {
+		t.Errorf("Field[1].InitValue should be nil. got=%v", stmt.Fields[1].InitValue)
+	}
+}
