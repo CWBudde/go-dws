@@ -15,7 +15,7 @@ func TestPropertyDeclBasic(t *testing.T) {
 		// property Name: String read FName write FName;
 		prop := &PropertyDecl{
 			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				Token: NewTestToken(lexer.PROPERTY, "property"),
 			},
 			Name:        NewTestIdentifier("Name"),
 			Type:        NewTestTypeAnnotation("String"),
@@ -43,7 +43,7 @@ func TestPropertyDeclBasic(t *testing.T) {
 		// property Count: Integer read GetCount write SetCount;
 		prop := &PropertyDecl{
 			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				Token: NewTestToken(lexer.PROPERTY, "property"),
 			},
 			Name:        NewTestIdentifier("Count"),
 			Type:        NewTestTypeAnnotation("Integer"),
@@ -66,7 +66,7 @@ func TestPropertyDeclReadOnly(t *testing.T) {
 	// property Size: Integer read FSize;
 	prop := &PropertyDecl{
 		BaseNode: BaseNode{
-			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			Token: NewTestToken(lexer.PROPERTY, "property"),
 		},
 		Name:        NewTestIdentifier("Size"),
 		Type:        NewTestTypeAnnotation("Integer"),
@@ -88,7 +88,7 @@ func TestPropertyDeclWriteOnly(t *testing.T) {
 	// property Output: String write SetOutput;
 	prop := &PropertyDecl{
 		BaseNode: BaseNode{
-			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			Token: NewTestToken(lexer.PROPERTY, "property"),
 		},
 		Name:        NewTestIdentifier("Output"),
 		Type:        NewTestTypeAnnotation("String"),
@@ -111,7 +111,7 @@ func TestPropertyDeclIndexed(t *testing.T) {
 		// property Items[index: Integer]: String read GetItem write SetItem;
 		prop := &PropertyDecl{
 			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				Token: NewTestToken(lexer.PROPERTY, "property"),
 			},
 			Name:      NewTestIdentifier("Items"),
 			Type:      NewTestTypeAnnotation("String"),
@@ -138,7 +138,7 @@ func TestPropertyDeclIndexed(t *testing.T) {
 		// property Data[x, y: Integer]: Float read GetData write SetData;
 		prop := &PropertyDecl{
 			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				Token: NewTestToken(lexer.PROPERTY, "property"),
 			},
 			Name:      NewTestIdentifier("Data"),
 			Type:      NewTestTypeAnnotation("Float"),
@@ -167,7 +167,7 @@ func TestPropertyDeclDefault(t *testing.T) {
 	// property Items[index: Integer]: String read GetItem write SetItem; default;
 	prop := &PropertyDecl{
 		BaseNode: BaseNode{
-			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			Token: NewTestToken(lexer.PROPERTY, "property"),
 		},
 		Name:      NewTestIdentifier("Items"),
 		Type:      NewTestTypeAnnotation("String"),
@@ -200,7 +200,7 @@ func TestPropertyDeclString(t *testing.T) {
 			name: "field-backed property",
 			prop: &PropertyDecl{
 				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+					Token: NewTestToken(lexer.PROPERTY, "property"),
 				},
 				Name:      NewTestIdentifier("Name"),
 				Type:      NewTestTypeAnnotation("String"),
@@ -213,7 +213,7 @@ func TestPropertyDeclString(t *testing.T) {
 			name: "read-only property",
 			prop: &PropertyDecl{
 				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+					Token: NewTestToken(lexer.PROPERTY, "property"),
 				},
 				Name:     NewTestIdentifier("Size"),
 				Type:     NewTestTypeAnnotation("Integer"),
@@ -225,7 +225,7 @@ func TestPropertyDeclString(t *testing.T) {
 			name: "write-only property",
 			prop: &PropertyDecl{
 				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+					Token: NewTestToken(lexer.PROPERTY, "property"),
 				},
 				Name:      NewTestIdentifier("Output"),
 				Type:      NewTestTypeAnnotation("String"),
@@ -237,7 +237,7 @@ func TestPropertyDeclString(t *testing.T) {
 			name: "indexed property",
 			prop: &PropertyDecl{
 				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+					Token: NewTestToken(lexer.PROPERTY, "property"),
 				},
 				Name:      NewTestIdentifier("Items"),
 				Type:      NewTestTypeAnnotation("String"),
@@ -256,7 +256,7 @@ func TestPropertyDeclString(t *testing.T) {
 			name: "default indexed property",
 			prop: &PropertyDecl{
 				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+					Token: NewTestToken(lexer.PROPERTY, "property"),
 				},
 				Name:      NewTestIdentifier("Items"),
 				Type:      NewTestTypeAnnotation("String"),
@@ -287,7 +287,7 @@ func TestPropertyDeclString(t *testing.T) {
 func TestPropertyDeclTokenLiteral(t *testing.T) {
 	prop := &PropertyDecl{
 		BaseNode: BaseNode{
-			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			Token: NewTestToken(lexer.PROPERTY, "property"),
 		},
 		Name:     NewTestIdentifier("Name"),
 		Type:     NewTestTypeAnnotation("String"),
@@ -308,7 +308,7 @@ func TestClassProperty(t *testing.T) {
 		// class property Count: Integer read GetCount write SetCount;
 		prop := &PropertyDecl{
 			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				Token: NewTestToken(lexer.PROPERTY, "property"),
 			},
 			Name:            NewTestIdentifier("Count"),
 			Type:            NewTestTypeAnnotation("Integer"),
@@ -332,7 +332,7 @@ func TestClassProperty(t *testing.T) {
 		// class property Version: String read GetVersion;
 		prop := &PropertyDecl{
 			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				Token: NewTestToken(lexer.PROPERTY, "property"),
 			},
 			Name:            NewTestIdentifier("Version"),
 			Type:            NewTestTypeAnnotation("String"),
@@ -351,7 +351,7 @@ func TestClassProperty(t *testing.T) {
 		// Regular instance property for comparison
 		prop := &PropertyDecl{
 			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				Token: NewTestToken(lexer.PROPERTY, "property"),
 			},
 			Name:            NewTestIdentifier("Name"),
 			Type:            NewTestTypeAnnotation("String"),
