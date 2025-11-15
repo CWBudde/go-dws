@@ -208,9 +208,11 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	}
 
 	// Check if it's a user-defined function first
-	if overloads, exists := i.functions[funcName.Value]; exists && len(overloads) > 0 {
+	// DWScript is case-insensitive, so normalize the function name to lowercase
+	funcNameLower := strings.ToLower(funcName.Value)
+	if overloads, exists := i.functions[funcNameLower]; exists && len(overloads) > 0 {
 		// Resolve overload based on argument types and get cached evaluated arguments
-		fn, cachedArgs, err := i.resolveOverload(funcName.Value, overloads, expr.Arguments)
+		fn, cachedArgs, err := i.resolveOverload(funcNameLower, overloads, expr.Arguments)
 		if err != nil {
 			return i.newErrorWithLocation(expr, "%s", err.Error())
 		}

@@ -36,7 +36,8 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 
 	// Store regular function in the registry
 	// Support overloading by storing multiple functions per name
-	funcName := fn.Name.Value
+	// DWScript is case-insensitive, so normalize the function name to lowercase
+	funcName := strings.ToLower(fn.Name.Value)
 
 	// If this function has a body, it may be an implementation that should
 	// replace a previous interface declaration (which has no body).
@@ -676,9 +677,10 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 		}
 		targetType := normalizeTypeAnnotation(decl.ReturnType.String())
 		entry := &runtimeConversionEntry{
-			From:        operandTypes[0],
-			To:          targetType,
-			BindingName: decl.Binding.Value,
+			From: operandTypes[0],
+			To:   targetType,
+			// DWScript is case-insensitive, so normalize the binding name to lowercase
+			BindingName: strings.ToLower(decl.Binding.Value),
 			Implicit:    strings.EqualFold(decl.OperatorSymbol, "implicit"),
 		}
 		if err := i.conversions.register(entry); err != nil {
@@ -690,7 +692,8 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 	entry := &runtimeOperatorEntry{
 		Operator:     decl.OperatorSymbol,
 		OperandTypes: operandTypes,
-		BindingName:  decl.Binding.Value,
+		// DWScript is case-insensitive, so normalize the binding name to lowercase
+		BindingName: strings.ToLower(decl.Binding.Value),
 	}
 
 	if err := i.globalOperators.register(entry); err != nil {

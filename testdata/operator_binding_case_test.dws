@@ -1,0 +1,35 @@
+// Test case-insensitive operator binding names
+type
+  TVector = record
+    X, Y: Float;
+  end;
+
+// Define operator with mixed-case binding name
+operator + (A, B: TVector) : TVector uses VectorAdd;
+
+// Implementation with different case
+function VectorAdd(A, B: TVector): TVector;
+begin
+  Result.X := A.X + B.X;
+  Result.Y := A.Y + B.Y;
+end;
+
+var
+  v1, v2, v3: TVector;
+begin
+  v1.X := 1.0;
+  v1.Y := 2.0;
+
+  v2.X := 3.0;
+  v2.Y := 4.0;
+
+  // Use the operator - should find VectorAdd regardless of case
+  v3 := v1 + v2;
+
+  PrintLn('v1 + v2 = (' + FloatToStr(v3.X) + ', ' + FloatToStr(v3.Y) + ')');
+
+  if (v3.X = 4.0) and (v3.Y = 6.0) then
+    PrintLn('Operator binding with case-insensitive name works!')
+  else
+    PrintLn('ERROR: Operator binding failed!');
+end.

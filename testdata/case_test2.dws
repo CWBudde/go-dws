@@ -1,0 +1,18 @@
+// Test case-insensitive function calls with error checking
+
+procedure TestProc(x: Integer);
+begin
+  PrintLn('TestProc called with: ' + IntToStr(x));
+  if x > 0 then
+  begin
+    PrintLn('About to call testproc recursively with: ' + IntToStr(x - 1));
+    testproc(x - 1);  // lowercase call to TestProc
+    PrintLn('Returned from recursive call');
+  end
+  else
+    PrintLn('Base case reached');
+end;
+
+PrintLn('Starting test...');
+TestProc(3);
+PrintLn('Test complete');

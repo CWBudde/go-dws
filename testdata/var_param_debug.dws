@@ -1,0 +1,25 @@
+// Simple test to verify var parameters actually modify the original array
+
+type TIntArray = array [0..2] of integer;
+
+procedure ModifyArray(var arr: TIntArray);
+begin
+  PrintLn('Inside ModifyArray, before: ' + IntToStr(arr[0]));
+  arr[0] := 999;
+  PrintLn('Inside ModifyArray, after: ' + IntToStr(arr[0]));
+end;
+
+var myArray: TIntArray;
+
+myArray[0] := 1;
+myArray[1] := 2;
+myArray[2] := 3;
+
+PrintLn('Before calling ModifyArray: ' + IntToStr(myArray[0]));
+ModifyArray(myArray);
+PrintLn('After calling ModifyArray: ' + IntToStr(myArray[0]));
+
+if myArray[0] = 999 then
+  PrintLn('SUCCESS: var parameter modified the original array')
+else
+  PrintLn('FAILURE: var parameter did NOT modify the original array');
