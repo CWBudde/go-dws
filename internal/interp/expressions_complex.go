@@ -223,10 +223,24 @@ func (i *Interpreter) evalImplementsExpression(expr *ast.ImplementsExpression) V
 		return &BooleanValue{Value: false}
 	}
 
-	// Ensure we have an object instance
-	obj, ok := AsObject(left)
-	if !ok {
-		return i.newErrorWithLocation(expr, "'implements' operator requires object instance, got %s", left.Type())
+	// Task 9.1.2: Extract ClassInfo from different value types
+	// The 'implements' operator can work with:
+	// 1. Object instances (extract class from instance)
+	// 2. Class type references (ClassValue from metaclass variables)
+	// 3. Class type identifiers (ClassInfoValue from class names)
+	var classInfo *ClassInfo
+
+	if obj, ok := AsObject(left); ok {
+		// Object instance - extract class
+		classInfo = obj.Class
+	} else if classVal, ok := left.(*ClassValue); ok {
+		// Class reference (e.g., from metaclass variable: var cls: class of TParent)
+		classInfo = classVal.ClassInfo
+	} else if classInfoVal, ok := left.(*ClassInfoValue); ok {
+		// Class type identifier (e.g., TMyImplementation in: if TMyImplementation implements IMyInterface then)
+		classInfo = classInfoVal.ClassInfo
+	} else {
+		return i.newErrorWithLocation(expr, "'implements' operator requires object instance or class type, got %s", left.Type())
 	}
 
 	// Get the target interface name from the type expression
@@ -244,7 +258,7 @@ func (i *Interpreter) evalImplementsExpression(expr *ast.ImplementsExpression) V
 	}
 
 	// Check if the class implements the interface
-	result := classImplementsInterface(obj.Class, iface)
+	result := classImplementsInterface(classInfo, iface)
 	return &BooleanValue{Value: result}
 }
 

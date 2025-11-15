@@ -150,16 +150,16 @@ intfRef.A;  // Should call A on the underlying object
 
 **Goal**: Allow 'implements' operator to work with class types, not just object instances.
 
-**Status**: NOT STARTED
+**Status**: DONE
 
-**Impact**: Fixes 2 tests
+**Impact**: Fixes 1 test (interface_implements_intf)
 
 **Estimate**: 30 minutes
 
 **Tests Fixed**:
 
-- `interface_implements_intf`
-- `interface_inheritance_instance` (partial - adds missing error message)
+- `interface_implements_intf` ✓
+- `interface_inheritance_instance` (still failing - requires interface inheritance checking fix)
 
 **Error**: `ERROR: 'implements' operator requires object instance, got CLASS`
 
@@ -170,9 +170,9 @@ intfRef.A;  // Should call A on the underlying object
 
 **Implementation**:
 
-- [ ] Update `evalImplementsExpression` to handle ClassInfoValue and ClassValue
-- [ ] Use existing `classImplementsInterface` helper for class type checks
-- [ ] Keep existing ObjectInstance logic (extract class from instance)
+- [x] Update `evalImplementsExpression` to handle ClassInfoValue and ClassValue
+- [x] Use existing `classImplementsInterface` helper for class type checks
+- [x] Keep existing ObjectInstance logic (extract class from instance)
 
 **Example Test**:
 
