@@ -192,6 +192,9 @@ func (d *Disassembler) tryDisassembleArrayOp(inst Instruction, op OpCode) bool {
 	case OpNewArray:
 		d.byteInstruction(inst, "elements")
 		return true
+	case OpNewArrayMultiDim:
+		d.byteInstruction(inst, "dimensions")
+		return true
 	case OpNewArraySized, OpArrayGet, OpArraySet, OpArraySetLength:
 		d.simpleInstruction(inst)
 		return true

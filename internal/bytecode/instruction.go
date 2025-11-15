@@ -471,6 +471,12 @@ const (
 	// Stack: [size] -> [array]
 	OpNewArraySized
 
+	// OpNewArrayMultiDim creates a multi-dimensional array.
+	// Format: [OpNewArrayMultiDim][dimCount][unused]
+	// Stack: [dim1, dim2, ..., dimN] -> [array]
+	// Creates nested arrays: new T[d1, d2] creates array of d1 elements, each is array of d2 elements
+	OpNewArrayMultiDim
+
 	// OpArrayLength pushes array length onto stack.
 	// Format: [OpArrayLength][unused][unused]
 	// Stack: [array] -> [length]
@@ -773,6 +779,7 @@ var OpCodeNames = [...]string{
 	OpRotate3:          "ROTATE3",
 	OpNewArray:         "NEW_ARRAY",
 	OpNewArraySized:    "NEW_ARRAY_SIZED",
+	OpNewArrayMultiDim: "NEW_ARRAY_MULTIDIM",
 	OpArrayLength:      "ARRAY_LENGTH",
 	OpArrayGet:         "ARRAY_GET",
 	OpArraySet:         "ARRAY_SET",

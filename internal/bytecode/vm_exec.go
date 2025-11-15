@@ -371,6 +371,33 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), vm.runtimeError("NEW_ARRAY_SIZED negative size %d", size)
 			}
 			vm.push(ArrayValue(NewArrayInstanceWithLength(size)))
+		case OpNewArrayMultiDim:
+			// Get dimension count from instruction
+			dimCount := int(inst.A())
+			if dimCount < 1 {
+				return NilValue(), vm.runtimeError("NEW_ARRAY_MULTIDIM requires at least 1 dimension, got %d", dimCount)
+			}
+
+			// Pop dimension sizes from stack (in reverse order)
+			dimensions := make([]int, dimCount)
+			for i := dimCount - 1; i >= 0; i-- {
+				dimVal, err := vm.pop()
+				if err != nil {
+					return NilValue(), err
+				}
+				dim, err := vm.requireInt(dimVal, "NEW_ARRAY_MULTIDIM dimension")
+				if err != nil {
+					return NilValue(), err
+				}
+				if dim <= 0 {
+					return NilValue(), vm.runtimeError("NEW_ARRAY_MULTIDIM dimension must be positive, got %d", dim)
+				}
+				dimensions[i] = dim
+			}
+
+			// Create multi-dimensional array recursively
+			result := vm.createMultiDimArray(dimensions)
+			vm.push(ArrayValue(result))
 		case OpArrayLength:
 			arrVal, err := vm.pop()
 			if err != nil {
@@ -1133,4 +1160,34 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 	}
 
 	return NilValue(), nil
+}
+
+// createMultiDimArray creates a multi-dimensional array with the given dimensions.
+// For 1D arrays, creates a single array with the specified size.
+// For multi-dimensional arrays, recursively creates nested arrays.
+// Example: dimensions [3, 4] creates an array of 3 elements, each is an array of 4 elements.
+func (vm *VM) createMultiDimArray(dimensions []int) *ArrayInstance {
+	if len(dimensions) == 0 {
+		// This shouldn't happen, but handle gracefully
+		return NewArrayInstanceWithLength(0)
+	}
+
+	size := dimensions[0]
+
+	if len(dimensions) == 1 {
+		// Base case: 1D array
+		return NewArrayInstanceWithLength(size)
+	}
+
+	// Recursive case: multi-dimensional array
+	// Create outer array
+	outer := NewArrayInstanceWithLength(size)
+
+	// Fill each element with a nested array
+	for i := 0; i < size; i++ {
+		inner := vm.createMultiDimArray(dimensions[1:])
+		outer.Set(i, ArrayValue(inner))
+	}
+
+	return outer
 }
