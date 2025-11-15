@@ -2,7 +2,7 @@
 package ast
 
 import (
-	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/token"
 )
@@ -113,10 +113,101 @@ type FunctionDecl struct {
 
 func (fd *FunctionDecl) statementNode() {}
 
-// String returns a simple string representation for debugging.
+// String returns the function signature.
 // For formatted output, use the printer package.
 func (fd *FunctionDecl) String() string {
-	return fmt.Sprintf("FunctionDecl(%s)", fd.Name.Value)
+	var result strings.Builder
+
+	// Add class method modifier
+	if fd.IsClassMethod {
+		result.WriteString("class ")
+	}
+
+	// Add function/procedure keyword
+	if fd.IsConstructor {
+		result.WriteString("constructor ")
+	} else if fd.IsDestructor {
+		result.WriteString("destructor ")
+	} else if fd.ReturnType != nil {
+		result.WriteString("function ")
+	} else {
+		result.WriteString("procedure ")
+	}
+
+	// Add function name
+	result.WriteString(fd.Name.Value)
+
+	// Add parameters (include parentheses only if there are parameters OR if there's a return type)
+	if len(fd.Parameters) > 0 || fd.ReturnType != nil {
+		result.WriteString("(")
+		for i, param := range fd.Parameters {
+			if i > 0 {
+				result.WriteString("; ")
+			}
+			result.WriteString(param.String())
+		}
+		result.WriteString(")")
+	}
+
+	// Add return type for functions
+	if fd.ReturnType != nil && !fd.IsConstructor {
+		result.WriteString(": ")
+		result.WriteString(fd.ReturnType.String())
+	}
+
+	// Add modifiers
+	var modifiers []string
+	if fd.IsVirtual {
+		modifiers = append(modifiers, "virtual")
+	}
+	if fd.IsOverride {
+		modifiers = append(modifiers, "override")
+	}
+	if fd.IsReintroduce {
+		modifiers = append(modifiers, "reintroduce")
+	}
+	if fd.IsAbstract {
+		modifiers = append(modifiers, "abstract")
+	}
+	if fd.IsOverload {
+		modifiers = append(modifiers, "overload")
+	}
+	if fd.IsExternal {
+		modifiers = append(modifiers, "external")
+	}
+	if fd.IsForward {
+		modifiers = append(modifiers, "forward")
+	}
+	if fd.IsDeprecated {
+		modifiers = append(modifiers, "deprecated")
+	}
+
+	if len(modifiers) > 0 {
+		result.WriteString("; ")
+		result.WriteString(strings.Join(modifiers, "; "))
+	}
+
+	// Add preconditions if present
+	if fd.PreConditions != nil {
+		result.WriteString("\n")
+		result.WriteString(fd.PreConditions.String())
+	}
+
+	// Add body if present
+	if fd.Body != nil {
+		if fd.PreConditions == nil {
+			result.WriteString(" ")
+		}
+		result.WriteString(fd.Body.String())
+	}
+
+	// Add postconditions if present
+	if fd.PostConditions != nil {
+		result.WriteString("\n")
+		result.WriteString(fd.PostConditions.String())
+	}
+
+	return result.String()
 }
 
 // ReturnStatement represents a return statement in a function.
