@@ -933,6 +933,39 @@ func (a *Analyzer) getConstantOwner(class *types.ClassType, constantName string)
 	return a.getConstantOwner(class.Parent, constantName)
 }
 
+// findClassConstantWithVisibility searches for a class constant by name (case-insensitive)
+// in the given class and its parent hierarchy, checking visibility permissions.
+// Returns the constant's type if found and accessible, nil otherwise.
+// If the constant is found but not accessible, an error is added to the analyzer.
+func (a *Analyzer) findClassConstantWithVisibility(startClass *types.ClassType, name string, errorPos string) types.Type {
+	if startClass == nil {
+		return nil
+	}
+
+	// Check current class and all parent classes for constants
+	for class := startClass; class != nil; class = class.Parent {
+		for constName, constType := range class.ConstantTypes {
+			if strings.EqualFold(constName, name) {
+				// Check visibility - find which class owns this constant
+				constantOwner := a.getConstantOwner(startClass, constName)
+				if constantOwner != nil {
+					visibility, hasVisibility := constantOwner.ConstantVisibility[constName]
+					if hasVisibility && !a.checkVisibility(constantOwner, visibility, constName, "constant") {
+						visibilityStr := ast.Visibility(visibility).String()
+						a.addError("cannot access %s constant '%s' of class '%s' at %s",
+							visibilityStr, constName, constantOwner.Name, errorPos)
+						return nil
+					}
+				}
+				// Return the constant's type
+				return constType
+			}
+		}
+	}
+
+	return nil
+}
+
 // resolveClassOfTypeNode resolves a ClassOfTypeNode to a ClassOfType.
 //
 // A metaclass type "class of TMyClass" is a type that holds a reference to
