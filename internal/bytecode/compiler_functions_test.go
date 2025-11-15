@@ -114,7 +114,9 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 					},
 				},
 				&ast.VarDeclStatement{
-					Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(3, 1)},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(3, 1)},
+					},
 					Names: []*ast.Identifier{
 						incrementIdent,
 					},
@@ -138,7 +140,9 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.VarDeclStatement{
-				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+				},
 				Names: []*ast.Identifier{
 					{
 						TypedExpressionBase: ast.TypedExpressionBase{
@@ -215,7 +219,9 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 	}
 
 	addOneBody := &ast.BlockStatement{
-		Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+		},
 		Statements: []ast.Statement{
 			&ast.ReturnStatement{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(2, 5)},
@@ -268,7 +274,11 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 	}
 
 	callAddOne := &ast.CallExpression{
-		Token: lexer.Token{Type: lexer.LPAREN, Literal: "(", Pos: pos(4, 12)},
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.LPAREN, Literal: "(", Pos: pos(4, 12)},
+			},
+		},
 		Function: &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
@@ -326,7 +336,9 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.VarDeclStatement{
-				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+				},
 				Names: []*ast.Identifier{
 					{
 						TypedExpressionBase: ast.TypedExpressionBase{
@@ -349,7 +361,9 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 				},
 			},
 			&ast.VarDeclStatement{
-				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(2, 1)},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(2, 1)},
+				},
 				Names: []*ast.Identifier{
 					{
 						TypedExpressionBase: ast.TypedExpressionBase{
