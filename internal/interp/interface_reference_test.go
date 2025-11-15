@@ -22,12 +22,15 @@ func formatRuntimeError(errVal Value) string {
 	// Replace "at line X, column Y" with "[line: X, column: Y]"
 	errStr = strings.Replace(errStr, " at line ", " [line: ", 1)
 	if strings.Contains(errStr, "[line:") {
-		// Add closing bracket after column number
-		// Find the position after "column X"
+		// Add closing bracket after column number if not already present
 		parts := strings.SplitN(errStr, "[line: ", 2)
 		if len(parts) == 2 {
-			// Find the end of the location (should be at end of string or before next text)
-			errStr = parts[0] + "[line: " + parts[1] + "]"
+			location := strings.TrimSpace(parts[1])
+			// Only add closing bracket if not already present
+			if !strings.HasSuffix(location, "]") {
+				location = location + "]"
+			}
+			errStr = parts[0] + "[line: " + location
 		}
 	} else {
 		// No location info, just add it at the end if we can extract from node

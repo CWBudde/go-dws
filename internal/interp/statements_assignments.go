@@ -365,35 +365,12 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 		if objInst, isObj := existingVal.(*ObjectInstance); isObj {
 			// Variable currently holds an object
 			if _, isNil := value.(*NilValue); isNil {
-				// Setting object variable to nil - decrement ref count
-				objInst.RefCount--
-				if objInst.RefCount <= 0 {
-					// Call destructor if ref count reaches 0
-					destructor := objInst.Class.lookupMethod("Destroy")
-					if destructor != nil {
-						destructorEnv := NewEnclosedEnvironment(i.env)
-						destructorEnv.Define("Self", objInst)
-						prevEnv := i.env
-						i.env = destructorEnv
-						i.Eval(destructor.Body)
-						i.env = prevEnv
-					}
-				}
+				// Setting object variable to nil - decrement ref count and call destructor if needed
+				i.callDestructorIfNeeded(objInst)
 			} else if newObj, isNewObj := value.(*ObjectInstance); isNewObj {
 				// Replacing old object with new object
-				// Decrement old object's ref count
-				objInst.RefCount--
-				if objInst.RefCount <= 0 {
-					destructor := objInst.Class.lookupMethod("Destroy")
-					if destructor != nil {
-						destructorEnv := NewEnclosedEnvironment(i.env)
-						destructorEnv.Define("Self", objInst)
-						prevEnv := i.env
-						i.env = destructorEnv
-						i.Eval(destructor.Body)
-						i.env = prevEnv
-					}
-				}
+				// Decrement old object's ref count and call destructor if needed
+				i.callDestructorIfNeeded(objInst)
 				// Increment new object's ref count
 				newObj.RefCount++
 			}

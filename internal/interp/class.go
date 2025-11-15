@@ -68,9 +68,9 @@ type ObjectInstance struct {
 
 	// RefCount tracks interface references to this object for lifetime management
 	// Task 9.1.5: Objects held by interfaces use reference counting
-	// - Starts at 1 when object is created via regular variable
-	// - Increments when assigned to interface variable
-	// - Decrements when interface is set to nil or goes out of scope
+	// - Starts at 0 when object is created; incremented when assigned to variable or interface
+	// - Increments when assigned to another variable or interface
+	// - Decrements when variable is reassigned, set to nil, or goes out of scope
 	// - Destructor called when RefCount reaches 0
 	RefCount int
 }

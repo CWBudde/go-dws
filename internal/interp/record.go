@@ -9,6 +9,25 @@ import (
 )
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+// initializeInterfaceField creates an InterfaceInstance for interface-typed fields.
+// Task 9.1.4: Helper to reduce code duplication in record field initialization.
+func (i *Interpreter) initializeInterfaceField(fieldType types.Type) Value {
+	if interfaceType, ok := fieldType.(*types.InterfaceType); ok {
+		// Look up the InterfaceInfo from the interpreter
+		if interfaceInfo, exists := i.interfaces[strings.ToLower(interfaceType.Name)]; exists {
+			return &InterfaceInstance{
+				Interface: interfaceInfo,
+				Object:    nil,
+			}
+		}
+	}
+	return nil
+}
+
+// ============================================================================
 // Record Declaration Evaluation
 // ============================================================================
 
@@ -165,14 +184,8 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods ma
 				// Task 9.1.4: Handle interface-typed fields specially
 				// Interface fields should be initialized as InterfaceInstance with nil object
 				// This allows proper "Interface is nil" error messages when accessed
-				if interfaceType, ok := fieldType.(*types.InterfaceType); ok {
-					// Look up the InterfaceInfo from the interpreter
-					if interfaceInfo, exists := i.interfaces[strings.ToLower(interfaceType.Name)]; exists {
-						fieldValue = &InterfaceInstance{
-							Interface: interfaceInfo,
-							Object:    nil,
-						}
-					}
+				if intfValue := i.initializeInterfaceField(fieldType); intfValue != nil {
+					fieldValue = intfValue
 				}
 			}
 
@@ -292,14 +305,8 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 				// Task 9.1.4: Handle interface-typed fields specially
 				// Interface fields should be initialized as InterfaceInstance with nil object
 				// This allows proper "Interface is nil" error messages when accessed
-				if interfaceType, ok := fieldType.(*types.InterfaceType); ok {
-					// Look up the InterfaceInfo from the interpreter
-					if interfaceInfo, exists := i.interfaces[strings.ToLower(interfaceType.Name)]; exists {
-						fieldValue = &InterfaceInstance{
-							Interface: interfaceInfo,
-							Object:    nil,
-						}
-					}
+				if intfValue := i.initializeInterfaceField(fieldType); intfValue != nil {
+					fieldValue = intfValue
 				}
 			}
 

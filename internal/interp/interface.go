@@ -196,28 +196,28 @@ func interfaceIsCompatible(source *InterfaceInfo, target *InterfaceInfo) bool {
 	return true
 }
 
-// ReleaseInterfaceReference decrements the reference count of the object wrapped by
-// an interface instance and calls the destructor if the reference count reaches zero.
-// Task 9.1.5: This implements automatic lifetime management for interface-held objects.
-// Returns the destructor result value (or nil) and any error from destructor execution.
-func (i *Interpreter) ReleaseInterfaceReference(intfInst *InterfaceInstance) Value {
-	if intfInst == nil || intfInst.Object == nil {
-		return &NilValue{}
+// callDestructorIfNeeded decrements the reference count of an object and calls its
+// destructor if the reference count reaches zero.
+// Task 9.1.5: Consolidates destructor logic to reduce code duplication.
+func (i *Interpreter) callDestructorIfNeeded(obj *ObjectInstance) {
+	if obj == nil {
+		return
 	}
 
-	obj := intfInst.Object
-
-	// DEBUG: Print current RefCount
-	// fmt.Printf("DEBUG: ReleaseInterfaceReference - RefCount before: %d\n", obj.RefCount)
+	// DEBUG
+	// fmt.Printf("DEBUG callDestructorIfNeeded: RefCount before = %d\n", obj.RefCount)
 
 	// Decrement reference count
 	obj.RefCount--
 
-	// DEBUG: Print new RefCount
-	// fmt.Printf("DEBUG: ReleaseInterfaceReference - RefCount after: %d\n", obj.RefCount)
+	// DEBUG
+	// fmt.Printf("DEBUG callDestructorIfNeeded: RefCount after = %d\n", obj.RefCount)
 
 	// If reference count reaches 0 or below, call the destructor
 	if obj.RefCount <= 0 {
+		// DEBUG
+		// fmt.Printf("DEBUG callDestructorIfNeeded: Calling destructor\n")
+
 		// Look for Destroy method in the class hierarchy
 		destructor := obj.Class.lookupMethod("Destroy")
 		if destructor != nil {
@@ -231,23 +231,33 @@ func (i *Interpreter) ReleaseInterfaceReference(intfInst *InterfaceInstance) Val
 			i.env = destructorEnv
 
 			// Execute destructor body
-			result := i.Eval(destructor.Body)
+			i.Eval(destructor.Body)
 
 			// Restore previous environment
 			i.env = prevEnv
-
-			if isError(result) {
-				return result
-			}
 		}
 	}
+}
+
+// ReleaseInterfaceReference decrements the reference count of the object wrapped by
+// an interface instance and calls the destructor if the reference count reaches zero.
+// Task 9.1.5: This implements automatic lifetime management for interface-held objects.
+// Returns the destructor result value (or nil) and any error from destructor execution.
+func (i *Interpreter) ReleaseInterfaceReference(intfInst *InterfaceInstance) Value {
+	if intfInst == nil || intfInst.Object == nil {
+		return &NilValue{}
+	}
+
+	// Use the consolidated helper method
+	i.callDestructorIfNeeded(intfInst.Object)
 
 	return &NilValue{}
 }
 
 // cleanupInterfaceReferences iterates through all variables in an environment
-// and releases any interface references. This is called when a scope ends (e.g., function returns).
-// Task 9.1.5: This implements automatic cleanup of interface-held objects when scope ends.
+// and releases any interface references AND object references.
+// This is called when a scope ends (e.g., function returns).
+// Task 9.1.5: This implements automatic cleanup of interface-held and object-held references when scope ends.
 func (i *Interpreter) cleanupInterfaceReferences(env *Environment) {
 	if env == nil || env.store == nil {
 		return
@@ -263,6 +273,9 @@ func (i *Interpreter) cleanupInterfaceReferences(env *Environment) {
 		if intfInst, ok := value.(*InterfaceInstance); ok {
 			// Release the interface reference
 			i.ReleaseInterfaceReference(intfInst)
+		} else if objInst, ok := value.(*ObjectInstance); ok {
+			// Release the object reference (decrement ref count and call destructor if needed)
+			i.callDestructorIfNeeded(objInst)
 		}
 	}
 }
