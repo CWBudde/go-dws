@@ -123,10 +123,10 @@ func isBooleanCompatible(t types.Type) bool {
 //   - RecordLiteralExpression: Validates record literal fields against expected record type
 //   - SetLiteral: Converts to ArrayLiteral when expected type is array (e.g., array of const)
 //   - ArrayLiteralExpression: Converts to SetLiteral when expected type is set
-//   - LambdaExpression: Infers parameter types from expected function pointer type (Task 9.19)
-//   - NilLiteral: Returns the expected class/interface type instead of generic NIL (Task 9.19.5)
-//   - IntegerLiteral: Returns FLOAT type when expected type is Float (Task 9.19.2)
-//   - CallExpression: Passes expected type for future overload resolution (Task 9.19.2)
+//   - LambdaExpression: Infers parameter types from expected function pointer type
+//   - NilLiteral: Returns the expected class/interface type instead of generic NIL
+//   - IntegerLiteral: Returns FLOAT type when expected type is Float
+//   - CallExpression: Passes expected type for future overload resolution
 //
 // For all other expression types, falls back to analyzeExpression() without context.
 //
@@ -321,7 +321,7 @@ func (a *Analyzer) analyzeIsExpression(expr *ast.IsExpression) types.Type {
 	return types.BOOLEAN
 }
 
-// analyzeAsExpression analyzes the 'as' type casting operator (Task 9.48).
+// analyzeAsExpression analyzes the 'as' type casting operator.
 // Example: obj as IMyInterface or child as TParent
 // Supports both interface casting and class-to-class casting (up/down casting).
 // Returns the target type.
@@ -407,7 +407,7 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 	return interfaceType
 }
 
-// analyzeImplementsExpression analyzes the 'implements' operator (Task 9.48).
+// analyzeImplementsExpression analyzes the 'implements' operator.
 // Example: obj implements IMyInterface -> Boolean
 // Checks whether the object's class implements the target interface.
 // Always returns Boolean type.
@@ -456,7 +456,7 @@ func (a *Analyzer) analyzeImplementsExpression(expr *ast.ImplementsExpression) t
 // Syntax: if <condition> then <expression> [else <expression>]
 // Returns the common type of the consequence and alternative branches.
 func (a *Analyzer) analyzeIfExpression(expr *ast.IfExpression) types.Type {
-	// Check that condition is boolean or Variant (Task 9.35)
+	// Check that condition is boolean or Variant
 	condType := a.analyzeExpression(expr.Condition)
 	if condType != nil && !isBooleanCompatible(condType) {
 		a.addError("if expression condition must be boolean, got %s at %s",

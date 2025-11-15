@@ -8,7 +8,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/parser"
 )
 
-// TestEnumScopedAccess tests scoped enum access via helper class constants (Task 9.54)
+// TestEnumScopedAccess tests scoped enum access via helper class constants
 func TestEnumScopedAccess(t *testing.T) {
 	tests := []struct {
 		name        string

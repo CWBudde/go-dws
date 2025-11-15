@@ -953,7 +953,7 @@ func TestValidAbstractImplementation(t *testing.T) {
 }
 
 // ============================================================================
-// Forward Class Declaration Tests (Task 9.11)
+// Forward Class Declaration Tests
 // ============================================================================
 
 func TestForwardClassDeclaration(t *testing.T) {

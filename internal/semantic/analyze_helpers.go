@@ -58,7 +58,7 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 	// Create the helper type
 	helperType := types.NewHelperType(helperName, targetType, decl.IsRecordHelper)
 
-	// Resolve parent helper if specified (Task 9.1: Helper inheritance)
+	// Resolve parent helper if specified
 	if decl.ParentHelper != nil {
 		parentHelperName := decl.ParentHelper.Value
 

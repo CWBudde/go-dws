@@ -318,7 +318,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 		return i.builtinAssert(args)
 	case "Assigned":
 		return i.builtinAssigned(args)
-	// Task 9.25: RTTI functions
+	// RTTI functions
 	case "TypeOf":
 		return i.builtinTypeOf(args)
 	case "TypeOfClass":

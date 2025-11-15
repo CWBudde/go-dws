@@ -525,20 +525,20 @@ func (ct *ClassType) GetMethod(name string) (*FunctionType, bool) {
 	return nil, false
 }
 
-// GetMethodOverloads retrieves all overload variants of a method by name (Task 9.61)
+// GetMethodOverloads retrieves all overload variants of a method by name
 // Returns overloads from this class only (does not search parent)
 func (ct *ClassType) GetMethodOverloads(name string) []*MethodInfo {
 	// Task 9.285: Normalize method names to lowercase for case-insensitive lookup
 	return ct.MethodOverloads[strings.ToLower(name)]
 }
 
-// GetConstructorOverloads retrieves all overload variants of a constructor by name (Task 9.61)
+// GetConstructorOverloads retrieves all overload variants of a constructor by name
 // Constructor names are case-insensitive, so we normalize to lowercase
 func (ct *ClassType) GetConstructorOverloads(name string) []*MethodInfo {
 	return ct.ConstructorOverloads[strings.ToLower(name)]
 }
 
-// AddMethodOverload adds a method overload to the class (Task 9.61)
+// AddMethodOverload adds a method overload to the class
 func (ct *ClassType) AddMethodOverload(name string, info *MethodInfo) {
 	// Task 9.285: Normalize method names to lowercase for case-insensitive lookup
 	lowerName := strings.ToLower(name)
@@ -551,7 +551,7 @@ func (ct *ClassType) AddMethodOverload(name string, info *MethodInfo) {
 	}
 }
 
-// AddConstructorOverload adds a constructor overload to the class (Task 9.61)
+// AddConstructorOverload adds a constructor overload to the class
 // Constructor names are case-insensitive, so we normalize to lowercase
 func (ct *ClassType) AddConstructorOverload(name string, info *MethodInfo) {
 	lowerName := strings.ToLower(name)

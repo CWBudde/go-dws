@@ -5,7 +5,6 @@ import (
 )
 
 // TestRTTITypeOf tests the TypeOf() built-in function.
-// Task 9.25.1: TypeOf(value): TTypeInfo
 func TestRTTITypeOf(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -158,7 +157,6 @@ end.`,
 }
 
 // TestRTTITypeOfClass tests the TypeOfClass() built-in function.
-// Task 9.25.2: TypeOfClass(classRef: TClass): TTypeInfo
 func TestRTTITypeOfClass(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -234,7 +232,6 @@ end.`,
 }
 
 // TestRTTIClassName tests the ClassName property/method.
-// Task 9.25.3: ClassName(obj: TObject): String
 func TestRTTIClassName(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -318,7 +315,6 @@ end.`,
 }
 
 // TestRTTIClassType tests the ClassType property.
-// Task 9.25.4: ClassType(obj: TObject): TClass
 func TestRTTIClassType(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -14,7 +14,7 @@ import (
 // HelperInfo stores runtime information about a helper type
 type HelperInfo struct {
 	TargetType     types.Type
-	ParentHelper   *HelperInfo // Parent helper for inheritance (Task 9.1)
+	ParentHelper   *HelperInfo
 	Methods        map[string]*ast.FunctionDecl
 	Properties     map[string]*types.PropertyInfo
 	ClassVars      map[string]Value
@@ -58,7 +58,7 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 	// Create helper info
 	helperInfo := NewHelperInfo(decl.Name.Value, targetType, decl.IsRecordHelper)
 
-	// Resolve parent helper if specified (Task 9.1: Helper inheritance)
+	// Resolve parent helper if specified
 	if decl.ParentHelper != nil {
 		parentHelperName := decl.ParentHelper.Value
 

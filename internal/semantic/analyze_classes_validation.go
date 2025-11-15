@@ -9,7 +9,7 @@ import (
 )
 
 // validateMethodSignature validates that an out-of-line method implementation
-// signature matches the forward declaration (Task 9.282)
+// signature matches the forward declaration.
 func (a *Analyzer) validateMethodSignature(implDecl *ast.FunctionDecl, declaredType *types.FunctionType, className string) error {
 	// Resolve parameter types from implementation
 	implParamTypes := make([]types.Type, 0, len(implDecl.Parameters))
@@ -66,7 +66,7 @@ func (a *Analyzer) validateMethodSignature(implDecl *ast.FunctionDecl, declaredT
 	return nil
 }
 
-// validateVirtualOverride validates virtual/override method declarations (Task 9.61: Updated for overloading)
+// validateVirtualOverride validates virtual/override method declarations
 // Task 9.4.1: Updated to support virtual/override on constructors
 func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *types.ClassType, methodType *types.FunctionType) {
 	methodName := method.Name.Value
@@ -106,7 +106,7 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 			return
 		}
 
-		// Check that parent method/constructor is virtual, override, or abstract (Task 9.81)
+		// Check that parent method/constructor is virtual, override, or abstract
 		// Abstract methods are implicitly virtual and can be overridden
 		if !parentOverload.IsVirtual && !parentOverload.IsOverride && !parentOverload.IsAbstract {
 			a.addError("method '%s' marked as override, but parent method is not virtual", methodName)
@@ -222,7 +222,7 @@ func (a *Analyzer) validateAbstractClass(classType *types.ClassType, decl *ast.C
 	}
 
 	// Rule 2: Concrete classes must implement all inherited abstract methods
-	// NOTE: We don't report this error during class declaration anymore (Task 9.12).
+	// NOTE: We don't report this error during class declaration anymore.
 	// Instead, we report it during instantiation (see analyzeNewExpression).
 	// This matches DWScript behavior where the error is reported when trying to
 	// create an instance, not when declaring the class.

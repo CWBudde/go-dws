@@ -49,7 +49,7 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 	case left.Type() == "STRING" && right.Type() == "STRING":
 		return i.evalStringBinaryOp(expr.Operator, left, right)
 
-	// Task 9.25: Allow string concatenation with RTTI_TYPEINFO
+	// Allow string concatenation with RTTI_TYPEINFO
 	case (left.Type() == "STRING" && right.Type() == "RTTI_TYPEINFO") || (left.Type() == "RTTI_TYPEINFO" && right.Type() == "STRING"):
 		if expr.Operator == "+" {
 			// Convert both to strings and concatenate
@@ -80,7 +80,7 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 		leftClass, leftIsClass := left.(*ClassValue)
 		rightClass, rightIsClass := right.(*ClassValue)
 
-		// Task 9.25: Handle RTTITypeInfoValue comparisons (for TypeOf results)
+		// Handle RTTITypeInfoValue comparisons (for TypeOf results)
 		leftRTTI, leftIsRTTI := left.(*RTTITypeInfoValue)
 		rightRTTI, rightIsRTTI := right.(*RTTITypeInfoValue)
 		if leftIsRTTI && rightIsRTTI {
