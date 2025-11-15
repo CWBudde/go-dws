@@ -252,8 +252,8 @@ func (c *Compiler) compileMethodCallExpression(expr *ast.MethodCallExpression) e
 	if ident, ok := expr.Object.(*ast.Identifier); ok {
 		typeKey := strings.ToLower(ident.Value)
 
-		// Check if this is a record type
-		if recordMeta, ok := c.chunk.Records[typeKey]; ok {
+		// Check if this is a record type (use c.records which is inherited from parent compiler)
+		if recordMeta, ok := c.records[typeKey]; ok {
 			methodKey := strings.ToLower(expr.Method.Value)
 			if slot, found := recordMeta.Methods[methodKey]; found {
 				// This is a static record method call

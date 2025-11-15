@@ -7,15 +7,21 @@ import (
 )
 
 // executeInitializer executes a field initializer chunk and returns the result.
-// This creates a new isolated VM to execute the initializer bytecode.
+// This creates a new VM that inherits globals and helpers from the parent VM,
+// allowing initializers to reference user-defined functions, globals, and helper methods.
 func (vm *VM) executeInitializer(chunk *Chunk) (Value, error) {
 	if chunk == nil {
 		return NilValue(), fmt.Errorf("vm: nil chunk")
 	}
 
-	// Create a new VM to execute the initializer in isolation
-	// This prevents the initializer from interfering with the current VM state
+	// Create a new VM to execute the initializer
 	initVM := NewVMWithOutput(vm.output)
+
+	// Inherit globals and helpers from parent VM so initializers can access
+	// user-defined functions, global variables, and helper methods
+	initVM.globals = vm.globals
+	initVM.helpers = vm.helpers
+
 	result, err := initVM.Run(chunk)
 	if err != nil {
 		return NilValue(), err

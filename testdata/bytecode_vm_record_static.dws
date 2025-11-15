@@ -1,4 +1,5 @@
-// Test static record methods in bytecode VM
+// Task 9.4: Test static record methods in bytecode VM
+// Tests tasks 9.1 (static method calls), 9.2 (method registration), 9.3 (type-level detection)
 // Methods must be forward-declared in the record type
 
 type TTest = record
@@ -6,6 +7,7 @@ type TTest = record
 	class procedure PrintHello;
 	class procedure PrintNumber(x: Integer);
 	class procedure PrintSum(a, b: Integer);
+	class procedure PrintProduct(a, b: Integer);
 end;
 
 class procedure TTest.PrintHello;
@@ -23,7 +25,17 @@ begin
 	PrintLn('Sum: ' + IntToStr(a + b));
 end;
 
-// Test calls
+class procedure TTest.PrintProduct(a, b: Integer);
+begin
+	PrintLn('Product: ' + IntToStr(a * b));
+end;
+
+// Task 9.4 test calls - verify static methods work
+PrintLn('Task 9.4: Static Record Methods Test');
+PrintLn('=====================================');
 TTest.PrintHello();
 TTest.PrintNumber(42);
 TTest.PrintSum(10, 32);
+TTest.PrintProduct(7, 6);
+PrintLn('=====================================');
+PrintLn('SUCCESS: Tasks 9.1-9.3 verified!');
