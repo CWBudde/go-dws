@@ -399,24 +399,8 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 		}
 	}
 
-	// Check for initialization (:= Value)
-	if p.peekTokenIs(lexer.ASSIGN) {
-		// Initialization is only allowed for single field declarations
-		if len(fieldNames) > 1 {
-			p.addError("initialization not allowed for comma-separated field declarations", ErrInvalidExpression)
-			return nil
-		}
-
-		p.nextToken() // move to ':='
-		p.nextToken() // move to value expression
-
-		// Parse initialization expression
-		initValue = p.parseExpression(LOWEST)
-		if initValue == nil {
-			p.addError("expected initialization expression after :=", ErrInvalidExpression)
-			return nil
-		}
-	}
+	// Parse optional field initializer
+	initValue = p.parseFieldInitializer(fieldNames)
 
 	// Expect semicolon
 	if !p.expectPeek(lexer.SEMICOLON) {

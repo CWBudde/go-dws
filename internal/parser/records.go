@@ -278,16 +278,15 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 		return nil
 	}
 
-	// Expect type
-	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected type name after ':", ErrExpectedType)
+	// Parse type expression (supports simple types, array types, function pointer types)
+	p.nextToken() // move to type
+	fieldType := p.parseTypeExpression()
+	if fieldType == nil {
 		return nil
 	}
 
-	typeAnnotation := &ast.TypeAnnotation{
-		Token: p.curToken,
-		Name:  p.curToken.Literal,
-	}
+	// Parse optional field initializer
+	initValue := p.parseFieldInitializer(fieldNames)
 
 	// Expect semicolon
 	if !p.expectPeek(lexer.SEMICOLON) {
@@ -302,8 +301,9 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 				Token: name.Token,
 			},
 			Name:       name,
-			Type:       typeAnnotation,
+			Type:       fieldType,
 			Visibility: visibility,
+			InitValue:  initValue, // May be nil if no initialization
 		})
 	}
 

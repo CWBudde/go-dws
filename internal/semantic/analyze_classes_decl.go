@@ -379,6 +379,9 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 				continue
 			}
 
+			// Task 9.5: Validate field initializer if present
+			a.validateFieldInitializer(field, fieldName, fieldType)
+
 			// Add instance field to class
 			classType.Fields[fieldName] = fieldType
 

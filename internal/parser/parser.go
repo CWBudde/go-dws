@@ -363,3 +363,33 @@ func (p *Parser) ParseProgram() *ast.Program {
 
 	return program
 }
+
+// parseFieldInitializer parses an optional field initializer (= Value or := Value).
+// Returns the initialization expression if present, or nil if not.
+// Should be called when curToken is the type token, and peekToken might be '=' or ':='.
+func (p *Parser) parseFieldInitializer(fieldNames []*ast.Identifier) ast.Expression {
+	// Check for initialization (= Value or := Value)
+	// DWScript uses '=' for field initializers: Field : String = 'hello';
+	// Also support ':=' for compatibility
+	if p.peekTokenIs(lexer.EQ) || p.peekTokenIs(lexer.ASSIGN) {
+		// Initialization is only allowed for single field declarations
+		if len(fieldNames) > 1 {
+			p.addError("initialization not allowed for comma-separated field declarations", ErrInvalidExpression)
+			return nil
+		}
+
+		p.nextToken() // move to '=' or ':='
+		p.nextToken() // move to value expression
+
+		// Parse initialization expression
+		initValue := p.parseExpression(LOWEST)
+		if initValue == nil {
+			p.addError("expected initialization expression after = or :=", ErrInvalidExpression)
+			return nil
+		}
+
+		return initValue
+	}
+
+	return nil
+}

@@ -16,6 +16,7 @@ type ClassInfo struct {
 	Constructors         map[string]*ast.FunctionDecl
 	ConstructorOverloads map[string][]*ast.FunctionDecl // Overloaded constructors
 	Fields               map[string]types.Type
+	FieldDecls           map[string]*ast.FieldDecl // Field declarations (for initializers)
 	ClassVars            map[string]Value
 	Constants            map[string]*ast.ConstDecl // Class constants
 	ConstantValues       map[string]Value          // Evaluated constant values
@@ -41,6 +42,7 @@ func NewClassInfo(name string) *ClassInfo {
 		Name:                 name,
 		Parent:               nil,
 		Fields:               make(map[string]types.Type),
+		FieldDecls:           make(map[string]*ast.FieldDecl),
 		ClassVars:            make(map[string]Value),
 		Constants:            make(map[string]*ast.ConstDecl),
 		ConstantValues:       make(map[string]Value),

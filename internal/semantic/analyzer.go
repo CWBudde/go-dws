@@ -618,3 +618,18 @@ func (a *Analyzer) GetTypeAliases() map[string]*types.TypeAlias {
 func (a *Analyzer) GetFunctionPointers() map[string]*types.FunctionPointerType {
 	return a.functionPointers
 }
+
+// validateFieldInitializer validates that a field initializer expression is type-compatible
+// with the field's declared type. Used for both class and record field initializers.
+func (a *Analyzer) validateFieldInitializer(field *ast.FieldDecl, fieldName string, fieldType types.Type) {
+	if field.InitValue != nil {
+		initType := a.analyzeExpression(field.InitValue)
+		if initType != nil && fieldType != nil {
+			// Check type compatibility
+			if !types.IsAssignableFrom(fieldType, initType) {
+				a.addError("cannot initialize field '%s' of type '%s' with value of type '%s' at %s",
+					fieldName, fieldType.String(), initType.String(), field.Token.Pos.String())
+			}
+		}
+	}
+}

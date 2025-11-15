@@ -310,25 +310,31 @@ func TestEvalRecordLiteral_WithExpressions(t *testing.T) {
 func TestEvalRecordLiteral_MissingField_Error(t *testing.T) {
 	// Test: type TPoint = record X, Y: Integer; end;
 	//       var p := TPoint(X: 10);  // Missing Y field
+	// Task 9.5: With field initializers, missing fields now get default values (0 for Integer)
+	// This test now verifies that missing fields are initialized with defaults, not errors
 	input := `
 		type TPoint = record
 			X, Y: Integer;
 		end;
 		var p := TPoint(X: 10);
+		PrintLn(p.X);
+		PrintLn(p.Y);
 	`
 
 	program := parseProgram(t, input)
-	interp := New(new(bytes.Buffer))
+	var buf bytes.Buffer
+	interp := New(&buf)
 	result := interp.Eval(program)
 
-	// Should get an error about missing field
-	if !isError(result) {
-		t.Fatal("expected error about missing field, got success")
+	// Should succeed - missing field Y gets default value 0
+	if isError(result) {
+		t.Fatalf("expected success, got error: %s", result.String())
 	}
 
-	errMsg := result.String()
-	if !containsSubstring(errMsg, "missing required field") {
-		t.Errorf("error message should mention 'missing required field', got: %s", errMsg)
+	output := buf.String()
+	expectedOutput := "10\n0\n"
+	if output != expectedOutput {
+		t.Errorf("expected output %q, got %q", expectedOutput, output)
 	}
 }
 

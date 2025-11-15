@@ -54,6 +54,9 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			continue
 		}
 
+		// Task 9.5: Validate field initializer if present
+		a.validateFieldInitializer(field, fieldName, fieldType)
+
 		// Add field to record type (using lowercase key for case-insensitive lookup)
 		recordType.Fields[lowerFieldName] = fieldType
 	}
