@@ -4,7 +4,6 @@ package ast
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/token"
@@ -80,10 +79,101 @@ type ClassDecl struct {
 
 func (cd *ClassDecl) statementNode() {}
 
-// String returns a simple string representation for debugging.
+// String returns a full class declaration string.
 // For formatted output, use the printer package.
 func (cd *ClassDecl) String() string {
-	return fmt.Sprintf("ClassDecl(%s)", cd.Name.Value)
+	var out bytes.Buffer
+
+	out.WriteString("type ")
+	out.WriteString(cd.Name.String())
+	out.WriteString(" = ")
+
+	// Add modifiers before "class"
+	if cd.IsPartial {
+		out.WriteString("partial ")
+	}
+
+	out.WriteString("class")
+
+	// Add modifiers after "class"
+	if cd.IsAbstract {
+		out.WriteString(" abstract")
+	}
+	if cd.IsExternal {
+		out.WriteString(" external")
+	}
+
+	// Add parent and/or interfaces
+	if cd.Parent != nil || len(cd.Interfaces) > 0 {
+		out.WriteString("(")
+		items := []string{}
+		if cd.Parent != nil {
+			items = append(items, cd.Parent.String())
+		}
+		for _, intf := range cd.Interfaces {
+			items = append(items, intf.String())
+		}
+		out.WriteString(strings.Join(items, ", "))
+		out.WriteString(")")
+	}
+
+	out.WriteString("\n")
+
+	// Add constants
+	for _, constant := range cd.Constants {
+		out.WriteString("  ")
+		out.WriteString(constant.String())
+		out.WriteString(";\n")
+	}
+
+	// Add fields
+	for _, field := range cd.Fields {
+		out.WriteString("  ")
+		out.WriteString(field.String())
+		out.WriteString(";\n")
+	}
+
+	// Add properties
+	for _, property := range cd.Properties {
+		out.WriteString("  ")
+		out.WriteString(property.String())
+		out.WriteString(";\n")
+	}
+
+	// Add constructor
+	if cd.Constructor != nil {
+		out.WriteString("  ")
+		methodStr := cd.Constructor.String()
+		out.WriteString(strings.ReplaceAll(methodStr, "\n", "\n  "))
+		out.WriteString(";\n")
+	}
+
+	// Add methods
+	for _, method := range cd.Methods {
+		out.WriteString("  ")
+		methodStr := method.String()
+		out.WriteString(strings.ReplaceAll(methodStr, "\n", "\n  "))
+		out.WriteString(";\n")
+	}
+
+	// Add destructor
+	if cd.Destructor != nil {
+		out.WriteString("  ")
+		methodStr := cd.Destructor.String()
+		out.WriteString(strings.ReplaceAll(methodStr, "\n", "\n  "))
+		out.WriteString(";\n")
+	}
+
+	// Add operators
+	for _, operator := range cd.Operators {
+		out.WriteString("  ")
+		out.WriteString(operator.String())
+		out.WriteString(";\n")
+	}
+
+	out.WriteString("end")
+
+	return out.String()
 }
 
 // ============================================================================
