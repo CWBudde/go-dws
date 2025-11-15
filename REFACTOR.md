@@ -41,13 +41,12 @@ value.go → Split into:
 
 These test files are very large and would benefit from splitting:
 
-### 🟢 P3.5: internal/interp/set_test.go (48KB)
+**Status:** Split into 2 files (18KB + 29KB = 47KB total)
 
-**Target:** Split by set operations
-
+**Result:**
 ```plain
-├── set_basic_test.go    (~24KB) - Creation, membership, basic ops
-└── set_advanced_test.go (~24KB) - Advanced operations, edge cases
+├── set_basic_test.go    (18KB) - Creation, literals, union, difference, intersection, membership (18 tests)
+└── set_advanced_test.go (29KB) - Large sets, performance, ForIn iteration, edge cases (20 tests)
 ```
 
 ### 🟢 P3.7: internal/parser/classes_test.go (44KB)
