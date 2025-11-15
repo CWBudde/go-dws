@@ -185,18 +185,19 @@ if TMyImplementation implements IMyInterface then  // TMyImplementation is a CLA
 
 - `internal/interp/expressions_complex.go`
 
-### 9.1.3 Interface-to-Object Casting [MEDIUM]
+### 9.1.3 Interface-to-Object/Interface Casting [MEDIUM]
 
-**Goal**: Validate interface-to-object casts and throw proper exceptions for invalid casts.
+**Goal**: Validate interface-to-object and interface-to-interface casts.
 
-**Status**: NOT STARTED
+**Status**: PARTIAL (interface-to-interface works, interface-to-object needs investigation)
 
-**Impact**: Fixes 1 test
+**Impact**: Fixes 1 test (interface_multiple_cast)
 
 **Estimate**: 1 hour
 
 **Tests Fixed**:
-- `interface_cast_to_obj`
+- `interface_multiple_cast` ✓ (interface-to-interface casting)
+- `interface_cast_to_obj` (still failing - exception not being caught/printed)
 
 **Error**: Missing exception when invalid cast attempted
 
@@ -207,20 +208,20 @@ var d := IntfRef as TDummyClass;  // Should throw exception if incompatible
 
 **Expected Output**: `Cannot cast interface of "TMyImplementation" to class "TDummyClass"`
 
-**Actual**: Cast succeeds incorrectly (no validation)
+**Actual**: Code runs but exception message not printed (needs investigation)
 
 **Root Cause**:
-- `evalAsExpression` in `internal/interp/expressions_complex.go:152-156` only handles object-to-interface casting
-- Doesn't handle InterfaceInstance as left operand
+- `evalAsExpression` in `internal/interp/expressions_complex.go:152-156` only handled object-to-interface casting
+- Didn't handle InterfaceInstance as left operand
 
 **Implementation**:
-- [ ] Detect when left side is InterfaceInstance in `evalAsExpression`
-- [ ] Extract underlying object from interface
-- [ ] Verify object's class is compatible with target class
-- [ ] Return underlying object if compatible
-- [ ] Throw exception with proper message format if incompatible
+- [x] Detect when left side is InterfaceInstance in `evalAsExpression`
+- [x] Handle interface-to-class casting (extract underlying object, validate compatibility)
+- [x] Handle interface-to-interface casting (validate implementation, create new interface instance)
+- [x] Raise exception for invalid interface-to-class casts
+- [ ] DEBUG: Exception raised but not being printed in interface_cast_to_obj test
 
-**Files to Modify**:
+**Files Modified**:
 - `internal/interp/expressions_complex.go`
 
 ### 9.1.4 Interface Fields in Records [LOW]
