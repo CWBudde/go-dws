@@ -1722,6 +1722,357 @@ type TypeAnnotation struct {
 
 ---
 
+## Task 9.23: String Helper Methods (Type Helpers for String) 🎯 HIGH PRIORITY
+
+**Goal**: Implement String type helper methods to enable method-call syntax on string values (e.g., `"hello".ToUpper()`, `s.Copy(2, 3)`).
+
+**Estimate**: 12-16 hours (1.5-2 days)
+
+**Status**: NOT STARTED
+
+**Priority**: HIGH - Blocks 46 out of 58 FunctionsString fixture tests (79% failure rate)
+
+**Impact**:
+- **Tests**: Fixes 46 failing FunctionsString tests
+- **User Experience**: Enables more idiomatic DWScript string manipulation
+- **Feature Completeness**: Stage 8.3 (Type Helpers) for String type
+
+**Test Results**: Currently 14 passing, 46 failing (24% pass rate)
+- Passing tests use only built-in functions (e.g., `UpperCase(s)`)
+- Failing tests use helper methods (e.g., `s.ToUpper()`)
+
+**Root Cause**: String type helpers are completely unimplemented. While 58+ string built-in functions exist (`UpperCase`, `Copy`, `Pos`, etc.), none are registered as helper methods on the String type. This prevents method-call syntax like `"test".StartsWith("t")` which is valid DWScript.
+
+**DWScript Compatibility**: In DWScript, strings have helper methods that mirror built-in functions:
+```pascal
+// Both syntaxes are valid:
+PrintLn(UpperCase('hello'));     // Built-in function ✓ (works)
+PrintLn('hello'.ToUpper);         // Helper method ✗ (missing)
+
+// More examples:
+var s := 'banana';
+PrintLn(Copy(s, 2, 3));           // Built-in ✓
+PrintLn(s.Copy(2, 3));            // Helper ✗
+
+PrintLn(StrBeginsWith(s, 'ba'));  // Built-in ✓
+PrintLn(s.StartsWith('ba'));      // Helper ✗
+```
+
+**Missing Helper Methods** (based on FunctionsString test suite analysis):
+
+**Conversion Methods** (5):
+- `.ToInteger` → `StrToInt`
+- `.ToFloat` → `StrToFloat`
+- `.ToString` → identity (for consistency)
+- `.ToString(base)` → `IntToStr(base)` (when called on numbers)
+- `.ToHexString(width)` → `IntToHex(value, width)`
+
+**Search/Check Methods** (4):
+- `.StartsWith(str)` → `StrBeginsWith`
+- `.EndsWith(str)` → `StrEndsWith`
+- `.Contains(str)` → `StrContains`
+- `.IndexOf(str)` → `Pos` (returns 1-based index)
+
+**Extraction Methods** (3):
+- `.Copy(start)` → `Copy(str, start, MaxInt)` (copy from start to end)
+- `.Copy(start, len)` → `Copy(str, start, len)`
+- `.Before(str)` → `StrBefore`
+- `.After(str)` → `StrAfter`
+
+**Modification Methods** (2):
+- `.ToUpper` → `UpperCase`
+- `.ToLower` → `LowerCase`
+- `.Trim` → `Trim`
+
+**Split/Join Methods** (2):
+- `.Split(delimiter)` → `StrSplit`
+- `.Join(array)` → `StrJoin` (called on array, not string)
+
+**Total**: ~15-20 helper methods needed
+
+**Implementation Strategy**:
+
+1. **Lexer**: No changes needed (method call syntax already supported)
+2. **Parser**: No changes needed (member access already parsed)
+3. **Semantic Analyzer**: Register String helper methods in type system
+4. **Interpreter**: Map helper method calls to existing built-in functions
+5. **Bytecode VM**: Map helper methods to built-in opcodes or function calls
+6. **Tests**: Add comprehensive tests for all helper methods
+
+**Architecture**: Helper methods are syntactic sugar that delegate to existing built-in functions:
+
+```text
+"hello".ToUpper  →  [Semantic] resolve as method  →  [Runtime] call UpperCase("hello")
+```
+
+**Subtasks**:
+
+### 9.23.1 Lexer (No Changes Required) ✓
+
+- [x] 9.23.1.1 Verify method call syntax already tokenized
+  - Method calls like `s.ToUpper()` already parsed correctly
+  - No lexer changes needed
+  - Status: VERIFIED (existing tests show this works)
+
+### 9.23.2 Parser (No Changes Required) ✓
+
+- [x] 9.23.2.1 Verify member access expressions already parsed
+  - `s.Copy(2, 3)` → MemberExpression(object: s, member: Copy, args: [2, 3])
+  - No parser changes needed
+  - Status: VERIFIED (error messages confirm parser handles this)
+
+### 9.23.3 Semantic Analyzer (Register String Helpers)
+
+- [ ] 9.23.3.1 Design String helper registration system
+  - Research how other type helpers are registered (Integer, Float, Array)
+  - Design helper method metadata structure (name, signature, maps-to-function)
+  - Document helper registration architecture
+  - File: `internal/semantic/type_helpers.go` (review existing code)
+  - Estimated: 1-2 hours
+
+- [ ] 9.23.3.2 Register conversion helper methods
+  - Register `.ToInteger` → maps to `StrToInt(self)`
+  - Register `.ToFloat` → maps to `StrToFloat(self)`
+  - Register `.ToString` → identity (returns self)
+  - File: `internal/semantic/type_helpers.go` or `internal/semantic/builtin_helpers_string.go`
+  - Estimated: 1 hour
+
+- [ ] 9.23.3.3 Register search/check helper methods
+  - Register `.StartsWith(str)` → `StrBeginsWith(self, str)`
+  - Register `.EndsWith(str)` → `StrEndsWith(self, str)`
+  - Register `.Contains(str)` → `StrContains(self, str)`
+  - Register `.IndexOf(str)` → `Pos(str, self)` (note parameter order!)
+  - File: `internal/semantic/builtin_helpers_string.go`
+  - Estimated: 1 hour
+
+- [ ] 9.23.3.4 Register extraction helper methods
+  - Register `.Copy(start)` → `Copy(self, start, MaxInt)` (2-param variant)
+  - Register `.Copy(start, len)` → `Copy(self, start, len)` (3-param variant)
+  - Register `.Before(str)` → `StrBefore(self, str)`
+  - Register `.After(str)` → `StrAfter(self, str)`
+  - Handle method overloading for `.Copy()` (1 vs 2 parameters)
+  - File: `internal/semantic/builtin_helpers_string.go`
+  - Estimated: 2 hours
+
+- [ ] 9.23.3.5 Register modification helper methods
+  - Register `.ToUpper` → `UpperCase(self)` (no parens needed)
+  - Register `.ToLower` → `LowerCase(self)` (no parens needed)
+  - Register `.Trim` → `Trim(self)`
+  - File: `internal/semantic/builtin_helpers_string.go`
+  - Estimated: 30 minutes
+
+- [ ] 9.23.3.6 Register split/join helper methods
+  - Register `.Split(delimiter)` → `StrSplit(self, delimiter)`
+  - Handle `.Join()` on array type (not string) - may already exist
+  - File: `internal/semantic/builtin_helpers_string.go`
+  - Estimated: 30 minutes
+
+- [ ] 9.23.3.7 Validate helper method type signatures
+  - Ensure parameter types match underlying built-in function
+  - Ensure return types match built-in function
+  - Add proper error messages for type mismatches
+  - File: `internal/semantic/analyze_member_access.go` (update validation)
+  - Estimated: 1 hour
+
+- [ ] 9.23.3.8 Handle method overloading edge cases
+  - `.Copy(start)` vs `.Copy(start, len)` - same name, different arity
+  - Validate based on argument count
+  - File: `internal/semantic/analyze_member_access.go`
+  - Estimated: 1 hour
+
+### 9.23.4 Interpreter (Runtime Helper Method Execution)
+
+- [ ] 9.23.4.1 Implement helper method call dispatcher
+  - When evaluating MemberExpression on String type, check if it's a helper
+  - Route to appropriate built-in function
+  - Transform `obj.Method(args)` → `BuiltinFunc(obj, args)`
+  - File: `internal/interp/expressions.go` (evalMemberExpression or new handler)
+  - Estimated: 2 hours
+
+- [ ] 9.23.4.2 Implement conversion helper methods
+  - `.ToInteger` → call `builtinStrToInt([self])`
+  - `.ToFloat` → call `builtinStrToFloat([self])`
+  - `.ToString` → return self unchanged
+  - File: `internal/interp/builtin_helpers_string.go` (new file)
+  - Estimated: 1 hour
+
+- [ ] 9.23.4.3 Implement search/check helper methods
+  - `.StartsWith(str)` → call `builtinStrBeginsWith([self, str])`
+  - `.EndsWith(str)` → call `builtinStrEndsWith([self, str])`
+  - `.Contains(str)` → call `builtinStrContains([self, str])`
+  - `.IndexOf(str)` → call `builtinPos([str, self])` (REVERSED params!)
+  - File: `internal/interp/builtin_helpers_string.go`
+  - Estimated: 1 hour
+
+- [ ] 9.23.4.4 Implement extraction helper methods
+  - `.Copy(start)` → call `builtinCopy([self, start, MaxInt])`
+  - `.Copy(start, len)` → call `builtinCopy([self, start, len])`
+  - `.Before(str)` → call `builtinStrBefore([self, str])`
+  - `.After(str)` → call `builtinStrAfter([self, str])`
+  - Handle overloading for `.Copy()`
+  - File: `internal/interp/builtin_helpers_string.go`
+  - Estimated: 1.5 hours
+
+- [ ] 9.23.4.5 Implement modification helper methods
+  - `.ToUpper` → call `builtinUpperCase([self])`
+  - `.ToLower` → call `builtinLowerCase([self])`
+  - `.Trim` → call `builtinTrim([self])`
+  - File: `internal/interp/builtin_helpers_string.go`
+  - Estimated: 30 minutes
+
+- [ ] 9.23.4.6 Implement split/join helper methods
+  - `.Split(delimiter)` → call `builtinStrSplit([self, delimiter])`
+  - File: `internal/interp/builtin_helpers_string.go`
+  - Estimated: 30 minutes
+
+### 9.23.5 Bytecode VM (Bytecode Helper Method Support)
+
+- [ ] 9.23.5.1 Map helper methods to bytecode operations
+  - Option A: Emit CALL instructions to built-in functions
+  - Option B: Add dedicated helper method opcodes (OpCallHelper)
+  - Option C: Inline simple helpers (e.g., `.ToUpper` → OpStrUpper)
+  - Decision: Use Option A (simplest, reuses existing built-ins)
+  - File: `internal/bytecode/compiler.go`
+  - Estimated: 2 hours
+
+- [ ] 9.23.5.2 Compile helper method calls to built-in function calls
+  - `s.ToUpper()` → emit `LOAD_VAR s; CALL UpperCase`
+  - `s.Copy(2, 3)` → emit `LOAD_VAR s; LOAD_CONST 2; LOAD_CONST 3; CALL Copy`
+  - Transform method syntax to function call syntax at compile time
+  - File: `internal/bytecode/compiler.go` (compileMemberExpression)
+  - Estimated: 1.5 hours
+
+- [ ] 9.23.5.3 Handle parameter reordering in bytecode
+  - `.IndexOf(substr)` → `Pos(substr, self)` (params reversed!)
+  - Emit instructions in correct order for built-in function
+  - File: `internal/bytecode/compiler.go`
+  - Estimated: 1 hour
+
+- [ ] 9.23.5.4 Test bytecode execution of helper methods
+  - Verify all helper methods work in bytecode VM
+  - Compare results with AST interpreter
+  - File: `internal/bytecode/vm_test.go` or `internal/bytecode/string_helpers_test.go`
+  - Estimated: 1 hour
+
+### 9.23.6 Testing
+
+- [ ] 9.23.6.1 Add unit tests for semantic analyzer
+  - Test helper method resolution
+  - Test type checking for helper methods
+  - Test error cases (wrong parameter types, unknown methods)
+  - File: `internal/semantic/string_helpers_test.go` (new file)
+  - Estimated: 1 hour
+
+- [ ] 9.23.6.2 Add unit tests for interpreter
+  - Test each helper method individually
+  - Test method chaining (e.g., `s.Copy(2, 3).ToUpper()`)
+  - Test edge cases (empty strings, nil, etc.)
+  - File: `internal/interp/string_helpers_test.go` (new file)
+  - Estimated: 2 hours
+
+- [ ] 9.23.6.3 Add unit tests for bytecode VM
+  - Test helper methods in bytecode execution
+  - Compare with interpreter results
+  - File: `internal/bytecode/string_helpers_test.go` (new file)
+  - Estimated: 1 hour
+
+- [ ] 9.23.6.4 Verify FunctionsString fixture tests pass
+  - Run: `go test -v ./internal/interp -run TestDWScriptFixtures/FunctionsString`
+  - Target: 58/58 tests passing (100% pass rate, up from 24%)
+  - Fix any remaining test failures
+  - Update `testdata/fixtures/TEST_STATUS.md`
+  - Estimated: 2 hours
+
+- [ ] 9.23.6.5 Add integration tests
+  - Test helper methods in complex scripts
+  - Test method chaining and composition
+  - Test with variables, function returns, expressions
+  - File: `testdata/string_helpers_integration.dws` (new test script)
+  - Estimated: 1 hour
+
+### 9.23.7 Additional Built-in Function Fixes
+
+- [ ] 9.23.7.1 Fix Copy() 2-parameter variant
+  - Current: `Copy(str, start, len)` ✓
+  - Missing: `Copy(str, start)` - should copy from start to end
+  - Implementation: Default len to MaxInt when omitted
+  - Files: `internal/parser/expressions.go`, `internal/interp/builtins_strings_basic.go`
+  - Estimated: 1 hour
+
+- [ ] 9.23.7.2 Fix FloatToStr to accept Integer arguments
+  - Current: `FloatToStr(Integer)` → type error ✗
+  - Expected: Auto-convert Integer to Float before formatting
+  - DWScript behavior: Accepts numeric types and auto-converts
+  - File: `internal/semantic/analyze_function_calls.go` or `internal/interp/builtins_conversion.go`
+  - Estimated: 1 hour
+
+### 9.23.8 Documentation
+
+- [ ] 9.23.8.1 Document String helper methods
+  - List all available helper methods
+  - Show equivalence to built-in functions
+  - Provide examples for each method
+  - File: `docs/string-helpers.md` (new file ~100 lines)
+  - Estimated: 1 hour
+
+- [ ] 9.23.8.2 Update CLAUDE.md with helper method info
+  - Add String helper section to language reference
+  - Update built-in functions list to mention helper variants
+  - File: `CLAUDE.md`
+  - Estimated: 30 minutes
+
+- [ ] 9.23.8.3 Add code comments to helper implementation
+  - Document helper registration mechanism
+  - Explain mapping from helpers to built-ins
+  - File: `internal/semantic/builtin_helpers_string.go`
+  - Estimated: 30 minutes
+
+**Files Created**:
+- `internal/semantic/builtin_helpers_string.go` (new file ~200 lines) - Helper registration
+- `internal/interp/builtin_helpers_string.go` (new file ~150 lines) - Helper execution
+- `internal/semantic/string_helpers_test.go` (new file ~200 lines) - Semantic tests
+- `internal/interp/string_helpers_test.go` (new file ~300 lines) - Runtime tests
+- `internal/bytecode/string_helpers_test.go` (new file ~200 lines) - Bytecode tests
+- `testdata/string_helpers_integration.dws` (new file ~100 lines) - Integration tests
+- `docs/string-helpers.md` (new file ~100 lines) - Documentation
+
+**Files Modified**:
+- `internal/semantic/type_helpers.go` (add String helper support ~50 lines)
+- `internal/semantic/analyze_member_access.go` (validate String helpers ~30 lines)
+- `internal/interp/expressions.go` (route helper calls ~40 lines)
+- `internal/interp/builtins_strings_basic.go` (add Copy 2-param variant ~20 lines)
+- `internal/interp/builtins_conversion.go` (fix FloatToStr auto-conversion ~15 lines)
+- `internal/bytecode/compiler.go` (compile helper methods ~50 lines)
+- `testdata/fixtures/TEST_STATUS.md` (update FunctionsString results ~10 lines)
+- `CLAUDE.md` (document String helpers ~30 lines)
+
+**Acceptance Criteria**:
+- All 15-20 String helper methods registered and working
+- FunctionsString fixture tests: 58/58 passing (100%, up from 24%)
+- Helper methods work in both AST interpreter and bytecode VM
+- Proper type checking and error messages for helper methods
+- Method overloading works correctly (e.g., `.Copy(start)` vs `.Copy(start, len)`)
+- Parameter reordering handled correctly (e.g., `.IndexOf()` → `Pos()`)
+- Copy() 2-parameter variant implemented
+- FloatToStr() accepts Integer arguments
+- Comprehensive test coverage (unit + integration + fixtures)
+- Documentation complete with examples
+
+**Benefits**:
+- Fixes 46 failing FunctionsString tests (79% of test suite)
+- Enables idiomatic DWScript string manipulation syntax
+- Completes Stage 8.3 (Type Helpers) for String type
+- Improves DWScript compatibility (helper methods are standard in DWScript)
+- Better developer experience (method chaining, auto-completion friendly)
+- Foundation for other type helpers (Integer, Float, Array already partially done)
+
+**Related Tasks**:
+- Stage 8.3: Type Helpers (this implements String helpers specifically)
+- Task 9.8: Array Helper Methods (similar pattern, different type)
+- Task 9.12: SetLength on String Type (related to string manipulation)
+
+---
+
 ## Phase 10: go-dws API Enhancements for LSP Integration ✅ COMPLETE
 
 **Goal**: Enhanced go-dws library with structured errors, AST access, position metadata, symbol tables, and type information for LSP features.
