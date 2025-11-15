@@ -292,3 +292,77 @@ func NewTestCallExpression(function Expression, args []Expression) *CallExpressi
 		Arguments: args,
 	}
 }
+
+// NewTestGroupedExpression creates a GroupedExpression with the given inner expression.
+// This is a convenience helper for tests to avoid verbose struct initialization.
+func NewTestGroupedExpression(expression Expression) *GroupedExpression {
+	return &GroupedExpression{
+		TypedExpressionBase: TypedExpressionBase{
+			BaseNode: BaseNode{Token: NewTestToken(lexer.LPAREN, "(")},
+		},
+		Expression: expression,
+	}
+}
+
+// NewTestIntegerLiteralWithPos creates an IntegerLiteral with the given value and position.
+// This is a convenience helper for tests that need position information.
+func NewTestIntegerLiteralWithPos(value int64, line, column int, tokenLiteral ...string) *IntegerLiteral {
+	literal := fmt.Sprintf("%d", value)
+	if len(tokenLiteral) > 0 {
+		literal = tokenLiteral[0]
+	}
+	return &IntegerLiteral{
+		TypedExpressionBase: TypedExpressionBase{
+			BaseNode: BaseNode{
+				Token: lexer.Token{
+					Type:    lexer.INT,
+					Literal: literal,
+					Pos:     lexer.Position{Line: line, Column: column},
+				},
+			},
+		},
+		Value: value,
+	}
+}
+
+// NewTestUnaryExpressionWithPos creates a UnaryExpression with position information.
+// This is a convenience helper for tests that need position information.
+func NewTestUnaryExpressionWithPos(operator string, operand Expression, line, column int) *UnaryExpression {
+	return &UnaryExpression{
+		TypedExpressionBase: TypedExpressionBase{
+			BaseNode: BaseNode{
+				Token: lexer.Token{
+					Type:    lexer.IDENT,
+					Literal: operator,
+					Pos:     lexer.Position{Line: line, Column: column},
+				},
+			},
+		},
+		Right:    operand,
+		Operator: operator,
+	}
+}
+
+// NewTestBaseNodeWithPos creates a BaseNode with the given token type, literal, and position.
+// This is a convenience helper for tests to avoid verbose BaseNode initialization.
+func NewTestBaseNodeWithPos(tokenType lexer.TokenType, literal string, line, column int) BaseNode {
+	return BaseNode{
+		Token: lexer.Token{
+			Type:    tokenType,
+			Literal: literal,
+			Pos:     lexer.Position{Line: line, Column: column},
+		},
+	}
+}
+
+// NewTestConstDeclBaseNode creates a BaseNode for const declarations with position information.
+// This is a convenience helper for tests to avoid verbose BaseNode initialization.
+func NewTestConstDeclBaseNode(line, column int) BaseNode {
+	return NewTestBaseNodeWithPos(lexer.CONST, "const", line, column)
+}
+
+// NewTestTypeDeclBaseNode creates a BaseNode for type declarations with position information.
+// This is a convenience helper for tests to avoid verbose BaseNode initialization.
+func NewTestTypeDeclBaseNode(line, column int) BaseNode {
+	return NewTestBaseNodeWithPos(lexer.TYPE, "type", line, column)
+}
