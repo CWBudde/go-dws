@@ -1,0 +1,51 @@
+// Task 9.23: Test string helper methods
+
+var s := 'Hello World';
+
+// Test conversion helpers
+PrintLn('Conversion helpers:');
+PrintLn('123'.ToInteger());  // 123
+PrintLn('3.14'.ToFloat());   // 3.14
+PrintLn(s.ToString());       // Hello World
+
+// Test search/check helpers
+PrintLn('');
+PrintLn('Search/check helpers:');
+PrintLn(s.StartsWith('Hello'));   // True
+PrintLn(s.StartsWith('World'));   // False
+PrintLn(s.EndsWith('World'));     // True
+PrintLn(s.EndsWith('Hello'));     // False
+PrintLn(s.Contains('lo Wo'));     // True
+PrintLn(s.IndexOf('World'));      // 7
+
+// Test extraction helpers
+PrintLn('');
+PrintLn('Extraction helpers:');
+PrintLn(s.Copy(1, 5));          // Hello
+PrintLn(s.Copy(7));             // World
+PrintLn(s.Before(' '));          // Hello
+PrintLn(s.After(' '));           // World
+
+// Test modification helpers
+PrintLn('');
+PrintLn('Modification helpers:');
+PrintLn(s.ToUpper());           // HELLO WORLD
+PrintLn(s.ToLower());           // hello world
+PrintLn('  test  '.Trim());     // test
+
+// Test split helper
+PrintLn('');
+PrintLn('Split helper:');
+var parts := s.Split(' ');
+PrintLn(parts.Length);          // 2
+PrintLn(parts[0]);              // Hello
+PrintLn(parts[1]);              // World
+
+// Test case-insensitive aliases
+PrintLn('');
+PrintLn('Case-insensitive aliases:');
+PrintLn(s.UpperCase());         // HELLO WORLD
+PrintLn(s.LowerCase());         // hello world
+
+PrintLn('');
+PrintLn('All tests completed!');

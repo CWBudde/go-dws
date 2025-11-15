@@ -1743,109 +1743,109 @@ PrintLn(s.StartsWith('ba'));      // Helper ✗
   - No parser changes needed
   - Status: VERIFIED (error messages confirm parser handles this)
 
-### 9.23.3 Semantic Analyzer (Register String Helpers)
+### 9.23.3 Semantic Analyzer (Register String Helpers) ✓
 
-- [ ] 9.23.3.1 Design String helper registration system
+- [x] 9.23.3.1 Design String helper registration system
   - Research how other type helpers are registered (Integer, Float, Array)
   - Design helper method metadata structure (name, signature, maps-to-function)
   - Document helper registration architecture
-  - File: `internal/semantic/type_helpers.go` (review existing code)
-  - Estimated: 1-2 hours
+  - File: `internal/semantic/analyze_helpers.go` (existing architecture reviewed)
+  - Status: DONE - Used existing HelperType registration pattern
 
-- [ ] 9.23.3.2 Register conversion helper methods
+- [x] 9.23.3.2 Register conversion helper methods
   - Register `.ToInteger` → maps to `StrToInt(self)`
   - Register `.ToFloat` → maps to `StrToFloat(self)`
   - Register `.ToString` → identity (returns self)
-  - File: `internal/semantic/type_helpers.go` or `internal/semantic/builtin_helpers_string.go`
-  - Estimated: 1 hour
+  - File: `internal/semantic/analyze_helpers.go` (initIntrinsicHelpers)
+  - Status: DONE
 
-- [ ] 9.23.3.3 Register search/check helper methods
+- [x] 9.23.3.3 Register search/check helper methods
   - Register `.StartsWith(str)` → `StrBeginsWith(self, str)`
   - Register `.EndsWith(str)` → `StrEndsWith(self, str)`
   - Register `.Contains(str)` → `StrContains(self, str)`
   - Register `.IndexOf(str)` → `Pos(str, self)` (note parameter order!)
-  - File: `internal/semantic/builtin_helpers_string.go`
-  - Estimated: 1 hour
+  - File: `internal/semantic/analyze_helpers.go`
+  - Status: DONE
 
-- [ ] 9.23.3.4 Register extraction helper methods
+- [x] 9.23.3.4 Register extraction helper methods
   - Register `.Copy(start)` → `Copy(self, start, MaxInt)` (2-param variant)
   - Register `.Copy(start, len)` → `Copy(self, start, len)` (3-param variant)
   - Register `.Before(str)` → `StrBefore(self, str)`
   - Register `.After(str)` → `StrAfter(self, str)`
   - Handle method overloading for `.Copy()` (1 vs 2 parameters)
-  - File: `internal/semantic/builtin_helpers_string.go`
-  - Estimated: 2 hours
+  - File: `internal/semantic/analyze_helpers.go`
+  - Status: DONE (using optional parameter with default MaxInt)
 
-- [ ] 9.23.3.5 Register modification helper methods
+- [x] 9.23.3.5 Register modification helper methods
   - Register `.ToUpper` → `UpperCase(self)` (no parens needed)
   - Register `.ToLower` → `LowerCase(self)` (no parens needed)
   - Register `.Trim` → `Trim(self)`
-  - File: `internal/semantic/builtin_helpers_string.go`
-  - Estimated: 30 minutes
+  - File: `internal/semantic/analyze_helpers.go`
+  - Status: DONE
 
-- [ ] 9.23.3.6 Register split/join helper methods
+- [x] 9.23.3.6 Register split/join helper methods
   - Register `.Split(delimiter)` → `StrSplit(self, delimiter)`
-  - Handle `.Join()` on array type (not string) - may already exist
-  - File: `internal/semantic/builtin_helpers_string.go`
-  - Estimated: 30 minutes
+  - Handle `.Join()` on array type (not string) - already exists
+  - File: `internal/semantic/analyze_helpers.go`
+  - Status: DONE
 
-- [ ] 9.23.3.7 Validate helper method type signatures
+- [x] 9.23.3.7 Validate helper method type signatures
   - Ensure parameter types match underlying built-in function
   - Ensure return types match built-in function
   - Add proper error messages for type mismatches
-  - File: `internal/semantic/analyze_member_access.go` (update validation)
-  - Estimated: 1 hour
+  - File: `internal/semantic/analyze_helpers.go`
+  - Status: DONE (type signatures specified in registration)
 
-- [ ] 9.23.3.8 Handle method overloading edge cases
+- [x] 9.23.3.8 Handle method overloading edge cases
   - `.Copy(start)` vs `.Copy(start, len)` - same name, different arity
   - Validate based on argument count
-  - File: `internal/semantic/analyze_member_access.go`
-  - Estimated: 1 hour
+  - File: `internal/semantic/analyze_helpers.go`
+  - Status: DONE (using NewFunctionTypeWithMetadata with optional parameters)
 
-### 9.23.4 Interpreter (Runtime Helper Method Execution)
+### 9.23.4 Interpreter (Runtime Helper Method Execution) ✓
 
-- [ ] 9.23.4.1 Implement helper method call dispatcher
+- [x] 9.23.4.1 Implement helper method call dispatcher
   - When evaluating MemberExpression on String type, check if it's a helper
   - Route to appropriate built-in function
   - Transform `obj.Method(args)` → `BuiltinFunc(obj, args)`
-  - File: `internal/interp/expressions.go` (evalMemberExpression or new handler)
-  - Estimated: 2 hours
+  - File: `internal/interp/helpers_conversion.go` (evalBuiltinHelperMethod)
+  - Status: DONE - Uses existing callHelperMethod/evalBuiltinHelperMethod architecture
 
-- [ ] 9.23.4.2 Implement conversion helper methods
+- [x] 9.23.4.2 Implement conversion helper methods
   - `.ToInteger` → call `builtinStrToInt([self])`
   - `.ToFloat` → call `builtinStrToFloat([self])`
   - `.ToString` → return self unchanged
-  - File: `internal/interp/builtin_helpers_string.go` (new file)
-  - Estimated: 1 hour
+  - File: `internal/interp/helpers_conversion.go` (added cases to evalBuiltinHelperMethod)
+  - Status: DONE
 
-- [ ] 9.23.4.3 Implement search/check helper methods
+- [x] 9.23.4.3 Implement search/check helper methods
   - `.StartsWith(str)` → call `builtinStrBeginsWith([self, str])`
   - `.EndsWith(str)` → call `builtinStrEndsWith([self, str])`
   - `.Contains(str)` → call `builtinStrContains([self, str])`
   - `.IndexOf(str)` → call `builtinPos([str, self])` (REVERSED params!)
-  - File: `internal/interp/builtin_helpers_string.go`
-  - Estimated: 1 hour
+  - File: `internal/interp/helpers_conversion.go`
+  - Status: DONE
 
-- [ ] 9.23.4.4 Implement extraction helper methods
+- [x] 9.23.4.4 Implement extraction helper methods
   - `.Copy(start)` → call `builtinCopy([self, start, MaxInt])`
   - `.Copy(start, len)` → call `builtinCopy([self, start, len])`
   - `.Before(str)` → call `builtinStrBefore([self, str])`
   - `.After(str)` → call `builtinStrAfter([self, str])`
   - Handle overloading for `.Copy()`
-  - File: `internal/interp/builtin_helpers_string.go`
-  - Estimated: 1.5 hours
+  - File: `internal/interp/helpers_conversion.go`
+  - Status: DONE
 
-- [ ] 9.23.4.5 Implement modification helper methods
+- [x] 9.23.4.5 Implement modification helper methods
   - `.ToUpper` → call `builtinUpperCase([self])`
   - `.ToLower` → call `builtinLowerCase([self])`
   - `.Trim` → call `builtinTrim([self])`
-  - File: `internal/interp/builtin_helpers_string.go`
-  - Estimated: 30 minutes
+  - File: `internal/interp/helpers_conversion.go`
+  - Status: DONE (ToUpper/ToLower were already implemented, Trim added)
 
-- [ ] 9.23.4.6 Implement split/join helper methods
+- [x] 9.23.4.6 Implement split/join helper methods
   - `.Split(delimiter)` → call `builtinStrSplit([self, delimiter])`
-  - File: `internal/interp/builtin_helpers_string.go`
-  - Estimated: 30 minutes
+  - File: `internal/interp/helpers_conversion.go`
+  - Status: DONE
 
 ### 9.23.5 Bytecode VM (Bytecode Helper Method Support)
 

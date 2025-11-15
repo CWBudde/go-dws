@@ -598,6 +598,68 @@ func (a *Analyzer) initIntrinsicHelpers() {
 		ReadSpec:  "StripAccents",
 		WriteKind: types.PropAccessNone,
 	}
+
+	// Task 9.23: Conversion helper methods
+	// .ToInteger -> StrToInt(self)
+	stringHelper.Methods["tointeger"] = types.NewFunctionType([]types.Type{}, types.INTEGER)
+	stringHelper.BuiltinMethods["tointeger"] = "__string_tointeger"
+	// .ToFloat -> StrToFloat(self)
+	stringHelper.Methods["tofloat"] = types.NewFunctionType([]types.Type{}, types.FLOAT)
+	stringHelper.BuiltinMethods["tofloat"] = "__string_tofloat"
+	// .ToString -> identity (returns self)
+	stringHelper.Methods["tostring"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["tostring"] = "__string_tostring"
+
+	// Task 9.23: Search/check helper methods
+	// .StartsWith(str) -> StrBeginsWith(self, str)
+	stringHelper.Methods["startswith"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
+	stringHelper.BuiltinMethods["startswith"] = "__string_startswith"
+	// .EndsWith(str) -> StrEndsWith(self, str)
+	stringHelper.Methods["endswith"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
+	stringHelper.BuiltinMethods["endswith"] = "__string_endswith"
+	// .Contains(str) -> StrContains(self, str)
+	stringHelper.Methods["contains"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
+	stringHelper.BuiltinMethods["contains"] = "__string_contains"
+	// .IndexOf(str) -> Pos(str, self) - note parameter order is reversed!
+	stringHelper.Methods["indexof"] = types.NewFunctionType([]types.Type{types.STRING}, types.INTEGER)
+	stringHelper.BuiltinMethods["indexof"] = "__string_indexof"
+
+	// Task 9.23: Extraction helper methods
+	// .Copy(start, len) -> Copy(self, start, len) - 2-parameter variant
+	stringHelper.Methods["copy"] = types.NewFunctionTypeWithMetadata(
+		[]types.Type{types.INTEGER, types.INTEGER},
+		[]string{"start", "length"},
+		[]interface{}{nil, int64(2147483647)}, // Default length = MaxInt (copy to end)
+		[]bool{false, false},
+		[]bool{false, false},
+		[]bool{false, false},
+		types.STRING,
+	)
+	stringHelper.BuiltinMethods["copy"] = "__string_copy"
+	// .Before(str) -> StrBefore(self, str)
+	stringHelper.Methods["before"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
+	stringHelper.BuiltinMethods["before"] = "__string_before"
+	// .After(str) -> StrAfter(self, str)
+	stringHelper.Methods["after"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
+	stringHelper.BuiltinMethods["after"] = "__string_after"
+
+	// Task 9.23: Modification helper methods
+	// .Trim -> Trim(self)
+	stringHelper.Methods["trim"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["trim"] = "__string_trim"
+
+	// Task 9.23: Split/join helper methods
+	// .Split(delimiter) -> StrSplit(self, delimiter)
+	stringHelper.Methods["split"] = types.NewFunctionType([]types.Type{types.STRING}, types.NewDynamicArrayType(types.STRING))
+	stringHelper.BuiltinMethods["split"] = "__string_split"
+
+	// Register case-insensitive property/method aliases for DWScript compatibility
+	// Task 9.23: .uppercase -> .ToUpper, .lowercase -> .ToLower
+	stringHelper.Methods["uppercase"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["uppercase"] = "__string_toupper"
+	stringHelper.Methods["lowercase"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["lowercase"] = "__string_tolower"
+
 	register(types.STRING.String(), stringHelper)
 
 	// String dynamic array helper: Join method (lowercase keys for case-insensitive lookup)
