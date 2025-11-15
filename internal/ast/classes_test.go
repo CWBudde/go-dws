@@ -42,23 +42,17 @@ func TestClassDeclString(t *testing.T) {
 			name: "class with fields",
 			classDecl: &ClassDecl{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
-				Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TPoint"}}}, Value: "TPoint"},
+				Name:     NewTestIdentifier("TPoint"),
 				Parent:   nil,
 				Fields: []*FieldDecl{
 					{
-						Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "X"}}}, Value: "X"},
-						Type: &TypeAnnotation{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
-							Name:  "Integer",
-						},
+						Name:       NewTestIdentifier("X"),
+						Type:       NewTestTypeAnnotation("Integer"),
 						Visibility: VisibilityPublic,
 					},
 					{
-						Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Y"}}}, Value: "Y"},
-						Type: &TypeAnnotation{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
-							Name:  "Integer",
-						},
+						Name:       NewTestIdentifier("Y"),
+						Type:       NewTestTypeAnnotation("Integer"),
 						Visibility: VisibilityPublic,
 					},
 				},
@@ -70,7 +64,7 @@ func TestClassDeclString(t *testing.T) {
 			name: "class with method",
 			classDecl: &ClassDecl{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
-				Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TCounter"}}}, Value: "TCounter"},
+				Name:     NewTestIdentifier("TCounter"),
 				Parent:   nil,
 				Fields:   []*FieldDecl{},
 				Methods: []*FunctionDecl{
@@ -78,12 +72,9 @@ func TestClassDeclString(t *testing.T) {
 						BaseNode: BaseNode{
 							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 						},
-						Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"}}}, Value: "GetValue"},
+						Name:       NewTestIdentifier("GetValue"),
 						Parameters: []*Parameter{},
-						ReturnType: &TypeAnnotation{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
-							Name:  "Integer",
-						},
+						ReturnType: NewTestTypeAnnotation("Integer"),
 						Body: &BlockStatement{
 							Token:      lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
 							Statements: []Statement{},
@@ -97,7 +88,7 @@ func TestClassDeclString(t *testing.T) {
 			name: "class with operator",
 			classDecl: &ClassDecl{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
-				Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TStream"}}}, Value: "TStream"},
+				Name:     NewTestIdentifier("TStream"),
 				Parent:   nil,
 				Fields:   []*FieldDecl{},
 				Methods:  []*FunctionDecl{},
@@ -109,9 +100,9 @@ func TestClassDeclString(t *testing.T) {
 						OperatorSymbol: "<<",
 						Arity:          1,
 						OperandTypes: []*TypeAnnotation{
-							{Token: lexer.Token{Type: lexer.IDENT, Literal: "String"}, Name: "String"},
+							NewTestTypeAnnotation("String"),
 						},
-						Binding: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Append"}}}, Value: "Append"},
+						Binding: NewTestIdentifier("Append"),
 					},
 				},
 			},
@@ -132,7 +123,7 @@ func TestClassDeclString(t *testing.T) {
 func TestClassDeclTokenLiteral(t *testing.T) {
 	classDecl := &ClassDecl{
 		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
-		Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TTest"}}}, Value: "TTest"},
+		Name:     NewTestIdentifier("TTest"),
 	}
 
 	expected := "type"
@@ -146,7 +137,7 @@ func TestClassDeclPos(t *testing.T) {
 	pos := lexer.Position{Line: 10, Column: 5, Offset: 100}
 	classDecl := &ClassDecl{
 		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: pos}},
-		Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TTest"}}}, Value: "TTest"},
+		Name:     NewTestIdentifier("TTest"),
 	}
 
 	result := classDecl.Pos()
@@ -168,11 +159,8 @@ func TestFieldDeclString(t *testing.T) {
 		{
 			name: "public field",
 			fieldDecl: &FieldDecl{
-				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "X"}}}, Value: "X"},
-				Type: &TypeAnnotation{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
-					Name:  "Integer",
-				},
+				Name:       NewTestIdentifier("X"),
+				Type:       NewTestTypeAnnotation("Integer"),
 				Visibility: VisibilityPublic,
 			},
 			expected: "X: Integer",
@@ -180,11 +168,8 @@ func TestFieldDeclString(t *testing.T) {
 		{
 			name: "private field",
 			fieldDecl: &FieldDecl{
-				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "FValue"}}}, Value: "FValue"},
-				Type: &TypeAnnotation{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
-					Name:  "String",
-				},
+				Name:       NewTestIdentifier("FValue"),
+				Type:       NewTestTypeAnnotation("String"),
 				Visibility: VisibilityPrivate,
 			},
 			expected: "FValue: String",
@@ -204,7 +189,14 @@ func TestFieldDeclString(t *testing.T) {
 func TestFieldDeclMethods(t *testing.T) {
 	pos := lexer.Position{Line: 5, Column: 10, Offset: 50}
 	fieldDecl := &FieldDecl{
-		Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "X", Pos: pos}}}, Value: "X"},
+		Name: &Identifier{
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "X", Pos: pos},
+				},
+			},
+			Value: "X",
+		},
 		Type: &TypeAnnotation{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 			Name:  "Integer",
@@ -237,7 +229,7 @@ func TestNewExpressionString(t *testing.T) {
 			name: "new without arguments",
 			newExpr: &NewExpression{
 				Token:     lexer.Token{Type: lexer.IDENT, Literal: "TPoint"},
-				ClassName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TPoint"}}}, Value: "TPoint"},
+				ClassName: NewTestIdentifier("TPoint"),
 				Arguments: []Expression{},
 			},
 			expected: "TPoint.Create()",
@@ -246,10 +238,10 @@ func TestNewExpressionString(t *testing.T) {
 			name: "new with arguments",
 			newExpr: &NewExpression{
 				Token:     lexer.Token{Type: lexer.IDENT, Literal: "TPoint"},
-				ClassName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TPoint"}}}, Value: "TPoint"},
+				ClassName: NewTestIdentifier("TPoint"),
 				Arguments: []Expression{
-					&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "10"}}}, Value: 10},
-					&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "20"}}}, Value: 20},
+					NewTestIntegerLiteral(10),
+					NewTestIntegerLiteral(20),
 				},
 			},
 			expected: "TPoint.Create(10, 20)",
@@ -280,8 +272,8 @@ func TestMemberAccessString(t *testing.T) {
 			name: "simple field access",
 			memAccess: &MemberAccessExpression{
 				Token:  lexer.Token{Type: lexer.DOT, Literal: "."},
-				Object: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "point"}}}, Value: "point"},
-				Member: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "X"}}}, Value: "X"},
+				Object: NewTestIdentifier("point"),
+				Member: NewTestIdentifier("X"),
 			},
 			expected: "point.X",
 		},
@@ -291,10 +283,10 @@ func TestMemberAccessString(t *testing.T) {
 				Token: lexer.Token{Type: lexer.DOT, Literal: "."},
 				Object: &MemberAccessExpression{
 					Token:  lexer.Token{Type: lexer.DOT, Literal: "."},
-					Object: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "obj"}}}, Value: "obj"},
-					Member: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "field1"}}}, Value: "field1"},
+					Object: NewTestIdentifier("obj"),
+					Member: NewTestIdentifier("field1"),
 				},
-				Member: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "field2"}}}, Value: "field2"},
+				Member: NewTestIdentifier("field2"),
 			},
 			expected: "obj.field1.field2",
 		},
@@ -324,8 +316,8 @@ func TestMethodCallString(t *testing.T) {
 			name: "method call without arguments",
 			methodCall: &MethodCallExpression{
 				Token:     lexer.Token{Type: lexer.DOT, Literal: "."},
-				Object:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "obj"}}}, Value: "obj"},
-				Method:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "DoSomething"}}}, Value: "DoSomething"},
+				Object:    NewTestIdentifier("obj"),
+				Method:    NewTestIdentifier("DoSomething"),
 				Arguments: []Expression{},
 			},
 			expected: "obj.DoSomething()",
@@ -334,11 +326,11 @@ func TestMethodCallString(t *testing.T) {
 			name: "method call with arguments",
 			methodCall: &MethodCallExpression{
 				Token:  lexer.Token{Type: lexer.DOT, Literal: "."},
-				Object: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "point"}}}, Value: "point"},
-				Method: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "MoveTo"}}}, Value: "MoveTo"},
+				Object: NewTestIdentifier("point"),
+				Method: NewTestIdentifier("MoveTo"),
 				Arguments: []Expression{
-					&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "10"}}}, Value: 10},
-					&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "20"}}}, Value: 20},
+					NewTestIntegerLiteral(10),
+					NewTestIntegerLiteral(20),
 				},
 			},
 			expected: "point.MoveTo(10, 20)",

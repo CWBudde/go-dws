@@ -20,13 +20,13 @@ func TestRecordLiteralExpression_Simple(t *testing.T) {
 		Fields: []*FieldInitializer{
 			{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}},
-				Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
-				Value:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "10"}}}, Value: 10},
+				Name:     NewTestIdentifier("x"),
+				Value:    NewTestIntegerLiteral(10),
 			},
 			{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "y"}},
-				Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "y"}}}, Value: "y"},
-				Value:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "20"}}}, Value: 20},
+				Name:     NewTestIdentifier("y"),
+				Value:    NewTestIntegerLiteral(20),
 			},
 		},
 	}
@@ -68,15 +68,15 @@ func TestRecordLiteralExpression_WithTypeName(t *testing.T) {
 
 	recordLit := &RecordLiteralExpression{
 		BaseNode: BaseNode{Token: tok},
-		TypeName: &Identifier{Value: "TPoint"},
+		TypeName: NewTestIdentifier("TPoint"),
 		Fields: []*FieldInitializer{
 			{
-				Name:  &Identifier{Value: "x"},
-				Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "10"}}}, Value: 10},
+				Name:  NewTestIdentifier("x"),
+				Value: NewTestIntegerLiteral(10),
 			},
 			{
-				Name:  &Identifier{Value: "y"},
-				Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "20"}}}, Value: 20},
+				Name:  NewTestIdentifier("y"),
+				Value: NewTestIntegerLiteral(20),
 			},
 		},
 	}
@@ -103,8 +103,8 @@ func TestRecordLiteralExpression_NestedRecords(t *testing.T) {
 		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
 		TypeName: nil,
 		Fields: []*FieldInitializer{
-			{Name: &Identifier{Value: "x"}, Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "0"}}}, Value: 0}},
-			{Name: &Identifier{Value: "y"}, Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "0"}}}, Value: 0}},
+			{Name: NewTestIdentifier("x"), Value: NewTestIntegerLiteral(0)},
+			{Name: NewTestIdentifier("y"), Value: NewTestIntegerLiteral(0)},
 		},
 	}
 
@@ -112,17 +112,17 @@ func TestRecordLiteralExpression_NestedRecords(t *testing.T) {
 		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
 		TypeName: nil,
 		Fields: []*FieldInitializer{
-			{Name: &Identifier{Value: "x"}, Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "10"}}}, Value: 10}},
-			{Name: &Identifier{Value: "y"}, Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "10"}}}, Value: 10}},
+			{Name: NewTestIdentifier("x"), Value: NewTestIntegerLiteral(10)},
+			{Name: NewTestIdentifier("y"), Value: NewTestIntegerLiteral(10)},
 		},
 	}
 
 	outerRecord := &RecordLiteralExpression{
 		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TRect"}},
-		TypeName: &Identifier{Value: "TRect"},
+		TypeName: NewTestIdentifier("TRect"),
 		Fields: []*FieldInitializer{
-			{Name: &Identifier{Value: "TopLeft"}, Value: innerRecord1},
-			{Name: &Identifier{Value: "BottomRight"}, Value: innerRecord2},
+			{Name: NewTestIdentifier("TopLeft"), Value: innerRecord1},
+			{Name: NewTestIdentifier("BottomRight"), Value: innerRecord2},
 		},
 	}
 
@@ -151,27 +151,27 @@ func TestRecordLiteralExpression_WithExpressions(t *testing.T) {
 	// Test with expressions: TSphere(cx: x+5; cy: y*2; r: radius)
 	recordLit := &RecordLiteralExpression{
 		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TSphere"}},
-		TypeName: &Identifier{Value: "TSphere"},
+		TypeName: NewTestIdentifier("TSphere"),
 		Fields: []*FieldInitializer{
 			{
-				Name: &Identifier{Value: "cx"},
+				Name: NewTestIdentifier("cx"),
 				Value: &BinaryExpression{
-					Left:     &Identifier{Value: "x"},
+					Left:     NewTestIdentifier("x"),
 					Operator: "+",
-					Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "5"}}}, Value: 5},
+					Right:    NewTestIntegerLiteral(5),
 				},
 			},
 			{
-				Name: &Identifier{Value: "cy"},
+				Name: NewTestIdentifier("cy"),
 				Value: &BinaryExpression{
-					Left:     &Identifier{Value: "y"},
+					Left:     NewTestIdentifier("y"),
 					Operator: "*",
-					Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "2"}}}, Value: 2},
+					Right:    NewTestIntegerLiteral(2),
 				},
 			},
 			{
-				Name:  &Identifier{Value: "r"},
-				Value: &Identifier{Value: "radius"},
+				Name:  NewTestIdentifier("r"),
+				Value: NewTestIdentifier("radius"),
 			},
 		},
 	}
@@ -208,15 +208,15 @@ func TestRecordLiteralExpression_WithNegativeNumbers(t *testing.T) {
 		TypeName: nil,
 		Fields: []*FieldInitializer{
 			{
-				Name: &Identifier{Value: "x"},
+				Name: NewTestIdentifier("x"),
 				Value: &UnaryExpression{
 					Operator: "-",
-					Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "50"}}}, Value: 50},
+					Right:    NewTestIntegerLiteral(50),
 				},
 			},
 			{
-				Name:  &Identifier{Value: "y"},
-				Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "30"}}}, Value: 30},
+				Name:  NewTestIdentifier("y"),
+				Value: NewTestIntegerLiteral(30),
 			},
 		},
 	}
@@ -246,10 +246,10 @@ func TestRecordLiteralExpression_DeathStarExample(t *testing.T) {
 		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
 		TypeName: nil, // Type comes from const declaration context
 		Fields: []*FieldInitializer{
-			{Name: &Identifier{Value: "cx"}, Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "20"}}}, Value: 20}},
-			{Name: &Identifier{Value: "cy"}, Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "20"}}}, Value: 20}},
-			{Name: &Identifier{Value: "cz"}, Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "0"}}}, Value: 0}},
-			{Name: &Identifier{Value: "r"}, Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "20"}}}, Value: 20}},
+			{Name: NewTestIdentifier("cx"), Value: NewTestIntegerLiteral(20)},
+			{Name: NewTestIdentifier("cy"), Value: NewTestIntegerLiteral(20)},
+			{Name: NewTestIdentifier("cz"), Value: NewTestIntegerLiteral(0)},
+			{Name: NewTestIdentifier("r"), Value: NewTestIntegerLiteral(20)},
 		},
 	}
 
@@ -301,7 +301,7 @@ func TestRecordLiteralExpression_SingleField(t *testing.T) {
 		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
 		TypeName: nil,
 		Fields: []*FieldInitializer{
-			{Name: &Identifier{Value: "value"}, Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "42"}}}, Value: 42}},
+			{Name: NewTestIdentifier("value"), Value: NewTestIntegerLiteral(42)},
 		},
 	}
 
@@ -331,35 +331,35 @@ func TestFieldInitializer_String(t *testing.T) {
 		{
 			name: "Simple integer field",
 			field: &FieldInitializer{
-				Name:  &Identifier{Value: "count"},
-				Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "42"}}}, Value: 42},
+				Name:  NewTestIdentifier("count"),
+				Value: NewTestIntegerLiteral(42),
 			},
 			expected: "count: 42",
 		},
 		{
 			name: "Float field",
 			field: &FieldInitializer{
-				Name:  &Identifier{Value: "price"},
-				Value: &FloatLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "3.14"}}}, Value: 3.14},
+				Name:  NewTestIdentifier("price"),
+				Value: NewTestFloatLiteral(3.14),
 			},
 			expected: "price: 3.14",
 		},
 		{
 			name: "String field",
 			field: &FieldInitializer{
-				Name:  &Identifier{Value: "name"},
-				Value: &StringLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "\"hello\""}}}, Value: "hello"},
+				Name:  NewTestIdentifier("name"),
+				Value: NewTestStringLiteral("hello"),
 			},
 			expected: "name: \"hello\"",
 		},
 		{
 			name: "Expression field",
 			field: &FieldInitializer{
-				Name: &Identifier{Value: "sum"},
+				Name: NewTestIdentifier("sum"),
 				Value: &BinaryExpression{
-					Left:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "2"}}}, Value: 2},
+					Left:     NewTestIntegerLiteral(2),
 					Operator: "+",
-					Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "3"}}}, Value: 3},
+					Right:    NewTestIntegerLiteral(3),
 				},
 			},
 			expected: "sum: (2 + 3)",

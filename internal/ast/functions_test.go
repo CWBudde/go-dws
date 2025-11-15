@@ -16,8 +16,8 @@ func TestParameterString(t *testing.T) {
 			name: "simple parameter",
 			param: &Parameter{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-				Name:  &Identifier{Value: "x"},
-				Type:  &TypeAnnotation{Name: "Integer"},
+				Name:  NewTestIdentifier("x"),
+				Type:  NewTestTypeAnnotation("Integer"),
 				ByRef: false,
 			},
 			expected: "x: Integer",
@@ -26,8 +26,8 @@ func TestParameterString(t *testing.T) {
 			name: "var parameter (by reference)",
 			param: &Parameter{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "s"},
-				Name:  &Identifier{Value: "s"},
-				Type:  &TypeAnnotation{Name: "String"},
+				Name:  NewTestIdentifier("s"),
+				Type:  NewTestTypeAnnotation("String"),
 				ByRef: true,
 			},
 			expected: "var s: String",
@@ -36,8 +36,8 @@ func TestParameterString(t *testing.T) {
 			name: "float parameter",
 			param: &Parameter{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-				Name:  &Identifier{Value: "x"},
-				Type:  &TypeAnnotation{Name: "Float"},
+				Name:  NewTestIdentifier("x"),
+				Type:  NewTestTypeAnnotation("Float"),
 				ByRef: false,
 			},
 			expected: "x: Float",
@@ -46,8 +46,8 @@ func TestParameterString(t *testing.T) {
 			name: "lazy parameter",
 			param: &Parameter{
 				Token:  lexer.Token{Type: lexer.IDENT, Literal: "expr"},
-				Name:   &Identifier{Value: "expr"},
-				Type:   &TypeAnnotation{Name: "Integer"},
+				Name:   NewTestIdentifier("expr"),
+				Type:   NewTestTypeAnnotation("Integer"),
 				IsLazy: true,
 				ByRef:  false,
 			},
@@ -77,9 +77,9 @@ func TestFunctionDeclString(t *testing.T) {
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 				},
-				Name:       &Identifier{Value: "GetValue"},
+				Name:       NewTestIdentifier("GetValue"),
 				Parameters: []*Parameter{},
-				ReturnType: &TypeAnnotation{Name: "Integer"},
+				ReturnType: NewTestTypeAnnotation("Integer"),
 				Body: &BlockStatement{
 					Statements: []Statement{},
 				},
@@ -92,15 +92,15 @@ func TestFunctionDeclString(t *testing.T) {
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 				},
-				Name: &Identifier{Value: "Double"},
+				Name: NewTestIdentifier("Double"),
 				Parameters: []*Parameter{
 					{
-						Name:  &Identifier{Value: "x"},
-						Type:  &TypeAnnotation{Name: "Integer"},
+						Name:  NewTestIdentifier("x"),
+						Type:  NewTestTypeAnnotation("Integer"),
 						ByRef: false,
 					},
 				},
-				ReturnType: &TypeAnnotation{Name: "Integer"},
+				ReturnType: NewTestTypeAnnotation("Integer"),
 				Body: &BlockStatement{
 					Statements: []Statement{},
 				},
@@ -113,20 +113,20 @@ func TestFunctionDeclString(t *testing.T) {
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 				},
-				Name: &Identifier{Value: "Add"},
+				Name: NewTestIdentifier("Add"),
 				Parameters: []*Parameter{
 					{
-						Name:  &Identifier{Value: "a"},
-						Type:  &TypeAnnotation{Name: "Integer"},
+						Name:  NewTestIdentifier("a"),
+						Type:  NewTestTypeAnnotation("Integer"),
 						ByRef: false,
 					},
 					{
-						Name:  &Identifier{Value: "b"},
-						Type:  &TypeAnnotation{Name: "Integer"},
+						Name:  NewTestIdentifier("b"),
+						Type:  NewTestTypeAnnotation("Integer"),
 						ByRef: false,
 					},
 				},
-				ReturnType: &TypeAnnotation{Name: "Integer"},
+				ReturnType: NewTestTypeAnnotation("Integer"),
 				Body: &BlockStatement{
 					Statements: []Statement{},
 				},
@@ -139,7 +139,7 @@ func TestFunctionDeclString(t *testing.T) {
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
 				},
-				Name:       &Identifier{Value: "Hello"},
+				Name:       NewTestIdentifier("Hello"),
 				Parameters: []*Parameter{},
 				ReturnType: nil,
 				Body: &BlockStatement{
@@ -154,15 +154,15 @@ func TestFunctionDeclString(t *testing.T) {
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 				},
-				Name: &Identifier{Value: "Process"},
+				Name: NewTestIdentifier("Process"),
 				Parameters: []*Parameter{
 					{
-						Name:  &Identifier{Value: "data"},
-						Type:  &TypeAnnotation{Name: "String"},
+						Name:  NewTestIdentifier("data"),
+						Type:  NewTestTypeAnnotation("String"),
 						ByRef: true,
 					},
 				},
-				ReturnType: &TypeAnnotation{Name: "Boolean"},
+				ReturnType: NewTestTypeAnnotation("Boolean"),
 				Body: &BlockStatement{
 					Statements: []Statement{},
 				},
@@ -175,15 +175,15 @@ func TestFunctionDeclString(t *testing.T) {
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 				},
-				Name: &Identifier{Value: "Compute"},
+				Name: NewTestIdentifier("Compute"),
 				Parameters: []*Parameter{
 					{
-						Name:   &Identifier{Value: "expr"},
-						Type:   &TypeAnnotation{Name: "Integer"},
+						Name:   NewTestIdentifier("expr"),
+						Type:   NewTestTypeAnnotation("Integer"),
 						IsLazy: true,
 					},
 				},
-				ReturnType: &TypeAnnotation{Name: "Integer"},
+				ReturnType: NewTestTypeAnnotation("Integer"),
 				Body: &BlockStatement{
 					Statements: []Statement{},
 				},
@@ -221,9 +221,9 @@ func TestReturnStatementString(t *testing.T) {
 			stmt: &ReturnStatement{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"},
 				ReturnValue: &BinaryExpression{
-					Left:     &Identifier{Value: "a"},
+					Left:     NewTestIdentifier("a"),
 					Operator: "+",
-					Right:    &Identifier{Value: "b"},
+					Right:    NewTestIdentifier("b"),
 				},
 			},
 			expected: "Result := (a + b)",
