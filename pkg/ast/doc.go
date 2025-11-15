@@ -124,4 +124,67 @@
 //	if err == nil {
 //	    ast := program.AST()  // Returns *ast.Program
 //	}
+//
+// # Visitor Pattern
+//
+// The package provides a visitor pattern implementation for AST traversal.
+// The visitor pattern is automatically generated from AST node definitions
+// using code generation (via go:generate).
+//
+// Using the Visitor interface:
+//
+//	type MyVisitor struct{}
+//
+//	func (v *MyVisitor) Visit(node ast.Node) ast.Visitor {
+//	    if node == nil {
+//	        return nil  // Stop traversal
+//	    }
+//	    // Process node...
+//	    return v  // Continue to children
+//	}
+//
+//	// Walk the tree
+//	visitor := &MyVisitor{}
+//	ast.Walk(visitor, tree)
+//
+// Using the Inspect helper (simpler):
+//
+//	ast.Inspect(tree, func(node ast.Node) bool {
+//	    if funcDecl, ok := node.(*ast.FunctionDecl); ok {
+//	        fmt.Printf("Found: %s\n", funcDecl.Name.Value)
+//	    }
+//	    return true  // Continue traversal
+//	})
+//
+// # Code Generation
+//
+// The visitor implementation is automatically generated from AST node
+// definitions. To regenerate after adding or modifying AST nodes:
+//
+//	go generate ./pkg/ast
+//
+// This runs cmd/gen-visitor/main.go which:
+//   - Parses all AST node type definitions
+//   - Generates type-safe walk functions for each node
+//   - Handles slices, interfaces, and helper types automatically
+//   - Supports struct tags for controlling traversal
+//
+// Struct tags for controlling visitor behavior:
+//
+//	type MyNode struct {
+//	    Field1  *Node                     // Visited normally
+//	    Field2  *Node `ast:"skip"`         // Skipped during traversal
+//	    Field3  *Node `ast:"order:1"`      // Visited first
+//	    Field4  *Node `ast:"order:2"`      // Visited second
+//	}
+//
+// After adding struct tags, regenerate:
+//
+//	go generate ./pkg/ast
+//
+// For detailed documentation:
+//   - Code generation: docs/ast-visitor-codegen.md
+//   - Struct tags: docs/ast-visitor-tags.md
+//   - Performance benchmarks: docs/visitor-benchmark-results.md
+//   - Backward compatibility: docs/visitor-compatibility-test-results.md
 package ast
