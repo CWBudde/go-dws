@@ -435,6 +435,7 @@ type ClassType struct {
 	ClassMethodFlags     map[string]bool
 	Constructors         map[string]*FunctionType // Primary constructor signature
 	ConstructorOverloads map[string][]*MethodInfo // All constructor overload variants
+	DefaultConstructor   string                    // Name of the constructor marked as 'default' (empty if none)
 	Operators            *OperatorRegistry
 	ExternalName         string
 	Name                 string
