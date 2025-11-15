@@ -155,6 +155,23 @@ func VariantValue(wrapped Value) Value {
 	return Value{Type: ValueVariant, Data: wrapped}
 }
 
+// zeroValueForType returns the zero value for a given ValueType.
+// This is used to initialize array elements with proper default values.
+func zeroValueForType(vt ValueType) Value {
+	switch vt {
+	case ValueInt:
+		return IntValue(0)
+	case ValueFloat:
+		return FloatValue(0.0)
+	case ValueString:
+		return StringValue("")
+	case ValueBool:
+		return BoolValue(false)
+	default:
+		return NilValue()
+	}
+}
+
 // Type checking methods
 func (v Value) IsNil() bool    { return v.Type == ValueNil }
 func (v Value) IsBool() bool   { return v.Type == ValueBool }

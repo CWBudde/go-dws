@@ -214,12 +214,24 @@ func (c *Compiler) compileNewArrayExpression(expr *ast.NewArrayExpression) error
 		return c.errorf(expr, "too many dimensions (%d), maximum is 255", dimCount)
 	}
 
+	// Get element type name for proper zero-value initialization
+	elementTypeName := ""
+	if expr.ElementTypeName != nil {
+		elementTypeName = expr.ElementTypeName.Value
+	}
+
+	// Store element type in constant pool
+	typeIndex := c.chunk.AddConstant(StringValue(elementTypeName))
+	if typeIndex > 0xFFFF {
+		return c.errorf(expr, "constant pool overflow")
+	}
+
 	// For single dimension, use OpNewArraySized
 	if dimCount == 1 {
-		c.chunk.WriteSimple(OpNewArraySized, lineOf(expr))
+		c.chunk.Write(OpNewArraySized, 0, uint16(typeIndex), lineOf(expr))
 	} else {
 		// For multi-dimensional, use OpNewArrayMultiDim
-		c.chunk.Write(OpNewArrayMultiDim, byte(dimCount), 0, lineOf(expr))
+		c.chunk.Write(OpNewArrayMultiDim, byte(dimCount), uint16(typeIndex), lineOf(expr))
 	}
 
 	return nil
