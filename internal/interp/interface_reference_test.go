@@ -11,6 +11,32 @@ import (
 	"github.com/cwbudde/go-dws/internal/parser"
 )
 
+// formatRuntimeError converts an error value to DWScript expected format
+// Changes "ERROR: message at line X, column Y" to "Runtime Error: message [line: X, column: Y]"
+func formatRuntimeError(errVal Value) string {
+	errStr := errVal.String()
+
+	// Remove "ERROR: " prefix
+	errStr = strings.TrimPrefix(errStr, "ERROR: ")
+
+	// Replace "at line X, column Y" with "[line: X, column: Y]"
+	errStr = strings.Replace(errStr, " at line ", " [line: ", 1)
+	if strings.Contains(errStr, "[line:") {
+		// Add closing bracket after column number
+		// Find the position after "column X"
+		parts := strings.SplitN(errStr, "[line: ", 2)
+		if len(parts) == 2 {
+			// Find the end of the location (should be at end of string or before next text)
+			errStr = parts[0] + "[line: " + parts[1] + "]"
+		}
+	} else {
+		// No location info, just add it at the end if we can extract from node
+	}
+
+	// Add "Runtime Error: " prefix
+	return "Runtime Error: " + errStr
+}
+
 // TestInterfaceReferenceTests runs all ported DWScript interface tests from testdata/interfaces/
 func TestInterfaceReferenceTests(t *testing.T) {
 	interfaceDir := filepath.Join("../../testdata", "interfaces")
@@ -74,18 +100,26 @@ func TestInterfaceReferenceTests(t *testing.T) {
 			interp := New(&buf)
 			result := interp.Eval(program)
 
-			// Check for runtime errors
+			// Prepare actual output
+			var actualOutput string
 			if result != nil && result.Type() == "ERROR" {
-				// Some tests might expect runtime errors
-				// For now, report as failure
-				t.Errorf("Runtime error in %s: %v", testName, result.String())
-				failed++
-				return
+				// Check if expected output contains "Errors >>>>" - if so, format accordingly
+				if hasExpectedOutput && strings.Contains(expectedOutput, "Errors >>>>") {
+					// Format runtime error output to match DWScript expected format
+					formattedError := formatRuntimeError(result)
+					actualOutput = "Errors >>>>\n" + formattedError + "\nResult >>>>\n" + buf.String()
+				} else {
+					// Unexpected runtime error
+					t.Errorf("Runtime error in %s: %v", testName, result.String())
+					failed++
+					return
+				}
+			} else {
+				actualOutput = buf.String()
 			}
 
 			// Compare output if we have expected output
 			if hasExpectedOutput {
-				actualOutput := buf.String()
 				if normalizeOutput(actualOutput) != normalizeOutput(expectedOutput) {
 					t.Errorf("Output mismatch for %s:\nExpected:\n%s\nActual:\n%s",
 						testName, expectedOutput, actualOutput)
