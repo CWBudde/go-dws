@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
-	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // evalNewExpression evaluates object instantiation (TClassName.Create(...)).
@@ -77,19 +76,9 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 				return fieldValue
 			}
 		} else {
-			// Use default value based on field type
-			switch fieldType {
-			case types.INTEGER:
-				fieldValue = &IntegerValue{Value: 0}
-			case types.FLOAT:
-				fieldValue = &FloatValue{Value: 0.0}
-			case types.STRING:
-				fieldValue = &StringValue{Value: ""}
-			case types.BOOLEAN:
-				fieldValue = &BooleanValue{Value: false}
-			default:
-				fieldValue = &NilValue{}
-			}
+			// Use getZeroValueForType to get appropriate default value
+			// Pass nil for methodsLookup since class fields should not auto-instantiate nested types
+			fieldValue = getZeroValueForType(fieldType, nil)
 		}
 		obj.SetField(fieldName, fieldValue)
 	}

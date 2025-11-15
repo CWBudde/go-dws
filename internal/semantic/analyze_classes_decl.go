@@ -380,16 +380,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			}
 
 			// Task 9.5: Validate field initializer if present
-			if field.InitValue != nil {
-				initType := a.analyzeExpression(field.InitValue)
-				if initType != nil && fieldType != nil {
-					// Check type compatibility
-					if !types.IsAssignableFrom(fieldType, initType) {
-						a.addError("cannot initialize field '%s' of type '%s' with value of type '%s' at %s",
-							fieldName, fieldType.String(), initType.String(), field.Token.Pos.String())
-					}
-				}
-			}
+			a.validateFieldInitializer(field, fieldName, fieldType)
 
 			// Add instance field to class
 			classType.Fields[fieldName] = fieldType

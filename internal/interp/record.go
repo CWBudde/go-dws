@@ -157,19 +157,10 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods ma
 					return fieldValue
 				}
 			} else {
-				// Use default value based on type
-				switch fieldType {
-				case types.INTEGER:
-					fieldValue = &IntegerValue{Value: 0}
-				case types.FLOAT:
-					fieldValue = &FloatValue{Value: 0.0}
-				case types.STRING:
-					fieldValue = &StringValue{Value: ""}
-				case types.BOOLEAN:
-					fieldValue = &BooleanValue{Value: false}
-				default:
-					fieldValue = &NilValue{}
-				}
+				// Use getZeroValueForType to properly initialize nested records
+				// This ensures nested record fields are initialized as RecordValue instances
+				// rather than NilValue, fixing the bug where Outer.Inner.X would fail
+				fieldValue = getZeroValueForType(fieldType, methodsLookup)
 			}
 
 			rv.Fields[fieldName] = fieldValue
@@ -231,7 +222,6 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 	}
 
 	// Evaluate and assign field values from literal
-	explicitFields := make(map[string]bool)
 	for _, field := range literal.Fields {
 		// Skip positional fields (not yet implemented)
 		if field.Name == nil {
@@ -239,7 +229,6 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 		}
 
 		fieldName := field.Name.Value
-		explicitFields[fieldName] = true
 
 		// Check if field exists in record type
 		if _, exists := recordType.Fields[fieldName]; !exists {
@@ -257,6 +246,17 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 	}
 
 	// Task 9.5: Initialize remaining fields with field initializers or default values
+	// Create a method lookup callback for nested records
+	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
+		key := "__record_type_" + strings.ToLower(rt.Name)
+		if typeVal, ok := i.env.Get(key); ok {
+			if rtv, ok := typeVal.(*RecordTypeValue); ok {
+				return rtv.Methods
+			}
+		}
+		return nil
+	}
+
 	for fieldName, fieldType := range recordType.Fields {
 		if _, exists := recordValue.Fields[fieldName]; !exists {
 			var fieldValue Value
@@ -272,20 +272,9 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 				}
 			}
 
-			// If no initializer, use default value based on type
+			// If no initializer, use getZeroValueForType to properly initialize nested records
 			if fieldValue == nil {
-				switch fieldType {
-				case types.INTEGER:
-					fieldValue = &IntegerValue{Value: 0}
-				case types.FLOAT:
-					fieldValue = &FloatValue{Value: 0.0}
-				case types.STRING:
-					fieldValue = &StringValue{Value: ""}
-				case types.BOOLEAN:
-					fieldValue = &BooleanValue{Value: false}
-				default:
-					fieldValue = &NilValue{}
-				}
+				fieldValue = getZeroValueForType(fieldType, methodsLookup)
 			}
 
 			recordValue.Fields[fieldName] = fieldValue
