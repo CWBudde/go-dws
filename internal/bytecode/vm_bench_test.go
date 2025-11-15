@@ -16,7 +16,9 @@ func buildBenchmarkProgram() *ast.Program {
 	return &ast.Program{
 		Statements: []ast.Statement{
 			&ast.VarDeclStatement{
-				Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
+				},
 				Names: []*ast.Identifier{
 					{
 						TypedExpressionBase: ast.TypedExpressionBase{
@@ -40,7 +42,9 @@ func buildBenchmarkProgram() *ast.Program {
 				},
 			},
 			&ast.WhileStatement{
-				Token: lexer.Token{Type: lexer.WHILE, Literal: "while"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.WHILE, Literal: "while"},
+				},
 				Condition: &ast.BinaryExpression{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -69,7 +73,9 @@ func buildBenchmarkProgram() *ast.Program {
 					},
 				},
 				Body: &ast.AssignmentStatement{
-					Token:    lexer.Token{Type: lexer.IDENT, Literal: "x"},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
+					},
 					Operator: lexer.ASSIGN,
 					Target: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{

@@ -118,26 +118,12 @@ func (ata *ArrayTypeAnnotation) IsStatic() bool {
 //   - []               // empty array
 //   - ['a', 'b', 'c']  // array of strings
 type ArrayLiteralExpression struct {
-	Type     *TypeAnnotation
+	TypedExpressionBase
 	Elements []Expression
-	Token    token.Token
-	EndPos   token.Position
-}
-
-func (a *ArrayLiteralExpression) End() token.Position {
-	if a.EndPos.Line != 0 {
-		return a.EndPos
-	}
-	return a.Token.Pos
 }
 
 // expressionNode implements the Expression interface
 func (al *ArrayLiteralExpression) expressionNode() {}
-
-// TokenLiteral returns the literal value of the token
-func (al *ArrayLiteralExpression) TokenLiteral() string {
-	return al.Token.Literal
-}
 
 // String returns a string representation of the array literal
 func (al *ArrayLiteralExpression) String() string {
@@ -156,21 +142,6 @@ func (al *ArrayLiteralExpression) String() string {
 	return out.String()
 }
 
-// Pos returns the position of the array literal in the source code
-func (al *ArrayLiteralExpression) Pos() token.Position {
-	return al.Token.Pos
-}
-
-// GetType returns the inferred type annotation
-func (al *ArrayLiteralExpression) GetType() *TypeAnnotation {
-	return al.Type
-}
-
-// SetType sets the type annotation
-func (al *ArrayLiteralExpression) SetType(typ *TypeAnnotation) {
-	al.Type = typ
-}
-
 // ============================================================================
 // IndexExpression
 // ============================================================================
@@ -182,26 +153,17 @@ func (al *ArrayLiteralExpression) SetType(typ *TypeAnnotation) {
 //   - arr[i + 1]  // expression index
 //   - arr[i][j]   // nested indexing
 type IndexExpression struct {
-	Left   Expression
-	Index  Expression
-	Type   *TypeAnnotation
-	Token  token.Token
-	EndPos token.Position
-}
-
-func (i *IndexExpression) End() token.Position {
-	if i.EndPos.Line != 0 {
-		return i.EndPos
-	}
-	return i.Token.Pos
+	TypedExpressionBase
+	Left  Expression
+	Index Expression
 }
 
 // expressionNode implements the Expression interface
 func (ie *IndexExpression) expressionNode() {}
 
-// TokenLiteral returns the literal value of the token
-func (ie *IndexExpression) TokenLiteral() string {
-	return ie.Token.Literal
+// Pos returns the position from the Left expression
+func (ie *IndexExpression) Pos() token.Position {
+	return ie.Left.Pos()
 }
 
 // String returns a string representation of the index expression
@@ -216,21 +178,6 @@ func (ie *IndexExpression) String() string {
 	out.WriteString(")")
 
 	return out.String()
-}
-
-// Pos returns the position of the index expression in the source code
-func (ie *IndexExpression) Pos() token.Position {
-	return ie.Token.Pos
-}
-
-// GetType returns the inferred type annotation
-func (ie *IndexExpression) GetType() *TypeAnnotation {
-	return ie.Type
-}
-
-// SetType sets the type annotation
-func (ie *IndexExpression) SetType(typ *TypeAnnotation) {
-	ie.Type = typ
 }
 
 // ============================================================================
@@ -251,42 +198,13 @@ func (ie *IndexExpression) SetType(typ *TypeAnnotation) {
 //   - ArrayLiteralExpression: for literal array values ([1, 2, 3])
 //   - ArrayTypeAnnotation: for array type declarations
 type NewArrayExpression struct {
+	TypedExpressionBase
 	ElementTypeName *Identifier
-	Type            *TypeAnnotation
 	Dimensions      []Expression
-	Token           token.Token
-	EndPos          token.Position
-}
-
-func (n *NewArrayExpression) End() token.Position {
-	if n.EndPos.Line != 0 {
-		return n.EndPos
-	}
-	return n.Token.Pos
 }
 
 // expressionNode implements the Expression interface
 func (nae *NewArrayExpression) expressionNode() {}
-
-// TokenLiteral returns the literal value of the 'new' token
-func (nae *NewArrayExpression) TokenLiteral() string {
-	return nae.Token.Literal
-}
-
-// Pos returns the position of the new array expression in the source code
-func (nae *NewArrayExpression) Pos() token.Position {
-	return nae.Token.Pos
-}
-
-// GetType returns the inferred type annotation
-func (nae *NewArrayExpression) GetType() *TypeAnnotation {
-	return nae.Type
-}
-
-// SetType sets the type annotation
-func (nae *NewArrayExpression) SetType(typ *TypeAnnotation) {
-	nae.Type = typ
-}
 
 // String returns a string representation of the new array expression
 // Examples:

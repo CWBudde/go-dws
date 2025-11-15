@@ -351,7 +351,9 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 
 	// Normal function call (non-identifier function)
 	exp := &ast.CallExpression{
-		Token:    p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken},
+		},
 		Function: function,
 	}
 
@@ -372,7 +374,9 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 	if p.peekTokenIs(lexer.RPAREN) {
 		p.nextToken() // consume ')'
 		return &ast.CallExpression{
-			Token:     p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: p.curToken},
+			},
 			Function:  typeName,
 			Arguments: []ast.Expression{},
 		}
@@ -382,7 +386,9 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 	if !p.peekTokenIs(lexer.IDENT) {
 		// First element is not an identifier, must be function call
 		exp := &ast.CallExpression{
-			Token:    p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: p.curToken},
+			},
 			Function: typeName,
 		}
 		exp.Arguments = p.parseExpressionList(lexer.RPAREN)
@@ -437,7 +443,9 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 	}
 
 	return &ast.CallExpression{
-		Token:     p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken},
+		},
 		Function:  typeName,
 		Arguments: args,
 	}
@@ -575,9 +583,13 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	if p.peekTokenIs(lexer.RPAREN) {
 		p.nextToken() // consume ')'
 		return &ast.ArrayLiteralExpression{
-			Token:    lparenToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token:  lparenToken,
+					EndPos: p.curToken.End(),
+				},
+			},
 			Elements: []ast.Expression{},
-			EndPos:   p.curToken.End(),
 		}
 	}
 
@@ -647,9 +659,13 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 		if p.curTokenIs(lexer.RPAREN) {
 			// Already at the closing paren, just return
 			return &ast.ArrayLiteralExpression{
-				Token:    lparenToken,
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token:  lparenToken,
+						EndPos: p.curToken.End(),
+					},
+				},
 				Elements: elements,
-				EndPos:   p.curToken.End(),
 			}
 		}
 
@@ -666,9 +682,13 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 	}
 
 	return &ast.ArrayLiteralExpression{
-		Token:    lparenToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  lparenToken,
+				EndPos: p.curToken.End(),
+			},
+		},
 		Elements: elements,
-		EndPos:   p.curToken.End(),
 	}
 }
 
@@ -849,7 +869,9 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 	}
 
 	return &ast.NewArrayExpression{
-		Token:           newToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: newToken},
+		},
 		ElementTypeName: elementTypeName,
 		Dimensions:      dimensions,
 	}
@@ -947,7 +969,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 
 		// Desugar shorthand to full syntax: wrap expression in return statement
 		lambdaExpr.Body = &ast.BlockStatement{
-			Token: p.curToken, // Use current token for position tracking
+			BaseNode: ast.BaseNode{Token: p.curToken}, // Use current token for position tracking
 			Statements: []ast.Statement{
 				&ast.ReturnStatement{
 					Token:       p.curToken,
@@ -1114,8 +1136,8 @@ func (p *Parser) parseCondition() *ast.Condition {
 	}
 
 	condition := &ast.Condition{
-		Token: p.curToken,
-		Test:  testExpr,
+		BaseNode: ast.BaseNode{Token: p.curToken},
+		Test:     testExpr,
 	}
 
 	// Check for optional custom message: : "message"
@@ -1175,9 +1197,13 @@ func (p *Parser) parseOldExpression() ast.Expression {
 	}
 
 	return &ast.OldExpression{
-		Token:      token,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  token,
+				EndPos: identifier.End(),
+			},
+		},
 		Identifier: identifier,
-		EndPos:     identifier.End(),
 	}
 }
 
@@ -1222,7 +1248,7 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 	}
 
 	preConditions := &ast.PreConditions{
-		Token:      requireToken,
+		BaseNode:   ast.BaseNode{Token: requireToken},
 		Conditions: conditions,
 	}
 
@@ -1284,7 +1310,7 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 	}
 
 	postConditions := &ast.PostConditions{
-		Token:      ensureToken,
+		BaseNode:   ast.BaseNode{Token: ensureToken},
 		Conditions: conditions,
 	}
 
@@ -1302,8 +1328,10 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 // This creates an IsExpression AST node that will be evaluated at runtime.
 func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 	expression := &ast.IsExpression{
-		Token: p.curToken, // The 'is' token
-		Left:  left,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'is' token
+		},
+		Left: left,
 	}
 
 	p.nextToken()
@@ -1338,8 +1366,10 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 // to wrap an object instance in an InterfaceInstance.
 func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 	expression := &ast.AsExpression{
-		Token: p.curToken, // The 'as' token
-		Left:  left,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'as' token
+		},
+		Left: left,
 	}
 
 	p.nextToken()
@@ -1363,8 +1393,10 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 // to check whether the object's class implements the interface.
 func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 	expression := &ast.ImplementsExpression{
-		Token: p.curToken, // The 'implements' token
-		Left:  left,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'implements' token
+		},
+		Left: left,
 	}
 
 	p.nextToken()

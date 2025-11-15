@@ -16,18 +16,16 @@ func TestLambdaExpression(t *testing.T) {
 					Target: NewTestIdentifier("Result"),
 					Value: &BinaryExpression{
 						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*"},
-							},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*"}},
 						},
 						Left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
 						Operator: "*",
 						Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "2"}}}, Value: 2},
 					},
-					Token: lexer.Token{Type: lexer.ASSIGN, Literal: ":="},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.ASSIGN, Literal: ":="}},
 				},
 			},
-			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 		}
 
 		node := &LambdaExpression{
@@ -65,9 +63,7 @@ func TestLambdaExpression(t *testing.T) {
 		returnStmt := &ReturnStatement{
 			ReturnValue: &BinaryExpression{
 				TypedExpressionBase: TypedExpressionBase{
-					BaseNode: BaseNode{
-						Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
-					},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.PLUS, Literal: "+"}},
 				},
 				Left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
 				Operator: "+",
@@ -78,7 +74,7 @@ func TestLambdaExpression(t *testing.T) {
 
 		body := &BlockStatement{
 			Statements: []Statement{returnStmt},
-			Token:      lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			BaseNode:   BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 		}
 
 		node := &LambdaExpression{
@@ -115,10 +111,10 @@ func TestLambdaExpression(t *testing.T) {
 						NewTestIdentifier("PrintLn"),
 						[]Expression{NewTestStringLiteral("Hello")},
 					),
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"}},
 				},
 			},
-			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 		}
 
 		node := &LambdaExpression{
@@ -144,10 +140,10 @@ func TestLambdaExpression(t *testing.T) {
 						NewTestIdentifier("DoSomething"),
 						[]Expression{NewTestIntegerLiteral(42)},
 					),
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "DoSomething"},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "DoSomething"}},
 				},
 			},
-			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 		}
 
 		node := &LambdaExpression{
@@ -176,15 +172,11 @@ func TestLambdaExpression(t *testing.T) {
 				&ReturnStatement{
 					ReturnValue: &BinaryExpression{
 						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
-							},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.PLUS, Literal: "+"}},
 						},
 						Left: &BinaryExpression{
 							TypedExpressionBase: TypedExpressionBase{
-								BaseNode: BaseNode{
-									Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
-								},
+								BaseNode: BaseNode{Token: lexer.Token{Type: lexer.PLUS, Literal: "+"}},
 							},
 							Left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "a"}}}, Value: "a"},
 							Operator: "+",
@@ -196,7 +188,7 @@ func TestLambdaExpression(t *testing.T) {
 					Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
 				},
 			},
-			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 		}
 
 		node := &LambdaExpression{
@@ -233,12 +225,12 @@ func TestLambdaExpression(t *testing.T) {
 		body := &BlockStatement{
 			Statements: []Statement{
 				&AssignmentStatement{
-					Target: NewTestIdentifier("x"),
-					Value:  NewTestIntegerLiteral(100),
-					Token:  lexer.Token{Type: lexer.ASSIGN, Literal: ":="},
+					Target:   NewTestIdentifier("x"),
+					Value:    NewTestIntegerLiteral(100),
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.ASSIGN, Literal: ":="}},
 				},
 			},
-			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 		}
 
 		node := &LambdaExpression{
@@ -267,7 +259,7 @@ func TestLambdaExpression(t *testing.T) {
 			Token:       lexer.Token{Type: lexer.LAMBDA, Literal: "lambda"},
 			Parameters:  []*Parameter{},
 			ReturnType:  nil,
-			Body:        &BlockStatement{Statements: []Statement{}, Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
+			Body:        &BlockStatement{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}}, Statements: []Statement{}},
 			IsShorthand: false,
 		}
 
@@ -288,7 +280,7 @@ func TestLambdaExpression(t *testing.T) {
 			Token:       lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos},
 			Parameters:  []*Parameter{},
 			ReturnType:  nil,
-			Body:        &BlockStatement{Statements: []Statement{}, Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
+			Body:        &BlockStatement{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}}, Statements: []Statement{}},
 			IsShorthand: false,
 		}
 
@@ -321,12 +313,12 @@ func TestLambdaExpression(t *testing.T) {
 							NewTestIntegerLiteral(1),
 							NewTestIntegerLiteral(2),
 						},
-						Token: lexer.Token{Type: lexer.LBRACK, Literal: "["},
+						TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LBRACK, Literal: "["}}},
 					},
 					Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
 				},
 			},
-			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 		}
 
 		node := &LambdaExpression{
@@ -370,10 +362,10 @@ func TestLambdaExpressionEdgeCases(t *testing.T) {
 						NewTestIdentifier("DoIt"),
 						[]Expression{},
 					),
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "DoIt"},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "DoIt"}},
 				},
 			},
-			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 		}
 
 		node := &LambdaExpression{
@@ -394,7 +386,7 @@ func TestLambdaExpressionEdgeCases(t *testing.T) {
 	t.Run("full lambda with empty body", func(t *testing.T) {
 		body := &BlockStatement{
 			Statements: []Statement{},
-			Token:      lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			BaseNode:   BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 		}
 
 		node := &LambdaExpression{
@@ -414,7 +406,7 @@ func TestLambdaExpressionEdgeCases(t *testing.T) {
 	t.Run("shorthand lambda with empty body", func(t *testing.T) {
 		body := &BlockStatement{
 			Statements: []Statement{},
-			Token:      lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			BaseNode:   BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 		}
 
 		node := &LambdaExpression{
