@@ -264,13 +264,13 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 			return nil
 		}
 		fieldNames = append(fieldNames, &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
 			},
-		},
-		Value: p.curToken.Literal,
-	})
+			Value: p.curToken.Literal,
+		})
 	}
 
 	// Expect colon

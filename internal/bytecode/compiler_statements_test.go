@@ -268,14 +268,14 @@ func TestCompiler_TryExceptTypedHandler(t *testing.T) {
 				Token: lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(1, 1)},
 				TryBlock: &ast.BlockStatement{Statements: []ast.Statement{
 					&ast.ExpressionStatement{
-					Expression: &ast.NilLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.NIL, Literal: "Nil", Pos: pos(1, 5)},
+						Expression: &ast.NilLiteral{
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{
+									Token: lexer.Token{Type: lexer.NIL, Literal: "Nil", Pos: pos(1, 5)},
+								},
 							},
 						},
 					},
-				},
 				}},
 				ExceptClause: &ast.ExceptClause{
 					Token: lexer.Token{Type: lexer.EXCEPT, Literal: "except", Pos: pos(2, 1)},
@@ -344,26 +344,26 @@ func TestCompiler_TryExceptRethrowWithoutElse(t *testing.T) {
 			&ast.VarDeclStatement{
 				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
 				Names: []*ast.Identifier{{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
+						},
 					},
-				},
-				Value: "x",
-			}},
+					Value: "x",
+				}},
 			},
 			&ast.TryStatement{
 				Token: lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(2, 1)},
 				TryBlock: &ast.BlockStatement{Statements: []ast.Statement{
 					&ast.ExpressionStatement{
-					Expression: &ast.NilLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.NIL, Literal: "Nil", Pos: pos(2, 5)},
+						Expression: &ast.NilLiteral{
+							TypedExpressionBase: ast.TypedExpressionBase{
+								BaseNode: ast.BaseNode{
+									Token: lexer.Token{Type: lexer.NIL, Literal: "Nil", Pos: pos(2, 5)},
+								},
 							},
 						},
 					},
-				},
 				}},
 				ExceptClause: &ast.ExceptClause{
 					Token: lexer.Token{Type: lexer.EXCEPT, Literal: "except", Pos: pos(3, 1)},
@@ -507,13 +507,13 @@ func TestCompiler_TryFinallyMetadata(t *testing.T) {
 				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
 				Names: []*ast.Identifier{ident},
 				Value: &ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(1, 10)},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(1, 10)},
+						},
 					},
+					Value: 0,
 				},
-				Value: 0,
-			},
 			},
 			&ast.TryStatement{
 				Token:    lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(2, 1)},
@@ -564,16 +564,16 @@ func TestCompiler_BreakAndContinue(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.WhileStatement{
-				Token:     lexer.Token{Type: lexer.WHILE, Literal: "while", Pos: pos(1, 1)},
+				Token: lexer.Token{Type: lexer.WHILE, Literal: "while", Pos: pos(1, 1)},
 				Condition: &ast.BooleanLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.TRUE, Literal: "True", Pos: pos(1, 7)},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.TRUE, Literal: "True", Pos: pos(1, 7)},
+						},
+						Type: boolType,
 					},
-					Type: boolType,
+					Value: true,
 				},
-				Value: true,
-			},
 				Body: &ast.BlockStatement{
 					Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
 					Statements: []ast.Statement{
@@ -713,7 +713,7 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 				&ast.AssignmentStatement{
 					Token:    lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 3)},
 					Operator: lexer.ASSIGN,
-					Target:   &ast.Identifier{
+					Target: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 3)},
@@ -725,7 +725,7 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 					Value: &ast.BinaryExpression{
 						Token:    lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 8)},
 						Operator: "+",
-						Left:     &ast.Identifier{
+						Left: &ast.Identifier{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 7)},
@@ -750,7 +750,7 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 		Condition: &ast.BinaryExpression{
 			Token:    lexer.Token{Type: lexer.GREATER, Literal: ">", Pos: pos(4, 10)},
 			Operator: ">",
-			Left:     &ast.Identifier{
+			Left: &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(4, 9)},
@@ -778,26 +778,26 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 				Names: []*ast.Identifier{xIdent},
 				Type:  intType,
 				Value: &ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(1, 10)},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(1, 10)},
+						},
 					},
+					Value: 0,
 				},
-				Value: 0,
-			},
 			},
 			repeatStmt,
 			&ast.ReturnStatement{
-				Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
 				ReturnValue: &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(5, 9)},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(5, 9)},
+						},
+						Type: intType,
 					},
-					Type: intType,
+					Value: "x",
 				},
-				Value: "x",
-			},
 			},
 		},
 	}

@@ -635,7 +635,7 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{},
@@ -651,7 +651,7 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 		ImplementationSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{},
@@ -700,7 +700,7 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 					}},
 				},
 				&ast.FunctionDecl{
-					BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{},
@@ -716,7 +716,7 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 		ImplementationSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{},

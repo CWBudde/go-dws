@@ -26,7 +26,7 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 				},
 				Value: "x",
 			}},
-			Type:  intType,
+			Type: intType,
 			Value: &ast.IntegerLiteral{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
@@ -48,7 +48,7 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 				},
 				Value: "y",
 			}},
-			Type:  intType,
+			Type: intType,
 			Value: &ast.IntegerLiteral{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
