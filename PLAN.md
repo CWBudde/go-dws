@@ -706,7 +706,6 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
 
 **Files Modified**:
 
-
 - `pkg/ast/base.go` (new file ~100 lines)
 - `pkg/ast/ast.go` (~300 lines reduced to ~150)
 - `pkg/ast/statements.go` (~316 lines reduced to ~200)
@@ -787,7 +786,6 @@ func walkBinaryExpression(n *BinaryExpression, v Visitor) { ... }
 
 **Strategy**: Implement reflection-based visitor with optional code generation:
 
-
 **Phase 1**: Reflection-based visitor (runtime traversal)
 - Use reflection to automatically traverse Node fields
 - Detect slices of Nodes and individual Node fields
@@ -801,7 +799,6 @@ func walkBinaryExpression(n *BinaryExpression, v Visitor) { ... }
 **Complexity**: High - Requires reflection/code generation expertise and thorough testing
 
 **Subtasks**:
-
 
 - [ ] 9.17.1 Research and prototype reflection-based visitor
   - Study Go reflection API for struct field traversal
@@ -860,7 +857,6 @@ func walkBinaryExpression(n *BinaryExpression, v Visitor) { ... }
 
 **Files Modified**:
 
-
 - `pkg/ast/visitor.go` (replace 900 lines with ~100 lines of reflection code)
 - `pkg/ast/visitor_reflect.go` (new file ~150 lines)
 - `pkg/ast/visitor_test.go` (add reflection-specific tests)
@@ -910,7 +906,6 @@ type IntegerLiteral struct {
 
 **Strategy**: Create a separate metadata table that maps AST nodes to their semantic information:
 
-
 1. Remove Type field from AST nodes
 2. Create SemanticInfo struct with type/symbol maps
 3. Semantic analyzer populates SemanticInfo instead of modifying AST
@@ -919,7 +914,6 @@ type IntegerLiteral struct {
 **Complexity**: Medium - Requires refactoring semantic analyzer and all code that accesses type information
 
 **Subtasks**:
-
 
 - [ ] 9.18.1 Design metadata architecture
   - Create SemanticInfo struct with node → type mapping
@@ -974,7 +968,6 @@ type IntegerLiteral struct {
   - Memory usage reduced (verify with benchmarks)
 
 **Files Modified**:
-
 
 - `pkg/ast/metadata.go` (new file ~150 lines)
 - `pkg/ast/ast.go` (remove Type field from ~15 expression types)
@@ -1032,7 +1025,6 @@ func (cd *ClassDecl) String() string {
 
 **Strategy**:
 
-
 1. Keep minimal String() methods on AST nodes (just type name + key info)
 2. Create dedicated printer package with formatting logic
 3. Support multiple output styles via printer options
@@ -1040,7 +1032,6 @@ func (cd *ClassDecl) String() string {
 **Complexity**: Low-Medium - Mostly moving code around, but need to ensure test compatibility
 
 **Subtasks**:
-
 
 - [ ] 9.19.1 Design printer package architecture
   - Printer struct with configurable options
@@ -1090,7 +1081,6 @@ func (cd *ClassDecl) String() string {
   - File: `pkg/printer/printer_test.go` (new file ~200 lines)
 
 **Files Modified**:
-
 
 - `pkg/printer/printer.go` (new file ~400 lines)
 - `pkg/printer/styles.go` (new file ~100 lines)
@@ -1154,7 +1144,6 @@ func walkFunctionDecl(n *FunctionDecl, v Visitor) {
 
 **Strategy**:
 
-
 1. Identify all non-Node helper types
 2. Add Node interface methods (Pos, End, TokenLiteral)
 3. Add node marker methods (statementNode/expressionNode as appropriate)
@@ -1163,7 +1152,6 @@ func walkFunctionDecl(n *FunctionDecl, v Visitor) {
 **Complexity**: Low - Straightforward interface implementation
 
 **Subtasks**:
-
 
 - [ ] 9.20.1 Audit AST for non-Node types used in traversal
   - Parameter (in FunctionDecl)
@@ -1225,7 +1213,6 @@ func walkFunctionDecl(n *FunctionDecl, v Visitor) {
 
 **Files Modified**:
 
-
 - `pkg/ast/functions.go` (Parameter now implements Node)
 - `pkg/ast/control_flow.go` (CaseBranch now implements Node)
 - `pkg/ast/exceptions.go` (ExceptionHandler, ExceptClause, FinallyClause now implement Node)
@@ -1278,7 +1265,6 @@ fn := &FunctionDecl{
 
 **Strategy**:
 
-
 1. Create builder types for complex nodes
 2. Builders enforce invariants and provide fluent API
 3. Parser uses builders instead of direct struct construction
@@ -1287,7 +1273,6 @@ fn := &FunctionDecl{
 **Complexity**: Medium - Need to identify all invariants and implement builders
 
 **Subtasks**:
-
 
 - [ ] 9.21.1 Identify nodes that need builders
   - FunctionDecl (most complex: ~15 boolean flags)
@@ -1350,7 +1335,6 @@ fn := &FunctionDecl{
 
 **Files Modified**:
 
-
 - `pkg/ast/builders/function.go` (new file ~150 lines)
 - `pkg/ast/builders/class.go` (new file ~120 lines)
 - `pkg/ast/builders/interface.go` (new file ~80 lines)
@@ -1409,7 +1393,6 @@ type TypeAnnotation struct {
 
 **Strategy**:
 
-
 1. Create architecture documentation with clear explanations
 2. Add examples of each use case
 3. Create diagrams showing type system structure
@@ -1418,7 +1401,6 @@ type TypeAnnotation struct {
 **Complexity**: Low - Documentation task, no code changes required
 
 **Subtasks**:
-
 
 - [ ] 9.22.1 Document TypeAnnotation vs TypeExpression distinction
   - TypeAnnotation: Used when a type is referenced in syntax (`: Integer`)
@@ -1466,7 +1448,6 @@ type TypeAnnotation struct {
   - Files: `pkg/ast/doc.go`, `internal/types/doc.go`
 
 **Files Modified**:
-
 
 - `docs/type-system-architecture.md` (new file ~200 lines)
 - `docs/diagrams/type-system.svg` (new diagram)
