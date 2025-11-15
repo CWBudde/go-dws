@@ -896,7 +896,9 @@ func walkTryStatement(n *TryStatement, v Visitor) {
 	if n.TryBlock != nil {
 		Walk(v, n.TryBlock)
 	}
-	walkExceptClause(n.ExceptClause, v)
+	if n.ExceptClause != nil {
+		walkExceptClause(n.ExceptClause, v)
+	}
 	if n.FinallyClause != nil {
 		Walk(v, n.FinallyClause)
 	}
