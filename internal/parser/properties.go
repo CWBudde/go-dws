@@ -227,8 +227,9 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	// Create parameter for each name
 	for _, name := range names {
 		param := &ast.Parameter{
-			Name: name,
-			Type: paramType,
+			Token: name.Token,
+			Name:  name,
+			Type:  paramType,
 		}
 		params = append(params, param)
 	}

@@ -206,8 +206,10 @@ func TestImportUnitSymbols_WithFunctions(t *testing.T) {
 
 	// Create interface section with a function declaration
 	funcDecl := &ast.FunctionDecl{
-		Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-		Name:  &ast.Identifier{Value: "TestFunc"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+		},
+		Name: &ast.Identifier{Value: "TestFunc"},
 		Parameters: []*ast.Parameter{
 			{
 				Name: &ast.Identifier{Value: "x"},

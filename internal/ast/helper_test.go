@@ -27,11 +27,13 @@ func TestHelperDeclString(t *testing.T) {
 				},
 				Methods: []*FunctionDecl{
 					{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+						},
 						Name: &Identifier{Value: "ToUpper"},
 						ReturnType: &TypeAnnotation{
 							Name: "String",
 						},
-						Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 					},
 				},
 				IsRecordHelper: true,
@@ -55,11 +57,13 @@ end`,
 				},
 				Methods: []*FunctionDecl{
 					{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+						},
 						Name: &Identifier{Value: "IsEven"},
 						ReturnType: &TypeAnnotation{
 							Name: "Boolean",
 						},
-						Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 					},
 				},
 				IsRecordHelper: false,
@@ -175,20 +179,24 @@ end`,
 				},
 				PrivateMembers: []Statement{
 					&FunctionDecl{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+						},
 						Name: &Identifier{Value: "InternalMethod"},
 						ReturnType: &TypeAnnotation{
 							Name: "Integer",
 						},
-						Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 					},
 				},
 				PublicMembers: []Statement{
 					&FunctionDecl{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+						},
 						Name: &Identifier{Value: "ToUpper"},
 						ReturnType: &TypeAnnotation{
 							Name: "String",
 						},
-						Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 					},
 					&PropertyDecl{
 						BaseNode: BaseNode{
