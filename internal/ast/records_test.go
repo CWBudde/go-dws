@@ -23,7 +23,7 @@ func TestRecordDecl(t *testing.T) {
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name:  &Identifier{Token: tok, Value: "X"},
+					Name: &Identifier{Token: tok, Value: "X"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -34,7 +34,7 @@ func TestRecordDecl(t *testing.T) {
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name:  &Identifier{Token: tok, Value: "Y"},
+					Name: &Identifier{Token: tok, Value: "Y"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -83,7 +83,7 @@ func TestRecordDecl(t *testing.T) {
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name:  &Identifier{Token: tok, Value: "X"},
+					Name: &Identifier{Token: tok, Value: "X"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -94,7 +94,7 @@ func TestRecordDecl(t *testing.T) {
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name:  &Identifier{Token: tok, Value: "Y"},
+					Name: &Identifier{Token: tok, Value: "Y"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -142,7 +142,7 @@ func TestRecordDecl(t *testing.T) {
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name:  &Identifier{Token: tok, Value: "FX"},
+					Name: &Identifier{Token: tok, Value: "FX"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -153,7 +153,7 @@ func TestRecordDecl(t *testing.T) {
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name:  &Identifier{Token: tok, Value: "FY"},
+					Name: &Identifier{Token: tok, Value: "FY"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -181,7 +181,7 @@ func TestRecordDecl(t *testing.T) {
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name:  &Identifier{Token: tok, Value: "X"},
+					Name: &Identifier{Token: tok, Value: "X"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -192,7 +192,7 @@ func TestRecordDecl(t *testing.T) {
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name:  &Identifier{Token: tok, Value: "Y"},
+					Name: &Identifier{Token: tok, Value: "Y"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
