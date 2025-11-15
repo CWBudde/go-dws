@@ -4,8 +4,6 @@ package ast
 import (
 	"bytes"
 	"strings"
-
-	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // LambdaExpression represents a lambda/anonymous function expression.
@@ -29,45 +27,16 @@ import (
 //	var squared := Map(numbers, lambda(x: Integer) => x * x);
 //	var printer := lambda() begin PrintLn('Hello'); end;
 type LambdaExpression struct {
+	TypedExpressionBase
 	ReturnType   *TypeAnnotation
 	Body         *BlockStatement
-	Type         *TypeAnnotation
 	Parameters   []*Parameter
 	CapturedVars []string
-	Token        token.Token
-	EndPos       token.Position
 	IsShorthand  bool
-}
-
-func (l *LambdaExpression) End() token.Position {
-	if l.EndPos.Line != 0 {
-		return l.EndPos
-	}
-	return l.Token.Pos
 }
 
 // expressionNode marks this as an Expression node
 func (le *LambdaExpression) expressionNode() {}
-
-// TokenLiteral returns the token literal ('lambda')
-func (le *LambdaExpression) TokenLiteral() string {
-	return le.Token.Literal
-}
-
-// Pos returns the position of the lambda keyword
-func (le *LambdaExpression) Pos() token.Position {
-	return le.Token.Pos
-}
-
-// GetType returns the inferred/assigned type annotation
-func (le *LambdaExpression) GetType() *TypeAnnotation {
-	return le.Type
-}
-
-// SetType sets the type annotation
-func (le *LambdaExpression) SetType(typ *TypeAnnotation) {
-	le.Type = typ
-}
 
 // String returns a string representation of the lambda expression
 // Preserves the original syntax (full vs shorthand) for readability

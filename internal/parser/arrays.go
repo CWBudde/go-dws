@@ -349,11 +349,14 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	// Determine if this should be treated as a set literal (all elements are identifiers or ranges)
 	if shouldParseAsSetLiteral(elements) {
 		setLit := &ast.SetLiteral{
-			Token:    lbrackToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token:  lbrackToken,
+					EndPos: p.endPosFromToken(p.curToken),
+				},
+			},
 			Elements: elements,
 		}
-		// Set EndPos to after the ']'
-		setLit.EndPos = p.endPosFromToken(p.curToken)
 		return setLit
 	}
 

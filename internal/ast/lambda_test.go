@@ -29,7 +29,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token: NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters: []*Parameter{
 				{
 					Name:  NewTestIdentifier("x"),
@@ -80,7 +82,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token: NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters: []*Parameter{
 				{
 					Name:  NewTestIdentifier("x"),
@@ -120,7 +124,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token:       NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters:  []*Parameter{},
 			ReturnType:  nil,
 			Body:        body,
@@ -149,7 +155,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token: NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters: []*Parameter{
 				{
 					Name:  NewTestIdentifier("n"),
@@ -196,7 +204,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token: NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters: []*Parameter{
 				{
 					Name:  NewTestIdentifier("a"),
@@ -238,7 +248,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token: NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters: []*Parameter{
 				{
 					Name:  NewTestIdentifier("x"),
@@ -260,7 +272,9 @@ func TestLambdaExpression(t *testing.T) {
 
 	t.Run("lambda implements TypedExpression", func(t *testing.T) {
 		node := &LambdaExpression{
-			Token:       NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters:  []*Parameter{},
 			ReturnType:  nil,
 			Body:        &BlockStatement{BaseNode: NewTestBaseNode(lexer.BEGIN, "begin"), Statements: []Statement{}},
@@ -281,7 +295,9 @@ func TestLambdaExpression(t *testing.T) {
 	t.Run("lambda position tracking", func(t *testing.T) {
 		pos := lexer.Position{Line: 10, Column: 5, Offset: 150}
 		node := &LambdaExpression{
-			Token:       lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos},
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos}},
+			},
 			Parameters:  []*Parameter{},
 			ReturnType:  nil,
 			Body:        &BlockStatement{BaseNode: NewTestBaseNode(lexer.BEGIN, "begin"), Statements: []Statement{}},
@@ -295,7 +311,9 @@ func TestLambdaExpression(t *testing.T) {
 
 	t.Run("lambda empty body", func(t *testing.T) {
 		node := &LambdaExpression{
-			Token:       NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters:  []*Parameter{},
 			ReturnType:  nil,
 			Body:        nil,
@@ -328,7 +346,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token:       NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters:  []*Parameter{},
 			ReturnType:  NewTestTypeAnnotation("TIntArray"),
 			Body:        body,
@@ -375,7 +395,9 @@ func TestLambdaExpressionEdgeCases(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token:       NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters:  []*Parameter{},
 			ReturnType:  nil,
 			Body:        body,
@@ -396,7 +418,9 @@ func TestLambdaExpressionEdgeCases(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token:       NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters:  []*Parameter{},
 			ReturnType:  nil,
 			Body:        body,
@@ -416,7 +440,9 @@ func TestLambdaExpressionEdgeCases(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token:       NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters:  []*Parameter{},
 			ReturnType:  nil,
 			Body:        body,

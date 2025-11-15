@@ -295,7 +295,9 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 // Examples: @MyFunction, @TMyClass.MyMethod
 func (p *Parser) parseAddressOfExpression() ast.Expression {
 	expression := &ast.AddressOfExpression{
-		Token: p.curToken, // The @ token
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken}, // The @ token
+		},
 	}
 
 	p.nextToken() // advance to the target
@@ -939,7 +941,9 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 //   - Shorthand: lambda(x) => x * 2
 func (p *Parser) parseLambdaExpression() ast.Expression {
 	lambdaExpr := &ast.LambdaExpression{
-		Token: p.curToken, // The 'lambda' keyword
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'lambda' keyword
+		},
 	}
 
 	// Expect opening parenthesis

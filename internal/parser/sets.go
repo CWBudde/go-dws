@@ -89,7 +89,9 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 //   - []                      // empty set
 func (p *Parser) parseSetLiteral() ast.Expression {
 	setLit := &ast.SetLiteral{
-		Token:    p.curToken, // The '[' token
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken}, // The '[' token
+		},
 		Elements: []ast.Expression{},
 	}
 

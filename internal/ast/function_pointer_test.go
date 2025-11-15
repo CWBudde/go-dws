@@ -137,8 +137,10 @@ func TestFunctionPointerTypeNode(t *testing.T) {
 func TestAddressOfExpression(t *testing.T) {
 	t.Run("address-of simple identifier", func(t *testing.T) {
 		node := &AddressOfExpression{
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@"}},
+			},
 			Operator: NewTestIdentifier("MyFunction"),
-			Token:    lexer.Token{Type: lexer.AT, Literal: "@"},
 		}
 
 		expected := "@MyFunction"
@@ -157,9 +159,11 @@ func TestAddressOfExpression(t *testing.T) {
 	t.Run("address-of with type information", func(t *testing.T) {
 		funcPtrType := NewTestTypeAnnotation("TComparator")
 		node := &AddressOfExpression{
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@"}},
+				Type:     funcPtrType,
+			},
 			Operator: NewTestIdentifier("Ascending"),
-			Type:     funcPtrType,
-			Token:    lexer.Token{Type: lexer.AT, Literal: "@"},
 		}
 
 		expected := "@Ascending"
@@ -174,8 +178,10 @@ func TestAddressOfExpression(t *testing.T) {
 
 	t.Run("address-of implements TypedExpression", func(t *testing.T) {
 		node := &AddressOfExpression{
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@"}},
+			},
 			Operator: NewTestIdentifier("Test"),
-			Token:    lexer.Token{Type: lexer.AT, Literal: "@"},
 		}
 
 		// Verify it implements TypedExpression interface
@@ -192,8 +198,10 @@ func TestAddressOfExpression(t *testing.T) {
 	t.Run("address-of position", func(t *testing.T) {
 		pos := lexer.Position{Line: 5, Column: 10, Offset: 50}
 		node := &AddressOfExpression{
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@", Pos: pos}},
+			},
 			Operator: NewTestIdentifier("Test"),
-			Token:    lexer.Token{Type: lexer.AT, Literal: "@", Pos: pos},
 		}
 
 		if node.Pos() != pos {

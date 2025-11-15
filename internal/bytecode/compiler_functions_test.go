@@ -31,7 +31,11 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 	}
 
 	innerLambda := &ast.LambdaExpression{
-		Token:      lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(4, 10)},
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(4, 10)},
+			},
+		},
 		ReturnType: intType,
 		Body: &ast.BlockStatement{
 			BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
@@ -95,7 +99,11 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 	}
 
 	outerLambda := &ast.LambdaExpression{
-		Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(1, 10)},
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(1, 10)},
+			},
+		},
 		Body: &ast.BlockStatement{
 			BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 			Statements: []ast.Statement{
