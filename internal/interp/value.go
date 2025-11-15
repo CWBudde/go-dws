@@ -1128,14 +1128,17 @@ func GetOrdinalValue(val Value) (int, error) {
 
 	case *StringValue:
 		// String values represent characters - use the first character's Unicode code point
-		if len(v.Value) == 0 {
+		// Note: We must count runes (characters), not bytes, since UTF-8 encoding
+		// can use multiple bytes per character (e.g., chr(255) = 'ÿ' uses 2 bytes)
+		runes := []rune(v.Value)
+		if len(runes) == 0 {
 			return 0, fmt.Errorf("cannot get ordinal value of empty string")
 		}
-		if len(v.Value) > 1 {
+		if len(runes) > 1 {
 			return 0, fmt.Errorf("cannot get ordinal value of multi-character string '%s'", v.Value)
 		}
 		// Return the Unicode code point of the single character
-		return int([]rune(v.Value)[0]), nil
+		return int(runes[0]), nil
 
 	case *BooleanValue:
 		// Boolean: False=0, True=1
