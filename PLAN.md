@@ -2054,7 +2054,7 @@ NewTestIdentifier("name")
 - `internal/ast/classes_test.go` (demonstrated usage in 2 test cases)
 
 - [ ] 9.24.2 Migrate Existing Test Files to Use Helpers
-  - [ ] Update `internal/ast/arrays_test.go` (25 occurrences)
+  - [x] Update `internal/ast/arrays_test.go` (25 occurrences)
   - [ ] Update `internal/ast/ast_test.go` (18+ occurrences)
   - [ ] Update `internal/ast/classes_test.go` (26+ occurrences) - partially done
   - [ ] Update `internal/ast/contracts_test.go` (14+ occurrences)
