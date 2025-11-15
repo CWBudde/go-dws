@@ -90,7 +90,6 @@ end`,
 						Type: &TypeAnnotation{
 							Name: "Integer",
 						},
-						Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 					},
 				},
 				IsRecordHelper: false,
@@ -114,6 +113,9 @@ end`,
 				},
 				ClassVars: []*FieldDecl{
 					{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "DefaultEncoding"},
+						},
 						Name: &Identifier{Value: "DefaultEncoding"},
 						Type: &TypeAnnotation{
 							Name: "String",
@@ -196,7 +198,6 @@ end`,
 						Type: &TypeAnnotation{
 							Name: "Integer",
 						},
-						Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 					},
 				},
 				IsRecordHelper: true,
