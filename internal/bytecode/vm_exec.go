@@ -3,7 +3,32 @@ package bytecode
 import (
 	"fmt"
 	"math"
+	"strings"
 )
+
+// executeInitializer executes a field initializer chunk and returns the result.
+// This creates a new VM that inherits globals and helpers from the parent VM,
+// allowing initializers to reference user-defined functions, globals, and helper methods.
+func (vm *VM) executeInitializer(chunk *Chunk) (Value, error) {
+	if chunk == nil {
+		return NilValue(), fmt.Errorf("vm: nil chunk")
+	}
+
+	// Create a new VM to execute the initializer
+	initVM := NewVMWithOutput(vm.output)
+
+	// Inherit globals and helpers from parent VM so initializers can access
+	// user-defined functions, global variables, and helper methods
+	initVM.globals = vm.globals
+	initVM.helpers = vm.helpers
+
+	result, err := initVM.Run(chunk)
+	if err != nil {
+		return NilValue(), err
+	}
+
+	return result, nil
+}
 
 // Run executes the provided chunk and returns the resulting value.
 func (vm *VM) Run(chunk *Chunk) (Value, error) {
@@ -124,6 +149,13 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if _, err := vm.pop(); err != nil {
 				return NilValue(), err
 			}
+		case OpDup:
+			// Task 9.7: Duplicate top of stack (needed for record literals)
+			val, err := vm.peek()
+			if err != nil {
+				return NilValue(), err
+			}
+			vm.push(val)
 		case OpAddInt:
 			if err := vm.binaryIntOp(func(a, b int64) int64 { return a + b }); err != nil {
 				return NilValue(), err
@@ -559,26 +591,82 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			vm.push(ObjectValue(NewObjectInstance(className)))
+
+			// Create the object instance
+			obj := NewObjectInstance(className)
+
+			// Task 9.5.5: Initialize fields from class metadata
+			// Look up class metadata (case-insensitive)
+			classKey := strings.ToLower(className)
+			if classMeta, ok := frame.chunk.Classes[classKey]; ok {
+				// Initialize each field
+				for _, fieldMeta := range classMeta.Fields {
+					var fieldValue Value
+
+					// If field has an initializer, execute it
+					if fieldMeta.Initializer != nil {
+						// Execute the field initializer chunk
+						result, err := vm.executeInitializer(fieldMeta.Initializer)
+						if err != nil {
+							return NilValue(), vm.runtimeError("failed to initialize field %s.%s: %v",
+								className, fieldMeta.Name, err)
+						}
+						fieldValue = result
+					} else {
+						// No initializer - use nil/zero value
+						fieldValue = NilValue()
+					}
+
+					// Set the field on the object
+					obj.SetField(fieldMeta.Name, fieldValue)
+				}
+			}
+
+			vm.push(ObjectValue(obj))
+		case OpNewRecord:
+			// Task 9.7: Create a new record instance
+			typeIdx := int(inst.B())
+			typeName, err := vm.constantAsString(frame.chunk, typeIdx, "NEW_RECORD")
+			if err != nil {
+				return NilValue(), err
+			}
+
+			// Create the record instance
+			rec := NewRecordInstance(typeName)
+
+			// TODO: Initialize fields from record metadata (similar to classes)
+			// For now, fields will be set to nil and must be initialized explicitly
+
+			vm.push(RecordValue(rec))
 		case OpGetField:
 			fieldIdx := int(inst.B())
 			name, err := vm.constantAsString(frame.chunk, fieldIdx, "GET_FIELD")
 			if err != nil {
 				return NilValue(), err
 			}
-			objVal, err := vm.pop()
+			val, err := vm.pop()
 			if err != nil {
 				return NilValue(), err
 			}
-			if !objVal.IsObject() {
-				return NilValue(), vm.typeError("GET_FIELD", "Object", objVal.Type.String())
+
+			// Task 9.7: Support both objects and records
+			if val.IsObject() {
+				obj := val.AsObject()
+				fieldVal, ok := obj.GetField(name)
+				if !ok {
+					fieldVal = NilValue()
+				}
+				vm.push(fieldVal)
+			} else if val.IsRecord() {
+				rec := val.AsRecord()
+				fieldVal, ok := rec.GetField(name)
+				if !ok {
+					fieldVal = NilValue()
+				}
+				vm.push(fieldVal)
+			} else {
+				return NilValue(), vm.typeError("GET_FIELD", "Object or Record", val.Type.String())
 			}
-			obj := objVal.AsObject()
-			val, ok := obj.GetField(name)
-			if !ok {
-				val = NilValue()
-			}
-			vm.push(val)
 		case OpSetField:
 			fieldIdx := int(inst.B())
 			name, err := vm.constantAsString(frame.chunk, fieldIdx, "SET_FIELD")
@@ -589,15 +677,21 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			objVal, err := vm.pop()
+			target, err := vm.pop()
 			if err != nil {
 				return NilValue(), err
 			}
-			if !objVal.IsObject() {
-				return NilValue(), vm.typeError("SET_FIELD", "Object", objVal.Type.String())
+
+			// Task 9.7: Support both objects and records
+			if target.IsObject() {
+				obj := target.AsObject()
+				obj.SetField(name, value)
+			} else if target.IsRecord() {
+				rec := target.AsRecord()
+				rec.SetField(name, value)
+			} else {
+				return NilValue(), vm.typeError("SET_FIELD", "Object or Record", target.Type.String())
 			}
-			obj := objVal.AsObject()
-			obj.SetField(name, value)
 		case OpGetProperty:
 			propIdx := int(inst.B())
 			name, err := vm.constantAsString(frame.chunk, propIdx, "GET_PROPERTY")
@@ -636,15 +730,24 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				default:
 					return NilValue(), vm.runtimeError("unknown array property '%s'", name)
 				}
-			} else if !objVal.IsObject() {
-				return NilValue(), vm.typeError("GET_PROPERTY", "Object or Array", objVal.Type.String())
-			} else {
+			} else if objVal.IsObject() {
+				// Task 9.5.5: Objects can access fields via properties
 				obj := objVal.AsObject()
 				val, ok := obj.GetProperty(name)
 				if !ok {
 					val = NilValue()
 				}
 				vm.push(val)
+			} else if objVal.IsRecord() {
+				// Task 9.7: Records access fields directly
+				rec := objVal.AsRecord()
+				val, ok := rec.GetField(name)
+				if !ok {
+					val = NilValue()
+				}
+				vm.push(val)
+			} else {
+				return NilValue(), vm.typeError("GET_PROPERTY", "Object, Array, or Record", objVal.Type.String())
 			}
 		case OpSetProperty:
 			propIdx := int(inst.B())
