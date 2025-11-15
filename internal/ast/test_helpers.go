@@ -26,13 +26,18 @@ func NewTestIdentifier(name string) *Identifier {
 }
 
 // NewTestIntegerLiteral creates an IntegerLiteral with the given value.
-func NewTestIntegerLiteral(value int64) *IntegerLiteral {
+// The tokenLiteral parameter should be the raw source code representation (e.g., "42").
+func NewTestIntegerLiteral(value int64, tokenLiteral ...string) *IntegerLiteral {
+	literal := fmt.Sprintf("%d", value)
+	if len(tokenLiteral) > 0 {
+		literal = tokenLiteral[0]
+	}
 	return &IntegerLiteral{
 		TypedExpressionBase: TypedExpressionBase{
 			BaseNode: BaseNode{
 				Token: lexer.Token{
 					Type:    lexer.INT,
-					Literal: fmt.Sprintf("%d", value),
+					Literal: literal,
 				},
 			},
 		},
@@ -41,13 +46,18 @@ func NewTestIntegerLiteral(value int64) *IntegerLiteral {
 }
 
 // NewTestFloatLiteral creates a FloatLiteral with the given value.
-func NewTestFloatLiteral(value float64) *FloatLiteral {
+// The tokenLiteral parameter should be the raw source code representation (e.g., "3.14").
+func NewTestFloatLiteral(value float64, tokenLiteral ...string) *FloatLiteral {
+	literal := fmt.Sprintf("%g", value)
+	if len(tokenLiteral) > 0 {
+		literal = tokenLiteral[0]
+	}
 	return &FloatLiteral{
 		TypedExpressionBase: TypedExpressionBase{
 			BaseNode: BaseNode{
 				Token: lexer.Token{
 					Type:    lexer.FLOAT,
-					Literal: fmt.Sprintf("%g", value),
+					Literal: literal,
 				},
 			},
 		},
@@ -56,13 +66,18 @@ func NewTestFloatLiteral(value float64) *FloatLiteral {
 }
 
 // NewTestStringLiteral creates a StringLiteral with the given value.
-func NewTestStringLiteral(value string) *StringLiteral {
+// The tokenLiteral parameter should be the raw source code representation (e.g., "'hello'").
+func NewTestStringLiteral(value string, tokenLiteral ...string) *StringLiteral {
+	literal := value
+	if len(tokenLiteral) > 0 {
+		literal = tokenLiteral[0]
+	}
 	return &StringLiteral{
 		TypedExpressionBase: TypedExpressionBase{
 			BaseNode: BaseNode{
 				Token: lexer.Token{
 					Type:    lexer.STRING,
-					Literal: value,
+					Literal: literal,
 				},
 			},
 		},

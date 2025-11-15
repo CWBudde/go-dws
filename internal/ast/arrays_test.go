@@ -413,7 +413,7 @@ func TestIndexExpression(t *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 		indexExpr := &IndexExpression{
 			Token: tok,
-			Left:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "arr"},
+			Left:  NewTestIdentifier("arr"),
 			Index: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{
 
 				// Ensure it implements Expression interface
@@ -778,11 +778,10 @@ func TestNewArrayExpression(t *testing.T) {
 
 	t.Run("Implements Expression interface", func(_ *testing.T) {
 		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
-		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
 			Token:           newTok,
-			ElementTypeName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: intTok}}, Value: "Integer"},
+			ElementTypeName: NewTestIdentifier("Integer"),
 			Dimensions: []Expression{
 				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "10"}}}, Value: 10},
 			},

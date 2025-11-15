@@ -14,11 +14,11 @@ func TestOperatorDeclString_GlobalBinary(t *testing.T) {
 		OperatorSymbol: "+",
 		Arity:          2,
 		OperandTypes: []*TypeAnnotation{
-			{Token: lexer.Token{Type: lexer.IDENT, Literal: "String"}, Name: "String"},
-			{Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"}, Name: "Integer"},
+			NewTestTypeAnnotation("String"),
+			NewTestTypeAnnotation("Integer"),
 		},
-		ReturnType: &TypeAnnotation{Token: lexer.Token{Type: lexer.IDENT, Literal: "String"}, Name: "String"},
-		Binding:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "StrPlusInt"}}}, Value: "StrPlusInt"},
+		ReturnType: NewTestTypeAnnotation("String"),
+		Binding:    NewTestIdentifier("StrPlusInt"),
 	}
 
 	got := decl.String()
@@ -37,10 +37,10 @@ func TestOperatorDeclString_Conversion(t *testing.T) {
 		OperatorSymbol: "implicit",
 		Arity:          1,
 		OperandTypes: []*TypeAnnotation{
-			{Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"}, Name: "Integer"},
+			NewTestTypeAnnotation("Integer"),
 		},
-		ReturnType: &TypeAnnotation{Token: lexer.Token{Type: lexer.IDENT, Literal: "String"}, Name: "String"},
-		Binding:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "IntToStr"}}}, Value: "IntToStr"},
+		ReturnType: NewTestTypeAnnotation("String"),
+		Binding:    NewTestIdentifier("IntToStr"),
 	}
 
 	got := decl.String()
@@ -59,9 +59,9 @@ func TestOperatorDeclString_Class(t *testing.T) {
 		OperatorSymbol: "+=",
 		Arity:          1,
 		OperandTypes: []*TypeAnnotation{
-			{Token: lexer.Token{Type: lexer.IDENT, Literal: "String"}, Name: "String"},
+			NewTestTypeAnnotation("String"),
 		},
-		Binding:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "AppendString"}}}, Value: "AppendString"},
+		Binding:    NewTestIdentifier("AppendString"),
 		Visibility: VisibilityPublic,
 	}
 
