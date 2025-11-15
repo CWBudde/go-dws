@@ -583,8 +583,8 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 	var expectedContent string
 	var hasExpectedFile bool
 
-	if content, err := os.ReadFile(txtFile); err == nil {
-		expectedContent = string(content)
+	if content, err := detectAndDecodeFile(txtFile); err == nil {
+		expectedContent = content
 		hasExpectedFile = true
 	}
 

@@ -2,6 +2,9 @@ package semantic
 
 import (
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
 )
 
 // ============================================================================
@@ -1070,4 +1073,178 @@ func TestForwardClassDeclarationWithParent(t *testing.T) {
 		end;
 	`
 	expectNoErrors(t, input)
+}
+
+// ============================================================================
+// Field Initializer Semantic Tests
+// ============================================================================
+
+func TestClassFieldInitializerTypeCompatibility(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid string initializer",
+			input: `
+				type TTest = class
+					Field: String = 'hello';
+				end;
+			`,
+			expectError: false,
+		},
+		{
+			name: "valid integer initializer",
+			input: `
+				type TTest = class
+					Count: Integer = 42;
+				end;
+			`,
+			expectError: false,
+		},
+		{
+			name: "valid float initializer",
+			input: `
+				type TTest = class
+					Ratio: Float = 3.14;
+				end;
+			`,
+			expectError: false,
+		},
+		{
+			name: "valid boolean initializer",
+			input: `
+				type TTest = class
+					Active: Boolean = true;
+				end;
+			`,
+			expectError: false,
+		},
+		{
+			name: "invalid type - string to integer",
+			input: `
+				type TTest = class
+					Count: Integer = 'hello';
+				end;
+			`,
+			expectError: true,
+			errorMsg:    "cannot initialize field 'count' of type 'Integer' with value of type 'String'",
+		},
+		{
+			name: "invalid type - integer to string",
+			input: `
+				type TTest = class
+					Name: String = 42;
+				end;
+			`,
+			expectError: true,
+			errorMsg:    "cannot initialize field 'name' of type 'String' with value of type 'Integer'",
+		},
+		{
+			name: "valid expression initializer",
+			input: `
+				type TTest = class
+					Sum: Integer = 10 + 20;
+				end;
+			`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("Parser errors: %v", p.Errors())
+			}
+
+			analyzer := NewAnalyzer()
+			err := analyzer.Analyze(program)
+
+			if tt.expectError {
+				if err == nil {
+					t.Fatalf("Expected error containing '%s', got no error", tt.errorMsg)
+				}
+				if tt.errorMsg != "" && !containsError(analyzer.Errors(), tt.errorMsg) {
+					t.Errorf("Expected error containing '%s', got: %v", tt.errorMsg, analyzer.Errors())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error, got: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestRecordFieldInitializerTypeCompatibility(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid integer initializer",
+			input: `
+				type TPoint = record
+					X: Integer = 10;
+					Y: Integer = 20;
+				end;
+			`,
+			expectError: false,
+		},
+		{
+			name: "valid string initializer",
+			input: `
+				type TData = record
+					Label: String = 'default';
+				end;
+			`,
+			expectError: false,
+		},
+		{
+			name: "invalid type - string to integer",
+			input: `
+				type TPoint = record
+					X: Integer = 'not a number';
+				end;
+			`,
+			expectError: true,
+			errorMsg:    "cannot initialize field 'X' of type 'Integer' with value of type 'String'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("Parser errors: %v", p.Errors())
+			}
+
+			analyzer := NewAnalyzer()
+			err := analyzer.Analyze(program)
+
+			if tt.expectError {
+				if err == nil {
+					t.Fatalf("Expected error containing '%s', got no error", tt.errorMsg)
+				}
+				if tt.errorMsg != "" && !containsError(analyzer.Errors(), tt.errorMsg) {
+					t.Errorf("Expected error containing '%s', got: %v", tt.errorMsg, analyzer.Errors())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error, got: %v", err)
+				}
+			}
+		})
+	}
 }

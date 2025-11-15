@@ -448,10 +448,7 @@ func TestBlockStatement(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			node := &BlockStatement{
-				Token:      lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
-				Statements: tt.stmts,
-			}
+			node := NewTestBlockStatement(tt.stmts)
 
 			if node.String() != tt.want {
 				t.Errorf("String() =\n%q\nwant:\n%q", node.String(), tt.want)
@@ -622,11 +619,7 @@ func TestCallExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			node := &CallExpression{
-				Token:     lexer.Token{Type: lexer.LPAREN, Literal: "("},
-				Function:  tt.function,
-				Arguments: tt.arguments,
-			}
+			node := NewTestCallExpression(tt.function, tt.arguments)
 
 			if node.String() != tt.want {
 				t.Errorf("String() = %q, want %q", node.String(), tt.want)
