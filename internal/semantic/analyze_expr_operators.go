@@ -152,10 +152,9 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 				for constName, constType := range class.ConstantTypes {
 					if strings.EqualFold(constName, ident.Value) {
 						// Check visibility
-						constantOwner := a.getConstantOwner(a.currentClass, ident.Value)
+						constantOwner := a.getConstantOwner(a.currentClass, constName)
 						if constantOwner != nil {
-							lowerConstName := strings.ToLower(ident.Value)
-							visibility, hasVisibility := constantOwner.ConstantVisibility[lowerConstName]
+							visibility, hasVisibility := constantOwner.ConstantVisibility[constName]
 							if hasVisibility && !a.checkVisibility(constantOwner, visibility, ident.Value, "constant") {
 								visibilityStr := ast.Visibility(visibility).String()
 								a.addError("cannot access %s constant '%s' at %s",

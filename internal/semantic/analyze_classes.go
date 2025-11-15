@@ -403,8 +403,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 				// Check constant visibility
 				constantOwner := a.getConstantOwner(classType, constName)
 				if constantOwner != nil {
-					lowerConstName := strings.ToLower(constName)
-					visibility, hasVisibility := constantOwner.ConstantVisibility[lowerConstName]
+					visibility, hasVisibility := constantOwner.ConstantVisibility[constName]
 					if hasVisibility && !a.checkVisibility(constantOwner, visibility, constName, "constant") {
 						visibilityStr := ast.Visibility(visibility).String()
 						a.addError("cannot access %s constant '%s' of class '%s' at %s",
