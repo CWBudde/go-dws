@@ -79,7 +79,9 @@ func TestSetLiteral(t *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 
 		setLit := &SetLiteral{
-			Token: tok,
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: tok},
+			},
 			Elements: []Expression{
 				NewTestIdentifier("one"),
 				NewTestIdentifier("two"),
@@ -103,7 +105,9 @@ func TestSetLiteral(t *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 
 		setLit := &SetLiteral{
-			Token:    tok,
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: tok},
+			},
 			Elements: []Expression{},
 		}
 
@@ -117,7 +121,9 @@ func TestSetLiteral(t *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 
 		setLit := &SetLiteral{
-			Token: tok,
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: tok},
+			},
 			Elements: []Expression{
 				NewTestIdentifier("one"),
 				NewTestIdentifier("two"),
@@ -134,7 +140,9 @@ func TestSetLiteral(t *testing.T) {
 	t.Run("Implements Expression interface", func(_ *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 		setLit := &SetLiteral{
-			Token:    tok,
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: tok},
+			},
 			Elements: []Expression{},
 		}
 
