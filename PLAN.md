@@ -455,6 +455,7 @@ just test
 **Key Insight**: In DWScript, you can assign to either `Result` or use the function name itself as a variable. When the function name is used, it may be stored as a ReferenceValue that needs dereferencing when retrieved.
 
 **Examples**:
+
 ```pascal
 // Parameterless method called without parentheses
 function GetValue: String;
