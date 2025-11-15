@@ -542,46 +542,6 @@ var x := TTest.Sum(5, 7);  // Static call on type (not instance)
 
 ---
 
-## Task 9.14: Investigate aes_encryption Exception (Algorithms Fixtures)
-
-**Goal**: Determine if aes_encryption.pas failure is a real bug or test framework issue.
-
-**Estimate**: 1-2 hours
-
-**Status**: COMPLETED
-
-**Test**: `testdata/fixtures/Algorithms/aes_encryption.pas`
-
-**Original Behavior**: Test fails with "uncaught exception: Exception: Invalid AES key"
-
-**Root Cause**: Real bug in the `in` operator for character ranges with high-value character literals (UTF-8 encoded characters like chr(255) = 'ÿ').
-
-**Investigation Steps**:
-- [x] 9.14.1 Read aes_encryption.pas source code
-  - Script uses `for var char in s do if char not in [#0..#255]` to validate byte strings
-  - Exception was raised when `IsByteString()` incorrectly rejected valid ASCII strings
-- [x] 9.14.2 Check expected output file  
-  - Expected output (aes_encryption.txt) shows successful AES encryption
-  - No exception text in expected output - script should run successfully
-- [x] 9.14.3 Test exception handling manually
-  - Isolated the bug to character range checking: `char not in [#0..#255]`
-  - Found that `GetOrdinalValue()` used byte length instead of rune length
-- [x] 9.14.4 Fix implemented
-  - Fixed `GetOrdinalValue()` in `internal/interp/value.go` to count runes, not bytes
-  - Character 255 (ÿ) is 2 bytes in UTF-8 but 1 rune - now handled correctly
-
-**Bug Fix**: Modified `GetOrdinalValue()` in `internal/interp/value.go` to use `len([]rune(v.Value))` instead of `len(v.Value)` when checking string length. This correctly handles multi-byte UTF-8 characters.
-
-**Acceptance Criteria**:
-- [x] Root cause identified and documented - Bug in character range checking
-- [x] Interpreter bug fixed - `GetOrdinalValue()` now correctly handles UTF-8 characters  
-- [x] No regressions - All existing set and character tests pass
-- [x] Test no longer throws exception - Script runs to completion
-
-**Note**: Test still fails on output mismatch (missing final encrypted line) - this is a separate issue in the DWScript AES implementation, not our interpreter.
-
----
-
 ## Task 9.15: Static vs Dynamic Array Compatibility (DEFERRED)
 
 **Goal**: Investigate type compatibility between static and dynamic arrays in var parameters.
@@ -614,7 +574,7 @@ var x := TTest.Sum(5, 7);  // Static call on type (not instance)
 - Check original DWScript source for handling of this case
 - If needed, implement proper coercion rules
 
-- [ ] 9.16 Introduce Base Structs for AST Nodes
+## Task 9.16 Introduce Base Structs for AST Nodes
 
 **Goal**: Eliminate code duplication by introducing base structs for common node fields and behavior.
 
@@ -653,7 +613,6 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
 ```
 
 **Strategy**: Create base structs using Go embedding to share common fields and method implementations:
-
 
 1. **BaseNode**: Common fields (Token, EndPos) and methods (Pos, End, TokenLiteral)
 2. **TypedExpressionBase**: Extends BaseNode with Type field and GetType/SetType methods
