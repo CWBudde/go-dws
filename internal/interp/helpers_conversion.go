@@ -536,6 +536,160 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		// Return the popped element
 		return lastElement
 
+	// ========================================================================
+	// Task 9.23: String Helper Methods
+	// ========================================================================
+
+	case "__string_tointeger":
+		// String.ToInteger() -> StrToInt(self)
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "String.ToInteger does not take arguments")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.ToInteger requires string receiver")
+		}
+		// Call the builtin StrToInt function
+		return i.builtinStrToInt([]Value{strVal})
+
+	case "__string_tofloat":
+		// String.ToFloat() -> StrToFloat(self)
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "String.ToFloat does not take arguments")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.ToFloat requires string receiver")
+		}
+		// Call the builtin StrToFloat function
+		return i.builtinStrToFloat([]Value{strVal})
+
+	case "__string_tostring":
+		// String.ToString() -> identity (returns self)
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "String.ToString does not take arguments")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.ToString requires string receiver")
+		}
+		return strVal
+
+	case "__string_startswith":
+		// String.StartsWith(str) -> StrBeginsWith(self, str)
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "String.StartsWith expects exactly 1 argument")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.StartsWith requires string receiver")
+		}
+		// Call the builtin StrBeginsWith function
+		return i.builtinStrBeginsWith([]Value{strVal, args[0]})
+
+	case "__string_endswith":
+		// String.EndsWith(str) -> StrEndsWith(self, str)
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "String.EndsWith expects exactly 1 argument")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.EndsWith requires string receiver")
+		}
+		// Call the builtin StrEndsWith function
+		return i.builtinStrEndsWith([]Value{strVal, args[0]})
+
+	case "__string_contains":
+		// String.Contains(str) -> StrContains(self, str)
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "String.Contains expects exactly 1 argument")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.Contains requires string receiver")
+		}
+		// Call the builtin StrContains function
+		return i.builtinStrContains([]Value{strVal, args[0]})
+
+	case "__string_indexof":
+		// String.IndexOf(substr) -> Pos(substr, self)
+		// NOTE: Parameter order is REVERSED! .IndexOf(substr) calls Pos(substr, self)
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "String.IndexOf expects exactly 1 argument")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.IndexOf requires string receiver")
+		}
+		// Call the builtin Pos function with reversed arguments: Pos(substr, str)
+		return i.builtinPos([]Value{args[0], strVal})
+
+	case "__string_copy":
+		// String.Copy(start, [len]) -> Copy(self, start, len)
+		// Optional second parameter defaults to MaxInt (copy to end)
+		if len(args) < 1 || len(args) > 2 {
+			return i.newErrorWithLocation(node, "String.Copy expects 1 or 2 arguments, got %d", len(args))
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.Copy requires string receiver")
+		}
+		// If only one argument, default length to MaxInt
+		if len(args) == 1 {
+			maxInt := &IntegerValue{Value: 2147483647} // MaxInt
+			return i.builtinCopy([]Value{strVal, args[0], maxInt})
+		}
+		// Call the builtin Copy function with 3 arguments: Copy(str, start, len)
+		return i.builtinCopy([]Value{strVal, args[0], args[1]})
+
+	case "__string_before":
+		// String.Before(str) -> StrBefore(self, str)
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "String.Before expects exactly 1 argument")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.Before requires string receiver")
+		}
+		// Call the builtin StrBefore function
+		return i.builtinStrBefore([]Value{strVal, args[0]})
+
+	case "__string_after":
+		// String.After(str) -> StrAfter(self, str)
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "String.After expects exactly 1 argument")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.After requires string receiver")
+		}
+		// Call the builtin StrAfter function
+		return i.builtinStrAfter([]Value{strVal, args[0]})
+
+	case "__string_trim":
+		// String.Trim() -> Trim(self)
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "String.Trim does not take arguments")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.Trim requires string receiver")
+		}
+		// Call the builtin Trim function
+		return i.builtinTrim([]Value{strVal})
+
+	case "__string_split":
+		// String.Split(delimiter) -> StrSplit(self, delimiter)
+		if len(args) != 1 {
+			return i.newErrorWithLocation(node, "String.Split expects exactly 1 argument")
+		}
+		strVal, ok := selfValue.(*StringValue)
+		if !ok {
+			return i.newErrorWithLocation(node, "String.Split requires string receiver")
+		}
+		// Call the builtin StrSplit function
+		return i.builtinStrSplit([]Value{strVal, args[0]})
+
 	default:
 		// Try calling as a builtin function with self as first argument
 		allArgs := append([]Value{selfValue}, args...)

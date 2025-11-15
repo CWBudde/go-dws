@@ -518,6 +518,47 @@ func (i *Interpreter) initIntrinsicHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
+	// Task 9.23: Additional string helper methods
+	// Conversion methods
+	stringHelper.Methods["tointeger"] = nil
+	stringHelper.BuiltinMethods["tointeger"] = "__string_tointeger"
+	stringHelper.Methods["tofloat"] = nil
+	stringHelper.BuiltinMethods["tofloat"] = "__string_tofloat"
+	stringHelper.Methods["tostring"] = nil
+	stringHelper.BuiltinMethods["tostring"] = "__string_tostring"
+
+	// Search/check methods
+	stringHelper.Methods["startswith"] = nil
+	stringHelper.BuiltinMethods["startswith"] = "__string_startswith"
+	stringHelper.Methods["endswith"] = nil
+	stringHelper.BuiltinMethods["endswith"] = "__string_endswith"
+	stringHelper.Methods["contains"] = nil
+	stringHelper.BuiltinMethods["contains"] = "__string_contains"
+	stringHelper.Methods["indexof"] = nil
+	stringHelper.BuiltinMethods["indexof"] = "__string_indexof"
+
+	// Extraction methods
+	stringHelper.Methods["copy"] = nil
+	stringHelper.BuiltinMethods["copy"] = "__string_copy"
+	stringHelper.Methods["before"] = nil
+	stringHelper.BuiltinMethods["before"] = "__string_before"
+	stringHelper.Methods["after"] = nil
+	stringHelper.BuiltinMethods["after"] = "__string_after"
+
+	// Modification methods
+	stringHelper.Methods["trim"] = nil
+	stringHelper.BuiltinMethods["trim"] = "__string_trim"
+
+	// Split/join methods
+	stringHelper.Methods["split"] = nil
+	stringHelper.BuiltinMethods["split"] = "__string_split"
+
+	// Case-insensitive aliases for DWScript compatibility
+	stringHelper.Methods["uppercase"] = nil
+	stringHelper.BuiltinMethods["uppercase"] = "__string_toupper"
+	stringHelper.Methods["lowercase"] = nil
+	stringHelper.BuiltinMethods["lowercase"] = "__string_tolower"
+
 	register("String", stringHelper)
 
 	// String dynamic array helper
