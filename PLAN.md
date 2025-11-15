@@ -885,10 +885,16 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
   - Files: `pkg/ast/statements.go`, `pkg/ast/control_flow.go` (~400 lines affected)
 
 - [ ] 9.16.5 Refactor declaration nodes (ConstDecl, FunctionDecl, ClassDecl, InterfaceDecl, etc.)
-  - Embed BaseNode
-  - Remove duplicate implementations
+  - [x] Embed BaseNode into HelperDecl
+  - [x] Embed BaseNode into InterfaceDecl / InterfaceMethodDecl
+  - [x] Embed BaseNode into ConstDecl
+  - [x] Embed BaseNode into TypeDeclaration
+  - [x] Embed BaseNode into FieldDecl
+  - [x] Embed BaseNode into PropertyDecl
+  - [ ] Embed BaseNode into FunctionDecl / constructor nodes
+  - [ ] Embed BaseNode into ClassDecl, RecordDecl, and any remaining declaration structs
+  - [ ] Remove duplicate helper methods once all declaration structs embed the base
   - Files: `pkg/ast/declarations.go`, `pkg/ast/functions.go`, `pkg/ast/classes.go`, `pkg/ast/interfaces.go` (~500 lines affected)
-  - Started with `HelperDecl` and interface declarations to validate approach; remaining declaration kinds still pending
 
 - [ ] 9.16.6 Refactor type-specific nodes (ArrayLiteralExpression, CallExpression, NewExpression, MemberAccessExpression, etc.)
   - Embed appropriate base struct

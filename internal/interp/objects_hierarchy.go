@@ -160,14 +160,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 
 		// Task 9.37: Check if it's a record method
 		if recordVal.Methods != nil {
-			// Task 9.16.2: Method names are case-insensitive, do case-insensitive lookup
-			var methodDecl *ast.FunctionDecl
-			for methodName, decl := range recordVal.Methods {
-				if strings.EqualFold(methodName, ma.Member.Value) {
-					methodDecl = decl
-					break
-				}
-			}
+			// Task 9.16.2: Method names are case-insensitive, use GetMethod helper
+			methodDecl := recordVal.GetMethod(ma.Member.Value)
 			if methodDecl != nil {
 				// Only auto-invoke parameterless methods when accessed without parentheses
 				if len(methodDecl.Parameters) == 0 {
@@ -306,9 +300,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				// AST-declared method - check parameter count
 				isParameterless = len(methodDecl.Parameters) == 0
 			} else if builtinSpec != "" {
-				// Builtin-only method - assume it's parameterless if semantic analysis passed
-				// The semantic analyzer's auto-invoke logic already validated this
-				isParameterless = true
+				// Builtin-only method - check parameter count from builtin spec
+				isParameterless = i.isBuiltinMethodParameterless(builtinSpec)
 			}
 
 			if isParameterless {
