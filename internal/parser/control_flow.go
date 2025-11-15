@@ -254,7 +254,14 @@ func (p *Parser) parseForStatement() ast.Statement {
 		return nil
 	}
 
-	variable := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	variable := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
+		Value: p.curToken.Literal,
+	}
 
 	// Check if this is a for-in loop (IN) or for-to/downto loop (:=)
 	if p.peekTokenIs(lexer.IN) {

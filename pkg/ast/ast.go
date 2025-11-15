@@ -83,16 +83,16 @@ func (p *Program) End() token.Position {
 
 // Identifier represents an identifier (variable name, function name, etc.)
 type Identifier struct {
-	Type   *TypeAnnotation
-	Value  string
-	Token  token.Token
-	EndPos token.Position
+	TypedExpressionBase
+	Value string
 }
 
-func (i *Identifier) expressionNode()      {}
-func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
-func (i *Identifier) String() string       { return i.Value }
-func (i *Identifier) Pos() token.Position  { return i.Token.Pos }
+func (i *Identifier) expressionNode() {}
+func (i *Identifier) String() string  { return i.Value }
+
+// End returns the end position calculated from the identifier's Value length.
+// This override is necessary because the identifier's actual length may differ from
+// the token literal (e.g., in case-insensitive contexts).
 func (i *Identifier) End() token.Position {
 	if i.EndPos.Line != 0 {
 		return i.EndPos
@@ -103,129 +103,52 @@ func (i *Identifier) End() token.Position {
 	pos.Offset += len(i.Value)
 	return pos
 }
-func (i *Identifier) GetType() *TypeAnnotation    { return i.Type }
-func (i *Identifier) SetType(typ *TypeAnnotation) { i.Type = typ }
 
 // IntegerLiteral represents an integer literal value.
 type IntegerLiteral struct {
-	Type   *TypeAnnotation
-	Token  token.Token
-	Value  int64
-	EndPos token.Position
+	TypedExpressionBase
+	Value int64
 }
 
-func (il *IntegerLiteral) expressionNode()      {}
-func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
-func (il *IntegerLiteral) String() string       { return il.Token.Literal }
-func (il *IntegerLiteral) Pos() token.Position  { return il.Token.Pos }
-func (il *IntegerLiteral) End() token.Position {
-	if il.EndPos.Line != 0 {
-		return il.EndPos
-	}
-	pos := il.Token.Pos
-	pos.Column += len(il.Token.Literal)
-	pos.Offset += len(il.Token.Literal)
-	return pos
-}
-func (il *IntegerLiteral) GetType() *TypeAnnotation    { return il.Type }
-func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
+func (il *IntegerLiteral) expressionNode() {}
+func (il *IntegerLiteral) String() string  { return il.Token.Literal }
 
 // FloatLiteral represents a floating-point literal value.
 type FloatLiteral struct {
-	Type   *TypeAnnotation
-	Token  token.Token
-	Value  float64
-	EndPos token.Position
+	TypedExpressionBase
+	Value float64
 }
 
-func (fl *FloatLiteral) expressionNode()      {}
-func (fl *FloatLiteral) TokenLiteral() string { return fl.Token.Literal }
-func (fl *FloatLiteral) String() string       { return fl.Token.Literal }
-func (fl *FloatLiteral) Pos() token.Position  { return fl.Token.Pos }
-func (fl *FloatLiteral) End() token.Position {
-	if fl.EndPos.Line != 0 {
-		return fl.EndPos
-	}
-	pos := fl.Token.Pos
-	pos.Column += len(fl.Token.Literal)
-	pos.Offset += len(fl.Token.Literal)
-	return pos
-}
-func (fl *FloatLiteral) GetType() *TypeAnnotation    { return fl.Type }
-func (fl *FloatLiteral) SetType(typ *TypeAnnotation) { fl.Type = typ }
+func (fl *FloatLiteral) expressionNode() {}
+func (fl *FloatLiteral) String() string  { return fl.Token.Literal }
 
 // StringLiteral represents a string literal value.
 type StringLiteral struct {
-	Type   *TypeAnnotation
-	Value  string
-	Token  token.Token
-	EndPos token.Position
+	TypedExpressionBase
+	Value string
 }
 
-func (sl *StringLiteral) expressionNode()      {}
-func (sl *StringLiteral) TokenLiteral() string { return sl.Token.Literal }
-func (sl *StringLiteral) String() string       { return "\"" + sl.Value + "\"" }
-func (sl *StringLiteral) Pos() token.Position  { return sl.Token.Pos }
-func (sl *StringLiteral) End() token.Position {
-	if sl.EndPos.Line != 0 {
-		return sl.EndPos
-	}
-	pos := sl.Token.Pos
-	pos.Column += len(sl.Token.Literal)
-	pos.Offset += len(sl.Token.Literal)
-	return pos
-}
-func (sl *StringLiteral) GetType() *TypeAnnotation    { return sl.Type }
-func (sl *StringLiteral) SetType(typ *TypeAnnotation) { sl.Type = typ }
+func (sl *StringLiteral) expressionNode() {}
+func (sl *StringLiteral) String() string  { return "\"" + sl.Value + "\"" }
 
 // BooleanLiteral represents a boolean literal value (true or false).
 type BooleanLiteral struct {
-	Type   *TypeAnnotation
-	Token  token.Token
-	Value  bool
-	EndPos token.Position
+	TypedExpressionBase
+	Value bool
 }
 
-func (bl *BooleanLiteral) expressionNode()      {}
-func (bl *BooleanLiteral) TokenLiteral() string { return bl.Token.Literal }
-func (bl *BooleanLiteral) String() string       { return bl.Token.Literal }
-func (bl *BooleanLiteral) Pos() token.Position  { return bl.Token.Pos }
-func (bl *BooleanLiteral) End() token.Position {
-	if bl.EndPos.Line != 0 {
-		return bl.EndPos
-	}
-	pos := bl.Token.Pos
-	pos.Column += len(bl.Token.Literal)
-	pos.Offset += len(bl.Token.Literal)
-	return pos
-}
-func (bl *BooleanLiteral) GetType() *TypeAnnotation    { return bl.Type }
-func (bl *BooleanLiteral) SetType(typ *TypeAnnotation) { bl.Type = typ }
+func (bl *BooleanLiteral) expressionNode() {}
+func (bl *BooleanLiteral) String() string  { return bl.Token.Literal }
 
 // CharLiteral represents a character literal value.
 // Supports three forms: 'H' (single char string), #13 (decimal), #$41 (hex).
 type CharLiteral struct {
-	Type   *TypeAnnotation
-	Token  token.Token
-	Value  rune
-	EndPos token.Position
+	TypedExpressionBase
+	Value rune
 }
 
-func (cl *CharLiteral) expressionNode()      {}
-func (cl *CharLiteral) TokenLiteral() string { return cl.Token.Literal }
-func (cl *CharLiteral) String() string       { return cl.Token.Literal }
-func (cl *CharLiteral) Pos() token.Position  { return cl.Token.Pos }
-func (cl *CharLiteral) End() token.Position {
-	if cl.EndPos.Line != 0 {
-		return cl.EndPos
-	}
-	pos := cl.Token.Pos
-	pos.Column += len(cl.Token.Literal)
-	pos.Offset += len(cl.Token.Literal)
-	return pos
-}
-func (cl *CharLiteral) GetType() *TypeAnnotation    { return cl.Type }
-func (cl *CharLiteral) SetType(typ *TypeAnnotation) { cl.Type = typ }
+func (cl *CharLiteral) expressionNode() {}
+func (cl *CharLiteral) String() string  { return cl.Token.Literal }
 
 // BinaryExpression represents a binary operation (e.g., a + b, x < y).
 type BinaryExpression struct {
@@ -403,26 +326,11 @@ func (es *ExpressionStatement) String() string {
 
 // NilLiteral represents a nil literal value.
 type NilLiteral struct {
-	Type   *TypeAnnotation
-	Token  token.Token
-	EndPos token.Position
+	TypedExpressionBase
 }
 
-func (nl *NilLiteral) expressionNode()      {}
-func (nl *NilLiteral) TokenLiteral() string { return nl.Token.Literal }
-func (nl *NilLiteral) String() string       { return "nil" }
-func (nl *NilLiteral) Pos() token.Position  { return nl.Token.Pos }
-func (nl *NilLiteral) End() token.Position {
-	if nl.EndPos.Line != 0 {
-		return nl.EndPos
-	}
-	pos := nl.Token.Pos
-	pos.Column += len(nl.Token.Literal)
-	pos.Offset += len(nl.Token.Literal)
-	return pos
-}
-func (nl *NilLiteral) GetType() *TypeAnnotation    { return nl.Type }
-func (nl *NilLiteral) SetType(typ *TypeAnnotation) { nl.Type = typ }
+func (nl *NilLiteral) expressionNode() {}
+func (nl *NilLiteral) String() string  { return "nil" }
 
 // IsExpression represents a type check operation using the 'is' operator.
 // Example: obj is TMyClass -> Boolean

@@ -18,10 +18,7 @@ func TestHelperDeclString(t *testing.T) {
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
 				},
-				Name: &Identifier{
-					Value: "TStringHelper",
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "TStringHelper"},
-				},
+				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TStringHelper"}}}, Value: "TStringHelper"},
 				ForType: &TypeAnnotation{
 					Name: "String",
 				},
@@ -48,10 +45,7 @@ end`,
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
 				},
-				Name: &Identifier{
-					Value: "TIntHelper",
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "TIntHelper"},
-				},
+				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TIntHelper"}}}, Value: "TIntHelper"},
 				ForType: &TypeAnnotation{
 					Name: "Integer",
 				},
@@ -78,10 +72,7 @@ end`,
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
 				},
-				Name: &Identifier{
-					Value: "TArrayHelper",
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "TArrayHelper"},
-				},
+				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TArrayHelper"}}}, Value: "TArrayHelper"},
 				ForType: &TypeAnnotation{
 					Name: "TIntArray",
 				},
@@ -108,10 +99,7 @@ end`,
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
 				},
-				Name: &Identifier{
-					Value: "THelper",
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "THelper"},
-				},
+				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "THelper"}}}, Value: "THelper"},
 				ForType: &TypeAnnotation{
 					Name: "String",
 				},
@@ -139,10 +127,7 @@ end`,
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
 				},
-				Name: &Identifier{
-					Value: "TMathHelper",
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "TMathHelper"},
-				},
+				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TMathHelper"}}}, Value: "TMathHelper"},
 				ForType: &TypeAnnotation{
 					Name: "Float",
 				},
@@ -151,11 +136,8 @@ end`,
 						BaseNode: BaseNode{
 							Token: lexer.Token{Type: lexer.CONST, Literal: "const"},
 						},
-						Name: &Identifier{Value: "PI"},
-						Value: &FloatLiteral{
-							Value: 3.14159,
-							Token: lexer.Token{Type: lexer.FLOAT, Literal: "3.14159"},
-						},
+						Name:  &Identifier{Value: "PI"},
+						Value: &FloatLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FLOAT, Literal: "3.14159"}}}, Value: 3.14159},
 					},
 				},
 				IsRecordHelper: false,
@@ -170,10 +152,7 @@ end`,
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
 				},
-				Name: &Identifier{
-					Value: "TComplexHelper",
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "TComplexHelper"},
-				},
+				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TComplexHelper"}}}, Value: "TComplexHelper"},
 				ForType: &TypeAnnotation{
 					Name: "String",
 				},
@@ -239,10 +218,7 @@ func TestHelperDeclNodeInterface(t *testing.T) {
 				Pos:     lexer.Position{Line: 1, Column: 10},
 			},
 		},
-		Name: &Identifier{
-			Value: "TTestHelper",
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "TTestHelper"},
-		},
+		Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TTestHelper"}}}, Value: "TTestHelper"},
 	}
 
 	// Test that HelperDecl implements Statement interface

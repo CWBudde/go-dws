@@ -43,7 +43,12 @@ func TestEdge_EmptyInterface(t *testing.T) {
 		// Class with methods
 		class2 := NewClassInfo("TClassWithMethods")
 		class2.Methods["DoSomething"] = &ast.FunctionDecl{
-			Name: &ast.Identifier{Value: "DoSomething"},
+			Name: &ast.Identifier{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{},
+				},
+				Value: "DoSomething",
+			},
 		}
 		if !classImplementsInterface(class2, iface) {
 			t.Error("Class with methods should also implement empty interface")
@@ -83,7 +88,12 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 	for _, name := range methodNames {
 		// Store methods with lowercase keys for case-insensitive lookup
 		iface.Methods[strings.ToLower(name)] = &ast.FunctionDecl{
-			Name: &ast.Identifier{Value: name},
+			Name: &ast.Identifier{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{},
+				},
+				Value: name,
+			},
 		}
 	}
 
@@ -118,7 +128,12 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 	class := NewClassInfo("TLargeClass")
 	for _, name := range methodNames {
 		class.Methods[strings.ToLower(name)] = &ast.FunctionDecl{
-			Name: &ast.Identifier{Value: name},
+			Name: &ast.Identifier{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{},
+				},
+				Value: name,
+			},
 		}
 	}
 
@@ -132,7 +147,12 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 	for i, name := range methodNames {
 		if i < 14 { // Only add 14 methods (missing one)
 			incompleteClass.Methods[strings.ToLower(name)] = &ast.FunctionDecl{
-				Name: &ast.Identifier{Value: name},
+				Name: &ast.Identifier{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{},
+					},
+					Value: name,
+				},
 			}
 		}
 	}
@@ -146,31 +166,31 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 func TestEdge_DeepInterfaceInheritanceChains(t *testing.T) {
 	// Create 7-level deep inheritance chain
 	level0 := NewInterfaceInfo("ILevel0")
-	level0.Methods["method0"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method0"}}
+	level0.Methods["method0"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method0"}}
 
 	level1 := NewInterfaceInfo("ILevel1")
 	level1.Parent = level0
-	level1.Methods["method1"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method1"}}
+	level1.Methods["method1"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method1"}}
 
 	level2 := NewInterfaceInfo("ILevel2")
 	level2.Parent = level1
-	level2.Methods["method2"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method2"}}
+	level2.Methods["method2"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method2"}}
 
 	level3 := NewInterfaceInfo("ILevel3")
 	level3.Parent = level2
-	level3.Methods["method3"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method3"}}
+	level3.Methods["method3"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method3"}}
 
 	level4 := NewInterfaceInfo("ILevel4")
 	level4.Parent = level3
-	level4.Methods["method4"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method4"}}
+	level4.Methods["method4"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method4"}}
 
 	level5 := NewInterfaceInfo("ILevel5")
 	level5.Parent = level4
-	level5.Methods["method5"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method5"}}
+	level5.Methods["method5"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method5"}}
 
 	level6 := NewInterfaceInfo("ILevel6")
 	level6.Parent = level5
-	level6.Methods["method6"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method6"}}
+	level6.Methods["method6"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method6"}}
 
 	// Verify deepest level has access to all inherited methods
 	for i := 0; i <= 6; i++ {
@@ -229,7 +249,12 @@ func TestEdge_ConflictingInterfaces(t *testing.T) {
 	// Create two interfaces with same method name
 	iface1 := NewInterfaceInfo("IInterface1")
 	iface1.Methods["conflictingmethod"] = &ast.FunctionDecl{
-		Name: &ast.Identifier{Value: "ConflictingMethod"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "ConflictingMethod",
+		},
 		ReturnType: &ast.TypeAnnotation{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 			Name:  "Integer",
@@ -238,7 +263,12 @@ func TestEdge_ConflictingInterfaces(t *testing.T) {
 
 	iface2 := NewInterfaceInfo("IInterface2")
 	iface2.Methods["conflictingmethod"] = &ast.FunctionDecl{
-		Name: &ast.Identifier{Value: "ConflictingMethod"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "ConflictingMethod",
+		},
 		ReturnType: &ast.TypeAnnotation{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 			Name:  "String",
@@ -249,7 +279,12 @@ func TestEdge_ConflictingInterfaces(t *testing.T) {
 	// (In DWScript, the single implementation satisfies both)
 	class := NewClassInfo("TDualImplementor")
 	class.Methods["conflictingmethod"] = &ast.FunctionDecl{
-		Name: &ast.Identifier{Value: "ConflictingMethod"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "ConflictingMethod",
+		},
 		ReturnType: &ast.TypeAnnotation{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 			Name:  "Integer",
@@ -409,7 +444,7 @@ func TestEdge_InterfaceCompatibilityEdgeCases(t *testing.T) {
 	t.Run("SelfCompatibility", func(t *testing.T) {
 		// Interface should be compatible with itself
 		iface := NewInterfaceInfo("ITest")
-		iface.Methods["method1"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method1"}}
+		iface.Methods["method1"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method1"}}
 
 		if !interfaceIsCompatible(iface, iface) {
 			t.Error("Interface should be compatible with itself")
@@ -433,13 +468,13 @@ func TestEdge_InterfaceCompatibilityEdgeCases(t *testing.T) {
 	t.Run("SubsetSuperset", func(t *testing.T) {
 		// Interface with more methods should be compatible with subset
 		superset := NewInterfaceInfo("ISuperset")
-		superset.Methods["method1"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method1"}}
-		superset.Methods["method2"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method2"}}
-		superset.Methods["method3"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method3"}}
+		superset.Methods["method1"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method1"}}
+		superset.Methods["method2"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method2"}}
+		superset.Methods["method3"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method3"}}
 
 		subset := NewInterfaceInfo("ISubset")
-		subset.Methods["method1"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method1"}}
-		subset.Methods["method2"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method2"}}
+		subset.Methods["method1"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method1"}}
+		subset.Methods["method2"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Method2"}}
 
 		// Superset is compatible with subset (can satisfy subset's requirements)
 		if !interfaceIsCompatible(superset, subset) {
@@ -455,10 +490,10 @@ func TestEdge_InterfaceCompatibilityEdgeCases(t *testing.T) {
 	t.Run("UnrelatedInterfaces", func(t *testing.T) {
 		// Completely unrelated interfaces
 		iface1 := NewInterfaceInfo("IUnrelated1")
-		iface1.Methods["methoda"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "MethodA"}}
+		iface1.Methods["methoda"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "MethodA"}}
 
 		iface2 := NewInterfaceInfo("IUnrelated2")
-		iface2.Methods["methodb"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "MethodB"}}
+		iface2.Methods["methodb"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "MethodB"}}
 
 		// Should not be compatible
 		if interfaceIsCompatible(iface1, iface2) {

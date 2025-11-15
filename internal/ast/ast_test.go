@@ -21,11 +21,8 @@ func TestProgram(t *testing.T) {
 	prog = &Program{
 		Statements: []Statement{
 			&ExpressionStatement{
-				Token: lexer.Token{Type: lexer.INT, Literal: "42"},
-				Expression: &IntegerLiteral{
-					Token: lexer.Token{Type: lexer.INT, Literal: "42"},
-					Value: 42,
-				},
+				Token:      lexer.Token{Type: lexer.INT, Literal: "42"},
+				Expression: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "42"}}}, Value: 42},
 			},
 		},
 	}
@@ -39,10 +36,7 @@ func TestProgram(t *testing.T) {
 
 // TestIdentifier tests the Identifier node.
 func TestIdentifier(t *testing.T) {
-	ident := &Identifier{
-		Token: lexer.Token{Type: lexer.IDENT, Literal: "myVar"},
-		Value: "myVar",
-	}
+	ident := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "myVar"}}}, Value: "myVar"}
 
 	if ident.TokenLiteral() != "myVar" {
 		t.Errorf("TokenLiteral() = %q, want %q", ident.TokenLiteral(), "myVar")
@@ -66,10 +60,7 @@ func TestIntegerLiteral(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.literal, func(t *testing.T) {
-			node := &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: tt.literal},
-				Value: tt.value,
-			}
+			node := &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: tt.literal}}}, Value: tt.value}
 
 			if node.TokenLiteral() != tt.literal {
 				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), tt.literal)
@@ -95,10 +86,7 @@ func TestFloatLiteral(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.literal, func(t *testing.T) {
-			node := &FloatLiteral{
-				Token: lexer.Token{Type: lexer.FLOAT, Literal: tt.literal},
-				Value: tt.value,
-			}
+			node := &FloatLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FLOAT, Literal: tt.literal}}}, Value: tt.value}
 
 			if node.TokenLiteral() != tt.literal {
 				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), tt.literal)
@@ -126,10 +114,7 @@ func TestStringLiteral(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			node := &StringLiteral{
-				Token: lexer.Token{Type: lexer.STRING, Literal: tt.literal},
-				Value: tt.value,
-			}
+			node := &StringLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.STRING, Literal: tt.literal}}}, Value: tt.value}
 
 			if node.TokenLiteral() != tt.literal {
 				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), tt.literal)
@@ -153,10 +138,7 @@ func TestBooleanLiteral(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.literal, func(t *testing.T) {
-			node := &BooleanLiteral{
-				Token: lexer.Token{Type: lexer.TRUE, Literal: tt.literal},
-				Value: tt.value,
-			}
+			node := &BooleanLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TRUE, Literal: tt.literal}}}, Value: tt.value}
 
 			if node.TokenLiteral() != tt.literal {
 				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), tt.literal)
@@ -184,10 +166,7 @@ func TestCharLiteral(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			node := &CharLiteral{
-				Token: lexer.Token{Type: lexer.CHAR, Literal: tt.literal},
-				Value: tt.value,
-			}
+			node := &CharLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.CHAR, Literal: tt.literal}}}, Value: tt.value}
 
 			if node.TokenLiteral() != tt.literal {
 				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), tt.literal)
@@ -220,9 +199,7 @@ func TestCharLiteral(t *testing.T) {
 
 // TestNilLiteral tests the NilLiteral node.
 func TestNilLiteral(t *testing.T) {
-	node := &NilLiteral{
-		Token: lexer.Token{Type: lexer.NIL, Literal: "nil"},
-	}
+	node := &NilLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.NIL, Literal: "nil"}}}}
 
 	if node.TokenLiteral() != "nil" {
 		t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), "nil")
@@ -242,58 +219,37 @@ func TestBinaryExpression(t *testing.T) {
 		want     string
 	}{
 		{
-			name: "simple addition",
-			left: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "1"},
-				Value: 1,
-			},
+			name:     "simple addition",
+			left:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "1"}}}, Value: 1},
 			operator: "+",
-			right: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "2"},
-				Value: 2,
-			},
-			want: "(1 + 2)",
+			right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "2"}}}, Value: 2},
+			want:     "(1 + 2)",
 		},
 		{
-			name: "multiplication",
-			left: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "3"},
-				Value: 3,
-			},
+			name:     "multiplication",
+			left:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "3"}}}, Value: 3},
 			operator: "*",
-			right: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "4"},
-				Value: 4,
-			},
-			want: "(3 * 4)",
+			right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "4"}}}, Value: 4},
+			want:     "(3 * 4)",
 		},
 		{
-			name: "comparison",
-			left: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-				Value: "x",
-			},
+			name:     "comparison",
+			left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
 			operator: "<",
-			right: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "10"},
-				Value: 10,
-			},
-			want: "(x < 10)",
+			right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "10"}}}, Value: 10},
+			want:     "(x < 10)",
 		},
 		{
 			name: "nested expression",
 			left: &BinaryExpression{
 				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
-				Left:     &IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "1"}, Value: 1},
+				Left:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "1"}}}, Value: 1},
 				Operator: "+",
-				Right:    &IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "2"}, Value: 2},
+				Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "2"}}}, Value: 2},
 			},
 			operator: "*",
-			right: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "3"},
-				Value: 3,
-			},
-			want: "((1 + 2) * 3)",
+			right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "3"}}}, Value: 3},
+			want:     "((1 + 2) * 3)",
 		},
 	}
 
@@ -324,29 +280,20 @@ func TestUnaryExpression(t *testing.T) {
 		{
 			name:     "negation",
 			operator: "-",
-			right: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "5"},
-				Value: 5,
-			},
-			want: "(-5)",
+			right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "5"}}}, Value: 5},
+			want:     "(-5)",
 		},
 		{
 			name:     "not",
 			operator: "not",
-			right: &BooleanLiteral{
-				Token: lexer.Token{Type: lexer.TRUE, Literal: "true"},
-				Value: true,
-			},
-			want: "(not true)",
+			right:    &BooleanLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TRUE, Literal: "true"}}}, Value: true},
+			want:     "(not true)",
 		},
 		{
 			name:     "unary plus",
 			operator: "+",
-			right: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "3"},
-				Value: 3,
-			},
-			want: "(+3)",
+			right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "3"}}}, Value: 3},
+			want:     "(+3)",
 		},
 	}
 
@@ -374,25 +321,16 @@ func TestGroupedExpression(t *testing.T) {
 	}{
 		{
 			name: "simple",
-			expr: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "42"},
-				Value: 42,
-			},
+			expr: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "42"}}}, Value: 42},
 			want: "(42)",
 		},
 		{
 			name: "binary expression",
 			expr: &BinaryExpression{
-				Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
-				Left: &IntegerLiteral{
-					Token: lexer.Token{Type: lexer.INT, Literal: "3"},
-					Value: 3,
-				},
+				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+				Left:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "3"}}}, Value: 3},
 				Operator: "+",
-				Right: &IntegerLiteral{
-					Token: lexer.Token{Type: lexer.INT, Literal: "5"},
-					Value: 5,
-				},
+				Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "5"}}}, Value: 5},
 			},
 			want: "((3 + 5))",
 		},
@@ -421,18 +359,12 @@ func TestExpressionStatement(t *testing.T) {
 	}{
 		{
 			name: "integer literal",
-			expr: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "42"},
-				Value: 42,
-			},
+			expr: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "42"}}}, Value: 42},
 			want: "42",
 		},
 		{
 			name: "identifier",
-			expr: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-				Value: "x",
-			},
+			expr: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
 			want: "x",
 		},
 		{
@@ -472,11 +404,8 @@ func TestBlockStatement(t *testing.T) {
 			name: "single statement",
 			stmts: []Statement{
 				&ExpressionStatement{
-					Token: lexer.Token{Type: lexer.INT, Literal: "42"},
-					Expression: &IntegerLiteral{
-						Token: lexer.Token{Type: lexer.INT, Literal: "42"},
-						Value: 42,
-					},
+					Token:      lexer.Token{Type: lexer.INT, Literal: "42"},
+					Expression: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "42"}}}, Value: 42},
 				},
 			},
 			want: "begin\n  42\nend",
@@ -485,18 +414,12 @@ func TestBlockStatement(t *testing.T) {
 			name: "multiple statements",
 			stmts: []Statement{
 				&ExpressionStatement{
-					Token: lexer.Token{Type: lexer.INT, Literal: "1"},
-					Expression: &IntegerLiteral{
-						Token: lexer.Token{Type: lexer.INT, Literal: "1"},
-						Value: 1,
-					},
+					Token:      lexer.Token{Type: lexer.INT, Literal: "1"},
+					Expression: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "1"}}}, Value: 1},
 				},
 				&ExpressionStatement{
-					Token: lexer.Token{Type: lexer.INT, Literal: "2"},
-					Expression: &IntegerLiteral{
-						Token: lexer.Token{Type: lexer.INT, Literal: "2"},
-						Value: 2,
-					},
+					Token:      lexer.Token{Type: lexer.INT, Literal: "2"},
+					Expression: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "2"}}}, Value: 2},
 				},
 			},
 			want: "begin\n  1\n  2\nend",
@@ -537,31 +460,22 @@ func TestVarDeclStatement(t *testing.T) {
 			name:    "declaration with integer initialization",
 			varName: "x",
 			varType: &TypeAnnotation{Name: "Integer"},
-			value: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "42"},
-				Value: 42,
-			},
-			want: "var x: Integer := 42",
+			value:   &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "42"}}}, Value: 42},
+			want:    "var x: Integer := 42",
 		},
 		{
 			name:    "declaration with string initialization",
 			varName: "s",
 			varType: &TypeAnnotation{Name: "String"},
-			value: &StringLiteral{
-				Token: lexer.Token{Type: lexer.STRING, Literal: "'hello'"},
-				Value: "hello",
-			},
-			want: "var s: String := \"hello\"",
+			value:   &StringLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.STRING, Literal: "'hello'"}}}, Value: "hello"},
+			want:    "var s: String := \"hello\"",
 		},
 		{
 			name:    "declaration without type",
 			varName: "x",
 			varType: nil,
-			value: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "5"},
-				Value: 5,
-			},
-			want: "var x = 5",
+			value:   &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "5"}}}, Value: 5},
+			want:    "var x = 5",
 		},
 	}
 
@@ -571,7 +485,11 @@ func TestVarDeclStatement(t *testing.T) {
 				Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
 				Names: []*Identifier{
 					{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: tt.varName},
+						TypedExpressionBase: TypedExpressionBase{
+							BaseNode: BaseNode{
+								Token: lexer.Token{Type: lexer.IDENT, Literal: tt.varName},
+							},
+						},
 						Value: tt.varName,
 					},
 				},
@@ -601,26 +519,17 @@ func TestAssignmentStatement(t *testing.T) {
 		{
 			name:    "simple integer assignment",
 			varName: "x",
-			value: &IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "10"},
-				Value: 10,
-			},
-			want: "x := 10",
+			value:   &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "10"}}}, Value: 10},
+			want:    "x := 10",
 		},
 		{
 			name:    "expression assignment",
 			varName: "y",
 			value: &BinaryExpression{
-				Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
-				Left: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-					Value: "x",
-				},
+				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+				Left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
 				Operator: "+",
-				Right: &IntegerLiteral{
-					Token: lexer.Token{Type: lexer.INT, Literal: "1"},
-					Value: 1,
-				},
+				Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "1"}}}, Value: 1},
 			},
 			want: "y := (x + 1)",
 		},
@@ -629,12 +538,9 @@ func TestAssignmentStatement(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &AssignmentStatement{
-				Token: lexer.Token{Type: lexer.ASSIGN, Literal: ":="},
-				Target: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: tt.varName},
-					Value: tt.varName,
-				},
-				Value: tt.value,
+				Token:  lexer.Token{Type: lexer.ASSIGN, Literal: ":="},
+				Target: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: tt.varName}}}, Value: tt.varName},
+				Value:  tt.value,
 			}
 
 			if node.String() != tt.want {
@@ -656,64 +562,37 @@ func TestCallExpression(t *testing.T) {
 		arguments []Expression
 	}{
 		{
-			name: "no arguments",
-			function: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
-				Value: "PrintLn",
-			},
+			name:      "no arguments",
+			function:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"}}}, Value: "PrintLn"},
 			arguments: []Expression{},
 			want:      "PrintLn()",
 		},
 		{
-			name: "single string argument",
-			function: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
-				Value: "PrintLn",
-			},
+			name:     "single string argument",
+			function: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"}}}, Value: "PrintLn"},
 			arguments: []Expression{
-				&StringLiteral{
-					Token: lexer.Token{Type: lexer.STRING, Literal: "'hello'"},
-					Value: "hello",
-				},
+				&StringLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.STRING, Literal: "'hello'"}}}, Value: "hello"},
 			},
 			want: "PrintLn(\"hello\")",
 		},
 		{
-			name: "multiple arguments",
-			function: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
-				Value: "Add",
-			},
+			name:     "multiple arguments",
+			function: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"}}}, Value: "Add"},
 			arguments: []Expression{
-				&IntegerLiteral{
-					Token: lexer.Token{Type: lexer.INT, Literal: "3"},
-					Value: 3,
-				},
-				&IntegerLiteral{
-					Token: lexer.Token{Type: lexer.INT, Literal: "5"},
-					Value: 5,
-				},
+				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "3"}}}, Value: 3},
+				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "5"}}}, Value: 5},
 			},
 			want: "Add(3, 5)",
 		},
 		{
-			name: "expression arguments",
-			function: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
-				Value: "PrintLn",
-			},
+			name:     "expression arguments",
+			function: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"}}}, Value: "PrintLn"},
 			arguments: []Expression{
 				&BinaryExpression{
-					Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
-					Left: &IntegerLiteral{
-						Token: lexer.Token{Type: lexer.INT, Literal: "2"},
-						Value: 2,
-					},
+					Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					Left:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "2"}}}, Value: 2},
 					Operator: "+",
-					Right: &IntegerLiteral{
-						Token: lexer.Token{Type: lexer.INT, Literal: "3"},
-						Value: 3,
-					},
+					Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "3"}}}, Value: 3},
 				},
 			},
 			want: "PrintLn((2 + 3))",
@@ -746,25 +625,16 @@ func TestForInStatement(t *testing.T) {
 		inlineVar  bool
 	}{
 		{
-			name:     "basic for-in",
-			variable: "e",
-			collection: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "mySet"},
-				Value: "mySet",
-			},
+			name:       "basic for-in",
+			variable:   "e",
+			collection: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "mySet"}}}, Value: "mySet"},
 			body: &ExpressionStatement{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
 				Expression: &CallExpression{
-					Token: lexer.Token{Type: lexer.LPAREN, Literal: "("},
-					Function: &Identifier{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
-						Value: "PrintLn",
-					},
+					Token:    lexer.Token{Type: lexer.LPAREN, Literal: "("},
+					Function: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"}}}, Value: "PrintLn"},
 					Arguments: []Expression{
-						&Identifier{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "e"},
-							Value: "e",
-						},
+						&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "e"}}}, Value: "e"},
 					},
 				},
 			},
@@ -772,28 +642,19 @@ func TestForInStatement(t *testing.T) {
 			want:      "for e in mySet do PrintLn(e)",
 		},
 		{
-			name:     "for-in with inline var",
-			variable: "item",
-			collection: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "myArray"},
-				Value: "myArray",
-			},
+			name:       "for-in with inline var",
+			variable:   "item",
+			collection: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "myArray"}}}, Value: "myArray"},
 			body: &BlockStatement{
 				Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
 				Statements: []Statement{
 					&ExpressionStatement{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Process"},
 						Expression: &CallExpression{
-							Token: lexer.Token{Type: lexer.LPAREN, Literal: "("},
-							Function: &Identifier{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "Process"},
-								Value: "Process",
-							},
+							Token:    lexer.Token{Type: lexer.LPAREN, Literal: "("},
+							Function: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Process"}}}, Value: "Process"},
 							Arguments: []Expression{
-								&Identifier{
-									Token: lexer.Token{Type: lexer.IDENT, Literal: "item"},
-									Value: "item",
-								},
+								&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "item"}}}, Value: "item"},
 							},
 						},
 					},
@@ -803,25 +664,16 @@ func TestForInStatement(t *testing.T) {
 			want:      "for var item in myArray do begin\n  Process(item)\nend",
 		},
 		{
-			name:     "for-in with string literal",
-			variable: "ch",
-			collection: &StringLiteral{
-				Token: lexer.Token{Type: lexer.STRING, Literal: "'hello'"},
-				Value: "hello",
-			},
+			name:       "for-in with string literal",
+			variable:   "ch",
+			collection: &StringLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.STRING, Literal: "'hello'"}}}, Value: "hello"},
 			body: &ExpressionStatement{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Print"},
 				Expression: &CallExpression{
-					Token: lexer.Token{Type: lexer.LPAREN, Literal: "("},
-					Function: &Identifier{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "Print"},
-						Value: "Print",
-					},
+					Token:    lexer.Token{Type: lexer.LPAREN, Literal: "("},
+					Function: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Print"}}}, Value: "Print"},
 					Arguments: []Expression{
-						&Identifier{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "ch"},
-							Value: "ch",
-						},
+						&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "ch"}}}, Value: "ch"},
 					},
 				},
 			},
@@ -833,11 +685,8 @@ func TestForInStatement(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &ForInStatement{
-				Token: lexer.Token{Type: lexer.FOR, Literal: "for"},
-				Variable: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: tt.variable},
-					Value: tt.variable,
-				},
+				Token:      lexer.Token{Type: lexer.FOR, Literal: "for"},
+				Variable:   &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: tt.variable}}}, Value: tt.variable},
 				Collection: tt.collection,
 				Body:       tt.body,
 				InlineVar:  tt.inlineVar,

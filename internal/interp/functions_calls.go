@@ -259,8 +259,15 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		if obj, isObj := AsObject(selfVal); isObj {
 			if obj.GetMethod(funcName.Value) != nil {
 				mc := &ast.MethodCallExpression{
-					Token:     expr.Token,
-					Object:    &ast.Identifier{Token: funcName.Token, Value: "Self"},
+					Token: expr.Token,
+					Object: &ast.Identifier{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: funcName.Token,
+							},
+						},
+						Value: "Self",
+					},
 					Method:    funcName,
 					Arguments: expr.Arguments,
 				}
@@ -277,8 +284,15 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 			if overloads, exists := rtv.ClassMethodOverloads[methodNameLower]; exists && len(overloads) > 0 {
 				// Found a static method - convert to qualified call
 				mc := &ast.MethodCallExpression{
-					Token:     expr.Token,
-					Object:    &ast.Identifier{Token: funcName.Token, Value: rtv.RecordType.Name},
+					Token: expr.Token,
+					Object: &ast.Identifier{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: funcName.Token,
+							},
+						},
+						Value: rtv.RecordType.Name,
+					},
 					Method:    funcName,
 					Arguments: expr.Arguments,
 				}

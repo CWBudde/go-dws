@@ -12,12 +12,12 @@ func TestFunctionPointerTypeNode(t *testing.T) {
 		node := &FunctionPointerTypeNode{
 			Parameters: []*Parameter{
 				{
-					Name:  &Identifier{Value: "a", Token: lexer.Token{Type: lexer.IDENT, Literal: "a"}},
+					Name:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "a"}}}, Value: "a"},
 					Type:  &TypeAnnotation{Name: "Integer"},
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "a"},
 				},
 				{
-					Name:  &Identifier{Value: "b", Token: lexer.Token{Type: lexer.IDENT, Literal: "b"}},
+					Name:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "b"}}}, Value: "b"},
 					Type:  &TypeAnnotation{Name: "Integer"},
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "b"},
 				},
@@ -41,7 +41,7 @@ func TestFunctionPointerTypeNode(t *testing.T) {
 		node := &FunctionPointerTypeNode{
 			Parameters: []*Parameter{
 				{
-					Name:  &Identifier{Value: "msg", Token: lexer.Token{Type: lexer.IDENT, Literal: "msg"}},
+					Name:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "msg"}}}, Value: "msg"},
 					Type:  &TypeAnnotation{Name: "String"},
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "msg"},
 				},
@@ -75,7 +75,7 @@ func TestFunctionPointerTypeNode(t *testing.T) {
 		node := &FunctionPointerTypeNode{
 			Parameters: []*Parameter{
 				{
-					Name:  &Identifier{Value: "Sender", Token: lexer.Token{Type: lexer.IDENT, Literal: "Sender"}},
+					Name:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Sender"}}}, Value: "Sender"},
 					Type:  &TypeAnnotation{Name: "TObject"},
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Sender"},
 				},
@@ -95,7 +95,7 @@ func TestFunctionPointerTypeNode(t *testing.T) {
 		node := &FunctionPointerTypeNode{
 			Parameters: []*Parameter{
 				{
-					Name:  &Identifier{Value: "x", Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}},
+					Name:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
 					Type:  &TypeAnnotation{Name: "Integer"},
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 				},
@@ -115,7 +115,7 @@ func TestFunctionPointerTypeNode(t *testing.T) {
 		node := &FunctionPointerTypeNode{
 			Parameters: []*Parameter{
 				{
-					Name:  &Identifier{Value: "x", Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}},
+					Name:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
 					Type:  &TypeAnnotation{Name: "Integer"},
 					Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
 					ByRef: true,
@@ -137,11 +137,8 @@ func TestFunctionPointerTypeNode(t *testing.T) {
 func TestAddressOfExpression(t *testing.T) {
 	t.Run("address-of simple identifier", func(t *testing.T) {
 		node := &AddressOfExpression{
-			Operator: &Identifier{
-				Value: "MyFunction",
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "MyFunction"},
-			},
-			Token: lexer.Token{Type: lexer.AT, Literal: "@"},
+			Operator: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "MyFunction"}}}, Value: "MyFunction"},
+			Token:    lexer.Token{Type: lexer.AT, Literal: "@"},
 		}
 
 		expected := "@MyFunction"
@@ -160,12 +157,9 @@ func TestAddressOfExpression(t *testing.T) {
 	t.Run("address-of with type information", func(t *testing.T) {
 		funcPtrType := &TypeAnnotation{Name: "TComparator"}
 		node := &AddressOfExpression{
-			Operator: &Identifier{
-				Value: "Ascending",
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Ascending"},
-			},
-			Type:  funcPtrType,
-			Token: lexer.Token{Type: lexer.AT, Literal: "@"},
+			Operator: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Ascending"}}}, Value: "Ascending"},
+			Type:     funcPtrType,
+			Token:    lexer.Token{Type: lexer.AT, Literal: "@"},
 		}
 
 		expected := "@Ascending"
@@ -180,11 +174,8 @@ func TestAddressOfExpression(t *testing.T) {
 
 	t.Run("address-of implements TypedExpression", func(t *testing.T) {
 		node := &AddressOfExpression{
-			Operator: &Identifier{
-				Value: "Test",
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Test"},
-			},
-			Token: lexer.Token{Type: lexer.AT, Literal: "@"},
+			Operator: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Test"}}}, Value: "Test"},
+			Token:    lexer.Token{Type: lexer.AT, Literal: "@"},
 		}
 
 		// Verify it implements TypedExpression interface
@@ -201,11 +192,8 @@ func TestAddressOfExpression(t *testing.T) {
 	t.Run("address-of position", func(t *testing.T) {
 		pos := lexer.Position{Line: 5, Column: 10, Offset: 50}
 		node := &AddressOfExpression{
-			Operator: &Identifier{
-				Value: "Test",
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Test"},
-			},
-			Token: lexer.Token{Type: lexer.AT, Literal: "@", Pos: pos},
+			Operator: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Test"}}}, Value: "Test"},
+			Token:    lexer.Token{Type: lexer.AT, Literal: "@", Pos: pos},
 		}
 
 		if node.Pos() != pos {

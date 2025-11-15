@@ -17,7 +17,7 @@ func TestEnumDecl(t *testing.T) {
 
 		enumDecl := &EnumDecl{
 			BaseNode: BaseNode{Token: tok},
-			Name:     &Identifier{Token: tok, Value: "TColor"},
+			Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "TColor"},
 			Values: []EnumValue{
 				{Name: "Red", Value: nil},
 				{Name: "Green", Value: nil},
@@ -67,7 +67,7 @@ func TestEnumDecl(t *testing.T) {
 
 		enumDecl := &EnumDecl{
 			BaseNode: BaseNode{Token: tok},
-			Name:     &Identifier{Token: tok, Value: "TEnum"},
+			Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "TEnum"},
 			Values: []EnumValue{
 				{Name: "One", Value: &one},
 				{Name: "Two", Value: &five},
@@ -93,7 +93,7 @@ func TestEnumDecl(t *testing.T) {
 
 		enumDecl := &EnumDecl{
 			BaseNode: BaseNode{Token: tok},
-			Name:     &Identifier{Token: tok, Value: "TColor"},
+			Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "TColor"},
 			Values: []EnumValue{
 				{Name: "Red", Value: nil},
 				{Name: "Green", Value: nil},
@@ -114,7 +114,7 @@ func TestEnumDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 		enumDecl := &EnumDecl{
 			BaseNode: BaseNode{Token: tok},
-			Name:     &Identifier{Token: tok, Value: "TColor"},
+			Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "TColor"},
 			Values: []EnumValue{
 				{Name: "Red", Value: nil},
 			},
