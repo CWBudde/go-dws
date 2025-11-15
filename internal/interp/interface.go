@@ -207,10 +207,16 @@ func (i *Interpreter) ReleaseInterfaceReference(intfInst *InterfaceInstance) Val
 
 	obj := intfInst.Object
 
+	// DEBUG: Print current RefCount
+	// fmt.Printf("DEBUG: ReleaseInterfaceReference - RefCount before: %d\n", obj.RefCount)
+
 	// Decrement reference count
 	obj.RefCount--
 
-	// If reference count reaches 0, call the destructor
+	// DEBUG: Print new RefCount
+	// fmt.Printf("DEBUG: ReleaseInterfaceReference - RefCount after: %d\n", obj.RefCount)
+
+	// If reference count reaches 0 or below, call the destructor
 	if obj.RefCount <= 0 {
 		// Look for Destroy method in the class hierarchy
 		destructor := obj.Class.lookupMethod("Destroy")
@@ -249,6 +255,11 @@ func (i *Interpreter) cleanupInterfaceReferences(env *Environment) {
 
 	// Iterate through all variables in the environment
 	for _, value := range env.store {
+		// Skip ReferenceValue entries (like function name aliases)
+		if _, isRef := value.(*ReferenceValue); isRef {
+			continue
+		}
+
 		if intfInst, ok := value.(*InterfaceInstance); ok {
 			// Release the interface reference
 			i.ReleaseInterfaceReference(intfInst)

@@ -302,6 +302,20 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 				value = boxVariant(value)
 			}
 
+			// Task 9.1.5: Handle interface reference counting when assigning through var parameters
+			// Release the old reference if the target currently holds an interface
+			if oldIntf, isOldIntf := currentVal.(*InterfaceInstance); isOldIntf {
+				i.ReleaseInterfaceReference(oldIntf)
+			}
+
+			// If assigning an interface, increment ref count for the new reference
+			if intfInst, isIntf := value.(*InterfaceInstance); isIntf {
+				// Increment ref count because the target variable gets a new reference
+				if intfInst.Object != nil {
+					intfInst.Object.RefCount++
+				}
+			}
+
 			// Write through the reference
 			if err := refVal.Assign(value); err != nil {
 				return &ErrorValue{Message: err.Error()}
@@ -349,6 +363,7 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 
 		// Task 9.1.5: Handle object variable assignment - manage ref count
 		if objInst, isObj := existingVal.(*ObjectInstance); isObj {
+			// Variable currently holds an object
 			if _, isNil := value.(*NilValue); isNil {
 				// Setting object variable to nil - decrement ref count
 				objInst.RefCount--
@@ -365,8 +380,32 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 					}
 				}
 			} else if newObj, isNewObj := value.(*ObjectInstance); isNewObj {
-				// Assigning new object to object variable - increment new object's ref count
+				// Replacing old object with new object
+				// Decrement old object's ref count
+				objInst.RefCount--
+				if objInst.RefCount <= 0 {
+					destructor := objInst.Class.lookupMethod("Destroy")
+					if destructor != nil {
+						destructorEnv := NewEnclosedEnvironment(i.env)
+						destructorEnv.Define("Self", objInst)
+						prevEnv := i.env
+						i.env = destructorEnv
+						i.Eval(destructor.Body)
+						i.env = prevEnv
+					}
+				}
+				// Increment new object's ref count
 				newObj.RefCount++
+			}
+		} else {
+			// Variable doesn't currently hold an object (could be nil, new variable, etc.)
+			// If we're assigning an object, increment its ref count
+			// BUT: Don't increment if the target is an interface - NewInterfaceInstance will do it
+			if newObj, isNewObj := value.(*ObjectInstance); isNewObj {
+				if _, isIface := existingVal.(*InterfaceInstance); !isIface {
+					// Not an interface variable, so increment ref count
+					newObj.RefCount++
+				}
 			}
 		}
 
@@ -389,7 +428,8 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 				}
 			} else if srcIface, isSrcIface := value.(*InterfaceInstance); isSrcIface {
 				// Assigning interface to interface
-				// Increment ref count on the underlying object (if not nil)
+				// Task 9.1.5: Increment ref count on the underlying object (if not nil)
+				// This implements copy semantics - both variables will hold references
 				if srcIface.Object != nil {
 					srcIface.Object.RefCount++
 				}
