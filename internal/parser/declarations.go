@@ -59,7 +59,11 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 		return nil
 	}
 
-	stmt := &ast.ConstDecl{Token: p.curToken}
+	stmt := &ast.ConstDecl{
+		BaseNode: ast.BaseNode{
+			Token: p.curToken,
+		},
+	}
 	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
 	// Check for optional type annotation (: Type)

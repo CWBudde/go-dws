@@ -83,11 +83,13 @@ end`,
 				},
 				Properties: []*PropertyDecl{
 					{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+						},
 						Name: &Identifier{Value: "Count"},
 						Type: &TypeAnnotation{
 							Name: "Integer",
 						},
-						Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 					},
 				},
 				IsRecordHelper: false,
@@ -111,6 +113,9 @@ end`,
 				},
 				ClassVars: []*FieldDecl{
 					{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "DefaultEncoding"},
+						},
 						Name: &Identifier{Value: "DefaultEncoding"},
 						Type: &TypeAnnotation{
 							Name: "String",
@@ -139,12 +144,14 @@ end`,
 				},
 				ClassConsts: []*ConstDecl{
 					{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.CONST, Literal: "const"},
+						},
 						Name: &Identifier{Value: "PI"},
 						Value: &FloatLiteral{
 							Value: 3.14159,
 							Token: lexer.Token{Type: lexer.FLOAT, Literal: "3.14159"},
 						},
-						Token: lexer.Token{Type: lexer.CONST, Literal: "const"},
 					},
 				},
 				IsRecordHelper: false,
@@ -184,11 +191,13 @@ end`,
 						Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 					},
 					&PropertyDecl{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+						},
 						Name: &Identifier{Value: "Length"},
 						Type: &TypeAnnotation{
 							Name: "Integer",
 						},
-						Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 					},
 				},
 				IsRecordHelper: true,
