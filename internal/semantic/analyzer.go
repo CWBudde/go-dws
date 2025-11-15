@@ -382,13 +382,15 @@ func (a *Analyzer) validateFunctionImplementationsInScope(scope *SymbolTable) {
 
 // validateClassForwardDeclarations checks that all forward-declared classes have implementations
 // Task 9.11: Post-analysis validation for missing class implementations
+// Task 9.4: Updated error message to match DWScript format
 func (a *Analyzer) validateClassForwardDeclarations() {
 	// Iterate through all classes
 	for _, classType := range a.classes {
 		// Check if this class is still marked as forward (not implemented)
 		if classType.IsForward {
 			// This class was forward declared but never implemented
-			a.addError("class '%s' was forward declared but not implemented", classType.Name)
+			// Use DWScript format: Class "Name" isn't defined completely
+			a.addError("Class \"%s\" isn't defined completely", classType.Name)
 		}
 	}
 }

@@ -984,7 +984,7 @@ func TestForwardClassDeclarationWithoutImplementation(t *testing.T) {
 			end;
 		end;
 	`
-	expectError(t, input, "class 'TChild' was forward declared but not implemented")
+	expectError(t, input, "Class \"TChild\" isn't defined completely")
 }
 
 func TestDuplicateForwardClassDeclaration(t *testing.T) {
