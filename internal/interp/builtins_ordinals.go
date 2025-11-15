@@ -9,36 +9,11 @@ import (
 
 // builtinInc implements the Inc() built-in function.
 // It increments a variable in place: Inc(x) or Inc(x, delta)
+// Supports any lvalue: Inc(x), Inc(arr[i]), Inc(obj.field)
 func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 	// Validate argument count (1-2 arguments)
 	if len(args) < 1 || len(args) > 2 {
 		return i.newErrorWithLocation(i.currentNode, "Inc() expects 1-2 arguments, got %d", len(args))
-	}
-
-	// First argument must be an identifier (variable name)
-	varIdent, ok := args[0].(*ast.Identifier)
-	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Inc() first argument must be a variable, got %T", args[0])
-	}
-
-	varName := varIdent.Value
-
-	// Get current value from environment
-	currentVal, exists := i.env.Get(varName)
-	if !exists {
-		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", varName)
-	}
-
-	// Handle var parameters (ReferenceValue)
-	var refVal *ReferenceValue
-	if ref, isRef := currentVal.(*ReferenceValue); isRef {
-		refVal = ref
-		// Dereference to get the actual value
-		actualVal, err := ref.Dereference()
-		if err != nil {
-			return i.newErrorWithLocation(i.currentNode, "%s", err.Error())
-		}
-		currentVal = actualVal
 	}
 
 	// Get delta (default 1)
@@ -55,23 +30,28 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 		delta = deltaInt.Value
 	}
 
-	// Handle different value types
+	// Get current value of the lvalue
+	currentVal := i.Eval(args[0])
+	if isError(currentVal) {
+		return currentVal
+	}
+
+	// Unwrap ReferenceValue if needed
+	if ref, isRef := currentVal.(*ReferenceValue); isRef {
+		actualVal, err := ref.Dereference()
+		if err != nil {
+			return i.newErrorWithLocation(i.currentNode, "%s", err.Error())
+		}
+		currentVal = actualVal
+	}
+
+	// Compute new value based on type
+	var newValue Value
+
 	switch val := currentVal.(type) {
 	case *IntegerValue:
 		// Increment integer by delta
-		newValue := &IntegerValue{Value: val.Value + delta}
-		// If this is a var parameter, write through the reference
-		if refVal != nil {
-			if err := refVal.Assign(newValue); err != nil {
-				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
-			}
-		} else {
-			if err := i.env.Set(varName, newValue); err != nil {
-				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
-			}
-		}
-		// Return the new value (allows Inc to be used in expressions)
-		return newValue
+		newValue = &IntegerValue{Value: val.Value + delta}
 
 	case *EnumValue:
 		// For enums, delta must be 1 (get successor)
@@ -117,63 +97,32 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 		nextOrdinal := enumType.Values[nextValueName]
 
 		// Create new enum value
-		newValue := &EnumValue{
+		newValue = &EnumValue{
 			TypeName:     val.TypeName,
 			ValueName:    nextValueName,
 			OrdinalValue: nextOrdinal,
 		}
 
-		// If this is a var parameter, write through the reference
-		if refVal != nil {
-			if err := refVal.Assign(newValue); err != nil {
-				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
-			}
-		} else {
-			if err := i.env.Set(varName, newValue); err != nil {
-				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
-			}
-		}
-		// Return the new value (allows Inc to be used in expressions)
-		return newValue
-
 	default:
 		return i.newErrorWithLocation(i.currentNode, "Inc() expects Integer or Enum, got %s", val.Type())
 	}
+
+	// Assign the new value back to the lvalue
+	if err := i.assignToLValue(args[0], newValue); err != nil {
+		return i.newErrorWithLocation(i.currentNode, "Inc() failed to assign: %s", err.Error())
+	}
+
+	// Return the new value (allows Inc to be used in expressions)
+	return newValue
 }
 
 // builtinDec implements the Dec() built-in function.
 // It decrements a variable in place: Dec(x) or Dec(x, delta)
-// Dec() function for ordinal types (Integer, Enum)
+// Supports any lvalue: Dec(x), Dec(arr[i]), Dec(obj.field)
 func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 	// Validate argument count (1-2 arguments)
 	if len(args) < 1 || len(args) > 2 {
 		return i.newErrorWithLocation(i.currentNode, "Dec() expects 1-2 arguments, got %d", len(args))
-	}
-
-	// First argument must be an identifier (variable name)
-	varIdent, ok := args[0].(*ast.Identifier)
-	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Dec() first argument must be a variable, got %T", args[0])
-	}
-
-	varName := varIdent.Value
-
-	// Get current value from environment
-	currentVal, exists := i.env.Get(varName)
-	if !exists {
-		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", varName)
-	}
-
-	// Handle var parameters (ReferenceValue)
-	var refVal *ReferenceValue
-	if ref, isRef := currentVal.(*ReferenceValue); isRef {
-		refVal = ref
-		// Dereference to get the actual value
-		actualVal, err := ref.Dereference()
-		if err != nil {
-			return i.newErrorWithLocation(i.currentNode, "%s", err.Error())
-		}
-		currentVal = actualVal
 	}
 
 	// Get delta (default 1)
@@ -190,23 +139,28 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 		delta = deltaInt.Value
 	}
 
-	// Handle different value types
+	// Get current value of the lvalue
+	currentVal := i.Eval(args[0])
+	if isError(currentVal) {
+		return currentVal
+	}
+
+	// Unwrap ReferenceValue if needed
+	if ref, isRef := currentVal.(*ReferenceValue); isRef {
+		actualVal, err := ref.Dereference()
+		if err != nil {
+			return i.newErrorWithLocation(i.currentNode, "%s", err.Error())
+		}
+		currentVal = actualVal
+	}
+
+	// Compute new value based on type
+	var newValue Value
+
 	switch val := currentVal.(type) {
 	case *IntegerValue:
 		// Decrement integer by delta
-		newValue := &IntegerValue{Value: val.Value - delta}
-		// If this is a var parameter, write through the reference
-		if refVal != nil {
-			if err := refVal.Assign(newValue); err != nil {
-				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
-			}
-		} else {
-			if err := i.env.Set(varName, newValue); err != nil {
-				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
-			}
-		}
-		// Return the new value (allows Dec to be used in expressions)
-		return newValue
+		newValue = &IntegerValue{Value: val.Value - delta}
 
 	case *EnumValue:
 		// For enums, delta must be 1 (get predecessor)
@@ -252,28 +206,23 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 		prevOrdinal := enumType.Values[prevValueName]
 
 		// Create new enum value
-		newValue := &EnumValue{
+		newValue = &EnumValue{
 			TypeName:     val.TypeName,
 			ValueName:    prevValueName,
 			OrdinalValue: prevOrdinal,
 		}
 
-		// If this is a var parameter, write through the reference
-		if refVal != nil {
-			if err := refVal.Assign(newValue); err != nil {
-				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
-			}
-		} else {
-			if err := i.env.Set(varName, newValue); err != nil {
-				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
-			}
-		}
-		// Return the new value (allows Dec to be used in expressions)
-		return newValue
-
 	default:
 		return i.newErrorWithLocation(i.currentNode, "Dec() expects Integer or Enum, got %s", val.Type())
 	}
+
+	// Assign the new value back to the lvalue
+	if err := i.assignToLValue(args[0], newValue); err != nil {
+		return i.newErrorWithLocation(i.currentNode, "Dec() failed to assign: %s", err.Error())
+	}
+
+	// Return the new value (allows Dec to be used in expressions)
+	return newValue
 }
 
 // builtinSucc implements the Succ() built-in function.
@@ -443,4 +392,129 @@ func (i *Interpreter) builtinAssert(args []Value) Value {
 	}
 
 	return nil
+}
+
+// assignToLValue assigns a value to an lvalue expression (Identifier, IndexExpression, MemberAccessExpression).
+// This is used by Inc/Dec and other built-ins that modify lvalues in place.
+func (i *Interpreter) assignToLValue(lvalue ast.Expression, value Value) error {
+	switch target := lvalue.(type) {
+	case *ast.Identifier:
+		// Simple variable assignment
+		varName := target.Value
+
+		// Check if this is a var parameter (ReferenceValue)
+		if currentVal, exists := i.env.Get(varName); exists {
+			if refVal, isRef := currentVal.(*ReferenceValue); isRef {
+				// Write through the reference
+				return refVal.Assign(value)
+			}
+		}
+
+		// Normal variable assignment
+		return i.env.Set(varName, value)
+
+	case *ast.IndexExpression:
+		// Array/string index assignment: arr[i] := value
+		// Evaluate the array/string
+		arrVal := i.Eval(target.Left)
+		if isError(arrVal) {
+			return fmt.Errorf("failed to evaluate array: %s", arrVal.(*ErrorValue).Message)
+		}
+
+		// Evaluate the index
+		indexVal := i.Eval(target.Index)
+		if isError(indexVal) {
+			return fmt.Errorf("failed to evaluate index: %s", indexVal.(*ErrorValue).Message)
+		}
+
+		indexInt, ok := indexVal.(*IntegerValue)
+		if !ok {
+			return fmt.Errorf("index must be Integer, got %s", indexVal.Type())
+		}
+
+		index := int(indexInt.Value)
+
+		// Handle different array types
+		arr, ok := arrVal.(*ArrayValue)
+		if !ok {
+			return fmt.Errorf("cannot index into %s", arrVal.Type())
+		}
+
+		// Perform bounds checking and get physical index
+		if arr.ArrayType == nil {
+			return fmt.Errorf("array has no type information")
+		}
+
+		var physicalIndex int
+		if arr.ArrayType.IsStatic() {
+			// Static array: check bounds and adjust for low bound
+			lowBound := *arr.ArrayType.LowBound
+			highBound := *arr.ArrayType.HighBound
+
+			if index < lowBound || index > highBound {
+				return fmt.Errorf("array index out of bounds: %d (bounds are %d..%d)", index, lowBound, highBound)
+			}
+
+			physicalIndex = index - lowBound
+		} else {
+			// Dynamic array: zero-based indexing
+			if index < 0 || index >= len(arr.Elements) {
+				return fmt.Errorf("array index out of bounds: %d (array length is %d)", index, len(arr.Elements))
+			}
+
+			physicalIndex = index
+		}
+
+		// Check physical bounds
+		if physicalIndex < 0 || physicalIndex >= len(arr.Elements) {
+			return fmt.Errorf("array index out of bounds: physical index %d, length %d", physicalIndex, len(arr.Elements))
+		}
+
+		// Update the array element
+		arr.Elements[physicalIndex] = value
+		return nil
+
+	case *ast.MemberAccessExpression:
+		// Object/record field assignment: obj.field := value
+		// Evaluate the object/record
+		objVal := i.Eval(target.Object)
+		if isError(objVal) {
+			return fmt.Errorf("failed to evaluate object: %s", objVal.(*ErrorValue).Message)
+		}
+
+		fieldName := target.Member.Value
+
+		// Handle different object types
+		switch obj := objVal.(type) {
+		case *ObjectInstance:
+			obj.Fields[fieldName] = value
+			return nil
+
+		case *RecordValue:
+			obj.Fields[fieldName] = value
+			return nil
+
+		case *ReferenceValue:
+			// Dereference and try again
+			deref, err := obj.Dereference()
+			if err != nil {
+				return err
+			}
+			if objInst, ok := deref.(*ObjectInstance); ok {
+				objInst.Fields[fieldName] = value
+				return nil
+			}
+			if recVal, ok := deref.(*RecordValue); ok {
+				recVal.Fields[fieldName] = value
+				return nil
+			}
+			return fmt.Errorf("cannot access field of %s", deref.Type())
+
+		default:
+			return fmt.Errorf("cannot access field of %s", objVal.Type())
+		}
+
+	default:
+		return fmt.Errorf("invalid lvalue type: %T", lvalue)
+	}
 }

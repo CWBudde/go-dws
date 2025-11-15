@@ -257,7 +257,7 @@ func TestIncErrors(t *testing.T) {
 			input: `
 Inc(x);
 `,
-			expectedError: "undefined variable: x",
+			expectedError: "undefined variable 'x'",
 		},
 		{
 			name: "Inc wrong type - string",
@@ -398,7 +398,7 @@ func TestIncWithExpression(t *testing.T) {
 			input: `
 Inc(5);
 `,
-			expectedError: "Inc() first argument must be a variable, got *ast.IntegerLiteral",
+			expectedError: "invalid lvalue type: *ast.IntegerLiteral",
 		},
 		{
 			name: "Inc with expression",
@@ -406,7 +406,7 @@ Inc(5);
 var x: Integer := 5;
 Inc(x + 1);
 `,
-			expectedError: "Inc() first argument must be a variable, got *ast.BinaryExpression",
+			expectedError: "invalid lvalue type: *ast.BinaryExpression",
 		},
 	}
 
@@ -686,7 +686,7 @@ func TestDecErrors(t *testing.T) {
 			input: `
 Dec(x);
 `,
-			expectedError: "undefined variable: x",
+			expectedError: "undefined variable 'x'",
 		},
 		{
 			name: "Dec wrong type - string",
