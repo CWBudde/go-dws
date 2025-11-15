@@ -64,7 +64,7 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 			ReturnValue: &ast.BinaryExpression{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
-										Token:    lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 14)},
+						Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 14)},
 					},
 					Type: intType,
 				},
@@ -72,7 +72,7 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 				Left: &ast.BinaryExpression{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
-												Token:    lexer.Token{Type: lexer.ASTERISK, Literal: "*", Pos: pos(3, 9)},
+							Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*", Pos: pos(3, 9)},
 						},
 						Type: intType,
 					},
@@ -169,7 +169,7 @@ func TestVM_RunWhileLoop(t *testing.T) {
 			Condition: &ast.BinaryExpression{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
-										Token:    lexer.Token{Type: lexer.LESS, Literal: "<", Pos: pos(3, 10)},
+						Token: lexer.Token{Type: lexer.LESS, Literal: "<", Pos: pos(3, 10)},
 					},
 					Type: boolType,
 				},
@@ -208,7 +208,7 @@ func TestVM_RunWhileLoop(t *testing.T) {
 				Value: &ast.BinaryExpression{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
-												Token:    lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(4, 8)},
+							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(4, 8)},
 						},
 						Type: intType,
 					},
