@@ -77,7 +77,9 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 					},
 				},
 				&ast.ReturnStatement{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(6, 3)},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(6, 3)},
+					},
 					ReturnValue: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{
@@ -123,7 +125,9 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 					Value: innerLambda,
 				},
 				&ast.ReturnStatement{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(4, 1)},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(4, 1)},
+					},
 					ReturnValue: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{
@@ -224,7 +228,9 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 		},
 		Statements: []ast.Statement{
 			&ast.ReturnStatement{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(2, 5)},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(2, 5)},
+				},
 				ReturnValue: &ast.BinaryExpression{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -304,7 +310,9 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 		Statements: []ast.Statement{
 			functionDecl,
 			&ast.ReturnStatement{
-				Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(4, 1)},
+				BaseNode: ast.BaseNode{
+					Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(4, 1)},
+				},
 				ReturnValue: callAddOne,
 			},
 		},
@@ -386,7 +394,9 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 				},
 			},
 			&ast.ReturnStatement{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(3, 1)},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(3, 1)},
+				},
 				ReturnValue: &ast.BinaryExpression{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{

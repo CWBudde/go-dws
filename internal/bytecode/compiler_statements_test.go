@@ -78,7 +78,9 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 				},
 			},
 			&ast.ReturnStatement{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(3, 1)},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(3, 1)},
+					},
 				ReturnValue: &ast.Identifier{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -229,7 +231,9 @@ func TestCompiler_IfElse(t *testing.T) {
 				},
 			},
 			&ast.ReturnStatement{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
+					},
 				ReturnValue: &ast.Identifier{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -283,7 +287,9 @@ func TestCompiler_TryExceptTypedHandler(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.TryStatement{
-				Token: lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(1, 1)},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(1, 1)},
+					},
 				TryBlock: &ast.BlockStatement{Statements: []ast.Statement{
 					&ast.ExpressionStatement{
 						Expression: &ast.NilLiteral{
@@ -296,10 +302,14 @@ func TestCompiler_TryExceptTypedHandler(t *testing.T) {
 					},
 				}},
 				ExceptClause: &ast.ExceptClause{
+				BaseNode: ast.BaseNode{
 					Token: lexer.Token{Type: lexer.EXCEPT, Literal: "except", Pos: pos(2, 1)},
+				},
 					Handlers: []*ast.ExceptionHandler{
 						{
-							Token: lexer.Token{Type: lexer.ON, Literal: "on", Pos: pos(2, 3)},
+								BaseNode: ast.BaseNode{
+									Token: lexer.Token{Type: lexer.ON, Literal: "on", Pos: pos(2, 3)},
+								},
 							Variable: &ast.Identifier{
 								TypedExpressionBase: ast.TypedExpressionBase{
 									BaseNode: ast.BaseNode{
@@ -375,7 +385,9 @@ func TestCompiler_TryExceptRethrowWithoutElse(t *testing.T) {
 				}},
 			},
 			&ast.TryStatement{
-				Token: lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(2, 1)},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(2, 1)},
+					},
 				TryBlock: &ast.BlockStatement{Statements: []ast.Statement{
 					&ast.ExpressionStatement{
 						Expression: &ast.NilLiteral{
@@ -388,10 +400,14 @@ func TestCompiler_TryExceptRethrowWithoutElse(t *testing.T) {
 					},
 				}},
 				ExceptClause: &ast.ExceptClause{
+				BaseNode: ast.BaseNode{
 					Token: lexer.Token{Type: lexer.EXCEPT, Literal: "except", Pos: pos(3, 1)},
+				},
 					Handlers: []*ast.ExceptionHandler{
 						{
+						BaseNode: ast.BaseNode{
 							Token:         lexer.Token{Type: lexer.ON, Literal: "on", Pos: pos(3, 3)},
+						},
 							ExceptionType: &ast.TypeAnnotation{Name: "Other"},
 							Statement:     &ast.BlockStatement{Statements: []ast.Statement{assign}},
 						},
@@ -423,7 +439,9 @@ func TestCompiler_RaiseStatementExpression(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.RaiseStatement{
-				Token: lexer.Token{Type: lexer.RAISE, Literal: "raise", Pos: pos(1, 1)},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.RAISE, Literal: "raise", Pos: pos(1, 1)},
+					},
 				Exception: &ast.IntegerLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -453,7 +471,9 @@ func TestCompiler_RaiseStatementBare(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.RaiseStatement{
-				Token: lexer.Token{Type: lexer.RAISE, Literal: "raise", Pos: pos(1, 1)},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.RAISE, Literal: "raise", Pos: pos(1, 1)},
+					},
 			},
 		},
 	}
@@ -544,10 +564,14 @@ func TestCompiler_TryFinallyMetadata(t *testing.T) {
 				},
 			},
 			&ast.TryStatement{
+			BaseNode: ast.BaseNode{
 				Token:    lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(2, 1)},
+			},
 				TryBlock: &ast.BlockStatement{Statements: []ast.Statement{assignTry}},
 				FinallyClause: &ast.FinallyClause{
+				BaseNode: ast.BaseNode{
 					Token: lexer.Token{Type: lexer.FINALLY, Literal: "finally", Pos: pos(3, 1)},
+				},
 					Block: &ast.BlockStatement{Statements: []ast.Statement{assignFinally}},
 				},
 			},
@@ -856,7 +880,9 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 			},
 			repeatStmt,
 			&ast.ReturnStatement{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
+					},
 				ReturnValue: &ast.Identifier{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
