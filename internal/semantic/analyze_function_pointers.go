@@ -173,7 +173,7 @@ func (a *Analyzer) analyzeAddressOfFunction(funcName string, expr *ast.AddressOf
 	typeAnnotation := &ast.TypeAnnotation{
 		Name: fmt.Sprintf("function pointer to %s", funcName),
 	}
-	expr.SetType(typeAnnotation)
+	a.semanticInfo.SetType(expr, typeAnnotation)
 
 	return funcPtrType
 }

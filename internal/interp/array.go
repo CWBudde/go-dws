@@ -397,7 +397,10 @@ func (i *Interpreter) evalArrayLiteral(lit *ast.ArrayLiteralExpression) Value {
 
 // arrayTypeFromLiteral resolves the array type for a literal using its type annotation, if available.
 func (i *Interpreter) arrayTypeFromLiteral(lit *ast.ArrayLiteralExpression) (*types.ArrayType, Value) {
-	typeAnnot := lit.GetType()
+	var typeAnnot *ast.TypeAnnotation
+	if i.semanticInfo != nil {
+		typeAnnot = i.semanticInfo.GetType(lit)
+	}
 	if typeAnnot == nil || typeAnnot.Name == "" {
 		return nil, nil
 	}
@@ -586,11 +589,26 @@ func (i *Interpreter) evalArrayLiteralWithExpected(lit *ast.ArrayLiteralExpressi
 		return i.evalArrayLiteral(lit)
 	}
 
-	prevType := lit.GetType()
+	// Temporarily set type annotation for evaluation
+	var prevType *ast.TypeAnnotation
 	annotation := &ast.TypeAnnotation{Token: lit.Token, Name: expected.String()}
-	lit.SetType(annotation)
+
+	if i.semanticInfo != nil {
+		prevType = i.semanticInfo.GetType(lit)
+		i.semanticInfo.SetType(lit, annotation)
+	}
+
 	result := i.evalArrayLiteral(lit)
-	lit.SetType(prevType)
+
+	// Restore previous type
+	if i.semanticInfo != nil {
+		if prevType != nil {
+			i.semanticInfo.SetType(lit, prevType)
+		} else {
+			i.semanticInfo.ClearType(lit)
+		}
+	}
+
 	return result
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
+	pkgast "github.com/cwbudde/go-dws/pkg/ast" // Task 9.18
 )
 
 // DefaultMaxRecursionDepth is the default maximum recursion depth for function calls.
@@ -52,6 +53,7 @@ type Interpreter struct {
 	oldValuesStack       []map[string]Value
 	loadedUnits          []string
 	maxRecursionDepth    int
+	semanticInfo         *pkgast.SemanticInfo // Task 9.18: Type metadata from semantic analysis
 	breakSignal          bool
 	continueSignal       bool
 	exitSignal           bool
@@ -170,6 +172,13 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 // This is used by the CLI to detect and report unhandled exceptions.
 func (i *Interpreter) GetException() *ExceptionValue {
 	return i.exception
+}
+
+// SetSemanticInfo sets the semantic metadata table for this interpreter.
+// The semantic info contains type annotations and symbol resolutions from analysis.
+// Task 9.18: Separate type metadata from AST nodes.
+func (i *Interpreter) SetSemanticInfo(info *pkgast.SemanticInfo) {
+	i.semanticInfo = info
 }
 
 // GetCallStack returns a copy of the current call stack.

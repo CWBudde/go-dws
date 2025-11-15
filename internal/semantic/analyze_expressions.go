@@ -284,7 +284,7 @@ func (a *Analyzer) analyzeIsExpression(expr *ast.IsExpression) types.Type {
 		// The interpreter and bytecode VM handle conversion using isTruthy/variantToBool
 
 		// The 'is' operator always returns Boolean
-		expr.SetType(&ast.TypeAnnotation{
+		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
 			Token: expr.Token,
 			Name:  "Boolean",
 		})
@@ -318,7 +318,7 @@ func (a *Analyzer) analyzeIsExpression(expr *ast.IsExpression) types.Type {
 	}
 
 	// The 'is' operator always returns Boolean
-	expr.SetType(&ast.TypeAnnotation{
+	a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
 		Token: expr.Token,
 		Name:  "Boolean",
 	})
@@ -363,7 +363,7 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 	// Also allow NIL to be cast to any interface or class
 	if leftType == types.NIL {
 		// Set the expression type and return
-		expr.SetType(&ast.TypeAnnotation{
+		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
 			Token: expr.Token,
 			Name:  targetType.String(), // Use the actual target type name
 		})
@@ -387,7 +387,7 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 			return nil
 		}
 
-		expr.SetType(&ast.TypeAnnotation{
+		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
 			Token: expr.Token,
 			Name:  classTargetType.Name,
 		})
@@ -403,7 +403,7 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 	}
 
 	// Set the expression type annotation
-	expr.SetType(&ast.TypeAnnotation{
+	a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
 		Token: expr.Token,
 		Name:  interfaceType.Name,
 	})
@@ -448,7 +448,7 @@ func (a *Analyzer) analyzeImplementsExpression(expr *ast.ImplementsExpression) t
 	}
 
 	// Set the expression type annotation to Boolean
-	expr.SetType(&ast.TypeAnnotation{
+	a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
 		Token: expr.Token,
 		Name:  "Boolean",
 	})
@@ -499,7 +499,7 @@ func (a *Analyzer) analyzeIfExpression(expr *ast.IfExpression) types.Type {
 
 	// Set type annotation on the expression
 	if resultType != nil {
-		expr.SetType(&ast.TypeAnnotation{
+		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
 			Token: expr.Token,
 			Name:  resultType.String(),
 		})

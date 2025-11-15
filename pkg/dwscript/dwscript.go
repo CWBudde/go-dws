@@ -89,6 +89,7 @@ func (e *Engine) Compile(source string) (*Program, error) {
 
 	// Type check (if enabled)
 	var analyzer *semantic.Analyzer
+	var semanticInfo *ast.SemanticInfo
 	if e.options.TypeCheck {
 		analyzer = semantic.NewAnalyzer()
 		if err := analyzer.Analyze(program); err != nil {
@@ -99,11 +100,17 @@ func (e *Engine) Compile(source string) (*Program, error) {
 				Errors: errors,
 			}
 		}
+		// Task 9.18: Get semantic info from analyzer
+		semanticInfo = analyzer.GetSemanticInfo()
 	}
 
 	var chunk *bytecode.Chunk
 	if e.options.CompileMode == CompileModeBytecode {
 		bc := bytecode.NewCompiler("dwscript")
+		// Task 9.18: Pass semantic info to bytecode compiler
+		if semanticInfo != nil {
+			bc.SetSemanticInfo(semanticInfo)
+		}
 		var err error
 		chunk, err = bc.Compile(program)
 		if err != nil {
@@ -114,6 +121,7 @@ func (e *Engine) Compile(source string) (*Program, error) {
 	return &Program{
 		ast:           program,
 		analyzer:      analyzer,
+		semanticInfo:  semanticInfo, // Task 9.18
 		options:       e.options,
 		bytecodeChunk: chunk,
 	}, nil
@@ -293,6 +301,10 @@ func (e *Engine) Run(program *Program) (*Result, error) {
 func (e *Engine) runInterpreter(program *Program, output io.Writer) (*Result, error) {
 	e.options.ExternalFunctions = e.externalFunctions
 	interpreter := interp.NewWithOptions(output, &e.options)
+	// Task 9.18: Pass semantic info to interpreter
+	if program.semanticInfo != nil {
+		interpreter.SetSemanticInfo(program.semanticInfo)
+	}
 	value := interpreter.Eval(program.ast)
 
 	if value != nil && value.Type() == "ERROR" {
@@ -378,6 +390,7 @@ func (e *Engine) Eval(source string) (*Result, error) {
 type Program struct {
 	ast           *ast.Program
 	analyzer      *semantic.Analyzer
+	semanticInfo  *ast.SemanticInfo // Task 9.18: Type metadata from semantic analysis
 	bytecodeChunk *bytecode.Chunk
 	options       Options
 }
@@ -413,6 +426,10 @@ func (p *Program) ensureBytecodeChunk() (*bytecode.Chunk, error) {
 	}
 
 	compiler := bytecode.NewCompiler("dwscript")
+	// Task 9.18: Pass semantic info to bytecode compiler
+	if p.semanticInfo != nil {
+		compiler.SetSemanticInfo(p.semanticInfo)
+	}
 	chunk, err := compiler.Compile(p.ast)
 	if err != nil {
 		return nil, err
