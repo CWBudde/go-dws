@@ -64,6 +64,10 @@ func (i *Interpreter) getLocationFromNode(node ast.Node) string {
 		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
 	case *ast.AssignmentStatement:
 		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	case *ast.MemberAccessExpression:
+		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
+	case *ast.MethodCallExpression:
+		return fmt.Sprintf("line %d, column %d", n.Token.Pos.Line, n.Token.Pos.Column)
 	}
 	return ""
 }

@@ -302,7 +302,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// If so, extract the underlying object and delegate member access to it
 	if intfInst, ok := objVal.(*InterfaceInstance); ok {
 		if intfInst.Object == nil {
-			return i.newErrorWithLocation(ma, "cannot access member '%s' on nil interface", ma.Member.Value)
+			return i.newErrorWithLocation(ma, "Interface is nil")
 		}
 
 		// Verify the member exists in the interface definition

@@ -65,14 +65,24 @@ type ObjectInstance struct {
 
 	// Fields maps field names to their runtime values
 	Fields map[string]Value
+
+	// RefCount tracks interface references to this object for lifetime management
+	// Task 9.1.5: Objects held by interfaces use reference counting
+	// - Starts at 0 when object is created; incremented when assigned to variable or interface
+	// - Increments when assigned to another variable or interface
+	// - Decrements when variable is reassigned, set to nil, or goes out of scope
+	// - Destructor called when RefCount reaches 0
+	RefCount int
 }
 
 // NewObjectInstance creates a new object instance of the given class.
 // Field values are initialized as an empty map.
+// Task 9.1.5: RefCount starts at 0; incremented when assigned to variable or interface
 func NewObjectInstance(class *ClassInfo) *ObjectInstance {
 	return &ObjectInstance{
-		Class:  class,
-		Fields: make(map[string]Value),
+		Class:    class,
+		Fields:   make(map[string]Value),
+		RefCount: 0, // Start with reference count of 0
 	}
 }
 

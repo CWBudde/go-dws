@@ -552,7 +552,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	// If so, extract the underlying object and delegate method call to it
 	if intfInst, ok := objVal.(*InterfaceInstance); ok {
 		if intfInst.Object == nil {
-			return i.newErrorWithLocation(mc, "cannot call method '%s' on nil interface", mc.Method.Value)
+			return i.newErrorWithLocation(mc, "Interface is nil")
 		}
 
 		// Verify the method exists in the interface definition
