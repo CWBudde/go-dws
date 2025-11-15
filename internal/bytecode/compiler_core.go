@@ -557,7 +557,9 @@ func (c *Compiler) isGlobalScope() bool {
 }
 
 // isPrimitiveTypeWithHelpers checks if a type is a primitive type that has helper methods.
-// These types include String, Integer, Float, Boolean, and Array types.
+// These types include String, Integer, Float, and Boolean types.
+// Note: Arrays are NOT included here because their properties (.Length, .Count, .High, .Low)
+// are handled via OpGetProperty, not OpCallMethod.
 func (c *Compiler) isPrimitiveTypeWithHelpers(typ types.Type) bool {
 	if typ == nil {
 		return false
@@ -565,7 +567,7 @@ func (c *Compiler) isPrimitiveTypeWithHelpers(typ types.Type) bool {
 
 	typeKind := typ.TypeKind()
 	switch typeKind {
-	case "STRING", "INTEGER", "FLOAT", "BOOLEAN", "ARRAY":
+	case "STRING", "INTEGER", "FLOAT", "BOOLEAN":
 		return true
 	default:
 		return false

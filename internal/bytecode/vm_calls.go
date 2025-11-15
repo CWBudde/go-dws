@@ -1,6 +1,7 @@
 package bytecode
 
 import (
+	"math"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
@@ -163,6 +164,17 @@ func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) erro
 		// Fall through to generic helper method handling if not a built-in
 	}
 
+	// callStringHelper is a helper function to reduce code duplication in string helper methods.
+	// It calls a builtin function with the receiver and args, handles errors, and pushes the result.
+	callStringHelper := func(builtin func(*VM, []Value) (Value, error), args []Value) error {
+		result, err := builtin(vm, append([]Value{receiver}, args...))
+		if err != nil {
+			return err
+		}
+		vm.push(result)
+		return nil
+	}
+
 	// Handle String helper methods (Task 9.23.5: Bytecode VM helper method support)
 	if receiver.IsString() {
 		str := receiver.AsString()
@@ -173,23 +185,13 @@ func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) erro
 			if len(args) != 0 {
 				return vm.runtimeError("String.ToUpper expects 0 arguments, got %d", len(args))
 			}
-			result, err := builtinUpperCase(vm, []Value{receiver})
-			if err != nil {
-				return err
-			}
-			vm.push(result)
-			return nil
+			return callStringHelper(builtinUpperCase, args)
 
 		case "tolower", "lowercase":
 			if len(args) != 0 {
 				return vm.runtimeError("String.ToLower expects 0 arguments, got %d", len(args))
 			}
-			result, err := builtinLowerCase(vm, []Value{receiver})
-			if err != nil {
-				return err
-			}
-			vm.push(result)
-			return nil
+			return callStringHelper(builtinLowerCase, args)
 
 		// TODO: Implement Trim builtin in VM
 		// case "trim":
@@ -198,23 +200,13 @@ func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) erro
 			if len(args) != 0 {
 				return vm.runtimeError("String.ToInteger expects 0 arguments, got %d", len(args))
 			}
-			result, err := builtinStrToInt(vm, []Value{receiver})
-			if err != nil {
-				return err
-			}
-			vm.push(result)
-			return nil
+			return callStringHelper(builtinStrToInt, args)
 
 		case "tofloat":
 			if len(args) != 0 {
 				return vm.runtimeError("String.ToFloat expects 0 arguments, got %d", len(args))
 			}
-			result, err := builtinStrToFloat(vm, []Value{receiver})
-			if err != nil {
-				return err
-			}
-			vm.push(result)
-			return nil
+			return callStringHelper(builtinStrToFloat, args)
 
 		case "tostring":
 			if len(args) != 0 {
@@ -227,34 +219,19 @@ func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) erro
 			if len(args) != 1 {
 				return vm.runtimeError("String.StartsWith expects 1 argument, got %d", len(args))
 			}
-			result, err := builtinStrBeginsWith(vm, []Value{receiver, args[0]})
-			if err != nil {
-				return err
-			}
-			vm.push(result)
-			return nil
+			return callStringHelper(builtinStrBeginsWith, args)
 
 		case "endswith":
 			if len(args) != 1 {
 				return vm.runtimeError("String.EndsWith expects 1 argument, got %d", len(args))
 			}
-			result, err := builtinStrEndsWith(vm, []Value{receiver, args[0]})
-			if err != nil {
-				return err
-			}
-			vm.push(result)
-			return nil
+			return callStringHelper(builtinStrEndsWith, args)
 
 		case "contains":
 			if len(args) != 1 {
 				return vm.runtimeError("String.Contains expects 1 argument, got %d", len(args))
 			}
-			result, err := builtinStrContains(vm, []Value{receiver, args[0]})
-			if err != nil {
-				return err
-			}
-			vm.push(result)
-			return nil
+			return callStringHelper(builtinStrContains, args)
 
 		case "indexof":
 			if len(args) != 1 {
@@ -274,8 +251,8 @@ func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) erro
 			}
 			// Copy(str, start, [length])
 			if len(args) == 1 {
-				// Copy from start to end (use MaxInt as length)
-				result, err := builtinCopy(vm, []Value{receiver, args[0], IntValue(2147483647)})
+				// Copy from start to end (use MaxInt32 as length)
+				result, err := builtinCopy(vm, []Value{receiver, args[0], IntValue(math.MaxInt32)})
 				if err != nil {
 					return err
 				}
@@ -293,34 +270,19 @@ func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) erro
 			if len(args) != 1 {
 				return vm.runtimeError("String.Before expects 1 argument, got %d", len(args))
 			}
-			result, err := builtinStrBefore(vm, []Value{receiver, args[0]})
-			if err != nil {
-				return err
-			}
-			vm.push(result)
-			return nil
+			return callStringHelper(builtinStrBefore, args)
 
 		case "after":
 			if len(args) != 1 {
 				return vm.runtimeError("String.After expects 1 argument, got %d", len(args))
 			}
-			result, err := builtinStrAfter(vm, []Value{receiver, args[0]})
-			if err != nil {
-				return err
-			}
-			vm.push(result)
-			return nil
+			return callStringHelper(builtinStrAfter, args)
 
 		case "split":
 			if len(args) != 1 {
 				return vm.runtimeError("String.Split expects 1 argument, got %d", len(args))
 			}
-			result, err := builtinStrSplit(vm, []Value{receiver, args[0]})
-			if err != nil {
-				return err
-			}
-			vm.push(result)
-			return nil
+			return callStringHelper(builtinStrSplit, args)
 
 		case "length":
 			if len(args) != 0 {
