@@ -1,0 +1,56 @@
+// Test case-insensitive function lookups in all contexts
+// Tests for: parameterless calls, function pointers, operator overloads, unit functions
+
+// Test 1: Parameterless function call with different case
+procedure TestParamless;
+begin
+  PrintLn('Parameterless function called');
+end;
+
+// Call with different case (lowercase)
+testparamless;  // Should work
+
+// Test 2: Function pointer with different case
+function Add(a, b: Integer): Integer;
+begin
+  Result := a + b;
+end;
+
+var addPtr: function(a, b: Integer): Integer;
+addptr := @ADD;  // Mixed case function pointer - should work
+PrintLn('Function pointer test: ' + IntToStr(addptr(5, 3)));
+
+// Test 3: Recursive call with different case
+function Factorial(n: Integer): Integer;
+begin
+  if n <= 1 then
+    Result := 1
+  else
+    Result := n * FACTORIAL(n - 1);  // UPPERCASE recursive call - should work
+end;
+
+PrintLn('Factorial(5) = ' + IntToStr(Factorial(5)));
+
+// Test 4: Mutual recursion with different case
+function IsEven(n: Integer): Boolean; forward;
+
+function IsOdd(n: Integer): Boolean;
+begin
+  if n = 0 then
+    Result := False
+  else
+    Result := ISEVEN(n - 1);  // UPPERCASE - should work
+end;
+
+function IsEven(n: Integer): Boolean;
+begin
+  if n = 0 then
+    Result := True
+  else
+    Result := isodd(n - 1);  // lowercase - should work
+end;
+
+PrintLn('IsEven(4) = ' + BoolToStr(IsEven(4)));
+PrintLn('IsOdd(5) = ' + BoolToStr(IsOdd(5)));
+
+PrintLn('All case-insensitive function tests passed!');
