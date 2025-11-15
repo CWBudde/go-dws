@@ -121,10 +121,7 @@ func TestClassDeclString(t *testing.T) {
 }
 
 func TestClassDeclTokenLiteral(t *testing.T) {
-	classDecl := &ClassDecl{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
-		Name:     NewTestIdentifier("TTest"),
-	}
+	classDecl := NewTestClassDecl("TTest", nil)
 
 	expected := "type"
 	result := classDecl.TokenLiteral()
@@ -157,22 +154,14 @@ func TestFieldDeclString(t *testing.T) {
 		expected  string
 	}{
 		{
-			name: "public field",
-			fieldDecl: &FieldDecl{
-				Name:       NewTestIdentifier("X"),
-				Type:       NewTestTypeAnnotation("Integer"),
-				Visibility: VisibilityPublic,
-			},
-			expected: "X: Integer",
+			name:      "public field",
+			fieldDecl: NewTestFieldDecl("X", "Integer", VisibilityPublic),
+			expected:  "X: Integer",
 		},
 		{
-			name: "private field",
-			fieldDecl: &FieldDecl{
-				Name:       NewTestIdentifier("FValue"),
-				Type:       NewTestTypeAnnotation("String"),
-				Visibility: VisibilityPrivate,
-			},
-			expected: "FValue: String",
+			name:      "private field",
+			fieldDecl: NewTestFieldDecl("FValue", "String", VisibilityPrivate),
+			expected:  "FValue: String",
 		},
 	}
 

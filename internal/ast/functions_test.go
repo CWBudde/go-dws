@@ -13,33 +13,18 @@ func TestParameterString(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "simple parameter",
-			param: &Parameter{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-				Name:  NewTestIdentifier("x"),
-				Type:  NewTestTypeAnnotation("Integer"),
-				ByRef: false,
-			},
+			name:     "simple parameter",
+			param:    NewTestParameter("x", "Integer", false),
 			expected: "x: Integer",
 		},
 		{
-			name: "var parameter (by reference)",
-			param: &Parameter{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "s"},
-				Name:  NewTestIdentifier("s"),
-				Type:  NewTestTypeAnnotation("String"),
-				ByRef: true,
-			},
+			name:     "var parameter (by reference)",
+			param:    NewTestParameter("s", "String", true),
 			expected: "var s: String",
 		},
 		{
-			name: "float parameter",
-			param: &Parameter{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-				Name:  NewTestIdentifier("x"),
-				Type:  NewTestTypeAnnotation("Float"),
-				ByRef: false,
-			},
+			name:     "float parameter",
+			param:    NewTestParameter("x", "Float", false),
 			expected: "x: Float",
 		},
 		{
@@ -72,65 +57,29 @@ func TestFunctionDeclString(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "simple function with no parameters",
-			fn: &FunctionDecl{
-				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-				},
-				Name:       NewTestIdentifier("GetValue"),
-				Parameters: []*Parameter{},
-				ReturnType: NewTestTypeAnnotation("Integer"),
-				Body: &BlockStatement{
-					Statements: []Statement{},
-				},
-			},
+			name:     "simple function with no parameters",
+			fn:       NewTestFunctionDecl("GetValue", []*Parameter{}, NewTestTypeAnnotation("Integer")),
 			expected: "function GetValue(): Integer begin\nend",
 		},
 		{
 			name: "function with single parameter",
-			fn: &FunctionDecl{
-				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-				},
-				Name: NewTestIdentifier("Double"),
-				Parameters: []*Parameter{
-					{
-						Name:  NewTestIdentifier("x"),
-						Type:  NewTestTypeAnnotation("Integer"),
-						ByRef: false,
-					},
-				},
-				ReturnType: NewTestTypeAnnotation("Integer"),
-				Body: &BlockStatement{
-					Statements: []Statement{},
-				},
-			},
+			fn: NewTestFunctionDecl(
+				"Double",
+				[]*Parameter{NewTestParameter("x", "Integer", false)},
+				NewTestTypeAnnotation("Integer"),
+			),
 			expected: "function Double(x: Integer): Integer begin\nend",
 		},
 		{
 			name: "function with multiple parameters",
-			fn: &FunctionDecl{
-				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+			fn: NewTestFunctionDecl(
+				"Add",
+				[]*Parameter{
+					NewTestParameter("a", "Integer", false),
+					NewTestParameter("b", "Integer", false),
 				},
-				Name: NewTestIdentifier("Add"),
-				Parameters: []*Parameter{
-					{
-						Name:  NewTestIdentifier("a"),
-						Type:  NewTestTypeAnnotation("Integer"),
-						ByRef: false,
-					},
-					{
-						Name:  NewTestIdentifier("b"),
-						Type:  NewTestTypeAnnotation("Integer"),
-						ByRef: false,
-					},
-				},
-				ReturnType: NewTestTypeAnnotation("Integer"),
-				Body: &BlockStatement{
-					Statements: []Statement{},
-				},
-			},
+				NewTestTypeAnnotation("Integer"),
+			),
 			expected: "function Add(a: Integer; b: Integer): Integer begin\nend",
 		},
 		{
@@ -142,31 +91,17 @@ func TestFunctionDeclString(t *testing.T) {
 				Name:       NewTestIdentifier("Hello"),
 				Parameters: []*Parameter{},
 				ReturnType: nil,
-				Body: &BlockStatement{
-					Statements: []Statement{},
-				},
+				Body:       NewTestBlockStatement([]Statement{}),
 			},
 			expected: "procedure Hello begin\nend",
 		},
 		{
 			name: "function with var parameter",
-			fn: &FunctionDecl{
-				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-				},
-				Name: NewTestIdentifier("Process"),
-				Parameters: []*Parameter{
-					{
-						Name:  NewTestIdentifier("data"),
-						Type:  NewTestTypeAnnotation("String"),
-						ByRef: true,
-					},
-				},
-				ReturnType: NewTestTypeAnnotation("Boolean"),
-				Body: &BlockStatement{
-					Statements: []Statement{},
-				},
-			},
+			fn: NewTestFunctionDecl(
+				"Process",
+				[]*Parameter{NewTestParameter("data", "String", true)},
+				NewTestTypeAnnotation("Boolean"),
+			),
 			expected: "function Process(var data: String): Boolean begin\nend",
 		},
 		{
@@ -184,9 +119,7 @@ func TestFunctionDeclString(t *testing.T) {
 					},
 				},
 				ReturnType: NewTestTypeAnnotation("Integer"),
-				Body: &BlockStatement{
-					Statements: []Statement{},
-				},
+				Body:       NewTestBlockStatement([]Statement{}),
 			},
 			expected: "function Compute(lazy expr: Integer): Integer begin\nend",
 		},
@@ -212,19 +145,15 @@ func TestReturnStatementString(t *testing.T) {
 			name: "return with integer value",
 			stmt: &ReturnStatement{
 				Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result"},
-				ReturnValue: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "42"}}}, Value: 42},
+				ReturnValue: NewTestIntegerLiteral(42),
 			},
 			expected: "Result := 42",
 		},
 		{
 			name: "return with expression",
 			stmt: &ReturnStatement{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"},
-				ReturnValue: &BinaryExpression{
-					Left:     NewTestIdentifier("a"),
-					Operator: "+",
-					Right:    NewTestIdentifier("b"),
-				},
+				Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result"},
+				ReturnValue: NewTestBinaryExpression(NewTestIdentifier("a"), "+", NewTestIdentifier("b")),
 			},
 			expected: "Result := (a + b)",
 		},
@@ -232,7 +161,7 @@ func TestReturnStatementString(t *testing.T) {
 			name: "return with string value",
 			stmt: &ReturnStatement{
 				Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result"},
-				ReturnValue: &StringLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.STRING, Literal: "hello"}}}, Value: "hello"},
+				ReturnValue: NewTestStringLiteral("hello"),
 			},
 			expected: "Result := \"hello\"",
 		},

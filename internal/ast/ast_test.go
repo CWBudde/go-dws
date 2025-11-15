@@ -240,13 +240,8 @@ func TestBinaryExpression(t *testing.T) {
 			want:     "(x < 10)",
 		},
 		{
-			name: "nested expression",
-			left: &BinaryExpression{
-				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
-				Left:     NewTestIntegerLiteral(1),
-				Operator: "+",
-				Right:    NewTestIntegerLiteral(2),
-			},
+			name:     "nested expression",
+			left:     NewTestBinaryExpression(NewTestIntegerLiteral(1), "+", NewTestIntegerLiteral(2)),
 			operator: "*",
 			right:    NewTestIntegerLiteral(3),
 			want:     "((1 + 2) * 3)",
@@ -299,11 +294,7 @@ func TestUnaryExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			node := &UnaryExpression{
-				Token:    lexer.Token{Type: lexer.MINUS, Literal: tt.operator},
-				Operator: tt.operator,
-				Right:    tt.right,
-			}
+			node := NewTestUnaryExpression(tt.operator, tt.right)
 
 			if node.String() != tt.want {
 				t.Errorf("String() = %q, want %q", node.String(), tt.want)
@@ -326,12 +317,7 @@ func TestGroupedExpression(t *testing.T) {
 		},
 		{
 			name: "binary expression",
-			expr: &BinaryExpression{
-				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
-				Left:     NewTestIntegerLiteral(3),
-				Operator: "+",
-				Right:    NewTestIntegerLiteral(5),
-			},
+			expr: NewTestBinaryExpression(NewTestIntegerLiteral(3), "+", NewTestIntegerLiteral(5)),
 			want: "((3 + 5))",
 		},
 	}
@@ -428,10 +414,7 @@ func TestBlockStatement(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			node := &BlockStatement{
-				Token:      lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
-				Statements: tt.stmts,
-			}
+			node := NewTestBlockStatement(tt.stmts)
 
 			if node.String() != tt.want {
 				t.Errorf("String() =\n%q\nwant:\n%q", node.String(), tt.want)
@@ -518,13 +501,8 @@ func TestAssignmentStatement(t *testing.T) {
 		{
 			name:    "expression assignment",
 			varName: "y",
-			value: &BinaryExpression{
-				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
-				Left:     NewTestIdentifier("x"),
-				Operator: "+",
-				Right:    NewTestIntegerLiteral(1),
-			},
-			want: "y := (x + 1)",
+			value:   NewTestBinaryExpression(NewTestIdentifier("x"), "+", NewTestIntegerLiteral(1)),
+			want:    "y := (x + 1)",
 		},
 	}
 
@@ -581,12 +559,7 @@ func TestCallExpression(t *testing.T) {
 			name:     "expression arguments",
 			function: NewTestIdentifier("PrintLn"),
 			arguments: []Expression{
-				&BinaryExpression{
-					Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
-					Left:     NewTestIntegerLiteral(2),
-					Operator: "+",
-					Right:    NewTestIntegerLiteral(3),
-				},
+				NewTestBinaryExpression(NewTestIntegerLiteral(2), "+", NewTestIntegerLiteral(3)),
 			},
 			want: "PrintLn((2 + 3))",
 		},
@@ -594,11 +567,7 @@ func TestCallExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			node := &CallExpression{
-				Token:     lexer.Token{Type: lexer.LPAREN, Literal: "("},
-				Function:  tt.function,
-				Arguments: tt.arguments,
-			}
+			node := NewTestCallExpression(tt.function, tt.arguments)
 
 			if node.String() != tt.want {
 				t.Errorf("String() = %q, want %q", node.String(), tt.want)

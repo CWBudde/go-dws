@@ -24,12 +24,11 @@ func TestConditionString(t *testing.T) {
 		{
 			name: "condition with message",
 			cond: &Condition{
-				Test: &BinaryExpression{
-					Left:     NewTestIdentifier("x"),
-					Operator: ">",
-					Right:    NewTestIntegerLiteral(0),
-					Token:    lexer.Token{Type: lexer.GREATER, Literal: ">"},
-				},
+				Test: NewTestBinaryExpression(
+					NewTestIdentifier("x"),
+					">",
+					NewTestIntegerLiteral(0),
+				),
 				Message: NewTestStringLiteral("x must be positive", "'x must be positive'"),
 				Token:   lexer.Token{Type: lexer.IDENT, Literal: "x"},
 			},
@@ -56,12 +55,11 @@ func TestPreConditionsString(t *testing.T) {
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 			},
 			{
-				Test: &BinaryExpression{
-					Left:     NewTestIdentifier("y"),
-					Operator: "<>",
-					Right:    NewTestIntegerLiteral(0),
-					Token:    lexer.Token{Type: lexer.NOT_EQ, Literal: "<>"},
-				},
+				Test: NewTestBinaryExpression(
+					NewTestIdentifier("y"),
+					"<>",
+					NewTestIntegerLiteral(0),
+				),
 				Message: NewTestStringLiteral("y cannot be zero", "'y cannot be zero'"),
 				Token:   lexer.Token{Type: lexer.IDENT, Literal: "y"},
 			},
@@ -81,12 +79,11 @@ func TestPostConditionsString(t *testing.T) {
 		Token: lexer.Token{Type: lexer.ENSURE, Literal: "ensure"},
 		Conditions: []*Condition{
 			{
-				Test: &BinaryExpression{
-					Left:     NewTestIdentifier("Result"),
-					Operator: ">",
-					Right:    NewTestIntegerLiteral(0),
-					Token:    lexer.Token{Type: lexer.GREATER, Literal: ">"},
-				},
+				Test: NewTestBinaryExpression(
+					NewTestIdentifier("Result"),
+					">",
+					NewTestIntegerLiteral(0),
+				),
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"},
 			},
 		},
@@ -174,12 +171,11 @@ func TestFunctionDeclWithContracts(t *testing.T) {
 			Token: lexer.Token{Type: lexer.REQUIRE, Literal: "require"},
 			Conditions: []*Condition{
 				{
-					Test: &BinaryExpression{
-						Left:     NewTestIdentifier("x"),
-						Operator: ">",
-						Right:    NewTestIntegerLiteral(0),
-						Token:    lexer.Token{Type: lexer.GREATER, Literal: ">"},
-					},
+					Test: NewTestBinaryExpression(
+						NewTestIdentifier("x"),
+						">",
+						NewTestIntegerLiteral(0),
+					),
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 				},
 			},
@@ -192,12 +188,11 @@ func TestFunctionDeclWithContracts(t *testing.T) {
 			Token: lexer.Token{Type: lexer.ENSURE, Literal: "ensure"},
 			Conditions: []*Condition{
 				{
-					Test: &BinaryExpression{
-						Left:     NewTestIdentifier("Result"),
-						Operator: ">",
-						Right:    NewTestIntegerLiteral(0),
-						Token:    lexer.Token{Type: lexer.GREATER, Literal: ">"},
-					},
+					Test: NewTestBinaryExpression(
+						NewTestIdentifier("Result"),
+						">",
+						NewTestIntegerLiteral(0),
+					),
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"},
 				},
 			},
@@ -229,20 +224,18 @@ func TestOldExpressionInPostCondition(t *testing.T) {
 		Token: lexer.Token{Type: lexer.ENSURE, Literal: "ensure"},
 		Conditions: []*Condition{
 			{
-				Test: &BinaryExpression{
-					Left:     NewTestIdentifier("Result"),
-					Operator: "=",
-					Right: &BinaryExpression{
-						Left: &OldExpression{
+				Test: NewTestBinaryExpression(
+					NewTestIdentifier("Result"),
+					"=",
+					NewTestBinaryExpression(
+						&OldExpression{
 							Token:      lexer.Token{Type: lexer.OLD, Literal: "old"},
 							Identifier: NewTestIdentifier("x"),
 						},
-						Operator: "+",
-						Right:    NewTestIntegerLiteral(1),
-						Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
-					},
-					Token: lexer.Token{Type: lexer.EQ, Literal: "="},
-				},
+						"+",
+						NewTestIntegerLiteral(1),
+					),
+				),
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"},
 			},
 		},

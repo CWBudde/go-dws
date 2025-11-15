@@ -1,3 +1,36 @@
+// Package ast provides test helper functions for creating common AST nodes.
+// These reduce boilerplate and make test code more readable.
+//
+// Usage Examples:
+//
+//	// Instead of verbose struct initialization:
+//	field := &FieldDecl{
+//		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "name"}},
+//		Name: &Identifier{...},
+//		Type: &TypeAnnotation{Name: "String"},
+//		Visibility: VisibilityPublic,
+//	}
+//
+//	// Use the helper:
+//	field := NewTestFieldDecl("name", "String", VisibilityPublic)
+//
+//	// Create a function with parameters:
+//	params := []*Parameter{
+//		NewTestParameter("x", "Integer", false),
+//		NewTestParameter("y", "String", true), // by reference
+//	}
+//	fn := NewTestFunctionDecl("Process", params, NewTestTypeAnnotation("Boolean"))
+//
+//	// Create expressions:
+//	binary := NewTestBinaryExpression(
+//		NewTestIdentifier("a"),
+//		"+",
+//		NewTestIntegerLiteral(42),
+//	)
+//	call := NewTestCallExpression(
+//		NewTestIdentifier("PrintLn"),
+//		[]Expression{NewTestStringLiteral("hello")},
+//	)
 package ast
 
 import (
@@ -5,9 +38,6 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
-
-// Test helper functions for creating common AST nodes in tests.
-// These reduce boilerplate and make test code more readable.
 
 // NewTestIdentifier creates an Identifier with the given name.
 // This is a convenience helper for tests to avoid verbose struct initialization.
@@ -132,5 +162,123 @@ func NewTestToken(tokenType lexer.TokenType, literal string) lexer.Token {
 func NewTestBaseNode(tokenType lexer.TokenType, literal string) BaseNode {
 	return BaseNode{
 		Token: NewTestToken(tokenType, literal),
+	}
+}
+
+// NewTestFieldDecl creates a FieldDecl with the given name, type name, and visibility.
+// This is a convenience helper for tests to avoid verbose struct initialization.
+func NewTestFieldDecl(name, typeName string, visibility Visibility) *FieldDecl {
+	return &FieldDecl{
+		BaseNode: BaseNode{
+			Token: NewTestToken(lexer.IDENT, name),
+		},
+		Name:       NewTestIdentifier(name),
+		Type:       NewTestTypeAnnotation(typeName),
+		Visibility: visibility,
+		IsClassVar: false,
+		InitValue:  nil,
+	}
+}
+
+// NewTestParameter creates a Parameter with the given name, type name, and by-reference flag.
+// This is a convenience helper for tests to avoid verbose struct initialization.
+func NewTestParameter(name, typeName string, byRef bool) *Parameter {
+	return &Parameter{
+		Name:         NewTestIdentifier(name),
+		Type:         NewTestTypeAnnotation(typeName),
+		ByRef:        byRef,
+		IsLazy:       false,
+		IsConst:      false,
+		DefaultValue: nil,
+		Token:        NewTestToken(lexer.IDENT, name),
+	}
+}
+
+// NewTestFunctionDecl creates a FunctionDecl with the given name, parameters, and return type.
+// This is a convenience helper for tests to avoid verbose struct initialization.
+func NewTestFunctionDecl(name string, params []*Parameter, returnType *TypeAnnotation) *FunctionDecl {
+	tokenType := lexer.FUNCTION
+	tokenLiteral := "function"
+	if returnType == nil {
+		tokenType = lexer.PROCEDURE
+		tokenLiteral = "procedure"
+	}
+	return &FunctionDecl{
+		BaseNode: BaseNode{
+			Token: NewTestToken(tokenType, tokenLiteral),
+		},
+		Name:          NewTestIdentifier(name),
+		Parameters:    params,
+		ReturnType:    returnType,
+		Body:          NewTestBlockStatement([]Statement{}), // Include empty body for String() output
+		Visibility:    VisibilityPublic,
+		IsClassMethod: false,
+		IsVirtual:     false,
+		IsOverride:    false,
+		IsAbstract:    false,
+		IsForward:     false,
+		IsConstructor: false,
+		IsDestructor:  false,
+	}
+}
+
+// NewTestClassDecl creates a ClassDecl with the given name and optional parent.
+// This is a convenience helper for tests to avoid verbose struct initialization.
+func NewTestClassDecl(name string, parent *Identifier) *ClassDecl {
+	return &ClassDecl{
+		BaseNode: BaseNode{
+			Token: NewTestToken(lexer.TYPE, "type"),
+		},
+		Name:       NewTestIdentifier(name),
+		Parent:     parent,
+		Fields:     []*FieldDecl{},
+		Methods:    []*FunctionDecl{},
+		Interfaces: []*Identifier{},
+		Operators:  []*OperatorDecl{},
+		Properties: []*PropertyDecl{},
+		Constants:  []*ConstDecl{},
+		IsAbstract: false,
+		IsExternal: false,
+		IsPartial:  false,
+	}
+}
+
+// NewTestBlockStatement creates a BlockStatement with the given statements.
+// This is a convenience helper for tests to avoid verbose struct initialization.
+func NewTestBlockStatement(statements []Statement) *BlockStatement {
+	return &BlockStatement{
+		Statements: statements,
+		Token:      NewTestToken(lexer.BEGIN, "begin"),
+	}
+}
+
+// NewTestBinaryExpression creates a BinaryExpression with the given left operand, operator, and right operand.
+// This is a convenience helper for tests to avoid verbose struct initialization.
+func NewTestBinaryExpression(left Expression, operator string, right Expression) *BinaryExpression {
+	return &BinaryExpression{
+		Left:     left,
+		Right:    right,
+		Operator: operator,
+		Token:    NewTestToken(lexer.IDENT, operator), // Use IDENT for operator token
+	}
+}
+
+// NewTestUnaryExpression creates a UnaryExpression with the given operator and operand.
+// This is a convenience helper for tests to avoid verbose struct initialization.
+func NewTestUnaryExpression(operator string, operand Expression) *UnaryExpression {
+	return &UnaryExpression{
+		Right:    operand,
+		Operator: operator,
+		Token:    NewTestToken(lexer.IDENT, operator), // Use IDENT for operator token
+	}
+}
+
+// NewTestCallExpression creates a CallExpression with the given function and arguments.
+// This is a convenience helper for tests to avoid verbose struct initialization.
+func NewTestCallExpression(function Expression, args []Expression) *CallExpression {
+	return &CallExpression{
+		Function:  function,
+		Arguments: args,
+		Token:     NewTestToken(lexer.LPAREN, "("), // Use LPAREN for call token
 	}
 }
