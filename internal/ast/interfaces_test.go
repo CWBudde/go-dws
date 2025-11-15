@@ -114,7 +114,7 @@ func TestInterfaceDeclString(t *testing.T) {
 		{
 			name: "simple interface without methods",
 			iface: &InterfaceDecl{
-									BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+									BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name:    NewTestIdentifier("IEmpty"),
 				Parent:  nil,
 				Methods: []*InterfaceMethodDecl{},
@@ -124,7 +124,7 @@ func TestInterfaceDeclString(t *testing.T) {
 		{
 			name: "interface with parent (inheritance)",
 			iface: &InterfaceDecl{
-									BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+									BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name:    NewTestIdentifier("IDescendent"),
 				Parent:  NewTestIdentifier("IBase"),
 				Methods: []*InterfaceMethodDecl{},
@@ -134,7 +134,7 @@ func TestInterfaceDeclString(t *testing.T) {
 		{
 			name: "interface with single method",
 			iface: &InterfaceDecl{
-									BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+									BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name:   NewTestIdentifier("IMy"),
 				Parent: nil,
 				Methods: []*InterfaceMethodDecl{
@@ -150,7 +150,7 @@ func TestInterfaceDeclString(t *testing.T) {
 		{
 			name: "interface with multiple methods",
 			iface: &InterfaceDecl{
-									BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+									BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name:   NewTestIdentifier("ICounter"),
 				Parent: nil,
 				Methods: []*InterfaceMethodDecl{
@@ -171,7 +171,7 @@ func TestInterfaceDeclString(t *testing.T) {
 		{
 			name: "interface with parent and methods (IDescendent extends IBase)",
 			iface: &InterfaceDecl{
-									BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+									BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name:   NewTestIdentifier("IDescendent"),
 				Parent: NewTestIdentifier("IBase"),
 				Methods: []*InterfaceMethodDecl{
@@ -261,12 +261,12 @@ func TestClassDeclWithInterfacesString(t *testing.T) {
 				Fields: []*FieldDecl{},
 				Methods: []*FunctionDecl{
 					{
-													BaseNode: BaseNode{Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+													BaseNode: BaseNode{Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"}},
 						Name:       NewTestIdentifier("Hello"),
 						Parameters: []*Parameter{},
 						ReturnType: nil,
 						Body: &BlockStatement{
-							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 							Statements: []Statement{},
 						},
 					},

@@ -329,7 +329,7 @@ func TestGroupedExpression(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &GroupedExpression{
 				TypedExpressionBase: TypedExpressionBase{
-											BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
 				},
 				Expression: tt.expr,
 			}
@@ -405,11 +405,11 @@ func TestBlockStatement(t *testing.T) {
 			name: "multiple statements",
 			stmts: []Statement{
 				&ExpressionStatement{
-					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "1"},
+					BaseNode:   BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "1"}},
 					Expression: NewTestIntegerLiteral(1),
 				},
 				&ExpressionStatement{
-					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "2"},
+					BaseNode:   BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "2"}},
 					Expression: NewTestIntegerLiteral(2),
 				},
 			},
@@ -604,7 +604,7 @@ func TestForInStatement(t *testing.T) {
 			variable:   "e",
 			collection: NewTestIdentifier("mySet"),
 			body: &ExpressionStatement{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"}},
 				Expression: NewTestCallExpression(
 					NewTestIdentifier("PrintLn"),
 					[]Expression{
@@ -620,10 +620,10 @@ func TestForInStatement(t *testing.T) {
 			variable:   "item",
 			collection: NewTestIdentifier("myArray"),
 			body: &BlockStatement{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 				Statements: []Statement{
 					&ExpressionStatement{
-						BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Process"},
+						BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Process"}},
 						Expression: NewTestCallExpression(
 							NewTestIdentifier("Process"),
 							[]Expression{
@@ -641,7 +641,7 @@ func TestForInStatement(t *testing.T) {
 			variable:   "ch",
 			collection: NewTestStringLiteral("hello", "'hello'"),
 			body: &ExpressionStatement{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Print"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Print"}},
 				Expression: NewTestCallExpression(
 					NewTestIdentifier("Print"),
 					[]Expression{
@@ -657,7 +657,7 @@ func TestForInStatement(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &ForInStatement{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FOR, Literal: "for"},
+				BaseNode:   BaseNode{Token: lexer.Token{Type: lexer.FOR, Literal: "for"}},
 				Variable:   NewTestIdentifier(tt.variable),
 				Collection: tt.collection,
 				Body:       tt.body,
