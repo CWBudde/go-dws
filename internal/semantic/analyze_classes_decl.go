@@ -846,6 +846,17 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	if !isImplementationOfForward {
 		if method.IsConstructor {
 			classType.AddConstructorOverload(method.Name.Value, methodInfo)
+
+			// Task 9.3: Capture default constructor
+			if method.IsDefault {
+				// Validate only one constructor per class is marked as default
+				if classType.DefaultConstructor != "" {
+					a.addError("class '%s' already has default constructor '%s'; cannot declare another default constructor '%s' at %s",
+						classType.Name, classType.DefaultConstructor, method.Name.Value, method.Token.Pos.String())
+					return
+				}
+				classType.DefaultConstructor = method.Name.Value
+			}
 		} else {
 			classType.AddMethodOverload(method.Name.Value, methodInfo)
 		}

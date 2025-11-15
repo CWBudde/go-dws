@@ -108,6 +108,7 @@ type FunctionDecl struct {
 	IsOverload        bool
 	IsForward         bool
 	IsConstructor     bool
+	IsDefault         bool // True if constructor is marked as default
 	IsDeprecated      bool // True if marked as deprecated
 }
 

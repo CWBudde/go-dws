@@ -720,3 +720,55 @@ end;
 `
 	expectNoErrors(t, input)
 }
+
+// ============================================================================
+// Default Constructor Tests (Task 9.3)
+// ============================================================================
+
+// TestDefaultConstructorInheritance tests that default constructor designation is inherited from parent
+func TestDefaultConstructorInheritance(t *testing.T) {
+	input := `
+type TBase = class
+public
+	constructor Create; default;
+	constructor Create(AValue: Integer);
+end;
+
+type TChild = class(TBase)
+end;
+
+constructor TBase.Create;
+begin
+end;
+
+constructor TBase.Create(AValue: Integer);
+begin
+end;
+
+var child: TChild;
+begin
+	child := TChild.Create();
+end;
+`
+	expectNoErrors(t, input)
+}
+
+// TestMultipleDefaultConstructorsError tests that only one constructor can be marked as default
+func TestMultipleDefaultConstructorsError(t *testing.T) {
+	input := `
+type TExample = class
+public
+	constructor Create; default;
+	constructor CreateWithValue(AValue: Integer); default;
+end;
+
+constructor TExample.Create;
+begin
+end;
+
+constructor TExample.CreateWithValue(AValue: Integer);
+begin
+end;
+`
+	expectError(t, input, "already has default constructor 'Create'; cannot declare another default constructor 'CreateWithValue'")
+}
