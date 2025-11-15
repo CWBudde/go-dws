@@ -7,6 +7,14 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
+// getExpressionType returns the type annotation from an expression if it implements TypedExpression.
+func getExpressionType(expr ast.Expression) *ast.TypeAnnotation {
+	if typed, ok := expr.(ast.TypedExpression); ok {
+		return typed.GetType()
+	}
+	return nil
+}
+
 func (c *Compiler) compileExpression(expr ast.Expression) error {
 	if expr == nil {
 		return nil
@@ -122,6 +130,26 @@ func (c *Compiler) compileMemberAccess(expr *ast.MemberAccessExpression) error {
 
 	if err := c.compileExpression(expr.Object); err != nil {
 		return err
+	}
+
+	// Check if this is a helper method/property access on a primitive type
+	// Helper methods on primitives (String, Integer, Float, Boolean, Array) should be
+	// compiled as method calls (OpCallMethod with 0 arguments) instead of property access
+	// Try to get the type from the AST node first (set by semantic analyzer)
+	objectType := typeFromAnnotation(getExpressionType(expr.Object))
+	if objectType == nil {
+		objectType = c.inferExpressionType(expr.Object)
+	}
+
+	if objectType != nil && c.isPrimitiveTypeWithHelpers(objectType) {
+		// For primitive types with helpers, use OpCallMethod
+		// The VM's invokeMethod will handle routing to helper methods
+		nameIndex, err := c.propertyNameIndex(expr.Member.Value, expr)
+		if err != nil {
+			return err
+		}
+		c.chunk.Write(OpCallMethod, 0, nameIndex, lineOf(expr))
+		return nil
 	}
 
 	nameIndex, err := c.propertyNameIndex(expr.Member.Value, expr)

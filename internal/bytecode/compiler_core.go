@@ -524,9 +524,9 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 		return nil
 	}
 
+	// Check concrete types first before falling back to TypedExpression interface
+	// This is important because many types implement TypedExpression but may have nil GetType()
 	switch node := expr.(type) {
-	case ast.TypedExpression:
-		return typeFromAnnotation(node.GetType())
 	case *ast.IntegerLiteral:
 		return types.INTEGER
 	case *ast.FloatLiteral:
@@ -545,6 +545,8 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 			return globalInfo.typ
 		}
 		return typeFromAnnotation(node.GetType())
+	case ast.TypedExpression:
+		return typeFromAnnotation(node.GetType())
 	default:
 		return nil
 	}
@@ -552,6 +554,22 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 
 func (c *Compiler) isGlobalScope() bool {
 	return c.enclosing == nil && c.scopeDepth == 0
+}
+
+// isPrimitiveTypeWithHelpers checks if a type is a primitive type that has helper methods.
+// These types include String, Integer, Float, Boolean, and Array types.
+func (c *Compiler) isPrimitiveTypeWithHelpers(typ types.Type) bool {
+	if typ == nil {
+		return false
+	}
+
+	typeKind := typ.TypeKind()
+	switch typeKind {
+	case "STRING", "INTEGER", "FLOAT", "BOOLEAN", "ARRAY":
+		return true
+	default:
+		return false
+	}
 }
 
 func (c *Compiler) needsHalt() bool {

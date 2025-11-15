@@ -1,6 +1,8 @@
 package bytecode
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
@@ -159,6 +161,175 @@ func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) erro
 			return nil
 		}
 		// Fall through to generic helper method handling if not a built-in
+	}
+
+	// Handle String helper methods (Task 9.23.5: Bytecode VM helper method support)
+	if receiver.IsString() {
+		str := receiver.AsString()
+		methodNameLower := strings.ToLower(methodName)
+
+		switch methodNameLower {
+		case "toupper", "uppercase":
+			if len(args) != 0 {
+				return vm.runtimeError("String.ToUpper expects 0 arguments, got %d", len(args))
+			}
+			result, err := builtinUpperCase(vm, []Value{receiver})
+			if err != nil {
+				return err
+			}
+			vm.push(result)
+			return nil
+
+		case "tolower", "lowercase":
+			if len(args) != 0 {
+				return vm.runtimeError("String.ToLower expects 0 arguments, got %d", len(args))
+			}
+			result, err := builtinLowerCase(vm, []Value{receiver})
+			if err != nil {
+				return err
+			}
+			vm.push(result)
+			return nil
+
+		// TODO: Implement Trim builtin in VM
+		// case "trim":
+
+		case "tointeger":
+			if len(args) != 0 {
+				return vm.runtimeError("String.ToInteger expects 0 arguments, got %d", len(args))
+			}
+			result, err := builtinStrToInt(vm, []Value{receiver})
+			if err != nil {
+				return err
+			}
+			vm.push(result)
+			return nil
+
+		case "tofloat":
+			if len(args) != 0 {
+				return vm.runtimeError("String.ToFloat expects 0 arguments, got %d", len(args))
+			}
+			result, err := builtinStrToFloat(vm, []Value{receiver})
+			if err != nil {
+				return err
+			}
+			vm.push(result)
+			return nil
+
+		case "tostring":
+			if len(args) != 0 {
+				return vm.runtimeError("String.ToString expects 0 arguments, got %d", len(args))
+			}
+			vm.push(receiver) // Identity operation for strings
+			return nil
+
+		case "startswith":
+			if len(args) != 1 {
+				return vm.runtimeError("String.StartsWith expects 1 argument, got %d", len(args))
+			}
+			result, err := builtinStrBeginsWith(vm, []Value{receiver, args[0]})
+			if err != nil {
+				return err
+			}
+			vm.push(result)
+			return nil
+
+		case "endswith":
+			if len(args) != 1 {
+				return vm.runtimeError("String.EndsWith expects 1 argument, got %d", len(args))
+			}
+			result, err := builtinStrEndsWith(vm, []Value{receiver, args[0]})
+			if err != nil {
+				return err
+			}
+			vm.push(result)
+			return nil
+
+		case "contains":
+			if len(args) != 1 {
+				return vm.runtimeError("String.Contains expects 1 argument, got %d", len(args))
+			}
+			result, err := builtinStrContains(vm, []Value{receiver, args[0]})
+			if err != nil {
+				return err
+			}
+			vm.push(result)
+			return nil
+
+		case "indexof":
+			if len(args) != 1 {
+				return vm.runtimeError("String.IndexOf expects 1 argument, got %d", len(args))
+			}
+			// Use PosEx(substr, str, 1) - starts search from position 1
+			result, err := builtinPosEx(vm, []Value{args[0], receiver, IntValue(1)})
+			if err != nil {
+				return err
+			}
+			vm.push(result)
+			return nil
+
+		case "copy":
+			if len(args) < 1 || len(args) > 2 {
+				return vm.runtimeError("String.Copy expects 1 or 2 arguments, got %d", len(args))
+			}
+			// Copy(str, start, [length])
+			if len(args) == 1 {
+				// Copy from start to end (use MaxInt as length)
+				result, err := builtinCopy(vm, []Value{receiver, args[0], IntValue(2147483647)})
+				if err != nil {
+					return err
+				}
+				vm.push(result)
+			} else {
+				result, err := builtinCopy(vm, []Value{receiver, args[0], args[1]})
+				if err != nil {
+					return err
+				}
+				vm.push(result)
+			}
+			return nil
+
+		case "before":
+			if len(args) != 1 {
+				return vm.runtimeError("String.Before expects 1 argument, got %d", len(args))
+			}
+			result, err := builtinStrBefore(vm, []Value{receiver, args[0]})
+			if err != nil {
+				return err
+			}
+			vm.push(result)
+			return nil
+
+		case "after":
+			if len(args) != 1 {
+				return vm.runtimeError("String.After expects 1 argument, got %d", len(args))
+			}
+			result, err := builtinStrAfter(vm, []Value{receiver, args[0]})
+			if err != nil {
+				return err
+			}
+			vm.push(result)
+			return nil
+
+		case "split":
+			if len(args) != 1 {
+				return vm.runtimeError("String.Split expects 1 argument, got %d", len(args))
+			}
+			result, err := builtinStrSplit(vm, []Value{receiver, args[0]})
+			if err != nil {
+				return err
+			}
+			vm.push(result)
+			return nil
+
+		case "length":
+			if len(args) != 0 {
+				return vm.runtimeError("String.Length expects 0 arguments, got %d", len(args))
+			}
+			vm.push(IntValue(int64(len(str))))
+			return nil
+		}
+		// Fall through to generic helper method handling for other methods
 	}
 
 	// Handle object method calls
