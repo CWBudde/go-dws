@@ -395,6 +395,425 @@ just test
 ```
 ---
 
+## Task 9.2: Fix Class Constant Resolution in Semantic Analyzer
+
+**Goal**: Enable class constants to be accessed from both instance and class methods, with proper visibility checking and inheritance support.
+
+**Estimate**: 2-3 hours
+
+**Status**: NOT STARTED
+
+**Impact**: Fixes class constant access failures in fixture tests (e.g., `SimpleScripts/class_const.pas`)
+
+**Current Test Failure**:
+```
+TestDWScriptFixtures/SimpleScripts/class_const
+Semantic analysis failed:
+  - undefined variable 'cPrivate' at 16:12
+  - undefined variable 'cProtected' at 17:12
+  - undefined variable 'cPublic' at 18:12
+  - class 'TBase' has no member 'cpublic' at 39:14
+```
+
+**Description**: Class constants are properly parsed and registered in `ClassType` during semantic analysis, but the `analyzeIdentifier` function in `analyze_expr_operators.go` doesn't check for class constants when resolving identifiers inside class methods. This causes all class constant references to be reported as "undefined variable" errors.
+
+**Root Cause Analysis**:
+
+1. **Constants ARE registered** in `analyze_classes_decl.go:225-281`:
+   - Stored in `ClassType.Constants` map
+   - Types stored in `ClassType.ConstantTypes` map
+   - Visibility stored in `ClassType.ConstantVisibility` map
+
+2. **Constants NOT resolved** in `analyze_expr_operators.go:70-144`:
+   - Checks fields (line 73-88)
+   - Checks properties (line 90-110)
+   - Checks methods (line 112-143)
+   - **Missing**: Never checks for class constants
+
+3. **Limited to instance methods**: Line 70 has condition `!a.inClassMethod`, which prevents checking inside class methods. Class constants should be accessible from both instance AND class methods.
+
+4. **Member access broken**: `analyzeMemberAccess` in `analyze_classes.go` also doesn't properly handle class constants accessed via class name (e.g., `TBase.cPublic`).
+
+**Subtasks**:
+
+### 9.2.1 Add Class Constant Resolution in `analyzeIdentifier` [HIGH PRIORITY]
+
+**Goal**: Check for class constants when resolving identifiers inside class methods.
+
+**Estimate**: 1-1.5 hours
+
+**Implementation**:
+
+1. **Location**: `internal/semantic/analyze_expr_operators.go:70-144`
+
+2. **Add constant check** after properties (around line 110):
+   ```go
+   // Check if identifier is a class constant (includes inherited)
+   for class := a.currentClass; class != nil; class = class.Parent {
+       for constName, constType := range class.ConstantTypes {
+           if strings.EqualFold(constName, ident.Value) {
+               // Check visibility
+               constantOwner := a.getConstantOwner(a.currentClass, ident.Value)
+               if constantOwner != nil {
+                   lowerConstName := strings.ToLower(ident.Value)
+                   visibility, hasVisibility := constantOwner.ConstantVisibility[lowerConstName]
+                   if hasVisibility && !a.checkVisibility(constantOwner, visibility, ident.Value, "constant") {
+                       visibilityStr := ast.Visibility(visibility).String()
+                       a.addError("cannot access %s constant '%s' at %s",
+                           visibilityStr, ident.Value, ident.Token.Pos.String())
+                       return nil
+                   }
+               }
+               return constType
+           }
+       }
+   }
+   ```
+
+3. **Move outside `!a.inClassMethod` check**: Constants should be accessible from both instance methods AND class methods. Either:
+   - Move constant check outside the `if a.currentClass != nil && !a.inClassMethod` block
+   - Or add a separate block: `if a.currentClass != nil` that checks constants for both method types
+
+4. **Add helper method** `getConstantOwner`:
+   ```go
+   // getConstantOwner finds which class in the hierarchy owns the given constant
+   func (a *Analyzer) getConstantOwner(class *types.ClassType, constantName string) *types.ClassType {
+       lowerConstName := strings.ToLower(constantName)
+       for current := class; current != nil; current = current.Parent {
+           for cName := range current.ConstantTypes {
+               if strings.EqualFold(cName, lowerConstName) {
+                   return current
+               }
+           }
+       }
+       return nil
+   }
+   ```
+
+**Files to Modify**:
+- `internal/semantic/analyze_expr_operators.go` (add constant resolution)
+- `internal/semantic/helpers.go` or `analyze_classes.go` (add `getConstantOwner` helper)
+
+**Tests to Fix**:
+- `testdata/fixtures/SimpleScripts/class_const.pas` (lines 16-18, 24-26, 32-33)
+
+### 9.2.2 Fix Class Constant Access via Member Expression [MEDIUM PRIORITY]
+
+**Goal**: Support accessing class constants via class name (e.g., `TBase.cPublic`) and instance (e.g., `obj.cPublic`).
+
+**Estimate**: 1-1.5 hours
+
+**Implementation**:
+
+1. **Location**: `internal/semantic/analyze_classes.go` (in `analyzeMemberAccess`)
+
+2. **Add constant checking** in member access resolution:
+   - When accessing `TBase.cPublic`, check if `cPublic` is in `classType.ConstantTypes`
+   - When accessing `obj.cPublic`, check if `cPublic` is a constant in the object's class
+   - Verify visibility rules (public constants only from outside class)
+
+3. **Current issue** at line 39-40 in test:
+   ```pascal
+   PrintLn(TBase.cPublic);  // Should access class constant
+   PrintLn(o.cPublic);      // Should access class constant via instance
+   ```
+   Error: `class 'TBase' has no member 'cpublic'`
+
+4. **Fix**: In `analyzeMemberAccess`, after checking for class vars, add:
+   ```go
+   // Check for class constants
+   lowerMemberName := strings.ToLower(memberName)
+   for constName, constType := range classType.ConstantTypes {
+       if strings.EqualFold(constName, memberName) {
+           // Check visibility
+           visibility, hasVisibility := classType.ConstantVisibility[lowerMemberName]
+           if hasVisibility && !a.checkVisibility(classType, visibility, memberName, "constant") {
+               visibilityStr := ast.Visibility(visibility).String()
+               a.addError("cannot access %s constant '%s' of class '%s' at %s",
+                   visibilityStr, memberName, classType.Name, expr.Token.Pos.String())
+               return nil
+           }
+           return constType
+       }
+   }
+   ```
+
+**Files to Modify**:
+- `internal/semantic/analyze_classes.go` (in `analyzeMemberAccess`)
+
+**Tests to Fix**:
+- `testdata/fixtures/SimpleScripts/class_const.pas` (lines 39-40)
+
+### 9.2.3 Add Interpreter Support for Class Constants [LOW PRIORITY]
+
+**Goal**: Ensure interpreter can evaluate class constants at runtime.
+
+**Estimate**: 30 minutes
+
+**Implementation**:
+
+1. **Check current implementation** in `internal/interp/`:
+   - Verify `evalIdentifier` handles class constants
+   - Verify `evalMemberAccess` handles constant access via class name/instance
+   - May already be working if constants are stored in class metadata
+
+2. **Add constant evaluation** if missing:
+   - Constants should be evaluated when first accessed
+   - Store evaluated values in runtime class metadata or environment
+   - Handle constant expressions (e.g., `c2 = c1 + 1`)
+
+**Files to Check/Modify**:
+- `internal/interp/expressions_primary.go` (evalIdentifier)
+- `internal/interp/objects_hierarchy.go` (evalMemberAccess)
+- `internal/interp/declarations.go` (class declaration evaluation)
+
+**Note**: This subtask may not be needed if the interpreter already handles constants correctly. The main issue is in semantic analysis, not runtime.
+
+---
+
+**Success Criteria**:
+- `testdata/fixtures/SimpleScripts/class_const.pas` passes completely
+- Constants accessible from instance methods (lines 16-18)
+- Constants accessible from class methods (lines 24-26)
+- Constants accessible from derived classes (lines 32-33)
+- Constants accessible via class name: `TBase.cPublic` (line 39)
+- Constants accessible via instance: `obj.cPublic` (line 40)
+- Visibility rules enforced (private, protected, public)
+- Constants inherited correctly through class hierarchy
+
+**Testing**:
+```bash
+# Run specific failing test
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_const
+
+# Run all class constant tests
+go test -v ./internal/parser -run TestParseClassConstants
+go test -v ./internal/interp -run TestClassConstant
+
+# Verify no regressions
+just test
+```
+
+**Related Test Files**:
+- `testdata/fixtures/SimpleScripts/class_const.pas` (main failing test)
+- `testdata/fixtures/SimpleScripts/class_const_as_prop.pas` (constants used in properties)
+- `testdata/fixtures/SimpleScripts/record_const.pas` (record constants - similar pattern)
+- `internal/parser/class_constants_test.go` (parser tests - already passing)
+- `internal/interp/class_constants_test.go` (interpreter tests - may be failing)
+
+---
+
+## Task 9.3: Support Default Constructors (Constructor `default` Keyword)
+
+**Goal**: Implement support for the `default` keyword on constructors to enable using `new ClassName(args)` syntax with non-Create constructors.
+
+**Estimate**: 3-4 hours
+
+**Status**: NOT STARTED
+
+**Impact**: Fixes the `new_class2.pas` test which uses a constructor named `Build` marked as `default`
+
+**Current Test Failure**:
+```
+TestDWScriptFixtures/SimpleScripts/new_class2
+Semantic analysis failed:
+  - constructor 'Create' expects 0 arguments, got 1 at 23:11
+  - constructor 'Create' expects 0 arguments, got 1 at 24:11
+```
+
+**Test File**: `testdata/fixtures/SimpleScripts/new_class2.pas`
+```pascal
+type
+   TMyClass = class
+      constructor Build(i : Integer); virtual; default;  // <-- 'default' keyword
+   end;
+
+type
+   TSubClass = class(TMyClass)
+      constructor Build(i : Integer); override;
+   end;
+
+var o1 := new TMyClass(10);    // Should use Build, not Create
+var o2 := new TSubClass(20);   // Should use inherited default constructor
+```
+
+**Expected Output**:
+```
+Root class 10
+Sub class 20
+TMyClass
+TSubClass
+```
+
+**Description**:
+
+In DWScript, constructors can be marked with the `default` keyword to indicate which constructor should be used with the `new ClassName(args)` syntax. Currently, the semantic analyzer hardcodes "Create" as the constructor name for all `new` expressions (see [analyze_classes.go:57](internal/semantic/analyze_classes.go#L57)), which causes it to fail when a class uses a different constructor name marked as `default`.
+
+The `default` keyword is already captured in the AST ([properties.go:31](pkg/ast/properties.go#L31)), but:
+1. The type system doesn't track which constructor is marked as default
+2. The semantic analyzer doesn't use this information when analyzing `new` expressions
+
+**Root Cause Analysis**:
+
+1. **Parser captures `default` keyword**: The parser already captures `IsDefault` in `ConstructorDeclaration` (pkg/ast/properties.go:31)
+
+2. **Type system doesn't track default constructor**: The `ClassType` struct (internal/types/types.go:418-446) has:
+   - `Constructors map[string]*FunctionType` - Primary constructor signatures
+   - `ConstructorOverloads map[string][]*MethodInfo` - All constructor overloads
+   - **Missing**: No field to track which constructor is the default one
+
+3. **Semantic analyzer hardcodes "Create"**: In `analyzeNewExpression` (internal/semantic/analyze_classes.go:57):
+   ```go
+   constructorName := "Create"  // <-- Hardcoded!
+   ```
+   This should instead look up which constructor is marked as `default`, falling back to "Create" if none is marked.
+
+**Subtasks**:
+
+### 9.3.1 Add Default Constructor Tracking to Type System
+
+**Goal**: Extend `ClassType` to track which constructor is marked as `default`.
+
+**Estimate**: 45 minutes
+
+**Implementation**:
+
+1. **Add field to `ClassType`** in `internal/types/types.go`:
+   ```go
+   type ClassType struct {
+       // ... existing fields ...
+       DefaultConstructor string  // Name of the constructor marked as 'default' (empty if none)
+   }
+   ```
+
+2. **Capture default constructor during class declaration analysis** in `internal/semantic/analyze_classes_decl.go`:
+   - When analyzing constructor declarations, check if `ConstructorDeclaration.IsDefault` is true
+   - If true, set `ClassType.DefaultConstructor` to the constructor's name
+   - Validate only one constructor per class is marked as default (report error if multiple found)
+
+3. **Handle inheritance**: If a derived class doesn't define a default constructor, it should inherit the parent's default constructor name
+
+**Files to Modify**:
+- `internal/types/types.go` (add `DefaultConstructor` field)
+- `internal/semantic/analyze_classes_decl.go` (capture default constructor during analysis)
+
+### 9.3.2 Use Default Constructor in NewExpression Analysis
+
+**Goal**: Update `analyzeNewExpression` to use the default constructor instead of hardcoding "Create".
+
+**Estimate**: 1 hour
+
+**Implementation**:
+
+1. **Location**: `internal/semantic/analyze_classes.go:54-68`
+
+2. **Replace hardcoded "Create"**:
+   ```go
+   // OLD:
+   constructorName := "Create"
+
+   // NEW:
+   constructorName := a.getDefaultConstructorName(classType)
+   ```
+
+3. **Add helper method**:
+   ```go
+   // getDefaultConstructorName returns the name of the default constructor for a class.
+   // It checks the class hierarchy for a constructor marked as 'default'.
+   // Falls back to "Create" if no default constructor is found.
+   func (a *Analyzer) getDefaultConstructorName(class *types.ClassType) string {
+       // Check current class and parents for default constructor
+       for current := class; current != nil; current = current.Parent {
+           if current.DefaultConstructor != "" {
+               return current.DefaultConstructor
+           }
+       }
+       // No default constructor found, use "Create" as fallback
+       return "Create"
+   }
+   ```
+
+**Files to Modify**:
+- `internal/semantic/analyze_classes.go` (update `analyzeNewExpression`, add helper method)
+
+### 9.3.3 Add Validation for Default Constructor Keyword
+
+**Goal**: Ensure only one constructor per class is marked as `default` and validate inheritance rules.
+
+**Estimate**: 45 minutes
+
+**Implementation**:
+
+1. **Validate single default constructor** during class declaration analysis:
+   - Track how many constructors have `IsDefault = true` in each class
+   - Report error if more than one constructor is marked as default
+   - Error message: "class 'ClassName' has multiple constructors marked as default"
+
+2. **Validate override rules**:
+   - If parent constructor is marked `default` and child overrides it, child's override inherits the default status
+   - Child can mark a different constructor as default (overriding parent's default)
+   - Report warning if child overrides default constructor without marking it as default
+
+**Files to Modify**:
+- `internal/semantic/analyze_classes_decl.go` (add validation during constructor analysis)
+
+### 9.3.4 Update Interpreter for Default Constructors
+
+**Goal**: Ensure interpreter uses default constructor information when evaluating `new` expressions.
+
+**Estimate**: 30 minutes
+
+**Implementation**:
+
+1. **Check if interpreter needs updates**: The interpreter's `evalNewExpression` in `internal/interp/objects_creation.go` may already be using semantic analysis results, so it might automatically work once semantic analysis is fixed.
+
+2. **If needed, update constructor lookup**: Similar to semantic analyzer, replace any hardcoded "Create" references with lookup of default constructor.
+
+**Files to Check/Modify**:
+- `internal/interp/objects_creation.go` (check `evalNewExpression`)
+
+---
+
+**Success Criteria**:
+- `testdata/fixtures/SimpleScripts/new_class2.pas` passes completely
+- `new TMyClass(10)` calls `Build` constructor (not `Create`)
+- `new TSubClass(20)` calls inherited `Build` constructor
+- Output matches expected: "Root class 10", "Sub class 20", "TMyClass", "TSubClass"
+- Only one constructor per class can be marked as `default`
+- Default constructor is inherited through class hierarchy
+- Falls back to "Create" if no default constructor is defined
+
+**Testing**:
+```bash
+# Run specific failing test
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/new_class2
+
+# Test default constructor parsing
+go test -v ./internal/parser -run TestConstructor
+
+# Test semantic analysis
+go test -v ./internal/semantic -run TestDefaultConstructor
+
+# Verify no regressions
+just test
+```
+
+**Related Files**:
+- `testdata/fixtures/SimpleScripts/new_class2.pas` (main failing test)
+- `pkg/ast/properties.go` (AST already has `IsDefault` field)
+- `internal/types/types.go` (needs `DefaultConstructor` field)
+- `internal/semantic/analyze_classes.go` (needs to use default constructor)
+- `internal/semantic/analyze_classes_decl.go` (needs to capture default constructor)
+- `internal/interp/objects_creation.go` (may need updates)
+
+**DWScript Reference**:
+- In original DWScript, the `default` keyword on constructors specifies which constructor to use with `new ClassName(args)` syntax
+- If no constructor is marked `default`, "Create" is used as the default
+- Only one constructor per class can be marked as `default`
+- The default constructor is not inherited automatically - derived classes must explicitly mark their overridden or new constructors as `default`
+
+---
+
 ## Task 9.16 Introduce Base Structs for AST Nodes
 
 **Goal**: Eliminate code duplication by introducing base structs for common node fields and behavior.
@@ -582,9 +1001,10 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
 **Estimate**: 24-32 hours (3-4 days total)
 - Research phase (9.17.1): 8 hours - COMPLETED
 - Code generation implementation (9.17.2-9.17.6): 16 hours - COMPLETED
-- Documentation and migration (9.17.7-9.17.9): 8 hours - TODO
+- Documentation and migration (9.17.7-9.17.8): 6 hours - COMPLETED
+- AST design fixes (9.17.9): 2 hours - COMPLETED
 
-**Status**: IN PROGRESS (Core implementation complete, documentation and migration remaining)
+**Status**: COMPLETE ✅ (All subtasks 9.17.1-9.17.9 finished)
 
 **Impact**: Major maintainability improvement, eliminates 83.6% of manually-written visitor code, zero runtime overhead, eliminates need to update visitor for new node types
 
@@ -699,18 +1119,18 @@ func walkBinaryExpression(n *BinaryExpression, v Visitor) { ... }
   - Updated: `pkg/ast/doc.go` (added Visitor Pattern & Code Generation sections)
   - Created: `docs/ast-visitor-codegen.md` (comprehensive 600+ line guide)
 
-- [ ] 9.17.8 Migrate to generated visitor
-  - Replace manual visitor.go with generated version
-  - Keep manual visitor as visitor_legacy.go for comparison
-  - Update all imports and references
-  - Verify all tests pass
+- [x] 9.17.8 Migrate to generated visitor - DONE
+  - Replace manual visitor.go with generated version ✅
+  - Keep manual visitor as visitor_legacy.go for comparison ✅
+  - Update all imports and references ✅
+  - Verify all tests pass ✅
 
-- [ ] 9.17.9 Fix AST design inconsistencies (discovered in research)
-  - Remove Node interface from CaseBranch (it's a helper struct)
-  - Remove Node interface from ExceptClause (it's a helper struct)
-  - Remove Node interface from ExceptionHandler (it's a helper struct)
-  - Or document why they should implement Node
-  - Update generated visitor accordingly
+- [x] 9.17.9 Fix AST design inconsistencies (discovered in research) - DONE
+  - Remove Node interface from CaseBranch (it's a helper struct) ✅
+  - Remove Node interface from ExceptClause (it's a helper struct) ✅
+  - Remove Node interface from ExceptionHandler (it's a helper struct) ✅
+  - Update generated visitor accordingly ✅
+  - Update all code that creates these helper types ✅
 
 **Files Created/Modified**:
 
@@ -739,11 +1159,14 @@ Documentation (9.17.7):
 - `pkg/ast/doc.go` (added Visitor Pattern & Code Generation sections) ✅
 - `docs/ast-visitor-codegen.md` (comprehensive guide, 600+ lines) ✅
 
-Migration (9.17.8): DEFERRED
-- Manual visitor.go still in use (will be migrated separately)
+Migration (9.17.8): DONE ✅
+- `pkg/ast/visitor_legacy.go` (original manual visitor preserved for comparison, excluded from build via `// +build legacy` tag)
 
-AST design fixes (9.17.9): TODO
-- CaseBranch, ExceptClause, ExceptionHandler Node interface decisions
+AST design fixes (9.17.9): DONE ✅
+- Removed Node interface from CaseBranch, ExceptClause, ExceptionHandler (they are helper structs, not standalone nodes)
+- Updated code generator to treat them as helper types (in knownHelperTypes)
+- Generated walk functions for all helper types (walkCaseBranch, walkExceptClause, walkExceptionHandler)
+- Updated all parser and test code that creates these types
 
 **Acceptance Criteria**:
 - Code generator successfully parses all AST node types ✅

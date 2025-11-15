@@ -63,19 +63,19 @@ var knownNodeTypes = map[string]bool{
 	// Annotation types
 	"TypeAnnotation": true,
 
-	// Helper types that embed BaseNode
-	"PreConditions":    true,
-	"PostConditions":   true,
-	"Condition":        true,
-	"CaseBranch":       true,
-	"ExceptClause":     true,
-	"ExceptionHandler": true,
-	"FinallyClause":    true,
+	// Helper types that embed BaseNode (still treated as nodes for visiting)
+	"PreConditions":  true,
+	"PostConditions": true,
+	"Condition":      true,
+	"FinallyClause":  true,
 }
 
 // knownHelperTypes are types that don't implement Node but contain Node fields
 var knownHelperTypes = map[string]bool{
-	"Parameter": true,
+	"Parameter":        true,
+	"CaseBranch":       true,
+	"ExceptClause":     true,
+	"ExceptionHandler": true,
 }
 
 func main() {
@@ -239,8 +239,24 @@ func extractFields(structType *ast.StructType) []*FieldInfo {
 	var fields []*FieldInfo
 
 	for _, field := range structType.Fields.List {
-		// Skip embedded fields
+		// Handle embedded fields by recursively extracting their fields
 		if len(field.Names) == 0 {
+			// This is an embedded field - check if it's a known base type
+			ident, ok := field.Type.(*ast.Ident)
+			if ok && (ident.Name == "TypedExpressionBase" || ident.Name == "TypedStatementBase") {
+				// Extract the Type field from the embedded base type
+				// TypedExpressionBase/TypedStatementBase both have a Type *TypeAnnotation field
+				fields = append(fields, &FieldInfo{
+					Name:            "Type",
+					Type:            "*TypeAnnotation",
+					IsSlice:         false,
+					IsNode:          true,
+					IsHelper:        false,
+					Skip:            false,
+					Order:           0,
+					IsSliceOfValues: false,
+				})
+			}
 			continue
 		}
 
@@ -286,13 +302,13 @@ func extractFields(structType *ast.StructType) []*FieldInfo {
 				continue
 			}
 
-			// Skip certain fields that don't need walking
-			if shouldSkipField(fieldName) {
+			// Analyze the field type first
+			typeStr := typeToString(field.Type)
+
+			// Skip certain fields that don't need walking (now type-aware)
+			if shouldSkipField(fieldName, typeStr) {
 				continue
 			}
-
-			// Analyze the field type
-			typeStr := typeToString(field.Type)
 			isSlice := strings.HasPrefix(typeStr, "[]")
 
 			// Determine if it's a slice of values or pointers
@@ -336,57 +352,71 @@ func extractFields(structType *ast.StructType) []*FieldInfo {
 	return fields
 }
 
-// shouldSkipField returns true if this field should not be walked
-// Note: This function only skips fields that are NEVER nodes.
-// The field type check will handle filtering non-Node fields.
-func shouldSkipField(name string) bool {
-	skipFields := map[string]bool{
-		// Position and metadata fields
+// shouldSkipField returns true if this field should not be walked.
+// This is now type-aware: it checks both the field name AND type to make the decision.
+// For example, "Operator" is skipped only if it's a string, not if it's an Expression.
+func shouldSkipField(name string, fieldType string) bool {
+	// Always skip these metadata/position fields regardless of type
+	alwaysSkip := map[string]bool{
 		"Token":  true,
 		"EndPos": true,
+	}
+	if alwaysSkip[name] {
+		return true
+	}
 
-		// Visibility and modifiers
-		"Visibility":        true,
-		"ExternalName":      true,
-		"CallingConvention": true,
-		"DeprecatedMessage": true,
-
-		// Boolean flags
-		"IsDestructor":  true,
-		"IsVirtual":     true,
-		"IsOverride":    true,
-		"IsReintroduce": true,
-		"IsAbstract":    true,
-		"IsExternal":    true,
-		"IsClassMethod": true,
-		"IsOverload":    true,
-		"IsConstructor": true,
-		"IsFinal":       true,
-		"IsStatic":      true,
-		"IsLazy":        true,
-		"ByRef":         true,
-		"IsConst":       true,
-		"Inferred":      true,
-		"IsForward":     true,
-		"IsDeprecated":  true,
-
-		// String values (not Nodes)
-		// Note: We can't skip "Value" here because VarDeclStatement.Value is an Expression
-		// Only skip specific known string fields
-		"Operator":           true,
-		"IntValue":           true,
-		"FloatValue":         true,
-		"StringValue":        true,
-		"BoolValue":          true,
-		"CharValue":          true,
+	// Always skip boolean flags and visibility modifiers
+	booleanFlags := map[string]bool{
+		"IsDestructor":       true,
+		"IsVirtual":          true,
+		"IsOverride":         true,
+		"IsReintroduce":      true,
+		"IsAbstract":         true,
+		"IsExternal":         true,
+		"IsClassMethod":      true,
+		"IsOverload":         true,
+		"IsConstructor":      true,
+		"IsFinal":            true,
+		"IsStatic":           true,
+		"IsLazy":             true,
+		"ByRef":              true,
+		"IsConst":            true,
+		"Inferred":           true,
+		"IsForward":          true,
+		"IsDeprecated":       true,
+		"Visibility":         true,
+		"ExternalName":       true,
+		"CallingConvention":  true,
+		"DeprecatedMessage":  true,
 		"Packed":             true,
 		"DefaultArrayLength": true,
-		// Note: LowBound and HighBound are Expression fields in ArrayTypeNode, not string values
-		// They should be walked, not skipped
-		"ReadField":  true,
-		"WriteField": true,
+		"ReadField":          true,
+		"WriteField":         true,
 	}
-	return skipFields[name]
+	if booleanFlags[name] {
+		return true
+	}
+
+	// For value fields, only skip if they're NOT Node types
+	// Extract the element type (remove * and [] prefixes)
+	elemType := strings.TrimPrefix(strings.TrimPrefix(fieldType, "[]"), "*")
+
+	// Check if it's a Node type - if so, DON'T skip even if the name matches
+	if isNodeType(elemType) || isHelperType(elemType) {
+		return false
+	}
+
+	// Skip these fields only if they're primitive types (not Node types)
+	primitiveFields := map[string]bool{
+		"Operator":    true, // BinaryExpression.Operator (string), but NOT AddressOfExpression.Operator (Expression)
+		"IntValue":    true,
+		"FloatValue":  true,
+		"StringValue": true,
+		"BoolValue":   true,
+		"CharValue":   true,
+	}
+
+	return primitiveFields[name]
 }
 
 // isNodeType checks if a type implements the Node interface
@@ -487,7 +517,7 @@ func Walk(v Visitor, node Node) {
 		}
 	}
 
-	// Generate helper function for walking Parameter (which doesn't implement Node)
+	// Generate helper functions for walking helper types (which don't implement Node)
 	buf.WriteString(`
 // walkParameter walks the Node fields of a Parameter
 func walkParameter(param *Parameter, v Visitor) {
@@ -502,6 +532,52 @@ func walkParameter(param *Parameter, v Visitor) {
 	}
 	if param.DefaultValue != nil {
 		Walk(v, param.DefaultValue)
+	}
+}
+
+// walkCaseBranch walks the Node fields of a CaseBranch
+func walkCaseBranch(branch *CaseBranch, v Visitor) {
+	if branch == nil {
+		return
+	}
+	if branch.Statement != nil {
+		Walk(v, branch.Statement)
+	}
+	for _, val := range branch.Values {
+		if val != nil {
+			Walk(v, val)
+		}
+	}
+}
+
+// walkExceptClause walks the Node fields of an ExceptClause
+func walkExceptClause(clause *ExceptClause, v Visitor) {
+	if clause == nil {
+		return
+	}
+	if clause.ElseBlock != nil {
+		Walk(v, clause.ElseBlock)
+	}
+	for _, handler := range clause.Handlers {
+		if handler != nil {
+			walkExceptionHandler(handler, v)
+		}
+	}
+}
+
+// walkExceptionHandler walks the Node fields of an ExceptionHandler
+func walkExceptionHandler(handler *ExceptionHandler, v Visitor) {
+	if handler == nil {
+		return
+	}
+	if handler.Statement != nil {
+		Walk(v, handler.Statement)
+	}
+	if handler.Variable != nil {
+		Walk(v, handler.Variable)
+	}
+	if handler.ExceptionType != nil {
+		Walk(v, handler.ExceptionType)
 	}
 }
 `)

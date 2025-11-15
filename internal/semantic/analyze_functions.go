@@ -81,7 +81,8 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 		// Task 9.1b: Type-check default value if present
 		if param.DefaultValue != nil {
 			// Analyze default value expression to get its type
-			defaultType := a.analyzeExpression(param.DefaultValue)
+			// Use context-aware analysis so nil can infer the correct type
+			defaultType := a.analyzeExpressionWithExpectedType(param.DefaultValue, paramType)
 			if defaultType == nil {
 				a.addError("invalid default value for parameter '%s' in function '%s'",
 					param.Name.Value, decl.Name.Value)
