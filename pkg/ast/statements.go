@@ -18,26 +18,17 @@ import (
 //	var y: String; external;
 //	var z: Integer; external 'externalZ';
 type VarDeclStatement struct {
+	BaseNode
 	Value        Expression
 	Names        []*Identifier // Changed from Name to support multi-identifier declarations
 	Type         *TypeAnnotation
 	ExternalName string
-	Token        token.Token
 	IsExternal   bool
 	Inferred     bool // true when the type is inferred from the initializer
-	EndPos       token.Position
 }
 
-func (v *VarDeclStatement) End() token.Position {
-	if v.EndPos.Line != 0 {
-		return v.EndPos
-	}
-	return v.Token.Pos
-}
+func (vds *VarDeclStatement) statementNode() {}
 
-func (vds *VarDeclStatement) statementNode()       {}
-func (vds *VarDeclStatement) TokenLiteral() string { return vds.Token.Literal }
-func (vds *VarDeclStatement) Pos() token.Position  { return vds.Token.Pos }
 func (vds *VarDeclStatement) String() string {
 	var out bytes.Buffer
 
@@ -77,23 +68,14 @@ func (vds *VarDeclStatement) String() string {
 //	obj.field := value;  // member assignment
 //	matrix[i][j] := 99;  // nested array assignment
 type AssignmentStatement struct {
+	BaseNode
 	Target   Expression
 	Value    Expression
-	Token    token.Token
 	Operator token.TokenType // ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN, TIMES_ASSIGN, DIVIDE_ASSIGN
-	EndPos   token.Position
 }
 
-func (a *AssignmentStatement) End() token.Position {
-	if a.EndPos.Line != 0 {
-		return a.EndPos
-	}
-	return a.Token.Pos
-}
+func (as *AssignmentStatement) statementNode() {}
 
-func (as *AssignmentStatement) statementNode()       {}
-func (as *AssignmentStatement) TokenLiteral() string { return as.Token.Literal }
-func (as *AssignmentStatement) Pos() token.Position  { return as.Token.Pos }
 func (as *AssignmentStatement) String() string {
 	var out bytes.Buffer
 
@@ -130,23 +112,16 @@ func (as *AssignmentStatement) String() string {
 //	Add(3, 5)
 //	Foo()
 type CallExpression struct {
+	TypedExpressionBase
 	Function  Expression
-	Type      *TypeAnnotation
 	Arguments []Expression
-	Token     token.Token
-	EndPos    token.Position
 }
 
-func (c *CallExpression) End() token.Position {
-	if c.EndPos.Line != 0 {
-		return c.EndPos
-	}
-	return c.Token.Pos
-}
+func (ce *CallExpression) expressionNode() {}
 
-func (ce *CallExpression) expressionNode()      {}
-func (ce *CallExpression) TokenLiteral() string { return ce.Token.Literal }
-func (ce *CallExpression) Pos() token.Position  { return ce.Function.Pos() }
+// Pos returns the start position from the Function expression.
+func (ce *CallExpression) Pos() token.Position { return ce.Function.Pos() }
+
 func (ce *CallExpression) String() string {
 	var out bytes.Buffer
 
@@ -163,8 +138,6 @@ func (ce *CallExpression) String() string {
 
 	return out.String()
 }
-func (ce *CallExpression) GetType() *TypeAnnotation    { return ce.Type }
-func (ce *CallExpression) SetType(typ *TypeAnnotation) { ce.Type = typ }
 
 // Condition represents a single contract condition (precondition or postcondition).
 // A condition consists of a test expression (must be boolean) and an optional message.
@@ -174,21 +147,13 @@ func (ce *CallExpression) SetType(typ *TypeAnnotation) { ce.Type = typ }
 //	x > 0 : 'x must be positive'
 //	a.Length = b.Length : 'arrays must have same length'
 type Condition struct {
+	BaseNode
 	Test    Expression // Must evaluate to boolean
 	Message Expression // Optional string message (if nil, use source code as message)
-	Token   token.Token
-	EndPos  token.Position
 }
 
-func (c *Condition) statementNode()       {}
-func (c *Condition) TokenLiteral() string { return c.Token.Literal }
-func (c *Condition) Pos() token.Position  { return c.Token.Pos }
-func (c *Condition) End() token.Position {
-	if c.EndPos.Line != 0 {
-		return c.EndPos
-	}
-	return c.Token.Pos
-}
+func (c *Condition) statementNode() {}
+
 func (c *Condition) String() string {
 	var out bytes.Buffer
 
@@ -212,21 +177,12 @@ func (c *Condition) String() string {
 //	   x > 0;
 //	   y <> 0 : 'y cannot be zero';
 type PreConditions struct {
+	BaseNode
 	Conditions []*Condition
-	Token      token.Token // The REQUIRE token
-	EndPos     token.Position
 }
 
-func (p *PreConditions) End() token.Position {
-	if p.EndPos.Line != 0 {
-		return p.EndPos
-	}
-	return p.Token.Pos
-}
+func (pc *PreConditions) statementNode() {}
 
-func (pc *PreConditions) statementNode()       {}
-func (pc *PreConditions) TokenLiteral() string { return pc.Token.Literal }
-func (pc *PreConditions) Pos() token.Position  { return pc.Token.Pos }
 func (pc *PreConditions) String() string {
 	var out bytes.Buffer
 
@@ -252,21 +208,12 @@ func (pc *PreConditions) String() string {
 //	   Result > 0;
 //	   Result = old x + 1 : 'result must be one more than original x';
 type PostConditions struct {
+	BaseNode
 	Conditions []*Condition
-	Token      token.Token // The ENSURE token
-	EndPos     token.Position
 }
 
-func (p *PostConditions) End() token.Position {
-	if p.EndPos.Line != 0 {
-		return p.EndPos
-	}
-	return p.Token.Pos
-}
+func (pc *PostConditions) statementNode() {}
 
-func (pc *PostConditions) statementNode()       {}
-func (pc *PostConditions) TokenLiteral() string { return pc.Token.Literal }
-func (pc *PostConditions) Pos() token.Position  { return pc.Token.Pos }
 func (pc *PostConditions) String() string {
 	var out bytes.Buffer
 
@@ -292,24 +239,12 @@ func (pc *PostConditions) String() string {
 //	old val
 //	Result = old count + 1
 type OldExpression struct {
+	TypedExpressionBase
 	Identifier *Identifier
-	Type       *TypeAnnotation
-	Token      token.Token // The OLD token
-	EndPos     token.Position
 }
 
-func (o *OldExpression) End() token.Position {
-	if o.EndPos.Line != 0 {
-		return o.EndPos
-	}
-	return o.Token.Pos
-}
+func (oe *OldExpression) expressionNode() {}
 
-func (oe *OldExpression) expressionNode()      {}
-func (oe *OldExpression) TokenLiteral() string { return oe.Token.Literal }
-func (oe *OldExpression) Pos() token.Position  { return oe.Token.Pos }
 func (oe *OldExpression) String() string {
 	return "old " + oe.Identifier.String()
 }
-func (oe *OldExpression) GetType() *TypeAnnotation    { return oe.Type }
-func (oe *OldExpression) SetType(typ *TypeAnnotation) { oe.Type = typ }

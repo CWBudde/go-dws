@@ -351,7 +351,9 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 
 	// Normal function call (non-identifier function)
 	exp := &ast.CallExpression{
-		Token:    p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken},
+		},
 		Function: function,
 	}
 
@@ -372,7 +374,9 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 	if p.peekTokenIs(lexer.RPAREN) {
 		p.nextToken() // consume ')'
 		return &ast.CallExpression{
-			Token:     p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: p.curToken},
+			},
 			Function:  typeName,
 			Arguments: []ast.Expression{},
 		}
@@ -382,7 +386,9 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 	if !p.peekTokenIs(lexer.IDENT) {
 		// First element is not an identifier, must be function call
 		exp := &ast.CallExpression{
-			Token:    p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: p.curToken},
+			},
 			Function: typeName,
 		}
 		exp.Arguments = p.parseExpressionList(lexer.RPAREN)
@@ -437,7 +443,9 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 	}
 
 	return &ast.CallExpression{
-		Token:     p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken},
+		},
 		Function:  typeName,
 		Arguments: args,
 	}
