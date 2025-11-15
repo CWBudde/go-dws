@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
@@ -147,6 +148,70 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 	// Handle nil specially - nil can be cast to any class or interface
 	if _, isNil := left.(*NilValue); isNil {
 		return &NilValue{}
+	}
+
+	// Task 9.1.3: Handle interface-to-object/interface casting
+	// If left side is an InterfaceInstance, we need special handling
+	if intfInst, ok := left.(*InterfaceInstance); ok {
+		// Get the target type name first
+		targetTypeName := ""
+		if typeAnnotation, ok := expr.TargetType.(*ast.TypeAnnotation); ok {
+			targetTypeName = typeAnnotation.Name
+		} else {
+			return i.newErrorWithLocation(expr, "cannot determine target type")
+		}
+
+		// Check if target is a class
+		if targetClass, isClass := i.classes[targetTypeName]; isClass {
+			// Interface-to-class casting
+			// Extract the underlying object
+			underlyingObj := intfInst.Object
+			if underlyingObj == nil {
+				return i.newErrorWithLocation(expr, "cannot cast nil interface to class '%s'", targetClass.Name)
+			}
+
+			// Check if the underlying object's class is compatible with the target class
+			currentClass := underlyingObj.Class
+			isCompatible := false
+			for currentClass != nil {
+				if strings.EqualFold(currentClass.Name, targetClass.Name) {
+					isCompatible = true
+					break
+				}
+				currentClass = currentClass.Parent
+			}
+
+			if !isCompatible {
+				// Throw exception with proper format
+				message := fmt.Sprintf("Cannot cast interface of \"%s\" to class \"%s\"",
+					underlyingObj.Class.Name, targetClass.Name)
+				i.raiseException("Exception", message, &expr.Token.Pos)
+				return nil
+			}
+
+			// Cast is valid - return the underlying object
+			return underlyingObj
+		}
+
+		// Check if target is an interface
+		if targetIface, isInterface := i.interfaces[strings.ToLower(targetTypeName)]; isInterface {
+			// Interface-to-interface casting
+			underlyingObj := intfInst.Object
+			if underlyingObj == nil {
+				return i.newErrorWithLocation(expr, "cannot cast nil interface to interface '%s'", targetIface.Name)
+			}
+
+			// Check if the underlying object's class implements the target interface
+			if !classImplementsInterface(underlyingObj.Class, targetIface) {
+				return i.newErrorWithLocation(expr, "interface of class '%s' does not implement interface '%s'",
+					underlyingObj.Class.Name, targetIface.Name)
+			}
+
+			// Create and return new interface instance
+			return NewInterfaceInstance(targetIface, underlyingObj)
+		}
+
+		return i.newErrorWithLocation(expr, "type '%s' not found (neither class nor interface)", targetTypeName)
 	}
 
 	// Ensure we have an object instance
