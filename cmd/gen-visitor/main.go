@@ -31,13 +31,14 @@ type NodeInfo struct {
 
 // FieldInfo holds information about a field in a node
 type FieldInfo struct {
-	Name        string // Field name
-	Type        string // Field type as string
-	IsSlice     bool   // True if field is a slice
-	IsNode      bool   // True if field implements Node interface
-	IsHelper    bool   // True if field is a helper struct (Parameter, etc.)
-	Skip        bool   // True if field has `ast:"skip"` tag
+	Name            string // Field name
+	Type            string // Field type as string
+	IsSlice         bool   // True if field is a slice
+	IsNode          bool   // True if field implements Node interface
+	IsHelper        bool   // True if field is a helper struct (Parameter, etc.)
+	Skip            bool   // True if field has `ast:"skip"` tag
 	IsSliceOfValues bool   // True if slice contains values, not pointers
+	Order           int    // Custom traversal order from `ast:"order:N"` tag (0 = default/unset)
 }
 
 // knownNodeTypes are types that implement the Node interface
@@ -233,12 +234,35 @@ func extractFields(structType *ast.StructType) []*FieldInfo {
 			continue
 		}
 
-		// Check for ast:"skip" tag
+		// Check for ast tags (skip, order)
 		skip := false
+		order := 0
 		if field.Tag != nil {
 			tag := field.Tag.Value
+			// Check for skip tag
 			if strings.Contains(tag, `ast:"skip"`) {
 				skip = true
+			}
+			// Check for order tag: ast:"order:N"
+			if strings.Contains(tag, "order:") {
+				// Extract order value
+				// Tag format: `ast:"order:10"` or `ast:"skip,order:10"`
+				start := strings.Index(tag, "order:")
+				if start != -1 {
+					start += 6 // len("order:")
+					end := start
+					for end < len(tag) && tag[end] >= '0' && tag[end] <= '9' {
+						end++
+					}
+					if end > start {
+						// Parse the number
+						if val, err := fmt.Sscanf(tag[start:end], "%d", &order); err == nil && val == 1 {
+							// Successfully parsed order
+						} else {
+							order = 0
+						}
+					}
+				}
 			}
 		}
 
@@ -290,6 +314,7 @@ func extractFields(structType *ast.StructType) []*FieldInfo {
 					IsNode:          isNode,
 					IsHelper:        isHelper,
 					Skip:            skip,
+					Order:           order,
 					IsSliceOfValues: isSliceOfValues,
 				})
 			}
@@ -471,6 +496,53 @@ func walkParameter(param *Parameter, v Visitor) {
 	return buf.Bytes(), nil
 }
 
+// sortFieldsByOrder sorts fields by their Order tag value while preserving
+// the original order for fields with Order=0 (no explicit order)
+func sortFieldsByOrder(fields []*FieldInfo) []*FieldInfo {
+	// Create a copy to avoid modifying the original
+	sorted := make([]*FieldInfo, len(fields))
+	copy(sorted, fields)
+
+	// Stable sort by Order field
+	// Fields with Order=0 stay in original order
+	// Fields with Order>0 are sorted by their Order value
+	type fieldWithIndex struct {
+		field         *FieldInfo
+		originalIndex int
+	}
+
+	indexed := make([]fieldWithIndex, len(sorted))
+	for i, f := range sorted {
+		indexed[i] = fieldWithIndex{f, i}
+	}
+
+	// Sort: fields with explicit order come first (sorted by order value),
+	// then fields without explicit order (sorted by original index)
+	sort.SliceStable(indexed, func(i, j int) bool {
+		fi, fj := indexed[i].field, indexed[j].field
+
+		// If both have explicit order, sort by order value
+		if fi.Order > 0 && fj.Order > 0 {
+			return fi.Order < fj.Order
+		}
+		// Fields with explicit order come first
+		if fi.Order > 0 {
+			return true
+		}
+		if fj.Order > 0 {
+			return false
+		}
+		// Both have no explicit order, maintain original order
+		return indexed[i].originalIndex < indexed[j].originalIndex
+	})
+
+	for i, fi := range indexed {
+		sorted[i] = fi.field
+	}
+
+	return sorted
+}
+
 // generateWalkFunction generates a walk function for a specific node type
 func generateWalkFunction(buf *bytes.Buffer, node *NodeInfo) error {
 	fmt.Fprintf(buf, "// walk%s walks a %s node\n", node.Name, node.Name)
@@ -480,8 +552,11 @@ func generateWalkFunction(buf *bytes.Buffer, node *NodeInfo) error {
 		// Node has no children to walk
 		buf.WriteString("\t// No children to walk\n")
 	} else {
+		// Sort fields by order tag (if specified), maintaining original order for fields with order=0
+		sortedFields := sortFieldsByOrder(node.Fields)
+
 		// Walk each field
-		for _, field := range node.Fields {
+		for _, field := range sortedFields {
 			if field.Skip {
 				fmt.Fprintf(buf, "\t// %s skipped (ast:\"skip\" tag)\n", field.Name)
 				continue
