@@ -184,15 +184,8 @@ func TestCharLiteral(t *testing.T) {
 				t.Errorf("Pos() = %v, want %v", node.Pos(), expectedPos)
 			}
 
-			// Test type annotation
-			if node.GetType() != nil {
-				t.Errorf("GetType() = %v, want nil", node.GetType())
-			}
-			typ := NewTestTypeAnnotation("String")
-			node.SetType(typ)
-			if node.GetType() != typ {
-				t.Errorf("GetType() after SetType = %v, want %v", node.GetType(), typ)
-			}
+			// Task 9.18: Type annotation tests moved to pkg/ast/metadata_test.go
+			// GetType/SetType methods no longer exist on nodes
 		})
 	}
 }

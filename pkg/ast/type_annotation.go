@@ -44,14 +44,12 @@ func (ta *TypeAnnotation) End() token.Position {
 // typeExpressionNode marks this as a type expression
 func (ta *TypeAnnotation) typeExpressionNode() {}
 
-// TypedExpression is an interface that all expressions with type information must implement.
-// This allows the semantic analyzer to attach type information to expressions.
+// TypedExpression was previously an interface for expressions with type information.
+// As of Task 9.18, type information is stored separately in SemanticInfo.
+// This interface is kept for backward compatibility but now just aliases Expression.
+// Code that needs type information should use SemanticInfo.GetType(expr) instead.
 type TypedExpression interface {
 	Expression
-	// GetType returns the type of this expression (nil if not yet determined)
-	GetType() *TypeAnnotation
-	// SetType sets the type of this expression
-	SetType(typ *TypeAnnotation)
 }
 
 // ============================================================================

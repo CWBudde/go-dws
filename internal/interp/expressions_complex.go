@@ -365,12 +365,16 @@ func (i *Interpreter) evalIfExpression(expr *ast.IfExpression) Value {
 
 	// No else clause - return default value for the consequence type
 	// The type should have been set during semantic analysis
-	if expr.Type == nil {
+	var typeAnnot *ast.TypeAnnotation
+	if i.semanticInfo != nil {
+		typeAnnot = i.semanticInfo.GetType(expr)
+	}
+	if typeAnnot == nil {
 		return i.newErrorWithLocation(expr, "if expression missing type annotation")
 	}
 
 	// Return default value based on type name
-	typeName := strings.ToLower(expr.Type.Name)
+	typeName := strings.ToLower(typeAnnot.Name)
 	switch typeName {
 	case "integer", "int64":
 		return &IntegerValue{Value: 0}

@@ -10,9 +10,6 @@ import (
 
 // buildBenchmarkProgram returns a simple counting loop program.
 func buildBenchmarkProgram() *ast.Program {
-	intType := &ast.TypeAnnotation{Name: "Integer"}
-	boolType := &ast.TypeAnnotation{Name: "Boolean"}
-
 	return &ast.Program{
 		Statements: []ast.Statement{
 			&ast.VarDeclStatement{
@@ -25,18 +22,15 @@ func buildBenchmarkProgram() *ast.Program {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 							},
-							Type: intType,
 						},
 						Value: "x",
 					},
 				},
-				Type: intType,
 				Value: &ast.IntegerLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.INT, Literal: "0"},
 						},
-						Type: intType,
 					},
 					Value: 0,
 				},
@@ -50,7 +44,6 @@ func buildBenchmarkProgram() *ast.Program {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.LESS, Literal: "<"},
 						},
-						Type: boolType,
 					},
 					Operator: "<",
 					Left: &ast.Identifier{
@@ -58,7 +51,6 @@ func buildBenchmarkProgram() *ast.Program {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 							},
-							Type: intType,
 						},
 						Value: "x",
 					},
@@ -67,7 +59,6 @@ func buildBenchmarkProgram() *ast.Program {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.INT, Literal: "1000"},
 							},
-							Type: intType,
 						},
 						Value: 1000,
 					},
@@ -82,7 +73,6 @@ func buildBenchmarkProgram() *ast.Program {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 							},
-							Type: intType,
 						},
 						Value: "x",
 					},
@@ -91,7 +81,6 @@ func buildBenchmarkProgram() *ast.Program {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
 							},
-							Type: intType,
 						},
 						Operator: "+",
 						Left: &ast.Identifier{
@@ -99,7 +88,6 @@ func buildBenchmarkProgram() *ast.Program {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 								},
-								Type: intType,
 							},
 							Value: "x",
 						},
@@ -108,7 +96,6 @@ func buildBenchmarkProgram() *ast.Program {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.INT, Literal: "1"},
 								},
-								Type: intType,
 							},
 							Value: 1,
 						},
@@ -124,7 +111,6 @@ func buildBenchmarkProgram() *ast.Program {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 						},
-						Type: intType,
 					},
 					Value: "x",
 				},

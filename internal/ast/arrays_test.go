@@ -290,6 +290,8 @@ func TestArrayLiteralExpression_String(t *testing.T) {
 }
 
 func TestArrayLiteralExpression_TypeTracking(t *testing.T) {
+	// Task 9.18: Type information is now stored in SemanticInfo, not on AST nodes
+	// See pkg/ast/metadata_test.go for type annotation tests
 	tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 	arrayLit := &ArrayLiteralExpression{
 		TypedExpressionBase: TypedExpressionBase{
@@ -298,15 +300,9 @@ func TestArrayLiteralExpression_TypeTracking(t *testing.T) {
 		Elements: []Expression{},
 	}
 
-	if arrayLit.GetType() != nil {
-		t.Fatal("GetType() should be nil initially")
-	}
-
-	typeAnnotation := NewTestTypeAnnotation("array of Integer")
-	arrayLit.SetType(typeAnnotation)
-
-	if arrayLit.GetType() != typeAnnotation {
-		t.Fatal("GetType() should return the type set via SetType()")
+	// Verify the node is constructed correctly
+	if arrayLit.TokenLiteral() != "[" {
+		t.Errorf("TokenLiteral() = %v, want '['", arrayLit.TokenLiteral())
 	}
 }
 
@@ -471,17 +467,12 @@ func TestIndexExpression(t *testing.T) {
 			Index: NewTestIntegerLiteral(0),
 		}
 
-		if indexExpr.GetType() != nil {
-			t.Error("GetType() should be nil initially")
-		}
+		// Task 9.18: Type annotation now stored in SemanticInfo
+		// See pkg/ast/metadata_test.go for type annotation tests
 
-		// Test SetType
-		typeAnnotation := NewTestTypeAnnotation("Integer")
-		indexExpr.SetType(typeAnnotation)
-
-		// Test GetType after setting
-		if indexExpr.GetType() != typeAnnotation {
-			t.Error("GetType() should return set type")
+		// Verify node structure is correct
+		if indexExpr.TokenLiteral() != "[" {
+			t.Errorf("TokenLiteral() = %v, want '['", indexExpr.TokenLiteral())
 		}
 	})
 }
@@ -864,18 +855,12 @@ func TestNewArrayExpression(t *testing.T) {
 			},
 		}
 
-		// Test GetType (should be nil initially)
-		if newArrayExpr.GetType() != nil {
-			t.Error("GetType() should be nil initially")
-		}
+		// Task 9.18: Type annotation now stored in SemanticInfo
+		// See pkg/ast/metadata_test.go for type annotation tests
 
-		// Test SetType
-		typeAnnotation := NewTestTypeAnnotation("array of Integer")
-		newArrayExpr.SetType(typeAnnotation)
-
-		// Test GetType after setting
-		if newArrayExpr.GetType() != typeAnnotation {
-			t.Error("GetType() should return set type")
+		// Verify node structure is correct
+		if newArrayExpr.TokenLiteral() != "new" {
+			t.Errorf("TokenLiteral() = %v, want 'new'", newArrayExpr.TokenLiteral())
 		}
 	})
 

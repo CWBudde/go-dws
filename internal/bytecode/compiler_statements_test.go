@@ -8,8 +8,6 @@ import (
 )
 
 func TestCompiler_VarAssignReturn(t *testing.T) {
-	intType := &ast.TypeAnnotation{Name: "Integer"}
-
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.VarDeclStatement{
@@ -26,7 +24,6 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 						Value: "x",
 					},
 				},
-				Type: intType,
 				Value: &ast.IntegerLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -46,7 +43,6 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(2, 1)},
 						},
-						Type: intType,
 					},
 					Value: "x",
 				},
@@ -55,7 +51,6 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(2, 6)},
 						},
-						Type: intType,
 					},
 					Operator: "+",
 					Left: &ast.Identifier{
@@ -63,7 +58,6 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(2, 5)},
 							},
-							Type: intType,
 						},
 						Value: "x",
 					},
@@ -86,7 +80,6 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 9)},
 						},
-						Type: intType,
 					},
 					Value: "x",
 				},
@@ -123,15 +116,11 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 }
 
 func TestCompiler_IfElse(t *testing.T) {
-	intType := &ast.TypeAnnotation{Name: "Integer"}
-	boolType := &ast.TypeAnnotation{Name: "Boolean"}
-
 	flagIdent := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "flag", Pos: pos(1, 5)},
 			},
-			Type: boolType,
 		},
 		Value: "flag",
 	}
@@ -141,7 +130,6 @@ func TestCompiler_IfElse(t *testing.T) {
 			BaseNode: ast.BaseNode{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "total", Pos: pos(2, 5)},
 			},
-			Type: intType,
 		},
 		Value: "total",
 	}
@@ -153,7 +141,6 @@ func TestCompiler_IfElse(t *testing.T) {
 					Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
 				},
 				Names: []*ast.Identifier{flagIdent},
-				Type:  boolType,
 				Value: &ast.BooleanLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -168,7 +155,6 @@ func TestCompiler_IfElse(t *testing.T) {
 					Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(2, 1)},
 				},
 				Names: []*ast.Identifier{totalIdent},
-				Type:  intType,
 				Value: &ast.IntegerLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -193,7 +179,6 @@ func TestCompiler_IfElse(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "total", Pos: pos(3, 8)},
 							},
-							Type: intType,
 						},
 						Value: "total",
 					},
@@ -216,7 +201,6 @@ func TestCompiler_IfElse(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "total", Pos: pos(4, 8)},
 							},
-							Type: intType,
 						},
 						Value: "total",
 					},
@@ -239,7 +223,6 @@ func TestCompiler_IfElse(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "total", Pos: pos(5, 9)},
 						},
-						Type: intType,
 					},
 					Value: "total",
 				},
@@ -599,8 +582,6 @@ func TestCompiler_TryFinallyMetadata(t *testing.T) {
 }
 
 func TestCompiler_BreakAndContinue(t *testing.T) {
-	boolType := &ast.TypeAnnotation{Name: "Boolean"}
-
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.WhileStatement{
@@ -612,7 +593,6 @@ func TestCompiler_BreakAndContinue(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.TRUE, Literal: "True", Pos: pos(1, 7)},
 						},
-						Type: boolType,
 					},
 					Value: true,
 				},
@@ -661,8 +641,6 @@ func TestCompiler_BreakAndContinue(t *testing.T) {
 }
 
 func TestCompiler_RepeatContinuePatchesToCondition(t *testing.T) {
-	boolType := &ast.TypeAnnotation{Name: "Boolean"}
-
 	repeatStmt := &ast.RepeatStatement{
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.REPEAT, Literal: "repeat", Pos: pos(1, 1)},
@@ -684,7 +662,6 @@ func TestCompiler_RepeatContinuePatchesToCondition(t *testing.T) {
 				BaseNode: ast.BaseNode{
 					Token: lexer.Token{Type: lexer.TRUE, Literal: "True", Pos: pos(3, 1)},
 				},
-				Type: boolType,
 			},
 			Value: true,
 		},
@@ -756,15 +733,11 @@ func TestCompiler_OptimizesLiteralExpressionStatements(t *testing.T) {
 }
 
 func TestCompiler_RepeatLoop(t *testing.T) {
-	intType := &ast.TypeAnnotation{Name: "Integer"}
-	boolType := &ast.TypeAnnotation{Name: "Boolean"}
-
 	xIdent := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
 			},
-			Type: intType,
 		},
 		Value: "x",
 	}
@@ -788,7 +761,6 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 3)},
 							},
-							Type: intType,
 						},
 						Value: "x",
 					},
@@ -797,7 +769,6 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 8)},
 							},
-							Type: intType,
 						},
 						Operator: "+",
 						Left: &ast.Identifier{
@@ -805,7 +776,6 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 7)},
 								},
-								Type: intType,
 							},
 							Value: "x",
 						},
@@ -826,7 +796,6 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 				BaseNode: ast.BaseNode{
 					Token: lexer.Token{Type: lexer.GREATER, Literal: ">", Pos: pos(4, 10)},
 				},
-				Type: boolType,
 			},
 			Operator: ">",
 			Left: &ast.Identifier{
@@ -834,7 +803,6 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(4, 9)},
 					},
-					Type: intType,
 				},
 				Value: "x",
 			},
@@ -856,7 +824,6 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 					Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
 				},
 				Names: []*ast.Identifier{xIdent},
-				Type:  intType,
 				Value: &ast.IntegerLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -876,7 +843,6 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(5, 9)},
 						},
-						Type: intType,
 					},
 					Value: "x",
 				},

@@ -167,10 +167,10 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 
 				// Set type annotation on the SetLiteral so interpreter knows to treat it as array
 				if resultType != nil {
-					e.Type = &ast.TypeAnnotation{
+					a.semanticInfo.SetType(e, &ast.TypeAnnotation{
 						Token: e.Token,
 						Name:  resultType.String(),
-					}
+					})
 				}
 				return resultType
 			}

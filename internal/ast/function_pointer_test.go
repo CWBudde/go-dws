@@ -157,11 +157,9 @@ func TestAddressOfExpression(t *testing.T) {
 	})
 
 	t.Run("address-of with type information", func(t *testing.T) {
-		funcPtrType := NewTestTypeAnnotation("TComparator")
 		node := &AddressOfExpression{
 			TypedExpressionBase: TypedExpressionBase{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@"}},
-				Type:     funcPtrType,
 			},
 			Operator: NewTestIdentifier("Ascending"),
 		}
@@ -171,9 +169,8 @@ func TestAddressOfExpression(t *testing.T) {
 			t.Errorf("expected %q, got %q", expected, node.String())
 		}
 
-		if node.GetType() != funcPtrType {
-			t.Error("expected type to be set")
-		}
+		// Task 9.18: Type information is now stored in SemanticInfo, not on nodes
+		// Type checking is tested via SemanticInfo tests
 	})
 
 	t.Run("address-of implements TypedExpression", func(t *testing.T) {
@@ -187,12 +184,8 @@ func TestAddressOfExpression(t *testing.T) {
 		// Verify it implements TypedExpression interface
 		var _ TypedExpression = node
 
-		// Test SetType and GetType
-		newType := NewTestTypeAnnotation("TCallback")
-		node.SetType(newType)
-		if node.GetType() != newType {
-			t.Error("SetType/GetType not working correctly")
-		}
+		// Task 9.18: GetType/SetType methods removed - type info now in SemanticInfo
+		// See pkg/ast/metadata_test.go for type annotation tests
 	})
 
 	t.Run("address-of position", func(t *testing.T) {

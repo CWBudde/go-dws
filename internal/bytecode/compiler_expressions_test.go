@@ -205,8 +205,6 @@ func TestCompiler_NewExpression(t *testing.T) {
 	}
 }
 func TestCompiler_ConstantFolding(t *testing.T) {
-	intType := &ast.TypeAnnotation{Name: "Integer"}
-
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.ReturnStatement{
@@ -218,7 +216,6 @@ func TestCompiler_ConstantFolding(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(1, 9)},
 						},
-						Type: intType,
 					},
 					Operator: "+",
 					Left: &ast.IntegerLiteral{
@@ -226,7 +223,6 @@ func TestCompiler_ConstantFolding(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 8)},
 							},
-							Type: intType,
 						},
 						Value: 2,
 					},
@@ -235,7 +231,6 @@ func TestCompiler_ConstantFolding(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.INT, Literal: "3", Pos: pos(1, 12)},
 							},
-							Type: intType,
 						},
 						Value: 3,
 					},
@@ -457,14 +452,11 @@ func TestCompiler_MemberAccess(t *testing.T) {
 }
 
 func TestCompiler_MethodCallEmitsCallMethod(t *testing.T) {
-	intType := &ast.TypeAnnotation{Name: "Integer"}
-
 	objIdent := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "obj", Pos: pos(1, 5)},
 			},
-			Type: intType,
 		},
 		Value: "obj",
 	}
@@ -488,7 +480,6 @@ func TestCompiler_MethodCallEmitsCallMethod(t *testing.T) {
 				BaseNode: ast.BaseNode{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "obj", Pos: pos(2, 5)},
 				},
-				Type: intType,
 			},
 			Value: "obj",
 		},
@@ -499,7 +490,6 @@ func TestCompiler_MethodCallEmitsCallMethod(t *testing.T) {
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(2, 15)},
 					},
-					Type: intType,
 				},
 				Value: 1,
 			},
@@ -511,13 +501,11 @@ func TestCompiler_MethodCallEmitsCallMethod(t *testing.T) {
 			&ast.VarDeclStatement{
 				BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)}},
 				Names:    []*ast.Identifier{objIdent},
-				Type:     intType,
 				Value: &ast.IntegerLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(1, 10)},
 						},
-						Type: intType,
 					},
 					Value: 0,
 				},
