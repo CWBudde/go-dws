@@ -112,6 +112,12 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			return value
 		}
 
+		// Task 9.1.3: Check if exception was raised during evaluation
+		// This is important for operations that raise exceptions (like invalid casts)
+		if i.exception != nil {
+			return nil
+		}
+
 		// If declaring a subrange variable with an initializer, wrap and validate
 		if stmt.Type != nil {
 			typeName := stmt.Type.Name
@@ -334,6 +340,14 @@ func (i *Interpreter) createZeroValue(typeAnnotation *ast.TypeAnnotation) Value 
 				Value:        0,
 				SubrangeType: stv.SubrangeType,
 			}
+		}
+	}
+
+	// Task 9.1.3: Check if this is an interface type
+	if ifaceInfo, exists := i.interfaces[strings.ToLower(typeName)]; exists {
+		return &InterfaceInstance{
+			Interface: ifaceInfo,
+			Object:    nil,
 		}
 	}
 

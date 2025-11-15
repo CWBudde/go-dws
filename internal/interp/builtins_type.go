@@ -255,6 +255,16 @@ func (i *Interpreter) getTypeIDAndName(val Value) (int, string) {
 		return 3, "String"
 	case *BooleanValue:
 		return 4, "Boolean"
+	case *InterfaceInstance:
+		// For interface instances, return the underlying object's type
+		if v.Object != nil && v.Object.Class != nil {
+			return i.getClassTypeID(v.Object.Class.Name), v.Object.Class.Name
+		}
+		// If no underlying object, return the interface type name
+		if v.Interface != nil {
+			return i.getClassTypeID(v.Interface.Name), v.Interface.Name
+		}
+		return 100, "IInterface"
 	case *ObjectInstance:
 		if v.Class != nil {
 			return i.getClassTypeID(v.Class.Name), v.Class.Name

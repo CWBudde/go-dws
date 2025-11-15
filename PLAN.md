@@ -103,20 +103,20 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Goal**: Fix interface member/method access to allow calling methods on interface instances.
 
-**Status**: NOT STARTED
+**Status**: DONE
 
-**Impact**: Fixes 6 tests immediately (37.5% of failures)
+**Impact**: Fixes 3 tests (call_interface_method, intf_spread, intf_spread_virtual)
 
 **Estimate**: 1-2 hours
 
 **Tests Fixed**:
 
-- `call_interface_method`
-- `interface_multiple_cast`
-- `interface_properties`
-- `intf_casts`
-- `intf_spread`
-- `intf_spread_virtual`
+- `call_interface_method` ✓
+- `interface_multiple_cast` (requires interface-to-interface casting - see 9.1.x)
+- `interface_properties` (requires indexed property support)
+- `intf_casts` (requires IInterface built-in type)
+- `intf_spread` ✓
+- `intf_spread_virtual` ✓
 
 **Error**: `ERROR: cannot access member 'X' of type 'INTERFACE' (no helper found)`
 
@@ -128,11 +128,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Implementation**:
 
-- [ ] Add InterfaceInstance detection in `evalMemberAccess` before `AsObject` check
-- [ ] Extract underlying ObjectInstance via `ii.Object`
-- [ ] Verify method exists in interface definition
-- [ ] Delegate method calls to underlying object
-- [ ] Update `evalMethodCall` in `objects_methods.go` to handle InterfaceInstance
+- [x] Add InterfaceInstance detection in `evalMemberAccess` before `AsObject` check
+- [x] Extract underlying ObjectInstance via `ii.Object`
+- [x] Verify method exists in interface definition
+- [x] Delegate method calls to underlying object
+- [x] Update `evalMethodCall` in `objects_methods.go` to handle InterfaceInstance
 
 **Example Test**:
 
@@ -150,16 +150,16 @@ intfRef.A;  // Should call A on the underlying object
 
 **Goal**: Allow 'implements' operator to work with class types, not just object instances.
 
-**Status**: NOT STARTED
+**Status**: DONE
 
-**Impact**: Fixes 2 tests
+**Impact**: Fixes 1 test (interface_implements_intf)
 
 **Estimate**: 30 minutes
 
 **Tests Fixed**:
 
-- `interface_implements_intf`
-- `interface_inheritance_instance` (partial - adds missing error message)
+- `interface_implements_intf` ✓
+- `interface_inheritance_instance` (still failing - requires interface inheritance checking fix)
 
 **Error**: `ERROR: 'implements' operator requires object instance, got CLASS`
 
@@ -170,9 +170,9 @@ intfRef.A;  // Should call A on the underlying object
 
 **Implementation**:
 
-- [ ] Update `evalImplementsExpression` to handle ClassInfoValue and ClassValue
-- [ ] Use existing `classImplementsInterface` helper for class type checks
-- [ ] Keep existing ObjectInstance logic (extract class from instance)
+- [x] Update `evalImplementsExpression` to handle ClassInfoValue and ClassValue
+- [x] Use existing `classImplementsInterface` helper for class type checks
+- [x] Keep existing ObjectInstance logic (extract class from instance)
 
 **Example Test**:
 
@@ -185,43 +185,47 @@ if TMyImplementation implements IMyInterface then  // TMyImplementation is a CLA
 
 - `internal/interp/expressions_complex.go`
 
-### 9.1.3 Interface-to-Object Casting [MEDIUM]
+### 9.1.3 Interface-to-Object/Interface Casting [MEDIUM]
 
-**Goal**: Validate interface-to-object casts and throw proper exceptions for invalid casts.
+**Goal**: Validate interface-to-object and interface-to-interface casts.
 
-**Status**: NOT STARTED
+**Status**: DONE
 
-**Impact**: Fixes 1 test
+**Impact**: Fixes 2 tests
 
-**Estimate**: 1 hour
+**Estimate**: 1 hour (actual: 2 hours due to debugging interface wrapping)
 
 **Tests Fixed**:
-- `interface_cast_to_obj`
+- `interface_multiple_cast` ✓
+- `interface_cast_to_obj` ✓
 
-**Error**: Missing exception when invalid cast attempted
+**Error**: Missing exception when invalid cast attempted, interface variables not properly initialized
 
 **Expected Behavior**:
 ```pascal
 var d := IntfRef as TDummyClass;  // Should throw exception if incompatible
 ```
 
-**Expected Output**: `Cannot cast interface of "TMyImplementation" to class "TDummyClass"`
+**Expected Output**: `Cannot cast interface of "TMyImplementation" to class "TDummyClass" [line: 23, column: 21]`
 
-**Actual**: Cast succeeds incorrectly (no validation)
-
-**Root Cause**:
-- `evalAsExpression` in `internal/interp/expressions_complex.go:152-156` only handles object-to-interface casting
-- Doesn't handle InterfaceInstance as left operand
+**Root Causes**:
+1. `evalAsExpression` only handled object-to-interface casting, not InterfaceInstance as left operand
+2. `createZeroValue` didn't handle interface types, so interface variables initialized as NilValue instead of InterfaceInstance
+3. Exception check missing in `evalVarDeclStatement` after initializer evaluation
 
 **Implementation**:
-- [ ] Detect when left side is InterfaceInstance in `evalAsExpression`
-- [ ] Extract underlying object from interface
-- [ ] Verify object's class is compatible with target class
-- [ ] Return underlying object if compatible
-- [ ] Throw exception with proper message format if incompatible
+- [x] Detect when left side is InterfaceInstance in `evalAsExpression`
+- [x] Handle interface-to-class casting (extract underlying object, validate compatibility)
+- [x] Handle interface-to-interface casting (validate implementation, create new interface instance)
+- [x] Raise exception for invalid interface-to-class casts with proper message format
+- [x] Add InterfaceInstance support to `createZeroValue` for proper interface variable initialization
+- [x] Add exception check in `evalVarDeclStatement` after evaluating initializers
+- [x] Add InterfaceInstance case to `getTypeIDAndName` for TypeOf support
 
-**Files to Modify**:
-- `internal/interp/expressions_complex.go`
+**Files Modified**:
+- `internal/interp/expressions_complex.go` - Interface casting logic
+- `internal/interp/statements_declarations.go` - Interface initialization, exception checks
+- `internal/interp/builtins_type.go` - TypeOf support for interfaces
 
 ### 9.1.4 Interface Fields in Records [LOW]
 

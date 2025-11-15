@@ -548,6 +548,24 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		return i.evalRecordMethodCall(recVal, memberAccess, mc.Arguments, mc.Object)
 	}
 
+	// Task 9.1.1: Check if it's an interface instance
+	// If so, extract the underlying object and delegate method call to it
+	if intfInst, ok := objVal.(*InterfaceInstance); ok {
+		if intfInst.Object == nil {
+			return i.newErrorWithLocation(mc, "cannot call method '%s' on nil interface", mc.Method.Value)
+		}
+
+		// Verify the method exists in the interface definition
+		// This ensures we only call methods that are part of the interface contract
+		if !intfInst.Interface.HasMethod(mc.Method.Value) {
+			return i.newErrorWithLocation(mc, "method '%s' not found in interface '%s'",
+				mc.Method.Value, intfInst.Interface.Name)
+		}
+
+		// Delegate to the underlying object for actual method dispatch
+		objVal = intfInst.Object
+	}
+
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
 	if !ok {
