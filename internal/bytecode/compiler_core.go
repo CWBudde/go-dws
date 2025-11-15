@@ -549,6 +549,18 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 			return globalInfo.typ
 		}
 		return typeFromAnnotation(node.GetType())
+	case *ast.IndexExpression:
+		// For array indexing, return the element type of the array
+		arrayType := c.inferExpressionType(node.Left)
+		if arrayType == nil {
+			return nil
+		}
+		// If it's an array type, extract the element type
+		if arrType, ok := arrayType.(*types.ArrayType); ok {
+			return arrType.ElementType
+		}
+		// Otherwise, fall back to any type annotation on the node
+		return typeFromAnnotation(node.GetType())
 	case *ast.BinaryExpression:
 		// For binary expressions, infer result type based on operator and operands
 		op := strings.ToLower(node.Operator)
@@ -654,6 +666,12 @@ func typeFromAnnotation(annotation *ast.TypeAnnotation) types.Type {
 		return nil
 	}
 
+	// Check for inline type expressions first (array, set, etc.)
+	if annotation.InlineType != nil {
+		return typeFromTypeExpression(annotation.InlineType)
+	}
+
+	// Handle simple named types
 	switch strings.ToLower(annotation.Name) {
 	case "integer":
 		return types.INTEGER
@@ -669,6 +687,31 @@ func typeFromAnnotation(annotation *ast.TypeAnnotation) types.Type {
 		return types.NIL
 	case "void":
 		return types.VOID
+	default:
+		return nil
+	}
+}
+
+// typeFromTypeExpression converts an AST TypeExpression to a types.Type
+func typeFromTypeExpression(expr ast.TypeExpression) types.Type {
+	if expr == nil {
+		return nil
+	}
+
+	switch node := expr.(type) {
+	case *ast.ArrayTypeNode:
+		elementType := typeFromTypeExpression(node.ElementType)
+		if elementType == nil {
+			return nil
+		}
+		return &types.ArrayType{
+			ElementType: elementType,
+			LowBound:    nil, // Dynamic array
+			HighBound:   nil,
+		}
+	case *ast.TypeAnnotation:
+		// Recursively handle type annotations (for element types)
+		return typeFromAnnotation(node)
 	default:
 		return nil
 	}

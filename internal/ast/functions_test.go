@@ -30,7 +30,7 @@ func TestParameterString(t *testing.T) {
 		{
 			name: "lazy parameter",
 			param: &Parameter{
-				Token:  lexer.Token{Type: lexer.IDENT, Literal: "expr"},
+				Token:  NewTestToken(lexer.IDENT, "expr"),
 				Name:   NewTestIdentifier("expr"),
 				Type:   NewTestTypeAnnotation("Integer"),
 				IsLazy: true,
@@ -85,7 +85,7 @@ func TestFunctionDeclString(t *testing.T) {
 		{
 			name: "procedure with no return type",
 			fn: &FunctionDecl{
-				BaseNode:   BaseNode{Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"}},
+				BaseNode:   NewTestBaseNode(lexer.PROCEDURE, "procedure"),
 				Name:       NewTestIdentifier("Hello"),
 				Parameters: []*Parameter{},
 				ReturnType: nil,
@@ -105,7 +105,7 @@ func TestFunctionDeclString(t *testing.T) {
 		{
 			name: "function with lazy parameter",
 			fn: &FunctionDecl{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+				BaseNode: NewTestBaseNode(lexer.FUNCTION, "function"),
 				Name:     NewTestIdentifier("Compute"),
 				Parameters: []*Parameter{
 					{
@@ -140,7 +140,7 @@ func TestReturnStatementString(t *testing.T) {
 		{
 			name: "return with integer value",
 			stmt: &ReturnStatement{
-				Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result"},
+				Token:       NewTestToken(lexer.IDENT, "Result"),
 				ReturnValue: NewTestIntegerLiteral(42),
 			},
 			expected: "Result := 42",
@@ -148,7 +148,7 @@ func TestReturnStatementString(t *testing.T) {
 		{
 			name: "return with expression",
 			stmt: &ReturnStatement{
-				Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result"},
+				Token:       NewTestToken(lexer.IDENT, "Result"),
 				ReturnValue: NewTestBinaryExpression(NewTestIdentifier("a"), "+", NewTestIdentifier("b")),
 			},
 			expected: "Result := (a + b)",
@@ -156,7 +156,7 @@ func TestReturnStatementString(t *testing.T) {
 		{
 			name: "return with string value",
 			stmt: &ReturnStatement{
-				Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result"},
+				Token:       NewTestToken(lexer.IDENT, "Result"),
 				ReturnValue: NewTestStringLiteral("hello"),
 			},
 			expected: "Result := \"hello\"",
@@ -164,7 +164,7 @@ func TestReturnStatementString(t *testing.T) {
 		{
 			name: "exit without value",
 			stmt: &ReturnStatement{
-				Token:       lexer.Token{Type: lexer.EXIT, Literal: "exit"},
+				Token:       NewTestToken(lexer.EXIT, "exit"),
 				ReturnValue: nil,
 			},
 			expected: "exit",

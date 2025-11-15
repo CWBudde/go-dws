@@ -186,25 +186,14 @@ func (i *Interpreter) builtinSetLength(args []ast.Expression) Value {
 		return i.newErrorWithLocation(i.currentNode, "SetLength() expects exactly 2 arguments, got %d", len(args))
 	}
 
-	// First argument must be an identifier (variable name)
-	varIdent, ok := args[0].(*ast.Identifier)
-	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "SetLength() first argument must be a variable, got %T", args[0])
+	// Use evaluateLValue to support identifiers, indexed arrays, member access, etc.
+	currentVal, assignFunc, err := i.evaluateLValue(args[0])
+	if err != nil {
+		return i.newErrorWithLocation(i.currentNode, "SetLength() first argument must be a variable: %s", err.Error())
 	}
 
-	varName := varIdent.Value
-
-	// Get current value from environment
-	currentVal, exists := i.env.Get(varName)
-	if !exists {
-		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", varName)
-	}
-
-	// Handle var parameters (ReferenceValue)
-	var refVal *ReferenceValue
+	// Dereference if it's a var parameter (ReferenceValue)
 	if ref, isRef := currentVal.(*ReferenceValue); isRef {
-		refVal = ref
-		// Dereference to get the actual value
 		actualVal, err := ref.Dereference()
 		if err != nil {
 			return i.newErrorWithLocation(i.currentNode, "%s", err.Error())
@@ -264,16 +253,9 @@ func (i *Interpreter) builtinSetLength(args []ast.Expression) Value {
 		// Create new StringValue
 		newValue := &StringValue{Value: newStr}
 
-		// If this is a var parameter, write through the reference
-		if refVal != nil {
-			if err := refVal.Assign(newValue); err != nil {
-				return i.newErrorWithLocation(i.currentNode, "failed to update string variable: %s", err)
-			}
-		} else {
-			// Direct assignment
-			if err := i.env.Set(varName, newValue); err != nil {
-				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
-			}
+		// Use the assignment function to update the string
+		if err := assignFunc(newValue); err != nil {
+			return i.newErrorWithLocation(i.currentNode, "failed to update string variable: %s", err)
 		}
 
 		return &NilValue{}

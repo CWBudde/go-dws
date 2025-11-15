@@ -19,7 +19,7 @@ func TestClassDeclString(t *testing.T) {
 		{
 			name: "simple class without parent",
 			classDecl: &ClassDecl{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
+				BaseNode: NewTestBaseNode(lexer.TYPE, "type"),
 				Name:     NewTestIdentifier("TPoint"),
 				Parent:   nil,
 				Fields:   []*FieldDecl{},
@@ -30,7 +30,7 @@ func TestClassDeclString(t *testing.T) {
 		{
 			name: "class with parent",
 			classDecl: &ClassDecl{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
+				BaseNode: NewTestBaseNode(lexer.TYPE, "type"),
 				Name:     NewTestIdentifier("TChild"),
 				Parent:   NewTestIdentifier("TParent"),
 				Fields:   []*FieldDecl{},
@@ -41,7 +41,7 @@ func TestClassDeclString(t *testing.T) {
 		{
 			name: "class with fields",
 			classDecl: &ClassDecl{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
+				BaseNode: NewTestBaseNode(lexer.TYPE, "type"),
 				Name:     NewTestIdentifier("TPoint"),
 				Parent:   nil,
 				Fields: []*FieldDecl{
@@ -63,13 +63,13 @@ func TestClassDeclString(t *testing.T) {
 		{
 			name: "class with method",
 			classDecl: &ClassDecl{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
+				BaseNode: NewTestBaseNode(lexer.TYPE, "type"),
 				Name:     NewTestIdentifier("TCounter"),
 				Parent:   nil,
 				Fields:   []*FieldDecl{},
 				Methods: []*FunctionDecl{
 					{
-						BaseNode:   BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+						BaseNode:   NewTestBaseNode(lexer.FUNCTION, "function"),
 						Name:       NewTestIdentifier("GetValue"),
 						Parameters: []*Parameter{},
 						ReturnType: NewTestTypeAnnotation("Integer"),
@@ -82,14 +82,14 @@ func TestClassDeclString(t *testing.T) {
 		{
 			name: "class with operator",
 			classDecl: &ClassDecl{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
+				BaseNode: NewTestBaseNode(lexer.TYPE, "type"),
 				Name:     NewTestIdentifier("TStream"),
 				Parent:   nil,
 				Fields:   []*FieldDecl{},
 				Methods:  []*FunctionDecl{},
 				Operators: []*OperatorDecl{
 					{
-						BaseNode:       BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
+						BaseNode:       NewTestBaseNode(lexer.CLASS, "class"),
 						Kind:           OperatorKindClass,
 						OperatorToken:  lexer.Token{Type: lexer.LESS_LESS, Literal: "<<"},
 						OperatorSymbol: "<<",
@@ -128,8 +128,13 @@ func TestClassDeclTokenLiteral(t *testing.T) {
 func TestClassDeclPos(t *testing.T) {
 	pos := lexer.Position{Line: 10, Column: 5, Offset: 100}
 	classDecl := &ClassDecl{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: pos}},
-		Name:     NewTestIdentifier("TTest"),
+		BaseNode: BaseNode{
+			Token: lexer.Token{
+				Type:    lexer.TYPE,
+				Literal: "type",
+				Pos:     pos,
+			},
+		},
 	}
 
 	result := classDecl.Pos()
@@ -175,7 +180,13 @@ func TestFieldDeclMethods(t *testing.T) {
 	fieldDecl := &FieldDecl{
 		Name: &Identifier{
 			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "X", Pos: pos}},
+				BaseNode: BaseNode{
+					Token: lexer.Token{
+						Type:    lexer.IDENT,
+						Literal: "X",
+						Pos:     pos,
+					},
+				},
 			},
 			Value: "X",
 		},

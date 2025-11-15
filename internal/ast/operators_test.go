@@ -8,7 +8,7 @@ import (
 
 func TestOperatorDeclString_GlobalBinary(t *testing.T) {
 	decl := &OperatorDecl{
-		BaseNode:       BaseNode{Token: lexer.Token{Type: lexer.OPERATOR, Literal: "operator"}},
+		BaseNode:       NewTestBaseNode(lexer.OPERATOR, "operator"),
 		Kind:           OperatorKindGlobal,
 		OperatorToken:  lexer.Token{Type: lexer.PLUS, Literal: "+"},
 		OperatorSymbol: "+",
@@ -31,7 +31,7 @@ func TestOperatorDeclString_GlobalBinary(t *testing.T) {
 
 func TestOperatorDeclString_Conversion(t *testing.T) {
 	decl := &OperatorDecl{
-		BaseNode:       BaseNode{Token: lexer.Token{Type: lexer.OPERATOR, Literal: "operator"}},
+		BaseNode:       NewTestBaseNode(lexer.OPERATOR, "operator"),
 		Kind:           OperatorKindConversion,
 		OperatorToken:  lexer.Token{Type: lexer.IMPLICIT, Literal: "implicit"},
 		OperatorSymbol: "implicit",
@@ -53,7 +53,7 @@ func TestOperatorDeclString_Conversion(t *testing.T) {
 
 func TestOperatorDeclString_Class(t *testing.T) {
 	decl := &OperatorDecl{
-		BaseNode:       BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
+		BaseNode:       NewTestBaseNode(lexer.CLASS, "class"),
 		Kind:           OperatorKindClass,
 		OperatorToken:  lexer.Token{Type: lexer.PLUS_ASSIGN, Literal: "+="},
 		OperatorSymbol: "+=",
