@@ -41,10 +41,14 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 
 					// Wrap in NOT expression
 					leftExp = &ast.UnaryExpression{
-						Token:    notToken,
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token:  notToken,
+								EndPos: comparisonExp.End(),
+							},
+						},
 						Operator: notToken.Literal,
 						Right:    comparisonExp,
-						EndPos:   comparisonExp.End(),
 					}
 					continue
 				}
@@ -265,7 +269,11 @@ func (p *Parser) parseCharLiteral() ast.Expression {
 // parsePrefixExpression parses a prefix (unary) expression.
 func (p *Parser) parsePrefixExpression() ast.Expression {
 	expression := &ast.UnaryExpression{
-		Token:    p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
 		Operator: p.curToken.Literal,
 	}
 
@@ -308,7 +316,11 @@ func (p *Parser) parseAddressOfExpression() ast.Expression {
 // parseInfixExpression parses an infix (binary) expression.
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	expression := &ast.BinaryExpression{
-		Token:    p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
 		Operator: p.curToken.Literal,
 		Left:     left,
 	}

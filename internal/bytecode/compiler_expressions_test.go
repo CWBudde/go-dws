@@ -188,7 +188,12 @@ func TestCompiler_ConstantFolding(t *testing.T) {
 			&ast.ReturnStatement{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
 				ReturnValue: &ast.BinaryExpression{
-					Token:    lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(1, 9)},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(1, 9)},
+						},
+						Type: intType,
+					},
 					Operator: "+",
 					Left: &ast.IntegerLiteral{
 						TypedExpressionBase: ast.TypedExpressionBase{
@@ -208,7 +213,6 @@ func TestCompiler_ConstantFolding(t *testing.T) {
 						},
 						Value: 3,
 					},
-					Type: intType,
 				},
 			},
 		},

@@ -240,8 +240,12 @@ func TestBinaryExpression(t *testing.T) {
 			want:     "(x < 10)",
 		},
 		{
-			name:     "nested expression",
-			left:     NewTestBinaryExpression(NewTestIntegerLiteral(1), "+", NewTestIntegerLiteral(2)),
+			name: "nested expression",
+			left: NewTestBinaryExpression(
+				NewTestIntegerLiteral(1),
+				"+",
+				NewTestIntegerLiteral(2),
+			),
 			operator: "*",
 			right:    NewTestIntegerLiteral(3),
 			want:     "((1 + 2) * 3)",
@@ -250,12 +254,7 @@ func TestBinaryExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			node := &BinaryExpression{
-				Token:    lexer.Token{Type: lexer.PLUS, Literal: tt.operator},
-				Left:     tt.left,
-				Operator: tt.operator,
-				Right:    tt.right,
-			}
+			node := NewTestBinaryExpression(tt.left, tt.operator, tt.right)
 
 			if node.String() != tt.want {
 				t.Errorf("String() = %q, want %q", node.String(), tt.want)
@@ -317,7 +316,11 @@ func TestGroupedExpression(t *testing.T) {
 		},
 		{
 			name: "binary expression",
-			expr: NewTestBinaryExpression(NewTestIntegerLiteral(3), "+", NewTestIntegerLiteral(5)),
+			expr: NewTestBinaryExpression(
+				NewTestIntegerLiteral(3),
+				"+",
+				NewTestIntegerLiteral(5),
+			),
 			want: "((3 + 5))",
 		},
 	}
@@ -325,7 +328,11 @@ func TestGroupedExpression(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &GroupedExpression{
-				Token:      lexer.Token{Type: lexer.LPAREN, Literal: "("},
+				TypedExpressionBase: TypedExpressionBase{
+					BaseNode: BaseNode{
+						Token: lexer.Token{Type: lexer.LPAREN, Literal: "("},
+					},
+				},
 				Expression: tt.expr,
 			}
 
@@ -501,8 +508,12 @@ func TestAssignmentStatement(t *testing.T) {
 		{
 			name:    "expression assignment",
 			varName: "y",
-			value:   NewTestBinaryExpression(NewTestIdentifier("x"), "+", NewTestIntegerLiteral(1)),
-			want:    "y := (x + 1)",
+			value: NewTestBinaryExpression(
+				NewTestIdentifier("x"),
+				"+",
+				NewTestIntegerLiteral(1),
+			),
+			want: "y := (x + 1)",
 		},
 	}
 
@@ -559,7 +570,11 @@ func TestCallExpression(t *testing.T) {
 			name:     "expression arguments",
 			function: NewTestIdentifier("PrintLn"),
 			arguments: []Expression{
-				NewTestBinaryExpression(NewTestIntegerLiteral(2), "+", NewTestIntegerLiteral(3)),
+				NewTestBinaryExpression(
+					NewTestIntegerLiteral(2),
+					"+",
+					NewTestIntegerLiteral(3),
+				),
 			},
 			want: "PrintLn((2 + 3))",
 		},
@@ -592,13 +607,12 @@ func TestForInStatement(t *testing.T) {
 			collection: NewTestIdentifier("mySet"),
 			body: &ExpressionStatement{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
-				Expression: &CallExpression{
-					Token:    lexer.Token{Type: lexer.LPAREN, Literal: "("},
-					Function: NewTestIdentifier("PrintLn"),
-					Arguments: []Expression{
+				Expression: NewTestCallExpression(
+					NewTestIdentifier("PrintLn"),
+					[]Expression{
 						NewTestIdentifier("e"),
 					},
-				},
+				),
 			},
 			inlineVar: false,
 			want:      "for e in mySet do PrintLn(e)",
@@ -612,13 +626,12 @@ func TestForInStatement(t *testing.T) {
 				Statements: []Statement{
 					&ExpressionStatement{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Process"},
-						Expression: &CallExpression{
-							Token:    lexer.Token{Type: lexer.LPAREN, Literal: "("},
-							Function: NewTestIdentifier("Process"),
-							Arguments: []Expression{
+						Expression: NewTestCallExpression(
+							NewTestIdentifier("Process"),
+							[]Expression{
 								NewTestIdentifier("item"),
 							},
-						},
+						),
 					},
 				},
 			},
@@ -631,13 +644,12 @@ func TestForInStatement(t *testing.T) {
 			collection: NewTestStringLiteral("hello", "'hello'"),
 			body: &ExpressionStatement{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Print"},
-				Expression: &CallExpression{
-					Token:    lexer.Token{Type: lexer.LPAREN, Literal: "("},
-					Function: NewTestIdentifier("Print"),
-					Arguments: []Expression{
+				Expression: NewTestCallExpression(
+					NewTestIdentifier("Print"),
+					[]Expression{
 						NewTestIdentifier("ch"),
 					},
-				},
+				),
 			},
 			inlineVar: false,
 			want:      "for ch in \"hello\" do Print(ch)",

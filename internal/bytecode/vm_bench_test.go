@@ -42,7 +42,12 @@ func buildBenchmarkProgram() *ast.Program {
 			&ast.WhileStatement{
 				Token: lexer.Token{Type: lexer.WHILE, Literal: "while"},
 				Condition: &ast.BinaryExpression{
-					Token:    lexer.Token{Type: lexer.LESS, Literal: "<"},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.LESS, Literal: "<"},
+						},
+						Type: boolType,
+					},
 					Operator: "<",
 					Left: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
@@ -62,7 +67,6 @@ func buildBenchmarkProgram() *ast.Program {
 						},
 						Value: 1000,
 					},
-					Type: boolType,
 				},
 				Body: &ast.AssignmentStatement{
 					Token:    lexer.Token{Type: lexer.IDENT, Literal: "x"},
@@ -77,7 +81,12 @@ func buildBenchmarkProgram() *ast.Program {
 						Value: "x",
 					},
 					Value: &ast.BinaryExpression{
-						Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+							},
+							Type: intType,
+						},
 						Operator: "+",
 						Left: &ast.Identifier{
 							TypedExpressionBase: ast.TypedExpressionBase{
@@ -97,7 +106,6 @@ func buildBenchmarkProgram() *ast.Program {
 							},
 							Value: 1,
 						},
-						Type: intType,
 					},
 				},
 			},

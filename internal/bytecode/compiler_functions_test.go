@@ -49,7 +49,12 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 						Value: "count",
 					},
 					Value: &ast.BinaryExpression{
-						Token:    lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(5, 15)},
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(5, 15)},
+							},
+							Type: intType,
+						},
 						Operator: "+",
 						Left: &ast.Identifier{
 							TypedExpressionBase: ast.TypedExpressionBase{
@@ -69,7 +74,6 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 							},
 							Value: 1,
 						},
-						Type: intType,
 					},
 				},
 				&ast.ReturnStatement{
@@ -216,7 +220,12 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 			&ast.ReturnStatement{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(2, 5)},
 				ReturnValue: &ast.BinaryExpression{
-					Token:    lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(2, 15)},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(2, 15)},
+						},
+						Type: intType,
+					},
 					Operator: "+",
 					Left: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
@@ -236,7 +245,6 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 						},
 						Value: 1,
 					},
-					Type: intType,
 				},
 			},
 		},
@@ -366,10 +374,20 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 			&ast.ReturnStatement{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(3, 1)},
 				ReturnValue: &ast.BinaryExpression{
-					Token:    lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 14)},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 14)},
+						},
+						Type: intType,
+					},
 					Operator: "+",
 					Left: &ast.BinaryExpression{
-						Token:    lexer.Token{Type: lexer.ASTERISK, Literal: "*", Pos: pos(3, 9)},
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*", Pos: pos(3, 9)},
+							},
+							Type: intType,
+						},
 						Operator: "*",
 						Left: &ast.Identifier{
 							TypedExpressionBase: ast.TypedExpressionBase{
@@ -389,7 +407,6 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 							},
 							Value: "y",
 						},
-						Type: intType,
 					},
 					Right: &ast.IntegerLiteral{
 						TypedExpressionBase: ast.TypedExpressionBase{
@@ -399,7 +416,6 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 						},
 						Value: 4,
 					},
-					Type: intType,
 				},
 			},
 		},

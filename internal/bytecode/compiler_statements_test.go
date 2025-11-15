@@ -47,7 +47,12 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 					Value: "x",
 				},
 				Value: &ast.BinaryExpression{
-					Token:    lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(2, 6)},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(2, 6)},
+						},
+						Type: intType,
+					},
 					Operator: "+",
 					Left: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
@@ -66,7 +71,6 @@ func TestCompiler_VarAssignReturn(t *testing.T) {
 						},
 						Value: 1,
 					},
-					Type: intType,
 				},
 			},
 			&ast.ReturnStatement{
@@ -723,7 +727,12 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 						Value: "x",
 					},
 					Value: &ast.BinaryExpression{
-						Token:    lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 8)},
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 8)},
+							},
+							Type: intType,
+						},
 						Operator: "+",
 						Left: &ast.Identifier{
 							TypedExpressionBase: ast.TypedExpressionBase{
@@ -742,13 +751,17 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 							},
 							Value: 1,
 						},
-						Type: intType,
 					},
 				},
 			},
 		},
 		Condition: &ast.BinaryExpression{
-			Token:    lexer.Token{Type: lexer.GREATER, Literal: ">", Pos: pos(4, 10)},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.GREATER, Literal: ">", Pos: pos(4, 10)},
+				},
+				Type: boolType,
+			},
 			Operator: ">",
 			Left: &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
@@ -767,7 +780,6 @@ func TestCompiler_RepeatLoop(t *testing.T) {
 				},
 				Value: 3,
 			},
-			Type: boolType,
 		},
 	}
 

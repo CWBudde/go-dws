@@ -572,7 +572,11 @@ func TestEvaluateConstantInt(t *testing.T) {
 		{
 			name: "Negative integer with unary minus",
 			expr: &ast.UnaryExpression{
-				Token:    lexer.Token{Type: lexer.MINUS, Literal: "-"},
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.MINUS, Literal: "-"},
+					},
+				},
 				Operator: "-",
 				Right: &ast.IntegerLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
@@ -589,7 +593,11 @@ func TestEvaluateConstantInt(t *testing.T) {
 		{
 			name: "Positive integer with unary plus",
 			expr: &ast.UnaryExpression{
-				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					},
+				},
 				Operator: "+",
 				Right: &ast.IntegerLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
@@ -606,7 +614,11 @@ func TestEvaluateConstantInt(t *testing.T) {
 		{
 			name: "Constant binary expression",
 			expr: &ast.BinaryExpression{
-				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					},
+				},
 				Operator: "+",
 				Left: &ast.IntegerLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{

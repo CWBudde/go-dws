@@ -181,19 +181,31 @@ func TestArrayLiteralExpression_String(t *testing.T) {
 			name: "Expressions",
 			elements: []Expression{
 				&BinaryExpression{
-					Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					TypedExpressionBase: TypedExpressionBase{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+						},
+					},
 					Left:     NewTestIdentifier("x"),
 					Operator: "+",
 					Right:    NewTestIntegerLiteral(1),
 				},
 				&BinaryExpression{
-					Token:    lexer.Token{Type: lexer.ASTERISK, Literal: "*"},
+					TypedExpressionBase: TypedExpressionBase{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*"},
+						},
+					},
 					Left:     NewTestIdentifier("y"),
 					Operator: "*",
 					Right:    NewTestIntegerLiteral(2),
 				},
 				&BinaryExpression{
-					Token:    lexer.Token{Type: lexer.MINUS, Literal: "-"},
+					TypedExpressionBase: TypedExpressionBase{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.MINUS, Literal: "-"},
+						},
+					},
 					Left:     NewTestIdentifier("z"),
 					Operator: "-",
 					Right:    NewTestIntegerLiteral(3),
@@ -357,7 +369,11 @@ func TestIndexExpression(t *testing.T) {
 			Token: tok,
 			Left:  NewTestIdentifier("arr"),
 			Index: &BinaryExpression{
-				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+				TypedExpressionBase: TypedExpressionBase{
+					BaseNode: BaseNode{
+						Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					},
+				},
 				Left:     NewTestIdentifier("i"),
 				Operator: "+",
 				Right:    NewTestIntegerLiteral(1),
@@ -689,7 +705,11 @@ func TestNewArrayExpression(t *testing.T) {
 
 		// Create: Length(s) + 1
 		sizeExpr := &BinaryExpression{
-			Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
+				},
+			},
 			Left: &CallExpression{
 				Token:    lexer.Token{Type: lexer.IDENT, Literal: "Length"},
 				Function: NewTestIdentifier("Length"),
