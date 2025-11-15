@@ -14,12 +14,14 @@ func TestFunctionPointerTypeNode(t *testing.T) {
 				{
 					Name:  NewTestIdentifier("a"),
 					Type:  NewTestTypeAnnotation("Integer"),
-					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "a"}}},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "a"}},
+			},
 				{
 					Name:  NewTestIdentifier("b"),
 					Type:  NewTestTypeAnnotation("Integer"),
-					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "b"}}},
-			},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "b"}},
+				},
+		},
 			ReturnType: NewTestTypeAnnotation("Integer"),
 			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 			OfObject:   false,
@@ -41,8 +43,9 @@ func TestFunctionPointerTypeNode(t *testing.T) {
 				{
 					Name:  NewTestIdentifier("msg"),
 					Type:  NewTestTypeAnnotation("String"),
-					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "msg"}}},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "msg"}},
 			},
+		},
 			ReturnType: nil,
 			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"}},
 			OfObject:   false,
@@ -74,8 +77,9 @@ func TestFunctionPointerTypeNode(t *testing.T) {
 				{
 					Name:  NewTestIdentifier("Sender"),
 					Type:  NewTestTypeAnnotation("TObject"),
-					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Sender"}}},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Sender"}},
 			},
+		},
 			ReturnType: nil,
 			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"}},
 			OfObject:   true,
@@ -93,8 +97,9 @@ func TestFunctionPointerTypeNode(t *testing.T) {
 				{
 					Name:  NewTestIdentifier("x"),
 					Type:  NewTestTypeAnnotation("Integer"),
-					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}},
 			},
+		},
 			ReturnType: NewTestTypeAnnotation("Boolean"),
 			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 			OfObject:   true,
@@ -133,7 +138,7 @@ func TestAddressOfExpression(t *testing.T) {
 	t.Run("address-of simple identifier", func(t *testing.T) {
 		node := &AddressOfExpression{
 			Operator: NewTestIdentifier("MyFunction"),
-			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@"}}},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@"}},
 		}
 
 		expected := "@MyFunction"
@@ -154,7 +159,7 @@ func TestAddressOfExpression(t *testing.T) {
 		node := &AddressOfExpression{
 			Operator: NewTestIdentifier("Ascending"),
 			Type:     funcPtrType,
-			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@"}}},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@"}},
 		}
 
 		expected := "@Ascending"
@@ -170,7 +175,7 @@ func TestAddressOfExpression(t *testing.T) {
 	t.Run("address-of implements TypedExpression", func(t *testing.T) {
 		node := &AddressOfExpression{
 			Operator: NewTestIdentifier("Test"),
-			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@"}}},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@"}},
 		}
 
 		// Verify it implements TypedExpression interface
@@ -188,7 +193,7 @@ func TestAddressOfExpression(t *testing.T) {
 		pos := lexer.Position{Line: 5, Column: 10, Offset: 50}
 		node := &AddressOfExpression{
 			Operator: NewTestIdentifier("Test"),
-			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@", Pos: pos}}},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.AT, Literal: "@", Pos: pos}},
 		}
 
 		if node.Pos() != pos {

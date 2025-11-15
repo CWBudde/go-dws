@@ -19,7 +19,7 @@ func TestClassDeclString(t *testing.T) {
 		{
 			name: "simple class without parent",
 			classDecl: &ClassDecl{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
+				TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name:     NewTestIdentifier("TPoint"),
 				Parent:   nil,
 				Fields:   []*FieldDecl{},
@@ -30,7 +30,7 @@ func TestClassDeclString(t *testing.T) {
 		{
 			name: "class with parent",
 			classDecl: &ClassDecl{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
+				TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name:     NewTestIdentifier("TChild"),
 				Parent:   NewTestIdentifier("TParent"),
 				Fields:   []*FieldDecl{},
@@ -41,7 +41,7 @@ func TestClassDeclString(t *testing.T) {
 		{
 			name: "class with fields",
 			classDecl: &ClassDecl{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
+				TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name:     NewTestIdentifier("TPoint"),
 				Parent:   nil,
 				Fields: []*FieldDecl{
@@ -63,7 +63,7 @@ func TestClassDeclString(t *testing.T) {
 		{
 			name: "class with method",
 			classDecl: &ClassDecl{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
+				TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name:     NewTestIdentifier("TCounter"),
 				Parent:   nil,
 				Fields:   []*FieldDecl{},
@@ -82,7 +82,7 @@ func TestClassDeclString(t *testing.T) {
 		{
 			name: "class with operator",
 			classDecl: &ClassDecl{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
+				TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name:     NewTestIdentifier("TStream"),
 				Parent:   nil,
 				Fields:   []*FieldDecl{},
@@ -128,7 +128,7 @@ func TestClassDeclTokenLiteral(t *testing.T) {
 func TestClassDeclPos(t *testing.T) {
 	pos := lexer.Position{Line: 10, Column: 5, Offset: 100}
 	classDecl := &ClassDecl{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: pos}},
+		TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: pos}},
 		Name:     NewTestIdentifier("TTest"),
 	}
 

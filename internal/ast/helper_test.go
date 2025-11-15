@@ -108,16 +108,16 @@ end`,
 		{
 			name: "helper with class const",
 			helper: &HelperDecl{
-									BaseNode: BaseNode{Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"}},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"}},
 				Name: NewTestIdentifier("TMathHelper"),
 				ForType: &TypeAnnotation{
 					Name: "Float",
 				},
 				ClassConsts: []*ConstDecl{
 					{
-													BaseNode: BaseNode{Token: lexer.Token{Type: lexer.CONST, Literal: "const"}},
+						BaseNode: BaseNode{Token: lexer.Token{Type: lexer.CONST, Literal: "const"}},
 						Name:  &Identifier{Value: "PI"},
-						Value: &FloatLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FLOAT, Literal: "3.14159"}}}, Value: 3.14159}}},
+						Value: &FloatLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FLOAT, Literal: "3.14159"}}}, Value: 3.14159},
 					},
 				},
 				IsRecordHelper: false,
@@ -129,7 +129,7 @@ end`,
 		{
 			name: "helper with private and public sections",
 			helper: &HelperDecl{
-									BaseNode: BaseNode{Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"}},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"}},
 				Name: NewTestIdentifier("TComplexHelper"),
 				ForType: &TypeAnnotation{
 					Name: "String",
@@ -187,7 +187,7 @@ func TestHelperDeclNodeInterface(t *testing.T) {
 				Type:    lexer.HELPER,
 				Literal: "helper",
 				Pos:     lexer.Position{Line: 1, Column: 10},
-		},
+			}},
 		Name: NewTestIdentifier("TTestHelper"),
 	}
 
