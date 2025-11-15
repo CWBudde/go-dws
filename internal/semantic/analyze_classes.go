@@ -396,25 +396,8 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 	// Task 9.22: Check for class constants (with inheritance support)
 	// Task 9.2: Use case-insensitive comparison for constant lookup
-	// Check current class and all parent classes for constants
-	for class := classType; class != nil; class = class.Parent {
-		for constName, constType := range class.ConstantTypes {
-			if strings.EqualFold(constName, memberName) {
-				// Check constant visibility
-				constantOwner := a.getConstantOwner(classType, constName)
-				if constantOwner != nil {
-					visibility, hasVisibility := constantOwner.ConstantVisibility[constName]
-					if hasVisibility && !a.checkVisibility(constantOwner, visibility, constName, "constant") {
-						visibilityStr := ast.Visibility(visibility).String()
-						a.addError("cannot access %s constant '%s' of class '%s' at %s",
-							visibilityStr, constName, constantOwner.Name, expr.Token.Pos.String())
-						return nil
-					}
-				}
-				// Return the constant's type
-				return constType
-			}
-		}
+	if constType := a.findClassConstantWithVisibility(classType, memberName, expr.Token.Pos.String()); constType != nil {
+		return constType
 	}
 
 	// Member not found

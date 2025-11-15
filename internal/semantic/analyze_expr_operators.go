@@ -147,24 +147,8 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 		// Class constants should be accessible from anywhere within the class, unlike fields which are
 		// only accessible from instance methods (not class methods)
 		if a.currentClass != nil {
-			// Check current class and all parent classes for constants
-			for class := a.currentClass; class != nil; class = class.Parent {
-				for constName, constType := range class.ConstantTypes {
-					if strings.EqualFold(constName, ident.Value) {
-						// Check visibility
-						constantOwner := a.getConstantOwner(a.currentClass, constName)
-						if constantOwner != nil {
-							visibility, hasVisibility := constantOwner.ConstantVisibility[constName]
-							if hasVisibility && !a.checkVisibility(constantOwner, visibility, ident.Value, "constant") {
-								visibilityStr := ast.Visibility(visibility).String()
-								a.addError("cannot access %s constant '%s' at %s",
-									visibilityStr, ident.Value, ident.Token.Pos.String())
-								return nil
-							}
-						}
-						return constType
-					}
-				}
+			if constType := a.findClassConstantWithVisibility(a.currentClass, ident.Value, ident.Token.Pos.String()); constType != nil {
+				return constType
 			}
 		}
 
