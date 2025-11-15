@@ -22,7 +22,7 @@ import (
 //	end.
 func (p *Parser) parseUnit() *ast.UnitDeclaration {
 	unitDecl := &ast.UnitDeclaration{
-		Token: p.curToken, // 'unit' token
+		BaseNode: ast.BaseNode{Token: p.curToken}, // 'unit' token
 	}
 
 	// Expect unit name
@@ -84,8 +84,8 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 // Syntax: uses Unit1, Unit2, Unit3;
 func (p *Parser) parseUsesClause() *ast.UsesClause {
 	usesClause := &ast.UsesClause{
-		Token: p.curToken, // 'uses' token
-		Units: []*ast.Identifier{},
+		BaseNode: ast.BaseNode{Token: p.curToken}, // 'uses' token
+		Units:    []*ast.Identifier{},
 	}
 
 	// Expect at least one unit name

@@ -306,7 +306,7 @@ func TestClassDeclWithInterfacesString(t *testing.T) {
 		{
 			name: "class implementing single interface",
 			classDecl: &ClassDecl{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TTest"},
 					Value: "TTest",
@@ -329,7 +329,7 @@ func TestClassDeclWithInterfacesString(t *testing.T) {
 		{
 			name: "class implementing multiple interfaces",
 			classDecl: &ClassDecl{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TImpAB"},
 					Value: "TImpAB",
@@ -356,7 +356,7 @@ func TestClassDeclWithInterfacesString(t *testing.T) {
 		{
 			name: "class with no parent but implementing interface",
 			classDecl: &ClassDecl{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TSimple"},
 					Value: "TSimple",
@@ -376,7 +376,7 @@ func TestClassDeclWithInterfacesString(t *testing.T) {
 		{
 			name: "class with parent, interfaces, and methods",
 			classDecl: &ClassDecl{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TTest"},
 					Value: "TTest",

@@ -46,8 +46,8 @@ import (
 // Multi-dimensional arrays are desugared into nested array types.
 func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.ArrayDecl {
 	arrayDecl := &ast.ArrayDecl{
-		Token: typeToken, // The 'type' token
-		Name:  nameIdent,
+		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
+		Name:     nameIdent,
 	}
 
 	arrayToken := p.curToken // Save 'array' token

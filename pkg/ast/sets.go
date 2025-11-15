@@ -18,26 +18,13 @@ import (
 //   - type TDays = set of TWeekday;
 //   - var s: set of (Mon, Tue, Wed);  // inline with anonymous enum
 type SetDecl struct {
+	BaseNode
 	Name        *Identifier
 	ElementType *TypeAnnotation
-	Token       token.Token
-	EndPos      token.Position
-}
-
-func (s *SetDecl) End() token.Position {
-	if s.EndPos.Line != 0 {
-		return s.EndPos
-	}
-	return s.Token.Pos
 }
 
 // statementNode implements the Statement interface
 func (sd *SetDecl) statementNode() {}
-
-// TokenLiteral returns the literal value of the token
-func (sd *SetDecl) TokenLiteral() string {
-	return sd.Token.Literal
-}
 
 // String returns a string representation of the set declaration
 func (sd *SetDecl) String() string {
@@ -55,11 +42,6 @@ func (sd *SetDecl) String() string {
 	}
 
 	return out.String()
-}
-
-// Pos returns the position of the set declaration in the source code
-func (sd *SetDecl) Pos() token.Position {
-	return sd.Token.Pos
 }
 
 // ============================================================================

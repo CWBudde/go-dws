@@ -18,26 +18,13 @@ import (
 //   - type TMyArray = array[1..10] of Integer;
 //   - type TDynamic = array of String;
 type ArrayDecl struct {
+	BaseNode
 	Name      *Identifier
 	ArrayType *ArrayTypeAnnotation
-	Token     token.Token
-	EndPos    token.Position
-}
-
-func (a *ArrayDecl) End() token.Position {
-	if a.EndPos.Line != 0 {
-		return a.EndPos
-	}
-	return a.Token.Pos
 }
 
 // statementNode implements the Statement interface
 func (ad *ArrayDecl) statementNode() {}
-
-// TokenLiteral returns the literal value of the token
-func (ad *ArrayDecl) TokenLiteral() string {
-	return ad.Token.Literal
-}
 
 // String returns a string representation of the array declaration
 func (ad *ArrayDecl) String() string {
@@ -53,11 +40,6 @@ func (ad *ArrayDecl) String() string {
 	}
 
 	return out.String()
-}
-
-// Pos returns the position of the array declaration in the source code
-func (ad *ArrayDecl) Pos() token.Position {
-	return ad.Token.Pos
 }
 
 // ============================================================================

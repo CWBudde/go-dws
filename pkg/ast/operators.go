@@ -44,28 +44,18 @@ func (k OperatorKind) String() string {
 //	operator implicit (Integer) : String uses IntToStr;
 //	class operator += String uses AppendString;
 type OperatorDecl struct {
+	BaseNode
 	ReturnType     *TypeAnnotation
 	Binding        *Identifier
 	OperatorSymbol string
 	OperandTypes   []*TypeAnnotation
-	Token          token.Token
 	OperatorToken  token.Token
 	Kind           OperatorKind
 	Arity          int
 	Visibility     Visibility
-	EndPos         token.Position
 }
 
-func (o *OperatorDecl) End() token.Position {
-	if o.EndPos.Line != 0 {
-		return o.EndPos
-	}
-	return o.Token.Pos
-}
-
-func (od *OperatorDecl) statementNode()       {}
-func (od *OperatorDecl) TokenLiteral() string { return od.Token.Literal }
-func (od *OperatorDecl) Pos() token.Position  { return od.Token.Pos }
+func (od *OperatorDecl) statementNode() {}
 
 // String renders the operator declaration in DWScript syntax (without trailing semicolon).
 func (od *OperatorDecl) String() string {

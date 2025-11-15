@@ -16,8 +16,8 @@ func TestEnumDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		enumDecl := &EnumDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TColor"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TColor"},
 			Values: []EnumValue{
 				{Name: "Red", Value: nil},
 				{Name: "Green", Value: nil},
@@ -66,8 +66,8 @@ func TestEnumDecl(t *testing.T) {
 		ten := 10
 
 		enumDecl := &EnumDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TEnum"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TEnum"},
 			Values: []EnumValue{
 				{Name: "One", Value: &one},
 				{Name: "Two", Value: &five},
@@ -92,8 +92,8 @@ func TestEnumDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		enumDecl := &EnumDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TColor"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TColor"},
 			Values: []EnumValue{
 				{Name: "Red", Value: nil},
 				{Name: "Green", Value: nil},
@@ -113,8 +113,8 @@ func TestEnumDecl(t *testing.T) {
 	t.Run("Implements Statement interface", func(_ *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 		enumDecl := &EnumDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TColor"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TColor"},
 			Values: []EnumValue{
 				{Name: "Red", Value: nil},
 			},

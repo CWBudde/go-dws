@@ -16,8 +16,8 @@ func TestSetDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		setDecl := &SetDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TDays"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TDays"},
 			ElementType: &TypeAnnotation{
 				Token: tok,
 				Name:  "TWeekday",
@@ -45,8 +45,8 @@ func TestSetDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		setDecl := &SetDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TDays"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TDays"},
 			ElementType: &TypeAnnotation{
 				Token: tok,
 				Name:  "TWeekday",
@@ -65,8 +65,8 @@ func TestSetDecl(t *testing.T) {
 	t.Run("Implements Statement interface", func(_ *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 		setDecl := &SetDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TDays"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TDays"},
 			ElementType: &TypeAnnotation{
 				Token: tok,
 				Name:  "TWeekday",

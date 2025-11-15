@@ -373,7 +373,7 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 
 	// Step 2: Declare a class that implements the interface
 	classDecl := &ast.ClassDecl{
-		Token: lexer.Token{Type: lexer.CLASS, Literal: "class"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "TCounter"},
 			Value: "TCounter",
@@ -474,8 +474,8 @@ func TestInterfaceVariable(t *testing.T) {
 
 	// Create class implementing interface
 	classDecl := &ast.ClassDecl{
-		Token: lexer.Token{Type: lexer.CLASS, Literal: "class"},
-		Name:  &ast.Identifier{Value: "TDocument"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
+		Name:     &ast.Identifier{Value: "TDocument"},
 		Methods: []*ast.FunctionDecl{
 			{
 				Name: &ast.Identifier{Value: "Print"},
@@ -533,8 +533,8 @@ func TestObjectToInterface(t *testing.T) {
 
 	// Create class implementing all methods
 	classDecl := &ast.ClassDecl{
-		Token: lexer.Token{Type: lexer.CLASS, Literal: "class"},
-		Name:  &ast.Identifier{Value: "TRectangle"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
+		Name:     &ast.Identifier{Value: "TRectangle"},
 		Methods: []*ast.FunctionDecl{
 			{Name: &ast.Identifier{Value: "Draw"}, Body: &ast.BlockStatement{}},
 			{Name: &ast.Identifier{Value: "GetWidth"}, Body: &ast.BlockStatement{}},
@@ -558,8 +558,8 @@ func TestObjectToInterface(t *testing.T) {
 
 	// Test failed cast (class missing methods)
 	incompatibleClass := &ast.ClassDecl{
-		Token: lexer.Token{Type: lexer.CLASS, Literal: "class"},
-		Name:  &ast.Identifier{Value: "TPoint"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
+		Name:     &ast.Identifier{Value: "TPoint"},
 		Methods: []*ast.FunctionDecl{
 			{Name: &ast.Identifier{Value: "Draw"}, Body: &ast.BlockStatement{}},
 			// Missing GetWidth and GetHeight
@@ -598,8 +598,8 @@ func TestInterfaceMethodCall(t *testing.T) {
 
 	// Create implementing class
 	classDecl := &ast.ClassDecl{
-		Token: lexer.Token{Type: lexer.CLASS, Literal: "class"},
-		Name:  &ast.Identifier{Value: "TCalculator"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
+		Name:     &ast.Identifier{Value: "TCalculator"},
 		Methods: []*ast.FunctionDecl{
 			{
 				Name: &ast.Identifier{Value: "Add"},
@@ -666,8 +666,8 @@ func TestInterfaceInheritance(t *testing.T) {
 
 	// Create class implementing derived interface (must implement both methods)
 	classDecl := &ast.ClassDecl{
-		Token: lexer.Token{Type: lexer.CLASS, Literal: "class"},
-		Name:  &ast.Identifier{Value: "TImplementation"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
+		Name:     &ast.Identifier{Value: "TImplementation"},
 		Methods: []*ast.FunctionDecl{
 			{Name: &ast.Identifier{Value: "BaseMethod"}, Body: &ast.BlockStatement{}},
 			{Name: &ast.Identifier{Value: "DerivedMethod"}, Body: &ast.BlockStatement{}},
@@ -732,8 +732,8 @@ func TestMultipleInterfaces(t *testing.T) {
 
 	// Create class implementing both interfaces
 	classDecl := &ast.ClassDecl{
-		Token: lexer.Token{Type: lexer.CLASS, Literal: "class"},
-		Name:  &ast.Identifier{Value: "TFile"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
+		Name:     &ast.Identifier{Value: "TFile"},
 		Methods: []*ast.FunctionDecl{
 			{Name: &ast.Identifier{Value: "Read"}, Body: &ast.BlockStatement{}},
 			{Name: &ast.Identifier{Value: "Write"}, Body: &ast.BlockStatement{}},
@@ -850,8 +850,8 @@ func TestInterfaceToObject(t *testing.T) {
 
 	// Create class
 	classDecl := &ast.ClassDecl{
-		Token: lexer.Token{Type: lexer.CLASS, Literal: "class"},
-		Name:  &ast.Identifier{Value: "TCircle"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
+		Name:     &ast.Identifier{Value: "TCircle"},
 		Fields: []*ast.FieldDecl{
 			{
 				Name: &ast.Identifier{Value: "Radius"},
@@ -911,8 +911,8 @@ func TestInterfaceLifetime(t *testing.T) {
 	interp.evalInterfaceDeclaration(interfaceDecl)
 
 	classDecl := &ast.ClassDecl{
-		Token: lexer.Token{Type: lexer.CLASS, Literal: "class"},
-		Name:  &ast.Identifier{Value: "TResource"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
+		Name:     &ast.Identifier{Value: "TResource"},
 		Methods: []*ast.FunctionDecl{
 			{Name: &ast.Identifier{Value: "Release"}, Body: &ast.BlockStatement{}},
 		},
@@ -996,8 +996,8 @@ func TestInterfacePolymorphism(t *testing.T) {
 
 	// Create class implementing derived interface
 	classDecl := &ast.ClassDecl{
-		Token: lexer.Token{Type: lexer.CLASS, Literal: "class"},
-		Name:  &ast.Identifier{Value: "TSportsCar"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
+		Name:     &ast.Identifier{Value: "TSportsCar"},
 		Methods: []*ast.FunctionDecl{
 			{Name: &ast.Identifier{Value: "Start"}, Body: &ast.BlockStatement{}},
 			{Name: &ast.Identifier{Value: "Drive"}, Body: &ast.BlockStatement{}},
