@@ -549,6 +549,10 @@ func setIsSubset(s1, s2 *SetValue) bool {
 	return (s1.Elements & s2.Elements) == s1.Elements
 }
 
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
 // helperSetupInterpWithColorEnum creates an interpreter with TColor enum defined.
 func helperSetupInterpWithColorEnum(t *testing.T) (*Interpreter, *types.EnumType) {
 	t.Helper()
