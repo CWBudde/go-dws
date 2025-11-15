@@ -124,9 +124,22 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 						return nil
 					}
 				}
-				// Return the method as a method pointer type (not just a function type)
-				// This allows it to be passed as a function pointer parameter
-				return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
+				// In DWScript/Pascal, parameterless methods can be called without parentheses
+				// When referenced as an identifier, they should be treated as implicit calls
+				if len(methodType.Parameters) == 0 {
+					// Implicit call - return the method's return type
+					if methodType.ReturnType == nil {
+						// Procedure (no return value)
+						return types.VOID
+					}
+					return methodType.ReturnType
+				}
+
+				// Methods with parameters cannot be called without parentheses
+				// This is an error - the user must provide arguments
+				a.addError("method '%s' requires %d argument(s) at %s",
+					ident.Value, len(methodType.Parameters), ident.Token.Pos.String())
+				return nil
 			}
 		}
 

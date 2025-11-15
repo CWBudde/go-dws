@@ -89,6 +89,26 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			// Check if it's a method of the current class
 			// This allows methods to reference other methods as method pointers
 			if method, exists := obj.Class.Methods[strings.ToLower(node.Value)]; exists {
+				// In DWScript/Pascal, parameterless methods can be called without parentheses
+				// When referenced as an identifier, they should be treated as implicit calls
+				if len(method.Parameters) == 0 {
+					// Implicit call - execute the method
+					// Create a synthetic method call and evaluate it
+					selfIdent := &ast.Identifier{}
+					selfIdent.Token = node.Token
+					selfIdent.Value = "Self"
+
+					syntheticCall := &ast.MethodCallExpression{
+						Object:    selfIdent,
+						Method:    node,
+						Arguments: []ast.Expression{},
+					}
+					return i.evalMethodCall(syntheticCall)
+				}
+
+				// Methods with parameters cannot be called without parentheses
+				// This would be an error, but since semantic analysis should have caught it,
+				// we'll create a method pointer for compatibility
 				// Create a method pointer bound to the current object (self)
 				// Build the pointer type
 				paramTypes := make([]types.Type, len(method.Parameters))

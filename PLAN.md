@@ -81,6 +81,297 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 9: Completion and DWScript Feature Parity
 
+## Task 9.1: Fix Interface Reference Test Failures
+
+**Goal**: Fix failing interface reference tests to achieve 97% pass rate (32/33 tests passing).
+
+**Estimate**: 7-13 hours
+
+**Status**: NOT STARTED
+
+**Current Status**: 16 passing, 16 failing, 1 skipped (out of 33 total) - 48% pass rate
+
+**Target**: 32 passing, 1 deferred - 97% pass rate
+
+**Test File**: `internal/interp/interface_reference_test.go`
+
+**Description**: The interface reference tests reveal 6 categories of missing or broken functionality in the interpreter's interface implementation. These failures prevent proper interface member access, lifetime management, type checking, and casting operations.
+
+**Subtasks** (ordered by impact and difficulty):
+
+### 9.1.1 Interface Member Access [CRITICAL]
+
+**Goal**: Fix interface member/method access to allow calling methods on interface instances.
+
+**Status**: NOT STARTED
+
+**Impact**: Fixes 6 tests immediately (37.5% of failures)
+
+**Estimate**: 1-2 hours
+
+**Tests Fixed**:
+
+- `call_interface_method`
+- `interface_multiple_cast`
+- `interface_properties`
+- `intf_casts`
+- `intf_spread`
+- `intf_spread_virtual`
+
+**Error**: `ERROR: cannot access member 'X' of type 'INTERFACE' (no helper found)`
+
+**Root Cause**:
+
+- `evalMemberAccess` in `internal/interp/objects_hierarchy.go:282-320` doesn't handle InterfaceInstance
+- `AsObject(objVal)` returns false for InterfaceInstance (only recognizes ObjectInstance)
+- Fallback path checks for helpers, but interfaces don't have helpers
+
+**Implementation**:
+
+- [ ] Add InterfaceInstance detection in `evalMemberAccess` before `AsObject` check
+- [ ] Extract underlying ObjectInstance via `ii.Object`
+- [ ] Verify method exists in interface definition
+- [ ] Delegate method calls to underlying object
+- [ ] Update `evalMethodCall` in `objects_methods.go` to handle InterfaceInstance
+
+**Example Test**:
+
+```pascal
+intfRef := implem as IMyInterface;
+intfRef.A;  // Should call A on the underlying object
+```
+
+**Files to Modify**:
+
+- `internal/interp/objects_hierarchy.go`
+- `internal/interp/objects_methods.go`
+
+### 9.1.2 'implements' Operator with Class Types [MEDIUM]
+
+**Goal**: Allow 'implements' operator to work with class types, not just object instances.
+
+**Status**: NOT STARTED
+
+**Impact**: Fixes 2 tests
+
+**Estimate**: 30 minutes
+
+**Tests Fixed**:
+
+- `interface_implements_intf`
+- `interface_inheritance_instance` (partial - adds missing error message)
+
+**Error**: `ERROR: 'implements' operator requires object instance, got CLASS`
+
+**Root Cause**:
+
+- `evalImplementsExpression` in `internal/interp/expressions_complex.go:227-230` only accepts ObjectInstance
+- Test uses class identifiers: `if TMyImplementation implements IMyInterface then`
+
+**Implementation**:
+
+- [ ] Update `evalImplementsExpression` to handle ClassInfoValue and ClassValue
+- [ ] Use existing `classImplementsInterface` helper for class type checks
+- [ ] Keep existing ObjectInstance logic (extract class from instance)
+
+**Example Test**:
+
+```pascal
+if TMyImplementation implements IMyInterface then  // TMyImplementation is a CLASS
+   PrintLn('Ok');
+```
+
+**Files to Modify**:
+
+- `internal/interp/expressions_complex.go`
+
+### 9.1.3 Interface-to-Object Casting [MEDIUM]
+
+**Goal**: Validate interface-to-object casts and throw proper exceptions for invalid casts.
+
+**Status**: NOT STARTED
+
+**Impact**: Fixes 1 test
+
+**Estimate**: 1 hour
+
+**Tests Fixed**:
+- `interface_cast_to_obj`
+
+**Error**: Missing exception when invalid cast attempted
+
+**Expected Behavior**:
+```pascal
+var d := IntfRef as TDummyClass;  // Should throw exception if incompatible
+```
+
+**Expected Output**: `Cannot cast interface of "TMyImplementation" to class "TDummyClass"`
+
+**Actual**: Cast succeeds incorrectly (no validation)
+
+**Root Cause**:
+- `evalAsExpression` in `internal/interp/expressions_complex.go:152-156` only handles object-to-interface casting
+- Doesn't handle InterfaceInstance as left operand
+
+**Implementation**:
+- [ ] Detect when left side is InterfaceInstance in `evalAsExpression`
+- [ ] Extract underlying object from interface
+- [ ] Verify object's class is compatible with target class
+- [ ] Return underlying object if compatible
+- [ ] Throw exception with proper message format if incompatible
+
+**Files to Modify**:
+- `internal/interp/expressions_complex.go`
+
+### 9.1.4 Interface Fields in Records [LOW]
+
+**Goal**: Support interface-typed fields in record types.
+
+**Status**: NOT STARTED
+
+**Impact**: Fixes 1 test
+
+**Estimate**: 1-2 hours
+
+**Tests Fixed**:
+- `intf_in_record`
+
+**Error**: `ERROR: unknown or invalid type for field 'FIntf' in record 'TRec'`
+
+**Root Cause**:
+- `resolveTypeFromExpression` in `internal/interp/record.go:34` doesn't recognize interface types
+
+**Implementation**:
+- [ ] Update type resolution to recognize interface type annotations
+- [ ] Add interface type to supported field types in records
+- [ ] Initialize interface fields to nil by default
+- [ ] Handle interface assignment in record field access
+- [ ] Handle interface method calls through record fields
+
+**Example Test**:
+```pascal
+type TRec = record
+  FIntf: IMyInterface;  // Interface-typed field
+end;
+```
+
+**Files to Modify**:
+- `internal/interp/record.go`
+
+### 9.1.5 Interface Lifetime Management [HIGH PRIORITY - COMPLEX]
+
+**Goal**: Implement reference counting and automatic destructor calls for interface-held objects.
+
+**Status**: NOT STARTED
+
+**Impact**: Fixes 5 tests (critical for memory management)
+
+**Estimate**: 4-8 hours
+
+**Tests Fixed**:
+- `interface_lifetime`
+- `interface_lifetime_scope`
+- `interface_lifetime_scope_ex1`
+- `interface_lifetime_scope_ex2`
+- `interface_lifetime_simple`
+
+**Error**: Missing "Destroy" output when interface goes out of scope
+
+**Expected Behavior**:
+```pascal
+IntfRef := TMyImplementation.Create;
+IntfRef.A;
+IntfRef := nil;  // -> Should call Destroy on underlying object
+PrintLn('end');
+```
+
+**Expected Output**: `A\nDestroy\nend`
+**Actual Output**: `A\nend`
+
+**Root Cause**:
+- No reference counting for objects held by interfaces
+- No destructor call when interface set to nil or goes out of scope
+- No cleanup mechanism when last interface reference is released
+
+**Implementation**:
+- [ ] Add reference count field to ObjectInstance in `value.go`
+- [ ] Increment ref count when interface wraps object
+- [ ] Decrement ref count when interface assigned nil or goes out of scope
+- [ ] Call destructor when ref count reaches zero
+- [ ] Update InterfaceInstance assignment in `interface.go`
+- [ ] Add scope-based cleanup in environment variable assignment
+- [ ] Handle interface-to-interface assignment (transfer ownership)
+
+**Complexity Notes**:
+- Must avoid memory leaks (objects not freed)
+- Must avoid premature cleanup (object freed while still referenced)
+- Must handle circular references gracefully
+- Need to track all interface assignments and scope exits
+
+**Files to Modify**:
+- `internal/interp/value.go` (add ref count to ObjectInstance)
+- `internal/interp/interface.go` (ref counting in InterfaceInstance)
+- `internal/interp/environment.go` (scope cleanup)
+- `internal/interp/objects_hierarchy.go` (assignment handling)
+
+### 9.1.6 Method Delegate Assignment [LOW - DEFERRED]
+
+**Goal**: Support extracting bound method references from interface instances.
+
+**Status**: DEFERRED
+
+**Impact**: Fixes 1 test
+
+**Estimate**: 2-4 hours
+
+**Tests Fixed**:
+- `intf_delegate`
+
+**Error**: `ERROR: undefined function: h at line 18, column 3`
+
+**Root Cause**:
+- Can't assign interface method to procedure variable
+- No support for bound method pointers
+
+**Example Test**:
+```pascal
+var h : procedure := i.Hello;  // Extract method reference from interface
+h();  // Call it
+```
+
+**Implementation** (when implemented):
+- [ ] Support extracting method references from InterfaceInstance
+- [ ] Create bound method pointer values (capture interface + method)
+- [ ] Handle invocation of bound methods
+
+**Deferred Because**:
+- Complex feature requiring new value types
+- Low test impact (1 test)
+- Can be implemented later without blocking other features
+
+**Files to Modify** (future):
+- `internal/interp/expressions_complex.go`
+- `internal/interp/value.go`
+
+---
+
+**Success Criteria**:
+- After subtasks 1-4: 27/33 tests passing (82% pass rate)
+- After subtask 5: 32/33 tests passing (97% pass rate)
+- All changes maintain backward compatibility with existing tests
+- Interface behavior matches original DWScript semantics
+
+**Testing**:
+```bash
+# Run interface reference tests
+go test -v ./internal/interp -run TestInterfaceReferenceTests
+
+# Run full test suite to verify no regressions
+just test
+```
+
+---
+
 ## Task 9.15: Static vs Dynamic Array Compatibility (DEFERRED)
 
 **Goal**: Investigate type compatibility between static and dynamic arrays in var parameters.
@@ -88,27 +379,32 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 **Status**: DEFERRED - May be test issue, not implementation issue
 
 **Blocked Tests** (1 test):
+
 - `testdata/fixtures/Algorithms/quicksort.pas`
 
 **Current Error**: `cannot assign TData to TData` when passing static array to var parameter expecting dynamic array
 
 **Issue**:
+
 - Test defines: `type TData = array [0..size-1] of integer;` (static array)
 - Procedure expects: `procedure QuickSort(var A: TData; ...)`
 - DWScript type system treats static and dynamic arrays as incompatible in var parameters
 
 **Investigation Needed**:
+
 - Is this correct DWScript behavior?
 - Should static arrays be convertible to dynamic in var params?
 - Or is the test incorrectly written?
 
 **Deferred Because**:
+
 - May require significant type system changes
 - Only affects 1 test
 - Need to verify against original DWScript behavior
 - Low priority compared to other fixes
 
 **Future Action**:
+
 - Research DWScript documentation on static/dynamic array compatibility
 - Check original DWScript source for handling of this case
 - If needed, implement proper coercion rules
