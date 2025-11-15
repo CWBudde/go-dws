@@ -257,12 +257,11 @@ func TestSubrangeTypeDeclaration(t *testing.T) {
 	t.Run("Basic digit subrange (0..9)", func(t *testing.T) {
 		// type TDigit = 0..9;
 		typeDecl := &TypeDeclaration{
-							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
-			},
+			BaseNode:   BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}}},
 			Name:       NewTestIdentifier("TDigit"),
 			IsSubrange: true,
-			LowBound:   &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: lexer.Position{Line: 1, Column: 16}}}}, Value: 0}}},
-			HighBound:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "9", Pos: lexer.Position{Line: 1, Column: 19}}}}, Value: 9}}},
+			LowBound:   &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: lexer.Position{Line: 1, Column: 16}}}}, Value: 0},
+			HighBound:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "9", Pos: lexer.Position{Line: 1, Column: 19}}}}, Value: 9},
 		}
 
 		// Test that IsSubrange flag is set

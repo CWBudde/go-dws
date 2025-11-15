@@ -312,7 +312,7 @@ func TestForDirectionString(t *testing.T) {
 
 func TestBreakStatementString(t *testing.T) {
 	stmt := &BreakStatement{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BREAK, Literal: "break"}}},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BREAK, Literal: "break"}},
 	}
 
 	expected := "break;"
@@ -323,7 +323,7 @@ func TestBreakStatementString(t *testing.T) {
 
 func TestContinueStatementString(t *testing.T) {
 	stmt := &ContinueStatement{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.CONTINUE, Literal: "continue"}}},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.CONTINUE, Literal: "continue"}},
 	}
 
 	expected := "continue;"

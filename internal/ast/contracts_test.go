@@ -166,13 +166,14 @@ func TestOldExpressionTokenLiteral(t *testing.T) {
 
 func TestFunctionDeclWithContracts(t *testing.T) {
 	funcDecl := &FunctionDecl{
-					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
-		Name: NewTestIdentifier("TestFunc"),
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+		Name:     NewTestIdentifier("TestFunc"),
 		Parameters: []*Parameter{
 			{
-				Name:  NewTestIdentifier("x"),
-				Type:  NewTestTypeAnnotation("Integer"),
+				Name:     NewTestIdentifier("x"),
+				Type:     NewTestTypeAnnotation("Integer"),
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}},
+			},
 		},
 		ReturnType: NewTestTypeAnnotation("Integer"),
 		PreConditions: &PreConditions{
@@ -181,17 +182,18 @@ func TestFunctionDeclWithContracts(t *testing.T) {
 				{
 					Test: &BinaryExpression{
 						TypedExpressionBase: TypedExpressionBase{
-															BaseNode: BaseNode{Token: lexer.Token{Type: lexer.GREATER, Literal: ">"}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.GREATER, Literal: ">"}},
 						},
 						Left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
 						Operator: ">",
 						Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "0"}}}, Value: 0},
 					},
 					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}},
+				},
 			},
 		},
 		Body: &BlockStatement{
-			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
+			BaseNode:   BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 			Statements: []Statement{},
 		},
 		PostConditions: &PostConditions{
@@ -200,13 +202,14 @@ func TestFunctionDeclWithContracts(t *testing.T) {
 				{
 					Test: &BinaryExpression{
 						TypedExpressionBase: TypedExpressionBase{
-															BaseNode: BaseNode{Token: lexer.Token{Type: lexer.GREATER, Literal: ">"}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.GREATER, Literal: ">"}},
 						},
 						Left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"}}}, Value: "Result"},
 						Operator: ">",
 						Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "0"}}}, Value: 0},
 					},
 					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"}},
+				},
 			},
 		},
 	}
@@ -238,16 +241,18 @@ func TestOldExpressionInPostCondition(t *testing.T) {
 			{
 				Test: &BinaryExpression{
 					TypedExpressionBase: TypedExpressionBase{
-													BaseNode: BaseNode{Token: lexer.Token{Type: lexer.EQ, Literal: "="}},
+						BaseNode: BaseNode{Token: lexer.Token{Type: lexer.EQ, Literal: "="}},
 					},
 					Left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"}}}, Value: "Result"},
 					Operator: "=",
 					Right: &BinaryExpression{
 						TypedExpressionBase: TypedExpressionBase{
-															BaseNode: BaseNode{Token: lexer.Token{Type: lexer.PLUS, Literal: "+"}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.PLUS, Literal: "+"}},
 						},
 						Left: &OldExpression{
-							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.OLD, Literal: "old"}},
+							TypedExpressionBase: TypedExpressionBase{
+								BaseNode: BaseNode{Token: lexer.Token{Type: lexer.OLD, Literal: "old"}},
+							},
 							Identifier: NewTestIdentifier("x"),
 						},
 						Operator: "+",
@@ -255,6 +260,7 @@ func TestOldExpressionInPostCondition(t *testing.T) {
 					},
 				},
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"}},
+			},
 		},
 	}
 
