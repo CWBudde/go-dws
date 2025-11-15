@@ -443,10 +443,14 @@ func (i *Interpreter) evalLambdaExpression(expr *ast.LambdaExpression) Value {
 	// Get the function pointer type from the semantic analyzer
 	// The semantic analyzer already computed the type during type checking
 	var pointerType *types.FunctionPointerType
-	if expr.Type != nil {
+	var typeAnnot *ast.TypeAnnotation
+	if i.semanticInfo != nil {
+		typeAnnot = i.semanticInfo.GetType(expr)
+	}
+	if typeAnnot != nil {
 		// Extract the type information from the annotation
-		// The semantic analyzer stored a FunctionPointerType in expr.Type
-		pointerType = i.getFunctionPointerTypeFromAnnotation(expr.Type)
+		// The semantic analyzer stored a FunctionPointerType in typeAnnot
+		pointerType = i.getFunctionPointerTypeFromAnnotation(typeAnnot)
 	} else {
 		// Fallback: construct type from lambda signature
 		// Build parameter types

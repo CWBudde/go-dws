@@ -79,6 +79,10 @@ type ExternalFunctionWrapper interface {
 
 	// SetInterpreter sets the interpreter reference for callback support.
 	SetInterpreter(interp *Interpreter)
+
+	// GetParamTypes returns the parameter type names (e.g., "Integer", "array of String").
+	// Used for type inference when evaluating function arguments.
+	GetParamTypes() []string
 }
 
 // ExternalFunctionValue represents an external Go function as a DWScript value.

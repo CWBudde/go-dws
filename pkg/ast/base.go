@@ -35,19 +35,10 @@ func (n *BaseNode) End() token.Position {
 	return pos
 }
 
-// TypedExpressionBase extends BaseNode with type annotation plumbing used by
-// most expression nodes. Embedding this struct centralizes GetType/SetType.
+// TypedExpressionBase extends BaseNode and was previously used to store type
+// annotations. As of Task 9.18, type information is stored separately in
+// SemanticInfo rather than on AST nodes themselves. This type is kept for
+// backward compatibility but is now just an alias for BaseNode.
 type TypedExpressionBase struct {
 	BaseNode
-	Type *TypeAnnotation
-}
-
-// GetType returns the node's inferred type annotation.
-func (t *TypedExpressionBase) GetType() *TypeAnnotation {
-	return t.Type
-}
-
-// SetType updates the node's inferred type annotation.
-func (t *TypedExpressionBase) SetType(typ *TypeAnnotation) {
-	t.Type = typ
 }

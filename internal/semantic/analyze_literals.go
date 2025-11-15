@@ -42,7 +42,7 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 			return nil
 		}
 		// Allow empty arrays for array of const / array of Variant (Format function)
-		lit.SetType(&ast.TypeAnnotation{
+		a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
 			Token: lit.Token,
 			Name:  originalExpectedType.String(),
 		})
@@ -120,7 +120,7 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 	}
 
 	if expectedArrayType != nil {
-		lit.SetType(&ast.TypeAnnotation{
+		a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
 			Token: lit.Token,
 			Name:  originalExpectedType.String(),
 		})
@@ -135,7 +135,7 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 	elementUnderlying := types.GetUnderlyingType(inferredElementType)
 	arrayType := types.NewDynamicArrayType(elementUnderlying)
 
-	lit.SetType(&ast.TypeAnnotation{
+	a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
 		Token: lit.Token,
 		Name:  arrayType.String(),
 	})

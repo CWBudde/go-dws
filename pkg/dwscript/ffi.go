@@ -380,6 +380,12 @@ func (w *externalFunctionWrapper) GetVarParams() []bool {
 	return w.signature.VarParams
 }
 
+// GetParamTypes implements ExternalFunctionWrapper.GetParamTypes
+// Returns the parameter type names for type inference during argument evaluation.
+func (w *externalFunctionWrapper) GetParamTypes() []string {
+	return w.signature.ParamTypes
+}
+
 // SetInterpreter implements ExternalFunctionWrapper.SetInterpreter
 // Task 9.4: Stores interpreter reference for callback support.
 func (w *externalFunctionWrapper) SetInterpreter(interp *interp.Interpreter) {

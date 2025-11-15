@@ -17,7 +17,6 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 			BaseNode: ast.BaseNode{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(2, 5)},
 			},
-			Type: intType,
 		},
 		Value: "count",
 	}
@@ -48,7 +47,6 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(5, 3)},
 							},
-							Type: intType,
 						},
 						Value: "count",
 					},
@@ -57,7 +55,6 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(5, 15)},
 							},
-							Type: intType,
 						},
 						Operator: "+",
 						Left: &ast.Identifier{
@@ -65,7 +62,6 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(5, 12)},
 								},
-								Type: intType,
 							},
 							Value: "count",
 						},
@@ -74,7 +70,6 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(5, 17)},
 								},
-								Type: intType,
 							},
 							Value: 1,
 						},
@@ -89,7 +84,6 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(6, 11)},
 							},
-							Type: intType,
 						},
 						Value: "count",
 					},
@@ -112,13 +106,11 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 					Names: []*ast.Identifier{
 						countIdent,
 					},
-					Type: intType,
 					Value: &ast.IntegerLiteral{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(2, 15)},
 							},
-							Type: intType,
 						},
 						Value: 0,
 					},
@@ -223,11 +215,9 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 				BaseNode: ast.BaseNode{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 20)},
 				},
-				Type: intType,
 			},
 			Value: "x",
 		},
-		Type: intType,
 	}
 
 	addOneBody := &ast.BlockStatement{
@@ -244,7 +234,6 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(2, 15)},
 						},
-						Type: intType,
 					},
 					Operator: "+",
 					Left: &ast.Identifier{
@@ -252,7 +241,6 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(2, 13)},
 							},
-							Type: intType,
 						},
 						Value: "x",
 					},
@@ -261,7 +249,6 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(2, 17)},
 							},
-							Type: intType,
 						},
 						Value: 1,
 					},
@@ -307,7 +294,6 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.INT, Literal: "41", Pos: pos(4, 13)},
 					},
-					Type: intType,
 				},
 				Value: 41,
 			},
@@ -347,8 +333,6 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 	}
 }
 func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
-	intType := &ast.TypeAnnotation{Name: "Integer"}
-
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.VarDeclStatement{
@@ -361,12 +345,10 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
 							},
-							Type: intType,
 						},
 						Value: "x",
 					},
 				},
-				Type: intType,
 				Value: &ast.IntegerLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -386,12 +368,10 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(2, 5)},
 							},
-							Type: intType,
 						},
 						Value: "y",
 					},
 				},
-				Type: intType,
 				Value: &ast.IntegerLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -410,7 +390,6 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 14)},
 						},
-						Type: intType,
 					},
 					Operator: "+",
 					Left: &ast.BinaryExpression{
@@ -418,7 +397,6 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*", Pos: pos(3, 9)},
 							},
-							Type: intType,
 						},
 						Operator: "*",
 						Left: &ast.Identifier{
@@ -426,7 +404,6 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 8)},
 								},
-								Type: intType,
 							},
 							Value: "x",
 						},
@@ -435,7 +412,6 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 								BaseNode: ast.BaseNode{
 									Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(3, 12)},
 								},
-								Type: intType,
 							},
 							Value: "y",
 						},

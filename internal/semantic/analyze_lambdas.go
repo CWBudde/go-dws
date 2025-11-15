@@ -149,7 +149,7 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 	typeAnnotation := &ast.TypeAnnotation{
 		Name: fmt.Sprintf("lambda%s", funcPtrType.String()),
 	}
-	expr.Type = typeAnnotation
+	a.semanticInfo.SetType(expr, typeAnnotation)
 
 	return funcPtrType
 }
@@ -320,7 +320,7 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	typeAnnotation := &ast.TypeAnnotation{
 		Name: fmt.Sprintf("lambda%s", funcPtrType.String()),
 	}
-	expr.Type = typeAnnotation
+	a.semanticInfo.SetType(expr, typeAnnotation)
 
 	return funcPtrType
 }

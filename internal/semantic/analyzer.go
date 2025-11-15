@@ -7,6 +7,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	pkgast "github.com/cwbudde/go-dws/pkg/ast" // Task 9.18
 )
 
 // ============================================================================
@@ -70,6 +71,8 @@ type Analyzer struct {
 	inLambda           bool
 	inClassMethod      bool
 	inPropertyExpr     bool
+	// semanticInfo stores type metadata separately from AST nodes (Task 9.18)
+	semanticInfo *pkgast.SemanticInfo
 }
 
 // NewAnalyzer creates a new semantic analyzer
@@ -91,6 +94,7 @@ func NewAnalyzer() *Analyzer {
 		helpers:            make(map[string][]*types.HelperType),        // Task 9.82
 		globalOperators:    types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
+		semanticInfo:       pkgast.NewSemanticInfo(), // Task 9.18
 	}
 
 	// Register built-in Exception base class
@@ -398,6 +402,13 @@ func (a *Analyzer) validateClassForwardDeclarations() {
 // Errors returns all accumulated semantic errors
 func (a *Analyzer) Errors() []string {
 	return a.errors
+}
+
+// GetSemanticInfo returns the semantic metadata table populated during analysis.
+// This table maps AST nodes to their inferred types and resolved symbols.
+// Task 9.18: Separate type metadata from AST nodes.
+func (a *Analyzer) GetSemanticInfo() *pkgast.SemanticInfo {
+	return a.semanticInfo
 }
 
 // StructuredErrors returns all accumulated structured semantic errors

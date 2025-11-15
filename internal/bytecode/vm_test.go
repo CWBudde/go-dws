@@ -12,8 +12,6 @@ import (
 )
 
 func TestVM_RunArithmeticProgram(t *testing.T) {
-	intType := &ast.TypeAnnotation{Name: "Integer"}
-
 	program := &ast.Program{Statements: []ast.Statement{
 		&ast.VarDeclStatement{
 			BaseNode: ast.BaseNode{
@@ -24,17 +22,14 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
 					},
-					Type: intType,
 				},
 				Value: "x",
 			}},
-			Type: intType,
 			Value: &ast.IntegerLiteral{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 10)},
 					},
-					Type: intType,
 				},
 				Value: 2,
 			},
@@ -48,17 +43,14 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(2, 5)},
 					},
-					Type: intType,
 				},
 				Value: "y",
 			}},
-			Type: intType,
 			Value: &ast.IntegerLiteral{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.INT, Literal: "3", Pos: pos(2, 10)},
 					},
-					Type: intType,
 				},
 				Value: 3,
 			},
@@ -72,7 +64,6 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 14)},
 					},
-					Type: intType,
 				},
 				Operator: "+",
 				Left: &ast.BinaryExpression{
@@ -80,7 +71,6 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*", Pos: pos(3, 9)},
 						},
-						Type: intType,
 					},
 					Operator: "*",
 					Left: &ast.Identifier{
@@ -88,7 +78,6 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 8)},
 							},
-							Type: intType,
 						},
 						Value: "x",
 					},
@@ -97,7 +86,6 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(3, 12)},
 							},
-							Type: intType,
 						},
 						Value: "y",
 					},
@@ -107,7 +95,6 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.INT, Literal: "4", Pos: pos(3, 18)},
 						},
-						Type: intType,
 					},
 					Value: 4,
 				},
@@ -119,15 +106,11 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 }
 
 func TestVM_RunWhileLoop(t *testing.T) {
-	intType := &ast.TypeAnnotation{Name: "Integer"}
-	boolType := &ast.TypeAnnotation{Name: "Boolean"}
-
 	xIdent := &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
 			},
-			Type: intType,
 		},
 		Value: "x",
 	}
@@ -136,7 +119,6 @@ func TestVM_RunWhileLoop(t *testing.T) {
 			BaseNode: ast.BaseNode{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(2, 5)},
 			},
-			Type: intType,
 		},
 		Value: "y",
 	}
@@ -147,13 +129,11 @@ func TestVM_RunWhileLoop(t *testing.T) {
 				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
 			},
 			Names: []*ast.Identifier{xIdent},
-			Type:  intType,
 			Value: &ast.IntegerLiteral{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 10)},
 					},
-					Type: intType,
 				},
 				Value: 2,
 			},
@@ -163,13 +143,11 @@ func TestVM_RunWhileLoop(t *testing.T) {
 				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(2, 1)},
 			},
 			Names: []*ast.Identifier{yIdent},
-			Type:  intType,
 			Value: &ast.IntegerLiteral{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.INT, Literal: "3", Pos: pos(2, 10)},
 					},
-					Type: intType,
 				},
 				Value: 3,
 			},
@@ -183,7 +161,6 @@ func TestVM_RunWhileLoop(t *testing.T) {
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.LESS, Literal: "<", Pos: pos(3, 10)},
 					},
-					Type: boolType,
 				},
 				Operator: "<",
 				Left: &ast.Identifier{
@@ -191,7 +168,6 @@ func TestVM_RunWhileLoop(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 8)},
 						},
-						Type: intType,
 					},
 					Value: "x",
 				},
@@ -200,7 +176,6 @@ func TestVM_RunWhileLoop(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.INT, Literal: "10", Pos: pos(3, 12)},
 						},
-						Type: intType,
 					},
 					Value: 10,
 				},
@@ -215,7 +190,6 @@ func TestVM_RunWhileLoop(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(4, 3)},
 						},
-						Type: intType,
 					},
 					Value: "x",
 				},
@@ -224,7 +198,6 @@ func TestVM_RunWhileLoop(t *testing.T) {
 						BaseNode: ast.BaseNode{
 							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(4, 8)},
 						},
-						Type: intType,
 					},
 					Operator: "+",
 					Left: &ast.Identifier{
@@ -232,7 +205,6 @@ func TestVM_RunWhileLoop(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(4, 7)},
 							},
-							Type: intType,
 						},
 						Value: "x",
 					},
@@ -241,7 +213,6 @@ func TestVM_RunWhileLoop(t *testing.T) {
 							BaseNode: ast.BaseNode{
 								Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(4, 11)},
 							},
-							Type: intType,
 						},
 						Value: "y",
 					},
@@ -257,7 +228,6 @@ func TestVM_RunWhileLoop(t *testing.T) {
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(5, 9)},
 					},
-					Type: intType,
 				},
 				Value: "x",
 			},
