@@ -81,13 +81,13 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 9: Completion and DWScript Feature Parity
 
-- [ ] 9.1 Bytecode VM: Static Record Method Metadata Storage
+- [x] 9.1 Bytecode VM: Static Record Method Metadata Storage
 
 **Goal**: Store record static method metadata in bytecode chunks for runtime lookup.
 
 **Estimate**: 2-3 hours
 
-**Status**: NOT STARTED
+**Status**: DONE
 
 **Technical Approach**:
 - Extend `RecordMetadata` struct (similar to `ClassMetadata`) to include static method information
@@ -117,13 +117,13 @@ type RecordMetadata struct {
 
 ---
 
-- [ ] 9.2 Bytecode VM: Record Static Method Registration
+- [x] 9.2 Bytecode VM: Record Static Method Registration
 
 **Goal**: Register record static methods during function compilation.
 
 **Estimate**: 2-3 hours
 
-**Status**: NOT STARTED
+**Status**: DONE
 
 **Prerequisites**: Task 9.1 must be complete
 
@@ -173,13 +173,13 @@ if fn.ClassName != nil {
 
 ---
 
-- [ ] 9.3 Bytecode VM: Type-Level Method Call Detection
+- [x] 9.3 Bytecode VM: Type-Level Method Call Detection
 
 **Goal**: Detect and compile method calls on type identifiers (e.g., `TRecord.Method(...)`).
 
 **Estimate**: 3-4 hours
 
-**Status**: NOT STARTED
+**Status**: DONE
 
 **Prerequisites**: Tasks 9.1 and 9.2 must be complete
 

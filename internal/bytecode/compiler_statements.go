@@ -54,7 +54,7 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 		return c.compileHelperDecl(node)
 	// Type declarations don't generate bytecode - they're handled by semantic analysis
 	case *ast.RecordDecl:
-		return nil // No bytecode needed for type declarations
+		return c.compileRecordDecl(node)
 	case *ast.ClassDecl:
 		// Task 9.5.5: Compile class metadata for field initializers
 		return c.compileClassDecl(node)
@@ -499,8 +499,13 @@ func (c *Compiler) compileFunctionDecl(fn *ast.FunctionDecl) error {
 			// This is a helper method - associate it with the helper
 			methodKey := strings.ToLower(fn.Name.Value)
 			helper.Methods[methodKey] = globalSlot
+		} else if recordMeta, ok := c.records[helperKey]; ok {
+			// Task 9.2: This is a record static method - register it
+			// Static methods use OpCall (direct function call), so we store constIndex not globalSlot
+			methodKey := strings.ToLower(fn.Name.Value)
+			recordMeta.Methods[methodKey] = uint16(fnConstIndex)
 		}
-		// If ClassName is set but not a helper, it's a class method (handled elsewhere)
+		// If ClassName is set but not a helper or record, it's a class method (handled elsewhere)
 	}
 
 	c.chunk.Write(OpClosure, byte(upvalueCount), uint16(fnConstIndex), lineOf(fn))
@@ -611,6 +616,31 @@ func (c *Compiler) compileHelperDecl(decl *ast.HelperDecl) error {
 
 	// Helper declaration itself doesn't generate runtime bytecode
 	// The actual method implementations (separate FunctionDecl nodes) will generate bytecode
+	return nil
+}
+
+// compileRecordDecl creates record metadata for static method registration (Task 9.2).
+// Record declarations don't generate runtime bytecode, but we need to track them
+// so that static methods can be registered during function compilation.
+func (c *Compiler) compileRecordDecl(decl *ast.RecordDecl) error {
+	if decl == nil || decl.Name == nil {
+		return c.errorf(decl, "invalid record declaration")
+	}
+
+	recordName := decl.Name.Value
+	recordMeta := &RecordMetadata{
+		Name:    recordName,
+		Methods: make(map[string]uint16),
+		Fields:  make([]*FieldMetadata, 0), // For future field initializer support
+	}
+
+	// Store in chunk metadata (will be serialized with bytecode)
+	key := strings.ToLower(recordName)
+	c.chunk.Records[key] = recordMeta
+
+	// Store in compiler context for method registration during function compilation
+	c.records[key] = recordMeta
+
 	return nil
 }
 

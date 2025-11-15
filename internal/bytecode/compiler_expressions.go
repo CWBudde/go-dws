@@ -248,6 +248,39 @@ func (c *Compiler) compileMethodCallExpression(expr *ast.MethodCallExpression) e
 		return c.errorf(expr, "invalid method call expression")
 	}
 
+	// Task 9.3: Check if this is a static method call on a record type (e.g., TRecord.Method(...))
+	if ident, ok := expr.Object.(*ast.Identifier); ok {
+		typeKey := strings.ToLower(ident.Value)
+
+		// Check if this is a record type
+		if recordMeta, ok := c.chunk.Records[typeKey]; ok {
+			methodKey := strings.ToLower(expr.Method.Value)
+			if slot, found := recordMeta.Methods[methodKey]; found {
+				// This is a static record method call
+				// Compile arguments (but not the object, since it's a type)
+				for _, arg := range expr.Arguments {
+					if err := c.compileExpression(arg); err != nil {
+						return err
+					}
+				}
+
+				argCount := len(expr.Arguments)
+				if argCount > 0xFF {
+					return c.errorf(expr, "too many arguments in method call: %d", argCount)
+				}
+
+				// Use direct call - the function is already stored at global slot
+				c.chunk.Write(OpCall, byte(argCount), slot, lineOf(expr))
+				return nil
+			}
+			return c.errorf(expr, "unknown static method '%s' on record type '%s'",
+				expr.Method.Value, ident.Value)
+		}
+
+		// TODO: Check for class static methods similarly (for future class static method support)
+	}
+
+	// Fall back to regular instance method call
 	if err := c.compileExpression(expr.Object); err != nil {
 		return err
 	}

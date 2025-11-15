@@ -178,6 +178,11 @@ func (s *Serializer) SerializeChunk(chunk *Chunk) ([]byte, error) {
 		return nil, fmt.Errorf("failed to write classes: %w", err)
 	}
 
+	// Write record metadata (Task 9.1)
+	if err := s.writeRecords(buf, chunk.Records); err != nil {
+		return nil, fmt.Errorf("failed to write records: %w", err)
+	}
+
 	return buf.Bytes(), nil
 }
 
@@ -257,6 +262,16 @@ func (s *Serializer) DeserializeChunk(data []byte) (*Chunk, error) {
 			return nil, fmt.Errorf("failed to read classes: %w", err)
 		}
 		chunk.Classes = classes
+	}
+
+	// Read record metadata (Task 9.1)
+	// Check if there's more data (for backward compatibility)
+	if buf.Len() > 0 {
+		records, err := s.readRecords(buf)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read records: %w", err)
+		}
+		chunk.Records = records
 	}
 
 	return chunk, nil
@@ -1188,4 +1203,145 @@ func (s *Serializer) readFieldMetadata(r io.Reader) (*FieldMetadata, error) {
 	}
 
 	return fieldMeta, nil
+}
+
+// ============================================================================
+// Record metadata serialization (Task 9.1)
+// ============================================================================
+
+func (s *Serializer) writeRecords(w io.Writer, records map[string]*RecordMetadata) error {
+	// Write count
+	if err := binary.Write(w, binary.LittleEndian, uint32(len(records))); err != nil {
+		return err
+	}
+	// Write each record
+	for name, recordMeta := range records {
+		if err := s.writeString(w, name); err != nil {
+			return err
+		}
+		if err := s.writeRecordMetadata(w, recordMeta); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Serializer) readRecords(r io.Reader) (map[string]*RecordMetadata, error) {
+	// Read count
+	var count uint32
+	if err := binary.Read(r, binary.LittleEndian, &count); err != nil {
+		return nil, err
+	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(count, 1000, "record count"); err != nil {
+		return nil, err
+	}
+	// Read each record
+	records := make(map[string]*RecordMetadata, count)
+	for i := uint32(0); i < count; i++ {
+		name, err := s.readString(r)
+		if err != nil {
+			return nil, err
+		}
+		recordMeta, err := s.readRecordMetadata(r)
+		if err != nil {
+			return nil, err
+		}
+		records[name] = recordMeta
+	}
+	return records, nil
+}
+
+func (s *Serializer) writeRecordMetadata(w io.Writer, recordMeta *RecordMetadata) error {
+	if recordMeta == nil {
+		return fmt.Errorf("cannot serialize nil record metadata")
+	}
+
+	// Write record name
+	if err := s.writeString(w, recordMeta.Name); err != nil {
+		return err
+	}
+
+	// Write methods map
+	if err := binary.Write(w, binary.LittleEndian, uint32(len(recordMeta.Methods))); err != nil {
+		return err
+	}
+	for methodName, slot := range recordMeta.Methods {
+		if err := s.writeString(w, methodName); err != nil {
+			return err
+		}
+		if err := s.writeUint16(w, slot); err != nil {
+			return err
+		}
+	}
+
+	// Write field count (for future field initializer support)
+	if err := binary.Write(w, binary.LittleEndian, uint32(len(recordMeta.Fields))); err != nil {
+		return err
+	}
+
+	// Write each field metadata (currently empty, for future use)
+	for _, fieldMeta := range recordMeta.Fields {
+		if err := s.writeFieldMetadata(w, fieldMeta); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Serializer) readRecordMetadata(r io.Reader) (*RecordMetadata, error) {
+	recordMeta := &RecordMetadata{
+		Methods: make(map[string]uint16),
+		Fields:  make([]*FieldMetadata, 0),
+	}
+
+	// Read record name
+	var err error
+	recordMeta.Name, err = s.readString(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Read methods map
+	var methodCount uint32
+	if err := binary.Read(r, binary.LittleEndian, &methodCount); err != nil {
+		return nil, err
+	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(methodCount, 1000, "method count"); err != nil {
+		return nil, err
+	}
+	for i := uint32(0); i < methodCount; i++ {
+		methodName, err := s.readString(r)
+		if err != nil {
+			return nil, err
+		}
+		slot, err := s.readUint16(r)
+		if err != nil {
+			return nil, err
+		}
+		recordMeta.Methods[methodName] = slot
+	}
+
+	// Read field count
+	var fieldCount uint32
+	if err := binary.Read(r, binary.LittleEndian, &fieldCount); err != nil {
+		return nil, err
+	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(fieldCount, 10000, "field count"); err != nil {
+		return nil, err
+	}
+
+	// Read each field metadata
+	for i := uint32(0); i < fieldCount; i++ {
+		fieldMeta, err := s.readFieldMetadata(r)
+		if err != nil {
+			return nil, err
+		}
+		recordMeta.Fields = append(recordMeta.Fields, fieldMeta)
+	}
+
+	return recordMeta, nil
 }

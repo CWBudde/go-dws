@@ -1,0 +1,29 @@
+// Test static record methods in bytecode VM
+// Methods must be forward-declared in the record type
+
+type TTest = record
+	value: Integer;
+	class procedure PrintHello;
+	class procedure PrintNumber(x: Integer);
+	class procedure PrintSum(a, b: Integer);
+end;
+
+class procedure TTest.PrintHello;
+begin
+	PrintLn('Hello from TTest static method!');
+end;
+
+class procedure TTest.PrintNumber(x: Integer);
+begin
+	PrintLn('Number: ' + IntToStr(x));
+end;
+
+class procedure TTest.PrintSum(a, b: Integer);
+begin
+	PrintLn('Sum: ' + IntToStr(a + b));
+end;
+
+// Test calls
+TTest.PrintHello();
+TTest.PrintNumber(42);
+TTest.PrintSum(10, 32);

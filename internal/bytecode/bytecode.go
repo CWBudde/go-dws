@@ -628,6 +628,15 @@ type ClassMetadata struct {
 	Fields []*FieldMetadata
 }
 
+// RecordMetadata stores metadata for record types including static methods (Task 9.1).
+// Records can have static methods (class functions) that are called on the type itself,
+// not on instances. This metadata maps method names to their constant indices for direct calls.
+type RecordMetadata struct {
+	Name    string
+	Methods map[string]uint16  // Method name (lowercase) -> constant index (for OpCall)
+	Fields  []*FieldMetadata   // For future field initializer support
+}
+
 // Chunk represents a compiled bytecode chunk with instructions and constants.
 // A chunk is the basic unit of compilation - typically one function or script.
 type Chunk struct {
@@ -636,8 +645,9 @@ type Chunk struct {
 	Code       []Instruction
 	Constants  []Value
 	Lines      []LineInfo
-	Helpers    map[string]*HelperInfo   // Helper metadata for runtime method resolution
+	Helpers    map[string]*HelperInfo    // Helper metadata for runtime method resolution
 	Classes    map[string]*ClassMetadata // Class metadata for field initialization
+	Records    map[string]*RecordMetadata // Record metadata for static methods (Task 9.1)
 	LocalCount int
 }
 
@@ -657,6 +667,7 @@ func NewChunk(name string) *Chunk {
 		Lines:      make([]LineInfo, 0, 16),
 		Helpers:    make(map[string]*HelperInfo),
 		Classes:    make(map[string]*ClassMetadata),
+		Records:    make(map[string]*RecordMetadata), // Task 9.1
 		LocalCount: 0,
 		Name:       name,
 		tryInfos:   make(map[int]TryInfo),
