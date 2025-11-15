@@ -809,12 +809,15 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
   - [x] Updated all test files in internal/semantic (3 files, 55+ instances)
   - All literal expression nodes now use TypedExpressionBase successfully
 
-- [ ] 9.16.3 Refactor binary and unary expressions (BinaryExpression, UnaryExpression, GroupedExpression, RangeExpression)
-  - [ ] Embed `TypedExpressionBase` into BinaryExpression
-  - [ ] Embed `TypedExpressionBase` into UnaryExpression
-  - [ ] Embed `TypedExpressionBase` into GroupedExpression
-  - [ ] Embed `TypedExpressionBase` into RangeExpression
-  - [ ] Remove duplicate type/position helpers and verify parser/semantic behavior
+- [x] 9.16.3 Refactor binary and unary expressions (BinaryExpression, UnaryExpression, GroupedExpression, RangeExpression)
+  - [x] Embed `TypedExpressionBase` into BinaryExpression
+  - [x] Embed `TypedExpressionBase` into UnaryExpression
+  - [x] Embed `TypedExpressionBase` into GroupedExpression
+  - [x] Embed `TypedExpressionBase` into RangeExpression
+  - [x] Remove duplicate type/position helpers and verify parser/semantic behavior
+  - [x] Updated parser files (expressions.go, arrays.go, control_flow.go, sets.go)
+  - [x] Updated 17 test files across internal/ast, internal/bytecode, internal/semantic
+  - [x] All tests pass successfully - removed ~120 lines of boilerplate
 
 - [ ] 9.16.4 Refactor statement nodes (ExpressionStatement, VarDeclStatement, AssignmentStatement, BlockStatement, IfStatement, WhileStatement, etc.)
   - [ ] Identify all statement structs across `pkg/ast/statements.go`, `pkg/ast/control_flow.go`, and related files
