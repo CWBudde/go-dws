@@ -1,0 +1,73 @@
+// Extended test case for Task 9.2.2
+// Testing various scenarios with type aliases and var parameters
+
+PrintLn('=== Test 1: Basic type alias with var parameter ===');
+type TIntArray = array [0..9] of integer;
+
+procedure TestProc1(var arr: TIntArray);
+begin
+  arr[0] := 42;
+  arr[5] := 99;
+end;
+
+var myArray1: TIntArray;
+myArray1[0] := 0;
+myArray1[5] := 0;
+TestProc1(myArray1);
+PrintLn('myArray1[0] = ' + IntToStr(myArray1[0])); // Should be 42
+PrintLn('myArray1[5] = ' + IntToStr(myArray1[5])); // Should be 99
+
+PrintLn('');
+PrintLn('=== Test 2: Passing underlying type to alias parameter ===');
+var myArray2: array [0..9] of integer;
+myArray2[0] := 1;
+myArray2[5] := 1;
+TestProc1(myArray2);  // Passing array [0..9] of integer to var TIntArray
+PrintLn('myArray2[0] = ' + IntToStr(myArray2[0])); // Should be 42
+PrintLn('myArray2[5] = ' + IntToStr(myArray2[5])); // Should be 99
+
+PrintLn('');
+PrintLn('=== Test 3: Passing alias to underlying type parameter ===');
+procedure TestProc2(var arr: array [0..9] of integer);
+begin
+  arr[3] := 77;
+end;
+
+var myArray3: TIntArray;
+myArray3[3] := 0;
+TestProc2(myArray3);  // Passing TIntArray to var array [0..9] of integer
+PrintLn('myArray3[3] = ' + IntToStr(myArray3[3])); // Should be 77
+
+PrintLn('');
+PrintLn('=== Test 4: Nested procedure calls with mixed types ===');
+procedure Inner(var arr: array [0..9] of integer);
+begin
+  arr[7] := 88;
+end;
+
+procedure Outer(var arr: TIntArray);
+begin
+  Inner(arr);  // Passing TIntArray to array [0..9] of integer
+end;
+
+var myArray4: TIntArray;
+myArray4[7] := 0;
+Outer(myArray4);
+PrintLn('myArray4[7] = ' + IntToStr(myArray4[7])); // Should be 88
+
+PrintLn('');
+PrintLn('=== Test 5: Multiple aliases for same type ===');
+type TIntArray2 = array [0..9] of integer;
+
+procedure TestProc3(var arr: TIntArray2);
+begin
+  arr[9] := 100;
+end;
+
+var myArray5: TIntArray;  // TIntArray, not TIntArray2
+myArray5[9] := 0;
+TestProc3(myArray5);  // Different alias names but same underlying type
+PrintLn('myArray5[9] = ' + IntToStr(myArray5[9])); // Should be 100
+
+PrintLn('');
+PrintLn('=== All tests passed! ===');

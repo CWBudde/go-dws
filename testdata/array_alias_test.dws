@@ -1,0 +1,38 @@
+// Test 1: Type alias with var parameter - same alias type
+type TData = array [0..1] of Integer;
+
+procedure Test1(var a : TData);
+begin
+    a[0] := a[0] + 1;
+end;
+
+var data1 : TData;
+data1[0] := 10;
+data1[1] := 20;
+Test1(data1);
+PrintLn('Test 1 (alias to alias): ' + IntToStr(data1[0])); // Should print 11
+
+// Test 2: Try passing inline array type to var parameter expecting alias
+var data2 : array [0..1] of Integer;
+data2[0] := 30;
+data2[1] := 40;
+Test1(data2);  // This should work if type aliases are transparent
+PrintLn('Test 2 (underlying to alias): ' + IntToStr(data2[0])); // Should print 31
+
+// Test 3: Var parameter with inline array type
+procedure Test3(var a : array [0..1] of Integer);
+begin
+    a[1] := a[1] + 1;
+end;
+
+var data3 : TData;
+data3[0] := 50;
+data3[1] := 60;
+Test3(data3);  // This should work if type aliases are transparent
+PrintLn('Test 3 (alias to underlying): ' + IntToStr(data3[1])); // Should print 61
+
+var data4 : array [0..1] of Integer;
+data4[0] := 70;
+data4[1] := 80;
+Test3(data4);
+PrintLn('Test 4 (underlying to underlying): ' + IntToStr(data4[1])); // Should print 81
