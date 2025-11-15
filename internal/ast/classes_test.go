@@ -20,7 +20,7 @@ func TestClassDeclString(t *testing.T) {
 			name: "simple class without parent",
 			classDecl: &ClassDecl{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
-				Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TPoint"}}}, Value: "TPoint"},
+				Name:     NewTestIdentifier("TPoint"),
 				Parent:   nil,
 				Fields:   []*FieldDecl{},
 				Methods:  []*FunctionDecl{},
@@ -31,8 +31,8 @@ func TestClassDeclString(t *testing.T) {
 			name: "class with parent",
 			classDecl: &ClassDecl{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
-				Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TChild"}}}, Value: "TChild"},
-				Parent:   &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TParent"}}}, Value: "TParent"},
+				Name:     NewTestIdentifier("TChild"),
+				Parent:   NewTestIdentifier("TParent"),
 				Fields:   []*FieldDecl{},
 				Methods:  []*FunctionDecl{},
 			},

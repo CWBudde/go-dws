@@ -18,7 +18,7 @@ func TestArrayTypeAnnotation(t *testing.T) {
 
 		arrayType := &ArrayTypeAnnotation{
 			Token:       tok,
-			ElementType: &TypeAnnotation{Token: tok, Name: "Integer"},
+			ElementType: NewTestTypeAnnotation("Integer"),
 			LowBound: &IntegerLiteral{
 				TypedExpressionBase: TypedExpressionBase{
 					BaseNode: BaseNode{
@@ -78,7 +78,7 @@ func TestArrayTypeAnnotation(t *testing.T) {
 
 		arrayType := &ArrayTypeAnnotation{
 			Token:       tok,
-			ElementType: &TypeAnnotation{Token: tok, Name: "String"},
+			ElementType: NewTestTypeAnnotation("String"),
 			LowBound:    nil,
 			HighBound:   nil,
 		}
@@ -109,7 +109,7 @@ func TestArrayTypeAnnotation(t *testing.T) {
 
 		arrayType := &ArrayTypeAnnotation{
 			Token:       tok,
-			ElementType: &TypeAnnotation{Token: tok, Name: "Integer"},
+			ElementType: NewTestTypeAnnotation("Integer"),
 			LowBound: &IntegerLiteral{
 				TypedExpressionBase: TypedExpressionBase{
 					BaseNode: BaseNode{
@@ -140,7 +140,7 @@ func TestArrayTypeAnnotation(t *testing.T) {
 
 		arrayType := &ArrayTypeAnnotation{
 			Token:       tok,
-			ElementType: &TypeAnnotation{Token: tok, Name: "String"},
+			ElementType: NewTestTypeAnnotation("String"),
 			LowBound:    nil,
 			HighBound:   nil,
 		}
@@ -159,17 +159,8 @@ func TestArrayTypeAnnotation(t *testing.T) {
 
 func TestArrayLiteralExpression_String(t *testing.T) {
 	lbrackTok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
-	intToken := func(lit string) lexer.Token {
-		return lexer.Token{Type: lexer.INT, Literal: lit}
-	}
 	floatToken := func(lit string) lexer.Token {
 		return lexer.Token{Type: lexer.FLOAT, Literal: lit}
-	}
-	stringToken := func(lit string) lexer.Token {
-		return lexer.Token{Type: lexer.STRING, Literal: "\"" + lit + "\""}
-	}
-	identToken := func(lit string) lexer.Token {
-		return lexer.Token{Type: lexer.IDENT, Literal: lit}
 	}
 
 	tests := []struct {
@@ -180,30 +171,9 @@ func TestArrayLiteralExpression_String(t *testing.T) {
 		{
 			name: "SimpleIntegers",
 			elements: []Expression{
-				&IntegerLiteral{
-					TypedExpressionBase: TypedExpressionBase{
-						BaseNode: BaseNode{
-							Token: intToken("1"),
-						},
-					},
-					Value: 1,
-				},
-				&IntegerLiteral{
-					TypedExpressionBase: TypedExpressionBase{
-						BaseNode: BaseNode{
-							Token: intToken("2"),
-						},
-					},
-					Value: 2,
-				},
-				&IntegerLiteral{
-					TypedExpressionBase: TypedExpressionBase{
-						BaseNode: BaseNode{
-							Token: intToken("3"),
-						},
-					},
-					Value: 3,
-				},
+				NewTestIntegerLiteral(1),
+				NewTestIntegerLiteral(2),
+				NewTestIntegerLiteral(3),
 			},
 			want: "[1, 2, 3]",
 		},
@@ -211,64 +181,22 @@ func TestArrayLiteralExpression_String(t *testing.T) {
 			name: "Expressions",
 			elements: []Expression{
 				&BinaryExpression{
-					Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
-					Left: &Identifier{
-						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: identToken("x"),
-							},
-						},
-						Value: "x",
-					},
+					Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
+					Left:     NewTestIdentifier("x"),
 					Operator: "+",
-					Right: &IntegerLiteral{
-						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: intToken("1"),
-							},
-						},
-						Value: 1,
-					},
+					Right:    NewTestIntegerLiteral(1),
 				},
 				&BinaryExpression{
-					Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*"},
-					Left: &Identifier{
-						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: identToken("y"),
-							},
-						},
-						Value: "y",
-					},
+					Token:    lexer.Token{Type: lexer.ASTERISK, Literal: "*"},
+					Left:     NewTestIdentifier("y"),
 					Operator: "*",
-					Right: &IntegerLiteral{
-						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: intToken("2"),
-							},
-						},
-						Value: 2,
-					},
+					Right:    NewTestIntegerLiteral(2),
 				},
 				&BinaryExpression{
-					Token: lexer.Token{Type: lexer.MINUS, Literal: "-"},
-					Left: &Identifier{
-						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: identToken("z"),
-							},
-						},
-						Value: "z",
-					},
+					Token:    lexer.Token{Type: lexer.MINUS, Literal: "-"},
+					Left:     NewTestIdentifier("z"),
 					Operator: "-",
-					Right: &IntegerLiteral{
-						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: intToken("3"),
-							},
-						},
-						Value: 3,
-					},
+					Right:    NewTestIntegerLiteral(3),
 				},
 			},
 			want: "[(x + 1), (y * 2), (z - 3)]",
@@ -279,43 +207,15 @@ func TestArrayLiteralExpression_String(t *testing.T) {
 				&ArrayLiteralExpression{
 					Token: lbrackTok,
 					Elements: []Expression{
-						&IntegerLiteral{
-							TypedExpressionBase: TypedExpressionBase{
-								BaseNode: BaseNode{
-									Token: intToken("1"),
-								},
-							},
-							Value: 1,
-						},
-						&IntegerLiteral{
-							TypedExpressionBase: TypedExpressionBase{
-								BaseNode: BaseNode{
-									Token: intToken("2"),
-								},
-							},
-							Value: 2,
-						},
+						NewTestIntegerLiteral(1),
+						NewTestIntegerLiteral(2),
 					},
 				},
 				&ArrayLiteralExpression{
 					Token: lbrackTok,
 					Elements: []Expression{
-						&IntegerLiteral{
-							TypedExpressionBase: TypedExpressionBase{
-								BaseNode: BaseNode{
-									Token: intToken("3"),
-								},
-							},
-							Value: 3,
-						},
-						&IntegerLiteral{
-							TypedExpressionBase: TypedExpressionBase{
-								BaseNode: BaseNode{
-									Token: intToken("4"),
-								},
-							},
-							Value: 4,
-						},
+						NewTestIntegerLiteral(3),
+						NewTestIntegerLiteral(4),
 					},
 				},
 			},
@@ -332,22 +232,8 @@ func TestArrayLiteralExpression_String(t *testing.T) {
 					},
 					Value: -50.0,
 				},
-				&IntegerLiteral{
-					TypedExpressionBase: TypedExpressionBase{
-						BaseNode: BaseNode{
-							Token: intToken("30"),
-						},
-					},
-					Value: 30,
-				},
-				&IntegerLiteral{
-					TypedExpressionBase: TypedExpressionBase{
-						BaseNode: BaseNode{
-							Token: intToken("50"),
-						},
-					},
-					Value: 50,
-				},
+				NewTestIntegerLiteral(30),
+				NewTestIntegerLiteral(50),
 			},
 			want: "[-50.0, 30, 50]",
 		},
@@ -359,30 +245,9 @@ func TestArrayLiteralExpression_String(t *testing.T) {
 		{
 			name: "WithIdentifiersAndStrings",
 			elements: []Expression{
-				&Identifier{
-					TypedExpressionBase: TypedExpressionBase{
-						BaseNode: BaseNode{
-							Token: identToken("names"),
-						},
-					},
-					Value: "names",
-				},
-				&StringLiteral{
-					TypedExpressionBase: TypedExpressionBase{
-						BaseNode: BaseNode{
-							Token: stringToken("DWScript"),
-						},
-					},
-					Value: "DWScript",
-				},
-				&StringLiteral{
-					TypedExpressionBase: TypedExpressionBase{
-						BaseNode: BaseNode{
-							Token: stringToken("port"),
-						},
-					},
-					Value: "port",
-				},
+				NewTestIdentifier("names"),
+				NewTestStringLiteral("DWScript"),
+				NewTestStringLiteral("port"),
 			},
 			want: "[names, \"DWScript\", \"port\"]",
 		},
@@ -417,7 +282,7 @@ func TestArrayLiteralExpression_TypeTracking(t *testing.T) {
 		t.Fatal("GetType() should be nil initially")
 	}
 
-	typeAnnotation := &TypeAnnotation{Token: tok, Name: "array of Integer"}
+	typeAnnotation := NewTestTypeAnnotation("array of Integer")
 	arrayLit.SetType(typeAnnotation)
 
 	if arrayLit.GetType() != typeAnnotation {
@@ -436,22 +301,8 @@ func TestIndexExpression(t *testing.T) {
 
 		indexExpr := &IndexExpression{
 			Token: tok,
-			Left: &Identifier{
-				TypedExpressionBase: TypedExpressionBase{
-					BaseNode: BaseNode{
-						Token: tok,
-					},
-				},
-				Value: "arr",
-			},
-			Index: &Identifier{
-				TypedExpressionBase: TypedExpressionBase{
-					BaseNode: BaseNode{
-						Token: tok,
-					},
-				},
-				Value: "i",
-			},
+			Left:  NewTestIdentifier("arr"),
+			Index: NewTestIdentifier("i"),
 		}
 
 		// Test TokenLiteral()
@@ -484,22 +335,8 @@ func TestIndexExpression(t *testing.T) {
 
 		indexExpr := &IndexExpression{
 			Token: tok,
-			Left: &Identifier{
-				TypedExpressionBase: TypedExpressionBase{
-					BaseNode: BaseNode{
-						Token: tok,
-					},
-				},
-				Value: "arr",
-			},
-			Index: &IntegerLiteral{
-				TypedExpressionBase: TypedExpressionBase{
-					BaseNode: BaseNode{
-						Token: tok,
-					},
-				},
-				Value: 0,
-			},
+			Left:  NewTestIdentifier("arr"),
+			Index: NewTestIntegerLiteral(0),
 		}
 
 		// Test Index is integer literal
@@ -518,15 +355,12 @@ func TestIndexExpression(t *testing.T) {
 
 		indexExpr := &IndexExpression{
 			Token: tok,
-			Left:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "arr"},
+			Left:  NewTestIdentifier("arr"),
 			Index: &BinaryExpression{
 				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
-				Left:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "i"},
+				Left:     NewTestIdentifier("i"),
 				Operator: "+",
-				Right: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{
-
-					// Test Index is binary expression
-					BaseNode: BaseNode{Token: tok}}, Value: 1},
+				Right:    NewTestIntegerLiteral(1),
 			},
 		}
 
@@ -543,20 +377,14 @@ func TestIndexExpression(t *testing.T) {
 		// First create arr[i]
 		innerIndex := &IndexExpression{
 			Token: tok,
-			Left:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "arr"},
-			Index: &Identifier{TypedExpressionBase: TypedExpressionBase{
-
-				// Then create (arr[i])[j]
-				BaseNode: BaseNode{Token: tok}}, Value: "i"},
+			Left:  NewTestIdentifier("arr"),
+			Index: NewTestIdentifier("i"),
 		}
 
 		outerIndex := &IndexExpression{
 			Token: tok,
 			Left:  innerIndex,
-			Index: &Identifier{TypedExpressionBase: TypedExpressionBase{
-
-				// Test that Left is an IndexExpression
-				BaseNode: BaseNode{Token: tok}}, Value: "j"},
+			Index: NewTestIdentifier("j"),
 		}
 
 		_, ok := outerIndex.Left.(*IndexExpression)
@@ -567,12 +395,11 @@ func TestIndexExpression(t *testing.T) {
 
 	t.Run("String() method", func(t *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
-		intTok := lexer.Token{Type: lexer.INT, Literal: "5"}
 
 		indexExpr := &IndexExpression{
 			Token: tok,
-			Left:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "arr"},
-			Index: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: intTok}}, Value: 5},
+			Left:  NewTestIdentifier("arr"),
+			Index: NewTestIntegerLiteral(5),
 		}
 
 		str := indexExpr.String()
@@ -600,11 +427,8 @@ func TestIndexExpression(t *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 		indexExpr := &IndexExpression{
 			Token: tok,
-			Left:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "arr"},
-			Index: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{
-
-				// Test GetType (should be nil initially)
-				BaseNode: BaseNode{Token: tok}}, Value: 0},
+			Left:  NewTestIdentifier("arr"),
+			Index: NewTestIntegerLiteral(0),
 		}
 
 		if indexExpr.GetType() != nil {
@@ -612,7 +436,7 @@ func TestIndexExpression(t *testing.T) {
 		}
 
 		// Test SetType
-		typeAnnotation := &TypeAnnotation{Token: tok, Name: "Integer"}
+		typeAnnotation := NewTestTypeAnnotation("Integer")
 		indexExpr.SetType(typeAnnotation)
 
 		// Test GetType after setting
@@ -634,20 +458,15 @@ func TestAssignmentStatement_WithIndexExpression(t *testing.T) {
 		// Create the index expression (arr[i])
 		indexExpr := &IndexExpression{
 			Token: lexer.Token{Type: lexer.LBRACK, Literal: "["},
-			Left:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "arr"},
-			Index: &Identifier{TypedExpressionBase: TypedExpressionBase{
-
-				// Create the assignment statement
-				BaseNode: BaseNode{Token: tok}}, Value: "i"},
+			Left:  NewTestIdentifier("arr"),
+			Index: NewTestIdentifier("i"),
 		}
 
+		// Create the assignment statement
 		assignStmt := &AssignmentStatement{
 			Token:  tok,
 			Target: indexExpr, // Using Target instead of Name
-			Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{
-
-				// Test TokenLiteral()
-				BaseNode: BaseNode{Token: tok}}, Value: 42},
+			Value:  NewTestIntegerLiteral(42),
 		}
 
 		if assignStmt.TokenLiteral() != ":=" {
@@ -679,17 +498,14 @@ func TestAssignmentStatement_WithIndexExpression(t *testing.T) {
 
 		indexExpr := &IndexExpression{
 			Token: lexer.Token{Type: lexer.LBRACK, Literal: "["},
-			Left:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "arr"},
-			Index: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: 0},
+			Left:  NewTestIdentifier("arr"),
+			Index: NewTestIntegerLiteral(0),
 		}
 
 		assignStmt := &AssignmentStatement{
 			Token:  tok,
 			Target: indexExpr,
-			Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{
-
-				// Test Target is an IndexExpression
-				BaseNode: BaseNode{Token: tok}}, Value: 100},
+			Value:  NewTestIntegerLiteral(100),
 		}
 
 		_, ok := assignStmt.Target.(*IndexExpression)
@@ -705,26 +521,21 @@ func TestAssignmentStatement_WithIndexExpression(t *testing.T) {
 		// Create matrix[i]
 		innerIndex := &IndexExpression{
 			Token: lexer.Token{Type: lexer.LBRACK, Literal: "["},
-			Left:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "matrix"},
-			Index: &Identifier{TypedExpressionBase: TypedExpressionBase{
-
-				// Create (matrix[i])[j]
-				BaseNode: BaseNode{Token: tok}}, Value: "i"},
+			Left:  NewTestIdentifier("matrix"),
+			Index: NewTestIdentifier("i"),
 		}
 
+		// Create (matrix[i])[j]
 		outerIndex := &IndexExpression{
 			Token: lexer.Token{Type: lexer.LBRACK, Literal: "["},
 			Left:  innerIndex,
-			Index: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "j"},
+			Index: NewTestIdentifier("j"),
 		}
 
 		assignStmt := &AssignmentStatement{
 			Token:  tok,
 			Target: outerIndex,
-			Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{
-
-				// Test Target is an IndexExpression
-				BaseNode: BaseNode{Token: tok}}, Value: 99},
+			Value:  NewTestIntegerLiteral(99),
 		}
 
 		targetIndex, ok := assignStmt.Target.(*IndexExpression)
@@ -742,20 +553,17 @@ func TestAssignmentStatement_WithIndexExpression(t *testing.T) {
 	t.Run("String() method with index target", func(t *testing.T) {
 		assignTok := lexer.Token{Type: lexer.ASSIGN, Literal: ":="}
 		bracketTok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
-		identTok := lexer.Token{Type: lexer.IDENT, Literal: "arr"}
-		intTok := lexer.Token{Type: lexer.INT, Literal: "5"}
-		valueTok := lexer.Token{Type: lexer.INT, Literal: "42"}
 
 		indexExpr := &IndexExpression{
 			Token: bracketTok,
-			Left:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: identTok}}, Value: "arr"},
-			Index: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: intTok}}, Value: 5},
+			Left:  NewTestIdentifier("arr"),
+			Index: NewTestIntegerLiteral(5),
 		}
 
 		assignStmt := &AssignmentStatement{
 			Token:  assignTok,
 			Target: indexExpr,
-			Value:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: valueTok}}, Value: 42},
+			Value:  NewTestIntegerLiteral(42),
 		}
 
 		str := assignStmt.String()
@@ -768,17 +576,12 @@ func TestAssignmentStatement_WithIndexExpression(t *testing.T) {
 	t.Run("Backward compatibility - simple identifier assignment", func(t *testing.T) {
 		// x := 10
 		assignTok := lexer.Token{Type: lexer.ASSIGN, Literal: ":="}
-		identTok := lexer.Token{Type: lexer.IDENT, Literal: "x"}
-		valueTok := lexer.Token{Type: lexer.INT, Literal: "10"}
 
 		// Using an Identifier as the Target (backward compatibility)
 		assignStmt := &AssignmentStatement{
 			Token:  assignTok,
-			Target: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: identTok}}, Value: "x"},
-			Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{
-
-				// Test Target is an Identifier
-				BaseNode: BaseNode{Token: valueTok}}, Value: 10},
+			Target: NewTestIdentifier("x"),
+			Value:  NewTestIntegerLiteral(10),
 		}
 
 		targetIdent, ok := assignStmt.Target.(*Identifier)
@@ -806,13 +609,12 @@ func TestNewArrayExpression(t *testing.T) {
 	t.Run("Simple 1D array instantiation", func(t *testing.T) {
 		// new Integer[16]
 		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
-		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
 			Token:           newTok,
-			ElementTypeName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: intTok}}, Value: "Integer"},
+			ElementTypeName: NewTestIdentifier("Integer"),
 			Dimensions: []Expression{
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "16"}}}, Value: 16},
+				NewTestIntegerLiteral(16),
 			},
 		}
 
@@ -847,14 +649,13 @@ func TestNewArrayExpression(t *testing.T) {
 	t.Run("2D array instantiation", func(t *testing.T) {
 		// new Integer[10, 20]
 		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
-		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
 			Token:           newTok,
-			ElementTypeName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: intTok}}, Value: "Integer"},
+			ElementTypeName: NewTestIdentifier("Integer"),
 			Dimensions: []Expression{
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "10"}}}, Value: 10},
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "20"}}}, Value: 20},
+				NewTestIntegerLiteral(10),
+				NewTestIntegerLiteral(20),
 			},
 		}
 
@@ -885,25 +686,24 @@ func TestNewArrayExpression(t *testing.T) {
 	t.Run("Array with expression-based size", func(t *testing.T) {
 		// new String[Length(s)+1]
 		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
-		strTok := lexer.Token{Type: lexer.IDENT, Literal: "String"}
 
 		// Create: Length(s) + 1
 		sizeExpr := &BinaryExpression{
 			Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
 			Left: &CallExpression{
 				Token:    lexer.Token{Type: lexer.IDENT, Literal: "Length"},
-				Function: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Length"}}}, Value: "Length"},
+				Function: NewTestIdentifier("Length"),
 				Arguments: []Expression{
-					&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "s"}}}, Value: "s"},
+					NewTestIdentifier("s"),
 				},
 			},
 			Operator: "+",
-			Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "1"}}}, Value: 1},
+			Right:    NewTestIntegerLiteral(1),
 		}
 
 		newArrayExpr := &NewArrayExpression{
 			Token:           newTok,
-			ElementTypeName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: strTok}}, Value: "String"},
+			ElementTypeName: NewTestIdentifier("String"),
 			Dimensions:      []Expression{sizeExpr},
 		}
 
@@ -922,15 +722,14 @@ func TestNewArrayExpression(t *testing.T) {
 	t.Run("3D array instantiation", func(t *testing.T) {
 		// new Float[5, 10, 15]
 		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
-		floatTok := lexer.Token{Type: lexer.IDENT, Literal: "Float"}
 
 		newArrayExpr := &NewArrayExpression{
 			Token:           newTok,
-			ElementTypeName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: floatTok}}, Value: "Float"},
+			ElementTypeName: NewTestIdentifier("Float"),
 			Dimensions: []Expression{
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "5"}}}, Value: 5},
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "10"}}}, Value: 10},
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "15"}}}, Value: 15},
+				NewTestIntegerLiteral(5),
+				NewTestIntegerLiteral(10),
+				NewTestIntegerLiteral(15),
 			},
 		}
 
@@ -942,13 +741,12 @@ func TestNewArrayExpression(t *testing.T) {
 
 	t.Run("String() method for 1D array", func(t *testing.T) {
 		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
-		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
 			Token:           newTok,
-			ElementTypeName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: intTok}}, Value: "Integer"},
+			ElementTypeName: NewTestIdentifier("Integer"),
 			Dimensions: []Expression{
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "16"}}}, Value: 16},
+				NewTestIntegerLiteral(16),
 			},
 		}
 
@@ -961,14 +759,13 @@ func TestNewArrayExpression(t *testing.T) {
 
 	t.Run("String() method for 2D array", func(t *testing.T) {
 		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
-		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
 			Token:           newTok,
-			ElementTypeName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: intTok}}, Value: "Integer"},
+			ElementTypeName: NewTestIdentifier("Integer"),
 			Dimensions: []Expression{
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "10"}}}, Value: 10},
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "20"}}}, Value: 20},
+				NewTestIntegerLiteral(10),
+				NewTestIntegerLiteral(20),
 			},
 		}
 
@@ -997,13 +794,12 @@ func TestNewArrayExpression(t *testing.T) {
 
 	t.Run("Type tracking", func(t *testing.T) {
 		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
-		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
 			Token:           newTok,
-			ElementTypeName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: intTok}}, Value: "Integer"},
+			ElementTypeName: NewTestIdentifier("Integer"),
 			Dimensions: []Expression{
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "10"}}}, Value: 10},
+				NewTestIntegerLiteral(10),
 			},
 		}
 
@@ -1013,7 +809,7 @@ func TestNewArrayExpression(t *testing.T) {
 		}
 
 		// Test SetType
-		typeAnnotation := &TypeAnnotation{Token: intTok, Name: "array of Integer"}
+		typeAnnotation := NewTestTypeAnnotation("array of Integer")
 		newArrayExpr.SetType(typeAnnotation)
 
 		// Test GetType after setting
@@ -1026,12 +822,11 @@ func TestNewArrayExpression(t *testing.T) {
 		newTok := lexer.Token{Type: lexer.NEW, Literal: "new"}
 
 		// Test with String type
-		strTok := lexer.Token{Type: lexer.IDENT, Literal: "String"}
 		stringArray := &NewArrayExpression{
 			Token:           newTok,
-			ElementTypeName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: strTok}}, Value: "String"},
+			ElementTypeName: NewTestIdentifier("String"),
 			Dimensions: []Expression{
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "5"}}}, Value: 5},
+				NewTestIntegerLiteral(5),
 			},
 		}
 
@@ -1040,12 +835,11 @@ func TestNewArrayExpression(t *testing.T) {
 		}
 
 		// Test with Boolean type
-		boolTok := lexer.Token{Type: lexer.IDENT, Literal: "Boolean"}
 		boolArray := &NewArrayExpression{
 			Token:           newTok,
-			ElementTypeName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: boolTok}}, Value: "Boolean"},
+			ElementTypeName: NewTestIdentifier("Boolean"),
 			Dimensions: []Expression{
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "3"}}}, Value: 3},
+				NewTestIntegerLiteral(3),
 			},
 		}
 
@@ -1060,13 +854,12 @@ func TestNewArrayExpression(t *testing.T) {
 			Literal: "new",
 			Pos:     lexer.Position{Line: 23, Column: 5},
 		}
-		intTok := lexer.Token{Type: lexer.IDENT, Literal: "Integer"}
 
 		newArrayExpr := &NewArrayExpression{
 			Token:           newTok,
-			ElementTypeName: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: intTok}}, Value: "Integer"},
+			ElementTypeName: NewTestIdentifier("Integer"),
 			Dimensions: []Expression{
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "16"}}}, Value: 16},
+				NewTestIntegerLiteral(16),
 			},
 		}
 

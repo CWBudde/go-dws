@@ -92,13 +92,11 @@ func TestSetLiteral(t *testing.T) {
 			Elements: []Expression{
 				&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "one"},
 				&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "two"},
-				&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode:
-
-				// Test TokenLiteral()
-				BaseNode{Token: tok}}, Value: "three"},
+				&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "three"},
 			},
 		}
 
+		// Test TokenLiteral()
 		if setLit.TokenLiteral() != "[" {
 			t.Errorf("TokenLiteral() = %v, want '['", setLit.TokenLiteral())
 		}
