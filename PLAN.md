@@ -1961,9 +1961,6 @@ NewTestIdentifier("name")
   - [ ] Add `NewTestBinaryExpression(left, op, right)` helper
   - [ ] Add `NewTestUnaryExpression(op, operand)` helper
   - [ ] Add `NewTestCallExpression(function, args)` helper
-  - [ ] Document all helpers with usage examples
-  - [ ] Create migration guide for contributors
-  - [ ] Update CONTRIBUTING.md with test helper guidelines
 
 **Estimated Time**: 8-12 hours total (1-1.5 days)
 

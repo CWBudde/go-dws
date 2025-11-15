@@ -103,13 +103,10 @@ func TestLambdaExpression(t *testing.T) {
 		body := &BlockStatement{
 			Statements: []Statement{
 				&ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("PrintLn"),
-						Arguments: []Expression{
-							NewTestStringLiteral("Hello"),
-						},
-						Token: lexer.Token{Type: lexer.LPAREN, Literal: "("},
-					},
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("PrintLn"),
+						[]Expression{NewTestStringLiteral("Hello")},
+					),
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "PrintLn"},
 				},
 			},
@@ -135,13 +132,10 @@ func TestLambdaExpression(t *testing.T) {
 		body := &BlockStatement{
 			Statements: []Statement{
 				&ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("DoSomething"),
-						Arguments: []Expression{
-							NewTestIntegerLiteral(42),
-						},
-						Token: lexer.Token{Type: lexer.LPAREN, Literal: "("},
-					},
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("DoSomething"),
+						[]Expression{NewTestIntegerLiteral(42)},
+					),
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "DoSomething"},
 				},
 			},
@@ -356,11 +350,10 @@ func TestLambdaExpressionEdgeCases(t *testing.T) {
 		body := &BlockStatement{
 			Statements: []Statement{
 				&ExpressionStatement{
-					Expression: &CallExpression{
-						Function:  NewTestIdentifier("DoIt"),
-						Arguments: []Expression{},
-						Token:     lexer.Token{Type: lexer.LPAREN, Literal: "("},
-					},
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("DoIt"),
+						[]Expression{},
+					),
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "DoIt"},
 				},
 			},
