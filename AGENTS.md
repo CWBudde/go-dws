@@ -136,6 +136,12 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - `compile` command: Compile source to bytecode (.dwc files)
   - `version` command: Show version info
 
+- `cmd/gen-visitor/` - Code generator for AST visitor pattern
+  - Parses AST node definitions from `pkg/ast/*.go`
+  - Generates `pkg/ast/visitor_generated.go` with type-safe walk functions
+  - Features: type-aware field handling, embedded field support, custom traversal order
+  - Run: `go run cmd/gen-visitor/main.go` or `go generate ./pkg/ast`
+
 **internal/** - Private implementation (not importable by external projects)
 
 - `internal/lexer/` - Tokenization
@@ -210,7 +216,24 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
 
 **Pratt Parser**: Used for expression parsing with operator precedence. Register prefix/infix parse functions for each token type that can start or continue an expression.
 
-**AST Visitor Pattern**: Ready for semantic analysis phase. Each node type implements standard interfaces for tree traversal.
+**AST Visitor Pattern**: The project uses a generated visitor pattern for tree traversal. The visitor code is automatically generated from AST node definitions, eliminating 83.6% of manually-written boilerplate code while maintaining zero runtime overhead.
+
+**Visitor Code Generation**: The visitor generator (`cmd/gen-visitor/main.go`) parses all AST node definitions and generates `pkg/ast/visitor_generated.go`. Key features:
+
+- **Type-aware field handling**: Only walks fields that are Node types (Expression, Statement, etc.). Primitive fields (strings, ints, bools) are automatically skipped. For example, `BinaryExpression.Operator` (string) is skipped, but `AddressOfExpression.Operator` (Expression) is walked.
+
+- **Embedded field support**: Recursively extracts fields from embedded base types like `TypedExpressionBase`. All expressions that embed `TypedExpressionBase` automatically get their `Type *TypeAnnotation` field walked.
+
+- **Helper type support**: Non-Node helper types like `Parameter`, `CaseBranch`, `ExceptClause` get their own walk functions that are called by the main walker.
+
+- **Custom traversal order**: Support for `ast:"order:N"` tags to control the order of field traversal.
+
+To regenerate the visitor after modifying AST nodes:
+```bash
+go run cmd/gen-visitor/main.go
+# or
+go generate ./pkg/ast
+```
 
 **Symbol Tables**: Will use nested scope chain for variable/function resolution (Stage 5).
 
