@@ -156,6 +156,24 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), err
 			}
 			vm.push(val)
+		case OpRotate3:
+			// Rotate top 3 stack elements: [a, b, c] -> [b, c, a]
+			c, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			b, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			a, err := vm.pop()
+			if err != nil {
+				return NilValue(), err
+			}
+			// Push in order: b, c, a
+			vm.push(b)
+			vm.push(c)
+			vm.push(a)
 		case OpAddInt:
 			if err := vm.binaryIntOp(func(a, b int64) int64 { return a + b }); err != nil {
 				return NilValue(), err
@@ -370,7 +388,52 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if size < 0 {
 				return NilValue(), vm.runtimeError("NEW_ARRAY_SIZED negative size %d", size)
 			}
-			vm.push(ArrayValue(NewArrayInstanceWithLength(size)))
+
+			// Get element type from constant pool
+			typeIndex := int(inst.B())
+			typeVal := chunk.GetConstant(typeIndex)
+			typeName := typeVal.AsString()
+			elementType := resolveValueType(typeName)
+
+			// Create array with proper zero values
+			arr := NewArrayInstanceWithLength(size)
+			for i := 0; i < size; i++ {
+				arr.Set(i, zeroValueForType(elementType))
+			}
+			vm.push(ArrayValue(arr))
+		case OpNewArrayMultiDim:
+			// Get dimension count from instruction
+			dimCount := int(inst.A())
+			if dimCount < 1 {
+				return NilValue(), vm.runtimeError("NEW_ARRAY_MULTIDIM requires at least 1 dimension, got %d", dimCount)
+			}
+
+			// Get element type from constant pool
+			typeIndex := int(inst.B())
+			typeVal := chunk.GetConstant(typeIndex)
+			typeName := typeVal.AsString()
+			elementType := resolveValueType(typeName)
+
+			// Pop dimension sizes from stack (in reverse order)
+			dimensions := make([]int, dimCount)
+			for i := dimCount - 1; i >= 0; i-- {
+				dimVal, err := vm.pop()
+				if err != nil {
+					return NilValue(), err
+				}
+				dim, err := vm.requireInt(dimVal, "NEW_ARRAY_MULTIDIM dimension")
+				if err != nil {
+					return NilValue(), err
+				}
+				if dim <= 0 {
+					return NilValue(), vm.runtimeError("NEW_ARRAY_MULTIDIM dimension must be positive, got %d", dim)
+				}
+				dimensions[i] = dim
+			}
+
+			// Create multi-dimensional array recursively with proper element type
+			result := vm.createMultiDimArray(dimensions, elementType)
+			vm.push(ArrayValue(result))
 		case OpArrayLength:
 			arrVal, err := vm.pop()
 			if err != nil {
@@ -1133,4 +1196,58 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 	}
 
 	return NilValue(), nil
+}
+
+// createMultiDimArray creates a multi-dimensional array with the given dimensions.
+// For 1D arrays, creates a single array with the specified size, filled with zero values.
+// For multi-dimensional arrays, recursively creates nested arrays.
+// Example: dimensions [3, 4] creates an array of 3 elements, each is an array of 4 elements.
+// The elementType parameter specifies the base type for proper zero-value initialization.
+func (vm *VM) createMultiDimArray(dimensions []int, elementType ValueType) *ArrayInstance {
+	if len(dimensions) == 0 {
+		// This shouldn't happen, but handle gracefully
+		return NewArrayInstanceWithLength(0)
+	}
+
+	size := dimensions[0]
+
+	if len(dimensions) == 1 {
+		// Base case: 1D array - fill with proper zero values
+		arr := NewArrayInstanceWithLength(size)
+		for i := 0; i < size; i++ {
+			arr.Set(i, zeroValueForType(elementType))
+		}
+		return arr
+	}
+
+	// Recursive case: multi-dimensional array
+	// Create outer array
+	outer := NewArrayInstanceWithLength(size)
+
+	// Fill each element with a nested array
+	for i := 0; i < size; i++ {
+		inner := vm.createMultiDimArray(dimensions[1:], elementType)
+		outer.Set(i, ArrayValue(inner))
+	}
+
+	return outer
+}
+
+// resolveValueType maps DWScript type names to ValueType constants.
+// This is used when compiling array creation expressions to determine
+// the element type for proper zero-value initialization.
+func resolveValueType(typeName string) ValueType {
+	switch strings.ToLower(typeName) {
+	case "integer", "int":
+		return ValueInt
+	case "float", "real", "double":
+		return ValueFloat
+	case "string":
+		return ValueString
+	case "boolean", "bool":
+		return ValueBool
+	default:
+		// For complex types (arrays, records, objects), use nil as zero value
+		return ValueNil
+	}
 }

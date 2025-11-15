@@ -192,7 +192,17 @@ func (d *Disassembler) tryDisassembleArrayOp(inst Instruction, op OpCode) bool {
 	case OpNewArray:
 		d.byteInstruction(inst, "elements")
 		return true
-	case OpNewArraySized, OpArrayGet, OpArraySet, OpArraySetLength:
+	case OpNewArrayMultiDim:
+		// Show both dimension count (A) and type index (B)
+		dimCount := inst.A()
+		typeIndex := inst.B()
+		fmt.Fprintf(d.writer, "%-20s dims=%d typeIdx=%d\n", inst.String(), dimCount, typeIndex)
+		return true
+	case OpNewArraySized:
+		// Show type index (B)
+		d.byteInstruction(inst, "typeIdx")
+		return true
+	case OpArrayGet, OpArraySet, OpArraySetLength:
 		d.simpleInstruction(inst)
 		return true
 	}

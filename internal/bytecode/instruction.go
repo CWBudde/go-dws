@@ -467,9 +467,17 @@ const (
 	OpNewArray
 
 	// OpNewArraySized creates a new array with size.
-	// Format: [OpNewArraySized][unused][unused]
+	// Format: [OpNewArraySized][unused][typeIndex]
 	// Stack: [size] -> [array]
+	// typeIndex: constant pool index for element type name (for zero-value initialization)
 	OpNewArraySized
+
+	// OpNewArrayMultiDim creates a multi-dimensional array.
+	// Format: [OpNewArrayMultiDim][dimCount][typeIndex]
+	// Stack: [dim1, dim2, ..., dimN] -> [array]
+	// Creates nested arrays: new T[d1, d2] creates array of d1 elements, each is array of d2 elements
+	// typeIndex: constant pool index for element type name (for zero-value initialization)
+	OpNewArrayMultiDim
 
 	// OpArrayLength pushes array length onto stack.
 	// Format: [OpArrayLength][unused][unused]
@@ -773,6 +781,7 @@ var OpCodeNames = [...]string{
 	OpRotate3:          "ROTATE3",
 	OpNewArray:         "NEW_ARRAY",
 	OpNewArraySized:    "NEW_ARRAY_SIZED",
+	OpNewArrayMultiDim: "NEW_ARRAY_MULTIDIM",
 	OpArrayLength:      "ARRAY_LENGTH",
 	OpArrayGet:         "ARRAY_GET",
 	OpArraySet:         "ARRAY_SET",
