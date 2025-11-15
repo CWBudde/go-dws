@@ -27,7 +27,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 
 	// Build the record declaration inline (similar to parseRecordDeclaration)
 	recordDecl := &ast.RecordDecl{
-		Token:      typeToken,
+		BaseNode:   ast.BaseNode{Token: typeToken},
 		Name:       nameIdent,
 		Fields:     []*ast.FieldDecl{},
 		Methods:    []*ast.FunctionDecl{},
@@ -134,7 +134,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 //     end;
 func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.RecordDecl {
 	recordDecl := &ast.RecordDecl{
-		Token:      typeToken, // The 'type' token
+		BaseNode:   ast.BaseNode{Token: typeToken}, // The 'type' token
 		Name:       nameIdent,
 		Fields:     []*ast.FieldDecl{},
 		Methods:    []*ast.FunctionDecl{},
@@ -306,8 +306,8 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 // This is called from parseGroupedExpression when it detects a record literal pattern.
 func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 	recordLit := &ast.RecordLiteralExpression{
-		Token:    p.curToken, // '(' token
-		TypeName: nil,        // Anonymous record (type inferred from context)
+		BaseNode: ast.BaseNode{Token: p.curToken}, // '(' token
+		TypeName: nil,                              // Anonymous record (type inferred from context)
 		Fields:   []*ast.FieldInitializer{},
 	}
 
@@ -341,9 +341,9 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 			}
 
 			fieldInit := &ast.FieldInitializer{
-				Token: fieldNameToken,
-				Name:  fieldName,
-				Value: value,
+				BaseNode: ast.BaseNode{Token: fieldNameToken},
+				Name:     fieldName,
+				Value:    value,
 			}
 
 			recordLit.Fields = append(recordLit.Fields, fieldInit)
@@ -405,7 +405,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	}
 
 	prop := &ast.RecordPropertyDecl{
-		Token:      propToken,
+		BaseNode:   ast.BaseNode{Token: propToken},
 		Name:       propName,
 		Type:       propType,
 		ReadField:  "",

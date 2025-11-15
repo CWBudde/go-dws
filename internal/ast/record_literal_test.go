@@ -15,18 +15,18 @@ func TestRecordLiteralExpression_Simple(t *testing.T) {
 	tok := lexer.Token{Type: lexer.LPAREN, Literal: "(", Pos: lexer.Position{Line: 1, Column: 1}}
 
 	recordLit := &RecordLiteralExpression{
-		Token:    tok,
+		BaseNode: BaseNode{Token: tok},
 		TypeName: nil, // Anonymous record
 		Fields: []*FieldInitializer{
 			{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-				Name:  &Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}, Value: "x"},
-				Value: &IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "10"}, Value: 10},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}},
+				Name:     &Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}, Value: "x"},
+				Value:    &IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "10"}, Value: 10},
 			},
 			{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "y"},
-				Name:  &Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "y"}, Value: "y"},
-				Value: &IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "20"}, Value: 20},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "y"}},
+				Name:     &Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "y"}, Value: "y"},
+				Value:    &IntegerLiteral{Token: lexer.Token{Type: lexer.INT, Literal: "20"}, Value: 20},
 			},
 		},
 	}
@@ -67,7 +67,7 @@ func TestRecordLiteralExpression_WithTypeName(t *testing.T) {
 	tok := lexer.Token{Type: lexer.IDENT, Literal: "TPoint"}
 
 	recordLit := &RecordLiteralExpression{
-		Token:    tok,
+		BaseNode: BaseNode{Token: tok},
 		TypeName: &Identifier{Value: "TPoint"},
 		Fields: []*FieldInitializer{
 			{
@@ -100,7 +100,7 @@ func TestRecordLiteralExpression_WithTypeName(t *testing.T) {
 func TestRecordLiteralExpression_NestedRecords(t *testing.T) {
 	// Test nested records: TRect(TopLeft: (x: 0; y: 0); BottomRight: (x: 10; y: 10))
 	innerRecord1 := &RecordLiteralExpression{
-		Token:    lexer.Token{Type: lexer.LPAREN, Literal: "("},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
 		TypeName: nil,
 		Fields: []*FieldInitializer{
 			{Name: &Identifier{Value: "x"}, Value: &IntegerLiteral{Token: lexer.Token{Literal: "0"}, Value: 0}},
@@ -109,7 +109,7 @@ func TestRecordLiteralExpression_NestedRecords(t *testing.T) {
 	}
 
 	innerRecord2 := &RecordLiteralExpression{
-		Token:    lexer.Token{Type: lexer.LPAREN, Literal: "("},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
 		TypeName: nil,
 		Fields: []*FieldInitializer{
 			{Name: &Identifier{Value: "x"}, Value: &IntegerLiteral{Token: lexer.Token{Literal: "10"}, Value: 10}},
@@ -118,7 +118,7 @@ func TestRecordLiteralExpression_NestedRecords(t *testing.T) {
 	}
 
 	outerRecord := &RecordLiteralExpression{
-		Token:    lexer.Token{Type: lexer.IDENT, Literal: "TRect"},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TRect"}},
 		TypeName: &Identifier{Value: "TRect"},
 		Fields: []*FieldInitializer{
 			{Name: &Identifier{Value: "TopLeft"}, Value: innerRecord1},
@@ -150,7 +150,7 @@ func TestRecordLiteralExpression_NestedRecords(t *testing.T) {
 func TestRecordLiteralExpression_WithExpressions(t *testing.T) {
 	// Test with expressions: TSphere(cx: x+5; cy: y*2; r: radius)
 	recordLit := &RecordLiteralExpression{
-		Token:    lexer.Token{Type: lexer.IDENT, Literal: "TSphere"},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TSphere"}},
 		TypeName: &Identifier{Value: "TSphere"},
 		Fields: []*FieldInitializer{
 			{
@@ -204,7 +204,7 @@ func TestRecordLiteralExpression_WithNegativeNumbers(t *testing.T) {
 	// Test with negative numbers: (x: -50; y: 30)
 	// This is from Death_Star.dws example
 	recordLit := &RecordLiteralExpression{
-		Token:    lexer.Token{Type: lexer.LPAREN, Literal: "("},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
 		TypeName: nil,
 		Fields: []*FieldInitializer{
 			{
@@ -243,7 +243,7 @@ func TestRecordLiteralExpression_DeathStarExample(t *testing.T) {
 	// Test actual example from Death_Star.dws:
 	// const big : TSphere = (cx: 20; cy: 20; cz: 0; r: 20);
 	recordLit := &RecordLiteralExpression{
-		Token:    lexer.Token{Type: lexer.LPAREN, Literal: "("},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
 		TypeName: nil, // Type comes from const declaration context
 		Fields: []*FieldInitializer{
 			{Name: &Identifier{Value: "cx"}, Value: &IntegerLiteral{Token: lexer.Token{Literal: "20"}, Value: 20}},
@@ -277,7 +277,7 @@ func TestRecordLiteralExpression_DeathStarExample(t *testing.T) {
 func TestRecordLiteralExpression_EmptyRecord(t *testing.T) {
 	// Test empty record: ()
 	recordLit := &RecordLiteralExpression{
-		Token:    lexer.Token{Type: lexer.LPAREN, Literal: "("},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
 		TypeName: nil,
 		Fields:   []*FieldInitializer{},
 	}
@@ -298,7 +298,7 @@ func TestRecordLiteralExpression_EmptyRecord(t *testing.T) {
 func TestRecordLiteralExpression_SingleField(t *testing.T) {
 	// Test single field record: (value: 42)
 	recordLit := &RecordLiteralExpression{
-		Token:    lexer.Token{Type: lexer.LPAREN, Literal: "("},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
 		TypeName: nil,
 		Fields: []*FieldInitializer{
 			{Name: &Identifier{Value: "value"}, Value: &IntegerLiteral{Token: lexer.Token{Literal: "42"}, Value: 42}},

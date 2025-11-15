@@ -359,7 +359,7 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 	if isRecordLiteral {
 		// Successfully parsed as record literal
 		return &ast.RecordLiteralExpression{
-			Token:    p.curToken,
+			BaseNode: ast.BaseNode{Token: p.curToken},
 			TypeName: typeName,
 			Fields:   fields,
 		}
@@ -377,7 +377,7 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 	if allHaveColons {
 		// All items were field initializers -> record literal
 		return &ast.RecordLiteralExpression{
-			Token:    p.curToken,
+			BaseNode: ast.BaseNode{Token: p.curToken},
 			TypeName: typeName,
 			Fields:   items,
 		}
@@ -436,9 +436,9 @@ func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitia
 			}
 
 			item = &ast.FieldInitializer{
-				Token: fieldName.Token,
-				Name:  fieldName,
-				Value: value,
+				BaseNode: ast.BaseNode{Token: fieldName.Token},
+				Name:     fieldName,
+				Value:    value,
 			}
 		} else {
 			// Not a field initializer, just a regular expression
@@ -448,9 +448,9 @@ func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitia
 			}
 
 			item = &ast.FieldInitializer{
-				Token: p.curToken,
-				Name:  nil, // no name means regular argument
-				Value: expr,
+				BaseNode: ast.BaseNode{Token: p.curToken},
+				Name:     nil, // no name means regular argument
+				Value:    expr,
 			}
 			allHaveColons = false
 		}
@@ -633,8 +633,8 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
 	// We're currently at the IDENT after '(', and peek is COLON
 	recordLit := &ast.RecordLiteralExpression{
-		Token:    p.curToken, // The first field name token
-		TypeName: nil,        // Anonymous record
+		BaseNode: ast.BaseNode{Token: p.curToken}, // The first field name token
+		TypeName: nil,                              // Anonymous record
 		Fields:   []*ast.FieldInitializer{},
 	}
 
@@ -657,9 +657,9 @@ func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
 			}
 
 			fieldInit := &ast.FieldInitializer{
-				Token: fieldNameToken,
-				Name:  fieldName,
-				Value: value,
+				BaseNode: ast.BaseNode{Token: fieldNameToken},
+				Name:     fieldName,
+				Value:    value,
 			}
 
 			recordLit.Fields = append(recordLit.Fields, fieldInit)

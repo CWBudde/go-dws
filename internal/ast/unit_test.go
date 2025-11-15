@@ -16,8 +16,8 @@ func TestUsesClauseString(t *testing.T) {
 		{
 			name: "single unit",
 			uses: &UsesClause{
-				Token: lexer.Token{Type: lexer.USES, Literal: "uses"},
-				Units: []*Identifier{
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
+				Units:    []*Identifier{
 					{Value: "System"},
 				},
 			},
@@ -26,8 +26,8 @@ func TestUsesClauseString(t *testing.T) {
 		{
 			name: "multiple units",
 			uses: &UsesClause{
-				Token: lexer.Token{Type: lexer.USES, Literal: "uses"},
-				Units: []*Identifier{
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
+				Units:    []*Identifier{
 					{Value: "System"},
 					{Value: "Math"},
 					{Value: "Graphics"},
@@ -38,8 +38,8 @@ func TestUsesClauseString(t *testing.T) {
 		{
 			name: "two units",
 			uses: &UsesClause{
-				Token: lexer.Token{Type: lexer.USES, Literal: "uses"},
-				Units: []*Identifier{
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
+				Units:    []*Identifier{
 					{Value: "System"},
 					{Value: "SysUtils"},
 				},
@@ -49,8 +49,8 @@ func TestUsesClauseString(t *testing.T) {
 		{
 			name: "empty uses clause (edge case)",
 			uses: &UsesClause{
-				Token: lexer.Token{Type: lexer.USES, Literal: "uses"},
-				Units: []*Identifier{},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
+				Units:    []*Identifier{},
 			},
 			expected: "uses ;",
 		},
@@ -74,7 +74,7 @@ func TestUsesClauseNodeInterface(t *testing.T) {
 	}
 
 	uses := &UsesClause{
-		Token: token,
+		BaseNode: BaseNode{Token: token},
 		Units: []*Identifier{
 			{Value: "System"},
 		},
@@ -108,8 +108,8 @@ func TestUnitDeclarationString(t *testing.T) {
 		{
 			name: "minimal unit",
 			unit: &UnitDeclaration{
-				Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-				Name:  &Identifier{Value: "MyUnit"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+				Name:     &Identifier{Value: "MyUnit"},
 			},
 			expected: []string{
 				"unit MyUnit;",
@@ -119,13 +119,13 @@ func TestUnitDeclarationString(t *testing.T) {
 		{
 			name: "unit with interface section",
 			unit: &UnitDeclaration{
-				Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-				Name:  &Identifier{Value: "MyLibrary"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+				Name:     &Identifier{Value: "MyLibrary"},
 				InterfaceSection: &BlockStatement{
 					Statements: []Statement{
 						&UsesClause{
-							Token: lexer.Token{Type: lexer.USES, Literal: "uses"},
-							Units: []*Identifier{
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
+							Units:    []*Identifier{
 								{Value: "System"},
 							},
 						},
@@ -142,8 +142,8 @@ func TestUnitDeclarationString(t *testing.T) {
 		{
 			name: "unit with implementation section",
 			unit: &UnitDeclaration{
-				Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-				Name:  &Identifier{Value: "TestUnit"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+				Name:     &Identifier{Value: "TestUnit"},
 				ImplementationSection: &BlockStatement{
 					Statements: []Statement{
 						&VarDeclStatement{
@@ -164,13 +164,13 @@ func TestUnitDeclarationString(t *testing.T) {
 		{
 			name: "unit with interface and implementation",
 			unit: &UnitDeclaration{
-				Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-				Name:  &Identifier{Value: "CompleteUnit"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+				Name:     &Identifier{Value: "CompleteUnit"},
 				InterfaceSection: &BlockStatement{
 					Statements: []Statement{
 						&UsesClause{
-							Token: lexer.Token{Type: lexer.USES, Literal: "uses"},
-							Units: []*Identifier{
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
+							Units:    []*Identifier{
 								{Value: "System"},
 							},
 						},
@@ -198,8 +198,8 @@ func TestUnitDeclarationString(t *testing.T) {
 		{
 			name: "unit with initialization",
 			unit: &UnitDeclaration{
-				Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-				Name:  &Identifier{Value: "InitUnit"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+				Name:     &Identifier{Value: "InitUnit"},
 				InitSection: &BlockStatement{
 					Statements: []Statement{
 						&ExpressionStatement{
@@ -218,8 +218,8 @@ func TestUnitDeclarationString(t *testing.T) {
 		{
 			name: "unit with finalization",
 			unit: &UnitDeclaration{
-				Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-				Name:  &Identifier{Value: "FinalUnit"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+				Name:     &Identifier{Value: "FinalUnit"},
 				FinalSection: &BlockStatement{
 					Statements: []Statement{
 						&ExpressionStatement{
@@ -238,13 +238,13 @@ func TestUnitDeclarationString(t *testing.T) {
 		{
 			name: "complete unit with all sections",
 			unit: &UnitDeclaration{
-				Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-				Name:  &Identifier{Value: "FullUnit"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+				Name:     &Identifier{Value: "FullUnit"},
 				InterfaceSection: &BlockStatement{
 					Statements: []Statement{
 						&UsesClause{
-							Token: lexer.Token{Type: lexer.USES, Literal: "uses"},
-							Units: []*Identifier{
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
+							Units:    []*Identifier{
 								{Value: "System"},
 								{Value: "Math"},
 							},
@@ -312,8 +312,8 @@ func TestUnitDeclarationNodeInterface(t *testing.T) {
 	}
 
 	unit := &UnitDeclaration{
-		Token: token,
-		Name:  &Identifier{Value: "TestUnit"},
+		BaseNode: BaseNode{Token: token},
+		Name:     &Identifier{Value: "TestUnit"},
 	}
 
 	t.Run("TokenLiteral", func(t *testing.T) {
@@ -338,8 +338,8 @@ func TestUnitDeclarationNodeInterface(t *testing.T) {
 func TestUnitDeclarationFields(t *testing.T) {
 	t.Run("all fields accessible", func(t *testing.T) {
 		unit := &UnitDeclaration{
-			Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-			Name:  &Identifier{Value: "TestUnit"},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+			Name:     &Identifier{Value: "TestUnit"},
 			InterfaceSection: &BlockStatement{
 				Statements: []Statement{},
 			},
@@ -377,8 +377,8 @@ func TestUnitDeclarationFields(t *testing.T) {
 
 	t.Run("optional sections can be nil", func(t *testing.T) {
 		unit := &UnitDeclaration{
-			Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-			Name:  &Identifier{Value: "MinimalUnit"},
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+			Name:     &Identifier{Value: "MinimalUnit"},
 		}
 
 		// These should be nil and String() should handle it
@@ -409,8 +409,8 @@ func TestUnitDeclarationFields(t *testing.T) {
 func TestUsesClauseFields(t *testing.T) {
 	t.Run("units list accessible", func(t *testing.T) {
 		uses := &UsesClause{
-			Token: lexer.Token{Type: lexer.USES, Literal: "uses"},
-			Units: []*Identifier{
+			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
+			Units:    []*Identifier{
 				{Value: "System"},
 				{Value: "Math"},
 				{Value: "Graphics"},

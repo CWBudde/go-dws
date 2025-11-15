@@ -16,8 +16,8 @@ func TestRecordDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		recordDecl := &RecordDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TPoint"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TPoint"},
 			Fields: []*FieldDecl{
 				{
 					BaseNode: BaseNode{
@@ -76,8 +76,8 @@ func TestRecordDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		recordDecl := &RecordDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TPoint"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TPoint"},
 			Fields: []*FieldDecl{
 				{
 					BaseNode: BaseNode{
@@ -137,8 +137,8 @@ func TestRecordDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		recordDecl := &RecordDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TPoint"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TPoint"},
 			Fields: []*FieldDecl{
 				{
 					BaseNode: BaseNode{
@@ -176,8 +176,8 @@ func TestRecordDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		recordDecl := &RecordDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TPoint"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TPoint"},
 			Fields: []*FieldDecl{
 				{
 					BaseNode: BaseNode{

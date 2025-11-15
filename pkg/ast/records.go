@@ -5,8 +5,6 @@ package ast
 import (
 	"bytes"
 	"strings"
-
-	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -23,24 +21,14 @@ import (
 //	  function MethodName: ReturnType;
 //	end;
 type RecordDecl struct {
+	BaseNode
 	Name       *Identifier
 	Fields     []*FieldDecl
 	Methods    []*FunctionDecl
 	Properties []RecordPropertyDecl
-	Token      token.Token
-	EndPos     token.Position
 }
 
-func (r *RecordDecl) End() token.Position {
-	if r.EndPos.Line != 0 {
-		return r.EndPos
-	}
-	return r.Token.Pos
-}
-
-func (rd *RecordDecl) statementNode()       {}
-func (rd *RecordDecl) TokenLiteral() string { return rd.Token.Literal }
-func (rd *RecordDecl) Pos() token.Position  { return rd.Token.Pos }
+func (rd *RecordDecl) statementNode() {}
 func (rd *RecordDecl) String() string {
 	var out bytes.Buffer
 
@@ -80,19 +68,11 @@ func (rd *RecordDecl) String() string {
 // DWScript syntax: property Name: Type read Field write Field;
 // Note: Renamed from PropertyDecl to avoid conflict with class PropertyDecl
 type RecordPropertyDecl struct {
+	BaseNode
 	Name       *Identifier
 	Type       *TypeAnnotation
 	ReadField  string
 	WriteField string
-	Token      token.Token
-	EndPos     token.Position
-}
-
-func (r *RecordPropertyDecl) End() token.Position {
-	if r.EndPos.Line != 0 {
-		return r.EndPos
-	}
-	return r.Token.Pos
 }
 
 func (pd RecordPropertyDecl) String() string {
@@ -124,17 +104,9 @@ func (pd RecordPropertyDecl) String() string {
 // DWScript syntax: fieldName: value
 // The Name can be nil for positional initialization (not yet implemented).
 type FieldInitializer struct {
-	Name   *Identifier // Field name (nil for positional initialization)
-	Value  Expression  // Field value expression
-	Token  token.Token // The field name token or first token of value
-	EndPos token.Position
-}
-
-func (f *FieldInitializer) End() token.Position {
-	if f.EndPos.Line != 0 {
-		return f.EndPos
-	}
-	return f.Token.Pos
+	BaseNode
+	Name  *Identifier // Field name (nil for positional initialization)
+	Value Expression  // Field value expression
 }
 
 // String returns a string representation of the field initializer.
@@ -163,22 +135,12 @@ func (fi *FieldInitializer) String() string {
 //   - const big : TSphere = (cx: 20; cy: 20; cz: 0; r: 20);
 //   - const small : TSphere = (cx: 7; cy: 7; cz: -10; r: 15);
 type RecordLiteralExpression struct {
+	BaseNode
 	TypeName *Identifier         // Optional type name (nil for anonymous records)
 	Fields   []*FieldInitializer // Field initializers
-	Token    token.Token         // The '(' token or type name token
-	EndPos   token.Position
 }
 
-func (r *RecordLiteralExpression) End() token.Position {
-	if r.EndPos.Line != 0 {
-		return r.EndPos
-	}
-	return r.Token.Pos
-}
-
-func (rle *RecordLiteralExpression) expressionNode()      {}
-func (rle *RecordLiteralExpression) TokenLiteral() string { return rle.Token.Literal }
-func (rle *RecordLiteralExpression) Pos() token.Position  { return rle.Token.Pos }
+func (rle *RecordLiteralExpression) expressionNode() {}
 func (rle *RecordLiteralExpression) String() string {
 	var out bytes.Buffer
 
