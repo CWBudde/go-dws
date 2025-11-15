@@ -36,7 +36,8 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 
 	// Store regular function in the registry
 	// Support overloading by storing multiple functions per name
-	funcName := fn.Name.Value
+	// DWScript is case-insensitive, so normalize the function name to lowercase
+	funcName := strings.ToLower(fn.Name.Value)
 
 	// If this function has a body, it may be an implementation that should
 	// replace a previous interface declaration (which has no body).
