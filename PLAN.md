@@ -1367,11 +1367,12 @@ func walkBinaryExpression(n *BinaryExpression, v Visitor) { ... }
   - Files: `internal/semantic/*.go`, `pkg/dwscript/symbols.go`
   - Documentation: `docs/visitor-compatibility-test-results.md`
 
-- [ ] 9.17.7 Update documentation
-  - Explain code generation approach
-  - Document struct tags for controlling traversal
-  - Provide regeneration instructions
-  - File: `pkg/ast/doc.go`, `docs/ast-visitor-codegen.md` (new)
+- [x] 9.17.7 Update documentation - DONE
+  - Explain code generation approach ✅
+  - Document struct tags for controlling traversal ✅
+  - Provide regeneration instructions ✅
+  - Updated: `pkg/ast/doc.go` (added Visitor Pattern & Code Generation sections)
+  - Created: `docs/ast-visitor-codegen.md` (comprehensive 600+ line guide)
 
 - [ ] 9.17.8 Migrate to generated visitor
   - Replace manual visitor.go with generated version
@@ -1388,14 +1389,36 @@ func walkBinaryExpression(n *BinaryExpression, v Visitor) { ... }
 
 **Files Created/Modified**:
 
-- `pkg/ast/visitor_reflect.go` (research prototype, 151 lines) - NOT FOR PRODUCTION
-- `pkg/ast/visitor_reflect_test.go` (research tests/benchmarks, 485 lines)
-- `docs/visitor-reflection-research.md` (research findings)
-- `cmd/gen-visitor/main.go` (code generator tool ~300-400 lines) - TO BE IMPLEMENTED
-- `pkg/ast/visitor_generated.go` (generated code ~900 lines) - TO BE GENERATED
-- `pkg/ast/visitor_legacy.go` (renamed from visitor.go for comparison)
-- `pkg/ast/doc.go` (add //go:generate directive and documentation)
-- `docs/ast-visitor-codegen.md` (code generation documentation)
+Research phase (9.17.1):
+- `pkg/ast/visitor_reflect.go` (research prototype, 151 lines) ✅
+- `pkg/ast/visitor_reflect_test.go` (research tests/benchmarks, 485 lines) ✅
+- `docs/visitor-reflection-research.md` (research findings) ✅
+
+Code generation (9.17.2-9.17.3):
+- `cmd/gen-visitor/main.go` (code generator tool, 536 lines) ✅
+- `pkg/ast/visitor_generated.go` (generated code, 805 lines) ✅
+- `pkg/ast/visitor_interface.go` (Visitor interface + go:generate directive) ✅
+
+Struct tags (9.17.4):
+- `pkg/ast/visitor_tags_test.go` (struct tag tests, 82 lines) ✅
+- `docs/ast-visitor-tags.md` (struct tag documentation, 380 lines) ✅
+
+Benchmarking (9.17.5):
+- `pkg/ast/visitor_bench_test.go` (comprehensive benchmarks, 349 lines) ✅
+- `docs/visitor-benchmark-results.md` (performance analysis, 450+ lines) ✅
+
+Testing (9.17.6):
+- `docs/visitor-compatibility-test-results.md` (compatibility report, 355 lines) ✅
+
+Documentation (9.17.7):
+- `pkg/ast/doc.go` (added Visitor Pattern & Code Generation sections) ✅
+- `docs/ast-visitor-codegen.md` (comprehensive guide, 600+ lines) ✅
+
+Migration (9.17.8): DEFERRED
+- Manual visitor.go still in use (will be migrated separately)
+
+AST design fixes (9.17.9): TODO
+- CaseBranch, ExceptClause, ExceptionHandler Node interface decisions
 
 **Acceptance Criteria**:
 - Code generator successfully parses all AST node types ✅
