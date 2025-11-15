@@ -216,6 +216,10 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		}
 	}
 
+	// Task 9.1.5: Clean up interface references before restoring environment
+	// This releases references to interface-held objects and calls destructors if ref count reaches 0
+	i.cleanupInterfaceReferences(funcEnv)
+
 	// Restore the original environment
 	i.env = savedEnv
 

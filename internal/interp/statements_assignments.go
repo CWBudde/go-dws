@@ -347,20 +347,52 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 			value = boxVariant(value)
 		}
 
+		// Task 9.1.5: Handle object variable assignment - manage ref count
+		if objInst, isObj := existingVal.(*ObjectInstance); isObj {
+			if _, isNil := value.(*NilValue); isNil {
+				// Setting object variable to nil - decrement ref count
+				objInst.RefCount--
+				if objInst.RefCount <= 0 {
+					// Call destructor if ref count reaches 0
+					destructor := objInst.Class.lookupMethod("Destroy")
+					if destructor != nil {
+						destructorEnv := NewEnclosedEnvironment(i.env)
+						destructorEnv.Define("Self", objInst)
+						prevEnv := i.env
+						i.env = destructorEnv
+						i.Eval(destructor.Body)
+						i.env = prevEnv
+					}
+				}
+			} else if newObj, isNewObj := value.(*ObjectInstance); isNewObj {
+				// Assigning new object to object variable - increment new object's ref count
+				newObj.RefCount++
+			}
+		}
+
 		// Task 9.16.2: Wrap object instances in InterfaceInstance when assigning to interface variables
 		if ifaceInst, isIface := existingVal.(*InterfaceInstance); isIface {
+			// Task 9.1.5: Release the old interface reference before assigning new value
+			// This decrements ref count and calls destructor if ref count reaches 0
+			i.ReleaseInterfaceReference(ifaceInst)
+
 			// Target is an interface variable - wrap the value if it's an object
 			if objInst, ok := value.(*ObjectInstance); ok {
 				// Assigning an object to an interface variable - wrap it
 				value = NewInterfaceInstance(ifaceInst.Interface, objInst)
 			} else if _, isNil := value.(*NilValue); isNil {
 				// Assigning nil to interface - create interface instance with nil object
+				// No need to increment ref count since object is nil
 				value = &InterfaceInstance{
 					Interface: ifaceInst.Interface,
 					Object:    nil,
 				}
 			} else if srcIface, isSrcIface := value.(*InterfaceInstance); isSrcIface {
 				// Assigning interface to interface
+				// Increment ref count on the underlying object (if not nil)
+				if srcIface.Object != nil {
+					srcIface.Object.RefCount++
+				}
 				// Use the underlying object but with the target interface type
 				value = &InterfaceInstance{
 					Interface: ifaceInst.Interface,
