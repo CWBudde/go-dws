@@ -3,6 +3,7 @@ package parser
 import (
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
@@ -525,6 +526,136 @@ func TestParseTypeExpression_ErrorCases(t *testing.T) {
 			// May return nil or partial result
 			if typeExpr != nil {
 				t.Logf("partial result: %s", typeExpr.String())
+			}
+		})
+	}
+}
+
+// TestMultipleTypeDeclarationsInOneTypeSection tests parsing of multiple type declarations
+// within a single 'type' section. This is a common pattern in DWScript/Pascal.
+//
+// Task 9.4: Support for multiple type declarations in one type section
+func TestMultipleTypeDeclarationsInOneTypeSection(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		wantErr  bool
+		numTypes int // expected number of type declarations
+	}{
+		{
+			name: "two class declarations",
+			input: `
+				type
+					TFirst = class
+						X: Integer;
+					end;
+					TSecond = class
+						Y: String;
+					end;
+			`,
+			wantErr:  false,
+			numTypes: 2,
+		},
+		{
+			name: "three mixed type declarations",
+			input: `
+				type
+					TClass1 = class end;
+					TAlias = Integer;
+					TClass2 = class end;
+			`,
+			wantErr:  false,
+			numTypes: 3,
+		},
+		{
+			name: "forward declaration followed by implementation",
+			input: `
+				type
+					TForward = class;
+					TActual = class
+						FNext: TForward;
+					end;
+					TForward = class
+						FPrev: TActual;
+					end;
+			`,
+			wantErr:  false,
+			numTypes: 3,
+		},
+		{
+			name: "record and class in same type section",
+			input: `
+				type
+					TPoint = record
+						X, Y: Integer;
+					end;
+					TShape = class
+						Origin: TPoint;
+					end;
+			`,
+			wantErr:  false,
+			numTypes: 2,
+		},
+		{
+			name: "single type declaration (backward compatibility)",
+			input: `
+				type
+					TMyClass = class
+						Field: Integer;
+					end;
+			`,
+			wantErr:  false,
+			numTypes: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+
+			// Check for parse errors
+			if tt.wantErr {
+				if len(p.Errors()) == 0 {
+					t.Errorf("expected errors but got none")
+				}
+				return
+			}
+
+			if len(p.Errors()) > 0 {
+				t.Errorf("unexpected parse errors: %v", p.Errors())
+				return
+			}
+
+			// Verify we got a program
+			if program == nil {
+				t.Fatal("expected program, got nil")
+			}
+
+			// Count type declarations
+			// The program should have one or more statements
+			// If there's only one type declaration, it's returned directly
+			// If there are multiple, they're wrapped in a BlockStatement
+			var typeCount int
+			if len(program.Statements) == 0 {
+				t.Fatal("expected at least one statement in program")
+			}
+
+			stmt := program.Statements[0]
+			switch s := stmt.(type) {
+			case *ast.BlockStatement:
+				// Multiple type declarations wrapped in BlockStatement
+				typeCount = len(s.Statements)
+			case *ast.ClassDecl, *ast.TypeDeclaration:
+				// Single type declaration
+				typeCount = 1
+			default:
+				t.Fatalf("unexpected statement type: %T", stmt)
+			}
+
+			if typeCount != tt.numTypes {
+				t.Errorf("expected %d type declarations, got %d", tt.numTypes, typeCount)
 			}
 		})
 	}
