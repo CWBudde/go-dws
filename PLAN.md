@@ -582,9 +582,10 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
 **Estimate**: 24-32 hours (3-4 days total)
 - Research phase (9.17.1): 8 hours - COMPLETED
 - Code generation implementation (9.17.2-9.17.6): 16 hours - COMPLETED
-- Documentation and migration (9.17.7-9.17.9): 8 hours - TODO
+- Documentation and migration (9.17.7-9.17.8): 6 hours - COMPLETED
+- AST design fixes (9.17.9): 2 hours - TODO
 
-**Status**: IN PROGRESS (Core implementation complete, documentation and migration remaining)
+**Status**: NEARLY COMPLETE (9.17.1-9.17.8 done, only 9.17.9 AST design inconsistencies remaining)
 
 **Impact**: Major maintainability improvement, eliminates 83.6% of manually-written visitor code, zero runtime overhead, eliminates need to update visitor for new node types
 
@@ -699,11 +700,11 @@ func walkBinaryExpression(n *BinaryExpression, v Visitor) { ... }
   - Updated: `pkg/ast/doc.go` (added Visitor Pattern & Code Generation sections)
   - Created: `docs/ast-visitor-codegen.md` (comprehensive 600+ line guide)
 
-- [ ] 9.17.8 Migrate to generated visitor
-  - Replace manual visitor.go with generated version
-  - Keep manual visitor as visitor_legacy.go for comparison
-  - Update all imports and references
-  - Verify all tests pass
+- [x] 9.17.8 Migrate to generated visitor - DONE
+  - Replace manual visitor.go with generated version ✅
+  - Keep manual visitor as visitor_legacy.go for comparison ✅
+  - Update all imports and references ✅
+  - Verify all tests pass ✅
 
 - [ ] 9.17.9 Fix AST design inconsistencies (discovered in research)
   - Remove Node interface from CaseBranch (it's a helper struct)
@@ -739,8 +740,8 @@ Documentation (9.17.7):
 - `pkg/ast/doc.go` (added Visitor Pattern & Code Generation sections) ✅
 - `docs/ast-visitor-codegen.md` (comprehensive guide, 600+ lines) ✅
 
-Migration (9.17.8): DEFERRED
-- Manual visitor.go still in use (will be migrated separately)
+Migration (9.17.8): DONE ✅
+- `pkg/ast/visitor_legacy.go` (original manual visitor preserved for comparison, excluded from build via `// +build legacy` tag)
 
 AST design fixes (9.17.9): TODO
 - CaseBranch, ExceptClause, ExceptionHandler Node interface decisions
