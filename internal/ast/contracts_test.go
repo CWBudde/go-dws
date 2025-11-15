@@ -155,8 +155,8 @@ func TestPostConditionsTokenLiteral(t *testing.T) {
 
 func TestOldExpressionTokenLiteral(t *testing.T) {
 	oldExpr := &OldExpression{
-		TypedExpressionBase: TypedExpressionBase{BaseNode:   BaseNode{Token: lexer.Token{Type: lexer.OLD, Literal: "old"}}},
-		Identifier: NewTestIdentifier("x"),
+		TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.OLD, Literal: "old"}}},
+		Identifier:          NewTestIdentifier("x"),
 	}
 
 	if oldExpr.TokenLiteral() != "old" {
@@ -170,8 +170,8 @@ func TestFunctionDeclWithContracts(t *testing.T) {
 		Name:     NewTestIdentifier("TestFunc"),
 		Parameters: []*Parameter{
 			{
-				Name:     NewTestIdentifier("x"),
-				Type:     NewTestTypeAnnotation("Integer"),
+				Name:  NewTestIdentifier("x"),
+				Type:  NewTestTypeAnnotation("Integer"),
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 			},
 		},
