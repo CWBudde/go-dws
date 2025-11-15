@@ -307,7 +307,7 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 	recordLit := &ast.RecordLiteralExpression{
 		BaseNode: ast.BaseNode{Token: p.curToken}, // '(' token
-		TypeName: nil,                              // Anonymous record (type inferred from context)
+		TypeName: nil,                             // Anonymous record (type inferred from context)
 		Fields:   []*ast.FieldInitializer{},
 	}
 

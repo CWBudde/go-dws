@@ -17,7 +17,7 @@ func TestUsesClauseString(t *testing.T) {
 			name: "single unit",
 			uses: &UsesClause{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
-				Units:    []*Identifier{
+				Units: []*Identifier{
 					{Value: "System"},
 				},
 			},
@@ -27,7 +27,7 @@ func TestUsesClauseString(t *testing.T) {
 			name: "multiple units",
 			uses: &UsesClause{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
-				Units:    []*Identifier{
+				Units: []*Identifier{
 					{Value: "System"},
 					{Value: "Math"},
 					{Value: "Graphics"},
@@ -39,7 +39,7 @@ func TestUsesClauseString(t *testing.T) {
 			name: "two units",
 			uses: &UsesClause{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
-				Units:    []*Identifier{
+				Units: []*Identifier{
 					{Value: "System"},
 					{Value: "SysUtils"},
 				},
@@ -125,7 +125,7 @@ func TestUnitDeclarationString(t *testing.T) {
 					Statements: []Statement{
 						&UsesClause{
 							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
-							Units:    []*Identifier{
+							Units: []*Identifier{
 								{Value: "System"},
 							},
 						},
@@ -170,7 +170,7 @@ func TestUnitDeclarationString(t *testing.T) {
 					Statements: []Statement{
 						&UsesClause{
 							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
-							Units:    []*Identifier{
+							Units: []*Identifier{
 								{Value: "System"},
 							},
 						},
@@ -244,7 +244,7 @@ func TestUnitDeclarationString(t *testing.T) {
 					Statements: []Statement{
 						&UsesClause{
 							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
-							Units:    []*Identifier{
+							Units: []*Identifier{
 								{Value: "System"},
 								{Value: "Math"},
 							},
@@ -410,7 +410,7 @@ func TestUsesClauseFields(t *testing.T) {
 	t.Run("units list accessible", func(t *testing.T) {
 		uses := &UsesClause{
 			BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
-			Units:    []*Identifier{
+			Units: []*Identifier{
 				{Value: "System"},
 				{Value: "Math"},
 				{Value: "Graphics"},

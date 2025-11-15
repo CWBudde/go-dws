@@ -634,7 +634,7 @@ func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
 	// We're currently at the IDENT after '(', and peek is COLON
 	recordLit := &ast.RecordLiteralExpression{
 		BaseNode: ast.BaseNode{Token: p.curToken}, // The first field name token
-		TypeName: nil,                              // Anonymous record
+		TypeName: nil,                             // Anonymous record
 		Fields:   []*ast.FieldInitializer{},
 	}
 
