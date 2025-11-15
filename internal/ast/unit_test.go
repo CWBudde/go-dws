@@ -16,7 +16,7 @@ func TestUsesClauseString(t *testing.T) {
 		{
 			name: "single unit",
 			uses: &UsesClause{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
+				BaseNode: NewTestBaseNode(lexer.USES, "uses"),
 				Units: []*Identifier{
 					NewTestIdentifier("System"),
 				},

@@ -19,12 +19,12 @@ func TestRecordLiteralExpression_Simple(t *testing.T) {
 		TypeName: nil, // Anonymous record
 		Fields: []*FieldInitializer{
 			{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}},
+				BaseNode: NewTestBaseNode(lexer.IDENT, "x"),
 				Name:     NewTestIdentifier("x"),
 				Value:    NewTestIntegerLiteral(10),
 			},
 			{
-				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "y"}},
+				BaseNode: NewTestBaseNode(lexer.IDENT, "y"),
 				Name:     NewTestIdentifier("y"),
 				Value:    NewTestIntegerLiteral(20),
 			},
@@ -100,7 +100,7 @@ func TestRecordLiteralExpression_WithTypeName(t *testing.T) {
 func TestRecordLiteralExpression_NestedRecords(t *testing.T) {
 	// Test nested records: TRect(TopLeft: (x: 0; y: 0); BottomRight: (x: 10; y: 10))
 	innerRecord1 := &RecordLiteralExpression{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
+		BaseNode: NewTestBaseNode(lexer.LPAREN, "("),
 		TypeName: nil,
 		Fields: []*FieldInitializer{
 			{Name: NewTestIdentifier("x"), Value: NewTestIntegerLiteral(0)},
@@ -109,7 +109,7 @@ func TestRecordLiteralExpression_NestedRecords(t *testing.T) {
 	}
 
 	innerRecord2 := &RecordLiteralExpression{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
+		BaseNode: NewTestBaseNode(lexer.LPAREN, "("),
 		TypeName: nil,
 		Fields: []*FieldInitializer{
 			{Name: NewTestIdentifier("x"), Value: NewTestIntegerLiteral(10)},
@@ -118,7 +118,7 @@ func TestRecordLiteralExpression_NestedRecords(t *testing.T) {
 	}
 
 	outerRecord := &RecordLiteralExpression{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TRect"}},
+		BaseNode: NewTestBaseNode(lexer.IDENT, "TRect"),
 		TypeName: NewTestIdentifier("TRect"),
 		Fields: []*FieldInitializer{
 			{Name: NewTestIdentifier("TopLeft"), Value: innerRecord1},
@@ -150,7 +150,7 @@ func TestRecordLiteralExpression_NestedRecords(t *testing.T) {
 func TestRecordLiteralExpression_WithExpressions(t *testing.T) {
 	// Test with expressions: TSphere(cx: x+5; cy: y*2; r: radius)
 	recordLit := &RecordLiteralExpression{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TSphere"}},
+		BaseNode: NewTestBaseNode(lexer.IDENT, "TSphere"),
 		TypeName: NewTestIdentifier("TSphere"),
 		Fields: []*FieldInitializer{
 			{
@@ -204,7 +204,7 @@ func TestRecordLiteralExpression_WithNegativeNumbers(t *testing.T) {
 	// Test with negative numbers: (x: -50; y: 30)
 	// This is from Death_Star.dws example
 	recordLit := &RecordLiteralExpression{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
+		BaseNode: NewTestBaseNode(lexer.LPAREN, "("),
 		TypeName: nil,
 		Fields: []*FieldInitializer{
 			{
@@ -243,7 +243,7 @@ func TestRecordLiteralExpression_DeathStarExample(t *testing.T) {
 	// Test actual example from Death_Star.dws:
 	// const big : TSphere = (cx: 20; cy: 20; cz: 0; r: 20);
 	recordLit := &RecordLiteralExpression{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
+		BaseNode: NewTestBaseNode(lexer.LPAREN, "("),
 		TypeName: nil, // Type comes from const declaration context
 		Fields: []*FieldInitializer{
 			{Name: NewTestIdentifier("cx"), Value: NewTestIntegerLiteral(20)},
@@ -277,7 +277,7 @@ func TestRecordLiteralExpression_DeathStarExample(t *testing.T) {
 func TestRecordLiteralExpression_EmptyRecord(t *testing.T) {
 	// Test empty record: ()
 	recordLit := &RecordLiteralExpression{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
+		BaseNode: NewTestBaseNode(lexer.LPAREN, "("),
 		TypeName: nil,
 		Fields:   []*FieldInitializer{},
 	}
@@ -298,7 +298,7 @@ func TestRecordLiteralExpression_EmptyRecord(t *testing.T) {
 func TestRecordLiteralExpression_SingleField(t *testing.T) {
 	// Test single field record: (value: 42)
 	recordLit := &RecordLiteralExpression{
-		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LPAREN, Literal: "("}},
+		BaseNode: NewTestBaseNode(lexer.LPAREN, "("),
 		TypeName: nil,
 		Fields: []*FieldInitializer{
 			{Name: NewTestIdentifier("value"), Value: NewTestIntegerLiteral(42)},
