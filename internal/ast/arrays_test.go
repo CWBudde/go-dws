@@ -497,7 +497,7 @@ func TestAssignmentStatement_WithIndexExpression(t *testing.T) {
 
 		// Create the index expression (arr[i])
 		indexExpr := &IndexExpression{
-			TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LBRACK, Literal: "["}}},
+			TypedExpressionBase: TypedExpressionBase{BaseNode: NewTestBaseNode(lexer.LBRACK, "[")},
 			Left:                NewTestIdentifier("arr"),
 			Index:               NewTestIdentifier("i"),
 		}
@@ -537,7 +537,7 @@ func TestAssignmentStatement_WithIndexExpression(t *testing.T) {
 		tok := lexer.Token{Type: lexer.ASSIGN, Literal: ":="}
 
 		indexExpr := &IndexExpression{
-			TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LBRACK, Literal: "["}}},
+			TypedExpressionBase: TypedExpressionBase{BaseNode: NewTestBaseNode(lexer.LBRACK, "[")},
 			Left:                NewTestIdentifier("arr"),
 			Index:               NewTestIntegerLiteral(0),
 		}
@@ -560,20 +560,16 @@ func TestAssignmentStatement_WithIndexExpression(t *testing.T) {
 
 		// Create matrix[i]
 		innerIndex := &IndexExpression{
-			TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{
-
-				Token: lexer.Token{Type: lexer.LBRACK, Literal: "["}}},
-			Left:  NewTestIdentifier("matrix"),
-			Index: NewTestIdentifier("i"),
+			TypedExpressionBase: TypedExpressionBase{BaseNode: NewTestBaseNode(lexer.LBRACK, "[")},
+			Left:                NewTestIdentifier("matrix"),
+			Index:               NewTestIdentifier("i"),
 		}
 
 		// Create (matrix[i])[j]
 		outerIndex := &IndexExpression{
-			TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{
-
-				Token: lexer.Token{Type: lexer.LBRACK, Literal: "["}}},
-			Left:  innerIndex,
-			Index: NewTestIdentifier("j"),
+			TypedExpressionBase: TypedExpressionBase{BaseNode: NewTestBaseNode(lexer.LBRACK, "[")},
+			Left:                innerIndex,
+			Index:               NewTestIdentifier("j"),
 		}
 
 		assignStmt := &AssignmentStatement{
@@ -745,7 +741,7 @@ func TestNewArrayExpression(t *testing.T) {
 				},
 			},
 			Left: &CallExpression{
-				TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Length"}}},
+				TypedExpressionBase: TypedExpressionBase{BaseNode: NewTestBaseNode(lexer.IDENT, "Length")},
 				Function:            NewTestIdentifier("Length"),
 				Arguments: []Expression{
 					NewTestIdentifier("s"),
@@ -847,7 +843,7 @@ func TestNewArrayExpression(t *testing.T) {
 			},
 			ElementTypeName: NewTestIdentifier("Integer"),
 			Dimensions: []Expression{
-				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "10"}}}, Value: 10},
+				&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: NewTestBaseNode(lexer.INT, "10")}, Value: 10},
 			},
 		}
 
