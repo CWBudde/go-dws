@@ -355,9 +355,44 @@ func (c *Compiler) compileBinaryExpression(expr *ast.BinaryExpression) error {
 		return err
 	}
 
-	// Special handling for coalesce operator (??) - requires short-circuit evaluation
-	if strings.ToLower(expr.Operator) == "??" {
+	// Special handling for operators that require short-circuit evaluation
+	op := strings.ToLower(expr.Operator)
+	if op == "??" {
 		return c.compileCoalesceExpression(expr)
+	}
+
+	// Handle 'and' and 'or' operators - they serve dual purposes in DWScript:
+	// 1. Boolean logical operations with short-circuit evaluation (e.g., (x > 5) and (y < 10))
+	// 2. Integer bitwise operations without short-circuit (e.g., 5 and 3 = 1)
+	if op == "and" || op == "or" {
+		leftType := c.inferExpressionType(expr.Left)
+		rightType := c.inferExpressionType(expr.Right)
+
+		// If both operands are integers, use bitwise operations
+		if isIntegerType(leftType) && isIntegerType(rightType) {
+			// Compile both operands (no short-circuit for bitwise operations)
+			if err := c.compileExpression(expr.Left); err != nil {
+				return err
+			}
+			if err := c.compileExpression(expr.Right); err != nil {
+				return err
+			}
+
+			// Emit bitwise opcode
+			line := lineOf(expr)
+			if op == "and" {
+				c.chunk.WriteSimple(OpBitAnd, line)
+			} else {
+				c.chunk.WriteSimple(OpBitOr, line)
+			}
+			return nil
+		}
+
+		// Otherwise, use boolean short-circuit evaluation
+		if op == "and" {
+			return c.compileAndExpression(expr)
+		}
+		return c.compileOrExpression(expr)
 	}
 
 	if err := c.compileExpression(expr.Left); err != nil {
@@ -376,7 +411,7 @@ func (c *Compiler) compileBinaryExpression(expr *ast.BinaryExpression) error {
 	}
 
 	line := lineOf(expr)
-	switch strings.ToLower(expr.Operator) {
+	switch op {
 	case "+":
 		return c.emitNumericBinaryOp(resultType, line, OpAddInt, OpAddFloat, OpStringConcat)
 	case "-":
@@ -401,10 +436,6 @@ func (c *Compiler) compileBinaryExpression(expr *ast.BinaryExpression) error {
 		c.chunk.WriteSimple(OpGreater, line)
 	case ">=":
 		c.chunk.WriteSimple(OpGreaterEqual, line)
-	case "and":
-		c.chunk.WriteSimple(OpAnd, line)
-	case "or":
-		c.chunk.WriteSimple(OpOr, line)
 	default:
 		return c.errorf(expr, "unsupported binary operator %q", expr.Operator)
 	}
@@ -447,6 +478,78 @@ func (c *Compiler) compileCoalesceExpression(expr *ast.BinaryExpression) error {
 
 	// Patch the jump to skip right evaluation when left is truthy
 	return c.chunk.PatchJump(jumpIfTruthy)
+}
+
+// compileAndExpression compiles the 'and' operator with short-circuit evaluation
+// for BOOLEAN operands only. This function should only be called after determining
+// that the operands are not both integers (which would require bitwise AND instead).
+//
+// If the left operand is false, the right operand is not evaluated.
+// The bytecode:
+//  1. Compile left operand (leaves value on stack)
+//  2. Duplicate the value (so we can check it without losing it)
+//  3. If false, jump to end (keep false on stack, don't evaluate right)
+//  4. If true, pop the duplicate, compile right operand
+//  5. End: result (either left false or right) is on top of stack
+func (c *Compiler) compileAndExpression(expr *ast.BinaryExpression) error {
+	line := lineOf(expr)
+
+	// Compile left operand
+	if err := c.compileExpression(expr.Left); err != nil {
+		return err
+	}
+
+	// Duplicate the left value so we can check it without consuming it
+	c.chunk.WriteSimple(OpDup, line)
+
+	// If the left value is false, jump to end (keep false on stack)
+	// OpJumpIfFalse jumps if the value is false
+	jumpIfFalse := c.chunk.EmitJump(OpJumpIfFalse, line)
+
+	// Left was true, so pop the duplicate and evaluate right operand
+	c.chunk.WriteSimple(OpPop, line)
+	if err := c.compileExpression(expr.Right); err != nil {
+		return err
+	}
+
+	// Patch the jump to skip right evaluation when left is false
+	return c.chunk.PatchJump(jumpIfFalse)
+}
+
+// compileOrExpression compiles the 'or' operator with short-circuit evaluation
+// for BOOLEAN operands only. This function should only be called after determining
+// that the operands are not both integers (which would require bitwise OR instead).
+//
+// If the left operand is true, the right operand is not evaluated.
+// The bytecode:
+//  1. Compile left operand (leaves value on stack)
+//  2. Duplicate the value (so we can check it without losing it)
+//  3. If true, jump to end (keep true on stack, don't evaluate right)
+//  4. If false, pop the duplicate, compile right operand
+//  5. End: result (either left true or right) is on top of stack
+func (c *Compiler) compileOrExpression(expr *ast.BinaryExpression) error {
+	line := lineOf(expr)
+
+	// Compile left operand
+	if err := c.compileExpression(expr.Left); err != nil {
+		return err
+	}
+
+	// Duplicate the left value so we can check it without consuming it
+	c.chunk.WriteSimple(OpDup, line)
+
+	// If the left value is true, jump to end (keep true on stack)
+	// OpJumpIfTrue jumps if the value is true
+	jumpIfTrue := c.chunk.EmitJump(OpJumpIfTrue, line)
+
+	// Left was false, so pop the duplicate and evaluate right operand
+	c.chunk.WriteSimple(OpPop, line)
+	if err := c.compileExpression(expr.Right); err != nil {
+		return err
+	}
+
+	// Patch the jump to skip right evaluation when left is true
+	return c.chunk.PatchJump(jumpIfTrue)
 }
 
 func (c *Compiler) compileUnaryExpression(expr *ast.UnaryExpression) error {
