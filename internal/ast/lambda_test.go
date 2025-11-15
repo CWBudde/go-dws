@@ -29,7 +29,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token: NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters: []*Parameter{
 				{
 					Name:  NewTestIdentifier("x"),
@@ -80,7 +82,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token: NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters: []*Parameter{
 				{
 					Name:  NewTestIdentifier("x"),
@@ -120,7 +124,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token:       NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters:  []*Parameter{},
 			ReturnType:  nil,
 			Body:        body,
@@ -149,7 +155,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token: NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters: []*Parameter{
 				{
 					Name:  NewTestIdentifier("n"),
@@ -196,7 +204,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token: NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters: []*Parameter{
 				{
 					Name:  NewTestIdentifier("a"),
@@ -396,7 +406,9 @@ func TestLambdaExpressionEdgeCases(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token:       NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters:  []*Parameter{},
 			ReturnType:  nil,
 			Body:        body,

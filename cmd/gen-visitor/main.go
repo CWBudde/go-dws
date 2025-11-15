@@ -383,8 +383,8 @@ func shouldSkipField(name string) bool {
 		"DefaultArrayLength": true,
 		// Note: LowBound and HighBound are Expression fields in ArrayTypeNode, not string values
 		// They should be walked, not skipped
-		"ReadField":          true,
-		"WriteField":         true,
+		"ReadField":  true,
+		"WriteField": true,
 	}
 	return skipFields[name]
 }
