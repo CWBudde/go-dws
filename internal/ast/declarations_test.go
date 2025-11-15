@@ -334,7 +334,11 @@ func TestSubrangeTypeDeclaration(t *testing.T) {
 			Name:       NewTestIdentifier("TTemperature"),
 			IsSubrange: true,
 			LowBound: &UnaryExpression{
-				Token:    lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: lexer.Position{Line: 3, Column: 22}},
+				TypedExpressionBase: TypedExpressionBase{
+					BaseNode: BaseNode{
+						Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: lexer.Position{Line: 3, Column: 22}},
+					},
+				},
 				Operator: "-",
 				Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "40", Pos: lexer.Position{Line: 3, Column: 23}}}}, Value: 40},
 			},

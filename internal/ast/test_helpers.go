@@ -256,10 +256,14 @@ func NewTestBlockStatement(statements []Statement) *BlockStatement {
 // This is a convenience helper for tests to avoid verbose struct initialization.
 func NewTestBinaryExpression(left Expression, operator string, right Expression) *BinaryExpression {
 	return &BinaryExpression{
+		TypedExpressionBase: TypedExpressionBase{
+			BaseNode: BaseNode{
+				Token: NewTestToken(lexer.IDENT, operator), // Use IDENT for operator token
+			},
+		},
 		Left:     left,
 		Right:    right,
 		Operator: operator,
-		Token:    NewTestToken(lexer.IDENT, operator), // Use IDENT for operator token
 	}
 }
 
@@ -267,9 +271,13 @@ func NewTestBinaryExpression(left Expression, operator string, right Expression)
 // This is a convenience helper for tests to avoid verbose struct initialization.
 func NewTestUnaryExpression(operator string, operand Expression) *UnaryExpression {
 	return &UnaryExpression{
+		TypedExpressionBase: TypedExpressionBase{
+			BaseNode: BaseNode{
+				Token: NewTestToken(lexer.IDENT, operator), // Use IDENT for operator token
+			},
+		},
 		Right:    operand,
 		Operator: operator,
-		Token:    NewTestToken(lexer.IDENT, operator), // Use IDENT for operator token
 	}
 }
 

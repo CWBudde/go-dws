@@ -118,12 +118,15 @@ func (p *Parser) parseSetLiteral() ast.Expression {
 
 			// Create a RangeExpression
 			rangeExpr := &ast.RangeExpression{
-				Token:    rangeToken,
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token:  rangeToken,
+						EndPos: end.End(),
+					},
+				},
 				Start:    start,
 				RangeEnd: end,
 			}
-			// Set EndPos to after the end expression
-			rangeExpr.EndPos = end.End()
 			setLit.Elements = append(setLit.Elements, rangeExpr)
 		} else {
 			// Simple element (not a range)

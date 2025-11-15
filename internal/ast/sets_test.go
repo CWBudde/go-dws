@@ -156,7 +156,11 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		unionExpr := &BinaryExpression{
-			Token:    tok,
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{
+					Token: tok,
+				},
+			},
 			Left:     s1,
 			Operator: "+",
 			Right:    s2,
@@ -176,7 +180,11 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		diffExpr := &BinaryExpression{
-			Token:    tok,
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{
+					Token: tok,
+				},
+			},
 			Left:     s1,
 			Operator: "-",
 			Right:    s2,
@@ -196,7 +204,11 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		intersectExpr := &BinaryExpression{
-			Token:    tok,
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{
+					Token: tok,
+				},
+			},
 			Left:     s1,
 			Operator: "*",
 			Right:    s2,
@@ -216,7 +228,11 @@ func TestSetOperators(t *testing.T) {
 		set := NewTestIdentifier("mySet")
 
 		inExpr := &BinaryExpression{
-			Token:    tok,
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{
+					Token: tok,
+				},
+			},
 			Left:     elem,
 			Operator: "in",
 			Right:    set,
@@ -236,7 +252,11 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		eqExpr := &BinaryExpression{
-			Token:    tok,
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{
+					Token: tok,
+				},
+			},
 			Left:     s1,
 			Operator: "=",
 			Right:    s2,
@@ -256,7 +276,11 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		neqExpr := &BinaryExpression{
-			Token:    tok,
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{
+					Token: tok,
+				},
+			},
 			Left:     s1,
 			Operator: "<>",
 			Right:    s2,
@@ -276,7 +300,11 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		subsetExpr := &BinaryExpression{
-			Token:    tok,
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{
+					Token: tok,
+				},
+			},
 			Left:     s1,
 			Operator: "<=",
 			Right:    s2,
@@ -296,7 +324,11 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		supersetExpr := &BinaryExpression{
-			Token:    tok,
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{
+					Token: tok,
+				},
+			},
 			Left:     s1,
 			Operator: ">=",
 			Right:    s2,

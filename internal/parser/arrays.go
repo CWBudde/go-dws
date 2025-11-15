@@ -283,12 +283,15 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 			}
 
 			rangeExpr := &ast.RangeExpression{
-				Token:    rangeToken,
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token:  rangeToken,
+						EndPos: endExpr.End(),
+					},
+				},
 				Start:    elementExpr,
 				RangeEnd: endExpr,
 			}
-			// Set EndPos to after the end expression
-			rangeExpr.EndPos = endExpr.End()
 			elem = rangeExpr
 		}
 

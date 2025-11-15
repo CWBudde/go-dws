@@ -152,17 +152,15 @@ func (cl *CharLiteral) String() string  { return cl.Token.Literal }
 
 // BinaryExpression represents a binary operation (e.g., a + b, x < y).
 type BinaryExpression struct {
+	TypedExpressionBase
 	Left     Expression
 	Right    Expression
-	Type     *TypeAnnotation
 	Operator string
-	Token    token.Token
-	EndPos   token.Position
 }
 
-func (be *BinaryExpression) expressionNode()      {}
-func (be *BinaryExpression) TokenLiteral() string { return be.Token.Literal }
-func (be *BinaryExpression) Pos() token.Position  { return be.Token.Pos }
+func (be *BinaryExpression) expressionNode() {}
+
+// End returns the end position, preferring Right's end if EndPos not set.
 func (be *BinaryExpression) End() token.Position {
 	if be.EndPos.Line != 0 {
 		return be.EndPos
@@ -172,6 +170,7 @@ func (be *BinaryExpression) End() token.Position {
 	}
 	return be.Token.Pos
 }
+
 func (be *BinaryExpression) String() string {
 	var out bytes.Buffer
 
@@ -183,21 +182,17 @@ func (be *BinaryExpression) String() string {
 
 	return out.String()
 }
-func (be *BinaryExpression) GetType() *TypeAnnotation    { return be.Type }
-func (be *BinaryExpression) SetType(typ *TypeAnnotation) { be.Type = typ }
 
 // UnaryExpression represents a unary operation (e.g., -x, not b).
 type UnaryExpression struct {
+	TypedExpressionBase
 	Right    Expression
-	Type     *TypeAnnotation
 	Operator string
-	Token    token.Token
-	EndPos   token.Position
 }
 
-func (ue *UnaryExpression) expressionNode()      {}
-func (ue *UnaryExpression) TokenLiteral() string { return ue.Token.Literal }
-func (ue *UnaryExpression) Pos() token.Position  { return ue.Token.Pos }
+func (ue *UnaryExpression) expressionNode() {}
+
+// End returns the end position, preferring Right's end if EndPos not set.
 func (ue *UnaryExpression) End() token.Position {
 	if ue.EndPos.Line != 0 {
 		return ue.EndPos
@@ -207,6 +202,7 @@ func (ue *UnaryExpression) End() token.Position {
 	}
 	return ue.Token.Pos
 }
+
 func (ue *UnaryExpression) String() string {
 	var out bytes.Buffer
 
@@ -223,20 +219,16 @@ func (ue *UnaryExpression) String() string {
 
 	return out.String()
 }
-func (ue *UnaryExpression) GetType() *TypeAnnotation    { return ue.Type }
-func (ue *UnaryExpression) SetType(typ *TypeAnnotation) { ue.Type = typ }
 
 // GroupedExpression represents an expression wrapped in parentheses.
 type GroupedExpression struct {
+	TypedExpressionBase
 	Expression Expression
-	Type       *TypeAnnotation
-	Token      token.Token
-	EndPos     token.Position
 }
 
-func (ge *GroupedExpression) expressionNode()      {}
-func (ge *GroupedExpression) TokenLiteral() string { return ge.Token.Literal }
-func (ge *GroupedExpression) Pos() token.Position  { return ge.Token.Pos }
+func (ge *GroupedExpression) expressionNode() {}
+
+// End returns the end position after the closing parenthesis.
 func (ge *GroupedExpression) End() token.Position {
 	if ge.EndPos.Line != 0 {
 		return ge.EndPos
@@ -250,6 +242,7 @@ func (ge *GroupedExpression) End() token.Position {
 	}
 	return ge.Token.Pos
 }
+
 func (ge *GroupedExpression) String() string {
 	var out bytes.Buffer
 
@@ -259,23 +252,19 @@ func (ge *GroupedExpression) String() string {
 
 	return out.String()
 }
-func (ge *GroupedExpression) GetType() *TypeAnnotation    { return ge.Type }
-func (ge *GroupedExpression) SetType(typ *TypeAnnotation) { ge.Type = typ }
 
 // RangeExpression represents a range expression (e.g., A..C in set literals).
 // Used primarily in set literals to specify a range of enum values.
 // Example: [A..C] or [one..five]
 type RangeExpression struct {
+	TypedExpressionBase
 	Start    Expression
 	RangeEnd Expression // Renamed from 'End' to avoid conflict with End() method
-	Type     *TypeAnnotation
-	Token    token.Token
-	EndPos   token.Position
 }
 
-func (re *RangeExpression) expressionNode()      {}
-func (re *RangeExpression) TokenLiteral() string { return re.Token.Literal }
-func (re *RangeExpression) Pos() token.Position  { return re.Token.Pos }
+func (re *RangeExpression) expressionNode() {}
+
+// End returns the end position, preferring RangeEnd's end if EndPos not set.
 func (re *RangeExpression) End() token.Position {
 	if re.EndPos.Line != 0 {
 		return re.EndPos
@@ -285,6 +274,7 @@ func (re *RangeExpression) End() token.Position {
 	}
 	return re.Token.Pos
 }
+
 func (re *RangeExpression) String() string {
 	var out bytes.Buffer
 
@@ -294,8 +284,6 @@ func (re *RangeExpression) String() string {
 
 	return out.String()
 }
-func (re *RangeExpression) GetType() *TypeAnnotation    { return re.Type }
-func (re *RangeExpression) SetType(typ *TypeAnnotation) { re.Type = typ }
 
 // ExpressionStatement represents a statement that consists of a single expression.
 // This is used when an expression appears in a statement context.

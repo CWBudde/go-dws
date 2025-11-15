@@ -447,7 +447,11 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 
 			// Create RangeExpression
 			rangeExpr := &ast.RangeExpression{
-				Token:    rangeToken,
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: rangeToken,
+					},
+				},
 				Start:    value,
 				RangeEnd: endValue,
 			}
@@ -481,7 +485,11 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 				}
 
 				rangeExpr := &ast.RangeExpression{
-					Token:    rangeToken,
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: rangeToken,
+						},
+					},
 					Start:    value,
 					RangeEnd: endValue,
 				}

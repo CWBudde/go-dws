@@ -15,19 +15,15 @@ func TestIfStatementString(t *testing.T) {
 		{
 			name: "simple if without else",
 			stmt: &IfStatement{
-				Token: lexer.Token{Type: lexer.IF, Literal: "if"},
-				Condition: &BinaryExpression{
-					Left:     NewTestIdentifier("x"),
-					Operator: ">",
-					Right:    NewTestIntegerLiteral(0),
-				},
+				Token:     lexer.Token{Type: lexer.IF, Literal: "if"},
+				Condition: NewTestBinaryExpression(NewTestIdentifier("x"), ">", NewTestIntegerLiteral(0)),
 				Consequence: &ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("PrintLn"),
-						Arguments: []Expression{
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("PrintLn"),
+						[]Expression{
 							NewTestStringLiteral("positive"),
 						},
-					},
+					),
 				},
 			},
 			expected: "if (x > 0) then PrintLn(\"positive\")",
@@ -35,27 +31,23 @@ func TestIfStatementString(t *testing.T) {
 		{
 			name: "if with else",
 			stmt: &IfStatement{
-				Token: lexer.Token{Type: lexer.IF, Literal: "if"},
-				Condition: &BinaryExpression{
-					Left:     NewTestIdentifier("x"),
-					Operator: ">",
-					Right:    NewTestIntegerLiteral(0),
-				},
+				Token:     lexer.Token{Type: lexer.IF, Literal: "if"},
+				Condition: NewTestBinaryExpression(NewTestIdentifier("x"), ">", NewTestIntegerLiteral(0)),
 				Consequence: &ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("PrintLn"),
-						Arguments: []Expression{
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("PrintLn"),
+						[]Expression{
 							NewTestStringLiteral("positive"),
 						},
-					},
+					),
 				},
 				Alternative: &ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("PrintLn"),
-						Arguments: []Expression{
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("PrintLn"),
+						[]Expression{
 							NewTestStringLiteral("non-positive"),
 						},
-					},
+					),
 				},
 			},
 			expected: "if (x > 0) then PrintLn(\"positive\") else PrintLn(\"non-positive\")",
@@ -73,19 +65,11 @@ func TestIfStatementString(t *testing.T) {
 
 func TestWhileStatementString(t *testing.T) {
 	stmt := &WhileStatement{
-		Token: lexer.Token{Type: lexer.WHILE, Literal: "while"},
-		Condition: &BinaryExpression{
-			Left:     NewTestIdentifier("x"),
-			Operator: "<",
-			Right:    NewTestIntegerLiteral(10),
-		},
+		Token:     lexer.Token{Type: lexer.WHILE, Literal: "while"},
+		Condition: NewTestBinaryExpression(NewTestIdentifier("x"), "<", NewTestIntegerLiteral(10)),
 		Body: &AssignmentStatement{
 			Target: NewTestIdentifier("x"),
-			Value: &BinaryExpression{
-				Left:     NewTestIdentifier("x"),
-				Operator: "+",
-				Right:    NewTestIntegerLiteral(1),
-			},
+			Value:  NewTestBinaryExpression(NewTestIdentifier("x"), "+", NewTestIntegerLiteral(1)),
 		},
 	}
 
@@ -100,17 +84,9 @@ func TestRepeatStatementString(t *testing.T) {
 		Token: lexer.Token{Type: lexer.REPEAT, Literal: "repeat"},
 		Body: &AssignmentStatement{
 			Target: NewTestIdentifier("x"),
-			Value: &BinaryExpression{
-				Left:     NewTestIdentifier("x"),
-				Operator: "+",
-				Right:    NewTestIntegerLiteral(1),
-			},
+			Value:  NewTestBinaryExpression(NewTestIdentifier("x"), "+", NewTestIntegerLiteral(1)),
 		},
-		Condition: &BinaryExpression{
-			Left:     NewTestIdentifier("x"),
-			Operator: ">=",
-			Right:    NewTestIntegerLiteral(10),
-		},
+		Condition: NewTestBinaryExpression(NewTestIdentifier("x"), ">=", NewTestIntegerLiteral(10)),
 	}
 
 	expected := "repeat x := (x + 1) until (x >= 10)"
@@ -134,12 +110,12 @@ func TestForStatementString(t *testing.T) {
 				EndValue:  NewTestIntegerLiteral(10),
 				Direction: ForTo,
 				Body: &ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("PrintLn"),
-						Arguments: []Expression{
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("PrintLn"),
+						[]Expression{
 							NewTestIdentifier("i"),
 						},
-					},
+					),
 				},
 			},
 			expected: "for i := 1 to 10 do PrintLn(i)",
@@ -153,12 +129,12 @@ func TestForStatementString(t *testing.T) {
 				EndValue:  NewTestIntegerLiteral(1),
 				Direction: ForDownto,
 				Body: &ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("PrintLn"),
-						Arguments: []Expression{
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("PrintLn"),
+						[]Expression{
 							NewTestIdentifier("i"),
 						},
-					},
+					),
 				},
 			},
 			expected: "for i := 10 downto 1 do PrintLn(i)",
@@ -173,12 +149,12 @@ func TestForStatementString(t *testing.T) {
 				Direction: ForTo,
 				Step:      NewTestIntegerLiteral(2),
 				Body: &ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("PrintLn"),
-						Arguments: []Expression{
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("PrintLn"),
+						[]Expression{
 							NewTestIdentifier("i"),
 						},
-					},
+					),
 				},
 			},
 			expected: "for i := 1 to 10 step 2 do PrintLn(i)",
@@ -193,12 +169,12 @@ func TestForStatementString(t *testing.T) {
 				Direction: ForDownto,
 				Step:      NewTestIntegerLiteral(3),
 				Body: &ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("PrintLn"),
-						Arguments: []Expression{
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("PrintLn"),
+						[]Expression{
 							NewTestIdentifier("i"),
 						},
-					},
+					),
 				},
 			},
 			expected: "for i := 10 downto 1 step 3 do PrintLn(i)",
@@ -211,18 +187,14 @@ func TestForStatementString(t *testing.T) {
 				Start:     NewTestIntegerLiteral(0),
 				EndValue:  NewTestIntegerLiteral(20),
 				Direction: ForTo,
-				Step: &BinaryExpression{
-					Left:     NewTestIntegerLiteral(2),
-					Operator: "+",
-					Right:    NewTestIntegerLiteral(1),
-				},
+				Step:      NewTestBinaryExpression(NewTestIntegerLiteral(2), "+", NewTestIntegerLiteral(1)),
 				Body: &ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("PrintLn"),
-						Arguments: []Expression{
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("PrintLn"),
+						[]Expression{
 							NewTestIdentifier("i"),
 						},
-					},
+					),
 				},
 			},
 			expected: "for i := 0 to 20 step (2 + 1) do PrintLn(i)",
@@ -238,12 +210,12 @@ func TestForStatementString(t *testing.T) {
 				Step:      NewTestIntegerLiteral(2),
 				InlineVar: true,
 				Body: &ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("PrintLn"),
-						Arguments: []Expression{
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("PrintLn"),
+						[]Expression{
 							NewTestIdentifier("i"),
 						},
-					},
+					),
 				},
 			},
 			expected: "for var i := 0 to 10 step 2 do PrintLn(i)",
@@ -269,12 +241,12 @@ func TestCaseStatementString(t *testing.T) {
 					NewTestIntegerLiteral(1),
 				},
 				Statement: &ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("PrintLn"),
-						Arguments: []Expression{
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("PrintLn"),
+						[]Expression{
 							NewTestStringLiteral("one"),
 						},
-					},
+					),
 				},
 			},
 			{
@@ -283,22 +255,22 @@ func TestCaseStatementString(t *testing.T) {
 					NewTestIntegerLiteral(3),
 				},
 				Statement: &ExpressionStatement{
-					Expression: &CallExpression{
-						Function: NewTestIdentifier("PrintLn"),
-						Arguments: []Expression{
+					Expression: NewTestCallExpression(
+						NewTestIdentifier("PrintLn"),
+						[]Expression{
 							NewTestStringLiteral("two or three"),
 						},
-					},
+					),
 				},
 			},
 		},
 		Else: &ExpressionStatement{
-			Expression: &CallExpression{
-				Function: NewTestIdentifier("PrintLn"),
-				Arguments: []Expression{
+			Expression: NewTestCallExpression(
+				NewTestIdentifier("PrintLn"),
+				[]Expression{
 					NewTestStringLiteral("other"),
 				},
-			},
+			),
 		},
 	}
 
