@@ -467,7 +467,7 @@ func (p *Printer) printTreeNode(node ast.Node, prefix string) {
 		for _, method := range n.Methods {
 			p.printTreeNode(method, childPrefix)
 		}
-	// Add more cases as needed
+		// Add more cases as needed
 	}
 }
 
@@ -590,7 +590,7 @@ func (p *Printer) nodeToMap(node ast.Node) map[string]interface{} {
 		if n.Expression != nil {
 			result["expression"] = p.nodeToMap(n.Expression)
 		}
-	// Add more cases as needed
+		// Add more cases as needed
 	}
 
 	return result
