@@ -679,7 +679,8 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 		entry := &runtimeConversionEntry{
 			From:        operandTypes[0],
 			To:          targetType,
-			BindingName: decl.Binding.Value,
+			// DWScript is case-insensitive, so normalize the binding name to lowercase
+			BindingName: strings.ToLower(decl.Binding.Value),
 			Implicit:    strings.EqualFold(decl.OperatorSymbol, "implicit"),
 		}
 		if err := i.conversions.register(entry); err != nil {
@@ -691,7 +692,8 @@ func (i *Interpreter) evalOperatorDeclaration(decl *ast.OperatorDecl) Value {
 	entry := &runtimeOperatorEntry{
 		Operator:     decl.OperatorSymbol,
 		OperandTypes: operandTypes,
-		BindingName:  decl.Binding.Value,
+		// DWScript is case-insensitive, so normalize the binding name to lowercase
+		BindingName:  strings.ToLower(decl.Binding.Value),
 	}
 
 	if err := i.globalOperators.register(entry); err != nil {

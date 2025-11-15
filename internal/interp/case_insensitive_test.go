@@ -265,7 +265,7 @@ func TestCaseInsensitiveFunctionWithReturn(t *testing.T) {
 
 				PrintLn(IntToStr(addthem(double(5), TRIPLE(3))));  // mixed case
 			`,
-			expected: "19\n",  // 5*2 + 3*3 = 10 + 9 = 19
+			expected: "19\n", // 5*2 + 3*3 = 10 + 9 = 19
 		},
 	}
 

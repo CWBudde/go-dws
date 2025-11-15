@@ -160,7 +160,8 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 
 	// Before returning error, check if this is a parameterless function/procedure call
 	// In DWScript, you can call parameterless procedures without parentheses: "Test;" instead of "Test();"
-	if overloads, exists := i.functions[node.Value]; exists && len(overloads) > 0 {
+	// DWScript is case-insensitive, so normalize the function name to lowercase
+	if overloads, exists := i.functions[strings.ToLower(node.Value)]; exists && len(overloads) > 0 {
 		// For parameterless call or function pointer, resolve to the no-arg overload
 		var fn *ast.FunctionDecl
 		if len(overloads) == 1 {
@@ -346,7 +347,8 @@ func (i *Interpreter) evalAddressOfExpression(expr *ast.AddressOfExpression) Val
 // If selfObject is non-nil, creates a method pointer.
 func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.Node) Value {
 	// Look up the function in the function registry
-	overloads, exists := i.functions[name]
+	// DWScript is case-insensitive, so normalize the function name to lowercase
+	overloads, exists := i.functions[strings.ToLower(name)]
 	if !exists || len(overloads) == 0 {
 		return newError("undefined function or procedure: %s", name)
 	}

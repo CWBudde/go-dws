@@ -1,0 +1,13 @@
+// Test that operator bindings work with case-insensitive function names
+// This is a regression test for PR #116
+
+function StrPlusInt(s: String; i: Integer): String;
+begin
+	Result := s + '[' + IntToStr(i) + ']';
+end;
+
+// Declare operator with UPPERCASE binding name (function is lowercase)
+operator + (String, Integer) : String uses STRPLUSINT;
+
+PrintLn('abc' + 123);
+PrintLn('test' + 456);
