@@ -372,42 +372,619 @@ just test
 
 ---
 
-## Task 9.2: Static vs Dynamic Array Compatibility (DEFERRED)
+## Task 9.2.0: Static Array Type Compatibility and Var Parameters
 
-**Goal**: Investigate type compatibility between static and dynamic arrays in var parameters.
+**Goal**: Fix type compatibility for static arrays in var parameters, enabling the quicksort.pas test to pass.
 
-**Status**: DEFERRED - May be test issue, not implementation issue
+**Status**: READY - Expanded from deferred task with comprehensive breakdown
+
+**Estimate**: 12-16 hours (1.5-2 days)
 
 **Blocked Tests** (1 test):
 
 - `testdata/fixtures/Algorithms/quicksort.pas`
 
-**Current Error**: `cannot assign TData to TData` when passing static array to var parameter expecting dynamic array
+**Current Error**: `cannot assign TData to TData` when passing static array to var parameter
 
-**Issue**:
+**Root Cause Analysis**:
 
-- Test defines: `type TData = array [0..size-1] of integer;` (static array)
-- Procedure expects: `procedure QuickSort(var A: TData; ...)`
-- DWScript type system treats static and dynamic arrays as incompatible in var parameters
+The error message "cannot assign TData to TData" is misleading. Based on investigation:
 
-**Investigation Needed**:
+1. **Type Alias Resolution**: The type system may not be properly resolving type aliases when checking compatibility
+2. **Var Parameter Checking**: `internal/semantic/analyze_function_calls.go:78-97` uses `canAssign()` which calls `types.IsCompatible()`
+3. **Array Compatibility Rules**: `internal/types/compatibility.go:45-60` has strict rules requiring exact type matches
+4. **The Issue**: When TData (a type alias for `array [0..size-1] of integer`) is used in var parameters, the type comparison may be comparing type instances rather than type definitions
 
-- Is this correct DWScript behavior?
-- Should static arrays be convertible to dynamic in var params?
-- Or is the test incorrectly written?
+**Key Implementation Locations**:
 
-**Deferred Because**:
+- Array type definition: `internal/types/compound_types.go:18-110`
+- Type compatibility: `internal/types/compatibility.go:45-60`
+- Type aliases: `internal/semantic/analyzer.go` (type declaration handling)
+- Var parameter checking: `internal/semantic/analyze_function_calls.go:78-97`
+- Array runtime: `internal/interp/array.go:1-744`
 
-- May require significant type system changes
-- Only affects 1 test
-- Need to verify against original DWScript behavior
-- Low priority compared to other fixes
+**Architecture Strategy**:
 
-**Future Action**:
+This task will follow a **TDD approach**:
+1. Research original DWScript behavior
+2. Write failing tests that document expected behavior
+3. Implement fixes in type system and semantic analyzer
+4. Verify interpreter and bytecode VM handle arrays correctly
+5. Ensure all tests pass
 
-- Research DWScript documentation on static/dynamic array compatibility
-- Check original DWScript source for handling of this case
-- If needed, implement proper coercion rules
+**Success Criteria**:
+
+- `testdata/fixtures/Algorithms/quicksort.pas` passes
+- Type aliases for arrays work correctly in var parameters
+- No regressions in existing array tests
+- Comprehensive test coverage for array type compatibility
+
+---
+
+### Task 9.2.1: Research and Document DWScript Array Behavior
+
+**Goal**: Understand how original DWScript handles static arrays and type aliases in var parameters.
+
+**Status**: NOT STARTED
+
+**Estimate**: 2 hours
+
+**Actions**:
+
+- [ ] Read DWScript documentation on array types and type aliases
+- [ ] Examine `reference/dwscript-original/` source code for array type compatibility logic
+- [ ] Search for how type aliases are resolved in parameter passing
+- [ ] Test simple DWScript programs with static arrays and var parameters (if possible)
+- [ ] Document findings in `docs/arrays-type-compatibility-research.md`
+
+**Key Questions to Answer**:
+
+1. Are type aliases transparent (i.e., `TData` is exactly the same as `array [0..99] of integer`)?
+2. Should var parameters accept both the alias and the underlying type?
+3. How does DWScript handle array type equality vs compatibility?
+4. Are there any special rules for array slicing or bounds in var parameters?
+
+**Files to Create**:
+
+- `docs/arrays-type-compatibility-research.md` - Research findings
+
+---
+
+### Task 9.2.2: Reproduce and Analyze the Error
+
+**Goal**: Create minimal reproducible test case and trace the exact error path.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1-2 hours
+
+**Actions**:
+
+- [ ] Create minimal test case in `testdata/array_alias_var_param.dws`
+- [ ] Run test with verbose error output
+- [ ] Add debug logging to trace type comparison in semantic analyzer
+- [ ] Identify exact line where type check fails
+- [ ] Document the call stack and variable values at failure point
+
+**Minimal Test Case**:
+
+```pascal
+type TIntArray = array [0..9] of integer;
+
+procedure TestProc(var arr: TIntArray);
+begin
+  arr[0] := 42;
+end;
+
+var myArray: TIntArray;
+TestProc(myArray);  // Should work - type alias is transparent in DWScript
+```
+
+**Files to Create**:
+
+- `testdata/array_alias_var_param.dws` - Minimal test case
+
+---
+
+### Task 9.2.3: Identify Required Changes
+
+**Goal**: Map out all code locations that need modification.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1 hour
+
+**Actions**:
+
+- [ ] List all functions involved in type compatibility checking
+- [ ] Identify where type aliases are stored and resolved
+- [ ] Determine if lexer/parser changes are needed (likely not)
+- [ ] Map out semantic analyzer changes needed
+- [ ] Check if interpreter needs modifications
+- [ ] Check if bytecode VM needs modifications
+- [ ] Create implementation checklist
+
+**Expected Findings**:
+
+- Lexer: No changes (tokens are correct)
+- Parser: No changes (AST structure is correct)
+- Type System: Need to improve type alias resolution and equality checking
+- Semantic Analyzer: Need to fix var parameter type checking
+- Interpreter: Possibly need to ensure array references work correctly
+- Bytecode: Possibly need to ensure array operations work correctly
+
+---
+
+### Task 9.2.4: Write Failing Unit Tests (TDD - Red Phase)
+
+**Goal**: Create comprehensive tests that document expected behavior before implementation.
+
+**Status**: NOT STARTED
+
+**Estimate**: 2-3 hours
+
+**Actions**:
+
+- [ ] Create `internal/types/array_alias_test.go` for type system tests
+- [ ] Create `internal/semantic/array_var_param_test.go` for semantic tests
+- [ ] Write tests for type alias equality (should TData == TData?)
+- [ ] Write tests for type alias vs underlying type (should TData == array[0..9] of int?)
+- [ ] Write tests for var parameter compatibility with aliases
+- [ ] Write tests for nested type aliases
+- [ ] All tests should currently FAIL
+
+**Test Cases to Write**:
+
+```go
+// internal/types/array_alias_test.go
+TestTypeAliasEquality                    // TData vs TData
+TestTypeAliasUnderlyingTypeEquality     // TData vs array[0..9] of int
+TestDifferentAliasesSameUnderlying      // TData vs TOtherData (both array[0..9])
+TestStaticArrayBoundsEquality           // array[0..9] vs array[0..9]
+TestStaticArrayBoundsDifferent          // array[0..9] vs array[0..10]
+
+// internal/semantic/array_var_param_test.go
+TestVarParamWithTypeAlias               // var param accepts same alias
+TestVarParamWithUnderlyingType          // var param accepts underlying type
+TestVarParamRejectsIncompatible         // var param rejects different type
+TestVarParamWithNestedAlias             // type A = B; type B = array...
+```
+
+**Files to Create**:
+
+- `internal/types/array_alias_test.go` - Type system unit tests
+- `internal/semantic/array_var_param_test.go` - Semantic analysis tests
+
+---
+
+### Task 9.2.5: Write Failing Integration Tests (TDD - Red Phase)
+
+**Goal**: Create end-to-end tests for array operations with type aliases.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1-2 hours
+
+**Actions**:
+
+- [ ] Create `testdata/test_cases/arrays/type_aliases.dws`
+- [ ] Create `testdata/test_cases/arrays/var_parameters.dws`
+- [ ] Write tests for procedures with var array parameters
+- [ ] Write tests for functions returning arrays through var parameters
+- [ ] Write tests for nested procedure calls with var arrays
+- [ ] Add expected output files
+- [ ] Verify all tests currently FAIL
+
+**Test Scenarios**:
+
+```pascal
+// testdata/test_cases/arrays/type_aliases.dws
+type TIntArray = array [0..4] of integer;
+
+procedure Fill(var arr: TIntArray);
+var i: integer;
+begin
+  for i := 0 to 4 do
+    arr[i] := i * 10;
+end;
+
+var data: TIntArray;
+Fill(data);
+PrintLn(IntToStr(data[2]));  // Should print: 20
+```
+
+**Files to Create**:
+
+- `testdata/test_cases/arrays/type_aliases.dws`
+- `testdata/test_cases/arrays/var_parameters.dws`
+- `testdata/test_cases/arrays/type_aliases.expected`
+- `testdata/test_cases/arrays/var_parameters.expected`
+
+---
+
+### Task 9.2.6: Fix Type Alias Resolution in Type System
+
+**Goal**: Ensure type aliases are properly resolved when checking type equality/compatibility.
+
+**Status**: NOT STARTED
+
+**Estimate**: 2-3 hours
+
+**Actions**:
+
+- [ ] Verify `GetUnderlyingType()` exists in `internal/types/types.go:250`
+- [ ] Update `ArrayType.Equals()` to use `GetUnderlyingType()` for type alias resolution
+- [ ] Update `IsCompatible()` in `internal/types/compatibility.go` to use `GetUnderlyingType()`
+- [ ] Ensure type aliases are transparent in comparisons
+- [ ] Run unit tests from 9.2.4 - some should now pass
+
+**Implementation Strategy**:
+
+```go
+// Use existing GetUnderlyingType() from internal/types/types.go:250
+// This function already handles cycle detection via iterative approach:
+//
+// func GetUnderlyingType(t Type) Type {
+//     for alias, ok := t.(*TypeAlias); ok; alias, ok = t.(*TypeAlias) {
+//         t = alias.AliasedType
+//     }
+//     return t
+// }
+
+// Update ArrayType.Equals() in compound_types.go
+func (a *ArrayType) Equals(other Type) bool {
+    // Resolve any type aliases first using existing function
+    resolvedA := GetUnderlyingType(a)
+    resolvedOther := GetUnderlyingType(other)
+
+    // Now compare resolved types
+    // ... existing comparison logic ...
+}
+```
+
+**Files to Modify**:
+
+- `internal/types/compound_types.go:39-72` - Update `ArrayType.Equals()` to use `GetUnderlyingType()`
+- `internal/types/compatibility.go:45-60` - Update array compatibility rules to use `GetUnderlyingType()`
+- NOTE: `GetUnderlyingType()` already exists in `internal/types/types.go:250` - no need to create new function
+
+**Tests to Pass**:
+
+- `TestTypeAliasEquality`
+- `TestTypeAliasUnderlyingTypeEquality`
+
+---
+
+### Task 9.2.7: Fix Type Alias Handling in Semantic Analyzer
+
+**Goal**: Update semantic analyzer to store and resolve type aliases correctly.
+
+**Status**: NOT STARTED
+
+**Estimate**: 2-3 hours
+
+**Actions**:
+
+- [ ] Review how type declarations create type aliases
+- [ ] Ensure type aliases are stored in symbol table correctly
+- [ ] Update type lookup to return alias metadata
+- [ ] Verify type alias chain resolution works
+- [ ] Add tests for nested type aliases
+- [ ] Run unit tests - more should pass
+
+**Key Locations**:
+
+- `internal/semantic/analyzer.go` - Type declaration handling
+- `internal/semantic/symbol_table.go` - Type storage and lookup
+- `internal/semantic/analyze_function_calls.go:78-97` - Parameter checking
+
+**Implementation Notes**:
+
+The semantic analyzer needs to distinguish between:
+1. **Type Definition**: `type TData = array [0..9] of integer;` creates a new named type
+2. **Type Alias**: In DWScript, type definitions are typically aliases (transparent)
+3. **Type Identity**: When comparing types, aliases should be resolved
+
+**Files to Modify**:
+
+- `internal/semantic/analyzer.go` - Type declaration analysis
+- `internal/semantic/symbol_table.go` - Type storage (if needed)
+
+---
+
+### Task 9.2.8: Fix Var Parameter Type Checking
+
+**Goal**: Update var parameter validation to accept type aliases.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1-2 hours
+
+**Actions**:
+
+- [ ] Update `analyzeCallExpression()` in `analyze_function_calls.go`
+- [ ] Fix parameter type checking to resolve aliases before comparison
+- [ ] Add special handling for var parameters (require exact match after alias resolution)
+- [ ] Ensure error messages are clear when types don't match
+- [ ] Run semantic tests - should pass
+- [ ] Run integration tests - some should pass
+
+**Current Code** (`internal/semantic/analyze_function_calls.go:78-97`):
+
+```go
+// This section needs to resolve type aliases before checking compatibility
+if param.IsVar {
+    // Var parameters require exact type match
+    // Need to resolve both paramType and argType before comparing
+}
+```
+
+**Files to Modify**:
+
+- `internal/semantic/analyze_function_calls.go:78-97` - Update var parameter checking
+
+**Tests to Pass**:
+
+- `TestVarParamWithTypeAlias`
+- `TestVarParamWithUnderlyingType`
+
+---
+
+### Task 9.2.9: Verify Interpreter Array Handling
+
+**Goal**: Ensure interpreter correctly handles array variables and var parameters.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1-2 hours
+
+**Actions**:
+
+- [ ] Review `internal/interp/array.go` for var parameter handling
+- [ ] Verify array values are passed by reference for var parameters
+- [ ] Test that modifications in procedures affect original array
+- [ ] Add debug logging if needed
+- [ ] Run integration tests with interpreter
+
+**Key Checks**:
+
+- [ ] Array values preserve type information when passed to functions
+- [ ] Var parameters create references, not copies
+- [ ] Array element assignment works through var parameters
+- [ ] Array bounds are preserved and checked
+
+**Files to Review**:
+
+- `internal/interp/array.go:1-744` - Array operations
+- `internal/interp/value.go:796-824` - ArrayValue representation
+- `internal/interp/functions.go` - Function call handling (if exists)
+
+---
+
+### Task 9.2.10: Verify Bytecode VM Array Handling
+
+**Goal**: Ensure bytecode VM correctly handles array var parameters.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1-2 hours
+
+**Actions**:
+
+- [ ] Review bytecode array operations in `internal/bytecode/vm.go`
+- [ ] Verify compiler generates correct bytecode for var parameters
+- [ ] Test array reference passing in bytecode
+- [ ] Run integration tests with `--bytecode` flag
+- [ ] Compare bytecode output with interpreter output
+
+**Key Checks**:
+
+- [ ] Bytecode compiler preserves type information for arrays
+- [ ] VM handles array references for var parameters
+- [ ] Array operations work identically to interpreter
+- [ ] No performance regressions
+
+**Files to Review**:
+
+- `internal/bytecode/compiler.go` - Array compilation
+- `internal/bytecode/vm.go` - Array instruction execution
+- `internal/bytecode/instruction.go:116` - Array opcodes
+
+---
+
+### Task 9.2.11: Add Comprehensive Array Type Tests
+
+**Goal**: Expand test coverage for all array type scenarios.
+
+**Status**: NOT STARTED
+
+**Estimate**: 2 hours
+
+**Actions**:
+
+- [ ] Add tests for multidimensional arrays with aliases
+- [ ] Add tests for array of records with aliases
+- [ ] Add tests for dynamic arrays vs static arrays
+- [ ] Add tests for const parameters with array aliases
+- [ ] Add tests for out parameters with array aliases
+- [ ] Add edge cases (empty arrays, single-element arrays)
+- [ ] Verify all tests pass
+
+**Test Categories**:
+
+1. **Type Alias Chains**: `type A = B; type B = C; type C = array[0..9] of int;`
+2. **Multiple Aliases**: Different names for same underlying type
+3. **Parameter Modes**: var, const, out, value parameters
+4. **Array Bounds**: Different bound combinations
+5. **Element Types**: Arrays of primitives, records, classes, etc.
+
+**Files to Create/Update**:
+
+- `internal/types/array_alias_test.go` - Add edge cases
+- `internal/semantic/array_var_param_test.go` - Add comprehensive scenarios
+- `testdata/test_cases/arrays/` - Add more test scripts
+
+---
+
+### Task 9.2.12: Fix quicksort.pas Test
+
+**Goal**: Verify that the original failing test now passes.
+
+**Status**: NOT STARTED
+
+**Estimate**: 30 minutes
+
+**Actions**:
+
+- [ ] Run `testdata/fixtures/Algorithms/quicksort.pas` with interpreter
+- [ ] Run `testdata/fixtures/Algorithms/quicksort.pas` with bytecode VM
+- [ ] Verify output matches expected results
+- [ ] Check that swaps count is correct
+- [ ] Verify array is sorted correctly
+- [ ] Document any remaining issues
+
+**Test Command**:
+
+```bash
+# Test with AST interpreter
+./bin/dwscript run testdata/fixtures/Algorithms/quicksort.pas
+
+# Test with bytecode VM
+./bin/dwscript run --bytecode testdata/fixtures/Algorithms/quicksort.pas
+
+# Run as part of fixture test suite
+go test -v ./internal/interp -run TestDWScriptFixtures/Algorithms
+```
+
+**Expected Output**:
+
+```
+Swaps: >=100
+Data:
+0
+1
+2
+...
+99
+```
+
+---
+
+### Task 9.2.13: Run Full Test Suite and Fix Regressions
+
+**Goal**: Ensure no existing tests were broken by the changes.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1-2 hours
+
+**Actions**:
+
+- [ ] Run full unit test suite: `go test ./...`
+- [ ] Run full integration test suite with interpreter
+- [ ] Run full integration test suite with bytecode
+- [ ] Identify any regressions
+- [ ] Fix any broken tests
+- [ ] Update test expectations if behavior changed correctly
+- [ ] Verify test coverage didn't decrease
+
+**Test Commands**:
+
+```bash
+# Full test suite
+just test
+
+# With coverage
+just test-coverage
+
+# Specific test categories
+go test ./internal/types/...
+go test ./internal/semantic/...
+go test ./internal/interp/...
+go test ./internal/bytecode/...
+```
+
+---
+
+### Task 9.2.14: Update Documentation
+
+**Goal**: Document the array type compatibility rules and implementation.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1 hour
+
+**Actions**:
+
+- [ ] Update CLAUDE.md with array type alias behavior
+- [ ] Create/update `docs/type-system.md` with compatibility rules
+- [ ] Add examples of array type aliases to documentation
+- [ ] Document var parameter behavior with arrays
+- [ ] Update PLAN.md to mark task 9.2 as complete
+
+**Documentation Sections to Add/Update**:
+
+1. **Type System Rules**: How type aliases work
+2. **Array Types**: Static vs dynamic, bounds, element types
+3. **Parameter Passing**: var, const, out, value semantics
+4. **Compatibility**: When types are considered compatible
+
+**Files to Update**:
+
+- `CLAUDE.md` - Add array type alias section
+- `docs/type-system.md` - Create or update with comprehensive rules
+- `PLAN.md` - Mark task complete
+
+---
+
+### Task 9.2.15: Performance Testing and Optimization
+
+**Goal**: Ensure type checking performance hasn't degraded.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1 hour
+
+**Actions**:
+
+- [ ] Benchmark type compatibility checking before/after changes
+- [ ] Profile semantic analysis phase
+- [ ] Identify any performance hotspots
+- [ ] Optimize type alias resolution if needed (caching?)
+- [ ] Document performance characteristics
+
+**Benchmark Tests to Create**:
+
+```go
+// internal/types/benchmark_test.go
+BenchmarkTypeAliasResolution
+BenchmarkArrayTypeEquality
+BenchmarkTypeCompatibilityCheck
+```
+
+**Performance Targets**:
+
+- Type equality check: < 100ns per check
+- Type alias resolution: < 50ns per resolution (with caching)
+- No more than 5% overhead in semantic analysis phase
+
+**Files to Create**:
+
+- `internal/types/benchmark_test.go` - Performance benchmarks
+
+---
+
+**Overall Success Criteria for Task 9.2**:
+
+- ✅ `testdata/fixtures/Algorithms/quicksort.pas` passes
+- ✅ All new unit tests pass (15+ tests)
+- ✅ All new integration tests pass (5+ tests)
+- ✅ No regressions in existing tests (2,100+ fixture tests)
+- ✅ Type alias resolution works correctly across all compiler stages
+- ✅ Performance overhead < 5%
+- ✅ Comprehensive documentation
+
+**Estimated Total Time**: 12-16 hours (1.5-2 days)
 
 ## Task 9.15: Support Parameterless Methods Callable Without Parentheses
 
