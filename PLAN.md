@@ -603,6 +603,217 @@ just test
 
 ---
 
+## Task 9.3: Support Default Constructors (Constructor `default` Keyword)
+
+**Goal**: Implement support for the `default` keyword on constructors to enable using `new ClassName(args)` syntax with non-Create constructors.
+
+**Estimate**: 3-4 hours
+
+**Status**: NOT STARTED
+
+**Impact**: Fixes the `new_class2.pas` test which uses a constructor named `Build` marked as `default`
+
+**Current Test Failure**:
+```
+TestDWScriptFixtures/SimpleScripts/new_class2
+Semantic analysis failed:
+  - constructor 'Create' expects 0 arguments, got 1 at 23:11
+  - constructor 'Create' expects 0 arguments, got 1 at 24:11
+```
+
+**Test File**: `testdata/fixtures/SimpleScripts/new_class2.pas`
+```pascal
+type
+   TMyClass = class
+      constructor Build(i : Integer); virtual; default;  // <-- 'default' keyword
+   end;
+
+type
+   TSubClass = class(TMyClass)
+      constructor Build(i : Integer); override;
+   end;
+
+var o1 := new TMyClass(10);    // Should use Build, not Create
+var o2 := new TSubClass(20);   // Should use inherited default constructor
+```
+
+**Expected Output**:
+```
+Root class 10
+Sub class 20
+TMyClass
+TSubClass
+```
+
+**Description**:
+
+In DWScript, constructors can be marked with the `default` keyword to indicate which constructor should be used with the `new ClassName(args)` syntax. Currently, the semantic analyzer hardcodes "Create" as the constructor name for all `new` expressions (see [analyze_classes.go:57](internal/semantic/analyze_classes.go#L57)), which causes it to fail when a class uses a different constructor name marked as `default`.
+
+The `default` keyword is already captured in the AST ([properties.go:31](pkg/ast/properties.go#L31)), but:
+1. The type system doesn't track which constructor is marked as default
+2. The semantic analyzer doesn't use this information when analyzing `new` expressions
+
+**Root Cause Analysis**:
+
+1. **Parser captures `default` keyword**: The parser already captures `IsDefault` in `ConstructorDeclaration` (pkg/ast/properties.go:31)
+
+2. **Type system doesn't track default constructor**: The `ClassType` struct (internal/types/types.go:418-446) has:
+   - `Constructors map[string]*FunctionType` - Primary constructor signatures
+   - `ConstructorOverloads map[string][]*MethodInfo` - All constructor overloads
+   - **Missing**: No field to track which constructor is the default one
+
+3. **Semantic analyzer hardcodes "Create"**: In `analyzeNewExpression` (internal/semantic/analyze_classes.go:57):
+   ```go
+   constructorName := "Create"  // <-- Hardcoded!
+   ```
+   This should instead look up which constructor is marked as `default`, falling back to "Create" if none is marked.
+
+**Subtasks**:
+
+### 9.3.1 Add Default Constructor Tracking to Type System
+
+**Goal**: Extend `ClassType` to track which constructor is marked as `default`.
+
+**Estimate**: 45 minutes
+
+**Implementation**:
+
+1. **Add field to `ClassType`** in `internal/types/types.go`:
+   ```go
+   type ClassType struct {
+       // ... existing fields ...
+       DefaultConstructor string  // Name of the constructor marked as 'default' (empty if none)
+   }
+   ```
+
+2. **Capture default constructor during class declaration analysis** in `internal/semantic/analyze_classes_decl.go`:
+   - When analyzing constructor declarations, check if `ConstructorDeclaration.IsDefault` is true
+   - If true, set `ClassType.DefaultConstructor` to the constructor's name
+   - Validate only one constructor per class is marked as default (report error if multiple found)
+
+3. **Handle inheritance**: If a derived class doesn't define a default constructor, it should inherit the parent's default constructor name
+
+**Files to Modify**:
+- `internal/types/types.go` (add `DefaultConstructor` field)
+- `internal/semantic/analyze_classes_decl.go` (capture default constructor during analysis)
+
+### 9.3.2 Use Default Constructor in NewExpression Analysis
+
+**Goal**: Update `analyzeNewExpression` to use the default constructor instead of hardcoding "Create".
+
+**Estimate**: 1 hour
+
+**Implementation**:
+
+1. **Location**: `internal/semantic/analyze_classes.go:54-68`
+
+2. **Replace hardcoded "Create"**:
+   ```go
+   // OLD:
+   constructorName := "Create"
+
+   // NEW:
+   constructorName := a.getDefaultConstructorName(classType)
+   ```
+
+3. **Add helper method**:
+   ```go
+   // getDefaultConstructorName returns the name of the default constructor for a class.
+   // It checks the class hierarchy for a constructor marked as 'default'.
+   // Falls back to "Create" if no default constructor is found.
+   func (a *Analyzer) getDefaultConstructorName(class *types.ClassType) string {
+       // Check current class and parents for default constructor
+       for current := class; current != nil; current = current.Parent {
+           if current.DefaultConstructor != "" {
+               return current.DefaultConstructor
+           }
+       }
+       // No default constructor found, use "Create" as fallback
+       return "Create"
+   }
+   ```
+
+**Files to Modify**:
+- `internal/semantic/analyze_classes.go` (update `analyzeNewExpression`, add helper method)
+
+### 9.3.3 Add Validation for Default Constructor Keyword
+
+**Goal**: Ensure only one constructor per class is marked as `default` and validate inheritance rules.
+
+**Estimate**: 45 minutes
+
+**Implementation**:
+
+1. **Validate single default constructor** during class declaration analysis:
+   - Track how many constructors have `IsDefault = true` in each class
+   - Report error if more than one constructor is marked as default
+   - Error message: "class 'ClassName' has multiple constructors marked as default"
+
+2. **Validate override rules**:
+   - If parent constructor is marked `default` and child overrides it, child's override inherits the default status
+   - Child can mark a different constructor as default (overriding parent's default)
+   - Report warning if child overrides default constructor without marking it as default
+
+**Files to Modify**:
+- `internal/semantic/analyze_classes_decl.go` (add validation during constructor analysis)
+
+### 9.3.4 Update Interpreter for Default Constructors
+
+**Goal**: Ensure interpreter uses default constructor information when evaluating `new` expressions.
+
+**Estimate**: 30 minutes
+
+**Implementation**:
+
+1. **Check if interpreter needs updates**: The interpreter's `evalNewExpression` in `internal/interp/objects_creation.go` may already be using semantic analysis results, so it might automatically work once semantic analysis is fixed.
+
+2. **If needed, update constructor lookup**: Similar to semantic analyzer, replace any hardcoded "Create" references with lookup of default constructor.
+
+**Files to Check/Modify**:
+- `internal/interp/objects_creation.go` (check `evalNewExpression`)
+
+---
+
+**Success Criteria**:
+- `testdata/fixtures/SimpleScripts/new_class2.pas` passes completely
+- `new TMyClass(10)` calls `Build` constructor (not `Create`)
+- `new TSubClass(20)` calls inherited `Build` constructor
+- Output matches expected: "Root class 10", "Sub class 20", "TMyClass", "TSubClass"
+- Only one constructor per class can be marked as `default`
+- Default constructor is inherited through class hierarchy
+- Falls back to "Create" if no default constructor is defined
+
+**Testing**:
+```bash
+# Run specific failing test
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/new_class2
+
+# Test default constructor parsing
+go test -v ./internal/parser -run TestConstructor
+
+# Test semantic analysis
+go test -v ./internal/semantic -run TestDefaultConstructor
+
+# Verify no regressions
+just test
+```
+
+**Related Files**:
+- `testdata/fixtures/SimpleScripts/new_class2.pas` (main failing test)
+- `pkg/ast/properties.go` (AST already has `IsDefault` field)
+- `internal/types/types.go` (needs `DefaultConstructor` field)
+- `internal/semantic/analyze_classes.go` (needs to use default constructor)
+- `internal/semantic/analyze_classes_decl.go` (needs to capture default constructor)
+- `internal/interp/objects_creation.go` (may need updates)
+
+**DWScript Reference**:
+- In original DWScript, the `default` keyword on constructors specifies which constructor to use with `new ClassName(args)` syntax
+- If no constructor is marked `default`, "Create" is used as the default
+- Only one constructor per class can be marked as `default`
+- The default constructor is not inherited automatically - derived classes must explicitly mark their overridden or new constructors as `default`
+
+---
+
 ## Task 9.16 Introduce Base Structs for AST Nodes
 
 **Goal**: Eliminate code duplication by introducing base structs for common node fields and behavior.
