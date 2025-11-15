@@ -314,6 +314,10 @@ func (a *Analyzer) evaluateConstantFunction(call *ast.CallExpression) (interface
 		return a.evaluateConstantCeil(call.Arguments)
 	case "round":
 		return a.evaluateConstantRound(call.Arguments)
+	case "ord":
+		return a.evaluateConstantOrd(call.Arguments)
+	case "chr":
+		return a.evaluateConstantChr(call.Arguments)
 	default:
 		return nil, fmt.Errorf("function '%s' is not a compile-time constant", funcName)
 	}
@@ -490,6 +494,68 @@ func (a *Analyzer) evaluateConstantRound(args []ast.Expression) (interface{}, er
 	default:
 		return nil, fmt.Errorf("Round() expects numeric argument")
 	}
+}
+
+// evaluateConstantOrd evaluates Ord() at compile time.
+// Ord() returns the ordinal value (ASCII/Unicode code point) of a character.
+func (a *Analyzer) evaluateConstantOrd(args []ast.Expression) (interface{}, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("Ord() expects exactly 1 argument")
+	}
+
+	// Evaluate argument
+	val, err := a.evaluateConstant(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	// Must be a string (character)
+	strVal, ok := val.(string)
+	if !ok {
+		return nil, fmt.Errorf("Ord() expects a character argument, got %T", val)
+	}
+
+	// Must be exactly one character
+	if len(strVal) != 1 {
+		return nil, fmt.Errorf("Ord() expects a single character, got string of length %d", len(strVal))
+	}
+
+	// Return the Unicode code point
+	return int(strVal[0]), nil
+}
+
+// evaluateConstantChr evaluates Chr() at compile time.
+// Chr() returns the character with the given ordinal value (ASCII/Unicode code point).
+func (a *Analyzer) evaluateConstantChr(args []ast.Expression) (interface{}, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("Chr() expects exactly 1 argument")
+	}
+
+	// Evaluate argument
+	val, err := a.evaluateConstant(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to integer
+	var intVal int
+	switch v := val.(type) {
+	case int:
+		intVal = v
+	case float64:
+		intVal = int(v)
+	default:
+		return nil, fmt.Errorf("Chr() expects numeric argument, got %T", val)
+	}
+
+	// Validate code point range (0-127 for ASCII, 0-0x10FFFF for Unicode)
+	// For simplicity, we'll accept 0-255 (extended ASCII)
+	if intVal < 0 || intVal > 255 {
+		return nil, fmt.Errorf("Chr() code point %d out of range (0-255)", intVal)
+	}
+
+	// Return single-character string
+	return string(rune(intVal)), nil
 }
 
 // analyzeTypeDeclaration analyzes a type declaration statement
