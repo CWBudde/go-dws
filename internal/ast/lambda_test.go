@@ -248,7 +248,9 @@ func TestLambdaExpression(t *testing.T) {
 		}
 
 		node := &LambdaExpression{
-			Token: NewTestToken(lexer.LAMBDA, "lambda"),
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: NewTestToken(lexer.LAMBDA, "lambda")},
+			},
 			Parameters: []*Parameter{
 				{
 					Name:  NewTestIdentifier("x"),
@@ -291,7 +293,9 @@ func TestLambdaExpression(t *testing.T) {
 	t.Run("lambda position tracking", func(t *testing.T) {
 		pos := lexer.Position{Line: 10, Column: 5, Offset: 150}
 		node := &LambdaExpression{
-			Token:       lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos},
+			TypedExpressionBase: TypedExpressionBase{
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos}},
+			},
 			Parameters:  []*Parameter{},
 			ReturnType:  nil,
 			Body:        &BlockStatement{BaseNode: NewTestBaseNode(lexer.BEGIN, "begin"), Statements: []Statement{}},
