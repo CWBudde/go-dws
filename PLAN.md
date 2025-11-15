@@ -372,7 +372,7 @@ just test
 
 ---
 
-## Task 9.15: Static vs Dynamic Array Compatibility (DEFERRED)
+## Task 9.2: Static vs Dynamic Array Compatibility (DEFERRED)
 
 **Goal**: Investigate type compatibility between static and dynamic arrays in var parameters.
 
