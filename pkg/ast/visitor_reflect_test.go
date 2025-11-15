@@ -8,6 +8,9 @@ import (
 	"github.com/cwbudde/go-dws/pkg/dwscript"
 )
 
+// Note: Test helper types countingVisitor and stopAfterFirstVisitor are
+// defined in visitor_test.go and shared across all ast_test package tests.
+
 // TestWalkReflect_VisitsAllNodes tests that WalkReflect visits all nodes in the tree
 func TestWalkReflect_VisitsAllNodes(t *testing.T) {
 	engine, _ := dwscript.New()

@@ -86,6 +86,8 @@ func Walk(v Visitor, node Node) {
 		walkImplementsExpression(n, v)
 	case *IndexExpression:
 		walkIndexExpression(n, v)
+	case *InheritedExpression:
+		walkInheritedExpression(n, v)
 	case *IntegerLiteral:
 		walkIntegerLiteral(n, v)
 	case *InterfaceDecl:
@@ -94,8 +96,14 @@ func Walk(v Visitor, node Node) {
 		walkInterfaceMethodDecl(n, v)
 	case *IsExpression:
 		walkIsExpression(n, v)
+	case *MemberAccessExpression:
+		walkMemberAccessExpression(n, v)
+	case *MethodCallExpression:
+		walkMethodCallExpression(n, v)
 	case *NewArrayExpression:
 		walkNewArrayExpression(n, v)
+	case *NewExpression:
+		walkNewExpression(n, v)
 	case *NilLiteral:
 		walkNilLiteral(n, v)
 	case *OldExpression:
@@ -526,6 +534,15 @@ func walkIndexExpression(n *IndexExpression, v Visitor) {
 	}
 }
 
+// walkInheritedExpression walks a InheritedExpression node
+func walkInheritedExpression(n *InheritedExpression, v Visitor) {
+	for _, item := range n.Arguments {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+}
+
 // walkIntegerLiteral walks a IntegerLiteral node
 func walkIntegerLiteral(n *IntegerLiteral, v Visitor) {
 	// No children to walk
@@ -565,9 +582,37 @@ func walkIsExpression(n *IsExpression, v Visitor) {
 	}
 }
 
+// walkMemberAccessExpression walks a MemberAccessExpression node
+func walkMemberAccessExpression(n *MemberAccessExpression, v Visitor) {
+	if n.Object != nil {
+		Walk(v, n.Object)
+	}
+}
+
+// walkMethodCallExpression walks a MethodCallExpression node
+func walkMethodCallExpression(n *MethodCallExpression, v Visitor) {
+	if n.Object != nil {
+		Walk(v, n.Object)
+	}
+	for _, item := range n.Arguments {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+}
+
 // walkNewArrayExpression walks a NewArrayExpression node
 func walkNewArrayExpression(n *NewArrayExpression, v Visitor) {
 	for _, item := range n.Dimensions {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+}
+
+// walkNewExpression walks a NewExpression node
+func walkNewExpression(n *NewExpression, v Visitor) {
+	for _, item := range n.Arguments {
 		if item != nil {
 			Walk(v, item)
 		}
@@ -723,6 +768,9 @@ func walkTryStatement(n *TryStatement, v Visitor) {
 	}
 	if n.ExceptClause != nil {
 		Walk(v, n.ExceptClause)
+	}
+	if n.FinallyClause != nil {
+		Walk(v, n.FinallyClause)
 	}
 }
 

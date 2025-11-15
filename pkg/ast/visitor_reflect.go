@@ -13,10 +13,10 @@ import (
 //
 //	WalkReflect(myVisitor, rootNode)
 //
-// Performance: This function uses reflection which has a small runtime cost compared to
-// the type-switch based Walk function. Benchmarks show ~10-30% slower performance depending
-// on the AST size and complexity. For most use cases this tradeoff is acceptable given the
-// massive reduction in code complexity and maintenance burden.
+// Performance: This function uses reflection which has a significant runtime cost compared to
+// the type-switch based Walk function. Benchmarks show 22-35x (2200-3500%) slower performance
+// depending on the AST size and complexity. This makes it unsuitable for performance-critical
+// applications, but useful for prototyping, testing, and code generation research.
 //
 // Struct tags (future): The implementation can be extended to support struct tags like
 // `ast:"skip"` to opt-out of automatic traversal for specific fields.

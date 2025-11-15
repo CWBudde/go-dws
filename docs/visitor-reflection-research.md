@@ -44,13 +44,13 @@ BenchmarkWalk_ComplexProgram/Reflect   17938 65609 ns/op     24 B/op    2 allocs
 
 ### Performance Analysis
 
-| Benchmark | Manual (ns/op) | Reflect (ns/op) | Slowdown |
-|-----------|---------------|-----------------|----------|
-| Standard Program | 2,177 | 66,224 | **30.4x** |
-| Simple Program | 113.0 | 2,537 | **22.4x** |
-| Complex Program | 2,148 | 65,609 | **30.5x** |
+| Benchmark | Manual (ns/op) | Reflect (ns/op) | Performance Overhead |
+|-----------|---------------|-----------------|---------------------|
+| Standard Program | 2,177 | 66,224 | **30.4x slower** |
+| Simple Program | 113.0 | 2,537 | **22.4x slower** |
+| Complex Program | 2,148 | 65,609 | **30.5x slower** |
 
-**Average slowdown: ~30x**
+**Average performance overhead: ~30x slower**
 
 Memory usage is identical for both implementations (24 B/op, 2 allocs/op), indicating the overhead is purely from CPU time spent in reflection operations.
 

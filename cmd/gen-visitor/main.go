@@ -61,6 +61,7 @@ var knownNodeTypes = map[string]bool{
 	"CaseBranch":       true,
 	"ExceptClause":     true,
 	"ExceptionHandler": true,
+	"FinallyClause":    true,
 }
 
 // knownHelperTypes are types that don't implement Node but contain Node fields
@@ -256,8 +257,10 @@ func extractFields(structType *ast.StructType) []*FieldInfo {
 					}
 					if end > start {
 						// Parse the number
+						// Note: Sscanf writes the parsed value to &order and returns
+						// the count of successfully parsed items in val
 						if val, err := fmt.Sscanf(tag[start:end], "%d", &order); err == nil && val == 1 {
-							// Successfully parsed order
+							// Successfully parsed order value (already in 'order' variable)
 						} else {
 							order = 0
 						}
