@@ -104,8 +104,20 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		var returnValue Value
 		if method.ReturnType != nil {
 			if resultVal, ok := i.env.Get("Result"); ok {
+				// Dereference ReferenceValue if needed
+				if refVal, isRef := resultVal.(*ReferenceValue); isRef {
+					if derefVal, err := refVal.Dereference(); err == nil {
+						resultVal = derefVal
+					}
+				}
 				returnValue = resultVal
 			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				// Dereference ReferenceValue if needed
+				if refVal, isRef := methodNameVal.(*ReferenceValue); isRef {
+					if derefVal, err := refVal.Dereference(); err == nil {
+						methodNameVal = derefVal
+					}
+				}
 				returnValue = methodNameVal
 			} else {
 				returnValue = &NilValue{}
@@ -164,8 +176,20 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		var returnValue Value
 		if method.ReturnType != nil {
 			if resultVal, ok := i.env.Get("Result"); ok {
+				// Dereference ReferenceValue if needed
+				if refVal, isRef := resultVal.(*ReferenceValue); isRef {
+					if derefVal, err := refVal.Dereference(); err == nil {
+						resultVal = derefVal
+					}
+				}
 				returnValue = resultVal
 			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				// Dereference ReferenceValue if needed
+				if refVal, isRef := methodNameVal.(*ReferenceValue); isRef {
+					if derefVal, err := refVal.Dereference(); err == nil {
+						methodNameVal = derefVal
+					}
+				}
 				returnValue = methodNameVal
 			} else {
 				returnValue = &NilValue{}
@@ -272,8 +296,20 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		var returnValue Value
 		if method.ReturnType != nil {
 			if resultVal, ok := i.env.Get("Result"); ok {
+				// Dereference ReferenceValue if needed
+				if refVal, isRef := resultVal.(*ReferenceValue); isRef {
+					if derefVal, err := refVal.Dereference(); err == nil {
+						resultVal = derefVal
+					}
+				}
 				returnValue = resultVal
 			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				// Dereference ReferenceValue if needed
+				if refVal, isRef := methodNameVal.(*ReferenceValue); isRef {
+					if derefVal, err := refVal.Dereference(); err == nil {
+						methodNameVal = derefVal
+					}
+				}
 				returnValue = methodNameVal
 			} else {
 				returnValue = &NilValue{}
@@ -320,8 +356,20 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		var returnValue Value
 		if method.ReturnType != nil {
 			if resultVal, ok := i.env.Get("Result"); ok {
+				// Dereference ReferenceValue if needed
+				if refVal, isRef := resultVal.(*ReferenceValue); isRef {
+					if derefVal, err := refVal.Dereference(); err == nil {
+						resultVal = derefVal
+					}
+				}
 				returnValue = resultVal
 			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				// Dereference ReferenceValue if needed
+				if refVal, isRef := methodNameVal.(*ReferenceValue); isRef {
+					if derefVal, err := refVal.Dereference(); err == nil {
+						methodNameVal = derefVal
+					}
+				}
 				returnValue = methodNameVal
 			} else {
 				returnValue = &NilValue{}
@@ -498,8 +546,20 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 		var returnValue Value
 		if method.ReturnType != nil {
 			if resultVal, ok := i.env.Get("Result"); ok {
+				// Dereference ReferenceValue if needed
+				if refVal, isRef := resultVal.(*ReferenceValue); isRef {
+					if derefVal, err := refVal.Dereference(); err == nil {
+						resultVal = derefVal
+					}
+				}
 				returnValue = resultVal
 			} else if methodNameVal, ok := i.env.Get(method.Name.Value); ok {
+				// Dereference ReferenceValue if needed
+				if refVal, isRef := methodNameVal.(*ReferenceValue); isRef {
+					if derefVal, err := refVal.Dereference(); err == nil {
+						methodNameVal = derefVal
+					}
+				}
 				returnValue = methodNameVal
 			} else {
 				returnValue = &NilValue{}

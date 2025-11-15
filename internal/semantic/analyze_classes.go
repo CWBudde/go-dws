@@ -358,8 +358,19 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 				return nil
 			}
 		}
-		// When accessing a method as a value (not calling it),
-		// return a method pointer type instead of just the function type
+		// In DWScript/Pascal, parameterless methods can be called without parentheses
+		// When referenced via member access, they should be treated as implicit calls
+		if len(methodType.Parameters) == 0 {
+			// Implicit call - return the method's return type
+			if methodType.ReturnType == nil {
+				// Procedure (no return value)
+				return types.VOID
+			}
+			return methodType.ReturnType
+		}
+
+		// Methods with parameters cannot be called without parentheses
+		// Return a method pointer type for deferred invocation
 		return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
 	}
 

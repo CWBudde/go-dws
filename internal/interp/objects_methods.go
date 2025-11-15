@@ -773,6 +773,22 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		resultVal, resultOk := i.env.Get("Result")
 		methodNameVal, methodNameOk := i.env.Get(method.Name.Value)
 
+		// Dereference ReferenceValue if needed
+		if resultOk {
+			if refVal, isRef := resultVal.(*ReferenceValue); isRef {
+				if derefVal, err := refVal.Dereference(); err == nil {
+					resultVal = derefVal
+				}
+			}
+		}
+		if methodNameOk {
+			if refVal, isRef := methodNameVal.(*ReferenceValue); isRef {
+				if derefVal, err := refVal.Dereference(); err == nil {
+					methodNameVal = derefVal
+				}
+			}
+		}
+
 		// Use whichever variable is not nil, preferring Result if both are set
 		if resultOk && resultVal.Type() != "NIL" {
 			returnValue = resultVal
