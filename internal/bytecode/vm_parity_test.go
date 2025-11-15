@@ -112,6 +112,73 @@ func TestVMParityBasic(t *testing.T) {
 				PrintLn(IntToStr(y));
 			`,
 		},
+		{
+			name: "Integer bitwise AND",
+			source: `
+				var a: Integer := 5 and 3;
+				PrintLn(IntToStr(a));
+				var b: Integer := 12 and 10;
+				PrintLn(IntToStr(b));
+			`,
+		},
+		{
+			name: "Integer bitwise OR",
+			source: `
+				var a: Integer := 5 or 3;
+				PrintLn(IntToStr(a));
+				var b: Integer := 12 or 10;
+				PrintLn(IntToStr(b));
+			`,
+		},
+		{
+			name: "Integer bitwise complex",
+			source: `
+				var result: Integer := (5 and 3) or 2;
+				PrintLn(IntToStr(result));
+			`,
+		},
+		{
+			name: "Boolean short-circuit AND",
+			source: `
+				var flag: Boolean := False;
+				flag := False and (1 div 0 = 1);
+				if flag then
+					PrintLn('ERROR')
+				else
+					PrintLn('OK');
+			`,
+		},
+		{
+			name: "Boolean short-circuit OR",
+			source: `
+				var flag: Boolean := True;
+				flag := True or (1 div 0 = 1);
+				if flag then
+					PrintLn('OK')
+				else
+					PrintLn('ERROR');
+			`,
+		},
+		{
+			name: "Boolean AND with comparisons",
+			source: `
+				var flag: Boolean := (2 > 1) and (3 < 4);
+				if flag then
+					PrintLn('true')
+				else
+					PrintLn('false');
+			`,
+		},
+		{
+			name: "Boolean OR with comparisons",
+			source: `
+				var flag: Boolean := (2 > 1) or (3 > 4);
+				if flag then
+					PrintLn('true')
+				else
+					PrintLn('false');
+			`,
+		},
 	}
 
 	for _, tt := range tests {

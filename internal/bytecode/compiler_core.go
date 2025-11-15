@@ -549,6 +549,49 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 			return globalInfo.typ
 		}
 		return typeFromAnnotation(node.GetType())
+	case *ast.BinaryExpression:
+		// For binary expressions, infer result type based on operator and operands
+		op := strings.ToLower(node.Operator)
+		leftType := c.inferExpressionType(node.Left)
+		rightType := c.inferExpressionType(node.Right)
+
+		// Comparison operators always return boolean
+		if op == "=" || op == "<>" || op == "<" || op == "<=" || op == ">" || op == ">=" {
+			return types.BOOLEAN
+		}
+
+		// Bitwise and/or with integer operands return integer
+		if (op == "and" || op == "or") && isIntegerType(leftType) && isIntegerType(rightType) {
+			return types.INTEGER
+		}
+
+		// Boolean and/or return boolean
+		if op == "and" || op == "or" {
+			return types.BOOLEAN
+		}
+
+		// Arithmetic operators: if either operand is float, result is float
+		if op == "+" || op == "-" || op == "*" || op == "/" {
+			if isFloatType(leftType) || isFloatType(rightType) {
+				return types.FLOAT
+			}
+			// String concatenation
+			if op == "+" && (isStringType(leftType) || isStringType(rightType)) {
+				return types.STRING
+			}
+			return types.INTEGER
+		}
+
+		// Integer division and modulo always return integer
+		if op == "div" || op == "mod" {
+			return types.INTEGER
+		}
+
+		// For other operators, prefer left type, then right type
+		if leftType != nil {
+			return leftType
+		}
+		return rightType
 	case ast.TypedExpression:
 		return typeFromAnnotation(node.GetType())
 	default:
@@ -646,6 +689,13 @@ func lineOfExceptClause(clause *ast.ExceptClause) int {
 		return lineOf(clause.ElseBlock)
 	}
 	return 0
+}
+
+func isIntegerType(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+	return types.GetUnderlyingType(t).TypeKind() == types.INTEGER.TypeKind()
 }
 
 func isFloatType(t types.Type) bool {

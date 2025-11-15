@@ -8,9 +8,15 @@ import (
 
 // evalBinaryExpression evaluates a binary expression.
 func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
-	// Special handling for coalesce operator (??) - requires short-circuit evaluation
+	// Special handling for operators that require short-circuit evaluation
 	if expr.Operator == "??" {
 		return i.evalCoalesceExpression(expr)
+	}
+	if expr.Operator == "and" {
+		return i.evalAndExpression(expr)
+	}
+	if expr.Operator == "or" {
+		return i.evalOrExpression(expr)
 	}
 
 	left := i.Eval(expr.Left)
@@ -207,6 +213,132 @@ func (i *Interpreter) evalCoalesceExpression(expr *ast.BinaryExpression) Value {
 	}
 
 	return right
+}
+
+// evalAndExpression evaluates the 'and' operator with short-circuit evaluation for booleans.
+// For integers, it falls back to normal evaluation for bitwise AND.
+func (i *Interpreter) evalAndExpression(expr *ast.BinaryExpression) Value {
+	// Peek at the left operand type to determine if we need short-circuit evaluation
+	// We need to evaluate it first to check the type
+	left := i.Eval(expr.Left)
+	if isError(left) {
+		return left
+	}
+	if left == nil {
+		return i.newErrorWithLocation(expr.Left, "left operand evaluated to nil")
+	}
+
+	// If left is a boolean, use short-circuit evaluation
+	if leftBool, ok := left.(*BooleanValue); ok {
+		// If left is false, return false immediately (don't evaluate right)
+		if !leftBool.Value {
+			return &BooleanValue{Value: false}
+		}
+
+		// Left is true, evaluate right operand
+		right := i.Eval(expr.Right)
+		if isError(right) {
+			return right
+		}
+		if right == nil {
+			return i.newErrorWithLocation(expr.Right, "right operand evaluated to nil")
+		}
+
+		// Convert to boolean if needed
+		rightBool, ok := right.(*BooleanValue)
+		if !ok {
+			return i.newErrorWithLocation(expr.Right, "expected boolean, got %s", right.Type())
+		}
+
+		return &BooleanValue{Value: rightBool.Value}
+	}
+
+	// For non-boolean types (like integers for bitwise AND), evaluate both operands normally
+	// and let the normal binary operator handling deal with it
+	right := i.Eval(expr.Right)
+	if isError(right) {
+		return right
+	}
+	if right == nil {
+		return i.newErrorWithLocation(expr.Right, "right operand evaluated to nil")
+	}
+
+	// Handle operations based on operand types (this duplicates logic from evalBinaryExpression)
+	if result, ok := i.tryBinaryOperator(expr.Operator, left, right, expr); ok {
+		return result
+	}
+
+	switch {
+	case left.Type() == "INTEGER" && right.Type() == "INTEGER":
+		return i.evalIntegerBinaryOp(expr.Operator, left, right)
+	case left.Type() == "VARIANT" || right.Type() == "VARIANT":
+		return i.evalVariantBinaryOp(expr.Operator, left, right, expr)
+	default:
+		return i.newErrorWithLocation(expr, "type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
+	}
+}
+
+// evalOrExpression evaluates the 'or' operator with short-circuit evaluation for booleans.
+// For integers, it falls back to normal evaluation for bitwise OR.
+func (i *Interpreter) evalOrExpression(expr *ast.BinaryExpression) Value {
+	// Peek at the left operand type to determine if we need short-circuit evaluation
+	// We need to evaluate it first to check the type
+	left := i.Eval(expr.Left)
+	if isError(left) {
+		return left
+	}
+	if left == nil {
+		return i.newErrorWithLocation(expr.Left, "left operand evaluated to nil")
+	}
+
+	// If left is a boolean, use short-circuit evaluation
+	if leftBool, ok := left.(*BooleanValue); ok {
+		// If left is true, return true immediately (don't evaluate right)
+		if leftBool.Value {
+			return &BooleanValue{Value: true}
+		}
+
+		// Left is false, evaluate right operand
+		right := i.Eval(expr.Right)
+		if isError(right) {
+			return right
+		}
+		if right == nil {
+			return i.newErrorWithLocation(expr.Right, "right operand evaluated to nil")
+		}
+
+		// Convert to boolean if needed
+		rightBool, ok := right.(*BooleanValue)
+		if !ok {
+			return i.newErrorWithLocation(expr.Right, "expected boolean, got %s", right.Type())
+		}
+
+		return &BooleanValue{Value: rightBool.Value}
+	}
+
+	// For non-boolean types (like integers for bitwise OR), evaluate both operands normally
+	// and let the normal binary operator handling deal with it
+	right := i.Eval(expr.Right)
+	if isError(right) {
+		return right
+	}
+	if right == nil {
+		return i.newErrorWithLocation(expr.Right, "right operand evaluated to nil")
+	}
+
+	// Handle operations based on operand types (this duplicates logic from evalBinaryExpression)
+	if result, ok := i.tryBinaryOperator(expr.Operator, left, right, expr); ok {
+		return result
+	}
+
+	switch {
+	case left.Type() == "INTEGER" && right.Type() == "INTEGER":
+		return i.evalIntegerBinaryOp(expr.Operator, left, right)
+	case left.Type() == "VARIANT" || right.Type() == "VARIANT":
+		return i.evalVariantBinaryOp(expr.Operator, left, right, expr)
+	default:
+		return i.newErrorWithLocation(expr, "type mismatch: %s %s %s", left.Type(), expr.Operator, right.Type())
+	}
 }
 
 // isFalsey checks if a value is considered "falsey" (default/zero value for its type).

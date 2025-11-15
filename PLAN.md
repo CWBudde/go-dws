@@ -81,42 +81,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 9: Completion and DWScript Feature Parity
 
-## Task 9.13: Debug extract_ranges Logic (Algorithms Fixtures)
-
-**Goal**: Fix off-by-one error in extract_ranges.pas test causing incorrect output.
-
-**Estimate**: 2-3 hours
-
-**Status**: IN PROGRESS
-
-**Blocked Tests** (1 test):
-- `testdata/fixtures/Algorithms/extract_ranges.pas`
-
-**Expected Output**: `0-2,4,6-8,11,12,14-25,27-33,35-39`
-**Actual Output**: `0-2,4,6-8,11,12,14-25,27-33,35`
-
-**Issue**: Last range `35-39` is being truncated to just `35`, suggesting elements 36-39 are not being processed.
-
-**Root Cause**: This is NOT a missing language feature - it's a runtime logic bug in how the interpreter handles array iteration or loop boundaries in this specific test case.
-
-**Investigation Steps**:
-- [ ] 9.13.1 Analyze extract_ranges.pas algorithm
-  - Understand the range extraction logic
-  - Identify loop boundaries and termination conditions
-- [ ] 9.13.2 Debug with trace output
-  - Add logging to understand where iteration stops
-  - Check array length, High(arr), loop conditions
-- [ ] 9.13.3 Identify and fix the bug
-  - Could be in for-loop handling, array bounds, or conditional logic
-  - Verify fix doesn't break other tests
-
-**Acceptance Criteria**:
-- `extract_ranges.pas` produces correct output including `35-39`
-- Root cause identified and documented
-- No regressions in other Algorithms tests
-
----
-
 ## Task 9.15: Static vs Dynamic Array Compatibility (DEFERRED)
 
 **Goal**: Investigate type compatibility between static and dynamic arrays in var parameters.
