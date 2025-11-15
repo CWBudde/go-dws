@@ -1,0 +1,78 @@
+// Edge case tests for array type aliases with var parameters
+// Testing scenarios that might reveal compatibility issues
+
+PrintLn('=== Test 1: Different array bounds (should fail) ===');
+type TArray10 = array [0..9] of integer;
+type TArray5 = array [0..4] of integer;
+
+procedure TestProc1(var arr: TArray10);
+begin
+  arr[0] := 1;
+end;
+
+var arr5: TArray5;
+// This should fail - different bounds
+// TestProc1(arr5);  // Commented out - would be a type error
+PrintLn('(Skipped - would be type error)');
+
+PrintLn('');
+PrintLn('=== Test 2: Different element types (should fail) ===');
+type TIntArray2 = array [0..9] of integer;
+type TFloatArray = array [0..9] of float;
+
+procedure TestProc2(var arr: TIntArray2);
+begin
+  arr[0] := 1;
+end;
+
+var arrFloat: TFloatArray;
+// This should fail - different element types
+// TestProc2(arrFloat);  // Commented out - would be a type error
+PrintLn('(Skipped - would be type error)');
+
+PrintLn('');
+PrintLn('=== Test 3: Dynamic vs static arrays (should fail) ===');
+type TStaticArray = array [0..9] of integer;
+type TDynamicArray = array of integer;
+
+procedure TestProc3(var arr: TStaticArray);
+begin
+  arr[0] := 1;
+end;
+
+var arrDyn: TDynamicArray;
+// This should fail - static vs dynamic
+// TestProc3(arrDyn);  // Commented out - would be a type error
+PrintLn('(Skipped - would be type error)');
+
+PrintLn('');
+PrintLn('=== Test 4: Same bounds, different start (should fail) ===');
+type TArray0_9 = array [0..9] of integer;
+type TArray1_10 = array [1..10] of integer;
+
+procedure TestProc4(var arr: TArray0_9);
+begin
+  arr[0] := 1;
+end;
+
+var arr1_10: TArray1_10;
+// This should fail - different bounds even though same size
+// TestProc4(arr1_10);  // Commented out - would be type error
+PrintLn('(Skipped - would be type error)');
+
+PrintLn('');
+PrintLn('=== Test 5: Const vs var parameter (should work) ===');
+type TIntArray5 = array [0..9] of integer;
+
+procedure TestConst(const arr: TIntArray5);
+begin
+  PrintLn('arr[0] = ' + IntToStr(arr[0]));
+end;
+
+var arr5b: TIntArray5;
+arr5b[0] := 123;
+TestConst(arr5b);  // Var can be passed to const
+PrintLn('Test 5 passed!');
+
+PrintLn('');
+PrintLn('=== Edge case tests completed! ===');
