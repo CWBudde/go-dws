@@ -4,6 +4,7 @@ package ast
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/token"
@@ -78,112 +79,11 @@ type ClassDecl struct {
 }
 
 func (cd *ClassDecl) statementNode() {}
+
+// String returns a simple string representation for debugging.
+// For formatted output, use the printer package.
 func (cd *ClassDecl) String() string {
-	var out bytes.Buffer
-
-	out.WriteString("type ")
-	out.WriteString(cd.Name.String())
-	out.WriteString(" = ")
-
-	// Add partial keyword if this is a partial class
-	if cd.IsPartial {
-		out.WriteString("partial ")
-	}
-
-	out.WriteString("class")
-
-	// Add parent class and/or interfaces if present
-	// Syntax: class(TParent, IInterface1, IInterface2) or class(IInterface) with no parent
-	if cd.Parent != nil || len(cd.Interfaces) > 0 {
-		out.WriteString("(")
-
-		// Add parent first if present
-		if cd.Parent != nil {
-			out.WriteString(cd.Parent.String())
-			// Add comma if there are also interfaces
-			if len(cd.Interfaces) > 0 {
-				out.WriteString(", ")
-			}
-		}
-
-		// Add interfaces
-		for i, iface := range cd.Interfaces {
-			out.WriteString(iface.String())
-			if i < len(cd.Interfaces)-1 {
-				out.WriteString(", ")
-			}
-		}
-
-		out.WriteString(")")
-	}
-
-	// Add abstract keyword if this is an abstract class
-	if cd.IsAbstract {
-		out.WriteString(" abstract")
-	}
-
-	out.WriteString("\n")
-
-	// Add fields
-	for _, field := range cd.Fields {
-		out.WriteString("  ")
-		out.WriteString(field.String())
-		out.WriteString(";\n")
-	}
-
-	// Add constants
-	for _, constant := range cd.Constants {
-		out.WriteString("  ")
-		out.WriteString(constant.String())
-		out.WriteString(";\n")
-	}
-
-	// Add methods
-	for _, method := range cd.Methods {
-		out.WriteString("  ")
-		methodStr := method.String()
-		// Indent multi-line method declarations
-		out.WriteString(strings.ReplaceAll(methodStr, "\n", "\n  "))
-		out.WriteString(";\n")
-	}
-
-	// Add class operators
-	for _, operator := range cd.Operators {
-		out.WriteString("  ")
-		if operator != nil {
-			out.WriteString(operator.String())
-		}
-		out.WriteString(";\n")
-	}
-
-	// Add properties
-	for _, property := range cd.Properties {
-		out.WriteString("  ")
-		if property != nil {
-			out.WriteString(property.String())
-		}
-		out.WriteString("\n")
-	}
-
-	// Add constructor if present
-	if cd.Constructor != nil {
-		out.WriteString("  ")
-		constructorStr := cd.Constructor.String()
-		out.WriteString(strings.ReplaceAll(constructorStr, "\n", "\n  "))
-		out.WriteString(";\n")
-	}
-
-	// Add destructor if present
-	if cd.Destructor != nil {
-		out.WriteString("  ")
-		destructorStr := cd.Destructor.String()
-		out.WriteString(strings.ReplaceAll(destructorStr, "\n", "\n  "))
-		out.WriteString(";\n")
-	}
-
-	out.WriteString("end")
-
-	return out.String()
+	return fmt.Sprintf("ClassDecl(%s)", cd.Name.Value)
 }
 
 // ============================================================================
