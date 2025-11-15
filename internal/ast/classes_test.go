@@ -75,10 +75,7 @@ func TestClassDeclString(t *testing.T) {
 						Name:       NewTestIdentifier("GetValue"),
 						Parameters: []*Parameter{},
 						ReturnType: NewTestTypeAnnotation("Integer"),
-						Body: &BlockStatement{
-							Token:      lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
-							Statements: []Statement{},
-						},
+						Body:       NewTestBlockStatement([]Statement{}),
 					},
 				},
 			},
