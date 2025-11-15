@@ -34,6 +34,11 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 	case *ast.BooleanLiteral:
 		return e.Value, nil
 
+	case *ast.CharLiteral:
+		// Task 9.10.3: Support character literals in const expressions
+		// Convert rune to string (single character)
+		return string(e.Value), nil
+
 	case *ast.Identifier:
 		// Constant identifier reference
 		sym, ok := a.symbols.Resolve(e.Value)
@@ -65,6 +70,21 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 		rightVal, err := a.evaluateConstant(e.Right)
 		if err != nil {
 			return nil, err
+		}
+
+		// Task 9.10.2: Support string concatenation in const expressions
+		// Check if either operand is a string and operator is '+'
+		leftStr, leftIsStr := leftVal.(string)
+		rightStr, rightIsStr := rightVal.(string)
+		if (leftIsStr || rightIsStr) && e.Operator == "+" {
+			// String concatenation
+			if !leftIsStr {
+				return nil, fmt.Errorf("cannot concatenate non-string with string")
+			}
+			if !rightIsStr {
+				return nil, fmt.Errorf("cannot concatenate string with non-string")
+			}
+			return leftStr + rightStr, nil
 		}
 
 		// Check if either operand is a float

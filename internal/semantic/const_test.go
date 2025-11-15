@@ -114,3 +114,83 @@ func TestConstWithUnsupportedFunction(t *testing.T) {
 	// User-defined functions are not compile-time evaluable
 	expectError(t, input, "not a compile-time constant")
 }
+
+// ============================================================================
+// Task 9.10: Const Expression Evaluator Tests
+// ============================================================================
+
+// Test string concatenation in const expressions (Task 9.10.2)
+func TestConstWithStringConcatenation(t *testing.T) {
+	input := `const GREETING = 'Hello' + ' ' + 'World';`
+	expectNoErrors(t, input)
+}
+
+func TestConstWithEmptyStringConcatenation(t *testing.T) {
+	input := `const CRLF = '' + #13#10;`
+	expectNoErrors(t, input)
+}
+
+// Test character literals in const expressions (Task 9.10.3)
+func TestConstWithCharacterLiteral(t *testing.T) {
+	input := `const CR = #13;`
+	expectNoErrors(t, input)
+}
+
+func TestConstWithMultipleCharacterLiterals(t *testing.T) {
+	input := `
+		const CR = #13;
+		const LF = #10;
+		const CRLF = CR + LF;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestConstWithCharacterLiteralConcatenation(t *testing.T) {
+	input := `const NEWLINE = #13 + #10;`
+	expectNoErrors(t, input)
+}
+
+// Test Ord/Chr in const context (Task 9.10.5)
+func TestConstWithOrdFunction(t *testing.T) {
+	input := `const CODE = Ord('A');`
+	expectNoErrors(t, input)
+}
+
+func TestConstWithChrFunction(t *testing.T) {
+	input := `const LETTER = Chr(65);`
+	expectNoErrors(t, input)
+}
+
+func TestConstWithOrdAndArithmetic(t *testing.T) {
+	input := `
+		const MIN_CHAR = Ord('A');
+		const MAX_CHAR = Ord('Z');
+		const RANGE = MAX_CHAR - MIN_CHAR + 1;
+	`
+	expectNoErrors(t, input)
+}
+
+// Test function-local const declarations (Task 9.10.4)
+func TestFunctionLocalConstDeclaration(t *testing.T) {
+	input := `
+		function Test(): Integer;
+		begin
+			const LOCAL_CONST = 42;
+			Result := LOCAL_CONST;
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestFunctionLocalConstWithOrd(t *testing.T) {
+	input := `
+		function Vigenere(src: String): Integer;
+		begin
+			const cOrdMinChar = Ord('A');
+			const cOrdMaxChar = Ord('Z');
+			const cCharRangeCount = cOrdMaxChar - cOrdMinChar + 1;
+			Result := cCharRangeCount;
+		end;
+	`
+	expectNoErrors(t, input)
+}
