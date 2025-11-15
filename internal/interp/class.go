@@ -15,7 +15,7 @@ type ClassInfo struct {
 	Constructor          *ast.FunctionDecl
 	Constructors         map[string]*ast.FunctionDecl
 	ConstructorOverloads map[string][]*ast.FunctionDecl // Overloaded constructors
-	DefaultConstructor   string                          // Name of the constructor marked as 'default' (empty if none)
+	DefaultConstructor   string                         // Name of the constructor marked as 'default' (empty if none)
 	Fields               map[string]types.Type
 	FieldDecls           map[string]*ast.FieldDecl // Field declarations (for initializers)
 	ClassVars            map[string]Value
