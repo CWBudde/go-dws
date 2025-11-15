@@ -18,9 +18,9 @@ import (
 //   - type TEnum = enum (One, Two);
 func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.EnumDecl {
 	enumDecl := &ast.EnumDecl{
-		Token:  typeToken, // The 'type' token
-		Name:   nameIdent,
-		Values: []ast.EnumValue{},
+		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
+		Name:     nameIdent,
+		Values:   []ast.EnumValue{},
 	}
 
 	// Expect '('

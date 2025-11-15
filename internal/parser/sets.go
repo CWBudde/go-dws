@@ -13,8 +13,8 @@ import (
 //   - type TDays = set of TWeekday;
 func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
 	setDecl := &ast.SetDecl{
-		Token: typeToken, // The 'type' token
-		Name:  nameIdent,
+		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
+		Name:     nameIdent,
 	}
 
 	// Current token is 'set', advance to 'of'

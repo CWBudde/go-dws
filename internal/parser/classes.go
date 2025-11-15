@@ -120,8 +120,8 @@ func isBuiltinClass(name string) bool {
 // Current token should be 'class'.
 func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.ClassDecl {
 	classDecl := &ast.ClassDecl{
-		Token: p.curToken, // 'class' token
-		Name:  nameIdent,
+		BaseNode: ast.BaseNode{Token: p.curToken}, // 'class' token
+		Name:     nameIdent,
 	}
 
 	// Check for optional parent class and/or interfaces

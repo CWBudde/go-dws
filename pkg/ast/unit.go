@@ -4,8 +4,6 @@ package ast
 import (
 	"bytes"
 	"strings"
-
-	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // UnitDeclaration represents a DWScript unit (module) declaration.
@@ -28,6 +26,8 @@ import (
 //	  // Cleanup code
 //	end.
 type UnitDeclaration struct {
+	BaseNode
+
 	// Name is the unit's identifier
 	Name *Identifier
 
@@ -46,22 +46,9 @@ type UnitDeclaration struct {
 	// FinalSection contains finalization code (optional)
 	// Runs when the program exits, in reverse order of initialization
 	FinalSection *BlockStatement
-
-	// Token is the 'unit' keyword token
-	Token  token.Token
-	EndPos token.Position
 }
 
-func (u *UnitDeclaration) End() token.Position {
-	if u.EndPos.Line != 0 {
-		return u.EndPos
-	}
-	return u.Token.Pos
-}
-
-func (ud *UnitDeclaration) statementNode()       {}
-func (ud *UnitDeclaration) TokenLiteral() string { return ud.Token.Literal }
-func (ud *UnitDeclaration) Pos() token.Position  { return ud.Token.Pos }
+func (ud *UnitDeclaration) statementNode() {}
 func (ud *UnitDeclaration) String() string {
 	var out bytes.Buffer
 
@@ -126,24 +113,13 @@ func (ud *UnitDeclaration) String() string {
 //	uses System, Math, Graphics;
 //	uses System.Collections, System.IO;
 type UsesClause struct {
+	BaseNode
+
 	// Units is the list of unit names to import
 	Units []*Identifier
-
-	// Token is the 'uses' keyword token
-	Token  token.Token
-	EndPos token.Position
 }
 
-func (u *UsesClause) End() token.Position {
-	if u.EndPos.Line != 0 {
-		return u.EndPos
-	}
-	return u.Token.Pos
-}
-
-func (uc *UsesClause) statementNode()       {}
-func (uc *UsesClause) TokenLiteral() string { return uc.Token.Literal }
-func (uc *UsesClause) Pos() token.Position  { return uc.Token.Pos }
+func (uc *UsesClause) statementNode() {}
 func (uc *UsesClause) String() string {
 	var out bytes.Buffer
 
