@@ -1,5 +1,4 @@
 // Test Succ() and Pred() with enums
-// Tasks 9.28 and 9.29: Successor and predecessor functions for enums
 
 type TColor = (Red, Green, Blue, Yellow);
 

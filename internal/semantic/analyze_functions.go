@@ -261,7 +261,6 @@ func (a *Analyzer) analyzeReturn(stmt *ast.ReturnStatement) {
 
 // ============================================================================
 // Contract Analysis (Design by Contract)
-// Tasks 9.140-9.145
 // ============================================================================
 
 // checkPreconditions validates precondition (require) expressions

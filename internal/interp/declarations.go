@@ -177,7 +177,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		for fieldName, fieldType := range parentClass.Fields {
 			classInfo.Fields[fieldName] = fieldType
 		}
-		// Task 9.5: Copy parent field declarations (for initializers)
+		// Copy parent field declarations (for initializers)
 		for fieldName, fieldDecl := range parentClass.FieldDecls {
 			classInfo.FieldDecls[fieldName] = fieldDecl
 		}
@@ -347,7 +347,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		} else {
 			// Store instance field type in ClassInfo
 			classInfo.Fields[field.Name.Value] = fieldType
-			// Task 9.5: Store field declaration for initializer access
+			// Store field declaration for initializer access
 			classInfo.FieldDecls[field.Name.Value] = field
 		}
 	}

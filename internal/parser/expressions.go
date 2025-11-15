@@ -903,8 +903,6 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 // Supports both full and shorthand syntax:
 //   - Full: lambda(x: Integer): Integer begin Result := x * 2; end
 //   - Shorthand: lambda(x) => x * 2
-//
-// Tasks 9.212-9.215: Parser support for lambda expressions
 func (p *Parser) parseLambdaExpression() ast.Expression {
 	lambdaExpr := &ast.LambdaExpression{
 		Token: p.curToken, // The 'lambda' keyword

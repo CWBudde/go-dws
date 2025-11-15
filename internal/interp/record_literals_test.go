@@ -310,7 +310,7 @@ func TestEvalRecordLiteral_WithExpressions(t *testing.T) {
 func TestEvalRecordLiteral_MissingField_Error(t *testing.T) {
 	// Test: type TPoint = record X, Y: Integer; end;
 	//       var p := TPoint(X: 10);  // Missing Y field
-	// Task 9.5: With field initializers, missing fields now get default values (0 for Integer)
+	// With field initializers, missing fields now get default values (0 for Integer)
 	// This test now verifies that missing fields are initialized with defaults, not errors
 	input := `
 		type TPoint = record

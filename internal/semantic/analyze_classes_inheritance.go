@@ -18,7 +18,7 @@ func (a *Analyzer) inheritParentConstructors(childClass *types.ClassType, parent
 	// Iterate through all parent constructor overloads
 	for ctorName, overloads := range parentClass.ConstructorOverloads {
 		for _, parentCtor := range overloads {
-			// Task 9.2: Private constructors are not inherited
+			// Private constructors are not inherited
 			visibility := ast.Visibility(parentCtor.Visibility)
 			if visibility == ast.VisibilityPrivate {
 				continue

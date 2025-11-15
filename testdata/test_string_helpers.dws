@@ -1,4 +1,4 @@
-// Task 9.23: Test string helper methods
+// Test string helper methods
 
 var s := 'Hello World';
 

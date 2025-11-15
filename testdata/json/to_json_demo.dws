@@ -1,5 +1,4 @@
 // Demonstration of ToJSON and ToJSONFormatted functions
-// Tasks 9.94-9.96: JSON serialization
 
 // Test 1: Serialize primitives
 PrintLn('=== Primitives ===');

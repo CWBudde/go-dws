@@ -567,7 +567,6 @@ func TestVeryLargeSet_500Elements(t *testing.T) {
 }
 
 // TestVeryLargeSet_1000Elements tests set operations with 1000-element enum.
-// Task 9.10c: Extreme stress test for very large sets.
 func TestVeryLargeSet_1000Elements(t *testing.T) {
 	// Create enum with 1000 elements
 	values := make(map[string]int)
@@ -645,7 +644,6 @@ func TestVeryLargeSet_1000Elements(t *testing.T) {
 }
 
 // TestLargeSet_ForInAllElements tests for-in iteration over a set containing all enum values.
-// Task 9.10c: Edge case - set with all possible elements.
 func TestLargeSet_ForInAllElements(t *testing.T) {
 	// Create enum with 100 elements
 	values := make(map[string]int)
@@ -685,7 +683,6 @@ func TestLargeSet_ForInAllElements(t *testing.T) {
 }
 
 // TestLargeSet_ForInFirstAndLastOnly tests for-in iteration with only boundary elements.
-// Task 9.10c: Edge case - only first and last elements in large set.
 func TestLargeSet_ForInFirstAndLastOnly(t *testing.T) {
 	// Create enum with 100 elements
 	values := make(map[string]int)
@@ -730,7 +727,6 @@ func TestLargeSet_ForInFirstAndLastOnly(t *testing.T) {
 }
 
 // TestLargeSet_NestedForInIteration tests nested for-in loops over large sets.
-// Task 9.10c: Edge case - nested iteration over two large sets.
 func TestLargeSet_NestedForInIteration(t *testing.T) {
 	// Create enum with 50 elements (moderate size for nested loops)
 	values := make(map[string]int)
@@ -794,7 +790,6 @@ func TestLargeSet_NestedForInIteration(t *testing.T) {
 }
 
 // TestLargeSet_MixedOperations tests complex combinations of set operations on large sets.
-// Task 9.10c: Stress test - multiple operations in sequence.
 func TestLargeSet_MixedOperations(t *testing.T) {
 	// Create enum with 200 elements
 	values := make(map[string]int)

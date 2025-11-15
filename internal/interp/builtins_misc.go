@@ -78,7 +78,6 @@ func (i *Interpreter) builtinCopy(args []Value) Value {
 }
 
 // builtinIndexOf implements the IndexOf() built-in function for arrays.
-// Tasks 9.69-9.70: IndexOf(arr, value) and IndexOf(arr, value, startIndex)
 //
 // Returns 0-based index of first occurrence (0 = first element)
 // Returns -1 if not found

@@ -87,7 +87,7 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 	// like High(TColor) or Low(TColor)
 	a.symbols.Define(enumName, enumType)
 
-	// Task 9.54: Create implicit helper for scoped enum access (TColor.Red)
+	// Create implicit helper for scoped enum access (TColor.Red)
 	// This enables accessing enum values via the type name while maintaining
 	// backward compatibility with unscoped access (Red)
 	a.createEnumScopedAccessHelper(enumName, enumType)
@@ -95,7 +95,6 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 
 // createEnumScopedAccessHelper creates an implicit helper for an enum type
 // that allows scoped access to enum values (e.g., TColor.Red).
-// Task 9.54: Enable TE1.val1 syntax for enum values
 func (a *Analyzer) createEnumScopedAccessHelper(enumName string, enumType *types.EnumType) {
 	// Create a helper type for this specific enum
 	helperName := "__" + enumName + "_ScopedAccessHelper"

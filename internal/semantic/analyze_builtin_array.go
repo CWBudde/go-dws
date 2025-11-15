@@ -188,8 +188,8 @@ func (a *Analyzer) analyzeDelete(args []ast.Expression, callExpr *ast.CallExpres
 	}
 
 	// 3-argument form: Delete(array, index, count) or Delete(string, pos, count)
-	if _, ok := args[0].(*ast.Identifier); !ok {
-		a.addError("function 'Delete' first argument must be a variable at %s",
+	if !a.isLValue(args[0]) {
+		a.addError("function 'Delete' first argument must be a variable (identifier, array element, or field) at %s",
 			callExpr.Token.Pos.String())
 	} else {
 		firstArgType := a.analyzeExpression(args[0])

@@ -741,20 +741,21 @@ func (a *Analyzer) analyzeInc(args []ast.Expression, callExpr *ast.CallExpressio
 			len(args), callExpr.Token.Pos.String())
 		return types.VOID
 	}
-	// First argument must be a variable (Identifier)
-	if _, ok := args[0].(*ast.Identifier); !ok {
-		a.addError("function 'Inc' first argument must be a variable at %s",
+	// First argument must be an lvalue (variable, array element, or field)
+	if !a.isLValue(args[0]) {
+		a.addError("function 'Inc' first argument must be a variable (identifier, array element, or field) at %s",
 			callExpr.Token.Pos.String())
-	} else {
-		// Analyze the variable to get its type
-		varType := a.analyzeExpression(args[0])
-		// Must be Integer or Enum
-		if varType != nil {
-			if varType != types.INTEGER {
-				if _, isEnum := varType.(*types.EnumType); !isEnum {
-					a.addError("function 'Inc' expects Integer or Enum variable, got %s at %s",
-						varType.String(), callExpr.Token.Pos.String())
-				}
+		return types.VOID
+	}
+
+	// Analyze the variable to get its type
+	varType := a.analyzeExpression(args[0])
+	// Must be Integer or Enum
+	if varType != nil {
+		if varType != types.INTEGER {
+			if _, isEnum := varType.(*types.EnumType); !isEnum {
+				a.addError("function 'Inc' expects Integer or Enum variable, got %s at %s",
+					varType.String(), callExpr.Token.Pos.String())
 			}
 		}
 	}
@@ -780,9 +781,9 @@ func (a *Analyzer) analyzeDec(args []ast.Expression, callExpr *ast.CallExpressio
 			len(args), callExpr.Token.Pos.String())
 		return types.VOID
 	}
-	// First argument must be a variable (Identifier)
-	if _, ok := args[0].(*ast.Identifier); !ok {
-		a.addError("function 'Dec' first argument must be a variable at %s",
+	// First argument must be an lvalue (variable, array element, or field)
+	if !a.isLValue(args[0]) {
+		a.addError("function 'Dec' first argument must be a variable (identifier, array element, or field) at %s",
 			callExpr.Token.Pos.String())
 	} else {
 		// Analyze the variable to get its type

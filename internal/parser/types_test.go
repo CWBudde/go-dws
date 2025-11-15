@@ -533,8 +533,6 @@ func TestParseTypeExpression_ErrorCases(t *testing.T) {
 
 // TestMultipleTypeDeclarationsInOneTypeSection tests parsing of multiple type declarations
 // within a single 'type' section. This is a common pattern in DWScript/Pascal.
-//
-// Task 9.4: Support for multiple type declarations in one type section
 func TestMultipleTypeDeclarationsInOneTypeSection(t *testing.T) {
 	tests := []struct {
 		name     string

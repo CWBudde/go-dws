@@ -8,7 +8,6 @@ import (
 )
 
 // TestNewArrayExpressions tests the CLI with new array instantiation
-// Tasks 9.167-9.168: CLI integration tests for array instantiation with new keyword
 func TestNewArrayExpressions(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

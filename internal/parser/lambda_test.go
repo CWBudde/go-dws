@@ -8,7 +8,6 @@ import (
 )
 
 // TestParseLambdaExpressions tests parsing of lambda expressions.
-// Tasks 9.212-9.215: Parser support for lambda expressions
 func TestParseLambdaExpressions(t *testing.T) {
 	tests := []struct {
 		name            string

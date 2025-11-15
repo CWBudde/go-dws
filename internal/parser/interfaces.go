@@ -15,8 +15,6 @@ import (
 //
 // This function handles multiple declarations and returns either a single statement
 // or a BlockStatement containing multiple type declarations.
-//
-// Task 9.4: Support multiple type declarations in one type section
 func (p *Parser) parseTypeDeclaration() ast.Statement {
 	typeToken := p.curToken // Save the TYPE token
 	statements := []ast.Statement{}
@@ -56,8 +54,6 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 // Pattern: IDENT EQ (CLASS|INTERFACE|LPAREN|RECORD|SET|ARRAY|ENUM|FUNCTION|PROCEDURE|HELPER|...)
 //
 // This method uses a temporary lexer to look ahead without modifying parser state.
-//
-// Task 9.4: Helper to detect multiple type declarations in one type section
 func (p *Parser) looksLikeTypeDeclaration() bool {
 	// After a type declaration, we're typically at a semicolon
 	// The next token should be an identifier (type name)
@@ -88,8 +84,6 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 // parseSingleTypeDeclaration parses a single type declaration.
 // This is the core logic extracted from the original parseTypeDeclaration.
 // Assumes we're already positioned at the identifier (or TYPE token).
-//
-// Task 9.4: Extracted to support multiple type declarations
 func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement {
 	// Check if we're already at the identifier (type section continuation)
 	// or if we need to advance to it (after 'type' keyword)

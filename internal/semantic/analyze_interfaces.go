@@ -87,7 +87,6 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 	funcType := types.NewFunctionType(paramTypes, returnType)
 
 	// Check for duplicate method (case-insensitive)
-	// Task 9.16.2: Use lowercase for case-insensitive method lookups
 	methodKey := strings.ToLower(methodName)
 
 	// Check if method already exists in this interface
@@ -147,7 +146,6 @@ func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, d
 			} else {
 				// Clear the forward flag since this method implements the interface
 				// Methods implementing interfaces are complete implementations, not forward declarations
-				// Task 9.16.1: Use lowercase key since ForwardedMethods now uses lowercase keys
 				delete(classType.ForwardedMethods, strings.ToLower(methodName))
 			}
 		}

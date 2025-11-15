@@ -52,7 +52,7 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 		return c.compileContinue(node)
 	case *ast.HelperDecl:
 		return c.compileHelperDecl(node)
-	// Task 9.7: Type declarations don't generate bytecode - they're handled by semantic analysis
+	// Type declarations don't generate bytecode - they're handled by semantic analysis
 	case *ast.RecordDecl:
 		return nil // No bytecode needed for type declarations
 	case *ast.ClassDecl:
