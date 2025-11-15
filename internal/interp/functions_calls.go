@@ -293,7 +293,8 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		(funcName.Value == "Delete" && len(expr.Arguments) == 3) ||
 		funcName.Value == "DecodeDate" || funcName.Value == "DecodeTime" ||
 		funcName.Value == "Swap" || funcName.Value == "DivMod" ||
-		funcName.Value == "TryStrToInt" || funcName.Value == "TryStrToFloat" {
+		funcName.Value == "TryStrToInt" || funcName.Value == "TryStrToFloat" ||
+		funcName.Value == "SetLength" {
 		return i.callBuiltinWithVarParam(funcName.Value, expr.Arguments)
 	}
 

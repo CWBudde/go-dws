@@ -99,27 +99,33 @@ func (a *Analyzer) analyzeHigh(args []ast.Expression, callExpr *ast.CallExpressi
 }
 
 // analyzeSetLength analyzes the SetLength built-in procedure.
-// SetLength takes two arguments (array, length) and returns void.
+// SetLength takes two arguments (array or string, length) and returns void.
+// DWScript supports SetLength on both dynamic arrays and strings.
 func (a *Analyzer) analyzeSetLength(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 2 {
 		a.addError("function 'SetLength' expects 2 arguments, got %d at %s",
 			len(args), callExpr.Token.Pos.String())
 		return types.VOID
 	}
-	// Analyze the first argument (array)
+	// Analyze the first argument (array or string)
 	argType := a.analyzeExpression(args[0])
 	var arrayType *types.ArrayType
 	if argType != nil {
-		if at, isArray := types.GetUnderlyingType(argType).(*types.ArrayType); isArray {
+		underlyingType := types.GetUnderlyingType(argType)
+
+		// Check if it's an array type
+		if at, isArray := underlyingType.(*types.ArrayType); isArray {
 			arrayType = at
 			if !arrayType.IsDynamic() {
 				a.addError("function 'SetLength' expects dynamic array as first argument, got %s at %s",
 					argType.String(), callExpr.Token.Pos.String())
 			}
-		} else {
-			a.addError("function 'SetLength' expects array as first argument, got %s at %s",
+		} else if underlyingType != types.STRING {
+			// Not an array and not a string - error
+			a.addError("function 'SetLength' expects array or string as first argument, got %s at %s",
 				argType.String(), callExpr.Token.Pos.String())
 		}
+		// If it's a string, no additional validation needed (strings are implicitly dynamic)
 	}
 	// Analyze the second argument (integer)
 	lengthType := a.analyzeExpression(args[1])

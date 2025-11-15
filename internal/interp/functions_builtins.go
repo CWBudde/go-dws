@@ -266,7 +266,8 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	case "High":
 		return i.builtinHigh(args)
 	case "SetLength":
-		return i.builtinSetLength(args)
+		// SetLength is a var-param function, shouldn't be called with evaluated args
+		return i.newErrorWithLocation(i.currentNode, "SetLength should be called as var-param function")
 	case "Add":
 		return i.builtinAdd(args)
 	case "Delete":
@@ -644,6 +645,8 @@ func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression
 		return i.builtinTryStrToInt(args)
 	case "TryStrToFloat":
 		return i.builtinTryStrToFloat(args)
+	case "SetLength":
+		return i.builtinSetLength(args)
 	default:
 		return i.newErrorWithLocation(i.currentNode, "undefined var-param function: %s", name)
 	}
