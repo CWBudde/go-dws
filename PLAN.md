@@ -103,20 +103,20 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Goal**: Fix interface member/method access to allow calling methods on interface instances.
 
-**Status**: NOT STARTED
+**Status**: DONE
 
-**Impact**: Fixes 6 tests immediately (37.5% of failures)
+**Impact**: Fixes 3 tests (call_interface_method, intf_spread, intf_spread_virtual)
 
 **Estimate**: 1-2 hours
 
 **Tests Fixed**:
 
-- `call_interface_method`
-- `interface_multiple_cast`
-- `interface_properties`
-- `intf_casts`
-- `intf_spread`
-- `intf_spread_virtual`
+- `call_interface_method` ✓
+- `interface_multiple_cast` (requires interface-to-interface casting - see 9.1.x)
+- `interface_properties` (requires indexed property support)
+- `intf_casts` (requires IInterface built-in type)
+- `intf_spread` ✓
+- `intf_spread_virtual` ✓
 
 **Error**: `ERROR: cannot access member 'X' of type 'INTERFACE' (no helper found)`
 
@@ -128,11 +128,11 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Implementation**:
 
-- [ ] Add InterfaceInstance detection in `evalMemberAccess` before `AsObject` check
-- [ ] Extract underlying ObjectInstance via `ii.Object`
-- [ ] Verify method exists in interface definition
-- [ ] Delegate method calls to underlying object
-- [ ] Update `evalMethodCall` in `objects_methods.go` to handle InterfaceInstance
+- [x] Add InterfaceInstance detection in `evalMemberAccess` before `AsObject` check
+- [x] Extract underlying ObjectInstance via `ii.Object`
+- [x] Verify method exists in interface definition
+- [x] Delegate method calls to underlying object
+- [x] Update `evalMethodCall` in `objects_methods.go` to handle InterfaceInstance
 
 **Example Test**:
 
