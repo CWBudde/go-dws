@@ -231,6 +231,18 @@ func (i *Interpreter) isBuiltinMethodParameterless(builtinSpec string) bool {
 		"__string_toupper":      true,  // ToUpper() - no parameters
 		"__string_tolower":      true,  // ToLower() - no parameters
 		"__string_array_join":   false, // Join(separator) - 1 parameter
+		"__string_tointeger":    true,  // ToInteger() - no parameters
+		"__string_tofloat":      true,  // ToFloat() - no parameters
+		"__string_tostring":     true,  // ToString() - no parameters
+		"__string_startswith":   false, // StartsWith(str) - 1 parameter
+		"__string_endswith":     false, // EndsWith(str) - 1 parameter
+		"__string_contains":     false, // Contains(str) - 1 parameter
+		"__string_indexof":      false, // IndexOf(str) - 1 parameter
+		"__string_copy":         false, // Copy(start, [len]) - 1-2 parameters
+		"__string_before":       false, // Before(str) - 1 parameter
+		"__string_after":        false, // After(str) - 1 parameter
+		"__string_trim":         true,  // Trim() - no parameters
+		"__string_split":        false, // Split(delimiter) - 1 parameter
 	}
 
 	if isParameterless, exists := parameterlessBuiltins[builtinSpec]; exists {
