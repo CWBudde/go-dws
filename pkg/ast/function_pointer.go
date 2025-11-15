@@ -102,15 +102,13 @@ func (fpt *FunctionPointerTypeNode) typeExpressionNode() {}
 // The @ operator takes a function/procedure identifier and produces a function pointer value
 // that can be assigned to variables, passed as parameters, or stored in data structures.
 type AddressOfExpression struct {
-	Operator Expression      // The target function/procedure (usually an Identifier or member access)
-	Type     *TypeAnnotation // Type of the resulting function pointer
-	Token    token.Token     // The @ token
-	EndPos   token.Position
+	TypedExpressionBase
+	Operator Expression // The target function/procedure (usually an Identifier or member access)
 }
 
-func (ao *AddressOfExpression) expressionNode()      {}
-func (ao *AddressOfExpression) TokenLiteral() string { return ao.Token.Literal }
-func (ao *AddressOfExpression) Pos() token.Position  { return ao.Token.Pos }
+func (ao *AddressOfExpression) expressionNode() {}
+
+// End returns the end position, trying Operator's end first for accurate positioning
 func (ao *AddressOfExpression) End() token.Position {
 	if ao.EndPos.Line != 0 {
 		return ao.EndPos
@@ -120,8 +118,6 @@ func (ao *AddressOfExpression) End() token.Position {
 	}
 	return ao.Token.Pos
 }
-func (ao *AddressOfExpression) GetType() *TypeAnnotation    { return ao.Type }
-func (ao *AddressOfExpression) SetType(typ *TypeAnnotation) { ao.Type = typ }
 
 // String returns a string representation of the address-of expression.
 func (ao *AddressOfExpression) String() string {

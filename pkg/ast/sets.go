@@ -5,8 +5,6 @@ package ast
 import (
 	"bytes"
 	"strings"
-
-	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -54,26 +52,12 @@ func (sd *SetDecl) String() string {
 //   - [one..five]              // set with range (not yet implemented)
 //   - []                       // empty set
 type SetLiteral struct {
-	Type     *TypeAnnotation
+	TypedExpressionBase
 	Elements []Expression
-	Token    token.Token
-	EndPos   token.Position
-}
-
-func (s *SetLiteral) End() token.Position {
-	if s.EndPos.Line != 0 {
-		return s.EndPos
-	}
-	return s.Token.Pos
 }
 
 // expressionNode implements the Expression interface
 func (sl *SetLiteral) expressionNode() {}
-
-// TokenLiteral returns the literal value of the token
-func (sl *SetLiteral) TokenLiteral() string {
-	return sl.Token.Literal
-}
 
 // String returns a string representation of the set literal
 func (sl *SetLiteral) String() string {
@@ -90,19 +74,4 @@ func (sl *SetLiteral) String() string {
 	out.WriteString("]")
 
 	return out.String()
-}
-
-// Pos returns the position of the set literal in the source code
-func (sl *SetLiteral) Pos() token.Position {
-	return sl.Token.Pos
-}
-
-// GetType returns the inferred type annotation
-func (sl *SetLiteral) GetType() *TypeAnnotation {
-	return sl.Type
-}
-
-// SetType sets the type annotation
-func (sl *SetLiteral) SetType(typ *TypeAnnotation) {
-	sl.Type = typ
 }
