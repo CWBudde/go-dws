@@ -53,6 +53,9 @@ func (c *Compiler) compileExpression(expr ast.Expression) error {
 		return c.compileIfExpression(node)
 	case *ast.IsExpression:
 		return c.compileIsExpression(node)
+	case *ast.RecordLiteralExpression:
+		// Task 9.7: Compile record literals
+		return c.compileRecordLiteralExpression(node)
 	default:
 		return c.errorf(expr, "unsupported expression type %T", expr)
 	}
@@ -245,6 +248,39 @@ func (c *Compiler) compileMethodCallExpression(expr *ast.MethodCallExpression) e
 		return c.errorf(expr, "invalid method call expression")
 	}
 
+	// Task 9.3: Check if this is a static method call on a record type (e.g., TRecord.Method(...))
+	if ident, ok := expr.Object.(*ast.Identifier); ok {
+		typeKey := strings.ToLower(ident.Value)
+
+		// Check if this is a record type (use c.records which is inherited from parent compiler)
+		if recordMeta, ok := c.records[typeKey]; ok {
+			methodKey := strings.ToLower(expr.Method.Value)
+			if slot, found := recordMeta.Methods[methodKey]; found {
+				// This is a static record method call
+				// Compile arguments (but not the object, since it's a type)
+				for _, arg := range expr.Arguments {
+					if err := c.compileExpression(arg); err != nil {
+						return err
+					}
+				}
+
+				argCount := len(expr.Arguments)
+				if argCount > 0xFF {
+					return c.errorf(expr, "too many arguments in method call: %d", argCount)
+				}
+
+				// Use direct call - the function constant is stored at the given constant index
+				c.chunk.Write(OpCall, byte(argCount), slot, lineOf(expr))
+				return nil
+			}
+			return c.errorf(expr, "unknown static method '%s' on record type '%s'",
+				expr.Method.Value, ident.Value)
+		}
+
+		// TODO: Check for class static methods similarly (for future class static method support)
+	}
+
+	// Fall back to regular instance method call
 	if err := c.compileExpression(expr.Object); err != nil {
 		return err
 	}
@@ -557,4 +593,65 @@ func (c *Compiler) compileIsExpression(expr *ast.IsExpression) error {
 	// Type checking mode - not yet fully implemented in bytecode
 	// For now, we'll return an error and let the interpreter handle it
 	return c.errorf(expr, "type checking with 'is' operator not yet supported in bytecode mode")
+}
+
+// compileRecordLiteralExpression compiles a record literal (Task 9.7).
+// Example: TPoint(x: 10; y: 20)
+// Strategy:
+//  1. Create new record instance (OpNewRecord)
+//  2. For each field initializer, evaluate expression and set field (OpSetField)
+func (c *Compiler) compileRecordLiteralExpression(expr *ast.RecordLiteralExpression) error {
+	if expr == nil {
+		return c.errorf(expr, "invalid record literal expression")
+	}
+
+	// Get the record type name
+	var typeName string
+	if expr.TypeName != nil {
+		typeName = expr.TypeName.Value
+	} else {
+		// Anonymous records not yet supported
+		return c.errorf(expr, "anonymous record literals not yet supported in bytecode")
+	}
+
+	// Emit OpNewRecord instruction to create the record instance
+	typeIdx := c.chunk.AddConstant(StringValue(typeName))
+	if typeIdx > 0xFFFF {
+		return c.errorf(expr, "constant pool overflow")
+	}
+	c.chunk.Write(OpNewRecord, 0, uint16(typeIdx), lineOf(expr))
+
+	// Initialize each field
+	for _, fieldInit := range expr.Fields {
+		if fieldInit == nil || fieldInit.Value == nil {
+			continue
+		}
+
+		// Duplicate the record on the stack (we need it for each SetField)
+		c.chunk.WriteSimple(OpDup, lineOf(fieldInit))
+
+		// Compile the field value expression
+		if err := c.compileExpression(fieldInit.Value); err != nil {
+			return err
+		}
+
+		// Get the field name
+		var fieldName string
+		if fieldInit.Name != nil {
+			fieldName = fieldInit.Name.Value
+		} else {
+			// Positional field initialization not yet supported
+			return c.errorf(fieldInit, "positional field initialization not yet supported in bytecode")
+		}
+
+		// Emit OpSetField to set the field value
+		fieldIdx := c.chunk.AddConstant(StringValue(fieldName))
+		if fieldIdx > 0xFFFF {
+			return c.errorf(fieldInit, "constant pool overflow")
+		}
+		c.chunk.Write(OpSetField, 0, uint16(fieldIdx), lineOf(fieldInit))
+	}
+
+	// The record is left on the stack as the result
+	return nil
 }

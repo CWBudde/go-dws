@@ -48,6 +48,7 @@ const (
 	ValueString
 	ValueArray
 	ValueObject
+	ValueRecord // Task 9.7: Record value type
 	ValueFunction
 	ValueClosure
 	ValueBuiltin
@@ -63,6 +64,7 @@ var ValueTypeNames = [...]string{
 	ValueString:   "string",
 	ValueArray:    "array",
 	ValueObject:   "object",
+	ValueRecord:   "record", // Task 9.7
 	ValueFunction: "function",
 	ValueClosure:  "closure",
 	ValueBuiltin:  "builtin",
@@ -170,6 +172,9 @@ func (v Value) IsClosure() bool {
 func (v Value) IsObject() bool {
 	return v.Type == ValueObject
 }
+func (v Value) IsRecord() bool {
+	return v.Type == ValueRecord
+}
 func (v Value) IsBuiltin() bool {
 	return v.Type == ValueBuiltin
 }
@@ -248,6 +253,14 @@ func (v Value) AsObject() *ObjectInstance {
 	}
 	return nil
 }
+func (v Value) AsRecord() *RecordInstance {
+	if v.Type == ValueRecord {
+		if rec, ok := v.Data.(*RecordInstance); ok {
+			return rec
+		}
+	}
+	return nil
+}
 
 // AsVariant returns the wrapped value if this is a Variant.
 func (v Value) AsVariant() Value {
@@ -314,6 +327,14 @@ func (v Value) String() string {
 			return "<object>"
 		}
 		return "<object>"
+	case ValueRecord:
+		if rec := v.AsRecord(); rec != nil {
+			if rec.TypeName != "" {
+				return fmt.Sprintf("<record %s>", rec.TypeName)
+			}
+			return "<record>"
+		}
+		return "<record>"
 	case ValueBuiltin:
 		name := v.AsBuiltin()
 		if name != "" {
@@ -513,11 +534,17 @@ func (o *ObjectInstance) GetProperty(name string) (Value, bool) {
 	if o == nil {
 		return NilValue(), false
 	}
+	// Try properties first
 	val, ok := o.props[strings.ToLower(name)]
-	if !ok {
-		return NilValue(), false
+	if ok {
+		return val, true
 	}
-	return val, true
+	// Fall back to fields (Task 9.5.5: fields are accessed via property syntax)
+	val, ok = o.fields[strings.ToLower(name)]
+	if ok {
+		return val, true
+	}
+	return NilValue(), false
 }
 
 // SetProperty stores a property value by name (case-insensitive).
@@ -531,6 +558,54 @@ func (o *ObjectInstance) SetProperty(name string, value Value) {
 	o.props[strings.ToLower(name)] = value
 }
 
+// ============================================================================
+// RecordInstance (Task 9.7)
+// ============================================================================
+
+// RecordInstance represents a record value in the bytecode VM.
+// Records are value types (unlike classes which are reference types) and
+// contain fields that can be accessed via member expressions.
+type RecordInstance struct {
+	fields   map[string]Value // Field values (case-insensitive keys)
+	TypeName string           // Record type name (e.g., "TPoint")
+}
+
+// NewRecordInstance creates a new record instance.
+func NewRecordInstance(typeName string) *RecordInstance {
+	return &RecordInstance{
+		TypeName: typeName,
+		fields:   make(map[string]Value),
+	}
+}
+
+// GetField retrieves a field value by name (case-insensitive).
+func (r *RecordInstance) GetField(name string) (Value, bool) {
+	if r == nil {
+		return NilValue(), false
+	}
+	val, ok := r.fields[strings.ToLower(name)]
+	if !ok {
+		return NilValue(), false
+	}
+	return val, true
+}
+
+// SetField stores a field value by name (case-insensitive).
+func (r *RecordInstance) SetField(name string, value Value) {
+	if r == nil {
+		return
+	}
+	if r.fields == nil {
+		r.fields = make(map[string]Value)
+	}
+	r.fields[strings.ToLower(name)] = value
+}
+
+// RecordValue constructs a Value representing a record instance.
+func RecordValue(rec *RecordInstance) Value {
+	return Value{Type: ValueRecord, Data: rec}
+}
+
 // LineInfo stores line number information for error reporting.
 // Uses run-length encoding to save memory: each entry maps a range of
 // instructions to a source line number.
@@ -541,6 +616,27 @@ type LineInfo struct {
 	Line int
 }
 
+// FieldMetadata stores metadata for a class field including its initializer.
+type FieldMetadata struct {
+	Name        string
+	Initializer *Chunk // Compiled bytecode for field initializer expression (nil if no initializer)
+}
+
+// ClassMetadata stores metadata for a class including field initializers.
+type ClassMetadata struct {
+	Name   string
+	Fields []*FieldMetadata
+}
+
+// RecordMetadata stores metadata for record types including static methods (Task 9.1).
+// Records can have static methods (class functions) that are called on the type itself,
+// not on instances. This metadata maps method names to their constant indices for direct calls.
+type RecordMetadata struct {
+	Name    string
+	Methods map[string]uint16 // Method name (lowercase) -> constant index (for OpCall)
+	Fields  []*FieldMetadata  // For future field initializer support
+}
+
 // Chunk represents a compiled bytecode chunk with instructions and constants.
 // A chunk is the basic unit of compilation - typically one function or script.
 type Chunk struct {
@@ -549,7 +645,9 @@ type Chunk struct {
 	Code       []Instruction
 	Constants  []Value
 	Lines      []LineInfo
-	Helpers    map[string]*HelperInfo // Helper metadata for runtime method resolution
+	Helpers    map[string]*HelperInfo     // Helper metadata for runtime method resolution
+	Classes    map[string]*ClassMetadata  // Class metadata for field initialization
+	Records    map[string]*RecordMetadata // Record metadata for static methods (Task 9.1)
 	LocalCount int
 }
 
@@ -568,6 +666,8 @@ func NewChunk(name string) *Chunk {
 		Constants:  make([]Value, 0, 16),
 		Lines:      make([]LineInfo, 0, 16),
 		Helpers:    make(map[string]*HelperInfo),
+		Classes:    make(map[string]*ClassMetadata),
+		Records:    make(map[string]*RecordMetadata), // Task 9.1
 		LocalCount: 0,
 		Name:       name,
 		tryInfos:   make(map[int]TryInfo),

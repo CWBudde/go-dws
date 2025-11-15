@@ -205,6 +205,10 @@ func (d *Disassembler) tryDisassembleObjectOp(inst Instruction, op OpCode) bool 
 	case OpNewObject:
 		d.byteInstruction(inst, "class")
 		return true
+	case OpNewRecord:
+		// Task 9.7
+		d.byteInstruction(inst, "type")
+		return true
 	case OpGetField, OpSetField:
 		d.byteInstruction(inst, "field")
 		return true

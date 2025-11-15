@@ -11,7 +11,8 @@ import (
 // Compiler converts AST nodes into bytecode chunks.
 type Compiler struct {
 	functions       map[string]functionInfo
-	helpers         map[string]*HelperInfo // Helper registry (keyed by helper name)
+	helpers         map[string]*HelperInfo     // Helper registry (keyed by helper name)
+	records         map[string]*RecordMetadata // Record registry (keyed by record name, Task 9.2)
 	enclosing       *Compiler
 	globals         map[string]globalVar
 	chunk           *Chunk
@@ -88,16 +89,19 @@ func newCompiler(chunkName string, enclosing *Compiler, opts ...CompilerOption) 
 	globals := make(map[string]globalVar)
 	functions := make(map[string]functionInfo)
 	helpers := make(map[string]*HelperInfo)
+	records := make(map[string]*RecordMetadata)
 	if enclosing != nil {
 		globals = enclosing.globals
 		functions = enclosing.functions
 		helpers = enclosing.helpers
+		records = enclosing.records
 	}
 	c := &Compiler{
 		chunk:     NewChunk(chunkName),
 		globals:   globals,
 		functions: functions,
 		helpers:   helpers,
+		records:   records,
 		enclosing: enclosing,
 	}
 	if enclosing != nil {

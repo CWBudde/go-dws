@@ -525,14 +525,19 @@ const (
 	// Stack: [] -> [object]
 	OpNewObject
 
-	// OpGetField loads object field.
+	// OpNewRecord creates a new record instance (Task 9.7).
+	// Format: [OpNewRecord][unused][typeIndex]
+	// Stack: [] -> [record]
+	OpNewRecord
+
+	// OpGetField loads object/record field.
 	// Format: [OpGetField][unused][fieldIndex]
-	// Stack: [object] -> [value]
+	// Stack: [object|record] -> [value]
 	OpGetField
 
-	// OpSetField stores to object field.
+	// OpSetField stores to object/record field.
 	// Format: [OpSetField][unused][fieldIndex]
-	// Stack: [object, value] -> []
+	// Stack: [object|record, value] -> []
 	OpSetField
 
 	// OpGetProperty calls property getter.
@@ -778,6 +783,7 @@ var OpCodeNames = [...]string{
 	OpArrayDelete:      "ARRAY_DELETE",
 	OpArrayIndexOf:     "ARRAY_INDEX_OF",
 	OpNewObject:        "NEW_OBJECT",
+	OpNewRecord:        "NEW_RECORD", // Task 9.7
 	OpGetField:         "GET_FIELD",
 	OpSetField:         "SET_FIELD",
 	OpGetProperty:      "GET_PROPERTY",
