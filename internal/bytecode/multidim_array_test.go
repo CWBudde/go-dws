@@ -4,11 +4,75 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/interp"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 )
+
+// NewTestLexer creates a lexer for the given source code.
+// This is a convenience helper for tests to avoid repetitive lexer creation.
+func NewTestLexer(source string) *lexer.Lexer {
+	return lexer.New(source)
+}
+
+// NewTestParser creates a parser for the given lexer.
+// This is a convenience helper for tests to avoid repetitive parser creation.
+func NewTestParser(l *lexer.Lexer) *parser.Parser {
+	return parser.New(l)
+}
+
+// NewTestProgram parses source code and returns the program, failing the test on parse errors.
+// This is a convenience helper for tests to avoid repetitive parsing and error checking.
+func NewTestProgram(t *testing.T, source string) *ast.Program {
+	t.Helper()
+	l := NewTestLexer(source)
+	p := NewTestParser(l)
+	program := p.ParseProgram()
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+	return program
+}
+
+// NewTestASTInterpreter creates and runs an AST interpreter, returning the output.
+// This is a convenience helper for tests to avoid repetitive interpreter setup.
+func NewTestASTInterpreter(t *testing.T, program *ast.Program) string {
+	t.Helper()
+	var buf bytes.Buffer
+	interp := interp.New(&buf)
+	result := interp.Eval(program)
+	if result != nil && result.Type() == "ERROR" {
+		t.Fatalf("AST interpreter error: %v", result)
+	}
+	return buf.String()
+}
+
+// NewTestBytecodeCompiler creates a bytecode compiler for the given program.
+// This is a convenience helper for tests to avoid repetitive compiler creation.
+func NewTestBytecodeCompiler(t *testing.T, program *ast.Program) *bytecode.Chunk {
+	t.Helper()
+	compiler := bytecode.NewCompiler("test")
+	chunk, err := compiler.Compile(program)
+	if err != nil {
+		t.Fatalf("compilation error: %v", err)
+	}
+	return chunk
+}
+
+// NewTestVM creates and runs a bytecode VM, returning the output.
+// This is a convenience helper for tests to avoid repetitive VM setup.
+func NewTestVM(t *testing.T, chunk *bytecode.Chunk) string {
+	t.Helper()
+	var buf bytes.Buffer
+	vm := bytecode.NewVMWithOutput(&buf)
+	_, err := vm.Run(chunk)
+	if err != nil {
+		t.Fatalf("VM runtime error: %v", err)
+	}
+	return buf.String()
+}
 
 // runBothInterpreters runs the same source with both AST interpreter and bytecode VM
 // and compares their outputs.
@@ -16,37 +80,16 @@ func runBothInterpreters(t *testing.T, source string) (astResult, vmResult strin
 	t.Helper()
 
 	// Parse once
-	l := lexer.New(source)
-	p := parser.New(l)
-	program := p.ParseProgram()
-	if len(p.Errors()) > 0 {
-		t.Fatalf("parser errors: %v", p.Errors())
-	}
+	program := NewTestProgram(t, source)
 
 	// Run AST interpreter
-	var astBuf bytes.Buffer
-	astInterp := interp.New(&astBuf)
-	result := astInterp.Eval(program)
-	if result != nil && result.Type() == "ERROR" {
-		t.Fatalf("AST interpreter error: %v", result)
-	}
-	astResult = astBuf.String()
+	astResult = NewTestASTInterpreter(t, program)
 
 	// Compile to bytecode
-	compiler := bytecode.NewCompiler("test")
-	chunk, err := compiler.Compile(program)
-	if err != nil {
-		t.Fatalf("compilation error: %v", err)
-	}
+	chunk := NewTestBytecodeCompiler(t, program)
 
 	// Run bytecode VM
-	var vmBuf bytes.Buffer
-	vm := bytecode.NewVMWithOutput(&vmBuf)
-	_, err = vm.Run(chunk)
-	if err != nil {
-		t.Fatalf("VM runtime error: %v", err)
-	}
-	vmResult = vmBuf.String()
+	vmResult = NewTestVM(t, chunk)
 
 	return astResult, vmResult
 }
