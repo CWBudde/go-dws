@@ -2,8 +2,7 @@
 package ast
 
 import (
-	"bytes"
-	"strings"
+	"fmt"
 
 	"github.com/cwbudde/go-dws/pkg/token"
 )
@@ -113,88 +112,11 @@ type FunctionDecl struct {
 }
 
 func (fd *FunctionDecl) statementNode() {}
+
+// String returns a simple string representation for debugging.
+// For formatted output, use the printer package.
 func (fd *FunctionDecl) String() string {
-	var out bytes.Buffer
-
-	// Write "class" prefix for class methods
-	if fd.IsClassMethod {
-		out.WriteString("class ")
-	}
-
-	// Write function or procedure keyword
-	out.WriteString(fd.Token.Literal)
-	out.WriteString(" ")
-	out.WriteString(fd.Name.String())
-
-	// Write parameters - always show parentheses if there's a return type
-	if fd.ReturnType != nil || len(fd.Parameters) > 0 {
-		out.WriteString("(")
-		params := []string{}
-		for _, p := range fd.Parameters {
-			params = append(params, p.String())
-		}
-		out.WriteString(strings.Join(params, "; "))
-		out.WriteString(")")
-	}
-
-	// Write return type for functions
-	if fd.ReturnType != nil {
-		out.WriteString(": ")
-		out.WriteString(fd.ReturnType.String())
-	}
-
-	// Write virtual/override/abstract/overload/forward directives
-	if fd.IsVirtual {
-		out.WriteString("; virtual")
-	}
-	if fd.IsOverride {
-		out.WriteString("; override")
-	}
-	if fd.IsAbstract {
-		out.WriteString("; abstract")
-	}
-	if fd.IsOverload {
-		out.WriteString("; overload")
-	}
-	if fd.IsForward {
-		out.WriteString("; forward")
-	}
-
-	// Write calling convention directive
-	if fd.CallingConvention != "" {
-		out.WriteString("; ")
-		out.WriteString(fd.CallingConvention)
-	}
-
-	// Write deprecated directive
-	if fd.IsDeprecated {
-		out.WriteString("; deprecated")
-		if fd.DeprecatedMessage != "" {
-			out.WriteString(" '")
-			out.WriteString(fd.DeprecatedMessage)
-			out.WriteString("'")
-		}
-	}
-
-	// Write preconditions if present
-	if fd.PreConditions != nil {
-		out.WriteString("\n")
-		out.WriteString(fd.PreConditions.String())
-	}
-
-	// Write body (abstract methods have no body)
-	if fd.Body != nil {
-		out.WriteString(" ")
-		out.WriteString(fd.Body.String())
-	}
-
-	// Write postconditions if present
-	if fd.PostConditions != nil {
-		out.WriteString("\n")
-		out.WriteString(fd.PostConditions.String())
-	}
-
-	return out.String()
+	return fmt.Sprintf("FunctionDecl(%s)", fd.Name.Value)
 }
 
 // ReturnStatement represents a return statement in a function.
