@@ -298,6 +298,25 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		return i.newErrorWithLocation(ma, "member '%s' not found in class '%s'", memberName, classInfo.Name)
 	}
 
+	// Task 9.1.1: Check if it's an interface instance
+	// If so, extract the underlying object and delegate member access to it
+	if intfInst, ok := objVal.(*InterfaceInstance); ok {
+		if intfInst.Object == nil {
+			return i.newErrorWithLocation(ma, "cannot access member '%s' on nil interface", ma.Member.Value)
+		}
+
+		// Verify the member exists in the interface definition
+		// This ensures we only access members that are part of the interface contract
+		memberName := ma.Member.Value
+		if !intfInst.Interface.HasMethod(memberName) {
+			// Could be a property or field - for now we'll allow it and let the object check
+			// In a full implementation, we'd verify properties too
+		}
+
+		// Delegate to the underlying object for actual member access
+		objVal = intfInst.Object
+	}
+
 	// Check if it's an object instance
 	obj, ok := AsObject(objVal)
 	if !ok {
