@@ -48,6 +48,7 @@ const (
 	ValueString
 	ValueArray
 	ValueObject
+	ValueRecord // Task 9.7: Record value type
 	ValueFunction
 	ValueClosure
 	ValueBuiltin
@@ -63,6 +64,7 @@ var ValueTypeNames = [...]string{
 	ValueString:   "string",
 	ValueArray:    "array",
 	ValueObject:   "object",
+	ValueRecord:   "record", // Task 9.7
 	ValueFunction: "function",
 	ValueClosure:  "closure",
 	ValueBuiltin:  "builtin",
@@ -170,6 +172,9 @@ func (v Value) IsClosure() bool {
 func (v Value) IsObject() bool {
 	return v.Type == ValueObject
 }
+func (v Value) IsRecord() bool {
+	return v.Type == ValueRecord
+}
 func (v Value) IsBuiltin() bool {
 	return v.Type == ValueBuiltin
 }
@@ -248,6 +253,14 @@ func (v Value) AsObject() *ObjectInstance {
 	}
 	return nil
 }
+func (v Value) AsRecord() *RecordInstance {
+	if v.Type == ValueRecord {
+		if rec, ok := v.Data.(*RecordInstance); ok {
+			return rec
+		}
+	}
+	return nil
+}
 
 // AsVariant returns the wrapped value if this is a Variant.
 func (v Value) AsVariant() Value {
@@ -314,6 +327,14 @@ func (v Value) String() string {
 			return "<object>"
 		}
 		return "<object>"
+	case ValueRecord:
+		if rec := v.AsRecord(); rec != nil {
+			if rec.TypeName != "" {
+				return fmt.Sprintf("<record %s>", rec.TypeName)
+			}
+			return "<record>"
+		}
+		return "<record>"
 	case ValueBuiltin:
 		name := v.AsBuiltin()
 		if name != "" {
@@ -535,6 +556,54 @@ func (o *ObjectInstance) SetProperty(name string, value Value) {
 		o.props = make(map[string]Value)
 	}
 	o.props[strings.ToLower(name)] = value
+}
+
+// ============================================================================
+// RecordInstance (Task 9.7)
+// ============================================================================
+
+// RecordInstance represents a record value in the bytecode VM.
+// Records are value types (unlike classes which are reference types) and
+// contain fields that can be accessed via member expressions.
+type RecordInstance struct {
+	fields   map[string]Value // Field values (case-insensitive keys)
+	TypeName string           // Record type name (e.g., "TPoint")
+}
+
+// NewRecordInstance creates a new record instance.
+func NewRecordInstance(typeName string) *RecordInstance {
+	return &RecordInstance{
+		TypeName: typeName,
+		fields:   make(map[string]Value),
+	}
+}
+
+// GetField retrieves a field value by name (case-insensitive).
+func (r *RecordInstance) GetField(name string) (Value, bool) {
+	if r == nil {
+		return NilValue(), false
+	}
+	val, ok := r.fields[strings.ToLower(name)]
+	if !ok {
+		return NilValue(), false
+	}
+	return val, true
+}
+
+// SetField stores a field value by name (case-insensitive).
+func (r *RecordInstance) SetField(name string, value Value) {
+	if r == nil {
+		return
+	}
+	if r.fields == nil {
+		r.fields = make(map[string]Value)
+	}
+	r.fields[strings.ToLower(name)] = value
+}
+
+// RecordValue constructs a Value representing a record instance.
+func RecordValue(rec *RecordInstance) Value {
+	return Value{Type: ValueRecord, Data: rec}
 }
 
 // LineInfo stores line number information for error reporting.

@@ -518,9 +518,9 @@ func (s *Serializer) writeValue(w io.Writer, val Value) error {
 		// Serialize builtin name
 		return s.writeString(w, val.Data.(string))
 
-	case ValueArray, ValueObject, ValueClosure, ValueVariant:
+	case ValueArray, ValueObject, ValueRecord, ValueClosure, ValueVariant:
 		// These types cannot be serialized as constants
-		// They are runtime-only values
+		// They are runtime-only values (Task 9.7: added ValueRecord)
 		return fmt.Errorf("cannot serialize value type %s as constant", val.Type)
 
 	default:

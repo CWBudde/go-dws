@@ -53,6 +53,9 @@ func (c *Compiler) compileExpression(expr ast.Expression) error {
 		return c.compileIfExpression(node)
 	case *ast.IsExpression:
 		return c.compileIsExpression(node)
+	case *ast.RecordLiteralExpression:
+		// Task 9.7: Compile record literals
+		return c.compileRecordLiteralExpression(node)
 	default:
 		return c.errorf(expr, "unsupported expression type %T", expr)
 	}
@@ -557,4 +560,65 @@ func (c *Compiler) compileIsExpression(expr *ast.IsExpression) error {
 	// Type checking mode - not yet fully implemented in bytecode
 	// For now, we'll return an error and let the interpreter handle it
 	return c.errorf(expr, "type checking with 'is' operator not yet supported in bytecode mode")
+}
+
+// compileRecordLiteralExpression compiles a record literal (Task 9.7).
+// Example: TPoint(x: 10; y: 20)
+// Strategy:
+//   1. Create new record instance (OpNewRecord)
+//   2. For each field initializer, evaluate expression and set field (OpSetField)
+func (c *Compiler) compileRecordLiteralExpression(expr *ast.RecordLiteralExpression) error {
+	if expr == nil {
+		return c.errorf(expr, "invalid record literal expression")
+	}
+
+	// Get the record type name
+	var typeName string
+	if expr.TypeName != nil {
+		typeName = expr.TypeName.Value
+	} else {
+		// Anonymous records not yet supported
+		return c.errorf(expr, "anonymous record literals not yet supported in bytecode")
+	}
+
+	// Emit OpNewRecord instruction to create the record instance
+	typeIdx := c.chunk.AddConstant(StringValue(typeName))
+	if typeIdx > 0xFFFF {
+		return c.errorf(expr, "constant pool overflow")
+	}
+	c.chunk.Write(OpNewRecord, 0, uint16(typeIdx), lineOf(expr))
+
+	// Initialize each field
+	for _, fieldInit := range expr.Fields {
+		if fieldInit == nil || fieldInit.Value == nil {
+			continue
+		}
+
+		// Duplicate the record on the stack (we need it for each SetField)
+		c.chunk.WriteSimple(OpDup, lineOf(fieldInit))
+
+		// Compile the field value expression
+		if err := c.compileExpression(fieldInit.Value); err != nil {
+			return err
+		}
+
+		// Get the field name
+		var fieldName string
+		if fieldInit.Name != nil {
+			fieldName = fieldInit.Name.Value
+		} else {
+			// Positional field initialization not yet supported
+			return c.errorf(fieldInit, "positional field initialization not yet supported in bytecode")
+		}
+
+		// Emit OpSetField to set the field value
+		fieldIdx := c.chunk.AddConstant(StringValue(fieldName))
+		if fieldIdx > 0xFFFF {
+			return c.errorf(fieldInit, "constant pool overflow")
+		}
+		c.chunk.Write(OpSetField, 0, uint16(fieldIdx), lineOf(fieldInit))
+	}
+
+	// The record is left on the stack as the result
+	return nil
 }
