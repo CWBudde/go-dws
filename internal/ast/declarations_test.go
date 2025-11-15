@@ -13,9 +13,9 @@ func TestConstDecl(t *testing.T) {
 		BaseNode: BaseNode{
 			Token: lexer.Token{Type: lexer.CONST, Literal: "const", Pos: lexer.Position{Line: 1, Column: 1}},
 		},
-		Name:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "MAX", Pos: lexer.Position{Line: 1, Column: 7}}}}, Value: "MAX"},
+		Name:  NewTestIdentifier("MAX"),
 		Type:  nil, // No type annotation
-		Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "100", Pos: lexer.Position{Line: 1, Column: 13}}}}, Value: 100},
+		Value: NewTestIntegerLiteral(100),
 	}
 
 	if constDecl.TokenLiteral() != "const" {
@@ -40,9 +40,9 @@ func TestConstDeclWithFloat(t *testing.T) {
 		BaseNode: BaseNode{
 			Token: lexer.Token{Type: lexer.CONST, Literal: "const", Pos: lexer.Position{Line: 1, Column: 1}},
 		},
-		Name:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "PI", Pos: lexer.Position{Line: 1, Column: 7}}}}, Value: "PI"},
+		Name:  NewTestIdentifier("PI"),
 		Type:  nil,
-		Value: &FloatLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FLOAT, Literal: "3.14", Pos: lexer.Position{Line: 1, Column: 12}}}}, Value: 3.14},
+		Value: NewTestFloatLiteral(3.14),
 	}
 
 	expectedString := "const PI = 3.14"
@@ -58,9 +58,9 @@ func TestConstDeclWithString(t *testing.T) {
 		BaseNode: BaseNode{
 			Token: lexer.Token{Type: lexer.CONST, Literal: "const", Pos: lexer.Position{Line: 1, Column: 1}},
 		},
-		Name:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "APP_NAME", Pos: lexer.Position{Line: 1, Column: 7}}}}, Value: "APP_NAME"},
+		Name:  NewTestIdentifier("APP_NAME"),
 		Type:  nil,
-		Value: &StringLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.STRING, Literal: "MyApp", Pos: lexer.Position{Line: 1, Column: 18}}}}, Value: "MyApp"},
+		Value: NewTestStringLiteral("MyApp"),
 	}
 
 	expectedString := "const APP_NAME = \"MyApp\""
@@ -76,12 +76,9 @@ func TestConstDeclTyped(t *testing.T) {
 		BaseNode: BaseNode{
 			Token: lexer.Token{Type: lexer.CONST, Literal: "const", Pos: lexer.Position{Line: 1, Column: 1}},
 		},
-		Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "MAX_USERS", Pos: lexer.Position{Line: 1, Column: 7}}}}, Value: "MAX_USERS"},
-		Type: &TypeAnnotation{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer", Pos: lexer.Position{Line: 1, Column: 18}},
-			Name:  "Integer",
-		},
-		Value: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "1000", Pos: lexer.Position{Line: 1, Column: 28}}}}, Value: 1000},
+		Name:  NewTestIdentifier("MAX_USERS"),
+		Type:  NewTestTypeAnnotation("Integer"),
+		Value: NewTestIntegerLiteral(1000),
 	}
 
 	expectedString := "const MAX_USERS: Integer = 1000"
@@ -102,12 +99,9 @@ func TestTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
 			},
-			Name:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID", Pos: lexer.Position{Line: 1, Column: 6}}}}, Value: "TUserID"},
-			IsAlias: true,
-			AliasedType: &TypeAnnotation{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer", Pos: lexer.Position{Line: 1, Column: 16}},
-				Name:  "Integer",
-			},
+			Name:        NewTestIdentifier("TUserID"),
+			IsAlias:     true,
+			AliasedType: NewTestTypeAnnotation("Integer"),
 		}
 
 		// Test TokenLiteral()
@@ -148,12 +142,9 @@ func TestTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
 			},
-			Name:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TFileName", Pos: lexer.Position{Line: 2, Column: 6}}}}, Value: "TFileName"},
-			IsAlias: true,
-			AliasedType: &TypeAnnotation{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "String", Pos: lexer.Position{Line: 2, Column: 18}},
-				Name:  "String",
-			},
+			Name:        NewTestIdentifier("TFileName"),
+			IsAlias:     true,
+			AliasedType: NewTestTypeAnnotation("String"),
 		}
 
 		expectedString := "type TFileName = String"
@@ -168,12 +159,9 @@ func TestTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 3, Column: 1}},
 			},
-			Name:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TPrice", Pos: lexer.Position{Line: 3, Column: 6}}}}, Value: "TPrice"},
-			IsAlias: true,
-			AliasedType: &TypeAnnotation{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Float", Pos: lexer.Position{Line: 3, Column: 15}},
-				Name:  "Float",
-			},
+			Name:        NewTestIdentifier("TPrice"),
+			IsAlias:     true,
+			AliasedType: NewTestTypeAnnotation("Float"),
 		}
 
 		expectedString := "type TPrice = Float"
@@ -188,12 +176,9 @@ func TestTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 4, Column: 1}},
 			},
-			Name:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TFlag", Pos: lexer.Position{Line: 4, Column: 6}}}}, Value: "TFlag"},
-			IsAlias: true,
-			AliasedType: &TypeAnnotation{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Boolean", Pos: lexer.Position{Line: 4, Column: 14}},
-				Name:  "Boolean",
-			},
+			Name:        NewTestIdentifier("TFlag"),
+			IsAlias:     true,
+			AliasedType: NewTestTypeAnnotation("Boolean"),
 		}
 
 		expectedString := "type TFlag = Boolean"
@@ -209,12 +194,9 @@ func TestTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 5, Column: 1}},
 			},
-			Name:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TIntArray", Pos: lexer.Position{Line: 5, Column: 6}}}}, Value: "TIntArray"},
-			IsAlias: true,
-			AliasedType: &TypeAnnotation{
-				Token: lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{Line: 5, Column: 18}},
-				Name:  "array of Integer",
-			},
+			Name:        NewTestIdentifier("TIntArray"),
+			IsAlias:     true,
+			AliasedType: NewTestTypeAnnotation("array of Integer"),
 		}
 
 		expectedString := "type TIntArray = array of Integer"
@@ -230,12 +212,9 @@ func TestTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 6, Column: 1}},
 			},
-			Name:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TMyInt", Pos: lexer.Position{Line: 6, Column: 6}}}}, Value: "TMyInt"},
-			IsAlias: true,
-			AliasedType: &TypeAnnotation{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID", Pos: lexer.Position{Line: 6, Column: 15}},
-				Name:  "TUserID",
-			},
+			Name:        NewTestIdentifier("TMyInt"),
+			IsAlias:     true,
+			AliasedType: NewTestTypeAnnotation("TUserID"),
 		}
 
 		expectedString := "type TMyInt = TUserID"
@@ -252,7 +231,7 @@ func TestTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 7, Column: 1}},
 			},
-			Name:        &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TMyRecord", Pos: lexer.Position{Line: 7, Column: 6}}}}, Value: "TMyRecord"},
+			Name:        NewTestIdentifier("TMyRecord"),
 			IsAlias:     false,
 			AliasedType: nil,
 		}
@@ -270,12 +249,9 @@ func TestTypeDeclarationImplementsStatement(t *testing.T) {
 		BaseNode: BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
 		},
-		Name:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID", Pos: lexer.Position{Line: 1, Column: 6}}}}, Value: "TUserID"},
-		IsAlias: true,
-		AliasedType: &TypeAnnotation{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer", Pos: lexer.Position{Line: 1, Column: 16}},
-			Name:  "Integer",
-		},
+		Name:        NewTestIdentifier("TUserID"),
+		IsAlias:     true,
+		AliasedType: NewTestTypeAnnotation("Integer"),
 	}
 
 	// This will fail to compile if TypeDeclaration doesn't implement Statement
@@ -296,7 +272,7 @@ func TestSubrangeTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
 			},
-			Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TDigit", Pos: lexer.Position{Line: 1, Column: 6}}}}, Value: "TDigit"},
+			Name:       NewTestIdentifier("TDigit"),
 			IsSubrange: true,
 			LowBound:   &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: lexer.Position{Line: 1, Column: 16}}}}, Value: 0},
 			HighBound:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "9", Pos: lexer.Position{Line: 1, Column: 19}}}}, Value: 9},
@@ -337,7 +313,7 @@ func TestSubrangeTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
 			},
-			Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TPercent", Pos: lexer.Position{Line: 2, Column: 6}}}}, Value: "TPercent"},
+			Name:       NewTestIdentifier("TPercent"),
 			IsSubrange: true,
 			LowBound:   &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: lexer.Position{Line: 2, Column: 18}}}}, Value: 0},
 			HighBound:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "100", Pos: lexer.Position{Line: 2, Column: 21}}}}, Value: 100},
@@ -355,7 +331,7 @@ func TestSubrangeTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 3, Column: 1}},
 			},
-			Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TTemperature", Pos: lexer.Position{Line: 3, Column: 6}}}}, Value: "TTemperature"},
+			Name:       NewTestIdentifier("TTemperature"),
 			IsSubrange: true,
 			LowBound: &UnaryExpression{
 				Token:    lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: lexer.Position{Line: 3, Column: 22}},
@@ -377,7 +353,7 @@ func TestSubrangeTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 4, Column: 1}},
 			},
-			Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TAnswer", Pos: lexer.Position{Line: 4, Column: 6}}}}, Value: "TAnswer"},
+			Name:       NewTestIdentifier("TAnswer"),
 			IsSubrange: true,
 			LowBound:   &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "42", Pos: lexer.Position{Line: 4, Column: 17}}}}, Value: 42},
 			HighBound:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "42", Pos: lexer.Position{Line: 4, Column: 21}}}}, Value: 42},
@@ -396,7 +372,7 @@ func TestSubrangeTypeDeclarationFields(t *testing.T) {
 		BaseNode: BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
 		},
-		Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TDigit", Pos: lexer.Position{Line: 1, Column: 6}}}}, Value: "TDigit"},
+		Name:       NewTestIdentifier("TDigit"),
 		IsSubrange: true,
 		LowBound:   &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: lexer.Position{Line: 1, Column: 16}}}}, Value: 0},
 		HighBound:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "9", Pos: lexer.Position{Line: 1, Column: 19}}}}, Value: 9},
@@ -440,7 +416,7 @@ func TestSubrangeVsAliasTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
 			},
-			Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TDigit", Pos: lexer.Position{Line: 1, Column: 6}}}}, Value: "TDigit"},
+			Name:       NewTestIdentifier("TDigit"),
 			IsSubrange: true,
 			LowBound:   &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: lexer.Position{Line: 1, Column: 16}}}}, Value: 0},
 			HighBound:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "9", Pos: lexer.Position{Line: 1, Column: 19}}}}, Value: 9},
@@ -467,13 +443,10 @@ func TestSubrangeVsAliasTypeDeclaration(t *testing.T) {
 			BaseNode: BaseNode{
 				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
 			},
-			Name:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID", Pos: lexer.Position{Line: 2, Column: 6}}}}, Value: "TUserID"},
-			IsAlias: true,
-			AliasedType: &TypeAnnotation{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer", Pos: lexer.Position{Line: 2, Column: 16}},
-				Name:  "Integer",
-			},
-			IsSubrange: false, // Should be false for aliases
+			Name:        NewTestIdentifier("TUserID"),
+			IsAlias:     true,
+			AliasedType: NewTestTypeAnnotation("Integer"),
+			IsSubrange:  false, // Should be false for aliases
 		}
 
 		if typeDecl.IsSubrange {

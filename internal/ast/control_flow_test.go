@@ -17,15 +17,15 @@ func TestIfStatementString(t *testing.T) {
 			stmt: &IfStatement{
 				Token: lexer.Token{Type: lexer.IF, Literal: "if"},
 				Condition: &BinaryExpression{
-					Left:     &Identifier{Value: "x"},
+					Left:     NewTestIdentifier("x"),
 					Operator: ">",
-					Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "0"}}}},
+					Right:    NewTestIntegerLiteral(0),
 				},
 				Consequence: &ExpressionStatement{
 					Expression: &CallExpression{
-						Function: &Identifier{Value: "PrintLn"},
+						Function: NewTestIdentifier("PrintLn"),
 						Arguments: []Expression{
-							&StringLiteral{Value: "positive"},
+							NewTestStringLiteral("positive"),
 						},
 					},
 				},
@@ -37,23 +37,23 @@ func TestIfStatementString(t *testing.T) {
 			stmt: &IfStatement{
 				Token: lexer.Token{Type: lexer.IF, Literal: "if"},
 				Condition: &BinaryExpression{
-					Left:     &Identifier{Value: "x"},
+					Left:     NewTestIdentifier("x"),
 					Operator: ">",
-					Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "0"}}}},
+					Right:    NewTestIntegerLiteral(0),
 				},
 				Consequence: &ExpressionStatement{
 					Expression: &CallExpression{
-						Function: &Identifier{Value: "PrintLn"},
+						Function: NewTestIdentifier("PrintLn"),
 						Arguments: []Expression{
-							&StringLiteral{Value: "positive"},
+							NewTestStringLiteral("positive"),
 						},
 					},
 				},
 				Alternative: &ExpressionStatement{
 					Expression: &CallExpression{
-						Function: &Identifier{Value: "PrintLn"},
+						Function: NewTestIdentifier("PrintLn"),
 						Arguments: []Expression{
-							&StringLiteral{Value: "non-positive"},
+							NewTestStringLiteral("non-positive"),
 						},
 					},
 				},
@@ -75,16 +75,16 @@ func TestWhileStatementString(t *testing.T) {
 	stmt := &WhileStatement{
 		Token: lexer.Token{Type: lexer.WHILE, Literal: "while"},
 		Condition: &BinaryExpression{
-			Left:     &Identifier{Value: "x"},
+			Left:     NewTestIdentifier("x"),
 			Operator: "<",
-			Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "10"}}}},
+			Right:    NewTestIntegerLiteral(10),
 		},
 		Body: &AssignmentStatement{
-			Target: &Identifier{Value: "x"},
+			Target: NewTestIdentifier("x"),
 			Value: &BinaryExpression{
-				Left:     &Identifier{Value: "x"},
+				Left:     NewTestIdentifier("x"),
 				Operator: "+",
-				Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "1"}}}},
+				Right:    NewTestIntegerLiteral(1),
 			},
 		},
 	}
@@ -99,17 +99,17 @@ func TestRepeatStatementString(t *testing.T) {
 	stmt := &RepeatStatement{
 		Token: lexer.Token{Type: lexer.REPEAT, Literal: "repeat"},
 		Body: &AssignmentStatement{
-			Target: &Identifier{Value: "x"},
+			Target: NewTestIdentifier("x"),
 			Value: &BinaryExpression{
-				Left:     &Identifier{Value: "x"},
+				Left:     NewTestIdentifier("x"),
 				Operator: "+",
-				Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "1"}}}},
+				Right:    NewTestIntegerLiteral(1),
 			},
 		},
 		Condition: &BinaryExpression{
-			Left:     &Identifier{Value: "x"},
+			Left:     NewTestIdentifier("x"),
 			Operator: ">=",
-			Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "10"}}}},
+			Right:    NewTestIntegerLiteral(10),
 		},
 	}
 
@@ -129,15 +129,15 @@ func TestForStatementString(t *testing.T) {
 			name: "for loop ascending",
 			stmt: &ForStatement{
 				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
-				Variable:  &Identifier{Value: "i"},
-				Start:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "1"}}}},
-				EndValue:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "10"}}}},
+				Variable:  NewTestIdentifier("i"),
+				Start:     NewTestIntegerLiteral(1),
+				EndValue:  NewTestIntegerLiteral(10),
 				Direction: ForTo,
 				Body: &ExpressionStatement{
 					Expression: &CallExpression{
-						Function: &Identifier{Value: "PrintLn"},
+						Function: NewTestIdentifier("PrintLn"),
 						Arguments: []Expression{
-							&Identifier{Value: "i"},
+							NewTestIdentifier("i"),
 						},
 					},
 				},
@@ -148,15 +148,15 @@ func TestForStatementString(t *testing.T) {
 			name: "for loop descending",
 			stmt: &ForStatement{
 				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
-				Variable:  &Identifier{Value: "i"},
-				Start:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "10"}}}},
-				EndValue:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "1"}}}},
+				Variable:  NewTestIdentifier("i"),
+				Start:     NewTestIntegerLiteral(10),
+				EndValue:  NewTestIntegerLiteral(1),
 				Direction: ForDownto,
 				Body: &ExpressionStatement{
 					Expression: &CallExpression{
-						Function: &Identifier{Value: "PrintLn"},
+						Function: NewTestIdentifier("PrintLn"),
 						Arguments: []Expression{
-							&Identifier{Value: "i"},
+							NewTestIdentifier("i"),
 						},
 					},
 				},
@@ -167,16 +167,16 @@ func TestForStatementString(t *testing.T) {
 			name: "for loop ascending with step",
 			stmt: &ForStatement{
 				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
-				Variable:  &Identifier{Value: "i"},
-				Start:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "1"}}}},
-				EndValue:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "10"}}}},
+				Variable:  NewTestIdentifier("i"),
+				Start:     NewTestIntegerLiteral(1),
+				EndValue:  NewTestIntegerLiteral(10),
 				Direction: ForTo,
-				Step:      &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "2"}}}},
+				Step:      NewTestIntegerLiteral(2),
 				Body: &ExpressionStatement{
 					Expression: &CallExpression{
-						Function: &Identifier{Value: "PrintLn"},
+						Function: NewTestIdentifier("PrintLn"),
 						Arguments: []Expression{
-							&Identifier{Value: "i"},
+							NewTestIdentifier("i"),
 						},
 					},
 				},
@@ -187,16 +187,16 @@ func TestForStatementString(t *testing.T) {
 			name: "for loop descending with step",
 			stmt: &ForStatement{
 				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
-				Variable:  &Identifier{Value: "i"},
-				Start:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "10"}}}},
-				EndValue:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "1"}}}},
+				Variable:  NewTestIdentifier("i"),
+				Start:     NewTestIntegerLiteral(10),
+				EndValue:  NewTestIntegerLiteral(1),
 				Direction: ForDownto,
-				Step:      &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "3"}}}},
+				Step:      NewTestIntegerLiteral(3),
 				Body: &ExpressionStatement{
 					Expression: &CallExpression{
-						Function: &Identifier{Value: "PrintLn"},
+						Function: NewTestIdentifier("PrintLn"),
 						Arguments: []Expression{
-							&Identifier{Value: "i"},
+							NewTestIdentifier("i"),
 						},
 					},
 				},
@@ -207,20 +207,20 @@ func TestForStatementString(t *testing.T) {
 			name: "for loop with step expression",
 			stmt: &ForStatement{
 				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
-				Variable:  &Identifier{Value: "i"},
-				Start:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "0"}}}},
-				EndValue:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "20"}}}},
+				Variable:  NewTestIdentifier("i"),
+				Start:     NewTestIntegerLiteral(0),
+				EndValue:  NewTestIntegerLiteral(20),
 				Direction: ForTo,
 				Step: &BinaryExpression{
-					Left:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "2"}}}},
+					Left:     NewTestIntegerLiteral(2),
 					Operator: "+",
-					Right:    &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "1"}}}},
+					Right:    NewTestIntegerLiteral(1),
 				},
 				Body: &ExpressionStatement{
 					Expression: &CallExpression{
-						Function: &Identifier{Value: "PrintLn"},
+						Function: NewTestIdentifier("PrintLn"),
 						Arguments: []Expression{
-							&Identifier{Value: "i"},
+							NewTestIdentifier("i"),
 						},
 					},
 				},
@@ -231,17 +231,17 @@ func TestForStatementString(t *testing.T) {
 			name: "for loop with inline var and step",
 			stmt: &ForStatement{
 				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
-				Variable:  &Identifier{Value: "i"},
-				Start:     &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "0"}}}},
-				EndValue:  &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "10"}}}},
+				Variable:  NewTestIdentifier("i"),
+				Start:     NewTestIntegerLiteral(0),
+				EndValue:  NewTestIntegerLiteral(10),
 				Direction: ForTo,
-				Step:      &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "2"}}}},
+				Step:      NewTestIntegerLiteral(2),
 				InlineVar: true,
 				Body: &ExpressionStatement{
 					Expression: &CallExpression{
-						Function: &Identifier{Value: "PrintLn"},
+						Function: NewTestIdentifier("PrintLn"),
 						Arguments: []Expression{
-							&Identifier{Value: "i"},
+							NewTestIdentifier("i"),
 						},
 					},
 				},
@@ -262,31 +262,31 @@ func TestForStatementString(t *testing.T) {
 func TestCaseStatementString(t *testing.T) {
 	stmt := &CaseStatement{
 		Token:      lexer.Token{Type: lexer.CASE, Literal: "case"},
-		Expression: &Identifier{Value: "x"},
+		Expression: NewTestIdentifier("x"),
 		Cases: []*CaseBranch{
 			{
 				Values: []Expression{
-					&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "1"}}}},
+					NewTestIntegerLiteral(1),
 				},
 				Statement: &ExpressionStatement{
 					Expression: &CallExpression{
-						Function: &Identifier{Value: "PrintLn"},
+						Function: NewTestIdentifier("PrintLn"),
 						Arguments: []Expression{
-							&StringLiteral{Value: "one"},
+							NewTestStringLiteral("one"),
 						},
 					},
 				},
 			},
 			{
 				Values: []Expression{
-					&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "2"}}}},
-					&IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "3"}}}},
+					NewTestIntegerLiteral(2),
+					NewTestIntegerLiteral(3),
 				},
 				Statement: &ExpressionStatement{
 					Expression: &CallExpression{
-						Function: &Identifier{Value: "PrintLn"},
+						Function: NewTestIdentifier("PrintLn"),
 						Arguments: []Expression{
-							&StringLiteral{Value: "two or three"},
+							NewTestStringLiteral("two or three"),
 						},
 					},
 				},
@@ -294,9 +294,9 @@ func TestCaseStatementString(t *testing.T) {
 		},
 		Else: &ExpressionStatement{
 			Expression: &CallExpression{
-				Function: &Identifier{Value: "PrintLn"},
+				Function: NewTestIdentifier("PrintLn"),
 				Arguments: []Expression{
-					&StringLiteral{Value: "other"},
+					NewTestStringLiteral("other"),
 				},
 			},
 		},
@@ -378,7 +378,7 @@ func TestExitStatementString(t *testing.T) {
 			name: "exit with integer value",
 			stmt: &ExitStatement{
 				Token:       lexer.Token{Type: lexer.EXIT, Literal: "exit"},
-				ReturnValue: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Literal: "-1"}}}, Value: -1},
+				ReturnValue: NewTestIntegerLiteral(-1),
 			},
 			expected: "Exit -1",
 		},
@@ -386,7 +386,7 @@ func TestExitStatementString(t *testing.T) {
 			name: "exit with identifier value",
 			stmt: &ExitStatement{
 				Token:       lexer.Token{Type: lexer.EXIT, Literal: "exit"},
-				ReturnValue: &Identifier{Value: "result"},
+				ReturnValue: NewTestIdentifier("result"),
 			},
 			expected: "Exit result",
 		},

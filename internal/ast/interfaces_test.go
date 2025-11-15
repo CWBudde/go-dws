@@ -19,7 +19,7 @@ func TestInterfaceMethodDeclString(t *testing.T) {
 		{
 			name: "simple procedure (no parameters, no return type)",
 			method: &InterfaceMethodDecl{
-				Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Hello"}}}, Value: "Hello"},
+				Name:       NewTestIdentifier("Hello"),
 				Parameters: []*Parameter{},
 				ReturnType: nil,
 			},
@@ -28,14 +28,11 @@ func TestInterfaceMethodDeclString(t *testing.T) {
 		{
 			name: "procedure with one parameter",
 			method: &InterfaceMethodDecl{
-				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "SetValue"}}}, Value: "SetValue"},
+				Name: NewTestIdentifier("SetValue"),
 				Parameters: []*Parameter{
 					{
-						Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
-						Type: &TypeAnnotation{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
-							Name:  "Integer",
-						},
+						Name:  NewTestIdentifier("x"),
+						Type:  NewTestTypeAnnotation("Integer"),
 						ByRef: false,
 					},
 				},
@@ -46,63 +43,45 @@ func TestInterfaceMethodDeclString(t *testing.T) {
 		{
 			name: "function with return type",
 			method: &InterfaceMethodDecl{
-				Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"}}}, Value: "GetValue"},
+				Name:       NewTestIdentifier("GetValue"),
 				Parameters: []*Parameter{},
-				ReturnType: &TypeAnnotation{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
-					Name:  "Integer",
-				},
+				ReturnType: NewTestTypeAnnotation("Integer"),
 			},
 			expected: "function GetValue: Integer",
 		},
 		{
 			name: "function with parameters and return type",
 			method: &InterfaceMethodDecl{
-				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"}}}, Value: "Add"},
+				Name: NewTestIdentifier("Add"),
 				Parameters: []*Parameter{
 					{
-						Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "a"}}}, Value: "a"},
-						Type: &TypeAnnotation{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
-							Name:  "Integer",
-						},
+						Name:  NewTestIdentifier("a"),
+						Type:  NewTestTypeAnnotation("Integer"),
 						ByRef: false,
 					},
 					{
-						Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "b"}}}, Value: "b"},
-						Type: &TypeAnnotation{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
-							Name:  "Integer",
-						},
+						Name:  NewTestIdentifier("b"),
+						Type:  NewTestTypeAnnotation("Integer"),
 						ByRef: false,
 					},
 				},
-				ReturnType: &TypeAnnotation{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
-					Name:  "Integer",
-				},
+				ReturnType: NewTestTypeAnnotation("Integer"),
 			},
 			expected: "function Add(a: Integer; b: Integer): Integer",
 		},
 		{
 			name: "procedure with var parameter",
 			method: &InterfaceMethodDecl{
-				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Swap"}}}, Value: "Swap"},
+				Name: NewTestIdentifier("Swap"),
 				Parameters: []*Parameter{
 					{
-						Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "a"}}}, Value: "a"},
-						Type: &TypeAnnotation{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
-							Name:  "Integer",
-						},
+						Name:  NewTestIdentifier("a"),
+						Type:  NewTestTypeAnnotation("Integer"),
 						ByRef: true,
 					},
 					{
-						Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "b"}}}, Value: "b"},
-						Type: &TypeAnnotation{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
-							Name:  "Integer",
-						},
+						Name:  NewTestIdentifier("b"),
+						Type:  NewTestTypeAnnotation("Integer"),
 						ByRef: true,
 					},
 				},
@@ -138,7 +117,7 @@ func TestInterfaceDeclString(t *testing.T) {
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 				},
-				Name:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "IEmpty"}}}, Value: "IEmpty"},
+				Name:    NewTestIdentifier("IEmpty"),
 				Parent:  nil,
 				Methods: []*InterfaceMethodDecl{},
 			},
@@ -150,8 +129,8 @@ func TestInterfaceDeclString(t *testing.T) {
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 				},
-				Name:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "IDescendent"}}}, Value: "IDescendent"},
-				Parent:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "IBase"}}}, Value: "IBase"},
+				Name:    NewTestIdentifier("IDescendent"),
+				Parent:  NewTestIdentifier("IBase"),
 				Methods: []*InterfaceMethodDecl{},
 			},
 			expected: "type IDescendent = interface(IBase)\nend",
@@ -162,11 +141,11 @@ func TestInterfaceDeclString(t *testing.T) {
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 				},
-				Name:   &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "IMy"}}}, Value: "IMy"},
+				Name:   NewTestIdentifier("IMy"),
 				Parent: nil,
 				Methods: []*InterfaceMethodDecl{
 					{
-						Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Hello"}}}, Value: "Hello"},
+						Name:       NewTestIdentifier("Hello"),
 						Parameters: []*Parameter{},
 						ReturnType: nil,
 					},
@@ -180,21 +159,18 @@ func TestInterfaceDeclString(t *testing.T) {
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 				},
-				Name:   &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "ICounter"}}}, Value: "ICounter"},
+				Name:   NewTestIdentifier("ICounter"),
 				Parent: nil,
 				Methods: []*InterfaceMethodDecl{
 					{
-						Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Increment"}}}, Value: "Increment"},
+						Name:       NewTestIdentifier("Increment"),
 						Parameters: []*Parameter{},
 						ReturnType: nil,
 					},
 					{
-						Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"}}}, Value: "GetValue"},
+						Name:       NewTestIdentifier("GetValue"),
 						Parameters: []*Parameter{},
-						ReturnType: &TypeAnnotation{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
-							Name:  "Integer",
-						},
+						ReturnType: NewTestTypeAnnotation("Integer"),
 					},
 				},
 			},
@@ -206,11 +182,11 @@ func TestInterfaceDeclString(t *testing.T) {
 				BaseNode: BaseNode{
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 				},
-				Name:   &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "IDescendent"}}}, Value: "IDescendent"},
-				Parent: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "IBase"}}}, Value: "IBase"},
+				Name:   NewTestIdentifier("IDescendent"),
+				Parent: NewTestIdentifier("IBase"),
 				Methods: []*InterfaceMethodDecl{
 					{
-						Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "B"}}}, Value: "B"},
+						Name:       NewTestIdentifier("B"),
 						Parameters: []*Parameter{},
 						ReturnType: nil,
 					},
@@ -244,17 +220,10 @@ func TestClassDeclWithInterfacesString(t *testing.T) {
 			name: "class implementing single interface",
 			classDecl: &ClassDecl{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
-				Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TTest"}}}, Value: "TTest"},
-				Parent:   &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TObject"}}}, Value: "TObject"},
+				Name:     NewTestIdentifier("TTest"),
+				Parent:   NewTestIdentifier("TObject"),
 				Interfaces: []*Identifier{
-					{
-						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "IMy"},
-							},
-						},
-						Value: "IMy",
-					},
+					NewTestIdentifier("IMy"),
 				},
 				Fields:  []*FieldDecl{},
 				Methods: []*FunctionDecl{},
@@ -265,25 +234,11 @@ func TestClassDeclWithInterfacesString(t *testing.T) {
 			name: "class implementing multiple interfaces",
 			classDecl: &ClassDecl{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
-				Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TImpAB"}}}, Value: "TImpAB"},
-				Parent:   &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TObject"}}}, Value: "TObject"},
+				Name:     NewTestIdentifier("TImpAB"),
+				Parent:   NewTestIdentifier("TObject"),
 				Interfaces: []*Identifier{
-					{
-						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "IIntfA"},
-							},
-						},
-						Value: "IIntfA",
-					},
-					{
-						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "IIntfB"},
-							},
-						},
-						Value: "IIntfB",
-					},
+					NewTestIdentifier("IIntfA"),
+					NewTestIdentifier("IIntfB"),
 				},
 				Fields:  []*FieldDecl{},
 				Methods: []*FunctionDecl{},
@@ -294,17 +249,10 @@ func TestClassDeclWithInterfacesString(t *testing.T) {
 			name: "class with no parent but implementing interface",
 			classDecl: &ClassDecl{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
-				Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TSimple"}}}, Value: "TSimple"},
+				Name:     NewTestIdentifier("TSimple"),
 				Parent:   nil,
 				Interfaces: []*Identifier{
-					{
-						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "IMyInterface"},
-							},
-						},
-						Value: "IMyInterface",
-					},
+					NewTestIdentifier("IMyInterface"),
 				},
 				Fields:  []*FieldDecl{},
 				Methods: []*FunctionDecl{},
@@ -315,17 +263,10 @@ func TestClassDeclWithInterfacesString(t *testing.T) {
 			name: "class with parent, interfaces, and methods",
 			classDecl: &ClassDecl{
 				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type"}},
-				Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TTest"}}}, Value: "TTest"},
-				Parent:   &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "TObject"}}}, Value: "TObject"},
+				Name:     NewTestIdentifier("TTest"),
+				Parent:   NewTestIdentifier("TObject"),
 				Interfaces: []*Identifier{
-					{
-						TypedExpressionBase: TypedExpressionBase{
-							BaseNode: BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "IIntf"},
-							},
-						},
-						Value: "IIntf",
-					},
+					NewTestIdentifier("IIntf"),
 				},
 				Fields: []*FieldDecl{},
 				Methods: []*FunctionDecl{
@@ -333,7 +274,7 @@ func TestClassDeclWithInterfacesString(t *testing.T) {
 						BaseNode: BaseNode{
 							Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
 						},
-						Name:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Hello"}}}, Value: "Hello"},
+						Name:       NewTestIdentifier("Hello"),
 						Parameters: []*Parameter{},
 						ReturnType: nil,
 						Body: &BlockStatement{

@@ -16,12 +16,9 @@ func TestSetDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		setDecl := &SetDecl{
-			BaseNode: BaseNode{Token: tok},
-			Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "TDays"},
-			ElementType: &TypeAnnotation{
-				Token: tok,
-				Name:  "TWeekday",
-			},
+			BaseNode:    BaseNode{Token: tok},
+			Name:        NewTestIdentifier("TDays"),
+			ElementType: NewTestTypeAnnotation("TWeekday"),
 		}
 
 		// Test TokenLiteral()
@@ -45,12 +42,9 @@ func TestSetDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		setDecl := &SetDecl{
-			BaseNode: BaseNode{Token: tok},
-			Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "TDays"},
-			ElementType: &TypeAnnotation{
-				Token: tok,
-				Name:  "TWeekday",
-			},
+			BaseNode:    BaseNode{Token: tok},
+			Name:        NewTestIdentifier("TDays"),
+			ElementType: NewTestTypeAnnotation("TWeekday"),
 		}
 
 		str := setDecl.String()
@@ -65,12 +59,9 @@ func TestSetDecl(t *testing.T) {
 	t.Run("Implements Statement interface", func(_ *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 		setDecl := &SetDecl{
-			BaseNode: BaseNode{Token: tok},
-			Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "TDays"},
-			ElementType: &TypeAnnotation{
-				Token: tok,
-				Name:  "TWeekday",
-			},
+			BaseNode:    BaseNode{Token: tok},
+			Name:        NewTestIdentifier("TDays"),
+			ElementType: NewTestTypeAnnotation("TWeekday"),
 		}
 
 		// Ensure it implements Statement interface
@@ -90,9 +81,9 @@ func TestSetLiteral(t *testing.T) {
 		setLit := &SetLiteral{
 			Token: tok,
 			Elements: []Expression{
-				&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "one"},
-				&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "two"},
-				&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "three"},
+				NewTestIdentifier("one"),
+				NewTestIdentifier("two"),
+				NewTestIdentifier("three"),
 			},
 		}
 
@@ -128,8 +119,8 @@ func TestSetLiteral(t *testing.T) {
 		setLit := &SetLiteral{
 			Token: tok,
 			Elements: []Expression{
-				&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "one"},
-				&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "two"},
+				NewTestIdentifier("one"),
+				NewTestIdentifier("two"),
 			},
 		}
 
@@ -161,8 +152,8 @@ func TestSetOperators(t *testing.T) {
 		// s1 + s2
 		tok := lexer.Token{Type: lexer.PLUS, Literal: "+"}
 
-		s1 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s1"}
-		s2 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s2"}
+		s1 := NewTestIdentifier("s1")
+		s2 := NewTestIdentifier("s2")
 
 		unionExpr := &BinaryExpression{
 			Token:    tok,
@@ -181,8 +172,8 @@ func TestSetOperators(t *testing.T) {
 		// s1 - s2
 		tok := lexer.Token{Type: lexer.MINUS, Literal: "-"}
 
-		s1 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s1"}
-		s2 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s2"}
+		s1 := NewTestIdentifier("s1")
+		s2 := NewTestIdentifier("s2")
 
 		diffExpr := &BinaryExpression{
 			Token:    tok,
@@ -201,8 +192,8 @@ func TestSetOperators(t *testing.T) {
 		// s1 * s2
 		tok := lexer.Token{Type: lexer.ASTERISK, Literal: "*"}
 
-		s1 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s1"}
-		s2 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s2"}
+		s1 := NewTestIdentifier("s1")
+		s2 := NewTestIdentifier("s2")
 
 		intersectExpr := &BinaryExpression{
 			Token:    tok,
@@ -221,8 +212,8 @@ func TestSetOperators(t *testing.T) {
 		// one in mySet
 		tok := lexer.Token{Type: lexer.IN, Literal: "in"}
 
-		elem := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "one"}
-		set := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "mySet"}
+		elem := NewTestIdentifier("one")
+		set := NewTestIdentifier("mySet")
 
 		inExpr := &BinaryExpression{
 			Token:    tok,
@@ -241,8 +232,8 @@ func TestSetOperators(t *testing.T) {
 		// s1 = s2
 		tok := lexer.Token{Type: lexer.EQ, Literal: "="}
 
-		s1 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s1"}
-		s2 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s2"}
+		s1 := NewTestIdentifier("s1")
+		s2 := NewTestIdentifier("s2")
 
 		eqExpr := &BinaryExpression{
 			Token:    tok,
@@ -261,8 +252,8 @@ func TestSetOperators(t *testing.T) {
 		// s1 <> s2
 		tok := lexer.Token{Type: lexer.NOT_EQ, Literal: "<>"}
 
-		s1 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s1"}
-		s2 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s2"}
+		s1 := NewTestIdentifier("s1")
+		s2 := NewTestIdentifier("s2")
 
 		neqExpr := &BinaryExpression{
 			Token:    tok,
@@ -281,8 +272,8 @@ func TestSetOperators(t *testing.T) {
 		// s1 <= s2 (s1 is subset of s2)
 		tok := lexer.Token{Type: lexer.LESS_EQ, Literal: "<="}
 
-		s1 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s1"}
-		s2 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s2"}
+		s1 := NewTestIdentifier("s1")
+		s2 := NewTestIdentifier("s2")
 
 		subsetExpr := &BinaryExpression{
 			Token:    tok,
@@ -301,8 +292,8 @@ func TestSetOperators(t *testing.T) {
 		// s1 >= s2 (s1 is superset of s2)
 		tok := lexer.Token{Type: lexer.GREATER_EQ, Literal: ">="}
 
-		s1 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s1"}
-		s2 := &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "s2"}
+		s1 := NewTestIdentifier("s1")
+		s2 := NewTestIdentifier("s2")
 
 		supersetExpr := &BinaryExpression{
 			Token:    tok,

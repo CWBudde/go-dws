@@ -17,28 +17,22 @@ func TestRecordDecl(t *testing.T) {
 
 		recordDecl := &RecordDecl{
 			BaseNode: BaseNode{Token: tok},
-			Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "TPoint"},
+			Name:     NewTestIdentifier("TPoint"),
 			Fields: []*FieldDecl{
 				{
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "X"},
-					Type: &TypeAnnotation{
-						Token: tok,
-						Name:  "Integer",
-					},
+					Name:       NewTestIdentifier("X"),
+					Type:       NewTestTypeAnnotation("Integer"),
 					Visibility: VisibilityPublic,
 				},
 				{
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "Y"},
-					Type: &TypeAnnotation{
-						Token: tok,
-						Name:  "Integer",
-					},
+					Name:       NewTestIdentifier("Y"),
+					Type:       NewTestTypeAnnotation("Integer"),
 					Visibility: VisibilityPublic,
 				},
 			},
@@ -77,28 +71,22 @@ func TestRecordDecl(t *testing.T) {
 
 		recordDecl := &RecordDecl{
 			BaseNode: BaseNode{Token: tok},
-			Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "TPoint"},
+			Name:     NewTestIdentifier("TPoint"),
 			Fields: []*FieldDecl{
 				{
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "X"},
-					Type: &TypeAnnotation{
-						Token: tok,
-						Name:  "Integer",
-					},
+					Name:       NewTestIdentifier("X"),
+					Type:       NewTestTypeAnnotation("Integer"),
 					Visibility: VisibilityPublic,
 				},
 				{
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "Y"},
-					Type: &TypeAnnotation{
-						Token: tok,
-						Name:  "Integer",
-					},
+					Name:       NewTestIdentifier("Y"),
+					Type:       NewTestTypeAnnotation("Integer"),
 					Visibility: VisibilityPublic,
 				},
 			},
@@ -107,11 +95,8 @@ func TestRecordDecl(t *testing.T) {
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "GetDistance"},
-					ReturnType: &TypeAnnotation{
-						Token: tok,
-						Name:  "Float",
-					},
+					Name:       NewTestIdentifier("GetDistance"),
+					ReturnType: NewTestTypeAnnotation("Float"),
 				},
 			},
 		}
@@ -138,28 +123,22 @@ func TestRecordDecl(t *testing.T) {
 
 		recordDecl := &RecordDecl{
 			BaseNode: BaseNode{Token: tok},
-			Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "TPoint"},
+			Name:     NewTestIdentifier("TPoint"),
 			Fields: []*FieldDecl{
 				{
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "FX"},
-					Type: &TypeAnnotation{
-						Token: tok,
-						Name:  "Integer",
-					},
+					Name:       NewTestIdentifier("FX"),
+					Type:       NewTestTypeAnnotation("Integer"),
 					Visibility: VisibilityPrivate,
 				},
 				{
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "FY"},
-					Type: &TypeAnnotation{
-						Token: tok,
-						Name:  "Integer",
-					},
+					Name:       NewTestIdentifier("FY"),
+					Type:       NewTestTypeAnnotation("Integer"),
 					Visibility: VisibilityPrivate,
 				},
 			},
@@ -177,28 +156,22 @@ func TestRecordDecl(t *testing.T) {
 
 		recordDecl := &RecordDecl{
 			BaseNode: BaseNode{Token: tok},
-			Name:     &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "TPoint"},
+			Name:     NewTestIdentifier("TPoint"),
 			Fields: []*FieldDecl{
 				{
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "X"},
-					Type: &TypeAnnotation{
-						Token: tok,
-						Name:  "Integer",
-					},
+					Name:       NewTestIdentifier("X"),
+					Type:       NewTestTypeAnnotation("Integer"),
 					Visibility: VisibilityPublic,
 				},
 				{
 					BaseNode: BaseNode{
 						Token: tok,
 					},
-					Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: tok}}, Value: "Y"},
-					Type: &TypeAnnotation{
-						Token: tok,
-						Name:  "Integer",
-					},
+					Name:       NewTestIdentifier("Y"),
+					Type:       NewTestTypeAnnotation("Integer"),
 					Visibility: VisibilityPublic,
 				},
 			},

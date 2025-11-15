@@ -81,82 +81,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 9: Completion and DWScript Feature Parity
 
-- [x] 9.4 Fix Class Forward Declarations in Units
-
-**Goal**: Support class forward declarations in unit interface sections for cross-referencing types.
-
-**Estimate**: 4-8 hours (0.5-1 day)
-
-**Status**: DONE
-
-**Blocked Tests** (1+ tests):
-- `testdata/fixtures/SimpleScripts/class_scoping1.pas`
-- Potentially other unit-based tests with forward references
-
-**Current Errors**:
-- `no prefix parse function for CLASS` - Parser doesn't recognize class forward declaration syntax
-- `expected DOT after 'end' in unit` - Parser gets confused after seeing incomplete class declaration
-
-**DWScript Syntax**:
-```pascal
-unit MyUnit;
-
-interface
-
-type
-  TForward = class;  // Forward declaration
-
-  TActual = class
-    FNext: TForward;  // Can reference forward-declared class
-  end;
-
-  TForward = class    // Full definition later
-    FPrev: TActual;
-  end;
-```
-
-**Root Cause**: Unit parser doesn't handle the forward declaration syntax `TName = class;` (class keyword without implementation block). When it sees `class;`, it expects either class body or inheritance, not immediate semicolon.
-
-**Implementation**:
-- Files: `internal/parser/parser_unit.go`, `internal/parser/parser_types.go`
-- Parser needs to detect `class;` pattern (empty class declaration)
-- Create forward reference placeholder in symbol table
-- Resolve forward references when full definition appears
-- Semantic analyzer validates all forwards are resolved
-
-**Subtasks**:
-- [x] 9.4.1 Extend class type parsing to detect forward declarations
-  - Recognize `TName = class;` syntax (no parent, no members, just semicolon)
-  - Distinguish from regular empty class `TName = class end;`
-- [x] 9.4.2 Create forward reference tracking in parser/analyzer
-  - Store forward-declared class names
-  - Mark type as "forward" until full definition seen
-- [x] 9.4.3 Update symbol table to support forward references
-  - Allow type to be registered twice (forward + full definition)
-  - Second registration replaces forward with full type
-- [x] 9.4.4 Add semantic validation for unresolved forwards
-  - Error if forward-declared class never gets full definition
-  - Error if type used before forward declaration or definition
-- [x] 9.4.5 Test with unit files containing cross-references
-  - Two classes referencing each other
-  - Multiple forward declarations
-
-**Acceptance Criteria**:
-- `class_scoping1.pas` test passes (parser now works; semantic errors are unrelated)
-- Forward declarations work: `TName = class;` ✓
-- Cross-referencing classes work (A references B, B references A) ✓
-- Proper error for unresolved forward declarations: "Class \"TName\" isn't defined completely" ✓
-- Works in both unit interface and implementation sections ✓
-
-**Implementation Summary**:
-- Fixed `parseTypeDeclaration()` to handle multiple type declarations in one `type` section
-- Added `looksLikeTypeDeclaration()` helper using temporary lexer for lookahead
-- Refactored into `parseSingleTypeDeclaration()` to support parsing continuation
-- Forward declarations (`TName = class;`) were already supported by `parseClassDeclarationBody()`
-- Updated error message for unresolved forward declarations to match DWScript format
-- Added comprehensive unit tests for multiple type declarations in one section
-- All parser and semantic tests pass with no regressions
-
 - [ ] 9.5 Support Field Initializers in Type Declarations
 
 **Goal**: Allow field initialization syntax in record and class type declarations.
@@ -409,59 +333,6 @@ var x := TTest.Sum(5, 7);  // Static call on type (not instance)
 - ✅ AST interpreter fully functional
 - ⚠️ Bytecode VM: Deferred pending full record support
 - ✅ No regression in existing class method functionality
-
----
-
-## Task 9.8: Array Helper Methods (Algorithms Fixtures) 🎯 HIGH PRIORITY
-
-**Goal**: Implement missing array helper methods and properties to fix 4 failing Algorithms tests.
-
-**Estimate**: 3-4 hours
-
-**Status**: ✅ FULLY COMPLETED (4/4 tests working)
-
-**Test Results**:
-- ✅ `testdata/fixtures/Algorithms/gnome_sort.pas` - PASS (uses Swap and .High)
-- ✅ `testdata/fixtures/Algorithms/maze_generation.pas` - COMPILES & RUNS (uses Pop without parentheses)
-- ✅ `testdata/fixtures/Algorithms/one_dim_automata.pas` - PASS (uses .low and .high)
-- ✅ `testdata/fixtures/Algorithms/quicksort_dyn.pas` - PASS (uses Swap)
-
-**Implemented Features**:
-1. ✅ `Swap(i, j)` method on arrays - swaps elements at indices i and j
-2. ✅ `Push(value)` method on dynamic arrays - appends element (alias for Add)
-3. ✅ `Pop()` method on dynamic arrays - removes and returns last element
-4. ✅ `.low` and `.high` properties - already existed as `.Low` and `.High` (case-insensitive)
-5. ✅ Parameterless method auto-invoke - allows calling `arr.Pop` without `()`
-
-**Files Updated**:
-- ✅ `internal/interp/helpers_validation.go` - Registered Swap, Push, Pop methods
-- ✅ `internal/interp/helpers_conversion.go` - Implemented Swap, Push, Pop runtime behavior
-- ✅ `internal/semantic/analyze_helpers.go` - Registered Swap, Push, Pop for semantic analysis
-- ✅ `internal/semantic/analyze_classes.go` - Auto-invoke parameterless helper methods
-- ✅ `internal/interp/objects_hierarchy.go` - Auto-invoke parameterless helper methods at runtime
-
-**Subtasks**:
-- [x] 9.8.1 Add `Swap(i, j)` method to array helper
-  - ✅ Validates indices are within bounds
-  - ✅ Swaps elements at positions i and j
-- [x] 9.8.2 Add `Push(value)` method to dynamic array helper
-  - ✅ Implemented as alias for `Add`
-  - ✅ Type checking enforces dynamic arrays only
-- [x] 9.8.3 Add `Pop()` method to dynamic array helper
-  - ✅ Removes last element and returns it
-  - ✅ Errors if array is empty
-  - ✅ Works with `Pop()` (with parentheses)
-  - ✅ Works with `Pop` (without parentheses) via auto-invoke
-- [x] 9.8.4 Verify `.low` and `.high` properties
-  - ✅ Already registered as `.Low` and `.High` (case-insensitive lookup works)
-- [x] 9.8.5 **NEW**: Implement parameterless method auto-invoke
-  - ✅ Semantic analyzer auto-invokes parameterless helper methods when accessed without `()`
-  - ✅ Returns method's return type instead of function type for parameterless methods
-  - ✅ Interpreter auto-invokes parameterless helper methods at runtime
-  - ✅ Works for both AST-declared and builtin helper methods
-  - ✅ Allows DWScript idiom: `arr.Pop` equivalent to `arr.Pop()`
-
-**Note**: `maze_generation.pas` now compiles and runs without type errors. The script completes successfully but produces no visible output, which may be unrelated to Pop functionality (possibly Unicode character printing issue or algorithmic behavior).
 
 ---
 
@@ -2053,26 +1924,26 @@ NewTestIdentifier("name")
 
 - `internal/ast/classes_test.go` (demonstrated usage in 2 test cases)
 
-- [ ] 9.24.2 Migrate Existing Test Files to Use Helpers
+- [x] 9.24.2 Migrate Existing Test Files to Use Helpers
   - [x] Update `internal/ast/arrays_test.go` (25 occurrences)
-  - [ ] Update `internal/ast/ast_test.go` (18+ occurrences)
-  - [ ] Update `internal/ast/classes_test.go` (26+ occurrences) - partially done
-  - [ ] Update `internal/ast/contracts_test.go` (14+ occurrences)
-  - [ ] Update `internal/ast/control_flow_test.go` (27+ occurrences)
-  - [ ] Update `internal/ast/declarations_test.go` (19+ occurrences)
-  - [ ] Update `internal/ast/enums_test.go` (4+ occurrences)
-  - [ ] Update `internal/ast/function_pointer_test.go` (10+ occurrences)
-  - [ ] Update `internal/ast/functions_test.go` (2+ occurrences)
-  - [ ] Update `internal/ast/helper_test.go` (7+ occurrences)
-  - [ ] Update `internal/ast/interfaces_test.go` (29+ occurrences)
-  - [ ] Update `internal/ast/lambda_test.go` (19+ occurrences)
-  - [ ] Update `internal/ast/operators_test.go` (3+ occurrences)
-  - [ ] Update `internal/ast/properties_test.go` (48+ occurrences)
-  - [ ] Update `internal/ast/record_literal_test.go` (2+ occurrences)
-  - [ ] Update `internal/ast/records_test.go` (13+ occurrences)
-  - [ ] Update `internal/ast/sets_test.go` (23+ occurrences)
-  - [ ] Run full test suite after each file migration
-  - [ ] Verify no regressions in test coverage
+  - [x] Update `internal/ast/ast_test.go` (18+ occurrences)
+  - [x] Update `internal/ast/classes_test.go` (26+ occurrences) - partially done
+  - [x] Update `internal/ast/contracts_test.go` (14+ occurrences)
+  - [x] Update `internal/ast/control_flow_test.go` (27+ occurrences)
+  - [x] Update `internal/ast/declarations_test.go` (19+ occurrences)
+  - [x] Update `internal/ast/enums_test.go` (4+ occurrences)
+  - [x] Update `internal/ast/function_pointer_test.go` (10+ occurrences)
+  - [x] Update `internal/ast/functions_test.go` (2+ occurrences)
+  - [x] Update `internal/ast/helper_test.go` (7+ occurrences)
+  - [x] Update `internal/ast/interfaces_test.go` (29+ occurrences)
+  - [x] Update `internal/ast/lambda_test.go` (19+ occurrences)
+  - [x] Update `internal/ast/operators_test.go` (3+ occurrences)
+  - [x] Update `internal/ast/properties_test.go` (48+ occurrences)
+  - [x] Update `internal/ast/record_literal_test.go` (2+ occurrences)
+  - [x] Update `internal/ast/records_test.go` (13+ occurrences)
+  - [x] Update `internal/ast/sets_test.go` (23+ occurrences)
+  - [x] Run full test suite after each file migration
+  - [x] Verify no regressions in test coverage
 
 **Estimated Impact**:
 
