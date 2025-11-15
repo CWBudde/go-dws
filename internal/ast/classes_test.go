@@ -91,7 +91,7 @@ func TestClassDeclString(t *testing.T) {
 					{
 						BaseNode:       NewTestBaseNode(lexer.CLASS, "class"),
 						Kind:           OperatorKindClass,
-						OperatorToken:  lexer.Token{Type: lexer.LESS_LESS, Literal: "<<"},
+						OperatorToken:  NewTestToken(lexer.LESS_LESS, "<<"),
 						OperatorSymbol: "<<",
 						Arity:          1,
 						OperandTypes: []*TypeAnnotation{
@@ -191,7 +191,7 @@ func TestFieldDeclMethods(t *testing.T) {
 			Value: "X",
 		},
 		Type: &TypeAnnotation{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
+			Token: NewTestToken(lexer.IDENT, "Integer"),
 			Name:  "Integer",
 		},
 		Visibility: VisibilityPublic,
@@ -221,7 +221,7 @@ func TestNewExpressionString(t *testing.T) {
 		{
 			name: "new without arguments",
 			newExpr: &NewExpression{
-				Token:     lexer.Token{Type: lexer.IDENT, Literal: "TPoint"},
+				Token:     NewTestToken(lexer.IDENT, "TPoint"),
 				ClassName: NewTestIdentifier("TPoint"),
 				Arguments: []Expression{},
 			},
@@ -264,7 +264,7 @@ func TestMemberAccessString(t *testing.T) {
 		{
 			name: "simple field access",
 			memAccess: &MemberAccessExpression{
-				Token:  lexer.Token{Type: lexer.DOT, Literal: "."},
+				Token:  NewTestToken(lexer.DOT, "."),
 				Object: NewTestIdentifier("point"),
 				Member: NewTestIdentifier("X"),
 			},
@@ -273,9 +273,9 @@ func TestMemberAccessString(t *testing.T) {
 		{
 			name: "chained member access",
 			memAccess: &MemberAccessExpression{
-				Token: lexer.Token{Type: lexer.DOT, Literal: "."},
+				Token: NewTestToken(lexer.DOT, "."),
 				Object: &MemberAccessExpression{
-					Token:  lexer.Token{Type: lexer.DOT, Literal: "."},
+					Token:  NewTestToken(lexer.DOT, "."),
 					Object: NewTestIdentifier("obj"),
 					Member: NewTestIdentifier("field1"),
 				},
@@ -308,7 +308,7 @@ func TestMethodCallString(t *testing.T) {
 		{
 			name: "method call without arguments",
 			methodCall: &MethodCallExpression{
-				Token:     lexer.Token{Type: lexer.DOT, Literal: "."},
+				Token:     NewTestToken(lexer.DOT, "."),
 				Object:    NewTestIdentifier("obj"),
 				Method:    NewTestIdentifier("DoSomething"),
 				Arguments: []Expression{},
@@ -318,7 +318,7 @@ func TestMethodCallString(t *testing.T) {
 		{
 			name: "method call with arguments",
 			methodCall: &MethodCallExpression{
-				Token:  lexer.Token{Type: lexer.DOT, Literal: "."},
+				Token:  NewTestToken(lexer.DOT, "."),
 				Object: NewTestIdentifier("point"),
 				Method: NewTestIdentifier("MoveTo"),
 				Arguments: []Expression{
