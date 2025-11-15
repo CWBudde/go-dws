@@ -497,7 +497,7 @@ func (a *Analyzer) evaluateConstantRound(args []ast.Expression) (interface{}, er
 }
 
 // evaluateConstantOrd evaluates Ord() at compile time.
-// Ord() returns the ordinal value (ASCII/Unicode code point) of a character.
+// Ord() returns the ordinal value (Unicode code point) of a character.
 func (a *Analyzer) evaluateConstantOrd(args []ast.Expression) (interface{}, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("Ord() expects exactly 1 argument")
@@ -515,17 +515,18 @@ func (a *Analyzer) evaluateConstantOrd(args []ast.Expression) (interface{}, erro
 		return nil, fmt.Errorf("Ord() expects a character argument, got %T", val)
 	}
 
-	// Must be exactly one character
-	if len(strVal) != 1 {
-		return nil, fmt.Errorf("Ord() expects a single character, got string of length %d", len(strVal))
+	// Must be exactly one Unicode code point (rune)
+	runes := []rune(strVal)
+	if len(runes) != 1 {
+		return nil, fmt.Errorf("Ord() expects a single character, got string with %d runes", len(runes))
 	}
 
 	// Return the Unicode code point
-	return int(strVal[0]), nil
+	return int(runes[0]), nil
 }
 
 // evaluateConstantChr evaluates Chr() at compile time.
-// Chr() returns the character with the given ordinal value (ASCII/Unicode code point).
+// Chr() returns the character with the given ordinal value (Unicode code point).
 func (a *Analyzer) evaluateConstantChr(args []ast.Expression) (interface{}, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("Chr() expects exactly 1 argument")
@@ -548,10 +549,9 @@ func (a *Analyzer) evaluateConstantChr(args []ast.Expression) (interface{}, erro
 		return nil, fmt.Errorf("Chr() expects numeric argument, got %T", val)
 	}
 
-	// Validate code point range (0-127 for ASCII, 0-0x10FFFF for Unicode)
-	// For simplicity, we'll accept 0-255 (extended ASCII)
-	if intVal < 0 || intVal > 255 {
-		return nil, fmt.Errorf("Chr() code point %d out of range (0-255)", intVal)
+	// Validate code point range: full Unicode range
+	if intVal < 0 || intVal > 0x10FFFF {
+		return nil, fmt.Errorf("Chr() code point %d out of range (0-0x10FFFF)", intVal)
 	}
 
 	// Return single-character string
