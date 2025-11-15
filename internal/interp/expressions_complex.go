@@ -183,7 +183,7 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 
 			if !isCompatible {
 				// Throw exception with proper format including position
-				message := fmt.Sprintf("Cannot cast interface of \"%s\" to class \"%s\" [line: %d, column: %d]",
+				message := fmt.Sprintf("Cannot cast interface of '%s' to class '%s' [line: %d, column: %d]",
 					underlyingObj.Class.Name, targetClass.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
 				i.raiseException("Exception", message, &expr.Token.Pos)
 				return nil
@@ -320,6 +320,12 @@ func (i *Interpreter) evalImplementsExpression(expr *ast.ImplementsExpression) V
 	iface, exists := i.interfaces[strings.ToLower(targetInterfaceName)]
 	if !exists {
 		return i.newErrorWithLocation(expr, "interface '%s' not found", targetInterfaceName)
+	}
+
+	// Guard against nil ClassInfo (e.g., uninitialized metaclass variables)
+	// Return false instead of panicking when classInfo is nil
+	if classInfo == nil {
+		return &BooleanValue{Value: false}
 	}
 
 	// Check if the class implements the interface

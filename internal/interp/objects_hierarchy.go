@@ -309,8 +309,10 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		// This ensures we only access members that are part of the interface contract
 		memberName := ma.Member.Value
 		if !intfInst.Interface.HasMethod(memberName) {
-			// Could be a property or field - for now we'll allow it and let the object check
-			// In a full implementation, we'd verify properties too
+			// TODO(go-dws: Stage 9.1.1): Implement property validation for interface member access
+			// to match the strictness of method validation (see objects_methods.go:556-563).
+			// This will ensure that only properties defined in the interface contract can be accessed.
+			// For now, we only validate methods and allow properties/fields to be checked by the underlying object.
 		}
 
 		// Delegate to the underlying object for actual member access
