@@ -61,6 +61,9 @@ func TestLambdaExpression(t *testing.T) {
 		// Shorthand lambda desugared to: lambda(x, y) => x + y
 		// Internally stored as: begin Result := x + y; end
 		returnStmt := &ReturnStatement{
+			BaseNode: BaseNode{
+				Token: NewTestToken(lexer.EXIT, "exit"),
+			},
 			ReturnValue: &BinaryExpression{
 				TypedExpressionBase: TypedExpressionBase{
 					BaseNode: NewTestBaseNode(lexer.PLUS, "+"),
@@ -69,7 +72,6 @@ func TestLambdaExpression(t *testing.T) {
 				Operator: "+",
 				Right:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: NewTestBaseNode(lexer.IDENT, "y")}, Value: "y"},
 			},
-			Token: NewTestToken(lexer.EXIT, "exit"),
 		}
 
 		body := &BlockStatement{
@@ -170,6 +172,9 @@ func TestLambdaExpression(t *testing.T) {
 		body := &BlockStatement{
 			Statements: []Statement{
 				&ReturnStatement{
+					BaseNode: BaseNode{
+						Token: NewTestToken(lexer.EXIT, "exit"),
+					},
 					ReturnValue: &BinaryExpression{
 						TypedExpressionBase: TypedExpressionBase{
 							BaseNode: NewTestBaseNode(lexer.PLUS, "+"),
@@ -185,7 +190,6 @@ func TestLambdaExpression(t *testing.T) {
 						Operator: "+",
 						Right:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: NewTestBaseNode(lexer.IDENT, "c")}, Value: "c"},
 					},
-					Token: NewTestToken(lexer.EXIT, "exit"),
 				},
 			},
 			BaseNode: NewTestBaseNode(lexer.BEGIN, "begin"),
@@ -308,6 +312,9 @@ func TestLambdaExpression(t *testing.T) {
 		body := &BlockStatement{
 			Statements: []Statement{
 				&ReturnStatement{
+					BaseNode: BaseNode{
+						Token: NewTestToken(lexer.EXIT, "exit"),
+					},
 					ReturnValue: &ArrayLiteralExpression{
 						Elements: []Expression{
 							NewTestIntegerLiteral(1),
@@ -315,7 +322,6 @@ func TestLambdaExpression(t *testing.T) {
 						},
 						TypedExpressionBase: TypedExpressionBase{BaseNode: NewTestBaseNode(lexer.LBRACK, "[")},
 					},
-					Token: NewTestToken(lexer.EXIT, "exit"),
 				},
 			},
 			BaseNode: NewTestBaseNode(lexer.BEGIN, "begin"),

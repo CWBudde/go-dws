@@ -116,7 +116,9 @@ func buildBenchmarkProgram() *ast.Program {
 				},
 			},
 			&ast.ReturnStatement{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"},
+				},
 				ReturnValue: &ast.Identifier{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{

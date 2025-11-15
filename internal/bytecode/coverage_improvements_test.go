@@ -199,7 +199,9 @@ func TestCompiler_UnaryConstantFolding(t *testing.T) {
 			program: &ast.Program{
 				Statements: []ast.Statement{
 					&ast.ReturnStatement{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						},
 						ReturnValue: &ast.UnaryExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{
@@ -227,7 +229,9 @@ func TestCompiler_UnaryConstantFolding(t *testing.T) {
 			program: &ast.Program{
 				Statements: []ast.Statement{
 					&ast.ReturnStatement{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						},
 						ReturnValue: &ast.UnaryExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{
@@ -255,7 +259,9 @@ func TestCompiler_UnaryConstantFolding(t *testing.T) {
 			program: &ast.Program{
 				Statements: []ast.Statement{
 					&ast.ReturnStatement{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						},
 						ReturnValue: &ast.UnaryExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{
@@ -283,7 +289,9 @@ func TestCompiler_UnaryConstantFolding(t *testing.T) {
 			program: &ast.Program{
 				Statements: []ast.Statement{
 					&ast.ReturnStatement{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						},
 						ReturnValue: &ast.UnaryExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{
@@ -341,7 +349,9 @@ func TestVM_FloatOperations(t *testing.T) {
 			program: &ast.Program{
 				Statements: []ast.Statement{
 					&ast.ReturnStatement{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						},
 						ReturnValue: &ast.BinaryExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{
@@ -377,7 +387,9 @@ func TestVM_FloatOperations(t *testing.T) {
 			program: &ast.Program{
 				Statements: []ast.Statement{
 					&ast.ReturnStatement{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						},
 						ReturnValue: &ast.BinaryExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{
@@ -413,7 +425,9 @@ func TestVM_FloatOperations(t *testing.T) {
 			program: &ast.Program{
 				Statements: []ast.Statement{
 					&ast.ReturnStatement{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						},
 						ReturnValue: &ast.BinaryExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{
@@ -449,7 +463,9 @@ func TestVM_FloatOperations(t *testing.T) {
 			program: &ast.Program{
 				Statements: []ast.Statement{
 					&ast.ReturnStatement{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						},
 						ReturnValue: &ast.BinaryExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{
@@ -485,7 +501,9 @@ func TestVM_FloatOperations(t *testing.T) {
 			program: &ast.Program{
 				Statements: []ast.Statement{
 					&ast.ReturnStatement{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
+						},
 						ReturnValue: &ast.UnaryExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{

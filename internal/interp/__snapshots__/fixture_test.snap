@@ -58,3 +58,8 @@ interface_inheritance_declare_ex.pas_output
 assigned_funcresult.pas_output
 
 ---
+
+[TestDWScriptFixtures/SimpleScripts/class_selfref - 1]
+class_selfref.pas_output
+
+---

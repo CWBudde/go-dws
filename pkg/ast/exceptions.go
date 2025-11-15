@@ -4,8 +4,6 @@ package ast
 import (
 	"bytes"
 	"strings"
-
-	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // TryStatement represents a try...except...finally...end statement.
@@ -29,23 +27,13 @@ import (
 //	  Cleanup();
 //	end;
 type TryStatement struct {
+	BaseNode
 	TryBlock      *BlockStatement
 	ExceptClause  *ExceptClause
 	FinallyClause *FinallyClause
-	Token         token.Token
-	EndPos        token.Position
 }
 
-func (t *TryStatement) End() token.Position {
-	if t.EndPos.Line != 0 {
-		return t.EndPos
-	}
-	return t.Token.Pos
-}
-
-func (ts *TryStatement) statementNode()       {}
-func (ts *TryStatement) TokenLiteral() string { return ts.Token.Literal }
-func (ts *TryStatement) Pos() token.Position  { return ts.Token.Pos }
+func (ts *TryStatement) statementNode() {}
 func (ts *TryStatement) String() string {
 	var out bytes.Buffer
 
@@ -90,17 +78,9 @@ func (ts *TryStatement) String() string {
 //	    HandleGeneric(E);
 //	end
 type ExceptClause struct {
+	BaseNode
 	ElseBlock *BlockStatement
 	Handlers  []*ExceptionHandler
-	Token     token.Token
-	EndPos    token.Position
-}
-
-func (e *ExceptClause) End() token.Position {
-	if e.EndPos.Line != 0 {
-		return e.EndPos
-	}
-	return e.Token.Pos
 }
 
 func (ec *ExceptClause) String() string {
@@ -137,18 +117,10 @@ func (ec *ExceptClause) String() string {
 //	  raise;
 //	end;
 type ExceptionHandler struct {
+	BaseNode
 	Statement     Statement
 	Variable      *Identifier
 	ExceptionType *TypeAnnotation
-	Token         token.Token
-	EndPos        token.Position
-}
-
-func (e *ExceptionHandler) End() token.Position {
-	if e.EndPos.Line != 0 {
-		return e.EndPos
-	}
-	return e.Token.Pos
 }
 
 func (eh *ExceptionHandler) String() string {
@@ -187,16 +159,8 @@ func (eh *ExceptionHandler) String() string {
 //	  Cleanup();
 //	end;
 type FinallyClause struct {
-	Block  *BlockStatement
-	Token  token.Token
-	EndPos token.Position
-}
-
-func (f *FinallyClause) End() token.Position {
-	if f.EndPos.Line != 0 {
-		return f.EndPos
-	}
-	return f.Token.Pos
+	BaseNode
+	Block *BlockStatement
 }
 
 func (fc *FinallyClause) String() string {
@@ -222,21 +186,11 @@ func (fc *FinallyClause) String() string {
 //	raise new EMyException('custom error');
 //	raise; // re-raise
 type RaiseStatement struct {
+	BaseNode
 	Exception Expression
-	Token     token.Token
-	EndPos    token.Position
 }
 
-func (r *RaiseStatement) End() token.Position {
-	if r.EndPos.Line != 0 {
-		return r.EndPos
-	}
-	return r.Token.Pos
-}
-
-func (rs *RaiseStatement) statementNode()       {}
-func (rs *RaiseStatement) TokenLiteral() string { return rs.Token.Literal }
-func (rs *RaiseStatement) Pos() token.Position  { return rs.Token.Pos }
+func (rs *RaiseStatement) statementNode() {}
 func (rs *RaiseStatement) String() string {
 	var out bytes.Buffer
 

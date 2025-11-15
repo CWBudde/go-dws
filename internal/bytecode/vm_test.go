@@ -64,7 +64,9 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 			},
 		},
 		&ast.ReturnStatement{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(3, 1)},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(3, 1)},
+			},
 			ReturnValue: &ast.BinaryExpression{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
@@ -247,7 +249,9 @@ func TestVM_RunWhileLoop(t *testing.T) {
 			},
 		},
 		&ast.ReturnStatement{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
+			},
 			ReturnValue: &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
@@ -1000,7 +1004,9 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 	}
 
 	raiseStmt := &ast.RaiseStatement{
-		Token: lexer.Token{Type: lexer.RAISE, Literal: "raise", Pos: pos(2, 3)},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.RAISE, Literal: "raise", Pos: pos(2, 3)},
+		},
 		Exception: &ast.NewExpression{
 			Token: lexer.Token{Type: lexer.NEW, Literal: "new", Pos: pos(2, 9)},
 			ClassName: &ast.Identifier{
@@ -1039,7 +1045,9 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 	}
 
 	handler := &ast.ExceptionHandler{
-		Token: lexer.Token{Type: lexer.ON, Literal: "on", Pos: pos(3, 1)},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.ON, Literal: "on", Pos: pos(3, 1)},
+		},
 		Variable: &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
@@ -1053,7 +1061,9 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 	}
 
 	clause := &ast.ExceptClause{
-		Token:    lexer.Token{Type: lexer.EXCEPT, Literal: "except", Pos: pos(3, 1)},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.EXCEPT, Literal: "except", Pos: pos(3, 1)},
+		},
 		Handlers: []*ast.ExceptionHandler{handler},
 	}
 	if elseValue != nil {
@@ -1083,13 +1093,17 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 	}
 
 	tryStmt := &ast.TryStatement{
-		Token:        lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(2, 1)},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.TRY, Literal: "try", Pos: pos(2, 1)},
+		},
 		TryBlock:     tryBlock,
 		ExceptClause: clause,
 	}
 
 	returnStmt := &ast.ReturnStatement{
-		Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
+		},
 		ReturnValue: &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{

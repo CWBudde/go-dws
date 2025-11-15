@@ -16,7 +16,9 @@ import (
 //	raise new EMyException('custom error');
 //	raise;  // re-raise
 func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
-	stmt := &ast.RaiseStatement{Token: p.curToken}
+	stmt := &ast.RaiseStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 
 	// Check if this is a bare raise (no expression)
 	if p.peekTokenIs(lexer.SEMICOLON) || p.peekTokenIs(lexer.EOF) {
@@ -61,7 +63,9 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 //	  Cleanup();
 //	end;
 func (p *Parser) parseTryStatement() *ast.TryStatement {
-	stmt := &ast.TryStatement{Token: p.curToken}
+	stmt := &ast.TryStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 
 	// Parse try block
 	p.nextToken()
@@ -153,7 +157,9 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 //	  PrintLn('error');  // bare except
 //	end
 func (p *Parser) parseExceptClause() *ast.ExceptClause {
-	clause := &ast.ExceptClause{Token: p.curToken}
+	clause := &ast.ExceptClause{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 	clause.Handlers = []*ast.ExceptionHandler{}
 
 	p.nextToken() // move past 'except'
@@ -203,7 +209,9 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 		// Handler with nil Variable and nil ExceptionType catches everything
 		if len(bareBlock.Statements) > 0 {
 			bareHandler := &ast.ExceptionHandler{
-				Token:         clause.Token,
+				BaseNode: ast.BaseNode{
+					Token: clause.Token,
+				},
 				Variable:      nil, // No exception variable
 				ExceptionType: nil, // Catches all exception types
 				Statement:     bareBlock,
@@ -257,7 +265,9 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 //	  HandleMyException(E);
 //	end;
 func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
-	handler := &ast.ExceptionHandler{Token: p.curToken}
+	handler := &ast.ExceptionHandler{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 
 	// Expect 'on' keyword (already checked by caller)
 	p.nextToken() // move past 'on'
@@ -326,7 +336,9 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 //	  Cleanup();
 //	end
 func (p *Parser) parseFinallyClause() *ast.FinallyClause {
-	clause := &ast.FinallyClause{Token: p.curToken}
+	clause := &ast.FinallyClause{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 
 	p.nextToken() // move past 'finally'
 

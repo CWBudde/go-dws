@@ -209,14 +209,13 @@ func (fd *FunctionDecl) String() string {
 //	Add := a + b
 //	exit
 type ReturnStatement struct {
+	BaseNode
 	ReturnValue Expression
-	Token       token.Token
-	EndPos      token.Position
 }
 
-func (rs *ReturnStatement) statementNode()       {}
-func (rs *ReturnStatement) TokenLiteral() string { return rs.Token.Literal }
-func (rs *ReturnStatement) Pos() token.Position  { return rs.Token.Pos }
+func (rs *ReturnStatement) statementNode() {}
+
+// End returns the end position, preferring ReturnValue's end if EndPos not set.
 func (rs *ReturnStatement) End() token.Position {
 	if rs.EndPos.Line != 0 {
 		return rs.EndPos
@@ -226,6 +225,7 @@ func (rs *ReturnStatement) End() token.Position {
 	}
 	return rs.Token.Pos
 }
+
 func (rs *ReturnStatement) String() string {
 	if rs.ReturnValue == nil {
 		return rs.Token.Literal

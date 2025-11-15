@@ -140,7 +140,9 @@ func TestReturnStatementString(t *testing.T) {
 		{
 			name: "return with integer value",
 			stmt: &ReturnStatement{
-				Token:       NewTestToken(lexer.IDENT, "Result"),
+				BaseNode: BaseNode{
+					Token: NewTestToken(lexer.IDENT, "Result"),
+				},
 				ReturnValue: NewTestIntegerLiteral(42),
 			},
 			expected: "Result := 42",
@@ -148,7 +150,9 @@ func TestReturnStatementString(t *testing.T) {
 		{
 			name: "return with expression",
 			stmt: &ReturnStatement{
-				Token:       NewTestToken(lexer.IDENT, "Result"),
+				BaseNode: BaseNode{
+					Token: NewTestToken(lexer.IDENT, "Result"),
+				},
 				ReturnValue: NewTestBinaryExpression(NewTestIdentifier("a"), "+", NewTestIdentifier("b")),
 			},
 			expected: "Result := (a + b)",
@@ -156,7 +160,9 @@ func TestReturnStatementString(t *testing.T) {
 		{
 			name: "return with string value",
 			stmt: &ReturnStatement{
-				Token:       NewTestToken(lexer.IDENT, "Result"),
+				BaseNode: BaseNode{
+					Token: NewTestToken(lexer.IDENT, "Result"),
+				},
 				ReturnValue: NewTestStringLiteral("hello"),
 			},
 			expected: "Result := \"hello\"",
@@ -164,7 +170,9 @@ func TestReturnStatementString(t *testing.T) {
 		{
 			name: "exit without value",
 			stmt: &ReturnStatement{
-				Token:       NewTestToken(lexer.EXIT, "exit"),
+				BaseNode: BaseNode{
+					Token: NewTestToken(lexer.EXIT, "exit"),
+				},
 				ReturnValue: nil,
 			},
 			expected: "exit",
