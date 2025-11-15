@@ -237,39 +237,49 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-## Task 9.13: Debug extract_ranges Logic (Algorithms Fixtures)
+## Task 9.13: Debug extract_ranges Logic (Algorithms Fixtures) ✅
 
 **Goal**: Fix off-by-one error in extract_ranges.pas test causing incorrect output.
 
 **Estimate**: 2-3 hours
 
-**Status**: IN PROGRESS
+**Status**: ✅ DONE
 
 **Blocked Tests** (1 test):
-- `testdata/fixtures/Algorithms/extract_ranges.pas`
+- `testdata/fixtures/Algorithms/extract_ranges.pas` ✅ NOW PASSING
 
 **Expected Output**: `0-2,4,6-8,11,12,14-25,27-33,35-39`
-**Actual Output**: `0-2,4,6-8,11,12,14-25,27-33,35`
+**Actual Output**: `0-2,4,6-8,11,12,14-25,27-33,35` (before fix)
+**Actual Output**: `0-2,4,6-8,11,12,14-25,27-33,35-39` (after fix) ✅
 
 **Issue**: Last range `35-39` is being truncated to just `35`, suggesting elements 36-39 are not being processed.
 
-**Root Cause**: This is NOT a missing language feature - it's a runtime logic bug in how the interpreter handles array iteration or loop boundaries in this specific test case.
+**Root Cause Identified**: Missing short-circuit evaluation for `and`/`or` operators in both AST interpreter and bytecode VM. The condition `(j<values.Length) and (values[j]=values[j-1]+1)` was evaluating both operands even when the first was false, causing out-of-bounds array access when `j >= values.Length`.
 
 **Investigation Steps**:
-- [ ] 9.13.1 Analyze extract_ranges.pas algorithm
+- [x] 9.13.1 Analyze extract_ranges.pas algorithm
   - Understand the range extraction logic
   - Identify loop boundaries and termination conditions
-- [ ] 9.13.2 Debug with trace output
+- [x] 9.13.2 Debug with trace output
   - Add logging to understand where iteration stops
   - Check array length, High(arr), loop conditions
-- [ ] 9.13.3 Identify and fix the bug
-  - Could be in for-loop handling, array bounds, or conditional logic
-  - Verify fix doesn't break other tests
+  - Discovered program was crashing during inner loop condition evaluation
+- [x] 9.13.3 Identify and fix the bug
+  - Implemented short-circuit evaluation for `and`/`or` operators
+  - AST interpreter: Added `evalAndExpression()` and `evalOrExpression()` with type-aware short-circuiting
+  - Bytecode compiler: Added `compileAndExpression()` and `compileOrExpression()` using conditional jumps
+  - Maintains backward compatibility: booleans use short-circuit, integers use bitwise operations
+  - Verify fix doesn't break other tests ✅
+
+**Changes Made**:
+1. `/internal/interp/expressions_binary.go`: Added short-circuit evaluation for boolean `and`/`or`, preserving bitwise operations for integers
+2. `/internal/bytecode/compiler_expressions.go`: Added short-circuit compilation using `OpJumpIfFalse`/`OpJumpIfTrue` instructions
 
 **Acceptance Criteria**:
-- `extract_ranges.pas` produces correct output including `35-39`
-- Root cause identified and documented
-- No regressions in other Algorithms tests
+- ✅ `extract_ranges.pas` produces correct output including `35-39`
+- ✅ Root cause identified and documented
+- ✅ No regressions in other tests (bitwise operations, variant tests all pass)
+- ✅ Short-circuit evaluation verified with custom test cases
 
 ---
 
