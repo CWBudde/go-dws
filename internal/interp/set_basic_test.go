@@ -622,10 +622,3 @@ func helperSetupInterpWithLargerEnum(t *testing.T) (*Interpreter, *types.EnumTyp
 
 	return interp, enumType
 }
-
-// ============================================================================
-// Large Set Tests (Task 9.8)
-// ============================================================================
-
-// TestSetValue_BoundaryCase64Elements tests set with exactly 64 elements (boundary case).
-// This should use bitmask storage (threshold is ≤64).

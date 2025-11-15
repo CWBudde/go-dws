@@ -170,7 +170,7 @@ func (e *EnumValue) String() string {
 type RecordValue struct {
 	RecordType *types.RecordType            // The record type metadata
 	Fields     map[string]Value             // Field name -> runtime value mapping
-	Methods    map[string]*ast.FunctionDecl // Method name -> AST declaration (Task 9.7)
+	Methods    map[string]*ast.FunctionDecl // Method name -> AST declaration
 }
 
 // Type returns the record type name (e.g., "TFoo") or "RECORD" if unnamed.
@@ -244,11 +244,18 @@ func (r *RecordValue) Copy() *RecordValue {
 
 // GetMethod retrieves a method declaration by name.
 // Task 9.7: Helper for record method invocation.
+// Task 9.7.3: Case-insensitive method lookup.
 func (r *RecordValue) GetMethod(name string) *ast.FunctionDecl {
 	if r.Methods == nil {
 		return nil
 	}
-	return r.Methods[name]
+	// Case-insensitive lookup
+	for methodName, decl := range r.Methods {
+		if strings.EqualFold(methodName, name) {
+			return decl
+		}
+	}
+	return nil
 }
 
 // HasMethod checks if a method exists on the record.
@@ -1102,7 +1109,7 @@ func NewJSONValue(v *jsonvalue.Value) *JSONValue {
 }
 
 // ============================================================================
-// Ordinal Value Utilities (Task 9.226)
+// Ordinal Value Utilities
 // ============================================================================
 
 // GetOrdinalValue extracts the ordinal value from any ordinal type value.

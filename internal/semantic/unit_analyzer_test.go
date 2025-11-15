@@ -14,7 +14,7 @@ func TestAnalyzeUnit_BasicInterfaceAndImplementation(t *testing.T) {
 	// Create a simple unit with a function declaration in interface
 	// and implementation in implementation section
 	unitDecl := &ast.UnitDeclaration{
-		Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "TestUnit"},
 			Value: "TestUnit",
@@ -23,7 +23,7 @@ func TestAnalyzeUnit_BasicInterfaceAndImplementation(t *testing.T) {
 			Statements: []ast.Statement{
 				// function Add(a, b: Integer): Integer;
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
 						Value: "Add",
@@ -50,7 +50,7 @@ func TestAnalyzeUnit_BasicInterfaceAndImplementation(t *testing.T) {
 				//   Result := a + b;
 				// end;
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
 						Value: "Add",
@@ -115,7 +115,7 @@ func TestAnalyzeUnit_BasicInterfaceAndImplementation(t *testing.T) {
 // when an interface declaration has no implementation
 func TestAnalyzeUnit_MissingImplementation(t *testing.T) {
 	unitDecl := &ast.UnitDeclaration{
-		Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "TestUnit"},
 			Value: "TestUnit",
@@ -123,7 +123,7 @@ func TestAnalyzeUnit_MissingImplementation(t *testing.T) {
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "DoSomething"},
 						Value: "DoSomething",
@@ -158,7 +158,7 @@ func TestAnalyzeUnit_MissingImplementation(t *testing.T) {
 // interface and implementation signatures don't match
 func TestAnalyzeUnit_SignatureMismatch(t *testing.T) {
 	unitDecl := &ast.UnitDeclaration{
-		Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "TestUnit"},
 			Value: "TestUnit",
@@ -166,7 +166,7 @@ func TestAnalyzeUnit_SignatureMismatch(t *testing.T) {
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
 						Value: "Add",
@@ -189,7 +189,7 @@ func TestAnalyzeUnit_SignatureMismatch(t *testing.T) {
 		ImplementationSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
 						Value: "Add",
@@ -232,7 +232,7 @@ func TestAnalyzeUnit_WithUsesClause(t *testing.T) {
 
 	// Create a main unit that uses the Math unit
 	mainUnit := &ast.UnitDeclaration{
-		Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "MainUnit"},
 			Value: "MainUnit",
@@ -241,15 +241,15 @@ func TestAnalyzeUnit_WithUsesClause(t *testing.T) {
 			Statements: []ast.Statement{
 				// uses Math;
 				&ast.UsesClause{
-					Token: lexer.Token{Type: lexer.USES, Literal: "uses"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
 					Units: []*ast.Identifier{
 						{Value: "Math"},
 					},
 				},
 				// function Calculate(x, y: Integer): Integer;
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-					Name:  &ast.Identifier{Value: "Calculate"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+					Name:     &ast.Identifier{Value: "Calculate"},
 					Parameters: []*ast.Parameter{
 						{
 							Name: &ast.Identifier{Value: "x"},
@@ -268,8 +268,8 @@ func TestAnalyzeUnit_WithUsesClause(t *testing.T) {
 		ImplementationSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-					Name:  &ast.Identifier{Value: "Calculate"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+					Name:     &ast.Identifier{Value: "Calculate"},
 					Parameters: []*ast.Parameter{
 						{
 							Name: &ast.Identifier{Value: "x"},
@@ -332,12 +332,12 @@ func TestAnalyzeUnit_UsesClauseConflict(t *testing.T) {
 
 	// Create a unit that uses both
 	mainUnit := &ast.UnitDeclaration{
-		Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-		Name:  &ast.Identifier{Value: "MainUnit"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+		Name:     &ast.Identifier{Value: "MainUnit"},
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.UsesClause{
-					Token: lexer.Token{Type: lexer.USES, Literal: "uses"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
 					Units: []*ast.Identifier{
 						{Value: "Math"},
 						{Value: "Strings"},
@@ -390,8 +390,8 @@ func TestResolveQualifiedSymbol(t *testing.T) {
 
 	// Create a minimal unit to set up the analyzer
 	dummyUnit := &ast.UnitDeclaration{
-		Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-		Name:  &ast.Identifier{Value: "Main"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+		Name:     &ast.Identifier{Value: "Main"},
 	}
 
 	err := analyzer.AnalyzeUnitWithDependencies(dummyUnit, availableUnits)
@@ -457,14 +457,14 @@ func TestResolveQualifiedSymbol(t *testing.T) {
 func TestForwardDeclarationsAcrossUnits(t *testing.T) {
 	// Create a library unit with interface declaration and implementation
 	libUnit := &ast.UnitDeclaration{
-		Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-		Name:  &ast.Identifier{Value: "MathLib"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+		Name:     &ast.Identifier{Value: "MathLib"},
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				// Forward declaration: function Multiply(a, b: Integer): Integer;
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-					Name:  &ast.Identifier{Value: "Multiply"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+					Name:     &ast.Identifier{Value: "Multiply"},
 					Parameters: []*ast.Parameter{
 						{Name: &ast.Identifier{Value: "a"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
 						{Name: &ast.Identifier{Value: "b"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
@@ -478,8 +478,8 @@ func TestForwardDeclarationsAcrossUnits(t *testing.T) {
 			Statements: []ast.Statement{
 				// Actual implementation
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-					Name:  &ast.Identifier{Value: "Multiply"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+					Name:     &ast.Identifier{Value: "Multiply"},
 					Parameters: []*ast.Parameter{
 						{Name: &ast.Identifier{Value: "a"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
 						{Name: &ast.Identifier{Value: "b"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
@@ -524,12 +524,12 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 
 	// Create a base utility unit
 	baseUnit := &ast.UnitDeclaration{
-		Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-		Name:  &ast.Identifier{Value: "Base"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+		Name:     &ast.Identifier{Value: "Base"},
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token:      lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name:       &ast.Identifier{Value: "GetValue"},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
@@ -540,7 +540,7 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 		ImplementationSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token:      lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name:       &ast.Identifier{Value: "GetValue"},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
@@ -565,16 +565,16 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 
 	// Create a dependent unit that uses base
 	dependentUnit := &ast.UnitDeclaration{
-		Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-		Name:  &ast.Identifier{Value: "Dependent"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+		Name:     &ast.Identifier{Value: "Dependent"},
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.UsesClause{
-					Token: lexer.Token{Type: lexer.USES, Literal: "uses"},
-					Units: []*ast.Identifier{{Value: "Base"}},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
+					Units:    []*ast.Identifier{{Value: "Base"}},
 				},
 				&ast.FunctionDecl{
-					Token:      lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name:       &ast.Identifier{Value: "ProcessValue"},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
@@ -585,7 +585,7 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 		ImplementationSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token:      lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name:       &ast.Identifier{Value: "ProcessValue"},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
@@ -654,12 +654,12 @@ func TestSemanticAnalysis_NamespaceConflictResolution(t *testing.T) {
 
 	// Try to create a unit that uses both - should fail
 	conflictingUnit := &ast.UnitDeclaration{
-		Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"},
-		Name:  &ast.Identifier{Value: "Conflicting"},
+		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+		Name:     &ast.Identifier{Value: "Conflicting"},
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.UsesClause{
-					Token: lexer.Token{Type: lexer.USES, Literal: "uses"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
 					Units: []*ast.Identifier{
 						{Value: "Unit1"},
 						{Value: "Unit2"},

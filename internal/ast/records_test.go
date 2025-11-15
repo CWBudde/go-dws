@@ -16,12 +16,14 @@ func TestRecordDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		recordDecl := &RecordDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TPoint"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TPoint"},
 			Fields: []*FieldDecl{
 				{
-					Token: tok,
-					Name:  &Identifier{Token: tok, Value: "X"},
+					BaseNode: BaseNode{
+						Token: tok,
+					},
+					Name: &Identifier{Token: tok, Value: "X"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -29,8 +31,10 @@ func TestRecordDecl(t *testing.T) {
 					Visibility: VisibilityPublic,
 				},
 				{
-					Token: tok,
-					Name:  &Identifier{Token: tok, Value: "Y"},
+					BaseNode: BaseNode{
+						Token: tok,
+					},
+					Name: &Identifier{Token: tok, Value: "Y"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -72,12 +76,14 @@ func TestRecordDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		recordDecl := &RecordDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TPoint"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TPoint"},
 			Fields: []*FieldDecl{
 				{
-					Token: tok,
-					Name:  &Identifier{Token: tok, Value: "X"},
+					BaseNode: BaseNode{
+						Token: tok,
+					},
+					Name: &Identifier{Token: tok, Value: "X"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -85,8 +91,10 @@ func TestRecordDecl(t *testing.T) {
 					Visibility: VisibilityPublic,
 				},
 				{
-					Token: tok,
-					Name:  &Identifier{Token: tok, Value: "Y"},
+					BaseNode: BaseNode{
+						Token: tok,
+					},
+					Name: &Identifier{Token: tok, Value: "Y"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -96,8 +104,10 @@ func TestRecordDecl(t *testing.T) {
 			},
 			Methods: []*FunctionDecl{
 				{
-					Token: tok,
-					Name:  &Identifier{Token: tok, Value: "GetDistance"},
+					BaseNode: BaseNode{
+						Token: tok,
+					},
+					Name: &Identifier{Token: tok, Value: "GetDistance"},
 					ReturnType: &TypeAnnotation{
 						Token: tok,
 						Name:  "Float",
@@ -127,12 +137,14 @@ func TestRecordDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		recordDecl := &RecordDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TPoint"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TPoint"},
 			Fields: []*FieldDecl{
 				{
-					Token: tok,
-					Name:  &Identifier{Token: tok, Value: "FX"},
+					BaseNode: BaseNode{
+						Token: tok,
+					},
+					Name: &Identifier{Token: tok, Value: "FX"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -140,8 +152,10 @@ func TestRecordDecl(t *testing.T) {
 					Visibility: VisibilityPrivate,
 				},
 				{
-					Token: tok,
-					Name:  &Identifier{Token: tok, Value: "FY"},
+					BaseNode: BaseNode{
+						Token: tok,
+					},
+					Name: &Identifier{Token: tok, Value: "FY"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -162,12 +176,14 @@ func TestRecordDecl(t *testing.T) {
 		tok := lexer.Token{Type: lexer.TYPE, Literal: "type"}
 
 		recordDecl := &RecordDecl{
-			Token: tok,
-			Name:  &Identifier{Token: tok, Value: "TPoint"},
+			BaseNode: BaseNode{Token: tok},
+			Name:     &Identifier{Token: tok, Value: "TPoint"},
 			Fields: []*FieldDecl{
 				{
-					Token: tok,
-					Name:  &Identifier{Token: tok, Value: "X"},
+					BaseNode: BaseNode{
+						Token: tok,
+					},
+					Name: &Identifier{Token: tok, Value: "X"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",
@@ -175,8 +191,10 @@ func TestRecordDecl(t *testing.T) {
 					Visibility: VisibilityPublic,
 				},
 				{
-					Token: tok,
-					Name:  &Identifier{Token: tok, Value: "Y"},
+					BaseNode: BaseNode{
+						Token: tok,
+					},
+					Name: &Identifier{Token: tok, Value: "Y"},
 					Type: &TypeAnnotation{
 						Token: tok,
 						Name:  "Integer",

@@ -141,6 +141,11 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 			i.env = savedEnv
 			return err
 		}
+		// If exception was raised during precondition checking, propagate it
+		if i.exception != nil {
+			i.env = savedEnv
+			return &NilValue{}
+		}
 	}
 
 	// Capture old values for postcondition evaluation
@@ -203,6 +208,11 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 		if err := i.checkPostconditions(fn.Name.Value, fn.PostConditions, i.env); err != nil {
 			i.env = savedEnv
 			return err
+		}
+		// If exception was raised during postcondition checking, propagate it
+		if i.exception != nil {
+			i.env = savedEnv
+			return &NilValue{}
 		}
 	}
 

@@ -258,7 +258,7 @@ func (i *Interpreter) evalIfExpression(expr *ast.IfExpression) Value {
 		return condition
 	}
 
-	// Task 9.35: Use isTruthy to support Variant→Boolean implicit conversion
+	// Use isTruthy to support Variant→Boolean implicit conversion
 	// If condition is true, evaluate and return consequence
 	if isTruthy(condition) {
 		result := i.Eval(expr.Consequence)

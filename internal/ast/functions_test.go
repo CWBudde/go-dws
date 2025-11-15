@@ -74,7 +74,9 @@ func TestFunctionDeclString(t *testing.T) {
 		{
 			name: "simple function with no parameters",
 			fn: &FunctionDecl{
-				Token:      lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+				},
 				Name:       &Identifier{Value: "GetValue"},
 				Parameters: []*Parameter{},
 				ReturnType: &TypeAnnotation{Name: "Integer"},
@@ -87,8 +89,10 @@ func TestFunctionDeclString(t *testing.T) {
 		{
 			name: "function with single parameter",
 			fn: &FunctionDecl{
-				Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-				Name:  &Identifier{Value: "Double"},
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+				},
+				Name: &Identifier{Value: "Double"},
 				Parameters: []*Parameter{
 					{
 						Name:  &Identifier{Value: "x"},
@@ -106,8 +110,10 @@ func TestFunctionDeclString(t *testing.T) {
 		{
 			name: "function with multiple parameters",
 			fn: &FunctionDecl{
-				Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-				Name:  &Identifier{Value: "Add"},
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+				},
+				Name: &Identifier{Value: "Add"},
 				Parameters: []*Parameter{
 					{
 						Name:  &Identifier{Value: "a"},
@@ -130,7 +136,9 @@ func TestFunctionDeclString(t *testing.T) {
 		{
 			name: "procedure with no return type",
 			fn: &FunctionDecl{
-				Token:      lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+				},
 				Name:       &Identifier{Value: "Hello"},
 				Parameters: []*Parameter{},
 				ReturnType: nil,
@@ -143,8 +151,10 @@ func TestFunctionDeclString(t *testing.T) {
 		{
 			name: "function with var parameter",
 			fn: &FunctionDecl{
-				Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-				Name:  &Identifier{Value: "Process"},
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+				},
+				Name: &Identifier{Value: "Process"},
 				Parameters: []*Parameter{
 					{
 						Name:  &Identifier{Value: "data"},
@@ -162,8 +172,10 @@ func TestFunctionDeclString(t *testing.T) {
 		{
 			name: "function with lazy parameter",
 			fn: &FunctionDecl{
-				Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-				Name:  &Identifier{Value: "Compute"},
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+				},
+				Name: &Identifier{Value: "Compute"},
 				Parameters: []*Parameter{
 					{
 						Name:   &Identifier{Value: "expr"},

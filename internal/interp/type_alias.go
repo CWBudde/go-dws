@@ -165,7 +165,7 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 
 	// Handle type aliases
 	if decl.IsAlias {
-		// Task 9.73.4: Check for inline type expressions (e.g., class of TBase)
+		// Check for inline type expressions (e.g., class of TBase)
 		// For inline types like "class of TBase", we don't need to resolve them at runtime
 		// since the semantic analyzer already validated the types
 		if decl.AliasedType.InlineType != nil {

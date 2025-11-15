@@ -59,7 +59,11 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 		return nil
 	}
 
-	stmt := &ast.ConstDecl{Token: p.curToken}
+	stmt := &ast.ConstDecl{
+		BaseNode: ast.BaseNode{
+			Token: p.curToken,
+		},
+	}
 	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
 	// Check for optional type annotation (: Type)
@@ -83,7 +87,7 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 			stmt.Type = &ast.TypeAnnotation{
 				Token:      te.Token,
 				Name:       te.String(),
-				InlineType: te, // Task 9.21.1: Store the AST node for semantic analysis
+				InlineType: te, // Store the AST node for semantic analysis
 			}
 		case *ast.ArrayTypeNode:
 			// Check if Token is nil to prevent panics (defensive programming)
@@ -100,7 +104,7 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 			stmt.Type = &ast.TypeAnnotation{
 				Token:      token,
 				Name:       te.String(),
-				InlineType: te, // Task 9.21.1: Store the AST node for semantic analysis
+				InlineType: te, // Store the AST node for semantic analysis
 			}
 		default:
 			p.addError("unsupported type expression in const declaration", ErrInvalidType)

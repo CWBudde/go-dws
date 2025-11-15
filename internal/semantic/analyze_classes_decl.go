@@ -407,9 +407,9 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 	// Task 9.1 & 9.2: Constructor inheritance and implicit default constructor
 	// If child class has no constructors:
-	// 1. Check if parent has constructors (Task 9.2)
+	// 1. Check if parent has constructors
 	// 2. If yes, inherit accessible parent constructors
-	// 3. If no, generate implicit default constructor (Task 9.1)
+	// 3. If no, generate implicit default constructor
 	if len(classType.Constructors) == 0 && len(classType.ConstructorOverloads) == 0 {
 		if parentClass != nil && len(parentClass.Constructors) > 0 {
 			// Task 9.2: Inherit parent constructors
@@ -787,6 +787,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		IsVirtual:            method.IsVirtual,
 		IsOverride:           method.IsOverride,
 		IsAbstract:           method.IsAbstract,
+		IsReintroduce:        method.IsReintroduce,
 		IsForwarded:          method.Body == nil,
 		IsClassMethod:        method.IsClassMethod,
 		HasOverloadDirective: method.IsOverload,
@@ -854,6 +855,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		classType.ClassMethodFlags[methodKey] = method.IsClassMethod
 		classType.VirtualMethods[methodKey] = method.IsVirtual
 		classType.OverrideMethods[methodKey] = method.IsOverride
+		classType.ReintroduceMethods[methodKey] = method.IsReintroduce // Task 9.2
 		classType.AbstractMethods[methodKey] = method.IsAbstract
 	}
 

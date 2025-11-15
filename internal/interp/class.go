@@ -132,7 +132,6 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 // lookupProperty searches for a property in the class hierarchy.
 // It starts with the current class and walks up the parent chain.
 // Returns the first property found, or nil if not found.
-// Task 9.17: Use case-insensitive lookup
 func (c *ClassInfo) lookupProperty(name string) *types.PropertyInfo {
 	// Check current class with case-insensitive match
 	for propName, prop := range c.Properties {
@@ -153,7 +152,6 @@ func (c *ClassInfo) lookupProperty(name string) *types.PropertyInfo {
 // lookupConstant searches for a constant in the class hierarchy.
 // It starts with the current class and walks up the parent chain.
 // Returns the ConstDecl and the ClassInfo that owns it, or (nil, nil) if not found.
-// Task 9.17: Use case-insensitive lookup
 func (c *ClassInfo) lookupConstant(name string) (*ast.ConstDecl, *ClassInfo) {
 	// Check current class with case-insensitive match
 	for constName, constDecl := range c.Constants {
@@ -174,7 +172,6 @@ func (c *ClassInfo) lookupConstant(name string) (*ast.ConstDecl, *ClassInfo) {
 // lookupClassVar searches for a class variable in the class hierarchy.
 // It starts with the current class and walks up the parent chain.
 // Returns the class variable value and the ClassInfo that owns it, or (nil, nil) if not found.
-// Task 9.17: Use case-insensitive lookup
 func (c *ClassInfo) lookupClassVar(name string) (Value, *ClassInfo) {
 	// Check current class with case-insensitive match
 	for varName, value := range c.ClassVars {

@@ -26,26 +26,13 @@ type EnumValue struct {
 //   - type TEnum = (One = 1, Two = 5);
 //   - type TEnum = enum (One, Two);
 type EnumDecl struct {
+	BaseNode
 	Name   *Identifier
 	Values []EnumValue
-	Token  token.Token
-	EndPos token.Position
-}
-
-func (e *EnumDecl) End() token.Position {
-	if e.EndPos.Line != 0 {
-		return e.EndPos
-	}
-	return e.Token.Pos
 }
 
 // statementNode implements the Statement interface
 func (ed *EnumDecl) statementNode() {}
-
-// TokenLiteral returns the literal value of the token
-func (ed *EnumDecl) TokenLiteral() string {
-	return ed.Token.Literal
-}
 
 // String returns a string representation of the enum declaration
 func (ed *EnumDecl) String() string {
@@ -76,11 +63,6 @@ func (ed *EnumDecl) String() string {
 	out.WriteString(")")
 
 	return out.String()
-}
-
-// Pos returns the position of the enum declaration in the source code
-func (ed *EnumDecl) Pos() token.Position {
-	return ed.Token.Pos
 }
 
 // ============================================================================

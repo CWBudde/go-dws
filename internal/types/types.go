@@ -399,13 +399,14 @@ type PropertyInfo struct {
 	IsClassProperty bool
 }
 
-// MethodInfo stores metadata about a single method or overload (Task 9.61)
+// MethodInfo stores metadata about a single method or overload
 // This allows tracking virtual/override/abstract/overload per method signature
 type MethodInfo struct {
 	Signature            *FunctionType
 	IsVirtual            bool
 	IsOverride           bool
 	IsAbstract           bool
+	IsReintroduce        bool
 	IsForwarded          bool
 	IsClassMethod        bool
 	HasOverloadDirective bool
@@ -418,13 +419,14 @@ type ClassType struct {
 	OverrideMethods      map[string]bool
 	AbstractMethods      map[string]bool
 	ForwardedMethods     map[string]bool
+	ReintroduceMethods   map[string]bool // Track methods marked with 'reintroduce'
 	Fields               map[string]Type
 	ClassVars            map[string]Type
-	Constants            map[string]interface{}   // Class constants (Task 9.20-9.22)
-	ConstantTypes        map[string]Type          // Types for class constants (Task 9.17)
+	Constants            map[string]interface{}   // Class constants
+	ConstantTypes        map[string]Type          // Types for class constants
 	ConstantVisibility   map[string]int           // Visibility for class constants
 	Methods              map[string]*FunctionType // Primary method signature (first or only overload)
-	MethodOverloads      map[string][]*MethodInfo // All overload variants (Task 9.61)
+	MethodOverloads      map[string][]*MethodInfo // All overload variants
 	FieldVisibility      map[string]int
 	MethodVisibility     map[string]int
 	VirtualMethods       map[string]bool
@@ -432,7 +434,7 @@ type ClassType struct {
 	Properties           map[string]*PropertyInfo
 	ClassMethodFlags     map[string]bool
 	Constructors         map[string]*FunctionType // Primary constructor signature
-	ConstructorOverloads map[string][]*MethodInfo // All constructor overload variants (Task 9.61)
+	ConstructorOverloads map[string][]*MethodInfo // All constructor overload variants
 	Operators            *OperatorRegistry
 	ExternalName         string
 	Name                 string
@@ -440,7 +442,7 @@ type ClassType struct {
 	IsAbstract           bool
 	IsExternal           bool
 	IsForward            bool // True if this is a forward declaration only
-	IsPartial            bool // True if this is a partial class (Task 9.13)
+	IsPartial            bool // True if this is a partial class
 }
 
 // String returns the string representation of the class type
@@ -523,20 +525,20 @@ func (ct *ClassType) GetMethod(name string) (*FunctionType, bool) {
 	return nil, false
 }
 
-// GetMethodOverloads retrieves all overload variants of a method by name (Task 9.61)
+// GetMethodOverloads retrieves all overload variants of a method by name
 // Returns overloads from this class only (does not search parent)
 func (ct *ClassType) GetMethodOverloads(name string) []*MethodInfo {
 	// Task 9.285: Normalize method names to lowercase for case-insensitive lookup
 	return ct.MethodOverloads[strings.ToLower(name)]
 }
 
-// GetConstructorOverloads retrieves all overload variants of a constructor by name (Task 9.61)
+// GetConstructorOverloads retrieves all overload variants of a constructor by name
 // Constructor names are case-insensitive, so we normalize to lowercase
 func (ct *ClassType) GetConstructorOverloads(name string) []*MethodInfo {
 	return ct.ConstructorOverloads[strings.ToLower(name)]
 }
 
-// AddMethodOverload adds a method overload to the class (Task 9.61)
+// AddMethodOverload adds a method overload to the class
 func (ct *ClassType) AddMethodOverload(name string, info *MethodInfo) {
 	// Task 9.285: Normalize method names to lowercase for case-insensitive lookup
 	lowerName := strings.ToLower(name)
@@ -549,7 +551,7 @@ func (ct *ClassType) AddMethodOverload(name string, info *MethodInfo) {
 	}
 }
 
-// AddConstructorOverload adds a constructor overload to the class (Task 9.61)
+// AddConstructorOverload adds a constructor overload to the class
 // Constructor names are case-insensitive, so we normalize to lowercase
 func (ct *ClassType) AddConstructorOverload(name string, info *MethodInfo) {
 	lowerName := strings.ToLower(name)
@@ -728,6 +730,7 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		OverrideMethods:      make(map[string]bool),
 		AbstractMethods:      make(map[string]bool),
 		ForwardedMethods:     make(map[string]bool),
+		ReintroduceMethods:   make(map[string]bool), // Task 9.2
 		Operators:            NewOperatorRegistry(),
 		Constructors:         make(map[string]*FunctionType),
 		ConstructorOverloads: make(map[string][]*MethodInfo), // Task 9.61

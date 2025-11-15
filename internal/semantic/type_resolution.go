@@ -552,7 +552,7 @@ func (a *Analyzer) findMethodInParent(methodName string, parent *types.ClassType
 }
 
 // findMatchingOverloadInParent finds a method overload in the parent class hierarchy
-// that matches the given signature (Task 9.61)
+// that matches the given signature
 func (a *Analyzer) findMatchingOverloadInParent(methodName string, signature *types.FunctionType, parent *types.ClassType) *types.MethodInfo {
 	if parent == nil {
 		return nil
@@ -570,7 +570,7 @@ func (a *Analyzer) findMatchingOverloadInParent(methodName string, signature *ty
 	return a.findMatchingOverloadInParent(methodName, signature, parent.Parent)
 }
 
-// hasMethodWithName checks if a method with the given name exists in parent hierarchy (Task 9.61)
+// hasMethodWithName checks if a method with the given name exists in parent hierarchy
 // Returns true if ANY overload exists, regardless of signature
 func (a *Analyzer) hasMethodWithName(methodName string, parent *types.ClassType) bool {
 	if parent == nil {
@@ -587,7 +587,7 @@ func (a *Analyzer) hasMethodWithName(methodName string, parent *types.ClassType)
 }
 
 // findMatchingConstructorInParent finds a constructor overload in the parent class hierarchy
-// that matches the given signature (Task 9.4.1)
+// that matches the given signature
 // Note: For constructors, we only compare parameters, not return types, because derived class
 // constructors return the derived class type while parent constructors return the parent type
 func (a *Analyzer) findMatchingConstructorInParent(constructorName string, signature *types.FunctionType, parent *types.ClassType) *types.MethodInfo {
@@ -608,7 +608,7 @@ func (a *Analyzer) findMatchingConstructorInParent(constructorName string, signa
 	return a.findMatchingConstructorInParent(constructorName, signature, parent.Parent)
 }
 
-// hasConstructorWithName checks if a constructor with the given name exists in parent hierarchy (Task 9.4.1)
+// hasConstructorWithName checks if a constructor with the given name exists in parent hierarchy
 // Returns true if ANY overload exists, regardless of signature
 func (a *Analyzer) hasConstructorWithName(constructorName string, parent *types.ClassType) bool {
 	if parent == nil {
@@ -624,7 +624,7 @@ func (a *Analyzer) hasConstructorWithName(constructorName string, parent *types.
 	return a.hasConstructorWithName(constructorName, parent.Parent)
 }
 
-// getMethodOverloadsInHierarchy collects all method overloads from the class hierarchy (Task 9.61)
+// getMethodOverloadsInHierarchy collects all method overloads from the class hierarchy
 // Returns all overload variants for the given method name, searching up the inheritance chain
 // Task 9.68: Also includes constructor overloads when the method name is a constructor
 func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *types.ClassType) []*types.MethodInfo {
@@ -781,12 +781,16 @@ func (a *Analyzer) getUnimplementedAbstractMethods(classType *types.ClassType) [
 			// Method not defined in this class at all - inherited but not implemented
 			unimplemented = append(unimplemented, methodName)
 		} else {
-			// Method is defined in this class - check if it's still abstract
-			if isAbstract, exists := classType.AbstractMethods[lowerMethodName]; exists && isAbstract {
+			// Method is defined in this class
+			// Task 9.2: Check if it's marked with reintroduce - if so, it doesn't implement the parent abstract method
+			if isReintroduce, exists := classType.ReintroduceMethods[lowerMethodName]; exists && isReintroduce {
+				// Method reintroduces (hides) parent method without implementing it
+				unimplemented = append(unimplemented, methodName)
+			} else if isAbstract, exists := classType.AbstractMethods[lowerMethodName]; exists && isAbstract {
 				// Still abstract in this class - not implemented
 				unimplemented = append(unimplemented, methodName)
 			}
-			// Otherwise, method is implemented (exists and is not abstract)
+			// Otherwise, method is implemented (exists, is not abstract, and does not reintroduce)
 		}
 	}
 

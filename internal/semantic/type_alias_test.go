@@ -19,7 +19,9 @@ func TestTypeAliasRegistration(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.TypeDeclaration{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					Value: "TUserID",
@@ -61,7 +63,9 @@ func TestTypeAliasInVariableDeclaration(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.TypeDeclaration{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					Value: "TUserID",
@@ -115,7 +119,9 @@ func TestTypeAliasCompatibility(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.TypeDeclaration{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					Value: "TUserID",
@@ -159,7 +165,9 @@ func TestTypeAliasUndefinedType(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.TypeDeclaration{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					Value: "TUserID",
@@ -201,7 +209,9 @@ func TestTypeAliasNestedAliases(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.TypeDeclaration{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TInt"},
 					Value: "TInt",
@@ -213,7 +223,9 @@ func TestTypeAliasNestedAliases(t *testing.T) {
 				},
 			},
 			&ast.TypeDeclaration{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					Value: "TUserID",
@@ -266,7 +278,9 @@ func TestTypeAliasDuplicateDeclaration(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.TypeDeclaration{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					Value: "TUserID",
@@ -278,7 +292,9 @@ func TestTypeAliasDuplicateDeclaration(t *testing.T) {
 				},
 			},
 			&ast.TypeDeclaration{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					Value: "TUserID",

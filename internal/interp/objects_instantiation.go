@@ -45,7 +45,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 
 	// Check if trying to instantiate an abstract class
 	if classInfo.IsAbstract {
-		return i.newErrorWithLocation(ne, "cannot instantiate abstract class '%s'", className)
+		return i.newErrorWithLocation(ne, "Trying to create an instance of an abstract class")
 	}
 
 	// Check if trying to instantiate an external class

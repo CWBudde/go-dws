@@ -572,12 +572,11 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool) testResult 
 	// Log which test is being executed (helpful for debugging)
 	t.Logf("Executing: %s", filepath.Base(pasFile))
 
-	// Read the .pas source file
-	sourceBytes, err := os.ReadFile(pasFile)
+	// Read the .pas source file with encoding detection
+	source, err := detectAndDecodeFile(pasFile)
 	if err != nil {
 		t.Fatalf("Failed to read %s: %v", pasFile, err)
 	}
-	source := string(sourceBytes)
 
 	// Check if there's an expected output/error file
 	txtFile := strings.TrimSuffix(pasFile, ".pas") + ".txt"

@@ -125,6 +125,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		VirtualMethods:       make(map[string]bool),
 		OverrideMethods:      make(map[string]bool),
 		AbstractMethods:      make(map[string]bool),
+		ReintroduceMethods:   make(map[string]bool), // Task 9.2
 		Constructors:         make(map[string]*types.FunctionType),
 		ConstructorOverloads: make(map[string][]*types.MethodInfo),
 		Interfaces:           make([]*types.InterfaceType, 0),
@@ -169,6 +170,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 		VirtualMethods:       make(map[string]bool),
 		OverrideMethods:      make(map[string]bool),
 		AbstractMethods:      make(map[string]bool),
+		ReintroduceMethods:   make(map[string]bool), // Task 9.2
 		Constructors:         make(map[string]*types.FunctionType),
 		ConstructorOverloads: make(map[string][]*types.MethodInfo),
 		Interfaces:           make([]*types.InterfaceType, 0),
@@ -212,6 +214,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 			VirtualMethods:       make(map[string]bool),
 			OverrideMethods:      make(map[string]bool),
 			AbstractMethods:      make(map[string]bool),
+			ReintroduceMethods:   make(map[string]bool), // Task 9.2
 			Constructors:         make(map[string]*types.FunctionType),
 			ConstructorOverloads: make(map[string][]*types.MethodInfo),
 			Interfaces:           make([]*types.InterfaceType, 0),
@@ -379,13 +382,15 @@ func (a *Analyzer) validateFunctionImplementationsInScope(scope *SymbolTable) {
 
 // validateClassForwardDeclarations checks that all forward-declared classes have implementations
 // Task 9.11: Post-analysis validation for missing class implementations
+// Task 9.4: Updated error message to match DWScript format
 func (a *Analyzer) validateClassForwardDeclarations() {
 	// Iterate through all classes
 	for _, classType := range a.classes {
 		// Check if this class is still marked as forward (not implemented)
 		if classType.IsForward {
 			// This class was forward declared but never implemented
-			a.addError("class '%s' was forward declared but not implemented", classType.Name)
+			// Use DWScript format: Class "Name" isn't defined completely
+			a.addError("Class \"%s\" isn't defined completely", classType.Name)
 		}
 	}
 }
@@ -413,7 +418,7 @@ func (a *Analyzer) addError(format string, args ...any) {
 	a.errors = append(a.errors, fmt.Sprintf(format, args...))
 }
 
-// addHint adds a hint message (Task 9.61.4)
+// addHint adds a hint message
 // Hints are less severe than errors and don't prevent compilation
 func (a *Analyzer) addHint(format string, args ...any) {
 	a.errors = append(a.errors, fmt.Sprintf("Hint: "+format, args...))

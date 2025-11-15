@@ -60,6 +60,7 @@ func (v Visibility) String() string {
 //	  // partial class (can be declared multiple times)
 //	end;
 type ClassDecl struct {
+	BaseNode
 	Constructor  *FunctionDecl
 	Name         *Identifier
 	Parent       *Identifier
@@ -71,23 +72,12 @@ type ClassDecl struct {
 	Methods      []*FunctionDecl
 	Fields       []*FieldDecl
 	Constants    []*ConstDecl // Class constants
-	Token        token.Token
 	IsAbstract   bool
 	IsExternal   bool
 	IsPartial    bool // True if declared with 'partial' keyword
-	EndPos       token.Position
 }
 
-func (c *ClassDecl) End() token.Position {
-	if c.EndPos.Line != 0 {
-		return c.EndPos
-	}
-	return c.Token.Pos
-}
-
-func (cd *ClassDecl) statementNode()       {}
-func (cd *ClassDecl) TokenLiteral() string { return cd.Token.Literal }
-func (cd *ClassDecl) Pos() token.Position  { return cd.Token.Pos }
+func (cd *ClassDecl) statementNode() {}
 func (cd *ClassDecl) String() string {
 	var out bytes.Buffer
 
@@ -208,20 +198,12 @@ func (cd *ClassDecl) String() string {
 //	class var Count: Integer := 42;   // class variable with initialization
 //	property PropertyName: Type read FFieldName write FFieldName;
 type FieldDecl struct {
+	BaseNode
 	Name       *Identifier
 	Type       TypeExpression
-	Token      token.Token
 	Visibility Visibility
 	IsClassVar bool
 	InitValue  Expression // Optional initialization value for class variables
-	EndPos     token.Position
-}
-
-func (f *FieldDecl) End() token.Position {
-	if f.EndPos.Line != 0 {
-		return f.EndPos
-	}
-	return f.Token.Pos
 }
 
 func (fd *FieldDecl) statementNode()       {}

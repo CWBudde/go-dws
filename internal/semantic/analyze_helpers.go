@@ -58,7 +58,7 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 	// Create the helper type
 	helperType := types.NewHelperType(helperName, targetType, decl.IsRecordHelper)
 
-	// Resolve parent helper if specified (Task 9.1: Helper inheritance)
+	// Resolve parent helper if specified
 	if decl.ParentHelper != nil {
 		parentHelperName := decl.ParentHelper.Value
 
@@ -332,6 +332,23 @@ func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) (*types.He
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if method := findMethodCaseInsensitive(helper.Methods, methodName); method != nil {
+			// For array types, specialize the method signature if needed
+			// (e.g., Pop() should return the array's element type, not VARIANT)
+			if arrayType, isArray := typ.(*types.ArrayType); isArray {
+				// Check if this is the Pop method that needs specialization
+				if strings.ToLower(methodName) == "pop" && method.ReturnType == types.VARIANT {
+					// Create a specialized version with the actual element type
+					specialized := types.NewFunctionType(method.Parameters, arrayType.ElementType)
+					specialized.ParamNames = method.ParamNames
+					specialized.DefaultValues = method.DefaultValues
+					specialized.VarParams = method.VarParams
+					specialized.ConstParams = method.ConstParams
+					specialized.LazyParams = method.LazyParams
+					specialized.IsVariadic = method.IsVariadic
+					specialized.VariadicType = method.VariadicType
+					return helper, specialized
+				}
+			}
 			return helper, method
 		}
 	}
@@ -465,6 +482,22 @@ func (a *Analyzer) initArrayHelpers() {
 	arrayHelper.Methods["setlength"] = types.NewProcedureType([]types.Type{types.INTEGER})
 	arrayHelper.BuiltinMethods["setlength"] = "__array_setlength"
 
+	// Task 9.8: Register .Swap() method for arrays (lowercase key for case-insensitive lookup)
+	// Swap(i, j) - swaps elements at indices i and j
+	arrayHelper.Methods["swap"] = types.NewProcedureType([]types.Type{types.INTEGER, types.INTEGER})
+	arrayHelper.BuiltinMethods["swap"] = "__array_swap"
+
+	// Task 9.8: Register .Push() method for dynamic arrays (lowercase key for case-insensitive lookup)
+	// Push(value) - appends element (alias for Add)
+	arrayHelper.Methods["push"] = types.NewProcedureType([]types.Type{nil}) // Takes one parameter (element to push)
+	arrayHelper.BuiltinMethods["push"] = "__array_push"
+
+	// Task 9.8: Register .Pop() method for dynamic arrays (lowercase key for case-insensitive lookup)
+	// Pop() - removes and returns last element
+	// Use VARIANT as placeholder - will be specialized to array's element type by hasHelperMethod
+	arrayHelper.Methods["pop"] = types.NewFunctionType([]types.Type{}, types.VARIANT)
+	arrayHelper.BuiltinMethods["pop"] = "__array_pop"
+
 	// Register helper for ARRAY type (generic catch-all)
 	a.helpers["ARRAY"] = append(a.helpers["ARRAY"], arrayHelper)
 }
@@ -582,6 +615,68 @@ func (a *Analyzer) initIntrinsicHelpers() {
 		ReadSpec:  "StripAccents",
 		WriteKind: types.PropAccessNone,
 	}
+
+	// Task 9.23: Conversion helper methods
+	// .ToInteger -> StrToInt(self)
+	stringHelper.Methods["tointeger"] = types.NewFunctionType([]types.Type{}, types.INTEGER)
+	stringHelper.BuiltinMethods["tointeger"] = "__string_tointeger"
+	// .ToFloat -> StrToFloat(self)
+	stringHelper.Methods["tofloat"] = types.NewFunctionType([]types.Type{}, types.FLOAT)
+	stringHelper.BuiltinMethods["tofloat"] = "__string_tofloat"
+	// .ToString -> identity (returns self)
+	stringHelper.Methods["tostring"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["tostring"] = "__string_tostring"
+
+	// Task 9.23: Search/check helper methods
+	// .StartsWith(str) -> StrBeginsWith(self, str)
+	stringHelper.Methods["startswith"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
+	stringHelper.BuiltinMethods["startswith"] = "__string_startswith"
+	// .EndsWith(str) -> StrEndsWith(self, str)
+	stringHelper.Methods["endswith"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
+	stringHelper.BuiltinMethods["endswith"] = "__string_endswith"
+	// .Contains(str) -> StrContains(self, str)
+	stringHelper.Methods["contains"] = types.NewFunctionType([]types.Type{types.STRING}, types.BOOLEAN)
+	stringHelper.BuiltinMethods["contains"] = "__string_contains"
+	// .IndexOf(str) -> Pos(str, self) - note parameter order is reversed!
+	stringHelper.Methods["indexof"] = types.NewFunctionType([]types.Type{types.STRING}, types.INTEGER)
+	stringHelper.BuiltinMethods["indexof"] = "__string_indexof"
+
+	// Task 9.23: Extraction helper methods
+	// .Copy(start, len) -> Copy(self, start, len) - 2-parameter variant
+	stringHelper.Methods["copy"] = types.NewFunctionTypeWithMetadata(
+		[]types.Type{types.INTEGER, types.INTEGER},
+		[]string{"start", "length"},
+		[]interface{}{nil, int64(2147483647)}, // Default length = MaxInt (copy to end)
+		[]bool{false, false},
+		[]bool{false, false},
+		[]bool{false, false},
+		types.STRING,
+	)
+	stringHelper.BuiltinMethods["copy"] = "__string_copy"
+	// .Before(str) -> StrBefore(self, str)
+	stringHelper.Methods["before"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
+	stringHelper.BuiltinMethods["before"] = "__string_before"
+	// .After(str) -> StrAfter(self, str)
+	stringHelper.Methods["after"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
+	stringHelper.BuiltinMethods["after"] = "__string_after"
+
+	// Task 9.23: Modification helper methods
+	// .Trim -> Trim(self)
+	stringHelper.Methods["trim"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["trim"] = "__string_trim"
+
+	// Task 9.23: Split/join helper methods
+	// .Split(delimiter) -> StrSplit(self, delimiter)
+	stringHelper.Methods["split"] = types.NewFunctionType([]types.Type{types.STRING}, types.NewDynamicArrayType(types.STRING))
+	stringHelper.BuiltinMethods["split"] = "__string_split"
+
+	// Register case-insensitive property/method aliases for DWScript compatibility
+	// Task 9.23: .uppercase -> .ToUpper, .lowercase -> .ToLower
+	stringHelper.Methods["uppercase"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["uppercase"] = "__string_toupper"
+	stringHelper.Methods["lowercase"] = types.NewFunctionType([]types.Type{}, types.STRING)
+	stringHelper.BuiltinMethods["lowercase"] = "__string_tolower"
+
 	register(types.STRING.String(), stringHelper)
 
 	// String dynamic array helper: Join method (lowercase keys for case-insensitive lookup)

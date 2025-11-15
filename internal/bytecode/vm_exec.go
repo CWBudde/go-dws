@@ -440,7 +440,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			}
 			vm.push(IntValue(0))
 		case OpArrayCount:
-			// Task 9.34: OpArrayCount is an alias for OpArrayLength
+			// OpArrayCount is an alias for OpArrayLength
 			arrVal, err := vm.pop()
 			if err != nil {
 				return NilValue(), err
@@ -451,7 +451,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			}
 			vm.push(IntValue(int64(arr.Length())))
 		case OpArrayDelete:
-			// Task 9.34: Delete elements from array
+			// Delete elements from array
 			// Stack: [array, index, count] -> []
 			countVal, err := vm.pop()
 			if err != nil {
@@ -510,7 +510,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				arr.Set(i, val)
 			}
 		case OpArrayIndexOf:
-			// Task 9.34: Find element index in array
+			// Find element index in array
 			// Stack: [array, value, startIndex] -> [index]
 			startIndexVal, err := vm.pop()
 			if err != nil {
@@ -609,7 +609,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), err
 			}
 
-			// Task 9.34: Handle array helper properties
+			// Handle array helper properties
 			if objVal.IsArray() || objVal.IsNil() {
 				// Handle nil arrays (uninitialized dynamic arrays)
 				arr := objVal.AsArray()

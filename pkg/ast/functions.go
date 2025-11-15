@@ -87,6 +87,7 @@ func (p *Parameter) String() string {
 //	ensure
 //	   Result >= 0;
 type FunctionDecl struct {
+	BaseNode
 	ClassName         *Identifier
 	ReturnType        *TypeAnnotation
 	Body              *BlockStatement
@@ -97,12 +98,11 @@ type FunctionDecl struct {
 	CallingConvention string // e.g., "register", "pascal", "cdecl", "safecall", "stdcall"
 	DeprecatedMessage string // Optional message if deprecated
 	Parameters        []*Parameter
-	Token             token.Token
-	EndPos            token.Position
 	Visibility        Visibility
 	IsDestructor      bool
 	IsVirtual         bool
 	IsOverride        bool
+	IsReintroduce     bool // True if marked as reintroduce (hides parent method)
 	IsAbstract        bool
 	IsExternal        bool
 	IsClassMethod     bool
@@ -112,16 +112,7 @@ type FunctionDecl struct {
 	IsDeprecated      bool // True if marked as deprecated
 }
 
-func (f *FunctionDecl) End() token.Position {
-	if f.EndPos.Line != 0 {
-		return f.EndPos
-	}
-	return f.Token.Pos
-}
-
-func (fd *FunctionDecl) statementNode()       {}
-func (fd *FunctionDecl) TokenLiteral() string { return fd.Token.Literal }
-func (fd *FunctionDecl) Pos() token.Position  { return fd.Token.Pos }
+func (fd *FunctionDecl) statementNode() {}
 func (fd *FunctionDecl) String() string {
 	var out bytes.Buffer
 

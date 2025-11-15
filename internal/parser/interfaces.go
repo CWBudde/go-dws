@@ -5,21 +5,111 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
-// parseTypeDeclaration determines whether this is a class, interface, or enum declaration
-// and dispatches to the appropriate parser.
-// Syntax: type Name = class... OR type Name = interface... OR type Name = (...)
+// parseTypeDeclaration parses one or more type declarations in a type section.
+// In DWScript, a single 'type' keyword can introduce multiple type declarations:
+//
+//	type
+//	  TFirst = class ... end;
+//	  TSecond = class ... end;
+//	  TThird = Integer;
+//
+// This function handles multiple declarations and returns either a single statement
+// or a BlockStatement containing multiple type declarations.
+//
+// Task 9.4: Support multiple type declarations in one type section
 func (p *Parser) parseTypeDeclaration() ast.Statement {
-	// Current token is TYPE
-	// Pattern: TYPE IDENT EQ (CLASS|INTERFACE|LPAREN|ENUM)
-
 	typeToken := p.curToken // Save the TYPE token
+	statements := []ast.Statement{}
 
-	// Advance and peek to see what type declaration this is
-	if !p.expectPeek(lexer.IDENT) {
+	// Parse first type declaration
+	firstStmt := p.parseSingleTypeDeclaration(typeToken)
+	if firstStmt == nil {
 		return nil
 	}
-	nameIdent := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	statements = append(statements, firstStmt)
 
+	// Continue parsing additional type declarations without the 'type' keyword
+	// As long as the next line looks like a type declaration
+	for p.looksLikeTypeDeclaration() {
+		p.nextToken() // move to identifier
+		typeStmt := p.parseSingleTypeDeclaration(typeToken)
+		if typeStmt == nil {
+			break
+		}
+		statements = append(statements, typeStmt)
+	}
+
+	// If only one declaration, return it directly
+	if len(statements) == 1 {
+		return statements[0]
+	}
+
+	// Multiple declarations: wrap in a BlockStatement
+	return &ast.BlockStatement{
+		Token:      typeToken,
+		Statements: statements,
+	}
+}
+
+// looksLikeTypeDeclaration checks if the current position looks like the start of
+// a type declaration (without the 'type' keyword).
+// Pattern: IDENT EQ (CLASS|INTERFACE|LPAREN|RECORD|SET|ARRAY|ENUM|FUNCTION|PROCEDURE|HELPER|...)
+//
+// This method uses a temporary lexer to look ahead without modifying parser state.
+//
+// Task 9.4: Helper to detect multiple type declarations in one type section
+func (p *Parser) looksLikeTypeDeclaration() bool {
+	// After a type declaration, we're typically at a semicolon
+	// The next token should be an identifier (type name)
+	if !p.peekTokenIs(lexer.IDENT) {
+		return false
+	}
+
+	// Create a temporary lexer starting from peekToken's position
+	// to look ahead without modifying parser state
+	input := p.l.Input()
+	if p.peekToken.Pos.Offset < 0 || p.peekToken.Pos.Offset >= len(input) {
+		return false
+	}
+
+	tempLexer := lexer.New(input[p.peekToken.Pos.Offset:])
+
+	// First token should be the identifier (type name)
+	tok1 := tempLexer.NextToken()
+	if tok1.Type != lexer.IDENT {
+		return false
+	}
+
+	// Second token should be '='
+	tok2 := tempLexer.NextToken()
+	return tok2.Type == lexer.EQ
+}
+
+// parseSingleTypeDeclaration parses a single type declaration.
+// This is the core logic extracted from the original parseTypeDeclaration.
+// Assumes we're already positioned at the identifier (or TYPE token).
+//
+// Task 9.4: Extracted to support multiple type declarations
+func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement {
+	// Check if we're already at the identifier (type section continuation)
+	// or if we need to advance to it (after 'type' keyword)
+	var nameIdent *ast.Identifier
+
+	if p.curTokenIs(lexer.TYPE) {
+		// After 'type' keyword, expect identifier next
+		if !p.expectPeek(lexer.IDENT) {
+			return nil
+		}
+		nameIdent = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	} else if !p.isIdentifierToken(p.curToken.Type) {
+		// Should already be at an identifier
+		p.addError("expected identifier in type declaration", ErrExpectedIdent)
+		return nil
+	} else {
+		nameIdent = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	}
+
+	// Expect '=' after type name
 	if !p.expectPeek(lexer.EQ) {
 		return nil
 	}
@@ -52,7 +142,9 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 			}
 
 			typeDecl := &ast.TypeDeclaration{
-				Token:      typeToken,
+				BaseNode: ast.BaseNode{
+					Token: typeToken,
+				},
 				Name:       nameIdent,
 				IsSubrange: true,
 				LowBound:   lowBound,
@@ -78,7 +170,9 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 		}
 
 		typeDecl := &ast.TypeDeclaration{
-			Token:       typeToken,
+			BaseNode: ast.BaseNode{
+				Token: typeToken,
+			},
 			Name:        nameIdent,
 			IsAlias:     true,
 			AliasedType: aliasedType,
@@ -120,7 +214,9 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 
 			// Create a type declaration with the metaclass type as an inline type
 			typeDecl := &ast.TypeDeclaration{
-				Token:   typeToken,
+				BaseNode: ast.BaseNode{
+					Token: typeToken,
+				},
 				Name:    nameIdent,
 				IsAlias: true,
 				AliasedType: &ast.TypeAnnotation{
@@ -292,7 +388,9 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 
 	// Return the complete type declaration with function pointer type
 	typeDecl := &ast.TypeDeclaration{
-		Token:               typeToken,
+		BaseNode: ast.BaseNode{
+			Token: typeToken,
+		},
 		Name:                nameIdent,
 		FunctionPointerType: funcPtrType,
 		IsFunctionPointer:   true,
@@ -306,8 +404,10 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 // Current token should be 'interface'.
 func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.InterfaceDecl {
 	interfaceDecl := &ast.InterfaceDecl{
-		Token: p.curToken, // 'interface' token
-		Name:  nameIdent,
+		BaseNode: ast.BaseNode{
+			Token: p.curToken, // 'interface' token
+		},
+		Name: nameIdent,
 	}
 
 	// Check for optional parent interface (IDerived = interface(IBase))
@@ -390,7 +490,11 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 //
 //	function MethodName(params): ReturnType;
 func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
-	methodDecl := &ast.InterfaceMethodDecl{Token: p.curToken}
+	methodDecl := &ast.InterfaceMethodDecl{
+		BaseNode: ast.BaseNode{
+			Token: p.curToken,
+		},
+	}
 
 	// Determine if this is a procedure or function
 	isProcedure := p.curTokenIs(lexer.PROCEDURE)

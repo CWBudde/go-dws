@@ -77,16 +77,15 @@ type TypedExpression interface {
 // declaration nodes (EnumDecl, RecordDecl, ClassDecl) but may eventually
 // be unified under this node.
 type TypeDeclaration struct {
+	BaseNode
 	Name                *Identifier
 	AliasedType         *TypeAnnotation
 	LowBound            Expression               // For subrange types
 	HighBound           Expression               // For subrange types
 	FunctionPointerType *FunctionPointerTypeNode // For function/procedure pointer types
-	Token               token.Token
 	IsAlias             bool
 	IsSubrange          bool // For subrange types
 	IsFunctionPointer   bool // For function/procedure pointer types
-	EndPos              token.Position
 }
 
 func (t *TypeDeclaration) End() token.Position {

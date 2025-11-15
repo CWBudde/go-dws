@@ -11,7 +11,7 @@ import (
 // Class Inheritance Analysis
 // ============================================================================
 
-// inheritParentConstructors copies accessible parent constructors to a child class (Task 9.2).
+// inheritParentConstructors copies accessible parent constructors to a child class.
 // In DWScript, child classes inherit parent constructors if the child doesn't declare any.
 // Only public and protected constructors are inherited (private constructors are not).
 func (a *Analyzer) inheritParentConstructors(childClass *types.ClassType, parentClass *types.ClassType) {
@@ -42,6 +42,7 @@ func (a *Analyzer) inheritParentConstructors(childClass *types.ClassType, parent
 				IsVirtual:            parentCtor.IsVirtual,
 				IsOverride:           false, // Inherited constructors are not marked as override
 				IsAbstract:           parentCtor.IsAbstract,
+				IsReintroduce:        parentCtor.IsReintroduce,
 				IsForwarded:          false,
 				IsClassMethod:        parentCtor.IsClassMethod,
 				HasOverloadDirective: parentCtor.HasOverloadDirective,
@@ -64,7 +65,7 @@ func (a *Analyzer) inheritParentConstructors(childClass *types.ClassType, parent
 	}
 }
 
-// synthesizeDefaultConstructor generates an implicit default constructor for a class (Task 9.1).
+// synthesizeDefaultConstructor generates an implicit default constructor for a class.
 // DWScript automatically provides a parameterless `Create` constructor for classes
 // that don't declare any explicit constructors.
 func (a *Analyzer) synthesizeDefaultConstructor(classType *types.ClassType) {
@@ -100,7 +101,7 @@ func (a *Analyzer) synthesizeDefaultConstructor(classType *types.ClassType) {
 }
 
 // synthesizeImplicitParameterlessConstructor generates an implicit parameterless constructor
-// when at least one constructor has the 'overload' directive (Task 9.19).
+// when at least one constructor has the 'overload' directive.
 //
 // In DWScript, when a constructor is marked with 'overload', the compiler implicitly provides
 // a parameterless constructor if one doesn't already exist. This allows code like:

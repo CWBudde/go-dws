@@ -11,24 +11,34 @@ go-dws is a Go port of DWScript (Delphi Web Script), a full-featured Object Pasc
 ### Building
 
 ```bash
-# Build the CLI tool
-go build ./cmd/dwscript
+# Using just (recommended)
+just build             # Build the CLI tool to bin/dwscript
+just tidy              # Tidy dependencies
+just clean             # Clean build artifacts
 
-# Build and install globally
-go install ./cmd/dwscript
+# Development workflows
+just dev               # Format, lint, test, and build
+just ci                # Run CI checks (lint + test with coverage)
+just setup             # Full setup (tidy + install tools)
+
+# Direct commands
+go build ./cmd/dwscript  # Build the CLI tool
+go install ./cmd/dwscript # Build and install globally
 ```
 
 ### Testing
 
 ```bash
-# Run all tests
-go test ./...
+# Using just (recommended)
+just test              # Run all tests
+just test-verbose      # Run tests with verbose output
+just test-coverage     # Run tests with coverage and generate HTML report
+just test-unit         # Run tests with race detection (CI)
 
-# Run tests with verbose output
-go test -v ./...
-
-# Run tests for a specific package
-go test ./lexer
+# Direct commands
+go test ./...          # Run all tests
+go test -v ./...       # Run tests with verbose output
+go test ./lexer        # Run tests for a specific package
 go test ./parser
 go test ./ast
 
@@ -45,18 +55,28 @@ go test -run TestIntegerLiteral ./parser
 ### Linting
 
 ```bash
-# Run golangci-lint (project uses .golangci.yml config)
-golangci-lint run
+# Using just (recommended)
+just lint              # Run golangci-lint
+just lint-fix          # Fix linting issues automatically
+just fmt               # Format code with go fmt and goimports
+just check-fmt         # Check if code is formatted (CI)
 
-# Run standard Go tools
-go vet ./...
-go fmt ./...
+# Direct commands
+golangci-lint run      # Run golangci-lint (project uses .golangci.yml config)
+golangci-lint run --fix # Fix issues automatically
+go vet ./...           # Run standard Go vet
+go fmt ./...           # Run standard Go formatter
 ```
 
 ### CLI Usage
 
 ```bash
-# Tokenize a file
+# Using just (convenient shortcuts)
+just lex testdata/hello.dws    # Tokenize a file
+just parse testdata/hello.dws  # Parse and display AST
+just run testdata/hello.dws    # Run a script
+
+# Direct CLI commands
 ./bin/dwscript lex testdata/simple.dws
 ./bin/dwscript lex -e "var x: Integer := 42;"
 
@@ -72,6 +92,15 @@ go fmt ./...
 
 # Show disassembled bytecode
 ./bin/dwscript run --bytecode --trace script.dws
+
+# Compile to bytecode (.dwc file)
+./bin/dwscript compile script.dws
+
+# Compile with custom output file
+./bin/dwscript compile script.dws -o output.dwc
+
+# Run precompiled bytecode
+./bin/dwscript run script.dwc
 
 # Run with custom recursion limit (default: 1024)
 ./bin/dwscript run --max-recursion 2048 script.dws
@@ -102,7 +131,8 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
 - `cmd/dwscript/` - CLI tool for running DWScript programs
   - `lex` command: Tokenize and display tokens
   - `parse` command: Parse and display AST
-  - `run` command: Execute scripts
+  - `run` command: Execute scripts (source or compiled bytecode)
+  - `compile` command: Compile source to bytecode (.dwc files)
   - `version` command: Show version info
 
 **internal/** - Private implementation (not importable by external projects)
@@ -143,6 +173,7 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - `bytecode.go`: Bytecode format, constant pools, value types
   - `disasm.go`: Bytecode disassembler for debugging
   - `instruction.go`: 116 opcodes for DWScript operations
+  - `serializer.go`: Bytecode serialization/deserialization (.dwc file format)
   - See [docs/bytecode-vm.md](docs/bytecode-vm.md) for details
 
 - `internal/errors/` - Error handling utilities

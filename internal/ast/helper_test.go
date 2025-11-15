@@ -15,6 +15,9 @@ func TestHelperDeclString(t *testing.T) {
 		{
 			name: "simple record helper with method",
 			helper: &HelperDecl{
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
+				},
 				Name: &Identifier{
 					Value: "TStringHelper",
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TStringHelper"},
@@ -24,14 +27,15 @@ func TestHelperDeclString(t *testing.T) {
 				},
 				Methods: []*FunctionDecl{
 					{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+						},
 						Name: &Identifier{Value: "ToUpper"},
 						ReturnType: &TypeAnnotation{
 							Name: "String",
 						},
-						Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 					},
 				},
-				Token:          lexer.Token{Type: lexer.HELPER, Literal: "helper"},
 				IsRecordHelper: true,
 			},
 			expected: `type TStringHelper = record helper for String
@@ -41,6 +45,9 @@ end`,
 		{
 			name: "simple helper without record keyword",
 			helper: &HelperDecl{
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
+				},
 				Name: &Identifier{
 					Value: "TIntHelper",
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TIntHelper"},
@@ -50,14 +57,15 @@ end`,
 				},
 				Methods: []*FunctionDecl{
 					{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+						},
 						Name: &Identifier{Value: "IsEven"},
 						ReturnType: &TypeAnnotation{
 							Name: "Boolean",
 						},
-						Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 					},
 				},
-				Token:          lexer.Token{Type: lexer.HELPER, Literal: "helper"},
 				IsRecordHelper: false,
 			},
 			expected: `type TIntHelper = helper for Integer
@@ -67,6 +75,9 @@ end`,
 		{
 			name: "helper with property",
 			helper: &HelperDecl{
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
+				},
 				Name: &Identifier{
 					Value: "TArrayHelper",
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TArrayHelper"},
@@ -76,14 +87,15 @@ end`,
 				},
 				Properties: []*PropertyDecl{
 					{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+						},
 						Name: &Identifier{Value: "Count"},
 						Type: &TypeAnnotation{
 							Name: "Integer",
 						},
-						Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 					},
 				},
-				Token:          lexer.Token{Type: lexer.HELPER, Literal: "helper"},
 				IsRecordHelper: false,
 			},
 			expected: `type TArrayHelper = helper for TIntArray
@@ -93,6 +105,9 @@ end`,
 		{
 			name: "helper with class var",
 			helper: &HelperDecl{
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
+				},
 				Name: &Identifier{
 					Value: "THelper",
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "THelper"},
@@ -102,6 +117,9 @@ end`,
 				},
 				ClassVars: []*FieldDecl{
 					{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "DefaultEncoding"},
+						},
 						Name: &Identifier{Value: "DefaultEncoding"},
 						Type: &TypeAnnotation{
 							Name: "String",
@@ -109,7 +127,6 @@ end`,
 						IsClassVar: true,
 					},
 				},
-				Token:          lexer.Token{Type: lexer.HELPER, Literal: "helper"},
 				IsRecordHelper: true,
 			},
 			expected: `type THelper = record helper for String
@@ -119,6 +136,9 @@ end`,
 		{
 			name: "helper with class const",
 			helper: &HelperDecl{
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
+				},
 				Name: &Identifier{
 					Value: "TMathHelper",
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TMathHelper"},
@@ -128,15 +148,16 @@ end`,
 				},
 				ClassConsts: []*ConstDecl{
 					{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.CONST, Literal: "const"},
+						},
 						Name: &Identifier{Value: "PI"},
 						Value: &FloatLiteral{
 							Value: 3.14159,
 							Token: lexer.Token{Type: lexer.FLOAT, Literal: "3.14159"},
 						},
-						Token: lexer.Token{Type: lexer.CONST, Literal: "const"},
 					},
 				},
-				Token:          lexer.Token{Type: lexer.HELPER, Literal: "helper"},
 				IsRecordHelper: false,
 			},
 			expected: `type TMathHelper = helper for Float
@@ -146,6 +167,9 @@ end`,
 		{
 			name: "helper with private and public sections",
 			helper: &HelperDecl{
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
+				},
 				Name: &Identifier{
 					Value: "TComplexHelper",
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "TComplexHelper"},
@@ -155,30 +179,35 @@ end`,
 				},
 				PrivateMembers: []Statement{
 					&FunctionDecl{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+						},
 						Name: &Identifier{Value: "InternalMethod"},
 						ReturnType: &TypeAnnotation{
 							Name: "Integer",
 						},
-						Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 					},
 				},
 				PublicMembers: []Statement{
 					&FunctionDecl{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+						},
 						Name: &Identifier{Value: "ToUpper"},
 						ReturnType: &TypeAnnotation{
 							Name: "String",
 						},
-						Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 					},
 					&PropertyDecl{
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+						},
 						Name: &Identifier{Value: "Length"},
 						Type: &TypeAnnotation{
 							Name: "Integer",
 						},
-						Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 					},
 				},
-				Token:          lexer.Token{Type: lexer.HELPER, Literal: "helper"},
 				IsRecordHelper: true,
 			},
 			expected: `type TComplexHelper = record helper for String
@@ -203,14 +232,16 @@ end`,
 
 func TestHelperDeclNodeInterface(t *testing.T) {
 	helper := &HelperDecl{
+		BaseNode: BaseNode{
+			Token: lexer.Token{
+				Type:    lexer.HELPER,
+				Literal: "helper",
+				Pos:     lexer.Position{Line: 1, Column: 10},
+			},
+		},
 		Name: &Identifier{
 			Value: "TTestHelper",
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "TTestHelper"},
-		},
-		Token: lexer.Token{
-			Type:    lexer.HELPER,
-			Literal: "helper",
-			Pos:     lexer.Position{Line: 1, Column: 10},
 		},
 	}
 

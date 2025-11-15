@@ -9,7 +9,7 @@ import (
 )
 
 // validateMethodSignature validates that an out-of-line method implementation
-// signature matches the forward declaration (Task 9.282)
+// signature matches the forward declaration.
 func (a *Analyzer) validateMethodSignature(implDecl *ast.FunctionDecl, declaredType *types.FunctionType, className string) error {
 	// Resolve parameter types from implementation
 	implParamTypes := make([]types.Type, 0, len(implDecl.Parameters))
@@ -66,7 +66,7 @@ func (a *Analyzer) validateMethodSignature(implDecl *ast.FunctionDecl, declaredT
 	return nil
 }
 
-// validateVirtualOverride validates virtual/override method declarations (Task 9.61: Updated for overloading)
+// validateVirtualOverride validates virtual/override method declarations
 // Task 9.4.1: Updated to support virtual/override on constructors
 func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *types.ClassType, methodType *types.FunctionType) {
 	methodName := method.Name.Value
@@ -106,7 +106,7 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 			return
 		}
 
-		// Check that parent method/constructor is virtual, override, or abstract (Task 9.81)
+		// Check that parent method/constructor is virtual, override, or abstract
 		// Abstract methods are implicitly virtual and can be overridden
 		if !parentOverload.IsVirtual && !parentOverload.IsOverride && !parentOverload.IsAbstract {
 			a.addError("method '%s' marked as override, but parent method is not virtual", methodName)
@@ -128,14 +128,16 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 		}
 	}
 
-	// Warn if redefining virtual method without override keyword
+	// Warn if redefining virtual method without override or reintroduce keyword
 	// Note: Constructors can be marked as virtual, so this check applies to both methods and constructors
 	// Task 9.6: Check class metadata instead of AST node, since implementations don't have override keyword
 	// Task 9.16.1: Use lowercase key for case-insensitive lookups
+	// Task 9.2: Allow reintroduce keyword to explicitly hide virtual parent methods (check class metadata, not AST)
 	methodNameLower := strings.ToLower(methodName)
 	isOverrideInClass := classType.OverrideMethods[methodNameLower]
 	isVirtualInClass := classType.VirtualMethods[methodNameLower]
-	if !isOverrideInClass && !isVirtualInClass && classType.Parent != nil {
+	isReintroduceInClass := classType.ReintroduceMethods[methodNameLower]
+	if !isOverrideInClass && !isVirtualInClass && !isReintroduceInClass && classType.Parent != nil {
 		// Task 9.4.1: Check if any parent overload with matching signature is virtual
 		var parentOverload *types.MethodInfo
 		if isConstructor {
@@ -145,7 +147,7 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 		}
 
 		if parentOverload != nil && (parentOverload.IsVirtual || parentOverload.IsOverride) {
-			a.addError("method '%s' hides virtual parent method; use 'override' keyword", methodName)
+			a.addError("method '%s' hides virtual parent method; use 'override' or 'reintroduce' keyword", methodName)
 		}
 	}
 }
@@ -220,7 +222,7 @@ func (a *Analyzer) validateAbstractClass(classType *types.ClassType, decl *ast.C
 	}
 
 	// Rule 2: Concrete classes must implement all inherited abstract methods
-	// NOTE: We don't report this error during class declaration anymore (Task 9.12).
+	// NOTE: We don't report this error during class declaration anymore.
 	// Instead, we report it during instantiation (see analyzeNewExpression).
 	// This matches DWScript behavior where the error is reported when trying to
 	// create an instance, not when declaring the class.

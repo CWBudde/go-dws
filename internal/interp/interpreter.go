@@ -119,7 +119,7 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 				}
 			}
 
-			// Extract MaxRecursionDepth (Task 9.11)
+			// Extract MaxRecursionDepth
 			depthField := val.FieldByName("MaxRecursionDepth")
 			if depthField.IsValid() && depthField.Kind() == reflect.Int {
 				depth := int(depthField.Int())
@@ -158,8 +158,10 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 	env.Define("String", NewTypeMetaValue(types.STRING, "String"))
 	env.Define("Boolean", NewTypeMetaValue(types.BOOLEAN, "Boolean"))
 
-	// Register mathematical constants (Task 9.232)
+	// Register mathematical constants
 	env.Define("PI", &FloatValue{Value: math.Pi})
+	env.Define("NaN", &FloatValue{Value: math.NaN()})
+	env.Define("Infinity", &FloatValue{Value: math.Inf(1)})
 
 	return interp
 }

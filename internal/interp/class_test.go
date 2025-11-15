@@ -76,7 +76,9 @@ func TestClassInfoAddMethod(t *testing.T) {
 
 	// Create a simple method AST node
 	method := &ast.FunctionDecl{
-		Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+		},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
 			Value: "GetValue",
@@ -247,7 +249,7 @@ func TestMethodLookupBasic(t *testing.T) {
 	method := &ast.FunctionDecl{
 		Name: &ast.Identifier{Value: "GetValue"},
 	}
-	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	// Methods are stored with lowercase keys for case-insensitive lookup
 	classInfo.Methods["getvalue"] = method
 
 	// Create object
@@ -271,7 +273,7 @@ func TestMethodLookupWithInheritance(t *testing.T) {
 	parentMethod := &ast.FunctionDecl{
 		Name: &ast.Identifier{Value: "ToString"},
 	}
-	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	// Methods are stored with lowercase keys for case-insensitive lookup
 	parent.Methods["tostring"] = parentMethod
 
 	// Create child class
@@ -300,7 +302,7 @@ func TestMethodOverriding(t *testing.T) {
 		Name: &ast.Identifier{Value: "ToString"},
 		Body: &ast.BlockStatement{}, // Different body
 	}
-	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	// Methods are stored with lowercase keys for case-insensitive lookup
 	parent.Methods["tostring"] = parentMethod
 
 	// Create child class that overrides the method
@@ -315,7 +317,7 @@ func TestMethodOverriding(t *testing.T) {
 			},
 		},
 	}
-	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	// Methods are stored with lowercase keys for case-insensitive lookup
 	child.Methods["tostring"] = childMethod
 
 	// Create object of child class

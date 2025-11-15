@@ -8,9 +8,11 @@ import (
 )
 
 // ============================================================================
-// Large Set and Advanced Tests
+// Large Set Tests
 // ============================================================================
 
+// TestSetValue_BoundaryCase64Elements tests set with exactly 64 elements (boundary case).
+// This should use bitmask storage (threshold is ≤64).
 func TestSetValue_BoundaryCase64Elements(t *testing.T) {
 	// Create enum with exactly 64 values (E0..E63)
 	values := make(map[string]int)
@@ -398,7 +400,7 @@ func TestLargeSet_Performance(t *testing.T) {
 }
 
 // ============================================================================
-// For-In Edge Cases (Task 9.9d)
+// For-In Edge Cases
 // ============================================================================
 
 // TestForInSet_EmptySet tests that for-in over an empty set never executes the loop body.
@@ -481,7 +483,7 @@ func TestForInSet_SingleElement(t *testing.T) {
 }
 
 // ============================================================================
-// Large Set Edge Cases (Task 9.10c)
+// Large Set Edge Cases
 // ============================================================================
 
 // TestVeryLargeSet_500Elements tests set operations with 500-element enum.
@@ -897,7 +899,7 @@ func TestLargeSet_MixedOperations(t *testing.T) {
 }
 
 // ============================================================================
-// Set Initialization Tests (Task 9.214)
+// Set Initialization Tests
 // ============================================================================
 
 func TestSetUninitializedVariable(t *testing.T) {

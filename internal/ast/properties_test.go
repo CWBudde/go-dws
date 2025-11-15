@@ -14,7 +14,10 @@ func TestPropertyDeclBasic(t *testing.T) {
 	t.Run("field-backed property", func(t *testing.T) {
 		// property Name: String read FName write FName;
 		prop := &PropertyDecl{
-			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			BaseNode: BaseNode{
+
+				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			},
 			Name: &Identifier{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"},
 				Value: "Name",
@@ -52,7 +55,10 @@ func TestPropertyDeclBasic(t *testing.T) {
 	t.Run("method-backed property", func(t *testing.T) {
 		// property Count: Integer read GetCount write SetCount;
 		prop := &PropertyDecl{
-			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			BaseNode: BaseNode{
+
+				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			},
 			Name: &Identifier{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Count"},
 				Value: "Count",
@@ -85,7 +91,10 @@ func TestPropertyDeclBasic(t *testing.T) {
 func TestPropertyDeclReadOnly(t *testing.T) {
 	// property Size: Integer read FSize;
 	prop := &PropertyDecl{
-		Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+		BaseNode: BaseNode{
+
+			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+		},
 		Name: &Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Size"},
 			Value: "Size",
@@ -114,7 +123,10 @@ func TestPropertyDeclReadOnly(t *testing.T) {
 func TestPropertyDeclWriteOnly(t *testing.T) {
 	// property Output: String write SetOutput;
 	prop := &PropertyDecl{
-		Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+		BaseNode: BaseNode{
+
+			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+		},
 		Name: &Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Output"},
 			Value: "Output",
@@ -144,7 +156,10 @@ func TestPropertyDeclIndexed(t *testing.T) {
 	t.Run("indexed property with single parameter", func(t *testing.T) {
 		// property Items[index: Integer]: String read GetItem write SetItem;
 		prop := &PropertyDecl{
-			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			BaseNode: BaseNode{
+
+				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			},
 			Name: &Identifier{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Items"},
 				Value: "Items",
@@ -187,7 +202,10 @@ func TestPropertyDeclIndexed(t *testing.T) {
 	t.Run("indexed property with multiple parameters", func(t *testing.T) {
 		// property Data[x, y: Integer]: Float read GetData write SetData;
 		prop := &PropertyDecl{
-			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			BaseNode: BaseNode{
+
+				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			},
 			Name: &Identifier{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Data"},
 				Value: "Data",
@@ -238,7 +256,10 @@ func TestPropertyDeclIndexed(t *testing.T) {
 func TestPropertyDeclDefault(t *testing.T) {
 	// property Items[index: Integer]: String read GetItem write SetItem; default;
 	prop := &PropertyDecl{
-		Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+		BaseNode: BaseNode{
+
+			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+		},
 		Name: &Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Items"},
 			Value: "Items",
@@ -287,7 +308,10 @@ func TestPropertyDeclString(t *testing.T) {
 		{
 			name: "field-backed property",
 			prop: &PropertyDecl{
-				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				BaseNode: BaseNode{
+
+					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"},
 					Value: "Name",
@@ -310,7 +334,10 @@ func TestPropertyDeclString(t *testing.T) {
 		{
 			name: "read-only property",
 			prop: &PropertyDecl{
-				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				BaseNode: BaseNode{
+
+					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Size"},
 					Value: "Size",
@@ -330,7 +357,10 @@ func TestPropertyDeclString(t *testing.T) {
 		{
 			name: "write-only property",
 			prop: &PropertyDecl{
-				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				BaseNode: BaseNode{
+
+					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Output"},
 					Value: "Output",
@@ -350,7 +380,10 @@ func TestPropertyDeclString(t *testing.T) {
 		{
 			name: "indexed property",
 			prop: &PropertyDecl{
-				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				BaseNode: BaseNode{
+
+					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Items"},
 					Value: "Items",
@@ -385,7 +418,10 @@ func TestPropertyDeclString(t *testing.T) {
 		{
 			name: "default indexed property",
 			prop: &PropertyDecl{
-				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				BaseNode: BaseNode{
+
+					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+				},
 				Name: &Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Items"},
 					Value: "Items",
@@ -432,7 +468,10 @@ func TestPropertyDeclString(t *testing.T) {
 
 func TestPropertyDeclTokenLiteral(t *testing.T) {
 	prop := &PropertyDecl{
-		Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+		BaseNode: BaseNode{
+
+			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+		},
 		Name: &Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"},
 			Value: "Name",
@@ -460,7 +499,10 @@ func TestClassProperty(t *testing.T) {
 	t.Run("basic class property", func(t *testing.T) {
 		// class property Count: Integer read GetCount write SetCount;
 		prop := &PropertyDecl{
-			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			BaseNode: BaseNode{
+
+				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			},
 			Name: &Identifier{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Count"},
 				Value: "Count",
@@ -494,7 +536,10 @@ func TestClassProperty(t *testing.T) {
 	t.Run("class property read-only", func(t *testing.T) {
 		// class property Version: String read GetVersion;
 		prop := &PropertyDecl{
-			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			BaseNode: BaseNode{
+
+				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			},
 			Name: &Identifier{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Version"},
 				Value: "Version",
@@ -521,7 +566,10 @@ func TestClassProperty(t *testing.T) {
 	t.Run("instance property (IsClassProperty=false)", func(t *testing.T) {
 		// Regular instance property for comparison
 		prop := &PropertyDecl{
-			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			BaseNode: BaseNode{
+
+				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
+			},
 			Name: &Identifier{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"},
 				Value: "Name",

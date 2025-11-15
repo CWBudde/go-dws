@@ -36,7 +36,8 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 
 	// Task 9.18: Check if trying to instantiate an abstract class
 	if classType.IsAbstract {
-		a.addError("cannot instantiate abstract class '%s' at %s", className, expr.Token.Pos.String())
+		a.addError("Trying to create an instance of an abstract class at [line: %d, column: %d]",
+			expr.Token.Pos.Line, expr.Token.Pos.Column)
 		return nil
 	}
 
@@ -253,6 +254,13 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 		_, helperMethod := a.hasHelperMethod(objectType, memberName)
 		if helperMethod != nil {
+			// Task 9.8.5: Auto-invoke parameterless helper methods when accessed without ()
+			// This allows arr.Pop to work the same as arr.Pop()
+			if len(helperMethod.Parameters) == 0 {
+				// Parameterless method - auto-invoke and return the return type
+				return helperMethod.ReturnType
+			}
+			// Method has parameters - return the method type for deferred invocation
 			return helperMethod
 		}
 
@@ -359,6 +367,13 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// If not found in class, check if any helpers extend this type
 	_, helperMethod := a.hasHelperMethod(objectType, memberName)
 	if helperMethod != nil {
+		// Task 9.8.5: Auto-invoke parameterless helper methods when accessed without ()
+		// This allows arr.Pop to work the same as arr.Pop()
+		if len(helperMethod.Parameters) == 0 {
+			// Parameterless method - auto-invoke and return the return type
+			return helperMethod.ReturnType
+		}
+		// Method has parameters - return the method type for deferred invocation
 		return helperMethod
 	}
 

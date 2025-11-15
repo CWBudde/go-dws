@@ -189,7 +189,7 @@ func (i *Interpreter) builtinHigh(args []Value) Value {
 }
 
 // builtinTypeOf implements the TypeOf() built-in function.
-// Task 9.25.1: TypeOf(value): TTypeInfo
+//
 // Returns runtime type information for the given value.
 // Can accept any value (object, class, primitive, etc.)
 func (i *Interpreter) builtinTypeOf(args []Value) Value {
@@ -210,7 +210,7 @@ func (i *Interpreter) builtinTypeOf(args []Value) Value {
 }
 
 // builtinTypeOfClass implements the TypeOfClass() built-in function.
-// Task 9.25.2: TypeOfClass(classRef: TClass): TTypeInfo
+//
 // Returns type information for a class reference (metaclass).
 func (i *Interpreter) builtinTypeOfClass(args []Value) Value {
 	if len(args) != 1 {
@@ -245,7 +245,6 @@ func (i *Interpreter) builtinTypeOfClass(args []Value) Value {
 }
 
 // getTypeIDAndName returns a unique type ID and human-readable type name for a value.
-// Task 9.25: Helper for TypeOf() implementation.
 func (i *Interpreter) getTypeIDAndName(val Value) (int, string) {
 	switch v := val.(type) {
 	case *IntegerValue:

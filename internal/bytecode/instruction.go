@@ -504,19 +504,16 @@ const (
 	// OpArrayCount returns array count (alias for length).
 	// Format: [OpArrayCount][unused][unused]
 	// Stack: [array] -> [count]
-	// Task 9.34: Array helper methods
 	OpArrayCount
 
 	// OpArrayDelete removes elements from array.
 	// Format: [OpArrayDelete][unused][unused]
 	// Stack: [array, index, count] -> []
-	// Task 9.34: Array helper methods
 	OpArrayDelete
 
 	// OpArrayIndexOf finds element index in array.
 	// Format: [OpArrayIndexOf][unused][unused]
 	// Stack: [array, value, startIndex] -> [index]
-	// Task 9.34: Array helper methods
 	OpArrayIndexOf
 
 	// ========================================

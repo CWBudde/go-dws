@@ -15,7 +15,7 @@ import (
 //	operator in (Integer, Float) : Boolean uses DigitInFloat;
 func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 	decl := &ast.OperatorDecl{
-		Token:      p.curToken,
+		BaseNode:   ast.BaseNode{Token: p.curToken},
 		Kind:       ast.OperatorKindGlobal,
 		Visibility: ast.VisibilityPublic,
 	}
@@ -97,7 +97,7 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 	}
 
 	decl := &ast.OperatorDecl{
-		Token:      classToken,
+		BaseNode:   ast.BaseNode{Token: classToken},
 		Kind:       ast.OperatorKindClass,
 		Visibility: visibility,
 	}

@@ -180,34 +180,48 @@ func (i *Interpreter) builtinSort(args []Value) Value {
 	return i.builtinArraySortWithComparator(arr, comparator)
 }
 
-// builtinSetLength implements the SetLength() built-in function.
-// It resizes a dynamic array to the specified length.
-func (i *Interpreter) builtinSetLength(args []Value) Value {
+// builtinSetLength implements the SetLength() built-in function for AST expressions (var-param version).
+// It resizes a dynamic array or string to the specified length.
+func (i *Interpreter) builtinSetLength(args []ast.Expression) Value {
 	if len(args) != 2 {
 		return i.newErrorWithLocation(i.currentNode, "SetLength() expects exactly 2 arguments, got %d", len(args))
 	}
 
-	// First argument must be a dynamic array
-	arrayArg := args[0]
-	arrayVal, ok := arrayArg.(*ArrayValue)
+	// First argument must be an identifier (variable name)
+	varIdent, ok := args[0].(*ast.Identifier)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "SetLength() expects array as first argument, got %s", arrayArg.Type())
+		return i.newErrorWithLocation(i.currentNode, "SetLength() first argument must be a variable, got %T", args[0])
 	}
 
-	// Check that it's a dynamic array
-	if arrayVal.ArrayType == nil {
-		return i.newErrorWithLocation(i.currentNode, "array has no type information")
+	varName := varIdent.Value
+
+	// Get current value from environment
+	currentVal, exists := i.env.Get(varName)
+	if !exists {
+		return i.newErrorWithLocation(i.currentNode, "undefined variable: %s", varName)
 	}
 
-	if arrayVal.ArrayType.IsStatic() {
-		return i.newErrorWithLocation(i.currentNode, "SetLength() can only be used with dynamic arrays, not static arrays")
+	// Handle var parameters (ReferenceValue)
+	var refVal *ReferenceValue
+	if ref, isRef := currentVal.(*ReferenceValue); isRef {
+		refVal = ref
+		// Dereference to get the actual value
+		actualVal, err := ref.Dereference()
+		if err != nil {
+			return i.newErrorWithLocation(i.currentNode, "%s", err.Error())
+		}
+		currentVal = actualVal
 	}
 
-	// Second argument must be an integer (the new length)
-	lengthArg := args[1]
-	lengthInt, ok := lengthArg.(*IntegerValue)
+	// Evaluate the second argument (new length)
+	lengthVal := i.Eval(args[1])
+	if isError(lengthVal) {
+		return lengthVal
+	}
+
+	lengthInt, ok := lengthVal.(*IntegerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "SetLength() expects integer as second argument, got %s", lengthArg.Type())
+		return i.newErrorWithLocation(i.currentNode, "SetLength() expects integer as second argument, got %s", lengthVal.Type())
 	}
 
 	newLength := int(lengthInt.Value)
@@ -215,24 +229,68 @@ func (i *Interpreter) builtinSetLength(args []Value) Value {
 		return i.newErrorWithLocation(i.currentNode, "SetLength() expects non-negative length, got %d", newLength)
 	}
 
-	currentLength := len(arrayVal.Elements)
+	// Handle arrays
+	if arrayVal, ok := currentVal.(*ArrayValue); ok {
+		// Check that it's a dynamic array
+		if arrayVal.ArrayType == nil {
+			return i.newErrorWithLocation(i.currentNode, "array has no type information")
+		}
 
-	if newLength == currentLength {
-		// No change
+		if arrayVal.ArrayType.IsStatic() {
+			return i.newErrorWithLocation(i.currentNode, "SetLength() can only be used with dynamic arrays, not static arrays")
+		}
+
+		currentLength := len(arrayVal.Elements)
+
+		if newLength != currentLength {
+			if newLength < currentLength {
+				// Truncate the slice
+				arrayVal.Elements = arrayVal.Elements[:newLength]
+			} else {
+				// Extend the slice with nil values
+				additional := make([]Value, newLength-currentLength)
+				arrayVal.Elements = append(arrayVal.Elements, additional...)
+			}
+		}
+
 		return &NilValue{}
 	}
 
-	if newLength < currentLength {
-		// Truncate the slice
-		arrayVal.Elements = arrayVal.Elements[:newLength]
+	// Handle strings
+	if strVal, ok := currentVal.(*StringValue); ok {
+		currentLength := len(strVal.Value)
+
+		var newStr string
+		if newLength < currentLength {
+			// Truncate the string
+			newStr = strVal.Value[:newLength]
+		} else if newLength > currentLength {
+			// Extend the string with null characters
+			newStr = strVal.Value + string(make([]byte, newLength-currentLength))
+		} else {
+			// No change
+			return &NilValue{}
+		}
+
+		// Create new StringValue
+		newValue := &StringValue{Value: newStr}
+
+		// If this is a var parameter, write through the reference
+		if refVal != nil {
+			if err := refVal.Assign(newValue); err != nil {
+				return i.newErrorWithLocation(i.currentNode, "failed to update string variable: %s", err)
+			}
+		} else {
+			// Direct assignment
+			if err := i.env.Set(varName, newValue); err != nil {
+				return i.newErrorWithLocation(i.currentNode, "failed to update variable %s: %s", varName, err)
+			}
+		}
+
 		return &NilValue{}
 	}
 
-	// Extend the slice with nil values
-	additional := make([]Value, newLength-currentLength)
-	arrayVal.Elements = append(arrayVal.Elements, additional...)
-
-	return &NilValue{}
+	return i.newErrorWithLocation(i.currentNode, "SetLength() expects array or string as first argument, got %s", currentVal.Type())
 }
 
 // builtinAdd implements the Add() built-in function.
