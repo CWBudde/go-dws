@@ -139,7 +139,8 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	// Task 9.68: Resolve constructor overload based on arguments
 	// Check for constructor overloads first (supports both TClass.Create and new TClass)
 	var constructor *ast.FunctionDecl
-	constructorName := "Create" // Default constructor name for NewExpression
+	// Task 9.3: Use default constructor if specified, otherwise fall back to "Create"
+	constructorName := i.getDefaultConstructorName(classInfo)
 
 	// Task 9.4: Get all constructor overloads from class hierarchy (case-insensitive lookup)
 	// This ensures inherited virtual constructors are properly found
@@ -230,4 +231,19 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	}
 
 	return obj
+}
+
+// getDefaultConstructorName returns the name of the default constructor for a class.
+// It checks the class hierarchy for a constructor marked as 'default'.
+// Falls back to "Create" if no default constructor is found.
+// Task 9.3: Support for default constructors
+func (i *Interpreter) getDefaultConstructorName(class *ClassInfo) string {
+	// Check current class and parents for default constructor
+	for current := class; current != nil; current = current.Parent {
+		if current.DefaultConstructor != "" {
+			return current.DefaultConstructor
+		}
+	}
+	// No default constructor found, use "Create" as fallback
+	return "Create"
 }

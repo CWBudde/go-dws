@@ -51,10 +51,9 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		return nil
 	}
 
-	// Task 9.13-9.16: Get all constructor overloads (assuming "Create" as default constructor name)
-	// In DWScript, constructors are typically named "Create" but can have other names
-	// For NewExpression, we assume "Create" unless the AST specifies otherwise
-	constructorName := "Create"
+	// Task 9.13-9.16: Get all constructor overloads
+	// Task 9.3: Use default constructor if specified, otherwise fall back to "Create"
+	constructorName := a.getDefaultConstructorName(classType)
 	constructorOverloads := a.getMethodOverloadsInHierarchy(constructorName, classType)
 
 	if len(constructorOverloads) == 0 {
@@ -464,4 +463,19 @@ func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression,
 	}
 
 	return funcType.ReturnType
+}
+
+// getDefaultConstructorName returns the name of the default constructor for a class.
+// It checks the class hierarchy for a constructor marked as 'default'.
+// Falls back to "Create" if no default constructor is found.
+// Task 9.3: Support for default constructors
+func (a *Analyzer) getDefaultConstructorName(class *types.ClassType) string {
+	// Check current class and parents for default constructor
+	for current := class; current != nil; current = current.Parent {
+		if current.DefaultConstructor != "" {
+			return current.DefaultConstructor
+		}
+	}
+	// No default constructor found, use "Create" as fallback
+	return "Create"
 }

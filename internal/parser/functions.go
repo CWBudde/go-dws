@@ -158,6 +158,12 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			if !p.expectPeek(lexer.SEMICOLON) {
 				return nil
 			}
+		} else if p.peekTokenIs(lexer.DEFAULT) {
+			p.nextToken() // move to 'default'
+			fn.IsDefault = true
+			if !p.expectPeek(lexer.SEMICOLON) {
+				return nil
+			}
 		} else if p.peekTokenIs(lexer.ABSTRACT) {
 			// Abstract method: function GetArea(): Float; abstract;
 			p.nextToken() // move to 'abstract'

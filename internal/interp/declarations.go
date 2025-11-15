@@ -207,6 +207,11 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			classInfo.ConstructorOverloads[normalizedName] = append([]*ast.FunctionDecl(nil), overloads...)
 		}
 
+		// Task 9.3: Inherit default constructor if parent has one
+		if parentClass.DefaultConstructor != "" {
+			classInfo.DefaultConstructor = parentClass.DefaultConstructor
+		}
+
 		// Copy operator overloads
 		classInfo.Operators = parentClass.Operators.clone()
 	}
@@ -386,6 +391,12 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		if method.IsConstructor {
 			normalizedName := strings.ToLower(method.Name.Value)
 			classInfo.Constructors[normalizedName] = method
+
+			// Task 9.3: Capture default constructor
+			if method.IsDefault {
+				classInfo.DefaultConstructor = method.Name.Value
+			}
+
 			// In DWScript, a child constructor with the same name and signature HIDES the parent's,
 			// regardless of whether it has the `override` keyword or not
 			existingOverloads := classInfo.ConstructorOverloads[normalizedName]

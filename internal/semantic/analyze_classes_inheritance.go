@@ -59,6 +59,11 @@ func (a *Analyzer) inheritParentConstructors(childClass *types.ClassType, parent
 		}
 	}
 
+	// Inherit default constructor designation from parent
+	if parentClass.DefaultConstructor != "" {
+		childClass.DefaultConstructor = parentClass.DefaultConstructor
+	}
+
 	// If no constructors were inherited (all were private), generate implicit default
 	if len(childClass.Constructors) == 0 && len(childClass.ConstructorOverloads) == 0 {
 		a.synthesizeDefaultConstructor(childClass)
