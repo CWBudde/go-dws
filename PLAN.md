@@ -474,6 +474,7 @@ PrintLn(obj.Line);  // GetLine() is called implicitly
 ```
 
 **Testing**:
+
 - ✅ Semantic analysis: No type errors for parameterless method references
 - ✅ Simple method calls: Tested and working
 - ✅ Property getters: Tested and working
@@ -481,6 +482,7 @@ PrintLn(obj.Line);  // GetLine() is called implicitly
 - ⚠️ Complex test (bottles_of_beer): Still has runtime issues (separate from this fix)
 
 **Files Modified**:
+
 - `internal/semantic/analyze_expr_operators.go`
 - `internal/semantic/analyze_classes.go`
 - `internal/interp/expressions_basic.go`
