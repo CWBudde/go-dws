@@ -173,6 +173,11 @@ func (s *Serializer) SerializeChunk(chunk *Chunk) ([]byte, error) {
 		return nil, fmt.Errorf("failed to write helpers: %w", err)
 	}
 
+	// Write class metadata (Task 9.5.5)
+	if err := s.writeClasses(buf, chunk.Classes); err != nil {
+		return nil, fmt.Errorf("failed to write classes: %w", err)
+	}
+
 	return buf.Bytes(), nil
 }
 
@@ -243,6 +248,16 @@ func (s *Serializer) DeserializeChunk(data []byte) (*Chunk, error) {
 		return nil, fmt.Errorf("failed to read helpers: %w", err)
 	}
 	chunk.Helpers = helpers
+
+	// Read class metadata (Task 9.5.5)
+	// Check if there's more data (for backward compatibility with older bytecode)
+	if buf.Len() > 0 {
+		classes, err := s.readClasses(buf)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read classes: %w", err)
+		}
+		chunk.Classes = classes
+	}
 
 	return chunk, nil
 }
@@ -988,4 +1003,189 @@ func (s *Serializer) readHelperInfo(r io.Reader) (*HelperInfo, error) {
 	}
 
 	return helper, nil
+}
+
+// ============================================================================
+// Class metadata serialization (Task 9.5.5)
+// ============================================================================
+
+func (s *Serializer) writeClasses(w io.Writer, classes map[string]*ClassMetadata) error {
+	// Write count
+	if err := binary.Write(w, binary.LittleEndian, uint32(len(classes))); err != nil {
+		return err
+	}
+	// Write each class
+	for name, classMeta := range classes {
+		if err := s.writeString(w, name); err != nil {
+			return err
+		}
+		if err := s.writeClassMetadata(w, classMeta); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Serializer) readClasses(r io.Reader) (map[string]*ClassMetadata, error) {
+	// Read count
+	var count uint32
+	if err := binary.Read(r, binary.LittleEndian, &count); err != nil {
+		return nil, err
+	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(count, 1000, "class count"); err != nil {
+		return nil, err
+	}
+	// Read each class
+	classes := make(map[string]*ClassMetadata, count)
+	for i := uint32(0); i < count; i++ {
+		name, err := s.readString(r)
+		if err != nil {
+			return nil, err
+		}
+		classMeta, err := s.readClassMetadata(r)
+		if err != nil {
+			return nil, err
+		}
+		classes[name] = classMeta
+	}
+	return classes, nil
+}
+
+func (s *Serializer) writeClassMetadata(w io.Writer, classMeta *ClassMetadata) error {
+	if classMeta == nil {
+		return fmt.Errorf("cannot serialize nil class metadata")
+	}
+
+	// Write class name
+	if err := s.writeString(w, classMeta.Name); err != nil {
+		return err
+	}
+
+	// Write field count
+	if err := binary.Write(w, binary.LittleEndian, uint32(len(classMeta.Fields))); err != nil {
+		return err
+	}
+
+	// Write each field metadata
+	for _, fieldMeta := range classMeta.Fields {
+		if err := s.writeFieldMetadata(w, fieldMeta); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Serializer) readClassMetadata(r io.Reader) (*ClassMetadata, error) {
+	classMeta := &ClassMetadata{
+		Fields: make([]*FieldMetadata, 0),
+	}
+
+	// Read class name
+	var err error
+	classMeta.Name, err = s.readString(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Read field count
+	var fieldCount uint32
+	if err := binary.Read(r, binary.LittleEndian, &fieldCount); err != nil {
+		return nil, err
+	}
+	// Validate count to prevent memory exhaustion
+	if err := validateUint32Length(fieldCount, 10000, "field count"); err != nil {
+		return nil, err
+	}
+
+	// Read each field metadata
+	for i := uint32(0); i < fieldCount; i++ {
+		fieldMeta, err := s.readFieldMetadata(r)
+		if err != nil {
+			return nil, err
+		}
+		classMeta.Fields = append(classMeta.Fields, fieldMeta)
+	}
+
+	return classMeta, nil
+}
+
+func (s *Serializer) writeFieldMetadata(w io.Writer, fieldMeta *FieldMetadata) error {
+	if fieldMeta == nil {
+		return fmt.Errorf("cannot serialize nil field metadata")
+	}
+
+	// Write field name
+	if err := s.writeString(w, fieldMeta.Name); err != nil {
+		return err
+	}
+
+	// Write whether there's an initializer
+	hasInitializer := fieldMeta.Initializer != nil
+	if err := s.writeBool(w, hasInitializer); err != nil {
+		return err
+	}
+
+	// If there's an initializer, serialize the chunk
+	if hasInitializer {
+		// Serialize the initializer chunk
+		chunkData, err := s.SerializeChunk(fieldMeta.Initializer)
+		if err != nil {
+			return fmt.Errorf("failed to serialize field initializer: %w", err)
+		}
+		// Write the chunk data length
+		if err := binary.Write(w, binary.LittleEndian, uint32(len(chunkData))); err != nil {
+			return err
+		}
+		// Write the chunk data
+		if _, err := w.Write(chunkData); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Serializer) readFieldMetadata(r io.Reader) (*FieldMetadata, error) {
+	fieldMeta := &FieldMetadata{}
+
+	// Read field name
+	var err error
+	fieldMeta.Name, err = s.readString(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Read whether there's an initializer
+	hasInitializer, err := s.readBool(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// If there's an initializer, deserialize the chunk
+	if hasInitializer {
+		// Read the chunk data length
+		var chunkDataLen uint32
+		if err := binary.Read(r, binary.LittleEndian, &chunkDataLen); err != nil {
+			return nil, err
+		}
+		// Validate length to prevent memory exhaustion
+		if err := validateUint32Length(chunkDataLen, 10000000, "initializer chunk size"); err != nil {
+			return nil, err
+		}
+		// Read the chunk data
+		chunkData := make([]byte, chunkDataLen)
+		if _, err := io.ReadFull(r, chunkData); err != nil {
+			return nil, fmt.Errorf("failed to read field initializer chunk: %w", err)
+		}
+		// Deserialize the chunk
+		chunk, err := s.DeserializeChunk(chunkData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to deserialize field initializer: %w", err)
+		}
+		fieldMeta.Initializer = chunk
+	}
+
+	return fieldMeta, nil
 }

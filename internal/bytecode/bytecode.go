@@ -513,11 +513,17 @@ func (o *ObjectInstance) GetProperty(name string) (Value, bool) {
 	if o == nil {
 		return NilValue(), false
 	}
+	// Try properties first
 	val, ok := o.props[strings.ToLower(name)]
-	if !ok {
-		return NilValue(), false
+	if ok {
+		return val, true
 	}
-	return val, true
+	// Fall back to fields (Task 9.5.5: fields are accessed via property syntax)
+	val, ok = o.fields[strings.ToLower(name)]
+	if ok {
+		return val, true
+	}
+	return NilValue(), false
 }
 
 // SetProperty stores a property value by name (case-insensitive).
@@ -541,6 +547,18 @@ type LineInfo struct {
 	Line int
 }
 
+// FieldMetadata stores metadata for a class field including its initializer.
+type FieldMetadata struct {
+	Name        string
+	Initializer *Chunk // Compiled bytecode for field initializer expression (nil if no initializer)
+}
+
+// ClassMetadata stores metadata for a class including field initializers.
+type ClassMetadata struct {
+	Name   string
+	Fields []*FieldMetadata
+}
+
 // Chunk represents a compiled bytecode chunk with instructions and constants.
 // A chunk is the basic unit of compilation - typically one function or script.
 type Chunk struct {
@@ -549,7 +567,8 @@ type Chunk struct {
 	Code       []Instruction
 	Constants  []Value
 	Lines      []LineInfo
-	Helpers    map[string]*HelperInfo // Helper metadata for runtime method resolution
+	Helpers    map[string]*HelperInfo   // Helper metadata for runtime method resolution
+	Classes    map[string]*ClassMetadata // Class metadata for field initialization
 	LocalCount int
 }
 
@@ -568,6 +587,7 @@ func NewChunk(name string) *Chunk {
 		Constants:  make([]Value, 0, 16),
 		Lines:      make([]LineInfo, 0, 16),
 		Helpers:    make(map[string]*HelperInfo),
+		Classes:    make(map[string]*ClassMetadata),
 		LocalCount: 0,
 		Name:       name,
 		tryInfos:   make(map[int]TryInfo),

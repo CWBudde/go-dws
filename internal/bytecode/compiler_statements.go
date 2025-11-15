@@ -56,7 +56,8 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 	case *ast.RecordDecl:
 		return nil // No bytecode needed for type declarations
 	case *ast.ClassDecl:
-		return nil // No bytecode needed for type declarations
+		// Task 9.5.5: Compile class metadata for field initializers
+		return c.compileClassDecl(node)
 	case *ast.EnumDecl:
 		return nil // No bytecode needed for type declarations
 	default:
@@ -610,5 +611,63 @@ func (c *Compiler) compileHelperDecl(decl *ast.HelperDecl) error {
 
 	// Helper declaration itself doesn't generate runtime bytecode
 	// The actual method implementations (separate FunctionDecl nodes) will generate bytecode
+	return nil
+}
+
+// compileClassDecl compiles class metadata for field initializers (Task 9.5.5).
+// While class declarations don't generate runtime bytecode, we need to store
+// field initializers so they can be executed during object instantiation.
+func (c *Compiler) compileClassDecl(decl *ast.ClassDecl) error {
+	if decl == nil || decl.Name == nil {
+		return c.errorf(decl, "invalid class declaration")
+	}
+
+	className := decl.Name.Value
+	classMetadata := &ClassMetadata{
+		Name:   className,
+		Fields: make([]*FieldMetadata, 0),
+	}
+
+	// Process each field declaration to extract initializers
+	for _, fieldDecl := range decl.Fields {
+		if fieldDecl == nil || fieldDecl.Name == nil {
+			continue
+		}
+
+		fieldMetadata := &FieldMetadata{
+			Name:        fieldDecl.Name.Value,
+			Initializer: nil,
+		}
+
+		// If the field has an initializer expression, compile it to bytecode
+		if fieldDecl.InitValue != nil {
+			// Create a mini chunk to hold the field initializer bytecode
+			initChunkName := className + "." + fieldDecl.Name.Value + "$init"
+			initChunk := NewChunk(initChunkName)
+
+			// Create a temporary compiler for the initializer expression
+			// We use a child compiler to isolate the compilation context
+			tempCompiler := c.newChildCompiler(initChunkName)
+			tempCompiler.chunk = initChunk
+
+			// Compile the initializer expression
+			if err := tempCompiler.compileExpression(fieldDecl.InitValue); err != nil {
+				return c.errorf(fieldDecl.InitValue, "failed to compile field initializer for %s.%s: %v",
+					className, fieldDecl.Name.Value, err)
+			}
+
+			// Add a return instruction to return the computed value
+			initChunk.Write(OpReturn, 1, 0, lineOf(fieldDecl.InitValue))
+
+			fieldMetadata.Initializer = initChunk
+		}
+
+		classMetadata.Fields = append(classMetadata.Fields, fieldMetadata)
+	}
+
+	// Store the class metadata in the chunk (case-insensitive key)
+	key := strings.ToLower(className)
+	c.chunk.Classes[key] = classMetadata
+
 	return nil
 }

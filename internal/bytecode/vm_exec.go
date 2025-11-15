@@ -3,7 +3,26 @@ package bytecode
 import (
 	"fmt"
 	"math"
+	"strings"
 )
+
+// executeInitializer executes a field initializer chunk and returns the result.
+// This creates a new isolated VM to execute the initializer bytecode.
+func (vm *VM) executeInitializer(chunk *Chunk) (Value, error) {
+	if chunk == nil {
+		return NilValue(), fmt.Errorf("vm: nil chunk")
+	}
+
+	// Create a new VM to execute the initializer in isolation
+	// This prevents the initializer from interfering with the current VM state
+	initVM := NewVMWithOutput(vm.output)
+	result, err := initVM.Run(chunk)
+	if err != nil {
+		return NilValue(), err
+	}
+
+	return result, nil
+}
 
 // Run executes the provided chunk and returns the resulting value.
 func (vm *VM) Run(chunk *Chunk) (Value, error) {
@@ -559,7 +578,38 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			vm.push(ObjectValue(NewObjectInstance(className)))
+
+			// Create the object instance
+			obj := NewObjectInstance(className)
+
+			// Task 9.5.5: Initialize fields from class metadata
+			// Look up class metadata (case-insensitive)
+			classKey := strings.ToLower(className)
+			if classMeta, ok := frame.chunk.Classes[classKey]; ok {
+				// Initialize each field
+				for _, fieldMeta := range classMeta.Fields {
+					var fieldValue Value
+
+					// If field has an initializer, execute it
+					if fieldMeta.Initializer != nil {
+						// Execute the field initializer chunk
+						result, err := vm.executeInitializer(fieldMeta.Initializer)
+						if err != nil {
+							return NilValue(), vm.runtimeError("failed to initialize field %s.%s: %v",
+								className, fieldMeta.Name, err)
+						}
+						fieldValue = result
+					} else {
+						// No initializer - use nil/zero value
+						fieldValue = NilValue()
+					}
+
+					// Set the field on the object
+					obj.SetField(fieldMeta.Name, fieldValue)
+				}
+			}
+
+			vm.push(ObjectValue(obj))
 		case OpGetField:
 			fieldIdx := int(inst.B())
 			name, err := vm.constantAsString(frame.chunk, fieldIdx, "GET_FIELD")
