@@ -40,7 +40,7 @@ func TestTypeAliasBasicUsage(t *testing.T) {
 				},
 			},
 			&ast.VarDeclStatement{
-				Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
+				BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.VAR, Literal: "var"}},
 				Names: []*ast.Identifier{{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{

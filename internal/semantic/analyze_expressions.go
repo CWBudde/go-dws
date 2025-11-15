@@ -158,7 +158,9 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 			if _, ok := types.GetUnderlyingType(expectedType).(*types.ArrayType); ok {
 				// If expected type is array (especially array of const), treat as array literal
 				arrayLit := &ast.ArrayLiteralExpression{
-					Token:    e.Token,
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: e.Token},
+					},
 					Elements: e.Elements,
 				}
 				resultType := a.analyzeArrayLiteral(arrayLit, expectedType)

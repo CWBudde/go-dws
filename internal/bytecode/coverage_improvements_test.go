@@ -18,7 +18,9 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 			program: &ast.Program{
 				Statements: []ast.Statement{
 					&ast.VarDeclStatement{
-						Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+						},
 						Names: []*ast.Identifier{
 							{
 								TypedExpressionBase: ast.TypedExpressionBase{
@@ -39,7 +41,9 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 						},
 					},
 					&ast.ExpressionStatement{
-						Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: pos(2, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: pos(2, 1)},
+						},
 						Expression: &ast.UnaryExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{
@@ -67,7 +71,9 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 			program: &ast.Program{
 				Statements: []ast.Statement{
 					&ast.VarDeclStatement{
-						Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+						},
 						Names: []*ast.Identifier{
 							{
 								TypedExpressionBase: ast.TypedExpressionBase{
@@ -88,7 +94,9 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 						},
 					},
 					&ast.ExpressionStatement{
-						Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: pos(2, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: pos(2, 1)},
+						},
 						Expression: &ast.UnaryExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{
@@ -116,7 +124,9 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 			program: &ast.Program{
 				Statements: []ast.Statement{
 					&ast.VarDeclStatement{
-						Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+						},
 						Names: []*ast.Identifier{
 							{
 								TypedExpressionBase: ast.TypedExpressionBase{
@@ -137,7 +147,9 @@ func TestCompiler_UnaryExpressions(t *testing.T) {
 						},
 					},
 					&ast.ExpressionStatement{
-						Token: lexer.Token{Type: lexer.NOT, Literal: "not", Pos: pos(2, 1)},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.NOT, Literal: "not", Pos: pos(2, 1)},
+						},
 						Expression: &ast.UnaryExpression{
 							TypedExpressionBase: ast.TypedExpressionBase{
 								BaseNode: ast.BaseNode{
@@ -682,7 +694,9 @@ func TestCompiler_ErrorCases(t *testing.T) {
 		program := &ast.Program{
 			Statements: []ast.Statement{
 				&ast.ExpressionStatement{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "~", Pos: pos(1, 1)},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "~", Pos: pos(1, 1)},
+					},
 					Expression: &ast.UnaryExpression{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{

@@ -488,9 +488,9 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 
 						// Assign it to the array element using evalIndexAssignment
 						assignStmt := &ast.AssignmentStatement{
-							Token:  stmt.Token,
-							Target: indexExpr,
-							Value:  &ast.Identifier{Value: "__temp__"},
+							BaseNode: ast.BaseNode{Token: stmt.Token},
+							Target:   indexExpr,
+							Value:    &ast.Identifier{Value: "__temp__"},
 						}
 
 						// Temporarily store the record

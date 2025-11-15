@@ -15,19 +15,15 @@ func TestHelperDeclString(t *testing.T) {
 		{
 			name: "simple record helper with method",
 			helper: &HelperDecl{
-				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
-				},
-				Name: NewTestIdentifier("TStringHelper"),
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"}},
+				Name:     NewTestIdentifier("TStringHelper"),
 				ForType: &TypeAnnotation{
 					Name: "String",
 				},
 				Methods: []*FunctionDecl{
 					{
-						BaseNode: BaseNode{
-							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-						},
-						Name: &Identifier{Value: "ToUpper"},
+						BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+						Name:     &Identifier{Value: "ToUpper"},
 						ReturnType: &TypeAnnotation{
 							Name: "String",
 						},
@@ -42,19 +38,15 @@ end`,
 		{
 			name: "simple helper without record keyword",
 			helper: &HelperDecl{
-				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
-				},
-				Name: NewTestIdentifier("TIntHelper"),
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"}},
+				Name:     NewTestIdentifier("TIntHelper"),
 				ForType: &TypeAnnotation{
 					Name: "Integer",
 				},
 				Methods: []*FunctionDecl{
 					{
-						BaseNode: BaseNode{
-							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-						},
-						Name: &Identifier{Value: "IsEven"},
+						BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+						Name:     &Identifier{Value: "IsEven"},
 						ReturnType: &TypeAnnotation{
 							Name: "Boolean",
 						},
@@ -69,19 +61,15 @@ end`,
 		{
 			name: "helper with property",
 			helper: &HelperDecl{
-				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
-				},
-				Name: NewTestIdentifier("TArrayHelper"),
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"}},
+				Name:     NewTestIdentifier("TArrayHelper"),
 				ForType: &TypeAnnotation{
 					Name: "TIntArray",
 				},
 				Properties: []*PropertyDecl{
 					{
-						BaseNode: BaseNode{
-							Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
-						},
-						Name: &Identifier{Value: "Count"},
+						BaseNode: BaseNode{Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"}},
+						Name:     &Identifier{Value: "Count"},
 						Type: &TypeAnnotation{
 							Name: "Integer",
 						},
@@ -96,19 +84,15 @@ end`,
 		{
 			name: "helper with class var",
 			helper: &HelperDecl{
-				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
-				},
-				Name: NewTestIdentifier("THelper"),
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"}},
+				Name:     NewTestIdentifier("THelper"),
 				ForType: &TypeAnnotation{
 					Name: "String",
 				},
 				ClassVars: []*FieldDecl{
 					{
-						BaseNode: BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "DefaultEncoding"},
-						},
-						Name: &Identifier{Value: "DefaultEncoding"},
+						BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "DefaultEncoding"}},
+						Name:     &Identifier{Value: "DefaultEncoding"},
 						Type: &TypeAnnotation{
 							Name: "String",
 						},
@@ -124,20 +108,16 @@ end`,
 		{
 			name: "helper with class const",
 			helper: &HelperDecl{
-				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
-				},
-				Name: NewTestIdentifier("TMathHelper"),
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"}},
+				Name:     NewTestIdentifier("TMathHelper"),
 				ForType: &TypeAnnotation{
 					Name: "Float",
 				},
 				ClassConsts: []*ConstDecl{
 					{
-						BaseNode: BaseNode{
-							Token: lexer.Token{Type: lexer.CONST, Literal: "const"},
-						},
-						Name:  &Identifier{Value: "PI"},
-						Value: &FloatLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FLOAT, Literal: "3.14159"}}}, Value: 3.14159},
+						BaseNode: BaseNode{Token: lexer.Token{Type: lexer.CONST, Literal: "const"}},
+						Name:     &Identifier{Value: "PI"},
+						Value:    &FloatLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FLOAT, Literal: "3.14159"}}}, Value: 3.14159},
 					},
 				},
 				IsRecordHelper: false,
@@ -149,19 +129,15 @@ end`,
 		{
 			name: "helper with private and public sections",
 			helper: &HelperDecl{
-				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"},
-				},
-				Name: NewTestIdentifier("TComplexHelper"),
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.HELPER, Literal: "helper"}},
+				Name:     NewTestIdentifier("TComplexHelper"),
 				ForType: &TypeAnnotation{
 					Name: "String",
 				},
 				PrivateMembers: []Statement{
 					&FunctionDecl{
-						BaseNode: BaseNode{
-							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-						},
-						Name: &Identifier{Value: "InternalMethod"},
+						BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+						Name:     &Identifier{Value: "InternalMethod"},
 						ReturnType: &TypeAnnotation{
 							Name: "Integer",
 						},
@@ -169,19 +145,15 @@ end`,
 				},
 				PublicMembers: []Statement{
 					&FunctionDecl{
-						BaseNode: BaseNode{
-							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-						},
-						Name: &Identifier{Value: "ToUpper"},
+						BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+						Name:     &Identifier{Value: "ToUpper"},
 						ReturnType: &TypeAnnotation{
 							Name: "String",
 						},
 					},
 					&PropertyDecl{
-						BaseNode: BaseNode{
-							Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
-						},
-						Name: &Identifier{Value: "Length"},
+						BaseNode: BaseNode{Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"}},
+						Name:     &Identifier{Value: "Length"},
 						Type: &TypeAnnotation{
 							Name: "Integer",
 						},
@@ -211,13 +183,11 @@ end`,
 
 func TestHelperDeclNodeInterface(t *testing.T) {
 	helper := &HelperDecl{
-		BaseNode: BaseNode{
-			Token: lexer.Token{
-				Type:    lexer.HELPER,
-				Literal: "helper",
-				Pos:     lexer.Position{Line: 1, Column: 10},
-			},
-		},
+		BaseNode: BaseNode{Token: lexer.Token{
+			Type:    lexer.HELPER,
+			Literal: "helper",
+			Pos:     lexer.Position{Line: 1, Column: 10},
+		}},
 		Name: NewTestIdentifier("TTestHelper"),
 	}
 

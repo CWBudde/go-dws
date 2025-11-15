@@ -108,7 +108,9 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 
 // parseBlockStatementForTry parses statements until 'except', 'finally', or 'end'
 func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
-	block := &ast.BlockStatement{Token: p.curToken}
+	block := &ast.BlockStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 	block.Statements = []ast.Statement{}
 
 	for !p.curTokenIs(lexer.EXCEPT) && !p.curTokenIs(lexer.FINALLY) &&
@@ -173,7 +175,9 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 	// If no handlers, this is a bare except - parse statements until finally or end
 	if len(clause.Handlers) == 0 {
 		// Parse bare except statements into a block
-		bareBlock := &ast.BlockStatement{Token: p.curToken}
+		bareBlock := &ast.BlockStatement{
+			BaseNode: ast.BaseNode{Token: p.curToken},
+		}
 		bareBlock.Statements = []ast.Statement{}
 
 		for !p.curTokenIs(lexer.FINALLY) && !p.curTokenIs(lexer.END) &&
@@ -212,7 +216,9 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 	if p.curTokenIs(lexer.ELSE) {
 		p.nextToken()
 		// Parse else block statements until finally or end
-		elseBlock := &ast.BlockStatement{Token: p.curToken}
+		elseBlock := &ast.BlockStatement{
+			BaseNode: ast.BaseNode{Token: p.curToken},
+		}
 		elseBlock.Statements = []ast.Statement{}
 
 		for !p.curTokenIs(lexer.FINALLY) && !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
@@ -325,7 +331,9 @@ func (p *Parser) parseFinallyClause() *ast.FinallyClause {
 	p.nextToken() // move past 'finally'
 
 	// Parse finally block statements until 'end'
-	block := &ast.BlockStatement{Token: p.curToken}
+	block := &ast.BlockStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 	block.Statements = []ast.Statement{}
 
 	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {

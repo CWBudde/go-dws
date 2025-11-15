@@ -247,8 +247,8 @@ func NewTestClassDecl(name string, parent *Identifier) *ClassDecl {
 // This is a convenience helper for tests to avoid verbose struct initialization.
 func NewTestBlockStatement(statements []Statement) *BlockStatement {
 	return &BlockStatement{
+		BaseNode:   BaseNode{Token: NewTestToken(lexer.BEGIN, "begin")},
 		Statements: statements,
-		Token:      NewTestToken(lexer.BEGIN, "begin"),
 	}
 }
 
@@ -285,8 +285,10 @@ func NewTestUnaryExpression(operator string, operand Expression) *UnaryExpressio
 // This is a convenience helper for tests to avoid verbose struct initialization.
 func NewTestCallExpression(function Expression, args []Expression) *CallExpression {
 	return &CallExpression{
+		TypedExpressionBase: TypedExpressionBase{
+			BaseNode: BaseNode{Token: NewTestToken(lexer.LPAREN, "(")}, // Use LPAREN for call token
+		},
 		Function:  function,
 		Arguments: args,
-		Token:     NewTestToken(lexer.LPAREN, "("), // Use LPAREN for call token
 	}
 }

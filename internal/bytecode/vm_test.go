@@ -16,7 +16,9 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 
 	program := &ast.Program{Statements: []ast.Statement{
 		&ast.VarDeclStatement{
-			Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+			},
 			Names: []*ast.Identifier{{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
@@ -38,7 +40,9 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 			},
 		},
 		&ast.VarDeclStatement{
-			Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(2, 1)},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(2, 1)},
+			},
 			Names: []*ast.Identifier{{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
@@ -137,7 +141,9 @@ func TestVM_RunWhileLoop(t *testing.T) {
 
 	program := &ast.Program{Statements: []ast.Statement{
 		&ast.VarDeclStatement{
-			Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+			},
 			Names: []*ast.Identifier{xIdent},
 			Type:  intType,
 			Value: &ast.IntegerLiteral{
@@ -151,7 +157,9 @@ func TestVM_RunWhileLoop(t *testing.T) {
 			},
 		},
 		&ast.VarDeclStatement{
-			Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(2, 1)},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(2, 1)},
+			},
 			Names: []*ast.Identifier{yIdent},
 			Type:  intType,
 			Value: &ast.IntegerLiteral{
@@ -165,7 +173,9 @@ func TestVM_RunWhileLoop(t *testing.T) {
 			},
 		},
 		&ast.WhileStatement{
-			Token: lexer.Token{Type: lexer.WHILE, Literal: "while", Pos: pos(3, 1)},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.WHILE, Literal: "while", Pos: pos(3, 1)},
+			},
 			Condition: &ast.BinaryExpression{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
@@ -194,7 +204,9 @@ func TestVM_RunWhileLoop(t *testing.T) {
 				},
 			},
 			Body: &ast.AssignmentStatement{
-				Token:    lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(4, 3)},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(4, 3)},
+				},
 				Operator: lexer.ASSIGN,
 				Target: &ast.Identifier{
 					TypedExpressionBase: ast.TypedExpressionBase{
@@ -973,7 +985,9 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 		Value: "acc",
 	}
 	varDecl := &ast.VarDeclStatement{
-		Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
+		},
 		Names: []*ast.Identifier{accIdent},
 		Value: &ast.IntegerLiteral{
 			TypedExpressionBase: ast.TypedExpressionBase{
@@ -1002,7 +1016,9 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 	tryBlock := &ast.BlockStatement{Statements: []ast.Statement{raiseStmt}}
 
 	handlerAssign := &ast.AssignmentStatement{
-		Token:    lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(3, 3)},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(3, 3)},
+		},
 		Operator: lexer.ASSIGN,
 		Target: &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
@@ -1042,7 +1058,9 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 	}
 	if elseValue != nil {
 		elseAssign := &ast.AssignmentStatement{
-			Token:    lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(4, 3)},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(4, 3)},
+			},
 			Operator: lexer.ASSIGN,
 			Target: &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{

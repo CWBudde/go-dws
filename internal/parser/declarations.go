@@ -38,7 +38,7 @@ func (p *Parser) parseConstDeclaration() ast.Statement {
 
 	// Multiple declarations: wrap in a BlockStatement
 	return &ast.BlockStatement{
-		Token:      blockToken,
+		BaseNode:   ast.BaseNode{Token: blockToken},
 		Statements: statements,
 	}
 }

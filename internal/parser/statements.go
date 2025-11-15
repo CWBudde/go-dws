@@ -94,7 +94,9 @@ func (p *Parser) parseStatement() ast.Statement {
 
 // parseBlockStatement parses a begin...end block.
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
-	block := &ast.BlockStatement{Token: p.curToken}
+	block := &ast.BlockStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 	block.Statements = []ast.Statement{}
 
 	p.nextToken() // advance past 'begin'
@@ -133,7 +135,9 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 
 // parseExpressionStatement parses an expression statement.
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
-	stmt := &ast.ExpressionStatement{Token: p.curToken}
+	stmt := &ast.ExpressionStatement{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+	}
 
 	stmt.Expression = p.parseExpression(LOWEST)
 
@@ -186,7 +190,7 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 
 	// Multiple declarations: wrap in a BlockStatement
 	return &ast.BlockStatement{
-		Token:      blockToken,
+		BaseNode:   ast.BaseNode{Token: blockToken},
 		Statements: statements,
 	}
 }
@@ -385,7 +389,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 		case *ast.Identifier:
 			// Simple or compound assignment: x := value, x += value
 			stmt := &ast.AssignmentStatement{
-				Token:    p.curToken,
+				BaseNode: ast.BaseNode{Token: p.curToken},
 				Target:   leftExpr,
 				Operator: assignOp,
 			}
@@ -409,7 +413,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 		case *ast.MemberAccessExpression:
 			// Member assignment: obj.field := value, obj.field += value
 			stmt := &ast.AssignmentStatement{
-				Token:    p.curToken,
+				BaseNode: ast.BaseNode{Token: p.curToken},
 				Target:   leftExpr,
 				Operator: assignOp,
 			}
@@ -434,7 +438,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 		case *ast.IndexExpression:
 			// Array index assignment: arr[i] := value, arr[i] += value
 			stmt := &ast.AssignmentStatement{
-				Token:    p.curToken,
+				BaseNode: ast.BaseNode{Token: p.curToken},
 				Target:   leftExpr,
 				Operator: assignOp,
 			}
@@ -464,7 +468,7 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 
 	// Not an assignment, treat as expression statement
 	stmt := &ast.ExpressionStatement{
-		Token:      startToken,
+		BaseNode:   ast.BaseNode{Token: startToken},
 		Expression: left,
 	}
 

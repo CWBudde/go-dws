@@ -69,9 +69,7 @@ func TestClassDeclString(t *testing.T) {
 				Fields:   []*FieldDecl{},
 				Methods: []*FunctionDecl{
 					{
-						BaseNode: BaseNode{
-							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-						},
+						BaseNode:   BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 						Name:       NewTestIdentifier("GetValue"),
 						Parameters: []*Parameter{},
 						ReturnType: NewTestTypeAnnotation("Integer"),
@@ -177,9 +175,7 @@ func TestFieldDeclMethods(t *testing.T) {
 	fieldDecl := &FieldDecl{
 		Name: &Identifier{
 			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "X", Pos: pos},
-				},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "X", Pos: pos}},
 			},
 			Value: "X",
 		},

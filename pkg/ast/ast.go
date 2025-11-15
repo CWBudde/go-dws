@@ -288,14 +288,13 @@ func (re *RangeExpression) String() string {
 // ExpressionStatement represents a statement that consists of a single expression.
 // This is used when an expression appears in a statement context.
 type ExpressionStatement struct {
+	BaseNode
 	Expression Expression
-	Token      token.Token
-	EndPos     token.Position
 }
 
-func (es *ExpressionStatement) statementNode()       {}
-func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
-func (es *ExpressionStatement) Pos() token.Position  { return es.Token.Pos }
+func (es *ExpressionStatement) statementNode() {}
+
+// End returns the end position, preferring Expression's end if EndPos not set.
 func (es *ExpressionStatement) End() token.Position {
 	if es.EndPos.Line != 0 {
 		return es.EndPos
@@ -305,6 +304,7 @@ func (es *ExpressionStatement) End() token.Position {
 	}
 	return es.Token.Pos
 }
+
 func (es *ExpressionStatement) String() string {
 	if es.Expression != nil {
 		return es.Expression.String()
@@ -326,17 +326,18 @@ func (nl *NilLiteral) String() string  { return "nil" }
 // is an instance of a specific class or implements a specific interface.
 // Returns true if the object is of the specified type, false otherwise.
 type IsExpression struct {
-	Left       Expression      // The object being checked
-	TargetType TypeExpression  // The target type to check against (for type checks)
-	Right      Expression      // The value expression to compare against (for boolean comparisons)
-	Type       *TypeAnnotation // Always resolves to Boolean
-	Token      token.Token     // The 'is' token
-	EndPos     token.Position
+	TypedExpressionBase
+	Left       Expression     // The object being checked
+	TargetType TypeExpression // The target type to check against (for type checks)
+	Right      Expression     // The value expression to compare against (for boolean comparisons)
 }
 
-func (ie *IsExpression) expressionNode()      {}
-func (ie *IsExpression) TokenLiteral() string { return ie.Token.Literal }
-func (ie *IsExpression) Pos() token.Position  { return ie.Left.Pos() }
+func (ie *IsExpression) expressionNode() {}
+
+// Pos returns the start position from the Left expression.
+func (ie *IsExpression) Pos() token.Position { return ie.Left.Pos() }
+
+// End returns the end position, preferring TargetType or Right if EndPos not set.
 func (ie *IsExpression) End() token.Position {
 	if ie.EndPos.Line != 0 {
 		return ie.EndPos
@@ -349,6 +350,7 @@ func (ie *IsExpression) End() token.Position {
 	}
 	return ie.Token.Pos
 }
+
 func (ie *IsExpression) String() string {
 	var out bytes.Buffer
 	out.WriteString("(")
@@ -362,8 +364,6 @@ func (ie *IsExpression) String() string {
 	out.WriteString(")")
 	return out.String()
 }
-func (ie *IsExpression) GetType() *TypeAnnotation    { return ie.Type }
-func (ie *IsExpression) SetType(typ *TypeAnnotation) { ie.Type = typ }
 
 // AsExpression represents a type cast operation using the 'as' operator.
 // Example: obj as IMyInterface
@@ -371,16 +371,17 @@ func (ie *IsExpression) SetType(typ *TypeAnnotation) { ie.Type = typ }
 // wrapper at runtime. The semantic analyzer validates that the object's class
 // implements the target interface.
 type AsExpression struct {
-	Left       Expression      // The object being cast
-	TargetType TypeExpression  // The target interface type
-	Type       *TypeAnnotation // Resolved type (will be the interface type)
-	Token      token.Token     // The 'as' token
-	EndPos     token.Position
+	TypedExpressionBase
+	Left       Expression     // The object being cast
+	TargetType TypeExpression // The target interface type
 }
 
-func (ae *AsExpression) expressionNode()      {}
-func (ae *AsExpression) TokenLiteral() string { return ae.Token.Literal }
-func (ae *AsExpression) Pos() token.Position  { return ae.Left.Pos() }
+func (ae *AsExpression) expressionNode() {}
+
+// Pos returns the start position from the Left expression.
+func (ae *AsExpression) Pos() token.Position { return ae.Left.Pos() }
+
+// End returns the end position, preferring TargetType if EndPos not set.
 func (ae *AsExpression) End() token.Position {
 	if ae.EndPos.Line != 0 {
 		return ae.EndPos
@@ -390,6 +391,7 @@ func (ae *AsExpression) End() token.Position {
 	}
 	return ae.Token.Pos
 }
+
 func (ae *AsExpression) String() string {
 	var out bytes.Buffer
 	out.WriteString("(")
@@ -399,8 +401,6 @@ func (ae *AsExpression) String() string {
 	out.WriteString(")")
 	return out.String()
 }
-func (ae *AsExpression) GetType() *TypeAnnotation    { return ae.Type }
-func (ae *AsExpression) SetType(typ *TypeAnnotation) { ae.Type = typ }
 
 // ImplementsExpression represents the 'implements' operator.
 // Example: obj implements IMyInterface  -> Boolean
@@ -408,16 +408,17 @@ func (ae *AsExpression) SetType(typ *TypeAnnotation) { ae.Type = typ }
 // Can be used at compile-time (TClass implements IInterface) or runtime
 // (objInstance implements IInterface).
 type ImplementsExpression struct {
-	Left       Expression      // The object or class being checked
-	TargetType TypeExpression  // The interface type to check against
-	Type       *TypeAnnotation // Always resolves to Boolean
-	Token      token.Token     // The 'implements' token
-	EndPos     token.Position
+	TypedExpressionBase
+	Left       Expression     // The object or class being checked
+	TargetType TypeExpression // The interface type to check against
 }
 
-func (ie *ImplementsExpression) expressionNode()      {}
-func (ie *ImplementsExpression) TokenLiteral() string { return ie.Token.Literal }
-func (ie *ImplementsExpression) Pos() token.Position  { return ie.Left.Pos() }
+func (ie *ImplementsExpression) expressionNode() {}
+
+// Pos returns the start position from the Left expression.
+func (ie *ImplementsExpression) Pos() token.Position { return ie.Left.Pos() }
+
+// End returns the end position, preferring TargetType if EndPos not set.
 func (ie *ImplementsExpression) End() token.Position {
 	if ie.EndPos.Line != 0 {
 		return ie.EndPos
@@ -427,6 +428,7 @@ func (ie *ImplementsExpression) End() token.Position {
 	}
 	return ie.Token.Pos
 }
+
 func (ie *ImplementsExpression) String() string {
 	var out bytes.Buffer
 	out.WriteString("(")
@@ -436,19 +438,16 @@ func (ie *ImplementsExpression) String() string {
 	out.WriteString(")")
 	return out.String()
 }
-func (ie *ImplementsExpression) GetType() *TypeAnnotation    { return ie.Type }
-func (ie *ImplementsExpression) SetType(typ *TypeAnnotation) { ie.Type = typ }
 
 // BlockStatement represents a block of statements (begin...end).
 type BlockStatement struct {
+	BaseNode
 	Statements []Statement
-	Token      token.Token
-	EndPos     token.Position
 }
 
-func (bs *BlockStatement) statementNode()       {}
-func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
-func (bs *BlockStatement) Pos() token.Position  { return bs.Token.Pos }
+func (bs *BlockStatement) statementNode() {}
+
+// End returns the end position, preferring EndPos if set, otherwise last statement's end.
 func (bs *BlockStatement) End() token.Position {
 	if bs.EndPos.Line != 0 {
 		return bs.EndPos
@@ -460,6 +459,7 @@ func (bs *BlockStatement) End() token.Position {
 	}
 	return bs.Token.Pos
 }
+
 func (bs *BlockStatement) String() string {
 	var out bytes.Buffer
 

@@ -143,7 +143,7 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 // The interface section contains public declarations.
 func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
-		Token:      p.curToken, // 'interface' token
+		BaseNode:   ast.BaseNode{Token: p.curToken}, // 'interface' token
 		Statements: []ast.Statement{},
 	}
 
@@ -184,7 +184,7 @@ func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 // The implementation section contains private declarations and function implementations.
 func (p *Parser) parseImplementationSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
-		Token:      p.curToken, // 'implementation' token
+		BaseNode:   ast.BaseNode{Token: p.curToken}, // 'implementation' token
 		Statements: []ast.Statement{},
 	}
 
@@ -224,7 +224,7 @@ func (p *Parser) parseImplementationSection() *ast.BlockStatement {
 // The initialization section contains code that runs when the unit is loaded.
 func (p *Parser) parseInitializationSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
-		Token:      p.curToken, // 'initialization' token
+		BaseNode:   ast.BaseNode{Token: p.curToken}, // 'initialization' token
 		Statements: []ast.Statement{},
 	}
 
@@ -255,7 +255,7 @@ func (p *Parser) parseInitializationSection() *ast.BlockStatement {
 // The finalization section contains cleanup code that runs when the program exits.
 func (p *Parser) parseFinalizationSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
-		Token:      p.curToken, // 'finalization' token
+		BaseNode:   ast.BaseNode{Token: p.curToken}, // 'finalization' token
 		Statements: []ast.Statement{},
 	}
 

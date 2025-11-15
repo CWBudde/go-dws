@@ -275,7 +275,9 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 				}
 				// Add to function body as a local declaration
 				if fn.Body == nil {
-					fn.Body = &ast.BlockStatement{Token: p.curToken}
+					fn.Body = &ast.BlockStatement{
+						BaseNode: ast.BaseNode{Token: p.curToken},
+					}
 				}
 				fn.Body.Statements = append(fn.Body.Statements, varDecl)
 
@@ -296,7 +298,9 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			constDecl := p.parseConstDeclaration()
 			if constDecl != nil {
 				if fn.Body == nil {
-					fn.Body = &ast.BlockStatement{Token: p.curToken}
+					fn.Body = &ast.BlockStatement{
+						BaseNode: ast.BaseNode{Token: p.curToken},
+					}
 				}
 				fn.Body.Statements = append(fn.Body.Statements, constDecl)
 			}
