@@ -189,40 +189,43 @@ if TMyImplementation implements IMyInterface then  // TMyImplementation is a CLA
 
 **Goal**: Validate interface-to-object and interface-to-interface casts.
 
-**Status**: PARTIAL (interface-to-interface works, interface-to-object needs investigation)
+**Status**: DONE
 
-**Impact**: Fixes 1 test (interface_multiple_cast)
+**Impact**: Fixes 2 tests
 
-**Estimate**: 1 hour
+**Estimate**: 1 hour (actual: 2 hours due to debugging interface wrapping)
 
 **Tests Fixed**:
-- `interface_multiple_cast` ✓ (interface-to-interface casting)
-- `interface_cast_to_obj` (still failing - exception not being caught/printed)
+- `interface_multiple_cast` ✓
+- `interface_cast_to_obj` ✓
 
-**Error**: Missing exception when invalid cast attempted
+**Error**: Missing exception when invalid cast attempted, interface variables not properly initialized
 
 **Expected Behavior**:
 ```pascal
 var d := IntfRef as TDummyClass;  // Should throw exception if incompatible
 ```
 
-**Expected Output**: `Cannot cast interface of "TMyImplementation" to class "TDummyClass"`
+**Expected Output**: `Cannot cast interface of "TMyImplementation" to class "TDummyClass" [line: 23, column: 21]`
 
-**Actual**: Code runs but exception message not printed (needs investigation)
-
-**Root Cause**:
-- `evalAsExpression` in `internal/interp/expressions_complex.go:152-156` only handled object-to-interface casting
-- Didn't handle InterfaceInstance as left operand
+**Root Causes**:
+1. `evalAsExpression` only handled object-to-interface casting, not InterfaceInstance as left operand
+2. `createZeroValue` didn't handle interface types, so interface variables initialized as NilValue instead of InterfaceInstance
+3. Exception check missing in `evalVarDeclStatement` after initializer evaluation
 
 **Implementation**:
 - [x] Detect when left side is InterfaceInstance in `evalAsExpression`
 - [x] Handle interface-to-class casting (extract underlying object, validate compatibility)
 - [x] Handle interface-to-interface casting (validate implementation, create new interface instance)
-- [x] Raise exception for invalid interface-to-class casts
-- [ ] DEBUG: Exception raised but not being printed in interface_cast_to_obj test
+- [x] Raise exception for invalid interface-to-class casts with proper message format
+- [x] Add InterfaceInstance support to `createZeroValue` for proper interface variable initialization
+- [x] Add exception check in `evalVarDeclStatement` after evaluating initializers
+- [x] Add InterfaceInstance case to `getTypeIDAndName` for TypeOf support
 
 **Files Modified**:
-- `internal/interp/expressions_complex.go`
+- `internal/interp/expressions_complex.go` - Interface casting logic
+- `internal/interp/statements_declarations.go` - Interface initialization, exception checks
+- `internal/interp/builtins_type.go` - TypeOf support for interfaces
 
 ### 9.1.4 Interface Fields in Records [LOW]
 

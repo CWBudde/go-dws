@@ -182,9 +182,9 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 			}
 
 			if !isCompatible {
-				// Throw exception with proper format
-				message := fmt.Sprintf("Cannot cast interface of \"%s\" to class \"%s\"",
-					underlyingObj.Class.Name, targetClass.Name)
+				// Throw exception with proper format including position
+				message := fmt.Sprintf("Cannot cast interface of \"%s\" to class \"%s\" [line: %d, column: %d]",
+					underlyingObj.Class.Name, targetClass.Name, expr.Token.Pos.Line, expr.Token.Pos.Column)
 				i.raiseException("Exception", message, &expr.Token.Pos)
 				return nil
 			}
