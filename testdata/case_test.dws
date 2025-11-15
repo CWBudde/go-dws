@@ -1,0 +1,10 @@
+// Test case-insensitive function calls
+
+procedure TestProc(x: Integer);
+begin
+  PrintLn('TestProc called with: ' + IntToStr(x));
+  if x > 0 then
+    testproc(x - 1);  // lowercase call to TestProc
+end;
+
+TestProc(3);
