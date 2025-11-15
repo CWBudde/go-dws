@@ -257,19 +257,9 @@ func (i *Interpreter) builtinSetLength(args []ast.Expression) Value {
 
 	// Handle strings
 	if strVal, ok := currentVal.(*StringValue); ok {
-		currentLength := len(strVal.Value)
-
-		var newStr string
-		if newLength < currentLength {
-			// Truncate the string
-			newStr = strVal.Value[:newLength]
-		} else if newLength > currentLength {
-			// Extend the string with null characters
-			newStr = strVal.Value + string(make([]byte, newLength-currentLength))
-		} else {
-			// No change
-			return &NilValue{}
-		}
+		// Use rune-based SetLength to handle UTF-8 correctly
+		// This truncates or pads with spaces to match DWScript behavior
+		newStr := runeSetLength(strVal.Value, newLength)
 
 		// Create new StringValue
 		newValue := &StringValue{Value: newStr}
