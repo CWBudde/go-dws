@@ -5,15 +5,16 @@ import (
 	"io"
 	"os"
 
-	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/pkg/printer"
 	"github.com/spf13/cobra"
 )
 
 var (
 	parseExpression bool
 	parseDumpAST    bool
+	parseFormat     string
 )
 
 var parseCmd = &cobra.Command{
@@ -23,7 +24,11 @@ var parseCmd = &cobra.Command{
 
 If no file is provided, reads from stdin.
 Use -e to parse a single expression from the command line.
-Use --dump-ast to show the full AST structure.`,
+
+Output formats:
+  dwscript  Valid DWScript source code (default)
+  tree      Hierarchical AST structure visualization
+  json      JSON representation of the AST`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runParse,
 }
@@ -32,7 +37,8 @@ func init() {
 	rootCmd.AddCommand(parseCmd)
 
 	parseCmd.Flags().BoolVarP(&parseExpression, "expression", "e", false, "parse an expression from the command line")
-	parseCmd.Flags().BoolVar(&parseDumpAST, "dump-ast", false, "dump the full AST structure")
+	parseCmd.Flags().BoolVar(&parseDumpAST, "dump-ast", false, "dump the full AST structure (deprecated: use --format=tree)")
+	parseCmd.Flags().StringVar(&parseFormat, "format", "dwscript", "output format: dwscript, tree, or json")
 }
 
 func runParse(_ *cobra.Command, args []string) error {
@@ -74,61 +80,39 @@ func runParse(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("parsing failed with %d error(s)", len(p.Errors()))
 	}
 
-	// Display output
+	// Determine output format
+	format := parseFormat
 	if parseDumpAST {
-		fmt.Println("Abstract Syntax Tree:")
-		fmt.Println("=====================")
-		dumpASTNode(program, 0)
-	} else {
-		fmt.Println(program.String())
+		// Backward compatibility: --dump-ast flag uses tree format
+		format = "tree"
 	}
+
+	// Create printer with appropriate format
+	var printerOpts printer.Options
+	switch format {
+	case "tree":
+		printerOpts = printer.Options{
+			Format: printer.FormatTree,
+			Style:  printer.StyleDetailed,
+		}
+	case "json":
+		printerOpts = printer.Options{
+			Format: printer.FormatJSON,
+			Style:  printer.StyleDetailed,
+		}
+	case "dwscript":
+		printerOpts = printer.Options{
+			Format: printer.FormatDWScript,
+			Style:  printer.StyleDetailed,
+		}
+	default:
+		return fmt.Errorf("unknown format: %s (use dwscript, tree, or json)", format)
+	}
+
+	// Print the AST
+	prnt := printer.New(printerOpts)
+	output := prnt.Print(program)
+	fmt.Println(output)
 
 	return nil
-}
-
-func dumpASTNode(node any, indent int) {
-	indentStr := ""
-	for i := 0; i < indent; i++ {
-		indentStr += "  "
-	}
-
-	switch n := node.(type) {
-	case *ast.Program:
-		fmt.Printf("%sProgram (%d statements)\n", indentStr, len(n.Statements))
-		for _, stmt := range n.Statements {
-			dumpASTNode(stmt, indent+1)
-		}
-	case *ast.ExpressionStatement:
-		fmt.Printf("%sExpressionStatement\n", indentStr)
-		dumpASTNode(n.Expression, indent+1)
-	case *ast.BlockStatement:
-		fmt.Printf("%sBlockStatement (%d statements)\n", indentStr, len(n.Statements))
-		for _, stmt := range n.Statements {
-			dumpASTNode(stmt, indent+1)
-		}
-	case *ast.BinaryExpression:
-		fmt.Printf("%sBinaryExpression (%s)\n", indentStr, n.Operator)
-		fmt.Printf("%s  Left:\n", indentStr)
-		dumpASTNode(n.Left, indent+2)
-		fmt.Printf("%s  Right:\n", indentStr)
-		dumpASTNode(n.Right, indent+2)
-	case *ast.UnaryExpression:
-		fmt.Printf("%sUnaryExpression (%s)\n", indentStr, n.Operator)
-		dumpASTNode(n.Right, indent+1)
-	case *ast.IntegerLiteral:
-		fmt.Printf("%sIntegerLiteral: %d\n", indentStr, n.Value)
-	case *ast.FloatLiteral:
-		fmt.Printf("%sFloatLiteral: %g\n", indentStr, n.Value)
-	case *ast.StringLiteral:
-		fmt.Printf("%sStringLiteral: %q\n", indentStr, n.Value)
-	case *ast.BooleanLiteral:
-		fmt.Printf("%sBooleanLiteral: %v\n", indentStr, n.Value)
-	case *ast.Identifier:
-		fmt.Printf("%sIdentifier: %s\n", indentStr, n.Value)
-	case *ast.NilLiteral:
-		fmt.Printf("%sNilLiteral\n", indentStr)
-	default:
-		// For other nodes, just print their string representation
-		fmt.Printf("%s%T: %v\n", indentStr, node, node)
-	}
 }
