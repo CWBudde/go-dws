@@ -360,10 +360,38 @@ func (c *Compiler) compileBinaryExpression(expr *ast.BinaryExpression) error {
 	if op == "??" {
 		return c.compileCoalesceExpression(expr)
 	}
-	if op == "and" {
-		return c.compileAndExpression(expr)
-	}
-	if op == "or" {
+
+	// Handle 'and' and 'or' operators - they serve dual purposes in DWScript:
+	// 1. Boolean logical operations with short-circuit evaluation (e.g., (x > 5) and (y < 10))
+	// 2. Integer bitwise operations without short-circuit (e.g., 5 and 3 = 1)
+	if op == "and" || op == "or" {
+		leftType := c.inferExpressionType(expr.Left)
+		rightType := c.inferExpressionType(expr.Right)
+
+		// If both operands are integers, use bitwise operations
+		if isIntegerType(leftType) && isIntegerType(rightType) {
+			// Compile both operands (no short-circuit for bitwise operations)
+			if err := c.compileExpression(expr.Left); err != nil {
+				return err
+			}
+			if err := c.compileExpression(expr.Right); err != nil {
+				return err
+			}
+
+			// Emit bitwise opcode
+			line := lineOf(expr)
+			if op == "and" {
+				c.chunk.WriteSimple(OpBitAnd, line)
+			} else {
+				c.chunk.WriteSimple(OpBitOr, line)
+			}
+			return nil
+		}
+
+		// Otherwise, use boolean short-circuit evaluation
+		if op == "and" {
+			return c.compileAndExpression(expr)
+		}
 		return c.compileOrExpression(expr)
 	}
 
@@ -452,7 +480,10 @@ func (c *Compiler) compileCoalesceExpression(expr *ast.BinaryExpression) error {
 	return c.chunk.PatchJump(jumpIfTruthy)
 }
 
-// compileAndExpression compiles the 'and' operator with short-circuit evaluation.
+// compileAndExpression compiles the 'and' operator with short-circuit evaluation
+// for BOOLEAN operands only. This function should only be called after determining
+// that the operands are not both integers (which would require bitwise AND instead).
+//
 // If the left operand is false, the right operand is not evaluated.
 // The bytecode:
 //  1. Compile left operand (leaves value on stack)
@@ -485,7 +516,10 @@ func (c *Compiler) compileAndExpression(expr *ast.BinaryExpression) error {
 	return c.chunk.PatchJump(jumpIfFalse)
 }
 
-// compileOrExpression compiles the 'or' operator with short-circuit evaluation.
+// compileOrExpression compiles the 'or' operator with short-circuit evaluation
+// for BOOLEAN operands only. This function should only be called after determining
+// that the operands are not both integers (which would require bitwise OR instead).
+//
 // If the left operand is true, the right operand is not evaluated.
 // The bytecode:
 //  1. Compile left operand (leaves value on stack)

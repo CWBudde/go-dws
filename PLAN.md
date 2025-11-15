@@ -81,52 +81,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 9: Completion and DWScript Feature Parity
 
-## Task 9.13: Debug extract_ranges Logic (Algorithms Fixtures)
-
-**Goal**: Fix off-by-one error in extract_ranges.pas test causing incorrect output.
-
-**Estimate**: 2-3 hours
-
-**Status**: ✅ DONE
-
-**Blocked Tests** (1 test):
-- `testdata/fixtures/Algorithms/extract_ranges.pas` ✅ NOW PASSING
-
-**Expected Output**: `0-2,4,6-8,11,12,14-25,27-33,35-39`
-**Actual Output**: `0-2,4,6-8,11,12,14-25,27-33,35` (before fix)
-**Actual Output**: `0-2,4,6-8,11,12,14-25,27-33,35-39` (after fix) ✅
-
-**Issue**: Last range `35-39` is being truncated to just `35`, suggesting elements 36-39 are not being processed.
-
-**Root Cause Identified**: Missing short-circuit evaluation for `and`/`or` operators in both AST interpreter and bytecode VM. The condition `(j<values.Length) and (values[j]=values[j-1]+1)` was evaluating both operands even when the first was false, causing out-of-bounds array access when `j >= values.Length`.
-
-**Investigation Steps**:
-- [x] 9.13.1 Analyze extract_ranges.pas algorithm
-  - Understand the range extraction logic
-  - Identify loop boundaries and termination conditions
-- [x] 9.13.2 Debug with trace output
-  - Add logging to understand where iteration stops
-  - Check array length, High(arr), loop conditions
-  - Discovered program was crashing during inner loop condition evaluation
-- [x] 9.13.3 Identify and fix the bug
-  - Implemented short-circuit evaluation for `and`/`or` operators
-  - AST interpreter: Added `evalAndExpression()` and `evalOrExpression()` with type-aware short-circuiting
-  - Bytecode compiler: Added `compileAndExpression()` and `compileOrExpression()` using conditional jumps
-  - Maintains backward compatibility: booleans use short-circuit, integers use bitwise operations
-  - Verify fix doesn't break other tests ✅
-
-**Changes Made**:
-1. `/internal/interp/expressions_binary.go`: Added short-circuit evaluation for boolean `and`/`or`, preserving bitwise operations for integers
-2. `/internal/bytecode/compiler_expressions.go`: Added short-circuit compilation using `OpJumpIfFalse`/`OpJumpIfTrue` instructions
-
-**Acceptance Criteria**:
-- ✅ `extract_ranges.pas` produces correct output including `35-39`
-- ✅ Root cause identified and documented
-- ✅ No regressions in other tests (bitwise operations, variant tests all pass)
-- ✅ Short-circuit evaluation verified with custom test cases
-
----
-
 ## Task 9.15: Static vs Dynamic Array Compatibility (DEFERRED)
 
 **Goal**: Investigate type compatibility between static and dynamic arrays in var parameters.
