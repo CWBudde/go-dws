@@ -516,7 +516,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				// The compiler should have already handled string SetLength as a method call
 				return NilValue(), vm.runtimeError("ARRAY_SET_LENGTH should not be used for strings - use String.SetLength method instead")
 			} else {
-				return NilValue(), vm.runtimeError("ARRAY_SET_LENGTH expects array or string, got %s", targetVal.TypeName())
+				return NilValue(), vm.runtimeError("ARRAY_SET_LENGTH expects array or string, got %s", targetVal.Type.String())
 			}
 		case OpArrayHigh:
 			arrVal, err := vm.pop()

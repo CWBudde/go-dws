@@ -1070,7 +1070,7 @@ begin
 end
 			`,
 			expectedResult: "😀😁   ", // 2 emojis + 3 spaces
-			expectedLen:    5,         // 5 runes
+			expectedLen:    5,       // 5 runes
 		},
 		{
 			name: "UTF-8 Chinese characters",
