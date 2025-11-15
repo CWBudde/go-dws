@@ -304,11 +304,17 @@ func (p *Printer) printConstDecl(cd *ast.ConstDecl) {
 }
 
 func (p *Printer) printReturnStatement(rs *ast.ReturnStatement) {
-	p.write("result")
-	p.space()
-	p.write(":=")
-	p.space()
-	p.printDWScript(rs.ReturnValue)
+	// Use the token literal to preserve the original return syntax
+	// This handles: result, function name, or exit
+	p.write(rs.Token.Literal)
+
+	// Only add assignment if there's a return value
+	if rs.ReturnValue != nil {
+		p.requiredSpace()
+		p.write(":=")
+		p.requiredSpace()
+		p.printDWScript(rs.ReturnValue)
+	}
 }
 
 // Control flow printing methods
@@ -588,13 +594,33 @@ func (p *Printer) printRaiseStatement(rs *ast.RaiseStatement) {
 // ============================================================================
 
 func (p *Printer) printFunctionDecl(fd *ast.FunctionDecl) {
-	// Print function/procedure keyword
-	if fd.ReturnType != nil {
+	// Print visibility for class methods (only if not public and part of a class)
+	// Standalone functions don't have visibility modifiers
+	if fd.ClassName != nil && fd.Visibility != ast.VisibilityPublic {
+		switch fd.Visibility {
+		case ast.VisibilityPrivate, ast.VisibilityProtected:
+			p.write(fd.Visibility.String())
+			p.requiredSpace()
+		}
+	}
+
+	// Print class keyword for class methods
+	if fd.IsClassMethod {
+		p.write("class")
+		p.requiredSpace()
+	}
+
+	// Print constructor/destructor or function/procedure keyword
+	if fd.IsConstructor {
+		p.write("constructor")
+	} else if fd.IsDestructor {
+		p.write("destructor")
+	} else if fd.ReturnType != nil {
 		p.write("function")
 	} else {
 		p.write("procedure")
 	}
-	p.space()
+	p.requiredSpace()
 
 	// Print name
 	p.printDWScript(fd.Name)
@@ -615,23 +641,68 @@ func (p *Printer) printFunctionDecl(fd *ast.FunctionDecl) {
 	// Print return type for functions
 	if fd.ReturnType != nil {
 		p.write(":")
-		p.space()
+		p.requiredSpace()
 		p.printDWScript(fd.ReturnType)
 	}
 
-	// Print modifiers
+	// Print method modifiers (virtual, override, etc.)
+	if fd.IsVirtual {
+		p.write(";")
+		p.requiredSpace()
+		p.write("virtual")
+	}
+	if fd.IsOverride {
+		p.write(";")
+		p.requiredSpace()
+		p.write("override")
+	}
+	if fd.IsReintroduce {
+		p.write(";")
+		p.requiredSpace()
+		p.write("reintroduce")
+	}
+	if fd.IsAbstract {
+		p.write(";")
+		p.requiredSpace()
+		p.write("abstract")
+	}
+	if fd.IsOverload {
+		p.write(";")
+		p.requiredSpace()
+		p.write("overload")
+	}
+
+	// Print calling convention
+	if fd.CallingConvention != "" {
+		p.write(";")
+		p.requiredSpace()
+		p.write(fd.CallingConvention)
+	}
+
+	// Print deprecated
+	if fd.IsDeprecated {
+		p.write(";")
+		p.requiredSpace()
+		p.write("deprecated")
+		if fd.DeprecatedMessage != "" {
+			p.requiredSpace()
+			p.write(fmt.Sprintf("'%s'", fd.DeprecatedMessage))
+		}
+	}
+
+	// Print forward/external modifiers
 	if fd.IsForward {
 		p.write(";")
-		p.space()
+		p.requiredSpace()
 		p.write("forward")
 		return
 	}
 	if fd.IsExternal {
 		p.write(";")
-		p.space()
+		p.requiredSpace()
 		p.write("external")
 		if fd.ExternalName != "" {
-			p.space()
+			p.requiredSpace()
 			p.write(fmt.Sprintf("'%s'", fd.ExternalName))
 		}
 		return
@@ -728,6 +799,14 @@ func (p *Printer) printClassDecl(cd *ast.ClassDecl) {
 	// Print members
 	p.incIndent()
 
+	// Constants
+	for _, constant := range cd.Constants {
+		p.writeIndent()
+		p.printConstDecl(constant)
+		p.write(";")
+		p.newline()
+	}
+
 	// Fields
 	for _, field := range cd.Fields {
 		p.writeIndent()
@@ -764,6 +843,14 @@ func (p *Printer) printClassDecl(cd *ast.ClassDecl) {
 	for _, method := range cd.Methods {
 		p.writeIndent()
 		p.printFunctionDecl(method)
+		p.write(";")
+		p.newline()
+	}
+
+	// Operators
+	for _, operator := range cd.Operators {
+		p.writeIndent()
+		p.printOperatorDecl(operator)
 		p.write(";")
 		p.newline()
 	}

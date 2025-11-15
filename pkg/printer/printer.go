@@ -296,6 +296,11 @@ func (p *Printer) printDWScript(node ast.Node) {
 		p.write("continue")
 	case *ast.ExitStatement:
 		p.write("exit")
+		// Handle optional return value
+		if n.ReturnValue != nil {
+			p.requiredSpace()
+			p.printDWScript(n.ReturnValue)
+		}
 
 	// Exception handling
 	case *ast.TryStatement:
