@@ -209,10 +209,20 @@ func TestImportUnitSymbols_WithFunctions(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 		},
-		Name: &ast.Identifier{Value: "TestFunc"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "TestFunc",
+		},
 		Parameters: []*ast.Parameter{
 			{
-				Name: &ast.Identifier{Value: "x"},
+				Name: &ast.Identifier{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{},
+					},
+					Value: "x",
+				},
 				Type: &ast.TypeAnnotation{Name: "Integer"},
 			},
 		},

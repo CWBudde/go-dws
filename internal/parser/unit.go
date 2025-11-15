@@ -30,7 +30,11 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 		return nil
 	}
 	unitDecl.Name = &ast.Identifier{
-		Token: p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
 		Value: p.curToken.Literal,
 	}
 
@@ -95,7 +99,11 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 
 	// Add first unit
 	usesClause.Units = append(usesClause.Units, &ast.Identifier{
-		Token: p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
 		Value: p.curToken.Literal,
 	})
 
@@ -110,7 +118,11 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 		}
 
 		usesClause.Units = append(usesClause.Units, &ast.Identifier{
-			Token: p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
 			Value: p.curToken.Literal,
 		})
 	}

@@ -211,11 +211,8 @@ func TestReturnStatementString(t *testing.T) {
 		{
 			name: "return with integer value",
 			stmt: &ReturnStatement{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"},
-				ReturnValue: &IntegerLiteral{
-					Token: lexer.Token{Type: lexer.INT, Literal: "42"},
-					Value: 42,
-				},
+				Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result"},
+				ReturnValue: &IntegerLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.INT, Literal: "42"}}}, Value: 42},
 			},
 			expected: "Result := 42",
 		},
@@ -234,11 +231,8 @@ func TestReturnStatementString(t *testing.T) {
 		{
 			name: "return with string value",
 			stmt: &ReturnStatement{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"},
-				ReturnValue: &StringLiteral{
-					Token: lexer.Token{Type: lexer.STRING, Literal: "hello"},
-					Value: "hello",
-				},
+				Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result"},
+				ReturnValue: &StringLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.STRING, Literal: "hello"}}}, Value: "hello"},
 			},
 			expected: "Result := \"hello\"",
 		},

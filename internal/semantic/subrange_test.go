@@ -559,7 +559,11 @@ func TestEvaluateConstantInt(t *testing.T) {
 		{
 			name: "Positive integer literal",
 			expr: &ast.IntegerLiteral{
-				Token: lexer.Token{Type: lexer.INT, Literal: "42"},
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.INT, Literal: "42"},
+					},
+				},
 				Value: 42,
 			},
 			expected:    42,
@@ -571,7 +575,11 @@ func TestEvaluateConstantInt(t *testing.T) {
 				Token:    lexer.Token{Type: lexer.MINUS, Literal: "-"},
 				Operator: "-",
 				Right: &ast.IntegerLiteral{
-					Token: lexer.Token{Type: lexer.INT, Literal: "40"},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "40"},
+						},
+					},
 					Value: 40,
 				},
 			},
@@ -584,7 +592,11 @@ func TestEvaluateConstantInt(t *testing.T) {
 				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
 				Operator: "+",
 				Right: &ast.IntegerLiteral{
-					Token: lexer.Token{Type: lexer.INT, Literal: "100"},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "100"},
+						},
+					},
 					Value: 100,
 				},
 			},
@@ -597,11 +609,19 @@ func TestEvaluateConstantInt(t *testing.T) {
 				Token:    lexer.Token{Type: lexer.PLUS, Literal: "+"},
 				Operator: "+",
 				Left: &ast.IntegerLiteral{
-					Token: lexer.Token{Type: lexer.INT, Literal: "5"},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "5"},
+						},
+					},
 					Value: 5,
 				},
 				Right: &ast.IntegerLiteral{
-					Token: lexer.Token{Type: lexer.INT, Literal: "5"},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "5"},
+						},
+					},
 					Value: 5,
 				},
 			},
@@ -611,7 +631,11 @@ func TestEvaluateConstantInt(t *testing.T) {
 		{
 			name: "Non-constant expression (identifier)",
 			expr: &ast.Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
+					},
+				},
 				Value: "x",
 			},
 			expected:    0,

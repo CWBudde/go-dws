@@ -21,7 +21,14 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
 	}
-	nameIdent := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	nameIdent := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
+		Value: p.curToken.Literal,
+	}
 
 	// Expect '='
 	if !p.expectPeek(lexer.EQ) {
@@ -54,7 +61,11 @@ func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 			return
 		}
 		identifiers = append(identifiers, &ast.Identifier{
-			Token: p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
 			Value: p.curToken.Literal,
 		})
 
@@ -343,7 +354,14 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 	var fieldNames []*ast.Identifier
 
 	// Current token should be the first field name identifier
-	fieldNames = append(fieldNames, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+	fieldNames = append(fieldNames, &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
+		Value: p.curToken.Literal,
+	})
 
 	// Check for comma-separated field names
 	for p.peekTokenIs(lexer.COMMA) {
@@ -355,7 +373,14 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 			return nil
 		}
 
-		fieldNames = append(fieldNames, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+		fieldNames = append(fieldNames, &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
+			Value: p.curToken.Literal,
+		})
 	}
 
 	// Parse optional type and/or initialization
@@ -436,7 +461,14 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		return nil
 	}
 
-	memberName := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	memberName := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
+		Value: p.curToken.Literal,
+	}
 
 	// Check if this is a method call (followed by '(')
 	if p.peekTokenIs(lexer.LPAREN) {
@@ -499,7 +531,14 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 	}
 
 	constToken := p.curToken
-	nameIdent := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	nameIdent := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
+		Value: p.curToken.Literal,
+	}
 
 	// Check for optional type annotation: const Name: Type = Value;
 	var typeAnnotation *ast.TypeAnnotation

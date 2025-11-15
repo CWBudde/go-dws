@@ -796,13 +796,18 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
   - [x] Document design decisions and usage patterns
   - [x] Add `pkg/ast/base.go`
 
-- [ ] 9.16.2 Refactor literal expression nodes (Identifier, IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral, CharLiteral, NilLiteral)
-  - [ ] Embed `TypedExpressionBase` into Identifier and adjust parser/tests
-  - [ ] Embed `TypedExpressionBase` into numeric/string/char/boolean literal structs
-  - [ ] Embed `TypedExpressionBase` into NilLiteral
-  - [ ] Remove redundant `TokenLiteral/Pos/End/GetType` methods
-  - [ ] Update parser/semantic/interpreter tests that construct these literals
-  - [ ] Introduce helpers or scripts to simplify struct literal rewrites (composite literals currently set Token directly)
+- [x] 9.16.2 Refactor literal expression nodes (Identifier, IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral, CharLiteral, NilLiteral)
+  - [x] Embed `TypedExpressionBase` into Identifier and adjust parser/tests
+  - [x] Embed `TypedExpressionBase` into numeric/string/char/boolean literal structs
+  - [x] Embed `TypedExpressionBase` into NilLiteral
+  - [x] Remove redundant `TokenLiteral/Pos/End/GetType` methods
+  - [x] Update parser/semantic/interpreter tests that construct these literals
+  - [x] Updated all parser files (12 files, 37 instances)
+  - [x] Updated all test files in internal/ast (17 files, 446 instances)
+  - [x] Updated all test files in internal/bytecode (6 files, 100+ instances)
+  - [x] Updated all test files in internal/interp (6 files, 85+ instances)
+  - [x] Updated all test files in internal/semantic (3 files, 55+ instances)
+  - All literal expression nodes now use TypedExpressionBase successfully
 
 - [ ] 9.16.3 Refactor binary and unary expressions (BinaryExpression, UnaryExpression, GroupedExpression, RangeExpression)
   - [ ] Embed `TypedExpressionBase` into BinaryExpression

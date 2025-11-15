@@ -80,7 +80,11 @@ func TestClassInfoAddMethod(t *testing.T) {
 			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 		},
 		Name: &ast.Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
+				},
+			},
 			Value: "GetValue",
 		},
 		Parameters: []*ast.Parameter{},
@@ -247,7 +251,12 @@ func TestMethodLookupBasic(t *testing.T) {
 	classInfo := NewClassInfo("TCounter")
 
 	method := &ast.FunctionDecl{
-		Name: &ast.Identifier{Value: "GetValue"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "GetValue",
+		},
 	}
 	// Methods are stored with lowercase keys for case-insensitive lookup
 	classInfo.Methods["getvalue"] = method
@@ -271,7 +280,12 @@ func TestMethodLookupWithInheritance(t *testing.T) {
 	// Create parent class with method
 	parent := NewClassInfo("TObject")
 	parentMethod := &ast.FunctionDecl{
-		Name: &ast.Identifier{Value: "ToString"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "ToString",
+		},
 	}
 	// Methods are stored with lowercase keys for case-insensitive lookup
 	parent.Methods["tostring"] = parentMethod
@@ -299,7 +313,12 @@ func TestMethodOverriding(t *testing.T) {
 	// Create parent class with method
 	parent := NewClassInfo("TObject")
 	parentMethod := &ast.FunctionDecl{
-		Name: &ast.Identifier{Value: "ToString"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "ToString",
+		},
 		Body: &ast.BlockStatement{}, // Different body
 	}
 	// Methods are stored with lowercase keys for case-insensitive lookup
@@ -310,7 +329,12 @@ func TestMethodOverriding(t *testing.T) {
 	child.Parent = parent
 
 	childMethod := &ast.FunctionDecl{
-		Name: &ast.Identifier{Value: "ToString"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "ToString",
+		},
 		Body: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				// Different implementation

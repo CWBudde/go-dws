@@ -24,7 +24,11 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		return nil
 	}
 	propName := &ast.Identifier{
-		Token: p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
 		Value: p.curToken.Literal,
 	}
 
@@ -114,7 +118,11 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		} else if p.curTokenIs(lexer.IDENT) {
 			// Simple identifier (field or method name)
 			prop.ReadSpec = &ast.Identifier{
-				Token: p.curToken,
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: p.curToken,
+					},
+				},
 				Value: p.curToken.Literal,
 			}
 		} else {
@@ -135,7 +143,11 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 
 		// Simple identifier (field or method name)
 		prop.WriteSpec = &ast.Identifier{
-			Token: p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
 			Value: p.curToken.Literal,
 		}
 	}
@@ -146,7 +158,11 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		// Generate backing field name: F + property name
 		backingFieldName := "F" + propName.Value
 		backingField := &ast.Identifier{
-			Token: propName.Token,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: propName.Token,
+				},
+			},
 			Value: backingFieldName,
 		}
 
@@ -195,7 +211,11 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 		}
 
 		names = append(names, &ast.Identifier{
-			Token: p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
 			Value: p.curToken.Literal,
 		})
 

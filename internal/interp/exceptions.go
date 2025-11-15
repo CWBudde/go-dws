@@ -51,7 +51,11 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	// The nil body means it just initializes fields with defaults
 	createConstructor := &ast.FunctionDecl{
 		Name: &ast.Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "Create"},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "Create"},
+				},
+			},
 			Value: "Create",
 		},
 		Parameters:    []*ast.Parameter{},                                 // No parameters
