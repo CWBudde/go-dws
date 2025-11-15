@@ -34,10 +34,10 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 		Token:      lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(4, 10)},
 		ReturnType: intType,
 		Body: &ast.BlockStatement{
-			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 			Statements: []ast.Statement{
 				&ast.AssignmentStatement{
-					Token:    lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(5, 3)},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(5, 3)}},
 					Operator: lexer.ASSIGN,
 					Target: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
@@ -95,10 +95,10 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 	outerLambda := &ast.LambdaExpression{
 		Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(1, 10)},
 		Body: &ast.BlockStatement{
-			Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"},
+			BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
 			Statements: []ast.Statement{
 				&ast.VarDeclStatement{
-					Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(2, 1)},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(2, 1)}},
 					Names: []*ast.Identifier{
 						countIdent,
 					},

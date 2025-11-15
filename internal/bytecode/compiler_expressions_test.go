@@ -457,9 +457,9 @@ func TestCompiler_MethodCallEmitsCallMethod(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.VarDeclStatement{
-				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
-				Names: []*ast.Identifier{objIdent},
-				Type:  intType,
+				BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)}},
+				Names:    []*ast.Identifier{objIdent},
+				Type:     intType,
 				Value: &ast.IntegerLiteral{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -471,7 +471,7 @@ func TestCompiler_MethodCallEmitsCallMethod(t *testing.T) {
 				},
 			},
 			&ast.ExpressionStatement{
-				Token:      lexer.Token{Type: lexer.IDENT, Literal: "DoIt", Pos: pos(2, 5)},
+				BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "DoIt", Pos: pos(2, 5)}},
 				Expression: methodCall,
 			},
 		},
@@ -496,7 +496,7 @@ func TestCompiler_SelfIdentifierEmitsGetSelf(t *testing.T) {
 	program := &ast.Program{
 		Statements: []ast.Statement{
 			&ast.ExpressionStatement{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Self", Pos: pos(1, 1)},
+				BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Self", Pos: pos(1, 1)}},
 				Expression: &ast.Identifier{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{

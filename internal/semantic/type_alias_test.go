@@ -85,7 +85,7 @@ func TestTypeAliasInVariableDeclaration(t *testing.T) {
 				},
 			},
 			&ast.VarDeclStatement{
-				Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
+				BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.VAR, Literal: "var"}},
 				Names: []*ast.Identifier{{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -149,7 +149,7 @@ func TestTypeAliasCompatibility(t *testing.T) {
 				},
 			},
 			&ast.VarDeclStatement{
-				Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
+				BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.VAR, Literal: "var"}},
 				Names: []*ast.Identifier{{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -273,7 +273,7 @@ func TestTypeAliasNestedAliases(t *testing.T) {
 				},
 			},
 			&ast.VarDeclStatement{
-				Token: lexer.Token{Type: lexer.VAR, Literal: "var"},
+				BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.VAR, Literal: "var"}},
 				Names: []*ast.Identifier{{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{

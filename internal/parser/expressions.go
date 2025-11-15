@@ -955,7 +955,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 
 		// Desugar shorthand to full syntax: wrap expression in return statement
 		lambdaExpr.Body = &ast.BlockStatement{
-			Token: p.curToken, // Use current token for position tracking
+			BaseNode: ast.BaseNode{Token: p.curToken}, // Use current token for position tracking
 			Statements: []ast.Statement{
 				&ast.ReturnStatement{
 					Token:       p.curToken,
@@ -1122,8 +1122,8 @@ func (p *Parser) parseCondition() *ast.Condition {
 	}
 
 	condition := &ast.Condition{
-		Token: p.curToken,
-		Test:  testExpr,
+		BaseNode: ast.BaseNode{Token: p.curToken},
+		Test:     testExpr,
 	}
 
 	// Check for optional custom message: : "message"
@@ -1183,9 +1183,13 @@ func (p *Parser) parseOldExpression() ast.Expression {
 	}
 
 	return &ast.OldExpression{
-		Token:      token,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  token,
+				EndPos: identifier.End(),
+			},
+		},
 		Identifier: identifier,
-		EndPos:     identifier.End(),
 	}
 }
 
@@ -1230,7 +1234,7 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 	}
 
 	preConditions := &ast.PreConditions{
-		Token:      requireToken,
+		BaseNode:   ast.BaseNode{Token: requireToken},
 		Conditions: conditions,
 	}
 
@@ -1292,7 +1296,7 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 	}
 
 	postConditions := &ast.PostConditions{
-		Token:      ensureToken,
+		BaseNode:   ast.BaseNode{Token: ensureToken},
 		Conditions: conditions,
 	}
 
@@ -1310,8 +1314,10 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 // This creates an IsExpression AST node that will be evaluated at runtime.
 func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 	expression := &ast.IsExpression{
-		Token: p.curToken, // The 'is' token
-		Left:  left,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'is' token
+		},
+		Left: left,
 	}
 
 	p.nextToken()
@@ -1346,8 +1352,10 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 // to wrap an object instance in an InterfaceInstance.
 func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 	expression := &ast.AsExpression{
-		Token: p.curToken, // The 'as' token
-		Left:  left,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'as' token
+		},
+		Left: left,
 	}
 
 	p.nextToken()
@@ -1371,8 +1379,10 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 // to check whether the object's class implements the interface.
 func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 	expression := &ast.ImplementsExpression{
-		Token: p.curToken, // The 'implements' token
-		Left:  left,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken}, // The 'implements' token
+		},
+		Left: left,
 	}
 
 	p.nextToken()
