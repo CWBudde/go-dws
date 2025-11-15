@@ -170,7 +170,7 @@ func (e *EnumValue) String() string {
 type RecordValue struct {
 	RecordType *types.RecordType            // The record type metadata
 	Fields     map[string]Value             // Field name -> runtime value mapping
-	Methods    map[string]*ast.FunctionDecl // Method name -> AST declaration (Task 9.7)
+	Methods    map[string]*ast.FunctionDecl // Method name -> AST declaration
 }
 
 // Type returns the record type name (e.g., "TFoo") or "RECORD" if unnamed.
@@ -1109,7 +1109,7 @@ func NewJSONValue(v *jsonvalue.Value) *JSONValue {
 }
 
 // ============================================================================
-// Ordinal Value Utilities (Task 9.226)
+// Ordinal Value Utilities
 // ============================================================================
 
 // GetOrdinalValue extracts the ordinal value from any ordinal type value.

@@ -260,7 +260,7 @@ PrintLn(obj.Value);
 }
 
 // ============================================================================
-// Indexed Property Tests (Task 9.1c)
+// Indexed Property Tests
 // ============================================================================
 
 // TestIndexedPropertyRead tests basic indexed property read functionality
@@ -460,7 +460,7 @@ PrintLn(arr.Items[0]);
 }
 
 // ============================================================================
-// Indexed Property Write Tests (Task 9.2b/c)
+// Indexed Property Write Tests
 // ============================================================================
 
 // TestIndexedPropertyWrite tests basic indexed property write functionality
@@ -668,7 +668,7 @@ arr.Items[0] := 'test';
 }
 
 // ============================================================================
-// Expression-Based Property Tests (Task 9.3c)
+// Expression-Based Property Tests
 // ============================================================================
 
 // TestExpressionBasedPropertySimple tests basic expression-based property getters

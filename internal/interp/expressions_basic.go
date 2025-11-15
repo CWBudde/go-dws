@@ -267,11 +267,9 @@ func (i *Interpreter) evalPlusUnaryOp(right Value) Value {
 }
 
 // evalNotUnaryOp evaluates the not operator.
-// Task 9.35: Support Variant→Boolean implicit conversion for not operator
 func (i *Interpreter) evalNotUnaryOp(right Value) Value {
-	// Task 9.35: Check if this is a Variant
+	// Check if this is a Variant
 	if variantVal, ok := right.(*VariantValue); ok {
-		// For Variant, convert to boolean and negate
 		boolResult := variantToBool(variantVal.Value)
 		// Return the negated result as a Variant containing a Boolean
 		return &VariantValue{

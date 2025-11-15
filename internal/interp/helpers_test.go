@@ -817,7 +817,7 @@ func TestArrayHelperCaseInsensitive(t *testing.T) {
 }
 
 // ============================================================================
-// Helper Inheritance Tests (Task 9.1)
+// Helper Inheritance Tests
 // ============================================================================
 
 func TestHelperInheritance_BasicMethodInheritance(t *testing.T) {

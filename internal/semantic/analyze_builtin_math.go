@@ -301,7 +301,7 @@ func (a *Analyzer) analyzeTan(args []ast.Expression, callExpr *ast.CallExpressio
 	return types.FLOAT
 }
 
-// analyzeDegToRad analyzes the DegToRad built-in function (Task 9.232).
+// analyzeDegToRad analyzes the DegToRad built-in function
 // DegToRad converts degrees to radians.
 func (a *Analyzer) analyzeDegToRad(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -317,7 +317,7 @@ func (a *Analyzer) analyzeDegToRad(args []ast.Expression, callExpr *ast.CallExpr
 	return types.FLOAT
 }
 
-// analyzeRadToDeg analyzes the RadToDeg built-in function (Task 9.232).
+// analyzeRadToDeg analyzes the RadToDeg built-in function.
 // RadToDeg converts radians to degrees.
 func (a *Analyzer) analyzeRadToDeg(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -333,7 +333,7 @@ func (a *Analyzer) analyzeRadToDeg(args []ast.Expression, callExpr *ast.CallExpr
 	return types.FLOAT
 }
 
-// analyzeArcSin analyzes the ArcSin built-in function (Task 9.232).
+// analyzeArcSin analyzes the ArcSin built-in function.
 // ArcSin calculates the inverse sine.
 func (a *Analyzer) analyzeArcSin(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -349,7 +349,7 @@ func (a *Analyzer) analyzeArcSin(args []ast.Expression, callExpr *ast.CallExpres
 	return types.FLOAT
 }
 
-// analyzeArcCos analyzes the ArcCos built-in function (Task 9.232).
+// analyzeArcCos analyzes the ArcCos built-in function.
 // ArcCos calculates the inverse cosine.
 func (a *Analyzer) analyzeArcCos(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -365,7 +365,7 @@ func (a *Analyzer) analyzeArcCos(args []ast.Expression, callExpr *ast.CallExpres
 	return types.FLOAT
 }
 
-// analyzeArcTan analyzes the ArcTan built-in function (Task 9.232).
+// analyzeArcTan analyzes the ArcTan built-in function.
 // ArcTan calculates the inverse tangent.
 func (a *Analyzer) analyzeArcTan(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -381,7 +381,7 @@ func (a *Analyzer) analyzeArcTan(args []ast.Expression, callExpr *ast.CallExpres
 	return types.FLOAT
 }
 
-// analyzeArcTan2 analyzes the ArcTan2 built-in function (Task 9.232).
+// analyzeArcTan2 analyzes the ArcTan2 built-in function.
 // ArcTan2 calculates the angle from the X axis to a point.
 func (a *Analyzer) analyzeArcTan2(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 2 {
@@ -402,7 +402,7 @@ func (a *Analyzer) analyzeArcTan2(args []ast.Expression, callExpr *ast.CallExpre
 	return types.FLOAT
 }
 
-// analyzeCoTan analyzes the CoTan built-in function (Task 9.232).
+// analyzeCoTan analyzes the CoTan built-in function.
 // CoTan calculates the cotangent.
 func (a *Analyzer) analyzeCoTan(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -418,7 +418,7 @@ func (a *Analyzer) analyzeCoTan(args []ast.Expression, callExpr *ast.CallExpress
 	return types.FLOAT
 }
 
-// analyzeHypot analyzes the Hypot built-in function (Task 9.232).
+// analyzeHypot analyzes the Hypot built-in function.
 // Hypot calculates the Euclidean distance: sqrt(x*x + y*y).
 func (a *Analyzer) analyzeHypot(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 2 {
@@ -439,7 +439,7 @@ func (a *Analyzer) analyzeHypot(args []ast.Expression, callExpr *ast.CallExpress
 	return types.FLOAT
 }
 
-// analyzeSinh analyzes the Sinh built-in function (Task 9.232).
+// analyzeSinh analyzes the Sinh built-in function.
 // Sinh calculates the hyperbolic sine.
 func (a *Analyzer) analyzeSinh(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -455,7 +455,7 @@ func (a *Analyzer) analyzeSinh(args []ast.Expression, callExpr *ast.CallExpressi
 	return types.FLOAT
 }
 
-// analyzeCosh analyzes the Cosh built-in function (Task 9.232).
+// analyzeCosh analyzes the Cosh built-in function.
 // Cosh calculates the hyperbolic cosine.
 func (a *Analyzer) analyzeCosh(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -471,7 +471,7 @@ func (a *Analyzer) analyzeCosh(args []ast.Expression, callExpr *ast.CallExpressi
 	return types.FLOAT
 }
 
-// analyzeTanh analyzes the Tanh built-in function (Task 9.232).
+// analyzeTanh analyzes the Tanh built-in function.
 // Tanh calculates the hyperbolic tangent.
 func (a *Analyzer) analyzeTanh(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -487,7 +487,7 @@ func (a *Analyzer) analyzeTanh(args []ast.Expression, callExpr *ast.CallExpressi
 	return types.FLOAT
 }
 
-// analyzeArcSinh analyzes the ArcSinh built-in function (Task 9.232).
+// analyzeArcSinh analyzes the ArcSinh built-in function.
 // ArcSinh calculates the inverse hyperbolic sine.
 func (a *Analyzer) analyzeArcSinh(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -503,7 +503,7 @@ func (a *Analyzer) analyzeArcSinh(args []ast.Expression, callExpr *ast.CallExpre
 	return types.FLOAT
 }
 
-// analyzeArcCosh analyzes the ArcCosh built-in function (Task 9.232).
+// analyzeArcCosh analyzes the ArcCosh built-in function.
 // ArcCosh calculates the inverse hyperbolic cosine.
 func (a *Analyzer) analyzeArcCosh(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -519,7 +519,7 @@ func (a *Analyzer) analyzeArcCosh(args []ast.Expression, callExpr *ast.CallExpre
 	return types.FLOAT
 }
 
-// analyzeArcTanh analyzes the ArcTanh built-in function (Task 9.232).
+// analyzeArcTanh analyzes the ArcTanh built-in function.
 // ArcTanh calculates the inverse hyperbolic tangent.
 func (a *Analyzer) analyzeArcTanh(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -564,7 +564,7 @@ func (a *Analyzer) analyzeRandomInt(args []ast.Expression, callExpr *ast.CallExp
 	return types.INTEGER
 }
 
-// analyzeUnsigned32 analyzes the Unsigned32 built-in function (Task 9.219).
+// analyzeUnsigned32 analyzes the Unsigned32 built-in function.
 // Unsigned32 converts Integer to unsigned 32-bit representation.
 func (a *Analyzer) analyzeUnsigned32(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
@@ -633,7 +633,7 @@ func (a *Analyzer) analyzeLn(args []ast.Expression, callExpr *ast.CallExpression
 	return types.FLOAT
 }
 
-// analyzeLog2 analyzes the Log2 built-in function (Task 9.38).
+// analyzeLog2 analyzes the Log2 built-in function.
 // Log2 takes one numeric argument and always returns Float.
 func (a *Analyzer) analyzeLog2(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {

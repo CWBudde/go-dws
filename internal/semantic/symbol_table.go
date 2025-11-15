@@ -94,13 +94,13 @@ func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType)
 //   - name: Function name
 //   - funcType: Function signature
 //   - hasOverloadDirective: Whether the function declaration has the 'overload' directive
-//   - isForward: Whether this is a forward declaration (Task 9.60)
+//   - isForward: Whether this is a forward declaration
 //
 // Returns error if:
-//   - Function exists without overload directive on either declaration (Task 9.58)
-//   - Exact duplicate signature exists (Task 9.59)
-//   - Ambiguous overload with default parameters (Task 9.62)
-//   - Forward declaration doesn't match implementation (Task 9.60)
+//   - Function exists without overload directive on either declaration
+//   - Exact duplicate signature exists
+//   - Ambiguous overload with default parameters
+//   - Forward declaration doesn't match implementation
 func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType, hasOverloadDirective bool, isForward bool) error {
 	lowerName := strings.ToLower(name)
 	existing, exists := st.symbols[lowerName]

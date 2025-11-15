@@ -58,7 +58,6 @@ func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classI
 	// Update the method in the class (replacing the declaration with the implementation)
 	// Support method overloading by storing multiple methods per name
 	// We need to replace the declaration with the implementation in the overload list
-	// Task 9.16.2: Normalize method names to lowercase for case-insensitive lookup
 	normalizedMethodName := strings.ToLower(fn.Name.Value)
 
 	if fn.IsClassMethod {
@@ -194,7 +193,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		// This prevents duplication when a child class overrides a parent method.
 
 		// Copy constructors
-		// Task 9.19: Normalize constructor names to lowercase for case-insensitive matching
 		for name, constructor := range parentClass.Constructors {
 			normalizedName := strings.ToLower(name)
 			classInfo.Constructors[normalizedName] = constructor
@@ -350,7 +348,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 	// Add own methods to ClassInfo (these override parent methods if same name)
 	// Support method overloading by storing multiple methods per name
-	// Task 9.16.2: Normalize method names to lowercase for case-insensitive lookup
 	for _, method := range cd.Methods {
 		// Normalize method name to lowercase for case-insensitive lookup
 		// This matches the semantic analyzer behavior (types.go AddMethodOverload)
@@ -380,7 +377,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 
 		if method.IsConstructor {
-			// Task 9.19: Normalize constructor names to lowercase for case-insensitive matching
 			normalizedName := strings.ToLower(method.Name.Value)
 			classInfo.Constructors[normalizedName] = method
 			// In DWScript, a child constructor with the same name and signature HIDES the parent's,
@@ -406,12 +402,10 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 
 	// Identify constructor (method named "Create")
-	// Task 9.16.2: Use lowercase for case-insensitive lookup
 	if constructor, exists := classInfo.Methods["create"]; exists {
 		classInfo.Constructor = constructor
 	}
 	if cd.Constructor != nil {
-		// Task 9.19: Normalize constructor names to lowercase for case-insensitive matching
 		normalizedName := strings.ToLower(cd.Constructor.Name.Value)
 		classInfo.Constructors[normalizedName] = cd.Constructor
 
@@ -437,12 +431,11 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 
 	// Identify destructor (method named "Destroy")
-	// Task 9.16.2: Use lowercase for case-insensitive lookup
 	if destructor, exists := classInfo.Methods["destroy"]; exists {
 		classInfo.Destructor = destructor
 	}
 
-	// Task 9.19: Synthesize implicit parameterless constructor if any constructor has 'overload'
+	// Synthesize implicit parameterless constructor if any constructor has 'overload'
 	i.synthesizeImplicitParameterlessConstructor(classInfo)
 
 	// Register properties
@@ -597,7 +590,7 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 }
 
 // synthesizeImplicitParameterlessConstructor generates an implicit parameterless constructor
-// when at least one constructor has the 'overload' directive (Task 9.19).
+// when at least one constructor has the 'overload' directive.
 //
 // In DWScript, when a constructor is marked with 'overload', the runtime implicitly provides
 // a parameterless constructor if one doesn't already exist. This allows code like:
@@ -640,7 +633,6 @@ func (i *Interpreter) synthesizeImplicitParameterlessConstructor(classInfo *Clas
 			}
 
 			// Add to class constructor maps
-			// Task 9.19: Use normalized (lowercase) key for case-insensitive matching
 			normalizedName := strings.ToLower(ctorName)
 			if _, exists := classInfo.Constructors[normalizedName]; !exists {
 				classInfo.Constructors[normalizedName] = implicitConstructor
@@ -708,7 +700,6 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 	}
 
 	bindingName := opDecl.Binding.Value
-	// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
 	normalizedBindingName := strings.ToLower(bindingName)
 	method, isClassMethod := classInfo.ClassMethods[normalizedBindingName]
 	if !isClassMethod {
@@ -723,7 +714,7 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 	operandTypes := make([]string, 0, len(opDecl.OperandTypes)+1)
 	includesClass := false
 	for _, operand := range opDecl.OperandTypes {
-		// Task 9.24.2: Resolve type aliases before normalizing
+		// Resolve type aliases before normalizing
 		// This ensures that "toa" (alias for "array of const") is resolved to "ARRAY OF CONST"
 		typeName := operand.String()
 		resolvedType, err := i.resolveType(typeName)
@@ -775,7 +766,6 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 	}
 
 	if method.IsConstructor {
-		// Task 9.19: Normalize constructor names to lowercase for case-insensitive matching
 		classInfo.Constructors[normalizedBindingName] = method
 	}
 

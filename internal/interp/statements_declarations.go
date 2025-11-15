@@ -180,7 +180,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 				// Check if this is a record type
 				// Task 9.225: Normalize to lowercase for case-insensitive lookups
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
-					// Initialize with empty record value (Task 9.7: pass methods)
+					// Initialize with empty record value
 					// Task 9.7e1: Use createRecordValue for proper nested record initialization
 					value = i.createRecordValue(rtv.RecordType, rtv.Methods)
 				} else {

@@ -416,7 +416,7 @@ func (a *Analyzer) addError(format string, args ...any) {
 	a.errors = append(a.errors, fmt.Sprintf(format, args...))
 }
 
-// addHint adds a hint message (Task 9.61.4)
+// addHint adds a hint message
 // Hints are less severe than errors and don't prevent compilation
 func (a *Analyzer) addHint(format string, args ...any) {
 	a.errors = append(a.errors, fmt.Sprintf("Hint: "+format, args...))

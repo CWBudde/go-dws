@@ -249,7 +249,7 @@ func TestMethodLookupBasic(t *testing.T) {
 	method := &ast.FunctionDecl{
 		Name: &ast.Identifier{Value: "GetValue"},
 	}
-	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	// Methods are stored with lowercase keys for case-insensitive lookup
 	classInfo.Methods["getvalue"] = method
 
 	// Create object
@@ -273,7 +273,7 @@ func TestMethodLookupWithInheritance(t *testing.T) {
 	parentMethod := &ast.FunctionDecl{
 		Name: &ast.Identifier{Value: "ToString"},
 	}
-	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	// Methods are stored with lowercase keys for case-insensitive lookup
 	parent.Methods["tostring"] = parentMethod
 
 	// Create child class
@@ -302,7 +302,7 @@ func TestMethodOverriding(t *testing.T) {
 		Name: &ast.Identifier{Value: "ToString"},
 		Body: &ast.BlockStatement{}, // Different body
 	}
-	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	// Methods are stored with lowercase keys for case-insensitive lookup
 	parent.Methods["tostring"] = parentMethod
 
 	// Create child class that overrides the method
@@ -317,7 +317,7 @@ func TestMethodOverriding(t *testing.T) {
 			},
 		},
 	}
-	// Task 9.16.2: Methods are stored with lowercase keys for case-insensitive lookup
+	// Methods are stored with lowercase keys for case-insensitive lookup
 	child.Methods["tostring"] = childMethod
 
 	// Create object of child class

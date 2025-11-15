@@ -9,7 +9,7 @@ import (
 )
 
 // ============================================================================
-// Multi-Index Property Tests (Task 9.2d)
+// Multi-Index Property Tests
 // ============================================================================
 
 // TestMultiIndexPropertyRead tests 2D indexed property access (matrix)
@@ -193,7 +193,7 @@ PrintLn(m.Items[0, 1]);
 }
 
 // ============================================================================
-// Class Property Tests (Task 9.13)
+// Class Property Tests
 // ============================================================================
 
 // TestClassPropertyFieldBacked tests class property backed by class variable
@@ -416,7 +416,7 @@ PrintLn(IntToStr(TMixed.Counter));  // Read via class property
 }
 
 // ============================================================================
-// Class Property Write Tests (Task 9.14)
+// Class Property Write Tests
 // ============================================================================
 
 // TestClassPropertyWriteFieldBacked tests writing to field-backed class properties
@@ -672,7 +672,7 @@ PrintLn(TState.Message);
 }
 
 // ============================================================================
-// Default Property Tests (Task 9.16)
+// Default Property Tests
 // ============================================================================
 
 // TestDefaultPropertyRead tests reading from default property using obj[index] syntax
