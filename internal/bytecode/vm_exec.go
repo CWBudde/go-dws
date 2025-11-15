@@ -495,7 +495,7 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if err != nil {
 				return NilValue(), err
 			}
-			arrVal, err := vm.pop()
+			targetVal, err := vm.pop()
 			if err != nil {
 				return NilValue(), err
 			}
@@ -506,11 +506,21 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 			if newLen < 0 {
 				return NilValue(), vm.runtimeError("ARRAY_SET_LENGTH negative size %d", newLen)
 			}
-			arr, err := vm.requireArray(arrVal, "ARRAY_SET_LENGTH")
-			if err != nil {
-				return NilValue(), err
+
+			// Support both arrays and strings
+			if targetVal.IsArray() {
+				arr := targetVal.AsArray()
+				arr.Resize(newLen)
+			} else if targetVal.IsString() {
+				// For strings, we need to handle this since strings are immutable in Go.
+				// Create a new string with the requested length and push it back on the stack
+				// so it can be stored back into the variable by the caller.
+				str := targetVal.AsString()
+				newStr := vm.setStringLength(str, newLen)
+				vm.push(StringValue(newStr))
+			} else {
+				return NilValue(), vm.runtimeError("ARRAY_SET_LENGTH expects array or string, got %s", targetVal.Type.String())
 			}
-			arr.Resize(newLen)
 		case OpArrayHigh:
 			arrVal, err := vm.pop()
 			if err != nil {

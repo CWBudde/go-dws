@@ -194,12 +194,10 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Estimate**: 2-3 hours
 
-**Status**: IN PROGRESS
+**Status**: DONE
 
 **Blocked Tests** (1 test):
-- `testdata/fixtures/Algorithms/sparse_matmult.pas` - uses `SetLength(s, n)` on string variables
-
-**Current Error**: `SetLength expects array as first argument, got String`
+- `testdata/fixtures/Algorithms/sparse_matmult.pas` - ✅ PASSES
 
 **DWScript Compatibility**: In DWScript, SetLength works on both arrays and strings:
 - Arrays: `SetLength(arr, newSize)` - resizes dynamic array
@@ -207,23 +205,35 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Implementation**:
 - File: `internal/interp/builtins_misc.go`
-- Modify `builtinSetLength` to accept String type
+- Modified `builtinSetLength` to accept String type
+- Added `runeSetLength` helper in `internal/interp/string_helpers.go`
 - For strings: truncate if shorter, pad with spaces if longer
+- Uses rune-based operations for proper UTF-8 handling
 
 **Subtasks**:
-- [ ] 9.12.1 Update SetLength validation to accept String
+- [x] 9.12.1 Update SetLength validation to accept String
   - Check first argument is Array OR String
-- [ ] 9.12.2 Implement string resizing logic
+  - Already implemented, uses rune-based operations
+- [x] 9.12.2 Implement string resizing logic
   - If new length < current: truncate string
   - If new length > current: pad with spaces
-- [ ] 9.12.3 Add Float.ToString(precision) helper method
-  - Also needed by sparse_matmult.pas
-  - Format float with specified decimal places
+  - Implemented via `runeSetLength` helper function
+- [x] 9.12.3 Add Float.ToString(precision) helper method
+  - Already implemented in `internal/interp/helpers_conversion.go`
+  - Format float with specified decimal places using `fmt.Sprintf("%.*f", precision, value)`
+
+**Tests Added**:
+- `TestBuiltinSetLength_String_Expand` - expanding strings with spaces
+- `TestBuiltinSetLength_String_Truncate` - truncating strings
+- `TestBuiltinSetLength_String_SameLength` - no-op when length unchanged
+- `TestBuiltinSetLength_String_UTF8` - UTF-8 character handling (emojis, Chinese)
+- `TestBuiltinSetLength_String_VarParam` - var parameter support
 
 **Acceptance Criteria**:
-- `sparse_matmult.pas` test passes
-- SetLength works on strings: `SetLength(s, 10)` sets string length to 10
-- Strings truncated or space-padded as needed
+- ✅ `sparse_matmult.pas` test passes
+- ✅ SetLength works on strings: `SetLength(s, 10)` sets string length to 10
+- ✅ Strings truncated or space-padded as needed
+- ✅ Proper UTF-8 handling (rune-based, not byte-based)
 
 ---
 

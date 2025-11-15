@@ -255,3 +255,31 @@ func variantToBool(val Value) bool {
 		return true
 	}
 }
+
+// setStringLength resizes a string to the specified character length.
+// If the new length is shorter, the string is truncated.
+// If the new length is longer, the string is padded with null characters (#0).
+// This matches DWScript's SetLength behavior for strings, which zero-initializes
+// newly allocated characters, allowing strings to be used as binary buffers.
+func (vm *VM) setStringLength(s string, newLength int) string {
+	if newLength < 0 {
+		newLength = 0
+	}
+
+	runes := []rune(s)
+	currentLength := len(runes)
+
+	if newLength == currentLength {
+		return s
+	}
+
+	if newLength < currentLength {
+		// Truncate
+		return string(runes[:newLength])
+	}
+
+	// Extend with null characters (#0) to match DWScript semantics
+	padding := newLength - currentLength
+	nullBytes := make([]byte, padding)
+	return s + string(nullBytes)
+}
