@@ -269,7 +269,7 @@ func (c *Compiler) compileMethodCallExpression(expr *ast.MethodCallExpression) e
 					return c.errorf(expr, "too many arguments in method call: %d", argCount)
 				}
 
-				// Use direct call - the function is already stored at global slot
+				// Use direct call - the function constant is stored at the given constant index
 				c.chunk.Write(OpCall, byte(argCount), slot, lineOf(expr))
 				return nil
 			}
