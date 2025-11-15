@@ -76,7 +76,9 @@ func TestClassInfoAddMethod(t *testing.T) {
 
 	// Create a simple method AST node
 	method := &ast.FunctionDecl{
-		Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+		},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
 			Value: "GetValue",

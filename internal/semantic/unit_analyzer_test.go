@@ -23,7 +23,7 @@ func TestAnalyzeUnit_BasicInterfaceAndImplementation(t *testing.T) {
 			Statements: []ast.Statement{
 				// function Add(a, b: Integer): Integer;
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
 						Value: "Add",
@@ -50,7 +50,7 @@ func TestAnalyzeUnit_BasicInterfaceAndImplementation(t *testing.T) {
 				//   Result := a + b;
 				// end;
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
 						Value: "Add",
@@ -123,7 +123,7 @@ func TestAnalyzeUnit_MissingImplementation(t *testing.T) {
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "DoSomething"},
 						Value: "DoSomething",
@@ -166,7 +166,7 @@ func TestAnalyzeUnit_SignatureMismatch(t *testing.T) {
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
 						Value: "Add",
@@ -189,7 +189,7 @@ func TestAnalyzeUnit_SignatureMismatch(t *testing.T) {
 		ImplementationSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
 						Value: "Add",
@@ -248,8 +248,8 @@ func TestAnalyzeUnit_WithUsesClause(t *testing.T) {
 				},
 				// function Calculate(x, y: Integer): Integer;
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-					Name:  &ast.Identifier{Value: "Calculate"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+					Name:     &ast.Identifier{Value: "Calculate"},
 					Parameters: []*ast.Parameter{
 						{
 							Name: &ast.Identifier{Value: "x"},
@@ -268,8 +268,8 @@ func TestAnalyzeUnit_WithUsesClause(t *testing.T) {
 		ImplementationSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-					Name:  &ast.Identifier{Value: "Calculate"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+					Name:     &ast.Identifier{Value: "Calculate"},
 					Parameters: []*ast.Parameter{
 						{
 							Name: &ast.Identifier{Value: "x"},
@@ -463,8 +463,8 @@ func TestForwardDeclarationsAcrossUnits(t *testing.T) {
 			Statements: []ast.Statement{
 				// Forward declaration: function Multiply(a, b: Integer): Integer;
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-					Name:  &ast.Identifier{Value: "Multiply"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+					Name:     &ast.Identifier{Value: "Multiply"},
 					Parameters: []*ast.Parameter{
 						{Name: &ast.Identifier{Value: "a"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
 						{Name: &ast.Identifier{Value: "b"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
@@ -478,8 +478,8 @@ func TestForwardDeclarationsAcrossUnits(t *testing.T) {
 			Statements: []ast.Statement{
 				// Actual implementation
 				&ast.FunctionDecl{
-					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-					Name:  &ast.Identifier{Value: "Multiply"},
+					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+					Name:     &ast.Identifier{Value: "Multiply"},
 					Parameters: []*ast.Parameter{
 						{Name: &ast.Identifier{Value: "a"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
 						{Name: &ast.Identifier{Value: "b"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
@@ -529,7 +529,7 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token:      lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name:       &ast.Identifier{Value: "GetValue"},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
@@ -540,7 +540,7 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 		ImplementationSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token:      lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name:       &ast.Identifier{Value: "GetValue"},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
@@ -574,7 +574,7 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 					Units: []*ast.Identifier{{Value: "Base"}},
 				},
 				&ast.FunctionDecl{
-					Token:      lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name:       &ast.Identifier{Value: "ProcessValue"},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
@@ -585,7 +585,7 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 		ImplementationSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
-					Token:      lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+					BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name:       &ast.Identifier{Value: "ProcessValue"},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},

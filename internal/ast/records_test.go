@@ -104,8 +104,10 @@ func TestRecordDecl(t *testing.T) {
 			},
 			Methods: []*FunctionDecl{
 				{
-					Token: tok,
-					Name:  &Identifier{Token: tok, Value: "GetDistance"},
+					BaseNode: BaseNode{
+						Token: tok,
+					},
+					Name: &Identifier{Token: tok, Value: "GetDistance"},
 					ReturnType: &TypeAnnotation{
 						Token: tok,
 						Name:  "Float",

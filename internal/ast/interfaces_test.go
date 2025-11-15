@@ -394,7 +394,9 @@ func TestClassDeclWithInterfacesString(t *testing.T) {
 				Fields: []*FieldDecl{},
 				Methods: []*FunctionDecl{
 					{
-						Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+						},
 						Name: &Identifier{
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "Hello"},
 							Value: "Hello",

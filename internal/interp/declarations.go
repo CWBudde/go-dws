@@ -577,7 +577,9 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 		// Create a FunctionDecl from the InterfaceMethodDecl
 		// Interface methods are declarations only (no body)
 		funcDecl := &ast.FunctionDecl{
-			Token:      methodDecl.Token,
+			BaseNode: ast.BaseNode{
+				Token: methodDecl.Token,
+			},
 			Name:       methodDecl.Name,
 			Parameters: methodDecl.Parameters,
 			ReturnType: methodDecl.ReturnType,
@@ -628,6 +630,7 @@ func (i *Interpreter) synthesizeImplicitParameterlessConstructor(classInfo *Clas
 			// Create a minimal constructor AST node (just for runtime - no actual body needed)
 			// The interpreter will initialize fields with default values when no constructor body exists
 			implicitConstructor := &ast.FunctionDecl{
+				BaseNode:      ast.BaseNode{},
 				Name:          &ast.Identifier{Value: ctorName},
 				Parameters:    []*ast.Parameter{}, // No parameters
 				ReturnType:    nil,                // Constructors don't have explicit return types

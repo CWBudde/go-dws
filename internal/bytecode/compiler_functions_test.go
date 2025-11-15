@@ -154,6 +154,7 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 	intType := &ast.TypeAnnotation{Name: "Integer"}
 
 	paramX := &ast.Parameter{
+		Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 20)},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 20)},
 			Value: "x",
@@ -187,11 +188,13 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 	}
 
 	functionDecl := &ast.FunctionDecl{
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function", Pos: pos(1, 1)},
+		},
 		Name:       &ast.Identifier{Token: lexer.Token{Type: lexer.IDENT, Literal: "AddOne", Pos: pos(1, 1)}, Value: "AddOne"},
 		ReturnType: intType,
 		Parameters: []*ast.Parameter{paramX},
 		Body:       addOneBody,
-		Token:      lexer.Token{Type: lexer.FUNCTION, Literal: "function", Pos: pos(1, 1)},
 	}
 
 	callAddOne := &ast.CallExpression{

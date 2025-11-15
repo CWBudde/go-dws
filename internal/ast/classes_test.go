@@ -96,7 +96,9 @@ func TestClassDeclString(t *testing.T) {
 				Fields: []*FieldDecl{},
 				Methods: []*FunctionDecl{
 					{
-						Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+						BaseNode: BaseNode{
+							Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+						},
 						Name: &Identifier{
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
 							Value: "GetValue",

@@ -894,8 +894,13 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
   - [x] Embed BaseNode into TypeDeclaration
   - [x] Embed BaseNode into FieldDecl
   - [x] Embed BaseNode into PropertyDecl
-  - [ ] Embed BaseNode into FunctionDecl / constructor nodes
-  - [ ] Embed BaseNode into ClassDecl, RecordDecl, and any remaining declaration structs
+  - [x] Embed BaseNode into FunctionDecl / constructor nodes
+  - [ ] Embed BaseNode into ClassDecl / Class-related structs (`pkg/ast/classes.go`)
+  - [ ] Embed BaseNode into RecordDecl / RecordPropertyDecl (`pkg/ast/records.go`)
+  - [ ] Embed BaseNode into OperatorDecl
+  - [ ] Embed BaseNode into EnumDecl (`pkg/ast/enums.go`)
+  - [ ] Embed BaseNode into ArrayDecl/SetDecl nodes (`pkg/ast/arrays.go`, `pkg/ast/sets.go`)
+  - [ ] Embed BaseNode into UnitDeclaration and UsesClause structures (`pkg/ast/unit.go`)
   - [ ] Remove duplicate helper methods once all declaration structs embed the base
   - Files: `pkg/ast/declarations.go`, `pkg/ast/functions.go`, `pkg/ast/classes.go`, `pkg/ast/interfaces.go` (~500 lines affected)
   - HelperDecl, InterfaceDecl/InterfaceMethodDecl, ConstDecl, TypeDeclaration, FieldDecl, and PropertyDecl now embed the shared base; remaining declaration kinds still pending

@@ -22,7 +22,11 @@ func isCallingConvention(literal string) bool {
 //
 //	procedure Name(params); begin ... end;
 func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
-	fn := &ast.FunctionDecl{Token: p.curToken}
+	fn := &ast.FunctionDecl{
+		BaseNode: ast.BaseNode{
+			Token: p.curToken,
+		},
+	}
 
 	// Parse function name (may be qualified: ClassName.MethodName)
 	// In DWScript/Object Pascal, keywords can be used as identifiers in certain contexts

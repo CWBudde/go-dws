@@ -32,7 +32,9 @@ func TestInterfaceInfoWithInheritance(t *testing.T) {
 	// Create parent interface
 	parent := NewInterfaceInfo("IBase")
 	parentMethod := &ast.FunctionDecl{
-		Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+		},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "BaseMethod"},
 			Value: "BaseMethod",
@@ -44,7 +46,9 @@ func TestInterfaceInfoWithInheritance(t *testing.T) {
 	child := NewInterfaceInfo("IDerived")
 	child.Parent = parent
 	childMethod := &ast.FunctionDecl{
-		Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+		},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "DerivedMethod"},
 			Value: "DerivedMethod",
@@ -66,7 +70,9 @@ func TestInterfaceInfoAddMethod(t *testing.T) {
 
 	// Create method AST nodes
 	incrementMethod := &ast.FunctionDecl{
-		Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
+		},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Increment"},
 			Value: "Increment",
@@ -75,7 +81,9 @@ func TestInterfaceInfoAddMethod(t *testing.T) {
 	interfaceInfo.Methods["Increment"] = incrementMethod
 
 	getValueMethod := &ast.FunctionDecl{
-		Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+		},
 		Name: &ast.Identifier{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
 			Value: "GetValue",
@@ -387,7 +395,9 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 		},
 		Methods: []*ast.FunctionDecl{
 			{
-				Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+				},
 				Name: &ast.Identifier{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
 					Value: "GetValue",

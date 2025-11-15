@@ -164,8 +164,10 @@ func TestOldExpressionTokenLiteral(t *testing.T) {
 
 func TestFunctionDeclWithContracts(t *testing.T) {
 	funcDecl := &FunctionDecl{
-		Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
-		Name:  &Identifier{Value: "TestFunc", Token: lexer.Token{Type: lexer.IDENT, Literal: "TestFunc"}},
+		BaseNode: BaseNode{
+			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+		},
+		Name: &Identifier{Value: "TestFunc", Token: lexer.Token{Type: lexer.IDENT, Literal: "TestFunc"}},
 		Parameters: []*Parameter{
 			{
 				Name:  &Identifier{Value: "x", Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}},
