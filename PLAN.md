@@ -1010,6 +1010,740 @@ BenchmarkTypeCompatibilityCheck
 
 **Estimated Total Time**: 12-16 hours (1.5-2 days)
 
+---
+
+## Task 9.3: Fix Case-Insensitive Function Call Bug 🎯 **CRITICAL**
+
+**Goal**: Fix the critical bug where case-insensitive function calls silently fail in the interpreter, preventing recursion and breaking many DWScript programs including `quicksort.pas`.
+
+**Priority**: CRITICAL - Blocks many fixture tests and breaks fundamental DWScript language semantics
+
+**Estimate**: 8-12 hours (1-1.5 days)
+
+**Status**: NOT STARTED
+
+**Background**:
+
+During investigation of task 9.2.x, we discovered that `testdata/fixtures/Algorithms/quicksort.pas` fails NOT because of array type aliases (which work correctly), but because case-insensitive function calls silently fail. DWScript is a case-insensitive language, but our interpreter doesn't properly handle function calls when the case doesn't match the declaration.
+
+**Example Failure**:
+
+```pascal
+procedure QuickSort(var d: TData; i, j : Integer);
+begin
+  if i < j then
+  begin
+    m := partition(d, i, j);
+    quicksort(d, i, m);      // lowercase - SILENTLY FAILS!
+    quicksort(d, m + 1, j);  // lowercase - SILENTLY FAILS!
+  end;
+end;
+```
+
+The procedure is declared as `QuickSort` but called as `quicksort`. This should work (DWScript is case-insensitive), but the call silently returns without executing the function body. No error is raised, execution just continues.
+
+**Impact**:
+
+- ❌ Recursion broken (affects many algorithms)
+- ❌ Callbacks broken
+- ❌ Method calls broken
+- ❌ Many fixture tests fail
+- ❌ Fundamental language semantics violated
+
+**Current State**:
+
+- ✅ Semantic analyzer: Correctly normalizes to lowercase (works)
+- ✅ Symbol table: Correctly stores with lowercase keys (works)
+- ❌ Interpreter: Function call evaluation FAILS (broken)
+- ❓ Bytecode VM: Unknown if affected
+
+**Test Files Created During Discovery**:
+
+- `testdata/case_test.dws` - Simple recursion test
+- `testdata/case_test2.dws` - Detailed recursion test with debug output
+- `testdata/quicksort_simple.dws` - Simplified quicksort with debug
+- `testdata/var_param_debug.dws` - Verifies var params work (they do)
+
+**Reference**: See `docs/task-9.2.x-final-analysis.md` for detailed analysis
+
+---
+
+### Task 9.3.1: Reproduce and Document the Bug
+
+**Goal**: Create minimal reproducible test cases and document the exact failure behavior.
+
+**Status**: DONE ✅ (Completed during task 9.2.x investigation)
+
+**Estimate**: 1 hour
+
+**Actions**:
+
+- [x] Create minimal test case demonstrating silent failure
+- [x] Test with recursive calls
+- [x] Test with mutual recursion
+- [x] Test with callbacks/function parameters
+- [x] Document expected vs actual behavior
+- [x] Verify semantic analysis passes (it does)
+- [x] Verify no errors are raised (none are)
+
+**Minimal Test Case** (`testdata/case_test2.dws`):
+
+```pascal
+procedure TestProc(x: Integer);
+begin
+  PrintLn('TestProc called with: ' + IntToStr(x));
+  if x > 0 then
+  begin
+    PrintLn('About to call testproc recursively with: ' + IntToStr(x - 1));
+    testproc(x - 1);  // lowercase call to TestProc
+    PrintLn('Returned from recursive call');
+  end
+  else
+    PrintLn('Base case reached');
+end;
+
+TestProc(3);
+```
+
+**Expected Output**:
+```
+TestProc called with: 3
+About to call testproc recursively with: 2
+TestProc called with: 2
+About to call testproc recursively with: 1
+TestProc called with: 1
+About to call testproc recursively with: 0
+TestProc called with: 0
+Base case reached
+Returned from recursive call
+Returned from recursive call
+Returned from recursive call
+```
+
+**Actual Output**:
+```
+Starting test...
+TestProc called with: 3
+About to call testproc recursively with: 2
+Test complete
+```
+
+**Analysis**: The recursive call `testproc(x - 1)` silently fails - no error, just doesn't execute.
+
+**Files Created**:
+
+- [x] `testdata/case_test.dws` - Simple test
+- [x] `testdata/case_test2.dws` - Detailed test
+- [x] `testdata/quicksort_simple.dws` - Real-world example
+
+---
+
+### Task 9.3.2: Identify Root Cause in Interpreter
+
+**Goal**: Trace through interpreter code to find exactly where function lookup fails.
+
+**Status**: NOT STARTED
+
+**Estimate**: 2-3 hours
+
+**Actions**:
+
+- [ ] Review function call evaluation in `internal/interp/interp.go`
+- [ ] Trace `CallExpression` evaluation path
+- [ ] Find where function identifier is looked up
+- [ ] Identify if lookup uses case-sensitive or case-insensitive comparison
+- [ ] Check if `Environment.Get()` is called (it normalizes to lowercase)
+- [ ] Find the code path that bypasses proper lookup
+- [ ] Document the exact bug location with line numbers
+- [ ] Create a call stack diagram showing the failure path
+
+**Key Files to Investigate**:
+
+- `internal/interp/interp.go` - Main interpreter, function call evaluation
+- `internal/interp/environment.go` - Environment.Get() already normalizes (✅ works)
+- `internal/interp/value.go` - FunctionValue representation
+- `internal/interp/functions.go` - Function call handling (if exists)
+
+**Expected Findings**:
+
+The bug is likely in one of these scenarios:
+
+1. **Scenario A**: Function call evaluation uses identifier name directly without normalization
+   - `CallExpression` gets the function name
+   - Looks it up WITHOUT calling `strings.ToLower()`
+   - Fails to find it in environment
+   - Silently returns instead of erroring
+
+2. **Scenario B**: Function value is stored with original case, not normalized
+   - Function definition stores with original case
+   - Lookup uses normalized case
+   - Mismatch causes silent failure
+
+3. **Scenario C**: Two different code paths for function lookup
+   - Initial call uses normalized lookup (works)
+   - Recursive call uses different path that's case-sensitive (fails)
+
+**Debug Strategy**:
+
+1. Add logging to `CallExpression` evaluation
+2. Log function name being looked up (before and after normalization)
+3. Log environment lookup result
+4. Log function execution path
+5. Compare working vs failing calls
+
+**Files to Modify for Debugging** (temporary):
+
+- `internal/interp/interp.go` - Add debug logging to function call eval
+
+---
+
+### Task 9.3.3: Write Failing Unit Tests (TDD - Red Phase)
+
+**Goal**: Create comprehensive tests that document expected behavior and currently fail.
+
+**Status**: NOT STARTED
+
+**Estimate**: 2-3 hours
+
+**Actions**:
+
+- [ ] Create `internal/interp/case_insensitive_test.go` for interpreter tests
+- [ ] Write tests for case-insensitive function calls
+- [ ] Write tests for recursive calls with different case
+- [ ] Write tests for mutual recursion with different case
+- [ ] Write tests for function parameters/callbacks
+- [ ] Write tests for mixed case in call chain
+- [ ] All tests should currently FAIL
+
+**Test Cases to Write**:
+
+```go
+// internal/interp/case_insensitive_test.go
+
+func TestCaseInsensitiveFunctionCall(t *testing.T) {
+    // procedure Test(); begin end;
+    // Test();  // capital T
+    // test();  // lowercase
+    // TEST();  // uppercase
+}
+
+func TestCaseInsensitiveRecursion(t *testing.T) {
+    // procedure Factorial(n: Integer): Integer;
+    // begin
+    //   if n <= 1 then Result := 1
+    //   else Result := n * factorial(n - 1);  // lowercase!
+    // end;
+}
+
+func TestCaseInsensitiveMutualRecursion(t *testing.T) {
+    // procedure IsEven(n: Integer): Boolean;
+    // begin
+    //   if n = 0 then Result := true
+    //   else Result := isodd(n - 1);  // lowercase!
+    // end;
+    //
+    // procedure IsOdd(n: Integer): Boolean;
+    // begin
+    //   if n = 0 then Result := false
+    //   else Result := iseven(n - 1);  // lowercase!
+    // end;
+}
+
+func TestCaseInsensitiveFunctionParameter(t *testing.T) {
+    // type TCallback = function(x: Integer): Integer;
+    //
+    // function Apply(f: TCallback; x: Integer): Integer;
+    // begin
+    //   Result := f(x);
+    // end;
+    //
+    // function Double(x: Integer): Integer;
+    // begin
+    //   Result := x * 2;
+    // end;
+    //
+    // PrintLn(IntToStr(apply(double, 5)));  // lowercase names!
+}
+
+func TestCaseInsensitiveBuiltinFunctions(t *testing.T) {
+    // PrintLn('test');   // capital P, L
+    // println('test');   // lowercase
+    // PRINTLN('test');   // uppercase
+}
+
+func TestMixedCaseCallChain(t *testing.T) {
+    // procedure A(); begin B(); end;
+    // procedure B(); begin C(); end;
+    // procedure C(); begin PrintLn('C'); end;
+    //
+    // a();  // Should call A -> B -> C
+}
+```
+
+**Files to Create**:
+
+- `internal/interp/case_insensitive_test.go` - Interpreter case-insensitive tests
+
+---
+
+### Task 9.3.4: Fix Interpreter Function Call Lookup
+
+**Goal**: Fix the interpreter to properly handle case-insensitive function calls.
+
+**Status**: NOT STARTED
+
+**Estimate**: 2-3 hours
+
+**Actions**:
+
+- [ ] Locate function call evaluation code in `interp.go`
+- [ ] Ensure function name is normalized before lookup
+- [ ] Verify `Environment.Get()` is called with normalized name
+- [ ] Fix any direct map access that bypasses normalization
+- [ ] Add error handling if function not found (don't fail silently!)
+- [ ] Run unit tests from 9.3.3 - should now pass
+- [ ] Test with `testdata/case_test2.dws` - should work
+
+**Expected Implementation**:
+
+The fix will likely be in `internal/interp/interp.go` in the `CallExpression` case:
+
+```go
+// BEFORE (hypothetical broken code):
+case *ast.CallExpression:
+    funcName := callExpr.Function.(*ast.Identifier).Value
+    funcVal, ok := env.store[funcName]  // BUG: Direct map access, case-sensitive!
+    if !ok {
+        return nil  // BUG: Silent failure!
+    }
+
+// AFTER (fixed code):
+case *ast.CallExpression:
+    funcName := callExpr.Function.(*ast.Identifier).Value
+    funcVal, ok := env.Get(funcName)  // FIX: Use Get() which normalizes case
+    if !ok {
+        return i.error("function '%s' not found", funcName)  // FIX: Proper error
+    }
+```
+
+**Key Principles**:
+
+1. **Always use `Environment.Get()`** - Never access `env.store` directly
+2. **Never fail silently** - Always return error if function not found
+3. **Trust the environment** - It already handles case normalization correctly
+
+**Files to Modify**:
+
+- `internal/interp/interp.go` - Fix function call evaluation
+- Possibly `internal/interp/value.go` - If function value storage is wrong
+
+**Tests to Pass**:
+
+- `TestCaseInsensitiveFunctionCall`
+- `TestCaseInsensitiveRecursion`
+- `TestCaseInsensitiveMutualRecursion`
+- `testdata/case_test2.dws` should produce correct output
+
+---
+
+### Task 9.3.5: Verify Bytecode VM Function Calls
+
+**Goal**: Check if bytecode VM has the same bug and fix if needed.
+
+**Status**: NOT STARTED
+
+**Estimate**: 2-3 hours
+
+**Actions**:
+
+- [ ] Test `testdata/case_test2.dws` with bytecode VM
+- [ ] Check if bytecode VM has the same bug
+- [ ] If broken, identify root cause in VM
+- [ ] Fix bytecode VM function call lookup
+- [ ] Ensure compiler generates correct bytecode for function calls
+- [ ] Run all tests with `--bytecode` flag
+- [ ] Compare bytecode output with interpreter output
+
+**Test Command**:
+
+```bash
+# Test if bytecode VM has same bug
+./bin/dwscript run --bytecode testdata/case_test2.dws
+
+# If it fails similarly, need to fix VM
+# If it works, only interpreter needed fixing
+```
+
+**Bytecode VM Files to Check**:
+
+- `internal/bytecode/compiler.go` - Function call compilation
+- `internal/bytecode/vm.go` - CALL instruction execution
+- `internal/bytecode/instruction.go` - Function call opcodes
+
+**Expected Scenarios**:
+
+**Scenario A**: Bytecode VM already works
+- Compiler resolves function names at compile time
+- Bytecode references functions by index, not name
+- Case is irrelevant at runtime
+- ✅ No fix needed
+
+**Scenario B**: Bytecode VM has same bug
+- VM looks up functions by name at runtime
+- Lookup is case-sensitive
+- ❌ Need to fix VM
+
+**Files to Modify** (if needed):
+
+- `internal/bytecode/vm.go` - Fix function lookup if case-sensitive
+- `internal/bytecode/compiler.go` - Ensure proper name resolution
+
+---
+
+### Task 9.3.6: Verify quicksort.pas Works
+
+**Goal**: Verify that the original failing test now passes with the fix.
+
+**Status**: NOT STARTED
+
+**Estimate**: 30 minutes
+
+**Actions**:
+
+- [ ] Run `testdata/fixtures/Algorithms/quicksort.pas` with interpreter
+- [ ] Verify output matches expected results in `quicksort.txt`
+- [ ] Check that swaps count is >=100
+- [ ] Verify array is sorted (0, 1, 2, ..., 99)
+- [ ] Test with bytecode VM if supported
+- [ ] Document results
+
+**Test Commands**:
+
+```bash
+# Test with AST interpreter
+./bin/dwscript run testdata/fixtures/Algorithms/quicksort.pas > /tmp/quicksort_output.txt
+diff testdata/fixtures/Algorithms/quicksort.txt /tmp/quicksort_output.txt
+
+# Test with bytecode VM (if const declarations supported)
+./bin/dwscript run --bytecode testdata/fixtures/Algorithms/quicksort.pas
+```
+
+**Expected Output** (from `quicksort.txt`):
+
+```
+Swaps: >=100
+Data:
+0
+1
+2
+...
+99
+```
+
+**Success Criteria**:
+
+- ✅ Output matches expected output exactly
+- ✅ Array is fully sorted (0-99)
+- ✅ Swaps count is >=100
+- ✅ No errors during execution
+- ✅ Recursion works correctly
+
+---
+
+### Task 9.3.7: Test Case-Insensitive Function Calls in Fixture Suite
+
+**Goal**: Run fixture tests to verify the fix doesn't break existing tests and enables previously failing tests.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1-2 hours
+
+**Actions**:
+
+- [ ] Run full fixture test suite: `go test -v ./internal/interp -run TestDWScriptFixtures`
+- [ ] Identify tests that now pass (were failing due to case-insensitive calls)
+- [ ] Update `testdata/fixtures/TEST_STATUS.md` with new pass/fail counts
+- [ ] Document any tests that still fail (different issues)
+- [ ] Verify no regressions (no newly failing tests)
+- [ ] Categorize failures by root cause
+
+**Test Command**:
+
+```bash
+# Run all fixture tests
+go test -v ./internal/interp -run TestDWScriptFixtures 2>&1 | tee fixture_test_results.txt
+
+# Count passes/failures
+grep -c "PASS" fixture_test_results.txt
+grep -c "FAIL" fixture_test_results.txt
+```
+
+**Expected Results**:
+
+Before fix:
+- Many tests fail due to case-insensitive function calls
+- Recursion-based algorithms fail
+- Callback-based tests fail
+
+After fix:
+- ✅ Recursion tests pass
+- ✅ Algorithm tests pass (quicksort, mergesort, etc.)
+- ✅ Callback tests pass
+- ⚠️ Some tests may still fail due to other unimplemented features
+
+**Files to Update**:
+
+- `testdata/fixtures/TEST_STATUS.md` - Update pass/fail statistics
+
+---
+
+### Task 9.3.8: Add Integration Tests for Case Insensitivity
+
+**Goal**: Create comprehensive integration tests to prevent regression.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1-2 hours
+
+**Actions**:
+
+- [ ] Create `testdata/test_cases/case_insensitivity/` directory
+- [ ] Create test for recursive factorial with mixed case
+- [ ] Create test for mutual recursion with mixed case
+- [ ] Create test for function parameters/callbacks with mixed case
+- [ ] Create test for nested calls with mixed case
+- [ ] Add expected output files
+- [ ] Integrate into CI test suite
+- [ ] Document test coverage
+
+**Test Files to Create**:
+
+1. **`testdata/test_cases/case_insensitivity/factorial.dws`**:
+```pascal
+function Factorial(n: Integer): Integer;
+begin
+  if n <= 1 then
+    Result := 1
+  else
+    Result := n * factorial(n - 1);  // lowercase recursive call
+end;
+
+PrintLn(IntToStr(Factorial(5)));  // Should print: 120
+PrintLn(IntToStr(factorial(6)));  // lowercase call, should print: 720
+PrintLn(IntToStr(FACTORIAL(4)));  // uppercase call, should print: 24
+```
+
+2. **`testdata/test_cases/case_insensitivity/mutual_recursion.dws`**:
+```pascal
+function IsEven(n: Integer): Boolean;
+begin
+  if n = 0 then
+    Result := true
+  else
+    Result := isodd(n - 1);  // lowercase call
+end;
+
+function IsOdd(n: Integer): Boolean;
+begin
+  if n = 0 then
+    Result := false
+  else
+    Result := iseven(n - 1);  // lowercase call
+end;
+
+PrintLn(BoolToStr(IsEven(4)));   // Should print: True
+PrintLn(BoolToStr(iseven(3)));   // lowercase, should print: False
+PrintLn(BoolToStr(IsOdd(5)));    // Should print: True
+PrintLn(BoolToStr(ISODD(6)));    // uppercase, should print: False
+```
+
+3. **`testdata/test_cases/case_insensitivity/callbacks.dws`**:
+```pascal
+type TIntFunc = function(x: Integer): Integer;
+
+function Apply(f: TIntFunc; x: Integer): Integer;
+begin
+  Result := f(x);
+end;
+
+function Double(x: Integer): Integer;
+begin
+  Result := x * 2;
+end;
+
+function Triple(x: Integer): Integer;
+begin
+  Result := x * 3;
+end;
+
+// Test with mixed case
+PrintLn(IntToStr(apply(double, 5)));   // lowercase, should print: 10
+PrintLn(IntToStr(Apply(TRIPLE, 5)));   // uppercase, should print: 15
+PrintLn(IntToStr(APPLY(Double, 7)));   // mixed, should print: 14
+```
+
+4. **`testdata/test_cases/case_insensitivity/nested_calls.dws`**:
+```pascal
+procedure A();
+begin
+  PrintLn('In A');
+  b();  // lowercase call to B
+end;
+
+procedure B();
+begin
+  PrintLn('In B');
+  C();  // capital C
+end;
+
+procedure C();
+begin
+  PrintLn('In C');
+end;
+
+a();  // lowercase call to A - should print all three
+```
+
+**Expected Output Files**:
+
+- `factorial.expected` - Expected output for factorial test
+- `mutual_recursion.expected` - Expected output for mutual recursion
+- `callbacks.expected` - Expected output for callbacks
+- `nested_calls.expected` - Expected output for nested calls
+
+**Files to Create**:
+
+- `testdata/test_cases/case_insensitivity/factorial.dws`
+- `testdata/test_cases/case_insensitivity/factorial.expected`
+- `testdata/test_cases/case_insensitivity/mutual_recursion.dws`
+- `testdata/test_cases/case_insensitivity/mutual_recursion.expected`
+- `testdata/test_cases/case_insensitivity/callbacks.dws`
+- `testdata/test_cases/case_insensitivity/callbacks.expected`
+- `testdata/test_cases/case_insensitivity/nested_calls.dws`
+- `testdata/test_cases/case_insensitivity/nested_calls.expected`
+
+---
+
+### Task 9.3.9: Run Full Test Suite and Verify No Regressions
+
+**Goal**: Ensure the fix doesn't break any existing tests.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1 hour
+
+**Actions**:
+
+- [ ] Run full unit test suite: `go test ./...`
+- [ ] Run all internal tests: `go test ./internal/...`
+- [ ] Run parser tests: `go test ./internal/parser/...`
+- [ ] Run semantic tests: `go test ./internal/semantic/...`
+- [ ] Run interpreter tests: `go test ./internal/interp/...`
+- [ ] Run bytecode tests: `go test ./internal/bytecode/...`
+- [ ] Identify any regressions
+- [ ] Fix any broken tests
+- [ ] Verify test coverage hasn't decreased
+
+**Test Commands**:
+
+```bash
+# Full test suite
+go test ./...
+
+# With verbose output
+go test -v ./...
+
+# With coverage
+go test -cover ./...
+
+# Specific packages
+go test -v ./internal/interp/...
+go test -v ./internal/bytecode/...
+```
+
+**Success Criteria**:
+
+- ✅ All existing tests still pass
+- ✅ No new test failures
+- ✅ Test coverage maintained or improved
+- ✅ No performance regressions
+
+---
+
+### Task 9.3.10: Update Documentation
+
+**Goal**: Document the case-insensitive function call behavior and the bug fix.
+
+**Status**: NOT STARTED
+
+**Estimate**: 1 hour
+
+**Actions**:
+
+- [ ] Update CLAUDE.md with case-insensitivity notes
+- [ ] Document the bug in a lessons-learned file
+- [ ] Update PLAN.md to mark task 9.3 as complete
+- [ ] Create stage summary document
+- [ ] Document test coverage improvements
+
+**Documentation Updates**:
+
+1. **CLAUDE.md** - Add section on case insensitivity:
+```markdown
+## Case Insensitivity
+
+DWScript is a case-insensitive language, meaning:
+- Keywords can be written in any case: `begin`, `BEGIN`, `Begin`
+- Identifiers are case-insensitive: `myVar`, `myvar`, `MYVAR` are all the same
+- Function calls are case-insensitive: `PrintLn`, `println`, `PRINTLN` all work
+- Type names are case-insensitive: `Integer`, `integer`, `INTEGER`
+
+The implementation normalizes all identifiers to lowercase for lookup, making
+case insensitivity transparent throughout the compiler and runtime.
+```
+
+2. **Create `docs/task-9.3-case-insensitive-fix.md`**:
+- Describe the bug
+- Explain the root cause
+- Document the fix
+- Show before/after examples
+- List affected tests
+
+3. **Update `PLAN.md`**:
+- Mark task 9.3 as DONE
+- Update overall progress
+
+**Files to Update/Create**:
+
+- `CLAUDE.md` - Add case insensitivity section
+- `docs/task-9.3-case-insensitive-fix.md` - Bug fix documentation
+- `PLAN.md` - Mark task complete
+
+---
+
+**Overall Success Criteria for Task 9.3**:
+
+- ✅ `testdata/fixtures/Algorithms/quicksort.pas` passes and produces correct sorted output
+- ✅ Recursive function calls work with any case combination
+- ✅ Mutual recursion works with mixed case
+- ✅ Function parameters/callbacks work with mixed case
+- ✅ All new unit tests pass (6+ tests)
+- ✅ All new integration tests pass (4+ test files)
+- ✅ No regressions in existing tests
+- ✅ Bytecode VM works correctly (if it had the same bug)
+- ✅ Fixture test suite shows significant improvement in pass rate
+- ✅ Comprehensive documentation
+
+**Estimated Total Time**: 8-12 hours (1-1.5 days)
+
+**Priority**: CRITICAL - This bug blocks fundamental language functionality
+
+**Dependencies**: None - can start immediately
+
+**Blocks**: Many fixture tests, recursion-based algorithms, callbacks
+
+---
+
 ## Task 9.15: Support Parameterless Methods Callable Without Parentheses
 
 **Goal**: Enable DWScript/Pascal syntax where parameterless methods/functions can be called without parentheses.
