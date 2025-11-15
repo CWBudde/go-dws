@@ -409,6 +409,83 @@ just test
 - Check original DWScript source for handling of this case
 - If needed, implement proper coercion rules
 
+## Task 9.15: Support Parameterless Methods Callable Without Parentheses
+
+**Goal**: Enable DWScript/Pascal syntax where parameterless methods/functions can be called without parentheses.
+
+**Estimate**: 4-6 hours
+
+**Status**: ✅ **DONE**
+
+**Impact**: Critical for DWScript language compatibility - enables idiomatic code like `result := obj.GetValue` and string concatenation with method results like `'bottle' + obj.EvalS + ' of beer'`
+
+**Description**: In DWScript/Pascal, parameterless methods can be invoked without parentheses when referenced as identifiers or via member access. This is different from method pointers - it's an implicit call that executes the method and returns its result.
+
+**Implementation**:
+
+1. **Semantic Analyzer Changes**:
+   - `internal/semantic/analyze_expr_operators.go` (lines 127-142):
+     - When analyzing identifiers that refer to parameterless methods in current class context
+     - Return the method's return type (implicit call) instead of method pointer type
+     - Error if method has parameters but is referenced without parentheses
+   - `internal/semantic/analyze_classes.go` (lines 361-374):
+     - When analyzing member access expressions (e.g., `obj.MethodName`)
+     - Check if method has zero parameters
+     - If yes: return method's return type (enables implicit call)
+     - If no: return method pointer type (requires explicit call with parentheses)
+
+2. **Interpreter Changes**:
+   - `internal/interp/expressions_basic.go` (lines 92-106):
+     - When evaluating identifiers that refer to parameterless methods
+     - Create synthetic MethodCallExpression with empty arguments
+     - Execute via evalMethodCall to get actual return value
+   - `internal/interp/objects_hierarchy.go` (lines 364-371):
+     - Already has auto-invoke logic for parameterless methods in member access
+     - No changes needed - existing implementation is correct
+
+3. **Return Value Dereferencing Fixes**:
+   - `internal/interp/objects_methods.go` (lines 776-790):
+     - When retrieving method return values from Result or method name variables
+     - Check if value is a ReferenceValue and dereference it
+     - Prevents returning reference wrappers instead of actual values
+   - `internal/interp/objects_properties.go` (5 occurrences):
+     - Same dereferencing logic for property getter return values
+     - Ensures properties return actual values, not references
+
+**Key Insight**: In DWScript, you can assign to either `Result` or use the function name itself as a variable. When the function name is used, it may be stored as a ReferenceValue that needs dereferencing when retrieved.
+
+**Examples**:
+```pascal
+// Parameterless method called without parentheses
+function GetValue: String;
+begin
+  Result := 'Hello';
+end;
+
+var x := obj.GetValue;  // Implicit call, x = 'Hello'
+
+// In expressions
+var msg := 'bottle' + obj.EvalS + ' of beer';  // EvalS is called implicitly
+
+// With properties using method getters
+property Line: String read GetLine;
+PrintLn(obj.Line);  // GetLine() is called implicitly
+```
+
+**Testing**:
+- ✅ Semantic analysis: No type errors for parameterless method references
+- ✅ Simple method calls: Tested and working
+- ✅ Property getters: Tested and working
+- ✅ String concatenation with methods: Tested and working
+- ⚠️ Complex test (bottles_of_beer): Still has runtime issues (separate from this fix)
+
+**Files Modified**:
+- `internal/semantic/analyze_expr_operators.go`
+- `internal/semantic/analyze_classes.go`
+- `internal/interp/expressions_basic.go`
+- `internal/interp/objects_methods.go`
+- `internal/interp/objects_properties.go`
+
 ## Task 9.16 Introduce Base Structs for AST Nodes
 
 **Goal**: Eliminate code duplication by introducing base structs for common node fields and behavior.
