@@ -537,7 +537,11 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	if recVal, ok := objVal.(*RecordValue); ok {
 		// Convert MethodCallExpression to member access for record method calls
 		memberAccess := &ast.MemberAccessExpression{
-			Token:  mc.Token,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: mc.Token,
+				},
+			},
 			Object: mc.Object,
 			Member: mc.Method,
 		}

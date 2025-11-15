@@ -248,25 +248,28 @@ func (fd *FieldDecl) String() string {
 //   - ClassDeclaration: for class type definitions
 //   - ConstructorDeclaration: for constructor method definitions
 type NewExpression struct {
-	ClassName *Identifier     // The class name (e.g., TAnimal, TPerson)
-	Type      *TypeAnnotation // Inferred class type (for semantic analysis)
-	Arguments []Expression    // Constructor arguments
-	Token     token.Token     // The 'new' token or class name token
-	EndPos    token.Position
+	TypedExpressionBase
+	ClassName *Identifier  // The class name (e.g., TAnimal, TPerson)
+	Arguments []Expression // Constructor arguments
 }
 
-func (n *NewExpression) End() token.Position {
-	if n.EndPos.Line != 0 {
-		return n.EndPos
+func (ne *NewExpression) expressionNode() {}
+
+// TokenLiteral returns the class name's token literal
+func (ne *NewExpression) TokenLiteral() string {
+	if ne.ClassName != nil {
+		return ne.ClassName.TokenLiteral()
 	}
-	return n.Token.Pos
+	return ne.Token.Literal
 }
 
-func (ne *NewExpression) expressionNode()             {}
-func (ne *NewExpression) TokenLiteral() string        { return ne.ClassName.TokenLiteral() }
-func (ne *NewExpression) Pos() token.Position         { return ne.ClassName.Pos() }
-func (ne *NewExpression) GetType() *TypeAnnotation    { return ne.Type }
-func (ne *NewExpression) SetType(typ *TypeAnnotation) { ne.Type = typ }
+// Pos returns the position from the ClassName
+func (ne *NewExpression) Pos() token.Position {
+	if ne.ClassName != nil {
+		return ne.ClassName.Pos()
+	}
+	return ne.Token.Pos
+}
 func (ne *NewExpression) String() string {
 	var out bytes.Buffer
 
@@ -295,25 +298,17 @@ func (ne *NewExpression) String() string {
 //	obj.method
 //	obj.field1.field2
 type MemberAccessExpression struct {
+	TypedExpressionBase
 	Object Expression
 	Member *Identifier
-	Type   *TypeAnnotation
-	Token  token.Token
-	EndPos token.Position
 }
 
-func (m *MemberAccessExpression) End() token.Position {
-	if m.EndPos.Line != 0 {
-		return m.EndPos
-	}
-	return m.Token.Pos
-}
+func (ma *MemberAccessExpression) expressionNode() {}
 
-func (ma *MemberAccessExpression) expressionNode()             {}
-func (ma *MemberAccessExpression) TokenLiteral() string        { return ma.Token.Literal }
-func (ma *MemberAccessExpression) Pos() token.Position         { return ma.Object.Pos() }
-func (ma *MemberAccessExpression) GetType() *TypeAnnotation    { return ma.Type }
-func (ma *MemberAccessExpression) SetType(typ *TypeAnnotation) { ma.Type = typ }
+// Pos returns the start position from the Object expression
+func (ma *MemberAccessExpression) Pos() token.Position {
+	return ma.Object.Pos()
+}
 func (ma *MemberAccessExpression) String() string {
 	var out bytes.Buffer
 
@@ -334,26 +329,18 @@ func (ma *MemberAccessExpression) String() string {
 //	obj.MethodName(arg1, arg2)
 //	obj.MethodName()
 type MethodCallExpression struct {
+	TypedExpressionBase
 	Object    Expression
 	Method    *Identifier
-	Type      *TypeAnnotation
 	Arguments []Expression
-	Token     token.Token
-	EndPos    token.Position
 }
 
-func (m *MethodCallExpression) End() token.Position {
-	if m.EndPos.Line != 0 {
-		return m.EndPos
-	}
-	return m.Token.Pos
-}
+func (mc *MethodCallExpression) expressionNode() {}
 
-func (mc *MethodCallExpression) expressionNode()             {}
-func (mc *MethodCallExpression) TokenLiteral() string        { return mc.Token.Literal }
-func (mc *MethodCallExpression) Pos() token.Position         { return mc.Object.Pos() }
-func (mc *MethodCallExpression) GetType() *TypeAnnotation    { return mc.Type }
-func (mc *MethodCallExpression) SetType(typ *TypeAnnotation) { mc.Type = typ }
+// Pos returns the start position from the Object expression
+func (mc *MethodCallExpression) Pos() token.Position {
+	return mc.Object.Pos()
+}
 func (mc *MethodCallExpression) String() string {
 	var out bytes.Buffer
 
@@ -382,27 +369,14 @@ func (mc *MethodCallExpression) String() string {
 //	inherited MethodName
 //	inherited
 type InheritedExpression struct {
+	TypedExpressionBase
 	Method    *Identifier
-	Type      *TypeAnnotation
 	Arguments []Expression
-	Token     token.Token
-	EndPos    token.Position
 	IsCall    bool
 	IsMember  bool
 }
 
-func (i *InheritedExpression) End() token.Position {
-	if i.EndPos.Line != 0 {
-		return i.EndPos
-	}
-	return i.Token.Pos
-}
-
-func (ie *InheritedExpression) expressionNode()             {}
-func (ie *InheritedExpression) TokenLiteral() string        { return ie.Token.Literal }
-func (ie *InheritedExpression) Pos() token.Position         { return ie.Token.Pos }
-func (ie *InheritedExpression) GetType() *TypeAnnotation    { return ie.Type }
-func (ie *InheritedExpression) SetType(typ *TypeAnnotation) { ie.Type = typ }
+func (ie *InheritedExpression) expressionNode() {}
 func (ie *InheritedExpression) String() string {
 	var out bytes.Buffer
 	out.WriteString("inherited")
