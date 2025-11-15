@@ -797,7 +797,11 @@ func (p *Parser) parseNewExpression() ast.Expression {
 		// No parentheses - treat as zero-argument constructor
 		// DWScript allows: new TTest (equivalent to new TTest())
 		return &ast.NewExpression{
-			Token:     newToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: newToken,
+				},
+			},
 			ClassName: typeName,
 			Arguments: []ast.Expression{},
 		}
@@ -809,7 +813,11 @@ func (p *Parser) parseNewExpression() ast.Expression {
 func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Identifier) ast.Expression {
 	// Create NewExpression
 	newExpr := &ast.NewExpression{
-		Token:     newToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: newToken,
+			},
+		},
 		ClassName: className,
 		Arguments: []ast.Expression{},
 	}
@@ -884,7 +892,11 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 //   - inherited MethodName(args) // Call parent method with args
 func (p *Parser) parseInheritedExpression() ast.Expression {
 	inheritedExpr := &ast.InheritedExpression{
-		Token: p.curToken, // The 'inherited' keyword
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken, // The 'inherited' keyword
+			},
+		},
 	}
 
 	// Check if there's a method name following
