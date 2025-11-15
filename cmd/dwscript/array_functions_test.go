@@ -8,7 +8,6 @@ import (
 )
 
 // TestArrayFunctions tests the CLI with array function scripts
-// Tasks 9.79-9.80: CLI integration tests for array functions (Copy, IndexOf, Contains, Reverse, Sort)
 func TestArrayFunctions(t *testing.T) {
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")

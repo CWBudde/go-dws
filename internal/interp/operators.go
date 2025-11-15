@@ -64,7 +64,7 @@ func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string)
 		}
 	}
 
-	// Task 9.14: If no exact match, try assignment-compatible match (for inheritance)
+	// If no exact match, try assignment-compatible match (for inheritance)
 	// This allows subclasses to use operators defined on parent classes
 	for _, entry := range r.entries[key] {
 		if len(entry.OperandTypes) != len(operandTypes) {
@@ -89,14 +89,13 @@ func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string)
 
 // areRuntimeTypesCompatibleForOperator checks if actualType can be used where declaredType is expected.
 // This supports inheritance: a subclass instance can be used where parent class is expected.
-// Task 9.24.2: Also supports array type compatibility (e.g., array of Integer -> array of Variant).
 func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, declaredClass *ClassInfo) bool {
 	// Exact match
 	if actualType == declaredType {
 		return true
 	}
 
-	// Task 9.24.2: Check array type compatibility
+	// Check array type compatibility
 	// array of T is compatible with array of Variant (array of const) for any type T
 	if strings.HasPrefix(actualType, "ARRAY OF ") && declaredType == "ARRAY OF VARIANT" {
 		return true
@@ -283,7 +282,7 @@ func valueTypeKey(val Value) string {
 		}
 		return "RECORD"
 	case *ArrayValue:
-		// Task 9.16.6: Include array element type for operator overload matching
+		// Include array element type for operator overload matching
 		if v.ArrayType != nil && v.ArrayType.ElementType != nil {
 			elemTypeStr := v.ArrayType.ElementType.String()
 			return "ARRAY OF " + strings.ToUpper(elemTypeStr)

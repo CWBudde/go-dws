@@ -48,7 +48,6 @@ func findBuiltinMethodCaseInsensitive(builtinMethods map[string]string, name str
 // GetMethod looks up a method by name in this helper.
 // If not found in this helper, searches in parent helper (if any).
 // Returns the method, the helper that owns it, and whether it was found.
-// Task 9.1: Helper inheritance support
 func (h *HelperInfo) GetMethod(name string) (*ast.FunctionDecl, *HelperInfo, bool) {
 	// Look in this helper first (case-insensitive)
 	if method := findMethodCaseInsensitive(h.Methods, name); method != nil {
@@ -66,7 +65,6 @@ func (h *HelperInfo) GetMethod(name string) (*ast.FunctionDecl, *HelperInfo, boo
 // GetBuiltinMethod looks up a builtin method spec by name in this helper.
 // If not found in this helper, searches in parent helper (if any).
 // Returns the builtin spec, the helper that owns it, and whether it was found.
-// Task 9.1: Helper inheritance support
 func (h *HelperInfo) GetBuiltinMethod(name string) (string, *HelperInfo, bool) {
 	// Look in this helper first (case-insensitive)
 	if spec, ok := findBuiltinMethodCaseInsensitive(h.BuiltinMethods, name); ok {
@@ -84,7 +82,6 @@ func (h *HelperInfo) GetBuiltinMethod(name string) (string, *HelperInfo, bool) {
 // GetProperty looks up a property by name in this helper.
 // If not found in this helper, searches in parent helper (if any).
 // Returns the property, the helper that owns it, and whether it was found.
-// Task 9.1: Helper inheritance support
 func (h *HelperInfo) GetProperty(name string) (*types.PropertyInfo, *HelperInfo, bool) {
 	// Look in this helper first (case-insensitive)
 	if prop := findPropertyCaseInsensitive(h.Properties, name); prop != nil {
@@ -157,7 +154,6 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 
 // findHelperMethod searches all applicable helpers for a method with the given name
 // and returns the helper that owns the method, method declaration (if any), and builtin specification identifier.
-// Task 9.1: Updated to support helper inheritance
 func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInfo, *ast.FunctionDecl, string) {
 	helpers := i.getHelpersForValue(val)
 	if helpers == nil {
@@ -192,7 +188,6 @@ func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInf
 
 // findHelperProperty searches all applicable helpers for a property with the given name
 // and returns the helper that owns the property and the property info.
-// Task 9.1: Updated to support helper inheritance
 func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInfo, *types.PropertyInfo) {
 	helpers := i.getHelpersForValue(val)
 	if helpers == nil {

@@ -257,7 +257,7 @@ func TestIncErrors(t *testing.T) {
 			input: `
 Inc(x);
 `,
-			expectedError: "undefined variable 'x'",
+			expectedError: "Inc() failed to evaluate lvalue: undefined variable: x",
 		},
 		{
 			name: "Inc wrong type - string",
@@ -686,7 +686,7 @@ func TestDecErrors(t *testing.T) {
 			input: `
 Dec(x);
 `,
-			expectedError: "undefined variable 'x'",
+			expectedError: "Dec() failed to evaluate lvalue: undefined variable: x",
 		},
 		{
 			name: "Dec wrong type - string",

@@ -30,10 +30,11 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 		delta = deltaInt.Value
 	}
 
-	// Get current value of the lvalue
-	currentVal := i.Eval(args[0])
-	if isError(currentVal) {
-		return currentVal
+	// Evaluate lvalue once and get both current value and assignment target
+	lvalue := args[0]
+	currentVal, assignFunc, err := i.evaluateLValue(lvalue)
+	if err != nil {
+		return i.newErrorWithLocation(i.currentNode, "Inc() failed to evaluate lvalue: %s", err.Error())
 	}
 
 	// Unwrap ReferenceValue if needed
@@ -43,6 +44,11 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 			return i.newErrorWithLocation(i.currentNode, "%s", err.Error())
 		}
 		currentVal = actualVal
+	}
+
+	// Handle nil values (uninitialized array/record elements default to 0)
+	if currentVal == nil {
+		currentVal = &IntegerValue{Value: 0}
 	}
 
 	// Compute new value based on type
@@ -107,8 +113,8 @@ func (i *Interpreter) builtinInc(args []ast.Expression) Value {
 		return i.newErrorWithLocation(i.currentNode, "Inc() expects Integer or Enum, got %s", val.Type())
 	}
 
-	// Assign the new value back to the lvalue
-	if err := i.assignToLValue(args[0], newValue); err != nil {
+	// Assign the new value back using the pre-evaluated assignment function
+	if err := assignFunc(newValue); err != nil {
 		return i.newErrorWithLocation(i.currentNode, "Inc() failed to assign: %s", err.Error())
 	}
 
@@ -139,10 +145,11 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 		delta = deltaInt.Value
 	}
 
-	// Get current value of the lvalue
-	currentVal := i.Eval(args[0])
-	if isError(currentVal) {
-		return currentVal
+	// Evaluate lvalue once and get both current value and assignment target
+	lvalue := args[0]
+	currentVal, assignFunc, err := i.evaluateLValue(lvalue)
+	if err != nil {
+		return i.newErrorWithLocation(i.currentNode, "Dec() failed to evaluate lvalue: %s", err.Error())
 	}
 
 	// Unwrap ReferenceValue if needed
@@ -152,6 +159,11 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 			return i.newErrorWithLocation(i.currentNode, "%s", err.Error())
 		}
 		currentVal = actualVal
+	}
+
+	// Handle nil values (uninitialized array/record elements default to 0)
+	if currentVal == nil {
+		currentVal = &IntegerValue{Value: 0}
 	}
 
 	// Compute new value based on type
@@ -216,8 +228,8 @@ func (i *Interpreter) builtinDec(args []ast.Expression) Value {
 		return i.newErrorWithLocation(i.currentNode, "Dec() expects Integer or Enum, got %s", val.Type())
 	}
 
-	// Assign the new value back to the lvalue
-	if err := i.assignToLValue(args[0], newValue); err != nil {
+	// Assign the new value back using the pre-evaluated assignment function
+	if err := assignFunc(newValue); err != nil {
 		return i.newErrorWithLocation(i.currentNode, "Dec() failed to assign: %s", err.Error())
 	}
 
@@ -394,55 +406,77 @@ func (i *Interpreter) builtinAssert(args []Value) Value {
 	return nil
 }
 
-// assignToLValue assigns a value to an lvalue expression (Identifier, IndexExpression, MemberAccessExpression).
-// This is used by Inc/Dec and other built-ins that modify lvalues in place.
-func (i *Interpreter) assignToLValue(lvalue ast.Expression, value Value) error {
+// evaluateLValue evaluates an lvalue expression once and returns:
+// 1. The current value at that lvalue
+// 2. A closure function to assign a new value to that lvalue
+// 3. An error if evaluation failed
+//
+// This avoids double-evaluation of side-effecting expressions in Inc/Dec.
+// For example, Inc(arr[f()]) only calls f() once, not twice.
+func (i *Interpreter) evaluateLValue(lvalue ast.Expression) (Value, func(Value) error, error) {
 	switch target := lvalue.(type) {
 	case *ast.Identifier:
-		// Simple variable assignment
+		// Simple variable: x
 		varName := target.Value
 
-		// Check if this is a var parameter (ReferenceValue)
-		if currentVal, exists := i.env.Get(varName); exists {
-			if refVal, isRef := currentVal.(*ReferenceValue); isRef {
-				// Write through the reference
-				return refVal.Assign(value)
-			}
+		// Get current value
+		currentVal, exists := i.env.Get(varName)
+		if !exists {
+			return nil, nil, fmt.Errorf("undefined variable: %s", varName)
 		}
 
-		// Normal variable assignment
-		return i.env.Set(varName, value)
+		// Create assignment function
+		assignFunc := func(value Value) error {
+			// Check if this is a var parameter (ReferenceValue)
+			if currentVal, exists := i.env.Get(varName); exists {
+				if refVal, isRef := currentVal.(*ReferenceValue); isRef {
+					// Write through the reference
+					return refVal.Assign(value)
+				}
+			}
+			// Normal variable assignment
+			return i.env.Set(varName, value)
+		}
+
+		return currentVal, assignFunc, nil
 
 	case *ast.IndexExpression:
-		// Array/string index assignment: arr[i] := value
-		// Evaluate the array/string
+		// Array index: arr[i]
+		// Evaluate array and index ONCE
 		arrVal := i.Eval(target.Left)
 		if isError(arrVal) {
-			return fmt.Errorf("failed to evaluate array: %s", arrVal.(*ErrorValue).Message)
+			return nil, nil, fmt.Errorf("failed to evaluate array: %s", arrVal.(*ErrorValue).Message)
 		}
 
-		// Evaluate the index
 		indexVal := i.Eval(target.Index)
 		if isError(indexVal) {
-			return fmt.Errorf("failed to evaluate index: %s", indexVal.(*ErrorValue).Message)
+			return nil, nil, fmt.Errorf("failed to evaluate index: %s", indexVal.(*ErrorValue).Message)
 		}
 
 		indexInt, ok := indexVal.(*IntegerValue)
 		if !ok {
-			return fmt.Errorf("index must be Integer, got %s", indexVal.Type())
+			return nil, nil, fmt.Errorf("index must be Integer, got %s", indexVal.Type())
 		}
-
 		index := int(indexInt.Value)
 
-		// Handle different array types
+		// Unwrap ReferenceValue if the array itself is a var parameter
+		if ref, isRef := arrVal.(*ReferenceValue); isRef {
+			deref, err := ref.Dereference()
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to dereference array: %s", err.Error())
+			}
+			arrVal = deref
+		}
+
+		// Get the array
 		arr, ok := arrVal.(*ArrayValue)
 		if !ok {
-			return fmt.Errorf("cannot index into %s", arrVal.Type())
+			return nil, nil, fmt.Errorf("cannot index into %s", arrVal.Type())
 		}
 
 		// Perform bounds checking and get physical index
 		if arr.ArrayType == nil {
-			return fmt.Errorf("array has no type information")
+			return nil, nil, fmt.Errorf("array has no type information")
 		}
 
 		var physicalIndex int
@@ -452,14 +486,14 @@ func (i *Interpreter) assignToLValue(lvalue ast.Expression, value Value) error {
 			highBound := *arr.ArrayType.HighBound
 
 			if index < lowBound || index > highBound {
-				return fmt.Errorf("array index out of bounds: %d (bounds are %d..%d)", index, lowBound, highBound)
+				return nil, nil, fmt.Errorf("array index out of bounds: %d (bounds are %d..%d)", index, lowBound, highBound)
 			}
 
 			physicalIndex = index - lowBound
 		} else {
 			// Dynamic array: zero-based indexing
 			if index < 0 || index >= len(arr.Elements) {
-				return fmt.Errorf("array index out of bounds: %d (array length is %d)", index, len(arr.Elements))
+				return nil, nil, fmt.Errorf("array index out of bounds: %d (array length is %d)", index, len(arr.Elements))
 			}
 
 			physicalIndex = index
@@ -467,54 +501,72 @@ func (i *Interpreter) assignToLValue(lvalue ast.Expression, value Value) error {
 
 		// Check physical bounds
 		if physicalIndex < 0 || physicalIndex >= len(arr.Elements) {
-			return fmt.Errorf("array index out of bounds: physical index %d, length %d", physicalIndex, len(arr.Elements))
+			return nil, nil, fmt.Errorf("array index out of bounds: physical index %d, length %d", physicalIndex, len(arr.Elements))
 		}
 
-		// Update the array element
-		arr.Elements[physicalIndex] = value
-		return nil
+		// Get current value
+		currentVal := arr.Elements[physicalIndex]
+
+		// Create assignment function (captures arr and physicalIndex)
+		assignFunc := func(value Value) error {
+			arr.Elements[physicalIndex] = value
+			return nil
+		}
+
+		return currentVal, assignFunc, nil
 
 	case *ast.MemberAccessExpression:
-		// Object/record field assignment: obj.field := value
-		// Evaluate the object/record
+		// Object/record field: obj.field
+		// Evaluate object ONCE
 		objVal := i.Eval(target.Object)
 		if isError(objVal) {
-			return fmt.Errorf("failed to evaluate object: %s", objVal.(*ErrorValue).Message)
+			return nil, nil, fmt.Errorf("failed to evaluate object: %s", objVal.(*ErrorValue).Message)
 		}
 
 		fieldName := target.Member.Value
 
+		// Handle ReferenceValue
+		if ref, isRef := objVal.(*ReferenceValue); isRef {
+			deref, err := ref.Dereference()
+			if err != nil {
+				return nil, nil, err
+			}
+			objVal = deref
+		}
+
 		// Handle different object types
 		switch obj := objVal.(type) {
 		case *ObjectInstance:
-			obj.Fields[fieldName] = value
-			return nil
+			currentVal, exists := obj.Fields[fieldName]
+			if !exists {
+				return nil, nil, fmt.Errorf("field '%s' not found in class '%s'", fieldName, obj.Class.Name)
+			}
+
+			assignFunc := func(value Value) error {
+				obj.Fields[fieldName] = value
+				return nil
+			}
+
+			return currentVal, assignFunc, nil
 
 		case *RecordValue:
-			obj.Fields[fieldName] = value
-			return nil
+			currentVal, exists := obj.Fields[fieldName]
+			if !exists {
+				return nil, nil, fmt.Errorf("field '%s' not found in record '%s'", fieldName, obj.RecordType.Name)
+			}
 
-		case *ReferenceValue:
-			// Dereference and try again
-			deref, err := obj.Dereference()
-			if err != nil {
-				return err
-			}
-			if objInst, ok := deref.(*ObjectInstance); ok {
-				objInst.Fields[fieldName] = value
+			assignFunc := func(value Value) error {
+				obj.Fields[fieldName] = value
 				return nil
 			}
-			if recVal, ok := deref.(*RecordValue); ok {
-				recVal.Fields[fieldName] = value
-				return nil
-			}
-			return fmt.Errorf("cannot access field of %s", deref.Type())
+
+			return currentVal, assignFunc, nil
 
 		default:
-			return fmt.Errorf("cannot access field of %s", objVal.Type())
+			return nil, nil, fmt.Errorf("cannot access field of %s", objVal.Type())
 		}
 
 	default:
-		return fmt.Errorf("invalid lvalue type: %T", lvalue)
+		return nil, nil, fmt.Errorf("invalid lvalue type: %T", lvalue)
 	}
 }

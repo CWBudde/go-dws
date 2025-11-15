@@ -42,7 +42,7 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 		memberName = a.currentFunction.Name.Value
 	}
 
-	// Task 9.16.4.4: Check if we're calling a constructor from within a constructor
+	// Check if we're calling a constructor from within a constructor
 	// If we're in a constructor and the member is a constructor in the parent, handle it specially
 	if a.currentFunction != nil && a.currentFunction.IsConstructor {
 		ctorType, ctorFound := parentClass.GetConstructor(memberName)
@@ -145,7 +145,7 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 	}
 
 	// Member not found in parent class
-	// Task 9.51: If parent is TObject and member not found, treat as "no meaningful parent"
+	// If parent is TObject and member not found, treat as "no meaningful parent"
 	isTObjectParent := strings.EqualFold(parentClass.Name, "TObject")
 	if isTObjectParent {
 		a.addError("'inherited' cannot be used in class '%s' which has no parent class at %s",

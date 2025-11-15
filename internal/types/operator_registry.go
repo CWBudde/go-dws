@@ -53,7 +53,7 @@ func (r *OperatorRegistry) Register(signature *OperatorSignature) error {
 }
 
 // Lookup finds an operator signature that matches the given operand types.
-// Task 9.14: Support inheritance - operands are compatible if they're assignable to declared types.
+// Support inheritance - operands are compatible if they're assignable to declared types.
 func (r *OperatorRegistry) Lookup(operator string, operandTypes []Type) (*OperatorSignature, bool) {
 	entries, ok := r.entries[operator]
 	if !ok {
@@ -68,7 +68,7 @@ func (r *OperatorRegistry) Lookup(operator string, operandTypes []Type) (*Operat
 		}
 	}
 
-	// Task 9.14: If no exact match, try assignment-compatible match (for inheritance)
+	// If no exact match, try assignment-compatible match (for inheritance)
 	// This allows subclasses to use operators defined on parent classes
 	for _, entry := range entries {
 		if len(entry.OperandTypes) != len(operandTypes) {
@@ -93,7 +93,6 @@ func (r *OperatorRegistry) Lookup(operator string, operandTypes []Type) (*Operat
 
 // areTypesCompatibleForOperator checks if actualType can be used where declaredType is expected.
 // This supports inheritance: a subclass instance can be used where parent class is expected.
-// Task 9.17.11b: Also supports array of const compatibility (array of T -> array of Variant).
 func areTypesCompatibleForOperator(actualType, declaredType Type) bool {
 	// Exact match
 	if actualType.Equals(declaredType) {
@@ -113,7 +112,7 @@ func areTypesCompatibleForOperator(actualType, declaredType Type) bool {
 		}
 	}
 
-	// Task 9.17.11b: Check array compatibility for array of const
+	// Check array compatibility for array of const
 	// An array of any type can be passed where array of Variant is expected
 	actualArray, actualIsArray := actualType.(*ArrayType)
 	declaredArray, declaredIsArray := declaredType.(*ArrayType)

@@ -320,7 +320,6 @@ func TestNotAsOperator(t *testing.T) {
 }
 
 // TestIsOperatorWithBooleans tests parsing of 'is' operator with boolean value expressions.
-// Task 9.33: Support 'is' operator with boolean expressions like 'is True', 'is False'
 func TestIsOperatorWithBooleans(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -1,5 +1,4 @@
 // Test Succ() and Pred() with integers
-// Tasks 9.28 and 9.29: Successor and predecessor functions
 
 var x: Integer := 10;
 PrintLn('Initial value: ', x);
