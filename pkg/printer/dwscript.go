@@ -1020,3 +1020,255 @@ func (p *Printer) printUnitDeclaration(ud *ast.UnitDeclaration) {
 	p.newline()
 	p.write("end.")
 }
+
+// Additional node type printing methods
+// ============================================================================
+
+func (p *Printer) printEnumLiteral(el *ast.EnumLiteral) {
+	if el.EnumName != "" {
+		p.write(el.EnumName)
+		p.write(".")
+	}
+	p.write(el.ValueName)
+}
+
+func (p *Printer) printOldExpression(oe *ast.OldExpression) {
+	p.write("old")
+	p.space()
+	p.printDWScript(oe.Identifier)
+}
+
+func (p *Printer) printHelperDecl(hd *ast.HelperDecl) {
+	p.write("type")
+	p.space()
+	p.printDWScript(hd.Name)
+	p.space()
+	p.write("=")
+	p.space()
+	p.write("helper")
+
+	if hd.ParentHelper != nil {
+		p.write("(")
+		p.printDWScript(hd.ParentHelper)
+		p.write(")")
+	}
+
+	p.space()
+	p.write("for")
+	p.space()
+	p.printDWScript(hd.ForType)
+	p.newline()
+
+	p.incIndent()
+
+	// Print class vars
+	for _, classVar := range hd.ClassVars {
+		p.writeIndent()
+		p.write("class var")
+		p.space()
+		p.printDWScript(classVar)
+		p.write(";")
+		p.newline()
+	}
+
+	// Print class consts
+	for _, classConst := range hd.ClassConsts {
+		p.writeIndent()
+		p.write("class const")
+		p.space()
+		p.printDWScript(classConst)
+		p.write(";")
+		p.newline()
+	}
+
+	// Print methods
+	for _, method := range hd.Methods {
+		p.writeIndent()
+		p.printDWScript(method)
+		p.write(";")
+		p.newline()
+	}
+
+	// Print properties
+	for _, prop := range hd.Properties {
+		p.writeIndent()
+		p.printDWScript(prop)
+		p.write(";")
+		p.newline()
+	}
+
+	p.decIndent()
+	p.writeIndent()
+	p.write("end")
+}
+
+func (p *Printer) printOperatorDecl(od *ast.OperatorDecl) {
+	// Print visibility if not public
+	if od.Visibility != ast.VisibilityPublic {
+		p.write(od.Visibility.String())
+		p.space()
+	}
+
+	// Print class keyword for class operators
+	if od.Kind == ast.OperatorKindClass {
+		p.write("class")
+		p.space()
+	}
+
+	p.write("operator")
+	p.space()
+	p.write(od.OperatorSymbol)
+
+	// Print operand types
+	if len(od.OperandTypes) > 0 {
+		p.write("(")
+		for i, opType := range od.OperandTypes {
+			p.printDWScript(opType)
+			if i < len(od.OperandTypes)-1 {
+				p.write(",")
+				p.space()
+			}
+		}
+		p.write(")")
+	}
+
+	// Print return type
+	if od.ReturnType != nil {
+		p.write(":")
+		p.space()
+		p.printDWScript(od.ReturnType)
+	}
+
+	// Print binding (implementation)
+	if od.Binding != nil {
+		p.space()
+		p.write("uses")
+		p.space()
+		p.printDWScript(od.Binding)
+	}
+}
+
+func (p *Printer) printRecordPropertyDecl(rpd *ast.RecordPropertyDecl) {
+	p.write("property")
+	p.space()
+	p.printDWScript(rpd.Name)
+	p.write(":")
+	p.space()
+	p.printDWScript(rpd.Type)
+
+	if rpd.ReadField != "" {
+		p.space()
+		p.write("read")
+		p.space()
+		p.write(rpd.ReadField)
+	}
+
+	if rpd.WriteField != "" {
+		p.space()
+		p.write("write")
+		p.space()
+		p.write(rpd.WriteField)
+	}
+}
+
+// Type annotation printing methods
+// ============================================================================
+
+func (p *Printer) printTypeAnnotation(ta *ast.TypeAnnotation) {
+	if ta == nil {
+		return
+	}
+
+	if ta.InlineType != nil {
+		p.printDWScript(ta.InlineType)
+	} else if ta.Name != "" {
+		p.write(ta.Name)
+	}
+}
+
+func (p *Printer) printArrayTypeAnnotation(ata *ast.ArrayTypeAnnotation) {
+	p.write("array")
+
+	// Print bounds if present
+	if ata.LowBound != nil && ata.HighBound != nil {
+		p.write("[")
+		p.printDWScript(ata.LowBound)
+		p.write("..")
+		p.printDWScript(ata.HighBound)
+		p.write("]")
+	}
+
+	p.space()
+	p.write("of")
+	p.space()
+	p.printDWScript(ata.ElementType)
+}
+
+func (p *Printer) printArrayTypeNode(atn *ast.ArrayTypeNode) {
+	p.write("array")
+
+	// Print index type or bounds
+	if atn.IndexType != nil {
+		p.write("[")
+		p.printDWScript(atn.IndexType)
+		p.write("]")
+	} else if atn.LowBound != nil && atn.HighBound != nil {
+		p.write("[")
+		p.printDWScript(atn.LowBound)
+		p.write("..")
+		p.printDWScript(atn.HighBound)
+		p.write("]")
+	}
+
+	p.space()
+	p.write("of")
+	p.space()
+	p.printDWScript(atn.ElementType)
+}
+
+func (p *Printer) printSetTypeNode(stn *ast.SetTypeNode) {
+	p.write("set")
+	p.space()
+	p.write("of")
+	p.space()
+	p.printDWScript(stn.ElementType)
+}
+
+func (p *Printer) printClassOfTypeNode(cotn *ast.ClassOfTypeNode) {
+	p.write("class")
+	p.space()
+	p.write("of")
+	p.space()
+	p.printDWScript(cotn.ClassType)
+}
+
+func (p *Printer) printFunctionPointerTypeNode(fptn *ast.FunctionPointerTypeNode) {
+	if fptn.ReturnType != nil {
+		p.write("function")
+	} else {
+		p.write("procedure")
+	}
+
+	if len(fptn.Parameters) > 0 {
+		p.write("(")
+		for i, param := range fptn.Parameters {
+			p.printParameter(param)
+			if i < len(fptn.Parameters)-1 {
+				p.write(";")
+				p.space()
+			}
+		}
+		p.write(")")
+	}
+
+	if fptn.ReturnType != nil {
+		p.write(":")
+		p.space()
+		p.printDWScript(fptn.ReturnType)
+	}
+
+	if fptn.OfObject {
+		p.space()
+		p.write("of object")
+	}
+}

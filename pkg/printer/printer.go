@@ -316,6 +316,12 @@ func (p *Printer) printDWScript(node ast.Node) {
 		p.printTypeDeclaration(n)
 	case *ast.UnitDeclaration:
 		p.printUnitDeclaration(n)
+	case *ast.HelperDecl:
+		p.printHelperDecl(n)
+	case *ast.OperatorDecl:
+		p.printOperatorDecl(n)
+	case *ast.RecordPropertyDecl:
+		p.printRecordPropertyDecl(n)
 
 	// Array and collection expressions
 	case *ast.ArrayLiteralExpression:
@@ -326,6 +332,8 @@ func (p *Printer) printDWScript(node ast.Node) {
 		p.printNewArrayExpression(n)
 	case *ast.SetLiteral:
 		p.printSetLiteral(n)
+	case *ast.EnumLiteral:
+		p.printEnumLiteral(n)
 
 	// Object-oriented expressions
 	case *ast.NewExpression:
@@ -359,6 +367,22 @@ func (p *Printer) printDWScript(node ast.Node) {
 	case *ast.AddressOfExpression:
 		p.write("@")
 		p.printDWScript(n.Operator)
+	case *ast.OldExpression:
+		p.printOldExpression(n)
+
+	// Type annotations and type expressions
+	case *ast.TypeAnnotation:
+		p.printTypeAnnotation(n)
+	case *ast.ArrayTypeAnnotation:
+		p.printArrayTypeAnnotation(n)
+	case *ast.ArrayTypeNode:
+		p.printArrayTypeNode(n)
+	case *ast.SetTypeNode:
+		p.printSetTypeNode(n)
+	case *ast.ClassOfTypeNode:
+		p.printClassOfTypeNode(n)
+	case *ast.FunctionPointerTypeNode:
+		p.printFunctionPointerTypeNode(n)
 
 	default:
 		// Fallback: use the node's String() method
