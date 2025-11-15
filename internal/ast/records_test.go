@@ -20,7 +20,9 @@ func TestRecordDecl(t *testing.T) {
 			Name:  &Identifier{Token: tok, Value: "TPoint"},
 			Fields: []*FieldDecl{
 				{
-					Token: tok,
+					BaseNode: BaseNode{
+						Token: tok,
+					},
 					Name:  &Identifier{Token: tok, Value: "X"},
 					Type: &TypeAnnotation{
 						Token: tok,
@@ -29,7 +31,9 @@ func TestRecordDecl(t *testing.T) {
 					Visibility: VisibilityPublic,
 				},
 				{
-					Token: tok,
+					BaseNode: BaseNode{
+						Token: tok,
+					},
 					Name:  &Identifier{Token: tok, Value: "Y"},
 					Type: &TypeAnnotation{
 						Token: tok,
@@ -76,7 +80,9 @@ func TestRecordDecl(t *testing.T) {
 			Name:  &Identifier{Token: tok, Value: "TPoint"},
 			Fields: []*FieldDecl{
 				{
-					Token: tok,
+					BaseNode: BaseNode{
+						Token: tok,
+					},
 					Name:  &Identifier{Token: tok, Value: "X"},
 					Type: &TypeAnnotation{
 						Token: tok,
@@ -85,7 +91,9 @@ func TestRecordDecl(t *testing.T) {
 					Visibility: VisibilityPublic,
 				},
 				{
-					Token: tok,
+					BaseNode: BaseNode{
+						Token: tok,
+					},
 					Name:  &Identifier{Token: tok, Value: "Y"},
 					Type: &TypeAnnotation{
 						Token: tok,
@@ -131,7 +139,9 @@ func TestRecordDecl(t *testing.T) {
 			Name:  &Identifier{Token: tok, Value: "TPoint"},
 			Fields: []*FieldDecl{
 				{
-					Token: tok,
+					BaseNode: BaseNode{
+						Token: tok,
+					},
 					Name:  &Identifier{Token: tok, Value: "FX"},
 					Type: &TypeAnnotation{
 						Token: tok,
@@ -140,7 +150,9 @@ func TestRecordDecl(t *testing.T) {
 					Visibility: VisibilityPrivate,
 				},
 				{
-					Token: tok,
+					BaseNode: BaseNode{
+						Token: tok,
+					},
 					Name:  &Identifier{Token: tok, Value: "FY"},
 					Type: &TypeAnnotation{
 						Token: tok,
@@ -166,7 +178,9 @@ func TestRecordDecl(t *testing.T) {
 			Name:  &Identifier{Token: tok, Value: "TPoint"},
 			Fields: []*FieldDecl{
 				{
-					Token: tok,
+					BaseNode: BaseNode{
+						Token: tok,
+					},
 					Name:  &Identifier{Token: tok, Value: "X"},
 					Type: &TypeAnnotation{
 						Token: tok,
@@ -175,7 +189,9 @@ func TestRecordDecl(t *testing.T) {
 					Visibility: VisibilityPublic,
 				},
 				{
-					Token: tok,
+					BaseNode: BaseNode{
+						Token: tok,
+					},
 					Name:  &Identifier{Token: tok, Value: "Y"},
 					Type: &TypeAnnotation{
 						Token: tok,
