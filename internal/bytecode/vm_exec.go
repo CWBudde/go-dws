@@ -512,9 +512,12 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				arr := targetVal.AsArray()
 				arr.Resize(newLen)
 			} else if targetVal.IsString() {
-				// For strings, we need to handle this differently since strings are immutable
-				// The compiler should have already handled string SetLength as a method call
-				return NilValue(), vm.runtimeError("ARRAY_SET_LENGTH should not be used for strings - use String.SetLength method instead")
+				// For strings, we need to handle this since strings are immutable in Go.
+				// Create a new string with the requested length and push it back on the stack
+				// so it can be stored back into the variable by the caller.
+				str := targetVal.AsString()
+				newStr := vm.setStringLength(str, newLen)
+				vm.push(StringValue(newStr))
 			} else {
 				return NilValue(), vm.runtimeError("ARRAY_SET_LENGTH expects array or string, got %s", targetVal.Type.String())
 			}

@@ -921,7 +921,7 @@ func TestBuiltinSetLength_String_Expand(t *testing.T) {
 		expectedResult string
 	}{
 		{
-			name: "SetLength expands empty string with spaces",
+			name: "SetLength expands empty string with null characters",
 			input: `
 var s: String := '';
 begin
@@ -929,10 +929,10 @@ begin
 	s;
 end
 			`,
-			expectedResult: "     ", // 5 spaces
+			expectedResult: "\x00\x00\x00\x00\x00", // 5 null characters
 		},
 		{
-			name: "SetLength expands short string with spaces",
+			name: "SetLength expands short string with null characters",
 			input: `
 var s: String := 'Hi';
 begin
@@ -940,7 +940,7 @@ begin
 	s;
 end
 			`,
-			expectedResult: "Hi        ", // "Hi" + 8 spaces
+			expectedResult: "Hi\x00\x00\x00\x00\x00\x00\x00\x00", // "Hi" + 8 null characters
 		},
 		{
 			name: "SetLength expands to exact length",
@@ -951,7 +951,7 @@ begin
 	s;
 end
 			`,
-			expectedResult: "Test    ", // "Test" + 4 spaces
+			expectedResult: "Test\x00\x00\x00\x00", // "Test" + 4 null characters
 		},
 	}
 
@@ -1069,8 +1069,8 @@ begin
 	s;
 end
 			`,
-			expectedResult: "😀😁   ", // 2 emojis + 3 spaces
-			expectedLen:    5,       // 5 runes
+			expectedResult: "😀😁\x00\x00\x00", // 2 emojis + 3 null characters
+			expectedLen:    5,                // 5 runes
 		},
 		{
 			name: "UTF-8 Chinese characters",
@@ -1081,7 +1081,7 @@ begin
 	s;
 end
 			`,
-			expectedResult: "你好    ", // 2 chars + 4 spaces
+			expectedResult: "你好\x00\x00\x00\x00", // 2 chars + 4 null characters
 			expectedLen:    6,
 		},
 		{
@@ -1142,7 +1142,7 @@ end
 		t.Fatalf("result is not *StringValue. got=%T (%+v)", result, result)
 	}
 
-	expectedResult := "Test      " // "Test" + 6 spaces
+	expectedResult := "Test\x00\x00\x00\x00\x00\x00" // "Test" + 6 null characters
 	if strVal.Value != expectedResult {
 		t.Errorf("String after SetLength = %q (len=%d), want %q (len=%d)",
 			strVal.Value, len(strVal.Value), expectedResult, len(expectedResult))

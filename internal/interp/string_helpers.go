@@ -160,8 +160,9 @@ func stripAccents(s string) string {
 
 // runeSetLength resizes a string to the specified character length.
 // If the new length is shorter, the string is truncated.
-// If the new length is longer, the string is padded with spaces.
-// This matches DWScript's SetLength behavior for strings.
+// If the new length is longer, the string is padded with null characters (#0).
+// This matches DWScript's SetLength behavior for strings, which zero-initializes
+// newly allocated characters, allowing strings to be used as binary buffers.
 func runeSetLength(s string, newLength int) string {
 	if newLength < 0 {
 		newLength = 0
@@ -179,10 +180,9 @@ func runeSetLength(s string, newLength int) string {
 		return string(runes[:newLength])
 	}
 
-	// Extend with spaces
-	spaces := make([]rune, newLength-currentLength)
-	for i := range spaces {
-		spaces[i] = ' '
-	}
-	return string(append(runes, spaces...))
+	// Extend with null characters (#0) to match DWScript semantics
+	// This is more efficient than creating a slice and looping
+	padding := newLength - currentLength
+	nullBytes := make([]byte, padding)
+	return s + string(nullBytes)
 }
