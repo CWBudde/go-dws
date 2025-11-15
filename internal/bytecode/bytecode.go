@@ -633,8 +633,8 @@ type ClassMetadata struct {
 // not on instances. This metadata maps method names to their constant indices for direct calls.
 type RecordMetadata struct {
 	Name    string
-	Methods map[string]uint16  // Method name (lowercase) -> constant index (for OpCall)
-	Fields  []*FieldMetadata   // For future field initializer support
+	Methods map[string]uint16 // Method name (lowercase) -> constant index (for OpCall)
+	Fields  []*FieldMetadata  // For future field initializer support
 }
 
 // Chunk represents a compiled bytecode chunk with instructions and constants.
@@ -645,8 +645,8 @@ type Chunk struct {
 	Code       []Instruction
 	Constants  []Value
 	Lines      []LineInfo
-	Helpers    map[string]*HelperInfo    // Helper metadata for runtime method resolution
-	Classes    map[string]*ClassMetadata // Class metadata for field initialization
+	Helpers    map[string]*HelperInfo     // Helper metadata for runtime method resolution
+	Classes    map[string]*ClassMetadata  // Class metadata for field initialization
 	Records    map[string]*RecordMetadata // Record metadata for static methods (Task 9.1)
 	LocalCount int
 }

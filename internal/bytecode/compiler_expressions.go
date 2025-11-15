@@ -598,8 +598,8 @@ func (c *Compiler) compileIsExpression(expr *ast.IsExpression) error {
 // compileRecordLiteralExpression compiles a record literal (Task 9.7).
 // Example: TPoint(x: 10; y: 20)
 // Strategy:
-//   1. Create new record instance (OpNewRecord)
-//   2. For each field initializer, evaluate expression and set field (OpSetField)
+//  1. Create new record instance (OpNewRecord)
+//  2. For each field initializer, evaluate expression and set field (OpSetField)
 func (c *Compiler) compileRecordLiteralExpression(expr *ast.RecordLiteralExpression) error {
 	if expr == nil {
 		return c.errorf(expr, "invalid record literal expression")

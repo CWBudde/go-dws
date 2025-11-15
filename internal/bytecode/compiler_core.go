@@ -11,7 +11,7 @@ import (
 // Compiler converts AST nodes into bytecode chunks.
 type Compiler struct {
 	functions       map[string]functionInfo
-	helpers         map[string]*HelperInfo // Helper registry (keyed by helper name)
+	helpers         map[string]*HelperInfo     // Helper registry (keyed by helper name)
 	records         map[string]*RecordMetadata // Record registry (keyed by record name, Task 9.2)
 	enclosing       *Compiler
 	globals         map[string]globalVar
