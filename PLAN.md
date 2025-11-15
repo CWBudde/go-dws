@@ -1238,7 +1238,7 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
 
 ---
 
-- [ ] 9.17 Refactor Visitor Pattern Implementation
+## Task 9.17 Refactor Visitor Pattern Implementation
 
 **Goal**: Reduce visitor pattern code from 900+ lines to ~50-100 lines and make it extensible without modifying core code.
 
@@ -1494,7 +1494,7 @@ type IntegerLiteral struct {
 
 ---
 
-- [ ] 9.19 Extract Pretty-Printing from AST Nodes
+## Task 9.19 Extract Pretty-Printing from AST Nodes
 
 **Goal**: Remove String() implementation logic from AST nodes and create a dedicated printer package.
 
