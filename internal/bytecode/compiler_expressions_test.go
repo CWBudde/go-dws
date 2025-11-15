@@ -168,7 +168,11 @@ func TestCompiler_NewExpression(t *testing.T) {
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(1, 1)},
 				},
 				ReturnValue: &ast.NewExpression{
-					Token: lexer.Token{Type: lexer.NEW, Literal: "new", Pos: pos(1, 9)},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.NEW, Literal: "new", Pos: pos(1, 9)},
+						},
+					},
 					ClassName: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{
@@ -376,7 +380,11 @@ func TestCompiler_MemberAccess(t *testing.T) {
 				},
 				Operator: lexer.ASSIGN,
 				Target: &ast.MemberAccessExpression{
-					Token: lexer.Token{Type: lexer.DOT, Literal: ".", Pos: pos(2, 6)},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.DOT, Literal: ".", Pos: pos(2, 6)},
+						},
+					},
 					Object: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{
@@ -401,7 +409,11 @@ func TestCompiler_MemberAccess(t *testing.T) {
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(3, 1)},
 				},
 				ReturnValue: &ast.MemberAccessExpression{
-					Token: lexer.Token{Type: lexer.DOT, Literal: ".", Pos: pos(3, 6)},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.DOT, Literal: ".", Pos: pos(3, 6)},
+						},
+					},
 					Object: &ast.Identifier{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{
@@ -466,7 +478,11 @@ func TestCompiler_MethodCallEmitsCallMethod(t *testing.T) {
 	}
 
 	methodCall := &ast.MethodCallExpression{
-		Token: lexer.Token{Type: lexer.DOT, Literal: ".", Pos: pos(2, 8)},
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.DOT, Literal: ".", Pos: pos(2, 8)},
+			},
+		},
 		Object: &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
