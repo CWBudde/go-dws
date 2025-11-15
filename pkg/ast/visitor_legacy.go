@@ -1,5 +1,4 @@
 //go:build legacy
-// +build legacy
 
 // LEGACY CODE: This file contains the original manual visitor implementation
 // and is kept for reference and comparison purposes only.
