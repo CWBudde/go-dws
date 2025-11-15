@@ -568,12 +568,16 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
   - [x] Updated 17 test files across internal/ast, internal/bytecode, internal/semantic
   - [x] All tests pass successfully - removed ~120 lines of boilerplate
 
-- [ ] 9.16.4 Refactor statement nodes (ExpressionStatement, VarDeclStatement, AssignmentStatement, BlockStatement, IfStatement, WhileStatement, etc.)
-  - [ ] Identify all statement structs across `pkg/ast/statements.go`, `pkg/ast/control_flow.go`, and related files
-  - [ ] Embed `BaseNode` into expression statements/assignments/var decls
-  - [ ] Embed `BaseNode` into control-flow statements (if/while/for/try/case)
-  - [ ] Remove redundant position/token helpers and update parser emitters/tests
-  - [ ] Ensure visitor interface still works after embedding
+- [x] 9.16.4 Refactor statement nodes (ExpressionStatement, VarDeclStatement, AssignmentStatement, BlockStatement, IfStatement, WhileStatement, etc.)
+  - [x] Identify all statement structs across `pkg/ast/statements.go`, `pkg/ast/control_flow.go`, and related files
+  - [x] Embed `BaseNode` into expression statements/assignments/var decls (already done in previous tasks)
+  - [x] Embed `BaseNode` into control-flow statements (if/while/for/try/case) (already done in previous tasks)
+  - [x] Embed `BaseNode` into exception-related nodes: TryStatement, ExceptClause, ExceptionHandler, FinallyClause, RaiseStatement
+  - [x] Embed `BaseNode` into ReturnStatement
+  - [x] Remove redundant position/token helpers (TokenLiteral, Pos, End) from all refactored nodes
+  - [x] Update parser code to construct nodes with BaseNode wrapper
+  - [x] Update all test files in internal/bytecode (6 files, 30+ instances)
+  - [x] All tests pass successfully - removed ~50 lines of boilerplate from statement nodes
 
 - [x] 9.16.5 Refactor declaration nodes (ConstDecl, FunctionDecl, ClassDecl, InterfaceDecl, etc.)
   - [x] Embed BaseNode into HelperDecl

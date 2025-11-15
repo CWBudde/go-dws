@@ -972,7 +972,9 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 			BaseNode: ast.BaseNode{Token: p.curToken}, // Use current token for position tracking
 			Statements: []ast.Statement{
 				&ast.ReturnStatement{
-					Token:       p.curToken,
+					BaseNode: ast.BaseNode{
+						Token: p.curToken,
+					},
 					ReturnValue: expr,
 				},
 			},
