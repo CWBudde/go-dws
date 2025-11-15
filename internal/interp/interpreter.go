@@ -406,3 +406,18 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 		return newError("unknown node type: %T", node)
 	}
 }
+
+// EvalWithExpectedType evaluates a node with an expected type for better type inference.
+// This is primarily used for array literals in function calls where the parameter type is known.
+// If expectedType is nil, this falls back to regular Eval().
+func (i *Interpreter) EvalWithExpectedType(node ast.Node, expectedType types.Type) Value {
+	// Special handling for array literals with expected array type
+	if arrayLit, ok := node.(*ast.ArrayLiteralExpression); ok {
+		if arrayType, ok := expectedType.(*types.ArrayType); ok {
+			return i.evalArrayLiteralWithExpected(arrayLit, arrayType)
+		}
+	}
+
+	// For all other cases, use regular Eval
+	return i.Eval(node)
+}

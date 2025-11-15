@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // evalCallExpression evaluates a DWScript function call expression.
@@ -335,6 +336,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	if i.externalFunctions != nil {
 		if extFunc, ok := i.externalFunctions.Get(funcName.Value); ok {
 			varParams := extFunc.Wrapper.GetVarParams()
+			paramTypes := extFunc.Wrapper.GetParamTypes()
 
 			// Prepare arguments - create ReferenceValues for var parameters
 			args := make([]Value, len(expr.Arguments))
@@ -357,8 +359,15 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 						return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
 					}
 				} else {
-					// For regular parameters, evaluate immediately
-					val := i.Eval(arg)
+					// For regular parameters, evaluate with type context if available
+					var val Value
+					if idx < len(paramTypes) {
+						// Parse the parameter type string and provide context for type inference
+						expectedType, _ := i.parseTypeString(paramTypes[idx])
+						val = i.EvalWithExpectedType(arg, expectedType)
+					} else {
+						val = i.Eval(arg)
+					}
 					if isError(val) {
 						return val
 					}
@@ -483,6 +492,12 @@ func normalizeBuiltinName(name string) string {
 		return canonical
 	}
 	return name
+}
+
+// parseTypeString parses a type string (e.g., "Integer", "array of String") into a types.Type.
+// Returns nil if the type cannot be parsed.
+func (i *Interpreter) parseTypeString(typeStr string) (types.Type, error) {
+	return i.resolveType(typeStr)
 }
 
 // callBuiltin calls a built-in function by name.

@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/types"
+	pkgast "github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // ============================================================================
@@ -589,24 +590,29 @@ func (i *Interpreter) evalArrayLiteralWithExpected(lit *ast.ArrayLiteralExpressi
 		return i.evalArrayLiteral(lit)
 	}
 
-	// Temporarily set type annotation for evaluation
-	var prevType *ast.TypeAnnotation
-	annotation := &ast.TypeAnnotation{Token: lit.Token, Name: expected.String()}
-
-	if i.semanticInfo != nil {
-		prevType = i.semanticInfo.GetType(lit)
-		i.semanticInfo.SetType(lit, annotation)
+	// Ensure semanticInfo exists for type annotation
+	wasNil := i.semanticInfo == nil
+	if wasNil {
+		i.semanticInfo = pkgast.NewSemanticInfo()
 	}
+
+	// Temporarily set type annotation for evaluation
+	prevType := i.semanticInfo.GetType(lit)
+	annotation := &ast.TypeAnnotation{Token: lit.Token, Name: expected.String()}
+	i.semanticInfo.SetType(lit, annotation)
 
 	result := i.evalArrayLiteral(lit)
 
 	// Restore previous type
-	if i.semanticInfo != nil {
-		if prevType != nil {
-			i.semanticInfo.SetType(lit, prevType)
-		} else {
-			i.semanticInfo.ClearType(lit)
-		}
+	if prevType != nil {
+		i.semanticInfo.SetType(lit, prevType)
+	} else {
+		i.semanticInfo.ClearType(lit)
+	}
+
+	// Clean up semanticInfo if we created it
+	if wasNil {
+		i.semanticInfo = nil
 	}
 
 	return result
