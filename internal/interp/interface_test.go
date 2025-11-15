@@ -36,7 +36,11 @@ func TestInterfaceInfoWithInheritance(t *testing.T) {
 			Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
 		},
 		Name: &ast.Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "BaseMethod"},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "BaseMethod"},
+				},
+			},
 			Value: "BaseMethod",
 		},
 	}
@@ -50,7 +54,11 @@ func TestInterfaceInfoWithInheritance(t *testing.T) {
 			Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
 		},
 		Name: &ast.Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "DerivedMethod"},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "DerivedMethod"},
+				},
+			},
 			Value: "DerivedMethod",
 		},
 	}
@@ -74,7 +82,11 @@ func TestInterfaceInfoAddMethod(t *testing.T) {
 			Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
 		},
 		Name: &ast.Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "Increment"},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "Increment"},
+				},
+			},
 			Value: "Increment",
 		},
 	}
@@ -85,7 +97,11 @@ func TestInterfaceInfoAddMethod(t *testing.T) {
 			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 		},
 		Name: &ast.Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
+				},
+			},
 			Value: "GetValue",
 		},
 		ReturnType: &ast.TypeAnnotation{
@@ -199,7 +215,11 @@ func TestEvalInterfaceDeclaration(t *testing.T) {
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
 		Name: &ast.Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "IMyInterface"},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "IMyInterface"},
+				},
+			},
 			Value: "IMyInterface",
 		},
 		Methods: []*ast.InterfaceMethodDecl{
@@ -208,7 +228,11 @@ func TestEvalInterfaceDeclaration(t *testing.T) {
 					Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
 				},
 				Name: &ast.Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "DoSomething"},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "DoSomething"},
+						},
+					},
 					Value: "DoSomething",
 				},
 			},
@@ -256,7 +280,11 @@ func TestEvalInterfaceDeclarationWithInheritance(t *testing.T) {
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
 		Name: &ast.Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "IBase"},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "IBase"},
+				},
+			},
 			Value: "IBase",
 		},
 		Methods: []*ast.InterfaceMethodDecl{
@@ -265,7 +293,11 @@ func TestEvalInterfaceDeclarationWithInheritance(t *testing.T) {
 					Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
 				},
 				Name: &ast.Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "BaseMethod"},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "BaseMethod"},
+						},
+					},
 					Value: "BaseMethod",
 				},
 			},
@@ -279,11 +311,19 @@ func TestEvalInterfaceDeclarationWithInheritance(t *testing.T) {
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
 		Name: &ast.Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "IDerived"},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "IDerived"},
+				},
+			},
 			Value: "IDerived",
 		},
 		Parent: &ast.Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "IBase"},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "IBase"},
+				},
+			},
 			Value: "IBase",
 		},
 		Methods: []*ast.InterfaceMethodDecl{
@@ -292,7 +332,11 @@ func TestEvalInterfaceDeclarationWithInheritance(t *testing.T) {
 					Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
 				},
 				Name: &ast.Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "DerivedMethod"},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "DerivedMethod"},
+						},
+					},
 					Value: "DerivedMethod",
 				},
 			},
@@ -350,7 +394,11 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
 		Name: &ast.Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "ICounter"},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "ICounter"},
+				},
+			},
 			Value: "ICounter",
 		},
 		Methods: []*ast.InterfaceMethodDecl{
@@ -359,7 +407,11 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 				},
 				Name: &ast.Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
+						},
+					},
 					Value: "GetValue",
 				},
 				ReturnType: &ast.TypeAnnotation{
@@ -375,7 +427,11 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 	classDecl := &ast.ClassDecl{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
 		Name: &ast.Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "TCounter"},
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "TCounter"},
+				},
+			},
 			Value: "TCounter",
 		},
 		Fields: []*ast.FieldDecl{
@@ -384,7 +440,11 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "FValue"},
 				},
 				Name: &ast.Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "FValue"},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "FValue"},
+						},
+					},
 					Value: "FValue",
 				},
 				Type: &ast.TypeAnnotation{
@@ -399,7 +459,11 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 					Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 				},
 				Name: &ast.Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
+						},
+					},
 					Value: "GetValue",
 				},
 				ReturnType: &ast.TypeAnnotation{
@@ -463,10 +527,10 @@ func TestInterfaceVariable(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name: &ast.Identifier{Value: "IPrintable"},
+		Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IPrintable"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{
-				Name: &ast.Identifier{Value: "Print"},
+				Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Print"},
 			},
 		},
 	}
@@ -475,10 +539,15 @@ func TestInterfaceVariable(t *testing.T) {
 	// Create class implementing interface
 	classDecl := &ast.ClassDecl{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
-		Name:     &ast.Identifier{Value: "TDocument"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "TDocument",
+		},
 		Methods: []*ast.FunctionDecl{
 			{
-				Name: &ast.Identifier{Value: "Print"},
+				Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Print"},
 				Body: &ast.BlockStatement{},
 			},
 		},
@@ -522,11 +591,11 @@ func TestObjectToInterface(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name: &ast.Identifier{Value: "IDrawable"},
+		Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IDrawable"},
 		Methods: []*ast.InterfaceMethodDecl{
-			{Name: &ast.Identifier{Value: "Draw"}},
-			{Name: &ast.Identifier{Value: "GetWidth"}},
-			{Name: &ast.Identifier{Value: "GetHeight"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Draw"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "GetWidth"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "GetHeight"}},
 		},
 	}
 	interp.evalInterfaceDeclaration(interfaceDecl)
@@ -534,11 +603,16 @@ func TestObjectToInterface(t *testing.T) {
 	// Create class implementing all methods
 	classDecl := &ast.ClassDecl{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
-		Name:     &ast.Identifier{Value: "TRectangle"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "TRectangle",
+		},
 		Methods: []*ast.FunctionDecl{
-			{Name: &ast.Identifier{Value: "Draw"}, Body: &ast.BlockStatement{}},
-			{Name: &ast.Identifier{Value: "GetWidth"}, Body: &ast.BlockStatement{}},
-			{Name: &ast.Identifier{Value: "GetHeight"}, Body: &ast.BlockStatement{}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Draw"}, Body: &ast.BlockStatement{}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "GetWidth"}, Body: &ast.BlockStatement{}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "GetHeight"}, Body: &ast.BlockStatement{}},
 		},
 	}
 	interp.evalClassDeclaration(classDecl)
@@ -559,9 +633,14 @@ func TestObjectToInterface(t *testing.T) {
 	// Test failed cast (class missing methods)
 	incompatibleClass := &ast.ClassDecl{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
-		Name:     &ast.Identifier{Value: "TPoint"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "TPoint",
+		},
 		Methods: []*ast.FunctionDecl{
-			{Name: &ast.Identifier{Value: "Draw"}, Body: &ast.BlockStatement{}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Draw"}, Body: &ast.BlockStatement{}},
 			// Missing GetWidth and GetHeight
 		},
 	}
@@ -582,13 +661,13 @@ func TestInterfaceMethodCall(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name: &ast.Identifier{Value: "ICalculator"},
+		Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "ICalculator"},
 		Methods: []*ast.InterfaceMethodDecl{
 			{
-				Name: &ast.Identifier{Value: "Add"},
+				Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Add"},
 				Parameters: []*ast.Parameter{
-					{Name: &ast.Identifier{Value: "x"}},
-					{Name: &ast.Identifier{Value: "y"}},
+					{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "x"}},
+					{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "y"}},
 				},
 				ReturnType: &ast.TypeAnnotation{Name: "Integer"},
 			},
@@ -599,13 +678,18 @@ func TestInterfaceMethodCall(t *testing.T) {
 	// Create implementing class
 	classDecl := &ast.ClassDecl{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
-		Name:     &ast.Identifier{Value: "TCalculator"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "TCalculator",
+		},
 		Methods: []*ast.FunctionDecl{
 			{
-				Name: &ast.Identifier{Value: "Add"},
+				Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Add"},
 				Parameters: []*ast.Parameter{
-					{Name: &ast.Identifier{Value: "x"}},
-					{Name: &ast.Identifier{Value: "y"}},
+					{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "x"}},
+					{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "y"}},
 				},
 				ReturnType: &ast.TypeAnnotation{Name: "Integer"},
 				Body:       &ast.BlockStatement{},
@@ -644,9 +728,9 @@ func TestInterfaceInheritance(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name: &ast.Identifier{Value: "IBase"},
+		Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IBase"},
 		Methods: []*ast.InterfaceMethodDecl{
-			{Name: &ast.Identifier{Value: "BaseMethod"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "BaseMethod"}},
 		},
 	}
 	interp.evalInterfaceDeclaration(baseDecl)
@@ -656,10 +740,20 @@ func TestInterfaceInheritance(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name:   &ast.Identifier{Value: "IDerived"},
-		Parent: &ast.Identifier{Value: "IBase"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "IDerived",
+		},
+		Parent: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "IBase",
+		},
 		Methods: []*ast.InterfaceMethodDecl{
-			{Name: &ast.Identifier{Value: "DerivedMethod"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DerivedMethod"}},
 		},
 	}
 	interp.evalInterfaceDeclaration(derivedDecl)
@@ -667,10 +761,15 @@ func TestInterfaceInheritance(t *testing.T) {
 	// Create class implementing derived interface (must implement both methods)
 	classDecl := &ast.ClassDecl{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
-		Name:     &ast.Identifier{Value: "TImplementation"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "TImplementation",
+		},
 		Methods: []*ast.FunctionDecl{
-			{Name: &ast.Identifier{Value: "BaseMethod"}, Body: &ast.BlockStatement{}},
-			{Name: &ast.Identifier{Value: "DerivedMethod"}, Body: &ast.BlockStatement{}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "BaseMethod"}, Body: &ast.BlockStatement{}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DerivedMethod"}, Body: &ast.BlockStatement{}},
 		},
 	}
 	interp.evalClassDeclaration(classDecl)
@@ -711,9 +810,9 @@ func TestMultipleInterfaces(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name: &ast.Identifier{Value: "IReadable"},
+		Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IReadable"},
 		Methods: []*ast.InterfaceMethodDecl{
-			{Name: &ast.Identifier{Value: "Read"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Read"}},
 		},
 	}
 	interp.evalInterfaceDeclaration(interface1)
@@ -723,9 +822,9 @@ func TestMultipleInterfaces(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name: &ast.Identifier{Value: "IWritable"},
+		Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IWritable"},
 		Methods: []*ast.InterfaceMethodDecl{
-			{Name: &ast.Identifier{Value: "Write"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Write"}},
 		},
 	}
 	interp.evalInterfaceDeclaration(interface2)
@@ -733,10 +832,15 @@ func TestMultipleInterfaces(t *testing.T) {
 	// Create class implementing both interfaces
 	classDecl := &ast.ClassDecl{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
-		Name:     &ast.Identifier{Value: "TFile"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "TFile",
+		},
 		Methods: []*ast.FunctionDecl{
-			{Name: &ast.Identifier{Value: "Read"}, Body: &ast.BlockStatement{}},
-			{Name: &ast.Identifier{Value: "Write"}, Body: &ast.BlockStatement{}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Read"}, Body: &ast.BlockStatement{}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Write"}, Body: &ast.BlockStatement{}},
 		},
 	}
 	interp.evalClassDeclaration(classDecl)
@@ -780,9 +884,9 @@ func TestInterfaceToInterface(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name: &ast.Identifier{Value: "IAnimal"},
+		Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IAnimal"},
 		Methods: []*ast.InterfaceMethodDecl{
-			{Name: &ast.Identifier{Value: "Eat"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Eat"}},
 		},
 	}
 	interp.evalInterfaceDeclaration(baseDecl)
@@ -792,10 +896,20 @@ func TestInterfaceToInterface(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name:   &ast.Identifier{Value: "IDog"},
-		Parent: &ast.Identifier{Value: "IAnimal"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "IDog",
+		},
+		Parent: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "IAnimal",
+		},
 		Methods: []*ast.InterfaceMethodDecl{
-			{Name: &ast.Identifier{Value: "Bark"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Bark"}},
 		},
 	}
 	interp.evalInterfaceDeclaration(derivedDecl)
@@ -819,9 +933,9 @@ func TestInterfaceToInterface(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name: &ast.Identifier{Value: "ICar"},
+		Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "ICar"},
 		Methods: []*ast.InterfaceMethodDecl{
-			{Name: &ast.Identifier{Value: "Drive"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Drive"}},
 		},
 	}
 	interp.evalInterfaceDeclaration(unrelatedDecl)
@@ -841,9 +955,9 @@ func TestInterfaceToObject(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name: &ast.Identifier{Value: "IShape"},
+		Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IShape"},
 		Methods: []*ast.InterfaceMethodDecl{
-			{Name: &ast.Identifier{Value: "GetArea"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "GetArea"}},
 		},
 	}
 	interp.evalInterfaceDeclaration(interfaceDecl)
@@ -851,15 +965,20 @@ func TestInterfaceToObject(t *testing.T) {
 	// Create class
 	classDecl := &ast.ClassDecl{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
-		Name:     &ast.Identifier{Value: "TCircle"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "TCircle",
+		},
 		Fields: []*ast.FieldDecl{
 			{
-				Name: &ast.Identifier{Value: "Radius"},
+				Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Radius"},
 				Type: &ast.TypeAnnotation{Name: "Integer"},
 			},
 		},
 		Methods: []*ast.FunctionDecl{
-			{Name: &ast.Identifier{Value: "GetArea"}, Body: &ast.BlockStatement{}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "GetArea"}, Body: &ast.BlockStatement{}},
 		},
 	}
 	interp.evalClassDeclaration(classDecl)
@@ -903,18 +1022,23 @@ func TestInterfaceLifetime(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name: &ast.Identifier{Value: "IResource"},
+		Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IResource"},
 		Methods: []*ast.InterfaceMethodDecl{
-			{Name: &ast.Identifier{Value: "Release"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}},
 		},
 	}
 	interp.evalInterfaceDeclaration(interfaceDecl)
 
 	classDecl := &ast.ClassDecl{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
-		Name:     &ast.Identifier{Value: "TResource"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "TResource",
+		},
 		Methods: []*ast.FunctionDecl{
-			{Name: &ast.Identifier{Value: "Release"}, Body: &ast.BlockStatement{}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}, Body: &ast.BlockStatement{}},
 		},
 	}
 	interp.evalClassDeclaration(classDecl)
@@ -974,9 +1098,9 @@ func TestInterfacePolymorphism(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name: &ast.Identifier{Value: "IVehicle"},
+		Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "IVehicle"},
 		Methods: []*ast.InterfaceMethodDecl{
-			{Name: &ast.Identifier{Value: "Start"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Start"}},
 		},
 	}
 	interp.evalInterfaceDeclaration(baseDecl)
@@ -986,10 +1110,20 @@ func TestInterfacePolymorphism(t *testing.T) {
 		BaseNode: ast.BaseNode{
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
-		Name:   &ast.Identifier{Value: "ICar"},
-		Parent: &ast.Identifier{Value: "IVehicle"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "ICar",
+		},
+		Parent: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "IVehicle",
+		},
 		Methods: []*ast.InterfaceMethodDecl{
-			{Name: &ast.Identifier{Value: "Drive"}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Drive"}},
 		},
 	}
 	interp.evalInterfaceDeclaration(derivedDecl)
@@ -997,10 +1131,15 @@ func TestInterfacePolymorphism(t *testing.T) {
 	// Create class implementing derived interface
 	classDecl := &ast.ClassDecl{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.CLASS, Literal: "class"}},
-		Name:     &ast.Identifier{Value: "TSportsCar"},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{},
+			},
+			Value: "TSportsCar",
+		},
 		Methods: []*ast.FunctionDecl{
-			{Name: &ast.Identifier{Value: "Start"}, Body: &ast.BlockStatement{}},
-			{Name: &ast.Identifier{Value: "Drive"}, Body: &ast.BlockStatement{}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Start"}, Body: &ast.BlockStatement{}},
+			{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Drive"}, Body: &ast.BlockStatement{}},
 		},
 	}
 	interp.evalClassDeclaration(classDecl)

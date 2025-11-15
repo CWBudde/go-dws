@@ -64,7 +64,14 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 			Token: p.curToken,
 		},
 	}
-	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	stmt.Name = &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
+		Value: p.curToken.Literal,
+	}
 
 	// Check for optional type annotation (: Type)
 	if p.peekTokenIs(lexer.COLON) {

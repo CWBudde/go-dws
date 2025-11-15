@@ -72,17 +72,25 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 // parseIdentifier parses an identifier.
 func (p *Parser) parseIdentifier() ast.Expression {
 	return &ast.Identifier{
-		Token:  p.curToken,
-		Value:  p.curToken.Literal,
-		EndPos: p.endPosFromToken(p.curToken),
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  p.curToken,
+				EndPos: p.endPosFromToken(p.curToken),
+			},
+		},
+		Value: p.curToken.Literal,
 	}
 }
 
 // parseIntegerLiteral parses an integer literal.
 func (p *Parser) parseIntegerLiteral() ast.Expression {
 	lit := &ast.IntegerLiteral{
-		Token:  p.curToken,
-		EndPos: p.endPosFromToken(p.curToken),
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  p.curToken,
+				EndPos: p.endPosFromToken(p.curToken),
+			},
+		},
 	}
 
 	literal := p.curToken.Literal
@@ -119,8 +127,12 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 // parseFloatLiteral parses a floating-point literal.
 func (p *Parser) parseFloatLiteral() ast.Expression {
 	lit := &ast.FloatLiteral{
-		Token:  p.curToken,
-		EndPos: p.endPosFromToken(p.curToken),
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  p.curToken,
+				EndPos: p.endPosFromToken(p.curToken),
+			},
+		},
 	}
 
 	value, err := strconv.ParseFloat(p.curToken.Literal, 64)
@@ -152,9 +164,13 @@ func (p *Parser) parseStringLiteral() ast.Expression {
 	value = unescapeString(value)
 
 	return &ast.StringLiteral{
-		Token:  p.curToken,
-		Value:  value,
-		EndPos: p.endPosFromToken(p.curToken),
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  p.curToken,
+				EndPos: p.endPosFromToken(p.curToken),
+			},
+		},
+		Value: value,
 	}
 }
 
@@ -183,25 +199,37 @@ func unescapeString(s string) string {
 // parseBooleanLiteral parses a boolean literal.
 func (p *Parser) parseBooleanLiteral() ast.Expression {
 	return &ast.BooleanLiteral{
-		Token:  p.curToken,
-		Value:  p.curTokenIs(lexer.TRUE),
-		EndPos: p.endPosFromToken(p.curToken),
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  p.curToken,
+				EndPos: p.endPosFromToken(p.curToken),
+			},
+		},
+		Value: p.curTokenIs(lexer.TRUE),
 	}
 }
 
 // parseNilLiteral parses a nil literal.
 func (p *Parser) parseNilLiteral() ast.Expression {
 	return &ast.NilLiteral{
-		Token:  p.curToken,
-		EndPos: p.endPosFromToken(p.curToken),
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  p.curToken,
+				EndPos: p.endPosFromToken(p.curToken),
+			},
+		},
 	}
 }
 
 // parseCharLiteral parses a character literal (#65, #$41).
 func (p *Parser) parseCharLiteral() ast.Expression {
 	lit := &ast.CharLiteral{
-		Token:  p.curToken,
-		EndPos: p.endPosFromToken(p.curToken),
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  p.curToken,
+				EndPos: p.endPosFromToken(p.curToken),
+			},
+		},
 	}
 
 	// Parse the character value from the token literal
@@ -423,7 +451,11 @@ func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitia
 		if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
 			// This is a field initializer: name : value
 			fieldName := &ast.Identifier{
-				Token: p.curToken,
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: p.curToken,
+					},
+				},
 				Value: p.curToken.Literal,
 			}
 
@@ -644,7 +676,14 @@ func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
 		if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
 			// Named field initialization
 			fieldNameToken := p.curToken
-			fieldName := &ast.Identifier{Token: fieldNameToken, Value: fieldNameToken.Literal}
+			fieldName := &ast.Identifier{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: fieldNameToken,
+					},
+				},
+				Value: fieldNameToken.Literal,
+			}
 
 			p.nextToken() // move to ':'
 			p.nextToken() // move to value
@@ -707,7 +746,11 @@ func (p *Parser) parseNewExpression() ast.Expression {
 	}
 
 	typeName := &ast.Identifier{
-		Token: p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
 		Value: p.curToken.Literal,
 	}
 
@@ -814,7 +857,11 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 	if p.peekTokenIs(lexer.IDENT) {
 		p.nextToken() // move to identifier
 		inheritedExpr.Method = &ast.Identifier{
-			Token: p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
 			Value: p.curToken.Literal,
 		}
 		inheritedExpr.IsMember = true
@@ -997,7 +1044,11 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 		}
 
 		names = append(names, &ast.Identifier{
-			Token: p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
 			Value: p.curToken.Literal,
 		})
 
@@ -1068,7 +1119,11 @@ func (p *Parser) parseCondition() *ast.Condition {
 		}
 
 		condition.Message = &ast.StringLiteral{
-			Token: p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
 			Value: p.curToken.Literal,
 		}
 		// EndPos is the end of the message string literal
@@ -1101,7 +1156,11 @@ func (p *Parser) parseOldExpression() ast.Expression {
 	}
 
 	identifier := &ast.Identifier{
-		Token: p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
 		Value: p.curToken.Literal,
 	}
 

@@ -31,9 +31,16 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 				// This is a record static method call (TRecord.Create(...))
 				// Convert to MethodCallExpression and delegate to evalMethodCall
 				methodCall := &ast.MethodCallExpression{
-					Token:     ne.Token,
-					Object:    ne.ClassName,
-					Method:    &ast.Identifier{Token: ne.Token, Value: "Create"},
+					Token:  ne.Token,
+					Object: ne.ClassName,
+					Method: &ast.Identifier{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: ne.Token,
+							},
+						},
+						Value: "Create",
+					},
 					Arguments: ne.Arguments,
 				}
 				return i.evalMethodCall(methodCall)

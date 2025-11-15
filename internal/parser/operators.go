@@ -70,7 +70,11 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 	}
 
 	decl.Binding = &ast.Identifier{
-		Token: p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
 		Value: p.curToken.Literal,
 	}
 
@@ -165,7 +169,11 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 	}
 
 	decl.Binding = &ast.Identifier{
-		Token: p.curToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
 		Value: p.curToken.Literal,
 	}
 

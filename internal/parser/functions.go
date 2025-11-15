@@ -32,7 +32,14 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	// In DWScript/Object Pascal, keywords can be used as identifiers in certain contexts
 	// like method names, so we accept any token as a name here
 	p.nextToken()
-	firstIdent := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	firstIdent := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
+		Value: p.curToken.Literal,
+	}
 
 	// Check for qualified name (ClassName.MethodName for method implementations)
 	if p.peekTokenIs(lexer.DOT) {
@@ -41,7 +48,14 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		// This is a qualified name: TExample.MethodName
 		// firstIdent is the class name, current token is the method name
 		fn.ClassName = firstIdent
-		fn.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		fn.Name = &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
+			Value: p.curToken.Literal,
+		}
 	} else {
 		// Simple function name (not a method implementation)
 		fn.Name = firstIdent
@@ -422,7 +436,11 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		}
 
 		names = append(names, &ast.Identifier{
-			Token: p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
 			Value: p.curToken.Literal,
 		})
 

@@ -294,13 +294,23 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 		// Create interface
 		iface := NewInterfaceInfo("ITest")
 		iface.Methods[strings.ToLower("DoIt")] = &ast.FunctionDecl{
-			Name: &ast.Identifier{Value: "DoIt"},
+			Name: &ast.Identifier{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{},
+				},
+				Value: "DoIt",
+			},
 		}
 
 		// Create class that implements interface
 		class := NewClassInfo("TTest")
 		class.Methods["doit"] = &ast.FunctionDecl{
-			Name: &ast.Identifier{Value: "DoIt"},
+			Name: &ast.Identifier{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{},
+				},
+				Value: "DoIt",
+			},
 		}
 
 		// Create object instance
@@ -325,7 +335,7 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 		// Create interface and class
 		iface := NewInterfaceInfo("ITest")
 		class := NewClassInfo("TTest")
-		class.Methods["doit"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "DoIt"}}
+		class.Methods["doit"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DoIt"}}
 
 		// Create object and interface instance
 		obj := NewObjectInstance(class)
@@ -358,12 +368,12 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 	t.Run("InterfaceToInterface_Upcast", func(t *testing.T) {
 		// Create base interface
 		base := NewInterfaceInfo("IBase")
-		base.Methods["basemethod"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "BaseMethod"}}
+		base.Methods["basemethod"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "BaseMethod"}}
 
 		// Create derived interface
 		derived := NewInterfaceInfo("IDerived")
 		derived.Parent = base
-		derived.Methods["derivedmethod"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "DerivedMethod"}}
+		derived.Methods["derivedmethod"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DerivedMethod"}}
 
 		// Test: IDerived → IBase (upcast)
 		if !interfaceIsCompatible(derived, base) {
@@ -374,12 +384,12 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 	t.Run("InterfaceToInterface_Downcast", func(t *testing.T) {
 		// Create base interface
 		base := NewInterfaceInfo("IBase")
-		base.Methods["basemethod"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "BaseMethod"}}
+		base.Methods["basemethod"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "BaseMethod"}}
 
 		// Create derived interface
 		derived := NewInterfaceInfo("IDerived")
 		derived.Parent = base
-		derived.Methods["derivedmethod"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "DerivedMethod"}}
+		derived.Methods["derivedmethod"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DerivedMethod"}}
 
 		// Test: IBase → IDerived (downcast - should fail)
 		if interfaceIsCompatible(base, derived) {
@@ -415,10 +425,10 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 
 		// Create interface and class
 		iface := NewInterfaceInfo("IResource")
-		iface.Methods[strings.ToLower("Release")] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Release"}}
+		iface.Methods[strings.ToLower("Release")] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}}
 
 		class := NewClassInfo("TResource")
-		class.Methods["release"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Release"}}
+		class.Methods["release"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}}
 
 		interp.interfaces["iresource"] = iface
 		interp.classes["TResource"] = class

@@ -100,13 +100,27 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 		if !p.expectPeek(lexer.IDENT) {
 			return nil
 		}
-		nameIdent = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		nameIdent = &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
+			Value: p.curToken.Literal,
+		}
 	} else if !p.isIdentifierToken(p.curToken.Type) {
 		// Should already be at an identifier
 		p.addError("expected identifier in type declaration", ErrExpectedIdent)
 		return nil
 	} else {
-		nameIdent = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		nameIdent = &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
+			Value: p.curToken.Literal,
+		}
 	}
 
 	// Expect '=' after type name
@@ -416,7 +430,14 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 		if !p.expectPeek(lexer.IDENT) {
 			return nil
 		}
-		interfaceDecl.Parent = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		interfaceDecl.Parent = &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
+			Value: p.curToken.Literal,
+		}
 
 		if !p.expectPeek(lexer.RPAREN) {
 			return nil
@@ -503,7 +524,14 @@ func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
 	}
-	methodDecl.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	methodDecl.Name = &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
+		Value: p.curToken.Literal,
+	}
 
 	// Parse parameter list if present
 	methodDecl.Parameters = []*ast.Parameter{}

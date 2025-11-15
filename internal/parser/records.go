@@ -248,7 +248,14 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 
 	// Collect all field names
 	var fieldNames []*ast.Identifier
-	fieldNames = append(fieldNames, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+	fieldNames = append(fieldNames, &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
+		Value: p.curToken.Literal,
+	})
 
 	// Check for comma-separated names
 	for p.peekTokenIs(lexer.COMMA) {
@@ -256,7 +263,14 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 		if !p.expectPeek(lexer.IDENT) {
 			return nil
 		}
-		fieldNames = append(fieldNames, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+		fieldNames = append(fieldNames, &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
+			Value: p.curToken.Literal,
+		})
 	}
 
 	// Expect colon
@@ -328,7 +342,14 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 		if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
 			// Named field initialization
 			fieldNameToken := p.curToken
-			fieldName := &ast.Identifier{Token: fieldNameToken, Value: fieldNameToken.Literal}
+			fieldName := &ast.Identifier{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token: fieldNameToken,
+					},
+				},
+				Value: fieldNameToken.Literal,
+			}
 
 			p.nextToken() // move to ':'
 			p.nextToken() // move to value expression
@@ -388,7 +409,14 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
 	}
-	propName := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	propName := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
+		Value: p.curToken.Literal,
+	}
 
 	// Expect colon
 	if !p.expectPeek(lexer.COLON) {

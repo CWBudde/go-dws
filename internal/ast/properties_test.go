@@ -18,22 +18,13 @@ func TestPropertyDeclBasic(t *testing.T) {
 
 				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 			},
-			Name: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"},
-				Value: "Name",
-			},
+			Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"}}}, Value: "Name"},
 			Type: &TypeAnnotation{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 				Name:  "String",
 			},
-			ReadSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"},
-				Value: "FName",
-			},
-			WriteSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"},
-				Value: "FName",
-			},
+			ReadSpec:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"}}}, Value: "FName"},
+			WriteSpec:   &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"}}}, Value: "FName"},
 			IndexParams: nil,
 			IsDefault:   false,
 		}
@@ -59,22 +50,13 @@ func TestPropertyDeclBasic(t *testing.T) {
 
 				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 			},
-			Name: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Count"},
-				Value: "Count",
-			},
+			Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Count"}}}, Value: "Count"},
 			Type: &TypeAnnotation{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 				Name:  "Integer",
 			},
-			ReadSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "GetCount"},
-				Value: "GetCount",
-			},
-			WriteSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "SetCount"},
-				Value: "SetCount",
-			},
+			ReadSpec:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "GetCount"}}}, Value: "GetCount"},
+			WriteSpec:   &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "SetCount"}}}, Value: "SetCount"},
 			IndexParams: nil,
 			IsDefault:   false,
 		}
@@ -95,18 +77,12 @@ func TestPropertyDeclReadOnly(t *testing.T) {
 
 			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 		},
-		Name: &Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "Size"},
-			Value: "Size",
-		},
+		Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Size"}}}, Value: "Size"},
 		Type: &TypeAnnotation{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 			Name:  "Integer",
 		},
-		ReadSpec: &Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "FSize"},
-			Value: "FSize",
-		},
+		ReadSpec:    &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "FSize"}}}, Value: "FSize"},
 		WriteSpec:   nil, // Read-only: no write spec
 		IndexParams: nil,
 		IsDefault:   false,
@@ -127,19 +103,13 @@ func TestPropertyDeclWriteOnly(t *testing.T) {
 
 			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 		},
-		Name: &Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "Output"},
-			Value: "Output",
-		},
+		Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Output"}}}, Value: "Output"},
 		Type: &TypeAnnotation{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 			Name:  "String",
 		},
-		ReadSpec: nil, // Write-only: no read spec
-		WriteSpec: &Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "SetOutput"},
-			Value: "SetOutput",
-		},
+		ReadSpec:    nil, // Write-only: no read spec
+		WriteSpec:   &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "SetOutput"}}}, Value: "SetOutput"},
 		IndexParams: nil,
 		IsDefault:   false,
 	}
@@ -160,28 +130,16 @@ func TestPropertyDeclIndexed(t *testing.T) {
 
 				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 			},
-			Name: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Items"},
-				Value: "Items",
-			},
+			Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Items"}}}, Value: "Items"},
 			Type: &TypeAnnotation{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 				Name:  "String",
 			},
-			ReadSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "GetItem"},
-				Value: "GetItem",
-			},
-			WriteSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "SetItem"},
-				Value: "SetItem",
-			},
+			ReadSpec:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "GetItem"}}}, Value: "GetItem"},
+			WriteSpec: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "SetItem"}}}, Value: "SetItem"},
 			IndexParams: []*Parameter{
 				{
-					Name: &Identifier{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "index"},
-						Value: "index",
-					},
+					Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "index"}}}, Value: "index"},
 					Type: &TypeAnnotation{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 						Name:  "Integer",
@@ -206,38 +164,23 @@ func TestPropertyDeclIndexed(t *testing.T) {
 
 				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 			},
-			Name: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Data"},
-				Value: "Data",
-			},
+			Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Data"}}}, Value: "Data"},
 			Type: &TypeAnnotation{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Float"},
 				Name:  "Float",
 			},
-			ReadSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "GetData"},
-				Value: "GetData",
-			},
-			WriteSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "SetData"},
-				Value: "SetData",
-			},
+			ReadSpec:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "GetData"}}}, Value: "GetData"},
+			WriteSpec: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "SetData"}}}, Value: "SetData"},
 			IndexParams: []*Parameter{
 				{
-					Name: &Identifier{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-						Value: "x",
-					},
+					Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "x"}}}, Value: "x"},
 					Type: &TypeAnnotation{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 						Name:  "Integer",
 					},
 				},
 				{
-					Name: &Identifier{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "y"},
-						Value: "y",
-					},
+					Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "y"}}}, Value: "y"},
 					Type: &TypeAnnotation{
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 						Name:  "Integer",
@@ -260,28 +203,16 @@ func TestPropertyDeclDefault(t *testing.T) {
 
 			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 		},
-		Name: &Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "Items"},
-			Value: "Items",
-		},
+		Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Items"}}}, Value: "Items"},
 		Type: &TypeAnnotation{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 			Name:  "String",
 		},
-		ReadSpec: &Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "GetItem"},
-			Value: "GetItem",
-		},
-		WriteSpec: &Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "SetItem"},
-			Value: "SetItem",
-		},
+		ReadSpec:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "GetItem"}}}, Value: "GetItem"},
+		WriteSpec: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "SetItem"}}}, Value: "SetItem"},
 		IndexParams: []*Parameter{
 			{
-				Name: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "index"},
-					Value: "index",
-				},
+				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "index"}}}, Value: "index"},
 				Type: &TypeAnnotation{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 					Name:  "Integer",
@@ -312,22 +243,13 @@ func TestPropertyDeclString(t *testing.T) {
 
 					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 				},
-				Name: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"},
-					Value: "Name",
-				},
+				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"}}}, Value: "Name"},
 				Type: &TypeAnnotation{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 					Name:  "String",
 				},
-				ReadSpec: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"},
-					Value: "FName",
-				},
-				WriteSpec: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"},
-					Value: "FName",
-				},
+				ReadSpec:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"}}}, Value: "FName"},
+				WriteSpec: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"}}}, Value: "FName"},
 			},
 			expected: "property Name: String read FName write FName;",
 		},
@@ -338,18 +260,12 @@ func TestPropertyDeclString(t *testing.T) {
 
 					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 				},
-				Name: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Size"},
-					Value: "Size",
-				},
+				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Size"}}}, Value: "Size"},
 				Type: &TypeAnnotation{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 					Name:  "Integer",
 				},
-				ReadSpec: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "FSize"},
-					Value: "FSize",
-				},
+				ReadSpec:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "FSize"}}}, Value: "FSize"},
 				WriteSpec: nil,
 			},
 			expected: "property Size: Integer read FSize;",
@@ -361,19 +277,13 @@ func TestPropertyDeclString(t *testing.T) {
 
 					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 				},
-				Name: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Output"},
-					Value: "Output",
-				},
+				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Output"}}}, Value: "Output"},
 				Type: &TypeAnnotation{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 					Name:  "String",
 				},
-				ReadSpec: nil,
-				WriteSpec: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "SetOutput"},
-					Value: "SetOutput",
-				},
+				ReadSpec:  nil,
+				WriteSpec: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "SetOutput"}}}, Value: "SetOutput"},
 			},
 			expected: "property Output: String write SetOutput;",
 		},
@@ -384,28 +294,16 @@ func TestPropertyDeclString(t *testing.T) {
 
 					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 				},
-				Name: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Items"},
-					Value: "Items",
-				},
+				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Items"}}}, Value: "Items"},
 				Type: &TypeAnnotation{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 					Name:  "String",
 				},
-				ReadSpec: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "GetItem"},
-					Value: "GetItem",
-				},
-				WriteSpec: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "SetItem"},
-					Value: "SetItem",
-				},
+				ReadSpec:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "GetItem"}}}, Value: "GetItem"},
+				WriteSpec: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "SetItem"}}}, Value: "SetItem"},
 				IndexParams: []*Parameter{
 					{
-						Name: &Identifier{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "index"},
-							Value: "index",
-						},
+						Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "index"}}}, Value: "index"},
 						Type: &TypeAnnotation{
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 							Name:  "Integer",
@@ -422,28 +320,16 @@ func TestPropertyDeclString(t *testing.T) {
 
 					Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 				},
-				Name: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Items"},
-					Value: "Items",
-				},
+				Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Items"}}}, Value: "Items"},
 				Type: &TypeAnnotation{
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 					Name:  "String",
 				},
-				ReadSpec: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "GetItem"},
-					Value: "GetItem",
-				},
-				WriteSpec: &Identifier{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "SetItem"},
-					Value: "SetItem",
-				},
+				ReadSpec:  &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "GetItem"}}}, Value: "GetItem"},
+				WriteSpec: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "SetItem"}}}, Value: "SetItem"},
 				IndexParams: []*Parameter{
 					{
-						Name: &Identifier{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "index"},
-							Value: "index",
-						},
+						Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "index"}}}, Value: "index"},
 						Type: &TypeAnnotation{
 							Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 							Name:  "Integer",
@@ -472,18 +358,12 @@ func TestPropertyDeclTokenLiteral(t *testing.T) {
 
 			Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 		},
-		Name: &Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"},
-			Value: "Name",
-		},
+		Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"}}}, Value: "Name"},
 		Type: &TypeAnnotation{
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 			Name:  "String",
 		},
-		ReadSpec: &Identifier{
-			Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"},
-			Value: "FName",
-		},
+		ReadSpec: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"}}}, Value: "FName"},
 	}
 
 	if prop.TokenLiteral() != "property" {
@@ -503,22 +383,13 @@ func TestClassProperty(t *testing.T) {
 
 				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 			},
-			Name: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Count"},
-				Value: "Count",
-			},
+			Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Count"}}}, Value: "Count"},
 			Type: &TypeAnnotation{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 				Name:  "Integer",
 			},
-			ReadSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "GetCount"},
-				Value: "GetCount",
-			},
-			WriteSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "SetCount"},
-				Value: "SetCount",
-			},
+			ReadSpec:        &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "GetCount"}}}, Value: "GetCount"},
+			WriteSpec:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "SetCount"}}}, Value: "SetCount"},
 			IsClassProperty: true,
 		}
 
@@ -540,18 +411,12 @@ func TestClassProperty(t *testing.T) {
 
 				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 			},
-			Name: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Version"},
-				Value: "Version",
-			},
+			Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Version"}}}, Value: "Version"},
 			Type: &TypeAnnotation{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 				Name:  "String",
 			},
-			ReadSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "GetVersion"},
-				Value: "GetVersion",
-			},
+			ReadSpec:        &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "GetVersion"}}}, Value: "GetVersion"},
 			WriteSpec:       nil,
 			IsClassProperty: true,
 		}
@@ -570,22 +435,13 @@ func TestClassProperty(t *testing.T) {
 
 				Token: lexer.Token{Type: lexer.PROPERTY, Literal: "property"},
 			},
-			Name: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"},
-				Value: "Name",
-			},
+			Name: &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "Name"}}}, Value: "Name"},
 			Type: &TypeAnnotation{
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "String"},
 				Name:  "String",
 			},
-			ReadSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"},
-				Value: "FName",
-			},
-			WriteSpec: &Identifier{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"},
-				Value: "FName",
-			},
+			ReadSpec:        &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"}}}, Value: "FName"},
+			WriteSpec:       &Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "FName"}}}, Value: "FName"},
 			IsClassProperty: false,
 		}
 

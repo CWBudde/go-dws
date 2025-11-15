@@ -59,7 +59,11 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lex
 		}
 
 		helperDecl.ParentHelper = &ast.Identifier{
-			Token: p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
 			Value: p.curToken.Literal,
 		}
 

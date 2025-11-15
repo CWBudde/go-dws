@@ -796,13 +796,18 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
   - [x] Document design decisions and usage patterns
   - [x] Add `pkg/ast/base.go`
 
-- [ ] 9.16.2 Refactor literal expression nodes (Identifier, IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral, CharLiteral, NilLiteral)
-  - [ ] Embed `TypedExpressionBase` into Identifier and adjust parser/tests
-  - [ ] Embed `TypedExpressionBase` into numeric/string/char/boolean literal structs
-  - [ ] Embed `TypedExpressionBase` into NilLiteral
-  - [ ] Remove redundant `TokenLiteral/Pos/End/GetType` methods
-  - [ ] Update parser/semantic/interpreter tests that construct these literals
-  - [ ] Introduce helpers or scripts to simplify struct literal rewrites (composite literals currently set Token directly)
+- [x] 9.16.2 Refactor literal expression nodes (Identifier, IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral, CharLiteral, NilLiteral)
+  - [x] Embed `TypedExpressionBase` into Identifier and adjust parser/tests
+  - [x] Embed `TypedExpressionBase` into numeric/string/char/boolean literal structs
+  - [x] Embed `TypedExpressionBase` into NilLiteral
+  - [x] Remove redundant `TokenLiteral/Pos/End/GetType` methods
+  - [x] Update parser/semantic/interpreter tests that construct these literals
+  - [x] Updated all parser files (12 files, 37 instances)
+  - [x] Updated all test files in internal/ast (17 files, 446 instances)
+  - [x] Updated all test files in internal/bytecode (6 files, 100+ instances)
+  - [x] Updated all test files in internal/interp (6 files, 85+ instances)
+  - [x] Updated all test files in internal/semantic (3 files, 55+ instances)
+  - All literal expression nodes now use TypedExpressionBase successfully
 
 - [ ] 9.16.3 Refactor binary and unary expressions (BinaryExpression, UnaryExpression, GroupedExpression, RangeExpression)
   - [ ] Embed `TypedExpressionBase` into BinaryExpression
@@ -2001,6 +2006,121 @@ PrintLn(s.StartsWith('ba'));      // Helper ✗
 - Stage 8.3: Type Helpers (this implements String helpers specifically)
 - Task 9.8: Array Helper Methods (similar pattern, different type)
 - Task 9.12: SetLength on String Type (related to string manipulation)
+
+---
+
+## Phase 9.24: Test Infrastructure Improvements 🔄 IN PROGRESS
+
+**Goal**: Improve test maintainability and readability by creating reusable helper functions for common AST node construction patterns in tests.
+
+**Status**: 1/3 tasks complete | **Impact**: ~401 occurrences across 17 test files to be simplified
+
+### Overview
+
+The AST test files contain significant boilerplate when creating test nodes. For example, creating an Identifier requires:
+
+```go
+&Identifier{TypedExpressionBase: TypedExpressionBase{BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "name"}}}, Value: "name"}
+```
+
+This phase introduces helper functions to reduce this to:
+
+```go
+NewTestIdentifier("name")
+```
+
+### Tasks
+
+- [x] 9.24.1 Create Test Helper Infrastructure
+  - [x] Create `internal/ast/test_helpers.go` with core helper functions
+  - [x] Implement `NewTestIdentifier(name string)` helper
+  - [x] Implement `NewTestIntegerLiteral(value int64)` helper
+  - [x] Implement `NewTestFloatLiteral(value float64)` helper
+  - [x] Implement `NewTestStringLiteral(value string)` helper
+  - [x] Implement `NewTestBooleanLiteral(value bool)` helper
+  - [x] Implement `NewTestTypeAnnotation(typeName string)` helper
+  - [x] Implement `NewTestArrayTypeAnnotation(elementType string)` helper
+  - [x] Implement `NewTestToken(tokenType, literal)` helper
+  - [x] Implement `NewTestBaseNode(tokenType, literal)` helper
+  - [x] Verify all helpers work with existing test suite
+  - [x] Update `classes_test.go` as proof of concept (2 test cases updated)
+
+**Files Created**:
+
+- `internal/ast/test_helpers.go` (9 helper functions, ~120 lines)
+
+**Files Modified**:
+
+- `internal/ast/classes_test.go` (demonstrated usage in 2 test cases)
+
+- [ ] 9.24.2 Migrate Existing Test Files to Use Helpers
+  - [x] Update `internal/ast/arrays_test.go` (25 occurrences)
+  - [ ] Update `internal/ast/ast_test.go` (18+ occurrences)
+  - [ ] Update `internal/ast/classes_test.go` (26+ occurrences) - partially done
+  - [ ] Update `internal/ast/contracts_test.go` (14+ occurrences)
+  - [ ] Update `internal/ast/control_flow_test.go` (27+ occurrences)
+  - [ ] Update `internal/ast/declarations_test.go` (19+ occurrences)
+  - [ ] Update `internal/ast/enums_test.go` (4+ occurrences)
+  - [ ] Update `internal/ast/function_pointer_test.go` (10+ occurrences)
+  - [ ] Update `internal/ast/functions_test.go` (2+ occurrences)
+  - [ ] Update `internal/ast/helper_test.go` (7+ occurrences)
+  - [ ] Update `internal/ast/interfaces_test.go` (29+ occurrences)
+  - [ ] Update `internal/ast/lambda_test.go` (19+ occurrences)
+  - [ ] Update `internal/ast/operators_test.go` (3+ occurrences)
+  - [ ] Update `internal/ast/properties_test.go` (48+ occurrences)
+  - [ ] Update `internal/ast/record_literal_test.go` (2+ occurrences)
+  - [ ] Update `internal/ast/records_test.go` (13+ occurrences)
+  - [ ] Update `internal/ast/sets_test.go` (23+ occurrences)
+  - [ ] Run full test suite after each file migration
+  - [ ] Verify no regressions in test coverage
+
+**Estimated Impact**:
+
+- ~401 verbose struct initializations replaced with concise helper calls
+- Improved test readability and maintainability
+- Reduced chance of typos and inconsistencies
+- Easier onboarding for new contributors
+
+- [ ] 9.24.3 Extend Helpers for Complex Node Types
+  - [ ] Add `NewTestFieldDecl(name, typeName string, visibility)` helper
+  - [ ] Add `NewTestParameter(name, typeName string, byRef bool)` helper
+  - [ ] Add `NewTestFunctionDecl(name string, params, returnType)` helper
+  - [ ] Add `NewTestClassDecl(name string, parent *Identifier)` helper
+  - [ ] Add `NewTestBlockStatement(statements []Statement)` helper
+  - [ ] Add `NewTestBinaryExpression(left, op, right)` helper
+  - [ ] Add `NewTestUnaryExpression(op, operand)` helper
+  - [ ] Add `NewTestCallExpression(function, args)` helper
+  - [ ] Document all helpers with usage examples
+  - [ ] Create migration guide for contributors
+  - [ ] Update CONTRIBUTING.md with test helper guidelines
+
+**Estimated Time**: 8-12 hours total (1-1.5 days)
+
+- Task 9.24.1: 2 hours ✅ DONE
+- Task 9.24.2: 4-6 hours (bulk of the work)
+- Task 9.24.3: 2-4 hours (nice-to-have enhancements)
+
+**Benefits**:
+
+- Significantly improved test code readability
+- Reduced test boilerplate by ~60-70%
+- Faster test writing for new features
+- Consistent test patterns across the codebase
+- Easier to maintain and refactor tests
+- Lower barrier to entry for contributors
+
+**Testing Strategy**:
+
+- Run full test suite after each migration: `go test ./internal/ast`
+- Verify test coverage remains stable
+- Check that all existing tests continue to pass
+- Add new test cases to validate complex helpers
+
+**Related Files**:
+
+- `internal/ast/test_helpers.go` (new file with 9+ helper functions)
+- All `internal/ast/*_test.go` files (17 files to be updated)
+- `CONTRIBUTING.md` (to be updated with helper usage guidelines)
 
 ---
 

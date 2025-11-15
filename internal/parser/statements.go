@@ -222,7 +222,11 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		}
 
 		stmt.Names = append(stmt.Names, &ast.Identifier{
-			Token: p.curToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: p.curToken,
+				},
+			},
 			Value: p.curToken.Literal,
 		})
 
