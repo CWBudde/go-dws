@@ -23,6 +23,8 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 
 	// Build the record type from the declaration
 	fields := make(map[string]types.Type)
+	// Task 9.5: Store field declarations for initializer access
+	fieldDecls := make(map[string]*ast.FieldDecl)
 
 	for _, field := range decl.Fields {
 		fieldName := field.Name.Value
@@ -35,6 +37,8 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 		}
 
 		fields[fieldName] = fieldType
+		// Task 9.5: Store field declaration
+		fieldDecls[fieldName] = field
 	}
 
 	// Create the record type
@@ -61,6 +65,7 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 	recordTypeKey := "__record_type_" + strings.ToLower(recordName)
 	recordTypeValue := &RecordTypeValue{
 		RecordType:           recordType,
+		FieldDecls:           fieldDecls, // Task 9.5: Include field declarations
 		Methods:              methods,
 		StaticMethods:        staticMethods,
 		ClassMethods:         make(map[string]*ast.FunctionDecl),
@@ -94,6 +99,7 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 // Task 9.7: Extended to include method AST nodes for runtime execution.
 type RecordTypeValue struct {
 	RecordType           *types.RecordType
+	FieldDecls           map[string]*ast.FieldDecl      // Field declarations (for initializers) - Task 9.5
 	Methods              map[string]*ast.FunctionDecl   // Instance methods: Method name -> AST declaration
 	StaticMethods        map[string]*ast.FunctionDecl   // Static methods: Method name -> AST declaration (class function/procedure)
 	ClassMethods         map[string]*ast.FunctionDecl   // Alias for StaticMethods (for compatibility)
@@ -113,6 +119,7 @@ func (r *RecordTypeValue) String() string {
 
 // createRecordValue creates a new RecordValue with proper method lookup for nested records.
 // Task 9.7e1: Helper to create records with method resolution for nested record fields.
+// Task 9.5: Initialize fields with field initializers.
 func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods map[string]*ast.FunctionDecl) Value {
 	// Create a method lookup callback that can resolve methods for nested records
 	methodsLookup := func(rt *types.RecordType) map[string]*ast.FunctionDecl {
@@ -127,7 +134,49 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods ma
 		return nil
 	}
 
-	return newRecordValueInternal(recordType, methods, methodsLookup)
+	// Task 9.5: Look up the record type value to get field declarations before creating the value
+	recordTypeKey := "__record_type_" + strings.ToLower(recordType.Name)
+	var rtv *RecordTypeValue
+	if typeVal, ok := i.env.Get(recordTypeKey); ok {
+		rtv, _ = typeVal.(*RecordTypeValue)
+	}
+
+	// Create the record value
+	rv := newRecordValueInternal(recordType, methods, methodsLookup)
+
+	// Task 9.5: Initialize fields with field initializers or default values
+	if rtv != nil {
+		for fieldName, fieldType := range recordType.Fields {
+			var fieldValue Value
+
+			// Check if field has an initializer expression
+			if fieldDecl, hasDecl := rtv.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+				// Evaluate the field initializer
+				fieldValue = i.Eval(fieldDecl.InitValue)
+				if isError(fieldValue) {
+					return fieldValue
+				}
+			} else {
+				// Use default value based on type
+				switch fieldType {
+				case types.INTEGER:
+					fieldValue = &IntegerValue{Value: 0}
+				case types.FLOAT:
+					fieldValue = &FloatValue{Value: 0.0}
+				case types.STRING:
+					fieldValue = &StringValue{Value: ""}
+				case types.BOOLEAN:
+					fieldValue = &BooleanValue{Value: false}
+				default:
+					fieldValue = &NilValue{}
+				}
+			}
+
+			rv.Fields[fieldName] = fieldValue
+		}
+	}
+
+	return rv
 }
 
 // ============================================================================
@@ -168,13 +217,21 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 		return &ErrorValue{Message: "record literal requires explicit type name or type context"}
 	}
 
+	// Look up the record type value to get field declarations
+	recordTypeKey := "__record_type_" + strings.ToLower(literal.TypeName.Value)
+	var recordTypeValue *RecordTypeValue
+	if typeVal, ok := i.env.Get(recordTypeKey); ok {
+		recordTypeValue, _ = typeVal.(*RecordTypeValue)
+	}
+
 	// Create the record value
 	recordValue := &RecordValue{
 		RecordType: recordType,
 		Fields:     make(map[string]Value),
 	}
 
-	// Evaluate and assign field values
+	// Evaluate and assign field values from literal
+	explicitFields := make(map[string]bool)
 	for _, field := range literal.Fields {
 		// Skip positional fields (not yet implemented)
 		if field.Name == nil {
@@ -182,6 +239,7 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 		}
 
 		fieldName := field.Name.Value
+		explicitFields[fieldName] = true
 
 		// Check if field exists in record type
 		if _, exists := recordType.Fields[fieldName]; !exists {
@@ -198,10 +256,39 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 		recordValue.Fields[fieldName] = fieldValue
 	}
 
-	// Check that all required fields are initialized
-	for fieldName := range recordType.Fields {
+	// Task 9.5: Initialize remaining fields with field initializers or default values
+	for fieldName, fieldType := range recordType.Fields {
 		if _, exists := recordValue.Fields[fieldName]; !exists {
-			return &ErrorValue{Message: fmt.Sprintf("missing required field '%s' in record literal", fieldName)}
+			var fieldValue Value
+
+			// Check if field has an initializer expression
+			if recordTypeValue != nil {
+				if fieldDecl, hasDecl := recordTypeValue.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+					// Evaluate the field initializer
+					fieldValue = i.Eval(fieldDecl.InitValue)
+					if isError(fieldValue) {
+						return fieldValue
+					}
+				}
+			}
+
+			// If no initializer, use default value based on type
+			if fieldValue == nil {
+				switch fieldType {
+				case types.INTEGER:
+					fieldValue = &IntegerValue{Value: 0}
+				case types.FLOAT:
+					fieldValue = &FloatValue{Value: 0.0}
+				case types.STRING:
+					fieldValue = &StringValue{Value: ""}
+				case types.BOOLEAN:
+					fieldValue = &BooleanValue{Value: false}
+				default:
+					fieldValue = &NilValue{}
+				}
+			}
+
+			recordValue.Fields[fieldName] = fieldValue
 		}
 	}
 

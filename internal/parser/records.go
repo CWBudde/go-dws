@@ -278,15 +278,33 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 		return nil
 	}
 
-	// Expect type
-	if !p.expectPeek(lexer.IDENT) {
-		p.addError("expected type name after ':", ErrExpectedType)
+	// Parse type expression (supports simple types, array types, function pointer types)
+	p.nextToken() // move to type
+	fieldType := p.parseTypeExpression()
+	if fieldType == nil {
 		return nil
 	}
 
-	typeAnnotation := &ast.TypeAnnotation{
-		Token: p.curToken,
-		Name:  p.curToken.Literal,
+	// Check for initialization (= Value or := Value)
+	// DWScript uses '=' for field initializers: Field : String = 'hello';
+	// Also support ':=' for compatibility
+	var initValue ast.Expression
+	if p.peekTokenIs(lexer.EQ) || p.peekTokenIs(lexer.ASSIGN) {
+		// Initialization is only allowed for single field declarations
+		if len(fieldNames) > 1 {
+			p.addError("initialization not allowed for comma-separated field declarations", ErrInvalidExpression)
+			return nil
+		}
+
+		p.nextToken() // move to '=' or ':='
+		p.nextToken() // move to value expression
+
+		// Parse initialization expression
+		initValue = p.parseExpression(LOWEST)
+		if initValue == nil {
+			p.addError("expected initialization expression after = or :=", ErrInvalidExpression)
+			return nil
+		}
 	}
 
 	// Expect semicolon
@@ -302,8 +320,9 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 				Token: name.Token,
 			},
 			Name:       name,
-			Type:       typeAnnotation,
+			Type:       fieldType,
 			Visibility: visibility,
+			InitValue:  initValue, // May be nil if no initialization
 		})
 	}
 

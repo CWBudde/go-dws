@@ -194,6 +194,7 @@ func (cd *ClassDecl) String() string {
 // DWScript syntax:
 //
 //	FFieldName: Type;                // instance field
+//	Field: String = 'hello';         // instance field with initializer
 //	class var Count: Integer;         // class variable (static field)
 //	class var Count: Integer := 42;   // class variable with initialization
 //	property PropertyName: Type read FFieldName write FFieldName;
@@ -203,7 +204,7 @@ type FieldDecl struct {
 	Type       TypeExpression
 	Visibility Visibility
 	IsClassVar bool
-	InitValue  Expression // Optional initialization value for class variables
+	InitValue  Expression // Optional initialization value for instance fields and class variables
 }
 
 func (fd *FieldDecl) statementNode()       {}

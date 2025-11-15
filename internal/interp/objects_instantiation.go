@@ -65,22 +65,33 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	// Create new object instance
 	obj := NewObjectInstance(classInfo)
 
-	// Initialize all fields with default values based on their types
+	// Task 9.5: Initialize all fields with field initializers or default values
 	for fieldName, fieldType := range classInfo.Fields {
-		var defaultValue Value
-		switch fieldType {
-		case types.INTEGER:
-			defaultValue = &IntegerValue{Value: 0}
-		case types.FLOAT:
-			defaultValue = &FloatValue{Value: 0.0}
-		case types.STRING:
-			defaultValue = &StringValue{Value: ""}
-		case types.BOOLEAN:
-			defaultValue = &BooleanValue{Value: false}
-		default:
-			defaultValue = &NilValue{}
+		var fieldValue Value
+
+		// Check if field has an initializer expression
+		if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+			// Evaluate the field initializer
+			fieldValue = i.Eval(fieldDecl.InitValue)
+			if isError(fieldValue) {
+				return fieldValue
+			}
+		} else {
+			// Use default value based on field type
+			switch fieldType {
+			case types.INTEGER:
+				fieldValue = &IntegerValue{Value: 0}
+			case types.FLOAT:
+				fieldValue = &FloatValue{Value: 0.0}
+			case types.STRING:
+				fieldValue = &StringValue{Value: ""}
+			case types.BOOLEAN:
+				fieldValue = &BooleanValue{Value: false}
+			default:
+				fieldValue = &NilValue{}
+			}
 		}
-		obj.SetField(fieldName, defaultValue)
+		obj.SetField(fieldName, fieldValue)
 	}
 
 	// Special handling for Exception.Create
