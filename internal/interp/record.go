@@ -9,6 +9,25 @@ import (
 )
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+// initializeInterfaceField creates an InterfaceInstance for interface-typed fields.
+// Task 9.1.4: Helper to reduce code duplication in record field initialization.
+func (i *Interpreter) initializeInterfaceField(fieldType types.Type) Value {
+	if interfaceType, ok := fieldType.(*types.InterfaceType); ok {
+		// Look up the InterfaceInfo from the interpreter
+		if interfaceInfo, exists := i.interfaces[strings.ToLower(interfaceType.Name)]; exists {
+			return &InterfaceInstance{
+				Interface: interfaceInfo,
+				Object:    nil,
+			}
+		}
+	}
+	return nil
+}
+
+// ============================================================================
 // Record Declaration Evaluation
 // ============================================================================
 
@@ -161,6 +180,13 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType, methods ma
 				// This ensures nested record fields are initialized as RecordValue instances
 				// rather than NilValue, fixing the bug where Outer.Inner.X would fail
 				fieldValue = getZeroValueForType(fieldType, methodsLookup)
+
+				// Task 9.1.4: Handle interface-typed fields specially
+				// Interface fields should be initialized as InterfaceInstance with nil object
+				// This allows proper "Interface is nil" error messages when accessed
+				if intfValue := i.initializeInterfaceField(fieldType); intfValue != nil {
+					fieldValue = intfValue
+				}
 			}
 
 			rv.Fields[fieldName] = fieldValue
@@ -275,6 +301,13 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 			// If no initializer, use getZeroValueForType to properly initialize nested records
 			if fieldValue == nil {
 				fieldValue = getZeroValueForType(fieldType, methodsLookup)
+
+				// Task 9.1.4: Handle interface-typed fields specially
+				// Interface fields should be initialized as InterfaceInstance with nil object
+				// This allows proper "Interface is nil" error messages when accessed
+				if intfValue := i.initializeInterfaceField(fieldType); intfValue != nil {
+					fieldValue = intfValue
+				}
 			}
 
 			recordValue.Fields[fieldName] = fieldValue

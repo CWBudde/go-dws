@@ -127,6 +127,16 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 			// For now, those should use named types
 		}
 
+		// Task 9.1.5: Check if return type is an interface (overrides default)
+		// Interface return types should be initialized to InterfaceInstance with nil object
+		// This ensures proper reference counting when assigning to Result
+		if interfaceInfo, ok := i.interfaces[strings.ToLower(returnTypeName)]; ok {
+			resultValue = &InterfaceInstance{
+				Interface: interfaceInfo,
+				Object:    nil,
+			}
+		}
+
 		i.env.Define("Result", resultValue)
 		// Also define the function name as an alias for Result
 		// In DWScript, assigning to either Result or the function name sets the return value
@@ -190,6 +200,14 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 			returnValue = &NilValue{}
 		}
 
+		// Task 9.1.5: If returning an interface, increment RefCount for the caller's reference
+		// This will be balanced by cleanup releasing Result after we return
+		if intfInst, isIntf := returnValue.(*InterfaceInstance); isIntf {
+			if intfInst.Object != nil {
+				intfInst.Object.RefCount++
+			}
+		}
+
 		// Apply implicit conversion if return type doesn't match
 		if returnValue.Type() != "NIL" {
 			expectedReturnType := fn.ReturnType.Name
@@ -215,6 +233,11 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 			return &NilValue{}
 		}
 	}
+
+	// Task 9.1.5: Clean up interface references before restoring environment
+	// This releases references to interface-held objects and calls destructors if ref count reaches 0
+	// Now we don't skip Result anymore - it will be properly cleaned up
+	i.cleanupInterfaceReferences(funcEnv)
 
 	// Restore the original environment
 	i.env = savedEnv
