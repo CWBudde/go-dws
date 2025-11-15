@@ -72,10 +72,10 @@ var knownNodeTypes = map[string]bool{
 
 // knownHelperTypes are types that don't implement Node but contain Node fields
 var knownHelperTypes = map[string]bool{
-	"Parameter":         true,
-	"CaseBranch":        true,
-	"ExceptClause":      true,
-	"ExceptionHandler":  true,
+	"Parameter":        true,
+	"CaseBranch":       true,
+	"ExceptClause":     true,
+	"ExceptionHandler": true,
 }
 
 func main() {
