@@ -59,6 +59,9 @@ func (ts *TryStatement) String() string {
 }
 
 // ExceptClause represents the except part of a try statement.
+// This is a helper struct that groups exception handlers with an optional else block.
+// It does not implement Node as it's always contained within a TryStatement.
+//
 // Can contain:
 //   - Specific exception handlers (on E: Type do ...)
 //   - Bare except (no handlers, catches all)
@@ -78,7 +81,6 @@ func (ts *TryStatement) String() string {
 //	    HandleGeneric(E);
 //	end
 type ExceptClause struct {
-	BaseNode
 	ElseBlock *BlockStatement
 	Handlers  []*ExceptionHandler
 }
@@ -105,6 +107,9 @@ func (ec *ExceptClause) String() string {
 }
 
 // ExceptionHandler represents a specific exception handler in an except clause.
+// This is a helper struct that groups the exception variable, type, and handler statement.
+// It does not implement Node as it's always contained within an ExceptClause.
+//
 // Syntax: on <variable>: <type> do <statement>
 //
 // Examples:
@@ -117,7 +122,6 @@ func (ec *ExceptClause) String() string {
 //	  raise;
 //	end;
 type ExceptionHandler struct {
-	BaseNode
 	Statement     Statement
 	Variable      *Identifier
 	ExceptionType *TypeAnnotation

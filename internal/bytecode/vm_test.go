@@ -1049,9 +1049,6 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 	}
 
 	handler := &ast.ExceptionHandler{
-		BaseNode: ast.BaseNode{
-			Token: lexer.Token{Type: lexer.ON, Literal: "on", Pos: pos(3, 1)},
-		},
 		Variable: &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
@@ -1065,9 +1062,6 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 	}
 
 	clause := &ast.ExceptClause{
-		BaseNode: ast.BaseNode{
-			Token: lexer.Token{Type: lexer.EXCEPT, Literal: "except", Pos: pos(3, 1)},
-		},
 		Handlers: []*ast.ExceptionHandler{handler},
 	}
 	if elseValue != nil {

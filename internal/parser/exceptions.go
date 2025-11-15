@@ -157,9 +157,7 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 //	  PrintLn('error');  // bare except
 //	end
 func (p *Parser) parseExceptClause() *ast.ExceptClause {
-	clause := &ast.ExceptClause{
-		BaseNode: ast.BaseNode{Token: p.curToken},
-	}
+	clause := &ast.ExceptClause{}
 	clause.Handlers = []*ast.ExceptionHandler{}
 
 	p.nextToken() // move past 'except'
@@ -209,9 +207,6 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 		// Handler with nil Variable and nil ExceptionType catches everything
 		if len(bareBlock.Statements) > 0 {
 			bareHandler := &ast.ExceptionHandler{
-				BaseNode: ast.BaseNode{
-					Token: clause.Token,
-				},
 				Variable:      nil, // No exception variable
 				ExceptionType: nil, // Catches all exception types
 				Statement:     bareBlock,
@@ -265,9 +260,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 //	  HandleMyException(E);
 //	end;
 func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
-	handler := &ast.ExceptionHandler{
-		BaseNode: ast.BaseNode{Token: p.curToken},
-	}
+	handler := &ast.ExceptionHandler{}
 
 	// Expect 'on' keyword (already checked by caller)
 	p.nextToken() // move past 'on'

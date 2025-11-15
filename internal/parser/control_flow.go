@@ -441,9 +441,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 			continue
 		}
 
-		branch := &ast.CaseBranch{
-			BaseNode: ast.BaseNode{Token: p.curToken},
-		}
+		branch := &ast.CaseBranch{}
 
 		// Parse comma-separated value list (with range support)
 		branch.Values = []ast.Expression{}

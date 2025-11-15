@@ -302,14 +302,8 @@ func TestCompiler_TryExceptTypedHandler(t *testing.T) {
 					},
 				}},
 				ExceptClause: &ast.ExceptClause{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.EXCEPT, Literal: "except", Pos: pos(2, 1)},
-					},
 					Handlers: []*ast.ExceptionHandler{
 						{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.ON, Literal: "on", Pos: pos(2, 3)},
-							},
 							Variable: &ast.Identifier{
 								TypedExpressionBase: ast.TypedExpressionBase{
 									BaseNode: ast.BaseNode{
@@ -400,14 +394,8 @@ func TestCompiler_TryExceptRethrowWithoutElse(t *testing.T) {
 					},
 				}},
 				ExceptClause: &ast.ExceptClause{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.EXCEPT, Literal: "except", Pos: pos(3, 1)},
-					},
 					Handlers: []*ast.ExceptionHandler{
 						{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.ON, Literal: "on", Pos: pos(3, 3)},
-							},
 							ExceptionType: &ast.TypeAnnotation{Name: "Other"},
 							Statement:     &ast.BlockStatement{Statements: []ast.Statement{assign}},
 						},
