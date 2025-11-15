@@ -202,6 +202,12 @@ func (p *Printer) space() {
 	p.buf.WriteByte(' ')
 }
 
+// requiredSpace writes a space that is syntactically necessary, even in compact mode.
+// Use this for spaces between keywords and identifiers, or other mandatory spaces.
+func (p *Printer) requiredSpace() {
+	p.buf.WriteByte(' ')
+}
+
 // incIndent increases the indentation level.
 func (p *Printer) incIndent() {
 	p.indent++
@@ -580,6 +586,10 @@ func (p *Printer) nodeToMap(node ast.Node) map[string]interface{} {
 			stmts[i] = p.nodeToMap(stmt)
 		}
 		result["statements"] = stmts
+	case *ast.ExpressionStatement:
+		if n.Expression != nil {
+			result["expression"] = p.nodeToMap(n.Expression)
+		}
 	// Add more cases as needed
 	}
 

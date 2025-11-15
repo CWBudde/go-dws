@@ -227,7 +227,7 @@ func (p *Printer) printBlockStatement(bs *ast.BlockStatement) {
 
 func (p *Printer) printVarDeclStatement(vds *ast.VarDeclStatement) {
 	p.write("var")
-	p.space()
+	p.requiredSpace()
 
 	// Print all variable names
 	for i, name := range vds.Names {
@@ -253,10 +253,10 @@ func (p *Printer) printVarDeclStatement(vds *ast.VarDeclStatement) {
 
 	if vds.IsExternal {
 		p.write(";")
-		p.space()
+		p.requiredSpace()
 		p.write("external")
 		if vds.ExternalName != "" {
-			p.space()
+			p.requiredSpace()
 			p.write(fmt.Sprintf("'%s'", vds.ExternalName))
 		}
 	}
