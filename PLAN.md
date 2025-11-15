@@ -372,7 +372,7 @@ just test
 
 ---
 
-## Task 9.2: Static Array Type Compatibility and Var Parameters
+## Task 9.2.0: Static Array Type Compatibility and Var Parameters
 
 **Goal**: Fix type compatibility for static arrays in var parameters, enabling the quicksort.pas test to pass.
 
@@ -477,7 +477,7 @@ begin
 end;
 
 var myArray: TIntArray;
-TestProc(myArray);  // Should work but currently fails?
+TestProc(myArray);  // Should work - type alias is transparent in DWScript
 ```
 
 **Files to Create**:
@@ -612,31 +612,30 @@ PrintLn(IntToStr(data[2]));  // Should print: 20
 
 **Actions**:
 
-- [ ] Add type alias resolution to `internal/types/compound_types.go`
-- [ ] Update `ArrayType.Equals()` to handle type aliases
-- [ ] Add `ResolveTypeAlias()` helper function
-- [ ] Update `IsCompatible()` in `internal/types/compatibility.go`
+- [ ] Verify `GetUnderlyingType()` exists in `internal/types/types.go:250`
+- [ ] Update `ArrayType.Equals()` to use `GetUnderlyingType()` for type alias resolution
+- [ ] Update `IsCompatible()` in `internal/types/compatibility.go` to use `GetUnderlyingType()`
 - [ ] Ensure type aliases are transparent in comparisons
 - [ ] Run unit tests from 9.2.4 - some should now pass
 
 **Implementation Strategy**:
 
 ```go
-// Add to internal/types/type.go or compound_types.go
-
-// ResolveTypeAlias recursively resolves type aliases to underlying type
-func ResolveTypeAlias(t Type) Type {
-    if alias, ok := t.(*TypeAlias); ok {
-        return ResolveTypeAlias(alias.Underlying)
-    }
-    return t
-}
+// Use existing GetUnderlyingType() from internal/types/types.go:250
+// This function already handles cycle detection via iterative approach:
+//
+// func GetUnderlyingType(t Type) Type {
+//     for alias, ok := t.(*TypeAlias); ok; alias, ok = t.(*TypeAlias) {
+//         t = alias.AliasedType
+//     }
+//     return t
+// }
 
 // Update ArrayType.Equals() in compound_types.go
 func (a *ArrayType) Equals(other Type) bool {
-    // Resolve any type aliases first
-    resolvedA := ResolveTypeAlias(a)
-    resolvedOther := ResolveTypeAlias(other)
+    // Resolve any type aliases first using existing function
+    resolvedA := GetUnderlyingType(a)
+    resolvedOther := GetUnderlyingType(other)
 
     // Now compare resolved types
     // ... existing comparison logic ...
@@ -645,9 +644,9 @@ func (a *ArrayType) Equals(other Type) bool {
 
 **Files to Modify**:
 
-- `internal/types/compound_types.go:39-72` - Update `ArrayType.Equals()`
-- `internal/types/compatibility.go:45-60` - Update array compatibility rules
-- `internal/types/type.go` - Add `ResolveTypeAlias()` helper (if file exists)
+- `internal/types/compound_types.go:39-72` - Update `ArrayType.Equals()` to use `GetUnderlyingType()`
+- `internal/types/compatibility.go:45-60` - Update array compatibility rules to use `GetUnderlyingType()`
+- NOTE: `GetUnderlyingType()` already exists in `internal/types/types.go:250` - no need to create new function
 
 **Tests to Pass**:
 
