@@ -859,30 +859,33 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
 **Subtasks**:
 
 - [x] 9.16.1 Design base struct hierarchy
-  - Create `BaseNode` struct with Token, EndPos fields
-  - Create `TypedExpressionBase` struct embedding BaseNode with Type field
-  - Implement common methods once on base structs
-  - Document design decisions and usage patterns
-  - File: `pkg/ast/base.go` (new file)
+  - [x] Create `BaseNode` struct with Token, EndPos fields
+  - [x] Create `TypedExpressionBase` struct embedding BaseNode with Type field
+  - [x] Implement common methods once on base structs
+  - [x] Document design decisions and usage patterns
+  - [x] Add `pkg/ast/base.go`
 
 - [ ] 9.16.2 Refactor literal expression nodes (Identifier, IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral, CharLiteral, NilLiteral)
-  - Replace duplicate fields with TypedExpressionBase embedding
-  - Remove duplicate method implementations
-  - Verify interfaces still satisfied
-  - Update all tests to ensure behavior unchanged
-  - Files: `pkg/ast/ast.go` (~300 lines affected)
-  - Composite literal usage throughout parser/tests currently sets `Token` directly; embedding forces nested initialization, so plan includes a bulk rewrite or helper constructors before flipping these structs
+  - [ ] Embed `TypedExpressionBase` into Identifier and adjust parser/tests
+  - [ ] Embed `TypedExpressionBase` into numeric/string/char/boolean literal structs
+  - [ ] Embed `TypedExpressionBase` into NilLiteral
+  - [ ] Remove redundant `TokenLiteral/Pos/End/GetType` methods
+  - [ ] Update parser/semantic/interpreter tests that construct these literals
+  - [ ] Introduce helpers or scripts to simplify struct literal rewrites (composite literals currently set Token directly)
 
 - [ ] 9.16.3 Refactor binary and unary expressions (BinaryExpression, UnaryExpression, GroupedExpression, RangeExpression)
-  - Embed TypedExpressionBase
-  - Remove duplicate implementations
-  - Verify operator precedence logic unchanged
-  - Files: `pkg/ast/ast.go` (~200 lines affected)
+  - [ ] Embed `TypedExpressionBase` into BinaryExpression
+  - [ ] Embed `TypedExpressionBase` into UnaryExpression
+  - [ ] Embed `TypedExpressionBase` into GroupedExpression
+  - [ ] Embed `TypedExpressionBase` into RangeExpression
+  - [ ] Remove duplicate type/position helpers and verify parser/semantic behavior
 
 - [ ] 9.16.4 Refactor statement nodes (ExpressionStatement, VarDeclStatement, AssignmentStatement, BlockStatement, IfStatement, WhileStatement, etc.)
-  - Embed BaseNode (statements don't have Type field)
-  - Remove duplicate Pos/End/TokenLiteral implementations
-  - Files: `pkg/ast/statements.go`, `pkg/ast/control_flow.go` (~400 lines affected)
+  - [ ] Identify all statement structs across `pkg/ast/statements.go`, `pkg/ast/control_flow.go`, and related files
+  - [ ] Embed `BaseNode` into expression statements/assignments/var decls
+  - [ ] Embed `BaseNode` into control-flow statements (if/while/for/try/case)
+  - [ ] Remove redundant position/token helpers and update parser emitters/tests
+  - [ ] Ensure visitor interface still works after embedding
 
 - [ ] 9.16.5 Refactor declaration nodes (ConstDecl, FunctionDecl, ClassDecl, InterfaceDecl, etc.)
   - [x] Embed BaseNode into HelperDecl
@@ -903,21 +906,23 @@ func (il *IntegerLiteral) SetType(typ *TypeAnnotation) { il.Type = typ }
   - Files: `pkg/ast/arrays.go`, `pkg/ast/classes.go`, `pkg/ast/functions.go` (~300 lines affected)
 
 - [ ] 9.16.7 Update parser to use base struct constructors
-  - Ensure parser initializes base structs correctly
-  - Add helper functions for common node creation patterns
-  - Files: `internal/parser/*.go` (~50 locations)
+  - [x] Update parser sites already touched (helpers/interfaces/const/type/property/field)
+  - [ ] Sweep remaining parser files for struct literals using removed `Token` fields
+  - [ ] Add helper constructors/macros if it simplifies repetitive initialization
 
 - [ ] 9.16.8 Update semantic analyzer and interpreter
-  - Verify all code accessing node fields still works
-  - Update any type assertions or reflection code
-  - Files: `internal/semantic/*.go`, `internal/interp/*.go`
+  - [x] Updated const/type/property/helper-specific tests where embedding occurred
+  - [ ] Sweep remaining semantic analyzer files for direct field access needing updates
+  - [ ] Sweep interpreter packages (bytecode + runtime) for struct literal updates
+  - [ ] Add targeted regression tests for updated nodes
 
 - [ ] 9.16.9 Run comprehensive test suite
-  - All parser tests pass
-  - All semantic analyzer tests pass
-  - All interpreter tests pass
-  - All bytecode VM tests pass
-  - Fixture tests unchanged
+  - [ ] `go test ./pkg/ast`
+  - [ ] `go test ./internal/parser`
+  - [ ] `go test ./internal/semantic`
+  - [ ] `go test ./internal/interp`
+  - [ ] `go test ./internal/bytecode`
+  - [ ] Fixture / CLI integration suite
 
 **Files Modified**:
 
@@ -3161,3 +3166,8 @@ The project can realistically take **1-3 years** depending on:
 - Development pace (full-time vs part-time)
 - Team size (solo vs multiple contributors)
 - Completeness goals (minimal viable vs full feature parity)
+- [ ] 9.16.6 Refactor type-specific nodes (ArrayLiteralExpression, CallExpression, NewExpression, MemberAccessExpression, etc.)
+  - [ ] Embed appropriate base struct into array literals/index expressions
+  - [ ] Embed base structs into call/member/new expressions in `pkg/ast/classes.go`/`pkg/ast/functions.go`
+  - [ ] Update parser/interpreter/semantic code paths for these nodes
+  - [ ] Remove duplicate helpers once embedded
