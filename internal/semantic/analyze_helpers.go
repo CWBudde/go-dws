@@ -332,6 +332,23 @@ func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) (*types.He
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if method := findMethodCaseInsensitive(helper.Methods, methodName); method != nil {
+			// For array types, specialize the method signature if needed
+			// (e.g., Pop() should return the array's element type, not VARIANT)
+			if arrayType, isArray := typ.(*types.ArrayType); isArray {
+				// Check if this is the Pop method that needs specialization
+				if strings.ToLower(methodName) == "pop" && method.ReturnType == types.VARIANT {
+					// Create a specialized version with the actual element type
+					specialized := types.NewFunctionType(method.Parameters, arrayType.ElementType)
+					specialized.ParamNames = method.ParamNames
+					specialized.DefaultValues = method.DefaultValues
+					specialized.VarParams = method.VarParams
+					specialized.ConstParams = method.ConstParams
+					specialized.LazyParams = method.LazyParams
+					specialized.IsVariadic = method.IsVariadic
+					specialized.VariadicType = method.VariadicType
+					return helper, specialized
+				}
+			}
 			return helper, method
 		}
 	}
@@ -477,7 +494,7 @@ func (a *Analyzer) initArrayHelpers() {
 
 	// Task 9.8: Register .Pop() method for dynamic arrays (lowercase key for case-insensitive lookup)
 	// Pop() - removes and returns last element
-	// Use VARIANT as return type since actual type depends on array element type
+	// Use VARIANT as placeholder - will be specialized to array's element type by hasHelperMethod
 	arrayHelper.Methods["pop"] = types.NewFunctionType([]types.Type{}, types.VARIANT)
 	arrayHelper.BuiltinMethods["pop"] = "__array_pop"
 
