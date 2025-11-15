@@ -170,39 +170,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-## Task 9.9: Fix Inc/Dec on Array Elements (Algorithms Fixtures) 🎯 HIGH PRIORITY
-
-**Goal**: Allow Inc/Dec built-in functions to work on array element expressions.
-
-**Estimate**: 1-2 hours
-
-**Status**: IN PROGRESS
-
-**Blocked Tests** (1 test):
-- `testdata/fixtures/Algorithms/evenly_divisible.pas` - uses `Inc(Result[i])` and `Inc(Result[n])`
-
-**Current Error**: `function 'Inc' first argument must be a variable`
-
-**Root Cause**: Semantic analyzer validation is too strict - it rejects indexed array access (`arr[i]`) as a valid lvalue for Inc/Dec, even though array indexing is a valid assignable expression.
-
-**Implementation**:
-- File: `internal/semantic/analyzer.go`
-- Relax validation in Inc/Dec analysis to accept IndexExpression as valid lvalue
-- Inc() and Dec() runtime functions already work correctly, this is purely a validation issue
-
-**Subtasks**:
-- [ ] 9.9.1 Update Inc/Dec semantic validation to accept IndexExpression
-  - Check that IndexExpression base is a variable (array)
-  - Allow Inc(arr[i]) where arr is a variable
-- [ ] 9.9.2 Verify test passes with relaxed validation
-
-**Acceptance Criteria**:
-- `evenly_divisible.pas` test passes
-- Inc/Dec work on array elements: `Inc(arr[i])`, `Dec(arr[x+1])`
-- Proper error messages for invalid cases (e.g., `Inc(5)`)
-
----
-
 ## Task 9.10: Const Expression Evaluator (Algorithms Fixtures)
 
 **Goal**: Implement compile-time evaluation of const expressions including string operations and character literals.
