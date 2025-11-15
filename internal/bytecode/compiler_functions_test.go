@@ -311,7 +311,7 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 			functionDecl,
 			&ast.ReturnStatement{
 				BaseNode: ast.BaseNode{
-					Token:       lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(4, 1)},
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(4, 1)},
 				},
 				ReturnValue: callAddOne,
 			},
