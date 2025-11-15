@@ -1,0 +1,11 @@
+// This test should FAIL - different array bounds
+type TArray10 = array [0..9] of integer;
+type TArray5 = array [0..4] of integer;
+
+procedure TestProc(var arr: TArray10);
+begin
+  arr[0] := 1;
+end;
+
+var arr5: TArray5;
+TestProc(arr5);  // This should fail - different bounds

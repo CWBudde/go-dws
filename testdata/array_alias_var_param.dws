@@ -1,0 +1,14 @@
+// Minimal test case from Task 9.2.2
+// Testing if type aliases work with var parameters
+
+type TIntArray = array [0..9] of integer;
+
+procedure TestProc(var arr: TIntArray);
+begin
+  arr[0] := 42;
+end;
+
+var myArray: TIntArray;
+TestProc(myArray);  // Should work - type alias is transparent in DWScript
+PrintLn('myArray[0] = ' + IntToStr(myArray[0]));
+PrintLn('Test passed!');

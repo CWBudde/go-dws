@@ -425,17 +425,17 @@ This task will follow a **TDD approach**:
 
 **Goal**: Understand how original DWScript handles static arrays and type aliases in var parameters.
 
-**Status**: NOT STARTED
+**Status**: DONE ✅
 
 **Estimate**: 2 hours
 
 **Actions**:
 
-- [ ] Read DWScript documentation on array types and type aliases
-- [ ] Examine `reference/dwscript-original/` source code for array type compatibility logic
-- [ ] Search for how type aliases are resolved in parameter passing
-- [ ] Test simple DWScript programs with static arrays and var parameters (if possible)
-- [ ] Document findings in `docs/arrays-type-compatibility-research.md`
+- [x] Read DWScript documentation on array types and type aliases
+- [x] Examine `reference/dwscript-original/` source code for array type compatibility logic
+- [x] Search for how type aliases are resolved in parameter passing
+- [x] Test simple DWScript programs with static arrays and var parameters (if possible)
+- [x] Document findings in `docs/arrays-type-compatibility-research.md`
 
 **Key Questions to Answer**:
 
@@ -454,17 +454,19 @@ This task will follow a **TDD approach**:
 
 **Goal**: Create minimal reproducible test case and trace the exact error path.
 
-**Status**: NOT STARTED
+**Status**: DONE ✅ (No error found - type aliases work correctly)
 
 **Estimate**: 1-2 hours
 
+**Findings**: The minimal test case and all extended test cases **pass without errors**. The implementation already handles type aliases transparently in var parameters. Type aliases are resolved via `GetUnderlyingType()` before comparison, making them completely transparent. See `docs/task-9.2.2-findings.md` for detailed analysis.
+
 **Actions**:
 
-- [ ] Create minimal test case in `testdata/array_alias_var_param.dws`
-- [ ] Run test with verbose error output
-- [ ] Add debug logging to trace type comparison in semantic analyzer
-- [ ] Identify exact line where type check fails
-- [ ] Document the call stack and variable values at failure point
+- [x] Create minimal test case in `testdata/array_alias_var_param.dws`
+- [x] Run test with verbose error output
+- [x] Add debug logging to trace type comparison in semantic analyzer
+- [x] Identify exact line where type check fails (N/A - no failure)
+- [x] Document the call stack and variable values at failure point
 
 **Minimal Test Case**:
 
