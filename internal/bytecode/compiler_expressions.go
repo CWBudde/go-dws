@@ -33,6 +33,8 @@ func (c *Compiler) compileExpression(expr ast.Expression) error {
 		return c.compileIdentifier(node)
 	case *ast.ArrayLiteralExpression:
 		return c.compileArrayLiteral(node)
+	case *ast.NewArrayExpression:
+		return c.compileNewArrayExpression(node)
 	case *ast.IndexExpression:
 		return c.compileIndexExpression(node)
 	case *ast.MemberAccessExpression:
@@ -189,6 +191,49 @@ func (c *Compiler) compileArrayLiteral(expr *ast.ArrayLiteralExpression) error {
 		return c.errorf(expr, "array literal has too many elements (%d)", count)
 	}
 	c.chunk.Write(OpNewArray, 0, uint16(count), lineOf(expr))
+	return nil
+}
+
+func (c *Compiler) compileNewArrayExpression(expr *ast.NewArrayExpression) error {
+	if expr == nil {
+		return c.errorf(nil, "nil new array expression")
+	}
+
+	// Compile each dimension expression (push sizes onto stack)
+	for _, dimExpr := range expr.Dimensions {
+		if err := c.compileExpression(dimExpr); err != nil {
+			return err
+		}
+	}
+
+	dimCount := len(expr.Dimensions)
+	if dimCount == 0 {
+		return c.errorf(expr, "new array expression must have at least one dimension")
+	}
+	if dimCount > 0xFF {
+		return c.errorf(expr, "too many dimensions (%d), maximum is 255", dimCount)
+	}
+
+	// Get element type name for proper zero-value initialization
+	elementTypeName := ""
+	if expr.ElementTypeName != nil {
+		elementTypeName = expr.ElementTypeName.Value
+	}
+
+	// Store element type in constant pool
+	typeIndex := c.chunk.AddConstant(StringValue(elementTypeName))
+	if typeIndex > 0xFFFF {
+		return c.errorf(expr, "constant pool overflow")
+	}
+
+	// For single dimension, use OpNewArraySized
+	if dimCount == 1 {
+		c.chunk.Write(OpNewArraySized, 0, uint16(typeIndex), lineOf(expr))
+	} else {
+		// For multi-dimensional, use OpNewArrayMultiDim
+		c.chunk.Write(OpNewArrayMultiDim, byte(dimCount), uint16(typeIndex), lineOf(expr))
+	}
+
 	return nil
 }
 
