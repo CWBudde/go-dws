@@ -81,6 +81,224 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 9: Completion and DWScript Feature Parity
 
+- [ ] 9.1 Bytecode VM: Static Record Method Metadata Storage
+
+**Goal**: Store record static method metadata in bytecode chunks for runtime lookup.
+
+**Estimate**: 2-3 hours
+
+**Status**: NOT STARTED
+
+**Technical Approach**:
+- Extend `RecordMetadata` struct (similar to `ClassMetadata`) to include static method information
+- Add `RecordMetadata` map to `Chunk` structure alongside existing `Classes` map
+- Store mapping of method names to function global slots
+- Update serializer to handle record metadata (similar to class metadata serialization)
+
+**Files to Modify**:
+- `internal/bytecode/bytecode.go` - Add `RecordMetadata` struct with `Methods map[string]uint16` field
+- `internal/bytecode/bytecode.go` - Add `Records map[string]*RecordMetadata` to `Chunk` struct
+- `internal/bytecode/serializer.go` - Implement `writeRecords()` and `readRecords()` functions
+- `internal/bytecode/compiler_core.go` - Initialize `Records` map in `NewChunk()`
+
+**Implementation Details**:
+```go
+// RecordMetadata stores metadata for record types including static methods.
+type RecordMetadata struct {
+    Name    string
+    Methods map[string]uint16  // Method name (lowercase) -> global function slot
+    Fields  []*FieldMetadata   // For future field initializer support
+}
+```
+
+**Acceptance Criteria**:
+- Record metadata serializes/deserializes correctly
+- Metadata is preserved across bytecode compilation/loading cycles
+
+---
+
+- [ ] 9.2 Bytecode VM: Record Static Method Registration
+
+**Goal**: Register record static methods during function compilation.
+
+**Estimate**: 2-3 hours
+
+**Status**: NOT STARTED
+
+**Prerequisites**: Task 9.1 must be complete
+
+**Technical Approach**:
+- When compiling a `RecordDecl`, create `RecordMetadata` entry in chunk
+- When compiling a `FunctionDecl` with `ClassName` set, check if it refers to a record type
+- If so, register the method in the record's metadata (similar to how helper methods are registered at line 496-502 of `compiler_statements.go`)
+- Store the association between record type name and method global slot
+
+**Files to Modify**:
+- `internal/bytecode/compiler_statements.go` - Add `compileRecordDecl()` to create record metadata
+- `internal/bytecode/compiler_statements.go` - Extend `compileFunctionDecl()` lines 496-504 to handle record methods
+- `internal/bytecode/compiler_core.go` - Add `records` map to track record types during compilation
+
+**Implementation Details**:
+```go
+// In compileRecordDecl (similar to compileClassDecl):
+func (c *Compiler) compileRecordDecl(decl *ast.RecordDecl) error {
+    recordName := decl.Name.Value
+    recordMeta := &RecordMetadata{
+        Name:    recordName,
+        Methods: make(map[string]uint16),
+        Fields:  make([]*FieldMetadata, 0),
+    }
+    key := strings.ToLower(recordName)
+    c.chunk.Records[key] = recordMeta
+    // Store in compiler context for method registration
+    c.records[key] = recordMeta
+    return nil
+}
+
+// In compileFunctionDecl, after line 503:
+if fn.ClassName != nil {
+    recordKey := strings.ToLower(fn.ClassName.Value)
+    if recordMeta, ok := c.records[recordKey]; ok {
+        // This is a record static method
+        methodKey := strings.ToLower(fn.Name.Value)
+        recordMeta.Methods[methodKey] = globalSlot
+    }
+}
+```
+
+**Acceptance Criteria**:
+- Record declarations create metadata entries
+- Static methods are registered with correct global slots
+- Non-static methods are ignored (not registered)
+
+---
+
+- [ ] 9.3 Bytecode VM: Type-Level Method Call Detection
+
+**Goal**: Detect and compile method calls on type identifiers (e.g., `TRecord.Method(...)`).
+
+**Estimate**: 3-4 hours
+
+**Status**: NOT STARTED
+
+**Prerequisites**: Tasks 9.1 and 9.2 must be complete
+
+**Technical Approach**:
+- In `compileMethodCallExpression()`, check if `expr.Object` is an `Identifier`
+- Look up the identifier in both record and class metadata
+- If found, this is a type-level static method call
+- Compile as a direct function call using `OpCall` instead of `OpCallMethod`
+- This avoids pushing the "object" (which is actually a type) onto the stack
+
+**Files to Modify**:
+- `internal/bytecode/compiler_expressions.go` - Modify `compileMethodCallExpression()` (lines 246-273)
+- `internal/bytecode/compiler_core.go` - Add helper method `isRecordType(name string) bool`
+
+**Implementation Details**:
+```go
+func (c *Compiler) compileMethodCallExpression(expr *ast.MethodCallExpression) error {
+    // Check if this is a static method call on a record type
+    if ident, ok := expr.Object.(*ast.Identifier); ok {
+        recordKey := strings.ToLower(ident.Value)
+        if recordMeta, ok := c.chunk.Records[recordKey]; ok {
+            // This is a static record method call: TRecord.Method(...)
+            methodKey := strings.ToLower(expr.Method.Value)
+            if slot, found := recordMeta.Methods[methodKey]; found {
+                // Compile arguments
+                for _, arg := range expr.Arguments {
+                    if err := c.compileExpression(arg); err != nil {
+                        return err
+                    }
+                }
+
+                argCount := len(expr.Arguments)
+                // Use direct call - the function is already stored at global slot
+                c.chunk.Write(OpCall, byte(argCount), slot, lineOf(expr))
+                return nil
+            }
+            return c.errorf(expr, "unknown static method '%s' on record type '%s'",
+                expr.Method.Value, ident.Value)
+        }
+
+        // Check for class static methods similarly
+        // (for future class static method support)
+    }
+
+    // Fall back to regular instance method call
+    // ... existing code ...
+}
+```
+
+**Edge Cases to Handle**:
+- Method not found in record metadata
+- Record type not found (fall back to instance method)
+- Overloaded methods (may need additional work)
+
+**Acceptance Criteria**:
+- `TRecord.StaticMethod(...)` compiles without errors
+- Correct bytecode is generated (OpCall, not OpCallMethod)
+- Non-existent methods produce clear error messages
+
+---
+
+- [ ] 9.4 Bytecode VM: Test Static Record Methods
+
+**Goal**: Verify static record method support with comprehensive tests.
+
+**Estimate**: 2-3 hours
+
+**Status**: NOT STARTED
+
+**Prerequisites**: Tasks 9.1, 9.2, and 9.3 must be complete
+
+**Test Cases**:
+1. Simple static method call: `TTest.Create(42)`
+2. Static method returning record: `var r := TTest.Create(10);`
+3. Chained static calls: `TTest.Sum(TTest.Create(10), 2)`
+4. Static method calling another static method (same record)
+5. Overloaded static methods (if supported)
+6. Static method with record parameter and field access
+
+**Files to Test**:
+- `testdata/fixtures/SimpleScripts/record_method_static.pas` - Primary test (currently blocked)
+- Create new test: `testdata/bytecode_vm_record_static.dws`
+
+**Expected Output**:
+```pascal
+type
+  TTest = record
+    Field : Integer;
+    class function Sum(const a, b : TTest) : TTest;
+    class function Create(i : Integer) : TTest;
+  end;
+
+class function TTest.Sum(const a, b : TTest) : TTest;
+begin
+  Result.Field := a.Field + b.Field;
+end;
+
+class function TTest.Create(i : Integer) : TTest;
+begin
+  Result.Field := i;
+end;
+
+var r := TTest.Sum(TTest.Create(10), TTest.Create(2));
+PrintLn(r.Field);  // Should output: 12
+```
+
+**Acceptance Criteria**:
+- `record_method_static.pas` passes with bytecode VM (outputs `12`)
+- Both AST interpreter and bytecode VM produce identical results
+- No regressions in existing record tests
+- Serialized bytecode with record methods loads and executes correctly
+
+**Known Limitations** (document in PLAN.md):
+- Overloaded static methods may need semantic analyzer support
+- Instance methods on records not yet supported in bytecode VM
+- Record inheritance (if ever added) will need additional work
+
+---
+
 - [ ] 9.5 Support Field Initializers in Type Declarations
 
 **Goal**: Allow field initialization syntax in record and class type declarations.
@@ -235,19 +453,22 @@ type
 
 ---
 
-## Task 9.7: Complete Static Record Methods (Class Functions) Implementation ⚠️ IN PROGRESS
+## Task 9.7: Complete Static Record Methods (Class Functions) Implementation ✅ COMPLETE (AST) / ⚠️ INCOMPLETE (Bytecode VM)
 
-**Goal**: Finish implementing static methods (class functions) on record types for full DWScript compatibility.
+**Goal**: Implement static methods (class functions) on record types for full DWScript compatibility.
 
-**Estimate**: 3-4 hours (semantic analysis done, runtime remaining)
+**Estimate**: 3-4 hours (AST interpreter) + 9-12 hours (bytecode VM - see tasks 9.1-9.4)
 
-**Status**: IN PROGRESS - Semantic analysis ✅ COMPLETE | Runtime execution ⚠️ INCOMPLETE
+**Status**:
+- AST Interpreter: ✅ COMPLETE - All functionality working
+- Bytecode VM Basic Records: ✅ COMPLETE - Record literals and field access working
+- Bytecode VM Static Methods: ⚠️ NOT STARTED - See tasks 9.1-9.4 for detailed implementation plan
 
-**Blocked Tests** (2+ tests):
-- `testdata/fixtures/SimpleScripts/record_method_static.pas` - Primary test case
-- `testdata/fixtures/Algorithms/lerp.pas` - Record with instance method (related issue)
+**Blocked Tests**:
+- ✅ `testdata/fixtures/SimpleScripts/record_method_static.pas` - PASSES with AST interpreter (outputs `12`)
+- ⚠️ Bytecode VM: Blocked pending tasks 9.1-9.4 (static method call compilation)
 
-**Current Error**: `ERROR: class 'TTest' not found` (runtime error, not semantic)
+**Note**: Basic record support (literals, field access) was completed in this session. Static method support in bytecode VM requires additional metadata infrastructure (tasks 9.1-9.4).
 
 **DWScript Syntax**:
 ```pascal
@@ -301,13 +522,23 @@ var x := TTest.Sum(5, 7);  // Static call on type (not instance)
   - ✅ Fixed `RecordValue.GetMethod()` in `value.go:245-259` for case-insensitive lookup
   - ✅ Instance method calls work: `recordVar.Method()`
 
-- [x] 9.7.4 Add bytecode compiler support
-  - ✅ Added `RecordDecl`, `ClassDecl`, `EnumDecl` cases to skip type declarations (no bytecode needed)
-  - ⚠️ **Note**: Full record support in bytecode requires implementing record values, field access, etc. (larger scope)
+- [x] 9.7.4 Add bytecode VM basic record support
+  - ✅ Added `ValueRecord` type and `RecordInstance` structure
+  - ✅ Implemented `OpNewRecord` instruction for record instantiation
+  - ✅ Implemented `OpDup` instruction for record literal compilation
+  - ✅ Extended `OpGetField`/`OpSetField` to support records
+  - ✅ Implemented `compileRecordLiteralExpression()` for record literal syntax
+  - ✅ Basic record literals and field access working
+  - ✅ Committed in session 2025-11-15
 
-- [x] 9.7.5 Add bytecode VM support
-  - ⚠️ **Blocked**: Bytecode VM doesn't support records at all yet (not just methods)
-  - Requires full record implementation in bytecode (values, fields, access, etc.)
+- [ ] 9.7.5 Add bytecode VM static method support
+  - ⚠️ **NOT STARTED**: Requires record metadata infrastructure
+  - See detailed implementation plan in tasks 9.1-9.4:
+    - Task 9.1: Record metadata storage (2-3 hours)
+    - Task 9.2: Static method registration (2-3 hours)
+    - Task 9.3: Type-level method call detection (3-4 hours)
+    - Task 9.4: Comprehensive testing (2-3 hours)
+  - **Total estimate**: 9-12 hours for complete static method support
 
 - [x] 9.7.6 Test with multiple scenarios
   - ✅ Static method calls work: `record_method_static.pas` outputs `12`
