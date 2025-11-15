@@ -395,6 +395,214 @@ just test
 ```
 ---
 
+## Task 9.2: Fix Class Constant Resolution in Semantic Analyzer
+
+**Goal**: Enable class constants to be accessed from both instance and class methods, with proper visibility checking and inheritance support.
+
+**Estimate**: 2-3 hours
+
+**Status**: NOT STARTED
+
+**Impact**: Fixes class constant access failures in fixture tests (e.g., `SimpleScripts/class_const.pas`)
+
+**Current Test Failure**:
+```
+TestDWScriptFixtures/SimpleScripts/class_const
+Semantic analysis failed:
+  - undefined variable 'cPrivate' at 16:12
+  - undefined variable 'cProtected' at 17:12
+  - undefined variable 'cPublic' at 18:12
+  - class 'TBase' has no member 'cpublic' at 39:14
+```
+
+**Description**: Class constants are properly parsed and registered in `ClassType` during semantic analysis, but the `analyzeIdentifier` function in `analyze_expr_operators.go` doesn't check for class constants when resolving identifiers inside class methods. This causes all class constant references to be reported as "undefined variable" errors.
+
+**Root Cause Analysis**:
+
+1. **Constants ARE registered** in `analyze_classes_decl.go:225-281`:
+   - Stored in `ClassType.Constants` map
+   - Types stored in `ClassType.ConstantTypes` map
+   - Visibility stored in `ClassType.ConstantVisibility` map
+
+2. **Constants NOT resolved** in `analyze_expr_operators.go:70-144`:
+   - Checks fields (line 73-88)
+   - Checks properties (line 90-110)
+   - Checks methods (line 112-143)
+   - **Missing**: Never checks for class constants
+
+3. **Limited to instance methods**: Line 70 has condition `!a.inClassMethod`, which prevents checking inside class methods. Class constants should be accessible from both instance AND class methods.
+
+4. **Member access broken**: `analyzeMemberAccess` in `analyze_classes.go` also doesn't properly handle class constants accessed via class name (e.g., `TBase.cPublic`).
+
+**Subtasks**:
+
+### 9.2.1 Add Class Constant Resolution in `analyzeIdentifier` [HIGH PRIORITY]
+
+**Goal**: Check for class constants when resolving identifiers inside class methods.
+
+**Estimate**: 1-1.5 hours
+
+**Implementation**:
+
+1. **Location**: `internal/semantic/analyze_expr_operators.go:70-144`
+
+2. **Add constant check** after properties (around line 110):
+   ```go
+   // Check if identifier is a class constant (includes inherited)
+   for class := a.currentClass; class != nil; class = class.Parent {
+       for constName, constType := range class.ConstantTypes {
+           if strings.EqualFold(constName, ident.Value) {
+               // Check visibility
+               constantOwner := a.getConstantOwner(a.currentClass, ident.Value)
+               if constantOwner != nil {
+                   lowerConstName := strings.ToLower(ident.Value)
+                   visibility, hasVisibility := constantOwner.ConstantVisibility[lowerConstName]
+                   if hasVisibility && !a.checkVisibility(constantOwner, visibility, ident.Value, "constant") {
+                       visibilityStr := ast.Visibility(visibility).String()
+                       a.addError("cannot access %s constant '%s' at %s",
+                           visibilityStr, ident.Value, ident.Token.Pos.String())
+                       return nil
+                   }
+               }
+               return constType
+           }
+       }
+   }
+   ```
+
+3. **Move outside `!a.inClassMethod` check**: Constants should be accessible from both instance methods AND class methods. Either:
+   - Move constant check outside the `if a.currentClass != nil && !a.inClassMethod` block
+   - Or add a separate block: `if a.currentClass != nil` that checks constants for both method types
+
+4. **Add helper method** `getConstantOwner`:
+   ```go
+   // getConstantOwner finds which class in the hierarchy owns the given constant
+   func (a *Analyzer) getConstantOwner(class *types.ClassType, constantName string) *types.ClassType {
+       lowerConstName := strings.ToLower(constantName)
+       for current := class; current != nil; current = current.Parent {
+           for cName := range current.ConstantTypes {
+               if strings.EqualFold(cName, lowerConstName) {
+                   return current
+               }
+           }
+       }
+       return nil
+   }
+   ```
+
+**Files to Modify**:
+- `internal/semantic/analyze_expr_operators.go` (add constant resolution)
+- `internal/semantic/helpers.go` or `analyze_classes.go` (add `getConstantOwner` helper)
+
+**Tests to Fix**:
+- `testdata/fixtures/SimpleScripts/class_const.pas` (lines 16-18, 24-26, 32-33)
+
+### 9.2.2 Fix Class Constant Access via Member Expression [MEDIUM PRIORITY]
+
+**Goal**: Support accessing class constants via class name (e.g., `TBase.cPublic`) and instance (e.g., `obj.cPublic`).
+
+**Estimate**: 1-1.5 hours
+
+**Implementation**:
+
+1. **Location**: `internal/semantic/analyze_classes.go` (in `analyzeMemberAccess`)
+
+2. **Add constant checking** in member access resolution:
+   - When accessing `TBase.cPublic`, check if `cPublic` is in `classType.ConstantTypes`
+   - When accessing `obj.cPublic`, check if `cPublic` is a constant in the object's class
+   - Verify visibility rules (public constants only from outside class)
+
+3. **Current issue** at line 39-40 in test:
+   ```pascal
+   PrintLn(TBase.cPublic);  // Should access class constant
+   PrintLn(o.cPublic);      // Should access class constant via instance
+   ```
+   Error: `class 'TBase' has no member 'cpublic'`
+
+4. **Fix**: In `analyzeMemberAccess`, after checking for class vars, add:
+   ```go
+   // Check for class constants
+   lowerMemberName := strings.ToLower(memberName)
+   for constName, constType := range classType.ConstantTypes {
+       if strings.EqualFold(constName, memberName) {
+           // Check visibility
+           visibility, hasVisibility := classType.ConstantVisibility[lowerMemberName]
+           if hasVisibility && !a.checkVisibility(classType, visibility, memberName, "constant") {
+               visibilityStr := ast.Visibility(visibility).String()
+               a.addError("cannot access %s constant '%s' of class '%s' at %s",
+                   visibilityStr, memberName, classType.Name, expr.Token.Pos.String())
+               return nil
+           }
+           return constType
+       }
+   }
+   ```
+
+**Files to Modify**:
+- `internal/semantic/analyze_classes.go` (in `analyzeMemberAccess`)
+
+**Tests to Fix**:
+- `testdata/fixtures/SimpleScripts/class_const.pas` (lines 39-40)
+
+### 9.2.3 Add Interpreter Support for Class Constants [LOW PRIORITY]
+
+**Goal**: Ensure interpreter can evaluate class constants at runtime.
+
+**Estimate**: 30 minutes
+
+**Implementation**:
+
+1. **Check current implementation** in `internal/interp/`:
+   - Verify `evalIdentifier` handles class constants
+   - Verify `evalMemberAccess` handles constant access via class name/instance
+   - May already be working if constants are stored in class metadata
+
+2. **Add constant evaluation** if missing:
+   - Constants should be evaluated when first accessed
+   - Store evaluated values in runtime class metadata or environment
+   - Handle constant expressions (e.g., `c2 = c1 + 1`)
+
+**Files to Check/Modify**:
+- `internal/interp/expressions_primary.go` (evalIdentifier)
+- `internal/interp/objects_hierarchy.go` (evalMemberAccess)
+- `internal/interp/declarations.go` (class declaration evaluation)
+
+**Note**: This subtask may not be needed if the interpreter already handles constants correctly. The main issue is in semantic analysis, not runtime.
+
+---
+
+**Success Criteria**:
+- `testdata/fixtures/SimpleScripts/class_const.pas` passes completely
+- Constants accessible from instance methods (lines 16-18)
+- Constants accessible from class methods (lines 24-26)
+- Constants accessible from derived classes (lines 32-33)
+- Constants accessible via class name: `TBase.cPublic` (line 39)
+- Constants accessible via instance: `obj.cPublic` (line 40)
+- Visibility rules enforced (private, protected, public)
+- Constants inherited correctly through class hierarchy
+
+**Testing**:
+```bash
+# Run specific failing test
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_const
+
+# Run all class constant tests
+go test -v ./internal/parser -run TestParseClassConstants
+go test -v ./internal/interp -run TestClassConstant
+
+# Verify no regressions
+just test
+```
+
+**Related Test Files**:
+- `testdata/fixtures/SimpleScripts/class_const.pas` (main failing test)
+- `testdata/fixtures/SimpleScripts/class_const_as_prop.pas` (constants used in properties)
+- `testdata/fixtures/SimpleScripts/record_const.pas` (record constants - similar pattern)
+- `internal/parser/class_constants_test.go` (parser tests - already passing)
+- `internal/interp/class_constants_test.go` (interpreter tests - may be failing)
+
+---
+
 ## Task 9.16 Introduce Base Structs for AST Nodes
 
 **Goal**: Eliminate code duplication by introducing base structs for common node fields and behavior.

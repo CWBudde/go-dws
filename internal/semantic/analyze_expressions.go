@@ -225,16 +225,16 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 		return a.analyzeLambdaExpression(e)
 	case *ast.NilLiteral:
 		// Task 9.19.5: Nil literal type inference from context
-		// If expected type is a class or interface type, return that type instead of NIL
+		// If expected type is a class, interface, or function pointer type, return that type instead of NIL
 		// This makes nil more specific and helps with type checking
 		if expectedType != nil {
 			underlyingType := types.GetUnderlyingType(expectedType)
 			typeKind := underlyingType.TypeKind()
-			if typeKind == "CLASS" || typeKind == "INTERFACE" {
+			if typeKind == "CLASS" || typeKind == "INTERFACE" || typeKind == "FUNCTION_POINTER" {
 				return expectedType
 			}
 		}
-		// No expected type or not a class/interface - return generic NIL type
+		// No expected type or not a class/interface/function pointer - return generic NIL type
 		return types.NIL
 	case *ast.IntegerLiteral:
 		// Task 9.19.2: Integer literal type inference from context
