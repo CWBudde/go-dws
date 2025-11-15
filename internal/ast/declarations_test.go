@@ -10,8 +10,7 @@ import (
 func TestConstDecl(t *testing.T) {
 	// const MAX = 100;
 	constDecl := &ConstDecl{
-		BaseNode: BaseNode{
-			Token: lexer.Token{Type: lexer.CONST, Literal: "const", Pos: lexer.Position{Line: 1, Column: 1}},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.CONST, Literal: "const", Pos: lexer.Position{Line: 1, Column: 1}},
 		},
 		Name:  NewTestIdentifier("MAX"),
 		Type:  nil, // No type annotation
@@ -37,8 +36,7 @@ func TestConstDecl(t *testing.T) {
 func TestConstDeclWithFloat(t *testing.T) {
 	// const PI = 3.14;
 	constDecl := &ConstDecl{
-		BaseNode: BaseNode{
-			Token: lexer.Token{Type: lexer.CONST, Literal: "const", Pos: lexer.Position{Line: 1, Column: 1}},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.CONST, Literal: "const", Pos: lexer.Position{Line: 1, Column: 1}},
 		},
 		Name:  NewTestIdentifier("PI"),
 		Type:  nil,
@@ -55,8 +53,7 @@ func TestConstDeclWithFloat(t *testing.T) {
 func TestConstDeclWithString(t *testing.T) {
 	// const APP_NAME = 'MyApp';
 	constDecl := &ConstDecl{
-		BaseNode: BaseNode{
-			Token: lexer.Token{Type: lexer.CONST, Literal: "const", Pos: lexer.Position{Line: 1, Column: 1}},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.CONST, Literal: "const", Pos: lexer.Position{Line: 1, Column: 1}},
 		},
 		Name:  NewTestIdentifier("APP_NAME"),
 		Type:  nil,
@@ -73,8 +70,7 @@ func TestConstDeclWithString(t *testing.T) {
 func TestConstDeclTyped(t *testing.T) {
 	// const MAX_USERS: Integer = 1000;
 	constDecl := &ConstDecl{
-		BaseNode: BaseNode{
-			Token: lexer.Token{Type: lexer.CONST, Literal: "const", Pos: lexer.Position{Line: 1, Column: 1}},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.CONST, Literal: "const", Pos: lexer.Position{Line: 1, Column: 1}},
 		},
 		Name:  NewTestIdentifier("MAX_USERS"),
 		Type:  NewTestTypeAnnotation("Integer"),
@@ -96,8 +92,7 @@ func TestTypeDeclaration(t *testing.T) {
 	t.Run("Basic type alias to Integer", func(t *testing.T) {
 		// type TUserID = Integer;
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
 			},
 			Name:        NewTestIdentifier("TUserID"),
 			IsAlias:     true,
@@ -139,8 +134,7 @@ func TestTypeDeclaration(t *testing.T) {
 	t.Run("Type alias to String", func(t *testing.T) {
 		// type TFileName = String;
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
 			},
 			Name:        NewTestIdentifier("TFileName"),
 			IsAlias:     true,
@@ -156,8 +150,7 @@ func TestTypeDeclaration(t *testing.T) {
 	t.Run("Type alias to Float", func(t *testing.T) {
 		// type TPrice = Float;
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 3, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 3, Column: 1}},
 			},
 			Name:        NewTestIdentifier("TPrice"),
 			IsAlias:     true,
@@ -173,8 +166,7 @@ func TestTypeDeclaration(t *testing.T) {
 	t.Run("Type alias to Boolean", func(t *testing.T) {
 		// type TFlag = Boolean;
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 4, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 4, Column: 1}},
 			},
 			Name:        NewTestIdentifier("TFlag"),
 			IsAlias:     true,
@@ -191,8 +183,7 @@ func TestTypeDeclaration(t *testing.T) {
 		// type TIntArray = array of Integer;
 		// Note: This tests that TypeAnnotation can hold complex type names
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 5, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 5, Column: 1}},
 			},
 			Name:        NewTestIdentifier("TIntArray"),
 			IsAlias:     true,
@@ -209,8 +200,7 @@ func TestTypeDeclaration(t *testing.T) {
 		// type TMyInt = TUserID;
 		// (where TUserID is itself an alias to Integer)
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 6, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 6, Column: 1}},
 			},
 			Name:        NewTestIdentifier("TMyInt"),
 			IsAlias:     true,
@@ -228,8 +218,7 @@ func TestTypeDeclaration(t *testing.T) {
 		// for full type definitions (not just aliases)
 		// For now, IsAlias=false just returns "type Name"
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 7, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 7, Column: 1}},
 			},
 			Name:        NewTestIdentifier("TMyRecord"),
 			IsAlias:     false,
@@ -246,8 +235,7 @@ func TestTypeDeclaration(t *testing.T) {
 // TestTypeDeclarationImplementsStatement verifies that TypeDeclaration implements the Statement interface
 func TestTypeDeclarationImplementsStatement(t *testing.T) {
 	typeDecl := &TypeDeclaration{
-		BaseNode: BaseNode{
-			Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
 		},
 		Name:        NewTestIdentifier("TUserID"),
 		IsAlias:     true,
@@ -269,8 +257,7 @@ func TestSubrangeTypeDeclaration(t *testing.T) {
 	t.Run("Basic digit subrange (0..9)", func(t *testing.T) {
 		// type TDigit = 0..9;
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
 			},
 			Name:       NewTestIdentifier("TDigit"),
 			IsSubrange: true,
@@ -310,8 +297,7 @@ func TestSubrangeTypeDeclaration(t *testing.T) {
 	t.Run("Percentage subrange (0..100)", func(t *testing.T) {
 		// type TPercent = 0..100;
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
 			},
 			Name:       NewTestIdentifier("TPercent"),
 			IsSubrange: true,
@@ -328,15 +314,13 @@ func TestSubrangeTypeDeclaration(t *testing.T) {
 	t.Run("Negative range subrange (-40..50)", func(t *testing.T) {
 		// type TTemperature = -40..50;
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 3, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 3, Column: 1}},
 			},
 			Name:       NewTestIdentifier("TTemperature"),
 			IsSubrange: true,
 			LowBound: &UnaryExpression{
 				TypedExpressionBase: TypedExpressionBase{
-					BaseNode: BaseNode{
-						Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: lexer.Position{Line: 3, Column: 22}},
+											BaseNode: BaseNode{Token: lexer.Token{Type: lexer.MINUS, Literal: "-", Pos: lexer.Position{Line: 3, Column: 22}},
 					},
 				},
 				Operator: "-",
@@ -354,8 +338,7 @@ func TestSubrangeTypeDeclaration(t *testing.T) {
 	t.Run("Single value range (42..42)", func(t *testing.T) {
 		// type TAnswer = 42..42;
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 4, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 4, Column: 1}},
 			},
 			Name:       NewTestIdentifier("TAnswer"),
 			IsSubrange: true,
@@ -373,8 +356,7 @@ func TestSubrangeTypeDeclaration(t *testing.T) {
 // TestSubrangeTypeDeclarationFields verifies that subrange-specific fields exist
 func TestSubrangeTypeDeclarationFields(t *testing.T) {
 	typeDecl := &TypeDeclaration{
-		BaseNode: BaseNode{
-			Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
+					BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
 		},
 		Name:       NewTestIdentifier("TDigit"),
 		IsSubrange: true,
@@ -417,8 +399,7 @@ func TestSubrangeVsAliasTypeDeclaration(t *testing.T) {
 	t.Run("Subrange type should not be alias", func(t *testing.T) {
 		// type TDigit = 0..9; (subrange, not alias)
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
 			},
 			Name:       NewTestIdentifier("TDigit"),
 			IsSubrange: true,
@@ -444,8 +425,7 @@ func TestSubrangeVsAliasTypeDeclaration(t *testing.T) {
 	t.Run("Alias type should not be subrange", func(t *testing.T) {
 		// type TUserID = Integer; (alias, not subrange)
 		typeDecl := &TypeDeclaration{
-			BaseNode: BaseNode{
-				Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
+							BaseNode: BaseNode{Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
 			},
 			Name:        NewTestIdentifier("TUserID"),
 			IsAlias:     true,

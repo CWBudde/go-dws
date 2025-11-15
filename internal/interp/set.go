@@ -28,9 +28,11 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 			if _, isArray := resolvedType.(*types.ArrayType); isArray {
 				// Evaluate as array literal instead
 				arrayLit := &ast.ArrayLiteralExpression{
-					Token:    literal.Token,
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: literal.Token},
+						Type:     literal.Type, // Copy type annotation
+					},
 					Elements: literal.Elements,
-					Type:     literal.Type, // Copy type annotation
 				}
 				return i.evalArrayLiteral(arrayLit)
 			}

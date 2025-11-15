@@ -583,9 +583,13 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	if p.peekTokenIs(lexer.RPAREN) {
 		p.nextToken() // consume ')'
 		return &ast.ArrayLiteralExpression{
-			Token:    lparenToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token:  lparenToken,
+					EndPos: p.curToken.End(),
+				},
+			},
 			Elements: []ast.Expression{},
-			EndPos:   p.curToken.End(),
 		}
 	}
 
@@ -655,9 +659,13 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 		if p.curTokenIs(lexer.RPAREN) {
 			// Already at the closing paren, just return
 			return &ast.ArrayLiteralExpression{
-				Token:    lparenToken,
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token:  lparenToken,
+						EndPos: p.curToken.End(),
+					},
+				},
 				Elements: elements,
-				EndPos:   p.curToken.End(),
 			}
 		}
 
@@ -674,9 +682,13 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 	}
 
 	return &ast.ArrayLiteralExpression{
-		Token:    lparenToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  lparenToken,
+				EndPos: p.curToken.End(),
+			},
+		},
 		Elements: elements,
-		EndPos:   p.curToken.End(),
 	}
 }
 
@@ -857,7 +869,9 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 	}
 
 	return &ast.NewArrayExpression{
-		Token:           newToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: newToken},
+		},
 		ElementTypeName: elementTypeName,
 		Dimensions:      dimensions,
 	}

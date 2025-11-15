@@ -202,8 +202,10 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	lbrackToken := p.curToken // Save the '[' token for error reporting
 
 	indexExpr := &ast.IndexExpression{
-		Token: lbrackToken,
-		Left:  left,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: lbrackToken},
+		},
+		Left: left,
 	}
 
 	// Move to index expression
@@ -221,7 +223,9 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 
 		// Create a new IndexExpression with the previous result as the Left
 		nextIndex := &ast.IndexExpression{
-			Token: lbrackToken, // Use the original '[' token
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: lbrackToken},
+			},
 			Left:  result,
 			Index: p.parseExpression(LOWEST),
 		}
@@ -253,7 +257,9 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	if p.peekTokenIs(lexer.RBRACK) {
 		p.nextToken() // consume ']'
 		return &ast.ArrayLiteralExpression{
-			Token:    lbrackToken,
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: lbrackToken},
+			},
 			Elements: []ast.Expression{},
 		}
 	}
@@ -352,11 +358,14 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	}
 
 	arrayLit := &ast.ArrayLiteralExpression{
-		Token:    lbrackToken,
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  lbrackToken,
+				EndPos: p.endPosFromToken(p.curToken),
+			},
+		},
 		Elements: elements,
 	}
-	// Set EndPos to after the ']'
-	arrayLit.EndPos = p.endPosFromToken(p.curToken)
 	return arrayLit
 }
 

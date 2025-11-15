@@ -15,7 +15,7 @@ func TestIfStatementString(t *testing.T) {
 		{
 			name: "simple if without else",
 			stmt: &IfStatement{
-				Token:     lexer.Token{Type: lexer.IF, Literal: "if"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IF, Literal: "if"},
 				Condition: NewTestBinaryExpression(NewTestIdentifier("x"), ">", NewTestIntegerLiteral(0)),
 				Consequence: &ExpressionStatement{
 					Expression: NewTestCallExpression(
@@ -31,7 +31,7 @@ func TestIfStatementString(t *testing.T) {
 		{
 			name: "if with else",
 			stmt: &IfStatement{
-				Token:     lexer.Token{Type: lexer.IF, Literal: "if"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.IF, Literal: "if"},
 				Condition: NewTestBinaryExpression(NewTestIdentifier("x"), ">", NewTestIntegerLiteral(0)),
 				Consequence: &ExpressionStatement{
 					Expression: NewTestCallExpression(
@@ -65,7 +65,7 @@ func TestIfStatementString(t *testing.T) {
 
 func TestWhileStatementString(t *testing.T) {
 	stmt := &WhileStatement{
-		Token:     lexer.Token{Type: lexer.WHILE, Literal: "while"},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.WHILE, Literal: "while"},
 		Condition: NewTestBinaryExpression(NewTestIdentifier("x"), "<", NewTestIntegerLiteral(10)),
 		Body: &AssignmentStatement{
 			Target: NewTestIdentifier("x"),
@@ -81,7 +81,7 @@ func TestWhileStatementString(t *testing.T) {
 
 func TestRepeatStatementString(t *testing.T) {
 	stmt := &RepeatStatement{
-		Token: lexer.Token{Type: lexer.REPEAT, Literal: "repeat"},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.REPEAT, Literal: "repeat"},
 		Body: &AssignmentStatement{
 			Target: NewTestIdentifier("x"),
 			Value:  NewTestBinaryExpression(NewTestIdentifier("x"), "+", NewTestIntegerLiteral(1)),
@@ -104,7 +104,7 @@ func TestForStatementString(t *testing.T) {
 		{
 			name: "for loop ascending",
 			stmt: &ForStatement{
-				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FOR, Literal: "for"},
 				Variable:  NewTestIdentifier("i"),
 				Start:     NewTestIntegerLiteral(1),
 				EndValue:  NewTestIntegerLiteral(10),
@@ -123,7 +123,7 @@ func TestForStatementString(t *testing.T) {
 		{
 			name: "for loop descending",
 			stmt: &ForStatement{
-				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FOR, Literal: "for"},
 				Variable:  NewTestIdentifier("i"),
 				Start:     NewTestIntegerLiteral(10),
 				EndValue:  NewTestIntegerLiteral(1),
@@ -142,7 +142,7 @@ func TestForStatementString(t *testing.T) {
 		{
 			name: "for loop ascending with step",
 			stmt: &ForStatement{
-				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FOR, Literal: "for"},
 				Variable:  NewTestIdentifier("i"),
 				Start:     NewTestIntegerLiteral(1),
 				EndValue:  NewTestIntegerLiteral(10),
@@ -162,7 +162,7 @@ func TestForStatementString(t *testing.T) {
 		{
 			name: "for loop descending with step",
 			stmt: &ForStatement{
-				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FOR, Literal: "for"},
 				Variable:  NewTestIdentifier("i"),
 				Start:     NewTestIntegerLiteral(10),
 				EndValue:  NewTestIntegerLiteral(1),
@@ -182,7 +182,7 @@ func TestForStatementString(t *testing.T) {
 		{
 			name: "for loop with step expression",
 			stmt: &ForStatement{
-				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FOR, Literal: "for"},
 				Variable:  NewTestIdentifier("i"),
 				Start:     NewTestIntegerLiteral(0),
 				EndValue:  NewTestIntegerLiteral(20),
@@ -202,7 +202,7 @@ func TestForStatementString(t *testing.T) {
 		{
 			name: "for loop with inline var and step",
 			stmt: &ForStatement{
-				Token:     lexer.Token{Type: lexer.FOR, Literal: "for"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.FOR, Literal: "for"},
 				Variable:  NewTestIdentifier("i"),
 				Start:     NewTestIntegerLiteral(0),
 				EndValue:  NewTestIntegerLiteral(10),
@@ -233,7 +233,7 @@ func TestForStatementString(t *testing.T) {
 
 func TestCaseStatementString(t *testing.T) {
 	stmt := &CaseStatement{
-		Token:      lexer.Token{Type: lexer.CASE, Literal: "case"},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.CASE, Literal: "case"},
 		Expression: NewTestIdentifier("x"),
 		Cases: []*CaseBranch{
 			{
@@ -312,7 +312,7 @@ func TestForDirectionString(t *testing.T) {
 
 func TestBreakStatementString(t *testing.T) {
 	stmt := &BreakStatement{
-		Token: lexer.Token{Type: lexer.BREAK, Literal: "break"},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.BREAK, Literal: "break"},
 	}
 
 	expected := "break;"
@@ -323,7 +323,7 @@ func TestBreakStatementString(t *testing.T) {
 
 func TestContinueStatementString(t *testing.T) {
 	stmt := &ContinueStatement{
-		Token: lexer.Token{Type: lexer.CONTINUE, Literal: "continue"},
+		BaseNode: BaseNode{Token: lexer.Token{Type: lexer.CONTINUE, Literal: "continue"},
 	}
 
 	expected := "continue;"
@@ -341,7 +341,7 @@ func TestExitStatementString(t *testing.T) {
 		{
 			name: "exit without value",
 			stmt: &ExitStatement{
-				Token:       lexer.Token{Type: lexer.EXIT, Literal: "exit"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
 				ReturnValue: nil,
 			},
 			expected: "Exit",
@@ -349,7 +349,7 @@ func TestExitStatementString(t *testing.T) {
 		{
 			name: "exit with integer value",
 			stmt: &ExitStatement{
-				Token:       lexer.Token{Type: lexer.EXIT, Literal: "exit"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
 				ReturnValue: NewTestIntegerLiteral(-1),
 			},
 			expected: "Exit -1",
@@ -357,7 +357,7 @@ func TestExitStatementString(t *testing.T) {
 		{
 			name: "exit with identifier value",
 			stmt: &ExitStatement{
-				Token:       lexer.Token{Type: lexer.EXIT, Literal: "exit"},
+				BaseNode: BaseNode{Token: lexer.Token{Type: lexer.EXIT, Literal: "exit"},
 				ReturnValue: NewTestIdentifier("result"),
 			},
 			expected: "Exit result",
