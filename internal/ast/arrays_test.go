@@ -602,8 +602,8 @@ func TestAssignmentStatement_WithIndexExpression(t *testing.T) {
 			TypedExpressionBase: TypedExpressionBase{
 				BaseNode: BaseNode{Token: bracketTok},
 			},
-		Left:  NewTestIdentifier("arr"),
-		Index: NewTestIntegerLiteral(5),
+			Left:  NewTestIdentifier("arr"),
+			Index: NewTestIntegerLiteral(5),
 		}
 
 		assignStmt := &AssignmentStatement{
