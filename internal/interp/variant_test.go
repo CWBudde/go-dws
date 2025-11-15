@@ -1638,7 +1638,7 @@ Empty checks:
 }
 
 // ============================================================================
-// Task 9.35: Variant→Boolean Coercion Tests
+// Variant→Boolean Coercion Tests
 // ============================================================================
 
 func TestVariantBooleanCoercionInIfStatement(t *testing.T) {

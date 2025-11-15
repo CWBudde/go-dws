@@ -54,7 +54,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			continue
 		}
 
-		// Task 9.5: Validate field initializer if present
+		// Validate field initializer if present
 		a.validateFieldInitializer(field, fieldName, fieldType)
 
 		// Add field to record type (using lowercase key for case-insensitive lookup)
@@ -181,7 +181,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 	// Check if it's an instance method of the record
 	methodType, methodExists := recordType.Methods[fieldName]
 	if methodExists {
-		// Task 9.37: If method is parameterless, it will be auto-invoked by the interpreter
+		// If method is parameterless, it will be auto-invoked by the interpreter
 		// Return the method's return type, not the method type itself
 		if len(methodType.Parameters) == 0 {
 			if methodType.ReturnType != nil {

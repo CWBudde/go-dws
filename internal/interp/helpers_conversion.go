@@ -446,7 +446,6 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		return i.builtinArrayIndexOf(arrVal, valueToFind, startIndex)
 
 	case "__array_swap":
-		// Task 9.8: Implements arr.Swap(i, j) - swaps elements at indices i and j
 		if len(args) != 2 {
 			return i.newErrorWithLocation(node, "Array.Swap expects exactly 2 arguments, got %d", len(args))
 		}
@@ -485,7 +484,6 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		return &NilValue{}
 
 	case "__array_push":
-		// Task 9.8: Implements arr.Push(value) - alias for Add, appends element to dynamic array
 		if len(args) != 1 {
 			return i.newErrorWithLocation(node, "Array.Push expects exactly 1 argument")
 		}
@@ -508,7 +506,6 @@ func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args
 		return &NilValue{}
 
 	case "__array_pop":
-		// Task 9.8: Implements arr.Pop() - removes and returns last element from dynamic array
 		if len(args) != 0 {
 			return i.newErrorWithLocation(node, "Array.Pop expects no arguments, got %d", len(args))
 		}
@@ -714,7 +711,6 @@ func (i *Interpreter) evalBuiltinHelperProperty(propSpec string, selfValue Value
 		var result Value
 		switch propSpec {
 		case "__array_length", "__array_count":
-			// Task 9.34: .Count is an alias for .Length
 			result = &IntegerValue{Value: int64(len(arrVal.Elements))}
 		case "__array_high":
 			if arrVal.ArrayType.IsStatic() {
