@@ -14,7 +14,7 @@
 //   - object.go: Object types (Class instances, Interfaces) - TODO
 //   - function.go: Callable types (Function pointers, Lambdas) - TODO
 //   - special.go: Special types (Error, Exception, Variant, TypeInfo) - TODO
-//   - pool.go: Object pooling for frequently allocated types - TODO
+//   - pool.go: Object pooling for frequently allocated types
 //
 // Design Goals:
 //   - Type safety through interfaces instead of type assertions
