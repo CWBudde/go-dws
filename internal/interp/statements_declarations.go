@@ -39,6 +39,10 @@ func (i *Interpreter) evalProgram(program *ast.Program) Value {
 		return newError("uncaught exception: %s", exc.Inspect())
 	}
 
+	// Task 9.1.5/PR#142: Clean up interface and object references when program ends
+	// This ensures destructors are called for global objects and interface-held objects
+	i.cleanupInterfaceReferences(i.env)
+
 	return result
 }
 
@@ -268,6 +272,25 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		if stmt.Value != nil {
 			// Single name with initializer - use the computed value
 			nameValue = value
+			// Task 9.1.6: If the type annotation is an interface type, wrap the value in an InterfaceInstance
+			if stmt.Type != nil {
+				typeName := stmt.Type.Name
+				if ifaceInfo, exists := i.interfaces[strings.ToLower(typeName)]; exists {
+					// Check if the value is already an InterfaceInstance
+					if _, alreadyInterface := nameValue.(*InterfaceInstance); !alreadyInterface {
+						// Check if the value is an ObjectInstance
+						if objInst, isObj := nameValue.(*ObjectInstance); isObj {
+							// Validate that the object's class implements the interface
+							if !classImplementsInterface(objInst.Class, ifaceInfo) {
+								return i.newErrorWithLocation(stmt, "class '%s' does not implement interface '%s'",
+									objInst.Class.Name, ifaceInfo.Name)
+							}
+							// Wrap the object in an InterfaceInstance
+							nameValue = NewInterfaceInstance(ifaceInfo, objInst)
+						}
+					}
+				}
+			}
 		} else {
 			// No initializer - create a new zero value for each name
 			// Must create separate instances to avoid aliasing

@@ -276,6 +276,12 @@ func (i *Interpreter) cleanupInterfaceReferences(env *Environment) {
 		} else if objInst, ok := value.(*ObjectInstance); ok {
 			// Release the object reference (decrement ref count and call destructor if needed)
 			i.callDestructorIfNeeded(objInst)
+		} else if funcPtr, ok := value.(*FunctionPointerValue); ok {
+			// Clean up method pointers that hold object references
+			// This complements the RefCount++ in objects_hierarchy.go when creating interface method pointers
+			if objInst, isObj := funcPtr.SelfObject.(*ObjectInstance); isObj {
+				i.callDestructorIfNeeded(objInst)
+			}
 		}
 	}
 }
