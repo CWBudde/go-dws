@@ -434,3 +434,137 @@ func TestWalk_WithNilNodes(t *testing.T) {
 		t.Error("Expected to visit some nodes")
 	}
 }
+
+// TestWalk_HelperTypesAsNodes tests that helper types now properly implement Node
+// and are visited during traversal (Task 9.20)
+func TestWalk_HelperTypesAsNodes(t *testing.T) {
+	tests := []struct {
+		name         string
+		code         string
+		expectedType string
+		description  string
+	}{
+		{
+			name: "Parameter in function",
+			code: `
+				function Add(a: Integer; b: Integer): Integer;
+				begin
+					Result := a + b;
+				end;
+			`,
+			expectedType: "*ast.Parameter",
+			description:  "Parameters should be visited as Nodes",
+		},
+		{
+			name: "CaseBranch in case statement",
+			code: `
+				var x: Integer := 1;
+				case x of
+					1: PrintLn('one');
+					2, 3: PrintLn('two or three');
+				end;
+			`,
+			expectedType: "*ast.CaseBranch",
+			description:  "CaseBranch should be visited as a Node",
+		},
+		{
+			name: "ExceptionHandler in try statement",
+			code: `
+				try
+					raise Exception.Create('error');
+				except
+					on E: Exception do
+						PrintLn(E.Message);
+				end;
+			`,
+			expectedType: "*ast.ExceptionHandler",
+			description:  "ExceptionHandler should be visited as a Node",
+		},
+		{
+			name: "ExceptClause in try statement",
+			code: `
+				try
+					DoSomething();
+				except
+					on E: Exception do
+						PrintLn('error');
+				end;
+			`,
+			expectedType: "*ast.ExceptClause",
+			description:  "ExceptClause should be visited as a Node",
+		},
+		{
+			name: "FinallyClause in try statement",
+			code: `
+				try
+					DoSomething();
+				finally
+					Cleanup();
+				end;
+			`,
+			expectedType: "*ast.FinallyClause",
+			description:  "FinallyClause should be visited as a Node",
+		},
+		{
+			name: "FieldInitializer in record literal",
+			code: `
+				type TPoint = record
+					x: Integer;
+					y: Integer;
+				end;
+				var p := TPoint(x: 10; y: 20);
+			`,
+			expectedType: "*ast.FieldInitializer",
+			description:  "FieldInitializer should be visited as a Node",
+		},
+		{
+			name: "InterfaceMethodDecl in interface",
+			code: `
+				type IMyInterface = interface
+					procedure DoSomething;
+					function GetValue: Integer;
+				end;
+			`,
+			expectedType: "*ast.InterfaceMethodDecl",
+			description:  "InterfaceMethodDecl should be visited as a Node",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			engine, _ := dwscript.New()
+			program, err := engine.Parse(tt.code)
+			if err != nil {
+				t.Fatalf("Failed to parse code: %v", err)
+			}
+
+			// Track if we found the expected type
+			found := false
+			ast.Inspect(program, func(n ast.Node) bool {
+				if n == nil {
+					return true
+				}
+				typeName := fmt.Sprintf("%T", n)
+				if typeName == tt.expectedType {
+					found = true
+
+					// Verify the node implements the required methods
+					// All nodes must have these methods
+					_ = n.TokenLiteral()
+					_ = n.String()
+					_ = n.Pos()
+					_ = n.End()
+
+					return false // Found it, can stop
+				}
+				return true
+			})
+
+			if !found {
+				t.Errorf("%s: Expected to find %s node, but it was not visited",
+					tt.description, tt.expectedType)
+			}
+		})
+	}
+}
+

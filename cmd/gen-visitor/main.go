@@ -68,15 +68,19 @@ var knownNodeTypes = map[string]bool{
 	"PostConditions": true,
 	"Condition":      true,
 	"FinallyClause":  true,
+
+	// Task 9.20: Helper types that now implement Node interface
+	"Parameter":            true,
+	"CaseBranch":           true,
+	"ExceptClause":         true,
+	"ExceptionHandler":     true,
+	"FieldInitializer":     true,
+	"InterfaceMethodDecl":  true,
 }
 
 // knownHelperTypes are types that don't implement Node but contain Node fields
-var knownHelperTypes = map[string]bool{
-	"Parameter":        true,
-	"CaseBranch":       true,
-	"ExceptClause":     true,
-	"ExceptionHandler": true,
-}
+// NOTE: This map is now empty as all helper types have been migrated to implement Node (Task 9.20)
+var knownHelperTypes = map[string]bool{}
 
 func main() {
 	if err := run(); err != nil {
@@ -504,70 +508,10 @@ func Walk(v Visitor, node Node) {
 		}
 	}
 
-	// Generate helper functions for walking helper types (which don't implement Node)
-	buf.WriteString(`
-// walkParameter walks the Node fields of a Parameter
-func walkParameter(param *Parameter, v Visitor) {
-	if param == nil {
-		return
-	}
-	if param.Name != nil {
-		Walk(v, param.Name)
-	}
-	if param.Type != nil {
-		Walk(v, param.Type)
-	}
-	if param.DefaultValue != nil {
-		Walk(v, param.DefaultValue)
-	}
-}
-
-// walkCaseBranch walks the Node fields of a CaseBranch
-func walkCaseBranch(branch *CaseBranch, v Visitor) {
-	if branch == nil {
-		return
-	}
-	if branch.Statement != nil {
-		Walk(v, branch.Statement)
-	}
-	for _, val := range branch.Values {
-		if val != nil {
-			Walk(v, val)
-		}
-	}
-}
-
-// walkExceptClause walks the Node fields of an ExceptClause
-func walkExceptClause(clause *ExceptClause, v Visitor) {
-	if clause == nil {
-		return
-	}
-	if clause.ElseBlock != nil {
-		Walk(v, clause.ElseBlock)
-	}
-	for _, handler := range clause.Handlers {
-		if handler != nil {
-			walkExceptionHandler(handler, v)
-		}
-	}
-}
-
-// walkExceptionHandler walks the Node fields of an ExceptionHandler
-func walkExceptionHandler(handler *ExceptionHandler, v Visitor) {
-	if handler == nil {
-		return
-	}
-	if handler.Statement != nil {
-		Walk(v, handler.Statement)
-	}
-	if handler.Variable != nil {
-		Walk(v, handler.Variable)
-	}
-	if handler.ExceptionType != nil {
-		Walk(v, handler.ExceptionType)
-	}
-}
-`)
+	// NOTE: Task 9.20 - All helper types now implement Node interface, so they are
+	// generated automatically by the main visitor generation logic above.
+	// The hardcoded walkParameter, walkCaseBranch, walkExceptClause, and
+	// walkExceptionHandler functions have been removed.
 
 	return buf.Bytes(), nil
 }

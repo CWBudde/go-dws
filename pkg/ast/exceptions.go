@@ -4,6 +4,8 @@ package ast
 import (
 	"bytes"
 	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // TryStatement represents a try...except...finally...end statement.
@@ -59,8 +61,8 @@ func (ts *TryStatement) String() string {
 }
 
 // ExceptClause represents the except part of a try statement.
-// This is a helper struct that groups exception handlers with an optional else block.
-// It does not implement Node as it's always contained within a TryStatement.
+// This groups exception handlers with an optional else block and implements Node
+// to enable proper visitor traversal and position tracking.
 //
 // Can contain:
 //   - Specific exception handlers (on E: Type do ...)
@@ -83,6 +85,32 @@ func (ts *TryStatement) String() string {
 type ExceptClause struct {
 	ElseBlock *BlockStatement
 	Handlers  []*ExceptionHandler
+	Token     token.Token    // 'except' keyword token
+	EndPos    token.Position // End of except clause
+}
+
+func (ec *ExceptClause) statementNode() {}
+
+func (ec *ExceptClause) TokenLiteral() string {
+	return ec.Token.Literal
+}
+
+func (ec *ExceptClause) Pos() token.Position {
+	return ec.Token.Pos
+}
+
+func (ec *ExceptClause) End() token.Position {
+	if ec.EndPos.Line != 0 {
+		return ec.EndPos
+	}
+	// End position is after else block if present, or last handler
+	if ec.ElseBlock != nil {
+		return ec.ElseBlock.End()
+	}
+	if len(ec.Handlers) > 0 {
+		return ec.Handlers[len(ec.Handlers)-1].End()
+	}
+	return ec.Token.Pos
 }
 
 func (ec *ExceptClause) String() string {
@@ -107,8 +135,8 @@ func (ec *ExceptClause) String() string {
 }
 
 // ExceptionHandler represents a specific exception handler in an except clause.
-// This is a helper struct that groups the exception variable, type, and handler statement.
-// It does not implement Node as it's always contained within an ExceptClause.
+// This groups the exception variable, type, and handler statement and implements Node
+// to enable proper visitor traversal and position tracking.
 //
 // Syntax: on <variable>: <type> do <statement>
 //
@@ -125,6 +153,29 @@ type ExceptionHandler struct {
 	Statement     Statement
 	Variable      *Identifier
 	ExceptionType *TypeAnnotation
+	Token         token.Token    // 'on' keyword token
+	EndPos        token.Position // End of handler statement
+}
+
+func (eh *ExceptionHandler) statementNode() {}
+
+func (eh *ExceptionHandler) TokenLiteral() string {
+	return eh.Token.Literal
+}
+
+func (eh *ExceptionHandler) Pos() token.Position {
+	return eh.Token.Pos
+}
+
+func (eh *ExceptionHandler) End() token.Position {
+	if eh.EndPos.Line != 0 {
+		return eh.EndPos
+	}
+	// End position is after the statement
+	if eh.Statement != nil {
+		return eh.Statement.End()
+	}
+	return eh.Token.Pos
 }
 
 func (eh *ExceptionHandler) String() string {
@@ -166,6 +217,8 @@ type FinallyClause struct {
 	BaseNode
 	Block *BlockStatement
 }
+
+func (fc *FinallyClause) statementNode() {}
 
 func (fc *FinallyClause) String() string {
 	var out bytes.Buffer

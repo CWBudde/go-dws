@@ -28,6 +28,8 @@ type InterfaceMethodDecl struct {
 	Parameters []*Parameter
 }
 
+func (imd *InterfaceMethodDecl) statementNode() {}
+
 func (i *InterfaceMethodDecl) End() token.Position {
 	if i.EndPos.Line != 0 {
 		return i.EndPos
