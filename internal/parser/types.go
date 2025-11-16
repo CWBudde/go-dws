@@ -20,6 +20,8 @@ import (
 // without requiring type aliases.
 //
 // Task 9.49: Created to support inline type expressions
+// PRE: curToken is first token of type (IDENT, CONST, FUNCTION, PROCEDURE, ARRAY, SET, CLASS)
+// POST: curToken is last token of type expression
 func (p *Parser) parseTypeExpression() ast.TypeExpression {
 	switch p.curToken.Type {
 	case lexer.IDENT:
@@ -79,6 +81,8 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 //
 // Strategy: Use lexer.Peek() to look ahead without modifying state.
 // Task 12.3.4: Refactored to use Peek() instead of creating temporary lexer
+// PRE: curToken is LPAREN
+// POST: curToken is LPAREN (unchanged)
 func (p *Parser) detectFunctionPointerFullSyntax() bool {
 	// Use Peek() to look ahead through tokens
 	// Peek(0) gives the token after peekToken
@@ -120,6 +124,8 @@ func (p *Parser) detectFunctionPointerFullSyntax() bool {
 //	procedure(...) of object
 //
 // Task 9.50: Refactored from parseFunctionPointerTypeDeclaration
+// PRE: curToken is FUNCTION or PROCEDURE
+// POST: curToken is last token of function pointer type (OBJECT, return type, or RPAREN)
 func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 	// Current token is FUNCTION or PROCEDURE
 	funcOrProcToken := p.curToken
@@ -272,6 +278,8 @@ type dimensionPair struct {
 //
 //	array[0..1, 0..2] of Integer
 //	→ array[0..1] of array[0..2] of Integer
+// PRE: curToken is ARRAY
+// POST: curToken is last token of element type
 func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	// Current token is ARRAY
 	arrayToken := p.curToken
@@ -414,6 +422,8 @@ func parseInt(s string) (int, error) {
 // Returns the parsed expression or nil on error.
 //
 // Task 9.205: Changed to return ast.Expression instead of int to support const expressions
+// PRE: curToken is first token of bound expression
+// POST: curToken is last token of bound expression
 func (p *Parser) parseArrayBound() ast.Expression {
 	// Parse as a general expression
 	// This handles:
@@ -429,6 +439,8 @@ func (p *Parser) parseArrayBound() ast.Expression {
 // Returns a slice of dimension pairs (low, high) or nil on error.
 //
 // This helper function extracts the common array bound parsing logic to avoid duplication.
+// PRE: curToken is first token of low bound expression
+// POST: curToken is last token of last dimension's high bound
 func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 	var dimensions []dimensionPair
 
@@ -498,6 +510,8 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 // Current token should be CLASS.
 //
 // Task 9.70: Parse metaclass type syntax
+// PRE: curToken is CLASS
+// POST: curToken is class type IDENT
 func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
 	classToken := p.curToken // The 'class' token
 

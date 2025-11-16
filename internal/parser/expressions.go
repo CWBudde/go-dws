@@ -10,6 +10,8 @@ import (
 )
 
 // parseExpression parses an expression with the given precedence.
+// PRE: curToken is first token of expression
+// POST: curToken is last token of expression
 func (p *Parser) parseExpression(precedence int) ast.Expression {
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
@@ -74,6 +76,8 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 }
 
 // parseIdentifier parses an identifier.
+// PRE: curToken is IDENT
+// POST: curToken is IDENT (unchanged)
 func (p *Parser) parseIdentifier() ast.Expression {
 	return &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -87,6 +91,8 @@ func (p *Parser) parseIdentifier() ast.Expression {
 }
 
 // parseIntegerLiteral parses an integer literal.
+// PRE: curToken is INT
+// POST: curToken is INT (unchanged)
 func (p *Parser) parseIntegerLiteral() ast.Expression {
 	lit := &ast.IntegerLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -129,6 +135,8 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 }
 
 // parseFloatLiteral parses a floating-point literal.
+// PRE: curToken is FLOAT
+// POST: curToken is FLOAT (unchanged)
 func (p *Parser) parseFloatLiteral() ast.Expression {
 	lit := &ast.FloatLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -151,6 +159,8 @@ func (p *Parser) parseFloatLiteral() ast.Expression {
 }
 
 // parseStringLiteral parses a string literal.
+// PRE: curToken is STRING
+// POST: curToken is STRING (unchanged)
 func (p *Parser) parseStringLiteral() ast.Expression {
 	// The lexer has already processed the string, so we just need to
 	// extract the value without the quotes
@@ -201,6 +211,8 @@ func unescapeString(s string) string {
 }
 
 // parseBooleanLiteral parses a boolean literal.
+// PRE: curToken is TRUE or FALSE
+// POST: curToken is TRUE or FALSE (unchanged)
 func (p *Parser) parseBooleanLiteral() ast.Expression {
 	return &ast.BooleanLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -214,6 +226,8 @@ func (p *Parser) parseBooleanLiteral() ast.Expression {
 }
 
 // parseNilLiteral parses a nil literal.
+// PRE: curToken is NIL
+// POST: curToken is NIL (unchanged)
 func (p *Parser) parseNilLiteral() ast.Expression {
 	return &ast.NilLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -227,6 +241,8 @@ func (p *Parser) parseNilLiteral() ast.Expression {
 
 // parseNullIdentifier parses the Null keyword as an identifier.
 // Task 9.4.1: Null is a built-in constant, so we parse it as an identifier.
+// PRE: curToken is NULL
+// POST: curToken is NULL (unchanged)
 func (p *Parser) parseNullIdentifier() ast.Expression {
 	return &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -241,6 +257,8 @@ func (p *Parser) parseNullIdentifier() ast.Expression {
 
 // parseUnassignedIdentifier parses the Unassigned keyword as an identifier.
 // Task 9.4.1: Unassigned is a built-in constant, so we parse it as an identifier.
+// PRE: curToken is UNASSIGNED
+// POST: curToken is UNASSIGNED (unchanged)
 func (p *Parser) parseUnassignedIdentifier() ast.Expression {
 	return &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -254,6 +272,8 @@ func (p *Parser) parseUnassignedIdentifier() ast.Expression {
 }
 
 // parseCharLiteral parses a character literal (#65, #$41).
+// PRE: curToken is CHAR
+// POST: curToken is CHAR (unchanged)
 func (p *Parser) parseCharLiteral() ast.Expression {
 	lit := &ast.CharLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -295,6 +315,8 @@ func (p *Parser) parseCharLiteral() ast.Expression {
 }
 
 // parsePrefixExpression parses a prefix (unary) expression.
+// PRE: curToken is prefix operator (NOT, MINUS, PLUS, etc.)
+// POST: curToken is last token of right operand
 func (p *Parser) parsePrefixExpression() ast.Expression {
 	expression := &ast.UnaryExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -321,6 +343,8 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 
 // parseAddressOfExpression parses the address-of operator (@) applied to a function or procedure.
 // Examples: @MyFunction, @TMyClass.MyMethod
+// PRE: curToken is AT
+// POST: curToken is last token of target expression
 func (p *Parser) parseAddressOfExpression() ast.Expression {
 	expression := &ast.AddressOfExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -344,6 +368,8 @@ func (p *Parser) parseAddressOfExpression() ast.Expression {
 }
 
 // parseInfixExpression parses an infix (binary) expression.
+// PRE: curToken is the operator token
+// POST: curToken is last token of right operand
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	expression := &ast.BinaryExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -371,6 +397,8 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 
 // parseCallExpression parses a function call expression.
 // Also handles typed record literals: TypeName(field: value)
+// PRE: curToken is LPAREN
+// POST: curToken is RPAREN
 func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	// Check if this might be a typed record literal
 	// Pattern: Identifier(Identifier:Expression, ...)
@@ -396,6 +424,8 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 // parseCallOrRecordLiteral parses either a function call or a typed record literal.
 // They have the same syntax initially: Identifier(...)
 // The difference is whether the arguments are field initializers (name: value) or expressions.
+// PRE: curToken is LPAREN
+// POST: curToken is RPAREN
 func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expression {
 	// We're at '(' token
 	// Peek ahead to see what's inside
@@ -567,6 +597,8 @@ func (p *Parser) tryParseRecordFields() ([]*ast.FieldInitializer, bool) {
 }
 
 // parseExpressionList parses a comma-separated list of expressions.
+// PRE: curToken is LPAREN (or opening token)
+// POST: curToken is end token (typically RPAREN)
 func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 	list := []ast.Expression{}
 
@@ -605,6 +637,8 @@ func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 // Also handles:
 //   - Record literals: (X: 10, Y: 20)
 //   - Array literals: (1, 2, 3)
+// PRE: curToken is LPAREN
+// POST: curToken is RPAREN or last token of expression
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	lparenToken := p.curToken
 
@@ -677,6 +711,8 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 
 // parseParenthesizedArrayLiteral parses an array literal with parentheses: (expr1, expr2, ...)
 // Called when we've already parsed the first element and detected a comma.
+// PRE: curToken is first element expression, peekToken is COMMA
+// POST: curToken is RPAREN
 func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstElement ast.Expression) ast.Expression {
 	elements := []ast.Expression{firstElement}
 
@@ -724,6 +760,8 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 
 // parseRecordLiteralInline parses a record literal when we're already positioned
 // at the first field name (after detecting the pattern "(IDENT:").
+// PRE: curToken is first field IDENT, peekToken is COLON
+// POST: curToken is RPAREN
 func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
 	// We're currently at the IDENT after '(', and peek is COLON
 	recordLit := &ast.RecordLiteralExpression{
@@ -799,6 +837,8 @@ func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
 //
 // This function dispatches to the appropriate parser based on the token
 // following the type name: '(' for classes, '[' for arrays.
+// PRE: curToken is NEW
+// POST: curToken is last token of new expression (RPAREN, RBRACK, or IDENT for zero-arg)
 func (p *Parser) parseNewExpression() ast.Expression {
 	newToken := p.curToken // Save the 'new' token position
 
@@ -840,6 +880,8 @@ func (p *Parser) parseNewExpression() ast.Expression {
 
 // parseNewClassExpression parses class instantiation: new ClassName(args)
 // This is the original parseNewExpression logic, now extracted as a helper.
+// PRE: curToken is className IDENT
+// POST: curToken is RPAREN
 func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Identifier) ast.Expression {
 	// Create NewExpression
 	newExpr := &ast.NewExpression{
@@ -869,6 +911,8 @@ func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Id
 //   - new Integer[16]
 //   - new String[10, 20]
 //   - new Float[Length(arr)+1]
+// PRE: curToken is element type IDENT
+// POST: curToken is RBRACK
 func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *ast.Identifier) ast.Expression {
 	// Expect opening bracket
 	if !p.expectPeek(lexer.LBRACK) {
@@ -920,6 +964,8 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 //   - inherited                  // Bare inherited (calls same method in parent)
 //   - inherited MethodName       // Call parent method (no args)
 //   - inherited MethodName(args) // Call parent method with args
+// PRE: curToken is INHERITED
+// POST: curToken is INHERITED, method IDENT, or RPAREN (depends on form)
 func (p *Parser) parseInheritedExpression() ast.Expression {
 	inheritedExpr := &ast.InheritedExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -967,6 +1013,8 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 // The Self keyword refers to the current instance (in instance methods) or
 // the current class (in class methods).
 // Usage: Self, Self.Field, Self.Method()
+// PRE: curToken is SELF
+// POST: curToken is SELF (unchanged)
 func (p *Parser) parseSelfExpression() ast.Expression {
 	selfExpr := &ast.SelfExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -987,6 +1035,8 @@ func (p *Parser) parseSelfExpression() ast.Expression {
 // Supports both full and shorthand syntax:
 //   - Full: lambda(x: Integer): Integer begin Result := x * 2; end
 //   - Shorthand: lambda(x) => x * 2
+// PRE: curToken is LAMBDA
+// POST: curToken is last token of lambda body (END for full syntax, expression for shorthand)
 func (p *Parser) parseLambdaExpression() ast.Expression {
 	lambdaExpr := &ast.LambdaExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -1083,6 +1133,8 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 //   - Supports by-ref: lambda(var x: Integer; y: Integer)
 //
 // Note: Lambda parameters use semicolons between groups, matching DWScript function syntax.
+// PRE: curToken is LAMBDA
+// POST: curToken is RPAREN
 func (p *Parser) parseLambdaParameterList() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
@@ -1121,6 +1173,8 @@ func (p *Parser) parseLambdaParameterList() []*ast.Parameter {
 
 // parseLambdaParameterGroup parses a group of lambda parameters with the same type.
 // Syntax: name: Type  or  name1, name2: Type  or  var name: Type  or  name (optional type)
+// PRE: curToken is VAR or first parameter IDENT
+// POST: curToken is type IDENT or last parameter name (if no type)
 func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 	params := []*ast.Parameter{}
 
@@ -1194,6 +1248,8 @@ func (p *Parser) parseLambdaParameterGroup() []*ast.Parameter {
 // parseCondition parses a single contract condition.
 // Syntax: boolean_expression [: "error message"]
 // Returns a Condition node with the test expression and optional custom message.
+// PRE: curToken is first token of condition expression
+// POST: curToken is last token of condition (message STRING or test expression)
 func (p *Parser) parseCondition() *ast.Condition {
 	// Parse the test expression (should be boolean, but type checking is done in semantic phase)
 	testExpr := p.parseExpression(LOWEST)
@@ -1237,6 +1293,8 @@ func (p *Parser) parseCondition() *ast.Condition {
 // parseOldExpression parses an 'old' expression for contract postconditions.
 // Syntax: old identifier
 // The 'old' keyword can only be used in postconditions to reference pre-execution values.
+// PRE: curToken is OLD
+// POST: curToken is IDENT (identifier)
 func (p *Parser) parseOldExpression() ast.Expression {
 	token := p.curToken // the OLD token
 
@@ -1276,6 +1334,8 @@ func (p *Parser) parseOldExpression() ast.Expression {
 // parsePreConditions parses function preconditions (require block).
 // Syntax: require condition1; condition2; ...
 // Returns a PreConditions node containing all parsed conditions.
+// PRE: curToken is REQUIRE
+// POST: curToken is last token of last condition
 func (p *Parser) parsePreConditions() *ast.PreConditions {
 	requireToken := p.curToken // the REQUIRE token
 
@@ -1330,6 +1390,8 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 // Syntax: ensure condition1; condition2; ...
 // Returns a PostConditions node containing all parsed conditions.
 // Sets parsingPostCondition flag to enable 'old' keyword parsing.
+// PRE: curToken is ENSURE
+// POST: curToken is last token of last condition
 func (p *Parser) parsePostConditions() *ast.PostConditions {
 	ensureToken := p.curToken // the ENSURE token
 
@@ -1392,6 +1454,8 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 // 1. Type checking: obj is TMyClass
 // 2. Boolean value comparison: boolExpr is True, boolExpr is False
 // This creates an IsExpression AST node that will be evaluated at runtime.
+// PRE: curToken is IS
+// POST: curToken is last token of type or right expression
 func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 	expression := &ast.IsExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -1431,6 +1495,8 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 // Example: obj as IMyInterface
 // This creates an AsExpression AST node that will be evaluated at runtime
 // to wrap an object instance in an InterfaceInstance.
+// PRE: curToken is AS
+// POST: curToken is last token of target type
 func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 	expression := &ast.AsExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -1458,6 +1524,8 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 // Example: obj implements IMyInterface  -> Boolean
 // This creates an ImplementsExpression AST node that will be evaluated
 // to check whether the object's class implements the interface.
+// PRE: curToken is IMPLEMENTS
+// POST: curToken is last token of target type
 func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 	expression := &ast.ImplementsExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{

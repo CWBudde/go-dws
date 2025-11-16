@@ -9,6 +9,8 @@ import (
 // Syntax: const NAME = VALUE; or const NAME := VALUE; or const NAME: TYPE = VALUE;
 // DWScript allows block syntax: const C1 = 1; C2 = 2; (one const keyword, multiple declarations)
 // This function returns a BlockStatement containing all const declarations in the block.
+// PRE: curToken is CONST
+// POST: curToken is last token of value expression in last declaration
 func (p *Parser) parseConstDeclaration() ast.Statement {
 	blockToken := p.curToken // Save the initial CONST token for the block
 	statements := []ast.Statement{}
@@ -45,6 +47,8 @@ func (p *Parser) parseConstDeclaration() ast.Statement {
 
 // parseSingleConstDeclaration parses a single constant declaration.
 // Assumes we're already positioned at the identifier (or just before it).
+// PRE: curToken is CONST or IDENT
+// POST: curToken is last token of value expression
 func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 	// If we're at CONST token, advance to identifier
 	if p.curTokenIs(lexer.CONST) {
@@ -132,6 +136,8 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 // Syntax: program ProgramName;
 // The program declaration is optional in DWScript and doesn't affect execution.
 // It is parsed and then discarded (not added to the AST).
+// PRE: curToken is PROGRAM
+// POST: curToken is SEMICOLON
 func (p *Parser) parseProgramDeclaration() {
 	// We're on the PROGRAM token
 	if !p.curTokenIs(lexer.PROGRAM) {

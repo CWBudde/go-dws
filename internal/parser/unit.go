@@ -20,6 +20,8 @@ import (
 //	finalization
 //	  // cleanup code
 //	end.
+// PRE: curToken is UNIT
+// POST: curToken is DOT
 func (p *Parser) parseUnit() *ast.UnitDeclaration {
 	unitDecl := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: p.curToken}, // 'unit' token
@@ -86,6 +88,8 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 
 // parseUsesClause parses a uses statement.
 // Syntax: uses Unit1, Unit2, Unit3;
+// PRE: curToken is USES
+// POST: curToken is SEMICOLON
 func (p *Parser) parseUsesClause() *ast.UsesClause {
 	usesClause := &ast.UsesClause{
 		BaseNode: ast.BaseNode{Token: p.curToken}, // 'uses' token
@@ -141,6 +145,8 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 
 // parseInterfaceSection parses the interface section of a unit.
 // The interface section contains public declarations.
+// PRE: curToken is INTERFACE
+// POST: curToken is IMPLEMENTATION, INITIALIZATION, FINALIZATION, or END
 func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
 		BaseNode:   ast.BaseNode{Token: p.curToken}, // 'interface' token
@@ -182,6 +188,8 @@ func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 
 // parseImplementationSection parses the implementation section of a unit.
 // The implementation section contains private declarations and function implementations.
+// PRE: curToken is IMPLEMENTATION
+// POST: curToken is INITIALIZATION, FINALIZATION, or END
 func (p *Parser) parseImplementationSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
 		BaseNode:   ast.BaseNode{Token: p.curToken}, // 'implementation' token
@@ -222,6 +230,8 @@ func (p *Parser) parseImplementationSection() *ast.BlockStatement {
 
 // parseInitializationSection parses the initialization section of a unit.
 // The initialization section contains code that runs when the unit is loaded.
+// PRE: curToken is INITIALIZATION
+// POST: curToken is FINALIZATION or END
 func (p *Parser) parseInitializationSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
 		BaseNode:   ast.BaseNode{Token: p.curToken}, // 'initialization' token
@@ -253,6 +263,8 @@ func (p *Parser) parseInitializationSection() *ast.BlockStatement {
 
 // parseFinalizationSection parses the finalization section of a unit.
 // The finalization section contains cleanup code that runs when the program exits.
+// PRE: curToken is FINALIZATION
+// POST: curToken is END
 func (p *Parser) parseFinalizationSection() *ast.BlockStatement {
 	block := &ast.BlockStatement{
 		BaseNode:   ast.BaseNode{Token: p.curToken}, // 'finalization' token

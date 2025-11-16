@@ -44,6 +44,8 @@ import (
 //   - type TCube = array[1..3, 1..4, 1..5] of Float;  (3D)
 //
 // Multi-dimensional arrays are desugared into nested array types.
+// PRE: curToken is ARRAY
+// POST: curToken is SEMICOLON
 func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.ArrayDecl {
 	arrayDecl := &ast.ArrayDecl{
 		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
@@ -198,6 +200,8 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 //   - arr[i][j]   (nested indexing)
 //   - arr[i, j]   (multi-index comma syntax, desugared to arr[i][j])
 //   - arr[i, j, k] (3D comma syntax, desugared to arr[i][j][k])
+// PRE: curToken is LBRACK
+// POST: curToken is RBRACK
 func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	lbrackToken := p.curToken // Save the '[' token for error reporting
 
@@ -250,6 +254,8 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 //   - [[1, 2], [3, 4]]
 //   - [x + 1, y * 2, z - 3]
 //   - Supports optional trailing comma and range syntax for set literals ([one..five])
+// PRE: curToken is LBRACK
+// POST: curToken is RBRACK
 func (p *Parser) parseArrayLiteral() ast.Expression {
 	lbrackToken := p.curToken
 

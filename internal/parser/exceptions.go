@@ -15,6 +15,8 @@ import (
 //	raise Exception.Create('error');
 //	raise new EMyException('custom error');
 //	raise;  // re-raise
+// PRE: curToken is RAISE
+// POST: curToken is last token of exception expression (or RAISE for bare raise)
 func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 	stmt := &ast.RaiseStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
@@ -62,6 +64,8 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 //	finally
 //	  Cleanup();
 //	end;
+// PRE: curToken is TRY
+// POST: curToken is END
 func (p *Parser) parseTryStatement() *ast.TryStatement {
 	stmt := &ast.TryStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
@@ -111,6 +115,8 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 }
 
 // parseBlockStatementForTry parses statements until 'except', 'finally', or 'end'
+// PRE: curToken is first statement token
+// POST: curToken is EXCEPT, FINALLY, or END
 func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 	block := &ast.BlockStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
@@ -156,6 +162,8 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 //	except
 //	  PrintLn('error');  // bare except
 //	end
+// PRE: curToken is EXCEPT
+// POST: curToken is last token before FINALLY or END
 func (p *Parser) parseExceptClause() *ast.ExceptClause {
 	exceptToken := p.curToken // Save 'except' token before moving past it
 	clause := &ast.ExceptClause{
@@ -277,6 +285,8 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 //	on E: EMyException do begin
 //	  HandleMyException(E);
 //	end;
+// PRE: curToken is ON
+// POST: curToken is last token after statement
 func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	onToken := p.curToken // Save 'on' token before moving past it
 	handler := &ast.ExceptionHandler{
@@ -352,6 +362,8 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 //	finally
 //	  Cleanup();
 //	end
+// PRE: curToken is FINALLY
+// POST: curToken is END (before END of try)
 func (p *Parser) parseFinallyClause() *ast.FinallyClause {
 	clause := &ast.FinallyClause{
 		BaseNode: ast.BaseNode{Token: p.curToken},
