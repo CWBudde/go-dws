@@ -8,7 +8,7 @@ The error handling system is organized into three main components:
 
 1. **errors.go** - Core error types and constructors
 2. **catalog.go** - Standardized error messages and helper functions
-3. **result.go** - (Future) EvalResult type for cleaner error propagation
+3. **evaluator/result.go** - Implemented EvalResult type for cleaner error propagation (see `internal/interp/evaluator/result.go`)
 
 ## Error Categories
 
@@ -226,7 +226,7 @@ return i.newTypeError(node, "type mismatch: %s %s %s", left.Type(), op, right.Ty
 
 The package includes comprehensive tests:
 
-- **errors_test.go**: Tests for core error types and constructors (18 tests)
+- **errors_test.go**: Tests for core error types and constructors (19 tests)
 - **catalog_test.go**: Tests for all catalog functions (31 tests)
 
 Run tests:
@@ -239,12 +239,12 @@ go test ./internal/interp/errors/... -v
 - **Error Categories**: 5
 - **Error Message Constants**: 40+
 - **Helper Functions**: 30+
-- **Test Coverage**: 56 tests, all passing
+- **Test Coverage**: 62 tests, all passing
 - **Lines of Code**:
-  - errors.go: 262 lines
-  - catalog.go: 370 lines
-  - errors_test.go: 464 lines
-  - catalog_test.go: 610 lines
+  - errors.go: 199 lines
+  - catalog.go: 376 lines
+  - errors_test.go: 463 lines
+  - catalog_test.go: 640 lines
 
 ## Design Principles
 

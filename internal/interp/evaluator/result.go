@@ -11,7 +11,7 @@ package evaluator
 //	if err := result.Error(); err != nil {
 //	    return err
 //	}
-//	value := result.Value()
+//	value := result.Val()
 //
 //	// Pattern 2: Chain with OrReturn for early exit
 //	value, err := NewResult(i.Eval(expr)).OrReturn()
