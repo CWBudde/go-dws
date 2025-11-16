@@ -9,11 +9,21 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Goal**: Refactor the lexer for better maintainability, consistency, and extensibility while preserving all existing functionality.
 
-**Status**: In progress | **Tasks**: 16/20 complete
+**Status**: MOSTLY COMPLETE | **Tasks**: 18/20 complete
 
 **Motivation**: The lexer works well but has technical debt in error handling, state management, and code organization. These improvements will make the codebase easier to maintain and extend.
 
 **Approach**: Incremental refactoring with full test coverage at each step. No behavior changes, only internal improvements.
+
+**Note**: The lexer implementation has gone BEYOND the original Phase 1 scope, including:
+- ✅ N-token lookahead buffer with `Peek(n)` method (Task 12.3.1)
+- ✅ Comment preservation mode for formatters and documentation tools
+- ✅ Error accumulation pattern matching parser conventions
+- ✅ State save/restore for speculative parsing
+- ✅ UTF-8 BOM detection and stripping
+- ✅ String/character literal concatenation sequences
+- ✅ Comprehensive operator handlers extracted
+- ✅ Position tracking with line/column/offset information
 
 ### 1.1: Code Organization - Refactor NextToken
 
@@ -115,25 +125,38 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - Adding new language features or syntax
 - Changing public API surface (pkg/token)
 
-## Phase 2: Parser and AST
+## Phase 2: Parser Refactoring and Enhancement
 
-**Goal**: Improve parser maintainability, testability, and extensibility by refactoring core parsing patterns, eliminating technical debt, and establishing clearer conventions.
+**Goal**: Leverage the enhanced lexer capabilities to improve parser maintainability, eliminate technical debt, and establish clearer conventions for future development.
 
-**Motivation**: The current parser (~8,300 LOC across 19 files) works well but has accumulated technical debt: inconsistent token consumption patterns, repeated code, speculative parsing with error rollback, and limited lookahead capability. These issues make the parser harder to maintain, extend, and debug.
+**Motivation**: With the lexer now providing N-token lookahead, error accumulation, and state management, the parser can be significantly improved. The current parser (~8,300 LOC across 19 files) has accumulated technical debt: inconsistent token consumption patterns, repeated code, speculative parsing with error rollback, and conservative disambiguation. The enhanced lexer enables us to address these issues systematically.
 
-**Estimate**: 40-60 hours total (divided into 10 subtasks)
+**Estimate**: 35-50 hours total (divided into 9 subtasks)
 
 **Status**: NOT STARTED
 
-**Priority**: Medium (technical debt reduction, no user-facing changes)
+**Priority**: Medium (technical debt reduction, enables future development)
+
+**Key Changes from Original Plan**:
+- ✅ Task 2.1 (Lookahead Buffer) is OBSOLETE - lexer now provides `Peek(n)` method
+- 🆕 New task 2.1: Utilize lexer's lookahead throughout parser
+- 🔄 Tasks 2.3 updated to leverage lexer's state save/restore
+- ❌ Task 2.9 (Debug/Trace Mode) REMOVED - can be added later if needed
+- 📉 Reduced from 10 tasks to 9 tasks
+- ⏱️ Reduced time estimate: 35-50h (was 52-71h) due to lexer infrastructure
 
 ---
 
-### 2.1: Implement Proper Lookahead Buffer
+### 2.1: Utilize Lexer Lookahead Throughout Parser
 
-**Goal**: Replace limited 1-token lookahead with configurable N-token lookahead buffer to enable better disambiguation.
+**Goal**: Replace parser's internal lookahead workarounds with the lexer's native `Peek(n)` capability.
 
-**Current Issue**: Functions like `looksLikeVarDeclaration()` and `looksLikeConstDeclaration()` conservatively return `false` due to insufficient lookahead:
+**Current State**:
+- Lexer provides `Peek(n)` for N-token lookahead (already implemented in Phase 1)
+- Parser already uses `p.l.Peek(0)` in some places (statements.go, types.go, interfaces.go)
+- Many conservative disambiguation functions could be improved with proper lookahead
+
+**Current Issue**: Functions like `looksLikeVarDeclaration()` conservatively return `false`:
 ```go
 // statements.go:494-518
 func (p *Parser) looksLikeVarDeclaration() bool {
@@ -144,24 +167,27 @@ func (p *Parser) looksLikeVarDeclaration() bool {
 ```
 
 **Implementation**:
-- [ ] Design lookahead buffer with configurable depth (3-4 tokens)
-- [ ] Add `peek(n int) lexer.Token` method to look N tokens ahead
-- [ ] Implement circular buffer or slice-based lookahead storage
-- [ ] Update `looksLikeVarDeclaration()` to use 2-token lookahead
-- [ ] Update `looksLikeConstDeclaration()` to use 2-token lookahead
-- [ ] Add unit tests for lookahead edge cases (EOF, buffering, reset)
+- [ ] Audit all uses of `p.l.Peek()` in parser - document patterns
+- [ ] Update `looksLikeVarDeclaration()` to use `p.l.Peek(1)` for 2-token lookahead
+- [ ] Update `looksLikeConstDeclaration()` to use `p.l.Peek(1)` for 2-token lookahead
+- [ ] Find other conservative disambiguation functions and improve them
+- [ ] Add helper methods: `p.peek(n int) lexer.Token` wrapper for cleaner syntax
+- [ ] Remove any temporary lexer creation workarounds (if they exist)
+- [ ] Document lookahead patterns in parser style guide
 
 **Files Modified**:
-- `internal/parser/parser.go` (~50 lines added)
-- `internal/parser/statements.go` (~30 lines modified)
-- `internal/parser/declarations.go` (~20 lines modified)
+- `internal/parser/parser.go` (~30 lines added for helpers)
+- `internal/parser/statements.go` (~40 lines modified)
+- `internal/parser/declarations.go` (~30 lines modified)
+- `internal/parser/expressions.go` (~20 lines modified)
 
 **Tests**:
 - Add `internal/parser/lookahead_test.go` (~150 lines)
-- Test 2-token, 3-token lookahead patterns
-- Test correct disambiguation of var/const declarations
+- Test var/const declaration disambiguation with lookahead
+- Test complex expression disambiguation
+- Verify no performance regression from lookahead usage
 
-**Estimate**: 4-6 hours
+**Estimate**: 3-4 hours (reduced from 4-6h since lexer provides infrastructure)
 
 ---
 
@@ -203,9 +229,9 @@ case *ast.FunctionPointerTypeNode:
 
 ---
 
-### 2.3: Replace Speculative Parsing with Backtracking
+### 2.3: Implement Parser State Save/Restore for Speculative Parsing
 
-**Goal**: Replace error count manipulation with proper parser state save/restore mechanism for speculative parsing.
+**Goal**: Replace fragile error count manipulation with proper parser state save/restore mechanism, leveraging the lexer's existing state management.
 
 **Current Issue**: Fragile error trimming in `parseIsExpression()` (expressions.go:1405-1415):
 ```go
@@ -218,26 +244,33 @@ if expression.TargetType != nil {
 p.errors = p.errors[:errorCountBefore]
 ```
 
+**Lexer Support** (already available):
+- Lexer provides `saveState()` and `restoreState()` methods
+- Lexer's token buffer ensures Peek() state is preserved
+- Parser can leverage this for its own state management
+
 **Implementation**:
-- [ ] Design `ParserState` struct (curToken, peekToken, errors, position)
-- [ ] Implement `p.saveState() ParserState` method
-- [ ] Implement `p.restoreState(state ParserState)` method
+- [ ] Design `ParserState` struct (curToken, peekToken, errors, lexerState)
+- [ ] Implement `p.saveState() ParserState` - captures parser AND lexer state
+- [ ] Implement `p.restoreState(state ParserState)` - restores both
 - [ ] Replace error trimming with save/restore in `parseIsExpression()`
 - [ ] Identify other speculative parsing sites and convert them
-- [ ] Add debug logging for backtracking events (optional)
+- [ ] Add debug logging for backtracking events (if parser trace mode added)
+- [ ] Document backtracking pattern in style guide
 
 **Files Modified**:
-- `internal/parser/parser.go` (~60 lines added)
-- `internal/parser/expressions.go` (~20 lines modified)
-- `internal/parser/types.go` (~30 lines modified, if other sites exist)
+- `internal/parser/parser.go` (~70 lines added)
+- `internal/parser/expressions.go` (~25 lines modified)
+- `internal/parser/types.go` (~30 lines modified for other sites)
 
 **Tests**:
-- Add `internal/parser/backtracking_test.go` (~100 lines)
-- Test save/restore preserves state correctly
+- Add `internal/parser/backtracking_test.go` (~120 lines)
+- Test save/restore preserves both parser and lexer state
 - Test nested save/restore (save twice, restore in order)
+- Test that Peek() works correctly after restore
 - Verify existing `is` expression tests still pass
 
-**Estimate**: 5-7 hours
+**Estimate**: 4-5 hours (reduced from 5-7h due to lexer state infrastructure)
 
 ---
 
@@ -436,50 +469,7 @@ if !p.curTokenIs(lexer.END) {
 
 ---
 
-### 2.9: Add Parser Debug/Trace Mode
-
-**Goal**: Add optional debug mode for parser that logs parsing events to aid debugging.
-
-**Current Issue**: Debugging parser issues requires manual print statements or debugger stepping.
-
-**Implementation**:
-- [ ] Add `debug bool` field to Parser struct
-- [ ] Add `SetDebug(enabled bool)` method
-- [ ] Add trace logging for function entry/exit
-- [ ] Add trace logging for token consumption
-- [ ] Add trace logging for AST node creation
-- [ ] Add trace logging for backtracking events
-- [ ] Make output format configurable (plain text, JSON)
-
-**Example Output**:
-```
-[ENTER] parseStatement() at line 10, col 5 (curToken: BEGIN)
-  [ENTER] parseBlockStatement() at line 10, col 5
-    [TOKEN] consume BEGIN
-    [TOKEN] advance to IDENT
-    [ENTER] parseStatement() at line 11, col 7 (curToken: IDENT)
-      [CREATE] AssignmentStatement
-    [EXIT] parseStatement() -> AssignmentStatement
-  [EXIT] parseBlockStatement() -> BlockStatement
-[EXIT] parseStatement() -> BlockStatement
-```
-
-**Files Modified**:
-- `internal/parser/parser.go` (~100 lines added)
-- Add `internal/parser/trace.go` (~150 lines new file)
-- `cmd/dwscript/main.go` (~20 lines for --debug-parser flag)
-
-**Tests**:
-- Add `internal/parser/trace_test.go` (~100 lines)
-- Test trace output format
-- Test trace filtering options
-- Verify no performance impact when disabled
-
-**Estimate**: 4-6 hours
-
----
-
-### 2.10: Parser Documentation and Style Guide
+### 2.9: Parser Documentation and Style Guide
 
 **Goal**: Create comprehensive documentation for parser architecture, conventions, and contribution guidelines.
 
@@ -519,37 +509,46 @@ if !p.curTokenIs(lexer.END) {
 
 **Estimate**: 6-8 hours
 
-### Summary of Stage 2
+### Summary of Phase 2
 
-**Total Estimate**: 52-71 hours (call it ~60 hours or 1.5-2 weeks)
+**Total Estimate**: 35-50 hours (call it ~42 hours or 1 week) - **REDUCED** from original 52-71h
 
 **Breakdown**:
-1. Lookahead buffer: 4-6h
-2. Unify type representation: 6-8h
-3. Backtracking: 5-7h
-4. Token consumption convention: 8-10h
-5. Generic list helpers: 6-8h
-6. Refactor complex functions: 5-7h
-7. Remove dead code: 2-3h
-8. Error recovery: 6-8h
-9. Debug/trace mode: 4-6h
-10. Documentation: 6-8h
+1. Utilize lexer lookahead: 3-4h (was 4-6h for implementing lookahead from scratch)
+2. Unify type representation: 6-8h (unchanged)
+3. Parser state save/restore: 4-5h (was 5-7h, reduced due to lexer infrastructure)
+4. Token consumption convention: 8-10h (unchanged)
+5. Generic list helpers: 6-8h (unchanged)
+6. Refactor complex functions: 5-7h (unchanged)
+7. Remove dead code: 2-3h (unchanged)
+8. Error recovery: 6-8h (unchanged - but can leverage lexer error patterns)
+9. Documentation: 6-8h (unchanged)
+
+**Time Savings**: ~10-20 hours saved due to lexer providing:
+- N-token lookahead infrastructure (Peek method)
+- State save/restore capability
+- Error accumulation patterns
+- Comprehensive token handling
 
 **Benefits**:
 - **Maintainability**: Clearer code, less duplication, easier to understand
 - **Extensibility**: Generic helpers make adding new syntax easier
-- **Debuggability**: Trace mode and better error recovery aid troubleshooting
+- **Debuggability**: Better error recovery and lookahead aid troubleshooting
 - **Onboarding**: Comprehensive docs help new contributors
 - **Quality**: Consistent conventions reduce bugs
+- **Synergy**: Parser leverages enhanced lexer capabilities throughout
 
-**Dependencies**: None (can be done incrementally)
+**Dependencies**:
+- Phase 1 lexer enhancements (COMPLETE - lexer provides Peek, state management, error accumulation)
+- Tasks can be done incrementally in any order except 2.1 should be done early
 
 **Testing Strategy**: Each subtask includes tests. Overall regression testing ensures no breakage.
 
 **Acceptance Criteria**:
 - All existing parser tests pass (no regressions)
 - Code coverage maintains or improves (currently 84.5%)
-- Parser files reduced by ~500-800 lines through deduplication
+- Parser uses lexer's `Peek()` consistently throughout
+- Parser files reduced by ~400-600 lines through deduplication
 - All subtasks have associated tests or documentation
 - Parser style guide reviewed and approved
 - No user-facing behavior changes (internal refactoring only)
@@ -557,11 +556,13 @@ if !p.curTokenIs(lexer.END) {
 **Non-Goals**:
 - Performance optimization (focus is maintainability)
 - Adding new language features (pure refactoring)
-- Changing AST structure (except unified types in 9.50.2)
+- Changing AST structure (except unified types in 2.2)
+- Adding debug/trace mode (removed from Phase 2 - can be added later if needed)
 
 **Related Tasks**:
-- Stage 2: Basic Parser and AST (original implementation)
+- Phase 1: Lexer enhancements (provides lookahead, state management, error accumulation)
 - Task 10.10: Position Tracking (enhanced with better conventions)
+- Task 12.3: Lexer lookahead buffer (completed in Phase 1)
 
 ---
 
