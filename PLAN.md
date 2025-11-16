@@ -1815,6 +1815,7 @@ go test -v ./internal/semantic -run TestInheritance
 **Reference**: See `FIXTURE_FAILURES_ANALYSIS.md` - Priority P1, Section 11
 
 **Failing Tests** (12 total):
+
 - aliased_enum
 - enum_bool_op
 - enum_bounds

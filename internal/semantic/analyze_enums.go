@@ -37,7 +37,7 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 
 	// Register enum values and calculate ordinal values
 	currentOrdinal := 0
-	flagBitPosition := 0 // For flags enums, track the bit position (2^n)
+	flagBitPosition := 0               // For flags enums, track the bit position (2^n)
 	usedValues := make(map[int]string) // Track used ordinal values to detect duplicates
 	usedNames := make(map[string]bool) // Track used names to detect duplicates
 
