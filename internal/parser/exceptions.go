@@ -157,7 +157,10 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 //	  PrintLn('error');  // bare except
 //	end
 func (p *Parser) parseExceptClause() *ast.ExceptClause {
-	clause := &ast.ExceptClause{}
+	exceptToken := p.curToken // Save 'except' token before moving past it
+	clause := &ast.ExceptClause{
+		Token: exceptToken, // 'except' keyword token
+	}
 	clause.Handlers = []*ast.ExceptionHandler{}
 
 	p.nextToken() // move past 'except'
@@ -207,9 +210,13 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 		// Handler with nil Variable and nil ExceptionType catches everything
 		if len(bareBlock.Statements) > 0 {
 			bareHandler := &ast.ExceptionHandler{
-				Variable:      nil, // No exception variable
-				ExceptionType: nil, // Catches all exception types
+				Token:         exceptToken, // Use the 'except' token for synthetic handler
+				Variable:      nil,         // No exception variable
+				ExceptionType: nil,         // Catches all exception types
 				Statement:     bareBlock,
+			}
+			if bareBlock != nil {
+				bareHandler.EndPos = bareBlock.End()
 			}
 			clause.Handlers = append(clause.Handlers, bareHandler)
 		}
@@ -245,6 +252,17 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 		clause.ElseBlock = elseBlock
 	}
 
+	// Set EndPos based on what was parsed last
+	if clause.ElseBlock != nil {
+		clause.EndPos = clause.ElseBlock.End()
+	} else if len(clause.Handlers) > 0 {
+		lastHandler := clause.Handlers[len(clause.Handlers)-1]
+		clause.EndPos = lastHandler.End()
+	} else {
+		// No handlers or else block - use current position
+		clause.EndPos = p.endPosFromToken(p.curToken)
+	}
+
 	return clause
 }
 
@@ -260,7 +278,10 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 //	  HandleMyException(E);
 //	end;
 func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
-	handler := &ast.ExceptionHandler{}
+	onToken := p.curToken // Save 'on' token before moving past it
+	handler := &ast.ExceptionHandler{
+		Token: onToken, // 'on' keyword token
+	}
 
 	// Expect 'on' keyword (already checked by caller)
 	p.nextToken() // move past 'on'
@@ -309,6 +330,11 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	if handler.Statement == nil {
 		p.addError("expected statement after 'do'", ErrInvalidSyntax)
 		return nil
+	}
+
+	// Set EndPos to the end of the statement
+	if handler.Statement != nil {
+		handler.EndPos = handler.Statement.End()
 	}
 
 	// After parsing the statement, advance to the next token

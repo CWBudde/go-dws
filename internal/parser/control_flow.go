@@ -441,7 +441,11 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 			continue
 		}
 
-		branch := &ast.CaseBranch{}
+		// Save the token of the first value for position tracking
+		firstValueToken := p.curToken
+		branch := &ast.CaseBranch{
+			Token: firstValueToken, // First value token for position tracking
+		}
 
 		// Parse comma-separated value list (with range support)
 		branch.Values = []ast.Expression{}
@@ -531,6 +535,11 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 		if branch.Statement == nil {
 			p.addError("expected statement after ':' in case branch", ErrInvalidSyntax)
 			return nil
+		}
+
+		// Set EndPos to the end of the statement
+		if branch.Statement != nil {
+			branch.EndPos = branch.Statement.End()
 		}
 
 		stmt.Cases = append(stmt.Cases, branch)

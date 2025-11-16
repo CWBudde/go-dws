@@ -245,8 +245,8 @@ func (fis *ForInStatement) String() string {
 }
 
 // CaseBranch represents a single branch in a case statement.
-// This is a helper struct that groups case values with their corresponding statement.
-// It does not implement Node as it's always contained within a CaseStatement.
+// This groups case values with their corresponding statement and implements Node
+// to enable proper visitor traversal and position tracking.
 //
 // Examples:
 //
@@ -255,6 +255,29 @@ func (fis *ForInStatement) String() string {
 type CaseBranch struct {
 	Statement Statement
 	Values    []Expression
+	Token     token.Token    // First value token
+	EndPos    token.Position // End of statement
+}
+
+func (cb *CaseBranch) statementNode() {}
+
+func (cb *CaseBranch) TokenLiteral() string {
+	return cb.Token.Literal
+}
+
+func (cb *CaseBranch) Pos() token.Position {
+	return cb.Token.Pos
+}
+
+func (cb *CaseBranch) End() token.Position {
+	if cb.EndPos.Line != 0 {
+		return cb.EndPos
+	}
+	// End position is after the statement
+	if cb.Statement != nil {
+		return cb.Statement.End()
+	}
+	return cb.Token.Pos
 }
 
 func (cb *CaseBranch) String() string {
