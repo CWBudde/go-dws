@@ -28,6 +28,57 @@
 //
 // Note: As of task 10.10 implementation, position tracking is partially complete.
 // Many parsing functions still need EndPos population. Follow the pattern above.
+//
+// LOOKAHEAD PATTERN (Phase 2.1):
+//
+// The parser supports N-token lookahead via helper methods that wrap the lexer's Peek() capability.
+// Use lookahead for disambiguation when grammar is ambiguous or context-dependent.
+//
+// Available lookahead methods:
+//
+//  1. peek(n int) lexer.Token
+//     - Returns the token N positions after peekToken
+//     - peek(0) = token after peekToken (2 tokens ahead of curToken)
+//     - peek(1) = 2 tokens after peekToken (3 tokens ahead of curToken)
+//     - Direct wrapper around p.l.Peek(n)
+//
+//  2. peekAhead(n int) lexer.Token
+//     - Returns the token N positions ahead from curToken
+//     - peekAhead(1) = peekToken
+//     - peekAhead(2) = peek(0)
+//     - More intuitive counting from curToken
+//
+// Common lookahead patterns:
+//
+//  1. Disambiguation functions (looksLike* pattern):
+//     func (p *Parser) looksLikeVarDeclaration() bool {
+//     if !p.peekTokenIs(lexer.IDENT) {
+//     return false
+//     }
+//     tokenAfterIdent := p.peek(0)  // Look past the IDENT
+//     return tokenAfterIdent.Type == lexer.COLON ||
+//     tokenAfterIdent.Type == lexer.COMMA
+//     }
+//
+//  2. Scanning for specific tokens:
+//     peekIndex := 0
+//     for {
+//     tok := p.peek(peekIndex)
+//     if tok.Type == lexer.COLON {
+//     return true
+//     }
+//     if tok.Type == lexer.SEMICOLON || tok.Type == lexer.EOF {
+//     return false
+//     }
+//     peekIndex++
+//     }
+//
+// Best practices:
+//   - Use lookahead sparingly - only when truly needed for disambiguation
+//   - Prefer peek() for direct lookahead, peekAhead() when counting from curToken is clearer
+//   - Always check for EOF when scanning ahead in loops
+//   - Document WHY lookahead is needed (what ambiguity it resolves)
+//   - Keep lookahead functions pure (no side effects, no token consumption)
 package parser
 
 import (
@@ -224,6 +275,36 @@ func (p *Parser) curTokenIs(t lexer.TokenType) bool {
 // peekTokenIs checks if the peek token is of the given type.
 func (p *Parser) peekTokenIs(t lexer.TokenType) bool {
 	return p.peekToken.Type == t
+}
+
+// peek provides N-token lookahead using the lexer's Peek() method.
+// n=0 returns the token after peekToken, n=1 returns 2 tokens ahead, etc.
+// This is a convenience wrapper around p.l.Peek(n) for cleaner syntax.
+//
+// Example usage:
+//   - To look 1 token ahead of curToken: p.peekTokenIs(lexer.IDENT)
+//   - To look 2 tokens ahead of curToken: p.peek(0).Type == lexer.COLON
+//   - To look 3 tokens ahead of curToken: p.peek(1).Type == lexer.ASSIGN
+func (p *Parser) peek(n int) lexer.Token {
+	return p.l.Peek(n)
+}
+
+// peekAhead is an alternative helper that looks N tokens ahead from curToken.
+// n=1 returns peekToken, n=2 returns the token after peekToken, etc.
+// This provides a more intuitive interface where n represents "tokens ahead from curToken".
+//
+// Example usage:
+//   - To look 1 token ahead: p.peekAhead(1) (same as p.peekToken)
+//   - To look 2 tokens ahead: p.peekAhead(2) (same as p.peek(0))
+//   - To look 3 tokens ahead: p.peekAhead(3) (same as p.peek(1))
+func (p *Parser) peekAhead(n int) lexer.Token {
+	if n <= 0 {
+		return p.curToken
+	}
+	if n == 1 {
+		return p.peekToken
+	}
+	return p.l.Peek(n - 2)
 }
 
 // expectPeek checks if the peek token is of the given type and advances if so.
