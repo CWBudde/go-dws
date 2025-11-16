@@ -30,17 +30,18 @@ func (i *Interpreter) evalWhileStatement(stmt *ast.WhileStatement) Value {
 			return result
 		}
 
-		// Handle break/continue signals
-		if i.breakSignal {
-			i.breakSignal = false // Clear signal
+		// Handle control flow signals
+		cf := i.ctx.ControlFlow()
+		if cf.IsBreak() {
+			cf.Clear()
 			break
 		}
-		if i.continueSignal {
-			i.continueSignal = false // Clear signal
+		if cf.IsContinue() {
+			cf.Clear()
 			continue
 		}
 		// Handle exit signal (exit from function while in loop)
-		if i.exitSignal {
+		if cf.IsExit() {
 			// Don't clear the signal - let the function handle it
 			break
 		}
@@ -63,17 +64,18 @@ func (i *Interpreter) evalRepeatStatement(stmt *ast.RepeatStatement) Value {
 			return result
 		}
 
-		// Handle break/continue signals
-		if i.breakSignal {
-			i.breakSignal = false // Clear signal
+		// Handle control flow signals
+		cf := i.ctx.ControlFlow()
+		if cf.IsBreak() {
+			cf.Clear()
 			break
 		}
-		if i.continueSignal {
-			i.continueSignal = false // Clear signal
+		if cf.IsContinue() {
+			cf.Clear()
 			// Continue to condition check
 		}
 		// Handle exit signal (exit from function while in loop)
-		if i.exitSignal {
+		if cf.IsExit() {
 			// Don't clear the signal - let the function handle it
 			break
 		}
@@ -167,17 +169,18 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 				return result
 			}
 
-			// Handle break/continue signals
-			if i.breakSignal {
-				i.breakSignal = false // Clear signal
+			// Handle control flow signals
+			cf := i.ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
 				break
 			}
-			if i.continueSignal {
-				i.continueSignal = false // Clear signal
+			if cf.IsContinue() {
+				cf.Clear()
 				continue
 			}
 			// Handle exit signal (exit from function while in loop)
-			if i.exitSignal {
+			if cf.IsExit() {
 				// Don't clear the signal - let the function handle it
 				break
 			}
@@ -195,17 +198,18 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 				return result
 			}
 
-			// Handle break/continue signals
-			if i.breakSignal {
-				i.breakSignal = false // Clear signal
+			// Handle control flow signals
+			cf := i.ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
 				break
 			}
-			if i.continueSignal {
-				i.continueSignal = false // Clear signal
+			if cf.IsContinue() {
+				cf.Clear()
 				continue
 			}
 			// Handle exit signal (exit from function while in loop)
-			if i.exitSignal {
+			if cf.IsExit() {
 				// Don't clear the signal - let the function handle it
 				break
 			}
@@ -254,15 +258,16 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			}
 
 			// Handle control flow signals (break, continue, exit)
-			if i.breakSignal {
-				i.breakSignal = false // Clear signal
+			cf := i.ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
 				break
 			}
-			if i.continueSignal {
-				i.continueSignal = false // Clear signal
+			if cf.IsContinue() {
+				cf.Clear()
 				continue
 			}
-			if i.exitSignal {
+			if cf.IsExit() {
 				// Don't clear the signal - let the function handle it
 				break
 			}
@@ -304,15 +309,16 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 					}
 
 					// Handle control flow signals (break, continue, exit)
-					if i.breakSignal {
-						i.breakSignal = false // Clear signal
+					cf := i.ctx.ControlFlow()
+					if cf.IsBreak() {
+						cf.Clear()
 						break
 					}
-					if i.continueSignal {
-						i.continueSignal = false // Clear signal
+					if cf.IsContinue() {
+						cf.Clear()
 						continue
 					}
-					if i.exitSignal {
+					if cf.IsExit() {
 						// Don't clear the signal - let the function handle it
 						break
 					}
@@ -345,15 +351,16 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			}
 
 			// Handle control flow signals (break, continue, exit)
-			if i.breakSignal {
-				i.breakSignal = false // Clear signal
+			cf := i.ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
 				break
 			}
-			if i.continueSignal {
-				i.continueSignal = false // Clear signal
+			if cf.IsContinue() {
+				cf.Clear()
 				continue
 			}
-			if i.exitSignal {
+			if cf.IsExit() {
 				// Don't clear the signal - let the function handle it
 				break
 			}
@@ -391,15 +398,16 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			}
 
 			// Handle control flow signals (break, continue, exit)
-			if i.breakSignal {
-				i.breakSignal = false // Clear signal
+			cf := i.ctx.ControlFlow()
+			if cf.IsBreak() {
+				cf.Clear()
 				break
 			}
-			if i.continueSignal {
-				i.continueSignal = false // Clear signal
+			if cf.IsContinue() {
+				cf.Clear()
 				continue
 			}
-			if i.exitSignal {
+			if cf.IsExit() {
 				// Don't clear the signal - let the function handle it
 				break
 			}
@@ -421,14 +429,14 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 // evalBreakStatement evaluates a break statement
 // Sets the break signal to exit the innermost loop.
 func (i *Interpreter) evalBreakStatement(_ *ast.BreakStatement) Value {
-	i.breakSignal = true
+	i.ctx.ControlFlow().SetBreak()
 	return &NilValue{}
 }
 
 // evalContinueStatement evaluates a continue statement
 // Sets the continue signal to skip to the next iteration of the innermost loop.
 func (i *Interpreter) evalContinueStatement(_ *ast.ContinueStatement) Value {
-	i.continueSignal = true
+	i.ctx.ControlFlow().SetContinue()
 	return &NilValue{}
 }
 
@@ -436,7 +444,7 @@ func (i *Interpreter) evalContinueStatement(_ *ast.ContinueStatement) Value {
 // Sets the exit signal to exit the current function.
 // If at program level, sets exit signal to terminate the program.
 func (i *Interpreter) evalExitStatement(stmt *ast.ExitStatement) Value {
-	i.exitSignal = true
+	i.ctx.ControlFlow().SetExit()
 	if stmt.ReturnValue != nil {
 		value := i.Eval(stmt.ReturnValue)
 		if isError(value) {
@@ -487,7 +495,7 @@ func (i *Interpreter) evalReturnStatement(stmt *ast.ReturnStatement) Value {
 	}
 
 	// Set exit signal to indicate early return
-	i.exitSignal = true
+	i.ctx.ControlFlow().SetExit()
 
 	return returnVal
 }

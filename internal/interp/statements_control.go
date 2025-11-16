@@ -31,7 +31,7 @@ func (i *Interpreter) evalBlockStatement(block *ast.BlockStatement) Value {
 
 		// Check for control flow signals and propagate them upward
 		// These signals should propagate up to the appropriate control structure
-		if i.breakSignal || i.continueSignal || i.exitSignal {
+		if i.ctx.ControlFlow().IsActive() {
 			return nil // Propagate signal upward by returning early
 		}
 	}

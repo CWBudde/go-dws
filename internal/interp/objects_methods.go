@@ -770,7 +770,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 	i.env = methodEnv
 
 	// Task 9.x: Check recursion depth before pushing to call stack
-	if len(i.callStack) >= i.maxRecursionDepth {
+	if i.ctx.GetCallStack().WillOverflow() {
 		i.env = savedEnv // Restore environment before raising exception
 		return i.raiseMaxRecursionExceeded()
 	}
@@ -908,7 +908,7 @@ func (i *Interpreter) executeClassMethod(
 	i.env = methodEnv
 
 	// Check recursion depth before pushing to call stack
-	if len(i.callStack) >= i.maxRecursionDepth {
+	if i.ctx.GetCallStack().WillOverflow() {
 		i.env = savedEnv
 		return i.raiseMaxRecursionExceeded()
 	}
