@@ -367,14 +367,44 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		// Verify the member exists in the interface definition
 		// This ensures we only access members that are part of the interface contract
 		memberName := ma.Member.Value
-		if !intfInst.Interface.HasMethod(memberName) {
-			// TODO(go-dws: Stage 9.1.1): Implement property validation for interface member access
-			// to match the strictness of method validation (see objects_methods.go:556-563).
-			// This will ensure that only properties defined in the interface contract can be accessed.
-			// For now, we only validate methods and allow properties/fields to be checked by the underlying object.
+
+		// Task 9.1.6: For interface methods, return a function pointer instead of auto-invoking
+		// This allows method delegate assignment: var h : procedure := i.Hello;
+		if intfInst.Interface.HasMethod(memberName) {
+			// Get the underlying object to find the method implementation
+			underlyingObj, isObj := AsObject(intfInst.Object)
+			if !isObj {
+				return i.newErrorWithLocation(ma, "interface underlying object is not a class instance")
+			}
+
+			// Look up the method in the underlying object's class
+			methodOverloads := i.getMethodOverloadsInHierarchy(underlyingObj.Class, memberName, false)
+			if len(methodOverloads) > 0 {
+				method := methodOverloads[0] // Take first overload
+
+				// Build function pointer type
+				paramTypes := make([]types.Type, len(method.Parameters))
+				for idx, param := range method.Parameters {
+					if param.Type != nil {
+						paramTypes[idx] = i.getTypeFromAnnotation(param.Type)
+					}
+				}
+				var returnType types.Type
+				if method.ReturnType != nil {
+					returnType = i.getTypeFromAnnotation(method.ReturnType)
+				}
+				pointerType := types.NewFunctionPointerType(paramTypes, returnType)
+
+				// Return function pointer bound to the underlying object
+				return NewFunctionPointerValue(method, i.env, underlyingObj, pointerType)
+			}
 		}
 
-		// Delegate to the underlying object for actual member access
+		// Not a method - delegate to the underlying object for field/property access
+		// TODO(go-dws: Stage 9.1.1): Implement property validation for interface member access
+		// to match the strictness of method validation (see objects_methods.go:556-563).
+		// This will ensure that only properties defined in the interface contract can be accessed.
+		// For now, we allow properties/fields to be checked by the underlying object.
 		objVal = intfInst.Object
 	}
 

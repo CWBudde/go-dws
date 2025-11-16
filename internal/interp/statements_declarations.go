@@ -268,6 +268,20 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		if stmt.Value != nil {
 			// Single name with initializer - use the computed value
 			nameValue = value
+			// Task 9.1.6: If the type annotation is an interface type, wrap the value in an InterfaceInstance
+			if stmt.Type != nil {
+				typeName := stmt.Type.Name
+				if ifaceInfo, exists := i.interfaces[strings.ToLower(typeName)]; exists {
+					// Check if the value is already an InterfaceInstance
+					if _, alreadyInterface := nameValue.(*InterfaceInstance); !alreadyInterface {
+						// Check if the value is an ObjectInstance
+						if objInst, isObj := nameValue.(*ObjectInstance); isObj {
+							// Wrap the object in an InterfaceInstance
+							nameValue = NewInterfaceInstance(ifaceInfo, objInst)
+						}
+					}
+				}
+			}
 		} else {
 			// No initializer - create a new zero value for each name
 			// Must create separate instances to avoid aliasing
