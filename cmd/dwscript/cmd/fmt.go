@@ -16,14 +16,14 @@ import (
 
 var (
 	// Format command flags
-	fmtWrite      bool   // -w: write result to (source) file instead of stdout
-	fmtList       bool   // -l: list files whose formatting differs from gofmt's
-	fmtDiff       bool   // -d: display diffs instead of rewriting files
-	fmtStyle      string // --style: formatting style (detailed, compact, multiline)
-	fmtIndent     int    // --indent: number of spaces per indentation level
-	fmtUseTabs    bool   // --tabs: use tabs instead of spaces for indentation
-	fmtSimplify   bool   // -s: simplify code (future enhancement)
-	fmtRecursive  bool   // -r: process directories recursively
+	fmtWrite     bool   // -w: write result to (source) file instead of stdout
+	fmtList      bool   // -l: list files whose formatting differs from gofmt's
+	fmtDiff      bool   // -d: display diffs instead of rewriting files
+	fmtStyle     string // --style: formatting style (detailed, compact, multiline)
+	fmtIndent    int    // --indent: number of spaces per indentation level
+	fmtUseTabs   bool   // --tabs: use tabs instead of spaces for indentation
+	fmtSimplify  bool   // -s: simplify code (future enhancement)
+	fmtRecursive bool   // -r: process directories recursively
 )
 
 var fmtCmd = &cobra.Command{

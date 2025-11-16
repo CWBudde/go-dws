@@ -431,7 +431,7 @@ func TestComplexConstructs(t *testing.T) {
 func TestIdempotency(t *testing.T) {
 	// Use sources that parse and format correctly when repeated
 	sources := []string{
-		"begin x:=1;y:=2;end;",      // begin-end has trailing semicolon
+		"begin x:=1;y:=2;end;",        // begin-end has trailing semicolon
 		"if x>0 then begin y:=1;end;", // if with begin-end
 		"for i:=1 to 10 do begin x:=x+i;end;",
 	}

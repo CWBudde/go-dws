@@ -12,17 +12,17 @@ var x := 42; { Block comment }
 /* C-style comment */`
 
 	tests := []struct {
-		name            string
+		name             string
 		preserveComments bool
 		wantCommentCount int
 	}{
 		{
-			name:            "skip comments (default)",
+			name:             "skip comments (default)",
 			preserveComments: false,
 			wantCommentCount: 0,
 		},
 		{
-			name:            "preserve comments",
+			name:             "preserve comments",
 			preserveComments: true,
 			wantCommentCount: 4, // 4 comments in the input
 		},
