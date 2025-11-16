@@ -45,6 +45,7 @@ type Statement interface {
 type Program struct {
 	Statements []Statement
 	EndPos     token.Position
+	Comments   CommentMap // Optional map of comments attached to AST nodes
 }
 
 func (p *Program) TokenLiteral() string {

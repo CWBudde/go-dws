@@ -5,24 +5,900 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-## Phase 1-5: Core Language Implementation (Stages 1-5)
+## Phase 1: Lexer (Tokenization)
 
-**Status**: 5/5 stages complete (100%) | **Coverage**: Parser 84.5%, Interpreter 83.3%
+**Goal**: Refactor the lexer for better maintainability, consistency, and extensibility while preserving all existing functionality.
 
-### Stage 1: Lexer (Tokenization) ✅ **COMPLETED**
+**Status**: In progress | **Tasks**: 16/20 complete
 
-- Implemented complete DWScript lexer with 150+ tokens including keywords, operators, literals, and delimiters
-- Support for case-insensitive keywords, hex/binary literals, string escape sequences, and all comment types
-- Comprehensive test suite with 97.1% coverage and position tracking for error reporting
+**Motivation**: The lexer works well but has technical debt in error handling, state management, and code organization. These improvements will make the codebase easier to maintain and extend.
 
-### Stage 2: Basic Parser and AST (Expressions Only) ✅ **COMPLETED**
+**Approach**: Incremental refactoring with full test coverage at each step. No behavior changes, only internal improvements.
 
-- Pratt parser implementation with precedence climbing supporting all DWScript operators
-- Complete AST node hierarchy with visitor pattern support
-- Expression parsing for literals, identifiers, binary/unary operations, grouped expressions, and function calls
-- Full operator precedence handling and error recovery mechanisms
+### 1.1: Code Organization - Refactor NextToken
 
-### Stage 3: Statement Execution (Sequential Execution) ✅ **COMPLETED** (98.5%)
+**Goal**: Break up the 335-line NextToken() switch statement into maintainable handler functions.
+
+- [x] 1.1.1 Extract operator handlers (arithmetic)
+  - Create `handlePlus()`, `handleMinus()`, `handleAsterisk()` functions
+  - Each handles compound operators (+=, ++, etc.)
+  - File: `internal/lexer/lexer.go` (~120 lines, move not add)
+  - Estimated: 1 hour
+  - Test: All arithmetic operators work
+  - **DONE**: Extracted handlePlus, handleMinus, handleAsterisk, handleSlash, handlePercent
+
+- [x] 1.1.2 Extract operator handlers (comparison and logical)
+  - Create `handleEquals()`, `handleLess()`, `handleGreater()` functions
+  - Create `handleAmp()`, `handlePipe()`, `handleQuestion()` functions
+  - File: `internal/lexer/lexer.go` (~100 lines, move not add)
+  - Estimated: 1 hour
+  - Test: All comparison/logical operators work
+  - **DONE**: Extracted handleEquals, handleLess, handleGreater, handleExclamation, handleQuestion, handleAmpersand, handlePipe, handleCaret, handleAt, handleTilde
+
+- [ ] 1.1.3 Create operator dispatch table
+  - Define `type tokenHandler func(*Lexer, Position) Token`
+  - Create `var tokenHandlers = map[rune]tokenHandler{...}`
+  - Update NextToken() to use dispatch table
+  - File: `internal/lexer/lexer.go` (~60 lines modified)
+  - Estimated: 1 hour
+  - Test: All operators still work, performance not degraded
+
+- [ ] 1.1.4 Benchmark dispatch table vs switch
+  - Create benchmark for NextToken() throughput
+  - Compare switch vs map dispatch
+  - Revert if map is significantly slower (>10%)
+  - File: `internal/lexer/lexer_bench_test.go` (new file ~80 lines)
+  - Estimated: 45 minutes
+  - Test: Performance within acceptable range
+
+---
+
+### 1.2: Documentation and Testing
+
+**Goal**: Improve observability and testing infrastructure.
+
+- [ ] 1.2.1 Add options pattern for Lexer configuration
+  - Define `type LexerOption func(*Lexer)`
+  - Update `New(input string, opts ...LexerOption)` signature
+  - Add `WithTracing(bool)` option for debug output
+  - File: `internal/lexer/lexer.go` (~40 lines)
+  - Estimated: 45 minutes
+  - Test: Options apply correctly, backwards compatible
+
+- [ ] 1.2.2 Add comprehensive error position tests
+  - Test error positions for unterminated strings at various locations
+  - Test error positions for illegal characters
+  - Test multi-line error reporting
+  - File: `internal/lexer/lexer_test.go` (~100 lines)
+  - Estimated: 1 hour
+  - Test: All error positions accurate
+
+- [ ] 1.2.3 Document column behavior for Unicode
+  - Clarify that "column" means rune count, not display width
+  - Add comment about display width vs. rune count tradeoff
+  - Add examples in tests with emoji and multi-byte chars
+  - File: `internal/lexer/lexer.go`, `internal/lexer/lexer_test.go` (~30 lines)
+  - Estimated: 30 minutes
+  - Test: Unicode handling documented and tested
+
+---
+
+**Files Created**:
+- `internal/lexer/lexer_bench_test.go` (new file ~80 lines) - Performance benchmarks
+
+**Files Modified**:
+- `internal/lexer/lexer.go` (~400 lines modified, net -50 lines from cleanup)
+- `internal/lexer/lexer_test.go` (~180 lines added)
+- `internal/parser/parser.go` (~30 lines modified for error handling)
+
+**Acceptance Criteria**:
+- All existing tests pass (100% backwards compatible)
+- Error handling consistent across lexer (accumulation pattern)
+- State management uses proper save/restore pattern
+- Token lookahead API eliminates parser workarounds
+- NextToken() refactored into maintainable handlers
+- Performance maintained or improved
+- Test coverage remains >95%
+- Documentation updated for Unicode column behavior
+
+**Benefits**:
+- **Maintainability**: Smaller functions easier to understand and modify
+- **Consistency**: Error handling matches parser pattern
+- **Extensibility**: Dispatch table makes adding operators easier
+- **API Quality**: Proper lookahead eliminates workarounds
+- **Code Health**: Removes technical debt for future development
+- **Testing**: Better test infrastructure for edge cases
+
+**Non-Goals** (explicitly out of scope):
+- Changing token types or lexer output format
+- Performance optimization beyond maintaining current speed
+- Adding new language features or syntax
+- Changing public API surface (pkg/token)
+
+## Phase 2: Parser and AST
+
+**Goal**: Improve parser maintainability, testability, and extensibility by refactoring core parsing patterns, eliminating technical debt, and establishing clearer conventions.
+
+**Motivation**: The current parser (~8,300 LOC across 19 files) works well but has accumulated technical debt: inconsistent token consumption patterns, repeated code, speculative parsing with error rollback, and limited lookahead capability. These issues make the parser harder to maintain, extend, and debug.
+
+**Estimate**: 40-60 hours total (divided into 10 subtasks)
+
+**Status**: NOT STARTED
+
+**Priority**: Medium (technical debt reduction, no user-facing changes)
+
+---
+
+### 2.1: Implement Proper Lookahead Buffer
+
+**Goal**: Replace limited 1-token lookahead with configurable N-token lookahead buffer to enable better disambiguation.
+
+**Current Issue**: Functions like `looksLikeVarDeclaration()` and `looksLikeConstDeclaration()` conservatively return `false` due to insufficient lookahead:
+```go
+// statements.go:494-518
+func (p *Parser) looksLikeVarDeclaration() bool {
+    // For now, conservatively return false to avoid the regression
+    // A proper implementation would require a 2-token lookahead buffer
+    return false
+}
+```
+
+**Implementation**:
+- [ ] Design lookahead buffer with configurable depth (3-4 tokens)
+- [ ] Add `peek(n int) lexer.Token` method to look N tokens ahead
+- [ ] Implement circular buffer or slice-based lookahead storage
+- [ ] Update `looksLikeVarDeclaration()` to use 2-token lookahead
+- [ ] Update `looksLikeConstDeclaration()` to use 2-token lookahead
+- [ ] Add unit tests for lookahead edge cases (EOF, buffering, reset)
+
+**Files Modified**:
+- `internal/parser/parser.go` (~50 lines added)
+- `internal/parser/statements.go` (~30 lines modified)
+- `internal/parser/declarations.go` (~20 lines modified)
+
+**Tests**:
+- Add `internal/parser/lookahead_test.go` (~150 lines)
+- Test 2-token, 3-token lookahead patterns
+- Test correct disambiguation of var/const declarations
+
+**Estimate**: 4-6 hours
+
+---
+
+### 2.2: Unify Type Representation in AST
+
+**Goal**: Eliminate awkward conversions between `TypeExpression` and `TypeAnnotation` by using a unified type representation throughout the AST.
+
+**Current Issue**: Parser creates synthetic `TypeAnnotation` wrappers for complex types (statements.go:268-314, declarations.go:88-119):
+```go
+case *ast.FunctionPointerTypeNode:
+    stmt.Type = &ast.TypeAnnotation{
+        Token:      te.Token,
+        Name:       te.String(),
+        InlineType: te, // Awkward wrapper
+    }
+```
+
+**Implementation**:
+- [ ] Audit all AST nodes that use `TypeAnnotation`
+- [ ] Design unified `TypeSpec` interface or type
+- [ ] Update `VarDeclStatement`, `ConstDecl`, `Parameter` to use unified type
+- [ ] Modify parser to directly use `TypeExpression` in AST nodes
+- [ ] Update semantic analyzer to work with unified representation
+- [ ] Remove synthetic wrapper creation in parser
+
+**Files Modified**:
+- `pkg/ast/statements.go` (~30 lines)
+- `pkg/ast/declarations.go` (~20 lines)
+- `internal/parser/statements.go` (~60 lines removed/simplified)
+- `internal/parser/declarations.go` (~40 lines removed/simplified)
+- `internal/semantic/analyze_declarations.go` (~40 lines modified)
+
+**Tests**:
+- Update existing tests to use unified type representation
+- Verify semantic analysis still works correctly
+- No new tests needed (refactoring only)
+
+**Estimate**: 6-8 hours
+
+---
+
+### 2.3: Replace Speculative Parsing with Backtracking
+
+**Goal**: Replace error count manipulation with proper parser state save/restore mechanism for speculative parsing.
+
+**Current Issue**: Fragile error trimming in `parseIsExpression()` (expressions.go:1405-1415):
+```go
+errorCountBefore := len(p.errors)
+expression.TargetType = p.parseTypeExpression()
+if expression.TargetType != nil {
+    return expression
+}
+// Trim errors back to original count (speculative parsing)
+p.errors = p.errors[:errorCountBefore]
+```
+
+**Implementation**:
+- [ ] Design `ParserState` struct (curToken, peekToken, errors, position)
+- [ ] Implement `p.saveState() ParserState` method
+- [ ] Implement `p.restoreState(state ParserState)` method
+- [ ] Replace error trimming with save/restore in `parseIsExpression()`
+- [ ] Identify other speculative parsing sites and convert them
+- [ ] Add debug logging for backtracking events (optional)
+
+**Files Modified**:
+- `internal/parser/parser.go` (~60 lines added)
+- `internal/parser/expressions.go` (~20 lines modified)
+- `internal/parser/types.go` (~30 lines modified, if other sites exist)
+
+**Tests**:
+- Add `internal/parser/backtracking_test.go` (~100 lines)
+- Test save/restore preserves state correctly
+- Test nested save/restore (save twice, restore in order)
+- Verify existing `is` expression tests still pass
+
+**Estimate**: 5-7 hours
+
+---
+
+### 2.4: Standardize Token Consumption Convention
+
+**Goal**: Establish and enforce a clear convention for when parsing functions consume their triggering token.
+
+**Current Issue**: Inconsistent token consumption makes parser hard to follow:
+- `parseNewExpression()` advances past 'new' before parsing type
+- `parseHelperDeclaration()` expects to be AT the HELPER keyword
+- `parseBlockStatement()` advances past 'begin'
+
+**Implementation**:
+- [ ] Document convention: "Functions are called WITH curToken at the triggering token"
+- [ ] Audit all 50+ parsing functions for compliance
+- [ ] Refactor non-compliant functions to match convention
+- [ ] Add pre/post-condition comments to each parsing function
+- [ ] Create parser style guide document
+
+**Convention Example**:
+```go
+// parseBlockStatement parses a begin...end block.
+// PRE: curToken is BEGIN
+// POST: curToken is END
+func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+    // Implementation...
+}
+```
+
+**Files Modified**:
+- All parser files (~200 lines of comments added)
+- ~10-15 parsing functions refactored (~150 lines modified)
+- Create `docs/parser-conventions.md` (~200 lines)
+
+**Tests**:
+- No new tests needed (existing tests verify correctness)
+- Add comments to test cases documenting token positions
+
+**Estimate**: 8-10 hours
+
+---
+
+### 2.5: Extract Generic List Parsing Helpers
+
+**Goal**: Reduce code duplication by creating generic helper functions for common parsing patterns.
+
+**Current Issue**: Repeated patterns for comma-separated lists, semicolon-terminated blocks:
+- `parseExpressionList()` (expressions.go:569-602)
+- `parseArgumentsOrFields()` (expressions.go:486-561)
+- `parseLambdaParameterList()` (expressions.go:1086-1120)
+
+**Implementation**:
+- [ ] Design generic `parseList` helper with callbacks
+- [ ] Create `parseSeparatedList(sep, term, parseItem)` helper
+- [ ] Create `parseOptionalSeparatedList(sep, term, parseItem)` helper
+- [ ] Refactor expression list parsing to use helper
+- [ ] Refactor parameter list parsing to use helper
+- [ ] Refactor field list parsing to use helper
+
+**Example API**:
+```go
+func (p *Parser) parseSeparatedList(
+    separator lexer.TokenType,
+    terminator lexer.TokenType,
+    parseItem func() ast.Node,
+) []ast.Node
+```
+
+**Files Modified**:
+- `internal/parser/parser.go` (~100 lines added for helpers)
+- `internal/parser/expressions.go` (~150 lines simplified)
+- `internal/parser/functions.go` (~80 lines simplified)
+- `internal/parser/types.go` (~60 lines simplified)
+
+**Tests**:
+- Add `internal/parser/list_parsing_test.go` (~200 lines)
+- Test various separator/terminator combinations
+- Test edge cases (empty lists, trailing separators)
+- Verify existing tests still pass
+
+**Estimate**: 6-8 hours
+
+---
+
+### 2.6: Refactor Complex Parsing Functions
+
+**Goal**: Simplify complex parsing functions by extracting sub-parsers and using strategy pattern where appropriate.
+
+**Current Issue**: Functions like `parseCallOrRecordLiteral()` (expressions.go:399-482) have complex branching logic that's hard to follow.
+
+**Implementation**:
+- [ ] Identify functions >100 lines with complex branching
+- [ ] Extract sub-parsers for different syntactic forms
+- [ ] Use dispatch table or strategy pattern for disambiguation
+- [ ] Simplify `parseCallOrRecordLiteral()` into smaller functions
+- [ ] Simplify `parseNewExpression()` dispatch logic
+- [ ] Simplify `parseGroupedExpression()` disambiguation
+
+**Example Refactoring**:
+```go
+// Before: 80-line function with nested if/else
+func (p *Parser) parseCallOrRecordLiteral(...)
+
+// After: Clean dispatch
+func (p *Parser) parseCallOrRecordLiteral(...) {
+    if p.isRecordLiteral() {
+        return p.parseRecordLiteral(typeName)
+    }
+    return p.parseCallExpression(typeName)
+}
+```
+
+**Files Modified**:
+- `internal/parser/expressions.go` (~200 lines refactored)
+- `internal/parser/records.go` (~50 lines added)
+- `internal/parser/arrays.go` (~40 lines modified)
+
+**Tests**:
+- No new tests needed (existing tests verify correctness)
+- May add focused unit tests for extracted sub-parsers
+
+**Estimate**: 5-7 hours
+
+---
+
+### 2.7: Remove Dead Code and TODOs
+
+**Goal**: Clean up dead code, stub functions, and resolve outstanding TODOs in parser.
+
+**Current Issue**: Dead code like `tryParseRecordFields()` (expressions.go:564-567):
+```go
+// Stub functions to avoid compilation errors
+func (p *Parser) tryParseRecordFields() ([]*ast.FieldInitializer, bool) {
+    // This is replaced by parseArgumentsOrFields above
+    return nil, false
+}
+```
+
+**Implementation**:
+- [ ] Identify all stub/dead functions in parser
+- [ ] Remove `tryParseRecordFields()` stub
+- [ ] Audit all TODO comments in parser code
+- [ ] Resolve or create GitHub issues for remaining TODOs
+- [ ] Remove commented-out code blocks
+- [ ] Update function documentation for accuracy
+
+**Files Modified**:
+- `internal/parser/expressions.go` (~50 lines removed)
+- `internal/parser/statements.go` (~20 lines removed)
+- `internal/parser/declarations.go` (~15 lines removed)
+- Other parser files (~30 lines removed)
+
+**Tests**:
+- No new tests needed
+- Verify existing tests still pass after cleanup
+
+**Estimate**: 2-3 hours
+
+---
+
+### 2.8: Improve Error Recovery
+
+**Goal**: Implement panic-mode error recovery with synchronization tokens for better error messages.
+
+**Current Issue**: Simple forward scanning in `parseBlockStatement()` (statements.go:128-133):
+```go
+if !p.curTokenIs(lexer.END) {
+    p.addError("expected 'end' to close block", ErrMissingEnd)
+    for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
+        p.nextToken() // Just scan forward
+    }
+}
+```
+
+**Implementation**:
+- [ ] Design synchronization token sets (statement starters, block closers)
+- [ ] Implement `p.synchronize(tokens []TokenType)` method
+- [ ] Track block nesting depth to find matching `end` keywords
+- [ ] Add context to error messages (e.g., "expected 'end' for 'begin' at line 10")
+- [ ] Improve error recovery in expression parsing
+- [ ] Test error recovery with malformed input
+
+**Files Modified**:
+- `internal/parser/parser.go` (~80 lines added)
+- `internal/parser/statements.go` (~40 lines modified)
+- `internal/parser/expressions.go` (~30 lines modified)
+- `internal/parser/control_flow.go` (~40 lines modified)
+
+**Tests**:
+- Add `internal/parser/error_recovery_test.go` (~250 lines)
+- Test recovery from various syntax errors
+- Test multiple errors reported in single pass
+- Verify useful error messages with context
+
+**Estimate**: 6-8 hours
+
+---
+
+### 2.9: Add Parser Debug/Trace Mode
+
+**Goal**: Add optional debug mode for parser that logs parsing events to aid debugging.
+
+**Current Issue**: Debugging parser issues requires manual print statements or debugger stepping.
+
+**Implementation**:
+- [ ] Add `debug bool` field to Parser struct
+- [ ] Add `SetDebug(enabled bool)` method
+- [ ] Add trace logging for function entry/exit
+- [ ] Add trace logging for token consumption
+- [ ] Add trace logging for AST node creation
+- [ ] Add trace logging for backtracking events
+- [ ] Make output format configurable (plain text, JSON)
+
+**Example Output**:
+```
+[ENTER] parseStatement() at line 10, col 5 (curToken: BEGIN)
+  [ENTER] parseBlockStatement() at line 10, col 5
+    [TOKEN] consume BEGIN
+    [TOKEN] advance to IDENT
+    [ENTER] parseStatement() at line 11, col 7 (curToken: IDENT)
+      [CREATE] AssignmentStatement
+    [EXIT] parseStatement() -> AssignmentStatement
+  [EXIT] parseBlockStatement() -> BlockStatement
+[EXIT] parseStatement() -> BlockStatement
+```
+
+**Files Modified**:
+- `internal/parser/parser.go` (~100 lines added)
+- Add `internal/parser/trace.go` (~150 lines new file)
+- `cmd/dwscript/main.go` (~20 lines for --debug-parser flag)
+
+**Tests**:
+- Add `internal/parser/trace_test.go` (~100 lines)
+- Test trace output format
+- Test trace filtering options
+- Verify no performance impact when disabled
+
+**Estimate**: 4-6 hours
+
+---
+
+### 2.10: Parser Documentation and Style Guide
+
+**Goal**: Create comprehensive documentation for parser architecture, conventions, and contribution guidelines.
+
+**Current Issue**: Limited documentation makes it hard for new contributors to understand parser internals.
+
+**Implementation**:
+- [ ] Create `docs/parser-architecture.md` documenting:
+  - Pratt parsing overview
+  - Precedence levels and their meanings
+  - Prefix/infix function registration
+  - Token consumption conventions
+  - AST node creation patterns
+  - Position tracking requirements
+- [ ] Create `docs/parser-style-guide.md` documenting:
+  - Naming conventions
+  - Function pre/post-conditions
+  - Error handling patterns
+  - Testing requirements
+- [ ] Create `docs/parser-extension-guide.md` documenting:
+  - How to add new expressions
+  - How to add new statements
+  - How to add new operators
+  - Testing checklist
+- [ ] Update `CONTRIBUTING.md` with parser-specific guidelines
+- [ ] Add inline documentation to parser.go explaining key concepts
+
+**Files Created**:
+- `docs/parser-architecture.md` (~400 lines)
+- `docs/parser-style-guide.md` (~300 lines)
+- `docs/parser-extension-guide.md` (~350 lines)
+
+**Files Modified**:
+- `CONTRIBUTING.md` (~50 lines added)
+- `internal/parser/parser.go` (~100 lines of comments added)
+
+**Tests**: N/A (documentation only)
+
+**Estimate**: 6-8 hours
+
+### Summary of Stage 2
+
+**Total Estimate**: 52-71 hours (call it ~60 hours or 1.5-2 weeks)
+
+**Breakdown**:
+1. Lookahead buffer: 4-6h
+2. Unify type representation: 6-8h
+3. Backtracking: 5-7h
+4. Token consumption convention: 8-10h
+5. Generic list helpers: 6-8h
+6. Refactor complex functions: 5-7h
+7. Remove dead code: 2-3h
+8. Error recovery: 6-8h
+9. Debug/trace mode: 4-6h
+10. Documentation: 6-8h
+
+**Benefits**:
+- **Maintainability**: Clearer code, less duplication, easier to understand
+- **Extensibility**: Generic helpers make adding new syntax easier
+- **Debuggability**: Trace mode and better error recovery aid troubleshooting
+- **Onboarding**: Comprehensive docs help new contributors
+- **Quality**: Consistent conventions reduce bugs
+
+**Dependencies**: None (can be done incrementally)
+
+**Testing Strategy**: Each subtask includes tests. Overall regression testing ensures no breakage.
+
+**Acceptance Criteria**:
+- All existing parser tests pass (no regressions)
+- Code coverage maintains or improves (currently 84.5%)
+- Parser files reduced by ~500-800 lines through deduplication
+- All subtasks have associated tests or documentation
+- Parser style guide reviewed and approved
+- No user-facing behavior changes (internal refactoring only)
+
+**Non-Goals**:
+- Performance optimization (focus is maintainability)
+- Adding new language features (pure refactoring)
+- Changing AST structure (except unified types in 9.50.2)
+
+**Related Tasks**:
+- Stage 2: Basic Parser and AST (original implementation)
+- Task 10.10: Position Tracking (enhanced with better conventions)
+
+## Phase 3: Interpreter Architecture Refactoring
+
+**Goal**: Refactor the interpreter architecture to improve maintainability, testability, and extensibility. Address architectural debt accumulated during rapid feature development.
+
+**Status**: Planned | **Complexity**: High | **Priority**: Medium | **Estimated**: 4-6 weeks
+
+**Motivation**: The interpreter has grown to 68 files and 80K lines with architectural issues:
+- God object (Interpreter struct with 25+ fields mixing concerns)
+- Giant switch statement in Eval() (230 lines, 30+ cases)
+- Tight coupling between evaluation logic, type system, and runtime
+- Poor separation of concerns (one package mixing values, execution, built-ins, types)
+- Reflection hacks for circular dependency issues
+- Heavy type assertion usage throughout
+- Inconsistent error handling patterns
+- Difficult to test components in isolation
+
+**Benefits**:
+- Improved code maintainability and readability
+- Better testability (unit test individual components)
+- Easier to add new language features
+- Reduced coupling and improved modularity
+- Foundation for future optimizations
+- Consistent patterns and practices throughout
+
+**Non-Goals**:
+- Changing interpreter semantics or behavior
+- Breaking existing tests (all tests must continue passing)
+- Changing public API surface
+- Performance regression (maintain or improve speed)
+
+---
+
+### Phase 3.1: Preparation and Analysis
+
+- [ ] 3.1.1 Create interpreter refactoring design document
+  - Analyze current architecture and identify pain points
+  - Design new architecture with clear component boundaries
+  - Create migration strategy to avoid big-bang refactor
+  - Document new patterns and conventions
+  - File: `docs/architecture/interpreter-refactoring.md`
+  - Estimated: 1 week
+  - Acceptance: Design doc reviewed and approved, migration strategy defined
+
+- [ ] 3.1.2 Add comprehensive interpreter benchmarks
+  - Create benchmark suite covering all major operations
+  - Benchmark expression evaluation, statement execution, function calls
+  - Benchmark object creation, array operations, property access
+  - Establish performance baseline before refactoring
+  - Files: `internal/interp/*_bench_test.go` (new/expanded)
+  - Estimated: 3 days
+  - Acceptance: 50+ benchmarks covering key operations, baseline documented
+
+- [ ] 3.1.3 Increase test coverage to 90%+
+  - Add missing tests for edge cases
+  - Ensure all error paths are tested
+  - Add integration tests for complex scenarios
+  - Target: 90%+ coverage on all interp packages
+  - Estimated: 1 week
+  - Acceptance: Coverage report shows 90%+, no critical paths untested
+
+---
+
+### Phase 3.2: Value System Refactoring
+
+- [ ] 3.2.1 Introduce value interfaces for type operations
+  - Create `NumericValue`, `ComparableValue`, `OrderableValue` interfaces
+  - Create `CopyableValue` interface to formalize copy semantics
+  - Create `ReferenceValue` vs `ValueType` distinction
+  - Update existing value types to implement appropriate interfaces
+  - Files: `internal/interp/runtime/value_interfaces.go` (new)
+  - Estimated: 4 days
+  - Acceptance: Interface hierarchy defined, all values implement correct interfaces
+
+- [ ] 3.2.2 Extract value types to runtime sub-package
+  - Create `internal/interp/runtime/` package
+  - Move all Value type definitions (IntegerValue, StringValue, etc.)
+  - Move value creation helpers (NewIntegerValue, etc.)
+  - Move value conversion helpers (boxVariant, unwrapVariant, etc.)
+  - Update imports throughout interp package
+  - Files: Move `value.go` → `runtime/value.go`, `runtime/numeric.go`, etc.
+  - Estimated: 3 days
+  - Acceptance: All value types in runtime/, clean package structure, tests pass
+
+- [ ] 3.2.3 Implement value object pooling for performance
+  - Add sync.Pool for frequently allocated types (IntegerValue, FloatValue, BooleanValue)
+  - Update value creation functions to use pools
+  - Add pool statistics for monitoring
+  - Benchmark to ensure no regression
+  - Files: `internal/interp/runtime/pool.go` (new)
+  - Estimated: 2 days
+  - Acceptance: Object pooling working, benchmarks show 10-20% allocation reduction
+
+---
+
+### Phase 3.3: Execution Context Separation
+
+- [ ] 3.3.1 Create ExecutionContext struct
+  - Extract execution state from Interpreter into ExecutionContext
+  - Include: env, callStack, controlFlow (break/continue/exit), exception state
+  - Create ControlFlow helper type for break/continue/exit/return signals
+  - Update Eval methods to accept context parameter
+  - Files: `internal/interp/evaluator/context.go` (new)
+  - Estimated: 5 days
+  - Acceptance: Context cleanly separated, passed explicitly, tests pass
+
+- [ ] 3.3.2 Implement explicit control flow handling
+  - Replace boolean flags (breakSignal, continueSignal, etc.) with ControlFlow type
+  - Create ControlFlow.Break(), ControlFlow.Continue(), etc. methods
+  - Use result types or special return values for control flow
+  - Simplify loop and switch statement logic
+  - Files: `internal/interp/evaluator/control_flow.go` (new)
+  - Estimated: 3 days
+  - Acceptance: No more boolean flags, cleaner control flow, tests pass
+
+- [ ] 3.3.3 Create CallStack abstraction
+  - Extract call stack management from Interpreter
+  - Create CallStack type with Push/Pop/Current/Depth methods
+  - Add stack overflow detection
+  - Improve error messages with stack traces
+  - Files: `internal/interp/evaluator/callstack.go` (new)
+  - Estimated: 2 days
+  - Acceptance: CallStack is independent, proper stack traces, tests pass
+
+---
+
+### Phase 3.4: Type System Separation
+
+- [ ] 3.4.1 Extract type registries to TypeSystem
+  - Create TypeSystem struct with all registries
+  - Include: classes, records, interfaces, functions, helpers, operators
+  - Create TypeRegistry interface for common operations
+  - Move registration logic to TypeSystem methods
+  - Files: `internal/interp/types/type_system.go` (new)
+  - Estimated: 4 days
+  - Acceptance: All type info in TypeSystem, clean registry APIs, tests pass
+
+- [ ] 3.4.2 Create ClassRegistry abstraction
+  - Extract class management from map to ClassRegistry type
+  - Add methods: Register, Lookup, LookupHierarchy, Exists
+  - Support class hierarchy queries efficiently
+  - Move class-related helpers to registry
+  - Files: `internal/interp/types/class_registry.go` (new)
+  - Estimated: 3 days
+  - Acceptance: ClassRegistry handles all class operations, tests pass
+
+- [ ] 3.4.3 Create FunctionRegistry with overload support
+  - Extract function management to FunctionRegistry
+  - Properly handle overloading with signature matching
+  - Support qualified name lookup (Unit.Function)
+  - Add efficient lookup by signature
+  - Files: `internal/interp/types/function_registry.go` (new)
+  - Estimated: 3 days
+  - Acceptance: FunctionRegistry handles all function operations, tests pass
+
+---
+
+### Phase 3.5: Evaluator Refactoring
+
+- [ ] 3.5.1 Split Interpreter into Evaluator + TypeSystem + ExecutionContext
+  - Create new Evaluator struct with focused responsibility
+  - Evaluator contains: typeSystem, config (output, maxRecursion)
+  - Context passed to all evaluation methods
+  - Remove god object anti-pattern
+  - Files: `internal/interp/evaluator/evaluator.go` (new)
+  - Estimated: 1 week
+  - Acceptance: Clean separation, Interpreter is now small orchestrator, tests pass
+
+- [ ] 3.5.2 Implement Visitor pattern for evaluation
+  - Make Evaluator implement ast.Visitor interface
+  - Replace giant Eval() switch with visitor methods
+  - VisitBinaryExpression, VisitCallExpression, etc.
+  - Update AST nodes to use Accept() method
+  - Files: Update `internal/interp/evaluator/*.go`
+  - Estimated: 1 week
+  - Acceptance: No more giant switch, visitor pattern used, tests pass
+
+- [ ] 3.5.3 Split evaluation by node category
+  - Create separate files for expression/statement evaluation
+  - `evaluator/expressions.go` - all expression visitors
+  - `evaluator/statements.go` - all statement visitors
+  - `evaluator/declarations.go` - all declaration visitors
+  - Each file ≤500 lines
+  - Estimated: 3 days
+  - Acceptance: Code organized by category, easy to navigate, tests pass
+
+---
+
+### Phase 3.6: Error Handling Improvements
+
+- [ ] 3.6.1 Implement consistent error wrapping
+  - Replace newError() with proper error wrapping
+  - Use fmt.Errorf with %w for error chains
+  - Create custom error types for different error categories
+  - Add context to all errors (position, expression, values)
+  - Files: `internal/interp/errors/errors.go` (new)
+  - Estimated: 4 days
+  - Acceptance: All errors wrapped properly, error chains work, tests pass
+
+- [ ] 3.6.2 Create EvalResult type for cleaner error propagation
+  - Define EvalResult struct with value and error
+  - Add OrReturn() method for early return pattern
+  - Reduce repetitive if isError(val) checks
+  - Option: Use monadic approach or keep explicit
+  - Files: `internal/interp/evaluator/result.go` (new)
+  - Estimated: 5 days
+  - Acceptance: Less boilerplate, cleaner code, tests pass
+
+- [ ] 3.6.3 Standardize error messages and error types
+  - Create error constants for common errors
+  - Ensure consistent formatting: "operation failed: reason"
+  - Include relevant context in all errors
+  - Create error catalog documentation
+  - Files: `internal/interp/errors/catalog.go` (new)
+  - Estimated: 2 days
+  - Acceptance: Consistent error messages, documented catalog, tests pass
+
+---
+
+### Phase 3.7: Built-in Function Organization
+
+- [ ] 3.7.1 Reorganize built-in functions by feature
+  - Merge `builtins_strings_*.go` (3 files) → `builtins/strings.go` (1 file)
+  - Merge `builtins_math_*.go` (4 files) → `builtins/math.go` (1 file)
+  - Merge `builtins_datetime_*.go` (3 files) → `builtins/datetime.go` (1 file)
+  - Create `internal/interp/builtins/` sub-package
+  - Files: Reorganize 15+ files into ~6 files in builtins/
+  - Estimated: 3 days
+  - Acceptance: Cleaner organization, fewer files, easier to find functions, tests pass
+
+- [ ] 3.7.2 Create built-in function registry
+  - Extract built-in registration to registry pattern
+  - Support categories: math, string, datetime, collections, etc.
+  - Auto-register on init or explicit registration
+  - Support querying available built-ins
+  - Files: `internal/interp/builtins/registry.go` (new)
+  - Estimated: 2 days
+  - Acceptance: Registry manages all built-ins, tests pass
+
+---
+
+### Phase 3.8: Dependency and Import Cleanup
+
+- [ ] 3.8.1 Fix circular dependency with pkg/dwscript
+  - Remove reflection hack in NewWithOptions
+  - Create proper Options interface in internal/interp
+  - Have pkg/dwscript implement the interface
+  - Pass through interface, not concrete type
+  - Files: `internal/interp/options.go` (new)
+  - Estimated: 2 days
+  - Acceptance: No reflection, clean interface, tests pass
+
+- [ ] 3.8.2 Reduce pkg/ast usage in internal/interp
+  - Minimize imports from pkg/ast to internal/ast
+  - Only use pkg/ast for semantic info
+  - Create adapter if needed
+  - Document why pkg/ast is used
+  - Estimated: 2 days
+  - Acceptance: Clear separation, documented rationale, tests pass
+
+---
+
+### Phase 3.9: Testing and Documentation
+
+- [ ] 3.9.1 Add unit tests for new components
+  - Test ExecutionContext independently
+  - Test TypeSystem registries independently
+  - Test Evaluator with mock context
+  - Achieve 95%+ coverage on new code
+  - Estimated: 1 week
+  - Acceptance: All new components fully tested, 95%+ coverage
+
+- [ ] 3.9.2 Update architecture documentation
+  - Document new architecture in CLAUDE.md
+  - Create architecture diagrams showing components
+  - Document design patterns used (Visitor, Registry, etc.)
+  - Create migration guide for contributors
+  - Files: `docs/architecture/interpreter.md`, update `CLAUDE.md`
+  - Estimated: 3 days
+  - Acceptance: Complete documentation, diagrams, migration guide
+
+- [ ] 3.9.3 Verify no performance regression
+  - Run benchmark suite on refactored code
+  - Compare with baseline from Task 3.8.1
+  - Ensure no more than 5% regression
+  - If regression > 5%, investigate and optimize
+  - Estimated: 2 days
+  - Acceptance: Performance maintained or improved, benchmarks documented
+
+---
+
+### Phase 3.10: Final Integration
+
+- [ ] 3.10.1 Update all existing code to use new architecture
+  - Update all evaluation call sites
+  - Remove deprecated code and patterns
+  - Ensure consistent usage of new patterns
+  - Run full test suite
+  - Estimated: 1 week
+  - Acceptance: All code updated, no old patterns remain, tests pass
+
+- [ ] 3.10.2 Final cleanup and polish
+  - Remove dead code and unused exports
+  - Ensure consistent naming conventions
+  - Add missing godoc comments
+  - Run linters and fix issues
+  - Format all code
+  - Estimated: 2 days
+  - Acceptance: Clean codebase, no warnings, all linters pass
+
+---
+
+**Phase 3 Summary**:
+- **Total Tasks**: 27 tasks (9.80 - 9.106)
+- **Estimated Timeline**: 4-6 weeks full-time
+- **Risk**: Medium (comprehensive refactoring, but tests provide safety net)
+- **Dependencies**: None (can be done alongside other work with feature branches)
+- **Rollback Strategy**: Each task is incremental; can stop at any point
+- **Success Metrics**:
+  - All existing tests continue to pass
+  - Test coverage ≥ 90%
+  - No performance regression (≤5%)
+  - Code organization: ≤10 files per package
+  - Reduced coupling: clear component boundaries
+  - Improved maintainability: easier to add features
+
+**Recommended Approach**:
+- Work in feature branch: `refactor/interpreter-architecture`
+- Complete one phase at a time (9.8.1, then 9.8.2, etc.)
+- Keep main branch stable with current architecture
+- Merge when entire phase is complete and tested
+- Use git bisect to identify issues quickly
+- Consider doing tasks 9.80-9.82 first to establish baseline
+
+---
+
+## Phase 4: Control Flow and Statement Execution
 
 - Variable declarations with optional type annotations and initialization
 - Assignment statements with DWScript's `:=` operator
@@ -31,9 +907,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - Environment/symbol table with nested scope support
 - Runtime value system supporting Integer, Float, String, Boolean, and Nil types
 - Sequential statement execution with proper error handling
-
-### Stage 4: Control Flow - Conditions and Loops ✅ **COMPLETED**
-
 - If-then-else statements with proper boolean evaluation
 - While loops with condition testing before execution
 - Repeat-until loops with condition testing after execution
@@ -41,7 +914,9 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 - Case statements with value matching and optional else branches
 - Full integration with existing type system and error reporting
 
-### Stage 5: Functions, Procedures, and Scope Management ✅ **COMPLETED** (91.3%)
+---
+
+## Phase 5: Functions, Procedures, and Scope Management ✅ **COMPLETED** (91.3%)
 
 - Function and procedure declarations with parameter lists and return types
 - By-reference parameters (`var` keyword) - parsing implemented, runtime partially complete
@@ -53,7 +928,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-## Stage 6: Static Type Checking and Semantic Analysis ✅ **COMPLETED**
+## Phase 6: Static Type Checking and Semantic Analysis ✅ **COMPLETED**
 
 - Built the reusable type system in `types/` (primitive, function, aggregate types plus coercion rules); see docs/stage6-type-system-summary.md for the full compatibility matrix.
 - Added optional type annotations to AST nodes and parser support for variables, parameters, and return types so semantic analysis has complete metadata.
@@ -81,24 +956,6 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 9: Completion and DWScript Feature Parity
 
-- [x] **Task 9.1: Fix Interface Reference Test Failures** - Fixed failing interface reference tests by implementing interface member access, 'implements' operator with class types, interface-to-object/interface casting, interface fields in records, interface lifetime management with reference counting, and method delegate assignment. All 6 subtasks complete (9.1.1-9.1.6). Fixed 27/32 interface tests (84% pass rate). (Estimate: 7-13 hours, actual: ~11 hours) ✅
----
-
-- [x] **Task 9.2: Fix Class Constant Resolution in Semantic Analyzer** - Enable class constants to be accessed from both instance and class methods, with proper visibility checking and inheritance support. Fixed `analyzeIdentifier` to check class constants, updated `analyzeMemberAccess` for class constant access via class name/instance, added interpreter support. All subtasks complete (9.2.1-9.2.3). (Estimate: 2-3 hours) ✅
-
----
-
-- [x] **Task 9.3: Support Default Constructors (Constructor `default` Keyword)** - Implement support for the `default` keyword on constructors to enable using `new ClassName(args)` syntax with non-Create constructors. Added `DefaultConstructor` field to `ClassType`, updated `analyzeNewExpression` to use default constructor, added validation for single default per class, updated interpreter. All subtasks complete (9.3.1-9.3.4). (Estimate: 3-4 hours) ✅
-
----
-
-- [x] **Task 9.4: Implement Variant Type Support** - Implement full Variant type support including Null/Unassigned values and variant operations. Added Null and Unassigned values, implemented variant arithmetic/logical/comparison operators with type coercion, implemented coalesce operator (??), added variant type conversions and casts. All subtasks complete (9.4.1-9.4.5). Unlocks 17 failing tests in SimpleScripts. (Estimate: 20-24 hours, 2.5-3 days) ✅
-
----
-
-- [x] **Task 9.5: Implement Class Variables (class var)** - Implement full class variable support including parsing, type system, semantic analysis, and runtime execution. Created TypeCastValue wrapper to preserve static types from type casts, ensuring `TBase(child).ClassVar` accesses the base class variable. All subtasks complete (9.5.1-9.5.4). Unlocks 3 passing tests: class_var, class_var_dyn1, static_method3. (Estimate: 12-15 hours) ✅
-
----
 
 ## Task 9.5: Implement Class Variables (class var)
 
@@ -1794,271 +2651,6 @@ type TypeAnnotation struct {
 
 ## Task 9.23: String Helper Methods (Type Helpers for String) 🎯 HIGH PRIORITY
 
-**Goal**: Implement String type helper methods to enable method-call syntax on string values (e.g., `"hello".ToUpper()`, `s.Copy(2, 3)`).
-
-**Estimate**: 12-16 hours (1.5-2 days)
-
-**Status**: IN PROGRESS
-
-**Priority**: HIGH - Blocks 46 out of 58 FunctionsString fixture tests (79% failure rate)
-
-**Impact**:
-- **Tests**: Fixes 46 failing FunctionsString tests
-- **User Experience**: Enables more idiomatic DWScript string manipulation
-- **Feature Completeness**: Stage 8.3 (Type Helpers) for String type
-
-**Test Results**: Currently 14 passing, 46 failing (24% pass rate)
-- Passing tests use only built-in functions (e.g., `UpperCase(s)`)
-- Failing tests use helper methods (e.g., `s.ToUpper()`)
-
-**Root Cause**: String type helpers are completely unimplemented. While 58+ string built-in functions exist (`UpperCase`, `Copy`, `Pos`, etc.), none are registered as helper methods on the String type. This prevents method-call syntax like `"test".StartsWith("t")` which is valid DWScript.
-
-**DWScript Compatibility**: In DWScript, strings have helper methods that mirror built-in functions:
-```pascal
-// Both syntaxes are valid:
-PrintLn(UpperCase('hello'));     // Built-in function ✓ (works)
-PrintLn('hello'.ToUpper);         // Helper method ✗ (missing)
-
-// More examples:
-var s := 'banana';
-PrintLn(Copy(s, 2, 3));           // Built-in ✓
-PrintLn(s.Copy(2, 3));            // Helper ✗
-
-PrintLn(StrBeginsWith(s, 'ba'));  // Built-in ✓
-PrintLn(s.StartsWith('ba'));      // Helper ✗
-```
-
-**Missing Helper Methods** (based on FunctionsString test suite analysis):
-
-**Conversion Methods** (5):
-- `.ToInteger` → `StrToInt`
-- `.ToFloat` → `StrToFloat`
-- `.ToString` → identity (for consistency)
-- `.ToString(base)` → `IntToStr(base)` (when called on numbers)
-- `.ToHexString(width)` → `IntToHex(value, width)`
-
-**Search/Check Methods** (4):
-- `.StartsWith(str)` → `StrBeginsWith`
-- `.EndsWith(str)` → `StrEndsWith`
-- `.Contains(str)` → `StrContains`
-- `.IndexOf(str)` → `Pos` (returns 1-based index)
-
-**Extraction Methods** (3):
-- `.Copy(start)` → `Copy(str, start, MaxInt)` (copy from start to end)
-- `.Copy(start, len)` → `Copy(str, start, len)`
-- `.Before(str)` → `StrBefore`
-- `.After(str)` → `StrAfter`
-
-**Modification Methods** (2):
-- `.ToUpper` → `UpperCase`
-- `.ToLower` → `LowerCase`
-- `.Trim` → `Trim`
-
-**Split/Join Methods** (2):
-- `.Split(delimiter)` → `StrSplit`
-- `.Join(array)` → `StrJoin` (called on array, not string)
-
-**Total**: ~15-20 helper methods needed
-
-**Implementation Strategy**:
-
-1. **Lexer**: No changes needed (method call syntax already supported)
-2. **Parser**: No changes needed (member access already parsed)
-3. **Semantic Analyzer**: Register String helper methods in type system
-4. **Interpreter**: Map helper method calls to existing built-in functions
-5. **Bytecode VM**: Map helper methods to built-in opcodes or function calls
-6. **Tests**: Add comprehensive tests for all helper methods
-
-**Architecture**: Helper methods are syntactic sugar that delegate to existing built-in functions:
-
-```text
-"hello".ToUpper  →  [Semantic] resolve as method  →  [Runtime] call UpperCase("hello")
-```
-
-**Subtasks**:
-
-### 9.23.1 Lexer (No Changes Required) ✓
-
-- [x] 9.23.1.1 Verify method call syntax already tokenized
-  - Method calls like `s.ToUpper()` already parsed correctly
-  - No lexer changes needed
-  - Status: VERIFIED (existing tests show this works)
-
-### 9.23.2 Parser (No Changes Required) ✓
-
-- [x] 9.23.2.1 Verify member access expressions already parsed
-  - `s.Copy(2, 3)` → MemberExpression(object: s, member: Copy, args: [2, 3])
-  - No parser changes needed
-  - Status: VERIFIED (error messages confirm parser handles this)
-
-### 9.23.3 Semantic Analyzer (Register String Helpers) ✓
-
-- [x] 9.23.3.1 Design String helper registration system
-  - Research how other type helpers are registered (Integer, Float, Array)
-  - Design helper method metadata structure (name, signature, maps-to-function)
-  - Document helper registration architecture
-  - File: `internal/semantic/analyze_helpers.go` (existing architecture reviewed)
-  - Status: DONE - Used existing HelperType registration pattern
-
-- [x] 9.23.3.2 Register conversion helper methods
-  - Register `.ToInteger` → maps to `StrToInt(self)`
-  - Register `.ToFloat` → maps to `StrToFloat(self)`
-  - Register `.ToString` → identity (returns self)
-  - File: `internal/semantic/analyze_helpers.go` (initIntrinsicHelpers)
-  - Status: DONE
-
-- [x] 9.23.3.3 Register search/check helper methods
-  - Register `.StartsWith(str)` → `StrBeginsWith(self, str)`
-  - Register `.EndsWith(str)` → `StrEndsWith(self, str)`
-  - Register `.Contains(str)` → `StrContains(self, str)`
-  - Register `.IndexOf(str)` → `Pos(str, self)` (note parameter order!)
-  - File: `internal/semantic/analyze_helpers.go`
-  - Status: DONE
-
-- [x] 9.23.3.4 Register extraction helper methods
-  - Register `.Copy(start)` → `Copy(self, start, MaxInt)` (2-param variant)
-  - Register `.Copy(start, len)` → `Copy(self, start, len)` (3-param variant)
-  - Register `.Before(str)` → `StrBefore(self, str)`
-  - Register `.After(str)` → `StrAfter(self, str)`
-  - Handle method overloading for `.Copy()` (1 vs 2 parameters)
-  - File: `internal/semantic/analyze_helpers.go`
-  - Status: DONE (using optional parameter with default MaxInt)
-
-- [x] 9.23.3.5 Register modification helper methods
-  - Register `.ToUpper` → `UpperCase(self)` (no parens needed)
-  - Register `.ToLower` → `LowerCase(self)` (no parens needed)
-  - Register `.Trim` → `Trim(self)`
-  - File: `internal/semantic/analyze_helpers.go`
-  - Status: DONE
-
-- [x] 9.23.3.6 Register split/join helper methods
-  - Register `.Split(delimiter)` → `StrSplit(self, delimiter)`
-  - Handle `.Join()` on array type (not string) - already exists
-  - File: `internal/semantic/analyze_helpers.go`
-  - Status: DONE
-
-- [x] 9.23.3.7 Validate helper method type signatures
-  - Ensure parameter types match underlying built-in function
-  - Ensure return types match built-in function
-  - Add proper error messages for type mismatches
-  - File: `internal/semantic/analyze_helpers.go`
-  - Status: DONE (type signatures specified in registration)
-
-- [x] 9.23.3.8 Handle method overloading edge cases
-  - `.Copy(start)` vs `.Copy(start, len)` - same name, different arity
-  - Validate based on argument count
-  - File: `internal/semantic/analyze_helpers.go`
-  - Status: DONE (using NewFunctionTypeWithMetadata with optional parameters)
-
-### 9.23.4 Interpreter (Runtime Helper Method Execution) ✓
-
-- [x] 9.23.4.1 Implement helper method call dispatcher
-  - When evaluating MemberExpression on String type, check if it's a helper
-  - Route to appropriate built-in function
-  - Transform `obj.Method(args)` → `BuiltinFunc(obj, args)`
-  - File: `internal/interp/helpers_conversion.go` (evalBuiltinHelperMethod)
-  - Status: DONE - Uses existing callHelperMethod/evalBuiltinHelperMethod architecture
-
-- [x] 9.23.4.2 Implement conversion helper methods
-  - `.ToInteger` → call `builtinStrToInt([self])`
-  - `.ToFloat` → call `builtinStrToFloat([self])`
-  - `.ToString` → return self unchanged
-  - File: `internal/interp/helpers_conversion.go` (added cases to evalBuiltinHelperMethod)
-  - Status: DONE
-
-- [x] 9.23.4.3 Implement search/check helper methods
-  - `.StartsWith(str)` → call `builtinStrBeginsWith([self, str])`
-  - `.EndsWith(str)` → call `builtinStrEndsWith([self, str])`
-  - `.Contains(str)` → call `builtinStrContains([self, str])`
-  - `.IndexOf(str)` → call `builtinPos([str, self])` (REVERSED params!)
-  - File: `internal/interp/helpers_conversion.go`
-  - Status: DONE
-
-- [x] 9.23.4.4 Implement extraction helper methods
-  - `.Copy(start)` → call `builtinCopy([self, start, MaxInt])`
-  - `.Copy(start, len)` → call `builtinCopy([self, start, len])`
-  - `.Before(str)` → call `builtinStrBefore([self, str])`
-  - `.After(str)` → call `builtinStrAfter([self, str])`
-  - Handle overloading for `.Copy()`
-  - File: `internal/interp/helpers_conversion.go`
-  - Status: DONE
-
-- [x] 9.23.4.5 Implement modification helper methods
-  - `.ToUpper` → call `builtinUpperCase([self])`
-  - `.ToLower` → call `builtinLowerCase([self])`
-  - `.Trim` → call `builtinTrim([self])`
-  - File: `internal/interp/helpers_conversion.go`
-  - Status: DONE (ToUpper/ToLower were already implemented, Trim added)
-
-- [x] 9.23.4.6 Implement split/join helper methods
-  - `.Split(delimiter)` → call `builtinStrSplit([self, delimiter])`
-  - File: `internal/interp/helpers_conversion.go`
-  - Status: DONE
-
-### 9.23.5 Bytecode VM (Bytecode Helper Method Support) ✓
-
-- [x] 9.23.5.1 Map helper methods to bytecode operations
-  - Option A: Emit CALL instructions to built-in functions
-  - Option B: Add dedicated helper method opcodes (OpCallHelper)
-  - Option C: Inline simple helpers (e.g., `.ToUpper` → OpStrUpper)
-  - Decision: Use Option A (simplest, reuses existing built-ins)
-  - File: `internal/bytecode/compiler_expressions.go` (compileMemberAccess)
-  - Status: DONE - Uses OpCallMethod for primitive types with helpers
-
-- [x] 9.23.5.2 Compile helper method calls to built-in function calls
-  - `s.ToUpper()` → emit `OpCallMethod` with method name index
-  - `s.Copy(2, 3)` → emit `OpCallMethod` with arguments on stack
-  - Transform method syntax to function call syntax at compile time
-  - File: `internal/bytecode/compiler_expressions.go` (compileMethodCallExpression, compileMemberAccess)
-  - Status: DONE - Compiler emits OpCallMethod for all helper methods
-
-- [x] 9.23.5.3 Handle parameter reordering in bytecode
-  - `.IndexOf(substr)` → `PosEx(substr, self, 1)` (params reordered!)
-  - Emit instructions in correct order for built-in function
-  - File: `internal/bytecode/vm_calls.go` (invokeMethod)
-  - Status: DONE - VM handles parameter transformation at runtime
-
-- [x] 9.23.5.4 Test bytecode execution of helper methods
-  - Verify all helper methods work in bytecode VM
-  - Compare results with AST interpreter
-  - File: Tested manually with test scripts
-  - Status: DONE - All helper methods tested and working correctly
-
-### 9.23.6 Testing ✓
-
-- [x] 9.23.6.1 Add unit tests for semantic analyzer
-  - Test helper method resolution
-  - Test type checking for helper methods
-  - Test error cases (wrong parameter types, unknown methods)
-  - File: `internal/semantic/string_helpers_test.go` (new file ~230 lines)
-  - Status: DONE - All tests pass (8 test suites, 60+ test cases)
-
-- [x] 9.23.6.2 Add unit tests for interpreter
-  - Test each helper method individually
-  - Test method chaining (e.g., `s.Copy(2, 3).ToUpper()`)
-  - Test edge cases (empty strings, nil, etc.)
-  - File: `internal/interp/string_helpers_test.go` (new file ~470 lines)
-  - Status: DONE - All tests pass (13 test suites, 50+ test cases)
-
-- [x] 9.23.6.3 Add unit tests for bytecode VM
-  - Test helper methods in bytecode execution
-  - Compare with interpreter results (parity testing)
-  - File: `internal/bytecode/string_helpers_test.go` (new file ~300 lines)
-  - Status: DONE - All tests pass (26 test cases)
-
-- [x] 9.23.6.4 Verify FunctionsString fixture tests pass
-  - Run: `go test -v ./internal/interp -run TestDWScriptFixtures/FunctionsString`
-  - Result: 16/58 tests passing (28% pass rate, up from 24%)
-  - Note: Many failing tests are unrelated to string helpers (missing builtins, etc.)
-  - Status: DONE - String helper tests verified working
-
-- [x] 9.23.6.5 Add integration tests
-  - Test helper methods in complex scripts
-  - Test method chaining and composition
-  - Test with variables, function returns, expressions
-  - File: `testdata/string_helpers_integration.dws` (new file ~130 lines)
-  - Status: DONE - 10 comprehensive integration test scenarios
-
 ### 9.23.7 Additional Built-in Function Fixes
 
 - [ ] 9.23.7.1 Fix Copy() 2-parameter variant
@@ -2074,1107 +2666,6 @@ PrintLn(s.StartsWith('ba'));      // Helper ✗
   - DWScript behavior: Accepts numeric types and auto-converts
   - File: `internal/semantic/analyze_function_calls.go` or `internal/interp/builtins_conversion.go`
   - Estimated: 1 hour
-
-### 9.23.8 Documentation
-
-- [ ] 9.23.8.1 Document String helper methods
-  - List all available helper methods
-  - Show equivalence to built-in functions
-  - Provide examples for each method
-  - File: `docs/string-helpers.md` (new file ~100 lines)
-  - Estimated: 1 hour
-
-- [ ] 9.23.8.2 Update CLAUDE.md with helper method info
-  - Add String helper section to language reference
-  - Update built-in functions list to mention helper variants
-  - File: `CLAUDE.md`
-  - Estimated: 30 minutes
-
-- [ ] 9.23.8.3 Add code comments to helper implementation
-  - Document helper registration mechanism
-  - Explain mapping from helpers to built-ins
-  - File: `internal/semantic/builtin_helpers_string.go`
-  - Estimated: 30 minutes
-
-**Files Created**:
-- `internal/semantic/builtin_helpers_string.go` (new file ~200 lines) - Helper registration
-- `internal/interp/builtin_helpers_string.go` (new file ~150 lines) - Helper execution
-- `internal/semantic/string_helpers_test.go` (new file ~200 lines) - Semantic tests
-- `internal/interp/string_helpers_test.go` (new file ~300 lines) - Runtime tests
-- `internal/bytecode/string_helpers_test.go` (new file ~200 lines) - Bytecode tests
-- `testdata/string_helpers_integration.dws` (new file ~100 lines) - Integration tests
-- `docs/string-helpers.md` (new file ~100 lines) - Documentation
-
-**Files Modified**:
-- `internal/semantic/type_helpers.go` (add String helper support ~50 lines)
-- `internal/semantic/analyze_member_access.go` (validate String helpers ~30 lines)
-- `internal/interp/expressions.go` (route helper calls ~40 lines)
-- `internal/interp/builtins_strings_basic.go` (add Copy 2-param variant ~20 lines)
-- `internal/interp/builtins_conversion.go` (fix FloatToStr auto-conversion ~15 lines)
-- `internal/bytecode/compiler.go` (compile helper methods ~50 lines)
-- `testdata/fixtures/TEST_STATUS.md` (update FunctionsString results ~10 lines)
-- `CLAUDE.md` (document String helpers ~30 lines)
-
-**Acceptance Criteria**:
-- All 15-20 String helper methods registered and working
-- FunctionsString fixture tests: 58/58 passing (100%, up from 24%)
-- Helper methods work in both AST interpreter and bytecode VM
-- Proper type checking and error messages for helper methods
-- Method overloading works correctly (e.g., `.Copy(start)` vs `.Copy(start, len)`)
-- Parameter reordering handled correctly (e.g., `.IndexOf()` → `Pos()`)
-- Copy() 2-parameter variant implemented
-- FloatToStr() accepts Integer arguments
-- Comprehensive test coverage (unit + integration + fixtures)
-- Documentation complete with examples
-
-**Benefits**:
-- Fixes 46 failing FunctionsString tests (79% of test suite)
-- Enables idiomatic DWScript string manipulation syntax
-- Completes Stage 8.3 (Type Helpers) for String type
-- Improves DWScript compatibility (helper methods are standard in DWScript)
-- Better developer experience (method chaining, auto-completion friendly)
-- Foundation for other type helpers (Integer, Float, Array already partially done)
-
-**Related Tasks**:
-- Stage 8.3: Type Helpers (this implements String helpers specifically)
-- Task 9.8: Array Helper Methods (similar pattern, different type)
-- Task 9.12: SetLength on String Type (related to string manipulation)
-
----
-
-## Phase 9.24: Interpreter Architecture Refactoring 🔄 PLANNED
-
-**Goal**: Refactor the interpreter architecture to improve maintainability, testability, and extensibility. Address architectural debt accumulated during rapid feature development.
-
-**Status**: Planned | **Complexity**: High | **Priority**: Medium | **Estimated**: 4-6 weeks
-
-**Motivation**: The interpreter has grown to 68 files and 80K lines with architectural issues:
-- God object (Interpreter struct with 25+ fields mixing concerns)
-- Giant switch statement in Eval() (230 lines, 30+ cases)
-- Tight coupling between evaluation logic, type system, and runtime
-- Poor separation of concerns (one package mixing values, execution, built-ins, types)
-- Reflection hacks for circular dependency issues
-- Heavy type assertion usage throughout
-- Inconsistent error handling patterns
-- Difficult to test components in isolation
-
-**Benefits**:
-- Improved code maintainability and readability
-- Better testability (unit test individual components)
-- Easier to add new language features
-- Reduced coupling and improved modularity
-- Foundation for future optimizations
-- Consistent patterns and practices throughout
-
-**Non-Goals**:
-- Changing interpreter semantics or behavior
-- Breaking existing tests (all tests must continue passing)
-- Changing public API surface
-- Performance regression (maintain or improve speed)
-
----
-
-### Phase 9.24.1: Preparation and Analysis
-
-- [ ] 9.80 Create interpreter refactoring design document
-  - Analyze current architecture and identify pain points
-  - Design new architecture with clear component boundaries
-  - Create migration strategy to avoid big-bang refactor
-  - Document new patterns and conventions
-  - File: `docs/architecture/interpreter-refactoring.md`
-  - Estimated: 1 week
-  - Acceptance: Design doc reviewed and approved, migration strategy defined
-
-- [ ] 9.81 Add comprehensive interpreter benchmarks
-  - Create benchmark suite covering all major operations
-  - Benchmark expression evaluation, statement execution, function calls
-  - Benchmark object creation, array operations, property access
-  - Establish performance baseline before refactoring
-  - Files: `internal/interp/*_bench_test.go` (new/expanded)
-  - Estimated: 3 days
-  - Acceptance: 50+ benchmarks covering key operations, baseline documented
-
-- [ ] 9.82 Increase test coverage to 90%+
-  - Add missing tests for edge cases
-  - Ensure all error paths are tested
-  - Add integration tests for complex scenarios
-  - Target: 90%+ coverage on all interp packages
-  - Estimated: 1 week
-  - Acceptance: Coverage report shows 90%+, no critical paths untested
-
----
-
-### Phase 9.8.2: Value System Refactoring
-
-- [ ] 9.83 Introduce value interfaces for type operations
-  - Create `NumericValue`, `ComparableValue`, `OrderableValue` interfaces
-  - Create `CopyableValue` interface to formalize copy semantics
-  - Create `ReferenceValue` vs `ValueType` distinction
-  - Update existing value types to implement appropriate interfaces
-  - Files: `internal/interp/runtime/value_interfaces.go` (new)
-  - Estimated: 4 days
-  - Acceptance: Interface hierarchy defined, all values implement correct interfaces
-
-- [ ] 9.84 Extract value types to runtime sub-package
-  - Create `internal/interp/runtime/` package
-  - Move all Value type definitions (IntegerValue, StringValue, etc.)
-  - Move value creation helpers (NewIntegerValue, etc.)
-  - Move value conversion helpers (boxVariant, unwrapVariant, etc.)
-  - Update imports throughout interp package
-  - Files: Move `value.go` → `runtime/value.go`, `runtime/numeric.go`, etc.
-  - Estimated: 3 days
-  - Acceptance: All value types in runtime/, clean package structure, tests pass
-
-- [ ] 9.85 Implement value object pooling for performance
-  - Add sync.Pool for frequently allocated types (IntegerValue, FloatValue, BooleanValue)
-  - Update value creation functions to use pools
-  - Add pool statistics for monitoring
-  - Benchmark to ensure no regression
-  - Files: `internal/interp/runtime/pool.go` (new)
-  - Estimated: 2 days
-  - Acceptance: Object pooling working, benchmarks show 10-20% allocation reduction
-
----
-
-### Phase 9.8.3: Execution Context Separation
-
-- [ ] 9.86 Create ExecutionContext struct
-  - Extract execution state from Interpreter into ExecutionContext
-  - Include: env, callStack, controlFlow (break/continue/exit), exception state
-  - Create ControlFlow helper type for break/continue/exit/return signals
-  - Update Eval methods to accept context parameter
-  - Files: `internal/interp/evaluator/context.go` (new)
-  - Estimated: 5 days
-  - Acceptance: Context cleanly separated, passed explicitly, tests pass
-
-- [ ] 9.87 Implement explicit control flow handling
-  - Replace boolean flags (breakSignal, continueSignal, etc.) with ControlFlow type
-  - Create ControlFlow.Break(), ControlFlow.Continue(), etc. methods
-  - Use result types or special return values for control flow
-  - Simplify loop and switch statement logic
-  - Files: `internal/interp/evaluator/control_flow.go` (new)
-  - Estimated: 3 days
-  - Acceptance: No more boolean flags, cleaner control flow, tests pass
-
-- [ ] 9.88 Create CallStack abstraction
-  - Extract call stack management from Interpreter
-  - Create CallStack type with Push/Pop/Current/Depth methods
-  - Add stack overflow detection
-  - Improve error messages with stack traces
-  - Files: `internal/interp/evaluator/callstack.go` (new)
-  - Estimated: 2 days
-  - Acceptance: CallStack is independent, proper stack traces, tests pass
-
----
-
-### Phase 9.8.4: Type System Separation
-
-- [ ] 9.89 Extract type registries to TypeSystem
-  - Create TypeSystem struct with all registries
-  - Include: classes, records, interfaces, functions, helpers, operators
-  - Create TypeRegistry interface for common operations
-  - Move registration logic to TypeSystem methods
-  - Files: `internal/interp/types/type_system.go` (new)
-  - Estimated: 4 days
-  - Acceptance: All type info in TypeSystem, clean registry APIs, tests pass
-
-- [ ] 9.90 Create ClassRegistry abstraction
-  - Extract class management from map to ClassRegistry type
-  - Add methods: Register, Lookup, LookupHierarchy, Exists
-  - Support class hierarchy queries efficiently
-  - Move class-related helpers to registry
-  - Files: `internal/interp/types/class_registry.go` (new)
-  - Estimated: 3 days
-  - Acceptance: ClassRegistry handles all class operations, tests pass
-
-- [ ] 9.91 Create FunctionRegistry with overload support
-  - Extract function management to FunctionRegistry
-  - Properly handle overloading with signature matching
-  - Support qualified name lookup (Unit.Function)
-  - Add efficient lookup by signature
-  - Files: `internal/interp/types/function_registry.go` (new)
-  - Estimated: 3 days
-  - Acceptance: FunctionRegistry handles all function operations, tests pass
-
----
-
-### Phase 9.8.5: Evaluator Refactoring
-
-- [ ] 9.92 Split Interpreter into Evaluator + TypeSystem + ExecutionContext
-  - Create new Evaluator struct with focused responsibility
-  - Evaluator contains: typeSystem, config (output, maxRecursion)
-  - Context passed to all evaluation methods
-  - Remove god object anti-pattern
-  - Files: `internal/interp/evaluator/evaluator.go` (new)
-  - Estimated: 1 week
-  - Acceptance: Clean separation, Interpreter is now small orchestrator, tests pass
-
-- [ ] 9.93 Implement Visitor pattern for evaluation
-  - Make Evaluator implement ast.Visitor interface
-  - Replace giant Eval() switch with visitor methods
-  - VisitBinaryExpression, VisitCallExpression, etc.
-  - Update AST nodes to use Accept() method
-  - Files: Update `internal/interp/evaluator/*.go`
-  - Estimated: 1 week
-  - Acceptance: No more giant switch, visitor pattern used, tests pass
-
-- [ ] 9.94 Split evaluation by node category
-  - Create separate files for expression/statement evaluation
-  - `evaluator/expressions.go` - all expression visitors
-  - `evaluator/statements.go` - all statement visitors
-  - `evaluator/declarations.go` - all declaration visitors
-  - Each file ≤500 lines
-  - Estimated: 3 days
-  - Acceptance: Code organized by category, easy to navigate, tests pass
-
----
-
-### Phase 9.8.6: Error Handling Improvements
-
-- [ ] 9.95 Implement consistent error wrapping
-  - Replace newError() with proper error wrapping
-  - Use fmt.Errorf with %w for error chains
-  - Create custom error types for different error categories
-  - Add context to all errors (position, expression, values)
-  - Files: `internal/interp/errors/errors.go` (new)
-  - Estimated: 4 days
-  - Acceptance: All errors wrapped properly, error chains work, tests pass
-
-- [ ] 9.96 Create EvalResult type for cleaner error propagation
-  - Define EvalResult struct with value and error
-  - Add OrReturn() method for early return pattern
-  - Reduce repetitive if isError(val) checks
-  - Option: Use monadic approach or keep explicit
-  - Files: `internal/interp/evaluator/result.go` (new)
-  - Estimated: 5 days
-  - Acceptance: Less boilerplate, cleaner code, tests pass
-
-- [ ] 9.97 Standardize error messages and error types
-  - Create error constants for common errors
-  - Ensure consistent formatting: "operation failed: reason"
-  - Include relevant context in all errors
-  - Create error catalog documentation
-  - Files: `internal/interp/errors/catalog.go` (new)
-  - Estimated: 2 days
-  - Acceptance: Consistent error messages, documented catalog, tests pass
-
----
-
-### Phase 9.8.7: Built-in Function Organization
-
-- [ ] 9.98 Reorganize built-in functions by feature
-  - Merge `builtins_strings_*.go` (3 files) → `builtins/strings.go` (1 file)
-  - Merge `builtins_math_*.go` (4 files) → `builtins/math.go` (1 file)
-  - Merge `builtins_datetime_*.go` (3 files) → `builtins/datetime.go` (1 file)
-  - Create `internal/interp/builtins/` sub-package
-  - Files: Reorganize 15+ files into ~6 files in builtins/
-  - Estimated: 3 days
-  - Acceptance: Cleaner organization, fewer files, easier to find functions, tests pass
-
-- [ ] 9.99 Create built-in function registry
-  - Extract built-in registration to registry pattern
-  - Support categories: math, string, datetime, collections, etc.
-  - Auto-register on init or explicit registration
-  - Support querying available built-ins
-  - Files: `internal/interp/builtins/registry.go` (new)
-  - Estimated: 2 days
-  - Acceptance: Registry manages all built-ins, tests pass
-
----
-
-### Phase 9.8.8: Dependency and Import Cleanup
-
-- [ ] 9.100 Fix circular dependency with pkg/dwscript
-  - Remove reflection hack in NewWithOptions
-  - Create proper Options interface in internal/interp
-  - Have pkg/dwscript implement the interface
-  - Pass through interface, not concrete type
-  - Files: `internal/interp/options.go` (new)
-  - Estimated: 2 days
-  - Acceptance: No reflection, clean interface, tests pass
-
-- [ ] 9.101 Reduce pkg/ast usage in internal/interp
-  - Minimize imports from pkg/ast to internal/ast
-  - Only use pkg/ast for semantic info (Task 9.18)
-  - Create adapter if needed
-  - Document why pkg/ast is used
-  - Estimated: 2 days
-  - Acceptance: Clear separation, documented rationale, tests pass
-
----
-
-### Phase 9.8.9: Testing and Documentation
-
-- [ ] 9.102 Add unit tests for new components
-  - Test ExecutionContext independently
-  - Test TypeSystem registries independently
-  - Test Evaluator with mock context
-  - Achieve 95%+ coverage on new code
-  - Estimated: 1 week
-  - Acceptance: All new components fully tested, 95%+ coverage
-
-- [ ] 9.103 Update architecture documentation
-  - Document new architecture in CLAUDE.md
-  - Create architecture diagrams showing components
-  - Document design patterns used (Visitor, Registry, etc.)
-  - Create migration guide for contributors
-  - Files: `docs/architecture/interpreter.md`, update `CLAUDE.md`
-  - Estimated: 3 days
-  - Acceptance: Complete documentation, diagrams, migration guide
-
-- [ ] 9.104 Verify no performance regression
-  - Run benchmark suite on refactored code
-  - Compare with baseline from Task 9.81
-  - Ensure no more than 5% regression
-  - If regression > 5%, investigate and optimize
-  - Estimated: 2 days
-  - Acceptance: Performance maintained or improved, benchmarks documented
-
----
-
-### Phase 9.8.10: Final Integration
-
-- [ ] 9.105 Update all existing code to use new architecture
-  - Update all evaluation call sites
-  - Remove deprecated code and patterns
-  - Ensure consistent usage of new patterns
-  - Run full test suite
-  - Estimated: 1 week
-  - Acceptance: All code updated, no old patterns remain, tests pass
-
-- [ ] 9.106 Final cleanup and polish
-  - Remove dead code and unused exports
-  - Ensure consistent naming conventions
-  - Add missing godoc comments
-  - Run linters and fix issues
-  - Format all code
-  - Estimated: 2 days
-  - Acceptance: Clean codebase, no warnings, all linters pass
-
----
-
-**Phase 9.8 Summary**:
-- **Total Tasks**: 27 tasks (9.80 - 9.106)
-- **Estimated Timeline**: 4-6 weeks full-time
-- **Risk**: Medium (comprehensive refactoring, but tests provide safety net)
-- **Dependencies**: None (can be done alongside other work with feature branches)
-- **Rollback Strategy**: Each task is incremental; can stop at any point
-- **Success Metrics**:
-  - All existing tests continue to pass
-  - Test coverage ≥ 90%
-  - No performance regression (≤5%)
-  - Code organization: ≤10 files per package
-  - Reduced coupling: clear component boundaries
-  - Improved maintainability: easier to add features
-
-**Recommended Approach**:
-- Work in feature branch: `refactor/interpreter-architecture`
-- Complete one phase at a time (9.8.1, then 9.8.2, etc.)
-- Keep main branch stable with current architecture
-- Merge when entire phase is complete and tested
-- Use git bisect to identify issues quickly
-- Consider doing tasks 9.80-9.82 first to establish baseline
-## Task 9.50: Parser Architecture Refactoring
-
-**Goal**: Improve parser maintainability, testability, and extensibility by refactoring core parsing patterns, eliminating technical debt, and establishing clearer conventions.
-
-**Motivation**: The current parser (~8,300 LOC across 19 files) works well but has accumulated technical debt: inconsistent token consumption patterns, repeated code, speculative parsing with error rollback, and limited lookahead capability. These issues make the parser harder to maintain, extend, and debug.
-
-**Estimate**: 40-60 hours total (divided into 10 subtasks)
-
-**Status**: NOT STARTED
-
-**Priority**: Medium (technical debt reduction, no user-facing changes)
-
----
-
-### 9.50.1: Implement Proper Lookahead Buffer
-
-**Goal**: Replace limited 1-token lookahead with configurable N-token lookahead buffer to enable better disambiguation.
-
-**Current Issue**: Functions like `looksLikeVarDeclaration()` and `looksLikeConstDeclaration()` conservatively return `false` due to insufficient lookahead:
-```go
-// statements.go:494-518
-func (p *Parser) looksLikeVarDeclaration() bool {
-    // For now, conservatively return false to avoid the regression
-    // A proper implementation would require a 2-token lookahead buffer
-    return false
-}
-```
-
-**Implementation**:
-- [ ] Design lookahead buffer with configurable depth (3-4 tokens)
-- [ ] Add `peek(n int) lexer.Token` method to look N tokens ahead
-- [ ] Implement circular buffer or slice-based lookahead storage
-- [ ] Update `looksLikeVarDeclaration()` to use 2-token lookahead
-- [ ] Update `looksLikeConstDeclaration()` to use 2-token lookahead
-- [ ] Add unit tests for lookahead edge cases (EOF, buffering, reset)
-
-**Files Modified**:
-- `internal/parser/parser.go` (~50 lines added)
-- `internal/parser/statements.go` (~30 lines modified)
-- `internal/parser/declarations.go` (~20 lines modified)
-
-**Tests**:
-- Add `internal/parser/lookahead_test.go` (~150 lines)
-- Test 2-token, 3-token lookahead patterns
-- Test correct disambiguation of var/const declarations
-
-**Estimate**: 4-6 hours
-
----
-
-### 9.50.2: Unify Type Representation in AST
-
-**Goal**: Eliminate awkward conversions between `TypeExpression` and `TypeAnnotation` by using a unified type representation throughout the AST.
-
-**Current Issue**: Parser creates synthetic `TypeAnnotation` wrappers for complex types (statements.go:268-314, declarations.go:88-119):
-```go
-case *ast.FunctionPointerTypeNode:
-    stmt.Type = &ast.TypeAnnotation{
-        Token:      te.Token,
-        Name:       te.String(),
-        InlineType: te, // Awkward wrapper
-    }
-```
-
-**Implementation**:
-- [ ] Audit all AST nodes that use `TypeAnnotation`
-- [ ] Design unified `TypeSpec` interface or type
-- [ ] Update `VarDeclStatement`, `ConstDecl`, `Parameter` to use unified type
-- [ ] Modify parser to directly use `TypeExpression` in AST nodes
-- [ ] Update semantic analyzer to work with unified representation
-- [ ] Remove synthetic wrapper creation in parser
-
-**Files Modified**:
-- `pkg/ast/statements.go` (~30 lines)
-- `pkg/ast/declarations.go` (~20 lines)
-- `internal/parser/statements.go` (~60 lines removed/simplified)
-- `internal/parser/declarations.go` (~40 lines removed/simplified)
-- `internal/semantic/analyze_declarations.go` (~40 lines modified)
-
-**Tests**:
-- Update existing tests to use unified type representation
-- Verify semantic analysis still works correctly
-- No new tests needed (refactoring only)
-
-**Estimate**: 6-8 hours
-
----
-
-### 9.50.3: Replace Speculative Parsing with Backtracking
-
-**Goal**: Replace error count manipulation with proper parser state save/restore mechanism for speculative parsing.
-
-**Current Issue**: Fragile error trimming in `parseIsExpression()` (expressions.go:1405-1415):
-```go
-errorCountBefore := len(p.errors)
-expression.TargetType = p.parseTypeExpression()
-if expression.TargetType != nil {
-    return expression
-}
-// Trim errors back to original count (speculative parsing)
-p.errors = p.errors[:errorCountBefore]
-```
-
-**Implementation**:
-- [ ] Design `ParserState` struct (curToken, peekToken, errors, position)
-- [ ] Implement `p.saveState() ParserState` method
-- [ ] Implement `p.restoreState(state ParserState)` method
-- [ ] Replace error trimming with save/restore in `parseIsExpression()`
-- [ ] Identify other speculative parsing sites and convert them
-- [ ] Add debug logging for backtracking events (optional)
-
-**Files Modified**:
-- `internal/parser/parser.go` (~60 lines added)
-- `internal/parser/expressions.go` (~20 lines modified)
-- `internal/parser/types.go` (~30 lines modified, if other sites exist)
-
-**Tests**:
-- Add `internal/parser/backtracking_test.go` (~100 lines)
-- Test save/restore preserves state correctly
-- Test nested save/restore (save twice, restore in order)
-- Verify existing `is` expression tests still pass
-
-**Estimate**: 5-7 hours
-
----
-
-### 9.50.4: Standardize Token Consumption Convention
-
-**Goal**: Establish and enforce a clear convention for when parsing functions consume their triggering token.
-
-**Current Issue**: Inconsistent token consumption makes parser hard to follow:
-- `parseNewExpression()` advances past 'new' before parsing type
-- `parseHelperDeclaration()` expects to be AT the HELPER keyword
-- `parseBlockStatement()` advances past 'begin'
-
-**Implementation**:
-- [ ] Document convention: "Functions are called WITH curToken at the triggering token"
-- [ ] Audit all 50+ parsing functions for compliance
-- [ ] Refactor non-compliant functions to match convention
-- [ ] Add pre/post-condition comments to each parsing function
-- [ ] Create parser style guide document
-
-**Convention Example**:
-```go
-// parseBlockStatement parses a begin...end block.
-// PRE: curToken is BEGIN
-// POST: curToken is END
-func (p *Parser) parseBlockStatement() *ast.BlockStatement {
-    // Implementation...
-}
-```
-
-**Files Modified**:
-- All parser files (~200 lines of comments added)
-- ~10-15 parsing functions refactored (~150 lines modified)
-- Create `docs/parser-conventions.md` (~200 lines)
-
-**Tests**:
-- No new tests needed (existing tests verify correctness)
-- Add comments to test cases documenting token positions
-
-**Estimate**: 8-10 hours
-
----
-
-### 9.50.5: Extract Generic List Parsing Helpers
-
-**Goal**: Reduce code duplication by creating generic helper functions for common parsing patterns.
-
-**Current Issue**: Repeated patterns for comma-separated lists, semicolon-terminated blocks:
-- `parseExpressionList()` (expressions.go:569-602)
-- `parseArgumentsOrFields()` (expressions.go:486-561)
-- `parseLambdaParameterList()` (expressions.go:1086-1120)
-
-**Implementation**:
-- [ ] Design generic `parseList` helper with callbacks
-- [ ] Create `parseSeparatedList(sep, term, parseItem)` helper
-- [ ] Create `parseOptionalSeparatedList(sep, term, parseItem)` helper
-- [ ] Refactor expression list parsing to use helper
-- [ ] Refactor parameter list parsing to use helper
-- [ ] Refactor field list parsing to use helper
-
-**Example API**:
-```go
-func (p *Parser) parseSeparatedList(
-    separator lexer.TokenType,
-    terminator lexer.TokenType,
-    parseItem func() ast.Node,
-) []ast.Node
-```
-
-**Files Modified**:
-- `internal/parser/parser.go` (~100 lines added for helpers)
-- `internal/parser/expressions.go` (~150 lines simplified)
-- `internal/parser/functions.go` (~80 lines simplified)
-- `internal/parser/types.go` (~60 lines simplified)
-
-**Tests**:
-- Add `internal/parser/list_parsing_test.go` (~200 lines)
-- Test various separator/terminator combinations
-- Test edge cases (empty lists, trailing separators)
-- Verify existing tests still pass
-
-**Estimate**: 6-8 hours
-
----
-
-### 9.50.6: Refactor Complex Parsing Functions
-
-**Goal**: Simplify complex parsing functions by extracting sub-parsers and using strategy pattern where appropriate.
-
-**Current Issue**: Functions like `parseCallOrRecordLiteral()` (expressions.go:399-482) have complex branching logic that's hard to follow.
-
-**Implementation**:
-- [ ] Identify functions >100 lines with complex branching
-- [ ] Extract sub-parsers for different syntactic forms
-- [ ] Use dispatch table or strategy pattern for disambiguation
-- [ ] Simplify `parseCallOrRecordLiteral()` into smaller functions
-- [ ] Simplify `parseNewExpression()` dispatch logic
-- [ ] Simplify `parseGroupedExpression()` disambiguation
-
-**Example Refactoring**:
-```go
-// Before: 80-line function with nested if/else
-func (p *Parser) parseCallOrRecordLiteral(...)
-
-// After: Clean dispatch
-func (p *Parser) parseCallOrRecordLiteral(...) {
-    if p.isRecordLiteral() {
-        return p.parseRecordLiteral(typeName)
-    }
-    return p.parseCallExpression(typeName)
-}
-```
-
-**Files Modified**:
-- `internal/parser/expressions.go` (~200 lines refactored)
-- `internal/parser/records.go` (~50 lines added)
-- `internal/parser/arrays.go` (~40 lines modified)
-
-**Tests**:
-- No new tests needed (existing tests verify correctness)
-- May add focused unit tests for extracted sub-parsers
-
-**Estimate**: 5-7 hours
-
----
-
-### 9.50.7: Remove Dead Code and TODOs
-
-**Goal**: Clean up dead code, stub functions, and resolve outstanding TODOs in parser.
-
-**Current Issue**: Dead code like `tryParseRecordFields()` (expressions.go:564-567):
-```go
-// Stub functions to avoid compilation errors
-func (p *Parser) tryParseRecordFields() ([]*ast.FieldInitializer, bool) {
-    // This is replaced by parseArgumentsOrFields above
-    return nil, false
-}
-```
-
-**Implementation**:
-- [ ] Identify all stub/dead functions in parser
-- [ ] Remove `tryParseRecordFields()` stub
-- [ ] Audit all TODO comments in parser code
-- [ ] Resolve or create GitHub issues for remaining TODOs
-- [ ] Remove commented-out code blocks
-- [ ] Update function documentation for accuracy
-
-**Files Modified**:
-- `internal/parser/expressions.go` (~50 lines removed)
-- `internal/parser/statements.go` (~20 lines removed)
-- `internal/parser/declarations.go` (~15 lines removed)
-- Other parser files (~30 lines removed)
-
-**Tests**:
-- No new tests needed
-- Verify existing tests still pass after cleanup
-
-**Estimate**: 2-3 hours
-
----
-
-### 9.50.8: Improve Error Recovery
-
-**Goal**: Implement panic-mode error recovery with synchronization tokens for better error messages.
-
-**Current Issue**: Simple forward scanning in `parseBlockStatement()` (statements.go:128-133):
-```go
-if !p.curTokenIs(lexer.END) {
-    p.addError("expected 'end' to close block", ErrMissingEnd)
-    for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
-        p.nextToken() // Just scan forward
-    }
-}
-```
-
-**Implementation**:
-- [ ] Design synchronization token sets (statement starters, block closers)
-- [ ] Implement `p.synchronize(tokens []TokenType)` method
-- [ ] Track block nesting depth to find matching `end` keywords
-- [ ] Add context to error messages (e.g., "expected 'end' for 'begin' at line 10")
-- [ ] Improve error recovery in expression parsing
-- [ ] Test error recovery with malformed input
-
-**Files Modified**:
-- `internal/parser/parser.go` (~80 lines added)
-- `internal/parser/statements.go` (~40 lines modified)
-- `internal/parser/expressions.go` (~30 lines modified)
-- `internal/parser/control_flow.go` (~40 lines modified)
-
-**Tests**:
-- Add `internal/parser/error_recovery_test.go` (~250 lines)
-- Test recovery from various syntax errors
-- Test multiple errors reported in single pass
-- Verify useful error messages with context
-
-**Estimate**: 6-8 hours
-
----
-
-### 9.50.9: Add Parser Debug/Trace Mode
-
-**Goal**: Add optional debug mode for parser that logs parsing events to aid debugging.
-
-**Current Issue**: Debugging parser issues requires manual print statements or debugger stepping.
-
-**Implementation**:
-- [ ] Add `debug bool` field to Parser struct
-- [ ] Add `SetDebug(enabled bool)` method
-- [ ] Add trace logging for function entry/exit
-- [ ] Add trace logging for token consumption
-- [ ] Add trace logging for AST node creation
-- [ ] Add trace logging for backtracking events
-- [ ] Make output format configurable (plain text, JSON)
-
-**Example Output**:
-```
-[ENTER] parseStatement() at line 10, col 5 (curToken: BEGIN)
-  [ENTER] parseBlockStatement() at line 10, col 5
-    [TOKEN] consume BEGIN
-    [TOKEN] advance to IDENT
-    [ENTER] parseStatement() at line 11, col 7 (curToken: IDENT)
-      [CREATE] AssignmentStatement
-    [EXIT] parseStatement() -> AssignmentStatement
-  [EXIT] parseBlockStatement() -> BlockStatement
-[EXIT] parseStatement() -> BlockStatement
-```
-
-**Files Modified**:
-- `internal/parser/parser.go` (~100 lines added)
-- Add `internal/parser/trace.go` (~150 lines new file)
-- `cmd/dwscript/main.go` (~20 lines for --debug-parser flag)
-
-**Tests**:
-- Add `internal/parser/trace_test.go` (~100 lines)
-- Test trace output format
-- Test trace filtering options
-- Verify no performance impact when disabled
-
-**Estimate**: 4-6 hours
-
----
-
-### 9.50.10: Parser Documentation and Style Guide
-
-**Goal**: Create comprehensive documentation for parser architecture, conventions, and contribution guidelines.
-
-**Current Issue**: Limited documentation makes it hard for new contributors to understand parser internals.
-
-**Implementation**:
-- [ ] Create `docs/parser-architecture.md` documenting:
-  - Pratt parsing overview
-  - Precedence levels and their meanings
-  - Prefix/infix function registration
-  - Token consumption conventions
-  - AST node creation patterns
-  - Position tracking requirements
-- [ ] Create `docs/parser-style-guide.md` documenting:
-  - Naming conventions
-  - Function pre/post-conditions
-  - Error handling patterns
-  - Testing requirements
-- [ ] Create `docs/parser-extension-guide.md` documenting:
-  - How to add new expressions
-  - How to add new statements
-  - How to add new operators
-  - Testing checklist
-- [ ] Update `CONTRIBUTING.md` with parser-specific guidelines
-- [ ] Add inline documentation to parser.go explaining key concepts
-
-**Files Created**:
-- `docs/parser-architecture.md` (~400 lines)
-- `docs/parser-style-guide.md` (~300 lines)
-- `docs/parser-extension-guide.md` (~350 lines)
-
-**Files Modified**:
-- `CONTRIBUTING.md` (~50 lines added)
-- `internal/parser/parser.go` (~100 lines of comments added)
-
-**Tests**: N/A (documentation only)
-
-**Estimate**: 6-8 hours
-
----
-
-### Summary of Task 9.50
-
-**Total Estimate**: 52-71 hours (call it ~60 hours or 1.5-2 weeks)
-
-**Breakdown**:
-1. Lookahead buffer: 4-6h
-2. Unify type representation: 6-8h
-3. Backtracking: 5-7h
-4. Token consumption convention: 8-10h
-5. Generic list helpers: 6-8h
-6. Refactor complex functions: 5-7h
-7. Remove dead code: 2-3h
-8. Error recovery: 6-8h
-9. Debug/trace mode: 4-6h
-10. Documentation: 6-8h
-
-**Benefits**:
-- **Maintainability**: Clearer code, less duplication, easier to understand
-- **Extensibility**: Generic helpers make adding new syntax easier
-- **Debuggability**: Trace mode and better error recovery aid troubleshooting
-- **Onboarding**: Comprehensive docs help new contributors
-- **Quality**: Consistent conventions reduce bugs
-
-**Dependencies**: None (can be done incrementally)
-
-**Testing Strategy**: Each subtask includes tests. Overall regression testing ensures no breakage.
-
-**Acceptance Criteria**:
-- All existing parser tests pass (no regressions)
-- Code coverage maintains or improves (currently 84.5%)
-- Parser files reduced by ~500-800 lines through deduplication
-- All subtasks have associated tests or documentation
-- Parser style guide reviewed and approved
-- No user-facing behavior changes (internal refactoring only)
-
-**Non-Goals**:
-- Performance optimization (focus is maintainability)
-- Adding new language features (pure refactoring)
-- Changing AST structure (except unified types in 9.50.2)
-
-**Related Tasks**:
-- Stage 2: Basic Parser and AST (original implementation)
-- Task 10.10: Position Tracking (enhanced with better conventions)
-## Phase 12: Lexer Code Quality Improvements
-
-**Goal**: Refactor the lexer for better maintainability, consistency, and extensibility while preserving all existing functionality.
-
-**Status**: In progress | **Tasks**: 16/20 complete
-
-**Motivation**: The lexer works well but has technical debt in error handling, state management, and code organization. These improvements will make the codebase easier to maintain and extend.
-
-**Approach**: Incremental refactoring with full test coverage at each step. No behavior changes, only internal improvements.
-
----
-
-### 12.1: Error Handling Consistency
-
-**Goal**: Make error handling consistent across all lexer operations, following the parser's pattern of accumulating errors.
-
-- [x] 12.1.1 Add error accumulation to Lexer struct
-  - Add `errors []LexerError` field to Lexer
-  - Add `Errors() []LexerError` getter method
-  - Add `addError(msg string, pos Position)` helper method
-  - File: `internal/lexer/lexer.go` (~20 lines)
-  - Estimated: 30 minutes
-  - Test: Verify errors are accumulated, not lost
-  - **DONE**: Added error accumulation infrastructure to Lexer
-
-- [x] 12.1.2 Refactor readString to use error accumulation
-  - Change `readString(quote rune) (string, error)` → `readString(quote rune) string`
-  - Call `l.addError()` instead of returning error
-  - Remove error handling from callers
-  - File: `internal/lexer/lexer.go` (~30 lines modified)
-  - Estimated: 45 minutes
-  - Test: Unterminated strings still reported correctly
-  - **DONE**: Refactored readString and readStringOrCharSequence to use error accumulation
-
-- [x] 12.1.3 Refactor comment skipping to use error accumulation
-  - `skipBlockComment()` and `skipCStyleComment()` call `addError()` instead of returning bool
-  - Update callers to check lexer errors instead of return values
-  - File: `internal/lexer/lexer.go` (~40 lines modified)
-  - Estimated: 45 minutes
-  - Test: Unterminated comments reported correctly
-  - **DONE**: Refactored skipBlockComment and skipCStyleComment to use error accumulation
-
-- [x] 12.1.4 Remove ILLEGAL token pattern in favor of accumulated errors
-  - Replace `NewToken(ILLEGAL, ...)` with proper token + `addError()`
-  - Update parser to check both token stream AND lexer.Errors()
-  - File: `internal/lexer/lexer.go`, `internal/parser/parser.go` (~60 lines)
-  - Estimated: 1 hour
-  - Test: Parser sees both tokens and errors correctly
-  - **DONE**: Added LexerErrors() method to parser, illegal characters now accumulate errors
-
----
-
-### 12.2: State Management Improvements
-
-**Goal**: Add proper state save/restore mechanism to replace manual field copying.
-
-- [x] 12.2.1 Create lexerState struct
-  - Define `lexerState` with all position fields
-  - Add `saveState() lexerState` method
-  - Add `restoreState(s lexerState)` method
-  - File: `internal/lexer/lexer.go` (~25 lines)
-  - Estimated: 30 minutes
-  - Test: Save/restore preserves exact lexer position
-  - **DONE**: Created lexerState struct with all position fields and save/restore methods
-
-- [x] 12.2.2 Refactor isCharLiteralStandalone to use state management
-  - Replace manual field save/restore with `saveState()/restoreState()`
-  - Verify behavior unchanged
-  - File: `internal/lexer/lexer.go` (~15 lines modified)
-  - Estimated: 20 minutes
-  - Test: Character literal detection still works
-  - **DONE**: Refactored to use saveState/restoreState, all tests pass
-
-- [x] 12.2.3 Add peek lookahead tests
-  - Test peekChar() doesn't modify state
-  - Test peekCharN() for various N values
-  - Test state save/restore is symmetric
-  - File: `internal/lexer/lexer_test.go` (~80 lines)
-  - Estimated: 45 minutes
-  - Test: All peek operations are side-effect free
-  - **DONE**: Added comprehensive tests for peek operations and state management
-
----
-
-### 12.3: API Improvements - Token Lookahead
-
-**Goal**: Add proper token lookahead to eliminate parser workarounds (creating temporary lexers).
-
-- [x] 12.3.1 Add token buffer to Lexer
-  - Add `tokenBuffer []Token` field
-  - Keep existing NextToken() behavior initially
-  - File: `internal/lexer/lexer.go` (~5 lines)
-  - Estimated: 15 minutes
-  - Test: No behavior change
-  - **DONE**: Added tokenBuffer field to Lexer struct
-
-- [x] 12.3.2 Implement Peek(n int) method
-  - Add `Peek(n int) Token` method that buffers ahead
-  - Buffer tokens lazily as needed
-  - Don't consume from main stream
-  - File: `internal/lexer/lexer.go` (~35 lines)
-  - Estimated: 1 hour
-  - Test: Peek(1), Peek(2), Peek(3) work correctly; NextToken() still consumes
-  - **DONE**: Implemented Peek() with lazy buffering
-
-- [x] 12.3.3 Refactor NextToken to use buffer
-  - Modify NextToken() to check buffer first
-  - Extract current logic to `nextTokenInternal()`
-  - File: `internal/lexer/lexer.go` (~40 lines)
-  - Estimated: 45 minutes
-  - Test: All existing tests still pass
-  - **DONE**: Refactored NextToken to consume from buffer, extracted nextTokenInternal
-
-- [x] 12.3.4 Remove Input() export workaround
-  - Remove or deprecate `Input()` method
-  - Update parser to use `Peek()` instead of creating temp lexers
-  - File: `internal/lexer/lexer.go`, `internal/parser/parser.go` (~20 lines)
-  - Estimated: 30 minutes
-  - Test: Parser function pointer detection still works
-  - **DONE**: Deprecated Input(), refactored parser functions to use Peek()
-
----
-
-### 12.4: Code Organization - Refactor NextToken
-
-**Goal**: Break up the 335-line NextToken() switch statement into maintainable handler functions.
-
-- [x] 12.4.1 Extract operator handlers (arithmetic)
-  - Create `handlePlus()`, `handleMinus()`, `handleAsterisk()` functions
-  - Each handles compound operators (+=, ++, etc.)
-  - File: `internal/lexer/lexer.go` (~120 lines, move not add)
-  - Estimated: 1 hour
-  - Test: All arithmetic operators work
-  - **DONE**: Extracted handlePlus, handleMinus, handleAsterisk, handleSlash, handlePercent
-
-- [x] 12.4.2 Extract operator handlers (comparison and logical)
-  - Create `handleEquals()`, `handleLess()`, `handleGreater()` functions
-  - Create `handleAmp()`, `handlePipe()`, `handleQuestion()` functions
-  - File: `internal/lexer/lexer.go` (~100 lines, move not add)
-  - Estimated: 1 hour
-  - Test: All comparison/logical operators work
-  - **DONE**: Extracted handleEquals, handleLess, handleGreater, handleExclamation, handleQuestion, handleAmpersand, handlePipe, handleCaret, handleAt, handleTilde
-
-- [ ] 12.4.3 Create operator dispatch table
-  - Define `type tokenHandler func(*Lexer, Position) Token`
-  - Create `var tokenHandlers = map[rune]tokenHandler{...}`
-  - Update NextToken() to use dispatch table
-  - File: `internal/lexer/lexer.go` (~60 lines modified)
-  - Estimated: 1 hour
-  - Test: All operators still work, performance not degraded
-
-- [ ] 12.4.4 Benchmark dispatch table vs switch
-  - Create benchmark for NextToken() throughput
-  - Compare switch vs map dispatch
-  - Revert if map is significantly slower (>10%)
-  - File: `internal/lexer/lexer_bench_test.go` (new file ~80 lines)
-  - Estimated: 45 minutes
-  - Test: Performance within acceptable range
-
----
-
-### 12.5: Helper Method Additions
-
-**Goal**: Add convenient helper methods to reduce code duplication.
-
-- [x] 12.5.1 Add matchAndConsume helper
-  - `func (l *Lexer) matchAndConsume(expected rune) bool`
-  - Returns true and advances if next char matches
-  - File: `internal/lexer/lexer.go` (~10 lines)
-  - Estimated: 20 minutes
-  - Test: Match/no-match both work correctly
-  - **DONE**: Added matchAndConsume helper with comprehensive tests
-
-- [x] 12.5.2 Refactor compound operators to use matchAndConsume
-  - Update all `if l.peekChar() == X` patterns
-  - Simplify operator handler code
-  - File: `internal/lexer/lexer.go` (~80 lines modified)
-  - Estimated: 1 hour
-  - Test: All compound operators still work
-  - **DONE**: Refactored all 15 operator handlers to use matchAndConsume
-
-- [x] 12.5.3 Replace charLiteralToRune with strconv
-  - Use `strconv.ParseInt()` instead of manual parsing
-  - Handle both decimal and hex formats
-  - File: `internal/lexer/lexer.go` (~30 lines deleted, ~15 added)
-  - Estimated: 30 minutes
-  - Test: All character literals parse correctly
-  - **DONE**: Replaced manual parsing with strconv.ParseInt, reduced from 36 lines to 24 lines
-
----
-
-### 12.6: Documentation and Testing
-
-**Goal**: Improve observability and testing infrastructure.
-
-- [ ] 12.6.1 Add options pattern for Lexer configuration
-  - Define `type LexerOption func(*Lexer)`
-  - Update `New(input string, opts ...LexerOption)` signature
-  - Add `WithTracing(bool)` option for debug output
-  - File: `internal/lexer/lexer.go` (~40 lines)
-  - Estimated: 45 minutes
-  - Test: Options apply correctly, backwards compatible
-
-- [ ] 12.6.2 Add comprehensive error position tests
-  - Test error positions for unterminated strings at various locations
-  - Test error positions for illegal characters
-  - Test multi-line error reporting
-  - File: `internal/lexer/lexer_test.go` (~100 lines)
-  - Estimated: 1 hour
-  - Test: All error positions accurate
-
-- [ ] 12.6.3 Document column behavior for Unicode
-  - Clarify that "column" means rune count, not display width
-  - Add comment about display width vs. rune count tradeoff
-  - Add examples in tests with emoji and multi-byte chars
-  - File: `internal/lexer/lexer.go`, `internal/lexer/lexer_test.go` (~30 lines)
-  - Estimated: 30 minutes
-  - Test: Unicode handling documented and tested
-
----
-
-**Files Created**:
-- `internal/lexer/lexer_bench_test.go` (new file ~80 lines) - Performance benchmarks
-
-**Files Modified**:
-- `internal/lexer/lexer.go` (~400 lines modified, net -50 lines from cleanup)
-- `internal/lexer/lexer_test.go` (~180 lines added)
-- `internal/parser/parser.go` (~30 lines modified for error handling)
-
-**Acceptance Criteria**:
-- All existing tests pass (100% backwards compatible)
-- Error handling consistent across lexer (accumulation pattern)
-- State management uses proper save/restore pattern
-- Token lookahead API eliminates parser workarounds
-- NextToken() refactored into maintainable handlers
-- Performance maintained or improved
-- Test coverage remains >95%
-- Documentation updated for Unicode column behavior
-
-**Benefits**:
-- **Maintainability**: Smaller functions easier to understand and modify
-- **Consistency**: Error handling matches parser pattern
-- **Extensibility**: Dispatch table makes adding operators easier
-- **API Quality**: Proper lookahead eliminates workarounds
-- **Code Health**: Removes technical debt for future development
-- **Testing**: Better test infrastructure for edge cases
-
-**Non-Goals** (explicitly out of scope):
-- Changing token types or lexer output format
-- Performance optimization beyond maintaining current speed
-- Adding new language features or syntax
-- Changing public API surface (pkg/token)
 
 ---
 
@@ -4388,11 +3879,44 @@ This phase delivers an auto-formatting pipeline that reuses the existing AST and
 
 - [x] 25.1.1 Capture formatting requirements from upstream DWScript (indent width, begin/end alignment, keyword casing, line-wrapping) and document them in `docs/formatter-style-guide.md`.
 - [x] 25.1.2 Audit current AST nodes for source position fidelity and comment/trivia preservation; list any nodes lacking `Pos` / `EndPos`.
-- [ ] 25.1.3 Extend the parser/AST to track leading and trailing trivia (single-line, block comments, blank lines) without disturbing semantic passes.
-- [ ] 25.1.4 Define a `format.Options` struct (indent size, max line length, newline style) and default profile matching DWScript conventions.
-- [ ] 25.1.5 Build a formatting test corpus in `testdata/formatter/{input,expected}` with tricky constructs (nested classes, generics, properties, preprocessor).
-- [ ] 25.1.6 Add helper APIs to serialize AST back into token streams (e.g., `ast.FormatNode`, `ast.IterChildren`) to keep formatter logic decoupled from parser internals.
-- [ ] 25.1.7 Ensure the semantic/type metadata needed for spacing decisions (e.g., `var` params, attributes) is exposed through lightweight inspector interfaces to avoid circular imports.
+- [x] 25.1.3 Extend the parser/AST to track leading and trailing trivia (single-line, block comments, blank lines) without disturbing semantic passes.
+  - **Implemented**: Comment preservation infrastructure (lexer + AST structures)
+  - **Lexer** (`internal/lexer/lexer.go`):
+    - Added `preserveComments` flag to control comment tokenization
+    - New methods: `SetPreserveComments()`, `readLineComment()`, `readBlockComment()`, `readCStyleComment()`
+    - Modified `NextToken()` to return COMMENT tokens when enabled
+    - Supports all 4 comment styles: `//`, `{ }`, `(* *)`, `/* */`
+  - **AST** (`pkg/ast/comment.go`):
+    - `Comment` type with text, position, and style
+    - `CommentGroup` for grouping consecutive comments
+    - `NodeComments` for leading/trailing comments per node
+    - `CommentMap` for mapping nodes to comments (non-intrusive design)
+    - Added `Comments CommentMap` field to `Program` struct
+  - **Tests**:
+    - `internal/lexer/comment_test.go` - 10 comprehensive tests for lexer
+    - `pkg/ast/comment_test.go` - 8 tests for AST comment structures
+  - **Documentation**: `docs/comment-preservation.md` - Complete guide
+  - **Limitations**: Parser integration not yet complete (Phase 25.2.6)
+    - ✅ Lexer can tokenize comments
+    - ✅ Data structures defined
+    - ❌ Parser doesn't attach comments to nodes (future work)
+    - ❌ Printer can't output comments yet (future work)
+- [x] 25.1.4 Define a `format.Options` struct (indent size, max line length, newline style) and default profile matching DWScript conventions.
+  - **Implemented**: `pkg/printer/printer.go` defines comprehensive `Options` struct with:
+    - Format types: DWScript, Tree, JSON
+    - Style modes: Detailed, Compact, Multiline
+    - Indentation control (width, spaces vs tabs)
+    - Position and type info toggles
+  - **Implemented**: `pkg/printer/styles.go` provides helper functions for common configurations
+- [~] 25.1.5 Build a formatting test corpus in `testdata/formatter/{input,expected}` with tricky constructs (nested classes, generics, properties, preprocessor).
+  - **Status**: Basic tests in `pkg/printer/printer_test.go` cover common cases
+  - **TODO**: Create comprehensive test corpus with edge cases
+- [x] 25.1.6 Add helper APIs to serialize AST back into token streams (e.g., `ast.FormatNode`, `ast.IterChildren`) to keep formatter logic decoupled from parser internals.
+  - **Implemented**: `pkg/printer/printer.go` provides core printing infrastructure
+  - **Implemented**: `pkg/printer/dwscript.go` contains node-specific formatting for all major AST types
+- [~] 25.1.7 Ensure the semantic/type metadata needed for spacing decisions (e.g., `var` params, attributes) is exposed through lightweight inspector interfaces to avoid circular imports.
+  - **Status**: Basic metadata support exists; AST nodes contain type annotations
+  - **TODO**: May need additional helpers for complex spacing rules
 
 ### Phase 25.2: Formatter Engine Implementation (10 tasks)
 
@@ -4409,7 +3933,20 @@ This phase delivers an auto-formatting pipeline that reuses the existing AST and
 
 ### Phase 25.3: Tooling & Playground Integration (7 tasks)
 
-- [ ] 25.3.1 Wire a new CLI command `dwscript fmt` (and `fmt -w`) that runs the formatter over files/directories, mirroring `gofmt` UX.
+- [~] 25.3.1 Wire a new CLI command `dwscript fmt` (and `fmt -w`) that runs the formatter over files/directories, mirroring `gofmt` UX.
+  - [x] 25.3.1.1 Create `cmd/dwscript/cmd/fmt.go` with basic command structure
+  - [x] 25.3.1.2 Add `-w` flag to write formatted output back to files
+  - [x] 25.3.1.3 Add `-l` flag to list files that would be reformatted
+  - [x] 25.3.1.4 Support formatting from stdin when no file is provided
+  - [x] 25.3.1.5 Add `-d` flag to show diff instead of rewriting files
+  - [x] 25.3.1.6 Support formatting multiple files and directories recursively
+  - [x] 25.3.1.7 Add style flags: `--style` (detailed/compact/multiline), `--indent` (width), `--tabs` (use tabs)
+  - [x] 25.3.1.8 Add tests for the fmt command
+    - **Implemented**: `cmd/dwscript/cmd/fmt_test.go` with comprehensive test coverage (540 lines)
+    - Tests: formatSource, FormatBytes, isFormattedCorrectly, FormatFile, style options, indentation, complex constructs, error handling
+    - Benchmarks: BenchmarkFormatSource (~15µs/op), BenchmarkFormatSourceCompact (~10µs/op)
+    - **Known limitation**: Printer doesn't add trailing semicolons, affecting true idempotency (needs fix in pkg/printer for task 25.2.8)
+  - [ ] 25.3.1.9 Update documentation and help text
 - [ ] 25.3.2 Update the WASM bridge to expose a `Format(source string) (string, error)` hook exported from Go, reusing the same formatter package.
 - [ ] 25.3.3 Modify `playground/js/playground.js` to call the WASM formatter before falling back to Monaco’s default action, enabling deterministic formatting in the browser.
 - [ ] 25.3.4 Add formatter support to the VSCode extension / LSP stub (if present) so editors can trigger `textDocument/formatting`.

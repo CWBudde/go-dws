@@ -199,3 +199,110 @@ func TestParserLexerErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestLookaheadFunctions tests the looksLikeVarDeclaration and looksLikeConstDeclaration
+// functions which use Peek(0) for 2-token lookahead
+func TestLookaheadFunctions(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		shouldParse    bool
+		expectedStmts  int
+		expectedErrors int
+	}{
+		{
+			name: "var declaration continuation with colon",
+			input: `var
+				x : Integer;
+				y : String;
+				z : Boolean;`,
+			shouldParse:   true,
+			expectedStmts: 1, // Block statement containing 3 var declarations
+		},
+		{
+			name: "var declaration with inferred type needs var keyword",
+			input: `var x := 42;
+				var y := "hello";`,
+			shouldParse:   true,
+			expectedStmts: 2, // Separate statements since := is ambiguous
+		},
+		{
+			name: "var declaration with comma-separated names",
+			input: `var
+				x, y : Integer;
+				a, b, c : String;`,
+			shouldParse:   true,
+			expectedStmts: 1,
+		},
+		{
+			name: "const declaration continuation with colon",
+			input: `const
+				MAX : Integer = 100;
+				NAME : String = "test";`,
+			shouldParse:   true,
+			expectedStmts: 1,
+		},
+		{
+			name: "const declaration continuation with equals",
+			input: `const
+				MAX = 100;
+				PI = 3.14;`,
+			shouldParse:   true,
+			expectedStmts: 1,
+		},
+		{
+			name: "mixed var declarations should not continue incorrectly",
+			input: `var x : Integer;
+				DoSomething();`,
+			shouldParse:   true,
+			expectedStmts: 2, // var decl + expression statement
+		},
+		{
+			name: "identifier followed by lparen should not be var decl",
+			input: `var x : Integer;
+				MyFunction(x);`,
+			shouldParse:   true,
+			expectedStmts: 2,
+		},
+		{
+			name:          "single var declaration",
+			input:         `var x : Integer;`,
+			shouldParse:   true,
+			expectedStmts: 1,
+		},
+		{
+			name:          "single const declaration",
+			input:         `const MAX = 100;`,
+			shouldParse:   true,
+			expectedStmts: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+
+			errors := p.Errors()
+			if tt.expectedErrors > 0 {
+				if len(errors) != tt.expectedErrors {
+					t.Errorf("expected %d errors, got %d: %v", tt.expectedErrors, len(errors), errors)
+				}
+			} else if len(errors) > 0 {
+				t.Errorf("expected no errors, got %d: %v", len(errors), errors)
+			}
+
+			if tt.shouldParse {
+				if program == nil {
+					t.Fatal("ParseProgram() returned nil")
+				}
+				if len(program.Statements) != tt.expectedStmts {
+					t.Errorf("expected %d statements, got %d", tt.expectedStmts, len(program.Statements))
+					for i, stmt := range program.Statements {
+						t.Logf("  stmt[%d]: %T", i, stmt)
+					}
+				}
+			}
+		})
+	}
+}

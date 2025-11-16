@@ -9,14 +9,15 @@ import (
 
 // Lexer represents a lexical scanner for DWScript source code.
 type Lexer struct {
-	input        string       // The source code being tokenized
-	position     int          // Current position in input (points to current char)
-	readPosition int          // Current reading position in input (after current char)
-	ch           rune         // Current character under examination (0 if EOF)
-	line         int          // Current line number (1-indexed)
-	column       int          // Current column number (1-indexed)
-	errors       []LexerError // Accumulated lexer errors
-	tokenBuffer  []Token      // Buffer for token lookahead (Task 12.3.1)
+	input            string       // The source code being tokenized
+	position         int          // Current position in input (points to current char)
+	readPosition     int          // Current reading position in input (after current char)
+	ch               rune         // Current character under examination (0 if EOF)
+	line             int          // Current line number (1-indexed)
+	column           int          // Current column number (1-indexed)
+	errors           []LexerError // Accumulated lexer errors
+	tokenBuffer      []Token      // Buffer for token lookahead (Task 12.3.1)
+	preserveComments bool         // If true, return COMMENT tokens instead of skipping comments
 }
 
 // lexerState represents the complete state of the lexer at a point in time.
@@ -172,6 +173,97 @@ func (l *Lexer) Peek(n int) Token {
 	}
 
 	return l.tokenBuffer[n]
+}
+
+// SetPreserveComments enables or disables comment preservation.
+// When enabled, the lexer will return COMMENT tokens instead of skipping comments.
+// This is useful for formatters and documentation tools that need to preserve comments.
+func (l *Lexer) SetPreserveComments(preserve bool) {
+	l.preserveComments = preserve
+}
+
+// PreserveComments returns the current comment preservation setting.
+func (l *Lexer) PreserveComments() bool {
+	return l.preserveComments
+}
+
+// readLineComment reads a line comment starting with //.
+// Returns the comment text including the // prefix.
+func (l *Lexer) readLineComment() string {
+	startPos := l.position
+	// Read until end of line or EOF
+	for l.ch != '\n' && l.ch != 0 {
+		l.readChar()
+	}
+	return l.input[startPos:l.position]
+}
+
+// readBlockComment reads a block comment enclosed in { } or (* *).
+// style: '{' for {} comments, '(' for (* *) comments
+// Returns the comment text including delimiters, and true if properly terminated.
+func (l *Lexer) readBlockComment(style rune) (string, bool) {
+	startPos := l.position
+
+	if style == '{' {
+		l.readChar() // skip {
+		for l.ch != 0 {
+			if l.ch == '}' {
+				l.readChar() // skip }
+				return l.input[startPos:l.position], true
+			}
+			if l.ch == '\n' {
+				l.line++
+				l.column = 0
+			}
+			l.readChar()
+		}
+		// Unterminated comment
+		return l.input[startPos:l.position], false
+	}
+
+	// style == '(' for (* *)
+	l.readChar() // skip (
+	l.readChar() // skip *
+
+	for l.ch != 0 {
+		if l.ch == '*' && l.peekChar() == ')' {
+			l.readChar() // skip *
+			l.readChar() // skip )
+			return l.input[startPos:l.position], true
+		}
+		if l.ch == '\n' {
+			l.line++
+			l.column = 0
+		}
+		l.readChar()
+	}
+
+	// Unterminated comment
+	return l.input[startPos:l.position], false
+}
+
+// readCStyleComment reads a C-style comment /* */.
+// Returns the comment text including delimiters, and true if properly terminated.
+func (l *Lexer) readCStyleComment() (string, bool) {
+	startPos := l.position
+	l.readChar() // skip /
+	l.readChar() // skip *
+
+	for l.ch != 0 {
+		if l.ch == '*' && l.peekChar() == '/' {
+			l.readChar() // skip *
+			l.readChar() // skip /
+			return l.input[startPos:l.position], true
+		}
+		if l.ch == '\n' {
+			l.line++
+			l.column = 0
+		}
+		l.readChar()
+	}
+
+	// Unterminated comment
+	return l.input[startPos:l.position], false
 }
 
 // Operator handler functions (Task 12.4.1 - Arithmetic operators)
@@ -792,29 +884,62 @@ func (l *Lexer) nextTokenInternal() Token {
 	// Comments
 	case '/':
 		if l.peekChar() == '/' {
-			l.skipLineComment()
-			return l.nextTokenInternal() // Skip comment and get next token
-		}
-		if l.peekChar() == '*' {
+			if l.preserveComments {
+				text := l.readLineComment()
+				tok = NewToken(COMMENT, text, pos)
+			} else {
+				l.skipLineComment()
+				return l.nextTokenInternal() // Skip comment and get next token
+			}
+		} else if l.peekChar() == '*' {
 			// C-style multi-line comment /* */
-			l.skipCStyleComment()
-			return l.nextTokenInternal()
+			if l.preserveComments {
+				text, ok := l.readCStyleComment()
+				if !ok {
+					tok = NewToken(ILLEGAL, "unterminated C-style comment", pos)
+					return tok
+				}
+				tok = NewToken(COMMENT, text, pos)
+			} else {
+				l.skipCStyleComment()
+				return l.nextTokenInternal()
+			}
+		} else {
+			return l.handleSlash(pos)
 		}
-		return l.handleSlash(pos)
 
 	case '{':
 		// Block comment or compiler directive - both skip to }
-		l.skipBlockComment('{')
-		return l.nextTokenInternal()
+		if l.preserveComments {
+			text, ok := l.readBlockComment('{')
+			if !ok {
+				tok = NewToken(ILLEGAL, "unterminated block comment", pos)
+				return tok
+			}
+			tok = NewToken(COMMENT, text, pos)
+		} else {
+			l.skipBlockComment('{')
+			return l.nextTokenInternal()
+		}
 
 	case '(':
 		if l.peekChar() == '*' {
 			// Block comment (* *)
-			l.skipBlockComment('(')
-			return l.nextTokenInternal()
+			if l.preserveComments {
+				text, ok := l.readBlockComment('(')
+				if !ok {
+					tok = NewToken(ILLEGAL, "unterminated block comment", pos)
+					return tok
+				}
+				tok = NewToken(COMMENT, text, pos)
+			} else {
+				l.skipBlockComment('(')
+				return l.nextTokenInternal()
+			}
+		} else {
+			tok = NewToken(LPAREN, "(", pos)
+			l.readChar()
 		}
-		tok = NewToken(LPAREN, "(", pos)
-		l.readChar()
 
 	case ')':
 		tok = NewToken(RPAREN, ")", pos)
