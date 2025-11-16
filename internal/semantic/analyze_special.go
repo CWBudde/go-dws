@@ -83,8 +83,17 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 	// Try to find as a method first
 	methodType, methodFound := parentClass.GetMethod(memberName)
 	if methodFound {
-		// Check if this is a method call (has arguments or IsCall flag)
-		if ie.IsCall || len(ie.Arguments) > 0 {
+		// Task 9.14.2: In DWScript, inherited MethodName without parens is still a call if method takes no params
+		// Determine if this should be treated as a call
+		isMethodCall := ie.IsCall || len(ie.Arguments) > 0
+
+		// Also treat as a call if method name is specified without parens but method exists
+		// This matches DWScript semantics where parameterless methods can be called without parens
+		if !isMethodCall && ie.Method != nil && len(methodType.Parameters) == 0 {
+			isMethodCall = true
+		}
+
+		if isMethodCall {
 			// Check argument count
 			expectedParams := len(methodType.Parameters)
 			actualArgs := len(ie.Arguments)

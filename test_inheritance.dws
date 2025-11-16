@@ -1,0 +1,23 @@
+type
+   TBase = class
+      procedure Func; virtual;
+   end;
+
+type
+   TChild = class (TBase)
+      procedure Func; reintroduce;
+   end;
+
+procedure TBase.Func;
+begin
+   PrintLn('TBase');
+end;
+
+procedure TChild.Func;
+begin
+   PrintLn('TChild');
+end;
+
+var o : TBase;
+o := TChild.Create;
+o.Func;  // Should print 'TBase' because TChild.Func is reintroduced, not overridden

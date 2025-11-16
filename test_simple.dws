@@ -1,0 +1,11 @@
+type
+   TBase = class
+      procedure Func;
+   end;
+
+procedure TBase.Func;
+begin
+   PrintLn('Hello');
+end;
+
+TBase.Create.Func;

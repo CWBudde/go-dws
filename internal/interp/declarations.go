@@ -15,16 +15,19 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 	if fn.ClassName != nil {
 		typeName := fn.ClassName.Value
 
-		// Try to find as a class first
-		classInfo, isClass := i.classes[typeName]
+		// Task 9.14.2 & PR #147: DWScript is case-insensitive
+		// Use lowercase key for O(1) lookup instead of O(n) linear search
+		classInfo, isClass := i.classes[strings.ToLower(typeName)]
+
 		if isClass {
 			// Handle class method implementation
 			i.evalClassMethodImplementation(fn, classInfo)
 			return &NilValue{}
 		}
 
-		// Try to find as a record
-		recordInfo, isRecord := i.records[typeName]
+		// PR #147: Use lowercase key for O(1) lookup instead of O(n) linear search
+		recordInfo, isRecord := i.records[strings.ToLower(typeName)]
+
 		if isRecord {
 			// Handle record method implementation
 			i.evalRecordMethodImplementation(fn, recordInfo)
@@ -89,6 +92,45 @@ func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classI
 	if fn.IsDestructor {
 		classInfo.Destructor = fn
 	}
+
+	// Task 9.14: Rebuild the VMT after adding method implementation
+	// This ensures the VMT has references to methods with bodies, not just declarations
+	classInfo.buildVirtualMethodTable()
+
+	// PR #147 Fix: Rebuild VMT for all descendant classes to propagate the change.
+	// When a parent class method implementation is added after child classes exist,
+	// child classes have stale VMT entries pointing to declaration-only methods.
+	// We must rebuild their VMTs to get the new implementation.
+	i.rebuildDescendantVMTs(classInfo)
+}
+
+// rebuildDescendantVMTs rebuilds the virtual method table for all classes that
+// inherit from the given class. This is necessary when a parent class method
+// implementation is added after child classes have been created.
+// PR #147 Fix: Prevents child classes from keeping stale VMT entries.
+func (i *Interpreter) rebuildDescendantVMTs(parentClass *ClassInfo) {
+	// Iterate through all registered classes
+	for _, classInfo := range i.classes {
+		// Check if this class is a descendant of parentClass
+		if i.isDescendantOf(classInfo, parentClass) {
+			// Rebuild this descendant's VMT to pick up the new implementation
+			classInfo.buildVirtualMethodTable()
+		}
+	}
+}
+
+// isDescendantOf checks if childClass is a descendant of ancestorClass.
+// Returns true if childClass inherits from ancestorClass (directly or indirectly).
+func (i *Interpreter) isDescendantOf(childClass, ancestorClass *ClassInfo) bool {
+	// Walk up the parent chain from childClass
+	current := childClass.Parent
+	for current != nil {
+		if current == ancestorClass {
+			return true
+		}
+		current = current.Parent
+	}
+	return false
 }
 
 // evalRecordMethodImplementation handles record method implementation registration
@@ -118,7 +160,8 @@ func (i *Interpreter) evalRecordMethodImplementation(fn *ast.FunctionDecl, recor
 func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Check if this is a partial class declaration
 	var classInfo *ClassInfo
-	existingClass, exists := i.classes[cd.Name.Value]
+	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	existingClass, exists := i.classes[strings.ToLower(cd.Name.Value)]
 
 	if exists && existingClass.IsPartial && cd.IsPartial {
 		// Merging partial classes - reuse existing ClassInfo
@@ -151,9 +194,11 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	var parentClass *ClassInfo
 	if cd.Parent != nil {
 		// Explicit parent specified
+		// Task 9.14.2 & PR #147: DWScript is case-insensitive
+		// Use lowercase key for O(1) lookup instead of O(n) linear search
 		parentName := cd.Parent.Value
 		var exists bool
-		parentClass, exists = i.classes[parentName]
+		parentClass, exists = i.classes[strings.ToLower(parentName)]
 		if !exists {
 			return i.newErrorWithLocation(cd, "parent class '%s' not found", parentName)
 		}
@@ -162,8 +207,9 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		// (unless this IS TObject or it's an external class)
 		className := cd.Name.Value
 		if !strings.EqualFold(className, "TObject") && !cd.IsExternal {
+			// PR #147: Use lowercase key for O(1) lookup instead of O(n) linear search
 			var exists bool
-			parentClass, exists = i.classes["TObject"]
+			parentClass, exists = i.classes[strings.ToLower("TObject")]
 			if !exists {
 				return i.newErrorWithLocation(cd, "implicit parent class 'TObject' not found")
 			}
@@ -265,7 +311,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 	// Task 9.6: Register class BEFORE processing fields
 	// This allows field initializers to reference the class name (e.g., FField := TObj.Value)
-	i.classes[classInfo.Name] = classInfo
+	// PR #147 Fix: Use lowercase key for O(1) case-insensitive lookup
+	i.classes[strings.ToLower(classInfo.Name)] = classInfo
 
 	// Add own fields to ClassInfo
 	for _, field := range cd.Fields {
@@ -494,8 +541,12 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 	}
 
-	// Note: Class is already registered above (before processing fields)
-	// to allow field initializers to reference the class name
+	// Build virtual method table after all methods and fields are processed
+	classInfo.buildVirtualMethodTable()
+
+	// Register class in registry
+	// PR #147 Fix: Use lowercase key for O(1) case-insensitive lookup
+	i.classes[strings.ToLower(classInfo.Name)] = classInfo
 
 	return &NilValue{}
 }
@@ -824,6 +875,13 @@ func (i *Interpreter) replaceMethodInOverloadList(list []*ast.FunctionDecl, impl
 	for idx, decl := range list {
 		// Match by parameter count and types
 		if parametersMatch(decl.Parameters, impl.Parameters) {
+			// Task 9.14: Preserve virtual/override/reintroduce flags from declaration
+			// The implementation doesn't have these keywords, but we need to preserve them
+			impl.IsVirtual = decl.IsVirtual
+			impl.IsOverride = decl.IsOverride
+			impl.IsReintroduce = decl.IsReintroduce
+			impl.IsAbstract = decl.IsAbstract
+
 			// Replace the declaration with the implementation
 			list[idx] = impl
 			return list

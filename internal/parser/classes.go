@@ -90,9 +90,11 @@ func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 	// Otherwise, all identifiers are treated as interfaces
 	if len(identifiers) > 0 {
 		firstIdent := identifiers[0]
-		// Check if first identifier is a built-in class or starts with 'T'
+		// Check if first identifier is a built-in class or starts with 'T' (case-insensitive)
+		// Task 9.14.2: Make 'T' check case-insensitive for parent class detection
+		firstChar := firstIdent.Value[0]
 		if isBuiltinClass(firstIdent.Value) ||
-			(len(firstIdent.Value) > 0 && firstIdent.Value[0] == 'T') {
+			(len(firstIdent.Value) > 0 && (firstChar == 'T' || firstChar == 't')) {
 			// First identifier is the parent class
 			if classDecl.Parent == nil {
 				classDecl.Parent = firstIdent

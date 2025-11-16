@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/errors"
@@ -67,7 +68,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	objectClass.Constructors["create"] = createConstructor
 	objectClass.ConstructorOverloads["create"] = []*ast.FunctionDecl{createConstructor}
 
-	i.classes["TObject"] = objectClass
+	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	i.classes[strings.ToLower("TObject")] = objectClass
 
 	// Register Exception base class
 	exceptionClass := NewClassInfo("Exception")
@@ -79,7 +81,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	// Add Create constructor - just a placeholder, will be handled specially
 	exceptionClass.Constructors["Create"] = nil
 
-	i.classes["Exception"] = exceptionClass
+	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	i.classes[strings.ToLower("Exception")] = exceptionClass
 
 	// Register standard exception types
 	standardExceptions := []string{
@@ -101,7 +104,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		// Inherit Create constructor
 		excClass.Constructors["Create"] = nil
 
-		i.classes[excName] = excClass
+		// PR #147: Use lowercase key for O(1) case-insensitive lookup
+		i.classes[strings.ToLower(excName)] = excClass
 	}
 
 	// Register EHost exception wrapper for host runtime errors.
@@ -113,7 +117,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	eHostClass.IsExternal = false
 	eHostClass.Constructors["Create"] = nil
 
-	i.classes["EHost"] = eHostClass
+	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	i.classes[strings.ToLower("EHost")] = eHostClass
 }
 
 // raiseMaxRecursionExceeded raises an EScriptStackOverflow exception when the
@@ -127,10 +132,11 @@ func (i *Interpreter) raiseMaxRecursionExceeded() Value {
 	copy(callStack, i.callStack)
 
 	// Look up EScriptStackOverflow class
-	stackOverflowClass, ok := i.classes["EScriptStackOverflow"]
+	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	stackOverflowClass, ok := i.classes[strings.ToLower("EScriptStackOverflow")]
 	if !ok {
 		// Fall back to Exception if EScriptStackOverflow isn't registered
-		if baseClass, exists := i.classes["Exception"]; exists {
+		if baseClass, exists := i.classes[strings.ToLower("Exception")]; exists {
 			stackOverflowClass = baseClass
 		} else {
 			// As a last resort, return NilValue without setting exception
