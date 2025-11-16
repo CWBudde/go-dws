@@ -139,6 +139,132 @@
 //   - Try to continue parsing when possible (don't give up at first error)
 //   - Document which errors are recoverable vs. fatal
 //
+// STRUCTURED ERROR REPORTING (Phase 2.1.1):
+//
+// The parser supports both legacy string-based errors and modern structured errors.
+// Structured errors provide richer context, suggestions, and better IDE/LSP integration.
+//
+// Key components:
+//
+//  1. StructuredParserError type (structured_error.go):
+//     - Error kind categorization (syntax, missing, unexpected, invalid, ambiguous)
+//     - Expected vs actual token tracking
+//     - Automatic block context inclusion
+//     - Helpful suggestions for fixing errors
+//     - Related positions for multi-part errors
+//     - Parse phase tracking
+//
+//  2. Error creation methods:
+//     - NewStructuredError(kind): Creates builder with fluent API
+//     - NewUnexpectedTokenError(): Helper for common "expected X, got Y" errors
+//     - NewMissingTokenError(): Helper for missing required tokens
+//     - NewInvalidExpressionError(): Helper for invalid expressions
+//
+//  3. Integration:
+//     - addStructuredError(err): Adds structured error to parser (auto-injects block context)
+//     - Backward compatible: converts to legacy ParserError automatically
+//     - Existing tests continue to work without modification
+//
+// Common patterns:
+//
+//  1. Missing keyword:
+//     if !p.expectPeek(lexer.THEN) {
+//     err := NewStructuredError(ErrKindMissing).
+//     WithCode(ErrMissingThen).
+//     WithMessage("expected 'then' after if condition").
+//     WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+//     WithExpected(lexer.THEN).
+//     WithActual(p.peekToken.Type, p.peekToken.Literal).
+//     WithSuggestion("add 'then' keyword after the condition").
+//     WithNote("DWScript if statements require: if <condition> then <statement>").
+//     Build()
+//     p.addStructuredError(err)
+//     return nil
+//     }
+//
+//  2. Invalid expression:
+//     if stmt.Condition == nil {
+//     err := NewStructuredError(ErrKindInvalid).
+//     WithCode(ErrInvalidExpression).
+//     WithMessage("expected condition after 'if'").
+//     WithPosition(p.curToken.Pos, p.curToken.Length()).
+//     WithExpectedString("boolean expression").
+//     WithSuggestion("add a condition like 'x > 0' or 'flag = true'").
+//     WithParsePhase("if statement condition").
+//     Build()
+//     p.addStructuredError(err)
+//     return nil
+//     }
+//
+//  3. Missing closing delimiter (with related position):
+//     if !p.expectPeek(lexer.RBRACK) {
+//     err := NewStructuredError(ErrKindMissing).
+//     WithCode(ErrMissingRBracket).
+//     WithMessage("expected ']' to close array index").
+//     WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+//     WithExpected(lexer.RBRACK).
+//     WithActual(p.peekToken.Type, p.peekToken.Literal).
+//     WithSuggestion("add ']' to close the array index").
+//     WithRelatedPosition(lbrackToken.Pos, "opening '[' here").
+//     WithParsePhase("array index expression").
+//     Build()
+//     p.addStructuredError(err)
+//     return nil
+//     }
+//
+// Migration strategy:
+//   - New code should use structured errors for better diagnostics
+//   - Legacy addError() and addErrorWithContext() still work
+//   - Gradually migrate existing error sites to structured errors
+//   - See parseIfStatement(), parseWhileStatement(), parseArrayType() for examples
+//
+// Best practices:
+//   - Use appropriate error kind (ErrKindMissing, ErrKindUnexpected, ErrKindInvalid)
+//   - Always provide expected/actual values when applicable
+//   - Add helpful suggestions that guide users to fix the error
+//   - Include related positions for paired delimiters (parentheses, brackets, etc.)
+//   - Set parse phase for better context ("array type", "if statement", etc.)
+//   - Block context is auto-injected by addStructuredError() - no need to add manually
+//
+// ERROR-CONTEXT INTEGRATION (Phase 2.1.3):
+//
+// The parser automatically integrates ParseContext with structured errors for rich error messages.
+//
+// Automatic context capture:
+//   - addStructuredError() auto-injects current block context if not explicitly set
+//   - Context includes block type (begin, if, while, etc.) and start position
+//   - Errors automatically show: "error message (in while block starting at line 5)"
+//
+// Context management:
+//   - ParseContext tracks block nesting via PushBlock/PopBlock
+//   - Context snapshots are saved/restored during speculative parsing
+//   - Context flags (parsingPostCondition, etc.) are synchronized
+//
+// Example of automatic context in errors:
+//
+//	begin
+//	  x := 10;
+//	  while y < 10    // Missing 'do'
+//	    z := 5;
+//	end;
+//
+//	Error: "expected 'do' after while condition (in while block starting at line 3)"
+//
+// Nested blocks:
+//   - Errors capture the INNERMOST block context
+//   - Each error gets its own snapshot of the current context
+//   - Context properly tracks nesting depth and block types
+//
+// Testing:
+//   - See error_context_integration_test.go for comprehensive tests
+//   - Tests cover: automatic capture, nested blocks, state persistence, multiple errors
+//
+// Migration examples:
+//   - Variable declarations: statements.go (7 error sites)
+//   - Control flow: control_flow.go (parseIfStatement, parseWhileStatement)
+//   - Type parsing: types.go (parseArrayType)
+//   - Expression parsing: expressions.go (parseOldExpression)
+//
 // PRATT PARSING (Core Architecture):
 //
 // The parser uses a Pratt parser (top-down operator precedence) for expressions.
@@ -262,6 +388,11 @@ type Parser struct {
 	enableSemanticAnalysis bool
 	parsingPostCondition   bool           // True when parsing postconditions (for 'old' keyword)
 	blockStack             []BlockContext // Stack of nested block contexts for error messages
+
+	// ctx is the new structured parsing context (Task 2.1.2)
+	// Consolidates scattered context flags and block stack into a single type.
+	// Old fields above are kept for backward compatibility and are synchronized with ctx.
+	ctx *ParseContext
 }
 
 // ParserState represents a snapshot of the parser's state at a specific point.
@@ -275,6 +406,7 @@ type ParserState struct {
 	peekToken            lexer.Token
 	parsingPostCondition bool
 	blockStack           []BlockContext
+	ctx                  *ParseContext // New structured context (Task 2.1.2)
 }
 
 // New creates a new Parser instance.
@@ -287,6 +419,7 @@ func New(l *lexer.Lexer) *Parser {
 		enableSemanticAnalysis: false,
 		semanticErrors:         []string{},
 		blockStack:             []BlockContext{},
+		ctx:                    NewParseContext(), // Initialize structured context (Task 2.1.2)
 	}
 
 	// Register prefix parse functions
@@ -479,6 +612,31 @@ func (p *Parser) addError(msg string, code string) {
 	p.errors = append(p.errors, err)
 }
 
+// addStructuredError adds a structured error to the parser's error list.
+// This method provides richer error reporting with context, suggestions, and better formatting.
+// The structured error is automatically enhanced with block context if available.
+//
+// Example usage:
+//
+//	err := NewStructuredError(ErrKindMissing).
+//	    WithCode(ErrMissingRParen).
+//	    WithPosition(p.curToken.Pos, p.curToken.Length()).
+//	    WithExpected(lexer.RPAREN).
+//	    WithSuggestion("add ')' to close the expression").
+//	    Build()
+//	p.addStructuredError(err)
+func (p *Parser) addStructuredError(structErr *StructuredParserError) {
+	// Auto-inject block context if not already set
+	if structErr.BlockContext == nil {
+		structErr.BlockContext = p.currentBlockContext()
+	}
+
+	// Convert to legacy ParserError for backward compatibility
+	// This ensures existing error handling code continues to work
+	legacyErr := structErr.ToParserError()
+	p.errors = append(p.errors, legacyErr)
+}
+
 // addGenericError adds a generic error message with a default error code.
 func (p *Parser) addGenericError(msg string) {
 	p.addError(msg, ErrInvalidExpression)
@@ -549,6 +707,7 @@ func (p *Parser) saveState() ParserState {
 		parsingPostCondition: p.parsingPostCondition,
 		semanticErrors:       semanticErrorsCopy,
 		blockStack:           blockStackCopy,
+		ctx:                  p.ctx.Snapshot(), // Save context snapshot (Task 2.1.2)
 	}
 }
 
@@ -563,11 +722,19 @@ func (p *Parser) restoreState(state ParserState) {
 	p.semanticErrors = state.semanticErrors
 	p.blockStack = state.blockStack
 	p.l.RestoreState(state.lexerState)
+	// Restore context (Task 2.1.2)
+	// This also restores parsingPostCondition in the context
+	p.ctx.Restore(state.ctx)
 }
 
 // pushBlockContext pushes a new block context onto the stack.
 // This is used to track nested blocks for better error messages.
+// Adapter method: delegates to context and synchronizes old field for backward compatibility.
 func (p *Parser) pushBlockContext(blockType string, startPos lexer.Position) {
+	// Update new context (Task 2.1.2)
+	p.ctx.PushBlock(blockType, startPos)
+
+	// Synchronize old field for backward compatibility
 	p.blockStack = append(p.blockStack, BlockContext{
 		BlockType: blockType,
 		StartPos:  startPos,
@@ -577,7 +744,12 @@ func (p *Parser) pushBlockContext(blockType string, startPos lexer.Position) {
 
 // popBlockContext pops the most recent block context from the stack.
 // Call this when exiting a block to maintain proper nesting.
+// Adapter method: delegates to context and synchronizes old field for backward compatibility.
 func (p *Parser) popBlockContext() {
+	// Update new context (Task 2.1.2)
+	p.ctx.PopBlock()
+
+	// Synchronize old field for backward compatibility
 	if len(p.blockStack) > 0 {
 		p.blockStack = p.blockStack[:len(p.blockStack)-1]
 	}
@@ -585,11 +757,10 @@ func (p *Parser) popBlockContext() {
 
 // currentBlockContext returns the current block context, if any.
 // Returns nil if no block is currently being parsed.
+// Delegates to ParseContext for current block information.
 func (p *Parser) currentBlockContext() *BlockContext {
-	if len(p.blockStack) == 0 {
-		return nil
-	}
-	return &p.blockStack[len(p.blockStack)-1]
+	// Delegate to new context (Task 2.1.2)
+	return p.ctx.CurrentBlock()
 }
 
 // Synchronization token sets for error recovery.

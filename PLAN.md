@@ -60,12 +60,12 @@ p.addError("expected next token to be " + expected + ", got " + actual, ErrUnexp
 ```
 
 **Implementation**:
-- [ ] Create `internal/parser/structured_error.go` with `StructuredParserError` type
-- [ ] Implement error formatting with automatic context inclusion
-- [ ] Add `addStructuredError()` method alongside existing `addError()`
-- [ ] Migrate 5 high-value parsing functions as proof of concept
-- [ ] Add comprehensive tests for error formatting and context
-- [ ] Document structured error patterns
+- [x] Create `internal/parser/structured_error.go` with `StructuredParserError` type
+- [x] Implement error formatting with automatic context inclusion
+- [x] Add `addStructuredError()` method alongside existing `addError()`
+- [x] Migrate 5 high-value parsing functions as proof of concept
+- [x] Add comprehensive tests for error formatting and context
+- [x] Document structured error patterns
 
 **Files Created**:
 - `internal/parser/structured_error.go` (~200 lines)
@@ -101,13 +101,13 @@ type Parser struct {
 ```
 
 **Implementation**:
-- [ ] Create `internal/parser/context.go` with `ParseContext` type
-- [ ] Design `ContextFlags` struct for structured flag management
-- [ ] Add `p.context` field to Parser
-- [ ] Implement stack operations (PushBlock, PopBlock, CurrentBlock)
-- [ ] Create adapter methods for backward compatibility
-- [ ] Migrate one parsing function to use new context
-- [ ] Add tests for context stack operations
+- [x] Create `internal/parser/context.go` with `ParseContext` type
+- [x] Design `ContextFlags` struct for structured flag management
+- [x] Add `p.context` field to Parser
+- [x] Implement stack operations (PushBlock, PopBlock, CurrentBlock)
+- [x] Create adapter methods for backward compatibility
+- [x] Migrate one parsing function to use new context
+- [x] Add tests for context stack operations
 
 **Files Created**:
 - `internal/parser/context.go` (~150 lines)
@@ -134,12 +134,12 @@ type Parser struct {
 **Goal**: Integrate `ParseContext` with structured errors for automatic context inclusion in error messages.
 
 **Implementation**:
-- [ ] Add `Snapshot()` method to `ParseContext`
-- [ ] Update `addStructuredError()` to capture context automatically
-- [ ] Enhance error formatting to show block context
-- [ ] Test with nested blocks (begin/if/while/etc.)
-- [ ] Migrate 10+ error sites to use structured errors with context
-- [ ] Document error-context patterns
+- [x] Use `Snapshot()` method from `ParseContext` (implemented in 2.1.2)
+- [x] Update `addStructuredError()` to capture context automatically
+- [x] Enhance error formatting to show block context
+- [x] Test with nested blocks (begin/if/while/etc.)
+- [x] Migrate 10+ error sites to use structured errors with context
+- [x] Document error-context patterns
 
 **Files Modified**:
 - `internal/parser/context.go` (~20 lines)
@@ -165,12 +165,12 @@ type Parser struct {
 **Goal**: Establish baseline benchmarks and regression detection before major changes.
 
 **Implementation**:
-- [ ] Audit existing benchmarks in `parser_bench_test.go`
-- [ ] Add missing benchmarks for common patterns (list parsing, expressions, types, error recovery)
-- [ ] Create benchmark comparison script `scripts/bench_compare.sh`
-- [ ] Document baseline performance in `docs/parser-benchmarks.md`
-- [ ] Set up CI integration for benchmark regression detection
-- [ ] Add memory allocation benchmarks
+- [x] Audit existing benchmarks in `parser_bench_test.go`
+- [x] Add missing benchmarks for common patterns (list parsing, expressions, types, error recovery)
+- [x] Create benchmark comparison script `scripts/bench_compare.sh`
+- [x] Document baseline performance in `docs/parser-benchmarks.md`
+- [x] Set up CI integration for benchmark regression detection
+- [x] Add memory allocation benchmarks
 
 **Files Created**:
 - `scripts/bench_compare.sh` (~50 lines)

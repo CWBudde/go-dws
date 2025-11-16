@@ -229,7 +229,17 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		}
 	} else if !p.isIdentifierToken(p.curToken.Type) {
 		// Should already be at an identifier
-		p.addError("expected identifier in var declaration", ErrExpectedIdent)
+		// Use structured error (Task 2.1.3)
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrExpectedIdent).
+			WithMessage("expected identifier in var declaration").
+			WithPosition(p.curToken.Pos, p.curToken.Length()).
+			WithExpectedString("variable name").
+			WithActual(p.curToken.Type, p.curToken.Literal).
+			WithSuggestion("provide a variable name after 'var'").
+			WithParsePhase("variable declaration").
+			Build()
+		p.addStructuredError(err)
 		return nil
 	} else {
 		stmt.Token = p.curToken
@@ -240,7 +250,17 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	stmt.Names = []*ast.Identifier{}
 	for {
 		if !p.isIdentifierToken(p.curToken.Type) {
-			p.addError("expected identifier in var declaration", ErrExpectedIdent)
+			// Use structured error (Task 2.1.3)
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrExpectedIdent).
+				WithMessage("expected identifier in var declaration").
+				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithExpectedString("variable name").
+				WithActual(p.curToken.Type, p.curToken.Literal).
+				WithSuggestion("provide a variable name").
+				WithParsePhase("variable declaration").
+				Build()
+			p.addStructuredError(err)
 			return nil
 		}
 
@@ -275,7 +295,16 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		p.nextToken() // move to type expression
 		typeExpr := p.parseTypeExpression()
 		if typeExpr == nil {
-			p.addError("expected type expression after ':' in var declaration", ErrExpectedType)
+			// Use structured error (Task 2.1.3)
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrExpectedType).
+				WithMessage("expected type expression after ':' in var declaration").
+				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithExpectedString("type name").
+				WithSuggestion("specify the variable type, like 'Integer' or 'String'").
+				WithParsePhase("variable declaration type").
+				Build()
+			p.addStructuredError(err)
 			return stmt
 		}
 
@@ -286,7 +315,16 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	if hasExplicitType {
 		if p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ) {
 			if len(stmt.Names) > 1 {
-				p.addError("cannot use initializer with multiple variable names", ErrInvalidSyntax)
+				// Use structured error (Task 2.1.3)
+				err := NewStructuredError(ErrKindInvalid).
+					WithCode(ErrInvalidSyntax).
+					WithMessage("cannot use initializer with multiple variable names").
+					WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+					WithSuggestion("declare variables separately or use the same value for all").
+					WithNote("DWScript requires: var x, y: Integer (no initializer) or var x: Integer := 10").
+					WithParsePhase("variable declaration").
+					Build()
+				p.addStructuredError(err)
 				return stmt
 			}
 
@@ -297,7 +335,16 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	} else {
 		if p.peekTokenIs(lexer.ASSIGN) || p.peekTokenIs(lexer.EQ) {
 			if len(stmt.Names) > 1 {
-				p.addError("cannot use initializer with multiple variable names", ErrInvalidSyntax)
+				// Use structured error (Task 2.1.3)
+				err := NewStructuredError(ErrKindInvalid).
+					WithCode(ErrInvalidSyntax).
+					WithMessage("cannot use initializer with multiple variable names").
+					WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+					WithSuggestion("declare variables separately when using initializers").
+					WithNote("DWScript requires separate declarations with initializers").
+					WithParsePhase("variable declaration").
+					Build()
+				p.addStructuredError(err)
 				return stmt
 			}
 
@@ -306,9 +353,28 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 			p.nextToken()
 			stmt.Value = p.parseExpression(ASSIGN)
 		} else if p.peekTokenIs(lexer.SEMICOLON) || p.peekTokenIs(lexer.EXTERNAL) {
-			p.addError("variable declaration requires a type or initializer", ErrInvalidSyntax)
+			// Use structured error (Task 2.1.3)
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("variable declaration requires a type or initializer").
+				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithSuggestion("add ': TypeName' or ':= value' after the variable name").
+				WithNote("Examples: 'var x: Integer' or 'var x := 10'").
+				WithParsePhase("variable declaration").
+				Build()
+			p.addStructuredError(err)
 		} else {
-			p.addError("expected ':', ':=' or '=' in variable declaration", ErrMissingColon)
+			// Use structured error (Task 2.1.3)
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrMissingColon).
+				WithMessage("expected ':', ':=' or '=' in variable declaration").
+				WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+				WithExpectedString("':' or ':='").
+				WithActual(p.peekToken.Type, p.peekToken.Literal).
+				WithSuggestion("add ':' for type declaration or ':=' for type inference").
+				WithParsePhase("variable declaration").
+				Build()
+			p.addStructuredError(err)
 		}
 	}
 
@@ -435,7 +501,16 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 			return stmt
 
 		default:
-			p.addError("invalid assignment target", ErrInvalidSyntax)
+			// Use structured error (Task 2.1.3)
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("invalid assignment target").
+				WithPosition(p.curToken.Pos, p.curToken.Length()).
+				WithSuggestion("assignment target must be a variable, field access, or array element").
+				WithNote("Valid: x := 10, obj.field := 20, arr[i] := 30").
+				WithParsePhase("assignment statement").
+				Build()
+			p.addStructuredError(err)
 			return nil
 		}
 	}
