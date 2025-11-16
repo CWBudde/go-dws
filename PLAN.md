@@ -82,12 +82,14 @@ case *ast.FunctionPointerTypeNode:
 ```
 
 **Implementation**:
-- [ ] Audit all AST nodes that use `TypeAnnotation`
-- [ ] Design unified `TypeSpec` interface or type
-- [ ] Update `VarDeclStatement`, `ConstDecl`, `Parameter` to use unified type
-- [ ] Modify parser to directly use `TypeExpression` in AST nodes
-- [ ] Update semantic analyzer to work with unified representation
-- [ ] Remove synthetic wrapper creation in parser
+- [x] Audit all AST nodes that use `TypeAnnotation`
+- [x] Design unified `TypeSpec` interface or type
+- [x] Update `VarDeclStatement`, `ConstDecl`, `Parameter` to use unified type
+- [x] Modify parser to directly use `TypeExpression` in AST nodes
+- [x] Update semantic analyzer to work with unified representation
+- [x] Remove synthetic wrapper creation in parser
+
+**Status**: ✅ DONE (completed in #151)
 
 **Files Modified**:
 - `pkg/ast/statements.go` (~30 lines)
@@ -126,27 +128,36 @@ p.errors = p.errors[:errorCountBefore]
 - Parser can leverage this for its own state management
 
 **Implementation**:
-- [ ] Design `ParserState` struct (curToken, peekToken, errors, lexerState)
-- [ ] Implement `p.saveState() ParserState` - captures parser AND lexer state
-- [ ] Implement `p.restoreState(state ParserState)` - restores both
-- [ ] Replace error trimming with save/restore in `parseIsExpression()`
-- [ ] Identify other speculative parsing sites and convert them
-- [ ] Add debug logging for backtracking events (if parser trace mode added)
-- [ ] Document backtracking pattern in style guide
+- [x] Design `ParserState` struct (curToken, peekToken, errors, lexerState)
+- [x] Implement `p.saveState() ParserState` - captures parser AND lexer state
+- [x] Implement `p.restoreState(state ParserState)` - restores both
+- [x] Replace error trimming with save/restore in `parseIsExpression()`
+- [x] Identify other speculative parsing sites and convert them
+- [x] Add comprehensive tests for backtracking
+- [ ] Add debug logging for backtracking events (if parser trace mode added) - deferred
+- [ ] Document backtracking pattern in style guide - deferred
+
+**Status**: ✅ DONE (core implementation complete)
+
+**Note**: Debug logging and style guide documentation are deferred as optional enhancements.
 
 **Files Modified**:
-- `internal/parser/parser.go` (~70 lines added)
-- `internal/parser/expressions.go` (~25 lines modified)
-- `internal/parser/types.go` (~30 lines modified for other sites)
+- `internal/lexer/lexer.go` (~10 lines - made SaveState/RestoreState public)
+- `internal/lexer/lexer_test.go` (~6 lines - updated test method calls)
+- `internal/parser/parser.go` (~35 lines added - ParserState struct and save/restore methods)
+- `internal/parser/expressions.go` (~5 lines modified - replaced error trimming)
+- `internal/parser/backtracking_test.go` (~250 lines new - comprehensive test suite)
 
 **Tests**:
-- Add `internal/parser/backtracking_test.go` (~120 lines)
-- Test save/restore preserves both parser and lexer state
-- Test nested save/restore (save twice, restore in order)
-- Test that Peek() works correctly after restore
-- Verify existing `is` expression tests still pass
+- ✅ `internal/parser/backtracking_test.go` (7 comprehensive tests)
+- ✅ Test save/restore preserves both parser and lexer state
+- ✅ Test nested save/restore (save twice, restore in order)
+- ✅ Test that Peek() works correctly after restore
+- ✅ Verify existing `is` expression tests still pass
+- ✅ Test backtracking with 'is' expressions (type vs boolean)
+- ✅ Test state independence (saved states don't interfere)
 
-**Estimate**: 4-5 hours (reduced from 5-7h due to lexer state infrastructure)
+**Actual Time**: ~2 hours (faster than estimated due to simple design)
 
 ---
 

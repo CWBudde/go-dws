@@ -46,14 +46,16 @@ type Lexer struct {
 	tracing          bool         // If true, enable debug tracing output
 }
 
-// lexerState represents the complete state of the lexer at a point in time.
+// LexerState represents the complete state of the Lexer at a specific point in time.
+// It can be saved and restored to enable backtracking during parsing.
 // This allows for efficient save/restore operations during lookahead.
-type lexerState struct {
-	position     int  // Current position in input
-	readPosition int  // Current reading position
-	ch           rune // Current character
-	line         int  // Current line number
-	column       int  // Current column number
+type LexerState struct {
+	position     int     // Current position in input
+	readPosition int     // Current reading position
+	ch           rune    // Current character
+	line         int     // Current line number
+	column       int     // Current column number
+	tokenBuffer  []Token // Buffered tokens from Peek() operations
 }
 
 // LexerOption is a function that configures a Lexer.
@@ -199,26 +201,34 @@ func (l *Lexer) addError(msg string, pos Position) {
 	})
 }
 
-// saveState captures the current lexer state for later restoration.
-// This is useful for lookahead operations that need to be undone.
-func (l *Lexer) saveState() lexerState {
-	return lexerState{
+// SaveState captures the current lexer state for later restoration.
+// This is useful for lookahead operations and parser backtracking.
+// Deep copies the tokenBuffer to prevent corruption during speculative parsing.
+func (l *Lexer) SaveState() LexerState {
+	// Deep copy the token buffer to preserve lookahead state
+	bufferCopy := make([]Token, len(l.tokenBuffer))
+	copy(bufferCopy, l.tokenBuffer)
+
+	return LexerState{
 		position:     l.position,
 		readPosition: l.readPosition,
 		ch:           l.ch,
 		line:         l.line,
 		column:       l.column,
+		tokenBuffer:  bufferCopy,
 	}
 }
 
-// restoreState restores the lexer to a previously saved state.
-// This is used after lookahead operations to return to the original position.
-func (l *Lexer) restoreState(s lexerState) {
+// RestoreState restores the lexer to a previously saved state.
+// This is used after lookahead operations or parser backtracking to return to the original position.
+// Restores the tokenBuffer to prevent token duplication or skipping.
+func (l *Lexer) RestoreState(s LexerState) {
 	l.position = s.position
 	l.readPosition = s.readPosition
 	l.ch = s.ch
 	l.line = s.line
 	l.column = s.column
+	l.tokenBuffer = s.tokenBuffer
 }
 
 // Peek returns the token n positions ahead without consuming it.
@@ -852,7 +862,7 @@ func (l *Lexer) readCharLiteral() string {
 // Returns true if standalone, false if followed immediately by another string/char literal.
 func (l *Lexer) isCharLiteralStandalone() bool {
 	// Save current state for lookahead
-	state := l.saveState()
+	state := l.SaveState()
 
 	// Read the character literal to see what follows
 	_ = l.readCharLiteral()
@@ -861,7 +871,7 @@ func (l *Lexer) isCharLiteralStandalone() bool {
 	isStandalone := l.ch != '#' && l.ch != '\'' && l.ch != '"'
 
 	// Restore state after lookahead
-	l.restoreState(state)
+	l.RestoreState(state)
 
 	return isStandalone
 }

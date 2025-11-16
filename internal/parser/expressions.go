@@ -1403,16 +1403,17 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 	p.nextToken()
 
 	// Try to parse as type expression first (speculatively)
-	errorCountBefore := len(p.errors)
+	// Save state before attempting, so we can cleanly backtrack if it fails
+	state := p.saveState()
 	expression.TargetType = p.parseTypeExpression()
 	if expression.TargetType != nil {
 		expression.EndPos = expression.TargetType.End()
 		return expression
 	}
 
-	// If type parsing failed, remove any errors added and try as boolean expression
-	// Trim errors back to original count (speculative parsing)
-	p.errors = p.errors[:errorCountBefore]
+	// If type parsing failed, restore state and try as boolean expression
+	// This removes any errors from the speculative parse
+	p.restoreState(state)
 
 	// Parse as value expression (boolean comparison)
 	// Use EQUALS precedence to prevent consuming following logical operators
