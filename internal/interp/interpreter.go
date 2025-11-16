@@ -222,7 +222,37 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	// Statements
 	case *ast.ExpressionStatement:
-		return i.Eval(node.Expression)
+		// Evaluate the expression
+		val := i.Eval(node.Expression)
+		if isError(val) {
+			return val
+		}
+
+		// Auto-invoke parameterless function pointers
+		// In DWScript, bare identifiers that are function pointers with no parameters
+		// are automatically invoked when used as statements
+		if funcPtr, isFuncPtr := val.(*FunctionPointerValue); isFuncPtr {
+			// Determine parameter count
+			paramCount := 0
+			if funcPtr.Function != nil {
+				paramCount = len(funcPtr.Function.Parameters)
+			} else if funcPtr.Lambda != nil {
+				paramCount = len(funcPtr.Lambda.Parameters)
+			}
+
+			// If it has zero parameters, auto-invoke it
+			if paramCount == 0 {
+				// Check if the function pointer is nil (not assigned)
+				if funcPtr.Function == nil && funcPtr.Lambda == nil {
+					// Raise an exception that can be caught by try-except
+					i.raiseException("Exception", "Function pointer is nil", &node.Token.Pos)
+					return &NilValue{}
+				}
+				return i.callFunctionPointer(funcPtr, []Value{}, node)
+			}
+		}
+
+		return val
 
 	case *ast.VarDeclStatement:
 		return i.evalVarDeclStatement(node)

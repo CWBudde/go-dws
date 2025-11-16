@@ -44,6 +44,9 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			return actualVal
 		}
 
+		// Return the value as-is
+		// Note: Auto-invoke of parameterless function pointers happens in ExpressionStatement,
+		// not here, to avoid breaking assignments like `pp := p` where p is a function pointer
 		return val
 	}
 
@@ -158,11 +161,12 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 		}
 	}
 
-	// Before returning error, check if this is a parameterless function/procedure call
-	// In DWScript, you can call parameterless procedures without parentheses: "Test;" instead of "Test();"
+	// Before returning error, check if this is a function name
+	// In DWScript, functions can be referenced as values (function pointers)
+	// or called without parentheses if they have zero parameters
 	// DWScript is case-insensitive, so normalize the function name to lowercase
 	if overloads, exists := i.functions[strings.ToLower(node.Value)]; exists && len(overloads) > 0 {
-		// For parameterless call or function pointer, resolve to the no-arg overload
+		// For function pointer or parameterless call, resolve to the appropriate overload
 		var fn *ast.FunctionDecl
 		if len(overloads) == 1 {
 			fn = overloads[0]
@@ -180,14 +184,10 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			}
 		}
 
-		// Check if function has zero parameters
-		if len(fn.Parameters) == 0 {
-			// Auto-invoke the parameterless function/procedure
-			return i.callUserFunction(fn, []Value{})
-		}
-
-		// If function has parameters, it's being used as a value (function pointer)
-		// Create a function pointer value so it can be passed to higher-order functions
+		// Always return a function pointer value
+		// The function pointer auto-invoke logic in evalIdentifier (lines 47-69) will
+		// handle calling it if needed (parameterless call as a statement)
+		// This allows function pointer assignments to work correctly
 		paramTypes := make([]types.Type, len(fn.Parameters))
 		for idx, param := range fn.Parameters {
 			if param.Type != nil {
