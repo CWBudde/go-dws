@@ -122,17 +122,19 @@ func (l *Lexer) readChar() {
 	if l.readPosition >= len(l.input) {
 		l.ch = 0 // EOF
 		l.position = l.readPosition
+		l.column++
 	} else {
 		r, size := utf8.DecodeRuneInString(l.input[l.readPosition:])
-		// Check for invalid UTF-8 encoding
-		if r == utf8.RuneError && size == 1 {
-			l.addError("invalid UTF-8 encoding", l.currentPos())
-		}
+		// Update state first so currentPos() returns the correct position
 		l.ch = r
 		l.position = l.readPosition
 		l.readPosition += size
+		l.column++
+		// Check for invalid UTF-8 encoding after updating position
+		if r == utf8.RuneError && size == 1 {
+			l.addError("invalid UTF-8 encoding", l.currentPos())
+		}
 	}
-	l.column++
 }
 
 // peekChar returns the next character without advancing the position.
@@ -177,14 +179,15 @@ func (l *Lexer) matchAndConsume(expected rune) bool {
 	}
 
 	if r == expected {
-		// Check for invalid UTF-8 encoding (only for non-EOF)
-		if r == utf8.RuneError && size == 1 {
-			l.addError("invalid UTF-8 encoding", l.currentPos())
-		}
+		// Update state first so currentPos() returns the correct position
 		l.ch = r
 		l.position = l.readPosition
 		l.readPosition += size
 		l.column++
+		// Check for invalid UTF-8 encoding after updating position (only for non-EOF)
+		if r == utf8.RuneError && size == 1 {
+			l.addError("invalid UTF-8 encoding", l.currentPos())
+		}
 		return true
 	}
 	return false
