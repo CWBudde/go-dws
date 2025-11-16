@@ -868,13 +868,24 @@ func (p *Printer) printFieldDecl(fd *ast.FieldDecl) {
 	}
 
 	p.printDWScript(fd.Name)
-	p.write(":")
-	p.space()
-	p.printDWScript(fd.Type)
 
-	if fd.InitValue != nil {
+	// Handle type inference syntax (Type is nil, only InitValue present)
+	if fd.Type != nil {
+		// Explicit type: Name: Type [= InitValue]
+		p.write(":")
 		p.space()
-		p.write("=")
+		p.printDWScript(fd.Type)
+
+		if fd.InitValue != nil {
+			p.space()
+			p.write("=")
+			p.space()
+			p.printDWScript(fd.InitValue)
+		}
+	} else if fd.InitValue != nil {
+		// Type inference: Name := InitValue
+		p.space()
+		p.write(":=")
 		p.space()
 		p.printDWScript(fd.InitValue)
 	}
