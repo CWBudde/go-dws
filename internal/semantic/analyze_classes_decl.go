@@ -280,6 +280,17 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		classType.ConstantTypes[constantName] = constType
 	}
 
+	// Task 9.6: Register class before analyzing fields so that field initializers
+	// can reference the class name (e.g., FField := TObj2.Value)
+	// Task 9.285: Use lowercase for case-insensitive lookup
+	a.classes[strings.ToLower(className)] = classType
+
+	// Task 9.6: Set currentClass before analyzing fields so that field initializers
+	// can reference class constants
+	previousClass := a.currentClass
+	a.currentClass = classType
+	defer func() { a.currentClass = previousClass }()
+
 	// Analyze and add fields
 	fieldNames := make(map[string]bool)
 	classVarNames := make(map[string]bool)
@@ -367,18 +378,32 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			}
 			fieldNames[fieldName] = true
 
-			// Verify field type exists
-			if field.Type == nil {
+			var fieldType types.Type
+
+			// Handle type annotation or type inference
+			if field.Type != nil {
+				// Explicit type annotation
+				typeName := getTypeExpressionName(field.Type)
+				resolvedType, err := a.resolveType(typeName)
+				if err != nil {
+					a.addError("unknown type '%s' for field '%s' in class '%s' at %s",
+						typeName, fieldName, className, field.Token.Pos.String())
+					continue
+				}
+				fieldType = resolvedType
+			} else if field.InitValue != nil {
+				// Type inference from initialization value
+				initType := a.analyzeExpression(field.InitValue)
+				if initType == nil {
+					a.addError("cannot infer type for field '%s' in class '%s' at %s",
+						fieldName, className, field.Token.Pos.String())
+					continue
+				}
+				fieldType = initType
+			} else {
+				// No type and no initialization
 				a.addError("field '%s' missing type annotation in class '%s'",
 					fieldName, className)
-				continue
-			}
-
-			typeName := getTypeExpressionName(field.Type)
-			fieldType, err := a.resolveType(typeName)
-			if err != nil {
-				a.addError("unknown type '%s' for field '%s' in class '%s' at %s",
-					typeName, fieldName, className, field.Token.Pos.String())
 				continue
 			}
 
@@ -393,15 +418,9 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		}
 	}
 
-	// Register class before analyzing methods (so methods can reference the class)
-	// Task 9.285: Use lowercase for case-insensitive lookup
-	a.classes[strings.ToLower(className)] = classType
-
 	// Analyze methods
-	previousClass := a.currentClass
-	a.currentClass = classType
-	defer func() { a.currentClass = previousClass }()
-
+	// Note: Class is already registered above before field analysis
+	// Note: currentClass is already set above for field initialization analysis
 	for _, method := range decl.Methods {
 		a.analyzeMethodDecl(method, classType)
 	}

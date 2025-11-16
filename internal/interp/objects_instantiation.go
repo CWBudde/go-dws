@@ -69,6 +69,15 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	obj := NewObjectInstance(classInfo)
 
 	// Task 9.5: Initialize all fields with field initializers or default values
+	// Task 9.6: Create temporary environment with class constants for field initializer evaluation
+	savedEnv := i.env
+	tempEnv := NewEnclosedEnvironment(i.env)
+	// Add class constants to the temporary environment
+	for constName, constValue := range classInfo.ConstantValues {
+		tempEnv.Define(constName, constValue)
+	}
+	i.env = tempEnv
+
 	for fieldName, fieldType := range classInfo.Fields {
 		var fieldValue Value
 
@@ -77,6 +86,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 			// Evaluate the field initializer
 			fieldValue = i.Eval(fieldDecl.InitValue)
 			if isError(fieldValue) {
+				i.env = savedEnv
 				return fieldValue
 			}
 		} else {
@@ -86,6 +96,9 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 		}
 		obj.SetField(fieldName, fieldValue)
 	}
+
+	// Restore environment
+	i.env = savedEnv
 
 	// Special handling for Exception.Create
 	// Exception constructors are built-in and take predefined arguments.
