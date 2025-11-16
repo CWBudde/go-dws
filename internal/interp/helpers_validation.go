@@ -172,11 +172,11 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 	}
 
 	// Get the type name for indexing
-	typeName := targetType.String()
+	typeName := strings.ToLower(targetType.String())
 	i.helpers[typeName] = append(i.helpers[typeName], helperInfo)
 
 	// Also register by simple type name for lookup compatibility
-	simpleTypeName := extractSimpleTypeName(typeName)
+	simpleTypeName := strings.ToLower(extractSimpleTypeName(targetType.String()))
 	if simpleTypeName != typeName {
 		i.helpers[simpleTypeName] = append(i.helpers[simpleTypeName], helperInfo)
 	}
@@ -422,8 +422,8 @@ func (i *Interpreter) initArrayHelpers() {
 	// This allows: arr.Pop() syntax - removes and returns last element
 	arrayHelper.BuiltinMethods["pop"] = "__array_pop"
 
-	// Register helper for ARRAY type
-	i.helpers["ARRAY"] = append(i.helpers["ARRAY"], arrayHelper)
+	// Register helper for array type
+	i.helpers["array"] = append(i.helpers["array"], arrayHelper)
 }
 
 // initIntrinsicHelpers registers built-in helpers for primitive types (Integer, Float, Boolean).
@@ -433,7 +433,7 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	}
 
 	register := func(typeName string, helper *HelperInfo) {
-		i.helpers[typeName] = append(i.helpers[typeName], helper)
+		i.helpers[strings.ToLower(typeName)] = append(i.helpers[strings.ToLower(typeName)], helper)
 	}
 
 	// Integer helper
@@ -606,6 +606,6 @@ func (i *Interpreter) initEnumHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Register helper for ENUM type (generic catch-all)
-	i.helpers["ENUM"] = append(i.helpers["ENUM"], enumHelper)
+	// Register helper for enum type (generic catch-all)
+	i.helpers["enum"] = append(i.helpers["enum"], enumHelper)
 }
