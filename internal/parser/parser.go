@@ -79,6 +79,101 @@
 //   - Always check for EOF when scanning ahead in loops
 //   - Document WHY lookahead is needed (what ambiguity it resolves)
 //   - Keep lookahead functions pure (no side effects, no token consumption)
+//
+// ERROR RECOVERY PATTERN (Phase 2.8):
+//
+// The parser implements panic-mode error recovery with synchronization tokens
+// to enable multiple error reporting in a single pass and prevent infinite loops.
+//
+// Key components:
+//
+//  1. Block Context Tracking:
+//     - Use pushBlockContext() when entering a block (begin, if, while, for, case, etc.)
+//     - Use defer popBlockContext() to ensure cleanup even on error
+//     - Provides context for better error messages
+//
+//  2. Error Reporting:
+//     - addError(): Basic error with position tracking
+//     - addErrorWithContext(): Include block context in error message
+//     - Example: "expected 'end' (in begin block starting at line 10)"
+//
+//  3. Synchronization:
+//     - synchronize(tokens): Advance to a safe synchronization point
+//     - Stops at statement starters, block closers, or specified tokens
+//     - Prevents parser from getting stuck in error loops
+//
+// Example usage:
+//
+//	func (p *Parser) parseWhileStatement() *ast.WhileStatement {
+//	    // Track block context
+//	    p.pushBlockContext("while", p.curToken.Pos)
+//	    defer p.popBlockContext()
+//
+//	    // Parse condition
+//	    stmt.Condition = p.parseExpression(LOWEST)
+//	    if stmt.Condition == nil {
+//	        p.addErrorWithContext("expected condition", ErrInvalidExpression)
+//	        p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
+//	        return nil
+//	    }
+//
+//	    // Try to recover from missing 'do'
+//	    if !p.expectPeek(lexer.DO) {
+//	        p.addErrorWithContext("expected 'do'", ErrMissingDo)
+//	        p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
+//	        if !p.curTokenIs(lexer.DO) {
+//	            return nil  // Cannot recover
+//	        }
+//	        // Found DO, try to continue
+//	    }
+//	}
+//
+// Synchronization points (statementStarters, blockClosers):
+//   - Statement starters: VAR, CONST, TYPE, IF, WHILE, FOR, REPEAT, CASE, BEGIN, etc.
+//   - Block closers: END, UNTIL, ELSE, EXCEPT, FINALLY
+//   - Always: EOF (prevents infinite loops)
+//
+// Best practices:
+//   - Always use block context for block-level constructs
+//   - Synchronize after errors to enable multiple error reporting
+//   - Try to continue parsing when possible (don't give up at first error)
+//   - Document which errors are recoverable vs. fatal
+//
+// PRATT PARSING (Core Architecture):
+//
+// The parser uses a Pratt parser (top-down operator precedence) for expressions.
+// This provides elegant handling of operator precedence and associativity.
+//
+// Key concepts:
+//
+//  1. Prefix Parse Functions:
+//     - Called when a token appears at the START of an expression
+//     - Examples: literals (42, "hello"), unary operators (-x, not x), grouping ((expr))
+//     - Registered via registerPrefix(tokenType, parseFn)
+//
+//  2. Infix Parse Functions:
+//     - Called when a token appears BETWEEN expressions
+//     - Examples: binary operators (x + y), function calls (foo()), member access (obj.field)
+//     - Registered via registerInfix(tokenType, parseFn)
+//     - Receive left expression as parameter, parse right side
+//
+//  3. Precedence Levels:
+//     - Integer constants from LOWEST to MEMBER
+//     - Higher number = higher precedence
+//     - Determines how tightly operators bind
+//     - Example: PRODUCT (5) > SUM (4), so 3+5*2 parses as 3+(5*2)
+//
+// The parseExpression(precedence) method:
+//  1. Look up prefix function for current token
+//  2. Parse prefix to get left expression
+//  3. While peek token has higher precedence:
+//     a. Look up infix function
+//     b. Advance to infix operator
+//     c. Parse infix (passing left expression)
+//     d. Update left expression with result
+//  4. Return final expression
+//
+// See docs/parser-architecture.md for detailed explanation.
 package parser
 
 import (
