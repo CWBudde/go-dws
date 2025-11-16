@@ -134,12 +134,12 @@ type Parser struct {
 **Goal**: Integrate `ParseContext` with structured errors for automatic context inclusion in error messages.
 
 **Implementation**:
-- [ ] Add `Snapshot()` method to `ParseContext`
-- [ ] Update `addStructuredError()` to capture context automatically
-- [ ] Enhance error formatting to show block context
-- [ ] Test with nested blocks (begin/if/while/etc.)
-- [ ] Migrate 10+ error sites to use structured errors with context
-- [ ] Document error-context patterns
+- [x] Add `Snapshot()` method to `ParseContext` (done in 2.1.2)
+- [x] Update `addStructuredError()` to capture context automatically
+- [x] Enhance error formatting to show block context
+- [x] Test with nested blocks (begin/if/while/etc.)
+- [x] Migrate 10+ error sites to use structured errors with context
+- [x] Document error-context patterns
 
 **Files Modified**:
 - `internal/parser/context.go` (~20 lines)

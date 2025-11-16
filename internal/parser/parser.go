@@ -226,6 +226,45 @@
 //   - Set parse phase for better context ("array type", "if statement", etc.)
 //   - Block context is auto-injected by addStructuredError() - no need to add manually
 //
+// ERROR-CONTEXT INTEGRATION (Phase 2.1.3):
+//
+// The parser automatically integrates ParseContext with structured errors for rich error messages.
+//
+// Automatic context capture:
+//   - addStructuredError() auto-injects current block context if not explicitly set
+//   - Context includes block type (begin, if, while, etc.) and start position
+//   - Errors automatically show: "error message (in while block starting at line 5)"
+//
+// Context management:
+//   - ParseContext tracks block nesting via PushBlock/PopBlock
+//   - Context snapshots are saved/restored during speculative parsing
+//   - Context flags (parsingPostCondition, etc.) are synchronized
+//
+// Example of automatic context in errors:
+//
+//     begin
+//       x := 10;
+//       while y < 10    // Missing 'do'
+//         z := 5;
+//     end;
+//
+//     Error: "expected 'do' after while condition (in while block starting at line 3)"
+//
+// Nested blocks:
+//   - Errors capture the INNERMOST block context
+//   - Each error gets its own snapshot of the current context
+//   - Context properly tracks nesting depth and block types
+//
+// Testing:
+//   - See error_context_integration_test.go for comprehensive tests
+//   - Tests cover: automatic capture, nested blocks, state persistence, multiple errors
+//
+// Migration examples:
+//   - Variable declarations: statements.go (7 error sites)
+//   - Control flow: control_flow.go (parseIfStatement, parseWhileStatement)
+//   - Type parsing: types.go (parseArrayType)
+//   - Expression parsing: expressions.go (parseOldExpression)
+//
 // PRATT PARSING (Core Architecture):
 //
 // The parser uses a Pratt parser (top-down operator precedence) for expressions.
