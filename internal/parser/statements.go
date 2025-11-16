@@ -6,6 +6,8 @@ import (
 )
 
 // parseStatement parses a single statement.
+// PRE: curToken is first token of statement
+// POST: curToken is last token of statement
 func (p *Parser) parseStatement() ast.Statement {
 	switch p.curToken.Type {
 	case lexer.BEGIN:
@@ -98,6 +100,8 @@ func (p *Parser) parseStatement() ast.Statement {
 }
 
 // parseBlockStatement parses a begin...end block.
+// PRE: curToken is BEGIN
+// POST: curToken is END
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	block := &ast.BlockStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
@@ -139,6 +143,8 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 }
 
 // parseExpressionStatement parses an expression statement.
+// PRE: curToken is first token of expression
+// POST: curToken is SEMICOLON if present, otherwise last token of expression
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	stmt := &ast.ExpressionStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
@@ -166,6 +172,9 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 // Can be called in two contexts:
 //  1. After 'var' keyword: var x: Integer;
 //  2. In a var section without 'var': x: Integer; (curToken is already the IDENT)
+//
+// PRE: curToken is VAR or IDENT
+// POST: curToken is SEMICOLON of last var declaration
 func (p *Parser) parseVarDeclaration() ast.Statement {
 	blockToken := p.curToken // Save the initial VAR token for the block
 	statements := []ast.Statement{}
@@ -202,6 +211,8 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 
 // parseSingleVarDeclaration parses a single variable declaration.
 // Assumes we're already positioned at the identifier (or just before it).
+// PRE: curToken is VAR or variable name IDENT
+// POST: curToken is SEMICOLON
 func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	stmt := &ast.VarDeclStatement{}
 

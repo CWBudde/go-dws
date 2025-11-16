@@ -11,6 +11,9 @@ import (
 //
 // Syntax:
 //   - type TDays = set of TWeekday;
+//
+// PRE: curToken is SET
+// POST: curToken is SEMICOLON
 func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
 	setDecl := &ast.SetDecl{
 		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
@@ -49,6 +52,9 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 // Syntax:
 //   - set of TypeName
 //   - set of (A, B, C)  // inline anonymous enum (if supported)
+//
+// PRE: curToken is SET
+// POST: curToken is last token of element type
 func (p *Parser) parseSetType() *ast.SetTypeNode {
 	setToken := p.curToken // The 'set' token
 
@@ -87,6 +93,9 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 //   - [A..C]                  // range
 //   - [one, three..five]      // mixed
 //   - []                      // empty set
+//
+// PRE: curToken is LBRACK
+// POST: curToken is RBRACK
 func (p *Parser) parseSetLiteral() ast.Expression {
 	setLit := &ast.SetLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{

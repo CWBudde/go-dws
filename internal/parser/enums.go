@@ -17,6 +17,9 @@ import (
 //   - type TEnum = (One = 1, Two = 5);           // unscoped enum with values
 //   - type TEnum = enum (One, Two);              // scoped enum
 //   - type TFlags = flags (a, b, c);             // flags enum (scoped, power-of-2 values)
+//
+// PRE: curToken is LPAREN (or after ENUM/FLAGS, will advance to LPAREN)
+// POST: curToken is SEMICOLON
 func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, scoped bool, flags bool) *ast.EnumDecl {
 	enumDecl := &ast.EnumDecl{
 		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
@@ -111,6 +114,8 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 }
 
 // parseEnumValue parses an enum value (integer, possibly negative)
+// PRE: curToken is first token of value (INT or MINUS)
+// POST: curToken is INT
 func (p *Parser) parseEnumValue() (int, error) {
 	// Handle negative values
 	isNegative := false

@@ -718,6 +718,8 @@ func (p *Parser) isVarDeclBlock(block *ast.BlockStatement) bool {
 // parseFieldInitializer parses an optional field initializer (= Value or := Value).
 // Returns the initialization expression if present, or nil if not.
 // Should be called when curToken is the type token, and peekToken might be '=' or ':='.
+// PRE: curToken is last token of type annotation
+// POST: curToken is last token of initialization expression if present; otherwise unchanged
 func (p *Parser) parseFieldInitializer(fieldNames []*ast.Identifier) ast.Expression {
 	// Check for initialization (= Value or := Value)
 	// DWScript uses '=' for field initializers: Field : String = 'hello';

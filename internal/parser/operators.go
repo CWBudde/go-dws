@@ -13,6 +13,9 @@ import (
 //	operator + (String, Integer) : String uses StrPlusInt;
 //	operator implicit (Integer) : String uses IntToStr;
 //	operator in (Integer, Float) : Boolean uses DigitInFloat;
+//
+// PRE: curToken is OPERATOR
+// POST: curToken is SEMICOLON
 func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 	decl := &ast.OperatorDecl{
 		BaseNode:   ast.BaseNode{Token: p.curToken},
@@ -94,6 +97,9 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 //
 //	class operator += String uses AppendString;
 //	class operator IN array of Integer uses ContainsArray;
+//
+// PRE: curToken is OPERATOR
+// POST: curToken is SEMICOLON
 func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {
 	if !p.curTokenIs(lexer.OPERATOR) {
 		p.addError("expected 'operator' after 'class'", ErrUnexpectedToken)
@@ -189,6 +195,8 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 
 // parseOperatorOperandTypes parses the operand type list inside parentheses.
 // Example: (String, Integer)
+// PRE: curToken is LPAREN
+// POST: curToken is RPAREN
 func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
 	operandTypes := []ast.TypeExpression{}
 
@@ -267,6 +275,8 @@ func normalizeOperatorSymbol(tok lexer.Token) string {
 
 // parseTypeExpressionUntil parses a type expression until the stop condition is met.
 // It assumes the current token is the first token of the type expression.
+// PRE: curToken is IDENT or type keyword
+// POST: curToken is last token before stop condition
 func (p *Parser) parseTypeExpressionUntil(stopFn func(lexer.TokenType) bool) (*ast.TypeAnnotation, bool) {
 	if p.curToken.Type != lexer.IDENT && !p.curToken.Type.IsKeyword() {
 		p.addError("expected type identifier", ErrExpectedType)

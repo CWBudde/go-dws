@@ -8,6 +8,8 @@ import (
 // parseRecordOrHelperDeclaration determines if this is a record or helper declaration.
 // Called when we see 'type Name = record' - need to check if followed by 'helper'.
 // Current token is positioned at '=' and peek token is 'record'.
+// PRE: curToken is EQ, peekToken is RECORD
+// POST: curToken is SEMICOLON
 func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
 	// Move to RECORD
 	if !p.expectPeek(lexer.RECORD) {
@@ -166,6 +168,9 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 //     public
 //     property X: Integer read FX write FX;
 //     end;
+//
+// PRE: curToken is EQ; peekToken is RECORD
+// POST: curToken is SEMICOLON
 func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.RecordDecl {
 	recordDecl := &ast.RecordDecl{
 		BaseNode:   ast.BaseNode{Token: typeToken}, // The 'type' token
@@ -309,6 +314,8 @@ func (p *Parser) parseRecordDeclaration(nameIdent *ast.Identifier, typeToken lex
 // Pattern: Name1, Name2, Name3: Type;
 // OR: Name := Value; (type inferred from initializer)
 // Returns a slice of FieldDecl, one for each field name.
+// PRE: curToken is field name IDENT
+// POST: curToken is SEMICOLON
 func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
 	if !p.curTokenIs(lexer.IDENT) {
 		p.addError("expected field name", ErrExpectedIdent)
@@ -413,6 +420,8 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 //
 // Called when we see '(' and need to determine if it's a record literal or grouped expression.
 // This is called from parseGroupedExpression when it detects a record literal pattern.
+// PRE: curToken is LPAREN
+// POST: curToken is RPAREN
 func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 	recordLit := &ast.RecordLiteralExpression{
 		BaseNode: ast.BaseNode{Token: p.curToken}, // '(' token
@@ -497,6 +506,8 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteralExpression {
 // Pattern: property Name: Type read FieldName write FieldName;
 //
 // Note: This is different from class properties (parsePropertyDeclaration)
+// PRE: curToken is PROPERTY
+// POST: curToken is SEMICOLON
 func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	propToken := p.curToken // 'property' token
 

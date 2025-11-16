@@ -33,6 +33,9 @@ import (
 //   - Class variables (class var)
 //   - Class constants (class const)
 //   - Visibility sections (private/public)
+//
+// PRE: curToken is HELPER
+// POST: curToken is SEMICOLON
 func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, isRecordHelper bool) *ast.HelperDecl {
 	helperDecl := &ast.HelperDecl{
 		BaseNode: ast.BaseNode{
