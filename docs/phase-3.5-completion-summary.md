@@ -127,11 +127,11 @@ ExecutionContext
 | Metric | Value |
 |--------|-------|
 | **New Files Created** | 5 files |
-| **Total Lines Added** | 866 lines |
+| **Total Lines Added** | 788 lines |
 | **Files Modified** | 3 files |
 | **Visitor Methods** | 48 methods |
 | **Eliminated Switch** | 228 lines → organized dispatch |
-| **Max File Size** | 258 lines (well under 500 limit) |
+| **Max File Size** | 384 lines (well under 500 limit) |
 | **Test Regressions** | 0 |
 
 ---
