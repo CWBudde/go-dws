@@ -484,6 +484,16 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	}
 
 	if !ok {
+		// Check if it's an enum value with .Value or .ToString property
+		if enumVal, isEnum := objVal.(*EnumValue); isEnum {
+			memberName := strings.ToLower(ma.Member.Value)
+			if memberName == "value" {
+				// Return the ordinal value as an integer
+				return &IntegerValue{Value: int64(enumVal.OrdinalValue)}
+			}
+			// Note: .ToString will be handled by helpers if needed
+		}
+
 		// Not an object - check if helpers provide this member
 		helper, helperProp := i.findHelperProperty(objVal, ma.Member.Value)
 		if helperProp != nil {
