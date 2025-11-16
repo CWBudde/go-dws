@@ -26,7 +26,7 @@ type ParseContext struct {
 	// Managed via PushBlock/PopBlock methods
 	blockStack []BlockContext
 
-	// Future extensibility: can add fields like:
+	// Future extensibility examples (not planned features, just illustrative):
 	// - loopDepth int (for break/continue validation)
 	// - functionScope *FunctionContext (for return type checking)
 	// - classScope *ClassContext (for member access validation)
@@ -43,7 +43,7 @@ type ContextFlags struct {
 	// This allows the 'old' keyword to reference pre-state values.
 	ParsingPostCondition bool
 
-	// Future flags can be added here:
+	// Future flag examples (illustrative only, not planned features):
 	// - InLoopBody bool (for break/continue validation)
 	// - InFunctionBody bool (for return statement validation)
 	// - InClassDeclaration bool (for member visibility rules)

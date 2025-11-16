@@ -653,13 +653,11 @@ func BenchmarkParserErrorRecovery(b *testing.B) {
 	// Program with multiple syntax errors to test error recovery
 	input := `
 function BrokenFunc(x: Integer): Integer
-// Missing semicolon
 begin
 	if x > 0 then
-		Result := x
+		Result := x  // Missing semicolon before else
 	else
 		Result := -x
-	// Missing semicolon
 end
 
 var a, b: Integer  // Missing semicolon
@@ -756,7 +754,7 @@ begin
 		[6, 7, 8, 9, 10],
 		[11, 12, 13, 14, 15],
 		[16, 17, 18, 19, 20],
-		[25, 26, 27, 28, 29, 30]
+		[21, 22, 23, 24, 25]
 	];
 
 	sum := 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 +

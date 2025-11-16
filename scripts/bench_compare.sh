@@ -95,6 +95,9 @@ simple_compare() {
 
     # Simple percentage calculation for major benchmarks
     echo -e "${BLUE}Performance Changes:${NC}"
+    # Parse benchmark output format: "BenchmarkName-N    iterations    time ns/op"
+    # Example: "BenchmarkParser-8    1000000    1234 ns/op"
+    # The regex captures: (1) benchmark name including CPU count, (2) time in ns
     while IFS= read -r line; do
         if [[ $line =~ ^(Benchmark[^[:space:]]+)[[:space:]]+[0-9]+[[:space:]]+([0-9]+)[[:space:]]ns/op ]]; then
             bench_name="${BASH_REMATCH[1]}"
@@ -108,10 +111,10 @@ simple_compare() {
                 change=$(awk "BEGIN {printf \"%.2f\", (($current_time - $baseline_time) / $baseline_time) * 100}")
 
                 # Color code the output
-                if (( $(echo "$change > 10" | bc -l) )); then
+                if awk "BEGIN {exit !($change > 10)}"; then
                     color="${RED}"
                     symbol="▲"
-                elif (( $(echo "$change < -10" | bc -l) )); then
+                elif awk "BEGIN {exit !($change < -10)}"; then
                     color="${GREEN}"
                     symbol="▼"
                 else

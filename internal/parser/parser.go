@@ -757,7 +757,7 @@ func (p *Parser) popBlockContext() {
 
 // currentBlockContext returns the current block context, if any.
 // Returns nil if no block is currently being parsed.
-// Adapter method: delegates to context for consistency.
+// Delegates to ParseContext for current block information.
 func (p *Parser) currentBlockContext() *BlockContext {
 	// Delegate to new context (Task 2.1.2)
 	return p.ctx.CurrentBlock()
