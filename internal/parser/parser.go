@@ -349,6 +349,11 @@ type Parser struct {
 	enableSemanticAnalysis bool
 	parsingPostCondition   bool           // True when parsing postconditions (for 'old' keyword)
 	blockStack             []BlockContext // Stack of nested block contexts for error messages
+
+	// ctx is the new structured parsing context (Task 2.1.2)
+	// Consolidates scattered context flags and block stack into a single type.
+	// Old fields above are kept for backward compatibility and are synchronized with ctx.
+	ctx *ParseContext
 }
 
 // ParserState represents a snapshot of the parser's state at a specific point.
@@ -362,6 +367,7 @@ type ParserState struct {
 	peekToken            lexer.Token
 	parsingPostCondition bool
 	blockStack           []BlockContext
+	ctx                  *ParseContext // New structured context (Task 2.1.2)
 }
 
 // New creates a new Parser instance.
@@ -374,6 +380,7 @@ func New(l *lexer.Lexer) *Parser {
 		enableSemanticAnalysis: false,
 		semanticErrors:         []string{},
 		blockStack:             []BlockContext{},
+		ctx:                    NewParseContext(), // Initialize structured context (Task 2.1.2)
 	}
 
 	// Register prefix parse functions
@@ -661,6 +668,7 @@ func (p *Parser) saveState() ParserState {
 		parsingPostCondition: p.parsingPostCondition,
 		semanticErrors:       semanticErrorsCopy,
 		blockStack:           blockStackCopy,
+		ctx:                  p.ctx.Snapshot(), // Save context snapshot (Task 2.1.2)
 	}
 }
 
@@ -675,11 +683,19 @@ func (p *Parser) restoreState(state ParserState) {
 	p.semanticErrors = state.semanticErrors
 	p.blockStack = state.blockStack
 	p.l.RestoreState(state.lexerState)
+	// Restore context (Task 2.1.2)
+	// This also restores parsingPostCondition in the context
+	p.ctx.Restore(state.ctx)
 }
 
 // pushBlockContext pushes a new block context onto the stack.
 // This is used to track nested blocks for better error messages.
+// Adapter method: delegates to context and synchronizes old field for backward compatibility.
 func (p *Parser) pushBlockContext(blockType string, startPos lexer.Position) {
+	// Update new context (Task 2.1.2)
+	p.ctx.PushBlock(blockType, startPos)
+
+	// Synchronize old field for backward compatibility
 	p.blockStack = append(p.blockStack, BlockContext{
 		BlockType: blockType,
 		StartPos:  startPos,
@@ -689,7 +705,12 @@ func (p *Parser) pushBlockContext(blockType string, startPos lexer.Position) {
 
 // popBlockContext pops the most recent block context from the stack.
 // Call this when exiting a block to maintain proper nesting.
+// Adapter method: delegates to context and synchronizes old field for backward compatibility.
 func (p *Parser) popBlockContext() {
+	// Update new context (Task 2.1.2)
+	p.ctx.PopBlock()
+
+	// Synchronize old field for backward compatibility
 	if len(p.blockStack) > 0 {
 		p.blockStack = p.blockStack[:len(p.blockStack)-1]
 	}
@@ -697,11 +718,10 @@ func (p *Parser) popBlockContext() {
 
 // currentBlockContext returns the current block context, if any.
 // Returns nil if no block is currently being parsed.
+// Adapter method: delegates to context for consistency.
 func (p *Parser) currentBlockContext() *BlockContext {
-	if len(p.blockStack) == 0 {
-		return nil
-	}
-	return &p.blockStack[len(p.blockStack)-1]
+	// Delegate to new context (Task 2.1.2)
+	return p.ctx.CurrentBlock()
 }
 
 // Synchronization token sets for error recovery.

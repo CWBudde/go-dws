@@ -101,13 +101,13 @@ type Parser struct {
 ```
 
 **Implementation**:
-- [ ] Create `internal/parser/context.go` with `ParseContext` type
-- [ ] Design `ContextFlags` struct for structured flag management
-- [ ] Add `p.context` field to Parser
-- [ ] Implement stack operations (PushBlock, PopBlock, CurrentBlock)
-- [ ] Create adapter methods for backward compatibility
-- [ ] Migrate one parsing function to use new context
-- [ ] Add tests for context stack operations
+- [x] Create `internal/parser/context.go` with `ParseContext` type
+- [x] Design `ContextFlags` struct for structured flag management
+- [x] Add `p.context` field to Parser
+- [x] Implement stack operations (PushBlock, PopBlock, CurrentBlock)
+- [x] Create adapter methods for backward compatibility
+- [x] Migrate one parsing function to use new context
+- [x] Add tests for context stack operations
 
 **Files Created**:
 - `internal/parser/context.go` (~150 lines)
