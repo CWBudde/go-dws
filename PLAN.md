@@ -843,38 +843,52 @@ end;
 - `internal/types/compound_types.go` (RecordType with Constants, ClassVars fields)
 - `internal/types/compound_types.go` (added ConstantInfo struct, updated NewRecordType)
 
-### 9.12.4 Runtime Record Field Initialization
+### 9.12.4 Runtime Record Field Initialization ✅ DONE
 
 **Goal**: Execute field initializers when creating record values.
 
 **Estimate**: 3-4 hours
 
+**Status**: COMPLETED
+
 **Implementation**:
-1. On record variable declaration, initialize fields with default values
-2. Evaluate field initializer expressions
-3. Handle nested record initialization
-4. Record constants stored as global values
-5. Record class variables in global storage
+1. ✅ On record variable declaration, initialize fields with default values
+2. ✅ Evaluate field initializer expressions
+3. ✅ Handle nested record initialization
+4. ✅ Record constants stored as global values
+5. ✅ Record class variables in global storage
+6. ✅ Fixed semantic analysis for record method bodies - proper scope management
+7. ✅ Bind Self, fields, constants, and class variables in method scope
 
-**Files to Modify**:
-- `internal/interp/records.go` (record initialization)
-- `internal/interp/values.go` (record value creation)
+**Files Modified**:
+- `internal/interp/record.go` (record initialization with constants/class vars)
+- `internal/interp/functions_records.go` (bind constants/class vars in methods)
+- `internal/interp/objects_hierarchy.go` (constant/class var access)
+- `internal/semantic/analyze_records.go` (fixed scope management for inline methods)
+- `internal/semantic/analyze_classes_decl.go` (analyzeRecordMethodBody implementation)
+- `internal/semantic/analyze_literals.go` (skip fields with initializers)
+- `internal/types/compound_types.go` (added FieldsWithInit map)
 
-### 9.12.5 Enhanced Record Methods
+### 9.12.5 Enhanced Record Methods ✅ DONE
 
 **Goal**: Fix record method semantics (self reference, result handling).
 
 **Estimate**: 2-3 hours
 
-**Implementation**:
-1. Record methods receive copy of record as Self
-2. Modifications to Self don't affect original (value semantics)
-3. Result variable in record functions
-4. Nested record field access in methods
+**Status**: COMPLETED
 
-**Files to Modify**:
-- `internal/interp/records.go` (record method calls)
-- `internal/semantic/analyze_records.go` (record method analysis)
+**Implementation**:
+1. ✅ Record methods receive copy of record as Self
+2. ✅ Modifications to Self don't affect original (value semantics)
+3. ✅ Result variable in record functions
+4. ✅ Nested record field access in methods
+5. ✅ Separate method implementations (non-inline) now work correctly
+6. ✅ Fields accessible in method bodies without Self prefix
+
+**Files Modified**:
+- `internal/semantic/analyze_classes_decl.go` (analyzeRecordMethodBody with field binding)
+
+**Note**: Most of the enhanced method semantics were already implemented. This task completed the missing piece - proper semantic analysis and scope binding for method bodies.
 
 ### 9.12.6 Record Properties
 
