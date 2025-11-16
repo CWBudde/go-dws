@@ -52,8 +52,8 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	savedEnv := i.env
 	i.env = funcEnv
 
-	// Check recursion depth before pushing to call stack
-	if len(i.callStack) >= i.maxRecursionDepth {
+	// Phase 3.3.3: Check recursion depth using CallStack abstraction
+	if i.ctx.GetCallStack().WillOverflow() {
 		i.env = savedEnv // Restore environment before raising exception
 		return i.raiseMaxRecursionExceeded()
 	}
@@ -180,8 +180,8 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	}
 
 	// If exit was called, clear the signal (don't propagate to caller)
-	if i.exitSignal {
-		i.exitSignal = false
+	if i.ctx.ControlFlow().IsExit() {
+		i.ctx.ControlFlow().Clear()
 		// Exit was called, function returns immediately with current Result value
 	}
 

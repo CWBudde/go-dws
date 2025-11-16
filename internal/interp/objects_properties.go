@@ -11,26 +11,26 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 	// Initialize property evaluation context if needed
 	if i.propContext == nil {
 		i.propContext = &PropertyEvalContext{
-			propertyChain: make([]string, 0),
+			PropertyChain: make([]string, 0),
 		}
 	}
 
 	// Check for circular property references
-	for _, prop := range i.propContext.propertyChain {
+	for _, prop := range i.propContext.PropertyChain {
 		if prop == propInfo.Name {
 			return i.newErrorWithLocation(node, "circular property reference detected: %s", propInfo.Name)
 		}
 	}
 
 	// Push property onto chain
-	i.propContext.propertyChain = append(i.propContext.propertyChain, propInfo.Name)
+	i.propContext.PropertyChain = append(i.propContext.PropertyChain, propInfo.Name)
 	defer func() {
 		// Pop property from chain when done
-		if len(i.propContext.propertyChain) > 0 {
-			i.propContext.propertyChain = i.propContext.propertyChain[:len(i.propContext.propertyChain)-1]
+		if len(i.propContext.PropertyChain) > 0 {
+			i.propContext.PropertyChain = i.propContext.PropertyChain[:len(i.propContext.PropertyChain)-1]
 		}
 		// Clear context if chain is empty
-		if len(i.propContext.propertyChain) == 0 {
+		if len(i.propContext.PropertyChain) == 0 {
 			i.propContext = nil
 		}
 	}()
@@ -91,10 +91,10 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// Set flag to indicate we're inside a property getter
-		savedInGetter := i.propContext.inPropertyGetter
-		i.propContext.inPropertyGetter = true
+		savedInGetter := i.propContext.InPropertyGetter
+		i.propContext.InPropertyGetter = true
 		defer func() {
-			i.propContext.inPropertyGetter = savedInGetter
+			i.propContext.InPropertyGetter = savedInGetter
 		}()
 
 		// Execute method body
@@ -163,10 +163,10 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// Task 9.32c: Set flag to indicate we're inside a property getter
-		savedInGetter := i.propContext.inPropertyGetter
-		i.propContext.inPropertyGetter = true
+		savedInGetter := i.propContext.InPropertyGetter
+		i.propContext.InPropertyGetter = true
 		defer func() {
-			i.propContext.inPropertyGetter = savedInGetter
+			i.propContext.InPropertyGetter = savedInGetter
 		}()
 
 		// Execute method body
@@ -653,26 +653,26 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 	// Task 9.32c: Initialize property evaluation context if needed
 	if i.propContext == nil {
 		i.propContext = &PropertyEvalContext{
-			propertyChain: make([]string, 0),
+			PropertyChain: make([]string, 0),
 		}
 	}
 
 	// Task 9.32c: Check for circular property references
-	for _, prop := range i.propContext.propertyChain {
+	for _, prop := range i.propContext.PropertyChain {
 		if prop == propInfo.Name {
 			return i.newErrorWithLocation(node, "circular property reference detected: %s", propInfo.Name)
 		}
 	}
 
 	// Task 9.32c: Push property onto chain
-	i.propContext.propertyChain = append(i.propContext.propertyChain, propInfo.Name)
+	i.propContext.PropertyChain = append(i.propContext.PropertyChain, propInfo.Name)
 	defer func() {
 		// Pop property from chain when done
-		if len(i.propContext.propertyChain) > 0 {
-			i.propContext.propertyChain = i.propContext.propertyChain[:len(i.propContext.propertyChain)-1]
+		if len(i.propContext.PropertyChain) > 0 {
+			i.propContext.PropertyChain = i.propContext.PropertyChain[:len(i.propContext.PropertyChain)-1]
 		}
 		// Clear context if chain is empty
-		if len(i.propContext.propertyChain) == 0 {
+		if len(i.propContext.PropertyChain) == 0 {
 			i.propContext = nil
 		}
 	}()
@@ -707,10 +707,10 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		}
 
 		// Task 9.32c: Set flag to indicate we're inside a property setter
-		savedInSetter := i.propContext.inPropertySetter
-		i.propContext.inPropertySetter = true
+		savedInSetter := i.propContext.InPropertySetter
+		i.propContext.InPropertySetter = true
 		defer func() {
-			i.propContext.inPropertySetter = savedInSetter
+			i.propContext.InPropertySetter = savedInSetter
 		}()
 
 		// Execute method body
@@ -743,10 +743,10 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		}
 
 		// Task 9.32c: Set flag to indicate we're inside a property setter
-		savedInSetter := i.propContext.inPropertySetter
-		i.propContext.inPropertySetter = true
+		savedInSetter := i.propContext.InPropertySetter
+		i.propContext.InPropertySetter = true
 		defer func() {
-			i.propContext.inPropertySetter = savedInSetter
+			i.propContext.InPropertySetter = savedInSetter
 		}()
 
 		// Execute method body

@@ -66,7 +66,7 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			// If we're inside a property getter/setter, skip property checks
 			// to prevent infinite recursion (e.g., property Line read GetLine, where GetLine
 			// references other properties). But we still allow field access above.
-			if i.propContext != nil && (i.propContext.inPropertyGetter || i.propContext.inPropertySetter) {
+			if i.propContext != nil && (i.propContext.InPropertyGetter || i.propContext.InPropertySetter) {
 				// Don't check properties - this prevents recursion
 				// Fall through to error below
 			} else {

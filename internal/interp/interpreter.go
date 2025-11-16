@@ -8,6 +8,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
@@ -21,48 +22,57 @@ import (
 const DefaultMaxRecursionDepth = 1024
 
 // PropertyEvalContext tracks the state during property getter/setter evaluation.
-type PropertyEvalContext struct {
-	propertyChain    []string
-	inPropertyGetter bool
-	inPropertySetter bool
-}
+// Deprecated: Use evaluator.PropertyEvalContext instead. This is kept for backward compatibility.
+type PropertyEvalContext = evaluator.PropertyEvalContext
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 type Interpreter struct {
-	currentNode          ast.Node
-	output               io.Writer
-	unitRegistry         *units.UnitRegistry
-	propContext          *PropertyEvalContext
+	// Phase 3.3.1: Execution context (gradually replacing individual state fields)
+	ctx *evaluator.ExecutionContext
+
+	// Execution state (Phase 3.3: will be moved to ExecutionContext)
+	currentNode      ast.Node
+	env              *Environment       // Phase 3.3: migrating to ctx.Env()
+	exception        *ExceptionValue    // Phase 3.3: migrating to ctx.Exception()
+	handlerException *ExceptionValue    // Phase 3.3: migrating to ctx.HandlerException()
+	callStack        errors.StackTrace  // Phase 3.3: migrating to ctx.CallStack()
+	oldValuesStack   []map[string]Value // Phase 3.3: migrating to ctx.PushOldValues/PopOldValues
+	propContext      *PropertyEvalContext
+	// Phase 3.3.2: Control flow now managed by ctx.ControlFlow() instead of boolean flags
+
+	// Type System (Phase 3.4: will be moved to TypeRegistry)
+	classes              map[string]*ClassInfo
 	records              map[string]*RecordTypeValue
 	interfaces           map[string]*InterfaceInfo
 	functions            map[string][]*ast.FunctionDecl
 	globalOperators      *runtimeOperatorRegistry
 	conversions          *runtimeConversionRegistry
-	env                  *Environment
-	handlerException     *ExceptionValue
-	semanticInfo         *pkgast.SemanticInfo
-	exception            *ExceptionValue
-	rand                 *rand.Rand
-	enumTypeIDRegistry   map[string]int
-	initializedUnits     map[string]bool
-	classes              map[string]*ClassInfo
-	recordTypeIDRegistry map[string]int
-	externalFunctions    *ExternalFunctionRegistry
 	helpers              map[string][]*HelperInfo
-	classTypeIDRegistry  map[string]int
-	sourceCode           string
-	sourceFile           string
-	loadedUnits          []string
-	oldValuesStack       []map[string]Value
-	callStack            errors.StackTrace
-	maxRecursionDepth    int
-	randSeed             int64
-	nextClassTypeID      int
-	nextRecordTypeID     int
-	nextEnumTypeID       int
-	breakSignal          bool
-	continueSignal       bool
-	exitSignal           bool
+	classTypeIDRegistry  map[string]int // Type ID registry for classes
+	recordTypeIDRegistry map[string]int // Type ID registry for records
+	enumTypeIDRegistry   map[string]int // Type ID registry for enums
+	nextClassTypeID      int            // Next available class type ID
+	nextRecordTypeID     int            // Next available record type ID
+	nextEnumTypeID       int            // Next available enum type ID
+
+	// Runtime Services (Phase 3.4: will be moved to RuntimeServices)
+	output            io.Writer
+	rand              *rand.Rand
+	randSeed          int64
+	externalFunctions *ExternalFunctionRegistry
+
+	// Configuration
+	maxRecursionDepth int
+	sourceCode        string
+	sourceFile        string
+
+	// Unit System
+	initializedUnits map[string]bool
+	unitRegistry     *units.UnitRegistry
+	loadedUnits      []string
+
+	// Semantic Analysis
+	semanticInfo *pkgast.SemanticInfo // Task 9.18: Type metadata from semantic analysis
 }
 
 // New creates a new Interpreter with a fresh global environment.
@@ -137,6 +147,15 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 		interp.externalFunctions = NewExternalFunctionRegistry()
 	}
 
+	// Phase 3.3.1/3.3.3: Initialize execution context with call stack overflow detection
+	// The context wraps the environment with a simple adapter to avoid circular dependencies.
+	// The Environment is passed as interface{} to ExecutionContext to avoid import cycles.
+	// Phase 3.3.3: Pass maxRecursionDepth to configure CallStack overflow detection.
+	interp.ctx = evaluator.NewExecutionContextWithMaxDepth(
+		evaluator.NewEnvironmentAdapter(env),
+		interp.maxRecursionDepth,
+	)
+
 	// Register built-in exception classes
 	interp.registerBuiltinExceptions()
 
@@ -196,21 +215,30 @@ func (i *Interpreter) GetCallStack() errors.StackTrace {
 
 // pushCallStack adds a new frame to the call stack with the given function name.
 // The position is taken from the current node being evaluated.
+// Phase 3.3.3: Delegates to ExecutionContext's CallStack.
 func (i *Interpreter) pushCallStack(functionName string) {
 	var pos *lexer.Position
 	if i.currentNode != nil {
 		nodePos := i.currentNode.Pos()
 		pos = &nodePos
 	}
-	frame := errors.NewStackFrame(functionName, "", pos)
+	// Also push to the old callStack field for backward compatibility
+	frame := errors.NewStackFrame(functionName, i.sourceFile, pos)
 	i.callStack = append(i.callStack, frame)
+
+	// Phase 3.3.3: Also push to context's CallStack
+	// Ignore errors here for backward compatibility; callers should check WillOverflow first
+	_ = i.ctx.GetCallStack().Push(functionName, i.sourceFile, pos)
 }
 
 // popCallStack removes the most recent frame from the call stack.
+// Phase 3.3.3: Delegates to ExecutionContext's CallStack.
 func (i *Interpreter) popCallStack() {
 	if len(i.callStack) > 0 {
 		i.callStack = i.callStack[:len(i.callStack)-1]
 	}
+	// Phase 3.3.3: Also pop from context's CallStack
+	i.ctx.GetCallStack().Pop()
 }
 
 // Eval evaluates an AST node and returns its value.
