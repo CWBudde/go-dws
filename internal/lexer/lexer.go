@@ -8,12 +8,13 @@ import (
 
 // Lexer represents a lexical scanner for DWScript source code.
 type Lexer struct {
-	input        string // The source code being tokenized
-	position     int    // Current position in input (points to current char)
-	readPosition int    // Current reading position in input (after current char)
-	ch           rune   // Current character under examination (0 if EOF)
-	line         int    // Current line number (1-indexed)
-	column       int    // Current column number (1-indexed)
+	input        string        // The source code being tokenized
+	position     int           // Current position in input (points to current char)
+	readPosition int           // Current reading position in input (after current char)
+	ch           rune          // Current character under examination (0 if EOF)
+	line         int           // Current line number (1-indexed)
+	column       int           // Current column number (1-indexed)
+	errors       []LexerError  // Accumulated lexer errors
 }
 
 // New creates a new Lexer for the given input string.
@@ -95,6 +96,21 @@ func (l *Lexer) Input() string {
 	return l.input
 }
 
+// Errors returns all accumulated lexer errors.
+// This allows the parser to check for lexical errors after tokenization.
+func (l *Lexer) Errors() []LexerError {
+	return l.errors
+}
+
+// addError adds a new error to the lexer's error list.
+// This follows the parser's pattern of accumulating errors instead of stopping at the first error.
+func (l *Lexer) addError(msg string, pos Position) {
+	l.errors = append(l.errors, LexerError{
+		Message: msg,
+		Pos:     pos,
+	})
+}
+
 // skipWhitespace skips over whitespace characters (space, tab, newline, carriage return).
 func (l *Lexer) skipWhitespace() {
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
@@ -116,14 +132,16 @@ func (l *Lexer) skipLineComment() {
 
 // skipBlockComment skips a block comment enclosed in { } or (* *).
 // style: '{' for {} comments, '(' for (* *) comments
-// Returns true if comment was properly terminated, false otherwise
-func (l *Lexer) skipBlockComment(style rune) bool {
+// Adds an error if the comment is not properly terminated.
+func (l *Lexer) skipBlockComment(style rune) {
+	startPos := l.currentPos()
+
 	if style == '{' {
 		l.readChar() // skip {
 		for l.ch != 0 {
 			if l.ch == '}' {
 				l.readChar() // skip }
-				return true
+				return
 			}
 			if l.ch == '\n' {
 				l.line++
@@ -132,7 +150,8 @@ func (l *Lexer) skipBlockComment(style rune) bool {
 			l.readChar()
 		}
 		// Unterminated comment
-		return false
+		l.addError("unterminated block comment", startPos)
+		return
 	}
 
 	// style == '(' for (* *)
@@ -143,7 +162,7 @@ func (l *Lexer) skipBlockComment(style rune) bool {
 		if l.ch == '*' && l.peekChar() == ')' {
 			l.readChar() // skip *
 			l.readChar() // skip )
-			return true
+			return
 		}
 		if l.ch == '\n' {
 			l.line++
@@ -153,12 +172,14 @@ func (l *Lexer) skipBlockComment(style rune) bool {
 	}
 
 	// Unterminated comment
-	return false
+	l.addError("unterminated block comment", startPos)
 }
 
 // skipCStyleComment skips a C-style multi-line comment /* */.
-// Returns true if comment was properly terminated, false otherwise
-func (l *Lexer) skipCStyleComment() bool {
+// Adds an error if the comment is not properly terminated.
+func (l *Lexer) skipCStyleComment() {
+	startPos := l.currentPos()
+
 	l.readChar() // skip /
 	l.readChar() // skip *
 
@@ -166,7 +187,7 @@ func (l *Lexer) skipCStyleComment() bool {
 		if l.ch == '*' && l.peekChar() == '/' {
 			l.readChar() // skip *
 			l.readChar() // skip /
-			return true
+			return
 		}
 		if l.ch == '\n' {
 			l.line++
@@ -176,7 +197,7 @@ func (l *Lexer) skipCStyleComment() bool {
 	}
 
 	// Unterminated comment
-	return false
+	l.addError("unterminated C-style comment", startPos)
 }
 
 // readIdentifier reads an identifier or keyword from the input.
@@ -273,8 +294,11 @@ func (l *Lexer) readNumber() (TokenType, string) {
 
 // readString reads a string literal enclosed in single or double quotes.
 // DWScript uses single quotes by default, with " as escape for a single quote.
-func (l *Lexer) readString(quote rune) (string, error) {
+// If the string is unterminated, adds an error and returns the partial string.
+func (l *Lexer) readString(quote rune) string {
 	startPos := l.position
+	startLine := l.line
+	startColumn := l.column
 	l.readChar() // skip opening quote
 
 	var builder strings.Builder
@@ -290,7 +314,7 @@ func (l *Lexer) readString(quote rune) (string, error) {
 			}
 			// End of string
 			l.readChar() // skip closing quote
-			return builder.String(), nil
+			return builder.String()
 		}
 
 		if l.ch == '\n' {
@@ -302,11 +326,13 @@ func (l *Lexer) readString(quote rune) (string, error) {
 		l.readChar()
 	}
 
-	// Unterminated string
-	return l.input[startPos:l.position], &LexerError{
-		Message: "unterminated string literal",
-		Pos:     Position{Line: l.line, Column: l.column, Offset: startPos},
-	}
+	// Unterminated string - add error and return partial string
+	l.addError("unterminated string literal", Position{
+		Line:   startLine,
+		Column: startColumn,
+		Offset: startPos,
+	})
+	return builder.String()
 }
 
 // readCharLiteral reads a character literal starting with #.
@@ -399,9 +425,9 @@ func charLiteralToRune(literal string) (rune, bool) {
 // and concatenates them into a single string value.
 // This handles DWScript's implicit concatenation: 'hello'#13#10'world' → "hello\r\nworld"
 // Note: Only truly adjacent literals (no whitespace) are concatenated.
-func (l *Lexer) readStringOrCharSequence() (string, error) {
+// Errors are accumulated in the lexer's error list rather than returned.
+func (l *Lexer) readStringOrCharSequence() string {
 	var builder strings.Builder
-	var lastError error
 
 	for {
 		// Save position for potential error reporting
@@ -411,11 +437,7 @@ func (l *Lexer) readStringOrCharSequence() (string, error) {
 		case '\'', '"':
 			// Read string literal
 			quote := l.ch
-			literal, err := l.readString(quote)
-			if err != nil {
-				lastError = err
-				return builder.String(), err
-			}
+			literal := l.readString(quote)
 			builder.WriteString(literal)
 
 		case '#':
@@ -423,24 +445,22 @@ func (l *Lexer) readStringOrCharSequence() (string, error) {
 			literal := l.readCharLiteral()
 			r, ok := charLiteralToRune(literal)
 			if !ok {
-				lastError = &LexerError{
-					Message: "invalid character literal: " + literal,
-					Pos:     pos,
-				}
-				return builder.String(), lastError
+				l.addError("invalid character literal: "+literal, pos)
+				// Continue processing to consume the invalid literal
+			} else {
+				builder.WriteRune(r)
 			}
-			builder.WriteRune(r)
 
 		default:
 			// No more string/char literals to concatenate
-			return builder.String(), lastError
+			return builder.String()
 		}
 
 		// Check if next token is immediately adjacent (no whitespace allowed)
 		// Only concatenate truly adjacent string/char literals
 		if l.ch != '\'' && l.ch != '"' && l.ch != '#' {
 			// No more adjacent literals
-			return builder.String(), lastError
+			return builder.String()
 		}
 	}
 }
@@ -464,10 +484,7 @@ func (l *Lexer) NextToken() Token {
 		}
 		if l.peekChar() == '*' {
 			// C-style multi-line comment /* */
-			if !l.skipCStyleComment() {
-				tok = NewToken(ILLEGAL, "unterminated C-style comment", pos)
-				return tok
-			}
+			l.skipCStyleComment()
 			return l.NextToken()
 		}
 		if l.peekChar() == '=' {
@@ -481,19 +498,13 @@ func (l *Lexer) NextToken() Token {
 
 	case '{':
 		// Block comment or compiler directive - both skip to }
-		if !l.skipBlockComment('{') {
-			tok = NewToken(ILLEGAL, "unterminated block comment", pos)
-			return tok
-		}
+		l.skipBlockComment('{')
 		return l.NextToken()
 
 	case '(':
 		if l.peekChar() == '*' {
 			// Block comment (* *)
-			if !l.skipBlockComment('(') {
-				tok = NewToken(ILLEGAL, "unterminated block comment", pos)
-				return tok
-			}
+			l.skipBlockComment('(')
 			return l.NextToken()
 		}
 		tok = NewToken(LPAREN, "(", pos)
@@ -749,23 +760,15 @@ func (l *Lexer) NextToken() Token {
 			tok = NewToken(CHAR, literal, pos)
 		} else {
 			// Part of string concatenation: 'hello'#13#10 → "hello\r\n"
-			literal, err := l.readStringOrCharSequence()
-			if err != nil {
-				tok = NewToken(ILLEGAL, literal, pos)
-			} else {
-				tok = NewToken(STRING, literal, pos)
-			}
+			literal := l.readStringOrCharSequence()
+			tok = NewToken(STRING, literal, pos)
 		}
 
 	case '\'', '"':
 		// String or character literal (with automatic concatenation)
 		// DWScript concatenates adjacent string/char literals: 'hello'#13#10 → "hello\r\n"
-		literal, err := l.readStringOrCharSequence()
-		if err != nil {
-			tok = NewToken(ILLEGAL, literal, pos)
-		} else {
-			tok = NewToken(STRING, literal, pos)
-		}
+		literal := l.readStringOrCharSequence()
+		tok = NewToken(STRING, literal, pos)
 
 	default:
 		if isLetter(l.ch) {
@@ -780,7 +783,8 @@ func (l *Lexer) NextToken() Token {
 			tok = NewToken(tokenType, literal, pos)
 			return tok
 		} else {
-			// Illegal character
+			// Illegal character - add error and emit ILLEGAL token
+			l.addError("illegal character: "+string(l.ch), pos)
 			tok = NewToken(ILLEGAL, string(l.ch), pos)
 			l.readChar()
 		}

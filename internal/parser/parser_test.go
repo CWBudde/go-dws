@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/ast"
+	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
 func TestParserErrors(t *testing.T) {
@@ -153,3 +154,48 @@ func TestNilLiteral(t *testing.T) {
 }
 
 // TestFunctionDeclarations tests parsing of function declarations.
+
+// TestParserLexerErrors tests that parser can access lexer errors (Task 12.1.4)
+func TestParserLexerErrors(t *testing.T) {
+	tests := []struct {
+		name               string
+		input              string
+		expectedLexerErrs  int
+		expectedParserErrs int
+	}{
+		{
+			name:               "Unterminated string",
+			input:              `var x := 'hello`,
+			expectedLexerErrs:  1,
+			expectedParserErrs: 0, // Parser may or may not add errors
+		},
+		{
+			name:               "Unterminated comment",
+			input:              `var x := 5; { comment`,
+			expectedLexerErrs:  1,
+			expectedParserErrs: 0,
+		},
+		{
+			name:               "Valid input",
+			input:              `var x := 5;`,
+			expectedLexerErrs:  0,
+			expectedParserErrs: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			p.ParseProgram()
+
+			lexerErrs := p.LexerErrors()
+			if len(lexerErrs) != tt.expectedLexerErrs {
+				t.Errorf("expected %d lexer errors, got %d", tt.expectedLexerErrs, len(lexerErrs))
+				for i, err := range lexerErrs {
+					t.Logf("  lexer error[%d]: %s", i, err.Message)
+				}
+			}
+		})
+	}
+}

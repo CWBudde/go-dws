@@ -3238,7 +3238,7 @@ if !p.curTokenIs(lexer.END) {
 
 **Goal**: Refactor the lexer for better maintainability, consistency, and extensibility while preserving all existing functionality.
 
-**Status**: Not started | **Tasks**: 0/20 complete
+**Status**: In progress | **Tasks**: 4/20 complete
 
 **Motivation**: The lexer works well but has technical debt in error handling, state management, and code organization. These improvements will make the codebase easier to maintain and extend.
 
@@ -3250,35 +3250,39 @@ if !p.curTokenIs(lexer.END) {
 
 **Goal**: Make error handling consistent across all lexer operations, following the parser's pattern of accumulating errors.
 
-- [ ] 12.1.1 Add error accumulation to Lexer struct
+- [x] 12.1.1 Add error accumulation to Lexer struct
   - Add `errors []LexerError` field to Lexer
   - Add `Errors() []LexerError` getter method
   - Add `addError(msg string, pos Position)` helper method
   - File: `internal/lexer/lexer.go` (~20 lines)
   - Estimated: 30 minutes
   - Test: Verify errors are accumulated, not lost
+  - **DONE**: Added error accumulation infrastructure to Lexer
 
-- [ ] 12.1.2 Refactor readString to use error accumulation
+- [x] 12.1.2 Refactor readString to use error accumulation
   - Change `readString(quote rune) (string, error)` → `readString(quote rune) string`
   - Call `l.addError()` instead of returning error
   - Remove error handling from callers
   - File: `internal/lexer/lexer.go` (~30 lines modified)
   - Estimated: 45 minutes
   - Test: Unterminated strings still reported correctly
+  - **DONE**: Refactored readString and readStringOrCharSequence to use error accumulation
 
-- [ ] 12.1.3 Refactor comment skipping to use error accumulation
+- [x] 12.1.3 Refactor comment skipping to use error accumulation
   - `skipBlockComment()` and `skipCStyleComment()` call `addError()` instead of returning bool
   - Update callers to check lexer errors instead of return values
   - File: `internal/lexer/lexer.go` (~40 lines modified)
   - Estimated: 45 minutes
   - Test: Unterminated comments reported correctly
+  - **DONE**: Refactored skipBlockComment and skipCStyleComment to use error accumulation
 
-- [ ] 12.1.4 Remove ILLEGAL token pattern in favor of accumulated errors
+- [x] 12.1.4 Remove ILLEGAL token pattern in favor of accumulated errors
   - Replace `NewToken(ILLEGAL, ...)` with proper token + `addError()`
   - Update parser to check both token stream AND lexer.Errors()
   - File: `internal/lexer/lexer.go`, `internal/parser/parser.go` (~60 lines)
   - Estimated: 1 hour
   - Test: Parser sees both tokens and errors correctly
+  - **DONE**: Added LexerErrors() method to parser, illegal characters now accumulate errors
 
 ---
 

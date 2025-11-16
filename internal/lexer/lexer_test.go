@@ -620,17 +620,17 @@ func TestEdgeCases(t *testing.T) {
 		{
 			name:         "unterminated string",
 			input:        "'hello",
-			expectedType: ILLEGAL,
+			expectedType: STRING, // Now returns STRING token with error accumulated
 		},
 		{
 			name:         "unterminated block comment",
 			input:        "{ comment",
-			expectedType: ILLEGAL,
+			expectedType: EOF, // Comments skip to EOF, error is accumulated
 		},
 		{
 			name:         "unterminated C-style comment",
 			input:        "/* comment",
-			expectedType: ILLEGAL,
+			expectedType: EOF, // Comments skip to EOF, error is accumulated
 		},
 	}
 
@@ -642,6 +642,15 @@ func TestEdgeCases(t *testing.T) {
 			if tok.Type != tt.expectedType {
 				t.Fatalf("tokentype wrong. expected=%q, got=%q (literal=%q)",
 					tt.expectedType, tok.Type, tok.Literal)
+			}
+
+			// For error cases, verify error was accumulated (Task 12.1)
+			if tt.name == "unterminated string" || tt.name == "unterminated block comment" ||
+				tt.name == "unterminated C-style comment" || tt.name == "illegal character" {
+				errors := l.Errors()
+				if len(errors) == 0 {
+					t.Errorf("expected error to be accumulated, but got none")
+				}
 			}
 		})
 	}
@@ -1706,6 +1715,213 @@ func TestNotInOperator(t *testing.T) {
 				if tok.Literal != expected.literal {
 					t.Fatalf("token[%d] literal wrong. expected=%q, got=%q",
 						i, expected.literal, tok.Literal)
+				}
+			}
+		})
+	}
+}
+
+// TestErrorAccumulation tests that lexer errors are properly accumulated
+// instead of stopping at the first error (Task 12.1)
+func TestErrorAccumulation(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedCount int
+		errorMessages []string
+	}{
+		{
+			name:          "Unterminated string - single quote",
+			input:         `'hello`,
+			expectedCount: 1,
+			errorMessages: []string{"unterminated string literal"},
+		},
+		{
+			name:          "Unterminated string - double quote",
+			input:         `"hello`,
+			expectedCount: 1,
+			errorMessages: []string{"unterminated string literal"},
+		},
+		{
+			name:          "Unterminated block comment - brace style",
+			input:         `{ this is a comment`,
+			expectedCount: 1,
+			errorMessages: []string{"unterminated block comment"},
+		},
+		{
+			name:          "Unterminated block comment - paren style",
+			input:         `(* this is a comment`,
+			expectedCount: 1,
+			errorMessages: []string{"unterminated block comment"},
+		},
+		{
+			name:          "Unterminated C-style comment",
+			input:         `/* this is a comment`,
+			expectedCount: 1,
+			errorMessages: []string{"unterminated C-style comment"},
+		},
+		{
+			name:          "Invalid character literal",
+			input:         `'hello'#XYZ'world'`,
+			expectedCount: 1,
+			errorMessages: []string{"invalid character literal"},
+		},
+		{
+			name:          "Illegal character",
+			input:         `¿`,
+			expectedCount: 1,
+			errorMessages: []string{"illegal character"},
+		},
+		{
+			name:          "Multiple errors - illegal characters",
+			input:         "x := 5; ¿ y := 10; ¡",
+			expectedCount: 2,
+			errorMessages: []string{"illegal character"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+
+			// Consume all tokens
+			for {
+				tok := l.NextToken()
+				if tok.Type == EOF {
+					break
+				}
+			}
+
+			errors := l.Errors()
+			if len(errors) != tt.expectedCount {
+				t.Errorf("expected %d errors, got %d", tt.expectedCount, len(errors))
+				for i, err := range errors {
+					t.Logf("  error[%d]: %s", i, err.Message)
+				}
+				return
+			}
+
+			// Check that expected error messages are present
+			for _, expectedMsg := range tt.errorMessages {
+				found := false
+				for _, err := range errors {
+					if len(err.Message) >= len(expectedMsg) && err.Message[:len(expectedMsg)] == expectedMsg {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected error message containing %q not found", expectedMsg)
+					for i, err := range errors {
+						t.Logf("  error[%d]: %s", i, err.Message)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestErrorAccumulationPositions tests that error positions are correct
+func TestErrorAccumulationPositions(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		expectedLine int
+		expectedCol  int
+	}{
+		{
+			name:         "Unterminated string at start",
+			input:        `'hello`,
+			expectedLine: 1,
+			expectedCol:  1,
+		},
+		{
+			name:         "Unterminated string on line 2",
+			input:        "x := 5;\n'hello",
+			expectedLine: 2,
+			expectedCol:  1,
+		},
+		{
+			name:         "Unterminated comment on line 3",
+			input:        "x := 5;\ny := 10;\n{ comment",
+			expectedLine: 3,
+			expectedCol:  1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+
+			// Consume all tokens
+			for {
+				tok := l.NextToken()
+				if tok.Type == EOF {
+					break
+				}
+			}
+
+			errors := l.Errors()
+			if len(errors) == 0 {
+				t.Fatal("expected at least one error")
+			}
+
+			err := errors[0]
+			if err.Pos.Line != tt.expectedLine {
+				t.Errorf("error line wrong. expected=%d, got=%d", tt.expectedLine, err.Pos.Line)
+			}
+			if err.Pos.Column != tt.expectedCol {
+				t.Errorf("error column wrong. expected=%d, got=%d", tt.expectedCol, err.Pos.Column)
+			}
+		})
+	}
+}
+
+// TestNoErrorsOnValidInput tests that no errors are accumulated for valid input
+func TestNoErrorsOnValidInput(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "Simple program",
+			input: `var x := 5; x := x + 10;`,
+		},
+		{
+			name:  "String literals",
+			input: `'hello' "world" 'it''s'`,
+		},
+		{
+			name:  "Block comments",
+			input: `{ comment } (* another *) /* c-style */`,
+		},
+		{
+			name:  "Character literals",
+			input: `#13 #10 #$0D #$0A`,
+		},
+		{
+			name:  "String concatenation",
+			input: `'hello'#13#10'world'`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+
+			// Consume all tokens
+			for {
+				tok := l.NextToken()
+				if tok.Type == EOF {
+					break
+				}
+			}
+
+			errors := l.Errors()
+			if len(errors) != 0 {
+				t.Errorf("expected no errors, got %d", len(errors))
+				for i, err := range errors {
+					t.Logf("  error[%d]: %s at %d:%d", i, err.Message, err.Pos.Line, err.Pos.Column)
 				}
 			}
 		})
