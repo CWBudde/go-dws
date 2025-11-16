@@ -102,7 +102,8 @@ func (r *ClassRegistry) Exists(name string) bool {
 // The result is ordered from most specific (the class itself) to least specific (root ancestor).
 //
 // Example: If Dog inherits from Animal, which inherits from Object:
-//   LookupHierarchy("Dog") returns [Dog, Animal, Object]
+//
+//	LookupHierarchy("Dog") returns [Dog, Animal, Object]
 //
 // Returns nil if the class is not found.
 func (r *ClassRegistry) LookupHierarchy(name string) []any {
@@ -143,8 +144,9 @@ func (r *ClassRegistry) GetParentName(name string) string {
 // Also returns true if descendantName equals ancestorName (a class is its own descendant).
 //
 // Example:
-//   IsDescendantOf("Dog", "Animal") returns true if Dog inherits from Animal
-//   IsDescendantOf("Dog", "Dog") returns true (class is its own descendant)
+//
+//	IsDescendantOf("Dog", "Animal") returns true if Dog inherits from Animal
+//	IsDescendantOf("Dog", "Dog") returns true (class is its own descendant)
 func (r *ClassRegistry) IsDescendantOf(descendantName, ancestorName string) bool {
 	// Normalize names for comparison
 	descendantKey := strings.ToLower(descendantName)
@@ -210,7 +212,8 @@ func (r *ClassRegistry) GetClassNames() []string {
 // The ancestor class itself is not included in the result.
 //
 // Example: If Cat and Dog inherit from Animal:
-//   FindDescendants("Animal") returns [Cat, Dog]
+//
+//	FindDescendants("Animal") returns [Cat, Dog]
 func (r *ClassRegistry) FindDescendants(ancestorName string) []any {
 	ancestorKey := strings.ToLower(ancestorName)
 	descendants := []any{}
@@ -236,9 +239,10 @@ func (r *ClassRegistry) FindDescendants(ancestorName string) []any {
 // Returns -1 if the class is not found.
 //
 // Example:
-//   GetDepth("Object") returns 0 (assuming Object is root)
-//   GetDepth("Animal") returns 1 (if Animal inherits from Object)
-//   GetDepth("Dog") returns 2 (if Dog inherits from Animal)
+//
+//	GetDepth("Object") returns 0 (assuming Object is root)
+//	GetDepth("Animal") returns 1 (if Animal inherits from Object)
+//	GetDepth("Dog") returns 2 (if Dog inherits from Animal)
 func (r *ClassRegistry) GetDepth(name string) int {
 	entry, ok := r.classes[strings.ToLower(name)]
 	if !ok {
