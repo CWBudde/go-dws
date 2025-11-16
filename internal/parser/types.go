@@ -77,28 +77,17 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 //   - true for full syntax: "x: Type" or "x, y: Type"
 //   - false for shorthand: "Type" or "Type1, Type2"
 //
-// Strategy: Create a temporary lexer from the current position and peek ahead.
-// Task 9.301: Simplified detection without state save/restore
+// Strategy: Use lexer.Peek() to look ahead without modifying state.
+// Task 12.3.4: Refactored to use Peek() instead of creating temporary lexer
 func (p *Parser) detectFunctionPointerFullSyntax() bool {
-	// We need to look at peekToken and tokens after it WITHOUT calling nextToken().
-	// Since we can't advance the parser, we'll create a temporary lexer starting
-	// from the current parser position and manually scan tokens.
-
-	// Get the lexer's current input starting from peekToken's position
-	// peekToken.Pos.Offset gives us where peekToken starts in the input
-	input := p.l.Input()
-	if p.peekToken.Pos.Offset < 0 || p.peekToken.Pos.Offset >= len(input) {
-		// Edge case: can't determine, assume shorthand
-		return false
-	}
-
-	// Create a temporary lexer starting from peekToken's position
-	tempLexer := lexer.New(input[p.peekToken.Pos.Offset:])
-
+	// Use Peek() to look ahead through tokens
+	// Peek(0) gives the token after peekToken
 	// Scan through tokens looking for COLON, SEMICOLON, or RPAREN
 	// If we find COLON before SEMICOLON/RPAREN, it's full syntax
+
+	peekIndex := 0
 	for {
-		tok := tempLexer.NextToken()
+		tok := p.l.Peek(peekIndex)
 
 		switch tok.Type {
 		case lexer.COLON:
@@ -109,10 +98,12 @@ func (p *Parser) detectFunctionPointerFullSyntax() bool {
 			return false
 		case lexer.IDENT, lexer.COMMA:
 			// Keep scanning
+			peekIndex++
 			continue
 		default:
 			// If we hit a type keyword or other token, likely shorthand
 			// But keep scanning to be safe
+			peekIndex++
 			continue
 		}
 	}

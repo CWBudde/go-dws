@@ -53,7 +53,7 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 // a type declaration (without the 'type' keyword).
 // Pattern: IDENT EQ (CLASS|INTERFACE|LPAREN|RECORD|SET|ARRAY|ENUM|FUNCTION|PROCEDURE|HELPER|...)
 //
-// This method uses a temporary lexer to look ahead without modifying parser state.
+// This method uses lexer.Peek() to look ahead without modifying parser state (Task 12.3.4).
 func (p *Parser) looksLikeTypeDeclaration() bool {
 	// After a type declaration, we're typically at a semicolon
 	// The next token should be an identifier (type name)
@@ -61,24 +61,11 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 		return false
 	}
 
-	// Create a temporary lexer starting from peekToken's position
-	// to look ahead without modifying parser state
-	input := p.l.Input()
-	if p.peekToken.Pos.Offset < 0 || p.peekToken.Pos.Offset >= len(input) {
-		return false
-	}
-
-	tempLexer := lexer.New(input[p.peekToken.Pos.Offset:])
-
-	// First token should be the identifier (type name)
-	tok1 := tempLexer.NextToken()
-	if tok1.Type != lexer.IDENT {
-		return false
-	}
-
-	// Second token should be '='
-	tok2 := tempLexer.NextToken()
-	return tok2.Type == lexer.EQ
+	// Look ahead past peekToken to see if the next token is '='
+	// Since parser is already 1 token ahead (peekToken = IDENT), Peek(0) gives us
+	// the token after peekToken, which should be '='
+	tok := p.l.Peek(0)
+	return tok.Type == lexer.EQ
 }
 
 // parseSingleTypeDeclaration parses a single type declaration.
