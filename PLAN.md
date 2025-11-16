@@ -814,6 +814,832 @@ just test
 
 ---
 
+## Task 9.4: Implement Variant Type Support
+
+**Goal**: Implement full Variant type support including Null/Unassigned values and variant operations.
+
+**Estimate**: 20-24 hours (2.5-3 days)
+
+**Status**: NOT STARTED
+
+**Impact**: Unlocks 17 failing tests in SimpleScripts
+
+**Priority**: P0 - CRITICAL (Core type system feature)
+
+**Description**: The Variant type is a fundamental DWScript type that can hold values of any type, including special values like Null and Unassigned. Currently, the type system has basic Variant support but lacks:
+- Null and Unassigned special values
+- Variant arithmetic and logical operators with proper type coercion
+- Variant comparison operators
+- Coalesce operator (`??`) for variant nullability
+- Type conversions between Variant and other types
+
+**Failing Tests** (17 total):
+- assert_variant
+- boolean_optimize
+- case_variant_condition
+- coalesce_variant
+- compare_vars
+- for_to_variant
+- var_eq_nil
+- var_nan
+- var_param_casts
+- variant_compound_ops
+- variant_logical_ops
+- variant_ops
+- variant_unassigned_equal
+- variants_as_casts
+- variants_binary_bool_int
+- variants_casts
+- variants_is_bool
+
+**Reference**: See `FIXTURE_FAILURES_ANALYSIS.md` - Priority P0, Section 1
+
+**Subtasks**:
+
+### 9.4.1 Add Null and Unassigned Values
+
+**Goal**: Add support for special Variant values: Null and Unassigned.
+
+**Estimate**: 3-4 hours
+
+**Implementation**:
+1. Add Null and Unassigned as built-in constants in symbol table
+2. Create special value types in interpreter runtime
+3. Update parser/lexer if needed for Null/Unassigned keywords
+4. Add type checking rules for Null and Unassigned
+
+**Files to Modify**:
+- `internal/interp/values.go` (add NullValue, UnassignedValue)
+- `internal/semantic/builtins.go` (register Null and Unassigned constants)
+- `internal/types/types.go` (update VariantType if needed)
+
+### 9.4.2 Implement Variant Arithmetic and Logical Operators
+
+**Goal**: Support arithmetic and logical operations on Variant types with proper type coercion.
+
+**Estimate**: 5-6 hours
+
+**Implementation**:
+1. Update semantic analyzer to allow Variant in arithmetic/logical expressions
+2. Implement runtime type coercion for Variant operands
+3. Handle Null/Unassigned in operations (propagate or error)
+4. Support Variant with Integer, Float, Boolean, String operands
+
+**Files to Modify**:
+- `internal/semantic/analyze_expressions.go` (allow Variant in binary ops)
+- `internal/interp/expressions.go` (runtime type coercion)
+- `internal/bytecode/compiler.go` (bytecode variant ops)
+
+### 9.4.3 Implement Variant Comparison Operators
+
+**Goal**: Support comparison operations with Variant types.
+
+**Estimate**: 3-4 hours
+
+**Implementation**:
+1. Allow Variant in comparison expressions (=, <>, <, >, <=, >=)
+2. Implement runtime type coercion for comparisons
+3. Define comparison semantics for Null and Unassigned
+
+**Files to Modify**:
+- `internal/semantic/analyze_expressions.go` (allow Variant comparisons)
+- `internal/interp/expressions.go` (runtime comparison logic)
+
+### 9.4.4 Implement Coalesce Operator (??)
+
+**Goal**: Support the coalesce operator for handling Null/Unassigned values.
+
+**Estimate**: 4-5 hours
+
+**Implementation**:
+1. Add COALESCE token type if not present
+2. Parse `??` operator with correct precedence
+3. Semantic analysis for coalesce expressions
+4. Runtime evaluation: return left if not Null/Unassigned, else right
+5. Support chaining: `a ?? b ?? c`
+
+**Files to Modify**:
+- `internal/lexer/lexer.go` (tokenize `??`)
+- `internal/parser/parser.go` (parse coalesce operator)
+- `pkg/ast/expressions.go` (CoalesceExpression node)
+- `internal/semantic/analyze_expressions.go` (type checking)
+- `internal/interp/expressions.go` (runtime evaluation)
+
+### 9.4.5 Variant Type Conversions and Casts
+
+**Goal**: Support explicit and implicit conversions between Variant and other types.
+
+**Estimate**: 4-5 hours
+
+**Implementation**:
+1. Implement `as` operator with Variant
+2. Support implicit conversions in assignments
+3. Handle type checking for Variant in function parameters
+4. Add runtime type checking and conversion
+
+**Files to Modify**:
+- `internal/semantic/analyze_expressions.go` (type conversions)
+- `internal/interp/expressions.go` (runtime conversions)
+
+**Success Criteria**:
+- All 17 variant-related tests pass
+- `var v : Variant; v := Null; PrintLn(v ?? 2);` outputs "2"
+- Variant arithmetic: `var v : Variant := 5; PrintLn(v + 10);` outputs "15"
+- Variant comparisons work with proper type coercion
+- Null and Unassigned are recognized and handled correctly
+
+**Testing**:
+```bash
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/coalesce_variant
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/variant_ops
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/compare_vars
+```
+
+---
+
+## Task 9.5: Implement Class Variables (class var)
+
+**Goal**: Add support for class variables (`class var`) in class declarations.
+
+**Estimate**: 12-15 hours (1.5-2 days)
+
+**Status**: NOT STARTED
+
+**Impact**: Unlocks 11 failing tests in SimpleScripts
+
+**Priority**: P0 - CRITICAL (Core OOP feature)
+
+**Description**: Class variables are static class members that belong to the class itself rather than instances. In DWScript, they are declared with the `class var` keyword and can be accessed via the class name (e.g., `TBase.Test`) or via instances. Currently:
+- Parser doesn't recognize `class var` syntax in class bodies
+- Type system doesn't track class variables separately from instance fields
+- Semantic analyzer and interpreter have no support for class variable access
+
+**Failing Tests** (11 total):
+- class_var
+- class_var_as_prop
+- class_var_dyn1
+- class_var_dyn2
+- class_method3
+- class_method4
+- static_class
+- static_class_array
+- static_method1
+- static_method2
+- field_scope
+
+**Reference**: See `FIXTURE_FAILURES_ANALYSIS.md` - Priority P0, Section 2
+
+**Example**:
+```pascal
+type TBase = class
+  class var Test : Integer;
+end;
+
+TBase.Test := 123;  // Access via class name
+var b : TBase;
+PrintLn(b.Test);    // Access via instance
+```
+
+**Subtasks**:
+
+### 9.5.1 Parse Class Variable Declarations
+
+**Goal**: Update parser to recognize `class var` syntax in class bodies.
+
+**Estimate**: 3-4 hours
+
+**Implementation**:
+1. Add parsing for `class var` keyword in class body
+2. Create AST node to represent class variables (or flag in existing FieldDeclaration)
+3. Handle multiple class var declarations
+4. Support initialization syntax: `class var Test : Integer := 123;`
+
+**Files to Modify**:
+- `internal/parser/parser_classes.go` (add class var parsing)
+- `pkg/ast/declarations.go` (add IsClassVar flag or new node type)
+
+### 9.5.2 Type System Support for Class Variables
+
+**Goal**: Extend ClassType to track class variables separately from instance fields.
+
+**Estimate**: 3-4 hours
+
+**Implementation**:
+1. Add `ClassVars map[string]*types.Type` field to ClassType
+2. During semantic analysis of class declarations, populate ClassVars
+3. Handle class variable inheritance (child classes inherit parent's class vars)
+4. Validate class variable initialization
+
+**Files to Modify**:
+- `internal/types/types.go` (add ClassVars field)
+- `internal/semantic/analyze_classes_decl.go` (capture class vars)
+
+### 9.5.3 Semantic Analysis for Class Variable Access
+
+**Goal**: Support type checking for class variable access via class name or instance.
+
+**Estimate**: 3-4 hours
+
+**Implementation**:
+1. In member access expressions, check both instance fields and class vars
+2. For type name access (e.g., `TBase.Test`), look up class vars
+3. Validate read/write access to class variables
+4. Type check assignments to class variables
+
+**Files to Modify**:
+- `internal/semantic/analyze_expressions.go` (member access with class vars)
+- `internal/semantic/analyze_statements.go` (assignments to class vars)
+
+### 9.5.4 Runtime Support for Class Variables
+
+**Goal**: Implement class variable storage and access in interpreter and bytecode VM.
+
+**Estimate**: 3-4 hours
+
+**Implementation**:
+1. Create global storage for class variables (separate from instances)
+2. Implement class variable initialization
+3. Handle class variable access via class name
+4. Handle class variable access via instance (lookup in class, not instance)
+
+**Files to Modify**:
+- `internal/interp/values.go` (class variable storage)
+- `internal/interp/objects_hierarchy.go` (member access for class vars)
+- `internal/bytecode/vm.go` (bytecode support for class vars)
+
+**Success Criteria**:
+- All 11 class var tests pass
+- `TBase.Test := 123;` sets class variable
+- `var b : TBase; PrintLn(b.Test);` reads class variable through instance
+- Class variables are shared across all instances
+- Child classes inherit parent class variables
+- Initialization of class variables works correctly
+
+**Testing**:
+```bash
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_var
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/static_class
+```
+
+---
+
+## Task 9.6: Enhance Class Constants with Field Initialization
+
+**Goal**: Support field initialization from class constants in class body.
+
+**Estimate**: 6-8 hours (0.75-1 day)
+
+**Status**: NOT STARTED
+
+**Impact**: Unlocks 7 failing tests in SimpleScripts (complements Task 9.2)
+
+**Priority**: P0 - CRITICAL (Required for class patterns)
+
+**Description**: Task 9.2 added basic class constant support, but DWScript also allows initializing fields directly from constants using syntax like `FField := Value;` inside the class body. This requires:
+- Parsing field initialization syntax (currently fails with parse errors)
+- Semantic analysis to resolve constant references in initializers
+- Runtime support for field initialization during object creation
+
+**Failing Tests** (7 total):
+- class_const2 (semantic issues with const resolution)
+- class_const3 (missing hints for case mismatch)
+- class_const4 (parse error for field initialization syntax)
+- class_const_as_prop (output mismatch)
+- class_init (parse error)
+- const_block (parse error)
+- enum_element_deprecated
+
+**Reference**: See `FIXTURE_FAILURES_ANALYSIS.md` - Priority P0, Section 3
+
+**Example**:
+```pascal
+type TObj = class
+  const Value = 5;
+  FField := Value;  // Initialize field from constant
+end;
+```
+
+**Subtasks**:
+
+### 9.6.1 Parse Field Initialization Syntax
+
+**Goal**: Update parser to handle `FField := Value;` syntax in class bodies.
+
+**Estimate**: 2-3 hours
+
+**Implementation**:
+1. Modify class body parser to recognize `:=` after identifier
+2. Create field with initialization expression in AST
+3. Distinguish from method declarations and properties
+
+**Files to Modify**:
+- `internal/parser/parser_classes.go` (parse field initialization)
+- `pkg/ast/declarations.go` (add Initializer field to FieldDeclaration)
+
+### 9.6.2 Semantic Analysis for Field Initializers
+
+**Goal**: Type check and resolve constant references in field initializers.
+
+**Estimate**: 2-3 hours
+
+**Implementation**:
+1. During class declaration analysis, analyze field initializer expressions
+2. Resolve references to class constants
+3. Validate initializer types match field types
+4. Report errors for invalid initializers
+
+**Files to Modify**:
+- `internal/semantic/analyze_classes_decl.go` (analyze field initializers)
+
+### 9.6.3 Runtime Field Initialization
+
+**Goal**: Execute field initializers during object creation.
+
+**Estimate**: 2 hours
+
+**Implementation**:
+1. During object construction, evaluate field initializers
+2. Apply initialized values to new instances
+3. Handle initialization order (constants before field inits)
+
+**Files to Modify**:
+- `internal/interp/objects_creation.go` (execute field initializers)
+
+**Success Criteria**:
+- All 7 class const tests pass
+- `FField := Value;` syntax parses correctly
+- Fields are initialized from constants during object creation
+- `new TObj.FField` returns the constant value
+
+**Testing**:
+```bash
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_const4
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_init
+```
+
+---
+
+## Task 9.7: Implement Self Keyword in Class Methods
+
+**Goal**: Add support for the `Self` keyword in class methods.
+
+**Estimate**: 4-5 hours (0.5 day)
+
+**Status**: NOT STARTED
+
+**Impact**: Unlocks 2 failing tests in SimpleScripts
+
+**Priority**: P0 - CRITICAL (Fundamental OOP feature)
+
+**Description**: The `Self` keyword refers to the current instance in instance methods or the current class in class methods. It's essential for accessing members and for polymorphic behavior. Currently:
+- `Self` is not recognized as a keyword or special identifier
+- Semantic analyzer reports "undefined variable 'Self'"
+- No runtime support for Self reference
+
+**Failing Tests** (2 total):
+- class_self
+- self
+
+**Reference**: See `FIXTURE_FAILURES_ANALYSIS.md` - Priority P0, Section 4
+
+**Example**:
+```pascal
+class procedure TBase.MyProc;
+begin
+  if Assigned(Self) then begin
+    PrintLn(Self.ClassName);      // Access class name
+    PrintLn(Self.Virt);           // Call virtual method
+  end;
+end;
+```
+
+**Subtasks**:
+
+### 9.7.1 Add Self as Special Identifier
+
+**Goal**: Recognize `Self` keyword in lexer/parser and create appropriate AST representation.
+
+**Estimate**: 1 hour
+
+**Implementation**:
+1. Add `Self` to keyword lookup (case-insensitive: self, Self, SELF)
+2. In parser, treat `Self` like an identifier but mark it specially
+3. Create SelfExpression AST node or use IdentifierExpression with flag
+
+**Files to Modify**:
+- `internal/lexer/token_type.go` (add SELF token if needed)
+- `internal/parser/parser.go` (parse Self as special identifier)
+- `pkg/ast/expressions.go` (SelfExpression or flag in Identifier)
+
+### 9.7.2 Semantic Analysis for Self
+
+**Goal**: Type `Self` correctly based on method context (instance vs class method).
+
+**Estimate**: 2 hours
+
+**Implementation**:
+1. Track current method context during semantic analysis
+2. For instance methods: `Self` has type of the class
+3. For class methods: `Self` has type of the metaclass (class-of)
+4. Report error if `Self` used outside method context
+
+**Files to Modify**:
+- `internal/semantic/analyzer.go` (track method context)
+- `internal/semantic/analyze_expressions.go` (type Self expressions)
+
+### 9.7.3 Runtime Evaluation of Self
+
+**Goal**: Evaluate `Self` to current instance or class at runtime.
+
+**Estimate**: 1-2 hours
+
+**Implementation**:
+1. In method evaluation context, bind `Self` to current instance/class
+2. For instance methods: `Self` = current object instance
+3. For class methods: `Self` = current class type
+4. Handle `Self` in member access, method calls, etc.
+
+**Files to Modify**:
+- `internal/interp/objects_methods.go` (bind Self in method calls)
+- `internal/interp/expressions.go` (evaluate Self expression)
+
+**Success Criteria**:
+- Both Self tests pass
+- `Self.ClassName` works in class methods
+- `Self.FieldName` works in instance methods
+- `Assigned(Self)` correctly checks for nil
+- Virtual method calls via `Self.VirtualMethod` dispatch correctly
+
+**Testing**:
+```bash
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_self
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/self
+```
+
+---
+
+## Task 9.8: Implement Function Pointer Types
+
+**Goal**: Add full support for function and method pointer types.
+
+**Estimate**: 16-20 hours (2-2.5 days)
+
+**Status**: NOT STARTED
+
+**Impact**: Unlocks 19 failing tests in SimpleScripts
+
+**Priority**: P0 - CRITICAL (Advanced but commonly used feature)
+
+**Description**: Function pointers allow storing references to functions/procedures in variables, passing them as parameters, and calling them indirectly. DWScript supports:
+- Function pointer type declarations: `TMyProc = procedure;`
+- Method pointer type declarations
+- Assignment of functions to pointer variables
+- Calling through function pointers
+- Passing function pointers as parameters
+
+**Failing Tests** (19 total):
+- func_ptr1, func_ptr3, func_ptr4, func_ptr5
+- func_ptr_assigned, func_ptr_class_meth, func_ptr_classname
+- func_ptr_constant, func_ptr_field, func_ptr_field_no_param
+- func_ptr_param, func_ptr_property, func_ptr_property_alias
+- func_ptr_symbol_field, func_ptr_var, func_ptr_var_param
+- meth_ptr1, proc_of_method, stack_of_proc
+
+**Reference**: See `FIXTURE_FAILURES_ANALYSIS.md` - Priority P0, Section 5
+
+**Example**:
+```pascal
+type TMyProc = procedure;
+
+procedure Proc1;
+begin
+  PrintLn('Proc1');
+end;
+
+var p : TMyProc;
+p := Proc1;   // Assign function to pointer
+p();          // Call via pointer
+```
+
+**Subtasks**:
+
+### 9.8.1 Parse Function Pointer Type Declarations
+
+**Goal**: Parse type declarations for function and procedure pointers.
+
+**Estimate**: 3-4 hours
+
+**Implementation**:
+1. Recognize `type TName = procedure;` syntax
+2. Recognize `type TName = function: ReturnType;` syntax
+3. Parse parameter lists for function pointer types
+4. Handle method pointer syntax: `type TName = procedure of object;`
+
+**Files to Modify**:
+- `internal/parser/parser_types.go` (parse function pointer types)
+- `pkg/ast/declarations.go` (FunctionPointerType node)
+
+### 9.8.2 Type System Support for Function Pointers
+
+**Goal**: Add function pointer types to the type system.
+
+**Estimate**: 4-5 hours
+
+**Implementation**:
+1. Create FunctionPointerType in type system
+2. Track parameter types and return type
+3. Support method pointers (includes implicit Self parameter)
+4. Implement type compatibility checking for function pointers
+
+**Files to Modify**:
+- `internal/types/types.go` (add FunctionPointerType)
+- `internal/semantic/analyze_types.go` (resolve function pointer types)
+
+### 9.8.3 Semantic Analysis for Function Pointer Operations
+
+**Goal**: Type check function pointer assignments, calls, and parameter passing.
+
+**Estimate**: 4-5 hours
+
+**Implementation**:
+1. Allow assignment of functions/methods to function pointer variables
+2. Type check function pointer assignments (signature must match)
+3. Support calling through function pointers
+4. Support passing function pointers as parameters
+5. Handle address-of operator for functions: `@FunctionName`
+
+**Files to Modify**:
+- `internal/semantic/analyze_expressions.go` (function pointer operations)
+- `internal/semantic/analyze_statements.go` (function pointer assignments)
+
+### 9.8.4 Runtime Support for Function Pointers
+
+**Goal**: Implement function pointer storage, assignment, and invocation.
+
+**Estimate**: 5-6 hours
+
+**Implementation**:
+1. Create runtime value type for function pointers
+2. Store function/method references in function pointer variables
+3. Implement indirect function calls via pointers
+4. Handle method pointers with implicit Self binding
+5. Support Assigned() checks for function pointers
+
+**Files to Modify**:
+- `internal/interp/values.go` (FunctionPointerValue type)
+- `internal/interp/expressions.go` (call function pointers)
+- `internal/interp/builtins.go` (Assigned for function pointers)
+
+**Success Criteria**:
+- All 19 function pointer tests pass
+- `type TMyProc = procedure;` parses correctly
+- Function assignments `p := Proc1;` work
+- Function pointer calls `p();` execute correctly
+- Method pointers work with `of object` syntax
+- `Assigned(p)` checks work for function pointers
+- Function pointer parameters and returns work
+
+**Testing**:
+```bash
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/func_ptr1
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/meth_ptr1
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/proc_of_method
+```
+
+---
+
+## Task 9.9: Implement For-In Loop Support
+
+**Goal**: Add support for for-in loop syntax for iterating over collections.
+
+**Estimate**: 14-18 hours (1.75-2.25 days)
+
+**Status**: NOT STARTED
+
+**Impact**: Unlocks 15 failing tests in SimpleScripts
+
+**Priority**: P0 - CRITICAL (Modern control flow feature)
+
+**Description**: For-in loops provide a modern iteration syntax over enumerations, arrays, strings, sets, and other collections. DWScript supports:
+- `for variable in collection` with type inference
+- Iteration over enumeration types
+- Iteration over arrays (static and dynamic)
+- Iteration over strings (character by character)
+- Iteration over sets
+
+**Failing Tests** (15 total):
+- enumerations2, for_in_array, for_in_enum, for_in_func_array
+- for_in_record_array, for_in_set, for_in_str, for_in_str2, for_in_str4
+- for_in_subclass, for_var_in_array, for_var_in_enumeration
+- for_var_in_field_array, for_var_in_string, for_step_sign
+
+**Reference**: See `FIXTURE_FAILURES_ANALYSIS.md` - Priority P0, Section 6
+
+**Example**:
+```pascal
+type TMyEnum = (meA, meB, meC);
+var i : TMyEnum;
+for i in TMyEnum do  // Iterate over all enum values
+  Print(i);
+```
+
+**Subtasks**:
+
+### 9.9.1 Parse For-In Syntax
+
+**Goal**: Update parser to recognize `for variable in collection` syntax.
+
+**Estimate**: 3-4 hours
+
+**Implementation**:
+1. Add `in` keyword recognition in for loop context
+2. Parse `for identifier in expression` syntax
+3. Support type inference: `for var i in collection`
+4. Create ForInStatement AST node
+
+**Files to Modify**:
+- `internal/parser/parser_statements.go` (parse for-in loops)
+- `pkg/ast/statements.go` (ForInStatement node)
+
+### 9.9.2 Semantic Analysis for For-In Loops
+
+**Goal**: Type check for-in loops and infer loop variable types.
+
+**Estimate**: 4-5 hours
+
+**Implementation**:
+1. Determine collection type from expression
+2. Infer element type based on collection:
+   - Enumeration → enum element type
+   - Array → element type
+   - String → Character (or String for single char)
+   - Set → enum element type
+3. Type check loop variable matches element type
+4. Validate collection expression is iterable
+
+**Files to Modify**:
+- `internal/semantic/analyze_statements.go` (analyze for-in loops)
+- `internal/types/types.go` (helper methods for iterable types)
+
+### 9.9.3 Runtime Support for Enumeration Iteration
+
+**Goal**: Implement for-in iteration over enumeration types.
+
+**Estimate**: 2-3 hours
+
+**Implementation**:
+1. Get all values of enumeration type
+2. Iterate from Low(enum) to High(enum)
+3. Assign each value to loop variable
+4. Execute loop body for each value
+
+**Files to Modify**:
+- `internal/interp/statements.go` (execute for-in over enums)
+- `internal/types/types.go` (enum Low/High helpers)
+
+### 9.9.4 Runtime Support for Array Iteration
+
+**Goal**: Implement for-in iteration over arrays.
+
+**Estimate**: 2-3 hours
+
+**Implementation**:
+1. Iterate over array elements in order
+2. Support both static and dynamic arrays
+3. Handle empty arrays
+4. Assign each element to loop variable
+
+**Files to Modify**:
+- `internal/interp/statements.go` (execute for-in over arrays)
+
+### 9.9.5 Runtime Support for String and Set Iteration
+
+**Goal**: Implement for-in iteration over strings and sets.
+
+**Estimate**: 3 hours
+
+**Implementation**:
+1. For strings: iterate character by character
+2. For sets: iterate over members in the set
+3. Handle empty collections
+
+**Files to Modify**:
+- `internal/interp/statements.go` (execute for-in over strings/sets)
+
+**Success Criteria**:
+- All 15 for-in tests pass
+- `for i in TMyEnum do` iterates over all enum values
+- `for c in 'hello' do` iterates over characters
+- `for item in arrayVar do` iterates over array elements
+- Type inference works: `for var i in collection`
+- Empty collections don't execute loop body
+
+**Testing**:
+```bash
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/for_in_enum
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/for_in_array
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/for_in_str
+```
+
+---
+
+## Task 9.10: Implement Lazy Parameter Evaluation
+
+**Goal**: Add support for lazy parameter evaluation with the `lazy` keyword.
+
+**Estimate**: 6-8 hours (0.75-1 day)
+
+**Status**: NOT STARTED
+
+**Impact**: Unlocks 3 failing tests in SimpleScripts
+
+**Priority**: P1 - HIGH (Optimization feature)
+
+**Description**: Lazy parameters defer the evaluation of argument expressions until they are actually used in the function body. This enables efficient short-circuit evaluation and avoids unnecessary computation. The `lazy` keyword marks parameters that should be evaluated lazily.
+
+**Failing Tests** (3 total):
+- lazy
+- lazy_recursive
+- lazy_sqr
+
+**Reference**: See `FIXTURE_FAILURES_ANALYSIS.md` - Priority P1, Section 7
+
+**Example**:
+```pascal
+function CondEval(eval : Boolean; lazy a : Integer) : Integer;
+begin
+  if eval then
+    Result := a    // Only evaluated if needed
+  else Result := 0;
+end;
+
+// Safe: no division by zero because 1 div k is only evaluated when k <> 0
+CondEval(k <> 0, 1 div k);
+```
+
+**Subtasks**:
+
+### 9.10.1 Parse Lazy Parameter Modifier
+
+**Goal**: Recognize `lazy` keyword in parameter declarations.
+
+**Estimate**: 1-2 hours
+
+**Implementation**:
+1. Add `lazy` keyword recognition in parameter parsing
+2. Add IsLazy flag to parameter AST node
+3. Validate lazy parameters (only for value parameters, not var/out)
+
+**Files to Modify**:
+- `internal/parser/parser_functions.go` (parse lazy modifier)
+- `pkg/ast/declarations.go` (add IsLazy to Parameter)
+
+### 9.10.2 Type System and Semantic Analysis
+
+**Goal**: Track lazy parameters in function signatures and validate usage.
+
+**Estimate**: 2-3 hours
+
+**Implementation**:
+1. Add IsLazy flag to FunctionType parameter info
+2. During function call analysis, mark lazy argument expressions
+3. Validate lazy parameter constraints
+
+**Files to Modify**:
+- `internal/types/types.go` (track lazy in FunctionType)
+- `internal/semantic/analyze_functions.go` (handle lazy parameters)
+
+### 9.10.3 Runtime Lazy Evaluation
+
+**Goal**: Implement deferred evaluation of lazy argument expressions.
+
+**Estimate**: 3-4 hours
+
+**Implementation**:
+1. Create thunk/closure for lazy argument expressions
+2. Store unevaluated expression instead of value
+3. Evaluate on first access to parameter in function body
+4. Cache evaluated value for subsequent accesses (or re-evaluate each time)
+
+**Files to Modify**:
+- `internal/interp/functions.go` (handle lazy parameters)
+- `internal/interp/expressions.go` (create lazy thunks)
+- `internal/interp/values.go` (LazyValue type)
+
+**Success Criteria**:
+- All 3 lazy tests pass
+- `lazy a : Integer` parameter syntax works
+- Lazy arguments are not evaluated until used
+- `CondEval(k <> 0, 1 div k)` doesn't cause division by zero when k = 0
+- Multiple references to lazy parameter re-evaluate expression
+
+**Testing**:
+```bash
+go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/lazy
+```
+
+---
+
 ## Task 9.16 Introduce Base Structs for AST Nodes
 
 **Goal**: Eliminate code duplication by introducing base structs for common node fields and behavior.
