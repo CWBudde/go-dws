@@ -241,7 +241,8 @@ func TestImportUnitSymbols_WithFunctions(t *testing.T) {
 	}
 
 	// Verify function was registered
-	if _, exists := interp.functions["TestFunc"]; !exists {
+	// Note: Function names are stored in lowercase (DWScript is case-insensitive)
+	if _, exists := interp.functions["testfunc"]; !exists {
 		t.Error("Expected TestFunc to be registered after import")
 	}
 }

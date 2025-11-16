@@ -86,7 +86,11 @@ func (b *BooleanValue) String() string {
 }
 
 // NilValue represents a nil/null value in DWScript.
-type NilValue struct{}
+type NilValue struct {
+	// ClassType stores the expected class type for this nil value (if any).
+	// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
+	ClassType string // e.g., "TBase"
+}
 
 // Type returns "NIL".
 func (n *NilValue) Type() string {
