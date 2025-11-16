@@ -567,36 +567,27 @@ func (p *Parser) tryParseRecordFields() ([]*ast.FieldInitializer, bool) {
 }
 
 // parseExpressionList parses a comma-separated list of expressions.
+//
+// Refactored to use parseSeparatedListBeforeStart helper (Task 2.5).
 func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 	list := []ast.Expression{}
 
-	if p.peekTokenIs(end) {
-		p.nextToken()
-		return list
+	opts := ListParseOptions{
+		Separators:             []lexer.TokenType{lexer.COMMA},
+		Terminator:             end,
+		AllowTrailingSeparator: true,
+		AllowEmpty:             true,
+		RequireTerminator:      true,
 	}
 
-	p.nextToken()
-	exp := p.parseExpression(LOWEST)
-	if exp != nil {
-		list = append(list, exp)
-	}
-
-	for p.peekTokenIs(lexer.COMMA) {
-		p.nextToken() // move to comma
-		if p.peekTokenIs(end) {
-			p.nextToken()
-			return list
-		}
-		p.nextToken() // move to next expression
+	_, _ = p.parseSeparatedListBeforeStart(opts, func() bool {
 		exp := p.parseExpression(LOWEST)
 		if exp != nil {
 			list = append(list, exp)
+			return true
 		}
-	}
-
-	if !p.expectPeek(end) {
-		return list
-	}
+		return false
+	})
 
 	return list
 }
