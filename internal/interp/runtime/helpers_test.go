@@ -162,8 +162,8 @@ func TestIsTruthy(t *testing.T) {
 
 func TestIsFalsy(t *testing.T) {
 	tests := []struct {
-		value Value
 		name  string
+		value Value
 		want  bool
 	}{
 		{"nil", nil, true},
@@ -189,9 +189,9 @@ func TestIsFalsy(t *testing.T) {
 
 func TestEqual(t *testing.T) {
 	tests := []struct {
+		name    string
 		left    Value
 		right   Value
-		name    string
 		want    bool
 		wantErr bool
 	}{
@@ -221,9 +221,9 @@ func TestEqual(t *testing.T) {
 
 func TestLessThan(t *testing.T) {
 	tests := []struct {
+		name    string
 		left    Value
 		right   Value
-		name    string
 		want    bool
 		wantErr bool
 	}{
@@ -250,9 +250,9 @@ func TestLessThan(t *testing.T) {
 
 func TestGreaterThan(t *testing.T) {
 	tests := []struct {
+		name    string
 		left    Value
 		right   Value
-		name    string
 		want    bool
 		wantErr bool
 	}{
