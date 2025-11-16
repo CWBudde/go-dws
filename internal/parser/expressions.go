@@ -76,9 +76,14 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 }
 
 // parseIdentifier parses an identifier.
-// PRE: curToken is IDENT
+// PRE: curToken is IDENT (traditional) or cursor.Current() is IDENT (cursor)
 // POST: curToken is IDENT (unchanged)
 func (p *Parser) parseIdentifier() ast.Expression {
+	return p.parseIdentifierTraditional()
+}
+
+// parseIdentifierTraditional parses an identifier using traditional state.
+func (p *Parser) parseIdentifierTraditional() ast.Expression {
 	return &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -87,6 +92,20 @@ func (p *Parser) parseIdentifier() ast.Expression {
 			},
 		},
 		Value: p.curToken.Literal,
+	}
+}
+
+// parseIdentifierCursor parses an identifier using cursor navigation.
+func (p *Parser) parseIdentifierCursor() ast.Expression {
+	currentToken := p.cursor.Current()
+	return &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  currentToken,
+				EndPos: p.endPosFromToken(currentToken),
+			},
+		},
+		Value: currentToken.Literal,
 	}
 }
 
@@ -200,9 +219,14 @@ func (p *Parser) parseIntegerLiteralCursor() ast.Expression {
 }
 
 // parseFloatLiteral parses a floating-point literal.
-// PRE: curToken is FLOAT
+// PRE: curToken is FLOAT (traditional) or cursor.Current() is FLOAT (cursor)
 // POST: curToken is FLOAT (unchanged)
 func (p *Parser) parseFloatLiteral() ast.Expression {
+	return p.parseFloatLiteralTraditional()
+}
+
+// parseFloatLiteralTraditional parses a float literal using traditional state.
+func (p *Parser) parseFloatLiteralTraditional() ast.Expression {
 	lit := &ast.FloatLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -223,10 +247,39 @@ func (p *Parser) parseFloatLiteral() ast.Expression {
 	return lit
 }
 
+// parseFloatLiteralCursor parses a float literal using cursor navigation.
+func (p *Parser) parseFloatLiteralCursor() ast.Expression {
+	currentToken := p.cursor.Current()
+
+	lit := &ast.FloatLiteral{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  currentToken,
+				EndPos: p.endPosFromToken(currentToken),
+			},
+		},
+	}
+
+	value, err := strconv.ParseFloat(currentToken.Literal, 64)
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %q as float", currentToken.Literal)
+		p.addError(msg, ErrInvalidExpression)
+		return nil
+	}
+
+	lit.Value = value
+	return lit
+}
+
 // parseStringLiteral parses a string literal.
-// PRE: curToken is STRING
+// PRE: curToken is STRING (traditional) or cursor.Current() is STRING (cursor)
 // POST: curToken is STRING (unchanged)
 func (p *Parser) parseStringLiteral() ast.Expression {
+	return p.parseStringLiteralTraditional()
+}
+
+// parseStringLiteralTraditional parses a string literal using traditional state.
+func (p *Parser) parseStringLiteralTraditional() ast.Expression {
 	// The lexer has already processed the string, so we just need to
 	// extract the value without the quotes
 	value := p.curToken.Literal
@@ -247,6 +300,36 @@ func (p *Parser) parseStringLiteral() ast.Expression {
 			BaseNode: ast.BaseNode{
 				Token:  p.curToken,
 				EndPos: p.endPosFromToken(p.curToken),
+			},
+		},
+		Value: value,
+	}
+}
+
+// parseStringLiteralCursor parses a string literal using cursor navigation.
+func (p *Parser) parseStringLiteralCursor() ast.Expression {
+	currentToken := p.cursor.Current()
+
+	// The lexer has already processed the string, so we just need to
+	// extract the value without the quotes
+	value := currentToken.Literal
+
+	// Remove surrounding quotes
+	if len(value) >= 2 {
+		if (value[0] == '\'' && value[len(value)-1] == '\'') ||
+			(value[0] == '"' && value[len(value)-1] == '"') {
+			value = value[1 : len(value)-1]
+		}
+	}
+
+	// Handle escaped quotes ('' -> ')
+	value = unescapeString(value)
+
+	return &ast.StringLiteral{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  currentToken,
+				EndPos: p.endPosFromToken(currentToken),
 			},
 		},
 		Value: value,
@@ -276,9 +359,14 @@ func unescapeString(s string) string {
 }
 
 // parseBooleanLiteral parses a boolean literal.
-// PRE: curToken is TRUE or FALSE
+// PRE: curToken is TRUE or FALSE (traditional) or cursor.Current() is TRUE/FALSE (cursor)
 // POST: curToken is TRUE or FALSE (unchanged)
 func (p *Parser) parseBooleanLiteral() ast.Expression {
+	return p.parseBooleanLiteralTraditional()
+}
+
+// parseBooleanLiteralTraditional parses a boolean literal using traditional state.
+func (p *Parser) parseBooleanLiteralTraditional() ast.Expression {
 	return &ast.BooleanLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -287,6 +375,20 @@ func (p *Parser) parseBooleanLiteral() ast.Expression {
 			},
 		},
 		Value: p.curTokenIs(lexer.TRUE),
+	}
+}
+
+// parseBooleanLiteralCursor parses a boolean literal using cursor navigation.
+func (p *Parser) parseBooleanLiteralCursor() ast.Expression {
+	currentToken := p.cursor.Current()
+	return &ast.BooleanLiteral{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  currentToken,
+				EndPos: p.endPosFromToken(currentToken),
+			},
+		},
+		Value: currentToken.Type == lexer.TRUE,
 	}
 }
 
