@@ -348,6 +348,10 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		// Need to either:
 		// 1. Complete Task 9.18 migration (populate SemanticInfo with types), OR
 		// 2. Use typed nil values that carry class information
+		//
+		// NOTE: Access patterns like `var b: TBase; b.Test` will currently fail at runtime when b is nil,
+		// because class variable lookup via nil instance is not yet supported.
+		// See test case: TestClassVariableAccessViaInstanceRuntime (PLAN.md line 1155).
 	}
 
 	if !ok {

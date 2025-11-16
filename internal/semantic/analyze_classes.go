@@ -310,6 +310,17 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Task 9.5.3: Look up class variable in class (including inherited class vars)
 	classVarType, foundClassVar := classType.GetClassVar(memberName)
 	if foundClassVar {
+		// Check class variable visibility
+		classVarOwner := a.getClassVarOwner(classType, memberName)
+		if classVarOwner != nil {
+			visibility, hasVisibility := classVarOwner.ClassVarVisibility[memberName]
+			if hasVisibility && !a.checkVisibility(classVarOwner, visibility, memberName, "class variable") {
+				visibilityStr := ast.Visibility(visibility).String()
+				a.addError("cannot access %s class variable '%s' of class '%s' at %s",
+					visibilityStr, memberName, classVarOwner.Name, expr.Token.Pos.String())
+				return nil
+			}
+		}
 		return classVarType
 	}
 

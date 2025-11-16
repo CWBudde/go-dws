@@ -9,10 +9,10 @@ import (
 
 func TestClassVarParsing(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
+		name         string
+		input        string
 		wantClassVar bool
-		wantInit    bool
+		wantInit     bool
 	}{
 		{
 			name: "simple class var",
