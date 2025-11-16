@@ -108,6 +108,10 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	}
 	block.Statements = []ast.Statement{}
 
+	// Track block context for better error messages
+	p.pushBlockContext("begin", p.curToken.Pos)
+	defer p.popBlockContext()
+
 	p.nextToken() // advance past 'begin'
 
 	for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) && !p.curTokenIs(lexer.ENSURE) {
@@ -130,10 +134,9 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	}
 
 	if !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.ENSURE) {
-		p.addError("expected 'end' to close block", ErrMissingEnd)
-		for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) && !p.curTokenIs(lexer.ENSURE) {
-			p.nextToken()
-		}
+		p.addErrorWithContext("expected 'end' to close block", ErrMissingEnd)
+		// Use synchronize for better error recovery
+		p.synchronize([]lexer.TokenType{lexer.END, lexer.ENSURE})
 	}
 
 	// Set end position to the END keyword

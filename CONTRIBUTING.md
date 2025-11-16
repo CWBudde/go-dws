@@ -118,14 +118,113 @@ Relates to PLAN.md Stage 1 task 1.19
 
 ```
 go-dws/
-├── lexer/          # Tokenization
-├── parser/         # Parsing and AST building
-├── ast/            # AST node definitions
-├── types/          # Type system
-├── interp/         # Interpreter/runtime
-├── cmd/dwscript/   # CLI application
+├── cmd/            # Command-line applications
+│   └── dwscript/   # CLI tool
+├── internal/       # Private implementation
+│   ├── lexer/      # Tokenization
+│   ├── parser/     # Parsing and AST building
+│   ├── ast/        # Internal AST
+│   ├── types/      # Type system
+│   ├── interp/     # AST Interpreter
+│   ├── bytecode/   # Bytecode VM
+│   └── semantic/   # Semantic analysis
+├── pkg/            # Public APIs
+│   ├── ast/        # Public AST types
+│   ├── token/      # Public token types
+│   └── dwscript/   # Embedding API
 ├── testdata/       # Test scripts
+├── docs/           # Documentation
 └── reference/      # Original DWScript (read-only)
+```
+
+## Parser-Specific Guidelines
+
+If you're working on the parser, please read these additional resources:
+
+### Required Reading
+
+1. **[docs/parser-architecture.md](docs/parser-architecture.md)** - Understanding Pratt parsing, precedence, and parser architecture
+2. **[docs/parser-style-guide.md](docs/parser-style-guide.md)** - Coding standards and conventions for parser code
+3. **[docs/parser-extension-guide.md](docs/parser-extension-guide.md)** - Step-by-step guide to adding new syntax
+
+### Parser Conventions
+
+**PRE/POST Documentation**: All parse functions must document token consumption:
+
+```go
+// parseIfStatement parses an if-then-else statement.
+// Syntax: if <condition> then <statement> [else <statement>]
+// PRE: curToken is IF
+// POST: curToken is last token of consequence or alternative statement
+func (p *Parser) parseIfStatement() *ast.IfStatement {
+    // Implementation
+}
+```
+
+**Block Context**: Track block context for better error messages:
+
+```go
+func (p *Parser) parseWhileStatement() *ast.WhileStatement {
+    p.pushBlockContext("while", p.curToken.Pos)
+    defer p.popBlockContext()
+
+    // Parse...
+}
+```
+
+**Error Recovery**: Use synchronization for robust error handling:
+
+```go
+if !p.expectPeek(lexer.THEN) {
+    p.addErrorWithContext("expected 'then'", ErrMissingThen)
+    p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
+    if !p.curTokenIs(lexer.THEN) {
+        return nil
+    }
+}
+```
+
+**Position Tracking**: Always set EndPos on AST nodes:
+
+```go
+stmt := &ast.IfStatement{
+    BaseNode: ast.BaseNode{Token: p.curToken},
+    // ... parse fields
+}
+stmt.EndPos = stmt.Consequence.End()
+```
+
+### Parser Testing Requirements
+
+- **Coverage**: Aim for >80% coverage (>90% for new code)
+- **Table-driven tests**: Use for similar test cases
+- **Error cases**: Test error recovery and synchronization
+- **Edge cases**: Empty, nested, malformed input
+- **Integration**: Test interaction with other constructs
+
+Example test structure:
+
+```go
+func TestParseWhileStatement(t *testing.T) {
+    tests := []struct {
+        name    string
+        input   string
+        want    string
+        wantErr bool
+    }{
+        {
+            name:  "simple while loop",
+            input: "while x > 0 do x := x - 1;",
+            want:  "while (x > 0) (x := (x - 1))",
+        },
+        {
+            name:    "missing do keyword",
+            input:   "while x > 0 x := x - 1;",
+            wantErr: true,
+        },
+    }
+    // ... test implementation
+}
 ```
 
 ## Testing Strategy

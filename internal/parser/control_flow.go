@@ -109,18 +109,27 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
 
+	// Track block context for better error messages
+	p.pushBlockContext("if", p.curToken.Pos)
+	defer p.popBlockContext()
+
 	// Move past 'if' and parse the condition
 	p.nextToken()
 	stmt.Condition = p.parseExpression(LOWEST)
 
 	if stmt.Condition == nil {
-		p.addError("expected condition after 'if'", ErrInvalidExpression)
+		p.addErrorWithContext("expected condition after 'if'", ErrInvalidExpression)
+		p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
 		return nil
 	}
 
 	// Expect 'then' keyword
 	if !p.expectPeek(lexer.THEN) {
-		return nil
+		p.addErrorWithContext("expected 'then' after if condition", ErrMissingThen)
+		p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
+		if !p.curTokenIs(lexer.THEN) {
+			return nil
+		}
 	}
 
 	// Parse the consequence (then branch)
@@ -128,7 +137,8 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 	stmt.Consequence = p.parseStatement()
 
 	if stmt.Consequence == nil {
-		p.addError("expected statement after 'then'", ErrInvalidSyntax)
+		p.addErrorWithContext("expected statement after 'then'", ErrInvalidSyntax)
+		p.synchronize([]lexer.TokenType{lexer.ELSE, lexer.END})
 		return nil
 	}
 
@@ -139,7 +149,8 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 		stmt.Alternative = p.parseStatement()
 
 		if stmt.Alternative == nil {
-			p.addError("expected statement after 'else'", ErrInvalidSyntax)
+			p.addErrorWithContext("expected statement after 'else'", ErrInvalidSyntax)
+			p.synchronize([]lexer.TokenType{lexer.END})
 			return nil
 		}
 		// End position is after the alternative statement
@@ -161,18 +172,27 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
 
+	// Track block context for better error messages
+	p.pushBlockContext("while", p.curToken.Pos)
+	defer p.popBlockContext()
+
 	// Move past 'while' and parse the condition
 	p.nextToken()
 	stmt.Condition = p.parseExpression(LOWEST)
 
 	if stmt.Condition == nil {
-		p.addError("expected condition after 'while'", ErrInvalidExpression)
+		p.addErrorWithContext("expected condition after 'while'", ErrInvalidExpression)
+		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
 		return nil
 	}
 
 	// Expect 'do' keyword
 	if !p.expectPeek(lexer.DO) {
-		return nil
+		p.addErrorWithContext("expected 'do' after while condition", ErrMissingDo)
+		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
+		if !p.curTokenIs(lexer.DO) {
+			return nil
+		}
 	}
 
 	// Parse the body statement
@@ -180,7 +200,8 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 	stmt.Body = p.parseStatement()
 
 	if isNilStatement(stmt.Body) {
-		p.addError("expected statement after 'do'", ErrInvalidSyntax)
+		p.addErrorWithContext("expected statement after 'do'", ErrInvalidSyntax)
+		p.synchronize([]lexer.TokenType{lexer.END})
 		return nil
 	}
 
@@ -199,6 +220,10 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 	stmt := &ast.RepeatStatement{
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
+
+	// Track block context for better error messages
+	p.pushBlockContext("repeat", p.curToken.Pos)
+	defer p.popBlockContext()
 
 	// Move past 'repeat'
 	p.nextToken()
@@ -235,14 +260,18 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 	} else if len(block.Statements) > 1 {
 		stmt.Body = block
 	} else {
-		p.addError("expected at least one statement in repeat body", ErrInvalidSyntax)
+		p.addErrorWithContext("expected at least one statement in repeat body", ErrInvalidSyntax)
+		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
 		return nil
 	}
 
 	// Expect 'until' keyword
 	if !p.curTokenIs(lexer.UNTIL) {
-		p.addError(fmt.Sprintf("expected 'until' after repeat body, got %s instead", p.curToken.Type), ErrUnexpectedToken)
-		return nil
+		p.addErrorWithContext(fmt.Sprintf("expected 'until' after repeat body, got %s instead", p.curToken.Type), ErrUnexpectedToken)
+		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
+		if !p.curTokenIs(lexer.UNTIL) {
+			return nil
+		}
 	}
 
 	// Parse the condition
@@ -432,12 +461,16 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 		BaseNode: ast.BaseNode{Token: p.curToken},
 	}
 
+	// Track block context for better error messages
+	p.pushBlockContext("case", p.curToken.Pos)
+	defer p.popBlockContext()
+
 	// Move past 'case' and parse the case expression
 	p.nextToken()
 	stmt.Expression = p.parseExpression(LOWEST)
 
 	if stmt.Expression == nil {
-		p.addError("expected expression after 'case'", ErrInvalidExpression)
+		p.addErrorWithContext("expected expression after 'case'", ErrInvalidExpression)
 		return nil
 	}
 
@@ -616,7 +649,8 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 
 	// Expect 'end' keyword
 	if !p.curTokenIs(lexer.END) {
-		p.addError("expected 'end' to close case statement", ErrMissingEnd)
+		p.addErrorWithContext("expected 'end' to close case statement", ErrMissingEnd)
+		p.synchronize([]lexer.TokenType{lexer.END})
 		return nil
 	}
 
