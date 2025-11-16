@@ -24,11 +24,14 @@ type EnumValue struct {
 // Examples:
 //   - type TColor = (Red, Green, Blue);
 //   - type TEnum = (One = 1, Two = 5);
-//   - type TEnum = enum (One, Two);
+//   - type TEnum = enum (One, Two);      // scoped enum
+//   - type TFlags = flags (a, b, c);     // flags enum (bit flags)
 type EnumDecl struct {
 	BaseNode
 	Name   *Identifier
 	Values []EnumValue
+	Scoped bool // True if declared with 'enum' or 'flags' keyword (requires qualified access)
+	Flags  bool // True if declared with 'flags' keyword (uses power-of-2 values)
 }
 
 // statementNode implements the Statement interface

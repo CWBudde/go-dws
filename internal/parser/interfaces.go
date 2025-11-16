@@ -250,11 +250,15 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 		return p.parseArrayDeclaration(nameIdent, typeToken)
 	} else if p.peekTokenIs(lexer.LPAREN) {
 		// Enum declaration: type TColor = (Red, Green, Blue);
-		return p.parseEnumDeclaration(nameIdent, typeToken)
+		return p.parseEnumDeclaration(nameIdent, typeToken, false, false)
 	} else if p.peekTokenIs(lexer.ENUM) {
 		// Scoped enum: type TEnum = enum (One, Two);
 		p.nextToken() // move to ENUM
-		return p.parseEnumDeclaration(nameIdent, typeToken)
+		return p.parseEnumDeclaration(nameIdent, typeToken, true, false)
+	} else if p.peekTokenIs(lexer.FLAGS) {
+		// Flags enum: type TFlags = flags (a, b, c);
+		p.nextToken() // move to FLAGS
+		return p.parseEnumDeclaration(nameIdent, typeToken, true, true)
 	} else if p.peekTokenIs(lexer.FUNCTION) || p.peekTokenIs(lexer.PROCEDURE) {
 		// Function pointer: type TFunc = function(x: Integer): Boolean;
 		// Procedure pointer: type TProc = procedure(msg: String);

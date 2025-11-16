@@ -408,12 +408,16 @@ func NewSetType(elementType Type) *SetType {
 // Enums are ordinal types with named constant values.
 // Examples:
 //
-//	type TColor = (Red, Green, Blue);
-//	type TEnum = (One = 1, Two = 5);
+//	type TColor = (Red, Green, Blue);           // unscoped enum
+//	type TEnum = (One = 1, Two = 5);            // unscoped enum with values
+//	type TEnum = enum (One, Two);               // scoped enum
+//	type TFlags = flags (a, b, c);              // flags enum (scoped, power-of-2 values)
 type EnumType struct {
 	Name         string         // Enum type name (e.g., "TColor")
 	Values       map[string]int // Value name -> ordinal value mapping (forward lookup)
 	OrderedNames []string       // Ordered list of value names for reverse lookup
+	Scoped       bool           // True if declared with 'enum' or 'flags' keyword (requires qualified access)
+	Flags        bool           // True if declared with 'flags' keyword (uses power-of-2 values)
 }
 
 // String returns a string representation of the enum type
@@ -491,6 +495,18 @@ func (et *EnumType) MaxOrdinal() int {
 	return maxVal
 }
 
+// Low returns the minimum ordinal value in the enum.
+// Alias for MinOrdinal().
+func (et *EnumType) Low() int {
+	return et.MinOrdinal()
+}
+
+// High returns the maximum ordinal value in the enum.
+// Alias for MaxOrdinal().
+func (et *EnumType) High() int {
+	return et.MaxOrdinal()
+}
+
 // NewEnumType creates a new enum type with the given name and values.
 // Values should be a map of value names to their ordinal values.
 // OrderedNames should list the value names in declaration order.
@@ -499,6 +515,20 @@ func NewEnumType(name string, values map[string]int, orderedNames []string) *Enu
 		Name:         name,
 		Values:       values,
 		OrderedNames: orderedNames,
+		Scoped:       false,
+		Flags:        false,
+	}
+}
+
+// NewScopedEnumType creates a new scoped enum type.
+// Scoped enums require qualified access (TypeName.Value).
+func NewScopedEnumType(name string, values map[string]int, orderedNames []string, flags bool) *EnumType {
+	return &EnumType{
+		Name:         name,
+		Values:       values,
+		OrderedNames: orderedNames,
+		Scoped:       true,
+		Flags:        flags,
 	}
 }
 
