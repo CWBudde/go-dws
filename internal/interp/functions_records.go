@@ -104,7 +104,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	}
 
 	// Check recursion depth before pushing to call stack
-	if len(i.callStack) >= i.maxRecursionDepth {
+	if i.ctx.GetCallStack().WillOverflow() {
 		i.env = savedEnv // Restore environment before raising exception
 		return i.raiseMaxRecursionExceeded()
 	}
@@ -291,7 +291,7 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 	i.env = methodEnv
 
 	// Check recursion depth before pushing to call stack
-	if len(i.callStack) >= i.maxRecursionDepth {
+	if i.ctx.GetCallStack().WillOverflow() {
 		i.env = savedEnv // Restore environment before raising exception
 		return i.raiseMaxRecursionExceeded()
 	}

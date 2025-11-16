@@ -52,8 +52,8 @@ func (i *Interpreter) callUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	savedEnv := i.env
 	i.env = funcEnv
 
-	// Check recursion depth before pushing to call stack
-	if len(i.callStack) >= i.maxRecursionDepth {
+	// Phase 3.3.3: Check recursion depth using CallStack abstraction
+	if i.ctx.GetCallStack().WillOverflow() {
 		i.env = savedEnv // Restore environment before raising exception
 		return i.raiseMaxRecursionExceeded()
 	}

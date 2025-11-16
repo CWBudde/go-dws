@@ -147,10 +147,14 @@ func NewWithOptions(output io.Writer, opts interface{}) *Interpreter {
 		interp.externalFunctions = NewExternalFunctionRegistry()
 	}
 
-	// Phase 3.3.1: Initialize execution context
+	// Phase 3.3.1/3.3.3: Initialize execution context with call stack overflow detection
 	// The context wraps the environment with a simple adapter to avoid circular dependencies.
 	// The Environment is passed as interface{} to ExecutionContext to avoid import cycles.
-	interp.ctx = evaluator.NewExecutionContext(evaluator.NewEnvironmentAdapter(env))
+	// Phase 3.3.3: Pass maxRecursionDepth to configure CallStack overflow detection.
+	interp.ctx = evaluator.NewExecutionContextWithMaxDepth(
+		evaluator.NewEnvironmentAdapter(env),
+		interp.maxRecursionDepth,
+	)
 
 	// Register built-in exception classes
 	interp.registerBuiltinExceptions()
@@ -211,21 +215,30 @@ func (i *Interpreter) GetCallStack() errors.StackTrace {
 
 // pushCallStack adds a new frame to the call stack with the given function name.
 // The position is taken from the current node being evaluated.
+// Phase 3.3.3: Delegates to ExecutionContext's CallStack.
 func (i *Interpreter) pushCallStack(functionName string) {
 	var pos *lexer.Position
 	if i.currentNode != nil {
 		nodePos := i.currentNode.Pos()
 		pos = &nodePos
 	}
-	frame := errors.NewStackFrame(functionName, "", pos)
+	// Also push to the old callStack field for backward compatibility
+	frame := errors.NewStackFrame(functionName, i.sourceFile, pos)
 	i.callStack = append(i.callStack, frame)
+
+	// Phase 3.3.3: Also push to context's CallStack
+	// Ignore errors here for backward compatibility; callers should check WillOverflow first
+	_ = i.ctx.GetCallStack().Push(functionName, i.sourceFile, pos)
 }
 
 // popCallStack removes the most recent frame from the call stack.
+// Phase 3.3.3: Delegates to ExecutionContext's CallStack.
 func (i *Interpreter) popCallStack() {
 	if len(i.callStack) > 0 {
 		i.callStack = i.callStack[:len(i.callStack)-1]
 	}
+	// Phase 3.3.3: Also pop from context's CallStack
+	i.ctx.GetCallStack().Pop()
 }
 
 // Eval evaluates an AST node and returns its value.

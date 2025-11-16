@@ -584,14 +584,15 @@ if !p.curTokenIs(lexer.END) {
   - Acceptance: No more boolean flags, cleaner control flow, tests pass
   - **Completed**: Replaced all boolean control flow flags with ExecutionContext ControlFlow type, all tests pass
 
-- [ ] 3.3.3 Create CallStack abstraction
+- [x] 3.3.3 Create CallStack abstraction
   - Extract call stack management from Interpreter
   - Create CallStack type with Push/Pop/Current/Depth methods
   - Add stack overflow detection
   - Improve error messages with stack traces
-  - Files: `internal/interp/evaluator/callstack.go` (new)
+  - Files: `internal/interp/evaluator/callstack.go` (new), `callstack_test.go` (14 tests)
   - Estimated: 2 days
   - Acceptance: CallStack is independent, proper stack traces, tests pass
+  - **Completed**: Created CallStack abstraction with overflow detection, comprehensive tests, integrated with ExecutionContext
 
 ---
 

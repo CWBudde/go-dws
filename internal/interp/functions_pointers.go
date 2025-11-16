@@ -75,7 +75,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 	i.env = lambdaEnv
 
 	// Check recursion depth before pushing to call stack
-	if len(i.callStack) >= i.maxRecursionDepth {
+	if i.ctx.GetCallStack().WillOverflow() {
 		i.env = savedEnv // Restore environment before raising exception
 		return i.raiseMaxRecursionExceeded()
 	}

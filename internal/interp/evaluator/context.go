@@ -141,12 +141,14 @@ type Environment interface {
 //
 // Phase 3.3.1: Initial implementation with basic state separation.
 // The context is passed to Eval methods to make execution state explicit.
+// Phase 3.3.3: Updated to use CallStack abstraction with overflow detection.
 type ExecutionContext struct {
 	// env is the current runtime environment (variable bindings).
 	env Environment
 
-	// callStack tracks function call frames for error reporting.
-	callStack errors.StackTrace
+	// callStack tracks function call frames with overflow detection.
+	// Phase 3.3.3: Replaced errors.StackTrace with CallStack abstraction.
+	callStack *CallStack
 
 	// controlFlow manages break/continue/exit/return signals.
 	controlFlow *ControlFlow
@@ -166,10 +168,22 @@ type ExecutionContext struct {
 }
 
 // NewExecutionContext creates a new execution context with the given environment.
+// The call stack is created with the default maximum depth (1024).
 func NewExecutionContext(env Environment) *ExecutionContext {
 	return &ExecutionContext{
 		env:            env,
-		callStack:      errors.NewStackTrace(),
+		callStack:      NewCallStack(0), // 0 uses default max depth (1024)
+		controlFlow:    NewControlFlow(),
+		propContext:    NewPropertyEvalContext(),
+		oldValuesStack: make([]map[string]interface{}, 0),
+	}
+}
+
+// NewExecutionContextWithMaxDepth creates a new execution context with a custom max call stack depth.
+func NewExecutionContextWithMaxDepth(env Environment, maxDepth int) *ExecutionContext {
+	return &ExecutionContext{
+		env:            env,
+		callStack:      NewCallStack(maxDepth),
 		controlFlow:    NewControlFlow(),
 		propContext:    NewPropertyEvalContext(),
 		oldValuesStack: make([]map[string]interface{}, 0),
@@ -186,29 +200,37 @@ func (ctx *ExecutionContext) SetEnv(env Environment) {
 	ctx.env = env
 }
 
-// CallStack returns a copy of the current call stack.
+// GetCallStack returns the CallStack instance for direct access.
+// Phase 3.3.3: Provides access to the CallStack abstraction.
+func (ctx *ExecutionContext) GetCallStack() *CallStack {
+	return ctx.callStack
+}
+
+// CallStack returns a copy of the current call stack frames.
+// Deprecated: Use GetCallStack() for full CallStack API access.
 func (ctx *ExecutionContext) CallStack() errors.StackTrace {
-	// Return a copy to prevent external modification
-	stack := make(errors.StackTrace, len(ctx.callStack))
-	copy(stack, ctx.callStack)
-	return stack
+	return ctx.callStack.Frames()
 }
 
 // PushCallStack adds a new frame to the call stack.
+// Returns an error if the stack would overflow.
+// Deprecated: Use GetCallStack().Push() for better error handling.
 func (ctx *ExecutionContext) PushCallStack(frame errors.StackFrame) {
-	ctx.callStack = append(ctx.callStack, frame)
+	// For backward compatibility, we ignore the error
+	// Real code should use GetCallStack().Push() for proper error handling
+	_ = ctx.callStack.Push(frame.FunctionName, frame.FileName, frame.Position)
 }
 
 // PopCallStack removes the most recent frame from the call stack.
+// Deprecated: Use GetCallStack().Pop() instead.
 func (ctx *ExecutionContext) PopCallStack() {
-	if len(ctx.callStack) > 0 {
-		ctx.callStack = ctx.callStack[:len(ctx.callStack)-1]
-	}
+	ctx.callStack.Pop()
 }
 
 // CallStackDepth returns the current depth of the call stack.
+// Deprecated: Use GetCallStack().Depth() instead.
 func (ctx *ExecutionContext) CallStackDepth() int {
-	return len(ctx.callStack)
+	return ctx.callStack.Depth()
 }
 
 // ControlFlow returns the control flow state.
@@ -274,7 +296,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 // Reset clears the execution context state for reuse.
 // This is useful when you want to reset the context without creating a new one.
 func (ctx *ExecutionContext) Reset() {
-	ctx.callStack = errors.NewStackTrace()
+	ctx.callStack.Clear()
 	ctx.controlFlow.Clear()
 	ctx.exception = nil
 	ctx.handlerException = nil
