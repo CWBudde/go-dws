@@ -134,18 +134,43 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		// Look for enum type metadata stored in environment
 		enumTypeKey := "__enum_type_" + strings.ToLower(ident.Value)
 		if enumTypeVal, ok := i.env.Get(enumTypeKey); ok {
-			if _, isEnumType := enumTypeVal.(*EnumTypeValue); isEnumType {
+			if etv, isEnumType := enumTypeVal.(*EnumTypeValue); isEnumType {
 				// This is scoped enum access: TColor.Red
-				// Look up the enum value
+				// Look up the enum value in the enum type's values
 				valueName := ma.Member.Value
-				if val, exists := i.env.Get(valueName); exists {
-					if enumVal, isEnum := val.(*EnumValue); isEnum {
-						// Verify the value belongs to this enum type
-						if enumVal.TypeName == ident.Value {
-							return enumVal
+
+				// For scoped enums, look up directly in the enum type's values FIRST
+				// This allows enum values named "Low" or "High" to shadow the properties
+				if ordinalValue, exists := etv.EnumType.Values[valueName]; exists {
+					// Create and return the enum value
+					return &EnumValue{
+						TypeName:     ident.Value,
+						ValueName:    valueName,
+						OrdinalValue: ordinalValue,
+					}
+				}
+
+				// Check for special enum properties: Low and High
+				// These are only used if there's no enum value with that name
+				lowerMember := strings.ToLower(valueName)
+				if lowerMember == "low" {
+					return &IntegerValue{Value: int64(etv.EnumType.Low())}
+				} else if lowerMember == "high" {
+					return &IntegerValue{Value: int64(etv.EnumType.High())}
+				}
+
+				// For unscoped enums, try to look up in environment as well
+				if !etv.EnumType.Scoped {
+					if val, envExists := i.env.Get(valueName); envExists {
+						if enumVal, isEnum := val.(*EnumValue); isEnum {
+							// Verify the value belongs to this enum type
+							if enumVal.TypeName == ident.Value {
+								return enumVal
+							}
 						}
 					}
 				}
+
 				// Enum value not found
 				return i.newErrorWithLocation(ma, "enum value '%s' not found in enum '%s'", ma.Member.Value, ident.Value)
 			}
@@ -459,6 +484,16 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	}
 
 	if !ok {
+		// Check if it's an enum value with .Value or .ToString property
+		if enumVal, isEnum := objVal.(*EnumValue); isEnum {
+			memberName := strings.ToLower(ma.Member.Value)
+			if memberName == "value" {
+				// Return the ordinal value as an integer
+				return &IntegerValue{Value: int64(enumVal.OrdinalValue)}
+			}
+			// Note: .ToString will be handled by helpers if needed
+		}
+
 		// Not an object - check if helpers provide this member
 		helper, helperProp := i.findHelperProperty(objVal, ma.Member.Value)
 		if helperProp != nil {

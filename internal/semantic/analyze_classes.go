@@ -243,6 +243,15 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Handle class type
 	classType, ok := objectTypeResolved.(*types.ClassType)
 	if !ok {
+		// Task 9.15.10: Handle .Value property on enum types
+		if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
+			if memberName == "value" {
+				// .Value returns the ordinal value as Integer
+				return types.INTEGER
+			}
+			// Continue to check helpers for other properties/methods on enums
+		}
+
 		// Task 9.83: For non-class/record types (like String, Integer), check helpers
 		// Prefer helper properties before methods so that property-style access
 		// (e.g., i.ToString) resolves correctly when parentheses are omitted.

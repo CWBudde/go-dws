@@ -325,6 +325,7 @@ func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
 	// First check if this is actually a type cast before evaluating the argument
 	// This prevents double evaluation when it's not a type cast
 	isTypeCast := false
+	var enumType *types.EnumType
 	lowerName := strings.ToLower(typeName)
 
 	// Check if it's a built-in type
@@ -335,6 +336,15 @@ func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
 		// Check if it's a class/interface type
 		if i.lookupClassInfo(typeName) != nil {
 			isTypeCast = true
+		} else {
+			// Task 9.15.6: Check if it's an enum type
+			enumTypeKey := "__enum_type_" + lowerName
+			if typeVal, ok := i.env.Get(enumTypeKey); ok {
+				if etv, ok := typeVal.(*EnumTypeValue); ok {
+					enumType = etv.EnumType
+					isTypeCast = true
+				}
+			}
 		}
 	}
 
@@ -363,6 +373,10 @@ func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
 		// Variant can accept any value
 		return &VariantValue{Value: val}
 	default:
+		// Task 9.15.6: Check if it's an enum type
+		if enumType != nil {
+			return i.castToEnum(val, enumType, typeName)
+		}
 		// Must be a class/interface type (we already checked above)
 		classInfo := i.lookupClassInfo(typeName)
 		return i.castToClass(val, classInfo, arg)
@@ -542,5 +556,53 @@ func (i *Interpreter) castToClass(val Value, targetClass *ClassInfo, node ast.No
 	return &TypeCastValue{
 		Object:     val,
 		StaticType: targetClass,
+	}
+}
+
+// castToEnum casts a value to an enum type.
+// Task 9.15.6: Supports Integer → Enum and Enum → Enum (same type) casting.
+func (i *Interpreter) castToEnum(val Value, targetEnum *types.EnumType, typeName string) Value {
+	switch v := val.(type) {
+	case *IntegerValue:
+		// Integer → Enum: Create an EnumValue with the integer as ordinal
+		// Find the enum value name for this ordinal (if it exists)
+		ordinal := int(v.Value)
+		var valueName string
+
+		// Look up the name for this ordinal value
+		for name, ord := range targetEnum.Values {
+			if ord == ordinal {
+				valueName = name
+				break
+			}
+		}
+
+		// If no matching name found, create a placeholder name using the ordinal value
+		// (DWScript allows casting any integer to enum, even if not a valid ordinal)
+		if valueName == "" && len(targetEnum.OrderedNames) > 0 {
+			// For out-of-bounds ordinals, we still create an EnumValue
+			// but with a placeholder name (DWScript behavior)
+			valueName = fmt.Sprintf("$%d", ordinal)
+		}
+
+		return &EnumValue{
+			TypeName:     typeName,
+			ValueName:    valueName,
+			OrdinalValue: ordinal,
+		}
+
+	case *EnumValue:
+		// Enum → Enum: Only allow identity cast (same type)
+		if strings.EqualFold(v.TypeName, typeName) {
+			return v
+		}
+		return newError("cannot cast enum %s to %s: incompatible enum types", v.TypeName, typeName)
+
+	case *VariantValue:
+		// Recursively cast the variant's value
+		return i.castToEnum(v.Value, targetEnum, typeName)
+
+	default:
+		return newError("cannot cast %s to enum %s", val.Type(), typeName)
 	}
 }

@@ -27,25 +27,60 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 
 	// Calculate ordinal values (explicit or implicit)
 	currentOrdinal := 0
+	flagBitPosition := 0 // For flags enums, track the bit position (2^n)
+
 	for _, enumValue := range decl.Values {
 		valueName := enumValue.Name
 
-		// Determine ordinal value
-		ordinalValue := currentOrdinal
+		// Determine ordinal value (explicit or implicit)
+		var ordinalValue int
 		if enumValue.Value != nil {
+			// Explicit value provided
 			ordinalValue = *enumValue.Value
+			if decl.Flags {
+				// For flags, explicit values must be powers of 2
+				if ordinalValue <= 0 || (ordinalValue&(ordinalValue-1)) != 0 {
+					return &ErrorValue{
+						Message: fmt.Sprintf("enum '%s' value '%s' (%d) must be a power of 2 for flags enum",
+							enumName, valueName, ordinalValue),
+					}
+				}
+				// For flags, update bit position based on explicit value
+				for bitPos := 0; bitPos < 64; bitPos++ {
+					if (1 << bitPos) == ordinalValue {
+						flagBitPosition = bitPos + 1
+						break
+					}
+				}
+			} else {
+				// For regular enums, update current ordinal
+				currentOrdinal = ordinalValue + 1
+			}
+		} else {
+			// Implicit value
+			if decl.Flags {
+				// Flags use power-of-2 values: 1, 2, 4, 8, 16, ...
+				ordinalValue = 1 << flagBitPosition
+				flagBitPosition++
+			} else {
+				// Regular enums use sequential values
+				ordinalValue = currentOrdinal
+				currentOrdinal++
+			}
 		}
 
 		// Store the value
 		enumValues[valueName] = ordinalValue
 		orderedNames = append(orderedNames, valueName)
-
-		// Next implicit value
-		currentOrdinal = ordinalValue + 1
 	}
 
 	// Create the enum type
-	enumType := types.NewEnumType(enumName, enumValues, orderedNames)
+	var enumType *types.EnumType
+	if decl.Scoped || decl.Flags {
+		enumType = types.NewScopedEnumType(enumName, enumValues, orderedNames, decl.Flags)
+	} else {
+		enumType = types.NewEnumType(enumName, enumValues, orderedNames)
+	}
 
 	// Store enum type in the interpreter's registry (for type resolution)
 	if i.classes == nil {
@@ -56,13 +91,17 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 	// A better approach would be to add an 'enums' map to the Interpreter struct.
 
 	// Register each enum value in the symbol table as a constant
-	for valueName, ordinalValue := range enumValues {
-		enumVal := &EnumValue{
-			TypeName:     enumName,
-			ValueName:    valueName,
-			OrdinalValue: ordinalValue,
+	// For scoped enums (enum/flags keyword), skip global registration -
+	// values are only accessible via qualified access (Type.Value)
+	if !decl.Scoped {
+		for valueName, ordinalValue := range enumValues {
+			enumVal := &EnumValue{
+				TypeName:     enumName,
+				ValueName:    valueName,
+				OrdinalValue: ordinalValue,
+			}
+			i.env.Define(valueName, enumVal)
 		}
-		i.env.Define(valueName, enumVal)
 	}
 
 	// Store enum type metadata in environment with special key
