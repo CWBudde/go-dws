@@ -233,12 +233,29 @@ func TestMigration_IntegerLiteral_Binary(t *testing.T) {
 // TestMigration_IntegerLiteral_Errors tests error handling in both modes
 func TestMigration_IntegerLiteral_Errors(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
+		name        string
+		input       string
+		expectSkip  bool // true if lexer might not produce INT token
+		skipReason  string
 	}{
 		{
-			name:  "overflow",
-			input: "99999999999999999999",
+			name:       "invalid hex digits",
+			input:      "$ZZZ",
+			expectSkip: true,
+			skipReason: "Lexer may reject invalid hex and not produce INT token",
+		},
+		// NOTE: %123 is NOT included here because strconv.ParseInt("123", 2, 64)
+		// actually succeeds (it parses "1" and stops at "2", returning 1).
+		// This is arguably a bug in the current implementation - the parser
+		// silently accepts invalid binary literals. However, since both
+		// traditional and cursor implementations have this behavior, we
+		// document it rather than change it during migration.
+		// TODO: Consider stricter validation in future (Phase 3?)
+
+		{
+			name:       "overflow",
+			input:      "99999999999999999999",
+			expectSkip: false,
 		},
 	}
 
@@ -246,26 +263,38 @@ func TestMigration_IntegerLiteral_Errors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test traditional mode
 			traditionalParser := New(lexer.New(tt.input))
-			// Only call parse if curToken is INT
+
+			// Check if lexer produced INT token
 			if traditionalParser.curToken.Type != lexer.INT {
-				t.Skip("Lexer did not produce INT token for this input")
+				if tt.expectSkip {
+					t.Skipf("Lexer did not produce INT token: %s", tt.skipReason)
+				} else {
+					t.Fatalf("Expected lexer to produce INT token, got %v", traditionalParser.curToken.Type)
+				}
 			}
+
 			traditionalExpr := traditionalParser.parseIntegerLiteralTraditional()
 
 			// Test cursor mode
 			cursorParser := NewCursorParser(lexer.New(tt.input))
-			// Only call parse if current token is INT
+
+			// Check if lexer produced INT token
 			if cursorParser.cursor.Current().Type != lexer.INT {
-				t.Skip("Lexer did not produce INT token for this input")
+				if tt.expectSkip {
+					t.Skipf("Lexer did not produce INT token: %s", tt.skipReason)
+				} else {
+					t.Fatalf("Expected lexer to produce INT token, got %v", cursorParser.cursor.Current().Type)
+				}
 			}
+
 			cursorExpr := cursorParser.parseIntegerLiteralCursor()
 
 			// Both should return nil on error
 			if traditionalExpr != nil {
-				t.Error("Traditional parser should return nil on error")
+				t.Errorf("Traditional parser should return nil on error, got %v", traditionalExpr)
 			}
 			if cursorExpr != nil {
-				t.Error("Cursor parser should return nil on error")
+				t.Errorf("Cursor parser should return nil on error, got %v", cursorExpr)
 			}
 
 			// Both should have errors
@@ -274,6 +303,79 @@ func TestMigration_IntegerLiteral_Errors(t *testing.T) {
 			}
 			if len(cursorParser.Errors()) == 0 {
 				t.Error("Cursor parser should have errors")
+			}
+		})
+	}
+}
+
+// TestMigration_IntegerLiteral_PartialParse tests the existing behavior of
+// partial parsing in strconv.ParseInt. This documents a quirk where invalid
+// suffixes are silently ignored rather than causing errors.
+func TestMigration_IntegerLiteral_PartialParse(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedValue int64
+		note          string
+	}{
+		{
+			name:          "binary with invalid suffix",
+			input:         "%123",
+			expectedValue: 1,
+			note:          "ParseInt parses '1' and stops at '2', no error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This test documents EXISTING behavior, not desired behavior
+			t.Logf("NOTE: %s", tt.note)
+
+			// Test traditional mode
+			traditionalParser := New(lexer.New(tt.input))
+			if traditionalParser.curToken.Type != lexer.INT {
+				t.Skip("Lexer did not produce INT token")
+			}
+			traditionalExpr := traditionalParser.parseIntegerLiteralTraditional()
+
+			// Test cursor mode
+			cursorParser := NewCursorParser(lexer.New(tt.input))
+			if cursorParser.cursor.Current().Type != lexer.INT {
+				t.Skip("Lexer did not produce INT token")
+			}
+			cursorExpr := cursorParser.parseIntegerLiteralCursor()
+
+			// Both should succeed (not nil)
+			if traditionalExpr == nil {
+				t.Error("Traditional parser returned nil, expected partial parse success")
+			}
+			if cursorExpr == nil {
+				t.Error("Cursor parser returned nil, expected partial parse success")
+			}
+
+			// Extract values
+			var traditionalValue, cursorValue int64
+			if traditionalLit, ok := traditionalExpr.(*ast.IntegerLiteral); ok {
+				traditionalValue = traditionalLit.Value
+			}
+			if cursorLit, ok := cursorExpr.(*ast.IntegerLiteral); ok {
+				cursorValue = cursorLit.Value
+			}
+
+			// Both should have the "partially parsed" value
+			if traditionalValue != tt.expectedValue {
+				t.Errorf("Traditional value = %d, want %d (partial parse)",
+					traditionalValue, tt.expectedValue)
+			}
+			if cursorValue != tt.expectedValue {
+				t.Errorf("Cursor value = %d, want %d (partial parse)",
+					cursorValue, tt.expectedValue)
+			}
+
+			// Values should match each other
+			if traditionalValue != cursorValue {
+				t.Errorf("Value mismatch: traditional=%d, cursor=%d",
+					traditionalValue, cursorValue)
 			}
 		})
 	}
