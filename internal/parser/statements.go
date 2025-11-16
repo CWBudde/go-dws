@@ -265,53 +265,8 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 			return stmt
 		}
 
-		// For now, we need to convert TypeExpression to TypeAnnotation for VarDeclStatement.Type
-		// TODO: Update VarDeclStatement struct to accept TypeExpression instead of TypeAnnotation
-		switch te := typeExpr.(type) {
-		case *ast.TypeAnnotation:
-			stmt.Type = te
-		case *ast.FunctionPointerTypeNode:
-			// For function pointer types, we create a synthetic TypeAnnotation
-			stmt.Type = &ast.TypeAnnotation{
-				Token: te.Token,
-				Name:  te.String(), // Use the full function pointer signature as the type name
-			}
-		case *ast.ArrayTypeNode:
-			// For array types, we create a synthetic TypeAnnotation
-			// Check if Token is nil to prevent panics (defensive programming)
-			if te == nil {
-				p.addError("array type expression is nil in var declaration", ErrInvalidType)
-				return stmt
-			}
-			// Use the array token or create a dummy token if nil
-			token := te.Token
-			if token.Type == 0 || token.Literal == "" {
-				// Create a dummy token to prevent nil pointer issues
-				token = lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{}}
-			}
-			stmt.Type = &ast.TypeAnnotation{
-				Token:      token,
-				Name:       te.String(), // Use the full array type signature as the type name
-				InlineType: te,          // Store the AST node for semantic analyzer to evaluate bounds
-			}
-		case *ast.SetTypeNode:
-			// For set types, we create a synthetic TypeAnnotation
-			stmt.Type = &ast.TypeAnnotation{
-				Token:      te.Token,
-				Name:       te.String(), // Use the full set type signature as the type name
-				InlineType: te,          // Store the AST node for semantic analyzer
-			}
-		case *ast.ClassOfTypeNode:
-			// For metaclass types, we create a synthetic TypeAnnotation
-			stmt.Type = &ast.TypeAnnotation{
-				Token:      te.Token,
-				Name:       te.String(), // Use the full metaclass type signature as the type name
-				InlineType: te,          // Store the AST node for semantic analyzer
-			}
-		default:
-			p.addError("unsupported type expression in var declaration", ErrInvalidType)
-			return stmt
-		}
+		// Directly assign the type expression without creating synthetic wrappers
+		stmt.Type = typeExpr
 	}
 
 	if hasExplicitType {

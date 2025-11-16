@@ -147,8 +147,8 @@ func TestParseHelperDeclaration(t *testing.T) {
 			}
 
 			// Check target type
-			if helperDecl.ForType.Name != tt.expectedFor {
-				t.Errorf("Expected ForType %q, got %q", tt.expectedFor, helperDecl.ForType.Name)
+			if helperDecl.ForType.String() != tt.expectedFor {
+				t.Errorf("Expected ForType %q, got %q", tt.expectedFor, helperDecl.ForType.String())
 			}
 
 			// Check if it's a record helper
@@ -405,8 +405,8 @@ func TestParseHelperInheritance(t *testing.T) {
 			}
 
 			// Check target type
-			if helperDecl.ForType.Name != tt.expectedFor {
-				t.Errorf("Expected ForType %q, got %q", tt.expectedFor, helperDecl.ForType.Name)
+			if helperDecl.ForType.String() != tt.expectedFor {
+				t.Errorf("Expected ForType %q, got %q", tt.expectedFor, helperDecl.ForType.String())
 			}
 
 			// Check if it's a record helper

@@ -326,7 +326,7 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 				// Task 9.24.2: Convert array arguments to array of Variant if parameter is array of const
 				// P1: Resolve type aliases before checking (e.g., "toa" -> "array of const")
 				if param.Type != nil {
-					typeName := param.Type.Name
+					typeName := param.Type.String()
 					// Resolve potential type aliases (same pattern as registerClassOperator)
 					resolvedType, err := i.resolveType(typeName)
 					var paramTypeName string

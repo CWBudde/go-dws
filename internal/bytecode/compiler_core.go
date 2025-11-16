@@ -625,11 +625,13 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 		}
 		return rightType
 	case ast.TypedExpression:
-		var typeAnnot *ast.TypeAnnotation
 		if c.semanticInfo != nil {
-			typeAnnot = c.semanticInfo.GetType(node)
+			typeAnnot := c.semanticInfo.GetType(node)
+			if typeAnnot != nil {
+				return typeFromAnnotation(typeAnnot)
+			}
 		}
-		return typeFromAnnotation(typeAnnot)
+		return nil
 	default:
 		return nil
 	}
@@ -685,46 +687,40 @@ func lineOf(node ast.Node) int {
 	return pos.Line
 }
 
-func typeFromAnnotation(annotation *ast.TypeAnnotation) types.Type {
-	if annotation == nil {
-		return nil
-	}
-
-	// Check for inline type expressions first (array, set, etc.)
-	if annotation.InlineType != nil {
-		return typeFromTypeExpression(annotation.InlineType)
-	}
-
-	// Handle simple named types
-	switch strings.ToLower(annotation.Name) {
-	case "integer":
-		return types.INTEGER
-	case "float":
-		return types.FLOAT
-	case "string":
-		return types.STRING
-	case "boolean":
-		return types.BOOLEAN
-	case "variant":
-		return types.VARIANT
-	case "nil":
-		return types.NIL
-	case "void":
-		return types.VOID
-	default:
-		return nil
-	}
-}
-
-// typeFromTypeExpression converts an AST TypeExpression to a types.Type
-func typeFromTypeExpression(expr ast.TypeExpression) types.Type {
+// typeFromAnnotation converts a TypeExpression to a types.Type
+// This function handles all TypeExpression types: TypeAnnotation, ArrayTypeNode, etc.
+func typeFromAnnotation(expr ast.TypeExpression) types.Type {
 	if expr == nil {
 		return nil
 	}
 
 	switch node := expr.(type) {
+	case *ast.TypeAnnotation:
+		// Check for typed nil - when nil *ast.TypeAnnotation is passed to interface parameter
+		if node == nil {
+			return nil
+		}
+		// Handle simple named types
+		switch strings.ToLower(node.Name) {
+		case "integer":
+			return types.INTEGER
+		case "float":
+			return types.FLOAT
+		case "string":
+			return types.STRING
+		case "boolean":
+			return types.BOOLEAN
+		case "variant":
+			return types.VARIANT
+		case "nil":
+			return types.NIL
+		case "void":
+			return types.VOID
+		default:
+			return nil
+		}
 	case *ast.ArrayTypeNode:
-		elementType := typeFromTypeExpression(node.ElementType)
+		elementType := typeFromAnnotation(node.ElementType)
 		if elementType == nil {
 			return nil
 		}
@@ -733,12 +729,14 @@ func typeFromTypeExpression(expr ast.TypeExpression) types.Type {
 			LowBound:    nil, // Dynamic array
 			HighBound:   nil,
 		}
-	case *ast.TypeAnnotation:
-		// Recursively handle type annotations (for element types)
-		return typeFromAnnotation(node)
 	default:
 		return nil
 	}
+}
+
+// typeFromTypeExpression is an alias for typeFromAnnotation for backward compatibility
+func typeFromTypeExpression(expr ast.TypeExpression) types.Type {
+	return typeFromAnnotation(expr)
 }
 
 func lineOfExceptClause(clause *ast.ExceptClause) int {

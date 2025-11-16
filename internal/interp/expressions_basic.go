@@ -410,13 +410,13 @@ func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.N
 
 // getTypeFromAnnotation converts a type annotation to a types.Type
 // This is a helper to extract type information from AST
-func (i *Interpreter) getTypeFromAnnotation(typeAnnotation *ast.TypeAnnotation) types.Type {
-	if typeAnnotation == nil {
+func (i *Interpreter) getTypeFromAnnotation(typeExpr ast.TypeExpression) types.Type {
+	if typeExpr == nil {
 		return nil
 	}
 
-	// TypeAnnotation has a Name field that contains the type name
-	typeName := typeAnnotation.Name
+	// Get the type name from the type expression
+	typeName := typeExpr.String()
 	return i.getTypeByName(typeName)
 }
 

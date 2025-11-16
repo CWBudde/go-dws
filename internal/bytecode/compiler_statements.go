@@ -344,7 +344,7 @@ func (c *Compiler) compileExceptClause(clause *ast.ExceptClause) error {
 
 		jumpIfNoMatch := -1
 		if handler.ExceptionType != nil {
-			typeConst := c.chunk.AddConstant(StringValue(handler.ExceptionType.Name))
+			typeConst := c.chunk.AddConstant(StringValue(handler.ExceptionType.String()))
 			c.chunk.Write(OpLoadLocal, 0, tmpSlot, handlerLine)
 			c.chunk.WriteSimple(OpGetClass, handlerLine)
 			c.chunk.Write(OpLoadConst, 0, uint16(typeConst), handlerLine)
@@ -561,7 +561,7 @@ func (c *Compiler) compileHelperDecl(decl *ast.HelperDecl) error {
 	// Create helper metadata
 	helperInfo := &HelperInfo{
 		Name:        decl.Name.Value,
-		TargetType:  decl.ForType.Name,
+		TargetType:  decl.ForType.String(),
 		Methods:     make(map[string]uint16),
 		Properties:  make([]string, 0),
 		ClassVars:   make([]string, 0),

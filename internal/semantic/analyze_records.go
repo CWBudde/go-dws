@@ -107,10 +107,10 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		// If type is specified, check compatibility
 		var constType types.Type
 		if constant.Type != nil {
-			ct, err := a.resolveType(constant.Type.Name)
+			ct, err := a.resolveType(getTypeExpressionName(constant.Type))
 			if err != nil {
 				a.addError("unknown type '%s' for constant '%s' in record '%s' at %s",
-					constant.Type.Name, constName, recordName, constant.Token.Pos.String())
+					getTypeExpressionName(constant.Type), constName, recordName, constant.Token.Pos.String())
 				continue
 			}
 			constType = ct
@@ -187,10 +187,10 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		// Create function type for the method
 		var paramTypes []types.Type
 		for _, param := range method.Parameters {
-			paramType, err := a.resolveType(param.Type.Name)
+			paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 			if err != nil {
 				a.addError("unknown type '%s' for parameter '%s' in method '%s' at %s",
-					param.Type.Name, param.Name.Value, methodName, param.Token.Pos.String())
+					getTypeExpressionName(param.Type), param.Name.Value, methodName, param.Token.Pos.String())
 				continue
 			}
 			paramTypes = append(paramTypes, paramType)
@@ -198,10 +198,10 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 		var returnType types.Type
 		if method.ReturnType != nil {
-			rt, err := a.resolveType(method.ReturnType.Name)
+			rt, err := a.resolveType(getTypeExpressionName(method.ReturnType))
 			if err != nil {
 				a.addError("unknown return type '%s' for method '%s' at %s",
-					method.ReturnType.Name, methodName, method.Token.Pos.String())
+					getTypeExpressionName(method.ReturnType), methodName, method.Token.Pos.String())
 			} else {
 				returnType = rt
 			}
@@ -270,7 +270,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 				// Bind method parameters
 				for _, param := range method.Parameters {
-					paramType, err := a.resolveType(param.Type.Name)
+					paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 					if err == nil {
 						a.symbols.Define(param.Name.Value, paramType)
 					}
@@ -298,10 +298,10 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		propName := prop.Name.Value
 
 		// Resolve property type
-		propType, err := a.resolveType(prop.Type.Name)
+		propType, err := a.resolveType(getTypeExpressionName(prop.Type))
 		if err != nil {
 			a.addError("unknown type '%s' for property '%s' in record '%s' at %s",
-				prop.Type.Name, propName, recordName, prop.Token.Pos.String())
+				getTypeExpressionName(prop.Type), propName, recordName, prop.Token.Pos.String())
 			continue
 		}
 

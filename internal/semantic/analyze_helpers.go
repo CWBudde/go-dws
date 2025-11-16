@@ -47,7 +47,7 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 	helperName := decl.Name.Value
 
 	// Resolve the target type (the type being extended)
-	targetTypeName := decl.ForType.Name
+	targetTypeName := getTypeExpressionName(decl.ForType)
 	targetType, err := a.resolveType(targetTypeName)
 	if err != nil {
 		a.addError("unknown target type '%s' for helper '%s' at %s",
@@ -139,10 +139,10 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 	// Create function type for the method
 	var paramTypes []types.Type
 	for _, param := range method.Parameters {
-		paramType, err := a.resolveType(param.Type.Name)
+		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 		if err != nil {
 			a.addError("unknown type '%s' for parameter '%s' in helper method '%s.%s' at %s",
-				param.Type.Name, param.Name.Value, helperName, methodName, param.Token.Pos.String())
+				getTypeExpressionName(param.Type), param.Name.Value, helperName, methodName, param.Token.Pos.String())
 			continue
 		}
 		paramTypes = append(paramTypes, paramType)
@@ -150,10 +150,10 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 
 	var returnType types.Type
 	if method.ReturnType != nil {
-		rt, err := a.resolveType(method.ReturnType.Name)
+		rt, err := a.resolveType(getTypeExpressionName(method.ReturnType))
 		if err != nil {
 			a.addError("unknown return type '%s' for helper method '%s.%s' at %s",
-				method.ReturnType.Name, helperName, methodName, method.Token.Pos.String())
+				getTypeExpressionName(method.ReturnType), helperName, methodName, method.Token.Pos.String())
 		} else {
 			returnType = rt
 		}
@@ -190,10 +190,10 @@ func (a *Analyzer) analyzeHelperProperty(prop *ast.PropertyDecl, helperType *typ
 	}
 
 	// Resolve property type
-	propType, err := a.resolveType(prop.Type.Name)
+	propType, err := a.resolveType(getTypeExpressionName(prop.Type))
 	if err != nil {
 		a.addError("unknown type '%s' for property '%s' in helper '%s' at %s",
-			prop.Type.Name, propName, helperName, prop.Token.Pos.String())
+			getTypeExpressionName(prop.Type), propName, helperName, prop.Token.Pos.String())
 		return
 	}
 
@@ -264,10 +264,10 @@ func (a *Analyzer) analyzeHelperClassConst(classConst *ast.ConstDecl, helperType
 
 	// Type checking: if a type is specified, validate it matches
 	if classConst.Type != nil {
-		expectedType, err := a.resolveType(classConst.Type.Name)
+		expectedType, err := a.resolveType(getTypeExpressionName(classConst.Type))
 		if err != nil {
 			a.addError("unknown type '%s' for constant '%s' in helper '%s' at %s",
-				classConst.Type.Name, constName, helperName, classConst.Token.Pos.String())
+				getTypeExpressionName(classConst.Type), constName, helperName, classConst.Token.Pos.String())
 			return
 		}
 

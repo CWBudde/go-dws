@@ -84,8 +84,8 @@ func TestPropertyBasicReadWrite(t *testing.T) {
 			if prop.Type == nil {
 				t.Fatal("Property Type is nil")
 			}
-			if prop.Type.Name != tt.propType {
-				t.Errorf("Property type: expected=%q, got=%q", tt.propType, prop.Type.Name)
+			if prop.Type.String() != tt.propType {
+				t.Errorf("Property type: expected=%q, got=%q", tt.propType, prop.Type.String())
 			}
 
 			// Verify read spec
@@ -299,8 +299,8 @@ func TestPropertyIndexed(t *testing.T) {
 				if param.Name.Value != tt.indexNames[i] {
 					t.Errorf("Index param %d name: expected=%q, got=%q", i, tt.indexNames[i], param.Name.Value)
 				}
-				if param.Type.Name != tt.indexTypes[i] {
-					t.Errorf("Index param %d type: expected=%q, got=%q", i, tt.indexTypes[i], param.Type.Name)
+				if param.Type.String() != tt.indexTypes[i] {
+					t.Errorf("Index param %d type: expected=%q, got=%q", i, tt.indexTypes[i], param.Type.String())
 				}
 			}
 		})
@@ -466,8 +466,8 @@ end;
 	if prop1.Name.Value != "Name" {
 		t.Errorf("Property 1 name: expected='Name', got=%q", prop1.Name.Value)
 	}
-	if prop1.Type.Name != "String" {
-		t.Errorf("Property 1 type: expected='String', got=%q", prop1.Type.Name)
+	if prop1.Type.String() != "String" {
+		t.Errorf("Property 1 type: expected='String', got=%q", prop1.Type.String())
 	}
 
 	// Verify second property
@@ -592,8 +592,8 @@ end;
 	if !prop1.IsClassProperty {
 		t.Error("Property 1 should be marked as class property")
 	}
-	if prop1.Type.Name != "Integer" {
-		t.Errorf("Property 1 type: expected='Integer', got=%q", prop1.Type.Name)
+	if prop1.Type.String() != "Integer" {
+		t.Errorf("Property 1 type: expected='Integer', got=%q", prop1.Type.String())
 	}
 
 	// Verify it has both read and write

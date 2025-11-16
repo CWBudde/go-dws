@@ -75,7 +75,7 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 
 		// Apply implicit conversion if parameter has a type and types don't match
 		if param.Type != nil {
-			paramTypeName := param.Type.Name
+			paramTypeName := param.Type.String()
 			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
 				arg = converted
 			}
@@ -128,7 +128,7 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 
 		// Apply implicit conversion if parameter has a type and types don't match
 		if param.Type != nil {
-			paramTypeName := param.Type.Name
+			paramTypeName := param.Type.String()
 			if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
 				arg = converted
 			}
@@ -179,7 +179,7 @@ func (i *Interpreter) extractReturnValue(method *ast.FunctionDecl, env *Environm
 
 	// Apply implicit conversion if return type doesn't match
 	if method.ReturnType != nil && returnValue.Type() != "NIL" {
-		expectedReturnType := method.ReturnType.Name
+		expectedReturnType := method.ReturnType.String()
 		if converted, ok := i.tryImplicitConversion(returnValue, expectedReturnType); ok {
 			return converted
 		}

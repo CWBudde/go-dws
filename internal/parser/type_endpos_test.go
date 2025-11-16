@@ -40,12 +40,12 @@ func TestTypeExpressionEndPos(t *testing.T) {
 				if !ok {
 					t.Fatalf("expected *ast.VarDeclStatement, got %T", stmt)
 				}
-				if varStmt.Type == nil || varStmt.Type.InlineType == nil {
-					t.Fatal("varStmt.Type or InlineType is nil")
+				if varStmt.Type == nil {
+					t.Fatal("varStmt.Type is nil")
 				}
-				arrayType, ok := varStmt.Type.InlineType.(*ast.ArrayTypeNode)
+				arrayType, ok := varStmt.Type.(*ast.ArrayTypeNode)
 				if !ok {
-					t.Fatalf("expected *ast.ArrayTypeNode, got %T", varStmt.Type.InlineType)
+					t.Fatalf("expected *ast.ArrayTypeNode, got %T", varStmt.Type)
 				}
 				// "var arr: array of Integer;" - Integer ends at column 26
 				if arrayType.End().Column != 26 {
@@ -61,12 +61,12 @@ func TestTypeExpressionEndPos(t *testing.T) {
 				if !ok {
 					t.Fatalf("expected *ast.VarDeclStatement, got %T", stmt)
 				}
-				if varStmt.Type == nil || varStmt.Type.InlineType == nil {
-					t.Fatal("varStmt.Type or InlineType is nil")
+				if varStmt.Type == nil {
+					t.Fatal("varStmt.Type is nil")
 				}
-				setType, ok := varStmt.Type.InlineType.(*ast.SetTypeNode)
+				setType, ok := varStmt.Type.(*ast.SetTypeNode)
 				if !ok {
-					t.Fatalf("expected *ast.SetTypeNode, got %T", varStmt.Type.InlineType)
+					t.Fatalf("expected *ast.SetTypeNode, got %T", varStmt.Type)
 				}
 				// "var s: set of TEnum;" - TEnum ends at column 20
 				if setType.End().Column != 20 {
@@ -82,12 +82,12 @@ func TestTypeExpressionEndPos(t *testing.T) {
 				if !ok {
 					t.Fatalf("expected *ast.VarDeclStatement, got %T", stmt)
 				}
-				if varStmt.Type == nil || varStmt.Type.InlineType == nil {
-					t.Fatal("varStmt.Type or InlineType is nil")
+				if varStmt.Type == nil {
+					t.Fatal("varStmt.Type is nil")
 				}
-				arrayType, ok := varStmt.Type.InlineType.(*ast.ArrayTypeNode)
+				arrayType, ok := varStmt.Type.(*ast.ArrayTypeNode)
 				if !ok {
-					t.Fatalf("expected *ast.ArrayTypeNode, got %T", varStmt.Type.InlineType)
+					t.Fatalf("expected *ast.ArrayTypeNode, got %T", varStmt.Type)
 				}
 				// "var a: array[1..10] of String;" - String ends at column 30
 				if arrayType.End().Column != 30 {

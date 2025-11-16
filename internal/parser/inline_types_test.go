@@ -75,8 +75,8 @@ func TestInlineFunctionPointerInParameter(t *testing.T) {
 			}
 
 			param := funcDecl.Parameters[0]
-			if param.Type.Name != tt.expectedParam {
-				t.Errorf("expected parameter type %q, got %q", tt.expectedParam, param.Type.Name)
+			if param.Type.String() != tt.expectedParam {
+				t.Errorf("expected parameter type %q, got %q", tt.expectedParam, param.Type.String())
 			}
 		})
 	}
@@ -150,8 +150,8 @@ func TestArrayTypeInParameter(t *testing.T) {
 			}
 
 			param := funcDecl.Parameters[0]
-			if param.Type.Name != tt.expectedParam {
-				t.Errorf("expected parameter type %q, got %q", tt.expectedParam, param.Type.Name)
+			if param.Type.String() != tt.expectedParam {
+				t.Errorf("expected parameter type %q, got %q", tt.expectedParam, param.Type.String())
 			}
 		})
 	}
@@ -224,8 +224,8 @@ func TestInlineFunctionPointerInVariable(t *testing.T) {
 				t.Fatal("expected type annotation")
 			}
 
-			if varDecl.Type.Name != tt.expectedType {
-				t.Errorf("expected type %q, got %q", tt.expectedType, varDecl.Type.Name)
+			if varDecl.Type.String() != tt.expectedType {
+				t.Errorf("expected type %q, got %q", tt.expectedType, varDecl.Type.String())
 			}
 		})
 	}
@@ -298,8 +298,8 @@ func TestArrayTypeInVariable(t *testing.T) {
 				t.Fatal("expected type annotation")
 			}
 
-			if varDecl.Type.Name != tt.expectedType {
-				t.Errorf("expected type %q, got %q", tt.expectedType, varDecl.Type.Name)
+			if varDecl.Type.String() != tt.expectedType {
+				t.Errorf("expected type %q, got %q", tt.expectedType, varDecl.Type.String())
 			}
 		})
 	}
@@ -395,8 +395,8 @@ func TestArrayReturnTypes(t *testing.T) {
 				t.Fatal("expected return type annotation")
 			}
 
-			if fnDecl.ReturnType.Name != tt.expectedReturn {
-				t.Errorf("expected return type %q, got %q", tt.expectedReturn, fnDecl.ReturnType.Name)
+			if fnDecl.ReturnType.String() != tt.expectedReturn {
+				t.Errorf("expected return type %q, got %q", tt.expectedReturn, fnDecl.ReturnType.String())
 			}
 		})
 	}
@@ -469,8 +469,8 @@ func TestComplexReturnTypes(t *testing.T) {
 				t.Fatal("expected return type annotation")
 			}
 
-			if fnDecl.ReturnType.Name != tt.expectedReturn {
-				t.Errorf("expected return type %q, got %q", tt.expectedReturn, fnDecl.ReturnType.Name)
+			if fnDecl.ReturnType.String() != tt.expectedReturn {
+				t.Errorf("expected return type %q, got %q", tt.expectedReturn, fnDecl.ReturnType.String())
 			}
 		})
 	}
@@ -548,13 +548,9 @@ func TestMetaclassTypeDeclaration(t *testing.T) {
 				t.Fatal("expected AliasedType to be set")
 			}
 
-			if typeDecl.AliasedType.InlineType == nil {
-				t.Fatal("expected InlineType to be set")
-			}
-
-			classOfNode, ok := typeDecl.AliasedType.InlineType.(*ast.ClassOfTypeNode)
+			classOfNode, ok := typeDecl.AliasedType.(*ast.ClassOfTypeNode)
 			if !ok {
-				t.Fatalf("expected ClassOfTypeNode, got %T", typeDecl.AliasedType.InlineType)
+				t.Fatalf("expected ClassOfTypeNode, got %T", typeDecl.AliasedType)
 			}
 
 			// Check the base class type
@@ -631,18 +627,15 @@ func TestMetaclassVariableDeclaration(t *testing.T) {
 				t.Errorf("expected variable name %q, got %q", tt.expectedName, varDecl.Names[0].Value)
 			}
 
-			if varDecl.Type.Name != tt.expectedType {
-				t.Errorf("expected type %q, got %q", tt.expectedType, varDecl.Type.Name)
+			if varDecl.Type.String() != tt.expectedType {
+				t.Errorf("expected type %q, got %q", tt.expectedType, varDecl.Type.String())
 			}
 
 			// Verify InlineType is ClassOfTypeNode
-			if varDecl.Type.InlineType == nil {
-				t.Fatal("expected InlineType to be set")
-			}
-
-			_, ok = varDecl.Type.InlineType.(*ast.ClassOfTypeNode)
+			// Verify Type is ClassOfTypeNode
+			_, ok = varDecl.Type.(*ast.ClassOfTypeNode)
 			if !ok {
-				t.Fatalf("expected ClassOfTypeNode, got %T", varDecl.Type.InlineType)
+				t.Fatalf("expected ClassOfTypeNode, got %T", varDecl.Type)
 			}
 		})
 	}
@@ -706,13 +699,13 @@ func TestEnumIndexedArrayType(t *testing.T) {
 				t.Fatalf("expected VarDeclStatement, got %T", program.Statements[1])
 			}
 
-			if varDecl.Type == nil || varDecl.Type.InlineType == nil {
+			if varDecl.Type == nil {
 				t.Fatal("expected type annotation with inline type")
 			}
 
-			arrayType, ok := varDecl.Type.InlineType.(*ast.ArrayTypeNode)
+			arrayType, ok := varDecl.Type.(*ast.ArrayTypeNode)
 			if !ok {
-				t.Fatalf("expected ArrayTypeNode, got %T", varDecl.Type.InlineType)
+				t.Fatalf("expected ArrayTypeNode, got %T", varDecl.Type)
 			}
 
 			// Verify the array type

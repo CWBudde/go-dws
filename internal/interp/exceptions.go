@@ -288,12 +288,12 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 }
 
 // matchesExceptionType checks if an exception matches a handler's type.
-func (i *Interpreter) matchesExceptionType(exc *ExceptionValue, typeAnnotation *ast.TypeAnnotation) bool {
-	if typeAnnotation == nil {
+func (i *Interpreter) matchesExceptionType(exc *ExceptionValue, typeExpr ast.TypeExpression) bool {
+	if typeExpr == nil {
 		return true // Bare handler catches all
 	}
 
-	typeName := typeAnnotation.Name
+	typeName := typeExpr.String()
 
 	// Check if exception class matches or inherits from handler type
 	currentClass := exc.ClassInfo

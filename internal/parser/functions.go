@@ -485,53 +485,6 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		return nil
 	}
 
-	// For now, we need to convert TypeExpression to TypeAnnotation for Parameter.Type
-	// TODO: Update Parameter struct to accept TypeExpression instead of TypeAnnotation
-	var typeAnnotation *ast.TypeAnnotation
-	switch te := typeExpr.(type) {
-	case *ast.TypeAnnotation:
-		typeAnnotation = te
-	case *ast.FunctionPointerTypeNode:
-		// For function pointer types, we create a synthetic TypeAnnotation
-		// The semantic analyzer will recognize function pointer parameters by checking the type string
-		// Check if te is nil to prevent panics (defensive programming)
-		if te == nil {
-			p.addError("function pointer type expression is nil in parameter type", ErrInvalidType)
-			return nil
-		}
-		typeAnnotation = &ast.TypeAnnotation{
-			Token: te.Token,
-			Name:  te.String(), // Use the full function pointer signature as the type name
-		}
-	case *ast.ArrayTypeNode:
-		// For array types, we create a synthetic TypeAnnotation
-		// Check if Token is nil to prevent panics (defensive programming)
-		if te == nil {
-			p.addError("array type expression is nil in parameter type", ErrInvalidType)
-			return nil
-		}
-		// Use the array token or create a dummy token if nil
-		token := te.Token
-		if token.Type == 0 || token.Literal == "" {
-			// Create a dummy token to prevent nil pointer issues
-			token = lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{}}
-		}
-		typeAnnotation = &ast.TypeAnnotation{
-			Token: token,
-			Name:  te.String(), // Use the full array type signature as the type name
-		}
-	case *ast.SetTypeNode:
-		// For set types, we create a synthetic TypeAnnotation
-		// Handle inline set type expressions in parameters
-		typeAnnotation = &ast.TypeAnnotation{
-			Token: te.Token,
-			Name:  te.String(), // Use the full set type signature as the type name
-		}
-	default:
-		p.addError("unsupported type expression in parameter", ErrInvalidType)
-		return nil
-	}
-
 	// Check for default value (optional parameter)
 	// Syntax: param: Type = defaultValue
 	var defaultValue ast.Expression
@@ -558,7 +511,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		param := &ast.Parameter{
 			Token:        name.Token,
 			Name:         name,
-			Type:         typeAnnotation,
+			Type:         typeExpr,
 			DefaultValue: defaultValue,
 			IsLazy:       isLazy,
 			ByRef:        byRef,

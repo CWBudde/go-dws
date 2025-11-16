@@ -728,21 +728,12 @@ func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 		var aliasedType types.Type
 		var err error
 
-		// Task 9.73.4: Check for inline type expressions (e.g., class of TBase)
-		if decl.AliasedType.InlineType != nil {
-			// Resolve inline type expression
-			aliasedType, err = a.resolveTypeExpression(decl.AliasedType.InlineType)
-			if err != nil {
-				a.addError("cannot resolve inline type in type alias at %s: %v", decl.Token.Pos.String(), err)
-				return
-			}
-		} else {
-			// Resolve the aliased type by name
-			aliasedType, err = a.resolveType(decl.AliasedType.Name)
-			if err != nil {
-				a.addError("unknown type '%s' in type alias at %s", decl.AliasedType.Name, decl.Token.Pos.String())
-				return
-			}
+		// Resolve the aliased type expression
+		aliasedType, err = a.resolveTypeExpression(decl.AliasedType)
+		if err != nil {
+			typeName := getTypeExpressionName(decl.AliasedType)
+			a.addError("unknown type '%s' in type alias at %s", typeName, decl.Token.Pos.String())
+			return
 		}
 
 		// Create TypeAlias and register it

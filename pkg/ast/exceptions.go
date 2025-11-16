@@ -152,7 +152,7 @@ func (ec *ExceptClause) String() string {
 type ExceptionHandler struct {
 	Statement     Statement
 	Variable      *Identifier
-	ExceptionType *TypeAnnotation
+	ExceptionType TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	Token         token.Token    // 'on' keyword token
 	EndPos        token.Position // End of handler statement
 }

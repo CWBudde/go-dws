@@ -30,7 +30,7 @@ import (
 type Parameter struct {
 	DefaultValue Expression
 	Name         *Identifier
-	Type         *TypeAnnotation
+	Type         TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	Token        token.Token
 	EndPos       token.Position
 	IsLazy       bool
@@ -112,7 +112,7 @@ func (p *Parameter) String() string {
 type FunctionDecl struct {
 	BaseNode
 	ClassName         *Identifier
-	ReturnType        *TypeAnnotation
+	ReturnType        TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	Body              *BlockStatement
 	PreConditions     *PreConditions
 	PostConditions    *PostConditions

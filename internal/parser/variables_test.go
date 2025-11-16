@@ -274,7 +274,7 @@ var s: String := 'hello';
 				}
 			}
 
-			if (stmt.Type == nil && tt.expectedTyp != "") || (stmt.Type != nil && stmt.Type.Name != tt.expectedTyp) {
+			if (stmt.Type == nil && tt.expectedTyp != "") || (stmt.Type != nil && stmt.Type.String() != tt.expectedTyp) {
 				t.Errorf("stmt.Type = %q, want %q", stmt.Type, tt.expectedTyp)
 			}
 
@@ -369,12 +369,12 @@ func TestExternalVarParsing(t *testing.T) {
 				}
 			}
 
-			if stmt.Type == nil || stmt.Type.Name != tt.expectedType {
+			if stmt.Type == nil || stmt.Type.String() != tt.expectedType {
 				var gotType string
 				if stmt.Type != nil {
-					gotType = stmt.Type.Name
+					gotType = stmt.Type.String()
 				}
-				t.Errorf("stmt.Type.Name = %q, want %q", gotType, tt.expectedType)
+				t.Errorf("stmt.Type.String() = %q, want %q", gotType, tt.expectedType)
 			}
 
 			if stmt.IsExternal != tt.isExternal {
@@ -474,12 +474,12 @@ func TestMultiIdentifierVarDeclarations(t *testing.T) {
 				}
 			}
 
-			if stmt.Type == nil || stmt.Type.Name != tt.expectedType {
+			if stmt.Type == nil || stmt.Type.String() != tt.expectedType {
 				var typeName string
 				if stmt.Type != nil {
-					typeName = stmt.Type.Name
+					typeName = stmt.Type.String()
 				}
-				t.Errorf("stmt.Type.Name = %q, want %q", typeName, tt.expectedType)
+				t.Errorf("stmt.Type.String() = %q, want %q", typeName, tt.expectedType)
 			}
 
 			// Test String() method for multi-names

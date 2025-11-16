@@ -43,7 +43,7 @@ func Example_functionDeclaration() {
 			fmt.Printf("Function: %s\n", funcDecl.Name.Value)
 			fmt.Printf("Parameters: %d\n", len(funcDecl.Parameters))
 			if funcDecl.ReturnType != nil {
-				fmt.Printf("Return type: %s\n", funcDecl.ReturnType.Name)
+				fmt.Printf("Return type: %s\n", funcDecl.ReturnType.String())
 			}
 		}
 	}

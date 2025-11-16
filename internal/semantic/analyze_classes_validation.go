@@ -19,10 +19,10 @@ func (a *Analyzer) validateMethodSignature(implDecl *ast.FunctionDecl, declaredT
 			// We'll accept this and rely on the declared types
 			continue
 		}
-		paramType, err := a.resolveType(param.Type.Name)
+		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 		if err != nil {
 			return fmt.Errorf("unknown parameter type '%s' in method '%s.%s'",
-				param.Type.Name, className, implDecl.Name.Value)
+				getTypeExpressionName(param.Type), className, implDecl.Name.Value)
 		}
 		implParamTypes = append(implParamTypes, paramType)
 	}
@@ -50,10 +50,10 @@ func (a *Analyzer) validateMethodSignature(implDecl *ast.FunctionDecl, declaredT
 	var implReturnType types.Type
 	if implDecl.ReturnType != nil {
 		var err error
-		implReturnType, err = a.resolveType(implDecl.ReturnType.Name)
+		implReturnType, err = a.resolveType(getTypeExpressionName(implDecl.ReturnType))
 		if err != nil {
 			return fmt.Errorf("unknown return type '%s' in method '%s.%s'",
-				implDecl.ReturnType.Name, className, implDecl.Name.Value)
+				getTypeExpressionName(implDecl.ReturnType), className, implDecl.Name.Value)
 		}
 
 		// Validate return type matches

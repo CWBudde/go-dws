@@ -306,6 +306,9 @@ func (i *Interpreter) builtinVarToStr(args []Value) Value {
 	if _, ok := val.(*NilValue); ok {
 		return &StringValue{Value: ""}
 	}
+	if _, ok := val.(*UnassignedValue); ok {
+		return &StringValue{Value: ""}
+	}
 
 	// Convert based on actual type
 	return &StringValue{Value: i.convertToString(val)}
@@ -341,6 +344,9 @@ func (i *Interpreter) builtinVarToInt(args []Value) Value {
 		return &IntegerValue{Value: 0}
 	}
 	if _, ok := val.(*NilValue); ok {
+		return &IntegerValue{Value: 0}
+	}
+	if _, ok := val.(*UnassignedValue); ok {
 		return &IntegerValue{Value: 0}
 	}
 
@@ -397,6 +403,9 @@ func (i *Interpreter) builtinVarToFloat(args []Value) Value {
 		return &FloatValue{Value: 0.0}
 	}
 	if _, ok := val.(*NilValue); ok {
+		return &FloatValue{Value: 0.0}
+	}
+	if _, ok := val.(*UnassignedValue); ok {
 		return &FloatValue{Value: 0.0}
 	}
 

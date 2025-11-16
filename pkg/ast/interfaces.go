@@ -24,7 +24,7 @@ import (
 type InterfaceMethodDecl struct {
 	BaseNode
 	Name       *Identifier
-	ReturnType *TypeAnnotation
+	ReturnType TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	Parameters []*Parameter
 }
 

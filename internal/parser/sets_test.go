@@ -34,8 +34,8 @@ func TestParseSetDeclaration(t *testing.T) {
 			t.Errorf("setDecl.Name.Value = %s, want 'TDays'", setDecl.Name.Value)
 		}
 
-		if setDecl.ElementType.Name != "TWeekday" {
-			t.Errorf("setDecl.ElementType.Name = %s, want 'TWeekday'", setDecl.ElementType.Name)
+		if setDecl.ElementType.String() != "TWeekday" {
+			t.Errorf("setDecl.ElementType.String() = %s, want 'TWeekday'", setDecl.ElementType.String())
 		}
 	})
 
@@ -53,8 +53,8 @@ func TestParseSetDeclaration(t *testing.T) {
 			t.Errorf("setDecl.Name.Value = %s, want 'TOptions'", setDecl.Name.Value)
 		}
 
-		if setDecl.ElementType.Name != "TOption" {
-			t.Errorf("setDecl.ElementType.Name = %s, want 'TOption'", setDecl.ElementType.Name)
+		if setDecl.ElementType.String() != "TOption" {
+			t.Errorf("setDecl.ElementType.String() = %s, want 'TOption'", setDecl.ElementType.String())
 		}
 	})
 
@@ -110,8 +110,8 @@ func TestParseInlineSetDeclaration(t *testing.T) {
 			t.Errorf("varDecl.Names[0].Value = %s, want 's'", varDecl.Names[0].Value)
 		}
 
-		if varDecl.Type.Name != "TMySet" {
-			t.Errorf("varDecl.Type.Name = %s, want 'TMySet'", varDecl.Type.Name)
+		if varDecl.Type.String() != "TMySet" {
+			t.Errorf("varDecl.Type.String() = %s, want 'TMySet'", varDecl.Type.String())
 		}
 	})
 }
@@ -449,14 +449,14 @@ func TestParseInlineSetType(t *testing.T) {
 			t.Fatalf("varDecl.Type should not be nil")
 		}
 
-		if varDecl.Type.Name != "set of TRange" {
-			t.Errorf("varDecl.Type.Name = %s, want 'set of TRange'", varDecl.Type.Name)
+		if varDecl.Type.String() != "set of TRange" {
+			t.Errorf("varDecl.Type.String() = %s, want 'set of TRange'", varDecl.Type.String())
 		}
 
 		// Check InlineType
-		setType, ok := varDecl.Type.InlineType.(*ast.SetTypeNode)
+		setType, ok := varDecl.Type.(*ast.SetTypeNode)
 		if !ok {
-			t.Fatalf("varDecl.Type.InlineType is not *ast.SetTypeNode, got %T", varDecl.Type.InlineType)
+			t.Fatalf("varDecl.Type is not *ast.SetTypeNode, got %T", varDecl.Type)
 		}
 
 		// Check element type
@@ -484,8 +484,8 @@ func TestParseInlineSetType(t *testing.T) {
 			t.Fatalf("varDecl should have 2 names, got %d", len(varDecl.Names))
 		}
 
-		if varDecl.Type.Name != "set of TEnum" {
-			t.Errorf("varDecl.Type.Name = %s, want 'set of TEnum'", varDecl.Type.Name)
+		if varDecl.Type.String() != "set of TEnum" {
+			t.Errorf("varDecl.Type.String() = %s, want 'set of TEnum'", varDecl.Type.String())
 		}
 	})
 
@@ -511,8 +511,8 @@ func TestParseInlineSetType(t *testing.T) {
 			t.Errorf("parameter name = %s, want 's'", param.Name.Value)
 		}
 
-		if param.Type.Name != "set of TEnum" {
-			t.Errorf("parameter type = %s, want 'set of TEnum'", param.Type.Name)
+		if param.Type.String() != "set of TEnum" {
+			t.Errorf("parameter type = %s, want 'set of TEnum'", param.Type.String())
 		}
 	})
 
@@ -529,8 +529,8 @@ func TestParseInlineSetType(t *testing.T) {
 			t.Fatalf("statement is not *ast.FunctionDecl, got %T", program.Statements[0])
 		}
 
-		if funcDecl.ReturnType.Name != "set of TEnum" {
-			t.Errorf("return type = %s, want 'set of TEnum'", funcDecl.ReturnType.Name)
+		if funcDecl.ReturnType.String() != "set of TEnum" {
+			t.Errorf("return type = %s, want 'set of TEnum'", funcDecl.ReturnType.String())
 		}
 	})
 
@@ -543,7 +543,7 @@ func TestParseInlineSetType(t *testing.T) {
 		checkParserErrors(t, p)
 
 		varDecl := program.Statements[0].(*ast.VarDeclStatement)
-		setType := varDecl.Type.InlineType.(*ast.SetTypeNode)
+		setType := varDecl.Type.(*ast.SetTypeNode)
 
 		str := setType.String()
 		if str != "set of TEnum" {

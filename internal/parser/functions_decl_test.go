@@ -24,7 +24,7 @@ func TestFunctionDeclarations(t *testing.T) {
 				if fn.Name.Value != "GetValue" {
 					t.Errorf("function name = %q, want %q", fn.Name.Value, "GetValue")
 				}
-				if fn.ReturnType == nil || fn.ReturnType.Name != "Integer" {
+				if fn.ReturnType == nil || fn.ReturnType.String() != "Integer" {
 					t.Errorf("return type = %q, want %q", fn.ReturnType, "Integer")
 				}
 				if len(fn.Parameters) != 0 {
@@ -66,7 +66,7 @@ func TestFunctionDeclarations(t *testing.T) {
 				if param.Name.Value != "x" {
 					t.Errorf("parameter name = %q, want %q", param.Name.Value, "x")
 				}
-				if param.Type == nil || param.Type.Name != "Integer" {
+				if param.Type == nil || param.Type.String() != "Integer" {
 					t.Errorf("parameter type = %q, want %q", param.Type, "Integer")
 				}
 				if param.ByRef {
@@ -111,7 +111,7 @@ func TestFunctionDeclarations(t *testing.T) {
 				if param.Name.Value != "data" {
 					t.Errorf("parameter name = %q, want %q", param.Name.Value, "data")
 				}
-				if param.Type == nil || param.Type.Name != "String" {
+				if param.Type == nil || param.Type.String() != "String" {
 					t.Errorf("parameter type = %q, want %q", param.Type, "String")
 				}
 			},
@@ -151,7 +151,7 @@ func TestParameters(t *testing.T) {
 				if param.Name.Value != "x" {
 					t.Errorf("param name = %q, want 'x'", param.Name.Value)
 				}
-				if param.Type == nil || param.Type.Name != "Integer" {
+				if param.Type == nil || param.Type.String() != "Integer" {
 					t.Errorf("param type = %q, want 'Integer'", param.Type)
 				}
 				if param.ByRef {
@@ -171,7 +171,7 @@ func TestParameters(t *testing.T) {
 				if fn.Parameters[0].Name.Value != "x" {
 					t.Errorf("param[0] name = %q, want 'x'", fn.Parameters[0].Name.Value)
 				}
-				if fn.Parameters[0].Type == nil || fn.Parameters[0].Type.Name != "Integer" {
+				if fn.Parameters[0].Type == nil || fn.Parameters[0].Type.String() != "Integer" {
 					t.Errorf("param[0] type = %q, want 'Integer'", fn.Parameters[0].Type)
 				}
 
@@ -179,7 +179,7 @@ func TestParameters(t *testing.T) {
 				if fn.Parameters[1].Name.Value != "y" {
 					t.Errorf("param[1] name = %q, want 'y'", fn.Parameters[1].Name.Value)
 				}
-				if fn.Parameters[1].Type == nil || fn.Parameters[1].Type.Name != "Float" {
+				if fn.Parameters[1].Type == nil || fn.Parameters[1].Type.String() != "Float" {
 					t.Errorf("param[1] type = %q, want 'Float'", fn.Parameters[1].Type)
 				}
 
@@ -187,7 +187,7 @@ func TestParameters(t *testing.T) {
 				if fn.Parameters[2].Name.Value != "name" {
 					t.Errorf("param[2] name = %q, want 'name'", fn.Parameters[2].Name.Value)
 				}
-				if fn.Parameters[2].Type == nil || fn.Parameters[2].Type.Name != "String" {
+				if fn.Parameters[2].Type == nil || fn.Parameters[2].Type.String() != "String" {
 					t.Errorf("param[2] type = %q, want 'String'", fn.Parameters[2].Type)
 				}
 			},
@@ -271,7 +271,7 @@ func TestParameters(t *testing.T) {
 				if param.Name.Value != "x" {
 					t.Errorf("param name = %q, want 'x'", param.Name.Value)
 				}
-				if param.Type == nil || param.Type.Name != "Integer" {
+				if param.Type == nil || param.Type.String() != "Integer" {
 					t.Errorf("param type = %q, want 'Integer'", param.Type)
 				}
 			},
@@ -340,10 +340,10 @@ func TestParameters(t *testing.T) {
 				}
 
 				// Both lazy parameters should have Integer type
-				if fn.Parameters[1].Type == nil || fn.Parameters[1].Type.Name != "Integer" {
+				if fn.Parameters[1].Type == nil || fn.Parameters[1].Type.String() != "Integer" {
 					t.Errorf("param[1] type = %q, want 'Integer'", fn.Parameters[1].Type)
 				}
-				if fn.Parameters[2].Type == nil || fn.Parameters[2].Type.Name != "Integer" {
+				if fn.Parameters[2].Type == nil || fn.Parameters[2].Type.String() != "Integer" {
 					t.Errorf("param[2] type = %q, want 'Integer'", fn.Parameters[2].Type)
 				}
 			},
@@ -384,7 +384,7 @@ func TestParameters(t *testing.T) {
 				if param.Name.Value != "message" {
 					t.Errorf("param name = %q, want 'message'", param.Name.Value)
 				}
-				if param.Type == nil || param.Type.Name != "String" {
+				if param.Type == nil || param.Type.String() != "String" {
 					t.Errorf("param type = %q, want 'String'", param.Type)
 				}
 			},
@@ -455,10 +455,10 @@ func TestParameters(t *testing.T) {
 				}
 
 				// Both should have Integer type
-				if fn.Parameters[0].Type == nil || fn.Parameters[0].Type.Name != "Integer" {
+				if fn.Parameters[0].Type == nil || fn.Parameters[0].Type.String() != "Integer" {
 					t.Errorf("param[0] type = %q, want 'Integer'", fn.Parameters[0].Type)
 				}
-				if fn.Parameters[1].Type == nil || fn.Parameters[1].Type.Name != "Integer" {
+				if fn.Parameters[1].Type == nil || fn.Parameters[1].Type.String() != "Integer" {
 					t.Errorf("param[1] type = %q, want 'Integer'", fn.Parameters[1].Type)
 				}
 			},
@@ -483,8 +483,8 @@ func TestParameters(t *testing.T) {
 				}
 				// The type name should contain "array" since it's a synthetic TypeAnnotation
 				// from ArrayTypeNode.String()
-				if param.Type.Name != "array of const" {
-					t.Errorf("param type = %q, want 'array of const'", param.Type.Name)
+				if param.Type.String() != "array of const" {
+					t.Errorf("param type = %q, want 'array of const'", param.Type.String())
 				}
 			},
 		},
@@ -505,8 +505,8 @@ func TestParameters(t *testing.T) {
 				if param.Type == nil {
 					t.Fatal("param type is nil")
 				}
-				if param.Type.Name != "array of Integer" {
-					t.Errorf("param type = %q, want 'array of Integer'", param.Type.Name)
+				if param.Type.String() != "array of Integer" {
+					t.Errorf("param type = %q, want 'array of Integer'", param.Type.String())
 				}
 			},
 		},
@@ -522,7 +522,7 @@ func TestParameters(t *testing.T) {
 				if fn.Parameters[0].Name.Value != "fmt" {
 					t.Errorf("param[0] name = %q, want 'fmt'", fn.Parameters[0].Name.Value)
 				}
-				if fn.Parameters[0].Type == nil || fn.Parameters[0].Type.Name != "String" {
+				if fn.Parameters[0].Type == nil || fn.Parameters[0].Type.String() != "String" {
 					t.Errorf("param[0] type = %q, want 'String'", fn.Parameters[0].Type)
 				}
 				if fn.Parameters[0].IsConst {
@@ -536,7 +536,7 @@ func TestParameters(t *testing.T) {
 				if !fn.Parameters[1].IsConst {
 					t.Error("param[1] should be const")
 				}
-				if fn.Parameters[1].Type == nil || fn.Parameters[1].Type.Name != "array of const" {
+				if fn.Parameters[1].Type == nil || fn.Parameters[1].Type.String() != "array of const" {
 					t.Errorf("param[1] type = %q, want 'array of const'", fn.Parameters[1].Type)
 				}
 			},
@@ -552,8 +552,8 @@ func TestParameters(t *testing.T) {
 				if param.Name.Value != "items" {
 					t.Errorf("param name = %q, want 'items'", param.Name.Value)
 				}
-				if param.Type == nil || param.Type.Name != "array of String" {
-					t.Errorf("param type = %q, want 'array of String'", param.Type.Name)
+				if param.Type == nil || param.Type.String() != "array of String" {
+					t.Errorf("param type = %q, want 'array of String'", param.Type.String())
 				}
 			},
 		},
@@ -775,7 +775,7 @@ func TestMethodDeclarations(t *testing.T) {
 					}
 					t.Errorf("class name = %q, want %q", className, "TMyClass")
 				}
-				if fn.ReturnType == nil || fn.ReturnType.Name != "String" {
+				if fn.ReturnType == nil || fn.ReturnType.String() != "String" {
 					t.Errorf("return type = %v, want %q", fn.ReturnType, "String")
 				}
 			},
@@ -798,7 +798,7 @@ func TestMethodDeclarations(t *testing.T) {
 					}
 					t.Errorf("class name = %q, want %q", className, "TBottlesSinger")
 				}
-				if fn.ReturnType == nil || fn.ReturnType.Name != "String" {
+				if fn.ReturnType == nil || fn.ReturnType.String() != "String" {
 					t.Errorf("return type = %v, want %q", fn.ReturnType, "String")
 				}
 			},
@@ -1202,8 +1202,8 @@ func TestOptionalParameters(t *testing.T) {
 				if param.Name.Value != "name" {
 					t.Errorf("parameter name = %q, want 'name'", param.Name.Value)
 				}
-				if param.Type.Name != "String" {
-					t.Errorf("parameter type = %q, want 'String'", param.Type.Name)
+				if param.Type.String() != "String" {
+					t.Errorf("parameter type = %q, want 'String'", param.Type.String())
 				}
 				if param.DefaultValue == nil {
 					t.Fatal("expected default value, got nil")

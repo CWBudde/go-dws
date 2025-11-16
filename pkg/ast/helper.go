@@ -53,7 +53,7 @@ type HelperDecl struct {
 	BaseNode
 	Name           *Identifier     // Helper type name (e.g., TStringHelper)
 	ParentHelper   *Identifier     // Parent helper name (optional, for inheritance)
-	ForType        *TypeAnnotation // Type being extended (e.g., String, Integer, TPoint)
+	ForType        TypeExpression  // Type being extended (e.g., String, Integer, TPoint)
 	Methods        []*FunctionDecl // All methods (functions/procedures)
 	Properties     []*PropertyDecl // All properties
 	ClassVars      []*FieldDecl    // Class variables (static fields)

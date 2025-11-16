@@ -457,9 +457,9 @@ func TestClassDeclaration(t *testing.T) {
 					Token: token.Token{Type: token.OPERATOR, Literal: "operator"},
 				},
 				OperatorSymbol: "+",
-				OperandTypes: []*ast.TypeAnnotation{
-					{Name: "TMyClass"},
-					{Name: "TMyClass"},
+				OperandTypes: []ast.TypeExpression{
+					&ast.TypeAnnotation{Name: "TMyClass"},
+					&ast.TypeAnnotation{Name: "TMyClass"},
 				},
 				ReturnType: &ast.TypeAnnotation{
 					Name: "TMyClass",
