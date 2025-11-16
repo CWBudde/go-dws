@@ -50,15 +50,6 @@ Building blocks for modernization: structured errors, context management, benchm
 
 ---
 
-#### Task 2.1.1: Structured Error Types (Week 1, Days 1-3)
-
-**Goal**: Replace string-based errors with rich, structured error types for better error messages and IDE/LSP integration.
-### Phase 2.1: Foundation Layer (Weeks 1-2, 80 hours)
-
-Building blocks for modernization: structured errors, context management, benchmarks.
-
----
-
 #### Task 2.1.1: Structured Error Types (Week 1, Days 1-3, ~24 hours)
 
 **Goal**: Replace string-based errors with rich, structured error types for better error messages and IDE/LSP integration.
