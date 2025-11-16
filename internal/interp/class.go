@@ -8,6 +8,19 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
+// VirtualMethodEntry tracks virtual method dispatch information.
+// Task 9.14: Support for virtual/override/reintroduce semantics
+type VirtualMethodEntry struct {
+	// IntroducedBy is the class that first declared this method as virtual
+	IntroducedBy *ClassInfo
+	// Implementation is the method declaration to actually call for this class
+	Implementation *ast.FunctionDecl
+	// IsVirtual indicates if this method participates in virtual dispatch
+	IsVirtual bool
+	// IsReintroduced indicates if this method breaks the virtual dispatch chain
+	IsReintroduced bool
+}
+
 // ClassInfo represents runtime class metadata.
 // It stores information about a class's structure including fields, methods,
 // parent class, and constructor/destructor.
@@ -34,6 +47,10 @@ type ClassInfo struct {
 	IsExternal           bool
 	IsAbstract           bool
 	IsPartial            bool
+	// Task 9.14: Virtual method dispatch tracking
+	// Maps method signature to the class that introduced the virtual method
+	// and the class that provides the actual implementation for this class
+	VirtualMethodTable map[string]*VirtualMethodEntry
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.
@@ -55,6 +72,7 @@ func NewClassInfo(name string) *ClassInfo {
 		Constructors:         make(map[string]*ast.FunctionDecl),
 		ConstructorOverloads: make(map[string][]*ast.FunctionDecl),
 		Properties:           make(map[string]*types.PropertyInfo),
+		VirtualMethodTable:   make(map[string]*VirtualMethodEntry),
 	}
 }
 
@@ -117,6 +135,9 @@ func (o *ObjectInstance) SetField(name string, value Value) {
 // This implements method resolution order (MRO) and supports method overriding:
 //   - If a child class defines a method with the same name as a parent class method,
 //     the child's method is returned (overriding).
+//
+// Note: This performs static method resolution (not virtual dispatch).
+// Virtual dispatch is implemented inline in objects_methods.go where needed.
 func (o *ObjectInstance) GetMethod(name string) *ast.FunctionDecl {
 	return o.Class.lookupMethod(name)
 }
@@ -141,6 +162,9 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 	// Not found
 	return nil
 }
+
+// PR #147: Removed lookupMethodWithVirtualDispatch - it was never called.
+// Virtual dispatch is implemented inline in objects_methods.go.
 
 // lookupProperty searches for a property in the class hierarchy.
 // It starts with the current class and walks up the parent chain.
@@ -382,4 +406,117 @@ func isClassValue(v Value) bool {
 func AsClassValue(v Value) (*ClassValue, bool) {
 	cls, ok := v.(*ClassValue)
 	return cls, ok
+}
+
+// buildVirtualMethodTable builds the virtual method table for this class.
+// Task 9.14: This implements proper virtual/override/reintroduce semantics.
+//
+// The VMT tracks which method implementation should be called for each virtual method.
+// Rules:
+//   - Virtual methods start a dispatch chain (added to VMT)
+//   - Override continues the chain (updates the VMT entry to point to new implementation)
+//   - Reintroduce does NOT update parent's VMT entry - parent's virtual method stays in VMT
+//     (the reintroduced method is static and doesn't participate in virtual dispatch)
+func (c *ClassInfo) buildVirtualMethodTable() {
+	// First, copy parent's VMT if we have a parent
+	// This inherits all virtual methods from the parent
+	if c.Parent != nil {
+		for sig, entry := range c.Parent.VirtualMethodTable {
+			// Copy the entry - child inherits parent's virtual methods
+			c.VirtualMethodTable[sig] = &VirtualMethodEntry{
+				IntroducedBy:   entry.IntroducedBy,
+				Implementation: entry.Implementation,
+				IsVirtual:      entry.IsVirtual,
+				IsReintroduced: false,
+			}
+		}
+	}
+
+	// Now process this class's own methods
+	for _, method := range c.MethodOverloads {
+		for _, m := range method {
+			sig := methodSignature(m)
+
+			if m.IsVirtual {
+				// This method is declared as virtual
+				// It starts a new virtual dispatch chain
+				c.VirtualMethodTable[sig] = &VirtualMethodEntry{
+					IntroducedBy:   c,
+					Implementation: m,
+					IsVirtual:      true,
+					IsReintroduced: false,
+				}
+			} else if m.IsOverride {
+				// This method overrides a parent virtual method
+				// Update the VMT entry to point to this override
+				if existingEntry, exists := c.VirtualMethodTable[sig]; exists {
+					// Keep the IntroducedBy from parent, but update implementation
+					existingEntry.Implementation = m
+				}
+				// If no existing entry, this is an error (should be caught by semantic analysis)
+			} else if m.IsReintroduce {
+				// Reintroduce does NOT participate in virtual dispatch
+				// The parent's virtual method (if any) remains in the VMT
+				// The reintroduced method is only callable via static (compile-time) type
+				// So we do nothing to the VMT here - parent's entry stays unchanged
+			}
+			// If none of virtual/override/reintroduce, it's a new non-virtual method
+			// We don't add it to the VMT
+		}
+	}
+
+	// Process class methods (static methods) similarly
+	for _, method := range c.ClassMethodOverloads {
+		for _, m := range method {
+			sig := methodSignature(m)
+
+			if m.IsVirtual {
+				c.VirtualMethodTable[sig] = &VirtualMethodEntry{
+					IntroducedBy:   c,
+					Implementation: m,
+					IsVirtual:      true,
+					IsReintroduced: false,
+				}
+			} else if m.IsOverride {
+				if existingEntry, exists := c.VirtualMethodTable[sig]; exists {
+					existingEntry.Implementation = m
+				}
+			} else if m.IsReintroduce {
+				// Same as instance methods - don't update VMT
+			}
+		}
+	}
+
+	// Process constructors (they can also be virtual/override)
+	for _, ctors := range c.ConstructorOverloads {
+		for _, ctor := range ctors {
+			sig := methodSignature(ctor)
+
+			if ctor.IsVirtual {
+				c.VirtualMethodTable[sig] = &VirtualMethodEntry{
+					IntroducedBy:   c,
+					Implementation: ctor,
+					IsVirtual:      true,
+					IsReintroduced: false,
+				}
+			} else if ctor.IsOverride {
+				if existingEntry, exists := c.VirtualMethodTable[sig]; exists {
+					existingEntry.Implementation = ctor
+				}
+			}
+			// Constructors typically don't use reintroduce
+		}
+	}
+}
+
+// methodSignature generates a signature string for a method.
+// The signature includes the method name and parameter types to support overloading.
+func methodSignature(method *ast.FunctionDecl) string {
+	sig := strings.ToLower(method.Name.Value)
+
+	// For now, use a simple signature that includes parameter count
+	// In a full implementation, we'd include parameter types
+	sig += fmt.Sprintf("_%d", len(method.Parameters))
+
+	return sig
 }

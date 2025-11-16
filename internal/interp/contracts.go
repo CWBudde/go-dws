@@ -2,6 +2,7 @@ package interp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/ast"
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -10,10 +11,11 @@ import (
 // raiseException raises an exception with the given class name and message.
 func (i *Interpreter) raiseException(className, message string, pos *lexer.Position) {
 	// Get the exception class
-	excClass, ok := i.classes[className]
+	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	excClass, ok := i.classes[strings.ToLower(className)]
 	if !ok {
 		// Fallback to base Exception if class not found
-		excClass, ok = i.classes["Exception"]
+		excClass, ok = i.classes[strings.ToLower("Exception")]
 		if !ok {
 			// This shouldn't happen, but handle it gracefully
 			i.exception = &ExceptionValue{

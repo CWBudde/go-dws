@@ -162,7 +162,8 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 		}
 
 		// Check if target is a class
-		if targetClass, isClass := i.classes[targetTypeName]; isClass {
+		// PR #147: Use lowercase key for O(1) case-insensitive lookup
+		if targetClass, isClass := i.classes[strings.ToLower(targetTypeName)]; isClass {
 			// Interface-to-class casting
 			// Extract the underlying object
 			underlyingObj := intfInst.Object
@@ -230,7 +231,8 @@ func (i *Interpreter) evalAsExpression(expr *ast.AsExpression) Value {
 
 	// Try class-to-class casting first
 	// Look up the target as a class
-	targetClass, isClass := i.classes[targetTypeName]
+	// PR #147: Use lowercase key for O(1) case-insensitive lookup
+	targetClass, isClass := i.classes[strings.ToLower(targetTypeName)]
 	if isClass {
 		// This is a class-to-class cast
 		// Validate that the object's actual runtime type is compatible with the target

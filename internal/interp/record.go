@@ -156,7 +156,8 @@ func (i *Interpreter) evalRecordDeclaration(decl *ast.RecordDecl) Value {
 	i.env.Define(recordTypeKey, recordTypeValue)
 
 	// Also store in records map for easier access during method implementation
-	i.records[recordName] = recordTypeValue
+	// PR #147 Fix: Use lowercase key for O(1) case-insensitive lookup
+	i.records[strings.ToLower(recordName)] = recordTypeValue
 
 	// Initialize overload lists from method declarations
 	for methodName, methodDecl := range methods {

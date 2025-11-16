@@ -437,7 +437,7 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 
 	// Check if it's a set value with built-in methods (Include, Exclude)
 	if setVal, ok := objVal.(*SetValue); ok {
-		methodName := strings.ToLower(mc.Method.Value)  // DWScript is case-insensitive
+		methodName := strings.ToLower(mc.Method.Value) // DWScript is case-insensitive
 
 		// Evaluate method arguments
 		args := make([]Value, len(mc.Arguments))
@@ -605,6 +605,19 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 		if err != nil {
 			return i.newErrorWithLocation(mc, "%s", err.Error())
 		}
+
+		// Task 9.14: Use virtual method table for virtual dispatch
+		// ONLY use VMT if the resolved method is virtual or override (not reintroduce)
+		// Reintroduced methods should use static dispatch
+		if method != nil && (method.IsVirtual || method.IsOverride) && obj.Class.VirtualMethodTable != nil {
+			sig := methodSignature(method)
+			if entry, exists := obj.Class.VirtualMethodTable[sig]; exists && entry != nil && entry.IsVirtual {
+				// Use the virtual implementation from the VMT
+				if entry.Implementation != nil {
+					method = entry.Implementation
+				}
+			}
+		}
 	}
 
 	// If no instance method found, try class methods
@@ -614,6 +627,15 @@ func (i *Interpreter) evalMethodCall(mc *ast.MethodCallExpression) Value {
 			return i.newErrorWithLocation(mc, "%s", err.Error())
 		}
 		isClassMethod = true
+
+		// Task 9.14: Use virtual method table for class methods too
+		// ONLY use VMT if the resolved method is virtual or override (not reintroduce)
+		if method != nil && (method.IsVirtual || method.IsOverride) && obj.Class.VirtualMethodTable != nil {
+			sig := methodSignature(method)
+			if entry, exists := obj.Class.VirtualMethodTable[sig]; exists && entry != nil && entry.IsVirtual {
+				method = entry.Implementation
+			}
+		}
 	}
 
 	if method == nil {
