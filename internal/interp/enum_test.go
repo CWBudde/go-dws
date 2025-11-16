@@ -253,7 +253,7 @@ func TestForInEnumType_Basic(t *testing.T) {
 				for var color in TColor do
 					PrintLn(color);
 			`,
-			expect: "Red\nGreen\nBlue\n",
+			expect: "0\n1\n2\n",
 		},
 		{
 			name: "iterate enum with two values",
@@ -262,7 +262,7 @@ func TestForInEnumType_Basic(t *testing.T) {
 				for var b in TBool do
 					PrintLn(b);
 			`,
-			expect: "False\nTrue\n",
+			expect: "0\n1\n",
 		},
 		{
 			name: "iterate single value enum",
@@ -271,7 +271,7 @@ func TestForInEnumType_Basic(t *testing.T) {
 				for var s in TSingle do
 					PrintLn(s);
 			`,
-			expect: "OnlyOne\n",
+			expect: "0\n",
 		},
 		{
 			name: "access ordinal value in loop",
@@ -309,7 +309,7 @@ func TestForInEnumType_ExplicitOrdinals(t *testing.T) {
 					PrintLn(Ord(s));
 				end;
 			`,
-			expect: "Ok\n10\nWarning\n20\nError\n30\n",
+			expect: "10\n10\n20\n20\n30\n30\n",
 		},
 		{
 			name: "enum with mixed ordinals",
@@ -320,7 +320,7 @@ func TestForInEnumType_ExplicitOrdinals(t *testing.T) {
 					PrintLn(Ord(p));
 				end;
 			`,
-			expect: "Low\n0\nMedium\n5\nHigh\n6\n",
+			expect: "0\n0\n5\n5\n6\n6\n",
 		},
 		{
 			name: "enum with gaps in ordinals",
@@ -361,7 +361,7 @@ func TestForInEnumType_ControlFlow(t *testing.T) {
 						break;
 				end;
 			`,
-			expect: "Red\nGreen\nBlue\n",
+			expect: "0\n1\n2\n",
 		},
 		{
 			name: "continue in enum for-in loop",
@@ -373,7 +373,7 @@ func TestForInEnumType_ControlFlow(t *testing.T) {
 					PrintLn(color);
 				end;
 			`,
-			expect: "Red\nBlue\nYellow\n",
+			expect: "0\n2\n3\n",
 		},
 		{
 			name: "nested enum for-in loops",

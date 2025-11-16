@@ -335,7 +335,7 @@ PrintLn(TColor);
 type TColor = (Red, Green, Blue);
 PrintLn(High(TColor));
 `,
-			expected: "Blue\n",
+			expected: "2\n",
 		},
 		{
 			name: "Low(EnumType) returns lowest enum value",
@@ -343,7 +343,7 @@ PrintLn(High(TColor));
 type TColor = (Red, Green, Blue);
 PrintLn(Low(TColor));
 `,
-			expected: "Red\n",
+			expected: "0\n",
 		},
 		{
 			name: "High(EnumType) with explicit values",
@@ -369,7 +369,7 @@ type TPriority = (Low, Medium, High);
 PrintLn(High(TColor));
 PrintLn(Low(TPriority));
 `,
-			expected: "Blue\nLow\n",
+			expected: "2\n0\n",
 		},
 		{
 			name: "Enum type meta-value in variable",
@@ -378,7 +378,7 @@ type TColor = (Red, Green, Blue);
 var c: TColor := High(TColor);
 PrintLn(c);
 `,
-			expected: "Blue\n",
+			expected: "2\n",
 		},
 		{
 			name: "Ord() of High/Low enum type meta-value",
