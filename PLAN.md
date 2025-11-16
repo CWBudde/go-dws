@@ -141,16 +141,20 @@ Replace mutable parser state with immutable cursor.
 **Target**: `parseIntegerLiteral` (simplest, lowest risk)
 
 **Implementation**:
-- [ ] Write cursor-based version `parseIntegerLiteralCursor()`
-- [ ] Keep old version for comparison
-- [ ] Add tests comparing both implementations
-- [ ] Verify AST output is identical
-- [ ] Benchmark both versions
-- [ ] Document cursor-based parsing pattern
+- [x] Write cursor-based version `parseIntegerLiteralCursor()`
+- [x] Keep old version for comparison (renamed to `parseIntegerLiteralTraditional`)
+- [x] Add tests comparing both implementations
+- [x] Verify AST output is identical
+- [x] Benchmark both versions
+- [x] Document cursor-based parsing pattern
+
+**Files Created**:
+- `internal/parser/migration_integer_literal_test.go` (334 lines)
+- `internal/parser/migration_integer_literal_bench_test.go` (146 lines)
+- `docs/cursor-migration-pattern.md` (443 lines)
 
 **Files Modified**:
-- `internal/parser/expressions.go` (~30 lines added)
-- `internal/parser/expressions_test.go` (~50 lines)
+- `internal/parser/expressions.go` (+67 lines - cursor version + dispatcher)
 
 **Estimate**: 16 hours
 

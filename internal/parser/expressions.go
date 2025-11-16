@@ -93,7 +93,19 @@ func (p *Parser) parseIdentifier() ast.Expression {
 // parseIntegerLiteral parses an integer literal.
 // PRE: curToken is INT
 // POST: curToken is INT (unchanged)
+//
+// Note: This currently uses the traditional implementation. The cursor-based version
+// (parseIntegerLiteralCursor) exists and is tested, but full integration requires
+// migrating parseExpression first (Task 2.2.4). See migration_integer_literal_test.go
+// for validation that both implementations produce identical results.
 func (p *Parser) parseIntegerLiteral() ast.Expression {
+	return p.parseIntegerLiteralTraditional()
+}
+
+// parseIntegerLiteralTraditional parses an integer literal using traditional mutable state.
+// PRE: curToken is INT
+// POST: curToken is INT (unchanged)
+func (p *Parser) parseIntegerLiteralTraditional() ast.Expression {
 	lit := &ast.IntegerLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -104,6 +116,59 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	}
 
 	literal := p.curToken.Literal
+
+	var (
+		value int64
+		err   error
+	)
+
+	switch {
+	case len(literal) > 0 && literal[0] == '$':
+		// Hexadecimal with $ prefix (Pascal style)
+		value, err = strconv.ParseInt(literal[1:], 16, 64)
+	case len(literal) > 1 && (literal[0:2] == "0x" || literal[0:2] == "0X"):
+		// Hexadecimal with 0x/0X prefix
+		value, err = strconv.ParseInt(literal[2:], 16, 64)
+	case len(literal) > 0 && literal[0] == '%':
+		// Binary with % prefix
+		value, err = strconv.ParseInt(literal[1:], 2, 64)
+	default:
+		value, err = strconv.ParseInt(literal, 10, 64)
+	}
+
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %q as integer", literal)
+		p.addError(msg, ErrInvalidExpression)
+		return nil
+	}
+
+	lit.Value = value
+	return lit
+}
+
+// parseIntegerLiteralCursor parses an integer literal using cursor-based navigation.
+// This is the cursor-based version of parseIntegerLiteral (Task 2.2.3).
+//
+// PRE: cursor.Current() is INT
+// POST: cursor position unchanged (parsing functions don't advance cursor)
+//
+// Key differences from traditional version:
+//   - Uses cursor.Current() instead of p.curToken
+//   - No state mutation (immutable cursor)
+//   - Clearer separation of token access from parsing logic
+func (p *Parser) parseIntegerLiteralCursor() ast.Expression {
+	currentToken := p.cursor.Current()
+
+	lit := &ast.IntegerLiteral{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  currentToken,
+				EndPos: p.endPosFromToken(currentToken),
+			},
+		},
+	}
+
+	literal := currentToken.Literal
 
 	var (
 		value int64
