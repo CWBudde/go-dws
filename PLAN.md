@@ -79,17 +79,19 @@ Replace mutable parser state with immutable cursor.
 **Goal**: Create immutable cursor abstraction to replace mutable parser state.
 
 **Implementation**:
-- [ ] Create `internal/parser/cursor.go` with `TokenCursor` type
-- [ ] Implement core navigation (Current, Peek, Advance, Skip)
-- [ ] Implement convenience methods (Is, IsAny, Expect)
-- [ ] Implement backtracking support (Mark, ResetTo, Clone)
-- [ ] Add comprehensive unit tests
-- [ ] Benchmark cursor operations vs current approach
-- [ ] Document cursor usage patterns
+- [x] Create `internal/parser/cursor.go` with `TokenCursor` type
+- [x] Implement core navigation (Current, Peek, Advance, Skip)
+- [x] Implement convenience methods (Is, IsAny, Expect)
+- [x] Implement backtracking support (Mark, ResetTo, Clone)
+- [x] Add comprehensive unit tests
+- [x] Benchmark cursor operations vs current approach
+- [x] Document cursor usage patterns
 
 **Files Created**:
-- `internal/parser/cursor.go` (~250 lines)
-- `internal/parser/cursor_test.go` (~400 lines)
+- `internal/parser/cursor.go` (297 lines)
+- `internal/parser/cursor_test.go` (844 lines)
+- `internal/parser/cursor_bench_test.go` (339 lines)
+- `docs/token-cursor.md` (570 lines)
 
 **Tests**:
 - Test all cursor methods
