@@ -9,563 +9,776 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 **Completed**
 
-## Phase 2: Parser Refactoring and Enhancement
+## Phase 2: Parser Modernization and Architectural Transformation
 
-**Goal**: Leverage the enhanced lexer capabilities to improve parser maintainability, eliminate technical debt, and establish clearer conventions for future development.
+**Goal**: Transform the parser from a traditional recursive descent implementation to a modern, maintainable architecture using cursor-based parsing, combinators, and structured errors.
 
-**Motivation**: With the lexer now providing N-token lookahead, error accumulation, and state management, the parser can be significantly improved. The current parser (~8,300 LOC across 19 files) has accumulated technical debt: inconsistent token consumption patterns, repeated code, speculative parsing with error rollback, and conservative disambiguation. The enhanced lexer enables us to address these issues systematically.
+**Motivation**: The current parser (21 files, ~9,400 LOC) works well but uses traditional mutable state patterns that limit long-term maintainability. With 411 explicit `nextToken()` calls, 193 string-based error sites, and manual position tracking throughout, the parser would benefit from modern techniques: immutable cursors, parser combinators, structured errors, and automatic position tracking.
 
-**Estimate**: 35-50 hours total (divided into 9 subtasks)
+**Current State**:
+- Traditional mutable parser state (`curToken`, `peekToken`)
+- 411 manual `nextToken()` calls throughout codebase
+- 193 error reporting sites with string concatenation
+- Manual position tracking (~200 `EndPos` assignments)
+- Good test coverage (49 test files) and benchmarks
+
+**Target State**:
+- Immutable cursor-based token navigation (zero manual `nextToken()`)
+- Structured error types with rich context
+- Parser combinator library for common patterns
+- Automatic position tracking via builder pattern
+- Separated parsing from semantic analysis
+- 20-30% code reduction through elimination of duplication
+
+**Strategy**: Strangler Fig Pattern - build new infrastructure alongside existing code, migrate incrementally, remove old code when safe. Dual-mode operation ensures zero risk.
+
+**Estimate**: 640 hours (12-16 weeks / 3-4 months full-time)
 
 **Status**: NOT STARTED
 
-**Priority**: Medium (technical debt reduction, enables future development)
+**Priority**: Medium-Low (architectural improvement, optional but valuable)
+
+**Detailed Plan**: See [PHASE2_MODERNIZATION.md](PHASE2_MODERNIZATION.md) for complete task breakdown and [PHASE2_COMPARISON.md](PHASE2_COMPARISON.md) for analysis vs old Phase 2.
+
+**Recommended Approach**: Start with Phase 2.1 (Foundation) only to prove value, then re-evaluate before committing to full migration.
 
 ---
 
-### 2.1: Utilize Lexer Lookahead Throughout Parser
+### Phase 2.1: Foundation Layer (Weeks 1-2, 80 hours)
 
-**Goal**: Replace parser's internal lookahead workarounds with the lexer's native `Peek(n)` capability.
+Building blocks for modernization: structured errors, context management, benchmarks.
 
-**Current State**:
-- Lexer provides `Peek(n)` for N-token lookahead (already implemented in Phase 1)
-- Parser already uses `p.l.Peek(0)` in some places (statements.go, types.go, interfaces.go)
-- Many conservative disambiguation functions could be improved with proper lookahead
+---
 
-**Current Issue**: Functions like `looksLikeVarDeclaration()` conservatively return `false`:
+#### Task 2.1.1: Structured Error Types (Week 1, Days 1-3)
+
+**Goal**: Replace string-based errors with rich, structured error types for better error messages and IDE/LSP integration.
+### Phase 2.1: Foundation Layer (Weeks 1-2, 80 hours)
+
+Building blocks for modernization: structured errors, context management, benchmarks.
+
+---
+
+#### Task 2.1.1: Structured Error Types (Week 1, Days 1-3, ~24 hours)
+
+**Goal**: Replace string-based errors with rich, structured error types for better error messages and IDE/LSP integration.
+
+**Current Problem**: 193 error sites use string concatenation
 ```go
-// statements.go:494-518
-func (p *Parser) looksLikeVarDeclaration() bool {
-    // For now, conservatively return false to avoid the regression
-    // A proper implementation would require a 2-token lookahead buffer
-    return false
-}
+p.addError("expected next token to be " + expected + ", got " + actual, ErrUnexpectedToken)
 ```
 
 **Implementation**:
-- [x] Audit all uses of `p.l.Peek()` in parser - document patterns
-- [x] Update `looksLikeVarDeclaration()` to use `p.peek(0)` for 2-token lookahead
-- [x] Update `looksLikeConstDeclaration()` to use `p.peek(0)` for 2-token lookahead
-- [x] Find other conservative disambiguation functions and improve them
-- [x] Add helper methods: `p.peek(n int) lexer.Token` wrapper for cleaner syntax
-- [x] Remove any temporary lexer creation workarounds (if they exist)
-- [x] Document lookahead patterns in parser style guide
-
-**Files Modified**:
-- `internal/parser/parser.go` (~30 lines added for helpers)
-- `internal/parser/statements.go` (~40 lines modified)
-- `internal/parser/declarations.go` (~30 lines modified)
-- `internal/parser/expressions.go` (~20 lines modified)
-
-**Tests**:
-- Add `internal/parser/lookahead_test.go` (~150 lines)
-- Test var/const declaration disambiguation with lookahead
-- Test complex expression disambiguation
-- Verify no performance regression from lookahead usage
-
-**Estimate**: 3-4 hours
-
----
-
-### 2.2: Unify Type Representation in AST
-
-**Goal**: Eliminate awkward conversions between `TypeExpression` and `TypeAnnotation` by using a unified type representation throughout the AST.
-
-**Current Issue**: Parser creates synthetic `TypeAnnotation` wrappers for complex types (statements.go:268-314, declarations.go:88-119):
-```go
-case *ast.FunctionPointerTypeNode:
-    stmt.Type = &ast.TypeAnnotation{
-        Token:      te.Token,
-        Name:       te.String(),
-        InlineType: te, // Awkward wrapper
-    }
-```
-
-**Implementation**:
-- [x] Audit all AST nodes that use `TypeAnnotation`
-- [x] Design unified `TypeSpec` interface or type
-- [x] Update `VarDeclStatement`, `ConstDecl`, `Parameter` to use unified type
-- [x] Modify parser to directly use `TypeExpression` in AST nodes
-- [x] Update semantic analyzer to work with unified representation
-- [x] Remove synthetic wrapper creation in parser
-
-**Status**: ✅ DONE (completed in #151)
-
-**Files Modified**:
-- `pkg/ast/statements.go` (~30 lines)
-- `pkg/ast/declarations.go` (~20 lines)
-- `internal/parser/statements.go` (~60 lines removed/simplified)
-- `internal/parser/declarations.go` (~40 lines removed/simplified)
-- `internal/semantic/analyze_declarations.go` (~40 lines modified)
-
-**Tests**:
-- Update existing tests to use unified type representation
-- Verify semantic analysis still works correctly
-- No new tests needed (refactoring only)
-
-**Estimate**: 6-8 hours
-
----
-
-### 2.3: Implement Parser State Save/Restore for Speculative Parsing
-
-**Goal**: Replace fragile error count manipulation with proper parser state save/restore mechanism, leveraging the lexer's existing state management.
-
-**Current Issue**: Fragile error trimming in `parseIsExpression()` (expressions.go:1405-1415):
-```go
-errorCountBefore := len(p.errors)
-expression.TargetType = p.parseTypeExpression()
-if expression.TargetType != nil {
-    return expression
-}
-// Trim errors back to original count (speculative parsing)
-p.errors = p.errors[:errorCountBefore]
-```
-
-**Lexer Support** (already available):
-- Lexer provides `saveState()` and `restoreState()` methods
-- Lexer's token buffer ensures Peek() state is preserved
-- Parser can leverage this for its own state management
-
-**Implementation**:
-- [x] Design `ParserState` struct (curToken, peekToken, errors, lexerState)
-- [x] Implement `p.saveState() ParserState` - captures parser AND lexer state
-- [x] Implement `p.restoreState(state ParserState)` - restores both
-- [x] Replace error trimming with save/restore in `parseIsExpression()`
-- [x] Identify other speculative parsing sites and convert them
-- [x] Add comprehensive tests for backtracking
-- [ ] Add debug logging for backtracking events (if parser trace mode added) - deferred
-- [ ] Document backtracking pattern in style guide - deferred
-
-**Status**: ✅ DONE (core implementation complete)
-
-**Note**: Debug logging and style guide documentation are deferred as optional enhancements.
-
-**Files Modified**:
-- `internal/lexer/lexer.go` (~10 lines - made SaveState/RestoreState public)
-- `internal/lexer/lexer_test.go` (~6 lines - updated test method calls)
-- `internal/parser/parser.go` (~35 lines added - ParserState struct and save/restore methods)
-- `internal/parser/expressions.go` (~5 lines modified - replaced error trimming)
-- `internal/parser/backtracking_test.go` (~250 lines new - comprehensive test suite)
-
-**Tests**:
-- ✅ `internal/parser/backtracking_test.go` (7 comprehensive tests)
-- ✅ Test save/restore preserves both parser and lexer state
-- ✅ Test nested save/restore (save twice, restore in order)
-- ✅ Test that Peek() works correctly after restore
-- ✅ Verify existing `is` expression tests still pass
-- ✅ Test backtracking with 'is' expressions (type vs boolean)
-- ✅ Test state independence (saved states don't interfere)
-
-**Actual Time**: ~2 hours (faster than estimated due to simple design)
-
----
-
-### 2.4: Standardize Token Consumption Convention
-
-**Goal**: Establish and enforce a clear convention for when parsing functions consume their triggering token.
-
-**Current Issue**: Inconsistent token consumption makes parser hard to follow:
-- `parseNewExpression()` advances past 'new' before parsing type
-- `parseHelperDeclaration()` expects to be AT the HELPER keyword
-- `parseBlockStatement()` advances past 'begin'
-
-**Implementation**:
-- [x] Document convention: "Functions are called WITH curToken at the triggering token"
-- [x] Audit all 50+ parsing functions for compliance
-- [x] Refactor non-compliant functions to match convention (all functions already compliant)
-- [x] Add pre/post-condition comments to each parsing function
-- [x] Create parser style guide document
-
-**Convention Example**:
-```go
-// parseBlockStatement parses a begin...end block.
-// PRE: curToken is BEGIN
-// POST: curToken is END
-func (p *Parser) parseBlockStatement() *ast.BlockStatement {
-    // Implementation...
-}
-```
-
-**Files Modified**:
-- All parser files (~200 lines of comments added)
-- ~10-15 parsing functions refactored (~150 lines modified)
-- Create `docs/parser-conventions.md` (~200 lines)
-
-**Tests**:
-- No new tests needed (existing tests verify correctness)
-- Add comments to test cases documenting token positions
-
-**Estimate**: 8-10 hours
-
----
-
-### 2.5: Extract Generic List Parsing Helpers
-
-**Goal**: Reduce code duplication by creating generic helper functions for common parsing patterns.
-
-**Current Issue**: Repeated patterns for comma-separated lists, semicolon-terminated blocks:
-- `parseExpressionList()` (expressions.go:569-602)
-- `parseArgumentsOrFields()` (expressions.go:486-561)
-- `parseLambdaParameterList()` (expressions.go:1086-1120)
-
-**Implementation**:
-- [x] Design generic `parseList` helper with callbacks
-- [x] Create `parseSeparatedList(sep, term, parseItem)` helper
-- [x] Create `parseSeparatedListBeforeStart()` variant helper
-- [x] Refactor expression list parsing to use helper
-- [ ] Refactor parameter list parsing to use helper (deferred for future work)
-- [ ] Refactor field list parsing to use helper (deferred for future work)
-
-**Status**: ✅ **DONE** (core implementation complete)
-
-**Actual Implementation**:
-- Created `ListParseOptions` struct with flexible configuration
-- Implemented `parseSeparatedList()` - main helper (curToken at first item)
-- Implemented `parseSeparatedListBeforeStart()` - variant (curToken before list)
-- Implemented `peekTokenIsSomeOf()` - utility for multiple token types
-- Refactored `parseExpressionList()` as demonstration
-- Added comprehensive test suite (10 test functions, ~480 lines)
-
-**Files Modified**:
-- `internal/parser/parser.go` (+175 lines for helpers)
-- `internal/parser/expressions.go` (-12 lines from refactoring)
-- `internal/parser/list_parsing_test.go` (+482 lines, new file)
-
-**Tests**:
-- ✅ Add `internal/parser/list_parsing_test.go` (~480 lines)
-- ✅ Test various separator/terminator combinations
-- ✅ Test edge cases (empty lists, trailing separators)
-- ✅ Verify existing tests still pass
-
-**Actual Time**: ~3 hours (faster than estimated)
-
-**Note**: Additional refactoring of `parseParameterList`, `parseArgumentsOrFields`, and other list parsing functions can be done incrementally as follow-up work. The foundation is now established.
-
----
-
-### 2.6: Refactor Complex Parsing Functions
-
-**Goal**: Simplify complex parsing functions by extracting sub-parsers and using strategy pattern where appropriate.
-
-**Current Issue**: Functions like `parseCallOrRecordLiteral()` (expressions.go:399-482) have complex branching logic that's hard to follow.
-
-**Implementation**:
-- [x] Identify functions >100 lines with complex branching
-- [x] Extract sub-parsers for different syntactic forms
-- [x] Use dispatch table or strategy pattern for disambiguation
-- [x] Simplify `parseCallOrRecordLiteral()` into smaller functions
-- [x] Simplify `parseNewExpression()` dispatch logic (already done in previous tasks)
-- [x] Simplify `parseGroupedExpression()` disambiguation
-
-**Example Refactoring**:
-```go
-// Before: 80-line function with nested if/else
-func (p *Parser) parseCallOrRecordLiteral(...)
-
-// After: Clean dispatch
-func (p *Parser) parseCallOrRecordLiteral(...) {
-    if p.isRecordLiteral() {
-        return p.parseRecordLiteral(typeName)
-    }
-    return p.parseCallExpression(typeName)
-}
-```
-
-**Files Modified**:
-- `internal/parser/expressions.go` (~200 lines refactored)
-- `internal/parser/records.go` (~50 lines added)
-- `internal/parser/arrays.go` (~40 lines modified)
-
-**Tests**:
-- No new tests needed (existing tests verify correctness)
-- May add focused unit tests for extracted sub-parsers
-
-**Estimate**: 5-7 hours
-
-**Status**: ✅ **DONE**
-
-**Actual Implementation**:
-- Refactored `parseCallOrRecordLiteral()` (87 lines → 27 lines + 4 helpers)
-- Refactored `parseGroupedExpression()` (68 lines → 16 lines + 3 helpers)
-- Refactored `parseArgumentsOrFields()` (77 lines → 38 lines + 4 helpers)
-- Refactored `parseRecordLiteralInline()` (65 lines → 27 lines, reuses helpers)
-- Created 11 well-documented helper functions with clear preconditions/postconditions
-- All existing tests pass
-- Code formatted with `go fmt`
-
-**Files Modified**:
-- `internal/parser/expressions.go` (~297 lines main functions → ~108 lines + helpers)
-
-**Actual Time**: ~2 hours (faster than estimated due to good test coverage)
-
----
-
-### 2.7: Remove Dead Code and TODOs
-
-**Goal**: Clean up dead code, stub functions, and resolve outstanding TODOs in parser.
-
-**Current Issue**: Dead code like `tryParseRecordFields()` (expressions.go:564-567):
-```go
-// Stub functions to avoid compilation errors
-func (p *Parser) tryParseRecordFields() ([]*ast.FieldInitializer, bool) {
-    // This is replaced by parseArgumentsOrFields above
-    return nil, false
-}
-```
-
-**Implementation**:
-- [x] Identify all stub/dead functions in parser
-- [x] Remove `tryParseRecordFields()` stub
-- [x] Audit all TODO comments in parser code
-- [x] Resolve or create GitHub issues for remaining TODOs
-- [x] Remove commented-out code blocks
-- [x] Update function documentation for accuracy
-
-**Files Modified**:
-- `internal/parser/expressions.go` (~50 lines removed)
-- `internal/parser/statements.go` (~20 lines removed)
-- `internal/parser/declarations.go` (~15 lines removed)
-- Other parser files (~30 lines removed)
-
-**Tests**:
-- No new tests needed
-- Verify existing tests still pass after cleanup
-
-**Estimate**: 2-3 hours
-
-**Status**: ✅ **DONE**
-
-**Actual Implementation**:
-- Comprehensive code audit revealed `tryParseRecordFields()` stub was already removed in task 2.6
-- No other stub functions or dead code found
-- Identified 2 TODO comments representing legitimate future work:
-  - `internal/parser/types.go:221` - Support complex return types (arrays, function pointers)
-  - `internal/parser/functions.go:92` - Update FunctionDecl struct to accept TypeExpression
-- All commented code blocks are legitimate documentation/examples
-- Function documentation verified for accuracy
-- All existing tests pass
-- Code formatted with `go fmt`
-
-**Files Modified**:
-- No files modified (cleanup already done in task 2.6; documentation verified)
-
-**Actual Time**: ~1 hour (faster than estimated; most cleanup already done)
-
----
-
-### 2.8: Improve Error Recovery
-
-**Goal**: Implement panic-mode error recovery with synchronization tokens for better error messages.
-
-**Current Issue**: Simple forward scanning in `parseBlockStatement()` (statements.go:128-133):
-```go
-if !p.curTokenIs(lexer.END) {
-    p.addError("expected 'end' to close block", ErrMissingEnd)
-    for !p.curTokenIs(lexer.END) && !p.curTokenIs(lexer.EOF) {
-        p.nextToken() // Just scan forward
-    }
-}
-```
-
-**Implementation**:
-- [x] Design synchronization token sets (statement starters, block closers)
-- [x] Implement `p.synchronize(tokens []TokenType)` method
-- [x] Track block nesting depth to find matching `end` keywords
-- [x] Add context to error messages (e.g., "expected 'end' for 'begin' at line 10")
-- [x] Improve error recovery in expression parsing
-- [x] Test error recovery with malformed input
-
-**Files Modified**:
-- `internal/parser/parser.go` (~80 lines added)
-- `internal/parser/statements.go` (~40 lines modified)
-- `internal/parser/expressions.go` (~30 lines modified)
-- `internal/parser/control_flow.go` (~40 lines modified)
-
-**Tests**:
-- Add `internal/parser/error_recovery_test.go` (~250 lines)
-- Test recovery from various syntax errors
-- Test multiple errors reported in single pass
-- Verify useful error messages with context
-
-**Estimate**: 6-8 hours
-
-**Status**: ✅ **DONE**
-
-**Actual Implementation**:
-- Implemented BlockContext tracking with blockStack in Parser
-- Created synchronization token sets (statementStarters, blockClosers, declarationStarters)
-- Implemented `synchronize()` method for panic-mode error recovery
-- Added `pushBlockContext()`, `popBlockContext()`, and `currentBlockContext()` methods
-- Implemented `addErrorWithContext()` for context-aware error messages
-- Updated parseBlockStatement() with context tracking and synchronization
-- Updated parseIfStatement() with improved error recovery
-- Updated parseWhileStatement() with improved error recovery
-- Updated parseRepeatStatement() with improved error recovery
-- Updated parseCaseStatement() with improved error recovery
-- Updated ParserState to include blockStack for correct state restoration
-- Created comprehensive error_recovery_test.go with 490 lines of tests
-- All existing parser tests pass (no regressions)
-- Code formatted with `go fmt`
-
-**Files Modified**:
-- `internal/parser/parser.go` (~110 lines added: BlockContext type, blockStack field, synchronize method, context tracking)
-- `internal/parser/statements.go` (~10 lines modified: parseBlockStatement with context)
-- `internal/parser/control_flow.go` (~50 lines modified: if/while/repeat/case statements)
+- [ ] Create `internal/parser/structured_error.go` with `StructuredParserError` type
+- [ ] Implement error formatting with automatic context inclusion
+- [ ] Add `addStructuredError()` method alongside existing `addError()`
+- [ ] Migrate 5 high-value parsing functions as proof of concept
+- [ ] Add comprehensive tests for error formatting and context
+- [ ] Document structured error patterns
 
 **Files Created**:
-- `internal/parser/error_recovery_test.go` (490 lines with 30+ test cases)
+- `internal/parser/structured_error.go` (~200 lines)
+- `internal/parser/structured_error_test.go` (~300 lines)
 
-**Actual Time**: ~5 hours (faster than estimated due to clean architecture)
+**Files Modified**:
+- `internal/parser/parser.go` (~50 lines - new method)
+- `internal/parser/expressions.go` (~30 lines - 5 functions migrated)
+
+**Tests**:
+- Test error type creation and formatting
+- Test context capture
+- Test backward compatibility with old errors
+- Verify error messages are clear and helpful
+
+**Estimate**: 24 hours
+
+**Deliverable**: Working structured error system with proof-of-concept usage
 
 ---
 
-### 2.9: Parser Documentation and Style Guide
+#### Task 2.1.2: Parse Context Extraction (Week 1, Days 4-5, ~16 hours)
 
-**Goal**: Create comprehensive documentation for parser architecture, conventions, and contribution guidelines.
+**Goal**: Extract scattered context flags into structured `ParseContext` type.
 
-**Current Issue**: Limited documentation makes it hard for new contributors to understand parser internals.
+**Current Problem**: Mixed state throughout Parser struct
+```go
+type Parser struct {
+    enableSemanticAnalysis bool  // Scattered flags
+    parsingPostCondition   bool
+    blockStack             []BlockContext
+}
+```
 
 **Implementation**:
-- [x] Create `docs/parser-architecture.md` documenting:
-  - Pratt parsing overview
-  - Precedence levels and their meanings
-  - Prefix/infix function registration
-  - Token consumption conventions
-  - AST node creation patterns
-  - Position tracking requirements
-- [x] Create `docs/parser-style-guide.md` documenting:
-  - Naming conventions
-  - Function pre/post-conditions
-  - Error handling patterns
-  - Testing requirements
-- [x] Create `docs/parser-extension-guide.md` documenting:
-  - How to add new expressions
-  - How to add new statements
-  - How to add new operators
-  - Testing checklist
-- [x] Update `CONTRIBUTING.md` with parser-specific guidelines
-- [x] Add inline documentation to parser.go explaining key concepts
+- [ ] Create `internal/parser/context.go` with `ParseContext` type
+- [ ] Design `ContextFlags` struct for structured flag management
+- [ ] Add `p.context` field to Parser
+- [ ] Implement stack operations (PushBlock, PopBlock, CurrentBlock)
+- [ ] Create adapter methods for backward compatibility
+- [ ] Migrate one parsing function to use new context
+- [ ] Add tests for context stack operations
 
 **Files Created**:
-- `docs/parser-architecture.md` (~400 lines)
-- `docs/parser-style-guide.md` (~300 lines)
-- `docs/parser-extension-guide.md` (~350 lines)
+- `internal/parser/context.go` (~150 lines)
+- `internal/parser/context_test.go` (~200 lines)
 
 **Files Modified**:
-- `CONTRIBUTING.md` (~50 lines added)
-- `internal/parser/parser.go` (~100 lines of comments added)
+- `internal/parser/parser.go` (~30 lines - add context field)
+- `internal/parser/expressions.go` (~20 lines - migrate parseOldExpression)
 
-**Tests**: N/A (documentation only)
+**Tests**:
+- Test context stack push/pop
+- Test flag management
+- Test context snapshot for errors
+- Verify existing tests pass
 
-**Estimate**: 6-8 hours
+**Estimate**: 16 hours
 
-**Status**: ✅ **DONE**
+**Deliverable**: Working `ParseContext` with initial usage
 
-**Actual Implementation**:
-- Created comprehensive parser-architecture.md (550 lines) covering:
-  - Overview and parser structure
-  - Detailed Pratt parsing explanation with examples
-  - Precedence levels and mapping
-  - Parse function registration patterns
-  - Token consumption conventions with PRE/POST patterns
-  - AST node creation patterns
-  - Position tracking guidelines
-  - Error handling and recovery mechanisms
-  - State management and backtracking
-  - Block context tracking
-  - List parsing helpers
-- Created parser-style-guide.md (350 lines) covering:
-  - Comprehensive naming conventions
-  - Function documentation templates
-  - Mandatory PRE/POST conditions
-  - Error handling best practices
-  - Testing requirements with examples
-  - Code organization guidelines
-  - Common patterns and anti-patterns
-- Created parser-extension-guide.md (550 lines) covering:
-  - Step-by-step guides for adding expressions, statements, operators, declarations
-  - Complete walkthroughs with code examples
-  - Testing checklist
-  - Common pitfalls and solutions
-  - Multiple real-world examples
-- Updated CONTRIBUTING.md with parser-specific section (90 lines):
-  - Links to all three parser docs
-  - Parser conventions summary
-  - Testing requirements
-  - Code examples
-- Enhanced parser.go inline documentation (95 lines added):
-  - Error recovery pattern documentation
-  - Pratt parsing core concepts
-  - Synchronization points
-  - Block context tracking usage
-  - Best practices
+---
+
+#### Task 2.1.3: Error-Context Integration (Week 2, Days 1-2, ~16 hours)
+
+**Goal**: Integrate `ParseContext` with structured errors for automatic context inclusion in error messages.
+
+**Implementation**:
+- [ ] Add `Snapshot()` method to `ParseContext`
+- [ ] Update `addStructuredError()` to capture context automatically
+- [ ] Enhance error formatting to show block context
+- [ ] Test with nested blocks (begin/if/while/etc.)
+- [ ] Migrate 10+ error sites to use structured errors with context
+- [ ] Document error-context patterns
+
+**Files Modified**:
+- `internal/parser/context.go` (~20 lines)
+- `internal/parser/structured_error.go` (~30 lines)
+- `internal/parser/structured_error_test.go` (~100 lines)
+- `internal/parser/statements.go` (~40 lines - migrate errors)
+- `internal/parser/control_flow.go` (~40 lines - migrate errors)
+
+**Tests**:
+- Test automatic context capture
+- Test error messages include "in begin block starting at line X"
+- Test context survives state save/restore
+- Test nested context reporting
+
+**Estimate**: 16 hours
+
+**Deliverable**: Rich error messages with automatic context throughout parser
+
+---
+
+#### Task 2.1.4: Benchmark Infrastructure (Week 2, Days 3-5, ~24 hours)
+
+**Goal**: Establish baseline benchmarks and regression detection before major changes.
+
+**Implementation**:
+- [ ] Audit existing benchmarks in `parser_bench_test.go`
+- [ ] Add missing benchmarks for common patterns (list parsing, expressions, types, error recovery)
+- [ ] Create benchmark comparison script `scripts/bench_compare.sh`
+- [ ] Document baseline performance in `docs/parser-benchmarks.md`
+- [ ] Set up CI integration for benchmark regression detection
+- [ ] Add memory allocation benchmarks
 
 **Files Created**:
-- `docs/parser-architecture.md` (550 lines, exceeds target)
-- `docs/parser-style-guide.md` (350 lines, exceeds target)
-- `docs/parser-extension-guide.md` (550 lines, exceeds target)
+- `scripts/bench_compare.sh` (~50 lines)
+- `docs/parser-benchmarks.md` (~150 lines)
 
 **Files Modified**:
-- `CONTRIBUTING.md` (90 lines added, exceeds target)
-- `internal/parser/parser.go` (95 lines of comments added, matches target)
+- `internal/parser/parser_bench_test.go` (~200 lines added)
 
-**Actual Time**: ~4 hours (efficient due to good understanding from implementation)
+**Tests**:
+- Comprehensive benchmark coverage (>90% of parsing patterns)
+- Baseline measurements documented
+- Automated comparison script works
+- CI can detect >10% regressions
 
-### Summary of Phase 2
+**Estimate**: 24 hours
 
-**Total Estimate**: 46-61 hours (call it ~53 hours typical, or 1 week) - **REDUCED** from original 52-71h
+**Deliverable**: Complete benchmark suite with baseline measurements
 
-**Breakdown**:
-1. Utilize lexer lookahead: 3-4h (was 4-6h for implementing lookahead from scratch)
-2. Unify type representation: 6-8h (unchanged)
-3. Parser state save/restore: 4-5h (was 5-7h, reduced due to lexer infrastructure)
-4. Token consumption convention: 8-10h (unchanged)
-5. Generic list helpers: 6-8h (unchanged)
-6. Refactor complex functions: 5-7h (unchanged)
-7. Remove dead code: 2-3h (unchanged)
-8. Error recovery: 6-8h (unchanged - but can leverage lexer error patterns)
-9. Documentation: 6-8h (unchanged)
+---
 
-**Time Savings**: ~6-10 hours saved due to lexer providing:
-- N-token lookahead infrastructure (Peek method)
-- State save/restore capability
-- Error accumulation patterns
-- Comprehensive token handling
+### Phase 2.2: Token Cursor Abstraction (Weeks 3-5, 120 hours)
+
+Replace mutable parser state with immutable cursor.
+
+---
+
+#### Task 2.2.1: Design and Implement TokenCursor (Week 3, Days 1-3, ~24 hours)
+
+**Goal**: Create immutable cursor abstraction to replace mutable parser state.
+
+**Implementation**:
+- [ ] Create `internal/parser/cursor.go` with `TokenCursor` type
+- [ ] Implement core navigation (Current, Peek, Advance, Skip)
+- [ ] Implement convenience methods (Is, IsAny, Expect)
+- [ ] Implement backtracking support (Mark, ResetTo, Clone)
+- [ ] Add comprehensive unit tests
+- [ ] Benchmark cursor operations vs current approach
+- [ ] Document cursor usage patterns
+
+**Files Created**:
+- `internal/parser/cursor.go` (~250 lines)
+- `internal/parser/cursor_test.go` (~400 lines)
+
+**Tests**:
+- Test all cursor methods
+- Verify immutability
+- Test backtracking with marks
+- Performance comparable to current (<5% slower OK)
+
+**Estimate**: 24 hours
+
+**Deliverable**: Fully tested `TokenCursor` ready for integration
+
+---
+
+#### Task 2.2.2: Dual-Mode Parser Setup (Week 3, Days 4-5, ~16 hours)
+
+**Goal**: Enable parser to work in both old mode (mutable) and new mode (cursor).
+
+**Implementation**:
+- [ ] Add `cursor` and `useCursor` fields to Parser
+- [ ] Create factory method `NewCursorParser(lexer *Lexer)`
+- [ ] Add feature flag in tests
+- [ ] Set up differential testing (both modes must produce identical AST)
+- [ ] Document dual-mode architecture
+
+**Files Modified**:
+- `internal/parser/parser.go` (~40 lines)
+- `internal/parser/parser_test.go` (~60 lines - dual mode tests)
+
+**Tests**:
+- Test parser works in both modes
+- Differential tests verify identical output
+- Easy to switch between modes
+
+**Estimate**: 16 hours
+
+**Deliverable**: Parser infrastructure ready for cursor migration
+
+---
+
+#### Task 2.2.3: Migrate First Parsing Function (Week 4, Days 1-2, ~16 hours)
+
+**Goal**: Prove cursor approach works by migrating one complete function.
+
+**Target**: `parseIntegerLiteral` (simplest, lowest risk)
+
+**Implementation**:
+- [ ] Write cursor-based version `parseIntegerLiteralCursor()`
+- [ ] Keep old version for comparison
+- [ ] Add tests comparing both implementations
+- [ ] Verify AST output is identical
+- [ ] Benchmark both versions
+- [ ] Document cursor-based parsing pattern
+
+**Files Modified**:
+- `internal/parser/expressions.go` (~30 lines added)
+- `internal/parser/expressions_test.go` (~50 lines)
+
+**Estimate**: 16 hours
+
+**Deliverable**: Proof-of-concept cursor-based parsing
+
+---
+
+#### Task 2.2.4: Migrate Expression Parsing (Week 4, Days 3-5, ~24 hours)
+
+**Goal**: Migrate core expression parsing to cursor-based approach.
+
+**Targets**:
+- [ ] `parseIdentifier`
+- [ ] `parseStringLiteral`
+- [ ] `parseBooleanLiteral`
+- [ ] `parseFloatLiteral`  
+- [ ] `parseGroupedExpression`
+
+**Files Modified**:
+- `internal/parser/expressions.go` (~150 lines)
+- `internal/parser/expressions_test.go` (~200 lines)
+
+**Estimate**: 24 hours
+
+**Deliverable**: Core literals working with cursor
+
+---
+
+#### Task 2.2.5: Migrate Infix Expressions (Week 5, ~40 hours)
+
+**Goal**: Migrate binary/infix expression parsing to cursor.
+
+**Targets**:
+- [ ] `parseBinaryExpression`
+- [ ] `parseCallExpression`
+- [ ] `parseMemberAccess`
+- [ ] `parseIndexExpression`
+
+**Files Modified**:
+- `internal/parser/expressions.go` (~200 lines)
+- `internal/parser/operators.go` (~100 lines)
+
+**Estimate**: 40 hours
+
+**Deliverable**: Full expression parsing with cursor
+
+---
+
+### Phase 2.3: Parser Combinators (Weeks 6-7, 80 hours)
+
+Build reusable combinator library for common patterns.
+
+---
+
+#### Task 2.3.1: Design Combinator Library (Week 6, Days 1-2, ~16 hours)
+
+**Goal**: Create reusable parser combinators for common patterns.
+
+**Implementation**:
+- [ ] Create `internal/parser/combinators.go`
+- [ ] Implement core combinators (Optional, Many, Many1, SeparatedList, Between, Choice, Sequence)
+- [ ] Add unit tests for each combinator
+- [ ] Document usage patterns in `docs/parser-combinators.md`
+- [ ] Provide examples for each combinator
+
+**Files Created**:
+- `internal/parser/combinators.go` (~300 lines)
+- `internal/parser/combinators_test.go` (~500 lines)
+- `docs/parser-combinators.md` (~200 lines)
+
+**Estimate**: 16 hours
+
+**Deliverable**: Working combinator library
+
+---
+
+#### Task 2.3.2: Refactor List Parsing (Week 6, Days 3-5, ~24 hours)
+
+**Goal**: Replace manual list parsing with combinator-based approach.
+
+**Targets**:
+- [ ] `parseParameterList`
+- [ ] `parseArgumentList`
+- [ ] `parseFieldList`
+- [ ] `parseEnumValues`
+
+**Files Modified**:
+- `internal/parser/functions.go` (~80 lines)
+- `internal/parser/expressions.go` (~60 lines)
+- `internal/parser/records.go` (~40 lines)
+- `internal/parser/enums.go` (~30 lines)
+
+**Estimate**: 24 hours
+
+**Deliverable**: List parsing using combinators
+
+---
+
+#### Task 2.3.3: High-Level Combinators (Week 7, ~40 hours)
+
+**Goal**: Build domain-specific combinators for DWScript patterns.
+
+**Implementation**:
+- [ ] Create DWScript-specific combinators (OptionalTypeAnnotation, IdentifierList, StatementBlock, ParameterGroup)
+- [ ] Refactor existing code to use new combinators
+- [ ] Measure code reduction
+- [ ] Document all combinators
+
+**Files Modified**:
+- `internal/parser/combinators.go` (~200 lines)
+- Multiple parser files (~300 lines total changed)
+
+**Estimate**: 40 hours
+
+**Deliverable**: Rich combinator library for DWScript
+
+---
+
+### Phase 2.4: Automatic Position Tracking (Week 8, 40 hours)
+
+Eliminate manual position tracking.
+
+---
+
+#### Task 2.4.1: NodeBuilder Pattern (Week 8, Days 1-3, ~24 hours)
+
+**Goal**: Eliminate manual `EndPos` setting throughout parser.
+
+**Implementation**:
+- [ ] Create `internal/parser/node_builder.go` with `NodeBuilder` type
+- [ ] Implement `StartNode()` and `Finish()` methods
+- [ ] Migrate 5 parsing functions as proof of concept
+- [ ] Verify positions are correct with tests
+- [ ] Document NodeBuilder pattern
+
+**Files Created**:
+- `internal/parser/node_builder.go` (~150 lines)
+- `internal/parser/node_builder_test.go` (~200 lines)
+
+**Files Modified**:
+- `internal/parser/statements.go` (~50 lines)
+
+**Estimate**: 24 hours
+
+**Deliverable**: Working NodeBuilder with proof of concept
+
+---
+
+#### Task 2.4.2: Mass Migration to NodeBuilder (Week 8, Days 4-5, ~16 hours)
+
+**Goal**: Migrate all parsing functions to use NodeBuilder.
+
+**Implementation**:
+- [ ] Migrate all statement parsing functions
+- [ ] Migrate all expression parsing functions
+- [ ] Migrate all declaration parsing functions
+- [ ] Remove all manual `EndPos` assignments
+- [ ] Verify position tests pass
+
+**Files Modified**:
+- All parser files (~500 lines total changes)
+
+**Estimate**: 16 hours
+
+**Deliverable**: Complete NodeBuilder adoption
+
+---
+
+### Phase 2.5: Separation of Concerns (Weeks 9-10, 80 hours)
+
+Clean architectural separation.
+
+---
+
+#### Task 2.5.1: Remove Semantic Analysis (Week 9, ~40 hours)
+
+**Goal**: Parser should only build AST, not perform type checking.
+
+**Implementation**:
+- [ ] Identify all semantic analysis code in parser
+- [ ] Move to separate `SemanticAnalyzer` type
+- [ ] Remove `enableSemanticAnalysis` and `semanticErrors` from Parser
+- [ ] Update tests to run analysis after parsing
+- [ ] Measure parsing speed improvement
+
+**Files Modified**:
+- `internal/parser/parser.go` (~50 lines removed)
+- `internal/parser/statements.go` (~80 lines removed)
+- All test files (~100 lines updated)
+
+**Estimate**: 40 hours
+
+**Deliverable**: Clean separation of parsing and semantic analysis
+
+---
+
+#### Task 2.5.2: Extract Error Recovery Module (Week 10, Days 1-2, ~16 hours)
+
+**Goal**: Centralize error recovery logic.
+
+**Implementation**:
+- [ ] Create `internal/parser/error_recovery.go`
+- [ ] Implement `ErrorRecovery` type with centralized logic
+- [ ] Refactor synchronization logic
+- [ ] Add recovery suggestions
+
+**Files Created**:
+- `internal/parser/error_recovery.go` (~200 lines)
+
+**Estimate**: 16 hours
+
+**Deliverable**: Reusable error recovery module
+
+---
+
+#### Task 2.5.3: Parser Factory Pattern (Week 10, Days 3-5, ~24 hours)
+
+**Goal**: Clean up parser construction and configuration.
+
+**Implementation**:
+- [ ] Create `ParserConfig` and `ParserBuilder` types
+- [ ] Implement builder pattern for parser construction
+- [ ] Migrate tests to use builder
+- [ ] Document configuration options
+
+**Files Modified**:
+- `internal/parser/parser.go` (~100 lines)
+- Test files (~150 lines)
+
+**Estimate**: 24 hours
+
+**Deliverable**: ParserBuilder for clean construction
+
+---
+
+### Phase 2.6: Advanced Cursor Features (Week 11, 40 hours)
+
+Advanced lookahead and backtracking.
+
+---
+
+#### Task 2.6.1: Lookahead Abstraction (Week 11, Days 1-2, ~16 hours)
+
+**Goal**: Make lookahead declarative instead of imperative.
+
+**Implementation**:
+- [ ] Add `LookAhead()`, `ScanUntil()`, `FindNext()` to TokenCursor
+- [ ] Refactor disambiguation functions to use declarative lookahead
+- [ ] Simplify lookahead logic throughout parser
+
+**Files Modified**:
+- `internal/parser/cursor.go` (~80 lines)
+- Various parser files (~60 lines)
+
+**Estimate**: 16 hours
+
+**Deliverable**: Declarative lookahead utilities
+
+---
+
+#### Task 2.6.2: Backtracking Optimization (Week 11, Days 3-5, ~24 hours)
+
+**Goal**: Optimize backtracking with minimal state saving.
+
+**Implementation**:
+- [ ] Implement `LightweightMark` for position-only saving
+- [ ] Implement `HeavyweightMark` for full state saving
+- [ ] Optimize backtracking sites to use appropriate mark type
+- [ ] Measure performance improvement
+
+**Files Modified**:
+- `internal/parser/cursor.go` (~50 lines)
+- Backtracking sites (~30 lines)
+
+**Estimate**: 24 hours
+
+**Deliverable**: Optimized backtracking
+
+---
+
+### Phase 2.7: Migration Completion (Weeks 12-14, 120 hours)
+
+Complete migration of all parsing code.
+
+---
+
+#### Task 2.7.1: Statement Parsing Migration (Week 12, ~40 hours)
+
+**Goal**: Migrate all statement parsing to cursor/combinators.
+
+**Targets**:
+- [ ] Control flow (if, while, for, case, etc.)
+- [ ] Declarations (var, const, type)
+- [ ] Blocks (begin...end)
+
+**Files Modified**:
+- `internal/parser/statements.go` (major refactor)
+- `internal/parser/control_flow.go` (major refactor)
+- `internal/parser/declarations.go` (major refactor)
+
+**Estimate**: 40 hours
+
+**Deliverable**: Complete statement parsing migration
+
+---
+
+#### Task 2.7.2: Type Parsing Migration (Week 13, ~40 hours)
+
+**Goal**: Migrate type parsing to cursor/combinators.
+
+**Targets**:
+- [ ] Simple types
+- [ ] Function pointer types
+- [ ] Array types
+- [ ] Record types
+- [ ] Class types
+
+**Files Modified**:
+- `internal/parser/types.go` (major refactor)
+- `internal/parser/records.go` (~100 lines)
+- `internal/parser/arrays.go` (~80 lines)
+
+**Estimate**: 40 hours
+
+**Deliverable**: Complete type parsing migration
+
+---
+
+#### Task 2.7.3: Declaration Parsing Migration (Week 14, Days 1-3, ~24 hours)
+
+**Goal**: Migrate complex declaration parsing.
+
+**Targets**:
+- [ ] Function declarations
+- [ ] Class declarations
+- [ ] Interface declarations
+- [ ] Properties and methods
+
+**Files Modified**:
+- `internal/parser/functions.go` (major refactor)
+- `internal/parser/classes.go` (major refactor)
+- `internal/parser/interfaces.go` (major refactor)
+
+**Estimate**: 24 hours
+
+**Deliverable**: Complete declaration parsing migration
+
+---
+
+#### Task 2.7.4: Remove Legacy Code (Week 14, Days 4-5, ~16 hours)
+
+**Goal**: Remove all old mutable parser code.
+
+**Implementation**:
+- [ ] Verify 100% migration complete
+- [ ] Remove `curToken`/`peekToken` fields
+- [ ] Remove `nextToken()` method
+- [ ] Remove old error methods
+- [ ] Clean up imports and dead code
+- [ ] Final test pass
+
+**Files Modified**:
+- `internal/parser/parser.go` (~200 lines removed)
+- All parser files (~500 lines removed total)
+
+**Estimate**: 16 hours
+
+**Deliverable**: Clean, modern parser with zero legacy code
+
+---
+
+### Phase 2.8: Optimization & Polish (Weeks 15-16, 80 hours)
+
+Performance tuning and documentation.
+
+---
+
+#### Task 2.8.1: Performance Tuning (Week 15, ~40 hours)
+
+**Goal**: Ensure new parser is as fast as old parser.
+
+**Implementation**:
+- [ ] Run comprehensive benchmarks
+- [ ] Profile hot paths
+- [ ] Optimize cursor operations
+- [ ] Optimize combinator allocation
+- [ ] Add caching where beneficial
+- [ ] Verify performance within 5% of baseline
+
+**Estimate**: 40 hours
+
+**Deliverable**: Performance-tuned parser
+
+---
+
+#### Task 2.8.2: Documentation Updates (Week 16, Days 1-2, ~16 hours)
+
+**Goal**: Update all documentation for new architecture.
+
+**Implementation**:
+- [ ] Rewrite `docs/parser-architecture.md`
+- [ ] Update `docs/parser-style-guide.md`
+- [ ] Update `docs/parser-extension-guide.md`
+- [ ] Update `README.md` parser section
+- [ ] Update inline code documentation
+
+**Estimate**: 16 hours
+
+**Deliverable**: Comprehensive documentation
+
+---
+
+#### Task 2.8.3: Migration Guide (Week 16, Days 3-4, ~8 hours)
+
+**Goal**: Document the migration for future reference.
+
+**Implementation**:
+- [ ] Create `docs/parser-modernization-retrospective.md`
+- [ ] Document what changed and why
+- [ ] Performance comparison
+- [ ] Code reduction metrics
+- [ ] Lessons learned
+
+**Estimate**: 8 hours
+
+**Deliverable**: Complete migration retrospective
+
+---
+
+#### Task 2.8.4: Final Validation (Week 16, Day 5, ~8 hours)
+
+**Goal**: Comprehensive validation of new parser.
+
+**Implementation**:
+- [ ] Run full test suite (target: 100% pass)
+- [ ] Run all benchmarks (verify performance)
+- [ ] Test on real-world DWScript code
+- [ ] Verify error messages quality
+- [ ] Check code coverage (maintain >84%)
+
+**Estimate**: 8 hours
+
+**Deliverable**: Production-ready modern parser
+
+---
+
+### Summary of Phase 2: Parser Modernization
+
+**Total Estimate**: 640 hours (12-16 weeks / 3-4 months full-time)
+
+**Breakdown by Phase**:
+1. Foundation (Weeks 1-2): 80 hours
+2. Token Cursor (Weeks 3-5): 120 hours
+3. Combinators (Weeks 6-7): 80 hours
+4. Position Tracking (Week 8): 40 hours
+5. Separation (Weeks 9-10): 80 hours
+6. Advanced Features (Week 11): 40 hours
+7. Migration (Weeks 12-14): 120 hours
+8. Polish (Weeks 15-16): 80 hours
 
 **Benefits**:
-- **Maintainability**: Clearer code, less duplication, easier to understand
-- **Extensibility**: Generic helpers make adding new syntax easier
-- **Debuggability**: Better error recovery and lookahead aid troubleshooting
-- **Onboarding**: Comprehensive docs help new contributors
-- **Quality**: Consistent conventions reduce bugs
-- **Synergy**: Parser leverages enhanced lexer capabilities throughout
+- **Maintainability**: 20-30% code reduction, declarative combinators, no manual token tracking
+- **Reliability**: Structured errors with context, better error recovery, immutable cursor prevents bugs
+- **Performance**: Target within 5% of baseline, better in some cases (less backtracking)
+- **Developer Experience**: Easier to add features, clearer code intent, better error messages
 
-**Dependencies**:
-- Phase 1 lexer enhancements (COMPLETE - lexer provides Peek, state management, error accumulation)
-- Tasks can be done incrementally in any order except 2.1 should be done early
+**Risk Mitigation**:
+- Dual-mode operation (old and new parsers coexist)
+- Differential testing (both must agree)
+- Incremental migration (each task delivers value)
+- Performance tracking (benchmarks at each step)
+- Feature flags (easy rollback if needed)
 
-**Testing Strategy**: Each subtask includes tests. Overall regression testing ensures no breakage.
-
-**Acceptance Criteria**:
-- All existing parser tests pass (no regressions)
-- Code coverage maintains or improves (currently 84.5%)
-- Parser uses lexer's `Peek()` consistently throughout
-- Parser files reduced by ~400-600 lines through deduplication
-- All subtasks have associated tests or documentation
-- Parser style guide reviewed and approved
-- No user-facing behavior changes (internal refactoring only)
+**Success Criteria**:
+- [ ] All 49 test files pass
+- [ ] Performance within 5% of baseline
+- [ ] 20%+ code reduction achieved
+- [ ] Zero manual `nextToken()` calls
+- [ ] Zero manual `EndPos` assignments
+- [ ] Structured errors throughout
+- [ ] Complete documentation
+- [ ] Production-ready quality
 
 **Non-Goals**:
-- Performance optimization (focus is maintainability)
-- Adding new language features (pure refactoring)
-- Changing AST structure (except unified types in 2.2)
-- Adding debug/trace mode (removed from Phase 2 - can be added later if needed)
+- Changing AST structure
+- Changing parser semantics
+- Adding new language features
+- Rewriting lexer
+- Performance degradation
 
-**Related Tasks**:
-- Phase 1: Lexer enhancements (provides lookahead, state management, error accumulation)
-- Task 10.10: Position Tracking (enhanced with better conventions)
-- Phase 1: Lexer lookahead buffer (completed)
+**Recommended Approach**:
+Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers immediate value (better errors, cleaner context) without committing to full migration. Re-evaluate after seeing benefits.
+
+**Dependencies**:
+- Phase 1: Lexer (COMPLETE)
+
+**Related Documents**:
+- [PHASE2_MODERNIZATION.md](PHASE2_MODERNIZATION.md) - Detailed task breakdown with code examples
+- [PHASE2_COMPARISON.md](PHASE2_COMPARISON.md) - Comparison with old Phase 2, recommendation analysis
+
+**Status**: NOT STARTED (Old Phase 2 cleanup already completed - this is NEW optional modernization)
 
 ---
 
