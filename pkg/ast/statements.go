@@ -20,7 +20,7 @@ import (
 type VarDeclStatement struct {
 	BaseNode
 	Value        Expression
-	Names        []*Identifier // Changed from Name to support multi-identifier declarations
+	Names        []*Identifier  // Changed from Name to support multi-identifier declarations
 	Type         TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	ExternalName string
 	IsExternal   bool

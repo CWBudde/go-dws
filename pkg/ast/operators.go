@@ -45,7 +45,7 @@ func (k OperatorKind) String() string {
 //	class operator += String uses AppendString;
 type OperatorDecl struct {
 	BaseNode
-	ReturnType     TypeExpression   // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
+	ReturnType     TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	Binding        *Identifier
 	OperatorSymbol string
 	OperandTypes   []TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.

@@ -264,8 +264,8 @@ func TestParseTryExceptStatement(t *testing.T) {
 		if handler.ExceptionType == nil {
 			t.Fatal("handler.ExceptionType should not be nil")
 		}
-		if handler.ExceptionType.Name != "Exception" {
-			t.Errorf("handler.ExceptionType.Name = %s, want 'Exception'", handler.ExceptionType.Name)
+		if handler.ExceptionType.String() != "Exception" {
+			t.Errorf("handler.ExceptionType.String() = %s, want 'Exception'", handler.ExceptionType.String())
 		}
 
 		if handler.Statement == nil {
@@ -295,15 +295,15 @@ func TestParseTryExceptStatement(t *testing.T) {
 		}
 
 		// Check first handler
-		if tryStmt.ExceptClause.Handlers[0].ExceptionType.Name != "EMyException" {
+		if tryStmt.ExceptClause.Handlers[0].ExceptionType.String() != "EMyException" {
 			t.Errorf("first handler type = %s, want 'EMyException'",
-				tryStmt.ExceptClause.Handlers[0].ExceptionType.Name)
+				tryStmt.ExceptClause.Handlers[0].ExceptionType.String())
 		}
 
 		// Check second handler
-		if tryStmt.ExceptClause.Handlers[1].ExceptionType.Name != "Exception" {
+		if tryStmt.ExceptClause.Handlers[1].ExceptionType.String() != "Exception" {
 			t.Errorf("second handler type = %s, want 'Exception'",
-				tryStmt.ExceptClause.Handlers[1].ExceptionType.Name)
+				tryStmt.ExceptClause.Handlers[1].ExceptionType.String())
 		}
 	})
 }

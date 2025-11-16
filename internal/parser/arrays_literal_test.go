@@ -80,9 +80,9 @@ func TestParseArrayTypeDeclaration(t *testing.T) {
 
 		// Verify the element type string representation
 		expectedType := "array of Float"
-		if arrayDecl.ArrayType.ElementType.Name != expectedType {
-			t.Errorf("arrayDecl.ArrayType.ElementType.Name = %s, want %s",
-				arrayDecl.ArrayType.ElementType.Name, expectedType)
+		if arrayDecl.ArrayType.ElementType.String() != expectedType {
+			t.Errorf("arrayDecl.ArrayType.ElementType.String() = %s, want %s",
+				arrayDecl.ArrayType.ElementType.String(), expectedType)
 		}
 	})
 
@@ -109,9 +109,9 @@ func TestParseArrayTypeDeclaration(t *testing.T) {
 
 		// Verify the element type string representation for 3D array
 		expectedType := "array of array of Integer"
-		if arrayDecl.ArrayType.ElementType.Name != expectedType {
-			t.Errorf("arrayDecl.ArrayType.ElementType.Name = %s, want %s",
-				arrayDecl.ArrayType.ElementType.Name, expectedType)
+		if arrayDecl.ArrayType.ElementType.String() != expectedType {
+			t.Errorf("arrayDecl.ArrayType.ElementType.String() = %s, want %s",
+				arrayDecl.ArrayType.ElementType.String(), expectedType)
 		}
 	})
 
@@ -138,9 +138,9 @@ func TestParseArrayTypeDeclaration(t *testing.T) {
 
 		// Verify the element type string representation for nested static arrays
 		expectedType := "array[1..20] of Boolean"
-		if arrayDecl.ArrayType.ElementType.Name != expectedType {
-			t.Errorf("arrayDecl.ArrayType.ElementType.Name = %s, want %s",
-				arrayDecl.ArrayType.ElementType.Name, expectedType)
+		if arrayDecl.ArrayType.ElementType.String() != expectedType {
+			t.Errorf("arrayDecl.ArrayType.ElementType.String() = %s, want %s",
+				arrayDecl.ArrayType.ElementType.String(), expectedType)
 		}
 	})
 
@@ -167,9 +167,9 @@ func TestParseArrayTypeDeclaration(t *testing.T) {
 
 		// Verify the element type string representation
 		expectedType := "array[0..99] of String"
-		if arrayDecl.ArrayType.ElementType.Name != expectedType {
-			t.Errorf("arrayDecl.ArrayType.ElementType.Name = %s, want %s",
-				arrayDecl.ArrayType.ElementType.Name, expectedType)
+		if arrayDecl.ArrayType.ElementType.String() != expectedType {
+			t.Errorf("arrayDecl.ArrayType.ElementType.String() = %s, want %s",
+				arrayDecl.ArrayType.ElementType.String(), expectedType)
 		}
 	})
 }
@@ -659,7 +659,7 @@ func TestParseMultiDimensionalArrayTypes(t *testing.T) {
 				t.Fatalf("constStmt.Type is nil")
 			}
 
-			typeName := constStmt.Type.Name
+			typeName := constStmt.Type.String()
 			if typeName != tt.expectedType {
 				t.Errorf("type = %q, want %q", typeName, tt.expectedType)
 			}

@@ -102,8 +102,8 @@ end;
 	}
 	if stmt.Methods[2].ReturnType == nil {
 		t.Error("GetValue should have return type")
-	} else if stmt.Methods[2].ReturnType.Name != "Integer" {
-		t.Errorf("Expected return type 'Integer', got '%s'", stmt.Methods[2].ReturnType.Name)
+	} else if stmt.Methods[2].ReturnType.String() != "Integer" {
+		t.Errorf("Expected return type 'Integer', got '%s'", stmt.Methods[2].ReturnType.String())
 	}
 
 	// Test procedure with parameters
