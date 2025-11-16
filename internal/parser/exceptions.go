@@ -311,11 +311,9 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 		return nil
 	}
 
-	// If the statement was a block (begin...end), we're positioned on END
-	// Need to advance past it to see what comes next (semicolon, finally, etc.)
-	if p.curTokenIs(lexer.END) {
-		p.nextToken()
-	}
+	// After parsing the statement, advance to the next token
+	// This handles both block statements (begin...end) and single statements
+	p.nextToken()
 
 	return handler
 }

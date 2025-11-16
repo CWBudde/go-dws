@@ -139,6 +139,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.LAMBDA, p.parseLambdaExpression)       // Lambda expressions: lambda(x) => x * 2
 	p.registerPrefix(lexer.OLD, p.parseOldExpression)             // old keyword: old identifier (postconditions only)
 	p.registerPrefix(lexer.INHERITED, p.parseInheritedExpression) // inherited keyword: inherited MethodName(args)
+	p.registerPrefix(lexer.SELF, p.parseSelfExpression)           // self keyword: Self.Field, Self.Method()
 	p.registerPrefix(lexer.IF, p.parseIfExpression)               // if expression: if condition then expr1 else expr2
 
 	// Register keywords that can be used as identifiers in expression context

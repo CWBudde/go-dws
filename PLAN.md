@@ -1262,7 +1262,7 @@ go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/class_init
 
 **Estimate**: 4-5 hours (0.5 day)
 
-**Status**: NOT STARTED
+**Status**: DONE
 
 **Impact**: Unlocks 2 failing tests in SimpleScripts
 
@@ -1361,7 +1361,7 @@ go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/self
 
 **Estimate**: 16-20 hours (2-2.5 days)
 
-**Status**: NOT STARTED
+**Status**: IN PROGRESS (Core functionality complete, minor exception handling issue remains)
 
 **Impact**: Unlocks 19 failing tests in SimpleScripts
 
@@ -1400,21 +1400,24 @@ p();          // Call via pointer
 
 **Subtasks**:
 
-### 9.8.1 Parse Function Pointer Type Declarations
+### 9.8.1 Parse Function Pointer Type Declarations ✅ DONE
 
 **Goal**: Parse type declarations for function and procedure pointers.
 
 **Estimate**: 3-4 hours
 
-**Implementation**:
-1. Recognize `type TName = procedure;` syntax
-2. Recognize `type TName = function: ReturnType;` syntax
-3. Parse parameter lists for function pointer types
-4. Handle method pointer syntax: `type TName = procedure of object;`
+**Status**: COMPLETED - Parser support was mostly implemented, fixed optional parentheses
 
-**Files to Modify**:
-- `internal/parser/parser_types.go` (parse function pointer types)
-- `pkg/ast/declarations.go` (FunctionPointerType node)
+**Implementation**:
+1. ✅ Recognize `type TName = procedure;` syntax
+2. ✅ Recognize `type TName = function: ReturnType;` syntax
+3. ✅ Parse parameter lists for function pointer types
+4. ✅ Handle method pointer syntax: `type TName = procedure of object;`
+
+**Files Modified**:
+- `internal/parser/interfaces.go` (fixed optional parentheses)
+- `internal/parser/exceptions.go` (fixed single statement parsing)
+- `internal/parser/function_pointer_test.go` (added tests)
 
 ### 9.8.2 Type System Support for Function Pointers
 

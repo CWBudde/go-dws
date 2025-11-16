@@ -222,7 +222,38 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	// Statements
 	case *ast.ExpressionStatement:
-		return i.Eval(node.Expression)
+		// Evaluate the expression
+		val := i.Eval(node.Expression)
+		if isError(val) {
+			return val
+		}
+
+		// Auto-invoke parameterless function pointers stored in variables
+		// In DWScript, when a variable holds a function pointer with no parameters
+		// and is used as a statement, it's automatically invoked
+		// Example: var fp := @SomeProc; fp; // auto-invokes SomeProc
+		if funcPtr, isFuncPtr := val.(*FunctionPointerValue); isFuncPtr {
+			// Determine parameter count
+			paramCount := 0
+			if funcPtr.Function != nil {
+				paramCount = len(funcPtr.Function.Parameters)
+			} else if funcPtr.Lambda != nil {
+				paramCount = len(funcPtr.Lambda.Parameters)
+			}
+
+			// If it has zero parameters, auto-invoke it
+			if paramCount == 0 {
+				// Check if the function pointer is nil (not assigned)
+				if funcPtr.Function == nil && funcPtr.Lambda == nil {
+					// Raise an exception that can be caught by try-except
+					i.raiseException("Exception", "Function pointer is nil", &node.Token.Pos)
+					return &NilValue{}
+				}
+				return i.callFunctionPointer(funcPtr, []Value{}, node)
+			}
+		}
+
+		return val
 
 	case *ast.VarDeclStatement:
 		return i.evalVarDeclStatement(node)
@@ -354,6 +385,9 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 
 	case *ast.InheritedExpression:
 		return i.evalInheritedExpression(node)
+
+	case *ast.SelfExpression:
+		return i.evalSelfExpression(node)
 
 	case *ast.EnumLiteral:
 		return i.evalEnumLiteral(node)
