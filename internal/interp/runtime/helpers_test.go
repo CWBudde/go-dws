@@ -136,18 +136,18 @@ func TestIsTruthy(t *testing.T) {
 		value Value
 		want  bool
 	}{
-		{"nil", nil, false},
-		{"Boolean true", NewBoolean(true), true},
-		{"Boolean false", NewBoolean(false), false},
-		{"Integer non-zero", NewInteger(42), true},
-		{"Integer zero", NewInteger(0), false},
-		{"Float non-zero", NewFloat(3.14), true},
-		{"Float zero", NewFloat(0.0), false},
-		{"String non-empty", NewString("hello"), true},
-		{"String empty", NewString(""), false},
-		{"NilValue", &NilValue{}, false},
-		{"NullValue", &NullValue{}, false},
-		{"UnassignedValue", &UnassignedValue{}, false},
+		{name: "nil", value: nil, want: false},
+		{name: "Boolean true", value: NewBoolean(true), want: true},
+		{name: "Boolean false", value: NewBoolean(false), want: false},
+		{name: "Integer non-zero", value: NewInteger(42), want: true},
+		{name: "Integer zero", value: NewInteger(0), want: false},
+		{name: "Float non-zero", value: NewFloat(3.14), want: true},
+		{name: "Float zero", value: NewFloat(0.0), want: false},
+		{name: "String non-empty", value: NewString("hello"), want: true},
+		{name: "String empty", value: NewString(""), want: false},
+		{name: "NilValue", value: &NilValue{}, want: false},
+		{name: "NullValue", value: &NullValue{}, want: false},
+		{name: "UnassignedValue", value: &UnassignedValue{}, want: false},
 	}
 
 	for _, tt := range tests {
@@ -166,11 +166,11 @@ func TestIsFalsy(t *testing.T) {
 		value Value
 		want  bool
 	}{
-		{"nil", nil, true},
-		{"Boolean true", NewBoolean(true), false},
-		{"Boolean false", NewBoolean(false), true},
-		{"Integer zero", NewInteger(0), true},
-		{"Integer non-zero", NewInteger(42), false},
+		{name: "nil", value: nil, want: true},
+		{name: "Boolean true", value: NewBoolean(true), want: false},
+		{name: "Boolean false", value: NewBoolean(false), want: true},
+		{name: "Integer zero", value: NewInteger(0), want: true},
+		{name: "Integer non-zero", value: NewInteger(42), want: false},
 	}
 
 	for _, tt := range tests {
@@ -195,14 +195,14 @@ func TestEqual(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"equal integers", NewInteger(42), NewInteger(42), true, false},
-		{"different integers", NewInteger(42), NewInteger(43), false, false},
-		{"equal strings", NewString("hello"), NewString("hello"), true, false},
-		{"different strings", NewString("hello"), NewString("world"), false, false},
-		{"int equals float", NewInteger(42), NewFloat(42.0), true, false},
-		{"both nil", nil, nil, true, false},
-		{"left nil", nil, NewInteger(42), false, false},
-		{"right nil", NewInteger(42), nil, false, false},
+		{name: "equal integers", left: NewInteger(42), right: NewInteger(42), want: true, wantErr: false},
+		{name: "different integers", left: NewInteger(42), right: NewInteger(43), want: false, wantErr: false},
+		{name: "equal strings", left: NewString("hello"), right: NewString("hello"), want: true, wantErr: false},
+		{name: "different strings", left: NewString("hello"), right: NewString("world"), want: false, wantErr: false},
+		{name: "int equals float", left: NewInteger(42), right: NewFloat(42.0), want: true, wantErr: false},
+		{name: "both nil", left: nil, right: nil, want: true, wantErr: false},
+		{name: "left nil", left: nil, right: NewInteger(42), want: false, wantErr: false},
+		{name: "right nil", left: NewInteger(42), right: nil, want: false, wantErr: false},
 	}
 
 	for _, tt := range tests {
@@ -227,11 +227,11 @@ func TestLessThan(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"2 < 3", NewInteger(2), NewInteger(3), true, false},
-		{"3 < 2", NewInteger(3), NewInteger(2), false, false},
-		{"2.5 < 3.5", NewFloat(2.5), NewFloat(3.5), true, false},
-		{"a < b", NewString("a"), NewString("b"), true, false},
-		{"b < a", NewString("b"), NewString("a"), false, false},
+		{name: "2 < 3", left: NewInteger(2), right: NewInteger(3), want: true, wantErr: false},
+		{name: "3 < 2", left: NewInteger(3), right: NewInteger(2), want: false, wantErr: false},
+		{name: "2.5 < 3.5", left: NewFloat(2.5), right: NewFloat(3.5), want: true, wantErr: false},
+		{name: "a < b", left: NewString("a"), right: NewString("b"), want: true, wantErr: false},
+		{name: "b < a", left: NewString("b"), right: NewString("a"), want: false, wantErr: false},
 	}
 
 	for _, tt := range tests {
@@ -256,9 +256,9 @@ func TestGreaterThan(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"3 > 2", NewInteger(3), NewInteger(2), true, false},
-		{"2 > 3", NewInteger(2), NewInteger(3), false, false},
-		{"b > a", NewString("b"), NewString("a"), true, false},
+		{name: "3 > 2", left: NewInteger(3), right: NewInteger(2), want: true, wantErr: false},
+		{name: "2 > 3", left: NewInteger(2), right: NewInteger(3), want: false, wantErr: false},
+		{name: "b > a", left: NewString("b"), right: NewString("a"), want: true, wantErr: false},
 	}
 
 	for _, tt := range tests {

@@ -747,8 +747,8 @@ func TestCompiler_InferExpressionType(t *testing.T) {
 		expr ast.Expression
 	}{
 		{
-			"integer literal",
-			&ast.IntegerLiteral{
+			name: "integer literal",
+			expr: &ast.IntegerLiteral{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.INT, Literal: "42", Pos: pos(1, 1)},
@@ -758,8 +758,8 @@ func TestCompiler_InferExpressionType(t *testing.T) {
 			},
 		},
 		{
-			"float literal",
-			&ast.FloatLiteral{
+			name: "float literal",
+			expr: &ast.FloatLiteral{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.FLOAT, Literal: "3.14", Pos: pos(1, 1)},
@@ -769,8 +769,8 @@ func TestCompiler_InferExpressionType(t *testing.T) {
 			},
 		},
 		{
-			"string literal",
-			&ast.StringLiteral{
+			name: "string literal",
+			expr: &ast.StringLiteral{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.STRING, Literal: "hello", Pos: pos(1, 1)},
@@ -780,8 +780,8 @@ func TestCompiler_InferExpressionType(t *testing.T) {
 			},
 		},
 		{
-			"boolean literal",
-			&ast.BooleanLiteral{
+			name: "boolean literal",
+			expr: &ast.BooleanLiteral{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{
 						Token: lexer.Token{Type: lexer.TRUE, Literal: "true", Pos: pos(1, 1)},
