@@ -95,6 +95,10 @@ const (
 	FALSE // false boolean literal
 	NIL   // nil literal
 
+	// Keywords - Variant special values (Task 9.4.1)
+	NULL       // Null - special variant value
+	UNASSIGNED // Unassigned - default uninitialized variant value
+
 	// Keywords - Control flow
 	BEGIN    // begin
 	END      // end
@@ -347,6 +351,10 @@ var tokenTypeStrings = [...]string{
 	TRUE:   "TRUE",
 	FALSE:  "FALSE",
 	NIL:    "NIL",
+
+	// Task 9.4.1: Variant special values
+	NULL:       "NULL",
+	UNASSIGNED: "UNASSIGNED",
 
 	// Keywords - Control flow
 	BEGIN:    "BEGIN",
@@ -643,15 +651,20 @@ var keywords = map[string]TokenType{
 	"true":  TRUE,
 	"false": FALSE,
 	"nil":   NIL,
-	"is":    IS,
-	"as":    AS,
-	"in":    IN,
-	"div":   DIV,
-	"mod":   MOD,
-	"shl":   SHL,
-	"shr":   SHR,
-	"sar":   SAR,
-	"impl":  IMPL,
+
+	// Task 9.4.1: Variant special values
+	"null":       NULL,
+	"unassigned": UNASSIGNED,
+
+	"is":   IS,
+	"as":   AS,
+	"in":   IN,
+	"div":  DIV,
+	"mod":  MOD,
+	"shl":  SHL,
+	"shr":  SHR,
+	"sar":  SAR,
+	"impl": IMPL,
 
 	// Function modifiers
 	"inline":     INLINE,

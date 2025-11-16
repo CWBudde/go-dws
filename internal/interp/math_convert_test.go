@@ -7,6 +7,7 @@ import (
 
 // TestBuiltinRound_BasicUsage tests Round() with basic values.
 // Round(x) rounds to the nearest integer and returns Integer
+// DWScript uses banker's rounding (round-half-to-even): X.5 rounds to the nearest even number
 func TestBuiltinRound_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -41,22 +42,67 @@ end
 			expected: 2,
 		},
 		{
-			name: "Round(2.5) - rounds up",
+			name: "Round(2.5) - banker's rounding: rounds to even (2)",
 			input: `
 begin
 	Round(2.5);
 end
 			`,
-			expected: 3,
+			expected: 2,
 		},
 		{
-			name: "Round(-2.5) - rounds down (away from zero)",
+			name: "Round(3.5) - banker's rounding: rounds to even (4)",
+			input: `
+begin
+	Round(3.5);
+end
+			`,
+			expected: 4,
+		},
+		{
+			name: "Round(16.5) - banker's rounding: rounds to even (16)",
+			input: `
+begin
+	Round(16.5);
+end
+			`,
+			expected: 16,
+		},
+		{
+			name: "Round(17.5) - banker's rounding: rounds to even (18)",
+			input: `
+begin
+	Round(17.5);
+end
+			`,
+			expected: 18,
+		},
+		{
+			name: "Round(18.5) - banker's rounding: rounds to even (18)",
+			input: `
+begin
+	Round(18.5);
+end
+			`,
+			expected: 18,
+		},
+		{
+			name: "Round(-2.5) - banker's rounding: rounds to even (-2)",
 			input: `
 begin
 	Round(-2.5);
 end
 			`,
-			expected: -3,
+			expected: -2,
+		},
+		{
+			name: "Round(-3.5) - banker's rounding: rounds to even (-4)",
+			input: `
+begin
+	Round(-3.5);
+end
+			`,
+			expected: -4,
 		},
 		{
 			name: "Round(0.0)",

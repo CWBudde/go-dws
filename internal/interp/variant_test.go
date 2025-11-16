@@ -161,9 +161,9 @@ func TestVariantUnwrapping(t *testing.T) {
 			expected: &IntegerValue{Value: 42},
 		},
 		{
-			name:     "unwrap nil variant returns NilValue",
+			name:     "unwrap nil variant returns UnassignedValue",
 			input:    boxVariant(nil),
-			expected: &NilValue{},
+			expected: &UnassignedValue{},
 		},
 	}
 

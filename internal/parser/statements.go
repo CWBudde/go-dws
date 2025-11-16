@@ -72,6 +72,11 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseUsesClause()
 	default:
 		// Check for assignment (simple or member assignment)
+		// Handle SELF and INHERITED which can be assignment targets (e.g., Self.X := value)
+		if p.curToken.Type == lexer.SELF || p.curToken.Type == lexer.INHERITED {
+			return p.parseAssignmentOrExpression()
+		}
+
 		if p.isIdentifierToken(p.curToken.Type) {
 			// Could be:
 			// 1. x := value (assignment)

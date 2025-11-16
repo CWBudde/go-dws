@@ -294,34 +294,63 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			return leftSetType
 		}
 
+		// Task 9.4.2: Check if either operand is Variant
+		leftIsVariant := leftType == types.VARIANT
+		rightIsVariant := rightType == types.VARIANT
+
 		// Special case: + can also concatenate strings
 		if operator == "+" && (leftType.Equals(types.STRING) || rightType.Equals(types.STRING)) {
-			// String concatenation
-			if !leftType.Equals(types.STRING) || !rightType.Equals(types.STRING) {
-				a.addError("string concatenation requires both operands to be strings at %s",
-					expr.Token.Pos.String())
-				return nil
+			// Task 9.4.2: Allow Variant in string concatenation
+			if !leftIsVariant && !rightIsVariant {
+				// String concatenation
+				if !leftType.Equals(types.STRING) || !rightType.Equals(types.STRING) {
+					a.addError("string concatenation requires both operands to be strings at %s",
+						expr.Token.Pos.String())
+					return nil
+				}
+			}
+			// If Variant is involved, return Variant; otherwise return STRING
+			if leftIsVariant || rightIsVariant {
+				return types.VARIANT
 			}
 			return types.STRING
 		}
 
 		// Numeric arithmetic
-		if !types.IsNumericType(leftType) || !types.IsNumericType(rightType) {
-			a.addError("arithmetic operator %s requires numeric operands, got %s and %s at %s",
-				operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
-			return nil
+		// Task 9.4.2: Allow Variant in numeric operations
+		if !leftIsVariant && !rightIsVariant {
+			if !types.IsNumericType(leftType) || !types.IsNumericType(rightType) {
+				a.addError("arithmetic operator %s requires numeric operands, got %s and %s at %s",
+					operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+				return nil
+			}
 		}
 
 		// Type promotion: Integer + Float -> Float
+		// Task 9.4.2: If Variant is involved, return Variant
+		if leftIsVariant || rightIsVariant {
+			return types.VARIANT
+		}
 		return types.PromoteTypes(leftType, rightType)
 	}
 
 	// Handle integer division and modulo
 	if operator == "div" || operator == "mod" {
-		if !leftType.Equals(types.INTEGER) || !rightType.Equals(types.INTEGER) {
-			a.addError("operator %s requires integer operands, got %s and %s at %s",
-				operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
-			return nil
+		// Task 9.4.2: Allow Variant in div/mod operations
+		leftIsVariant := leftType == types.VARIANT
+		rightIsVariant := rightType == types.VARIANT
+
+		if !leftIsVariant && !rightIsVariant {
+			if !leftType.Equals(types.INTEGER) || !rightType.Equals(types.INTEGER) {
+				a.addError("operator %s requires integer operands, got %s and %s at %s",
+					operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+				return nil
+			}
+		}
+
+		// If Variant is involved, return Variant; otherwise return INTEGER
+		if leftIsVariant || rightIsVariant {
+			return types.VARIANT
 		}
 		return types.INTEGER
 	}
@@ -338,31 +367,41 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 
 	// Handle comparison operators
 	if operator == "=" || operator == "<>" || operator == "<" || operator == ">" || operator == "<=" || operator == ">=" {
+		// Task 9.4.1: Allow Variant to be compared with any type
+		leftIsVariant := leftType == types.VARIANT
+		rightIsVariant := rightType == types.VARIANT
+
 		// For equality, types must be comparable
 		if operator == "=" || operator == "<>" {
-			if !types.IsComparableType(leftType) || !types.IsComparableType(rightType) {
-				a.addError("operator %s requires comparable types at %s",
-					operator, expr.Token.Pos.String())
-				return nil
-			}
-			// Types must be compatible
-			if !leftType.Equals(rightType) && !a.canAssign(leftType, rightType) && !a.canAssign(rightType, leftType) {
-				a.addError("cannot compare %s with %s at %s",
-					leftType.String(), rightType.String(), expr.Token.Pos.String())
-				return nil
+			// If either operand is Variant, allow the comparison
+			if !leftIsVariant && !rightIsVariant {
+				if !types.IsComparableType(leftType) || !types.IsComparableType(rightType) {
+					a.addError("operator %s requires comparable types at %s",
+						operator, expr.Token.Pos.String())
+					return nil
+				}
+				// Types must be compatible
+				if !leftType.Equals(rightType) && !a.canAssign(leftType, rightType) && !a.canAssign(rightType, leftType) {
+					a.addError("cannot compare %s with %s at %s",
+						leftType.String(), rightType.String(), expr.Token.Pos.String())
+					return nil
+				}
 			}
 		} else {
 			// For ordering, types must be orderable
-			if !types.IsOrderedType(leftType) || !types.IsOrderedType(rightType) {
-				a.addError("operator %s requires ordered types, got %s and %s at %s",
-					operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
-				return nil
-			}
-			// Types must match (or be compatible)
-			if !leftType.Equals(rightType) && !a.canAssign(leftType, rightType) && !a.canAssign(rightType, leftType) {
-				a.addError("cannot compare %s with %s at %s",
-					leftType.String(), rightType.String(), expr.Token.Pos.String())
-				return nil
+			// Task 9.4.1: Allow Variant in ordering comparisons
+			if !leftIsVariant && !rightIsVariant {
+				if !types.IsOrderedType(leftType) || !types.IsOrderedType(rightType) {
+					a.addError("operator %s requires ordered types, got %s and %s at %s",
+						operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+					return nil
+				}
+				// Types must match (or be compatible)
+				if !leftType.Equals(rightType) && !a.canAssign(leftType, rightType) && !a.canAssign(rightType, leftType) {
+					a.addError("cannot compare %s with %s at %s",
+						leftType.String(), rightType.String(), expr.Token.Pos.String())
+					return nil
+				}
 			}
 		}
 		return types.BOOLEAN
@@ -371,6 +410,15 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 	// Handle logical/bitwise operators (and, or, xor)
 	// These operators work on both Boolean (logical) and Integer (bitwise) types
 	if operator == "and" || operator == "or" || operator == "xor" {
+		// Task 9.4.2: Allow Variant in logical/bitwise operations
+		leftIsVariant := leftType == types.VARIANT
+		rightIsVariant := rightType == types.VARIANT
+
+		// If Variant is involved, allow the operation and return Variant
+		if leftIsVariant || rightIsVariant {
+			return types.VARIANT
+		}
+
 		// Both operands must be Boolean or both must be Integer
 		if leftType.Equals(types.BOOLEAN) && rightType.Equals(types.BOOLEAN) {
 			return types.BOOLEAN
@@ -462,6 +510,11 @@ func (a *Analyzer) analyzeUnaryExpression(expr *ast.UnaryExpression) types.Type 
 
 	// Handle negation
 	if operator == "-" || operator == "+" {
+		// Task 9.4.2: Allow Variant in unary numeric operations
+		if operandType == types.VARIANT {
+			return types.VARIANT
+		}
+
 		if !types.IsNumericType(operandType) {
 			a.addError("unary %s requires numeric operand, got %s at %s",
 				operator, operandType.String(), expr.Token.Pos.String())

@@ -572,7 +572,7 @@ func (i *Interpreter) evalSelfExpression(se *ast.SelfExpression) Value {
 	// Get Self from the environment (should be bound when entering methods)
 	selfVal, exists := i.env.Get("Self")
 	if !exists {
-		return i.newErrorWithLocation(se, "Self can only be used inside a method")
+		return i.newErrorWithLocation(se, "Self used outside method context")
 	}
 
 	return selfVal

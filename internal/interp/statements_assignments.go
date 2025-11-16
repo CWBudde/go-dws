@@ -128,8 +128,15 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 			// No operator override - fall through to default error
 		}
 
-		// += works with Integer, Float, String
+		// += works with Integer, Float, String, Variant
 		switch l := left.(type) {
+		case *VariantValue:
+			// Perform variant operation and return result wrapped in variant
+			result := i.evalVariantBinaryOp("+", l, right, stmt)
+			if isError(result) {
+				return result
+			}
+			return result
 		case *IntegerValue:
 			if r, ok := right.(*IntegerValue); ok {
 				return &IntegerValue{Value: l.Value + r.Value}
@@ -167,8 +174,15 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 		}
 
 	case lexer.MINUS_ASSIGN:
-		// -= works with Integer, Float
+		// -= works with Integer, Float, Variant
 		switch l := left.(type) {
+		case *VariantValue:
+			// Perform variant operation and return result wrapped in variant
+			result := i.evalVariantBinaryOp("-", l, right, stmt)
+			if isError(result) {
+				return result
+			}
+			return result
 		case *IntegerValue:
 			if r, ok := right.(*IntegerValue); ok {
 				return &IntegerValue{Value: l.Value - r.Value}
@@ -190,8 +204,15 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 		}
 
 	case lexer.TIMES_ASSIGN:
-		// *= works with Integer, Float
+		// *= works with Integer, Float, Variant
 		switch l := left.(type) {
+		case *VariantValue:
+			// Perform variant operation and return result wrapped in variant
+			result := i.evalVariantBinaryOp("*", l, right, stmt)
+			if isError(result) {
+				return result
+			}
+			return result
 		case *IntegerValue:
 			if r, ok := right.(*IntegerValue); ok {
 				return &IntegerValue{Value: l.Value * r.Value}
@@ -213,8 +234,15 @@ func (i *Interpreter) applyCompoundOperation(op lexer.TokenType, left, right Val
 		}
 
 	case lexer.DIVIDE_ASSIGN:
-		// /= works with Integer, Float
+		// /= works with Integer, Float, Variant
 		switch l := left.(type) {
+		case *VariantValue:
+			// Perform variant operation and return result wrapped in variant
+			result := i.evalVariantBinaryOp("/", l, right, stmt)
+			if isError(result) {
+				return result
+			}
+			return result
 		case *IntegerValue:
 			if r, ok := right.(*IntegerValue); ok {
 				if r.Value == 0 {

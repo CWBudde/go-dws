@@ -273,7 +273,11 @@ func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.
 }
 
 // evalMinusUnaryOp evaluates the unary minus operator.
+// Task 9.4.5: Now supports Variant arguments.
 func (i *Interpreter) evalMinusUnaryOp(right Value) Value {
+	// Task 9.4.5: Unwrap Variant if necessary
+	right = unwrapVariant(right)
+
 	switch v := right.(type) {
 	case *IntegerValue:
 		return &IntegerValue{Value: -v.Value}
@@ -285,7 +289,11 @@ func (i *Interpreter) evalMinusUnaryOp(right Value) Value {
 }
 
 // evalPlusUnaryOp evaluates the unary plus operator.
+// Task 9.4.5: Now supports Variant arguments.
 func (i *Interpreter) evalPlusUnaryOp(right Value) Value {
+	// Task 9.4.5: Unwrap Variant if necessary
+	right = unwrapVariant(right)
+
 	switch right.(type) {
 	case *IntegerValue, *FloatValue:
 		return right
