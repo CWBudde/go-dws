@@ -625,11 +625,13 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 		}
 		return rightType
 	case ast.TypedExpression:
-		var typeAnnot *ast.TypeAnnotation
 		if c.semanticInfo != nil {
-			typeAnnot = c.semanticInfo.GetType(node)
+			typeAnnot := c.semanticInfo.GetType(node)
+			if typeAnnot != nil {
+				return typeFromAnnotation(typeAnnot)
+			}
 		}
-		return typeFromAnnotation(typeAnnot)
+		return nil
 	default:
 		return nil
 	}
@@ -694,6 +696,10 @@ func typeFromAnnotation(expr ast.TypeExpression) types.Type {
 
 	switch node := expr.(type) {
 	case *ast.TypeAnnotation:
+		// Check for typed nil - when nil *ast.TypeAnnotation is passed to interface parameter
+		if node == nil {
+			return nil
+		}
 		// Handle simple named types
 		switch strings.ToLower(node.Name) {
 		case "integer":
