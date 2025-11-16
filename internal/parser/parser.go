@@ -79,6 +79,101 @@
 //   - Always check for EOF when scanning ahead in loops
 //   - Document WHY lookahead is needed (what ambiguity it resolves)
 //   - Keep lookahead functions pure (no side effects, no token consumption)
+//
+// ERROR RECOVERY PATTERN (Phase 2.8):
+//
+// The parser implements panic-mode error recovery with synchronization tokens
+// to enable multiple error reporting in a single pass and prevent infinite loops.
+//
+// Key components:
+//
+//  1. Block Context Tracking:
+//     - Use pushBlockContext() when entering a block (begin, if, while, for, case, etc.)
+//     - Use defer popBlockContext() to ensure cleanup even on error
+//     - Provides context for better error messages
+//
+//  2. Error Reporting:
+//     - addError(): Basic error with position tracking
+//     - addErrorWithContext(): Include block context in error message
+//     - Example: "expected 'end' (in begin block starting at line 10)"
+//
+//  3. Synchronization:
+//     - synchronize(tokens): Advance to a safe synchronization point
+//     - Stops at statement starters, block closers, or specified tokens
+//     - Prevents parser from getting stuck in error loops
+//
+// Example usage:
+//
+//	func (p *Parser) parseWhileStatement() *ast.WhileStatement {
+//	    // Track block context
+//	    p.pushBlockContext("while", p.curToken.Pos)
+//	    defer p.popBlockContext()
+//
+//	    // Parse condition
+//	    stmt.Condition = p.parseExpression(LOWEST)
+//	    if stmt.Condition == nil {
+//	        p.addErrorWithContext("expected condition", ErrInvalidExpression)
+//	        p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
+//	        return nil
+//	    }
+//
+//	    // Try to recover from missing 'do'
+//	    if !p.expectPeek(lexer.DO) {
+//	        p.addErrorWithContext("expected 'do'", ErrMissingDo)
+//	        p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
+//	        if !p.curTokenIs(lexer.DO) {
+//	            return nil  // Cannot recover
+//	        }
+//	        // Found DO, try to continue
+//	    }
+//	}
+//
+// Synchronization points (statementStarters, blockClosers):
+//   - Statement starters: VAR, CONST, TYPE, IF, WHILE, FOR, REPEAT, CASE, BEGIN, etc.
+//   - Block closers: END, UNTIL, ELSE, EXCEPT, FINALLY
+//   - Always: EOF (prevents infinite loops)
+//
+// Best practices:
+//   - Always use block context for block-level constructs
+//   - Synchronize after errors to enable multiple error reporting
+//   - Try to continue parsing when possible (don't give up at first error)
+//   - Document which errors are recoverable vs. fatal
+//
+// PRATT PARSING (Core Architecture):
+//
+// The parser uses a Pratt parser (top-down operator precedence) for expressions.
+// This provides elegant handling of operator precedence and associativity.
+//
+// Key concepts:
+//
+//  1. Prefix Parse Functions:
+//     - Called when a token appears at the START of an expression
+//     - Examples: literals (42, "hello"), unary operators (-x, not x), grouping ((expr))
+//     - Registered via registerPrefix(tokenType, parseFn)
+//
+//  2. Infix Parse Functions:
+//     - Called when a token appears BETWEEN expressions
+//     - Examples: binary operators (x + y), function calls (foo()), member access (obj.field)
+//     - Registered via registerInfix(tokenType, parseFn)
+//     - Receive left expression as parameter, parse right side
+//
+//  3. Precedence Levels:
+//     - Integer constants from LOWEST to MEMBER
+//     - Higher number = higher precedence
+//     - Determines how tightly operators bind
+//     - Example: PRODUCT (5) > SUM (4), so 3+5*2 parses as 3+(5*2)
+//
+// The parseExpression(precedence) method:
+//  1. Look up prefix function for current token
+//  2. Parse prefix to get left expression
+//  3. While peek token has higher precedence:
+//     a. Look up infix function
+//     b. Advance to infix operator
+//     c. Parse infix (passing left expression)
+//     d. Update left expression with result
+//  4. Return final expression
+//
+// See docs/parser-architecture.md for detailed explanation.
 package parser
 
 import (
@@ -147,6 +242,14 @@ type prefixParseFn func() ast.Expression
 // infixParseFn is a function type for parsing infix expressions.
 type infixParseFn func(ast.Expression) ast.Expression
 
+// BlockContext represents the context of a block being parsed.
+// Used for better error messages and error recovery.
+type BlockContext struct {
+	BlockType string         // "begin", "if", "while", "for", "case", "try", "class", "function", etc.
+	StartPos  lexer.Position // Position where the block started
+	StartLine int            // Line number where the block started
+}
+
 // Parser represents the DWScript parser.
 type Parser struct {
 	l                      *lexer.Lexer
@@ -157,7 +260,8 @@ type Parser struct {
 	curToken               lexer.Token
 	peekToken              lexer.Token
 	enableSemanticAnalysis bool
-	parsingPostCondition   bool // True when parsing postconditions (for 'old' keyword)
+	parsingPostCondition   bool           // True when parsing postconditions (for 'old' keyword)
+	blockStack             []BlockContext // Stack of nested block contexts for error messages
 }
 
 // ParserState represents a snapshot of the parser's state at a specific point.
@@ -170,6 +274,7 @@ type ParserState struct {
 	curToken             lexer.Token
 	peekToken            lexer.Token
 	parsingPostCondition bool
+	blockStack           []BlockContext
 }
 
 // New creates a new Parser instance.
@@ -181,6 +286,7 @@ func New(l *lexer.Lexer) *Parser {
 		infixParseFns:          make(map[lexer.TokenType]infixParseFn),
 		enableSemanticAnalysis: false,
 		semanticErrors:         []string{},
+		blockStack:             []BlockContext{},
 	}
 
 	// Register prefix parse functions
@@ -431,6 +537,10 @@ func (p *Parser) saveState() ParserState {
 	semanticErrorsCopy := make([]string, len(p.semanticErrors))
 	copy(semanticErrorsCopy, p.semanticErrors)
 
+	// Make a deep copy of blockStack
+	blockStackCopy := make([]BlockContext, len(p.blockStack))
+	copy(blockStackCopy, p.blockStack)
+
 	return ParserState{
 		errors:               errorsCopy,
 		curToken:             p.curToken,
@@ -438,6 +548,7 @@ func (p *Parser) saveState() ParserState {
 		lexerState:           p.l.SaveState(),
 		parsingPostCondition: p.parsingPostCondition,
 		semanticErrors:       semanticErrorsCopy,
+		blockStack:           blockStackCopy,
 	}
 }
 
@@ -450,7 +561,115 @@ func (p *Parser) restoreState(state ParserState) {
 	p.errors = state.errors
 	p.parsingPostCondition = state.parsingPostCondition
 	p.semanticErrors = state.semanticErrors
+	p.blockStack = state.blockStack
 	p.l.RestoreState(state.lexerState)
+}
+
+// pushBlockContext pushes a new block context onto the stack.
+// This is used to track nested blocks for better error messages.
+func (p *Parser) pushBlockContext(blockType string, startPos lexer.Position) {
+	p.blockStack = append(p.blockStack, BlockContext{
+		BlockType: blockType,
+		StartPos:  startPos,
+		StartLine: startPos.Line,
+	})
+}
+
+// popBlockContext pops the most recent block context from the stack.
+// Call this when exiting a block to maintain proper nesting.
+func (p *Parser) popBlockContext() {
+	if len(p.blockStack) > 0 {
+		p.blockStack = p.blockStack[:len(p.blockStack)-1]
+	}
+}
+
+// currentBlockContext returns the current block context, if any.
+// Returns nil if no block is currently being parsed.
+func (p *Parser) currentBlockContext() *BlockContext {
+	if len(p.blockStack) == 0 {
+		return nil
+	}
+	return &p.blockStack[len(p.blockStack)-1]
+}
+
+// Synchronization token sets for error recovery.
+// These define "safe" points where parsing can resume after an error.
+var (
+	// statementStarters are tokens that can start a new statement
+	statementStarters = []lexer.TokenType{
+		lexer.VAR, lexer.CONST, lexer.TYPE,
+		lexer.IF, lexer.WHILE, lexer.FOR, lexer.REPEAT, lexer.CASE,
+		lexer.BEGIN, lexer.TRY, lexer.RAISE,
+		lexer.BREAK, lexer.CONTINUE, lexer.EXIT,
+		lexer.FUNCTION, lexer.PROCEDURE,
+		lexer.CLASS, lexer.RECORD, lexer.INTERFACE,
+		lexer.IDENT,
+	}
+
+	// blockClosers are tokens that close blocks
+	blockClosers = []lexer.TokenType{
+		lexer.END, lexer.UNTIL, lexer.ELSE, lexer.EXCEPT, lexer.FINALLY,
+	}
+
+	// declarationStarters are tokens that can start a declaration
+	declarationStarters = []lexer.TokenType{
+		lexer.VAR, lexer.CONST, lexer.TYPE,
+		lexer.FUNCTION, lexer.PROCEDURE,
+		lexer.CLASS, lexer.RECORD, lexer.INTERFACE,
+	}
+)
+
+// synchronize performs panic-mode error recovery by advancing to a synchronization point.
+// It skips tokens until it finds one that's likely to be a safe point to resume parsing.
+//
+// Parameters:
+//   - syncTokens: specific tokens to synchronize on (in addition to statement starters/block closers)
+//
+// The synchronize method will stop at:
+//  1. Any token in syncTokens
+//  2. Statement starters (if/while/for/begin/etc.)
+//  3. Block closers (end/until/else/etc.)
+//  4. EOF (to prevent infinite loops)
+//
+// Example usage:
+//
+//	if !p.expectPeek(lexer.THEN) {
+//	    p.addError("expected 'then' after if condition", ErrMissingThen)
+//	    p.synchronize([]lexer.TokenType{lexer.THEN, lexer.ELSE, lexer.END})
+//	    return nil
+//	}
+func (p *Parser) synchronize(syncTokens []lexer.TokenType) {
+	// Build a map of all synchronization tokens for fast lookup
+	syncMap := make(map[lexer.TokenType]bool)
+	for _, t := range syncTokens {
+		syncMap[t] = true
+	}
+	for _, t := range statementStarters {
+		syncMap[t] = true
+	}
+	for _, t := range blockClosers {
+		syncMap[t] = true
+	}
+
+	// Advance until we find a synchronization token or EOF
+	for !p.curTokenIs(lexer.EOF) {
+		if syncMap[p.curToken.Type] {
+			return
+		}
+		p.nextToken()
+	}
+}
+
+// addErrorWithContext adds an error with additional context from the block stack.
+// This provides better error messages by including information about which block
+// the error occurred in.
+//
+// Example output: "expected 'end' to close 'begin' block starting at line 10"
+func (p *Parser) addErrorWithContext(msg string, code string) {
+	if ctx := p.currentBlockContext(); ctx != nil {
+		msg = fmt.Sprintf("%s (in %s block starting at line %d)", msg, ctx.BlockType, ctx.StartLine)
+	}
+	p.addError(msg, code)
 }
 
 // endPosFromToken calculates the end position of a token.
