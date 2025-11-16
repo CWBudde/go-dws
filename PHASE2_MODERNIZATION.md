@@ -8,7 +8,7 @@
 - 411 explicit `nextToken()` calls throughout codebase
 - 193 error reporting sites with string-based errors
 - Manual position tracking and backtracking
-- Good test coverage (49 test files) and benchmarks
+- Good test coverage (50 test files) and benchmarks
 
 **Target State**:
 - Immutable cursor-based token navigation
