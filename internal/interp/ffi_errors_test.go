@@ -249,7 +249,7 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 		interp := newTestInterpreter()
 
 		// Verify EHost class exists
-		eHostClass, exists := interp.classes["EHost"]
+		eHostClass, exists := interp.classes["ehost"]
 		if !exists {
 			t.Fatal("expected EHost class to be registered")
 		}
@@ -379,10 +379,10 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 		interp := newTestInterpreter()
 
 		// Temporarily remove EHost class to test fallback
-		eHostClass := interp.classes["EHost"]
-		delete(interp.classes, "EHost")
+		eHostClass := interp.classes["ehost"]
+		delete(interp.classes, "ehost")
 		defer func() {
-			interp.classes["EHost"] = eHostClass
+			interp.classes["ehost"] = eHostClass
 		}()
 
 		testErr := errors.New("error without EHost")
