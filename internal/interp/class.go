@@ -108,6 +108,11 @@ func NewObjectInstance(class *ClassInfo) *ObjectInstance {
 // GetField retrieves the value of a field by name.
 // Returns nil if the field doesn't exist or hasn't been set.
 func (o *ObjectInstance) GetField(name string) Value {
+	// Guard against nil class
+	if o.Class == nil {
+		return nil
+	}
+
 	// Check if field is defined in class
 	if _, exists := o.Class.Fields[name]; !exists {
 		// Field not defined in class
@@ -121,6 +126,11 @@ func (o *ObjectInstance) GetField(name string) Value {
 // SetField sets the value of a field by name.
 // The field must be defined in the class's field map.
 func (o *ObjectInstance) SetField(name string, value Value) {
+	// Guard against nil class
+	if o.Class == nil {
+		return
+	}
+
 	// Only set if field is defined in class
 	if _, exists := o.Class.Fields[name]; exists {
 		o.Fields[name] = value

@@ -56,7 +56,7 @@ func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
 	}
 
 	// Verify class was registered
-	class, exists := interp.classes["TDocument"]
+	class, exists := interp.classes["tdocument"]
 	if !exists {
 		t.Fatal("TDocument class should be registered")
 	}
@@ -167,7 +167,7 @@ func TestIntegration_InterfaceInheritanceHierarchy(t *testing.T) {
 	}
 
 	// Verify class implements all levels
-	class := interp.classes["TImplementation"]
+	class := interp.classes["timplementation"]
 	if !classImplementsInterface(class, base) {
 		t.Error("TImplementation should implement IBase")
 	}
@@ -268,7 +268,7 @@ func TestIntegration_ClassImplementingMultipleInterfaces(t *testing.T) {
 	}
 
 	// Verify class implements all three
-	class := interp.classes["TFile"]
+	class := interp.classes["tfile"]
 	if !classImplementsInterface(class, readable) {
 		t.Error("TFile should implement IReadable")
 	}
