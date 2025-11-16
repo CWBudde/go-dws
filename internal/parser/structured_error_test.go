@@ -205,8 +205,8 @@ func TestStructuredErrorBuilder(t *testing.T) {
 
 func TestStructuredError_Error(t *testing.T) {
 	tests := []struct {
-		name      string
-		err       *StructuredParserError
+		name       string
+		err        *StructuredParserError
 		wantSubstr []string // Substrings that should appear in error message
 	}{
 		{

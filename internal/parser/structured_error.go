@@ -47,11 +47,11 @@ const (
 //	    Build()
 type StructuredParserError struct {
 	// Core error information
-	Kind    ErrorKind       // Error category (syntax, unexpected, missing, etc.)
-	Message string          // Human-readable error message
-	Code    string          // Machine-readable error code (e.g., ErrMissingRParen)
-	Pos     lexer.Position  // Primary error position
-	Length  int             // Length of the problematic token/region
+	Kind    ErrorKind      // Error category (syntax, unexpected, missing, etc.)
+	Message string         // Human-readable error message
+	Code    string         // Machine-readable error code (e.g., ErrMissingRParen)
+	Pos     lexer.Position // Primary error position
+	Length  int            // Length of the problematic token/region
 
 	// Contextual information
 	Expected     []string        // Expected tokens/constructs (e.g., [")", "end"])
@@ -61,10 +61,10 @@ type StructuredParserError struct {
 	ParsePhase   string          // Current parsing phase (e.g., "expression", "statement")
 
 	// Additional information
-	Suggestions    []string         // Helpful suggestions for fixing the error
-	RelatedPos     []lexer.Position // Related positions (for multi-part errors)
-	RelatedMessages []string        // Messages for related positions
-	Notes          []string         // Additional notes or context
+	Suggestions     []string         // Helpful suggestions for fixing the error
+	RelatedPos      []lexer.Position // Related positions (for multi-part errors)
+	RelatedMessages []string         // Messages for related positions
+	Notes           []string         // Additional notes or context
 }
 
 // Error implements the error interface.
@@ -227,12 +227,12 @@ type StructuredErrorBuilder struct {
 func NewStructuredError(kind ErrorKind) *StructuredErrorBuilder {
 	return &StructuredErrorBuilder{
 		err: &StructuredParserError{
-			Kind:        kind,
-			Expected:    []string{},
-			Suggestions: []string{},
-			RelatedPos:  []lexer.Position{},
+			Kind:            kind,
+			Expected:        []string{},
+			Suggestions:     []string{},
+			RelatedPos:      []lexer.Position{},
 			RelatedMessages: []string{},
-			Notes:       []string{},
+			Notes:           []string{},
 		},
 	}
 }

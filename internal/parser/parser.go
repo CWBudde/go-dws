@@ -169,47 +169,47 @@
 //
 //  1. Missing keyword:
 //     if !p.expectPeek(lexer.THEN) {
-//         err := NewStructuredError(ErrKindMissing).
-//             WithCode(ErrMissingThen).
-//             WithMessage("expected 'then' after if condition").
-//             WithPosition(p.peekToken.Pos, p.peekToken.Length()).
-//             WithExpected(lexer.THEN).
-//             WithActual(p.peekToken.Type, p.peekToken.Literal).
-//             WithSuggestion("add 'then' keyword after the condition").
-//             WithNote("DWScript if statements require: if <condition> then <statement>").
-//             Build()
-//         p.addStructuredError(err)
-//         return nil
+//     err := NewStructuredError(ErrKindMissing).
+//     WithCode(ErrMissingThen).
+//     WithMessage("expected 'then' after if condition").
+//     WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+//     WithExpected(lexer.THEN).
+//     WithActual(p.peekToken.Type, p.peekToken.Literal).
+//     WithSuggestion("add 'then' keyword after the condition").
+//     WithNote("DWScript if statements require: if <condition> then <statement>").
+//     Build()
+//     p.addStructuredError(err)
+//     return nil
 //     }
 //
 //  2. Invalid expression:
 //     if stmt.Condition == nil {
-//         err := NewStructuredError(ErrKindInvalid).
-//             WithCode(ErrInvalidExpression).
-//             WithMessage("expected condition after 'if'").
-//             WithPosition(p.curToken.Pos, p.curToken.Length()).
-//             WithExpectedString("boolean expression").
-//             WithSuggestion("add a condition like 'x > 0' or 'flag = true'").
-//             WithParsePhase("if statement condition").
-//             Build()
-//         p.addStructuredError(err)
-//         return nil
+//     err := NewStructuredError(ErrKindInvalid).
+//     WithCode(ErrInvalidExpression).
+//     WithMessage("expected condition after 'if'").
+//     WithPosition(p.curToken.Pos, p.curToken.Length()).
+//     WithExpectedString("boolean expression").
+//     WithSuggestion("add a condition like 'x > 0' or 'flag = true'").
+//     WithParsePhase("if statement condition").
+//     Build()
+//     p.addStructuredError(err)
+//     return nil
 //     }
 //
 //  3. Missing closing delimiter (with related position):
 //     if !p.expectPeek(lexer.RBRACK) {
-//         err := NewStructuredError(ErrKindMissing).
-//             WithCode(ErrMissingRBracket).
-//             WithMessage("expected ']' to close array index").
-//             WithPosition(p.peekToken.Pos, p.peekToken.Length()).
-//             WithExpected(lexer.RBRACK).
-//             WithActual(p.peekToken.Type, p.peekToken.Literal).
-//             WithSuggestion("add ']' to close the array index").
-//             WithRelatedPosition(lbrackToken.Pos, "opening '[' here").
-//             WithParsePhase("array index expression").
-//             Build()
-//         p.addStructuredError(err)
-//         return nil
+//     err := NewStructuredError(ErrKindMissing).
+//     WithCode(ErrMissingRBracket).
+//     WithMessage("expected ']' to close array index").
+//     WithPosition(p.peekToken.Pos, p.peekToken.Length()).
+//     WithExpected(lexer.RBRACK).
+//     WithActual(p.peekToken.Type, p.peekToken.Literal).
+//     WithSuggestion("add ']' to close the array index").
+//     WithRelatedPosition(lbrackToken.Pos, "opening '[' here").
+//     WithParsePhase("array index expression").
+//     Build()
+//     p.addStructuredError(err)
+//     return nil
 //     }
 //
 // Migration strategy:
@@ -242,13 +242,13 @@
 //
 // Example of automatic context in errors:
 //
-//     begin
-//       x := 10;
-//       while y < 10    // Missing 'do'
-//         z := 5;
-//     end;
+//	begin
+//	  x := 10;
+//	  while y < 10    // Missing 'do'
+//	    z := 5;
+//	end;
 //
-//     Error: "expected 'do' after while condition (in while block starting at line 3)"
+//	Error: "expected 'do' after while condition (in while block starting at line 3)"
 //
 // Nested blocks:
 //   - Errors capture the INNERMOST block context
