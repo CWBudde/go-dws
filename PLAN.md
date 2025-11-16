@@ -511,7 +511,7 @@ if !p.curTokenIs(lexer.END) {
 
 ### Summary of Phase 2
 
-**Total Estimate**: 35-50 hours (call it ~42 hours or 1 week) - **REDUCED** from original 52-71h
+**Total Estimate**: 46-61 hours (call it ~53 hours typical, or 1 week) - **REDUCED** from original 52-71h
 
 **Breakdown**:
 1. Utilize lexer lookahead: 3-4h (was 4-6h for implementing lookahead from scratch)
