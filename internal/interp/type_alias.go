@@ -165,7 +165,36 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 
 	// Handle type aliases
 	if decl.IsAlias {
-		// Resolve the aliased type by name (handles both simple and complex types)
+		// Check for inline/complex type expressions
+		// For inline types, we don't need to resolve them at runtime because:
+		// 1. The semantic analyzer already validated the types during analysis phase
+		// 2. Inline type aliases are purely semantic constructs (no runtime storage needed)
+		// 3. The interpreter's resolveType() doesn't support complex inline syntax
+		switch decl.AliasedType.(type) {
+		case *ast.ClassOfTypeNode:
+			// Metaclass types (class of TBase) - semantic analyzer handles them
+			return &NilValue{}
+		case *ast.SetTypeNode:
+			// Set types (set of TEnum) - semantic analyzer handles them
+			return &NilValue{}
+		case *ast.ArrayTypeNode:
+			// Inline array types (array of Integer, array[1..10] of String)
+			// Note: These could potentially need runtime storage, but semantic analyzer
+			// already validated and stored them. The interpreter can resolve simple
+			// "array of X" syntax via parseInlineArrayType if needed.
+			return &NilValue{}
+		case *ast.FunctionPointerTypeNode:
+			// Function pointer types - already handled earlier in this function
+			return &NilValue{}
+		}
+
+		// For TypeAnnotation with InlineType, also skip runtime resolution
+		if typeAnnot, ok := decl.AliasedType.(*ast.TypeAnnotation); ok && typeAnnot.InlineType != nil {
+			// TypeAnnotation wrapping an inline type expression
+			return &NilValue{}
+		}
+
+		// Resolve the aliased type by name (handles simple named types only)
 		aliasedType, err := i.resolveType(decl.AliasedType.String())
 		if err != nil {
 			return &ErrorValue{Message: fmt.Sprintf("unknown type '%s' in type alias", decl.AliasedType.String())}
