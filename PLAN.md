@@ -210,35 +210,37 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 - `parseLambdaParameterList()` (expressions.go:1086-1120)
 
 **Implementation**:
-- [ ] Design generic `parseList` helper with callbacks
-- [ ] Create `parseSeparatedList(sep, term, parseItem)` helper
-- [ ] Create `parseOptionalSeparatedList(sep, term, parseItem)` helper
-- [ ] Refactor expression list parsing to use helper
-- [ ] Refactor parameter list parsing to use helper
-- [ ] Refactor field list parsing to use helper
+- [x] Design generic `parseList` helper with callbacks
+- [x] Create `parseSeparatedList(sep, term, parseItem)` helper
+- [x] Create `parseSeparatedListBeforeStart()` variant helper
+- [x] Refactor expression list parsing to use helper
+- [ ] Refactor parameter list parsing to use helper (deferred for future work)
+- [ ] Refactor field list parsing to use helper (deferred for future work)
 
-**Example API**:
-```go
-func (p *Parser) parseSeparatedList(
-    separator lexer.TokenType,
-    terminator lexer.TokenType,
-    parseItem func() ast.Node,
-) []ast.Node
-```
+**Status**: ✅ **DONE** (core implementation complete)
+
+**Actual Implementation**:
+- Created `ListParseOptions` struct with flexible configuration
+- Implemented `parseSeparatedList()` - main helper (curToken at first item)
+- Implemented `parseSeparatedListBeforeStart()` - variant (curToken before list)
+- Implemented `peekTokenIsSomeOf()` - utility for multiple token types
+- Refactored `parseExpressionList()` as demonstration
+- Added comprehensive test suite (10 test functions, ~480 lines)
 
 **Files Modified**:
-- `internal/parser/parser.go` (~100 lines added for helpers)
-- `internal/parser/expressions.go` (~150 lines simplified)
-- `internal/parser/functions.go` (~80 lines simplified)
-- `internal/parser/types.go` (~60 lines simplified)
+- `internal/parser/parser.go` (+175 lines for helpers)
+- `internal/parser/expressions.go` (-12 lines from refactoring)
+- `internal/parser/list_parsing_test.go` (+482 lines, new file)
 
 **Tests**:
-- Add `internal/parser/list_parsing_test.go` (~200 lines)
-- Test various separator/terminator combinations
-- Test edge cases (empty lists, trailing separators)
-- Verify existing tests still pass
+- ✅ Add `internal/parser/list_parsing_test.go` (~480 lines)
+- ✅ Test various separator/terminator combinations
+- ✅ Test edge cases (empty lists, trailing separators)
+- ✅ Verify existing tests still pass
 
-**Estimate**: 6-8 hours
+**Actual Time**: ~3 hours (faster than estimated)
+
+**Note**: Additional refactoring of `parseParameterList`, `parseArgumentsOrFields`, and other list parsing functions can be done incrementally as follow-up work. The foundation is now established.
 
 ---
 
@@ -249,12 +251,12 @@ func (p *Parser) parseSeparatedList(
 **Current Issue**: Functions like `parseCallOrRecordLiteral()` (expressions.go:399-482) have complex branching logic that's hard to follow.
 
 **Implementation**:
-- [ ] Identify functions >100 lines with complex branching
-- [ ] Extract sub-parsers for different syntactic forms
-- [ ] Use dispatch table or strategy pattern for disambiguation
-- [ ] Simplify `parseCallOrRecordLiteral()` into smaller functions
-- [ ] Simplify `parseNewExpression()` dispatch logic
-- [ ] Simplify `parseGroupedExpression()` disambiguation
+- [x] Identify functions >100 lines with complex branching
+- [x] Extract sub-parsers for different syntactic forms
+- [x] Use dispatch table or strategy pattern for disambiguation
+- [x] Simplify `parseCallOrRecordLiteral()` into smaller functions
+- [x] Simplify `parseNewExpression()` dispatch logic (already done in previous tasks)
+- [x] Simplify `parseGroupedExpression()` disambiguation
 
 **Example Refactoring**:
 ```go
@@ -280,6 +282,22 @@ func (p *Parser) parseCallOrRecordLiteral(...) {
 - May add focused unit tests for extracted sub-parsers
 
 **Estimate**: 5-7 hours
+
+**Status**: ✅ **DONE**
+
+**Actual Implementation**:
+- Refactored `parseCallOrRecordLiteral()` (87 lines → 27 lines + 4 helpers)
+- Refactored `parseGroupedExpression()` (68 lines → 16 lines + 3 helpers)
+- Refactored `parseArgumentsOrFields()` (77 lines → 38 lines + 4 helpers)
+- Refactored `parseRecordLiteralInline()` (65 lines → 27 lines, reuses helpers)
+- Created 11 well-documented helper functions with clear preconditions/postconditions
+- All existing tests pass
+- Code formatted with `go fmt`
+
+**Files Modified**:
+- `internal/parser/expressions.go` (~297 lines main functions → ~108 lines + helpers)
+
+**Actual Time**: ~2 hours (faster than estimated due to good test coverage)
 
 ---
 

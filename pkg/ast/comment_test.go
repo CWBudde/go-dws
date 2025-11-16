@@ -10,8 +10,8 @@ func TestComment(t *testing.T) {
 	tests := []struct {
 		name  string
 		text  string
-		style CommentStyle
 		want  string
+		style CommentStyle
 	}{
 		{
 			name:  "line comment",

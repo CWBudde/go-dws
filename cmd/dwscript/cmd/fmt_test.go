@@ -15,8 +15,8 @@ func TestFormatSource(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		style       printer.Style
 		wantContain string
+		style       printer.Style
 		wantErr     bool
 	}{
 		{
@@ -263,8 +263,8 @@ func TestStyleOptions(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		style       printer.Style
 		wantContain string
+		style       printer.Style
 	}{
 		{
 			name:        "detailed style",
@@ -310,9 +310,9 @@ func TestIndentationOptions(t *testing.T) {
 
 	tests := []struct {
 		name        string
+		wantContain string
 		indentWidth int
 		useSpaces   bool
-		wantContain string
 	}{
 		{
 			name:        "2 spaces",

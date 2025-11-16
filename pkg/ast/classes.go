@@ -60,7 +60,6 @@ func (v Visibility) String() string {
 //	  // partial class (can be declared multiple times)
 //	end;
 type ClassDecl struct {
-	BaseNode
 	Constructor  *FunctionDecl
 	Name         *Identifier
 	Parent       *Identifier
@@ -71,10 +70,11 @@ type ClassDecl struct {
 	Properties   []*PropertyDecl
 	Methods      []*FunctionDecl
 	Fields       []*FieldDecl
-	Constants    []*ConstDecl // Class constants
-	IsAbstract   bool
-	IsExternal   bool
-	IsPartial    bool // True if declared with 'partial' keyword
+	Constants    []*ConstDecl
+	BaseNode
+	IsAbstract bool
+	IsExternal bool
+	IsPartial  bool
 }
 
 func (cd *ClassDecl) statementNode() {}
@@ -189,12 +189,12 @@ func (cd *ClassDecl) String() string {
 //	class var Count: Integer := 42;   // class variable with initialization
 //	property PropertyName: Type read FFieldName write FFieldName;
 type FieldDecl struct {
+	Type      TypeExpression
+	InitValue Expression
+	Name      *Identifier
 	BaseNode
-	Name       *Identifier
-	Type       TypeExpression
 	Visibility Visibility
 	IsClassVar bool
-	InitValue  Expression // Optional initialization value for instance fields and class variables
 }
 
 func (fd *FieldDecl) statementNode()       {}
@@ -238,9 +238,9 @@ func (fd *FieldDecl) String() string {
 //   - ClassDeclaration: for class type definitions
 //   - ConstructorDeclaration: for constructor method definitions
 type NewExpression struct {
+	ClassName *Identifier
+	Arguments []Expression
 	TypedExpressionBase
-	ClassName *Identifier  // The class name (e.g., TAnimal, TPerson)
-	Arguments []Expression // Constructor arguments
 }
 
 func (ne *NewExpression) expressionNode() {}
@@ -288,9 +288,9 @@ func (ne *NewExpression) String() string {
 //	obj.method
 //	obj.field1.field2
 type MemberAccessExpression struct {
-	TypedExpressionBase
 	Object Expression
 	Member *Identifier
+	TypedExpressionBase
 }
 
 func (ma *MemberAccessExpression) expressionNode() {}
@@ -319,10 +319,10 @@ func (ma *MemberAccessExpression) String() string {
 //	obj.MethodName(arg1, arg2)
 //	obj.MethodName()
 type MethodCallExpression struct {
-	TypedExpressionBase
 	Object    Expression
 	Method    *Identifier
 	Arguments []Expression
+	TypedExpressionBase
 }
 
 func (mc *MethodCallExpression) expressionNode() {}
@@ -359,11 +359,11 @@ func (mc *MethodCallExpression) String() string {
 //	inherited MethodName
 //	inherited
 type InheritedExpression struct {
-	TypedExpressionBase
 	Method    *Identifier
 	Arguments []Expression
-	IsCall    bool
-	IsMember  bool
+	TypedExpressionBase
+	IsCall   bool
+	IsMember bool
 }
 
 func (ie *InheritedExpression) expressionNode() {}
@@ -400,8 +400,8 @@ func (ie *InheritedExpression) String() string {
 //	Self.MethodName(args)
 //	Self.ClassName
 type SelfExpression struct {
+	Token token.Token
 	TypedExpressionBase
-	Token token.Token // The 'self' token
 }
 
 func (se *SelfExpression) expressionNode() {}

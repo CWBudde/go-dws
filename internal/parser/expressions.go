@@ -426,76 +426,78 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 // The difference is whether the arguments are field initializers (name: value) or expressions.
 // PRE: curToken is LPAREN
 // POST: curToken is RPAREN
+// parseCallOrRecordLiteral disambiguates between function calls and record literals.
+// DWScript syntax allows both: TypeName(args) for calls and TypeName(field: value) for records.
+// PRE: curToken is LPAREN
+// POST: curToken is RPAREN
 func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expression {
-	// We're at '(' token
-	// Peek ahead to see what's inside
-
 	// Empty parentheses -> function call
 	if p.peekTokenIs(lexer.RPAREN) {
-		p.nextToken() // consume ')'
-		return &ast.CallExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: p.curToken},
-			},
-			Function:  typeName,
-			Arguments: []ast.Expression{},
-		}
+		return p.parseEmptyCall(typeName)
 	}
 
-	// Not empty - check if first element is "IDENT COLON"
+	// Non-identifier first element -> must be function call
 	if !p.peekTokenIs(lexer.IDENT) {
-		// First element is not an identifier, must be function call
-		exp := &ast.CallExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: p.curToken},
-			},
-			Function: typeName,
-		}
-		exp.Arguments = p.parseExpressionList(lexer.RPAREN)
-		return exp
+		return p.parseCallWithExpressionList(typeName)
 	}
 
 	// We have: TypeName(IDENT ...
-	// Need to check if next token after IDENT is COLON
-	// We'll use a special parsing mode to handle this
-
-	// Try to parse as record literal fields
-	fields, isRecordLiteral := p.tryParseRecordFields()
-
-	if isRecordLiteral {
-		// Successfully parsed as record literal
-		return &ast.RecordLiteralExpression{
-			BaseNode: ast.BaseNode{Token: p.curToken},
-			TypeName: typeName,
-			Fields:   fields,
-		}
-	}
-
-	// Not a record literal, parse as normal function call
-	// The problem: we may have already consumed some tokens in tryParseRecordFields
-	// Solution: tryParseRecordFields should not consume tokens on failure
-	// OR: we implement this differently
-
-	// Actually, let's use a simpler approach:
-	// Parse ALL arguments as a special list that handles both cases
+	// Parse arguments/fields and determine type based on whether ALL have colons
 	items, allHaveColons := p.parseArgumentsOrFields(lexer.RPAREN)
 
 	if allHaveColons {
 		// All items were field initializers -> record literal
-		return &ast.RecordLiteralExpression{
-			BaseNode: ast.BaseNode{Token: p.curToken},
-			TypeName: typeName,
-			Fields:   items,
-		}
+		return p.buildRecordLiteral(typeName, items)
 	}
 
 	// Some or no items had colons -> function call
-	// Extract just the expressions from the field initializers
+	return p.buildCallExpressionFromFields(typeName, items)
+}
+
+// parseEmptyCall creates a call expression with no arguments.
+// PRE: peekToken is RPAREN
+// POST: curToken is RPAREN
+func (p *Parser) parseEmptyCall(typeName *ast.Identifier) *ast.CallExpression {
+	p.nextToken() // consume ')'
+	return &ast.CallExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken},
+		},
+		Function:  typeName,
+		Arguments: []ast.Expression{},
+	}
+}
+
+// parseCallWithExpressionList parses a function call using the standard expression list parser.
+// PRE: curToken is LPAREN, peekToken is not RPAREN
+// POST: curToken is RPAREN
+func (p *Parser) parseCallWithExpressionList(typeName *ast.Identifier) *ast.CallExpression {
+	exp := &ast.CallExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: p.curToken},
+		},
+		Function: typeName,
+	}
+	exp.Arguments = p.parseExpressionList(lexer.RPAREN)
+	return exp
+}
+
+// buildRecordLiteral creates a record literal expression from field initializers.
+func (p *Parser) buildRecordLiteral(typeName *ast.Identifier, fields []*ast.FieldInitializer) *ast.RecordLiteralExpression {
+	return &ast.RecordLiteralExpression{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+		TypeName: typeName,
+		Fields:   fields,
+	}
+}
+
+// buildCallExpressionFromFields creates a call expression by extracting arguments from field initializers.
+// Handles the case where some items might have names (which shouldn't happen, but we're defensive).
+func (p *Parser) buildCallExpressionFromFields(typeName *ast.Identifier, items []*ast.FieldInitializer) *ast.CallExpression {
 	args := make([]ast.Expression, len(items))
 	for i, item := range items {
 		if item.Name != nil {
-			// This shouldn't happen if allHaveColons is false, but handle it
-			// Just use the identifier as the argument
+			// Shouldn't happen if allHaveColons is false, but handle defensively
 			args[i] = item.Name
 		} else {
 			args[i] = item.Value
@@ -513,6 +515,8 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 
 // parseArgumentsOrFields parses a list that could be either function arguments or record fields.
 // Returns the parsed items and whether ALL of them were colon-based fields.
+// PRE: curToken is LPAREN
+// POST: curToken is end token
 func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitializer, bool) {
 	var items []*ast.FieldInitializer
 	allHaveColons := true
@@ -525,75 +529,105 @@ func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitia
 	p.nextToken() // move to first element
 
 	for {
-		// Try to parse as "name : value"
-		var item *ast.FieldInitializer
+		// Parse either a field initializer (name: value) or plain expression
+		item, hasColon := p.parseSingleArgumentOrField()
+		if item == nil {
+			return items, false
+		}
 
-		if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
-			// This is a field initializer: name : value
-			fieldName := &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: p.curToken,
-					},
-				},
-				Value: p.curToken.Literal,
-			}
-
-			p.nextToken() // move to ':'
-			p.nextToken() // move to value
-
-			value := p.parseExpression(LOWEST)
-			if value == nil {
-				return items, false
-			}
-
-			item = &ast.FieldInitializer{
-				BaseNode: ast.BaseNode{Token: fieldName.Token},
-				Name:     fieldName,
-				Value:    value,
-			}
-		} else {
-			// Not a field initializer, just a regular expression
-			expr := p.parseExpression(LOWEST)
-			if expr == nil {
-				return items, false
-			}
-
-			item = &ast.FieldInitializer{
-				BaseNode: ast.BaseNode{Token: p.curToken},
-				Name:     nil, // no name means regular argument
-				Value:    expr,
-			}
+		if !hasColon {
 			allHaveColons = false
 		}
 
 		items = append(items, item)
 
-		// Check for comma/semicolon separator
-		if p.peekTokenIs(lexer.COMMA) || p.peekTokenIs(lexer.SEMICOLON) {
-			p.nextToken() // consume separator
-			if p.peekTokenIs(end) {
-				// Trailing separator
-				p.nextToken()
-				break
-			}
-			p.nextToken() // move to next item
-		} else if p.peekTokenIs(end) {
-			p.nextToken()
-			break
-		} else {
-			p.addError("expected ',' or ')' in argument list", ErrUnexpectedToken)
+		// Check if we should continue to next item
+		shouldContinue, ok := p.advanceToNextItem(end)
+		if !ok {
 			return items, false
+		}
+		if !shouldContinue {
+			break
 		}
 	}
 
 	return items, allHaveColons
 }
 
-// Stub functions to avoid compilation errors
-func (p *Parser) tryParseRecordFields() ([]*ast.FieldInitializer, bool) {
-	// This is replaced by parseArgumentsOrFields above
-	return nil, false
+// parseSingleArgumentOrField parses either a field initializer (name: value) or plain expression.
+// Returns the item and whether it had a colon (i.e., was a field initializer).
+func (p *Parser) parseSingleArgumentOrField() (*ast.FieldInitializer, bool) {
+	if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
+		return p.parseNamedFieldInitializer(), true
+	}
+	return p.parseArgumentAsFieldInitializer(), false
+}
+
+// parseNamedFieldInitializer parses a field initializer: name : value
+// PRE: curToken is IDENT, peekToken is COLON
+func (p *Parser) parseNamedFieldInitializer() *ast.FieldInitializer {
+	fieldName := &ast.Identifier{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: p.curToken,
+			},
+		},
+		Value: p.curToken.Literal,
+	}
+
+	p.nextToken() // move to ':'
+	p.nextToken() // move to value
+
+	value := p.parseExpression(LOWEST)
+	if value == nil {
+		return nil
+	}
+
+	return &ast.FieldInitializer{
+		BaseNode: ast.BaseNode{Token: fieldName.Token},
+		Name:     fieldName,
+		Value:    value,
+	}
+}
+
+// parseArgumentAsFieldInitializer parses a plain expression as a field initializer (without name).
+// Used to represent function arguments in the same data structure as record fields.
+func (p *Parser) parseArgumentAsFieldInitializer() *ast.FieldInitializer {
+	expr := p.parseExpression(LOWEST)
+	if expr == nil {
+		return nil
+	}
+
+	return &ast.FieldInitializer{
+		BaseNode: ast.BaseNode{Token: p.curToken},
+		Name:     nil, // no name means regular argument
+		Value:    expr,
+	}
+}
+
+// advanceToNextItem handles separator logic and advances to next item if needed.
+// Returns (shouldContinue, ok) where:
+// - shouldContinue: true if there's another item to parse
+// - ok: true if no error occurred
+func (p *Parser) advanceToNextItem(end lexer.TokenType) (bool, bool) {
+	if p.peekTokenIs(lexer.COMMA) || p.peekTokenIs(lexer.SEMICOLON) {
+		p.nextToken() // consume separator
+		if p.peekTokenIs(end) {
+			// Trailing separator
+			p.nextToken()
+			return false, true
+		}
+		p.nextToken() // move to next item
+		return true, true
+	}
+
+	if p.peekTokenIs(end) {
+		p.nextToken()
+		return false, true
+	}
+
+	p.addError("expected ',' or ')' in argument list", ErrUnexpectedToken)
+	return false, false
 }
 
 // parseExpressionList parses a comma-separated list of expressions.
@@ -602,33 +636,22 @@ func (p *Parser) tryParseRecordFields() ([]*ast.FieldInitializer, bool) {
 func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 	list := []ast.Expression{}
 
-	if p.peekTokenIs(end) {
-		p.nextToken()
-		return list
+	opts := ListParseOptions{
+		Separators:             []lexer.TokenType{lexer.COMMA},
+		Terminator:             end,
+		AllowTrailingSeparator: true,
+		AllowEmpty:             true,
+		RequireTerminator:      true,
 	}
 
-	p.nextToken()
-	exp := p.parseExpression(LOWEST)
-	if exp != nil {
-		list = append(list, exp)
-	}
-
-	for p.peekTokenIs(lexer.COMMA) {
-		p.nextToken() // move to comma
-		if p.peekTokenIs(end) {
-			p.nextToken()
-			return list
-		}
-		p.nextToken() // move to next expression
+	_, _ = p.parseSeparatedListBeforeStart(opts, func() bool {
 		exp := p.parseExpression(LOWEST)
 		if exp != nil {
 			list = append(list, exp)
+			return true
 		}
-	}
-
-	if !p.expectPeek(end) {
-		return list
-	}
+		return false
+	})
 
 	return list
 }
@@ -643,58 +666,54 @@ func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	lparenToken := p.curToken
 
-	// Handle empty parentheses: ()
-	// This creates an empty array literal
+	// Handle empty parentheses: () -> empty array literal
 	if p.peekTokenIs(lexer.RPAREN) {
-		p.nextToken() // consume ')'
-		return &ast.ArrayLiteralExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token:  lparenToken,
-					EndPos: p.curToken.End(),
-				},
+		return p.parseEmptyArrayLiteral(lparenToken)
+	}
+
+	// Check if this is a record literal: (IDENT : ...)
+	if p.isRecordLiteralPattern() {
+		p.nextToken() // advance to IDENT
+		return p.parseRecordLiteralInline()
+	}
+
+	// Parse first expression, then determine if it's an array literal or grouped expression
+	return p.parseExpressionOrArrayLiteral(lparenToken)
+}
+
+// parseEmptyArrayLiteral creates an empty array literal from empty parentheses.
+// PRE: curToken is LPAREN, peekToken is RPAREN
+// POST: curToken is RPAREN
+func (p *Parser) parseEmptyArrayLiteral(lparenToken lexer.Token) *ast.ArrayLiteralExpression {
+	p.nextToken() // consume ')'
+	return &ast.ArrayLiteralExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token:  lparenToken,
+				EndPos: p.curToken.End(),
 			},
-			Elements: []ast.Expression{},
-		}
+		},
+		Elements: []ast.Expression{},
 	}
+}
 
-	// Check if this is a record literal
-	// Pattern: (IDENT : ...) indicates a named record literal
-	// We need to look ahead two tokens: if peek is IDENT, advance and check if next peek is COLON
-	if p.peekTokenIs(lexer.IDENT) {
-		// Advance once to the IDENT
-		p.nextToken()
-		// Now check if peek is COLON
-		if p.peekTokenIs(lexer.COLON) {
-			// This is a named record literal!
-			// Delegate to parseRecordLiteral() helper
-			// We need to back up one token to let parseRecordLiteral start fresh
-			// But since we can't back up, we'll pass the current position
-			// Actually, parseRecordLiteral expects to be at '(' so we need to handle this
-			// For now, parse inline but should refactor later
-			return p.parseRecordLiteralInline()
-		}
-		// Not a record literal (no colon after ident)
-		// We've already advanced past '(', so we're at IDENT
-		// Parse this IDENT as an expression and continue
-		exp := p.parseExpression(LOWEST)
+// isRecordLiteralPattern checks if we're looking at a record literal pattern: (IDENT : ...)
+// PRE: curToken is LPAREN
+func (p *Parser) isRecordLiteralPattern() bool {
+	return p.peekTokenIs(lexer.IDENT) && p.peekAhead(2).Type == lexer.COLON
+}
 
-		// Check if this is an array literal: (expr, expr, ...)
-		if p.peekTokenIs(lexer.COMMA) {
-			return p.parseParenthesizedArrayLiteral(lparenToken, exp)
-		}
-
-		if !p.expectPeek(lexer.RPAREN) {
-			return nil
-		}
-
-		return exp
-	}
-
-	// Not starting with IDENT, parse as normal grouped expression or array literal
-	p.nextToken() // skip '('
+// parseExpressionOrArrayLiteral parses either a grouped expression or array literal.
+// Decides based on whether a comma follows the first expression.
+// PRE: curToken is LPAREN
+// POST: curToken is RPAREN
+func (p *Parser) parseExpressionOrArrayLiteral(lparenToken lexer.Token) ast.Expression {
+	p.nextToken() // move to first expression
 
 	exp := p.parseExpression(LOWEST)
+	if exp == nil {
+		return nil
+	}
 
 	// Check if this is an array literal: (expr, expr, ...)
 	if p.peekTokenIs(lexer.COMMA) {
@@ -763,71 +782,48 @@ func (p *Parser) parseParenthesizedArrayLiteral(lparenToken lexer.Token, firstEl
 // at the first field name (after detecting the pattern "(IDENT:").
 // PRE: curToken is first field name IDENT
 // POST: curToken is RPAREN
+// parseRecordLiteralInline parses an anonymous record literal: (name: value, ...)
+// PRE: curToken is IDENT (first field name), peekToken is COLON
+// POST: curToken is RPAREN
 func (p *Parser) parseRecordLiteralInline() *ast.RecordLiteralExpression {
-	// We're currently at the IDENT after '(', and peek is COLON
 	recordLit := &ast.RecordLiteralExpression{
 		BaseNode: ast.BaseNode{Token: p.curToken}, // The first field name token
 		TypeName: nil,                             // Anonymous record
 		Fields:   []*ast.FieldInitializer{},
 	}
 
-	// Parse fields
+	// Parse fields in a loop
 	for !p.curTokenIs(lexer.RPAREN) && !p.curTokenIs(lexer.EOF) {
-		// We're at an IDENT, check if followed by COLON
-		if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
-			// Named field initialization
-			fieldNameToken := p.curToken
-			fieldName := &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: fieldNameToken,
-					},
-				},
-				Value: fieldNameToken.Literal,
-			}
-
-			p.nextToken() // move to ':'
-			p.nextToken() // move to value
-
-			// Parse value expression
-			value := p.parseExpression(LOWEST)
-			if value == nil {
-				p.addError("expected expression after ':' in record literal field", ErrInvalidExpression)
-				return nil
-			}
-
-			fieldInit := &ast.FieldInitializer{
-				BaseNode: ast.BaseNode{Token: fieldNameToken},
-				Name:     fieldName,
-				Value:    value,
-			}
-
-			recordLit.Fields = append(recordLit.Fields, fieldInit)
-		} else {
-			// Positional field - not yet supported
-			p.addError("positional record field initialization not yet supported", ErrInvalidSyntax)
+		field := p.parseRecordField()
+		if field == nil {
 			return nil
 		}
 
-		// Check for separator (comma or semicolon)
-		if p.peekTokenIs(lexer.COMMA) || p.peekTokenIs(lexer.SEMICOLON) {
-			p.nextToken() // move to separator
-			// Allow optional trailing separator
-			if p.peekTokenIs(lexer.RPAREN) {
-				p.nextToken() // move to ')'
-				break
-			}
-			p.nextToken() // move to next field
-		} else if p.peekTokenIs(lexer.RPAREN) {
-			p.nextToken() // move to ')'
-			break
-		} else {
-			p.addError("expected ',' or ';' or ')' in record literal", ErrUnexpectedToken)
+		recordLit.Fields = append(recordLit.Fields, field)
+
+		// Check if we should continue to next field
+		shouldContinue, ok := p.advanceToNextItem(lexer.RPAREN)
+		if !ok {
 			return nil
+		}
+		if !shouldContinue {
+			break
 		}
 	}
 
 	return recordLit
+}
+
+// parseRecordField parses a single record field: name : value
+// PRE: curToken is IDENT or other token
+func (p *Parser) parseRecordField() *ast.FieldInitializer {
+	if !p.curTokenIs(lexer.IDENT) || !p.peekTokenIs(lexer.COLON) {
+		// Positional field - not yet supported
+		p.addError("positional record field initialization not yet supported", ErrInvalidSyntax)
+		return nil
+	}
+
+	return p.parseNamedFieldInitializer()
 }
 
 // parseNewExpression parses a new expression for both classes and arrays.

@@ -44,15 +44,15 @@ func (k OperatorKind) String() string {
 //	operator implicit (Integer) : String uses IntToStr;
 //	class operator += String uses AppendString;
 type OperatorDecl struct {
-	BaseNode
-	ReturnType     TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
+	ReturnType     TypeExpression
 	Binding        *Identifier
 	OperatorSymbol string
-	OperandTypes   []TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
+	OperandTypes   []TypeExpression
 	OperatorToken  token.Token
-	Kind           OperatorKind
-	Arity          int
-	Visibility     Visibility
+	BaseNode
+	Kind       OperatorKind
+	Arity      int
+	Visibility Visibility
 }
 
 func (od *OperatorDecl) statementNode() {}

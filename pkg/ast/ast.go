@@ -43,9 +43,9 @@ type Statement interface {
 // Program is the root node of the AST.
 // It contains a slice of statements that make up the entire program.
 type Program struct {
+	Comments   CommentMap
 	Statements []Statement
 	EndPos     token.Position
-	Comments   CommentMap // Optional map of comments attached to AST nodes
 }
 
 func (p *Program) TokenLiteral() string {
@@ -84,8 +84,8 @@ func (p *Program) End() token.Position {
 
 // Identifier represents an identifier (variable name, function name, etc.)
 type Identifier struct {
-	TypedExpressionBase
 	Value string
+	TypedExpressionBase
 }
 
 func (i *Identifier) expressionNode() {}
@@ -125,8 +125,8 @@ func (fl *FloatLiteral) String() string  { return fl.Token.Literal }
 
 // StringLiteral represents a string literal value.
 type StringLiteral struct {
-	TypedExpressionBase
 	Value string
+	TypedExpressionBase
 }
 
 func (sl *StringLiteral) expressionNode() {}
@@ -153,10 +153,10 @@ func (cl *CharLiteral) String() string  { return cl.Token.Literal }
 
 // BinaryExpression represents a binary operation (e.g., a + b, x < y).
 type BinaryExpression struct {
-	TypedExpressionBase
 	Left     Expression
 	Right    Expression
 	Operator string
+	TypedExpressionBase
 }
 
 func (be *BinaryExpression) expressionNode() {}
@@ -186,9 +186,9 @@ func (be *BinaryExpression) String() string {
 
 // UnaryExpression represents a unary operation (e.g., -x, not b).
 type UnaryExpression struct {
-	TypedExpressionBase
 	Right    Expression
 	Operator string
+	TypedExpressionBase
 }
 
 func (ue *UnaryExpression) expressionNode() {}
@@ -223,8 +223,8 @@ func (ue *UnaryExpression) String() string {
 
 // GroupedExpression represents an expression wrapped in parentheses.
 type GroupedExpression struct {
-	TypedExpressionBase
 	Expression Expression
+	TypedExpressionBase
 }
 
 func (ge *GroupedExpression) expressionNode() {}
@@ -258,9 +258,9 @@ func (ge *GroupedExpression) String() string {
 // Used primarily in set literals to specify a range of enum values.
 // Example: [A..C] or [one..five]
 type RangeExpression struct {
-	TypedExpressionBase
 	Start    Expression
-	RangeEnd Expression // Renamed from 'End' to avoid conflict with End() method
+	RangeEnd Expression
+	TypedExpressionBase
 }
 
 func (re *RangeExpression) expressionNode() {}
@@ -289,8 +289,8 @@ func (re *RangeExpression) String() string {
 // ExpressionStatement represents a statement that consists of a single expression.
 // This is used when an expression appears in a statement context.
 type ExpressionStatement struct {
-	BaseNode
 	Expression Expression
+	BaseNode
 }
 
 func (es *ExpressionStatement) statementNode() {}
@@ -327,10 +327,10 @@ func (nl *NilLiteral) String() string  { return "nil" }
 // is an instance of a specific class or implements a specific interface.
 // Returns true if the object is of the specified type, false otherwise.
 type IsExpression struct {
+	Left       Expression
+	TargetType TypeExpression
+	Right      Expression
 	TypedExpressionBase
-	Left       Expression     // The object being checked
-	TargetType TypeExpression // The target type to check against (for type checks)
-	Right      Expression     // The value expression to compare against (for boolean comparisons)
 }
 
 func (ie *IsExpression) expressionNode() {}
@@ -372,9 +372,9 @@ func (ie *IsExpression) String() string {
 // wrapper at runtime. The semantic analyzer validates that the object's class
 // implements the target interface.
 type AsExpression struct {
+	Left       Expression
+	TargetType TypeExpression
 	TypedExpressionBase
-	Left       Expression     // The object being cast
-	TargetType TypeExpression // The target interface type
 }
 
 func (ae *AsExpression) expressionNode() {}
@@ -409,9 +409,9 @@ func (ae *AsExpression) String() string {
 // Can be used at compile-time (TClass implements IInterface) or runtime
 // (objInstance implements IInterface).
 type ImplementsExpression struct {
+	Left       Expression
+	TargetType TypeExpression
 	TypedExpressionBase
-	Left       Expression     // The object or class being checked
-	TargetType TypeExpression // The interface type to check against
 }
 
 func (ie *ImplementsExpression) expressionNode() {}
@@ -442,8 +442,8 @@ func (ie *ImplementsExpression) String() string {
 
 // BlockStatement represents a block of statements (begin...end).
 type BlockStatement struct {
-	BaseNode
 	Statements []Statement
+	BaseNode
 }
 
 func (bs *BlockStatement) statementNode() {}

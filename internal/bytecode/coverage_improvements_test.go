@@ -10,8 +10,8 @@ import (
 // TestCompiler_UnaryExpressions tests compilation of unary expressions
 func TestCompiler_UnaryExpressions(t *testing.T) {
 	tests := []struct {
-		name    string
 		program *ast.Program
+		name    string
 	}{
 		{
 			name: "unary minus on integer variable",
@@ -324,8 +324,8 @@ func TestCompiler_UnaryConstantFolding(t *testing.T) {
 // TestVM_FloatOperations tests float arithmetic operations
 func TestVM_FloatOperations(t *testing.T) {
 	tests := []struct {
-		name     string
 		program  *ast.Program
+		name     string
 		expected float64
 	}{
 		{
@@ -743,8 +743,8 @@ func TestCompiler_InferExpressionType(t *testing.T) {
 	compiler := NewCompiler("test")
 
 	tests := []struct {
-		name string
 		expr ast.Expression
+		name string
 	}{
 		{
 			"integer literal",

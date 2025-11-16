@@ -23,13 +23,13 @@ import (
 //	  function MethodName: ReturnType;
 //	end;
 type RecordDecl struct {
-	BaseNode
 	Name       *Identifier
 	Fields     []*FieldDecl
 	Methods    []*FunctionDecl
 	Properties []RecordPropertyDecl
-	Constants  []*ConstDecl // Record constants
-	ClassVars  []*FieldDecl // Class variables (shared across all instances)
+	Constants  []*ConstDecl
+	ClassVars  []*FieldDecl
+	BaseNode
 }
 
 func (rd *RecordDecl) statementNode() {}
@@ -96,11 +96,11 @@ func (rd *RecordDecl) String() string {
 // DWScript syntax: property Name: Type read Field write Field;
 // Note: Renamed from PropertyDecl to avoid conflict with class PropertyDecl
 type RecordPropertyDecl struct {
-	BaseNode
+	Type       TypeExpression
 	Name       *Identifier
-	Type       TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	ReadField  string
 	WriteField string
+	BaseNode
 }
 
 func (pd RecordPropertyDecl) String() string {
@@ -132,9 +132,9 @@ func (pd RecordPropertyDecl) String() string {
 // DWScript syntax: fieldName: value
 // The Name can be nil for positional initialization (not yet implemented).
 type FieldInitializer struct {
+	Value Expression
+	Name  *Identifier
 	BaseNode
-	Name  *Identifier // Field name (nil for positional initialization)
-	Value Expression  // Field value expression
 }
 
 func (fi *FieldInitializer) statementNode() {}
@@ -165,9 +165,9 @@ func (fi *FieldInitializer) String() string {
 //   - const big : TSphere = (cx: 20; cy: 20; cz: 0; r: 20);
 //   - const small : TSphere = (cx: 7; cy: 7; cz: -10; r: 15);
 type RecordLiteralExpression struct {
+	TypeName *Identifier
+	Fields   []*FieldInitializer
 	BaseNode
-	TypeName *Identifier         // Optional type name (nil for anonymous records)
-	Fields   []*FieldInitializer // Field initializers
 }
 
 func (rle *RecordLiteralExpression) expressionNode() {}

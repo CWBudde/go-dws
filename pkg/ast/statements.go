@@ -18,13 +18,13 @@ import (
 //	var y: String; external;
 //	var z: Integer; external 'externalZ';
 type VarDeclStatement struct {
-	BaseNode
 	Value        Expression
-	Names        []*Identifier  // Changed from Name to support multi-identifier declarations
-	Type         TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
+	Type         TypeExpression
 	ExternalName string
-	IsExternal   bool
-	Inferred     bool // true when the type is inferred from the initializer
+	Names        []*Identifier
+	BaseNode
+	IsExternal bool
+	Inferred   bool
 }
 
 func (vds *VarDeclStatement) statementNode() {}
@@ -73,10 +73,10 @@ func (vds *VarDeclStatement) String() string {
 //	obj.field := value;  // member assignment
 //	matrix[i][j] := 99;  // nested array assignment
 type AssignmentStatement struct {
+	Target Expression
+	Value  Expression
 	BaseNode
-	Target   Expression
-	Value    Expression
-	Operator token.TokenType // ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN, TIMES_ASSIGN, DIVIDE_ASSIGN
+	Operator token.TokenType
 }
 
 func (as *AssignmentStatement) statementNode() {}
@@ -117,9 +117,9 @@ func (as *AssignmentStatement) String() string {
 //	Add(3, 5)
 //	Foo()
 type CallExpression struct {
-	TypedExpressionBase
 	Function  Expression
 	Arguments []Expression
+	TypedExpressionBase
 }
 
 func (ce *CallExpression) expressionNode() {}
@@ -152,9 +152,9 @@ func (ce *CallExpression) String() string {
 //	x > 0 : 'x must be positive'
 //	a.Length = b.Length : 'arrays must have same length'
 type Condition struct {
+	Test    Expression
+	Message Expression
 	BaseNode
-	Test    Expression // Must evaluate to boolean
-	Message Expression // Optional string message (if nil, use source code as message)
 }
 
 func (c *Condition) statementNode() {}
@@ -182,8 +182,8 @@ func (c *Condition) String() string {
 //	   x > 0;
 //	   y <> 0 : 'y cannot be zero';
 type PreConditions struct {
-	BaseNode
 	Conditions []*Condition
+	BaseNode
 }
 
 func (pc *PreConditions) statementNode() {}
@@ -213,8 +213,8 @@ func (pc *PreConditions) String() string {
 //	   Result > 0;
 //	   Result = old x + 1 : 'result must be one more than original x';
 type PostConditions struct {
-	BaseNode
 	Conditions []*Condition
+	BaseNode
 }
 
 func (pc *PostConditions) statementNode() {}
@@ -244,8 +244,8 @@ func (pc *PostConditions) String() string {
 //	old val
 //	Result = old count + 1
 type OldExpression struct {
-	TypedExpressionBase
 	Identifier *Identifier
+	TypedExpressionBase
 }
 
 func (oe *OldExpression) expressionNode() {}

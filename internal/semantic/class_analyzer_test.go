@@ -1083,8 +1083,8 @@ func TestClassFieldInitializerTypeCompatibility(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "valid string initializer",
@@ -1186,8 +1186,8 @@ func TestRecordFieldInitializerTypeCompatibility(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
-		expectError bool
 		errorMsg    string
+		expectError bool
 	}{
 		{
 			name: "valid integer initializer",

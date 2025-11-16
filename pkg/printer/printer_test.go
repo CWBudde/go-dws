@@ -516,8 +516,8 @@ func TestOutputFormats(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		format   printer.Format
 		contains string
+		format   printer.Format
 	}{
 		{
 			name:     "DWScript format",

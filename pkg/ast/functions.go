@@ -110,30 +110,30 @@ func (p *Parameter) String() string {
 //	ensure
 //	   Result >= 0;
 type FunctionDecl struct {
-	BaseNode
+	ReturnType        TypeExpression
 	ClassName         *Identifier
-	ReturnType        TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	Body              *BlockStatement
 	PreConditions     *PreConditions
 	PostConditions    *PostConditions
 	Name              *Identifier
 	ExternalName      string
-	CallingConvention string // e.g., "register", "pascal", "cdecl", "safecall", "stdcall"
-	DeprecatedMessage string // Optional message if deprecated
+	CallingConvention string
+	DeprecatedMessage string
 	Parameters        []*Parameter
-	Visibility        Visibility
-	IsDestructor      bool
-	IsVirtual         bool
-	IsOverride        bool
-	IsReintroduce     bool // True if marked as reintroduce (hides parent method)
-	IsAbstract        bool
-	IsExternal        bool
-	IsClassMethod     bool
-	IsOverload        bool
-	IsForward         bool
-	IsConstructor     bool
-	IsDefault         bool // True if constructor is marked as default
-	IsDeprecated      bool // True if marked as deprecated
+	BaseNode
+	Visibility    Visibility
+	IsDestructor  bool
+	IsVirtual     bool
+	IsOverride    bool
+	IsReintroduce bool
+	IsAbstract    bool
+	IsExternal    bool
+	IsClassMethod bool
+	IsOverload    bool
+	IsForward     bool
+	IsConstructor bool
+	IsDefault     bool
+	IsDeprecated  bool
 }
 
 func (fd *FunctionDecl) statementNode() {}
@@ -247,8 +247,8 @@ func (fd *FunctionDecl) String() string {
 //	Add := a + b
 //	exit
 type ReturnStatement struct {
-	BaseNode
 	ReturnValue Expression
+	BaseNode
 }
 
 func (rs *ReturnStatement) statementNode() {}

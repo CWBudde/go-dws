@@ -15,10 +15,10 @@ import (
 //	if x > 0 then PrintLn('positive') else PrintLn('non-positive');
 //	if condition then begin ... end;
 type IfStatement struct {
-	BaseNode
 	Condition   Expression
 	Consequence Statement
 	Alternative Statement
+	BaseNode
 }
 
 func (is *IfStatement) statementNode() {}
@@ -48,10 +48,10 @@ func (is *IfStatement) String() string {
 //	var o := if b then TObject.Create else nil;
 //	var i := if b then 1;  // else clause optional, returns default value (0)
 type IfExpression struct {
-	TypedExpressionBase
 	Condition   Expression
 	Consequence Expression
-	Alternative Expression // Optional, can be nil
+	Alternative Expression
+	TypedExpressionBase
 }
 
 func (ie *IfExpression) expressionNode() {}
@@ -95,9 +95,9 @@ func (ie *IfExpression) String() string {
 //	while x < 10 do x := x + 1;
 //	while condition do begin ... end;
 type WhileStatement struct {
-	BaseNode
 	Condition Expression
 	Body      Statement
+	BaseNode
 }
 
 func (ws *WhileStatement) statementNode() {}
@@ -120,9 +120,9 @@ func (ws *WhileStatement) String() string {
 //	repeat x := x + 1; until x >= 10;
 //	repeat begin ... end; until condition;
 type RepeatStatement struct {
-	BaseNode
 	Body      Statement
 	Condition Expression
+	BaseNode
 }
 
 func (rs *RepeatStatement) statementNode() {}
@@ -165,12 +165,12 @@ func (fd ForDirection) String() string {
 //	for i := start to end do begin ... end;
 //	for i := 1 to 10 step 2 do PrintLn(i);
 type ForStatement struct {
+	Start    Expression
+	EndValue Expression
+	Body     Statement
+	Step     Expression
+	Variable *Identifier
 	BaseNode
-	Start     Expression
-	EndValue  Expression
-	Body      Statement
-	Step      Expression
-	Variable  *Identifier
 	Direction ForDirection
 	InlineVar bool
 }
@@ -219,11 +219,11 @@ func (fs *ForStatement) String() string {
 //	for var item in myArray do PrintLn(item);
 //	for ch in "hello" do Print(ch);
 type ForInStatement struct {
+	Collection Expression
+	Body       Statement
+	Variable   *Identifier
 	BaseNode
-	Variable   *Identifier // Loop variable
-	Collection Expression  // Expression to iterate over (set, array, string, range)
-	Body       Statement   // Loop body
-	InlineVar  bool        // true if 'var' keyword used
+	InlineVar bool
 }
 
 func (fis *ForInStatement) statementNode() {}
@@ -304,10 +304,10 @@ func (cb *CaseBranch) String() string {
 //	  PrintLn('other');
 //	end;
 type CaseStatement struct {
-	BaseNode
 	Expression Expression
 	Else       Statement
 	Cases      []*CaseBranch
+	BaseNode
 }
 
 func (cs *CaseStatement) statementNode() {}
@@ -395,8 +395,8 @@ func (cs *ContinueStatement) String() string {
 //	   Result := i * 2;
 //	end;
 type ExitStatement struct {
+	ReturnValue Expression
 	BaseNode
-	ReturnValue Expression // Optional expression returned from Exit
 }
 
 func (es *ExitStatement) statementNode() {}

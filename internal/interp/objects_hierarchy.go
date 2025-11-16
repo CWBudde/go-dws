@@ -153,9 +153,10 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				// Check for special enum properties: Low and High
 				// These are only used if there's no enum value with that name
 				lowerMember := strings.ToLower(valueName)
-				if lowerMember == "low" {
+				switch lowerMember {
+				case "low":
 					return &IntegerValue{Value: int64(etv.EnumType.Low())}
-				} else if lowerMember == "high" {
+				case "high":
 					return &IntegerValue{Value: int64(etv.EnumType.High())}
 				}
 
