@@ -1568,6 +1568,8 @@ for i in TMyEnum do  // Iterate over all enum values
 
 **Estimate**: 4-5 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Determine collection type from expression
 2. Infer element type based on collection:
@@ -1578,9 +1580,29 @@ for i in TMyEnum do  // Iterate over all enum values
 3. Type check loop variable matches element type
 4. Validate collection expression is iterable
 
-**Files to Modify**:
-- `internal/semantic/analyze_statements.go` (analyze for-in loops)
-- `internal/types/types.go` (helper methods for iterable types)
+**Files Modified**:
+- `internal/semantic/analyze_statements.go` (analyzeForIn function, lines 660-739)
+- `internal/semantic/control_flow_test.go` (comprehensive test suite)
+- `internal/semantic/analyze_types_test.go` (large set for-in tests)
+
+**Completed Implementation**:
+- ✅ analyzeForIn() function analyzes collection type and infers element type
+- ✅ Type inference for arrays: element type = array's element type
+- ✅ Type inference for sets: element type = set's element type
+- ✅ Type inference for strings: element type = String (character iteration)
+- ✅ Type inference for enums: element type = enum type itself
+- ✅ Type alias unwrapping for iterable types
+- ✅ Validation that collection expression is enumerable
+- ✅ Proper scoping with new symbol table for loop variable
+- ✅ Loop context management (inLoop flag, loopDepth tracking)
+- ✅ Error reporting for non-enumerable types
+- ✅ Comprehensive test coverage (11 tests all passing):
+  - TestForInWithArray, TestForInWithInlineVar
+  - TestForInWithSet, TestForInWithString, TestForInWithStringLiteral
+  - TestForInWithSetLiteral, TestForInWithNonEnumerableType
+  - TestForInWithBoolean, TestForInLoopVariableScope
+  - TestForInWithBreak, TestForInWithContinue
+  - TestNestedForInLoops, TestLargeSetForInLoopAnalysis
 
 ### 9.9.3 Runtime Support for Enumeration Iteration
 
