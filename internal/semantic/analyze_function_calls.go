@@ -585,6 +585,24 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			// For lazy parameters, check expression type but don't evaluate
 			// The expression will be passed as-is to the interpreter for deferred evaluation
 			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
+
+			// Task 9.10.2: Handle parameterless functions as implicit calls in lazy arguments
+			// When a function identifier (like GlobInc) is used as a lazy argument,
+			// treat it as an implicit call that will return the function's return type
+			if ident, ok := arg.(*ast.Identifier); ok {
+				if sym, symOk := a.symbols.Resolve(ident.Value); symOk {
+					if funcType, isFuncType := sym.Type.(*types.FunctionType); isFuncType {
+						// Use the function's return type instead of function pointer type
+						if len(funcType.Parameters) == 0 {
+							argType = funcType.ReturnType
+							if funcType.IsProcedure() {
+								argType = types.VOID
+							}
+						}
+					}
+				}
+			}
+
 			if argType != nil && !a.canAssign(argType, expectedType) {
 				a.addError("lazy argument %d to function '%s' has type %s, expected %s at %s",
 					i+1, funcIdent.Value, argType.String(), expectedType.String(),

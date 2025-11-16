@@ -1549,7 +1549,7 @@ go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/for_in_str
 
 **Estimate**: 6-8 hours (0.75-1 day)
 
-**Status**: NOT STARTED
+**Status**: ✅ DONE
 
 **Impact**: Unlocks 3 failing tests in SimpleScripts
 
@@ -1579,63 +1579,66 @@ CondEval(k <> 0, 1 div k);
 
 **Subtasks**:
 
-### 9.10.1 Parse Lazy Parameter Modifier
+### 9.10.1 Parse Lazy Parameter Modifier ✅ DONE
 
 **Goal**: Recognize `lazy` keyword in parameter declarations.
 
 **Estimate**: 1-2 hours
 
 **Implementation**:
-1. Add `lazy` keyword recognition in parameter parsing
-2. Add IsLazy flag to parameter AST node
-3. Validate lazy parameters (only for value parameters, not var/out)
+1. ✅ Add `lazy` keyword recognition in parameter parsing
+2. ✅ Add IsLazy flag to parameter AST node
+3. ✅ Validate lazy parameters (only for value parameters, not var/out)
 
-**Files to Modify**:
-- `internal/parser/parser_functions.go` (parse lazy modifier)
-- `pkg/ast/declarations.go` (add IsLazy to Parameter)
+**Files Modified**:
+- `internal/parser/functions.go` (parse lazy modifier) - Already implemented
+- `pkg/ast/functions.go` (IsLazy in Parameter) - Already implemented
+- `pkg/token/token.go` (LAZY token) - Already implemented
 
-### 9.10.2 Type System and Semantic Analysis
+### 9.10.2 Type System and Semantic Analysis ✅ DONE
 
 **Goal**: Track lazy parameters in function signatures and validate usage.
 
 **Estimate**: 2-3 hours
 
 **Implementation**:
-1. Add IsLazy flag to FunctionType parameter info
-2. During function call analysis, mark lazy argument expressions
-3. Validate lazy parameter constraints
+1. ✅ Add IsLazy flag to FunctionType parameter info
+2. ✅ During function call analysis, mark lazy argument expressions
+3. ✅ Validate lazy parameter constraints
 
-**Files to Modify**:
-- `internal/types/types.go` (track lazy in FunctionType)
-- `internal/semantic/analyze_functions.go` (handle lazy parameters)
+**Files Modified**:
+- `internal/types/function_type.go` (track lazy in FunctionType) - Already implemented
+- `internal/semantic/analyze_functions.go` (handle lazy parameters) - Already implemented
+- `internal/semantic/analyze_function_calls.go` (handle parameterless functions as implicit calls in lazy arguments) - Fixed
 
-### 9.10.3 Runtime Lazy Evaluation
+### 9.10.3 Runtime Lazy Evaluation ✅ DONE
 
 **Goal**: Implement deferred evaluation of lazy argument expressions.
 
 **Estimate**: 3-4 hours
 
 **Implementation**:
-1. Create thunk/closure for lazy argument expressions
-2. Store unevaluated expression instead of value
-3. Evaluate on first access to parameter in function body
-4. Cache evaluated value for subsequent accesses (or re-evaluate each time)
+1. ✅ Create thunk/closure for lazy argument expressions
+2. ✅ Store unevaluated expression instead of value
+3. ✅ Evaluate on each access to parameter in function body
+4. ✅ Re-evaluate each time (not cached) for correct semantics
 
-**Files to Modify**:
-- `internal/interp/functions.go` (handle lazy parameters)
-- `internal/interp/expressions.go` (create lazy thunks)
-- `internal/interp/values.go` (LazyValue type)
+**Files Modified**:
+- `internal/interp/lazy_params.go` (LazyThunk type) - Already implemented
+- `internal/interp/functions_calls.go` (handle lazy parameters) - Already implemented
+- `internal/interp/expressions_basic.go` (unwrap lazy thunks on access) - Already implemented
 
 **Success Criteria**:
-- All 3 lazy tests pass
-- `lazy a : Integer` parameter syntax works
-- Lazy arguments are not evaluated until used
-- `CondEval(k <> 0, 1 div k)` doesn't cause division by zero when k = 0
-- Multiple references to lazy parameter re-evaluate expression
+- ✅ All 3 lazy tests pass (lazy.pas, lazy_sqr.pas, lazy_recursive.pas)
+- ✅ `lazy a : Integer` parameter syntax works
+- ✅ Lazy arguments are not evaluated until used
+- ✅ `CondEval(k <> 0, 1 div k)` doesn't cause division by zero when k = 0
+- ✅ Multiple references to lazy parameter re-evaluate expression
 
 **Testing**:
 ```bash
 go test -v ./internal/interp -run TestDWScriptFixtures/SimpleScripts/lazy
+# Result: All 3 tests PASS ✅
 ```
 
 ---
