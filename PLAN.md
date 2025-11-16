@@ -4431,7 +4431,11 @@ This phase delivers an auto-formatting pipeline that reuses the existing AST and
   - [x] 25.3.1.5 Add `-d` flag to show diff instead of rewriting files
   - [x] 25.3.1.6 Support formatting multiple files and directories recursively
   - [x] 25.3.1.7 Add style flags: `--style` (detailed/compact/multiline), `--indent` (width), `--tabs` (use tabs)
-  - [ ] 25.3.1.8 Add tests for the fmt command
+  - [x] 25.3.1.8 Add tests for the fmt command
+    - **Implemented**: `cmd/dwscript/cmd/fmt_test.go` with comprehensive test coverage (540 lines)
+    - Tests: formatSource, FormatBytes, isFormattedCorrectly, FormatFile, style options, indentation, complex constructs, error handling
+    - Benchmarks: BenchmarkFormatSource (~15µs/op), BenchmarkFormatSourceCompact (~10µs/op)
+    - **Known limitation**: Printer doesn't add trailing semicolons, affecting true idempotency (needs fix in pkg/printer for task 25.2.8)
   - [ ] 25.3.1.9 Update documentation and help text
 - [ ] 25.3.2 Update the WASM bridge to expose a `Format(source string) (string, error)` hook exported from Go, reusing the same formatter package.
 - [ ] 25.3.3 Modify `playground/js/playground.js` to call the WASM formatter before falling back to Monaco’s default action, enabling deterministic formatting in the browser.
