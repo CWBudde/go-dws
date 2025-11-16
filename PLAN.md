@@ -2429,6 +2429,245 @@ PrintLn(s.StartsWith('ba'));      // Helper ✗
 
 ---
 
+## Phase 12: Lexer Code Quality Improvements
+
+**Goal**: Refactor the lexer for better maintainability, consistency, and extensibility while preserving all existing functionality.
+
+**Status**: Not started | **Tasks**: 0/20 complete
+
+**Motivation**: The lexer works well but has technical debt in error handling, state management, and code organization. These improvements will make the codebase easier to maintain and extend.
+
+**Approach**: Incremental refactoring with full test coverage at each step. No behavior changes, only internal improvements.
+
+---
+
+### 12.1: Error Handling Consistency
+
+**Goal**: Make error handling consistent across all lexer operations, following the parser's pattern of accumulating errors.
+
+- [ ] 12.1.1 Add error accumulation to Lexer struct
+  - Add `errors []LexerError` field to Lexer
+  - Add `Errors() []LexerError` getter method
+  - Add `addError(msg string, pos Position)` helper method
+  - File: `internal/lexer/lexer.go` (~20 lines)
+  - Estimated: 30 minutes
+  - Test: Verify errors are accumulated, not lost
+
+- [ ] 12.1.2 Refactor readString to use error accumulation
+  - Change `readString(quote rune) (string, error)` → `readString(quote rune) string`
+  - Call `l.addError()` instead of returning error
+  - Remove error handling from callers
+  - File: `internal/lexer/lexer.go` (~30 lines modified)
+  - Estimated: 45 minutes
+  - Test: Unterminated strings still reported correctly
+
+- [ ] 12.1.3 Refactor comment skipping to use error accumulation
+  - `skipBlockComment()` and `skipCStyleComment()` call `addError()` instead of returning bool
+  - Update callers to check lexer errors instead of return values
+  - File: `internal/lexer/lexer.go` (~40 lines modified)
+  - Estimated: 45 minutes
+  - Test: Unterminated comments reported correctly
+
+- [ ] 12.1.4 Remove ILLEGAL token pattern in favor of accumulated errors
+  - Replace `NewToken(ILLEGAL, ...)` with proper token + `addError()`
+  - Update parser to check both token stream AND lexer.Errors()
+  - File: `internal/lexer/lexer.go`, `internal/parser/parser.go` (~60 lines)
+  - Estimated: 1 hour
+  - Test: Parser sees both tokens and errors correctly
+
+---
+
+### 12.2: State Management Improvements
+
+**Goal**: Add proper state save/restore mechanism to replace manual field copying.
+
+- [ ] 12.2.1 Create lexerState struct
+  - Define `lexerState` with all position fields
+  - Add `saveState() lexerState` method
+  - Add `restoreState(s lexerState)` method
+  - File: `internal/lexer/lexer.go` (~25 lines)
+  - Estimated: 30 minutes
+  - Test: Save/restore preserves exact lexer position
+
+- [ ] 12.2.2 Refactor isCharLiteralStandalone to use state management
+  - Replace manual field save/restore with `saveState()/restoreState()`
+  - Verify behavior unchanged
+  - File: `internal/lexer/lexer.go` (~15 lines modified)
+  - Estimated: 20 minutes
+  - Test: Character literal detection still works
+
+- [ ] 12.2.3 Add peek lookahead tests
+  - Test peekChar() doesn't modify state
+  - Test peekCharN() for various N values
+  - Test state save/restore is symmetric
+  - File: `internal/lexer/lexer_test.go` (~80 lines)
+  - Estimated: 45 minutes
+  - Test: All peek operations are side-effect free
+
+---
+
+### 12.3: API Improvements - Token Lookahead
+
+**Goal**: Add proper token lookahead to eliminate parser workarounds (creating temporary lexers).
+
+- [ ] 12.3.1 Add token buffer to Lexer
+  - Add `tokenBuffer []Token` field
+  - Keep existing NextToken() behavior initially
+  - File: `internal/lexer/lexer.go` (~5 lines)
+  - Estimated: 15 minutes
+  - Test: No behavior change
+
+- [ ] 12.3.2 Implement Peek(n int) method
+  - Add `Peek(n int) Token` method that buffers ahead
+  - Buffer tokens lazily as needed
+  - Don't consume from main stream
+  - File: `internal/lexer/lexer.go` (~35 lines)
+  - Estimated: 1 hour
+  - Test: Peek(1), Peek(2), Peek(3) work correctly; NextToken() still consumes
+
+- [ ] 12.3.3 Refactor NextToken to use buffer
+  - Modify NextToken() to check buffer first
+  - Extract current logic to `nextTokenInternal()`
+  - File: `internal/lexer/lexer.go` (~40 lines)
+  - Estimated: 45 minutes
+  - Test: All existing tests still pass
+
+- [ ] 12.3.4 Remove Input() export workaround
+  - Remove or deprecate `Input()` method
+  - Update parser to use `Peek()` instead of creating temp lexers
+  - File: `internal/lexer/lexer.go`, `internal/parser/parser.go` (~20 lines)
+  - Estimated: 30 minutes
+  - Test: Parser function pointer detection still works
+
+---
+
+### 12.4: Code Organization - Refactor NextToken
+
+**Goal**: Break up the 335-line NextToken() switch statement into maintainable handler functions.
+
+- [ ] 12.4.1 Extract operator handlers (arithmetic)
+  - Create `handlePlus()`, `handleMinus()`, `handleAsterisk()` functions
+  - Each handles compound operators (+=, ++, etc.)
+  - File: `internal/lexer/lexer.go` (~120 lines, move not add)
+  - Estimated: 1 hour
+  - Test: All arithmetic operators work
+
+- [ ] 12.4.2 Extract operator handlers (comparison and logical)
+  - Create `handleEquals()`, `handleLess()`, `handleGreater()` functions
+  - Create `handleAmp()`, `handlePipe()`, `handleQuestion()` functions
+  - File: `internal/lexer/lexer.go` (~100 lines, move not add)
+  - Estimated: 1 hour
+  - Test: All comparison/logical operators work
+
+- [ ] 12.4.3 Create operator dispatch table
+  - Define `type tokenHandler func(*Lexer, Position) Token`
+  - Create `var tokenHandlers = map[rune]tokenHandler{...}`
+  - Update NextToken() to use dispatch table
+  - File: `internal/lexer/lexer.go` (~60 lines modified)
+  - Estimated: 1 hour
+  - Test: All operators still work, performance not degraded
+
+- [ ] 12.4.4 Benchmark dispatch table vs switch
+  - Create benchmark for NextToken() throughput
+  - Compare switch vs map dispatch
+  - Revert if map is significantly slower (>10%)
+  - File: `internal/lexer/lexer_bench_test.go` (new file ~80 lines)
+  - Estimated: 45 minutes
+  - Test: Performance within acceptable range
+
+---
+
+### 12.5: Helper Method Additions
+
+**Goal**: Add convenient helper methods to reduce code duplication.
+
+- [ ] 12.5.1 Add matchAndConsume helper
+  - `func (l *Lexer) matchAndConsume(expected rune) bool`
+  - Returns true and advances if next char matches
+  - File: `internal/lexer/lexer.go` (~10 lines)
+  - Estimated: 20 minutes
+  - Test: Match/no-match both work correctly
+
+- [ ] 12.5.2 Refactor compound operators to use matchAndConsume
+  - Update all `if l.peekChar() == X` patterns
+  - Simplify operator handler code
+  - File: `internal/lexer/lexer.go` (~80 lines modified)
+  - Estimated: 1 hour
+  - Test: All compound operators still work
+
+- [ ] 12.5.3 Replace charLiteralToRune with strconv
+  - Use `strconv.ParseInt()` instead of manual parsing
+  - Handle both decimal and hex formats
+  - File: `internal/lexer/lexer.go` (~30 lines deleted, ~15 added)
+  - Estimated: 30 minutes
+  - Test: All character literals parse correctly
+
+---
+
+### 12.6: Documentation and Testing
+
+**Goal**: Improve observability and testing infrastructure.
+
+- [ ] 12.6.1 Add options pattern for Lexer configuration
+  - Define `type LexerOption func(*Lexer)`
+  - Update `New(input string, opts ...LexerOption)` signature
+  - Add `WithTracing(bool)` option for debug output
+  - File: `internal/lexer/lexer.go` (~40 lines)
+  - Estimated: 45 minutes
+  - Test: Options apply correctly, backwards compatible
+
+- [ ] 12.6.2 Add comprehensive error position tests
+  - Test error positions for unterminated strings at various locations
+  - Test error positions for illegal characters
+  - Test multi-line error reporting
+  - File: `internal/lexer/lexer_test.go` (~100 lines)
+  - Estimated: 1 hour
+  - Test: All error positions accurate
+
+- [ ] 12.6.3 Document column behavior for Unicode
+  - Clarify that "column" means rune count, not display width
+  - Add comment about display width vs. rune count tradeoff
+  - Add examples in tests with emoji and multi-byte chars
+  - File: `internal/lexer/lexer.go`, `internal/lexer/lexer_test.go` (~30 lines)
+  - Estimated: 30 minutes
+  - Test: Unicode handling documented and tested
+
+---
+
+**Files Created**:
+- `internal/lexer/lexer_bench_test.go` (new file ~80 lines) - Performance benchmarks
+
+**Files Modified**:
+- `internal/lexer/lexer.go` (~400 lines modified, net -50 lines from cleanup)
+- `internal/lexer/lexer_test.go` (~180 lines added)
+- `internal/parser/parser.go` (~30 lines modified for error handling)
+
+**Acceptance Criteria**:
+- All existing tests pass (100% backwards compatible)
+- Error handling consistent across lexer (accumulation pattern)
+- State management uses proper save/restore pattern
+- Token lookahead API eliminates parser workarounds
+- NextToken() refactored into maintainable handlers
+- Performance maintained or improved
+- Test coverage remains >95%
+- Documentation updated for Unicode column behavior
+
+**Benefits**:
+- **Maintainability**: Smaller functions easier to understand and modify
+- **Consistency**: Error handling matches parser pattern
+- **Extensibility**: Dispatch table makes adding operators easier
+- **API Quality**: Proper lookahead eliminates workarounds
+- **Code Health**: Removes technical debt for future development
+- **Testing**: Better test infrastructure for edge cases
+
+**Non-Goals** (explicitly out of scope):
+- Changing token types or lexer output format
+- Performance optimization beyond maintaining current speed
+- Adding new language features or syntax
+- Changing public API surface (pkg/token)
+
+---
+
 ## Phase 10: go-dws API Enhancements for LSP Integration ✅ COMPLETE
 
 **Goal**: Enhanced go-dws library with structured errors, AST access, position metadata, symbol tables, and type information for LSP features.
