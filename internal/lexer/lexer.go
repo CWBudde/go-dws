@@ -740,11 +740,20 @@ func (l *Lexer) readBinaryNumber(startPos int) (TokenType, string) {
 
 // readHexNumber0x reads a hexadecimal number starting with 0x (e.g., 0xFF).
 func (l *Lexer) readHexNumber0x(startPos int) (TokenType, string) {
-	l.readChar() // skip 0
-	l.readChar() // skip x
+	pos := l.currentPos() // Save position for error reporting
+	l.readChar()          // skip 0
+	l.readChar()          // skip x
+
+	digitStart := l.position
 	for isHexDigit(l.ch) {
 		l.readChar()
 	}
+
+	// Validate that at least one hex digit was present
+	if l.position == digitStart {
+		l.addError("hexadecimal literal requires at least one digit after '0x'", pos)
+	}
+
 	return INT, l.input[startPos:l.position]
 }
 
