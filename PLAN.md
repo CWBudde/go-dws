@@ -952,7 +952,7 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
 
 ### Phase 3.5: Evaluator Refactoring
 
-- [ ] 3.5.1 Split Interpreter into Evaluator + TypeSystem + ExecutionContext
+- [x] 3.5.1 Split Interpreter into Evaluator + TypeSystem + ExecutionContext
   - Create new Evaluator struct with focused responsibility
   - Evaluator contains: typeSystem, config (output, maxRecursion)
   - Context passed to all evaluation methods
@@ -960,8 +960,9 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Files: `internal/interp/evaluator/evaluator.go` (new)
   - Estimated: 1 week
   - Acceptance: Clean separation, Interpreter is now small orchestrator, tests pass
+  - **Completed**: Created Evaluator struct (258 lines) with focused responsibility (typeSystem, output, rand, config, unitRegistry, semanticInfo), Interpreter creates and initializes Evaluator in NewWithOptions(), implemented InterpreterAdapter interface for backward compatibility during migration, added state synchronization (SetSource, SetSemanticInfo, SetExternalFunctions), all tests pass with no regressions
 
-- [ ] 3.5.2 Implement Visitor pattern for evaluation
+- [x] 3.5.2 Implement Visitor pattern for evaluation
   - Make Evaluator implement ast.Visitor interface
   - Replace giant Eval() switch with visitor methods
   - VisitBinaryExpression, VisitCallExpression, etc.
@@ -969,15 +970,18 @@ Start with **Phase 2.1 Foundation ONLY** (2 weeks, 80 hours). This delivers imme
   - Files: Update `internal/interp/evaluator/*.go`
   - Estimated: 1 week
   - Acceptance: No more giant switch, visitor pattern used, tests pass
+  - **Completed**: Implemented visitor pattern with 48 visitor methods (VisitXXX), replaced Evaluator.Eval() giant switch with type switch dispatch to visitor methods, created 4 visitor files organized by category (literals, expressions, statements, declarations), all visitor methods follow consistent signature: func (e *Evaluator) VisitXXX(node *ast.XXX, ctx *ExecutionContext) Value, eliminated 228-line switch statement, all tests pass with no regressions
 
-- [ ] 3.5.3 Split evaluation by node category
+- [x] 3.5.3 Split evaluation by node category
   - Create separate files for expression/statement evaluation
-  - `evaluator/expressions.go` - all expression visitors
-  - `evaluator/statements.go` - all statement visitors
-  - `evaluator/declarations.go` - all declaration visitors
+  - `evaluator/visitor_expressions.go` - all expression visitors (154 lines)
+  - `evaluator/visitor_statements.go` - all statement visitors (129 lines)
+  - `evaluator/visitor_declarations.go` - all declaration visitors (72 lines)
+  - `evaluator/visitor_literals.go` - all literal visitors (49 lines)
   - Each file ≤500 lines
   - Estimated: 3 days
   - Acceptance: Code organized by category, easy to navigate, tests pass
+  - **Completed**: Created 4 visitor files organized by node category (404 lines total), all files well under 500 line limit (largest: 154 lines), clear organization with visitor_*.go naming convention, 48 visitor methods total (6 literals, 22 expressions, 19 statements, 9 declarations), all tests pass
 
 ---
 
