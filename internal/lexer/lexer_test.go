@@ -2136,38 +2136,38 @@ func TestSaveRestoreStatePreservesLineColumn(t *testing.T) {
 // TestCharLiteralStandaloneStillWorks tests that isCharLiteralStandalone works after refactoring (Task 12.2.2)
 func TestCharLiteralStandaloneStillWorks(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
+		name         string
+		input        string
 		isStandalone bool
 	}{
 		{
-			name:        "standalone character literal",
-			input:       "#65",
+			name:         "standalone character literal",
+			input:        "#65",
 			isStandalone: true,
 		},
 		{
-			name:        "character literal followed by space and string",
-			input:       "#65 'hello'",
+			name:         "character literal followed by space and string",
+			input:        "#65 'hello'",
 			isStandalone: true, // space separates them
 		},
 		{
-			name:        "character literal immediately followed by string",
-			input:       "#65'hello'",
+			name:         "character literal immediately followed by string",
+			input:        "#65'hello'",
 			isStandalone: false, // no space, part of concatenation
 		},
 		{
-			name:        "character literal followed by another char literal",
-			input:       "#65#66",
+			name:         "character literal followed by another char literal",
+			input:        "#65#66",
 			isStandalone: false, // concatenation
 		},
 		{
-			name:        "hex character literal standalone",
-			input:       "#$41",
+			name:         "hex character literal standalone",
+			input:        "#$41",
 			isStandalone: true,
 		},
 		{
-			name:        "hex character literal in concatenation",
-			input:       "#$41#$42",
+			name:         "hex character literal in concatenation",
+			input:        "#$41#$42",
 			isStandalone: false,
 		},
 	}
@@ -2194,12 +2194,12 @@ func TestCharLiteralStandaloneStillWorks(t *testing.T) {
 // TestMatchAndConsume tests the matchAndConsume helper method (Task 12.5.1)
 func TestMatchAndConsume(t *testing.T) {
 	tests := []struct {
-		name          string
-		input         string
-		expected      rune
-		shouldMatch   bool
-		expectedPos   int // position after matchAndConsume
-		expectedCh    rune // current char after matchAndConsume
+		name        string
+		input       string
+		expected    rune
+		shouldMatch bool
+		expectedPos int  // position after matchAndConsume
+		expectedCh  rune // current char after matchAndConsume
 	}{
 		{
 			name:        "match succeeds",

@@ -9,14 +9,14 @@ import (
 
 // Lexer represents a lexical scanner for DWScript source code.
 type Lexer struct {
-	input        string        // The source code being tokenized
-	position     int           // Current position in input (points to current char)
-	readPosition int           // Current reading position in input (after current char)
-	ch           rune          // Current character under examination (0 if EOF)
-	line         int           // Current line number (1-indexed)
-	column       int           // Current column number (1-indexed)
-	errors       []LexerError  // Accumulated lexer errors
-	tokenBuffer  []Token       // Buffer for token lookahead (Task 12.3.1)
+	input        string       // The source code being tokenized
+	position     int          // Current position in input (points to current char)
+	readPosition int          // Current reading position in input (after current char)
+	ch           rune         // Current character under examination (0 if EOF)
+	line         int          // Current line number (1-indexed)
+	column       int          // Current column number (1-indexed)
+	errors       []LexerError // Accumulated lexer errors
+	tokenBuffer  []Token      // Buffer for token lookahead (Task 12.3.1)
 }
 
 // lexerState represents the complete state of the lexer at a point in time.
