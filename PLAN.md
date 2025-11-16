@@ -3238,7 +3238,7 @@ if !p.curTokenIs(lexer.END) {
 
 **Goal**: Refactor the lexer for better maintainability, consistency, and extensibility while preserving all existing functionality.
 
-**Status**: In progress | **Tasks**: 7/20 complete
+**Status**: In progress | **Tasks**: 11/20 complete
 
 **Motivation**: The lexer works well but has technical debt in error handling, state management, and code organization. These improvements will make the codebase easier to maintain and extend.
 
@@ -3322,34 +3322,38 @@ if !p.curTokenIs(lexer.END) {
 
 **Goal**: Add proper token lookahead to eliminate parser workarounds (creating temporary lexers).
 
-- [ ] 12.3.1 Add token buffer to Lexer
+- [x] 12.3.1 Add token buffer to Lexer
   - Add `tokenBuffer []Token` field
   - Keep existing NextToken() behavior initially
   - File: `internal/lexer/lexer.go` (~5 lines)
   - Estimated: 15 minutes
   - Test: No behavior change
+  - **DONE**: Added tokenBuffer field to Lexer struct
 
-- [ ] 12.3.2 Implement Peek(n int) method
+- [x] 12.3.2 Implement Peek(n int) method
   - Add `Peek(n int) Token` method that buffers ahead
   - Buffer tokens lazily as needed
   - Don't consume from main stream
   - File: `internal/lexer/lexer.go` (~35 lines)
   - Estimated: 1 hour
   - Test: Peek(1), Peek(2), Peek(3) work correctly; NextToken() still consumes
+  - **DONE**: Implemented Peek() with lazy buffering
 
-- [ ] 12.3.3 Refactor NextToken to use buffer
+- [x] 12.3.3 Refactor NextToken to use buffer
   - Modify NextToken() to check buffer first
   - Extract current logic to `nextTokenInternal()`
   - File: `internal/lexer/lexer.go` (~40 lines)
   - Estimated: 45 minutes
   - Test: All existing tests still pass
+  - **DONE**: Refactored NextToken to consume from buffer, extracted nextTokenInternal
 
-- [ ] 12.3.4 Remove Input() export workaround
+- [x] 12.3.4 Remove Input() export workaround
   - Remove or deprecate `Input()` method
   - Update parser to use `Peek()` instead of creating temp lexers
   - File: `internal/lexer/lexer.go`, `internal/parser/parser.go` (~20 lines)
   - Estimated: 30 minutes
   - Test: Parser function pointer detection still works
+  - **DONE**: Deprecated Input(), refactored parser functions to use Peek()
 
 ---
 

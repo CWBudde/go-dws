@@ -15,6 +15,7 @@ type Lexer struct {
 	line         int           // Current line number (1-indexed)
 	column       int           // Current column number (1-indexed)
 	errors       []LexerError  // Accumulated lexer errors
+	tokenBuffer  []Token       // Buffer for token lookahead (Task 12.3.1)
 }
 
 // lexerState represents the complete state of the lexer at a point in time.
@@ -100,8 +101,10 @@ func (l *Lexer) currentPos() Position {
 }
 
 // Input returns the source code being tokenized.
-// This allows parser to create temporary lexers for lookahead.
-// Added for function pointer syntax detection
+//
+// Deprecated: Use Peek(n) for token lookahead instead of creating temporary lexers.
+// This method is kept for backward compatibility but may be removed in a future version.
+// See Task 12.3 for the new Peek() API.
 func (l *Lexer) Input() string {
 	return l.input
 }
@@ -141,6 +144,22 @@ func (l *Lexer) restoreState(s lexerState) {
 	l.ch = s.ch
 	l.line = s.line
 	l.column = s.column
+}
+
+// Peek returns the token n positions ahead without consuming it.
+// Peek(0) returns the next token (same as NextToken would return).
+// Peek(1) returns the token after that, etc.
+// Tokens are buffered lazily as needed.
+// This eliminates the need for creating temporary lexers for lookahead.
+func (l *Lexer) Peek(n int) Token {
+	// Ensure we have buffered enough tokens
+	for len(l.tokenBuffer) <= n {
+		// Generate and buffer the next token
+		tok := l.nextTokenInternal()
+		l.tokenBuffer = append(l.tokenBuffer, tok)
+	}
+
+	return l.tokenBuffer[n]
 }
 
 // skipWhitespace skips over whitespace characters (space, tab, newline, carriage return).
@@ -494,7 +513,23 @@ func (l *Lexer) readStringOrCharSequence() string {
 }
 
 // NextToken returns the next token from the input.
+// If tokens have been buffered by Peek(), it returns from the buffer first.
 func (l *Lexer) NextToken() Token {
+	// Check if we have buffered tokens from Peek()
+	if len(l.tokenBuffer) > 0 {
+		// Return the first buffered token and remove it
+		tok := l.tokenBuffer[0]
+		l.tokenBuffer = l.tokenBuffer[1:]
+		return tok
+	}
+
+	// No buffered tokens, generate the next one
+	return l.nextTokenInternal()
+}
+
+// nextTokenInternal generates the next token from the input.
+// This is the internal tokenization logic, called by both NextToken() and Peek().
+func (l *Lexer) nextTokenInternal() Token {
 	l.skipWhitespace()
 
 	var tok Token
@@ -508,12 +543,12 @@ func (l *Lexer) NextToken() Token {
 	case '/':
 		if l.peekChar() == '/' {
 			l.skipLineComment()
-			return l.NextToken() // Skip comment and get next token
+			return l.nextTokenInternal() // Skip comment and get next token
 		}
 		if l.peekChar() == '*' {
 			// C-style multi-line comment /* */
 			l.skipCStyleComment()
-			return l.NextToken()
+			return l.nextTokenInternal()
 		}
 		if l.peekChar() == '=' {
 			l.readChar()
@@ -527,13 +562,13 @@ func (l *Lexer) NextToken() Token {
 	case '{':
 		// Block comment or compiler directive - both skip to }
 		l.skipBlockComment('{')
-		return l.NextToken()
+		return l.nextTokenInternal()
 
 	case '(':
 		if l.peekChar() == '*' {
 			// Block comment (* *)
 			l.skipBlockComment('(')
-			return l.NextToken()
+			return l.nextTokenInternal()
 		}
 		tok = NewToken(LPAREN, "(", pos)
 		l.readChar()
