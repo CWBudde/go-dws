@@ -395,11 +395,9 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				}
 				pointerType := types.NewFunctionPointerType(paramTypes, returnType)
 
-				// Increment RefCount to keep the object alive while the method pointer exists
-				// This prevents the object from being destroyed if the interface is released
-				underlyingObj.RefCount++
-
 				// Return function pointer bound to the underlying object
+				// Note: RefCount is NOT incremented here because this might be a transient call
+				// RefCount++ happens in evalSimpleAssignment when storing the pointer in a variable
 				return NewFunctionPointerValue(method, i.env, underlyingObj, pointerType)
 			}
 			// Method declared in interface but not found in implementing class

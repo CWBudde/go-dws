@@ -280,6 +280,7 @@ func (l *Lexer) handleEquals(pos Position) Token {
 
 // handleLess handles the '<' operator and its variants (<>, <=, <<).
 func (l *Lexer) handleLess(pos Position) Token {
+	//nolint:gocritic:ifelsechain
 	if l.matchAndConsume('>') {
 		tok := NewToken(NOT_EQ, "<>", pos)
 		l.readChar()
@@ -516,32 +517,53 @@ func (l *Lexer) readNumber() (TokenType, string) {
 
 	// Check for hex with $ prefix
 	if l.ch == '$' {
-		l.readChar()
-		for isHexDigit(l.ch) {
-			l.readChar()
-		}
-		return INT, l.input[startPos:l.position]
+		return l.readHexNumber(startPos)
 	}
 
 	// Check for binary with % prefix
 	if l.ch == '%' {
-		l.readChar()
-		for l.ch == '0' || l.ch == '1' {
-			l.readChar()
-		}
-		return INT, l.input[startPos:l.position]
+		return l.readBinaryNumber(startPos)
 	}
 
 	// Check for hex with 0x prefix
 	if l.ch == '0' && (l.peekChar() == 'x' || l.peekChar() == 'X') {
-		l.readChar() // skip 0
-		l.readChar() // skip x
-		for isHexDigit(l.ch) {
-			l.readChar()
-		}
-		return INT, l.input[startPos:l.position]
+		return l.readHexNumber0x(startPos)
 	}
 
+	// Read decimal number (may be float)
+	return l.readDecimalNumber(startPos)
+}
+
+// readHexNumber reads a hexadecimal number starting with $ (e.g., $FF).
+func (l *Lexer) readHexNumber(startPos int) (TokenType, string) {
+	l.readChar() // skip $
+	for isHexDigit(l.ch) {
+		l.readChar()
+	}
+	return INT, l.input[startPos:l.position]
+}
+
+// readBinaryNumber reads a binary number starting with % (e.g., %1010).
+func (l *Lexer) readBinaryNumber(startPos int) (TokenType, string) {
+	l.readChar() // skip %
+	for l.ch == '0' || l.ch == '1' {
+		l.readChar()
+	}
+	return INT, l.input[startPos:l.position]
+}
+
+// readHexNumber0x reads a hexadecimal number starting with 0x (e.g., 0xFF).
+func (l *Lexer) readHexNumber0x(startPos int) (TokenType, string) {
+	l.readChar() // skip 0
+	l.readChar() // skip x
+	for isHexDigit(l.ch) {
+		l.readChar()
+	}
+	return INT, l.input[startPos:l.position]
+}
+
+// readDecimalNumber reads a decimal number, potentially with float components.
+func (l *Lexer) readDecimalNumber(startPos int) (TokenType, string) {
 	// Read decimal digits
 	for isDigit(l.ch) {
 		l.readChar()

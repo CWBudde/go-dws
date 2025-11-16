@@ -39,6 +39,10 @@ func (i *Interpreter) evalProgram(program *ast.Program) Value {
 		return newError("uncaught exception: %s", exc.Inspect())
 	}
 
+	// Task 9.1.5/PR#142: Clean up interface and object references when program ends
+	// This ensures destructors are called for global objects and interface-held objects
+	i.cleanupInterfaceReferences(i.env)
+
 	return result
 }
 
