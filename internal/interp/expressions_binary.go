@@ -85,6 +85,8 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 		_, rightIsNil := right.(*NilValue)
 		_, leftIsObj := left.(*ObjectInstance)
 		_, rightIsObj := right.(*ObjectInstance)
+		leftIntf, leftIsIntf := left.(*InterfaceInstance)
+		rightIntf, rightIsIntf := right.(*InterfaceInstance)
 		leftClass, leftIsClass := left.(*ClassValue)
 		rightClass, rightIsClass := right.(*ClassValue)
 
@@ -119,6 +121,36 @@ func (i *Interpreter) evalBinaryExpression(expr *ast.BinaryExpression) Value {
 					return &BooleanValue{Value: false}
 				} else {
 					return &BooleanValue{Value: true}
+				}
+			}
+		}
+
+		// Handle InterfaceInstance comparisons
+		// Two interfaces are equal if they wrap the same underlying object
+		if leftIsIntf || rightIsIntf {
+			// Both are interfaces - compare underlying objects
+			if leftIsIntf && rightIsIntf {
+				// Compare by underlying object identity
+				result := leftIntf.Object == rightIntf.Object
+				if expr.Operator == "=" {
+					return &BooleanValue{Value: result}
+				} else {
+					return &BooleanValue{Value: !result}
+				}
+			}
+			// One is interface, one is nil
+			if leftIsNil || rightIsNil {
+				// Interface is nil if its Object is nil
+				var intfIsNil bool
+				if leftIsIntf {
+					intfIsNil = leftIntf.Object == nil
+				} else {
+					intfIsNil = rightIntf.Object == nil
+				}
+				if expr.Operator == "=" {
+					return &BooleanValue{Value: intfIsNil}
+				} else {
+					return &BooleanValue{Value: !intfIsNil}
 				}
 			}
 		}

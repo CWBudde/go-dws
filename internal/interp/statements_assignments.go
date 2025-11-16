@@ -447,6 +447,15 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 		}
 	}
 
+	// PR#142: Increment RefCount for function pointers that hold object references
+	// When storing a FunctionPointerValue (method pointer from interface or object),
+	// increment the SelfObject's RefCount to keep it alive while the pointer exists
+	if funcPtr, isFuncPtr := value.(*FunctionPointerValue); isFuncPtr {
+		if objInst, isObj := funcPtr.SelfObject.(*ObjectInstance); isObj {
+			objInst.RefCount++
+		}
+	}
+
 	// First try to set in current environment
 	err := i.env.Set(target.Value, value)
 	if err == nil {
