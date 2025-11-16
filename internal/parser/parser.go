@@ -160,6 +160,16 @@ type Parser struct {
 	parsingPostCondition   bool // True when parsing postconditions (for 'old' keyword)
 }
 
+// ParserState represents a snapshot of the parser's state at a specific point.
+// It can be saved and restored to enable speculative parsing and backtracking.
+// This is useful when trying multiple parsing strategies without committing to errors.
+type ParserState struct {
+	curToken   lexer.Token
+	peekToken  lexer.Token
+	errors     []*ParserError
+	lexerState lexer.LexerState
+}
+
 // New creates a new Parser instance.
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{
@@ -396,6 +406,41 @@ func (p *Parser) curPrecedence() int {
 		return prec
 	}
 	return LOWEST
+}
+
+// saveState captures the current parser state for later restoration.
+// This enables speculative parsing: try one approach, and if it fails,
+// restore the state and try a different approach without leaving errors behind.
+//
+// Example usage:
+//
+//	state := p.saveState()
+//	if result := p.tryParseAsType(); result != nil {
+//	    return result
+//	}
+//	p.restoreState(state)  // Failed, backtrack
+//	return p.parseAsExpression()
+func (p *Parser) saveState() ParserState {
+	// Make a copy of errors slice to avoid sharing the backing array
+	errorsCopy := make([]*ParserError, len(p.errors))
+	copy(errorsCopy, p.errors)
+
+	return ParserState{
+		curToken:   p.curToken,
+		peekToken:  p.peekToken,
+		errors:     errorsCopy,
+		lexerState: p.l.SaveState(),
+	}
+}
+
+// restoreState restores the parser to a previously saved state.
+// This undoes all parser and lexer changes made since saveState() was called.
+// It's used after speculative parsing fails to cleanly backtrack.
+func (p *Parser) restoreState(state ParserState) {
+	p.curToken = state.curToken
+	p.peekToken = state.peekToken
+	p.errors = state.errors
+	p.l.RestoreState(state.lexerState)
 }
 
 // endPosFromToken calculates the end position of a token.

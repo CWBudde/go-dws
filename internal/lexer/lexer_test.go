@@ -2031,7 +2031,7 @@ func TestSaveRestoreStateSymmetry(t *testing.T) {
 	l := New(input)
 
 	// Save initial state
-	state1 := l.saveState()
+	state1 := l.SaveState()
 
 	// Advance lexer by reading some tokens
 	l.NextToken() // var
@@ -2039,7 +2039,7 @@ func TestSaveRestoreStateSymmetry(t *testing.T) {
 	l.NextToken() // :=
 
 	// Save state after tokens
-	state2 := l.saveState()
+	state2 := l.SaveState()
 
 	// Advance more
 	l.NextToken() // 5
@@ -2051,7 +2051,7 @@ func TestSaveRestoreStateSymmetry(t *testing.T) {
 	}
 
 	// Restore to state2
-	l.restoreState(state2)
+	l.RestoreState(state2)
 
 	// Verify state matches state2
 	if l.position != state2.position {
@@ -2077,7 +2077,7 @@ func TestSaveRestoreStateSymmetry(t *testing.T) {
 	}
 
 	// Restore to initial state
-	l.restoreState(state1)
+	l.RestoreState(state1)
 
 	// Next token should be 'var' again
 	tok = l.NextToken()
@@ -2103,7 +2103,7 @@ func TestSaveRestoreStatePreservesLineColumn(t *testing.T) {
 	col1 := l.column
 
 	// Save state
-	state := l.saveState()
+	state := l.SaveState()
 
 	// Read more tokens
 	l.NextToken() // y
@@ -2120,7 +2120,7 @@ func TestSaveRestoreStatePreservesLineColumn(t *testing.T) {
 	col2 := l.column
 
 	// Restore to saved state
-	l.restoreState(state)
+	l.RestoreState(state)
 
 	// Should be back at the saved position
 	if l.line != state.line {
