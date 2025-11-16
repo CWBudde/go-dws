@@ -142,7 +142,7 @@ ExecutionContext
 
 ```
 internal/interp/evaluator/
-├── evaluator.go              (258 lines) - Core Evaluator struct and Eval dispatch
+├── evaluator.go              (384 lines) - Core Evaluator struct and Eval dispatch
 ├── visitor_literals.go       (49 lines)  - Literal visitor methods
 ├── visitor_expressions.go    (154 lines) - Expression visitor methods
 ├── visitor_statements.go     (129 lines) - Statement visitor methods
