@@ -19,8 +19,8 @@ import (
 // This design follows the Single Responsibility Principle by separating
 // type management from execution concerns in the Interpreter.
 type TypeSystem struct {
-	// Class registry: maps lowercase class names to ClassInfo
-	classes map[string]*ClassInfo
+	// Class registry: Task 3.4.2 - using ClassRegistry abstraction
+	classRegistry *ClassRegistry
 
 	// Record registry: maps lowercase record names to RecordTypeValue
 	records map[string]*RecordTypeValue
@@ -56,7 +56,7 @@ type TypeSystem struct {
 // NewTypeSystem creates a new TypeSystem with initialized registries.
 func NewTypeSystem() *TypeSystem {
 	return &TypeSystem{
-		classes:          make(map[string]*ClassInfo),
+		classRegistry:    NewClassRegistry(), // Task 3.4.2
 		records:          make(map[string]*RecordTypeValue),
 		interfaces:       make(map[string]*InterfaceInfo),
 		functions:        make(map[string][]*ast.FunctionDecl),
@@ -73,33 +73,88 @@ func NewTypeSystem() *TypeSystem {
 }
 
 // ========== Class Registry ==========
+// Task 3.4.2: Class methods now delegate to ClassRegistry
 
 // RegisterClass registers a new class in the type system.
 // The name is stored case-insensitively (converted to lowercase).
 func (ts *TypeSystem) RegisterClass(name string, class *ClassInfo) {
-	if class == nil {
-		return
-	}
-	ts.classes[strings.ToLower(name)] = class
+	ts.classRegistry.Register(name, class)
+}
+
+// RegisterClassWithParent registers a class with an explicit parent name.
+// This allows the ClassRegistry to track inheritance relationships.
+func (ts *TypeSystem) RegisterClassWithParent(name string, class *ClassInfo, parentName string) {
+	ts.classRegistry.RegisterWithParent(name, class, parentName)
 }
 
 // LookupClass returns the ClassInfo for the given name.
 // The lookup is case-insensitive. Returns nil if not found.
 func (ts *TypeSystem) LookupClass(name string) *ClassInfo {
-	return ts.classes[strings.ToLower(name)]
+	info, ok := ts.classRegistry.Lookup(name)
+	if !ok {
+		return nil
+	}
+	// Type assertion from any to *ClassInfo
+	if classInfo, ok := info.(*ClassInfo); ok {
+		return classInfo
+	}
+	return nil
 }
 
 // HasClass checks if a class with the given name exists.
 // The check is case-insensitive.
 func (ts *TypeSystem) HasClass(name string) bool {
-	_, exists := ts.classes[strings.ToLower(name)]
-	return exists
+	return ts.classRegistry.Exists(name)
 }
 
 // AllClasses returns a map of all registered classes.
 // Note: The returned map uses lowercase keys.
 func (ts *TypeSystem) AllClasses() map[string]*ClassInfo {
-	return ts.classes
+	allClasses := ts.classRegistry.GetAllClasses()
+	result := make(map[string]*ClassInfo, len(allClasses))
+	for key, info := range allClasses {
+		if classInfo, ok := info.(*ClassInfo); ok {
+			result[key] = classInfo
+		}
+	}
+	return result
+}
+
+// LookupClassHierarchy returns all classes in the inheritance chain.
+// The result is ordered from most specific (the class itself) to root.
+// Returns nil if the class is not found.
+func (ts *TypeSystem) LookupClassHierarchy(name string) []*ClassInfo {
+	hierarchy := ts.classRegistry.LookupHierarchy(name)
+	if hierarchy == nil {
+		return nil
+	}
+
+	result := make([]*ClassInfo, 0, len(hierarchy))
+	for _, info := range hierarchy {
+		if classInfo, ok := info.(*ClassInfo); ok {
+			result = append(result, classInfo)
+		}
+	}
+	return result
+}
+
+// IsClassDescendantOf checks if descendantName inherits from ancestorName.
+// Returns true if descendantName is derived from ancestorName (directly or indirectly).
+// Also returns true if the names are equal (a class is its own descendant).
+func (ts *TypeSystem) IsClassDescendantOf(descendantName, ancestorName string) bool {
+	return ts.classRegistry.IsDescendantOf(descendantName, ancestorName)
+}
+
+// GetClassDepth returns the inheritance depth of a class.
+// Depth 0 means no parent, depth 1 means one parent, etc.
+// Returns -1 if the class is not found.
+func (ts *TypeSystem) GetClassDepth(name string) int {
+	return ts.classRegistry.GetDepth(name)
+}
+
+// Classes returns the ClassRegistry for direct access to advanced operations.
+func (ts *TypeSystem) Classes() *ClassRegistry {
+	return ts.classRegistry
 }
 
 // ========== Record Registry ==========
