@@ -2052,13 +2052,13 @@ type TEnumAlpha = (eAlpha = Ord('A'), eBeta, eGamma);
 - `internal/semantic/analyze_enums.go` (evaluate constant expressions)
 - Add constant expression evaluator
 
-### 9.15.10 Enum Instance .Value Property
+### 9.15.10 Enum Instance .Value Property ✓ DONE
 
 **Goal**: Support .Value property on enum instances to get ordinal value.
 
 **Estimate**: 1-2 hours
 
-**Status**: TODO
+**Status**: Complete - .Value property fully working
 
 **Implementation**:
 1. Add .Value property to enum values (returns Integer)
@@ -2104,6 +2104,7 @@ PrintLn(TEnum.eTwo.Value);  // Qualified access works
 - ✓ Flags enums use power-of-2 values
 - ✓ Low/High properties and methods return enum bounds
 - ✓ ByName() method converts string to enum
+- ✓ .Value property on enum instances returns ordinal value
 - ⚠ Enum boolean operations (or, and, xor) - TODO
 - ⚠ Enum-to-integer and integer-to-enum casts - TODO
 - ⚠ Implicit enum-to-integer conversion - TODO
@@ -2115,7 +2116,7 @@ PrintLn(TEnum.eTwo.Value);  // Qualified access works
 - 9.15.7: Boolean operators on enum types (or, and, xor for flags)
 - 9.15.8: Implicit conversion from enum to Integer in function calls
 - 9.15.9: Constant expressions in enum value assignments (e.g., Ord('A'))
-- 9.15.10: .Value property on enum instances
+- ~~9.15.10: .Value property on enum instances~~ ✓ DONE
 - 9.15.11: Additional edge cases (aliased enums, deprecation, names)
 
 **Testing**:
