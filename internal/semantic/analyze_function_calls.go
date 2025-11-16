@@ -585,6 +585,14 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			// For lazy parameters, check expression type but don't evaluate
 			// The expression will be passed as-is to the interpreter for deferred evaluation
 			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
+
+			// Task 9.10.2: Handle parameterless functions as implicit calls in lazy arguments
+			// When a function identifier (like GlobInc) is used as a lazy argument,
+			// treat it as an implicit call that will return the function's return type
+			if implicitType := a.getImplicitCallType(arg); implicitType != nil {
+				argType = implicitType
+			}
+
 			if argType != nil && !a.canAssign(argType, expectedType) {
 				a.addError("lazy argument %d to function '%s' has type %s, expected %s at %s",
 					i+1, funcIdent.Value, argType.String(), expectedType.String(),
@@ -601,6 +609,42 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 	}
 
+	return funcType.ReturnType
+}
+
+// getImplicitCallType checks if an expression is a parameterless function identifier
+// used as a lazy argument, and returns its implicit return type.
+// Task 9.10.2: Handle parameterless functions as implicit calls in lazy arguments.
+// When a function identifier (like GlobInc) is used as a lazy argument,
+// treat it as an implicit call that will return the function's return type.
+func (a *Analyzer) getImplicitCallType(arg ast.Expression) types.Type {
+	// Only process identifier expressions
+	ident, ok := arg.(*ast.Identifier)
+	if !ok {
+		return nil
+	}
+
+	// Resolve the identifier in the symbol table
+	sym, symOk := a.symbols.Resolve(ident.Value)
+	if !symOk {
+		return nil
+	}
+
+	// Check if the symbol is a function type
+	funcType, isFuncType := sym.Type.(*types.FunctionType)
+	if !isFuncType {
+		return nil
+	}
+
+	// Only handle parameterless functions
+	if len(funcType.Parameters) > 0 {
+		return nil
+	}
+
+	// Return the function's return type (or VOID for procedures)
+	if funcType.IsProcedure() {
+		return types.VOID
+	}
 	return funcType.ReturnType
 }
 
