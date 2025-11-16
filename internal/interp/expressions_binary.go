@@ -344,6 +344,11 @@ func (i *Interpreter) evalOrExpression(expr *ast.BinaryExpression) Value {
 // isFalsey checks if a value is considered "falsey" (default/zero value for its type).
 // Falsey values: 0 (integer), 0.0 (float), "" (empty string), false (boolean), nil, empty arrays.
 func isFalsey(val Value) bool {
+	// Task 9.4.4: Handle nil (from unassigned variants)
+	if val == nil {
+		return true
+	}
+
 	switch v := val.(type) {
 	case *IntegerValue:
 		return v.Value == 0
@@ -364,7 +369,8 @@ func isFalsey(val Value) bool {
 	case *ArrayValue:
 		return len(v.Elements) == 0
 	case *VariantValue:
-		// Unwrap variant and check inner value
+		// Task 9.4.4: Unwrap variant and check inner value
+		// If variant.Value is nil, the nil check above will return true
 		return isFalsey(v.Value)
 	default:
 		// Other types (objects, classes, etc.) are truthy if non-nil

@@ -917,6 +917,8 @@ just test
 
 **Estimate**: 4-5 hours
 
+**Status**: DONE
+
 **Implementation**:
 1. Add COALESCE token type if not present
 2. Parse `??` operator with correct precedence
