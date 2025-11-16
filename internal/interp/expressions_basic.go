@@ -45,8 +45,6 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 		}
 
 		// Return the value as-is
-		// Note: Auto-invoke of parameterless function pointers happens in ExpressionStatement,
-		// not here, to avoid breaking assignments like `pp := p` where p is a function pointer
 		return val
 	}
 
@@ -184,10 +182,19 @@ func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
 			}
 		}
 
-		// Always return a function pointer value
-		// The function pointer auto-invoke logic in evalIdentifier (lines 47-69) will
-		// handle calling it if needed (parameterless call as a statement)
-		// This allows function pointer assignments to work correctly
+		// Check if function has zero parameters
+		if len(fn.Parameters) == 0 {
+			// Auto-invoke the parameterless function/procedure
+			// This allows DWScript code like:
+			//   var n := GetTickCount;
+			//   if TestFlag then ...
+			// to work correctly (calling the function, not creating a pointer)
+			// For explicit function pointer creation, use @ syntax: var fp := @GetTickCount;
+			return i.callUserFunction(fn, []Value{})
+		}
+
+		// If function has parameters, it's being used as a value (function pointer)
+		// Create a function pointer value so it can be passed to higher-order functions
 		paramTypes := make([]types.Type, len(fn.Parameters))
 		for idx, param := range fn.Parameters {
 			if param.Type != nil {

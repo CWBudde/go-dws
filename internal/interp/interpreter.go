@@ -228,9 +228,10 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 			return val
 		}
 
-		// Auto-invoke parameterless function pointers
-		// In DWScript, bare identifiers that are function pointers with no parameters
-		// are automatically invoked when used as statements
+		// Auto-invoke parameterless function pointers stored in variables
+		// In DWScript, when a variable holds a function pointer with no parameters
+		// and is used as a statement, it's automatically invoked
+		// Example: var fp := @SomeProc; fp; // auto-invokes SomeProc
 		if funcPtr, isFuncPtr := val.(*FunctionPointerValue); isFuncPtr {
 			// Determine parameter count
 			paramCount := 0
